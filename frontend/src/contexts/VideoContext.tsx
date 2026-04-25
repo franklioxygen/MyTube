@@ -1,12 +1,13 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import React, { createContext, useContext, useMemo, useState } from 'react';
 import { Video } from '../types';
 import { api } from '../utils/apiClient';
 import { settingsQueryOptions } from '../utils/settingsQueries';
 import { useAuth } from './AuthContext';
 import { useLanguage } from './LanguageContext';
 import { useSnackbar } from './SnackbarContext';
-const MAX_SEARCH_RESULTS = 200; // Maximum number of search results to keep in memory
+import { useVideoMutations } from './video/useVideoMutations';
+import { useVideoSearch } from './video/useVideoSearch';
 
 interface VideoContextType {
     videos: Video[];
@@ -105,19 +106,6 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
-    // Search state
-    const [searchResults, setSearchResults] = useState<any[]>([]);
-    const [localSearchResults, setLocalSearchResults] = useState<Video[]>([]);
-    const [isSearchMode, setIsSearchMode] = useState<boolean>(false);
-    const [searchTerm, setSearchTerm] = useState<string>('');
-    const [youtubeLoading, setYoutubeLoading] = useState<boolean>(false);
-    const [loadingMore, setLoadingMore] = useState<boolean>(false);
-
-    // Reference to the current search request's abort controller
-    const searchAbortController = useRef<AbortController | null>(null);
-    // Reference to track if load more request is in progress (prevents race conditions)
-    const loadMoreInProgress = useRef<boolean>(false);
-
     // Wrapper for refetch to match interface
     const fetchVideos = async () => {
         await refetchVideos();
@@ -134,213 +122,28 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         });
     };
 
-    const deleteVideoMutation = useMutation({
-        mutationFn: async ({ id }: { id: string; options?: { showSnackbar?: boolean } }) => {
-            await api.delete(`/videos/${id}`);
-            return id;
-        },
-        onSuccess: (id, variables) => {
-            queryClient.setQueryData(['videos'], (old: Video[] | undefined) =>
-                old ? old.filter(video => video.id !== id) : []
-            );
-            if (variables.options?.showSnackbar !== false) {
-                showSnackbar(t('videoRemovedSuccessfully'));
-            }
-        },
-        onError: (error) => {
-            console.error('Error deleting video:', error);
-        }
-    });
+    const {
+        deleteVideo,
+        deleteVideos,
+        refreshThumbnail,
+        uploadThumbnail,
+        updateVideo,
+        incrementView,
+    } = useVideoMutations({ queryClient, showSnackbar, t });
 
-    const deleteVideo = async (id: string, options?: { showSnackbar?: boolean }) => {
-        try {
-            await deleteVideoMutation.mutateAsync({ id, options });
-            return { success: true };
-        } catch {
-            return { success: false, error: t('failedToDeleteVideo') };
-        }
-    };
-
-    const deleteVideos = async (ids: string[]) => {
-        try {
-            // Delete videos sequentially to avoid overwhelming the server
-            // or we could implement a batch delete API endpoint if available, but for now loop client-side
-            let successCount = 0;
-            let failCount = 0;
-
-            for (const id of ids) {
-                try {
-                    await deleteVideoMutation.mutateAsync({ id, options: { showSnackbar: false } });
-                    successCount++;
-                } catch (error) {
-                    console.error(`Failed to delete video ${id}:`, error);
-                    failCount++;
-                }
-            }
-
-            if (failCount === 0) {
-                showSnackbar(t('deleteFilteredVideosSuccess', { count: successCount }));
-                return { success: true };
-            } else {
-                showSnackbar(`${t('deleteFilteredVideosSuccess', { count: successCount })} (${failCount} failed)`);
-                return { success: failCount === 0 }; // Consider partial success as success? strict: fail if any fail
-            }
-        } catch {
-            return { success: false, error: t('failedToDeleteVideo') };
-        }
-    };
-
-    const searchLocalVideos = (query: string) => {
-        if (!query || !videos.length) return [];
-
-        // Normalize query: lowercase, trim, split by whitespace
-        const terms = query.toLowerCase().trim().split(/\s+/).filter(t => t.length > 0);
-
-        if (terms.length === 0) return videos;
-
-        return videos.filter(video => {
-            // Prepare searchable text
-            // We join all searchable fields into one large string for easy checking
-            // You can optimize this by checking fields individually if performance becomes an issue
-            const searchableText = [
-                video.title,
-                video.author,
-                video.description || '', // Description might be undefined
-                ...(video.tags || [])
-            ].join(' ').toLowerCase();
-
-            // Check if ALL terms are present (AND logic)
-            return terms.every(term => searchableText.includes(term));
-        });
-    };
-
-    const resetSearch = () => {
-        if (searchAbortController.current) {
-            searchAbortController.current.abort();
-            searchAbortController.current = null;
-        }
-        loadMoreInProgress.current = false;
-        setIsSearchMode(false);
-        setSearchTerm('');
-        setSearchResults([]);
-        setLocalSearchResults([]);
-        setYoutubeLoading(false);
-        setLoadingMore(false);
-    };
-
-    const handleSearch = async (query: string): Promise<any> => {
-        if (!query || query.trim() === '') {
-            resetSearch();
-            return { success: false, error: t('pleaseEnterSearchTerm') };
-        }
-
-        try {
-            if (searchAbortController.current) {
-                searchAbortController.current.abort();
-            }
-
-            searchAbortController.current = new AbortController();
-            const signal = searchAbortController.current.signal;
-            loadMoreInProgress.current = false; // Reset load more state for new search
-
-            setIsSearchMode(true);
-            setSearchTerm(query);
-
-            const localResults = searchLocalVideos(query);
-            setLocalSearchResults(localResults);
-
-            // Only search YouTube if showYoutubeSearch is enabled
-            if (showYoutubeSearch) {
-                setYoutubeLoading(true);
-
-                try {
-                    const response = await api.get('/search', {
-                        params: { query },
-                        signal: signal
-                    });
-
-                    if (!signal.aborted) {
-                        // Limit search results to prevent memory issues
-                        const results = response.data.results || [];
-                        setSearchResults(results.slice(0, MAX_SEARCH_RESULTS));
-                    }
-                } catch (youtubeErr: any) {
-                    if (youtubeErr.name !== 'CanceledError' && youtubeErr.name !== 'AbortError') {
-                        console.error('Error searching YouTube:', youtubeErr);
-                    }
-                } finally {
-                    if (!signal.aborted) {
-                        setYoutubeLoading(false);
-                    }
-                }
-            } else {
-                // Clear any existing YouTube results when disabled
-                setSearchResults([]);
-                setYoutubeLoading(false);
-            }
-
-            return { success: true };
-        } catch (err: any) {
-            if (err.name !== 'CanceledError' && err.name !== 'AbortError') {
-                console.error('Error in search process:', err);
-                const localResults = searchLocalVideos(query);
-                if (localResults.length > 0) {
-                    setLocalSearchResults(localResults);
-                    setIsSearchMode(true);
-                    setSearchTerm(query);
-                    return { success: true };
-                }
-                return { success: false, error: t('failedToSearch') };
-            }
-            return { success: false, error: t('searchCancelled') };
-        }
-    };
-
-    const loadMoreSearchResults = async (): Promise<void> => {
-        // Use ref check first to prevent race conditions (immediate, synchronous check)
-        if (!searchTerm || loadMoreInProgress.current || loadingMore || !showYoutubeSearch) return;
-
-        // Don't load more if we've reached the maximum
-        if (searchResults.length >= MAX_SEARCH_RESULTS) {
-            return;
-        }
-
-        try {
-            // Set both state and ref to prevent concurrent requests
-            loadMoreInProgress.current = true;
-            setLoadingMore(true);
-
-            const currentCount = searchResults.length;
-            const limit = 8;
-            const offset = currentCount + 1;
-
-            const response = await api.get('/search', {
-                params: {
-                    query: searchTerm,
-                    limit,
-                    offset
-                }
-            });
-
-            if (response.data.results && response.data.results.length > 0) {
-                setSearchResults(prev => {
-                    // Create a Set of existing IDs for fast lookup
-                    const existingIds = new Set(prev.map(result => result.id));
-                    // Filter out duplicates by ID
-                    const newResults = response.data.results.filter((result: any) => !existingIds.has(result.id));
-                    // Only append new, non-duplicate results, up to MAX_SEARCH_RESULTS
-                    const combined = [...prev, ...newResults];
-                    return combined.slice(0, MAX_SEARCH_RESULTS);
-                });
-            }
-        } catch (error) {
-            console.error('Error loading more results:', error);
-            showSnackbar(t('failedToSearch'));
-        } finally {
-            loadMoreInProgress.current = false;
-            setLoadingMore(false);
-        }
-    };
+    const {
+        searchResults,
+        localSearchResults,
+        isSearchMode,
+        searchTerm,
+        youtubeLoading,
+        loadingMore,
+        searchLocalVideos,
+        handleSearch,
+        resetSearch,
+        setIsSearchMode,
+        loadMoreSearchResults,
+    } = useVideoSearch({ showSnackbar, showYoutubeSearch, t, videos });
 
     const handleTagToggle = (tag: string) => {
         setSelectedTags(prev =>
@@ -348,148 +151,6 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 ? prev.filter(t => t !== tag)
                 : [...prev, tag]
         );
-    };
-
-    // Cleanup search on unmount
-    useEffect(() => {
-        return () => {
-            if (searchAbortController.current) {
-                searchAbortController.current.abort();
-                searchAbortController.current = null;
-            }
-        };
-    }, []);
-
-    const refreshThumbnailMutation = useMutation({
-        mutationFn: async (id: string) => {
-            const response = await api.post(`/videos/${id}/refresh-thumbnail`);
-            return { id, data: response.data };
-        },
-        onSuccess: ({ id, data }) => {
-            if (data.success) {
-                queryClient.setQueryData(['videos'], (old: Video[] | undefined) =>
-                    old ? old.map(video => {
-                        if (video.id !== id) return video;
-                        const thumbnailUrl = data.thumbnailUrl;
-                        const thumbnailPath = typeof thumbnailUrl === 'string'
-                            ? thumbnailUrl.split('?')[0]
-                            : thumbnailUrl;
-                        return { ...video, thumbnailUrl, thumbnailPath };
-                    }) : []
-                );
-                showSnackbar(t('thumbnailRefreshed'));
-            }
-        },
-        onError: (error) => {
-            console.error('Error refreshing thumbnail:', error);
-        }
-    });
-
-    const refreshThumbnail = async (id: string) => {
-        try {
-            const result = await refreshThumbnailMutation.mutateAsync(id);
-            if (result.data.success) {
-                return { success: true };
-            }
-            return { success: false, error: t('thumbnailRefreshFailed') };
-        } catch {
-            return { success: false, error: t('thumbnailRefreshFailed') };
-        }
-    };
-
-    const uploadThumbnailMutation = useMutation({
-        mutationFn: async ({ id, file }: { id: string; file: File }) => {
-            const formData = new FormData();
-            formData.append('thumbnail', file);
-            const response = await api.post(`/videos/${id}/upload-thumbnail`, formData, {
-                headers: { 'Content-Type': 'multipart/form-data' },
-            });
-            return { id, data: response.data };
-        },
-        onSuccess: ({ id, data }) => {
-            if (data.success) {
-                queryClient.setQueryData(['videos'], (old: Video[] | undefined) =>
-                    old ? old.map(video => {
-                        if (video.id !== id) return video;
-                        const thumbnailUrl = data.thumbnailUrl;
-                        const thumbnailPath = typeof thumbnailUrl === 'string'
-                            ? thumbnailUrl.split('?')[0]
-                            : thumbnailUrl;
-                        return { ...video, thumbnailUrl, thumbnailPath };
-                    }) : []
-                );
-                showSnackbar(t('thumbnailUploaded') || 'Thumbnail uploaded');
-            }
-        },
-        onError: (error: any) => {
-            console.error('Error uploading thumbnail:', error);
-        }
-    });
-
-    const uploadThumbnail = async (id: string, file: File): Promise<void> => {
-        await uploadThumbnailMutation.mutateAsync({ id, file });
-    };
-
-    const updateVideoMutation = useMutation({
-        mutationFn: async ({ id, updates }: { id: string; updates: Partial<Video> }) => {
-            const response = await api.put(`/videos/${id}`, updates);
-            return { id, updates, data: response.data };
-        },
-        onSuccess: ({ id, updates, data }) => {
-            if (data.success) {
-                // Update the videos list query
-                queryClient.setQueryData(['videos'], (old: Video[] | undefined) =>
-                    old ? old.map(video =>
-                        video.id === id ? { ...video, ...updates } : video
-                    ) : []
-                );
-                // Also update the individual video query if it exists
-                queryClient.setQueryData(['video', id], (old: Video | undefined) =>
-                    old ? { ...old, ...updates } : old
-                );
-                showSnackbar(t('videoUpdated'));
-            }
-        },
-        onError: (error) => {
-            console.error('Error updating video:', error);
-        }
-    });
-
-    const updateVideo = async (id: string, updates: Partial<Video>) => {
-        try {
-            const result = await updateVideoMutation.mutateAsync({ id, updates });
-            if (result.data.success) {
-                return { success: true };
-            }
-            return { success: false, error: t('videoUpdateFailed') };
-        } catch {
-            return { success: false, error: t('videoUpdateFailed') };
-        }
-    };
-
-    const incrementView = async (id: string) => {
-        try {
-            const res = await api.post(`/videos/${id}/view`);
-            if (res.data.success) {
-                const lastPlayedAt = Date.now();
-                queryClient.setQueryData(['videos'], (old: Video[] | undefined) =>
-                    old ? old.map(video =>
-                        video.id === id
-                            ? { ...video, viewCount: res.data.viewCount, lastPlayedAt }
-                            : video
-                    ) : []
-                );
-                // Also update individual video query if it exists
-                queryClient.setQueryData(['video', id], (old: Video | undefined) =>
-                    old ? { ...old, viewCount: res.data.viewCount, lastPlayedAt } : old
-                );
-                return { success: true };
-            }
-            return { success: false, error: 'Failed to increment view' };
-        } catch (error) {
-            console.error('Error incrementing view count:', error);
-            return { success: false, error: 'Failed to increment view' };
-        }
     };
 
     return (

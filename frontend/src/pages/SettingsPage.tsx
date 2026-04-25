@@ -1,43 +1,19 @@
 
 import {
-    FindInPage
-} from '@mui/icons-material';
-import {
     Alert,
     Box,
     Button,
     Container,
-    CircularProgress,
-    Grid,
     Snackbar,
-    Tab,
-    Tabs,
     Typography,
     useMediaQuery,
     useTheme
 } from '@mui/material';
-import TextField from '@mui/material/TextField';
 import { useMutation } from '@tanstack/react-query';
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import CollapsibleSection from '../components/CollapsibleSection';
 import ConfirmationModal from '../components/ConfirmationModal';
-import AdvancedSettings from '../components/Settings/AdvancedSettings';
-import BasicSettings from '../components/Settings/BasicSettings';
-import CloudDriveSettings from '../components/Settings/CloudDriveSettings';
-import CloudflareSettings from '../components/Settings/CloudflareSettings';
-import CookieSettings from '../components/Settings/CookieSettings';
-import DatabaseSettings from '../components/Settings/DatabaseSettings';
 import DeploymentSecurityDetailsModal from '../components/Settings/DeploymentSecurityDetailsModal';
-import DownloadSettings from '../components/Settings/DownloadSettings';
-import HookSettings from '../components/Settings/HookSettings';
-import InterfaceDisplaySettings from '../components/Settings/InterfaceDisplaySettings';
-import RssFeedSettings from '../components/Settings/RssFeedSettings';
-import SecuritySettings from '../components/Settings/SecuritySettings';
-import TagsSettings from '../components/Settings/TagsSettings';
-import TwitchSettings from '../components/Settings/TwitchSettings';
-import VideoDefaultSettings from '../components/Settings/VideoDefaultSettings';
-import YtDlpSettings from '../components/Settings/YtDlpSettings';
 import { useAuth } from '../contexts/AuthContext';
 import { useDownload } from '../contexts/DownloadContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -53,6 +29,7 @@ import { SNACKBAR_AUTO_HIDE_DURATION } from '../utils/constants';
 import { getTwitchCredentialValidationCode } from '../utils/twitch';
 import { createTranslateOrFallback } from '../utils/translateOrFallback';
 import { Language } from '../utils/translations';
+import { SettingsSections } from './settings/SettingsSections';
 
 const SettingsPage: React.FC = () => {
     const { t, setLanguage } = useLanguage();
@@ -152,17 +129,6 @@ const SettingsPage: React.FC = () => {
     const deploymentSecurityDetailsTitle = translateOrFallback(
         'deploymentSecurityDetailsTitle',
         'Deployment Security Details',
-    );
-    const renderDeploymentSecurityDetailsButton = (ariaLabel: string) => (
-        <Button
-            variant="text"
-            size="small"
-            onClick={() => setShowTrustDetailsModal(true)}
-            aria-label={ariaLabel}
-            sx={{ minWidth: 0, p: 0, ml: 0.5, verticalAlign: 'baseline', textTransform: 'none' }}
-        >
-            {translateOrFallback('deploymentSecurityDetails', 'Details')}
-        </Button>
     );
 
     const triggerGlow = () => {
@@ -414,419 +380,6 @@ const SettingsPage: React.FC = () => {
         scanMountDirectoriesMutation.mutate({ directories, mountDirectoriesText });
     };
 
-    // Content renderers for each section (used by both desktop and mobile views)
-    const renderBasicSettingsContent = () => (
-        <BasicSettings
-            language={settings.language}
-            theme={settings.theme}
-            showThemeButton={settings.showThemeButton}
-            websiteName={settings.websiteName}
-            onChange={(field, value) => handleChange(field as keyof Settings, value)}
-        />
-    );
-
-    const renderInterfaceDisplayContent = () => (
-        <InterfaceDisplaySettings
-            itemsPerPage={settings.itemsPerPage}
-            showYoutubeSearch={settings.showYoutubeSearch}
-            infiniteScroll={settings.infiniteScroll}
-            videoColumns={settings.videoColumns}
-            playSoundOnTaskComplete={settings.playSoundOnTaskComplete}
-            defaultSort={settings.defaultSort}
-            showTagsOnThumbnail={settings.showTagsOnThumbnail}
-            onChange={(field, value) => handleChange(field as keyof Settings, value)}
-        />
-    );
-
-    const renderDeploymentSecuritySummary = () => {
-        const renderDetailsLink = () => renderDeploymentSecurityDetailsButton(deploymentSecurityDetailsTitle);
-
-        if (!deploymentSecurity || !adminTrustLevel) {
-            return (
-                <Alert severity="info">
-                    <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
-                        {translateOrFallback('deploymentSecurityTitle', 'Deployment Security Model')}
-                    </Typography>
-                    <Typography variant="body2">
-                        {translateOrFallback(
-                            'deploymentSecurityLoading',
-                            'Deployment security policy is loading. Restricted features remain hidden until the policy is available.'
-                        )}
-                        {renderDetailsLink()}
-                    </Typography>
-                </Alert>
-            );
-        }
-
-        const levelLabels: Record<AdminTrustLevel, string> = {
-            application: translateOrFallback('adminTrustLevelApplication', 'Application'),
-            container: translateOrFallback('adminTrustLevelContainer', 'Container'),
-            host: translateOrFallback('adminTrustLevelHost', 'Host'),
-        };
-        const levelDescriptions: Record<AdminTrustLevel, string> = {
-            application: translateOrFallback(
-                'adminTrustLevelApplicationDescription',
-                'Admin is trusted at the application layer only.'
-            ),
-            container: translateOrFallback(
-                'adminTrustLevelContainerDescription',
-                'Admin is trusted with backend/container-process-level actions.'
-            ),
-            host: translateOrFallback(
-                'adminTrustLevelHostDescription',
-                'Admin is trusted with host-scoped administrative actions.'
-            ),
-        };
-
-        return (
-            <Alert severity={adminTrustLevel === 'application' ? 'success' : 'info'}>
-                <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
-                    {translateOrFallback('deploymentSecurityTitle', 'Deployment Security Model')}
-                </Typography>
-                <Typography variant="body2" sx={{ mb: 0.5 }}>
-                    {translateOrFallback('adminTrustLevelLabel', 'Admin Trust Level')}: {levelLabels[adminTrustLevel]}
-                </Typography>
-                <Typography variant="body2">
-                    {levelDescriptions[adminTrustLevel]}
-                    {renderDetailsLink()}
-                </Typography>
-            </Alert>
-        );
-    };
-
-    const renderSecurityAccessContent = () => (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            {renderDeploymentSecuritySummary()}
-            <SecuritySettings
-                settings={settings}
-                onChange={handleChange}
-            />
-            <CookieSettings
-                onSuccess={(msg) => setMessage({ text: msg, type: 'success' })}
-                onError={(msg) => setMessage({ text: msg, type: 'error' })}
-            />
-            <CloudflareSettings
-                enabled={settings.cloudflaredTunnelEnabled}
-                token={settings.cloudflaredToken}
-                allowedHosts={settings.allowedHosts}
-                onChange={(field, value) => handleChange(field as keyof Settings, value)}
-            />
-            <RssFeedSettings />
-        </Box>
-    );
-
-    const renderVideoPlaybackContent = () => (
-        <VideoDefaultSettings
-            settings={settings}
-            onChange={handleChange}
-        />
-    );
-
-    const renderDownloadStorageContent = () => (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            <Box>
-                <Typography variant="h6" gutterBottom>{t('downloadSettings')}</Typography>
-                <DownloadSettings
-                    settings={settings}
-                    onChange={handleChange}
-                    activeDownloadsCount={activeDownloads.length}
-                    onCleanup={() => setShowCleanupTempFilesModal(true)}
-                    isSaving={isSaving}
-                />
-            </Box>
-            <Box>
-                <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>{t('cloudDriveSettings')}</Typography>
-                <CloudDriveSettings
-                    settings={settings}
-                    onChange={handleChange}
-                />
-            </Box>
-            <Box>
-                <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>{t('ytDlpConfiguration') || 'yt-dlp Configuration'}</Typography>
-                {canUseContainerAdminFeatures ? (
-                    <YtDlpSettings
-                        config={settings.ytDlpConfig || ''}
-                        proxyOnlyYoutube={settings.proxyOnlyYoutube || false}
-                        onChange={(config) => handleChange('ytDlpConfig', config)}
-                        onProxyOnlyYoutubeChange={(checked) => handleChange('proxyOnlyYoutube', checked)}
-                    />
-                ) : (
-                    <Alert severity="info">
-                        {translateOrFallback(
-                            'ytDlpConfigurationPolicyNotice',
-                            'Raw yt-dlp configuration is disabled by deployment security policy in application trust mode.'
-                        )}
-                        {renderDeploymentSecurityDetailsButton(
-                            `${deploymentSecurityDetailsTitle}: ${translateOrFallback('ytDlpConfiguration', 'yt-dlp Configuration')}`
-                        )}
-                    </Alert>
-                )}
-            </Box>
-            <Box>
-                <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
-                    {t('twitchSubscriptions') || 'Twitch Subscriptions'}
-                </Typography>
-                <TwitchSettings
-                    twitchClientId={settings.twitchClientId}
-                    twitchClientSecret={settings.twitchClientSecret}
-                    onChange={(field, value) => handleChange(field as keyof Settings, value)}
-                />
-            </Box>
-        </Box>
-    );
-
-    const renderMountDirectories = () => (
-        <Box sx={{ maxWidth: 400 }}>
-            <Typography variant="h6" sx={{ mb: 2 }}>
-                {t('mountDirectories')}
-            </Typography>
-            {canUseHostAdminFeatures ? (
-                <>
-                    <TextField
-                        fullWidth
-                        multiline
-                        rows={4}
-                        value={settings.mountDirectories || ''}
-                        onChange={(e) => handleChange('mountDirectories' as keyof Settings, e.target.value)}
-                        placeholder={t('mountDirectoriesPlaceholder')}
-                        helperText={t('mountDirectoriesHelper')}
-                    />
-                    <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
-                        <Button
-                            variant="outlined"
-                            startIcon={<FindInPage />}
-                            onClick={handleScanMountDirectories}
-                            disabled={scanMountDirectoriesMutation.isPending}
-                        >
-                            {scanMountDirectoriesMutation.isPending ? (t('scanning') || 'Scanning...') : (t('scanFiles') || 'Scan Files')}
-                        </Button>
-                    </Box>
-                </>
-            ) : (
-                <Alert severity="info">
-                    {translateOrFallback(
-                        'mountDirectoriesPolicyNotice',
-                        'Mount directories require host-level admin trust.'
-                    )}
-                    {renderDeploymentSecurityDetailsButton(
-                        `${deploymentSecurityDetailsTitle}: ${translateOrFallback('mountDirectories', 'Mount Directories')}`
-                    )}
-                </Alert>
-            )}
-        </Box>
-    );
-
-    const renderTmdbApiKey = () => (
-        <Box sx={{ maxWidth: 400 }}>
-            <Typography variant="h6" sx={{ mb: 2 }}>
-                {t('tmdbApiKey')}
-            </Typography>
-            <TextField
-                fullWidth
-                value={settings.tmdbApiKey || ''}
-                onChange={(e) => handleChange('tmdbApiKey' as keyof Settings, e.target.value)}
-                type="password"
-                helperText={t('tmdbApiKeyHelper')}
-                placeholder="Enter your TMDB API key"
-            />
-            <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
-                <Button
-                    variant="outlined"
-                    startIcon={tmdbCredentialTesting ? <CircularProgress size={16} /> : <FindInPage />}
-                    onClick={handleTestTMDBCredential}
-                    disabled={!settings.tmdbApiKey?.trim() || tmdbCredentialTesting}
-                >
-                    {tmdbCredentialTesting
-                        ? translateOrFallback('testing', 'Testing...')
-                        : translateOrFallback('testTmdbCredential', 'Test Credential')}
-                </Button>
-            </Box>
-            {tmdbCredentialTestResult && (
-                <Alert
-                    severity={tmdbCredentialTestResult.type === 'success' ? 'success' : 'error'}
-                    onClose={() => setTmdbCredentialTestResult(null)}
-                    sx={{ mt: 2 }}
-                >
-                    {tmdbCredentialTestResult.message}
-                </Alert>
-            )}
-        </Box>
-    );
-
-    const renderContentManagementContent = () => (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            <TagsSettings
-                tags={Array.isArray(settings.tags) ? settings.tags : []}
-                onTagsChange={handleTagsChange}
-                onRenameTag={handleRenameTag}
-                onTagConflict={() => setMessage({ text: t('tagConflictCaseInsensitive'), type: 'error' })}
-                isRenaming={renameTagMutation.isPending}
-            />
-            {renderMountDirectories()}
-            {renderTmdbApiKey()}
-        </Box>
-    );
-
-    const renderDataManagementContent = () => (
-        <DatabaseSettings
-            onMigrate={() => setShowMigrateConfirmModal(true)}
-            onDeleteLegacy={() => setShowDeleteLegacyModal(true)}
-            onFormatFilenames={() => setShowFormatConfirmModal(true)}
-            onExportDatabase={handleExportDatabase}
-            onImportDatabase={handleImportDatabase}
-            onPreviewMergeDatabase={handlePreviewMergeDatabase}
-            onMergeDatabase={handleMergeDatabase}
-            onCleanupBackupDatabases={handleCleanupBackupDatabases}
-            onRestoreFromLastBackup={handleRestoreFromLastBackup}
-            isSaving={isSaving}
-            lastBackupInfo={lastBackupInfo}
-            moveSubtitlesToVideoFolder={settings.moveSubtitlesToVideoFolder || false}
-            onMoveSubtitlesToVideoFolderChange={(checked) => handleChange('moveSubtitlesToVideoFolder', checked)}
-            moveThumbnailsToVideoFolder={settings.moveThumbnailsToVideoFolder || false}
-            onMoveThumbnailsToVideoFolderChange={(checked) => handleChange('moveThumbnailsToVideoFolder', checked)}
-            saveAuthorFilesToCollection={settings.saveAuthorFilesToCollection || false}
-            onSaveAuthorFilesToCollectionChange={(checked) => handleChange('saveAuthorFilesToCollection', checked)}
-        />
-    );
-
-    const renderAdvancedContent = () => (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            <AdvancedSettings
-                debugMode={debugMode}
-                onDebugModeChange={setDebugMode}
-                telegramEnabled={settings.telegramEnabled}
-                telegramBotToken={settings.telegramBotToken}
-                telegramChatId={settings.telegramChatId}
-                telegramNotifyOnSuccess={settings.telegramNotifyOnSuccess}
-                telegramNotifyOnFail={settings.telegramNotifyOnFail}
-                onChange={handleChange}
-            />
-            {canUseContainerAdminFeatures ? (
-                <HookSettings
-                    settings={settings}
-                    onChange={handleChange}
-                />
-            ) : (
-                <Alert severity="info">
-                    {translateOrFallback(
-                        'taskHooksPolicyNotice',
-                        'Task hooks are disabled by deployment security policy in application trust mode.'
-                    )}
-                    {renderDeploymentSecurityDetailsButton(
-                        `${deploymentSecurityDetailsTitle}: ${translateOrFallback('taskHooks', 'Task Hooks')}`
-                    )}
-                </Alert>
-            )}
-        </Box>
-    );
-
-    // Helper function to render settings sections for mobile view
-    const renderSettingsSections = () => (
-        <>
-            {/* 1. Basic Settings */}
-            <Grid size={12}>
-                <CollapsibleSection title={t('basicSettings')} defaultExpanded={true}>
-                    {renderBasicSettingsContent()}
-                </CollapsibleSection>
-            </Grid>
-
-            {/* 2. Interface & Display */}
-            {!isVisitor && (
-                <Grid size={12}>
-                    <CollapsibleSection title={t('interfaceDisplay')} defaultExpanded={false}>
-                        {renderInterfaceDisplayContent()}
-                    </CollapsibleSection>
-                </Grid>
-            )}
-
-            {/* 3. Security & Access */}
-            {!isVisitor && (
-                <Grid size={12}>
-                    <CollapsibleSection title={t('securityAccess')} defaultExpanded={false}>
-                        {renderSecurityAccessContent()}
-                    </CollapsibleSection>
-                </Grid>
-            )}
-
-            {!isVisitor && (
-                <>
-                    {/* 4. Video Playback */}
-                    <Grid size={12}>
-                        <CollapsibleSection title={t('videoPlayback')} defaultExpanded={false}>
-                            {renderVideoPlaybackContent()}
-                        </CollapsibleSection>
-                    </Grid>
-
-                    {/* 5. Download & Storage */}
-                    <Grid size={12}>
-                        <CollapsibleSection title={t('downloadStorage')} defaultExpanded={false}>
-                            {renderDownloadStorageContent()}
-                        </CollapsibleSection>
-                    </Grid>
-
-                    {/* 6. Content Management */}
-                    <Grid size={12}>
-                        <CollapsibleSection title={t('contentManagement')} defaultExpanded={false}>
-                            {renderContentManagementContent()}
-                        </CollapsibleSection>
-                    </Grid>
-
-                    {/* 7. Data Management */}
-                    <Grid size={12}>
-                        <CollapsibleSection title={t('dataManagement')} defaultExpanded={false}>
-                            {renderDataManagementContent()}
-                        </CollapsibleSection>
-                    </Grid>
-
-                    {/* 8. Advanced */}
-                    <Grid size={12}>
-                        <CollapsibleSection title={t('advanced')} defaultExpanded={false}>
-                            {renderAdvancedContent()}
-                        </CollapsibleSection>
-                    </Grid>
-                </>
-            )}
-        </>
-    );
-
-    // Build tabs array (only non-visitor tabs after first)
-    const tabs = [
-        { label: t('basicSettings'), index: 0 },
-        ...(!isVisitor ? [
-            { label: t('interfaceDisplay'), index: 1 },
-            { label: t('securityAccess'), index: 2 },
-            { label: t('videoPlayback'), index: 3 },
-            { label: t('downloadStorage'), index: 4 },
-            { label: t('contentManagement'), index: 5 },
-            { label: t('dataManagement'), index: 6 },
-            { label: t('advanced'), index: 7 }
-        ] : [])
-    ];
-
-    const renderDesktopTabContent = () => {
-        if (currentTab === 0) return renderBasicSettingsContent();
-        if (isVisitor) return null;
-
-        switch (currentTab) {
-            case 1:
-                return renderInterfaceDisplayContent();
-            case 2:
-                return renderSecurityAccessContent();
-            case 3:
-                return renderVideoPlaybackContent();
-            case 4:
-                return renderDownloadStorageContent();
-            case 5:
-                return renderContentManagementContent();
-            case 6:
-                return renderDataManagementContent();
-            case 7:
-                return renderAdvancedContent();
-            default:
-                return null;
-        }
-    };
-
     return (
         <Container maxWidth="lg" sx={{ py: 4 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
@@ -835,33 +388,48 @@ const SettingsPage: React.FC = () => {
                 </Typography>
             </Box>
 
-            {/* Desktop: Tabs View */}
-            {isDesktop ? (
-                <Box sx={{ mx: -3 }}>
-                    <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3, px: 3 }}>
-                        <Tabs
-                            value={currentTab}
-                            onChange={(_, newValue) => setCurrentTab(newValue)}
-                            variant="scrollable"
-                            scrollButtons="auto"
-                            aria-label="settings tabs"
-                            sx={{ minHeight: 48 }}
-                        >
-                            {tabs.map((tabItem) => (
-                                <Tab key={tabItem.index} label={tabItem.label} value={tabItem.index} />
-                            ))}
-                        </Tabs>
-                    </Box>
-                    <Box sx={{ py: 3, px: 3 }}>
-                        {renderDesktopTabContent()}
-                    </Box>
-                </Box>
-            ) : (
-                /* Mobile: Collapsible Sections View */
-                <Grid container spacing={2}>
-                    {renderSettingsSections()}
-                </Grid>
-            )}
+            <SettingsSections
+                activeDownloadsCount={activeDownloads.length}
+                adminTrustLevel={adminTrustLevel}
+                canUseContainerAdminFeatures={canUseContainerAdminFeatures}
+                canUseHostAdminFeatures={canUseHostAdminFeatures}
+                currentTab={currentTab}
+                debugMode={debugMode}
+                deploymentSecurity={deploymentSecurity}
+                deploymentSecurityDetailsTitle={deploymentSecurityDetailsTitle}
+                isDesktop={isDesktop}
+                isSaving={isSaving}
+                isVisitor={isVisitor}
+                lastBackupInfo={lastBackupInfo}
+                onCleanupBackupDatabases={handleCleanupBackupDatabases}
+                onCleanupTempFiles={() => setShowCleanupTempFilesModal(true)}
+                onDeleteLegacy={() => setShowDeleteLegacyModal(true)}
+                onExportDatabase={handleExportDatabase}
+                onFormatFilenames={() => setShowFormatConfirmModal(true)}
+                onImportDatabase={handleImportDatabase}
+                onMergeDatabase={handleMergeDatabase}
+                onMigrate={() => setShowMigrateConfirmModal(true)}
+                onPreviewMergeDatabase={handlePreviewMergeDatabase}
+                onRestoreFromLastBackup={handleRestoreFromLastBackup}
+                onScanMountDirectories={handleScanMountDirectories}
+                onSettingsChange={handleChange}
+                onShowTrustDetails={() => setShowTrustDetailsModal(true)}
+                onTagConflict={() => setMessage({ text: t('tagConflictCaseInsensitive'), type: 'error' })}
+                onTagsChange={handleTagsChange}
+                onRenameTag={handleRenameTag}
+                renameTagPending={renameTagMutation.isPending}
+                scanMountDirectoriesPending={scanMountDirectoriesMutation.isPending}
+                setCurrentTab={setCurrentTab}
+                setDebugMode={setDebugMode}
+                setMessage={setMessage}
+                setTmdbCredentialTestResult={setTmdbCredentialTestResult}
+                settings={settings}
+                t={t}
+                testTmdbCredential={handleTestTMDBCredential}
+                tmdbCredentialTesting={tmdbCredentialTesting}
+                tmdbCredentialTestResult={tmdbCredentialTestResult}
+                translateOrFallback={translateOrFallback}
+            />
 
 
             {/* Save Button */}
