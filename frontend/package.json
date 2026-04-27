@@ -20,7 +20,7 @@
     "@simplewebauthn/browser": "^13.2.2",
     "@tanstack/react-query": "^5.90.20",
     "@tanstack/react-query-devtools": "^5.91.1",
-    "axios": "^1.15.0",
+    "axios": "^1.15.2",
     "dotenv": "^16.4.7",
     "framer-motion": "^12.29.0",
     "react": "^19.2.3",
