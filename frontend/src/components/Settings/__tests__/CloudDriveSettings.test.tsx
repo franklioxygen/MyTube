@@ -28,6 +28,30 @@ vi.mock('../../ConfirmationModal', () => ({
 // Mock axios
 vi.mock('axios');
 
+// Mock apiClient module so the streaming sync helper is controllable in tests
+vi.mock('../../../utils/apiClient', () => ({
+    api: {
+        delete: vi.fn().mockResolvedValue({ data: { success: true } }),
+    },
+    fetchCloudSyncWithCsrf: vi.fn(),
+}));
+
+import { fetchCloudSyncWithCsrf } from '../../../utils/apiClient';
+
+const makeSyncResponse = (lines: object[]) => ({
+    ok: true,
+    body: {
+        getReader: () => {
+            const chunks = lines.map(
+                (l) => ({ done: false as const, value: new TextEncoder().encode(JSON.stringify(l) + '\n') })
+            );
+            const reads = [...chunks, { done: true as const, value: undefined }];
+            let i = 0;
+            return { read: vi.fn().mockImplementation(() => Promise.resolve(reads[i++])) };
+        },
+    },
+});
+
 describe('CloudDriveSettings', () => {
     const defaultSettings: Settings = {
         cloudDriveEnabled: true,
@@ -65,19 +89,7 @@ describe('CloudDriveSettings', () => {
     it('should validate API URL format', async () => {
         render(<CloudDriveSettings settings={{ ...defaultSettings, openListApiUrl: 'invalid-url' }} onChange={mockOnChange} />);
 
-        // This relies on the component rendering the error message based on the invalid prop passed
-        // The component validates props immediately on render
-        // Check for error helper text if rendered locally
-        // Looking at the code: const apiUrlError = ...
-        // So we might need to find the error message.
-        // Actually, MUI helperText usually renders.
-        // The validation logic is inside the component render body.
-
         await waitFor(() => {
-            // We can check if invalid-url causes "Invalid URL format" or similar if the component shows it.
-            // The mock t returns key.
-            // We can assume validateApiUrl returns 'URL must start with http:// or https://' or 'URL should end with /api/fs/put'
-            // 'invalid-url' fails 'http' check.
             expect(screen.getByLabelText(/apiUrl/i)).toBeInvalid();
         });
     });
@@ -118,30 +130,48 @@ describe('CloudDriveSettings', () => {
 
     it('should handle sync flow', async () => {
         const user = userEvent.setup();
-        // Mock global fetch for sync
-        global.fetch = vi.fn().mockResolvedValue({
-            ok: true,
-            body: {
-                getReader: () => ({
-                    read: vi.fn()
-                        .mockResolvedValueOnce({ done: false, value: new TextEncoder().encode(JSON.stringify({ type: 'progress', current: 1, total: 2 }) + '\n') })
-                        .mockResolvedValueOnce({ done: false, value: new TextEncoder().encode(JSON.stringify({ type: 'complete', report: { total: 2, uploaded: 2, failed: 0, errors: [] } }) + '\n') })
-                        .mockResolvedValueOnce({ done: true })
-                })
-            }
-        } as any);
+        vi.mocked(fetchCloudSyncWithCsrf).mockResolvedValue(makeSyncResponse([
+            { type: 'progress', current: 1, total: 2 },
+            { type: 'complete', report: { total: 2, uploaded: 2, failed: 0, errors: [] } },
+        ]) as any);
 
         render(<CloudDriveSettings settings={defaultSettings} onChange={mockOnChange} />);
 
-        // Click Sync button to open modal
         await user.click(screen.getByText('sync'));
-
-        // Confirm in modal
         expect(screen.getByTestId('confirmation-modal')).toBeInTheDocument();
         await user.click(screen.getByText('Confirm'));
 
         await waitFor(() => {
-            expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/cloud/sync'), expect.any(Object));
+            expect(vi.mocked(fetchCloudSyncWithCsrf)).toHaveBeenCalledWith(
+                expect.objectContaining({ method: 'POST' })
+            );
         });
+
+        await waitFor(() => {
+            expect(screen.getByText('syncCompleted')).toBeInTheDocument();
+        });
+    });
+
+    it('should use the cloud sync helper (not raw fetch) to protect sync against CSRF', async () => {
+        const user = userEvent.setup();
+        const rawFetch = vi.fn();
+        global.fetch = rawFetch;
+
+        vi.mocked(fetchCloudSyncWithCsrf).mockResolvedValue(makeSyncResponse([
+            { type: 'complete', report: { total: 0, uploaded: 0, failed: 0, errors: [] } },
+        ]) as any);
+
+        render(<CloudDriveSettings settings={defaultSettings} onChange={mockOnChange} />);
+        await user.click(screen.getByText('sync'));
+        await user.click(screen.getByText('Confirm'));
+
+        await waitFor(() => {
+            expect(vi.mocked(fetchCloudSyncWithCsrf)).toHaveBeenCalledWith(
+                expect.objectContaining({ method: 'POST' })
+            );
+        });
+
+        // Raw fetch must not be called directly — CSRF protection would be bypassed
+        expect(rawFetch).not.toHaveBeenCalled();
     });
 });

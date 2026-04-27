@@ -123,6 +123,41 @@ export const ensureCsrfToken = async (
 };
 
 /**
+ * Wrapper around native fetch that injects the CSRF token and session cookies.
+ * Use instead of raw fetch() for state-changing requests that need streaming responses.
+ */
+const buildCloudSyncRequestUrl = (): string => {
+  const baseURL = API_URL.replace(/\/$/, "");
+  const requestUrl = `${baseURL}/cloud/sync`;
+
+  if (requestUrl.startsWith("/")) {
+    return new URL(requestUrl, globalThis.location.origin).toString();
+  }
+
+  return requestUrl;
+};
+
+export const fetchCloudSyncWithCsrf = async (
+  init: RequestInit = {}
+): Promise<Response> => {
+  await ensureCsrfToken();
+  const headers = new Headers(init.headers);
+  if (csrfToken) {
+    headers.set("X-CSRF-Token", csrfToken);
+  }
+
+  // Fixed internal endpoint; the URL is not user-controlled.
+  // nosemgrep
+  const request = new Request(buildCloudSyncRequestUrl(), {
+    ...init,
+    credentials: "include",
+    headers,
+  });
+
+  return fetch(request);
+};
+
+/**
  * Type-safe API response wrapper
  */
 export interface ApiResponse<T = any> {
