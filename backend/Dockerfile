@@ -135,7 +135,7 @@ COPY backend/entrypoint.sh /usr/local/bin/mytube-entrypoint.sh
 COPY backend/scripts ./scripts
 COPY backend/vendor ./vendor
 RUN chmod +x /usr/local/bin/mytube-entrypoint.sh \
-    && npm ci --only=production
+    && npm ci --omit=dev
 
 # Copy built artifacts from builder
 COPY --from=builder /app/dist ./dist
