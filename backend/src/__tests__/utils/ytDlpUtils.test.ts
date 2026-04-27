@@ -121,11 +121,33 @@ const flushAsyncSpawns = async () => {
   await new Promise((resolve) => setImmediate(resolve));
 };
 
+const getSpawnArgsForUrl = (url: string, occurrence: number = 0): string[] => {
+  const matchingCalls = vi.mocked(spawn).mock.calls.filter(([, args]) =>
+    Array.isArray(args) && args.includes(url)
+  );
+  const call = matchingCalls[occurrence];
+  if (!call) {
+    throw new Error(`Expected spawn call for ${url}`);
+  }
+  return call[1] as string[];
+};
+
+const createMissingFileError = (): NodeJS.ErrnoException =>
+  Object.assign(new Error("File not found"), { code: "ENOENT" });
+
+const validNetscapeCookies =
+  "# Netscape HTTP Cookie File\n.youtube.com\tTRUE\t/\tFALSE\t0\tPREF\tf4=4000000\n";
+
 describe("ytDlpUtils", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resetYtDlpAvailabilityCacheForTests();
     vi.mocked(fs.existsSync).mockReturnValue(false);
+    vi.mocked(fs.readFileSync).mockReturnValue(validNetscapeCookies);
+    vi.mocked(fs.statSync).mockImplementation(() => {
+      throw createMissingFileError();
+    });
+    vi.mocked(fs.writeFileSync).mockImplementation(() => undefined);
     vi.mocked(storageService.getSettings).mockReturnValue({});
     vi.mocked(getProviderScript).mockReturnValue("");
     delete process.env.YT_DLP_JS_RUNTIME;
@@ -443,6 +465,11 @@ describe("ytDlpUtils", () => {
       vi.mocked(fs.existsSync).mockImplementation((target: any) =>
         String(target).endsWith(path.join("data", "cookies.txt"))
       );
+      vi.mocked(fs.statSync).mockReturnValue({
+        mtimeMs: 1,
+        size: validNetscapeCookies.length,
+      } as any);
+      vi.mocked(fs.readFileSync).mockReturnValue(validNetscapeCookies);
 
       const promise = executeYtDlpJson("https://www.youtube.com/watch?v=abc", {
         format: "best",
@@ -458,12 +485,70 @@ describe("ytDlpUtils", () => {
         title: "video",
       });
 
-      const args = vi.mocked(spawn).mock.calls[3][1] as string[];
+      const args = getSpawnArgsForUrl("https://www.youtube.com/watch?v=abc");
       expect(args).toContain("--dump-single-json");
       expect(args).toContain("--js-runtimes");
       expect(args).toContain("deno");
       expect(args).toContain("--cookies");
       expect(args.filter((arg) => arg === "--no-warnings")).toHaveLength(1);
+    });
+
+    it("should convert an existing Cookie header file before passing cookies", async () => {
+      const proc = createMockProcess();
+      mockSpawnWithVersionHelpAndDenoCheck("plural", proc);
+      vi.mocked(fs.existsSync).mockImplementation((target: any) =>
+        String(target).endsWith(path.join("data", "cookies.txt"))
+      );
+      const cookieHeader = "VISITOR_INFO1_LIVE=abc; PREF=f4=4000000";
+      vi.mocked(fs.statSync).mockReturnValue({
+        mtimeMs: 1,
+        size: cookieHeader.length,
+      } as any);
+      vi.mocked(fs.readFileSync).mockReturnValue(cookieHeader);
+
+      const promise = executeYtDlpJson("https://www.youtube.com/watch?v=abc");
+      await flushAsyncSpawns();
+
+      proc.stdout?.emit("data", Buffer.from('{"ok":true}'));
+      proc.emit("close", 0);
+
+      await expect(promise).resolves.toEqual({ ok: true });
+
+      expect(fs.writeFileSync).toHaveBeenCalledWith(
+        expect.stringContaining("cookies.txt"),
+        expect.stringContaining(
+          ".youtube.com\tTRUE\t/\tFALSE\t0\tVISITOR_INFO1_LIVE\tabc"
+        ),
+        "utf8"
+      );
+      const args = getSpawnArgsForUrl("https://www.youtube.com/watch?v=abc");
+      expect(args).toContain("--cookies");
+    });
+
+    it("should ignore unsupported existing cookies instead of passing them to yt-dlp", async () => {
+      const proc = createMockProcess();
+      mockSpawnWithVersionCheck(proc);
+      vi.mocked(fs.existsSync).mockImplementation((target: any) =>
+        String(target).endsWith(path.join("data", "cookies.txt"))
+      );
+      const unsupportedContent = "cookie-data";
+      vi.mocked(fs.statSync).mockReturnValue({
+        mtimeMs: 1,
+        size: unsupportedContent.length,
+      } as any);
+      vi.mocked(fs.readFileSync).mockReturnValue(unsupportedContent);
+
+      const promise = executeYtDlpJson("https://example.com/video");
+      await flushAsyncSpawns();
+
+      proc.stdout?.emit("data", Buffer.from('{"ok":true}'));
+      proc.emit("close", 0);
+
+      await expect(promise).resolves.toEqual({ ok: true });
+
+      const args = getSpawnArgsForUrl("https://example.com/video");
+      expect(args).not.toContain("--cookies");
+      expect(fs.writeFileSync).not.toHaveBeenCalled();
     });
 
     it("should preprocess xvideos.red urls before spawning", async () => {
@@ -476,7 +561,7 @@ describe("ytDlpUtils", () => {
       proc.emit("close", 0);
       await promise;
 
-      const args = vi.mocked(spawn).mock.calls[1][1] as string[];
+      const args = getSpawnArgsForUrl("https://xvideos.com/video/123");
       expect(args[args.length - 1]).toContain("xvideos.com/video/123");
     });
 
@@ -499,7 +584,7 @@ describe("ytDlpUtils", () => {
 
       await expect(promise).resolves.toEqual({ ok: true });
 
-      const secondArgs = vi.mocked(spawn).mock.calls[2][1] as string[];
+      const secondArgs = getSpawnArgsForUrl("https://example.com/video", 1);
       expect(secondArgs).not.toContain("--format");
       expect(secondArgs).not.toContain("--format-sort");
       expect(secondArgs).toContain("https://example.com/video");
@@ -520,7 +605,7 @@ describe("ytDlpUtils", () => {
       second.emit("close", 0);
 
       await expect(promise).resolves.toEqual({ fallback: true });
-      const secondArgs = vi.mocked(spawn).mock.calls[2][1] as string[];
+      const secondArgs = getSpawnArgsForUrl("https://example.com/video", 1);
       expect(secondArgs).toContain("--ignore-config");
       expect(secondArgs).not.toContain("--format");
     });
@@ -538,7 +623,7 @@ describe("ytDlpUtils", () => {
       proc.emit("close", 0);
 
       await expect(promise).resolves.toEqual({ ok: true });
-      const args = vi.mocked(spawn).mock.calls[3][1] as string[];
+      const args = getSpawnArgsForUrl("https://www.youtube.com/watch?v=abc");
       const extractorArgsIndex = args.indexOf("--extractor-args");
       expect(extractorArgsIndex).toBeGreaterThan(-1);
       expect(args[extractorArgsIndex + 1]).toContain(
@@ -562,7 +647,7 @@ describe("ytDlpUtils", () => {
       proc.emit("close", 0);
 
       await expect(promise).resolves.toEqual({ ok: true });
-      const args = vi.mocked(spawn).mock.calls[3][1] as string[];
+      const args = getSpawnArgsForUrl("https://www.youtube.com/watch?v=abc");
       const extractorArgsIndex = args.indexOf("--extractor-args");
       expect(extractorArgsIndex).toBeGreaterThan(-1);
       expect(args[extractorArgsIndex + 1]).toContain("youtube:max_comments=20");
@@ -588,7 +673,7 @@ describe("ytDlpUtils", () => {
       proc.emit("close", 0);
 
       await expect(promise).resolves.toEqual({ ok: true });
-      const args = vi.mocked(spawn).mock.calls[3][1] as string[];
+      const args = getSpawnArgsForUrl("https://www.youtube.com/watch?v=abc");
       const extractorArgsIndex = args.indexOf("--extractor-args");
       expect(extractorArgsIndex).toBeGreaterThan(-1);
       expect(args[extractorArgsIndex + 1]).toBe(
@@ -609,7 +694,7 @@ describe("ytDlpUtils", () => {
       proc.emit("close", 0);
 
       await expect(promise).resolves.toEqual({ ok: true });
-      const args = vi.mocked(spawn).mock.calls[3][1] as string[];
+      const args = getSpawnArgsForUrl("https://www.youtube.com/watch?v=abc");
       expect(args.filter((arg) => arg === "--extractor-args")).toHaveLength(1);
       const extractorArgsIndex = args.indexOf("--extractor-args");
       expect(args[extractorArgsIndex + 1]).toBe(
@@ -666,7 +751,7 @@ describe("ytDlpUtils", () => {
       proc.emit("close", 0);
 
       await expect(promise).resolves.toEqual({ ok: true });
-      const args = vi.mocked(spawn).mock.calls[3][1] as string[];
+      const args = getSpawnArgsForUrl("https://www.youtube.com/watch?v=abc");
       expect(args).toContain("--js-runtimes");
       expect(args).toContain("deno");
       expect(args).not.toContain("node");
@@ -683,7 +768,7 @@ describe("ytDlpUtils", () => {
       proc.emit("close", 0);
 
       await expect(promise).resolves.toEqual({ ok: true });
-      const args = vi.mocked(spawn).mock.calls[2][1] as string[];
+      const args = getSpawnArgsForUrl("https://www.youtube.com/watch?v=abc");
       expect(args).toContain("--js-runtimes");
       expect(args).toContain("node");
       expect(args).not.toContain("deno");
@@ -700,7 +785,7 @@ describe("ytDlpUtils", () => {
       proc.emit("close", 0);
 
       await expect(promise).resolves.toEqual({ ok: true });
-      const args = vi.mocked(spawn).mock.calls[2][1] as string[];
+      const args = getSpawnArgsForUrl("https://www.youtube.com/watch?v=abc");
       expect(args).toContain("--js-runtime");
       expect(args).toContain("node");
       expect(args).not.toContain("--js-runtimes");
@@ -718,7 +803,7 @@ describe("ytDlpUtils", () => {
       proc.emit("close", 0);
 
       await expect(promise).resolves.toEqual({ ok: true });
-      const args = vi.mocked(spawn).mock.calls[2][1] as string[];
+      const args = getSpawnArgsForUrl("https://www.youtube.com/watch?v=abc");
       expect(args).not.toContain("--js-runtime");
       expect(args).not.toContain("--js-runtimes");
       expect(args).not.toContain("deno");
@@ -751,7 +836,7 @@ describe("ytDlpUtils", () => {
       ytProc.emit("close", 0);
 
       await expect(promise).resolves.toEqual({ ok: true });
-      const args = vi.mocked(spawn).mock.calls[3][1] as string[];
+      const args = getSpawnArgsForUrl("https://www.youtube.com/watch?v=abc");
       expect(args).toContain("--js-runtimes");
       expect(args).toContain("node");
       expect(warnSpy).toHaveBeenCalledWith(
@@ -772,7 +857,7 @@ describe("ytDlpUtils", () => {
       proc.emit("close", 0);
 
       await expect(promise).resolves.toEqual({ ok: true });
-      const args = vi.mocked(spawn).mock.calls[3][1] as string[];
+      const args = getSpawnArgsForUrl("https://www.youtube.com/watch?v=abc");
       expect(args).toContain("--js-runtimes");
       expect(args).toContain("deno");
       expect(warnSpy).toHaveBeenCalledWith(
@@ -803,7 +888,7 @@ describe("ytDlpUtils", () => {
       ytProc.emit("close", 0);
 
       await expect(promise).resolves.toEqual({ ok: true });
-      const args = vi.mocked(spawn).mock.calls[3][1] as string[];
+      const args = getSpawnArgsForUrl("https://www.youtube.com/watch?v=abc");
       expect(args).toContain("--js-runtimes");
       expect(args).toContain("node");
       expect(warnSpy).toHaveBeenCalledWith(
@@ -836,7 +921,7 @@ describe("ytDlpUtils", () => {
       ytProc.emit("close", 0);
 
       await expect(promise).resolves.toEqual({ ok: true });
-      const args = vi.mocked(spawn).mock.calls[3][1] as string[];
+      const args = getSpawnArgsForUrl("https://www.youtube.com/watch?v=abc");
       expect(args).toContain("--js-runtimes");
       expect(args).toContain("node");
       expect(warnSpy).toHaveBeenCalledWith(
@@ -861,7 +946,7 @@ describe("ytDlpUtils", () => {
 
       await expect(promise).resolves.toBe("https://www.youtube.com/@channel");
 
-      const args = vi.mocked(spawn).mock.calls[3][1] as string[];
+      const args = getSpawnArgsForUrl("https://www.youtube.com/watch?v=abc");
       expect(args).toContain("--print");
       expect(args).toContain("channel_url");
       expect(args).toContain("--js-runtimes");

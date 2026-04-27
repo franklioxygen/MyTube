@@ -1,6 +1,10 @@
-import { DATA_DIR } from "../config/paths";
+import { COOKIES_FILENAME, DATA_DIR } from "../config/paths";
 import { NotFoundError, ValidationError } from "../errors/DownloadErrors";
 import { logger } from "../utils/logger";
+import {
+  UnsupportedCookieFormatError,
+  normalizeCookiesFileContent,
+} from "../utils/cookieFileFormat";
 import {
   ensureDirSafeSync,
   moveSafeSync,
@@ -10,7 +14,6 @@ import {
   writeFileSafeSync,
 } from "../utils/security";
 
-const COOKIES_FILENAME = "cookies.txt";
 const COOKIES_TEMP_FILENAME = "cookies.txt.tmp";
 const COOKIES_PATH = resolveSafeChildPath(DATA_DIR, COOKIES_FILENAME);
 const COOKIES_TEMP_PATH = resolveSafeChildPath(DATA_DIR, COOKIES_TEMP_FILENAME);
@@ -31,9 +34,19 @@ export function uploadCookies(fileBuffer: Buffer): void {
     throw new ValidationError("Invalid uploaded file", "file");
   }
 
+  let normalizedContent: string;
+  try {
+    normalizedContent = normalizeCookiesFileContent(fileBuffer.toString("utf8"));
+  } catch (error) {
+    if (error instanceof UnsupportedCookieFormatError) {
+      throw new ValidationError(error.message, "file");
+    }
+    throw error;
+  }
+
   try {
     ensureDirSafeSync(DATA_DIR, DATA_DIR);
-    writeFileSafeSync(COOKIES_TEMP_PATH, DATA_DIR, fileBuffer);
+    writeFileSafeSync(COOKIES_TEMP_PATH, DATA_DIR, normalizedContent, "utf8");
     moveSafeSync(COOKIES_TEMP_PATH, DATA_DIR, COOKIES_PATH, DATA_DIR, {
       overwrite: true,
     });
