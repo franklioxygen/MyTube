@@ -61,6 +61,28 @@ describe("cookieFileFormat", () => {
     expect(normalized).toContain(".media.example.com\tTRUE\t/\tFALSE\t0\tbaz\tqux");
   });
 
+  it("does not treat arbitrary host prefixes as YouTube or Bilibili domains", () => {
+    const youtubeLikeHost = normalizeCookiesFileContent(
+      "Host: evilyoutube.com\nCookie: VISITOR_INFO1_LIVE=abc"
+    );
+    const bilibiliLikeHost = normalizeCookiesFileContent(
+      "Host: evilbilibili.com\nCookie: SESSDATA=secret"
+    );
+
+    expect(youtubeLikeHost).toContain(
+      ".evilyoutube.com\tTRUE\t/\tFALSE\t0\tVISITOR_INFO1_LIVE\tabc"
+    );
+    expect(youtubeLikeHost).not.toContain(
+      ".youtube.com\tTRUE\t/\tFALSE\t0\tVISITOR_INFO1_LIVE\tabc"
+    );
+    expect(bilibiliLikeHost).toContain(
+      ".evilbilibili.com\tTRUE\t/\tFALSE\t0\tSESSDATA\tsecret"
+    );
+    expect(bilibiliLikeHost).not.toContain(
+      ".bilibili.com\tTRUE\t/\tFALSE\t0\tSESSDATA\tsecret"
+    );
+  });
+
   it("rejects unsupported content", () => {
     expect(() => normalizeCookiesFileContent("cookie-data")).toThrow(
       UnsupportedCookieFormatError

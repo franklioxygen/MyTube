@@ -120,6 +120,10 @@ function extractHost(content: string): string | null {
   }
 }
 
+function isHostOrSubdomain(host: string, domain: string): boolean {
+  return host === domain || host.endsWith(`.${domain}`);
+}
+
 function normalizeDomainFromHost(host: string): string | null {
   const normalizedHost = host
     .trim()
@@ -131,10 +135,10 @@ function normalizeDomainFromHost(host: string): string | null {
     return null;
   }
 
-  if (normalizedHost.endsWith("youtube.com")) {
+  if (isHostOrSubdomain(normalizedHost, "youtube.com")) {
     return ".youtube.com";
   }
-  if (normalizedHost.endsWith("bilibili.com")) {
+  if (isHostOrSubdomain(normalizedHost, "bilibili.com")) {
     return ".bilibili.com";
   }
 
