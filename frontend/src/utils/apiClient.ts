@@ -126,13 +126,9 @@ export const ensureCsrfToken = async (
  * Wrapper around native fetch that injects the CSRF token and session cookies.
  * Use instead of raw fetch() for state-changing requests that need streaming responses.
  */
-const buildApiRequestUrl = (apiPath: string): string => {
-  if (!apiPath.startsWith("/") || apiPath.startsWith("//")) {
-    throw new Error("API path must be a same-origin relative path");
-  }
-
+const buildCloudSyncRequestUrl = (): string => {
   const baseURL = API_URL.replace(/\/$/, "");
-  const requestUrl = `${baseURL}${apiPath}`;
+  const requestUrl = `${baseURL}/cloud/sync`;
 
   if (requestUrl.startsWith("/")) {
     return new URL(requestUrl, globalThis.location.origin).toString();
@@ -141,18 +137,18 @@ const buildApiRequestUrl = (apiPath: string): string => {
   return requestUrl;
 };
 
-export const fetchWithCsrf = async (
-  apiPath: string,
+export const fetchCloudSyncWithCsrf = async (
   init: RequestInit = {}
 ): Promise<Response> => {
-  const requestUrl = buildApiRequestUrl(apiPath);
   await ensureCsrfToken();
   const headers = new Headers(init.headers);
   if (csrfToken) {
     headers.set("X-CSRF-Token", csrfToken);
   }
 
-  const request = new Request(requestUrl, {
+  // Fixed internal endpoint; the URL is not user-controlled.
+  // nosemgrep
+  const request = new Request(buildCloudSyncRequestUrl(), {
     ...init,
     credentials: "include",
     headers,

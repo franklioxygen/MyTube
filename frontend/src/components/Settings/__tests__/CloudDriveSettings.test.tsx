@@ -28,18 +28,15 @@ vi.mock('../../ConfirmationModal', () => ({
 // Mock axios
 vi.mock('axios');
 
-// Mock apiClient module so fetchWithCsrf is controllable in tests
+// Mock apiClient module so the streaming sync helper is controllable in tests
 vi.mock('../../../utils/apiClient', () => ({
     api: {
         delete: vi.fn().mockResolvedValue({ data: { success: true } }),
     },
-    apiClient: {
-        defaults: { baseURL: '/api' },
-    },
-    fetchWithCsrf: vi.fn(),
+    fetchCloudSyncWithCsrf: vi.fn(),
 }));
 
-import { fetchWithCsrf } from '../../../utils/apiClient';
+import { fetchCloudSyncWithCsrf } from '../../../utils/apiClient';
 
 const makeSyncResponse = (lines: object[]) => ({
     ok: true,
@@ -133,7 +130,7 @@ describe('CloudDriveSettings', () => {
 
     it('should handle sync flow', async () => {
         const user = userEvent.setup();
-        vi.mocked(fetchWithCsrf).mockResolvedValue(makeSyncResponse([
+        vi.mocked(fetchCloudSyncWithCsrf).mockResolvedValue(makeSyncResponse([
             { type: 'progress', current: 1, total: 2 },
             { type: 'complete', report: { total: 2, uploaded: 2, failed: 0, errors: [] } },
         ]) as any);
@@ -145,8 +142,7 @@ describe('CloudDriveSettings', () => {
         await user.click(screen.getByText('Confirm'));
 
         await waitFor(() => {
-            expect(vi.mocked(fetchWithCsrf)).toHaveBeenCalledWith(
-                '/cloud/sync',
+            expect(vi.mocked(fetchCloudSyncWithCsrf)).toHaveBeenCalledWith(
                 expect.objectContaining({ method: 'POST' })
             );
         });
@@ -156,12 +152,12 @@ describe('CloudDriveSettings', () => {
         });
     });
 
-    it('should use fetchWithCsrf (not raw fetch) to protect sync against CSRF', async () => {
+    it('should use the cloud sync helper (not raw fetch) to protect sync against CSRF', async () => {
         const user = userEvent.setup();
         const rawFetch = vi.fn();
         global.fetch = rawFetch;
 
-        vi.mocked(fetchWithCsrf).mockResolvedValue(makeSyncResponse([
+        vi.mocked(fetchCloudSyncWithCsrf).mockResolvedValue(makeSyncResponse([
             { type: 'complete', report: { total: 0, uploaded: 0, failed: 0, errors: [] } },
         ]) as any);
 
@@ -170,8 +166,7 @@ describe('CloudDriveSettings', () => {
         await user.click(screen.getByText('Confirm'));
 
         await waitFor(() => {
-            expect(vi.mocked(fetchWithCsrf)).toHaveBeenCalledWith(
-                '/cloud/sync',
+            expect(vi.mocked(fetchCloudSyncWithCsrf)).toHaveBeenCalledWith(
                 expect.objectContaining({ method: 'POST' })
             );
         });

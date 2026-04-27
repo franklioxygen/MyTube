@@ -3,7 +3,7 @@ import { AxiosError, AxiosRequestConfig } from "axios";
 import api, {
   apiClient,
   ensureCsrfToken,
-  fetchWithCsrf,
+  fetchCloudSyncWithCsrf,
   getApiErrorMessage,
   getErrorMessage,
   getWaitTime,
@@ -158,7 +158,7 @@ describe("api wrappers", () => {
     getSpy.mockRestore();
   });
 
-  it("fetches with CSRF token and included credentials for streaming requests", async () => {
+  it("fetches cloud sync with CSRF token and included credentials", async () => {
     const responseHandlers = (apiClient.interceptors.response as any).handlers;
     const onResponseFulfilled = responseHandlers?.[0]?.fulfilled as
       | ((response: any) => any)
@@ -169,7 +169,7 @@ describe("api wrappers", () => {
       .spyOn(globalThis, "fetch")
       .mockResolvedValue({ ok: true } as Response);
 
-    await fetchWithCsrf("/cloud/sync", {
+    await fetchCloudSyncWithCsrf({
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -187,12 +187,6 @@ describe("api wrappers", () => {
     expect(request.headers.get("X-CSRF-Token")).toBe("csrf-fetch-123");
 
     fetchSpy.mockRestore();
-  });
-
-  it("rejects absolute URLs in fetchWithCsrf", async () => {
-    await expect(
-      fetchWithCsrf("https://example.com/api/cloud/sync", { method: "POST" })
-    ).rejects.toThrow("API path must be a same-origin relative path");
   });
 
   it("forwards GET calls with and without config", async () => {
