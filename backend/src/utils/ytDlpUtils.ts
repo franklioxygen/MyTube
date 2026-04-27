@@ -3,18 +3,25 @@ import path from "path";
 import { PassThrough } from "stream";
 import { SocksProxyAgent } from "socks-proxy-agent";
 import { isAdminTrustLevelAtLeast } from "../config/adminTrust";
-import { DATA_DIR } from "../config/paths";
+import { COOKIES_FILENAME, DATA_DIR } from "../config/paths";
 import { getProviderScript } from "../services/downloaders/ytdlp/ytdlpHelpers";
 import * as storageService from "../services/storageService";
 import { isBilibiliUrl, isYouTubeUrl } from "./helpers";
 import {
   moveSafeSync,
   pathExistsSafeSync,
+  readFileSafeSync,
   resolveSafeChildPath,
+  statSafeSync,
+  writeFileSafeSync,
 } from "./security";
+import {
+  UnsupportedCookieFormatError,
+  isValidNetscapeCookiesFile,
+  normalizeCookiesFileContent,
+} from "./cookieFileFormat";
 
 const YT_DLP_PATH = process.env.YT_DLP_PATH || "yt-dlp";
-const COOKIES_PATH = path.join(DATA_DIR, "cookies.txt");
 const YT_DLP_JS_RUNTIME_ENV = "YT_DLP_JS_RUNTIME";
 const DEFAULT_YOUTUBE_PLAYER_CLIENT_EXTRACTOR_ARG =
   "youtube:player_client=default,mweb";
@@ -25,18 +32,40 @@ const PROVIDER_SCRIPT_ARG_PREFIX = "youtubepot-bgutilscript:script_path=";
 let ytDlpAvailablePromise: Promise<void> | null = null;
 let denoAvailablePromise: Promise<boolean> | null = null;
 type YouTubeJsRuntimeFlag = "--js-runtime" | "--js-runtimes";
+type CookiesFileSignature = {
+  mtimeMs: number;
+  size: number;
+};
+type CookiesFileCache = CookiesFileSignature & {
+  path: string | null;
+};
 
 let jsRuntimeFlagPromise: Promise<YouTubeJsRuntimeFlag | null> | null = null;
 const runtimeWarningCache = new Set<string>();
+let cookiesFileCache: CookiesFileCache | null = null;
+
+function resolveCookiesPath(): string {
+  return resolveSafeChildPath(DATA_DIR, COOKIES_FILENAME);
+}
+
+function isMissingFileError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as NodeJS.ErrnoException).code === "ENOENT"
+  );
+}
 
 /**
- * @internal Test helper to reset internal availability cache between test cases.
+ * @internal Test helper to reset internal caches between test cases.
  */
 export function resetYtDlpAvailabilityCacheForTests(): void {
   ytDlpAvailablePromise = null;
   denoAvailablePromise = null;
   jsRuntimeFlagPromise = null;
   runtimeWarningCache.clear();
+  cookiesFileCache = null;
 }
 
 /**
@@ -194,14 +223,77 @@ function preprocessUrl(url: string): string {
   return url;
 }
 
-/**
- * Get cookies file path if it exists
- */
-function getCookiesPath(): string | null {
-  if (pathExistsSafeSync(COOKIES_PATH, DATA_DIR)) {
-    return COOKIES_PATH;
+function updateCookiesFileCacheFromDisk(
+  cookiesPath: string,
+  pathValue: string | null
+): void {
+  try {
+    const stats = statSafeSync(cookiesPath, DATA_DIR);
+    cookiesFileCache = {
+      mtimeMs: stats.mtimeMs,
+      size: stats.size,
+      path: pathValue,
+    };
+  } catch {
+    cookiesFileCache = null;
   }
-  return null;
+}
+
+/**
+ * Return the cookies file path after ensuring the file is usable by yt-dlp.
+ * Existing Cookie header files are converted in place for backward compatibility.
+ */
+function ensureCookiesFileIsNormalized(): string | null {
+  const cookiesPath = resolveCookiesPath();
+  let signature: CookiesFileSignature | null = null;
+  try {
+    const stats = statSafeSync(cookiesPath, DATA_DIR);
+    signature = { mtimeMs: stats.mtimeMs, size: stats.size };
+    if (
+      cookiesFileCache &&
+      cookiesFileCache.mtimeMs === signature.mtimeMs &&
+      cookiesFileCache.size === signature.size
+    ) {
+      return cookiesFileCache.path;
+    }
+
+    const content = readFileSafeSync(cookiesPath, DATA_DIR, "utf8");
+    if (isValidNetscapeCookiesFile(content)) {
+      cookiesFileCache = { ...signature, path: cookiesPath };
+      return cookiesPath;
+    }
+
+    const normalizedContent = normalizeCookiesFileContent(content);
+    writeFileSafeSync(cookiesPath, DATA_DIR, normalizedContent, "utf8");
+    updateCookiesFileCacheFromDisk(cookiesPath, cookiesPath);
+    console.warn(
+      "[yt-dlp] Converted cookies.txt from Cookie header format to Netscape format."
+    );
+    return cookiesPath;
+  } catch (error) {
+    if (error instanceof UnsupportedCookieFormatError) {
+      if (signature) {
+        // path=null means this exact file signature is known to be unparseable.
+        cookiesFileCache = { ...signature, path: null };
+      }
+      console.warn(
+        `[yt-dlp] Ignoring invalid cookies.txt: ${error.message}`
+      );
+      return null;
+    }
+
+    if (isMissingFileError(error)) {
+      cookiesFileCache = null;
+      return null;
+    }
+
+    cookiesFileCache = null;
+    console.warn(
+      "[yt-dlp] Unable to read cookies.txt; continuing without cookies.",
+      error
+    );
+    return null;
+  }
 }
 
 async function isDenoAvailable(): Promise<boolean> {
@@ -505,8 +597,8 @@ export async function executeYtDlpJson(
     ...flagsToArgs(jsonFlags),
   ];
 
-  // Add cookies if file exists
-  const cookiesPath = getCookiesPath();
+  // Add cookies after ensuring the file is in a yt-dlp-compatible format.
+  const cookiesPath = ensureCookiesFileIsNormalized();
   if (cookiesPath) {
     args.push("--cookies", cookiesPath);
   }
@@ -658,8 +750,8 @@ export async function getChannelUrlFromVideo(
     ...flagsToArgs(networkConfig),
   ];
 
-  // Add cookies if file exists
-  const cookiesPath = getCookiesPath();
+  // Add cookies after ensuring the file is in a yt-dlp-compatible format.
+  const cookiesPath = ensureCookiesFileIsNormalized();
   if (cookiesPath) {
     args.push("--cookies", cookiesPath);
   }
@@ -739,8 +831,8 @@ export async function downloadChannelAvatar(
     ...flagsToArgs(networkConfig),
   ];
 
-  // Add cookies if file exists
-  const cookiesPath = getCookiesPath();
+  // Add cookies after ensuring the file is in a yt-dlp-compatible format.
+  const cookiesPath = ensureCookiesFileIsNormalized();
   if (cookiesPath) {
     args.push("--cookies", cookiesPath);
   }
@@ -844,8 +936,8 @@ export function executeYtDlpSpawn(
   const url = preprocessUrl(rawUrl);
   const baseArgs = [...flagsToArgs(flags)];
 
-  // Add cookies if file exists
-  const cookiesPath = getCookiesPath();
+  // Add cookies after ensuring the file is in a yt-dlp-compatible format.
+  const cookiesPath = ensureCookiesFileIsNormalized();
   if (cookiesPath) {
     baseArgs.push("--cookies", cookiesPath);
   }
