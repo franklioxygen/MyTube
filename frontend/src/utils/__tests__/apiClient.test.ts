@@ -3,6 +3,7 @@ import { AxiosError, AxiosRequestConfig } from "axios";
 import api, {
   apiClient,
   ensureCsrfToken,
+  fetchWithCsrf,
   getApiErrorMessage,
   getErrorMessage,
   getWaitTime,
@@ -155,6 +156,37 @@ describe("api wrappers", () => {
       timeout: 5000,
     });
     getSpy.mockRestore();
+  });
+
+  it("fetches with CSRF token and included credentials for streaming requests", async () => {
+    const responseHandlers = (apiClient.interceptors.response as any).handlers;
+    const onResponseFulfilled = responseHandlers?.[0]?.fulfilled as
+      | ((response: any) => any)
+      | undefined;
+    onResponseFulfilled!({ headers: { "x-csrf-token": "csrf-fetch-123" } });
+
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue({ ok: true } as Response);
+
+    await fetchWithCsrf("/api/cloud/sync", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    const headers = new Headers(init.headers);
+
+    expect(url).toBe("/api/cloud/sync");
+    expect(init.method).toBe("POST");
+    expect(init.credentials).toBe("include");
+    expect(headers.get("Content-Type")).toBe("application/json");
+    expect(headers.get("X-CSRF-Token")).toBe("csrf-fetch-123");
+
+    fetchSpy.mockRestore();
   });
 
   it("forwards GET calls with and without config", async () => {

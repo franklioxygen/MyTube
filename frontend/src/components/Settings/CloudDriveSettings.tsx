@@ -3,7 +3,7 @@ import axios from 'axios';
 import React, { useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { Settings } from '../../types';
-import { api, apiClient } from '../../utils/apiClient';
+import { api, apiClient, fetchWithCsrf } from '../../utils/apiClient';
 import ConfirmationModal from '../ConfirmationModal';
 
 interface CloudDriveSettingsProps {
@@ -194,7 +194,7 @@ const CloudDriveSettings: React.FC<CloudDriveSettingsProps> = ({ settings, onCha
         setTestResult(null);
 
         try {
-            const response = await fetch(getApiRequestUrl('/cloud/sync'), {
+            const response = await fetchWithCsrf(getApiRequestUrl('/cloud/sync'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
