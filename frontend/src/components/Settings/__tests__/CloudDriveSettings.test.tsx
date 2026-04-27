@@ -146,7 +146,7 @@ describe('CloudDriveSettings', () => {
 
         await waitFor(() => {
             expect(vi.mocked(fetchWithCsrf)).toHaveBeenCalledWith(
-                expect.stringContaining('/cloud/sync'),
+                '/cloud/sync',
                 expect.objectContaining({ method: 'POST' })
             );
         });
@@ -171,7 +171,7 @@ describe('CloudDriveSettings', () => {
 
         await waitFor(() => {
             expect(vi.mocked(fetchWithCsrf)).toHaveBeenCalledWith(
-                expect.stringContaining('/cloud/sync'),
+                '/cloud/sync',
                 expect.objectContaining({ method: 'POST' })
             );
         });

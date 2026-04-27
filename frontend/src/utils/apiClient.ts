@@ -19,8 +19,6 @@ const API_URL = getApiUrl();
 // Stores the latest CSRF token received from the server
 let csrfToken: string | null = null;
 
-export const getCsrfToken = (): string | null => csrfToken;
-
 // Create axios instance with safe fallback for mocked test environments.
 const createdClient =
   typeof axios.create === "function"
@@ -128,21 +126,39 @@ export const ensureCsrfToken = async (
  * Wrapper around native fetch that injects the CSRF token and session cookies.
  * Use instead of raw fetch() for state-changing requests that need streaming responses.
  */
+const buildApiRequestUrl = (apiPath: string): string => {
+  if (!apiPath.startsWith("/") || apiPath.startsWith("//")) {
+    throw new Error("API path must be a same-origin relative path");
+  }
+
+  const baseURL = API_URL.replace(/\/$/, "");
+  const requestUrl = `${baseURL}${apiPath}`;
+
+  if (requestUrl.startsWith("/")) {
+    return new URL(requestUrl, globalThis.location.origin).toString();
+  }
+
+  return requestUrl;
+};
+
 export const fetchWithCsrf = async (
-  url: string,
+  apiPath: string,
   init: RequestInit = {}
 ): Promise<Response> => {
+  const requestUrl = buildApiRequestUrl(apiPath);
   await ensureCsrfToken();
   const headers = new Headers(init.headers);
   if (csrfToken) {
     headers.set("X-CSRF-Token", csrfToken);
   }
 
-  return fetch(url, {
+  const request = new Request(requestUrl, {
     ...init,
     credentials: "include",
     headers,
   });
+
+  return fetch(request);
 };
 
 /**
