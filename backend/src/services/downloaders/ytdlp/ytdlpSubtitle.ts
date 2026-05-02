@@ -35,12 +35,25 @@ class YtDlpDownloaderHelper extends BaseDownloader {
 }
 
 /**
- * Process subtitle files downloaded by yt-dlp
+ * Process subtitle files downloaded by yt-dlp.
+ *
+ * @param baseFilename - Stem used to identify subtitle files (without extension)
+ * @param downloadId - Active download ID for cancellation checks
+ * @param moveSubtitlesToVideoFolder - Whether to keep subtitles alongside the video
+ * @param videoSourceDir - Directory where yt-dlp wrote the subtitle files (default: VIDEOS_DIR).
+ *   For template-based downloads the video lives in a sub-directory; pass that dir so we scan
+ *   the right place.
+ * @param subtitleDestDir - Absolute destination directory for subtitle files (default: derived
+ *   from moveSubtitlesToVideoFolder).
+ * @param subtitleWebDir - Web path prefix for subtitle files (default: derived from flags).
  */
 export async function processSubtitles(
   baseFilename: string,
   downloadId?: string,
   moveSubtitlesToVideoFolder: boolean = false,
+  videoSourceDir?: string,
+  subtitleDestDir?: string,
+  subtitleWebDir?: string,
 ): Promise<Array<{ language: string; filename: string; path: string }>> {
   const subtitles: Array<{ language: string; filename: string; path: string }> =
     [];
@@ -50,6 +63,11 @@ export async function processSubtitles(
   );
 
   const downloader = new YtDlpDownloaderHelper();
+
+  // Resolve search and destination directories
+  const primarySearchDir = videoSourceDir || VIDEOS_DIR;
+  const resolvedDestDir = subtitleDestDir || (moveSubtitlesToVideoFolder ? VIDEOS_DIR : SUBTITLES_DIR);
+  const resolvedWebDir = subtitleWebDir || (moveSubtitlesToVideoFolder ? "/videos" : "/subtitles");
 
   try {
     const subtitleExtensions = new Set([
@@ -62,12 +80,15 @@ export async function processSubtitles(
       ".dfxp",
       ".sbv",
     ]);
-    const searchDirs = [VIDEOS_DIR, SUBTITLES_DIR];
+    // Search in primary dir (video dir) and also the legacy SUBTITLES_DIR fallback
+    const searchDirs = primarySearchDir === VIDEOS_DIR
+      ? [VIDEOS_DIR, SUBTITLES_DIR]
+      : [primarySearchDir, VIDEOS_DIR, SUBTITLES_DIR];
     const subtitleFiles: Array<{ dir: string; file: string }> = [];
     const seenFiles = new Set<string>();
 
     for (const dir of searchDirs) {
-      const files = readdirSafeSync(dir, dir).filter((file: string) => {
+      const files = readdirSafeSync(dir, [VIDEOS_DIR, SUBTITLES_DIR]).filter((file: string) => {
         const ext = path.extname(file).toLowerCase();
         return file.startsWith(baseFilename) && subtitleExtensions.has(ext);
       });
@@ -101,44 +122,30 @@ export async function processSubtitles(
       const language = langMatch ? langMatch[1] : "unknown";
       const extension = ext;
 
-      // Move subtitle to subtitles directory or keep in video directory if requested
+      // Move subtitle to destination directory
       const sourceSubPath = resolveSafeChildPath(dir, subtitleFile);
       const destSubFilename = `${baseFilename}.${language}${extension}`;
-      const destinationDir = moveSubtitlesToVideoFolder
-        ? VIDEOS_DIR
-        : SUBTITLES_DIR;
-      let destSubPath: string;
-      let webPath: string;
-
-      if (moveSubtitlesToVideoFolder) {
-        destSubPath = resolveSafeChildPath(VIDEOS_DIR, destSubFilename);
-        webPath = `/videos/${destSubFilename}`;
-      } else {
-        destSubPath = resolveSafeChildPath(SUBTITLES_DIR, destSubFilename);
-        webPath = `/subtitles/${destSubFilename}`;
-      }
+      const destinationDir = resolvedDestDir;
+      const destSubPath = resolveSafeChildPath(destinationDir, destSubFilename);
+      const webPath = `${resolvedWebDir}/${destSubFilename}`;
 
       if (extension.toLowerCase() === ".vtt") {
         // Read VTT file and fix alignment for centering
-        let vttContent = readFileSafeSync(sourceSubPath, dir, "utf-8");
+        let vttContent = readFileSafeSync(sourceSubPath, [VIDEOS_DIR, SUBTITLES_DIR], "utf-8");
         // Replace align:start with align:middle for centered subtitles
         // Also remove position:0% which forces left positioning
         vttContent = vttContent.replace(/ align:start/g, " align:middle");
         vttContent = vttContent.replace(/ position:0%/g, "");
 
         // Write cleaned VTT to destination
-        writeFileSafeSync(destSubPath, destinationDir, vttContent, "utf-8");
+        writeFileSafeSync(destSubPath, [VIDEOS_DIR, SUBTITLES_DIR], vttContent, "utf-8");
       } else if (sourceSubPath !== destSubPath) {
-        copyFileSafeSync(sourceSubPath, dir, destSubPath, destinationDir);
+        copyFileSafeSync(sourceSubPath, [VIDEOS_DIR, SUBTITLES_DIR], destSubPath, [VIDEOS_DIR, SUBTITLES_DIR]);
       }
 
       // Remove original file if we moved it (if dest is different from source)
-      // If moveSubtitlesToVideoFolder is true, destSubPath might be same as sourceSubPath
-      // but with different name (e.g. video_uuid.en.vtt vs video_uuid.vtt)
-      // Actually source is usually video_uuid.en.vtt (from yt-dlp) and dest is video_uuid.en.vtt
-      // So if names are same and dir is same, we're just overwriting in place, which is fine
       if (sourceSubPath !== destSubPath) {
-        unlinkSafeSync(sourceSubPath, dir);
+        unlinkSafeSync(sourceSubPath, [VIDEOS_DIR, SUBTITLES_DIR]);
       }
 
       logger.info(

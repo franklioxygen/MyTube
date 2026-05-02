@@ -87,7 +87,8 @@ export function deleteCollection(id: string): boolean {
 
 export function addVideoToCollection(
   collectionId: string,
-  videoId: string
+  videoId: string,
+  options?: { moveFiles?: boolean }
 ): Collection | null {
   const allCollections = getCollections();
 
@@ -113,20 +114,22 @@ export function addVideoToCollection(
   });
 
   if (collection) {
-    const video = getVideoById(videoId);
-    const collectionName = collection.name || collection.title;
+    const shouldMoveFiles = options?.moveFiles !== false;
+    if (shouldMoveFiles) {
+      const video = getVideoById(videoId);
+      const collectionName = collection.name || collection.title;
 
-    if (video && collectionName) {
-      // Use file manager to move all files to the new collection
-      // This will handle moving from the old collection directory (if any) to the new one
-      const updates = moveAllFilesToCollection(
-        video,
-        collectionName,
-        allCollections
-      );
+      if (video && collectionName) {
+        // Use file manager to move all files to the new collection
+        const updates = moveAllFilesToCollection(
+          video,
+          collectionName,
+          allCollections
+        );
 
-      if (Object.keys(updates).length > 0) {
-        updateVideo(videoId, updates);
+        if (Object.keys(updates).length > 0) {
+          updateVideo(videoId, updates);
+        }
       }
     }
   }

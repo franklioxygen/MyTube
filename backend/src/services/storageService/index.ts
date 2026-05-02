@@ -85,3 +85,6 @@ export {
 
 // File Helpers
 export { findImageFile, findVideoFile, moveFile } from "./fileHelpers";
+
+// Filename Template path helpers (re-exported for convenience)
+export { getManagedRelativePath, resolveManagedWebPath } from "../filenameTemplate/pathHelpers";

@@ -30,6 +30,7 @@ export interface VideoInfo {
 export interface DownloadOptions {
   downloadId?: string;
   onStart?: (cancel: () => void) => void;
+  filenameTemplateSourceOptions?: import("../filenameTemplate/types").FilenameTemplateSourceOptions;
   // Generic key-value store for specific downloader options
   [key: string]: any;
 }

@@ -2,6 +2,7 @@ import {
     Alert,
     Box,
     Button,
+    Divider,
     FormControl,
     FormControlLabel,
     MenuItem,
@@ -15,6 +16,7 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { Settings } from '../../types';
 import { PREFERRED_AUDIO_LANGUAGE_OPTIONS } from '../../utils/audioLanguages';
 import { VIDEO_CODEC_OPTIONS } from '../../utils/videoCodecs';
+import FilenameTemplateSettings from './FilenameTemplateSettings';
 
 interface DownloadSettingsProps {
     settings: Settings;
@@ -22,6 +24,7 @@ interface DownloadSettingsProps {
     activeDownloadsCount: number;
     onCleanup: () => void;
     isSaving: boolean;
+    savedSettings: Settings;
 }
 
 const DownloadSettings: React.FC<DownloadSettingsProps> = ({
@@ -29,7 +32,8 @@ const DownloadSettings: React.FC<DownloadSettingsProps> = ({
     onChange,
     activeDownloadsCount,
     onCleanup,
-    isSaving
+    isSaving,
+    savedSettings,
 }) => {
     const { t } = useLanguage();
 
@@ -133,6 +137,14 @@ const DownloadSettings: React.FC<DownloadSettingsProps> = ({
                     {t('defaultVideoCodecDescription')}
                 </Typography>
             </Box>
+
+            <Divider sx={{ my: 3 }} />
+
+            <FilenameTemplateSettings
+                settings={settings}
+                onChange={onChange}
+                savedSettings={savedSettings}
+            />
 
             <Box sx={{ mt: 3 }}>
                 <Typography variant="h6" gutterBottom>{t('cleanupTempFiles')}</Typography>

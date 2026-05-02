@@ -151,6 +151,8 @@ export const WHITELISTED_SETTINGS = [
   "telegramNotifyOnFail",
   "twitchClientId",
   "twitchClientSecret",
+  "downloadFilenamePresetId",
+  "downloadFilenameTemplate",
 ] as const;
 
 export interface SaveSettingsOptions {

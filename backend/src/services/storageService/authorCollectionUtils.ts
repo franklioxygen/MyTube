@@ -168,17 +168,22 @@ export function findOrCreateAuthorCollection(
 }
 
 /**
- * Adds a video to an author's collection if the setting is enabled
- * This function handles all the logic for organizing videos by author
+ * Adds a video to an author's collection if the setting is enabled.
+ * When downloadFilenamePresetId is not 'legacy', the file is NOT moved —
+ * only the collection membership record is created, because the template
+ * already owns the directory structure.
+ *
  * @param videoId - The ID of the video to add
  * @param authorName - The author name
  * @param saveAuthorFilesToCollection - Whether to save to author collection
+ * @param downloadFilenamePresetId - Current naming preset; non-legacy skips file moves
  * @returns The collection the video was added to, or null
  */
 export function addVideoToAuthorCollection(
   videoId: string,
   authorName: string | undefined,
-  saveAuthorFilesToCollection: boolean
+  saveAuthorFilesToCollection: boolean,
+  downloadFilenamePresetId?: string
 ): Collection | null {
   // Check if feature is enabled
   if (!saveAuthorFilesToCollection) {
@@ -201,11 +206,17 @@ export function addVideoToAuthorCollection(
       return null;
     }
 
-    // Add video to collection (this will move files)
-    const updatedCollection = addVideoToCollection(collection.id, videoId);
+    // For non-legacy naming modes the template already owns the directory structure.
+    // Only add the membership record; do not move files.
+    const isLegacy = !downloadFilenamePresetId || downloadFilenamePresetId === "legacy";
+    const updatedCollection = addVideoToCollection(collection.id, videoId, {
+      moveFiles: isLegacy,
+    });
 
     if (updatedCollection) {
-      logger.info(`Added video to author collection: ${authorName}`);
+      logger.info(
+        `Added video to author collection: ${authorName}${isLegacy ? " (with file move)" : " (membership only)"}`
+      );
       return updatedCollection;
     } else {
       logger.warn(

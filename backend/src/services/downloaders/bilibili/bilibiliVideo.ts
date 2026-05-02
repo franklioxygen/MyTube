@@ -4,6 +4,7 @@ import { DownloadCancelledError } from "../../../errors/DownloadErrors";
 import { downloadAndProcessAvatar } from "../../../utils/avatarUtils";
 import { formatBytes } from "../../../utils/downloadUtils";
 import { formatVideoFilename } from "../../../utils/helpers";
+import { FilenameTemplateSourceOptions } from "../../filenameTemplate/types";
 import { logger } from "../../../utils/logger";
 import { ProgressTracker } from "../../../utils/progressTracker";
 import {
@@ -480,7 +481,8 @@ export async function downloadSinglePart(
   seriesTitle: string,
   downloadId?: string,
   onStart?: (cancel: () => void) => void,
-  collectionName?: string
+  collectionName?: string,
+  filenameTemplateSourceOptions?: FilenameTemplateSourceOptions
 ): Promise<DownloadResult> {
   try {
     logger.info(
@@ -573,12 +575,7 @@ export async function downloadSinglePart(
     }
 
     // Rename files based on metadata using file manager
-    const {
-      newVideoPath,
-      newThumbnailPath,
-      finalVideoFilename,
-      finalThumbnailFilename,
-    } = renameFilesWithMetadata(
+    const renameResult = renameFilesWithMetadata(
       videoTitle,
       videoAuthor,
       videoDate,
@@ -587,8 +584,18 @@ export async function downloadSinglePart(
       thumbnailPath,
       thumbnailSaved,
       videoDir,
-      imageDir
+      imageDir,
+      {
+        settings,
+        filenameTemplateSourceOptions,
+      }
     );
+    const {
+      newVideoPath,
+      newThumbnailPath,
+      finalVideoFilename,
+      finalThumbnailFilename,
+    } = renameResult;
 
     // Get video duration and file size using metadata module
     const duration = await getVideoDuration(newVideoPath);
@@ -610,12 +617,11 @@ export async function downloadSinglePart(
     }
 
     // Download subtitles
-    // Get the base filename for subtitles (without extension)
-    const newSafeBaseFilename = formatVideoFilename(
-      videoTitle,
-      videoAuthor,
-      videoDate
-    );
+    // For non-legacy mode use planned subtitle paths; for legacy use formatVideoFilename
+    const isLegacyMode = (settings.downloadFilenamePresetId || "legacy") === "legacy";
+    const newSafeBaseFilename = isLegacyMode
+      ? formatVideoFilename(videoTitle, videoAuthor, videoDate)
+      : (renameResult.subtitleStem || formatVideoFilename(videoTitle, videoAuthor, videoDate));
 
     let subtitles: Array<{
       language: string;
@@ -624,18 +630,14 @@ export async function downloadSinglePart(
     }> = [];
     try {
       logger.info("Attempting to download subtitles...");
-      const subtitleDir = resolveSubtitleDirectory(
-        collectionName,
-        moveSubtitlesToVideoFolder,
-        videoDir
-      );
-      const subtitlePathPrefix = moveSubtitlesToVideoFolder
-        ? collectionName
-          ? `/videos/${collectionName}`
-          : `/videos`
-        : collectionName
-        ? `/subtitles/${collectionName}`
-        : `/subtitles`;
+      const subtitleDir = isLegacyMode
+        ? resolveSubtitleDirectory(collectionName, moveSubtitlesToVideoFolder, videoDir)
+        : (renameResult.subtitleBaseDir || resolveSubtitleDirectory(collectionName, moveSubtitlesToVideoFolder, videoDir));
+      const subtitlePathPrefix = isLegacyMode
+        ? (moveSubtitlesToVideoFolder
+            ? collectionName ? `/videos/${collectionName}` : `/videos`
+            : collectionName ? `/subtitles/${collectionName}` : `/subtitles`)
+        : (renameResult.subtitleWebBaseDir || (moveSubtitlesToVideoFolder ? `/videos` : `/subtitles`));
       let axiosConfig = {};
       if (userConfig.proxy) {
         try {
@@ -691,9 +693,9 @@ export async function downloadSinglePart(
       thumbnailFilename: thumbnailSaved ? finalThumbnailFilename : undefined,
       subtitles: subtitles.length > 0 ? subtitles : undefined,
       thumbnailUrl: thumbnailUrl || undefined,
-      videoPath: collectionName
+      videoPath: renameResult.videoWebPath || (collectionName
         ? `/videos/${collectionName}/${finalVideoFilename}`
-        : `/videos/${finalVideoFilename}`,
+        : `/videos/${finalVideoFilename}`),
       thumbnailPath: thumbnailWebPath,
       duration: duration,
       fileSize: fileSize,
@@ -753,9 +755,9 @@ export async function downloadSinglePart(
         const updatedVideo = storageService.updateVideo(existingVideo.id, {
           subtitles: subtitles.length > 0 ? subtitles : undefined,
           videoFilename: finalVideoFilename,
-          videoPath: collectionName
+          videoPath: renameResult.videoWebPath || (collectionName
             ? `/videos/${collectionName}/${finalVideoFilename}`
-            : `/videos/${finalVideoFilename}`,
+            : `/videos/${finalVideoFilename}`),
           thumbnailFilename: thumbnailSaved
             ? finalThumbnailFilename
             : existingVideo.thumbnailFilename,

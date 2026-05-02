@@ -41,7 +41,8 @@ export class YtDlpDownloader extends BaseDownloader {
     return YtDlpDownloader.downloadVideo(
       url,
       options?.downloadId,
-      options?.onStart
+      options?.onStart,
+      options?.filenameTemplateSourceOptions
     );
   }
 
@@ -49,8 +50,9 @@ export class YtDlpDownloader extends BaseDownloader {
   static async downloadVideo(
     videoUrl: string,
     downloadId?: string,
-    onStart?: (cancel: () => void) => void
+    onStart?: (cancel: () => void) => void,
+    filenameTemplateSourceOptions?: import("../filenameTemplate/types").FilenameTemplateSourceOptions
   ): Promise<Video> {
-    return downloadVideoFromModule(videoUrl, downloadId, onStart);
+    return downloadVideoFromModule(videoUrl, downloadId, onStart, filenameTemplateSourceOptions);
   }
 }

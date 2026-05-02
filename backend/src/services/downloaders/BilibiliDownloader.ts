@@ -2,6 +2,7 @@ import { SUBTITLES_DIR } from "../../config/paths";
 import { extractBilibiliVideoId } from "../../utils/helpers";
 import { Video } from "../storageService";
 import { BaseDownloader, DownloadOptions, VideoInfo } from "./BaseDownloader";
+import { FilenameTemplateSourceOptions } from "../filenameTemplate/types";
 import * as bilibiliApi from "./bilibili/bilibiliApi";
 import * as bilibiliCollection from "./bilibili/bilibiliCollection";
 import * as bilibiliCookie from "./bilibili/bilibiliCookie";
@@ -129,7 +130,8 @@ export class BilibiliDownloader extends BaseDownloader {
     seriesTitle: string,
     downloadId?: string,
     onStart?: (cancel: () => void) => void,
-    collectionName?: string
+    collectionName?: string,
+    filenameTemplateSourceOptions?: FilenameTemplateSourceOptions
   ): Promise<DownloadResult> {
     return bilibiliVideo.downloadSinglePart(
       url,
@@ -138,7 +140,8 @@ export class BilibiliDownloader extends BaseDownloader {
       seriesTitle,
       downloadId,
       onStart,
-      collectionName
+      collectionName,
+      filenameTemplateSourceOptions
     );
   }
 

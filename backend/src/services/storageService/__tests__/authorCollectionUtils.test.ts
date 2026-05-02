@@ -131,7 +131,8 @@ describe("authorCollectionUtils", () => {
       );
       expect(collections.addVideoToCollection).toHaveBeenCalledWith(
         "col1",
-        "vid1"
+        "vid1",
+        { moveFiles: true }
       );
     });
 

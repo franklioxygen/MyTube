@@ -5,6 +5,7 @@ import { BilibiliDownloader } from "../../services/downloaders/BilibiliDownloade
 import { MissAVDownloader } from "../../services/downloaders/MissAVDownloader";
 import { YtDlpDownloader } from "../../services/downloaders/YtDlpDownloader";
 import { getProviderScript } from "../../services/downloaders/ytdlp/ytdlpHelpers";
+import { acquireRenameLock, releaseRenameLock } from "../../services/filenameTemplate/renameLockService";
 import * as storageService from "../../services/storageService";
 import {
     extractBilibiliVideoId,
@@ -60,6 +61,7 @@ vi.mock("uuid", () => ({
 
 describe("downloadService", () => {
   beforeEach(() => {
+    releaseRenameLock();
     vi.clearAllMocks();
     vi.mocked(getUserYtDlpConfig).mockReturnValue({ timeout: 10 } as any);
     vi.mocked(getNetworkConfigFromUserConfig).mockReturnValue({
@@ -103,7 +105,7 @@ describe("downloadService", () => {
       );
 
       expect(BilibiliDownloader.downloadSinglePart).toHaveBeenCalledWith(
-        "u", 2, 5, "series", "d2", undefined, "collection"
+        "u", 2, 5, "series", "d2", undefined, "collection", undefined
       );
       expect(BilibiliDownloader.downloadCollection).toHaveBeenCalledWith(
         {}, "c", "d3"
@@ -122,13 +124,33 @@ describe("downloadService", () => {
       expect(YtDlpDownloader.downloadVideo).toHaveBeenCalledWith(
         "https://youtube.com/v",
         "d5",
+        undefined,
         undefined
       );
       expect(MissAVDownloader.downloadVideo).toHaveBeenCalledWith(
         "https://missav.com/v",
         "d6",
+        undefined,
         undefined
       );
+    });
+
+    it("rejects direct download wrappers while a filename rename job is locked", async () => {
+      expect(acquireRenameLock("job-test")).toBe(true);
+
+      await expect(
+        downloadService.downloadYouTubeVideo("https://youtube.com/v", "d5")
+      ).rejects.toMatchObject({ code: "filename_rename_in_progress" });
+      await expect(
+        downloadService.downloadSingleBilibiliPart("u", 1, 1, "", "d2")
+      ).rejects.toMatchObject({ code: "filename_rename_in_progress" });
+      await expect(
+        downloadService.downloadMissAVVideo("https://missav.com/v", "d6")
+      ).rejects.toMatchObject({ code: "filename_rename_in_progress" });
+
+      expect(YtDlpDownloader.downloadVideo).not.toHaveBeenCalled();
+      expect(BilibiliDownloader.downloadSinglePart).not.toHaveBeenCalled();
+      expect(MissAVDownloader.downloadVideo).not.toHaveBeenCalled();
     });
   });
 

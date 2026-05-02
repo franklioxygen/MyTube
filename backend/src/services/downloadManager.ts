@@ -6,6 +6,7 @@ import { extractSourceVideoId } from "../utils/helpers";
 import { logger, sanitizeLogMessage } from "../utils/logger";
 import { CloudStorageService } from "./CloudStorageService";
 import { createDownloadTask } from "./downloadService";
+import { assertDownloadsAllowed } from "./filenameTemplate/renameLockService";
 import { HookService } from "./hookService";
 import * as storageService from "./storageService";
 
@@ -134,6 +135,7 @@ class DownloadManager {
     sourceUrl?: string,
     type?: string
   ): Promise<any> {
+    assertDownloadsAllowed();
     return new Promise((resolve, reject) => {
       const task: DownloadTask = {
         downloadFn,

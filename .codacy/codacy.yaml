@@ -3,8 +3,8 @@ runtimes:
     - node@22.2.0
     - python@3.11.11
 tools:
-    - eslint@8.57.0
+    - eslint@9.38.0
     - opengrep@1.17.0
     - pmd@6.55.0
     - pylint@4.0.5
-    - trivy@0.69.3
+    - trivy@0.70.0

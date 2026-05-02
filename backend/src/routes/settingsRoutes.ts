@@ -47,6 +47,14 @@ import {
     testTMDBCredential,
     testTelegramNotification,
 } from "../controllers/settingsController";
+import {
+    cancelBatchRename,
+    getFilenameTemplatePresets,
+    getRenameJobStatus,
+    previewFilenameTemplate,
+    startBatchRename,
+    validateFilenameTemplate,
+} from "../controllers/filenameTemplateController";
 import { asyncHandler } from "../middleware/errorHandler";
 
 const router = express.Router();
@@ -120,5 +128,13 @@ router.post(
 router.post("/cleanup-backup-databases", asyncHandler(cleanupBackupDatabases));
 router.get("/last-backup-info", asyncHandler(getLastBackupInfo));
 router.post("/restore-from-last-backup", asyncHandler(restoreFromLastBackup));
+
+// Filename template routes
+router.get("/filename-template/presets", asyncHandler(getFilenameTemplatePresets));
+router.post("/filename-template/validate", asyncHandler(validateFilenameTemplate));
+router.post("/filename-template/preview", asyncHandler(previewFilenameTemplate));
+router.post("/filename-template/rename-all", asyncHandler(startBatchRename));
+router.get("/filename-template/rename-jobs/:jobId", asyncHandler(getRenameJobStatus));
+router.post("/filename-template/rename-jobs/:jobId/cancel", asyncHandler(cancelBatchRename));
 
 export default router;

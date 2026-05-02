@@ -1,6 +1,6 @@
 import fs from "fs-extra";
 import path from "path";
-import { AVATARS_DIR, IMAGES_DIR, VIDEOS_DIR } from "../../../config/paths";
+import { AVATARS_DIR, IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../../../config/paths";
 import { ValidationError } from "../../../errors/DownloadErrors";
 import { downloadAndProcessAvatar } from "../../../utils/avatarUtils";
 import {
@@ -12,6 +12,10 @@ import {
   formatVideoFilename,
   isYouTubeUrl,
 } from "../../../utils/helpers";
+import { buildContextFromYtDlpInfo } from "../../filenameTemplate/contextBuilder";
+import { planVideoOutputPaths } from "../../filenameTemplate/renderer";
+import { dedupeRelativePath } from "../../filenameTemplate/dedupe";
+import { FilenameTemplateSourceOptions } from "../../filenameTemplate/types";
 import { logger } from "../../../utils/logger";
 import { ProgressTracker } from "../../../utils/progressTracker";
 import { resolvePlayableVideoFilePath } from "../../../utils/videoFileResolver";
@@ -104,7 +108,8 @@ function isExpectedTwitchMetadataError(error: unknown): boolean {
 export async function downloadVideo(
   videoUrl: string,
   downloadId?: string,
-  onStart?: (cancel: () => void) => void
+  onStart?: (cancel: () => void) => void,
+  filenameTemplateSourceOptions?: import("../../filenameTemplate/types").FilenameTemplateSourceOptions
 ): Promise<Video> {
   logger.info("Detected URL:", videoUrl);
 
@@ -131,6 +136,10 @@ export async function downloadVideo(
   let finalAuthorAvatarFilename: string | undefined = undefined;
   let subtitles: Array<{ language: string; filename: string; path: string }> =
     [];
+  // These are set inside the try block but also referenced after it
+  let newVideoPathWithFormat = resolveSafeChildPath(VIDEOS_DIR, videoFilename);
+  let newThumbnailPath = resolveSafeChildPath(IMAGES_DIR, thumbnailFilename);
+  let newSafeBaseFilename = safeBaseFilename;
 
   const downloader = new YtDlpDownloaderHelper();
 
@@ -210,39 +219,21 @@ export async function downloadVideo(
       }
     }
 
-    // Update the safe base filename with the actual title
-    const newSafeBaseFilename = formatVideoFilename(
-      videoTitle,
-      videoAuthor,
-      videoDate
-    );
-    const newVideoFilename = `${newSafeBaseFilename}.mp4`;
-    const newThumbnailFilename = `${newSafeBaseFilename}.jpg`;
-
-    // Update the filenames
-    finalVideoFilename = newVideoFilename;
-    finalThumbnailFilename = newThumbnailFilename;
-
     // Update paths
     const settings = storageService.getSettings();
     const moveThumbnailsToVideoFolder =
       settings.moveThumbnailsToVideoFolder || false;
     const moveSubtitlesToVideoFolder =
       settings.moveSubtitlesToVideoFolder || false;
+    const downloadFilenamePresetId = settings.downloadFilenamePresetId || "legacy";
 
     logger.info("File location settings:", {
       moveThumbnailsToVideoFolder,
       moveSubtitlesToVideoFolder,
+      downloadFilenamePresetId,
       videoDir: VIDEOS_DIR,
       imageDir: IMAGES_DIR,
     });
-
-    const newVideoPath = resolveSafeChildPath(VIDEOS_DIR, finalVideoFilename);
-    let newThumbnailPath = moveThumbnailsToVideoFolder
-      ? resolveSafeChildPath(VIDEOS_DIR, finalThumbnailFilename)
-      : resolveSafeChildPath(IMAGES_DIR, finalThumbnailFilename);
-
-    logger.info("Preparing video download path:", newVideoPath);
 
     if (downloadId) {
       storageService.updateActiveDownload(downloadId, {
@@ -252,22 +243,20 @@ export async function downloadVideo(
     }
 
     // Get user's yt-dlp configuration (reuse from above if available, otherwise fetch again)
-    // Note: userConfig was already fetched above, but we need to ensure it's still valid
     const downloadUserConfig = userConfig || getUserYtDlpConfig(videoUrl);
 
-    // Log proxy configuration for debugging
     if (downloadUserConfig.proxy) {
       logger.info("Using proxy for download:", downloadUserConfig.proxy);
     }
 
-    // Prepare download flags
+    // Prepare download flags with a temp path to determine mergeOutputFormat
+    const tempVideoPath = resolveSafeChildPath(VIDEOS_DIR, `${safeBaseFilename}.mp4`);
     const { flags, mergeOutputFormat } = prepareDownloadFlags(
       videoUrl,
-      newVideoPath,
+      tempVideoPath,
       downloadUserConfig
     );
 
-    // Log final flags to verify proxy is included
     if (flags.proxy) {
       logger.info("Proxy included in download flags:", flags.proxy);
     } else {
@@ -277,36 +266,97 @@ export async function downloadVideo(
       );
     }
 
-    // Update the video path to use the correct extension based on merge format
     const videoExtension = mergeOutputFormat;
-    let newVideoPathWithFormat = newVideoPath.replace(
-      /\.mp4$/,
-      `.${videoExtension}`
-    );
-    finalVideoFilename = finalVideoFilename.replace(
-      /\.mp4$/,
-      `.${videoExtension}`
-    );
 
-    // If file already exists (e.g. redownload), deduplicate the filename
-    if (pathExistsSafeSync(newVideoPathWithFormat, VIDEOS_DIR)) {
-      let counter = 1;
-      const ext = `.${videoExtension}`;
-      const basePath = stripTrailingExtension(newVideoPathWithFormat, ext);
-      const baseName = stripTrailingExtension(finalVideoFilename, ext);
-      while (pathExistsSafeSync(`${basePath}_${counter}${ext}`, VIDEOS_DIR)) {
-        counter++;
-      }
-      newVideoPathWithFormat = `${basePath}_${counter}${ext}`;
-      finalVideoFilename = `${baseName}_${counter}${ext}`;
-      finalThumbnailFilename = finalThumbnailFilename.replace(
-        /\.jpg$/,
-        `_${counter}.jpg`
+    // Plan output paths using the template planner
+    if (downloadFilenamePresetId !== "legacy") {
+      // Non-legacy: use template planner
+      const context = buildContextFromYtDlpInfo(videoUrl, info, {
+        ...filenameTemplateSourceOptions,
+        sourceCollectionType:
+          filenameTemplateSourceOptions?.sourceCollectionType ?? "single",
+      });
+      const planned = planVideoOutputPaths({
+        settings,
+        context,
+        videoExtension,
+        thumbnailExtension: "jpg",
+        moveThumbnailsToVideoFolder,
+        moveSubtitlesToVideoFolder,
+      });
+
+      // Deduplicate
+      const dedupedRelative = dedupeRelativePath(
+        planned.video.relativePath,
+        VIDEOS_DIR,
+        new Set()
       );
+      const stemChanged = dedupedRelative !== planned.video.relativePath;
+      const suffix = stemChanged
+        ? dedupedRelative.slice(
+            planned.video.basenameWithoutExt.length +
+              (planned.video.relativePath.lastIndexOf("/") >= 0
+                ? planned.video.relativePath.lastIndexOf("/") + 1
+                : 0),
+            dedupedRelative.lastIndexOf(".")
+          )
+        : "";
+
+      newVideoPathWithFormat = path.join(VIDEOS_DIR, dedupedRelative);
+      finalVideoFilename = path.basename(dedupedRelative);
+      newSafeBaseFilename = planned.video.basenameWithoutExt + suffix;
+
+      // Thumbnail
+      const thumbBase = planned.thumbnail.filename.replace(/\.jpg$/, `${suffix}.jpg`);
+      const thumbDir = path.dirname(planned.thumbnail.relativePath);
+      const thumbRelative = thumbDir && thumbDir !== "." ? `${thumbDir}/${thumbBase}` : thumbBase;
+      newThumbnailPath = path.join(
+        moveThumbnailsToVideoFolder ? VIDEOS_DIR : IMAGES_DIR,
+        thumbRelative
+      );
+      finalThumbnailFilename = thumbBase;
+
+      logger.info("Preparing video download path (template):", newVideoPathWithFormat);
+    } else {
+      // Legacy: use formatVideoFilename
+      newSafeBaseFilename = formatVideoFilename(
+        videoTitle,
+        videoAuthor,
+        videoDate
+      );
+      const newVideoFilename = `${newSafeBaseFilename}.${videoExtension}`;
+      const newThumbnailFilename = `${newSafeBaseFilename}.jpg`;
+
+      finalVideoFilename = newVideoFilename;
+      finalThumbnailFilename = newThumbnailFilename;
+
+      newVideoPathWithFormat = resolveSafeChildPath(VIDEOS_DIR, finalVideoFilename);
       newThumbnailPath = moveThumbnailsToVideoFolder
         ? resolveSafeChildPath(VIDEOS_DIR, finalThumbnailFilename)
         : resolveSafeChildPath(IMAGES_DIR, finalThumbnailFilename);
-      logger.info(`File exists, using deduplicated filename: ${finalVideoFilename}`);
+
+      // If file already exists (e.g. redownload), deduplicate the filename
+      if (pathExistsSafeSync(newVideoPathWithFormat, VIDEOS_DIR)) {
+        let counter = 1;
+        const ext = `.${videoExtension}`;
+        const basePath = stripTrailingExtension(newVideoPathWithFormat, ext);
+        const baseName = stripTrailingExtension(finalVideoFilename, ext);
+        while (pathExistsSafeSync(`${basePath}_${counter}${ext}`, VIDEOS_DIR)) {
+          counter++;
+        }
+        newVideoPathWithFormat = `${basePath}_${counter}${ext}`;
+        finalVideoFilename = `${baseName}_${counter}${ext}`;
+        finalThumbnailFilename = finalThumbnailFilename.replace(
+          /\.jpg$/,
+          `_${counter}.jpg`
+        );
+        newThumbnailPath = moveThumbnailsToVideoFolder
+          ? resolveSafeChildPath(VIDEOS_DIR, finalThumbnailFilename)
+          : resolveSafeChildPath(IMAGES_DIR, finalThumbnailFilename);
+        logger.info(`File exists, using deduplicated filename: ${finalVideoFilename}`);
+      }
+
+      logger.info("Preparing video download path:", newVideoPathWithFormat);
     }
 
     // Update output path in flags
@@ -584,11 +634,16 @@ export async function downloadVideo(
       throw error;
     }
 
-    // Process subtitle files
+    // Process subtitle files — for non-legacy mode subtitles land in the video's subdirectory
+    const videoSubDir = path.dirname(newVideoPathWithFormat);
+    const isVideoInSubDir = videoSubDir !== VIDEOS_DIR;
     subtitles = await processSubtitles(
       newSafeBaseFilename,
       downloadId,
-      moveSubtitlesToVideoFolder
+      moveSubtitlesToVideoFolder,
+      isVideoInSubDir ? videoSubDir : undefined,
+      isVideoInSubDir ? (moveSubtitlesToVideoFolder ? videoSubDir : path.join(SUBTITLES_DIR, path.relative(VIDEOS_DIR, videoSubDir))) : undefined,
+      isVideoInSubDir ? (moveSubtitlesToVideoFolder ? `/videos/${path.relative(VIDEOS_DIR, videoSubDir)}` : `/subtitles/${path.relative(VIDEOS_DIR, videoSubDir)}`) : undefined,
     );
   } catch (error) {
     logger.error(
@@ -606,6 +661,20 @@ export async function downloadVideo(
   const moveThumbnailsToVideoFolder =
     settings.moveThumbnailsToVideoFolder || false;
 
+  // Derive web paths from absolute paths (supports template subdirectories)
+  const finalVideoRelative = path.relative(VIDEOS_DIR, path.resolve(newVideoPathWithFormat));
+  const finalVideoWebPath = `/videos/${finalVideoRelative}`;
+  let finalThumbnailWebPath: string | null = null;
+  if (thumbnailSaved) {
+    if (moveThumbnailsToVideoFolder) {
+      const relThumb = path.relative(VIDEOS_DIR, path.resolve(newThumbnailPath));
+      finalThumbnailWebPath = `/videos/${relThumb}`;
+    } else {
+      const relThumb = path.relative(IMAGES_DIR, path.resolve(newThumbnailPath));
+      finalThumbnailWebPath = `/images/${relThumb}`;
+    }
+  }
+
   const videoData: Video = {
     id: timestamp.toString(),
     title: videoTitle || "Video",
@@ -614,15 +683,11 @@ export async function downloadVideo(
     date: videoDate || new Date().toISOString().slice(0, 10).replace(/-/g, ""),
     source: source, // Use extracted source
     sourceUrl: videoUrl,
-    videoFilename: finalVideoFilename,
-    thumbnailFilename: thumbnailSaved ? finalThumbnailFilename : undefined,
+    videoFilename: path.basename(finalVideoRelative),
+    thumbnailFilename: thumbnailSaved ? path.basename(finalThumbnailFilename) : undefined,
     thumbnailUrl: thumbnailUrl || undefined,
-    videoPath: `/videos/${finalVideoFilename}`,
-    thumbnailPath: thumbnailSaved
-      ? moveThumbnailsToVideoFolder
-        ? `/videos/${finalThumbnailFilename}`
-        : `/images/${finalThumbnailFilename}`
-      : null,
+    videoPath: finalVideoWebPath,
+    thumbnailPath: finalThumbnailWebPath,
     subtitles: subtitles.length > 0 ? subtitles : undefined,
     duration: undefined, // Will be populated below
     channelUrl: channelUrl || undefined,
@@ -639,7 +704,7 @@ export async function downloadVideo(
   };
 
   // If duration is missing from info, try to extract it from file
-  const finalVideoPath = resolveSafeChildPath(VIDEOS_DIR, finalVideoFilename);
+  const finalVideoPath = newVideoPathWithFormat;
 
   try {
     const { getVideoDuration } = await import(
@@ -724,16 +789,12 @@ export async function downloadVideo(
 
     const updatedVideo = storageService.updateVideo(existingVideo.id, {
       subtitles: subtitles.length > 0 ? subtitles : undefined,
-      videoFilename: finalVideoFilename,
-      videoPath: `/videos/${finalVideoFilename}`,
+      videoFilename: path.basename(finalVideoRelative),
+      videoPath: finalVideoWebPath,
       thumbnailFilename: thumbnailSaved
-        ? finalThumbnailFilename
+        ? path.basename(finalThumbnailFilename)
         : existingVideo.thumbnailFilename,
-      thumbnailPath: thumbnailSaved
-        ? moveThumbnailsToVideoFolder
-          ? `/videos/${finalThumbnailFilename}`
-          : `/images/${finalThumbnailFilename}`
-        : existingVideo.thumbnailPath,
+      thumbnailPath: thumbnailSaved ? finalThumbnailWebPath : existingVideo.thumbnailPath,
       duration: videoData.duration,
       fileSize: videoData.fileSize,
       addedAt: new Date().toISOString(), // Update download date
@@ -754,7 +815,8 @@ export async function downloadVideo(
       storageService.addVideoToAuthorCollection(
         updatedVideo.id,
         videoAuthor,
-        settings.saveAuthorFilesToCollection || false
+        settings.saveAuthorFilesToCollection || false,
+        settings.downloadFilenamePresetId
       );
 
       return updatedVideo;
@@ -770,7 +832,8 @@ export async function downloadVideo(
   const authorCollection = storageService.addVideoToAuthorCollection(
     videoData.id,
     videoAuthor,
-    settings.saveAuthorFilesToCollection || false
+    settings.saveAuthorFilesToCollection || false,
+    settings.downloadFilenamePresetId
   );
 
   if (authorCollection) {

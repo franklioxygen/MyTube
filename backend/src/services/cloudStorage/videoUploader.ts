@@ -23,6 +23,54 @@ import {
   writeFileSafeSync,
 } from "../../utils/security";
 
+function stripManagedWebPrefix(
+  mediaPath: string | null | undefined,
+  prefixes: string[]
+): string | null {
+  if (!mediaPath || typeof mediaPath !== "string") {
+    return null;
+  }
+  if (
+    mediaPath.startsWith("mount:") ||
+    mediaPath.startsWith("http://") ||
+    mediaPath.startsWith("https://")
+  ) {
+    return null;
+  }
+
+  const cleanPath = mediaPath
+    .split("?")[0]
+    .replace(/^cloud:/, "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "");
+
+  if (
+    !cleanPath ||
+    cleanPath.includes("\0") ||
+    cleanPath.split("/").some((segment) => segment === "." || segment === "..")
+  ) {
+    return null;
+  }
+
+  for (const prefix of prefixes) {
+    const normalizedPrefix = prefix.replace(/^\/+/, "").replace(/\/+$/, "");
+    if (cleanPath === normalizedPrefix) {
+      return null;
+    }
+    if (cleanPath.startsWith(`${normalizedPrefix}/`)) {
+      return cleanPath.slice(normalizedPrefix.length + 1);
+    }
+  }
+
+  return cleanPath;
+}
+
+function replaceExtension(relativePath: string, extension: string): string {
+  const parsed = path.posix.parse(relativePath.replace(/\\/g, "/"));
+  const basename = parsed.name ? `${parsed.name}${extension}` : `${parsed.base}${extension}`;
+  return parsed.dir ? `${parsed.dir}/${basename}` : basename;
+}
+
 /**
  * Upload video, thumbnail, and metadata to cloud storage
  * @param videoData - Video data object
@@ -36,6 +84,14 @@ export async function uploadVideo(
 
   const uploadedFiles: string[] = []; // Track successfully uploaded files for deletion
   const filesToUpdate: string[] = []; // Track files that should update database (uploaded or skipped)
+  const videoRemotePath =
+    stripManagedWebPrefix(videoData.videoPath, ["videos"]) ??
+    stripManagedWebPrefix(videoData.videoFilename, []);
+  const thumbnailRemotePath =
+    stripManagedWebPrefix(videoData.thumbnailPath, ["images", "videos"]) ??
+    stripManagedWebPrefix(videoData.thumbnailFilename, []);
+  let videoAvailableInCloud = false;
+  let thumbnailAvailableInCloud = false;
 
   try {
     // Upload Video File
@@ -44,7 +100,8 @@ export async function uploadVideo(
       if (absoluteVideoPath && pathExistsTrustedSync(absoluteVideoPath)) {
         const uploadResult: UploadResult = await uploadFile(
           absoluteVideoPath,
-          config
+          config,
+          videoRemotePath ?? undefined
         );
         if (uploadResult.uploaded) {
           uploadedFiles.push(absoluteVideoPath);
@@ -52,6 +109,7 @@ export async function uploadVideo(
         // Track file for database update whether uploaded or skipped
         if (uploadResult.uploaded || uploadResult.skipped) {
           filesToUpdate.push(absoluteVideoPath);
+          videoAvailableInCloud = true;
         }
       } else {
         logger.error(
@@ -67,7 +125,8 @@ export async function uploadVideo(
       if (absoluteThumbPath && pathExistsTrustedSync(absoluteThumbPath)) {
         const uploadResult: UploadResult = await uploadFile(
           absoluteThumbPath,
-          config
+          config,
+          thumbnailRemotePath ?? undefined
         );
         if (uploadResult.uploaded) {
           uploadedFiles.push(absoluteThumbPath);
@@ -75,6 +134,7 @@ export async function uploadVideo(
         // Track file for database update whether uploaded or skipped
         if (uploadResult.uploaded || uploadResult.skipped) {
           filesToUpdate.push(absoluteThumbPath);
+          thumbnailAvailableInCloud = true;
         }
       }
     }
@@ -90,13 +150,14 @@ export async function uploadVideo(
       ...videoData,
     };
 
-    // Keep metadata filename consistent with thumbnail and video filename
-    const metadataFileName = videoData.thumbnailFilename
-      ? videoData.thumbnailFilename
-          .replace(".jpg", ".json")
-          .replace(".png", ".json")
-      : `${sanitizeFilename(videoData.title)}.json`;
+    // Keep metadata in the same remote directory and basename as the media.
+    const metadataRemotePath = videoRemotePath
+      ? replaceExtension(videoRemotePath, ".json")
+      : thumbnailRemotePath
+        ? replaceExtension(thumbnailRemotePath, ".json")
+        : `${sanitizeFilename(videoData.title)}.json`;
     const tempMetadataDir = path.join(process.cwd(), "temp_metadata");
+    const metadataFileName = metadataRemotePath;
     const metadataPath = resolveSafeChildPath(tempMetadataDir, metadataFileName);
     ensureDirSafeSync(path.dirname(metadataPath), tempMetadataDir);
     writeFileSafeSync(
@@ -107,7 +168,8 @@ export async function uploadVideo(
 
     const metadataUploadResult: UploadResult = await uploadFile(
       metadataPath,
-      config
+      config,
+      metadataRemotePath
     );
 
     // Cleanup temp metadata (always delete temp file)
@@ -150,24 +212,12 @@ export async function uploadVideo(
       try {
         const updates: any = {};
 
-        // Store cloud storage indicator in path format: "cloud:filename"
-        // This allows us to identify cloud storage files and retrieve sign dynamically
-        const videoFilename =
-          videoData.videoFilename ||
-          (videoData.videoPath ? path.basename(videoData.videoPath) : null);
-
-        if (videoFilename) {
-          updates.videoPath = `cloud:${videoFilename}`;
+        if (videoAvailableInCloud && videoRemotePath) {
+          updates.videoPath = `cloud:${videoRemotePath}`;
         }
 
-        const thumbnailFilename =
-          videoData.thumbnailFilename ||
-          (videoData.thumbnailPath
-            ? path.basename(videoData.thumbnailPath)
-            : null);
-
-        if (thumbnailFilename) {
-          updates.thumbnailPath = `cloud:${thumbnailFilename}`;
+        if (thumbnailAvailableInCloud && thumbnailRemotePath) {
+          updates.thumbnailPath = `cloud:${thumbnailRemotePath}`;
         }
 
         if (Object.keys(updates).length > 0) {
@@ -177,11 +227,11 @@ export async function uploadVideo(
           );
 
           // Clear cache for uploaded files to ensure fresh URLs
-          if (videoFilename) {
-            clearSignedUrlCache(videoFilename, "video");
+          if (videoRemotePath) {
+            clearSignedUrlCache(videoRemotePath, "video");
           }
-          if (thumbnailFilename) {
-            clearSignedUrlCache(thumbnailFilename, "thumbnail");
+          if (thumbnailRemotePath) {
+            clearSignedUrlCache(thumbnailRemotePath, "thumbnail");
           }
           // Also clear file list cache since new files were added
           const uploadPath = normalizeUploadPath(config.uploadPath);

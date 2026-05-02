@@ -221,7 +221,16 @@ describe('SubscriptionService', () => {
       
       await subscriptionService.checkSubscriptions();
 
-      expect(downloadService.downloadYouTubeVideo).toHaveBeenCalledWith('new-link');
+      expect(downloadService.downloadYouTubeVideo).toHaveBeenCalledWith(
+        'new-link',
+        undefined,
+        undefined,
+        expect.objectContaining({
+          sourceCustomName: 'User',
+          sourceCollectionName: 'User',
+          sourceCollectionType: 'channel',
+        })
+      );
       expect(storageService.addDownloadHistoryItem).toHaveBeenCalledWith(expect.objectContaining({
         status: 'success'
       }));
@@ -262,7 +271,16 @@ describe('SubscriptionService', () => {
       await subscriptionService.checkSubscriptions();
 
       expect(YtDlpDownloader.getLatestShortsUrl).toHaveBeenCalled();
-      expect(downloadService.downloadYouTubeVideo).toHaveBeenCalledWith('new-short');
+      expect(downloadService.downloadYouTubeVideo).toHaveBeenCalledWith(
+        'new-short',
+        undefined,
+        undefined,
+        expect.objectContaining({
+          sourceCustomName: 'User',
+          sourceCollectionName: 'User',
+          sourceCollectionType: 'channel',
+        })
+      );
       expect(TelegramService.notifyTaskComplete).toHaveBeenCalledWith({
         taskTitle: 'New Short',
         status: 'success',
@@ -916,7 +934,15 @@ describe('SubscriptionService', () => {
         'https://www.bilibili.com/video/BV1x',
         1,
         1,
-        ''
+        '',
+        undefined,
+        undefined,
+        undefined,
+        expect.objectContaining({
+          sourceCustomName: 'BiliAuthor',
+          sourceCollectionName: 'BiliAuthor',
+          sourceCollectionType: 'channel',
+        })
       );
       expect(storageService.addDownloadHistoryItem).toHaveBeenCalledWith(
         expect.objectContaining({ status: 'success', sourceUrl: 'https://www.bilibili.com/video/BV1x' })

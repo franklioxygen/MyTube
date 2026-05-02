@@ -817,16 +817,16 @@ export function initializeStorage(): void {
               videoPath = resolvedPath;
             }
           }
-        } else if (video.videoFilename) {
-          // For regular videos, use findVideoFile
-          videoPath = findVideoFile(video.videoFilename);
         } else if (video.videoPath?.startsWith("/videos/")) {
-          // Fallback: try to resolve from videoPath
+          // Prefer videoPath for template-created subdirectory paths
           const relativePath = video.videoPath.replace("/videos/", "");
           const fullPath = resolveSafeChildPath(VIDEOS_DIR, relativePath);
           if (pathExistsSafeSync(fullPath, VIDEOS_DIR)) {
             videoPath = fullPath;
           }
+        } else if (video.videoFilename) {
+          // Legacy fallback: use findVideoFile by basename
+          videoPath = findVideoFile(video.videoFilename);
         }
         
         if (videoPath && pathExistsTrustedSync(videoPath)) {
