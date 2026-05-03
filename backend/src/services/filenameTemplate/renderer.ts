@@ -89,6 +89,28 @@ function formatDate(yyyymmdd: string, fmt: string): string {
 // "__proto__" or "constructor" could otherwise expose unintended properties.
 const FORBIDDEN_NESTED_KEYS = new Set(["__proto__", "constructor", "prototype"]);
 
+function readArrayElement(arr: unknown[], part: string): unknown {
+  const idx = parseInt(part, 10);
+  if (isNaN(idx)) return undefined;
+  // Bound-check before indexing. Array prototype properties (length,
+  // toString, etc.) are non-numeric so a numeric in-bounds index can only
+  // reach own array elements.
+  const safeIdx = idx < 0 ? arr.length + idx : idx;
+  if (safeIdx < 0 || safeIdx >= arr.length) return undefined;
+  return arr[safeIdx];
+}
+
+function readObjectProperty(
+  obj: Record<string, unknown>,
+  part: string
+): unknown {
+  if (FORBIDDEN_NESTED_KEYS.has(part)) return undefined;
+  // Restrict to own enumerable string keys so inherited prototype keys
+  // (toString, valueOf, etc.) cannot be reached through user templates.
+  if (!Object.prototype.hasOwnProperty.call(obj, part)) return undefined;
+  return Object.getOwnPropertyDescriptor(obj, part)?.value;
+}
+
 function resolveNestedPath(
   rawInfo: Record<string, unknown> | undefined,
   dotPath: string
@@ -99,20 +121,9 @@ function resolveNestedPath(
   for (const part of parts) {
     if (current === null || current === undefined) return UNKNOWN_FALLBACK;
     if (Array.isArray(current)) {
-      const idx = parseInt(part, 10);
-      if (isNaN(idx)) return UNKNOWN_FALLBACK;
-      const safeIdx = idx < 0 ? current.length + idx : idx;
-      if (safeIdx < 0 || safeIdx >= current.length) return UNKNOWN_FALLBACK;
-      current = current[safeIdx];
+      current = readArrayElement(current, part);
     } else if (typeof current === "object") {
-      if (FORBIDDEN_NESTED_KEYS.has(part)) return UNKNOWN_FALLBACK;
-      const obj = current as Record<string, unknown>;
-      // Use Object.hasOwn / hasOwnProperty so inherited prototype keys
-      // (toString, valueOf, etc.) cannot be reached through user templates.
-      if (!Object.prototype.hasOwnProperty.call(obj, part)) {
-        return UNKNOWN_FALLBACK;
-      }
-      current = obj[part];
+      current = readObjectProperty(current as Record<string, unknown>, part);
     } else {
       return UNKNOWN_FALLBACK;
     }
