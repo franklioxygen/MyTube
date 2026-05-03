@@ -15,6 +15,7 @@ import * as storageService from "../storageService";
 import { buildContextFromVideoRecord } from "./contextBuilder";
 import { dedupeRelativePath, applyDedupeToRelatedPaths } from "./dedupe";
 import { resolveManagedWebPath } from "./pathHelpers";
+import { getPresetById } from "./presets";
 import { planVideoOutputPaths } from "./renderer";
 import { acquireRenameLock, releaseRenameLock } from "./renameLockService";
 import { Video } from "../storageService/types";
@@ -75,18 +76,18 @@ export async function startRenameJob(
     throw new Error("A rename job is already running.");
   }
 
+  // Per design §23, the rename job runs for any saved preset including
+  // "legacy" — the planner falls back to formatVideoFilename for legacy so
+  // already-legacy files are detected as no-ops and the job is safe to re-run.
   const presetId = settings.downloadFilenamePresetId || "legacy";
+  let template: string;
   if (presetId === "legacy") {
-    throw new Error("Batch rename is not available in legacy naming mode.");
+    template = "{{ title }}-{{ uploader }}-{{ upload_year }}.{{ ext }}";
+  } else if (presetId === "custom") {
+    template = settings.downloadFilenameTemplate || "";
+  } else {
+    template = getPresetById(presetId)?.template || "";
   }
-
-  const template =
-    presetId === "custom"
-      ? settings.downloadFilenameTemplate || ""
-      : (() => {
-          const { getPresetById } = require("./presets");
-          return getPresetById(presetId)?.template || "";
-        })();
 
   const jobId = `rename_${Date.now()}`;
   const now = Date.now();
@@ -264,6 +265,10 @@ async function processOneVideo(
     // Check subtitles
     const subtitles: typeof video.subtitles = video.subtitles || [];
 
+    // Idempotent no-op detection: skip only if every managed file family
+    // (video, thumbnail if any, every local subtitle) already resolves to its
+    // planned target. Subtitles whose path is not a managed local path are
+    // ignored for this check because we never move them. (Design §23.5)
     let anyChange = !alreadyAtTarget;
 
     if (!anyChange && thumbResolved) {
@@ -273,8 +278,31 @@ async function processOneVideo(
     }
 
     if (!anyChange) {
+      for (const sub of subtitles) {
+        const subResolved = resolveManagedWebPath(sub.path);
+        if (!subResolved) continue;
+        const subExt = path.extname(sub.filename);
+        const newSubFilename = `${subBase}.${sub.language}${subExt}`;
+        let newSubAbsPath: string;
+        if (sub.path.startsWith("/videos/")) {
+          newSubAbsPath = path.join(path.dirname(newVideoAbsPath), newSubFilename);
+        } else {
+          const videoDir = path.dirname(videoRelative);
+          const subRelative = videoDir !== "." && videoDir
+            ? `${videoDir}/${newSubFilename}`
+            : newSubFilename;
+          newSubAbsPath = path.join(SUBTITLES_DIR, subRelative);
+        }
+        if (subResolved.absolutePath !== newSubAbsPath) {
+          anyChange = true;
+          break;
+        }
+      }
+    }
+
+    if (!anyChange) {
       item.status = "skipped";
-      item.skipReason = "already_at_target";
+      item.skipReason = "already_matches";
       return item;
     }
 

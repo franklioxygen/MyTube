@@ -13,6 +13,7 @@ import {
     MenuItem,
     Select,
     TextField,
+    Tooltip,
     Typography,
 } from '@mui/material';
 import React, { useEffect, useRef, useState } from 'react';
@@ -84,9 +85,15 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
     const [renameError, setRenameError] = useState<string | null>(null);
     const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    // Show batch rename button only when saved settings are non-legacy
+    // Per design §23, the rename button is always visible. It is disabled
+    // when the saved custom template is invalid; the backend additionally
+    // rejects start while downloads are queued/active or another rename runs
+    // and surfaces a 409 with a clear error code.
     const savedPresetId = savedSettings.downloadFilenamePresetId || 'legacy';
-    const showBatchRenameButton = savedPresetId !== 'legacy';
+    const savedTemplateInvalid =
+        savedPresetId === 'custom' &&
+        !!preview?.errors?.length &&
+        savedSettings.downloadFilenameTemplate === customTemplate;
 
     // Compute effective template for preview
     const effectiveTemplate = presetId === 'custom'
@@ -291,58 +298,69 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
                 </Box>
             )}
 
-            {/* Batch rename section */}
-            {showBatchRenameButton && (
-                <Box sx={{ mt: 3 }}>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                        {t('filenameBatchRenameDescription')}
-                    </Typography>
+            {/* Batch rename section — always shown per design §23 */}
+            <Box sx={{ mt: 3 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                    {t('filenameBatchRenameDescription')}
+                </Typography>
 
-                    {renameError && (
-                        <Alert severity="error" sx={{ mb: 1 }}>
-                            {renameError}
-                        </Alert>
-                    )}
+                {renameError && (
+                    <Alert severity="error" sx={{ mb: 1 }}>
+                        {renameError}
+                    </Alert>
+                )}
 
-                    {isRenameRunning && renameJob && (
-                        <Box sx={{ mb: 2 }}>
-                            <Typography variant="body2" sx={{ mb: 0.5 }}>
-                                {t('filenameBatchRenameRunning')} {renameJob.processed}/{renameJob.total}
-                                {renameJob.currentTitle && ` – ${renameJob.currentTitle}`}
+                {isRenameRunning && renameJob && (
+                    <Box sx={{ mb: 2 }}>
+                        <Typography variant="body2" sx={{ mb: 0.5 }}>
+                            {t('filenameBatchRenameRunning')} {renameJob.processed}/{renameJob.total}
+                            {renameJob.currentTitle && ` – ${renameJob.currentTitle}`}
+                        </Typography>
+                        <LinearProgress
+                            variant="determinate"
+                            value={renameJob.total > 0 ? (renameJob.processed / renameJob.total) * 100 : 0}
+                            sx={{ maxWidth: 400 }}
+                        />
+                        {renameJob.lockedAt && (
+                            <Typography variant="caption" color="warning.main" display="block" sx={{ mt: 0.5 }}>
+                                {t('filenameBatchRenamePaused')}
                             </Typography>
-                            <LinearProgress
-                                variant="determinate"
-                                value={renameJob.total > 0 ? (renameJob.processed / renameJob.total) * 100 : 0}
-                                sx={{ maxWidth: 400 }}
-                            />
-                            {renameJob.lockedAt && (
-                                <Typography variant="caption" color="warning.main" display="block" sx={{ mt: 0.5 }}>
-                                    {t('filenameBatchRenamePaused')}
-                                </Typography>
-                            )}
-                        </Box>
-                    )}
+                        )}
+                    </Box>
+                )}
 
-                    {isRenameComplete && renameJob && (
-                        <Alert severity="success" sx={{ mb: 2 }}>
-                            {t('filenameBatchRenameComplete')} –{' '}
-                            {t('filenameBatchRenameSummary')
-                                .replace('{succeeded}', String(renameJob.succeeded))
-                                .replace('{skipped}', String(renameJob.skipped))
-                                .replace('{failed}', String(renameJob.failed))}
-                        </Alert>
-                    )}
+                {isRenameComplete && renameJob && (
+                    <Alert severity="success" sx={{ mb: 2 }}>
+                        {t('filenameBatchRenameComplete')} –{' '}
+                        {t('filenameBatchRenameSummary')
+                            .replace('{succeeded}', String(renameJob.succeeded))
+                            .replace('{skipped}', String(renameJob.skipped))
+                            .replace('{failed}', String(renameJob.failed))}
+                    </Alert>
+                )}
 
-                    <Button
-                        variant="outlined"
-                        color="warning"
-                        onClick={() => setConfirmOpen(true)}
-                        disabled={isRenameRunning}
-                    >
-                        {t('filenameBatchRenameButton')}
-                    </Button>
-                </Box>
-            )}
+                <Tooltip
+                    title={
+                        savedTemplateInvalid
+                            ? t('filenameBatchRenameDisabledInvalidTemplate')
+                            : isRenameRunning
+                                ? t('filenameBatchRenameDisabledRunning')
+                                : ''
+                    }
+                    disableHoverListener={!savedTemplateInvalid && !isRenameRunning}
+                >
+                    <span>
+                        <Button
+                            variant="outlined"
+                            color="warning"
+                            onClick={() => setConfirmOpen(true)}
+                            disabled={isRenameRunning || savedTemplateInvalid}
+                        >
+                            {t('filenameBatchRenameButton')}
+                        </Button>
+                    </span>
+                </Tooltip>
+            </Box>
 
             {/* Confirmation dialog */}
             <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>

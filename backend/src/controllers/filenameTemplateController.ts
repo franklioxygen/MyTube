@@ -169,6 +169,22 @@ export async function startBatchRename(
     }
 
     const settings = storageService.getSettings();
+
+    // For custom templates, validate before starting. Legacy and built-in
+    // presets are always valid. (Design §23.6)
+    const presetId = settings.downloadFilenamePresetId || "legacy";
+    if (presetId === "custom") {
+      const tpl = settings.downloadFilenameTemplate || "";
+      const validation = validateTemplate(tpl);
+      if (!validation.valid) {
+        res.status(400).json({
+          error: `Saved custom template is invalid: ${validation.errors.join("; ")}`,
+          code: "invalid_template",
+        });
+        return;
+      }
+    }
+
     const job = await startRenameJob(
       settings,
       settings.moveThumbnailsToVideoFolder || false,

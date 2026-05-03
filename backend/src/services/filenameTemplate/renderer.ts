@@ -4,6 +4,7 @@ import {
   SUBTITLES_DIR,
   VIDEOS_DIR,
 } from "../../config/paths";
+import { formatVideoFilename } from "../../utils/helpers";
 import { resolveSafeChildPath } from "../../utils/security";
 import { computeAliases } from "./aliases";
 import { getPresetById } from "./presets";
@@ -291,26 +292,47 @@ export function planVideoOutputPaths(input: {
   } = input;
 
   const presetId = settings.downloadFilenamePresetId || "legacy";
-  let template: string;
 
+  // Legacy preset bypasses the template renderer entirely so output is
+  // byte-identical to formatVideoFilename(). The renderer's sanitizer keeps
+  // commas/spaces/etc. that formatVideoFilename strips, so a Liquid template
+  // would not produce the same name and the rename job would not detect that
+  // existing legacy files are already at the target.
+  let rendered: RenderedMediaPath;
   if (presetId === "legacy") {
-    // Legacy mode: use a flat template that matches formatVideoFilename output
-    template = `{{ title }}-{{ uploader }}-{{ upload_year }}.{{ ext }}`;
-  } else if (presetId === "custom") {
-    template = settings.downloadFilenameTemplate || `{{ title }}-{{ uploader }}-{{ upload_year }}.{{ ext }}`;
+    const stem = formatVideoFilename(
+      context.title,
+      context.uploader,
+      context.uploadDate
+    );
+    const basename = `${stem}.${videoExtension}`;
+    rendered = {
+      relativePath: basename,
+      directory: "",
+      basename,
+      basenameWithoutExt: stem,
+      extension: videoExtension,
+      warnings: [],
+    };
   } else {
-    const preset = getPresetById(presetId);
-    template = preset
-      ? preset.template
-      : `{{ title }}-{{ uploader }}-{{ upload_year }}.{{ ext }}`;
+    let template: string;
+    if (presetId === "custom") {
+      template =
+        settings.downloadFilenameTemplate ||
+        `{{ title }}-{{ uploader }}-{{ upload_year }}.{{ ext }}`;
+    } else {
+      const preset = getPresetById(presetId);
+      template = preset
+        ? preset.template
+        : `{{ title }}-{{ uploader }}-{{ upload_year }}.{{ ext }}`;
+    }
+    rendered = renderFilenameTemplate({
+      template,
+      context,
+      mode: "video",
+      extension: videoExtension,
+    });
   }
-
-  const rendered = renderFilenameTemplate({
-    template,
-    context,
-    mode: "video",
-    extension: videoExtension,
-  });
 
   const videoRelativePath = rendered.relativePath;
   const videoAbsolutePath = resolveSafeChildPath(VIDEOS_DIR, videoRelativePath);

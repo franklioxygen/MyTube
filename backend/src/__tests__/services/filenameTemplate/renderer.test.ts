@@ -142,6 +142,35 @@ describe("planVideoOutputPaths", () => {
     expect(result.thumbnail.webPath.startsWith("/images/")).toBe(true);
   });
 
+  it("legacy preset is byte-identical to formatVideoFilename (design §23.3)", () => {
+    // formatVideoFilename strips punctuation (,!#) and replaces spaces with
+    // dots, so the template renderer cannot match its output. Legacy must
+    // bypass the renderer.
+    const result = planVideoOutputPaths({
+      settings: { downloadFilenamePresetId: "legacy" },
+      context: makeCtx({
+        title: "Hello, World! Episode #5",
+        uploader: "Some Channel",
+        uploadDate: "20240115",
+      }),
+      videoExtension: "mp4",
+      thumbnailExtension: "jpg",
+      moveThumbnailsToVideoFolder: false,
+      moveSubtitlesToVideoFolder: false,
+    });
+    // formatVideoFilename: removes "," "!" "#" (keeps digit "5"),
+    // collapses whitespace, then joins with dots.
+    expect(result.video.filename).toBe(
+      "Hello.World.Episode.5-Some.Channel-2024.mp4"
+    );
+    expect(result.thumbnail.filename).toBe(
+      "Hello.World.Episode.5-Some.Channel-2024.jpg"
+    );
+    expect(result.subtitle.baseNameWithoutLanguageOrExt).toBe(
+      "Hello.World.Episode.5-Some.Channel-2024"
+    );
+  });
+
   it("channel_year_date_index preset produces subdirectory structure", () => {
     const result = planVideoOutputPaths({
       settings: { downloadFilenamePresetId: "channel_year_date_index" },
