@@ -1,5 +1,4 @@
-import path from "path";
-import { pathExistsSafeSync } from "../../utils/security";
+import { pathExistsSafeSync, resolveSafeChildPath } from "../../utils/security";
 import { IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../../config/paths";
 
 /**
@@ -41,10 +40,8 @@ function isConflicting(
   }
   try {
     const allowedBases = [VIDEOS_DIR, IMAGES_DIR, SUBTITLES_DIR];
-    // relativePath is sanitized output from sanitizeRelativePath() and the
-    // existence check below is bounded by pathExistsSafeSync(allowedBases).
-    // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
-    const absPath = path.join(baseDir, relativePath);
+    // resolveSafeChildPath validates traversal and containment within baseDir.
+    const absPath = resolveSafeChildPath(baseDir, relativePath);
     return pathExistsSafeSync(absPath, allowedBases);
   } catch {
     return false;

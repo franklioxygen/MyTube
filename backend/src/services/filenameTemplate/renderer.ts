@@ -1,4 +1,3 @@
-import path from "path";
 import {
   IMAGES_DIR,
   SUBTITLES_DIR,
@@ -416,10 +415,10 @@ export function planVideoOutputPaths(input: {
 /**
  * Resolves absolute directory for a mode + relative directory path.
  */
-// `relativeDir` always comes from a planner output that ran through
-// sanitizeRelativePath() (rejects "..", absolute paths, illegal chars).
-// Callers also validate the resulting absolute path stays inside the base
-// via resolveSafeChildPath() / pathExistsSafeSync().
+/**
+ * Resolves the absolute directory for a given mode + relative directory.
+ * Uses resolveSafeChildPath which validates traversal and containment.
+ */
 export function resolveAbsoluteDir(
   relativeDir: string,
   mode: "video" | "thumbnail" | "subtitle",
@@ -427,17 +426,12 @@ export function resolveAbsoluteDir(
   moveSubtitlesToVideoFolder: boolean
 ): string {
   if (mode === "video") {
-    return relativeDir
-      // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
-      ? path.join(VIDEOS_DIR, relativeDir)
-      : VIDEOS_DIR;
+    return relativeDir ? resolveSafeChildPath(VIDEOS_DIR, relativeDir) : VIDEOS_DIR;
   }
   if (mode === "thumbnail") {
     const base = moveThumbnailsToVideoFolder ? VIDEOS_DIR : IMAGES_DIR;
-    // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
-    return relativeDir ? path.join(base, relativeDir) : base;
+    return relativeDir ? resolveSafeChildPath(base, relativeDir) : base;
   }
   const base = moveSubtitlesToVideoFolder ? VIDEOS_DIR : SUBTITLES_DIR;
-  // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
-  return relativeDir ? path.join(base, relativeDir) : base;
+  return relativeDir ? resolveSafeChildPath(base, relativeDir) : base;
 }

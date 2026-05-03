@@ -9,6 +9,7 @@ import {
   ensureDirSafeSync,
   moveSafeSync,
   pathExistsSafeSync,
+  resolveSafeChildPath,
 } from "../../utils/security";
 import { moveSmallThumbnailMirrorSync } from "../thumbnailMirrorService";
 import * as storageService from "../storageService";
@@ -250,11 +251,9 @@ async function processOneVideo(
         planned.subtitle.baseNameWithoutLanguageOrExt
       );
 
-    // videoRelative is the post-sanitize, post-dedupe planner output:
-    // sanitizeRelativePath() rejects "..", absolute paths, and illegal chars,
-    // and the actual moveSafeSync() below re-checks containment.
-    // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
-    const newVideoAbsPath = path.join(VIDEOS_DIR, videoRelative);
+    // resolveSafeChildPath validates traversal and that the result is inside
+    // VIDEOS_DIR; throws otherwise. videoRelative is sanitized planner output.
+    const newVideoAbsPath = resolveSafeChildPath(VIDEOS_DIR, videoRelative);
     const newVideoWebPath = `/videos/${videoRelative}`;
 
     // Check if already at target
@@ -277,9 +276,7 @@ async function processOneVideo(
 
     if (!anyChange && thumbResolved) {
       const thumbTargetBase = moveThumbnailsToVideoFolder ? VIDEOS_DIR : IMAGES_DIR;
-      // thumbRelative is sanitized planner output (see comment above).
-      // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
-      const newThumbAbsPath = path.join(thumbTargetBase, thumbRelative);
+      const newThumbAbsPath = resolveSafeChildPath(thumbTargetBase, thumbRelative);
       anyChange = thumbResolved.absolutePath !== newThumbAbsPath;
     }
 
@@ -289,21 +286,15 @@ async function processOneVideo(
         if (!subResolved) continue;
         const subExt = path.extname(sub.filename);
         const newSubFilename = `${subBase}.${sub.language}${subExt}`;
-        let newSubAbsPath: string;
-        if (sub.path.startsWith("/videos/")) {
-          // newVideoAbsPath was just built from sanitized videoRelative;
-          // newSubFilename is "<sanitized stem>.<lang>.<ext>".
-          // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
-          newSubAbsPath = path.join(path.dirname(newVideoAbsPath), newSubFilename);
-        } else {
-          const videoDir = path.dirname(videoRelative);
-          const subRelative = videoDir !== "." && videoDir
-            ? `${videoDir}/${newSubFilename}`
-            : newSubFilename;
-          // subRelative is built from sanitized planner output.
-          // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
-          newSubAbsPath = path.join(SUBTITLES_DIR, subRelative);
-        }
+        // Compute the planned subtitle path relative to the appropriate root,
+        // then route through resolveSafeChildPath for validation.
+        const videoDir = path.dirname(videoRelative);
+        const subRelative = videoDir && videoDir !== "."
+          ? `${videoDir}/${newSubFilename}`
+          : newSubFilename;
+        const newSubAbsPath = sub.path.startsWith("/videos/")
+          ? resolveSafeChildPath(VIDEOS_DIR, subRelative)
+          : resolveSafeChildPath(SUBTITLES_DIR, subRelative);
         if (subResolved.absolutePath !== newSubAbsPath) {
           anyChange = true;
           break;
@@ -340,10 +331,7 @@ async function processOneVideo(
     let newThumbFilename = video.thumbnailFilename || null;
     if (thumbResolved) {
       const thumbTargetBase = moveThumbnailsToVideoFolder ? VIDEOS_DIR : IMAGES_DIR;
-      // thumbRelative is sanitized planner output; moveSafeSync() will
-      // re-validate containment when the file is actually moved.
-      // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
-      const newThumbAbsPath = path.join(thumbTargetBase, thumbRelative);
+      const newThumbAbsPath = resolveSafeChildPath(thumbTargetBase, thumbRelative);
       if (thumbResolved.absolutePath !== newThumbAbsPath) {
         moves.push({
           from: thumbResolved.absolutePath,
@@ -382,14 +370,14 @@ async function processOneVideo(
       // Preserve storage family: /videos or /subtitles
       let subTargetBase: string;
       let subWebPrefix: string;
+      // Compute the planned subtitle relative path under VIDEOS_DIR
+      // (regardless of storage family) so resolveSafeChildPath can validate.
+      const videoRelDir = path.dirname(videoRelative);
+      const subRelative = videoRelDir && videoRelDir !== "."
+        ? `${videoRelDir}/${newSubFilename}`
+        : newSubFilename;
       if (sub.path.startsWith("/videos/")) {
-        const videoDir = path.dirname(newVideoAbsPath);
-        // newSubFilename is built from the sanitized basename stem +
-        // sub.language + extension; videoDir is from a sanitized abs path.
-        // moveSafeSync() below validates containment.
-        // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
-        const newSubAbsPath = path.join(videoDir, newSubFilename);
-        const relToVideos = path.relative(VIDEOS_DIR, newSubAbsPath);
+        const newSubAbsPath = resolveSafeChildPath(VIDEOS_DIR, subRelative);
         subTargetBase = VIDEOS_DIR;
         subWebPrefix = "/videos/";
         subtitleMoves.push({
@@ -397,17 +385,12 @@ async function processOneVideo(
           fromBase: subResolved.rootDir,
           to: newSubAbsPath,
           toBase: VIDEOS_DIR,
-          newPath: `/videos/${relToVideos}`,
+          newPath: `/videos/${subRelative}`,
           newFilename: newSubFilename,
           language: sub.language,
         });
       } else {
-        const videoDir = path.dirname(videoRelative);
-        const subRelative = videoDir ? `${videoDir}/${newSubFilename}` : newSubFilename;
-        // subRelative is built from sanitized parts; moveSafeSync() validates
-        // containment when the file is actually moved.
-        // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
-        const newSubAbsPath = path.join(SUBTITLES_DIR, subRelative);
+        const newSubAbsPath = resolveSafeChildPath(SUBTITLES_DIR, subRelative);
         subTargetBase = SUBTITLES_DIR;
         subWebPrefix = "/subtitles/";
         subtitleMoves.push({

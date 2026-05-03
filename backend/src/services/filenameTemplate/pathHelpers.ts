@@ -1,9 +1,9 @@
-import path from "path";
 import {
   IMAGES_DIR,
   SUBTITLES_DIR,
   VIDEOS_DIR,
 } from "../../config/paths";
+import { resolveSafeChildPath } from "../../utils/security";
 
 const MANAGED_PREFIXES = [
   { webPrefix: "/videos/", rootDir: VIDEOS_DIR },
@@ -49,13 +49,14 @@ export function resolveManagedWebPath(webPath: string): {
     if (webPath.startsWith(webPrefix)) {
       const relativePath = webPath.slice(webPrefix.length);
       if (!relativePath) return null;
-      // Security: reject traversal
-      if (relativePath.includes("..")) return null;
-      // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
-      const absolutePath = path.join(rootDir, relativePath);
-      // Verify the resolved path is inside the root directory
-      const rel = path.relative(rootDir, absolutePath);
-      if (rel.startsWith("..") || path.isAbsolute(rel)) return null;
+      // resolveSafeChildPath validates traversal and ensures the resulting
+      // absolute path is inside rootDir; throws otherwise.
+      let absolutePath: string;
+      try {
+        absolutePath = resolveSafeChildPath(rootDir, relativePath);
+      } catch {
+        return null;
+      }
       return {
         prefix: webPrefix.slice(0, -1) as ManagedPrefix,
         rootDir,
