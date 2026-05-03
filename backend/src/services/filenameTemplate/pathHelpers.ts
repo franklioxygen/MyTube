@@ -51,6 +51,7 @@ export function resolveManagedWebPath(webPath: string): {
       if (!relativePath) return null;
       // Security: reject traversal
       if (relativePath.includes("..")) return null;
+      // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
       const absolutePath = path.join(rootDir, relativePath);
       // Verify the resolved path is inside the root directory
       const rel = path.relative(rootDir, absolutePath);

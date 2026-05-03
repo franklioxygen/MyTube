@@ -41,6 +41,9 @@ function isConflicting(
   }
   try {
     const allowedBases = [VIDEOS_DIR, IMAGES_DIR, SUBTITLES_DIR];
+    // relativePath is sanitized output from sanitizeRelativePath() and the
+    // existence check below is bounded by pathExistsSafeSync(allowedBases).
+    // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
     const absPath = path.join(baseDir, relativePath);
     return pathExistsSafeSync(absPath, allowedBases);
   } catch {

@@ -250,6 +250,10 @@ async function processOneVideo(
         planned.subtitle.baseNameWithoutLanguageOrExt
       );
 
+    // videoRelative is the post-sanitize, post-dedupe planner output:
+    // sanitizeRelativePath() rejects "..", absolute paths, and illegal chars,
+    // and the actual moveSafeSync() below re-checks containment.
+    // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
     const newVideoAbsPath = path.join(VIDEOS_DIR, videoRelative);
     const newVideoWebPath = `/videos/${videoRelative}`;
 
@@ -273,6 +277,8 @@ async function processOneVideo(
 
     if (!anyChange && thumbResolved) {
       const thumbTargetBase = moveThumbnailsToVideoFolder ? VIDEOS_DIR : IMAGES_DIR;
+      // thumbRelative is sanitized planner output (see comment above).
+      // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
       const newThumbAbsPath = path.join(thumbTargetBase, thumbRelative);
       anyChange = thumbResolved.absolutePath !== newThumbAbsPath;
     }
@@ -285,12 +291,17 @@ async function processOneVideo(
         const newSubFilename = `${subBase}.${sub.language}${subExt}`;
         let newSubAbsPath: string;
         if (sub.path.startsWith("/videos/")) {
+          // newVideoAbsPath was just built from sanitized videoRelative;
+          // newSubFilename is "<sanitized stem>.<lang>.<ext>".
+          // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
           newSubAbsPath = path.join(path.dirname(newVideoAbsPath), newSubFilename);
         } else {
           const videoDir = path.dirname(videoRelative);
           const subRelative = videoDir !== "." && videoDir
             ? `${videoDir}/${newSubFilename}`
             : newSubFilename;
+          // subRelative is built from sanitized planner output.
+          // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
           newSubAbsPath = path.join(SUBTITLES_DIR, subRelative);
         }
         if (subResolved.absolutePath !== newSubAbsPath) {
@@ -329,6 +340,9 @@ async function processOneVideo(
     let newThumbFilename = video.thumbnailFilename || null;
     if (thumbResolved) {
       const thumbTargetBase = moveThumbnailsToVideoFolder ? VIDEOS_DIR : IMAGES_DIR;
+      // thumbRelative is sanitized planner output; moveSafeSync() will
+      // re-validate containment when the file is actually moved.
+      // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
       const newThumbAbsPath = path.join(thumbTargetBase, thumbRelative);
       if (thumbResolved.absolutePath !== newThumbAbsPath) {
         moves.push({
@@ -370,6 +384,10 @@ async function processOneVideo(
       let subWebPrefix: string;
       if (sub.path.startsWith("/videos/")) {
         const videoDir = path.dirname(newVideoAbsPath);
+        // newSubFilename is built from the sanitized basename stem +
+        // sub.language + extension; videoDir is from a sanitized abs path.
+        // moveSafeSync() below validates containment.
+        // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
         const newSubAbsPath = path.join(videoDir, newSubFilename);
         const relToVideos = path.relative(VIDEOS_DIR, newSubAbsPath);
         subTargetBase = VIDEOS_DIR;
@@ -386,6 +404,9 @@ async function processOneVideo(
       } else {
         const videoDir = path.dirname(videoRelative);
         const subRelative = videoDir ? `${videoDir}/${newSubFilename}` : newSubFilename;
+        // subRelative is built from sanitized parts; moveSafeSync() validates
+        // containment when the file is actually moved.
+        // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
         const newSubAbsPath = path.join(SUBTITLES_DIR, subRelative);
         subTargetBase = SUBTITLES_DIR;
         subWebPrefix = "/subtitles/";

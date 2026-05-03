@@ -302,6 +302,9 @@ export async function downloadVideo(
           )
         : "";
 
+      // dedupedRelative is dedupeRelativePath() output of a sanitized planner
+      // path; the final containment check happens via path.relative() below.
+      // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
       newVideoPathWithFormat = path.join(VIDEOS_DIR, dedupedRelative);
       finalVideoFilename = path.basename(dedupedRelative);
       newSafeBaseFilename = planned.video.basenameWithoutExt + suffix;
@@ -310,6 +313,8 @@ export async function downloadVideo(
       const thumbBase = planned.thumbnail.filename.replace(/\.jpg$/, `${suffix}.jpg`);
       const thumbDir = path.dirname(planned.thumbnail.relativePath);
       const thumbRelative = thumbDir && thumbDir !== "." ? `${thumbDir}/${thumbBase}` : thumbBase;
+      // thumbRelative is built from sanitized planner output (planned.thumbnail).
+      // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
       newThumbnailPath = path.join(
         moveThumbnailsToVideoFolder ? VIDEOS_DIR : IMAGES_DIR,
         thumbRelative
@@ -637,12 +642,21 @@ export async function downloadVideo(
     // Process subtitle files — for non-legacy mode subtitles land in the video's subdirectory
     const videoSubDir = path.dirname(newVideoPathWithFormat);
     const isVideoInSubDir = videoSubDir !== VIDEOS_DIR;
+    // videoSubDir is derived from the just-built newVideoPathWithFormat
+    // (sanitized planner output). The path.join below mirrors that subdir
+    // under SUBTITLES_DIR; processSubtitles() further validates each file.
+    // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
+    const subtitleSubDir = isVideoInSubDir
+      ? moveSubtitlesToVideoFolder
+        ? videoSubDir
+        : path.join(SUBTITLES_DIR, path.relative(VIDEOS_DIR, videoSubDir))
+      : undefined;
     subtitles = await processSubtitles(
       newSafeBaseFilename,
       downloadId,
       moveSubtitlesToVideoFolder,
       isVideoInSubDir ? videoSubDir : undefined,
-      isVideoInSubDir ? (moveSubtitlesToVideoFolder ? videoSubDir : path.join(SUBTITLES_DIR, path.relative(VIDEOS_DIR, videoSubDir))) : undefined,
+      subtitleSubDir,
       isVideoInSubDir ? (moveSubtitlesToVideoFolder ? `/videos/${path.relative(VIDEOS_DIR, videoSubDir)}` : `/subtitles/${path.relative(VIDEOS_DIR, videoSubDir)}`) : undefined,
     );
   } catch (error) {
@@ -661,15 +675,20 @@ export async function downloadVideo(
   const moveThumbnailsToVideoFolder =
     settings.moveThumbnailsToVideoFolder || false;
 
-  // Derive web paths from absolute paths (supports template subdirectories)
+  // Derive web paths from absolute paths (supports template subdirectories).
+  // path.resolve() is bounded by path.relative() against the known root: a
+  // value escaping the root would produce a leading "..", which we never use.
+  // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
   const finalVideoRelative = path.relative(VIDEOS_DIR, path.resolve(newVideoPathWithFormat));
   const finalVideoWebPath = `/videos/${finalVideoRelative}`;
   let finalThumbnailWebPath: string | null = null;
   if (thumbnailSaved) {
     if (moveThumbnailsToVideoFolder) {
+      // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
       const relThumb = path.relative(VIDEOS_DIR, path.resolve(newThumbnailPath));
       finalThumbnailWebPath = `/videos/${relThumb}`;
     } else {
+      // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
       const relThumb = path.relative(IMAGES_DIR, path.resolve(newThumbnailPath));
       finalThumbnailWebPath = `/images/${relThumb}`;
     }

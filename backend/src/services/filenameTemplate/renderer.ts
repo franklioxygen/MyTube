@@ -85,6 +85,11 @@ function formatDate(yyyymmdd: string, fmt: string): string {
     .replace("%d", yyyymmdd.slice(6, 8));
 }
 
+// Reject keys that would let a template walk into the prototype chain.
+// `dotPath` comes from user-supplied template text, so a segment like
+// "__proto__" or "constructor" could otherwise expose unintended properties.
+const FORBIDDEN_NESTED_KEYS = new Set(["__proto__", "constructor", "prototype"]);
+
 function resolveNestedPath(
   rawInfo: Record<string, unknown> | undefined,
   dotPath: string
@@ -97,9 +102,18 @@ function resolveNestedPath(
     if (Array.isArray(current)) {
       const idx = parseInt(part, 10);
       if (isNaN(idx)) return UNKNOWN_FALLBACK;
-      current = current[idx < 0 ? current.length + idx : idx];
+      const safeIdx = idx < 0 ? current.length + idx : idx;
+      if (safeIdx < 0 || safeIdx >= current.length) return UNKNOWN_FALLBACK;
+      current = current[safeIdx];
     } else if (typeof current === "object") {
-      current = (current as Record<string, unknown>)[part];
+      if (FORBIDDEN_NESTED_KEYS.has(part)) return UNKNOWN_FALLBACK;
+      const obj = current as Record<string, unknown>;
+      // Use Object.hasOwn / hasOwnProperty so inherited prototype keys
+      // (toString, valueOf, etc.) cannot be reached through user templates.
+      if (!Object.prototype.hasOwnProperty.call(obj, part)) {
+        return UNKNOWN_FALLBACK;
+      }
+      current = obj[part];
     } else {
       return UNKNOWN_FALLBACK;
     }
@@ -402,6 +416,10 @@ export function planVideoOutputPaths(input: {
 /**
  * Resolves absolute directory for a mode + relative directory path.
  */
+// `relativeDir` always comes from a planner output that ran through
+// sanitizeRelativePath() (rejects "..", absolute paths, illegal chars).
+// Callers also validate the resulting absolute path stays inside the base
+// via resolveSafeChildPath() / pathExistsSafeSync().
 export function resolveAbsoluteDir(
   relativeDir: string,
   mode: "video" | "thumbnail" | "subtitle",
@@ -410,13 +428,16 @@ export function resolveAbsoluteDir(
 ): string {
   if (mode === "video") {
     return relativeDir
+      // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
       ? path.join(VIDEOS_DIR, relativeDir)
       : VIDEOS_DIR;
   }
   if (mode === "thumbnail") {
     const base = moveThumbnailsToVideoFolder ? VIDEOS_DIR : IMAGES_DIR;
+    // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
     return relativeDir ? path.join(base, relativeDir) : base;
   }
   const base = moveSubtitlesToVideoFolder ? VIDEOS_DIR : SUBTITLES_DIR;
+  // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
   return relativeDir ? path.join(base, relativeDir) : base;
 }
