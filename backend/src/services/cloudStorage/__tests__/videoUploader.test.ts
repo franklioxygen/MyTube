@@ -61,13 +61,14 @@ describe('cloudStorage videoUploader', () => {
         // Check uploads
         expect(fileUploader.uploadFile).toHaveBeenCalledTimes(3); 
         // 1. Video
-        expect(fileUploader.uploadFile).toHaveBeenCalledWith('/abs/videos/test.mp4', mockConfig);
+        expect(fileUploader.uploadFile).toHaveBeenCalledWith('/abs/videos/test.mp4', mockConfig, 'test.mp4');
         // 2. Thumbnail
-        expect(fileUploader.uploadFile).toHaveBeenCalledWith('/abs/images/test.jpg', mockConfig);
+        expect(fileUploader.uploadFile).toHaveBeenCalledWith('/abs/images/test.jpg', mockConfig, 'test.jpg');
         // 3. Metadata
         expect(fileUploader.uploadFile).toHaveBeenCalledWith(
-            expect.stringContaining('Test_Video.json'),
-            mockConfig
+            expect.stringContaining('test.json'),
+            mockConfig,
+            'test.json'
         );
         
         // Check DB update
@@ -102,10 +103,11 @@ describe('cloudStorage videoUploader', () => {
         expect(fs.unlinkSync).toHaveBeenCalledTimes(1); // Metadata only
     });
 
-    it('should create nested temp metadata directories for relative thumbnail filenames', async () => {
+    it('should preserve nested template paths for upload, metadata, and database storage', async () => {
         const nestedThumbnailVideoData = {
             ...mockVideoData,
-            thumbnailFilename: 'collection/test.jpg',
+            videoPath: 'videos/collection/test.mp4',
+            thumbnailPath: 'images/collection/test.jpg',
         };
 
         await uploadVideo(nestedThumbnailVideoData, mockConfig);
@@ -114,10 +116,22 @@ describe('cloudStorage videoUploader', () => {
             expect.stringContaining(`${path.sep}temp_metadata${path.sep}collection`)
         );
         expect(fileUploader.uploadFile).toHaveBeenCalledWith(
+            '/abs/videos/collection/test.mp4',
+            mockConfig,
+            'collection/test.mp4'
+        );
+        expect(fileUploader.uploadFile).toHaveBeenCalledWith(
+            '/abs/images/collection/test.jpg',
+            mockConfig,
+            'collection/test.jpg'
+        );
+        expect(fileUploader.uploadFile).toHaveBeenCalledWith(
             expect.stringContaining(`${path.sep}temp_metadata${path.sep}collection${path.sep}test.json`),
-            mockConfig
+            mockConfig,
+            'collection/test.json'
         );
         expect(storageService.updateVideo).toHaveBeenCalledWith('video-123', expect.objectContaining({
+            videoPath: 'cloud:collection/test.mp4',
             thumbnailPath: 'cloud:collection/test.jpg'
         }));
     });
@@ -129,9 +143,9 @@ describe('cloudStorage videoUploader', () => {
 
          await uploadVideo(mockVideoData, mockConfig);
          
-         expect(fileUploader.uploadFile).not.toHaveBeenCalledWith('/abs/videos/test.mp4', mockConfig);
+         expect(fileUploader.uploadFile).not.toHaveBeenCalledWith('/abs/videos/test.mp4', mockConfig, 'test.mp4');
          // Thumbnail exists
-         expect(fileUploader.uploadFile).toHaveBeenCalledWith('/abs/images/test.jpg', mockConfig);
+         expect(fileUploader.uploadFile).toHaveBeenCalledWith('/abs/images/test.jpg', mockConfig, 'test.jpg');
     });
 
     it('should handle failures gracefully', async () => {

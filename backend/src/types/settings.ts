@@ -1,3 +1,10 @@
+export type DownloadFilenamePresetId =
+  | "legacy"
+  | "channel_year_date_index"
+  | "playlist_static_index"
+  | "playlist_static_date"
+  | "custom";
+
 export interface Settings {
   loginEnabled: boolean;
   password?: string;
@@ -53,6 +60,8 @@ export interface Settings {
   telegramNotifyOnFail?: boolean;
   twitchClientId?: string;
   twitchClientSecret?: string;
+  downloadFilenamePresetId?: DownloadFilenamePresetId;
+  downloadFilenameTemplate?: string;
 }
 
 // nosemgrep: codacy.javascript.security.hard-coded-password
@@ -95,4 +104,6 @@ export const defaultSettings: Settings = {
   telegramNotifyOnFail: true,
   twitchClientId: "",
   twitchClientSecret: "",
+  downloadFilenamePresetId: "legacy",
+  downloadFilenameTemplate: "{{ title }}-{{ uploader }}-{{ upload_year }}.{{ ext }}",
 };

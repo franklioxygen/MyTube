@@ -1,5 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import type { ComponentProps } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import DownloadSettings from '../DownloadSettings';
 
@@ -21,6 +23,27 @@ describe('DownloadSettings', () => {
         activeDownloadsCount: 0,
         onCleanup: mockOnCleanup,
         isSaving: false,
+        savedSettings: {
+            maxConcurrentDownloads: 3,
+            preferredAudioLanguage: '',
+        } as any,
+    };
+
+    const renderDownloadSettings = (
+        props: Partial<ComponentProps<typeof DownloadSettings>> = {}
+    ) => {
+        const queryClient = new QueryClient({
+            defaultOptions: {
+                queries: { retry: false },
+                mutations: { retry: false },
+            },
+        });
+
+        return render(
+            <QueryClientProvider client={queryClient}>
+                <DownloadSettings {...defaultProps} {...props} />
+            </QueryClientProvider>
+        );
     };
 
     beforeEach(() => {
@@ -28,7 +51,7 @@ describe('DownloadSettings', () => {
     });
 
     it('should render slider and cleanup button', () => {
-        render(<DownloadSettings {...defaultProps} />);
+        renderDownloadSettings();
 
         expect(screen.getByText('maxConcurrent: 3')).toBeInTheDocument();
         expect(screen.getAllByText('cleanupTempFiles')[0]).toBeInTheDocument();
@@ -37,21 +60,21 @@ describe('DownloadSettings', () => {
 
     it('should call onCleanup when button clicked', async () => {
         const user = userEvent.setup();
-        render(<DownloadSettings {...defaultProps} />);
+        renderDownloadSettings();
 
         await user.click(screen.getByRole('button', { name: 'cleanupTempFiles' }));
         expect(mockOnCleanup).toHaveBeenCalled();
     });
 
     it('should disable cleanup button when active downloads exist', () => {
-        render(<DownloadSettings {...defaultProps} activeDownloadsCount={1} />);
+        renderDownloadSettings({ activeDownloadsCount: 1 });
 
         expect(screen.getByText('cleanupTempFilesActiveDownloads')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'cleanupTempFiles' })).toBeDisabled();
     });
 
     it('should change max concurrent downloads via slider', () => {
-        render(<DownloadSettings {...defaultProps} />);
+        renderDownloadSettings();
 
         const slider = screen.getByRole('slider');
         fireEvent.change(slider, { target: { value: 5 } });
@@ -61,7 +84,7 @@ describe('DownloadSettings', () => {
 
     it('should render preferred audio language dropdown and call onChange when selection changes', async () => {
         const user = userEvent.setup();
-        render(<DownloadSettings {...defaultProps} />);
+        renderDownloadSettings();
 
         const dropdowns = screen.getAllByRole('combobox');
         const dropdown = dropdowns[0];
@@ -75,14 +98,14 @@ describe('DownloadSettings', () => {
     });
 
     it('should show preferred audio language description', () => {
-        render(<DownloadSettings {...defaultProps} />);
+        renderDownloadSettings();
 
         expect(screen.getByText('preferredAudioLanguageDescription')).toBeInTheDocument();
     });
 
     it('should render video codec dropdown and call onChange when selection changes', async () => {
         const user = userEvent.setup();
-        render(<DownloadSettings {...defaultProps} />);
+        renderDownloadSettings();
 
         const dropdowns = screen.getAllByRole('combobox');
         const codecDropdown = dropdowns[1];
@@ -96,14 +119,14 @@ describe('DownloadSettings', () => {
     });
 
     it('should show video codec description', () => {
-        render(<DownloadSettings {...defaultProps} />);
+        renderDownloadSettings();
 
         expect(screen.getByText('defaultVideoCodecDescription')).toBeInTheDocument();
     });
 
     it('should toggle dont skip deleted video setting', async () => {
         const user = userEvent.setup();
-        render(<DownloadSettings {...defaultProps} settings={{ ...defaultProps.settings, dontSkipDeletedVideo: false }} />);
+        renderDownloadSettings({ settings: { ...defaultProps.settings, dontSkipDeletedVideo: false } });
 
         await user.click(screen.getByRole('switch', { name: 'dontSkipDeletedVideo' }));
 
@@ -111,46 +134,46 @@ describe('DownloadSettings', () => {
     });
 
     it('should disable cleanup button while saving', () => {
-        render(<DownloadSettings {...defaultProps} isSaving={true} />);
+        renderDownloadSettings({ isSaving: true });
 
         expect(screen.getByRole('button', { name: 'cleanupTempFiles' })).toBeDisabled();
     });
 
     it('should render the default preferred audio language label when empty', () => {
-        render(<DownloadSettings {...defaultProps} settings={{ ...defaultProps.settings, preferredAudioLanguage: '' }} />);
+        renderDownloadSettings({ settings: { ...defaultProps.settings, preferredAudioLanguage: '' } });
 
         expect(screen.getAllByRole('combobox')[0]).toHaveTextContent('preferredAudioLanguageDefault');
     });
 
     it('should render the translated preferred audio language label for known values', () => {
-        render(<DownloadSettings {...defaultProps} settings={{ ...defaultProps.settings, preferredAudioLanguage: 'ja' }} />);
+        renderDownloadSettings({ settings: { ...defaultProps.settings, preferredAudioLanguage: 'ja' } });
 
         expect(screen.getAllByRole('combobox')[0]).toHaveTextContent('preferredAudioLanguage_ja');
     });
 
     it('should render the raw preferred audio language value when it is unknown', () => {
         const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-        render(<DownloadSettings {...defaultProps} settings={{ ...defaultProps.settings, preferredAudioLanguage: 'xx' }} />);
+        renderDownloadSettings({ settings: { ...defaultProps.settings, preferredAudioLanguage: 'xx' } });
 
         expect(screen.getAllByRole('combobox')[0]).toHaveTextContent('xx');
         consoleWarnSpy.mockRestore();
     });
 
     it('should render the default video codec label when empty', () => {
-        render(<DownloadSettings {...defaultProps} settings={{ ...defaultProps.settings, defaultVideoCodec: '' }} />);
+        renderDownloadSettings({ settings: { ...defaultProps.settings, defaultVideoCodec: '' } });
 
         expect(screen.getAllByRole('combobox')[1]).toHaveTextContent('defaultVideoCodecDefault');
     });
 
     it('should render the translated video codec label for known values', () => {
-        render(<DownloadSettings {...defaultProps} settings={{ ...defaultProps.settings, defaultVideoCodec: 'av1' }} />);
+        renderDownloadSettings({ settings: { ...defaultProps.settings, defaultVideoCodec: 'av1' } });
 
         expect(screen.getAllByRole('combobox')[1]).toHaveTextContent('defaultVideoCodec_av1');
     });
 
     it('should render the raw video codec value when it is unknown', () => {
         const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-        render(<DownloadSettings {...defaultProps} settings={{ ...defaultProps.settings, defaultVideoCodec: 'xvid' }} />);
+        renderDownloadSettings({ settings: { ...defaultProps.settings, defaultVideoCodec: 'xvid' } });
 
         expect(screen.getAllByRole('combobox')[1]).toHaveTextContent('xvid');
         consoleWarnSpy.mockRestore();

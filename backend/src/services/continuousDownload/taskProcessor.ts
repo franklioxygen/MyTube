@@ -5,6 +5,7 @@ import {
   downloadYouTubeVideo,
 } from "../downloadService";
 import { DownloadResult } from "../downloaders/bilibili/types";
+import { FilenameTemplateSourceOptions } from "../filenameTemplate/types";
 import * as storageService from "../storageService";
 import { Video } from "../storageService";
 import { TaskRepository } from "./taskRepository";
@@ -393,6 +394,16 @@ export class TaskProcessor {
       type: task.platform.toLowerCase(),
     });
 
+    // Build filename template source options from task context
+    const sourceCollectionName = task.playlistName || task.author;
+    const sourceCollectionType: FilenameTemplateSourceOptions["sourceCollectionType"] =
+      task.collectionId ? "playlist" : task.subscriptionId ? "channel" : "single";
+    const filenameTemplateSourceOptions: FilenameTemplateSourceOptions = {
+      sourceCollectionName,
+      sourceCollectionType,
+      mediaPlaylistIndex: videoIndex + 1,
+    };
+
     try {
       // Download the video
       let downloadResult: DownloadResultUnion;
@@ -402,7 +413,10 @@ export class TaskProcessor {
           1,
           1,
           "",
-          downloadId
+          downloadId,
+          undefined,
+          undefined,
+          filenameTemplateSourceOptions
         );
 
         // Check for Bilibili download errors
@@ -413,7 +427,12 @@ export class TaskProcessor {
           );
         }
       } else {
-        downloadResult = await downloadYouTubeVideo(videoUrl, downloadId);
+        downloadResult = await downloadYouTubeVideo(
+          videoUrl,
+          downloadId,
+          undefined,
+          filenameTemplateSourceOptions
+        );
       }
 
       // Extract video data from result (handles both DownloadResult and Video formats)

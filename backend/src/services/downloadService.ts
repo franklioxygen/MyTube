@@ -15,6 +15,7 @@ import {
 } from "./downloaders/BilibiliDownloader";
 import { MissAVDownloader } from "./downloaders/MissAVDownloader";
 import { YtDlpDownloader } from "./downloaders/YtDlpDownloader";
+import { assertDownloadsAllowed } from "./filenameTemplate/renameLockService";
 import { Video } from "./storageService";
 
 // Re-export types for compatibility
@@ -35,6 +36,7 @@ export async function downloadBilibiliVideo(
   downloadId?: string,
   onStart?: (cancel: () => void) => void,
 ): Promise<BilibiliVideoInfo> {
+  assertDownloadsAllowed();
   return BilibiliDownloader.downloadVideo(
     url,
     videoPath,
@@ -145,7 +147,9 @@ export async function downloadSingleBilibiliPart(
   downloadId?: string,
   onStart?: (cancel: () => void) => void,
   collectionName?: string,
+  filenameTemplateSourceOptions?: import("./filenameTemplate/types").FilenameTemplateSourceOptions,
 ): Promise<DownloadResult> {
+  assertDownloadsAllowed();
   return BilibiliDownloader.downloadSinglePart(
     url,
     partNumber,
@@ -154,6 +158,7 @@ export async function downloadSingleBilibiliPart(
     downloadId,
     onStart,
     collectionName,
+    filenameTemplateSourceOptions,
   );
 }
 
@@ -163,6 +168,7 @@ export async function downloadBilibiliCollection(
   collectionName: string,
   downloadId: string,
 ): Promise<CollectionDownloadResult> {
+  assertDownloadsAllowed();
   return BilibiliDownloader.downloadCollection(
     collectionInfo,
     collectionName,
@@ -179,6 +185,7 @@ export async function downloadRemainingBilibiliParts(
   collectionId: string | null,
   downloadId: string,
 ): Promise<void> {
+  assertDownloadsAllowed();
   return BilibiliDownloader.downloadRemainingParts(
     baseUrl,
     startPart,
@@ -203,8 +210,10 @@ export async function downloadYouTubeVideo(
   videoUrl: string,
   downloadId?: string,
   onStart?: (cancel: () => void) => void,
+  filenameTemplateSourceOptions?: import("./filenameTemplate/types").FilenameTemplateSourceOptions
 ): Promise<Video> {
-  return YtDlpDownloader.downloadVideo(videoUrl, downloadId, onStart);
+  assertDownloadsAllowed();
+  return YtDlpDownloader.downloadVideo(videoUrl, downloadId, onStart, filenameTemplateSourceOptions);
 }
 
 // Helper function to download MissAV video
@@ -212,8 +221,10 @@ export async function downloadMissAVVideo(
   url: string,
   downloadId?: string,
   onStart?: (cancel: () => void) => void,
+  filenameTemplateSourceOptions?: import("./filenameTemplate/types").FilenameTemplateSourceOptions
 ): Promise<Video> {
-  return MissAVDownloader.downloadVideo(url, downloadId, onStart);
+  assertDownloadsAllowed();
+  return MissAVDownloader.downloadVideo(url, downloadId, onStart, filenameTemplateSourceOptions);
 }
 
 // Helper function to get video info without downloading
@@ -238,6 +249,7 @@ export function createDownloadTask(
   downloadId: string,
 ): (registerCancel: (cancel: () => void) => void) => Promise<any> {
   return async (registerCancel: (cancel: () => void) => void) => {
+    assertDownloadsAllowed();
     if (type === "missav") {
       return MissAVDownloader.downloadVideo(url, downloadId, registerCancel);
     } else if (type === "bilibili") {

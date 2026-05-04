@@ -28,6 +28,7 @@ import {
   TwitchYtDlpVideoEntry,
 } from "./downloaders/ytdlp/ytdlpTwitch";
 import { YtDlpDownloader } from "./downloaders/YtDlpDownloader";
+import { FilenameTemplateSourceOptions } from "./filenameTemplate/types";
 import * as storageService from "./storageService";
 import { runSubscriptionRetentionCleanup } from "./subscriptionRetentionService";
 import { TelegramService } from "./telegramService";
@@ -116,6 +117,22 @@ function getErrorMessage(error: unknown, fallback: string): string {
   }
 
   return fallback;
+}
+
+function buildFilenameTemplateSourceOptions(
+  sub: Subscription,
+  mediaPlaylistIndex?: number
+): FilenameTemplateSourceOptions {
+  const isPlaylist =
+    sub.subscriptionType === "playlist" || Boolean(sub.playlistId);
+
+  return {
+    sourceCustomName: sub.author,
+    sourceCollectionName: sub.playlistTitle || sub.author,
+    sourceCollectionId: sub.playlistId || sub.collectionId || "",
+    sourceCollectionType: isPlaylist ? "playlist" : "channel",
+    mediaPlaylistIndex,
+  };
 }
 
 export interface Subscription {
@@ -831,10 +848,19 @@ export class SubscriptionService {
                     latestVideoUrl,
                     1,
                     1,
-                    ""
+                    "",
+                    undefined,
+                    undefined,
+                    undefined,
+                    buildFilenameTemplateSourceOptions(sub)
                   );
                 } else {
-                  downloadResult = await downloadYouTubeVideo(latestVideoUrl);
+                  downloadResult = await downloadYouTubeVideo(
+                    latestVideoUrl,
+                    undefined,
+                    undefined,
+                    buildFilenameTemplateSourceOptions(sub)
+                  );
                 }
 
                 // Add to download history on success
@@ -993,7 +1019,10 @@ export class SubscriptionService {
                 let downloadedShortTitle = `New short from ${sub.author}`;
                 try {
                   const downloadResult = await downloadYouTubeVideo(
-                    latestShortUrl
+                    latestShortUrl,
+                    undefined,
+                    undefined,
+                    buildFilenameTemplateSourceOptions(sub)
                   );
 
                   // Add to download history on success
@@ -1384,7 +1413,12 @@ export class SubscriptionService {
       let twitchVideoDownloaded = false;
       let downloadedTwitchTitle = video.title || `Video from ${sub.author}`;
       try {
-        const downloadResult = await downloadYouTubeVideo(video.url);
+        const downloadResult = await downloadYouTubeVideo(
+          video.url,
+          undefined,
+          undefined,
+          buildFilenameTemplateSourceOptions(sub)
+        );
         const videoData = downloadResult?.videoData || downloadResult || {};
         downloadedTwitchTitle = videoData.title || video.title;
         twitchVideoDownloaded = true;

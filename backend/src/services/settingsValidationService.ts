@@ -10,6 +10,10 @@ import {
   getTwitchCredentialValidationCode,
   normalizeTwitchCredential,
 } from "../utils/twitch";
+import { validateTemplate } from "./filenameTemplate/validators";
+import { getPresetById, FILENAME_TEMPLATE_PRESETS } from "./filenameTemplate/presets";
+
+const VALID_PRESET_IDS = FILENAME_TEMPLATE_PRESETS.map((p) => p.id);
 
 /**
  * Check if a tags array has any case-insensitive duplicates.
@@ -169,6 +173,31 @@ export function validateSettings(newSettings: Partial<Settings>): void {
     !validSorts.includes(newSettings.defaultSort)
   ) {
     newSettings.defaultSort = "dateDesc";
+  }
+
+  // Validate downloadFilenamePresetId
+  if (
+    newSettings.downloadFilenamePresetId !== undefined &&
+    !VALID_PRESET_IDS.includes(newSettings.downloadFilenamePresetId as any)
+  ) {
+    throw new ValidationError(
+      `Invalid downloadFilenamePresetId: "${newSettings.downloadFilenamePresetId}".`,
+      "downloadFilenamePresetId"
+    );
+  }
+
+  // Validate downloadFilenameTemplate when saving custom preset
+  if (
+    newSettings.downloadFilenamePresetId === "custom" &&
+    newSettings.downloadFilenameTemplate !== undefined
+  ) {
+    const result = validateTemplate(newSettings.downloadFilenameTemplate);
+    if (!result.valid) {
+      throw new ValidationError(
+        `Invalid filename template: ${result.errors.join("; ")}`,
+        "downloadFilenameTemplate"
+      );
+    }
   }
 
   // Validate tags: no case-insensitive duplicates (e.g. "aaa" and "Aaa" cannot both exist)
