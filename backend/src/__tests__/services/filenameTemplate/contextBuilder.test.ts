@@ -130,3 +130,76 @@ describe("buildContextFromVideoRecord", () => {
     expect(ctx.mediaPlaylistIndex).toBe(7);
   });
 });
+
+describe("extractPlatform — URL hostname safety (CodeQL js/incomplete-url-substring-sanitization)", () => {
+  it("classifies a real youtube URL as youtube", () => {
+    const ctx = buildContextFromYtDlpInfo(
+      "https://www.youtube.com/watch?v=abc",
+      { title: "T", id: "x", upload_date: "20260101" }
+    );
+    expect(ctx.platform).toBe("youtube");
+  });
+
+  it("classifies youtu.be as youtube", () => {
+    const ctx = buildContextFromYtDlpInfo(
+      "https://youtu.be/abc",
+      { title: "T", id: "x", upload_date: "20260101" }
+    );
+    expect(ctx.platform).toBe("youtube");
+  });
+
+  it("rejects an attacker URL with youtube.com in path", () => {
+    const ctx = buildContextFromYtDlpInfo(
+      "https://evil.com/path?next=youtube.com",
+      { title: "T", id: "x", upload_date: "20260101" }
+    );
+    // Without source hint and with non-matching hostname, should NOT be youtube.
+    expect(ctx.platform).not.toBe("youtube");
+  });
+
+  it("rejects an attacker URL with bilibili.com prefix in path", () => {
+    const ctx = buildContextFromYtDlpInfo(
+      "https://evil.com/bilibili.com",
+      { title: "T", id: "x", upload_date: "20260101" }
+    );
+    expect(ctx.platform).not.toBe("bilibili");
+  });
+
+  it("rejects a url like 'foo.youtube.com.evil.tld'", () => {
+    const ctx = buildContextFromYtDlpInfo(
+      "https://foo.youtube.com.evil.tld/x",
+      { title: "T", id: "x", upload_date: "20260101" }
+    );
+    expect(ctx.platform).not.toBe("youtube");
+  });
+
+  it("classifies a subdomain like m.youtube.com as youtube", () => {
+    const ctx = buildContextFromYtDlpInfo(
+      "https://m.youtube.com/watch?v=x",
+      { title: "T", id: "x", upload_date: "20260101" }
+    );
+    expect(ctx.platform).toBe("youtube");
+  });
+
+  it("returns unknown for an unparseable URL", () => {
+    const ctx = buildContextFromYtDlpInfo("not a url", {
+      title: "T",
+      id: "x",
+      upload_date: "20260101",
+    });
+    expect(ctx.platform).toBe("unknown");
+  });
+
+  it("source hint still wins when URL hostname does not match", () => {
+    const ctx = buildContextFromYtDlpInfo(
+      "https://example.com/x",
+      {
+        title: "T",
+        id: "x",
+        upload_date: "20260101",
+        extractor: "youtube",
+      }
+    );
+    expect(ctx.platform).toBe("youtube");
+  });
+});

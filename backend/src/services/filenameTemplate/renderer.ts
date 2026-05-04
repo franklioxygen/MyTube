@@ -173,8 +173,11 @@ function replaceYtDlpVars(
   liquidVarMap: Record<string, string>
 ): { result: string; warnings: TemplateWarning[] } {
   const warnings: TemplateWarning[] = [];
+  // [^()]+ (not [^)]+) prevents catastrophic backtracking on adversarial
+  // input like "%((((((((((((". yt-dlp placeholders never nest, so excluding
+  // "(" inside the inner group is also semantically correct.
   const result = template.replace(
-    /%\(([^)]+)\)([a-zA-Z])/g,
+    /%\(([^()]+)\)([a-zA-Z])/g,
     (match, expr, conv) => {
       const gtIdx = expr.indexOf(">");
       const varPart = gtIdx >= 0 ? expr.slice(0, gtIdx) : expr;

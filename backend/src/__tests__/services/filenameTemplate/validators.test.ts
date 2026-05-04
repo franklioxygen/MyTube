@@ -133,4 +133,25 @@ describe("validateTemplate", () => {
       result.warnings.some((w) => w.code === "metadata_missing")
     ).toBe(true);
   });
+
+  it("rejects templates over the maximum length to bound parsing cost", () => {
+    const huge = "x".repeat(2001);
+    const result = validateTemplate(huge);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((e) => e.includes("at most"))).toBe(true);
+  });
+
+  it("does not exhibit catastrophic backtracking on adversarial '%((' input (CodeQL js/polynomial-redos)", () => {
+    // Prior regex `[^)]+` could backtrack on long unterminated `%(((((...`.
+    // With `[^()]+` the regex fails fast at the first nested '(' so this
+    // is linear-time. Cap the test at 200ms to detect any regression.
+    const adversarial = "%(" + "(".repeat(1500);
+    const start = Date.now();
+    const result = validateTemplate(adversarial + ".{{ ext }}");
+    const elapsed = Date.now() - start;
+    expect(elapsed).toBeLessThan(200);
+    // The body of the template is invalid (no extension placeholder match),
+    // so the result is invalid; what matters is that we returned quickly.
+    expect(result).toBeDefined();
+  });
 });

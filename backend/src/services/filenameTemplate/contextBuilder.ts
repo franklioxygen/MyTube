@@ -43,6 +43,40 @@ function formatDuration(seconds: number | undefined): string {
   return `${mm}-${ss}`;
 }
 
+// Map of platform -> allowed hostname suffixes. Matched against the parsed
+// URL hostname only (not via substring includes()), so an attacker URL like
+// "https://evil.com/?youtube.com" is correctly classified as "unknown".
+const PLATFORM_HOST_SUFFIXES: Array<{
+  platform: FilenameTemplateContext["platform"];
+  suffixes: string[];
+}> = [
+  { platform: "youtube", suffixes: ["youtube.com", "youtu.be"] },
+  { platform: "twitch", suffixes: ["twitch.tv"] },
+  { platform: "bilibili", suffixes: ["bilibili.com", "b23.tv"] },
+  { platform: "missav", suffixes: ["missav.com"] },
+];
+
+function getHostnameSafely(url: string): string | null {
+  try {
+    return new URL(url).hostname.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+function matchPlatformByHostname(
+  hostname: string
+): FilenameTemplateContext["platform"] | null {
+  for (const { platform, suffixes } of PLATFORM_HOST_SUFFIXES) {
+    for (const suffix of suffixes) {
+      if (hostname === suffix || hostname.endsWith(`.${suffix}`)) {
+        return platform;
+      }
+    }
+  }
+  return null;
+}
+
 function extractPlatform(
   source: string | undefined,
   url: string | undefined
@@ -53,10 +87,11 @@ function extractPlatform(
   if (s === "bilibili" || s.includes("bilibili")) return "bilibili";
   if (s === "missav" || s.includes("missav")) return "missav";
   if (url) {
-    if (url.includes("youtube.com") || url.includes("youtu.be")) return "youtube";
-    if (url.includes("twitch.tv")) return "twitch";
-    if (url.includes("bilibili.com") || url.includes("b23.tv")) return "bilibili";
-    if (url.includes("missav.com")) return "missav";
+    const hostname = getHostnameSafely(url);
+    if (hostname) {
+      const matched = matchPlatformByHostname(hostname);
+      if (matched) return matched;
+    }
   }
   return "unknown";
 }
