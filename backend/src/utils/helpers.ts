@@ -481,10 +481,6 @@ function cleanLegacyFilenameSegment(str: string): string {
     .replace(/\s+/g, "."); // Replace spaces with dots
 }
 
-function escapeRegex(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
 // Helper function to format video filename according to: Title-Author-YYYY
 // Symbols are removed, spaces replaced by dots.
 export function formatVideoFilename(
@@ -564,12 +560,22 @@ export function stripLegacyFilenameSuffix(
   if (!yearMatch) return title;
   const year = yearMatch[1];
 
-  // Match: -<expectedAuthor>-<year>(_<digits>)? at end of string.
-  const suffixRe = new RegExp(
-    `-${escapeRegex(expectedAuthor)}-${year}(?:_\\d+)?$`,
-  );
+  // Detect and strip an optional trailing _<digits> dedupe tail using a
+  // literal regex (no user input in the pattern).
+  let candidate = title;
+  const dedupeMatch = candidate.match(/_\d+$/);
+  if (dedupeMatch && dedupeMatch.index !== undefined) {
+    candidate = candidate.slice(0, dedupeMatch.index);
+  }
 
-  return title.replace(suffixRe, "");
+  // Then check the remaining string ends with the expected -Author-Year
+  // suffix using plain string ops; no dynamic regex needed.
+  const baseSuffix = `-${expectedAuthor}-${year}`;
+  if (candidate.endsWith(baseSuffix)) {
+    return candidate.slice(0, candidate.length - baseSuffix.length);
+  }
+
+  return title;
 }
 
 /**
