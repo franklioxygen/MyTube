@@ -40,12 +40,6 @@ const SUPPORTED_CONVERSIONS = new Set(["s", "S", "d"]);
 
 const EXT_PLACEHOLDER_RE = /\.({{[ \t]*ext[ \t]*}}|%\(ext\)[sS])$/;
 
-// Yt-dlp placeholders never nest, so disallow `(` and `)` inside the inner
-// group. This makes the regex linear-time on adversarial input — the prior
-// `[^)]+` allowed `(` inside, which caused catastrophic backtracking on
-// strings like "%((((((((((((" (CodeQL js/polynomial-redos).
-const YTDLP_PLACEHOLDER_RE = /%\(([^()]+)\)([a-zA-Z])/g;
-
 // Defense in depth: even with a linear-time regex, cap the template length
 // so the validator and renderer cannot be flooded with megabyte-sized input.
 const MAX_TEMPLATE_LENGTH = 2000;
@@ -115,8 +109,10 @@ export function validateTemplate(
   }
 
   // Validate yt-dlp-style placeholders  %(<expr>)<conv>
-  // Pattern uses [^()]+ (not [^)]+) to prevent ReDoS on adversarial input.
-  const ytdlpRe = new RegExp(YTDLP_PLACEHOLDER_RE.source, "g");
+  // [^()]+ (not [^)]+) prevents ReDoS on adversarial input like "%(((((..."
+  // (CodeQL js/polynomial-redos). yt-dlp placeholders never nest, so
+  // disallowing "(" inside the inner group is also semantically correct.
+  const ytdlpRe = /%\(([^()]+)\)([a-zA-Z])/g;
   while ((m = ytdlpRe.exec(normalized)) !== null) {
     const expr = m[1];
     const conv = m[2];
