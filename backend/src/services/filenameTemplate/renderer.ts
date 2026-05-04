@@ -3,7 +3,10 @@ import {
   SUBTITLES_DIR,
   VIDEOS_DIR,
 } from "../../config/paths";
-import { formatVideoFilename } from "../../utils/helpers";
+import {
+  formatVideoFilename,
+  stripLegacyFilenameSuffix,
+} from "../../utils/helpers";
 import { resolveSafeChildPath } from "../../utils/security";
 import { computeAliases } from "./aliases";
 import { getPresetById } from "./presets";
@@ -327,8 +330,19 @@ export function planVideoOutputPaths(input: {
   // existing legacy files are already at the target.
   let rendered: RenderedMediaPath;
   if (presetId === "legacy") {
-    const stem = formatVideoFilename(
+    // Round-trip safety (design §24): if the stored title already ends in a
+    // recognizable -<cleanAuthor>-<year>(_<n>)? suffix that this very
+    // formatter would have produced, strip it before re-applying the format.
+    // Otherwise switching legacy → other preset → legacy would concatenate the
+    // old suffix into the new title, e.g. "X-Yajun-2026" → cleaned to
+    // "XYajun2026" → re-formatted to "XYajun2026-Yajun-2026.mp4".
+    const titleForLegacy = stripLegacyFilenameSuffix(
       context.title,
+      context.uploader,
+      context.uploadDate
+    );
+    const stem = formatVideoFilename(
+      titleForLegacy,
       context.uploader,
       context.uploadDate
     );

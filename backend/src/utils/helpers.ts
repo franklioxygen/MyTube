@@ -469,6 +469,22 @@ export function extractBilibiliSeriesId(url: string): string | null {
   }
 }
 
+// Helper to clean segments for the legacy filename format: remove symbols
+// (keep letters/numbers/spaces), replace spaces with dots. Exported so the
+// suffix-stripper below can reproduce the exact author segment that
+// formatVideoFilename produces.
+function cleanLegacyFilenameSegment(str: string): string {
+  if (!str) return "Unknown";
+  return str
+    .replace(/[^\p{L}\p{N}\s]/gu, "") // Remove non-letters/numbers/spaces
+    .trim()
+    .replace(/\s+/g, "."); // Replace spaces with dots
+}
+
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 // Helper function to format video filename according to: Title-Author-YYYY
 // Symbols are removed, spaces replaced by dots.
 export function formatVideoFilename(
@@ -476,14 +492,7 @@ export function formatVideoFilename(
   author: string,
   dateString: string,
 ): string {
-  // Helper to clean segments: remove symbols (keep letters/numbers/spaces), replace spaces with dots
-  const cleanSegment = (str: string) => {
-    if (!str) return "Unknown";
-    return str
-      .replace(/[^\p{L}\p{N}\s]/gu, "") // Remove non-letters/numbers/spaces
-      .trim()
-      .replace(/\s+/g, "."); // Replace spaces with dots
-  };
+  const cleanSegment = cleanLegacyFilenameSegment;
 
   let cleanTitle = cleanSegment(title) || "Video";
   let cleanAuthor = cleanSegment(author) || "Unknown";
@@ -519,6 +528,48 @@ export function formatVideoFilename(
   }
 
   return `${cleanTitle}${fullSuffix}`;
+}
+
+/**
+ * Strips a trailing `-<cleanAuthor>-<year>` (and optional `_<n>` dedupe tail)
+ * from `title` if and only if it is byte-identical to what
+ * `formatVideoFilename` would have appended for the given (author, date).
+ *
+ * Used by the legacy preset of the filename template renderer so that
+ * round-trip renames (legacy → other → legacy) on records whose stored
+ * title was derived from a previous legacy filename are idempotent.
+ *
+ * Conservative on purpose: only strips suffixes whose author segment matches
+ * `cleanLegacyFilenameSegment(author)` and whose year matches the year
+ * extracted from `dateString`. A real video title that happens to end with
+ * `-SomeOtherAuthor-2026` is left unchanged. Returns the title unmodified
+ * when author or date are missing.
+ *
+ * Designed to be idempotent: applying twice produces the same result, since
+ * the second application no longer matches.
+ */
+export function stripLegacyFilenameSuffix(
+  title: string | undefined,
+  author: string | undefined,
+  dateString: string | undefined,
+): string {
+  if (!title) return title || "";
+  if (!author || !dateString) return title;
+
+  const expectedAuthorRaw = cleanLegacyFilenameSegment(author);
+  const expectedAuthor = truncateToByteLength(expectedAuthorRaw, 50);
+  if (!expectedAuthor || expectedAuthor === "Unknown") return title;
+
+  const yearMatch = dateString.match(/(\d{4})/);
+  if (!yearMatch) return title;
+  const year = yearMatch[1];
+
+  // Match: -<expectedAuthor>-<year>(_<digits>)? at end of string.
+  const suffixRe = new RegExp(
+    `-${escapeRegex(expectedAuthor)}-${year}(?:_\\d+)?$`,
+  );
+
+  return title.replace(suffixRe, "");
 }
 
 /**

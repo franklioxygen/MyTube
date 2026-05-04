@@ -171,6 +171,58 @@ describe("planVideoOutputPaths", () => {
     );
   });
 
+  it("legacy preset strips a previous -Author-Year suffix from the title (design §24)", () => {
+    // Reported regression: a scanned file named "Title-Author-2026.mp4" gets
+    // its title set to "Title-Author-2026". After a round-trip through a
+    // non-legacy preset and back, re-rendering through legacy used to produce
+    // "TitleAuthor2026-Author-2026.mp4". With suffix stripping it stays
+    // byte-identical to the original.
+    const result = planVideoOutputPaths({
+      settings: { downloadFilenamePresetId: "legacy" },
+      context: makeCtx({
+        title: "万元房租一分不退维权反被骂-Yajunchannel-2026",
+        uploader: "Yajunchannel",
+        uploadDate: "20260101",
+      }),
+      videoExtension: "mp4",
+      moveThumbnailsToVideoFolder: false,
+      moveSubtitlesToVideoFolder: false,
+    });
+    expect(result.video.filename).toBe(
+      "万元房租一分不退维权反被骂-Yajunchannel-2026.mp4"
+    );
+  });
+
+  it("legacy preset is byte-identical on round-trip for CJK titles (user's reported case)", () => {
+    // The reported user video had a CJK title with no spaces. After a
+    // round-trip through a non-legacy preset, the title field can become the
+    // previous legacy basename. Without suffix stripping, re-rendering
+    // through legacy concatenated the old -Author-Year suffix back into the
+    // title and appended a fresh one, producing a garbled name. With the
+    // §24 fix, the rename is now byte-identical.
+    const ctx = makeCtx({
+      title: "万元房租一分不退维权反被骂",
+      uploader: "Yajunchannel",
+      uploadDate: "20260101",
+    });
+    const first = planVideoOutputPaths({
+      settings: { downloadFilenamePresetId: "legacy" },
+      context: ctx,
+      videoExtension: "mp4",
+      moveThumbnailsToVideoFolder: false,
+      moveSubtitlesToVideoFolder: false,
+    });
+    // Simulate: "the title field now equals the previous legacy basename".
+    const second = planVideoOutputPaths({
+      settings: { downloadFilenamePresetId: "legacy" },
+      context: { ...ctx, title: first.video.basenameWithoutExt },
+      videoExtension: "mp4",
+      moveThumbnailsToVideoFolder: false,
+      moveSubtitlesToVideoFolder: false,
+    });
+    expect(second.video.filename).toBe(first.video.filename);
+  });
+
   it("channel_year_date_index preset produces subdirectory structure", () => {
     const result = planVideoOutputPaths({
       settings: { downloadFilenamePresetId: "channel_year_date_index" },
