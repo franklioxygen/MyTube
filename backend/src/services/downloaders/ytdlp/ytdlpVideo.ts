@@ -15,6 +15,8 @@ import {
 import { buildContextFromYtDlpInfo } from "../../filenameTemplate/contextBuilder";
 import { planVideoOutputPaths } from "../../filenameTemplate/renderer";
 import { dedupeRelativePath } from "../../filenameTemplate/dedupe";
+import { resolveManagedWebPath } from "../../filenameTemplate/pathHelpers";
+import { enrichSourceOptionsForDownload } from "../../filenameTemplate/sourceOptions";
 import { FilenameTemplateSourceOptions } from "../../filenameTemplate/types";
 import { logger } from "../../../utils/logger";
 import { ProgressTracker } from "../../../utils/progressTracker";
@@ -271,10 +273,19 @@ export async function downloadVideo(
     // Plan output paths using the template planner
     if (downloadFilenamePresetId !== "legacy") {
       // Non-legacy: use template planner
+      const sourceOptions = enrichSourceOptionsForDownload(
+        {
+          ...filenameTemplateSourceOptions,
+          sourceCollectionType:
+            filenameTemplateSourceOptions?.sourceCollectionType ?? "single",
+        },
+        {
+          author: videoAuthor || info.uploader || info.channel,
+          uploadDate: videoDate,
+        }
+      );
       const context = buildContextFromYtDlpInfo(videoUrl, info, {
-        ...filenameTemplateSourceOptions,
-        sourceCollectionType:
-          filenameTemplateSourceOptions?.sourceCollectionType ?? "single",
+        ...sourceOptions,
       });
       const planned = planVideoOutputPaths({
         settings,
@@ -753,16 +764,21 @@ export async function downloadVideo(
       "Video with same sourceUrl exists, updating subtitle information"
     );
 
-    // Delete old video file if filename changed
+    // Delete old video file if filename changed.
+    // Resolve via existingVideo.videoPath so a templated nested path
+    // (e.g. /videos/Channel/Season 2026/file.mp4) is removed correctly;
+    // basename-only resolution would target /videos/file.mp4 and miss it.
     if (existingVideo.videoFilename && existingVideo.videoFilename !== finalVideoFilename) {
-      const oldVideoPath = resolveSafeChildPath(
-        VIDEOS_DIR,
-        existingVideo.videoFilename
-      );
+      const resolved = existingVideo.videoPath
+        ? resolveManagedWebPath(existingVideo.videoPath)
+        : null;
+      const oldVideoPath = resolved
+        ? resolved.absolutePath
+        : resolveSafeChildPath(VIDEOS_DIR, existingVideo.videoFilename);
       try {
         if (pathExistsSafeSync(oldVideoPath, VIDEOS_DIR)) {
           unlinkSafeSync(oldVideoPath, VIDEOS_DIR);
-          logger.info(`Deleted old video file: ${existingVideo.videoFilename}`);
+          logger.info(`Deleted old video file: ${existingVideo.videoPath || existingVideo.videoFilename}`);
         }
       } catch (e) {
         logger.error("Failed to delete old video file:", e);

@@ -17,6 +17,7 @@ import {
 } from "../../utils/security";
 import { applyDedupeToRelatedPaths, dedupeRelativePath } from "../filenameTemplate/dedupe";
 import { planVideoOutputPaths } from "../filenameTemplate/renderer";
+import { enrichSourceOptionsForDownload } from "../filenameTemplate/sourceOptions";
 import { FilenameTemplateContext, FilenameTemplateSourceOptions } from "../filenameTemplate/types";
 import {
   flagsToArgs,
@@ -448,7 +449,13 @@ export class MissAVDownloader extends BaseDownloader {
         const month = uploadDateClean.length >= 6 ? uploadDateClean.slice(4, 6) : String(new Date().getMonth() + 1).padStart(2, "0");
         const day = uploadDateClean.length >= 8 ? uploadDateClean.slice(6, 8) : String(new Date().getDate()).padStart(2, "0");
 
-        const srcOpts = filenameTemplateSourceOptions || {};
+        const srcOpts = enrichSourceOptionsForDownload(
+          filenameTemplateSourceOptions || {},
+          {
+            author: videoAuthor,
+            uploadDate: videoDate,
+          }
+        );
         const ctx: FilenameTemplateContext = {
           title: videoTitle,
           id: "",
@@ -467,6 +474,7 @@ export class MissAVDownloader extends BaseDownloader {
           sourceCollectionId: srcOpts.sourceCollectionId || "",
           sourceCollectionType: srcOpts.sourceCollectionType || "single",
           mediaPlaylistIndex: srcOpts.mediaPlaylistIndex,
+          mediaPlaylistIndexWithinDate: srcOpts.mediaPlaylistIndexWithinDate,
           platform: "missav",
           sourceUrl: url,
         };

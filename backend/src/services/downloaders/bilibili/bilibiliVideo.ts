@@ -783,7 +783,8 @@ export async function downloadSinglePart(
           storageService.addVideoToAuthorCollection(
             updatedVideo.id,
             videoAuthor,
-            settings.saveAuthorFilesToCollection || false
+            settings.saveAuthorFilesToCollection || false,
+            settings.downloadFilenamePresetId
           );
 
           return { success: true, videoData: updatedVideo };
@@ -800,7 +801,8 @@ export async function downloadSinglePart(
     const authorCollection = storageService.addVideoToAuthorCollection(
       videoData.id,
       videoAuthor,
-      settings.saveAuthorFilesToCollection || false
+      settings.saveAuthorFilesToCollection || false,
+      settings.downloadFilenamePresetId
     );
 
     if (authorCollection) {

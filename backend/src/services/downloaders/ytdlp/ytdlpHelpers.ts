@@ -14,12 +14,37 @@ const BGUTIL_SCRIPT_RELATIVE_PATH = path.join(
   "build",
   "generate_once.js",
 );
+const BGUTIL_PLUGIN_PACKAGE_RELATIVE_PATH = path.join(
+  "bgutil-ytdlp-pot-provider",
+  "plugin",
+  "yt_dlp_plugins",
+);
 const BGUTIL_SCRIPT_BASENAME = "generate_once.js";
 const warnedInvalidProviderScriptPaths = new Set<string>();
 const warnedMissingProviderScriptPaths = new Set<string>();
 
 function isValidProviderScriptPath(filePath: string): boolean {
   return path.basename(filePath) === BGUTIL_SCRIPT_BASENAME;
+}
+
+function resolveBundledProviderCandidatePaths(relativePath: string): string[] {
+  return [
+    path.resolve(process.cwd(), relativePath),
+    // Source layout: backend/src/services/downloaders/ytdlp -> backend/
+    path.resolve(__dirname, "../../../..", relativePath),
+    // Build layout: backend/dist/src/services/downloaders/ytdlp -> backend/
+    path.resolve(__dirname, "../../../../..", relativePath),
+  ].map((candidatePath) => normalizeSafeAbsolutePath(candidatePath));
+}
+
+function findExistingBundledProviderPath(relativePath: string): string {
+  const candidatePaths = resolveBundledProviderCandidatePaths(relativePath);
+  for (const candidatePath of candidatePaths) {
+    if (pathExistsTrustedSync(candidatePath)) {
+      return candidatePath;
+    }
+  }
+  return "";
 }
 
 function warnOnce(
@@ -204,20 +229,15 @@ export function getProviderScript(): string {
     }
   }
 
-  const candidatePaths = [
-    path.resolve(process.cwd(), BGUTIL_SCRIPT_RELATIVE_PATH),
-    // Source layout: backend/src/services/downloaders/ytdlp -> backend/
-    path.resolve(__dirname, "../../../..", BGUTIL_SCRIPT_RELATIVE_PATH),
-    // Build layout: backend/dist/src/services/downloaders/ytdlp -> backend/
-    path.resolve(__dirname, "../../../../..", BGUTIL_SCRIPT_RELATIVE_PATH),
-  ];
+  return findExistingBundledProviderPath(BGUTIL_SCRIPT_RELATIVE_PATH);
+}
 
-  for (const candidatePath of candidatePaths) {
-    const normalizedCandidatePath = normalizeSafeAbsolutePath(candidatePath);
-    if (pathExistsTrustedSync(normalizedCandidatePath)) {
-      return normalizedCandidatePath;
-    }
-  }
-
-  return "";
+/**
+ * Get the bundled PO Token provider plugin path for PYTHONPATH injection.
+ */
+export function getProviderPluginPath(): string {
+  const pluginPackagePath = findExistingBundledProviderPath(
+    BGUTIL_PLUGIN_PACKAGE_RELATIVE_PATH,
+  );
+  return pluginPackagePath ? path.dirname(pluginPackagePath) : "";
 }

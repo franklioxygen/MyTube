@@ -343,4 +343,59 @@ describe("bilibiliVideo.downloadSinglePart", () => {
       "/mock/images/Collection/old-thumb.jpg",
     );
   });
+
+  it("passes downloadFilenamePresetId when adding a new video to the author collection", async () => {
+    mocks.getSettings.mockReturnValue({
+      moveThumbnailsToVideoFolder: false,
+      moveSubtitlesToVideoFolder: false,
+      saveAuthorFilesToCollection: false,
+      downloadFilenamePresetId: "channel_year_date_index",
+    });
+
+    const result = await downloadSinglePart(
+      "https://www.bilibili.com/video/BV1preset",
+      1,
+      1,
+      "",
+      "download-4",
+      undefined,
+      "Collection",
+    );
+
+    expect(result.success).toBe(true);
+    expect(mocks.addVideoToAuthorCollection).toHaveBeenCalledWith(
+      expect.any(String),
+      "Mock Author",
+      false,
+      "channel_year_date_index",
+    );
+  });
+
+  it("passes downloadFilenamePresetId when updating an existing video", async () => {
+    mocks.getSettings.mockReturnValue({
+      moveThumbnailsToVideoFolder: false,
+      moveSubtitlesToVideoFolder: false,
+      saveAuthorFilesToCollection: false,
+      downloadFilenamePresetId: "channel_year_date_index",
+    });
+    mocks.getVideoBySourceUrl.mockReturnValue(buildExistingVideo());
+
+    const result = await downloadSinglePart(
+      "https://www.bilibili.com/video/BV1preset-update",
+      1,
+      1,
+      "",
+      "download-5",
+      undefined,
+      "Collection",
+    );
+
+    expect(result.success).toBe(true);
+    expect(mocks.addVideoToAuthorCollection).toHaveBeenCalledWith(
+      "existing-video",
+      "Mock Author",
+      false,
+      "channel_year_date_index",
+    );
+  });
 });

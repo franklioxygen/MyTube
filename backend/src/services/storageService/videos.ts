@@ -10,6 +10,7 @@ import {
 import { db } from "../../db";
 import { videos } from "../../db/schema";
 import { DatabaseError } from "../../errors/DownloadErrors";
+import { resolveManagedWebPath } from "../filenameTemplate/pathHelpers";
 import { formatVideoFilename } from "../../utils/helpers";
 import { logger } from "../../utils/logger";
 import { getCollections } from "./collections";
@@ -647,6 +648,20 @@ function deleteVideoFile(
     return;
   }
 
+  // Prefer videoPath so a templated nested path (e.g.
+  // /videos/Channel/Season 2026/file.mp4) resolves to its real on-disk
+  // location. Once template subdirectories are enabled identical basenames
+  // can exist in different folders, and findVideoFile() (basename-only
+  // lookup) could match the wrong file or miss the intended one entirely.
+  const resolved = video.videoPath ? resolveManagedWebPath(video.videoPath) : null;
+  if (resolved) {
+    if (pathExists(resolved.absolutePath)) {
+      removeFileIfExists(resolved.absolutePath);
+    }
+    return;
+  }
+
+  // Legacy fallback: only basename available (older rows pre-feature).
   if (video.videoFilename) {
     const actualPath = findVideoFile(video.videoFilename, allCollections);
     if (actualPath && pathExists(actualPath)) {

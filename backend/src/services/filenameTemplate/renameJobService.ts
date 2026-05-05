@@ -2,7 +2,7 @@ import fs from "fs-extra";
 import path from "path";
 import { db } from "../../db";
 import { downloadHistory, videos } from "../../db/schema";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../../config/paths";
 import { logger } from "../../utils/logger";
 import {
@@ -19,6 +19,11 @@ import { resolveManagedWebPath } from "./pathHelpers";
 import { getPresetById } from "./presets";
 import { planVideoOutputPaths } from "./renderer";
 import { acquireRenameLock, releaseRenameLock } from "./renameLockService";
+import {
+  assignDateCollisionIndexes,
+  buildStoredSourceOptionsMap,
+} from "./sourceOptions";
+import { FilenameTemplateSourceOptions } from "./types";
 import { Video } from "../storageService/types";
 
 export interface RenameJobItem {
@@ -132,6 +137,23 @@ export async function startRenameJob(
   return job;
 }
 
+/**
+ * For each video in the snapshot, precompute the FilenameTemplateSourceOptions
+ * the renderer needs. Without this, buildContextFromVideoRecord falls back to
+ * sourceCollectionType="unknown" and mediaPlaylistIndex=undefined, which makes
+ * presets like channel_year_date_index render "...e<MMDD>00" for every same-day
+ * item. Per design §16 step 3, the rename job is responsible for sourcing this
+ * context from the video's collection membership and computing date-collision
+ * indexes from the snapshot.
+ */
+function precomputeSourceOptions(
+  allVideos: Video[]
+): Map<string, FilenameTemplateSourceOptions> {
+  const sourceOptionsByVideoId = buildStoredSourceOptionsMap(allVideos);
+  assignDateCollisionIndexes(allVideos, sourceOptionsByVideoId);
+  return sourceOptionsByVideoId;
+}
+
 async function processRenameJob(
   job: RenameJob,
   allVideos: Video[],
@@ -140,6 +162,7 @@ async function processRenameJob(
   moveSubtitlesToVideoFolder: boolean
 ): Promise<void> {
   const reservedPaths = new Set<string>();
+  const sourceOptionsByVideoId = precomputeSourceOptions(allVideos);
 
   for (const video of allVideos) {
     if (job.cancelRequested) {
@@ -157,7 +180,8 @@ async function processRenameJob(
       settings,
       moveThumbnailsToVideoFolder,
       moveSubtitlesToVideoFolder,
-      reservedPaths
+      reservedPaths,
+      sourceOptionsByVideoId.get(video.id) || {}
     );
 
     job.items.push(item);
@@ -184,7 +208,8 @@ async function processOneVideo(
   settings: { downloadFilenamePresetId?: string; downloadFilenameTemplate?: string },
   moveThumbnailsToVideoFolder: boolean,
   moveSubtitlesToVideoFolder: boolean,
-  reservedPaths: Set<string>
+  reservedPaths: Set<string>,
+  sourceOptions: FilenameTemplateSourceOptions
 ): Promise<RenameJobItem> {
   const item: RenameJobItem = {
     videoId: video.id,
@@ -222,8 +247,9 @@ async function processOneVideo(
       return item;
     }
 
-    // Build context from video record
-    const context = buildContextFromVideoRecord(video);
+    // Build context from video record + precomputed source options
+    // (collection membership and per-day collision index).
+    const context = buildContextFromVideoRecord(video, sourceOptions);
 
     // Determine video extension
     const videoExt =

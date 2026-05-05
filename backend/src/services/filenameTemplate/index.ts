@@ -7,5 +7,6 @@ export * from "./validators";
 export * from "./renderer";
 export * from "./dedupe";
 export * from "./pathHelpers";
+export * from "./sourceOptions";
 export * from "./renameLockService";
 export * from "./renameJobService";

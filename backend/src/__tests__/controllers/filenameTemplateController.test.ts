@@ -36,6 +36,7 @@ vi.mock("../../services/storageService", () => ({
   getDownloadStatus: () => getDownloadStatusMock(),
   getSettings: () => getSettingsMock(),
   getVideos: () => getVideosMock(),
+  getCollections: () => [],
 }));
 
 vi.mock("../../db", () => ({
@@ -46,12 +47,22 @@ vi.mock("../../db", () => ({
         where: vi.fn(() => ({ run: vi.fn() })),
       })),
     })),
+    select: vi.fn(() => ({
+      from: vi.fn(() => ({
+        all: () => [],
+      })),
+    })),
   },
 }));
 
 vi.mock("../../db/schema", () => ({
   videos: { id: "id" },
   downloadHistory: { videoId: "videoId", status: "status" },
+  subscriptions: {
+    collectionId: "collectionId",
+    subscriptionType: "subscriptionType",
+    playlistId: "playlistId",
+  },
 }));
 
 vi.mock("drizzle-orm", () => ({

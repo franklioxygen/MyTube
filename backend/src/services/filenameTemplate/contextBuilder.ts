@@ -133,6 +133,7 @@ export function buildContextFromYtDlpInfo(
     sourceCollectionId: options.sourceCollectionId || info.playlist_id || info.channel_id || "",
     sourceCollectionType: options.sourceCollectionType || "single",
     mediaPlaylistIndex: options.mediaPlaylistIndex ?? (typeof info.playlist_index === "number" ? info.playlist_index : undefined),
+    mediaPlaylistIndexWithinDate: options.mediaPlaylistIndexWithinDate,
     platform,
     sourceUrl: videoUrl,
     rawInfo: info,
@@ -174,6 +175,7 @@ export function buildContextFromBilibiliMetadata(
     sourceCollectionId: options.sourceCollectionId || metadata.seasonId || "",
     sourceCollectionType: options.sourceCollectionType || "single",
     mediaPlaylistIndex: options.mediaPlaylistIndex ?? metadata.partIndex,
+    mediaPlaylistIndexWithinDate: options.mediaPlaylistIndexWithinDate,
     platform: "bilibili",
     sourceUrl: url,
     rawInfo: metadata,
@@ -216,6 +218,7 @@ export function buildContextFromVideoRecord(
     sourceCollectionId: options.sourceCollectionId || "",
     sourceCollectionType: options.sourceCollectionType || "unknown",
     mediaPlaylistIndex: options.mediaPlaylistIndex,
+    mediaPlaylistIndexWithinDate: options.mediaPlaylistIndexWithinDate,
     platform,
     sourceUrl: video.sourceUrl,
   };
