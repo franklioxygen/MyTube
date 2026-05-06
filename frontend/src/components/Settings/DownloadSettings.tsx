@@ -24,7 +24,6 @@ interface DownloadSettingsProps {
     activeDownloadsCount: number;
     onCleanup: () => void;
     isSaving: boolean;
-    savedSettings: Settings;
 }
 
 const DownloadSettings: React.FC<DownloadSettingsProps> = ({
@@ -33,7 +32,6 @@ const DownloadSettings: React.FC<DownloadSettingsProps> = ({
     activeDownloadsCount,
     onCleanup,
     isSaving,
-    savedSettings,
 }) => {
     const { t } = useLanguage();
 
@@ -143,7 +141,6 @@ const DownloadSettings: React.FC<DownloadSettingsProps> = ({
             <FilenameTemplateSettings
                 settings={settings}
                 onChange={onChange}
-                savedSettings={savedSettings}
             />
 
             <Box sx={{ mt: 3 }}>

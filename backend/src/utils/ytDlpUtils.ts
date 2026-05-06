@@ -4,7 +4,10 @@ import { PassThrough } from "stream";
 import { SocksProxyAgent } from "socks-proxy-agent";
 import { isAdminTrustLevelAtLeast } from "../config/adminTrust";
 import { COOKIES_FILENAME, DATA_DIR } from "../config/paths";
-import { getProviderScript } from "../services/downloaders/ytdlp/ytdlpHelpers";
+import {
+  getProviderPluginPath,
+  getProviderScript,
+} from "../services/downloaders/ytdlp/ytdlpHelpers";
 import * as storageService from "../services/storageService";
 import { isBilibiliUrl, isYouTubeUrl } from "./helpers";
 import {
@@ -21,7 +24,7 @@ import {
   normalizeCookiesFileContent,
 } from "./cookieFileFormat";
 
-const YT_DLP_PATH = process.env.YT_DLP_PATH || "yt-dlp";
+const DEFAULT_YT_DLP_PATH = "yt-dlp";
 const YT_DLP_JS_RUNTIME_ENV = "YT_DLP_JS_RUNTIME";
 const DEFAULT_YOUTUBE_PLAYER_CLIENT_EXTRACTOR_ARG =
   "youtube:player_client=default,mweb";
@@ -31,6 +34,7 @@ const PROVIDER_SCRIPT_ARG_PREFIX = "youtubepot-bgutilscript:script_path=";
 // Cached promise so we only check/install once per process
 let ytDlpAvailablePromise: Promise<void> | null = null;
 let denoAvailablePromise: Promise<boolean> | null = null;
+let providerPluginPathCache: string | null | undefined = undefined;
 type YouTubeJsRuntimeFlag = "--js-runtime" | "--js-runtimes";
 type CookiesFileSignature = {
   mtimeMs: number;
@@ -48,6 +52,42 @@ function resolveCookiesPath(): string {
   return resolveSafeChildPath(DATA_DIR, COOKIES_FILENAME);
 }
 
+function getCachedProviderPluginPath(): string {
+  if (providerPluginPathCache === undefined) {
+    providerPluginPathCache = getProviderPluginPath() || null;
+  }
+
+  return providerPluginPathCache || "";
+}
+
+function getConfiguredYtDlpPath(): string {
+  return process.env.YT_DLP_PATH?.trim() || DEFAULT_YT_DLP_PATH;
+}
+
+function getYtDlpSpawnEnv(): NodeJS.ProcessEnv {
+  const providerPluginPath = getCachedProviderPluginPath();
+  if (!providerPluginPath) {
+    return process.env;
+  }
+
+  const pythonPathEntries = (process.env.PYTHONPATH ?? "")
+    .split(path.delimiter)
+    .filter(Boolean);
+
+  if (!pythonPathEntries.includes(providerPluginPath)) {
+    pythonPathEntries.unshift(providerPluginPath);
+  }
+
+  return {
+    ...process.env,
+    PYTHONPATH: pythonPathEntries.join(path.delimiter),
+  };
+}
+
+function hasCustomConfiguredYtDlpPath(): boolean {
+  return getConfiguredYtDlpPath() !== DEFAULT_YT_DLP_PATH;
+}
+
 function isMissingFileError(error: unknown): boolean {
   return (
     typeof error === "object" &&
@@ -63,6 +103,7 @@ function isMissingFileError(error: unknown): boolean {
 export function resetYtDlpAvailabilityCacheForTests(): void {
   ytDlpAvailablePromise = null;
   denoAvailablePromise = null;
+  providerPluginPathCache = undefined;
   jsRuntimeFlagPromise = null;
   runtimeWarningCache.clear();
   cookiesFileCache = null;
@@ -138,9 +179,12 @@ export async function ensureYtDlpAvailable(): Promise<void> {
   if (ytDlpAvailablePromise) return ytDlpAvailablePromise;
 
   ytDlpAvailablePromise = (async () => {
+    const ytDlpPath = getConfiguredYtDlpPath();
+
     try {
       await new Promise<void>((resolve, reject) => {
-        const proc = spawn(YT_DLP_PATH, ["--version"], {
+        const proc = spawn(ytDlpPath, ["--version"], {
+          env: getYtDlpSpawnEnv(),
           stdio: ["ignore", "ignore", "ignore"],
         });
         proc.on("close", (code) => {
@@ -167,16 +211,16 @@ export async function ensureYtDlpAvailable(): Promise<void> {
 
       if (err.code === "EACCES" || err.code === "EPERM") {
         throw new Error(
-          `yt-dlp exists but is not executable at: ${YT_DLP_PATH}. ` +
+          `yt-dlp exists but is not executable at: ${ytDlpPath}. ` +
             "Please fix file permissions or install yt-dlp manually."
         );
       }
 
       if (err.code === "ENOENT") {
         // Only auto-install when using the default path (not a user-configured path).
-        if (process.env.YT_DLP_PATH) {
+        if (hasCustomConfiguredYtDlpPath()) {
           throw new Error(
-            `yt-dlp not found at configured path: ${YT_DLP_PATH}. ` +
+            `yt-dlp not found at configured path: ${ytDlpPath}. ` +
               "Please check your YT_DLP_PATH environment variable."
           );
         }
@@ -188,9 +232,9 @@ export async function ensureYtDlpAvailable(): Promise<void> {
         return;
       }
 
-      if (process.env.YT_DLP_PATH) {
+      if (hasCustomConfiguredYtDlpPath()) {
         throw new Error(
-          `Failed to execute configured yt-dlp at ${YT_DLP_PATH} ` +
+          `Failed to execute configured yt-dlp at ${ytDlpPath} ` +
             `(${err.code || "unknown"}): ${err.message}`
         );
       }
@@ -331,46 +375,56 @@ async function getYouTubeJsRuntimeFlag(): Promise<YouTubeJsRuntimeFlag | null> {
     return jsRuntimeFlagPromise;
   }
 
-  jsRuntimeFlagPromise = new Promise<YouTubeJsRuntimeFlag | null>((resolve) => {
+  jsRuntimeFlagPromise = (async () => {
     let helpText = "";
-    const proc = spawn(YT_DLP_PATH, ["--help"], {
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-
-    proc.stdout?.on("data", (data: Buffer) => {
-      helpText += data.toString();
-    });
-
-    proc.stderr?.on("data", (data: Buffer) => {
-      helpText += data.toString();
-    });
-
-    const resolveFromHelp = () => {
+    const resolveFromHelp = (): YouTubeJsRuntimeFlag | null => {
       if (helpText.includes("--js-runtimes")) {
-        resolve("--js-runtimes");
-        return;
+        return "--js-runtimes";
       }
 
       if (helpText.includes("--js-runtime")) {
-        resolve("--js-runtime");
-        return;
+        return "--js-runtime";
       }
 
       warnRuntimeOnce(
         "js-runtime-flag-unsupported",
         "[yt-dlp] Current yt-dlp binary does not support --js-runtimes. Continuing without it. Upgrade yt-dlp or set YT_DLP_PATH to a newer binary if YouTube extraction becomes unreliable."
       );
-      resolve(null);
+      return null;
     };
 
-    proc.on("close", () => {
-      resolveFromHelp();
-    });
+    try {
+      const ytDlpPath = getConfiguredYtDlpPath();
+      return await new Promise<YouTubeJsRuntimeFlag | null>((resolve) => {
+        const proc = spawn(ytDlpPath, ["--help"], {
+          env: getYtDlpSpawnEnv(),
+          stdio: ["ignore", "pipe", "pipe"],
+        });
 
-    proc.on("error", () => {
-      resolveFromHelp();
-    });
-  });
+        proc.stdout?.on("data", (data: Buffer) => {
+          helpText += data.toString();
+        });
+
+        proc.stderr?.on("data", (data: Buffer) => {
+          helpText += data.toString();
+        });
+
+        proc.on("close", () => {
+          resolve(resolveFromHelp());
+        });
+
+        proc.on("error", () => {
+          resolve(resolveFromHelp());
+        });
+      });
+    } catch {
+      warnRuntimeOnce(
+        "js-runtime-flag-unsupported",
+        "[yt-dlp] Current yt-dlp binary does not support --js-runtimes. Continuing without it. Upgrade yt-dlp or set YT_DLP_PATH to a newer binary if YouTube extraction becomes unreliable."
+      );
+      return null;
+    }
+  })();
 
   return jsRuntimeFlagPromise;
 }
@@ -607,10 +661,12 @@ export async function executeYtDlpJson(
 
   args.push(url);
 
-  console.log(`Executing: ${YT_DLP_PATH} ${args.join(" ")}`);
+  const ytDlpPath = getConfiguredYtDlpPath();
+  console.log(`Executing: ${ytDlpPath} ${args.join(" ")}`);
 
   return new Promise<any>((resolve, reject) => {
-    const subprocess = spawn(YT_DLP_PATH, args, {
+    const subprocess = spawn(ytDlpPath, args, {
+      env: getYtDlpSpawnEnv(),
       stdio: ["ignore", "pipe", "pipe"],
     });
 
@@ -759,9 +815,11 @@ export async function getChannelUrlFromVideo(
   await appendYouTubeJsRuntimeArg(args, videoUrl);
 
   args.push(videoUrl);
+  const ytDlpPath = getConfiguredYtDlpPath();
 
   return new Promise<string | null>((resolve, reject) => {
-    const subprocess = spawn(YT_DLP_PATH, args, {
+    const subprocess = spawn(ytDlpPath, args, {
+      env: getYtDlpSpawnEnv(),
       stdio: ["ignore", "pipe", "pipe"],
     });
 
@@ -840,9 +898,11 @@ export async function downloadChannelAvatar(
   await appendYouTubeJsRuntimeArg(args, channelUrl);
 
   args.push(channelUrl);
+  const ytDlpPath = getConfiguredYtDlpPath();
 
   return new Promise<boolean>((resolve, reject) => {
-    const subprocess = spawn(YT_DLP_PATH, args, {
+    const subprocess = spawn(ytDlpPath, args, {
+      env: getYtDlpSpawnEnv(),
       stdio: ["ignore", "pipe", "pipe"],
     });
 
@@ -934,7 +994,8 @@ export function executeYtDlpSpawn(
   ) => Promise<void>;
 } {
   const url = preprocessUrl(rawUrl);
-  const baseArgs = [...flagsToArgs(flags)];
+  const effectiveFlags = withDefaultYouTubeExtractorArgs(url, flags);
+  const baseArgs = [...flagsToArgs(effectiveFlags)];
 
   // Add cookies after ensuring the file is in a yt-dlp-compatible format.
   const cookiesPath = ensureCookiesFileIsNormalized();
@@ -989,11 +1050,12 @@ export function executeYtDlpSpawn(
   const promise = ensureYtDlpAvailable()
     .then(
       async () => {
+        const ytDlpPath = getConfiguredYtDlpPath();
         const args = [...baseArgs];
         await appendYouTubeJsRuntimeArg(args, url);
         args.push(url);
 
-        console.log(`Spawning: ${YT_DLP_PATH} ${args.join(" ")}`);
+        console.log(`Spawning: ${ytDlpPath} ${args.join(" ")}`);
 
         return await new Promise<void>((resolve, reject) => {
           if (killRequested) {
@@ -1005,7 +1067,8 @@ export function executeYtDlpSpawn(
             return;
           }
 
-          activeSubprocess = spawn(YT_DLP_PATH, args, {
+          activeSubprocess = spawn(ytDlpPath, args, {
+            env: getYtDlpSpawnEnv(),
             stdio: ["ignore", "pipe", "pipe"],
           });
 

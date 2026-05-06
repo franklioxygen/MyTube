@@ -5,7 +5,11 @@ import path from "path";
 import { PassThrough } from "stream";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as storageService from "../../services/storageService";
-import { getProviderScript } from "../../services/downloaders/ytdlp/ytdlpHelpers";
+import {
+  getProviderPluginPath,
+  getProviderScript,
+} from "../../services/downloaders/ytdlp/ytdlpHelpers";
+import { SocksProxyAgent } from "socks-proxy-agent";
 import {
   InvalidProxyError,
   convertFlagToArg,
@@ -30,6 +34,7 @@ vi.mock("../../services/storageService", () => ({
   getSettings: vi.fn(),
 }));
 vi.mock("../../services/downloaders/ytdlp/ytdlpHelpers", () => ({
+  getProviderPluginPath: vi.fn(),
   getProviderScript: vi.fn(),
 }));
 vi.mock("socks-proxy-agent", () => ({
@@ -132,6 +137,20 @@ const getSpawnArgsForUrl = (url: string, occurrence: number = 0): string[] => {
   return call[1] as string[];
 };
 
+const getSpawnOptionsForUrl = (
+  url: string,
+  occurrence: number = 0,
+): Record<string, any> => {
+  const matchingCalls = vi.mocked(spawn).mock.calls.filter(([, args]) =>
+    Array.isArray(args) && args.includes(url)
+  );
+  const call = matchingCalls[occurrence];
+  if (!call) {
+    throw new Error(`Expected spawn call for ${url}`);
+  }
+  return (call[2] as Record<string, any>) ?? {};
+};
+
 const createMissingFileError = (): NodeJS.ErrnoException =>
   Object.assign(new Error("File not found"), { code: "ENOENT" });
 
@@ -139,8 +158,11 @@ const validNetscapeCookies =
   "# Netscape HTTP Cookie File\n.youtube.com\tTRUE\t/\tFALSE\t0\tPREF\tf4=4000000\n";
 
 describe("ytDlpUtils", () => {
+  const originalYtDlpPath = process.env.YT_DLP_PATH;
+  const originalPath = process.env.PATH;
+
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
     resetYtDlpAvailabilityCacheForTests();
     vi.mocked(fs.existsSync).mockReturnValue(false);
     vi.mocked(fs.readFileSync).mockReturnValue(validNetscapeCookies);
@@ -149,8 +171,28 @@ describe("ytDlpUtils", () => {
     });
     vi.mocked(fs.writeFileSync).mockImplementation(() => undefined);
     vi.mocked(storageService.getSettings).mockReturnValue({});
+    vi.mocked(getProviderPluginPath).mockReturnValue("");
     vi.mocked(getProviderScript).mockReturnValue("");
+    vi.mocked(SocksProxyAgent).mockImplementation((url: string | URL) => ({
+      kind: "socks-agent",
+      url: String(url),
+    }) as any);
+    process.env.YT_DLP_PATH = "yt-dlp";
     delete process.env.YT_DLP_JS_RUNTIME;
+    delete process.env.PYTHONPATH;
+  });
+
+  afterEach(() => {
+    if (originalYtDlpPath === undefined) {
+      delete process.env.YT_DLP_PATH;
+    } else {
+      process.env.YT_DLP_PATH = originalYtDlpPath;
+    }
+    if (originalPath === undefined) {
+      delete process.env.PATH;
+    } else {
+      process.env.PATH = originalPath;
+    }
   });
 
   describe("convertFlagToArg", () => {
@@ -405,6 +447,7 @@ describe("ytDlpUtils", () => {
       vi.mocked(spawn).mockImplementationOnce(() => versionProc as any);
 
       const promise = ensureYtDlpAvailable();
+      await flushAsyncSpawns();
       versionProc.emit("close", 1);
 
       await expect(promise).resolves.toBeUndefined();
@@ -419,6 +462,7 @@ describe("ytDlpUtils", () => {
         .mockImplementationOnce(() => installProc as any);
 
       const promise = ensureYtDlpAvailable();
+      await flushAsyncSpawns();
       versionProc.emit("error", Object.assign(new Error("not found"), { code: "ENOENT" }));
       await flushAsyncSpawns();
       installProc.emit("close", 0);
@@ -432,9 +476,24 @@ describe("ytDlpUtils", () => {
       vi.mocked(spawn).mockImplementationOnce(() => versionProc as any);
 
       const promise = ensureYtDlpAvailable();
+      await flushAsyncSpawns();
       versionProc.emit("error", Object.assign(new Error("permission denied"), { code: "EACCES" }));
 
       await expect(promise).rejects.toThrow("not executable");
+    });
+
+    it("should mention the resolved configured path in ENOENT errors", async () => {
+      process.env.YT_DLP_PATH = "/custom/tools/yt-dlp";
+      const versionProc = createMockProcess();
+      vi.mocked(spawn).mockImplementationOnce(() => versionProc as any);
+
+      const promise = ensureYtDlpAvailable();
+      await flushAsyncSpawns();
+      versionProc.emit("error", Object.assign(new Error("not found"), { code: "ENOENT" }));
+
+      await expect(promise).rejects.toThrow(
+        "yt-dlp not found at configured path: /custom/tools/yt-dlp"
+      );
     });
 
     it("should reset cache after failure so the next call retries", async () => {
@@ -446,11 +505,13 @@ describe("ytDlpUtils", () => {
 
       // First call: fails due to permissions error
       const firstPromise = ensureYtDlpAvailable();
+      await flushAsyncSpawns();
       failProc.emit("error", Object.assign(new Error("permission denied"), { code: "EACCES" }));
       await expect(firstPromise).rejects.toThrow("not executable");
 
       // Second call: cache was reset, so a new version check is spawned and succeeds
       const secondPromise = ensureYtDlpAvailable();
+      await flushAsyncSpawns();
       successProc.emit("close", 0);
       await expect(secondPromise).resolves.toBeUndefined();
 
@@ -979,6 +1040,7 @@ describe("ytDlpUtils", () => {
       vi.mocked(spawn).mockImplementationOnce(() => versionProc as any);
 
       const promise = getChannelUrlFromVideo("https://example.com/video");
+      await flushAsyncSpawns();
       versionProc.emit(
         "error",
         Object.assign(new Error("permission denied"), { code: "EACCES" })
@@ -1078,6 +1140,7 @@ describe("ytDlpUtils", () => {
         "https://www.youtube.com/@channel",
         "/tmp/avatar.jpg"
       );
+      await flushAsyncSpawns();
       versionProc.emit(
         "error",
         Object.assign(new Error("permission denied"), { code: "EACCES" })
@@ -1103,6 +1166,48 @@ describe("ytDlpUtils", () => {
       await expect(promise).resolves.toBeUndefined();
       expect(subprocess.kill("SIGTERM")).toBe(true);
       expect(proc.kill).toHaveBeenCalledWith("SIGTERM");
+    });
+
+    it("should add default youtube extractor args for spawned downloads", async () => {
+      vi.mocked(getProviderScript).mockReturnValue("/tmp/provider.js");
+      const proc = createMockProcess();
+      mockSpawnWithVersionHelpAndDenoCheck("plural", proc);
+
+      const subprocess = executeYtDlpSpawn("https://www.youtube.com/watch?v=abc", {
+        format: "best",
+      });
+      const promise = Promise.resolve(subprocess);
+      await flushAsyncSpawns();
+      proc.emit("close", 0);
+
+      await expect(promise).resolves.toBeUndefined();
+      const args = getSpawnArgsForUrl("https://www.youtube.com/watch?v=abc");
+      const extractorArgsIndex = args.indexOf("--extractor-args");
+      expect(extractorArgsIndex).toBeGreaterThan(-1);
+      expect(args[extractorArgsIndex + 1]).toContain(
+        "youtube:player_client=default,mweb",
+      );
+      expect(args[extractorArgsIndex + 1]).toContain(
+        "youtubepot-bgutilscript:script_path=/tmp/provider.js",
+      );
+    });
+
+    it("should append the bundled provider plugin path to PYTHONPATH", async () => {
+      vi.mocked(getProviderPluginPath).mockReturnValue("/tmp/bgutil-plugin");
+      process.env.PYTHONPATH = "/tmp/existing-python-path";
+      const proc = createMockProcess();
+      mockSpawnWithVersionCheck(proc);
+
+      const subprocess = executeYtDlpSpawn("https://example.com/video");
+      const promise = Promise.resolve(subprocess);
+      await flushAsyncSpawns();
+      proc.emit("close", 0);
+
+      await expect(promise).resolves.toBeUndefined();
+      const options = getSpawnOptionsForUrl("https://example.com/video");
+      expect(options.env).toMatchObject({
+        PYTHONPATH: `/tmp/bgutil-plugin${path.delimiter}/tmp/existing-python-path`,
+      });
     });
 
     it("should reject with stderr when subprocess exits non-zero", async () => {
@@ -1152,6 +1257,7 @@ describe("ytDlpUtils", () => {
       const subprocess = executeYtDlpSpawn("https://example.com/video");
       const promise = Promise.resolve(subprocess);
       expect(subprocess.kill("SIGTERM")).toBe(true);
+      await flushAsyncSpawns();
       versionProc.emit("close", 0);
 
       await expect(promise).rejects.toThrow("yt-dlp process cancelled before start");

@@ -36,6 +36,7 @@ vi.mock("../../services/storageService", () => ({
   getDownloadStatus: () => getDownloadStatusMock(),
   getSettings: () => getSettingsMock(),
   getVideos: () => getVideosMock(),
+  getCollections: () => [],
 }));
 
 vi.mock("../../db", () => ({
@@ -46,12 +47,22 @@ vi.mock("../../db", () => ({
         where: vi.fn(() => ({ run: vi.fn() })),
       })),
     })),
+    select: vi.fn(() => ({
+      from: vi.fn(() => ({
+        all: () => [],
+      })),
+    })),
   },
 }));
 
 vi.mock("../../db/schema", () => ({
   videos: { id: "id" },
   downloadHistory: { videoId: "videoId", status: "status" },
+  subscriptions: {
+    collectionId: "collectionId",
+    subscriptionType: "subscriptionType",
+    playlistId: "playlistId",
+  },
 }));
 
 vi.mock("drizzle-orm", () => ({
@@ -260,6 +271,57 @@ describe("filenameTemplateController — startBatchRename", () => {
     expect(body.code).toBe("invalid_template");
   });
 
+  it("rejects with 400 when the current custom template in the request is invalid", async () => {
+    getDownloadStatusMock.mockReturnValue({
+      activeDownloads: [],
+      queuedDownloads: [],
+    });
+    getSettingsMock.mockReturnValue({
+      downloadFilenamePresetId: "legacy",
+      moveThumbnailsToVideoFolder: false,
+      moveSubtitlesToVideoFolder: false,
+    });
+    getVideosMock.mockReturnValue([]);
+    const res = makeRes();
+    await startBatchRename(
+      {
+        body: {
+          downloadFilenamePresetId: "custom",
+          downloadFilenameTemplate: "no-ext-anywhere",
+        },
+      } as Request,
+      res
+    );
+    expect(res.status).toHaveBeenCalledWith(400);
+    const body = (res.json as any).mock.calls[0][0];
+    expect(body.code).toBe("invalid_template");
+  });
+
+  it("rejects with 400 when the current custom preset omits its template override", async () => {
+    getDownloadStatusMock.mockReturnValue({
+      activeDownloads: [],
+      queuedDownloads: [],
+    });
+    getSettingsMock.mockReturnValue({
+      downloadFilenamePresetId: "legacy",
+      moveThumbnailsToVideoFolder: false,
+      moveSubtitlesToVideoFolder: false,
+    });
+    getVideosMock.mockReturnValue([]);
+    const res = makeRes();
+    await startBatchRename(
+      {
+        body: {
+          downloadFilenamePresetId: "custom",
+        },
+      } as Request,
+      res
+    );
+    expect(res.status).toHaveBeenCalledWith(400);
+    const body = (res.json as any).mock.calls[0][0];
+    expect(body.code).toBe("invalid_template");
+  });
+
   it("starts a job for legacy preset and returns 202 with jobId", async () => {
     getDownloadStatusMock.mockReturnValue({
       activeDownloads: [],
@@ -294,6 +356,33 @@ describe("filenameTemplateController — startBatchRename", () => {
     const res = makeRes();
     await startBatchRename({} as Request, res);
     expect(res.status).toHaveBeenCalledWith(202);
+    await waitForJobToFinish();
+  });
+
+  it("uses the current request preset instead of the saved settings", async () => {
+    getDownloadStatusMock.mockReturnValue({
+      activeDownloads: [],
+      queuedDownloads: [],
+    });
+    getSettingsMock.mockReturnValue({
+      downloadFilenamePresetId: "legacy",
+      moveThumbnailsToVideoFolder: false,
+      moveSubtitlesToVideoFolder: false,
+    });
+    getVideosMock.mockReturnValue([]);
+    const res = makeRes();
+    await startBatchRename(
+      {
+        body: {
+          downloadFilenamePresetId: "channel_year_date_index",
+          moveThumbnailsToVideoFolder: true,
+          moveSubtitlesToVideoFolder: true,
+        },
+      } as Request,
+      res
+    );
+    expect(res.status).toHaveBeenCalledWith(202);
+    expect(getActiveRenameJob()?.template).toContain("source_collection_name");
     await waitForJobToFinish();
   });
 });

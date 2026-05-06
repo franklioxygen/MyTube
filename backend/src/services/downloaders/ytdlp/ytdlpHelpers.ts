@@ -14,12 +14,36 @@ const BGUTIL_SCRIPT_RELATIVE_PATH = path.join(
   "build",
   "generate_once.js",
 );
+const BGUTIL_PLUGIN_PACKAGE_RELATIVE_PATH = path.join(
+  "bgutil-ytdlp-pot-provider",
+  "plugin",
+  "yt_dlp_plugins",
+);
 const BGUTIL_SCRIPT_BASENAME = "generate_once.js";
 const warnedInvalidProviderScriptPaths = new Set<string>();
 const warnedMissingProviderScriptPaths = new Set<string>();
 
 function isValidProviderScriptPath(filePath: string): boolean {
   return path.basename(filePath) === BGUTIL_SCRIPT_BASENAME;
+}
+
+function resolveBundledProviderPluginCandidatePaths(): string[] {
+  return [
+    path.resolve(process.cwd(), BGUTIL_PLUGIN_PACKAGE_RELATIVE_PATH),
+    // Source layout: backend/src/services/downloaders/ytdlp -> backend/
+    path.resolve(__dirname, "../../../..", BGUTIL_PLUGIN_PACKAGE_RELATIVE_PATH),
+    // Build layout: backend/dist/src/services/downloaders/ytdlp -> backend/
+    path.resolve(__dirname, "../../../../..", BGUTIL_PLUGIN_PACKAGE_RELATIVE_PATH),
+  ].map((candidatePath) => normalizeSafeAbsolutePath(candidatePath));
+}
+
+function findExistingBundledProviderPath(candidatePaths: string[]): string {
+  for (const candidatePath of candidatePaths) {
+    if (pathExistsTrustedSync(candidatePath)) {
+      return candidatePath;
+    }
+  }
+  return "";
 }
 
 function warnOnce(
@@ -220,4 +244,14 @@ export function getProviderScript(): string {
   }
 
   return "";
+}
+
+/**
+ * Get the bundled PO Token provider plugin path for PYTHONPATH injection.
+ */
+export function getProviderPluginPath(): string {
+  const pluginPackagePath = findExistingBundledProviderPath(
+    resolveBundledProviderPluginCandidatePaths(),
+  );
+  return pluginPackagePath ? path.dirname(pluginPackagePath) : "";
 }

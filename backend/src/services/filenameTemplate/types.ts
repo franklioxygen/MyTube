@@ -35,6 +35,11 @@ export interface FilenameTemplateSourceOptions {
   sourceCollectionId?: string;
   sourceCollectionType?: "channel" | "playlist" | "single" | "unknown";
   mediaPlaylistIndex?: number;
+  // Per-day collision counter used by `season_episode_index_from_date` and
+  // `season_by_year__episode_by_date_and_index` aliases. Populated by the
+  // batch rename job (and downloaders that scan local records on the day);
+  // defaults to mediaPlaylistIndex when omitted.
+  mediaPlaylistIndexWithinDate?: number;
 }
 
 export interface RenderFilenameTemplateInput {

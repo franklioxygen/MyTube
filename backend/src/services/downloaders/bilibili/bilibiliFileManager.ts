@@ -23,6 +23,7 @@ import {
   sanitizePathSegment,
 } from "../../../utils/security";
 import { planVideoOutputPaths } from "../../filenameTemplate/renderer";
+import { enrichSourceOptionsForDownload } from "../../filenameTemplate/sourceOptions";
 import { FilenameTemplateContext, FilenameTemplateSourceOptions } from "../../filenameTemplate/types";
 
 export interface FilePaths {
@@ -191,7 +192,13 @@ export function renameFilesWithMetadata(
     const month = uploadDateClean.length >= 6 ? uploadDateClean.slice(4, 6) : String(new Date().getMonth() + 1).padStart(2, "0");
     const day = uploadDateClean.length >= 8 ? uploadDateClean.slice(6, 8) : String(new Date().getDate()).padStart(2, "0");
 
-    const srcOpts = options?.filenameTemplateSourceOptions || {};
+    const srcOpts = enrichSourceOptionsForDownload(
+      options?.filenameTemplateSourceOptions || {},
+      {
+        author: videoAuthor,
+        uploadDate: videoDate,
+      }
+    );
     const ctx: FilenameTemplateContext = {
       title: videoTitle,
       id: "",
@@ -210,6 +217,7 @@ export function renameFilesWithMetadata(
       sourceCollectionId: srcOpts.sourceCollectionId || "",
       sourceCollectionType: srcOpts.sourceCollectionType || "single",
       mediaPlaylistIndex: srcOpts.mediaPlaylistIndex,
+      mediaPlaylistIndexWithinDate: srcOpts.mediaPlaylistIndexWithinDate,
       platform: "bilibili",
       sourceUrl: "",
     };

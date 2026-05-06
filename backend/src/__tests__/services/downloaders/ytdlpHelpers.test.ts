@@ -4,6 +4,7 @@ import path from "path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   extractXiaoHongShuAuthor,
+  getProviderPluginPath,
   getProviderScript,
 } from "../../../services/downloaders/ytdlp/ytdlpHelpers";
 import * as securityUtils from "../../../utils/security";
@@ -51,6 +52,22 @@ describe("ytdlpHelpers", () => {
     "src/services/downloaders/ytdlp",
     "../../../../..",
     "bgutil-ytdlp-pot-provider/server/build/generate_once.js",
+  );
+  const bundledPluginPackagePath = path.resolve(
+    originalCwd,
+    "bgutil-ytdlp-pot-provider/plugin/yt_dlp_plugins",
+  );
+  const srcLayoutPluginPackagePath = path.resolve(
+    originalCwd,
+    "src/services/downloaders/ytdlp",
+    "../../../..",
+    "bgutil-ytdlp-pot-provider/plugin/yt_dlp_plugins",
+  );
+  const deeperPluginPackagePath = path.resolve(
+    originalCwd,
+    "src/services/downloaders/ytdlp",
+    "../../../../..",
+    "bgutil-ytdlp-pot-provider/plugin/yt_dlp_plugins",
   );
   const alternateCwd = path.resolve(originalCwd, "src");
 
@@ -231,6 +248,60 @@ describe("ytdlpHelpers", () => {
       expect(pathExistsTrustedSyncMock).toHaveBeenNthCalledWith(
         3,
         deeperFallbackPath,
+      );
+    });
+  });
+
+  describe("getProviderPluginPath", () => {
+    it("should stop searching after finding the bundled provider plugin in the current working directory", () => {
+      pathExistsTrustedSyncMock.mockImplementation(
+        (target: any) => target === bundledPluginPackagePath,
+      );
+
+      expect(getProviderPluginPath()).toBe(path.dirname(bundledPluginPackagePath));
+      expect(pathExistsTrustedSyncMock).toHaveBeenCalledTimes(1);
+      expect(pathExistsTrustedSyncMock).toHaveBeenNthCalledWith(
+        1,
+        bundledPluginPackagePath,
+      );
+    });
+
+    it("should fall back to the helper-relative bundled provider plugin path", () => {
+      process.chdir(alternateCwd);
+      const cwdCandidatePath = path.resolve(
+        alternateCwd,
+        "bgutil-ytdlp-pot-provider/plugin/yt_dlp_plugins",
+      );
+      pathExistsTrustedSyncMock.mockImplementation(
+        (target: any) => target === srcLayoutPluginPackagePath,
+      );
+
+      expect(getProviderPluginPath()).toBe(path.dirname(srcLayoutPluginPackagePath));
+      expect(pathExistsTrustedSyncMock).toHaveBeenCalledTimes(2);
+      expect(pathExistsTrustedSyncMock).toHaveBeenNthCalledWith(1, cwdCandidatePath);
+      expect(pathExistsTrustedSyncMock).toHaveBeenNthCalledWith(
+        2,
+        srcLayoutPluginPackagePath,
+      );
+    });
+
+    it("should return empty string when no provider plugin is available", () => {
+      process.chdir(alternateCwd);
+      const cwdCandidatePath = path.resolve(
+        alternateCwd,
+        "bgutil-ytdlp-pot-provider/plugin/yt_dlp_plugins",
+      );
+
+      expect(getProviderPluginPath()).toBe("");
+      expect(pathExistsTrustedSyncMock).toHaveBeenCalledTimes(3);
+      expect(pathExistsTrustedSyncMock).toHaveBeenNthCalledWith(1, cwdCandidatePath);
+      expect(pathExistsTrustedSyncMock).toHaveBeenNthCalledWith(
+        2,
+        srcLayoutPluginPackagePath,
+      );
+      expect(pathExistsTrustedSyncMock).toHaveBeenNthCalledWith(
+        3,
+        deeperPluginPackagePath,
       );
     });
   });

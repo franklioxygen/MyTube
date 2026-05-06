@@ -2,7 +2,7 @@ import fs from "fs-extra";
 import path from "path";
 import { db } from "../../db";
 import { downloadHistory, videos } from "../../db/schema";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../../config/paths";
 import { logger } from "../../utils/logger";
 import {
@@ -14,12 +14,21 @@ import {
 import { moveSmallThumbnailMirrorSync } from "../thumbnailMirrorService";
 import * as storageService from "../storageService";
 import { buildContextFromVideoRecord } from "./contextBuilder";
-import { dedupeRelativePath, applyDedupeToRelatedPaths } from "./dedupe";
+import { applyDedupeToRelatedPaths } from "./dedupe";
 import { resolveManagedWebPath } from "./pathHelpers";
 import { getPresetById } from "./presets";
 import { planVideoOutputPaths } from "./renderer";
 import { acquireRenameLock, releaseRenameLock } from "./renameLockService";
+import {
+  assignDateCollisionIndexes,
+  buildStoredSourceOptionsMap,
+} from "./sourceOptions";
+import { FilenameTemplateSourceOptions } from "./types";
 import { Video } from "../storageService/types";
+
+// Keep worst-case sibling collision scans bounded without blocking realistic
+// rename runs that only need a handful of numeric suffix attempts.
+const MAX_OUTPUT_FAMILY_DEDUPE_ATTEMPTS = 1000;
 
 export interface RenameJobItem {
   videoId: string;
@@ -47,6 +56,8 @@ export interface RenameJob {
   cancelRequested: boolean;
 }
 
+// The active job snapshot is kept in-process for UI polling. It is cleared by
+// server restarts and is not shared with other app instances.
 let activeJob: RenameJob | null = null;
 
 export function getActiveRenameJob(): RenameJob | null {
@@ -132,6 +143,111 @@ export async function startRenameJob(
   return job;
 }
 
+/**
+ * For each video in the snapshot, precompute the FilenameTemplateSourceOptions
+ * the renderer needs. Without this, buildContextFromVideoRecord falls back to
+ * sourceCollectionType="unknown" and mediaPlaylistIndex=undefined, which makes
+ * presets like channel_year_date_index render "...e<MMDD>00" for every same-day
+ * item. Per design §16 step 3, the rename job is responsible for sourcing this
+ * context from the video's collection membership and computing date-collision
+ * indexes from the snapshot.
+ */
+function precomputeSourceOptions(
+  allVideos: Video[]
+): Map<string, FilenameTemplateSourceOptions> {
+  const sourceOptionsByVideoId = buildStoredSourceOptionsMap(allVideos);
+  assignDateCollisionIndexes(allVideos, sourceOptionsByVideoId);
+  return sourceOptionsByVideoId;
+}
+
+type ManagedSubtitleTarget = {
+  currentPath: string;
+  currentRootDir: string;
+  targetPath: string;
+  targetRootDir: string;
+  newPath: string;
+  newFilename: string;
+  language: string;
+};
+
+function appendNumericSuffixToRelativePath(
+  relativePath: string,
+  suffixNumber: number
+): string {
+  const dotIdx = relativePath.lastIndexOf(".");
+  const stem = dotIdx > 0 ? relativePath.slice(0, dotIdx) : relativePath;
+  const ext = dotIdx > 0 ? relativePath.slice(dotIdx) : "";
+  return `${stem}_${suffixNumber}${ext}`;
+}
+
+function buildSubtitleRelativePath(
+  videoRelative: string,
+  subtitleFilename: string
+): string {
+  const videoRelativeDir = path.dirname(videoRelative);
+  return videoRelativeDir && videoRelativeDir !== "."
+    ? `${videoRelativeDir}/${subtitleFilename}`
+    : subtitleFilename;
+}
+
+function buildManagedSubtitleTargets(
+  subtitles: NonNullable<Video["subtitles"]>,
+  videoRelative: string,
+  subtitleBase: string
+): ManagedSubtitleTarget[] {
+  const managedTargets: ManagedSubtitleTarget[] = [];
+
+  for (const subtitle of subtitles) {
+    const resolved = resolveManagedWebPath(subtitle.path);
+    if (!resolved) continue;
+
+    const subtitleExt = path.extname(subtitle.filename);
+    const newSubtitleFilename = `${subtitleBase}.${subtitle.language}${subtitleExt}`;
+    const subtitleRelative = buildSubtitleRelativePath(
+      videoRelative,
+      newSubtitleFilename
+    );
+
+    if (subtitle.path.startsWith("/videos/")) {
+      managedTargets.push({
+        currentPath: resolved.absolutePath,
+        currentRootDir: resolved.rootDir,
+        targetPath: resolveSafeChildPath(VIDEOS_DIR, subtitleRelative),
+        targetRootDir: VIDEOS_DIR,
+        newPath: `/videos/${subtitleRelative}`,
+        newFilename: newSubtitleFilename,
+        language: subtitle.language,
+      });
+      continue;
+    }
+
+    managedTargets.push({
+      currentPath: resolved.absolutePath,
+      currentRootDir: resolved.rootDir,
+      targetPath: resolveSafeChildPath(SUBTITLES_DIR, subtitleRelative),
+      targetRootDir: SUBTITLES_DIR,
+      newPath: `/subtitles/${subtitleRelative}`,
+      newFilename: newSubtitleFilename,
+      language: subtitle.language,
+    });
+  }
+
+  return managedTargets;
+}
+
+function hasOutputPathConflict(
+  absolutePath: string,
+  allowedBaseDir: string,
+  currentOutputFamilyPaths: Set<string>
+): boolean {
+  // Paths already owned by this video's current managed file family are not
+  // conflicts. They represent in-place no-ops or moves within the same family.
+  if (currentOutputFamilyPaths.has(absolutePath)) {
+    return false;
+  }
+  return pathExistsSafeSync(absolutePath, [allowedBaseDir]);
+}
+
 async function processRenameJob(
   job: RenameJob,
   allVideos: Video[],
@@ -139,7 +255,7 @@ async function processRenameJob(
   moveThumbnailsToVideoFolder: boolean,
   moveSubtitlesToVideoFolder: boolean
 ): Promise<void> {
-  const reservedPaths = new Set<string>();
+  const sourceOptionsByVideoId = precomputeSourceOptions(allVideos);
 
   for (const video of allVideos) {
     if (job.cancelRequested) {
@@ -157,14 +273,13 @@ async function processRenameJob(
       settings,
       moveThumbnailsToVideoFolder,
       moveSubtitlesToVideoFolder,
-      reservedPaths
+      sourceOptionsByVideoId.get(video.id) || {}
     );
 
     job.items.push(item);
     job.processed++;
     if (item.status === "success") {
       job.succeeded++;
-      if (item.newVideoPath) reservedPaths.add(item.newVideoPath);
     } else if (item.status === "skipped") {
       job.skipped++;
     } else {
@@ -184,7 +299,7 @@ async function processOneVideo(
   settings: { downloadFilenamePresetId?: string; downloadFilenameTemplate?: string },
   moveThumbnailsToVideoFolder: boolean,
   moveSubtitlesToVideoFolder: boolean,
-  reservedPaths: Set<string>
+  sourceOptions: FilenameTemplateSourceOptions
 ): Promise<RenameJobItem> {
   const item: RenameJobItem = {
     videoId: video.id,
@@ -222,8 +337,9 @@ async function processOneVideo(
       return item;
     }
 
-    // Build context from video record
-    const context = buildContextFromVideoRecord(video);
+    // Build context from video record + precomputed source options
+    // (collection membership and per-day collision index).
+    const context = buildContextFromVideoRecord(video, sourceOptions);
 
     // Determine video extension
     const videoExt =
@@ -239,27 +355,6 @@ async function processOneVideo(
       moveSubtitlesToVideoFolder,
     });
 
-    // Deduplicate
-    let videoRelative = planned.video.relativePath;
-    videoRelative = dedupeRelativePath(videoRelative, VIDEOS_DIR, reservedPaths);
-
-    const { thumbnail: thumbRelative, subtitleBase: subBase } =
-      applyDedupeToRelatedPaths(
-        planned.video.relativePath,
-        videoRelative,
-        planned.thumbnail.relativePath,
-        planned.subtitle.baseNameWithoutLanguageOrExt
-      );
-
-    // resolveSafeChildPath validates traversal and that the result is inside
-    // VIDEOS_DIR; throws otherwise. videoRelative is sanitized planner output.
-    const newVideoAbsPath = resolveSafeChildPath(VIDEOS_DIR, videoRelative);
-    const newVideoWebPath = `/videos/${videoRelative}`;
-
-    // Check if already at target
-    const currentVideoRelative = videoPathResolved.relativePath;
-    const alreadyAtTarget = currentVideoRelative === videoRelative;
-
     // Check thumbnail
     const thumbResolved = video.thumbnailPath
       ? resolveManagedWebPath(video.thumbnailPath)
@@ -268,6 +363,98 @@ async function processOneVideo(
     // Check subtitles
     const subtitles: typeof video.subtitles = video.subtitles || [];
 
+    const currentManagedPaths = new Set<string>([videoPathResolved.absolutePath]);
+    if (thumbResolved) {
+      currentManagedPaths.add(thumbResolved.absolutePath);
+    }
+    for (const subtitle of subtitles) {
+      const resolved = resolveManagedWebPath(subtitle.path);
+      if (resolved) {
+        currentManagedPaths.add(resolved.absolutePath);
+      }
+    }
+
+    let videoRelative = planned.video.relativePath;
+    let thumbRelative = planned.thumbnail.relativePath;
+    let subBase = planned.subtitle.baseNameWithoutLanguageOrExt;
+    let newVideoAbsPath = resolveSafeChildPath(VIDEOS_DIR, videoRelative);
+    let subtitleTargets = buildManagedSubtitleTargets(
+      subtitles,
+      videoRelative,
+      subBase
+    );
+    let newThumbAbsPath = thumbResolved
+      ? resolveSafeChildPath(
+          moveThumbnailsToVideoFolder ? VIDEOS_DIR : IMAGES_DIR,
+          thumbRelative
+        )
+      : null;
+
+    for (
+      let dedupeAttempt = 0;
+      dedupeAttempt <= MAX_OUTPUT_FAMILY_DEDUPE_ATTEMPTS;
+      dedupeAttempt += 1
+    ) {
+      if (dedupeAttempt > 0) {
+        videoRelative = appendNumericSuffixToRelativePath(
+          planned.video.relativePath,
+          dedupeAttempt
+        );
+        ({ thumbnail: thumbRelative, subtitleBase: subBase } =
+          applyDedupeToRelatedPaths(
+            planned.video.relativePath,
+            videoRelative,
+            planned.thumbnail.relativePath,
+            planned.subtitle.baseNameWithoutLanguageOrExt
+          ));
+        newVideoAbsPath = resolveSafeChildPath(VIDEOS_DIR, videoRelative);
+        subtitleTargets = buildManagedSubtitleTargets(
+          subtitles,
+          videoRelative,
+          subBase
+        );
+        newThumbAbsPath = thumbResolved
+          ? resolveSafeChildPath(
+              moveThumbnailsToVideoFolder ? VIDEOS_DIR : IMAGES_DIR,
+              thumbRelative
+            )
+          : null;
+      }
+
+      const thumbTargetBase = moveThumbnailsToVideoFolder ? VIDEOS_DIR : IMAGES_DIR;
+      const familyHasConflict =
+        hasOutputPathConflict(newVideoAbsPath, VIDEOS_DIR, currentManagedPaths) ||
+        (newThumbAbsPath !== null &&
+          hasOutputPathConflict(
+            newThumbAbsPath,
+            thumbTargetBase,
+            currentManagedPaths
+          )) ||
+        subtitleTargets.some((target) =>
+          hasOutputPathConflict(
+            target.targetPath,
+            target.targetRootDir,
+            currentManagedPaths
+          )
+        );
+
+      if (!familyHasConflict) {
+        break;
+      }
+
+      if (dedupeAttempt === MAX_OUTPUT_FAMILY_DEDUPE_ATTEMPTS) {
+        throw new Error(
+          `Could not find a free output path family for ${planned.video.relativePath} after ${MAX_OUTPUT_FAMILY_DEDUPE_ATTEMPTS} attempts`
+        );
+      }
+    }
+
+    const newVideoWebPath = `/videos/${videoRelative}`;
+
+    // Check if already at target
+    const currentVideoRelative = videoPathResolved.relativePath;
+    const alreadyAtTarget = currentVideoRelative === videoRelative;
+
     // Idempotent no-op detection: skip only if every managed file family
     // (video, thumbnail if any, every local subtitle) already resolves to its
     // planned target. Subtitles whose path is not a managed local path are
@@ -275,27 +462,12 @@ async function processOneVideo(
     let anyChange = !alreadyAtTarget;
 
     if (!anyChange && thumbResolved) {
-      const thumbTargetBase = moveThumbnailsToVideoFolder ? VIDEOS_DIR : IMAGES_DIR;
-      const newThumbAbsPath = resolveSafeChildPath(thumbTargetBase, thumbRelative);
       anyChange = thumbResolved.absolutePath !== newThumbAbsPath;
     }
 
     if (!anyChange) {
-      for (const sub of subtitles) {
-        const subResolved = resolveManagedWebPath(sub.path);
-        if (!subResolved) continue;
-        const subExt = path.extname(sub.filename);
-        const newSubFilename = `${subBase}.${sub.language}${subExt}`;
-        // Compute the planned subtitle path relative to the appropriate root,
-        // then route through resolveSafeChildPath for validation.
-        const videoDir = path.dirname(videoRelative);
-        const subRelative = videoDir && videoDir !== "."
-          ? `${videoDir}/${newSubFilename}`
-          : newSubFilename;
-        const newSubAbsPath = sub.path.startsWith("/videos/")
-          ? resolveSafeChildPath(VIDEOS_DIR, subRelative)
-          : resolveSafeChildPath(SUBTITLES_DIR, subRelative);
-        if (subResolved.absolutePath !== newSubAbsPath) {
+      for (const subtitleTarget of subtitleTargets) {
+        if (subtitleTarget.currentPath !== subtitleTarget.targetPath) {
           anyChange = true;
           break;
         }
@@ -331,12 +503,15 @@ async function processOneVideo(
     let newThumbFilename = video.thumbnailFilename || null;
     if (thumbResolved) {
       const thumbTargetBase = moveThumbnailsToVideoFolder ? VIDEOS_DIR : IMAGES_DIR;
-      const newThumbAbsPath = resolveSafeChildPath(thumbTargetBase, thumbRelative);
-      if (thumbResolved.absolutePath !== newThumbAbsPath) {
+      const thumbTargetPath = newThumbAbsPath;
+      if (!thumbTargetPath) {
+        throw new Error("Thumbnail target path could not be resolved");
+      }
+      if (thumbResolved.absolutePath !== thumbTargetPath) {
         moves.push({
           from: thumbResolved.absolutePath,
           fromBase: thumbResolved.rootDir,
-          to: newThumbAbsPath,
+          to: thumbTargetPath,
           toBase: thumbTargetBase,
         });
         newThumbWebPath = moveThumbnailsToVideoFolder
@@ -348,61 +523,24 @@ async function processOneVideo(
 
     // Subtitle moves
     const newSubtitles: typeof video.subtitles = [];
-    const subtitleMoves: Array<{
-      from: string;
-      fromBase: string;
-      to: string;
-      toBase: string;
-      newPath: string;
-      newFilename: string;
-      language: string;
-    }> = [];
+    const subtitleMoves: ManagedSubtitleTarget[] = [];
 
     for (const sub of subtitles) {
-      const subResolved = resolveManagedWebPath(sub.path);
-      if (!subResolved) {
+      const subtitleTarget = subtitleTargets.find(
+        (target) =>
+          target.language === sub.language && target.currentPath === resolveManagedWebPath(sub.path)?.absolutePath
+      );
+      if (!subtitleTarget) {
         newSubtitles.push(sub);
         continue;
       }
-      const subExt = path.extname(sub.filename);
-      const newSubFilename = `${subBase}.${sub.language}${subExt}`;
 
-      // Preserve storage family: /videos or /subtitles
-      let subTargetBase: string;
-      let subWebPrefix: string;
-      // Compute the planned subtitle relative path under VIDEOS_DIR
-      // (regardless of storage family) so resolveSafeChildPath can validate.
-      const videoRelDir = path.dirname(videoRelative);
-      const subRelative = videoRelDir && videoRelDir !== "."
-        ? `${videoRelDir}/${newSubFilename}`
-        : newSubFilename;
-      if (sub.path.startsWith("/videos/")) {
-        const newSubAbsPath = resolveSafeChildPath(VIDEOS_DIR, subRelative);
-        subTargetBase = VIDEOS_DIR;
-        subWebPrefix = "/videos/";
-        subtitleMoves.push({
-          from: subResolved.absolutePath,
-          fromBase: subResolved.rootDir,
-          to: newSubAbsPath,
-          toBase: VIDEOS_DIR,
-          newPath: `/videos/${subRelative}`,
-          newFilename: newSubFilename,
-          language: sub.language,
-        });
-      } else {
-        const newSubAbsPath = resolveSafeChildPath(SUBTITLES_DIR, subRelative);
-        subTargetBase = SUBTITLES_DIR;
-        subWebPrefix = "/subtitles/";
-        subtitleMoves.push({
-          from: subResolved.absolutePath,
-          fromBase: subResolved.rootDir,
-          to: newSubAbsPath,
-          toBase: SUBTITLES_DIR,
-          newPath: `/subtitles/${subRelative}`,
-          newFilename: newSubFilename,
-          language: sub.language,
-        });
+      if (subtitleTarget.currentPath === subtitleTarget.targetPath) {
+        newSubtitles.push(sub);
+        continue;
       }
+
+      subtitleMoves.push(subtitleTarget);
     }
 
     // Execute moves
@@ -430,15 +568,20 @@ async function processOneVideo(
       // Subtitle moves
       for (const smv of subtitleMoves) {
         try {
-          ensureDirSafeSync(path.dirname(smv.to), smv.toBase);
-          moveSafeSync(smv.from, smv.fromBase, smv.to, smv.toBase);
+          ensureDirSafeSync(path.dirname(smv.targetPath), smv.targetRootDir);
+          moveSafeSync(
+            smv.currentPath,
+            smv.currentRootDir,
+            smv.targetPath,
+            smv.targetRootDir
+          );
           newSubtitles.push({
             language: smv.language,
             filename: smv.newFilename,
             path: smv.newPath,
           });
         } catch (e) {
-          logger.warn(`Failed to move subtitle ${smv.from}:`, e);
+          logger.warn(`Failed to move subtitle ${smv.currentPath}:`, e);
           const orig = subtitles.find((s) => s.language === smv.language);
           if (orig) newSubtitles.push(orig);
         }

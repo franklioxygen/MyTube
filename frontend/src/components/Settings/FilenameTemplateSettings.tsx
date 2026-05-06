@@ -25,7 +25,6 @@ import { api } from '../../utils/apiClient';
 interface FilenameTemplateSettingsProps {
     settings: Settings;
     onChange: (field: keyof Settings, value: any) => void;
-    savedSettings: Settings;
 }
 
 interface PreviewResult {
@@ -70,7 +69,6 @@ const PRESET_OPTIONS = [
 const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
     settings,
     onChange,
-    savedSettings,
 }) => {
     const { t } = useLanguage();
     const queryClient = useQueryClient();
@@ -85,15 +83,10 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
     const [renameError, setRenameError] = useState<string | null>(null);
     const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    // Per design §23, the rename button is always visible. It is disabled
-    // when the saved custom template is invalid; the backend additionally
-    // rejects start while downloads are queued/active or another rename runs
-    // and surfaces a 409 with a clear error code.
-    const savedPresetId = savedSettings.downloadFilenamePresetId || 'legacy';
-    const savedTemplateInvalid =
-        savedPresetId === 'custom' &&
-        !!preview?.errors?.length &&
-        savedSettings.downloadFilenameTemplate === customTemplate;
+    // Batch rename uses the current form state shown above, not only the last
+    // saved defaults used for future downloads.
+    const currentTemplateInvalid =
+        presetId === 'custom' && !!preview?.errors?.length;
 
     // Compute effective template for preview
     const effectiveTemplate = presetId === 'custom'
@@ -196,14 +189,23 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
         setRenameError(null);
         try {
             const res = await api.post<{ jobId: string; status: string; total: number }>(
-                '/settings/filename-template/rename-all'
+                '/settings/filename-template/rename-all',
+                {
+                    downloadFilenamePresetId: presetId,
+                    downloadFilenameTemplate:
+                        presetId === 'custom' ? customTemplate : undefined,
+                    moveThumbnailsToVideoFolder:
+                        settings.moveThumbnailsToVideoFolder || false,
+                    moveSubtitlesToVideoFolder:
+                        settings.moveSubtitlesToVideoFolder || false,
+                }
             );
             const jobData = res.data;
             setRenameJob({
                 id: jobData.jobId,
                 status: jobData.status as any,
                 lockedAt: Date.now(),
-                template: savedSettings.downloadFilenameTemplate || '',
+                template: effectiveTemplate,
                 total: jobData.total,
                 processed: 0,
                 succeeded: 0,
@@ -341,20 +343,20 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
 
                 <Tooltip
                     title={
-                        savedTemplateInvalid
+                        currentTemplateInvalid
                             ? t('filenameBatchRenameDisabledInvalidTemplate')
                             : isRenameRunning
                                 ? t('filenameBatchRenameDisabledRunning')
                                 : ''
                     }
-                    disableHoverListener={!savedTemplateInvalid && !isRenameRunning}
+                    disableHoverListener={!currentTemplateInvalid && !isRenameRunning}
                 >
                     <span>
                         <Button
                             variant="outlined"
                             color="warning"
                             onClick={() => setConfirmOpen(true)}
-                            disabled={isRenameRunning || savedTemplateInvalid}
+                            disabled={isRenameRunning || currentTemplateInvalid}
                         >
                             {t('filenameBatchRenameButton')}
                         </Button>

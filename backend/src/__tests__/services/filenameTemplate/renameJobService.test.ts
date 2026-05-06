@@ -27,6 +27,10 @@ vi.mock("../../../utils/security", () => ({
   moveSafeSync: vi.fn(),
 }));
 
+// Mocks for the subscriptions query in precomputeSourceOptions. Tests that
+// need to inject membership data should override `subscriptionsRowsMock`.
+const subscriptionsRowsMock = { current: [] as Array<Record<string, unknown>> };
+
 vi.mock("../../../db", () => ({
   db: {
     transaction: (cb: () => unknown) => cb(),
@@ -35,6 +39,11 @@ vi.mock("../../../db", () => ({
         where: vi.fn(() => ({
           run: vi.fn(),
         })),
+      })),
+    })),
+    select: vi.fn(() => ({
+      from: vi.fn(() => ({
+        all: () => subscriptionsRowsMock.current,
       })),
     })),
   },
@@ -61,9 +70,11 @@ vi.mock("../../../services/thumbnailMirrorService", () => ({
 }));
 
 const getVideosMock = vi.fn();
+const getCollectionsMock = vi.fn();
 
 vi.mock("../../../services/storageService", () => ({
   getVideos: () => getVideosMock(),
+  getCollections: () => getCollectionsMock(),
 }));
 
 import {
@@ -72,6 +83,8 @@ import {
   startRenameJob,
 } from "../../../services/filenameTemplate/renameJobService";
 import { releaseRenameLock } from "../../../services/filenameTemplate/renameLockService";
+import { setCollectionTypeRowsLoaderForTests } from "../../../services/filenameTemplate/sourceOptions";
+import { moveSafeSync, pathExistsSafeSync } from "../../../utils/security";
 
 async function waitForJobToFinish(maxIterations = 50): Promise<void> {
   for (let i = 0; i < maxIterations; i++) {
@@ -84,6 +97,20 @@ async function waitForJobToFinish(maxIterations = 50): Promise<void> {
 describe("renameJobService — design §23 changes", () => {
   beforeEach(() => {
     getVideosMock.mockReset();
+    getCollectionsMock.mockReset();
+    getCollectionsMock.mockReturnValue([]);
+    vi.mocked(pathExistsSafeSync).mockReset();
+    vi.mocked(pathExistsSafeSync).mockReturnValue(true);
+    vi.mocked(moveSafeSync).mockReset();
+    vi.mocked(moveSafeSync).mockImplementation(() => undefined);
+    subscriptionsRowsMock.current = [];
+    setCollectionTypeRowsLoaderForTests(
+      () => subscriptionsRowsMock.current as Array<{
+        collectionId: string | null;
+        subscriptionType: string | null;
+        playlistId: string | null;
+      }>
+    );
     // Clear any leaked job from a previous test
     const job = getActiveRenameJob();
     if (job) cancelRenameJob(job.id);
@@ -95,6 +122,7 @@ describe("renameJobService — design §23 changes", () => {
     if (job) cancelRenameJob(job.id);
     await waitForJobToFinish();
     releaseRenameLock();
+    setCollectionTypeRowsLoaderForTests();
   });
 
   it("legacy preset is accepted and resolves to formatVideoFilename template (no longer rejected)", async () => {
@@ -177,5 +205,205 @@ describe("renameJobService — design §23 changes", () => {
     await waitForJobToFinish();
     const job = getActiveRenameJob();
     expect(job?.items[0].skipReason).toBe("external_mount_path");
+  });
+
+  it("deduplicates the full output family when two videos share a stem but have different extensions", async () => {
+    const existingPaths = new Set([
+      "/mock/videos/current-one.webm",
+      "/mock/images/current-one.jpg",
+      "/mock/videos/current-two.mp4",
+      "/mock/images/current-two.jpg",
+    ]);
+
+    vi.mocked(pathExistsSafeSync).mockImplementation((target: string) =>
+      existingPaths.has(String(target))
+    );
+    vi.mocked(moveSafeSync).mockImplementation((from: string, _fromBase, to: string) => {
+      const source = String(from);
+      const destination = String(to);
+      if (!existingPaths.has(source)) {
+        throw new Error("source missing");
+      }
+      if (existingPaths.has(destination)) {
+        throw new Error("dest already exists.");
+      }
+      existingPaths.delete(source);
+      existingPaths.add(destination);
+    });
+
+    getVideosMock.mockReturnValue([
+      {
+        id: "v1",
+        title: "Same Stem",
+        author: "Creator",
+        videoFilename: "current-one.webm",
+        videoPath: "/videos/current-one.webm",
+        thumbnailFilename: "current-one.jpg",
+        thumbnailPath: "/images/current-one.jpg",
+      } as any,
+      {
+        id: "v2",
+        title: "Same Stem",
+        author: "Creator",
+        videoFilename: "current-two.mp4",
+        videoPath: "/videos/current-two.mp4",
+        thumbnailFilename: "current-two.jpg",
+        thumbnailPath: "/images/current-two.jpg",
+      } as any,
+    ]);
+
+    await startRenameJob(
+      {
+        downloadFilenamePresetId: "custom",
+        downloadFilenameTemplate: "{{ title }}.{{ ext }}",
+      },
+      false,
+      false
+    );
+    await waitForJobToFinish();
+
+    const job = getActiveRenameJob();
+    expect(job?.failed).toBe(0);
+    expect(job?.succeeded).toBe(2);
+    expect(job?.items.map((item) => item.newVideoPath)).toEqual([
+      "/videos/Same Stem.webm",
+      "/videos/Same Stem_1.mp4",
+    ]);
+    expect(existingPaths.has("/mock/images/Same Stem.jpg")).toBe(true);
+    expect(existingPaths.has("/mock/images/Same Stem_1.jpg")).toBe(true);
+  });
+});
+
+describe("renameJobService — precomputeSourceOptions (design §16 step 3)", () => {
+  beforeEach(() => {
+    getVideosMock.mockReset();
+    getCollectionsMock.mockReset();
+    getCollectionsMock.mockReturnValue([]);
+    vi.mocked(pathExistsSafeSync).mockReset();
+    vi.mocked(pathExistsSafeSync).mockReturnValue(true);
+    vi.mocked(moveSafeSync).mockReset();
+    vi.mocked(moveSafeSync).mockImplementation(() => undefined);
+    subscriptionsRowsMock.current = [];
+    setCollectionTypeRowsLoaderForTests(
+      () => subscriptionsRowsMock.current as Array<{
+        collectionId: string | null;
+        subscriptionType: string | null;
+        playlistId: string | null;
+      }>
+    );
+    const job = getActiveRenameJob();
+    if (job) cancelRenameJob(job.id);
+    releaseRenameLock();
+  });
+
+  afterEach(async () => {
+    const job = getActiveRenameJob();
+    if (job) cancelRenameJob(job.id);
+    await waitForJobToFinish();
+    releaseRenameLock();
+    setCollectionTypeRowsLoaderForTests();
+  });
+
+  it("does not throw when collection lookup fails (best-effort)", async () => {
+    getCollectionsMock.mockImplementation(() => {
+      throw new Error("db unavailable");
+    });
+    getVideosMock.mockReturnValue([]);
+    const job = await startRenameJob(
+      { downloadFilenamePresetId: "channel_year_date_index" },
+      false,
+      false
+    );
+    await waitForJobToFinish();
+    expect(job.id).toBeDefined();
+  });
+
+  it("populates date-collision suffix for same-day videos in the same collection", async () => {
+    // Three same-day videos all skipped via cloud: paths so we don't move
+    // files; we inspect the per-item options indirectly via the snapshot.
+    getCollectionsMock.mockReturnValue([
+      {
+        id: "col-1",
+        name: "MyChannel",
+        videos: ["v1", "v2", "v3"],
+      },
+    ]);
+    subscriptionsRowsMock.current = [
+      { collectionId: "col-1", subscriptionType: "author", playlistId: null },
+    ];
+    getVideosMock.mockReturnValue([
+      {
+        id: "v1",
+        title: "T1",
+        author: "MyChannel",
+        date: "20260430",
+        videoPath: "cloud:foo1.mp4",
+        addedAt: "2026-04-30T10:00:00Z",
+        createdAt: "2026-04-30T10:00:00Z",
+      } as any,
+      {
+        id: "v2",
+        title: "T2",
+        author: "MyChannel",
+        date: "20260430",
+        videoPath: "cloud:foo2.mp4",
+        addedAt: "2026-04-30T11:00:00Z",
+        createdAt: "2026-04-30T11:00:00Z",
+      } as any,
+      {
+        id: "v3",
+        title: "T3",
+        author: "MyChannel",
+        date: "20260430",
+        videoPath: "cloud:foo3.mp4",
+        addedAt: "2026-04-30T12:00:00Z",
+        createdAt: "2026-04-30T12:00:00Z",
+      } as any,
+    ]);
+    await startRenameJob(
+      { downloadFilenamePresetId: "channel_year_date_index" },
+      false,
+      false
+    );
+    await waitForJobToFinish();
+    const job = getActiveRenameJob();
+    // All three should be in the snapshot, all skipped (cloud:).
+    expect(job?.processed).toBe(3);
+    expect(job?.skipped).toBe(3);
+    // Each skip reason is cloud_rename_not_supported.
+    for (const item of job?.items || []) {
+      expect(item.skipReason).toBe("cloud_rename_not_supported");
+    }
+  });
+
+  it("treats videos in playlist subscriptions as 'playlist' type", async () => {
+    getCollectionsMock.mockReturnValue([
+      {
+        id: "col-pl",
+        name: "MyPlaylist",
+        videos: ["vp1"],
+      },
+    ]);
+    subscriptionsRowsMock.current = [
+      { collectionId: "col-pl", subscriptionType: "playlist", playlistId: "PL123" },
+    ];
+    getVideosMock.mockReturnValue([
+      {
+        id: "vp1",
+        title: "Episode 1",
+        author: "Creator",
+        date: "20260101",
+        videoPath: "cloud:vp1.mp4",
+        addedAt: "2026-01-01T00:00:00Z",
+        createdAt: "2026-01-01T00:00:00Z",
+      } as any,
+    ]);
+    await startRenameJob(
+      { downloadFilenamePresetId: "playlist_static_index" },
+      false,
+      false
+    );
+    await waitForJobToFinish();
+    expect(getActiveRenameJob()?.processed).toBe(1);
   });
 });

@@ -62,6 +62,15 @@ describe("dedupeRelativePath", () => {
     const result = dedupeRelativePath("Channel/Season 2026/ep01.mp4", "/mock/videos", new Set());
     expect(result).toBe("Channel/Season 2026/ep01_1.mp4");
   });
+
+  it("throws when it cannot find a free path within the attempt limit", () => {
+    pathExistsMock.mockReturnValue(true);
+    expect(() =>
+      dedupeRelativePath("video.mp4", "/mock/videos", new Set())
+    ).toThrow(
+      "Could not find a free deduplicated path for video.mp4 after 9999 attempts"
+    );
+  });
 });
 
 describe("applyDedupeToRelatedPaths", () => {
