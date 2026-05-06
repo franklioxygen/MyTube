@@ -84,6 +84,7 @@ import {
 } from "../../../services/filenameTemplate/renameJobService";
 import { releaseRenameLock } from "../../../services/filenameTemplate/renameLockService";
 import { setCollectionTypeRowsLoaderForTests } from "../../../services/filenameTemplate/sourceOptions";
+import { moveSafeSync, pathExistsSafeSync } from "../../../utils/security";
 
 async function waitForJobToFinish(maxIterations = 50): Promise<void> {
   for (let i = 0; i < maxIterations; i++) {
@@ -98,6 +99,10 @@ describe("renameJobService — design §23 changes", () => {
     getVideosMock.mockReset();
     getCollectionsMock.mockReset();
     getCollectionsMock.mockReturnValue([]);
+    vi.mocked(pathExistsSafeSync).mockReset();
+    vi.mocked(pathExistsSafeSync).mockReturnValue(true);
+    vi.mocked(moveSafeSync).mockReset();
+    vi.mocked(moveSafeSync).mockImplementation(() => undefined);
     subscriptionsRowsMock.current = [];
     setCollectionTypeRowsLoaderForTests(
       () => subscriptionsRowsMock.current as Array<{
@@ -201,6 +206,72 @@ describe("renameJobService — design §23 changes", () => {
     const job = getActiveRenameJob();
     expect(job?.items[0].skipReason).toBe("external_mount_path");
   });
+
+  it("deduplicates the full output family when two videos share a stem but have different extensions", async () => {
+    const existingPaths = new Set([
+      "/mock/videos/current-one.webm",
+      "/mock/images/current-one.jpg",
+      "/mock/videos/current-two.mp4",
+      "/mock/images/current-two.jpg",
+    ]);
+
+    vi.mocked(pathExistsSafeSync).mockImplementation((target: string) =>
+      existingPaths.has(String(target))
+    );
+    vi.mocked(moveSafeSync).mockImplementation((from: string, _fromBase, to: string) => {
+      const source = String(from);
+      const destination = String(to);
+      if (!existingPaths.has(source)) {
+        throw new Error("source missing");
+      }
+      if (existingPaths.has(destination)) {
+        throw new Error("dest already exists.");
+      }
+      existingPaths.delete(source);
+      existingPaths.add(destination);
+    });
+
+    getVideosMock.mockReturnValue([
+      {
+        id: "v1",
+        title: "Same Stem",
+        author: "Creator",
+        videoFilename: "current-one.webm",
+        videoPath: "/videos/current-one.webm",
+        thumbnailFilename: "current-one.jpg",
+        thumbnailPath: "/images/current-one.jpg",
+      } as any,
+      {
+        id: "v2",
+        title: "Same Stem",
+        author: "Creator",
+        videoFilename: "current-two.mp4",
+        videoPath: "/videos/current-two.mp4",
+        thumbnailFilename: "current-two.jpg",
+        thumbnailPath: "/images/current-two.jpg",
+      } as any,
+    ]);
+
+    await startRenameJob(
+      {
+        downloadFilenamePresetId: "custom",
+        downloadFilenameTemplate: "{{ title }}.{{ ext }}",
+      },
+      false,
+      false
+    );
+    await waitForJobToFinish();
+
+    const job = getActiveRenameJob();
+    expect(job?.failed).toBe(0);
+    expect(job?.succeeded).toBe(2);
+    expect(job?.items.map((item) => item.newVideoPath)).toEqual([
+      "/videos/Same Stem.webm",
+      "/videos/Same Stem_1.mp4",
+    ]);
+    expect(existingPaths.has("/mock/images/Same Stem.jpg")).toBe(true);
+    expect(existingPaths.has("/mock/images/Same Stem_1.jpg")).toBe(true);
+  });
 });
 
 describe("renameJobService — precomputeSourceOptions (design §16 step 3)", () => {
@@ -208,6 +279,10 @@ describe("renameJobService — precomputeSourceOptions (design §16 step 3)", ()
     getVideosMock.mockReset();
     getCollectionsMock.mockReset();
     getCollectionsMock.mockReturnValue([]);
+    vi.mocked(pathExistsSafeSync).mockReset();
+    vi.mocked(pathExistsSafeSync).mockReturnValue(true);
+    vi.mocked(moveSafeSync).mockReset();
+    vi.mocked(moveSafeSync).mockImplementation(() => undefined);
     subscriptionsRowsMock.current = [];
     setCollectionTypeRowsLoaderForTests(
       () => subscriptionsRowsMock.current as Array<{

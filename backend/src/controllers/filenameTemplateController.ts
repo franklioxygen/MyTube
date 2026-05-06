@@ -11,6 +11,7 @@ import {
   startRenameJob,
 } from "../services/filenameTemplate";
 import { FilenameTemplateContext } from "../services/filenameTemplate/types";
+import { DownloadFilenamePresetId } from "../types/settings";
 import { logger } from "../utils/logger";
 import { sendBadRequest } from "../utils/response";
 
@@ -35,6 +36,22 @@ const SAMPLE_CONTEXT: FilenameTemplateContext = {
   mediaPlaylistIndexWithinDate: 1,
   platform: "youtube",
   sourceUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+};
+
+const VALID_PRESET_IDS = new Set<DownloadFilenamePresetId>(
+  [
+    ...FILENAME_TEMPLATE_PRESETS.map(
+      (preset) => preset.id as DownloadFilenamePresetId
+    ),
+    "custom",
+  ]
+);
+
+type BatchRenameRequestOverrides = {
+  downloadFilenamePresetId?: DownloadFilenamePresetId;
+  downloadFilenameTemplate?: string;
+  moveThumbnailsToVideoFolder?: boolean;
+  moveSubtitlesToVideoFolder?: boolean;
 };
 
 export async function getFilenameTemplatePresets(
@@ -168,17 +185,72 @@ export async function startBatchRename(
       return;
     }
 
-    const settings = storageService.getSettings();
+    const savedSettings = storageService.getSettings();
+    const overrides = (req.body || {}) as BatchRenameRequestOverrides;
 
-    // For custom templates, validate before starting. Legacy and built-in
-    // presets are always valid. (Design §23.6)
+    if (
+      overrides.downloadFilenamePresetId !== undefined &&
+      !VALID_PRESET_IDS.has(overrides.downloadFilenamePresetId)
+    ) {
+      res.status(400).json({
+        error: `Invalid filename preset: ${overrides.downloadFilenamePresetId}`,
+        code: "invalid_preset",
+      });
+      return;
+    }
+
+    if (
+      overrides.downloadFilenameTemplate !== undefined &&
+      typeof overrides.downloadFilenameTemplate !== "string"
+    ) {
+      res.status(400).json({
+        error: "Invalid filename template override.",
+        code: "invalid_template",
+      });
+      return;
+    }
+
+    if (
+      overrides.downloadFilenamePresetId === "custom" &&
+      overrides.downloadFilenameTemplate === undefined
+    ) {
+      res.status(400).json({
+        error: "Current custom template override is required.",
+        code: "invalid_template",
+      });
+      return;
+    }
+
+    const settings = {
+      ...savedSettings,
+      ...(overrides.downloadFilenamePresetId !== undefined
+        ? { downloadFilenamePresetId: overrides.downloadFilenamePresetId }
+        : {}),
+      ...(overrides.downloadFilenameTemplate !== undefined
+        ? { downloadFilenameTemplate: overrides.downloadFilenameTemplate }
+        : {}),
+      ...(overrides.moveThumbnailsToVideoFolder !== undefined
+        ? { moveThumbnailsToVideoFolder: overrides.moveThumbnailsToVideoFolder }
+        : {}),
+      ...(overrides.moveSubtitlesToVideoFolder !== undefined
+        ? { moveSubtitlesToVideoFolder: overrides.moveSubtitlesToVideoFolder }
+        : {}),
+    };
+
+    // Batch rename uses the current UI selection if provided in the request;
+    // Save only controls future download defaults.
     const presetId = settings.downloadFilenamePresetId || "legacy";
     if (presetId === "custom") {
       const tpl = settings.downloadFilenameTemplate || "";
       const validation = validateTemplate(tpl);
       if (!validation.valid) {
+        const templateScope =
+          overrides.downloadFilenamePresetId === "custom" ||
+          overrides.downloadFilenameTemplate !== undefined
+            ? "Current"
+            : "Saved";
         res.status(400).json({
-          error: `Saved custom template is invalid: ${validation.errors.join("; ")}`,
+          error: `${templateScope} custom template is invalid: ${validation.errors.join("; ")}`,
           code: "invalid_template",
         });
         return;

@@ -16,14 +16,24 @@ type CollectionTypeRow = {
 };
 
 type CollectionTypeRowsLoader = () => CollectionTypeRow[];
+type DateCollisionCountsByLookupKey = Map<string, number>;
+type StoredDateCollisionCountCache = {
+  cacheKey: string;
+  countsByLookupKey: DateCollisionCountsByLookupKey;
+  expiresAt: number;
+};
 
 const DOWNLOAD_COLLISION_RESERVATION_TTL_MS = 10 * 60 * 1000;
+const STORED_DATE_COLLISION_COUNT_CACHE_TTL_MS = 30 * 1000;
 const downloadCollisionReservations = new Map<
   string,
   DownloadCollisionReservation
 >();
+let storedDateCollisionCountCache: StoredDateCollisionCountCache | null = null;
 
 function loadCollectionTypeRowsFromDatabase(): CollectionTypeRow[] {
+  // Lazy import to avoid initializing the DB layer at module import time.
+  // Several tests import sourceOptions helpers without a real database setup.
   const { db } = require("../../db") as typeof import("../../db");
   const { subscriptions } = require("../../db/schema") as typeof import("../../db/schema");
   return db
@@ -106,6 +116,19 @@ function getCollectionTypeMap(): Map<string, "channel" | "playlist"> {
   return collectionTypeMap;
 }
 
+function buildDateCollisionCountKey(
+  sourceOptions: FilenameTemplateSourceOptions,
+  author: string | undefined,
+  uploadDate: string | undefined
+): string | null {
+  const groupKey = resolveSourceGroupKey(sourceOptions, author);
+  const dateKey = sanitizeUploadDate(uploadDate);
+  if (!groupKey || !dateKey) {
+    return null;
+  }
+  return JSON.stringify([groupKey, dateKey]);
+}
+
 export function buildStoredSourceOptionsMap(
   allVideos: Video[]
 ): Map<string, FilenameTemplateSourceOptions> {
@@ -168,6 +191,72 @@ export function buildStoredSourceOptionsMap(
   return sourceOptionsByVideoId;
 }
 
+function buildDateCollisionCountsByLookupKey(
+  allVideos: Video[],
+  sourceOptionsByVideoId: Map<string, FilenameTemplateSourceOptions>
+): DateCollisionCountsByLookupKey {
+  const countsByLookupKey = new Map<string, number>();
+
+  for (const video of allVideos) {
+    const sourceOptions = sourceOptionsByVideoId.get(video.id);
+    if (!sourceOptions) continue;
+
+    const lookupKey = buildDateCollisionCountKey(
+      sourceOptions,
+      video.author || "",
+      video.date || ""
+    );
+    if (!lookupKey) continue;
+
+    countsByLookupKey.set(lookupKey, (countsByLookupKey.get(lookupKey) || 0) + 1);
+  }
+
+  return countsByLookupKey;
+}
+
+function buildStoredDateCollisionCounts(
+  allVideos: Video[]
+): DateCollisionCountsByLookupKey {
+  return buildDateCollisionCountsByLookupKey(
+    allVideos,
+    buildStoredSourceOptionsMap(allVideos)
+  );
+}
+
+function getStoredDateCollisionCountCacheKey(allVideos: Video[]): string {
+  const newestVideo = allVideos[0];
+  const oldestVideo = allVideos[allVideos.length - 1];
+  return JSON.stringify([
+    allVideos.length,
+    newestVideo?.id || "",
+    newestVideo?.createdAt || "",
+    oldestVideo?.id || "",
+    oldestVideo?.createdAt || "",
+  ]);
+}
+
+function getCachedStoredDateCollisionCounts(): DateCollisionCountsByLookupKey {
+  const allVideos = storageService.getVideos();
+  const cacheKey = getStoredDateCollisionCountCacheKey(allVideos);
+  const now = Date.now();
+
+  if (
+    storedDateCollisionCountCache &&
+    storedDateCollisionCountCache.cacheKey === cacheKey &&
+    storedDateCollisionCountCache.expiresAt > now
+  ) {
+    return storedDateCollisionCountCache.countsByLookupKey;
+  }
+
+  const countsByLookupKey = buildStoredDateCollisionCounts(allVideos);
+  storedDateCollisionCountCache = {
+    cacheKey,
+    countsByLookupKey,
+    expiresAt: now + STORED_DATE_COLLISION_COUNT_CACHE_TTL_MS,
+  };
+  return countsByLookupKey;
+}
+
 export function assignDateCollisionIndexes(
   allVideos: Video[],
   sourceOptionsByVideoId: Map<string, FilenameTemplateSourceOptions>
@@ -217,6 +306,8 @@ export function enrichSourceOptionsForDownload(
     author?: string;
     uploadDate?: string;
     existingVideos?: Video[];
+    existingDateCollisionCountsByLookupKey?: DateCollisionCountsByLookupKey;
+    existingSourceOptionsByVideoId?: Map<string, FilenameTemplateSourceOptions>;
   }
 ): FilenameTemplateSourceOptions {
   if (sourceOptions.mediaPlaylistIndexWithinDate !== undefined) {
@@ -241,28 +332,20 @@ export function enrichSourceOptionsForDownload(
   }
 
   const lookupKey = JSON.stringify([groupKey, uploadDate]);
-  const existingVideos =
-    input.existingVideos ||
-    // Callers without a snapshot still fall back to the full library. This is
-    // best-effort and intentionally favors correctness over an extra query path.
-    storageService.getVideos();
-  const storedSourceOptions = buildStoredSourceOptionsMap(existingVideos);
-
-  let existingCount = 0;
-  for (const video of existingVideos) {
-    const existingSourceOptions = storedSourceOptions.get(video.id);
-    if (!existingSourceOptions) continue;
-
-    const existingGroupKey = resolveSourceGroupKey(
-      existingSourceOptions,
-      video.author || ""
-    );
-    const existingUploadDate = sanitizeUploadDate(video.date || "");
-
-    if (existingGroupKey === groupKey && existingUploadDate === uploadDate) {
-      existingCount++;
-    }
-  }
+  const explicitExistingCount =
+    input.existingDateCollisionCountsByLookupKey?.get(lookupKey);
+  const existingCount =
+    explicitExistingCount ??
+    (input.existingVideos
+      ? buildDateCollisionCountsByLookupKey(
+          input.existingVideos,
+          input.existingSourceOptionsByVideoId ||
+            buildStoredSourceOptionsMap(input.existingVideos)
+        ).get(lookupKey) ?? 0
+      : // Callers without a snapshot still fall back to the persisted library,
+        // but we reuse a short-lived count index so active channels do not
+        // rebuild collection membership maps on every download.
+        getCachedStoredDateCollisionCounts().get(lookupKey) ?? 0);
 
   return {
     ...sourceOptions,
@@ -280,6 +363,7 @@ export function enrichSourceOptionsForDownload(
  */
 export function resetDownloadCollisionReservationsForTests(): void {
   downloadCollisionReservations.clear();
+  storedDateCollisionCountCache = null;
 }
 
 export function setCollectionTypeRowsLoaderForTests(

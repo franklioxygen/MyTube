@@ -23,10 +23,6 @@ describe('DownloadSettings', () => {
         activeDownloadsCount: 0,
         onCleanup: mockOnCleanup,
         isSaving: false,
-        savedSettings: {
-            maxConcurrentDownloads: 3,
-            preferredAudioLanguage: '',
-        } as any,
     };
 
     const renderDownloadSettings = (

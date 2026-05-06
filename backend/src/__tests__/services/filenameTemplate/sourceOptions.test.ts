@@ -1,13 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const getCollectionsMock = vi.fn();
+const getVideosMock = vi.fn();
 const subscriptionsRowsMock = {
   current: [] as Array<Record<string, unknown>>,
 };
 
 vi.mock("../../../services/storageService", () => ({
   getCollections: () => getCollectionsMock(),
-  getVideos: () => [],
+  getVideos: () => getVideosMock(),
 }));
 
 import {
@@ -23,6 +24,8 @@ describe("filenameTemplate/sourceOptions", () => {
   beforeEach(() => {
     getCollectionsMock.mockReset();
     getCollectionsMock.mockReturnValue([]);
+    getVideosMock.mockReset();
+    getVideosMock.mockReturnValue([]);
     subscriptionsRowsMock.current = [];
     resetDownloadCollisionReservationsForTests();
     setCollectionTypeRowsLoaderForTests(
@@ -205,5 +208,46 @@ describe("filenameTemplate/sourceOptions", () => {
 
     expect(firstResult.mediaPlaylistIndexWithinDate).toBe(3);
     expect(secondResult.mediaPlaylistIndexWithinDate).toBe(4);
+  });
+
+  it("reuses the cached persisted date-collision index across fallback lookups", () => {
+    getVideosMock.mockReturnValue([
+      {
+        id: "v1",
+        author: "Channel",
+        date: "20260430",
+      },
+      {
+        id: "v2",
+        author: "Channel",
+        date: "20260430",
+      },
+    ] as any[]);
+
+    const firstResult = enrichSourceOptionsForDownload(
+      {
+        sourceCollectionType: "channel",
+        sourceCollectionName: "Channel",
+      },
+      {
+        author: "Channel",
+        uploadDate: "20260430",
+      }
+    );
+    const secondResult = enrichSourceOptionsForDownload(
+      {
+        sourceCollectionType: "channel",
+        sourceCollectionName: "Channel",
+      },
+      {
+        author: "Channel",
+        uploadDate: "20260430",
+      }
+    );
+
+    expect(firstResult.mediaPlaylistIndexWithinDate).toBe(3);
+    expect(secondResult.mediaPlaylistIndexWithinDate).toBe(4);
+    expect(getCollectionsMock).toHaveBeenCalledTimes(1);
+    expect(getVideosMock).toHaveBeenCalledTimes(2);
   });
 });

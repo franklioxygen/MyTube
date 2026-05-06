@@ -24,7 +24,7 @@ import {
   normalizeCookiesFileContent,
 } from "./cookieFileFormat";
 
-const YT_DLP_PATH = process.env.YT_DLP_PATH?.trim() || "yt-dlp";
+const DEFAULT_YT_DLP_PATH = "yt-dlp";
 const YT_DLP_JS_RUNTIME_ENV = "YT_DLP_JS_RUNTIME";
 const DEFAULT_YOUTUBE_PLAYER_CLIENT_EXTRACTOR_ARG =
   "youtube:player_client=default,mweb";
@@ -60,6 +60,10 @@ function getCachedProviderPluginPath(): string {
   return providerPluginPathCache || "";
 }
 
+function getConfiguredYtDlpPath(): string {
+  return process.env.YT_DLP_PATH?.trim() || DEFAULT_YT_DLP_PATH;
+}
+
 function getYtDlpSpawnEnv(): NodeJS.ProcessEnv {
   const providerPluginPath = getCachedProviderPluginPath();
   if (!providerPluginPath) {
@@ -81,8 +85,7 @@ function getYtDlpSpawnEnv(): NodeJS.ProcessEnv {
 }
 
 function hasCustomConfiguredYtDlpPath(): boolean {
-  const configuredPath = process.env.YT_DLP_PATH?.trim();
-  return Boolean(configuredPath && configuredPath !== "yt-dlp");
+  return getConfiguredYtDlpPath() !== DEFAULT_YT_DLP_PATH;
 }
 
 function isMissingFileError(error: unknown): boolean {
@@ -176,7 +179,7 @@ export async function ensureYtDlpAvailable(): Promise<void> {
   if (ytDlpAvailablePromise) return ytDlpAvailablePromise;
 
   ytDlpAvailablePromise = (async () => {
-    const ytDlpPath = process.env.YT_DLP_PATH?.trim() || YT_DLP_PATH;
+    const ytDlpPath = getConfiguredYtDlpPath();
 
     try {
       await new Promise<void>((resolve, reject) => {
@@ -391,7 +394,7 @@ async function getYouTubeJsRuntimeFlag(): Promise<YouTubeJsRuntimeFlag | null> {
     };
 
     try {
-      const ytDlpPath = process.env.YT_DLP_PATH?.trim() || YT_DLP_PATH;
+      const ytDlpPath = getConfiguredYtDlpPath();
       return await new Promise<YouTubeJsRuntimeFlag | null>((resolve) => {
         const proc = spawn(ytDlpPath, ["--help"], {
           env: getYtDlpSpawnEnv(),
@@ -658,7 +661,7 @@ export async function executeYtDlpJson(
 
   args.push(url);
 
-  const ytDlpPath = process.env.YT_DLP_PATH?.trim() || YT_DLP_PATH;
+  const ytDlpPath = getConfiguredYtDlpPath();
   console.log(`Executing: ${ytDlpPath} ${args.join(" ")}`);
 
   return new Promise<any>((resolve, reject) => {
@@ -812,7 +815,7 @@ export async function getChannelUrlFromVideo(
   await appendYouTubeJsRuntimeArg(args, videoUrl);
 
   args.push(videoUrl);
-  const ytDlpPath = process.env.YT_DLP_PATH?.trim() || YT_DLP_PATH;
+  const ytDlpPath = getConfiguredYtDlpPath();
 
   return new Promise<string | null>((resolve, reject) => {
     const subprocess = spawn(ytDlpPath, args, {
@@ -895,7 +898,7 @@ export async function downloadChannelAvatar(
   await appendYouTubeJsRuntimeArg(args, channelUrl);
 
   args.push(channelUrl);
-  const ytDlpPath = process.env.YT_DLP_PATH?.trim() || YT_DLP_PATH;
+  const ytDlpPath = getConfiguredYtDlpPath();
 
   return new Promise<boolean>((resolve, reject) => {
     const subprocess = spawn(ytDlpPath, args, {
@@ -1047,7 +1050,7 @@ export function executeYtDlpSpawn(
   const promise = ensureYtDlpAvailable()
     .then(
       async () => {
-        const ytDlpPath = process.env.YT_DLP_PATH?.trim() || YT_DLP_PATH;
+        const ytDlpPath = getConfiguredYtDlpPath();
         const args = [...baseArgs];
         await appendYouTubeJsRuntimeArg(args, url);
         args.push(url);

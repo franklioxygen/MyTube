@@ -532,7 +532,6 @@ const SettingsPage: React.FC = () => {
                     activeDownloadsCount={activeDownloads.length}
                     onCleanup={() => setShowCleanupTempFilesModal(true)}
                     isSaving={isSaving}
-                    savedSettings={settingsData || settings}
                 />
             </Box>
             <Box>
