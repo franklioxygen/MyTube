@@ -27,18 +27,17 @@ function isValidProviderScriptPath(filePath: string): boolean {
   return path.basename(filePath) === BGUTIL_SCRIPT_BASENAME;
 }
 
-function resolveBundledProviderCandidatePaths(relativePath: string): string[] {
+function resolveBundledProviderPluginCandidatePaths(): string[] {
   return [
-    path.resolve(process.cwd(), relativePath),
+    path.resolve(process.cwd(), BGUTIL_PLUGIN_PACKAGE_RELATIVE_PATH),
     // Source layout: backend/src/services/downloaders/ytdlp -> backend/
-    path.resolve(__dirname, "../../../..", relativePath),
+    path.resolve(__dirname, "../../../..", BGUTIL_PLUGIN_PACKAGE_RELATIVE_PATH),
     // Build layout: backend/dist/src/services/downloaders/ytdlp -> backend/
-    path.resolve(__dirname, "../../../../..", relativePath),
+    path.resolve(__dirname, "../../../../..", BGUTIL_PLUGIN_PACKAGE_RELATIVE_PATH),
   ].map((candidatePath) => normalizeSafeAbsolutePath(candidatePath));
 }
 
-function findExistingBundledProviderPath(relativePath: string): string {
-  const candidatePaths = resolveBundledProviderCandidatePaths(relativePath);
+function findExistingBundledProviderPath(candidatePaths: string[]): string {
   for (const candidatePath of candidatePaths) {
     if (pathExistsTrustedSync(candidatePath)) {
       return candidatePath;
@@ -229,7 +228,22 @@ export function getProviderScript(): string {
     }
   }
 
-  return findExistingBundledProviderPath(BGUTIL_SCRIPT_RELATIVE_PATH);
+  const candidatePaths = [
+    path.resolve(process.cwd(), BGUTIL_SCRIPT_RELATIVE_PATH),
+    // Source layout: backend/src/services/downloaders/ytdlp -> backend/
+    path.resolve(__dirname, "../../../..", BGUTIL_SCRIPT_RELATIVE_PATH),
+    // Build layout: backend/dist/src/services/downloaders/ytdlp -> backend/
+    path.resolve(__dirname, "../../../../..", BGUTIL_SCRIPT_RELATIVE_PATH),
+  ];
+
+  for (const candidatePath of candidatePaths) {
+    const normalizedCandidatePath = normalizeSafeAbsolutePath(candidatePath);
+    if (pathExistsTrustedSync(normalizedCandidatePath)) {
+      return normalizedCandidatePath;
+    }
+  }
+
+  return "";
 }
 
 /**
@@ -237,7 +251,7 @@ export function getProviderScript(): string {
  */
 export function getProviderPluginPath(): string {
   const pluginPackagePath = findExistingBundledProviderPath(
-    BGUTIL_PLUGIN_PACKAGE_RELATIVE_PATH,
+    resolveBundledProviderPluginCandidatePaths(),
   );
   return pluginPackagePath ? path.dirname(pluginPackagePath) : "";
 }

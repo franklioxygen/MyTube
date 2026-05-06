@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const getCollectionsMock = vi.fn();
 const subscriptionsRowsMock = {
@@ -10,29 +10,12 @@ vi.mock("../../../services/storageService", () => ({
   getVideos: () => [],
 }));
 
-vi.mock("../../../db", () => ({
-  db: {
-    select: vi.fn(() => ({
-      from: vi.fn(() => ({
-        all: () => subscriptionsRowsMock.current,
-      })),
-    })),
-  },
-}));
-
-vi.mock("../../../db/schema", () => ({
-  subscriptions: {
-    collectionId: "collectionId",
-    subscriptionType: "subscriptionType",
-    playlistId: "playlistId",
-  },
-}));
-
 import {
   assignDateCollisionIndexes,
   buildStoredSourceOptionsMap,
   enrichSourceOptionsForDownload,
   resetDownloadCollisionReservationsForTests,
+  setCollectionTypeRowsLoaderForTests,
 } from "../../../services/filenameTemplate/sourceOptions";
 import { FilenameTemplateSourceOptions } from "../../../services/filenameTemplate/types";
 
@@ -42,6 +25,17 @@ describe("filenameTemplate/sourceOptions", () => {
     getCollectionsMock.mockReturnValue([]);
     subscriptionsRowsMock.current = [];
     resetDownloadCollisionReservationsForTests();
+    setCollectionTypeRowsLoaderForTests(
+      () => subscriptionsRowsMock.current as Array<{
+        collectionId: string | null;
+        subscriptionType: string | null;
+        playlistId: string | null;
+      }>
+    );
+  });
+
+  afterEach(() => {
+    setCollectionTypeRowsLoaderForTests();
   });
 
   it("builds stored source options from collection membership and subscription type", () => {

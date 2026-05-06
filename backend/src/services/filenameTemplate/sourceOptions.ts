@@ -1,5 +1,3 @@
-import { db } from "../../db";
-import { subscriptions } from "../../db/schema";
 import { logger } from "../../utils/logger";
 import * as storageService from "../storageService";
 import { Video } from "../storageService/types";
@@ -11,11 +9,35 @@ type DownloadCollisionReservation = {
   updatedAt: number;
 };
 
+type CollectionTypeRow = {
+  collectionId: string | null;
+  subscriptionType: string | null;
+  playlistId: string | null;
+};
+
+type CollectionTypeRowsLoader = () => CollectionTypeRow[];
+
 const DOWNLOAD_COLLISION_RESERVATION_TTL_MS = 10 * 60 * 1000;
 const downloadCollisionReservations = new Map<
   string,
   DownloadCollisionReservation
 >();
+
+function loadCollectionTypeRowsFromDatabase(): CollectionTypeRow[] {
+  const { db } = require("../../db") as typeof import("../../db");
+  const { subscriptions } = require("../../db/schema") as typeof import("../../db/schema");
+  return db
+    .select({
+      collectionId: subscriptions.collectionId,
+      subscriptionType: subscriptions.subscriptionType,
+      playlistId: subscriptions.playlistId,
+    })
+    .from(subscriptions)
+    .all();
+}
+
+let collectionTypeRowsLoader: CollectionTypeRowsLoader =
+  loadCollectionTypeRowsFromDatabase;
 
 function sanitizeUploadDate(value: string | undefined): string {
   if (!value) return "";
@@ -69,16 +91,7 @@ function reserveDateCollisionIndex(
 function getCollectionTypeMap(): Map<string, "channel" | "playlist"> {
   const collectionTypeMap = new Map<string, "channel" | "playlist">();
   try {
-    const rows = db
-      .select({
-        collectionId: subscriptions.collectionId,
-        subscriptionType: subscriptions.subscriptionType,
-        playlistId: subscriptions.playlistId,
-      })
-      .from(subscriptions)
-      .all();
-
-    for (const row of rows) {
+    for (const row of collectionTypeRowsLoader()) {
       if (!row.collectionId) continue;
       const isPlaylist =
         row.subscriptionType === "playlist" || Boolean(row.playlistId);
@@ -267,4 +280,10 @@ export function enrichSourceOptionsForDownload(
  */
 export function resetDownloadCollisionReservationsForTests(): void {
   downloadCollisionReservations.clear();
+}
+
+export function setCollectionTypeRowsLoaderForTests(
+  loader?: CollectionTypeRowsLoader
+): void {
+  collectionTypeRowsLoader = loader || loadCollectionTypeRowsFromDatabase;
 }

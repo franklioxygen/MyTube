@@ -1,6 +1,8 @@
 import { pathExistsSafeSync, resolveSafeChildPath } from "../../utils/security";
 import { IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../../config/paths";
 
+const MAX_DEDUPE_ATTEMPTS = 9999;
+
 /**
  * Returns the first non-conflicting relative path by appending _1, _2, ...
  * to the stem of the basename.  Checks both the filesystem and a set of
@@ -21,13 +23,17 @@ export function dedupeRelativePath(
   const ext = dotIdx > 0 ? relativePath.slice(dotIdx) : "";
 
   let counter = 1;
-  while (true) {
+  while (counter <= MAX_DEDUPE_ATTEMPTS) {
     const candidate = `${stem}_${counter}${ext}`;
     if (!isConflicting(candidate, baseDir, reserved)) {
       return candidate;
     }
     counter++;
   }
+
+  throw new Error(
+    `Could not find a free deduplicated path for ${relativePath} after ${MAX_DEDUPE_ATTEMPTS} attempts`
+  );
 }
 
 function isConflicting(

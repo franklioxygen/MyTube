@@ -1,8 +1,6 @@
 import { spawn } from "child_process";
 import { EventEmitter } from "events";
-import * as nodeFs from "fs";
 import fs from "fs-extra";
-import os from "os";
 import path from "path";
 import { PassThrough } from "stream";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -70,18 +68,6 @@ const createMockProcess = (): MockProcess => {
 const createVersionCheckProcess = (): MockProcess => {
   const proc = createMockProcess();
   queueMicrotask(() => proc.emit("close", 0));
-  return proc;
-};
-
-const createVersionProbeProcess = (
-  versionText: string,
-  exitCode: number = 0,
-): MockProcess => {
-  const proc = createMockProcess();
-  queueMicrotask(() => {
-    proc.stdout?.emit("data", Buffer.from(versionText));
-    proc.emit("close", exitCode);
-  });
   return proc;
 };
 
@@ -456,55 +442,6 @@ describe("ytDlpUtils", () => {
   });
 
   describe("ensureYtDlpAvailable", () => {
-    it("should pick the newest executable candidate when YT_DLP_PATH is not configured", async () => {
-      delete process.env.YT_DLP_PATH;
-      const tempRoot = nodeFs.mkdtempSync(
-        path.join(os.tmpdir(), "yt-dlp-candidates-")
-      );
-      const oldDir = path.join(tempRoot, "old-bin");
-      const newDir = path.join(tempRoot, "new-bin");
-      const oldCandidate = path.join(oldDir, "yt-dlp");
-      const newCandidate = path.join(newDir, "yt-dlp");
-
-      nodeFs.mkdirSync(oldDir);
-      nodeFs.mkdirSync(newDir);
-      nodeFs.writeFileSync(oldCandidate, "");
-      nodeFs.writeFileSync(newCandidate, "");
-      nodeFs.chmodSync(oldCandidate, 0o755);
-      nodeFs.chmodSync(newCandidate, 0o755);
-      process.env.PATH = [oldDir, newDir].join(path.delimiter);
-
-      try {
-        vi.mocked(spawn).mockImplementation((command: any, args: any) => {
-          if (!Array.isArray(args) || args[0] !== "--version") {
-            throw new Error(`Unexpected spawn call: ${command} ${String(args)}`);
-          }
-
-          if (command === oldCandidate) {
-            return createVersionProbeProcess("2024.01.01\n") as any;
-          }
-
-          if (command === newCandidate) {
-            return createVersionProbeProcess("2025.04.30\n") as any;
-          }
-
-          if (typeof command === "string" && command.endsWith("yt-dlp")) {
-            return createVersionProbeProcess("2023.01.01\n") as any;
-          }
-
-          throw new Error(`Unexpected spawn command: ${command}`);
-        });
-
-        await expect(ensureYtDlpAvailable()).resolves.toBeUndefined();
-        const commands = vi.mocked(spawn).mock.calls.map(([command]) => command);
-        expect(commands).toContain(oldCandidate);
-        expect(commands).toContain(newCandidate);
-        expect(commands[commands.length - 1]).toBe(newCandidate);
-      } finally {
-        nodeFs.rmSync(tempRoot, { recursive: true, force: true });
-      }
-    });
-
     it("should continue when --version exits non-zero", async () => {
       const versionProc = createMockProcess();
       vi.mocked(spawn).mockImplementationOnce(() => versionProc as any);

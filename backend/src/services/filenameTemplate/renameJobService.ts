@@ -52,6 +52,8 @@ export interface RenameJob {
   cancelRequested: boolean;
 }
 
+// The active job snapshot is kept in-process for UI polling. It is cleared by
+// server restarts and is not shared with other app instances.
 let activeJob: RenameJob | null = null;
 
 export function getActiveRenameJob(): RenameJob | null {

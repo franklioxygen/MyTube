@@ -1,6 +1,4 @@
 import { spawn } from "child_process";
-import fs from "fs";
-import os from "os";
 import path from "path";
 import { PassThrough } from "stream";
 import { SocksProxyAgent } from "socks-proxy-agent";
@@ -32,15 +30,9 @@ const DEFAULT_YOUTUBE_PLAYER_CLIENT_EXTRACTOR_ARG =
   "youtube:player_client=default,mweb";
 const YOUTUBE_PLAYER_CLIENT_ARG_PREFIX = "youtube:player_client=";
 const PROVIDER_SCRIPT_ARG_PREFIX = "youtubepot-bgutilscript:script_path=";
-const COMMON_YT_DLP_PATHS = [
-  "/opt/homebrew/bin/yt-dlp",
-  "/usr/local/bin/yt-dlp",
-  path.join(os.homedir(), ".local", "bin", "yt-dlp"),
-];
 
 // Cached promise so we only check/install once per process
 let ytDlpAvailablePromise: Promise<void> | null = null;
-let resolvedYtDlpPathPromise: Promise<string> | null = null;
 let denoAvailablePromise: Promise<boolean> | null = null;
 let providerPluginPathCache: string | null | undefined = undefined;
 type YouTubeJsRuntimeFlag = "--js-runtime" | "--js-runtimes";
@@ -88,137 +80,6 @@ function getYtDlpSpawnEnv(): NodeJS.ProcessEnv {
   };
 }
 
-function isExecutableFile(filePath: string): boolean {
-  try {
-    fs.accessSync(filePath, fs.constants.X_OK);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function addExecutableCandidate(
-  candidates: Set<string>,
-  candidate: string
-): void {
-  if (isExecutableFile(candidate)) {
-    candidates.add(candidate);
-  }
-}
-
-function collectYtDlpPathCandidates(): string[] {
-  if (process.env.YT_DLP_PATH?.trim()) {
-    return [process.env.YT_DLP_PATH.trim()];
-  }
-
-  const pathEntries = (process.env.PATH ?? "")
-    .split(path.delimiter)
-    .filter(Boolean);
-  const executableNames =
-    process.platform === "win32"
-      ? ["yt-dlp.exe", "yt-dlp.cmd", "yt-dlp.bat", "yt-dlp"]
-      : ["yt-dlp"];
-  const candidates = new Set<string>();
-
-  for (const pathEntry of pathEntries) {
-    for (const executableName of executableNames) {
-      addExecutableCandidate(candidates, path.join(pathEntry, executableName));
-    }
-  }
-
-  for (const commonPath of COMMON_YT_DLP_PATHS) {
-    addExecutableCandidate(candidates, commonPath);
-  }
-
-  return candidates.size > 0 ? Array.from(candidates) : [YT_DLP_PATH];
-}
-
-function parseYtDlpVersion(versionText: string): number[] | null {
-  const normalized = versionText.trim();
-  if (!normalized) {
-    return null;
-  }
-
-  const parts = normalized
-    .split(/[^0-9]+/)
-    .filter(Boolean)
-    .map((part) => Number.parseInt(part, 10))
-    .filter((part) => Number.isFinite(part));
-
-  return parts.length > 0 ? parts : null;
-}
-
-function compareVersionParts(left: number[], right: number[]): number {
-  const length = Math.max(left.length, right.length);
-  for (let index = 0; index < length; index += 1) {
-    const leftPart = left[index] ?? 0;
-    const rightPart = right[index] ?? 0;
-    if (leftPart !== rightPart) {
-      return leftPart - rightPart;
-    }
-  }
-  return 0;
-}
-
-async function probeYtDlpVersion(commandPath: string): Promise<number[] | null> {
-  return new Promise<number[] | null>((resolve) => {
-    let stdout = "";
-    const proc = spawn(commandPath, ["--version"], {
-      env: getYtDlpSpawnEnv(),
-      stdio: ["ignore", "pipe", "ignore"],
-    });
-
-    proc.stdout?.on("data", (data: Buffer) => {
-      stdout += data.toString();
-    });
-
-    proc.on("close", (code) => {
-      if (code !== 0) {
-        resolve(null);
-        return;
-      }
-      resolve(parseYtDlpVersion(stdout));
-    });
-
-    proc.on("error", () => {
-      resolve(null);
-    });
-  });
-}
-
-async function resolveYtDlpPath(): Promise<string> {
-  if (process.env.YT_DLP_PATH?.trim()) {
-    return process.env.YT_DLP_PATH.trim();
-  }
-
-  const candidates = collectYtDlpPathCandidates();
-  let bestPath = candidates[0] ?? YT_DLP_PATH;
-  let bestVersion: number[] | null = null;
-
-  for (const candidate of candidates) {
-    const version = await probeYtDlpVersion(candidate);
-    if (!version) {
-      continue;
-    }
-    if (!bestVersion || compareVersionParts(version, bestVersion) > 0) {
-      bestPath = candidate;
-      bestVersion = version;
-    }
-  }
-
-  return bestPath;
-}
-
-async function getYtDlpPath(): Promise<string> {
-  if (process.env.YT_DLP_PATH?.trim()) {
-    return process.env.YT_DLP_PATH.trim();
-  }
-  if (!resolvedYtDlpPathPromise) {
-    resolvedYtDlpPathPromise = resolveYtDlpPath();
-  }
-  return resolvedYtDlpPathPromise;
-}
-
 function hasCustomConfiguredYtDlpPath(): boolean {
   const configuredPath = process.env.YT_DLP_PATH?.trim();
   return Boolean(configuredPath && configuredPath !== "yt-dlp");
@@ -238,7 +99,6 @@ function isMissingFileError(error: unknown): boolean {
  */
 export function resetYtDlpAvailabilityCacheForTests(): void {
   ytDlpAvailablePromise = null;
-  resolvedYtDlpPathPromise = null;
   denoAvailablePromise = null;
   providerPluginPathCache = undefined;
   jsRuntimeFlagPromise = null;
@@ -316,10 +176,9 @@ export async function ensureYtDlpAvailable(): Promise<void> {
   if (ytDlpAvailablePromise) return ytDlpAvailablePromise;
 
   ytDlpAvailablePromise = (async () => {
-    let ytDlpPath = process.env.YT_DLP_PATH?.trim() || YT_DLP_PATH;
+    const ytDlpPath = process.env.YT_DLP_PATH?.trim() || YT_DLP_PATH;
 
     try {
-      ytDlpPath = await getYtDlpPath();
       await new Promise<void>((resolve, reject) => {
         const proc = spawn(ytDlpPath, ["--version"], {
           env: getYtDlpSpawnEnv(),
@@ -532,7 +391,7 @@ async function getYouTubeJsRuntimeFlag(): Promise<YouTubeJsRuntimeFlag | null> {
     };
 
     try {
-      const ytDlpPath = await getYtDlpPath();
+      const ytDlpPath = process.env.YT_DLP_PATH?.trim() || YT_DLP_PATH;
       return await new Promise<YouTubeJsRuntimeFlag | null>((resolve) => {
         const proc = spawn(ytDlpPath, ["--help"], {
           env: getYtDlpSpawnEnv(),
@@ -799,7 +658,7 @@ export async function executeYtDlpJson(
 
   args.push(url);
 
-  const ytDlpPath = await getYtDlpPath();
+  const ytDlpPath = process.env.YT_DLP_PATH?.trim() || YT_DLP_PATH;
   console.log(`Executing: ${ytDlpPath} ${args.join(" ")}`);
 
   return new Promise<any>((resolve, reject) => {
@@ -953,7 +812,7 @@ export async function getChannelUrlFromVideo(
   await appendYouTubeJsRuntimeArg(args, videoUrl);
 
   args.push(videoUrl);
-  const ytDlpPath = await getYtDlpPath();
+  const ytDlpPath = process.env.YT_DLP_PATH?.trim() || YT_DLP_PATH;
 
   return new Promise<string | null>((resolve, reject) => {
     const subprocess = spawn(ytDlpPath, args, {
@@ -1036,7 +895,7 @@ export async function downloadChannelAvatar(
   await appendYouTubeJsRuntimeArg(args, channelUrl);
 
   args.push(channelUrl);
-  const ytDlpPath = await getYtDlpPath();
+  const ytDlpPath = process.env.YT_DLP_PATH?.trim() || YT_DLP_PATH;
 
   return new Promise<boolean>((resolve, reject) => {
     const subprocess = spawn(ytDlpPath, args, {
@@ -1188,7 +1047,7 @@ export function executeYtDlpSpawn(
   const promise = ensureYtDlpAvailable()
     .then(
       async () => {
-        const ytDlpPath = await getYtDlpPath();
+        const ytDlpPath = process.env.YT_DLP_PATH?.trim() || YT_DLP_PATH;
         const args = [...baseArgs];
         await appendYouTubeJsRuntimeArg(args, url);
         args.push(url);

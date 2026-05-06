@@ -2,6 +2,10 @@
  * Process-wide mutex to prevent downloads from running during a batch rename job.
  * The lock is acquired before the rename job starts, and released when the job
  * completes, fails, or is cancelled.
+ *
+ * This lock is intentionally in-memory only. It coordinates a single Node.js
+ * process, but it is not shared across restarts or horizontally scaled app
+ * instances.
  */
 
 let renameJobId: string | null = null;

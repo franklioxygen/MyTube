@@ -83,6 +83,7 @@ import {
   startRenameJob,
 } from "../../../services/filenameTemplate/renameJobService";
 import { releaseRenameLock } from "../../../services/filenameTemplate/renameLockService";
+import { setCollectionTypeRowsLoaderForTests } from "../../../services/filenameTemplate/sourceOptions";
 
 async function waitForJobToFinish(maxIterations = 50): Promise<void> {
   for (let i = 0; i < maxIterations; i++) {
@@ -98,6 +99,13 @@ describe("renameJobService — design §23 changes", () => {
     getCollectionsMock.mockReset();
     getCollectionsMock.mockReturnValue([]);
     subscriptionsRowsMock.current = [];
+    setCollectionTypeRowsLoaderForTests(
+      () => subscriptionsRowsMock.current as Array<{
+        collectionId: string | null;
+        subscriptionType: string | null;
+        playlistId: string | null;
+      }>
+    );
     // Clear any leaked job from a previous test
     const job = getActiveRenameJob();
     if (job) cancelRenameJob(job.id);
@@ -109,6 +117,7 @@ describe("renameJobService — design §23 changes", () => {
     if (job) cancelRenameJob(job.id);
     await waitForJobToFinish();
     releaseRenameLock();
+    setCollectionTypeRowsLoaderForTests();
   });
 
   it("legacy preset is accepted and resolves to formatVideoFilename template (no longer rejected)", async () => {
@@ -200,6 +209,13 @@ describe("renameJobService — precomputeSourceOptions (design §16 step 3)", ()
     getCollectionsMock.mockReset();
     getCollectionsMock.mockReturnValue([]);
     subscriptionsRowsMock.current = [];
+    setCollectionTypeRowsLoaderForTests(
+      () => subscriptionsRowsMock.current as Array<{
+        collectionId: string | null;
+        subscriptionType: string | null;
+        playlistId: string | null;
+      }>
+    );
     const job = getActiveRenameJob();
     if (job) cancelRenameJob(job.id);
     releaseRenameLock();
@@ -210,6 +226,7 @@ describe("renameJobService — precomputeSourceOptions (design §16 step 3)", ()
     if (job) cancelRenameJob(job.id);
     await waitForJobToFinish();
     releaseRenameLock();
+    setCollectionTypeRowsLoaderForTests();
   });
 
   it("does not throw when collection lookup fails (best-effort)", async () => {
