@@ -32,7 +32,7 @@ const SearchResults: React.FC = () => {
         deleteVideo,
         resetSearch,
         setIsSearchMode,
-
+        lastSearchEventId,
         showYoutubeSearch,
         loadMoreSearchResults,
         loadingMore
@@ -55,9 +55,14 @@ const SearchResults: React.FC = () => {
         try {
             setDownloadingId(videoId);
             setIsSearchMode(false);
-            await handleVideoSubmit(videoUrl);
+            await handleVideoSubmit(videoUrl, false, {
+                relatedEventId: lastSearchEventId,
+                sourceKind: 'search_result',
+                surface: 'web'
+            });
         } catch (error) {
             console.error('Error downloading from search results:', error);
+        } finally {
             setDownloadingId(null);
         }
     };
@@ -123,6 +128,8 @@ const SearchResults: React.FC = () => {
                                 collections={collections}
                                 onDeleteVideo={deleteVideo}
                                 showDeleteButton={true}
+                                disableCollectionGrouping={true}
+                                statisticsRelatedEventId={lastSearchEventId}
                             />
                         </Grid>
                         )}

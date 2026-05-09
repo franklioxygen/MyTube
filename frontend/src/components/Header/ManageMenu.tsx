@@ -1,4 +1,4 @@
-import { Help, Logout, Settings, VideoLibrary } from '@mui/icons-material';
+import { Help, Logout, Settings, ShowChart, VideoLibrary } from '@mui/icons-material';
 import {
     alpha,
     Divider,
@@ -24,12 +24,13 @@ const ManageMenu: React.FC<ManageMenuProps> = ({
 }) => {
     const navigate = useNavigate();
     const { t } = useLanguage();
-    const { logout } = useAuth();
+    const { logout, userRole } = useAuth();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
     const { data: settingsData } = useSettings();
 
     const loginEnabled = settingsData?.loginEnabled || false;
+    const canAccessStatistics = !loginEnabled || userRole === 'admin';
 
     const handleLogout = () => {
         onClose();
@@ -78,6 +79,11 @@ const ManageMenu: React.FC<ManageMenuProps> = ({
             <MenuItem onClick={() => { onClose(); navigate('/settings'); }}>
                 <Settings sx={{ mr: 2 }} /> {t('settings')}
             </MenuItem>
+            {canAccessStatistics && (
+                <MenuItem onClick={() => { onClose(); navigate('/statistics'); }}>
+                    <ShowChart sx={{ mr: 2 }} /> {t('statisticsTitle') || 'Statistics'}
+                </MenuItem>
+            )}
             <MenuItem onClick={() => { onClose(); navigate('/instruction'); }}>
                 <Help sx={{ mr: 2 }} /> {t('instruction')}
             </MenuItem>

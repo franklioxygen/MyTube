@@ -4,6 +4,7 @@ import {
   downloadSingleBilibiliPart,
   downloadYouTubeVideo,
 } from "../downloadService";
+import { platformFromUrl } from "../statistics";
 import { DownloadResult } from "../downloaders/bilibili/types";
 import { FilenameTemplateSourceOptions } from "../filenameTemplate/types";
 import * as storageService from "../storageService";
@@ -245,6 +246,8 @@ export class TaskProcessor {
           error: downloadErrorMessage || "Download failed",
           taskId: task.id,
           subscriptionId: task.subscriptionId,
+          platform: platformFromUrl(videoUrl),
+          sourceKind: "task",
         });
 
         const taskStatusAfterError = await this.taskRepository.getTaskStatus(
@@ -456,6 +459,16 @@ export class TaskProcessor {
         videoId: videoData.id,
         taskId: task.id,
         subscriptionId: task.subscriptionId,
+        platform:
+          typeof task.platform === "string"
+            ? task.platform.toLowerCase()
+            : platformFromUrl(videoUrl),
+        sourceKind: "task",
+        totalSize:
+          typeof videoData.fileSize === "string" ||
+          typeof videoData.fileSize === "number"
+            ? String(videoData.fileSize)
+            : undefined,
       });
 
       // If task has a collectionId, add video to collection

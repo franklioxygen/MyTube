@@ -4,7 +4,7 @@ Canonical locale key order derived from `frontend/src/utils/locales/en.ts`.
 
 This list is intentionally unnumbered. When new keys are inserted, only the local section order changes.
 
-Total keys: 910
+Total keys: 993
 
 ## Summary
 
@@ -41,10 +41,12 @@ Total keys: 910
 | Sorting | 10 | `sort` | `random` |
 | yt-dlp Configuration | 23 | `ytDlpConfiguration` | `saveAuthorFilesToCollectionDescription` |
 | Cloudflare Tunnel | 16 | `cloudflaredTunnel` | `managedInDashboard` |
-| Database Export/Import | 38 | `exportImportDatabase` | `backupDatabasesCleanedUp` |
+| Database Export/Import | 39 | `exportImportDatabase` | `backupDatabasesCleanedUp` |
 | History Filter | 33 | `filterAll` | `browserVideoFormatNotSupported` |
 | RSS Feed Settings | 40 | `rssFeedSettings` | `rssDays` |
 | Role-based settings middleware errors | 5 | `settingsApiKeyForbidden` | `settingsAuthRequired` |
+| Filename Template | 28 | `filenameTemplate` | `filenameBatchRenameError` |
+| Statistics | 54 | `statisticsTitle` | `recomputeStatistics` |
 
 ## Details
 
@@ -1015,6 +1017,7 @@ Total keys: 910
 | `mergeDatabaseContentsHistory` |
 | `mergeDatabaseContentsTags` |
 | `mergeDatabaseKeepsCurrentData` |
+| `mergeDatabaseStatisticsNotice` |
 | `mergeDatabasePreviewScanning` |
 | `mergeDatabasePreviewResults` |
 | `mergeDatabasePreviewConfirmHint` |
@@ -1134,3 +1137,95 @@ Total keys: 910
 | `settingsVisitorWriteRestricted` |
 | `settingsVisitorWriteForbidden` |
 | `settingsAuthRequired` |
+
+### Filename Template
+
+| Key |
+| --- |
+| `filenameTemplate` |
+| `filenameTemplateDescription` |
+| `filenamePresetLabel` |
+| `filenamePresetLegacy` |
+| `filenamePresetChannelYearDateIndex` |
+| `filenamePresetPlaylistStaticIndex` |
+| `filenamePresetPlaylistStaticDate` |
+| `filenamePresetCustom` |
+| `filenameCustomTemplateLabel` |
+| `filenameCustomTemplatePlaceholder` |
+| `filenamePreviewTitle` |
+| `filenamePreviewVideo` |
+| `filenamePreviewThumbnail` |
+| `filenamePreviewSubtitle` |
+| `filenameValidating` |
+| `filenameValidationError` |
+| `filenameBatchRenameButton` |
+| `filenameBatchRenameDescription` |
+| `filenameBatchRenameDisabledRunning` |
+| `filenameBatchRenameDisabledInvalidTemplate` |
+| `filenameBatchRenameConfirmTitle` |
+| `filenameBatchRenameConfirmBody` |
+| `filenameBatchRenameConfirm` |
+| `filenameBatchRenameRunning` |
+| `filenameBatchRenamePaused` |
+| `filenameBatchRenameComplete` |
+| `filenameBatchRenameSummary` |
+| `filenameBatchRenameError` |
+
+### Statistics
+
+| Key |
+| --- |
+| `statisticsTitle` |
+| `statisticsSection` |
+| `statisticsHelper` |
+| `statisticsEnableLabel` |
+| `statisticsRetentionLabel` |
+| `statisticsRetention90` |
+| `statisticsRetention365` |
+| `statisticsRetentionForever` |
+| `statisticsCaptureSearchTextLabel` |
+| `statisticsTrackVisitorLabel` |
+| `statisticsKeepDataLabel` |
+| `statisticsClear` |
+| `statisticsClearConfirm` |
+| `statisticsClearSuccess` |
+| `statisticsAdminOnly` |
+| `statisticsDisabledNotice` |
+| `statisticsDisabledKeepVisibleNotice` |
+| `statisticsHealth` |
+| `statisticsLastRunAt` |
+| `statisticsWorkerNotRunYet` |
+| `statisticsDirtyDays` |
+| `statisticsSealedDays` |
+| `statisticsLastHourAccepted` |
+| `statisticsDropped` |
+| `statisticsErrors` |
+| `statisticsCompletedCount` |
+| `statisticsFailedCount` |
+| `statisticsNotEnoughHistoricalDataYet` |
+| `statisticsNoData` |
+| `statisticsItem` |
+| `statisticsValue` |
+| `totalVideos` |
+| `totalStorage` |
+| `downloadSuccessRate` |
+| `netNewVideos` |
+| `downloadVolume` |
+| `watchTime` |
+| `activeSubscriptions` |
+| `activeRssTokens` |
+| `watchTimeByDay` |
+| `completedVsFailedByDay` |
+| `libraryAdditionsByDay` |
+| `topWatchedVideos` |
+| `mostProductiveSubscriptions` |
+| `mostAccessedRssFeeds` |
+| `mostCommonFailures` |
+| `largestNeverWatched` |
+| `last7Days` |
+| `last30Days` |
+| `last90Days` |
+| `last365Days` |
+| `exportCsv` |
+| `exportJson` |
+| `recomputeStatistics` |

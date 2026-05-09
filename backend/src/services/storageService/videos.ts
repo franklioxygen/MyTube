@@ -439,10 +439,38 @@ export function formatLegacyFilenames(): {
   }
 }
 
+export interface SaveVideoOptions {
+  // When true, suppress the library_video_added statistics event even on insert
+  // (used by maintenance flows like database migration/import/merge that should
+  // not appear as user-facing library mutations).
+  suppressStatistics?: boolean;
+  // Optional reason bucket for the library_video_added event.
+  statisticsReason?: "manual" | "download" | "upload" | "scan" | "subscription" | "task";
+}
+
 export function saveVideo(
-  videoData: import("./types").Video
+  videoData: import("./types").Video,
+  options: SaveVideoOptions = {}
 ): import("./types").Video {
+  const result = saveVideoWithInsertFlag(videoData);
+  if (result.inserted && !options.suppressStatistics) {
+    emitLibraryVideoAdded(videoData, options.statisticsReason ?? "download");
+  }
+  return videoData;
+}
+
+// Same as saveVideo but reports whether a new row was created and never emits.
+// Statistics callers use this directly when they need to control emission timing.
+export function saveVideoWithInsertFlag(
+  videoData: import("./types").Video
+): { video: import("./types").Video; inserted: boolean } {
   try {
+    const existing = db
+      .select({ id: videos.id })
+      .from(videos)
+      .where(eq(videos.id, videoData.id))
+      .all();
+    const inserted = existing.length === 0;
     const videoToSave = {
       ...videoData,
       tags: videoData.tags ? JSON.stringify(videoData.tags) : undefined,
@@ -457,7 +485,7 @@ export function saveVideo(
         set: videoToSave,
       })
       .run();
-    return videoData;
+    return { video: videoData, inserted };
   } catch (error) {
     logger.error(
       "Error saving video",
@@ -468,6 +496,38 @@ export function saveVideo(
       error instanceof Error ? error : new Error(String(error)),
       "saveVideo"
     );
+  }
+}
+
+function emitLibraryVideoAdded(
+  videoData: import("./types").Video,
+  reason: string
+): void {
+  try {
+    const { recordEvent } = require("../statistics") as {
+      recordEvent: (input: any) => string | null;
+    };
+    const fileSizeBytes =
+      videoData.fileSize !== undefined && videoData.fileSize !== null
+        ? Number(videoData.fileSize) || 0
+        : 0;
+    recordEvent({
+      eventType: "library_video_added",
+      actorRole: "system",
+      surface: "background",
+      videoId: videoData.id,
+      platform:
+        typeof videoData.source === "string"
+          ? videoData.source.toLowerCase()
+          : null,
+      payload: {
+        reason,
+        videoTitle: videoData.title,
+        fileSizeBytes,
+      },
+    });
+  } catch {
+    // statistics is best-effort
   }
 }
 
@@ -564,7 +624,10 @@ export function updateVideo(
   }
 }
 
-export function deleteVideo(id: string): boolean {
+export function deleteVideo(
+  id: string,
+  reason: "manual" | "retention" | "maintenance" = "manual"
+): boolean {
   try {
     const videoToDelete = getVideoById(id);
     if (!videoToDelete) return false;
@@ -591,6 +654,36 @@ export function deleteVideo(id: string): boolean {
 
     // Delete from DB
     db.delete(videos).where(eq(videos.id, id)).run();
+
+    // Statistics: emit library_video_deleted with the reason bucket and a size
+    // snapshot if known. Best-effort; never blocks the delete.
+    try {
+      // Lazy require to avoid import cycles between storageService and statistics.
+      const { recordEvent } = require("../statistics") as {
+        recordEvent: (input: any) => string | null;
+      };
+      const fileSizeBytes =
+        videoToDelete.fileSize !== undefined && videoToDelete.fileSize !== null
+          ? Number(videoToDelete.fileSize) || 0
+          : 0;
+      recordEvent({
+        eventType: "library_video_deleted",
+        actorRole: reason === "retention" ? "system" : "system",
+        surface: "background",
+        videoId: id,
+        platform:
+          typeof videoToDelete.source === "string"
+            ? videoToDelete.source.toLowerCase()
+            : null,
+        payload: {
+          reason,
+          videoTitle: videoToDelete.title,
+          fileSizeBytes,
+        },
+      });
+    } catch {
+      // statistics is best-effort
+    }
     return true;
   } catch (error) {
     logger.error(

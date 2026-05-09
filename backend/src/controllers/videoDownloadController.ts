@@ -2,6 +2,12 @@ import { Request, Response } from "express";
 import { ValidationError } from "../errors/DownloadErrors";
 import downloadManager from "../services/downloadManager";
 import * as downloadService from "../services/downloadService";
+import {
+  recordEvent,
+  normalizeSourceKind,
+  normalizeSurface,
+  platformFromUrl,
+} from "../services/statistics";
 import * as storageService from "../services/storageService";
 import {
   extractBilibiliVideoId,
@@ -147,6 +153,7 @@ export const downloadVideo = async (
       downloadCollection,
       collectionInfo,
       forceDownload, // Allow re-download of deleted videos
+      statisticsContext, // optional attribution metadata for the statistics feature
     } = req.body;
     let videoUrl = youtubeUrl;
 
@@ -155,6 +162,26 @@ export const downloadVideo = async (
     }
 
     logger.info("Processing download request for input:", videoUrl);
+    // Resolve attribution surface and source for statistics ingestion.
+    const clientHeader = req.headers["x-mytube-client"];
+    const isExtensionRequest =
+      typeof clientHeader === "string" && clientHeader.toLowerCase() === "extension";
+    const statisticsSurface = isExtensionRequest
+      ? "extension"
+      : req.apiKeyAuthenticated === true
+        ? "api"
+        : "web";
+    const statisticsSourceKind = (() => {
+      const fromCtx = statisticsContext?.sourceKind;
+      if (typeof fromCtx === "string") return normalizeSourceKind(fromCtx);
+      if (isExtensionRequest) return "extension";
+      if (req.apiKeyAuthenticated === true) return "api";
+      return "manual";
+    })();
+    const statisticsRelatedEventId =
+      typeof statisticsContext?.relatedEventId === "string"
+        ? statisticsContext.relatedEventId
+        : null;
 
     // Validate URL to prevent SSRF attacks before processing
     let validatedVideoUrl: string;
@@ -184,7 +211,6 @@ export const downloadVideo = async (
     // Use processed URL as resolved URL
     const resolvedUrl = processedUrl;
     logger.info("Resolved URL to:", resolvedUrl);
-
     // Check if video was previously downloaded (skip for collections/multi-part)
     if (sourceVideoId && !downloadAllParts && !downloadCollection) {
       const downloadCheck =
@@ -202,6 +228,10 @@ export const downloadVideo = async (
         (item) => storageService.addDownloadHistoryItem(item),
         forceDownload,
         dontSkipDeletedVideo,
+        {
+          platform: platformFromUrl(resolvedUrl),
+          sourceKind: statisticsSourceKind,
+        }
       );
 
       if (checkResult.shouldSkip && checkResult.response) {
@@ -209,6 +239,22 @@ export const downloadVideo = async (
         return sendData(res, checkResult.response);
       }
     }
+
+    // Emit download_enqueued only after duplicate/deleted short-circuits so the
+    // queue metrics represent accepted work that actually entered the queue.
+    const downloadEnqueuedEventId = recordEvent({
+      eventType: "download_enqueued",
+      actorRole: req.user?.role === "visitor" ? "visitor" : "admin",
+      surface: normalizeSurface(statisticsSurface),
+      sessionId: null,
+      relatedEventId: statisticsRelatedEventId,
+      platform: platformFromUrl(resolvedUrl),
+      sourceKind: statisticsSourceKind,
+      payload: {
+        downloadAllParts: !!downloadAllParts,
+        downloadCollection: !!downloadCollection,
+      },
+    });
 
     // Determine initial title for the download task
     let initialTitle = "Pending...";
@@ -502,7 +548,13 @@ export const downloadVideo = async (
     // We don't await the result here because we want to return response immediately
     // and let the download happen in background
     downloadManager
-      .addDownload(downloadTask, downloadId, initialTitle, resolvedUrl, type)
+      .addDownload(downloadTask, downloadId, initialTitle, resolvedUrl, type, {
+        actorRole: req.user?.role === "visitor" ? "visitor" : "admin",
+        surface: statisticsSurface,
+        sourceKind: statisticsSourceKind,
+        relatedEventId: statisticsRelatedEventId,
+        enqueuedEventId: downloadEnqueuedEventId,
+      })
       .then((result: any) => {
         logger.info("Download completed successfully:", result);
       })

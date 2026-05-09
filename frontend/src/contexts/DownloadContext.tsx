@@ -54,7 +54,15 @@ interface SubscribeInfo {
 interface DownloadContextType {
     activeDownloads: DownloadInfo[];
     queuedDownloads: DownloadInfo[];
-    handleVideoSubmit: (videoUrl: string, skipCollectionCheck?: boolean) => Promise<any>;
+    handleVideoSubmit: (
+        videoUrl: string,
+        skipCollectionCheck?: boolean,
+        statisticsContext?: {
+            relatedEventId?: string | null;
+            sourceKind?: string;
+            surface?: string;
+        }
+    ) => Promise<any>;
     showBilibiliPartsModal: boolean;
     setShowBilibiliPartsModal: (show: boolean) => void;
     bilibiliPartsInfo: BilibiliPartsInfo;
@@ -223,7 +231,23 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         await queryClient.invalidateQueries({ queryKey: ['downloadStatus'] });
     };
 
-    const handleVideoSubmit = async (videoUrl: string, skipCollectionCheck = false, skipPartsCheck = false, forceDownload = false): Promise<any> => {
+    const handleVideoSubmit = async (
+        videoUrl: string,
+        skipCollectionCheck = false,
+        skipPartsCheck: boolean | { relatedEventId?: string | null; sourceKind?: string; surface?: string } = false,
+        forceDownload = false,
+        statisticsContext?: { relatedEventId?: string | null; sourceKind?: string; surface?: string }
+    ): Promise<any> => {
+        // Backward-compat: callers historically passed (url, skipCollectionCheck, skipPartsCheck, forceDownload).
+        // New callers can pass statisticsContext as the third parameter; detect the shape.
+        let statisticsCtx: { relatedEventId?: string | null; sourceKind?: string; surface?: string } | undefined =
+            statisticsContext;
+        let normalizedSkipPartsCheck: boolean = false;
+        if (typeof skipPartsCheck === 'object' && skipPartsCheck !== null) {
+            statisticsCtx = skipPartsCheck;
+        } else {
+            normalizedSkipPartsCheck = skipPartsCheck === true;
+        }
         try {
             // Check for YouTube playlist URL (must check before channel check)
             const playlistRegex = /[?&]list=([a-zA-Z0-9_-]+)/;
@@ -325,7 +349,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
                     // If not a collection/series (or check was skipped), check if it has multiple parts
                     // Only check if not explicitly skipped
-                    if (!skipPartsCheck) {
+                    if (!normalizedSkipPartsCheck) {
                         const partsResponse = await api.get('/check-bilibili-parts', {
                             params: { url: videoUrl }
                         });
@@ -355,7 +379,8 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             // Normal download flow
             const response = await api.post('/download', {
                 youtubeUrl: videoUrl,
-                forceDownload: forceDownload
+                forceDownload: forceDownload,
+                statisticsContext: statisticsCtx,
             });
 
             // Check if video was skipped (already exists or previously deleted)

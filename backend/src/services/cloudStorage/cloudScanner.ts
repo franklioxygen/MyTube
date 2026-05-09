@@ -501,7 +501,9 @@ export async function scanCloudFiles(
           duration: duration,
         };
 
-        saveVideo(newVideo);
+        saveVideo(newVideo, {
+          statisticsReason: "scan",
+        });
 
         logger.info(
           `[CloudStorage] Added video to database: ${newVideo.title} (${filePath})`

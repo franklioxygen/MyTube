@@ -332,7 +332,11 @@ export function handleVideoDownloadCheck(
   getVideoById: (videoId: string) => Video | undefined,
   addDownloadHistoryItem: (item: DownloadHistoryItem) => void,
   forceDownload: boolean = false,
-  dontSkipDeletedVideo: boolean = false
+  dontSkipDeletedVideo: boolean = false,
+  statisticsContext: {
+    platform?: string;
+    sourceKind?: string;
+  } = {}
 ): {
   shouldSkip: boolean;
   shouldForce: boolean;
@@ -376,6 +380,11 @@ export function handleVideoDownloadCheck(
         videoPath: verification.video.videoPath ?? undefined,
         thumbnailPath: verification.video.thumbnailPath ?? undefined,
         videoId: verification.video.id,
+        platform:
+          typeof verification.video.source === "string"
+            ? verification.video.source.toLowerCase()
+            : statisticsContext.platform,
+        sourceKind: statisticsContext.sourceKind || "manual",
       });
 
       return {
@@ -414,6 +423,8 @@ export function handleVideoDownloadCheck(
       status: "deleted",
       downloadedAt: downloadCheck.downloadedAt,
       deletedAt: downloadCheck.deletedAt,
+      platform: statisticsContext.platform,
+      sourceKind: statisticsContext.sourceKind || "manual",
     });
 
     return {

@@ -127,6 +127,13 @@
       "when": 1777248000000,
       "tag": "0017_subscription_retention",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1778890000000,
+      "tag": "0018_statistics_feature",
+      "breakpoints": true
     }
   ]
 }

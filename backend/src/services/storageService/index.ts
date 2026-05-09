@@ -56,6 +56,7 @@ export {
     isThumbnailReferencedByOtherVideo,
     saveVideo,
     saveVideoIfAbsent,
+    saveVideoWithInsertFlag,
     updateVideo
 } from "./videos";
 

@@ -11,6 +11,7 @@ export interface AuthLimiters {
   passkeyAuthLimiter: RequestHandler;
   passkeyRegistrationLimiter: RequestHandler;
   feedLimiter: RequestHandler;
+  statisticsIngestionLimiter: RequestHandler;
 }
 
 type RateLimitedRequest = Request & {
@@ -108,6 +109,22 @@ const createGeneralLimiter = (): RequestHandler => {
   });
 };
 
+const createStatisticsIngestionLimiter = (): RequestHandler =>
+  rateLimit({
+    windowMs: 60_000,
+    max: 30,
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => getClientIp(req),
+    validate: RATE_LIMIT_VALIDATE_OPTIONS,
+    handler: (_req, res) => {
+      res.status(429).json({
+        success: false,
+        error: "Statistics ingestion rate limit exceeded.",
+      });
+    },
+  });
+
 const createScopedAuthLimiter = (scope: string): RequestHandler => {
   return rateLimit({
     windowMs: AUTH_WINDOW_MS,
@@ -133,6 +150,7 @@ export const configureRateLimiting = (app: Express): AuthLimiters => {
     passkeyAuthLimiter: createScopedAuthLimiter("passkey-auth"),
     passkeyRegistrationLimiter: createScopedAuthLimiter("passkey-registration"),
     feedLimiter: createFeedLimiter(),
+    statisticsIngestionLimiter: createStatisticsIngestionLimiter(),
   };
 
   app.use((req, res, next) => {
@@ -150,6 +168,7 @@ export const configureRateLimiting = (app: Express): AuthLimiters => {
       req.path.startsWith("/api/check-playlist") ||
       req.path.startsWith("/api/collections") ||
       req.path.startsWith("/api/downloads/") ||
+      req.path === "/api/statistics/events" ||
       req.path === "/api/settings/password-enabled" ||
       req.path === "/api/settings/passkeys/exists" ||
       req.path === "/api/settings";

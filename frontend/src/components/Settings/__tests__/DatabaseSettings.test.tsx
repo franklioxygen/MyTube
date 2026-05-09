@@ -112,6 +112,7 @@ describe('DatabaseSettings', () => {
 
         await user.click(screen.getByText('mergeDatabase'));
         expect(screen.getByText('mergeDatabaseWarning')).toBeInTheDocument();
+        expect(screen.getByText('mergeDatabaseStatisticsNotice')).toBeInTheDocument();
 
         const file = new File(['db'], 'merge.db', { type: 'application/octet-stream' });
         const inputs = document.querySelectorAll('input[type="file"]');

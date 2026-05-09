@@ -67,6 +67,12 @@ export const registerApiRoutes = (
     authLimiters.passkeyRegistrationLimiter
   );
 
+  // Dedicated statistics ingestion limiter mounted ahead of the per-route handler.
+  app.post(
+    "/api/statistics/events",
+    authLimiters.statisticsIngestionLimiter
+  );
+
   app.use("/api", authMiddleware);
   app.use("/api", apiKeyRoutes);
   app.use("/api", roleBasedAuthMiddleware, apiRoutes);

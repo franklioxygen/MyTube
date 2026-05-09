@@ -36,6 +36,10 @@ const LoginPage = lazyWithRetry(() => import('./pages/LoginPage'), 'login-page')
 const ManagePage = lazyWithRetry(() => import('./pages/ManagePage'), 'manage-page');
 const SearchPage = lazyWithRetry(() => import('./pages/SearchPage'), 'search-page');
 const SettingsPage = lazyWithRetry(() => import('./pages/SettingsPage'), 'settings-page');
+const StatisticsPage = lazyWithRetry(
+    () => import('./pages/StatisticsPage'),
+    'statistics-page',
+);
 const SubscriptionsPage = lazyWithRetry(
     () => import('./pages/SubscriptionsPage'),
     'subscriptions-page',
@@ -155,6 +159,7 @@ function AppContent() {
                                     <Route path="/search" element={<SearchPage />} />
                                     <Route path="/manage" element={<ManagePage />} />
                                     <Route path="/settings" element={<SettingsPage />} />
+                                    <Route path="/statistics" element={<StatisticsPage />} />
                                     <Route path="/downloads" element={<DownloadPage />} />
                                     <Route path="/collection/:id" element={<CollectionPage />} />
                                     <Route path="/author/:authorName" element={<AuthorVideos />} />

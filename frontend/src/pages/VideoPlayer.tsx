@@ -6,7 +6,7 @@ import {
     Typography
 } from '@mui/material';
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import CollectionModal from '../components/CollectionModal';
 import ConfirmationModal from '../components/ConfirmationModal';
 import SubscribeModal from '../components/SubscribeModal';
@@ -31,11 +31,17 @@ import { getBackendUrl } from '../utils/apiUrl';
 const VideoPlayer: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const location = useLocation();
     const { t } = useLanguage();
     const { videos } = useVideo();
     const { userRole } = useAuth();
     const { data: settings } = useSettings();
     const isVisitor = userRole === 'visitor';
+    const navigationState = (location.state ?? null) as
+        | { statisticsRelatedEventId?: string | null }
+        | null;
+    const statisticsRelatedEventId =
+        navigationState?.statisticsRelatedEventId ?? null;
 
     const [showComments, setShowComments] = useState<boolean>(false);
     const [autoPlayNext, setAutoPlayNext] = useState<boolean>(() => {
@@ -341,6 +347,11 @@ const VideoPlayer: React.FC = () => {
                         onEnded={handleVideoEnded}
                         isCinemaMode={isCinemaMode}
                         onToggleCinemaMode={() => setIsCinemaMode(!isCinemaMode)}
+                        statisticsVideoId={video.id}
+                        statisticsPlatform={
+                            typeof video.source === 'string' ? video.source.toLowerCase() : null
+                        }
+                        statisticsRelatedEventId={statisticsRelatedEventId}
                         onUploadSubtitle={async (file: File) => {
                             if (!id) return;
                             await uploadSubtitleMutation.mutateAsync({ file });

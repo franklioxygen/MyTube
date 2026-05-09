@@ -8,7 +8,26 @@ import { CloudStorageService } from "./CloudStorageService";
 import { createDownloadTask } from "./downloadService";
 import { assertDownloadsAllowed } from "./filenameTemplate/renameLockService";
 import { HookService } from "./hookService";
+import {
+  recordEvent,
+  platformFromUrl,
+  normalizeSourceKind,
+  normalizeSurface,
+} from "./statistics";
+import type {
+  ActorRole,
+  CanonicalSourceKind,
+  StatisticsSurface,
+} from "./statistics";
 import * as storageService from "./storageService";
+
+interface StatisticsAttribution {
+  actorRole: ActorRole;
+  surface: StatisticsSurface;
+  sourceKind: CanonicalSourceKind;
+  relatedEventId: string | null;
+  enqueuedEventId: string | null;
+}
 
 interface DownloadTask {
   downloadFn: (registerCancel: (cancel: () => void) => void) => Promise<any>;
@@ -20,6 +39,15 @@ interface DownloadTask {
   sourceUrl?: string;
   type?: string;
   cancelled?: boolean;
+  statistics?: StatisticsAttribution;
+}
+
+export interface AddDownloadStatisticsOptions {
+  actorRole?: ActorRole;
+  surface?: StatisticsSurface | string;
+  sourceKind?: CanonicalSourceKind | string;
+  relatedEventId?: string | null;
+  enqueuedEventId?: string | null;
 }
 
 class DownloadManager {
@@ -133,7 +161,8 @@ class DownloadManager {
     id: string,
     title: string,
     sourceUrl?: string,
-    type?: string
+    type?: string,
+    statistics?: AddDownloadStatisticsOptions
   ): Promise<any> {
     assertDownloadsAllowed();
     return new Promise((resolve, reject) => {
@@ -145,6 +174,15 @@ class DownloadManager {
         reject,
         sourceUrl,
         type,
+        statistics: statistics
+          ? {
+              actorRole: statistics.actorRole ?? "admin",
+              surface: normalizeSurface(statistics.surface ?? "web"),
+              sourceKind: normalizeSourceKind(statistics.sourceKind ?? "manual"),
+              relatedEventId: statistics.relatedEventId ?? null,
+              enqueuedEventId: statistics.enqueuedEventId ?? null,
+            }
+          : undefined,
       };
 
       this.queue.push(task);
@@ -223,6 +261,8 @@ class DownloadManager {
         status: "failed",
         error: "Download cancelled by user",
         sourceUrl: task.sourceUrl,
+        platform: platformFromUrl(task.sourceUrl),
+        sourceKind: task.statistics?.sourceKind ?? "unknown",
       });
 
       // Execute hook
@@ -311,6 +351,25 @@ class DownloadManager {
       });
     }
 
+    // download_started: pair with download_enqueued via relatedEventId so the
+    // queue-wait percentile rollups can match the two without write-time joins.
+    try {
+      const stats = task.statistics;
+      const platform = platformFromUrl(task.sourceUrl);
+      recordEvent({
+        eventType: "download_started",
+        actorRole: stats?.actorRole ?? "system",
+        surface: stats?.surface ?? "background",
+        sessionId: null,
+        relatedEventId: stats?.enqueuedEventId ?? stats?.relatedEventId ?? null,
+        platform,
+        sourceKind: stats?.sourceKind ?? "unknown",
+        payload: { downloadId: task.id },
+      });
+    } catch {
+      // statistics is best-effort
+    }
+
     try {
       console.log(
         "Starting download:",
@@ -370,6 +429,11 @@ class DownloadManager {
 
       // Add to history
       if (!task.cancelled) {
+        const historySourceUrl = videoData.sourceUrl || task.sourceUrl;
+        const historyTotalSize =
+          typeof videoData.fileSize === "string" || typeof videoData.fileSize === "number"
+            ? String(videoData.fileSize)
+            : undefined;
         storageService.addDownloadHistoryItem({
           id: task.id,
           title: finalTitle || task.title,
@@ -377,9 +441,12 @@ class DownloadManager {
           status: "success",
           videoPath: videoData.videoPath,
           thumbnailPath: videoData.thumbnailPath,
-          sourceUrl: videoData.sourceUrl || task.sourceUrl,
+          sourceUrl: historySourceUrl,
           author: videoData.author,
           videoId: videoData.id,
+          totalSize: historyTotalSize,
+          platform: platformFromUrl(historySourceUrl),
+          sourceKind: task.statistics?.sourceKind ?? "manual",
         });
 
         // Record video download for future duplicate detection
@@ -473,6 +540,8 @@ class DownloadManager {
           status: "failed",
           error: error instanceof Error ? error.message : String(error),
           sourceUrl: task.sourceUrl,
+          platform: platformFromUrl(task.sourceUrl),
+          sourceKind: task.statistics?.sourceKind ?? "unknown",
         });
       }
 

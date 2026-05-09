@@ -263,14 +263,26 @@ describe('videoDownloadTracking', () => {
             id: 'v1',
             title: 'Saved',
             author: 'Author',
+            source: 'youtube',
             videoPath: '/videos/v1.mp4',
             thumbnailPath: '/images/v1.jpg',
           }),
-          addHistory
+          addHistory,
+          false,
+          false,
+          {
+            platform: 'youtube',
+            sourceKind: 'search_result',
+          }
         );
 
         expect(addHistory).toHaveBeenCalledWith(
-          expect.objectContaining({ status: 'skipped', videoId: 'v1' })
+          expect.objectContaining({
+            status: 'skipped',
+            videoId: 'v1',
+            platform: 'youtube',
+            sourceKind: 'search_result',
+          })
         );
         expect(result.shouldSkip).toBe(true);
         expect(result.response?.videoId).toBe('v1');
@@ -319,11 +331,20 @@ describe('videoDownloadTracking', () => {
           vi.fn(),
           addHistory,
           false,
-          false
+          false,
+          {
+            platform: 'twitch',
+            sourceKind: 'subscription',
+          }
         );
 
         expect(addHistory).toHaveBeenCalledWith(
-          expect.objectContaining({ status: 'deleted', title: 'Old' })
+          expect.objectContaining({
+            status: 'deleted',
+            title: 'Old',
+            platform: 'twitch',
+            sourceKind: 'subscription',
+          })
         );
         expect(result).toEqual(
           expect.objectContaining({

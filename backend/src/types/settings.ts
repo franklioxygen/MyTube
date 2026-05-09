@@ -62,6 +62,13 @@ export interface Settings {
   twitchClientSecret?: string;
   downloadFilenamePresetId?: DownloadFilenamePresetId;
   downloadFilenameTemplate?: string;
+  // Statistics
+  statisticsEnabled?: boolean;
+  statisticsRetentionDays?: number | null;
+  statisticsCaptureSearchText?: boolean;
+  statisticsTrackVisitorActivity?: boolean;
+  statisticsKeepDataWhenDisabled?: boolean;
+  statisticsTimezone?: string;
 }
 
 // nosemgrep: codacy.javascript.security.hard-coded-password
@@ -106,4 +113,9 @@ export const defaultSettings: Settings = {
   twitchClientSecret: "",
   downloadFilenamePresetId: "legacy",
   downloadFilenameTemplate: "{{ title }}-{{ uploader }}-{{ upload_year }}.{{ ext }}",
+  statisticsEnabled: false,
+  statisticsRetentionDays: 365,
+  statisticsCaptureSearchText: false,
+  statisticsTrackVisitorActivity: false,
+  statisticsKeepDataWhenDisabled: true,
 };

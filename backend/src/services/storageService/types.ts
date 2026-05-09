@@ -52,6 +52,8 @@ export interface DownloadHistoryItem {
   deletedAt?: number; // Deletion timestamp for deleted items
   subscriptionId?: string; // Reference to subscription if downloaded via subscription
   taskId?: string; // Reference to continuous download task if downloaded via task
+  platform?: string; // canonical lowercase, statistics-friendly bucket
+  sourceKind?: string; // canonical lowercase, statistics-friendly bucket
 }
 
 export interface VideoDownloadRecord {

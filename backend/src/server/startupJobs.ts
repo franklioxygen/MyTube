@@ -24,5 +24,40 @@ export const startBackgroundJobs = (port: number): void => {
       );
     });
 
+  // Statistics rollup + retention workers and the alert dispatch loop.
+  import("../services/statistics")
+    .then((statistics) => {
+      try {
+        statistics.startRollupWorker();
+        statistics.startRetentionWorker();
+      } catch (error) {
+        logger.warn(
+          "Failed to start statistics workers",
+          error instanceof Error ? error : new Error(String(error))
+        );
+      }
+    })
+    .catch((error) => {
+      logger.warn(
+        "Failed to load statistics service",
+        error instanceof Error ? error : new Error(String(error))
+      );
+    });
+
+  import("../services/statisticsAlertDispatcher")
+    .then(({ startStatisticsAlertDispatcher }) => {
+      try {
+        startStatisticsAlertDispatcher();
+      } catch (error) {
+        logger.warn(
+          "Failed to start statistics alert dispatcher",
+          error instanceof Error ? error : new Error(String(error))
+        );
+      }
+    })
+    .catch(() => {
+      // Optional module; tolerate absence.
+    });
+
   startCloudflaredIfEnabled(port);
 };

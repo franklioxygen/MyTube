@@ -56,10 +56,16 @@ const withApiKeyHeader = (
   headers: Record<string, string>,
   apiKey: string | undefined | null
 ): Record<string, string> => {
+  // Identify the extension client to MyTube's statistics layer so resulting
+  // download_enqueued events are tagged surface=extension and source_kind=extension.
+  const augmented: Record<string, string> = {
+    ...headers,
+    'X-MyTube-Client': 'extension',
+  };
   if (apiKey) {
-    return { ...headers, 'X-API-Key': apiKey };
+    return { ...augmented, 'X-API-Key': apiKey };
   }
-  return headers;
+  return augmented;
 };
 
 const parseErrorMessage = async (

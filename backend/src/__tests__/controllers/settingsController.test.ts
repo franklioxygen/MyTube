@@ -235,6 +235,28 @@ describe('SettingsController', () => {
       expect(savedPayload.apiKey).toMatch(/^[a-f0-9]{64}$/);
     });
 
+    it('should ignore admin attempts to overwrite statisticsTimezone', async () => {
+      req.user = { role: 'admin' } as any;
+      req.body = { statisticsTimezone: 'Asia/Tokyo' };
+      (storageService.getSettings as any).mockReturnValue({
+        loginEnabled: true,
+        statisticsEnabled: true,
+        statisticsTimezone: 'America/New_York',
+      });
+
+      await patchSettings(req as Request, res as Response);
+
+      const savedPayload = (storageService.saveSettings as any).mock.calls[0][0];
+      expect(savedPayload.statisticsTimezone).toBeUndefined();
+      expect(json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          settings: expect.objectContaining({
+            statisticsTimezone: 'America/New_York',
+          }),
+        })
+      );
+    });
+
     it('should reject raw yt-dlp config changes in application trust mode', async () => {
       process.env.MYTUBE_ADMIN_TRUST_LEVEL = 'application';
       req.body = { ytDlpConfig: '--exec echo hi' };

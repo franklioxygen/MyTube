@@ -132,6 +132,8 @@ export const downloadHistory = sqliteTable(
     deletedAt: integer("deleted_at"), // Deletion timestamp for deleted items
     subscriptionId: text("subscription_id"), // Reference to subscription if downloaded via subscription
     taskId: text("task_id"), // Reference to continuous download task if downloaded via task
+    platform: text("platform"), // canonical: youtube/bilibili/twitch/missav/local/cloud/unknown
+    sourceKind: text("source_kind"), // canonical: manual/search_result/subscription/extension/task/api/upload/scan/library/rss/unknown
   },
   (table) => ({
     retentionSubscriptionIdx: index(
@@ -141,6 +143,12 @@ export const downloadHistory = sqliteTable(
       table.videoId,
       table.status,
       table.subscriptionId
+    ),
+    statisticsIdx: index("download_history_statistics_idx").on(
+      table.finishedAt,
+      table.platform,
+      table.sourceKind,
+      table.status
     ),
   })
 );
@@ -167,6 +175,10 @@ export const subscriptions = sqliteTable("subscriptions", {
   twitchBroadcasterLogin: text("twitch_broadcaster_login"),
   lastTwitchVideoId: text("last_twitch_video_id"),
   retentionDays: integer("retention_days"), // Auto-delete subscription-owned videos older than this many days (null = disabled)
+  // Durable subscription state for the consecutive-failure-streak alert (statistics feature).
+  consecutiveFailureCount: integer("consecutive_failure_count").notNull().default(0),
+  lastCheckStatus: text("last_check_status"), // 'success' | 'fail'
+  lastFailureReason: text("last_failure_reason"), // bucket key only, never raw error text
 });
 
 // Track downloaded video IDs to prevent re-downloading
@@ -233,3 +245,113 @@ export const continuousDownloadTasks = sqliteTable(
     frozenVideoListPath: text("frozen_video_list_path"), // Path to persisted ordered URL snapshot
   }
 );
+
+// Statistics feature tables.
+// Append-only event records for recent detail; daily rollups for long-term charts;
+// minute-bucketed ingestion-health counters for the dashboard.
+export const usageStatisticsEvents = sqliteTable(
+  "usage_statistics_events",
+  {
+    id: text("id").primaryKey(),
+    schemaVersion: integer("schema_version").notNull().default(1),
+    eventType: text("event_type").notNull(),
+    recordedAt: integer("recorded_at").notNull(),
+    clientOccurredAt: integer("client_occurred_at"),
+    day: text("day").notNull(),
+    actorRole: text("actor_role").notNull(),
+    surface: text("surface").notNull(),
+    sessionId: text("session_id"),
+    relatedEventId: text("related_event_id"),
+    videoId: text("video_id"),
+    collectionId: text("collection_id"),
+    subscriptionId: text("subscription_id"),
+    rssTokenId: text("rss_token_id"),
+    platform: text("platform"),
+    sourceKind: text("source_kind"),
+    durationSeconds: integer("duration_seconds"),
+    value: integer("value"),
+    payload: text("payload").notNull().default("{}"),
+  },
+  (table) => ({
+    dayEventTypeIdx: index("idx_usage_statistics_events_day").on(
+      table.day,
+      table.eventType
+    ),
+    recordedAtIdx: index("idx_usage_statistics_events_recorded_at").on(
+      table.recordedAt
+    ),
+    videoIdx: index("idx_usage_statistics_events_video").on(
+      table.videoId,
+      table.eventType,
+      table.recordedAt
+    ),
+    subscriptionIdx: index("idx_usage_statistics_events_subscription").on(
+      table.subscriptionId,
+      table.eventType,
+      table.recordedAt
+    ),
+    relatedIdx: index("idx_usage_statistics_events_related").on(
+      table.relatedEventId,
+      table.eventType
+    ),
+  })
+);
+
+export const usageStatisticsRollupDays = sqliteTable(
+  "usage_statistics_rollup_days",
+  {
+    day: text("day").primaryKey(),
+    dirty: integer("dirty").notNull().default(1),
+    sealed: integer("sealed").notNull().default(0),
+    lastEventRecordedAt: integer("last_event_recorded_at"),
+    lastRolledUpAt: integer("last_rolled_up_at"),
+  }
+);
+
+export const usageStatisticsDaily = sqliteTable(
+  "usage_statistics_daily",
+  {
+    day: text("day").notNull(),
+    metricKey: text("metric_key").notNull(),
+    schemaVersion: integer("schema_version").notNull().default(1),
+    platform: text("platform"),
+    actorRole: text("actor_role"),
+    sourceKind: text("source_kind"),
+    dimensionKey: text("dimension_key").notNull().default(""),
+    dimensionValue: text("dimension_value").notNull().default(""),
+    dimensionsHash: text("dimensions_hash").notNull(),
+    dimensionsJson: text("dimensions_json").notNull().default("{}"),
+    count: integer("count").notNull().default(0),
+    sum: integer("sum").notNull().default(0),
+    min: integer("min"),
+    max: integer("max"),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.day, table.metricKey, table.dimensionsHash] }),
+    metricDayIdx: index("idx_usage_statistics_daily_metric_day").on(
+      table.metricKey,
+      table.day
+    ),
+    commonDimsIdx: index("idx_usage_statistics_daily_common_dims").on(
+      table.metricKey,
+      table.day,
+      table.platform,
+      table.actorRole,
+      table.sourceKind
+    ),
+  })
+);
+
+export const usageStatisticsIngestionMinutes = sqliteTable(
+  "usage_statistics_ingestion_minutes",
+  {
+    minuteBucket: integer("minute_bucket").primaryKey(),
+    acceptedCount: integer("accepted_count").notNull().default(0),
+    droppedCount: integer("dropped_count").notNull().default(0),
+    errorCount: integer("error_count").notNull().default(0),
+    sealedDayDropCount: integer("sealed_day_drop_count").notNull().default(0),
+    updatedAt: integer("updated_at").notNull(),
+  }
+);
+

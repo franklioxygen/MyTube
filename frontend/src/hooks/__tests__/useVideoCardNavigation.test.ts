@@ -1,5 +1,5 @@
 import { renderHook } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useVideoCardNavigation } from '../useVideoCardNavigation';
 
 const mockNavigate = vi.fn();
@@ -9,6 +9,10 @@ vi.mock('react-router-dom', () => ({
 
 describe('useVideoCardNavigation', () => {
     const mockVideo = { id: 'v1', author: 'Test Author' };
+
+    beforeEach(() => {
+        mockNavigate.mockClear();
+    });
 
     it('should navigate to video player normally', () => {
         const { result } = renderHook(() => useVideoCardNavigation({
@@ -41,5 +45,19 @@ describe('useVideoCardNavigation', () => {
 
         expect(mockEvent.stopPropagation).toHaveBeenCalled();
         expect(mockNavigate).toHaveBeenCalledWith('/author/Test%20Author');
+    });
+
+    it('should pass statistics attribution state to direct video navigation', () => {
+        const { result } = renderHook(() => useVideoCardNavigation({
+            video: mockVideo as any,
+            collectionInfo: { isFirstInAnyCollection: false, firstCollectionId: null, videoCollections: [], firstInCollectionNames: [] },
+            statisticsRelatedEventId: 'search-event-1'
+        }));
+
+        result.current.handleVideoNavigation();
+
+        expect(mockNavigate).toHaveBeenCalledWith('/video/v1', {
+            state: { statisticsRelatedEventId: 'search-event-1' }
+        });
     });
 });

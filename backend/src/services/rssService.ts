@@ -407,6 +407,19 @@ export async function recordAccess(tokenId: string): Promise<void> {
     })
     .where(eq(rssTokens.id, tokenId))
     .run();
+  try {
+    const { recordEvent } = await import("./statistics");
+    recordEvent({
+      eventType: "rss_feed_accessed",
+      actorRole: "system",
+      surface: "api",
+      sessionId: null,
+      rssTokenId: tokenId,
+      payload: {},
+    });
+  } catch {
+    // statistics is best-effort
+  }
 }
 
 // --- RSS XML building ---
