@@ -45,6 +45,55 @@ const ACTOR_VALUES: ReadonlySet<ActorRole> = new Set<ActorRole>([
 ]);
 
 const URL_PROTOCOL_PATTERN = /^[a-z][a-z\d+.-]*:/i;
+const NUMERIC_DURATION_PATTERN = /^\d+(\.\d+)?$/;
+const ISO_DURATION_PATTERN = /^P(?:\d+D)?T?(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?$/i;
+const CLOCK_DURATION_PATTERN = /^\d+:\d{1,2}(?::\d{1,2})?$/;
+const COMPACT_DURATION_PATTERN = /^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+(?:\.\d+)?)s)?$/i;
+
+const PLATFORM_HOST_RULES: ReadonlyArray<{
+  platform: CanonicalPlatform;
+  hosts: readonly string[];
+}> = [
+  { platform: "youtube", hosts: ["youtube.com", "youtu.be"] },
+  { platform: "bilibili", hosts: ["bilibili.com", "b23.tv"] },
+  { platform: "twitch", hosts: ["twitch.tv"] },
+  {
+    platform: "missav",
+    hosts: ["missav.com", "missav.ai", "missav.ws", "missav.live"],
+  },
+];
+
+const DOWNLOAD_ERROR_BUCKET_RULES: ReadonlyArray<{
+  bucket: DownloadFailureBucket;
+  needles: readonly string[];
+}> = [
+  {
+    bucket: "auth_required",
+    needles: ["login required", "cookies", "authentication", "403", "members-only"],
+  },
+  {
+    bucket: "source_unavailable",
+    needles: ["video unavailable", "private video", "removed", "does not exist", "not found", "404"],
+  },
+  {
+    bucket: "geo_or_network_blocked",
+    needles: ["geo", "region", "blocked", "network is unreachable", "connection"],
+  },
+  {
+    bucket: "extractor_changed",
+    needles: ["extractor", "update yt-dlp", "could not find", "unable to extract"],
+  },
+  {
+    bucket: "filesystem_error",
+    needles: ["enospc", "eperm", "eacces", "disk", "read-only file system", "file system"],
+  },
+  {
+    bucket: "cloud_upload_failed",
+    needles: ["cloud", "openlist", "upload failed"],
+  },
+];
+
+type DurationParser = (value: string) => number | null;
 
 function getNormalizedHostname(url: string): string | null {
   const trimmed = url.trim();
@@ -68,33 +117,77 @@ function matchesHostname(hostname: string, allowedHosts: readonly string[]): boo
   );
 }
 
-export function normalizePlatform(value: unknown): CanonicalPlatform {
-  if (typeof value !== "string") return "unknown";
+function normalizeKnownValue(
+  value: unknown,
+  knownValues: ReadonlySet<string>,
+  fallback: string | null
+): string | null {
+  if (typeof value !== "string") return fallback;
   const lower = value.trim().toLowerCase();
-  if (PLATFORM_VALUES.has(lower as CanonicalPlatform)) return lower as CanonicalPlatform;
-  return "unknown";
+  return knownValues.has(lower) ? lower : fallback;
+}
+
+function includesAny(text: string, needles: readonly string[]): boolean {
+  return needles.some((needle) => text.includes(needle));
+}
+
+function normalizeDurationTotal(total: number): number | null {
+  return Number.isFinite(total) && total > 0 ? Math.round(total) : null;
+}
+
+function parseNumericSeconds(value: string): number | null {
+  if (!NUMERIC_DURATION_PATTERN.test(value)) return null;
+  return normalizeDurationTotal(Number(value));
+}
+
+function parseIsoDuration(value: string): number | null {
+  const match = ISO_DURATION_PATTERN.exec(value);
+  if (!match) return null;
+  const hours = Number(match[1] ?? 0);
+  const minutes = Number(match[2] ?? 0);
+  const seconds = Number(match[3] ?? 0);
+  return normalizeDurationTotal(hours * 3600 + minutes * 60 + seconds);
+}
+
+function parseClockDuration(value: string): number | null {
+  if (!CLOCK_DURATION_PATTERN.test(value)) return null;
+  const segments = value.split(":").map((segment) => Number(segment));
+  if (segments.some((segment) => !Number.isFinite(segment))) return null;
+  const [hours, minutes, seconds = 0] =
+    segments.length === 3 ? segments : [0, segments[0], segments[1]];
+  return normalizeDurationTotal(hours * 3600 + minutes * 60 + seconds);
+}
+
+function parseCompactDuration(value: string): number | null {
+  const match = COMPACT_DURATION_PATTERN.exec(value);
+  if (!match || match[0].length === 0) return null;
+  const hours = Number(match[1] ?? 0);
+  const minutes = Number(match[2] ?? 0);
+  const seconds = Number(match[3] ?? 0);
+  return normalizeDurationTotal(hours * 3600 + minutes * 60 + seconds);
+}
+
+const DURATION_PARSERS: readonly DurationParser[] = [
+  parseNumericSeconds,
+  parseIsoDuration,
+  parseClockDuration,
+  parseCompactDuration,
+];
+
+export function normalizePlatform(value: unknown): CanonicalPlatform {
+  return (normalizeKnownValue(value, PLATFORM_VALUES, "unknown") ?? "unknown") as CanonicalPlatform;
 }
 
 export function normalizeSourceKind(value: unknown): CanonicalSourceKind {
-  if (typeof value !== "string") return "unknown";
-  const lower = value.trim().toLowerCase();
-  if (SOURCE_KIND_VALUES.has(lower as CanonicalSourceKind))
-    return lower as CanonicalSourceKind;
-  return "unknown";
+  return (normalizeKnownValue(value, SOURCE_KIND_VALUES, "unknown") ?? "unknown") as CanonicalSourceKind;
 }
 
 export function normalizeSurface(value: unknown): StatisticsSurface {
-  if (typeof value !== "string") return "web";
-  const lower = value.trim().toLowerCase();
-  if (SURFACE_VALUES.has(lower as StatisticsSurface)) return lower as StatisticsSurface;
-  return "unknown";
+  return (normalizeKnownValue(value, SURFACE_VALUES, "web") ?? "web") as StatisticsSurface;
 }
 
 export function normalizeActorRole(value: unknown): ActorRole | null {
-  if (typeof value !== "string") return null;
-  const lower = value.trim().toLowerCase();
-  if (ACTOR_VALUES.has(lower as ActorRole)) return lower as ActorRole;
-  return null;
+  return normalizeKnownValue(value, ACTOR_VALUES, null) as ActorRole | null;
 }
 
 // Map a host string from a URL to a canonical platform bucket.
@@ -102,87 +195,16 @@ export function platformFromUrl(url: string | null | undefined): CanonicalPlatfo
   if (!url) return "unknown";
   const hostname = getNormalizedHostname(url);
   if (!hostname) return "unknown";
-  if (matchesHostname(hostname, ["youtube.com", "youtu.be"])) return "youtube";
-  if (matchesHostname(hostname, ["bilibili.com", "b23.tv"])) return "bilibili";
-  if (matchesHostname(hostname, ["twitch.tv"])) return "twitch";
-  if (
-    matchesHostname(hostname, [
-      "missav.com",
-      "missav.ai",
-      "missav.ws",
-      "missav.live",
-    ])
-  ) {
-    return "missav";
-  }
-  return "unknown";
+  const match = PLATFORM_HOST_RULES.find(({ hosts }) => matchesHostname(hostname, hosts));
+  return match?.platform ?? "unknown";
 }
 
 // Best-effort classification of yt-dlp / downloader error strings into stable buckets.
 export function bucketDownloadError(error: string | null | undefined): DownloadFailureBucket {
   if (!error) return "unknown";
   const text = error.toLowerCase();
-
-  if (
-    text.includes("login required") ||
-    text.includes("cookies") ||
-    text.includes("authentication") ||
-    text.includes("403") ||
-    text.includes("members-only")
-  ) {
-    return "auth_required";
-  }
-
-  if (
-    text.includes("video unavailable") ||
-    text.includes("private video") ||
-    text.includes("removed") ||
-    text.includes("does not exist") ||
-    text.includes("not found") ||
-    text.includes("404")
-  ) {
-    return "source_unavailable";
-  }
-
-  if (
-    text.includes("geo") ||
-    text.includes("region") ||
-    text.includes("blocked") ||
-    text.includes("network is unreachable") ||
-    text.includes("connection")
-  ) {
-    return "geo_or_network_blocked";
-  }
-
-  if (
-    text.includes("extractor") ||
-    text.includes("update yt-dlp") ||
-    text.includes("could not find") ||
-    text.includes("unable to extract")
-  ) {
-    return "extractor_changed";
-  }
-
-  if (
-    text.includes("enospc") ||
-    text.includes("eperm") ||
-    text.includes("eacces") ||
-    text.includes("disk") ||
-    text.includes("read-only file system") ||
-    text.includes("file system")
-  ) {
-    return "filesystem_error";
-  }
-
-  if (
-    text.includes("cloud") ||
-    text.includes("openlist") ||
-    text.includes("upload failed")
-  ) {
-    return "cloud_upload_failed";
-  }
-
-  return "unknown";
+  const match = DOWNLOAD_ERROR_BUCKET_RULES.find(({ needles }) => includesAny(text, needles));
+  return match?.bucket ?? "unknown";
 }
 
 // Stable, ordered JSON for hashing dimensions in the daily rollup.
@@ -241,43 +263,11 @@ export function parseDurationSeconds(value: string | null | undefined): number |
   if (!value || typeof value !== "string") return null;
   const trimmed = value.trim();
   if (trimmed.length === 0) return null;
-
-  // Plain integer/float seconds
-  if (/^\d+(\.\d+)?$/.test(trimmed)) {
-    const num = Number(trimmed);
-    if (Number.isFinite(num) && num > 0) return Math.round(num);
-    return null;
+  for (const parseDuration of DURATION_PARSERS) {
+    const parsed = parseDuration(trimmed);
+    if (parsed !== null) {
+      return parsed;
+    }
   }
-
-  // ISO-8601 duration: PT#H#M#S
-  const isoMatch = /^P(?:\d+D)?T?(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?$/i.exec(trimmed);
-  if (isoMatch) {
-    const h = Number(isoMatch[1] ?? 0);
-    const m = Number(isoMatch[2] ?? 0);
-    const s = Number(isoMatch[3] ?? 0);
-    const total = Math.round(h * 3600 + m * 60 + s);
-    return total > 0 ? total : null;
-  }
-
-  // HH:MM:SS or MM:SS
-  if (/^\d+:\d{1,2}(?::\d{1,2})?$/.test(trimmed)) {
-    const segs = trimmed.split(":").map((seg) => Number(seg));
-    if (segs.some((n) => !Number.isFinite(n))) return null;
-    let total = 0;
-    if (segs.length === 3) total = segs[0] * 3600 + segs[1] * 60 + segs[2];
-    else if (segs.length === 2) total = segs[0] * 60 + segs[1];
-    return total > 0 ? Math.round(total) : null;
-  }
-
-  // 1h2m3s
-  const compactMatch = /^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+(?:\.\d+)?)s)?$/i.exec(trimmed);
-  if (compactMatch && compactMatch[0].length > 0) {
-    const h = Number(compactMatch[1] ?? 0);
-    const m = Number(compactMatch[2] ?? 0);
-    const s = Number(compactMatch[3] ?? 0);
-    const total = Math.round(h * 3600 + m * 60 + s);
-    return total > 0 ? total : null;
-  }
-
   return null;
 }

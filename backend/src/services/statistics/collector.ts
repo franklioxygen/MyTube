@@ -176,6 +176,50 @@ export interface RecordEventOptions {
   forceWrite?: boolean;
 }
 
+interface PersistedStatisticsEvent {
+  id: string;
+  schemaVersion: number;
+  eventType: StatisticsEventType;
+  recordedAt: number;
+  clientOccurredAt: number | null;
+  day: string;
+  actorRole: "admin" | "visitor" | "system";
+  surface: string;
+  sessionId: string | null;
+  relatedEventId: string | null;
+  videoId: string | null;
+  collectionId: string | null;
+  subscriptionId: string | null;
+  rssTokenId: string | null;
+  platform: string | null;
+  sourceKind: string | null;
+  durationSeconds: number | null;
+  value: number | null;
+  payloadJson: string;
+}
+
+interface PersistedStatisticsEventOverrides {
+  id?: string;
+  schemaVersion?: number;
+  eventType?: StatisticsEventType;
+  recordedAt?: number;
+  clientOccurredAt?: number | null;
+  day?: string;
+  actorRole?: "admin" | "visitor" | "system";
+  surface?: string;
+  sessionId?: string | null;
+  relatedEventId?: string | null;
+  videoId?: string | null;
+  collectionId?: string | null;
+  subscriptionId?: string | null;
+  rssTokenId?: string | null;
+  platform?: string | null;
+  sourceKind?: string | null;
+  durationSeconds?: number | null;
+  value?: number | null;
+  payloadJson?: string;
+}
+
 const insertStatement = () =>
   sqlite.prepare(
     `INSERT OR IGNORE INTO usage_statistics_events
@@ -185,49 +229,121 @@ const insertStatement = () =>
      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
   );
 
+function canWriteStatisticsEvent(
+  actorRole: "admin" | "visitor" | "system",
+  forceWrite = false
+): boolean {
+  if (!forceWrite && !isStatisticsEnabled()) return false;
+  return actorRole !== "visitor" || shouldTrackVisitorActivity();
+}
+
+function normalizeOptionalNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function sanitizeClientOccurredAt(
+  clientOccurredAt: unknown,
+  recordedAt: number,
+  maxSkewMs = 10 * 60 * 1000
+): number | null {
+  const normalized = normalizeOptionalNumber(clientOccurredAt);
+  if (normalized === null) return null;
+  return Math.abs(recordedAt - normalized) <= maxSkewMs ? normalized : null;
+}
+
+function serializePayload(payload: Record<string, unknown> | undefined): string {
+  return JSON.stringify(payload ?? {});
+}
+
+function buildPersistedStatisticsEvent(
+  input: StatisticsEventInput,
+  overrides: PersistedStatisticsEventOverrides = {}
+): PersistedStatisticsEvent {
+  const recordedAt = overrides.recordedAt ?? input.recordedAt ?? Date.now();
+  return {
+    id: overrides.id ?? input.id ?? crypto.randomUUID(),
+    schemaVersion: overrides.schemaVersion ?? input.schemaVersion ?? 1,
+    eventType: overrides.eventType ?? input.eventType,
+    recordedAt,
+    clientOccurredAt:
+      overrides.clientOccurredAt ?? normalizeOptionalNumber(input.clientOccurredAt),
+    day: overrides.day ?? dayBucket(recordedAt, getResolvedTimezone()),
+    actorRole: overrides.actorRole ?? input.actorRole,
+    surface: overrides.surface ?? normalizeSurface(input.surface ?? "web"),
+    sessionId: overrides.sessionId ?? input.sessionId ?? null,
+    relatedEventId: overrides.relatedEventId ?? input.relatedEventId ?? null,
+    videoId: overrides.videoId ?? input.videoId ?? null,
+    collectionId: overrides.collectionId ?? input.collectionId ?? null,
+    subscriptionId: overrides.subscriptionId ?? input.subscriptionId ?? null,
+    rssTokenId: overrides.rssTokenId ?? input.rssTokenId ?? null,
+    platform:
+      overrides.platform ??
+      (input.platform ? normalizePlatform(input.platform) : null),
+    sourceKind:
+      overrides.sourceKind ??
+      (input.sourceKind ? normalizeSourceKind(input.sourceKind) : null),
+    durationSeconds:
+      overrides.durationSeconds ?? normalizeOptionalNumber(input.durationSeconds),
+    value: overrides.value ?? normalizeOptionalNumber(input.value),
+    payloadJson: overrides.payloadJson ?? serializePayload(input.payload),
+  };
+}
+
+function writePersistedStatisticsEvent(
+  statement: ReturnType<typeof insertStatement>,
+  event: PersistedStatisticsEvent
+): void {
+  statement.run(
+    event.id,
+    event.schemaVersion,
+    event.eventType,
+    event.recordedAt,
+    event.clientOccurredAt,
+    event.day,
+    event.actorRole,
+    event.surface,
+    event.sessionId,
+    event.relatedEventId,
+    event.videoId,
+    event.collectionId,
+    event.subscriptionId,
+    event.rssTokenId,
+    event.platform,
+    event.sourceKind,
+    event.durationSeconds,
+    event.value,
+    event.payloadJson
+  );
+}
+
+function handleSealedDayDrop(result?: BatchIngestResult): void {
+  if (result) {
+    result.sealedDayDropCount += 1;
+    result.droppedCount += 1;
+  }
+  bumpIngestionMinute("sealed");
+  bumpIngestionMinute("dropped");
+}
+
 export function recordEvent(
   input: StatisticsEventInput,
   options: RecordEventOptions = {}
 ): string | null {
   try {
-    if (!options.forceWrite && !isStatisticsEnabled()) return null;
-    if (input.actorRole === "visitor" && !shouldTrackVisitorActivity()) return null;
-
-    const id = input.id ?? crypto.randomUUID();
-    const recordedAt = input.recordedAt ?? Date.now();
-    const day = dayBucket(recordedAt, getResolvedTimezone());
-
-    if (isDaySealed(day)) {
-      bumpIngestionMinute("sealed");
-      bumpIngestionMinute("dropped");
+    if (!canWriteStatisticsEvent(input.actorRole, options.forceWrite === true)) {
       return null;
     }
 
-    insertStatement().run(
-      id,
-      input.schemaVersion ?? 1,
-      input.eventType,
-      recordedAt,
-      input.clientOccurredAt ?? null,
-      day,
-      input.actorRole,
-      normalizeSurface(input.surface ?? "web"),
-      input.sessionId ?? null,
-      input.relatedEventId ?? null,
-      input.videoId ?? null,
-      input.collectionId ?? null,
-      input.subscriptionId ?? null,
-      input.rssTokenId ?? null,
-      input.platform ? normalizePlatform(input.platform) : null,
-      input.sourceKind ? normalizeSourceKind(input.sourceKind) : null,
-      input.durationSeconds ?? null,
-      input.value ?? null,
-      JSON.stringify(input.payload ?? {})
-    );
+    const event = buildPersistedStatisticsEvent(input);
+    if (isDaySealed(event.day)) {
+      handleSealedDayDrop();
+      return null;
+    }
 
-    markDayDirty(day, recordedAt);
+    writePersistedStatisticsEvent(insertStatement(), event);
+    markDayDirty(event.day, event.recordedAt);
     bumpIngestionMinute("accepted");
-    return id;
+    return event.id;
   } catch (error) {
     logger.debug(
       "Failed to record statistics event",
@@ -278,11 +394,7 @@ export function ingestBatch(
     sealedDayDropCount: 0,
   };
 
-  if (!isStatisticsEnabled()) {
-    result.droppedCount = events.length;
-    return result;
-  }
-  if (options.actorRole === "visitor" && !shouldTrackVisitorActivity()) {
+  if (!canWriteStatisticsEvent(options.actorRole)) {
     result.droppedCount = events.length;
     return result;
   }
@@ -296,48 +408,33 @@ export function ingestBatch(
       continue;
     }
     try {
-      const id = evt.id ?? crypto.randomUUID();
-      const now = Date.now();
-      const recordedAt = now;
+      const recordedAt = Date.now();
       const day = dayBucket(recordedAt, tz);
-
-      let clientOccurredAt: number | null = null;
-      if (typeof evt.clientOccurredAt === "number" && Number.isFinite(evt.clientOccurredAt)) {
-        if (Math.abs(now - evt.clientOccurredAt) <= 10 * 60 * 1000) {
-          clientOccurredAt = evt.clientOccurredAt;
-        } else {
-          clientOccurredAt = null;
-        }
-      }
-
       if (isDaySealed(day)) {
-        result.sealedDayDropCount += 1;
-        result.droppedCount += 1;
-        bumpIngestionMinute("sealed");
-        bumpIngestionMinute("dropped");
+        handleSealedDayDrop(result);
         continue;
       }
 
-      ins.run(
-        id,
-        evt.schemaVersion ?? 1,
-        evt.eventType,
-        recordedAt,
-        clientOccurredAt,
-        day,
-        options.actorRole,
-        normalizeSurface(evt.surface ?? options.surface ?? "web"),
-        evt.sessionId ?? null,
-        evt.relatedEventId ?? null,
-        evt.videoId ?? null,
-        evt.collectionId ?? null,
-        null,
-        null,
-        evt.platform ? normalizePlatform(evt.platform) : null,
-        evt.sourceKind ? normalizeSourceKind(evt.sourceKind) : null,
-        typeof evt.durationSeconds === "number" ? evt.durationSeconds : null,
-        typeof evt.value === "number" ? evt.value : null,
-        JSON.stringify(evt.payload ?? {})
+      writePersistedStatisticsEvent(
+        ins,
+        buildPersistedStatisticsEvent(
+          {
+            ...evt,
+            actorRole: options.actorRole,
+            eventType: evt.eventType,
+            platform: evt.platform ? normalizePlatform(evt.platform) : null,
+            sourceKind: evt.sourceKind ? normalizeSourceKind(evt.sourceKind) : null,
+            surface: normalizeSurface(options.surface),
+          },
+          {
+            recordedAt,
+            day,
+            clientOccurredAt: sanitizeClientOccurredAt(evt.clientOccurredAt, recordedAt),
+            surface: normalizeSurface(evt.surface ?? options.surface ?? "web"),
+            subscriptionId: null,
+            rssTokenId: null,
+          }
+        )
       );
       markDayDirty(day, recordedAt);
       result.acceptedCount += 1;
