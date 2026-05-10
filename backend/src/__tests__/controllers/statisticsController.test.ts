@@ -37,6 +37,8 @@ const createResponse = () => {
   response.json = vi.fn().mockReturnValue(response);
   response.type = vi.fn().mockReturnValue(response);
   response.send = vi.fn().mockReturnValue(response);
+  response.end = vi.fn().mockReturnValue(response);
+  response.setHeader = vi.fn().mockReturnValue(response);
   return response;
 };
 
@@ -162,7 +164,15 @@ describe("statisticsController", () => {
       sourceKind: "subscription",
       limit: 15,
     });
-    expect(res.type).toHaveBeenCalledWith("text/csv");
-    expect(res.send).toHaveBeenCalledWith("export-data");
+    expect(res.type).toHaveBeenCalledWith("text/csv; charset=utf-8");
+    expect(res.setHeader).toHaveBeenCalledWith(
+      "X-Content-Type-Options",
+      "nosniff"
+    );
+    expect(res.setHeader).toHaveBeenCalledWith(
+      "Content-Disposition",
+      'attachment; filename="statistics-export.csv"'
+    );
+    expect(res.end).toHaveBeenCalledWith("export-data", "utf8");
   });
 });

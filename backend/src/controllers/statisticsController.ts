@@ -20,6 +20,7 @@ const MAX_EVENTS_PER_REQUEST = 50;
 const MAX_REQUEST_SIZE_BYTES = 128 * 1024;
 const MAX_REQUEST_SIZE_LABEL = "128kb";
 const MAX_EVENTS_PER_SESSION_PER_MINUTE = 300;
+const EXPORT_FILENAME_BASE = "statistics-export";
 
 type SessionEventQuota = {
   count: number;
@@ -300,10 +301,29 @@ export const exportEndpoint = async (
       typeof req.query.sourceKind === "string" ? req.query.sourceKind : undefined,
     limit: Number.isFinite(limit) ? limit : undefined,
   });
+  res.setHeader("X-Content-Type-Options", "nosniff");
   if (format === "csv") {
-    res.type("text/csv").send(body);
-  } else {
-    res.type("application/json").send(body);
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${EXPORT_FILENAME_BASE}.csv"`
+    );
+    res.type("text/csv; charset=utf-8").end(body, "utf8");
+    return;
+  }
+
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename="${EXPORT_FILENAME_BASE}.json"`
+  );
+
+  try {
+    res.type("application/json").json(JSON.parse(body));
+  } catch (error) {
+    logger.error(
+      "failed to serialize statistics export",
+      error instanceof Error ? error : new Error(String(error))
+    );
+    res.status(500).json({ success: false, error: "Failed to export statistics." });
   }
 };
 

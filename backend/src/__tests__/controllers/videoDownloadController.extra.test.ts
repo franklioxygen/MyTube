@@ -67,6 +67,19 @@ vi.mock("../../services/storageService", () => ({
   getDownloadStatus: vi.fn(),
 }));
 
+vi.mock("../../services/statistics", () => ({
+  recordEvent: vi.fn(() => null),
+  normalizeSourceKind: vi.fn((value?: string | null) => value ?? "unknown"),
+  normalizeSurface: vi.fn((value?: string | null) => value ?? "web"),
+  platformFromUrl: vi.fn((url?: string | null) => {
+    if (!url) return "unknown";
+    if (url.includes("bilibili")) return "bilibili";
+    if (url.includes("missav")) return "missav";
+    if (url.includes("twitch")) return "twitch";
+    return "youtube";
+  }),
+}));
+
 vi.mock("../../utils/helpers", () => ({
   extractBilibiliVideoId: vi.fn(),
   isBilibiliShortUrl: vi.fn(),
@@ -154,6 +167,7 @@ describe("videoDownloadController extra coverage", () => {
     req = {
       query: {},
       body: {},
+      headers: {},
     };
     res = {
       status,
@@ -383,7 +397,12 @@ describe("videoDownloadController extra coverage", () => {
       expect.any(String),
       "YouTube Video",
       "https://youtube.com/watch?v=abc",
-      "youtube"
+      "youtube",
+      expect.objectContaining({
+        actorRole: "admin",
+        surface: "web",
+        sourceKind: "manual",
+      })
     );
     expect(downloadService.downloadYouTubeVideo).toHaveBeenCalled();
     expect(downloadManager.updateTaskTitle).toHaveBeenCalled();
@@ -687,7 +706,12 @@ describe("videoDownloadController extra coverage", () => {
       expect.any(String),
       "MissAV Video",
       "https://missav.com/watch/1",
-      "missav"
+      "missav",
+      expect.objectContaining({
+        actorRole: "admin",
+        surface: "web",
+        sourceKind: "manual",
+      })
     );
   });
 

@@ -36,6 +36,18 @@ vi.mock("../../services/downloadService");
 vi.mock("../../services/storageService");
 vi.mock("../../services/downloadManager");
 vi.mock("../../services/metadataService");
+vi.mock("../../services/statistics", () => ({
+  recordEvent: vi.fn(() => null),
+  normalizeSourceKind: vi.fn((value?: string | null) => value ?? "unknown"),
+  normalizeSurface: vi.fn((value?: string | null) => value ?? "web"),
+  platformFromUrl: vi.fn((url?: string | null) => {
+    if (!url) return "unknown";
+    if (url.includes("bilibili")) return "bilibili";
+    if (url.includes("missav")) return "missav";
+    if (url.includes("twitch")) return "twitch";
+    return "youtube";
+  }),
+}));
 vi.mock("../../services/thumbnailMirrorService", () => ({
   deleteSmallThumbnailMirrorSync: vi.fn(),
   regenerateSmallThumbnailForThumbnailPath: vi.fn(() => Promise.resolve(null)),
@@ -101,7 +113,7 @@ describe("VideoController", () => {
     vi.clearAllMocks();
     json = vi.fn();
     status = vi.fn().mockReturnValue({ json });
-    req = {};
+    req = { headers: {} };
     res = {
       json,
       status,

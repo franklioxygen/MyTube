@@ -34,17 +34,34 @@ interface OutboundEvent extends StatisticsEventInput {
 
 let outboundQueue: OutboundEvent[] = [];
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
+let fallbackUuidCounter = 0;
+
+function bytesToUuid(bytes: Uint8Array): string {
+  const hex = Array.from(bytes, (value) => value.toString(16).padStart(2, '0'));
+  return [
+    hex.slice(0, 4).join(''),
+    hex.slice(4, 6).join(''),
+    hex.slice(6, 8).join(''),
+    hex.slice(8, 10).join(''),
+    hex.slice(10, 16).join(''),
+  ].join('-');
+}
 
 function generateUUID(): string {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
+  const cryptoApi = globalThis.crypto;
+  if (typeof cryptoApi?.randomUUID === 'function') {
+    return cryptoApi.randomUUID();
   }
-  // Lightweight fallback (RFC4122 v4)
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === 'x' ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
+  if (typeof cryptoApi?.getRandomValues === 'function') {
+    const bytes = new Uint8Array(16);
+    cryptoApi.getRandomValues(bytes);
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    return bytesToUuid(bytes);
+  }
+
+  fallbackUuidCounter += 1;
+  return `stats-${Date.now().toString(16)}-${fallbackUuidCounter.toString(16)}`;
 }
 
 interface SessionRecord {

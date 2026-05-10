@@ -44,6 +44,30 @@ const ACTOR_VALUES: ReadonlySet<ActorRole> = new Set<ActorRole>([
   "system",
 ]);
 
+const URL_PROTOCOL_PATTERN = /^[a-z][a-z\d+.-]*:/i;
+
+function getNormalizedHostname(url: string): string | null {
+  const trimmed = url.trim();
+  if (!trimmed) return null;
+
+  const candidate = URL_PROTOCOL_PATTERN.test(trimmed)
+    ? trimmed
+    : `https://${trimmed}`;
+
+  try {
+    return new URL(candidate).hostname.toLowerCase().replace(/\.+$/, "");
+  } catch {
+    return null;
+  }
+}
+
+function matchesHostname(hostname: string, allowedHosts: readonly string[]): boolean {
+  return allowedHosts.some(
+    (allowedHost) =>
+      hostname === allowedHost || hostname.endsWith(`.${allowedHost}`)
+  );
+}
+
 export function normalizePlatform(value: unknown): CanonicalPlatform {
   if (typeof value !== "string") return "unknown";
   const lower = value.trim().toLowerCase();
@@ -76,11 +100,21 @@ export function normalizeActorRole(value: unknown): ActorRole | null {
 // Map a host string from a URL to a canonical platform bucket.
 export function platformFromUrl(url: string | null | undefined): CanonicalPlatform {
   if (!url) return "unknown";
-  const lower = url.toLowerCase();
-  if (lower.includes("youtube.com") || lower.includes("youtu.be")) return "youtube";
-  if (lower.includes("bilibili.com") || lower.includes("b23.tv")) return "bilibili";
-  if (lower.includes("twitch.tv")) return "twitch";
-  if (lower.includes("missav")) return "missav";
+  const hostname = getNormalizedHostname(url);
+  if (!hostname) return "unknown";
+  if (matchesHostname(hostname, ["youtube.com", "youtu.be"])) return "youtube";
+  if (matchesHostname(hostname, ["bilibili.com", "b23.tv"])) return "bilibili";
+  if (matchesHostname(hostname, ["twitch.tv"])) return "twitch";
+  if (
+    matchesHostname(hostname, [
+      "missav.com",
+      "missav.ai",
+      "missav.ws",
+      "missav.live",
+    ])
+  ) {
+    return "missav";
+  }
   return "unknown";
 }
 

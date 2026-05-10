@@ -163,7 +163,7 @@ export const downloadVideo = async (
 
     logger.info("Processing download request for input:", videoUrl);
     // Resolve attribution surface and source for statistics ingestion.
-    const clientHeader = req.headers["x-mytube-client"];
+    const clientHeader = req.headers?.["x-mytube-client"];
     const isExtensionRequest =
       typeof clientHeader === "string" && clientHeader.toLowerCase() === "extension";
     const statisticsSurface = isExtensionRequest

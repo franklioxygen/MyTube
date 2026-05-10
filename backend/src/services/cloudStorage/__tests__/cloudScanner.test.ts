@@ -32,6 +32,13 @@ describe('cloudStorage cloudScanner', () => {
 
     const mockCallback = vi.fn();
 
+    const expectSaveVideoCall = (videoMatcher: Record<string, unknown>) => {
+        expect(storageService.saveVideo).toHaveBeenCalledWith(
+            expect.objectContaining(videoMatcher),
+            { statisticsReason: 'scan' }
+        );
+    };
+
     beforeAll(async () => {
         const actualSecurity = await vi.importActual<typeof import('../../../utils/security')>(
             '../../../utils/security'
@@ -131,11 +138,11 @@ describe('cloudStorage cloudScanner', () => {
         expect(fileUploader.uploadFile).toHaveBeenCalled();
         
         // Save Video
-        expect(storageService.saveVideo).toHaveBeenCalledWith(expect.objectContaining({
+        expectSaveVideoCall({
             videoFilename: 'new_video.mp4',
             videoPath: 'cloud:new_video.mp4', // Relative to uploads root
             duration: '121' // 120.5 rounded
-        }));
+        });
         
         expect(result.added).toBe(1);
         expect(result.errors).toHaveLength(0);
@@ -229,12 +236,10 @@ describe('cloudStorage cloudScanner', () => {
         const result = await scanCloudFiles(mockConfig);
 
         expect(result.added).toBe(1);
-        expect(storageService.saveVideo).toHaveBeenCalledWith(
-            expect.objectContaining({
-                videoFilename: 'no_duration.mp4',
-                duration: undefined,
-            })
-        );
+        expectSaveVideoCall({
+            videoFilename: 'no_duration.mp4',
+            duration: undefined,
+        });
     });
 
     it('should retry ffmpeg failures and continue without thumbnail after max retries', async () => {
@@ -275,13 +280,11 @@ describe('cloudStorage cloudScanner', () => {
         timeoutSpy.mockRestore();
 
         expect(result.added).toBe(1);
-        expect(storageService.saveVideo).toHaveBeenCalledWith(
-            expect.objectContaining({
-                thumbnailFilename: undefined,
-                thumbnailPath: undefined,
-                thumbnailUrl: undefined,
-            })
-        );
+        expectSaveVideoCall({
+            thumbnailFilename: undefined,
+            thumbnailPath: undefined,
+            thumbnailUrl: undefined,
+        });
     });
 
     it('should ignore temp cleanup errors during ffmpeg retry attempts', async () => {
@@ -351,14 +354,12 @@ describe('cloudStorage cloudScanner', () => {
         const result = await scanCloudFiles(scanPathConfig);
 
         expect(result.added).toBe(1);
-        expect(storageService.saveVideo).toHaveBeenCalledWith(
-            expect.objectContaining({
-                videoPath: 'cloud:movies/from_scanpath.mp4',
-                thumbnailFilename: expect.stringMatching(/\.jpg$/),
-                thumbnailPath: expect.stringContaining('cloud:movies/'),
-                thumbnailUrl: expect.stringContaining('cloud:movies/'),
-            })
-        );
+        expectSaveVideoCall({
+            videoPath: 'cloud:movies/from_scanpath.mp4',
+            thumbnailFilename: expect.stringMatching(/\.jpg$/),
+            thumbnailPath: expect.stringContaining('cloud:movies/'),
+            thumbnailUrl: expect.stringContaining('cloud:movies/'),
+        });
     });
 
     it('should collect processing errors when saveVideo throws', async () => {

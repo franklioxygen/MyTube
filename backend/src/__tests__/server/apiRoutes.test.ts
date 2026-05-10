@@ -45,6 +45,7 @@ describe("registerApiRoutes", () => {
       adminReauthLimiter: vi.fn(),
       passkeyAuthLimiter: vi.fn(),
       passkeyRegistrationLimiter: vi.fn(),
+      statisticsIngestionLimiter: vi.fn(),
       feedLimiter: vi.fn(),
     };
 
@@ -93,6 +94,10 @@ describe("registerApiRoutes", () => {
       "/api/settings/passkeys/register/verify",
       authLimiters.passkeyRegistrationLimiter
     );
+    expect(app.post).toHaveBeenCalledWith(
+      "/api/statistics/events",
+      authLimiters.statisticsIngestionLimiter
+    );
 
     expect(app.use).toHaveBeenNthCalledWith(1, "/api", authMiddleware);
     expect(app.use).toHaveBeenNthCalledWith(2, "/api", apiKeyRoutes);
@@ -109,7 +114,7 @@ describe("registerApiRoutes", () => {
       settingsRoutes
     );
 
-    expect(app.post).toHaveBeenCalledTimes(8);
+    expect(app.post).toHaveBeenCalledTimes(9);
     expect(app.get).toHaveBeenCalledTimes(2);
     expect(app.use).toHaveBeenCalledTimes(4);
   });
@@ -122,13 +127,14 @@ describe("registerApiRoutes", () => {
       adminReauthLimiter: vi.fn(),
       passkeyAuthLimiter: vi.fn(),
       passkeyRegistrationLimiter: vi.fn(),
+      statisticsIngestionLimiter: vi.fn(),
       feedLimiter: vi.fn(),
     };
 
     registerApiRoutes(app, authLimiters as any, { includeFeedRoute: false });
 
     expect(app.get).not.toHaveBeenCalled();
-    expect(app.post).toHaveBeenCalledTimes(8);
+    expect(app.post).toHaveBeenCalledTimes(9);
     expect(app.use).toHaveBeenCalledTimes(4);
   });
 
