@@ -5,9 +5,12 @@
 // long-range trends. Snapshot cards are computed live from current tables.
 
 import fs from "fs";
-import path from "path";
 import { VIDEOS_DIR } from "../../config/paths";
 import { sqlite } from "../../db";
+import {
+  normalizeSafeAbsolutePath,
+  statTrustedSync,
+} from "../../utils/security";
 import * as storageService from "../storageService";
 import { getResolvedTimezone } from "./collector";
 import { bucketDownloadError, dayBucket } from "./normalizers";
@@ -72,9 +75,9 @@ function getWritableLocalMediaRoots(): string[] {
       const trimmed = line.trim();
       if (trimmed.length === 0) continue;
       try {
-        const resolved = path.resolve(trimmed);
-        if (fs.statSync(resolved).isDirectory()) {
-          mountRoots.push(resolved);
+        const safeRoot = normalizeSafeAbsolutePath(trimmed);
+        if (statTrustedSync(safeRoot).isDirectory()) {
+          mountRoots.push(safeRoot);
         }
       } catch {
         // Ignore unreadable roots.
@@ -91,9 +94,9 @@ function getWritableLocalMediaRoots(): string[] {
   }
 
   try {
-    const resolvedVideosRoot = path.resolve(VIDEOS_DIR);
-    if (fs.statSync(resolvedVideosRoot).isDirectory()) {
-      roots.add(resolvedVideosRoot);
+    const safeVideosRoot = normalizeSafeAbsolutePath(VIDEOS_DIR);
+    if (statTrustedSync(safeVideosRoot).isDirectory()) {
+      roots.add(safeVideosRoot);
     }
   } catch {
     // Ignore unreadable root.

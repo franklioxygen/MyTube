@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useSettings } from './useSettings';
 import { api, sendStatisticsEventsWithKeepalive } from '../utils/apiClient';
 
-const SESSION_STORAGE_KEY = 'mytube.statistics.sessionId';
+const SESSION_STORAGE_SLOT = 'mytube.statistics.sessionId';
 const SESSION_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const FLUSH_DEBOUNCE_MS = 5_000;
 const MAX_BATCH_SIZE = 50;
@@ -72,7 +72,7 @@ interface SessionRecord {
 
 function loadSessionRecord(): SessionRecord | null {
   try {
-    const raw = sessionStorage.getItem(SESSION_STORAGE_KEY);
+    const raw = sessionStorage.getItem(SESSION_STORAGE_SLOT);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as SessionRecord | null;
     if (!parsed || typeof parsed.sessionId !== 'string') return null;
@@ -84,7 +84,7 @@ function loadSessionRecord(): SessionRecord | null {
 
 function saveSessionRecord(record: SessionRecord): void {
   try {
-    sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(record));
+    sessionStorage.setItem(SESSION_STORAGE_SLOT, JSON.stringify(record));
   } catch {
     // Ignore quota errors etc.
   }

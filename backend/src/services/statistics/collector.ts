@@ -18,7 +18,7 @@ import {
   normalizeSurface,
 } from "./normalizers";
 
-const SETTING_TZ_KEY = "statisticsTimezone";
+const STATISTICS_TIMEZONE_FIELD = "statisticsTimezone";
 
 let cachedSettings: Settings | null = null;
 let cachedSettingsLoadedAt = 0;
@@ -86,8 +86,8 @@ export function ensureFrozenTimezoneOnEnable(): string {
     timezone = "UTC";
   }
   storageService.saveSettings(
-    { [SETTING_TZ_KEY]: timezone },
-    { extraWhitelistedKeys: [SETTING_TZ_KEY] }
+    { [STATISTICS_TIMEZONE_FIELD]: timezone },
+    { extraWhitelistedKeys: [STATISTICS_TIMEZONE_FIELD] }
   );
   invalidateStatisticsSettingsCache();
   return timezone;
