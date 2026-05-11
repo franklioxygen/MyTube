@@ -26,12 +26,24 @@ import {
   recordEvent,
   shouldTrackVisitorActivity,
 } from "../../../services/statistics/collector";
+import type { StatisticsEventInput } from "../../../services/statistics/eventTypes";
 
 function makeStmt(opts: { run?: unknown; get?: unknown; all?: unknown } = {}) {
   return {
     run: vi.fn().mockReturnValue(opts.run ?? { changes: 0 }),
     get: vi.fn().mockReturnValue(opts.get ?? undefined),
     all: vi.fn().mockReturnValue(opts.all ?? []),
+  };
+}
+
+function makeRecordEventInput(
+  overrides: Partial<StatisticsEventInput> = {}
+): StatisticsEventInput {
+  return {
+    eventType: "search_submitted",
+    actorRole: "admin",
+    surface: "web",
+    ...overrides,
   };
 }
 
@@ -130,7 +142,7 @@ describe("statistics collector", () => {
       mockGetSettings.mockReturnValue({ statisticsEnabled: false });
       invalidateStatisticsSettingsCache();
 
-      const id = recordEvent({ eventType: "search_submitted", actorRole: "admin" });
+      const id = recordEvent(makeRecordEventInput());
       expect(id).toBeNull();
     });
 
@@ -138,7 +150,7 @@ describe("statistics collector", () => {
       mockGetSettings.mockReturnValue({ statisticsEnabled: true, statisticsTrackVisitorActivity: false });
       invalidateStatisticsSettingsCache();
 
-      const id = recordEvent({ eventType: "search_submitted", actorRole: "visitor" });
+      const id = recordEvent(makeRecordEventInput({ actorRole: "visitor" }));
       expect(id).toBeNull();
     });
 
@@ -150,7 +162,7 @@ describe("statistics collector", () => {
         .mockReturnValueOnce(makeStmt() as any)                   // markDayDirty
         .mockReturnValueOnce(makeStmt() as any);                  // bumpIngestionMinute (accepted)
 
-      const id = recordEvent({ eventType: "search_submitted", actorRole: "admin" });
+      const id = recordEvent(makeRecordEventInput());
       expect(typeof id).toBe("string");
       expect(id).not.toBeNull();
     });
@@ -161,7 +173,7 @@ describe("statistics collector", () => {
         .mockReturnValueOnce(makeStmt() as any)                       // bumpIngestionMinute sealed
         .mockReturnValueOnce(makeStmt() as any);                      // bumpIngestionMinute dropped
 
-      const id = recordEvent({ eventType: "search_submitted", actorRole: "admin" });
+      const id = recordEvent(makeRecordEventInput());
       expect(id).toBeNull();
     });
 
@@ -170,7 +182,7 @@ describe("statistics collector", () => {
         throw new Error("insert failed");
       });
 
-      const id = recordEvent({ eventType: "search_submitted", actorRole: "admin" });
+      const id = recordEvent(makeRecordEventInput());
       expect(id).toBeNull();
     });
 
@@ -183,7 +195,7 @@ describe("statistics collector", () => {
         .mockReturnValueOnce(makeStmt() as any)
         .mockReturnValueOnce(makeStmt() as any);
 
-      const id = recordEvent({ eventType: "search_submitted", actorRole: "admin" }, { forceWrite: true });
+      const id = recordEvent(makeRecordEventInput(), { forceWrite: true });
       expect(id).not.toBeNull();
     });
   });
