@@ -60,6 +60,7 @@ let mockVideoPlayerSettingsReturn: Record<string, unknown>;
 vi.mock('react-router-dom', () => ({
     useNavigate: () => mockNavigate,
     useParams: () => ({ id: 'v1' }),
+    useLocation: () => ({ state: null }),
 }));
 
 vi.mock('../../contexts/LanguageContext', () => ({
