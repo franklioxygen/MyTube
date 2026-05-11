@@ -66,15 +66,17 @@ const StatisticsSettings: React.FC<StatisticsSettingsProps> = ({ settings, onCha
                 {t('statisticsHelper') || 'Statistics are stored locally in MyTube only.'}
             </Typography>
 
-            <FormControlLabel
-                control={
-                    <Switch
-                        checked={enabled}
-                        onChange={(e) => onChange('statisticsEnabled', e.target.checked)}
-                    />
-                }
-                label={t('statisticsEnableLabel') || 'Enable statistics collection'}
-            />
+            <Box id="statisticsEnabled-setting">
+                <FormControlLabel
+                    control={
+                        <Switch
+                            checked={enabled}
+                            onChange={(e) => onChange('statisticsEnabled', e.target.checked)}
+                        />
+                    }
+                    label={t('statisticsEnableLabel') || 'Enable statistics collection'}
+                />
+            </Box>
 
             {enabled && (
                 <>

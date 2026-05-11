@@ -4,7 +4,7 @@ runtimes:
     - python@3.11.11
 tools:
     - eslint@9.39.4
-    - opengrep@1.18.0
+    - opengrep@1.21.0
     - pmd@6.55.0
     - pylint@4.0.5
     - trivy@0.70.0

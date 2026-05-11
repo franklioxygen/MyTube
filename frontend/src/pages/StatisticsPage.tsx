@@ -8,6 +8,7 @@ import {
     CircularProgress,
     Container,
     Grid,
+    Link,
     MenuItem,
     Select,
     Stack,
@@ -17,9 +18,12 @@ import {
     TableHead,
     TableRow,
     Typography,
+    useMediaQuery,
+    useTheme,
 } from '@mui/material';
 import { useQueryClient } from '@tanstack/react-query';
 import React, { useState } from 'react';
+import { Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useSettings } from '../hooks/useSettings';
@@ -55,20 +59,6 @@ const formatDuration = (seconds: number): string => {
     return `${m}m`;
 };
 
-const formatDiskRunway = (runway?: {
-    status?: string;
-    daysRemaining?: number;
-}): string => {
-    if (!runway) return '—';
-    if (runway.status === 'ok' && typeof runway.daysRemaining === 'number') {
-        return `${Math.max(0, Math.floor(runway.daysRemaining))} days`;
-    }
-    if (runway.status === 'unavailable_storage') {
-        return 'Unavailable for this storage mode';
-    }
-    return 'Not enough recent activity';
-};
-
 type TranslateFn = (key: string, params?: Record<string, unknown>) => string | undefined;
 
 const RANGE_OPTIONS = [
@@ -89,6 +79,7 @@ interface StatisticsSeriesCardConfig extends SeriesCardProps {
 
 interface StatisticsRankingCardConfig extends RankingCardProps {
     id: string;
+    desktopColumns?: 6 | 12;
 }
 
 const translateOrFallback = (
@@ -96,7 +87,61 @@ const translateOrFallback = (
     key: string,
     fallback: string,
     params?: Record<string, unknown>
-): string => t(key, params) || fallback;
+): string => {
+    const translated = t(key, params);
+    return translated && translated !== key ? translated : fallback;
+};
+
+const FAILURE_BUCKET_FALLBACKS: Record<string, string> = {
+    auth_required: 'Authentication required',
+    source_unavailable: 'Source unavailable',
+    geo_or_network_blocked: 'Geo or network blocked',
+    extractor_changed: 'Extractor changed',
+    filesystem_error: 'Filesystem error',
+    cloud_upload_failed: 'Cloud upload failed',
+    unknown: 'Unknown',
+};
+
+const translateFailureBucketLabel = (t: TranslateFn, bucket?: string): string => {
+    const normalizedBucket = bucket || 'unknown';
+    const fallback =
+        FAILURE_BUCKET_FALLBACKS[normalizedBucket] ||
+        normalizedBucket.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+
+    return translateOrFallback(
+        t,
+        `statisticsFailureBucket_${normalizedBucket}`,
+        fallback
+    );
+};
+
+const formatDiskRunway = (
+    t: TranslateFn,
+    runway?: {
+        status?: string;
+        daysRemaining?: number;
+    }
+): string => {
+    if (!runway) return '—';
+    if (runway.status === 'ok' && typeof runway.daysRemaining === 'number') {
+        const daysRemaining = Math.max(0, Math.floor(runway.daysRemaining));
+        return translateOrFallback(t, 'statisticsDaysRemaining', `${daysRemaining} days`, {
+            count: daysRemaining,
+        });
+    }
+    if (runway.status === 'unavailable_storage') {
+        return translateOrFallback(
+            t,
+            'statisticsDiskRunwayUnavailable',
+            'Unavailable for this storage mode'
+        );
+    }
+    return translateOrFallback(
+        t,
+        'statisticsDiskRunwayInsufficientActivity',
+        'Not enough recent activity'
+    );
+};
 
 const buildSnapshotCards = (overview: StatisticsOverview, t: TranslateFn): SnapshotCardProps[] => [
     {
@@ -128,7 +173,7 @@ const buildSnapshotCards = (overview: StatisticsOverview, t: TranslateFn): Snaps
     },
     {
         label: translateOrFallback(t, 'diskRunway', 'Disk runway'),
-        value: formatDiskRunway(overview.diskRunway),
+        value: formatDiskRunway(t, overview.diskRunway),
     },
     {
         label: translateOrFallback(t, 'activeSubscriptions', 'Active subscriptions'),
@@ -314,7 +359,10 @@ const buildRankingCardConfigs = (params: {
         {
             id: 'failure-buckets',
             title: translateOrFallback(params.t, 'mostCommonFailures', 'Most common failure buckets'),
-            rows: params.failureBuckets,
+            rows: params.failureBuckets?.map((row) => ({
+                ...row,
+                label: translateFailureBucketLabel(params.t, row.key || row.label),
+            })),
             isLoading: params.failureBucketsLoading,
             valueLabel: (row) => `${row.count}`,
             emptyText,
@@ -327,9 +375,12 @@ const buildRankingCardConfigs = (params: {
             rows: params.largestUnwatched,
             isLoading: params.largestUnwatchedLoading,
             valueLabel: (row) => formatBytes(row.sum),
+            rowHref: (row) => `/video/${encodeURIComponent(row.key)}`,
             emptyText,
             itemLabel,
             valueColumnLabel,
+            desktopColumns: 12,
+            displayMode: 'ranked-list',
         },
     ];
 };
@@ -403,25 +454,66 @@ const StatisticsHealthCard: React.FC<{
     </Card>
 );
 
-const StatisticsSeriesGrid: React.FC<{ cards: StatisticsSeriesCardConfig[] }> = ({ cards }) => (
-    <Grid container spacing={2}>
-        {cards.map((card) => (
-            <Grid key={card.id} size={{ xs: 12, md: 6 }}>
-                <SeriesCard {...card} />
-            </Grid>
-        ))}
-    </Grid>
-);
+type StatisticsInsightCard =
+    | ({ kind: 'series' } & StatisticsSeriesCardConfig)
+    | ({ kind: 'ranking' } & StatisticsRankingCardConfig);
 
-const StatisticsRankingsGrid: React.FC<{ cards: StatisticsRankingCardConfig[] }> = ({ cards }) => (
-    <Grid container spacing={2} sx={{ mt: 3 }}>
-        {cards.map((card) => (
-            <Grid key={card.id} size={{ xs: 12, md: 6 }}>
-                <RankingCard {...card} />
+const splitCardsIntoColumns = <T,>(cards: T[]) => ({
+    leftCards: cards.filter((_, index) => index % 2 === 0),
+    rightCards: cards.filter((_, index) => index % 2 === 1),
+});
+
+const StatisticsInsightsLayout: React.FC<{
+    seriesCards: StatisticsSeriesCardConfig[];
+    rankingCards: StatisticsRankingCardConfig[];
+}> = ({ seriesCards, rankingCards }) => {
+    const theme = useTheme();
+    const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
+
+    const stackedCards: StatisticsInsightCard[] = [
+        ...seriesCards.map((card) => ({ ...card, kind: 'series' as const })),
+        ...rankingCards
+            .filter((card) => card.desktopColumns !== 12)
+            .map((card) => ({ ...card, kind: 'ranking' as const })),
+    ];
+    const fullWidthCards: StatisticsInsightCard[] = rankingCards
+        .filter((card) => card.desktopColumns === 12)
+        .map((card) => ({ ...card, kind: 'ranking' as const }));
+
+    const renderCard = (card: StatisticsInsightCard) => {
+        if (card.kind === 'series') {
+            const { kind: _kind, ...seriesCard } = card;
+            return <SeriesCard key={seriesCard.id} {...seriesCard} />;
+        }
+
+        const { kind: _kind, id, desktopColumns: _desktopColumns, ...rankingCard } = card;
+        return <RankingCard key={id} {...rankingCard} />;
+    };
+
+    if (!isDesktop) {
+        return (
+            <Stack spacing={2} sx={{ mt: 2 }}>
+                {[...stackedCards, ...fullWidthCards].map(renderCard)}
+            </Stack>
+        );
+    }
+
+    const { leftCards, rightCards } = splitCardsIntoColumns(stackedCards);
+
+    return (
+        <Stack spacing={2} sx={{ mt: 2 }}>
+            <Grid container spacing={2} alignItems="flex-start">
+                <Grid size={{ xs: 12, md: 6 }}>
+                    <Stack spacing={2}>{leftCards.map(renderCard)}</Stack>
+                </Grid>
+                <Grid size={{ xs: 12, md: 6 }}>
+                    <Stack spacing={2}>{rightCards.map(renderCard)}</Stack>
+                </Grid>
             </Grid>
-        ))}
-    </Grid>
-);
+            {fullWidthCards.map(renderCard)}
+        </Stack>
+    );
+};
 
 const StatisticsDashboardContent: React.FC<{
     overview: StatisticsOverview;
@@ -446,11 +538,7 @@ const StatisticsDashboardContent: React.FC<{
             </Stack>
         )}
 
-        <Grid container spacing={2} sx={{ mb: 3 }}>
-            {snapshotCards.map((card) => (
-                <SnapshotCard key={card.label} {...card} />
-            ))}
-        </Grid>
+        <StatisticsSnapshotGrid cards={snapshotCards} />
 
         <StatisticsHealthCard
             health={health}
@@ -458,8 +546,7 @@ const StatisticsDashboardContent: React.FC<{
             title={translateOrFallback(t, 'statisticsHealth', 'Statistics health')}
         />
 
-        <StatisticsSeriesGrid cards={seriesCards} />
-        <StatisticsRankingsGrid cards={rankingCards} />
+        <StatisticsInsightsLayout seriesCards={seriesCards} rankingCards={rankingCards} />
     </>
 );
 
@@ -589,6 +676,17 @@ const StatisticsPage: React.FC = () => {
                         'statisticsDisabledKeepVisibleNotice',
                         'Statistics collection is disabled. Existing reports remain available until you clear them.'
                     )}
+                    {' '}
+                    <Link
+                        component={RouterLink}
+                        to="/settings?tab=7#statisticsEnabled-setting"
+                    >
+                        {translateOrFallback(
+                            t,
+                            'statisticsDisabledOpenSettings',
+                            'Change in Settings'
+                        )}
+                    </Link>
                 </Alert>
             )}
 
@@ -614,18 +712,82 @@ interface SnapshotCardProps {
     value: string;
 }
 
-const SnapshotCard: React.FC<SnapshotCardProps> = ({ label, value }) => (
-    <Grid size={{ xs: 6, sm: 4, md: 3 }}>
-        <Card variant="outlined" sx={{ height: '100%' }}>
-            <CardContent>
-                <Typography variant="caption" color="text.secondary">
+const StatisticsSnapshotGrid: React.FC<{ cards: SnapshotCardProps[] }> = ({ cards }) => (
+    <Box
+        sx={{
+            display: 'grid',
+            gridTemplateColumns: {
+                xs: 'repeat(2, minmax(0, 1fr))',
+                sm: 'repeat(3, minmax(0, 1fr))',
+                md: 'repeat(3, minmax(0, 1fr))',
+                lg: 'repeat(5, minmax(0, 1fr))',
+            },
+            gap: 1.5,
+            mb: 3,
+        }}
+    >
+        {cards.map((card) => (
+            <SnapshotCard key={card.label} {...card} />
+        ))}
+    </Box>
+);
+
+const SnapshotCard: React.FC<SnapshotCardProps> = ({ label, value }) => {
+    const isLongValue = value.length > 18;
+
+    return (
+        <Card
+            variant="outlined"
+            sx={{
+                height: '100%',
+                borderRadius: 3,
+                backgroundImage: (theme) =>
+                    theme.palette.mode === 'dark'
+                        ? 'linear-gradient(180deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.01) 100%)'
+                        : 'linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(248,250,252,0.95) 100%)',
+            }}
+        >
+            <CardContent
+                sx={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    gap: 1.25,
+                    minHeight: { xs: 96, lg: 88 },
+                    p: 2.25,
+                    '&:last-child': {
+                        pb: 2.25,
+                    },
+                }}
+            >
+                <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.08em',
+                        fontWeight: 600,
+                        lineHeight: 1.2,
+                    }}
+                >
                     {label}
                 </Typography>
-                <Typography variant="h6">{value}</Typography>
+                <Typography
+                    variant={isLongValue ? 'h6' : 'h4'}
+                    sx={{
+                        fontWeight: 700,
+                        lineHeight: isLongValue ? 1.2 : 1.05,
+                        fontVariantNumeric: 'tabular-nums',
+                        overflowWrap: 'anywhere',
+                        wordBreak: 'break-word',
+                    }}
+                >
+                    {value}
+                </Typography>
             </CardContent>
         </Card>
-    </Grid>
-);
+    );
+};
 
 interface SeriesCardProps {
     title: string;
@@ -652,7 +814,7 @@ const SeriesCard: React.FC<SeriesCardProps> = ({
     );
 
     return (
-        <Card variant="outlined">
+        <Card variant="outlined" sx={{ height: '100%' }}>
             <CardContent>
                 <Typography variant="h6" sx={{ mb: 1 }}>
                     {title}
@@ -711,6 +873,8 @@ interface RankingCardProps {
     emptyText: string;
     itemLabel: string;
     valueColumnLabel: string;
+    displayMode?: 'table' | 'ranked-list';
+    rowHref?: (r: { key: string; label: string; count: number; sum: number }) => string | undefined;
 }
 
 const RankingCard: React.FC<RankingCardProps> = ({
@@ -721,11 +885,13 @@ const RankingCard: React.FC<RankingCardProps> = ({
     emptyText,
     itemLabel,
     valueColumnLabel,
+    displayMode = 'table',
+    rowHref,
 }) => {
     const hasRows = Boolean(rows && rows.length > 0);
 
     return (
-        <Card variant="outlined">
+        <Card variant="outlined" sx={{ height: '100%' }}>
             <CardContent>
                 <Typography variant="h6" sx={{ mb: 1 }}>
                     {title}
@@ -736,23 +902,145 @@ const RankingCard: React.FC<RankingCardProps> = ({
                         {emptyText}
                     </Typography>
                 )}
-                {hasRows && rows && (
-                    <Table size="small">
+                {hasRows && rows && displayMode === 'table' && (
+                    <Table size="small" sx={{ tableLayout: 'fixed' }}>
                         <TableHead>
                             <TableRow>
-                                <TableCell>{itemLabel}</TableCell>
-                                <TableCell align="right">{valueColumnLabel}</TableCell>
+                                <TableCell sx={{ width: '100%' }}>{itemLabel}</TableCell>
+                                <TableCell align="right" sx={{ width: 1, whiteSpace: 'nowrap' }}>
+                                    {valueColumnLabel}
+                                </TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
                             {rows.map((row) => (
                                 <TableRow key={row.key}>
-                                    <TableCell>{row.label}</TableCell>
-                                    <TableCell align="right">{valueLabel(row)}</TableCell>
+                                    <TableCell
+                                        sx={{
+                                            overflowWrap: 'anywhere',
+                                            wordBreak: 'break-word',
+                                        }}
+                                    >
+                                        {row.label}
+                                    </TableCell>
+                                    <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                                        {valueLabel(row)}
+                                    </TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>
                     </Table>
+                )}
+                {hasRows && rows && displayMode === 'ranked-list' && (
+                    <Box sx={{ mt: 1 }}>
+                        <Stack
+                            direction="row"
+                            justifyContent="space-between"
+                            spacing={2}
+                            sx={{
+                                px: 2,
+                                pb: 1,
+                                color: 'text.secondary',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.08em',
+                                fontSize: '0.7rem',
+                            }}
+                        >
+                            <Box component="span">{itemLabel}</Box>
+                            <Box component="span">{valueColumnLabel}</Box>
+                        </Stack>
+                        <Stack
+                            role="list"
+                            aria-label={title}
+                            divider={
+                                <Box
+                                    sx={{
+                                        borderBottom: 1,
+                                        borderColor: (theme) =>
+                                            theme.palette.mode === 'dark'
+                                                ? 'rgba(255,255,255,0.08)'
+                                                : 'rgba(15,23,42,0.08)',
+                                    }}
+                                />
+                            }
+                        >
+                            {rows.map((row, index) => {
+                                const href = rowHref?.(row);
+
+                                return (
+                                    <Stack
+                                        key={row.key}
+                                        role="listitem"
+                                        direction="row"
+                                        spacing={2}
+                                        alignItems="flex-start"
+                                        sx={{ px: 2, py: 1.5 }}
+                                    >
+                                        <Typography
+                                            variant="caption"
+                                            color="text.secondary"
+                                            sx={{
+                                                width: 24,
+                                                flexShrink: 0,
+                                                pt: 0.25,
+                                                fontVariantNumeric: 'tabular-nums',
+                                            }}
+                                        >
+                                            {String(index + 1).padStart(2, '0')}
+                                        </Typography>
+                                        <Box
+                                            sx={{
+                                                flex: 1,
+                                                minWidth: 0,
+                                            }}
+                                        >
+                                            {href ? (
+                                                <Link
+                                                    component={RouterLink}
+                                                    to={href}
+                                                    color="inherit"
+                                                    underline="hover"
+                                                    variant="body2"
+                                                    sx={{
+                                                        display: 'block',
+                                                        lineHeight: 1.45,
+                                                        overflowWrap: 'anywhere',
+                                                        wordBreak: 'break-word',
+                                                    }}
+                                                >
+                                                    {row.label}
+                                                </Link>
+                                            ) : (
+                                                <Typography
+                                                    variant="body2"
+                                                    sx={{
+                                                        lineHeight: 1.45,
+                                                        overflowWrap: 'anywhere',
+                                                        wordBreak: 'break-word',
+                                                    }}
+                                                >
+                                                    {row.label}
+                                                </Typography>
+                                            )}
+                                        </Box>
+                                        <Typography
+                                            variant="body2"
+                                            color="text.secondary"
+                                            sx={{
+                                                flexShrink: 0,
+                                                pl: 2,
+                                                pt: 0.1,
+                                                whiteSpace: 'nowrap',
+                                                fontVariantNumeric: 'tabular-nums',
+                                            }}
+                                        >
+                                            {valueLabel(row)}
+                                        </Typography>
+                                    </Stack>
+                                );
+                            })}
+                        </Stack>
+                    </Box>
                 )}
             </CardContent>
         </Card>
