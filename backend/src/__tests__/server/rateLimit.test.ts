@@ -51,13 +51,14 @@ describe("configureRateLimiting", () => {
 
     const authLimiters = configureRateLimiting(app);
 
-    expect(mocked.rateLimitFactory).toHaveBeenCalledTimes(7);
+    expect(mocked.rateLimitFactory).toHaveBeenCalledTimes(8);
     expect(mocked.createdLimiters[1]).toBe(authLimiters.adminPasswordLimiter);
     expect(mocked.createdLimiters[2]).toBe(authLimiters.visitorPasswordLimiter);
     expect(mocked.createdLimiters[3]).toBe(authLimiters.adminReauthLimiter);
     expect(mocked.createdLimiters[4]).toBe(authLimiters.passkeyAuthLimiter);
     expect(mocked.createdLimiters[5]).toBe(authLimiters.passkeyRegistrationLimiter);
     expect(mocked.createdLimiters[6]).toBe(authLimiters.feedLimiter);
+    expect(mocked.createdLimiters[7]).toBe(authLimiters.statisticsIngestionLimiter);
     expect(app.use).toHaveBeenCalledTimes(1);
 
     const generalOptions = (mocked.createdLimiters[0] as any).__options;
@@ -84,11 +85,12 @@ describe("configureRateLimiting", () => {
     middleware({ path: "/videos/abc.mp4" }, {}, next);
     middleware({ path: "/api/download" }, {}, next);
     middleware({ path: "/api/check-playlist" }, {}, next);
+    middleware({ path: "/api/statistics/events" }, {}, next);
     middleware({ path: "/api/settings/password-enabled" }, {}, next);
     middleware({ path: "/feed/token" }, {}, next);
     middleware({ path: "/api/rss/feed/token" }, {}, next);
 
-    expect(next).toHaveBeenCalledTimes(6);
+    expect(next).toHaveBeenCalledTimes(7);
     expect(generalLimiter).not.toHaveBeenCalled();
   });
 

@@ -444,7 +444,9 @@ const processSingleVideoFile = async (
     fileSize,
   };
 
-  storageService.saveVideo(newVideo);
+  storageService.saveVideo(newVideo, {
+    statisticsReason: "scan",
+  });
   existingVideosByPath.set(webPath, {
     id: videoId,
     fileSize,

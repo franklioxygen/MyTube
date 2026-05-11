@@ -135,6 +135,23 @@ export class TelegramService {
     }
   }
 
+  // Send a one-off plain text alert (used by the statistics alert dispatcher).
+  static async sendAlert(text: string): Promise<boolean> {
+    try {
+      const settings = storageService.getSettings() as Settings;
+      if (!settings.telegramEnabled || !settings.telegramBotToken || !settings.telegramChatId) {
+        return false;
+      }
+      await sendMessage(settings.telegramBotToken, settings.telegramChatId, escapeHtml(text));
+      return true;
+    } catch (error: unknown) {
+      logger.error(
+        `[TelegramService] Failed to send alert: ${error instanceof Error ? error.message : String(error)}`
+      );
+      return false;
+    }
+  }
+
   static async sendTestMessage(botToken: string, chatId: string): Promise<{ ok: boolean; error?: string }> {
     try {
       const settings = storageService.getSettings() as Settings;

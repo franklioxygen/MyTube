@@ -29,6 +29,7 @@ import {
 } from "./downloaders/ytdlp/ytdlpTwitch";
 import { YtDlpDownloader } from "./downloaders/YtDlpDownloader";
 import { FilenameTemplateSourceOptions } from "./filenameTemplate/types";
+import { recordEvent, bucketDownloadError, platformFromUrl } from "./statistics";
 import * as storageService from "./storageService";
 import { runSubscriptionRetentionCleanup } from "./subscriptionRetentionService";
 import { TelegramService } from "./telegramService";
@@ -165,6 +166,11 @@ export interface Subscription {
 
   // Retention
   retentionDays?: number | null;
+
+  // Statistics-related durable state
+  consecutiveFailureCount?: number;
+  lastCheckStatus?: string | null;
+  lastFailureReason?: string | null;
 }
 
 export class SubscriptionService {
@@ -512,7 +518,7 @@ export class SubscriptionService {
   /**
    * Check for new playlists on a channel and subscribe to them
    */
-  async checkChannelPlaylists(sub: Subscription): Promise<void> {
+  async checkChannelPlaylists(sub: Subscription): Promise<number> {
     try {
       logger.info(`Checking channel playlists for ${sub.author}...`);
 
@@ -545,7 +551,7 @@ export class SubscriptionService {
 
       if (!result.entries || result.entries.length === 0) {
         logger.debug(`No playlists found for watcher ${sub.author}`);
-        return;
+        return 0;
       }
 
       // Extract channel name if needed (to update watcher name if generic?)
@@ -651,8 +657,10 @@ export class SubscriptionService {
         .update(subscriptions)
         .set({ lastCheck: Date.now() })
         .where(eq(subscriptions.id, sub.id));
+      return newSubscriptionsCount;
     } catch (error) {
       logger.error(`Error in playlists watcher for ${sub.author}:`, error);
+      return 0;
     }
   }
 
@@ -769,6 +777,65 @@ export class SubscriptionService {
     return await db.select().from(subscriptions);
   }
 
+  // Update durable subscription counters in-band with the statistics event so
+  // streak state and event history cannot drift (design §6.5/§8.5).
+  private async recordSubscriptionCheckCompleted(
+    sub: Subscription,
+    status: "success" | "fail",
+    options: { newVideoCount?: number; failureReason?: string | null } = {}
+  ): Promise<void> {
+    try {
+      if (status === "success") {
+        await db
+          .update(subscriptions)
+          .set({
+            consecutiveFailureCount: 0,
+            lastCheckStatus: "success",
+            lastFailureReason: null,
+          })
+          .where(eq(subscriptions.id, sub.id))
+          .run();
+      } else {
+        const next = (sub.consecutiveFailureCount ?? 0) + 1;
+        await db
+          .update(subscriptions)
+          .set({
+            consecutiveFailureCount: next,
+            lastCheckStatus: "fail",
+            lastFailureReason: options.failureReason ?? "unknown",
+          })
+          .where(eq(subscriptions.id, sub.id))
+          .run();
+      }
+    } catch (counterError) {
+      logger.debug(
+        "Failed to update subscription durable counters",
+        counterError instanceof Error
+          ? counterError
+          : new Error(String(counterError))
+      );
+    }
+    try {
+      const subPlatform =
+        typeof sub.platform === "string" ? sub.platform.toLowerCase() : null;
+      recordEvent({
+        eventType: "subscription_check_completed",
+        actorRole: "system",
+        surface: "background",
+        sessionId: null,
+        subscriptionId: sub.id,
+        platform: subPlatform as any,
+        payload: {
+          status,
+          subscriptionAuthor: sub.author,
+          newVideoCount: options.newVideoCount ?? 0,
+        },
+      });
+    } catch {
+      // statistics is best-effort
+    }
+  }
+
   async checkSubscriptions(): Promise<void> {
     if (this.isCheckingSubscriptions) {
       logger.debug("Subscription check already running, skipping this tick");
@@ -794,6 +861,9 @@ export class SubscriptionService {
         const intervalMs = sub.interval * 60 * 1000;
 
         if (now - lastCheck >= intervalMs) {
+          let checkStatus: "success" | "fail" = "success";
+          let checkFailureReason: string | null = null;
+          let checkNewVideoCount = 0;
           try {
             logger.info(
               `Checking subscription for ${sub.author} (${sub.platform})...`
@@ -801,12 +871,12 @@ export class SubscriptionService {
 
           // 1. Fetch latest video link based on platform and subscription type
             if (sub.subscriptionType === "channel_playlists") {
-              await this.checkChannelPlaylists(sub);
+              checkNewVideoCount = await this.checkChannelPlaylists(sub);
               continue; // Watcher handled, move to next subscription
             }
 
             if (sub.platform === "Twitch") {
-              await this.checkTwitchSubscription(sub);
+              checkNewVideoCount = await this.checkTwitchSubscription(sub);
               continue;
             }
 
@@ -869,6 +939,7 @@ export class SubscriptionService {
                 downloadedVideoTitle =
                   videoData.title || `New video from ${sub.author}`;
                 videoDownloaded = true;
+                checkNewVideoCount += 1;
                 storageService.addDownloadHistoryItem({
                   id: uuidv4(),
                   title: downloadedVideoTitle,
@@ -880,6 +951,16 @@ export class SubscriptionService {
                   thumbnailPath: videoData.thumbnailPath,
                   videoId: videoData.id,
                   subscriptionId: sub.id,
+                  platform:
+                    typeof sub.platform === "string"
+                      ? sub.platform.toLowerCase()
+                      : undefined,
+                  sourceKind: "subscription",
+                  totalSize:
+                    typeof videoData.fileSize === "string" ||
+                    typeof videoData.fileSize === "number"
+                      ? String(videoData.fileSize)
+                      : undefined,
                 });
 
                 // For playlist subscriptions, add video to the associated collection
@@ -968,7 +1049,14 @@ export class SubscriptionService {
                   status: "failed",
                   error: errorMessage,
                   subscriptionId: sub.id,
+                  platform:
+                    typeof sub.platform === "string"
+                      ? sub.platform.toLowerCase()
+                      : undefined,
+                  sourceKind: "subscription",
                 });
+                checkStatus = "fail";
+                checkFailureReason = bucketDownloadError(errorMessage);
 
                 // Note: We already updated lastCheck, so we won't retry until next interval.
                 // This acts as a "backoff" preventing retry loops for broken downloads.
@@ -1042,7 +1130,18 @@ export class SubscriptionService {
                     thumbnailPath: videoData.thumbnailPath,
                     videoId: videoData.id,
                     subscriptionId: sub.id,
+                    platform:
+                      typeof sub.platform === "string"
+                        ? sub.platform.toLowerCase()
+                        : undefined,
+                    sourceKind: "subscription",
+                    totalSize:
+                      typeof videoData.fileSize === "string" ||
+                      typeof videoData.fileSize === "number"
+                        ? String(videoData.fileSize)
+                        : undefined,
                   });
+                  checkNewVideoCount += 1;
 
                   // Update subscription record with new short link
                   const shortUpdateResult = await db
@@ -1110,7 +1209,14 @@ export class SubscriptionService {
                     status: "failed",
                     error: errorMessage,
                     subscriptionId: sub.id,
+                    platform:
+                      typeof sub.platform === "string"
+                        ? sub.platform.toLowerCase()
+                        : undefined,
+                    sourceKind: "subscription",
                   });
+                  checkStatus = "fail";
+                  checkFailureReason = bucketDownloadError(errorMessage);
                 }
               }
               } catch (shortsError) {
@@ -1125,6 +1231,19 @@ export class SubscriptionService {
               `Error checking subscription for ${sub.author}:`,
               error
             );
+            checkStatus = "fail";
+            checkFailureReason = bucketDownloadError(
+              error instanceof Error ? error.message : String(error)
+            );
+          } finally {
+            try {
+              await this.recordSubscriptionCheckCompleted(sub, checkStatus, {
+                newVideoCount: checkNewVideoCount,
+                failureReason: checkFailureReason,
+              });
+            } catch {
+              // statistics is best-effort
+            }
           }
         }
       }
@@ -1137,7 +1256,7 @@ export class SubscriptionService {
     return video.type === "archive" || video.type === "upload";
   }
 
-  private async checkTwitchSubscription(sub: Subscription): Promise<void> {
+  private async checkTwitchSubscription(sub: Subscription): Promise<number> {
     const now = Date.now();
     const lockResult = await db
       .update(subscriptions)
@@ -1149,16 +1268,15 @@ export class SubscriptionService {
       logger.warn(
         `Twitch subscription ${sub.id} (${sub.author}) was deleted before polling`
       );
-      return;
+      return 0;
     }
 
     if (!twitchApiService.isConfigured()) {
-      await this.checkTwitchSubscriptionWithYtDlp(sub);
-      return;
+      return await this.checkTwitchSubscriptionWithYtDlp(sub);
     }
 
     try {
-      await this.checkTwitchSubscriptionWithApi(sub);
+      return await this.checkTwitchSubscriptionWithApi(sub);
     } catch (error) {
       if (!shouldFallbackToTwitchYtDlp(error)) {
         throw error;
@@ -1168,13 +1286,13 @@ export class SubscriptionService {
         `Falling back to yt-dlp for Twitch subscription ${sub.id} (${sub.author}) after Helix polling failed`,
         error instanceof Error ? error : new Error(String(error))
       );
-      await this.checkTwitchSubscriptionWithYtDlp(sub);
+      return await this.checkTwitchSubscriptionWithYtDlp(sub);
     }
   }
 
   private async checkTwitchSubscriptionWithApi(
     sub: Subscription
-  ): Promise<void> {
+  ): Promise<number> {
     twitchApiService.ensureConfigured();
 
     let channel = sub.twitchBroadcasterId
@@ -1197,7 +1315,7 @@ export class SubscriptionService {
       logger.warn(
         `Twitch channel for subscription ${sub.id} could not be resolved`
       );
-      return;
+      return 0;
     }
 
     await db
@@ -1267,10 +1385,10 @@ export class SubscriptionService {
     }
 
     if (unseenVideos.length === 0) {
-      return;
+      return 0;
     }
 
-    await this.processTwitchSubscriptionVideos(
+    return await this.processTwitchSubscriptionVideos(
       sub,
       unseenVideos
         .reverse()
@@ -1286,7 +1404,7 @@ export class SubscriptionService {
 
   private async checkTwitchSubscriptionWithYtDlp(
     sub: Subscription
-  ): Promise<void> {
+  ): Promise<number> {
     const fallbackLogin =
       sub.twitchBroadcasterLogin || extractTwitchChannelLogin(sub.authorUrl);
     if (!fallbackLogin) {
@@ -1360,10 +1478,10 @@ export class SubscriptionService {
     }
 
     if (unseenVideos.length === 0) {
-      return;
+      return 0;
     }
 
-    await this.processTwitchSubscriptionVideos(
+    return await this.processTwitchSubscriptionVideos(
       sub,
       unseenVideos
         .reverse()
@@ -1385,10 +1503,11 @@ export class SubscriptionService {
       title: string;
       authorName?: string | null;
     }>
-  ): Promise<void> {
+  ): Promise<number> {
     let currentLastVideoLink = sub.lastVideoLink || "";
     let currentLastTwitchVideoId = sub.lastTwitchVideoId;
     let currentDownloadCount = sub.downloadCount || 0;
+    let newVideoCount = 0;
 
     for (const video of videosToProcess) {
       const existingDownload = storageService.checkVideoDownloadBySourceId(
@@ -1434,7 +1553,15 @@ export class SubscriptionService {
           thumbnailPath: videoData.thumbnailPath,
           videoId: videoData.id,
           subscriptionId: sub.id,
+          platform: platformFromUrl(video.url),
+          sourceKind: "subscription",
+          totalSize:
+            typeof videoData.fileSize === "string" ||
+            typeof videoData.fileSize === "number"
+              ? String(videoData.fileSize)
+              : undefined,
         });
+        newVideoCount += 1;
 
         currentLastTwitchVideoId = video.id;
         currentLastVideoLink = video.url;
@@ -1496,6 +1623,8 @@ export class SubscriptionService {
           status: "failed",
           error: errorMessage,
           subscriptionId: sub.id,
+          platform: platformFromUrl(video.url),
+          sourceKind: "subscription",
         });
         notifySubscriptionDownloadResult({
           taskTitle: video.title || `Video from ${sub.author}`,
@@ -1506,6 +1635,8 @@ export class SubscriptionService {
         break;
       }
     }
+
+    return newVideoCount;
   }
 
   startScheduler() {

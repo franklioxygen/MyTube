@@ -866,13 +866,78 @@ describe('SubscriptionService', () => {
       mockBuilder.then = (cb: any) => Promise.resolve([paused, watcher]).then(cb);
       const watcherSpy = vi
         .spyOn(subscriptionService, 'checkChannelPlaylists')
-        .mockResolvedValue(undefined);
+        .mockResolvedValue(0 as any);
 
       await subscriptionService.checkSubscriptions();
 
       expect(watcherSpy).toHaveBeenCalledWith(watcher as any);
       expect(YtDlpDownloader.getLatestVideoUrl).not.toHaveBeenCalled();
       watcherSpy.mockRestore();
+    });
+
+    it('records channel watcher checks once and preserves discovered playlist count', async () => {
+      const watcher = {
+        id: 'watcher-sub',
+        author: 'Watcher',
+        platform: 'YouTube',
+        authorUrl: 'https://www.youtube.com/@watcher/playlists',
+        interval: 1,
+        lastCheck: 0,
+        paused: 0,
+        subscriptionType: 'channel_playlists',
+      };
+
+      mockBuilder.then = (cb: any) => Promise.resolve([watcher]).then(cb);
+      const watcherSpy = vi
+        .spyOn(subscriptionService, 'checkChannelPlaylists')
+        .mockResolvedValue(2 as any);
+      const recordSpy = vi
+        .spyOn(subscriptionService as any, 'recordSubscriptionCheckCompleted')
+        .mockResolvedValue(undefined);
+
+      await subscriptionService.checkSubscriptions();
+
+      expect(recordSpy).toHaveBeenCalledTimes(1);
+      expect(recordSpy).toHaveBeenCalledWith(
+        watcher,
+        'success',
+        expect.objectContaining({ newVideoCount: 2 })
+      );
+
+      watcherSpy.mockRestore();
+      recordSpy.mockRestore();
+    });
+
+    it('records Twitch checks once and preserves discovered video count', async () => {
+      const twitchSub = {
+        id: 'twitch-sub',
+        author: 'Streamer',
+        platform: 'Twitch',
+        authorUrl: 'https://www.twitch.tv/streamer',
+        interval: 1,
+        lastCheck: 0,
+        paused: 0,
+      };
+
+      mockBuilder.then = (cb: any) => Promise.resolve([twitchSub]).then(cb);
+      const twitchSpy = vi
+        .spyOn(subscriptionService as any, 'checkTwitchSubscription')
+        .mockResolvedValue(3);
+      const recordSpy = vi
+        .spyOn(subscriptionService as any, 'recordSubscriptionCheckCompleted')
+        .mockResolvedValue(undefined);
+
+      await subscriptionService.checkSubscriptions();
+
+      expect(recordSpy).toHaveBeenCalledTimes(1);
+      expect(recordSpy).toHaveBeenCalledWith(
+        twitchSub,
+        'success',
+        expect.objectContaining({ newVideoCount: 3 })
+      );
+
+      twitchSpy.mockRestore();
+      recordSpy.mockRestore();
     });
 
     it('should skip download when subscription is deleted before lock update', async () => {

@@ -153,6 +153,11 @@ export const WHITELISTED_SETTINGS = [
   "twitchClientSecret",
   "downloadFilenamePresetId",
   "downloadFilenameTemplate",
+  "statisticsEnabled",
+  "statisticsRetentionDays",
+  "statisticsCaptureSearchText",
+  "statisticsTrackVisitorActivity",
+  "statisticsKeepDataWhenDisabled",
 ] as const;
 
 export interface SaveSettingsOptions {

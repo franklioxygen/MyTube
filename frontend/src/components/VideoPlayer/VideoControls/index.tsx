@@ -1,5 +1,6 @@
 import { Box } from '@mui/material';
 import React, { useCallback, useEffect } from 'react';
+import { useStatisticsWatchTracker } from '../../../hooks/useStatisticsWatchTracker';
 import ControlsOverlay from './ControlsOverlay';
 import { useFocusPause } from './hooks/useFocusPause';
 import { useFullscreen } from './hooks/useFullscreen';
@@ -28,6 +29,9 @@ interface VideoControlsProps {
     onToggleCinemaMode?: () => void;
     onUploadSubtitle?: (file: File) => Promise<void>;
     onDeleteSubtitle?: (index: number) => void | Promise<void>;
+    statisticsVideoId?: string | null;
+    statisticsPlatform?: string | null;
+    statisticsRelatedEventId?: string | null;
 }
 
 const VideoControls: React.FC<VideoControlsProps> = ({
@@ -47,7 +51,10 @@ const VideoControls: React.FC<VideoControlsProps> = ({
     isCinemaMode = false,
     onToggleCinemaMode,
     onUploadSubtitle,
-    onDeleteSubtitle
+    onDeleteSubtitle,
+    statisticsVideoId = null,
+    statisticsPlatform = null,
+    statisticsRelatedEventId = null,
 }) => {
     // Core video player logic
     const videoPlayer = useVideoPlayer({
@@ -61,6 +68,14 @@ const VideoControls: React.FC<VideoControlsProps> = ({
 
     // Auto-pause on focus loss
     useFocusPause(videoPlayer.videoRef, pauseOnFocusLoss);
+
+    // Statistics: track qualified-playback chunks for the watch-time metric.
+    useStatisticsWatchTracker({
+        videoRef: videoPlayer.videoRef,
+        videoId: statisticsVideoId,
+        platform: statisticsPlatform,
+        relatedEventId: statisticsRelatedEventId,
+    });
 
     // Fullscreen management
     const fullscreen = useFullscreen(videoPlayer.videoRef);

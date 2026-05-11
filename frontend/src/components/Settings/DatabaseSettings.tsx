@@ -1,5 +1,6 @@
 import { Close, Delete, Download, History, Upload } from '@mui/icons-material';
 import {
+    Alert,
     Box,
     Button,
     CircularProgress,
@@ -495,6 +496,10 @@ const DatabaseSettings: React.FC<DatabaseSettingsProps> = ({
                     <DialogContentText sx={{ mb: 2, color: 'text.secondary' }}>
                         {t('mergeDatabaseKeepsCurrentData')}
                     </DialogContentText>
+                    <Alert severity="info" sx={{ mb: 2 }}>
+                        {t('mergeDatabaseStatisticsNotice') ||
+                            'Statistics collected by this instance stay local and are not merged from the uploaded database.'}
+                    </Alert>
                     <Button
                         variant="outlined"
                         component="label"

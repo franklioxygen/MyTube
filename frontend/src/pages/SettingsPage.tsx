@@ -34,6 +34,7 @@ import HookSettings from '../components/Settings/HookSettings';
 import InterfaceDisplaySettings from '../components/Settings/InterfaceDisplaySettings';
 import RssFeedSettings from '../components/Settings/RssFeedSettings';
 import SecuritySettings from '../components/Settings/SecuritySettings';
+import StatisticsSettings from '../components/Settings/StatisticsSettings';
 import TagsSettings from '../components/Settings/TagsSettings';
 import TwitchSettings from '../components/Settings/TwitchSettings';
 import VideoDefaultSettings from '../components/Settings/VideoDefaultSettings';
@@ -701,6 +702,7 @@ const SettingsPage: React.FC = () => {
                 telegramNotifyOnFail={settings.telegramNotifyOnFail}
                 onChange={handleChange}
             />
+            <StatisticsSettings settings={settings} onChange={handleChange} />
             {canUseContainerAdminFeatures ? (
                 <HookSettings
                     settings={settings}

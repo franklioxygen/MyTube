@@ -56,6 +56,8 @@ const queueSelectResults = (...results: unknown[][]) => {
   });
 };
 
+const RETENTION_DELETE_REASON = "retention";
+
 describe("subscriptionRetentionService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -77,7 +79,10 @@ describe("subscriptionRetentionService", () => {
 
     const summary = await runSubscriptionRetentionCleanup();
 
-    expect(storageService.deleteVideo).toHaveBeenCalledWith("video-1");
+    expect(storageService.deleteVideo).toHaveBeenCalledWith(
+      "video-1",
+      RETENTION_DELETE_REASON
+    );
     // deleteVideo() updates download_history internally; the cleanup loop
     // must not double-write.
     expect(storageService.markDownloadHistoryDeletedByVideoId).not.toHaveBeenCalled();
@@ -123,7 +128,10 @@ describe("subscriptionRetentionService", () => {
 
     const summary = await runSubscriptionRetentionCleanup();
 
-    expect(storageService.deleteVideo).toHaveBeenCalledWith("video-1");
+    expect(storageService.deleteVideo).toHaveBeenCalledWith(
+      "video-1",
+      RETENTION_DELETE_REASON
+    );
     expect(summary.deletedVideos).toBe(1);
     expect(summary.skippedSharedVideos).toBe(0);
   });
@@ -155,7 +163,10 @@ describe("subscriptionRetentionService", () => {
 
     const summary = await runSubscriptionRetentionCleanup();
 
-    expect(storageService.deleteVideo).toHaveBeenCalledWith("video-1");
+    expect(storageService.deleteVideo).toHaveBeenCalledWith(
+      "video-1",
+      RETENTION_DELETE_REASON
+    );
     expect(storageService.markDownloadHistoryDeletedByVideoId).not.toHaveBeenCalled();
     expect(summary.deletedVideos).toBe(0);
   });
@@ -194,7 +205,10 @@ describe("subscriptionRetentionService", () => {
     const summary = await runSubscriptionRetentionCleanup();
 
     expect(storageService.deleteVideo).toHaveBeenCalledTimes(1);
-    expect(storageService.deleteVideo).toHaveBeenCalledWith("owned-video-1");
+    expect(storageService.deleteVideo).toHaveBeenCalledWith(
+      "owned-video-1",
+      RETENTION_DELETE_REASON
+    );
     expect(summary.skippedSharedVideos).toBe(100);
     expect(summary.deletedVideos).toBe(1);
   });

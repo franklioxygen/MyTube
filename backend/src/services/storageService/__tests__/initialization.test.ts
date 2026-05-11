@@ -58,7 +58,7 @@ describe("storageService initialization", () => {
     let videosPragmaCalls = 0;
     const indexRun = vi.fn();
     const dedupeDeleteRun = vi.fn(() => ({ changes: 1 }));
-    const backfillRun = vi.fn(() => ({ changes: 2 }));
+    const backfillVideoIdRun = vi.fn(() => ({ changes: 2 }));
 
     vi.mocked(sqlite.prepare).mockImplementation((sql: string) => {
       if (sql.includes("GROUP BY source_video_id, platform")) {
@@ -99,8 +99,13 @@ describe("storageService initialization", () => {
       if (sql === "PRAGMA table_info(download_history)") {
         return { all: vi.fn(() => []) } as any;
       }
+      if (
+        sql.includes("SET video_id = (SELECT id FROM videos WHERE videos.source_url = download_history.source_url)")
+      ) {
+        return { run: backfillVideoIdRun } as any;
+      }
       if (sql.includes("UPDATE download_history")) {
-        return { run: backfillRun } as any;
+        return { run: vi.fn(() => ({ changes: 0 })) } as any;
       }
       if (
         sql.includes("ALTER TABLE") ||
@@ -171,7 +176,7 @@ describe("storageService initialization", () => {
       expect.stringContaining("duplicated video_downloads groups")
     );
     expect(updateRun).toHaveBeenCalledTimes(3);
-    expect(backfillRun).toHaveBeenCalledTimes(1);
+    expect(backfillVideoIdRun).toHaveBeenCalledTimes(1);
     expect(logger.info).toHaveBeenCalledWith(
       expect.stringContaining("Backfilled video_id")
     );
@@ -182,7 +187,7 @@ describe("storageService initialization", () => {
     const indexRun = vi.fn(() => {
       throw new Error("index conflict");
     });
-    const backfillRun = vi.fn(() => {
+    const backfillVideoIdRun = vi.fn(() => {
       throw new Error("backfill failed");
     });
 
@@ -233,8 +238,13 @@ describe("storageService initialization", () => {
       if (sql.includes("CREATE UNIQUE INDEX")) {
         return { run: indexRun } as any;
       }
+      if (
+        sql.includes("SET video_id = (SELECT id FROM videos WHERE videos.source_url = download_history.source_url)")
+      ) {
+        return { run: backfillVideoIdRun } as any;
+      }
       if (sql.includes("UPDATE download_history")) {
-        return { run: backfillRun } as any;
+        return { run: vi.fn(() => ({ changes: 0 })) } as any;
       }
       if (sql.includes("CREATE TABLE") || sql.includes("CREATE INDEX")) {
         return { run: vi.fn() } as any;

@@ -5,6 +5,7 @@ import { VideoCardCollectionInfo } from '../utils/videoCardUtils';
 interface UseVideoCardNavigationProps {
     video: Video;
     collectionInfo: VideoCardCollectionInfo;
+    statisticsRelatedEventId?: string | null;
 }
 
 /**
@@ -13,7 +14,8 @@ interface UseVideoCardNavigationProps {
  */
 export const useVideoCardNavigation = ({
     video,
-    collectionInfo
+    collectionInfo,
+    statisticsRelatedEventId = null
 }: UseVideoCardNavigationProps) => {
     const navigate = useNavigate();
 
@@ -23,6 +25,13 @@ export const useVideoCardNavigation = ({
             navigate(`/collection/${collectionInfo.firstCollectionId}`);
         } else {
             // Otherwise navigate to the video player page
+            if (statisticsRelatedEventId) {
+                navigate(`/video/${video.id}`, {
+                    state: { statisticsRelatedEventId }
+                });
+                return;
+            }
+
             navigate(`/video/${video.id}`);
         }
     };

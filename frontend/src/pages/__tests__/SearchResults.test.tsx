@@ -18,6 +18,7 @@ const mockUseVideoReturn = {
     deleteVideo: vi.fn(),
     resetSearch: vi.fn(),
     setIsSearchMode: vi.fn(),
+    lastSearchEventId: null as string | null,
     showYoutubeSearch: true,
     loadMoreSearchResults: vi.fn(),
     loadingMore: false,
@@ -39,10 +40,12 @@ vi.mock('../../contexts/DownloadContext', () => ({
 }));
 
 // Mock VideoCard as a simple stub
+const mockVideoCard = vi.fn();
 vi.mock('../../components/VideoCard', () => ({
-    default: ({ video }: { video: { id: string; title: string } }) => (
-        <div data-testid={`video-card-${video.id}`}>{video.title}</div>
-    ),
+    default: (props: { video: { id: string; title: string } }) => {
+        mockVideoCard(props);
+        return <div data-testid={`video-card-${props.video.id}`}>{props.video.title}</div>;
+    },
 }));
 
 // Mock formatDuration
@@ -53,14 +56,18 @@ vi.mock('../../utils/formatUtils', () => ({
 describe('SearchResults Page', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        mockHandleVideoSubmit.mockReset();
+        mockHandleVideoSubmit.mockResolvedValue(undefined);
         // Reset to defaults
         mockUseVideoReturn.searchResults = [];
         mockUseVideoReturn.localSearchResults = [];
         mockUseVideoReturn.searchTerm = '';
         mockUseVideoReturn.loading = false;
         mockUseVideoReturn.youtubeLoading = false;
+        mockUseVideoReturn.lastSearchEventId = null;
         mockUseVideoReturn.showYoutubeSearch = true;
         mockUseVideoReturn.loadingMore = false;
+        mockVideoCard.mockClear();
     });
 
     const renderSearchResults = () => {
@@ -122,6 +129,23 @@ describe('SearchResults Page', () => {
         expect(screen.getByTestId('video-card-local2')).toBeInTheDocument();
     });
 
+    it('passes direct-video search navigation props to local result cards', () => {
+        mockUseVideoReturn.searchTerm = 'my video';
+        mockUseVideoReturn.lastSearchEventId = 'search-event-1';
+        mockUseVideoReturn.localSearchResults = [
+            { id: 'local1', title: 'Local Video 1' },
+        ];
+
+        renderSearchResults();
+
+        expect(mockVideoCard).toHaveBeenCalledWith(
+            expect.objectContaining({
+                disableCollectionGrouping: true,
+                statisticsRelatedEventId: 'search-event-1',
+            })
+        );
+    });
+
     // --- 6. Shows "No matching videos in your library" when no local results but has YouTube results ---
     it('shows "No matching videos in your library" when no local results but has YouTube results', () => {
         mockUseVideoReturn.searchTerm = 'youtube only';
@@ -163,6 +187,7 @@ describe('SearchResults Page', () => {
     // --- 9. Download button click calls handleVideoSubmit with sourceUrl ---
     it('calls handleVideoSubmit with sourceUrl when download button is clicked', async () => {
         mockUseVideoReturn.searchTerm = 'download test';
+        mockUseVideoReturn.lastSearchEventId = 'search-event-42';
         mockUseVideoReturn.searchResults = [
             { id: 'yt1', title: 'Download Me', author: 'Author', sourceUrl: 'https://youtube.com/watch?v=xyz', source: 'youtube' },
         ];
@@ -172,7 +197,15 @@ describe('SearchResults Page', () => {
         fireEvent.click(downloadBtn);
 
         await waitFor(() => {
-            expect(mockHandleVideoSubmit).toHaveBeenCalledWith('https://youtube.com/watch?v=xyz');
+            expect(mockHandleVideoSubmit).toHaveBeenCalledWith(
+                'https://youtube.com/watch?v=xyz',
+                false,
+                {
+                    relatedEventId: 'search-event-42',
+                    sourceKind: 'search_result',
+                    surface: 'web',
+                }
+            );
         });
         expect(mockUseVideoReturn.setIsSearchMode).toHaveBeenCalledWith(false);
     });

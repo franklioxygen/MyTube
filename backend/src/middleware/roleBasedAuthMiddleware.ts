@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import { isLoginRequired } from "../services/passwordService";
+import * as storageService from "../services/storageService";
 import {
   getNormalizedRequestPath,
   matchesExactPath,
@@ -42,6 +43,21 @@ const isPublicEndpoint = (req: Request): boolean => {
 
 const isApiKeyDownloadEndpoint = (req: Request): boolean => {
   return req.method === "POST" && getNormalizedRequestPath(req) === "/download";
+};
+
+const statisticsVisitorIngestionAllowed = (): boolean => {
+  try {
+    const settings = storageService.getSettings() as {
+      statisticsEnabled?: boolean;
+      statisticsTrackVisitorActivity?: boolean;
+    };
+    return (
+      settings.statisticsEnabled === true &&
+      settings.statisticsTrackVisitorActivity === true
+    );
+  } catch {
+    return false;
+  }
 };
 
 const isAdminUploadEndpoint = (req: Request): boolean => {
@@ -110,6 +126,18 @@ export const roleBasedAuthMiddleware = (
       }
 
       if (matchesPathOrSubpath(req, VISITOR_ALLOWED_POST_PREFIX_PATHS)) {
+        next();
+        return;
+      }
+
+      // Dynamic gate: visitor statistics ingestion is only allowed when
+      // statisticsTrackVisitorActivity = true. Read at request time so toggling
+      // the setting takes effect immediately. The internal path here is normalized
+      // to /statistics/events because the /api prefix is stripped by the mount.
+      if (
+        getNormalizedRequestPath(req) === "/statistics/events" &&
+        statisticsVisitorIngestionAllowed()
+      ) {
         next();
         return;
       }

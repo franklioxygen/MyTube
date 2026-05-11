@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Video } from '../types';
+import { useStatisticsIngestion } from '../hooks/useStatisticsIngestion';
 import { api } from '../utils/apiClient';
 import { settingsQueryOptions } from '../utils/settingsQueries';
 import { useAuth } from './AuthContext';
@@ -26,6 +27,7 @@ interface VideoContextType {
     incrementView: (id: string) => Promise<{ success: boolean; error?: string }>;
     youtubeLoading: boolean;
     handleSearch: (query: string) => Promise<any>;
+    lastSearchEventId: string | null;
     resetSearch: () => void;
     setVideos: React.Dispatch<React.SetStateAction<Video[]>>;
     setIsSearchMode: React.Dispatch<React.SetStateAction<boolean>>;
@@ -102,8 +104,11 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const availableTags = settingsData?.tags || [];
     const showYoutubeSearch = settingsData?.showYoutubeSearch ?? true;
+    const captureSearchText = settingsData?.statisticsCaptureSearchText === true;
 
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
+    const [lastSearchEventId, setLastSearchEventId] = useState<string | null>(null);
+    const statisticsIngestion = useStatisticsIngestion();
 
     // Search state
     const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -226,6 +231,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setLocalSearchResults([]);
         setYoutubeLoading(false);
         setLoadingMore(false);
+        setLastSearchEventId(null);
     };
 
     const handleSearch = async (query: string): Promise<any> => {
@@ -249,6 +255,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             const localResults = searchLocalVideos(query);
             setLocalSearchResults(localResults);
 
+            let externalResults: any[] = [];
             // Only search YouTube if showYoutubeSearch is enabled
             if (showYoutubeSearch) {
                 setYoutubeLoading(true);
@@ -262,6 +269,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                     if (!signal.aborted) {
                         // Limit search results to prevent memory issues
                         const results = response.data.results || [];
+                        externalResults = results;
                         setSearchResults(results.slice(0, MAX_SEARCH_RESULTS));
                     }
                 } catch (youtubeErr: any) {
@@ -277,6 +285,26 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 // Clear any existing YouTube results when disabled
                 setSearchResults([]);
                 setYoutubeLoading(false);
+            }
+
+            if (statisticsIngestion.enabled) {
+                const queryPayload: Record<string, unknown> = {
+                    queryLength: query.length,
+                    localResultCount: localResults.length,
+                    externalResultCount: externalResults.length,
+                    externalSearchEnabled: showYoutubeSearch,
+                };
+                if (captureSearchText) {
+                    queryPayload.queryText = query;
+                }
+                const submittedId = statisticsIngestion.recordEvent({
+                    eventType: 'search_submitted',
+                    surface: 'web',
+                    payload: queryPayload,
+                });
+                setLastSearchEventId(submittedId);
+            } else {
+                setLastSearchEventId(null);
             }
 
             return { success: true };
@@ -511,6 +539,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             searchTerm,
             youtubeLoading,
             handleSearch,
+            lastSearchEventId,
             resetSearch,
             setVideos,
             setIsSearchMode,

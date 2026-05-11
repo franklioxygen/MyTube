@@ -179,6 +179,7 @@ describe('ScanController', () => {
           videoPath: '/videos/video.mp4',
           fileSize: '1024',
         }),
+        { statisticsReason: 'scan' },
       );
     });
   });

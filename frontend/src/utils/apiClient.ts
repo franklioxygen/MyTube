@@ -157,6 +157,42 @@ export const fetchCloudSyncWithCsrf = async (
   return fetch(request);
 };
 
+const buildStatisticsIngestUrl = (): string => {
+  const baseURL = API_URL.replace(/\/$/, "");
+  const requestUrl = `${baseURL}/statistics/events`;
+  if (requestUrl.startsWith("/")) {
+    return new URL(requestUrl, globalThis.location.origin).toString();
+  }
+  return requestUrl;
+};
+
+// Keepalive-friendly POST for the statistics ingestion endpoint. Uses the
+// already-warm CSRF token because sendBeacon() cannot set custom headers and
+// CSRF middleware rejects beacon requests.
+export const sendStatisticsEventsWithKeepalive = (body: unknown): boolean => {
+  if (!csrfToken) {
+    return false;
+  }
+  try {
+    const headers = new Headers({
+      "Content-Type": "application/json",
+      "X-CSRF-Token": csrfToken,
+    });
+    // Fixed internal endpoint; the URL is not user-controlled.
+    // nosemgrep
+    void fetch(buildStatisticsIngestUrl(), {
+      method: "POST",
+      credentials: "include",
+      keepalive: true,
+      headers,
+      body: JSON.stringify(body),
+    });
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 /**
  * Type-safe API response wrapper
  */

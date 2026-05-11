@@ -267,7 +267,8 @@ describe("scanController extra coverage", () => {
         videoFilename: "new.mp4",
         duration: "61",
         fileSize: "100",
-      })
+      }),
+      { statisticsReason: "scan" }
     );
     expect(storageService.deleteVideo).toHaveBeenCalledWith("missing-mount-video");
     expect(status).toHaveBeenCalledWith(200);
@@ -340,7 +341,8 @@ describe("scanController extra coverage", () => {
         videoPath: "mount:/mnt/library/new.mp4",
         thumbnailFilename: "new.jpg",
         thumbnailPath: "/images/new.jpg",
-      })
+      }),
+      { statisticsReason: "scan" }
     );
     expect(status).toHaveBeenCalledWith(200);
     expect(json).toHaveBeenCalledWith({
@@ -409,7 +411,8 @@ describe("scanController extra coverage", () => {
         thumbnailFilename: undefined,
         thumbnailPath: undefined,
         thumbnailUrl: undefined,
-      })
+      }),
+      { statisticsReason: "scan" }
     );
     expect(status).toHaveBeenCalledWith(200);
   });
@@ -563,7 +566,8 @@ describe("scanController extra coverage", () => {
       expect.objectContaining({
         videoFilename: "movie.mp4",
         videoPath: "/videos/Action/movie.mp4",
-      })
+      }),
+      { statisticsReason: "scan" }
     );
     expect(storageService.saveCollection).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -605,7 +609,8 @@ describe("scanController extra coverage", () => {
     expect(storageService.saveVideo).toHaveBeenCalledWith(
       expect.objectContaining({
         videoFilename: "safe.mp4",
-      })
+      }),
+      { statisticsReason: "scan" }
     );
   });
 

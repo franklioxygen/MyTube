@@ -5,6 +5,7 @@ import * as collectionController from "../controllers/collectionController";
 import * as downloadController from "../controllers/downloadController";
 import * as rssController from "../controllers/rssController";
 import * as scanController from "../controllers/scanController";
+import * as statisticsController from "../controllers/statisticsController";
 import * as subscriptionController from "../controllers/subscriptionController";
 import * as systemController from "../controllers/systemController";
 import * as videoController from "../controllers/videoController";
@@ -333,6 +334,62 @@ const apiRouteDefinitions: ApiRouteDefinition[] = [
     method: "get",
     path: "/system/version",
     handlers: [asyncHandler(systemController.getLatestVersion)],
+  },
+
+  // Statistics
+  // POST /api/statistics/events accepts visitor traffic when statisticsTrackVisitorActivity = true.
+  // The dedicated visitor gate is in statisticsController.ingestEvents (not in roleBasedAuthMiddleware).
+  {
+    method: "post",
+    path: "/statistics/events",
+    handlers: [
+      statisticsController.statisticsEventsJsonParser,
+      asyncHandler(statisticsController.ingestEvents),
+    ],
+  },
+  {
+    method: "get",
+    path: "/statistics/overview",
+    handlers: [requireAdmin, asyncHandler(statisticsController.getOverviewEndpoint)],
+  },
+  {
+    method: "get",
+    path: "/statistics/timeseries/:metric",
+    handlers: [
+      requireAdmin,
+      asyncHandler(statisticsController.getTimeseriesEndpoint),
+    ],
+  },
+  {
+    method: "get",
+    path: "/statistics/rankings/:metric",
+    handlers: [
+      requireAdmin,
+      asyncHandler(statisticsController.getRankingEndpoint),
+    ],
+  },
+  {
+    method: "get",
+    path: "/statistics/health",
+    handlers: [requireAdmin, asyncHandler(statisticsController.getHealthEndpoint)],
+  },
+  {
+    method: "get",
+    path: "/statistics/export",
+    handlers: [requireAdmin, asyncHandler(statisticsController.exportEndpoint)],
+  },
+  {
+    method: "post",
+    path: "/statistics/recompute",
+    handlers: [
+      requireAdmin,
+      asyncHandler(statisticsController.recomputeEndpoint),
+    ],
+  },
+  {
+    method: "delete",
+    path: "/statistics",
+    handlers: [requireAdmin, asyncHandler(statisticsController.clearEndpoint)],
   },
 
   // RSS token management (admin only)

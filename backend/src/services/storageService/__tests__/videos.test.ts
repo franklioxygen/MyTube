@@ -191,6 +191,13 @@ describe("storageService videos", () => {
   describe("saveVideo/updateVideo", () => {
     it("should save video with stringified tags/subtitles", () => {
       const runMock = vi.fn();
+      vi.mocked(db.select).mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            all: vi.fn(() => []),
+          }),
+        }),
+      } as any);
       vi.mocked(db.insert).mockReturnValue({
         values: vi.fn().mockReturnValue({
           onConflictDoUpdate: vi.fn().mockReturnValue({ run: runMock }),
@@ -203,7 +210,7 @@ describe("storageService videos", () => {
         tags: ["tag1"],
         subtitles: [{ filename: "sub.vtt", language: "en" }],
       } as any;
-      const saved = saveVideo(video);
+      const saved = saveVideo(video, { suppressStatistics: true });
 
       expect(saved).toEqual(video);
       expect(runMock).toHaveBeenCalled();

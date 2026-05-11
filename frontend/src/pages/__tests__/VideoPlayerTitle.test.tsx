@@ -19,6 +19,7 @@ const mockSettingsData = { data: { websiteName: 'TestSite' } };
 vi.mock('react-router-dom', () => ({
     useNavigate: () => vi.fn(),
     useParams: () => ({ id: 'v1' }),
+    useLocation: () => ({ state: null }),
 }));
 
 vi.mock('../../contexts/LanguageContext', () => ({

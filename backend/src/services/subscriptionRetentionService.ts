@@ -224,7 +224,10 @@ export async function runSubscriptionRetentionCleanup(): Promise<SubscriptionRet
           }
 
           try {
-            const deleted = storageService.deleteVideo(candidate.videoId);
+            const deleted = storageService.deleteVideo(
+              candidate.videoId,
+              "retention"
+            );
             if (deleted) {
               summary.deletedVideos += 1;
               deletedForSubscription += 1;
@@ -262,6 +265,23 @@ export async function runSubscriptionRetentionCleanup(): Promise<SubscriptionRet
         logger.info(
           `[RetentionCleanup] Reached per-run deletion limit (${MAX_DELETIONS_PER_SUBSCRIPTION_PER_RUN}) for subscription "${subscription.author}" — remaining videos will be cleaned up in the next tick`
         );
+      }
+    }
+
+    if (summary.deletedVideos > 0) {
+      try {
+        const { recordEvent } = await import("./statistics");
+        recordEvent({
+          eventType: "retention_delete_completed",
+          actorRole: "system",
+          surface: "background",
+          payload: {
+            deletedCount: summary.deletedVideos,
+            errors: summary.errors,
+          },
+        });
+      } catch {
+        // statistics is best-effort
       }
     }
 

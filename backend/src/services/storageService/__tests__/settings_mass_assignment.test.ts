@@ -77,4 +77,25 @@ describe('settings mass assignment protection', () => {
             })
         );
     });
+
+    it('should block statisticsTimezone unless explicitly approved internally', () => {
+        saveSettings({ statisticsTimezone: 'UTC' } as any);
+
+        expect(db.insert).not.toHaveBeenCalled();
+
+        saveSettings(
+            { statisticsTimezone: 'UTC' } as any,
+            { extraWhitelistedKeys: ['statisticsTimezone'] }
+        );
+
+        expect(db.insert).toHaveBeenCalledTimes(1);
+        const mockedValuesFn = vi.mocked(db.insert).mock.results[0].value.values;
+
+        expect(mockedValuesFn).toHaveBeenCalledWith(
+            expect.objectContaining({
+                key: 'statisticsTimezone',
+                value: JSON.stringify('UTC'),
+            })
+        );
+    });
 });

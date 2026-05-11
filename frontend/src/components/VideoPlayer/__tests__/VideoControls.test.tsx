@@ -98,6 +98,10 @@ vi.mock('../VideoControls/hooks/useKeyboardShortcuts', () => ({
     useKeyboardShortcuts: vi.fn()
 }));
 
+vi.mock('../../../hooks/useStatisticsWatchTracker', () => ({
+    useStatisticsWatchTracker: vi.fn(),
+}));
+
 // Mock language context if needed (hooks might use it, but here we mock hooks so likely not needed unless component uses it directly)
 vi.mock('../../../contexts/LanguageContext', () => ({
     useLanguage: () => ({ t: (key: string) => key }),

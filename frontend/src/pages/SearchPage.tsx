@@ -32,6 +32,7 @@ const SearchPage: React.FC = () => {
         youtubeLoading,
         handleSearch,
         searchTerm: contextSearchTerm,
+        lastSearchEventId,
         showYoutubeSearch,
         loadMoreSearchResults,
         loadingMore
@@ -90,7 +91,11 @@ const SearchPage: React.FC = () => {
     const handleDownload = async (videoId: string, url: string) => {
         try {
             setDownloadingId(videoId);
-            await handleVideoSubmit(url);
+            await handleVideoSubmit(url, false, {
+                relatedEventId: lastSearchEventId,
+                sourceKind: 'search_result',
+                surface: 'web'
+            });
         } catch (error) {
             console.error('Error downloading from search:', error);
         } finally {
@@ -148,6 +153,8 @@ const SearchPage: React.FC = () => {
                                     collections={collections}
                                     onDeleteVideo={deleteVideo}
                                     showDeleteButton={true}
+                                    disableCollectionGrouping={true}
+                                    statisticsRelatedEventId={lastSearchEventId}
                                 />
                             </Grid>
                         ))}

@@ -16,6 +16,11 @@ import { cloudflaredService } from "../services/cloudflaredService";
 import downloadManager from "../services/downloadManager";
 import * as passwordService from "../services/passwordService";
 import * as settingsValidationService from "../services/settingsValidationService";
+import {
+  clearAllStatisticsData,
+  ensureFrozenTimezoneOnEnable,
+  invalidateStatisticsSettingsCache,
+} from "../services/statistics";
 import * as storageService from "../services/storageService";
 import { testTMDBCredential as testTMDBCredentialService } from "../services/tmdbService";
 import { twitchApiService } from "../services/twitchService";
@@ -54,6 +59,13 @@ const ADMIN_ONLY_SETTINGS_KEYS = new Set([
   "telegramBotToken",
   "twitchClientId",
   "twitchClientSecret",
+  // Statistics settings: hidden from visitor-safe responses
+  "statisticsEnabled",
+  "statisticsRetentionDays",
+  "statisticsCaptureSearchText",
+  "statisticsTrackVisitorActivity",
+  "statisticsKeepDataWhenDisabled",
+  "statisticsTimezone",
 ]);
 
 const RESPONSE_VISIBLE_SETTINGS_KEYS =
@@ -288,6 +300,9 @@ const sanitizeIncomingSettings = (
     sanitized.tmdbApiKey = sanitized.tmdbApiKey.trim();
   }
 
+  // This server-managed value is frozen on first enable and not writable through
+  // the normal settings API afterward.
+  delete sanitized.statisticsTimezone;
   delete sanitized.password;
   delete sanitized.visitorPassword;
   return sanitized;
@@ -544,6 +559,41 @@ const ensureApiKeyWhenEnabled = (
   finalSettings.apiKey = newApiKey;
 };
 
+const applyStatisticsToggleSideEffects = (
+  existingSettings: Settings,
+  finalSettings: Settings
+): void => {
+  // Freeze statisticsTimezone on first enable, and purge data when disabling
+  // and statisticsKeepDataWhenDisabled = false (per design §5.1).
+  const wasEnabled = existingSettings.statisticsEnabled === true;
+  const willBeEnabled = finalSettings.statisticsEnabled === true;
+
+  if (!wasEnabled && willBeEnabled) {
+    try {
+      const timezone = ensureFrozenTimezoneOnEnable();
+      finalSettings.statisticsTimezone = timezone;
+    } catch (error) {
+      logger.warn(
+        "Failed to freeze statistics timezone on enable",
+        error instanceof Error ? error : new Error(String(error))
+      );
+    }
+  }
+
+  if (wasEnabled && !willBeEnabled) {
+    if (finalSettings.statisticsKeepDataWhenDisabled === false) {
+      try {
+        clearAllStatisticsData();
+      } catch (error) {
+        logger.warn(
+          "Failed to purge statistics data on disable",
+          error instanceof Error ? error : new Error(String(error))
+        );
+      }
+    }
+  }
+};
+
 const persistSettingsUpdate = async (
   req: Request,
   res: Response,
@@ -598,7 +648,9 @@ const persistSettingsUpdate = async (
       : ({ ...existingSettings, ...settingsToPersist } as Settings);
 
   ensureApiKeyWhenEnabled(settingsToPersist, finalSettings);
+  applyStatisticsToggleSideEffects(existingSettings, finalSettings);
   storageService.saveSettings(settingsToPersist as Record<string, unknown>);
+  invalidateStatisticsSettingsCache();
   if (
     settingsToPersist.twitchClientId !== undefined ||
     settingsToPersist.twitchClientSecret !== undefined

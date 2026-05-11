@@ -24,6 +24,8 @@ export function addDownloadHistoryItem(item: DownloadHistoryItem): void {
         deletedAt: item.deletedAt,
         subscriptionId: item.subscriptionId,
         taskId: item.taskId,
+        platform: item.platform ?? null,
+        sourceKind: item.sourceKind ?? null,
       })
       .run();
   } catch (error) {
@@ -53,6 +55,8 @@ export function getDownloadHistory(): DownloadHistoryItem[] {
       deletedAt: h.deletedAt || undefined,
       subscriptionId: h.subscriptionId || undefined,
       taskId: h.taskId || undefined,
+      platform: h.platform || undefined,
+      sourceKind: h.sourceKind || undefined,
     }));
   } catch (error) {
     logger.error("Error getting download history", error instanceof Error ? error : new Error(String(error)));

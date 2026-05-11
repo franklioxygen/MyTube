@@ -136,4 +136,11 @@ export interface Settings {
   deploymentSecurity?: DeploymentSecurityModel;
   downloadFilenamePresetId?: 'legacy' | 'channel_year_date_index' | 'playlist_static_index' | 'playlist_static_date' | 'custom';
   downloadFilenameTemplate?: string;
+  // Statistics
+  statisticsEnabled?: boolean;
+  statisticsRetentionDays?: number | null;
+  statisticsCaptureSearchText?: boolean;
+  statisticsTrackVisitorActivity?: boolean;
+  statisticsKeepDataWhenDisabled?: boolean;
+  statisticsTimezone?: string;
 }

@@ -5,6 +5,7 @@ import ManageMenu from '../ManageMenu';
 const mockNavigate = vi.fn();
 const mockLogout = vi.fn();
 let mockLoginEnabled = false;
+let mockUserRole = 'admin';
 
 vi.mock('react-router-dom', () => ({
     useNavigate: () => mockNavigate,
@@ -19,12 +20,13 @@ vi.mock('../../../contexts/LanguageContext', () => ({
 vi.mock('../../../contexts/AuthContext', () => ({
     useAuth: () => ({
         logout: mockLogout,
+        userRole: mockUserRole,
     }),
 }));
 
 vi.mock('../../../hooks/useSettings', () => ({
     useSettings: () => ({
-        data: { loginEnabled: mockLoginEnabled },
+        data: { loginEnabled: mockLoginEnabled, statisticsEnabled: false },
     }),
 }));
 
@@ -35,6 +37,7 @@ describe('ManageMenu', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockLoginEnabled = false;
+        mockUserRole = 'admin';
         document.body.appendChild(anchorEl);
     });
 
@@ -49,6 +52,12 @@ describe('ManageMenu', () => {
         expect(mockNavigate).toHaveBeenNthCalledWith(1, '/manage');
         expect(mockNavigate).toHaveBeenNthCalledWith(2, '/settings');
         expect(mockNavigate).toHaveBeenNthCalledWith(3, '/instruction');
+    });
+
+    it('shows statistics navigation for admins even when collection is disabled', () => {
+        render(<ManageMenu anchorEl={anchorEl} onClose={onClose} />);
+
+        expect(screen.getByRole('menuitem', { name: /statisticsTitle/i })).toBeInTheDocument();
     });
 
     it('hides logout when login is disabled', () => {
@@ -67,5 +76,14 @@ describe('ManageMenu', () => {
         expect(onClose).toHaveBeenCalledTimes(1);
         expect(mockLogout).toHaveBeenCalledTimes(1);
         expect(mockNavigate).toHaveBeenCalledWith('/');
+    });
+
+    it('hides statistics navigation from visitors when login is enabled', () => {
+        mockLoginEnabled = true;
+        mockUserRole = 'visitor';
+
+        render(<ManageMenu anchorEl={anchorEl} onClose={onClose} />);
+
+        expect(screen.queryByRole('menuitem', { name: /statisticsTitle/i })).not.toBeInTheDocument();
     });
 });
