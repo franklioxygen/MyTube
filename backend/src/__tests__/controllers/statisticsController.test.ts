@@ -6,18 +6,25 @@ const mockIngestBatch = vi.fn();
 const mockIsStatisticsEnabled = vi.fn();
 const mockShouldTrackVisitorActivity = vi.fn();
 const mockExportRawEvents = vi.fn();
+const mockGetHealthSnapshot = vi.fn();
+const mockGetOverview = vi.fn();
+const mockGetTimeseries = vi.fn();
+const mockGetRanking = vi.fn();
+const mockRecomputeAllUnsealedDays = vi.fn();
+const mockClearAllStatisticsData = vi.fn();
+const mockEstimateDiskRunway = vi.fn();
 
 vi.mock("../../services/statistics", () => ({
-  clearAllStatisticsData: vi.fn(),
-  estimateDiskRunway: vi.fn(),
+  clearAllStatisticsData: (...args: any[]) => mockClearAllStatisticsData(...args),
+  estimateDiskRunway: () => mockEstimateDiskRunway(),
   exportRawEvents: (...args: any[]) => mockExportRawEvents(...args),
-  getHealthSnapshot: vi.fn(),
-  getOverview: vi.fn(),
-  getRanking: vi.fn(),
-  getTimeseries: vi.fn(),
+  getHealthSnapshot: () => mockGetHealthSnapshot(),
+  getOverview: (...args: any[]) => mockGetOverview(...args),
+  getRanking: (...args: any[]) => mockGetRanking(...args),
+  getTimeseries: (...args: any[]) => mockGetTimeseries(...args),
   ingestBatch: (...args: any[]) => mockIngestBatch(...args),
   isStatisticsEnabled: () => mockIsStatisticsEnabled(),
-  recomputeAllUnsealedDays: vi.fn(),
+  recomputeAllUnsealedDays: () => mockRecomputeAllUnsealedDays(),
   shouldTrackVisitorActivity: () => mockShouldTrackVisitorActivity(),
 }));
 
@@ -26,8 +33,14 @@ vi.mock("../../utils/security", () => ({
 }));
 
 import {
+  clearEndpoint,
   exportEndpoint,
+  getHealthEndpoint,
+  getOverviewEndpoint,
+  getRankingEndpoint,
+  getTimeseriesEndpoint,
   ingestEvents,
+  recomputeEndpoint,
   statisticsEventsJsonParser,
 } from "../../controllers/statisticsController";
 
@@ -174,5 +187,242 @@ describe("statisticsController", () => {
       'attachment; filename="statistics-export.csv"'
     );
     expect(res.end).toHaveBeenCalledWith("export-data", "utf8");
+  });
+
+  it("exports JSON format with correct headers", async () => {
+    mockExportRawEvents.mockReturnValue('{"data":[]}');
+    const req: any = {
+      query: { format: "json" },
+      apiKeyAuthenticated: false,
+      user: { role: "admin" },
+    };
+    const res = createResponse();
+
+    await exportEndpoint(req, res);
+
+    expect(res.type).toHaveBeenCalledWith("application/json");
+    expect(res.setHeader).toHaveBeenCalledWith(
+      "Content-Disposition",
+      'attachment; filename="statistics-export.json"'
+    );
+  });
+
+  it("returns 500 on JSON parse failure in exportEndpoint", async () => {
+    mockExportRawEvents.mockReturnValue("not-valid-json");
+    const req: any = {
+      query: { format: "json" },
+      apiKeyAuthenticated: false,
+      user: { role: "admin" },
+    };
+    const res = createResponse();
+
+    await exportEndpoint(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+  });
+
+  it("returns 403 when API key tries to access exportEndpoint", async () => {
+    const req: any = {
+      query: { format: "csv" },
+      apiKeyAuthenticated: true,
+    };
+    const res = createResponse();
+
+    await exportEndpoint(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+  });
+
+  it("getHealthEndpoint returns health snapshot", async () => {
+    mockGetHealthSnapshot.mockReturnValue({ warning: false, dirtyDayCount: 0 });
+    const req: any = { apiKeyAuthenticated: false, user: { role: "admin" } };
+    const res = createResponse();
+
+    await getHealthEndpoint(req, res);
+
+    expect(res.json).toHaveBeenCalledWith({ warning: false, dirtyDayCount: 0 });
+  });
+
+  it("getHealthEndpoint returns 403 for non-admin user", async () => {
+    const req: any = { apiKeyAuthenticated: false, user: { role: "visitor" } };
+    const res = createResponse();
+
+    await getHealthEndpoint(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+  });
+
+  it("getOverviewEndpoint returns merged overview and runway", async () => {
+    mockGetOverview.mockReturnValue({ totalEvents: 42 });
+    mockEstimateDiskRunway.mockReturnValue({ status: "ok" });
+    mockIsStatisticsEnabled.mockReturnValue(true);
+    const req: any = {
+      query: { range: "7" },
+      apiKeyAuthenticated: false,
+      user: { role: "admin" },
+    };
+    const res = createResponse();
+
+    await getOverviewEndpoint(req, res);
+
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ totalEvents: 42, diskRunway: { status: "ok" } })
+    );
+  });
+
+  it("getOverviewEndpoint returns 500 when getOverview throws", async () => {
+    mockGetOverview.mockImplementation(() => { throw new Error("query failed"); });
+    const req: any = {
+      query: {},
+      apiKeyAuthenticated: false,
+      user: { role: "admin" },
+    };
+    const res = createResponse();
+
+    await getOverviewEndpoint(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+  });
+
+  it("getTimeseriesEndpoint returns timeseries data", async () => {
+    mockGetTimeseries.mockReturnValue([{ day: "2024-01-01", value: 5 }]);
+    const req: any = {
+      params: { metric: "search_submitted" },
+      query: { range: "30" },
+      apiKeyAuthenticated: false,
+      user: { role: "admin" },
+    };
+    const res = createResponse();
+
+    await getTimeseriesEndpoint(req, res);
+
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ metric: "search_submitted" })
+    );
+  });
+
+  it("getTimeseriesEndpoint returns 400 when metric is missing", async () => {
+    const req: any = {
+      params: { metric: "" },
+      query: {},
+      apiKeyAuthenticated: false,
+      user: { role: "admin" },
+    };
+    const res = createResponse();
+
+    await getTimeseriesEndpoint(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  it("getRankingEndpoint returns ranking rows", async () => {
+    mockGetRanking.mockReturnValue([{ videoId: "v1", count: 10 }]);
+    const req: any = {
+      params: { metric: "video_play_started" },
+      query: { limit: "10" },
+      apiKeyAuthenticated: false,
+      user: { role: "admin" },
+    };
+    const res = createResponse();
+
+    await getRankingEndpoint(req, res);
+
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ metric: "video_play_started" })
+    );
+  });
+
+  it("getRankingEndpoint returns 400 when metric is missing", async () => {
+    const req: any = {
+      params: { metric: "" },
+      query: {},
+      apiKeyAuthenticated: false,
+      user: { role: "admin" },
+    };
+    const res = createResponse();
+
+    await getRankingEndpoint(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  it("recomputeEndpoint calls recomputeAllUnsealedDays and returns result", async () => {
+    mockRecomputeAllUnsealedDays.mockResolvedValue(5);
+    const req: any = { apiKeyAuthenticated: false, user: { role: "admin" } };
+    const res = createResponse();
+
+    await recomputeEndpoint(req, res);
+
+    expect(res.json).toHaveBeenCalledWith({ success: true, daysProcessed: 5 });
+  });
+
+  it("clearEndpoint clears all statistics data", async () => {
+    const req: any = { apiKeyAuthenticated: false, user: { role: "admin" } };
+    const res = createResponse();
+
+    await clearEndpoint(req, res);
+
+    expect(mockClearAllStatisticsData).toHaveBeenCalledTimes(1);
+    expect(res.json).toHaveBeenCalledWith({ success: true });
+  });
+
+  it("clearEndpoint returns 500 when clearAllStatisticsData throws", async () => {
+    mockClearAllStatisticsData.mockImplementation(() => { throw new Error("disk error"); });
+    const req: any = { apiKeyAuthenticated: false, user: { role: "admin" } };
+    const res = createResponse();
+
+    await clearEndpoint(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+  });
+
+  it("rejects any endpoint when user role is visitor", async () => {
+    const req: any = { apiKeyAuthenticated: false, user: { role: "visitor" } };
+    const res = createResponse();
+
+    await getHealthEndpoint(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ success: false })
+    );
+  });
+
+  it("allows access when there is no user (loginEnabled = false)", async () => {
+    mockGetHealthSnapshot.mockReturnValue({ warning: false });
+    const req: any = { apiKeyAuthenticated: false, user: undefined };
+    const res = createResponse();
+
+    await getHealthEndpoint(req, res);
+
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ warning: false }));
+  });
+
+  it("ingestEvents returns 400 when events array is missing", async () => {
+    const req: any = {
+      body: {},
+      headers: {},
+      user: { role: "admin" },
+      apiKeyAuthenticated: false,
+    };
+    const res = createResponse();
+
+    await ingestEvents(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  it("ingestEvents returns 400 when events exceeds 50", async () => {
+    const req: any = {
+      body: { events: new Array(51).fill({ eventType: "search_submitted", sessionId: "s" }) },
+      headers: {},
+      user: { role: "admin" },
+      apiKeyAuthenticated: false,
+    };
+    const res = createResponse();
+
+    await ingestEvents(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
   });
 });
