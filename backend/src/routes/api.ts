@@ -333,6 +333,7 @@ const apiRouteDefinitions: ApiRouteDefinition[] = [
   {
     method: "get",
     path: "/system/version",
+    allowApiKey: true,
     handlers: [asyncHandler(systemController.getLatestVersion)],
   },
 

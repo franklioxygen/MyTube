@@ -13,6 +13,7 @@ All API routes are mounted under `/api` unless noted otherwise.
   - `GET /api/videos/:id`
   - `GET /api/mount-video/:id`
   - `GET /api/collections`
+  - `GET /api/system/version`
   - Other API-key-authenticated endpoints return `403`.
 
 ## Video Download & Search
@@ -243,6 +244,7 @@ All API routes are mounted under `/api` unless noted otherwise.
 
 - `GET /api/system/version` - Get version/update info
   - Returns: `{ currentVersion, latestVersion, releaseUrl, hasUpdate, ... }`
+  - Auth: accepts session cookie/Bearer JWT, or API key (`X-API-Key` / `Authorization: ApiKey <key>`)
 
 ## Non-API Routes (Not Under `/api`)
 

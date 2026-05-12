@@ -2,7 +2,10 @@ import express from "express";
 import rateLimit from "express-rate-limit";
 import request from "supertest";
 import { describe, expect, it, vi } from "vitest";
-import { csrfProtection, csrfTokenProvider } from "../../middleware/csrfMiddleware";
+import {
+  csrfTokenProvider,
+  doubleCsrfProtection,
+} from "../../middleware/csrfMiddleware";
 import { errorHandler } from "../../middleware/errorHandler";
 import { requireAdmin } from "../../middleware/requireAdmin";
 import { rssManagementNoStoreHeaders } from "../../middleware/rssManagementNoStoreHeaders";
@@ -50,8 +53,8 @@ const buildApp = () => {
   });
   app.use(rssManagementNoStoreHeaders);
   app.use(express.json());
+  app.use(doubleCsrfProtection);
   app.use(csrfTokenProvider);
-  app.use(csrfProtection);
   app.use((req, _res, next) => {
     req.user = { role: "admin" } as any;
     next();

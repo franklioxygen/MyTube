@@ -13,6 +13,7 @@
   - `GET /api/videos/:id`
   - `GET /api/mount-video/:id`
   - `GET /api/collections`
+  - `GET /api/system/version`
   - 其它使用 API Key 的接口仍会返回 `403`。
 
 ## 视频下载与搜索
@@ -243,6 +244,7 @@
 
 - `GET /api/system/version` - 获取版本/更新信息
   - 返回: `{ currentVersion, latestVersion, releaseUrl, hasUpdate, ... }`
+  - 认证: 支持会话 Cookie/Bearer JWT，或 API Key (`X-API-Key` / `Authorization: ApiKey <key>`)
 
 ## 非 API 路由 (不在 `/api` 下)
 
