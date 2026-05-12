@@ -3,8 +3,8 @@ import express from "express";
 import request from "supertest";
 import { describe, expect, it } from "vitest";
 import {
-  csrfProtection,
   csrfTokenProvider,
+  doubleCsrfProtection,
   refreshCsrfTokenForSession,
 } from "../../middleware/csrfMiddleware";
 import { clearAuthCookie, setAuthCookie } from "../../services/authService";
@@ -14,8 +14,8 @@ describe("csrfMiddleware", () => {
     const app = express();
     app.use(cookieParser());
     app.use(express.json());
+    app.use(doubleCsrfProtection);
     app.use(csrfTokenProvider);
-    app.use(csrfProtection);
 
     app.get("/api/token", (_req, res) => {
       res.json({ ok: true });

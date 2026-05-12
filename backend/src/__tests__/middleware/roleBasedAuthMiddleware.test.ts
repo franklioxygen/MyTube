@@ -333,4 +333,24 @@ describe("roleBasedAuthMiddleware", () => {
       })
     );
   });
+
+  it("blocks api-key-authenticated GET /system/version requests that reach the protected router", () => {
+    req = {
+      method: "GET",
+      path: "/system/version",
+      url: "/system/version",
+      apiKeyAuthenticated: true,
+    };
+
+    roleBasedAuthMiddleware(req as Request, res as Response, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(status).toHaveBeenCalledWith(403);
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: false,
+        error: expect.stringContaining("read-only library endpoints"),
+      })
+    );
+  });
 });

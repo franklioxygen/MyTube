@@ -7,22 +7,6 @@ const CSRF_SECRET =
 
 const CSRF_COOKIE_NAME = "mytube_csrf";
 
-const { doubleCsrfProtection, generateCsrfToken } = doubleCsrf({
-  getSecret: () => CSRF_SECRET,
-  getSessionIdentifier: (req: Request) => req.cookies?.mytube_auth_session ?? "anonymous",
-  cookieName: CSRF_COOKIE_NAME,
-  cookieOptions: {
-    sameSite: "lax",
-    path: "/",
-    secure: process.env.SECURE_COOKIES === "true",
-    httpOnly: true,
-  },
-  ignoredMethods: ["GET", "HEAD", "OPTIONS"],
-  getCsrfTokenFromRequest: (req: Request) => {
-    return req.headers["x-csrf-token"] as string | undefined;
-  },
-});
-
 type CsrfTokenOptions = {
   overwrite?: boolean;
 };
@@ -38,6 +22,37 @@ const isRssManagementRequest = (req: Request): boolean => {
       requestPath.startsWith(`${RSS_MANAGEMENT_PATH}/`)
   );
 };
+
+const isApiKeyRequest = (req: Request): boolean => {
+  return Boolean(
+    req.headers["x-api-key"] ||
+      req.headers.authorization?.startsWith("ApiKey ")
+  );
+};
+
+const {
+  doubleCsrfProtection: configuredDoubleCsrfProtection,
+  generateCsrfToken,
+} = doubleCsrf({
+  getSecret: () => CSRF_SECRET,
+  getSessionIdentifier: (req: Request) =>
+    req.cookies?.mytube_auth_session ?? "anonymous",
+  cookieName: CSRF_COOKIE_NAME,
+  cookieOptions: {
+    sameSite: "lax",
+    path: "/",
+    secure: process.env.SECURE_COOKIES === "true",
+    httpOnly: true,
+  },
+  ignoredMethods: ["GET", "HEAD", "OPTIONS"],
+  getCsrfTokenFromRequest: (req: Request) => {
+    return req.headers["x-csrf-token"] as string | undefined;
+  },
+  // API key requests are not cookie-based and are not vulnerable to CSRF.
+  // RSS token management rejects API keys separately and must remain CSRF-protected.
+  skipCsrfProtection: (req: Request) =>
+    !isRssManagementRequest(req) && isApiKeyRequest(req),
+});
 
 const setCsrfTokenHeader = (
   req: Request,
@@ -95,26 +110,5 @@ export const isCsrfTokenError = (
   return "code" in error && error.code === "EBADCSRFTOKEN";
 };
 
-/**
- * Middleware that validates the CSRF token on state-changing requests
- * (POST, PUT, PATCH, DELETE). Skips validation for API-key-authenticated
- * requests since they are not cookie-based and thus not vulnerable to CSRF.
- */
-export const csrfProtection = (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-): void => {
-  // API key requests are not cookie-based — CSRF does not apply.
-  // RSS token management explicitly rejects API keys and must never let an API-key
-  // header bypass the CSRF requirement for cookie/session admin requests.
-  if (
-    !isRssManagementRequest(req) &&
-    (req.headers["x-api-key"] || req.headers.authorization?.startsWith("ApiKey "))
-  ) {
-    next();
-    return;
-  }
-
-  doubleCsrfProtection(req, res, next);
-};
+export const csrfProtection = configuredDoubleCsrfProtection;
+export const doubleCsrfProtection = configuredDoubleCsrfProtection;

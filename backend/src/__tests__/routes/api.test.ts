@@ -1,7 +1,18 @@
 import express from "express";
 import request from "supertest";
-import { describe, expect, it } from "vitest";
-import { ApiRouteDefinition, buildApiRouter } from "../../routes/api";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const systemControllerMocks = vi.hoisted(() => ({
+  getLatestVersion: vi.fn((_req, res) =>
+    res.status(200).json({ route: "system/version" })
+  ),
+}));
+
+vi.mock("../../controllers/systemController", () => ({
+  getLatestVersion: systemControllerMocks.getLatestVersion,
+}));
+
+import { ApiRouteDefinition, apiKeyRoutes, buildApiRouter } from "../../routes/api";
 
 const testRouteDefinitions: ApiRouteDefinition[] = [
   {
@@ -24,6 +35,10 @@ const testRouteDefinitions: ApiRouteDefinition[] = [
 ];
 
 describe("buildApiRouter", () => {
+  beforeEach(() => {
+    systemControllerMocks.getLatestVersion.mockClear();
+  });
+
   it("lets api-key routes reach explicitly allowed handlers", async () => {
     const app = express();
     app.use((req, _res, next) => {
@@ -75,5 +90,23 @@ describe("buildApiRouter", () => {
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ route: "video:abc123" });
+  });
+
+  it("lets api-key-authenticated requests reach GET /system/version", async () => {
+    const app = express();
+    app.use((req, _res, next) => {
+      req.apiKeyAuthenticated = true;
+      next();
+    });
+    app.use(apiKeyRoutes);
+    app.use((_req, res) => {
+      res.status(403).json({ blocked: true });
+    });
+
+    const response = await request(app).get("/system/version");
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ route: "system/version" });
+    expect(systemControllerMocks.getLatestVersion).toHaveBeenCalledTimes(1);
   });
 });

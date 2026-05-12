@@ -16,7 +16,10 @@ import downloadManager from "./services/downloadManager";
 import * as storageService from "./services/storageService";
 import { logger } from "./utils/logger";
 import { VERSION } from "./version";
-import { csrfTokenProvider, csrfProtection } from "./middleware/csrfMiddleware";
+import {
+  csrfTokenProvider,
+  doubleCsrfProtection,
+} from "./middleware/csrfMiddleware";
 import { registerApiRoutes, registerFeedRoute } from "./server/apiRoutes";
 import { buildCorsOptionsDelegate } from "./server/cors";
 import { registerCloudRoutes } from "./server/cloudRoutes";
@@ -39,8 +42,8 @@ app.use(rssManagementNoStoreHeaders);
 app.use("/api/statistics/events", statisticsEventsJsonParser);
 app.use(express.json({ limit: "100gb" }));
 app.use(express.urlencoded({ extended: true, limit: "100gb" }));
+app.use(doubleCsrfProtection);
 app.use(csrfTokenProvider);
-app.use(csrfProtection);
 
 const configureProcessCrashReports = (): void => {
   if (!process.report) {
