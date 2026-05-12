@@ -7,19 +7,26 @@ import cors from "cors";
 import express from "express";
 import fs from "fs-extra";
 import path from "path";
+import { doubleCsrf } from "csrf-csrf";
 import { DATA_DIR } from "./config/paths";
 import { runMigrations } from "./db/migrate";
 import { errorHandler } from "./middleware/errorHandler";
+import {
+  CSRF_COOKIE_NAME,
+  CSRF_IGNORED_METHODS,
+  CSRF_SECRET,
+  csrfCookieOptions,
+  getCsrfSessionIdentifier,
+  getCsrfTokenFromRequest,
+  shouldSkipCsrfProtection,
+} from "./middleware/csrfConfig";
 import { rssManagementNoStoreHeaders } from "./middleware/rssManagementNoStoreHeaders";
 import { statisticsEventsJsonParser } from "./controllers/statisticsController";
 import downloadManager from "./services/downloadManager";
 import * as storageService from "./services/storageService";
 import { logger } from "./utils/logger";
 import { VERSION } from "./version";
-import {
-  csrfTokenProvider,
-  doubleCsrfProtection,
-} from "./middleware/csrfMiddleware";
+import { csrfTokenProvider } from "./middleware/csrfMiddleware";
 import { registerApiRoutes, registerFeedRoute } from "./server/apiRoutes";
 import { buildCorsOptionsDelegate } from "./server/cors";
 import { registerCloudRoutes } from "./server/cloudRoutes";
@@ -31,6 +38,15 @@ VERSION.displayVersion();
 
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 5551;
+const { doubleCsrfProtection } = doubleCsrf({
+  getSecret: () => CSRF_SECRET,
+  getSessionIdentifier: getCsrfSessionIdentifier,
+  cookieName: CSRF_COOKIE_NAME,
+  cookieOptions: csrfCookieOptions,
+  ignoredMethods: [...CSRF_IGNORED_METHODS],
+  getCsrfTokenFromRequest,
+  skipCsrfProtection: shouldSkipCsrfProtection,
+});
 
 app.set("trust proxy", 1);
 app.disable("x-powered-by");
@@ -42,7 +58,7 @@ app.use(rssManagementNoStoreHeaders);
 app.use("/api/statistics/events", statisticsEventsJsonParser);
 app.use(express.json({ limit: "100gb" }));
 app.use(express.urlencoded({ extended: true, limit: "100gb" }));
-app.use(doubleCsrfProtection);
+app.use("/api", doubleCsrfProtection);
 app.use(csrfTokenProvider);
 
 const configureProcessCrashReports = (): void => {
