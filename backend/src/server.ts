@@ -58,7 +58,7 @@ app.use(rssManagementNoStoreHeaders);
 app.use("/api/statistics/events", statisticsEventsJsonParser);
 app.use(express.json({ limit: "100gb" }));
 app.use(express.urlencoded({ extended: true, limit: "100gb" }));
-app.use("/api", doubleCsrfProtection);
+app.use(doubleCsrfProtection);
 app.use(csrfTokenProvider);
 
 const configureProcessCrashReports = (): void => {
