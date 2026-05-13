@@ -1,36 +1,20 @@
 import cookieParser from "cookie-parser";
-import { doubleCsrf } from "csrf-csrf";
 import express from "express";
 import request from "supertest";
 import { describe, expect, it } from "vitest";
-import { csrfTokenProvider, refreshCsrfTokenForSession } from "../../middleware/csrfMiddleware";
 import {
-  CSRF_COOKIE_NAME,
-  CSRF_IGNORED_METHODS,
-  CSRF_SECRET,
-  csrfCookieOptions,
-  getCsrfSessionIdentifier,
-  getCsrfTokenFromRequest,
-  shouldSkipCsrfProtection,
-} from "../../middleware/csrfConfig";
+  csrfProtection,
+  csrfTokenProvider,
+  refreshCsrfTokenForSession,
+} from "../../middleware/csrfMiddleware";
 import { clearAuthCookie, setAuthCookie } from "../../services/authService";
-
-const { doubleCsrfProtection } = doubleCsrf({
-  getSecret: () => CSRF_SECRET,
-  getSessionIdentifier: getCsrfSessionIdentifier,
-  cookieName: CSRF_COOKIE_NAME,
-  cookieOptions: csrfCookieOptions,
-  ignoredMethods: [...CSRF_IGNORED_METHODS],
-  getCsrfTokenFromRequest,
-  skipCsrfProtection: shouldSkipCsrfProtection,
-});
 
 describe("csrfMiddleware", () => {
   const buildApp = () => {
     const app = express();
     app.use(cookieParser());
     app.use(express.json());
-    app.use(doubleCsrfProtection);
+    app.use(csrfProtection);
     app.use(csrfTokenProvider);
 
     app.get("/api/token", (_req, res) => {
