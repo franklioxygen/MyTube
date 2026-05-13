@@ -1,33 +1,17 @@
 import { Request, Response, NextFunction } from "express";
 import { doubleCsrf } from "csrf-csrf";
-import crypto from "crypto";
-
-const CSRF_SECRET =
-  process.env.CSRF_SECRET || crypto.randomBytes(32).toString("hex");
-
-const CSRF_COOKIE_NAME = "mytube_csrf";
+import {
+  CSRF_COOKIE_NAME,
+  CSRF_IGNORED_METHODS,
+  CSRF_SECRET,
+  csrfCookieOptions,
+  getCsrfSessionIdentifier,
+  getCsrfTokenFromRequest,
+  shouldSkipCsrfProtection,
+} from "./csrfConfig";
 
 type CsrfTokenOptions = {
   overwrite?: boolean;
-};
-
-const RSS_MANAGEMENT_PATH = "/api/rss/tokens";
-
-const isRssManagementRequest = (req: Request): boolean => {
-  const originalPath = req.originalUrl.split("?")[0];
-
-  return [req.path, originalPath].some(
-    (requestPath) =>
-      requestPath === RSS_MANAGEMENT_PATH ||
-      requestPath.startsWith(`${RSS_MANAGEMENT_PATH}/`)
-  );
-};
-
-const isApiKeyRequest = (req: Request): boolean => {
-  return Boolean(
-    req.headers["x-api-key"] ||
-      req.headers.authorization?.startsWith("ApiKey ")
-  );
 };
 
 const {
@@ -35,23 +19,14 @@ const {
   generateCsrfToken,
 } = doubleCsrf({
   getSecret: () => CSRF_SECRET,
-  getSessionIdentifier: (req: Request) =>
-    req.cookies?.mytube_auth_session ?? "anonymous",
+  getSessionIdentifier: getCsrfSessionIdentifier,
   cookieName: CSRF_COOKIE_NAME,
-  cookieOptions: {
-    sameSite: "lax",
-    path: "/",
-    secure: process.env.SECURE_COOKIES === "true",
-    httpOnly: true,
-  },
-  ignoredMethods: ["GET", "HEAD", "OPTIONS"],
-  getCsrfTokenFromRequest: (req: Request) => {
-    return req.headers["x-csrf-token"] as string | undefined;
-  },
+  cookieOptions: csrfCookieOptions,
+  ignoredMethods: [...CSRF_IGNORED_METHODS],
+  getCsrfTokenFromRequest,
   // API key requests are not cookie-based and are not vulnerable to CSRF.
   // RSS token management rejects API keys separately and must remain CSRF-protected.
-  skipCsrfProtection: (req: Request) =>
-    !isRssManagementRequest(req) && isApiKeyRequest(req),
+  skipCsrfProtection: shouldSkipCsrfProtection,
 });
 
 const setCsrfTokenHeader = (
