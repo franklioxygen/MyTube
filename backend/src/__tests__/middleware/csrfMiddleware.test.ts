@@ -30,7 +30,7 @@ describe("csrfMiddleware", () => {
     const app = express();
     app.use(cookieParser());
     app.use(express.json());
-    app.use("/api", doubleCsrfProtection);
+    app.use(doubleCsrfProtection);
     app.use(csrfTokenProvider);
 
     app.get("/api/token", (_req, res) => {
