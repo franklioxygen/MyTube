@@ -55,6 +55,10 @@ For installation and usage instructions, please refer to [Browser Extension](doc
 
 [MikMok](https://github.com/franklioxygen/MikMok) is a short-form video web client for MyTube. It connects to MyTube through the API and offers a feed-style viewing experience tailored for short videos.
 
+## Android Client
+
+[mytube-android](https://github.com/franklioxygen/mytube-android) is a native Android client for MyTube. It connects to your MyTube server through the API for browsing and playback on mobile devices.
+
 ## Directory Structure
 
 For a detailed breakdown of the project structure, please refer to [Directory Structure](documents/en/directory-structure.md).

@@ -2,26 +2,154 @@
 
 ## Unreleased
 
-### Feat
-
-- Add RSS feed subscriptions with token management, per-feed filters, localized feed metadata, and public feed URLs (5c6bd214)
-
 ### Fix
 
-- Harden RSS feed access for login-protected deployments, HTTPS feed URLs, feed-specific rate limiting, and static route handling (2e28c503)
-- Improve RSS item descriptions with reader-friendly source names, formatted durations, and thumbnail handling
-- Ensure the RSS token table exists during startup initialization (2df17f3f)
-- Resolve RSS-related Codacy findings in SQL migrations, locale lookup, and API client headers (0fe47a6f, b0b915c5, 0fcfcf53)
-- Restrict API key library endpoints (3e000568)
-- Harden asset delivery and yt-dlp compatibility (ae2badf0)
+- fix code scanning csrf detection (65ad269f)
+- fix code scanning csrf: mount globally instead of on /api (6cc1d61e)
+- Fix CodeQL CSRF middleware detection (21bde943)
 
 ### Docs
 
-- Document RSS setup, API endpoints, and HTTPS requirements in README and project docs (2e28c503)
+- Mention the mytube-android native Android client in the README
+
+## v1.9.22 (2026-05-12)
+
+### Feat
+
+- Implement statistics feature and related workspace updates (be8a7259)
+- Improve statistics dashboard UX (339f803b)
+- Allow API key access to system version endpoint (72c640fb)
+
+### Fix
+
+- Fix statistics CI regressions and security findings (6ff69c56)
+- Fix Codacy statistics findings (0d8ef027)
+- Fix frontend test failures from statistics hook additions (20eab286)
+- Fix statistics collector test build typing (2bc24937)
+- Fix Dependabot alerts in bgutil pot provider server (00b64b14)
+
+### Refactor
+
+- Reduce statistics complexity hotspots (14985218)
 
 ### Test
 
-- Add coverage for RSS feed generation, token management, filter behavior, feed route limiting, and login CSRF handling (5c6bd214)
+- Add statistics service test coverage to reduce coverage delta (0b1a888d)
+- Add statistics query and export coverage tests (702b4fa9)
+- Add statistics rollups coverage tests (e4260d73)
+
+## v1.9.21 (2026-05-08)
+
+### Feat
+
+- feat: Add configurable download filename templates (#234) (2625d97d)
+- feat: Allow rename existing files to match any saved pattern (incl. legacy) (719d56c6)
+- Improve filename template rename behavior (b6a5ef90)
+- feat: Add Telegram notification for subscription downloads (9731da51)
+- Add subscription retention cleanup (78d21802)
+- Add retention help and cleanup limit (d9c360db)
+
+### Fix
+
+- Fix filename template source options and yt-dlp resolution (63eda10b)
+- Fix filename template edge cases and test regressions (c9d9f596)
+- fix(security): Address 4 high-severity CodeQL alerts on PR #237 (95a1140e)
+- fix(security): Replace dynamic RegExp in stripLegacyFilenameSuffix (feb4cfec)
+- fix(security): Use a regex literal instead of a non-literal RegExp constructor (921634d2)
+- fix: Make legacy preset round-trip safe (issue234 §24) (a0a5fe02)
+- fix: Resolve last Codacy prototype-pollution finding (77f5992b)
+- fix: Address 18 Codacy findings on PR #237 (49f4bade)
+- Fix retention cleanup pagination (f6df7501)
+- Fix Codacy retention cleanup findings (65a4156f)
+- Fix Codacy subscription page callbacks (37f4c8f9)
+- Fix remaining Codacy JSX callbacks (2d11df86)
+
+### Refactor
+
+- refactor: Replace nosemgrep suppressions with resolveSafeChildPath (8f8d7e7e)
+
+### Test
+
+- test: Boost filenameTemplate coverage to address Codacy delta (937ed476)
+- test: Cover subscription Telegram edge cases (25a310de)
+
+### Chore
+
+- chore(deps): bump basic-ftp from 5.3.0 to 5.3.1 in /backend (7c972110)
+- chore(deps): bump axios in /backend/bgutil-ytdlp-pot-provider/server (96e57684)
+- chore(deps): bump ip-address and express-rate-limit in /backend (310c526c)
+- Suppress intentional Codacy security wrappers (c5d389eb)
+- Clear remaining Codacy baseline findings (31a43228)
+- Use Codacy ESLint9 config analysis (f95c7d26)
+- Restore Codacy analyzer baseline, then revert (cdfcf01e, b1bd063e)
+- Stabilize Codacy JSX callback handling (26cc10f3, c41087c5, 2e668c84, 22d572ed, 05e94683, f4f30d48, 0452d954)
+
+## v1.9.20 (2026-04-27)
+
+### Fix
+
+- fix: backend/package.json to reduce vulnerabilities (d3f8bd83)
+- fix: frontend/package.json & frontend/package-lock.json to reduce vulnerabilities (96ed119e)
+- Fix Docker npm ci lockfile mismatch (0b6b7e34)
+
+## v1.9.19 (2026-04-27)
+
+### Fix
+
+- fix: normalize cookies before yt-dlp (4ef7a251)
+- fix: validate cookie host suffix boundaries (a3a6742c)
+- fix: include CSRF token and credentials in cloud sync request (#228) (c518742d)
+- fix: eliminate user-controlled URL parameter from fetchWithCsrf (93752647)
+
+### Refactor
+
+- refactor: harden fetchWithCsrf with path validation and Request API (aa78db5a)
+
+## v1.9.18 (2026-04-25)
+
+### Chore
+
+- chore(deps): bump postcss from 8.5.6 to 8.5.10 in /backend (5f670d3e)
+- chore(deps): address npm security alerts (471d0816)
+
+## v1.9.17 (2026-04-24)
+
+### Feat
+
+- feat: add RSS feed support (5c6bd214)
+- feat: Add function to copy text to clipboard (9eea096e)
+
+### Fix
+
+- fix: harden RSS feed access (2e28c503)
+- fix: improve RSS feed item display (d34cb47b)
+- fix: ensure RSS token table on startup (2df17f3f)
+- fix: address RSS CodeQL alerts (d50fe67e)
+- fix: resolve RSS Codacy findings (0fe47a6f)
+- fix: clear remaining RSS Codacy issues (b0b915c5)
+- fix: address RSS Codacy findings (0fcfcf53)
+
+## v1.9.16 (2026-04-21)
+
+### Fix
+
+- fix: preserve TMDB and extension compatibility (ab88a2d6)
+- Restore compatibility for legacy auth and deployment flows (30d69a97)
+- fix: resolve new codacy issues (9d6b1c3f)
+- fix: resolve codacy issues and test regressions (0d6afabc)
+- fix: address Codacy security findings (5a5e93e6)
+
+## v1.9.15 (2026-04-20)
+
+### Feat
+
+- feat: Add MikMok short-form video web client description (f0735ead)
+
+### Fix
+
+- Refine API key route gating and update changelog (72230bf0)
+- Restrict API key library endpoints (3e000568)
+- Harden asset delivery and yt-dlp compatibility (ae2badf0)
 
 ### Chore
 
