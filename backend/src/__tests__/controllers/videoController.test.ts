@@ -80,6 +80,7 @@ vi.mock("../../utils/helpers", () => ({
   isBilibiliUrl: vi.fn((url: string) => url.includes("bilibili")),
   isBilibiliShortUrl: vi.fn((url: string) => url.includes("b23.tv")),
   isMissAVUrl: vi.fn((url: string) => url.includes("missav")),
+  getMissAVPlaceholderTitle: vi.fn(() => "MissAV Video"),
   isTwitchVideoUrl: vi.fn((url: string) => url.includes("twitch.tv/videos/")),
   isYouTubeUrl: vi.fn((url: string) => url.includes("youtube") || url.includes("youtu.be")),
   isValidUrl: vi.fn((url: string) => url.startsWith("http")),

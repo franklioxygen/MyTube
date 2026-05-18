@@ -16,6 +16,7 @@ import * as downloadService from "../../services/downloadService";
 import * as storageService from "../../services/storageService";
 import {
   extractBilibiliVideoId,
+  getMissAVPlaceholderTitle,
   isBilibiliShortUrl,
   isBilibiliUrl,
   isMissAVUrl,
@@ -82,6 +83,7 @@ vi.mock("../../services/statistics", () => ({
 
 vi.mock("../../utils/helpers", () => ({
   extractBilibiliVideoId: vi.fn(),
+  getMissAVPlaceholderTitle: vi.fn(),
   isBilibiliShortUrl: vi.fn(),
   isBilibiliUrl: vi.fn(),
   isMissAVUrl: vi.fn(),
@@ -181,6 +183,7 @@ describe("videoDownloadController extra coverage", () => {
     vi.mocked(isMissAVUrl).mockReturnValue(false);
     vi.mocked(isTwitchVideoUrl).mockReturnValue(false);
     vi.mocked(isBilibiliShortUrl).mockReturnValue(false);
+    vi.mocked(getMissAVPlaceholderTitle).mockReturnValue("MissAV Video");
     vi.mocked(trimBilibiliUrl).mockImplementation((url: string) => url);
     vi.mocked(resolveShortUrl).mockImplementation(async (url: string) => url);
     vi.mocked(validateUrl).mockImplementation((url: string) => url);
