@@ -86,6 +86,7 @@ describe('Helpers', () => {
     it('should validate missav and twitter URL domains', () => {
       expect(isMissAVUrl('https://missav.com/abc')).toBe(true);
       expect(isMissAVUrl('https://123av.ai/abc')).toBe(true);
+      expect(isMissAVUrl('https://javxx.com/en/v/fc2-ppv-2683017')).toBe(true);
       expect(isMissAVUrl('https://user:pass@missav.com/abc')).toBe(false);
       expect(isTwitterUrl('https://x.com/user')).toBe(true);
       expect(isTwitterUrl('https://twitter.com/user')).toBe(true);
@@ -293,6 +294,9 @@ describe('Helpers', () => {
       );
       expect(getMissAVPlaceholderTitle('https://njavtv.com/en/v/abc-123')).toBe(
         'NJAVTV: ABC-123'
+      );
+      expect(getMissAVPlaceholderTitle('https://javxx.com/en/v/fc2-ppv-2683017')).toBe(
+        'JAVXX: FC2-PPV-2683017'
       );
     });
 

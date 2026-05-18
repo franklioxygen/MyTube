@@ -121,6 +121,32 @@ describe('MissAVDownloader', () => {
       );
     });
 
+    it('should preserve the javxx video route when navigating', async () => {
+      const mockPage = {
+        goto: vi.fn(),
+        waitForNavigation: vi.fn().mockResolvedValue(undefined),
+        evaluate: vi.fn().mockResolvedValue(undefined),
+        content: vi.fn().mockResolvedValue('<html><head><meta property="og:title" content="Test Title"></head><body></body></html>'),
+        close: vi.fn(),
+      };
+      const mockBrowser = {
+        newPage: vi.fn().mockResolvedValue(mockPage),
+        close: vi.fn(),
+      };
+      (puppeteer.launch as any).mockResolvedValue(mockBrowser);
+
+      await MissAVDownloader.getVideoInfo('https://javxx.com/en/v/fc2-ppv-2683017');
+
+      expect(mockPage.goto).toHaveBeenCalledWith(
+        'https://javxx.com',
+        expect.any(Object),
+      );
+      expect(mockPage.evaluate).toHaveBeenCalledWith(
+        expect.any(Function),
+        '/en/v/fc2-ppv-2683017',
+      );
+    });
+
     it('should navigate using the matched allowlisted origin for missav.ai', async () => {
       const mockPage = {
         goto: vi.fn(),
@@ -210,6 +236,25 @@ describe('MissAVDownloader', () => {
         MissAVDownloader.downloadVideo('https://123av.com/en/v/fc2-ppv-2683017'),
       ).rejects.toThrow('Could not find m3u8 URL in page source or network requests');
 
+      expect(mockPage.evaluate).toHaveBeenCalledWith(
+        expect.any(Function),
+        '/en/v/fc2-ppv-2683017',
+      );
+    });
+
+    it('preserves the javxx /v/ route during download navigation', async () => {
+      const mockPage = buildPageMock('timeout');
+      const mockBrowser = { newPage: vi.fn().mockResolvedValue(mockPage), close: vi.fn().mockResolvedValue(undefined) };
+      (puppeteer.launch as ReturnType<typeof vi.fn>).mockResolvedValue(mockBrowser);
+
+      await expect(
+        MissAVDownloader.downloadVideo('https://javxx.com/en/v/fc2-ppv-2683017'),
+      ).rejects.toThrow('Could not find m3u8 URL in page source or network requests');
+
+      expect(mockPage.goto).toHaveBeenCalledWith(
+        'https://javxx.com',
+        expect.any(Object),
+      );
       expect(mockPage.evaluate).toHaveBeenCalledWith(
         expect.any(Function),
         '/en/v/fc2-ppv-2683017',

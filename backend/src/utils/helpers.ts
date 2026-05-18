@@ -16,6 +16,7 @@ const MISSAV_HOSTNAMES = [
   "123av.com",
   "123av.ai",
   "123av.ws",
+  "javxx.com",
   "njavtv.com",
 ] as const;
 const TWITTER_HOSTNAMES = ["x.com", "twitter.com"] as const;
@@ -318,6 +319,9 @@ function getMissAVSourceDisplayName(url: string): string {
   }
   if (hostname === "123av.ws" || hostname.endsWith(".123av.ws")) {
     return "123AV";
+  }
+  if (hostname === "javxx.com" || hostname.endsWith(".javxx.com")) {
+    return "JAVXX";
   }
   if (hostname === "njavtv.com" || hostname.endsWith(".njavtv.com")) {
     return "NJAVTV";

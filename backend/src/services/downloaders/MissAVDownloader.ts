@@ -35,7 +35,7 @@ import { BaseDownloader, DownloadOptions, VideoInfo } from "./BaseDownloader";
 
 const YT_DLP_PATH = process.env.YT_DLP_PATH || "yt-dlp";
 const ALLOWED_MISSAV_LANGUAGE_SEGMENTS = new Set(["en", "ja", "zh", "ko"]);
-const ALLOWED_123AV_LANGUAGE_SEGMENTS = new Set([
+const ALLOWED_ROUTED_VIDEO_LANGUAGE_SEGMENTS = new Set([
   ...ALLOWED_MISSAV_LANGUAGE_SEGMENTS,
   "th",
   "ms",
@@ -54,6 +54,7 @@ const MISSAV_NAVIGATION_ORIGINS: Record<string, string> = {
   "123av.com": "https://123av.com",
   "123av.ai": "https://123av.ai",
   "123av.ws": "https://123av.ws",
+  "javxx.com": "https://javxx.com",
   "njavtv.com": "https://njavtv.com",
 };
 
@@ -85,6 +86,9 @@ function getCanonicalMissAvHost(hostname: string): string | null {
   if (normalized === "123av.ws" || normalized.endsWith(".123av.ws")) {
     return "123av.ws";
   }
+  if (normalized === "javxx.com" || normalized.endsWith(".javxx.com")) {
+    return "javxx.com";
+  }
   if (normalized === "njavtv.com" || normalized.endsWith(".njavtv.com")) {
     return "njavtv.com";
   }
@@ -92,8 +96,8 @@ function getCanonicalMissAvHost(hostname: string): string | null {
   return null;
 }
 
-function is123AvHost(canonicalHost: string): boolean {
-  return canonicalHost.startsWith("123av.");
+function usesRoutedVideoPath(canonicalHost: string): boolean {
+  return canonicalHost.startsWith("123av.") || canonicalHost === "javxx.com";
 }
 
 function buildSafeMissAvNavigationTarget(url: string): {
@@ -128,24 +132,24 @@ function buildSafeMissAvNavigationTarget(url: string): {
   }
 
   if (
-    is123AvHost(canonicalHost) &&
+    usesRoutedVideoPath(canonicalHost) &&
     pathSegments[pathSegments.length - 2]?.toLowerCase() === "v"
   ) {
     const prefixSegments = pathSegments.slice(0, -2);
     if (prefixSegments.length > 1) {
       throw new Error(
-        `SSRF protection: Invalid 123AV video path in URL: ${parsedUrl.pathname}`,
+        `SSRF protection: Invalid routed video path in URL: ${parsedUrl.pathname}`,
       );
     }
 
-    const normalized123AvLanguage =
+    const normalizedRouteLanguage =
       prefixSegments.length === 1 ? prefixSegments[0].toLowerCase() : null;
     if (
-      normalized123AvLanguage &&
-      !ALLOWED_123AV_LANGUAGE_SEGMENTS.has(normalized123AvLanguage)
+      normalizedRouteLanguage &&
+      !ALLOWED_ROUTED_VIDEO_LANGUAGE_SEGMENTS.has(normalizedRouteLanguage)
     ) {
       throw new Error(
-        `SSRF protection: Invalid 123AV language segment in URL: ${parsedUrl.pathname}`,
+        `SSRF protection: Invalid routed video language segment in URL: ${parsedUrl.pathname}`,
       );
     }
 
@@ -159,8 +163,8 @@ function buildSafeMissAvNavigationTarget(url: string): {
 
     return {
       origin: safeOrigin,
-      path: normalized123AvLanguage
-        ? `/${normalized123AvLanguage}/v/${encodedVideoId}`
+      path: normalizedRouteLanguage
+        ? `/${normalizedRouteLanguage}/v/${encodedVideoId}`
         : `/v/${encodedVideoId}`,
     };
   }
@@ -290,7 +294,7 @@ export class MissAVDownloader extends BaseDownloader {
     onStart?: (cancel: () => void) => void,
     filenameTemplateSourceOptions?: FilenameTemplateSourceOptions,
   ): Promise<Video> {
-    logger.info("Detected MissAV/123av URL:", url);
+    logger.info("Detected MissAV-family URL:", url);
 
     const timestamp = Date.now();
 
