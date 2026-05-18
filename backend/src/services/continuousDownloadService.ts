@@ -260,7 +260,7 @@ export class ContinuousDownloadService {
           logger.info(
             `Cancelling active download ${download.id} for cancelled task ${id}`
           );
-          downloadManager.default.cancelDownload(download.id);
+          await downloadManager.default.cancelDownload(download.id);
         }
       }
     } catch (error) {

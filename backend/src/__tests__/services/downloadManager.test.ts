@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CloudStorageService } from '../../services/CloudStorageService';
+import { DownloadCancelledError } from '../../errors/DownloadErrors';
 import { createDownloadTask } from '../../services/downloadService';
 import { HookService } from '../../services/hookService';
 import * as storageService from '../../services/storageService';
@@ -417,7 +418,7 @@ describe('DownloadManager', () => {
       );
       await waitForQueue();
 
-      downloadManager.cancelDownload('cancel-1');
+      await downloadManager.cancelDownload('cancel-1');
 
       await expect(running).rejects.toThrow();
       expect(storageService.removeActiveDownload).toHaveBeenCalledWith('cancel-1');
@@ -434,6 +435,40 @@ describe('DownloadManager', () => {
       );
     });
 
+    it('should not record failure handling when a cancelled task later rejects', async () => {
+      let rejectDownload: (error: Error) => void = () => {};
+      const cancelCleanup = vi.fn().mockResolvedValue(undefined);
+      const activeDownloadFn = vi.fn().mockImplementation((registerCancel: any) => {
+        registerCancel(cancelCleanup);
+        return new Promise((_, reject) => {
+          rejectDownload = reject;
+        });
+      });
+
+      const running = downloadManager.addDownload(
+        activeDownloadFn,
+        'cancel-2',
+        'Cancel cleanly',
+        'https://www.youtube.com/watch?v=cancel2',
+        'youtube',
+      );
+      await waitForQueue();
+
+      await downloadManager.cancelDownload('cancel-2');
+      rejectDownload(DownloadCancelledError.create());
+
+      await expect(running).rejects.toThrow('Download cancelled by user');
+      await waitForQueue();
+
+      expect(cancelCleanup).toHaveBeenCalled();
+      expect(storageService.removeActiveDownload).toHaveBeenCalledTimes(1);
+      expect(storageService.addDownloadHistoryItem).toHaveBeenCalledTimes(1);
+      expect(HookService.executeHook).not.toHaveBeenCalledWith(
+        'task_fail',
+        expect.anything(),
+      );
+    });
+
     it('should remove queued task when cancelling non-active download', async () => {
       downloadManager.setMaxConcurrentDownloads(0);
       downloadManager.addDownload(
@@ -445,7 +480,7 @@ describe('DownloadManager', () => {
       );
       await waitForQueue();
 
-      downloadManager.cancelDownload('queued-cancel');
+      await downloadManager.cancelDownload('queued-cancel');
 
       expect(downloadManager.getStatus().queued).toBe(0);
       expect(storageService.setQueuedDownloads).toHaveBeenCalled();

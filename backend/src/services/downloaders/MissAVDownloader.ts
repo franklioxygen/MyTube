@@ -4,8 +4,15 @@ import fs from "fs-extra";
 import path from "path";
 import puppeteer from "puppeteer";
 import { DATA_DIR, IMAGES_DIR, VIDEOS_DIR } from "../../config/paths";
+import {
+  DownloadCancelledError,
+  isCancelledError,
+} from "../../errors/DownloadErrors";
 import { cleanupTemporaryFiles, safeRemove } from "../../utils/downloadUtils";
-import { formatVideoFilename } from "../../utils/helpers";
+import {
+  formatVideoFilename,
+  getMissAVPlaceholderTitle,
+} from "../../utils/helpers";
 import { logger } from "../../utils/logger";
 import { ProgressTracker } from "../../utils/progressTracker";
 import {
@@ -31,7 +38,19 @@ import { Video } from "../storageService";
 import { BaseDownloader, DownloadOptions, VideoInfo } from "./BaseDownloader";
 
 const YT_DLP_PATH = process.env.YT_DLP_PATH || "yt-dlp";
+const MISSAV_PROGRESS_LOG_INTERVAL_MS = 10_000;
 const ALLOWED_MISSAV_LANGUAGE_SEGMENTS = new Set(["en", "ja", "zh", "ko"]);
+const ALLOWED_ROUTED_VIDEO_LANGUAGE_SEGMENTS = new Set([
+  ...ALLOWED_MISSAV_LANGUAGE_SEGMENTS,
+  "th",
+  "ms",
+  "de",
+  "fr",
+  "vi",
+  "id",
+  "fil",
+  "hi",
+]);
 const MISSAV_NAVIGATION_ORIGINS: Record<string, string> = {
   "missav.com": "https://missav.com",
   "missav.ai": "https://missav.ai",
@@ -40,6 +59,7 @@ const MISSAV_NAVIGATION_ORIGINS: Record<string, string> = {
   "123av.com": "https://123av.com",
   "123av.ai": "https://123av.ai",
   "123av.ws": "https://123av.ws",
+  "javxx.com": "https://javxx.com",
   "njavtv.com": "https://njavtv.com",
 };
 
@@ -71,11 +91,18 @@ function getCanonicalMissAvHost(hostname: string): string | null {
   if (normalized === "123av.ws" || normalized.endsWith(".123av.ws")) {
     return "123av.ws";
   }
+  if (normalized === "javxx.com" || normalized.endsWith(".javxx.com")) {
+    return "javxx.com";
+  }
   if (normalized === "njavtv.com" || normalized.endsWith(".njavtv.com")) {
     return "njavtv.com";
   }
 
   return null;
+}
+
+function usesRoutedVideoPath(canonicalHost: string): boolean {
+  return canonicalHost.startsWith("123av.") || canonicalHost === "javxx.com";
 }
 
 function buildSafeMissAvNavigationTarget(url: string): {
@@ -107,6 +134,44 @@ function buildSafeMissAvNavigationTarget(url: string): {
     throw new Error(
       `SSRF protection: Invalid MissAV video path in URL: ${parsedUrl.pathname}`,
     );
+  }
+
+  if (
+    usesRoutedVideoPath(canonicalHost) &&
+    pathSegments[pathSegments.length - 2]?.toLowerCase() === "v"
+  ) {
+    const prefixSegments = pathSegments.slice(0, -2);
+    if (prefixSegments.length > 1) {
+      throw new Error(
+        `SSRF protection: Invalid routed video path in URL: ${parsedUrl.pathname}`,
+      );
+    }
+
+    const normalizedRouteLanguage =
+      prefixSegments.length === 1 ? prefixSegments[0].toLowerCase() : null;
+    if (
+      normalizedRouteLanguage &&
+      !ALLOWED_ROUTED_VIDEO_LANGUAGE_SEGMENTS.has(normalizedRouteLanguage)
+    ) {
+      throw new Error(
+        `SSRF protection: Invalid routed video language segment in URL: ${parsedUrl.pathname}`,
+      );
+    }
+
+    const encodedVideoId = encodeURIComponent(videoId);
+    const safeOrigin = MISSAV_NAVIGATION_ORIGINS[canonicalHost];
+    if (!safeOrigin) {
+      throw new Error(
+        `SSRF protection: Hostname ${canonicalHost} has no allowed navigation origin.`,
+      );
+    }
+
+    return {
+      origin: safeOrigin,
+      path: normalizedRouteLanguage
+        ? `/${normalizedRouteLanguage}/v/${encodedVideoId}`
+        : `/v/${encodedVideoId}`,
+    };
   }
 
   const maybeLanguage = pathSegments[pathSegments.length - 2]?.toLowerCase();
@@ -193,7 +258,7 @@ export class MissAVDownloader extends BaseDownloader {
       }
 
       return {
-        title: pageTitle || "MissAV Video",
+        title: pageTitle || getMissAVPlaceholderTitle(url),
         author: author,
         date: new Date().toISOString().slice(0, 10).replace(/-/g, ""),
         thumbnailUrl: ogImage || null,
@@ -209,7 +274,7 @@ export class MissAVDownloader extends BaseDownloader {
       }
 
       return {
-        title: "MissAV Video",
+        title: getMissAVPlaceholderTitle(url),
         author: author,
         date: new Date().toISOString().slice(0, 10).replace(/-/g, ""),
         thumbnailUrl: null,
@@ -234,7 +299,7 @@ export class MissAVDownloader extends BaseDownloader {
     onStart?: (cancel: () => void) => void,
     filenameTemplateSourceOptions?: FilenameTemplateSourceOptions,
   ): Promise<Video> {
-    logger.info("Detected MissAV/123av URL:", url);
+    logger.info("Detected MissAV-family URL:", url);
 
     const timestamp = Date.now();
 
@@ -245,7 +310,7 @@ export class MissAVDownloader extends BaseDownloader {
     const urlObj = new URL(url);
     const author = urlObj.hostname.replace("www.", "");
 
-    let videoTitle = "MissAV Video";
+    let videoTitle = getMissAVPlaceholderTitle(url);
     let videoAuthor = author;
     let videoDate = new Date().toISOString().slice(0, 10).replace(/-/g, "");
     let thumbnailUrl: string | null = null;
@@ -613,11 +678,39 @@ export class MissAVDownloader extends BaseDownloader {
       // long downloads with chatty ffmpeg/yt-dlp output don't grow memory unboundedly.
       const STDERR_MAX_BYTES = 4 * 1024;
       let stderrBuffer = "";
+      let lastProgressLogAt = 0;
+      let cleanedTemporaryFiles = false;
+      const cleanupTemporaryFilesOnce = async (): Promise<void> => {
+        if (cleanedTemporaryFiles) return;
+        cleanedTemporaryFiles = true;
+        await cleanupTemporaryFiles(newVideoPath);
+      };
+      const shouldLogDownloadProgress = (line: string): boolean => {
+        const now = Date.now();
+        const percentMatch = line.match(/\[download\]\s+(\d+(?:\.\d+)?)%/);
+        const percent = percentMatch ? Number(percentMatch[1]) : null;
+        const isComplete = percent !== null && percent >= 100;
+
+        if (
+          lastProgressLogAt === 0 ||
+          now - lastProgressLogAt >= MISSAV_PROGRESS_LOG_INTERVAL_MS ||
+          isComplete
+        ) {
+          lastProgressLogAt = now;
+          return true;
+        }
+
+        return false;
+      };
       const parseProgress = (output: string, source: "stdout" | "stderr") => {
-        const lines = output.split("\n").filter((line) => line.trim());
+        const lines = output
+          .split(/[\r\n]+/)
+          .filter((line) => line.trim());
         for (const line of lines) {
           if (line.includes("[download]")) {
-            logger.info(`[MissAV Progress ${source}]:`, line.substring(0, 100));
+            if (shouldLogDownloadProgress(line)) {
+              logger.info(`[MissAV Progress ${source}]:`, line.substring(0, 120));
+            }
           } else if (source === "stderr" && line.trim()) {
             // Only log actual errors/warnings, not generic informational lines.
             // yt-dlp/ffmpeg stderr is very chatty during HLS segment downloads.
@@ -645,6 +738,7 @@ export class MissAVDownloader extends BaseDownloader {
       try {
         await new Promise<void>((resolve, reject) => {
           const child = spawn(YT_DLP_PATH, args);
+          let cancellationRequested = false;
 
           child.stdout.on("data", (data) => {
             parseProgress(data.toString(), "stdout");
@@ -654,9 +748,15 @@ export class MissAVDownloader extends BaseDownloader {
             parseProgress(data.toString(), "stderr");
           });
 
-          child.on("close", (code) => {
+          child.on("close", (code, signal) => {
             if (code === 0) {
               resolve();
+            } else if (
+              cancellationRequested ||
+              signal === "SIGTERM" ||
+              signal === "SIGINT"
+            ) {
+              reject(DownloadCancelledError.create());
             } else {
               const err = new Error(`yt-dlp process exited with code ${code}`);
               (err as any).stderr = stderrBuffer;
@@ -670,12 +770,13 @@ export class MissAVDownloader extends BaseDownloader {
 
           if (onStart) {
             onStart(async () => {
+              cancellationRequested = true;
               logger.info("Killing subprocess for download:", downloadId);
               child.kill();
 
               // Clean up temporary files created by yt-dlp (*.part, *.ytdl, etc.)
               logger.info("Cleaning up temporary files...");
-              await cleanupTemporaryFiles(newVideoPath);
+              await cleanupTemporaryFilesOnce();
             });
           }
         });
@@ -685,7 +786,7 @@ export class MissAVDownloader extends BaseDownloader {
         // Use base class helper for cancellation handling
         const downloader = new MissAVDownloader();
         await downloader.handleCancellationError(err, async () => {
-          await cleanupTemporaryFiles(newVideoPath);
+          await cleanupTemporaryFilesOnce();
         });
         logger.error("yt-dlp execution failed:", err);
         throw err;
@@ -791,6 +892,11 @@ export class MissAVDownloader extends BaseDownloader {
 
       return videoData;
     } catch (error: any) {
+      if (isCancelledError(error)) {
+        logger.info("MissAV-family download cancelled:", { downloadId });
+        throw error;
+      }
+
       logger.error("Error in downloadMissAVVideo:", error);
       // Cleanup - try to get the correct extension from config, fallback to mp4
       try {

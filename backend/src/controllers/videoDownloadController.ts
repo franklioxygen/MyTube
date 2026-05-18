@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { ValidationError } from "../errors/DownloadErrors";
+import { isCancelledError, ValidationError } from "../errors/DownloadErrors";
 import downloadManager from "../services/downloadManager";
 import * as downloadService from "../services/downloadService";
 import {
@@ -11,6 +11,7 @@ import {
 import * as storageService from "../services/storageService";
 import {
   extractBilibiliVideoId,
+  getMissAVPlaceholderTitle,
   isBilibiliShortUrl,
   isBilibiliUrl,
   isMissAVUrl,
@@ -266,7 +267,7 @@ export const downloadVideo = async (
     } else if (isTwitchVideoUrl(resolvedUrl)) {
       initialTitle = "Twitch Video";
     } else if (isMissAVUrl(resolvedUrl)) {
-      initialTitle = "MissAV Video";
+      initialTitle = getMissAVPlaceholderTitle(resolvedUrl);
     }
 
     // Generate a unique ID for this download task
@@ -559,6 +560,14 @@ export const downloadVideo = async (
         logger.info("Download completed successfully:", result);
       })
       .catch((error: any) => {
+        if (isCancelledError(error)) {
+          logger.info("Download cancelled:", {
+            downloadId,
+            title: initialTitle,
+          });
+          return;
+        }
+
         logger.error("Download failed:", error);
       });
 

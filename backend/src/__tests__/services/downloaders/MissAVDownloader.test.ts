@@ -3,6 +3,7 @@ import { spawn } from 'child_process';
 import puppeteer from 'puppeteer';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MissAVDownloader } from '../../../services/downloaders/MissAVDownloader';
+import { cleanupTemporaryFiles, isCancellationError } from '../../../utils/downloadUtils';
 
 vi.mock('puppeteer');
 vi.mock('../../../services/storageService', () => ({
@@ -99,6 +100,54 @@ describe('MissAVDownloader', () => {
       expect(info.author).toBe('123av.com');
     });
 
+    it('should preserve the 123av video route when navigating', async () => {
+      const mockPage = {
+        goto: vi.fn(),
+        waitForNavigation: vi.fn().mockResolvedValue(undefined),
+        evaluate: vi.fn().mockResolvedValue(undefined),
+        content: vi.fn().mockResolvedValue('<html><head><meta property="og:title" content="Test Title"></head><body></body></html>'),
+        close: vi.fn(),
+      };
+      const mockBrowser = {
+        newPage: vi.fn().mockResolvedValue(mockPage),
+        close: vi.fn(),
+      };
+      (puppeteer.launch as any).mockResolvedValue(mockBrowser);
+
+      await MissAVDownloader.getVideoInfo('https://123av.com/en/v/fc2-ppv-2683017');
+
+      expect(mockPage.evaluate).toHaveBeenCalledWith(
+        expect.any(Function),
+        '/en/v/fc2-ppv-2683017',
+      );
+    });
+
+    it('should preserve the javxx video route when navigating', async () => {
+      const mockPage = {
+        goto: vi.fn(),
+        waitForNavigation: vi.fn().mockResolvedValue(undefined),
+        evaluate: vi.fn().mockResolvedValue(undefined),
+        content: vi.fn().mockResolvedValue('<html><head><meta property="og:title" content="Test Title"></head><body></body></html>'),
+        close: vi.fn(),
+      };
+      const mockBrowser = {
+        newPage: vi.fn().mockResolvedValue(mockPage),
+        close: vi.fn(),
+      };
+      (puppeteer.launch as any).mockResolvedValue(mockBrowser);
+
+      await MissAVDownloader.getVideoInfo('https://javxx.com/en/v/fc2-ppv-2683017');
+
+      expect(mockPage.goto).toHaveBeenCalledWith(
+        'https://javxx.com',
+        expect.any(Object),
+      );
+      expect(mockPage.evaluate).toHaveBeenCalledWith(
+        expect.any(Function),
+        '/en/v/fc2-ppv-2683017',
+      );
+    });
+
     it('should navigate using the matched allowlisted origin for missav.ai', async () => {
       const mockPage = {
         goto: vi.fn(),
@@ -179,6 +228,40 @@ describe('MissAVDownloader', () => {
       expect(mockPage.waitForResponse).toHaveBeenCalledOnce();
     });
 
+    it('preserves the 123av /v/ route during download navigation', async () => {
+      const mockPage = buildPageMock('timeout');
+      const mockBrowser = { newPage: vi.fn().mockResolvedValue(mockPage), close: vi.fn().mockResolvedValue(undefined) };
+      (puppeteer.launch as ReturnType<typeof vi.fn>).mockResolvedValue(mockBrowser);
+
+      await expect(
+        MissAVDownloader.downloadVideo('https://123av.com/en/v/fc2-ppv-2683017'),
+      ).rejects.toThrow('Could not find m3u8 URL in page source or network requests');
+
+      expect(mockPage.evaluate).toHaveBeenCalledWith(
+        expect.any(Function),
+        '/en/v/fc2-ppv-2683017',
+      );
+    });
+
+    it('preserves the javxx /v/ route during download navigation', async () => {
+      const mockPage = buildPageMock('timeout');
+      const mockBrowser = { newPage: vi.fn().mockResolvedValue(mockPage), close: vi.fn().mockResolvedValue(undefined) };
+      (puppeteer.launch as ReturnType<typeof vi.fn>).mockResolvedValue(mockBrowser);
+
+      await expect(
+        MissAVDownloader.downloadVideo('https://javxx.com/en/v/fc2-ppv-2683017'),
+      ).rejects.toThrow('Could not find m3u8 URL in page source or network requests');
+
+      expect(mockPage.goto).toHaveBeenCalledWith(
+        'https://javxx.com',
+        expect.any(Object),
+      );
+      expect(mockPage.evaluate).toHaveBeenCalledWith(
+        expect.any(Function),
+        '/en/v/fc2-ppv-2683017',
+      );
+    });
+
     it('re-throws non-TimeoutError from waitForResponse', async () => {
       const mockPage = buildPageMock('non-timeout');
       const mockBrowser = { newPage: vi.fn().mockResolvedValue(mockPage), close: vi.fn().mockResolvedValue(undefined) };
@@ -222,6 +305,43 @@ describe('MissAVDownloader', () => {
         expect.any(String),
         expect.arrayContaining(['https://surrit.com/playlist.m3u8']),
       );
+    });
+
+    it('treats SIGTERM from user cancellation as DownloadCancelledError', async () => {
+      const mockPage = buildPageMock('success');
+      const mockBrowser = { newPage: vi.fn().mockResolvedValue(mockPage), close: vi.fn().mockResolvedValue(undefined) };
+      (puppeteer.launch as ReturnType<typeof vi.fn>).mockResolvedValue(mockBrowser);
+      (isCancellationError as ReturnType<typeof vi.fn>).mockReturnValueOnce(true);
+
+      let closeHandler: ((code: number | null, signal: NodeJS.Signals | null) => void) | null = null;
+      const mockChild: any = {
+        stdout: { on: vi.fn() },
+        stderr: { on: vi.fn() },
+        on: vi.fn((event: string, cb: (code: number | null, signal: NodeJS.Signals | null) => void) => {
+          if (event === 'close') closeHandler = cb;
+        }),
+        kill: vi.fn(() => {
+          closeHandler?.(null, 'SIGTERM');
+          return true;
+        }),
+      };
+      (spawn as ReturnType<typeof vi.fn>).mockReturnValueOnce(mockChild);
+
+      let cancelDownload: (() => void | Promise<void>) | undefined;
+      const downloadPromise = MissAVDownloader.downloadVideo(
+        'https://missav.com/test-video',
+        'cancel-1',
+        (cancel) => {
+          cancelDownload = cancel;
+        },
+      );
+
+      await new Promise((resolve) => setImmediate(resolve));
+      await cancelDownload?.();
+
+      await expect(downloadPromise).rejects.toThrow('Download cancelled by user');
+      expect(mockChild.kill).toHaveBeenCalled();
+      expect(cleanupTemporaryFiles).toHaveBeenCalledTimes(1);
     });
 
     it('skips waitForResponse when m3u8 is captured during navigation', async () => {
