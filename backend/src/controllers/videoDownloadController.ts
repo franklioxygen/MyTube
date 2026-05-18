@@ -11,6 +11,7 @@ import {
 import * as storageService from "../services/storageService";
 import {
   extractBilibiliVideoId,
+  getMissAVPlaceholderTitle,
   isBilibiliShortUrl,
   isBilibiliUrl,
   isMissAVUrl,
@@ -266,7 +267,7 @@ export const downloadVideo = async (
     } else if (isTwitchVideoUrl(resolvedUrl)) {
       initialTitle = "Twitch Video";
     } else if (isMissAVUrl(resolvedUrl)) {
-      initialTitle = "MissAV Video";
+      initialTitle = getMissAVPlaceholderTitle(resolvedUrl);
     }
 
     // Generate a unique ID for this download task

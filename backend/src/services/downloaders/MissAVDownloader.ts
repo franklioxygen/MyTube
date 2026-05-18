@@ -5,7 +5,10 @@ import path from "path";
 import puppeteer from "puppeteer";
 import { DATA_DIR, IMAGES_DIR, VIDEOS_DIR } from "../../config/paths";
 import { cleanupTemporaryFiles, safeRemove } from "../../utils/downloadUtils";
-import { formatVideoFilename } from "../../utils/helpers";
+import {
+  formatVideoFilename,
+  getMissAVPlaceholderTitle,
+} from "../../utils/helpers";
 import { logger } from "../../utils/logger";
 import { ProgressTracker } from "../../utils/progressTracker";
 import {
@@ -32,6 +35,17 @@ import { BaseDownloader, DownloadOptions, VideoInfo } from "./BaseDownloader";
 
 const YT_DLP_PATH = process.env.YT_DLP_PATH || "yt-dlp";
 const ALLOWED_MISSAV_LANGUAGE_SEGMENTS = new Set(["en", "ja", "zh", "ko"]);
+const ALLOWED_123AV_LANGUAGE_SEGMENTS = new Set([
+  ...ALLOWED_MISSAV_LANGUAGE_SEGMENTS,
+  "th",
+  "ms",
+  "de",
+  "fr",
+  "vi",
+  "id",
+  "fil",
+  "hi",
+]);
 const MISSAV_NAVIGATION_ORIGINS: Record<string, string> = {
   "missav.com": "https://missav.com",
   "missav.ai": "https://missav.ai",
@@ -78,6 +92,10 @@ function getCanonicalMissAvHost(hostname: string): string | null {
   return null;
 }
 
+function is123AvHost(canonicalHost: string): boolean {
+  return canonicalHost.startsWith("123av.");
+}
+
 function buildSafeMissAvNavigationTarget(url: string): {
   origin: string;
   path: string;
@@ -107,6 +125,44 @@ function buildSafeMissAvNavigationTarget(url: string): {
     throw new Error(
       `SSRF protection: Invalid MissAV video path in URL: ${parsedUrl.pathname}`,
     );
+  }
+
+  if (
+    is123AvHost(canonicalHost) &&
+    pathSegments[pathSegments.length - 2]?.toLowerCase() === "v"
+  ) {
+    const prefixSegments = pathSegments.slice(0, -2);
+    if (prefixSegments.length > 1) {
+      throw new Error(
+        `SSRF protection: Invalid 123AV video path in URL: ${parsedUrl.pathname}`,
+      );
+    }
+
+    const normalized123AvLanguage =
+      prefixSegments.length === 1 ? prefixSegments[0].toLowerCase() : null;
+    if (
+      normalized123AvLanguage &&
+      !ALLOWED_123AV_LANGUAGE_SEGMENTS.has(normalized123AvLanguage)
+    ) {
+      throw new Error(
+        `SSRF protection: Invalid 123AV language segment in URL: ${parsedUrl.pathname}`,
+      );
+    }
+
+    const encodedVideoId = encodeURIComponent(videoId);
+    const safeOrigin = MISSAV_NAVIGATION_ORIGINS[canonicalHost];
+    if (!safeOrigin) {
+      throw new Error(
+        `SSRF protection: Hostname ${canonicalHost} has no allowed navigation origin.`,
+      );
+    }
+
+    return {
+      origin: safeOrigin,
+      path: normalized123AvLanguage
+        ? `/${normalized123AvLanguage}/v/${encodedVideoId}`
+        : `/v/${encodedVideoId}`,
+    };
   }
 
   const maybeLanguage = pathSegments[pathSegments.length - 2]?.toLowerCase();
@@ -193,7 +249,7 @@ export class MissAVDownloader extends BaseDownloader {
       }
 
       return {
-        title: pageTitle || "MissAV Video",
+        title: pageTitle || getMissAVPlaceholderTitle(url),
         author: author,
         date: new Date().toISOString().slice(0, 10).replace(/-/g, ""),
         thumbnailUrl: ogImage || null,
@@ -209,7 +265,7 @@ export class MissAVDownloader extends BaseDownloader {
       }
 
       return {
-        title: "MissAV Video",
+        title: getMissAVPlaceholderTitle(url),
         author: author,
         date: new Date().toISOString().slice(0, 10).replace(/-/g, ""),
         thumbnailUrl: null,
@@ -245,7 +301,7 @@ export class MissAVDownloader extends BaseDownloader {
     const urlObj = new URL(url);
     const author = urlObj.hostname.replace("www.", "");
 
-    let videoTitle = "MissAV Video";
+    let videoTitle = getMissAVPlaceholderTitle(url);
     let videoAuthor = author;
     let videoDate = new Date().toISOString().slice(0, 10).replace(/-/g, "");
     let thumbnailUrl: string | null = null;

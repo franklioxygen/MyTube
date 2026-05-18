@@ -14,6 +14,7 @@ import {
     formatVideoFilename,
     generateTimestamp,
     getDomainFromUrl,
+    getMissAVPlaceholderTitle,
     isBilibiliShortUrl,
     isBilibiliUrl,
     isMissAVUrl,
@@ -274,10 +275,32 @@ describe('Helpers', () => {
         'juq-643-uncensored-leak'
       );
       expect(extractMissAVVideoId('https://missav.ai/v/ABCD123')).toBe('ABCD123');
+      expect(extractMissAVVideoId('https://123av.com/en/v/fc2_ppv-2683017')).toBe('fc2_ppv-2683017');
     });
 
     it('should return null for invalid missav urls', () => {
       expect(extractMissAVVideoId('not-a-url')).toBe(null);
+    });
+  });
+
+  describe('getMissAVPlaceholderTitle', () => {
+    it('should create source-aware placeholder titles from URLs', () => {
+      expect(getMissAVPlaceholderTitle('https://123av.com/en/v/fc2-ppv-2683017')).toBe(
+        '123AV: FC2-PPV-2683017'
+      );
+      expect(getMissAVPlaceholderTitle('https://missav.ai/dm29/en/juq-643-uncensored-leak')).toBe(
+        'MissAV: JUQ-643-UNCENSORED-LEAK'
+      );
+      expect(getMissAVPlaceholderTitle('https://njavtv.com/en/v/abc-123')).toBe(
+        'NJAVTV: ABC-123'
+      );
+    });
+
+    it('should fall back to a generic title for invalid or unsafe URLs', () => {
+      expect(getMissAVPlaceholderTitle('not-a-url')).toBe('MissAV Video');
+      expect(getMissAVPlaceholderTitle('https://user:pass@123av.com/en/v/fc2-ppv-2683017')).toBe(
+        'MissAV Video'
+      );
     });
   });
 
