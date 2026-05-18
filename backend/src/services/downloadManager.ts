@@ -39,6 +39,8 @@ interface DownloadTask {
   sourceUrl?: string;
   type?: string;
   cancelled?: boolean;
+  cancellationFinalized?: boolean;
+  cancellationRejected?: boolean;
   statistics?: StatisticsAttribution;
 }
 
@@ -226,7 +228,45 @@ class DownloadManager {
    * Cancel an active download
    * @param id - ID of the download to cancel
    */
-  cancelDownload(id: string): void {
+  private finalizeCancelledTask(
+    task: DownloadTask,
+    error: DownloadCancelledError = DownloadCancelledError.create(),
+  ): void {
+    if (!task.cancellationFinalized) {
+      task.cancellationFinalized = true;
+      storageService.removeActiveDownload(task.id);
+      storageService.addDownloadHistoryItem({
+        id: task.id,
+        title: task.title,
+        finishedAt: Date.now(),
+        status: "failed",
+        error: "Download cancelled by user",
+        sourceUrl: task.sourceUrl,
+        platform: platformFromUrl(task.sourceUrl),
+        sourceKind: task.statistics?.sourceKind ?? "unknown",
+      });
+
+      HookService.executeHook("task_cancel", {
+        taskId: task.id,
+        taskTitle: task.title,
+        sourceUrl: task.sourceUrl,
+        status: "cancel",
+      });
+    }
+
+    if (!task.cancellationRejected) {
+      task.cancellationRejected = true;
+      task.reject(error);
+    }
+
+    if (this.activeTasks.has(task.id)) {
+      this.activeTasks.delete(task.id);
+      this.activeDownloads = Math.max(0, this.activeDownloads - 1);
+      this.processQueue();
+    }
+  }
+
+  async cancelDownload(id: string): Promise<void> {
     const task = this.activeTasks.get(id);
     if (task) {
       console.log(
@@ -239,7 +279,7 @@ class DownloadManager {
       // Call the cancel function if available
       if (task.cancelFn) {
         try {
-          task.cancelFn();
+          await (task.cancelFn as () => void | Promise<void>)();
         } catch (error) {
           console.error(
             "Error calling cancel function for download:",
@@ -249,39 +289,7 @@ class DownloadManager {
         }
       }
 
-      // Explicitly remove from database and clean up state
-      // This ensures cleanup happens even if cancelFn doesn't properly reject
-      storageService.removeActiveDownload(id);
-
-      // Add to history as cancelled/failed
-      storageService.addDownloadHistoryItem({
-        id: task.id,
-        title: task.title,
-        finishedAt: Date.now(),
-        status: "failed",
-        error: "Download cancelled by user",
-        sourceUrl: task.sourceUrl,
-        platform: platformFromUrl(task.sourceUrl),
-        sourceKind: task.statistics?.sourceKind ?? "unknown",
-      });
-
-      // Execute hook
-      HookService.executeHook("task_cancel", {
-        taskId: task.id,
-        taskTitle: task.title,
-        sourceUrl: task.sourceUrl,
-        status: "cancel",
-      });
-
-      // Clean up internal state
-      this.activeTasks.delete(id);
-      this.activeDownloads--;
-
-      // Reject the promise
-      task.reject(DownloadCancelledError.create());
-
-      // Process next item in queue
-      this.processQueue();
+      this.finalizeCancelledTask(task);
     } else {
       // Check if it's in the queue and remove it
       const inQueue = this.queue.some((t) => t.id === id);
@@ -388,6 +396,9 @@ class DownloadManager {
       const result = await task.downloadFn((cancel) => {
         task.cancelFn = cancel;
       });
+      if (task.cancelled) {
+        throw DownloadCancelledError.create();
+      }
 
       // Extract video data from result
       // videoController returns { success: true, video: ... }
@@ -518,8 +529,14 @@ class DownloadManager {
       task.resolve(result);
     } catch (error) {
       // Check if this is a cancellation - handle differently
-      if (isCancelledError(error)) {
+      if (isCancelledError(error) || task.cancelled) {
         console.log("Download cancelled:", sanitizeLogMessage(task.title));
+        task.cancelled = true;
+        this.finalizeCancelledTask(
+          task,
+          isCancelledError(error) ? error : DownloadCancelledError.create(),
+        );
+        return;
       } else {
         console.error(
           "Error downloading task:",

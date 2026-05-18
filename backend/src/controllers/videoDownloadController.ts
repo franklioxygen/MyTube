@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { ValidationError } from "../errors/DownloadErrors";
+import { isCancelledError, ValidationError } from "../errors/DownloadErrors";
 import downloadManager from "../services/downloadManager";
 import * as downloadService from "../services/downloadService";
 import {
@@ -560,6 +560,14 @@ export const downloadVideo = async (
         logger.info("Download completed successfully:", result);
       })
       .catch((error: any) => {
+        if (isCancelledError(error)) {
+          logger.info("Download cancelled:", {
+            downloadId,
+            title: initialTitle,
+          });
+          return;
+        }
+
         logger.error("Download failed:", error);
       });
 

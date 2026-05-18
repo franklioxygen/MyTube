@@ -12,7 +12,7 @@ export const cancelDownload = async (
   res: Response
 ): Promise<void> => {
   const { id } = req.params;
-  downloadManager.cancelDownload(id);
+  await downloadManager.cancelDownload(id);
   sendSuccessMessage(res, "Download cancelled");
 };
 

@@ -3,6 +3,7 @@ import { spawn } from 'child_process';
 import puppeteer from 'puppeteer';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MissAVDownloader } from '../../../services/downloaders/MissAVDownloader';
+import { cleanupTemporaryFiles, isCancellationError } from '../../../utils/downloadUtils';
 
 vi.mock('puppeteer');
 vi.mock('../../../services/storageService', () => ({
@@ -304,6 +305,43 @@ describe('MissAVDownloader', () => {
         expect.any(String),
         expect.arrayContaining(['https://surrit.com/playlist.m3u8']),
       );
+    });
+
+    it('treats SIGTERM from user cancellation as DownloadCancelledError', async () => {
+      const mockPage = buildPageMock('success');
+      const mockBrowser = { newPage: vi.fn().mockResolvedValue(mockPage), close: vi.fn().mockResolvedValue(undefined) };
+      (puppeteer.launch as ReturnType<typeof vi.fn>).mockResolvedValue(mockBrowser);
+      (isCancellationError as ReturnType<typeof vi.fn>).mockReturnValueOnce(true);
+
+      let closeHandler: ((code: number | null, signal: NodeJS.Signals | null) => void) | null = null;
+      const mockChild: any = {
+        stdout: { on: vi.fn() },
+        stderr: { on: vi.fn() },
+        on: vi.fn((event: string, cb: (code: number | null, signal: NodeJS.Signals | null) => void) => {
+          if (event === 'close') closeHandler = cb;
+        }),
+        kill: vi.fn(() => {
+          closeHandler?.(null, 'SIGTERM');
+          return true;
+        }),
+      };
+      (spawn as ReturnType<typeof vi.fn>).mockReturnValueOnce(mockChild);
+
+      let cancelDownload: (() => void | Promise<void>) | undefined;
+      const downloadPromise = MissAVDownloader.downloadVideo(
+        'https://missav.com/test-video',
+        'cancel-1',
+        (cancel) => {
+          cancelDownload = cancel;
+        },
+      );
+
+      await new Promise((resolve) => setImmediate(resolve));
+      await cancelDownload?.();
+
+      await expect(downloadPromise).rejects.toThrow('Download cancelled by user');
+      expect(mockChild.kill).toHaveBeenCalled();
+      expect(cleanupTemporaryFiles).toHaveBeenCalledTimes(1);
     });
 
     it('skips waitForResponse when m3u8 is captured during navigation', async () => {

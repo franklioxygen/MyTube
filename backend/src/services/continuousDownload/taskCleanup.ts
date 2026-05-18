@@ -99,7 +99,7 @@ export class TaskCleanup {
                 `Cancelling active download ${download.id} for video ${currentVideoUrl}`
               );
               try {
-                downloadManager.default.cancelDownload(download.id);
+                await downloadManager.default.cancelDownload(download.id);
               } catch (error) {
                 logger.error(
                   `Error cancelling download ${download.id}:`,

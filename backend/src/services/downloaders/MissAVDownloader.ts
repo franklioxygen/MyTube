@@ -4,6 +4,10 @@ import fs from "fs-extra";
 import path from "path";
 import puppeteer from "puppeteer";
 import { DATA_DIR, IMAGES_DIR, VIDEOS_DIR } from "../../config/paths";
+import {
+  DownloadCancelledError,
+  isCancelledError,
+} from "../../errors/DownloadErrors";
 import { cleanupTemporaryFiles, safeRemove } from "../../utils/downloadUtils";
 import {
   formatVideoFilename,
@@ -34,6 +38,7 @@ import { Video } from "../storageService";
 import { BaseDownloader, DownloadOptions, VideoInfo } from "./BaseDownloader";
 
 const YT_DLP_PATH = process.env.YT_DLP_PATH || "yt-dlp";
+const MISSAV_PROGRESS_LOG_INTERVAL_MS = 10_000;
 const ALLOWED_MISSAV_LANGUAGE_SEGMENTS = new Set(["en", "ja", "zh", "ko"]);
 const ALLOWED_ROUTED_VIDEO_LANGUAGE_SEGMENTS = new Set([
   ...ALLOWED_MISSAV_LANGUAGE_SEGMENTS,
@@ -673,11 +678,39 @@ export class MissAVDownloader extends BaseDownloader {
       // long downloads with chatty ffmpeg/yt-dlp output don't grow memory unboundedly.
       const STDERR_MAX_BYTES = 4 * 1024;
       let stderrBuffer = "";
+      let lastProgressLogAt = 0;
+      let cleanedTemporaryFiles = false;
+      const cleanupTemporaryFilesOnce = async (): Promise<void> => {
+        if (cleanedTemporaryFiles) return;
+        cleanedTemporaryFiles = true;
+        await cleanupTemporaryFiles(newVideoPath);
+      };
+      const shouldLogDownloadProgress = (line: string): boolean => {
+        const now = Date.now();
+        const percentMatch = line.match(/\[download\]\s+(\d+(?:\.\d+)?)%/);
+        const percent = percentMatch ? Number(percentMatch[1]) : null;
+        const isComplete = percent !== null && percent >= 100;
+
+        if (
+          lastProgressLogAt === 0 ||
+          now - lastProgressLogAt >= MISSAV_PROGRESS_LOG_INTERVAL_MS ||
+          isComplete
+        ) {
+          lastProgressLogAt = now;
+          return true;
+        }
+
+        return false;
+      };
       const parseProgress = (output: string, source: "stdout" | "stderr") => {
-        const lines = output.split("\n").filter((line) => line.trim());
+        const lines = output
+          .split(/[\r\n]+/)
+          .filter((line) => line.trim());
         for (const line of lines) {
           if (line.includes("[download]")) {
-            logger.info(`[MissAV Progress ${source}]:`, line.substring(0, 100));
+            if (shouldLogDownloadProgress(line)) {
+              logger.info(`[MissAV Progress ${source}]:`, line.substring(0, 120));
+            }
           } else if (source === "stderr" && line.trim()) {
             // Only log actual errors/warnings, not generic informational lines.
             // yt-dlp/ffmpeg stderr is very chatty during HLS segment downloads.
@@ -705,6 +738,7 @@ export class MissAVDownloader extends BaseDownloader {
       try {
         await new Promise<void>((resolve, reject) => {
           const child = spawn(YT_DLP_PATH, args);
+          let cancellationRequested = false;
 
           child.stdout.on("data", (data) => {
             parseProgress(data.toString(), "stdout");
@@ -714,9 +748,15 @@ export class MissAVDownloader extends BaseDownloader {
             parseProgress(data.toString(), "stderr");
           });
 
-          child.on("close", (code) => {
+          child.on("close", (code, signal) => {
             if (code === 0) {
               resolve();
+            } else if (
+              cancellationRequested ||
+              signal === "SIGTERM" ||
+              signal === "SIGINT"
+            ) {
+              reject(DownloadCancelledError.create());
             } else {
               const err = new Error(`yt-dlp process exited with code ${code}`);
               (err as any).stderr = stderrBuffer;
@@ -730,12 +770,13 @@ export class MissAVDownloader extends BaseDownloader {
 
           if (onStart) {
             onStart(async () => {
+              cancellationRequested = true;
               logger.info("Killing subprocess for download:", downloadId);
               child.kill();
 
               // Clean up temporary files created by yt-dlp (*.part, *.ytdl, etc.)
               logger.info("Cleaning up temporary files...");
-              await cleanupTemporaryFiles(newVideoPath);
+              await cleanupTemporaryFilesOnce();
             });
           }
         });
@@ -745,7 +786,7 @@ export class MissAVDownloader extends BaseDownloader {
         // Use base class helper for cancellation handling
         const downloader = new MissAVDownloader();
         await downloader.handleCancellationError(err, async () => {
-          await cleanupTemporaryFiles(newVideoPath);
+          await cleanupTemporaryFilesOnce();
         });
         logger.error("yt-dlp execution failed:", err);
         throw err;
@@ -851,6 +892,11 @@ export class MissAVDownloader extends BaseDownloader {
 
       return videoData;
     } catch (error: any) {
+      if (isCancelledError(error)) {
+        logger.info("MissAV-family download cancelled:", { downloadId });
+        throw error;
+      }
+
       logger.error("Error in downloadMissAVVideo:", error);
       // Cleanup - try to get the correct extension from config, fallback to mp4
       try {
