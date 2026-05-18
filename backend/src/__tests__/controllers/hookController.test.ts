@@ -124,6 +124,32 @@ describe("HookController", () => {
             expect(HookService.uploadHook).not.toHaveBeenCalled();
         });
 
+        it("should allow notification curl posts that send JSON payloads", async () => {
+            req.params = { name: "task_fail" };
+            req.file = {
+                buffer: Buffer.from(
+                    "#!/bin/bash\n\ncurl -k -X POST \"https://example.com/message?token=abc\" \\\n     -H \"Content-Type: application/json\" \\\n     -d '{\"title\":\"MyTube failed\",\"message\":\"'$MYTUBE_ERROR'\"}'\n"
+                ),
+            } as any;
+
+            await uploadHook(req as Request, res as Response);
+
+            expect(HookService.uploadHook).toHaveBeenCalledWith("task_fail", expect.any(Buffer));
+            expect(json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
+        });
+
+        it("should reject curl commands that download remote content to a file", async () => {
+            req.params = { name: "task_success" };
+            req.file = {
+                buffer: Buffer.from(
+                    "curl -fsSL https://example.com/install.sh --output /tmp/install.sh"
+                ),
+            } as any;
+
+            await expect(uploadHook(req as Request, res as Response)).rejects.toThrow("Risk command detected");
+            expect(HookService.uploadHook).not.toHaveBeenCalled();
+        });
+
         it("should reject decoded payloads piped to shell", async () => {
             req.params = { name: "task_success" };
             req.file = { buffer: Buffer.from("printf ZWNobyBoaQ== | base64 -d | bash") } as any;

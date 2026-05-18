@@ -72,6 +72,8 @@ const scanForRiskCommands = (content: string): string | null => {
   // Keep patterns simple to avoid ReDoS from complex regular expressions.
   // Use simpler, more specific patterns to avoid ReDoS (Regular Expression Denial of Service)
   // Avoid nested quantifiers and complex alternations that can cause exponential backtracking
+  const normalizedContent = content.replace(/\\\r?\n/g, " ").replace(/\r/g, "");
+
   const riskyPatterns = [
     { pattern: /rm\s+-[rf]+\s+\//, name: "rm -rf / (destructive delete)" },
     { pattern: /rm\s+-[rf]+\s+\*/, name: "rm -rf * (destructive delete)" },
@@ -159,8 +161,19 @@ const scanForRiskCommands = (content: string): string | null => {
       name: "wget piped to shell",
     },
     {
-      pattern: /curl\b[^\n]{0,200}\b(?:https?|ftp):\/\//,
-      name: "curl (potential malware download)",
+      pattern:
+        /curl\b[^\n]{0,240}\s+(?:-o|--output|-O|--remote-name|--remote-header-name)(?:\b|=)[^\n]{0,200}\b(?:https?|ftp):\/\//,
+      name: "curl download to file",
+    },
+    {
+      pattern:
+        /curl\b[^\n]{0,240}\b(?:https?|ftp):\/\/[^\s"'`]+[^\n]{0,200}\s+(?:-o|--output|-O|--remote-name|--remote-header-name)(?:\b|=)/,
+      name: "curl download to file",
+    },
+    {
+      pattern:
+        /curl\b[^\n]{0,240}\b(?:https?|ftp):\/\/[^\s"'`]+\s*(?:>|>>)\s*[^\n]+/,
+      name: "curl redirected to file",
     },
     {
       pattern: /curl\b[^\n]{0,240}\|\s*(?:bash|sh)\b/,
@@ -173,7 +186,7 @@ const scanForRiskCommands = (content: string): string | null => {
   ];
 
   for (const risk of riskyPatterns) {
-    if (risk.pattern.test(content)) {
+    if (risk.pattern.test(normalizedContent)) {
       return risk.name;
     }
   }
