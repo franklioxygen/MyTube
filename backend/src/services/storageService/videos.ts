@@ -18,7 +18,9 @@ import {
   buildStoragePath,
   findImageFile,
   findVideoFile,
+  findVideoFilesByFilename,
   pathExists,
+  removeEmptyDirectoryChain,
   removeFileIfExists,
   renamePath,
 } from "./fileHelpers";
@@ -748,8 +750,15 @@ function deleteVideoFile(
   // lookup) could match the wrong file or miss the intended one entirely.
   const resolved = video.videoPath ? resolveManagedWebPath(video.videoPath) : null;
   if (resolved) {
-    if (pathExists(resolved.absolutePath)) {
-      removeFileIfExists(resolved.absolutePath);
+    if (deleteLocalVideoPath(resolved.absolutePath, resolved.rootDir)) {
+      return;
+    }
+
+    if (video.videoFilename) {
+      const fallbackPath = findUnambiguousVideoFileFallback(video.videoFilename);
+      if (fallbackPath) {
+        deleteLocalVideoPath(fallbackPath, VIDEOS_DIR);
+      }
     }
     return;
   }
@@ -757,10 +766,36 @@ function deleteVideoFile(
   // Legacy fallback: only basename available (older rows pre-feature).
   if (video.videoFilename) {
     const actualPath = findVideoFile(video.videoFilename, allCollections);
-    if (actualPath && pathExists(actualPath)) {
-      removeFileIfExists(actualPath);
+    if (actualPath) {
+      deleteLocalVideoPath(actualPath, VIDEOS_DIR);
     }
   }
+}
+
+function deleteLocalVideoPath(absolutePath: string, rootDir: string): boolean {
+  if (!pathExists(absolutePath)) {
+    return false;
+  }
+
+  removeFileIfExists(absolutePath);
+  removeEmptyDirectoryChain(path.dirname(absolutePath), rootDir);
+  return true;
+}
+
+function findUnambiguousVideoFileFallback(filename: string): string | null {
+  const matches = findVideoFilesByFilename(filename);
+  if (matches.length === 1) {
+    return matches[0];
+  }
+
+  if (matches.length > 1) {
+    logger.warn(
+      `Skipping stale-path video deletion because filename is ambiguous: ${filename}`,
+      { matches }
+    );
+  }
+
+  return null;
 }
 
 function deleteThumbnailFile(
@@ -831,6 +866,7 @@ function deleteThumbnailFile(
           null;
         removeFileIfExists(thumbnailPath);
         deleteSmallThumbnailMirrorSync(thumbnailWebPath);
+        pruneManagedArtifactParentDirectories(thumbnailPath);
         logger.info(`Deleted thumbnail file: ${thumbnailPath}`);
       } catch (error) {
         logger.error(
@@ -890,6 +926,7 @@ function deleteAuthorAvatarIfNeeded(
       if (avatarPath && pathExists(avatarPath)) {
         try {
           removeFileIfExists(avatarPath);
+          removeEmptyDirectoryChain(path.dirname(avatarPath), AVATARS_DIR);
           logger.info(`Deleted author avatar file: ${avatarPath}`);
         } catch (error) {
           logger.error(
@@ -913,24 +950,10 @@ function deleteSubtitleFiles(
   if (video.subtitles && video.subtitles.length > 0) {
     const canUseLocalFallbacks = isLocalManagedVideo(video);
     for (const subtitle of video.subtitles) {
-      let subtitlePath: string | null = null;
-
-      // Determine the actual file path based on subtitle.path
-      if (subtitle.path) {
-        if (subtitle.path.startsWith("/videos/")) {
-          // Subtitle is stored alongside video file
-          subtitlePath = buildStoragePath(
-            VIDEOS_DIR,
-            subtitle.path.replace(/^\/videos\//, "")
-          );
-        } else if (subtitle.path.startsWith("/subtitles/")) {
-          // Subtitle is in subtitles directory (may be in collection subdirectory)
-          subtitlePath = buildStoragePath(
-            UPLOADS_DIR,
-            subtitle.path.replace(/^\//, "")
-          );
-        }
-      }
+      let subtitlePath =
+        subtitle.path && typeof subtitle.path === "string"
+          ? resolveManagedWebPath(subtitle.path)?.absolutePath ?? null
+          : null;
 
       // Fallback: try to find by filename if path-based lookup fails
       // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
@@ -959,6 +982,7 @@ function deleteSubtitleFiles(
       if (subtitlePath && pathExists(subtitlePath)) {
         try {
           removeFileIfExists(subtitlePath);
+          pruneManagedArtifactParentDirectories(subtitlePath);
           logger.info(`Deleted subtitle file: ${subtitlePath}`);
         } catch (error) {
           logger.error(
@@ -968,5 +992,22 @@ function deleteSubtitleFiles(
         }
       }
     }
+  }
+}
+
+function pruneManagedArtifactParentDirectories(absolutePath: string): void {
+  if (absolutePath.startsWith(VIDEOS_DIR + path.sep)) {
+    removeEmptyDirectoryChain(path.dirname(absolutePath), VIDEOS_DIR);
+    return;
+  }
+
+  if (absolutePath.startsWith(IMAGES_DIR + path.sep)) {
+    removeEmptyDirectoryChain(path.dirname(absolutePath), IMAGES_DIR);
+    return;
+  }
+
+  if (absolutePath.startsWith(SUBTITLES_DIR + path.sep)) {
+    removeEmptyDirectoryChain(path.dirname(absolutePath), SUBTITLES_DIR);
+    return;
   }
 }
