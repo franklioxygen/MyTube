@@ -122,7 +122,8 @@ describe('YtDlpDownloader format defaults', () => {
 
         expect(args.format).toContain('vcodec^=vp9');
         expect(args.format).not.toContain('av01');
-        expect(args.mergeOutputFormat).toBe('webm');
+        expect(args.mergeOutputFormat).toBe('webm/mp4');
+        expect(args.output).toContain('.%(ext)s');
     });
 
     it('should relax H.264 preference when formatSort is provided to allow higher resolutions', async () => {
@@ -143,8 +144,9 @@ describe('YtDlpDownloader format defaults', () => {
         // Should use the high-quality browser-playable format.
         expect(args.format).toContain('vcodec^=vp9');
         expect(args.format).not.toContain('av01');
-        // Should default to WebM to support high-resolution VP9.
-        expect(args.mergeOutputFormat).toBe('webm');
+        // Should prefer WebM while still allowing MP4 fallback.
+        expect(args.mergeOutputFormat).toBe('webm/mp4');
+        expect(args.output).toContain('.%(ext)s');
     });
 
     it('should NOT force generic avc1 string if user provides custom format', async () => {

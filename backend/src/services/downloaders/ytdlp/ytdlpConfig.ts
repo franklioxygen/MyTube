@@ -11,6 +11,7 @@ export interface YtDlpFlags {
 export interface PreparedFlags {
   flags: YtDlpFlags;
   mergeOutputFormat: string;
+  videoExtension: string;
 }
 
 type UserYtDlpConfig = Record<string, any>;
@@ -169,7 +170,15 @@ function resolveMergeOutputFormat(args: {
   if (isTwitter) {
     return "mp4";
   }
-  return isYouTube ? "webm" : "mp4";
+  return isYouTube ? "webm/mp4" : "mp4";
+}
+
+function resolvePreferredVideoExtension(mergeOutputFormat: string): string {
+  const preferredExtension = mergeOutputFormat
+    .split("/")
+    .map((value) => value.trim())
+    .find(Boolean);
+  return preferredExtension || "mp4";
 }
 
 function buildBaseFlags(args: {
@@ -488,5 +497,6 @@ export function prepareDownloadFlags(
   return {
     flags,
     mergeOutputFormat,
+    videoExtension: resolvePreferredVideoExtension(mergeOutputFormat),
   };
 }
