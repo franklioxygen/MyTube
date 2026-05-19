@@ -162,6 +162,14 @@ export async function downloadVideo(
     const thumbnailUrl = info.thumbnail || null;
     const description = info.description || "";
 
+    if (downloadId) {
+      storageService.updateActiveDownload(downloadId, {
+        title: videoTitle,
+        filename: videoTitle,
+        progress: 0,
+      });
+    }
+
     // Try to get avatar URL from yt-dlp info first
     let authorAvatarUrl = info.channel_avatar || info.uploader_avatar || null;
 

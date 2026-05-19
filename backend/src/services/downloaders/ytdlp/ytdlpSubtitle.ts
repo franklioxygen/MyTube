@@ -4,6 +4,7 @@ import { cleanupSubtitleFiles } from "../../../utils/downloadUtils";
 import { logger } from "../../../utils/logger";
 import {
   copyFileSafeSync,
+  ensureDirSafeSync,
   readFileSafeSync,
   readdirSafeSync,
   resolveSafeChildPath,
@@ -129,34 +130,41 @@ export async function processSubtitles(
       const destSubPath = resolveSafeChildPath(destinationDir, destSubFilename);
       const webPath = `${resolvedWebDir}/${destSubFilename}`;
 
-      if (extension.toLowerCase() === ".vtt") {
-        // Read VTT file and fix alignment for centering
-        let vttContent = readFileSafeSync(sourceSubPath, [VIDEOS_DIR, SUBTITLES_DIR], "utf-8");
-        // Replace align:start with align:middle for centered subtitles
-        // Also remove position:0% which forces left positioning
-        vttContent = vttContent.replace(/ align:start/g, " align:middle");
-        vttContent = vttContent.replace(/ position:0%/g, "");
+      try {
+        ensureDirSafeSync(destinationDir, [VIDEOS_DIR, SUBTITLES_DIR]);
 
-        // Write cleaned VTT to destination
-        writeFileSafeSync(destSubPath, [VIDEOS_DIR, SUBTITLES_DIR], vttContent, "utf-8");
-      } else if (sourceSubPath !== destSubPath) {
-        copyFileSafeSync(sourceSubPath, [VIDEOS_DIR, SUBTITLES_DIR], destSubPath, [VIDEOS_DIR, SUBTITLES_DIR]);
+        if (extension.toLowerCase() === ".vtt") {
+          // Read VTT file and fix alignment for centering
+          let vttContent = readFileSafeSync(sourceSubPath, [VIDEOS_DIR, SUBTITLES_DIR], "utf-8");
+          // Replace align:start with align:middle for centered subtitles
+          // Also remove position:0% which forces left positioning
+          vttContent = vttContent.replace(/ align:start/g, " align:middle");
+          vttContent = vttContent.replace(/ position:0%/g, "");
+
+          // Write cleaned VTT to destination
+          writeFileSafeSync(destSubPath, [VIDEOS_DIR, SUBTITLES_DIR], vttContent, "utf-8");
+        } else if (sourceSubPath !== destSubPath) {
+          copyFileSafeSync(sourceSubPath, [VIDEOS_DIR, SUBTITLES_DIR], destSubPath, [VIDEOS_DIR, SUBTITLES_DIR]);
+        }
+
+        // Remove original file if we moved it (if dest is different from source)
+        if (sourceSubPath !== destSubPath) {
+          unlinkSafeSync(sourceSubPath, [VIDEOS_DIR, SUBTITLES_DIR]);
+        }
+
+        logger.info(
+          `Processed and moved subtitle ${subtitleFile} to ${destSubPath}`,
+        );
+
+        subtitles.push({
+          language,
+          filename: destSubFilename,
+          path: webPath,
+        });
+      } catch (subtitleFileError) {
+        await downloader.handleCancellationErrorPublic(subtitleFileError);
+        logger.warn(`Skipping subtitle file ${subtitleFile}:`, subtitleFileError);
       }
-
-      // Remove original file if we moved it (if dest is different from source)
-      if (sourceSubPath !== destSubPath) {
-        unlinkSafeSync(sourceSubPath, [VIDEOS_DIR, SUBTITLES_DIR]);
-      }
-
-      logger.info(
-        `Processed and moved subtitle ${subtitleFile} to ${destSubPath}`,
-      );
-
-      subtitles.push({
-        language,
-        filename: destSubFilename,
-        path: webPath,
-      });
     }
   } catch (subtitleError) {
     // If it's a cancellation error, re-throw it

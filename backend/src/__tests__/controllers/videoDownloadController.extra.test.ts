@@ -194,6 +194,10 @@ describe("videoDownloadController extra coverage", () => {
       shouldSkip: false,
       response: null,
     } as any);
+    vi.mocked(storageService.getDownloadStatus).mockReturnValue({
+      activeDownloads: [],
+      queuedDownloads: [],
+    } as any);
     vi.mocked(downloadManager.addDownload).mockImplementation(
       async (task: any) => task(vi.fn())
     );
@@ -391,6 +395,16 @@ describe("videoDownloadController extra coverage", () => {
     req.body = { youtubeUrl: "https://youtube.com/watch?v=new" };
     vi.mocked(isYouTubeUrl).mockReturnValue(true);
     vi.mocked(downloadService.downloadYouTubeVideo).mockResolvedValue({ id: "video-yt" } as any);
+    vi.mocked(storageService.getDownloadStatus).mockImplementation(() => ({
+      activeDownloads: [],
+      queuedDownloads: [
+        {
+          id: vi.mocked(downloadManager.addDownload).mock.calls[0]?.[1],
+          title: "YouTube Video",
+          timestamp: Date.now(),
+        },
+      ],
+    } as any));
 
     await downloadVideo(req as Request, res as Response);
     await flushBackgroundTasks();
@@ -412,6 +426,22 @@ describe("videoDownloadController extra coverage", () => {
     expect(json).toHaveBeenCalledWith(
       expect.objectContaining({ success: true, message: "Download queued" })
     );
+  });
+
+  it("downloadVideo skips background title lookup once the task is active", async () => {
+    req.body = { youtubeUrl: "https://youtube.com/watch?v=active" };
+    vi.mocked(isYouTubeUrl).mockReturnValue(true);
+    vi.mocked(downloadService.downloadYouTubeVideo).mockResolvedValue({ id: "video-active" } as any);
+    vi.mocked(storageService.getDownloadStatus).mockReturnValue({
+      activeDownloads: [{ id: "active-id", title: "YouTube Video", timestamp: Date.now() }],
+      queuedDownloads: [],
+    } as any);
+
+    await downloadVideo(req as Request, res as Response);
+    await flushBackgroundTasks();
+
+    expect(downloadService.getVideoInfo).not.toHaveBeenCalled();
+    expect(downloadManager.updateTaskTitle).not.toHaveBeenCalled();
   });
 
   it("downloadVideo handles bilibili collection download task", async () => {
@@ -748,6 +778,16 @@ describe("videoDownloadController extra coverage", () => {
 
   it("downloadVideo tolerates background getVideoInfo failures", async () => {
     req.body = { youtubeUrl: "https://youtube.com/watch?v=noinfo" };
+    vi.mocked(storageService.getDownloadStatus).mockImplementation(() => ({
+      activeDownloads: [],
+      queuedDownloads: [
+        {
+          id: vi.mocked(downloadManager.addDownload).mock.calls[0]?.[1],
+          title: "YouTube Video",
+          timestamp: Date.now(),
+        },
+      ],
+    } as any));
     vi.mocked(downloadService.getVideoInfo).mockRejectedValueOnce(
       new Error("info failed")
     );

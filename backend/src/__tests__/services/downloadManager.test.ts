@@ -553,6 +553,106 @@ describe('DownloadManager', () => {
       );
     });
 
+    it('should await failure hook completion before rejecting the task', async () => {
+      let resolveHook: () => void = () => {};
+      vi.mocked(HookService.executeHook).mockImplementation((eventName: string) => {
+        if (eventName === 'task_fail') {
+          return new Promise<void>((resolve) => {
+            resolveHook = resolve;
+          });
+        }
+        return Promise.resolve();
+      });
+
+      const taskPromise = downloadManager.addDownload(
+        vi.fn().mockRejectedValue(new Error('hook wait')),
+        'failed-await',
+        'Failed await',
+        'https://www.youtube.com/watch?v=failedawait',
+        'youtube',
+      );
+
+      let settled = false;
+      taskPromise.catch(() => {
+        settled = true;
+      });
+
+      await waitForQueue();
+      expect(HookService.executeHook).toHaveBeenCalledWith(
+        'task_fail',
+        expect.objectContaining({
+          taskId: 'failed-await',
+          error: 'hook wait',
+        }),
+      );
+      expect(settled).toBe(false);
+
+      resolveHook();
+      await expect(taskPromise).rejects.toThrow('hook wait');
+    });
+
+    it('should stop waiting on task_fail hook after the timeout and reject the task', async () => {
+      vi.useFakeTimers();
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      try {
+        vi.mocked(HookService.executeHook).mockImplementation((eventName: string) => {
+          if (eventName === 'task_fail') {
+            return new Promise<void>(() => {});
+          }
+          return Promise.resolve();
+        });
+
+        const taskPromise = downloadManager.addDownload(
+          vi.fn().mockRejectedValue(new Error('timed out hook')),
+          'failed-timeout',
+          'Failed timeout',
+          'https://www.youtube.com/watch?v=failedtimeout',
+          'youtube',
+        );
+        taskPromise.catch(() => {});
+
+        await vi.runAllTimersAsync();
+
+        await expect(taskPromise).rejects.toThrow('timed out hook');
+        expect(warnSpy).toHaveBeenCalledWith(
+          'task_fail hook exceeded 5000ms; continuing task failure handling.'
+        );
+      } finally {
+        warnSpy.mockRestore();
+        vi.useRealTimers();
+      }
+    });
+
+    it('should still reject with the download error when task_fail hook rejects', async () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      try {
+        vi.mocked(HookService.executeHook).mockImplementation((eventName: string) => {
+          if (eventName === 'task_fail') {
+            return Promise.reject(new Error('hook exploded'));
+          }
+          return Promise.resolve();
+        });
+
+        const taskPromise = downloadManager.addDownload(
+          vi.fn().mockRejectedValue(new Error('download exploded')),
+          'failed-hook-reject',
+          'Failed hook reject',
+          'https://www.youtube.com/watch?v=failedhookreject',
+          'youtube',
+        );
+
+        await expect(taskPromise).rejects.toThrow('download exploded');
+        expect(errorSpy).toHaveBeenCalledWith(
+          'task_fail hook failed:',
+          expect.any(Error),
+        );
+      } finally {
+        errorSpy.mockRestore();
+      }
+    });
+
     it('should clear queue explicitly', async () => {
       downloadManager.setMaxConcurrentDownloads(0);
       downloadManager.addDownload(

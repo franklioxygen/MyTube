@@ -239,6 +239,7 @@ export async function downloadVideo(
 
     if (downloadId) {
       storageService.updateActiveDownload(downloadId, {
+        title: videoTitle,
         filename: videoTitle,
         progress: 0,
       });

@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => {
         readdirSync: vi.fn(),
         readFileSync: vi.fn(),
         writeFileSync: vi.fn(),
+        ensureDirSync: vi.fn(),
         unlinkSync: vi.fn(),
         remove: vi.fn(),
     };
@@ -63,7 +64,7 @@ vi.mock('fs-extra', () => {
     return {
         default: {
             pathExists: vi.fn().mockResolvedValue(false),
-            ensureDirSync: vi.fn(),
+            ensureDirSync: (...args: any[]) => mocks.ensureDirSync(...args),
             existsSync: vi.fn().mockReturnValue(false),
             createWriteStream: vi.fn().mockReturnValue({
                 on: (event: string, cb: any) => {
@@ -165,6 +166,34 @@ describe('File Location Logic', () => {
             // dest = /mock/videos/video_123.en.vtt
             // So unlinkSync should NOT be called
             expect(mocks.unlinkSync).not.toHaveBeenCalled();
+        });
+
+        it('should create nested central subtitle directories before writing', async () => {
+            const baseFilename = 'Show.S01E01';
+            mocks.readdirSync.mockImplementation((dir: string) =>
+                dir === path.join('/mock/videos', 'Author', 'Season 2026')
+                    ? ['Show.S01E01.en.vtt']
+                    : []
+            );
+            mocks.readFileSync.mockReturnValue('WEBVTT');
+
+            await processSubtitles(
+                baseFilename,
+                'download_id',
+                false,
+                path.join('/mock/videos', 'Author', 'Season 2026'),
+                path.join('/mock/subtitles', 'Author', 'Season 2026'),
+                '/subtitles/Author/Season 2026',
+            );
+
+            expect(mocks.ensureDirSync).toHaveBeenCalledWith(
+                path.join('/mock/subtitles', 'Author', 'Season 2026'),
+            );
+            expect(mocks.writeFileSync).toHaveBeenCalledWith(
+                path.join('/mock/subtitles', 'Author', 'Season 2026', 'Show.S01E01.en.vtt'),
+                expect.any(String),
+                'utf-8',
+            );
         });
     });
 });

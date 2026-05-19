@@ -52,6 +52,34 @@ export interface AddDownloadStatisticsOptions {
   enqueuedEventId?: string | null;
 }
 
+const TASK_FAIL_HOOK_WAIT_TIMEOUT_MS = 5000;
+
+async function awaitTaskFailHook(
+  context: Record<string, string | undefined>,
+): Promise<void> {
+  let timeoutId: NodeJS.Timeout | null = null;
+
+  try {
+    await Promise.race([
+      HookService.executeHook("task_fail", context),
+      new Promise<void>((resolve) => {
+        timeoutId = setTimeout(() => {
+          console.warn(
+            `task_fail hook exceeded ${TASK_FAIL_HOOK_WAIT_TIMEOUT_MS}ms; continuing task failure handling.`
+          );
+          resolve();
+        }, TASK_FAIL_HOOK_WAIT_TIMEOUT_MS);
+      }),
+    ]);
+  } catch (error) {
+    console.error("task_fail hook failed:", error);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
+
 class DownloadManager {
   private queue: DownloadTask[];
   private activeTasks: Map<string, DownloadTask>;
@@ -562,8 +590,9 @@ class DownloadManager {
         });
       }
 
-      // Execute hook
-      HookService.executeHook("task_fail", {
+      // Await failure hooks so notifications and other side effects complete
+      // before the task rejection propagates to callers.
+      await awaitTaskFailHook({
         taskId: task.id,
         taskTitle: task.title,
         sourceUrl: task.sourceUrl,

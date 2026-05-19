@@ -28,6 +28,10 @@ vi.mock('../../../services/storageService', () => ({
     updateVideo: vi.fn(),
     addVideoToAuthorCollection: vi.fn(),
     getSettings: vi.fn().mockReturnValue({}),
+    getDownloadStatus: vi.fn().mockReturnValue({
+        activeDownloads: [{ id: 'download-yt' }],
+        queuedDownloads: [],
+    }),
 }));
 
 // Mock fs-extra - define mockWriter inside the factory
@@ -96,11 +100,13 @@ vi.mock('../../../services/metadataService', () => ({
 }));
 
 import { YtDlpDownloader } from '../../../services/downloaders/YtDlpDownloader';
+import * as storageService from '../../../services/storageService';
 
 describe('YtDlpDownloader Safari Compatibility', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         videoPathExistsChecks.clear();
+        mockGetUserYtDlpConfig.mockReturnValue({});
         mockExecuteYtDlpSpawn.mockReturnValue({
             stdout: { on: vi.fn() },
             kill: vi.fn(),
@@ -169,5 +175,21 @@ describe('YtDlpDownloader Safari Compatibility', () => {
 
         const metadataFlags = mockExecuteYtDlpJson.mock.calls[0][1];
         expect(metadataFlags.preferFreeFormats).toBeUndefined();
+    });
+
+    it('should update the active download title after metadata is fetched', async () => {
+        await YtDlpDownloader.downloadVideo(
+            'https://www.youtube.com/watch?v=123456',
+            'download-yt',
+        );
+
+        expect(storageService.updateActiveDownload).toHaveBeenCalledWith(
+            'download-yt',
+            expect.objectContaining({
+                title: 'Test Video',
+                filename: 'Test Video',
+                progress: 0,
+            }),
+        );
     });
 });

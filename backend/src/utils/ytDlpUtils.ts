@@ -1,4 +1,5 @@
 import { spawn } from "child_process";
+import fs from "fs-extra";
 import path from "path";
 import { PassThrough } from "stream";
 import { SocksProxyAgent } from "socks-proxy-agent";
@@ -35,6 +36,7 @@ const PROVIDER_SCRIPT_ARG_PREFIX = "youtubepot-bgutilscript:script_path=";
 let ytDlpAvailablePromise: Promise<void> | null = null;
 let denoAvailablePromise: Promise<boolean> | null = null;
 let providerPluginPathCache: string | null | undefined = undefined;
+let resolvedYtDlpPathCache: string | null = null;
 type YouTubeJsRuntimeFlag = "--js-runtime" | "--js-runtimes";
 type CookiesFileSignature = {
   mtimeMs: number;
@@ -60,8 +62,17 @@ function getCachedProviderPluginPath(): string {
   return providerPluginPathCache || "";
 }
 
+function getExplicitConfiguredYtDlpPath(): string | null {
+  const configuredPath = process.env.YT_DLP_PATH?.trim();
+  return configuredPath ? configuredPath : null;
+}
+
 function getConfiguredYtDlpPath(): string {
-  return process.env.YT_DLP_PATH?.trim() || DEFAULT_YT_DLP_PATH;
+  return (
+    getExplicitConfiguredYtDlpPath() ||
+    resolvedYtDlpPathCache ||
+    DEFAULT_YT_DLP_PATH
+  );
 }
 
 function getYtDlpSpawnEnv(): NodeJS.ProcessEnv {
@@ -85,7 +96,114 @@ function getYtDlpSpawnEnv(): NodeJS.ProcessEnv {
 }
 
 function hasCustomConfiguredYtDlpPath(): boolean {
-  return getConfiguredYtDlpPath() !== DEFAULT_YT_DLP_PATH;
+  return Boolean(
+    getExplicitConfiguredYtDlpPath() &&
+      getExplicitConfiguredYtDlpPath() !== DEFAULT_YT_DLP_PATH
+  );
+}
+
+function listYtDlpPathCandidates(): string[] {
+  const pathEntries = (process.env.PATH ?? "")
+    .split(path.delimiter)
+    .filter(Boolean);
+  const executableNames =
+    process.platform === "win32"
+      ? ["yt-dlp.exe", "yt-dlp.cmd", "yt-dlp.bat", "yt-dlp"]
+      : ["yt-dlp"];
+
+  const seen = new Set<string>();
+  const candidates: string[] = [];
+
+  for (const entry of pathEntries) {
+    for (const executableName of executableNames) {
+      const candidatePath = path.join(entry, executableName);
+      if (!fs.existsSync(candidatePath) || seen.has(candidatePath)) {
+        continue;
+      }
+      seen.add(candidatePath);
+      candidates.push(candidatePath);
+    }
+  }
+
+  return candidates;
+}
+
+type YtDlpCandidateProbe = {
+  canRun: boolean;
+  supportsModernJsRuntimes: boolean;
+};
+
+async function probeYtDlpCandidate(
+  ytDlpPath: string
+): Promise<YtDlpCandidateProbe> {
+  let helpText = "";
+
+  return await new Promise<YtDlpCandidateProbe>((resolve) => {
+    const proc = spawn(ytDlpPath, ["--help"], {
+      env: getYtDlpSpawnEnv(),
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+
+    proc.stdout?.on("data", (data: Buffer) => {
+      helpText += data.toString();
+    });
+
+    proc.stderr?.on("data", (data: Buffer) => {
+      helpText += data.toString();
+    });
+
+    proc.on("close", () => {
+      resolve({
+        canRun: true,
+        supportsModernJsRuntimes:
+          helpText.includes("--js-runtimes") ||
+          helpText.includes("--js-runtime"),
+      });
+    });
+
+    proc.on("error", () => {
+      resolve({ canRun: false, supportsModernJsRuntimes: false });
+    });
+  });
+}
+
+async function resolveYtDlpPath(): Promise<string> {
+  const explicitPath = getExplicitConfiguredYtDlpPath();
+  if (explicitPath) {
+    return explicitPath;
+  }
+
+  if (resolvedYtDlpPathCache) {
+    return resolvedYtDlpPathCache;
+  }
+
+  const candidates = listYtDlpPathCandidates();
+  if (candidates.length === 0) {
+    resolvedYtDlpPathCache = DEFAULT_YT_DLP_PATH;
+    return resolvedYtDlpPathCache;
+  }
+
+  let fallbackCandidate: string | null = null;
+  for (const candidate of candidates) {
+    const probe = await probeYtDlpCandidate(candidate);
+    if (!probe.canRun) {
+      continue;
+    }
+
+    fallbackCandidate ||= candidate;
+    if (probe.supportsModernJsRuntimes) {
+      resolvedYtDlpPathCache = candidate;
+      if (candidate !== fallbackCandidate) {
+        console.log(
+          `[yt-dlp] Selected ${candidate} over ${fallbackCandidate} because it supports --js-runtimes.`
+        );
+      }
+      return resolvedYtDlpPathCache;
+    }
+  }
+
+  resolvedYtDlpPathCache = fallbackCandidate || DEFAULT_YT_DLP_PATH;
+  return resolvedYtDlpPathCache;
 }
 
 function isMissingFileError(error: unknown): boolean {
@@ -104,6 +222,7 @@ export function resetYtDlpAvailabilityCacheForTests(): void {
   ytDlpAvailablePromise = null;
   denoAvailablePromise = null;
   providerPluginPathCache = undefined;
+  resolvedYtDlpPathCache = null;
   jsRuntimeFlagPromise = null;
   runtimeWarningCache.clear();
   cookiesFileCache = null;
@@ -179,7 +298,7 @@ export async function ensureYtDlpAvailable(): Promise<void> {
   if (ytDlpAvailablePromise) return ytDlpAvailablePromise;
 
   ytDlpAvailablePromise = (async () => {
-    const ytDlpPath = getConfiguredYtDlpPath();
+    const ytDlpPath = await resolveYtDlpPath();
 
     try {
       await new Promise<void>((resolve, reject) => {
@@ -394,8 +513,8 @@ async function getYouTubeJsRuntimeFlag(): Promise<YouTubeJsRuntimeFlag | null> {
     };
 
     try {
-      const ytDlpPath = getConfiguredYtDlpPath();
-      return await new Promise<YouTubeJsRuntimeFlag | null>((resolve) => {
+      const ytDlpPath = await resolveYtDlpPath();
+      const resolvedFlag = await new Promise<YouTubeJsRuntimeFlag | null>((resolve) => {
         const proc = spawn(ytDlpPath, ["--help"], {
           env: getYtDlpSpawnEnv(),
           stdio: ["ignore", "pipe", "pipe"],
@@ -417,7 +536,12 @@ async function getYouTubeJsRuntimeFlag(): Promise<YouTubeJsRuntimeFlag | null> {
           resolve(resolveFromHelp());
         });
       });
+      if (!resolvedFlag) {
+        jsRuntimeFlagPromise = null;
+      }
+      return resolvedFlag;
     } catch {
+      jsRuntimeFlagPromise = null;
       warnRuntimeOnce(
         "js-runtime-flag-unsupported",
         "[yt-dlp] Current yt-dlp binary does not support --js-runtimes. Continuing without it. Upgrade yt-dlp or set YT_DLP_PATH to a newer binary if YouTube extraction becomes unreliable."
@@ -1080,18 +1204,30 @@ export function executeYtDlpSpawn(
             activeSubprocess.kill(killSignal);
           }
 
-          activeSubprocess.on("close", (code) => {
+          activeSubprocess.on("close", (code, signal) => {
             if (!resolved && !rejected) {
               if (code === 0) {
                 resolved = true;
                 resolve();
+              } else if (killRequested) {
+                rejected = true;
+                const error = new Error(
+                  signal
+                    ? `yt-dlp process cancelled by ${signal}`
+                    : "yt-dlp process cancelled"
+                );
+                (error as any).stderr = stderr;
+                (error as any).code = signal || killSignal || "SIGTERM";
+                reject(error);
               } else {
                 rejected = true;
                 const error = new Error(
-                  `yt-dlp process exited with code ${code}`
+                  signal
+                    ? `yt-dlp process exited due to signal ${signal}`
+                    : `yt-dlp process exited with code ${code}`
                 );
                 (error as any).stderr = stderr;
-                (error as any).code = code;
+                (error as any).code = signal || code;
                 console.error("yt-dlp error output:", stderr);
                 reject(error);
               }

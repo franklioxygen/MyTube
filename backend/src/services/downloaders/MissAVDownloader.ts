@@ -616,6 +616,7 @@ export class MissAVDownloader extends BaseDownloader {
 
       if (downloadId) {
         storageService.updateActiveDownload(downloadId, {
+          title: videoTitle,
           filename: videoTitle,
           progress: 0,
         });

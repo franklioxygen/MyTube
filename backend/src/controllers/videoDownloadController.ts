@@ -27,6 +27,16 @@ import { getNumberParam, getStringParam } from "../utils/paramUtils";
 import { sendBadRequest, sendData, sendInternalError } from "../utils/response";
 import { validateUrl } from "../utils/security";
 
+function isDownloadStillQueued(downloadId: string): boolean {
+  try {
+    const status = storageService.getDownloadStatus();
+    return status.queuedDownloads.some((download) => download.id === downloadId);
+  } catch (error) {
+    logger.debug("Unable to inspect queued downloads for title update:", error);
+    return false;
+  }
+}
+
 /**
  * Search for videos
  * Errors are automatically handled by asyncHandler middleware
@@ -583,6 +593,12 @@ export const downloadVideo = async (
       let videoTitle = initialTitle;
 
       try {
+        // Active downloads fetch metadata inside the downloader. Only queued tasks
+        // need this lightweight background lookup to improve their displayed title.
+        if (!isDownloadStillQueued(downloadId)) {
+          return;
+        }
+
         // Fetch video info for title
         logger.info("Fetching video info for title update...");
         const info = await downloadService.getVideoInfo(resolvedUrl);
