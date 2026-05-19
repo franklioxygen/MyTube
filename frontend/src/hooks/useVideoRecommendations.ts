@@ -22,32 +22,43 @@ export function useVideoRecommendations({
     const { collections } = useCollection();
     const deferredVideos = useDeferredValue(videos);
     const deferredCollections = useDeferredValue(collections);
+    const videoId = video?.id;
+    const videoAuthor = video?.author;
+    const videoTags = video?.tags;
+    const videoSeriesTitle = video?.seriesTitle;
+    const videoTitle = video?.title;
+    const videoFilename = video?.videoFilename;
+    const videoSource = video?.source;
+    const videoDate = video?.date;
+    const videoAddedAt = video?.addedAt;
+    const videoDuration = video?.duration;
+
     const recommendationVideo = useMemo(() => {
-        if (!video) return undefined;
+        if (!videoId) return undefined;
 
         return {
-            id: video.id,
-            author: video.author,
-            tags: video.tags,
-            seriesTitle: video.seriesTitle,
-            title: video.title,
-            videoFilename: video.videoFilename,
-            source: video.source,
-            date: video.date,
-            addedAt: video.addedAt,
-            duration: video.duration
+            id: videoId,
+            author: videoAuthor,
+            tags: videoTags,
+            seriesTitle: videoSeriesTitle,
+            title: videoTitle,
+            videoFilename,
+            source: videoSource,
+            date: videoDate,
+            addedAt: videoAddedAt,
+            duration: videoDuration
         } as Video;
     }, [
-        video?.id,
-        video?.author,
-        video?.seriesTitle,
-        video?.title,
-        video?.videoFilename,
-        video?.source,
-        video?.date,
-        video?.addedAt,
-        video?.duration,
-        video?.tags
+        videoId,
+        videoAuthor,
+        videoSeriesTitle,
+        videoTitle,
+        videoFilename,
+        videoSource,
+        videoDate,
+        videoAddedAt,
+        videoDuration,
+        videoTags
     ]);
     const deferredRecommendationVideo = useDeferredValue(recommendationVideo);
 
