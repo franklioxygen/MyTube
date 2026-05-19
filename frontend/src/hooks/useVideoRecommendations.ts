@@ -22,44 +22,22 @@ export function useVideoRecommendations({
     const { collections } = useCollection();
     const deferredVideos = useDeferredValue(videos);
     const deferredCollections = useDeferredValue(collections);
-    const videoId = video?.id;
-    const videoAuthor = video?.author;
-    const videoTags = video?.tags;
-    const videoSeriesTitle = video?.seriesTitle;
-    const videoTitle = video?.title;
-    const videoFilename = video?.videoFilename;
-    const videoSource = video?.source;
-    const videoDate = video?.date;
-    const videoAddedAt = video?.addedAt;
-    const videoDuration = video?.duration;
-
     const recommendationVideo = useMemo(() => {
-        if (!videoId) return undefined;
+        if (!video) return undefined;
 
         return {
-            id: videoId,
-            author: videoAuthor,
-            tags: videoTags,
-            seriesTitle: videoSeriesTitle,
-            title: videoTitle,
-            videoFilename,
-            source: videoSource,
-            date: videoDate,
-            addedAt: videoAddedAt,
-            duration: videoDuration
+            id: video.id,
+            author: video.author,
+            tags: video.tags,
+            seriesTitle: video.seriesTitle,
+            title: video.title,
+            videoFilename: video.videoFilename,
+            source: video.source,
+            date: video.date,
+            addedAt: video.addedAt,
+            duration: video.duration
         } as Video;
-    }, [
-        videoId,
-        videoAuthor,
-        videoSeriesTitle,
-        videoTitle,
-        videoFilename,
-        videoSource,
-        videoDate,
-        videoAddedAt,
-        videoDuration,
-        videoTags
-    ]);
+    }, [video]);
     const deferredRecommendationVideo = useDeferredValue(recommendationVideo);
 
     // Get related videos using recommendation algorithm
