@@ -18,12 +18,13 @@ import {
   listDirectory,
   moveFile,
   pathExists,
-  removeDirectoryIfEmpty,
+  removeDirectoryTreeIfEmpty,
   removeDirectoryRecursive,
   renamePath,
 } from "./fileHelpers";
 import { getSettings } from "./settings";
 import { Collection, Video } from "./types";
+import { resolveManagedWebPath } from "../filenameTemplate/pathHelpers";
 
 /**
  * Sanitizes a collection name to prevent path traversal attacks
@@ -66,7 +67,7 @@ export function moveVideoToCollection(
   }
 
   if (video.videoFilename) {
-    const currentVideoPath = findVideoFile(video.videoFilename, allCollections);
+    const currentVideoPath = resolveCurrentVideoPath(video, allCollections);
     const targetVideoPath = buildStoragePath(
       VIDEOS_DIR,
       sanitizedCollectionName,
@@ -96,7 +97,7 @@ export function moveVideoFromCollection(
   let updated = false;
 
   if (video.videoFilename) {
-    const currentVideoPath = findVideoFile(video.videoFilename, allCollections);
+    const currentVideoPath = resolveCurrentVideoPath(video, allCollections);
     const targetVideoPath = buildStoragePath(targetVideoDir, video.videoFilename);
 
     if (currentVideoPath && currentVideoPath !== targetVideoPath) {
@@ -461,16 +462,35 @@ export function cleanupCollectionDirectories(collectionName: string): void {
   );
 
   try {
-    removeDirectoryIfEmpty(collectionVideoDir);
-    removeDirectoryIfEmpty(collectionImageDir);
-    removeDirectoryIfEmpty(collectionSmallImageDir);
-    removeDirectoryIfEmpty(collectionSubtitleDir);
+    removeDirectoryTreeIfEmpty(collectionVideoDir);
+    removeDirectoryTreeIfEmpty(collectionImageDir);
+    removeDirectoryTreeIfEmpty(collectionSmallImageDir);
+    removeDirectoryTreeIfEmpty(collectionSubtitleDir);
   } catch (e) {
     logger.error(
       "Error removing collection directories",
       e instanceof Error ? e : new Error(String(e))
     );
   }
+}
+
+function resolveCurrentVideoPath(
+  video: Video,
+  allCollections: Collection[],
+): string | null {
+  const resolvedManagedPath = video.videoPath
+    ? resolveManagedWebPath(video.videoPath)
+    : null;
+
+  if (resolvedManagedPath && pathExists(resolvedManagedPath.absolutePath)) {
+    return resolvedManagedPath.absolutePath;
+  }
+
+  if (!video.videoFilename) {
+    return null;
+  }
+
+  return findVideoFile(video.videoFilename, allCollections);
 }
 
 /**

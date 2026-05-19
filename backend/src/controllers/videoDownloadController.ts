@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { ValidationError } from "../errors/DownloadErrors";
+import { isCancelledError, ValidationError } from "../errors/DownloadErrors";
 import downloadManager from "../services/downloadManager";
 import * as downloadService from "../services/downloadService";
 import {
@@ -11,6 +11,7 @@ import {
 import * as storageService from "../services/storageService";
 import {
   extractBilibiliVideoId,
+  getMissAVPlaceholderTitle,
   isBilibiliShortUrl,
   isBilibiliUrl,
   isMissAVUrl,
@@ -25,6 +26,16 @@ import { logger } from "../utils/logger";
 import { getNumberParam, getStringParam } from "../utils/paramUtils";
 import { sendBadRequest, sendData, sendInternalError } from "../utils/response";
 import { validateUrl } from "../utils/security";
+
+function isDownloadStillQueued(downloadId: string): boolean {
+  try {
+    const status = storageService.getDownloadStatus();
+    return status.queuedDownloads.some((download) => download.id === downloadId);
+  } catch (error) {
+    logger.debug("Unable to inspect queued downloads for title update:", error);
+    return false;
+  }
+}
 
 /**
  * Search for videos
@@ -266,7 +277,7 @@ export const downloadVideo = async (
     } else if (isTwitchVideoUrl(resolvedUrl)) {
       initialTitle = "Twitch Video";
     } else if (isMissAVUrl(resolvedUrl)) {
-      initialTitle = "MissAV Video";
+      initialTitle = getMissAVPlaceholderTitle(resolvedUrl);
     }
 
     // Generate a unique ID for this download task
@@ -559,6 +570,14 @@ export const downloadVideo = async (
         logger.info("Download completed successfully:", result);
       })
       .catch((error: any) => {
+        if (isCancelledError(error)) {
+          logger.info("Download cancelled:", {
+            downloadId,
+            title: initialTitle,
+          });
+          return;
+        }
+
         logger.error("Download failed:", error);
       });
 
@@ -574,6 +593,12 @@ export const downloadVideo = async (
       let videoTitle = initialTitle;
 
       try {
+        // Active downloads fetch metadata inside the downloader. Only queued tasks
+        // need this lightweight background lookup to improve their displayed title.
+        if (!isDownloadStillQueued(downloadId)) {
+          return;
+        }
+
         // Fetch video info for title
         logger.info("Fetching video info for title update...");
         const info = await downloadService.getVideoInfo(resolvedUrl);

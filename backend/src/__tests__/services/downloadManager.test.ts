@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CloudStorageService } from '../../services/CloudStorageService';
+import { DownloadCancelledError } from '../../errors/DownloadErrors';
 import { createDownloadTask } from '../../services/downloadService';
 import { HookService } from '../../services/hookService';
 import * as storageService from '../../services/storageService';
@@ -417,7 +418,7 @@ describe('DownloadManager', () => {
       );
       await waitForQueue();
 
-      downloadManager.cancelDownload('cancel-1');
+      await downloadManager.cancelDownload('cancel-1');
 
       await expect(running).rejects.toThrow();
       expect(storageService.removeActiveDownload).toHaveBeenCalledWith('cancel-1');
@@ -434,6 +435,40 @@ describe('DownloadManager', () => {
       );
     });
 
+    it('should not record failure handling when a cancelled task later rejects', async () => {
+      let rejectDownload: (error: Error) => void = () => {};
+      const cancelCleanup = vi.fn().mockResolvedValue(undefined);
+      const activeDownloadFn = vi.fn().mockImplementation((registerCancel: any) => {
+        registerCancel(cancelCleanup);
+        return new Promise((_, reject) => {
+          rejectDownload = reject;
+        });
+      });
+
+      const running = downloadManager.addDownload(
+        activeDownloadFn,
+        'cancel-2',
+        'Cancel cleanly',
+        'https://www.youtube.com/watch?v=cancel2',
+        'youtube',
+      );
+      await waitForQueue();
+
+      await downloadManager.cancelDownload('cancel-2');
+      rejectDownload(DownloadCancelledError.create());
+
+      await expect(running).rejects.toThrow('Download cancelled by user');
+      await waitForQueue();
+
+      expect(cancelCleanup).toHaveBeenCalled();
+      expect(storageService.removeActiveDownload).toHaveBeenCalledTimes(1);
+      expect(storageService.addDownloadHistoryItem).toHaveBeenCalledTimes(1);
+      expect(HookService.executeHook).not.toHaveBeenCalledWith(
+        'task_fail',
+        expect.anything(),
+      );
+    });
+
     it('should remove queued task when cancelling non-active download', async () => {
       downloadManager.setMaxConcurrentDownloads(0);
       downloadManager.addDownload(
@@ -445,7 +480,7 @@ describe('DownloadManager', () => {
       );
       await waitForQueue();
 
-      downloadManager.cancelDownload('queued-cancel');
+      await downloadManager.cancelDownload('queued-cancel');
 
       expect(downloadManager.getStatus().queued).toBe(0);
       expect(storageService.setQueuedDownloads).toHaveBeenCalled();
@@ -516,6 +551,106 @@ describe('DownloadManager', () => {
           error: 'network down',
         }),
       );
+    });
+
+    it('should await failure hook completion before rejecting the task', async () => {
+      let resolveHook: () => void = () => {};
+      vi.mocked(HookService.executeHook).mockImplementation((eventName: string) => {
+        if (eventName === 'task_fail') {
+          return new Promise<void>((resolve) => {
+            resolveHook = resolve;
+          });
+        }
+        return Promise.resolve();
+      });
+
+      const taskPromise = downloadManager.addDownload(
+        vi.fn().mockRejectedValue(new Error('hook wait')),
+        'failed-await',
+        'Failed await',
+        'https://www.youtube.com/watch?v=failedawait',
+        'youtube',
+      );
+
+      let settled = false;
+      taskPromise.catch(() => {
+        settled = true;
+      });
+
+      await waitForQueue();
+      expect(HookService.executeHook).toHaveBeenCalledWith(
+        'task_fail',
+        expect.objectContaining({
+          taskId: 'failed-await',
+          error: 'hook wait',
+        }),
+      );
+      expect(settled).toBe(false);
+
+      resolveHook();
+      await expect(taskPromise).rejects.toThrow('hook wait');
+    });
+
+    it('should stop waiting on task_fail hook after the timeout and reject the task', async () => {
+      vi.useFakeTimers();
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      try {
+        vi.mocked(HookService.executeHook).mockImplementation((eventName: string) => {
+          if (eventName === 'task_fail') {
+            return new Promise<void>(() => {});
+          }
+          return Promise.resolve();
+        });
+
+        const taskPromise = downloadManager.addDownload(
+          vi.fn().mockRejectedValue(new Error('timed out hook')),
+          'failed-timeout',
+          'Failed timeout',
+          'https://www.youtube.com/watch?v=failedtimeout',
+          'youtube',
+        );
+        taskPromise.catch(() => {});
+
+        await vi.runAllTimersAsync();
+
+        await expect(taskPromise).rejects.toThrow('timed out hook');
+        expect(warnSpy).toHaveBeenCalledWith(
+          'task_fail hook exceeded 5000ms; continuing task failure handling.'
+        );
+      } finally {
+        warnSpy.mockRestore();
+        vi.useRealTimers();
+      }
+    });
+
+    it('should still reject with the download error when task_fail hook rejects', async () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      try {
+        vi.mocked(HookService.executeHook).mockImplementation((eventName: string) => {
+          if (eventName === 'task_fail') {
+            return Promise.reject(new Error('hook exploded'));
+          }
+          return Promise.resolve();
+        });
+
+        const taskPromise = downloadManager.addDownload(
+          vi.fn().mockRejectedValue(new Error('download exploded')),
+          'failed-hook-reject',
+          'Failed hook reject',
+          'https://www.youtube.com/watch?v=failedhookreject',
+          'youtube',
+        );
+
+        await expect(taskPromise).rejects.toThrow('download exploded');
+        expect(errorSpy).toHaveBeenCalledWith(
+          'task_fail hook failed:',
+          expect.any(Error),
+        );
+      } finally {
+        errorSpy.mockRestore();
+      }
     });
 
     it('should clear queue explicitly', async () => {

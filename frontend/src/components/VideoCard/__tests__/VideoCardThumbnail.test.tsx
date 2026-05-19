@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { THUMBNAIL_PLACEHOLDER_SRC } from '../../../utils/thumbnailPlaceholder';
 import { VideoCardThumbnail } from '../VideoCardThumbnail';
 
 // Mock dependencies
@@ -218,7 +219,7 @@ describe('VideoCardThumbnail', () => {
 
         fireEvent.error(img);
 
-        expect(img).toHaveAttribute('src', 'https://via.placeholder.com/480x360?text=No+Thumbnail');
+        expect(img).toHaveAttribute('src', THUMBNAIL_PLACEHOLDER_SRC);
         expect(img).not.toHaveAttribute('srcset');
         expect(img).not.toHaveAttribute('sizes');
     });

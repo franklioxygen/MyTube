@@ -126,6 +126,12 @@ const flushAsyncSpawns = async () => {
   await new Promise((resolve) => setImmediate(resolve));
 };
 
+const flushMicrotasks = async (count: number = 10) => {
+  for (let i = 0; i < count; i += 1) {
+    await Promise.resolve();
+  }
+};
+
 const getSpawnArgsForUrl = (url: string, occurrence: number = 0): string[] => {
   const matchingCalls = vi.mocked(spawn).mock.calls.filter(([, args]) =>
     Array.isArray(args) && args.includes(url)
@@ -183,6 +189,7 @@ describe("ytDlpUtils", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     if (originalYtDlpPath === undefined) {
       delete process.env.YT_DLP_PATH;
     } else {
@@ -520,6 +527,169 @@ describe("ytDlpUtils", () => {
   });
 
   describe("executeYtDlpJson", () => {
+    it("should prefer a PATH yt-dlp candidate that supports --js-runtimes when YT_DLP_PATH is unset", async () => {
+      delete process.env.YT_DLP_PATH;
+      process.env.PATH = ["/old/bin", "/new/bin"].join(path.delimiter);
+      vi.mocked(fs.existsSync).mockImplementation((target: any) => {
+        const normalizedTarget = String(target);
+        return (
+          normalizedTarget === path.join("/old/bin", "yt-dlp") ||
+          normalizedTarget === path.join("/new/bin", "yt-dlp")
+        );
+      });
+
+      const proc = createMockProcess();
+      vi.mocked(spawn)
+        .mockImplementationOnce(() => createHelpCheckProcess("none") as any)
+        .mockImplementationOnce(() => createHelpCheckProcess("plural") as any)
+        .mockImplementationOnce(() => createVersionCheckProcess() as any)
+        .mockImplementationOnce(() => createHelpCheckProcess("plural") as any)
+        .mockImplementationOnce(() => createDenoCheckProcess() as any)
+        .mockImplementationOnce(() => proc as any);
+
+      const promise = executeYtDlpJson("https://www.youtube.com/watch?v=abc");
+      await flushAsyncSpawns();
+      proc.stdout?.emit("data", Buffer.from('{"ok":true}'));
+      proc.emit("close", 0);
+
+      await expect(promise).resolves.toEqual({ ok: true });
+
+      const downloadCall = vi
+        .mocked(spawn)
+        .mock.calls.find(
+          ([cmd, args]) =>
+            cmd === path.join("/new/bin", "yt-dlp") &&
+            Array.isArray(args) &&
+            args.includes("https://www.youtube.com/watch?v=abc")
+        );
+
+      expect(downloadCall).toBeDefined();
+    });
+
+    it("should skip broken PATH yt-dlp candidates when choosing a fallback", async () => {
+      delete process.env.YT_DLP_PATH;
+      process.env.PATH = ["/broken/bin", "/working/bin"].join(path.delimiter);
+      vi.mocked(fs.existsSync).mockImplementation((target: any) => {
+        const normalizedTarget = String(target);
+        return (
+          normalizedTarget === path.join("/broken/bin", "yt-dlp") ||
+          normalizedTarget === path.join("/working/bin", "yt-dlp")
+        );
+      });
+
+      const brokenProc = createMockProcess();
+      const proc = createMockProcess();
+      vi.mocked(spawn)
+        .mockImplementationOnce(() => brokenProc as any)
+        .mockImplementationOnce(() => createHelpCheckProcess("none") as any)
+        .mockImplementationOnce(() => createVersionCheckProcess() as any)
+        .mockImplementationOnce(() => createHelpCheckProcess("none") as any)
+        .mockImplementationOnce(() => proc as any);
+
+      const promise = executeYtDlpJson("https://www.youtube.com/watch?v=abc");
+      await flushAsyncSpawns();
+      brokenProc.emit("error", Object.assign(new Error("permission denied"), { code: "EACCES" }));
+      await flushAsyncSpawns();
+      proc.stdout?.emit("data", Buffer.from('{"ok":true}'));
+      proc.emit("close", 0);
+
+      await expect(promise).resolves.toEqual({ ok: true });
+
+      const downloadCall = vi
+        .mocked(spawn)
+        .mock.calls.find(
+          ([cmd, args]) =>
+            cmd === path.join("/working/bin", "yt-dlp") &&
+            Array.isArray(args) &&
+            args.includes("https://www.youtube.com/watch?v=abc")
+        );
+
+      expect(downloadCall).toBeDefined();
+    });
+
+    it("should skip PATH yt-dlp candidates when --help exits non-zero", async () => {
+      delete process.env.YT_DLP_PATH;
+      process.env.PATH = ["/broken/bin", "/working/bin"].join(path.delimiter);
+      vi.mocked(fs.existsSync).mockImplementation((target: any) => {
+        const normalizedTarget = String(target);
+        return (
+          normalizedTarget === path.join("/broken/bin", "yt-dlp") ||
+          normalizedTarget === path.join("/working/bin", "yt-dlp")
+        );
+      });
+
+      const brokenProc = createMockProcess();
+      const proc = createMockProcess();
+      vi.mocked(spawn)
+        .mockImplementationOnce(() => brokenProc as any)
+        .mockImplementationOnce(() => createHelpCheckProcess("none") as any)
+        .mockImplementationOnce(() => createVersionCheckProcess() as any)
+        .mockImplementationOnce(() => createHelpCheckProcess("none") as any)
+        .mockImplementationOnce(() => proc as any);
+
+      const promise = executeYtDlpJson("https://www.youtube.com/watch?v=abc");
+      await flushAsyncSpawns();
+      brokenProc.emit("close", 1);
+      await flushAsyncSpawns();
+      proc.stdout?.emit("data", Buffer.from('{"ok":true}'));
+      proc.emit("close", 0);
+
+      await expect(promise).resolves.toEqual({ ok: true });
+
+      const downloadCall = vi
+        .mocked(spawn)
+        .mock.calls.find(
+          ([cmd, args]) =>
+            cmd === path.join("/working/bin", "yt-dlp") &&
+            Array.isArray(args) &&
+            args.includes("https://www.youtube.com/watch?v=abc")
+        );
+
+      expect(downloadCall).toBeDefined();
+    });
+
+    it("should time out hanging PATH yt-dlp candidates and continue", async () => {
+      vi.useFakeTimers();
+      delete process.env.YT_DLP_PATH;
+      process.env.PATH = ["/hanging/bin", "/working/bin"].join(path.delimiter);
+      vi.mocked(fs.existsSync).mockImplementation((target: any) => {
+        const normalizedTarget = String(target);
+        return (
+          normalizedTarget === path.join("/hanging/bin", "yt-dlp") ||
+          normalizedTarget === path.join("/working/bin", "yt-dlp")
+        );
+      });
+
+      const hangingProc = createMockProcess();
+      const proc = createMockProcess();
+      vi.mocked(spawn)
+        .mockImplementationOnce(() => hangingProc as any)
+        .mockImplementationOnce(() => createHelpCheckProcess("none") as any)
+        .mockImplementationOnce(() => createVersionCheckProcess() as any)
+        .mockImplementationOnce(() => createHelpCheckProcess("none") as any)
+        .mockImplementationOnce(() => proc as any);
+
+      const promise = executeYtDlpJson("https://www.youtube.com/watch?v=abc");
+      await vi.advanceTimersByTimeAsync(5000);
+      await flushMicrotasks();
+      proc.stdout?.emit("data", Buffer.from('{"ok":true}'));
+      proc.emit("close", 0);
+
+      await expect(promise).resolves.toEqual({ ok: true });
+      expect(hangingProc.kill).toHaveBeenCalledWith("SIGTERM");
+
+      const downloadCall = vi
+        .mocked(spawn)
+        .mock.calls.find(
+          ([cmd, args]) =>
+            cmd === path.join("/working/bin", "yt-dlp") &&
+            Array.isArray(args) &&
+            args.includes("https://www.youtube.com/watch?v=abc")
+        );
+
+      expect(downloadCall).toBeDefined();
+    });
+
     it("should execute and parse json output with youtube runtime and cookies", async () => {
       const proc = createMockProcess();
       mockSpawnWithVersionHelpAndDenoCheck("plural", proc);
@@ -671,7 +841,7 @@ describe("ytDlpUtils", () => {
       expect(secondArgs).not.toContain("--format");
     });
 
-    it("should add provider and mweb extractor args for youtube when bundled provider is available", async () => {
+    it("should add the provider extractor arg for youtube when bundled provider is available", async () => {
       vi.mocked(getProviderScript).mockReturnValue(
         "/app/bgutil-ytdlp-pot-provider/server/build/generate_once.js",
       );
@@ -720,7 +890,7 @@ describe("ytDlpUtils", () => {
       );
     });
 
-    it("should not append duplicate player_client or provider extractor args", async () => {
+    it("should not append duplicate provider extractor args", async () => {
       vi.mocked(getProviderScript).mockReturnValue("/tmp/provider.js");
       const proc = createMockProcess();
       mockSpawnWithVersionHelpAndDenoCheck("plural", proc);
@@ -873,6 +1043,34 @@ describe("ytDlpUtils", () => {
         "[yt-dlp] Current yt-dlp binary does not support --js-runtimes. Continuing without it. Upgrade yt-dlp or set YT_DLP_PATH to a newer binary if YouTube extraction becomes unreliable."
       );
       warnSpy.mockRestore();
+    });
+
+    it("should re-check js runtime support after a transient unsupported result", async () => {
+      process.env.YT_DLP_JS_RUNTIME = "node";
+      const firstProc = createMockProcess();
+      const secondProc = createMockProcess();
+      vi.mocked(spawn)
+        .mockImplementationOnce(() => createVersionCheckProcess() as any)
+        .mockImplementationOnce(() => createHelpCheckProcess("none") as any)
+        .mockImplementationOnce(() => firstProc as any)
+        .mockImplementationOnce(() => createHelpCheckProcess("plural") as any)
+        .mockImplementationOnce(() => secondProc as any);
+
+      const firstPromise = executeYtDlpJson("https://www.youtube.com/watch?v=abc");
+      await flushAsyncSpawns();
+      firstProc.stdout?.emit("data", Buffer.from('{"attempt":1}'));
+      firstProc.emit("close", 0);
+      await expect(firstPromise).resolves.toEqual({ attempt: 1 });
+
+      const secondPromise = executeYtDlpJson("https://www.youtube.com/watch?v=abc");
+      await flushAsyncSpawns();
+      secondProc.stdout?.emit("data", Buffer.from('{"attempt":2}'));
+      secondProc.emit("close", 0);
+      await expect(secondPromise).resolves.toEqual({ attempt: 2 });
+
+      const secondArgs = getSpawnArgsForUrl("https://www.youtube.com/watch?v=abc", 1);
+      expect(secondArgs).toContain("--js-runtimes");
+      expect(secondArgs).toContain("node");
     });
 
     it("should warn explicitly when YT_DLP_JS_RUNTIME=deno but deno is unavailable", async () => {
@@ -1168,7 +1366,7 @@ describe("ytDlpUtils", () => {
       expect(proc.kill).toHaveBeenCalledWith("SIGTERM");
     });
 
-    it("should add default youtube extractor args for spawned downloads", async () => {
+    it("should add the provider extractor arg for spawned youtube downloads", async () => {
       vi.mocked(getProviderScript).mockReturnValue("/tmp/provider.js");
       const proc = createMockProcess();
       mockSpawnWithVersionHelpAndDenoCheck("plural", proc);
@@ -1225,6 +1423,42 @@ describe("ytDlpUtils", () => {
         code: 3,
         stderr: "bad stderr",
       });
+    });
+
+    it("should classify a killed subprocess as cancellation instead of code null", async () => {
+      const proc = createMockProcess();
+      mockSpawnWithVersionCheck(proc);
+
+      const subprocess = executeYtDlpSpawn("https://example.com/video");
+      const promise = Promise.resolve(subprocess);
+      await flushAsyncSpawns();
+      subprocess.kill("SIGTERM");
+      proc.stderr?.emit("data", Buffer.from("partial stderr"));
+      proc.emit("close", null, "SIGTERM");
+
+      await expect(promise).rejects.toMatchObject({
+        message: "yt-dlp process cancelled by SIGTERM",
+        code: "SIGTERM",
+        stderr: "partial stderr",
+      });
+    });
+
+    it("should treat external signal termination as a process failure", async () => {
+      const proc = createMockProcess();
+      mockSpawnWithVersionCheck(proc);
+
+      const subprocess = executeYtDlpSpawn("https://example.com/video");
+      const promise = Promise.resolve(subprocess);
+      await flushAsyncSpawns();
+      proc.stderr?.emit("data", Buffer.from("external stop"));
+      proc.emit("close", null, "SIGTERM");
+
+      await expect(promise).rejects.toMatchObject({
+        message: "yt-dlp process exited due to signal SIGTERM",
+        code: "SIGTERM",
+        stderr: "external stop",
+      });
+      expect(proc.kill).not.toHaveBeenCalled();
     });
 
     it("should reject on subprocess error event", async () => {

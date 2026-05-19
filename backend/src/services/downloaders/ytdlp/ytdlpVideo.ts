@@ -83,6 +83,29 @@ function stripTrailingExtension(value: string, extension: string): string {
   return value.endsWith(extension) ? value.slice(0, -extension.length) : value;
 }
 
+const VIDEO_CONTAINER_EXTENSIONS = [
+  ".mp4",
+  ".webm",
+  ".mkv",
+  ".avi",
+  ".mov",
+  ".m4v",
+  ".flv",
+  ".3gp",
+];
+
+function createYtDlpOutputTemplate(outputPath: string): string {
+  const outputDir = path.dirname(outputPath);
+  const outputFilename = path.basename(outputPath, path.extname(outputPath));
+  return resolveSafeChildPath(outputDir, `${outputFilename}.%(ext)s`);
+}
+
+function pathExistsWithAnyKnownVideoExtension(basePath: string): boolean {
+  return VIDEO_CONTAINER_EXTENSIONS.some((extension) =>
+    pathExistsSafeSync(`${basePath}${extension}`, VIDEOS_DIR)
+  );
+}
+
 function isExpectedTwitchMetadataError(error: unknown): boolean {
   if (error instanceof ValidationError) {
     return true;
@@ -239,6 +262,7 @@ export async function downloadVideo(
 
     if (downloadId) {
       storageService.updateActiveDownload(downloadId, {
+        title: videoTitle,
         filename: videoTitle,
         progress: 0,
       });
@@ -253,7 +277,7 @@ export async function downloadVideo(
 
     // Prepare download flags with a temp path to determine mergeOutputFormat
     const tempVideoPath = resolveSafeChildPath(VIDEOS_DIR, `${safeBaseFilename}.mp4`);
-    const { flags, mergeOutputFormat } = prepareDownloadFlags(
+    const { flags, mergeOutputFormat, videoExtension } = prepareDownloadFlags(
       videoUrl,
       tempVideoPath,
       downloadUserConfig
@@ -267,8 +291,6 @@ export async function downloadVideo(
         downloadUserConfig.proxy
       );
     }
-
-    const videoExtension = mergeOutputFormat;
 
     // Plan output paths using the template planner
     if (downloadFilenamePresetId !== "legacy") {
@@ -312,15 +334,38 @@ export async function downloadVideo(
             dedupedRelative.lastIndexOf(".")
           )
         : "";
+      const preferredVideoExt = path.extname(dedupedRelative);
+      const videoBaseRelative = stripTrailingExtension(
+        dedupedRelative,
+        preferredVideoExt
+      );
+      let finalVideoRelative = dedupedRelative;
+      let collisionSuffix = "";
+      let counter = 1;
+      while (
+        pathExistsWithAnyKnownVideoExtension(
+          resolveSafeChildPath(VIDEOS_DIR, `${videoBaseRelative}${collisionSuffix}`)
+        )
+      ) {
+        collisionSuffix = `_${counter}`;
+        finalVideoRelative =
+          `${videoBaseRelative}${collisionSuffix}${preferredVideoExt}`;
+        counter++;
+      }
 
-      newVideoPathWithFormat = resolveSafeChildPath(VIDEOS_DIR, dedupedRelative);
-      finalVideoFilename = path.basename(dedupedRelative);
-      newSafeBaseFilename = planned.video.basenameWithoutExt + suffix;
+      newVideoPathWithFormat = resolveSafeChildPath(VIDEOS_DIR, finalVideoRelative);
+      finalVideoFilename = path.basename(finalVideoRelative);
+      newSafeBaseFilename =
+        `${planned.video.basenameWithoutExt}${suffix}${collisionSuffix}`;
 
       // Thumbnail
-      const thumbBase = planned.thumbnail.filename.replace(/\.jpg$/, `${suffix}.jpg`);
+      const thumbBase = planned.thumbnail.filename.replace(
+        /\.jpg$/,
+        `${suffix}${collisionSuffix}.jpg`
+      );
       const thumbDir = path.dirname(planned.thumbnail.relativePath);
-      const thumbRelative = thumbDir && thumbDir !== "." ? `${thumbDir}/${thumbBase}` : thumbBase;
+      const thumbRelative =
+        thumbDir && thumbDir !== "." ? `${thumbDir}/${thumbBase}` : thumbBase;
       newThumbnailPath = resolveSafeChildPath(
         moveThumbnailsToVideoFolder ? VIDEOS_DIR : IMAGES_DIR,
         thumbRelative
@@ -347,12 +392,17 @@ export async function downloadVideo(
         : resolveSafeChildPath(IMAGES_DIR, finalThumbnailFilename);
 
       // If file already exists (e.g. redownload), deduplicate the filename
-      if (pathExistsSafeSync(newVideoPathWithFormat, VIDEOS_DIR)) {
+      if (
+        pathExistsSafeSync(newVideoPathWithFormat, VIDEOS_DIR) ||
+        pathExistsWithAnyKnownVideoExtension(
+          stripTrailingExtension(newVideoPathWithFormat, `.${videoExtension}`)
+        )
+      ) {
         let counter = 1;
         const ext = `.${videoExtension}`;
         const basePath = stripTrailingExtension(newVideoPathWithFormat, ext);
         const baseName = stripTrailingExtension(finalVideoFilename, ext);
-        while (pathExistsSafeSync(`${basePath}_${counter}${ext}`, VIDEOS_DIR)) {
+        while (pathExistsWithAnyKnownVideoExtension(`${basePath}_${counter}`)) {
           counter++;
         }
         newVideoPathWithFormat = `${basePath}_${counter}${ext}`;
@@ -371,7 +421,7 @@ export async function downloadVideo(
     }
 
     // Update output path in flags
-    flags.output = newVideoPathWithFormat;
+    flags.output = createYtDlpOutputTemplate(newVideoPathWithFormat);
 
     logger.info(
       `Using merge output format: ${mergeOutputFormat}, downloading to: ${newVideoPathWithFormat}`

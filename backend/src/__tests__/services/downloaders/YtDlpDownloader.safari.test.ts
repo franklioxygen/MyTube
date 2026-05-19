@@ -28,6 +28,10 @@ vi.mock('../../../services/storageService', () => ({
     updateVideo: vi.fn(),
     addVideoToAuthorCollection: vi.fn(),
     getSettings: vi.fn().mockReturnValue({}),
+    getDownloadStatus: vi.fn().mockReturnValue({
+        activeDownloads: [{ id: 'download-yt' }],
+        queuedDownloads: [],
+    }),
 }));
 
 // Mock fs-extra - define mockWriter inside the factory
@@ -96,11 +100,13 @@ vi.mock('../../../services/metadataService', () => ({
 }));
 
 import { YtDlpDownloader } from '../../../services/downloaders/YtDlpDownloader';
+import * as storageService from '../../../services/storageService';
 
-describe('YtDlpDownloader Safari Compatibility', () => {
+describe('YtDlpDownloader format defaults', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         videoPathExistsChecks.clear();
+        mockGetUserYtDlpConfig.mockReturnValue({});
         mockExecuteYtDlpSpawn.mockReturnValue({
             stdout: { on: vi.fn() },
             kill: vi.fn(),
@@ -108,15 +114,16 @@ describe('YtDlpDownloader Safari Compatibility', () => {
         });
     });
 
-    it('should use H.264 compatible format for YouTube videos by default', async () => {
+    it('should use high-quality playable YouTube formats by default', async () => {
         await YtDlpDownloader.downloadVideo('https://www.youtube.com/watch?v=123456');
 
         expect(mockExecuteYtDlpSpawn).toHaveBeenCalledTimes(1);
         const args = mockExecuteYtDlpSpawn.mock.calls[0][1];
-        
-        expect(args.format).toContain('vcodec^=avc1');
-        // Expect m4a audio which implies AAC for YouTube
-        expect(args.format).toContain('ext=m4a');
+
+        expect(args.format).toContain('vcodec^=vp9');
+        expect(args.format).not.toContain('av01');
+        expect(args.mergeOutputFormat).toBe('webm/mp4');
+        expect(args.output).toContain('.%(ext)s');
     });
 
     it('should relax H.264 preference when formatSort is provided to allow higher resolutions', async () => {
@@ -132,12 +139,14 @@ describe('YtDlpDownloader Safari Compatibility', () => {
         
         // Should have formatSort
         expect(args.formatSort).toBe('res:2160');
-        // Should NOT be restricted to avc1/h264 anymore
-        expect(args.format).not.toContain('vcodec^=avc1');
-        // Should use the permissive format, but prioritizing VP9/WebM
-        expect(args.format).toBe('bestvideo[vcodec^=vp9][ext=webm]+bestaudio/bestvideo[ext=webm]+bestaudio/bestvideo+bestaudio/best');
-        // Should default to WebM to support VP9/AV1 codecs better than MP4 and compatible with Safari 14+
-        expect(args.mergeOutputFormat).toBe('webm');
+        // Should prefer VP9 instead of being restricted to avc1/h264.
+        expect(args.format.indexOf('vcodec^=vp9')).toBeLessThan(args.format.indexOf('vcodec^=avc1'));
+        // Should use the high-quality browser-playable format.
+        expect(args.format).toContain('vcodec^=vp9');
+        expect(args.format).not.toContain('av01');
+        // Should prefer WebM while still allowing MP4 fallback.
+        expect(args.mergeOutputFormat).toBe('webm/mp4');
+        expect(args.output).toContain('.%(ext)s');
     });
 
     it('should NOT force generic avc1 string if user provides custom format', async () => {
@@ -169,5 +178,21 @@ describe('YtDlpDownloader Safari Compatibility', () => {
 
         const metadataFlags = mockExecuteYtDlpJson.mock.calls[0][1];
         expect(metadataFlags.preferFreeFormats).toBeUndefined();
+    });
+
+    it('should update the active download title after metadata is fetched', async () => {
+        await YtDlpDownloader.downloadVideo(
+            'https://www.youtube.com/watch?v=123456',
+            'download-yt',
+        );
+
+        expect(storageService.updateActiveDownload).toHaveBeenCalledWith(
+            'download-yt',
+            expect.objectContaining({
+                title: 'Test Video',
+                filename: 'Test Video',
+                progress: 0,
+            }),
+        );
     });
 });

@@ -29,7 +29,7 @@ vi.mock("../fileHelpers", () => ({
   listDirectory: vi.fn(),
   moveFile: vi.fn(),
   pathExists: vi.fn(),
-  removeDirectoryIfEmpty: vi.fn(),
+  removeDirectoryTreeIfEmpty: vi.fn(),
   removeDirectoryRecursive: vi.fn(),
   renamePath: vi.fn(),
 }));
@@ -54,7 +54,7 @@ import {
   listDirectory,
   moveFile,
   pathExists,
-  removeDirectoryIfEmpty,
+  removeDirectoryTreeIfEmpty,
   removeDirectoryRecursive,
   renamePath,
 } from "../fileHelpers";
@@ -126,6 +126,28 @@ describe("collectionFileManager", () => {
 
     expect(moveFile).toHaveBeenCalledWith(
       "/safe/videos/Col/video.mp4",
+      "/safe/videos/video.mp4"
+    );
+    expect(result).toEqual({
+      updated: true,
+      updates: { videoPath: "/videos/video.mp4" },
+    });
+  });
+
+  it("prefers the stored managed video path for collection moves", () => {
+    const result = moveVideoFromCollection(
+      {
+        videoFilename: "video.mp4",
+        videoPath: "/videos/Col/Season/video.mp4",
+      } as any,
+      "/safe/videos",
+      "/videos",
+      []
+    );
+
+    expect(findVideoFile).not.toHaveBeenCalled();
+    expect(moveFile).toHaveBeenCalledWith(
+      "/safe/videos/Col/Season/video.mp4",
       "/safe/videos/video.mp4"
     );
     expect(result).toEqual({
@@ -308,14 +330,14 @@ describe("collectionFileManager", () => {
   it("cleans empty collection directories", () => {
     cleanupCollectionDirectories("MyCol");
 
-    expect(removeDirectoryIfEmpty).toHaveBeenCalledWith("/safe/videos/MyCol");
-    expect(removeDirectoryIfEmpty).toHaveBeenCalledWith("/safe/images/MyCol");
-    expect(removeDirectoryIfEmpty).toHaveBeenCalledWith("/safe/images-small/MyCol");
-    expect(removeDirectoryIfEmpty).toHaveBeenCalledWith("/safe/subtitles/MyCol");
+    expect(removeDirectoryTreeIfEmpty).toHaveBeenCalledWith("/safe/videos/MyCol");
+    expect(removeDirectoryTreeIfEmpty).toHaveBeenCalledWith("/safe/images/MyCol");
+    expect(removeDirectoryTreeIfEmpty).toHaveBeenCalledWith("/safe/images-small/MyCol");
+    expect(removeDirectoryTreeIfEmpty).toHaveBeenCalledWith("/safe/subtitles/MyCol");
   });
 
   it("handles cleanup errors", () => {
-    vi.mocked(removeDirectoryIfEmpty).mockImplementation(() => {
+    vi.mocked(removeDirectoryTreeIfEmpty).mockImplementation(() => {
       throw new Error("remove failed");
     });
 

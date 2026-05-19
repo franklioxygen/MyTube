@@ -278,6 +278,14 @@ describe("bilibiliVideo.downloadSinglePart", () => {
     );
 
     expect(result.success).toBe(true);
+    expect(mocks.updateActiveDownload).toHaveBeenCalledWith(
+      "download-1",
+      expect.objectContaining({
+        title: "Mock Title",
+        filename: "Mock Title",
+        progress: 0,
+      }),
+    );
     expect(mocks.updateVideo).toHaveBeenCalledWith(
       "existing-video",
       expect.objectContaining({

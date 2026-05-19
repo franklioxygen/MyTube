@@ -4,6 +4,7 @@ import React from 'react';
 interface ProgressBarProps {
     currentTime: number;
     duration: number;
+    isFullscreen?: boolean;
     onProgressChange: (value: number) => void;
     onProgressChangeCommitted: (value: number) => void;
     onProgressMouseDown: () => void;
@@ -12,11 +13,15 @@ interface ProgressBarProps {
 const ProgressBar: React.FC<ProgressBarProps> = ({
     currentTime,
     duration,
+    isFullscreen = false,
     onProgressChange,
     onProgressChangeCommitted,
     onProgressMouseDown
 }) => {
     const theme = useTheme();
+    const sliderColor = isFullscreen ? '#00e5ff' : theme.palette.primary.main;
+    const textColor = isFullscreen ? 'rgba(255, 255, 255, 0.92)' : 'text.primary';
+    const railColor = isFullscreen ? 'rgba(255, 255, 255, 0.32)' : undefined;
 
     const formatTime = (seconds: number): string => {
         if (isNaN(seconds) || !isFinite(seconds)) return '0:00';
@@ -32,7 +37,7 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
 
     return (
         <Stack direction="row" spacing={{ xs: 0.5, sm: 1 }} alignItems="center" sx={{ flex: 1, minWidth: 0 }}>
-            <Typography variant="caption" sx={{ minWidth: { xs: '35px', sm: '45px' }, textAlign: 'right', fontSize: '0.75rem' }}>
+            <Typography variant="caption" sx={{ minWidth: { xs: '35px', sm: '45px' }, textAlign: 'right', fontSize: '0.75rem', color: textColor }}>
                 {formatTime(currentTime)}
             </Typography>
             <Slider
@@ -51,12 +56,15 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
                 sx={{
                     flex: 1,
                     minWidth: 0,
-                    color: theme.palette.primary.main,
+                    color: sliderColor,
                     transition: 'all 0.2s ease',
                     '& .MuiSlider-thumb': {
                         width: 12,
                         height: 12,
                         transition: 'width 0.2s, height 0.2s',
+                        ...(isFullscreen && {
+                            boxShadow: '0 0 0 2px rgba(0, 0, 0, 0.45)'
+                        }),
                         '&:hover': {
                             width: 16,
                             height: 16,
@@ -69,6 +77,10 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
                     '& .MuiSlider-rail': {
                         height: 4,
                         transition: 'height 0.2s ease',
+                        ...(railColor && {
+                            color: railColor,
+                            opacity: 1
+                        })
                     },
                     '&:hover': {
                         '& .MuiSlider-track': {
@@ -80,7 +92,7 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
                     }
                 }}
             />
-            <Typography variant="caption" sx={{ minWidth: { xs: '35px', sm: '45px' }, textAlign: 'left', fontSize: '0.75rem' }}>
+            <Typography variant="caption" sx={{ minWidth: { xs: '35px', sm: '45px' }, textAlign: 'left', fontSize: '0.75rem', color: textColor }}>
                 {formatTime(duration)}
             </Typography>
         </Stack>
@@ -88,4 +100,3 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
 };
 
 export default ProgressBar;
-

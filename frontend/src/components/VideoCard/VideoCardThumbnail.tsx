@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { Video } from '../../types';
 import { formatDuration, parseDuration } from '../../utils/formatUtils';
+import { THUMBNAIL_PLACEHOLDER_SRC, setThumbnailPlaceholder } from '../../utils/thumbnailPlaceholder';
 import { VideoCardCollectionInfo } from '../../utils/videoCardUtils';
 
 interface VideoCardThumbnailProps {
@@ -112,7 +113,7 @@ const VideoCardThumbnailView: React.FC<VideoCardThumbnailProps> = ({
             {/* Thumbnail Image */}
             <CardMedia
                 component="img"
-                image={thumbnailSrc || 'https://via.placeholder.com/480x360?text=No+Thumbnail'}
+                image={thumbnailSrc || THUMBNAIL_PLACEHOLDER_SRC}
                 alt={`${video.title} thumbnail`}
                 loading={isAboveTheFold ? "eager" : "lazy"}
                 fetchPriority={isHeroImage ? "high" : "auto"}
@@ -137,15 +138,8 @@ const VideoCardThumbnailView: React.FC<VideoCardThumbnailProps> = ({
                     zIndex: 2
                 }}
                 onError={(e) => {
-                    // If error, we can still show the placeholder or the fallback image
-                    // For now, let's treat error as loaded so we see the fallback/alt text if any
                     setIsImageLoaded(true);
-                    e.currentTarget.onerror = null;
-                    e.currentTarget.srcset = '';
-                    e.currentTarget.sizes = '';
-                    e.currentTarget.removeAttribute('srcset');
-                    e.currentTarget.removeAttribute('sizes');
-                    e.currentTarget.src = 'https://via.placeholder.com/480x360?text=No+Thumbnail';
+                    setThumbnailPlaceholder(e.currentTarget);
                 }}
             />
 

@@ -93,6 +93,8 @@ const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
     const theme = useTheme();
     const { t } = useLanguage();
     const isTouch = useMediaQuery('(hover: none), (pointer: coarse)');
+    const fullscreenIconColor = 'rgba(255, 255, 255, 0.92)';
+    const fullscreenActiveColor = '#00e5ff';
 
     return (
         <Box
@@ -115,7 +117,19 @@ const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
                 pointerEvents: isFullscreen && !controlsVisible ? 'none' : 'auto',
                 '&:hover': {
                     opacity: 1
-                }
+                },
+                ...(isFullscreen && {
+                    color: fullscreenIconColor,
+                    '& .MuiIconButton-root': {
+                        color: fullscreenIconColor,
+                        '&:hover': {
+                            bgcolor: 'rgba(255, 255, 255, 0.14)'
+                        }
+                    },
+                    '& .MuiIconButton-colorPrimary, & .MuiIconButton-colorSecondary': {
+                        color: fullscreenActiveColor
+                    }
+                })
             }}
             onMouseEnter={onControlsMouseEnter}
         >
@@ -151,6 +165,7 @@ const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
                     <ProgressBar
                         currentTime={currentTime}
                         duration={duration}
+                        isFullscreen={isFullscreen}
                         onProgressChange={onProgressChange}
                         onProgressChangeCommitted={onProgressChangeCommitted}
                         onProgressMouseDown={onProgressMouseDown}

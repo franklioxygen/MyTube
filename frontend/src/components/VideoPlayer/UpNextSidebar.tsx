@@ -26,6 +26,7 @@ import { Video } from '../../types';
 import { getBackendUrl } from '../../utils/apiUrl';
 import { formatDate, formatDuration } from '../../utils/formatUtils';
 import { buildSmallThumbnailAbsoluteUrl } from '../../utils/imageOptimization';
+import { THUMBNAIL_PLACEHOLDER_SRC, setThumbnailPlaceholder } from '../../utils/thumbnailPlaceholder';
 
 interface UpNextSidebarProps {
     relatedVideos: Video[];
@@ -77,13 +78,11 @@ const SidebarThumbnail: React.FC<{ video: Video }> = ({ video }) => {
                     // The image is always rendered but hidden until loaded
                 }}
                 onLoad={() => setIsImageLoaded(true)}
-                image={thumbnailUrl || localThumbnailUrl || video.thumbnailUrl || 'https://via.placeholder.com/168x94?text=No+Thumbnail'}
+                image={thumbnailUrl || localThumbnailUrl || video.thumbnailUrl || THUMBNAIL_PLACEHOLDER_SRC}
                 alt={video.title}
                 onError={(e) => {
                     setIsImageLoaded(true);
-                    const target = e.target as HTMLImageElement;
-                    target.onerror = null;
-                    target.src = 'https://via.placeholder.com/168x94?text=No+Thumbnail';
+                    setThumbnailPlaceholder(e.currentTarget);
                 }}
             />
             {video.duration && (

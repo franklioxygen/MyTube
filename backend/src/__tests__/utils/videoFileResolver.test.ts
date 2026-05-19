@@ -83,6 +83,31 @@ describe("resolvePlayableVideoFilePath", () => {
     expect(result).toBe(fallbackVideo);
   });
 
+  it("finds a merged fallback container when the expected extension is missing", () => {
+    const expected = path.resolve("/virtual/videos/movie.webm");
+    const videoDir = path.dirname(expected);
+    const mergedFallback = path.join(videoDir, "movie.mp4");
+    const splitVideo = path.join(videoDir, "movie.f248.webm");
+
+    vi.mocked(fs.existsSync).mockImplementation((target: unknown) => {
+      const value = String(target);
+      return value === videoDir || value === mergedFallback || value === splitVideo;
+    });
+    vi.mocked(fs.readdirSync).mockReturnValue(
+      asReaddirResult(["movie.mp4", "movie.f248.webm"])
+    );
+    vi.mocked(fs.statSync).mockImplementation((target: unknown) => {
+      const value = String(target);
+      return {
+        size: value.endsWith("movie.mp4") ? 2048 : 1024,
+      } as unknown as fs.Stats;
+    });
+
+    const result = resolvePlayableVideoFilePath(expected);
+
+    expect(result).toBe(mergedFallback);
+  });
+
   it("uses ffprobe stream inspection when available", () => {
     const expected = path.resolve("/virtual/videos/movie.webm");
     const videoDir = path.dirname(expected);

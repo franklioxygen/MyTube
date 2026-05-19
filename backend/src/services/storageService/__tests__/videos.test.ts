@@ -54,6 +54,7 @@ vi.mock("../../../utils/logger", () => ({
   logger: {
     error: vi.fn(),
     info: vi.fn(),
+    warn: vi.fn(),
   },
 }));
 
@@ -498,24 +499,25 @@ describe("storageService videos", () => {
         id: "1",
         author: "Author 1",
         videoFilename: "video.mp4",
+        videoPath: "/videos/col/video.mp4",
         thumbnailFilename: "thumb.jpg",
         thumbnailPath: "/images/col/thumb.jpg",
         authorAvatarFilename: "avatar.jpg",
         authorAvatarPath: "/avatars/avatar.jpg",
-        subtitles: '[{"filename":"en.vtt","path":"/subtitles/en.vtt","language":"en"}]',
+        subtitles:
+          '[{"filename":"en.vtt","path":"/subtitles/col/season/en.vtt","language":"en"}]',
       };
       setupDeleteVideoSelect({ video, allVideos: [video] });
       vi.mocked(collections.getCollections).mockReturnValue([]);
-      vi.mocked(fileHelpers.findVideoFile).mockReturnValue("/abs/videos/video.mp4");
       vi.mocked(fileHelpers.findImageFile).mockReturnValue("/abs/images/thumb.jpg");
       vi.mocked(fs.existsSync).mockImplementation((target: any) => {
         const p = String(target);
         return (
-          p === "/abs/videos/video.mp4" ||
+          p === path.join(VIDEOS_DIR, "col/video.mp4") ||
           p === path.join(IMAGES_DIR, "col/thumb.jpg") ||
           p === path.join(AVATARS_DIR, "avatar.jpg") ||
           p === path.join(path.join(process.cwd(), "uploads"), "avatars/avatar.jpg") ||
-          p === path.join(path.join(process.cwd(), "uploads"), "subtitles/en.vtt")
+          p === path.join(path.join(process.cwd(), "uploads"), "subtitles/col/season/en.vtt")
         );
       });
       vi.mocked(db.delete).mockReturnValue({
@@ -529,13 +531,79 @@ describe("storageService videos", () => {
         "1",
         expect.any(Number)
       );
-      expect(fs.unlinkSync).toHaveBeenCalledWith("/abs/videos/video.mp4");
+      expect(fs.unlinkSync).toHaveBeenCalledWith(path.join(VIDEOS_DIR, "col/video.mp4"));
       expect(fs.unlinkSync).toHaveBeenCalledWith(
         path.join(path.join(process.cwd(), "uploads"), "avatars/avatar.jpg")
       );
       expect(fs.unlinkSync).toHaveBeenCalledWith(
-        path.join(path.join(process.cwd(), "uploads"), "subtitles/en.vtt")
+        path.join(path.join(process.cwd(), "uploads"), "subtitles/col/season/en.vtt")
       );
+      expect(fileHelpers.removeEmptyDirectoryChain).toHaveBeenCalledWith(
+        path.join(VIDEOS_DIR, "col"),
+        VIDEOS_DIR
+      );
+      expect(fileHelpers.removeEmptyDirectoryChain).toHaveBeenCalledWith(
+        path.join(SUBTITLES_DIR, "col/season"),
+        SUBTITLES_DIR
+      );
+    });
+
+    it("falls back to filename lookup when stored video path is stale", () => {
+      const video = {
+        id: "1",
+        videoFilename: "video.mp4",
+        videoPath: "/videos/stale/video.mp4",
+      };
+      setupDeleteVideoSelect({ video, allVideos: [video] });
+      vi.mocked(collections.getCollections).mockReturnValue([]);
+      vi.mocked(fileHelpers.findVideoFilesByFilename).mockReturnValue([
+        path.join(VIDEOS_DIR, "video.mp4")
+      ]);
+      vi.mocked(fs.existsSync).mockImplementation((target: any) =>
+        String(target) === path.join(VIDEOS_DIR, "video.mp4")
+      );
+      vi.mocked(db.delete).mockReturnValue({
+        where: vi.fn().mockReturnValue({ run: vi.fn() }),
+      } as any);
+
+      const ok = deleteVideo("1");
+
+      expect(ok).toBe(true);
+      expect(fileHelpers.findVideoFilesByFilename).toHaveBeenCalledWith("video.mp4");
+      expect(fileHelpers.findVideoFile).not.toHaveBeenCalled();
+      expect(fs.unlinkSync).toHaveBeenCalledWith(
+        path.join(VIDEOS_DIR, "video.mp4")
+      );
+      expect(fileHelpers.removeEmptyDirectoryChain).toHaveBeenCalledWith(
+        VIDEOS_DIR,
+        VIDEOS_DIR
+      );
+    });
+
+    it("skips stale-path fallback deletion when filename lookup is ambiguous", () => {
+      const video = {
+        id: "1",
+        videoFilename: "video.mp4",
+        videoPath: "/videos/stale/video.mp4",
+      };
+      setupDeleteVideoSelect({ video, allVideos: [video] });
+      vi.mocked(collections.getCollections).mockReturnValue([]);
+      vi.mocked(fileHelpers.findVideoFilesByFilename).mockReturnValue([
+        path.join(VIDEOS_DIR, "A/video.mp4"),
+        path.join(VIDEOS_DIR, "B/video.mp4"),
+      ]);
+      vi.mocked(fs.existsSync).mockReturnValue(false);
+      vi.mocked(db.delete).mockReturnValue({
+        where: vi.fn().mockReturnValue({ run: vi.fn() }),
+      } as any);
+
+      const ok = deleteVideo("1");
+
+      expect(ok).toBe(true);
+      expect(fileHelpers.findVideoFilesByFilename).toHaveBeenCalledWith("video.mp4");
+      expect(fileHelpers.findVideoFile).not.toHaveBeenCalled();
+      expect(fs.unlinkSync).not.toHaveBeenCalled();
+      expect(fileHelpers.removeEmptyDirectoryChain).not.toHaveBeenCalled();
     });
 
     it("should skip avatar deletion when other author videos exist", () => {

@@ -277,6 +277,16 @@ export function statSafeSync(
   return fs.statSync(safePath);
 }
 
+export function lstatSafeSync(
+  filePath: string,
+  allowedDirOrDirs: string | readonly string[],
+): Stats {
+  const safePath = resolveSafePathForOperation(filePath, allowedDirOrDirs);
+  // safePath is constrained by resolveSafePathForOperation before lstat.
+  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+  return fs.lstatSync(safePath);
+}
+
 export function statTrustedSync(filePath: string): Stats {
   const safePath = normalizeSafeAbsolutePath(filePath);
   return fs.statSync(safePath);

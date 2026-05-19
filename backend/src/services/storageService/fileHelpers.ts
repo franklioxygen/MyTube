@@ -11,10 +11,12 @@ import { logger } from "../../utils/logger";
 import {
   ensureDirSafeSync,
   isPathWithinDirectories,
+  lstatSafeSync,
   moveSafeSync,
   normalizeSafeAbsolutePath,
   pathExistsTrustedSync,
   sanitizePathSegment,
+  statSafeSync,
 } from "../../utils/security";
 import { Collection } from "./types";
 
@@ -156,6 +158,60 @@ export function removeDirectoryRecursive(targetPath: string): void {
   }
 }
 
+export function removeEmptyDirectoryChain(
+  startPath: string,
+  stopPath: string,
+): void {
+  let currentPath = validateSafePath(startPath);
+  const safeStopPath = validateSafePath(stopPath);
+
+  while (currentPath !== safeStopPath) {
+    const relative = path.relative(safeStopPath, currentPath);
+    if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) {
+      return;
+    }
+
+    if (!fs.pathExistsSync(currentPath)) {
+      currentPath = path.dirname(currentPath);
+      continue;
+    }
+
+    if (readDirectoryEntries(currentPath).length > 0) {
+      return;
+    }
+
+    fs.removeSync(currentPath);
+    currentPath = path.dirname(currentPath);
+  }
+}
+
+export function removeDirectoryTreeIfEmpty(targetPath: string): boolean {
+  const safePath = validateSafePath(targetPath);
+  if (!fs.pathExistsSync(safePath)) {
+    return false;
+  }
+
+  const entries = readDirectoryEntries(safePath);
+  for (const entry of entries) {
+    const childPath = buildStoragePath(safePath, entry);
+    if (!fs.pathExistsSync(childPath)) {
+      continue;
+    }
+
+    const stats = statSafeSync(childPath, ALLOWED_STORAGE_DIRS);
+    if (stats.isDirectory()) {
+      removeDirectoryTreeIfEmpty(childPath);
+    }
+  }
+
+  if (readDirectoryEntries(safePath).length > 0) {
+    return false;
+  }
+
+  fs.removeSync(safePath);
+  return true;
+}
+
 function findFileInStorage(
   baseDir: string,
   fileLabel: "video" | "image",
@@ -214,11 +270,73 @@ export function findVideoFile(
   return findFileInStorage(VIDEOS_DIR, "video", filename, collections);
 }
 
+export function findVideoFilesByFilename(filename: string): string[] {
+  return findFilesByFilenameInStorage(VIDEOS_DIR, "video", filename);
+}
+
 export function findImageFile(
   filename: string,
   collections: Collection[] = []
 ): string | null {
   return findFileInStorage(IMAGES_DIR, "image", filename, collections);
+}
+
+function findFilesByFilenameInStorage(
+  baseDir: string,
+  fileLabel: "video" | "image",
+  filename: string
+): string[] {
+  try {
+    const sanitizedFilename = sanitizePathSegment(filename);
+    if (!sanitizedFilename) {
+      logger.warn(`Invalid filename provided: ${filename}`);
+      return [];
+    }
+
+    const safeBaseDir = validateSafePath(baseDir);
+    if (!fs.pathExistsSync(safeBaseDir)) {
+      return [];
+    }
+
+    const matches: string[] = [];
+    const pendingDirs = [safeBaseDir];
+
+    while (pendingDirs.length > 0) {
+      const currentDir = pendingDirs.pop();
+      if (!currentDir) {
+        continue;
+      }
+
+      for (const entry of readDirectoryEntries(currentDir)) {
+        const childPath = buildStoragePath(currentDir, entry);
+        if (!fs.pathExistsSync(childPath)) {
+          continue;
+        }
+
+        const stats = lstatSafeSync(childPath, ALLOWED_STORAGE_DIRS);
+        if (stats.isSymbolicLink()) {
+          continue;
+        }
+
+        if (stats.isDirectory()) {
+          pendingDirs.push(childPath);
+          continue;
+        }
+
+        if (entry === sanitizedFilename) {
+          matches.push(childPath);
+        }
+      }
+    }
+
+    return matches;
+  } catch (error) {
+    logger.error(
+      `Error finding ${fileLabel} files`,
+      error instanceof Error ? error : new Error(String(error))
+    );
+    return [];
+  }
 }
 
 export function moveFile(sourcePath: string, destPath: string): void {

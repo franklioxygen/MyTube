@@ -77,6 +77,21 @@ const isLikelySplitVideoArtifact = (
   return VIDEO_CONTAINER_EXTENSIONS.has(ext);
 };
 
+const isLikelyMergedOutputCandidate = (
+  filename: string,
+  expectedBaseName: string
+): boolean => {
+  if (isTemporaryFile(filename)) {
+    return false;
+  }
+
+  const parsed = path.parse(filename);
+  return (
+    parsed.name === expectedBaseName &&
+    VIDEO_CONTAINER_EXTENSIONS.has(parsed.ext.toLowerCase())
+  );
+};
+
 const isFfprobeAvailable = (): boolean => {
   try {
     const result = spawnSync("ffprobe", ["-version"], { stdio: "ignore" });
@@ -126,6 +141,7 @@ const probeHasVideoStream = (filePath: string): boolean | null => {
 
 type CandidateFile = {
   candidatePath: string;
+  kindPriority: number;
   extensionPriority: number;
   size: number;
   likelyAudioOnly: boolean;
@@ -133,6 +149,10 @@ type CandidateFile = {
 };
 
 const sortCandidates = (a: CandidateFile, b: CandidateFile): number => {
+  if (b.kindPriority !== a.kindPriority) {
+    return b.kindPriority - a.kindPriority;
+  }
+
   if (b.extensionPriority !== a.extensionPriority) {
     return b.extensionPriority - a.extensionPriority;
   }
@@ -168,12 +188,18 @@ export const resolvePlayableVideoFilePath = (
     const ffprobeAvailable = isFfprobeAvailable();
 
     const candidates: CandidateFile[] = files
-      .filter((filename) =>
-        isLikelySplitVideoArtifact(filename, expectedBaseName)
+      .filter(
+        (filename) =>
+          isLikelyMergedOutputCandidate(filename, expectedBaseName) ||
+          isLikelySplitVideoArtifact(filename, expectedBaseName)
       )
       .map((filename) => {
         const candidatePath = resolveSafeChildPath(videoDir, filename);
         const candidateExt = path.extname(filename).toLowerCase();
+        const isMergedOutput = isLikelyMergedOutputCandidate(
+          filename,
+          expectedBaseName
+        );
         const extensionPriority = candidateExt === expectedExt ? 1 : 0;
         let size = 0;
         try {
@@ -190,9 +216,12 @@ export const resolvePlayableVideoFilePath = (
 
         return {
           candidatePath,
+          kindPriority: isMergedOutput ? 1 : 0,
           size,
           extensionPriority,
-          likelyAudioOnly: isLikelyAudioOnlyFormatId(filename),
+          likelyAudioOnly: isMergedOutput
+            ? false
+            : isLikelyAudioOnlyFormatId(filename),
           hasVideoStream,
         };
       })

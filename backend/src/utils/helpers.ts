@@ -16,6 +16,7 @@ const MISSAV_HOSTNAMES = [
   "123av.com",
   "123av.ai",
   "123av.ws",
+  "javxx.com",
   "njavtv.com",
 ] as const;
 const TWITTER_HOSTNAMES = ["x.com", "twitter.com"] as const;
@@ -277,7 +278,7 @@ function getMissAVLastPathSegment(url: string): string | null {
     .filter((segment) => segment.length > 0);
   const videoId = pathSegments[pathSegments.length - 1];
 
-  if (videoId && /^[a-zA-Z0-9-]+$/.test(videoId)) {
+  if (videoId && /^[a-zA-Z0-9_-]+$/.test(videoId)) {
     return videoId;
   }
 
@@ -301,6 +302,49 @@ export function extractMissAVVideoId(url: string): string | null {
   } catch (error) {
     console.error("Error extracting MissAV video ID:", error);
     return null;
+  }
+}
+
+function getMissAVSourceDisplayName(url: string): string {
+  if (!isMissAVUrl(url)) {
+    return "MissAV";
+  }
+
+  const hostname = new URL(url).hostname.toLowerCase();
+  if (hostname === "123av.com" || hostname.endsWith(".123av.com")) {
+    return "123AV";
+  }
+  if (hostname === "123av.ai" || hostname.endsWith(".123av.ai")) {
+    return "123AV";
+  }
+  if (hostname === "123av.ws" || hostname.endsWith(".123av.ws")) {
+    return "123AV";
+  }
+  if (hostname === "javxx.com" || hostname.endsWith(".javxx.com")) {
+    return "JAVXX";
+  }
+  if (hostname === "njavtv.com" || hostname.endsWith(".njavtv.com")) {
+    return "NJAVTV";
+  }
+
+  return "MissAV";
+}
+
+export function getMissAVPlaceholderTitle(url: string): string {
+  try {
+    const sourceName = getMissAVSourceDisplayName(url);
+    if (!isMissAVUrl(url)) {
+      return `${sourceName} Video`;
+    }
+
+    const videoId = extractMissAVVideoId(url);
+    if (!videoId) {
+      return `${sourceName} Video`;
+    }
+
+    return `${sourceName}: ${videoId.toUpperCase()}`;
+  } catch {
+    return "MissAV Video";
   }
 }
 

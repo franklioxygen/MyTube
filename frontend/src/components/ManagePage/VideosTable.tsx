@@ -49,6 +49,7 @@ import UploadThumbnailModal from '../UploadThumbnailModal';
 
 import { getBackendUrl } from '../../utils/apiUrl';
 import { buildSmallThumbnailAbsoluteUrl } from '../../utils/imageOptimization';
+import { THUMBNAIL_PLACEHOLDER_SRC, setThumbnailPlaceholder } from '../../utils/thumbnailPlaceholder';
 import { useVideoReDownload } from './hooks/useVideoReDownload';
 
 const BACKEND_URL = getBackendUrl();
@@ -66,7 +67,7 @@ const ThumbnailImage: React.FC<{ video: Video }> = ({ video }) => {
             video.thumbnailUrl,
         )
         : undefined;
-    const src = thumbnailUrl || localThumbnailUrl || video.thumbnailUrl || 'https://via.placeholder.com/120x90?text=No+Thumbnail';
+    const src = thumbnailUrl || localThumbnailUrl || video.thumbnailUrl || THUMBNAIL_PLACEHOLDER_SRC;
 
     return (
         <Box
@@ -74,6 +75,7 @@ const ThumbnailImage: React.FC<{ video: Video }> = ({ video }) => {
             src={src}
             alt={video.title}
             sx={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 1 }}
+            onError={(e) => setThumbnailPlaceholder(e.currentTarget)}
         />
     );
 };
