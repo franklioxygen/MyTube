@@ -117,7 +117,13 @@ function listYtDlpPathCandidates(): string[] {
   for (const entry of pathEntries) {
     for (const executableName of executableNames) {
       const candidatePath = path.join(entry, executableName);
-      if (!fs.existsSync(candidatePath) || seen.has(candidatePath)) {
+      let candidateExists = false;
+      try {
+        candidateExists = pathExistsSafeSync(candidatePath, entry);
+      } catch {
+        continue;
+      }
+      if (!candidateExists || seen.has(candidatePath)) {
         continue;
       }
       seen.add(candidatePath);
@@ -139,6 +145,9 @@ async function probeYtDlpCandidate(
   let helpText = "";
 
   return await new Promise<YtDlpCandidateProbe>((resolve) => {
+    // ytDlpPath is built from PATH entries and a fixed executable name above;
+    // shell execution is disabled and arguments are passed separately.
+    // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process
     const proc = spawn(ytDlpPath, ["--help"], {
       env: getYtDlpSpawnEnv(),
       stdio: ["ignore", "pipe", "pipe"],
