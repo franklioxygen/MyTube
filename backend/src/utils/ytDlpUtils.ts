@@ -161,7 +161,11 @@ async function probeYtDlpCandidate(
       helpText += data.toString();
     });
 
-    proc.on("close", () => {
+    proc.on("close", (code) => {
+      if (code !== 0) {
+        resolve({ canRun: false, supportsModernJsRuntimes: false });
+        return;
+      }
       resolve({
         canRun: true,
         supportsModernJsRuntimes:

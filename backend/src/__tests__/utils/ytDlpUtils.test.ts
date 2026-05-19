@@ -600,6 +600,47 @@ describe("ytDlpUtils", () => {
       expect(downloadCall).toBeDefined();
     });
 
+    it("should skip PATH yt-dlp candidates when --help exits non-zero", async () => {
+      delete process.env.YT_DLP_PATH;
+      process.env.PATH = ["/broken/bin", "/working/bin"].join(path.delimiter);
+      vi.mocked(fs.existsSync).mockImplementation((target: any) => {
+        const normalizedTarget = String(target);
+        return (
+          normalizedTarget === path.join("/broken/bin", "yt-dlp") ||
+          normalizedTarget === path.join("/working/bin", "yt-dlp")
+        );
+      });
+
+      const brokenProc = createMockProcess();
+      const proc = createMockProcess();
+      vi.mocked(spawn)
+        .mockImplementationOnce(() => brokenProc as any)
+        .mockImplementationOnce(() => createHelpCheckProcess("none") as any)
+        .mockImplementationOnce(() => createVersionCheckProcess() as any)
+        .mockImplementationOnce(() => createHelpCheckProcess("none") as any)
+        .mockImplementationOnce(() => proc as any);
+
+      const promise = executeYtDlpJson("https://www.youtube.com/watch?v=abc");
+      await flushAsyncSpawns();
+      brokenProc.emit("close", 1);
+      await flushAsyncSpawns();
+      proc.stdout?.emit("data", Buffer.from('{"ok":true}'));
+      proc.emit("close", 0);
+
+      await expect(promise).resolves.toEqual({ ok: true });
+
+      const downloadCall = vi
+        .mocked(spawn)
+        .mock.calls.find(
+          ([cmd, args]) =>
+            cmd === path.join("/working/bin", "yt-dlp") &&
+            Array.isArray(args) &&
+            args.includes("https://www.youtube.com/watch?v=abc")
+        );
+
+      expect(downloadCall).toBeDefined();
+    });
+
     it("should execute and parse json output with youtube runtime and cookies", async () => {
       const proc = createMockProcess();
       mockSpawnWithVersionHelpAndDenoCheck("plural", proc);
