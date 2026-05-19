@@ -18,7 +18,7 @@ import { useVideoSort } from '../hooks/useVideoSort';
 import { useViewMode } from '../hooks/useViewMode';
 import { lazyWithRetry } from '../utils/lazyWithRetry';
 
-const HOME_SORT_STORAGE_KEY = 'homeSortOption';
+const HOME_SORT_STORAGE_SLOT = 'homeSortOption';
 
 const ConfirmationModal = lazyWithRetry(
     () => import('../components/ConfirmationModal'),
@@ -85,7 +85,7 @@ const Home: React.FC = () => {
         videos: filteredVideos,
         defaultSort,
         preserveOrder: viewMode === 'history',
-        storageKey: HOME_SORT_STORAGE_KEY,
+        storageKey: HOME_SORT_STORAGE_SLOT,
         onSortChange: () => {
             setSearchParams((prev: URLSearchParams) => {
                 const newParams = new URLSearchParams(prev);
