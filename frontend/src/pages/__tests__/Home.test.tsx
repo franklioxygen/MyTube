@@ -232,7 +232,9 @@ describe('Home Page', () => {
         renderHome();
 
         // Capture the onSortChange callback passed to useVideoSort
-        const { onSortChange } = mockUseVideoSort.mock.calls[0][0];
+        const { onSortChange, storageKey } = mockUseVideoSort.mock.calls[0][0];
+
+        expect(storageKey).toBe('homeSortOption');
 
         // Trigger it
         onSortChange();

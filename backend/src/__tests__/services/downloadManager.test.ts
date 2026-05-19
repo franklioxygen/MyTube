@@ -469,6 +469,46 @@ describe('DownloadManager', () => {
       );
     });
 
+    it('should finalize cancellation when the cancel callback does not settle', async () => {
+      const activeDownloadFn = vi.fn().mockImplementation((registerCancel: any) => {
+        registerCancel(() => new Promise(() => {}));
+        return new Promise(() => {});
+      });
+
+      const running = downloadManager.addDownload(
+        activeDownloadFn,
+        'cancel-hangs',
+        'Cancel hangs',
+        'https://www.youtube.com/watch?v=hang',
+        'youtube',
+      );
+      void running.catch(() => {});
+      await waitForQueue();
+
+      vi.useFakeTimers();
+      try {
+        const cancelPromise = downloadManager.cancelDownload('cancel-hangs');
+        await vi.advanceTimersByTimeAsync(5000);
+        await cancelPromise;
+
+        expect(storageService.removeActiveDownload).toHaveBeenCalledWith('cancel-hangs');
+        expect(storageService.addDownloadHistoryItem).toHaveBeenCalledWith(
+          expect.objectContaining({
+            id: 'cancel-hangs',
+            status: 'failed',
+            error: 'Download cancelled by user',
+          }),
+        );
+        expect(HookService.executeHook).toHaveBeenCalledWith(
+          'task_cancel',
+          expect.objectContaining({ taskId: 'cancel-hangs' }),
+        );
+        expect(downloadManager.getStatus().active).toBe(0);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it('should remove queued task when cancelling non-active download', async () => {
       downloadManager.setMaxConcurrentDownloads(0);
       downloadManager.addDownload(

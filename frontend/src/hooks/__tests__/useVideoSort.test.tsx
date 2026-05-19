@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Video } from '../../types';
 import { useVideoSort } from '../useVideoSort';
 
@@ -12,15 +12,34 @@ const mockVideos: Video[] = [
 ];
 
 describe('useVideoSort', () => {
+    let randomValue = 123456;
+
     beforeAll(() => {
         // Mock window.crypto
         Object.defineProperty(window, 'crypto', {
             value: {
                 getRandomValues: (buffer: Uint32Array) => {
-                    return buffer.map(() => 123456); // Deterministic for tests
+                    buffer[0] = randomValue;
+                    return buffer;
                 },
             },
         });
+
+        const storage = new Map<string, string>();
+        Object.defineProperty(window, 'localStorage', {
+            value: {
+                getItem: (key: string) => storage.get(key) ?? null,
+                setItem: (key: string, value: string) => storage.set(key, value),
+                removeItem: (key: string) => storage.delete(key),
+                clear: () => storage.clear(),
+            },
+            configurable: true,
+        });
+    });
+
+    beforeEach(() => {
+        window.localStorage.clear();
+        randomValue = 123456;
     });
 
     it('should sort by date descending by default', () => {
@@ -122,6 +141,104 @@ describe('useVideoSort', () => {
         });
 
         expect(result.current.sortOption).toBe('viewsDesc');
+    });
+
+    it('should initialize from stored sort when storageKey is provided and URL sort is absent', () => {
+        window.localStorage.setItem('homeSortOption', 'viewsDesc');
+
+        const { result } = renderHook(() => useVideoSort({
+            videos: mockVideos,
+            storageKey: 'homeSortOption'
+        }), {
+            wrapper: MemoryRouter,
+        });
+
+        expect(result.current.sortOption).toBe('viewsDesc');
+        expect(result.current.sortedVideos.map(v => v.id)).toEqual(['2', '1', '3']);
+    });
+
+    it('should prefer URL sort over stored sort', () => {
+        window.localStorage.setItem('homeSortOption', 'viewsDesc');
+
+        const { result } = renderHook(() => useVideoSort({
+            videos: mockVideos,
+            storageKey: 'homeSortOption'
+        }), {
+            wrapper: ({ children }) => (
+                <MemoryRouter initialEntries={['/?sort=nameAsc']}>{children}</MemoryRouter>
+            ),
+        });
+
+        expect(result.current.sortOption).toBe('nameAsc');
+        expect(result.current.sortedVideos.map(v => v.id)).toEqual(['2', '1', '3']);
+    });
+
+    it('should save selected sort when storageKey is provided', () => {
+        const { result } = renderHook(() => useVideoSort({
+            videos: mockVideos,
+            storageKey: 'homeSortOption'
+        }), {
+            wrapper: MemoryRouter,
+        });
+
+        act(() => {
+            result.current.handleSortClose('videoDateAsc');
+        });
+
+        expect(window.localStorage.getItem('homeSortOption')).toBe('videoDateAsc');
+    });
+
+    it('should use a fresh seed when stored sort is random and URL seed is absent', () => {
+        window.localStorage.setItem('homeSortOption', 'random');
+        randomValue = 111111;
+
+        const { result } = renderHook(() => useVideoSort({
+            videos: mockVideos,
+            storageKey: 'homeSortOption'
+        }), {
+            wrapper: MemoryRouter,
+        });
+        const firstOrder = result.current.sortedVideos.map(v => v.id);
+
+        window.localStorage.setItem('homeSortOption', 'random');
+        randomValue = 333333;
+
+        const { result: result2 } = renderHook(() => useVideoSort({
+            videos: mockVideos,
+            storageKey: 'homeSortOption'
+        }), {
+            wrapper: MemoryRouter,
+        });
+
+        expect(result2.current.sortOption).toBe('random');
+        expect(result2.current.sortedVideos.map(v => v.id)).not.toEqual(firstOrder);
+    });
+
+    it('should keep URL-seeded random stable when storageKey is provided', () => {
+        window.localStorage.setItem('homeSortOption', 'random');
+        randomValue = 111111;
+
+        const { result } = renderHook(() => useVideoSort({
+            videos: mockVideos,
+            storageKey: 'homeSortOption'
+        }), {
+            wrapper: ({ children }) => (
+                <MemoryRouter initialEntries={['/?sort=random&seed=123']}>{children}</MemoryRouter>
+            ),
+        });
+        const firstOrder = result.current.sortedVideos.map(v => v.id);
+
+        randomValue = 222222;
+        const { result: result2 } = renderHook(() => useVideoSort({
+            videos: mockVideos,
+            storageKey: 'homeSortOption'
+        }), {
+            wrapper: ({ children }) => (
+                <MemoryRouter initialEntries={['/?sort=random&seed=123']}>{children}</MemoryRouter>
+            ),
+        });
+
+        expect(result2.current.sortedVideos.map(v => v.id)).toEqual(firstOrder);
     });
 
     it('should call onSortChange if provided', () => {

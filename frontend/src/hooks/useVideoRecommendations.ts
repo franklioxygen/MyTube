@@ -6,12 +6,18 @@ import { getRecommendations } from '../utils/recommendations';
 
 interface UseVideoRecommendationsProps {
     video: Video | undefined;
+    sourceCollectionId?: string | null;
+    playbackQueueVideoIds?: string[];
 }
 
 /**
  * Custom hook to calculate video recommendations
  */
-export function useVideoRecommendations({ video }: UseVideoRecommendationsProps) {
+export function useVideoRecommendations({
+    video,
+    sourceCollectionId = null,
+    playbackQueueVideoIds
+}: UseVideoRecommendationsProps) {
     const { videos } = useVideo();
     const { collections } = useCollection();
     const deferredVideos = useDeferredValue(videos);
@@ -25,16 +31,13 @@ export function useVideoRecommendations({ video }: UseVideoRecommendationsProps)
             tags: video.tags,
             seriesTitle: video.seriesTitle,
             title: video.title,
-            videoFilename: video.videoFilename
+            videoFilename: video.videoFilename,
+            source: video.source,
+            date: video.date,
+            addedAt: video.addedAt,
+            duration: video.duration
         } as Video;
-    }, [
-        video?.id,
-        video?.author,
-        video?.seriesTitle,
-        video?.title,
-        video?.videoFilename,
-        video?.tags
-    ]);
+    }, [video]);
     const deferredRecommendationVideo = useDeferredValue(recommendationVideo);
 
     // Get related videos using recommendation algorithm
@@ -43,9 +46,17 @@ export function useVideoRecommendations({ video }: UseVideoRecommendationsProps)
         return getRecommendations({
             currentVideo: deferredRecommendationVideo,
             allVideos: deferredVideos,
-            collections: deferredCollections
+            collections: deferredCollections,
+            sourceCollectionId,
+            playbackQueueVideoIds
         }).slice(0, 10);
-    }, [deferredRecommendationVideo, deferredVideos, deferredCollections]);
+    }, [
+        deferredRecommendationVideo,
+        deferredVideos,
+        deferredCollections,
+        sourceCollectionId,
+        playbackQueueVideoIds
+    ]);
 
     return {
         relatedVideos
