@@ -126,6 +126,12 @@ const flushAsyncSpawns = async () => {
   await new Promise((resolve) => setImmediate(resolve));
 };
 
+const flushMicrotasks = async (count: number = 10) => {
+  for (let i = 0; i < count; i += 1) {
+    await Promise.resolve();
+  }
+};
+
 const getSpawnArgsForUrl = (url: string, occurrence: number = 0): string[] => {
   const matchingCalls = vi.mocked(spawn).mock.calls.filter(([, args]) =>
     Array.isArray(args) && args.includes(url)
@@ -183,6 +189,7 @@ describe("ytDlpUtils", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     if (originalYtDlpPath === undefined) {
       delete process.env.YT_DLP_PATH;
     } else {
@@ -628,6 +635,48 @@ describe("ytDlpUtils", () => {
       proc.emit("close", 0);
 
       await expect(promise).resolves.toEqual({ ok: true });
+
+      const downloadCall = vi
+        .mocked(spawn)
+        .mock.calls.find(
+          ([cmd, args]) =>
+            cmd === path.join("/working/bin", "yt-dlp") &&
+            Array.isArray(args) &&
+            args.includes("https://www.youtube.com/watch?v=abc")
+        );
+
+      expect(downloadCall).toBeDefined();
+    });
+
+    it("should time out hanging PATH yt-dlp candidates and continue", async () => {
+      vi.useFakeTimers();
+      delete process.env.YT_DLP_PATH;
+      process.env.PATH = ["/hanging/bin", "/working/bin"].join(path.delimiter);
+      vi.mocked(fs.existsSync).mockImplementation((target: any) => {
+        const normalizedTarget = String(target);
+        return (
+          normalizedTarget === path.join("/hanging/bin", "yt-dlp") ||
+          normalizedTarget === path.join("/working/bin", "yt-dlp")
+        );
+      });
+
+      const hangingProc = createMockProcess();
+      const proc = createMockProcess();
+      vi.mocked(spawn)
+        .mockImplementationOnce(() => hangingProc as any)
+        .mockImplementationOnce(() => createHelpCheckProcess("none") as any)
+        .mockImplementationOnce(() => createVersionCheckProcess() as any)
+        .mockImplementationOnce(() => createHelpCheckProcess("none") as any)
+        .mockImplementationOnce(() => proc as any);
+
+      const promise = executeYtDlpJson("https://www.youtube.com/watch?v=abc");
+      await vi.advanceTimersByTimeAsync(5000);
+      await flushMicrotasks();
+      proc.stdout?.emit("data", Buffer.from('{"ok":true}'));
+      proc.emit("close", 0);
+
+      await expect(promise).resolves.toEqual({ ok: true });
+      expect(hangingProc.kill).toHaveBeenCalledWith("SIGTERM");
 
       const downloadCall = vi
         .mocked(spawn)

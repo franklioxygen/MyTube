@@ -27,6 +27,7 @@ import {
 
 const DEFAULT_YT_DLP_PATH = "yt-dlp";
 const YT_DLP_JS_RUNTIME_ENV = "YT_DLP_JS_RUNTIME";
+const YT_DLP_HELP_PROBE_TIMEOUT_MS = 5000;
 const DEFAULT_YOUTUBE_PLAYER_CLIENT_EXTRACTOR_ARG =
   "youtube:player_client=default,mweb";
 const YOUTUBE_PLAYER_CLIENT_ARG_PREFIX = "youtube:player_client=";
@@ -145,6 +146,25 @@ async function probeYtDlpCandidate(
   let helpText = "";
 
   return await new Promise<YtDlpCandidateProbe>((resolve) => {
+    let settled = false;
+    const failProbe = (): YtDlpCandidateProbe => ({
+      canRun: false,
+      supportsModernJsRuntimes: false,
+    });
+    const timeout = setTimeout(() => {
+      if (settled) return;
+      proc.kill("SIGTERM");
+      settled = true;
+      resolve(failProbe());
+    }, YT_DLP_HELP_PROBE_TIMEOUT_MS);
+    timeout.unref?.();
+    const settle = (probe: YtDlpCandidateProbe) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      resolve(probe);
+    };
+
     // ytDlpPath is built from PATH entries and a fixed executable name above;
     // shell execution is disabled and arguments are passed separately.
     // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process
@@ -163,10 +183,10 @@ async function probeYtDlpCandidate(
 
     proc.on("close", (code) => {
       if (code !== 0) {
-        resolve({ canRun: false, supportsModernJsRuntimes: false });
+        settle(failProbe());
         return;
       }
-      resolve({
+      settle({
         canRun: true,
         supportsModernJsRuntimes:
           helpText.includes("--js-runtimes") ||
@@ -175,7 +195,7 @@ async function probeYtDlpCandidate(
     });
 
     proc.on("error", () => {
-      resolve({ canRun: false, supportsModernJsRuntimes: false });
+      settle(failProbe());
     });
   });
 }
@@ -528,6 +548,21 @@ async function getYouTubeJsRuntimeFlag(): Promise<YouTubeJsRuntimeFlag | null> {
     try {
       const ytDlpPath = await resolveYtDlpPath();
       const resolvedFlag = await new Promise<YouTubeJsRuntimeFlag | null>((resolve) => {
+        let settled = false;
+        const timeout = setTimeout(() => {
+          if (settled) return;
+          proc.kill("SIGTERM");
+          settled = true;
+          resolve(resolveFromHelp());
+        }, YT_DLP_HELP_PROBE_TIMEOUT_MS);
+        timeout.unref?.();
+        const settle = () => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeout);
+          resolve(resolveFromHelp());
+        };
+
         const proc = spawn(ytDlpPath, ["--help"], {
           env: getYtDlpSpawnEnv(),
           stdio: ["ignore", "pipe", "pipe"],
@@ -542,11 +577,11 @@ async function getYouTubeJsRuntimeFlag(): Promise<YouTubeJsRuntimeFlag | null> {
         });
 
         proc.on("close", () => {
-          resolve(resolveFromHelp());
+          settle();
         });
 
         proc.on("error", () => {
-          resolve(resolveFromHelp());
+          settle();
         });
       });
       if (!resolvedFlag) {
