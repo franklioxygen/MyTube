@@ -53,6 +53,7 @@ export interface AddDownloadStatisticsOptions {
 }
 
 const TASK_FAIL_HOOK_WAIT_TIMEOUT_MS = 5000;
+const CANCEL_TASK_WAIT_TIMEOUT_MS = 5000;
 
 async function awaitTaskFailHook(
   context: Record<string, string | undefined>,
@@ -73,6 +74,31 @@ async function awaitTaskFailHook(
     ]);
   } catch (error) {
     console.error("task_fail hook failed:", error);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
+
+async function awaitTaskCancellationHook(
+  taskId: string,
+  cancelFn: () => void | Promise<void>,
+): Promise<void> {
+  let timeoutId: NodeJS.Timeout | null = null;
+
+  try {
+    await Promise.race([
+      Promise.resolve().then(() => cancelFn()),
+      new Promise<void>((resolve) => {
+        timeoutId = setTimeout(() => {
+          console.warn(
+            `Cancel hook for download ${sanitizeLogMessage(taskId)} exceeded ${CANCEL_TASK_WAIT_TIMEOUT_MS}ms; finalizing cancellation anyway.`
+          );
+          resolve();
+        }, CANCEL_TASK_WAIT_TIMEOUT_MS);
+      }),
+    ]);
   } finally {
     if (timeoutId) {
       clearTimeout(timeoutId);
@@ -307,7 +333,10 @@ class DownloadManager {
       // Call the cancel function if available
       if (task.cancelFn) {
         try {
-          await (task.cancelFn as () => void | Promise<void>)();
+          await awaitTaskCancellationHook(
+            id,
+            task.cancelFn as () => void | Promise<void>,
+          );
         } catch (error) {
           console.error(
             "Error calling cancel function for download:",
