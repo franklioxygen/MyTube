@@ -25,13 +25,12 @@ interface DownloadFlagContext {
 }
 
 const DEFAULT_FORMAT =
-  "bestvideo[ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a]/best[ext=mp4]/best";
+  "bestvideo[vcodec!*=av01]+bestaudio/best[vcodec!*=av01]/best";
 const DEFAULT_YOUTUBE_FORMAT =
-  "bestvideo[ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a]/bestvideo[ext=mp4][vcodec^=h264]+bestaudio[ext=m4a]/best[ext=mp4]/best";
+  "bestvideo[vcodec^=vp9][ext=webm]+bestaudio[ext=webm]/bestvideo[vcodec^=vp9]+bestaudio/bestvideo[ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a]/best[ext=mp4]/best";
 const TWITTER_SAFARI_FORMAT =
   "bestvideo[ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a]/bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best";
-const YOUTUBE_HIGH_RES_FORMAT =
-  "bestvideo[vcodec^=vp9][ext=webm]+bestaudio/bestvideo[ext=webm]+bestaudio/bestvideo+bestaudio/best";
+const YOUTUBE_HIGH_RES_FORMAT = DEFAULT_YOUTUBE_FORMAT;
 
 interface CodecConfig {
   formatSortValue: string;
@@ -159,18 +158,18 @@ function extractUserConfigOptions(
 }
 
 function resolveMergeOutputFormat(args: {
+  isYouTube: boolean;
   isTwitter: boolean;
-  formatSortValue?: string;
   userMergeOutputFormat?: string;
 }): string {
-  const { isTwitter, formatSortValue, userMergeOutputFormat } = args;
+  const { isYouTube, isTwitter, userMergeOutputFormat } = args;
   if (userMergeOutputFormat) {
     return userMergeOutputFormat;
   }
-  if (!isTwitter && formatSortValue && formatSortValue.includes("res")) {
-    return "webm";
+  if (isTwitter) {
+    return "mp4";
   }
-  return "mp4";
+  return isYouTube ? "webm" : "mp4";
 }
 
 function buildBaseFlags(args: {
@@ -414,8 +413,8 @@ function createDownloadFlagContext(
   const isTwitter = isTwitterUrl(videoUrl);
   const isYouTube = isYouTubeUrl(videoUrl);
   const mergeOutputFormat = resolveMergeOutputFormat({
+    isYouTube,
     isTwitter,
-    formatSortValue,
     userMergeOutputFormat,
   });
   const flags = buildBaseFlags({

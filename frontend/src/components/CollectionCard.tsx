@@ -16,6 +16,7 @@ import { Collection, Video } from '../types';
 import { getBackendUrl } from '../utils/apiUrl';
 import { formatDisplayDate } from '../utils/formatUtils';
 import { buildSmallThumbnailAbsoluteUrl } from '../utils/imageOptimization';
+import { THUMBNAIL_PLACEHOLDER_SRC, setThumbnailPlaceholder } from '../utils/thumbnailPlaceholder';
 
 interface CollectionCardProps {
     collection: Collection;
@@ -114,7 +115,7 @@ const CollectionThumbnail: React.FC<{ video: Video; index: number }> = ({ video,
             video.thumbnailUrl,
         )
         : undefined;
-    const src = thumbnailUrl || localThumbnailUrl || video.thumbnailUrl || 'https://via.placeholder.com/240x180?text=No+Thumbnail';
+    const src = thumbnailUrl || localThumbnailUrl || video.thumbnailUrl || THUMBNAIL_PLACEHOLDER_SRC;
 
     return (
         <Box
@@ -141,9 +142,7 @@ const CollectionThumbnail: React.FC<{ video: Video; index: number }> = ({ video,
                     objectFit: 'cover'
                 }}
                 onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.onerror = null;
-                    target.src = 'https://via.placeholder.com/240x180?text=No+Thumbnail';
+                    setThumbnailPlaceholder(e.currentTarget);
                 }}
             />
         </Box>

@@ -83,6 +83,8 @@ describe("configureRateLimiting", () => {
     const next = vi.fn();
 
     middleware({ path: "/videos/abc.mp4" }, {}, next);
+    middleware({ path: "/images-small/thumb.jpg" }, {}, next);
+    middleware({ path: "/images/thumb.jpg" }, {}, next);
     middleware({ path: "/api/download" }, {}, next);
     middleware({ path: "/api/check-playlist" }, {}, next);
     middleware({ path: "/api/statistics/events" }, {}, next);
@@ -90,7 +92,7 @@ describe("configureRateLimiting", () => {
     middleware({ path: "/feed/token" }, {}, next);
     middleware({ path: "/api/rss/feed/token" }, {}, next);
 
-    expect(next).toHaveBeenCalledTimes(7);
+    expect(next).toHaveBeenCalledTimes(9);
     expect(generalLimiter).not.toHaveBeenCalled();
   });
 

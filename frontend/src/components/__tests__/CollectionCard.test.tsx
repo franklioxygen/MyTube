@@ -2,6 +2,7 @@ import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Collection, Video } from '../../types';
+import { THUMBNAIL_PLACEHOLDER_SRC } from '../../utils/thumbnailPlaceholder';
 import CollectionCard from '../CollectionCard';
 
 const formatExpectedDate = (value: string) => {
@@ -184,6 +185,6 @@ describe('CollectionCard', () => {
         const image = screen.getByAltText('Video 1') as HTMLImageElement;
         fireEvent.error(image);
 
-        expect(image.src).toContain('https://via.placeholder.com/240x180?text=No+Thumbnail');
+        expect(image).toHaveAttribute('src', THUMBNAIL_PLACEHOLDER_SRC);
     });
 });

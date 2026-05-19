@@ -21,6 +21,7 @@ import { useDownload } from '../contexts/DownloadContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useVideo } from '../contexts/VideoContext';
 import { formatDuration } from '../utils/formatUtils';
+import { THUMBNAIL_PLACEHOLDER_SRC, setThumbnailPlaceholder } from '../utils/thumbnailPlaceholder';
 import { getRandomSeed, sortVideos, SortOption, validateSortOption } from '../utils/videoSort';
 
 const SearchPage: React.FC = () => {
@@ -185,13 +186,11 @@ const SearchPage: React.FC = () => {
                                             <Box sx={{ position: 'relative', paddingTop: '56.25%' }}>
                                                 <CardMedia
                                                     component="img"
-                                                    image={result.thumbnailUrl || 'https://via.placeholder.com/480x360?text=No+Thumbnail'}
+                                                    image={result.thumbnailUrl || THUMBNAIL_PLACEHOLDER_SRC}
                                                     alt={result.title}
                                                     sx={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
                                                     onError={(e) => {
-                                                        const target = e.target as HTMLImageElement;
-                                                        target.onerror = null;
-                                                        target.src = 'https://via.placeholder.com/480x360?text=No+Thumbnail';
+                                                        setThumbnailPlaceholder(e.currentTarget);
                                                     }}
                                                 />
                                                 {result.duration && (

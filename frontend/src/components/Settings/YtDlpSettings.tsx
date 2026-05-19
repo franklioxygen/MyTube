@@ -25,7 +25,7 @@ const DEFAULT_CONFIG = `# yt-dlp Configuration File
 # For full documentation: https://github.com/yt-dlp/yt-dlp#configuration
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# VIDEO FORMAT & RESOLUTION (Recommended: Use -S for resolution limits)
+# VIDEO FORMAT & RESOLUTION (Default: best available quality)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 # RECOMMENDED: Use -S (format sort) for reliable resolution limits
@@ -62,19 +62,18 @@ const DEFAULT_CONFIG = `# yt-dlp Configuration File
 # Note: -f filters may not work reliably with all video sources
 # Use -S above for more consistent results
 
-# Download best quality (Recommended for 4K/8K)
-# Note: This will likely use VP9/AV1 codecs which are best for high resolution
+# MyTube defaults to high-quality browser-playable formats.
+# YouTube downloads prefer VP9/WebM for high resolution and avoid AV1 by default.
 # For 8K: -S res:4320
 # For 4K: -S res:2160
 
-# Download best quality using format selection (Legacy)
-# Note: This may be limited to 1080p due to MP4 compatibility requirements
+# Explicit best-quality format selection
 # -f bestvideo*+bestaudio/best
 
 # Limit to 1080p maximum using filter
 # -f bestvideo[height<=1080]+bestaudio/best[height<=1080]
 
-# Prefer MP4 format (better compatibility)
+# Prefer MP4 format (better compatibility, may reduce max resolution)
 # -f bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best
 
 # Prefer H.264 codec (required for Safari/iOS playback)
@@ -98,8 +97,8 @@ const DEFAULT_CONFIG = `# yt-dlp Configuration File
 # Broken in: Safari, iOS, QuickTime, macOS Preview
 # --merge-output-format mp4
 
-# Force WebM container (default for 4K+ in MyTube)
-# Best compatibility for VP9/AV1 codecs, works in all modern browsers
+# Force WebM container (default for high-resolution YouTube unless overridden)
+# Best compatibility for VP9 codecs in Chromium-based browsers
 # --merge-output-format webm
 
 # Force MKV container (best for local playback with VLC/Plex)
