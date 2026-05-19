@@ -122,6 +122,10 @@ const CollectionPage: React.FC = () => {
         (page - 1) * ITEMS_PER_PAGE,
         page * ITEMS_PER_PAGE
     );
+    const playbackQueueVideoIds = useMemo(
+        () => sortedVideos.map(video => video.id),
+        [sortedVideos]
+    );
 
     const handlePageChange = (_: React.ChangeEvent<unknown>, value: number) => {
         setPage(value);
@@ -286,6 +290,8 @@ const CollectionPage: React.FC = () => {
                                             onDeleteVideo={deleteVideo}
                                             showDeleteButton={true}
                                             disableCollectionGrouping={true}
+                                            sourceCollectionId={id}
+                                            playbackQueueVideoIds={playbackQueueVideoIds}
                                             showTagsOnThumbnail={showTagsOnThumbnail}
                                         />
                                     </Grid>

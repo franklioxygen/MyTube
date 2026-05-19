@@ -6,6 +6,8 @@ interface UseVideoCardNavigationProps {
     video: Video;
     collectionInfo: VideoCardCollectionInfo;
     statisticsRelatedEventId?: string | null;
+    sourceCollectionId?: string | null;
+    playbackQueueVideoIds?: string[];
 }
 
 /**
@@ -15,20 +17,26 @@ interface UseVideoCardNavigationProps {
 export const useVideoCardNavigation = ({
     video,
     collectionInfo,
-    statisticsRelatedEventId = null
+    statisticsRelatedEventId = null,
+    sourceCollectionId = null,
+    playbackQueueVideoIds
 }: UseVideoCardNavigationProps) => {
     const navigate = useNavigate();
 
     const handleVideoNavigation = () => {
+        const state = {
+            ...(statisticsRelatedEventId ? { statisticsRelatedEventId } : {}),
+            ...(sourceCollectionId ? { sourceCollectionId } : {}),
+            ...(playbackQueueVideoIds ? { playbackQueueVideoIds } : {})
+        };
+
         // If this is the first video in a collection, navigate to the collection page
         if (collectionInfo.isFirstInAnyCollection && collectionInfo.firstCollectionId) {
             navigate(`/collection/${collectionInfo.firstCollectionId}`);
         } else {
             // Otherwise navigate to the video player page
-            if (statisticsRelatedEventId) {
-                navigate(`/video/${video.id}`, {
-                    state: { statisticsRelatedEventId }
-                });
+            if (Object.keys(state).length > 0) {
+                navigate(`/video/${video.id}`, { state });
                 return;
             }
 

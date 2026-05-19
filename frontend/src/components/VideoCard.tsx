@@ -25,6 +25,8 @@ interface VideoCardProps {
     showDeleteButton?: boolean;
     disableCollectionGrouping?: boolean;
     statisticsRelatedEventId?: string | null;
+    sourceCollectionId?: string | null;
+    playbackQueueVideoIds?: string[];
     isAboveTheFold?: boolean; // For LCP optimization
     isHeroImage?: boolean;
     showTagsOnThumbnail?: boolean;
@@ -37,6 +39,8 @@ const VideoCard: React.FC<VideoCardProps> = ({
     showDeleteButton = false,
     disableCollectionGrouping = false,
     statisticsRelatedEventId = null,
+    sourceCollectionId = null,
+    playbackQueueVideoIds,
     isAboveTheFold = false,
     isHeroImage = false,
     showTagsOnThumbnail = false
@@ -68,7 +72,9 @@ const VideoCard: React.FC<VideoCardProps> = ({
     const navigation = useVideoCardNavigation({
         video,
         collectionInfo,
-        statisticsRelatedEventId
+        statisticsRelatedEventId,
+        sourceCollectionId,
+        playbackQueueVideoIds
     });
     const { prefetchVideo, cardRef } = useVideoPrefetch({
         videoId: video.id,

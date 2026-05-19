@@ -38,10 +38,16 @@ const VideoPlayer: React.FC = () => {
     const { data: settings } = useSettings();
     const isVisitor = userRole === 'visitor';
     const navigationState = (location.state ?? null) as
-        | { statisticsRelatedEventId?: string | null }
+        | {
+            statisticsRelatedEventId?: string | null;
+            sourceCollectionId?: string | null;
+            playbackQueueVideoIds?: string[];
+        }
         | null;
     const statisticsRelatedEventId =
         navigationState?.statisticsRelatedEventId ?? null;
+    const sourceCollectionId = navigationState?.sourceCollectionId ?? null;
+    const playbackQueueVideoIds = navigationState?.playbackQueueVideoIds;
 
     const [showComments, setShowComments] = useState<boolean>(false);
     const [autoPlayNext, setAutoPlayNext] = useState<boolean>(() => {
@@ -173,7 +179,11 @@ const VideoPlayer: React.FC = () => {
 
     const { handleTimeUpdate, setIsDeleting } = useVideoProgress({ videoId: id, video });
 
-    const { relatedVideos } = useVideoRecommendations({ video });
+    const { relatedVideos } = useVideoRecommendations({
+        video,
+        sourceCollectionId,
+        playbackQueueVideoIds
+    });
 
     const handleToggleComments = () => {
         setShowComments(!showComments);
@@ -304,6 +314,17 @@ const VideoPlayer: React.FC = () => {
 
     const handleVideoEnded = () => {
         if (autoPlayNext && relatedVideos.length > 0) {
+            const state = {
+                ...(statisticsRelatedEventId ? { statisticsRelatedEventId } : {}),
+                ...(sourceCollectionId ? { sourceCollectionId } : {}),
+                ...(playbackQueueVideoIds ? { playbackQueueVideoIds } : {})
+            };
+
+            if (Object.keys(state).length > 0) {
+                navigate(`/video/${relatedVideos[0].id}`, { state });
+                return;
+            }
+
             navigate(`/video/${relatedVideos[0].id}`);
         }
     };
@@ -413,7 +434,20 @@ const VideoPlayer: React.FC = () => {
                         relatedVideos={relatedVideos}
                         autoPlayNext={autoPlayNext}
                         onAutoPlayNextChange={setAutoPlayNext}
-                        onVideoClick={(videoId) => navigate(`/video/${videoId}`)}
+                        onVideoClick={(videoId) => {
+                            const state = {
+                                ...(statisticsRelatedEventId ? { statisticsRelatedEventId } : {}),
+                                ...(sourceCollectionId ? { sourceCollectionId } : {}),
+                                ...(playbackQueueVideoIds ? { playbackQueueVideoIds } : {})
+                            };
+
+                            if (Object.keys(state).length > 0) {
+                                navigate(`/video/${videoId}`, { state });
+                                return;
+                            }
+
+                            navigate(`/video/${videoId}`);
+                        }}
                         onAddToCollection={handleAddToCollection}
                     />
                 </Box>

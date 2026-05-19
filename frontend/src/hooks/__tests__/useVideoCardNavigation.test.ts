@@ -60,4 +60,22 @@ describe('useVideoCardNavigation', () => {
             state: { statisticsRelatedEventId: 'search-event-1' }
         });
     });
+
+    it('should pass collection playback state to direct video navigation', () => {
+        const { result } = renderHook(() => useVideoCardNavigation({
+            video: mockVideo as any,
+            collectionInfo: { isFirstInAnyCollection: false, firstCollectionId: null, videoCollections: [], firstInCollectionNames: [] },
+            sourceCollectionId: 'c1',
+            playbackQueueVideoIds: ['v1', 'v2', 'v3']
+        }));
+
+        result.current.handleVideoNavigation();
+
+        expect(mockNavigate).toHaveBeenCalledWith('/video/v1', {
+            state: {
+                sourceCollectionId: 'c1',
+                playbackQueueVideoIds: ['v1', 'v2', 'v3']
+            }
+        });
+    });
 });

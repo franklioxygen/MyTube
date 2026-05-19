@@ -120,6 +120,105 @@ describe("recommendations", () => {
       expect(matchingIndex).toBeLessThan(noTagsIndex);
     });
 
+    it("should match tags case-insensitively", () => {
+      const currentVideo = createMockVideo("1", { tags: ["React", " Tutorial "] });
+      const matchingTagsVideo = createMockVideo("2", {
+        tags: ["react", "frontend"],
+      });
+      const noTagsVideo = createMockVideo("3", { tags: ["cooking"] });
+
+      const recommendations = getRecommendations({
+        currentVideo,
+        allVideos: [currentVideo, matchingTagsVideo, noTagsVideo],
+        collections: [],
+      });
+
+      expect(recommendations[0]).toEqual(matchingTagsVideo);
+    });
+
+    it("should prioritize same source and similar title for non-collection videos", () => {
+      const currentVideo = createMockVideo("1", {
+        title: "React Router Advanced Tutorial",
+        source: "youtube",
+        viewCount: 5,
+      });
+      const similarVideo = createMockVideo("2", {
+        title: "Advanced React Router Patterns",
+        source: "youtube",
+        viewCount: 0,
+      });
+      const popularDifferentVideo = createMockVideo("3", {
+        title: "Completely Different Topic",
+        source: "bilibili",
+        viewCount: 10000,
+      });
+
+      const recommendations = getRecommendations({
+        currentVideo,
+        allVideos: [currentVideo, similarVideo, popularDifferentVideo],
+        collections: [],
+      });
+
+      expect(recommendations[0]).toEqual(similarVideo);
+    });
+
+    it("should prefer unwatched videos over completed videos when relevance is comparable", () => {
+      const currentVideo = createMockVideo("1", {
+        title: "TypeScript Basics",
+        duration: "10:00",
+        source: "youtube",
+      });
+      const unwatchedVideo = createMockVideo("2", {
+        title: "TypeScript Generics",
+        duration: "10:00",
+        source: "youtube",
+        viewCount: 0,
+        progress: 0,
+      });
+      const completedVideo = createMockVideo("3", {
+        title: "TypeScript Interfaces",
+        duration: "10:00",
+        source: "youtube",
+        viewCount: 20,
+        progress: 590,
+      });
+
+      const recommendations = getRecommendations({
+        currentVideo,
+        allVideos: [currentVideo, completedVideo, unwatchedVideo],
+        collections: [],
+      });
+
+      expect(recommendations[0]).toEqual(unwatchedVideo);
+    });
+
+    it("should prioritize resumable in-progress videos over already completed videos", () => {
+      const currentVideo = createMockVideo("1", {
+        title: "CSS Layout",
+        duration: "20:00",
+      });
+      const inProgressVideo = createMockVideo("2", {
+        title: "CSS Grid Layout",
+        duration: "20:00",
+        progress: 300,
+        viewCount: 1,
+      });
+      const completedVideo = createMockVideo("3", {
+        title: "CSS Flex Layout",
+        duration: "20:00",
+        progress: 1190,
+        viewCount: 10,
+      });
+
+      const recommendations = getRecommendations({
+        currentVideo,
+        allVideos: [currentVideo, completedVideo, inProgressVideo],
+        collections: [],
+      });
+
+      expect(recommendations[0]).toEqual(inProgressVideo);
+    });
+
     it("should prioritize recently played videos", () => {
       const now = Date.now();
       const currentVideo = createMockVideo("1");
@@ -176,6 +275,65 @@ describe("recommendations", () => {
 
       // Next in sequence should be ranked higher
       expect(recommendations[0]).toEqual(nextInSequence);
+    });
+
+    it("should prioritize remaining videos from the source collection queue", () => {
+      const currentVideo = createMockVideo("1", {
+        videoFilename: "episode_001.mp4",
+      });
+      const nextCollectionVideo = createMockVideo("2", {
+        videoFilename: "episode_002.mp4",
+      });
+      const laterCollectionVideo = createMockVideo("3", {
+        videoFilename: "episode_003.mp4",
+      });
+      const globalSequenceVideo = createMockVideo("4", {
+        videoFilename: "episode_001b.mp4",
+        viewCount: 10000,
+      });
+
+      const recommendations = getRecommendations({
+        currentVideo,
+        allVideos: [
+          currentVideo,
+          nextCollectionVideo,
+          laterCollectionVideo,
+          globalSequenceVideo,
+        ],
+        collections: [createMockCollection("col1", ["1", "2", "3"])],
+        sourceCollectionId: "col1",
+      });
+
+      expect(recommendations.slice(0, 2)).toEqual([
+        nextCollectionVideo,
+        laterCollectionVideo,
+      ]);
+    });
+
+    it("should use the supplied playback queue order before falling back", () => {
+      const currentVideo = createMockVideo("1");
+      const firstQueuedVideo = createMockVideo("3");
+      const secondQueuedVideo = createMockVideo("2");
+      const fallbackVideo = createMockVideo("4", { viewCount: 10000 });
+
+      const recommendations = getRecommendations({
+        currentVideo,
+        allVideos: [
+          currentVideo,
+          firstQueuedVideo,
+          secondQueuedVideo,
+          fallbackVideo,
+        ],
+        collections: [createMockCollection("col1", ["1", "2", "3"])],
+        sourceCollectionId: "col1",
+        playbackQueueVideoIds: ["1", "3", "2"],
+      });
+
+      expect(recommendations.slice(0, 2)).toEqual([
+        firstQueuedVideo,
+        secondQueuedVideo,
+      ]);
+      expect(recommendations).toContain(fallbackVideo);
     });
 
     it("should use custom weights when provided", () => {
