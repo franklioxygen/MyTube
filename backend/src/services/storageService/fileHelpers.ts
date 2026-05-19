@@ -11,10 +11,12 @@ import { logger } from "../../utils/logger";
 import {
   ensureDirSafeSync,
   isPathWithinDirectories,
+  lstatSafeSync,
   moveSafeSync,
   normalizeSafeAbsolutePath,
   pathExistsTrustedSync,
   sanitizePathSegment,
+  statSafeSync,
 } from "../../utils/security";
 import { Collection } from "./types";
 
@@ -196,7 +198,7 @@ export function removeDirectoryTreeIfEmpty(targetPath: string): boolean {
       continue;
     }
 
-    const stats = fs.statSync(childPath);
+    const stats = statSafeSync(childPath, ALLOWED_STORAGE_DIRS);
     if (stats.isDirectory()) {
       removeDirectoryTreeIfEmpty(childPath);
     }
@@ -311,7 +313,7 @@ function findFilesByFilenameInStorage(
           continue;
         }
 
-        const stats = fs.lstatSync(childPath);
+        const stats = lstatSafeSync(childPath, ALLOWED_STORAGE_DIRS);
         if (stats.isSymbolicLink()) {
           continue;
         }

@@ -21,12 +21,14 @@ vi.mock("../../../utils/logger", () => ({
 vi.mock("../../../utils/security", () => ({
   ensureDirSafeSync: vi.fn(),
   isPathWithinDirectories: vi.fn(() => true),
+  lstatSafeSync: vi.fn(),
   moveSafeSync: vi.fn(),
   normalizeSafeAbsolutePath: vi.fn((targetPath: string) => targetPath),
   pathExistsTrustedSync: vi.fn(() => false),
   sanitizePathSegment: vi.fn((segment: string) =>
     segment.replace(/\.\./g, "").replace(/[\\/]/g, "")
   ),
+  statSafeSync: vi.fn(),
 }));
 
 vi.mock("fs-extra", () => ({
@@ -48,9 +50,11 @@ import { logger } from "../../../utils/logger";
 import {
   ensureDirSafeSync,
   isPathWithinDirectories,
+  lstatSafeSync,
   moveSafeSync,
   pathExistsTrustedSync,
   sanitizePathSegment,
+  statSafeSync,
 } from "../../../utils/security";
 import {
   buildStoragePath,
@@ -148,7 +152,7 @@ describe("fileHelpers", () => {
     const fsModule = await import("fs-extra");
     const pathExistsSyncMock = vi.mocked(fsModule.default.pathExistsSync);
     const opendirSyncMock = vi.mocked(fsModule.default.opendirSync);
-    const lstatSyncMock = vi.mocked(fsModule.default.lstatSync);
+    const lstatSafeSyncMock = vi.mocked(lstatSafeSync);
     const entriesByPath = new Map<string, string[]>([
       ["/safe/videos", ["movie.mp4", "Collection"]],
       ["/safe/videos/Collection", ["Season", "other.mp4"]],
@@ -173,7 +177,7 @@ describe("fileHelpers", () => {
         closeSync: vi.fn(),
       } as any;
     });
-    lstatSyncMock.mockImplementation((targetPath: any) => {
+    lstatSafeSyncMock.mockImplementation((targetPath: string) => {
       const value = String(targetPath);
       return {
         isDirectory: () => entriesByPath.has(value),
@@ -228,7 +232,7 @@ describe("fileHelpers", () => {
     const removeSyncMock = vi.mocked(fsModule.default.removeSync);
     const pathExistsSyncMock = vi.mocked(fsModule.default.pathExistsSync);
     const opendirSyncMock = vi.mocked(fsModule.default.opendirSync);
-    const statSyncMock = vi.mocked(fsModule.default.statSync);
+    const statSafeSyncMock = vi.mocked(statSafeSync);
     const entriesByPath = new Map<string, string[]>([
       ["/safe/videos/Collection", ["Season"]],
       ["/safe/videos/Collection/Season", []],
@@ -247,7 +251,7 @@ describe("fileHelpers", () => {
         closeSync: vi.fn(),
       } as any;
     });
-    statSyncMock.mockReturnValue({ isDirectory: () => true } as any);
+    statSafeSyncMock.mockReturnValue({ isDirectory: () => true } as any);
     removeSyncMock.mockImplementation((targetPath: any) => {
       const value = String(targetPath);
       entriesByPath.delete(value);
