@@ -41,6 +41,7 @@ describe('SearchInput', () => {
         mockUserRole = 'admin';
         mockIsMobile = false;
         vi.mocked(mockT).mockImplementation((key) => key);
+        document.execCommand = vi.fn();
         Object.defineProperty(window.navigator, 'clipboard', {
             configurable: true,
             value: {
@@ -97,14 +98,31 @@ describe('SearchInput', () => {
         });
     });
 
-    it('should log an error when clipboard paste fails', async () => {
-        const pasteError = new Error('clipboard blocked');
-        const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    it('should not submit the form when the paste button is clicked', async () => {
+        render(<SearchInput {...defaultProps} />);
+
+        fireEvent.click(screen.getAllByRole('button')[0]);
+
+        await waitFor(() => {
+            expect(defaultProps.setVideoUrl).toHaveBeenCalledWith('https://example.com/video');
+        });
+        expect(defaultProps.onSubmit).not.toHaveBeenCalled();
+    });
+
+    it('should fall back to execCommand paste when clipboard API is unavailable', async () => {
         Object.defineProperty(window.navigator, 'clipboard', {
             configurable: true,
-            value: {
-                readText: vi.fn().mockRejectedValue(pasteError)
+            value: undefined
+        });
+        vi.mocked(document.execCommand).mockImplementation((commandId: string) => {
+            if (commandId !== 'paste') {
+                return false;
             }
+            const activeElement = document.activeElement as HTMLTextAreaElement | null;
+            if (activeElement) {
+                activeElement.value = 'https://fallback.example/video';
+            }
+            return true;
         });
 
         render(<SearchInput {...defaultProps} />);
@@ -112,10 +130,63 @@ describe('SearchInput', () => {
         fireEvent.click(screen.getAllByRole('button')[0]);
 
         await waitFor(() => {
-            expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to paste from clipboard:', pasteError);
+            expect(document.execCommand).toHaveBeenCalledWith('paste');
+            expect(defaultProps.setVideoUrl).toHaveBeenCalledWith('https://fallback.example/video');
+        });
+    });
+
+    it('should log an error when clipboard paste fails', async () => {
+        const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        Object.defineProperty(window.navigator, 'clipboard', {
+            configurable: true,
+            value: {
+                readText: vi.fn().mockRejectedValue(new Error('clipboard blocked'))
+            }
+        });
+        vi.mocked(document.execCommand).mockReturnValue(false);
+
+        render(<SearchInput {...defaultProps} />);
+
+        fireEvent.click(screen.getAllByRole('button')[0]);
+
+        await waitFor(() => {
+            expect(consoleErrorSpy).toHaveBeenCalledWith(
+                'Failed to paste from clipboard:',
+                expect.objectContaining({ message: 'Clipboard paste is unavailable' })
+            );
         });
 
         consoleErrorSpy.mockRestore();
+    });
+
+    it('should fall back to execCommand paste when clipboard API rejects', async () => {
+        const pasteError = new Error('clipboard blocked');
+        Object.defineProperty(window.navigator, 'clipboard', {
+            configurable: true,
+            value: {
+                readText: vi.fn().mockRejectedValue(pasteError)
+            }
+        });
+        vi.mocked(document.execCommand).mockImplementation((commandId: string) => {
+            if (commandId !== 'paste') {
+                return false;
+            }
+            const activeElement = document.activeElement as HTMLInputElement | null;
+            if (activeElement) {
+                activeElement.value = 'https://rejected.example/video';
+            }
+            return true;
+        });
+
+        render(<SearchInput {...defaultProps} />);
+
+        fireEvent.click(screen.getAllByRole('button')[0]);
+
+        await waitFor(() => {
+            expect(window.navigator.clipboard.readText).toHaveBeenCalled();
+            expect(document.execCommand).toHaveBeenCalledWith('paste');
+            expect(defaultProps.setVideoUrl).toHaveBeenCalledWith('https://rejected.example/video');
+        });
     });
 
     it('should hide paste button on mobile', () => {
