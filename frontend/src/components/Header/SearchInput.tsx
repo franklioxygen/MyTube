@@ -10,7 +10,7 @@ import {
     useMediaQuery,
     useTheme
 } from '@mui/material';
-import { FormEvent } from 'react';
+import { FormEvent, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 
@@ -38,13 +38,49 @@ const SearchInput: React.FC<SearchInputProps> = ({
     const { t } = useLanguage();
     const { userRole } = useAuth();
     const isVisitor = userRole === 'visitor';
+    const inputRef = useRef<HTMLInputElement | null>(null);
 
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
+    const pasteIntoInputFallback = async (): Promise<string> => {
+        const input = inputRef.current;
+        if (!input) {
+            throw new Error('Search input is unavailable');
+        }
+
+        const previousValue = input.value;
+        input.focus();
+        input.select();
+
+        const pasted = document.execCommand('paste');
+        if (pasted && input.value !== previousValue) {
+            return input.value;
+        }
+
+        throw new Error('Clipboard paste is unavailable');
+    };
+
+    const readClipboardText = async (): Promise<string> => {
+        const clipboardReadText =
+            typeof navigator.clipboard?.readText === 'function'
+                ? navigator.clipboard.readText.bind(navigator.clipboard)
+                : null;
+
+        if (clipboardReadText) {
+            try {
+                return await clipboardReadText();
+            } catch {
+                return pasteIntoInputFallback();
+            }
+        }
+
+        return pasteIntoInputFallback();
+    };
+
     const handlePaste = async () => {
         try {
-            const text = await navigator.clipboard.readText();
+            const text = await readClipboardText();
             setVideoUrl(text);
         } catch (err) {
             console.error('Failed to paste from clipboard:', err);
@@ -63,6 +99,7 @@ const SearchInput: React.FC<SearchInputProps> = ({
                 placeholder={isVisitor ? t('enterSearchTerm') : t('enterUrlOrSearchTerm')}
                 value={videoUrl}
                 onChange={(e) => setVideoUrl(e.target.value)}
+                inputRef={inputRef}
                 disabled={isSubmitting}
                 error={!!error}
                 helperText={error}
@@ -81,6 +118,7 @@ const SearchInput: React.FC<SearchInputProps> = ({
                                     onClick={handlePaste}
                                     edge="start"
                                     size="small"
+                                    type="button"
                                     disabled={isSubmitting}
                                     sx={{ ml: 0 }}
                                 >
@@ -91,7 +129,7 @@ const SearchInput: React.FC<SearchInputProps> = ({
                         endAdornment: (
                             <InputAdornment position="end">
                                 {isSearchMode && searchTerm && videoUrl && (
-                                    <IconButton onClick={onResetSearch} edge="end" size="small" sx={{ mr: 0.5 }}>
+                                    <IconButton onClick={onResetSearch} edge="end" size="small" type="button" sx={{ mr: 0.5 }}>
                                         <Clear />
                                     </IconButton>
                                 )}
@@ -100,6 +138,7 @@ const SearchInput: React.FC<SearchInputProps> = ({
                                         onClick={handleClear}
                                         edge="end"
                                         size="small"
+                                        type="button"
                                         disabled={isSubmitting}
                                         sx={{ mr: 0.5 }}
                                     >
@@ -125,4 +164,3 @@ const SearchInput: React.FC<SearchInputProps> = ({
 };
 
 export default SearchInput;
-
