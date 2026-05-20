@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { isLinux, isWindows } from '../../../../utils/playerUtils';
 
 const VOLUME_STORAGE_ID = 'mytube:player-volume';
 const PREVIOUS_VOLUME_STORAGE_ID = 'mytube:player-previous-volume';
@@ -90,7 +91,11 @@ export const useVolume = (videoRef: React.RefObject<HTMLVideoElement | null>) =>
                 event.preventDefault();
                 event.stopPropagation();
                 if (videoRef.current) {
-                    const delta = event.deltaY > 0 ? 0.05 : -0.05;
+                    const scrollStep = 0.05;
+                    const shouldReverseWheelVolume = isWindows() || isLinux();
+                    const delta = event.deltaY > 0
+                        ? (shouldReverseWheelVolume ? -scrollStep : scrollStep)
+                        : (shouldReverseWheelVolume ? scrollStep : -scrollStep);
                     const newVolume = Math.max(0, Math.min(1, volume + delta));
                     videoRef.current.volume = newVolume;
                     setVolume(newVolume);
