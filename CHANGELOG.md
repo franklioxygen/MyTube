@@ -2,15 +2,50 @@
 
 ## Unreleased
 
+## v1.9.24 (2026-05-20)
+
+### Feat
+
+- Add JAVXX download support (3bc9cb1a)
+- Improve video recommendations (ddc2521d)
+- Persist home sort selection (6f9e45c1)
+
+### Fix
+
+- Fix 123AV download routing and titles (c0cf2934)
+- Improve fullscreen player controls (1e137f0d)
+- Address Codacy yt-dlp findings (21b16685)
+- Reject failing yt-dlp candidates (6a03c229)
+- Improve download playback and thumbnail fallbacks (c78ec69d)
+- Fix YouTube merge fallback container handling (3ec5f5ad)
+- Fix storage cleanup for video and collection deletion (edef186e)
+- Fix yt-dlp path probe timeout (79d107ff)
+- Fix storage path stat safety (8c958da7)
+- Fix recommendation hook dependencies (650159bb)
+- Avoid Codacy storage key false positive (79de25d4)
+- Bound download cancellation cleanup time (7bc2fcde)
+
+### Refactor
+
+- Clean up download cancellation logging (a23b5ca2)
+- Simplify recommendation memo dependencies (cc70d469)
+
+### Test
+
+- Fix controller test helper mocks (e7497c68)
+
+## v1.9.23 (2026-05-13)
+
 ### Fix
 
 - fix code scanning csrf detection (65ad269f)
 - fix code scanning csrf: mount globally instead of on /api (6cc1d61e)
 - Fix CodeQL CSRF middleware detection (21bde943)
+- Fix hook upload validation for notification curl scripts (37cae1e0)
 
 ### Docs
 
-- Mention the mytube-android native Android client in the README
+- Mention the mytube-android native Android client in the README and backfill CHANGELOG through v1.9.22 (b43200d1)
 
 ## v1.9.22 (2026-05-12)
 
