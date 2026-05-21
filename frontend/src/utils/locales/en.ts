@@ -84,6 +84,8 @@ export const en = {
   allowPasswordLogin: "Allow Password Login",
   allowPasswordLoginHelper:
     "When disabled, password login is not available. You must have at least one passkey to disable password login.",
+  allowPasswordLoginHttpsOnlyHelper:
+    "To disable password login, open this page over HTTPS or localhost. Passkey-only login requires a secure origin.",
   allowResetPassword: "Allow Reset Password",
   allowResetPasswordHelper:
     "When disabled, the reset password button will not be shown on the login page and the reset password API will be blocked.",

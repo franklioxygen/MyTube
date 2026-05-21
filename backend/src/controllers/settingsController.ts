@@ -320,6 +320,149 @@ const removeUndefinedSettings = (settings: Partial<Settings>): void => {
 const getDeletedTags = (oldTags: string[], newTags: string[]): string[] =>
   oldTags.filter((old) => !newTags.some((n) => n.toLowerCase() === old.toLowerCase()));
 
+const getHeaderValue = (req: Request, key: string): string | undefined => {
+  const headerValue =
+    typeof req.get === "function"
+      ? req.get(key)
+      : req.headers?.[key.toLowerCase()];
+
+  if (Array.isArray(headerValue)) {
+    return headerValue[0];
+  }
+
+  return typeof headerValue === "string" ? headerValue : undefined;
+};
+
+const getHostName = (host: string | undefined): string => {
+  if (!host) {
+    return "";
+  }
+
+  if (host.startsWith("[")) {
+    return host.slice(1, host.indexOf("]")).toLowerCase();
+  }
+
+  return host.split(":")[0]?.toLowerCase() ?? "";
+};
+
+const isPrivateNetworkAddress = (address: string): boolean => {
+  if (!address) {
+    return false;
+  }
+
+  const normalizedAddress = address.replace(/^::ffff:/, "").toLowerCase();
+
+  if (
+    normalizedAddress === "localhost" ||
+    normalizedAddress === "0.0.0.0" ||
+    normalizedAddress === "::1"
+  ) {
+    return true;
+  }
+
+  if (
+    normalizedAddress.startsWith("127.") ||
+    normalizedAddress.startsWith("10.") ||
+    normalizedAddress.startsWith("192.168.")
+  ) {
+    return true;
+  }
+
+  if (normalizedAddress.startsWith("172.")) {
+    const secondOctet = Number.parseInt(normalizedAddress.split(".")[1] ?? "", 10);
+    return secondOctet >= 16 && secondOctet <= 31;
+  }
+
+  return false;
+};
+
+const isLocalHost = (host: string | undefined): boolean => {
+  const hostname = getHostName(host);
+  return (
+    hostname === "localhost" ||
+    hostname === "0.0.0.0" ||
+    hostname === "::1" ||
+    hostname.startsWith("127.") ||
+    hostname.endsWith(".localhost")
+  );
+};
+
+const normalizeProxyProtocol = (value: string | undefined): string | null => {
+  const protocol = value?.split(",")[0]?.trim().toLowerCase();
+  return protocol === "http" || protocol === "https" ? protocol : null;
+};
+
+const getCloudflareVisitorScheme = (
+  value: string | undefined
+): string | null => {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(value) as { scheme?: unknown };
+    return typeof parsed.scheme === "string"
+      ? normalizeProxyProtocol(parsed.scheme)
+      : null;
+  } catch {
+    return null;
+  }
+};
+
+const isTrustedProxyConnection = (req: Request): boolean => {
+  const trustProxy = req.app?.get("trust proxy");
+  if (trustProxy === undefined || trustProxy === false) {
+    return false;
+  }
+
+  const remoteAddress =
+    typeof req.socket?.remoteAddress === "string"
+      ? req.socket.remoteAddress
+      : "";
+
+  return isPrivateNetworkAddress(remoteAddress);
+};
+
+const getRequestUrlFromHeaders = (req: Request): URL | null => {
+  const rawUrl = getHeaderValue(req, "origin") || getHeaderValue(req, "referer");
+
+  if (!rawUrl) {
+    return null;
+  }
+
+  try {
+    return new URL(rawUrl);
+  } catch {
+    return null;
+  }
+};
+
+const isSecurePasskeySettingsRequest = (req: Request): boolean => {
+  const requestUrl = getRequestUrlFromHeaders(req);
+  if (requestUrl) {
+    return requestUrl.protocol === "https:" || isLocalHost(requestUrl.host);
+  }
+
+  const proxyProtocol = isTrustedProxyConnection(req)
+    ? normalizeProxyProtocol(getHeaderValue(req, "x-forwarded-proto")) ??
+      getCloudflareVisitorScheme(getHeaderValue(req, "cf-visitor"))
+    : null;
+
+  if (proxyProtocol === "https") {
+    return true;
+  }
+
+  return req.socket?.encrypted === true || isLocalHost(getHeaderValue(req, "host"));
+};
+
+const isPasswordLoginDisableRequested = (
+  existingSettings: Settings,
+  incomingSettings: Partial<Settings>
+): boolean =>
+  hasOwnSetting(incomingSettings, "passwordLoginAllowed") &&
+  incomingSettings.passwordLoginAllowed === false &&
+  existingSettings.passwordLoginAllowed !== false;
+
 const getRenamedTagPairs = (
   oldTags: string[],
   newTags: string[]
@@ -614,6 +757,17 @@ const persistSettingsUpdate = async (
   );
 
   if (trustedIncomingSettings === null) {
+    return;
+  }
+
+  if (
+    isPasswordLoginDisableRequested(existingSettings, trustedIncomingSettings) &&
+    !isSecurePasskeySettingsRequest(req)
+  ) {
+    sendBadRequest(
+      res,
+      "Disabling password login requires HTTPS or localhost because passkey-only login needs a secure origin."
+    );
     return;
   }
 

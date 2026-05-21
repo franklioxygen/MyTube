@@ -92,6 +92,8 @@ export const fr = {
   allowPasswordLogin: "Autoriser la connexion par mot de passe",
   allowPasswordLoginHelper:
     "Lorsqu'elle est désactivée, la connexion par mot de passe n'est pas disponible. Vous devez avoir au moins une clé d'accès pour désactiver la connexion par mot de passe.",
+  allowPasswordLoginHttpsOnlyHelper:
+    "Pour désactiver la connexion par mot de passe, ouvrez cette page via HTTPS ou localhost. Une connexion uniquement par clé d'accès nécessite une origine sécurisée.",
   allowResetPassword: "Autoriser la réinitialisation du mot de passe",
   allowResetPasswordHelper:
     "Lorsqu'elle est désactivée, le bouton de réinitialisation du mot de passe ne sera pas affiché sur la page de connexion et l'API de réinitialisation du mot de passe sera bloquée.",

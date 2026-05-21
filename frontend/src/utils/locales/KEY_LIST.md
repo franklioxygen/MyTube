@@ -4,7 +4,7 @@ Canonical locale key order derived from `frontend/src/utils/locales/en.ts`.
 
 This list is intentionally unnumbered. When new keys are inserted, only the local section order changes.
 
-Total keys: 993
+Total keys: 994
 
 ## Summary
 
@@ -13,7 +13,7 @@ Total keys: 993
 | Header | 11 | `myTube` | `instruction` |
 | Home | 19 | `pasteUrl` | `views` |
 | Settings | 4 | `general` | `downloadSettings` |
-| Settings Categories | 142 | `basicSettings` | `enterNewTagName` |
+| Settings Categories | 143 | `basicSettings` | `enterNewTagName` |
 | Database | 40 | `database` | `cleanupTempFilesConfirmMessage` |
 | Task Hooks | 69 | `taskHooks` | `cleanupTempFilesFailed` |
 | Cookie Settings | 12 | `cookieSettings` | `cookiesDeleteFailed` |
@@ -141,6 +141,7 @@ Total keys: 993
 | `enableLogin` |
 | `allowPasswordLogin` |
 | `allowPasswordLoginHelper` |
+| `allowPasswordLoginHttpsOnlyHelper` |
 | `allowResetPassword` |
 | `allowResetPasswordHelper` |
 | `enableApiKeyAuth` |
