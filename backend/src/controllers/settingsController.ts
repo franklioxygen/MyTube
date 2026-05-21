@@ -333,18 +333,6 @@ const getHeaderValue = (req: Request, key: string): string | undefined => {
   return typeof headerValue === "string" ? headerValue : undefined;
 };
 
-const getHostName = (host: string | undefined): string => {
-  if (!host) {
-    return "";
-  }
-
-  if (host.startsWith("[")) {
-    return host.slice(1, host.indexOf("]")).toLowerCase();
-  }
-
-  return host.split(":")[0]?.toLowerCase() ?? "";
-};
-
 const isPrivateNetworkAddress = (address: string): boolean => {
   if (!address) {
     return false;
@@ -376,15 +364,13 @@ const isPrivateNetworkAddress = (address: string): boolean => {
   return false;
 };
 
-const isLocalHost = (host: string | undefined): boolean => {
-  const hostname = getHostName(host);
-  return (
-    hostname === "localhost" ||
-    hostname === "0.0.0.0" ||
-    hostname === "::1" ||
-    hostname.startsWith("127.") ||
-    hostname.endsWith(".localhost")
-  );
+const isLoopbackAddress = (address: string): boolean => {
+  if (!address) {
+    return false;
+  }
+
+  const normalizedAddress = address.replace(/^::ffff:/, "").toLowerCase();
+  return normalizedAddress === "::1" || normalizedAddress.startsWith("127.");
 };
 
 const normalizeProxyProtocol = (value: string | undefined): string | null => {
@@ -428,24 +414,17 @@ const hasEncryptedSocket = (req: Request): boolean => {
   return socket?.encrypted === true;
 };
 
-const getRequestUrlFromHeaders = (req: Request): URL | null => {
-  const rawUrl = getHeaderValue(req, "origin") || getHeaderValue(req, "referer");
-
-  if (!rawUrl) {
-    return null;
-  }
-
-  try {
-    return new URL(rawUrl);
-  } catch {
-    return null;
-  }
-};
-
 const isSecurePasskeySettingsRequest = (req: Request): boolean => {
-  const requestUrl = getRequestUrlFromHeaders(req);
-  if (requestUrl) {
-    return requestUrl.protocol === "https:" || isLocalHost(requestUrl.host);
+  if (hasEncryptedSocket(req)) {
+    return true;
+  }
+
+  const remoteAddress =
+    typeof req.socket?.remoteAddress === "string"
+      ? req.socket.remoteAddress
+      : "";
+  if (isLoopbackAddress(remoteAddress)) {
+    return true;
   }
 
   const proxyProtocol = isTrustedProxyConnection(req)
@@ -457,7 +436,7 @@ const isSecurePasskeySettingsRequest = (req: Request): boolean => {
     return true;
   }
 
-  return hasEncryptedSocket(req) || isLocalHost(getHeaderValue(req, "host"));
+  return false;
 };
 
 const isPasswordLoginDisableRequested = (

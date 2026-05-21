@@ -209,6 +209,24 @@ describe('SettingsController', () => {
       );
     });
 
+    it('should reject spoofed https origin headers from direct non-secure requests', async () => {
+      req.body = { passwordLoginAllowed: false };
+      req.headers = {
+        origin: 'https://mytube.example',
+        host: 'mytube.example',
+      } as any;
+      req.get = ((key: string) => req.headers?.[key.toLowerCase()] as string | undefined) as Request['get'];
+      req.socket = {
+        remoteAddress: '203.0.113.10',
+      } as any;
+      (storageService.getSettings as any).mockReturnValue({ passwordLoginAllowed: true });
+
+      await updateSettings(req as Request, res as Response);
+
+      expect(status).toHaveBeenCalledWith(400);
+      expect(storageService.saveSettings).not.toHaveBeenCalled();
+    });
+
     it('should reject spoofed forwarded proto headers from untrusted direct connections', async () => {
       req.body = { passwordLoginAllowed: false };
       req.headers = {
@@ -228,6 +246,42 @@ describe('SettingsController', () => {
 
       expect(status).toHaveBeenCalledWith(400);
       expect(storageService.saveSettings).not.toHaveBeenCalled();
+    });
+
+    it('should reject spoofed localhost host headers from direct non-loopback requests', async () => {
+      req.body = { passwordLoginAllowed: false };
+      req.headers = {
+        host: 'localhost:5551',
+      } as any;
+      req.get = ((key: string) => req.headers?.[key.toLowerCase()] as string | undefined) as Request['get'];
+      req.socket = {
+        remoteAddress: '203.0.113.10',
+      } as any;
+      (storageService.getSettings as any).mockReturnValue({ passwordLoginAllowed: true });
+
+      await updateSettings(req as Request, res as Response);
+
+      expect(status).toHaveBeenCalledWith(400);
+      expect(storageService.saveSettings).not.toHaveBeenCalled();
+    });
+
+    it('should allow disabling password login from loopback localhost requests', async () => {
+      req.body = { passwordLoginAllowed: false };
+      req.headers = {
+        host: 'localhost:5551',
+      } as any;
+      req.get = ((key: string) => req.headers?.[key.toLowerCase()] as string | undefined) as Request['get'];
+      req.socket = {
+        remoteAddress: '127.0.0.1',
+      } as any;
+      (storageService.getSettings as any).mockReturnValue({ passwordLoginAllowed: true });
+
+      await updateSettings(req as Request, res as Response);
+
+      expect(storageService.saveSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ passwordLoginAllowed: false })
+      );
+      expect(status).not.toHaveBeenCalledWith(400);
     });
 
     it('should allow disabling password login behind a trusted private proxy reporting https', async () => {

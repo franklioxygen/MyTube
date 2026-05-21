@@ -222,6 +222,28 @@ describe('SecuritySettings', () => {
         expect(screen.queryByText('allowPasswordLoginHttpsOnlyHelper')).not.toBeInTheDocument();
     });
 
+    it('does not treat 0.0.0.0 as a secure origin for password login changes', async () => {
+        mockPasskeysExist = true;
+        vi.mocked(api.get).mockResolvedValue({ data: { exists: true } } as any);
+        Object.defineProperty(window, 'isSecureContext', {
+            configurable: true,
+            value: false,
+        });
+        setWindowLocation('http://0.0.0.0/');
+
+        render(
+            <SecuritySettings
+                settings={{ ...defaultSettings, loginEnabled: true, passwordLoginAllowed: true }}
+                onChange={mockOnChange}
+            />
+        );
+
+        await waitFor(() => {
+            expect(screen.getByRole('switch', { name: 'allowPasswordLogin' })).toBeDisabled();
+        });
+        expect(screen.getByText('allowPasswordLoginHttpsOnlyHelper')).toBeInTheDocument();
+    });
+
     it('handles login, password, and visitor switches', async () => {
         const user = userEvent.setup();
         render(

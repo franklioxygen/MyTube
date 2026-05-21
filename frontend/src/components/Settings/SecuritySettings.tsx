@@ -23,7 +23,6 @@ const isLocalhostHostname = (hostname: string): boolean => {
         .replace(/^\[(.*)\]$/, '$1')
         .toLowerCase();
     return normalizedHostname === 'localhost'
-        || normalizedHostname === '0.0.0.0'
         || normalizedHostname === '::1'
         || normalizedHostname.startsWith('127.')
         || normalizedHostname.endsWith('.localhost');
