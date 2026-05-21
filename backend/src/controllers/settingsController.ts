@@ -423,6 +423,11 @@ const isTrustedProxyConnection = (req: Request): boolean => {
   return isPrivateNetworkAddress(remoteAddress);
 };
 
+const hasEncryptedSocket = (req: Request): boolean => {
+  const socket = req.socket as { encrypted?: unknown } | undefined;
+  return socket?.encrypted === true;
+};
+
 const getRequestUrlFromHeaders = (req: Request): URL | null => {
   const rawUrl = getHeaderValue(req, "origin") || getHeaderValue(req, "referer");
 
@@ -452,7 +457,7 @@ const isSecurePasskeySettingsRequest = (req: Request): boolean => {
     return true;
   }
 
-  return req.socket?.encrypted === true || isLocalHost(getHeaderValue(req, "host"));
+  return hasEncryptedSocket(req) || isLocalHost(getHeaderValue(req, "host"));
 };
 
 const isPasswordLoginDisableRequested = (
