@@ -333,46 +333,6 @@ const getHeaderValue = (req: Request, key: string): string | undefined => {
   return typeof headerValue === "string" ? headerValue : undefined;
 };
 
-const isPrivateNetworkAddress = (address: string): boolean => {
-  if (!address) {
-    return false;
-  }
-
-  const normalizedAddress = address.replace(/^::ffff:/, "").toLowerCase();
-
-  if (
-    normalizedAddress === "localhost" ||
-    normalizedAddress === "0.0.0.0" ||
-    normalizedAddress === "::1"
-  ) {
-    return true;
-  }
-
-  if (
-    normalizedAddress.startsWith("127.") ||
-    normalizedAddress.startsWith("10.") ||
-    normalizedAddress.startsWith("192.168.")
-  ) {
-    return true;
-  }
-
-  if (normalizedAddress.startsWith("172.")) {
-    const secondOctet = Number.parseInt(normalizedAddress.split(".")[1] ?? "", 10);
-    return secondOctet >= 16 && secondOctet <= 31;
-  }
-
-  return false;
-};
-
-const isLoopbackAddress = (address: string): boolean => {
-  if (!address) {
-    return false;
-  }
-
-  const normalizedAddress = address.replace(/^::ffff:/, "").toLowerCase();
-  return normalizedAddress === "::1" || normalizedAddress.startsWith("127.");
-};
-
 const isSecureLocalHostname = (hostname: string): boolean => {
   const normalizedHostname = hostname
     .replace(/^\[(.*)\]$/, "$1")
@@ -384,42 +344,6 @@ const isSecureLocalHostname = (hostname: string): boolean => {
     normalizedHostname.startsWith("127.") ||
     normalizedHostname.endsWith(".localhost")
   );
-};
-
-const normalizeProxyProtocol = (value: string | undefined): string | null => {
-  const protocol = value?.split(",")[0]?.trim().toLowerCase();
-  return protocol === "http" || protocol === "https" ? protocol : null;
-};
-
-const getCloudflareVisitorScheme = (
-  value: string | undefined
-): string | null => {
-  if (!value) {
-    return null;
-  }
-
-  try {
-    const parsed = JSON.parse(value) as { scheme?: unknown };
-    return typeof parsed.scheme === "string"
-      ? normalizeProxyProtocol(parsed.scheme)
-      : null;
-  } catch {
-    return null;
-  }
-};
-
-const isTrustedProxyConnection = (req: Request): boolean => {
-  const trustProxy = req.app?.get("trust proxy");
-  if (trustProxy === undefined || trustProxy === false) {
-    return false;
-  }
-
-  const remoteAddress =
-    typeof req.socket?.remoteAddress === "string"
-      ? req.socket.remoteAddress
-      : "";
-
-  return isPrivateNetworkAddress(remoteAddress);
 };
 
 const hasEncryptedSocket = (req: Request): boolean => {
@@ -470,23 +394,6 @@ const isSecureBrowserOriginRequest = (req: Request): boolean => {
 
 const isSecurePasskeySettingsRequest = (req: Request): boolean => {
   if (hasEncryptedSocket(req)) {
-    return true;
-  }
-
-  const remoteAddress =
-    typeof req.socket?.remoteAddress === "string"
-      ? req.socket.remoteAddress
-      : "";
-  if (isLoopbackAddress(remoteAddress)) {
-    return true;
-  }
-
-  const proxyProtocol = isTrustedProxyConnection(req)
-    ? normalizeProxyProtocol(getHeaderValue(req, "x-forwarded-proto")) ??
-      getCloudflareVisitorScheme(getHeaderValue(req, "cf-visitor"))
-    : null;
-
-  if (proxyProtocol === "https") {
     return true;
   }
 

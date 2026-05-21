@@ -289,7 +289,7 @@ describe('SettingsController', () => {
       expect(storageService.saveSettings).not.toHaveBeenCalled();
     });
 
-    it('should allow disabling password login from loopback localhost requests', async () => {
+    it('should reject disabling password login from raw loopback http requests without a secure browser origin', async () => {
       req.body = { passwordLoginAllowed: false };
       req.headers = {
         host: 'localhost:5551',
@@ -302,22 +302,21 @@ describe('SettingsController', () => {
 
       await updateSettings(req as Request, res as Response);
 
-      expect(storageService.saveSettings).toHaveBeenCalledWith(
-        expect.objectContaining({ passwordLoginAllowed: false })
-      );
-      expect(status).not.toHaveBeenCalledWith(400);
+      expect(status).toHaveBeenCalledWith(400);
+      expect(storageService.saveSettings).not.toHaveBeenCalled();
     });
 
-    it('should allow disabling password login behind a trusted private proxy reporting https', async () => {
+    it('should allow disabling password login from a localhost browser origin with a matching csrf token', async () => {
       req.body = { passwordLoginAllowed: false };
+      req.cookies = {
+        mytube_csrf: 'csrf-token',
+      } as any;
       req.headers = {
-        host: 'mytube.example',
-        'x-forwarded-proto': 'https',
+        origin: 'http://localhost:5551',
+        host: 'localhost:5551',
+        'x-csrf-token': 'csrf-token',
       } as any;
       req.get = ((key: string) => req.headers?.[key.toLowerCase()] as string | undefined) as Request['get'];
-      req.app = {
-        get: vi.fn().mockReturnValue(1),
-      } as any;
       req.socket = {
         remoteAddress: '127.0.0.1',
       } as any;
