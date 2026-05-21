@@ -338,10 +338,12 @@ const isSecureLocalHostname = (hostname: string): boolean => {
     .replace(/^\[(.*)\]$/, "$1")
     .toLowerCase();
 
+  const isIpv4LoopbackLiteral = /^127(?:\.\d{1,3}){3}$/.test(normalizedHostname);
+
   return (
     normalizedHostname === "localhost" ||
     normalizedHostname === "::1" ||
-    normalizedHostname.startsWith("127.") ||
+    isIpv4LoopbackLiteral ||
     normalizedHostname.endsWith(".localhost")
   );
 };

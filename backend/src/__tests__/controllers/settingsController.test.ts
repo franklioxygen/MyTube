@@ -329,6 +329,28 @@ describe('SettingsController', () => {
       );
       expect(status).not.toHaveBeenCalledWith(400);
     });
+
+    it('should reject non-loopback hostnames that only start with 127.', async () => {
+      req.body = { passwordLoginAllowed: false };
+      req.cookies = {
+        mytube_csrf: 'csrf-token',
+      } as any;
+      req.headers = {
+        origin: 'http://127.evil.com',
+        host: '127.evil.com',
+        'x-csrf-token': 'csrf-token',
+      } as any;
+      req.get = ((key: string) => req.headers?.[key.toLowerCase()] as string | undefined) as Request['get'];
+      req.socket = {
+        remoteAddress: '203.0.113.10',
+      } as any;
+      (storageService.getSettings as any).mockReturnValue({ passwordLoginAllowed: true });
+
+      await updateSettings(req as Request, res as Response);
+
+      expect(status).toHaveBeenCalledWith(400);
+      expect(storageService.saveSettings).not.toHaveBeenCalled();
+    });
   });
 
   describe('patchSettings', () => {

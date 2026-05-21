@@ -244,6 +244,28 @@ describe('SecuritySettings', () => {
         expect(screen.getByText('allowPasswordLoginHttpsOnlyHelper')).toBeInTheDocument();
     });
 
+    it('does not treat hostnames starting with 127. as secure unless they are loopback ip literals', async () => {
+        mockPasskeysExist = true;
+        vi.mocked(api.get).mockResolvedValue({ data: { exists: true } } as any);
+        Object.defineProperty(window, 'isSecureContext', {
+            configurable: true,
+            value: false,
+        });
+        setWindowLocation('http://127.evil.com/');
+
+        render(
+            <SecuritySettings
+                settings={{ ...defaultSettings, loginEnabled: true, passwordLoginAllowed: true }}
+                onChange={mockOnChange}
+            />
+        );
+
+        await waitFor(() => {
+            expect(screen.getByRole('switch', { name: 'allowPasswordLogin' })).toBeDisabled();
+        });
+        expect(screen.getByText('allowPasswordLoginHttpsOnlyHelper')).toBeInTheDocument();
+    });
+
     it('handles login, password, and visitor switches', async () => {
         const user = userEvent.setup();
         render(
