@@ -227,6 +227,30 @@ describe('SettingsController', () => {
       expect(storageService.saveSettings).not.toHaveBeenCalled();
     });
 
+    it('should allow disabling password login from an https browser origin with a matching csrf token', async () => {
+      req.body = { passwordLoginAllowed: false };
+      req.cookies = {
+        mytube_csrf: 'csrf-token',
+      } as any;
+      req.headers = {
+        origin: 'https://mytube.example',
+        host: 'mytube.example',
+        'x-csrf-token': 'csrf-token',
+      } as any;
+      req.get = ((key: string) => req.headers?.[key.toLowerCase()] as string | undefined) as Request['get'];
+      req.socket = {
+        remoteAddress: '203.0.113.10',
+      } as any;
+      (storageService.getSettings as any).mockReturnValue({ passwordLoginAllowed: true });
+
+      await updateSettings(req as Request, res as Response);
+
+      expect(storageService.saveSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ passwordLoginAllowed: false })
+      );
+      expect(status).not.toHaveBeenCalledWith(400);
+    });
+
     it('should reject spoofed forwarded proto headers from untrusted direct connections', async () => {
       req.body = { passwordLoginAllowed: false };
       req.headers = {

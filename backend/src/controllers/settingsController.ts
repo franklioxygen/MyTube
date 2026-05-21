@@ -373,6 +373,19 @@ const isLoopbackAddress = (address: string): boolean => {
   return normalizedAddress === "::1" || normalizedAddress.startsWith("127.");
 };
 
+const isSecureLocalHostname = (hostname: string): boolean => {
+  const normalizedHostname = hostname
+    .replace(/^\[(.*)\]$/, "$1")
+    .toLowerCase();
+
+  return (
+    normalizedHostname === "localhost" ||
+    normalizedHostname === "::1" ||
+    normalizedHostname.startsWith("127.") ||
+    normalizedHostname.endsWith(".localhost")
+  );
+};
+
 const normalizeProxyProtocol = (value: string | undefined): string | null => {
   const protocol = value?.split(",")[0]?.trim().toLowerCase();
   return protocol === "http" || protocol === "https" ? protocol : null;
@@ -414,6 +427,47 @@ const hasEncryptedSocket = (req: Request): boolean => {
   return socket?.encrypted === true;
 };
 
+const hasMatchingCsrfToken = (req: Request): boolean => {
+  const csrfCookie = req.cookies?.mytube_csrf;
+  const csrfHeader = getHeaderValue(req, "x-csrf-token");
+
+  return (
+    typeof csrfCookie === "string" &&
+    csrfCookie.length > 0 &&
+    csrfCookie === csrfHeader
+  );
+};
+
+const getRequestUrlFromHeaders = (req: Request): URL | null => {
+  const rawUrl = getHeaderValue(req, "origin") || getHeaderValue(req, "referer");
+
+  if (!rawUrl) {
+    return null;
+  }
+
+  try {
+    return new URL(rawUrl);
+  } catch {
+    return null;
+  }
+};
+
+const isSecureBrowserOriginRequest = (req: Request): boolean => {
+  if (!hasMatchingCsrfToken(req)) {
+    return false;
+  }
+
+  const requestUrl = getRequestUrlFromHeaders(req);
+  if (!requestUrl) {
+    return false;
+  }
+
+  return (
+    requestUrl.protocol === "https:" ||
+    isSecureLocalHostname(requestUrl.hostname)
+  );
+};
+
 const isSecurePasskeySettingsRequest = (req: Request): boolean => {
   if (hasEncryptedSocket(req)) {
     return true;
@@ -436,7 +490,7 @@ const isSecurePasskeySettingsRequest = (req: Request): boolean => {
     return true;
   }
 
-  return false;
+  return isSecureBrowserOriginRequest(req);
 };
 
 const isPasswordLoginDisableRequested = (
