@@ -39,6 +39,12 @@ const render = (ui: React.ReactElement) => {
 
 let mockPasskeysExist = false;
 let mockWriteText = vi.fn();
+const setWindowLocation = (url: string) => {
+    Object.defineProperty(window, 'location', {
+        configurable: true,
+        value: new URL(url),
+    });
+};
 
 describe('SecuritySettings', () => {
     const mockOnChange = vi.fn();
@@ -87,6 +93,7 @@ describe('SecuritySettings', () => {
                 writeText: mockWriteText,
             },
         });
+        setWindowLocation('http://localhost/');
     });
 
     it('renders login controls', () => {
@@ -148,6 +155,115 @@ describe('SecuritySettings', () => {
             expect(screen.getByRole('switch', { name: 'allowPasswordLogin' })).toBeEnabled();
             expect(screen.getByRole('button', { name: 'removePasskeys' })).toBeEnabled();
         });
+    });
+
+    it('prevents disabling password login on non-https origins and shows guidance', async () => {
+        mockPasskeysExist = true;
+        vi.mocked(api.get).mockResolvedValue({ data: { exists: true } } as any);
+        Object.defineProperty(window, 'isSecureContext', {
+            configurable: true,
+            value: false,
+        });
+        setWindowLocation('http://intranet.example/');
+
+        render(
+            <SecuritySettings
+                settings={{ ...defaultSettings, loginEnabled: true, passwordLoginAllowed: true }}
+                onChange={mockOnChange}
+            />
+        );
+
+        await waitFor(() => {
+            expect(screen.getByRole('switch', { name: 'allowPasswordLogin' })).toBeDisabled();
+        });
+        expect(screen.getByText('allowPasswordLoginHttpsOnlyHelper')).toBeInTheDocument();
+    });
+
+    it('allows re-enabling password login on non-https origins', async () => {
+        mockPasskeysExist = true;
+        vi.mocked(api.get).mockResolvedValue({ data: { exists: true } } as any);
+        Object.defineProperty(window, 'isSecureContext', {
+            configurable: true,
+            value: false,
+        });
+        setWindowLocation('http://intranet.example/');
+
+        render(
+            <SecuritySettings
+                settings={{ ...defaultSettings, loginEnabled: true, passwordLoginAllowed: false }}
+                onChange={mockOnChange}
+            />
+        );
+
+        await waitFor(() => {
+            expect(screen.getByRole('switch', { name: 'allowPasswordLogin' })).toBeEnabled();
+        });
+    });
+
+    it('treats IPv6 localhost as a secure origin for password login changes', async () => {
+        mockPasskeysExist = true;
+        vi.mocked(api.get).mockResolvedValue({ data: { exists: true } } as any);
+        Object.defineProperty(window, 'isSecureContext', {
+            configurable: true,
+            value: false,
+        });
+        setWindowLocation('http://[::1]/');
+
+        render(
+            <SecuritySettings
+                settings={{ ...defaultSettings, loginEnabled: true, passwordLoginAllowed: true }}
+                onChange={mockOnChange}
+            />
+        );
+
+        await waitFor(() => {
+            expect(screen.getByRole('switch', { name: 'allowPasswordLogin' })).toBeEnabled();
+        });
+        expect(screen.queryByText('allowPasswordLoginHttpsOnlyHelper')).not.toBeInTheDocument();
+    });
+
+    it('does not treat 0.0.0.0 as a secure origin for password login changes', async () => {
+        mockPasskeysExist = true;
+        vi.mocked(api.get).mockResolvedValue({ data: { exists: true } } as any);
+        Object.defineProperty(window, 'isSecureContext', {
+            configurable: true,
+            value: false,
+        });
+        setWindowLocation('http://0.0.0.0/');
+
+        render(
+            <SecuritySettings
+                settings={{ ...defaultSettings, loginEnabled: true, passwordLoginAllowed: true }}
+                onChange={mockOnChange}
+            />
+        );
+
+        await waitFor(() => {
+            expect(screen.getByRole('switch', { name: 'allowPasswordLogin' })).toBeDisabled();
+        });
+        expect(screen.getByText('allowPasswordLoginHttpsOnlyHelper')).toBeInTheDocument();
+    });
+
+    it('does not treat hostnames starting with 127. as secure unless they are loopback ip literals', async () => {
+        mockPasskeysExist = true;
+        vi.mocked(api.get).mockResolvedValue({ data: { exists: true } } as any);
+        Object.defineProperty(window, 'isSecureContext', {
+            configurable: true,
+            value: false,
+        });
+        setWindowLocation('http://127.evil.com/');
+
+        render(
+            <SecuritySettings
+                settings={{ ...defaultSettings, loginEnabled: true, passwordLoginAllowed: true }}
+                onChange={mockOnChange}
+            />
+        );
+
+        await waitFor(() => {
+            expect(screen.getByRole('switch', { name: 'allowPasswordLogin' })).toBeDisabled();
+        });
+        expect(screen.getByText('allowPasswordLoginHttpsOnlyHelper')).toBeInTheDocument();
     });
 
     it('handles login, password, and visitor switches', async () => {

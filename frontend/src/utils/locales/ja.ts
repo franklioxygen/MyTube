@@ -91,6 +91,8 @@ export const ja = {
   allowPasswordLogin: "パスワードログインを許可",
   allowPasswordLoginHelper:
     "無効にすると、パスワードログインは利用できません。パスワードログインを無効にするには、少なくとも1つのパスキーが必要です。",
+  allowPasswordLoginHttpsOnlyHelper:
+    "パスワードログインを無効にするには、このページを HTTPS または localhost で開いてください。パスキーのみのログインには安全なオリジンが必要です。",
   allowResetPassword: "パスワードリセットを許可",
   allowResetPasswordHelper:
     "無効にすると、ログインページにパスワードリセットボタンが表示されず、パスワードリセットAPIがブロックされます。",

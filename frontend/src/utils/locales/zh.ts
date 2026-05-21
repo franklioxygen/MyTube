@@ -85,6 +85,8 @@ export const zh = {
   allowPasswordLogin: "允许密码登录",
   allowPasswordLoginHelper:
     "禁用后，密码登录将不可用。要禁用密码登录，您必须至少有一个通行密钥。",
+  allowPasswordLoginHttpsOnlyHelper:
+    "如需禁用密码登录，请通过 HTTPS 或 localhost 打开此页面。仅使用通行密钥登录需要安全来源。",
   allowResetPassword: '允许重置密码',
   allowResetPasswordHelper:
     "禁用后，登录页面将不显示重置密码按钮，并且重置密码 API 将被阻止。",

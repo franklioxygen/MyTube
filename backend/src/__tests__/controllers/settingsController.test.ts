@@ -188,6 +188,169 @@ describe('SettingsController', () => {
       await updateSettings(req as Request, res as Response);
       expect(storageService.saveSettings).toHaveBeenCalledWith(expect.objectContaining({ itemsPerPage: 20 }));
     });
+
+    it('should reject disabling password login from non-https origins', async () => {
+      req.body = { passwordLoginAllowed: false };
+      req.headers = {
+        origin: 'http://intranet.example',
+        host: 'intranet.example',
+      } as any;
+      req.get = ((key: string) => req.headers?.[key.toLowerCase()] as string | undefined) as Request['get'];
+      (storageService.getSettings as any).mockReturnValue({ passwordLoginAllowed: true });
+
+      await updateSettings(req as Request, res as Response);
+
+      expect(status).toHaveBeenCalledWith(400);
+      expect(storageService.saveSettings).not.toHaveBeenCalled();
+      expect(json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          error: 'Disabling password login requires HTTPS or localhost because passkey-only login needs a secure origin.',
+        })
+      );
+    });
+
+    it('should reject spoofed https origin headers from direct non-secure requests', async () => {
+      req.body = { passwordLoginAllowed: false };
+      req.headers = {
+        origin: 'https://mytube.example',
+        host: 'mytube.example',
+      } as any;
+      req.get = ((key: string) => req.headers?.[key.toLowerCase()] as string | undefined) as Request['get'];
+      req.socket = {
+        remoteAddress: '203.0.113.10',
+      } as any;
+      (storageService.getSettings as any).mockReturnValue({ passwordLoginAllowed: true });
+
+      await updateSettings(req as Request, res as Response);
+
+      expect(status).toHaveBeenCalledWith(400);
+      expect(storageService.saveSettings).not.toHaveBeenCalled();
+    });
+
+    it('should allow disabling password login from an https browser origin with a matching csrf token', async () => {
+      req.body = { passwordLoginAllowed: false };
+      req.cookies = {
+        mytube_csrf: 'csrf-token',
+      } as any;
+      req.headers = {
+        origin: 'https://mytube.example',
+        host: 'mytube.example',
+        'x-csrf-token': 'csrf-token',
+      } as any;
+      req.get = ((key: string) => req.headers?.[key.toLowerCase()] as string | undefined) as Request['get'];
+      req.socket = {
+        remoteAddress: '203.0.113.10',
+      } as any;
+      (storageService.getSettings as any).mockReturnValue({ passwordLoginAllowed: true });
+
+      await updateSettings(req as Request, res as Response);
+
+      expect(storageService.saveSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ passwordLoginAllowed: false })
+      );
+      expect(status).not.toHaveBeenCalledWith(400);
+    });
+
+    it('should reject spoofed forwarded proto headers from untrusted direct connections', async () => {
+      req.body = { passwordLoginAllowed: false };
+      req.headers = {
+        host: 'mytube.example',
+        'x-forwarded-proto': 'https',
+      } as any;
+      req.get = ((key: string) => req.headers?.[key.toLowerCase()] as string | undefined) as Request['get'];
+      req.app = {
+        get: vi.fn().mockReturnValue(1),
+      } as any;
+      req.socket = {
+        remoteAddress: '203.0.113.10',
+      } as any;
+      (storageService.getSettings as any).mockReturnValue({ passwordLoginAllowed: true });
+
+      await updateSettings(req as Request, res as Response);
+
+      expect(status).toHaveBeenCalledWith(400);
+      expect(storageService.saveSettings).not.toHaveBeenCalled();
+    });
+
+    it('should reject spoofed localhost host headers from direct non-loopback requests', async () => {
+      req.body = { passwordLoginAllowed: false };
+      req.headers = {
+        host: 'localhost:5551',
+      } as any;
+      req.get = ((key: string) => req.headers?.[key.toLowerCase()] as string | undefined) as Request['get'];
+      req.socket = {
+        remoteAddress: '203.0.113.10',
+      } as any;
+      (storageService.getSettings as any).mockReturnValue({ passwordLoginAllowed: true });
+
+      await updateSettings(req as Request, res as Response);
+
+      expect(status).toHaveBeenCalledWith(400);
+      expect(storageService.saveSettings).not.toHaveBeenCalled();
+    });
+
+    it('should reject disabling password login from raw loopback http requests without a secure browser origin', async () => {
+      req.body = { passwordLoginAllowed: false };
+      req.headers = {
+        host: 'localhost:5551',
+      } as any;
+      req.get = ((key: string) => req.headers?.[key.toLowerCase()] as string | undefined) as Request['get'];
+      req.socket = {
+        remoteAddress: '127.0.0.1',
+      } as any;
+      (storageService.getSettings as any).mockReturnValue({ passwordLoginAllowed: true });
+
+      await updateSettings(req as Request, res as Response);
+
+      expect(status).toHaveBeenCalledWith(400);
+      expect(storageService.saveSettings).not.toHaveBeenCalled();
+    });
+
+    it('should allow disabling password login from a localhost browser origin with a matching csrf token', async () => {
+      req.body = { passwordLoginAllowed: false };
+      req.cookies = {
+        mytube_csrf: 'csrf-token',
+      } as any;
+      req.headers = {
+        origin: 'http://localhost:5551',
+        host: 'localhost:5551',
+        'x-csrf-token': 'csrf-token',
+      } as any;
+      req.get = ((key: string) => req.headers?.[key.toLowerCase()] as string | undefined) as Request['get'];
+      req.socket = {
+        remoteAddress: '127.0.0.1',
+      } as any;
+      (storageService.getSettings as any).mockReturnValue({ passwordLoginAllowed: true });
+
+      await updateSettings(req as Request, res as Response);
+
+      expect(storageService.saveSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ passwordLoginAllowed: false })
+      );
+      expect(status).not.toHaveBeenCalledWith(400);
+    });
+
+    it('should reject non-loopback hostnames that only start with 127.', async () => {
+      req.body = { passwordLoginAllowed: false };
+      req.cookies = {
+        mytube_csrf: 'csrf-token',
+      } as any;
+      req.headers = {
+        origin: 'http://127.evil.com',
+        host: '127.evil.com',
+        'x-csrf-token': 'csrf-token',
+      } as any;
+      req.get = ((key: string) => req.headers?.[key.toLowerCase()] as string | undefined) as Request['get'];
+      req.socket = {
+        remoteAddress: '203.0.113.10',
+      } as any;
+      (storageService.getSettings as any).mockReturnValue({ passwordLoginAllowed: true });
+
+      await updateSettings(req as Request, res as Response);
+
+      expect(status).toHaveBeenCalledWith(400);
+      expect(storageService.saveSettings).not.toHaveBeenCalled();
+    });
   });
 
   describe('patchSettings', () => {

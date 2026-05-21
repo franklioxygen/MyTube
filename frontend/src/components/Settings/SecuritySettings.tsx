@@ -18,6 +18,17 @@ interface SecuritySettingsProps {
     onChange: (field: keyof Settings, value: any) => void;
 }
 
+const isLocalhostHostname = (hostname: string): boolean => {
+    const normalizedHostname = hostname
+        .replace(/^\[(.*)\]$/, '$1')
+        .toLowerCase();
+    const isIpv4LoopbackLiteral = /^127(?:\.\d{1,3}){3}$/.test(normalizedHostname);
+    return normalizedHostname === 'localhost'
+        || normalizedHostname === '::1'
+        || isIpv4LoopbackLiteral
+        || normalizedHostname.endsWith('.localhost');
+};
+
 const generateApiKey = (): string => {
     const bytes = new Uint8Array(32);
     window.crypto.getRandomValues(bytes);
@@ -75,6 +86,10 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ settings, onChange 
     });
 
     const passkeysExist = passkeysData?.exists || false;
+    const isSecureOriginForPasskeys =
+        window.isSecureContext || isLocalhostHostname(window.location.hostname);
+    const canChangePasswordLoginSetting =
+        isSecureOriginForPasskeys || settings.passwordLoginAllowed === false;
 
     // If passkeys don't exist, automatically enable and lock password login
     useEffect(() => {
@@ -154,15 +169,10 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ settings, onChange 
     });
 
     const handleCreatePasskey = () => {
-        // Check if we're in a secure context (HTTPS or localhost)
-        // This is the most important check - WebAuthn requires secure context
-        if (!window.isSecureContext) {
-            const hostname = window.location.hostname;
-            const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]';
-            if (!isLocalhost) {
-                showAlert(t('error'), t('passkeyRequiresHttps') || 'WebAuthn requires HTTPS or localhost. Please access the application via HTTPS or use localhost instead of an IP address.');
-                return;
-            }
+        // WebAuthn requires HTTPS or localhost.
+        if (!isSecureOriginForPasskeys) {
+            showAlert(t('error'), t('passkeyRequiresHttps') || 'WebAuthn requires HTTPS or localhost. Please access the application via HTTPS or use localhost instead of an IP address.');
+            return;
         }
 
         // Check if WebAuthn is supported
@@ -250,7 +260,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ settings, onChange 
                                 <Switch
                                     checked={!passkeysExist ? true : (settings.passwordLoginAllowed !== false)}
                                     onChange={(e) => onChange('passwordLoginAllowed', e.target.checked)}
-                                    disabled={!settings.loginEnabled || !passkeysExist}
+                                    disabled={!settings.loginEnabled || !passkeysExist || !canChangePasswordLoginSetting}
                                 />
                             }
                             label={t('allowPasswordLogin') || 'Allow Password Login'}
@@ -260,6 +270,11 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ settings, onChange 
                         <Typography variant="body2" color="text.secondary">
                             {t('allowPasswordLoginHelper') || 'When disabled, password login is not available. You must have at least one passkey to disable password login.'}
                         </Typography>
+                        {!isSecureOriginForPasskeys && (
+                            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                                {t('allowPasswordLoginHttpsOnlyHelper') || 'To disable password login, open this page over HTTPS or localhost. Passkey-only login requires a secure origin.'}
+                            </Typography>
+                        )}
                     </Box>
 
                     <FormControlLabel

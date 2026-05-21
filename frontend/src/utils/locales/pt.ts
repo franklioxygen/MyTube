@@ -92,6 +92,8 @@ export const pt = {
   allowPasswordLogin: "Permitir Login com Senha",
   allowPasswordLoginHelper:
     "Quando desabilitado, o login com senha não está disponível. Você deve ter pelo menos uma chave de acesso para desabilitar o login com senha.",
+  allowPasswordLoginHttpsOnlyHelper:
+    "Para desabilitar o login com senha, abra esta página por HTTPS ou localhost. O login apenas com passkey exige uma origem segura.",
   allowResetPassword: "Permitir Redefinir Senha",
   allowResetPasswordHelper:
     "Quando desabilitado, o botão de redefinir senha não será exibido na página de login e a API de redefinir senha será bloqueada.",
