@@ -30,7 +30,7 @@
     "csrf-csrf": "^4.0.3",
     "dotenv": "^16.6.1",
     "drizzle-orm": "^0.45.2",
-    "express": "^4.22.1",
+    "express": "^4.22.2",
     "express-rate-limit": "^8.5.1",
     "file-type": "file:vendor/file-type",
     "fs-extra": "^11.3.3",
