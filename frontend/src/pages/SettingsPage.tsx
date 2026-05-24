@@ -95,6 +95,7 @@ const SettingsPage: React.FC = () => {
         preferredAudioLanguage: '',
         twitchClientId: '',
         twitchClientSecret: '',
+        telegramDownloadEnabled: false,
     });
     const { setPreference } = useThemeContext();
     const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null);
@@ -698,6 +699,7 @@ const SettingsPage: React.FC = () => {
                 telegramEnabled={settings.telegramEnabled}
                 telegramBotToken={settings.telegramBotToken}
                 telegramChatId={settings.telegramChatId}
+                telegramDownloadEnabled={settings.telegramDownloadEnabled}
                 telegramNotifyOnSuccess={settings.telegramNotifyOnSuccess}
                 telegramNotifyOnFail={settings.telegramNotifyOnFail}
                 onChange={handleChange}

@@ -119,14 +119,32 @@ describe('AdvancedSettings', () => {
 
         it('should show notify on success and fail toggles', () => {
             render(<AdvancedSettings {...defaultProps} telegramEnabled={true} />);
+            expect(screen.getByRole('switch', { name: 'telegramDownloadEnabled' })).toBeInTheDocument();
             expect(screen.getByRole('switch', { name: 'telegramNotifyOnSuccess' })).toBeInTheDocument();
             expect(screen.getByRole('switch', { name: 'telegramNotifyOnFail' })).toBeInTheDocument();
         });
 
         it('should have notify toggles checked by default', () => {
             render(<AdvancedSettings {...defaultProps} telegramEnabled={true} />);
+            expect(screen.getByRole('switch', { name: 'telegramDownloadEnabled' })).not.toBeChecked();
             expect(screen.getByRole('switch', { name: 'telegramNotifyOnSuccess' })).toBeChecked();
             expect(screen.getByRole('switch', { name: 'telegramNotifyOnFail' })).toBeChecked();
+        });
+
+        it('should disable telegram download toggle when telegram is disabled', () => {
+            render(<AdvancedSettings {...defaultProps} telegramEnabled={false} />);
+            expect(screen.getByRole('switch', { name: 'telegramDownloadEnabled' })).toBeDisabled();
+        });
+
+        it('should call onChange when toggling telegram downloads', async () => {
+            const user = userEvent.setup();
+            const onChange = vi.fn();
+            render(<AdvancedSettings {...defaultProps} telegramEnabled={true} onChange={onChange} />);
+
+            const toggle = screen.getByRole('switch', { name: 'telegramDownloadEnabled' });
+            await user.click(toggle);
+
+            expect(onChange).toHaveBeenCalledWith('telegramDownloadEnabled', true);
         });
 
         it('should render test button', () => {

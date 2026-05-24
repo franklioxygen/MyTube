@@ -157,13 +157,15 @@ export const ru = {
   debugMode: "Режим отладки",
   debugModeDescription:
     "Показать или скрыть сообщения консоли (требуется обновление)",
-  telegramNotifications: "Уведомления Telegram",
-  telegramNotificationsDescription: "Получайте уведомления через Telegram при завершении задач загрузки.",
-  telegramEnabled: "Включить уведомления Telegram",
+  telegramNotifications: "Функции Telegram",
+  telegramNotificationsDescription:
+    "Используйте Telegram Bot, чтобы добавлять ссылки в очередь загрузки или получать уведомления о завершении загрузок.",
+  telegramEnabled: "Включить функции Telegram",
   telegramBotToken: "Токен бота",
   telegramBotTokenHelper: "Создайте бота через @BotFather в Telegram, чтобы получить токен.",
   telegramChatId: "ID чата",
   telegramChatIdHelper: "Отправьте сообщение @RawDataBot в Telegram, чтобы узнать ваш ID чата.",
+  telegramDownloadEnabled: "Разрешить загрузку ссылок из Telegram",
   telegramNotifyOnSuccess: "Уведомлять при успехе",
   telegramNotifyOnFail: "Уведомлять при ошибке",
   twitchSubscriptions: "Подписки Twitch",

@@ -129,6 +129,7 @@ export interface Settings {
   telegramEnabled?: boolean;
   telegramBotToken?: string;
   telegramChatId?: string;
+  telegramDownloadEnabled?: boolean;
   telegramNotifyOnSuccess?: boolean;
   telegramNotifyOnFail?: boolean;
   twitchClientId?: string;

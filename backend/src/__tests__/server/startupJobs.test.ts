@@ -3,6 +3,7 @@ import { startBackgroundJobs } from "../../server/startupJobs";
 import { subscriptionService } from "../../services/subscriptionService";
 import * as metadataService from "../../services/metadataService";
 import { startCloudflaredIfEnabled } from "../../server/cloudRoutes";
+import { startTelegramDownloadPolling } from "../../services/telegramDownloadService";
 import { logger } from "../../utils/logger";
 
 vi.mock("../../services/subscriptionService", () => ({
@@ -19,9 +20,14 @@ vi.mock("../../server/cloudRoutes", () => ({
   startCloudflaredIfEnabled: vi.fn(),
 }));
 
+vi.mock("../../services/telegramDownloadService", () => ({
+  startTelegramDownloadPolling: vi.fn(),
+}));
+
 vi.mock("../../utils/logger", () => ({
   logger: {
     error: vi.fn(),
+    warn: vi.fn(),
   },
 }));
 
@@ -33,6 +39,7 @@ const flushBackgroundWork = async () => {
 const startSchedulerMock = vi.mocked(subscriptionService.startScheduler);
 const backfillDurationsMock = vi.mocked(metadataService.backfillDurations);
 const startCloudflaredIfEnabledMock = vi.mocked(startCloudflaredIfEnabled);
+const startTelegramDownloadPollingMock = vi.mocked(startTelegramDownloadPolling);
 const loggerErrorMock = vi.mocked(logger.error);
 
 describe("startBackgroundJobs", () => {
@@ -40,12 +47,13 @@ describe("startBackgroundJobs", () => {
     vi.clearAllMocks();
   });
 
-  it("starts scheduler, metadata backfill and cloudflared bootstrap", async () => {
+  it("starts scheduler, metadata backfill, telegram polling and cloudflared bootstrap", async () => {
     startBackgroundJobs(3000);
     await flushBackgroundWork();
 
     expect(startSchedulerMock).toHaveBeenCalledTimes(1);
     expect(backfillDurationsMock).toHaveBeenCalledTimes(1);
+    expect(startTelegramDownloadPollingMock).toHaveBeenCalledTimes(1);
     expect(startCloudflaredIfEnabledMock).toHaveBeenCalledWith(3000);
     expect(loggerErrorMock).not.toHaveBeenCalled();
   });
