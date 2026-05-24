@@ -158,13 +158,15 @@ export const ja = {
   debugMode: "デバッグモード",
   debugModeDescription:
     "コンソールメッセージを表示または非表示にします（更新が必要）",
-  telegramNotifications: "Telegram 通知",
-  telegramNotificationsDescription: "ダウンロードタスク完了時にTelegramで通知を受け取ります。",
-  telegramEnabled: "Telegram 通知を有効にする",
+  telegramNotifications: "Telegram 機能",
+  telegramNotificationsDescription:
+    "Telegram Botでリンクをダウンロードキューに追加するか、ダウンロード完了通知を受け取ります。",
+  telegramEnabled: "Telegram 機能を有効にする",
   telegramBotToken: "ボットトークン",
   telegramBotTokenHelper: "Telegramで @BotFather からボットを作成してトークンを取得してください。",
   telegramChatId: "チャットID",
   telegramChatIdHelper: "Telegramで @RawDataBot にメッセージを送ってチャットIDを取得してください。",
+  telegramDownloadEnabled: "Telegramリンクのダウンロードを許可",
   telegramNotifyOnSuccess: "成功時に通知",
   telegramNotifyOnFail: "失敗時に通知",
   twitchSubscriptions: "Twitch サブスクリプション",

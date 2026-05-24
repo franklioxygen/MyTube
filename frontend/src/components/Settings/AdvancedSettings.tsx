@@ -11,6 +11,7 @@ interface AdvancedSettingsProps {
     telegramEnabled?: boolean;
     telegramBotToken?: string;
     telegramChatId?: string;
+    telegramDownloadEnabled?: boolean;
     telegramNotifyOnSuccess?: boolean;
     telegramNotifyOnFail?: boolean;
     onChange: (field: keyof Settings, value: any) => void;
@@ -22,6 +23,7 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
     telegramEnabled = false,
     telegramBotToken = '',
     telegramChatId = '',
+    telegramDownloadEnabled = false,
     telegramNotifyOnSuccess = true,
     telegramNotifyOnFail = true,
     onChange,
@@ -113,6 +115,16 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
                 />
 
                 <Box sx={{ display: 'flex', gap: 2 }}>
+                    <FormControlLabel
+                        control={
+                            <Switch
+                                checked={telegramDownloadEnabled}
+                                onChange={(e) => onChange('telegramDownloadEnabled', e.target.checked)}
+                                disabled={!telegramEnabled}
+                            />
+                        }
+                        label={t('telegramDownloadEnabled')}
+                    />
                     <FormControlLabel
                         control={
                             <Switch

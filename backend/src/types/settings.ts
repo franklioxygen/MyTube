@@ -56,6 +56,7 @@ export interface Settings {
   telegramEnabled?: boolean;
   telegramBotToken?: string;
   telegramChatId?: string;
+  telegramDownloadEnabled?: boolean;
   telegramNotifyOnSuccess?: boolean;
   telegramNotifyOnFail?: boolean;
   twitchClientId?: string;
@@ -107,6 +108,7 @@ export const defaultSettings: Settings = {
   telegramEnabled: false,
   telegramBotToken: "",
   telegramChatId: "",
+  telegramDownloadEnabled: false,
   telegramNotifyOnSuccess: true,
   telegramNotifyOnFail: true,
   twitchClientId: "",

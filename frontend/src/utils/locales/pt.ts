@@ -158,13 +158,15 @@ export const pt = {
   debugMode: "Modo de Depuração",
   debugModeDescription:
     "Mostrar ou ocultar mensagens do console (requer atualização)",
-  telegramNotifications: "Notificações do Telegram",
-  telegramNotificationsDescription: "Receba notificações via Telegram quando as tarefas de download forem concluídas.",
-  telegramEnabled: "Ativar notificações do Telegram",
+  telegramNotifications: "Recursos do Telegram",
+  telegramNotificationsDescription:
+    "Use um bot do Telegram para adicionar links à fila de downloads ou receber notificações de conclusão de download.",
+  telegramEnabled: "Ativar recursos do Telegram",
   telegramBotToken: "Token do bot",
   telegramBotTokenHelper: "Crie um bot via @BotFather no Telegram para obter seu token.",
   telegramChatId: "ID do chat",
   telegramChatIdHelper: "Envie uma mensagem para @RawDataBot no Telegram para obter seu ID de chat.",
+  telegramDownloadEnabled: "Permitir downloads de links do Telegram",
   telegramNotifyOnSuccess: "Notificar em caso de sucesso",
   telegramNotifyOnFail: "Notificar em caso de falha",
   twitchSubscriptions: "Assinaturas da Twitch",

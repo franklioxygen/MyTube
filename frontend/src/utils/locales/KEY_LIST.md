@@ -205,6 +205,7 @@ Total keys: 994
 | `telegramBotTokenHelper` |
 | `telegramChatId` |
 | `telegramChatIdHelper` |
+| `telegramDownloadEnabled` |
 | `telegramNotifyOnSuccess` |
 | `telegramNotifyOnFail` |
 | `twitchSubscriptions` |

@@ -147,6 +147,7 @@ export const WHITELISTED_SETTINGS = [
   "telegramEnabled",
   "telegramBotToken",
   "telegramChatId",
+  "telegramDownloadEnabled",
   "telegramNotifyOnSuccess",
   "telegramNotifyOnFail",
   "twitchClientId",

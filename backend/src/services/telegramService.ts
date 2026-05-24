@@ -10,22 +10,28 @@ interface TelegramStrings {
   url: string;
   error: string;
   testSuccess: string;
+  queued: string;
+  skipped: string;
+  failed: string;
+  taskId: string;
+  unknownError: string;
+  downloadRequestNoResponse: string;
 }
 
 const translations: Record<string, TelegramStrings> = {
-  en: { taskSuccess: "Task Success", taskFailed: "Task Failed", title: "Title", url: "URL", error: "Error", testSuccess: "MyTube Telegram notification test successful!" },
-  zh: { taskSuccess: "任务成功", taskFailed: "任务失败", title: "标题", url: "链接", error: "错误", testSuccess: "MyTube Telegram 通知测试成功！" },
-  ja: { taskSuccess: "タスク成功", taskFailed: "タスク失敗", title: "タイトル", url: "URL", error: "エラー", testSuccess: "MyTube Telegram 通知テスト成功！" },
-  ko: { taskSuccess: "작업 성공", taskFailed: "작업 실패", title: "제목", url: "URL", error: "오류", testSuccess: "MyTube Telegram 알림 테스트 성공!" },
-  fr: { taskSuccess: "Tâche réussie", taskFailed: "Tâche échouée", title: "Titre", url: "URL", error: "Erreur", testSuccess: "Test de notification Telegram MyTube réussi !" },
-  de: { taskSuccess: "Aufgabe erfolgreich", taskFailed: "Aufgabe fehlgeschlagen", title: "Titel", url: "URL", error: "Fehler", testSuccess: "MyTube Telegram-Benachrichtigungstest erfolgreich!" },
-  es: { taskSuccess: "Tarea exitosa", taskFailed: "Tarea fallida", title: "Título", url: "URL", error: "Error", testSuccess: "¡Prueba de notificación de Telegram de MyTube exitosa!" },
-  pt: { taskSuccess: "Tarefa concluída", taskFailed: "Tarefa falhou", title: "Título", url: "URL", error: "Erro", testSuccess: "Teste de notificação Telegram do MyTube bem-sucedido!" },
-  ru: { taskSuccess: "Задача выполнена", taskFailed: "Задача не выполнена", title: "Название", url: "URL", error: "Ошибка", testSuccess: "Тест уведомлений Telegram MyTube успешен!" },
-  ar: { taskSuccess: "نجحت المهمة", taskFailed: "فشلت المهمة", title: "العنوان", url: "الرابط", error: "خطأ", testSuccess: "اختبار إشعارات تيليجرام MyTube ناجح!" },
+  en: { taskSuccess: "Task Success", taskFailed: "Task Failed", title: "Title", url: "URL", error: "Error", testSuccess: "MyTube Telegram notification test successful!", queued: "Queued", skipped: "Skipped", failed: "Failed", taskId: "Task ID", unknownError: "Unknown error", downloadRequestNoResponse: "Download request did not return a response" },
+  zh: { taskSuccess: "任务成功", taskFailed: "任务失败", title: "标题", url: "链接", error: "错误", testSuccess: "MyTube Telegram 通知测试成功！", queued: "已加入队列", skipped: "已跳过", failed: "失败", taskId: "任务 ID", unknownError: "未知错误", downloadRequestNoResponse: "下载请求没有返回响应" },
+  ja: { taskSuccess: "タスク成功", taskFailed: "タスク失敗", title: "タイトル", url: "URL", error: "エラー", testSuccess: "MyTube Telegram 通知テスト成功！", queued: "キューに追加済み", skipped: "スキップ済み", failed: "失敗", taskId: "タスク ID", unknownError: "不明なエラー", downloadRequestNoResponse: "ダウンロードリクエストが応答を返しませんでした" },
+  ko: { taskSuccess: "작업 성공", taskFailed: "작업 실패", title: "제목", url: "URL", error: "오류", testSuccess: "MyTube Telegram 알림 테스트 성공!", queued: "대기열에 추가됨", skipped: "건너뜀", failed: "실패", taskId: "작업 ID", unknownError: "알 수 없는 오류", downloadRequestNoResponse: "다운로드 요청이 응답을 반환하지 않았습니다" },
+  fr: { taskSuccess: "Tâche réussie", taskFailed: "Tâche échouée", title: "Titre", url: "URL", error: "Erreur", testSuccess: "Test de notification Telegram MyTube réussi !", queued: "Ajouté à la file", skipped: "Ignoré", failed: "Échec", taskId: "ID de tâche", unknownError: "Erreur inconnue", downloadRequestNoResponse: "La requête de téléchargement n'a renvoyé aucune réponse" },
+  de: { taskSuccess: "Aufgabe erfolgreich", taskFailed: "Aufgabe fehlgeschlagen", title: "Titel", url: "URL", error: "Fehler", testSuccess: "MyTube Telegram-Benachrichtigungstest erfolgreich!", queued: "In Warteschlange", skipped: "Übersprungen", failed: "Fehlgeschlagen", taskId: "Aufgaben-ID", unknownError: "Unbekannter Fehler", downloadRequestNoResponse: "Die Download-Anfrage hat keine Antwort zurückgegeben" },
+  es: { taskSuccess: "Tarea exitosa", taskFailed: "Tarea fallida", title: "Título", url: "URL", error: "Error", testSuccess: "¡Prueba de notificación de Telegram de MyTube exitosa!", queued: "En cola", skipped: "Omitido", failed: "Error", taskId: "ID de tarea", unknownError: "Error desconocido", downloadRequestNoResponse: "La solicitud de descarga no devolvió una respuesta" },
+  pt: { taskSuccess: "Tarefa concluída", taskFailed: "Tarefa falhou", title: "Título", url: "URL", error: "Erro", testSuccess: "Teste de notificação Telegram do MyTube bem-sucedido!", queued: "Na fila", skipped: "Ignorado", failed: "Falhou", taskId: "ID da tarefa", unknownError: "Erro desconhecido", downloadRequestNoResponse: "A solicitação de download não retornou uma resposta" },
+  ru: { taskSuccess: "Задача выполнена", taskFailed: "Задача не выполнена", title: "Название", url: "URL", error: "Ошибка", testSuccess: "Тест уведомлений Telegram MyTube успешен!", queued: "Добавлено в очередь", skipped: "Пропущено", failed: "Ошибка", taskId: "ID задачи", unknownError: "Неизвестная ошибка", downloadRequestNoResponse: "Запрос на загрузку не вернул ответ" },
+  ar: { taskSuccess: "نجحت المهمة", taskFailed: "فشلت المهمة", title: "العنوان", url: "الرابط", error: "خطأ", testSuccess: "اختبار إشعارات تيليجرام MyTube ناجح!", queued: "تمت الإضافة إلى قائمة الانتظار", skipped: "تم التخطي", failed: "فشل", taskId: "معرّف المهمة", unknownError: "خطأ غير معروف", downloadRequestNoResponse: "لم يُرجع طلب التنزيل أي استجابة" },
 };
 
-function getStrings(lang?: string): TelegramStrings {
+export function getTelegramStrings(lang?: string): TelegramStrings {
   switch (lang) {
     case "zh":
       return translations.zh;
@@ -118,7 +124,7 @@ export class TelegramService {
       if (context.status === "success" && settings.telegramNotifyOnSuccess === false) return;
       if (context.status === "fail" && settings.telegramNotifyOnFail === false) return;
 
-      const s = getStrings(settings.language);
+      const s = getTelegramStrings(settings.language);
       const emoji = context.status === "success" ? "\u2705" : "\u274c";
       const statusLabel = context.status === "success" ? s.taskSuccess : s.taskFailed;
       let text = `${emoji} <b>${statusLabel}</b>\n<b>${s.title}:</b> ${escapeHtml(context.taskTitle)}`;
@@ -152,10 +158,27 @@ export class TelegramService {
     }
   }
 
+  static async sendConfiguredPlainMessage(text: string): Promise<boolean> {
+    try {
+      const settings = storageService.getSettings() as Settings;
+      if (!settings.telegramEnabled || !settings.telegramBotToken || !settings.telegramChatId) {
+        return false;
+      }
+
+      await sendMessage(settings.telegramBotToken, settings.telegramChatId, escapeHtml(text));
+      return true;
+    } catch (error: unknown) {
+      logger.error(
+        `[TelegramService] Failed to send message: ${error instanceof Error ? error.message : String(error)}`
+      );
+      return false;
+    }
+  }
+
   static async sendTestMessage(botToken: string, chatId: string): Promise<{ ok: boolean; error?: string }> {
     try {
       const settings = storageService.getSettings() as Settings;
-      const s = getStrings(settings.language);
+      const s = getTelegramStrings(settings.language);
       await sendMessage(botToken, chatId, `\u2705 ${s.testSuccess}`);
       return { ok: true };
     } catch (error: unknown) {

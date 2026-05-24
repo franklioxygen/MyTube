@@ -74,6 +74,16 @@ export function validateSettings(newSettings: Partial<Settings>): void {
   }
 
   if (
+    newSettings.telegramDownloadEnabled !== undefined &&
+    typeof newSettings.telegramDownloadEnabled !== "boolean"
+  ) {
+    throw new ValidationError(
+      "Telegram download enabled flag must be a boolean.",
+      "telegramDownloadEnabled"
+    );
+  }
+
+  if (
     newSettings.tmdbApiKey !== undefined &&
     typeof newSettings.tmdbApiKey !== "string"
   ) {

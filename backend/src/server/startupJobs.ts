@@ -59,5 +59,23 @@ export const startBackgroundJobs = (port: number): void => {
       // Optional module; tolerate absence.
     });
 
+  import("../services/telegramDownloadService")
+    .then(({ startTelegramDownloadPolling }) => {
+      try {
+        startTelegramDownloadPolling();
+      } catch (error) {
+        logger.warn(
+          "Failed to start Telegram download polling",
+          error instanceof Error ? error : new Error(String(error))
+        );
+      }
+    })
+    .catch((error) => {
+      logger.warn(
+        "Failed to load Telegram download service",
+        error instanceof Error ? error : new Error(String(error))
+      );
+    });
+
   startCloudflaredIfEnabled(port);
 };
