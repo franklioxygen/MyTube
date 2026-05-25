@@ -13,13 +13,13 @@ export const useVideoReDownload = () => {
 
     const handleReDownload = async (video: Video) => {
         if (!video.sourceUrl) {
-            showSnackbar('No source URL available', 'error');
+            showSnackbar(t('noSourceUrlAvailable') || 'No source URL available', 'error');
             return;
         }
 
         // Prevent duplicate downloads
         if (downloadingItems.has(video.sourceUrl)) {
-            showSnackbar('Download already in progress', 'warning');
+            showSnackbar(t('downloadAlreadyInProgress') || 'Download already in progress', 'warning');
             return;
         }
 
