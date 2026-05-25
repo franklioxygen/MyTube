@@ -124,7 +124,7 @@ interface VideosTableProps {
     onRedownloadThumbnail: (id: string) => void;
     onUploadThumbnail: (id: string, file: File) => Promise<any>;
     refreshingId: string | null;
-    redownloadingThumbnailId: string | null;
+    redownloadingThumbnailIds: Record<string, boolean>;
     thumbnailCacheBustById: Record<string, number | undefined>;
     onRefreshFileSizes: () => void;
     isRefreshingFileSizes: boolean;
@@ -149,7 +149,7 @@ const VideosTable: React.FC<VideosTableProps> = ({
     onRedownloadThumbnail,
     onUploadThumbnail,
     refreshingId,
-    redownloadingThumbnailId,
+    redownloadingThumbnailIds,
     thumbnailCacheBustById,
     onRefreshFileSizes,
     isRefreshingFileSizes,
@@ -438,7 +438,7 @@ const VideosTable: React.FC<VideosTableProps> = ({
                                                             size="small"
                                                             onClick={() => onRefreshThumbnail(video.id)}
                                                             aria-label={refreshThumbnailLabel}
-                                                            disabled={refreshingId === video.id || redownloadingThumbnailId === video.id}
+                                                            disabled={refreshingId === video.id || redownloadingThumbnailIds[video.id] === true}
                                                             sx={{
                                                                 position: 'absolute',
                                                                 top: 0,
@@ -455,7 +455,7 @@ const VideosTable: React.FC<VideosTableProps> = ({
                                                                 size="small"
                                                                 onClick={() => onRedownloadThumbnail(video.id)}
                                                                 aria-label={redownloadThumbnailLabel}
-                                                                disabled={redownloadingThumbnailId === video.id || refreshingId === video.id}
+                                                                disabled={redownloadingThumbnailIds[video.id] === true || refreshingId === video.id}
                                                                 sx={{
                                                                     position: 'absolute',
                                                                     top: 0,
@@ -463,7 +463,7 @@ const VideosTable: React.FC<VideosTableProps> = ({
                                                                     ...thumbnailActionButtonSx
                                                                 }}
                                                             >
-                                                                {redownloadingThumbnailId === video.id ? <CircularProgress size={14} color="inherit" /> : <CloudDownload sx={{ fontSize: 16 }} />}
+                                                                {redownloadingThumbnailIds[video.id] === true ? <CircularProgress size={14} color="inherit" /> : <CloudDownload sx={{ fontSize: 16 }} />}
                                                             </IconButton>
                                                         </Tooltip>
                                                     )}

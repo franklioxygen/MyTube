@@ -166,7 +166,7 @@ describe('VideosTable', () => {
         onRedownloadThumbnail: vi.fn(),
         onUploadThumbnail: vi.fn().mockResolvedValue(undefined),
         refreshingId: null,
-        redownloadingThumbnailId: null,
+        redownloadingThumbnailIds: {},
         thumbnailCacheBustById: {},
         onRefreshFileSizes: vi.fn(),
         isRefreshingFileSizes: false,

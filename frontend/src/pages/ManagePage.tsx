@@ -36,7 +36,7 @@ const ManagePage: React.FC = () => {
     const { collections, deleteCollection, updateCollection } = useCollection();
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [refreshingId, setRefreshingId] = useState<string | null>(null);
-    const [redownloadingThumbnailId, setRedownloadingThumbnailId] = useState<string | null>(null);
+    const [redownloadingThumbnailIds, setRedownloadingThumbnailIds] = useState<Record<string, boolean>>({});
     const [thumbnailCacheBustById, setThumbnailCacheBustById] = useState<Record<string, number | undefined>>({});
     const [collectionToDelete, setCollectionToDelete] = useState<Collection | null>(null);
     const [isDeletingCollection, setIsDeletingCollection] = useState<boolean>(false);
@@ -270,7 +270,7 @@ const ManagePage: React.FC = () => {
     };
 
     const handleRedownloadThumbnail = async (id: string) => {
-        setRedownloadingThumbnailId(id);
+        setRedownloadingThumbnailIds(prev => ({ ...prev, [id]: true }));
         try {
             const result = await redownloadThumbnail(id);
             if (result.success) {
@@ -278,7 +278,11 @@ const ManagePage: React.FC = () => {
             }
             await fetchVideos();
         } finally {
-            setRedownloadingThumbnailId(null);
+            setRedownloadingThumbnailIds(prev => {
+                const next = { ...prev };
+                delete next[id];
+                return next;
+            });
         }
     };
 
@@ -411,7 +415,7 @@ const ManagePage: React.FC = () => {
                         onRedownloadThumbnail={handleRedownloadThumbnail}
                         onUploadThumbnail={uploadThumbnail}
                         refreshingId={refreshingId}
-                        redownloadingThumbnailId={redownloadingThumbnailId}
+                        redownloadingThumbnailIds={redownloadingThumbnailIds}
                         thumbnailCacheBustById={thumbnailCacheBustById}
                         onRefreshFileSizes={() => refreshFileSizesMutation.mutate()}
                         isRefreshingFileSizes={refreshFileSizesMutation.isPending}

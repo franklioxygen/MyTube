@@ -9,6 +9,7 @@ export interface CapturedVideosTableProps {
     totalSize: number;
     order: 'asc' | 'desc';
     isRefreshingFileSizes: boolean;
+    redownloadingThumbnailIds?: Record<string, boolean>;
     thumbnailCacheBustById?: Record<string, number | undefined>;
     onSearchChange?: (value: string) => void;
     onDeleteClick?: (id: string) => void;
