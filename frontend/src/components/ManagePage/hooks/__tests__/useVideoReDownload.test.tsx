@@ -66,7 +66,7 @@ describe('useVideoReDownload', () => {
         });
 
         expect(api.post).not.toHaveBeenCalled();
-        expect(mockShowSnackbar).toHaveBeenCalledWith('No source URL available', 'error');
+        expect(mockShowSnackbar).toHaveBeenCalledWith('noSourceUrlAvailable', 'error');
     });
 
     it('prevents duplicate downloads while the same source URL is already downloading', async () => {
@@ -94,7 +94,7 @@ describe('useVideoReDownload', () => {
         });
 
         expect(api.post).toHaveBeenCalledTimes(1);
-        expect(mockShowSnackbar).toHaveBeenCalledWith('Download already in progress', 'warning');
+        expect(mockShowSnackbar).toHaveBeenCalledWith('downloadAlreadyInProgress', 'warning');
 
         await act(async () => {
             resolveDownload?.({ data: {} });

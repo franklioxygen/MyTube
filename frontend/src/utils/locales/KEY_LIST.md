@@ -455,6 +455,9 @@ Total keys: 994
 | `deleteCollection` |
 | `deleteVideo` |
 | `redownloadVideo` |
+| `redownloadThumbnail` |
+| `noSourceUrlAvailable` |
+| `downloadAlreadyInProgress` |
 | `refreshFileSizesSuccess` |
 | `refreshFileSizesFailed` |
 | `refreshFileSizesSkipped` |
