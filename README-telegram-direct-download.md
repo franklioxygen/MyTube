@@ -22,6 +22,7 @@ Allow MyTube to accept plain Telegram messages that contain video links and queu
 ## Implementation Notes
 
 - Use Telegram `getUpdates` polling so self-hosted deployments do not need a public webhook URL.
+- Avoid sharing the same bot token with another webhook or `getUpdates` consumer, because Telegram delivers each update to only one consumer.
 - Store the last processed update ID in memory per server process to avoid reprocessing messages during normal runtime.
 - Use the existing Bot Token and Chat ID settings.
 - Add a separate `telegramDownloadEnabled` setting so completion notifications and inbound download commands can be controlled independently.
