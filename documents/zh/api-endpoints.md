@@ -63,7 +63,10 @@
 - `GET /api/videos/:id/comments` - 获取视频评论 (如可用)
 - `POST /api/videos/:id/rate` - 评价视频
   - 请求体: `{ rating: number }` 其中 `1 <= rating <= 5`
-- `POST /api/videos/:id/refresh-thumbnail` - 从随机帧重新生成缩略图
+- `POST /api/videos/:id/refresh-thumbnail` - 刷新缩略图
+  - 当本地可访问视频文件时，从本地视频的随机帧重新生成缩略图
+  - 当无法解析本地视频文件时，回退为从源 URL 重新下载原始远程缩略图
+- `POST /api/videos/:id/redownload-thumbnail` - 从源 URL 重新下载原始远程缩略图
 - `POST /api/videos/:id/view` - 增加观看次数
 - `PUT /api/videos/:id/progress` - 保存播放进度
   - 请求体: `{ progress: number }`

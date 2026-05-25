@@ -392,6 +392,29 @@ export const refreshThumbnail = async (
   });
 };
 
+/**
+ * Re-download the original remote thumbnail for a video
+ * Errors are automatically handled by asyncHandler middleware
+ */
+export const redownloadThumbnail = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const { id } = req.params;
+  const video = storageService.getVideoById(id);
+
+  if (!video) {
+    throw new NotFoundError("Video", id);
+  }
+
+  const thumbnailUrl = await refreshThumbnailFromSource(id, video);
+
+  res.status(200).json({
+    success: true,
+    thumbnailUrl,
+  });
+};
+
 const resolveMountVideoPathForFileSize = (
   videoPath: string
 ): string | null => {

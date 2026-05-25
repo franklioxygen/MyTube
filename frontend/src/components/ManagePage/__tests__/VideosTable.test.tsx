@@ -163,8 +163,11 @@ describe('VideosTable', () => {
         onDeleteClick: vi.fn(),
         deletingId: null,
         onRefreshThumbnail: vi.fn(),
+        onRedownloadThumbnail: vi.fn(),
         onUploadThumbnail: vi.fn().mockResolvedValue(undefined),
         refreshingId: null,
+        redownloadingThumbnailIds: {},
+        thumbnailCacheBustById: {},
         onRefreshFileSizes: vi.fn(),
         isRefreshingFileSizes: false,
         onUpdateVideo: vi.fn().mockResolvedValue(undefined),
@@ -215,6 +218,12 @@ describe('VideosTable', () => {
         expect(screen.getByAltText('Video 1')).toHaveAttribute('src', '/images-small/thumb-1.jpg?t=123');
     });
 
+    it('appends a cache-bust token to the rendered thumbnail src when provided', () => {
+        renderTable({ thumbnailCacheBustById: { '1': 456 } });
+
+        expect(screen.getByAltText('Video 1')).toHaveAttribute('src', '/images-small/thumb-1.jpg?t=123&cb=456');
+    });
+
     it('calls onSearchChange and onSort from the header controls', () => {
         renderTable();
 
@@ -238,7 +247,7 @@ describe('VideosTable', () => {
 
         expect(screen.queryByLabelText('select all videos')).not.toBeInTheDocument();
         expect(screen.queryByLabelText('Refresh all file sizes')).not.toBeInTheDocument();
-        expect(screen.queryAllByRole('button', { name: /redownloadVideo/i })).toHaveLength(0);
+        expect(screen.queryAllByRole('button', { name: 'Re-download Video' })).toHaveLength(0);
     });
 
     it('shows a spinner for the refresh file sizes action while refreshing', () => {
@@ -253,7 +262,7 @@ describe('VideosTable', () => {
 
         renderTable();
 
-        expect(screen.getAllByRole('button', { name: /redownloadVideo/i })).toHaveLength(1);
+        expect(screen.getAllByRole('button', { name: 'Re-download Video' })).toHaveLength(1);
     });
 
     it('selects all videos and deletes them through the bulk delete modal', async () => {
@@ -310,7 +319,7 @@ describe('VideosTable', () => {
         renderTable();
 
         const firstRow = screen.getAllByRole('row')[1];
-        await user.click(within(firstRow).getAllByRole('button')[1]);
+        await user.click(within(firstRow).getByRole('button', { name: 'Upload Thumbnail' }));
         await user.click(screen.getByRole('button', { name: 'trigger-upload-thumbnail' }));
 
         await waitFor(() => {
@@ -326,7 +335,7 @@ describe('VideosTable', () => {
         renderTable();
 
         const firstRow = screen.getAllByRole('row')[1];
-        await user.click(within(firstRow).getAllByRole('button')[2]);
+        await user.click(within(firstRow).getByRole('button', { name: 'Edit' }));
 
         const input = screen.getByDisplayValue('Video 1');
         await user.clear(input);
@@ -338,7 +347,7 @@ describe('VideosTable', () => {
         });
 
         const secondRow = screen.getAllByRole('row')[2];
-        await user.click(within(secondRow).getAllByRole('button')[2]);
+        await user.click(within(secondRow).getByRole('button', { name: 'Edit' }));
         const secondInput = screen.getByDisplayValue('Video 2');
         fireEvent.keyDown(secondInput, { key: 'Escape' });
 
@@ -347,20 +356,21 @@ describe('VideosTable', () => {
         });
     });
 
-    it('triggers row-level thumbnail refresh, delete, and re-download actions', async () => {
+    it('triggers row-level thumbnail refresh, thumbnail re-download, delete, and video re-download actions', async () => {
         const user = userEvent.setup();
         vi.mocked(api.post).mockResolvedValueOnce({ data: { downloadId: 'download-1' } } as any);
 
         renderTable();
 
         const firstRow = screen.getAllByRole('row')[1];
-        const rowButtons = within(firstRow).getAllByRole('button');
 
-        await user.click(rowButtons[0]);
-        await user.click(rowButtons[4]);
-        await user.click(rowButtons[3]);
+        await user.click(within(firstRow).getByRole('button', { name: 'Refresh Thumbnail' }));
+        await user.click(within(firstRow).getByRole('button', { name: 'Re-download Thumbnail' }));
+        await user.click(within(firstRow).getByRole('button', { name: 'Delete Video' }));
+        await user.click(within(firstRow).getByRole('button', { name: 'Re-download Video' }));
 
         expect(defaultProps.onRefreshThumbnail).toHaveBeenCalledWith('1');
+        expect(defaultProps.onRedownloadThumbnail).toHaveBeenCalledWith('1');
         expect(defaultProps.onDeleteClick).toHaveBeenCalledWith('1');
         await waitFor(() => {
             expect(api.post).toHaveBeenCalledWith('/download', {

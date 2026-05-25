@@ -63,7 +63,10 @@ All API routes are mounted under `/api` unless noted otherwise.
 - `GET /api/videos/:id/comments` - Get comments for the video (if available)
 - `POST /api/videos/:id/rate` - Rate a video
   - Body: `{ rating: number }` where `1 <= rating <= 5`
-- `POST /api/videos/:id/refresh-thumbnail` - Regenerate thumbnail from a random frame
+- `POST /api/videos/:id/refresh-thumbnail` - Refresh thumbnail
+  - Uses a random local video frame when the video file is available locally
+  - Falls back to re-downloading the original remote thumbnail when the local video file cannot be resolved
+- `POST /api/videos/:id/redownload-thumbnail` - Re-download the original remote thumbnail from the source URL
 - `POST /api/videos/:id/view` - Increment view count
 - `PUT /api/videos/:id/progress` - Save playback progress
   - Body: `{ progress: number }`

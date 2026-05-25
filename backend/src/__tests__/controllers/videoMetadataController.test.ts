@@ -8,6 +8,7 @@ import { ValidationError } from "../../errors/DownloadErrors";
 import { getVideoDuration } from "../../services/metadataService";
 import { getVideoInfo } from "../../services/downloadService";
 import * as storageService from "../../services/storageService";
+import * as thumbnailMirrorService from "../../services/thumbnailMirrorService";
 import { logger } from "../../utils/logger";
 import {
   execFileSafe,
@@ -284,6 +285,9 @@ describe("videoMetadataController", () => {
         thumbnailPath: "/images/missing.jpg",
         thumbnailUrl: "/images/missing.jpg",
       });
+      expect(thumbnailMirrorService.regenerateSmallThumbnailForThumbnailPath).toHaveBeenCalledWith(
+        "/images/missing.jpg"
+      );
       expect(json).toHaveBeenCalledWith({
         success: true,
         thumbnailUrl: "/images/missing.jpg?t=111",
@@ -329,6 +333,9 @@ describe("videoMetadataController", () => {
         thumbnailPath: "/images/folder/video.jpg",
         thumbnailUrl: "/images/folder/video.jpg",
       });
+      expect(thumbnailMirrorService.regenerateSmallThumbnailForThumbnailPath).toHaveBeenCalledWith(
+        "/images/folder/video.jpg"
+      );
       expect(json).toHaveBeenCalledWith({
         success: true,
         thumbnailUrl: "/images/folder/video.jpg?t=123456",
@@ -451,6 +458,44 @@ describe("videoMetadataController", () => {
         "Error generating thumbnail:",
         expect.any(Error)
       );
+    });
+
+    it("re-downloads the original thumbnail from the source URL and regenerates images-small", async () => {
+      const { res, json } = createResponse();
+      const nowSpy = vi.spyOn(Date, "now").mockReturnValue(222);
+
+      vi.mocked(storageService.getVideoById as any).mockReturnValue({
+        id: "v5",
+        videoFilename: "movie.mp4",
+        thumbnailFilename: "movie.jpg",
+        thumbnailPath: "/images/movie.jpg",
+        sourceUrl: "https://www.youtube.com/watch?v=thumb",
+      });
+
+      await videoMetadataController.redownloadThumbnail(
+        { params: { id: "v5" } } as unknown as Request,
+        res
+      );
+
+      expect(getVideoInfo).toHaveBeenCalledWith("https://www.youtube.com/watch?v=thumb");
+      expect(axios.get).toHaveBeenCalledWith("https://example.com/thumb.jpg", {
+        responseType: "arraybuffer",
+        timeout: 15000,
+      });
+      expect(storageService.updateVideo).toHaveBeenCalledWith("v5", {
+        thumbnailFilename: "movie.jpg",
+        thumbnailPath: "/images/movie.jpg",
+        thumbnailUrl: "/images/movie.jpg",
+      });
+      expect(thumbnailMirrorService.regenerateSmallThumbnailForThumbnailPath).toHaveBeenCalledWith(
+        "/images/movie.jpg"
+      );
+      expect(json).toHaveBeenCalledWith({
+        success: true,
+        thumbnailUrl: "/images/movie.jpg?t=222",
+      });
+
+      nowSpy.mockRestore();
     });
   });
 
