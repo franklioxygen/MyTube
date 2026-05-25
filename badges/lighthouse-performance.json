@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "label": "Lighthouse desktop",
-  "message": "95",
+  "message": "96",
   "color": "brightgreen",
   "namedLogo": "lighthouse",
   "cacheSeconds": 43200
