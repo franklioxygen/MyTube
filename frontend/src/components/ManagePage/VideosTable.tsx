@@ -1,6 +1,7 @@
 import {
     Check,
     Close,
+    CloudDownload,
     CloudUpload,
     Delete,
     DriveFileMove,
@@ -53,9 +54,31 @@ import { THUMBNAIL_PLACEHOLDER_SRC, setThumbnailPlaceholder } from '../../utils/
 import { useVideoReDownload } from './hooks/useVideoReDownload';
 
 const BACKEND_URL = getBackendUrl();
+const thumbnailActionButtonSx = {
+    bgcolor: 'rgba(0,0,0,0.5)',
+    color: 'white',
+    '&:hover': { bgcolor: 'rgba(0,0,0,0.7)' },
+    '&.Mui-disabled': {
+        bgcolor: 'rgba(0,0,0,0.5)',
+        color: 'white',
+        opacity: 1,
+    },
+    p: 0.5,
+    width: 24,
+    height: 24
+} as const;
+
+const appendCacheBust = (url: string | undefined, cacheBust?: number): string | undefined => {
+    if (!url || !cacheBust) {
+        return url;
+    }
+
+    const separator = url.includes('?') ? '&' : '?';
+    return `${url}${separator}cb=${cacheBust}`;
+};
 
 // Component for thumbnail with cloud storage support
-const ThumbnailImage: React.FC<{ video: Video }> = ({ video }) => {
+const ThumbnailImage: React.FC<{ video: Video; cacheBust?: number }> = ({ video, cacheBust }) => {
     // Only load thumbnail from cloud if the video itself is in cloud storage
     const isVideoInCloud = video.videoPath?.startsWith('cloud:') ?? false;
     const thumbnailPathForCloud = isVideoInCloud ? video.thumbnailPath : null;
@@ -67,7 +90,10 @@ const ThumbnailImage: React.FC<{ video: Video }> = ({ video }) => {
             video.thumbnailUrl,
         )
         : undefined;
-    const src = thumbnailUrl || localThumbnailUrl || video.thumbnailUrl || THUMBNAIL_PLACEHOLDER_SRC;
+    const src = appendCacheBust(
+        thumbnailUrl || localThumbnailUrl || video.thumbnailUrl,
+        cacheBust,
+    ) || THUMBNAIL_PLACEHOLDER_SRC;
 
     return (
         <Box
@@ -95,8 +121,11 @@ interface VideosTableProps {
     onDeleteClick: (id: string) => void;
     deletingId: string | null;
     onRefreshThumbnail: (id: string) => void;
+    onRedownloadThumbnail: (id: string) => void;
     onUploadThumbnail: (id: string, file: File) => Promise<any>;
     refreshingId: string | null;
+    redownloadingThumbnailId: string | null;
+    thumbnailCacheBustById: Record<string, number | undefined>;
     onRefreshFileSizes: () => void;
     isRefreshingFileSizes: boolean;
     onUpdateVideo: (id: string, data: Partial<Video>) => Promise<any>;
@@ -117,8 +146,11 @@ const VideosTable: React.FC<VideosTableProps> = ({
     onDeleteClick,
     deletingId,
     onRefreshThumbnail,
+    onRedownloadThumbnail,
     onUploadThumbnail,
     refreshingId,
+    redownloadingThumbnailId,
+    thumbnailCacheBustById,
     onRefreshFileSizes,
     isRefreshingFileSizes,
     onUpdateVideo
@@ -130,6 +162,16 @@ const VideosTable: React.FC<VideosTableProps> = ({
     const { activeDownloads, queuedDownloads } = useDownload();
     const isVisitor = userRole === 'visitor';
     const isTouch = useMediaQuery('(hover: none), (pointer: coarse)');
+    const getLabel = (key: string, fallback: string) => {
+        const translated = t(key);
+        return translated === key ? fallback : translated;
+    };
+    const refreshThumbnailLabel = getLabel('refreshThumbnail', 'Refresh Thumbnail');
+    const uploadThumbnailLabel = getLabel('uploadThumbnail', 'Upload Thumbnail');
+    const redownloadThumbnailLabel = getLabel('redownloadThumbnail', 'Re-download Thumbnail');
+    const redownloadVideoLabel = getLabel('redownloadVideo', 'Re-download Video');
+    const deleteVideoLabel = getLabel('deleteVideo', 'Delete Video');
+    const editVideoLabel = getLabel('edit', 'Edit');
 
     // Bulk selection state
     const [selectedVideoIds, setSelectedVideoIds] = useState<string[]>([]);
@@ -384,44 +426,57 @@ const VideosTable: React.FC<VideosTableProps> = ({
                                     <TableCell sx={{ width: 140 }}>
                                         <Box sx={{ position: 'relative', width: 120, height: 68 }}>
                                             <Link to={`/video/${video.id}`} style={{ display: 'block', width: '100%', height: '100%' }}>
-                                                <ThumbnailImage video={video} />
+                                                <ThumbnailImage
+                                                    video={video}
+                                                    cacheBust={thumbnailCacheBustById[video.id]}
+                                                />
                                             </Link>
                                             {!isVisitor && (
                                                 <>
-                                                    <Tooltip title={t('refreshThumbnail') || "Refresh Thumbnail"} disableHoverListener={isTouch}>
+                                                    <Tooltip title={refreshThumbnailLabel} disableHoverListener={isTouch}>
                                                         <IconButton
                                                             size="small"
                                                             onClick={() => onRefreshThumbnail(video.id)}
-                                                            disabled={refreshingId === video.id}
+                                                            aria-label={refreshThumbnailLabel}
+                                                            disabled={refreshingId === video.id || redownloadingThumbnailId === video.id}
                                                             sx={{
                                                                 position: 'absolute',
                                                                 top: 0,
                                                                 right: 0,
-                                                                bgcolor: 'rgba(0,0,0,0.5)',
-                                                                color: 'white',
-                                                                '&:hover': { bgcolor: 'rgba(0,0,0,0.7)' },
-                                                                p: 0.5,
-                                                                width: 24,
-                                                                height: 24
+                                                                ...thumbnailActionButtonSx
                                                             }}
                                                         >
                                                             {refreshingId === video.id ? <CircularProgress size={14} color="inherit" /> : <Refresh sx={{ fontSize: 16 }} />}
                                                         </IconButton>
                                                     </Tooltip>
-                                                    <Tooltip title={t('uploadThumbnail') || "Upload Thumbnail"} disableHoverListener={isTouch}>
+                                                    {video.sourceUrl && (
+                                                        <Tooltip title={redownloadThumbnailLabel} disableHoverListener={isTouch}>
+                                                            <IconButton
+                                                                size="small"
+                                                                onClick={() => onRedownloadThumbnail(video.id)}
+                                                                aria-label={redownloadThumbnailLabel}
+                                                                disabled={redownloadingThumbnailId === video.id || refreshingId === video.id}
+                                                                sx={{
+                                                                    position: 'absolute',
+                                                                    top: 0,
+                                                                    left: 0,
+                                                                    ...thumbnailActionButtonSx
+                                                                }}
+                                                            >
+                                                                {redownloadingThumbnailId === video.id ? <CircularProgress size={14} color="inherit" /> : <CloudDownload sx={{ fontSize: 16 }} />}
+                                                            </IconButton>
+                                                        </Tooltip>
+                                                    )}
+                                                    <Tooltip title={uploadThumbnailLabel} disableHoverListener={isTouch}>
                                                         <IconButton
                                                             size="small"
                                                             onClick={() => setUploadThumbnailVideoId(video.id)}
+                                                            aria-label={uploadThumbnailLabel}
                                                             sx={{
                                                                 position: 'absolute',
                                                                 bottom: 0,
                                                                 right: 0,
-                                                                bgcolor: 'rgba(0,0,0,0.5)',
-                                                                color: 'white',
-                                                                '&:hover': { bgcolor: 'rgba(0,0,0,0.7)' },
-                                                                p: 0.5,
-                                                                width: 24,
-                                                                height: 24
+                                                                ...thumbnailActionButtonSx
                                                             }}
                                                         >
                                                             <CloudUpload sx={{ fontSize: 16 }} />
@@ -471,6 +526,7 @@ const VideosTable: React.FC<VideosTableProps> = ({
                                                     <IconButton
                                                         size="small"
                                                         onClick={() => handleEditClick(video)}
+                                                        aria-label={editVideoLabel}
                                                         sx={{ mr: 1, mt: -0.5, opacity: 0.6, '&:hover': { opacity: 1 } }}
                                                     >
                                                         <Edit fontSize="small" />
@@ -512,20 +568,22 @@ const VideosTable: React.FC<VideosTableProps> = ({
                                         <TableCell align="right">
                                             {video.sourceUrl && !isVideoDownloading(video.sourceUrl) && (
                                                 <Tooltip
-                                                    title={t('redownloadVideo') || 'Re-download Video'}
+                                                    title={redownloadVideoLabel}
                                                     disableHoverListener={isTouch}
                                                 >
                                                     <IconButton
                                                         color="primary"
+                                                        aria-label={redownloadVideoLabel}
                                                         onClick={() => handleReDownload(video)}
                                                     >
                                                         <Replay />
                                                     </IconButton>
                                                 </Tooltip>
                                             )}
-                                            <Tooltip title={t('deleteVideo')} disableHoverListener={isTouch}>
+                                            <Tooltip title={deleteVideoLabel} disableHoverListener={isTouch}>
                                                 <IconButton
                                                     color="error"
+                                                    aria-label={deleteVideoLabel}
                                                     onClick={() => onDeleteClick(video.id)}
                                                     disabled={deletingId === video.id}
                                                 >

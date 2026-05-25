@@ -110,6 +110,11 @@ const apiRouteDefinitions: ApiRouteDefinition[] = [
   },
   {
     method: "post",
+    path: "/videos/:id/redownload-thumbnail",
+    handlers: [asyncHandler(videoMetadataController.redownloadThumbnail)],
+  },
+  {
+    method: "post",
     path: "/videos/:id/upload-thumbnail",
     handlers: [
       videoMetadataController.thumbnailUpload.single("thumbnail"),

@@ -9,9 +9,11 @@ export interface CapturedVideosTableProps {
     totalSize: number;
     order: 'asc' | 'desc';
     isRefreshingFileSizes: boolean;
+    thumbnailCacheBustById?: Record<string, number | undefined>;
     onSearchChange?: (value: string) => void;
     onDeleteClick?: (id: string) => void;
     onRefreshThumbnail?: (id: string) => void;
+    onRedownloadThumbnail?: (id: string) => void;
     onRefreshFileSizes?: () => void;
     onPageChange?: (event: unknown, page: number) => void;
     onSort?: (field: string) => void;

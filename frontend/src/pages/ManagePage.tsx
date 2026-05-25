@@ -32,10 +32,12 @@ const ManagePage: React.FC = () => {
     const { showSnackbar } = useSnackbar();
     const { userRole } = useAuth();
     const isVisitor = userRole === 'visitor';
-    const { videos, deleteVideo, refreshThumbnail, uploadThumbnail, updateVideo, fetchVideos } = useVideo();
+    const { videos, deleteVideo, refreshThumbnail, redownloadThumbnail, uploadThumbnail, updateVideo, fetchVideos } = useVideo();
     const { collections, deleteCollection, updateCollection } = useCollection();
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [refreshingId, setRefreshingId] = useState<string | null>(null);
+    const [redownloadingThumbnailId, setRedownloadingThumbnailId] = useState<string | null>(null);
+    const [thumbnailCacheBustById, setThumbnailCacheBustById] = useState<Record<string, number | undefined>>({});
     const [collectionToDelete, setCollectionToDelete] = useState<Collection | null>(null);
     const [isDeletingCollection, setIsDeletingCollection] = useState<boolean>(false);
     const [videoToDelete, setVideoToDelete] = useState<string | null>(null);
@@ -256,8 +258,28 @@ const ManagePage: React.FC = () => {
 
     const handleRefreshThumbnail = async (id: string) => {
         setRefreshingId(id);
-        await refreshThumbnail(id);
-        setRefreshingId(null);
+        try {
+            const result = await refreshThumbnail(id);
+            if (result.success) {
+                setThumbnailCacheBustById(prev => ({ ...prev, [id]: Date.now() }));
+            }
+            await fetchVideos();
+        } finally {
+            setRefreshingId(null);
+        }
+    };
+
+    const handleRedownloadThumbnail = async (id: string) => {
+        setRedownloadingThumbnailId(id);
+        try {
+            const result = await redownloadThumbnail(id);
+            if (result.success) {
+                setThumbnailCacheBustById(prev => ({ ...prev, [id]: Date.now() }));
+            }
+            await fetchVideos();
+        } finally {
+            setRedownloadingThumbnailId(null);
+        }
     };
 
     return (
@@ -386,8 +408,11 @@ const ManagePage: React.FC = () => {
                         onDeleteClick={handleDelete}
                         deletingId={deletingId}
                         onRefreshThumbnail={handleRefreshThumbnail}
+                        onRedownloadThumbnail={handleRedownloadThumbnail}
                         onUploadThumbnail={uploadThumbnail}
                         refreshingId={refreshingId}
+                        redownloadingThumbnailId={redownloadingThumbnailId}
+                        thumbnailCacheBustById={thumbnailCacheBustById}
                         onRefreshFileSizes={() => refreshFileSizesMutation.mutate()}
                         isRefreshingFileSizes={refreshFileSizesMutation.isPending}
                         onUpdateVideo={updateVideo}

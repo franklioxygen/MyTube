@@ -81,6 +81,9 @@ describe('VideoContext', () => {
       if (url.endsWith('/view')) {
         return Promise.resolve({ data: { success: true, viewCount: 9 } });
       }
+      if (url.includes('/redownload-thumbnail')) {
+        return Promise.resolve({ data: { success: true, thumbnailUrl: '/images/original.jpg?ts=3' } });
+      }
       if (url.includes('/refresh-thumbnail')) {
         return Promise.resolve({ data: { success: true, thumbnailUrl: '/images/new.jpg?ts=1' } });
       }
@@ -330,6 +333,23 @@ describe('VideoContext', () => {
 
     mockApiPost.mockResolvedValueOnce({ data: { success: false } });
     const fail = await result.current.refreshThumbnail('v1');
+    expect(fail).toEqual({ success: false, error: 'thumbnailRefreshFailed' });
+  });
+
+  it('redownloadThumbnail handles success and fail responses', async () => {
+    const { wrapper } = createWrapper();
+    const { result } = renderHook(() => useVideo(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.videos).toHaveLength(2);
+    });
+
+    const ok = await result.current.redownloadThumbnail('v1');
+    expect(ok).toEqual({ success: true });
+    expect(mockShowSnackbar).toHaveBeenCalledWith('thumbnailRefreshed');
+
+    mockApiPost.mockResolvedValueOnce({ data: { success: false } });
+    const fail = await result.current.redownloadThumbnail('v1');
     expect(fail).toEqual({ success: false, error: 'thumbnailRefreshFailed' });
   });
 

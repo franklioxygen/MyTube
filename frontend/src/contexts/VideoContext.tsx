@@ -18,6 +18,7 @@ interface VideoContextType {
     deleteVideos: (ids: string[]) => Promise<{ success: boolean; error?: string }>;
     updateVideo: (id: string, updates: Partial<Video>) => Promise<{ success: boolean; error?: string }>;
     refreshThumbnail: (id: string) => Promise<{ success: boolean; error?: string }>;
+    redownloadThumbnail: (id: string) => Promise<{ success: boolean; error?: string }>;
     uploadThumbnail: (id: string, file: File) => Promise<void>;
     searchLocalVideos: (query: string) => Video[];
     searchResults: any[];
@@ -425,6 +426,43 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
     };
 
+    const redownloadThumbnailMutation = useMutation({
+        mutationFn: async (id: string) => {
+            const response = await api.post(`/videos/${id}/redownload-thumbnail`);
+            return { id, data: response.data };
+        },
+        onSuccess: ({ id, data }) => {
+            if (data.success) {
+                queryClient.setQueryData(['videos'], (old: Video[] | undefined) =>
+                    old ? old.map(video => {
+                        if (video.id !== id) return video;
+                        const thumbnailUrl = data.thumbnailUrl;
+                        const thumbnailPath = typeof thumbnailUrl === 'string'
+                            ? thumbnailUrl.split('?')[0]
+                            : thumbnailUrl;
+                        return { ...video, thumbnailUrl, thumbnailPath };
+                    }) : []
+                );
+                showSnackbar(t('thumbnailRefreshed'));
+            }
+        },
+        onError: (error) => {
+            console.error('Error re-downloading thumbnail:', error);
+        }
+    });
+
+    const redownloadThumbnail = async (id: string) => {
+        try {
+            const result = await redownloadThumbnailMutation.mutateAsync(id);
+            if (result.data.success) {
+                return { success: true };
+            }
+            return { success: false, error: t('thumbnailRefreshFailed') };
+        } catch {
+            return { success: false, error: t('thumbnailRefreshFailed') };
+        }
+    };
+
     const uploadThumbnailMutation = useMutation({
         mutationFn: async ({ id, file }: { id: string; file: File }) => {
             const formData = new FormData();
@@ -530,6 +568,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             deleteVideos,
             updateVideo,
             refreshThumbnail,
+            redownloadThumbnail,
             uploadThumbnail,
             incrementView,
             searchLocalVideos,

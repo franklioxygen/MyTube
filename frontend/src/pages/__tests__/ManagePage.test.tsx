@@ -12,6 +12,7 @@ let mockUserRole = 'admin';
 
 const mockDeleteVideo = vi.fn();
 const mockRefreshThumbnail = vi.fn();
+const mockRedownloadThumbnail = vi.fn();
 const mockUpdateVideo = vi.fn();
 const mockFetchVideos = vi.fn();
 const mockDeleteCollection = vi.fn();
@@ -59,6 +60,7 @@ vi.mock('../../contexts/VideoContext', () => ({
         videos: mockVideos,
         deleteVideo: mockDeleteVideo,
         refreshThumbnail: mockRefreshThumbnail,
+        redownloadThumbnail: mockRedownloadThumbnail,
         updateVideo: mockUpdateVideo,
         fetchVideos: mockFetchVideos,
     }),
@@ -187,6 +189,12 @@ vi.mock('../../components/ManagePage/VideosTable', () => ({
                     Refresh Thumbnail
                 </button>
                 <button
+                    data-testid="videos-redownload-thumbnail-btn"
+                    onClick={() => props.onRedownloadThumbnail?.('vid-1')}
+                >
+                    Re-download Thumbnail
+                </button>
+                <button
                     data-testid="videos-refresh-file-sizes-btn"
                     onClick={() => props.onRefreshFileSizes?.()}
                 >
@@ -269,6 +277,8 @@ describe('ManagePage', () => {
         ];
 
         mockDeleteVideo.mockResolvedValue(undefined);
+        mockRefreshThumbnail.mockResolvedValue({ success: true });
+        mockRedownloadThumbnail.mockResolvedValue({ success: true });
         mockDeleteCollection.mockResolvedValue(undefined);
         mockUpdateCollection.mockResolvedValue({ success: true });
         mockFetchVideos.mockResolvedValue(undefined);
@@ -633,6 +643,17 @@ describe('ManagePage', () => {
             fireEvent.click(screen.getByTestId('videos-refresh-thumbnail-btn'));
             await waitFor(() => {
                 expect(mockRefreshThumbnail).toHaveBeenCalledWith('vid-1');
+                expect(mockFetchVideos).toHaveBeenCalled();
+            });
+        });
+
+        it('handles redownloadThumbnail through VideosTable', async () => {
+            renderManagePage();
+            fireEvent.click(screen.getByRole('tab', { name: /videos/i }));
+            fireEvent.click(screen.getByTestId('videos-redownload-thumbnail-btn'));
+            await waitFor(() => {
+                expect(mockRedownloadThumbnail).toHaveBeenCalledWith('vid-1');
+                expect(mockFetchVideos).toHaveBeenCalled();
             });
         });
 
