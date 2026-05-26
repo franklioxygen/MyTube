@@ -3,6 +3,7 @@
 Self-hosted downloader and player for YouTube, Bilibili, Twitch, MissAV, and [yt-dlp sites](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md). Features channel subscriptions, auto-downloads, local media storage, and private RSS feed links for external readers. Organize your library into collections with a sleek UI. Includes built-in Cloudflare Tunnel support for secure remote access without port forwarding. Docker-ready deployment.
 
 🚀 100% Prompt-Engineered. 0 Lines of Manual Code.
+Built using the [franklioxygen/agent-workflows](https://github.com/franklioxygen/agent-workflows) workflow.
 
 [![GitHub License](https://img.shields.io/github/license/franklioxygen/mytube)](https://github.com/franklioxygen/mytube)
 ![Docker Pulls](https://img.shields.io/docker/pulls/franklioxygen/mytube)
