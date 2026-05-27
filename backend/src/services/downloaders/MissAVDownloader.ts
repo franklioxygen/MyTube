@@ -33,6 +33,7 @@ import {
   getUserYtDlpConfig,
   InvalidProxyError,
 } from "../../utils/ytDlpUtils";
+import { syncMediaServerArtifactsForRecord } from "../mediaServerExport";
 import * as storageService from "../storageService";
 import { Video } from "../storageService";
 import { BaseDownloader, DownloadOptions, VideoInfo } from "./BaseDownloader";
@@ -887,10 +888,30 @@ export class MissAVDownloader extends BaseDownloader {
         // Fetch the updated video from storage (using videoData.id which is timestamp string)
         const updatedVideo = storageService.getVideoById(videoData.id);
         if (updatedVideo) {
+          syncMediaServerArtifactsForRecord(updatedVideo, {
+            rawSourceInfo: {
+              title: videoTitle,
+              uploader: videoAuthor,
+              upload_date: videoDate,
+              webpage_url: url,
+              thumbnail: thumbnailUrl || undefined,
+              extractor: "missav",
+            },
+          });
           return updatedVideo;
         }
       }
 
+      syncMediaServerArtifactsForRecord(videoData, {
+        rawSourceInfo: {
+          title: videoTitle,
+          uploader: videoAuthor,
+          upload_date: videoDate,
+          webpage_url: url,
+          thumbnail: thumbnailUrl || undefined,
+          extractor: "missav",
+        },
+      });
       return videoData;
     } catch (error: any) {
       if (isCancelledError(error)) {

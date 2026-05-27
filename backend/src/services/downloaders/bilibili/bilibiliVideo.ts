@@ -24,6 +24,10 @@ import {
   getUserYtDlpConfig,
   InvalidProxyError,
 } from "../../../utils/ytDlpUtils";
+import {
+  removeMediaServerArtifactsForVideo,
+  syncMediaServerArtifactsForRecord,
+} from "../../mediaServerExport";
 import * as storageService from "../../storageService";
 import { Video } from "../../storageService";
 import {
@@ -140,6 +144,7 @@ export async function downloadVideo(
   onStart?: (cancel: () => void) => void
 ): Promise<BilibiliVideoInfo> {
   const tempDir = createTempDir();
+  let rawSourceInfo: Record<string, unknown> | null = null;
 
   try {
     logger.info("Downloading Bilibili video using yt-dlp to:", tempDir);
@@ -152,6 +157,7 @@ export async function downloadVideo(
       ...networkConfig,
       noWarnings: true,
     });
+    rawSourceInfo = info as Record<string, unknown>;
 
     const videoTitle = info.title || "Bilibili Video";
     const videoAuthor = info.uploader || info.channel || "Bilibili User";
@@ -787,15 +793,28 @@ export async function downloadSinglePart(
         if (updatedVideo) {
           logger.info(`Video updated in database with new subtitles`);
 
+          let finalVideoData = updatedVideo;
+
           // Add video to author collection if enabled (for existing videos too)
-          storageService.addVideoToAuthorCollection(
+          const authorCollection = storageService.addVideoToAuthorCollection(
             updatedVideo.id,
             videoAuthor,
             settings.saveAuthorFilesToCollection || false,
             settings.downloadFilenamePresetId
           );
 
-          return { success: true, videoData: updatedVideo };
+          if (authorCollection) {
+            const collectionUpdatedVideo = storageService.getVideoById(updatedVideo.id);
+            if (collectionUpdatedVideo) {
+              finalVideoData = collectionUpdatedVideo;
+            }
+          }
+
+          removeMediaServerArtifactsForVideo(existingVideo);
+          syncMediaServerArtifactsForRecord(finalVideoData, {
+            rawSourceInfo: bilibiliInfo,
+          });
+          return { success: true, videoData: finalVideoData };
         }
       }
     }
@@ -818,10 +837,16 @@ export async function downloadSinglePart(
       // Fetch the updated video from storage
       const updatedVideo = storageService.getVideoById(videoData.id);
       if (updatedVideo) {
+        syncMediaServerArtifactsForRecord(updatedVideo, {
+          rawSourceInfo: bilibiliInfo,
+        });
         return { success: true, videoData: updatedVideo };
       }
     }
 
+    syncMediaServerArtifactsForRecord(videoData, {
+      rawSourceInfo: bilibiliInfo,
+    });
     return { success: true, videoData };
   } catch (error: any) {
     logger.error(

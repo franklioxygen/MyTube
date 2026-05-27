@@ -55,6 +55,11 @@ import {
     startBatchRename,
     validateFilenameTemplate,
 } from "../controllers/filenameTemplateController";
+import {
+    cancelMediaServerExportRebuild,
+    getMediaServerExportRebuildStatus,
+    startMediaServerExportRebuild,
+} from "../controllers/mediaServerExportController";
 import { asyncHandler } from "../middleware/errorHandler";
 
 const router = express.Router();
@@ -136,5 +141,10 @@ router.post("/filename-template/preview", asyncHandler(previewFilenameTemplate))
 router.post("/filename-template/rename-all", asyncHandler(startBatchRename));
 router.get("/filename-template/rename-jobs/:jobId", asyncHandler(getRenameJobStatus));
 router.post("/filename-template/rename-jobs/:jobId/cancel", asyncHandler(cancelBatchRename));
+
+// Media server sidecar export routes
+router.post("/media-server-export/rebuild", asyncHandler(startMediaServerExportRebuild));
+router.get("/media-server-export/jobs/:jobId", asyncHandler(getMediaServerExportRebuildStatus));
+router.post("/media-server-export/jobs/:jobId/cancel", asyncHandler(cancelMediaServerExportRebuild));
 
 export default router;

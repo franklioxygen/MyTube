@@ -123,6 +123,52 @@ export const es = {
   dontSkipDeletedVideo: "No omitir videos eliminados",
   dontSkipDeletedVideoDescription:
     "Cuando está habilitado, los videos con estado eliminado se volverán a descargar automáticamente en lugar de omitirse.",
+  mediaServerExportMode: "Exportación de sidecars para servidor multimedia",
+  mediaServerExportModeDescription:
+    "Escribe sidecars NFO estilo Kodi y alias de ilustraciones junto a los videos para Emby, Jellyfin y Plex. Los mejores resultados usan un preset de nombre con serie y temporada.",
+  mediaServerExportModeOff: "Desactivado",
+  mediaServerExportModeNfo: "Escribir sidecars NFO",
+  mediaServerExportModeNfoAndSourceJson: "Escribir NFO + JSON de metadatos de origen",
+  mediaServerExportModeOffDescription:
+    "Do not generate new sidecars for future downloads. You can still clean up files that MyTube generated earlier.",
+  mediaServerExportCleanupHint:
+    "Current mode only cleans up previously generated sidecar files and will not generate new ones.",
+  mediaServerExportRecommendedLayoutWarning:
+    "La vista previa actual del formato de nombre aún no es ideal para bibliotecas de TV. Emby, Jellyfin y Plex funcionan mejor con carpetas de serie y subcarpetas Season XX.",
+  mediaServerExportRebuild: "Reconstruir sidecars del servidor multimedia",
+  mediaServerExportRebuildConfirmTitle:
+    "¿Reconstruir los sidecars del servidor multimedia?",
+  mediaServerExportRebuildConfirmBody:
+    "Esto reescribirá los archivos sidecar NFO, JSON de origen e ilustraciones administrados por MyTube para los videos locales existentes. Las ediciones manuales de los sidecars generados pueden sobrescribirse.",
+  mediaServerExportRebuildError:
+    "No se pudieron reconstruir los sidecars del servidor multimedia.",
+  mediaServerExportRebuildRunning:
+    "Reconstruyendo sidecars del servidor multimedia",
+  mediaServerExportRebuildComplete:
+    "Reconstrucción de sidecars del servidor multimedia completada",
+  mediaServerExportRebuildSummary:
+    "{succeeded} actualizados, {skipped} omitidos, {failed} fallidos.",
+  mediaServerExportRebuildDisabledOff:
+    "Elija un modo de exportación NFO antes de reconstruir los sidecars.",
+  mediaServerExportRebuildDisabledRunning:
+    "Ya hay una reconstrucción de sidecars del servidor multimedia en curso.",
+  mediaServerExportCleanup: "Clean Up Media Server Sidecars",
+  mediaServerExportCleanupConfirmTitle: "Clean up media server sidecars?",
+  mediaServerExportCleanupConfirmBody:
+    "This removes MyTube-generated NFO, source JSON, and artwork sidecar files for existing local videos. Video files and thumbnails are not deleted.",
+  mediaServerExportCleanupError: "Failed to clean up media server sidecars.",
+  mediaServerExportCleanupRunning: "Cleaning up media server sidecars",
+  mediaServerExportCleanupComplete: "Media server sidecar cleanup complete",
+  mediaServerExportCleanupSummary:
+    "{succeeded} cleaned, {skipped} skipped, {failed} failed.",
+  mediaServerExportActiveDownloadsError:
+    "Cannot run media server sidecar maintenance while downloads are active.",
+  mediaServerExportQueuedDownloadsError:
+    "Cannot run media server sidecar maintenance while downloads are queued.",
+  mediaServerExportUnsupportedModeError:
+    "The selected media server export mode is not supported.",
+  mediaServerExportCleanupUnsupportedModeError:
+    "This server version does not support cleanup while media server sidecar export is off.",
   preferredAudioLanguage: "Idioma de audio preferido",
   preferredAudioLanguageDescription:
     "Cuando esté disponible, se preferirá el audio multistream de YouTube en este idioma para las descargas.",

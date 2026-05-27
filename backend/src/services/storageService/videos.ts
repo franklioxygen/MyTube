@@ -11,6 +11,7 @@ import { db } from "../../db";
 import { videos } from "../../db/schema";
 import { DatabaseError } from "../../errors/DownloadErrors";
 import { resolveManagedWebPath } from "../filenameTemplate/pathHelpers";
+import { removeMediaServerArtifactsForVideo } from "../mediaServerExport";
 import { formatVideoFilename } from "../../utils/helpers";
 import { logger } from "../../utils/logger";
 import { getCollections } from "./collections";
@@ -656,6 +657,9 @@ export function deleteVideo(
 
     // Delete from DB
     db.delete(videos).where(eq(videos.id, id)).run();
+    removeMediaServerArtifactsForVideo(videoToDelete, {
+      libraryVideos: getVideos(),
+    });
 
     // Statistics: emit library_video_deleted with the reason bucket and a size
     // snapshot if known. Best-effort; never blocks the delete.

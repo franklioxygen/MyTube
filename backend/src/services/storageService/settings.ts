@@ -154,6 +154,7 @@ export const WHITELISTED_SETTINGS = [
   "twitchClientSecret",
   "downloadFilenamePresetId",
   "downloadFilenameTemplate",
+  "mediaServerExportMode",
   "statisticsEnabled",
   "statisticsRetentionDays",
   "statisticsCaptureSearchText",

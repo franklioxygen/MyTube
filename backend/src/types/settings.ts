@@ -5,6 +5,8 @@ export type DownloadFilenamePresetId =
   | "playlist_static_date"
   | "custom";
 
+export type MediaServerExportMode = "off" | "nfo" | "nfo_and_source_json";
+
 export interface Settings {
   loginEnabled: boolean;
   password?: string;
@@ -63,6 +65,7 @@ export interface Settings {
   twitchClientSecret?: string;
   downloadFilenamePresetId?: DownloadFilenamePresetId;
   downloadFilenameTemplate?: string;
+  mediaServerExportMode?: MediaServerExportMode;
   // Statistics
   statisticsEnabled?: boolean;
   statisticsRetentionDays?: number | null;
@@ -115,6 +118,7 @@ export const defaultSettings: Settings = {
   twitchClientSecret: "",
   downloadFilenamePresetId: "legacy",
   downloadFilenameTemplate: "{{ title }}-{{ uploader }}-{{ upload_year }}.{{ ext }}",
+  mediaServerExportMode: "off",
   statisticsEnabled: false,
   statisticsRetentionDays: 365,
   statisticsCaptureSearchText: false,

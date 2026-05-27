@@ -39,6 +39,10 @@ import {
   statSafeSync,
   unlinkSafeSync,
 } from "../../../utils/security";
+import {
+  removeMediaServerArtifactsForVideo,
+  syncMediaServerArtifactsForRecord,
+} from "../../mediaServerExport";
 import * as storageService from "../../storageService";
 import { Video } from "../../storageService";
 import { deleteSmallThumbnailMirrorSync } from "../../thumbnailMirrorService";
@@ -161,6 +165,7 @@ export async function downloadVideo(
   let finalAuthorAvatarFilename: string | undefined = undefined;
   let subtitles: Array<{ language: string; filename: string; path: string }> =
     [];
+  let rawSourceInfo: Record<string, unknown> | null = null;
   // These are set inside the try block but also referenced after it
   let newVideoPathWithFormat = resolveSafeChildPath(VIDEOS_DIR, videoFilename);
   let newThumbnailPath = resolveSafeChildPath(IMAGES_DIR, thumbnailFilename);
@@ -186,6 +191,8 @@ export async function downloadVideo(
           }
         : {}),
     });
+
+    rawSourceInfo = info as Record<string, unknown>;
 
     logger.info("Video info:", {
       title: info.title,
@@ -893,15 +900,28 @@ export async function downloadVideo(
     if (updatedVideo) {
       logger.info("Video updated in database with new subtitles");
 
+      let finalVideoData = updatedVideo;
+
       // Add video to author collection if enabled (for existing videos too)
-      storageService.addVideoToAuthorCollection(
+      const authorCollection = storageService.addVideoToAuthorCollection(
         updatedVideo.id,
         videoAuthor,
         settings.saveAuthorFilesToCollection || false,
         settings.downloadFilenamePresetId
       );
 
-      return updatedVideo;
+      if (authorCollection) {
+        const collectionUpdatedVideo = storageService.getVideoById(updatedVideo.id);
+        if (collectionUpdatedVideo) {
+          finalVideoData = collectionUpdatedVideo;
+        }
+      }
+
+      removeMediaServerArtifactsForVideo(existingVideo);
+      syncMediaServerArtifactsForRecord(finalVideoData, {
+        rawSourceInfo,
+      });
+      return finalVideoData;
     }
   }
 
@@ -923,9 +943,15 @@ export async function downloadVideo(
     // Fetch the updated video from storage
     const updatedVideo = storageService.getVideoById(videoData.id);
     if (updatedVideo) {
+      syncMediaServerArtifactsForRecord(updatedVideo, {
+        rawSourceInfo,
+      });
       return updatedVideo;
     }
   }
 
+  syncMediaServerArtifactsForRecord(videoData, {
+    rawSourceInfo,
+  });
   return videoData;
 }
