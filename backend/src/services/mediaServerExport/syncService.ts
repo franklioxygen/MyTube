@@ -6,6 +6,7 @@ import {
   copyFileSafeSync,
   ensureDirSafeSync,
   pathExistsSafeSync,
+  renameSafeSync,
   resolveSafeChildPath,
   writeFileSafeSync,
 } from "../../utils/security";
@@ -81,7 +82,7 @@ function removeOwnedArtifact(targetPath: string): void {
 function atomicWriteTextFile(targetPath: string, contents: string): void {
   const allowedRoot = getAllowedRootForPath(targetPath);
   const targetDirectory = path.dirname(targetPath);
-  const tempPath = path.join(
+  const tempPath = resolveSafeChildPath(
     targetDirectory,
     `.${path.basename(targetPath)}.tmp-${process.pid}-${Date.now()}`
   );
@@ -91,7 +92,7 @@ function atomicWriteTextFile(targetPath: string, contents: string): void {
   if (pathExistsSafeSync(targetPath, allowedRoot)) {
     fs.removeSync(targetPath);
   }
-  fs.renameSync(tempPath, targetPath);
+  renameSafeSync(tempPath, allowedRoot, targetPath, allowedRoot);
 }
 
 function syncImageAlias(sourcePath: string, targetPath: string): void {
@@ -370,9 +371,9 @@ export function syncMediaServerShowArtifactsForShowRoot(
     );
 
     if (showVideos.length === 0) {
-      removeOwnedArtifact(path.join(showRootAbsolutePath, "tvshow.nfo"));
+      removeOwnedArtifact(resolveSafeChildPath(showRootAbsolutePath, "tvshow.nfo"));
       for (const filename of ["show.jpg", "poster.jpg", "folder.jpg"]) {
-        removeOwnedArtifact(path.join(showRootAbsolutePath, filename));
+        removeOwnedArtifact(resolveSafeChildPath(showRootAbsolutePath, filename));
       }
       removeEmptyDirectoryChain(showRootAbsolutePath, VIDEOS_DIR);
       return;

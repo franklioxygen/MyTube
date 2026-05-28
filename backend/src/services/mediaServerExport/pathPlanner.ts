@@ -68,8 +68,15 @@ export function planMediaServerExportPaths(
     return null;
   }
 
-  const videoDirectory = path.dirname(resolvedVideoPath.absolutePath);
-  const basenameWithoutExt = path.parse(resolvedVideoPath.absolutePath).name;
+  const lastSlashIndex = resolvedVideoPath.absolutePath.lastIndexOf("/");
+  const videoDirectory =
+    lastSlashIndex >= 0
+      ? resolvedVideoPath.absolutePath.slice(0, lastSlashIndex)
+      : resolvedVideoPath.absolutePath;
+  const filename = resolvedVideoPath.absolutePath.slice(lastSlashIndex + 1);
+  const lastDotIndex = filename.lastIndexOf(".");
+  const basenameWithoutExt =
+    lastDotIndex > 0 ? filename.slice(0, lastDotIndex) : filename;
   const tvLayout = parseTvLayoutFromRelativeVideoPath(resolvedVideoPath.relativePath);
   const showRootAbsolutePath =
     tvLayout.isTvCompatible && tvLayout.showRootRelativeDir
@@ -80,24 +87,24 @@ export function planMediaServerExportPaths(
     videoAbsolutePath: resolvedVideoPath.absolutePath,
     videoRelativePath: resolvedVideoPath.relativePath,
     basenameWithoutExt,
-    episodeNfoAbsolutePath: path.join(
+    episodeNfoAbsolutePath: resolveSafeChildPath(
       videoDirectory,
       `${basenameWithoutExt}.nfo`
     ),
-    episodeSourceJsonAbsolutePath: path.join(
+    episodeSourceJsonAbsolutePath: resolveSafeChildPath(
       videoDirectory,
       `${basenameWithoutExt}.info.json`
     ),
-    episodeThumbAliasAbsolutePath: path.join(
+    episodeThumbAliasAbsolutePath: resolveSafeChildPath(
       videoDirectory,
       `${basenameWithoutExt}-thumb.jpg`
     ),
     showNfoAbsolutePath: showRootAbsolutePath
-      ? path.join(showRootAbsolutePath, "tvshow.nfo")
+      ? resolveSafeChildPath(showRootAbsolutePath, "tvshow.nfo")
       : undefined,
     showPosterAbsolutePaths: showRootAbsolutePath
       ? ["show.jpg", "poster.jpg", "folder.jpg"].map((filename) =>
-          path.join(showRootAbsolutePath, filename)
+          resolveSafeChildPath(showRootAbsolutePath, filename)
         )
       : [],
     tvLayout,
