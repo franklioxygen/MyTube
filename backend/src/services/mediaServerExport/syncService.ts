@@ -3,7 +3,9 @@ import path from "path";
 import { AVATARS_DIR, IMAGES_DIR, VIDEOS_DIR } from "../../config/paths";
 import { logger } from "../../utils/logger";
 import {
+  copyFileSafeSync,
   ensureDirSafeSync,
+  linkSafeSync,
   pathExistsSafeSync,
   resolveSafeChildPath,
   writeFileSafeSync,
@@ -54,6 +56,19 @@ function getAllowedRootForPath(targetPath: string): string {
   return targetPath.startsWith(IMAGES_DIR + path.sep) ? IMAGES_DIR : VIDEOS_DIR;
 }
 
+function getAllowedRootForExistingArtifact(targetPath: string): string | null {
+  if (targetPath.startsWith(VIDEOS_DIR + path.sep)) {
+    return VIDEOS_DIR;
+  }
+  if (targetPath.startsWith(IMAGES_DIR + path.sep)) {
+    return IMAGES_DIR;
+  }
+  if (targetPath.startsWith(AVATARS_DIR + path.sep)) {
+    return AVATARS_DIR;
+  }
+  return null;
+}
+
 function removeOwnedArtifact(targetPath: string): void {
   const allowedRoot = getAllowedRootForPath(targetPath);
   if (!pathExistsSafeSync(targetPath, allowedRoot)) {
@@ -82,13 +97,22 @@ function atomicWriteTextFile(targetPath: string, contents: string): void {
 
 function syncImageAlias(sourcePath: string, targetPath: string): void {
   const allowedRoot = getAllowedRootForPath(targetPath);
+  const sourceAllowedRoot = getAllowedRootForExistingArtifact(sourcePath);
+  if (!sourceAllowedRoot) {
+    logger.warn("Skipping artwork sidecar sync for unmanaged source path", {
+      sourcePath,
+      targetPath,
+    });
+    return;
+  }
+
   ensureDirSafeSync(path.dirname(targetPath), allowedRoot);
   if (pathExistsSafeSync(targetPath, allowedRoot)) {
     fs.removeSync(targetPath);
   }
 
   try {
-    fs.linkSync(sourcePath, targetPath);
+    linkSafeSync(sourcePath, sourceAllowedRoot, targetPath, allowedRoot);
   } catch (error) {
     const code =
       typeof error === "object" &&
@@ -105,7 +129,7 @@ function syncImageAlias(sourcePath: string, targetPath: string): void {
       });
     }
 
-    fs.copyFileSync(sourcePath, targetPath);
+    copyFileSafeSync(sourcePath, sourceAllowedRoot, targetPath, allowedRoot);
   }
 }
 
@@ -504,7 +528,7 @@ export function removeMediaServerArtifactsForVideo(
       removeOwnedArtifact(posterPath);
     }
     if (plan.tvLayout.showRootRelativeDir) {
-      const showRootAbsolutePath = path.join(
+      const showRootAbsolutePath = resolveSafeChildPath(
         VIDEOS_DIR,
         plan.tvLayout.showRootRelativeDir
       );

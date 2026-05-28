@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../config/paths", () => ({
   VIDEOS_DIR: "/mock/videos",
   IMAGES_DIR: "/mock/images",
+  IMAGES_SMALL_DIR: "/mock/images-small",
   SUBTITLES_DIR: "/mock/subtitles",
   AVATARS_DIR: "/mock/avatars",
   DATA_DIR: "/mock/data",
@@ -16,6 +17,8 @@ vi.mock("../../utils/security", () => ({
     (base: string, child: string) => `${base}/${child}`
   ),
   ensureDirSafeSync: vi.fn(),
+  copyFileSafeSync: vi.fn(),
+  linkSafeSync: vi.fn(),
   moveSafeSync: vi.fn(),
 }));
 
@@ -31,11 +34,13 @@ vi.mock("../../utils/logger", () => ({
 const getDownloadStatusMock = vi.fn();
 const getSettingsMock = vi.fn();
 const getVideosMock = vi.fn();
+const getVideoByIdMock = vi.fn();
 
 vi.mock("../../services/storageService", () => ({
   getDownloadStatus: () => getDownloadStatusMock(),
   getSettings: () => getSettingsMock(),
   getVideos: () => getVideosMock(),
+  getVideoById: (...args: unknown[]) => getVideoByIdMock(...args),
   getCollections: () => [],
 }));
 
@@ -108,6 +113,8 @@ beforeEach(() => {
   getDownloadStatusMock.mockReset();
   getSettingsMock.mockReset();
   getVideosMock.mockReset();
+  getVideoByIdMock.mockReset();
+  getVideoByIdMock.mockReturnValue(null);
   const job = getActiveRenameJob();
   if (job) cancelRenameJob(job.id);
   releaseRenameLock();

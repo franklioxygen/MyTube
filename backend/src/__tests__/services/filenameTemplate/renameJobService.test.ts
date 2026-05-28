@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../../config/paths", () => ({
   VIDEOS_DIR: "/mock/videos",
   IMAGES_DIR: "/mock/images",
+  IMAGES_SMALL_DIR: "/mock/images-small",
   SUBTITLES_DIR: "/mock/subtitles",
   AVATARS_DIR: "/mock/avatars",
   DATA_DIR: "/mock/data",
@@ -24,6 +25,8 @@ vi.mock("../../../utils/security", () => ({
     (base: string, child: string) => `${base}/${child}`
   ),
   ensureDirSafeSync: vi.fn(),
+  copyFileSafeSync: vi.fn(),
+  linkSafeSync: vi.fn(),
   moveSafeSync: vi.fn(),
 }));
 
@@ -71,10 +74,12 @@ vi.mock("../../../services/thumbnailMirrorService", () => ({
 
 const getVideosMock = vi.fn();
 const getCollectionsMock = vi.fn();
+const getVideoByIdMock = vi.fn();
 
 vi.mock("../../../services/storageService", () => ({
   getVideos: () => getVideosMock(),
   getCollections: () => getCollectionsMock(),
+  getVideoById: (...args: unknown[]) => getVideoByIdMock(...args),
 }));
 
 import {
@@ -98,7 +103,9 @@ describe("renameJobService — design §23 changes", () => {
   beforeEach(() => {
     getVideosMock.mockReset();
     getCollectionsMock.mockReset();
+    getVideoByIdMock.mockReset();
     getCollectionsMock.mockReturnValue([]);
+    getVideoByIdMock.mockReturnValue(null);
     vi.mocked(pathExistsSafeSync).mockReset();
     vi.mocked(pathExistsSafeSync).mockReturnValue(true);
     vi.mocked(moveSafeSync).mockReset();
@@ -278,7 +285,9 @@ describe("renameJobService — precomputeSourceOptions (design §16 step 3)", ()
   beforeEach(() => {
     getVideosMock.mockReset();
     getCollectionsMock.mockReset();
+    getVideoByIdMock.mockReset();
     getCollectionsMock.mockReturnValue([]);
+    getVideoByIdMock.mockReturnValue(null);
     vi.mocked(pathExistsSafeSync).mockReset();
     vi.mocked(pathExistsSafeSync).mockReturnValue(true);
     vi.mocked(moveSafeSync).mockReset();

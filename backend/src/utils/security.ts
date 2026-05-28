@@ -420,6 +420,23 @@ export function copyFileSafeSync(
   fs.copyFileSync(safeSourcePath, safeDestinationPath);
 }
 
+export function linkSafeSync(
+  sourcePath: string,
+  sourceAllowedDirOrDirs: string | readonly string[],
+  destinationPath: string,
+  destinationAllowedDirOrDirs: string | readonly string[],
+): void {
+  const safeSourcePath = resolveSafePathForOperation(
+    sourcePath,
+    sourceAllowedDirOrDirs,
+  );
+  const safeDestinationPath = resolveSafePathForOperation(
+    destinationPath,
+    destinationAllowedDirOrDirs,
+  );
+  fs.linkSync(safeSourcePath, safeDestinationPath);
+}
+
 export async function copySafe(
   sourcePath: string,
   sourceAllowedDirOrDirs: string | readonly string[],

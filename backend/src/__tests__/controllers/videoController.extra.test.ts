@@ -99,6 +99,7 @@ vi.mock("axios", () => ({
 vi.mock("fs-extra", () => ({
   default: {
     ensureDirSync: vi.fn(),
+    ensureFileSync: vi.fn(),
     existsSync: vi.fn(),
     readdirSync: vi.fn(),
     statSync: vi.fn(),
@@ -109,6 +110,7 @@ vi.mock("fs-extra", () => ({
     createWriteStream: vi.fn(),
   },
   ensureDirSync: vi.fn(),
+  ensureFileSync: vi.fn(),
   existsSync: vi.fn(),
   readdirSync: vi.fn(),
   statSync: vi.fn(),
