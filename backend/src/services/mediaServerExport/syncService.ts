@@ -5,7 +5,6 @@ import { logger } from "../../utils/logger";
 import {
   copyFileSafeSync,
   ensureDirSafeSync,
-  linkSafeSync,
   pathExistsSafeSync,
   resolveSafeChildPath,
   writeFileSafeSync,
@@ -111,26 +110,7 @@ function syncImageAlias(sourcePath: string, targetPath: string): void {
     fs.removeSync(targetPath);
   }
 
-  try {
-    linkSafeSync(sourcePath, sourceAllowedRoot, targetPath, allowedRoot);
-  } catch (error) {
-    const code =
-      typeof error === "object" &&
-      error !== null &&
-      "code" in error &&
-      typeof (error as { code?: unknown }).code === "string"
-        ? (error as { code: string }).code
-        : undefined;
-
-    if (code !== "EXDEV" && code !== "ENOTSUP" && code !== "EPERM") {
-      logger.warn("Hard-linking sidecar artwork failed, copying instead", {
-        code,
-        targetPath,
-      });
-    }
-
-    copyFileSafeSync(sourcePath, sourceAllowedRoot, targetPath, allowedRoot);
-  }
+  copyFileSafeSync(sourcePath, sourceAllowedRoot, targetPath, allowedRoot);
 }
 
 function resolveLocalArtworkPath(
