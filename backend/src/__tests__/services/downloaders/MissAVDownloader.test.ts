@@ -5,6 +5,7 @@ import puppeteer from 'puppeteer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MissAVDownloader } from '../../../services/downloaders/MissAVDownloader';
 import { cleanupTemporaryFiles, isCancellationError } from '../../../utils/downloadUtils';
+import * as security from '../../../utils/security';
 
 vi.mock('puppeteer');
 vi.mock('../../../services/storageService', () => ({
@@ -26,6 +27,13 @@ vi.mock('../../../utils/downloadUtils', () => ({
   safeRemove: vi.fn().mockResolvedValue(undefined),
   isCancellationError: vi.fn().mockReturnValue(false),
 }));
+vi.mock('../../../utils/security', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../utils/security')>();
+  return {
+    ...actual,
+    pathExistsTrustedSync: vi.fn(() => false),
+  };
+});
 vi.mock('child_process', () => ({
   spawn: vi.fn().mockReturnValue({
     stdout: { on: vi.fn() },
@@ -65,6 +73,7 @@ describe('MissAVDownloader', () => {
 
   beforeEach(() => {
     vi.mocked(fs.existsSync).mockReturnValue(false);
+    vi.mocked(security.pathExistsTrustedSync).mockReturnValue(false);
   });
 
   afterEach(() => {
@@ -224,7 +233,7 @@ describe('MissAVDownloader', () => {
     });
 
     it('should fall back to a local Chrome install when no override is configured', async () => {
-      vi.mocked(fs.existsSync).mockImplementation((targetPath: any) =>
+      vi.mocked(security.pathExistsTrustedSync).mockImplementation((targetPath: any) =>
         targetPath === expectedChromeFallbackPath,
       );
 
