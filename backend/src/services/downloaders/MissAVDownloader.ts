@@ -18,6 +18,7 @@ import { ProgressTracker } from "../../utils/progressTracker";
 import {
   ensureDirSafeSync,
   pathExistsSafeSync,
+  pathExistsTrustedSync,
   resolveSafeChildPath,
   statSafeSync,
   writeFileSafeSync,
@@ -124,7 +125,7 @@ function resolvePuppeteerExecutablePath(): string | undefined {
         : PUPPETEER_LINUX_EXECUTABLE_PATHS;
 
   const resolvedPath = candidatePaths.find((candidatePath) =>
-    fs.existsSync(candidatePath),
+    pathExistsTrustedSync(candidatePath),
   );
   if (resolvedPath) {
     logger.info(`Using system Chrome for Puppeteer: ${resolvedPath}`);

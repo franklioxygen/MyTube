@@ -2,7 +2,7 @@
 import { spawn } from 'child_process';
 import fs from 'fs-extra';
 import puppeteer from 'puppeteer';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MissAVDownloader } from '../../../services/downloaders/MissAVDownloader';
 import { cleanupTemporaryFiles, isCancellationError } from '../../../utils/downloadUtils';
 
@@ -56,6 +56,10 @@ vi.mock('fs-extra', () => ({
 }));
 
 describe('MissAVDownloader', () => {
+  beforeEach(() => {
+    vi.mocked(fs.existsSync).mockReturnValue(false);
+  });
+
   afterEach(() => {
     vi.clearAllMocks();
     delete process.env.PUPPETEER_EXECUTABLE_PATH;
