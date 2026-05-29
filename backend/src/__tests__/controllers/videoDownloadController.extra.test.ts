@@ -233,6 +233,33 @@ describe("videoDownloadController extra coverage", () => {
     ).rejects.toBeInstanceOf(ValidationError);
   });
 
+  it("checkVideoDownloadStatus validates the URL extracted from Telegram-style text", async () => {
+    req.query = {
+      url: "Shared from Telegram: https://youtube.com/watch?v=status123",
+    } as any;
+    vi.mocked(processVideoUrl).mockResolvedValue({
+      videoUrl: "https://youtube.com/watch?v=status123",
+      sourceVideoId: "status123",
+      platform: "youtube",
+    } as any);
+    vi.mocked(validateUrl).mockImplementation((candidate: string) => {
+      if (candidate.startsWith("Shared from Telegram")) {
+        throw new Error("raw text should not be validated");
+      }
+      return candidate;
+    });
+    vi.mocked(storageService.checkVideoDownloadBySourceId).mockReturnValue({
+      found: false,
+    } as any);
+
+    await checkVideoDownloadStatus(req as Request, res as Response);
+
+    expect(validateUrl).toHaveBeenCalledWith(
+      "https://youtube.com/watch?v=status123"
+    );
+    expect(json).toHaveBeenCalledWith({ found: false });
+  });
+
   it("checkVideoDownloadStatus throws when url is missing", async () => {
     req.query = {} as any;
 
@@ -376,6 +403,51 @@ describe("videoDownloadController extra coverage", () => {
       success: false,
       error: "validation failed",
     });
+  });
+
+  it("downloadVideo queues the URL extracted from Telegram-style text", async () => {
+    req.body = {
+      youtubeUrl: "Shared from Telegram: https://youtube.com/watch?v=tele123",
+    };
+    vi.mocked(processVideoUrl).mockResolvedValue({
+      videoUrl: "https://youtube.com/watch?v=tele123",
+      sourceVideoId: "tele123",
+      platform: "youtube",
+    } as any);
+    vi.mocked(validateUrl).mockImplementation((candidate: string) => {
+      if (candidate.startsWith("Shared from Telegram")) {
+        throw new Error("raw text should not be validated");
+      }
+      return candidate;
+    });
+    vi.mocked(isYouTubeUrl).mockReturnValue(true);
+    vi.mocked(downloadService.downloadYouTubeVideo).mockResolvedValue({
+      id: "video-telegram",
+      title: "Telegram Video",
+      sourceUrl: "https://youtube.com/watch?v=tele123",
+    } as any);
+
+    await downloadVideo(req as Request, res as Response);
+    await flushBackgroundTasks();
+
+    expect(validateUrl).toHaveBeenCalledWith(
+      "https://youtube.com/watch?v=tele123"
+    );
+    expect(downloadManager.addDownload).toHaveBeenCalledWith(
+      expect.any(Function),
+      expect.any(String),
+      "YouTube Video",
+      "https://youtube.com/watch?v=tele123",
+      "youtube",
+      expect.objectContaining({
+        actorRole: "admin",
+        surface: "web",
+        sourceKind: "manual",
+      })
+    );
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({ success: true, message: "Download queued" })
+    );
   });
 
   it("downloadVideo skips already-downloaded items when handler says skip", async () => {
