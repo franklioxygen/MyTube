@@ -183,6 +183,7 @@ async function navigateMissAvPage(
       options: { waitUntil: "domcontentloaded"; timeout: number },
     ) => Promise<unknown>;
     title?: () => Promise<string>;
+    content?: () => Promise<string>;
     waitForFunction?: (
       pageFunction: () => boolean,
       options: { timeout: number },
@@ -201,12 +202,22 @@ async function navigateMissAvPage(
     logger.info(
       "Cloudflare verification page detected; waiting up to 30 s for automatic completion...",
     );
-    await page.waitForFunction(
-      () =>
-        document.title !== "Just a moment..." &&
-        !document.body.innerText.includes("Performing security verification"),
-      { timeout: 30000 },
-    );
+    try {
+      await page.waitForFunction(
+        () =>
+          document.title !== "Just a moment..." &&
+          !document.body.innerText.includes("Performing security verification"),
+        { timeout: 30000 },
+      );
+    } catch (error) {
+      const html = typeof page.content === "function" ? await page.content() : "";
+      if (isCloudflareChallengeHtml(html)) {
+        throw new Error(
+          "MissAV access is blocked by Cloudflare verification. Retry with PUPPETEER_HEADLESS=false if needed.",
+        );
+      }
+      throw error;
+    }
   }
 }
 

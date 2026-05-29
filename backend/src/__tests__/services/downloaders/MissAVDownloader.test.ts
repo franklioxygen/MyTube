@@ -56,6 +56,13 @@ vi.mock('fs-extra', () => ({
 }));
 
 describe('MissAVDownloader', () => {
+  const expectedChromeFallbackPath =
+    process.platform === 'darwin'
+      ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+      : process.platform === 'win32'
+        ? `${process.env.PROGRAMFILES || 'C:\\Program Files'}\\Google\\Chrome\\Application\\chrome.exe`
+        : '/usr/bin/google-chrome-stable';
+
   beforeEach(() => {
     vi.mocked(fs.existsSync).mockReturnValue(false);
   });
@@ -216,9 +223,9 @@ describe('MissAVDownloader', () => {
       );
     });
 
-    it('should fall back to a local macOS Chrome install when no override is configured', async () => {
+    it('should fall back to a local Chrome install when no override is configured', async () => {
       vi.mocked(fs.existsSync).mockImplementation((targetPath: any) =>
-        targetPath === '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+        targetPath === expectedChromeFallbackPath,
       );
 
       const mockPage = {
@@ -237,7 +244,7 @@ describe('MissAVDownloader', () => {
 
       expect(puppeteer.launch).toHaveBeenCalledWith(
         expect.objectContaining({
-          executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+          executablePath: expectedChromeFallbackPath,
         }),
       );
     });
@@ -460,6 +467,25 @@ describe('MissAVDownloader', () => {
       ).rejects.toThrow('MissAV access is blocked by Cloudflare verification');
 
       expect(mockPage.waitForFunction).toHaveBeenCalledOnce();
+    });
+
+    it('surfaces a Cloudflare timeout during navigation as a specific error', async () => {
+      const mockPage = buildPageMock(
+        'timeout',
+        undefined,
+        '<html><head><title>Just a moment...</title></head><body>Performing security verification<input name="cf-turnstile-response"></body></html>',
+      );
+      const waitTimeoutError = new Error('Waiting failed');
+      waitTimeoutError.name = 'TimeoutError';
+      mockPage.title.mockResolvedValue('Just a moment...');
+      mockPage.waitForFunction.mockRejectedValue(waitTimeoutError);
+
+      const mockBrowser = { newPage: vi.fn().mockResolvedValue(mockPage), close: vi.fn().mockResolvedValue(undefined) };
+      (puppeteer.launch as ReturnType<typeof vi.fn>).mockResolvedValue(mockBrowser);
+
+      await expect(
+        MissAVDownloader.downloadVideo('https://missav.ai/dm30/en/juq-819-uncensored-leak'),
+      ).rejects.toThrow('MissAV access is blocked by Cloudflare verification');
     });
   });
 });
