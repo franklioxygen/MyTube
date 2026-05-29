@@ -69,6 +69,7 @@ vi.mock("../../utils/security", () => ({
   normalizeSafeAbsolutePath: vi.fn((targetPath: string) => targetPath),
   pathExistsSafe: vi.fn((targetPath: string) => fs.pathExists(targetPath)),
   pathExistsSafeSync: vi.fn((targetPath: string) => fs.existsSync(targetPath)),
+  pathExistsTrustedSync: vi.fn((targetPath: string) => fs.existsSync(targetPath)),
   removeSafe: vi.fn((targetPath: string) => fs.remove(targetPath)),
   resolveSafeChildPath: vi.fn((baseDir: string, childPath: string) => {
     if (childPath.includes("..")) {

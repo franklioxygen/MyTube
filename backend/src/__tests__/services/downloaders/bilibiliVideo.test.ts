@@ -45,6 +45,8 @@ const mocks = vi.hoisted(() => ({
 vi.mock("fs-extra", () => ({
   default: {
     existsSync: (...args: any[]) => mocks.existsSync(...args),
+    ensureDirSync: vi.fn(),
+    ensureFileSync: vi.fn(),
     readdirSync: (...args: any[]) => mocks.readdirSync(...args),
     statSync: (...args: any[]) => mocks.statSync(...args),
     unlinkSync: (...args: any[]) => mocks.unlinkSync(...args),

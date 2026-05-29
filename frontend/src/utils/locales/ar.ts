@@ -115,6 +115,53 @@ export const ar = {
   dontSkipDeletedVideo: "عدم تخطي الفيديو المحذوف",
   dontSkipDeletedVideoDescription:
     "عند التمكين، سيتم إعادة تنزيل مقاطع الفيديو ذات الحالة المحذوفة تلقائيًا بدلاً من تخطيها.",
+  mediaServerExportMode: "تصدير الملفات الجانبية لخادم الوسائط",
+  mediaServerExportModeDescription:
+    "يكتب ملفات NFO جانبية بأسلوب Kodi وأسماء صور بديلة بجوار الفيديوهات لاستخدامها مع Emby وJellyfin وPlex. أفضل النتائج تكون مع إعداد تسمية يتضمن مجلدات السلسلة والموسم.",
+  mediaServerExportModeOff: "إيقاف",
+  mediaServerExportModeNfo: "كتابة ملفات NFO الجانبية",
+  mediaServerExportModeNfoAndSourceJson:
+    "كتابة NFO + JSON لبيانات المصدر",
+  mediaServerExportModeOffDescription:
+    "Do not generate new sidecars for future downloads. You can still clean up files that MyTube generated earlier.",
+  mediaServerExportCleanupHint:
+    "Current mode only cleans up previously generated sidecar files and will not generate new ones.",
+  mediaServerExportRecommendedLayoutWarning:
+    "معاينة تخطيط اسم الملف الحالية ليست مثالية بعد لمكتبات التلفاز. يعمل Emby وJellyfin وPlex بشكل أفضل مع مجلدات السلسلة ومجلدات فرعية من نوع Season XX.",
+  mediaServerExportRebuild: "إعادة بناء الملفات الجانبية لخادم الوسائط",
+  mediaServerExportRebuildConfirmTitle:
+    "إعادة بناء الملفات الجانبية لخادم الوسائط؟",
+  mediaServerExportRebuildConfirmBody:
+    "سيؤدي هذا إلى إعادة كتابة ملفات NFO وJSON المصدر وملفات الصور الجانبية التي يديرها MyTube للفيديوهات المحلية الحالية. قد يتم استبدال التعديلات اليدوية على الملفات الجانبية المُنشأة.",
+  mediaServerExportRebuildError:
+    "فشلت إعادة بناء الملفات الجانبية لخادم الوسائط.",
+  mediaServerExportRebuildRunning:
+    "جارٍ إعادة بناء الملفات الجانبية لخادم الوسائط",
+  mediaServerExportRebuildComplete:
+    "اكتملت إعادة بناء الملفات الجانبية لخادم الوسائط",
+  mediaServerExportRebuildSummary:
+    "تم تحديث {succeeded}، وتخطي {skipped}، وفشل {failed}.",
+  mediaServerExportRebuildDisabledOff:
+    "اختر وضع تصدير NFO قبل إعادة بناء الملفات الجانبية.",
+  mediaServerExportRebuildDisabledRunning:
+    "توجد عملية جارية بالفعل لإعادة بناء الملفات الجانبية لخادم الوسائط.",
+  mediaServerExportCleanup: "Clean Up Media Server Sidecars",
+  mediaServerExportCleanupConfirmTitle: "Clean up media server sidecars?",
+  mediaServerExportCleanupConfirmBody:
+    "This removes MyTube-generated NFO, source JSON, and artwork sidecar files for existing local videos. Video files and thumbnails are not deleted.",
+  mediaServerExportCleanupError: "Failed to clean up media server sidecars.",
+  mediaServerExportCleanupRunning: "Cleaning up media server sidecars",
+  mediaServerExportCleanupComplete: "Media server sidecar cleanup complete",
+  mediaServerExportCleanupSummary:
+    "{succeeded} cleaned, {skipped} skipped, {failed} failed.",
+  mediaServerExportActiveDownloadsError:
+    "Cannot run media server sidecar maintenance while downloads are active.",
+  mediaServerExportQueuedDownloadsError:
+    "Cannot run media server sidecar maintenance while downloads are queued.",
+  mediaServerExportUnsupportedModeError:
+    "The selected media server export mode is not supported.",
+  mediaServerExportCleanupUnsupportedModeError:
+    "This server version does not support cleanup while media server sidecar export is off.",
   preferredAudioLanguage: "لغة الصوت المفضلة",
   preferredAudioLanguageDescription:
     "عند التوفر، سيتم تفضيل صوت YouTube بهذه اللغة للتنزيلات.",

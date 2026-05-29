@@ -14,6 +14,11 @@ import { validateTemplate } from "./filenameTemplate/validators";
 import { getPresetById, FILENAME_TEMPLATE_PRESETS } from "./filenameTemplate/presets";
 
 const VALID_PRESET_IDS = FILENAME_TEMPLATE_PRESETS.map((p) => p.id);
+const VALID_MEDIA_SERVER_EXPORT_MODES = new Set([
+  "off",
+  "nfo",
+  "nfo_and_source_json",
+]);
 
 /**
  * Check if a tags array has any case-insensitive duplicates.
@@ -193,6 +198,16 @@ export function validateSettings(newSettings: Partial<Settings>): void {
     throw new ValidationError(
       `Invalid downloadFilenamePresetId: "${newSettings.downloadFilenamePresetId}".`,
       "downloadFilenamePresetId"
+    );
+  }
+
+  if (
+    newSettings.mediaServerExportMode !== undefined &&
+    !VALID_MEDIA_SERVER_EXPORT_MODES.has(newSettings.mediaServerExportMode)
+  ) {
+    throw new ValidationError(
+      `Invalid mediaServerExportMode: "${newSettings.mediaServerExportMode}".`,
+      "mediaServerExportMode"
     );
   }
 

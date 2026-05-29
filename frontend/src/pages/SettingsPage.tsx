@@ -96,6 +96,7 @@ const SettingsPage: React.FC = () => {
         twitchClientId: '',
         twitchClientSecret: '',
         telegramDownloadEnabled: false,
+        mediaServerExportMode: 'off',
     });
     const { setPreference } = useThemeContext();
     const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null);

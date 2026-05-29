@@ -11,11 +11,17 @@ import {
   pathExistsSafeSync,
   resolveSafeChildPath,
 } from "../../utils/security";
+import {
+  removeMediaServerArtifactsForVideo,
+  syncMediaServerArtifactsForRecord,
+  syncMediaServerShowArtifactsForShowRoot,
+} from "../mediaServerExport";
 import { moveSmallThumbnailMirrorSync } from "../thumbnailMirrorService";
 import * as storageService from "../storageService";
 import { buildContextFromVideoRecord } from "./contextBuilder";
 import { applyDedupeToRelatedPaths } from "./dedupe";
 import { resolveManagedWebPath } from "./pathHelpers";
+import { planMediaServerExportPaths } from "../mediaServerExport/pathPlanner";
 import { getPresetById } from "./presets";
 import { planVideoOutputPaths } from "./renderer";
 import { acquireRenameLock, releaseRenameLock } from "./renameLockService";
@@ -629,6 +635,18 @@ async function processOneVideo(
         )
         .run();
     });
+
+    const oldMediaServerPlan = planMediaServerExportPaths(video);
+    const updatedVideo = storageService.getVideoById(video.id);
+    if (updatedVideo) {
+      removeMediaServerArtifactsForVideo(video);
+      if (oldMediaServerPlan?.tvLayout.showRootRelativeDir) {
+        syncMediaServerShowArtifactsForShowRoot(
+          oldMediaServerPlan.tvLayout.showRootRelativeDir
+        );
+      }
+      syncMediaServerArtifactsForRecord(updatedVideo);
+    }
 
     item.status = "success";
     item.newVideoPath = newVideoWebPath;

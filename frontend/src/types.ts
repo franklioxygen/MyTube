@@ -137,6 +137,7 @@ export interface Settings {
   deploymentSecurity?: DeploymentSecurityModel;
   downloadFilenamePresetId?: 'legacy' | 'channel_year_date_index' | 'playlist_static_index' | 'playlist_static_date' | 'custom';
   downloadFilenameTemplate?: string;
+  mediaServerExportMode?: 'off' | 'nfo' | 'nfo_and_source_json';
   // Statistics
   statisticsEnabled?: boolean;
   statisticsRetentionDays?: number | null;

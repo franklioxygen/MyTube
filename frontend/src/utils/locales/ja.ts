@@ -122,6 +122,53 @@ export const ja = {
   dontSkipDeletedVideo: "削除された動画をスキップしない",
   dontSkipDeletedVideoDescription:
     "有効にすると、削除されたステータスの動画はスキップされず、自動的に再ダウンロードされます。",
+  mediaServerExportMode: "メディアサーバー用サイドカー出力",
+  mediaServerExportModeDescription:
+    "Emby、Jellyfin、Plex 向けに、Kodi 互換の NFO サイドカーと画像エイリアスを動画の横に書き出します。シリーズ名とシーズン構成を含む命名プリセットで最も効果的です。",
+  mediaServerExportModeOff: "オフ",
+  mediaServerExportModeNfo: "NFO サイドカーを書き出す",
+  mediaServerExportModeNfoAndSourceJson:
+    "NFO + ソースメタデータ JSON を書き出す",
+  mediaServerExportModeOffDescription:
+    "Do not generate new sidecars for future downloads. You can still clean up files that MyTube generated earlier.",
+  mediaServerExportCleanupHint:
+    "Current mode only cleans up previously generated sidecar files and will not generate new ones.",
+  mediaServerExportRecommendedLayoutWarning:
+    "現在のファイル名レイアウトのプレビューは、まだ TV ライブラリ向けではありません。Emby、Jellyfin、Plex では、シリーズフォルダと Season XX サブフォルダ構成が最適です。",
+  mediaServerExportRebuild: "メディアサーバー用サイドカーを再構築",
+  mediaServerExportRebuildConfirmTitle:
+    "メディアサーバー用サイドカーを再構築しますか？",
+  mediaServerExportRebuildConfirmBody:
+    "既存のローカル動画に対して、MyTube 管理下の NFO、ソース JSON、画像サイドカーファイルを書き直します。生成済みサイドカーへの手動編集は上書きされる場合があります。",
+  mediaServerExportRebuildError:
+    "メディアサーバー用サイドカーの再構築に失敗しました。",
+  mediaServerExportRebuildRunning:
+    "メディアサーバー用サイドカーを再構築中",
+  mediaServerExportRebuildComplete:
+    "メディアサーバー用サイドカーの再構築が完了しました",
+  mediaServerExportRebuildSummary:
+    "{succeeded} 件更新、{skipped} 件スキップ、{failed} 件失敗。",
+  mediaServerExportRebuildDisabledOff:
+    "サイドカーを再構築する前に NFO 出力モードを選択してください。",
+  mediaServerExportRebuildDisabledRunning:
+    "メディアサーバー用サイドカーの再構築はすでに実行中です。",
+  mediaServerExportCleanup: "Clean Up Media Server Sidecars",
+  mediaServerExportCleanupConfirmTitle: "Clean up media server sidecars?",
+  mediaServerExportCleanupConfirmBody:
+    "This removes MyTube-generated NFO, source JSON, and artwork sidecar files for existing local videos. Video files and thumbnails are not deleted.",
+  mediaServerExportCleanupError: "Failed to clean up media server sidecars.",
+  mediaServerExportCleanupRunning: "Cleaning up media server sidecars",
+  mediaServerExportCleanupComplete: "Media server sidecar cleanup complete",
+  mediaServerExportCleanupSummary:
+    "{succeeded} cleaned, {skipped} skipped, {failed} failed.",
+  mediaServerExportActiveDownloadsError:
+    "Cannot run media server sidecar maintenance while downloads are active.",
+  mediaServerExportQueuedDownloadsError:
+    "Cannot run media server sidecar maintenance while downloads are queued.",
+  mediaServerExportUnsupportedModeError:
+    "The selected media server export mode is not supported.",
+  mediaServerExportCleanupUnsupportedModeError:
+    "This server version does not support cleanup while media server sidecar export is off.",
   preferredAudioLanguage: "優先オーディオ言語",
   preferredAudioLanguageDescription:
     "利用可能な場合、YouTubeのマルチストリームオーディオでこの言語が優先されます。",

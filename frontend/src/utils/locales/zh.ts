@@ -113,6 +113,48 @@ export const zh = {
   dontSkipDeletedVideo: "不跳过已删除的视频",
   dontSkipDeletedVideoDescription:
     "启用后，状态为已删除的视频将自动重新下载，而不是被跳过。",
+  mediaServerExportMode: "媒体服务器附属文件导出",
+  mediaServerExportModeDescription:
+    "为 Emby、Jellyfin 和 Plex 在视频旁写入 Kodi 风格的 NFO 附属文件和图片别名。使用包含剧集和季目录的命名预设效果最佳。",
+  mediaServerExportModeOff: "关闭",
+  mediaServerExportModeNfo: "写入 NFO 附属文件",
+  mediaServerExportModeNfoAndSourceJson: "写入 NFO，并额外生成 .info.json",
+  mediaServerExportModeOffDescription:
+    "后续下载不再生成新的附属文件，但仍可清理 MyTube 之前生成过的附属文件。",
+  mediaServerExportCleanupHint:
+    "当前模式仅清理此前生成的附属文件，不会继续生成新的附属文件。",
+  mediaServerExportRecommendedLayoutWarning:
+    "当前的文件名布局预览还不够适合电视节目资料库。Emby、Jellyfin 和 Plex 在剧集文件夹加 Season XX 子文件夹的结构下效果最佳。",
+  mediaServerExportRebuild: "重建媒体服务器附属文件",
+  mediaServerExportRebuildConfirmTitle: "要重建媒体服务器附属文件吗？",
+  mediaServerExportRebuildConfirmBody:
+    "这会为现有本地视频重写由 MyTube 管理的 NFO、源 JSON 和图片附属文件。对这些生成文件的手动修改可能会被覆盖。",
+  mediaServerExportRebuildError: "重建媒体服务器附属文件失败。",
+  mediaServerExportRebuildRunning: "正在重建媒体服务器附属文件",
+  mediaServerExportRebuildComplete: "媒体服务器附属文件重建完成",
+  mediaServerExportRebuildSummary:
+    "已更新 {succeeded} 个，已跳过 {skipped} 个，失败 {failed} 个。",
+  mediaServerExportRebuildDisabledOff:
+    "请先选择 NFO 导出模式，再重建附属文件。",
+  mediaServerExportRebuildDisabledRunning:
+    "媒体服务器附属文件重建任务已在运行中。",
+  mediaServerExportCleanup: "清理媒体服务器附属文件",
+  mediaServerExportCleanupConfirmTitle: "要清理媒体服务器附属文件吗？",
+  mediaServerExportCleanupConfirmBody:
+    "这会删除 MyTube 为现有本地视频生成的 NFO、源 JSON 和图片附属文件。不会删除视频文件或缩略图本体。",
+  mediaServerExportCleanupError: "清理媒体服务器附属文件失败。",
+  mediaServerExportCleanupRunning: "正在清理媒体服务器附属文件",
+  mediaServerExportCleanupComplete: "媒体服务器附属文件清理完成",
+  mediaServerExportCleanupSummary:
+    "已清理 {succeeded} 个，已跳过 {skipped} 个，失败 {failed} 个。",
+  mediaServerExportActiveDownloadsError:
+    "当前有下载任务在运行，无法执行媒体服务器附属文件维护。",
+  mediaServerExportQueuedDownloadsError:
+    "当前有排队中的下载任务，无法执行媒体服务器附属文件维护。",
+  mediaServerExportUnsupportedModeError:
+    "所选的媒体服务器附属文件导出模式无效。",
+  mediaServerExportCleanupUnsupportedModeError:
+    "当前服务端版本还不支持在关闭导出模式时执行附属文件清理。",
   preferredAudioLanguage: "首选音频语言",
   preferredAudioLanguageDescription:
     "当视频提供多音轨时，将优先下载该语言的音频轨道（如 YouTube）。",

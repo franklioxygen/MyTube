@@ -50,6 +50,7 @@ vi.mock('fs-extra', () => {
         default: {
             pathExists: vi.fn().mockResolvedValue(false),
             ensureDirSync: vi.fn(),
+            ensureFileSync: vi.fn(),
             existsSync: vi.fn((target: any) => {
                 const value = String(target);
                 if (

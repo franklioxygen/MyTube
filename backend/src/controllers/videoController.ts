@@ -7,6 +7,7 @@ import path from "path";
 import sanitizeFilename from "sanitize-filename";
 import { IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../config/paths";
 import { NotFoundError, ValidationError } from "../errors/DownloadErrors";
+import { syncMediaServerArtifactsForRecord } from "../services/mediaServerExport";
 import * as storageService from "../services/storageService";
 import {
   deleteSmallThumbnailMirrorSync,
@@ -766,6 +767,8 @@ export const updateVideoDetails = async (
   if (!updatedVideo) {
     throw new NotFoundError("Video", id);
   }
+
+  syncMediaServerArtifactsForRecord(updatedVideo);
 
   // Return format expected by frontend: { success: true, video: ... }
   sendData(res, {

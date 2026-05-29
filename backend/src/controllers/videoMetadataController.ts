@@ -7,6 +7,7 @@ import path from "path";
 import { fromBuffer } from "file-type";
 import { IMAGES_DIR, VIDEOS_DIR } from "../config/paths";
 import { NotFoundError, ValidationError } from "../errors/DownloadErrors";
+import { syncMediaServerArtifactsForRecord } from "../services/mediaServerExport";
 import { getVideoDuration } from "../services/metadataService";
 import * as storageService from "../services/storageService";
 import {
@@ -194,11 +195,15 @@ const refreshThumbnailFromSource = async (
   );
   await regenerateSmallThumbnailForThumbnailPath(newThumbnailPath);
 
-  storageService.updateVideo(id, {
+  const updatedVideo = storageService.updateVideo(id, {
     thumbnailFilename: newThumbnailFilename,
     thumbnailPath: newThumbnailPath,
     thumbnailUrl: newThumbnailPath,
   });
+
+  if (updatedVideo) {
+    syncMediaServerArtifactsForRecord(updatedVideo);
+  }
 
   return `${newThumbnailPath}?t=${Date.now()}`;
 };
@@ -379,7 +384,12 @@ export const refreshThumbnail = async (
       thumbnailPath: newThumbnailPath,
       thumbnailUrl: newThumbnailPath,
     };
-    storageService.updateVideo(id, updates);
+    const updatedVideo = storageService.updateVideo(id, updates);
+    if (updatedVideo) {
+      syncMediaServerArtifactsForRecord(updatedVideo);
+    }
+  } else {
+    syncMediaServerArtifactsForRecord(video);
   }
 
   // Return success with timestamp to bust cache
@@ -698,6 +708,8 @@ export const uploadThumbnail = async (
       logger.warn("Failed to delete old thumbnail file", err);
     }
   }
+
+  syncMediaServerArtifactsForRecord(updatedVideo);
 
   res.status(200).json({
     success: true,

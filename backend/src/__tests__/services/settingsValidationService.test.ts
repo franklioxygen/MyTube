@@ -99,6 +99,20 @@ describe("settingsValidationService", () => {
         });
       }).toThrow(ValidationError);
     });
+
+    it("should reject invalid media server export modes", () => {
+      expect(() => {
+        settingsValidationService.validateSettings({
+          mediaServerExportMode: "bogus" as any,
+        });
+      }).toThrow(ValidationError);
+
+      expect(() => {
+        settingsValidationService.validateSettings({
+          mediaServerExportMode: "nfo_and_source_json",
+        });
+      }).not.toThrow();
+    });
   });
 
   describe("mergeSettings", () => {
