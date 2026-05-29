@@ -63,6 +63,155 @@ const MISSAV_NAVIGATION_ORIGINS: Record<string, string> = {
   "javxx.com": "https://javxx.com",
   "njavtv.com": "https://njavtv.com",
 };
+const PUPPETEER_MACOS_EXECUTABLE_PATHS = [
+  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+  "/Applications/Chromium.app/Contents/MacOS/Chromium",
+];
+const PUPPETEER_LINUX_EXECUTABLE_PATHS = [
+  "/usr/bin/google-chrome-stable",
+  "/usr/bin/google-chrome",
+  "/usr/bin/chromium-browser",
+  "/usr/bin/chromium",
+];
+const MISSAV_BROWSER_USER_AGENT =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36";
+const MISSAV_BROWSER_ACCEPT_LANGUAGE = "en-US,en;q=0.9";
+const MISSAV_ROUTE_PREFIX_PATTERN = /^[a-zA-Z0-9_-]{2,20}$/;
+const MISSAV_CLOUDFLARE_CHALLENGE_PATTERN =
+  /cf-turnstile|Just a moment|security verification|challenge-platform/i;
+
+function resolvePuppeteerExecutablePath(): string | undefined {
+  const overridePath = process.env.PUPPETEER_EXECUTABLE_PATH?.trim();
+  if (overridePath) {
+    return overridePath;
+  }
+
+  const windowsPaths = [
+    process.env["PROGRAMFILES"]
+      ? path.join(
+          process.env["PROGRAMFILES"],
+          "Google",
+          "Chrome",
+          "Application",
+          "chrome.exe",
+        )
+      : null,
+    process.env["PROGRAMFILES(X86)"]
+      ? path.join(
+          process.env["PROGRAMFILES(X86)"],
+          "Google",
+          "Chrome",
+          "Application",
+          "chrome.exe",
+        )
+      : null,
+    process.env.LOCALAPPDATA
+      ? path.join(
+          process.env.LOCALAPPDATA,
+          "Google",
+          "Chrome",
+          "Application",
+          "chrome.exe",
+        )
+      : null,
+  ].filter((candidate): candidate is string => Boolean(candidate));
+
+  const candidatePaths =
+    process.platform === "darwin"
+      ? PUPPETEER_MACOS_EXECUTABLE_PATHS
+      : process.platform === "win32"
+        ? windowsPaths
+        : PUPPETEER_LINUX_EXECUTABLE_PATHS;
+
+  const resolvedPath = candidatePaths.find((candidatePath) =>
+    fs.existsSync(candidatePath),
+  );
+  if (resolvedPath) {
+    logger.info(`Using system Chrome for Puppeteer: ${resolvedPath}`);
+  }
+
+  return resolvedPath;
+}
+
+function resolvePuppeteerHeadlessMode(): boolean {
+  const override = process.env.PUPPETEER_HEADLESS?.trim().toLowerCase();
+  if (override === "false" || override === "0" || override === "no") {
+    return false;
+  }
+
+  return true;
+}
+
+function getMissAvPuppeteerLaunchOptions(): Parameters<typeof puppeteer.launch>[0] {
+  return {
+    headless: resolvePuppeteerHeadlessMode(),
+    executablePath: resolvePuppeteerExecutablePath(),
+    defaultViewport: {
+      width: 1280,
+      height: 900,
+    },
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-blink-features=AutomationControlled",
+      "--window-size=1280,900",
+      `--user-agent=${MISSAV_BROWSER_USER_AGENT}`,
+    ],
+  };
+}
+
+async function configureMissAvPage(page: {
+  setExtraHTTPHeaders?: (headers: Record<string, string>) => Promise<unknown>;
+  evaluateOnNewDocument?: (fn: () => void) => Promise<unknown>;
+}): Promise<void> {
+  await page.setExtraHTTPHeaders?.({
+    "accept-language": MISSAV_BROWSER_ACCEPT_LANGUAGE,
+  });
+  await page.evaluateOnNewDocument?.(() => {
+    Object.defineProperty(navigator, "webdriver", {
+      get: () => false,
+      configurable: true,
+    });
+  });
+}
+
+async function navigateMissAvPage(
+  page: {
+    goto: (
+      url: string,
+      options: { waitUntil: "domcontentloaded"; timeout: number },
+    ) => Promise<unknown>;
+    title?: () => Promise<string>;
+    waitForFunction?: (
+      pageFunction: () => boolean,
+      options: { timeout: number },
+    ) => Promise<unknown>;
+  },
+  safeNavigationUrl: string,
+): Promise<void> {
+  logger.info("Navigating to:", safeNavigationUrl);
+  await page.goto(safeNavigationUrl, {
+    waitUntil: "domcontentloaded",
+    timeout: 60000,
+  });
+
+  const title = typeof page.title === "function" ? await page.title() : "";
+  if (title === "Just a moment..." && typeof page.waitForFunction === "function") {
+    logger.info(
+      "Cloudflare verification page detected; waiting up to 30 s for automatic completion...",
+    );
+    await page.waitForFunction(
+      () =>
+        document.title !== "Just a moment..." &&
+        !document.body.innerText.includes("Performing security verification"),
+      { timeout: 30000 },
+    );
+  }
+}
+
+function isCloudflareChallengeHtml(html: string): boolean {
+  return MISSAV_CLOUDFLARE_CHALLENGE_PATTERN.test(html);
+}
 
 function stripTrailingExtension(value: string, extension: string): string {
   return value.endsWith(extension) ? value.slice(0, -extension.length) : value;
@@ -109,6 +258,7 @@ function usesRoutedVideoPath(canonicalHost: string): boolean {
 function buildSafeMissAvNavigationTarget(url: string): {
   origin: string;
   path: string;
+  url: string;
 } {
   const parsedUrl = new URL(url);
   if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
@@ -167,11 +317,13 @@ function buildSafeMissAvNavigationTarget(url: string): {
       );
     }
 
+    const path = normalizedRouteLanguage
+      ? `/${normalizedRouteLanguage}/v/${encodedVideoId}`
+      : `/v/${encodedVideoId}`;
     return {
       origin: safeOrigin,
-      path: normalizedRouteLanguage
-        ? `/${normalizedRouteLanguage}/v/${encodedVideoId}`
-        : `/v/${encodedVideoId}`,
+      path,
+      url: `${safeOrigin}${path}`,
     };
   }
 
@@ -180,11 +332,34 @@ function buildSafeMissAvNavigationTarget(url: string): {
     maybeLanguage && ALLOWED_MISSAV_LANGUAGE_SEGMENTS.has(maybeLanguage)
       ? maybeLanguage
       : null;
+  const prefixSegments = normalizedLanguage
+    ? pathSegments.slice(0, -2)
+    : pathSegments.slice(0, -1);
+  if (prefixSegments.length > 1) {
+    throw new Error(
+      `SSRF protection: Invalid MissAV video path in URL: ${parsedUrl.pathname}`,
+    );
+  }
+
+  let normalizedRoutePrefix: string | null = null;
+  if (prefixSegments.length === 1) {
+    const candidatePrefix = prefixSegments[0]?.toLowerCase();
+    if (!candidatePrefix || !MISSAV_ROUTE_PREFIX_PATTERN.test(candidatePrefix)) {
+      throw new Error(
+        `SSRF protection: Invalid MissAV route prefix in URL: ${parsedUrl.pathname}`,
+      );
+    }
+    normalizedRoutePrefix = candidatePrefix;
+  }
 
   const encodedVideoId = encodeURIComponent(videoId);
-  const safePath = normalizedLanguage
-    ? `/${normalizedLanguage}/${encodedVideoId}`
-    : `/${encodedVideoId}`;
+  const safePath = normalizedRoutePrefix
+    ? normalizedLanguage
+      ? `/${normalizedRoutePrefix}/${normalizedLanguage}/${encodedVideoId}`
+      : `/${normalizedRoutePrefix}/${encodedVideoId}`
+    : normalizedLanguage
+      ? `/${normalizedLanguage}/${encodedVideoId}`
+      : `/${encodedVideoId}`;
 
   const safeOrigin = MISSAV_NAVIGATION_ORIGINS[canonicalHost];
   if (!safeOrigin) {
@@ -196,6 +371,7 @@ function buildSafeMissAvNavigationTarget(url: string): {
   return {
     origin: safeOrigin,
     path: safePath,
+    url: `${safeOrigin}${safePath}`,
   };
 }
 
@@ -208,40 +384,17 @@ export class MissAVDownloader extends BaseDownloader {
   // Get video info without downloading (Static wrapper)
   static async getVideoInfo(url: string): Promise<VideoInfo> {
     try {
-      const { origin: safeRequestOrigin, path: safeRequestPath } =
+      const { url: safeNavigationUrl } =
         buildSafeMissAvNavigationTarget(url);
 
       logger.info(
-        `Fetching page content for ${safeRequestOrigin}${safeRequestPath} with Puppeteer...`,
+        `Fetching page content for ${safeNavigationUrl} with Puppeteer...`,
       );
 
-      const USER_AGENT =
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
-
-      const browser = await puppeteer.launch({
-        headless: true,
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
-        args: [
-          "--no-sandbox",
-          "--disable-setuid-sandbox",
-          `--user-agent=${USER_AGENT}`,
-        ],
-      });
+      const browser = await puppeteer.launch(getMissAvPuppeteerLaunchOptions());
       const page = await browser.newPage();
-
-      await page.goto(safeRequestOrigin, {
-        waitUntil: "domcontentloaded",
-        timeout: 60000,
-      });
-      await Promise.all([
-        page.waitForNavigation({
-          waitUntil: "networkidle2",
-          timeout: 60000,
-        }),
-        page.evaluate((targetPath) => {
-          window.location.assign(targetPath);
-        }, safeRequestPath),
-      ]);
+      await configureMissAvPage(page);
+      await navigateMissAvPage(page, safeNavigationUrl);
 
       const html = await page.content();
       await browser.close();
@@ -320,24 +473,12 @@ export class MissAVDownloader extends BaseDownloader {
     try {
       // 1. Extract m3u8 URL and metadata using Puppeteer
       // (yt-dlp doesn't support MissAV natively, so we extract the m3u8 URL first)
-      // Set a real user agent
-      const USER_AGENT =
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
-
-      const { origin: safeRequestOrigin, path: safeRequestPath } =
+      const { url: safeNavigationUrl } =
         buildSafeMissAvNavigationTarget(url);
 
       logger.info("Launching Puppeteer to extract m3u8 URL...");
 
-      const browser = await puppeteer.launch({
-        headless: true,
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
-        args: [
-          "--no-sandbox",
-          "--disable-setuid-sandbox",
-          `--user-agent=${USER_AGENT}`,
-        ],
-      });
+      const browser = await puppeteer.launch(getMissAvPuppeteerLaunchOptions());
 
       // Declared before try so they are accessible after browser is closed.
       const m3u8Urls: string[] = [];
@@ -346,6 +487,7 @@ export class MissAVDownloader extends BaseDownloader {
 
       try {
         const page = await browser.newPage();
+        await configureMissAvPage(page);
 
         // Collect all m3u8 URLs seen during page load via the request event.
         page.on("request", (request) => {
@@ -356,23 +498,7 @@ export class MissAVDownloader extends BaseDownloader {
           }
         });
 
-        logger.info(
-          "Navigating to:",
-          `${safeRequestOrigin}${safeRequestPath}`,
-        );
-        await page.goto(safeRequestOrigin, {
-          waitUntil: "domcontentloaded",
-          timeout: 60000,
-        });
-        await Promise.all([
-          page.waitForNavigation({
-            waitUntil: "networkidle2",
-            timeout: 60000,
-          }),
-          page.evaluate((targetPath) => {
-            window.location.assign(targetPath);
-          }, safeRequestPath),
-        ]);
+        await navigateMissAvPage(page, safeNavigationUrl);
 
         // Extra wait is created AFTER networkidle2, so the full 20 s budget
         // belongs entirely to player initialisation — not shared with page load.
@@ -444,6 +570,12 @@ export class MissAVDownloader extends BaseDownloader {
 
       // 5. If m3u8 URL was not found via network, try regex extraction as fallback
       if (!m3u8Url) {
+        if (isCloudflareChallengeHtml(html)) {
+          throw new Error(
+            "MissAV access is blocked by Cloudflare verification. Retry with PUPPETEER_HEADLESS=false if needed.",
+          );
+        }
+
         logger.info(
           "m3u8 URL not found via network, trying regex extraction...",
         );
@@ -663,7 +795,10 @@ export class MissAVDownloader extends BaseDownloader {
         output: newVideoPath,
         format: downloadFormat,
         mergeOutputFormat: mergeOutputFormat,
-        addHeader: [`Referer:${referer}`, `User-Agent:${USER_AGENT}`],
+        addHeader: [
+          `Referer:${referer}`,
+          `User-Agent:${MISSAV_BROWSER_USER_AGENT}`,
+        ],
       };
 
       // Apply format sort if user specified it
