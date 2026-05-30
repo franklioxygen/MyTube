@@ -74,19 +74,19 @@ export const checkVideoDownloadStatus = async (
     throw new ValidationError("URL is required", "url");
   }
 
-  // Validate URL to prevent SSRF attacks
-  let validatedUrl: string;
+  // Process URL: extract from text, resolve shortened URLs, extract source video ID
+  const { videoUrl, sourceVideoId, platform } = await processVideoUrl(url);
+
+  // Validate the extracted URL to prevent SSRF attacks while allowing
+  // Telegram/share text that includes a title plus the actual URL.
   try {
-    validatedUrl = validateUrl(url);
+    validateUrl(videoUrl);
   } catch (error) {
     throw new ValidationError(
       error instanceof Error ? error.message : "Invalid URL format",
       "url",
     );
   }
-
-  // Process URL: extract from text, resolve shortened URLs, extract source video ID
-  const { sourceVideoId, platform } = await processVideoUrl(validatedUrl);
 
   if (!sourceVideoId) {
     // Return object directly for backward compatibility (frontend expects response.data.found)
@@ -194,10 +194,19 @@ export const downloadVideo = async (
         ? statisticsContext.relatedEventId
         : null;
 
-    // Validate URL to prevent SSRF attacks before processing
+    // Process URL: extract from text, resolve shortened URLs, extract source video ID
+    const {
+      videoUrl: processedUrl,
+      sourceVideoId,
+      platform,
+    } = await processVideoUrl(videoUrl);
+    logger.info("Processed URL:", processedUrl);
+
+    // Validate the extracted URL to prevent SSRF attacks while accepting
+    // Telegram/share text that includes surrounding title or commentary.
     let validatedVideoUrl: string;
     try {
-      validatedVideoUrl = validateUrl(videoUrl);
+      validatedVideoUrl = validateUrl(processedUrl);
     } catch (error) {
       return sendBadRequest(
         res,
@@ -205,22 +214,14 @@ export const downloadVideo = async (
       );
     }
 
-    // Process URL: extract from text, resolve shortened URLs, extract source video ID
-    const {
-      videoUrl: processedUrl,
-      sourceVideoId,
-      platform,
-    } = await processVideoUrl(validatedVideoUrl);
-    logger.info("Processed URL:", processedUrl);
-
     // Check if the input is a valid URL
-    if (!isValidUrl(processedUrl)) {
+    if (!isValidUrl(validatedVideoUrl)) {
       // If not a valid URL, treat it as a search term
       return sendBadRequest(res, "Not a valid URL");
     }
 
     // Use processed URL as resolved URL
-    const resolvedUrl = processedUrl;
+    const resolvedUrl = validatedVideoUrl;
     logger.info("Resolved URL to:", resolvedUrl);
     // Check if video was previously downloaded (skip for collections/multi-part)
     if (sourceVideoId && !downloadAllParts && !downloadCollection) {

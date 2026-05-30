@@ -42,7 +42,11 @@ describe('videoDownloadController', () => {
             mockReq.query = { url: mockUrl };
             (helpers.trimBilibiliUrl as any).mockReturnValue(mockUrl);
             (helpers.isValidUrl as any).mockReturnValue(true);
-            (helpers.processVideoUrl as any).mockResolvedValue({ sourceVideoId: '123' });
+            (helpers.processVideoUrl as any).mockResolvedValue({
+                videoUrl: mockUrl,
+                sourceVideoId: '123',
+                platform: 'youtube',
+            });
             (storageService.checkVideoDownloadBySourceId as any).mockReturnValue({ found: true, status: 'exists', videoId: '123' });
             (storageService.verifyVideoExists as any).mockReturnValue({ exists: true, video: { id: '123', title: 'Existing Video' } });
 
@@ -60,7 +64,11 @@ describe('videoDownloadController', () => {
              mockReq.query = { url: mockUrl };
              (helpers.trimBilibiliUrl as any).mockReturnValue(mockUrl);
              (helpers.isValidUrl as any).mockReturnValue(true);
-             (helpers.processVideoUrl as any).mockResolvedValue({ sourceVideoId: '123' });
+             (helpers.processVideoUrl as any).mockResolvedValue({
+                 videoUrl: mockUrl,
+                 sourceVideoId: '123',
+                 platform: 'youtube',
+             });
              (storageService.checkVideoDownloadBySourceId as any).mockReturnValue({ found: false });
 
              await videoDownloadController.checkVideoDownloadStatus(mockReq as Request, mockRes as Response);
