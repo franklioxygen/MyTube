@@ -560,6 +560,37 @@ describe("ytDlpUtils", () => {
       ).toBe(true);
     });
 
+    it("should stop retrying auto-install when yt-dlp is still missing after install", async () => {
+      const initialVersionProc = createMockProcess();
+      const installProc = createMockProcess();
+      const secondVersionProc = createMockProcess();
+      vi.mocked(spawn)
+        .mockImplementationOnce(() => initialVersionProc as any)
+        .mockImplementationOnce(() => installProc as any)
+        .mockImplementationOnce(() => secondVersionProc as any);
+
+      const promise = ensureYtDlpAvailable();
+      await flushAsyncSpawns();
+      initialVersionProc.emit(
+        "error",
+        Object.assign(new Error("not found"), { code: "ENOENT" })
+      );
+      await flushAsyncSpawns();
+      installProc.emit("close", 0);
+      await flushAsyncSpawns();
+      secondVersionProc.emit(
+        "error",
+        Object.assign(new Error("still not found"), { code: "ENOENT" })
+      );
+
+      await expect(promise).rejects.toThrow(
+        "yt-dlp was installed automatically but is still not available on PATH"
+      );
+      expect(
+        vi.mocked(spawn).mock.calls.filter(([cmd]) => cmd === "pip3")
+      ).toHaveLength(1);
+    });
+
     it("should throw when yt-dlp exists but is not executable", async () => {
       const versionProc = createMockProcess();
       vi.mocked(spawn).mockImplementationOnce(() => versionProc as any);

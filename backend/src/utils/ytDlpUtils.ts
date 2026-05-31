@@ -582,6 +582,7 @@ export async function ensureYtDlpAvailable(): Promise<void> {
 
   ytDlpAvailablePromise = (async () => {
     let attemptedAutoUpgrade = false;
+    let attemptedAutoInstall = false;
 
     while (true) {
       const ytDlpPath = await resolveYtDlpPath();
@@ -642,9 +643,17 @@ export async function ensureYtDlpAvailable(): Promise<void> {
             );
           }
 
+          if (attemptedAutoInstall) {
+            throw new Error(
+              "yt-dlp was installed automatically but is still not available on PATH. " +
+                "Please add it to PATH or set YT_DLP_PATH to the installed binary."
+            );
+          }
+
           console.warn(
             "[yt-dlp] yt-dlp not found in PATH. Attempting automatic installation..."
           );
+          attemptedAutoInstall = true;
           await installYtDlp();
           resolvedYtDlpPathCache = null;
           jsRuntimeFlagPromise = null;
