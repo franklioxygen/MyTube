@@ -53,6 +53,9 @@ type MockProcess = EventEmitter & {
 
 type JsRuntimeFlagStyle = "plural" | "singular" | "none";
 
+const FRESH_YT_DLP_VERSION = "2099.03.17";
+const OLDER_FRESH_YT_DLP_VERSION = "2099.01.01";
+
 const createMockProcess = (): MockProcess => {
   const proc = new EventEmitter() as MockProcess;
   proc.stdout = new PassThrough();
@@ -65,9 +68,12 @@ const createMockProcess = (): MockProcess => {
   return proc;
 };
 
-const createVersionCheckProcess = (): MockProcess => {
+const createVersionCheckProcess = (version: string = FRESH_YT_DLP_VERSION): MockProcess => {
   const proc = createMockProcess();
-  queueMicrotask(() => proc.emit("close", 0));
+  queueMicrotask(() => {
+    proc.stdout?.emit("data", Buffer.from(`${version}\n`));
+    proc.emit("close", 0);
+  });
   return proc;
 };
 
@@ -166,6 +172,10 @@ const validNetscapeCookies =
 describe("ytDlpUtils", () => {
   const originalYtDlpPath = process.env.YT_DLP_PATH;
   const originalPath = process.env.PATH;
+  const originalHome = process.env.HOME;
+  const originalUserProfile = process.env.USERPROFILE;
+  const originalAppData = process.env.APPDATA;
+  const originalLocalAppData = process.env.LOCALAPPDATA;
 
   beforeEach(() => {
     vi.resetAllMocks();
@@ -199,6 +209,26 @@ describe("ytDlpUtils", () => {
       delete process.env.PATH;
     } else {
       process.env.PATH = originalPath;
+    }
+    if (originalHome === undefined) {
+      delete process.env.HOME;
+    } else {
+      process.env.HOME = originalHome;
+    }
+    if (originalUserProfile === undefined) {
+      delete process.env.USERPROFILE;
+    } else {
+      process.env.USERPROFILE = originalUserProfile;
+    }
+    if (originalAppData === undefined) {
+      delete process.env.APPDATA;
+    } else {
+      process.env.APPDATA = originalAppData;
+    }
+    if (originalLocalAppData === undefined) {
+      delete process.env.LOCALAPPDATA;
+    } else {
+      process.env.LOCALAPPDATA = originalLocalAppData;
     }
   });
 
@@ -466,7 +496,8 @@ describe("ytDlpUtils", () => {
       const installProc = createMockProcess();
       vi.mocked(spawn)
         .mockImplementationOnce(() => versionProc as any)
-        .mockImplementationOnce(() => installProc as any);
+        .mockImplementationOnce(() => installProc as any)
+        .mockImplementationOnce(() => createVersionCheckProcess() as any);
 
       const promise = ensureYtDlpAvailable();
       await flushAsyncSpawns();
@@ -475,7 +506,212 @@ describe("ytDlpUtils", () => {
       installProc.emit("close", 0);
 
       await expect(promise).resolves.toBeUndefined();
-      expect(vi.mocked(spawn).mock.calls[1][1]).toEqual(["install", "yt-dlp"]);
+      expect(vi.mocked(spawn).mock.calls[1][1]).toEqual([
+        "install",
+        "--user",
+        "yt-dlp",
+        "bgutil-ytdlp-pot-provider",
+      ]);
+    });
+
+    it("should continue with the current stale yt-dlp when auto-upgrade fails", async () => {
+      const staleVersionProc = createMockProcess();
+      vi.mocked(spawn)
+        .mockImplementationOnce(() => staleVersionProc as any)
+        .mockImplementation(() => {
+          const proc = createMockProcess();
+          queueMicrotask(() => {
+            proc.stderr?.emit("data", Buffer.from("install failed\n"));
+            proc.emit("close", 1);
+          });
+          return proc as any;
+        });
+
+      const promise = ensureYtDlpAvailable();
+      await flushAsyncSpawns();
+      staleVersionProc.stdout?.emit("data", Buffer.from("2020.01.01\n"));
+      staleVersionProc.emit("close", 0);
+
+      await expect(promise).resolves.toBeUndefined();
+      expect(
+        vi.mocked(spawn).mock.calls.some(
+          ([cmd, args]) => cmd === "pip3" && Array.isArray(args) && args.includes("-U")
+        )
+      ).toBe(true);
+    });
+
+    it("should move an existing user install directory to the front of PATH after auto-upgrade", async () => {
+      process.env.YT_DLP_PATH = "yt-dlp";
+      process.env.HOME = "/tmp/test-home";
+      const userBinDir = path.join(process.env.HOME, ".local", "bin");
+      process.env.PATH = ["/old/bin", userBinDir, "/usr/bin"].join(path.delimiter);
+      const userInstalledYtDlpPath = path.join(userBinDir, "yt-dlp");
+
+      vi.mocked(fs.existsSync).mockImplementation((target: any) => {
+        return String(target) === userInstalledYtDlpPath;
+      });
+
+      const staleVersionProc = createMockProcess();
+      const installProc = createMockProcess();
+      const freshVersionProc = createMockProcess();
+      vi.mocked(spawn)
+        .mockImplementationOnce(() => staleVersionProc as any)
+        .mockImplementationOnce(() => installProc as any)
+        .mockImplementationOnce(() => freshVersionProc as any);
+
+      const promise = ensureYtDlpAvailable();
+      await flushAsyncSpawns();
+      staleVersionProc.stdout?.emit("data", Buffer.from("2020.01.01\n"));
+      staleVersionProc.emit("close", 0);
+      await flushAsyncSpawns();
+      installProc.emit("close", 0);
+      await flushAsyncSpawns();
+      freshVersionProc.stdout?.emit("data", Buffer.from(`${FRESH_YT_DLP_VERSION}\n`));
+      freshVersionProc.emit("close", 0);
+
+      await expect(promise).resolves.toBeUndefined();
+
+      const retriedVersionProbe = vi.mocked(spawn).mock.calls[2];
+      expect(retriedVersionProbe?.[0]).toBe("yt-dlp");
+      expect(
+        (
+          retriedVersionProbe?.[2] as { env?: NodeJS.ProcessEnv } | undefined
+        )?.env?.PATH
+      ).toBe(
+        [userBinDir, "/old/bin", "/usr/bin"].join(path.delimiter)
+      );
+      expect(process.env.PATH).toBe(
+        [userBinDir, "/old/bin", "/usr/bin"].join(path.delimiter)
+      );
+    });
+
+    it("should resolve a user-installed yt-dlp outside PATH after auto-install", async () => {
+      delete process.env.YT_DLP_PATH;
+      process.env.PATH = "/usr/bin";
+      process.env.HOME = "/tmp/test-home";
+      const installedYtDlpPath = path.join(
+        process.env.HOME,
+        ".local",
+        "bin",
+        "yt-dlp"
+      );
+
+      vi.mocked(fs.existsSync).mockImplementation((target: any) => {
+        return String(target) === installedYtDlpPath;
+      });
+
+      const versionProc = createMockProcess();
+      const installProc = createMockProcess();
+      vi.mocked(spawn)
+        .mockImplementationOnce(() => versionProc as any)
+        .mockImplementationOnce(() => installProc as any)
+        .mockImplementationOnce(() => createVersionCheckProcess() as any)
+        .mockImplementationOnce(() => createHelpCheckProcess("plural") as any)
+        .mockImplementationOnce(() => createVersionCheckProcess() as any);
+
+      const promise = ensureYtDlpAvailable();
+      await flushAsyncSpawns();
+      versionProc.emit("error", Object.assign(new Error("not found"), { code: "ENOENT" }));
+      await flushAsyncSpawns();
+      installProc.emit("close", 0);
+
+      await expect(promise).resolves.toBeUndefined();
+      expect(
+        vi.mocked(fs.existsSync).mock.calls.some(
+          ([target]) => String(target) === installedYtDlpPath
+        )
+      ).toBe(true);
+    });
+
+    it("should resolve a Windows user-installed yt-dlp from Python Scripts after auto-install", async () => {
+      const originalPlatform = process.platform;
+      Object.defineProperty(process, "platform", {
+        value: "win32",
+        configurable: true,
+      });
+
+      try {
+        delete process.env.YT_DLP_PATH;
+        delete process.env.HOME;
+        process.env.PATH = "/windows/system32";
+        process.env.USERPROFILE = "/tmp/test-user";
+        process.env.APPDATA = "/tmp/test-user/AppData/Roaming";
+        delete process.env.LOCALAPPDATA;
+
+        const scriptsRoot = path.join(process.env.APPDATA, "Python");
+        const installedYtDlpPath = path.join(
+          scriptsRoot,
+          "Python313",
+          "Scripts",
+          "yt-dlp.exe"
+        );
+
+        vi.mocked(fs.readdirSync).mockImplementation((target: any) => {
+          if (String(target) === scriptsRoot) {
+            return ["Python313"] as any;
+          }
+          throw createMissingFileError();
+        });
+        vi.mocked(fs.existsSync).mockImplementation((target: any) => {
+          return String(target) === installedYtDlpPath;
+        });
+
+        const versionProc = createMockProcess();
+        const installProc = createMockProcess();
+        vi.mocked(spawn)
+          .mockImplementationOnce(() => versionProc as any)
+          .mockImplementationOnce(() => installProc as any)
+          .mockImplementationOnce(() => createVersionCheckProcess() as any)
+          .mockImplementationOnce(() => createHelpCheckProcess("plural") as any)
+          .mockImplementationOnce(() => createVersionCheckProcess() as any);
+
+        const promise = ensureYtDlpAvailable();
+        await flushAsyncSpawns();
+        versionProc.emit("error", Object.assign(new Error("not found"), { code: "ENOENT" }));
+        await flushAsyncSpawns();
+        installProc.emit("close", 0);
+
+        await expect(promise).resolves.toBeUndefined();
+        expect(
+          vi.mocked(spawn).mock.calls.some(([cmd]) => cmd === installedYtDlpPath)
+        ).toBe(true);
+      } finally {
+        Object.defineProperty(process, "platform", {
+          value: originalPlatform,
+          configurable: true,
+        });
+      }
+    });
+
+    it("should stop retrying auto-install when yt-dlp is still missing after install", async () => {
+      const initialVersionProc = createMockProcess();
+      const installProc = createMockProcess();
+      const secondVersionProc = createMockProcess();
+      vi.mocked(spawn)
+        .mockImplementationOnce(() => initialVersionProc as any)
+        .mockImplementationOnce(() => installProc as any)
+        .mockImplementationOnce(() => secondVersionProc as any);
+
+      const promise = ensureYtDlpAvailable();
+      await flushAsyncSpawns();
+      initialVersionProc.emit(
+        "error",
+        Object.assign(new Error("not found"), { code: "ENOENT" })
+      );
+      await flushAsyncSpawns();
+      installProc.emit("close", 0);
+      await flushAsyncSpawns();
+      secondVersionProc.emit(
+        "error",
+        Object.assign(new Error("still not found"), { code: "ENOENT" })
+      );
+
+      await expect(promise).rejects.toThrow(
+        "yt-dlp was installed automatically but is still not available on PATH"
+      );
+      expect(
+        vi.mocked(spawn).mock.calls.filter(([cmd]) => cmd === "pip3")
+      ).toHaveLength(1);
     });
 
     it("should throw when yt-dlp exists but is not executable", async () => {
@@ -540,7 +776,9 @@ describe("ytDlpUtils", () => {
 
       const proc = createMockProcess();
       vi.mocked(spawn)
+        .mockImplementationOnce(() => createVersionCheckProcess(OLDER_FRESH_YT_DLP_VERSION) as any)
         .mockImplementationOnce(() => createHelpCheckProcess("none") as any)
+        .mockImplementationOnce(() => createVersionCheckProcess(FRESH_YT_DLP_VERSION) as any)
         .mockImplementationOnce(() => createHelpCheckProcess("plural") as any)
         .mockImplementationOnce(() => createVersionCheckProcess() as any)
         .mockImplementationOnce(() => createHelpCheckProcess("plural") as any)
@@ -581,6 +819,7 @@ describe("ytDlpUtils", () => {
       const proc = createMockProcess();
       vi.mocked(spawn)
         .mockImplementationOnce(() => brokenProc as any)
+        .mockImplementationOnce(() => createVersionCheckProcess(FRESH_YT_DLP_VERSION) as any)
         .mockImplementationOnce(() => createHelpCheckProcess("none") as any)
         .mockImplementationOnce(() => createVersionCheckProcess() as any)
         .mockImplementationOnce(() => createHelpCheckProcess("none") as any)
@@ -621,7 +860,9 @@ describe("ytDlpUtils", () => {
       const brokenProc = createMockProcess();
       const proc = createMockProcess();
       vi.mocked(spawn)
+        .mockImplementationOnce(() => createVersionCheckProcess(OLDER_FRESH_YT_DLP_VERSION) as any)
         .mockImplementationOnce(() => brokenProc as any)
+        .mockImplementationOnce(() => createVersionCheckProcess(FRESH_YT_DLP_VERSION) as any)
         .mockImplementationOnce(() => createHelpCheckProcess("none") as any)
         .mockImplementationOnce(() => createVersionCheckProcess() as any)
         .mockImplementationOnce(() => createHelpCheckProcess("none") as any)
@@ -664,6 +905,7 @@ describe("ytDlpUtils", () => {
       const proc = createMockProcess();
       vi.mocked(spawn)
         .mockImplementationOnce(() => hangingProc as any)
+        .mockImplementationOnce(() => createVersionCheckProcess(FRESH_YT_DLP_VERSION) as any)
         .mockImplementationOnce(() => createHelpCheckProcess("none") as any)
         .mockImplementationOnce(() => createVersionCheckProcess() as any)
         .mockImplementationOnce(() => createHelpCheckProcess("none") as any)

@@ -14,6 +14,8 @@ import { isBilibiliUrl, isYouTubeUrl } from "./helpers";
 import {
   moveSafeSync,
   pathExistsSafeSync,
+  pathExistsTrustedSync,
+  readdirSafeSync,
   readFileSafeSync,
   resolveSafeChildPath,
   statSafeSync,
@@ -28,6 +30,7 @@ import {
 const DEFAULT_YT_DLP_PATH = "yt-dlp";
 const YT_DLP_JS_RUNTIME_ENV = "YT_DLP_JS_RUNTIME";
 const YT_DLP_HELP_PROBE_TIMEOUT_MS = 5000;
+const YT_DLP_STALE_AFTER_DAYS = 90;
 const DEFAULT_YOUTUBE_PLAYER_CLIENT_EXTRACTOR_ARG =
   "youtube:player_client=default,mweb";
 const YOUTUBE_PLAYER_CLIENT_ARG_PREFIX = "youtube:player_client=";
@@ -50,6 +53,118 @@ type CookiesFileCache = CookiesFileSignature & {
 let jsRuntimeFlagPromise: Promise<YouTubeJsRuntimeFlag | null> | null = null;
 const runtimeWarningCache = new Set<string>();
 let cookiesFileCache: CookiesFileCache | null = null;
+
+function appendUniquePathEntry(entries: string[], candidate: string): void {
+  if (!candidate || entries.includes(candidate)) {
+    return;
+  }
+
+  entries.push(candidate);
+}
+
+function prependUniquePathEntry(entries: string[], candidate: string): void {
+  if (!candidate) {
+    return;
+  }
+
+  const existingIndex = entries.indexOf(candidate);
+  if (existingIndex === 0) {
+    return;
+  }
+
+  if (existingIndex > 0) {
+    entries.splice(existingIndex, 1);
+  }
+
+  entries.unshift(candidate);
+}
+
+function appendSafeChildDir(
+  entries: string[],
+  allowedDir: string,
+  childDir: string,
+): void {
+  try {
+    appendUniquePathEntry(entries, resolveSafeChildPath(allowedDir, childDir));
+  } catch {
+    // Ignore invalid child paths discovered while scanning local install roots.
+  }
+}
+
+function getYtDlpExecutableNames(): string[] {
+  return process.platform === "win32"
+    ? ["yt-dlp.exe", "yt-dlp.cmd", "yt-dlp.bat", "yt-dlp"]
+    : ["yt-dlp"];
+}
+
+function appendWindowsPythonScriptsDirs(
+  candidateDirs: string[],
+  rootDir: string,
+): void {
+  try {
+    for (const entry of readdirSafeSync(rootDir, rootDir)) {
+      if (!/^python\d+(?:-\d+)?$/i.test(entry)) {
+        continue;
+      }
+      const pythonDir = resolveSafeChildPath(rootDir, entry);
+      appendSafeChildDir(candidateDirs, pythonDir, "Scripts");
+    }
+  } catch {
+    // Ignore missing or unreadable Python installation roots.
+  }
+}
+
+function listLikelyUserBinDirs(): string[] {
+  const candidateDirs: string[] = [];
+
+  if (process.platform === "win32") {
+    const userProfile = process.env.USERPROFILE?.trim();
+    const appData =
+      process.env.APPDATA?.trim() ||
+      (userProfile ? path.join(userProfile, "AppData", "Roaming") : "");
+    const localAppData =
+      process.env.LOCALAPPDATA?.trim() ||
+      (userProfile ? path.join(userProfile, "AppData", "Local") : "");
+
+    if (appData) {
+      appendUniquePathEntry(candidateDirs, path.join(appData, "Python", "Scripts"));
+      appendWindowsPythonScriptsDirs(candidateDirs, path.join(appData, "Python"));
+    }
+
+    if (localAppData) {
+      appendWindowsPythonScriptsDirs(
+        candidateDirs,
+        path.join(localAppData, "Programs", "Python")
+      );
+    }
+
+    return candidateDirs;
+  }
+
+  const homeDir = process.env.HOME?.trim();
+  if (!homeDir) {
+    return candidateDirs;
+  }
+
+  appendUniquePathEntry(candidateDirs, path.join(homeDir, ".local", "bin"));
+
+  if (process.platform === "darwin") {
+    const macUserPythonRoot = path.join(homeDir, "Library", "Python");
+    try {
+      for (const entry of readdirSafeSync(macUserPythonRoot, macUserPythonRoot)) {
+        if (!/^\d+\.\d+$/.test(entry)) {
+          continue;
+        }
+        const pythonDir = resolveSafeChildPath(macUserPythonRoot, entry);
+        appendSafeChildDir(candidateDirs, pythonDir, "bin");
+      }
+    } catch {
+      // Ignore missing or unreadable user Python directories.
+    }
+  }
+
+  return candidateDirs;
+}
 
 function resolveCookiesPath(): string {
   return resolveSafeChildPath(DATA_DIR, COOKIES_FILENAME);
@@ -107,17 +222,22 @@ function listYtDlpPathCandidates(): string[] {
   const pathEntries = (process.env.PATH ?? "")
     .split(path.delimiter)
     .filter(Boolean);
-  const executableNames =
-    process.platform === "win32"
-      ? ["yt-dlp.exe", "yt-dlp.cmd", "yt-dlp.bat", "yt-dlp"]
-      : ["yt-dlp"];
+  for (const candidateDir of listLikelyUserBinDirs()) {
+    appendUniquePathEntry(pathEntries, candidateDir);
+  }
+  const executableNames = getYtDlpExecutableNames();
 
   const seen = new Set<string>();
   const candidates: string[] = [];
 
   for (const entry of pathEntries) {
     for (const executableName of executableNames) {
-      const candidatePath = path.join(entry, executableName);
+      let candidatePath: string;
+      try {
+        candidatePath = resolveSafeChildPath(entry, executableName);
+      } catch {
+        continue;
+      }
       let candidateExists = false;
       try {
         candidateExists = pathExistsSafeSync(candidatePath, entry);
@@ -135,14 +255,172 @@ function listYtDlpPathCandidates(): string[] {
   return candidates;
 }
 
+function updatePathAfterAutoInstall(): void {
+  const pathEntries = (process.env.PATH ?? "")
+    .split(path.delimiter)
+    .filter(Boolean);
+
+  for (const candidateDir of listLikelyUserBinDirs()) {
+    const hasExecutable = getYtDlpExecutableNames().some((executableName) => {
+      try {
+        const candidatePath = `${candidateDir}${path.sep}${executableName}`;
+        return pathExistsTrustedSync(candidatePath);
+      } catch {
+        return false;
+      }
+    });
+
+    if (hasExecutable) {
+      prependUniquePathEntry(pathEntries, candidateDir);
+    }
+  }
+
+  process.env.PATH = pathEntries.join(path.delimiter);
+}
+
 type YtDlpCandidateProbe = {
   canRun: boolean;
   supportsModernJsRuntimes: boolean;
+  version: string | null;
+  releaseTimestamp: number | null;
+  isStale: boolean;
 };
+
+function extractYtDlpReleaseTimestamp(versionText: string | null): number | null {
+  if (!versionText) {
+    return null;
+  }
+
+  const match = versionText.match(/(\d{4})\.(\d{2})\.(\d{2})/);
+  if (!match) {
+    return null;
+  }
+
+  const year = Number(match[1]);
+  const monthIndex = Number(match[2]) - 1;
+  const day = Number(match[3]);
+  const timestamp = Date.UTC(year, monthIndex, day);
+  return Number.isFinite(timestamp) ? timestamp : null;
+}
+
+function isYtDlpReleaseStale(releaseTimestamp: number | null): boolean {
+  if (releaseTimestamp === null) {
+    return false;
+  }
+
+  const staleAfterMs = YT_DLP_STALE_AFTER_DAYS * 24 * 60 * 60 * 1000;
+  return Date.now() - releaseTimestamp > staleAfterMs;
+}
+
+async function getYtDlpVersionInfo(ytDlpPath: string): Promise<{
+  canRun: boolean;
+  version: string | null;
+  releaseTimestamp: number | null;
+  isStale: boolean;
+  errorKind?: "close" | "spawn";
+  errorCode?: string;
+  errorMessage?: string;
+}> {
+  let versionText = "";
+
+  return await new Promise((resolve) => {
+    let settled = false;
+    const timeout = setTimeout(() => {
+      if (settled) return;
+      proc.kill("SIGTERM");
+      settled = true;
+      resolve({
+        canRun: false,
+        version: null,
+        releaseTimestamp: null,
+        isStale: false,
+        errorKind: "spawn",
+        errorCode: "ETIMEDOUT",
+        errorMessage: "yt-dlp version probe timed out",
+      });
+    }, YT_DLP_HELP_PROBE_TIMEOUT_MS);
+    timeout.unref?.();
+    const settle = (result: {
+      canRun: boolean;
+      version: string | null;
+      releaseTimestamp: number | null;
+      isStale: boolean;
+      errorKind?: "close" | "spawn";
+      errorCode?: string;
+      errorMessage?: string;
+    }) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      resolve(result);
+    };
+
+    // ytDlpPath is either explicitly configured by the operator or selected
+    // from enumerated PATH entries and fixed executable names above.
+    // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process
+    const proc = spawn(ytDlpPath, ["--version"], {
+      env: getYtDlpSpawnEnv(),
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+
+    proc.stdout?.on("data", (data: Buffer) => {
+      versionText += data.toString();
+    });
+
+    proc.stderr?.on("data", (data: Buffer) => {
+      versionText += data.toString();
+    });
+
+    proc.on("close", (code) => {
+      if (code !== 0) {
+        settle({
+          canRun: false,
+          version: null,
+          releaseTimestamp: null,
+          isStale: false,
+          errorKind: "close",
+        });
+        return;
+      }
+
+      const normalizedVersion = versionText.trim() || null;
+      const releaseTimestamp = extractYtDlpReleaseTimestamp(normalizedVersion);
+      settle({
+        canRun: true,
+        version: normalizedVersion,
+        releaseTimestamp,
+        isStale: isYtDlpReleaseStale(releaseTimestamp),
+      });
+    });
+
+    proc.on("error", (error: NodeJS.ErrnoException) => {
+      settle({
+        canRun: false,
+        version: null,
+        releaseTimestamp: null,
+        isStale: false,
+        errorKind: "spawn",
+        errorCode: error?.code,
+        errorMessage: error?.message,
+      });
+    });
+  });
+}
 
 async function probeYtDlpCandidate(
   ytDlpPath: string
 ): Promise<YtDlpCandidateProbe> {
+  const versionInfo = await getYtDlpVersionInfo(ytDlpPath);
+  if (!versionInfo.canRun) {
+    return {
+      canRun: false,
+      supportsModernJsRuntimes: false,
+      version: null,
+      releaseTimestamp: null,
+      isStale: false,
+    };
+  }
+
   let helpText = "";
 
   return await new Promise<YtDlpCandidateProbe>((resolve) => {
@@ -150,6 +428,9 @@ async function probeYtDlpCandidate(
     const failProbe = (): YtDlpCandidateProbe => ({
       canRun: false,
       supportsModernJsRuntimes: false,
+      version: versionInfo.version,
+      releaseTimestamp: versionInfo.releaseTimestamp,
+      isStale: versionInfo.isStale,
     });
     const timeout = setTimeout(() => {
       if (settled) return;
@@ -191,6 +472,9 @@ async function probeYtDlpCandidate(
         supportsModernJsRuntimes:
           helpText.includes("--js-runtimes") ||
           helpText.includes("--js-runtime"),
+        version: versionInfo.version,
+        releaseTimestamp: versionInfo.releaseTimestamp,
+        isStale: versionInfo.isStale,
       });
     });
 
@@ -198,6 +482,31 @@ async function probeYtDlpCandidate(
       settle(failProbe());
     });
   });
+}
+
+function isBetterYtDlpCandidate(
+  candidate: YtDlpCandidateProbe,
+  currentBest: YtDlpCandidateProbe | null,
+): boolean {
+  if (!currentBest) {
+    return true;
+  }
+
+  if (candidate.isStale !== currentBest.isStale) {
+    return currentBest.isStale;
+  }
+
+  if (candidate.supportsModernJsRuntimes !== currentBest.supportsModernJsRuntimes) {
+    return candidate.supportsModernJsRuntimes;
+  }
+
+  const candidateTimestamp = candidate.releaseTimestamp ?? 0;
+  const bestTimestamp = currentBest.releaseTimestamp ?? 0;
+  if (candidateTimestamp !== bestTimestamp) {
+    return candidateTimestamp > bestTimestamp;
+  }
+
+  return false;
 }
 
 async function resolveYtDlpPath(): Promise<string> {
@@ -216,26 +525,21 @@ async function resolveYtDlpPath(): Promise<string> {
     return resolvedYtDlpPathCache;
   }
 
-  let fallbackCandidate: string | null = null;
+  let bestCandidate: string | null = null;
+  let bestProbe: YtDlpCandidateProbe | null = null;
   for (const candidate of candidates) {
     const probe = await probeYtDlpCandidate(candidate);
     if (!probe.canRun) {
       continue;
     }
 
-    fallbackCandidate ||= candidate;
-    if (probe.supportsModernJsRuntimes) {
-      resolvedYtDlpPathCache = candidate;
-      if (candidate !== fallbackCandidate) {
-        console.log(
-          `[yt-dlp] Selected ${candidate} over ${fallbackCandidate} because it supports --js-runtimes.`
-        );
-      }
-      return resolvedYtDlpPathCache;
+    if (isBetterYtDlpCandidate(probe, bestProbe)) {
+      bestCandidate = candidate;
+      bestProbe = probe;
     }
   }
 
-  resolvedYtDlpPathCache = fallbackCandidate || DEFAULT_YT_DLP_PATH;
+  resolvedYtDlpPathCache = bestCandidate || DEFAULT_YT_DLP_PATH;
   return resolvedYtDlpPathCache;
 }
 
@@ -264,23 +568,33 @@ export function resetYtDlpAvailabilityCacheForTests(): void {
 /**
  * Try to install yt-dlp via pip, trying multiple pip variants.
  */
-async function installYtDlp(): Promise<void> {
+async function installYtDlp(options: { upgrade?: boolean } = {}): Promise<void> {
+  const { upgrade = false } = options;
+  const packages = ["yt-dlp", "bgutil-ytdlp-pot-provider"];
+  const installArgs = ["install"];
+  if (upgrade) {
+    installArgs.push("-U");
+  }
+
   // pip candidates to try in order
   const candidates =
     process.platform === "win32"
       ? [
-          ["py", "-m", "pip", "install", "yt-dlp"],
-          ["python", "-m", "pip", "install", "yt-dlp"],
-          ["python3", "-m", "pip", "install", "yt-dlp"],
-          ["pip", "install", "yt-dlp"],
-          ["pip3", "install", "yt-dlp"],
+          ["py", "-m", "pip", ...installArgs, ...packages],
+          ["python", "-m", "pip", ...installArgs, ...packages],
+          ["python3", "-m", "pip", ...installArgs, ...packages],
+          ["pip", ...installArgs, ...packages],
+          ["pip3", ...installArgs, ...packages],
         ]
       : [
-          ["pip3", "install", "yt-dlp"],
-          ["pip3", "install", "--break-system-packages", "yt-dlp"],
-          ["pip", "install", "yt-dlp"],
-          ["pip", "install", "--break-system-packages", "yt-dlp"],
-          ["python3", "-m", "pip", "install", "yt-dlp"],
+          ["pip3", ...installArgs, "--user", ...packages],
+          ["pip3", ...installArgs, ...packages],
+          ["pip3", ...installArgs, "--break-system-packages", ...packages],
+          ["pip", ...installArgs, "--user", ...packages],
+          ["pip", ...installArgs, ...packages],
+          ["pip", ...installArgs, "--break-system-packages", ...packages],
+          ["python3", "-m", "pip", ...installArgs, "--user", ...packages],
+          ["python3", "-m", "pip", ...installArgs, ...packages],
         ];
 
   for (const [cmd, ...args] of candidates) {
@@ -306,7 +620,12 @@ async function installYtDlp(): Promise<void> {
         );
         proc.on("error", reject);
       });
-      console.log("[yt-dlp] Successfully installed yt-dlp.");
+      console.log(
+        upgrade
+          ? "[yt-dlp] Successfully updated yt-dlp and bgutil provider."
+          : "[yt-dlp] Successfully installed yt-dlp and bgutil provider."
+      );
+      updatePathAfterAutoInstall();
       return;
     } catch (error: any) {
       const stderr = String(error?.stderr || "").trim();
@@ -318,7 +637,7 @@ async function installYtDlp(): Promise<void> {
   }
 
   throw new Error(
-    "yt-dlp is not installed and could not be automatically installed. " +
+    `yt-dlp could not be automatically ${upgrade ? "updated" : "installed"}. ` +
       "Please install it manually: https://github.com/yt-dlp/yt-dlp#installation"
   );
 }
@@ -331,68 +650,95 @@ export async function ensureYtDlpAvailable(): Promise<void> {
   if (ytDlpAvailablePromise) return ytDlpAvailablePromise;
 
   ytDlpAvailablePromise = (async () => {
-    const ytDlpPath = await resolveYtDlpPath();
+    let attemptedAutoUpgrade = false;
+    let attemptedAutoInstall = false;
 
-    try {
-      await new Promise<void>((resolve, reject) => {
-        const proc = spawn(ytDlpPath, ["--version"], {
-          env: getYtDlpSpawnEnv(),
-          stdio: ["ignore", "ignore", "ignore"],
-        });
-        proc.on("close", (code) => {
-          if (code === 0) {
-            resolve();
-            return;
-          }
-          reject(
-            Object.assign(new Error(`yt-dlp --version exited with code ${code}`), {
-              kind: "close",
-              exitCode: code,
-            })
-          );
-        });
-        proc.on("error", (error: NodeJS.ErrnoException) => {
-          reject(Object.assign(error, { kind: "spawn" }));
-        });
-      });
-    } catch (err: any) {
-      // Non-zero exit from --version means binary executed; continue.
-      if (err.kind === "close") {
-        return;
-      }
-
-      if (err.code === "EACCES" || err.code === "EPERM") {
-        throw new Error(
-          `yt-dlp exists but is not executable at: ${ytDlpPath}. ` +
-            "Please fix file permissions or install yt-dlp manually."
-        );
-      }
-
-      if (err.code === "ENOENT") {
-        // Only auto-install when using the default path (not a user-configured path).
-        if (hasCustomConfiguredYtDlpPath()) {
-          throw new Error(
-            `yt-dlp not found at configured path: ${ytDlpPath}. ` +
-              "Please check your YT_DLP_PATH environment variable."
+    while (true) {
+      const ytDlpPath = await resolveYtDlpPath();
+      try {
+        const versionInfo = await getYtDlpVersionInfo(ytDlpPath);
+        if (!versionInfo.canRun) {
+          throw Object.assign(
+            new Error(versionInfo.errorMessage || "yt-dlp failed version probe"),
+            {
+              kind: versionInfo.errorKind || "close",
+              code: versionInfo.errorCode,
+            }
           );
         }
 
-        console.warn(
-          "[yt-dlp] yt-dlp not found in PATH. Attempting automatic installation..."
-        );
-        await installYtDlp();
-        return;
-      }
+        if (
+          !hasCustomConfiguredYtDlpPath() &&
+          !attemptedAutoUpgrade &&
+          versionInfo.isStale
+        ) {
+          attemptedAutoUpgrade = true;
+          console.warn(
+            `[yt-dlp] ${versionInfo.version || ytDlpPath} is older than ${YT_DLP_STALE_AFTER_DAYS} days. Updating yt-dlp and the bgutil provider to avoid known YouTube 360p regressions.`
+          );
+          try {
+            await installYtDlp({ upgrade: true });
+            resolvedYtDlpPathCache = null;
+            jsRuntimeFlagPromise = null;
+            continue;
+          } catch (upgradeError: any) {
+            console.warn(
+              `[yt-dlp] Automatic update failed (${upgradeError?.message || "unknown error"}). Continuing with the existing yt-dlp binary.`
+            );
+            return;
+          }
+        }
 
-      if (hasCustomConfiguredYtDlpPath()) {
+        return;
+      } catch (err: any) {
+        // Non-zero exit from --version means binary executed; continue.
+        if (err.kind === "close") {
+          return;
+        }
+
+        if (err.code === "EACCES" || err.code === "EPERM") {
+          throw new Error(
+            `yt-dlp exists but is not executable at: ${ytDlpPath}. ` +
+              "Please fix file permissions or install yt-dlp manually."
+          );
+        }
+
+        if (err.code === "ENOENT") {
+          // Only auto-install when using the default path (not a user-configured path).
+          if (hasCustomConfiguredYtDlpPath()) {
+            throw new Error(
+              `yt-dlp not found at configured path: ${ytDlpPath}. ` +
+                "Please check your YT_DLP_PATH environment variable."
+            );
+          }
+
+          if (attemptedAutoInstall) {
+            throw new Error(
+              "yt-dlp was installed automatically but is still not available on PATH. " +
+                "Please add it to PATH or set YT_DLP_PATH to the installed binary."
+            );
+          }
+
+          console.warn(
+            "[yt-dlp] yt-dlp not found in PATH. Attempting automatic installation..."
+          );
+          attemptedAutoInstall = true;
+          await installYtDlp();
+          resolvedYtDlpPathCache = null;
+          jsRuntimeFlagPromise = null;
+          continue;
+        }
+
+        if (hasCustomConfiguredYtDlpPath()) {
+          throw new Error(
+            `Failed to execute configured yt-dlp at ${ytDlpPath} ` +
+              `(${err.code || "unknown"}): ${err.message}`
+          );
+        }
         throw new Error(
-          `Failed to execute configured yt-dlp at ${ytDlpPath} ` +
-            `(${err.code || "unknown"}): ${err.message}`
+          `Failed to execute yt-dlp (${err.code || "unknown"}): ${err.message}`
         );
       }
-      throw new Error(
-        `Failed to execute yt-dlp (${err.code || "unknown"}): ${err.message}`
-      );
     }
   })().catch((err) => {
     // Reset cache so the next call retries instead of getting the same error.
@@ -563,6 +909,9 @@ async function getYouTubeJsRuntimeFlag(): Promise<YouTubeJsRuntimeFlag | null> {
           resolve(resolveFromHelp());
         };
 
+        // ytDlpPath is either explicitly configured by the operator or selected
+        // from enumerated PATH entries and fixed executable names above.
+        // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process
         const proc = spawn(ytDlpPath, ["--help"], {
           env: getYtDlpSpawnEnv(),
           stdio: ["ignore", "pipe", "pipe"],
