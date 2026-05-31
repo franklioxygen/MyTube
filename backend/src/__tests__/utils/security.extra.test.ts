@@ -1,11 +1,18 @@
+import fs from "fs-extra";
+import os from "os";
 import path from "path";
 import { describe, expect, it } from "vitest";
 import {
+  copyFileSafeSync,
+  copySafe,
   buildAllowlistedHttpUrl,
+  createWriteStreamSafe,
   getClientIp,
   isHostnameAllowed,
   isPathWithinDirectories,
   isPathWithinDirectory,
+  pathExistsSafe,
+  pathExistsSafeSync,
   resolveSafePath,
   resolveSafePathInDirectories,
   sanitizePathSegment,
@@ -47,6 +54,9 @@ describe("security extra", () => {
         VIDEOS_DIR
       );
       expect(safe).toBe(path.join(VIDEOS_DIR, "movie.mp4"));
+      expect(resolveSafePath("movie.mp4", VIDEOS_DIR)).toBe(
+        path.join(VIDEOS_DIR, "movie.mp4")
+      );
 
       expect(() => resolveSafePath("../etc/passwd", VIDEOS_DIR)).toThrow(
         "Path traversal detected"
@@ -85,6 +95,67 @@ describe("security extra", () => {
 
       expect(() => validateVideoPath(path.join(IMAGES_DIR, "i.jpg"))).toThrow();
       expect(() => validateImagePath(path.join(VIDEOS_DIR, "v.mp4"))).toThrow();
+    });
+
+    it("anchors relative paths to the allowed directory for file operations", async () => {
+      const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "security-extra-"));
+      const allowedRoot = path.join(tempRoot, "allowed");
+      const sourceRoot = path.join(tempRoot, "source");
+      const nestedDir = path.join(allowedRoot, "nested");
+      const sourceFile = path.join(sourceRoot, "source.txt");
+
+      await fs.ensureDir(nestedDir);
+      await fs.ensureDir(sourceRoot);
+      await fs.writeFile(sourceFile, "payload", "utf8");
+
+      expect(pathExistsSafeSync("nested", allowedRoot)).toBe(true);
+      await expect(pathExistsSafe("nested", allowedRoot)).resolves.toBe(true);
+
+      const copiedFile = path.join(allowedRoot, "copied.txt");
+      copyFileSafeSync(sourceFile, sourceRoot, "copied.txt", allowedRoot);
+      expect(await fs.readFile(copiedFile, "utf8")).toBe("payload");
+
+      const copiedAsyncFile = path.join(allowedRoot, "copied-async.txt");
+      await copySafe(sourceFile, sourceRoot, "copied-async.txt", allowedRoot);
+      expect(await fs.readFile(copiedAsyncFile, "utf8")).toBe("payload");
+
+      const writeStream = createWriteStreamSafe("streamed.txt", allowedRoot);
+      await new Promise<void>((resolve, reject) => {
+        writeStream.on("finish", resolve);
+        writeStream.on("error", reject);
+        writeStream.end("streamed");
+      });
+      expect(await fs.readFile(path.join(allowedRoot, "streamed.txt"), "utf8")).toBe(
+        "streamed"
+      );
+
+      await fs.remove(tempRoot);
+    });
+
+    it("rejects file operations that resolve outside allowed directories", async () => {
+      const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "security-extra-"));
+      const allowedRoot = path.join(tempRoot, "allowed");
+      const otherRoot = path.join(tempRoot, "other");
+      const sourceFile = path.join(otherRoot, "source.txt");
+
+      await fs.ensureDir(allowedRoot);
+      await fs.ensureDir(otherRoot);
+      await fs.writeFile(sourceFile, "payload", "utf8");
+
+      expect(() => pathExistsSafeSync(path.join(otherRoot, "source.txt"), allowedRoot)).toThrow(
+        "outside"
+      );
+      await expect(
+        pathExistsSafe(path.join(otherRoot, "source.txt"), allowedRoot)
+      ).rejects.toThrow("outside");
+      expect(() =>
+        copyFileSafeSync(sourceFile, otherRoot, path.join(tempRoot, "escape.txt"), allowedRoot)
+      ).toThrow("outside");
+      await expect(
+        copySafe(sourceFile, otherRoot, path.join(tempRoot, "escape-async.txt"), allowedRoot)
+      ).rejects.toThrow("outside");
+
+      await fs.remove(tempRoot);
     });
   });
 
