@@ -173,6 +173,9 @@ describe("ytDlpUtils", () => {
   const originalYtDlpPath = process.env.YT_DLP_PATH;
   const originalPath = process.env.PATH;
   const originalHome = process.env.HOME;
+  const originalUserProfile = process.env.USERPROFILE;
+  const originalAppData = process.env.APPDATA;
+  const originalLocalAppData = process.env.LOCALAPPDATA;
 
   beforeEach(() => {
     vi.resetAllMocks();
@@ -211,6 +214,21 @@ describe("ytDlpUtils", () => {
       delete process.env.HOME;
     } else {
       process.env.HOME = originalHome;
+    }
+    if (originalUserProfile === undefined) {
+      delete process.env.USERPROFILE;
+    } else {
+      process.env.USERPROFILE = originalUserProfile;
+    }
+    if (originalAppData === undefined) {
+      delete process.env.APPDATA;
+    } else {
+      process.env.APPDATA = originalAppData;
+    }
+    if (originalLocalAppData === undefined) {
+      delete process.env.LOCALAPPDATA;
+    } else {
+      process.env.LOCALAPPDATA = originalLocalAppData;
     }
   });
 
@@ -558,6 +576,66 @@ describe("ytDlpUtils", () => {
           ([target]) => String(target) === installedYtDlpPath
         )
       ).toBe(true);
+    });
+
+    it("should resolve a Windows user-installed yt-dlp from Python Scripts after auto-install", async () => {
+      const originalPlatform = process.platform;
+      Object.defineProperty(process, "platform", {
+        value: "win32",
+        configurable: true,
+      });
+
+      try {
+        delete process.env.YT_DLP_PATH;
+        delete process.env.HOME;
+        process.env.PATH = "/windows/system32";
+        process.env.USERPROFILE = "/tmp/test-user";
+        process.env.APPDATA = "/tmp/test-user/AppData/Roaming";
+        delete process.env.LOCALAPPDATA;
+
+        const scriptsRoot = path.join(process.env.APPDATA, "Python");
+        const installedYtDlpPath = path.join(
+          scriptsRoot,
+          "Python313",
+          "Scripts",
+          "yt-dlp.exe"
+        );
+
+        vi.mocked(fs.readdirSync).mockImplementation((target: any) => {
+          if (String(target) === scriptsRoot) {
+            return ["Python313"] as any;
+          }
+          throw createMissingFileError();
+        });
+        vi.mocked(fs.existsSync).mockImplementation((target: any) => {
+          return String(target) === installedYtDlpPath;
+        });
+
+        const versionProc = createMockProcess();
+        const installProc = createMockProcess();
+        vi.mocked(spawn)
+          .mockImplementationOnce(() => versionProc as any)
+          .mockImplementationOnce(() => installProc as any)
+          .mockImplementationOnce(() => createVersionCheckProcess() as any)
+          .mockImplementationOnce(() => createHelpCheckProcess("plural") as any)
+          .mockImplementationOnce(() => createVersionCheckProcess() as any);
+
+        const promise = ensureYtDlpAvailable();
+        await flushAsyncSpawns();
+        versionProc.emit("error", Object.assign(new Error("not found"), { code: "ENOENT" }));
+        await flushAsyncSpawns();
+        installProc.emit("close", 0);
+
+        await expect(promise).resolves.toBeUndefined();
+        expect(
+          vi.mocked(spawn).mock.calls.some(([cmd]) => cmd === installedYtDlpPath)
+        ).toBe(true);
+      } finally {
+        Object.defineProperty(process, "platform", {
+          value: originalPlatform,
+          configurable: true,
+        });
+      }
     });
 
     it("should stop retrying auto-install when yt-dlp is still missing after install", async () => {

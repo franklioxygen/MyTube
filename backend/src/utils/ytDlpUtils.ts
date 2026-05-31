@@ -76,13 +76,54 @@ function getYtDlpExecutableNames(): string[] {
     : ["yt-dlp"];
 }
 
+function appendWindowsPythonScriptsDirs(
+  candidateDirs: string[],
+  rootDir: string,
+): void {
+  try {
+    for (const entry of readdirSafeSync(rootDir, rootDir)) {
+      if (!/^python\d+(?:-\d+)?$/i.test(entry)) {
+        continue;
+      }
+      appendUniquePathEntry(candidateDirs, path.join(rootDir, entry, "Scripts"));
+    }
+  } catch {
+    // Ignore missing or unreadable Python installation roots.
+  }
+}
+
 function listLikelyUserBinDirs(): string[] {
-  const homeDir = process.env.HOME?.trim();
-  if (!homeDir) {
-    return [];
+  const candidateDirs: string[] = [];
+
+  if (process.platform === "win32") {
+    const userProfile = process.env.USERPROFILE?.trim();
+    const appData =
+      process.env.APPDATA?.trim() ||
+      (userProfile ? path.join(userProfile, "AppData", "Roaming") : "");
+    const localAppData =
+      process.env.LOCALAPPDATA?.trim() ||
+      (userProfile ? path.join(userProfile, "AppData", "Local") : "");
+
+    if (appData) {
+      appendUniquePathEntry(candidateDirs, path.join(appData, "Python", "Scripts"));
+      appendWindowsPythonScriptsDirs(candidateDirs, path.join(appData, "Python"));
+    }
+
+    if (localAppData) {
+      appendWindowsPythonScriptsDirs(
+        candidateDirs,
+        path.join(localAppData, "Programs", "Python")
+      );
+    }
+
+    return candidateDirs;
   }
 
-  const candidateDirs: string[] = [];
+  const homeDir = process.env.HOME?.trim();
+  if (!homeDir) {
+    return candidateDirs;
+  }
+
   appendUniquePathEntry(candidateDirs, path.join(homeDir, ".local", "bin"));
 
   if (process.platform === "darwin") {
