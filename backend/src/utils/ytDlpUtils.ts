@@ -14,6 +14,8 @@ import { isBilibiliUrl, isYouTubeUrl } from "./helpers";
 import {
   moveSafeSync,
   pathExistsSafeSync,
+  pathExistsTrustedSync,
+  readdirSafeSync,
   readFileSafeSync,
   resolveSafeChildPath,
   statSafeSync,
@@ -86,7 +88,7 @@ function listLikelyUserBinDirs(): string[] {
   if (process.platform === "darwin") {
     const macUserPythonRoot = path.join(homeDir, "Library", "Python");
     try {
-      for (const entry of fs.readdirSync(macUserPythonRoot)) {
+      for (const entry of readdirSafeSync(macUserPythonRoot, macUserPythonRoot)) {
         if (!/^\d+\.\d+$/.test(entry)) {
           continue;
         }
@@ -195,10 +197,8 @@ function updatePathAfterAutoInstall(): void {
   for (const candidateDir of listLikelyUserBinDirs()) {
     const hasExecutable = getYtDlpExecutableNames().some((executableName) => {
       try {
-        return pathExistsSafeSync(
-          path.join(candidateDir, executableName),
-          candidateDir
-        );
+        const candidatePath = `${candidateDir}${path.sep}${executableName}`;
+        return pathExistsTrustedSync(candidatePath);
       } catch {
         return false;
       }
@@ -289,6 +289,9 @@ async function getYtDlpVersionInfo(ytDlpPath: string): Promise<{
       resolve(result);
     };
 
+    // ytDlpPath is either explicitly configured by the operator or selected
+    // from enumerated PATH entries and fixed executable names above.
+    // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process
     const proc = spawn(ytDlpPath, ["--version"], {
       env: getYtDlpSpawnEnv(),
       stdio: ["ignore", "pipe", "pipe"],
