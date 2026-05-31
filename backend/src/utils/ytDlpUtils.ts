@@ -70,6 +70,18 @@ function prependUniquePathEntry(entries: string[], candidate: string): void {
   entries.unshift(candidate);
 }
 
+function appendSafeChildDir(
+  entries: string[],
+  allowedDir: string,
+  childDir: string,
+): void {
+  try {
+    appendUniquePathEntry(entries, resolveSafeChildPath(allowedDir, childDir));
+  } catch {
+    // Ignore invalid child paths discovered while scanning local install roots.
+  }
+}
+
 function getYtDlpExecutableNames(): string[] {
   return process.platform === "win32"
     ? ["yt-dlp.exe", "yt-dlp.cmd", "yt-dlp.bat", "yt-dlp"]
@@ -85,7 +97,8 @@ function appendWindowsPythonScriptsDirs(
       if (!/^python\d+(?:-\d+)?$/i.test(entry)) {
         continue;
       }
-      appendUniquePathEntry(candidateDirs, path.join(rootDir, entry, "Scripts"));
+      const pythonDir = resolveSafeChildPath(rootDir, entry);
+      appendSafeChildDir(candidateDirs, pythonDir, "Scripts");
     }
   } catch {
     // Ignore missing or unreadable Python installation roots.
@@ -133,10 +146,8 @@ function listLikelyUserBinDirs(): string[] {
         if (!/^\d+\.\d+$/.test(entry)) {
           continue;
         }
-        appendUniquePathEntry(
-          candidateDirs,
-          path.join(macUserPythonRoot, entry, "bin")
-        );
+        const pythonDir = resolveSafeChildPath(macUserPythonRoot, entry);
+        appendSafeChildDir(candidateDirs, pythonDir, "bin");
       }
     } catch {
       // Ignore missing or unreadable user Python directories.
