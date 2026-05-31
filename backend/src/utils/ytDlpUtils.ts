@@ -232,7 +232,12 @@ function listYtDlpPathCandidates(): string[] {
 
   for (const entry of pathEntries) {
     for (const executableName of executableNames) {
-      const candidatePath = path.join(entry, executableName);
+      let candidatePath: string;
+      try {
+        candidatePath = resolveSafeChildPath(entry, executableName);
+      } catch {
+        continue;
+      }
       let candidateExists = false;
       try {
         candidateExists = pathExistsSafeSync(candidatePath, entry);
@@ -904,6 +909,9 @@ async function getYouTubeJsRuntimeFlag(): Promise<YouTubeJsRuntimeFlag | null> {
           resolve(resolveFromHelp());
         };
 
+        // ytDlpPath is either explicitly configured by the operator or selected
+        // from enumerated PATH entries and fixed executable names above.
+        // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process
         const proc = spawn(ytDlpPath, ["--help"], {
           env: getYtDlpSpawnEnv(),
           stdio: ["ignore", "pipe", "pipe"],
