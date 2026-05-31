@@ -540,6 +540,51 @@ describe("ytDlpUtils", () => {
       ).toBe(true);
     });
 
+    it("should move an existing user install directory to the front of PATH after auto-upgrade", async () => {
+      process.env.YT_DLP_PATH = "yt-dlp";
+      process.env.HOME = "/tmp/test-home";
+      const userBinDir = path.join(process.env.HOME, ".local", "bin");
+      process.env.PATH = ["/old/bin", userBinDir, "/usr/bin"].join(path.delimiter);
+      const userInstalledYtDlpPath = path.join(userBinDir, "yt-dlp");
+
+      vi.mocked(fs.existsSync).mockImplementation((target: any) => {
+        return String(target) === userInstalledYtDlpPath;
+      });
+
+      const staleVersionProc = createMockProcess();
+      const installProc = createMockProcess();
+      const freshVersionProc = createMockProcess();
+      vi.mocked(spawn)
+        .mockImplementationOnce(() => staleVersionProc as any)
+        .mockImplementationOnce(() => installProc as any)
+        .mockImplementationOnce(() => freshVersionProc as any);
+
+      const promise = ensureYtDlpAvailable();
+      await flushAsyncSpawns();
+      staleVersionProc.stdout?.emit("data", Buffer.from("2020.01.01\n"));
+      staleVersionProc.emit("close", 0);
+      await flushAsyncSpawns();
+      installProc.emit("close", 0);
+      await flushAsyncSpawns();
+      freshVersionProc.stdout?.emit("data", Buffer.from(`${FRESH_YT_DLP_VERSION}\n`));
+      freshVersionProc.emit("close", 0);
+
+      await expect(promise).resolves.toBeUndefined();
+
+      const retriedVersionProbe = vi.mocked(spawn).mock.calls[2];
+      expect(retriedVersionProbe?.[0]).toBe("yt-dlp");
+      expect(
+        (
+          retriedVersionProbe?.[2] as { env?: NodeJS.ProcessEnv } | undefined
+        )?.env?.PATH
+      ).toBe(
+        [userBinDir, "/old/bin", "/usr/bin"].join(path.delimiter)
+      );
+      expect(process.env.PATH).toBe(
+        [userBinDir, "/old/bin", "/usr/bin"].join(path.delimiter)
+      );
+    });
+
     it("should resolve a user-installed yt-dlp outside PATH after auto-install", async () => {
       delete process.env.YT_DLP_PATH;
       process.env.PATH = "/usr/bin";

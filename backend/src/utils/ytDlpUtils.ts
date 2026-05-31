@@ -63,8 +63,17 @@ function appendUniquePathEntry(entries: string[], candidate: string): void {
 }
 
 function prependUniquePathEntry(entries: string[], candidate: string): void {
-  if (!candidate || entries.includes(candidate)) {
+  if (!candidate) {
     return;
+  }
+
+  const existingIndex = entries.indexOf(candidate);
+  if (existingIndex === 0) {
+    return;
+  }
+
+  if (existingIndex > 0) {
+    entries.splice(existingIndex, 1);
   }
 
   entries.unshift(candidate);
