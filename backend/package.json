@@ -3,6 +3,7 @@
   "version": "1.9.29",
   "main": "server.js",
   "scripts": {
+    "preinstall": "node ../scripts/check-supported-node.cjs backend",
     "start": "ts-node src/server.ts",
     "dev": "nodemon src/server.ts",
     "build": "tsc",
@@ -12,6 +13,9 @@
     "test:coverage": "vitest run --coverage",
     "reset-password": "ts-node scripts/reset-password.ts",
     "postinstall": "node scripts/postinstall.cjs"
+  },
+  "engines": {
+    "node": "20.x || 22.x || 23.x || 24.x || 25.x || 26.x"
   },
   "keywords": [],
   "author": "",
@@ -23,7 +27,7 @@
     "ass-to-vtt": "^1.2.0",
     "axios": "^1.16.0",
     "bcryptjs": "^3.0.3",
-    "better-sqlite3": "^12.6.2",
+    "better-sqlite3": "^12.10.0",
     "cheerio": "^1.1.2",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",

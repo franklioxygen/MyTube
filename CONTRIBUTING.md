@@ -9,7 +9,7 @@ The following is a set of guidelines for contributing to MyTube. These are mostl
 ### Prerequisites
 
 Before you begin, ensure you have the following installed:
-- [Node.js](https://nodejs.org/) (v14 or higher)
+- [Node.js](https://nodejs.org/) (20.x, 22.x, 23.x, 24.x, 25.x, or 26.x)
 - [npm](https://www.npmjs.com/) (v6 or higher)
 - [Docker](https://www.docker.com/) (optional, for containerized development)
 

@@ -2,7 +2,7 @@
 
 ## 前提条件
 
-- **Node.js** (推荐 v18 或更高版本)
+- **Node.js** (20.x、22.x、23.x、24.x、25.x 或 26.x)
 - **npm** (v9 或更高版本) 或 **yarn**
 - **Python 3.8+** (用于 yt-dlp 和 PO Token 提供者)
 - **yt-dlp** (通过 pip/pipx 安装)
@@ -24,6 +24,8 @@ cd mytube
 ```bash
 npm run install:all
 ```
+
+如果使用不受支持的 Node.js 版本，后端可能会退回到从源码编译 `better-sqlite3`，并在 Windows 上报出类似 “You need to install the latest version of Visual Studio” 的 `node-gyp` 错误。请先切换到受支持的 Node.js 版本。
 
 或者手动安装：
 
