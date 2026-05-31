@@ -64,6 +64,24 @@ function isResolvedPathInsideDir(
   return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
 }
 
+function resolveAndValidatePathInput(filePath: string): string {
+  try {
+    return sanitizePathWithoutTraversal(filePath);
+  } catch {
+    throw new Error(
+      `Path traversal detected: ${filePath} contains invalid path components`,
+    );
+  }
+}
+
+function resolveAndValidateAllowedDir(allowedDir: string): string {
+  try {
+    return normalizeSafeAbsolutePath(allowedDir);
+  } catch {
+    throw new Error(`Invalid allowed directory: ${allowedDir}`);
+  }
+}
+
 /**
  * Checks if a path is inside (or equal to) an allowed directory.
  * Both inputs are resolved before comparison.
@@ -152,24 +170,9 @@ export function resolveSafePath(filePath: string, allowedDir: string): string {
     throw new Error(`Invalid file path: ${filePath}`);
   }
 
-  let sanitizedFilePath: string;
-  let sanitizedAllowedDir: string;
-  try {
-    sanitizedFilePath = sanitizePathWithoutTraversal(filePath);
-  } catch {
-    throw new Error(
-      `Path traversal detected: ${filePath} contains invalid path components`,
-    );
-  }
-  try {
-    sanitizedAllowedDir = sanitizePathWithoutTraversal(allowedDir);
-  } catch {
-    throw new Error(`Invalid allowed directory: ${allowedDir}`);
-  }
-
-  // Now safe to resolve - paths are constructed from validated components only
-  const resolvedPath = path.resolve(sanitizedFilePath);
-  const resolvedAllowedDir = path.resolve(sanitizedAllowedDir);
+  const sanitizedFilePath = resolveAndValidatePathInput(filePath);
+  const resolvedAllowedDir = resolveAndValidateAllowedDir(allowedDir);
+  const resolvedPath = path.resolve(resolvedAllowedDir, sanitizedFilePath);
 
   if (!isResolvedPathInsideDir(resolvedPath, resolvedAllowedDir)) {
     throw new Error(
@@ -203,30 +206,25 @@ export function resolveSafePathInDirectories(
   filePath: string,
   allowedDirs: string[],
 ): string {
-  const resolvedPath = path.resolve(filePath);
-  if (!validatePathWithinDirectories(resolvedPath, allowedDirs)) {
-    throw new Error(
-      `Path traversal detected: ${filePath} is outside allowed directories`,
-    );
+  if (!filePath || typeof filePath !== "string") {
+    throw new Error(`Invalid file path: ${filePath}`);
   }
-  return resolvedPath;
-}
+  if (!Array.isArray(allowedDirs) || allowedDirs.length === 0) {
+    throw new Error("At least one allowed directory is required");
+  }
 
-type ReadStreamOptions = Parameters<typeof fs.createReadStream>[1];
-type WriteStreamOptions = Parameters<typeof fs.createWriteStream>[1];
-type MoveSyncOptions = Parameters<typeof fs.moveSync>[2];
-type ExecFileSafeOptions = {
-  cwd?: string;
-  env?: NodeJS.ProcessEnv;
-  timeout?: number;
-};
+  const sanitizedFilePath = resolveAndValidatePathInput(filePath);
+  for (const allowedDir of allowedDirs) {
+    const resolvedAllowedDir = resolveAndValidateAllowedDir(allowedDir);
+    const resolvedPath = path.resolve(resolvedAllowedDir, sanitizedFilePath);
+    if (isResolvedPathInsideDir(resolvedPath, resolvedAllowedDir)) {
+      return resolvedPath;
+    }
+  }
 
-function normalizeAllowedDirectories(
-  allowedDirOrDirs: string | readonly string[],
-): string[] {
-  return Array.isArray(allowedDirOrDirs)
-    ? [...allowedDirOrDirs]
-    : [allowedDirOrDirs as string];
+  throw new Error(
+    `Path traversal detected: ${filePath} is outside allowed directories`,
+  );
 }
 
 function resolveSafePathForOperation(
@@ -243,19 +241,37 @@ function resolveSafePathForOperation(
     : resolveSafePathInDirectories(filePath, allowedDirs);
 }
 
+function resolveTrustedPathForOperation(
+  filePath: string,
+  allowedDirOrDirs: string | readonly string[],
+): string {
+  return normalizeSafeAbsolutePath(
+    resolveSafePathForOperation(filePath, allowedDirOrDirs),
+  );
+}
+
 export function pathExistsSafeSync(
   filePath: string,
   allowedDirOrDirs: string | readonly string[],
 ): boolean {
-  const safePath = resolveSafePathForOperation(filePath, allowedDirOrDirs);
-  return fs.existsSync(safePath);
+  const safePath = resolveTrustedPathForOperation(filePath, allowedDirOrDirs);
+  for (const allowedDir of normalizeAllowedDirectories(allowedDirOrDirs)) {
+    const relative = path.relative(path.resolve(allowedDir), safePath);
+    if (!relative.startsWith("..") && !path.isAbsolute(relative)) {
+      return fs.existsSync(safePath);
+    }
+  }
+
+  throw new Error(
+    `Path traversal detected: ${filePath} is outside allowed directories`,
+  );
 }
 
 export async function pathExistsSafe(
   filePath: string,
   allowedDirOrDirs: string | readonly string[],
 ): Promise<boolean> {
-  const safePath = resolveSafePathForOperation(filePath, allowedDirOrDirs);
+  const safePath = resolveTrustedPathForOperation(filePath, allowedDirOrDirs);
   return fs.pathExists(safePath);
 }
 
@@ -273,7 +289,7 @@ export function statSafeSync(
   filePath: string,
   allowedDirOrDirs: string | readonly string[],
 ): Stats {
-  const safePath = resolveSafePathForOperation(filePath, allowedDirOrDirs);
+  const safePath = resolveTrustedPathForOperation(filePath, allowedDirOrDirs);
   return fs.statSync(safePath);
 }
 
@@ -281,7 +297,7 @@ export function lstatSafeSync(
   filePath: string,
   allowedDirOrDirs: string | readonly string[],
 ): Stats {
-  const safePath = resolveSafePathForOperation(filePath, allowedDirOrDirs);
+  const safePath = resolveTrustedPathForOperation(filePath, allowedDirOrDirs);
   // safePath is constrained by resolveSafePathForOperation before lstat.
   // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
   return fs.lstatSync(safePath);
@@ -296,7 +312,7 @@ export async function statSafe(
   filePath: string,
   allowedDirOrDirs: string | readonly string[],
 ): Promise<Stats> {
-  const safePath = resolveSafePathForOperation(filePath, allowedDirOrDirs);
+  const safePath = resolveTrustedPathForOperation(filePath, allowedDirOrDirs);
   return fs.stat(safePath);
 }
 
@@ -304,7 +320,7 @@ export function readdirSafeSync(
   dirPath: string,
   allowedDirOrDirs: string | readonly string[],
 ): string[] {
-  const safePath = resolveSafePathForOperation(dirPath, allowedDirOrDirs);
+  const safePath = resolveTrustedPathForOperation(dirPath, allowedDirOrDirs);
   return fs.readdirSync(safePath);
 }
 
@@ -312,7 +328,7 @@ export async function readdirSafe(
   dirPath: string,
   allowedDirOrDirs: string | readonly string[],
 ): Promise<string[]> {
-  const safePath = resolveSafePathForOperation(dirPath, allowedDirOrDirs);
+  const safePath = resolveTrustedPathForOperation(dirPath, allowedDirOrDirs);
   return fs.readdir(safePath);
 }
 
@@ -320,7 +336,7 @@ export function ensureDirSafeSync(
   dirPath: string,
   allowedDirOrDirs: string | readonly string[],
 ): void {
-  const safePath = resolveSafePathForOperation(dirPath, allowedDirOrDirs);
+  const safePath = resolveTrustedPathForOperation(dirPath, allowedDirOrDirs);
   fs.ensureDirSync(safePath);
 }
 
@@ -329,7 +345,7 @@ export function readFileSafeSync(
   allowedDirOrDirs: string | readonly string[],
   encoding: BufferEncoding,
 ): string {
-  const safePath = resolveSafePathForOperation(filePath, allowedDirOrDirs);
+  const safePath = resolveTrustedPathForOperation(filePath, allowedDirOrDirs);
   return fs.readFileSync(safePath, encoding);
 }
 
@@ -345,7 +361,7 @@ export async function readdirDirentsSafe(
   dirPath: string,
   allowedDirOrDirs: string | readonly string[],
 ): Promise<Dirent[]> {
-  const safePath = resolveSafePathForOperation(dirPath, allowedDirOrDirs);
+  const safePath = resolveTrustedPathForOperation(dirPath, allowedDirOrDirs);
   return fs.readdir(safePath, { withFileTypes: true }) as Promise<Dirent[]>;
 }
 
@@ -355,7 +371,7 @@ export function writeFileSafeSync(
   data: string | NodeJS.ArrayBufferView,
   options?: WriteFileOptions,
 ): void {
-  const safePath = resolveSafePathForOperation(filePath, allowedDirOrDirs);
+  const safePath = resolveTrustedPathForOperation(filePath, allowedDirOrDirs);
   fs.writeFileSync(safePath, data, options);
 }
 
@@ -365,7 +381,7 @@ export async function writeFileSafe(
   data: string | NodeJS.ArrayBufferView,
   options?: WriteFileOptions,
 ): Promise<void> {
-  const safePath = resolveSafePathForOperation(filePath, allowedDirOrDirs);
+  const safePath = resolveTrustedPathForOperation(filePath, allowedDirOrDirs);
   await fs.writeFile(safePath, data, options);
 }
 
@@ -373,7 +389,7 @@ export function unlinkSafeSync(
   filePath: string,
   allowedDirOrDirs: string | readonly string[],
 ): void {
-  const safePath = resolveSafePathForOperation(filePath, allowedDirOrDirs);
+  const safePath = resolveTrustedPathForOperation(filePath, allowedDirOrDirs);
   fs.unlinkSync(safePath);
 }
 
@@ -391,7 +407,7 @@ export function removeEmptyDirSafeSync(
   dirPath: string,
   allowedDirOrDirs: string | readonly string[],
 ): void {
-  const safePath = resolveSafePathForOperation(dirPath, allowedDirOrDirs);
+  const safePath = resolveTrustedPathForOperation(dirPath, allowedDirOrDirs);
   fs.rmdirSync(safePath);
 }
 
@@ -399,7 +415,7 @@ export async function removeSafe(
   filePath: string,
   allowedDirOrDirs: string | readonly string[],
 ): Promise<void> {
-  const safePath = resolveSafePathForOperation(filePath, allowedDirOrDirs);
+  const safePath = resolveTrustedPathForOperation(filePath, allowedDirOrDirs);
   await fs.remove(safePath);
 }
 
@@ -409,15 +425,46 @@ export function copyFileSafeSync(
   destinationPath: string,
   destinationAllowedDirOrDirs: string | readonly string[],
 ): void {
-  const safeSourcePath = resolveSafePathForOperation(
+  const safeSourcePath = resolveTrustedPathForOperation(
     sourcePath,
     sourceAllowedDirOrDirs,
   );
-  const safeDestinationPath = resolveSafePathForOperation(
+  const safeDestinationPath = resolveTrustedPathForOperation(
     destinationPath,
     destinationAllowedDirOrDirs,
   );
-  fs.copyFileSync(safeSourcePath, safeDestinationPath);
+
+  for (const sourceAllowedDir of normalizeAllowedDirectories(
+    sourceAllowedDirOrDirs,
+  )) {
+    const sourceRelative = path.relative(
+      path.resolve(sourceAllowedDir),
+      safeSourcePath,
+    );
+    if (sourceRelative.startsWith("..") || path.isAbsolute(sourceRelative)) {
+      continue;
+    }
+
+    for (const destinationAllowedDir of normalizeAllowedDirectories(
+      destinationAllowedDirOrDirs,
+    )) {
+      const destinationRelative = path.relative(
+        path.resolve(destinationAllowedDir),
+        safeDestinationPath,
+      );
+      if (
+        !destinationRelative.startsWith("..") &&
+        !path.isAbsolute(destinationRelative)
+      ) {
+        fs.copyFileSync(safeSourcePath, safeDestinationPath);
+        return;
+      }
+    }
+  }
+
+  throw new Error(
+    `Path traversal detected: copy operation is outside allowed directories`,
+  );
 }
 
 export async function copySafe(
@@ -426,11 +473,11 @@ export async function copySafe(
   destinationPath: string,
   destinationAllowedDirOrDirs: string | readonly string[],
 ): Promise<void> {
-  const safeSourcePath = resolveSafePathForOperation(
+  const safeSourcePath = resolveTrustedPathForOperation(
     sourcePath,
     sourceAllowedDirOrDirs,
   );
-  const safeDestinationPath = resolveSafePathForOperation(
+  const safeDestinationPath = resolveTrustedPathForOperation(
     destinationPath,
     destinationAllowedDirOrDirs,
   );
@@ -443,11 +490,11 @@ export function renameSafeSync(
   destinationPath: string,
   destinationAllowedDirOrDirs: string | readonly string[],
 ): void {
-  const safeSourcePath = resolveSafePathForOperation(
+  const safeSourcePath = resolveTrustedPathForOperation(
     sourcePath,
     sourceAllowedDirOrDirs,
   );
-  const safeDestinationPath = resolveSafePathForOperation(
+  const safeDestinationPath = resolveTrustedPathForOperation(
     destinationPath,
     destinationAllowedDirOrDirs,
   );
@@ -461,11 +508,11 @@ export function moveSafeSync(
   destinationAllowedDirOrDirs: string | readonly string[],
   options?: MoveSyncOptions,
 ): void {
-  const safeSourcePath = resolveSafePathForOperation(
+  const safeSourcePath = resolveTrustedPathForOperation(
     sourcePath,
     sourceAllowedDirOrDirs,
   );
-  const safeDestinationPath = resolveSafePathForOperation(
+  const safeDestinationPath = resolveTrustedPathForOperation(
     destinationPath,
     destinationAllowedDirOrDirs,
   );
@@ -477,7 +524,7 @@ export function createReadStreamSafe(
   allowedDirOrDirs: string | readonly string[],
   options?: ReadStreamOptions,
 ): fs.ReadStream {
-  const safePath = resolveSafePathForOperation(filePath, allowedDirOrDirs);
+  const safePath = resolveTrustedPathForOperation(filePath, allowedDirOrDirs);
   return fs.createReadStream(safePath, options);
 }
 
@@ -494,7 +541,7 @@ export function createWriteStreamSafe(
   allowedDirOrDirs: string | readonly string[],
   options?: WriteStreamOptions,
 ): fs.WriteStream {
-  const safePath = resolveSafePathForOperation(filePath, allowedDirOrDirs);
+  const safePath = resolveTrustedPathForOperation(filePath, allowedDirOrDirs);
   return fs.createWriteStream(safePath, options);
 }
 
@@ -511,6 +558,23 @@ export function sanitizePathSegment(segment: string): string {
     .replace(/\.\./g, "")
     .replace(/[\/\\]/g, "")
     .trim();
+}
+
+type ReadStreamOptions = Parameters<typeof fs.createReadStream>[1];
+type WriteStreamOptions = Parameters<typeof fs.createWriteStream>[1];
+type MoveSyncOptions = Parameters<typeof fs.moveSync>[2];
+type ExecFileSafeOptions = {
+  cwd?: string;
+  env?: NodeJS.ProcessEnv;
+  timeout?: number;
+};
+
+function normalizeAllowedDirectories(
+  allowedDirOrDirs: string | readonly string[],
+): string[] {
+  return Array.isArray(allowedDirOrDirs)
+    ? [...allowedDirOrDirs]
+    : [allowedDirOrDirs as string];
 }
 
 /**
