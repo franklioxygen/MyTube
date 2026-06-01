@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { Mock } from "vitest";
 import {
   clearThumbnailCacheEndpoint,
   getSignedUrl,
@@ -44,19 +45,21 @@ vi.mock("../../utils/logger", () => ({
 describe("cloudStorageController", () => {
   let req: Partial<Request>;
   let res: Partial<Response>;
-  let jsonMock: ReturnType<typeof vi.fn>;
-  let statusMock: ReturnType<typeof vi.fn>;
-  let setHeaderMock: ReturnType<typeof vi.fn>;
-  let writeMock: ReturnType<typeof vi.fn>;
-  let endMock: ReturnType<typeof vi.fn>;
+  let jsonMock: Mock<(body?: any) => Response>;
+  let statusMock: Mock<(code: number) => Response>;
+  let setHeaderMock: Mock<(name: string, value: string | number | readonly string[]) => Response>;
+  let writeMock: Mock<(chunk: any) => boolean>;
+  let endMock: Mock<() => Response>;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    jsonMock = vi.fn();
-    statusMock = vi.fn().mockReturnValue({ json: jsonMock });
-    setHeaderMock = vi.fn();
-    writeMock = vi.fn();
-    endMock = vi.fn();
+    jsonMock = vi.fn<(body?: any) => Response>();
+    statusMock = vi
+      .fn<(code: number) => Response>()
+      .mockReturnValue({ json: jsonMock } as unknown as Response);
+    setHeaderMock = vi.fn<(name: string, value: string | number | readonly string[]) => Response>();
+    writeMock = vi.fn<(chunk: any) => boolean>();
+    endMock = vi.fn<() => Response>();
 
     req = { query: {}, body: {} };
     res = {

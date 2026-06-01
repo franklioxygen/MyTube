@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { Mock } from "vitest";
 import {
     cancelContinuousDownloadTask,
     clearFinishedTasks,
@@ -96,13 +97,15 @@ vi.mock("../../utils/logger", () => ({
 describe("SubscriptionController", () => {
   let req: Partial<Request>;
   let res: Partial<Response>;
-  let json: ReturnType<typeof vi.fn>;
-  let status: ReturnType<typeof vi.fn>;
+  let json: Mock<(body?: any) => Response>;
+  let status: Mock<(code: number) => Response>;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    json = vi.fn();
-    status = vi.fn().mockReturnValue({ json });
+    json = vi.fn<(body?: any) => Response>();
+    status = vi
+      .fn<(code: number) => Response>()
+      .mockReturnValue({ json } as unknown as Response);
     req = { body: {}, params: {} };
     res = { json, status };
   });
