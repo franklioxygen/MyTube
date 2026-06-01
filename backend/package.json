@@ -3,7 +3,7 @@
   "version": "1.9.29",
   "main": "server.js",
   "scripts": {
-    "preinstall": "node ../scripts/check-supported-node.cjs backend",
+    "preinstall": "node scripts/check-supported-node.cjs backend",
     "start": "ts-node src/server.ts",
     "dev": "nodemon src/server.ts",
     "build": "tsc",

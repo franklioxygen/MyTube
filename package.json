@@ -4,7 +4,7 @@
   "description": "Multiple platform video downloader and player application",
   "main": "index.js",
   "scripts": {
-    "preinstall": "node ./scripts/check-supported-node.cjs",
+    "preinstall": "node ./backend/scripts/check-supported-node.cjs",
     "start": "concurrently \"npm run start:backend\" \"npm run start:frontend\"",
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "start:frontend": "cd frontend && node scripts/waitForBackend.cjs && npm run dev",
