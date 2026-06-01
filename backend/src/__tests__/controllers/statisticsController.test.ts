@@ -76,11 +76,33 @@ describe("statisticsController", () => {
   });
 
   it("drops events that exceed the per-session 300 events/minute cap", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T00:00:00Z"));
+
     const sessionId = "statistics-session-cap";
 
-    for (let i = 0; i < 6; i += 1) {
+    try {
+      for (let i = 0; i < 6; i += 1) {
+        const req: any = {
+          body: { events: createEvents(50, sessionId) },
+          headers: {},
+          user: { role: "admin" },
+          apiKeyAuthenticated: false,
+        };
+        const res = createResponse();
+
+        await ingestEvents(req, res);
+
+        expect(res.status).toHaveBeenCalledWith(202);
+        expect(res.json).toHaveBeenCalledWith({
+          acceptedCount: 50,
+          droppedCount: 0,
+          sealedDayDropCount: 0,
+        });
+      }
+
       const req: any = {
-        body: { events: createEvents(50, sessionId) },
+        body: { events: createEvents(1, sessionId) },
         headers: {},
         user: { role: "admin" },
         apiKeyAuthenticated: false,
@@ -91,28 +113,13 @@ describe("statisticsController", () => {
 
       expect(res.status).toHaveBeenCalledWith(202);
       expect(res.json).toHaveBeenCalledWith({
-        acceptedCount: 50,
-        droppedCount: 0,
+        acceptedCount: 0,
+        droppedCount: 1,
         sealedDayDropCount: 0,
       });
+    } finally {
+      vi.useRealTimers();
     }
-
-    const req: any = {
-      body: { events: createEvents(1, sessionId) },
-      headers: {},
-      user: { role: "admin" },
-      apiKeyAuthenticated: false,
-    };
-    const res = createResponse();
-
-    await ingestEvents(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(202);
-    expect(res.json).toHaveBeenCalledWith({
-      acceptedCount: 0,
-      droppedCount: 1,
-      sealedDayDropCount: 0,
-    });
   });
 
   it("rejects oversized statistics bodies with a real 128 KB parser", async () => {
