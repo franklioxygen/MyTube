@@ -19,6 +19,7 @@ import {
     getNetworkConfigFromUserConfig,
     getUserYtDlpConfig,
 } from "../utils/ytDlpUtils";
+import { getStringParam } from "../utils/paramUtils";
 
 const parsePositiveInteger = (value: unknown): number | null => {
   if (typeof value === "number") {
@@ -161,7 +162,7 @@ export const deleteSubscription = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { id } = req.params;
+  const id = getStringParam(req.params.id) ?? "";
   await subscriptionService.unsubscribe(id);
   res.status(200).json(successMessage("Subscription deleted"));
 };
@@ -174,7 +175,7 @@ export const pauseSubscription = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { id } = req.params;
+  const id = getStringParam(req.params.id) ?? "";
   await subscriptionService.pauseSubscription(id);
   res.status(200).json(successMessage("Subscription paused"));
 };
@@ -183,7 +184,7 @@ export const updateSubscription = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { id } = req.params;
+  const id = getStringParam(req.params.id) ?? "";
   const hasInterval = Object.prototype.hasOwnProperty.call(
     req.body,
     "interval"
@@ -250,7 +251,7 @@ export const resumeSubscription = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { id } = req.params;
+  const id = getStringParam(req.params.id) ?? "";
   await subscriptionService.resumeSubscription(id);
   res.status(200).json(successMessage("Subscription resumed"));
 };
@@ -275,7 +276,7 @@ export const cancelContinuousDownloadTask = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { id } = req.params;
+  const id = getStringParam(req.params.id) ?? "";
   await continuousDownloadService.cancelTask(id);
   res.status(200).json(successMessage("Task cancelled"));
 };
@@ -288,7 +289,7 @@ export const deleteContinuousDownloadTask = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { id } = req.params;
+  const id = getStringParam(req.params.id) ?? "";
   await continuousDownloadService.deleteTask(id);
   res.status(200).json(successMessage("Task deleted"));
 };
@@ -301,7 +302,7 @@ export const pauseContinuousDownloadTask = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { id } = req.params;
+  const id = getStringParam(req.params.id) ?? "";
   await continuousDownloadService.pauseTask(id);
   res.status(200).json(successMessage("Task paused"));
 };
@@ -314,7 +315,7 @@ export const resumeContinuousDownloadTask = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { id } = req.params;
+  const id = getStringParam(req.params.id) ?? "";
   await continuousDownloadService.resumeTask(id);
   res.status(200).json(successMessage("Task resumed"));
 };

@@ -3,6 +3,7 @@ import { ValidationError, NotFoundError } from "../errors/DownloadErrors";
 import * as storageService from "../services/storageService";
 import * as rssService from "../services/rssService";
 import { logger } from "../utils/logger";
+import { getStringParam } from "../utils/paramUtils";
 
 function getLanguage(): string | undefined {
   try {
@@ -71,7 +72,7 @@ export async function createToken(req: Request, res: Response): Promise<void> {
 }
 
 export async function updateToken(req: Request, res: Response): Promise<void> {
-  const { id } = req.params;
+  const id = getStringParam(req.params.id) ?? "";
   const { label, filters, isActive } = req.body as {
     label?: unknown;
     filters?: unknown;
@@ -98,14 +99,14 @@ export async function updateToken(req: Request, res: Response): Promise<void> {
 }
 
 export async function deleteToken(req: Request, res: Response): Promise<void> {
-  const { id } = req.params;
+  const id = getStringParam(req.params.id) ?? "";
   const deleted = await rssService.deleteRssToken(id);
   if (!deleted) throw new NotFoundError("RSS token");
   res.status(204).end();
 }
 
 export async function resetToken(req: Request, res: Response): Promise<void> {
-  const { id } = req.params;
+  const id = getStringParam(req.params.id) ?? "";
   const result = await rssService.resetRssToken(id);
   if (!result) throw new NotFoundError("RSS token");
   res.json({
@@ -115,7 +116,7 @@ export async function resetToken(req: Request, res: Response): Promise<void> {
 }
 
 export async function serveFeed(req: Request, res: Response): Promise<void> {
-  const { token: tokenId } = req.params;
+  const tokenId = getStringParam(req.params.token);
   const baseUrl = rssService.getBaseUrl(req);
 
   const sendError = (status: number, title: string, description: string) => {

@@ -32,6 +32,7 @@ import {
   validateVideoPath,
   writeFileSafe,
 } from "../utils/security";
+import { getStringParam } from "../utils/paramUtils";
 
 // Strict whitelist: only known-safe MIME types, extension derived from MIME (never from originalname)
 const ALLOWED_IMAGE_MIMES: Record<string, string> = {
@@ -225,7 +226,7 @@ export const thumbnailUpload = multer({
  * Errors are automatically handled by asyncHandler middleware
  */
 export const rateVideo = async (req: Request, res: Response): Promise<void> => {
-  const { id } = req.params;
+  const id = getStringParam(req.params.id) ?? "";
   const { rating } = req.body;
 
   if (typeof rating !== "number" || rating < 1 || rating > 5) {
@@ -256,7 +257,7 @@ export const refreshThumbnail = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { id } = req.params;
+  const id = getStringParam(req.params.id) ?? "";
   const video = storageService.getVideoById(id);
 
   if (!video) {
@@ -410,7 +411,7 @@ export const redownloadThumbnail = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { id } = req.params;
+  const id = getStringParam(req.params.id) ?? "";
   const video = storageService.getVideoById(id);
 
   if (!video) {
@@ -552,7 +553,7 @@ export const incrementViewCount = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { id } = req.params;
+  const id = getStringParam(req.params.id) ?? "";
   const video = storageService.getVideoById(id);
 
   if (!video) {
@@ -580,7 +581,7 @@ export const updateProgress = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { id } = req.params;
+  const id = getStringParam(req.params.id) ?? "";
   const { progress } = req.body;
 
   if (typeof progress !== "number") {
@@ -610,7 +611,7 @@ export const uploadThumbnail = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { id } = req.params;
+  const id = getStringParam(req.params.id) ?? "";
   const video = storageService.getVideoById(id);
 
   if (!video) {

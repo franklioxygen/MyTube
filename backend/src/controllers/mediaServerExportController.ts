@@ -6,6 +6,7 @@ import {
   startMediaServerExportJob,
 } from "../services/mediaServerExport/jobService";
 import type { MediaServerExportMode } from "../types/settings";
+import { getStringParam } from "../utils/paramUtils";
 
 type RebuildRequest = {
   mediaServerExportMode?: MediaServerExportMode;
@@ -75,7 +76,7 @@ export async function getMediaServerExportRebuildStatus(
   req: Request,
   res: Response
 ): Promise<void> {
-  const { jobId } = req.params;
+  const jobId = getStringParam(req.params.jobId) ?? "";
   const job = getMediaServerExportJobById(jobId);
   if (!job) {
     res.status(404).json({ error: "Job not found." });
@@ -88,7 +89,7 @@ export async function cancelMediaServerExportRebuild(
   req: Request,
   res: Response
 ): Promise<void> {
-  const { jobId } = req.params;
+  const jobId = getStringParam(req.params.jobId) ?? "";
   const cancelled = cancelMediaServerExportJob(jobId);
   if (!cancelled) {
     res.status(404).json({ error: "Job not found or already completed." });
