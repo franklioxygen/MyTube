@@ -13,6 +13,7 @@ import {
 import { FilenameTemplateContext } from "../services/filenameTemplate/types";
 import { DownloadFilenamePresetId } from "../types/settings";
 import { logger } from "../utils/logger";
+import { getStringParam } from "../utils/paramUtils";
 import { sendBadRequest } from "../utils/response";
 
 const SAMPLE_CONTEXT: FilenameTemplateContext = {
@@ -284,7 +285,7 @@ export async function getRenameJobStatus(
   req: Request,
   res: Response
 ): Promise<void> {
-  const { jobId } = req.params;
+  const jobId = getStringParam(req.params.jobId) ?? "";
   const job = getRenameJobById(jobId);
   if (!job) {
     res.status(404).json({ error: "Job not found." });
@@ -297,7 +298,7 @@ export async function cancelBatchRename(
   req: Request,
   res: Response
 ): Promise<void> {
-  const { jobId } = req.params;
+  const jobId = getStringParam(req.params.jobId) ?? "";
   const cancelled = cancelRenameJob(jobId);
   if (!cancelled) {
     res.status(404).json({ error: "Job not found or already completed." });

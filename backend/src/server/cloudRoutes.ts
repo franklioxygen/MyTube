@@ -8,6 +8,7 @@ import { getCachedThumbnail } from "../services/cloudStorage/cloudThumbnailCache
 import { CloudStorageService } from "../services/CloudStorageService";
 import * as storageService from "../services/storageService";
 import { logger } from "../utils/logger";
+import { getStringParam } from "../utils/paramUtils";
 import {
   validateCloudThumbnailCachePath,
   validateRedirectUrl,
@@ -19,7 +20,7 @@ const redirectCloudFile = async (
   fileType: "video" | "image"
 ): Promise<void> => {
   try {
-    const filename = req.params.filename;
+    const filename = getStringParam(req.params.filename) ?? "";
     const settings = storageService.getSettings();
 
     if (

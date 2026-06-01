@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { NotFoundError, ValidationError } from "../errors/DownloadErrors";
 import * as storageService from "../services/storageService";
 import { Collection } from "../services/storageService";
+import { getStringParam } from "../utils/paramUtils";
 import { successMessage } from "../utils/response";
 
 /**
@@ -71,7 +72,7 @@ export const updateCollection = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { id } = req.params;
+  const id = getStringParam(req.params.id) ?? "";
   const { name, videoId, action } = req.body;
 
   let updatedCollection: Collection | null | undefined;
@@ -111,8 +112,8 @@ export const deleteCollection = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { id } = req.params;
-  const { deleteVideos } = req.query;
+  const id = getStringParam(req.params.id) ?? "";
+  const deleteVideos = getStringParam(req.query.deleteVideos);
 
   let success = false;
 

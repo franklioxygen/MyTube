@@ -24,6 +24,7 @@ import {
   normalizeTwitchChannelUrl,
 } from "../utils/helpers";
 import { logger } from "../utils/logger";
+import { getStringParam } from "../utils/paramUtils";
 import { successResponse } from "../utils/response";
 import {
   createUploadValidationError,
@@ -542,7 +543,7 @@ export const getVideoById = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { id } = req.params;
+  const id = getStringParam(req.params.id) ?? "";
   const video = storageService.getVideoById(id);
 
   if (!video) {
@@ -639,7 +640,7 @@ export const deleteVideo = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { id } = req.params;
+  const id = getStringParam(req.params.id) ?? "";
   const success = storageService.deleteVideo(id);
 
   if (!success) {
@@ -658,7 +659,7 @@ export const getVideoComments = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { id } = req.params;
+  const id = getStringParam(req.params.id) ?? "";
   const comments = await import("../services/commentService").then((m) =>
     m.getComments(id)
   );
@@ -745,7 +746,7 @@ export const updateVideoDetails = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { id } = req.params;
+  const id = getStringParam(req.params.id) ?? "";
   const updates = req.body;
 
   // Filter allowed updates
@@ -968,9 +969,9 @@ export const getAuthorChannelUrl = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { sourceUrl } = req.query;
+  const sourceUrl = getStringParam(req.query.sourceUrl);
 
-  if (!sourceUrl || typeof sourceUrl !== "string") {
+  if (!sourceUrl) {
     throw new ValidationError("sourceUrl is required", "sourceUrl");
   }
 
@@ -1003,7 +1004,7 @@ export const uploadSubtitle = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { id } = req.params;
+  const id = getStringParam(req.params.id) ?? "";
   const { language } = req.body;
 
   if (!req.file) {
@@ -1211,7 +1212,7 @@ export const serveMountVideo = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { id } = req.params;
+  const id = getStringParam(req.params.id) ?? "";
   const video = storageService.getVideoById(id);
 
   if (!video) {
