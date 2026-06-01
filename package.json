@@ -4,6 +4,7 @@
   "description": "Multiple platform video downloader and player application",
   "main": "index.js",
   "scripts": {
+    "preinstall": "node ./backend/scripts/check-supported-node.cjs",
     "start": "concurrently \"npm run start:backend\" \"npm run start:frontend\"",
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "start:frontend": "cd frontend && node scripts/waitForBackend.cjs && npm run dev",
@@ -21,6 +22,9 @@
     "test:backend": "cd backend && npm run test",
     "test:backend:watch": "cd backend && npm run test:watch",
     "codacy:report": "node scripts/codacy/generate-issues-report.mjs"
+  },
+  "engines": {
+    "node": "20.x || 22.x || 23.x || 24.x || 25.x || 26.x"
   },
   "keywords": [
     "youtube",

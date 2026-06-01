@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- **Node.js** (v18 or higher recommended)
+- **Node.js** (20.x, 22.x, 23.x, 24.x, 25.x, or 26.x)
 - **npm** (v9 or higher) or **yarn**
 - **Python 3.8+** (for yt-dlp and PO Token provider)
 - **yt-dlp** (installed via pip/pipx)
@@ -24,6 +24,8 @@ You can install all dependencies for the root, frontend, and backend with a sing
 ```bash
 npm run install:all
 ```
+
+If you use an unsupported Node.js version, the backend may fall back to compiling `better-sqlite3` from source and fail with `node-gyp` errors such as "You need to install the latest version of Visual Studio" on Windows. Switch to a supported Node.js release first.
 
 Or manually:
 
