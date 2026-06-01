@@ -25,41 +25,49 @@ vi.mock("../../services/downloadManager", () => ({
 }));
 
 vi.mock("../../services/continuousDownload/taskRepository", () => ({
-  TaskRepository: vi.fn().mockImplementation(() => ({
-    createTask: vi.fn().mockResolvedValue(undefined),
-    getAllTasks: vi.fn().mockResolvedValue([]),
-    getTaskById: vi.fn().mockResolvedValue(null),
-    getTaskByAuthorUrl: vi.fn().mockResolvedValue(null),
-    cancelTask: vi.fn().mockResolvedValue(undefined),
-    pauseTask: vi.fn().mockResolvedValue(undefined),
-    resumeTask: vi.fn().mockResolvedValue(undefined),
-    deleteTask: vi.fn().mockResolvedValue(undefined),
-    cancelTaskWithError: vi.fn().mockResolvedValue(undefined),
-    updateTotalVideos: vi.fn().mockResolvedValue(undefined),
-    updateFrozenVideoListPath: vi.fn().mockResolvedValue(undefined),
-    clearFrozenVideoListPath: vi.fn().mockResolvedValue(undefined),
-  })),
+  TaskRepository: vi.fn().mockImplementation(function () {
+    return {
+      createTask: vi.fn().mockResolvedValue(undefined),
+      getAllTasks: vi.fn().mockResolvedValue([]),
+      getTaskById: vi.fn().mockResolvedValue(null),
+      getTaskByAuthorUrl: vi.fn().mockResolvedValue(null),
+      cancelTask: vi.fn().mockResolvedValue(undefined),
+      pauseTask: vi.fn().mockResolvedValue(undefined),
+      resumeTask: vi.fn().mockResolvedValue(undefined),
+      deleteTask: vi.fn().mockResolvedValue(undefined),
+      cancelTaskWithError: vi.fn().mockResolvedValue(undefined),
+      updateTotalVideos: vi.fn().mockResolvedValue(undefined),
+      updateFrozenVideoListPath: vi.fn().mockResolvedValue(undefined),
+      clearFrozenVideoListPath: vi.fn().mockResolvedValue(undefined),
+    };
+  }),
 }));
 
 vi.mock("../../services/continuousDownload/videoUrlFetcher", () => ({
-  VideoUrlFetcher: vi.fn().mockImplementation(() => ({
-    getAllVideoUrls: vi.fn().mockResolvedValue([]),
-    getAllVideoEntries: vi.fn().mockResolvedValue([]),
-    getVideoUrlsIncremental: vi.fn().mockResolvedValue([]),
-  })),
+  VideoUrlFetcher: vi.fn().mockImplementation(function () {
+    return {
+      getAllVideoUrls: vi.fn().mockResolvedValue([]),
+      getAllVideoEntries: vi.fn().mockResolvedValue([]),
+      getVideoUrlsIncremental: vi.fn().mockResolvedValue([]),
+    };
+  }),
   sortVideoEntries: vi.fn((entries: unknown[]) => entries),
 }));
 
 vi.mock("../../services/continuousDownload/taskCleanup", () => ({
-  TaskCleanup: vi.fn().mockImplementation(() => ({
-    cleanupCurrentVideoTempFiles: vi.fn().mockResolvedValue(undefined),
-  })),
+  TaskCleanup: vi.fn().mockImplementation(function () {
+    return {
+      cleanupCurrentVideoTempFiles: vi.fn().mockResolvedValue(undefined),
+    };
+  }),
 }));
 
 vi.mock("../../services/continuousDownload/taskProcessor", () => ({
-  TaskProcessor: vi.fn().mockImplementation(() => ({
-    processTask: vi.fn().mockResolvedValue(undefined),
-  })),
+  TaskProcessor: vi.fn().mockImplementation(function () {
+    return {
+      processTask: vi.fn().mockResolvedValue(undefined),
+    };
+  }),
 }));
 
 describe("ContinuousDownloadService", () => {
