@@ -3,6 +3,7 @@ import fs from "fs-extra";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
     deleteVideo,
+    getVideoComments,
     getVideoById,
     getVideos,
     updateVideoDetails,
@@ -36,6 +37,10 @@ vi.mock("../../services/downloadService");
 vi.mock("../../services/storageService");
 vi.mock("../../services/downloadManager");
 vi.mock("../../services/metadataService");
+const commentServiceMocks = vi.hoisted(() => ({
+  getComments: vi.fn(),
+}));
+vi.mock("../../services/commentService", () => commentServiceMocks);
 vi.mock("../../services/statistics", () => ({
   recordEvent: vi.fn(() => null),
   normalizeSourceKind: vi.fn((value?: string | null) => value ?? "unknown"),
@@ -556,14 +561,9 @@ describe("VideoController", () => {
   describe("getVideoComments", () => {
     it("should get video comments", async () => {
       req.params = { id: "1" };
-      // Mock commentService dynamically since it's imported dynamically in controller
-      vi.mock("../../services/commentService", () => ({
-        getComments: vi.fn().mockResolvedValue([]),
-      }));
+      commentServiceMocks.getComments.mockResolvedValue([]);
 
-      await import("../../controllers/videoController").then((m) =>
-        m.getVideoComments(req as Request, res as Response)
-      );
+      await getVideoComments(req as Request, res as Response);
 
       expect(status).toHaveBeenCalledWith(200);
       expect(json).toHaveBeenCalledWith([]);

@@ -19,7 +19,7 @@ vi.mock("fs-extra", () => ({
   },
 }));
 vi.mock("better-sqlite3", () => ({
-  default: vi.fn(),
+  default: vi.fn(function () {}),
 }));
 vi.mock("crypto", () => ({
   default: {
@@ -224,9 +224,9 @@ describe("databaseBackupService", () => {
     vi.mocked(crypto.randomUUID as any).mockImplementation(
       () => `generated-uuid-${++uuidCounter}`
     );
-    vi.mocked(Database as any).mockImplementation(() =>
-      createSourceDbHandle({ videos: [{ id: "db", source_url: "source" }] })
-    );
+    vi.mocked(Database as any).mockImplementation(function () {
+      return createSourceDbHandle({ videos: [{ id: "db", source_url: "source" }] });
+    });
     vi.mocked(sqlite.prepare as any).mockImplementation(() => createStatement());
     vi.mocked(sqlite.transaction as any).mockImplementation(
       (callback: () => void) => callback
@@ -272,7 +272,7 @@ describe("databaseBackupService", () => {
     });
 
     it("rejects invalid sqlite uploads during validation", () => {
-      vi.mocked(Database as any).mockImplementation(() => {
+      vi.mocked(Database as any).mockImplementation(function () {
         throw new Error("bad sqlite");
       });
 
@@ -592,9 +592,9 @@ describe("databaseBackupService", () => {
         settings: ["key", "value"],
       };
 
-      vi.mocked(Database as any).mockImplementation(() =>
-        createSourceDbHandle(sourceTables, sourceColumns)
-      );
+      vi.mocked(Database as any).mockImplementation(function () {
+        return createSourceDbHandle(sourceTables, sourceColumns);
+      });
       vi.mocked(sqlite.prepare as any).mockImplementation(
         createSqlitePrepareMock(targetTables, targetColumns)
       );
@@ -642,11 +642,11 @@ describe("databaseBackupService", () => {
       };
 
       const videoInsertRun = vi.fn(() => ({ changes: 1 }));
-      vi.mocked(Database as any).mockImplementation(() =>
-        createSourceDbHandle(sourceTables, {
+      vi.mocked(Database as any).mockImplementation(function () {
+        return createSourceDbHandle(sourceTables, {
           videos: ["id", "title", "source_url", "video_path", "created_at"],
-        })
-      );
+        });
+      });
       vi.mocked(sqlite.prepare as any).mockImplementation((sql: string) => {
         if (sql === "SELECT id, source_url AS source_url FROM videos") {
           return createStatement({ allResult: targetTables.videos });
@@ -714,9 +714,9 @@ describe("databaseBackupService", () => {
     });
 
     it("rejects databases without compatible tables", () => {
-      vi.mocked(Database as any).mockImplementation(() =>
-        createSourceDbHandle({})
-      );
+      vi.mocked(Database as any).mockImplementation(function () {
+        return createSourceDbHandle({});
+      });
 
       expect(() =>
         databaseBackupService.mergeDatabase(Buffer.from("sqlite-bytes"))
@@ -778,9 +778,9 @@ describe("databaseBackupService", () => {
         settings: ["key", "value"],
       };
 
-      vi.mocked(Database as any).mockImplementation(() =>
-        createSourceDbHandle(sourceTables, sourceColumns)
-      );
+      vi.mocked(Database as any).mockImplementation(function () {
+        return createSourceDbHandle(sourceTables, sourceColumns);
+      });
       vi.mocked(sqlite.prepare as any).mockImplementation(
         createSqlitePrepareMock(targetTables, targetColumns)
       );
@@ -862,7 +862,7 @@ describe("databaseBackupService", () => {
         "mytube-backup-corrupt.db.backup",
       ]);
       vi.mocked(fs.statSync as any).mockReturnValue({ mtimeMs: 500 });
-      vi.mocked(Database as any).mockImplementation(() => {
+      vi.mocked(Database as any).mockImplementation(function () {
         throw new Error("corrupt");
       });
 

@@ -105,6 +105,7 @@ export default defineConfig(({ mode }) => {
       ),
     },
     test: {
+      dir: "./src",
       globals: true,
       environment: "jsdom",
       setupFiles: "./src/setupTests.ts",
@@ -112,6 +113,7 @@ export default defineConfig(({ mode }) => {
         VITE_API_URL: "http://localhost:5551/api",
       },
       coverage: {
+        include: ["src/**/*.{ts,tsx}"],
         provider: "v8",
         exclude: [
           "node_modules/**",

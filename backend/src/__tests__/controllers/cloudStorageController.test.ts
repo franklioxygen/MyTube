@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import {
   clearThumbnailCacheEndpoint,
   getSignedUrl,
@@ -44,11 +44,11 @@ vi.mock("../../utils/logger", () => ({
 describe("cloudStorageController", () => {
   let req: Partial<Request>;
   let res: Partial<Response>;
-  let jsonMock: ReturnType<typeof vi.fn>;
-  let statusMock: ReturnType<typeof vi.fn>;
-  let setHeaderMock: ReturnType<typeof vi.fn>;
-  let writeMock: ReturnType<typeof vi.fn>;
-  let endMock: ReturnType<typeof vi.fn>;
+  let jsonMock: Mock<(body?: any) => Response>;
+  let statusMock: Mock<(code: number) => Response>;
+  let setHeaderMock: Mock<(name: string, value: string | number | readonly string[]) => Response>;
+  let writeMock: Mock<Response["write"]>;
+  let endMock: Mock<Response["end"]>;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -60,11 +60,11 @@ describe("cloudStorageController", () => {
 
     req = { query: {}, body: {} };
     res = {
-      json: jsonMock,
-      status: statusMock,
-      setHeader: setHeaderMock,
-      write: writeMock,
-      end: endMock,
+      json: jsonMock as Response["json"],
+      status: statusMock as Response["status"],
+      setHeader: setHeaderMock as Response["setHeader"],
+      write: writeMock as unknown as Response["write"],
+      end: endMock as unknown as Response["end"],
     };
     vi.mocked(resolveAbsolutePath).mockReturnValue(null);
   });

@@ -1,10 +1,13 @@
-import { defineConfig } from 'vitest/config';
+import { configDefaults, defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
+    dir: 'src',
+    exclude: [...configDefaults.exclude, 'dist/**', 'bgutil-ytdlp-pot-provider/**'],
     globals: true,
     environment: 'node',
     coverage: {
+      include: ['src/**/*.ts'],
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
       exclude: [
