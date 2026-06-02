@@ -21,6 +21,10 @@ import {
 } from "../../../services/filenameTemplate/renderer";
 import { FilenameTemplateContext } from "../../../services/filenameTemplate/types";
 
+function utf8ByteLength(value: string): number {
+  return new TextEncoder().encode(value).length;
+}
+
 function makeCtx(overrides: Partial<FilenameTemplateContext> = {}): FilenameTemplateContext {
   return {
     title: "My Video",
@@ -503,7 +507,7 @@ describe("renderFilenameTemplate — sanitization & errors", () => {
     expect(result.directory).toBe("");
   });
 
-  it("keeps a long path within the per-segment limit (180 chars per segment)", () => {
+  it("keeps a long path within the per-segment limit (180 bytes per segment)", () => {
     const longTitle = "x".repeat(300);
     const result = renderFilenameTemplate({
       template: "dir/{{ title }}.{{ ext }}",
@@ -515,6 +519,56 @@ describe("renderFilenameTemplate — sanitization & errors", () => {
     for (const segment of result.relativePath.split("/")) {
       expect(segment.length).toBeLessThanOrEqual(180);
     }
+  });
+
+  it("preserves the real video extension for long multi-byte template filenames", () => {
+    const longTitle =
+      "示例標題 foo bar baz qux quux corge grault garply waldo fred plugh xyzzy thud lorem ipsum dolor sit amet";
+    const result = renderFilenameTemplate({
+      template: "{{ source_collection_name }}/Season 1/s01e20260101 - {{ title }}.{{ ext }}",
+      context: makeCtx({
+        title: longTitle,
+        sourceCollectionName: "Foo Channel",
+        sourceCollectionType: "series",
+      }),
+      extension: "webm",
+      mode: "video",
+    });
+
+    expect(result.basename.endsWith(".webm")).toBe(true);
+    expect(result.extension).toBe("webm");
+    expect(utf8ByteLength(result.basename)).toBeLessThanOrEqual(180);
+  });
+});
+
+describe("planVideoOutputPaths — long filename handling", () => {
+  it("keeps the video filename extension for long multi-byte template filenames", () => {
+    const longTitle =
+      "示例標題 foo bar baz qux quux corge grault garply waldo fred plugh xyzzy thud lorem ipsum dolor sit amet";
+    const result = planVideoOutputPaths({
+      settings: {
+        downloadFilenamePresetId: "custom",
+        downloadFilenameTemplate:
+          "{{ source_collection_name }}/Season 1/s01e20260101 - {{ title }}.{{ ext }}",
+      },
+      context: makeCtx({
+        title: longTitle,
+        sourceCollectionName: "Foo Channel",
+        sourceCollectionType: "series",
+      }),
+      videoExtension: "webm",
+      moveThumbnailsToVideoFolder: false,
+      moveSubtitlesToVideoFolder: false,
+    });
+
+    expect(result.video.filename.endsWith(".webm")).toBe(true);
+    expect(result.video.relativePath).toContain(".webm");
+    expect(result.subtitle.baseNameWithoutLanguageOrExt).toBe(
+      result.video.filename.slice(0, -".webm".length)
+    );
+    expect(
+      utf8ByteLength(`${result.video.filename.replace(/\.webm$/, "")}.en-US.vtt.part`)
+    ).toBeLessThan(255);
   });
 });
 
