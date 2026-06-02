@@ -529,7 +529,7 @@ describe("renderFilenameTemplate — sanitization & errors", () => {
       context: makeCtx({
         title: longTitle,
         sourceCollectionName: "Foo Channel",
-        sourceCollectionType: "series",
+        sourceCollectionType: "playlist",
       }),
       extension: "webm",
       mode: "video",
@@ -554,7 +554,7 @@ describe("planVideoOutputPaths — long filename handling", () => {
       context: makeCtx({
         title: longTitle,
         sourceCollectionName: "Foo Channel",
-        sourceCollectionType: "series",
+        sourceCollectionType: "playlist",
       }),
       videoExtension: "webm",
       moveThumbnailsToVideoFolder: false,
