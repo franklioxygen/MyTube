@@ -38,10 +38,12 @@ vi.mock("../../services/downloaders/ytdlp/ytdlpHelpers", () => ({
   getProviderScript: vi.fn(),
 }));
 vi.mock("socks-proxy-agent", () => ({
-  SocksProxyAgent: vi.fn().mockImplementation((url: string) => ({
-    kind: "socks-agent",
-    url,
-  })),
+  SocksProxyAgent: vi.fn().mockImplementation(function (this: unknown, url: string) {
+    return {
+      kind: "socks-agent",
+      url,
+    };
+  }),
 }));
 
 type MockProcess = EventEmitter & {
@@ -189,10 +191,15 @@ describe("ytDlpUtils", () => {
     vi.mocked(storageService.getSettings).mockReturnValue({});
     vi.mocked(getProviderPluginPath).mockReturnValue("");
     vi.mocked(getProviderScript).mockReturnValue("");
-    vi.mocked(SocksProxyAgent).mockImplementation((url: string | URL) => ({
-      kind: "socks-agent",
-      url: String(url),
-    }) as any);
+    vi.mocked(SocksProxyAgent).mockImplementation(function (
+      this: unknown,
+      url: string | URL
+    ) {
+      return {
+        kind: "socks-agent",
+        url: String(url),
+      };
+    } as any);
     process.env.YT_DLP_PATH = "yt-dlp";
     delete process.env.YT_DLP_JS_RUNTIME;
     delete process.env.PYTHONPATH;

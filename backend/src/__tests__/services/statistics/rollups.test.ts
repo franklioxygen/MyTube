@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { Mock } from "vitest";
 
 const mockWarn = vi.fn();
 let nextEventId = 0;
@@ -34,9 +35,9 @@ type Matcher = string | RegExp;
 type Responder = unknown | ((args: unknown[]) => unknown);
 
 interface MockStatement {
-  get: ReturnType<typeof vi.fn>;
-  all: ReturnType<typeof vi.fn>;
-  run: ReturnType<typeof vi.fn>;
+  get: Mock<(...args: unknown[]) => unknown>;
+  all: Mock<(...args: unknown[]) => unknown>;
+  run: Mock<(...args: unknown[]) => unknown>;
 }
 
 interface RollupRow {

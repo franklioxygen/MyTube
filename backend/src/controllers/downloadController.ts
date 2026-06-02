@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import downloadManager from "../services/downloadManager";
 import * as storageService from "../services/storageService";
+import { getStringParam } from "../utils/paramUtils";
 import { sendData, sendSuccessMessage } from "../utils/response";
 
 /**
@@ -11,7 +12,7 @@ export const cancelDownload = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { id } = req.params;
+  const id = getStringParam(req.params.id) ?? "";
   await downloadManager.cancelDownload(id);
   sendSuccessMessage(res, "Download cancelled");
 };
@@ -24,7 +25,7 @@ export const removeFromQueue = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { id } = req.params;
+  const id = getStringParam(req.params.id) ?? "";
   downloadManager.removeFromQueue(id);
   sendSuccessMessage(res, "Removed from queue");
 };
@@ -63,7 +64,7 @@ export const removeDownloadHistory = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { id } = req.params;
+  const id = getStringParam(req.params.id) ?? "";
   storageService.removeDownloadHistoryItem(id);
   sendSuccessMessage(res, "Removed from history");
 };

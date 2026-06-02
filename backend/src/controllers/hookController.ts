@@ -5,6 +5,7 @@ import {
 } from "../config/adminTrust";
 import { ValidationError } from "../errors/DownloadErrors";
 import { HookService } from "../services/hookService";
+import { getStringParam } from "../utils/paramUtils";
 import { sendNotFound, successMessage } from "../utils/response";
 
 const ensureHookAccess = (res: Response): boolean => {
@@ -27,7 +28,7 @@ export const uploadHook = async (
     return;
   }
 
-  const { name } = req.params;
+  const name = getStringParam(req.params.name) ?? "";
 
   if (!req.file) {
     throw new ValidationError("No file uploaded", "file");
@@ -205,7 +206,7 @@ export const deleteHook = async (
     return;
   }
 
-  const { name } = req.params;
+  const name = getStringParam(req.params.name) ?? "";
   
   // Validate hook name to prevent path traversal
   const validHooks = [
