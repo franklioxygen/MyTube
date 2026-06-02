@@ -218,6 +218,6 @@ export function enforcePathLengthLimit(
   const truncatedStem = truncateToByteLength(stem, maxStemBytes)
     .replace(TRAILING_DOTS_SPACES_RE, "")
     .trim();
-  const truncatedLast = `${truncatedStem}${ext}`;
+  const truncatedLast = `${truncatedStem || "x"}${ext}`;
   return [...workingSegments.slice(0, -1), truncatedLast];
 }

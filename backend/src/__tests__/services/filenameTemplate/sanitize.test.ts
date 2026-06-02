@@ -149,6 +149,16 @@ describe("enforcePathLengthLimit", () => {
     expect(result[result.length - 1].endsWith(".mp4")).toBe(true);
   });
 
+  it("keeps a non-empty stem when the remaining byte budget cannot fit a multibyte char", () => {
+    const result = enforcePathLengthLimit([
+      "a".repeat(117),
+      "b".repeat(116),
+      "你.mp4",
+    ]);
+    expect(utf8ByteLength(result.join("/"))).toBeLessThanOrEqual(240);
+    expect(result[result.length - 1]).toBe("x.mp4");
+  });
+
   it("does not truncate a valid path that exceeds only the old headroom-reduced budget", () => {
     const segments = [
       "A".repeat(50),
