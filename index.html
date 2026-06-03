@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="MyTube — self-hosted downloader and player for YouTube, Bilibili, Twitch, and 1000+ sites. Subscriptions, collections, RSS feeds, Docker-ready." />
+  <meta name="theme-color" content="#07080d" />
+  <base href="/mytube/" />
+  <title>MyTube — Self-hosted video library &amp; downloader</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+  <script>
+    try {
+      var l = localStorage.getItem("mytube-home-lang");
+      if (l === "zh") {
+        document.documentElement.lang = "zh-CN";
+        document.documentElement.dataset.lang = "zh";
+      }
+    } catch (e) {}
+  </script>
+</head>
+<body>
+  <a class="skip-link" href="#main" data-i18n="a11y.skip">Skip to content</a>
+
+  <header class="site-header" id="top">
+    <div class="container header-inner">
+      <a class="brand" href="#top" data-i18n-attr="aria-label:a11y.brand">
+        <img src="assets/favicon.svg" alt="" width="32" height="32" class="brand-icon" />
+        <span class="brand-name">MyTube</span>
+      </a>
+      <nav class="nav" aria-label="Primary" data-i18n-attr="aria-label:a11y.nav">
+        <a href="#features" data-i18n="nav.features">Features</a>
+        <a href="#ui" data-i18n="nav.ui">Web UI</a>
+        <a href="#platforms" data-i18n="nav.platforms">Platforms</a>
+        <a href="#ecosystem" data-i18n="nav.ecosystem">Ecosystem</a>
+        <a href="#get-started" data-i18n="nav.getStarted">Get started</a>
+      </nav>
+      <div class="header-actions">
+        <div class="lang-toggle" role="group" data-i18n-attr="aria-label:a11y.langSwitch">
+          <button type="button" class="lang-option is-active" data-lang="en" aria-pressed="true">EN</button>
+          <button type="button" class="lang-option" data-lang="zh" aria-pressed="false">中文</button>
+        </div>
+        <a class="btn btn-ghost btn-sm" href="https://github.com/franklioxygen/mytube" target="_blank" rel="noopener noreferrer" data-i18n="nav.github">GitHub</a>
+        <a class="btn btn-accent btn-sm" href="https://mytube-demo.vercel.app" target="_blank" rel="noopener noreferrer" data-i18n="nav.demo">Live demo</a>
+        <button type="button" class="nav-toggle" aria-expanded="false" aria-controls="mobile-nav" data-i18n-attr="aria-label:a11y.menuOpen">
+          <span></span><span></span><span></span>
+        </button>
+      </div>
+    </div>
+    <div class="mobile-nav" id="mobile-nav" hidden>
+      <div class="lang-toggle lang-toggle-mobile" role="group" data-i18n-attr="aria-label:a11y.langSwitch">
+        <button type="button" class="lang-option is-active" data-lang="en" aria-pressed="true">EN</button>
+        <button type="button" class="lang-option" data-lang="zh" aria-pressed="false">中文</button>
+      </div>
+      <a href="#features" data-i18n="nav.features">Features</a>
+      <a href="#ui" data-i18n="nav.ui">Web UI</a>
+      <a href="#platforms" data-i18n="nav.platforms">Platforms</a>
+      <a href="#ecosystem" data-i18n="nav.ecosystem">Ecosystem</a>
+      <a href="#get-started" data-i18n="nav.getStarted">Get started</a>
+      <a href="https://mytube-demo.vercel.app" target="_blank" rel="noopener noreferrer" data-i18n="nav.demo">Live demo</a>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero">
+      <div class="hero-glow" aria-hidden="true"></div>
+      <div class="hero-glow-2" aria-hidden="true"></div>
+      <div class="container hero-grid">
+        <div class="hero-copy reveal">
+          <div class="badge-row">
+            <span class="badge" data-i18n="hero.badgeSelfHosted">Self-hosted</span>
+            <span class="badge badge-muted" data-i18n="hero.badgeDocker">Docker ready</span>
+          </div>
+          <h1 data-i18n="hero.title">Your personal video library — download, organize, and watch on your terms.</h1>
+          <p class="hero-lead" data-i18n="hero.lead">
+            MyTube is a self-hosted downloader and player for YouTube, Bilibili, Twitch, MissAV, and every yt-dlp site.
+            Subscribe to channels, queue batch downloads, curate collections, and share private RSS feeds — all from a sleek web UI.
+          </p>
+          <div class="hero-cta">
+            <a class="btn btn-primary btn-lg" href="https://mytube-demo.vercel.app" target="_blank" rel="noopener noreferrer" data-i18n="hero.ctaDemo">Try live demo</a>
+            <a class="btn btn-secondary btn-lg" href="#get-started" data-i18n="hero.ctaQuickStart">Quick start</a>
+            <a class="btn btn-ghost btn-lg" href="https://github.com/franklioxygen/mytube" target="_blank" rel="noopener noreferrer" data-i18n="hero.ctaSource">View source</a>
+          </div>
+        </div>
+        <div class="hero-visual reveal reveal-delay" aria-hidden="true">
+          <div class="app-mock">
+            <div class="mock-titlebar">
+              <span class="dot red"></span>
+              <span class="dot yellow"></span>
+              <span class="dot green"></span>
+              <span class="mock-title" data-i18n="hero.mockTitle">MyTube — Library</span>
+            </div>
+            <div class="mock-body">
+              <aside class="mock-sidebar">
+                <p class="mock-sidebar-label" data-i18n="hero.mockCollections">Collections</p>
+                <ul>
+                  <li data-i18n="hero.mockColl1">Tech talks</li>
+                  <li data-i18n="hero.mockColl2">Anime</li>
+                  <li data-i18n="hero.mockColl3">Documentaries</li>
+                </ul>
+              </aside>
+              <div class="mock-main">
+                <div class="mock-search">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                  <span data-i18n="hero.mockSearch">Search your library…</span>
+                </div>
+                <p class="mock-queue-label" data-i18n="hero.mockQueue">Download queue</p>
+                <div class="mock-queue-item">
+                  <span data-i18n="hero.mockItem1">Channel upload — 68%</span>
+                  <div class="mock-progress"><div class="mock-progress-fill mid"></div></div>
+                </div>
+                <div class="mock-queue-item">
+                  <span data-i18n="hero.mockItem2">Batch import — queued</span>
+                  <div class="mock-progress"><div class="mock-progress-fill queued"></div></div>
+                </div>
+                <div class="mock-queue-item done">
+                  <span data-i18n="hero.mockItem3">Subscription sync — done</span>
+                  <div class="mock-progress"><div class="mock-progress-fill done"></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="highlights">
+      <div class="container highlights-grid">
+        <article class="highlight-card reveal">
+          <div class="highlight-icon pink" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          </div>
+          <h3 data-i18n="highlights.h1Title">Own your library</h3>
+          <p data-i18n="highlights.h1Body">Videos stay on your disk under your control. No algorithmic feed, no account lock-in — just a private media server you run.</p>
+        </article>
+        <article class="highlight-card reveal reveal-delay">
+          <div class="highlight-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+          </div>
+          <h3 data-i18n="highlights.h2Title">Subscribe &amp; automate</h3>
+          <p data-i18n="highlights.h2Body">Follow YouTube, Bilibili, and Twitch channels. New uploads land in your library automatically while you sleep.</p>
+        </article>
+        <article class="highlight-card reveal reveal-delay-2">
+          <div class="highlight-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg>
+          </div>
+          <h3 data-i18n="highlights.h3Title">Secure sharing</h3>
+          <p data-i18n="highlights.h3Body">Password login, optional passkeys, read-only visitor accounts, and filtered private RSS links for external readers.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" id="features">
+      <div class="container">
+        <header class="section-header reveal">
+          <p class="eyebrow" data-i18n="features.eyebrow">Features</p>
+          <h2 data-i18n="features.title">Everything you need to build a personal streaming hub.</h2>
+          <p class="section-lead" data-i18n="features.lead">From a single URL paste to full subscription automation — MyTube covers download, playback, metadata, and integration.</p>
+        </header>
+        <div class="feature-grid">
+          <article class="feature-card reveal"><h3 data-i18n="features.f1Title">Multi-site downloads</h3><p data-i18n="features.f1Body">Paste a URL from YouTube, Bilibili, Twitch, MissAV, or any yt-dlp-supported site.</p></article>
+          <article class="feature-card reveal"><h3 data-i18n="features.f2Title">Batch &amp; parallel queue</h3><p data-i18n="features.f2Body">Add many links at once, track progress side-by-side, and cap concurrent downloads.</p></article>
+          <article class="feature-card reveal"><h3 data-i18n="features.f3Title">Channel subscriptions</h3><p data-i18n="features.f3Body">Auto-download new uploads from subscribed creators across major platforms.</p></article>
+          <article class="feature-card reveal"><h3 data-i18n="features.f4Title">Collections</h3><p data-i18n="features.f4Body">Organize videos into custom playlists and collections for fast browsing.</p></article>
+          <article class="feature-card reveal"><h3 data-i18n="features.f5Title">Private RSS feeds</h3><p data-i18n="features.f5Body">Generate filtered RSS links for Plex, readers, or any compatible app.</p></article>
+          <article class="feature-card reveal"><h3 data-i18n="features.f6Title">Auto subtitles</h3><p data-i18n="features.f6Body">Pull default-language subtitles from YouTube and Bilibili automatically.</p></article>
+          <article class="feature-card reveal"><h3 data-i18n="features.f7Title">TMDB metadata</h3><p data-i18n="features.f7Body">Scrape movie and TV metadata from filenames with localized TMDB matching.</p></article>
+          <article class="feature-card reveal"><h3 data-i18n="features.f8Title">Cloud storage sync</h3><p data-i18n="features.f8Body">Upload videos and thumbnails to OpenList/Alist after download completes.</p></article>
+          <article class="feature-card reveal"><h3 data-i18n="features.f9Title">Task hooks &amp; Telegram</h3><p data-i18n="features.f9Body">Run shell scripts on download events or get instant Telegram notifications.</p></article>
+          <article class="feature-card reveal"><h3 data-i18n="features.f10Title">Chrome extension</h3><p data-i18n="features.f10Body">Send videos to MyTube directly from your browser on any supported site.</p></article>
+          <article class="feature-card reveal"><h3 data-i18n="features.f11Title">Cloudflare Tunnel</h3><p data-i18n="features.f11Body">Expose your instance securely without port forwarding — built into settings.</p></article>
+          <article class="feature-card reveal"><h3 data-i18n="features.f12Title">10+ UI languages</h3><p data-i18n="features.f12Body">English, Chinese, Japanese, Korean, and more — switch anytime in the app.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-alt" id="ui">
+      <div class="container split-section">
+        <div class="split-copy reveal">
+          <p class="eyebrow" data-i18n="ui.eyebrow">Web UI</p>
+          <h2 data-i18n="ui.title">Manage your library without leaving the browser.</h2>
+          <p class="section-lead" data-i18n="ui.lead">A modern React interface with Material Design — search, filter, upload local files, manage subscriptions, and watch inline.</p>
+          <ul class="check-list">
+            <li data-i18n="ui.li1">Responsive layout tuned for phones and tablets</li>
+            <li data-i18n="ui.li2">Inline player with collections, tags, and author views</li>
+            <li data-i18n="ui.li3">Settings for yt-dlp, cookies, TMDB, hooks, and tunnels</li>
+            <li data-i18n="ui.li4">Upload local videos with automatic thumbnail generation</li>
+          </ul>
+        </div>
+        <div class="split-visual reveal reveal-delay">
+          <figure class="video-frame">
+            <a href="https://www.youtube.com/watch?v=0_5ZpgsWTp0" target="_blank" rel="noopener noreferrer">
+              <img src="https://img.youtube.com/vi/0_5ZpgsWTp0/maxresdefault.jpg" alt="MyTube demo video thumbnail" width="640" height="360" loading="lazy" data-i18n-attr="alt:ui.imgAlt" />
+              <span class="play-badge" aria-hidden="true">
+                <svg viewBox="0 0 68 48" fill="none"><path d="M66.5 8.2c-.8-3-3.3-5.4-6.3-6.2C55.9 1 34 1 34 1S12.1 1 7.8 2c-3 .8-5.5 3.2-6.3 6.2C.5 12.5.5 24 .5 24s0 11.5 1 15.8c.8 3 3.3 5.4 6.3 6.2C12.1 47 34 47 34 47s21.9 0 26.2-1c3-.8 5.5-3.2 6.3-6.2 1-4.3 1-15.8 1-15.8s0-11.5-1-15.8z" fill="#f00"/><path d="M27 34V14l18 10-18 10z" fill="#fff"/></svg>
+              </span>
+            </a>
+            <figcaption data-i18n="ui.caption">Watch the overview on YouTube</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="platforms">
+      <div class="container">
+        <header class="section-header reveal">
+          <p class="eyebrow" data-i18n="platforms.eyebrow">Supported sources</p>
+          <h2 data-i18n="platforms.title">One app, hundreds of sites.</h2>
+          <p class="section-lead" data-i18n="platforms.lead">MyTube uses yt-dlp under the hood — first-class support for the platforms you care about, plus every site in the yt-dlp catalog.</p>
+        </header>
+        <ul class="platform-chips reveal" role="list">
+          <li data-i18n="platforms.chipYoutube">YouTube</li>
+          <li data-i18n="platforms.chipBilibili">Bilibili</li>
+          <li data-i18n="platforms.chipTwitch">Twitch</li>
+          <li data-i18n="platforms.chipMissav">MissAV</li>
+          <li class="highlight" data-i18n="platforms.chipYtdlp">1000+ yt-dlp sites</li>
+        </ul>
+        <p class="lang-note reveal">
+          <span data-i18n="platforms.noteBefore">Need the full list? </span>
+          <a href="https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md" target="_blank" rel="noopener noreferrer" data-i18n="platforms.readmeLink">Browse yt-dlp supported sites →</a>
+        </p>
+      </div>
+    </section>
+
+    <section class="section section-alt" id="ecosystem">
+      <div class="container">
+        <header class="section-header reveal">
+          <p class="eyebrow" data-i18n="ecosystem.eyebrow">Ecosystem</p>
+          <h2 data-i18n="ecosystem.title">Clients and extensions that extend MyTube.</h2>
+        </header>
+        <div class="eco-grid">
+          <article class="eco-card reveal">
+            <h3><a href="https://github.com/franklioxygen/mytube/tree/master/chrome-extension" target="_blank" rel="noopener noreferrer" data-i18n="ecosystem.e1Title">Chrome extension</a></h3>
+            <p data-i18n="ecosystem.e1Body">Download from the page you're on — supports all yt-dlp sites.</p>
+          </article>
+          <article class="eco-card reveal reveal-delay">
+            <h3><a href="https://github.com/franklioxygen/MikMok" target="_blank" rel="noopener noreferrer" data-i18n="ecosystem.e2Title">MikMok</a></h3>
+            <p data-i18n="ecosystem.e2Body">Short-form web client with a feed-style experience for vertical videos.</p>
+          </article>
+          <article class="eco-card reveal reveal-delay-2">
+            <h3><a href="https://github.com/franklioxygen/mytube-android" target="_blank" rel="noopener noreferrer" data-i18n="ecosystem.e3Title">mytube-android</a></h3>
+            <p data-i18n="ecosystem.e3Body">Native Android app for browsing and playback via the MyTube API.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="security">
+      <div class="container privacy-block reveal">
+        <div class="privacy-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </div>
+        <div>
+          <p class="eyebrow" data-i18n="security.eyebrow">Security</p>
+          <h2 data-i18n="security.title">Share safely, stay in control.</h2>
+          <ul class="check-list">
+            <li data-i18n="security.li1">Password login with optional WebAuthn passkeys</li>
+            <li data-i18n="security.li2">Read-only visitor role for demos and family sharing</li>
+            <li data-i18n="security.li3">Three-tier admin trust model for Docker deployments</li>
+            <li data-i18n="security.li4">Cookie upload for age-restricted or member-only content</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-alt" id="get-started">
+      <div class="container">
+        <header class="section-header reveal">
+          <p class="eyebrow" data-i18n="quickStart.eyebrow">Quick start</p>
+          <h2 data-i18n="quickStart.title">From Docker pull to first download in minutes.</h2>
+        </header>
+        <div class="install-steps reveal">
+          <div class="install-step">
+            <span class="step-num">1</span>
+            <div>
+              <h3 data-i18n="quickStart.s1Title">Docker (recommended)</h3>
+              <p data-i18n="quickStart.s1Body">Pull the official GHCR image and expose port 5551.</p>
+              <div class="code-block">
+                <pre><code>docker run -d \
+  --name mytube \
+  -p 5551:5551 \
+  -v ./data:/app/data \
+  -v ./uploads:/app/uploads \
+  ghcr.io/franklioxygen/mytube:latest</code></pre>
+                <button type="button" class="copy-btn" data-copy="docker run -d --name mytube -p 5551:5551 -v ./data:/app/data -v ./uploads:/app/uploads ghcr.io/franklioxygen/mytube:latest" data-i18n="quickStart.copy" data-i18n-attr="aria-label:quickStart.copyCmd">Copy</button>
+              </div>
+            </div>
+          </div>
+          <div class="install-step">
+            <span class="step-num">2</span>
+            <div>
+              <h3 data-i18n="quickStart.s2Title">From source</h3>
+              <p data-i18n="quickStart.s2Body" data-i18n-html>Clone the repo, install dependencies, and run the dev servers.</p>
+              <div class="code-block">
+                <pre><code>git clone https://github.com/franklioxygen/mytube.git
+cd mytube
+npm run install:all
+npm run dev</code></pre>
+                <button type="button" class="copy-btn" data-copy="git clone https://github.com/franklioxygen/mytube.git
+cd mytube
+npm run install:all
+npm run dev" data-i18n="quickStart.copy" data-i18n-attr="aria-label:quickStart.copyCmds">Copy</button>
+              </div>
+            </div>
+          </div>
+          <div class="install-step">
+            <span class="step-num">3</span>
+            <div>
+              <h3 data-i18n="quickStart.s3Title">Open the UI</h3>
+              <p data-i18n="quickStart.s3Body" data-i18n-html>Visit <code>localhost:5551</code>, paste a video URL, and hit download.</p>
+            </div>
+          </div>
+        </div>
+        <aside class="permissions-card reveal">
+          <h3 data-i18n="quickStart.reqsTitle">Requirements</h3>
+          <ul>
+            <li><strong data-i18n="quickStart.req1Title">Node.js 20–26</strong> — <span data-i18n="quickStart.req1Body">for local development (Docker ships Node 22)</span></li>
+            <li><strong data-i18n="quickStart.req2Title">yt-dlp + ffmpeg</strong> — <span data-i18n="quickStart.req2Body">required for downloads and transcoding</span></li>
+            <li><strong data-i18n="quickStart.req3Title">Python 3.8+</strong> — <span data-i18n="quickStart.req3Body">for yt-dlp and PO Token provider plugin</span></li>
+          </ul>
+        </aside>
+      </div>
+    </section>
+
+    <section class="section" id="stack">
+      <div class="container">
+        <header class="section-header reveal">
+          <p class="eyebrow" data-i18n="stack.eyebrow">Technology</p>
+          <h2 data-i18n="stack.title">Modern stack, production-ready.</h2>
+        </header>
+        <div class="stack-grid reveal">
+          <div class="stack-card">
+            <h3 data-i18n="stack.backend">Backend</h3>
+            <p data-i18n="stack.backendBody">Node.js · Express · TypeScript · SQLite · Drizzle ORM · Vitest</p>
+          </div>
+          <div class="stack-card">
+            <h3 data-i18n="stack.frontend">Frontend</h3>
+            <p data-i18n="stack.frontendBody">React 19 · Vite · Material UI · React Query · React Router 7</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="cta-band">
+      <div class="container cta-inner reveal">
+        <div>
+          <h2 data-i18n="cta.title">Ready to own your video library?</h2>
+          <p data-i18n="cta.body">Free, open source, and MIT licensed. Star the repo, spin up Docker, or try the read-only demo.</p>
+        </div>
+        <div class="cta-actions">
+          <a class="btn btn-primary btn-lg" href="https://mytube-demo.vercel.app" target="_blank" rel="noopener noreferrer" data-i18n="cta.demo">Live demo</a>
+          <a class="btn btn-secondary btn-lg" href="https://github.com/franklioxygen/mytube" target="_blank" rel="noopener noreferrer" data-i18n="cta.star">Star on GitHub</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div class="footer-brand">
+        <img src="assets/favicon.svg" alt="" width="24" height="24" />
+        <span>MyTube</span>
+      </div>
+      <p class="footer-meta"><span data-i18n="footer.license">MIT License · </span><a href="https://github.com/franklioxygen/mytube">franklioxygen/mytube</a></p>
+      <div class="footer-links">
+        <p class="footer-meta"><a href="https://github.com/franklioxygen/mytube/blob/master/README-zh.md" data-i18n="footer.docLink" data-i18n-href="footer.docHref">中文文档</a></p>
+        <p class="footer-meta"><a href="https://discord.gg/dXn4u9kQGN" target="_blank" rel="noopener noreferrer" data-i18n="footer.discord">Discord</a></p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/i18n.js"></script>
+  <script src="js/main.js" defer></script>
+</body>
+</html>
