@@ -1139,6 +1139,42 @@ describe("ytDlpUtils", () => {
       );
     });
 
+    it("should add default remote components for youtube when not explicitly configured", async () => {
+      vi.mocked(getProviderScript).mockReturnValue("/tmp/provider.js");
+      const proc = createMockProcess();
+      mockSpawnWithVersionHelpAndDenoCheck("plural", proc);
+
+      const promise = executeYtDlpJson("https://www.youtube.com/watch?v=abc");
+      await flushAsyncSpawns();
+      proc.stdout?.emit("data", Buffer.from('{"ok":true}'));
+      proc.emit("close", 0);
+
+      await expect(promise).resolves.toEqual({ ok: true });
+      const args = getSpawnArgsForUrl("https://www.youtube.com/watch?v=abc");
+      const remoteComponentsIndex = args.indexOf("--remote-components");
+      expect(remoteComponentsIndex).toBeGreaterThan(-1);
+      expect(args[remoteComponentsIndex + 1]).toBe("ejs:github");
+    });
+
+    it("should respect explicit youtube remote components configuration", async () => {
+      vi.mocked(getProviderScript).mockReturnValue("/tmp/provider.js");
+      const proc = createMockProcess();
+      mockSpawnWithVersionHelpAndDenoCheck("plural", proc);
+
+      const promise = executeYtDlpJson("https://www.youtube.com/watch?v=abc", {
+        remoteComponents: "ejs:npm",
+      });
+      await flushAsyncSpawns();
+      proc.stdout?.emit("data", Buffer.from('{"ok":true}'));
+      proc.emit("close", 0);
+
+      await expect(promise).resolves.toEqual({ ok: true });
+      const args = getSpawnArgsForUrl("https://www.youtube.com/watch?v=abc");
+      const remoteComponentsIndex = args.indexOf("--remote-components");
+      expect(remoteComponentsIndex).toBeGreaterThan(-1);
+      expect(args[remoteComponentsIndex + 1]).toBe("ejs:npm");
+    });
+
     it("should not append duplicate provider extractor args", async () => {
       vi.mocked(getProviderScript).mockReturnValue("/tmp/provider.js");
       const proc = createMockProcess();

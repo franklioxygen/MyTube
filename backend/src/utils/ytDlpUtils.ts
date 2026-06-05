@@ -33,6 +33,7 @@ const YT_DLP_HELP_PROBE_TIMEOUT_MS = 5000;
 const YT_DLP_STALE_AFTER_DAYS = 90;
 const DEFAULT_YOUTUBE_PLAYER_CLIENT_EXTRACTOR_ARG =
   "youtube:player_client=default,mweb";
+const DEFAULT_YOUTUBE_REMOTE_COMPONENTS = "ejs:github";
 const YOUTUBE_PLAYER_CLIENT_ARG_PREFIX = "youtube:player_client=";
 const PROVIDER_SCRIPT_ARG_PREFIX = "youtubepot-bgutilscript:script_path=";
 
@@ -1060,9 +1061,17 @@ function withDefaultYouTubeExtractorArgs(
   }
 
   const extractorArgs = joinExtractorArgParts(mergedParts);
+  const remoteComponents =
+    flags.noRemoteComponents || flags.no_remote_components
+      ? flags.remoteComponents ?? flags.remote_components
+      : flags.remoteComponents ??
+        flags.remote_components ??
+        DEFAULT_YOUTUBE_REMOTE_COMPONENTS;
+
   return {
     ...flags,
     extractorArgs,
+    remoteComponents,
   };
 }
 
