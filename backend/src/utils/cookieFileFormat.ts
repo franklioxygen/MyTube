@@ -50,7 +50,6 @@ function stripUtf8Bom(content: string): string {
 function getCookieDataLines(content: string): string[] {
   return stripUtf8Bom(content)
     .split(/\r?\n/)
-    .map((line) => line.trimEnd())
     .filter((line) => {
       const trimmed = line.trim();
       return (
@@ -225,13 +224,13 @@ function cookiePairsToNetscape(content: string, pairs: CookiePair[]): string {
 }
 
 export function normalizeCookiesFileContent(content: string): string {
-  const text = stripUtf8Bom(content).replace(/\0/g, "").trim();
-  if (!text) {
+  const text = stripUtf8Bom(content).replace(/\0/g, "");
+  if (!text.trim()) {
     throw new UnsupportedCookieFormatError();
   }
 
   if (isValidNetscapeCookiesFile(text)) {
-    return `${text}\n`;
+    return text.endsWith("\n") ? text : `${text}\n`;
   }
 
   const pairs = parseCookieHeader(text);

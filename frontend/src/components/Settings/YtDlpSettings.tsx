@@ -190,8 +190,9 @@ const DEFAULT_CONFIG = `# yt-dlp Configuration File
 # BILIBILI SPECIFIC
 # ═══════════════════════════════════════════════════════════════════════════════
 
-# Note: By default, MyTube prefers H.264 codec for Safari compatibility
-# Bilibili may serve HEVC (H.265) which doesn't play in Safari
+# Note: By default, MyTube keeps Bilibili codec selection neutral to allow
+# higher resolutions when only HEVC/AV1 streams are available.
+# If you need Safari/iOS compatibility, force H.264 explicitly.
 
 # Force H.264 codec (best compatibility with Safari/iOS)
 # -S vcodec:h264

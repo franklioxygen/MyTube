@@ -22,6 +22,14 @@ describe("cookieFileFormat", () => {
     expect(normalizeCookiesFileContent(content)).toBe(content);
   });
 
+  it("accepts Netscape-format cookie lines with empty values", () => {
+    const content =
+      "# Netscape HTTP Cookie File\n.tapad.com\tTRUE\t/\tTRUE\t1783820601\tTapAd_3WAY_SYNCS\t\n";
+
+    expect(isValidNetscapeCookiesFile(content)).toBe(true);
+    expect(normalizeCookiesFileContent(content)).toBe(content);
+  });
+
   it("converts YouTube Cookie header content to Netscape format", () => {
     const normalized = normalizeCookiesFileContent(
       "Cookie: VISITOR_INFO1_LIVE=abc; PREF=f4=4000000; __Secure-ROLLOUT_TOKEN=tok"
