@@ -2,14 +2,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("drizzle-orm", () => ({
+  and: vi.fn((...parts) => ({ parts })),
+  asc: vi.fn((value) => ({ ascBy: value })),
   desc: vi.fn((value) => ({ descBy: value })),
   eq: vi.fn((left, right) => ({ left, right })),
+  ne: vi.fn((left, right) => ({ left, right })),
 }));
 
 vi.mock("../../../db/schema", () => ({
   downloadHistory: {
     id: "id",
     finishedAt: "finishedAt",
+    status: "status",
+    nextRetryAt: "nextRetryAt",
   },
 }));
 
@@ -33,7 +38,10 @@ import { logger } from "../../../utils/logger";
 import {
   addDownloadHistoryItem,
   clearDownloadHistory,
+  finalizePendingRetryHistoryItem,
   getDownloadHistory,
+  getDownloadHistoryItem,
+  getPendingRetryHistoryItems,
   removeDownloadHistoryItem,
 } from "../downloadHistory";
 
@@ -44,7 +52,8 @@ describe("downloadHistory", () => {
 
   it("adds history item successfully", () => {
     const run = vi.fn();
-    const values = vi.fn(() => ({ run }));
+    const onConflictDoUpdate = vi.fn(() => ({ run }));
+    const values = vi.fn(() => ({ onConflictDoUpdate }));
     vi.mocked(db.insert).mockReturnValue({ values } as any);
 
     addDownloadHistoryItem({
@@ -62,6 +71,7 @@ describe("downloadHistory", () => {
         status: "success",
       })
     );
+    expect(onConflictDoUpdate).toHaveBeenCalledTimes(1);
     expect(run).toHaveBeenCalledTimes(1);
   });
 
@@ -103,6 +113,13 @@ describe("downloadHistory", () => {
         deletedAt: null,
         subscriptionId: null,
         taskId: null,
+        platform: null,
+        sourceKind: null,
+        downloadType: null,
+        retryCount: null,
+        retryLimit: null,
+        retryIntervalMinutes: null,
+        nextRetryAt: null,
       },
     ]);
     const orderBy = vi.fn(() => ({ all }));
@@ -128,7 +145,63 @@ describe("downloadHistory", () => {
         deletedAt: undefined,
         subscriptionId: undefined,
         taskId: undefined,
+        platform: undefined,
+        sourceKind: undefined,
+        downloadType: undefined,
+        retryCount: undefined,
+        retryLimit: undefined,
+        retryIntervalMinutes: undefined,
+        nextRetryAt: undefined,
       },
+    ]);
+  });
+
+  it("returns a single history item by id", () => {
+    const get = vi.fn().mockReturnValue({
+      id: "retry-1",
+      title: "Retrying",
+      status: "pending_retry",
+      finishedAt: 123,
+      nextRetryAt: 456,
+      retryCount: 1,
+      retryLimit: 3,
+      retryIntervalMinutes: 5,
+    });
+    const where = vi.fn(() => ({ get }));
+    const from = vi.fn(() => ({ where }));
+    vi.mocked(db.select).mockReturnValue({ from } as any);
+
+    expect(getDownloadHistoryItem("retry-1")).toEqual(
+      expect.objectContaining({
+        id: "retry-1",
+        status: "pending_retry",
+        nextRetryAt: 456,
+        retryCount: 1,
+      })
+    );
+  });
+
+  it("returns pending retry items ordered by next retry time", () => {
+    const all = vi.fn().mockReturnValue([
+      {
+        id: "retry-1",
+        title: "Retrying",
+        status: "pending_retry",
+        finishedAt: 123,
+        nextRetryAt: 456,
+      },
+    ]);
+    const orderBy = vi.fn(() => ({ all }));
+    const where = vi.fn(() => ({ orderBy }));
+    const from = vi.fn(() => ({ where }));
+    vi.mocked(db.select).mockReturnValue({ from } as any);
+
+    expect(getPendingRetryHistoryItems()).toEqual([
+      expect.objectContaining({
+        id: "retry-1",
+        status: "pending_retry",
+        nextRetryAt: 456,
+      }),
     ]);
   });
 
@@ -172,11 +245,45 @@ describe("downloadHistory", () => {
 
   it("clears history", () => {
     const run = vi.fn();
-    vi.mocked(db.delete).mockReturnValue({ run } as any);
+    const where = vi.fn(() => ({ run }));
+    vi.mocked(db.delete).mockReturnValue({ where } as any);
 
     clearDownloadHistory();
 
     expect(run).toHaveBeenCalledTimes(1);
+  });
+
+  it("finalizes a pending retry item as failed", () => {
+    const get = vi.fn().mockReturnValue({
+      id: "retry-1",
+      title: "Retrying",
+      status: "pending_retry",
+      finishedAt: 123,
+      sourceUrl: "https://example.com",
+      retryCount: 2,
+      retryLimit: 3,
+      retryIntervalMinutes: 5,
+      nextRetryAt: 456,
+    });
+    const whereSelect = vi.fn(() => ({ get }));
+    const from = vi.fn(() => ({ where: whereSelect }));
+    vi.mocked(db.select).mockReturnValue({ from } as any);
+
+    const run = vi.fn();
+    const onConflictDoUpdate = vi.fn(() => ({ run }));
+    const values = vi.fn(() => ({ onConflictDoUpdate }));
+    vi.mocked(db.insert).mockReturnValue({ values } as any);
+
+    finalizePendingRetryHistoryItem("retry-1", "Final failure");
+
+    expect(values).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "retry-1",
+        status: "failed",
+        error: "Final failure",
+        nextRetryAt: null,
+      })
+    );
   });
 
   it("throws DatabaseError when clear fails", () => {

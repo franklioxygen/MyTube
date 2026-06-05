@@ -23,6 +23,9 @@ export {
     addDownloadHistoryItem,
     clearDownloadHistory,
     getDownloadHistory,
+    getDownloadHistoryItem,
+    getPendingRetryHistoryItems,
+    finalizePendingRetryHistoryItem,
     markDownloadHistoryDeletedByVideoId,
     removeDownloadHistoryItem
 } from "./downloadHistory";

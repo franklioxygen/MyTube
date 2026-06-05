@@ -118,6 +118,15 @@ export const ru = {
   maxConcurrent: "Макс. одновременных загрузок",
   maxConcurrentDescription:
     "Ограничивает количество одновременных загрузок, включая обычные загрузки и задачи непрерывной подписки.",
+  autoRetry: "Автоповтор",
+  autoRetryDescription:
+    "Автоматически ставит неудачные загрузки на повтор через фиксированную задержку.",
+  retryTimes: "Количество повторов",
+  retryTimesDescription:
+    "Выберите, сколько раз система будет повторно пытаться выполнить неудачную задачу.",
+  retryInterval: "Интервал повтора",
+  retryIntervalDescription:
+    "Выберите, сколько времени система ждёт перед повторной попыткой неудачной задачи.",
   dontSkipDeletedVideo: "Не пропускать удаленные видео",
   dontSkipDeletedVideoDescription:
     "При включении видео со статусом удалено будут автоматически перезагружены вместо пропуска.",
@@ -804,10 +813,15 @@ export const ru = {
   speed: "Скорость",
   finishedAt: "Завершено в",
   failed: "Ошибка",
+  pendingRetry: "Ожидает повтора",
+  cancelRetry: "Отменить повтор",
+  retryScheduledFor: "Повтор запланирован на",
+  retryAttemptProgress: "Повтор {current} из {total}",
 
 
   // Snackbar Messages
   videoDownloading: "Видео скачивается",
+  retryCancelled: "Повтор отменён",
   downloadStartedSuccessfully: "Загрузка успешно началась",
   collectionCreatedSuccessfully: "Коллекция успешно создана",
   videoAddedToCollection: "Видео добавлено в коллекцию",
@@ -868,6 +882,7 @@ export const ru = {
   subscriptionUpdated: "Подписка успешно обновлена",
   subscriptionUpdateFailed: "Не удалось обновить подписку",
   subscriptionAlreadyExists: "Вы уже подписаны на этого автора.",
+  minuteShort: "мин",
   minutes: "минут",
   never: "Никогда",
   downloadAllPreviousVideos: "Скачать все предыдущие видео этого автора",

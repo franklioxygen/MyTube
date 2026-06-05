@@ -43,6 +43,13 @@ const mockHistoryItems = [
         videoId: 'vid-123',
     },
     {
+        id: '3b',
+        title: 'Pending Retry Item',
+        finishedAt: 1678886400000,
+        status: 'pending_retry' as const,
+        sourceUrl: 'http://example.com/3b',
+    },
+    {
         id: '4',
         title: 'Deleted Item',
         finishedAt: 1678886400000,
@@ -53,6 +60,7 @@ const mockHistoryItems = [
 
 describe('HistoryTab Filter', () => {
     const mockOnRemove = vi.fn();
+    const mockOnCancelRetry = vi.fn();
     const mockOnClear = vi.fn();
     const mockOnRetry = vi.fn();
     const mockOnReDownload = vi.fn();
@@ -72,6 +80,7 @@ describe('HistoryTab Filter', () => {
                 <HistoryTab
                     history={mockHistoryItems}
                     onRemove={mockOnRemove}
+                    onCancelRetry={mockOnCancelRetry}
                     onClear={mockOnClear}
                     onRetry={mockOnRetry}
                     onReDownload={mockOnReDownload}
@@ -87,6 +96,7 @@ describe('HistoryTab Filter', () => {
         expect(screen.getByText('Success Item')).toBeInTheDocument();
         expect(screen.getByText('Failed Item')).toBeInTheDocument();
         expect(screen.getByText('Skipped Item')).toBeInTheDocument();
+        expect(screen.getByText('Pending Retry Item')).toBeInTheDocument();
         expect(screen.getByText('Deleted Item')).toBeInTheDocument();
     });
 
@@ -136,6 +146,22 @@ describe('HistoryTab Filter', () => {
         expect(screen.queryByText('Deleted Item')).not.toBeInTheDocument();
     });
 
+    it('filters pending retry items', () => {
+        renderComponent();
+
+        const filterSelect = screen.getByRole('combobox');
+        fireEvent.mouseDown(filterSelect);
+
+        const options = screen.getAllByText('pendingRetry');
+        fireEvent.click(options[options.length - 1]);
+
+        expect(screen.queryByText('Success Item')).not.toBeInTheDocument();
+        expect(screen.queryByText('Failed Item')).not.toBeInTheDocument();
+        expect(screen.queryByText('Skipped Item')).not.toBeInTheDocument();
+        expect(screen.getByText('Pending Retry Item')).toBeInTheDocument();
+        expect(screen.queryByText('Deleted Item')).not.toBeInTheDocument();
+    });
+
     it('filters deleted items', () => {
         renderComponent();
 
@@ -157,6 +183,7 @@ describe('HistoryTab Filter', () => {
                 <HistoryTab
                     history={[mockHistoryItems[0]]} // Only success
                     onRemove={mockOnRemove}
+                    onCancelRetry={mockOnCancelRetry}
                     onClear={mockOnClear}
                     onRetry={mockOnRetry}
                     onReDownload={mockOnReDownload}

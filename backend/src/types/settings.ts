@@ -16,6 +16,9 @@ export interface Settings {
   defaultAutoPlay: boolean;
   defaultAutoLoop: boolean;
   maxConcurrentDownloads: number;
+  autoRetryEnabled?: boolean;
+  autoRetryTimes?: number;
+  autoRetryIntervalMinutes?: number;
   dontSkipDeletedVideo?: boolean;
   language: string;
   tags?: string[];
@@ -86,6 +89,9 @@ export const defaultSettings: Settings = {
   defaultAutoPlay: false,
   defaultAutoLoop: false,
   maxConcurrentDownloads: 3,
+  autoRetryEnabled: false,
+  autoRetryTimes: 3,
+  autoRetryIntervalMinutes: 5,
   language: "en",
   theme: "system",
   defaultSort: "dateDesc",

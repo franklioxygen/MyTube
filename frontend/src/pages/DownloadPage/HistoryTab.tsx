@@ -19,6 +19,7 @@ import { useSettings } from '../../hooks/useSettings';
 interface HistoryTabProps {
     history: DownloadHistoryItem[];
     onRemove: (id: string) => void;
+    onCancelRetry: (id: string) => void;
     onClear: () => void;
     onRetry: (sourceUrl: string) => void;
     onReDownload: (sourceUrl: string) => void;
@@ -31,6 +32,7 @@ const ITEMS_PER_PAGE = 20;
 export function HistoryTab({
     history,
     onRemove,
+    onCancelRetry,
     onClear,
     onRetry,
     onReDownload,
@@ -68,6 +70,7 @@ export function HistoryTab({
                     <MenuItem value="all">{t('filterAll') || 'All'}</MenuItem>
                     <MenuItem value="success">{t('success') || 'Success'}</MenuItem>
                     <MenuItem value="failed">{t('failed') || 'Failed'}</MenuItem>
+                    <MenuItem value="pending_retry">{t('pendingRetry') || 'Pending Retry'}</MenuItem>
                     <MenuItem value="skipped">{t('skipped') || 'Skipped'}</MenuItem>
                     <MenuItem value="deleted">{t('previouslyDeleted') || 'Previously Deleted'}</MenuItem>
                 </Select>
@@ -92,6 +95,7 @@ export function HistoryTab({
                                     key={item.id}
                                     item={item}
                                     onRemove={onRemove}
+                                    onCancelRetry={onCancelRetry}
                                     onRetry={onRetry}
                                     onReDownload={onReDownload}
                                     onViewVideo={onViewVideo}
@@ -116,4 +120,3 @@ export function HistoryTab({
         </>
     );
 }
-

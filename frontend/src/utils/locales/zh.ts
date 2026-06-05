@@ -110,6 +110,15 @@ export const zh = {
   maxConcurrent: "最大同时下载数",
   maxConcurrentDescription:
     "限制同时进行的下载数量，包括常规下载和连续订阅任务。",
+  autoRetry: "自动重试",
+  autoRetryDescription:
+    "下载失败后，系统会在固定延迟后自动重新加入下载计划。",
+  retryTimes: "重试次数",
+  retryTimesDescription:
+    "选择系统在任务失败后重试的次数。",
+  retryInterval: "重试间隔",
+  retryIntervalDescription:
+    "选择系统在重试失败任务前等待的时长。",
   dontSkipDeletedVideo: "不跳过已删除的视频",
   dontSkipDeletedVideoDescription:
     "启用后，状态为已删除的视频将自动重新下载，而不是被跳过。",
@@ -756,10 +765,15 @@ export const zh = {
   speed: "速度",
   finishedAt: "完成时间",
   failed: "失败",
+  pendingRetry: "等待重试",
+  cancelRetry: "取消重试",
+  retryScheduledFor: "计划重试时间",
+  retryAttemptProgress: "第 {current} 次重试，共 {total} 次",
 
 
   // Snackbar Messages
   videoDownloading: "视频下载中",
+  retryCancelled: "重试已取消",
   downloadStartedSuccessfully: "下载已成功开始",
   collectionCreatedSuccessfully: "集合创建成功",
   videoAddedToCollection: "视频已添加到集合",
@@ -815,6 +829,7 @@ export const zh = {
   subscriptionUpdated: "订阅已更新",
   subscriptionUpdateFailed: "更新订阅失败",
   subscriptionAlreadyExists: "您已订阅此作者。",
+  minuteShort: "分钟",
   minutes: "分钟",
   never: "从未",
   downloadAllPreviousVideos: "下载此作者的所有历史视频",

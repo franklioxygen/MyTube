@@ -17,6 +17,9 @@ describe('DownloadSettings', () => {
     const defaultProps = {
         settings: {
             maxConcurrentDownloads: 3,
+            autoRetryEnabled: false,
+            autoRetryTimes: 3,
+            autoRetryIntervalMinutes: 5,
             preferredAudioLanguage: '',
         } as any,
         onChange: mockOnChange,
@@ -133,6 +136,29 @@ describe('DownloadSettings', () => {
         renderDownloadSettings({ isSaving: true });
 
         expect(screen.getByRole('button', { name: 'cleanupTempFiles' })).toBeDisabled();
+    });
+
+    it('should toggle auto retry setting', async () => {
+        const user = userEvent.setup();
+        renderDownloadSettings({ settings: { ...defaultProps.settings, autoRetryEnabled: false } });
+
+        await user.click(screen.getByRole('switch', { name: 'autoRetry' }));
+
+        expect(mockOnChange).toHaveBeenCalledWith('autoRetryEnabled', true);
+    });
+
+    it('should render auto retry dropdowns when enabled', () => {
+        renderDownloadSettings({
+            settings: {
+                ...defaultProps.settings,
+                autoRetryEnabled: true,
+                autoRetryTimes: 4,
+                autoRetryIntervalMinutes: 10,
+            } as any,
+        });
+
+        expect(screen.getByText('retryTimes')).toBeInTheDocument();
+        expect(screen.getByText('retryInterval')).toBeInTheDocument();
     });
 
     it('should render the default preferred audio language label when empty', () => {

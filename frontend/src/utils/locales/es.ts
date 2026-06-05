@@ -120,6 +120,15 @@ export const es = {
   maxConcurrent: "Descargas Simultáneas Máximas",
   maxConcurrentDescription:
     "Limita el número de descargas simultáneas, incluidas las descargas regulares y las tareas de suscripción continua.",
+  autoRetry: "Reintento automático",
+  autoRetryDescription:
+    "Reprograma automáticamente las descargas fallidas después de un retraso fijo.",
+  retryTimes: "Número de reintentos",
+  retryTimesDescription:
+    "Selecciona cuántas veces el sistema reintentará una tarea fallida.",
+  retryInterval: "Intervalo de reintento",
+  retryIntervalDescription:
+    "Selecciona cuánto tiempo espera el sistema antes de reintentar una tarea fallida.",
   dontSkipDeletedVideo: "No omitir videos eliminados",
   dontSkipDeletedVideoDescription:
     "Cuando está habilitado, los videos con estado eliminado se volverán a descargar automáticamente en lugar de omitirse.",
@@ -816,10 +825,15 @@ export const es = {
   speed: "Velocidad",
   finishedAt: "Finalizado en",
   failed: "Fallido",
+  pendingRetry: "Reintento pendiente",
+  cancelRetry: "Cancelar reintento",
+  retryScheduledFor: "Reintento programado para",
+  retryAttemptProgress: "Reintento {current} de {total}",
 
 
   // Snackbar Messages
   videoDownloading: "Descargando video",
+  retryCancelled: "Reintento cancelado",
   downloadStartedSuccessfully: "Descarga iniciada exitosamente",
   collectionCreatedSuccessfully: "Colección creada exitosamente",
   videoAddedToCollection: "Video agregado a la colección",
@@ -880,6 +894,7 @@ export const es = {
   subscriptionUpdated: "Suscripción actualizada correctamente",
   subscriptionUpdateFailed: "No se pudo actualizar la suscripción",
   subscriptionAlreadyExists: "Ya estás suscrito a este autor.",
+  minuteShort: "min",
   minutes: "minutos",
   never: "Nunca",
   downloadAllPreviousVideos:

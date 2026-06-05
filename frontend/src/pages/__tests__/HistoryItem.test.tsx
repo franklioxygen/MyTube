@@ -27,6 +27,7 @@ const theme = createTheme({ palette: { mode: 'dark' } });
 
 const defaultProps = {
     onRemove: vi.fn(),
+    onCancelRetry: vi.fn(),
     onRetry: vi.fn(),
     onReDownload: vi.fn(),
     onViewVideo: vi.fn(),
@@ -73,6 +74,11 @@ describe('HistoryItem', () => {
             expect(screen.getByText('failed')).toBeInTheDocument();
         });
 
+        it('shows pending retry chip for scheduled retries', () => {
+            renderHistoryItem({ status: 'pending_retry' });
+            expect(screen.getByText('pendingRetry')).toBeInTheDocument();
+        });
+
         it('shows skipped chip for skipped downloads', () => {
             renderHistoryItem({ status: 'skipped' });
             expect(screen.getByText('skipped')).toBeInTheDocument();
@@ -113,6 +119,17 @@ describe('HistoryItem', () => {
             expect(screen.getByText(date)).toBeInTheDocument();
         });
 
+        it('renders the status chip before the finishedAt timestamp', () => {
+            const date = formatExpectedDateTime(1700000000000);
+            renderHistoryItem({ status: 'success', finishedAt: 1700000000000 });
+
+            const statusChip = screen.getByText('success');
+            const timestamp = screen.getByText(date);
+
+            expect(statusChip.compareDocumentPosition(timestamp) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+            expect(statusChip.parentElement?.parentElement).toContainElement(timestamp);
+        });
+
         it('shows downloadedAt and deletedAt for deleted items', () => {
             const downloadDate = formatExpectedDateTime(1699000000000);
             const deleteDate = formatExpectedDateTime(1700000000000);
@@ -139,6 +156,20 @@ describe('HistoryItem', () => {
                 deletedAt: 1700000000000,
             });
             expect(screen.getByText(/deletedOn/)).toBeInTheDocument();
+        });
+
+        it('renders the deleted status chip before the deleted timestamp on the same row', () => {
+            const deleteDate = formatExpectedDateTime(1700000000000);
+            renderHistoryItem({
+                status: 'deleted',
+                deletedAt: 1700000000000,
+            });
+
+            const statusChip = screen.getByText('previouslyDeleted');
+            const timestamp = screen.getByText((content) => content.includes(deleteDate));
+
+            expect(statusChip.compareDocumentPosition(timestamp) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+            expect(statusChip.parentElement?.parentElement).toContainElement(timestamp);
         });
     });
 
@@ -174,6 +205,19 @@ describe('HistoryItem', () => {
             expect(screen.getByText('Download failed: 404')).toBeInTheDocument();
         });
 
+        it('shows retry scheduling metadata for pending retries', () => {
+            renderHistoryItem({
+                status: 'pending_retry',
+                error: 'Download failed: timeout',
+                nextRetryAt: 1700000600000,
+                retryCount: 2,
+                retryLimit: 5,
+            });
+
+            expect(screen.getByText(/retryScheduledFor/)).toBeInTheDocument();
+            expect(screen.getByText('retryAttemptProgress')).toBeInTheDocument();
+        });
+
         it('does not show error when not present', () => {
             renderHistoryItem({ status: 'success', error: undefined });
             expect(screen.queryByText(/Download failed/)).not.toBeInTheDocument();
@@ -196,6 +240,22 @@ describe('HistoryItem', () => {
         it('shows retry button for failed items with sourceUrl', () => {
             renderHistoryItem({ status: 'failed', sourceUrl: 'https://example.com' });
             expect(screen.getByText('retry')).toBeInTheDocument();
+        });
+
+        it('does not show retry button for pending retry items', () => {
+            renderHistoryItem({ status: 'pending_retry', sourceUrl: 'https://example.com' });
+            expect(screen.queryByText('retry')).not.toBeInTheDocument();
+        });
+
+        it('shows cancel retry button for pending retry items', () => {
+            renderHistoryItem({ status: 'pending_retry', sourceUrl: 'https://example.com' });
+            expect(screen.getByText('cancelRetry')).toBeInTheDocument();
+        });
+
+        it('calls onCancelRetry when cancel retry is clicked', () => {
+            renderHistoryItem({ status: 'pending_retry', id: 'retry-42' });
+            fireEvent.click(screen.getByText('cancelRetry'));
+            expect(defaultProps.onCancelRetry).toHaveBeenCalledWith('retry-42');
         });
 
         it('calls onRetry with sourceUrl when retry is clicked', () => {
@@ -271,6 +331,11 @@ describe('HistoryItem', () => {
         it('enables retry button when download is not in progress', () => {
             renderHistoryItem({ status: 'failed', sourceUrl: 'https://example.com' });
             expect(screen.getByText('retry').closest('button')).not.toBeDisabled();
+        });
+
+        it('disables remove button for pending retry items', () => {
+            renderHistoryItem({ status: 'pending_retry' });
+            expect(screen.getByLabelText('remove')).toBeDisabled();
         });
     });
 

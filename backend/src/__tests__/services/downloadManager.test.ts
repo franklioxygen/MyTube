@@ -122,6 +122,9 @@ describe('DownloadManager', () => {
     (storageService.updateActiveDownloadTitle as any).mockImplementation(() => {});
     (storageService.removeActiveDownload as any).mockImplementation(() => {});
     (storageService.addDownloadHistoryItem as any).mockImplementation(() => {});
+    (storageService.getDownloadHistoryItem as any).mockReturnValue(undefined);
+    (storageService.getPendingRetryHistoryItems as any).mockReturnValue([]);
+    (storageService.finalizePendingRetryHistoryItem as any).mockImplementation(() => {});
     (storageService.checkVideoDownloadBySourceId as any).mockReturnValue({
       found: false,
     });
@@ -175,6 +178,42 @@ describe('DownloadManager', () => {
       ).rejects.toThrow('Download failed');
 
       expect(storageService.removeActiveDownload).toHaveBeenCalledWith('id1');
+    });
+
+    it('should schedule pending retry history when auto retry is enabled', async () => {
+      vi.useFakeTimers();
+      try {
+        const mockDownloadFn = vi.fn().mockRejectedValue(new Error('Download failed'));
+
+        (storageService.getSettings as any).mockReturnValue({
+          autoRetryEnabled: true,
+          autoRetryTimes: 2,
+          autoRetryIntervalMinutes: 1,
+        });
+
+        void downloadManager.addDownload(
+          mockDownloadFn,
+          'retry-id',
+          'Retry Video',
+          'https://example.com/video',
+          'youtube',
+        );
+
+        await vi.runOnlyPendingTimersAsync();
+        await Promise.resolve();
+
+        expect(storageService.addDownloadHistoryItem).toHaveBeenCalledWith(
+          expect.objectContaining({
+            id: 'retry-id',
+            status: 'pending_retry',
+            retryCount: 1,
+            retryLimit: 2,
+            retryIntervalMinutes: 1,
+          })
+        );
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it('should queue downloads when at max concurrent limit', async () => {
@@ -524,6 +563,20 @@ describe('DownloadManager', () => {
 
       expect(downloadManager.getStatus().queued).toBe(0);
       expect(storageService.setQueuedDownloads).toHaveBeenCalled();
+    });
+
+    it('should finalize a scheduled pending retry when cancelling non-active download', async () => {
+      (storageService.getDownloadHistoryItem as any).mockReturnValue({
+        id: 'scheduled-retry',
+        status: 'pending_retry',
+      });
+
+      await downloadManager.cancelDownload('scheduled-retry');
+
+      expect(storageService.finalizePendingRetryHistoryItem).toHaveBeenCalledWith(
+        'scheduled-retry',
+        'Retry cancelled by user',
+      );
     });
 
     it('should handle multipart completion and update deleted source records', async () => {

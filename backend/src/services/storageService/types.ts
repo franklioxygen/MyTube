@@ -42,7 +42,7 @@ export interface DownloadHistoryItem {
   author?: string;
   sourceUrl?: string;
   finishedAt: number;
-  status: "success" | "failed" | "skipped" | "deleted";
+  status: "success" | "failed" | "skipped" | "deleted" | "pending_retry";
   error?: string;
   videoPath?: string;
   thumbnailPath?: string;
@@ -54,6 +54,11 @@ export interface DownloadHistoryItem {
   taskId?: string; // Reference to continuous download task if downloaded via task
   platform?: string; // canonical lowercase, statistics-friendly bucket
   sourceKind?: string; // canonical lowercase, statistics-friendly bucket
+  downloadType?: string;
+  retryCount?: number;
+  retryLimit?: number;
+  retryIntervalMinutes?: number;
+  nextRetryAt?: number;
 }
 
 export interface VideoDownloadRecord {

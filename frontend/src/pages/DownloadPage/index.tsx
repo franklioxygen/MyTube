@@ -69,15 +69,15 @@ const DownloadPage: React.FC = () => {
         }
     };
 
-    // Fetch history with polling - only when on downloads page
+    // Fetch history with polling while the downloads page is mounted so retry
+    // state transitions show up without a manual refresh.
     const { data: history = [] } = useQuery({
         queryKey: ['downloadHistory'],
         queryFn: async () => {
             const response = await api.get('/downloads/history');
             return response.data;
         },
-        // Only poll when tab is active (downloads tab)
-        refetchInterval: tabValue === 0 ? 2000 : false,
+        refetchInterval: 2000,
         staleTime: 1000, // Consider data stale after 1 second
         gcTime: 5 * 60 * 1000, // Garbage collect after 5 minutes
     });
@@ -174,6 +174,24 @@ const DownloadPage: React.FC = () => {
 
     const handleRemoveFromHistory = (id: string) => {
         removeFromHistoryMutation.mutate(id);
+    };
+
+    const cancelRetryMutation = useMutation({
+        mutationFn: async (id: string) => {
+            await api.post(`/downloads/cancel/${id}`);
+        },
+        onSuccess: () => {
+            showSnackbar(t('retryCancelled') || 'Retry cancelled');
+            queryClient.invalidateQueries({ queryKey: ['downloadHistory'] });
+            queryClient.invalidateQueries({ queryKey: ['downloadStatus'] });
+        },
+        onError: () => {
+            showSnackbar(t('error') || 'Error');
+        }
+    });
+
+    const handleCancelRetry = (id: string) => {
+        cancelRetryMutation.mutate(id);
     };
 
     // Helper function to check if a sourceUrl is already in active or queued downloads
@@ -325,6 +343,7 @@ const DownloadPage: React.FC = () => {
                 <HistoryTab
                     history={history as DownloadHistoryItem[]}
                     onRemove={handleRemoveFromHistory}
+                    onCancelRetry={handleCancelRetry}
                     onClear={handleClearHistory}
                     onRetry={handleRetry}
                     onReDownload={handleReDownload}

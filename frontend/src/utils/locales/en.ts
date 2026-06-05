@@ -110,6 +110,15 @@ export const en = {
   maxConcurrent: "Max Concurrent Downloads",
   maxConcurrentDescription:
     "Limits the number of simultaneous downloads, including regular downloads and continuous subscription tasks.",
+  autoRetry: "Auto Retry",
+  autoRetryDescription:
+    "Automatically reschedule failed downloads after a fixed delay.",
+  retryTimes: "Retry Times",
+  retryTimesDescription:
+    "Select how many times the system retries a failed task.",
+  retryInterval: "Retry Interval",
+  retryIntervalDescription:
+    "Select how long the system waits before retrying a failed task.",
   dontSkipDeletedVideo: "Don't skip deleted video",
   dontSkipDeletedVideoDescription:
     "When enabled, videos with deleted status will be re-downloaded automatically instead of being skipped.",
@@ -765,9 +774,14 @@ export const en = {
   speed: "Speed",
   finishedAt: "Finished At",
   failed: "Failed",
+  pendingRetry: "Pending Retry",
+  cancelRetry: "Cancel Retry",
+  retryScheduledFor: "Retry scheduled for",
+  retryAttemptProgress: "Retry {current} of {total}",
 
   // Snackbar Messages
   videoDownloading: "Video downloading",
+  retryCancelled: "Retry cancelled",
   downloadStartedSuccessfully: "Download started successfully",
   collectionCreatedSuccessfully: "Collection created successfully",
   videoAddedToCollection: "Video added to collection",
@@ -824,6 +838,7 @@ export const en = {
   subscriptionUpdated: "Subscription updated successfully",
   subscriptionUpdateFailed: "Failed to update subscription",
   subscriptionAlreadyExists: "You are already subscribed to this author.",
+  minuteShort: "min",
   minutes: "minutes",
   never: "Never",
   downloadAllPreviousVideos: "Download all previous videos from this author",

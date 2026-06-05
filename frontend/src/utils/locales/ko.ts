@@ -116,6 +116,15 @@ export const ko = {
   maxConcurrent: "최대 동시 다운로드 수",
   maxConcurrentDescription:
     "일반 다운로드 및 지속적인 구독 작업을 포함하여 동시 다운로드 수를 제한합니다.",
+  autoRetry: "자동 재시도",
+  autoRetryDescription:
+    "실패한 다운로드를 고정된 지연 후 자동으로 다시 예약합니다.",
+  retryTimes: "재시도 횟수",
+  retryTimesDescription:
+    "실패한 작업을 시스템이 몇 번 다시 시도할지 선택합니다.",
+  retryInterval: "재시도 간격",
+  retryIntervalDescription:
+    "실패한 작업을 다시 시도하기 전에 시스템이 대기할 시간을 선택합니다.",
   dontSkipDeletedVideo: "삭제된 비디오 건너뛰지 않기",
   dontSkipDeletedVideoDescription:
     "활성화하면 삭제된 상태의 비디오는 건너뛰지 않고 자동으로 다시 다운로드됩니다.",
@@ -793,10 +802,15 @@ export const ko = {
   speed: "속도",
   finishedAt: "완료 시간",
   failed: "실패",
+  pendingRetry: "재시도 대기 중",
+  cancelRetry: "재시도 취소",
+  retryScheduledFor: "재시도 예정 시간",
+  retryAttemptProgress: "재시도 {current}/{total}회",
 
 
   // Snackbar Messages
   videoDownloading: "비디오 다운로드 중",
+  retryCancelled: "재시도가 취소되었습니다",
   downloadStartedSuccessfully: "다운로드가 성공적으로 시작되었습니다",
   collectionCreatedSuccessfully: "컬렉션이 성공적으로 생성되었습니다",
   videoAddedToCollection: "비디오가 컬렉션에 추가되었습니다",
@@ -855,6 +869,7 @@ export const ko = {
   subscriptionUpdated: "구독이 업데이트되었습니다",
   subscriptionUpdateFailed: "구독 업데이트에 실패했습니다",
   subscriptionAlreadyExists: "이미 구독 중인 작가입니다.",
+  minuteShort: "분",
   minutes: "분",
   never: "없음",
   downloadAllPreviousVideos: "이 작가의 모든 이전 동영상 다운로드",

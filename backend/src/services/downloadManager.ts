@@ -19,6 +19,7 @@ import type {
   CanonicalSourceKind,
   StatisticsSurface,
 } from "./statistics";
+import type { DownloadHistoryItem } from "./storageService";
 import * as storageService from "./storageService";
 
 interface StatisticsAttribution {
@@ -54,6 +55,35 @@ export interface AddDownloadStatisticsOptions {
 
 const TASK_FAIL_HOOK_WAIT_TIMEOUT_MS = 5000;
 const CANCEL_TASK_WAIT_TIMEOUT_MS = 5000;
+const DEFAULT_AUTO_RETRY_TIMES = 3;
+const DEFAULT_AUTO_RETRY_INTERVAL_MINUTES = 5;
+const AUTO_RETRY_INTERVAL_OPTIONS = new Set([1, 5, 10, 30, 60]);
+const PENDING_RETRY_STATUS = "pending_retry";
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function normalizeAutoRetryTimes(value: unknown): number {
+  const numeric = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(numeric)) {
+    return DEFAULT_AUTO_RETRY_TIMES;
+  }
+
+  return Math.min(10, Math.max(1, Math.floor(numeric)));
+}
+
+function normalizeAutoRetryIntervalMinutes(value: unknown): number {
+  const numeric = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(numeric)) {
+    return DEFAULT_AUTO_RETRY_INTERVAL_MINUTES;
+  }
+
+  const normalized = Math.floor(numeric);
+  return AUTO_RETRY_INTERVAL_OPTIONS.has(normalized)
+    ? normalized
+    : DEFAULT_AUTO_RETRY_INTERVAL_MINUTES;
+}
 
 async function awaitTaskFailHook(
   context: Record<string, string | undefined>,
@@ -109,12 +139,14 @@ async function awaitTaskCancellationHook(
 class DownloadManager {
   private queue: DownloadTask[];
   private activeTasks: Map<string, DownloadTask>;
+  private retryTimers: Map<string, NodeJS.Timeout>;
   private activeDownloads: number;
   private maxConcurrentDownloads: number;
 
   constructor() {
     this.queue = [];
     this.activeTasks = new Map();
+    this.retryTimers = new Map();
     this.activeDownloads = 0;
     this.maxConcurrentDownloads = 3; // Default
   }
@@ -131,6 +163,155 @@ class DownloadManager {
     } catch (error) {
       console.error("Error loading settings in DownloadManager:", error);
     }
+  }
+
+  private createDetachedTask(
+    id: string,
+    title: string,
+    sourceUrl: string,
+    type: string,
+  ): DownloadTask {
+    return {
+      downloadFn: createDownloadTask(type, sourceUrl, id),
+      id,
+      title,
+      sourceUrl,
+      type,
+      resolve: (value) =>
+        console.log("Restored task completed", sanitizeLogMessage(id), value),
+      reject: (error) =>
+        console.error("Restored task failed", sanitizeLogMessage(id), error),
+    };
+  }
+
+  private hasTask(id: string): boolean {
+    return this.activeTasks.has(id) || this.queue.some((task) => task.id === id);
+  }
+
+  private enqueueTask(task: DownloadTask, persistQueue = true): void {
+    if (this.hasTask(task.id)) {
+      return;
+    }
+
+    this.queue.push(task);
+    if (persistQueue) {
+      this.updateQueuedDownloads();
+    }
+    this.processQueue();
+  }
+
+  private clearRetryTimer(id: string): void {
+    const timer = this.retryTimers.get(id);
+    if (!timer) {
+      return;
+    }
+
+    clearTimeout(timer);
+    this.retryTimers.delete(id);
+  }
+
+  private scheduleRetryTask(
+    task: DownloadTask,
+    historyItem: DownloadHistoryItem,
+  ): void {
+    if (!task.sourceUrl || !task.type) {
+      storageService.finalizePendingRetryHistoryItem(
+        task.id,
+        historyItem.error ?? "Retry metadata missing"
+      );
+      return;
+    }
+
+    this.clearRetryTimer(task.id);
+
+    const nextRetryAt = historyItem.nextRetryAt ?? Date.now();
+    const delayMs = Math.max(nextRetryAt - Date.now(), 0);
+    const timer = setTimeout(() => {
+      this.retryTimers.delete(task.id);
+
+      const latestHistory =
+        storageService.getDownloadHistoryItem(task.id) ?? historyItem;
+      if (latestHistory.status !== PENDING_RETRY_STATUS || this.hasTask(task.id)) {
+        return;
+      }
+
+      this.enqueueTask(task);
+    }, delayMs);
+
+    this.retryTimers.set(task.id, timer);
+  }
+
+  private restorePendingRetries(): void {
+    const pendingRetries = storageService.getPendingRetryHistoryItems();
+    if (pendingRetries.length === 0) {
+      return;
+    }
+
+    for (const item of pendingRetries) {
+      if (this.hasTask(item.id)) {
+        continue;
+      }
+
+      if (!item.sourceUrl || !item.downloadType) {
+        storageService.finalizePendingRetryHistoryItem(
+          item.id,
+          item.error ?? "Retry metadata missing"
+        );
+        continue;
+      }
+
+      const task = this.createDetachedTask(
+        item.id,
+        item.title,
+        item.sourceUrl,
+        item.downloadType,
+      );
+      this.scheduleRetryTask(task, item);
+    }
+  }
+
+  private maybeScheduleRetry(task: DownloadTask, error: unknown): boolean {
+    if (!task.sourceUrl || !task.type) {
+      return false;
+    }
+
+    const settings = storageService.getSettings();
+    if (settings.autoRetryEnabled !== true) {
+      return false;
+    }
+
+    const existingHistory = storageService.getDownloadHistoryItem(task.id);
+    const retryLimit =
+      existingHistory?.retryLimit ??
+      normalizeAutoRetryTimes(settings.autoRetryTimes);
+    const retryIntervalMinutes =
+      existingHistory?.retryIntervalMinutes ??
+      normalizeAutoRetryIntervalMinutes(settings.autoRetryIntervalMinutes);
+    const retryCount = existingHistory?.retryCount ?? 0;
+
+    if (retryCount >= retryLimit) {
+      return false;
+    }
+
+    const historyItem: DownloadHistoryItem = {
+      id: task.id,
+      title: task.title,
+      finishedAt: Date.now(),
+      status: PENDING_RETRY_STATUS,
+      error: getErrorMessage(error),
+      sourceUrl: task.sourceUrl,
+      platform: platformFromUrl(task.sourceUrl),
+      sourceKind: task.statistics?.sourceKind ?? existingHistory?.sourceKind ?? "unknown",
+      downloadType: task.type,
+      retryCount: retryCount + 1,
+      retryLimit,
+      retryIntervalMinutes,
+      nextRetryAt: Date.now() + retryIntervalMinutes * 60 * 1000,
+    };
+
+    storageService.addDownloadHistoryItem(historyItem);
+    this.scheduleRetryTask(task, historyItem);
+    return true;
   }
 
   /**
@@ -154,41 +335,24 @@ class DownloadManager {
               sanitizeLogMessage(download.id),
             );
 
-            // Reconstruct the download function
-            const downloadFn = createDownloadTask(
-              download.type,
-              download.sourceUrl,
-              download.id
+            this.queue.push(
+              this.createDetachedTask(
+                download.id,
+                download.title,
+                download.sourceUrl,
+                download.type,
+              )
             );
-
-            // Add to queue without persisting (since it's already in DB)
-            // We need to manually construct the task and push to queue
-            // We can't use addDownload because it returns a promise that we can't easily attach to
-            // But for restored tasks, we don't have a client waiting for the promise anyway.
-
-            const task: DownloadTask = {
-              downloadFn,
-              id: download.id,
-              title: download.title,
-              sourceUrl: download.sourceUrl,
-              type: download.type,
-              resolve: (val) =>
-                console.log("Restored task completed", sanitizeLogMessage(download.id), val),
-              reject: (err) =>
-                console.error("Restored task failed", sanitizeLogMessage(download.id), err),
-            };
-
-            this.queue.push(task);
           } else {
             console.warn(
               `Skipping restoration of task ${download.id} due to missing sourceUrl or type`
             );
           }
         }
-
-        // Trigger processing
-        this.processQueue();
       }
+
+      this.restorePendingRetries();
+      this.processQueue();
     } catch (error) {
       console.error("Error initializing DownloadManager:", error);
     }
@@ -288,6 +452,7 @@ class DownloadManager {
   ): void {
     if (!task.cancellationFinalized) {
       task.cancellationFinalized = true;
+      this.clearRetryTimer(task.id);
       storageService.removeActiveDownload(task.id);
       storageService.addDownloadHistoryItem({
         id: task.id,
@@ -298,6 +463,7 @@ class DownloadManager {
         sourceUrl: task.sourceUrl,
         platform: platformFromUrl(task.sourceUrl),
         sourceKind: task.statistics?.sourceKind ?? "unknown",
+        downloadType: task.type,
       });
 
       HookService.executeHook("task_cancel", {
@@ -353,6 +519,17 @@ class DownloadManager {
       if (inQueue) {
         console.log("Removing queued download:", sanitizeLogMessage(id));
         this.removeFromQueue(id);
+        return;
+      }
+
+      const pendingRetryItem = storageService.getDownloadHistoryItem(id);
+      if (pendingRetryItem?.status === PENDING_RETRY_STATUS) {
+        console.log("Cancelling pending retry:", sanitizeLogMessage(id));
+        this.clearRetryTimer(id);
+        storageService.finalizePendingRetryHistoryItem(
+          id,
+          "Retry cancelled by user"
+        );
       }
     }
   }
@@ -362,7 +539,22 @@ class DownloadManager {
    * @param id - ID of the download to remove
    */
   removeFromQueue(id: string): void {
+    const removedTasks = this.queue.filter((task) => task.id === id);
     this.queue = this.queue.filter((task) => task.id !== id);
+    this.clearRetryTimer(id);
+    const pendingRetryItem = storageService.getDownloadHistoryItem(id);
+    const isPendingRetry = pendingRetryItem?.status === PENDING_RETRY_STATUS;
+    if (isPendingRetry) {
+      storageService.finalizePendingRetryHistoryItem(
+        id,
+        "Retry removed from queue by user"
+      );
+    }
+    for (const task of removedTasks) {
+      if (isPendingRetry) {
+        task.reject(new Error("Retry removed from queue by user"));
+      }
+    }
     this.updateQueuedDownloads();
   }
 
@@ -370,7 +562,19 @@ class DownloadManager {
    * Clear the download queue
    */
   clearQueue(): void {
+    const queuedTasks = [...this.queue];
     this.queue = [];
+    for (const task of queuedTasks) {
+      this.clearRetryTimer(task.id);
+      const pendingRetryItem = storageService.getDownloadHistoryItem(task.id);
+      if (pendingRetryItem?.status === PENDING_RETRY_STATUS) {
+        storageService.finalizePendingRetryHistoryItem(
+          task.id,
+          "Retry removed from queue by user"
+        );
+        task.reject(new Error("Retry removed from queue by user"));
+      }
+    }
     this.updateQueuedDownloads();
   }
 
@@ -497,6 +701,7 @@ class DownloadManager {
 
       // Add to history
       if (!task.cancelled) {
+        this.clearRetryTimer(task.id);
         const historySourceUrl = videoData.sourceUrl || task.sourceUrl;
         const historyTotalSize =
           typeof videoData.fileSize === "string" || typeof videoData.fileSize === "number"
@@ -515,6 +720,7 @@ class DownloadManager {
           totalSize: historyTotalSize,
           platform: platformFromUrl(historySourceUrl),
           sourceKind: task.statistics?.sourceKind ?? "manual",
+          downloadType: task.type,
         });
 
         // Record video download for future duplicate detection
@@ -606,39 +812,48 @@ class DownloadManager {
       storageService.removeActiveDownload(task.id);
 
       // Add to history (unless already added by cancelDownload)
+      let retryScheduled = false;
       if (!task.cancelled) {
+        retryScheduled = this.maybeScheduleRetry(task, error);
+      }
+
+      if (!task.cancelled && !retryScheduled) {
+        this.clearRetryTimer(task.id);
         storageService.addDownloadHistoryItem({
           id: task.id,
           title: task.title,
           finishedAt: Date.now(),
           status: "failed",
-          error: error instanceof Error ? error.message : String(error),
+          error: getErrorMessage(error),
           sourceUrl: task.sourceUrl,
           platform: platformFromUrl(task.sourceUrl),
           sourceKind: task.statistics?.sourceKind ?? "unknown",
+          downloadType: task.type,
         });
       }
 
-      // Await failure hooks so notifications and other side effects complete
-      // before the task rejection propagates to callers.
-      await awaitTaskFailHook({
-        taskId: task.id,
-        taskTitle: task.title,
-        sourceUrl: task.sourceUrl,
-        status: "fail",
-        error: error instanceof Error ? error.message : String(error),
-      });
-
-      import("./telegramService").then(({ TelegramService }) =>
-        TelegramService.notifyTaskComplete({
+      if (!retryScheduled) {
+        // Await failure hooks so notifications and other side effects complete
+        // before the task rejection propagates to callers.
+        await awaitTaskFailHook({
+          taskId: task.id,
           taskTitle: task.title,
-          status: "fail",
           sourceUrl: task.sourceUrl,
-          error: error instanceof Error ? error.message : String(error),
-        })
-      ).catch(() => {});
+          status: "fail",
+          error: getErrorMessage(error),
+        });
 
-      task.reject(error);
+        import("./telegramService").then(({ TelegramService }) =>
+          TelegramService.notifyTaskComplete({
+            taskTitle: task.title,
+            status: "fail",
+            sourceUrl: task.sourceUrl,
+            error: getErrorMessage(error),
+          })
+        ).catch(() => {});
+
+        task.reject(error);
+      }
     } finally {
       // Only clean up if the task wasn't already cleaned up by cancelDownload
       if (this.activeTasks.has(task.id)) {

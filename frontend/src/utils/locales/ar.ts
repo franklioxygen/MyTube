@@ -112,6 +112,15 @@ export const ar = {
   maxConcurrent: "الحد الأقصى للتحميلات المتزامنة",
   maxConcurrentDescription:
     "يحد من عدد التنزيلات المتزامنة، بما في ذلك التنزيلات العادية ومهام الاشتراك المستمر.",
+  autoRetry: "إعادة المحاولة تلقائيًا",
+  autoRetryDescription:
+    "يعيد جدولة التنزيلات الفاشلة تلقائيًا بعد تأخير ثابت.",
+  retryTimes: "عدد مرات إعادة المحاولة",
+  retryTimesDescription:
+    "حدد عدد المرات التي سيعيد فيها النظام محاولة المهمة الفاشلة.",
+  retryInterval: "الفاصل بين المحاولات",
+  retryIntervalDescription:
+    "حدد مدة انتظار النظام قبل إعادة محاولة المهمة الفاشلة.",
   dontSkipDeletedVideo: "عدم تخطي الفيديو المحذوف",
   dontSkipDeletedVideoDescription:
     "عند التمكين، سيتم إعادة تنزيل مقاطع الفيديو ذات الحالة المحذوفة تلقائيًا بدلاً من تخطيها.",
@@ -784,10 +793,15 @@ export const ar = {
   speed: "السرعة",
   finishedAt: "انتهى في",
   failed: "فشل",
+  pendingRetry: "بانتظار إعادة المحاولة",
+  cancelRetry: "إلغاء إعادة المحاولة",
+  retryScheduledFor: "إعادة المحاولة مجدولة في",
+  retryAttemptProgress: "إعادة المحاولة {current} من {total}",
 
 
   // Snackbar Messages
   videoDownloading: "جاري تنزيل الفيديو",
+  retryCancelled: "تم إلغاء إعادة المحاولة",
   downloadStartedSuccessfully: "بدأ التنزيل بنجاح",
   collectionCreatedSuccessfully: "تم إنشاء المجموعة بنجاح",
   videoAddedToCollection: "تمت إضافة الفيديو إلى المجموعة",
@@ -845,6 +859,7 @@ export const ar = {
   subscriptionUpdated: "تم تحديث الاشتراك بنجاح",
   subscriptionUpdateFailed: "فشل تحديث الاشتراك",
   subscriptionAlreadyExists: "أنت مشترك بالفعل في هذا المؤلف.",
+  minuteShort: "د",
   minutes: "دقائق",
   never: "أبداً",
   downloadAllPreviousVideos: "تنزيل جميع مقاطع الفيديو السابقة لهذا المؤلف",
