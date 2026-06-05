@@ -2,6 +2,136 @@
 
 ## Unreleased
 
+## v1.9.32 (2026-06-05)
+
+### Feat
+
+- Add innertube context option and default components (bceda933)
+- Update download history retry and status display (17d07366)
+
+## v1.9.31 (2026-06-05)
+
+### Fix
+
+- Fix Bilibili default codec selection (84a1536f)
+- Fix cookie upload for empty Netscape values (f5e7479c)
+- Upgrade react-router for dependabot alerts (d5d457b7)
+
+### Chore
+
+- Update Lighthouse performance badge (0537445e)
+
+## v1.9.30 (2026-06-03)
+
+### Fix
+
+- Enforce UTF-8 byte limits for filename template paths (6558b1ba)
+- Keep filename stem when byte truncation hits multibyte chars (766c45a1)
+- Fix request param normalization for backend typecheck (d68e08b8)
+- Regenerate backend lockfile for @emnapi peer dependencies (9e527086)
+- Upgrade vitest to 4.1+ for UI server security advisory (d0254bd0)
+- Place Node version check under backend/scripts for Docker (5ca73923)
+- Support Node 26 install path (51f258b1)
+
+### Test
+
+- Fix invalid filename template fixture types (0ce81d5d)
+- Fix Vitest 4 mock typings in backend controller tests (b0da54e4)
+- Stabilize statistics rate-limit quota test (e9b4914e)
+
+### Docs
+
+- Document Node.js 20–26 requirement in README (df028c08)
+
+### Chore
+
+- Pin vitest and coverage-v8 to ^4.1.8 (b4d5dac1)
+
+## v1.9.29 (2026-05-31)
+
+### Feat
+
+- Add Windows yt-dlp Scripts lookup (8e048734)
+
+### Fix
+
+- Harden yt-dlp candidate path checks (8f29c918)
+- Prioritize updated yt-dlp path entries (2aa3fb6d)
+- Use safe path resolution for yt-dlp scans (972b337d)
+- Address Codacy yt-dlp findings (70befeca)
+- Guard yt-dlp auto-install retries (c6dea734)
+- Handle yt-dlp upgrade fallback safely (f4909c8c)
+- Satisfy CodeQL path guards (be25175f)
+- Fix Telegram text download queueing (4c644c0e)
+
+## v1.9.28 (2026-05-29)
+
+### Feat
+
+- Add media server export sidecar management (d3ce988f)
+
+### Fix
+
+- Fix MissAV Puppeteer navigation and Cloudflare handling (4d51fb39)
+- Fix MissAV Cloudflare timeout handling (847a5dac)
+- Fix media export path safety and CI mocks (86e85693)
+- Use safe path helpers in media export planner (a56107cf)
+- Translate thumbnail redownload strings (044b5dae)
+
+### Refactor
+
+- Remove hard-link helper from media export sync (bf0450b5)
+
+### Test
+
+- Fix MissAV fallback path test mock (1c9af321)
+- Fix MissAV test isolation and Codacy warning (7521ea0a)
+
+### Docs
+
+- Add workflow information to README files (eed3990c)
+- Document Telegram bot polling limitation (06400f0e)
+
+### Chore
+
+- Update Lighthouse performance badge (3d3c4f95, e0ba1f2a, 3607b95f, 99e6a61b)
+- chore(deps): bump axios from 1.15.2 to 1.16.0 in /backend and /frontend (631366b7, 9f3c201f)
+- chore(deps): bump axios in /backend/bgutil-ytdlp-pot-provider/server (5aad3887)
+
+## v1.9.27 (2026-05-25)
+
+### Feat
+
+- Add thumbnail refresh and redownload actions (9f185daa)
+- Track thumbnail redownload state per video (dabc28bd)
+- Add Telegram link download polling (74716c31)
+- Allow secure browser-origin passkey settings (2ff1bcce)
+
+### Fix
+
+- Harden passkey-only settings updates (5ec481e3)
+- Tighten passkey secure-origin validation (05068e35)
+- Tighten loopback hostname validation (93ae4d62)
+- Remove proxy shortcuts from passkey origin checks (c98f1301)
+- Fix secure socket typing in settings controller (3b096fc4)
+
+### Chore
+
+- chore(deps): bump qs and express in /backend (3bd6d92c)
+- chore(deps): bump qs in /backend/bgutil-ytdlp-pot-provider/server (8df46bfc)
+
+## v1.9.26 (2026-05-20)
+
+### Fix
+
+- Adjust wheel volume direction by platform (6c390c5c)
+- Improve header search paste fallback (01c921dc)
+
+### Chore
+
+- chore(deps): bump ws from 8.19.0 to 8.20.1 in /backend (d1f1c448)
+- chore(deps): bump ws in /backend/bgutil-ytdlp-pot-provider/server (0331acb1)
+
 ## v1.9.24 (2026-05-20)
 
 ### Feat
