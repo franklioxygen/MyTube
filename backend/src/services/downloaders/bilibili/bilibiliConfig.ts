@@ -64,7 +64,9 @@ function getBilibiliCodecPreference(
   }
 }
 
-function resolveCodecPreference(): { codecFilter: string; codecFormatSort: string } {
+function resolveCodecPreference():
+  | { codecFilter: string; codecFormatSort: string }
+  | null {
   const appSettings = storageService.getSettings();
   const codecSetting = appSettings.defaultVideoCodec;
 
@@ -84,7 +86,7 @@ function resolveCodecPreference(): { codecFilter: string; codecFormatSort: strin
       }
     }
   }
-  return { codecFilter: "avc", codecFormatSort: "vcodec:h264" };
+  return null;
 }
 
 function resolveSubtitleDefaults(userConfig: BilibiliDownloadFlags): {
@@ -136,11 +138,21 @@ function resolveBilibiliFormat(userConfig: BilibiliDownloadFlags): {
   }
 
   if (!hasUserFormatSort) {
-    const { codecFilter, codecFormatSort } = resolveCodecPreference();
-    const downloadFormat =
-      `bestvideo[ext=mp4][vcodec^=${codecFilter}]+bestaudio[ext=m4a]/` +
-      `bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best`;
-    return { downloadFormat, codecFormatSort };
+    const codecPreference = resolveCodecPreference();
+    if (codecPreference) {
+      const downloadFormat =
+        `bestvideo[ext=mp4][vcodec^=${codecPreference.codecFilter}]+bestaudio[ext=m4a]/` +
+        `bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best`;
+      return {
+        downloadFormat,
+        codecFormatSort: codecPreference.codecFormatSort,
+      };
+    }
+
+    return {
+      downloadFormat: "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
+      codecFormatSort: "",
+    };
   }
 
   // User has formatSort only — use default format string, let their sort control codec

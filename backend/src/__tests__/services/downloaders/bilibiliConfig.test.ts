@@ -37,10 +37,12 @@ describe('prepareBilibiliDownloadFlags', () => {
   });
 
   describe('default behavior (no user config, no app settings)', () => {
-    it('returns default H.264 format with mp4 merge output', () => {
+    it('returns codec-neutral MP4 format with mp4 merge output', () => {
       const result = prepareBilibiliDownloadFlags(TEST_URL, TEST_OUTPUT);
 
-      expect(result.flags.format).toContain('vcodec^=avc');
+      expect(result.flags.format).toBe(
+        'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best'
+      );
       expect(result.flags.mergeOutputFormat).toBe('mp4');
       expect(result.mergeOutputFormat).toBe('mp4');
     });
@@ -60,11 +62,11 @@ describe('prepareBilibiliDownloadFlags', () => {
       expect(result.flags.noWarnings).toBe(false);
     });
 
-    it('applies default codec formatSort (vcodec:h264)', () => {
+    it('does not apply codec formatSort by default', () => {
       const result = prepareBilibiliDownloadFlags(TEST_URL, TEST_OUTPUT);
 
-      expect(result.formatSort).toBe('vcodec:h264');
-      expect(result.flags.formatSort).toBe('vcodec:h264');
+      expect(result.formatSort).toBeUndefined();
+      expect(result.flags.formatSort).toBeUndefined();
     });
 
     it('sets the output template', () => {
@@ -90,21 +92,26 @@ describe('prepareBilibiliDownloadFlags', () => {
       expect(result.flags.formatSort).toBe(expectedFormatSort);
     });
 
-    it('falls back to H.264 when codec setting is unrecognized', () => {
+    it('falls back to codec-neutral default when codec setting is unrecognized', () => {
       mockGetSettings.mockReturnValue({ defaultVideoCodec: 'unknown_codec' });
 
       const result = prepareBilibiliDownloadFlags(TEST_URL, TEST_OUTPUT);
 
-      expect(result.flags.format).toContain('vcodec^=avc');
-      expect(result.formatSort).toBe('vcodec:h264');
+      expect(result.flags.format).toBe(
+        'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best'
+      );
+      expect(result.formatSort).toBeUndefined();
     });
 
-    it('falls back to H.264 when codec setting is empty string', () => {
+    it('falls back to codec-neutral default when codec setting is empty string', () => {
       mockGetSettings.mockReturnValue({ defaultVideoCodec: '  ' });
 
       const result = prepareBilibiliDownloadFlags(TEST_URL, TEST_OUTPUT);
 
-      expect(result.flags.format).toContain('vcodec^=avc');
+      expect(result.flags.format).toBe(
+        'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best'
+      );
+      expect(result.formatSort).toBeUndefined();
     });
 
     it('handles case-insensitive codec setting', () => {
@@ -303,11 +310,13 @@ describe('prepareBilibiliDownloadFlags', () => {
       expect(result.formatSort).toBe('vcodec:h265');
     });
 
-    it('no user config + no app codec: default h264', () => {
+    it('no user config + no app codec: codec-neutral default', () => {
       const result = prepareBilibiliDownloadFlags(TEST_URL, TEST_OUTPUT);
 
-      expect(result.flags.format).toContain('vcodec^=avc');
-      expect(result.formatSort).toBe('vcodec:h264');
+      expect(result.flags.format).toBe(
+        'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best'
+      );
+      expect(result.formatSort).toBeUndefined();
     });
   });
 });
