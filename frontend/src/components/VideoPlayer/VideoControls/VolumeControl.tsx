@@ -1,6 +1,7 @@
 import { VolumeDown, VolumeOff, VolumeUp } from '@mui/icons-material';
 import { Box, IconButton, Slider, Tooltip, useMediaQuery, useTheme } from '@mui/material';
 import React from 'react';
+import { modeColors } from '../../../theme/colors';
 
 interface VolumeControlProps {
     volume: number;
@@ -62,7 +63,7 @@ const VolumeControl: React.FC<VolumeControlProps> = ({
                         transform: 'translateX(-50%)',
                         mb: 0.5,
                         width: '40px',
-                        bgcolor: theme.palette.mode === 'dark' ? '#2a2a2a' : '#fff',
+                        bgcolor: modeColors(theme.palette.mode).backgroundSurface,
                         p: 1,
                         borderRadius: 1,
                         boxShadow: 2,

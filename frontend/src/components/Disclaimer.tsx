@@ -1,5 +1,6 @@
 import { Box, Paper, Typography } from '@mui/material';
 import React from 'react';
+import { modeColors } from '../theme/colors';
 import { en } from '../utils/locales/en';
 
 const Disclaimer: React.FC = () => {
@@ -9,9 +10,9 @@ const Disclaimer: React.FC = () => {
                 elevation={0}
                 sx={{
                     p: 3,
-                    bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(30, 30, 30, 0.6)' : 'background.paper',
+                    bgcolor: (theme) => modeColors(theme.palette.mode).cardBackground,
                     border: '1px solid',
-                    borderColor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+                    borderColor: (theme) => modeColors(theme.palette.mode).cardBorder,
                     borderRadius: 4,
                     backdropFilter: 'blur(10px)'
                 }}

@@ -1,5 +1,6 @@
 import { Box, Collapse, Paper, Typography } from '@mui/material';
 import React from 'react';
+import { overlay } from '../theme/colors';
 import { useLanguage } from '../contexts/LanguageContext';
 import TagsList from './TagsList';
 
@@ -45,11 +46,11 @@ export const TagsSidebar: React.FC<TagsSidebarProps> = ({
                                 background: 'transparent',
                             },
                             '&::-webkit-scrollbar-thumb': {
-                                background: 'rgba(0,0,0,0.1)',
+                                background: overlay.sidebarTrack,
                                 borderRadius: '3px',
                             },
                             '&:hover::-webkit-scrollbar-thumb': {
-                                background: 'rgba(0,0,0,0.2)',
+                                background: overlay.sidebarThumb,
                             },
                         }}>
                             {hasTags ? (

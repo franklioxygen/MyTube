@@ -14,6 +14,7 @@ import {
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { shadow } from '../../theme/colors';
 import { DownloadInfo } from './types';
 
 interface DownloadsMenuProps {
@@ -47,7 +48,7 @@ const DownloadsMenu: React.FC<DownloadsMenuProps> = ({
                     elevation: 0,
                     sx: {
                         overflow: 'visible',
-                        filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.32))',
+                        filter: shadow.dropShadow32,
                         mt: 1.5,
                         width: 320,
                         maxHeight: '50vh',

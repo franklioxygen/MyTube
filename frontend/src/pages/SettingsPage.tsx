@@ -48,6 +48,7 @@ import { useSettingsModals } from '../hooks/useSettingsModals';
 import { useSettingsMutations } from '../hooks/useSettingsMutations';
 import { useStickyButton } from '../hooks/useStickyButton';
 import { AdminTrustLevel, Settings } from '../types';
+import { overlay } from '../theme/colors';
 import { api, getApiErrorMessage } from '../utils/apiClient';
 import ConsoleManager from '../utils/consoleManager';
 import { SNACKBAR_AUTO_HIDE_DURATION } from '../utils/constants';
@@ -226,7 +227,7 @@ const SettingsPage: React.FC = () => {
                     // Provide a visual cue
                     element.style.transition = 'background-color 0.5s ease';
                     const originalBg = element.style.backgroundColor;
-                    element.style.backgroundColor = 'rgba(255, 235, 59, 0.3)'; // Light yellow highlight
+                    element.style.backgroundColor = overlay.highlightYellow;
                     setTimeout(() => {
                         element.style.backgroundColor = originalBg;
                     }, 2000);

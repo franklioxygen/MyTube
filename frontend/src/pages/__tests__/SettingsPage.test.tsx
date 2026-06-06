@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { overlay } from '../../theme/colors';
 import SettingsPage from '../SettingsPage';
 
 let mockIsDesktop = false;
@@ -417,7 +418,7 @@ describe('SettingsPage', () => {
     vi.advanceTimersByTime(500);
 
     expect(target.scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' });
-    expect(target.style.backgroundColor).toBe('rgba(255, 235, 59, 0.3)');
+    expect(target.style.backgroundColor).toBe(overlay.highlightYellow);
     expect(screen.getByTestId('video-default-settings')).toBeInTheDocument();
 
     vi.advanceTimersByTime(2000);

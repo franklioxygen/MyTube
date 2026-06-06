@@ -38,6 +38,7 @@ import {
     useStatisticsTimeseries,
 } from '../hooks/useStatistics';
 import { api } from '../utils/apiClient';
+import { gradient, modeColors } from '../theme/colors';
 
 const formatBytes = (bytes: number): string => {
     if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
@@ -743,8 +744,8 @@ const SnapshotCard: React.FC<SnapshotCardProps> = ({ label, value }) => {
                 borderRadius: 3,
                 backgroundImage: (theme) =>
                     theme.palette.mode === 'dark'
-                        ? 'linear-gradient(180deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.01) 100%)'
-                        : 'linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(248,250,252,0.95) 100%)',
+                        ? gradient.statsCardDark
+                        : gradient.statsCardLight,
             }}
         >
             <CardContent
@@ -957,9 +958,7 @@ const RankingCard: React.FC<RankingCardProps> = ({
                                     sx={{
                                         borderBottom: 1,
                                         borderColor: (theme) =>
-                                            theme.palette.mode === 'dark'
-                                                ? 'rgba(255,255,255,0.08)'
-                                                : 'rgba(15,23,42,0.08)',
+                                            modeColors(theme.palette.mode).rankingDivider,
                                     }}
                                 />
                             }

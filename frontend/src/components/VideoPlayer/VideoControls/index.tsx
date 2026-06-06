@@ -1,5 +1,6 @@
 import { Box } from '@mui/material';
 import React, { useCallback, useEffect } from 'react';
+import { neutral } from '../../../theme/colors';
 import { useStatisticsWatchTracker } from '../../../hooks/useStatisticsWatchTracker';
 import ControlsOverlay from './ControlsOverlay';
 import { useFocusPause } from './hooks/useFocusPause';
@@ -187,7 +188,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
             ref={fullscreen.videoContainerRef}
             sx={{
                 width: '100%',
-                bgcolor: 'black',
+                bgcolor: neutral.black,
                 borderRadius: { xs: 0, sm: 2 },
                 overflow: 'hidden',
                 boxShadow: 4,

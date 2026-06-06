@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { CssBaseline, ThemeProvider as MuiThemeProvider, PaletteMode, useMediaQuery } from '@mui/material';
 import React, { createContext, useContext, useEffect, useEffectEvent, useMemo, useState } from 'react';
 import getTheme from '../theme';
+import { applyThemeCssVariables } from '../theme/cssVariables';
 import { api } from '../utils/apiClient';
 import { fetchReadableSettings } from '../utils/settingsQueries';
 
@@ -110,6 +111,7 @@ export const ThemeContextProvider: React.FC<{ children: React.ReactNode }> = ({ 
     useEffect(() => {
         document.documentElement.style.colorScheme = mode;
         document.documentElement.dataset.theme = mode;
+        applyThemeCssVariables(mode);
     }, [mode]);
 
     const toggleTheme = () => {

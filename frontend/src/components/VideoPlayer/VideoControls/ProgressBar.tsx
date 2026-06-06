@@ -1,5 +1,6 @@
 import { Slider, Stack, Typography, useTheme } from '@mui/material';
 import React from 'react';
+import { brand, overlay, shadow } from '../../../theme/colors';
 
 interface ProgressBarProps {
     currentTime: number;
@@ -19,9 +20,9 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
     onProgressMouseDown
 }) => {
     const theme = useTheme();
-    const sliderColor = isFullscreen ? '#00e5ff' : theme.palette.primary.main;
-    const textColor = isFullscreen ? 'rgba(255, 255, 255, 0.92)' : 'text.primary';
-    const railColor = isFullscreen ? 'rgba(255, 255, 255, 0.32)' : undefined;
+    const sliderColor = isFullscreen ? brand.primaryDark : theme.palette.primary.main;
+    const textColor = isFullscreen ? overlay.white92 : 'text.primary';
+    const railColor = isFullscreen ? overlay.white32 : undefined;
 
     const formatTime = (seconds: number): string => {
         if (isNaN(seconds) || !isFinite(seconds)) return '0:00';
@@ -63,7 +64,7 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
                         height: 12,
                         transition: 'width 0.2s, height 0.2s',
                         ...(isFullscreen && {
-                            boxShadow: '0 0 0 2px rgba(0, 0, 0, 0.45)'
+                            boxShadow: shadow.focusRing
                         }),
                         '&:hover': {
                             width: 16,
