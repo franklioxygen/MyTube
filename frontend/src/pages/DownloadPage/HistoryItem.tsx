@@ -70,40 +70,57 @@ export function HistoryItem({
     const { t } = useLanguage();
     const isPendingRetry = item.status === 'pending_retry';
     const actionButtonMinWidth = { xs: 0, md: '100px' };
+    const statusChipSx = {
+        height: 22,
+        '& .MuiChip-label': {
+            px: 0.75,
+            fontSize: '0.72rem',
+            lineHeight: 1.1,
+        },
+        '& .MuiChip-icon': {
+            ml: 0.5,
+            fontSize: '0.9rem',
+        },
+    } as const;
     const statusChip = item.status === 'success' ? (
         <Chip
-            icon={<CheckCircleIcon />}
+            icon={<CheckCircleIcon sx={{ fontSize: '0.9rem' }} />}
             label={t('success') || 'Success'}
             color="success"
             size="small"
+            sx={statusChipSx}
         />
     ) : item.status === 'skipped' ? (
         <Chip
-            icon={<SkipNextIcon />}
+            icon={<SkipNextIcon sx={{ fontSize: '0.9rem' }} />}
             label={t('skipped') || 'Skipped'}
             color="info"
             size="small"
+            sx={statusChipSx}
         />
     ) : item.status === 'deleted' ? (
         <Chip
-            icon={<WarningIcon />}
+            icon={<WarningIcon sx={{ fontSize: '0.9rem' }} />}
             label={t('previouslyDeleted') || 'Previously Deleted'}
             color="warning"
             size="small"
+            sx={statusChipSx}
         />
     ) : item.status === 'pending_retry' ? (
         <Chip
-            icon={<ReplayIcon />}
+            icon={<ReplayIcon sx={{ fontSize: '0.9rem' }} />}
             label={t('pendingRetry') || 'Pending Retry'}
             color="warning"
             size="small"
+            sx={statusChipSx}
         />
     ) : (
         <Chip
-            icon={<ErrorIcon />}
+            icon={<ErrorIcon sx={{ fontSize: '0.9rem' }} />}
             label={t('failed') || 'Failed'}
             color="error"
             size="small"
+            sx={statusChipSx}
         />
     );
 
