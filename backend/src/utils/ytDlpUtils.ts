@@ -52,6 +52,7 @@ type CookiesFileCache = CookiesFileSignature & {
 };
 
 let jsRuntimeFlagPromise: Promise<YouTubeJsRuntimeFlag | null> | null = null;
+let remoteComponentsSupportPromise: Promise<boolean> | null = null;
 const runtimeWarningCache = new Set<string>();
 let cookiesFileCache: CookiesFileCache | null = null;
 
@@ -562,6 +563,7 @@ export function resetYtDlpAvailabilityCacheForTests(): void {
   providerPluginPathCache = undefined;
   resolvedYtDlpPathCache = null;
   jsRuntimeFlagPromise = null;
+  remoteComponentsSupportPromise = null;
   runtimeWarningCache.clear();
   cookiesFileCache = null;
 }
@@ -681,6 +683,7 @@ export async function ensureYtDlpAvailable(): Promise<void> {
             await installYtDlp({ upgrade: true });
             resolvedYtDlpPathCache = null;
             jsRuntimeFlagPromise = null;
+            remoteComponentsSupportPromise = null;
             continue;
           } catch (upgradeError: any) {
             console.warn(
@@ -727,6 +730,7 @@ export async function ensureYtDlpAvailable(): Promise<void> {
           await installYtDlp();
           resolvedYtDlpPathCache = null;
           jsRuntimeFlagPromise = null;
+          remoteComponentsSupportPromise = null;
           continue;
         }
 
@@ -951,6 +955,84 @@ async function getYouTubeJsRuntimeFlag(): Promise<YouTubeJsRuntimeFlag | null> {
   return jsRuntimeFlagPromise;
 }
 
+async function ytDlpSupportsRemoteComponents(): Promise<boolean> {
+  if (remoteComponentsSupportPromise) {
+    return remoteComponentsSupportPromise;
+  }
+
+  remoteComponentsSupportPromise = (async () => {
+    let helpText = "";
+    const resolveFromHelp = (): boolean => {
+      if (helpText.includes("--remote-components")) {
+        return true;
+      }
+
+      warnRuntimeOnce(
+        "remote-components-unsupported",
+        "[yt-dlp] Current yt-dlp binary does not support --remote-components. Continuing without it. Upgrade yt-dlp or set YT_DLP_PATH to a newer binary if YouTube extraction becomes unreliable."
+      );
+      return false;
+    };
+
+    try {
+      const ytDlpPath = await resolveYtDlpPath();
+      const supported = await new Promise<boolean>((resolve) => {
+        let settled = false;
+        const timeout = setTimeout(() => {
+          if (settled) return;
+          proc.kill("SIGTERM");
+          settled = true;
+          resolve(resolveFromHelp());
+        }, YT_DLP_HELP_PROBE_TIMEOUT_MS);
+        timeout.unref?.();
+        const settle = () => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeout);
+          resolve(resolveFromHelp());
+        };
+
+        // ytDlpPath is either explicitly configured by the operator or selected
+        // from enumerated PATH entries and fixed executable names above.
+        // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process
+        const proc = spawn(ytDlpPath, ["--help"], {
+          env: getYtDlpSpawnEnv(),
+          stdio: ["ignore", "pipe", "pipe"],
+        });
+
+        proc.stdout?.on("data", (data: Buffer) => {
+          helpText += data.toString();
+        });
+
+        proc.stderr?.on("data", (data: Buffer) => {
+          helpText += data.toString();
+        });
+
+        proc.on("close", () => {
+          settle();
+        });
+
+        proc.on("error", () => {
+          settle();
+        });
+      });
+      if (!supported) {
+        remoteComponentsSupportPromise = null;
+      }
+      return supported;
+    } catch {
+      remoteComponentsSupportPromise = null;
+      warnRuntimeOnce(
+        "remote-components-unsupported",
+        "[yt-dlp] Current yt-dlp binary does not support --remote-components. Continuing without it. Upgrade yt-dlp or set YT_DLP_PATH to a newer binary if YouTube extraction becomes unreliable."
+      );
+      return false;
+    }
+  })();
+
+  return remoteComponentsSupportPromise;
+}
+
 async function getYouTubeJsRuntime(): Promise<"node" | "deno"> {
   const rawRuntime = process.env[YT_DLP_JS_RUNTIME_ENV]?.trim();
   const runtime = rawRuntime?.toLowerCase();
@@ -1061,16 +1143,44 @@ function withDefaultYouTubeExtractorArgs(
   }
 
   const extractorArgs = joinExtractorArgParts(mergedParts);
-  const remoteComponents =
-    flags.noRemoteComponents || flags.no_remote_components
-      ? flags.remoteComponents ?? flags.remote_components
-      : flags.remoteComponents ??
-        flags.remote_components ??
-        DEFAULT_YOUTUBE_REMOTE_COMPONENTS;
 
   return {
     ...flags,
     extractorArgs,
+  };
+}
+
+async function resolveYouTubeRemoteComponents(
+  url: string,
+  flags: Record<string, any>
+): Promise<Record<string, any>> {
+  if (!isYouTubeUrl(url) || !getProviderScript()) {
+    return flags;
+  }
+
+  const remoteComponentsDisabled =
+    flags.noRemoteComponents === true || flags.no_remote_components === true;
+  const explicitRemoteComponents =
+    flags.remoteComponents ?? flags.remote_components;
+  const remoteComponents = remoteComponentsDisabled
+    ? explicitRemoteComponents
+    : explicitRemoteComponents ?? DEFAULT_YOUTUBE_REMOTE_COMPONENTS;
+
+  if (remoteComponents === undefined) {
+    return flags;
+  }
+
+  if (!(await ytDlpSupportsRemoteComponents())) {
+    const {
+      remoteComponents: _remoteComponents,
+      remote_components: _remote_components,
+      ...rest
+    } = flags;
+    return rest;
+  }
+
+  return {
+    ...flags,
     remoteComponents,
   };
 }
@@ -1173,7 +1283,8 @@ export async function executeYtDlpJson(
 ): Promise<any> {
   await ensureYtDlpAvailable();
   const url = preprocessUrl(rawUrl);
-  const effectiveFlags = withDefaultYouTubeExtractorArgs(url, flags);
+  const partialFlags = withDefaultYouTubeExtractorArgs(url, flags);
+  const effectiveFlags = await resolveYouTubeRemoteComponents(url, partialFlags);
   const { noWarnings: _noWarnings, ...jsonFlags } = effectiveFlags;
   const args = [
     "--dump-single-json",
@@ -1524,14 +1635,7 @@ export function executeYtDlpSpawn(
   ) => Promise<void>;
 } {
   const url = preprocessUrl(rawUrl);
-  const effectiveFlags = withDefaultYouTubeExtractorArgs(url, flags);
-  const baseArgs = [...flagsToArgs(effectiveFlags)];
-
-  // Add cookies after ensuring the file is in a yt-dlp-compatible format.
-  const cookiesPath = ensureCookiesFileIsNormalized();
-  if (cookiesPath) {
-    baseArgs.push("--cookies", cookiesPath);
-  }
+  const partialFlags = withDefaultYouTubeExtractorArgs(url, flags);
 
   // PassThrough streams let callers attach handlers before the subprocess starts.
   const stdoutPass = new PassThrough();
@@ -1580,6 +1684,18 @@ export function executeYtDlpSpawn(
   const promise = ensureYtDlpAvailable()
     .then(
       async () => {
+        const effectiveFlags = await resolveYouTubeRemoteComponents(
+          url,
+          partialFlags
+        );
+        const baseArgs = [...flagsToArgs(effectiveFlags)];
+
+        // Add cookies after ensuring the file is in a yt-dlp-compatible format.
+        const cookiesPath = ensureCookiesFileIsNormalized();
+        if (cookiesPath) {
+          baseArgs.push("--cookies", cookiesPath);
+        }
+
         const ytDlpPath = getConfiguredYtDlpPath();
         const args = [...baseArgs];
         await appendYouTubeJsRuntimeArg(args, url);
