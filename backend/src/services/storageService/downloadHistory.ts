@@ -29,6 +29,7 @@ function mapDownloadHistoryRow(row: typeof downloadHistory.$inferSelect): Downlo
     retryLimit: row.retryLimit ?? undefined,
     retryIntervalMinutes: row.retryIntervalMinutes ?? undefined,
     nextRetryAt: row.nextRetryAt ?? undefined,
+    retryMetadata: row.retryMetadata || undefined,
   };
 }
 
@@ -57,6 +58,7 @@ export function addDownloadHistoryItem(item: DownloadHistoryItem): void {
       retryLimit: item.retryLimit ?? null,
       retryIntervalMinutes: item.retryIntervalMinutes ?? null,
       nextRetryAt: item.nextRetryAt ?? null,
+      retryMetadata: item.retryMetadata ?? null,
     } as const;
 
     db.insert(downloadHistory)

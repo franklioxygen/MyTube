@@ -6,6 +6,13 @@ import { extractSourceVideoId } from "../utils/helpers";
 import { logger, sanitizeLogMessage } from "../utils/logger";
 import { CloudStorageService } from "./CloudStorageService";
 import { createDownloadTask } from "./downloadService";
+import {
+  canRestoreDetachedTask,
+  parseRetryMetadata,
+  requiresRetryMetadata,
+  serializeRetryMetadata,
+  type DownloadRetryMetadata,
+} from "./downloadRetryMetadata";
 import { assertDownloadsAllowed } from "./filenameTemplate/renameLockService";
 import { HookService } from "./hookService";
 import {
@@ -39,6 +46,7 @@ interface DownloadTask {
   cancelFn?: () => void;
   sourceUrl?: string;
   type?: string;
+  retryMetadata?: DownloadRetryMetadata;
   cancelled?: boolean;
   cancellationFinalized?: boolean;
   cancellationRejected?: boolean;
@@ -170,18 +178,32 @@ class DownloadManager {
     title: string,
     sourceUrl: string,
     type: string,
-  ): DownloadTask {
+    retryMetadata?: DownloadRetryMetadata,
+    rawRetryMetadata?: string | null,
+  ): DownloadTask | null {
+    if (!canRestoreDetachedTask(type, rawRetryMetadata)) {
+      return null;
+    }
+
     return {
-      downloadFn: createDownloadTask(type, sourceUrl, id),
+      downloadFn: createDownloadTask(type, sourceUrl, id, retryMetadata),
       id,
       title,
       sourceUrl,
       type,
+      retryMetadata,
       resolve: (value) =>
         console.log("Restored task completed", sanitizeLogMessage(id), value),
       reject: (error) =>
         console.error("Restored task failed", sanitizeLogMessage(id), error),
     };
+  }
+
+  private finalizeUnrestorableRetry(
+    id: string,
+    errorMessage: string,
+  ): void {
+    storageService.finalizePendingRetryHistoryItem(id, errorMessage);
   }
 
   private hasTask(id: string): boolean {
@@ -260,12 +282,30 @@ class DownloadManager {
         continue;
       }
 
+      if (!canRestoreDetachedTask(item.downloadType, item.retryMetadata)) {
+        this.finalizeUnrestorableRetry(
+          item.id,
+          "Bilibili retry could not be restored after restart. Please download again.",
+        );
+        continue;
+      }
+
+      const retryMetadata = parseRetryMetadata(item.retryMetadata);
       const task = this.createDetachedTask(
         item.id,
         item.title,
         item.sourceUrl,
         item.downloadType,
+        retryMetadata,
+        item.retryMetadata,
       );
+      if (!task) {
+        this.finalizeUnrestorableRetry(
+          item.id,
+          "Bilibili retry could not be restored after restart. Please download again.",
+        );
+        continue;
+      }
       this.scheduleRetryTask(task, item);
     }
   }
@@ -307,6 +347,10 @@ class DownloadManager {
       retryLimit,
       retryIntervalMinutes,
       nextRetryAt: Date.now() + retryIntervalMinutes * 60 * 1000,
+      retryMetadata:
+        task.retryMetadata && requiresRetryMetadata(task.retryMetadata)
+          ? serializeRetryMetadata(task.retryMetadata)
+          : existingHistory?.retryMetadata,
     };
 
     storageService.addDownloadHistoryItem(historyItem);
@@ -335,14 +379,29 @@ class DownloadManager {
               sanitizeLogMessage(download.id),
             );
 
-            this.queue.push(
-              this.createDetachedTask(
-                download.id,
-                download.title,
-                download.sourceUrl,
-                download.type,
-              )
+            if (!canRestoreDetachedTask(download.type, download.retryMetadata)) {
+              console.warn(
+                `Skipping restoration of task ${download.id} due to unrestorable Bilibili retry metadata`,
+              );
+              continue;
+            }
+
+            const restoredTask = this.createDetachedTask(
+              download.id,
+              download.title,
+              download.sourceUrl,
+              download.type,
+              parseRetryMetadata(download.retryMetadata),
+              download.retryMetadata,
             );
+            if (!restoredTask) {
+              console.warn(
+                `Skipping restoration of task ${download.id} due to invalid retry metadata`,
+              );
+              continue;
+            }
+
+            this.queue.push(restoredTask);
           } else {
             console.warn(
               `Skipping restoration of task ${download.id} due to missing sourceUrl or type`
@@ -382,7 +441,8 @@ class DownloadManager {
     title: string,
     sourceUrl?: string,
     type?: string,
-    statistics?: AddDownloadStatisticsOptions
+    statistics?: AddDownloadStatisticsOptions,
+    retryMetadata?: DownloadRetryMetadata,
   ): Promise<any> {
     assertDownloadsAllowed();
     return new Promise((resolve, reject) => {
@@ -394,6 +454,7 @@ class DownloadManager {
         reject,
         sourceUrl,
         type,
+        retryMetadata,
         statistics: statistics
           ? {
               actorRole: statistics.actorRole ?? "admin",
@@ -588,6 +649,10 @@ class DownloadManager {
       timestamp: Date.now(),
       sourceUrl: task.sourceUrl,
       type: task.type,
+      retryMetadata:
+        task.retryMetadata && requiresRetryMetadata(task.retryMetadata)
+          ? serializeRetryMetadata(task.retryMetadata)
+          : undefined,
     }));
     storageService.setQueuedDownloads(queuedDownloads);
   }

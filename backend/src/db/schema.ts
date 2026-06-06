@@ -112,6 +112,7 @@ export const downloads = sqliteTable("downloads", {
   status: text("status").notNull().default("active"), // 'active' or 'queued'
   sourceUrl: text("source_url"),
   type: text("type"),
+  retryMetadata: text("retry_metadata"),
 });
 
 export const downloadHistory = sqliteTable(
@@ -139,6 +140,7 @@ export const downloadHistory = sqliteTable(
     retryLimit: integer("retry_limit"),
     retryIntervalMinutes: integer("retry_interval_minutes"),
     nextRetryAt: integer("next_retry_at"),
+    retryMetadata: text("retry_metadata"),
   },
   (table) => ({
     retentionSubscriptionIdx: index(

@@ -104,6 +104,7 @@ describe('DownloadManager', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    vi.useRealTimers();
     
     // Reset module cache to get fresh instance
     vi.resetModules();
@@ -210,6 +211,45 @@ describe('DownloadManager', () => {
             retryLimit: 2,
             retryIntervalMinutes: 1,
           })
+        );
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('should persist Bilibili retry metadata when scheduling retries', async () => {
+      vi.useFakeTimers();
+      try {
+        const mockDownloadFn = vi.fn().mockRejectedValue(new Error('Download failed'));
+
+        (storageService.getSettings as any).mockReturnValue({
+          autoRetryEnabled: true,
+          autoRetryTimes: 2,
+          autoRetryIntervalMinutes: 1,
+        });
+
+        void downloadManager.addDownload(
+          mockDownloadFn,
+          'retry-bili',
+          'Multipart Bilibili',
+          'https://www.bilibili.com/video/BV1xx',
+          'bilibili',
+          undefined,
+          { shape: 'bilibili_all_parts', collectionName: 'Series' },
+        );
+
+        await vi.runOnlyPendingTimersAsync();
+        await Promise.resolve();
+
+        expect(storageService.addDownloadHistoryItem).toHaveBeenCalledWith(
+          expect.objectContaining({
+            id: 'retry-bili',
+            status: 'pending_retry',
+            retryMetadata: JSON.stringify({
+              shape: 'bilibili_all_parts',
+              collectionName: 'Series',
+            }),
+          }),
         );
       } finally {
         vi.useRealTimers();
@@ -327,6 +367,7 @@ describe('DownloadManager', () => {
         'youtube',
         'https://www.youtube.com/watch?v=abc123',
         'restore-1',
+        undefined,
       );
       expect(storageService.addActiveDownload).toHaveBeenCalledWith(
         'restore-1',
@@ -367,6 +408,61 @@ describe('DownloadManager', () => {
       });
 
       expect(() => downloadManager.initialize()).not.toThrow();
+    });
+
+    it('should restore pending Bilibili retries with persisted metadata', async () => {
+      const retryMetadata = JSON.stringify({
+        shape: 'bilibili_all_parts',
+        collectionName: 'Series',
+      });
+      (storageService.getPendingRetryHistoryItems as any).mockReturnValue([
+        {
+          id: 'retry-bili',
+          title: 'Bilibili multipart',
+          status: 'pending_retry',
+          sourceUrl: 'https://www.bilibili.com/video/BV1xx',
+          downloadType: 'bilibili',
+          retryMetadata,
+          nextRetryAt: Date.now(),
+        },
+      ]);
+
+      downloadManager.initialize();
+      await waitForQueue();
+
+      expect(createDownloadTask).toHaveBeenCalledWith(
+        'bilibili',
+        'https://www.bilibili.com/video/BV1xx',
+        'retry-bili',
+        expect.objectContaining({ shape: 'bilibili_all_parts' }),
+      );
+    });
+
+    it('should finalize unrestorable Bilibili pending retries on startup', () => {
+      (storageService.getPendingRetryHistoryItems as any).mockReturnValue([
+        {
+          id: 'retry-broken',
+          title: 'Broken retry',
+          status: 'pending_retry',
+          sourceUrl: 'https://www.bilibili.com/video/BV1xx',
+          downloadType: 'bilibili',
+          retryMetadata: '{invalid',
+          nextRetryAt: Date.now(),
+        },
+      ]);
+
+      downloadManager.initialize();
+
+      expect(storageService.finalizePendingRetryHistoryItem).toHaveBeenCalledWith(
+        'retry-broken',
+        'Bilibili retry could not be restored after restart. Please download again.',
+      );
+      expect(createDownloadTask).not.toHaveBeenCalledWith(
+        'bilibili',
+        'https://www.bilibili.com/video/BV1xx',
+        'retry-broken',
+        expect.anything(),
+      );
     });
   });
 

@@ -474,6 +474,16 @@ export function initializeStorage(): void {
       logger.info("Migration successful: type added.");
     }
 
+    if (!downloadsColumns.includes("retry_metadata")) {
+      logger.info(
+        "Migrating database: Adding retry_metadata column to downloads table..."
+      );
+      sqlite
+        .prepare("ALTER TABLE downloads ADD COLUMN retry_metadata TEXT")
+        .run();
+      logger.info("Migration successful: retry_metadata added.");
+    }
+
     // Check subscriptions table columns for playlist subscription fields
     try {
       const subscriptionsTableInfo = sqlite
@@ -922,6 +932,12 @@ export function initializeStorage(): void {
     if (!dhCols.includes("next_retry_at")) {
       sqlite.prepare("ALTER TABLE download_history ADD COLUMN next_retry_at INTEGER").run();
       logger.info("Migration successful: download_history.next_retry_at added.");
+    }
+    if (!dhCols.includes("retry_metadata")) {
+      sqlite
+        .prepare("ALTER TABLE download_history ADD COLUMN retry_metadata TEXT")
+        .run();
+      logger.info("Migration successful: download_history.retry_metadata added.");
     }
     sqlite
       .prepare(

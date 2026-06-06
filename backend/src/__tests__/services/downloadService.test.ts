@@ -33,6 +33,11 @@ vi.mock("../../services/storageService", () => ({
   getCollectionById: vi.fn(),
   saveCollection: vi.fn(),
   generateUniqueCollectionName: vi.fn((name: string) => name),
+  getActiveDownload: vi.fn(),
+  addActiveDownload: vi.fn(),
+  updateActiveDownloadTitle: vi.fn(),
+  getVideoBySourceUrl: vi.fn(),
+  atomicUpdateCollection: vi.fn(),
 }));
 vi.mock("../../utils/ytDlpUtils", () => ({
   executeYtDlpJson: vi.fn(),
@@ -46,6 +51,7 @@ vi.mock("../../utils/helpers", () => ({
   extractBilibiliVideoId: vi.fn(),
   isBilibiliUrl: vi.fn(),
   isMissAVUrl: vi.fn(),
+  trimBilibiliUrl: vi.fn((url: string) => url),
 }));
 vi.mock("../../utils/logger", () => ({
   logger: {
@@ -303,6 +309,66 @@ describe("downloadService", () => {
         "https://youtube.com/watch?v=1",
         "d3",
         cancel
+      );
+    });
+
+    it("creates bilibili multipart task from retry metadata", async () => {
+      vi.mocked(isBilibiliUrl).mockReturnValue(true);
+      vi.mocked(extractBilibiliVideoId).mockReturnValue("BV1xx");
+      vi.mocked(BilibiliDownloader.checkVideoParts).mockResolvedValue({
+        success: true,
+        videosNumber: 2,
+        title: "Series",
+      });
+      vi.mocked(BilibiliDownloader.downloadSinglePart).mockResolvedValue({
+        success: true,
+        videoData: { id: "part-1" } as any,
+      });
+      vi.mocked(BilibiliDownloader.downloadRemainingParts).mockResolvedValue(
+        undefined as any,
+      );
+      vi.mocked(storageService.getVideoBySourceUrl).mockReturnValue(undefined);
+      vi.mocked(storageService.getCollectionByName).mockReturnValue({
+        id: "collection-1",
+        name: "Series",
+        title: "Series",
+        videos: [],
+      } as any);
+      vi.mocked(storageService.getCollectionById).mockReturnValue({
+        id: "collection-1",
+        name: "Series",
+        title: "Series",
+        videos: [],
+      } as any);
+
+      const task = downloadService.createDownloadTask(
+        "bilibili",
+        "https://www.bilibili.com/video/BV1xx",
+        "d4",
+        {
+          shape: "bilibili_all_parts",
+          collectionName: "Series",
+        },
+      );
+      const cancel = vi.fn();
+
+      const result = await task(cancel);
+
+      expect(BilibiliDownloader.downloadSinglePart).toHaveBeenCalledWith(
+        "https://www.bilibili.com/video/BV1xx?p=1",
+        1,
+        2,
+        "Series",
+        "d4",
+        cancel,
+        "Series",
+        undefined,
+      );
+      expect(result).toEqual(
+        expect.objectContaining({
+          isMultiPart: true,
+          totalParts: 2,
+        }),
       );
     });
   });

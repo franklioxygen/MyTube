@@ -17,6 +17,11 @@ import { MissAVDownloader } from "./downloaders/MissAVDownloader";
 import { YtDlpDownloader } from "./downloaders/YtDlpDownloader";
 import { assertDownloadsAllowed } from "./filenameTemplate/renameLockService";
 import { Video } from "./storageService";
+import { buildBilibiliDownloadTaskFromRetryMetadata } from "./bilibiliDownloadTask";
+import {
+  parseRetryMetadata,
+  type DownloadRetryMetadata,
+} from "./downloadRetryMetadata";
 
 // Re-export types for compatibility
 export type {
@@ -247,14 +252,26 @@ export function createDownloadTask(
   type: string,
   url: string,
   downloadId: string,
+  retryMetadata?: DownloadRetryMetadata | string | null,
 ): (registerCancel: (cancel: () => void) => void) => Promise<any> {
+  const parsedMetadata =
+    typeof retryMetadata === "string"
+      ? parseRetryMetadata(retryMetadata)
+      : retryMetadata ?? undefined;
+
   return async (registerCancel: (cancel: () => void) => void) => {
     assertDownloadsAllowed();
     if (type === "missav") {
       return MissAVDownloader.downloadVideo(url, downloadId, registerCancel);
     } else if (type === "bilibili") {
-      // For restored tasks, we assume single video download for now
-      // Complex collection handling would require persisting more state
+      if (parsedMetadata) {
+        return buildBilibiliDownloadTaskFromRetryMetadata(
+          url,
+          downloadId,
+          parsedMetadata,
+        )(registerCancel);
+      }
+
       return BilibiliDownloader.downloadSinglePart(
         url,
         1,

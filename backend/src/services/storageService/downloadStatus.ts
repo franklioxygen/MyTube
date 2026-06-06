@@ -20,6 +20,7 @@ type DownloadRow = {
   speed: string | null;
   sourceUrl: string | null;
   type: string | null;
+  retryMetadata: string | null;
 };
 
 const MUTABLE_DOWNLOAD_FIELDS: Array<
@@ -33,6 +34,7 @@ const MUTABLE_DOWNLOAD_FIELDS: Array<
   "sourceUrl",
   "type",
   "title",
+  "retryMetadata",
 ];
 
 function toOptionalValue<T>(value: T | null): T | undefined {
@@ -51,6 +53,7 @@ function mapDownloadRow(download: DownloadRow): DownloadInfo {
     speed: toOptionalValue(download.speed),
     sourceUrl: toOptionalValue(download.sourceUrl),
     type: toOptionalValue(download.type),
+    retryMetadata: toOptionalValue(download.retryMetadata),
   };
 }
 
@@ -152,6 +155,7 @@ export function setQueuedDownloads(queuedDownloads: DownloadInfo[]): void {
             status: "queued",
             sourceUrl: download.sourceUrl,
             type: download.type,
+            retryMetadata: download.retryMetadata,
           })
           .onConflictDoUpdate({
             target: downloads.id,
@@ -161,6 +165,7 @@ export function setQueuedDownloads(queuedDownloads: DownloadInfo[]): void {
               status: "queued",
               sourceUrl: download.sourceUrl,
               type: download.type,
+              retryMetadata: download.retryMetadata,
             },
           })
           .run();

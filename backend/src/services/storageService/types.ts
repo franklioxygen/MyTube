@@ -34,6 +34,7 @@ export interface DownloadInfo {
   speed?: string;
   sourceUrl?: string;
   type?: string;
+  retryMetadata?: string;
 }
 
 export interface DownloadHistoryItem {
@@ -59,6 +60,7 @@ export interface DownloadHistoryItem {
   retryLimit?: number;
   retryIntervalMinutes?: number;
   nextRetryAt?: number;
+  retryMetadata?: string;
 }
 
 export interface VideoDownloadRecord {
