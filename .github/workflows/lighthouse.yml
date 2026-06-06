@@ -96,18 +96,36 @@ jobs:
           name: lighthouse-desktop-reports
           path: .lighthouseci/*.json
 
-      - name: Commit Badge Update
+      - name: Publish Badge Update
         if: github.ref == 'refs/heads/master'
         run: |
           set -euo pipefail
 
+          REPO_ROOT="$PWD"
+          BADGE_WORKTREE="$(mktemp -d)"
+
+          cleanup() {
+            cd "$REPO_ROOT"
+            git worktree remove "$BADGE_WORKTREE" --force >/dev/null 2>&1 || true
+            rm -rf "$BADGE_WORKTREE"
+          }
+
+          trap cleanup EXIT
+
+          git fetch origin gh-pages:refs/remotes/origin/gh-pages
+          git worktree add "$BADGE_WORKTREE" origin/gh-pages
+
+          mkdir -p "$BADGE_WORKTREE/badges"
+          cp badges/lighthouse-performance.json "$BADGE_WORKTREE/badges/lighthouse-performance.json"
+
+          cd "$BADGE_WORKTREE"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          if git diff --quiet -- badges/lighthouse-performance.json; then
+          if [ -z "$(git status --porcelain -- badges/lighthouse-performance.json)" ]; then
             exit 0
           fi
 
           git add badges/lighthouse-performance.json
           git commit -m "Update Lighthouse performance badge"
-          git push
+          git push origin HEAD:gh-pages
