@@ -443,7 +443,8 @@ describe("videoDownloadController extra coverage", () => {
         actorRole: "admin",
         surface: "web",
         sourceKind: "manual",
-      })
+      }),
+      undefined,
     );
     expect(json).toHaveBeenCalledWith(
       expect.objectContaining({ success: true, message: "Download queued" })
@@ -491,7 +492,8 @@ describe("videoDownloadController extra coverage", () => {
         actorRole: "admin",
         surface: "web",
         sourceKind: "manual",
-      })
+      }),
+      undefined,
     );
     expect(downloadService.downloadYouTubeVideo).toHaveBeenCalled();
     expect(downloadManager.updateTaskTitle).toHaveBeenCalled();
@@ -816,7 +818,8 @@ describe("videoDownloadController extra coverage", () => {
         actorRole: "admin",
         surface: "web",
         sourceKind: "manual",
-      })
+      }),
+      undefined,
     );
   });
 
