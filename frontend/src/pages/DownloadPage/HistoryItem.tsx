@@ -125,7 +125,7 @@ export function HistoryItem({
     );
 
     return (
-        <Paper sx={{ mb: 2, p: 2 }}>
+        <Paper sx={{ mb: 2, px: 2, py: 1.5 }}>
             <ListItem
                 disableGutters
                 sx={{
@@ -176,6 +176,16 @@ export function HistoryItem({
                                                 {t('downloadedOn') || 'Downloaded on'}: {formatDisplayDateTime(item.downloadedAt)}
                                             </Typography>
                                         ) : null}
+                                        {item.subscriptionId && (
+                                            <Typography variant="caption" color="text.secondary" component="span" sx={{ fontStyle: 'italic' }}>
+                                                {` • ${t('viaSubscription') || 'via Subscription'}`}
+                                            </Typography>
+                                        )}
+                                        {item.taskId && (
+                                            <Typography variant="caption" color="text.secondary" component="span" sx={{ fontStyle: 'italic' }}>
+                                                {` • ${t('viaContinuousDownload') || 'via Continuous Download'}`}
+                                            </Typography>
+                                        )}
                                     </Box>
                                     {item.downloadedAt && item.deletedAt && (
                                         <Typography variant="caption" component="span">
@@ -196,13 +206,17 @@ export function HistoryItem({
                                     <Typography variant="caption" component="span">
                                         {formatDisplayDateTime(item.finishedAt)}
                                     </Typography>
+                                    {item.subscriptionId && (
+                                        <Typography variant="caption" color="text.secondary" component="span" sx={{ fontStyle: 'italic' }}>
+                                            {` • ${t('viaSubscription') || 'via Subscription'}`}
+                                        </Typography>
+                                    )}
+                                    {item.taskId && (
+                                        <Typography variant="caption" color="text.secondary" component="span" sx={{ fontStyle: 'italic' }}>
+                                            {` • ${t('viaContinuousDownload') || 'via Continuous Download'}`}
+                                        </Typography>
+                                    )}
                                 </Box>
-                            )}
-                            {(item.subscriptionId || item.taskId) && (
-                                <Typography variant="caption" color="text.secondary" component="span" sx={{ fontStyle: 'italic' }}>
-                                    {item.subscriptionId && ` • ${t('viaSubscription') || 'via Subscription'}`}
-                                    {item.taskId && ` • ${t('viaContinuousDownload') || 'via Continuous Download'}`}
-                                </Typography>
                             )}
                             {item.error && (
                                 <Typography variant="caption" color="error" component="span">
