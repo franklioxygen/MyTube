@@ -10,7 +10,7 @@ import {
     useMediaQuery,
     useTheme
 } from '@mui/material';
-import { FormEvent, useRef } from 'react';
+import { FormEvent, useRef, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 
@@ -42,6 +42,12 @@ const SearchInput: React.FC<SearchInputProps> = ({
 
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+    const [isFocused, setIsFocused] = useState(false);
+
+    const isSearchActive = isMobile || isFocused || !!videoUrl || !!error || isSubmitting;
+    const desktopTransition = 'opacity 0.3s ease-in-out, background-color 0.3s ease-in-out, border-color 0.3s ease-in-out';
+    const inactiveBorderColor = alpha(theme.palette.text.primary, 0.12);
+    const activeBorderColor = alpha(theme.palette.text.primary, 0.23);
 
     const pasteIntoInputFallback = async (): Promise<string> => {
         const input = inputRef.current;
@@ -99,6 +105,8 @@ const SearchInput: React.FC<SearchInputProps> = ({
                 placeholder={isVisitor ? t('enterSearchTerm') : t('enterUrlOrSearchTerm')}
                 value={videoUrl}
                 onChange={(e) => setVideoUrl(e.target.value)}
+                onFocus={() => setIsFocused(true)}
+                onBlur={() => setIsFocused(false)}
                 inputRef={inputRef}
                 disabled={isSubmitting}
                 error={!!error}
@@ -106,9 +114,34 @@ const SearchInput: React.FC<SearchInputProps> = ({
                 size="small"
                 sx={{
                     '& .MuiOutlinedInput-root': {
-                        bgcolor: !isMobile ? alpha(theme.palette.background.paper, 0.1) : 'background.paper',
+                        bgcolor: !isMobile
+                            ? alpha(theme.palette.background.paper, isSearchActive ? 0.1 : 0.04)
+                            : 'background.paper',
                         backdropFilter: !isMobile ? 'blur(10px)' : 'none',
-                    }
+                        opacity: !isMobile && !isSearchActive ? 0.55 : 1,
+                        transition: desktopTransition,
+                        ...(!isMobile && !isSearchActive && {
+                            '&:hover': {
+                                opacity: 0.75,
+                            },
+                        }),
+                        '& fieldset': {
+                            borderColor: !isMobile && !isSearchActive ? inactiveBorderColor : activeBorderColor,
+                            transition: 'border-color 0.3s ease-in-out',
+                        },
+                        '&:hover fieldset': {
+                            borderColor: !isMobile && !isSearchActive
+                                ? alpha(theme.palette.text.primary, 0.2)
+                                : undefined,
+                        },
+                        '&.Mui-focused fieldset': {
+                            borderColor: theme.palette.primary.main,
+                        },
+                    },
+                    '& .MuiInputBase-input::placeholder': {
+                        opacity: !isMobile && !isSearchActive ? 0.45 : 0.7,
+                        transition: 'opacity 0.3s ease-in-out',
+                    },
                 }}
                 slotProps={{
                     input: {
@@ -149,7 +182,23 @@ const SearchInput: React.FC<SearchInputProps> = ({
                                     type="submit"
                                     variant="contained"
                                     disabled={isSubmitting}
-                                    sx={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0, height: '100%', minWidth: 'auto', px: 3 }}
+                                    sx={{
+                                        borderTopLeftRadius: 0,
+                                        borderBottomLeftRadius: 0,
+                                        height: '100%',
+                                        minWidth: 'auto',
+                                        px: 3,
+                                        transition: desktopTransition,
+                                        ...(!isMobile && !isSearchActive && {
+                                            bgcolor: alpha(theme.palette.primary.main, 0.35),
+                                            color: alpha(theme.palette.primary.contrastText, 0.85),
+                                            boxShadow: 'none',
+                                            '&:hover': {
+                                                bgcolor: alpha(theme.palette.primary.main, 0.5),
+                                                boxShadow: 'none',
+                                            },
+                                        }),
+                                    }}
                                 >
                                     {isSubmitting ? <CircularProgress size={24} color="inherit" /> : <Search />}
                                 </Button>
