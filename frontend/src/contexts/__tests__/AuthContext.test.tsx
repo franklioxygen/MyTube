@@ -43,15 +43,6 @@ const renderWithProviders = (ui: React.ReactNode) => {
 describe('AuthContext', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        // Clear localStorage
-        if (typeof localStorage !== 'undefined' && localStorage.clear) {
-            localStorage.clear();
-        } else {
-            // Fallback for test environments
-            Object.keys(localStorage).forEach(key => {
-                delete (localStorage as any)[key];
-            });
-        }
         document.cookie = '';
         queryClient.clear();
         // Mock axios.post for logout
