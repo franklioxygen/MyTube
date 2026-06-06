@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import logo from '../../assets/logo.svg';
 import { useCloudflareStatus } from '../../hooks/useCloudflareStatus';
 import { useSettings } from '../../hooks/useSettings';
+import { shadow, status } from '../../theme/colors';
 
 interface LogoProps {
     websiteName: string;
@@ -27,9 +28,9 @@ const Logo: React.FC<LogoProps> = ({ websiteName, onResetSearch }) => {
                             right: -2,
                             width: 8,
                             height: 8,
-                            bgcolor: '#4caf50', // Green
+                            bgcolor: status.success,
                             borderRadius: '50%',
-                            boxShadow: '0 0 4px #4caf50'
+                            boxShadow: shadow.successGlow
                         }}
                     />
                 )}

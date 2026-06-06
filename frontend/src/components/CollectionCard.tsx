@@ -10,6 +10,7 @@ import {
     useTheme
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
+import { overlay } from '../theme/colors';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useCloudStorageUrl } from '../hooks/useCloudStorageUrl';
 import { Collection, Video } from '../types';
@@ -123,8 +124,8 @@ const CollectionThumbnail: React.FC<{ video: Video; index: number }> = ({ video,
                 width: '50%',
                 height: '50%',
                 position: 'relative',
-                borderRight: index % 2 === 0 ? '1px solid rgba(255,255,255,0.1)' : 'none',
-                borderBottom: index < 2 ? '1px solid rgba(255,255,255,0.1)' : 'none',
+                borderRight: index % 2 === 0 ? `1px solid ${overlay.white10}` : 'none',
+                borderBottom: index < 2 ? `1px solid ${overlay.white10}` : 'none',
                 overflow: 'hidden'
             }}
         >

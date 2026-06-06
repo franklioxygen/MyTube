@@ -20,6 +20,7 @@ import {
 } from '@mui/material';
 import React, { useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { neutral, overlay } from '../../theme/colors';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCloudStorageUrl } from '../../hooks/useCloudStorageUrl';
 import { Video } from '../../types';
@@ -95,8 +96,8 @@ const SidebarThumbnail: React.FC<{ video: Video }> = ({ video }) => {
                         right: 4,
                         height: 20,
                         fontSize: '0.75rem',
-                        bgcolor: 'rgba(0,0,0,0.8)',
-                        color: 'white'
+                        bgcolor: overlay.black80,
+                        color: neutral.white
                     }}
                 />
             )}
@@ -178,7 +179,7 @@ const UpNextSidebar: React.FC<UpNextSidebarProps> = ({
                                                 bottom: 4,
                                                 right: 4,
                                                 padding: 0.5,
-                                                bgcolor: 'rgba(0,0,0,0.9)',
+                                                bgcolor: overlay.black90,
                                             }}
                                         >
                                             <Add fontSize="small" />

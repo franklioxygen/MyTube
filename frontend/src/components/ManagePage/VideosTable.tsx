@@ -49,18 +49,19 @@ import ConfirmationModal from '../ConfirmationModal';
 import UploadThumbnailModal from '../UploadThumbnailModal';
 
 import { getBackendUrl } from '../../utils/apiUrl';
+import { neutral, overlay } from '../../theme/colors';
 import { buildSmallThumbnailAbsoluteUrl } from '../../utils/imageOptimization';
 import { THUMBNAIL_PLACEHOLDER_SRC, setThumbnailPlaceholder } from '../../utils/thumbnailPlaceholder';
 import { useVideoReDownload } from './hooks/useVideoReDownload';
 
 const BACKEND_URL = getBackendUrl();
 const thumbnailActionButtonSx = {
-    bgcolor: 'rgba(0,0,0,0.5)',
-    color: 'white',
-    '&:hover': { bgcolor: 'rgba(0,0,0,0.7)' },
+    bgcolor: overlay.black50,
+    color: neutral.white,
+    '&:hover': { bgcolor: overlay.black70 },
     '&.Mui-disabled': {
-        bgcolor: 'rgba(0,0,0,0.5)',
-        color: 'white',
+        bgcolor: overlay.black50,
+        color: neutral.white,
         opacity: 1,
     },
     p: 0.5,

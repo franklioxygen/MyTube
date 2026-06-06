@@ -4,7 +4,7 @@ import { useCollection } from '../../contexts/CollectionContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useVideo } from '../../contexts/VideoContext';
 import { useShareVideo } from '../../hooks/useShareVideo';
-import { Video } from '../../types';
+import { neutral, overlay } from '../../theme/colors';
 import CollectionModal from '../CollectionModal';
 import ConfirmationModal from '../ConfirmationModal';
 import TagsModal from '../TagsModal';
@@ -105,10 +105,10 @@ export const VideoCardActions: React.FC<VideoCardActionsProps> = ({
                     onAddTag={() => setShowTagsModal(true)}
                     video={video}
                     sx={{
-                        color: 'white',
-                        bgcolor: 'rgba(0,0,0,0.6)',
+                        color: neutral.white,
+                        bgcolor: overlay.black60,
                         '&:hover': {
-                            bgcolor: 'rgba(0,0,0,0.8)',
+                            bgcolor: overlay.black80,
                             color: 'primary.main'
                         }
                     }}

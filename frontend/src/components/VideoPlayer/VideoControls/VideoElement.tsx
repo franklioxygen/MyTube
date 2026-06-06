@@ -1,6 +1,7 @@
 import { Box, Typography } from '@mui/material';
 import React, { useMemo } from 'react';
 import { useLanguage } from '../../../contexts/LanguageContext';
+import { neutral, overlay } from '../../../theme/colors';
 import { getBackendUrl } from '../../../utils/apiUrl';
 import { getSubtitleLanguageLabel } from '../../../utils/formatUtils';
 
@@ -143,7 +144,7 @@ const VideoElement: React.FC<VideoElementProps> = ({
                     #${videoId}::cue {
                         text-align: center !important;
                         line-height: 1.5;
-                        background-color: rgba(0, 0, 0, 0.8);
+                        background-color: ${overlay.black80};
                     }
                     
                     #${videoId}::-webkit-media-text-track-display {
@@ -172,10 +173,10 @@ const VideoElement: React.FC<VideoElementProps> = ({
                         left: '50%',
                         transform: 'translate(-50%, -50%)',
                         zIndex: 10,
-                        bgcolor: 'rgba(0, 0, 0, 0.7)',
+                        bgcolor: overlay.black70,
                         borderRadius: 2,
                         p: 2,
-                        color: 'white'
+                        color: neutral.white
                     }}
                 >
                     <Typography variant="body2">{t('loadingVideo') || 'Loading video...'}</Typography>
@@ -191,10 +192,10 @@ const VideoElement: React.FC<VideoElementProps> = ({
                         left: '50%',
                         transform: 'translate(-50%, -50%)',
                         zIndex: 10,
-                        bgcolor: 'rgba(211, 47, 47, 0.9)',
+                        bgcolor: overlay.error90,
                         borderRadius: 2,
                         p: 2,
-                        color: 'white',
+                        color: neutral.white,
                         maxWidth: '80%',
                         textAlign: 'center'
                     }}

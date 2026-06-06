@@ -1,5 +1,6 @@
 import { Box, Collapse } from '@mui/material';
 import React from 'react';
+import { overlay } from '../theme/colors';
 import AuthorsList from './AuthorsList';
 import Collections from './Collections';
 import TagsList from './TagsList';
@@ -48,11 +49,11 @@ export const HomeSidebar: React.FC<HomeSidebarProps> = ({
                                 background: 'transparent',
                             },
                             '&::-webkit-scrollbar-thumb': {
-                                background: 'rgba(0,0,0,0.1)',
+                                background: overlay.sidebarTrack,
                                 borderRadius: '3px',
                             },
                             '&:hover::-webkit-scrollbar-thumb': {
-                                background: 'rgba(0,0,0,0.2)',
+                                background: overlay.sidebarThumb,
                             },
                         }}>
                             <Collections collections={collections} />

@@ -20,6 +20,7 @@ import { useCollection } from '../contexts/CollectionContext';
 import { useDownload } from '../contexts/DownloadContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useVideo } from '../contexts/VideoContext';
+import { neutral, overlay, platform } from '../theme/colors';
 import { formatDuration } from '../utils/formatUtils';
 import { THUMBNAIL_PLACEHOLDER_SRC, setThumbnailPlaceholder } from '../utils/thumbnailPlaceholder';
 import { getRandomSeed, sortVideos, SortOption, validateSortOption } from '../utils/videoSort';
@@ -168,7 +169,7 @@ const SearchPage: React.FC = () => {
             {/* YouTube Search Results */}
             {showYoutubeSearch && (
                 <Box>
-                    <Typography variant="h5" sx={{ mb: 3, fontWeight: 600, color: '#ff0000' }}>
+                    <Typography variant="h5" sx={{ mb: 3, fontWeight: 600, color: platform.youtube }}>
                         {t('fromYouTube')}
                     </Typography>
 
@@ -197,11 +198,11 @@ const SearchPage: React.FC = () => {
                                                     <Chip
                                                         label={formatDuration(result.duration)}
                                                         size="small"
-                                                        sx={{ position: 'absolute', bottom: 8, right: 8, bgcolor: 'rgba(0,0,0,0.8)', color: 'white' }}
+                                                        sx={{ position: 'absolute', bottom: 8, right: 8, bgcolor: overlay.black80, color: neutral.white }}
                                                     />
                                                 )}
-                                                <Box sx={{ position: 'absolute', top: 8, right: 8, bgcolor: 'rgba(0,0,0,0.7)', borderRadius: '50%', p: 0.5, display: 'flex' }}>
-                                                    {result.source === 'bilibili' ? <OndemandVideo sx={{ color: '#23ade5' }} /> : <YouTube sx={{ color: '#ff0000' }} />}
+                                                <Box sx={{ position: 'absolute', top: 8, right: 8, bgcolor: overlay.black70, borderRadius: '50%', p: 0.5, display: 'flex' }}>
+                                                    {result.source === 'bilibili' ? <OndemandVideo sx={{ color: platform.bilibili }} /> : <YouTube sx={{ color: platform.youtube }} />}
                                                 </Box>
                                             </Box>
                                             <CardContent sx={{ flexGrow: 1, p: 2 }}>

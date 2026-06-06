@@ -1,25 +1,31 @@
 import { createTheme } from "@mui/material/styles";
+import {
+  brand,
+  modeColors,
+  overlay,
+  shadow,
+  type ThemeMode,
+} from "./theme/colors";
 
-const getTheme = (mode: "light" | "dark") =>
-  createTheme({
+const getTheme = (mode: ThemeMode) => {
+  const colors = modeColors(mode);
+
+  return createTheme({
     palette: {
       mode,
       primary: {
-        main: mode === "dark" ? "#00e5ff" : "#00838f", // Neon Cyan for dark, Cyan 800 for light
+        main: colors.primary,
       },
       secondary: {
-        main: "#651fff", // Deep Purple
+        main: brand.secondary,
       },
       background: {
-        default: mode === "dark" ? "#0a0a0a" : "#f5f5f5",
-        paper: mode === "dark" ? "#1e1e1e" : "#ffffff",
+        default: colors.backgroundDefault,
+        paper: colors.backgroundPaper,
       },
       text: {
-        primary: mode === "dark" ? "#ffffff" : "#212121", // Dark grey for light mode
-        secondary:
-          mode === "dark"
-            ? "rgba(255, 255, 255, 0.7)"
-            : "rgba(18, 18, 18, 0.7)",
+        primary: colors.textPrimary,
+        secondary: colors.textSecondary,
       },
     },
     typography: {
@@ -45,13 +51,10 @@ const getTheme = (mode: "light" | "dark") =>
             fontWeight: 600,
           },
           containedPrimary: {
-            boxShadow:
-              mode === "dark" ? "0 0 10px rgba(0, 229, 255, 0.5)" : "none", // Neon glow only in dark mode
+            boxShadow: mode === "dark" ? shadow.primaryGlow : "none",
             "&:hover": {
               boxShadow:
-                mode === "dark"
-                  ? "0 0 20px rgba(0, 229, 255, 0.7)"
-                  : "0 2px 4px rgba(0,0,0,0.2)",
+                mode === "dark" ? shadow.primaryGlowHover : shadow.black20,
             },
           },
         },
@@ -60,31 +63,21 @@ const getTheme = (mode: "light" | "dark") =>
         styleOverrides: {
           root: {
             borderRadius: 16,
-            backgroundImage: "none", // Remove default gradient in dark mode if unwanted
-            backgroundColor:
-              mode === "dark" ? "rgba(30, 30, 30, 0.6)" : "#ffffff", // Glassmorphism base
+            backgroundImage: "none",
+            backgroundColor: colors.cardBackground,
             backdropFilter: "blur(10px)",
-            border:
-              mode === "dark"
-                ? "1px solid rgba(255, 255, 255, 0.1)"
-                : "1px solid rgba(0, 0, 0, 0.1)",
+            border: `1px solid ${colors.cardBorder}`,
           },
         },
       },
       MuiAppBar: {
         styleOverrides: {
           root: {
-            backgroundColor:
-              mode === "dark"
-                ? "rgba(10, 10, 10, 0.8)"
-                : "rgba(255, 255, 255, 0.8)",
+            backgroundColor: colors.appBarBackground,
             backdropFilter: "blur(10px)",
-            borderBottom:
-              mode === "dark"
-                ? "1px solid rgba(255, 255, 255, 0.05)"
-                : "1px solid rgba(0, 0, 0, 0.05)",
+            borderBottom: `1px solid ${colors.appBarBorder}`,
             backgroundImage: "none",
-            color: mode === "dark" ? "#fff" : "#121212",
+            color: colors.textAppBar,
           },
         },
       },
@@ -92,13 +85,13 @@ const getTheme = (mode: "light" | "dark") =>
         styleOverrides: {
           paper: {
             borderRadius: 16,
-            backgroundColor: mode === "dark" ? "#1e1e1e" : "#ffffff",
-            border:
-              mode === "dark" ? "1px solid rgba(255, 255, 255, 0.1)" : "none",
+            backgroundColor: colors.backgroundPaper,
+            border: colors.dialogBorder,
           },
         },
       },
     },
   });
+};
 
 export default getTheme;

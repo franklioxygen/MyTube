@@ -1,23 +1,9 @@
 /* index.css */
 /* Fonts: system stack only (no Google Fonts), so the app works in China and offline */
+/* Color values are defined in src/theme/colors.ts and injected via applyThemeCssVariables(). */
 
 :root {
   color-scheme: light dark;
-  --scrollbar-track: #1e1e1e;
-  --scrollbar-thumb: #333;
-  --scrollbar-thumb-hover: #444;
-}
-
-:root[data-theme='light'] {
-  --scrollbar-track: #ececec;
-  --scrollbar-thumb: #b3b3b3;
-  --scrollbar-thumb-hover: #8f8f8f;
-}
-
-:root[data-theme='dark'] {
-  --scrollbar-track: #1e1e1e;
-  --scrollbar-thumb: #333;
-  --scrollbar-thumb-hover: #444;
 }
 
 body {
@@ -35,7 +21,6 @@ html {
   overflow-y: scroll;
 }
 
-/* Scrollbar styling for dark theme */
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
@@ -65,15 +50,15 @@ html {
 
 @keyframes button-glow {
   0% {
-    box-shadow: 0 0 0 0 rgba(25, 118, 210, 0.7);
+    box-shadow: var(--shadow-button-glow-0);
   }
 
   70% {
-    box-shadow: 0 0 0 10px rgba(25, 118, 210, 0);
+    box-shadow: var(--shadow-button-glow-10);
   }
 
   100% {
-    box-shadow: 0 0 0 0 rgba(25, 118, 210, 0);
+    box-shadow: var(--shadow-button-glow-0);
   }
 }
 

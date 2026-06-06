@@ -6,6 +6,8 @@ import VERSION from './version';
 
 import ConsoleManager from './utils/consoleManager';
 import { registerVitePreloadErrorRecovery } from './utils/lazyWithRetry';
+import { applyThemeCssVariables } from './theme/cssVariables';
+import type { ThemeMode } from './theme/colors';
 
 const resolveInitialThemeMode = () => {
     const savedPreference = localStorage.getItem('themeMode');
@@ -19,9 +21,10 @@ const resolveInitialThemeMode = () => {
 };
 
 const initializeThemeAttributes = () => {
-    const mode = resolveInitialThemeMode();
+    const mode = resolveInitialThemeMode() as ThemeMode;
     document.documentElement.style.colorScheme = mode;
     document.documentElement.dataset.theme = mode;
+    applyThemeCssVariables(mode);
 };
 
 initializeThemeAttributes();

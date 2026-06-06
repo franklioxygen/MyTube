@@ -1,6 +1,7 @@
 import { Pause, PlayArrow } from '@mui/icons-material';
 import { Box, IconButton, Stack, Tooltip, useMediaQuery, useTheme } from '@mui/material';
 import React from 'react';
+import { brand, gradient, modeColors, overlay } from '../../../theme/colors';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import CinemaModeControl from './CinemaModeControl';
 import FullscreenControl from './FullscreenControl';
@@ -93,18 +94,19 @@ const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
     const theme = useTheme();
     const { t } = useLanguage();
     const isTouch = useMediaQuery('(hover: none), (pointer: coarse)');
-    const fullscreenIconColor = 'rgba(255, 255, 255, 0.92)';
-    const fullscreenActiveColor = '#00e5ff';
+    const fullscreenIconColor = overlay.white92;
+    const fullscreenActiveColor = brand.primaryDark;
+    const modePalette = modeColors(theme.palette.mode);
 
     return (
         <Box
             sx={{
                 p: 1,
                 bgcolor: isFullscreen
-                    ? 'rgba(0, 0, 0, 0.55)'
-                    : (theme.palette.mode === 'dark' ? '#1a1a1a' : '#f5f5f5'),
+                    ? overlay.black55
+                    : modePalette.backgroundElevated,
                 backgroundImage: isFullscreen
-                    ? 'linear-gradient(to top, rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0.35) 45%, rgba(0, 0, 0, 0))'
+                    ? gradient.controlsFullscreen
                     : 'none',
                 opacity: isFullscreen
                     ? (controlsVisible ? 1 : 0)
@@ -123,7 +125,7 @@ const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
                     '& .MuiIconButton-root': {
                         color: fullscreenIconColor,
                         '&:hover': {
-                            bgcolor: 'rgba(255, 255, 255, 0.14)'
+                            bgcolor: overlay.white14
                         }
                     },
                     '& .MuiIconButton-colorPrimary, & .MuiIconButton-colorSecondary': {

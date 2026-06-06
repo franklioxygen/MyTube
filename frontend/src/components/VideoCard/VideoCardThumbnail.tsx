@@ -2,6 +2,7 @@ import { Folder } from '@mui/icons-material';
 import { Box, CardMedia, Chip, Skeleton, useTheme } from '@mui/material';
 import React, { useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { mask, neutral, overlay, shadow } from '../../theme/colors';
 import { Video } from '../../types';
 import { formatDuration, parseDuration } from '../../utils/formatUtils';
 import { THUMBNAIL_PLACEHOLDER_SRC, setThumbnailPlaceholder } from '../../utils/thumbnailPlaceholder';
@@ -71,7 +72,7 @@ const VideoCardThumbnailView: React.FC<VideoCardThumbnailProps> = ({
                         width: '100%',
                         height: '100%',
                         objectFit: 'cover',
-                        bgcolor: 'black',
+                        bgcolor: neutral.black,
                         zIndex: 1 // Ensure video is above thumbnail when playing
                     }}
                     onLoadedMetadata={(e) => {
@@ -162,8 +163,8 @@ const VideoCardThumbnailView: React.FC<VideoCardThumbnailProps> = ({
                         right: 8,
                         height: 20,
                         fontSize: '0.75rem',
-                        bgcolor: 'rgba(0,0,0,0.6)',
-                        color: 'white',
+                        bgcolor: overlay.black60,
+                        color: neutral.white,
                         zIndex: 3
                     }}
                 />
@@ -182,7 +183,7 @@ const VideoCardThumbnailView: React.FC<VideoCardThumbnailProps> = ({
                         borderColor: `${theme.palette.error.main} transparent transparent transparent`,
                         opacity: 0.8,
                         zIndex: 10,
-                        boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
+                        boxShadow: shadow.thumbnail,
                         pointerEvents: 'none'
                     }}
                 />
@@ -228,8 +229,8 @@ const VideoCardThumbnailView: React.FC<VideoCardThumbnailProps> = ({
                             overflow: 'hidden',
                             zIndex: 4, // Higher z-index to be above other elements and clickable
                             pointerEvents: 'auto', // Enable pointer events for children
-                            maskImage: 'linear-gradient(to right, black 90%, transparent 100%)',
-                            WebkitMaskImage: 'linear-gradient(to right, black 90%, transparent 100%)'
+                            maskImage: mask.fadeRight,
+                            WebkitMaskImage: mask.fadeRight,
                         }}
                     >
                         {filteredTags.map((tag) => {
@@ -249,8 +250,8 @@ const VideoCardThumbnailView: React.FC<VideoCardThumbnailProps> = ({
                                     sx={{
                                         height: 20,
                                         fontSize: '0.65rem',
-                                        bgcolor: isSelected ? theme.palette.primary.main : 'rgba(0, 0, 0, 0.5)',
-                                        color: 'white',
+                                        bgcolor: isSelected ? theme.palette.primary.main : overlay.black50,
+                                        color: neutral.white,
                                         backdropFilter: 'blur(2px)',
                                         '& .MuiChip-label': {
                                             px: 1
@@ -258,7 +259,7 @@ const VideoCardThumbnailView: React.FC<VideoCardThumbnailProps> = ({
                                         maxWidth: '100px', // individual tag max width
                                         cursor: 'pointer',
                                         '&:hover': {
-                                            bgcolor: isSelected ? theme.palette.primary.dark : 'rgba(0, 0, 0, 0.7)'
+                                            bgcolor: isSelected ? theme.palette.primary.dark : overlay.black70
                                         }
                                     }}
                                 />
