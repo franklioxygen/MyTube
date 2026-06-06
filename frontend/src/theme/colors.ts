@@ -8,7 +8,7 @@ export type ThemeMode = "light" | "dark";
 /** Core brand palette (also used in logo.svg / favicon.svg gradients). */
 export const brand = {
   primaryDark: "#00e5ff",
-  primaryLight: "#00838f",
+  primaryLight: "#00727d",
   secondary: "#651fff",
   accentPink: "#FF7eb3",
   accentBlue: "#00bfff",
@@ -20,7 +20,7 @@ export const brand = {
 export const neutral = {
   black: "#000000",
   white: "#ffffff",
-  grey950: "#0a0a0a",
+  grey950: "#0f0f0f",
   grey900: "#121212",
   grey850: "#1a1a1a",
   grey800: "#1e1e1e",
@@ -132,7 +132,7 @@ export const modeColors = (mode: ThemeMode) => ({
   primary: mode === "dark" ? brand.primaryDark : brand.primaryLight,
   backgroundDefault: mode === "dark" ? neutral.grey950 : neutral.grey200,
   backgroundPaper: mode === "dark" ? neutral.grey800 : neutral.white,
-  backgroundElevated: mode === "dark" ? neutral.grey850 : neutral.grey200,
+  backgroundElevated: mode === "dark" ? neutral.grey850 : neutral.white,
   backgroundSurface: mode === "dark" ? neutral.grey700 : neutral.white,
   textPrimary: mode === "dark" ? neutral.white : neutral.grey750,
   textSecondary:
