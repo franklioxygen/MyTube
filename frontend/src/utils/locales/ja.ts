@@ -119,6 +119,15 @@ export const ja = {
   maxConcurrent: "最大同時ダウンロード数",
   maxConcurrentDescription:
     "通常のダウンロードや継続的なサブスクリプションタスクを含む、同時ダウンロード数を制限します。",
+  autoRetry: "自動再試行",
+  autoRetryDescription:
+    "失敗したダウンロードを一定時間後に自動で再スケジュールします。",
+  retryTimes: "再試行回数",
+  retryTimesDescription:
+    "失敗したタスクをシステムが何回再試行するかを選択します。",
+  retryInterval: "再試行間隔",
+  retryIntervalDescription:
+    "失敗したタスクを再試行するまでにシステムが待機する時間を選択します。",
   dontSkipDeletedVideo: "削除された動画をスキップしない",
   dontSkipDeletedVideoDescription:
     "有効にすると、削除されたステータスの動画はスキップされず、自動的に再ダウンロードされます。",
@@ -807,10 +816,15 @@ export const ja = {
   speed: "速度",
   finishedAt: "完了日時",
   failed: "失敗",
+  pendingRetry: "再試行待ち",
+  cancelRetry: "再試行をキャンセル",
+  retryScheduledFor: "再試行予定時刻",
+  retryAttemptProgress: "再試行 {current} / {total}",
 
 
   // Snackbar Messages
   videoDownloading: "動画をダウンロード中",
+  retryCancelled: "再試行をキャンセルしました",
   downloadStartedSuccessfully: "ダウンロードが正常に開始されました",
   collectionCreatedSuccessfully: "コレクションが正常に作成されました",
   videoAddedToCollection: "動画がコレクションに追加されました",
@@ -869,6 +883,7 @@ export const ja = {
   subscriptionUpdated: "購読を更新しました",
   subscriptionUpdateFailed: "購読の更新に失敗しました",
   subscriptionAlreadyExists: "この著者はすでに購読しています。",
+  minuteShort: "分",
   minutes: "分",
   never: "なし",
   downloadAllPreviousVideos: "この著者の過去のすべての動画をダウンロード",

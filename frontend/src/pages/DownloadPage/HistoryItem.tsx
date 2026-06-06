@@ -1,4 +1,5 @@
 import {
+    Cancel as CancelIcon,
     CheckCircle as CheckCircleIcon,
     Delete as DeleteIcon,
     Error as ErrorIcon,
@@ -28,7 +29,7 @@ export interface DownloadHistoryItem {
     author?: string;
     sourceUrl?: string;
     finishedAt: number;
-    status: 'success' | 'failed' | 'skipped' | 'deleted';
+    status: 'success' | 'failed' | 'skipped' | 'deleted' | 'pending_retry';
     error?: string;
     videoPath?: string;
     thumbnailPath?: string;
@@ -38,11 +39,17 @@ export interface DownloadHistoryItem {
     deletedAt?: number;
     subscriptionId?: string;
     taskId?: string;
+    downloadType?: string;
+    retryCount?: number;
+    retryLimit?: number;
+    retryIntervalMinutes?: number;
+    nextRetryAt?: number;
 }
 
 interface HistoryItemProps {
     item: DownloadHistoryItem;
     onRemove: (id: string) => void;
+    onCancelRetry: (id: string) => void;
     onRetry: (sourceUrl: string) => void;
     onReDownload: (sourceUrl: string) => void;
     onViewVideo: (videoId: string) => void;
@@ -53,6 +60,7 @@ interface HistoryItemProps {
 export function HistoryItem({
     item,
     onRemove,
+    onCancelRetry,
     onRetry,
     onReDownload,
     onViewVideo,
@@ -60,31 +68,81 @@ export function HistoryItem({
     dontSkipDeletedVideo
 }: HistoryItemProps) {
     const { t } = useLanguage();
+    const isPendingRetry = item.status === 'pending_retry';
+    const actionButtonMinWidth = { xs: 0, md: '100px' };
+    const statusChipSx = {
+        height: 22,
+        '& .MuiChip-label': {
+            px: 0.75,
+            fontSize: '0.72rem',
+            lineHeight: 1.1,
+        },
+        '& .MuiChip-icon': {
+            ml: 0.5,
+            fontSize: '0.9rem',
+        },
+    } as const;
+    const statusChip = item.status === 'success' ? (
+        <Chip
+            icon={<CheckCircleIcon sx={{ fontSize: '0.9rem' }} />}
+            label={t('success') || 'Success'}
+            color="success"
+            size="small"
+            sx={statusChipSx}
+        />
+    ) : item.status === 'skipped' ? (
+        <Chip
+            icon={<SkipNextIcon sx={{ fontSize: '0.9rem' }} />}
+            label={t('skipped') || 'Skipped'}
+            color="info"
+            size="small"
+            sx={statusChipSx}
+        />
+    ) : item.status === 'deleted' ? (
+        <Chip
+            icon={<WarningIcon sx={{ fontSize: '0.9rem' }} />}
+            label={t('previouslyDeleted') || 'Previously Deleted'}
+            color="warning"
+            size="small"
+            sx={statusChipSx}
+        />
+    ) : item.status === 'pending_retry' ? (
+        <Chip
+            icon={<ReplayIcon sx={{ fontSize: '0.9rem' }} />}
+            label={t('pendingRetry') || 'Pending Retry'}
+            color="warning"
+            size="small"
+            sx={statusChipSx}
+        />
+    ) : (
+        <Chip
+            icon={<ErrorIcon sx={{ fontSize: '0.9rem' }} />}
+            label={t('failed') || 'Failed'}
+            color="error"
+            size="small"
+            sx={statusChipSx}
+        />
+    );
 
     return (
         <Paper sx={{ mb: 2, p: 2 }}>
             <ListItem
                 disableGutters
-                secondaryAction={
-                    <IconButton edge="end" aria-label="remove" onClick={() => onRemove(item.id)}>
-                        <DeleteIcon />
-                    </IconButton>
-                }
                 sx={{
-                    flexDirection: { xs: 'column', md: 'row' },
-                    alignItems: { xs: 'flex-start', md: 'center' },
-                    gap: { xs: 2, md: 0 },
-                    pr: { xs: 6, md: 10 },
-                    position: 'relative'
+                    display: 'grid',
+                    gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'minmax(0, 1fr) auto' },
+                    alignItems: { xs: 'stretch', md: 'flex-start' },
+                    columnGap: { xs: 0, md: 2 },
+                    rowGap: 2,
+                    width: '100%'
                 }}
             >
                 <ListItemText
                     primary={item.title}
                     slotProps={{ secondary: { component: 'div' } }}
                     sx={{
-                        width: { xs: '100%', md: 'auto' },
-                        flex: { md: 1 },
-                        pr: { xs: 0, md: 2 }
+                        width: '100%',
+                        minWidth: 0
                     }}
                     secondary={
                         <Box component="div" sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
@@ -107,21 +165,38 @@ export function HistoryItem({
                             )}
                             {item.status === 'deleted' ? (
                                 <>
-                                    {item.downloadedAt && (
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                                        {statusChip}
+                                        {item.deletedAt ? (
+                                            <Typography variant="caption" component="span">
+                                                {t('deletedOn') || 'Deleted on'}: {formatDisplayDateTime(item.deletedAt)}
+                                            </Typography>
+                                        ) : item.downloadedAt ? (
+                                            <Typography variant="caption" component="span">
+                                                {t('downloadedOn') || 'Downloaded on'}: {formatDisplayDateTime(item.downloadedAt)}
+                                            </Typography>
+                                        ) : null}
+                                    </Box>
+                                    {item.downloadedAt && item.deletedAt && (
                                         <Typography variant="caption" component="span">
                                             {t('downloadedOn') || 'Downloaded on'}: {formatDisplayDateTime(item.downloadedAt)}
                                         </Typography>
                                     )}
-                                    {item.deletedAt && (
+                                    {!dontSkipDeletedVideo && (
                                         <Typography variant="caption" component="span">
-                                            {t('deletedOn') || 'Deleted on'}: {formatDisplayDateTime(item.deletedAt)}
+                                            <Link component={RouterLink} to="/settings?tab=4#dontSkipDeletedVideo-setting" color="inherit">
+                                                {t('changeSettings') || 'Change Settings'}
+                                            </Link>
                                         </Typography>
                                     )}
                                 </>
                             ) : (
-                                <Typography variant="caption" component="span">
-                                    {formatDisplayDateTime(item.finishedAt)}
-                                </Typography>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                                    {statusChip}
+                                    <Typography variant="caption" component="span">
+                                        {formatDisplayDateTime(item.finishedAt)}
+                                    </Typography>
+                                </Box>
                             )}
                             {(item.subscriptionId || item.taskId) && (
                                 <Typography variant="caption" color="text.secondary" component="span" sx={{ fontStyle: 'italic' }}>
@@ -134,83 +209,104 @@ export function HistoryItem({
                                     {item.error}
                                 </Typography>
                             )}
+                            {isPendingRetry && item.nextRetryAt && (
+                                <Typography variant="caption" color="warning.main" component="span">
+                                    {t('retryScheduledFor') || 'Retry scheduled for'}: {formatDisplayDateTime(item.nextRetryAt)}
+                                </Typography>
+                            )}
+                            {isPendingRetry && item.retryCount && item.retryLimit && (
+                                <Typography variant="caption" color="text.secondary" component="span">
+                                    {t('retryAttemptProgress', {
+                                        current: item.retryCount,
+                                        total: item.retryLimit,
+                                    }) || `Retry ${item.retryCount} of ${item.retryLimit}`}
+                                </Typography>
+                            )}
                         </Box>
                     }
                 />
-                <Box sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1,
-                    flexWrap: 'wrap',
-                    width: { xs: '100%', md: 'auto' },
-                    justifyContent: { xs: 'flex-start', md: 'flex-end' }
-                }}>
-                    {item.status === 'deleted' && !dontSkipDeletedVideo && (
-                        <Typography variant="caption" sx={{ mr: 1 }}>
-                            <Link component={RouterLink} to="/settings?tab=4#dontSkipDeletedVideo-setting" color="inherit">
-                                {t('changeSettings') || 'Change Settings'}
-                            </Link>
-                        </Typography>
-                    )}
-                    {item.status === 'failed' && item.sourceUrl && (
-                        <Button
-                            variant="outlined"
-                            color="primary"
-                            size="small"
-                            startIcon={<ReplayIcon />}
-                            onClick={() => onRetry(item.sourceUrl!)}
-                            disabled={isDownloadInProgress(item.sourceUrl)}
-                            sx={{ minWidth: '100px' }}
+                <Box
+                    sx={{
+                        display: 'flex',
+                        flexDirection: { xs: 'row', md: 'column' },
+                        gap: 1,
+                        width: { xs: '100%', md: 'fit-content' },
+                        justifySelf: { xs: 'stretch', md: 'end' },
+                        alignItems: { xs: 'center', md: 'flex-end' },
+                        justifyContent: 'flex-end',
+                        flexWrap: 'nowrap'
+                    }}>
+                        {item.status === 'failed' && item.sourceUrl && (
+                            <Button
+                                variant="outlined"
+                                color="primary"
+                                size="small"
+                                startIcon={<ReplayIcon />}
+                                onClick={() => onRetry(item.sourceUrl!)}
+                                disabled={isDownloadInProgress(item.sourceUrl)}
+                                sx={{ minWidth: actionButtonMinWidth, order: { xs: 1, md: 2 } }}
+                            >
+                                {t('retry') || 'Retry'}
+                            </Button>
+                        )}
+                        {item.status === 'pending_retry' && (
+                            <Button
+                                variant="outlined"
+                                color="warning"
+                                size="small"
+                                startIcon={<CancelIcon />}
+                                onClick={() => onCancelRetry(item.id)}
+                                sx={{ minWidth: actionButtonMinWidth, order: { xs: 1, md: 2 } }}
+                            >
+                                {t('cancelRetry') || 'Cancel Retry'}
+                            </Button>
+                        )}
+                        {item.status === 'skipped' && item.videoId && (
+                            <Button
+                                variant="outlined"
+                                color="primary"
+                                size="small"
+                                startIcon={<PlayArrowIcon />}
+                                onClick={() => onViewVideo(item.videoId!)}
+                                sx={{ minWidth: actionButtonMinWidth, order: { xs: 1, md: 2 } }}
+                            >
+                                {t('viewVideo') || 'View Video'}
+                            </Button>
+                        )}
+                        {item.status === 'success' && item.videoId && (
+                            <Button
+                                variant="outlined"
+                                color="primary"
+                                size="small"
+                                startIcon={<PlayArrowIcon />}
+                                onClick={() => onViewVideo(item.videoId!)}
+                                sx={{ minWidth: actionButtonMinWidth, order: { xs: 1, md: 2 } }}
+                            >
+                                {t('viewVideo') || 'View Video'}
+                            </Button>
+                        )}
+                        {item.status === 'deleted' && item.sourceUrl && (
+                            <Button
+                                variant="outlined"
+                                color="primary"
+                                size="small"
+                                startIcon={<ReplayIcon />}
+                                onClick={() => onReDownload(item.sourceUrl!)}
+                                disabled={isDownloadInProgress(item.sourceUrl)}
+                                sx={{ minWidth: actionButtonMinWidth, order: { xs: 1, md: 2 } }}
+                            >
+                                {t('downloadAgain') || 'Download Again'}
+                            </Button>
+                        )}
+                        <IconButton
+                            aria-label="remove"
+                            onClick={() => onRemove(item.id)}
+                            disabled={isPendingRetry}
+                            sx={{ order: { xs: 3, md: 1 }, alignSelf: { xs: 'center', md: 'flex-end' } }}
                         >
-                            {t('retry') || 'Retry'}
-                        </Button>
-                    )}
-                    {item.status === 'skipped' && item.videoId && (
-                        <Button
-                            variant="outlined"
-                            color="primary"
-                            size="small"
-                            startIcon={<PlayArrowIcon />}
-                            onClick={() => onViewVideo(item.videoId!)}
-                            sx={{ minWidth: '100px' }}
-                        >
-                            {t('viewVideo') || 'View Video'}
-                        </Button>
-                    )}
-                    {item.status === 'success' && item.videoId && (
-                        <Button
-                            variant="outlined"
-                            color="primary"
-                            size="small"
-                            startIcon={<PlayArrowIcon />}
-                            onClick={() => onViewVideo(item.videoId!)}
-                            sx={{ minWidth: '100px' }}
-                        >
-                            {t('viewVideo') || 'View Video'}
-                        </Button>
-                    )}
-                    {item.status === 'deleted' && item.sourceUrl && (
-                        <Button
-                            variant="outlined"
-                            color="primary"
-                            size="small"
-                            startIcon={<ReplayIcon />}
-                            onClick={() => onReDownload(item.sourceUrl!)}
-                            disabled={isDownloadInProgress(item.sourceUrl)}
-                        >
-                            {t('downloadAgain') || 'Download Again'}
-                        </Button>
-                    )}
-                    {item.status === 'success' ? (
-                        <Chip icon={<CheckCircleIcon />} label={t('success') || 'Success'} color="success" size="small" />
-                    ) : item.status === 'skipped' ? (
-                        <Chip icon={<SkipNextIcon />} label={t('skipped') || 'Skipped'} color="info" size="small" />
-                    ) : item.status === 'deleted' ? (
-                        <Chip icon={<WarningIcon />} label={t('previouslyDeleted') || 'Previously Deleted'} color="warning" size="small" />
-                    ) : (
-                        <Chip icon={<ErrorIcon />} label={t('failed') || 'Failed'} color="error" size="small" />
-                    )}
-                </Box>
+                            <DeleteIcon />
+                        </IconButton>
+                    </Box>
             </ListItem>
         </Paper>
     );

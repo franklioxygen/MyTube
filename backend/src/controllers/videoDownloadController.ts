@@ -1,6 +1,8 @@
 import { Request, Response } from "express";
 import { isCancelledError, ValidationError } from "../errors/DownloadErrors";
 import downloadManager from "../services/downloadManager";
+import { buildBilibiliDownloadTask } from "../services/bilibiliDownloadTask";
+import { createBilibiliRetryMetadata } from "../services/downloadRetryMetadata";
 import * as downloadService from "../services/downloadService";
 import {
   recordEvent,
@@ -283,6 +285,14 @@ export const downloadVideo = async (
 
     // Generate a unique ID for this download task
     const downloadId = Date.now().toString();
+    const bilibiliRetryMetadata = isBilibiliUrl(resolvedUrl)
+      ? createBilibiliRetryMetadata({
+          downloadAllParts: !!downloadAllParts,
+          downloadCollection: !!downloadCollection,
+          collectionName,
+          collectionInfo,
+        })
+      : undefined;
 
     // Define the download task function
     const downloadTask = async (
@@ -291,244 +301,20 @@ export const downloadVideo = async (
       // Use resolved URL for download (already processed)
       let downloadUrl = resolvedUrl;
 
-      // Trim Bilibili URL if needed
       if (isBilibiliUrl(downloadUrl)) {
-        downloadUrl = trimBilibiliUrl(downloadUrl);
-        logger.info("Using trimmed Bilibili URL:", downloadUrl);
-
-        // If downloadCollection is true, handle collection/series download
-        if (downloadCollection && collectionInfo) {
-          logger.info("Downloading Bilibili collection/series");
-
-          // Use the fetched title if available, otherwise fallback to collection name
-          // Note: videoTitle might be updated in background but we use what we have
-          const currentTitle =
-            storageService.getActiveDownload(downloadId)?.title || initialTitle;
-          const collectionTitle =
-            currentTitle !== initialTitle
-              ? currentTitle
-              : collectionName || collectionInfo.title || "Bilibili Collection";
-
-          const result = await downloadService.downloadBilibiliCollection(
-            collectionInfo,
-            collectionName,
-            downloadId,
-          );
-
-          if (result.success) {
-            return {
-              success: true,
-              collectionId: result.collectionId,
-              videosDownloaded: result.videosDownloaded,
-              isCollection: true,
-              title: collectionTitle,
-            };
-          } else {
-            throw new Error(
-              result.error || "Failed to download collection/series",
-            );
-          }
-        }
-
-        // If downloadAllParts is true, handle multi-part download
-        if (downloadAllParts) {
-          const videoId = extractBilibiliVideoId(downloadUrl);
-          if (!videoId) {
-            throw new Error("Could not extract Bilibili video ID");
-          }
-
-          // Get video info to determine number of parts
-          const partsInfo =
-            await downloadService.checkBilibiliVideoParts(videoId);
-
-          if (!partsInfo.success) {
-            throw new Error("Failed to get video parts information");
-          }
-
-          const { videosNumber, title } = partsInfo;
-          // Use the more accurate title from parts info
-          if (title) {
-            storageService.updateActiveDownloadTitle(downloadId, title);
-            // Also update manager in case it's still in queue
-            downloadManager.updateTaskTitle(downloadId, title);
-          }
-
-          // Update title in storage
-          storageService.addActiveDownload(
-            downloadId,
-            title || "Bilibili Video",
-          );
-
-          // Start downloading the first part
-          const baseUrl = downloadUrl.split("?")[0];
-          const firstPartUrl = `${baseUrl}?p=1`;
-
-          // Check if part 1 already exists
-          const existingPart1 =
-            storageService.getVideoBySourceUrl(firstPartUrl);
-          let firstPartResult: downloadService.DownloadResult;
-          let collectionId: string | null = null;
-
-          // Find or create collection
-          if (collectionName) {
-            // First, try to find if an existing part belongs to a collection
-            if (existingPart1?.id) {
-              const existingCollection = storageService.getCollectionByVideoId(
-                existingPart1.id,
-              );
-              if (existingCollection) {
-                collectionId = existingCollection.id;
-                logger.info(
-                  `Found existing collection "${
-                    existingCollection.name || existingCollection.title
-                  }" for this series`,
-                );
-              }
-            }
-
-            // If no collection found from existing part, try to find by name
-            if (!collectionId) {
-              const collectionByName =
-                storageService.getCollectionByName(collectionName);
-              if (collectionByName) {
-                collectionId = collectionByName.id;
-                logger.info(
-                  `Found existing collection "${collectionName}" by name`,
-                );
-              }
-            }
-
-            // If still no collection found, create a new one
-            if (!collectionId) {
-              const newCollection = {
-                id: Date.now().toString(),
-                name: collectionName,
-                videos: [],
-                createdAt: new Date().toISOString(),
-                title: collectionName,
-              };
-              storageService.saveCollection(newCollection);
-              collectionId = newCollection.id;
-              logger.info(`Created new collection "${collectionName}"`);
-            }
-          }
-
-          if (existingPart1) {
-            logger.info(
-              `Part 1/${videosNumber} already exists, skipping. Video ID: ${existingPart1.id}`,
-            );
-            firstPartResult = {
-              success: true,
-              videoData: existingPart1,
-            };
-
-            // Make sure the existing video is in the collection
-            if (collectionId && existingPart1.id) {
-              const collection = storageService.getCollectionById(collectionId);
-              if (collection && !collection.videos.includes(existingPart1.id)) {
-                storageService.atomicUpdateCollection(
-                  collectionId,
-                  (collection) => {
-                    if (!collection.videos.includes(existingPart1.id)) {
-                      collection.videos.push(existingPart1.id);
-                    }
-                    return collection;
-                  },
-                );
-              }
-            }
-          } else {
-            // Get collection name if collectionId is provided
-            let collectionName: string | undefined;
-            if (collectionId) {
-              const collection = storageService.getCollectionById(collectionId);
-              if (collection) {
-                collectionName = collection.name || collection.title;
-              }
-            }
-
-            // Download the first part
-            // Pass the CURRENT title from storage or manager
-            const currentTitle =
-              storageService.getActiveDownload(downloadId)?.title ||
-              title ||
-              "Bilibili Video";
-
-            firstPartResult = await downloadService.downloadSingleBilibiliPart(
-              firstPartUrl,
-              1,
-              videosNumber,
-              currentTitle,
-              downloadId,
-              registerCancel,
-              collectionName,
-            );
-
-            // Add to collection if needed
-            if (collectionId && firstPartResult.videoData) {
-              storageService.atomicUpdateCollection(
-                collectionId,
-                (collection) => {
-                  collection.videos.push(firstPartResult.videoData!.id);
-                  return collection;
-                },
-              );
-            }
-          }
-
-          // Set up background download for remaining parts
-          // Note: We don't await this, it runs in background
-          if (videosNumber > 1) {
-            const currentTitle =
-              storageService.getActiveDownload(downloadId)?.title ||
-              title ||
-              "Bilibili Video";
-            downloadService
-              .downloadRemainingBilibiliParts(
-                baseUrl,
-                2,
-                videosNumber,
-                currentTitle,
-                collectionId,
-                downloadId, // Pass downloadId to track progress
-              )
-              .catch((error) => {
-                logger.error(
-                  "Error in background download of remaining parts:",
-                  error,
-                );
-              });
-          }
-
-          return {
-            success: true,
-            video: firstPartResult.videoData,
-            isMultiPart: true,
-            totalParts: videosNumber,
-            collectionId,
-            title: title || initialTitle,
-          };
-        } else {
-          // Regular single video download for Bilibili
-          logger.info("Downloading single Bilibili video part");
-
-          const result = await downloadService.downloadSingleBilibiliPart(
-            downloadUrl,
-            1,
-            1,
-            "", // seriesTitle not used when totalParts is 1
-            downloadId,
-            registerCancel,
-          );
-
-          if (result.success) {
-            return { success: true, video: result.videoData };
-          } else {
-            throw new Error(
-              result.error || "Failed to download Bilibili video",
-            );
-          }
-        }
+        return buildBilibiliDownloadTask({
+          downloadUrl,
+          downloadId,
+          initialTitle,
+          downloadAllParts: !!downloadAllParts,
+          downloadCollection: !!downloadCollection,
+          collectionName,
+          collectionInfo,
+          onTitleUpdate: (id, title) => {
+            storageService.updateActiveDownloadTitle(id, title);
+            downloadManager.updateTaskTitle(id, title);
+          },
+        })(registerCancel);
       } else if (isMissAVUrl(downloadUrl)) {
         // MissAV/123av/njavtv download
         const videoData = await downloadService.downloadMissAVVideo(
@@ -566,7 +352,7 @@ export const downloadVideo = async (
         sourceKind: statisticsSourceKind,
         relatedEventId: statisticsRelatedEventId,
         enqueuedEventId: downloadEnqueuedEventId,
-      })
+      }, bilibiliRetryMetadata)
       .then((result: any) => {
         logger.info("Download completed successfully:", result);
       })

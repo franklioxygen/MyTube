@@ -90,10 +90,10 @@ const createHelpCheckProcess = (flagStyle: JsRuntimeFlagStyle = "plural"): MockP
   queueMicrotask(() => {
     const helpText =
       flagStyle === "plural"
-        ? "    --js-runtimes RUNTIME[:PATH]\n"
+        ? "    --js-runtimes RUNTIME[:PATH]\n    --remote-components COMPONENT\n"
         : flagStyle === "singular"
-          ? "    --js-runtime RUNTIME[:PATH]\n"
-        : "";
+          ? "    --js-runtime RUNTIME[:PATH]\n    --remote-components COMPONENT\n"
+          : "";
     proc.stdout?.emit("data", Buffer.from(helpText));
     proc.emit("close", 0);
   });
@@ -125,6 +125,31 @@ const mockSpawnWithVersionHelpAndDenoCheck = (
   vi.mocked(spawn).mockImplementationOnce(() => createVersionCheckProcess() as any);
   vi.mocked(spawn).mockImplementationOnce(() => createHelpCheckProcess(flagStyle) as any);
   vi.mocked(spawn).mockImplementationOnce(() => createDenoCheckProcess() as any);
+  for (const proc of processes) {
+    vi.mocked(spawn).mockImplementationOnce(() => proc as any);
+  }
+};
+
+const mockSpawnWithVersionYouTubeHelpAndDenoCheck = (
+  flagStyle: JsRuntimeFlagStyle = "plural",
+  ...processes: MockProcess[]
+) => {
+  vi.mocked(spawn).mockImplementationOnce(() => createVersionCheckProcess() as any);
+  vi.mocked(spawn).mockImplementationOnce(() => createHelpCheckProcess(flagStyle) as any);
+  vi.mocked(spawn).mockImplementationOnce(() => createHelpCheckProcess(flagStyle) as any);
+  vi.mocked(spawn).mockImplementationOnce(() => createDenoCheckProcess() as any);
+  for (const proc of processes) {
+    vi.mocked(spawn).mockImplementationOnce(() => proc as any);
+  }
+};
+
+const mockSpawnWithVersionYouTubeHelpCheck = (
+  flagStyle: JsRuntimeFlagStyle = "plural",
+  ...processes: MockProcess[]
+) => {
+  vi.mocked(spawn).mockImplementationOnce(() => createVersionCheckProcess() as any);
+  vi.mocked(spawn).mockImplementationOnce(() => createHelpCheckProcess(flagStyle) as any);
+  vi.mocked(spawn).mockImplementationOnce(() => createHelpCheckProcess(flagStyle) as any);
   for (const proc of processes) {
     vi.mocked(spawn).mockImplementationOnce(() => proc as any);
   }
@@ -1095,7 +1120,7 @@ describe("ytDlpUtils", () => {
         "/app/bgutil-ytdlp-pot-provider/server/build/generate_once.js",
       );
       const proc = createMockProcess();
-      mockSpawnWithVersionHelpAndDenoCheck("plural", proc);
+      mockSpawnWithVersionYouTubeHelpAndDenoCheck("plural", proc);
 
       const promise = executeYtDlpJson("https://www.youtube.com/watch?v=abc");
       await flushAsyncSpawns();
@@ -1117,7 +1142,7 @@ describe("ytDlpUtils", () => {
     it("should preserve existing youtube extractor args while appending provider support", async () => {
       vi.mocked(getProviderScript).mockReturnValue("/tmp/provider.js");
       const proc = createMockProcess();
-      mockSpawnWithVersionHelpAndDenoCheck("plural", proc);
+      mockSpawnWithVersionYouTubeHelpAndDenoCheck("plural", proc);
 
       const promise = executeYtDlpJson("https://www.youtube.com/watch?v=abc", {
         extractorArgs: "youtube:max_comments=20",
@@ -1139,10 +1164,66 @@ describe("ytDlpUtils", () => {
       );
     });
 
+    it("should add default remote components for youtube when not explicitly configured", async () => {
+      vi.mocked(getProviderScript).mockReturnValue("/tmp/provider.js");
+      const proc = createMockProcess();
+      mockSpawnWithVersionYouTubeHelpAndDenoCheck("plural", proc);
+
+      const promise = executeYtDlpJson("https://www.youtube.com/watch?v=abc");
+      await flushAsyncSpawns();
+      proc.stdout?.emit("data", Buffer.from('{"ok":true}'));
+      proc.emit("close", 0);
+
+      await expect(promise).resolves.toEqual({ ok: true });
+      const args = getSpawnArgsForUrl("https://www.youtube.com/watch?v=abc");
+      const remoteComponentsIndex = args.indexOf("--remote-components");
+      expect(remoteComponentsIndex).toBeGreaterThan(-1);
+      expect(args[remoteComponentsIndex + 1]).toBe("ejs:github");
+    });
+
+    it("should respect explicit youtube remote components configuration", async () => {
+      vi.mocked(getProviderScript).mockReturnValue("/tmp/provider.js");
+      const proc = createMockProcess();
+      mockSpawnWithVersionYouTubeHelpAndDenoCheck("plural", proc);
+
+      const promise = executeYtDlpJson("https://www.youtube.com/watch?v=abc", {
+        remoteComponents: "ejs:npm",
+      });
+      await flushAsyncSpawns();
+      proc.stdout?.emit("data", Buffer.from('{"ok":true}'));
+      proc.emit("close", 0);
+
+      await expect(promise).resolves.toEqual({ ok: true });
+      const args = getSpawnArgsForUrl("https://www.youtube.com/watch?v=abc");
+      const remoteComponentsIndex = args.indexOf("--remote-components");
+      expect(remoteComponentsIndex).toBeGreaterThan(-1);
+      expect(args[remoteComponentsIndex + 1]).toBe("ejs:npm");
+    });
+
+    it("should skip remote components when yt-dlp help does not expose the flag", async () => {
+      vi.mocked(getProviderScript).mockReturnValue("/tmp/provider.js");
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const proc = createMockProcess();
+      mockSpawnWithVersionYouTubeHelpCheck("none", proc);
+
+      const promise = executeYtDlpJson("https://www.youtube.com/watch?v=abc");
+      await flushAsyncSpawns();
+      proc.stdout?.emit("data", Buffer.from('{"ok":true}'));
+      proc.emit("close", 0);
+
+      await expect(promise).resolves.toEqual({ ok: true });
+      const args = getSpawnArgsForUrl("https://www.youtube.com/watch?v=abc");
+      expect(args).not.toContain("--remote-components");
+      expect(warnSpy).toHaveBeenCalledWith(
+        "[yt-dlp] Current yt-dlp binary does not support --remote-components. Continuing without it. Upgrade yt-dlp or set YT_DLP_PATH to a newer binary if YouTube extraction becomes unreliable."
+      );
+      warnSpy.mockRestore();
+    });
+
     it("should not append duplicate provider extractor args", async () => {
       vi.mocked(getProviderScript).mockReturnValue("/tmp/provider.js");
       const proc = createMockProcess();
-      mockSpawnWithVersionHelpAndDenoCheck("plural", proc);
+      mockSpawnWithVersionYouTubeHelpAndDenoCheck("plural", proc);
 
       const promise = executeYtDlpJson("https://www.youtube.com/watch?v=abc", {
         extractorArgs:
@@ -1164,7 +1245,7 @@ describe("ytDlpUtils", () => {
     it("should normalize array extractorArgs into a single extractor-args value for youtube", async () => {
       vi.mocked(getProviderScript).mockReturnValue("/tmp/provider.js");
       const proc = createMockProcess();
-      mockSpawnWithVersionHelpAndDenoCheck("plural", proc);
+      mockSpawnWithVersionYouTubeHelpAndDenoCheck("plural", proc);
 
       const promise = executeYtDlpJson("https://www.youtube.com/watch?v=abc", {
         extractorArgs: ["youtube:max_comments=20", "generic:impersonate=safari"],
@@ -1618,7 +1699,7 @@ describe("ytDlpUtils", () => {
     it("should add the provider extractor arg for spawned youtube downloads", async () => {
       vi.mocked(getProviderScript).mockReturnValue("/tmp/provider.js");
       const proc = createMockProcess();
-      mockSpawnWithVersionHelpAndDenoCheck("plural", proc);
+      mockSpawnWithVersionYouTubeHelpAndDenoCheck("plural", proc);
 
       const subprocess = executeYtDlpSpawn("https://www.youtube.com/watch?v=abc", {
         format: "best",

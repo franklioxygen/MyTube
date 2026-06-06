@@ -474,6 +474,16 @@ export function initializeStorage(): void {
       logger.info("Migration successful: type added.");
     }
 
+    if (!downloadsColumns.includes("retry_metadata")) {
+      logger.info(
+        "Migrating database: Adding retry_metadata column to downloads table..."
+      );
+      sqlite
+        .prepare("ALTER TABLE downloads ADD COLUMN retry_metadata TEXT")
+        .run();
+      logger.info("Migration successful: retry_metadata added.");
+    }
+
     // Check subscriptions table columns for playlist subscription fields
     try {
       const subscriptionsTableInfo = sqlite
@@ -897,10 +907,48 @@ export function initializeStorage(): void {
       sqlite.prepare("ALTER TABLE download_history ADD COLUMN source_kind TEXT").run();
       logger.info("Migration successful: download_history.source_kind added.");
     }
+    if (!dhCols.includes("download_type")) {
+      sqlite.prepare("ALTER TABLE download_history ADD COLUMN download_type TEXT").run();
+      logger.info("Migration successful: download_history.download_type added.");
+    }
+    if (!dhCols.includes("retry_count")) {
+      sqlite.prepare("ALTER TABLE download_history ADD COLUMN retry_count INTEGER").run();
+      logger.info("Migration successful: download_history.retry_count added.");
+    }
+    if (!dhCols.includes("retry_limit")) {
+      sqlite.prepare("ALTER TABLE download_history ADD COLUMN retry_limit INTEGER").run();
+      logger.info("Migration successful: download_history.retry_limit added.");
+    }
+    if (!dhCols.includes("retry_interval_minutes")) {
+      sqlite
+        .prepare(
+          "ALTER TABLE download_history ADD COLUMN retry_interval_minutes INTEGER"
+        )
+        .run();
+      logger.info(
+        "Migration successful: download_history.retry_interval_minutes added."
+      );
+    }
+    if (!dhCols.includes("next_retry_at")) {
+      sqlite.prepare("ALTER TABLE download_history ADD COLUMN next_retry_at INTEGER").run();
+      logger.info("Migration successful: download_history.next_retry_at added.");
+    }
+    if (!dhCols.includes("retry_metadata")) {
+      sqlite
+        .prepare("ALTER TABLE download_history ADD COLUMN retry_metadata TEXT")
+        .run();
+      logger.info("Migration successful: download_history.retry_metadata added.");
+    }
     sqlite
       .prepare(
         `CREATE INDEX IF NOT EXISTS download_history_statistics_idx
          ON download_history (finished_at, platform, source_kind, status)`
+      )
+      .run();
+    sqlite
+      .prepare(
+        `CREATE INDEX IF NOT EXISTS download_history_retry_schedule_idx
+         ON download_history (status, next_retry_at)`
       )
       .run();
 

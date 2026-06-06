@@ -81,6 +81,9 @@ export interface Settings {
   defaultAutoPlay: boolean;
   defaultAutoLoop: boolean;
   maxConcurrentDownloads: number;
+  autoRetryEnabled?: boolean;
+  autoRetryTimes?: number;
+  autoRetryIntervalMinutes?: number;
   dontSkipDeletedVideo?: boolean;
   language: string;
   tags: string[];

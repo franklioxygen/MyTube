@@ -104,6 +104,7 @@ describe('DownloadManager', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    vi.useRealTimers();
     
     // Reset module cache to get fresh instance
     vi.resetModules();
@@ -122,6 +123,9 @@ describe('DownloadManager', () => {
     (storageService.updateActiveDownloadTitle as any).mockImplementation(() => {});
     (storageService.removeActiveDownload as any).mockImplementation(() => {});
     (storageService.addDownloadHistoryItem as any).mockImplementation(() => {});
+    (storageService.getDownloadHistoryItem as any).mockReturnValue(undefined);
+    (storageService.getPendingRetryHistoryItems as any).mockReturnValue([]);
+    (storageService.finalizePendingRetryHistoryItem as any).mockImplementation(() => {});
     (storageService.checkVideoDownloadBySourceId as any).mockReturnValue({
       found: false,
     });
@@ -175,6 +179,81 @@ describe('DownloadManager', () => {
       ).rejects.toThrow('Download failed');
 
       expect(storageService.removeActiveDownload).toHaveBeenCalledWith('id1');
+    });
+
+    it('should schedule pending retry history when auto retry is enabled', async () => {
+      vi.useFakeTimers();
+      try {
+        const mockDownloadFn = vi.fn().mockRejectedValue(new Error('Download failed'));
+
+        (storageService.getSettings as any).mockReturnValue({
+          autoRetryEnabled: true,
+          autoRetryTimes: 2,
+          autoRetryIntervalMinutes: 1,
+        });
+
+        void downloadManager.addDownload(
+          mockDownloadFn,
+          'retry-id',
+          'Retry Video',
+          'https://example.com/video',
+          'youtube',
+        );
+
+        await vi.runOnlyPendingTimersAsync();
+        await Promise.resolve();
+
+        expect(storageService.addDownloadHistoryItem).toHaveBeenCalledWith(
+          expect.objectContaining({
+            id: 'retry-id',
+            status: 'pending_retry',
+            retryCount: 1,
+            retryLimit: 2,
+            retryIntervalMinutes: 1,
+          })
+        );
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('should persist Bilibili retry metadata when scheduling retries', async () => {
+      vi.useFakeTimers();
+      try {
+        const mockDownloadFn = vi.fn().mockRejectedValue(new Error('Download failed'));
+
+        (storageService.getSettings as any).mockReturnValue({
+          autoRetryEnabled: true,
+          autoRetryTimes: 2,
+          autoRetryIntervalMinutes: 1,
+        });
+
+        void downloadManager.addDownload(
+          mockDownloadFn,
+          'retry-bili',
+          'Multipart Bilibili',
+          'https://www.bilibili.com/video/BV1xx',
+          'bilibili',
+          undefined,
+          { shape: 'bilibili_all_parts', collectionName: 'Series' },
+        );
+
+        await vi.runOnlyPendingTimersAsync();
+        await Promise.resolve();
+
+        expect(storageService.addDownloadHistoryItem).toHaveBeenCalledWith(
+          expect.objectContaining({
+            id: 'retry-bili',
+            status: 'pending_retry',
+            retryMetadata: JSON.stringify({
+              shape: 'bilibili_all_parts',
+              collectionName: 'Series',
+            }),
+          }),
+        );
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it('should queue downloads when at max concurrent limit', async () => {
@@ -288,6 +367,7 @@ describe('DownloadManager', () => {
         'youtube',
         'https://www.youtube.com/watch?v=abc123',
         'restore-1',
+        undefined,
       );
       expect(storageService.addActiveDownload).toHaveBeenCalledWith(
         'restore-1',
@@ -328,6 +408,61 @@ describe('DownloadManager', () => {
       });
 
       expect(() => downloadManager.initialize()).not.toThrow();
+    });
+
+    it('should restore pending Bilibili retries with persisted metadata', async () => {
+      const retryMetadata = JSON.stringify({
+        shape: 'bilibili_all_parts',
+        collectionName: 'Series',
+      });
+      (storageService.getPendingRetryHistoryItems as any).mockReturnValue([
+        {
+          id: 'retry-bili',
+          title: 'Bilibili multipart',
+          status: 'pending_retry',
+          sourceUrl: 'https://www.bilibili.com/video/BV1xx',
+          downloadType: 'bilibili',
+          retryMetadata,
+          nextRetryAt: Date.now(),
+        },
+      ]);
+
+      downloadManager.initialize();
+      await waitForQueue();
+
+      expect(createDownloadTask).toHaveBeenCalledWith(
+        'bilibili',
+        'https://www.bilibili.com/video/BV1xx',
+        'retry-bili',
+        expect.objectContaining({ shape: 'bilibili_all_parts' }),
+      );
+    });
+
+    it('should finalize unrestorable Bilibili pending retries on startup', () => {
+      (storageService.getPendingRetryHistoryItems as any).mockReturnValue([
+        {
+          id: 'retry-broken',
+          title: 'Broken retry',
+          status: 'pending_retry',
+          sourceUrl: 'https://www.bilibili.com/video/BV1xx',
+          downloadType: 'bilibili',
+          retryMetadata: '{invalid',
+          nextRetryAt: Date.now(),
+        },
+      ]);
+
+      downloadManager.initialize();
+
+      expect(storageService.finalizePendingRetryHistoryItem).toHaveBeenCalledWith(
+        'retry-broken',
+        'Bilibili retry could not be restored after restart. Please download again.',
+      );
+      expect(createDownloadTask).not.toHaveBeenCalledWith(
+        'bilibili',
+        'https://www.bilibili.com/video/BV1xx',
+        'retry-broken',
+        expect.anything(),
+      );
     });
   });
 
@@ -524,6 +659,20 @@ describe('DownloadManager', () => {
 
       expect(downloadManager.getStatus().queued).toBe(0);
       expect(storageService.setQueuedDownloads).toHaveBeenCalled();
+    });
+
+    it('should finalize a scheduled pending retry when cancelling non-active download', async () => {
+      (storageService.getDownloadHistoryItem as any).mockReturnValue({
+        id: 'scheduled-retry',
+        status: 'pending_retry',
+      });
+
+      await downloadManager.cancelDownload('scheduled-retry');
+
+      expect(storageService.finalizePendingRetryHistoryItem).toHaveBeenCalledWith(
+        'scheduled-retry',
+        'Retry cancelled by user',
+      );
     });
 
     it('should handle multipart completion and update deleted source records', async () => {

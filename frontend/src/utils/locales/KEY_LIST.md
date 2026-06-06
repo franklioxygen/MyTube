@@ -163,6 +163,12 @@ Total keys: 994
 | `autoLoop` |
 | `maxConcurrent` |
 | `maxConcurrentDescription` |
+| `autoRetry` |
+| `autoRetryDescription` |
+| `retryTimes` |
+| `retryTimesDescription` |
+| `retryInterval` |
+| `retryIntervalDescription` |
 | `dontSkipDeletedVideo` |
 | `dontSkipDeletedVideoDescription` |
 | `mediaServerExportMode` |
@@ -765,12 +771,17 @@ Total keys: 994
 | `speed` |
 | `finishedAt` |
 | `failed` |
+| `pendingRetry` |
+| `cancelRetry` |
+| `retryScheduledFor` |
+| `retryAttemptProgress` |
 
 ### Snackbar Messages
 
 | Key |
 | --- |
 | `videoDownloading` |
+| `retryCancelled` |
 | `downloadStartedSuccessfully` |
 | `collectionCreatedSuccessfully` |
 | `videoAddedToCollection` |
@@ -829,6 +840,7 @@ Total keys: 994
 | `subscriptionUpdated` |
 | `subscriptionUpdateFailed` |
 | `subscriptionAlreadyExists` |
+| `minuteShort` |
 | `minutes` |
 | `never` |
 | `downloadAllPreviousVideos` |

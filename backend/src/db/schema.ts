@@ -112,6 +112,7 @@ export const downloads = sqliteTable("downloads", {
   status: text("status").notNull().default("active"), // 'active' or 'queued'
   sourceUrl: text("source_url"),
   type: text("type"),
+  retryMetadata: text("retry_metadata"),
 });
 
 export const downloadHistory = sqliteTable(
@@ -122,7 +123,7 @@ export const downloadHistory = sqliteTable(
     author: text("author"),
     sourceUrl: text("source_url"),
     finishedAt: integer("finished_at").notNull(), // Timestamp
-    status: text("status").notNull(), // 'success', 'failed', 'skipped', or 'deleted'
+    status: text("status").notNull(), // 'success', 'failed', 'skipped', 'deleted', or 'pending_retry'
     error: text("error"), // Error message if failed
     videoPath: text("video_path"), // Path to video file if successful
     thumbnailPath: text("thumbnail_path"), // Path to thumbnail if successful
@@ -134,6 +135,12 @@ export const downloadHistory = sqliteTable(
     taskId: text("task_id"), // Reference to continuous download task if downloaded via task
     platform: text("platform"), // canonical: youtube/bilibili/twitch/missav/local/cloud/unknown
     sourceKind: text("source_kind"), // canonical: manual/search_result/subscription/extension/task/api/upload/scan/library/rss/unknown
+    downloadType: text("download_type"),
+    retryCount: integer("retry_count"),
+    retryLimit: integer("retry_limit"),
+    retryIntervalMinutes: integer("retry_interval_minutes"),
+    nextRetryAt: integer("next_retry_at"),
+    retryMetadata: text("retry_metadata"),
   },
   (table) => ({
     retentionSubscriptionIdx: index(
@@ -149,6 +156,10 @@ export const downloadHistory = sqliteTable(
       table.platform,
       table.sourceKind,
       table.status
+    ),
+    retryScheduleIdx: index("download_history_retry_schedule_idx").on(
+      table.status,
+      table.nextRetryAt
     ),
   })
 );
@@ -354,4 +365,3 @@ export const usageStatisticsIngestionMinutes = sqliteTable(
     updatedAt: integer("updated_at").notNull(),
   }
 );
-

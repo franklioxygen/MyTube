@@ -72,6 +72,9 @@ const SettingsPage: React.FC = () => {
         defaultAutoPlay: false,
         defaultAutoLoop: false,
         maxConcurrentDownloads: 3,
+        autoRetryEnabled: false,
+        autoRetryTimes: 3,
+        autoRetryIntervalMinutes: 5,
         language: 'en',
         theme: 'system',
         showThemeButton: true,
@@ -237,7 +240,10 @@ const SettingsPage: React.FC = () => {
             const newSettings = {
                 ...settingsData,
                 tags: settingsData.tags || [],
-                mountDirectories: settingsData.mountDirectories || ''
+                mountDirectories: settingsData.mountDirectories || '',
+                autoRetryEnabled: settingsData.autoRetryEnabled ?? false,
+                autoRetryTimes: settingsData.autoRetryTimes ?? 3,
+                autoRetryIntervalMinutes: settingsData.autoRetryIntervalMinutes ?? 5,
             };
             setSettings(newSettings);
         }

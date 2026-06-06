@@ -34,6 +34,7 @@ const DownloadSettings: React.FC<DownloadSettingsProps> = ({
     isSaving,
 }) => {
     const { t } = useLanguage();
+    const retryIntervalOptions = [1, 5, 10, 30, 60];
 
     return (
         <Box>
@@ -53,6 +54,75 @@ const DownloadSettings: React.FC<DownloadSettingsProps> = ({
                     marks
                     valueLabelDisplay="auto"
                 />
+            </Box>
+
+            <Box sx={{ mt: 3 }} id="autoRetry-setting">
+                <FormControlLabel
+                    control={
+                        <Switch
+                            checked={settings.autoRetryEnabled || false}
+                            onChange={(e) => onChange('autoRetryEnabled', e.target.checked)}
+                        />
+                    }
+                    label={t('autoRetry') || 'Auto Retry'}
+                />
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 2 }}>
+                    {t('autoRetryDescription') || 'Automatically reschedule failed downloads after a fixed delay.'}
+                </Typography>
+
+                {settings.autoRetryEnabled && (
+                    <Box
+                        sx={{
+                            display: 'grid',
+                            gap: 2,
+                            gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 240px))' },
+                            alignItems: 'start',
+                            mb: 2,
+                        }}
+                    >
+                        <Box>
+                            <Typography variant="subtitle2" gutterBottom>
+                                {t('retryTimes') || 'Retry Times'}
+                            </Typography>
+                            <FormControl fullWidth>
+                                <Select
+                                    value={settings.autoRetryTimes ?? 3}
+                                    onChange={(e) => onChange('autoRetryTimes', Number(e.target.value))}
+                                >
+                                    {Array.from({ length: 10 }, (_, index) => index + 1).map((value) => (
+                                        <MenuItem key={value} value={value}>
+                                            {value}
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+                            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                                {t('retryTimesDescription') || 'Select how many times the system retries a failed task.'}
+                            </Typography>
+                        </Box>
+
+                        <Box>
+                            <Typography variant="subtitle2" gutterBottom>
+                                {t('retryInterval') || 'Retry Interval'}
+                            </Typography>
+                            <FormControl fullWidth>
+                                <Select
+                                    value={settings.autoRetryIntervalMinutes ?? 5}
+                                    onChange={(e) => onChange('autoRetryIntervalMinutes', Number(e.target.value))}
+                                >
+                                    {retryIntervalOptions.map((value) => (
+                                        <MenuItem key={value} value={value}>
+                                            {`${value} ${t('minuteShort') || 'min'}`}
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+                            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                                {t('retryIntervalDescription') || 'Select how long the system waits before retrying a failed task.'}
+                            </Typography>
+                        </Box>
+                    </Box>
+                )}
             </Box>
 
             <Box sx={{ mt: 3 }} id="dontSkipDeletedVideo-setting">

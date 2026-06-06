@@ -139,11 +139,12 @@ vi.mock('../DownloadPage/QueueTab', () => ({
 }));
 
 vi.mock('../DownloadPage/HistoryTab', () => ({
-    HistoryTab: (props: { onRemove: (id: string) => void; onClear: () => void; onRetry: (url: string) => void; onReDownload: (url: string) => void; onViewVideo: (id: string) => void; [key: string]: unknown }) => {
+    HistoryTab: (props: { onRemove: (id: string) => void; onCancelRetry: (id: string) => void; onClear: () => void; onRetry: (url: string) => void; onReDownload: (url: string) => void; onViewVideo: (id: string) => void; [key: string]: unknown }) => {
         capturedHistoryPropsRef.current = props;
         return (
             <div data-testid="HistoryTab">
                 <button data-testid="remove-from-history-btn" onClick={() => { props.onRemove('history-1'); }}>Remove</button>
+                <button data-testid="cancel-retry-btn" onClick={() => { props.onCancelRetry('retry-1'); }}>Cancel Retry</button>
                 <button data-testid="clear-history-btn" onClick={() => { props.onClear(); }}>Clear History</button>
                 <button data-testid="retry-btn" onClick={() => { props.onRetry('https://example.com/retry'); }}>Retry</button>
                 <button data-testid="redownload-btn" onClick={() => { props.onReDownload('https://example.com/redownload'); }}>ReDownload</button>
@@ -165,24 +166,26 @@ import DownloadPage from '../DownloadPage';
 
 /**
  * Helper to get the latest set of mutations from the accumulated array.
- * Each render of DownloadPage calls useMutation 5 times, and UploadModal adds 1:
+ * Each render of DownloadPage calls useMutation 6 times, and UploadModal adds 1:
  *   0: cancelMutation
  *   1: removeFromQueueMutation
  *   2: clearQueueMutation
  *   3: removeFromHistoryMutation
- *   4: clearHistoryMutation
- *   5: uploadMutation (from UploadModal)
+ *   4: cancelRetryMutation
+ *   5: clearHistoryMutation
+ *   6: uploadMutation (from UploadModal)
  *
  * On re-renders, new entries are appended.
- * The latest 6 entries represent the current render's mutations.
+ * The latest 7 entries represent the current render's mutations.
  */
 const getLatestMutations = () => {
     const len = mockMutations.length;
     return {
-        cancel: mockMutations[len - 6],
-        removeFromQueue: mockMutations[len - 5],
-        clearQueue: mockMutations[len - 4],
-        removeFromHistory: mockMutations[len - 3],
+        cancel: mockMutations[len - 7],
+        removeFromQueue: mockMutations[len - 6],
+        clearQueue: mockMutations[len - 5],
+        removeFromHistory: mockMutations[len - 4],
+        cancelRetry: mockMutations[len - 3],
         clearHistory: mockMutations[len - 2],
         upload: mockMutations[len - 1],
     };

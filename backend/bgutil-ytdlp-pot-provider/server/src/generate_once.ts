@@ -1,9 +1,23 @@
 import type { YoutubeSessionDataCaches } from "./session_manager.js";
 import { VERSION } from "./utils.js";
 import { Command } from "commander";
-import * as fs from "fs";
-import * as path from "path";
-import { fileURLToPath } from "url";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { fileURLToPath } from "node:url";
+import type { Context as InnertubeContext } from "youtubei.js";
+
+function parseJsonOption<T>(value: string | undefined, optionName: string): T | undefined {
+    if (!value) {
+        return undefined;
+    }
+
+    try {
+        return JSON.parse(value) as T;
+    } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
+        throw new Error(`Failed to parse ${optionName}: ${reason}`);
+    }
+}
 
 // Follow XDG Base Directory Specification: https://specifications.freedesktop.org/basedir-spec/latest/
 let cachedir;
@@ -41,6 +55,8 @@ const program = new Command()
     .option("-p, --proxy <proxy-all>")
     .option("-b, --bypass-cache")
     .option("-s, --source-address <source-address>")
+    .option("--innertube-context <innertube-context>")
+    .option("--disable-innertube")
     .option("--disable-tls-verification")
     .option("--version")
     .option("--verbose")
@@ -78,6 +94,10 @@ const options = program.opts();
     const contentBinding = options.contentBinding;
     const proxy = options.proxy || "";
     const verbose = options.verbose || false;
+    const innertubeContext = parseJsonOption<InnertubeContext>(
+        options.innertubeContext,
+        "--innertube-context",
+    );
     const cache: YoutubeSessionDataCaches = {};
     if (fs.existsSync(CACHE_PATH)) {
         try {
@@ -116,8 +136,8 @@ const options = program.opts();
             options.sourceAddress,
             options.disableTlsVerification || false,
             undefined, // challenge
-            true, // disableInnertube
-            undefined, // innertubeContext
+            options.disableInnertube || false,
+            innertubeContext,
         );
 
         try {

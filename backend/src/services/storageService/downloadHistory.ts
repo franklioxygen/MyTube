@@ -1,31 +1,71 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, ne } from "drizzle-orm";
 import { DatabaseError } from "../../errors/DownloadErrors";
 import { db } from "../../db";
 import { downloadHistory } from "../../db/schema";
 import { logger } from "../../utils/logger";
 import { DownloadHistoryItem } from "./types";
 
+const PENDING_RETRY_STATUS = "pending_retry";
+
+function mapDownloadHistoryRow(row: typeof downloadHistory.$inferSelect): DownloadHistoryItem {
+  return {
+    ...row,
+    status: row.status as DownloadHistoryItem["status"],
+    author: row.author || undefined,
+    sourceUrl: row.sourceUrl || undefined,
+    error: row.error || undefined,
+    videoPath: row.videoPath || undefined,
+    thumbnailPath: row.thumbnailPath || undefined,
+    totalSize: row.totalSize || undefined,
+    videoId: row.videoId || undefined,
+    downloadedAt: row.downloadedAt || undefined,
+    deletedAt: row.deletedAt || undefined,
+    subscriptionId: row.subscriptionId || undefined,
+    taskId: row.taskId || undefined,
+    platform: row.platform || undefined,
+    sourceKind: row.sourceKind || undefined,
+    downloadType: row.downloadType || undefined,
+    retryCount: row.retryCount ?? undefined,
+    retryLimit: row.retryLimit ?? undefined,
+    retryIntervalMinutes: row.retryIntervalMinutes ?? undefined,
+    nextRetryAt: row.nextRetryAt ?? undefined,
+    retryMetadata: row.retryMetadata || undefined,
+  };
+}
+
 export function addDownloadHistoryItem(item: DownloadHistoryItem): void {
   try {
+    const values = {
+      id: item.id,
+      title: item.title,
+      author: item.author ?? null,
+      sourceUrl: item.sourceUrl ?? null,
+      finishedAt: item.finishedAt,
+      status: item.status,
+      error: item.error ?? null,
+      videoPath: item.videoPath ?? null,
+      thumbnailPath: item.thumbnailPath ?? null,
+      totalSize: item.totalSize ?? null,
+      videoId: item.videoId ?? null,
+      downloadedAt: item.downloadedAt ?? null,
+      deletedAt: item.deletedAt ?? null,
+      subscriptionId: item.subscriptionId ?? null,
+      taskId: item.taskId ?? null,
+      platform: item.platform ?? null,
+      sourceKind: item.sourceKind ?? null,
+      downloadType: item.downloadType ?? null,
+      retryCount: item.retryCount ?? null,
+      retryLimit: item.retryLimit ?? null,
+      retryIntervalMinutes: item.retryIntervalMinutes ?? null,
+      nextRetryAt: item.nextRetryAt ?? null,
+      retryMetadata: item.retryMetadata ?? null,
+    } as const;
+
     db.insert(downloadHistory)
-      .values({
-        id: item.id,
-        title: item.title,
-        author: item.author,
-        sourceUrl: item.sourceUrl,
-        finishedAt: item.finishedAt,
-        status: item.status,
-        error: item.error,
-        videoPath: item.videoPath,
-        thumbnailPath: item.thumbnailPath,
-        totalSize: item.totalSize,
-        videoId: item.videoId,
-        downloadedAt: item.downloadedAt,
-        deletedAt: item.deletedAt,
-        subscriptionId: item.subscriptionId,
-        taskId: item.taskId,
-        platform: item.platform ?? null,
-        sourceKind: item.sourceKind ?? null,
+      .values(values)
+      .onConflictDoUpdate({
+        target: downloadHistory.id,
+        set: values,
       })
       .run();
   } catch (error) {
@@ -41,23 +81,7 @@ export function getDownloadHistory(): DownloadHistoryItem[] {
       .from(downloadHistory)
       .orderBy(desc(downloadHistory.finishedAt))
       .all();
-    return history.map((h) => ({
-      ...h,
-      status: h.status as "success" | "failed" | "skipped" | "deleted",
-      author: h.author || undefined,
-      sourceUrl: h.sourceUrl || undefined,
-      error: h.error || undefined,
-      videoPath: h.videoPath || undefined,
-      thumbnailPath: h.thumbnailPath || undefined,
-      totalSize: h.totalSize || undefined,
-      videoId: h.videoId || undefined,
-      downloadedAt: h.downloadedAt || undefined,
-      deletedAt: h.deletedAt || undefined,
-      subscriptionId: h.subscriptionId || undefined,
-      taskId: h.taskId || undefined,
-      platform: h.platform || undefined,
-      sourceKind: h.sourceKind || undefined,
-    }));
+    return history.map(mapDownloadHistoryRow);
   } catch (error) {
     logger.error("Error getting download history", error instanceof Error ? error : new Error(String(error)));
     // Return empty array for backward compatibility
@@ -65,13 +89,71 @@ export function getDownloadHistory(): DownloadHistoryItem[] {
   }
 }
 
+export function getDownloadHistoryItem(id: string): DownloadHistoryItem | undefined {
+  try {
+    const item = db
+      .select()
+      .from(downloadHistory)
+      .where(eq(downloadHistory.id, id))
+      .get();
+
+    return item ? mapDownloadHistoryRow(item) : undefined;
+  } catch (error) {
+    logger.error("Error getting download history item", error instanceof Error ? error : new Error(String(error)));
+    return undefined;
+  }
+}
+
+export function getPendingRetryHistoryItems(): DownloadHistoryItem[] {
+  try {
+    const items = db
+      .select()
+      .from(downloadHistory)
+      .where(eq(downloadHistory.status, PENDING_RETRY_STATUS))
+      .orderBy(asc(downloadHistory.nextRetryAt))
+      .all();
+
+    return items.map(mapDownloadHistoryRow);
+  } catch (error) {
+    logger.error(
+      "Error getting pending retry download history items",
+      error instanceof Error ? error : new Error(String(error))
+    );
+    return [];
+  }
+}
+
 export function removeDownloadHistoryItem(id: string): void {
   try {
-    db.delete(downloadHistory).where(eq(downloadHistory.id, id)).run();
+    db.delete(downloadHistory)
+      .where(
+        and(
+          eq(downloadHistory.id, id),
+          ne(downloadHistory.status, PENDING_RETRY_STATUS)
+        )
+      )
+      .run();
   } catch (error) {
     logger.error("Error removing download history item", error instanceof Error ? error : new Error(String(error)));
     // Don't throw - download history operations are non-critical
   }
+}
+
+export function finalizePendingRetryHistoryItem(
+  id: string,
+  errorMessage?: string
+): void {
+  const item = getDownloadHistoryItem(id);
+  if (!item || item.status !== PENDING_RETRY_STATUS) {
+    return;
+  }
+
+  addDownloadHistoryItem({
+    ...item,
+    status: "failed",
+    error: errorMessage ?? item.error,
+    nextRetryAt: undefined,
+  });
 }
 
 export function markDownloadHistoryDeletedByVideoId(
@@ -99,7 +181,9 @@ export function markDownloadHistoryDeletedByVideoId(
 
 export function clearDownloadHistory(): void {
   try {
-    db.delete(downloadHistory).run();
+    db.delete(downloadHistory)
+      .where(ne(downloadHistory.status, PENDING_RETRY_STATUS))
+      .run();
   } catch (error) {
     logger.error("Error clearing download history", error instanceof Error ? error : new Error(String(error)));
     throw new DatabaseError(
