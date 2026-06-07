@@ -6,9 +6,11 @@ import CollectionPage from '../CollectionPage';
 // --- Mocks ---
 
 const mockNavigate = vi.fn();
+const mockSetSearchParams = vi.fn();
 vi.mock('react-router-dom', () => ({
     useParams: () => ({ id: 'col-1' }),
     useNavigate: () => mockNavigate,
+    useSearchParams: () => [new URLSearchParams(), mockSetSearchParams],
 }));
 
 vi.mock('../../contexts/LanguageContext', () => ({
@@ -249,6 +251,22 @@ describe('CollectionPage', () => {
             const callArgs = mockUseVideoSort.mock.calls[0][0];
             expect(callArgs.videos).toHaveLength(2);
             expect(callArgs.defaultSort).toBe('dateDesc');
+            expect(callArgs.preserveOrder).toBe(true);
+        });
+
+        it('passes collection videos to useVideoSort in stored collection order', () => {
+            mockCollectionContext.collections = [
+                { id: 'col-1', name: 'Ordered Collection', videos: ['v2', 'v1'], createdAt: '2024-01-01' },
+            ];
+            mockVideoContext.videos = [
+                { id: 'v1', title: 'Video 1', tags: ['tag1'], author: 'Author' },
+                { id: 'v2', title: 'Video 2', tags: ['tag2'], author: 'Author' },
+            ];
+
+            renderCollectionPage();
+
+            const callArgs = mockUseVideoSort.mock.calls[0][0];
+            expect(callArgs.videos.map((video: { id: string }) => video.id)).toEqual(['v2', 'v1']);
         });
     });
 

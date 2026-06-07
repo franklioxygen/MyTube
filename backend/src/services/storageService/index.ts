@@ -24,6 +24,7 @@ export {
     clearDownloadHistory,
     getDownloadHistory,
     getDownloadHistoryItem,
+    getLatestRetryHistoryItemBySourceUrl,
     getPendingRetryHistoryItems,
     finalizePendingRetryHistoryItem,
     markDownloadHistoryDeletedByVideoId,
@@ -74,7 +75,10 @@ export {
     getCollectionById,
     getCollectionByName,
     getCollectionByVideoId,
+    getCollectionsByVideoId,
     getCollections,
+    linkVideoToCollection,
+    moveVideoToExclusiveCollection,
     removeVideoFromCollection,
     renameCollection,
     saveCollection
@@ -83,7 +87,9 @@ export {
 // Author Collection Utils
 export {
     addVideoToAuthorCollection,
+    cleanupRedundantAuthorCollectionLinks,
     findOrCreateAuthorCollection,
+    organizeVideoByAuthor,
     validateCollectionName
 } from "./authorCollectionUtils";
 

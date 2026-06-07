@@ -26,6 +26,10 @@ vi.mock('../../contexts/LanguageContext', () => ({
                 cleanupTempFilesSuccess: 'Deleted {count} temp files',
                 cleanupTempFilesActiveDownloads: 'cleanupTempFilesActiveDownloads',
                 cleanupTempFilesFailed: 'cleanupTempFilesFailed',
+                cleanupAuthorCollectionsSuccess: 'Removed {links} links across {videos} videos. Deleted {collections} empty author collections.',
+                cleanupAuthorCollectionsNothingToDo: 'cleanupAuthorCollectionsNothingToDo',
+                cleanupAuthorCollectionsFailed: 'cleanupAuthorCollectionsFailed',
+                info: 'info',
                 legacyDataDeleted: 'legacyDataDeleted',
                 databaseExportFailed: 'databaseExportFailed',
                 databaseExportedSuccess: 'databaseExportedSuccess',
@@ -454,6 +458,44 @@ describe('useSettingsMutations', () => {
             message: 'legacyDataDeleted\n\nDeleted: videos.json\nFailed: settings.json',
             type: 'success',
         });
+    });
+
+    it('summarizes author-collection cleanup results and invalidates library queries', async () => {
+        vi.mocked(api.post).mockImplementation((url: string) => {
+            if (url === '/settings/cleanup-author-collections') {
+                return Promise.resolve({
+                    data: {
+                        results: {
+                            scannedCollections: 4,
+                            matchedAuthorCollections: 2,
+                            removedMemberships: 3,
+                            affectedVideos: 2,
+                            deletedCollections: ['Author One'],
+                            skippedCollections: [],
+                            details: ['Removed 3 redundant author links from "Author One".'],
+                        },
+                    },
+                } as any);
+            }
+            return Promise.resolve({ data: {} } as any);
+        });
+
+        const { result, setInfoModal, queryClient } = renderSettingsHook();
+        const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+
+        await act(async () => {
+            await result.current.cleanupAuthorCollectionsMutation.mutateAsync();
+        });
+
+        expect(getLastInfoModal(setInfoModal)).toEqual({
+            isOpen: true,
+            title: 'success',
+            message:
+                'Removed 3 links across 2 videos. Deleted 1 empty author collections.\n\nRemoved 3 redundant author links from "Author One".',
+            type: 'success',
+        });
+        expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['collections'] });
+        expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['videos'] });
     });
 
     it('truncates long filename-formatting detail lists and marks warnings when errors are present', async () => {

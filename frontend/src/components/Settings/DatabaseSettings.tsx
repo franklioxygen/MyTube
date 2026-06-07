@@ -9,14 +9,18 @@ import {
     DialogContent,
     DialogContentText,
     DialogTitle,
+    FormControl,
     FormControlLabel,
     IconButton,
+    Radio,
+    RadioGroup,
     Switch,
     Typography
 } from '@mui/material';
 import React, { useRef, useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import type { MergePreviewSummary } from '../../hooks/useSettingsMutations';
+import type { AuthorOrganizationMode, Settings } from '../../types';
 import { getApiErrorMessage } from '../../utils/apiClient';
 import { formatDisplayDateTime } from '../../utils/formatUtils';
 
@@ -24,6 +28,7 @@ interface DatabaseSettingsProps {
     onMigrate: () => void;
     onDeleteLegacy: () => void;
     onFormatFilenames: () => void;
+    onCleanupAuthorCollections: () => void;
     onExportDatabase: () => void;
     onImportDatabase: (file: File) => void;
     onPreviewMergeDatabase: (file: File) => Promise<MergePreviewSummary>;
@@ -36,14 +41,16 @@ interface DatabaseSettingsProps {
     onMoveSubtitlesToVideoFolderChange: (checked: boolean) => void;
     moveThumbnailsToVideoFolder: boolean;
     onMoveThumbnailsToVideoFolderChange: (checked: boolean) => void;
-    saveAuthorFilesToCollection: boolean;
-    onSaveAuthorFilesToCollectionChange: (checked: boolean) => void;
+    authorOrganizationMode: AuthorOrganizationMode;
+    onAuthorOrganizationModeChange: (mode: AuthorOrganizationMode) => void;
+    downloadFilenamePresetId?: Settings['downloadFilenamePresetId'];
 }
 
 const DatabaseSettings: React.FC<DatabaseSettingsProps> = ({
     onMigrate,
     onDeleteLegacy,
     onFormatFilenames,
+    onCleanupAuthorCollections,
     onExportDatabase,
     onImportDatabase,
     onPreviewMergeDatabase,
@@ -56,8 +63,9 @@ const DatabaseSettings: React.FC<DatabaseSettingsProps> = ({
     onMoveSubtitlesToVideoFolderChange,
     moveThumbnailsToVideoFolder,
     onMoveThumbnailsToVideoFolderChange,
-    saveAuthorFilesToCollection,
-    onSaveAuthorFilesToCollectionChange
+    authorOrganizationMode,
+    onAuthorOrganizationModeChange,
+    downloadFilenamePresetId
 }) => {
     const { t } = useLanguage();
     const importFileInputRef = useRef<HTMLInputElement>(null);
@@ -314,20 +322,82 @@ const DatabaseSettings: React.FC<DatabaseSettingsProps> = ({
             </Box>
 
             <Box sx={{ mt: 3 }}>
-                <Typography variant="h6" gutterBottom>{t('saveAuthorFilesToCollection')}</Typography>
-                <FormControlLabel
-                    control={
-                        <Switch
-                            checked={saveAuthorFilesToCollection}
-                            onChange={(e) => onSaveAuthorFilesToCollectionChange(e.target.checked)}
-                            disabled={isSaving}
-                        />
-                    }
-                    label={saveAuthorFilesToCollection ? t('saveAuthorFilesToCollectionOn') : t('saveAuthorFilesToCollectionOff')}
-                />
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                    {t('saveAuthorFilesToCollectionDescription')}
+                <Typography variant="h6" gutterBottom>{t('authorOrganizationMode')}</Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 2 }}>
+                    {t('authorOrganizationModeDescription')}
                 </Typography>
+                <FormControl>
+                    <RadioGroup
+                        value={authorOrganizationMode}
+                        onChange={(e) => onAuthorOrganizationModeChange(e.target.value as AuthorOrganizationMode)}
+                    >
+                        <FormControlLabel
+                            value="root"
+                            disabled={isSaving}
+                            control={<Radio />}
+                            label={
+                                <Box>
+                                    <Typography variant="body1">{t('authorOrganizationModeRoot')}</Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                        {t('authorOrganizationModeRootDescription')}
+                                    </Typography>
+                                </Box>
+                            }
+                        />
+                        <FormControlLabel
+                            value="author_folder_only"
+                            disabled={isSaving}
+                            control={<Radio />}
+                            label={
+                                <Box>
+                                    <Typography variant="body1">{t('authorOrganizationModeAuthorFolderOnly')}</Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                        {t('authorOrganizationModeAuthorFolderOnlyDescription')}
+                                    </Typography>
+                                </Box>
+                            }
+                        />
+                        <FormControlLabel
+                            value="author_collection_linked"
+                            disabled={isSaving}
+                            control={<Radio />}
+                            label={
+                                <Box>
+                                    <Typography variant="body1">{t('authorOrganizationModeAuthorCollectionLinked')}</Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                        {t('authorOrganizationModeAuthorCollectionLinkedDescription')}
+                                    </Typography>
+                                </Box>
+                            }
+                        />
+                    </RadioGroup>
+                </FormControl>
+                <Alert severity="info" sx={{ mt: 2, maxWidth: 760 }}>
+                    {t('authorOrganizationModeRecommendation')}
+                </Alert>
+                {downloadFilenamePresetId && downloadFilenamePresetId !== 'legacy' && (
+                    <Alert severity="info" sx={{ mt: 2, maxWidth: 760 }}>
+                        {t('authorOrganizationModeTemplateNote')}
+                    </Alert>
+                )}
+                {authorOrganizationMode === 'author_folder_only' && (
+                    <Box sx={{ mt: 2 }}>
+                        <Typography variant="subtitle1" gutterBottom>
+                            {t('cleanupAuthorCollections')}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2, maxWidth: 760 }}>
+                            {t('cleanupAuthorCollectionsDescription')}
+                        </Typography>
+                        <Button
+                            variant="outlined"
+                            color="warning"
+                            onClick={onCleanupAuthorCollections}
+                            disabled={isSaving}
+                        >
+                            {t('cleanupAuthorCollectionsButton')}
+                        </Button>
+                    </Box>
+                )}
             </Box>
 
             <Box sx={{ mt: 3 }}>

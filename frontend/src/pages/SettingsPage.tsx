@@ -50,6 +50,7 @@ import { useStickyButton } from '../hooks/useStickyButton';
 import { AdminTrustLevel, Settings } from '../types';
 import { overlay } from '../theme/colors';
 import { api, getApiErrorMessage } from '../utils/apiClient';
+import { resolveAuthorOrganizationMode } from '../utils/authorOrganizationMode';
 import ConsoleManager from '../utils/consoleManager';
 import { SNACKBAR_AUTO_HIDE_DURATION } from '../utils/constants';
 import { getTwitchCredentialValidationCode } from '../utils/twitch';
@@ -91,6 +92,7 @@ const SettingsPage: React.FC = () => {
         proxyOnlyYoutube: false,
         moveSubtitlesToVideoFolder: false,
         moveThumbnailsToVideoFolder: false,
+        authorOrganizationMode: 'root',
         saveAuthorFilesToCollection: false,
         hooks: {},
         playSoundOnTaskComplete: '',
@@ -180,6 +182,8 @@ const SettingsPage: React.FC = () => {
     // Modal states
     const modals = useSettingsModals();
     const {
+        showCleanupAuthorCollectionsModal,
+        setShowCleanupAuthorCollectionsModal,
         showDeleteLegacyModal,
         setShowDeleteLegacyModal,
         showFormatConfirmModal,
@@ -245,6 +249,7 @@ const SettingsPage: React.FC = () => {
                 autoRetryEnabled: settingsData.autoRetryEnabled ?? false,
                 autoRetryTimes: settingsData.autoRetryTimes ?? 3,
                 autoRetryIntervalMinutes: settingsData.autoRetryIntervalMinutes ?? 5,
+                authorOrganizationMode: resolveAuthorOrganizationMode(settingsData),
             };
             setSettings(newSettings);
         }
@@ -256,6 +261,7 @@ const SettingsPage: React.FC = () => {
         saveMutation,
         migrateMutation,
         cleanupMutation,
+        cleanupAuthorCollectionsMutation,
         deleteLegacyMutation,
         formatFilenamesMutation,
         exportDatabaseMutation,
@@ -682,6 +688,7 @@ const SettingsPage: React.FC = () => {
             onMigrate={() => setShowMigrateConfirmModal(true)}
             onDeleteLegacy={() => setShowDeleteLegacyModal(true)}
             onFormatFilenames={() => setShowFormatConfirmModal(true)}
+            onCleanupAuthorCollections={() => setShowCleanupAuthorCollectionsModal(true)}
             onExportDatabase={handleExportDatabase}
             onImportDatabase={handleImportDatabase}
             onPreviewMergeDatabase={handlePreviewMergeDatabase}
@@ -694,8 +701,9 @@ const SettingsPage: React.FC = () => {
             onMoveSubtitlesToVideoFolderChange={(checked) => handleChange('moveSubtitlesToVideoFolder', checked)}
             moveThumbnailsToVideoFolder={settings.moveThumbnailsToVideoFolder || false}
             onMoveThumbnailsToVideoFolderChange={(checked) => handleChange('moveThumbnailsToVideoFolder', checked)}
-            saveAuthorFilesToCollection={settings.saveAuthorFilesToCollection || false}
-            onSaveAuthorFilesToCollectionChange={(checked) => handleChange('saveAuthorFilesToCollection', checked)}
+            authorOrganizationMode={settings.authorOrganizationMode || 'root'}
+            onAuthorOrganizationModeChange={(mode) => handleChange('authorOrganizationMode', mode)}
+            downloadFilenamePresetId={settings.downloadFilenamePresetId}
         />
     );
 
@@ -948,6 +956,18 @@ const SettingsPage: React.FC = () => {
                     {message?.text}
                 </Alert>
             </Snackbar>
+            <ConfirmationModal
+                isOpen={showCleanupAuthorCollectionsModal}
+                onClose={() => setShowCleanupAuthorCollectionsModal(false)}
+                onConfirm={() => {
+                    setShowCleanupAuthorCollectionsModal(false);
+                    cleanupAuthorCollectionsMutation.mutate();
+                }}
+                title={t('cleanupAuthorCollectionsConfirmTitle')}
+                message={t('cleanupAuthorCollectionsConfirmMessage')}
+                confirmText={t('confirm')}
+                cancelText={t('cancel')}
+            />
             <ConfirmationModal
                 isOpen={showDeleteLegacyModal}
                 onClose={() => setShowDeleteLegacyModal(false)}

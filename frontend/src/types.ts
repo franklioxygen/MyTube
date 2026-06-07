@@ -61,6 +61,11 @@ export interface Comment {
   avatar?: string;
 }
 
+export type AuthorOrganizationMode =
+  | 'root'
+  | 'author_folder_only'
+  | 'author_collection_linked';
+
 export type AdminTrustLevel = 'application' | 'container' | 'host';
 
 export interface DeploymentSecurityModel {
@@ -102,6 +107,7 @@ export interface Settings {
   proxyOnlyYoutube?: boolean;
   moveSubtitlesToVideoFolder?: boolean;
   moveThumbnailsToVideoFolder?: boolean;
+  authorOrganizationMode?: AuthorOrganizationMode;
   saveAuthorFilesToCollection?: boolean;
   visitorPassword?: string;
   visitorUserEnabled?: boolean;

@@ -21,6 +21,7 @@ import {
 } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { getBilibiliRetryGapSummary } from '../../utils/bilibiliRetryMetadata';
 import { formatDisplayDateTime } from '../../utils/formatUtils';
 
 export interface DownloadHistoryItem {
@@ -29,7 +30,7 @@ export interface DownloadHistoryItem {
     author?: string;
     sourceUrl?: string;
     finishedAt: number;
-    status: 'success' | 'failed' | 'skipped' | 'deleted' | 'pending_retry';
+    status: 'success' | 'failed' | 'partial' | 'skipped' | 'deleted' | 'pending_retry';
     error?: string;
     videoPath?: string;
     thumbnailPath?: string;
@@ -44,6 +45,7 @@ export interface DownloadHistoryItem {
     retryLimit?: number;
     retryIntervalMinutes?: number;
     nextRetryAt?: number;
+    retryMetadata?: string;
 }
 
 interface HistoryItemProps {
@@ -69,6 +71,11 @@ export function HistoryItem({
 }: HistoryItemProps) {
     const { t } = useLanguage();
     const isPendingRetry = item.status === 'pending_retry';
+    const isPartial = item.status === 'partial';
+    const retryGapSummary =
+        item.downloadType === 'bilibili'
+            ? getBilibiliRetryGapSummary(item.retryMetadata)
+            : undefined;
     const actionButtonMinWidth = { xs: 0, md: '100px' };
     const statusChipSx = {
         height: 22,
@@ -110,6 +117,14 @@ export function HistoryItem({
         <Chip
             icon={<ReplayIcon sx={{ fontSize: '0.9rem' }} />}
             label={t('pendingRetry') || 'Pending Retry'}
+            color="warning"
+            size="small"
+            sx={statusChipSx}
+        />
+    ) : item.status === 'partial' ? (
+        <Chip
+            icon={<WarningIcon sx={{ fontSize: '0.9rem' }} />}
+            label={t('partialDownload') || 'Incomplete'}
             color="warning"
             size="small"
             sx={statusChipSx}
@@ -223,6 +238,11 @@ export function HistoryItem({
                                     {item.error}
                                 </Typography>
                             )}
+                            {retryGapSummary && (
+                                <Typography variant="caption" color="warning.main" component="span">
+                                    {`${t(retryGapSummary.labelKey) || retryGapSummary.labelKey}: ${retryGapSummary.displayValue}`}
+                                </Typography>
+                            )}
                             {isPendingRetry && item.nextRetryAt && (
                                 <Typography variant="caption" color="warning.main" component="span">
                                     {t('retryScheduledFor') || 'Retry scheduled for'}: {formatDisplayDateTime(item.nextRetryAt)}
@@ -250,7 +270,7 @@ export function HistoryItem({
                         justifyContent: 'flex-end',
                         flexWrap: 'nowrap'
                     }}>
-                        {item.status === 'failed' && item.sourceUrl && (
+                        {(item.status === 'failed' || isPartial) && item.sourceUrl && (
                             <Button
                                 variant="outlined"
                                 color="primary"

@@ -74,6 +74,11 @@ describe('HistoryItem', () => {
             expect(screen.getByText('failed')).toBeInTheDocument();
         });
 
+        it('shows incomplete chip for partial downloads', () => {
+            renderHistoryItem({ status: 'partial' });
+            expect(screen.getByText('partialDownload')).toBeInTheDocument();
+        });
+
         it('shows pending retry chip for scheduled retries', () => {
             renderHistoryItem({ status: 'pending_retry' });
             expect(screen.getByText('pendingRetry')).toBeInTheDocument();
@@ -218,6 +223,21 @@ describe('HistoryItem', () => {
             expect(screen.getByText('retryAttemptProgress')).toBeInTheDocument();
         });
 
+        it('shows missing episodes for partial bilibili aggregate downloads', () => {
+            renderHistoryItem({
+                status: 'partial',
+                downloadType: 'bilibili',
+                retryMetadata: JSON.stringify({
+                    shape: 'bilibili_all_parts',
+                    expectedCount: 12,
+                    completedPartNumbers: [1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12],
+                    failedPartNumbers: [7],
+                }),
+            });
+
+            expect(screen.getByText('missingEpisodes: 7')).toBeInTheDocument();
+        });
+
         it('does not show error when not present', () => {
             renderHistoryItem({ status: 'success', error: undefined });
             expect(screen.queryByText(/Download failed/)).not.toBeInTheDocument();
@@ -239,6 +259,11 @@ describe('HistoryItem', () => {
 
         it('shows retry button for failed items with sourceUrl', () => {
             renderHistoryItem({ status: 'failed', sourceUrl: 'https://example.com' });
+            expect(screen.getByText('retry')).toBeInTheDocument();
+        });
+
+        it('shows retry button for partial items with sourceUrl', () => {
+            renderHistoryItem({ status: 'partial', sourceUrl: 'https://example.com' });
             expect(screen.getByText('retry')).toBeInTheDocument();
         });
 
@@ -330,6 +355,11 @@ describe('HistoryItem', () => {
 
         it('enables retry button when download is not in progress', () => {
             renderHistoryItem({ status: 'failed', sourceUrl: 'https://example.com' });
+            expect(screen.getByText('retry').closest('button')).not.toBeDisabled();
+        });
+
+        it('enables retry button for partial downloads when download is not in progress', () => {
+            renderHistoryItem({ status: 'partial', sourceUrl: 'https://example.com' });
             expect(screen.getByText('retry').closest('button')).not.toBeDisabled();
         });
 

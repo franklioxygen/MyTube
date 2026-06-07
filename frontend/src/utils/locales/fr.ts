@@ -828,10 +828,13 @@ export const fr = {
   speed: "Vitesse",
   finishedAt: "Terminé à",
   failed: "Échoué",
+  partialDownload: "Incomplet",
   pendingRetry: "Relance en attente",
   cancelRetry: "Annuler la relance",
   retryScheduledFor: "Relance prévue pour",
   retryAttemptProgress: "Relance {current} sur {total}",
+  missingEpisodes: "Épisodes manquants",
+  missingVideos: "Vidéos manquantes",
 
 
   // Snackbar Messages
@@ -1110,6 +1113,35 @@ export const fr = {
   saveAuthorFilesToCollectionOff: "Désactivé",
   saveAuthorFilesToCollectionDescription:
     "Enregistrer automatiquement les fichiers de l'auteur dans une collection séparée.",
+  authorOrganizationMode: "Organisation par auteur",
+  authorOrganizationModeDescription:
+    "Choisissez si le nom de l'auteur influence les dossiers physiques, les collections logiques ou aucun des deux.",
+  authorOrganizationModeRoot: "Conserver dans les dossiers racine",
+  authorOrganizationModeRootDescription:
+    "Ne créez ni dossier d'auteur ni collection d'auteur. Seules les collections manuelles et de playlist s'appliquent.",
+  authorOrganizationModeAuthorFolderOnly: "Dossiers d'auteur uniquement",
+  authorOrganizationModeAuthorFolderOnlyDescription:
+    "Avec les noms de fichiers legacy, déplacez les fichiers dans des dossiers nommés d'après l'auteur sans lier de collection d'auteur.",
+  authorOrganizationModeAuthorCollectionLinked: "Collection d'auteur + dossier",
+  authorOrganizationModeAuthorCollectionLinkedDescription:
+    "Lie les vidéos à une collection d'auteur. Avec les noms de fichiers legacy, les fichiers sont aussi déplacés dans le dossier de l'auteur.",
+  authorOrganizationModeRecommendation:
+    "Si vous voulez des dossiers par auteur sans collections d'auteur en double dans MyTube, utilisez Dossiers d'auteur uniquement.",
+  authorOrganizationModeTemplateNote:
+    "Les préréglages de nom de fichier non legacy contrôlent la structure physique des dossiers. Dans ces modes, l'organisation par auteur n'affecte que le lien de collection.",
+  cleanupAuthorCollections: "Nettoyer les collections d'auteur existantes",
+  cleanupAuthorCollectionsDescription:
+    "Après être passé à Dossiers d'auteur uniquement, supprimez les liens redondants de collections d'auteur pour les vidéos déjà présentes dans une autre collection. Les fichiers sur disque ne sont pas déplacés.",
+  cleanupAuthorCollectionsButton: "Supprimer les liens redondants",
+  cleanupAuthorCollectionsConfirmTitle: "Supprimer les liens redondants de collections d'auteur",
+  cleanupAuthorCollectionsConfirmMessage:
+    "Cette action déliera les collections d'auteur des vidéos déjà présentes dans une autre collection. Les collections d'auteur vides seront supprimées. Les fichiers sur disque resteront en place.",
+  cleanupAuthorCollectionsSuccess:
+    "{links} liens supprimés sur {videos} vidéos. {collections} collections d'auteur vides supprimées.",
+  cleanupAuthorCollectionsNothingToDo:
+    "Aucun lien redondant de collection d'auteur à nettoyer.",
+  cleanupAuthorCollectionsFailed:
+    "Échec du nettoyage des collections d'auteur",
 
 
   // Cloudflare Tunnel

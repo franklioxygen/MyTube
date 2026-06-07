@@ -2,7 +2,11 @@ import { Request, Response } from "express";
 import { isCancelledError, ValidationError } from "../errors/DownloadErrors";
 import downloadManager from "../services/downloadManager";
 import { buildBilibiliDownloadTask } from "../services/bilibiliDownloadTask";
-import { createBilibiliRetryMetadata } from "../services/downloadRetryMetadata";
+import {
+  createBilibiliRetryMetadata,
+  mergeBilibiliRetryMetadata,
+  parseRetryMetadata,
+} from "../services/downloadRetryMetadata";
 import * as downloadService from "../services/downloadService";
 import {
   recordEvent,
@@ -223,7 +227,9 @@ export const downloadVideo = async (
     }
 
     // Use processed URL as resolved URL
-    const resolvedUrl = validatedVideoUrl;
+    const resolvedUrl = isBilibiliUrl(validatedVideoUrl)
+      ? trimBilibiliUrl(validatedVideoUrl)
+      : validatedVideoUrl;
     logger.info("Resolved URL to:", resolvedUrl);
     // Check if video was previously downloaded (skip for collections/multi-part)
     if (sourceVideoId && !downloadAllParts && !downloadCollection) {
@@ -285,13 +291,25 @@ export const downloadVideo = async (
 
     // Generate a unique ID for this download task
     const downloadId = Date.now().toString();
+    const previousBilibiliRetryMetadata = isBilibiliUrl(resolvedUrl)
+      ? parseRetryMetadata(
+          storageService.getLatestRetryHistoryItemBySourceUrl(
+            resolvedUrl,
+            "bilibili",
+          )?.retryMetadata,
+        )
+      : undefined;
     const bilibiliRetryMetadata = isBilibiliUrl(resolvedUrl)
-      ? createBilibiliRetryMetadata({
+      ? mergeBilibiliRetryMetadata(
+          createBilibiliRetryMetadata({
           downloadAllParts: !!downloadAllParts,
           downloadCollection: !!downloadCollection,
           collectionName,
           collectionInfo,
-        })
+          normalizedSourceUrl: resolvedUrl,
+        }),
+          previousBilibiliRetryMetadata,
+        )
       : undefined;
 
     // Define the download task function
@@ -310,6 +328,7 @@ export const downloadVideo = async (
           downloadCollection: !!downloadCollection,
           collectionName,
           collectionInfo,
+          retryMetadata: bilibiliRetryMetadata,
           onTitleUpdate: (id, title) => {
             storageService.updateActiveDownloadTitle(id, title);
             downloadManager.updateTaskTitle(id, title);

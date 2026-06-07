@@ -103,6 +103,19 @@ function resolveSubtitleDirectory(
     : SUBTITLES_DIR;
 }
 
+function formatLegacyMultipartTitle(
+  partNumber: number,
+  totalParts: number,
+  partTitle: string,
+): string {
+  if (totalParts <= 1) {
+    return partTitle;
+  }
+
+  const width = String(totalParts).length;
+  return `${String(partNumber).padStart(width, "0")} ${partTitle}`;
+}
+
 function resolveExistingThumbnailAbsolutePath(
   existingVideo: {
     thumbnailFilename?: string;
@@ -567,6 +580,11 @@ export async function downloadSinglePart(
 
     // For multi-part videos, include the part number in the title
     videoTitle = totalParts > 1 ? `${partNumber} ${partTitle}` : partTitle;
+    const legacyFilenameTitle = formatLegacyMultipartTitle(
+      partNumber,
+      totalParts,
+      partTitle,
+    );
 
     videoAuthor = bilibiliInfo.author || "Bilibili User";
     videoDate =
@@ -602,6 +620,7 @@ export async function downloadSinglePart(
       {
         settings,
         filenameTemplateSourceOptions,
+        legacyTitleOverride: legacyFilenameTitle,
       }
     );
     const {
@@ -634,7 +653,7 @@ export async function downloadSinglePart(
     // For non-legacy mode use planned subtitle paths; for legacy use formatVideoFilename
     const isLegacyMode = (settings.downloadFilenamePresetId || "legacy") === "legacy";
     const newSafeBaseFilename = isLegacyMode
-      ? formatVideoFilename(videoTitle, videoAuthor, videoDate)
+      ? formatVideoFilename(legacyFilenameTitle, videoAuthor, videoDate)
       : (renameResult.subtitleStem || formatVideoFilename(videoTitle, videoAuthor, videoDate));
 
     let subtitles: Array<{
@@ -796,14 +815,15 @@ export async function downloadSinglePart(
           let finalVideoData = updatedVideo;
 
           // Add video to author collection if enabled (for existing videos too)
-          const authorCollection = storageService.addVideoToAuthorCollection(
+          const authorOrganization = storageService.organizeVideoByAuthor(
             updatedVideo.id,
             videoAuthor,
-            settings.saveAuthorFilesToCollection || false,
-            settings.downloadFilenamePresetId
+            settings.authorOrganizationMode,
+            settings.downloadFilenamePresetId,
+            { moveFiles: false }
           );
 
-          if (authorCollection) {
+          if (authorOrganization) {
             const collectionUpdatedVideo = storageService.getVideoById(updatedVideo.id);
             if (collectionUpdatedVideo) {
               finalVideoData = collectionUpdatedVideo;
@@ -825,14 +845,15 @@ export async function downloadSinglePart(
     logger.info(`Part ${partNumber}/${totalParts} added to database`);
 
     // Add video to author collection if enabled
-    const authorCollection = storageService.addVideoToAuthorCollection(
+    const authorOrganization = storageService.organizeVideoByAuthor(
       videoData.id,
       videoAuthor,
-      settings.saveAuthorFilesToCollection || false,
-      settings.downloadFilenamePresetId
+      settings.authorOrganizationMode,
+      settings.downloadFilenamePresetId,
+      { moveFiles: false }
     );
 
-    if (authorCollection) {
+    if (authorOrganization) {
       // If video was added to a collection, the file paths might have changed
       // Fetch the updated video from storage
       const updatedVideo = storageService.getVideoById(videoData.id);

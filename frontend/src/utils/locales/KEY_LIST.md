@@ -1022,6 +1022,24 @@ Total keys: 994
 | `saveAuthorFilesToCollectionOn` |
 | `saveAuthorFilesToCollectionOff` |
 | `saveAuthorFilesToCollectionDescription` |
+| `authorOrganizationMode` |
+| `authorOrganizationModeDescription` |
+| `authorOrganizationModeRoot` |
+| `authorOrganizationModeRootDescription` |
+| `authorOrganizationModeAuthorFolderOnly` |
+| `authorOrganizationModeAuthorFolderOnlyDescription` |
+| `authorOrganizationModeAuthorCollectionLinked` |
+| `authorOrganizationModeAuthorCollectionLinkedDescription` |
+| `authorOrganizationModeRecommendation` |
+| `authorOrganizationModeTemplateNote` |
+| `cleanupAuthorCollections` |
+| `cleanupAuthorCollectionsDescription` |
+| `cleanupAuthorCollectionsButton` |
+| `cleanupAuthorCollectionsConfirmTitle` |
+| `cleanupAuthorCollectionsConfirmMessage` |
+| `cleanupAuthorCollectionsSuccess` |
+| `cleanupAuthorCollectionsNothingToDo` |
+| `cleanupAuthorCollectionsFailed` |
 
 ### Cloudflare Tunnel
 

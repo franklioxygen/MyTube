@@ -5,6 +5,7 @@ import {
 } from "../utils/helpers";
 import { VideoInfo } from "./downloaders/BaseDownloader";
 import {
+  BilibiliAggregateDownloadResult,
   BilibiliCollectionCheckResult,
   BilibiliDownloader,
   BilibiliPartsCheckResult,
@@ -25,6 +26,7 @@ import {
 
 // Re-export types for compatibility
 export type {
+  BilibiliAggregateDownloadResult,
   BilibiliCollectionCheckResult,
   BilibiliPartsCheckResult,
   BilibiliVideoInfo,
@@ -172,12 +174,16 @@ export async function downloadBilibiliCollection(
   collectionInfo: BilibiliCollectionCheckResult,
   collectionName: string,
   downloadId: string,
+  onStart?: (cancel: () => void) => void,
+  retryMetadata?: DownloadRetryMetadata,
 ): Promise<CollectionDownloadResult> {
   assertDownloadsAllowed();
   return BilibiliDownloader.downloadCollection(
     collectionInfo,
     collectionName,
     downloadId,
+    onStart,
+    retryMetadata,
   );
 }
 
@@ -189,7 +195,9 @@ export async function downloadRemainingBilibiliParts(
   seriesTitle: string,
   collectionId: string | null,
   downloadId: string,
-): Promise<void> {
+  onStart?: (cancel: () => void) => void,
+  retryMetadata?: DownloadRetryMetadata,
+): Promise<BilibiliAggregateDownloadResult> {
   assertDownloadsAllowed();
   return BilibiliDownloader.downloadRemainingParts(
     baseUrl,
@@ -198,6 +206,8 @@ export async function downloadRemainingBilibiliParts(
     seriesTitle,
     collectionId,
     downloadId,
+    onStart,
+    retryMetadata,
   );
 }
 

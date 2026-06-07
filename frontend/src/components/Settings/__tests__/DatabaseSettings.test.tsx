@@ -23,6 +23,7 @@ describe('DatabaseSettings', () => {
         onMigrate: vi.fn(),
         onDeleteLegacy: vi.fn(),
         onFormatFilenames: vi.fn(),
+        onCleanupAuthorCollections: vi.fn(),
         onExportDatabase: vi.fn(),
         onImportDatabase: vi.fn(),
         onPreviewMergeDatabase: vi.fn().mockResolvedValue(defaultMergePreviewSummary),
@@ -35,8 +36,9 @@ describe('DatabaseSettings', () => {
         onMoveSubtitlesToVideoFolderChange: vi.fn(),
         moveThumbnailsToVideoFolder: false,
         onMoveThumbnailsToVideoFolderChange: vi.fn(),
-        saveAuthorFilesToCollection: false,
-        onSaveAuthorFilesToCollectionChange: vi.fn(),
+        authorOrganizationMode: 'root' as const,
+        onAuthorOrganizationModeChange: vi.fn(),
+        downloadFilenamePresetId: 'legacy' as const,
     };
 
     beforeEach(() => {
@@ -49,6 +51,7 @@ describe('DatabaseSettings', () => {
         expect(screen.getByText('migrateDataButton')).toBeInTheDocument();
         expect(screen.getByText('formatLegacyFilenamesButton')).toBeInTheDocument();
         expect(screen.getByText('deleteLegacyDataButton')).toBeInTheDocument();
+        expect(screen.getByText('authorOrganizationModeRecommendation')).toBeInTheDocument();
         expect(screen.getByText('exportDatabase')).toBeInTheDocument();
         expect(screen.getByText('importDatabase')).toBeInTheDocument();
         expect(screen.getByText('mergeDatabase')).toBeInTheDocument();
@@ -143,7 +146,7 @@ describe('DatabaseSettings', () => {
         expect(defaultProps.onMoveSubtitlesToVideoFolderChange).toHaveBeenCalledWith(true);
     });
 
-    it('should toggle thumbnail and author file switches', async () => {
+    it('should toggle thumbnail switch and author organization mode', async () => {
         const user = userEvent.setup();
         render(<DatabaseSettings {...defaultProps} />);
 
@@ -151,9 +154,36 @@ describe('DatabaseSettings', () => {
         await user.click(thumbnailSwitch);
         expect(defaultProps.onMoveThumbnailsToVideoFolderChange).toHaveBeenCalledWith(true);
 
-        const authorSwitch = screen.getByLabelText(/saveAuthorFilesToCollectionOff/i);
-        await user.click(authorSwitch);
-        expect(defaultProps.onSaveAuthorFilesToCollectionChange).toHaveBeenCalledWith(true);
+        await user.click(
+            screen.getByRole('radio', { name: /authorOrganizationModeAuthorFolderOnly/i })
+        );
+        expect(defaultProps.onAuthorOrganizationModeChange).toHaveBeenCalledWith('author_folder_only');
+    });
+
+    it('should show template note for non-legacy filename presets', () => {
+        render(
+            <DatabaseSettings
+                {...defaultProps}
+                downloadFilenamePresetId="channel_year_date_index"
+            />
+        );
+
+        expect(screen.getByText('authorOrganizationModeTemplateNote')).toBeInTheDocument();
+    });
+
+    it('should show author collection cleanup action in folder-only mode', async () => {
+        const user = userEvent.setup();
+        render(
+            <DatabaseSettings
+                {...defaultProps}
+                authorOrganizationMode="author_folder_only"
+            />
+        );
+
+        expect(screen.getByText('cleanupAuthorCollections')).toBeInTheDocument();
+        expect(screen.getByText('cleanupAuthorCollectionsDescription')).toBeInTheDocument();
+        await user.click(screen.getByText('cleanupAuthorCollectionsButton'));
+        expect(defaultProps.onCleanupAuthorCollections).toHaveBeenCalled();
     });
 
     it('should clear the selected import file when a non-db file is chosen', async () => {

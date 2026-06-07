@@ -20,8 +20,11 @@ describe('storageService index (Facade)', () => {
         // Collections
         expect(storageService.getCollections).toBeDefined();
         expect(storageService.getCollectionById).toBeDefined();
+        expect(storageService.getCollectionsByVideoId).toBeDefined();
+        expect(storageService.linkVideoToCollection).toBeDefined();
         expect(storageService.saveCollection).toBeDefined();
         expect(storageService.deleteCollection).toBeDefined();
+        expect(storageService.organizeVideoByAuthor).toBeDefined();
 
         // Download Status / History
         expect(storageService.addActiveDownload).toBeDefined();

@@ -53,6 +53,7 @@ export interface RenameFilesOptions {
     moveSubtitlesToVideoFolder?: boolean;
   };
   filenameTemplateSourceOptions?: FilenameTemplateSourceOptions;
+  legacyTitleOverride?: string;
 }
 
 /**
@@ -335,7 +336,7 @@ export function renameFilesWithMetadata(
 
   // Legacy mode: use formatVideoFilename in same directories as before
   const newSafeBaseFilename = formatVideoFilename(
-    videoTitle,
+    options?.legacyTitleOverride || videoTitle,
     videoAuthor,
     videoDate
   );

@@ -24,7 +24,12 @@ import {
 import * as storageService from "../services/storageService";
 import { testTMDBCredential as testTMDBCredentialService } from "../services/tmdbService";
 import { twitchApiService } from "../services/twitchService";
-import { Settings, defaultSettings } from "../types/settings";
+import {
+  authorOrganizationModeToLegacySetting,
+  resolveAuthorOrganizationMode,
+  Settings,
+  defaultSettings,
+} from "../types/settings";
 import { logger } from "../utils/logger";
 import { errorResponse, sendBadRequest } from "../utils/response";
 import {
@@ -281,6 +286,18 @@ export const formatFilenames = async (
 };
 
 /**
+ * Unlink redundant author collections from videos that already belong to
+ * another collection, without moving files on disk.
+ */
+export const cleanupAuthorCollections = async (
+  _req: Request,
+  res: Response
+): Promise<void> => {
+  const results = storageService.cleanupRedundantAuthorCollectionLinks();
+  res.json({ results });
+};
+
+/**
  * Handle settings updates
  * Errors are automatically handled by asyncHandler middleware
  */
@@ -306,6 +323,24 @@ const sanitizeIncomingSettings = (
   delete sanitized.password;
   delete sanitized.visitorPassword;
   return sanitized;
+};
+
+const normalizeAuthorOrganizationSettings = (
+  incomingSettings: Partial<Settings>
+): Partial<Settings> => {
+  const normalized: Partial<Settings> = { ...incomingSettings };
+
+  if (
+    Object.prototype.hasOwnProperty.call(normalized, "authorOrganizationMode") ||
+    Object.prototype.hasOwnProperty.call(normalized, "saveAuthorFilesToCollection")
+  ) {
+    const mode = resolveAuthorOrganizationMode(normalized);
+    normalized.authorOrganizationMode = mode;
+    normalized.saveAuthorFilesToCollection =
+      authorOrganizationModeToLegacySetting(mode);
+  }
+
+  return normalized;
 };
 
 const removeUndefinedSettings = (settings: Partial<Settings>): void => {
@@ -718,16 +753,19 @@ const persistSettingsUpdate = async (
     return;
   }
 
-  settingsValidationService.validateSettings(trustedIncomingSettings);
+  const normalizedIncomingSettings =
+    normalizeAuthorOrganizationSettings(trustedIncomingSettings);
+
+  settingsValidationService.validateSettings(normalizedIncomingSettings);
 
   const preparedSettings = await settingsValidationService.prepareSettingsForSave(
     existingSettings,
-    trustedIncomingSettings,
+    normalizedIncomingSettings,
     passwordService.hashPassword,
     { preserveUnsetFields: mode === "replace" }
   );
 
-  const sanitizedIncoming = sanitizeIncomingSettings(trustedIncomingSettings);
+  const sanitizedIncoming = sanitizeIncomingSettings(normalizedIncomingSettings);
 
   const settingsToPersist: Partial<Settings> =
     mode === "replace"

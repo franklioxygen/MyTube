@@ -562,10 +562,6 @@ export class SubscriptionService {
       const subscribedUrls = new Set(
         existingSubscriptions.map((item) => item.authorUrl)
       );
-      const settings = storageService.getSettings();
-      const saveAuthorFilesToCollection =
-        settings.saveAuthorFilesToCollection || false;
-
       // Process each playlist
       for (const entry of result.entries) {
         if (!entry.url && !entry.id) continue;
@@ -588,34 +584,32 @@ export class SubscriptionService {
         // For channel_playlists subscriptions, author is already the clean channel name
         const channelName = sub.author;
 
-        if (!saveAuthorFilesToCollection) {
-          // Get or create collection
-          const cleanChannelName = channelName
-            .replace(/[\/\\:*?"<>|]/g, "-")
-            .trim();
-          const collectionName = cleanChannelName
-            ? `${title} - ${cleanChannelName}`
-            : title;
+        // Get or create collection
+        const cleanChannelName = channelName
+          .replace(/[\/\\:*?"<>|]/g, "-")
+          .trim();
+        const collectionName = cleanChannelName
+          ? `${title} - ${cleanChannelName}`
+          : title;
 
-          let collection = storageService.getCollectionByName(collectionName);
-          if (!collection) {
-            collection = storageService.getCollectionByName(title);
-          }
-
-          if (!collection) {
-            const uniqueCollectionName =
-              storageService.generateUniqueCollectionName(collectionName);
-            collection = {
-              id: Date.now().toString(),
-              name: uniqueCollectionName,
-              videos: [],
-              createdAt: new Date().toISOString(),
-              title: uniqueCollectionName,
-            };
-            storageService.saveCollection(collection);
-          }
-          collectionId = collection.id;
+        let collection = storageService.getCollectionByName(collectionName);
+        if (!collection) {
+          collection = storageService.getCollectionByName(title);
         }
+
+        if (!collection) {
+          const uniqueCollectionName =
+            storageService.generateUniqueCollectionName(collectionName);
+          collection = {
+            id: Date.now().toString(),
+            name: uniqueCollectionName,
+            videos: [],
+            createdAt: new Date().toISOString(),
+            title: uniqueCollectionName,
+          };
+          storageService.saveCollection(collection);
+        }
+        collectionId = collection.id;
 
         // Extract playlist ID
         let playlistId: string | null = null;

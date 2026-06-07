@@ -682,9 +682,6 @@ describe("SubscriptionController", () => {
         channel_id: "id-1",
         entries: [{ id: "PL1", title: "P1" }],
       });
-      (storageService.getSettings as any).mockReturnValue({
-        saveAuthorFilesToCollection: true,
-      });
       (subscriptionService.listSubscriptions as any).mockResolvedValue([]);
 
       await subscribeChannelPlaylists(req as Request, res as Response);
@@ -696,8 +693,9 @@ describe("SubscriptionController", () => {
         "PL1",
         "@MyChannel",
         "YouTube",
-        null
+        expect.any(String)
       );
+      expect(storageService.saveCollection).toHaveBeenCalled();
     });
   });
 

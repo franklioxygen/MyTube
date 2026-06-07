@@ -6,6 +6,10 @@ export type DownloadFilenamePresetId =
   | "custom";
 
 export type MediaServerExportMode = "off" | "nfo" | "nfo_and_source_json";
+export type AuthorOrganizationMode =
+  | "root"
+  | "author_folder_only"
+  | "author_collection_linked";
 
 export interface Settings {
   loginEnabled: boolean;
@@ -37,6 +41,7 @@ export interface Settings {
   proxyOnlyYoutube?: boolean;
   moveSubtitlesToVideoFolder?: boolean;
   moveThumbnailsToVideoFolder?: boolean;
+  authorOrganizationMode?: AuthorOrganizationMode;
   saveAuthorFilesToCollection?: boolean;
   visitorPassword?: string;
   visitorUserEnabled?: boolean;
@@ -106,6 +111,7 @@ export const defaultSettings: Settings = {
   websiteName: "MyTube",
   itemsPerPage: 12,
   showYoutubeSearch: true,
+  authorOrganizationMode: "root",
   infiniteScroll: false,
   videoColumns: 4,
   pauseOnFocusLoss: false,
@@ -131,3 +137,44 @@ export const defaultSettings: Settings = {
   statisticsTrackVisitorActivity: false,
   statisticsKeepDataWhenDisabled: true,
 };
+
+export function isAuthorOrganizationMode(
+  value: unknown
+): value is AuthorOrganizationMode {
+  return (
+    value === "root" ||
+    value === "author_folder_only" ||
+    value === "author_collection_linked"
+  );
+}
+
+export function resolveAuthorOrganizationMode(settings: {
+  authorOrganizationMode?: unknown;
+  saveAuthorFilesToCollection?: unknown;
+}): AuthorOrganizationMode {
+  if (isAuthorOrganizationMode(settings.authorOrganizationMode)) {
+    return settings.authorOrganizationMode;
+  }
+
+  return settings.saveAuthorFilesToCollection === true
+    ? "author_collection_linked"
+    : "root";
+}
+
+export function authorOrganizationModeToLegacySetting(
+  mode: AuthorOrganizationMode
+): boolean {
+  return mode === "author_collection_linked";
+}
+
+export function usesAuthorCollectionLinking(
+  mode: AuthorOrganizationMode
+): boolean {
+  return mode === "author_collection_linked";
+}
+
+export function usesAuthorFolderOrganization(
+  mode: AuthorOrganizationMode
+): boolean {
+  return mode !== "root";
+}
