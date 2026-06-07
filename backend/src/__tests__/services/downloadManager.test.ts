@@ -704,13 +704,61 @@ describe('DownloadManager', () => {
         'youtube',
       );
 
-      expect(storageService.removeActiveDownload).not.toHaveBeenCalledWith('multi-1');
+      expect(storageService.removeActiveDownload).toHaveBeenCalledWith('multi-1');
       expect(storageService.updateVideoDownloadRecord).toHaveBeenCalledWith(
         'source-1',
         'video-2',
         'Custom title',
         'Uploader',
         'YouTube',
+      );
+    });
+
+    it('should record partial aggregate results with partial history status', async () => {
+      await expect(
+        downloadManager.addDownload(
+          vi.fn().mockResolvedValue({
+            success: false,
+            partial: true,
+            expectedCount: 3,
+            downloadedCount: 2,
+            skippedCount: 0,
+            failedPartNumbers: [3],
+            error: 'Bilibili multipart incomplete',
+            video: {
+              id: 'video-partial',
+              title: 'Bilibili Video',
+              sourceUrl: 'https://www.bilibili.com/video/BV1xx',
+            },
+          }),
+          'partial-1',
+          'Partial task',
+          'https://www.bilibili.com/video/BV1xx',
+          'bilibili',
+        ),
+      ).rejects.toThrow('Bilibili multipart incomplete');
+
+      expect(storageService.removeActiveDownload).toHaveBeenCalledWith('partial-1');
+      expect(storageService.addDownloadHistoryItem).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'partial-1',
+          status: 'partial',
+          error: 'Bilibili multipart incomplete',
+        }),
+      );
+      expect(HookService.executeHook).toHaveBeenCalledWith(
+        'task_fail',
+        expect.objectContaining({
+          taskId: 'partial-1',
+          error: 'Bilibili multipart incomplete',
+        }),
+      );
+      expect(HookService.executeHook).not.toHaveBeenCalledWith(
+        'task_success',
+        expect.objectContaining({ taskId: 'partial-1' }),
+      );
+      expect(CloudStorageService.uploadVideo).not.toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'video-partial' }),
       );
     });
 

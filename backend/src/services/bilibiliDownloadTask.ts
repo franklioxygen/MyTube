@@ -4,10 +4,25 @@ import {
   trimBilibiliUrl,
 } from "../utils/helpers";
 import { logger } from "../utils/logger";
-import type { BilibiliCollectionCheckResult } from "./downloaders/BilibiliDownloader";
+import type {
+  BilibiliAggregateDownloadResult,
+  BilibiliCollectionCheckResult,
+} from "./downloaders/BilibiliDownloader";
 import * as downloadService from "./downloadService";
 import type { DownloadRetryMetadata } from "./downloadRetryMetadata";
 import * as storageService from "./storageService";
+
+function buildAggregateError(result: BilibiliAggregateDownloadResult): string {
+  if (result.error) {
+    return result.error;
+  }
+
+  if (result.failedPartNumbers.length > 0) {
+    return `Bilibili download incomplete; failed parts/items: ${result.failedPartNumbers.join(", ")}`;
+  }
+
+  return "Bilibili download did not complete successfully";
+}
 
 export interface BilibiliDownloadTaskOptions {
   downloadUrl: string;
@@ -17,6 +32,7 @@ export interface BilibiliDownloadTaskOptions {
   downloadCollection?: boolean;
   collectionName?: string;
   collectionInfo?: BilibiliCollectionCheckResult;
+  retryMetadata?: DownloadRetryMetadata;
   onTitleUpdate?: (downloadId: string, title: string) => void;
 }
 
@@ -34,6 +50,11 @@ export function buildBilibiliDownloadTask(
     logger.info("Using trimmed Bilibili URL:", downloadUrl);
 
     const initialTitle = options.initialTitle ?? "Bilibili Video";
+    const retryMetadata = options.retryMetadata;
+    if (retryMetadata) {
+      retryMetadata.normalizedSourceUrl = downloadUrl;
+      retryMetadata.lastAttemptedAt = Date.now();
+    }
 
     if (options.downloadCollection && options.collectionInfo) {
       logger.info("Downloading Bilibili collection/series");
@@ -45,26 +66,25 @@ export function buildBilibiliDownloadTask(
         currentTitle !== initialTitle
           ? currentTitle
           : options.collectionName ||
+            retryMetadata?.collectionName ||
             options.collectionInfo.title ||
             "Bilibili Collection";
 
       const result = await downloadService.downloadBilibiliCollection(
         options.collectionInfo,
-        options.collectionName ?? "",
+        options.collectionName ?? retryMetadata?.collectionName ?? "",
         options.downloadId,
+        registerCancel,
+        retryMetadata?.shape === "bilibili_collection" ? retryMetadata : undefined,
       );
 
-      if (result.success) {
-        return {
-          success: true,
-          collectionId: result.collectionId,
-          videosDownloaded: result.videosDownloaded,
-          isCollection: true,
-          title: collectionTitle,
-        };
-      }
-
-      throw new Error(result.error || "Failed to download collection/series");
+      return {
+        ...result,
+        collectionId: result.collectionId,
+        videosDownloaded: result.videosDownloaded,
+        isCollection: true,
+        title: collectionTitle,
+      };
     }
 
     if (options.downloadAllParts) {
@@ -79,6 +99,11 @@ export function buildBilibiliDownloadTask(
       }
 
       const { videosNumber, title } = partsInfo;
+      if (retryMetadata?.shape === "bilibili_all_parts") {
+        retryMetadata.expectedCount = videosNumber;
+        retryMetadata.completedPartNumbers = undefined;
+        retryMetadata.failedPartNumbers = undefined;
+      }
       if (title) {
         options.onTitleUpdate?.(options.downloadId, title);
       }
@@ -92,14 +117,44 @@ export function buildBilibiliDownloadTask(
       const firstPartUrl = `${baseUrl}?p=1`;
       const existingPart1 = storageService.getVideoBySourceUrl(firstPartUrl);
       let firstPartResult: downloadService.DownloadResult;
+      let firstVideo = existingPart1;
       let collectionId: string | null = null;
+      const multipartCollectionName =
+        options.collectionName ?? retryMetadata?.collectionName;
 
-      if (options.collectionName) {
+      if (multipartCollectionName) {
+        if (retryMetadata?.shape === "bilibili_all_parts") {
+          retryMetadata.collectionName = multipartCollectionName;
+        }
+        if (
+          retryMetadata?.shape === "bilibili_all_parts" &&
+          retryMetadata.linkedCollectionId
+        ) {
+          const persistedCollection = storageService.getCollectionById(
+            retryMetadata.linkedCollectionId,
+          );
+          if (persistedCollection) {
+            collectionId = persistedCollection.id;
+            logger.info(
+              `Reusing persisted collection "${
+                persistedCollection.name || persistedCollection.title
+              }" for multipart retry`,
+            );
+          }
+        }
+
         if (existingPart1?.id) {
-          const existingCollection = storageService.getCollectionByVideoId(
+          const existingCollections = storageService.getCollectionsByVideoId(
             existingPart1.id,
           );
-          if (existingCollection) {
+          const existingCollection =
+            existingCollections.find(
+              (collection) =>
+                multipartCollectionName &&
+                (collection.name === multipartCollectionName ||
+                  collection.title === multipartCollectionName),
+            ) ?? existingCollections[0];
+          if (existingCollection && !collectionId) {
             collectionId = existingCollection.id;
             logger.info(
               `Found existing collection "${
@@ -110,28 +165,19 @@ export function buildBilibiliDownloadTask(
         }
 
         if (!collectionId) {
-          const collectionByName = storageService.getCollectionByName(
-            options.collectionName,
-          );
-          if (collectionByName) {
-            collectionId = collectionByName.id;
-            logger.info(
-              `Found existing collection "${options.collectionName}" by name`,
-            );
-          }
-        }
-
-        if (!collectionId) {
           const newCollection = {
             id: Date.now().toString(),
-            name: options.collectionName,
+            name: multipartCollectionName,
             videos: [],
             createdAt: new Date().toISOString(),
-            title: options.collectionName,
+            title: multipartCollectionName,
           };
           storageService.saveCollection(newCollection);
           collectionId = newCollection.id;
-          logger.info(`Created new collection "${options.collectionName}"`);
+          logger.info(`Created new collection "${multipartCollectionName}"`);
+        }
+        if (retryMetadata?.shape === "bilibili_all_parts") {
+          retryMetadata.linkedCollectionId = collectionId ?? undefined;
         }
       }
 
@@ -145,15 +191,15 @@ export function buildBilibiliDownloadTask(
         };
 
         if (collectionId && existingPart1.id) {
-          const collection = storageService.getCollectionById(collectionId);
-          if (collection && !collection.videos.includes(existingPart1.id)) {
-            storageService.atomicUpdateCollection(collectionId, (collection) => {
-              if (!collection.videos.includes(existingPart1.id)) {
-                collection.videos.push(existingPart1.id);
-              }
-              return collection;
-            });
-          }
+          storageService.linkVideoToCollection(collectionId, existingPart1.id, {
+            moveFiles: false,
+            order: 1,
+          });
+        }
+        if (retryMetadata?.shape === "bilibili_all_parts") {
+          retryMetadata.completedPartNumbers = Array.from(
+            new Set([...(retryMetadata.completedPartNumbers ?? []), 1]),
+          ).sort((left, right) => left - right);
         }
       } else {
         let resolvedCollectionName: string | undefined;
@@ -180,42 +226,97 @@ export function buildBilibiliDownloadTask(
         );
 
         if (collectionId && firstPartResult.videoData) {
-          storageService.atomicUpdateCollection(collectionId, (collection) => {
-            collection.videos.push(firstPartResult.videoData!.id);
-            return collection;
-          });
+          storageService.linkVideoToCollection(
+            collectionId,
+            firstPartResult.videoData.id,
+            {
+              moveFiles: false,
+              order: 1,
+            },
+          );
+        }
+        if (firstPartResult.videoData) {
+          firstVideo = firstPartResult.videoData;
+        }
+        if (retryMetadata?.shape === "bilibili_all_parts") {
+          if (firstPartResult.success && firstPartResult.videoData) {
+            retryMetadata.completedPartNumbers = Array.from(
+              new Set([...(retryMetadata.completedPartNumbers ?? []), 1]),
+            ).sort((left, right) => left - right);
+          } else {
+            retryMetadata.failedPartNumbers = Array.from(
+              new Set([...(retryMetadata.failedPartNumbers ?? []), 1]),
+            ).sort((left, right) => left - right);
+          }
         }
       }
 
+      let downloadedCount =
+        existingPart1 ? 0 : firstPartResult.success && firstPartResult.videoData ? 1 : 0;
+      let skippedCount = existingPart1 ? 1 : 0;
+      let failedPartNumbers =
+        !existingPart1 && !firstPartResult.success ? [1] : [];
+
+      let remainingResult: BilibiliAggregateDownloadResult | null = null;
       if (videosNumber > 1) {
         const currentTitle =
           storageService.getActiveDownload(options.downloadId)?.title ||
           title ||
           "Bilibili Video";
-        downloadService
-          .downloadRemainingBilibiliParts(
-            baseUrl,
-            2,
-            videosNumber,
-            currentTitle,
-            collectionId,
-            options.downloadId,
-          )
-          .catch((error) => {
-            logger.error(
-              "Error in background download of remaining parts:",
-              error,
-            );
-          });
+        remainingResult = await downloadService.downloadRemainingBilibiliParts(
+          baseUrl,
+          2,
+          videosNumber,
+          currentTitle,
+          collectionId,
+          options.downloadId,
+          registerCancel,
+          retryMetadata?.shape === "bilibili_all_parts" ? retryMetadata : undefined,
+        );
+        downloadedCount += remainingResult.downloadedCount;
+        skippedCount += remainingResult.skippedCount;
+        failedPartNumbers = failedPartNumbers.concat(
+          remainingResult.failedPartNumbers,
+        );
+        if (!firstVideo && remainingResult.firstVideo) {
+          firstVideo = remainingResult.firstVideo;
+        }
       }
 
+      const partial =
+        failedPartNumbers.length > 0 &&
+        downloadedCount + skippedCount > 0;
+      const success = failedPartNumbers.length === 0;
+
       return {
-        success: true,
-        video: firstPartResult.videoData,
+        success,
+        partial,
+        expectedCount: videosNumber,
+        downloadedCount,
+        skippedCount,
+        failedPartNumbers,
+        firstVideo,
+        video: firstVideo,
         isMultiPart: true,
         totalParts: videosNumber,
-        collectionId,
+        collectionId: collectionId ?? undefined,
         title: title || initialTitle,
+        error:
+          success
+            ? undefined
+            : buildAggregateError({
+                success,
+                partial,
+                expectedCount: videosNumber,
+                downloadedCount,
+                skippedCount,
+                failedPartNumbers,
+                firstVideo,
+                collectionId: collectionId ?? undefined,
+                isMultiPart: true,
+                totalParts: videosNumber,
+                error: remainingResult?.error,
+              }),
       };
     }
 
@@ -229,11 +330,10 @@ export function buildBilibiliDownloadTask(
       registerCancel,
     );
 
-    if (result.success) {
-      return { success: true, video: result.videoData };
-    }
-
-    throw new Error(result.error || "Failed to download Bilibili video");
+    return {
+      ...result,
+      video: result.videoData,
+    };
   };
 }
 
@@ -249,6 +349,7 @@ export function buildBilibiliDownloadTaskFromRetryMetadata(
       downloadCollection: true,
       collectionInfo: metadata.collectionInfo,
       collectionName: metadata.collectionName,
+      retryMetadata: metadata,
       onTitleUpdate: (id, title) =>
         storageService.updateActiveDownloadTitle(id, title),
     });
@@ -259,6 +360,7 @@ export function buildBilibiliDownloadTaskFromRetryMetadata(
     downloadId,
     downloadAllParts: true,
     collectionName: metadata.collectionName,
+    retryMetadata: metadata,
     onTitleUpdate: (id, title) =>
       storageService.updateActiveDownloadTitle(id, title),
   });

@@ -123,7 +123,7 @@ export const downloadHistory = sqliteTable(
     author: text("author"),
     sourceUrl: text("source_url"),
     finishedAt: integer("finished_at").notNull(), // Timestamp
-    status: text("status").notNull(), // 'success', 'failed', 'skipped', 'deleted', or 'pending_retry'
+    status: text("status").notNull(), // 'success', 'failed', 'partial', 'skipped', 'deleted', or 'pending_retry'
     error: text("error"), // Error message if failed
     videoPath: text("video_path"), // Path to video file if successful
     thumbnailPath: text("thumbnail_path"), // Path to thumbnail if successful

@@ -58,7 +58,9 @@ describe('storageService settings', () => {
             expect(result).toEqual({
                 stringKey: 'stringValue', // JSON.parse('stringValue') throws, catches, returns 'stringValue'
                 jsonKey: { foo: 'bar' },
-                boolKey: true
+                boolKey: true,
+                authorOrganizationMode: 'root',
+                saveAuthorFilesToCollection: false,
             });
         });
 

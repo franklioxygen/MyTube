@@ -813,10 +813,13 @@ export const ru = {
   speed: "Скорость",
   finishedAt: "Завершено в",
   failed: "Ошибка",
+  partialDownload: "Не завершено",
   pendingRetry: "Ожидает повтора",
   cancelRetry: "Отменить повтор",
   retryScheduledFor: "Повтор запланирован на",
   retryAttemptProgress: "Повтор {current} из {total}",
+  missingEpisodes: "Отсутствующие эпизоды",
+  missingVideos: "Отсутствующие видео",
 
 
   // Snackbar Messages
@@ -1087,6 +1090,35 @@ export const ru = {
   saveAuthorFilesToCollectionOff: "Выкл",
   saveAuthorFilesToCollectionDescription:
     "Автоматически сохранять файлы автора в отдельную коллекцию.",
+  authorOrganizationMode: "Организация по автору",
+  authorOrganizationModeDescription:
+    "Выберите, влияет ли имя автора на физические папки, логические коллекции или ни на то, ни на другое.",
+  authorOrganizationModeRoot: "Оставлять в корневых папках",
+  authorOrganizationModeRootDescription:
+    "Не создавать папки автора и коллекции автора. Используются только плейлистные и ручные коллекции.",
+  authorOrganizationModeAuthorFolderOnly: "Только папки автора",
+  authorOrganizationModeAuthorFolderOnlyDescription:
+    "В режиме legacy-файлов переносит файлы в папки с именем автора без привязки коллекции автора.",
+  authorOrganizationModeAuthorCollectionLinked: "Коллекция автора + папка",
+  authorOrganizationModeAuthorCollectionLinkedDescription:
+    "Привязывает видео к коллекции автора. В режиме legacy-файлов файлы также переносятся в папку автора.",
+  authorOrganizationModeRecommendation:
+    "Если вам нужны папки по авторам без дублирующих коллекций автора в MyTube, используйте Только папки автора.",
+  authorOrganizationModeTemplateNote:
+    "Нелегаси-пресеты имен файлов управляют физической структурой папок. В этих режимах организация по автору влияет только на привязку коллекции.",
+  cleanupAuthorCollections: "Очистить существующие коллекции автора",
+  cleanupAuthorCollectionsDescription:
+    "После переключения на Только папки автора удаляет лишние связи коллекций автора у видео, которые уже входят в другую коллекцию. Файлы на диске не перемещаются.",
+  cleanupAuthorCollectionsButton: "Удалить лишние связи",
+  cleanupAuthorCollectionsConfirmTitle: "Удалить лишние связи коллекций автора",
+  cleanupAuthorCollectionsConfirmMessage:
+    "Это отвяжет коллекции автора от видео, которые уже входят в другую коллекцию. Пустые коллекции автора будут удалены. Файлы на диске останутся на месте.",
+  cleanupAuthorCollectionsSuccess:
+    "Удалено {links} связей у {videos} видео. Удалено {collections} пустых коллекций автора.",
+  cleanupAuthorCollectionsNothingToDo:
+    "Лишних связей коллекций автора для очистки не найдено.",
+  cleanupAuthorCollectionsFailed:
+    "Не удалось очистить коллекции автора",
 
   // Cloudflare Tunnel
   cloudflaredTunnel: "Туннель Cloudflare",

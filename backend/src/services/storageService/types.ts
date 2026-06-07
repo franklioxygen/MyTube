@@ -43,7 +43,7 @@ export interface DownloadHistoryItem {
   author?: string;
   sourceUrl?: string;
   finishedAt: number;
-  status: "success" | "failed" | "skipped" | "deleted" | "pending_retry";
+  status: "success" | "failed" | "partial" | "skipped" | "deleted" | "pending_retry";
   error?: string;
   videoPath?: string;
   thumbnailPath?: string;

@@ -14,11 +14,46 @@ import {
     getCollectionById as getCollectionByIdRepo,
     getCollectionByName as getCollectionByNameRepo,
     getCollectionByVideoId as getCollectionByVideoIdRepo,
+    getCollectionsByVideoId as getCollectionsByVideoIdRepo,
     getCollections as getCollectionsRepo,
     saveCollection as saveCollectionRepo,
 } from "./collectionRepository";
 import { Collection } from "./types";
 import { deleteVideo, getVideoById, updateVideo } from "./videos";
+
+type CollectionLinkOptions = {
+  moveFiles?: boolean;
+  order?: number;
+};
+
+type CollectionUnlinkOptions = {
+  moveFiles?: boolean;
+};
+
+function insertVideoAtRequestedOrder(
+  collection: Collection,
+  videoId: string,
+  order?: number,
+): void {
+  if (typeof order !== "number" || !Number.isFinite(order)) {
+    if (!collection.videos.includes(videoId)) {
+      collection.videos.push(videoId);
+    }
+    return;
+  }
+
+  const normalizedOrder = Math.max(1, Math.floor(order));
+  const existingIndex = collection.videos.indexOf(videoId);
+  if (existingIndex >= 0) {
+    collection.videos.splice(existingIndex, 1);
+  }
+
+  const targetIndex = Math.min(
+    Math.max(0, normalizedOrder - 1),
+    collection.videos.length,
+  );
+  collection.videos.splice(targetIndex, 0, videoId);
+}
 
 export function getCollections(): Collection[] {
   return getCollectionsRepo();
@@ -35,6 +70,10 @@ export function getCollectionByVideoId(
   videoId: string
 ): Collection | undefined {
   return getCollectionByVideoIdRepo(videoId);
+}
+
+export function getCollectionsByVideoId(videoId: string): Collection[] {
+  return getCollectionsByVideoIdRepo(videoId);
 }
 
 /**
@@ -85,31 +124,13 @@ export function deleteCollection(id: string): boolean {
   return deleteCollectionRepo(id);
 }
 
-export function addVideoToCollection(
+export function linkVideoToCollection(
   collectionId: string,
   videoId: string,
-  options?: { moveFiles?: boolean }
+  options?: CollectionLinkOptions
 ): Collection | null {
-  const allCollections = getCollections();
-
-  // First, check if video is already in another collection and remove it
-  const currentCollection = allCollections.find(
-    (c) => c.videos.includes(videoId) && c.id !== collectionId
-  );
-
-  if (currentCollection) {
-    // Remove video from current collection (but don't move files yet)
-    atomicUpdateCollection(currentCollection.id, (c) => {
-      c.videos = c.videos.filter((v) => v !== videoId);
-      return c;
-    });
-  }
-
-  // Now add video to the new collection
   const collection = atomicUpdateCollection(collectionId, (c) => {
-    if (!c.videos.includes(videoId)) {
-      c.videos.push(videoId);
-    }
+    insertVideoAtRequestedOrder(c, videoId, options?.order);
     return c;
   });
 
@@ -118,6 +139,7 @@ export function addVideoToCollection(
     if (shouldMoveFiles) {
       const video = getVideoById(videoId);
       const collectionName = collection.name || collection.title;
+      const allCollections = getCollections();
 
       if (video && collectionName) {
         // Use file manager to move all files to the new collection
@@ -137,9 +159,41 @@ export function addVideoToCollection(
   return collection;
 }
 
+export function moveVideoToExclusiveCollection(
+  collectionId: string,
+  videoId: string,
+  options?: CollectionLinkOptions
+): Collection | null {
+  const allCollections = getCollections();
+
+  // First, check if video is already in another collection and remove it
+  const currentCollection = allCollections.find(
+    (c) => c.videos.includes(videoId) && c.id !== collectionId
+  );
+
+  if (currentCollection) {
+    // Remove video from current collection (but don't move files yet)
+    atomicUpdateCollection(currentCollection.id, (c) => {
+      c.videos = c.videos.filter((v) => v !== videoId);
+      return c;
+    });
+  }
+
+  return linkVideoToCollection(collectionId, videoId, options);
+}
+
+export function addVideoToCollection(
+  collectionId: string,
+  videoId: string,
+  options?: CollectionLinkOptions
+): Collection | null {
+  return moveVideoToExclusiveCollection(collectionId, videoId, options);
+}
+
 export function removeVideoFromCollection(
   collectionId: string,
-  videoId: string
+  videoId: string,
+  options?: CollectionUnlinkOptions
 ): Collection | null {
   const collection = atomicUpdateCollection(collectionId, (c) => {
     c.videos = c.videos.filter((v) => v !== videoId);
@@ -147,6 +201,11 @@ export function removeVideoFromCollection(
   });
 
   if (collection) {
+    const shouldMoveFiles = options?.moveFiles !== false;
+    if (!shouldMoveFiles) {
+      return collection;
+    }
+
     const video = getVideoById(videoId);
     const allCollections = getCollections();
 

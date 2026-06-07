@@ -1,14 +1,31 @@
 import axios from "axios";
 import { logger } from "../../../utils/logger";
+import type { DownloadRetryMetadata } from "../../downloadRetryMetadata";
 import * as storageService from "../../storageService";
 import { Collection } from "../../storageService";
 import { downloadSinglePart } from "./bilibiliVideo";
 import {
+  BilibiliAggregateDownloadResult,
   BilibiliCollectionCheckResult,
   BilibiliVideoItem,
   BilibiliVideosResult,
   CollectionDownloadResult,
 } from "./types";
+
+const buildAggregateErrorMessage = (
+  label: string,
+  expectedCount: number,
+  downloadedCount: number,
+  skippedCount: number,
+  failedPartNumbers: number[],
+): string => {
+  if (failedPartNumbers.length === 0) {
+    return "";
+  }
+
+  const completedCount = downloadedCount + skippedCount;
+  return `Bilibili ${label} incomplete: processed ${completedCount}/${expectedCount}; downloaded ${downloadedCount}, skipped ${skippedCount}, failed ${failedPartNumbers.length} (${failedPartNumbers.join(", ")})`;
+};
 
 const normalizeUploadDate = (value: unknown): string | undefined => {
   if (typeof value === "string" && /^\d{8}$/.test(value)) {
@@ -219,16 +236,17 @@ export async function getSeriesVideos(
 export async function downloadCollection(
   collectionInfo: BilibiliCollectionCheckResult,
   collectionName: string,
-  downloadId: string
+  downloadId: string,
+  onStart?: (cancel: () => void) => void,
+  retryMetadata?: DownloadRetryMetadata,
 ): Promise<CollectionDownloadResult> {
   try {
     const { type, id, mid, title, count } = collectionInfo;
 
     logger.info(`Starting download of ${type}: ${title} (${count} videos)`);
 
-    // Add to active downloads
     if (downloadId) {
-      storageService.addActiveDownload(
+      storageService.updateActiveDownloadTitle(
         downloadId,
         `Downloading ${type}: ${title}`
       );
@@ -250,19 +268,45 @@ export async function downloadCollection(
 
     const videos = videosResult.videos;
     logger.info(`Found ${videos.length} videos to download`);
+    const retryCollectionMetadata =
+      retryMetadata?.shape === "bilibili_collection" ? retryMetadata : undefined;
+    if (retryCollectionMetadata) {
+      retryCollectionMetadata.collectionName =
+        collectionName || retryCollectionMetadata.collectionName || title || "Collection";
+      retryCollectionMetadata.expectedCount = videos.length;
+      retryCollectionMetadata.expectedVideoBvids = videos.map((video) => video.bvid);
+      retryCollectionMetadata.completedVideoBvids = undefined;
+      retryCollectionMetadata.failedVideoBvids = undefined;
+      retryCollectionMetadata.lastAttemptedAt = Date.now();
+    }
 
-    // Create a MyTube collection for these videos
-    const mytubeCollection: Collection = {
-      id: Date.now().toString(),
-      name: collectionName || title || "Collection",
-      videos: [],
-      createdAt: new Date().toISOString(),
-      title: collectionName || title || "Collection",
-    };
-    storageService.saveCollection(mytubeCollection);
+    let mytubeCollection: Collection | undefined;
+    if (retryCollectionMetadata?.linkedCollectionId) {
+      mytubeCollection = storageService.getCollectionById(
+        retryCollectionMetadata.linkedCollectionId,
+      );
+    }
+
+    if (!mytubeCollection) {
+      mytubeCollection = {
+        id: Date.now().toString(),
+        name: collectionName || title || "Collection",
+        videos: [],
+        createdAt: new Date().toISOString(),
+        title: collectionName || title || "Collection",
+      };
+      storageService.saveCollection(mytubeCollection);
+    }
+
     const mytubeCollectionId = mytubeCollection.id;
+    if (retryCollectionMetadata) {
+      retryCollectionMetadata.linkedCollectionId = mytubeCollectionId;
+    }
 
-    logger.info(`Created MyTube collection: ${mytubeCollection.name}`);
+    logger.info(`Using MyTube collection: ${mytubeCollection.name}`);
+    let downloadedCount = 0;
+    const failedPartNumbers: number[] = [];
+    let firstVideo: CollectionDownloadResult["firstVideo"];
 
     // Download each video sequentially
     for (let i = 0; i < videos.length; i++) {
@@ -271,7 +315,7 @@ export async function downloadCollection(
 
       // Update status
       if (downloadId) {
-        storageService.addActiveDownload(
+        storageService.updateActiveDownloadTitle(
           downloadId,
           `Downloading ${videoNumber}/${videos.length}: ${video.title}`
         );
@@ -283,6 +327,31 @@ export async function downloadCollection(
 
       // Construct video URL
       const videoUrl = `https://www.bilibili.com/video/${video.bvid}`;
+      const existingVideo = storageService.getVideoBySourceUrl(videoUrl);
+      if (existingVideo) {
+        storageService.linkVideoToCollection(mytubeCollectionId, existingVideo.id, {
+          moveFiles: false,
+          order: videoNumber,
+        });
+        downloadedCount += 0;
+        if (!firstVideo) {
+          firstVideo = existingVideo;
+        }
+        if (retryCollectionMetadata) {
+          retryCollectionMetadata.completedVideoBvids = Array.from(
+            new Set([
+              ...(retryCollectionMetadata.completedVideoBvids ?? []),
+              video.bvid,
+            ]),
+          );
+        }
+        logger.info(
+          `Video ${videoNumber}/${videos.length} already exists, skipping. Video ID: ${existingVideo.id}`
+        );
+        // Small delay between downloads to avoid rate limiting
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        continue;
+      }
 
       try {
         // Download this video
@@ -292,29 +361,60 @@ export async function downloadCollection(
           videos.length,
           title || "Collection",
           downloadId,
-          undefined, // onStart
+          onStart,
           mytubeCollection.name || mytubeCollection.title // collectionName
         );
 
         // If download was successful, add to collection
         if (result.success && result.videoData) {
-          storageService.atomicUpdateCollection(
+          downloadedCount++;
+          if (!firstVideo) {
+            firstVideo = result.videoData;
+          }
+          if (retryCollectionMetadata) {
+            retryCollectionMetadata.completedVideoBvids = Array.from(
+              new Set([
+                ...(retryCollectionMetadata.completedVideoBvids ?? []),
+                video.bvid,
+              ]),
+            );
+          }
+          storageService.linkVideoToCollection(
             mytubeCollectionId,
-            (collection: Collection) => {
-              collection.videos.push(result.videoData!.id);
-              return collection;
-            }
+            result.videoData.id,
+            {
+              moveFiles: false,
+              order: videoNumber,
+            },
           );
 
           logger.info(
             `Added video ${videoNumber}/${videos.length} to collection`
           );
         } else {
+          failedPartNumbers.push(videoNumber);
+          if (retryCollectionMetadata) {
+            retryCollectionMetadata.failedVideoBvids = Array.from(
+              new Set([
+                ...(retryCollectionMetadata.failedVideoBvids ?? []),
+                video.bvid,
+              ]),
+            );
+          }
           logger.error(
-            `Failed to download video ${videoNumber}/${videos.length}: ${video.title}`
+            `Failed to download video ${videoNumber}/${videos.length}: ${video.title}${result.error ? ` (${result.error})` : ""}`
           );
         }
       } catch (videoError) {
+        failedPartNumbers.push(videoNumber);
+        if (retryCollectionMetadata) {
+          retryCollectionMetadata.failedVideoBvids = Array.from(
+            new Set([
+              ...(retryCollectionMetadata.failedVideoBvids ?? []),
+              video.bvid,
+            ]),
+          );
+        }
         logger.error(
           `Error downloading video ${videoNumber}/${videos.length}:`,
           videoError
@@ -326,25 +426,41 @@ export async function downloadCollection(
       await new Promise((resolve) => setTimeout(resolve, 2000));
     }
 
-    // All videos downloaded, remove from active downloads
-    if (downloadId) {
-      storageService.removeActiveDownload(downloadId);
-    }
-
     logger.info(`Finished downloading ${type}: ${title}`);
+    const partial = failedPartNumbers.length > 0 && downloadedCount > 0;
+    const success = failedPartNumbers.length === 0;
+    const skippedCount = videos.length - downloadedCount - failedPartNumbers.length;
+    const error = buildAggregateErrorMessage(
+      "collection",
+      videos.length,
+      downloadedCount,
+      skippedCount,
+      failedPartNumbers,
+    );
 
     return {
-      success: true,
+      success,
+      partial,
+      expectedCount: videos.length,
+      downloadedCount,
+      skippedCount,
+      failedPartNumbers,
+      firstVideo,
       collectionId: mytubeCollectionId,
-      videosDownloaded: videos.length,
+      videosDownloaded: downloadedCount,
+      isCollection: true,
+      error: error || undefined,
     };
   } catch (error: any) {
     logger.error(`Error downloading ${collectionInfo.type}:`, error);
-    if (downloadId) {
-      storageService.removeActiveDownload(downloadId);
-    }
     return {
       success: false,
+      partial: false,
+      expectedCount: collectionInfo.count ?? 0,
+      downloadedCount: 0,
+      skippedCount: 0,
+      failedPartNumbers: [],
+      isCollection: true,
       error: error.message,
     };
   }
@@ -359,25 +475,33 @@ export async function downloadRemainingParts(
   totalParts: number,
   seriesTitle: string,
   collectionId: string | null,
-  downloadId: string
-): Promise<void> {
+  downloadId: string,
+  onStart?: (cancel: () => void) => void,
+  retryMetadata?: DownloadRetryMetadata,
+): Promise<BilibiliAggregateDownloadResult> {
   try {
     logger.info(
       `Starting download of remaining parts: ${startPart} to ${totalParts} of "${seriesTitle}"`
     );
     
-    // Add to active downloads if ID is provided
     if (downloadId) {
-      storageService.addActiveDownload(
+      storageService.updateActiveDownloadTitle(
         downloadId,
         `Downloading ${seriesTitle}`
       );
     }
+    const retryPartsMetadata =
+      retryMetadata?.shape === "bilibili_all_parts" ? retryMetadata : undefined;
+    if (retryPartsMetadata) {
+      retryPartsMetadata.expectedCount = totalParts;
+      retryPartsMetadata.lastAttemptedAt = Date.now();
+    }
 
     let successCount = 0;
     let skippedCount = 0;
-    let failedParts: number[] = [];
-    let skippedParts: number[] = [];
+    const failedParts: number[] = [];
+    const skippedParts: number[] = [];
+    let firstVideo: BilibiliAggregateDownloadResult["firstVideo"];
 
     for (let part = startPart; part <= totalParts; part++) {
       // Construct URL for this part
@@ -388,6 +512,11 @@ export async function downloadRemainingParts(
       if (existingVideo) {
         skippedCount++;
         skippedParts.push(part);
+        if (retryPartsMetadata) {
+          retryPartsMetadata.completedPartNumbers = Array.from(
+            new Set([...(retryPartsMetadata.completedPartNumbers ?? []), part]),
+          ).sort((left, right) => left - right);
+        }
         logger.info(
           `Part ${part}/${totalParts} already exists, skipping. Video ID: ${existingVideo.id}`
         );
@@ -395,21 +524,13 @@ export async function downloadRemainingParts(
         // If we have a collection ID, make sure the existing video is in the collection
         if (collectionId && existingVideo.id) {
           try {
-            const collection = storageService.getCollectionById(collectionId);
-            if (collection && !collection.videos.includes(existingVideo.id)) {
-              storageService.atomicUpdateCollection(
-                collectionId,
-                (collection: Collection) => {
-                  if (!collection.videos.includes(existingVideo.id)) {
-                    collection.videos.push(existingVideo.id);
-                  }
-                  return collection;
-                }
-              );
-              logger.info(
-                `Added existing part ${part}/${totalParts} to collection ${collectionId}`
-              );
-            }
+            storageService.linkVideoToCollection(collectionId, existingVideo.id, {
+              moveFiles: false,
+              order: part,
+            });
+            logger.info(
+              `Linked existing part ${part}/${totalParts} to collection ${collectionId}`
+            );
           } catch (collectionError) {
             logger.error(
               `Error adding existing part ${part}/${totalParts} to collection:`,
@@ -423,7 +544,7 @@ export async function downloadRemainingParts(
       logger.info(`Starting download of part ${part}/${totalParts}`);
       // Update status to show which part is being downloaded
       if (downloadId) {
-        storageService.addActiveDownload(
+        storageService.updateActiveDownloadTitle(
           downloadId,
           `Downloading part ${part}/${totalParts}: ${seriesTitle}`
         );
@@ -445,22 +566,27 @@ export async function downloadRemainingParts(
         totalParts,
         seriesTitle,
         downloadId,
-        undefined, // onStart
+        onStart,
         collectionName
       );
 
       if (result.success && result.videoData) {
         successCount++;
+        if (retryPartsMetadata) {
+          retryPartsMetadata.completedPartNumbers = Array.from(
+            new Set([...(retryPartsMetadata.completedPartNumbers ?? []), part]),
+          ).sort((left, right) => left - right);
+        }
+        if (!firstVideo) {
+          firstVideo = result.videoData;
+        }
         // If download was successful and we have a collection ID, add to collection
         if (collectionId) {
           try {
-            storageService.atomicUpdateCollection(
-              collectionId,
-              (collection: Collection) => {
-                collection.videos.push(result.videoData!.id);
-                return collection;
-              }
-            );
+            storageService.linkVideoToCollection(collectionId, result.videoData.id, {
+              moveFiles: false,
+              order: part,
+            });
 
             logger.info(
               `Added part ${part}/${totalParts} to collection ${collectionId}`
@@ -475,6 +601,11 @@ export async function downloadRemainingParts(
         logger.info(`Successfully downloaded part ${part}/${totalParts}`);
       } else {
         failedParts.push(part);
+        if (retryPartsMetadata) {
+          retryPartsMetadata.failedPartNumbers = Array.from(
+            new Set([...(retryPartsMetadata.failedPartNumbers ?? []), part]),
+          ).sort((left, right) => left - right);
+        }
         logger.error(
           `Failed to download part ${part}/${totalParts}: ${result.error || "Unknown error"}`
         );
@@ -482,11 +613,6 @@ export async function downloadRemainingParts(
 
       // Small delay between downloads to avoid overwhelming the server
       await new Promise((resolve) => setTimeout(resolve, 1000));
-    }
-
-    // All parts processed, remove from active downloads
-    if (downloadId) {
-      storageService.removeActiveDownload(downloadId);
     }
 
     // Log appropriate message based on results
@@ -506,10 +632,43 @@ export async function downloadRemainingParts(
         `Processed ${totalProcessed}/${remainingPartsCount} remaining parts (${startPart}-${totalParts}) of "${seriesTitle}". Downloaded: ${successCount}, Skipped: ${skippedCount} (parts: ${skippedParts.join(", ")}), Failed: ${failedParts.length} (parts: ${failedParts.join(", ")})`
       );
     }
+    const partial = failedParts.length > 0 && totalProcessed > 0;
+    const success = failedParts.length === 0;
+    const error = buildAggregateErrorMessage(
+      "multipart download",
+      remainingPartsCount,
+      successCount,
+      skippedCount,
+      failedParts,
+    );
+
+    return {
+      success,
+      partial,
+      expectedCount: remainingPartsCount,
+      downloadedCount: successCount,
+      skippedCount,
+      failedPartNumbers: failedParts,
+      firstVideo,
+      collectionId: collectionId ?? undefined,
+      isMultiPart: true,
+      totalParts,
+      error: error || undefined,
+    };
   } catch (error) {
     logger.error("Error downloading remaining Bilibili parts:", error);
-    if (downloadId) {
-      storageService.removeActiveDownload(downloadId);
-    }
+    const remainingPartsCount = totalParts - startPart + 1;
+    return {
+      success: false,
+      partial: false,
+      expectedCount: remainingPartsCount,
+      downloadedCount: 0,
+      skippedCount: 0,
+      failedPartNumbers: [],
+      collectionId: collectionId ?? undefined,
+      isMultiPart: true,
+      totalParts,
+      error: error instanceof Error ? error.message : String(error),
+    };
   }
 }

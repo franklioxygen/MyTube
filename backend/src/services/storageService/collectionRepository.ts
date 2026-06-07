@@ -10,6 +10,52 @@ import { Collection } from "./types";
  * This module handles all direct database interactions for collections
  */
 
+type CollectionRow = {
+  c: typeof collections.$inferSelect;
+  cv: typeof collectionVideos.$inferSelect | null;
+};
+
+function sortCollectionRows(rows: CollectionRow[]): CollectionRow[] {
+  return [...rows].sort((left, right) => {
+    const leftOrder = left.cv?.order;
+    const rightOrder = right.cv?.order;
+
+    if (leftOrder == null && rightOrder == null) {
+      return 0;
+    }
+    if (leftOrder == null) {
+      return 1;
+    }
+    if (rightOrder == null) {
+      return -1;
+    }
+
+    return leftOrder - rightOrder;
+  });
+}
+
+function hydrateCollection(rows: CollectionRow[]): Collection | undefined {
+  if (rows.length === 0) {
+    return undefined;
+  }
+
+  const sortedRows = sortCollectionRows(rows);
+  const collection: Collection = {
+    ...sortedRows[0].c,
+    title: sortedRows[0].c.title || sortedRows[0].c.name,
+    updatedAt: sortedRows[0].c.updatedAt || undefined,
+    videos: [],
+  };
+
+  for (const row of sortedRows) {
+    if (row.cv) {
+      collection.videos.push(row.cv.videoId);
+    }
+  }
+
+  return collection;
+}
+
 export function getCollections(): Collection[] {
   try {
     const rows = db
@@ -24,22 +70,16 @@ export function getCollections(): Collection[] {
       )
       .all();
 
-    const map = new Map<string, Collection>();
+    const map = new Map<string, CollectionRow[]>();
     for (const row of rows) {
-      if (!map.has(row.c.id)) {
-        map.set(row.c.id, {
-          ...row.c,
-          title: row.c.title || row.c.name,
-          updatedAt: row.c.updatedAt || undefined,
-          videos: [],
-        });
-      }
-      const collectionEntry = map.get(row.c.id);
-      if (row.cv && collectionEntry) {
-        collectionEntry.videos.push(row.cv.videoId);
-      }
+      const existingRows = map.get(row.c.id) ?? [];
+      existingRows.push(row);
+      map.set(row.c.id, existingRows);
     }
-    return Array.from(map.values());
+
+    return Array.from(map.values())
+      .map((collectionRows) => hydrateCollection(collectionRows))
+      .filter((collection): collection is Collection => Boolean(collection));
   } catch (error) {
     logger.error(
       "Error getting collections",
@@ -65,22 +105,7 @@ export function getCollectionById(id: string): Collection | undefined {
       .where(eq(collections.id, id))
       .all();
 
-    if (rows.length === 0) return undefined;
-
-    const collection: Collection = {
-      ...rows[0].c,
-      title: rows[0].c.title || rows[0].c.name,
-      updatedAt: rows[0].c.updatedAt || undefined,
-      videos: [],
-    };
-
-    for (const row of rows) {
-      if (row.cv) {
-        collection.videos.push(row.cv.videoId);
-      }
-    }
-
-    return collection;
+    return hydrateCollection(rows);
   } catch (error) {
     logger.error(
       "Error getting collection by id",
@@ -100,6 +125,10 @@ export function getCollectionById(id: string): Collection | undefined {
 export function getCollectionByVideoId(
   videoId: string
 ): Collection | undefined {
+  return getCollectionsByVideoId(videoId)[0];
+}
+
+export function getCollectionsByVideoId(videoId: string): Collection[] {
   try {
     const rows = db
       .select({
@@ -114,17 +143,18 @@ export function getCollectionByVideoId(
       .where(eq(collectionVideos.videoId, videoId))
       .all();
 
-    if (rows.length === 0) return undefined;
+    if (rows.length === 0) return [];
 
-    // Get the first collection that contains this video
-    const collectionId = rows[0].c.id;
-    return getCollectionById(collectionId);
+    const collectionIds = Array.from(new Set(rows.map((row) => row.c.id)));
+    return collectionIds
+      .map((collectionId) => getCollectionById(collectionId))
+      .filter((collection): collection is Collection => Boolean(collection));
   } catch (error) {
     logger.error(
-      "Error getting collection by video id",
+      "Error getting collections by video id",
       error instanceof Error ? error : new Error(String(error))
     );
-    return undefined;
+    return [];
   }
 }
 
@@ -174,7 +204,7 @@ export function saveCollection(collection: Collection): Collection {
 
       // Then insert new links
       if (collection.videos.length > 0) {
-        for (const videoId of collection.videos) {
+        for (const [index, videoId] of collection.videos.entries()) {
           // Check if video exists to avoid FK error
           const videoExists = db
             .select({ id: videos.id })
@@ -186,6 +216,7 @@ export function saveCollection(collection: Collection): Collection {
               .values({
                 collectionId: collection.id,
                 videoId: videoId,
+                order: index + 1,
               })
               .run();
           }

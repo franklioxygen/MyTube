@@ -825,10 +825,13 @@ export const es = {
   speed: "Velocidad",
   finishedAt: "Finalizado en",
   failed: "Fallido",
+  partialDownload: "Incompleto",
   pendingRetry: "Reintento pendiente",
   cancelRetry: "Cancelar reintento",
   retryScheduledFor: "Reintento programado para",
   retryAttemptProgress: "Reintento {current} de {total}",
+  missingEpisodes: "Episodios faltantes",
+  missingVideos: "Videos faltantes",
 
 
   // Snackbar Messages
@@ -1104,6 +1107,35 @@ export const es = {
   saveAuthorFilesToCollectionOff: "Desactivado",
   saveAuthorFilesToCollectionDescription:
     "Guardar automáticamente los archivos del autor en una colección separada.",
+  authorOrganizationMode: "Organizacion por autor",
+  authorOrganizationModeDescription:
+    "Elige si el nombre del autor afecta a las carpetas fisicas, a las colecciones logicas o a ninguna de las dos.",
+  authorOrganizationModeRoot: "Mantener en carpetas raiz",
+  authorOrganizationModeRootDescription:
+    "No crear carpetas ni colecciones de autor. Solo se aplican las colecciones manuales y de listas de reproduccion.",
+  authorOrganizationModeAuthorFolderOnly: "Solo carpetas de autor",
+  authorOrganizationModeAuthorFolderOnlyDescription:
+    "Con nombres de archivo legacy, mueve los archivos a carpetas con el nombre del autor sin vincular una coleccion de autor.",
+  authorOrganizationModeAuthorCollectionLinked: "Coleccion de autor + carpeta",
+  authorOrganizationModeAuthorCollectionLinkedDescription:
+    "Vincula los videos a una coleccion de autor. Con nombres de archivo legacy, los archivos tambien se mueven a la carpeta del autor.",
+  authorOrganizationModeRecommendation:
+    "Si quieres carpetas por autor sin colecciones de autor duplicadas en MyTube, usa Solo carpetas de autor.",
+  authorOrganizationModeTemplateNote:
+    "Los ajustes de nombre de archivo no legacy controlan la estructura fisica de carpetas. En esos modos, la organizacion por autor solo afecta al vinculo con colecciones.",
+  cleanupAuthorCollections: "Limpiar colecciones de autor existentes",
+  cleanupAuthorCollectionsDescription:
+    "Despues de cambiar a Solo carpetas de autor, elimina los vinculos redundantes de colecciones de autor de videos que ya pertenecen a otra coleccion. Los archivos en disco no se moveran.",
+  cleanupAuthorCollectionsButton: "Eliminar vinculos redundantes",
+  cleanupAuthorCollectionsConfirmTitle: "Eliminar vinculos redundantes de colecciones de autor",
+  cleanupAuthorCollectionsConfirmMessage:
+    "Esto desvinculara las colecciones de autor de videos que ya pertenecen a otra coleccion. Las colecciones de autor vacias se eliminaran. Los archivos en disco permaneceran en su lugar.",
+  cleanupAuthorCollectionsSuccess:
+    "Se eliminaron {links} vinculos en {videos} videos. Se eliminaron {collections} colecciones de autor vacias.",
+  cleanupAuthorCollectionsNothingToDo:
+    "No habia vinculos redundantes de colecciones de autor para limpiar.",
+  cleanupAuthorCollectionsFailed:
+    "No se pudieron limpiar las colecciones de autor",
 
 
   // Cloudflare Tunnel

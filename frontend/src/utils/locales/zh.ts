@@ -765,10 +765,13 @@ export const zh = {
   speed: "速度",
   finishedAt: "完成时间",
   failed: "失败",
+  partialDownload: "未完成",
   pendingRetry: "等待重试",
   cancelRetry: "取消重试",
   retryScheduledFor: "计划重试时间",
   retryAttemptProgress: "第 {current} 次重试，共 {total} 次",
+  missingEpisodes: "缺少分集",
+  missingVideos: "缺少视频",
 
 
   // Snackbar Messages
@@ -1026,6 +1029,33 @@ export const zh = {
   saveAuthorFilesToCollectionOff: "保存到根文件夹",
   saveAuthorFilesToCollectionDescription:
     "启用后，新下载的视频、缩略图和字幕将自动整理到以视频作者命名的合集中。如果合集不存在，将自动创建。",
+  authorOrganizationMode: "作者整理方式",
+  authorOrganizationModeDescription:
+    "选择作者名称是否影响实际文件夹、逻辑合集，或都不影响。",
+  authorOrganizationModeRoot: "保留在根目录",
+  authorOrganizationModeRootDescription:
+    "不创建作者文件夹或作者合集。仅使用播放列表合集和手动合集。",
+  authorOrganizationModeAuthorFolderOnly: "仅作者文件夹",
+  authorOrganizationModeAuthorFolderOnlyDescription:
+    "在 legacy 文件名模式下，将文件移动到以作者命名的文件夹，但不关联作者合集。",
+  authorOrganizationModeAuthorCollectionLinked: "作者合集 + 文件夹",
+  authorOrganizationModeAuthorCollectionLinkedDescription:
+    "将视频关联到作者合集。在 legacy 文件名模式下，文件也会移动到作者文件夹。",
+  authorOrganizationModeRecommendation:
+    "如果你想保留按作者分文件夹、但不想在 MyTube 里出现重复的作者合集，推荐使用“仅作者文件夹”。",
+  authorOrganizationModeTemplateNote:
+    "非 legacy 文件名预设会控制实际文件夹结构。在这些模式下，作者整理只影响合集关联。",
+  cleanupAuthorCollections: "清理现有作者合集",
+  cleanupAuthorCollectionsDescription:
+    "切换到“仅作者文件夹”后，移除已经属于其他合集的视频上的冗余作者合集关联。不会移动磁盘上的文件。",
+  cleanupAuthorCollectionsButton: "移除冗余关联",
+  cleanupAuthorCollectionsConfirmTitle: "移除冗余作者合集关联",
+  cleanupAuthorCollectionsConfirmMessage:
+    "此操作会取消作者合集与已属于其他合集的视频之间的关联，并删除空的作者合集。磁盘上的文件位置不会改变。",
+  cleanupAuthorCollectionsSuccess:
+    "已移除 {links} 个关联，涉及 {videos} 个视频，并删除 {collections} 个空作者合集。",
+  cleanupAuthorCollectionsNothingToDo: "没有需要清理的冗余作者合集关联。",
+  cleanupAuthorCollectionsFailed: "清理作者合集失败",
 
 
   // Cloudflare Tunnel

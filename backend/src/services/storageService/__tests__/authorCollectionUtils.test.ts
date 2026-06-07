@@ -1,18 +1,36 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
     addVideoToAuthorCollection,
+    cleanupRedundantAuthorCollectionLinks,
     findOrCreateAuthorCollection,
+    organizeVideoByAuthor,
     validateCollectionName,
 } from "../authorCollectionUtils";
 import * as collections from "../collections";
+import * as collectionFileManager from "../collectionFileManager";
 import { Collection } from "../types";
+import * as videos from "../videos";
 
 // Mock the collections module
 vi.mock("../collections", () => ({
-  addVideoToCollection: vi.fn(),
+  deleteCollection: vi.fn(),
   generateUniqueCollectionName: vi.fn((name) => name),
+  getCollectionById: vi.fn(),
+  getCollections: vi.fn(() => []),
   getCollectionByName: vi.fn(),
+  getCollectionsByVideoId: vi.fn(() => []),
+  linkVideoToCollection: vi.fn(),
+  removeVideoFromCollection: vi.fn(),
   saveCollection: vi.fn(),
+}));
+
+vi.mock("../collectionFileManager", () => ({
+  moveAllFilesToCollection: vi.fn(),
+}));
+
+vi.mock("../videos", () => ({
+  getVideoById: vi.fn(),
+  updateVideo: vi.fn(),
 }));
 
 // Mock the logger
@@ -119,7 +137,7 @@ describe("authorCollectionUtils", () => {
       (collections.getCollectionByName as any).mockReturnValue(
         mockCollection
       );
-      (collections.addVideoToCollection as any).mockReturnValue(
+      (collections.linkVideoToCollection as any).mockReturnValue(
         updatedCollection
       );
 
@@ -129,10 +147,40 @@ describe("authorCollectionUtils", () => {
       expect(collections.getCollectionByName).toHaveBeenCalledWith(
         "TestAuthor"
       );
-      expect(collections.addVideoToCollection).toHaveBeenCalledWith(
+      expect(collections.linkVideoToCollection).toHaveBeenCalledWith(
         "col1",
         "vid1",
         { moveFiles: true }
+      );
+    });
+
+    it("should allow callers to suppress file moves explicitly", () => {
+      const mockCollection: Collection = {
+        id: "col1",
+        name: "TestAuthor",
+        title: "TestAuthor",
+        videos: [],
+        createdAt: "now",
+      };
+
+      (collections.getCollectionByName as any).mockReturnValue(mockCollection);
+      (collections.linkVideoToCollection as any).mockReturnValue({
+        ...mockCollection,
+        videos: ["vid1"],
+      });
+
+      addVideoToAuthorCollection(
+        "vid1",
+        "TestAuthor",
+        true,
+        "legacy",
+        { moveFiles: false }
+      );
+
+      expect(collections.linkVideoToCollection).toHaveBeenCalledWith(
+        "col1",
+        "vid1",
+        { moveFiles: false }
       );
     });
 
@@ -147,6 +195,181 @@ describe("authorCollectionUtils", () => {
         
         const result = addVideoToAuthorCollection("vid1", "", true);
         expect(result).toBeNull();
+    });
+  });
+
+  describe("organizeVideoByAuthor", () => {
+    it("should do nothing in root mode", () => {
+      const result = organizeVideoByAuthor(
+        "vid1",
+        "TestAuthor",
+        "root",
+        "legacy"
+      );
+
+      expect(result).toBeNull();
+      expect(collections.linkVideoToCollection).not.toHaveBeenCalled();
+      expect(collectionFileManager.moveAllFilesToCollection).not.toHaveBeenCalled();
+    });
+
+    it("should move files to an author folder without linking a collection in legacy folder-only mode", () => {
+      (videos.getVideoById as any).mockReturnValue({
+        id: "vid1",
+        videoFilename: "video.mp4",
+      });
+      (collectionFileManager.moveAllFilesToCollection as any).mockReturnValue({
+        videoPath: "/videos/TestAuthor/video.mp4",
+      });
+
+      const result = organizeVideoByAuthor(
+        "vid1",
+        "TestAuthor",
+        "author_folder_only",
+        "legacy"
+      );
+
+      expect(result).toEqual({ collection: null, filesMoved: true });
+      expect(collectionFileManager.moveAllFilesToCollection).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "vid1" }),
+        "TestAuthor",
+        []
+      );
+      expect(videos.updateVideo).toHaveBeenCalledWith("vid1", {
+        videoPath: "/videos/TestAuthor/video.mp4",
+      });
+      expect(collections.linkVideoToCollection).not.toHaveBeenCalled();
+    });
+
+    it("should skip folder-only organization for template-based naming when file moves are disabled", () => {
+      const result = organizeVideoByAuthor(
+        "vid1",
+        "TestAuthor",
+        "author_folder_only",
+        "channel_year_date_index"
+      );
+
+      expect(result).toBeNull();
+      expect(collectionFileManager.moveAllFilesToCollection).not.toHaveBeenCalled();
+      expect(videos.updateVideo).not.toHaveBeenCalled();
+    });
+
+    it("should link the author collection without moving files when explicitly disabled", () => {
+      const mockCollection: Collection = {
+        id: "col1",
+        name: "TestAuthor",
+        title: "TestAuthor",
+        videos: [],
+        createdAt: "now",
+      };
+
+      (collections.getCollectionByName as any).mockReturnValue(mockCollection);
+      (collections.linkVideoToCollection as any).mockReturnValue({
+        ...mockCollection,
+        videos: ["vid1"],
+      });
+
+      const result = organizeVideoByAuthor(
+        "vid1",
+        "TestAuthor",
+        "author_collection_linked",
+        "legacy",
+        { moveFiles: false }
+      );
+
+      expect(result).toEqual({
+        collection: expect.objectContaining({ id: "col1" }),
+        filesMoved: false,
+      });
+      expect(collections.linkVideoToCollection).toHaveBeenCalledWith(
+        "col1",
+        "vid1",
+        { moveFiles: false }
+      );
+    });
+  });
+
+  describe("cleanupRedundantAuthorCollectionLinks", () => {
+    it("should unlink redundant author collections without moving files and delete emptied collections", () => {
+      const authorCollection: Collection = {
+        id: "author-col",
+        name: "Author One",
+        title: "Author One",
+        videos: ["vid1", "vid2"],
+        createdAt: "now",
+      };
+
+      (collections.getCollections as any).mockReturnValue([authorCollection]);
+      (videos.getVideoById as any).mockImplementation((videoId: string) => ({
+        id: videoId,
+        author: "Author One",
+      }));
+      (collections.getCollectionsByVideoId as any).mockImplementation((videoId: string) =>
+        videoId === "vid1"
+          ? [
+              authorCollection,
+              {
+                id: "playlist-col",
+                name: "Playlist",
+                title: "Playlist",
+                videos: ["vid1"],
+                createdAt: "now",
+              },
+            ]
+          : [authorCollection]
+      );
+      (collections.removeVideoFromCollection as any).mockReturnValue({
+        ...authorCollection,
+        videos: ["vid2"],
+      });
+      (collections.getCollectionById as any).mockReturnValue({
+        ...authorCollection,
+        videos: [],
+      });
+
+      const result = cleanupRedundantAuthorCollectionLinks();
+
+      expect(collections.removeVideoFromCollection).toHaveBeenCalledWith(
+        "author-col",
+        "vid1",
+        { moveFiles: false }
+      );
+      expect(collections.deleteCollection).toHaveBeenCalledWith("author-col");
+      expect(result).toEqual(
+        expect.objectContaining({
+          scannedCollections: 1,
+          matchedAuthorCollections: 1,
+          removedMemberships: 1,
+          affectedVideos: 1,
+          deletedCollections: ["Author One"],
+        })
+      );
+    });
+
+    it("should skip collections that are not author-only matches", () => {
+      (collections.getCollections as any).mockReturnValue([
+        {
+          id: "manual-col",
+          name: "Manual Picks",
+          title: "Manual Picks",
+          videos: ["vid1"],
+          createdAt: "now",
+        },
+      ]);
+      (videos.getVideoById as any).mockReturnValue({
+        id: "vid1",
+        author: "Author One",
+      });
+
+      const result = cleanupRedundantAuthorCollectionLinks();
+
+      expect(collections.removeVideoFromCollection).not.toHaveBeenCalled();
+      expect(result).toEqual(
+        expect.objectContaining({
+          scannedCollections: 1,
+          matchedAuthorCollections: 0,
+          removedMemberships: 0,
+        })
+      );
     });
   });
 });

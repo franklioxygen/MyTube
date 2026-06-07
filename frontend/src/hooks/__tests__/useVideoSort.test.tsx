@@ -112,6 +112,22 @@ describe('useVideoSort', () => {
         expect(result.current.sortedVideos.map(v => v.id)).toEqual(['2', '1', '3']);
     });
 
+    it('should sort multipart-style numeric titles using natural order', () => {
+        const multipartVideos: Video[] = [
+            { id: '10', title: '10 Episode Ten', addedAt: '2023-01-03T12:00:00Z', viewCount: 10, date: '20230103', author: 'Author', source: 'bilibili', sourceUrl: 'url10' },
+            { id: '2', title: '2 Episode Two', addedAt: '2023-01-02T12:00:00Z', viewCount: 20, date: '20230102', author: 'Author', source: 'bilibili', sourceUrl: 'url2' },
+            { id: '1', title: '1 Episode One', addedAt: '2023-01-01T12:00:00Z', viewCount: 30, date: '20230101', author: 'Author', source: 'bilibili', sourceUrl: 'url1' },
+        ];
+
+        const { result } = renderHook(() => useVideoSort({ videos: multipartVideos }), {
+            wrapper: ({ children }) => (
+                <MemoryRouter initialEntries={['/?sort=nameAsc']}>{children}</MemoryRouter>
+            ),
+        });
+
+        expect(result.current.sortedVideos.map(v => v.id)).toEqual(['1', '2', '10']);
+    });
+
     it('should handle random sort', () => {
         const { result } = renderHook(() => useVideoSort({ videos: mockVideos }), {
             wrapper: ({ children }) => (

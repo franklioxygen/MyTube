@@ -903,14 +903,14 @@ export async function downloadVideo(
       let finalVideoData = updatedVideo;
 
       // Add video to author collection if enabled (for existing videos too)
-      const authorCollection = storageService.addVideoToAuthorCollection(
+      const authorOrganization = storageService.organizeVideoByAuthor(
         updatedVideo.id,
         videoAuthor,
-        settings.saveAuthorFilesToCollection || false,
+        settings.authorOrganizationMode,
         settings.downloadFilenamePresetId
       );
 
-      if (authorCollection) {
+      if (authorOrganization) {
         const collectionUpdatedVideo = storageService.getVideoById(updatedVideo.id);
         if (collectionUpdatedVideo) {
           finalVideoData = collectionUpdatedVideo;
@@ -931,14 +931,14 @@ export async function downloadVideo(
   logger.info("Video added to database");
 
   // Add video to author collection if enabled
-  const authorCollection = storageService.addVideoToAuthorCollection(
+  const authorOrganization = storageService.organizeVideoByAuthor(
     videoData.id,
     videoAuthor,
-    settings.saveAuthorFilesToCollection || false,
+    settings.authorOrganizationMode,
     settings.downloadFilenamePresetId
   );
 
-  if (authorCollection) {
+  if (authorOrganization) {
     // If video was added to a collection, the file paths might have changed
     // Fetch the updated video from storage
     const updatedVideo = storageService.getVideoById(videoData.id);

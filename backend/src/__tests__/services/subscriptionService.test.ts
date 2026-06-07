@@ -349,7 +349,7 @@ describe('SubscriptionService', () => {
   });
 
   describe('checkChannelPlaylists', () => {
-    it('should skip collection creation if saveAuthorFilesToCollection is true', async () => {
+    it('should still create playlist collections when author organization is linked', async () => {
       // Setup
       const sub = {
         id: 'sub-watcher',
@@ -362,6 +362,7 @@ describe('SubscriptionService', () => {
 
       // Mock settings
       (storageService.getSettings as any).mockReturnValue({
+        authorOrganizationMode: 'author_collection_linked',
         saveAuthorFilesToCollection: true
       });
 
@@ -397,11 +398,10 @@ describe('SubscriptionService', () => {
         'pl-1',             // playlistId
         'User',             // channelName
         'YouTube',          // platform
-        null                // collectionId should be undefined/null
+        expect.any(String)  // playlist watchers always create a collection now
       );
 
-      // Verify saveCollection was NOT called
-      expect(storageService.saveCollection).not.toHaveBeenCalled();
+      expect(storageService.saveCollection).toHaveBeenCalled();
       subscribeSpy.mockRestore();
     });
   });

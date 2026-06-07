@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { formatVideoFilename } from "../../../utils/helpers";
 
 const mocks = vi.hoisted(() => ({
   existsSync: vi.fn(),
@@ -10,7 +11,7 @@ const mocks = vi.hoisted(() => ({
   getVideoBySourceUrl: vi.fn(),
   updateVideo: vi.fn(),
   saveVideo: vi.fn(),
-  addVideoToAuthorCollection: vi.fn(),
+  organizeVideoByAuthor: vi.fn(),
   updateActiveDownload: vi.fn(),
   isThumbnailReferencedByOtherVideo: vi.fn(),
   getVideoById: vi.fn(),
@@ -91,8 +92,8 @@ vi.mock("../../../services/storageService", () => ({
   getVideoBySourceUrl: (...args: any[]) => mocks.getVideoBySourceUrl(...args),
   updateVideo: (...args: any[]) => mocks.updateVideo(...args),
   saveVideo: (...args: any[]) => mocks.saveVideo(...args),
-  addVideoToAuthorCollection: (...args: any[]) =>
-    mocks.addVideoToAuthorCollection(...args),
+  organizeVideoByAuthor: (...args: any[]) =>
+    mocks.organizeVideoByAuthor(...args),
   updateActiveDownload: (...args: any[]) =>
     mocks.updateActiveDownload(...args),
   isThumbnailReferencedByOtherVideo: (...args: any[]) =>
@@ -183,11 +184,12 @@ describe("bilibiliVideo.downloadSinglePart", () => {
     mocks.getSettings.mockReturnValue({
       moveThumbnailsToVideoFolder: false,
       moveSubtitlesToVideoFolder: false,
+      authorOrganizationMode: "root",
       saveAuthorFilesToCollection: false,
     });
     mocks.getVideoBySourceUrl.mockReturnValue(null);
     mocks.updateVideo.mockReturnValue({ id: "existing-video" });
-    mocks.addVideoToAuthorCollection.mockReturnValue(null);
+    mocks.organizeVideoByAuthor.mockReturnValue(null);
     mocks.isThumbnailReferencedByOtherVideo.mockReturnValue(false);
     mocks.resolveManagedThumbnailWebPathFromAbsolutePath.mockReturnValue(null);
     mocks.executeYtDlpJson.mockResolvedValue({
@@ -358,7 +360,7 @@ describe("bilibiliVideo.downloadSinglePart", () => {
     mocks.getSettings.mockReturnValue({
       moveThumbnailsToVideoFolder: false,
       moveSubtitlesToVideoFolder: false,
-      saveAuthorFilesToCollection: false,
+      authorOrganizationMode: "author_collection_linked",
       downloadFilenamePresetId: "channel_year_date_index",
     });
 
@@ -373,11 +375,12 @@ describe("bilibiliVideo.downloadSinglePart", () => {
     );
 
     expect(result.success).toBe(true);
-    expect(mocks.addVideoToAuthorCollection).toHaveBeenCalledWith(
+    expect(mocks.organizeVideoByAuthor).toHaveBeenCalledWith(
       expect.any(String),
       "Mock Author",
-      false,
+      "author_collection_linked",
       "channel_year_date_index",
+      { moveFiles: false },
     );
   });
 
@@ -385,7 +388,7 @@ describe("bilibiliVideo.downloadSinglePart", () => {
     mocks.getSettings.mockReturnValue({
       moveThumbnailsToVideoFolder: false,
       moveSubtitlesToVideoFolder: false,
-      saveAuthorFilesToCollection: false,
+      authorOrganizationMode: "author_collection_linked",
       downloadFilenamePresetId: "channel_year_date_index",
     });
     mocks.getVideoBySourceUrl.mockReturnValue(buildExistingVideo());
@@ -401,11 +404,47 @@ describe("bilibiliVideo.downloadSinglePart", () => {
     );
 
     expect(result.success).toBe(true);
-    expect(mocks.addVideoToAuthorCollection).toHaveBeenCalledWith(
+    expect(mocks.organizeVideoByAuthor).toHaveBeenCalledWith(
       "existing-video",
       "Mock Author",
-      false,
+      "author_collection_linked",
       "channel_year_date_index",
+      { moveFiles: false },
+    );
+  });
+
+  it("uses zero-padded multipart prefixes for legacy filenames and subtitles", async () => {
+    const result = await downloadSinglePart(
+      "https://www.bilibili.com/video/BV1legacy?p=2",
+      2,
+      12,
+      "Series",
+      "download-legacy",
+      undefined,
+      "Collection",
+    );
+
+    expect(result.success).toBe(true);
+    expect(mocks.renameFilesWithMetadata).toHaveBeenCalledWith(
+      "2 Part Title",
+      "Mock Author",
+      "20240101",
+      "mp4",
+      expect.any(String),
+      expect.any(String),
+      true,
+      expect.any(String),
+      expect.any(String),
+      expect.objectContaining({
+        legacyTitleOverride: "02 Part Title",
+      }),
+    );
+    expect(mocks.downloadSubtitles).toHaveBeenCalledWith(
+      "https://www.bilibili.com/video/BV1legacy?p=2",
+      formatVideoFilename("02 Part Title", "Mock Author", "20240101"),
+      expect.any(String),
+      expect.any(String),
+      expect.any(Object),
     );
   });
 });

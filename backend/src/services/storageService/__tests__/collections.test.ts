@@ -62,6 +62,40 @@ describe('collectionsService', () => {
         });
     });
 
+    describe('linkVideoToCollection', () => {
+        it('should add video without removing existing collection membership', () => {
+             const targetCollection = { id: 'col2', name: 'Target', videos: [] };
+
+             vi.mocked(collectionRepo.atomicUpdateCollection).mockImplementation((id, fn) => {
+                 const base = id === 'col2' ? targetCollection : { id, videos: ['vid1'] };
+                 return fn({ ...base } as any);
+             });
+
+             const result = collectionsService.linkVideoToCollection('col2', 'vid1', {
+                 moveFiles: false,
+             });
+
+             expect(collectionRepo.atomicUpdateCollection).toHaveBeenCalledTimes(1);
+             expect(result?.videos).toContain('vid1');
+         });
+
+        it('should insert the video at the requested collection order', () => {
+             const targetCollection = { id: 'col2', name: 'Target', videos: ['vid1', 'vid3'] };
+
+             vi.mocked(collectionRepo.atomicUpdateCollection).mockImplementation((id, fn) => {
+                 const base = id === 'col2' ? targetCollection : { id, videos: [] };
+                 return fn({ ...base } as any);
+             });
+
+             const result = collectionsService.linkVideoToCollection('col2', 'vid2', {
+                 moveFiles: false,
+                 order: 2,
+             });
+
+             expect(result?.videos).toEqual(['vid1', 'vid2', 'vid3']);
+         });
+    });
+
     describe('removeVideoFromCollection', () => {
         it('should remove video and move files back or to other collection', () => {
              const mockCollection = { id: 'col1', name: 'Col Name', videos: ['vid1'] };
@@ -90,6 +124,23 @@ describe('collectionsService', () => {
                  undefined,
                  expect.any(Array)
              );
+        });
+
+        it('should remove video without moving files when explicitly disabled', () => {
+             const mockCollection = { id: 'col1', name: 'Col Name', videos: ['vid1'] };
+
+             vi.mocked(collectionRepo.atomicUpdateCollection).mockImplementation((id, fn) => {
+                 const updated = fn({ ...mockCollection } as any);
+                 return updated;
+             });
+
+             const result = collectionsService.removeVideoFromCollection('col1', 'vid1', {
+                 moveFiles: false,
+             });
+
+             expect(result?.videos).not.toContain('vid1');
+             expect(collectionFileManager.moveAllFilesFromCollection).not.toHaveBeenCalled();
+             expect(videosService.updateVideo).not.toHaveBeenCalled();
         });
     });
 

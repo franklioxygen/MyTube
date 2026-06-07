@@ -774,10 +774,13 @@ export const en = {
   speed: "Speed",
   finishedAt: "Finished At",
   failed: "Failed",
+  partialDownload: "Incomplete",
   pendingRetry: "Pending Retry",
   cancelRetry: "Cancel Retry",
   retryScheduledFor: "Retry scheduled for",
   retryAttemptProgress: "Retry {current} of {total}",
+  missingEpisodes: "Missing episodes",
+  missingVideos: "Missing videos",
 
   // Snackbar Messages
   videoDownloading: "Video downloading",
@@ -1035,6 +1038,34 @@ export const en = {
   saveAuthorFilesToCollectionOff: "Save to root folders",
   saveAuthorFilesToCollectionDescription:
     "When enabled, new downloaded videos, thumbnails, and subtitles will be automatically organized into collections named after the video author. If a collection doesn't exist, it will be created automatically.",
+  authorOrganizationMode: "Author Organization",
+  authorOrganizationModeDescription:
+    "Choose whether author names affect physical folders, logical collections, or neither.",
+  authorOrganizationModeRoot: "Keep in root folders",
+  authorOrganizationModeRootDescription:
+    "Do not create author folders or author collections. Only playlist and manual collections apply.",
+  authorOrganizationModeAuthorFolderOnly: "Author folders only",
+  authorOrganizationModeAuthorFolderOnlyDescription:
+    "With legacy filenames, move files into author-named folders without linking an author collection.",
+  authorOrganizationModeAuthorCollectionLinked: "Author collection + folder",
+  authorOrganizationModeAuthorCollectionLinkedDescription:
+    "Link videos to an author collection. With legacy filenames, files also move into the author folder.",
+  authorOrganizationModeRecommendation:
+    "If you want author-based folders without duplicate author collections in MyTube, use Author folders only.",
+  authorOrganizationModeTemplateNote:
+    "Non-legacy filename presets control the physical folder structure. In those modes, author organization only affects collection linking.",
+  cleanupAuthorCollections: "Clean Up Existing Author Collections",
+  cleanupAuthorCollectionsDescription:
+    "After switching to Author folders only, remove redundant author-collection links from videos that already belong to another collection. Files on disk are not moved.",
+  cleanupAuthorCollectionsButton: "Remove Redundant Links",
+  cleanupAuthorCollectionsConfirmTitle: "Remove Redundant Author Collection Links",
+  cleanupAuthorCollectionsConfirmMessage:
+    "This will unlink author collections from videos that already belong to another collection. Empty author collections will be deleted. Files on disk will stay where they are.",
+  cleanupAuthorCollectionsSuccess:
+    "Removed {links} links across {videos} videos. Deleted {collections} empty author collections.",
+  cleanupAuthorCollectionsNothingToDo:
+    "No redundant author collection links needed cleanup.",
+  cleanupAuthorCollectionsFailed: "Failed to clean up author collections",
 
   // Cloudflare Tunnel
   cloudflaredTunnel: "Cloudflare Tunnel",

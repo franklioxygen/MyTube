@@ -1,6 +1,10 @@
 import { db } from "../../db";
 import { settings } from "../../db/schema";
 import { DatabaseError } from "../../errors/DownloadErrors";
+import {
+  authorOrganizationModeToLegacySetting,
+  resolveAuthorOrganizationMode,
+} from "../../types/settings";
 import { logger } from "../../utils/logger";
 
 const SETTINGS_CACHE_TTL_MS = 30 * 1000;
@@ -45,6 +49,13 @@ function loadSettingsMapFromDatabase(): Record<string, any> {
 
   for (const setting of allSettings) {
     settingsMap[setting.key] = parseSettingValue(setting.value);
+  }
+
+  const authorOrganizationMode = resolveAuthorOrganizationMode(settingsMap);
+  settingsMap.authorOrganizationMode = authorOrganizationMode;
+  if (settingsMap.saveAuthorFilesToCollection === undefined) {
+    settingsMap.saveAuthorFilesToCollection =
+      authorOrganizationModeToLegacySetting(authorOrganizationMode);
   }
 
   return settingsMap;
@@ -126,6 +137,7 @@ export const WHITELISTED_SETTINGS = [
   "proxyOnlyYoutube",
   "moveSubtitlesToVideoFolder",
   "moveThumbnailsToVideoFolder",
+  "authorOrganizationMode",
   "saveAuthorFilesToCollection",
   "visitorPassword",
   "visitorUserEnabled",

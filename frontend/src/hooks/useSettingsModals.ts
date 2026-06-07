@@ -11,6 +11,7 @@ export interface InfoModalState {
  * Custom hook to manage all modal states in SettingsPage
  */
 export function useSettingsModals() {
+    const [showCleanupAuthorCollectionsModal, setShowCleanupAuthorCollectionsModal] = useState(false);
     const [showDeleteLegacyModal, setShowDeleteLegacyModal] = useState(false);
     const [showFormatConfirmModal, setShowFormatConfirmModal] = useState(false);
     const [showMigrateConfirmModal, setShowMigrateConfirmModal] = useState(false);
@@ -23,6 +24,8 @@ export function useSettingsModals() {
     });
 
     return {
+        showCleanupAuthorCollectionsModal,
+        setShowCleanupAuthorCollectionsModal,
         showDeleteLegacyModal,
         setShowDeleteLegacyModal,
         showFormatConfirmModal,

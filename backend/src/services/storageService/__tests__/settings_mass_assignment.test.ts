@@ -53,12 +53,13 @@ describe('settings mass assignment protection', () => {
         const payload = {
             password: 'hashedpassword',
             allowedHosts: 'localhost',
-            ytDlpConfig: 'config'
+            ytDlpConfig: 'config',
+            authorOrganizationMode: 'author_collection_linked',
         };
 
         saveSettings(payload);
 
-        expect(db.insert).toHaveBeenCalledTimes(3);
+        expect(db.insert).toHaveBeenCalledTimes(4);
     });
 
     it('should allow explicitly approved internal-only keys', () => {

@@ -816,10 +816,13 @@ export const ja = {
   speed: "速度",
   finishedAt: "完了日時",
   failed: "失敗",
+  partialDownload: "未完了",
   pendingRetry: "再試行待ち",
   cancelRetry: "再試行をキャンセル",
   retryScheduledFor: "再試行予定時刻",
   retryAttemptProgress: "再試行 {current} / {total}",
+  missingEpisodes: "不足しているエピソード",
+  missingVideos: "不足している動画",
 
 
   // Snackbar Messages
@@ -1090,6 +1093,35 @@ export const ja = {
   saveAuthorFilesToCollectionOff: "オフ",
   saveAuthorFilesToCollectionDescription:
     "著者のファイルを別のコレクションに自動的に保存します。",
+  authorOrganizationMode: "作者の整理方法",
+  authorOrganizationModeDescription:
+    "作者名を実フォルダ、論理コレクション、そのどちらにも反映しないかを選択します。",
+  authorOrganizationModeRoot: "ルートフォルダのまま",
+  authorOrganizationModeRootDescription:
+    "作者フォルダも作者コレクションも作成しません。プレイリストと手動コレクションのみを使います。",
+  authorOrganizationModeAuthorFolderOnly: "作者フォルダのみ",
+  authorOrganizationModeAuthorFolderOnlyDescription:
+    "legacy ファイル名モードでは、作者コレクションを作らずに作者名フォルダへファイルを移動します。",
+  authorOrganizationModeAuthorCollectionLinked: "作者コレクション + フォルダ",
+  authorOrganizationModeAuthorCollectionLinkedDescription:
+    "動画を作者コレクションに関連付けます。legacy ファイル名モードでは、ファイルも作者フォルダへ移動します。",
+  authorOrganizationModeRecommendation:
+    "MyTube 内に重複した作者コレクションを作らず、作者ごとのフォルダだけ使いたい場合は「作者フォルダのみ」を使ってください。",
+  authorOrganizationModeTemplateNote:
+    "legacy 以外のファイル名プリセットでは、実際のフォルダ構成はプリセット側で決まります。その場合、作者整理はコレクション連携にのみ影響します。",
+  cleanupAuthorCollections: "既存の作者コレクションを整理",
+  cleanupAuthorCollectionsDescription:
+    "「作者フォルダのみ」に切り替えた後、すでに別のコレクションに属している動画から冗長な作者コレクションの関連付けを削除します。ディスク上のファイルは移動しません。",
+  cleanupAuthorCollectionsButton: "冗長な関連付けを削除",
+  cleanupAuthorCollectionsConfirmTitle: "冗長な作者コレクション関連付けを削除",
+  cleanupAuthorCollectionsConfirmMessage:
+    "すでに別のコレクションに属している動画から作者コレクションの関連付けを外します。空になった作者コレクションは削除されます。ディスク上のファイル位置は変わりません。",
+  cleanupAuthorCollectionsSuccess:
+    "{videos} 件の動画に対する {links} 件の関連付けを削除し、空の作者コレクションを {collections} 件削除しました。",
+  cleanupAuthorCollectionsNothingToDo:
+    "削除が必要な冗長な作者コレクション関連付けはありませんでした。",
+  cleanupAuthorCollectionsFailed:
+    "作者コレクションの整理に失敗しました",
 
 
   // Cloudflare Tunnel

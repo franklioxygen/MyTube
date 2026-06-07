@@ -35,6 +35,13 @@ const mockHistoryItems = [
         error: 'Error message',
     },
     {
+        id: '2b',
+        title: 'Partial Item',
+        finishedAt: 1678886400000,
+        status: 'partial' as const,
+        sourceUrl: 'http://example.com/2b',
+    },
+    {
         id: '3',
         title: 'Skipped Item',
         finishedAt: 1678886400000,
@@ -95,6 +102,7 @@ describe('HistoryTab Filter', () => {
         renderComponent();
         expect(screen.getByText('Success Item')).toBeInTheDocument();
         expect(screen.getByText('Failed Item')).toBeInTheDocument();
+        expect(screen.getByText('Partial Item')).toBeInTheDocument();
         expect(screen.getByText('Skipped Item')).toBeInTheDocument();
         expect(screen.getByText('Pending Retry Item')).toBeInTheDocument();
         expect(screen.getByText('Deleted Item')).toBeInTheDocument();
@@ -127,6 +135,23 @@ describe('HistoryTab Filter', () => {
 
         expect(screen.queryByText('Success Item')).not.toBeInTheDocument();
         expect(screen.getByText('Failed Item')).toBeInTheDocument();
+        expect(screen.queryByText('Partial Item')).not.toBeInTheDocument();
+        expect(screen.queryByText('Skipped Item')).not.toBeInTheDocument();
+        expect(screen.queryByText('Deleted Item')).not.toBeInTheDocument();
+    });
+
+    it('filters partial items', () => {
+        renderComponent();
+
+        const filterSelect = screen.getByRole('combobox');
+        fireEvent.mouseDown(filterSelect);
+
+        const options = screen.getAllByText('partialDownload');
+        fireEvent.click(options[options.length - 1]);
+
+        expect(screen.queryByText('Success Item')).not.toBeInTheDocument();
+        expect(screen.queryByText('Failed Item')).not.toBeInTheDocument();
+        expect(screen.getByText('Partial Item')).toBeInTheDocument();
         expect(screen.queryByText('Skipped Item')).not.toBeInTheDocument();
         expect(screen.queryByText('Deleted Item')).not.toBeInTheDocument();
     });
@@ -157,6 +182,7 @@ describe('HistoryTab Filter', () => {
 
         expect(screen.queryByText('Success Item')).not.toBeInTheDocument();
         expect(screen.queryByText('Failed Item')).not.toBeInTheDocument();
+        expect(screen.queryByText('Partial Item')).not.toBeInTheDocument();
         expect(screen.queryByText('Skipped Item')).not.toBeInTheDocument();
         expect(screen.getByText('Pending Retry Item')).toBeInTheDocument();
         expect(screen.queryByText('Deleted Item')).not.toBeInTheDocument();

@@ -67,9 +67,35 @@ const DEFAULT_AUTO_RETRY_TIMES = 3;
 const DEFAULT_AUTO_RETRY_INTERVAL_MINUTES = 5;
 const AUTO_RETRY_INTERVAL_OPTIONS = new Set([1, 5, 10, 30, 60]);
 const PENDING_RETRY_STATUS = "pending_retry";
+const PARTIAL_STATUS = "partial";
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function isStructuredDownloadResult(
+  value: unknown,
+): value is {
+  success: boolean;
+  partial?: boolean;
+  error?: string;
+} {
+  return Boolean(value) && typeof value === "object" && "success" in (value as any);
+}
+
+function getStructuredDownloadResult(
+  error: unknown,
+): {
+  success: boolean;
+  partial?: boolean;
+  error?: string;
+} | undefined {
+  if (!error || typeof error !== "object" || !("downloadResult" in error)) {
+    return undefined;
+  }
+
+  const result = (error as { downloadResult?: unknown }).downloadResult;
+  return isStructuredDownloadResult(result) ? result : undefined;
 }
 
 function normalizeAutoRetryTimes(value: unknown): number {
@@ -726,23 +752,20 @@ class DownloadManager {
         throw DownloadCancelledError.create();
       }
 
+      if (isStructuredDownloadResult(result)) {
+        if (result.success === false || result.partial === true) {
+          throw Object.assign(
+            new Error(result.error || "Download did not complete successfully"),
+            { downloadResult: result },
+          );
+        }
+      }
+
       // Extract video data from result
       // videoController returns { success: true, video: ... }
       // But some downloaders might return the video object directly or different structure
-      const videoData = result.video || result;
-
-      // For multi-part downloads, don't remove from active downloads yet
-      // The background download will handle removing it when all parts are done
-      const isMultiPart = result.isMultiPart === true && result.totalParts > 1;
-      if (!isMultiPart) {
-        // Download complete (single video)
-        storageService.removeActiveDownload(task.id);
-      } else {
-        // Multi-part download - keep it active until all parts are done
-        logger.info(
-          `Multi-part download in progress: ${result.totalParts} parts. Keeping download active.`
-        );
-      }
+      const videoData = result.video || result.videoData || result;
+      storageService.removeActiveDownload(task.id);
 
       console.log(
         "Download finished for task",
@@ -884,16 +907,21 @@ class DownloadManager {
 
       if (!task.cancelled && !retryScheduled) {
         this.clearRetryTimer(task.id);
+        const structuredResult = getStructuredDownloadResult(error);
         storageService.addDownloadHistoryItem({
           id: task.id,
           title: task.title,
           finishedAt: Date.now(),
-          status: "failed",
+          status: structuredResult?.partial === true ? PARTIAL_STATUS : "failed",
           error: getErrorMessage(error),
           sourceUrl: task.sourceUrl,
           platform: platformFromUrl(task.sourceUrl),
           sourceKind: task.statistics?.sourceKind ?? "unknown",
           downloadType: task.type,
+          retryMetadata:
+            task.retryMetadata && requiresRetryMetadata(task.retryMetadata)
+              ? serializeRetryMetadata(task.retryMetadata)
+              : undefined,
         });
       }
 

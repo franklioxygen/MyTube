@@ -15,6 +15,8 @@ vi.mock("../../../db/schema", () => ({
     finishedAt: "finishedAt",
     status: "status",
     nextRetryAt: "nextRetryAt",
+    sourceUrl: "sourceUrl",
+    downloadType: "downloadType",
   },
 }));
 
@@ -41,6 +43,7 @@ import {
   finalizePendingRetryHistoryItem,
   getDownloadHistory,
   getDownloadHistoryItem,
+  getLatestRetryHistoryItemBySourceUrl,
   getPendingRetryHistoryItems,
   removeDownloadHistoryItem,
 } from "../downloadHistory";
@@ -203,6 +206,62 @@ describe("downloadHistory", () => {
         nextRetryAt: 456,
       }),
     ]);
+  });
+
+  it("returns the latest retryable history item by source url", () => {
+    const all = vi.fn().mockReturnValue([
+      {
+        id: "success-1",
+        title: "Done",
+        status: "success",
+        finishedAt: 300,
+        sourceUrl: "https://www.bilibili.com/video/BV1xx",
+        retryMetadata: "{\"shape\":\"bilibili_all_parts\"}",
+      },
+      {
+        id: "partial-1",
+        title: "Incomplete",
+        status: "partial",
+        finishedAt: 250,
+        sourceUrl: "https://www.bilibili.com/video/BV1xx",
+        downloadType: "bilibili",
+        retryMetadata: "{\"shape\":\"bilibili_all_parts\"}",
+      },
+      {
+        id: "retry-1",
+        title: "Retrying",
+        status: "pending_retry",
+        finishedAt: 200,
+        sourceUrl: "https://www.bilibili.com/video/BV1xx",
+        downloadType: "bilibili",
+        retryMetadata: "{\"shape\":\"bilibili_all_parts\"}",
+      },
+      {
+        id: "failed-1",
+        title: "Failed",
+        status: "failed",
+        finishedAt: 100,
+        sourceUrl: "https://www.bilibili.com/video/BV1xx",
+        downloadType: "bilibili",
+        retryMetadata: "{\"shape\":\"bilibili_all_parts\"}",
+      },
+    ]);
+    const orderBy = vi.fn(() => ({ all }));
+    const where = vi.fn(() => ({ orderBy }));
+    const from = vi.fn(() => ({ where }));
+    vi.mocked(db.select).mockReturnValue({ from } as any);
+
+    expect(
+      getLatestRetryHistoryItemBySourceUrl(
+        "https://www.bilibili.com/video/BV1xx",
+        "bilibili",
+      ),
+    ).toEqual(
+      expect.objectContaining({
+        id: "partial-1",
+        status: "partial",
+      }),
+    );
   });
 
   it("returns empty list when get history fails", () => {

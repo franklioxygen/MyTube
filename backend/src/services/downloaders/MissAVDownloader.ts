@@ -1023,14 +1023,14 @@ export class MissAVDownloader extends BaseDownloader {
       logger.info("MissAV video saved to database");
 
       // Add video to author collection if enabled
-      const authorCollection = storageService.addVideoToAuthorCollection(
+      const authorOrganization = storageService.organizeVideoByAuthor(
         videoData.id,
         videoAuthor,
-        settings.saveAuthorFilesToCollection || false,
+        settings.authorOrganizationMode,
         settings.downloadFilenamePresetId,
       );
 
-      if (authorCollection) {
+      if (authorOrganization) {
         // If video was added to a collection, the file paths might have changed
         // Fetch the updated video from storage (using videoData.id which is timestamp string)
         const updatedVideo = storageService.getVideoById(videoData.id);
