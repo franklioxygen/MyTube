@@ -34,11 +34,11 @@ describe('collectionRepository', () => {
         it('should return collections with parsed video arrays', () => {
             const mockRows = [
                 {
-                    c: { id: 'col1', name: 'Collection 1', title: 'Collection 1 Title' },
+                    c: { id: 'col1', name: 'Collection 1', title: 'Collection 1 Title', origin: 'author_auto' },
                     cv: { videoId: 'vid2', order: 2 }
                 },
                 {
-                    c: { id: 'col1', name: 'Collection 1', title: 'Collection 1 Title' },
+                    c: { id: 'col1', name: 'Collection 1', title: 'Collection 1 Title', origin: 'author_auto' },
                     cv: { videoId: 'vid1', order: 1 }
                 }
             ];
@@ -53,6 +53,7 @@ describe('collectionRepository', () => {
             expect(result).toHaveLength(1);
             expect(result[0].id).toBe('col1');
             expect(result[0].videos).toEqual(['vid1', 'vid2']);
+            expect(result[0].origin).toBe('author_auto');
         });
 
         it('should return empty array on DB error', () => {
@@ -66,15 +67,15 @@ describe('collectionRepository', () => {
         it('should return videos in stored collection order', () => {
             const mockRows = [
                 {
-                    c: { id: 'col1', name: 'Collection 1', title: 'Collection 1 Title' },
+                    c: { id: 'col1', name: 'Collection 1', title: 'Collection 1 Title', origin: 'manual' },
                     cv: { videoId: 'vid10', order: 10 }
                 },
                 {
-                    c: { id: 'col1', name: 'Collection 1', title: 'Collection 1 Title' },
+                    c: { id: 'col1', name: 'Collection 1', title: 'Collection 1 Title', origin: 'manual' },
                     cv: { videoId: 'vid2', order: 2 }
                 },
                 {
-                    c: { id: 'col1', name: 'Collection 1', title: 'Collection 1 Title' },
+                    c: { id: 'col1', name: 'Collection 1', title: 'Collection 1 Title', origin: 'manual' },
                     cv: { videoId: 'vid1', order: 1 }
                 }
             ];
@@ -87,6 +88,7 @@ describe('collectionRepository', () => {
             const result = getCollectionById('col1');
 
             expect(result?.videos).toEqual(['vid1', 'vid2', 'vid10']);
+            expect(result?.origin).toBe('manual');
         });
     });
 
@@ -94,11 +96,11 @@ describe('collectionRepository', () => {
         it('should return every collection containing the video', () => {
             const mockRows = [
                 {
-                    c: { id: 'col1', name: 'Collection 1', title: 'Collection 1 Title' },
+                    c: { id: 'col1', name: 'Collection 1', title: 'Collection 1 Title', origin: 'manual' },
                     cv: { videoId: 'vid1' }
                 },
                 {
-                    c: { id: 'col2', name: 'Collection 2', title: 'Collection 2 Title' },
+                    c: { id: 'col2', name: 'Collection 2', title: 'Collection 2 Title', origin: 'author_auto' },
                     cv: { videoId: 'vid1' }
                 }
             ];
@@ -136,7 +138,7 @@ describe('collectionRepository', () => {
         it('should return the first collection for legacy single-collection lookups', () => {
             const mockRows = [
                 {
-                    c: { id: 'col1', name: 'Collection 1', title: 'Collection 1 Title' },
+                    c: { id: 'col1', name: 'Collection 1', title: 'Collection 1 Title', origin: 'manual' },
                     cv: { videoId: 'vid1' }
                 }
             ];
@@ -170,6 +172,7 @@ describe('collectionRepository', () => {
                  id: 'col1',
                  name: 'My Col',
                  title: 'My Col',
+                 origin: 'manual',
                  createdAt: '2024-01-01T00:00:00.000Z',
                  videos: ['vid1', 'vid2']
              };
@@ -193,6 +196,13 @@ describe('collectionRepository', () => {
              expect(db.transaction).toHaveBeenCalled();
              expect(db.insert).toHaveBeenCalled(); // For collection and videos
              expect(db.delete).toHaveBeenCalled(); // To clear old videos
+             expect(mockValues).toHaveBeenNthCalledWith(
+               1,
+               expect.objectContaining({
+                 id: 'col1',
+                 origin: 'manual',
+               }),
+             );
              expect(mockValues).toHaveBeenNthCalledWith(
                2,
                expect.objectContaining({

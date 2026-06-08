@@ -14,12 +14,15 @@ export interface Video {
   [key: string]: any;
 }
 
+export type CollectionOrigin = "manual" | "author_auto";
+
 export interface Collection {
   id: string;
   title: string;
   videos: string[];
   updatedAt?: string;
   name?: string;
+  origin?: CollectionOrigin;
   [key: string]: any;
 }
 

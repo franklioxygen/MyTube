@@ -72,17 +72,16 @@ describe("authorCollectionUtils", () => {
   });
 
   describe("findOrCreateAuthorCollection", () => {
-    it("should return existing collection if found", () => {
+    it("should return existing author-auto collection if found", () => {
       const mockCollection: Collection = {
         id: "123",
         name: "TestAuthor",
         title: "TestAuthor",
+        origin: "author_auto",
         videos: [],
         createdAt: new Date().toISOString(),
       };
-      (collections.getCollectionByName as any).mockReturnValue(
-        mockCollection
-      );
+      (collections.getCollections as any).mockReturnValue([mockCollection]);
 
       const result = findOrCreateAuthorCollection("TestAuthor");
       expect(result).toBe(mockCollection);
@@ -90,7 +89,7 @@ describe("authorCollectionUtils", () => {
     });
 
     it("should create new collection if not found", () => {
-      (collections.getCollectionByName as any).mockReturnValue(null);
+      (collections.getCollections as any).mockReturnValue([]);
       (collections.generateUniqueCollectionName as any).mockReturnValue(
         "NewAuthor"
       );
@@ -98,7 +97,33 @@ describe("authorCollectionUtils", () => {
       const result = findOrCreateAuthorCollection("NewAuthor");
       expect(result).not.toBeNull();
       expect(result?.name).toBe("NewAuthor");
+      expect(result?.origin).toBe("author_auto");
       expect(collections.saveCollection).toHaveBeenCalled();
+    });
+
+    it("should not reuse a manual collection with the same author name", () => {
+      const manualCollection: Collection = {
+        id: "manual-1",
+        name: "TestAuthor",
+        title: "TestAuthor",
+        origin: "manual",
+        videos: [],
+        createdAt: new Date().toISOString(),
+      };
+      (collections.getCollections as any).mockReturnValue([manualCollection]);
+      (collections.generateUniqueCollectionName as any).mockReturnValue(
+        "TestAuthor (2)"
+      );
+
+      const result = findOrCreateAuthorCollection("TestAuthor");
+
+      expect(result).not.toBe(manualCollection);
+      expect(result).toEqual(
+        expect.objectContaining({
+          name: "TestAuthor (2)",
+          origin: "author_auto",
+        })
+      );
     });
 
     it("should return null for invalid author names", () => {
@@ -126,6 +151,7 @@ describe("authorCollectionUtils", () => {
         id: "col1",
         name: "TestAuthor",
         title: "TestAuthor",
+        origin: "author_auto",
         videos: [],
         createdAt: "now",
       };
@@ -134,9 +160,7 @@ describe("authorCollectionUtils", () => {
         videos: ["vid1"],
       };
 
-      (collections.getCollectionByName as any).mockReturnValue(
-        mockCollection
-      );
+      (collections.getCollections as any).mockReturnValue([mockCollection]);
       (collections.linkVideoToCollection as any).mockReturnValue(
         updatedCollection
       );
@@ -144,9 +168,6 @@ describe("authorCollectionUtils", () => {
       const result = addVideoToAuthorCollection("vid1", "TestAuthor", true);
 
       expect(result).toEqual(updatedCollection);
-      expect(collections.getCollectionByName).toHaveBeenCalledWith(
-        "TestAuthor"
-      );
       expect(collections.linkVideoToCollection).toHaveBeenCalledWith(
         "col1",
         "vid1",
@@ -159,11 +180,12 @@ describe("authorCollectionUtils", () => {
         id: "col1",
         name: "TestAuthor",
         title: "TestAuthor",
+        origin: "author_auto",
         videos: [],
         createdAt: "now",
       };
 
-      (collections.getCollectionByName as any).mockReturnValue(mockCollection);
+      (collections.getCollections as any).mockReturnValue([mockCollection]);
       (collections.linkVideoToCollection as any).mockReturnValue({
         ...mockCollection,
         videos: ["vid1"],
@@ -185,8 +207,7 @@ describe("authorCollectionUtils", () => {
     });
 
     it("should handle failure when finding collection", () => {
-        // Mock findOrCreate to return null (should not happen in normal flow unless creation fails, but good to test)
-        (collections.getCollectionByName as any).mockReturnValue(null);
+        (collections.getCollections as any).mockReturnValue([]);
         
         // This case covers where collection is meant to be created but fails partway or returns null
         // However validateCollectionName returning null is the easiest way to trigger findOrCreateAuthorCollection returning null
@@ -258,11 +279,12 @@ describe("authorCollectionUtils", () => {
         id: "col1",
         name: "TestAuthor",
         title: "TestAuthor",
+        origin: "author_auto",
         videos: [],
         createdAt: "now",
       };
 
-      (collections.getCollectionByName as any).mockReturnValue(mockCollection);
+      (collections.getCollections as any).mockReturnValue([mockCollection]);
       (collections.linkVideoToCollection as any).mockReturnValue({
         ...mockCollection,
         videos: ["vid1"],
@@ -289,11 +311,12 @@ describe("authorCollectionUtils", () => {
   });
 
   describe("cleanupRedundantAuthorCollectionLinks", () => {
-    it("should unlink redundant author collections without moving files and delete emptied collections", () => {
+    it("should unlink redundant author collections without moving files and delete emptied auto-generated collections", () => {
       const authorCollection: Collection = {
-        id: "author-col",
+        id: "123e4567-e89b-12d3-a456-426614174000",
         name: "Author One",
         title: "Author One",
+        origin: "author_auto",
         videos: ["vid1", "vid2"],
         createdAt: "now",
       };
@@ -329,11 +352,13 @@ describe("authorCollectionUtils", () => {
       const result = cleanupRedundantAuthorCollectionLinks();
 
       expect(collections.removeVideoFromCollection).toHaveBeenCalledWith(
-        "author-col",
+        "123e4567-e89b-12d3-a456-426614174000",
         "vid1",
         { moveFiles: false }
       );
-      expect(collections.deleteCollection).toHaveBeenCalledWith("author-col");
+      expect(collections.deleteCollection).toHaveBeenCalledWith(
+        "123e4567-e89b-12d3-a456-426614174000"
+      );
       expect(result).toEqual(
         expect.objectContaining({
           scannedCollections: 1,
@@ -343,6 +368,29 @@ describe("authorCollectionUtils", () => {
           deletedCollections: ["Author One"],
         })
       );
+    });
+
+    it("should ignore manual collections that happen to match the author-name heuristic", () => {
+      const authorCollection: Collection = {
+        id: "manual-col",
+        name: "Author One",
+        title: "Author One",
+        origin: "manual",
+        videos: ["vid1"],
+        createdAt: "now",
+      };
+
+      (collections.getCollections as any).mockReturnValue([authorCollection]);
+      (videos.getVideoById as any).mockReturnValue({
+        id: "vid1",
+        author: "Author One",
+      });
+      const result = cleanupRedundantAuthorCollectionLinks();
+
+      expect(collections.removeVideoFromCollection).not.toHaveBeenCalled();
+      expect(collections.deleteCollection).not.toHaveBeenCalled();
+      expect(result.deletedCollections).toEqual([]);
+      expect(result.removedMemberships).toBe(0);
     });
 
     it("should skip collections that are not author-only matches", () => {

@@ -47,7 +47,7 @@ export interface CapturedUpNextSidebarProps extends Record<string, unknown> {
 }
 
 export interface CapturedCollectionModalProps extends Record<string, unknown> {
-    onRemoveFromCollection: () => void;
+    onRemoveFromCollection: (collectionId: string) => void;
 }
 
 export interface CapturedConfirmationModalProps extends Record<string, unknown> {

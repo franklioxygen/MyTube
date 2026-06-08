@@ -183,6 +183,7 @@ export function saveCollection(collection: Collection): Collection {
           id: collection.id,
           name: collection.name || collection.title,
           title: collection.title,
+          origin: collection.origin ?? null,
           createdAt: collection.createdAt || new Date().toISOString(),
           updatedAt: collection.updatedAt,
         })
@@ -191,6 +192,7 @@ export function saveCollection(collection: Collection): Collection {
           set: {
             name: collection.name || collection.title,
             title: collection.title,
+            origin: collection.origin ?? null,
             updatedAt: new Date().toISOString(),
           },
         })

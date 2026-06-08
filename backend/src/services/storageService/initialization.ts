@@ -486,6 +486,26 @@ export function initializeStorage(): void {
 
     // Check subscriptions table columns for playlist subscription fields
     try {
+      const collectionsTableInfo = sqlite
+        .prepare("PRAGMA table_info(collections)")
+        .all();
+      const collectionsColumns = (collectionsTableInfo as any[]).map(
+        (col: any) => col.name
+      );
+
+      if (
+        collectionsColumns.length > 0 &&
+        !collectionsColumns.includes("origin")
+      ) {
+        logger.info(
+          "Migrating database: Adding origin column to collections table..."
+        );
+        sqlite
+          .prepare("ALTER TABLE collections ADD COLUMN origin TEXT")
+          .run();
+        logger.info("Migration successful: origin added.");
+      }
+
       const subscriptionsTableInfo = sqlite
         .prepare("PRAGMA table_info(subscriptions)")
         .all();
