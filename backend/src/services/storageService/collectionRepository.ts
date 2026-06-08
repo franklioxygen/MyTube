@@ -3,7 +3,7 @@ import { db } from "../../db";
 import { collections, collectionVideos, videos } from "../../db/schema";
 import { DatabaseError } from "../../errors/DownloadErrors";
 import { logger } from "../../utils/logger";
-import { Collection } from "./types";
+import { Collection, CollectionOrigin } from "./types";
 
 /**
  * Repository layer for collection database operations
@@ -14,6 +14,14 @@ type CollectionRow = {
   c: typeof collections.$inferSelect;
   cv: typeof collectionVideos.$inferSelect | null;
 };
+
+function toCollectionOrigin(
+  origin: string | null | undefined,
+): CollectionOrigin | undefined {
+  return origin === "manual" || origin === "author_auto"
+    ? origin
+    : undefined;
+}
 
 function sortCollectionRows(rows: CollectionRow[]): CollectionRow[] {
   return [...rows].sort((left, right) => {
@@ -43,6 +51,7 @@ function hydrateCollection(rows: CollectionRow[]): Collection | undefined {
   const collection: Collection = {
     ...sortedRows[0].c,
     title: sortedRows[0].c.title || sortedRows[0].c.name,
+    origin: toCollectionOrigin(sortedRows[0].c.origin),
     updatedAt: sortedRows[0].c.updatedAt || undefined,
     videos: [],
   };
