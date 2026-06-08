@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
     addVideoToAuthorCollection,
+    backfillLegacyCollectionOrigins,
     cleanupRedundantAuthorCollectionLinks,
     findOrCreateAuthorCollection,
     organizeVideoByAuthor,
@@ -99,6 +100,28 @@ describe("authorCollectionUtils", () => {
       expect(result?.name).toBe("NewAuthor");
       expect(result?.origin).toBe("author_auto");
       expect(collections.saveCollection).toHaveBeenCalled();
+    });
+
+    it("should reuse a legacy author collection without origin after upgrade", () => {
+      const legacyAuthorCollection: Collection = {
+        id: "123e4567-e89b-12d3-a456-426614174000",
+        name: "TestAuthor",
+        title: "TestAuthor",
+        videos: ["vid1"],
+        createdAt: new Date().toISOString(),
+      };
+
+      (collections.getCollections as any).mockReturnValue([legacyAuthorCollection]);
+      (videos.getVideoById as any).mockReturnValue({
+        id: "vid1",
+        author: "TestAuthor",
+      });
+
+      const result = findOrCreateAuthorCollection("TestAuthor");
+
+      expect(result).toBe(legacyAuthorCollection);
+      expect(collections.saveCollection).not.toHaveBeenCalled();
+      expect(collections.generateUniqueCollectionName).not.toHaveBeenCalled();
     });
 
     it("should not reuse a manual collection with the same author name", () => {
@@ -310,6 +333,53 @@ describe("authorCollectionUtils", () => {
     });
   });
 
+  describe("backfillLegacyCollectionOrigins", () => {
+    it("should backfill legacy author-auto and manual collection origins", () => {
+      const legacyAuthorCollection: Collection = {
+        id: "123e4567-e89b-12d3-a456-426614174000",
+        name: "Author One",
+        title: "Author One",
+        videos: ["vid1"],
+        createdAt: "now",
+      };
+      const legacyManualCollection: Collection = {
+        id: "1700000000000",
+        name: "Manual Picks",
+        title: "Manual Picks",
+        videos: ["vid2"],
+        createdAt: "now",
+      };
+
+      (collections.getCollections as any).mockReturnValue([
+        legacyAuthorCollection,
+        legacyManualCollection,
+      ]);
+      (videos.getVideoById as any).mockReturnValue({
+        id: "vid1",
+        author: "Author One",
+      });
+
+      const result = backfillLegacyCollectionOrigins();
+
+      expect(result).toEqual({
+        backfilledAuthorAuto: 1,
+        backfilledManual: 1,
+      });
+      expect(collections.saveCollection).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: legacyAuthorCollection.id,
+          origin: "author_auto",
+        })
+      );
+      expect(collections.saveCollection).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: legacyManualCollection.id,
+          origin: "manual",
+        })
+      );
+    });
+  });
+
   describe("cleanupRedundantAuthorCollectionLinks", () => {
     it("should unlink redundant author collections without moving files and delete emptied auto-generated collections", () => {
       const authorCollection: Collection = {
@@ -368,6 +438,51 @@ describe("authorCollectionUtils", () => {
           deletedCollections: ["Author One"],
         })
       );
+    });
+
+    it("should clean up legacy author collections after origin backfill", () => {
+      const authorCollection: Collection = {
+        id: "123e4567-e89b-12d3-a456-426614174001",
+        name: "Author One",
+        title: "Author One",
+        origin: "author_auto",
+        videos: ["vid1"],
+        createdAt: "now",
+      };
+
+      (collections.getCollections as any).mockReturnValue([authorCollection]);
+      (videos.getVideoById as any).mockReturnValue({
+        id: "vid1",
+        author: "Author One",
+      });
+      (collections.getCollectionsByVideoId as any).mockReturnValue([
+        authorCollection,
+        {
+          id: "playlist-col",
+          name: "Playlist",
+          title: "Playlist",
+          origin: "manual",
+          videos: ["vid1"],
+          createdAt: "now",
+        },
+      ]);
+      (collections.removeVideoFromCollection as any).mockReturnValue({
+        ...authorCollection,
+        videos: [],
+      });
+      (collections.getCollectionById as any).mockReturnValue({
+        ...authorCollection,
+        videos: [],
+      });
+
+      const result = cleanupRedundantAuthorCollectionLinks();
+
+      expect(collections.removeVideoFromCollection).toHaveBeenCalledWith(
+        authorCollection.id,
+        "vid1",
+        { moveFiles: false }
+      );
+      expect(result.removedMemberships).toBe(1);
     });
 
     it("should ignore manual collections that happen to match the author-name heuristic", () => {

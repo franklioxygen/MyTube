@@ -24,6 +24,7 @@ import {
   statTrustedSync,
   writeFileSafeSync,
 } from "../../utils/security";
+import { backfillLegacyCollectionOrigins } from "./authorCollectionUtils";
 import { findVideoFile } from "./fileHelpers";
 
 type VideoDownloadDuplicateGroup = {
@@ -504,6 +505,10 @@ export function initializeStorage(): void {
           .prepare("ALTER TABLE collections ADD COLUMN origin TEXT")
           .run();
         logger.info("Migration successful: origin added.");
+      }
+
+      if (collectionsColumns.length > 0) {
+        backfillLegacyCollectionOrigins();
       }
 
       const subscriptionsTableInfo = sqlite

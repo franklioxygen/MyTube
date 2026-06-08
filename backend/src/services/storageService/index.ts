@@ -87,6 +87,7 @@ export {
 // Author Collection Utils
 export {
     addVideoToAuthorCollection,
+    backfillLegacyCollectionOrigins,
     cleanupRedundantAuthorCollectionLinks,
     findOrCreateAuthorCollection,
     organizeVideoByAuthor,
