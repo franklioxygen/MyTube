@@ -32,17 +32,117 @@ const replaceInvalidFilesystemCharacters = (value: string): string => {
 };
 
 const AUTHOR_AUTO_COLLECTION_ORIGIN: CollectionOrigin = "author_auto";
+const MANUAL_COLLECTION_ORIGIN: CollectionOrigin = "manual";
 
 function getCollectionName(collection: Collection): string {
   return collection.name || collection.title;
 }
 
+function isUuidLikeCollectionId(collectionId: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    collectionId
+  );
+}
+
+function matchesAuthorCollectionNameHeuristic(collection: Collection): boolean {
+  const collectionName = getCollectionDisplayName(collection);
+  if (!collectionName || collection.videos.length === 0) {
+    return false;
+  }
+
+  for (const videoId of collection.videos) {
+    const video = getVideoById(videoId);
+    if (!video?.author) {
+      return false;
+    }
+
+    const sanitizedAuthorName = validateCollectionName(video.author);
+    if (!sanitizedAuthorName || sanitizedAuthorName !== collectionName) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function isLegacyAuthorAutoCollection(collection: Collection): boolean {
+  if (collection.origin !== undefined) {
+    return false;
+  }
+
+  if (!isUuidLikeCollectionId(collection.id)) {
+    return false;
+  }
+
+  if (matchesAuthorCollectionNameHeuristic(collection)) {
+    return true;
+  }
+
+  const collectionName = getCollectionDisplayName(collection);
+  if (!collectionName || collection.videos.length > 0) {
+    return false;
+  }
+
+  const validatedName = validateCollectionName(collectionName);
+  return validatedName === collectionName;
+}
+
+function isAuthorAutoCollection(collection: Collection): boolean {
+  return (
+    collection.origin === AUTHOR_AUTO_COLLECTION_ORIGIN ||
+    isLegacyAuthorAutoCollection(collection)
+  );
+}
+
 function getAuthorAutoCollectionByName(name: string): Collection | undefined {
   return getCollections().find(
     (collection) =>
-      collection.origin === AUTHOR_AUTO_COLLECTION_ORIGIN &&
-      getCollectionName(collection) === name
+      isAuthorAutoCollection(collection) && getCollectionName(collection) === name
   );
+}
+
+export interface LegacyCollectionOriginBackfillResult {
+  backfilledAuthorAuto: number;
+  backfilledManual: number;
+}
+
+export function backfillLegacyCollectionOrigins(): LegacyCollectionOriginBackfillResult {
+  const results: LegacyCollectionOriginBackfillResult = {
+    backfilledAuthorAuto: 0,
+    backfilledManual: 0,
+  };
+
+  for (const collection of getCollections()) {
+    if (collection.origin !== undefined) {
+      continue;
+    }
+
+    if (isLegacyAuthorAutoCollection(collection)) {
+      saveCollection({
+        ...collection,
+        origin: AUTHOR_AUTO_COLLECTION_ORIGIN,
+      });
+      results.backfilledAuthorAuto += 1;
+      logger.info(
+        `Backfilled legacy author collection origin for "${getCollectionName(collection)}"`
+      );
+      continue;
+    }
+
+    saveCollection({
+      ...collection,
+      origin: MANUAL_COLLECTION_ORIGIN,
+    });
+    results.backfilledManual += 1;
+  }
+
+  if (results.backfilledAuthorAuto > 0 || results.backfilledManual > 0) {
+    logger.info(
+      `Backfilled collection origins: ${results.backfilledAuthorAuto} author-auto, ${results.backfilledManual} manual`
+    );
+  }
+
+  return results;
 }
 
 /**
@@ -326,7 +426,7 @@ function isAuthorCollectionCandidate(collection: Collection): {
   collectionName: string;
   videoIds: string[];
 } | null {
-  if (collection.origin !== AUTHOR_AUTO_COLLECTION_ORIGIN) {
+  if (!isAuthorAutoCollection(collection)) {
     return null;
   }
 
