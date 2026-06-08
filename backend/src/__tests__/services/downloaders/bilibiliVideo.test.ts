@@ -413,6 +413,32 @@ describe("bilibiliVideo.downloadSinglePart", () => {
     );
   });
 
+  it("allows direct single-video downloads to keep legacy author-folder moves enabled", async () => {
+    mocks.getSettings.mockReturnValue({
+      moveThumbnailsToVideoFolder: false,
+      moveSubtitlesToVideoFolder: false,
+      authorOrganizationMode: "author_folder_only",
+      downloadFilenamePresetId: "legacy",
+    });
+
+    const result = await downloadSinglePart(
+      "https://www.bilibili.com/video/BV1single",
+      1,
+      1,
+      "",
+      "download-direct",
+    );
+
+    expect(result.success).toBe(true);
+    expect(mocks.organizeVideoByAuthor).toHaveBeenCalledWith(
+      expect.any(String),
+      "Mock Author",
+      "author_folder_only",
+      "legacy",
+      undefined,
+    );
+  });
+
   it("uses zero-padded multipart prefixes for legacy filenames and subtitles", async () => {
     const result = await downloadSinglePart(
       "https://www.bilibili.com/video/BV1legacy?p=2",

@@ -744,6 +744,12 @@ export async function downloadSinglePart(
       createdAt: new Date().toISOString(),
     };
 
+    const preserveCollectionPlacement =
+      totalParts > 1 || Boolean(collectionName);
+    const authorOrganizationOptions = preserveCollectionPlacement
+      ? { moveFiles: false }
+      : undefined;
+
     // For multi-part videos, always create a new video entry (each part is separate)
     // For single videos, check if video with same sourceUrl already exists
     if (totalParts === 1) {
@@ -820,7 +826,7 @@ export async function downloadSinglePart(
             videoAuthor,
             settings.authorOrganizationMode,
             settings.downloadFilenamePresetId,
-            { moveFiles: false }
+            authorOrganizationOptions
           );
 
           if (authorOrganization) {
@@ -850,7 +856,7 @@ export async function downloadSinglePart(
       videoAuthor,
       settings.authorOrganizationMode,
       settings.downloadFilenamePresetId,
-      { moveFiles: false }
+      authorOrganizationOptions
     );
 
     if (authorOrganization) {

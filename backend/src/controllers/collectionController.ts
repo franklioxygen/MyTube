@@ -39,6 +39,7 @@ export const createCollection = async (
     id: Date.now().toString(),
     name,
     videos: [], // Initialize with empty videos
+    origin: "manual",
     createdAt: new Date().toISOString(),
     title: name, // Ensure title is also set as it's required by the interface
   };

@@ -581,15 +581,19 @@ describe('VideoPlayer', () => {
     describe('handleRemoveFromCollectionWithConfirm', () => {
         it('opens ConfirmationModal and calls handleRemoveFromCollection on confirm', async () => {
             mockHandleRemoveFromCollection.mockResolvedValue(undefined);
+            mockVideoCollectionsReturn = {
+                ...mockVideoCollectionsReturn,
+                modalVideoCollections: [{ id: 'col-1', name: 'Collection 1', videos: ['v1'] }],
+            };
             render(<VideoPlayer />);
 
-            act(() => { capturedCollectionModalProps.onRemoveFromCollection(); });
+            act(() => { capturedCollectionModalProps.onRemoveFromCollection('col-1'); });
 
             expect(capturedConfirmationModalProps.isOpen).toBe(true);
             expect(capturedConfirmationModalProps.title).toBe('removeFromCollection');
 
             await act(async () => { await capturedConfirmationModalProps.onConfirm(); });
-            expect(mockHandleRemoveFromCollection).toHaveBeenCalled();
+            expect(mockHandleRemoveFromCollection).toHaveBeenCalledWith('col-1');
         });
     });
 

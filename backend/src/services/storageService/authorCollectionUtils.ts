@@ -11,13 +11,12 @@ import {
   generateUniqueCollectionName,
   getCollectionById,
   getCollections,
-  getCollectionByName,
   getCollectionsByVideoId,
   linkVideoToCollection,
   removeVideoFromCollection,
   saveCollection,
 } from "./collections";
-import { Collection } from "./types";
+import { Collection, CollectionOrigin } from "./types";
 import { getVideoById, updateVideo } from "./videos";
 
 const replaceInvalidFilesystemCharacters = (value: string): string => {
@@ -31,6 +30,20 @@ const replaceInvalidFilesystemCharacters = (value: string): string => {
 
   return sanitized;
 };
+
+const AUTHOR_AUTO_COLLECTION_ORIGIN: CollectionOrigin = "author_auto";
+
+function getCollectionName(collection: Collection): string {
+  return collection.name || collection.title;
+}
+
+function getAuthorAutoCollectionByName(name: string): Collection | undefined {
+  return getCollections().find(
+    (collection) =>
+      collection.origin === AUTHOR_AUTO_COLLECTION_ORIGIN &&
+      getCollectionName(collection) === name
+  );
+}
 
 /**
  * Validates a collection name to ensure it's safe for filesystem use
@@ -129,8 +142,8 @@ export function findOrCreateAuthorCollection(
     return null;
   }
 
-  // First, try to find existing collection
-  let collection = getCollectionByName(validatedName);
+  // First, try to find an existing author-auto collection.
+  let collection = getAuthorAutoCollectionByName(validatedName);
 
   if (collection) {
     return collection;
@@ -142,7 +155,7 @@ export function findOrCreateAuthorCollection(
   const uniqueName = generateUniqueCollectionName(validatedName);
 
   // Double-check that the collection still doesn't exist (race condition check)
-  collection = getCollectionByName(uniqueName);
+  collection = getAuthorAutoCollectionByName(uniqueName);
   if (collection) {
     return collection;
   }
@@ -153,6 +166,7 @@ export function findOrCreateAuthorCollection(
       id: uuidv4(),
       name: uniqueName,
       title: uniqueName,
+      origin: AUTHOR_AUTO_COLLECTION_ORIGIN,
       videos: [],
       createdAt: new Date().toISOString(),
     };
@@ -163,7 +177,7 @@ export function findOrCreateAuthorCollection(
   } catch (error) {
     // If save fails, it might be due to a race condition
     // Try to get the collection one more time
-    collection = getCollectionByName(uniqueName);
+    collection = getAuthorAutoCollectionByName(uniqueName);
     if (collection) {
       logger.info(
         `Collection "${uniqueName}" was created by another process, using existing collection`
@@ -312,6 +326,10 @@ function isAuthorCollectionCandidate(collection: Collection): {
   collectionName: string;
   videoIds: string[];
 } | null {
+  if (collection.origin !== AUTHOR_AUTO_COLLECTION_ORIGIN) {
+    return null;
+  }
+
   const collectionName = getCollectionDisplayName(collection);
   if (!collectionName || collection.videos.length === 0) {
     return null;

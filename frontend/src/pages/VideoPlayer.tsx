@@ -271,17 +271,22 @@ const VideoPlayer: React.FC = () => {
         await visibilityMutation.mutateAsync(newVisibility);
     };
 
-    const executeRemoveFromCollection = async () => {
-        await handleRemoveFromCollection();
+    const executeRemoveFromCollection = async (collectionId: string) => {
+        await handleRemoveFromCollection(collectionId);
         setConfirmationModal({ ...confirmationModal, isOpen: false });
     };
 
-    const handleRemoveFromCollectionWithConfirm = () => {
+    const handleRemoveFromCollectionWithConfirm = (collectionId: string) => {
+        const targetCollection = modalVideoCollections.find(
+            (collection) => collection.id === collectionId
+        );
         setConfirmationModal({
             isOpen: true,
             title: t('removeFromCollection'),
-            message: t('confirmRemoveFromCollection'),
-            onConfirm: executeRemoveFromCollection,
+            message: targetCollection
+                ? `${t('confirmRemoveFromCollection')} "${targetCollection.name}"?`
+                : t('confirmRemoveFromCollection'),
+            onConfirm: () => executeRemoveFromCollection(collectionId),
             confirmText: t('remove'),
             cancelText: t('cancel'),
             isDanger: true

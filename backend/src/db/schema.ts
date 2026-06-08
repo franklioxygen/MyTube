@@ -48,6 +48,7 @@ export const collections = sqliteTable("collections", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   title: text("title"), // Keeping for backward compatibility/alias
+  origin: text("origin"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at"),
 });
