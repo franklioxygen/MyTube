@@ -96,6 +96,52 @@ describe('collectionsService', () => {
          });
     });
 
+    describe('moveVideoToExclusiveCollection', () => {
+        it('should remove the video from every previous collection before linking the new one', () => {
+             const targetCollection = { id: 'col-target', name: 'Target', videos: [] };
+             const oldCollectionOne = { id: 'col-old-1', name: 'Old One', videos: ['vid1'] };
+             const oldCollectionTwo = { id: 'col-old-2', name: 'Old Two', videos: ['vid1', 'vid2'] };
+
+             vi.mocked(collectionRepo.getCollections).mockReturnValue([
+                 targetCollection as any,
+                 oldCollectionOne as any,
+                 oldCollectionTwo as any,
+             ]);
+
+             vi.mocked(collectionRepo.atomicUpdateCollection).mockImplementation((id, fn) => {
+                 const base =
+                   id === 'col-target'
+                     ? targetCollection
+                     : id === 'col-old-1'
+                       ? oldCollectionOne
+                       : oldCollectionTwo;
+                 return fn({ ...base, videos: [...base.videos] } as any);
+             });
+
+             const result = collectionsService.moveVideoToExclusiveCollection('col-target', 'vid1', {
+                 moveFiles: false,
+             });
+
+             expect(collectionRepo.atomicUpdateCollection).toHaveBeenCalledTimes(3);
+             expect(collectionRepo.atomicUpdateCollection).toHaveBeenNthCalledWith(
+                 1,
+                 'col-old-1',
+                 expect.any(Function)
+             );
+             expect(collectionRepo.atomicUpdateCollection).toHaveBeenNthCalledWith(
+                 2,
+                 'col-old-2',
+                 expect.any(Function)
+             );
+             expect(collectionRepo.atomicUpdateCollection).toHaveBeenNthCalledWith(
+                 3,
+                 'col-target',
+                 expect.any(Function)
+             );
+             expect(result?.videos).toEqual(['vid1']);
+         });
+    });
+
     describe('removeVideoFromCollection', () => {
         it('should remove video and move files back or to other collection', () => {
              const mockCollection = { id: 'col1', name: 'Col Name', videos: ['vid1'] };

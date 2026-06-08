@@ -166,12 +166,12 @@ export function moveVideoToExclusiveCollection(
 ): Collection | null {
   const allCollections = getCollections();
 
-  // First, check if video is already in another collection and remove it
-  const currentCollection = allCollections.find(
+  // First, remove the video from every other collection it currently belongs to.
+  const currentCollections = allCollections.filter(
     (c) => c.videos.includes(videoId) && c.id !== collectionId
   );
 
-  if (currentCollection) {
+  for (const currentCollection of currentCollections) {
     // Remove video from current collection (but don't move files yet)
     atomicUpdateCollection(currentCollection.id, (c) => {
       c.videos = c.videos.filter((v) => v !== videoId);
