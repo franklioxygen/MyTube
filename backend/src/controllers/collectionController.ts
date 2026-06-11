@@ -47,11 +47,12 @@ export const createCollection = async (
   // Save the new collection
   storageService.saveCollection(newCollection);
 
-  // If videoId is provided, add it to the collection (this handles file moving)
+  // If videoId is provided, add it as an additional collection membership
   if (videoId) {
     const updatedCollection = storageService.addVideoToCollection(
       newCollection.id,
-      videoId
+      videoId,
+      { moveFiles: false }
     );
     if (updatedCollection) {
       // Return collection object directly for backward compatibility
@@ -86,9 +87,13 @@ export const updateCollection = async (
   // Handle video add/remove
   if (videoId) {
     if (action === "add") {
-      updatedCollection = storageService.addVideoToCollection(id, videoId);
+      updatedCollection = storageService.addVideoToCollection(id, videoId, {
+        moveFiles: false,
+      });
     } else if (action === "remove") {
-      updatedCollection = storageService.removeVideoFromCollection(id, videoId);
+      updatedCollection = storageService.removeVideoFromCollection(id, videoId, {
+        moveFiles: false,
+      });
     }
   }
 

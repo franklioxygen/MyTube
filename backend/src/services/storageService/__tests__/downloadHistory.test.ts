@@ -264,6 +264,45 @@ describe("downloadHistory", () => {
     );
   });
 
+  it("falls back to the latest successful item when it carries retry metadata", () => {
+    const all = vi.fn().mockReturnValue([
+      {
+        id: "success-1",
+        title: "Done",
+        status: "success",
+        finishedAt: 300,
+        sourceUrl: "https://www.bilibili.com/video/BV1yy",
+        downloadType: "bilibili",
+        retryMetadata: "{\"shape\":\"bilibili_all_parts\"}",
+      },
+      {
+        id: "success-2",
+        title: "Older",
+        status: "success",
+        finishedAt: 200,
+        sourceUrl: "https://www.bilibili.com/video/BV1yy",
+        downloadType: "bilibili",
+        retryMetadata: "{\"shape\":\"bilibili_all_parts\"}",
+      },
+    ]);
+    const orderBy = vi.fn(() => ({ all }));
+    const where = vi.fn(() => ({ orderBy }));
+    const from = vi.fn(() => ({ where }));
+    vi.mocked(db.select).mockReturnValue({ from } as any);
+
+    expect(
+      getLatestRetryHistoryItemBySourceUrl(
+        "https://www.bilibili.com/video/BV1yy",
+        "bilibili",
+      ),
+    ).toEqual(
+      expect.objectContaining({
+        id: "success-1",
+        status: "success",
+      }),
+    );
+  });
+
   it("returns empty list when get history fails", () => {
     vi.mocked(db.select).mockImplementation(() => {
       throw new Error("query failed");

@@ -809,6 +809,10 @@ class DownloadManager {
           platform: platformFromUrl(historySourceUrl),
           sourceKind: task.statistics?.sourceKind ?? "manual",
           downloadType: task.type,
+          retryMetadata:
+            task.retryMetadata && requiresRetryMetadata(task.retryMetadata)
+              ? serializeRetryMetadata(task.retryMetadata)
+              : undefined,
         });
 
         // Record video download for future duplicate detection

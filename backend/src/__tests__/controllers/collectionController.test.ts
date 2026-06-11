@@ -80,7 +80,11 @@ describe('CollectionController', () => {
 
       createCollection(req as Request, res as Response);
 
-      expect(storageService.addVideoToCollection).toHaveBeenCalled();
+      expect(storageService.addVideoToCollection).toHaveBeenCalledWith(
+        expect.any(String),
+        "v1",
+        { moveFiles: false }
+      );
       expect(status).toHaveBeenCalledWith(201);
     });
   });
@@ -106,7 +110,11 @@ describe('CollectionController', () => {
 
       updateCollection(req as Request, res as Response);
 
-      expect(storageService.addVideoToCollection).toHaveBeenCalled();
+      expect(storageService.addVideoToCollection).toHaveBeenCalledWith(
+        "1",
+        "v1",
+        { moveFiles: false }
+      );
       expect(json).toHaveBeenCalledWith(mockCollection);
     });
 
@@ -118,7 +126,11 @@ describe('CollectionController', () => {
 
       updateCollection(req as Request, res as Response);
 
-      expect(storageService.removeVideoFromCollection).toHaveBeenCalled();
+      expect(storageService.removeVideoFromCollection).toHaveBeenCalledWith(
+        "1",
+        "v1",
+        { moveFiles: false }
+      );
       expect(json).toHaveBeenCalledWith(mockCollection);
     });
 
