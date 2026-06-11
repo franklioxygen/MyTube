@@ -537,7 +537,7 @@ export const en = {
   noOtherVideos: "No other videos available",
   currentlyIn: "Currently in:",
   collectionWarning:
-    "Adding to a different collection will remove it from the current one.",
+    "Videos can belong to multiple collections. Removing one link keeps the others.",
   addToExistingCollection: "Add to existing collection:",
   selectCollection: "Select a collection",
   add: "Add",

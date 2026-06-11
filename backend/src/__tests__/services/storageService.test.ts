@@ -720,6 +720,25 @@ describe('StorageService', () => {
         }),
       });
 
+      // saveCollection during removeVideoFromCollection
+      (db.insert as any).mockReturnValue({
+        values: vi.fn().mockReturnValue({
+          onConflictDoUpdate: vi.fn().mockReturnValue({
+            run: vi.fn(),
+          }),
+          run: vi.fn(),
+        }),
+      });
+      (db.update as any).mockReturnValue({
+        set: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            returning: vi.fn().mockReturnValue({
+              get: vi.fn().mockReturnValue({ ...mockVideo }),
+            }),
+          }),
+        }),
+      });
+
       (fs.pathExistsSync as any).mockReturnValue(true);
       (fs.opendirSync as any).mockReturnValue({
         readSync: vi.fn().mockReturnValue(null),
@@ -855,7 +874,7 @@ describe('StorageService', () => {
       expect(mockRun).toHaveBeenCalled();
     });
 
-    it('should remove video from current collection before adding to new collection', () => {
+    it('should preserve the current collection when adding a video to another collection', () => {
       const currentCollection = { id: '2', title: 'Col 2', videos: ['v1'] };
       const newCollection = { id: '1', title: 'Col 1', videos: [] };
       const mockVideo = { id: 'v1', videoFilename: 'vid.mp4', thumbnailFilename: 'thumb.jpg' };
@@ -880,9 +899,7 @@ describe('StorageService', () => {
               { c: newCollection, cv: null },
             ]),
             where: vi.fn().mockReturnValue({
-              all: vi.fn()
-                .mockReturnValueOnce([{ c: currentCollection, cv: { videoId: 'v1' } }]) // for removing
-                .mockReturnValueOnce([{ c: newCollection, cv: null }]), // for adding
+              all: vi.fn().mockReturnValue([{ c: newCollection, cv: null }]),
             }),
           }),
           where: vi.fn().mockReturnValue({
@@ -892,22 +909,12 @@ describe('StorageService', () => {
         })),
       }));
 
-      // 6. saveCollection -> db.insert (called by atomicUpdateCollection for removing from current)
+      // 6. saveCollection -> db.insert (called by atomicUpdateCollection for adding to new)
       const mockRun1 = vi.fn();
       (db.insert as any).mockReturnValueOnce({
         values: vi.fn().mockReturnValue({
           onConflictDoUpdate: vi.fn().mockReturnValue({
             run: mockRun1,
-          }),
-        }),
-      });
-
-      // 7. saveCollection -> db.insert (called by atomicUpdateCollection for adding to new)
-      const mockRun2 = vi.fn();
-      (db.insert as any).mockReturnValueOnce({
-        values: vi.fn().mockReturnValue({
-          onConflictDoUpdate: vi.fn().mockReturnValue({
-            run: mockRun2,
           }),
         }),
       });
@@ -932,8 +939,7 @@ describe('StorageService', () => {
       const result = storageService.addVideoToCollection('1', 'v1');
       
       expect(result).toBeDefined();
-      expect(mockRun1).toHaveBeenCalled(); // Should remove from current collection
-      expect(mockRun2).toHaveBeenCalled(); // Should add to new collection
+      expect(mockRun1).toHaveBeenCalled();
     });
   });
 

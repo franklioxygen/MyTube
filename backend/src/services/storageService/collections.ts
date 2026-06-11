@@ -187,7 +187,7 @@ export function addVideoToCollection(
   videoId: string,
   options?: CollectionLinkOptions
 ): Collection | null {
-  return moveVideoToExclusiveCollection(collectionId, videoId, options);
+  return linkVideoToCollection(collectionId, videoId, options);
 }
 
 export function removeVideoFromCollection(
@@ -267,29 +267,11 @@ export function deleteCollectionWithFiles(collectionId: string): boolean {
   if (!collection) return false;
 
   const collectionName = collection.name || collection.title;
-  const allCollections = getCollections();
 
   if (collection.videos && collection.videos.length > 0) {
-    collection.videos.forEach((videoId) => {
-      const video = getVideoById(videoId);
-      if (video) {
-        // Move files back to root (no collection)
-        const updates = moveAllFilesFromCollection(
-          video,
-          VIDEOS_DIR,
-          IMAGES_DIR,
-          SUBTITLES_DIR,
-          "/videos",
-          "/images",
-          undefined, // No subtitle prefix for root
-          allCollections
-        );
-
-        if (Object.keys(updates).length > 0) {
-          updateVideo(videoId, updates);
-        }
-      }
-    });
+    for (const videoId of [...collection.videos]) {
+      removeVideoFromCollection(collectionId, videoId, { moveFiles: true });
+    }
   }
 
   // Delete collection directory if exists and empty

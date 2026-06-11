@@ -118,16 +118,20 @@ export function getLatestRetryHistoryItemBySourceUrl(
       .all()
       .map(mapDownloadHistoryRow);
 
-    return items.find(
+    const matchingItems = items.filter(
       (item) =>
         typeof item.retryMetadata === "string" &&
         item.retryMetadata.length > 0 &&
-        (
+        (downloadType ? item.downloadType === downloadType : true),
+    );
+
+    return (
+      matchingItems.find(
+        (item) =>
           item.status === "failed" ||
           item.status === PARTIAL_STATUS ||
-          item.status === PENDING_RETRY_STATUS
-        ) &&
-        (downloadType ? item.downloadType === downloadType : true),
+          item.status === PENDING_RETRY_STATUS,
+      ) ?? matchingItems[0]
     );
   } catch (error) {
     logger.error(

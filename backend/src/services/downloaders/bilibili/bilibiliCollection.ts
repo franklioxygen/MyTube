@@ -90,6 +90,80 @@ const normalizeViewCount = (value: unknown): number | undefined => {
   return Number.isFinite(parsed) ? parsed : undefined;
 };
 
+const getCollectionDisplayName = (collection: Collection): string =>
+  collection.name || collection.title || "";
+
+function resolveExistingBilibiliCollection(
+  videos: BilibiliVideoItem[],
+  preferredCollectionName: string,
+): Collection | undefined {
+  const candidateCounts = new Map<
+    string,
+    { collection: Collection; count: number }
+  >();
+
+  for (const video of videos) {
+    const existingVideo = storageService.getVideoBySourceUrl(
+      `https://www.bilibili.com/video/${video.bvid}`,
+    );
+    if (!existingVideo?.id) {
+      continue;
+    }
+
+    const memberships = storageService.getCollectionsByVideoId(existingVideo.id);
+    const preferredMemberships = memberships.filter(
+      (collection) => collection.origin !== "author_auto",
+    );
+    const collectionsToCount =
+      preferredMemberships.length > 0 ? preferredMemberships : memberships;
+
+    for (const collection of collectionsToCount) {
+      const existing = candidateCounts.get(collection.id);
+      candidateCounts.set(collection.id, {
+        collection,
+        count: (existing?.count ?? 0) + 1,
+      });
+    }
+  }
+
+  const rankedCandidates = Array.from(candidateCounts.values()).sort(
+    (left, right) => {
+      const leftMatchesName =
+        getCollectionDisplayName(left.collection) === preferredCollectionName;
+      const rightMatchesName =
+        getCollectionDisplayName(right.collection) === preferredCollectionName;
+      if (leftMatchesName !== rightMatchesName) {
+        return leftMatchesName ? -1 : 1;
+      }
+
+      const leftIsManual = left.collection.origin !== "author_auto";
+      const rightIsManual = right.collection.origin !== "author_auto";
+      if (leftIsManual !== rightIsManual) {
+        return leftIsManual ? -1 : 1;
+      }
+
+      if (left.count !== right.count) {
+        return right.count - left.count;
+      }
+
+      return getCollectionDisplayName(left.collection).localeCompare(
+        getCollectionDisplayName(right.collection),
+      );
+    },
+  );
+
+  if (rankedCandidates.length > 0) {
+    return rankedCandidates[0].collection;
+  }
+
+  const namedCollection = storageService.getCollectionByName(preferredCollectionName);
+  if (namedCollection?.origin !== "author_auto") {
+    return namedCollection;
+  }
+
+  return undefined;
+}
+
 /**
  * Get all videos from a Bilibili collection
  */
@@ -280,6 +354,7 @@ export async function downloadCollection(
       retryCollectionMetadata.lastAttemptedAt = Date.now();
     }
 
+    const resolvedCollectionName = collectionName || title || "Collection";
     let mytubeCollection: Collection | undefined;
     if (retryCollectionMetadata?.linkedCollectionId) {
       mytubeCollection = storageService.getCollectionById(
@@ -288,12 +363,24 @@ export async function downloadCollection(
     }
 
     if (!mytubeCollection) {
+      mytubeCollection = resolveExistingBilibiliCollection(
+        videos,
+        resolvedCollectionName,
+      );
+      if (mytubeCollection) {
+        logger.info(
+          `Reusing existing MyTube collection: ${getCollectionDisplayName(mytubeCollection)}`,
+        );
+      }
+    }
+
+    if (!mytubeCollection) {
       mytubeCollection = {
         id: Date.now().toString(),
-        name: collectionName || title || "Collection",
+        name: resolvedCollectionName,
         videos: [],
         createdAt: new Date().toISOString(),
-        title: collectionName || title || "Collection",
+        title: resolvedCollectionName,
       };
       storageService.saveCollection(mytubeCollection);
     }
@@ -427,9 +514,10 @@ export async function downloadCollection(
     }
 
     logger.info(`Finished downloading ${type}: ${title}`);
-    const partial = failedPartNumbers.length > 0 && downloadedCount > 0;
-    const success = failedPartNumbers.length === 0;
     const skippedCount = videos.length - downloadedCount - failedPartNumbers.length;
+    const partial =
+      failedPartNumbers.length > 0 && downloadedCount + skippedCount > 0;
+    const success = failedPartNumbers.length === 0;
     const error = buildAggregateErrorMessage(
       "collection",
       videos.length,

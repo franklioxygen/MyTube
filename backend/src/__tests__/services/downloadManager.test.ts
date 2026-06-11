@@ -256,6 +256,46 @@ describe('DownloadManager', () => {
       }
     });
 
+    it('should persist Bilibili retry metadata on successful aggregate downloads', async () => {
+      const mockDownloadFn = vi.fn().mockResolvedValue({
+        success: true,
+        partial: false,
+        video: {
+          id: 'video-success',
+          title: 'Series Episode 1',
+          videoPath: '/videos/series-ep1.mp4',
+          thumbnailPath: '/images/series-ep1.jpg',
+          sourceUrl: 'https://www.bilibili.com/video/BV1zz',
+          author: 'Uploader',
+        },
+      });
+
+      (storageService.setQueuedDownloads as any).mockImplementation(() => {});
+      (storageService.addActiveDownload as any).mockImplementation(() => {});
+      (storageService.removeActiveDownload as any).mockImplementation(() => {});
+
+      await downloadManager.addDownload(
+        mockDownloadFn,
+        'success-bili',
+        'Multipart Bilibili',
+        'https://www.bilibili.com/video/BV1zz',
+        'bilibili',
+        undefined,
+        { shape: 'bilibili_all_parts', collectionName: 'Series' },
+      );
+
+      expect(storageService.addDownloadHistoryItem).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'success-bili',
+          status: 'success',
+          retryMetadata: JSON.stringify({
+            shape: 'bilibili_all_parts',
+            collectionName: 'Series',
+          }),
+        }),
+      );
+    });
+
     it('should queue downloads when at max concurrent limit', async () => {
       // Create 4 downloads (default limit is 3)
       const downloads = Array.from({ length: 4 }, (_, i) => ({

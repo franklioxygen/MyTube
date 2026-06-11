@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   axiosGet: vi.fn(),
   getCollectionById: vi.fn(),
   getCollectionByName: vi.fn(),
+  getCollectionsByVideoId: vi.fn(),
   saveCollection: vi.fn(),
   updateActiveDownloadTitle: vi.fn(),
   getVideoBySourceUrl: vi.fn(),
@@ -26,6 +27,7 @@ vi.mock("axios", () => ({
 vi.mock("../../../services/storageService", () => ({
   getCollectionById: (...args: any[]) => mocks.getCollectionById(...args),
   getCollectionByName: (...args: any[]) => mocks.getCollectionByName(...args),
+  getCollectionsByVideoId: (...args: any[]) => mocks.getCollectionsByVideoId(...args),
   saveCollection: (...args: any[]) => mocks.saveCollection(...args),
   updateActiveDownloadTitle: (...args: any[]) =>
     mocks.updateActiveDownloadTitle(...args),
@@ -64,6 +66,7 @@ describe("bilibiliCollection.downloadCollection", () => {
       videos: [],
     });
     mocks.getCollectionByName.mockReturnValue(undefined);
+    mocks.getCollectionsByVideoId.mockReturnValue([]);
     mocks.saveCollection.mockImplementation((collection: any) => collection);
     mocks.linkVideoToCollection.mockReturnValue(undefined);
     mocks.downloadSinglePart.mockResolvedValue({
@@ -139,6 +142,106 @@ describe("bilibiliCollection.downloadCollection", () => {
       "col-existing",
       "video-2",
       { moveFiles: false, order: 2 },
+    );
+  });
+
+  it("reuses an existing manual collection when prior retry metadata is unavailable", async () => {
+    mocks.getCollectionById.mockReturnValue(undefined);
+    mocks.getVideoBySourceUrl.mockImplementation((sourceUrl: string) => {
+      if (sourceUrl.endsWith("/BV1")) {
+        return { id: "video-1", sourceUrl };
+      }
+      return undefined;
+    });
+    mocks.getCollectionsByVideoId.mockReturnValue([
+      {
+        id: "col-existing",
+        name: "Series",
+        title: "Series",
+        origin: "manual",
+        videos: ["video-1"],
+      },
+      {
+        id: "author-auto",
+        name: "Uploader",
+        title: "Uploader",
+        origin: "author_auto",
+        videos: ["video-1"],
+      },
+    ]);
+
+    const result = await downloadCollection(
+      {
+        success: true,
+        type: "collection",
+        id: 42,
+        mid: 9,
+        title: "Series",
+      },
+      "Series",
+      "download-2",
+    );
+
+    expect(mocks.saveCollection).not.toHaveBeenCalled();
+    expect(result.collectionId).toBe("col-existing");
+    expect(mocks.linkVideoToCollection).toHaveBeenNthCalledWith(
+      1,
+      "col-existing",
+      "video-1",
+      { moveFiles: false, order: 1 },
+    );
+  });
+
+  it("marks collection retries as partial when existing videos are skipped and a missing video still fails", async () => {
+    mocks.getCollectionById.mockReturnValue({
+      id: "col-existing",
+      name: "Series",
+      title: "Series",
+      videos: [],
+    });
+    mocks.getVideoBySourceUrl.mockImplementation((sourceUrl: string) => {
+      if (sourceUrl.endsWith("/BV1")) {
+        return { id: "video-1", sourceUrl };
+      }
+      return undefined;
+    });
+    mocks.downloadSinglePart.mockResolvedValueOnce({
+      success: false,
+      error: "network error",
+    });
+
+    const retryMetadata: any = {
+      shape: "bilibili_collection" as const,
+      collectionName: "Series",
+      collectionInfo: {
+        success: true,
+        type: "collection" as const,
+        id: 42,
+        mid: 9,
+        title: "Series",
+      },
+      linkedCollectionId: "col-existing",
+      completedVideoBvids: ["BV1"],
+      failedVideoBvids: ["BV2"],
+    };
+
+    const result = await downloadCollection(
+      retryMetadata.collectionInfo,
+      "Series",
+      "download-3",
+      undefined,
+      retryMetadata,
+    );
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        success: false,
+        partial: true,
+        expectedCount: 2,
+        downloadedCount: 0,
+        skippedCount: 1,
+        failedPartNumbers: [2],
+      }),
     );
   });
 });
