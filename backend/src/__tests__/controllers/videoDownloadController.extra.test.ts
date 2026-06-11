@@ -519,18 +519,9 @@ describe("videoDownloadController extra coverage", () => {
     );
   });
 
-  it("downloadVideo reuses persisted Bilibili retry metadata for same-link repair", async () => {
+  it("downloadVideo reuses persisted Bilibili collection retry metadata for URL-only retries", async () => {
     req.body = {
       youtubeUrl: "https://www.bilibili.com/video/BVrestore?spm_id_from=foo",
-      downloadCollection: true,
-      collectionName: "Series",
-      collectionInfo: {
-        success: true,
-        type: "collection",
-        id: 42,
-        mid: 9,
-        title: "Series",
-      },
     };
     vi.mocked(processVideoUrl).mockResolvedValue({
       videoUrl: "https://www.bilibili.com/video/BVrestore?spm_id_from=foo",
@@ -563,8 +554,19 @@ describe("videoDownloadController extra coverage", () => {
         failedVideoBvids: ["BV2"],
       }),
     } as any);
+    vi.mocked(downloadService.downloadBilibiliCollection).mockResolvedValue({
+      success: true,
+      partial: false,
+      expectedCount: 2,
+      downloadedCount: 1,
+      skippedCount: 1,
+      failedPartNumbers: [],
+      collectionId: "col-restore",
+      videosDownloaded: 1,
+    } as any);
 
     await downloadVideo(req as Request, res as Response);
+    await flushBackgroundTasks();
 
     expect(storageService.getLatestRetryHistoryItemBySourceUrl).toHaveBeenCalledWith(
       "https://www.bilibili.com/video/BVrestore",
@@ -584,6 +586,83 @@ describe("videoDownloadController extra coverage", () => {
         failedVideoBvids: ["BV2"],
         normalizedSourceUrl: "https://www.bilibili.com/video/BVrestore",
       }),
+    );
+    expect(downloadService.downloadBilibiliCollection).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: true,
+        type: "collection",
+        id: 42,
+        mid: 9,
+        title: "Series",
+      }),
+      "Series",
+      expect.any(String),
+      expect.any(Function),
+      expect.objectContaining({
+        shape: "bilibili_collection",
+        linkedCollectionId: "col-restore",
+      }),
+    );
+  });
+
+  it("downloadVideo reuses persisted multipart retry metadata for URL-only retries", async () => {
+    req.body = {
+      youtubeUrl: "https://www.bilibili.com/video/BVretryonly",
+    };
+    vi.mocked(processVideoUrl).mockResolvedValue({
+      videoUrl: "https://www.bilibili.com/video/BVretryonly",
+      sourceVideoId: "bv-retry-only",
+      platform: "bilibili",
+    } as any);
+    vi.mocked(isBilibiliUrl).mockReturnValue(true);
+    vi.mocked(extractBilibiliVideoId).mockReturnValue("BVretryonly");
+    vi.mocked(downloadService.checkBilibiliVideoParts).mockResolvedValue({
+      success: true,
+      videosNumber: 1,
+      title: "Retry Only Series",
+    } as any);
+    vi.mocked(storageService.getLatestRetryHistoryItemBySourceUrl).mockReturnValue({
+      id: "retry-multipart",
+      title: "Retry Only Series",
+      status: "partial",
+      finishedAt: Date.now(),
+      sourceUrl: "https://www.bilibili.com/video/BVretryonly",
+      downloadType: "bilibili",
+      retryMetadata: JSON.stringify({
+        shape: "bilibili_all_parts",
+        collectionName: "Retry Only Series",
+        linkedCollectionId: "col-multipart",
+        failedPartNumbers: [3],
+      }),
+    } as any);
+    vi.mocked(storageService.getVideoBySourceUrl).mockReturnValue({
+      id: "existing-retry-part",
+    } as any);
+    vi.mocked(storageService.getCollectionsByVideoId).mockReturnValue([]);
+    vi.mocked(storageService.getCollectionById).mockReturnValue({
+      id: "col-multipart",
+      name: "Retry Only Series",
+      videos: [],
+    } as any);
+    vi.mocked(storageService.linkVideoToCollection).mockReturnValue(undefined as any);
+
+    await downloadVideo(req as Request, res as Response);
+    await flushBackgroundTasks();
+
+    expect(storageService.getLatestRetryHistoryItemBySourceUrl).toHaveBeenCalledWith(
+      "https://www.bilibili.com/video/BVretryonly",
+      "bilibili",
+    );
+    expect(downloadService.checkBilibiliVideoParts).toHaveBeenCalledWith(
+      "BVretryonly",
+    );
+    expect(downloadService.downloadSingleBilibiliPart).not.toHaveBeenCalledWith(
+      "https://www.bilibili.com/video/BVretryonly",
+      1,
+      1,
+      "",
+      expect.any(String),
+      expect.any(Function),
     );
   });
 
