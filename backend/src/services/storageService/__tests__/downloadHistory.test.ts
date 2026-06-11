@@ -264,7 +264,7 @@ describe("downloadHistory", () => {
     );
   });
 
-  it("falls back to the latest successful item when it carries retry metadata", () => {
+  it("ignores successful items when no retryable history exists", () => {
     const all = vi.fn().mockReturnValue([
       {
         id: "success-1",
@@ -295,12 +295,7 @@ describe("downloadHistory", () => {
         "https://www.bilibili.com/video/BV1yy",
         "bilibili",
       ),
-    ).toEqual(
-      expect.objectContaining({
-        id: "success-1",
-        status: "success",
-      }),
-    );
+    ).toBeUndefined();
   });
 
   it("returns empty list when get history fails", () => {
