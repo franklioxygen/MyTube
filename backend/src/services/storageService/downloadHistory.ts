@@ -125,13 +125,11 @@ export function getLatestRetryHistoryItemBySourceUrl(
         (downloadType ? item.downloadType === downloadType : true),
     );
 
-    return (
-      matchingItems.find(
-        (item) =>
-          item.status === "failed" ||
-          item.status === PARTIAL_STATUS ||
-          item.status === PENDING_RETRY_STATUS,
-      ) ?? matchingItems[0]
+    return matchingItems.find(
+      (item) =>
+        item.status === "failed" ||
+        item.status === PARTIAL_STATUS ||
+        item.status === PENDING_RETRY_STATUS,
     );
   } catch (error) {
     logger.error(
