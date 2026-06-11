@@ -299,18 +299,43 @@ export const downloadVideo = async (
           )?.retryMetadata,
         )
       : undefined;
-    const bilibiliRetryMetadata = isBilibiliUrl(resolvedUrl)
-      ? mergeBilibiliRetryMetadata(
-          createBilibiliRetryMetadata({
+    const currentBilibiliRetryMetadata = isBilibiliUrl(resolvedUrl)
+      ? createBilibiliRetryMetadata({
           downloadAllParts: !!downloadAllParts,
           downloadCollection: !!downloadCollection,
           collectionName,
           collectionInfo,
           normalizedSourceUrl: resolvedUrl,
-        }),
-          previousBilibiliRetryMetadata,
-        )
+        })
       : undefined;
+    const bilibiliRetryMetadata = isBilibiliUrl(resolvedUrl)
+      ? currentBilibiliRetryMetadata
+        ? mergeBilibiliRetryMetadata(
+            currentBilibiliRetryMetadata,
+            previousBilibiliRetryMetadata,
+          )
+        : previousBilibiliRetryMetadata
+      : undefined;
+    const shouldReuseRetryAggregateMode =
+      isBilibiliUrl(resolvedUrl) &&
+      !downloadAllParts &&
+      !downloadCollection &&
+      !!bilibiliRetryMetadata;
+    const retryCollectionInfo =
+      bilibiliRetryMetadata?.shape === "bilibili_collection"
+        ? bilibiliRetryMetadata.collectionInfo
+        : undefined;
+    const effectiveDownloadAllParts =
+      !!downloadAllParts ||
+      (shouldReuseRetryAggregateMode &&
+        bilibiliRetryMetadata?.shape === "bilibili_all_parts");
+    const effectiveDownloadCollection =
+      !!downloadCollection ||
+      (shouldReuseRetryAggregateMode &&
+        bilibiliRetryMetadata?.shape === "bilibili_collection");
+    const effectiveCollectionName =
+      collectionName ?? bilibiliRetryMetadata?.collectionName;
+    const effectiveCollectionInfo = collectionInfo ?? retryCollectionInfo;
 
     // Define the download task function
     const downloadTask = async (
@@ -324,10 +349,10 @@ export const downloadVideo = async (
           downloadUrl,
           downloadId,
           initialTitle,
-          downloadAllParts: !!downloadAllParts,
-          downloadCollection: !!downloadCollection,
-          collectionName,
-          collectionInfo,
+          downloadAllParts: effectiveDownloadAllParts,
+          downloadCollection: effectiveDownloadCollection,
+          collectionName: effectiveCollectionName,
+          collectionInfo: effectiveCollectionInfo,
           retryMetadata: bilibiliRetryMetadata,
           onTitleUpdate: (id, title) => {
             storageService.updateActiveDownloadTitle(id, title);
