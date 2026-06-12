@@ -1324,6 +1324,10 @@ export const ja = {
   filenamePreviewVideo: "動画",
   filenamePreviewThumbnail: "サムネイル",
   filenamePreviewSubtitle: "字幕",
+  filenameWarningMediaPlaylistIndexUnavailable:
+    "プレイリスト以外のソースでは media_playlist_index を利用できないため、00 にフォールバックします。",
+  filenameWarningSourceCollectionMetadataMayBeEmpty:
+    "単一動画のダウンロードでは source_collection_name/id が空になる場合があります。",
   filenameValidating: "検証中…",
   filenameValidationError: "テンプレートエラー",
   filenameBatchRenameButton:

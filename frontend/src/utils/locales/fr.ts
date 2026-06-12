@@ -1346,6 +1346,10 @@ export const fr = {
   filenamePreviewVideo: "Vidéo",
   filenamePreviewThumbnail: "Miniature",
   filenamePreviewSubtitle: "Sous-titre",
+  filenameWarningMediaPlaylistIndexUnavailable:
+    "media_playlist_index n'est pas disponible pour les sources hors playlist et sera remplacé par 00.",
+  filenameWarningSourceCollectionMetadataMayBeEmpty:
+    "source_collection_name/id peut être vide pour les téléchargements d'une seule vidéo.",
   filenameValidating: "Validation…",
   filenameValidationError: "Erreur de modèle",
   filenameBatchRenameButton:

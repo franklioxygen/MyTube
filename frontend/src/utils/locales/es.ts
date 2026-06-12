@@ -1337,6 +1337,10 @@ export const es = {
   filenamePreviewVideo: "Vídeo",
   filenamePreviewThumbnail: "Miniatura",
   filenamePreviewSubtitle: "Subtítulo",
+  filenameWarningMediaPlaylistIndexUnavailable:
+    "media_playlist_index no está disponible para fuentes que no sean listas de reproducción y volverá a 00.",
+  filenameWarningSourceCollectionMetadataMayBeEmpty:
+    "source_collection_name/id puede estar vacío en descargas de un solo vídeo.",
   filenameValidating: "Validando…",
   filenameValidationError: "Error de plantilla",
   filenameBatchRenameButton:

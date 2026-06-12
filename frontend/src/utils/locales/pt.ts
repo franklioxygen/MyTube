@@ -1325,6 +1325,10 @@ export const pt = {
   filenamePreviewVideo: "Vídeo",
   filenamePreviewThumbnail: "Miniatura",
   filenamePreviewSubtitle: "Legenda",
+  filenameWarningMediaPlaylistIndexUnavailable:
+    "media_playlist_index não está disponível para fontes que não sejam playlists e voltará para 00.",
+  filenameWarningSourceCollectionMetadataMayBeEmpty:
+    "source_collection_name/id pode ficar vazio em downloads de vídeo único.",
   filenameValidating: "Validando…",
   filenameValidationError: "Erro de modelo",
   filenameBatchRenameButton:

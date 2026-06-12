@@ -1301,6 +1301,10 @@ export const ko = {
   filenamePreviewVideo: "동영상",
   filenamePreviewThumbnail: "썸네일",
   filenamePreviewSubtitle: "자막",
+  filenameWarningMediaPlaylistIndexUnavailable:
+    "재생목록이 아닌 소스에서는 media_playlist_index를 사용할 수 없어 00으로 대체됩니다.",
+  filenameWarningSourceCollectionMetadataMayBeEmpty:
+    "단일 동영상 다운로드에서는 source_collection_name/id가 비어 있을 수 있습니다.",
   filenameValidating: "검증 중…",
   filenameValidationError: "템플릿 오류",
   filenameBatchRenameButton:

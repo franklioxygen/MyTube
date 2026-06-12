@@ -99,6 +99,7 @@ describe("validateTemplate", () => {
     expect(result.valid).toBe(true);
     expect(
       result.warnings.some((w) =>
+        w.code === "media_playlist_index_unavailable" &&
         w.message.includes("media_playlist_index")
       )
     ).toBe(true);
@@ -119,6 +120,7 @@ describe("validateTemplate", () => {
     );
     expect(
       result.warnings.some((w) =>
+        w.code === "source_collection_metadata_may_be_empty" &&
         w.message.includes("source_collection_name")
       )
     ).toBe(true);
@@ -130,7 +132,7 @@ describe("validateTemplate", () => {
       "channel"
     );
     expect(
-      result.warnings.some((w) => w.code === "metadata_missing")
+      result.warnings.some((w) => w.code === "media_playlist_index_unavailable")
     ).toBe(true);
   });
 

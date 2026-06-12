@@ -37,6 +37,20 @@ interface PreviewResult {
     valid?: boolean;
 }
 
+export function getFilenameTemplateWarningMessage(
+    warning: { code: string; message: string },
+    t: (key: TranslationKey) => string
+): string {
+    switch (warning.code) {
+        case 'media_playlist_index_unavailable':
+            return t('filenameWarningMediaPlaylistIndexUnavailable');
+        case 'source_collection_metadata_may_be_empty':
+            return t('filenameWarningSourceCollectionMetadataMayBeEmpty');
+        default:
+            return warning.message;
+    }
+}
+
 function getMediaServerExportErrorMessage(
     error: any,
     mode: 'off' | 'nfo' | 'nfo_and_source_json',
@@ -523,7 +537,9 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
                         )}
                         {preview?.warnings && preview.warnings.length > 0 && (
                             <Alert severity="warning" sx={{ mt: 1 }}>
-                                {preview.warnings.map((w) => w.message).join('\n')}
+                                {preview.warnings
+                                    .map((warning) => getFilenameTemplateWarningMessage(warning, t))
+                                    .join('\n')}
                             </Alert>
                         )}
                     </Box>

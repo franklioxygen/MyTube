@@ -1338,6 +1338,10 @@ export const de = {
   filenamePreviewVideo: "Video",
   filenamePreviewThumbnail: "Miniaturbild",
   filenamePreviewSubtitle: "Untertitel",
+  filenameWarningMediaPlaylistIndexUnavailable:
+    "media_playlist_index ist für Nicht-Playlist-Quellen nicht verfügbar und fällt auf 00 zurück.",
+  filenameWarningSourceCollectionMetadataMayBeEmpty:
+    "source_collection_name/id kann bei Einzelvideo-Downloads leer sein.",
   filenameValidating: "Wird geprüft…",
   filenameValidationError: "Vorlagenfehler",
   filenameBatchRenameButton:
