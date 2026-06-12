@@ -1238,6 +1238,10 @@ export const zh = {
   filenamePreviewVideo: "视频",
   filenamePreviewThumbnail: "缩略图",
   filenamePreviewSubtitle: "字幕",
+  filenameWarningMediaPlaylistIndexUnavailable:
+    "非播放列表来源不提供 media_playlist_index，将回退为 00。",
+  filenameWarningSourceCollectionMetadataMayBeEmpty:
+    "对于单视频下载，source_collection_name/id 可能为空。",
   filenameValidating: "验证中…",
   filenameValidationError: "模板错误",
   filenameBatchRenameButton: "重命名现有文件以匹配当前命名模式",

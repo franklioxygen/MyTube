@@ -1292,6 +1292,10 @@ export const ar = {
   filenamePreviewVideo: "فيديو",
   filenamePreviewThumbnail: "صورة مصغرة",
   filenamePreviewSubtitle: "ترجمة",
+  filenameWarningMediaPlaylistIndexUnavailable:
+    "المتغير media_playlist_index غير متاح للمصادر غير التابعة لقائمة تشغيل وسيتم الرجوع إلى 00.",
+  filenameWarningSourceCollectionMetadataMayBeEmpty:
+    "قد يكون source_collection_name/id فارغًا في تنزيلات الفيديو المفردة.",
   filenameValidating: "جارٍ التحقق…",
   filenameValidationError: "خطأ في القالب",
   filenameBatchRenameButton:

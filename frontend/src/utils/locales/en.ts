@@ -1260,6 +1260,10 @@ export const en = {
   filenamePreviewVideo: "Video",
   filenamePreviewThumbnail: "Thumbnail",
   filenamePreviewSubtitle: "Subtitle",
+  filenameWarningMediaPlaylistIndexUnavailable:
+    "media_playlist_index is unavailable for non-playlist sources and will fall back to 00.",
+  filenameWarningSourceCollectionMetadataMayBeEmpty:
+    "source_collection_name/id may be empty for single-video downloads.",
   filenameValidating: "Validating…",
   filenameValidationError: "Template error",
   filenameBatchRenameButton: "Rename existing files to match current pattern",

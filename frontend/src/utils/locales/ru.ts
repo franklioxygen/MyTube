@@ -1320,6 +1320,10 @@ export const ru = {
   filenamePreviewVideo: "Видео",
   filenamePreviewThumbnail: "Миниатюра",
   filenamePreviewSubtitle: "Субтитры",
+  filenameWarningMediaPlaylistIndexUnavailable:
+    "media_playlist_index недоступен для источников без плейлиста и будет заменён на 00.",
+  filenameWarningSourceCollectionMetadataMayBeEmpty:
+    "source_collection_name/id может быть пустым для загрузок одиночного видео.",
   filenameValidating: "Проверка…",
   filenameValidationError: "Ошибка шаблона",
   filenameBatchRenameButton:
