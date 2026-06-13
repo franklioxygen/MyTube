@@ -177,6 +177,16 @@ describe('SettingsController', () => {
       );
     });
 
+    it('should reject invalid author organization modes instead of normalizing them to root', async () => {
+      req.body = { authorOrganizationMode: 'author-folder' };
+      (storageService.getSettings as any).mockReturnValue({});
+
+      await expect(updateSettings(req as Request, res as Response)).rejects.toThrow(
+        /Invalid authorOrganizationMode/
+      );
+      expect(storageService.saveSettings).not.toHaveBeenCalled();
+    });
+
     it('should validate and update itemsPerPage', async () => {
       req.body = { itemsPerPage: -5 };
       (storageService.getSettings as any).mockReturnValue({});

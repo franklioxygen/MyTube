@@ -16,6 +16,14 @@ import { getCookieHeader } from "./bilibiliCookie";
 type SubtitleDownloadConfig = Record<string, unknown>;
 const BILIBILI_ALLOWED_HOSTS = ["bilibili.com", "hdslb.com"];
 
+function trimTrailingSlashes(value: string): string {
+  let end = value.length;
+  while (end > 0 && value.charCodeAt(end - 1) === 47) {
+    end--;
+  }
+  return value.slice(0, end);
+}
+
 /**
  * Download subtitles for a Bilibili video
  */
@@ -143,7 +151,8 @@ export async function downloadSubtitles(
     // Web path prefix preserves the subdirectory (e.g. /videos/<collection> or
     // a planned author/season path). Strip any trailing slash.
     const safePathPrefix =
-      normalizedPrefix.replace(/\/+$/, "") || (useVideoRoot ? "/videos" : "/subtitles");
+      trimTrailingSlashes(normalizedPrefix) ||
+      (useVideoRoot ? "/videos" : "/subtitles");
     ensureDirSafeSync(targetSubtitleDir, rootDir);
 
     // Process subtitles (matching v1.5.14 approach - simple and direct)

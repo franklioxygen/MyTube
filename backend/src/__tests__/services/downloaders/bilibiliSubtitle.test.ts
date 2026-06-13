@@ -115,6 +115,17 @@ describe("bilibiliSubtitle.downloadSubtitles", () => {
     expect(mocks.writeFileSafeSync.mock.calls[0][1]).toBe("/data/subtitles");
   });
 
+  it("trims trailing slashes from the returned subtitle web prefix", async () => {
+    const result = await downloadSubtitles(
+      "https://www.bilibili.com/video/BV1xx",
+      "Ep01-Author-2026",
+      "/data/videos/Author A",
+      "/videos/Author A////"
+    );
+
+    expect(result[0].path).toBe("/videos/Author A/Ep01-Author-2026.zh-CN.vtt");
+  });
+
   it("falls back to the root when the provided directory is outside it", async () => {
     mocks.resolveSafePathInDirectories.mockImplementation(() => {
       throw new Error("Path traversal detected");

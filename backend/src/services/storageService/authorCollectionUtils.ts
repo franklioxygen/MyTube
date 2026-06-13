@@ -78,13 +78,7 @@ function isLegacyAuthorAutoCollection(collection: Collection): boolean {
     return true;
   }
 
-  const collectionName = getCollectionDisplayName(collection);
-  if (!collectionName || collection.videos.length > 0) {
-    return false;
-  }
-
-  const validatedName = validateCollectionName(collectionName);
-  return validatedName === collectionName;
+  return false;
 }
 
 function isAuthorAutoCollection(collection: Collection): boolean {

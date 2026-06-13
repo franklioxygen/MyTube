@@ -125,6 +125,22 @@ describe('collectionsService', () => {
 
              expect(result?.videos).toEqual(['vid1', 'vid2', 'vid3']);
          });
+
+        it('should not move files for omitted moveFiles under author_folder_only', () => {
+             const targetCollection = { id: 'col2', name: 'Playlist', videos: [] };
+             settingsMocks.getSettings.mockReturnValue({
+                 authorOrganizationMode: 'author_folder_only',
+             });
+             vi.mocked(collectionRepo.atomicUpdateCollection).mockImplementation((id, fn) => {
+                 return fn({ ...targetCollection, videos: [...targetCollection.videos] } as any);
+             });
+
+             const result = collectionsService.linkVideoToCollection('col2', 'vid1');
+
+             expect(result?.videos).toContain('vid1');
+             expect(collectionFileManager.moveAllFilesToCollection).not.toHaveBeenCalled();
+             expect(videosService.updateVideo).not.toHaveBeenCalled();
+         });
     });
 
     describe('moveVideoToExclusiveCollection', () => {
