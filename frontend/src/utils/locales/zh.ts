@@ -184,6 +184,13 @@ export const zh = {
   preferredAudioLanguage_pl: "波兰语",
   preferredAudioLanguage_tr: "土耳其语",
   preferredAudioLanguage_vi: "越南语",
+  preferredVideoResolution: "首选视频分辨率",
+  preferredVideoResolutionDescription:
+    "下载时优先选择不超过该高度的最佳画质。这可以避免合集中的分集画质不一致地回退到低分辨率。自定义 yt-dlp 配置会覆盖此设置。",
+  preferredVideoResolutionAuto: "自动（最佳画质）",
+  preferredVideoResolutionStrict: "严格限制分辨率上限",
+  preferredVideoResolutionStrictDescription:
+    "开启后，若某分集没有不超过上限的画质，则该分集下载失败，而不会下载更高分辨率。关闭则将分辨率视为软性偏好。",
   defaultVideoCodec: "首选视频编解码器",
   defaultVideoCodecDescription:
     "下载时优先选择特定的视频编解码器。yt-dlp 会在可用时尝试选择此编解码器，不可用时回退到其他编解码器。自定义 yt-dlp 配置会覆盖此设置。",

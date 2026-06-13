@@ -130,6 +130,8 @@ export interface Settings {
   showTagsOnThumbnail?: boolean;
   preferredAudioLanguage?: string;
   defaultVideoCodec?: string;
+  preferredVideoResolution?: string;
+  preferredVideoResolutionStrict?: boolean;
   authorTags?: Record<string, string[]>;
   collectionTags?: Record<string, string[]>;
   playFromBeginning?: boolean;
