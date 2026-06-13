@@ -3,6 +3,7 @@ import { logger } from "../../../utils/logger";
 import type { DownloadRetryMetadata } from "../../downloadRetryMetadata";
 import * as storageService from "../../storageService";
 import { Collection } from "../../storageService";
+import { resolveAuthorOrganizationMode } from "../../../types/settings";
 import { downloadSinglePart } from "./bilibiliVideo";
 import {
   BilibiliAggregateDownloadResult,
@@ -577,6 +578,25 @@ export async function downloadCollection(
     }
 
     logger.info(`Finished downloading ${type}: ${title}`);
+
+    // Under author_folder_only, collection members live in the author folder.
+    // Remove any now-empty collection-named folder left from initial placement so
+    // it does not linger in the storage root (issue #295 2-2). This only removes
+    // empty directories, so legitimate files are never touched.
+    try {
+      const organizationMode = resolveAuthorOrganizationMode(
+        storageService.getSettings(),
+      );
+      if (organizationMode === "author_folder_only" && resolvedCollectionName) {
+        storageService.cleanupCollectionDirectories(resolvedCollectionName);
+      }
+    } catch (cleanupError) {
+      logger.warn(
+        "Failed to clean up residual collection directories:",
+        cleanupError,
+      );
+    }
+
     const skippedCount = videos.length - downloadedCount - failedPartNumbers.length;
     const partial =
       failedPartNumbers.length > 0 && downloadedCount + skippedCount > 0;

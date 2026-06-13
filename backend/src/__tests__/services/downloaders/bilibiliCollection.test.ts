@@ -11,6 +11,8 @@ const mocks = vi.hoisted(() => ({
   updateActiveDownloadTitle: vi.fn(),
   getVideoBySourceUrl: vi.fn(),
   linkVideoToCollection: vi.fn(),
+  getSettings: vi.fn(),
+  cleanupCollectionDirectories: vi.fn(),
   downloadSinglePart: vi.fn(),
   logger: {
     info: vi.fn(),
@@ -36,6 +38,9 @@ vi.mock("../../../services/storageService", () => ({
     mocks.updateActiveDownloadTitle(...args),
   getVideoBySourceUrl: (...args: any[]) => mocks.getVideoBySourceUrl(...args),
   linkVideoToCollection: (...args: any[]) => mocks.linkVideoToCollection(...args),
+  getSettings: (...args: any[]) => mocks.getSettings(...args),
+  cleanupCollectionDirectories: (...args: any[]) =>
+    mocks.cleanupCollectionDirectories(...args),
 }));
 
 vi.mock("../../../services/downloaders/bilibili/bilibiliVideo", () => ({
@@ -73,6 +78,7 @@ describe("bilibiliCollection.downloadCollection", () => {
     mocks.getCollectionsByVideoId.mockReturnValue([]);
     mocks.saveCollection.mockImplementation((collection: any) => collection);
     mocks.linkVideoToCollection.mockReturnValue(undefined);
+    mocks.getSettings.mockReturnValue({});
     mocks.downloadSinglePart.mockResolvedValue({
       success: true,
       videoData: { id: "video-2" },
@@ -333,5 +339,35 @@ describe("bilibiliCollection.downloadCollection", () => {
         failedPartNumbers: [2],
       }),
     );
+  });
+
+  it("cleans up the residual collection folder under author_folder_only (issue #295 2-2)", async () => {
+    mocks.getCollectionById.mockReturnValue(undefined);
+    mocks.getVideoBySourceUrl.mockReturnValue(undefined);
+    mocks.getSettings.mockReturnValue({
+      authorOrganizationMode: "author_folder_only",
+    });
+
+    await downloadCollection(
+      { success: true, type: "collection", id: 42, mid: 9, title: "Series" },
+      "Series",
+      "download-cleanup",
+    );
+
+    expect(mocks.cleanupCollectionDirectories).toHaveBeenCalledWith("Series");
+  });
+
+  it("does not clean up collection folders in non-author_folder_only modes", async () => {
+    mocks.getCollectionById.mockReturnValue(undefined);
+    mocks.getVideoBySourceUrl.mockReturnValue(undefined);
+    mocks.getSettings.mockReturnValue({ authorOrganizationMode: "root" });
+
+    await downloadCollection(
+      { success: true, type: "collection", id: 42, mid: 9, title: "Series" },
+      "Series",
+      "download-no-cleanup",
+    );
+
+    expect(mocks.cleanupCollectionDirectories).not.toHaveBeenCalled();
   });
 });
