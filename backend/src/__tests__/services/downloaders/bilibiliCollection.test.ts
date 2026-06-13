@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   axiosGet: vi.fn(),
   getCollectionById: vi.fn(),
   getCollectionByName: vi.fn(),
+  getCollectionBySourceKey: vi.fn(),
   getCollectionsByVideoId: vi.fn(),
   saveCollection: vi.fn(),
   updateActiveDownloadTitle: vi.fn(),
@@ -27,6 +28,8 @@ vi.mock("axios", () => ({
 vi.mock("../../../services/storageService", () => ({
   getCollectionById: (...args: any[]) => mocks.getCollectionById(...args),
   getCollectionByName: (...args: any[]) => mocks.getCollectionByName(...args),
+  getCollectionBySourceKey: (...args: any[]) =>
+    mocks.getCollectionBySourceKey(...args),
   getCollectionsByVideoId: (...args: any[]) => mocks.getCollectionsByVideoId(...args),
   saveCollection: (...args: any[]) => mocks.saveCollection(...args),
   updateActiveDownloadTitle: (...args: any[]) =>
@@ -66,6 +69,7 @@ describe("bilibiliCollection.downloadCollection", () => {
       videos: [],
     });
     mocks.getCollectionByName.mockReturnValue(undefined);
+    mocks.getCollectionBySourceKey.mockReturnValue(undefined);
     mocks.getCollectionsByVideoId.mockReturnValue([]);
     mocks.saveCollection.mockImplementation((collection: any) => collection);
     mocks.linkVideoToCollection.mockReturnValue(undefined);
@@ -106,7 +110,16 @@ describe("bilibiliCollection.downloadCollection", () => {
       retryMetadata,
     );
 
-    expect(mocks.saveCollection).not.toHaveBeenCalled();
+    expect(mocks.saveCollection).toHaveBeenCalledTimes(1);
+    expect(mocks.saveCollection).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "col-existing",
+        sourcePlatform: "bilibili",
+        sourceType: "collection",
+        sourceMid: "9",
+        sourceId: "42",
+      }),
+    );
     expect(mocks.downloadSinglePart).toHaveBeenCalledTimes(1);
     expect(mocks.downloadSinglePart).toHaveBeenCalledWith(
       "https://www.bilibili.com/video/BV2",
@@ -182,8 +195,85 @@ describe("bilibiliCollection.downloadCollection", () => {
       "download-2",
     );
 
-    expect(mocks.saveCollection).not.toHaveBeenCalled();
+    expect(mocks.saveCollection).toHaveBeenCalledTimes(1);
+    expect(mocks.saveCollection).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "col-existing",
+        sourcePlatform: "bilibili",
+        sourceType: "collection",
+        sourceMid: "9",
+        sourceId: "42",
+      }),
+    );
     expect(result.collectionId).toBe("col-existing");
+    expect(mocks.linkVideoToCollection).toHaveBeenNthCalledWith(
+      1,
+      "col-existing",
+      "video-1",
+      { moveFiles: false, order: 1 },
+    );
+  });
+
+  it("reuses the collection found by stable source key instead of creating a duplicate (issue #295)", async () => {
+    // No retry metadata link, and the name/membership resolver finds nothing,
+    // but the stable source key (type+mid+id) matches an existing collection.
+    mocks.getCollectionById.mockReturnValue(undefined);
+    mocks.getCollectionByName.mockReturnValue(undefined);
+    mocks.getCollectionsByVideoId.mockReturnValue([]);
+    mocks.getVideoBySourceUrl.mockImplementation((sourceUrl: string) => {
+      if (sourceUrl.endsWith("/BV1")) {
+        return { id: "video-1", sourceUrl };
+      }
+      return undefined;
+    });
+    mocks.getCollectionBySourceKey.mockImplementation(
+      (platform: string, type: string, mid: string, id: string) => {
+        if (
+          platform === "bilibili" &&
+          type === "collection" &&
+          mid === "9" &&
+          id === "42"
+        ) {
+          return {
+            id: "col-existing",
+            name: "Series",
+            title: "Series",
+            origin: "manual",
+            videos: ["video-1"],
+            sourcePlatform: "bilibili",
+            sourceType: "collection",
+            sourceMid: "9",
+            sourceId: "42",
+          };
+        }
+        return undefined;
+      },
+    );
+
+    const result = await downloadCollection(
+      {
+        success: true,
+        type: "collection",
+        id: 42,
+        mid: 9,
+        title: "Series",
+      },
+      "Series",
+      "download-3",
+    );
+
+    // Reused the existing collection by key, did not create a new one.
+    expect(result.collectionId).toBe("col-existing");
+    expect(mocks.getCollectionBySourceKey).toHaveBeenCalledWith(
+      "bilibili",
+      "collection",
+      "9",
+      "42",
+    );
+    // Key already present on the matched collection, so no backfill write is needed.
+    expect(mocks.saveCollection).not.toHaveBeenCalled();
+    // Only the missing episode is downloaded; the existing one is linked.
+    expect(mocks.downloadSinglePart).toHaveBeenCalledTimes(1);
     expect(mocks.linkVideoToCollection).toHaveBeenNthCalledWith(
       1,
       "col-existing",

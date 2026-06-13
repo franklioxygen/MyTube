@@ -5,6 +5,7 @@ import {
   deleteCollection,
   getCollectionByVideoId,
   getCollectionById,
+  getCollectionBySourceKey,
   getCollections,
   getCollectionsByVideoId,
   saveCollection,
@@ -89,6 +90,69 @@ describe('collectionRepository', () => {
 
             expect(result?.videos).toEqual(['vid1', 'vid2', 'vid10']);
             expect(result?.origin).toBe('manual');
+        });
+    });
+
+    describe('getCollectionBySourceKey', () => {
+        function mockCollectionsSelect(rows: any[]) {
+            const all = vi.fn().mockReturnValue(rows);
+            const leftJoin = vi.fn().mockReturnValue({ all });
+            const from = vi.fn().mockReturnValue({ leftJoin });
+            vi.mocked(db.select).mockReturnValue({ from } as any);
+        }
+
+        it('matches a collection on platform/type/mid/id', () => {
+            mockCollectionsSelect([
+                {
+                    c: {
+                        id: 'col1',
+                        name: 'Series',
+                        title: 'Series',
+                        origin: 'manual',
+                        sourcePlatform: 'bilibili',
+                        sourceType: 'collection',
+                        sourceMid: '9',
+                        sourceId: '42',
+                    },
+                    cv: { videoId: 'vid1', order: 1 },
+                },
+            ]);
+
+            const result = getCollectionBySourceKey('bilibili', 'collection', '9', '42');
+            expect(result?.id).toBe('col1');
+        });
+
+        it('returns undefined when no source key matches', () => {
+            mockCollectionsSelect([
+                {
+                    c: {
+                        id: 'col1',
+                        name: 'Series',
+                        title: 'Series',
+                        origin: 'manual',
+                        sourcePlatform: 'bilibili',
+                        sourceType: 'collection',
+                        sourceMid: '9',
+                        sourceId: '42',
+                    },
+                    cv: null,
+                },
+            ]);
+
+            expect(getCollectionBySourceKey('bilibili', 'collection', '9', '99')).toBeUndefined();
+            expect(getCollectionBySourceKey('bilibili', 'series', '9', '42')).toBeUndefined();
+        });
+
+        it('returns undefined when any key part is empty (no false positives on legacy rows)', () => {
+            mockCollectionsSelect([
+                {
+                    c: { id: 'col1', name: 'Series', title: 'Series', origin: 'manual' },
+                    cv: null,
+                },
+            ]);
+
+            expect(getCollectionBySourceKey('bilibili', 'collection', '', '42')).toBeUndefined();
+            expect(getCollectionBySourceKey('', 'collection', '9', '42')).toBeUndefined();
         });
     });
 

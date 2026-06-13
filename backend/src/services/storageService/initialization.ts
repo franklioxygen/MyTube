@@ -508,6 +508,26 @@ export function initializeStorage(): void {
       }
 
       if (collectionsColumns.length > 0) {
+        const sourceKeyColumns: Array<{ name: string; column: string }> = [
+          { name: "source_platform", column: "source_platform" },
+          { name: "source_type", column: "source_type" },
+          { name: "source_mid", column: "source_mid" },
+          { name: "source_id", column: "source_id" },
+        ];
+        for (const { name, column } of sourceKeyColumns) {
+          if (!collectionsColumns.includes(name)) {
+            logger.info(
+              `Migrating database: Adding ${column} column to collections table...`
+            );
+            sqlite
+              .prepare(`ALTER TABLE collections ADD COLUMN ${column} TEXT`)
+              .run();
+            logger.info(`Migration successful: ${column} added.`);
+          }
+        }
+      }
+
+      if (collectionsColumns.length > 0) {
         backfillLegacyCollectionOrigins();
       }
 
