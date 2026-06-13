@@ -153,6 +153,8 @@ export const WHITELISTED_SETTINGS = [
   "defaultSort",
   "preferredAudioLanguage",
   "defaultVideoCodec",
+  "preferredVideoResolution",
+  "preferredVideoResolutionStrict",
   "authorTags",
   "collectionTags",
   "showTagsOnThumbnail",

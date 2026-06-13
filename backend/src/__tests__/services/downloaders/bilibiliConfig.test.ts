@@ -319,4 +319,77 @@ describe('prepareBilibiliDownloadFlags', () => {
       expect(result.formatSort).toBeUndefined();
     });
   });
+
+  describe('preferred video resolution (issue #295)', () => {
+    it('soft preference adds res:H to formatSort and keeps selectors permissive', () => {
+      mockGetSettings.mockReturnValue({ preferredVideoResolution: '1080' });
+
+      const result = prepareBilibiliDownloadFlags(TEST_URL, TEST_OUTPUT);
+
+      // Soft: selectors are not height-capped so every episode still downloads.
+      expect(result.flags.format).toBe(
+        'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best'
+      );
+      expect(result.formatSort).toBe('res:1080');
+      expect(result.flags.formatSort).toBe('res:1080');
+    });
+
+    it('soft preference composes resolution before codec in formatSort', () => {
+      mockGetSettings.mockReturnValue({
+        preferredVideoResolution: '720',
+        defaultVideoCodec: 'h265',
+      });
+
+      const result = prepareBilibiliDownloadFlags(TEST_URL, TEST_OUTPUT);
+
+      expect(result.formatSort).toBe('res:720,vcodec:h265');
+    });
+
+    it('strict cap constrains every selector with height<=H', () => {
+      mockGetSettings.mockReturnValue({
+        preferredVideoResolution: '1080',
+        preferredVideoResolutionStrict: true,
+      });
+
+      const result = prepareBilibiliDownloadFlags(TEST_URL, TEST_OUTPUT);
+
+      expect(result.flags.format).toBe(
+        'bestvideo[ext=mp4][height<=1080]+bestaudio[ext=m4a]/' +
+          'best[ext=mp4][height<=1080]/best[height<=1080]'
+      );
+      expect(result.formatSort).toBe('res:1080');
+    });
+
+    it('"auto" or empty leaves selection unconstrained', () => {
+      mockGetSettings.mockReturnValue({ preferredVideoResolution: 'auto' });
+
+      const result = prepareBilibiliDownloadFlags(TEST_URL, TEST_OUTPUT);
+
+      expect(result.flags.format).toBe(
+        'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best'
+      );
+      expect(result.formatSort).toBeUndefined();
+    });
+
+    it('ignores non-numeric resolution values', () => {
+      mockGetSettings.mockReturnValue({ preferredVideoResolution: 'garbage' });
+
+      const result = prepareBilibiliDownloadFlags(TEST_URL, TEST_OUTPUT);
+
+      expect(result.formatSort).toBeUndefined();
+    });
+
+    it('does not override a user-specified format', () => {
+      mockGetSettings.mockReturnValue({
+        preferredVideoResolution: '1080',
+        preferredVideoResolutionStrict: true,
+      });
+      mockGetUserYtDlpConfig.mockReturnValue({ format: 'bestvideo+bestaudio' });
+
+      const result = prepareBilibiliDownloadFlags(TEST_URL, TEST_OUTPUT);
+
+      expect(result.flags.format).toBe('bestvideo+bestaudio');
+      expect(result.formatSort).toBeUndefined();
+    });
+  });
 });

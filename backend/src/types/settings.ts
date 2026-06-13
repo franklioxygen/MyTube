@@ -57,6 +57,12 @@ export interface Settings {
   defaultSort?: string;
   preferredAudioLanguage?: string;
   defaultVideoCodec?: string;
+  // Preferred maximum video resolution height (issue #295). "auto" lets the
+  // downloader pick the best available; a numeric string (e.g. "1080") caps the
+  // selection. When preferredVideoResolutionStrict is true, an episode that
+  // cannot meet the cap fails instead of falling back to a lower resolution.
+  preferredVideoResolution?: string;
+  preferredVideoResolutionStrict?: boolean;
   authorTags?: Record<string, string[]>;
   collectionTags?: Record<string, string[]>;
   showTagsOnThumbnail?: boolean;
@@ -112,6 +118,8 @@ export const defaultSettings: Settings = {
   itemsPerPage: 12,
   showYoutubeSearch: true,
   authorOrganizationMode: "root",
+  preferredVideoResolution: "auto",
+  preferredVideoResolutionStrict: false,
   infiniteScroll: false,
   videoColumns: 4,
   pauseOnFocusLoss: false,
