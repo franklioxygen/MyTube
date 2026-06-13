@@ -108,23 +108,94 @@ function resolveSubtitleDefaults(userConfig: BilibiliDownloadFlags): {
   };
 }
 
+export interface BilibiliResolutionPreference {
+  height: number | null;
+  strict: boolean;
+}
+
+/**
+ * Read the preferred video resolution from settings (issue #295).
+ * "auto" / empty means no preference. A numeric height (e.g. 1080) is a soft
+ * preference applied via -S res:H, or a hard cap (height<=H) when strict.
+ */
+function resolveResolutionPreference(): BilibiliResolutionPreference {
+  const appSettings = storageService.getSettings();
+  const strict = appSettings.preferredVideoResolutionStrict === true;
+  const raw =
+    typeof appSettings.preferredVideoResolution === "string"
+      ? appSettings.preferredVideoResolution.trim().toLowerCase()
+      : "";
+
+  if (!raw || raw === "auto" || raw === "best") {
+    return { height: null, strict };
+  }
+
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return { height: null, strict };
+  }
+
+  return { height: parsed, strict };
+}
+
+/**
+ * Build a Bilibili mp4-first format string, optionally constrained by a codec
+ * filter and/or a strict height ceiling. When a height filter is present, the
+ * final fallback is also constrained so a strict cap is never silently exceeded.
+ */
+function buildBilibiliFormatString(
+  codecFilter: string | null,
+  heightFilter: string,
+): string {
+  const vcodec = codecFilter ? `[vcodec^=${codecFilter}]` : "";
+  const parts = [
+    `bestvideo[ext=mp4]${vcodec}${heightFilter}+bestaudio[ext=m4a]`,
+    `bestvideo[ext=mp4]${heightFilter}+bestaudio[ext=m4a]`,
+    `best[ext=mp4]${heightFilter}`,
+    heightFilter ? `best${heightFilter}` : "best",
+  ];
+  // De-duplicate (the first two parts collapse when there is no codec filter).
+  return Array.from(new Set(parts)).join("/");
+}
+
 function resolveBilibiliFormatSort(
   userConfig: BilibiliDownloadFlags,
   codecFormatSort: string,
+  resolutionPreference: BilibiliResolutionPreference,
 ): string | undefined {
   const userSort = getStringFlag(userConfig, "S", "formatSort");
   if (userSort) {
     return userSort;
   }
   // userSort is falsy here, so only f/format would indicate user format control
-  if (!userConfig.f && !userConfig.format && codecFormatSort) {
-    logger.info("Using format sort for Bilibili codec preference:", codecFormatSort);
-    return codecFormatSort;
+  if (userConfig.f || userConfig.format) {
+    return undefined;
   }
-  return undefined;
+
+  // Prefer the target resolution first, then any codec preference. yt-dlp
+  // -S res:H prefers the format closest to H (at or below it) while still
+  // selecting the best available, which fixes inconsistent per-episode picks.
+  const sortFields: string[] = [];
+  if (resolutionPreference.height != null) {
+    sortFields.push(`res:${resolutionPreference.height}`);
+  }
+  if (codecFormatSort) {
+    sortFields.push(codecFormatSort);
+  }
+
+  if (sortFields.length === 0) {
+    return undefined;
+  }
+
+  const formatSort = sortFields.join(",");
+  logger.info("Using format sort for Bilibili:", formatSort);
+  return formatSort;
 }
 
-function resolveBilibiliFormat(userConfig: BilibiliDownloadFlags): {
+function resolveBilibiliFormat(
+  userConfig: BilibiliDownloadFlags,
+  resolutionPreference: BilibiliResolutionPreference,
+): {
   downloadFormat: string;
   codecFormatSort: string;
 } {
@@ -137,27 +208,36 @@ function resolveBilibiliFormat(userConfig: BilibiliDownloadFlags): {
     return { downloadFormat: userFormat ?? "best", codecFormatSort: "" };
   }
 
+  // A strict resolution cap is enforced in the format selectors so the
+  // downloader never silently exceeds the requested ceiling. A soft preference
+  // is handled by formatSort (-S res:H) and leaves the selectors permissive so
+  // every episode still downloads something.
+  const heightFilter =
+    resolutionPreference.strict && resolutionPreference.height != null
+      ? `[height<=${resolutionPreference.height}]`
+      : "";
+
   if (!hasUserFormatSort) {
     const codecPreference = resolveCodecPreference();
     if (codecPreference) {
-      const downloadFormat =
-        `bestvideo[ext=mp4][vcodec^=${codecPreference.codecFilter}]+bestaudio[ext=m4a]/` +
-        `bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best`;
       return {
-        downloadFormat,
+        downloadFormat: buildBilibiliFormatString(
+          codecPreference.codecFilter,
+          heightFilter,
+        ),
         codecFormatSort: codecPreference.codecFormatSort,
       };
     }
 
     return {
-      downloadFormat: "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
+      downloadFormat: buildBilibiliFormatString(null, heightFilter),
       codecFormatSort: "",
     };
   }
 
   // User has formatSort only — use default format string, let their sort control codec
   return {
-    downloadFormat: "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
+    downloadFormat: buildBilibiliFormatString(null, heightFilter),
     codecFormatSort: "",
   };
 }
@@ -172,8 +252,16 @@ export function prepareBilibiliDownloadFlags(
   const userConfig = getUserYtDlpConfig(url);
   const networkConfig = getNetworkConfigFromUserConfig(userConfig);
 
-  const { downloadFormat, codecFormatSort } = resolveBilibiliFormat(userConfig);
-  const formatSortValue = resolveBilibiliFormatSort(userConfig, codecFormatSort);
+  const resolutionPreference = resolveResolutionPreference();
+  const { downloadFormat, codecFormatSort } = resolveBilibiliFormat(
+    userConfig,
+    resolutionPreference,
+  );
+  const formatSortValue = resolveBilibiliFormatSort(
+    userConfig,
+    codecFormatSort,
+    resolutionPreference,
+  );
   const subtitleDefaults = resolveSubtitleDefaults(userConfig);
 
   // Prepare base flags from user config (excluding output options we manage)
