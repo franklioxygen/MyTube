@@ -1,6 +1,7 @@
 import { logger } from "../../utils/logger";
 import * as storageService from "../storageService";
 import { Video } from "../storageService/types";
+import { resolveAuthorOrganizationMode } from "../../types/settings";
 import { FilenameTemplateSourceOptions } from "./types";
 
 type DownloadCollisionReservation = {
@@ -164,6 +165,20 @@ export function buildStoredSourceOptionsMap(
   const collectionTypeMap = getCollectionTypeMap();
   const sourceOptionsByVideoId = new Map<string, FilenameTemplateSourceOptions>();
 
+  // Under author_folder_only, collection members live in the author folder, not
+  // a collection-named folder. Group the planned path by author so the batch
+  // rename keeps files in the author folder instead of relocating them into a
+  // collection folder (issue #295 1-A). Episode numbering (mediaPlaylistIndex)
+  // and collection type are preserved so season/episode templates still work.
+  let authorFolderOnly = false;
+  try {
+    authorFolderOnly =
+      resolveAuthorOrganizationMode(storageService.getSettings()) ===
+      "author_folder_only";
+  } catch (error) {
+    logger.warn("Filename template author-mode lookup failed:", error);
+  }
+
   for (const video of allVideos) {
     const author = video.author || "";
     const membership = videoToCollection.get(video.id);
@@ -171,7 +186,9 @@ export function buildStoredSourceOptionsMap(
     if (membership) {
       sourceOptionsByVideoId.set(video.id, {
         sourceCustomName: author,
-        sourceCollectionName: membership.collectionName,
+        sourceCollectionName: authorFolderOnly
+          ? author
+          : membership.collectionName,
         sourceCollectionId: membership.collectionId,
         sourceCollectionType:
           collectionTypeMap.get(membership.collectionId) || "channel",
