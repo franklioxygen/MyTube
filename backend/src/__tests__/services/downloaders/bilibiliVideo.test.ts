@@ -23,6 +23,9 @@ const mocks = vi.hoisted(() => ({
   getNetworkConfigFromUserConfig: vi.fn(),
   getAxiosProxyConfig: vi.fn(),
   prepareBilibiliDownloadFlags: vi.fn(),
+  resolveResolutionPreference: vi.fn(),
+  resolveResolutionRetryTarget: vi.fn(),
+  getVideoHeight: vi.fn(),
   createTempDir: vi.fn(),
   cleanupTempDir: vi.fn(),
   findVideoFileInTemp: vi.fn(),
@@ -132,6 +135,10 @@ vi.mock("../../../services/downloaders/BaseDownloader", () => ({
 vi.mock("../../../services/downloaders/bilibili/bilibiliConfig", () => ({
   prepareBilibiliDownloadFlags: (...args: any[]) =>
     mocks.prepareBilibiliDownloadFlags(...args),
+  resolveResolutionPreference: (...args: any[]) =>
+    mocks.resolveResolutionPreference(...args),
+  resolveResolutionRetryTarget: (...args: any[]) =>
+    mocks.resolveResolutionRetryTarget(...args),
 }));
 
 vi.mock("../../../services/downloaders/bilibili/bilibiliFileManager", () => ({
@@ -150,6 +157,7 @@ vi.mock("../../../services/downloaders/bilibili/bilibiliMetadata", () => ({
   extractPartMetadata: (...args: any[]) => mocks.extractPartMetadata(...args),
   getFileSize: (...args: any[]) => mocks.getFileSize(...args),
   getVideoDuration: (...args: any[]) => mocks.getVideoDuration(...args),
+  getVideoHeight: (...args: any[]) => mocks.getVideoHeight(...args),
 }));
 
 vi.mock("../../../services/downloaders/bilibili/bilibiliSubtitle", () => ({
@@ -203,6 +211,12 @@ describe("bilibiliVideo.downloadSinglePart", () => {
     mocks.getUserYtDlpConfig.mockReturnValue({ mergeOutputFormat: "mp4" });
     mocks.getNetworkConfigFromUserConfig.mockReturnValue({});
     mocks.prepareBilibiliDownloadFlags.mockReturnValue({ flags: [] });
+    mocks.resolveResolutionPreference.mockReturnValue({
+      height: null,
+      strict: false,
+    });
+    mocks.resolveResolutionRetryTarget.mockReturnValue(null);
+    mocks.getVideoHeight.mockResolvedValue(null);
     mocks.createTempDir.mockReturnValue("/mock/videos/temp-dir");
     mocks.cleanupTempDir.mockResolvedValue(undefined);
     mocks.findVideoFileInTemp.mockReturnValue("video.mp4");
@@ -436,6 +450,122 @@ describe("bilibiliVideo.downloadSinglePart", () => {
       "author_folder_only",
       "legacy",
       undefined,
+    );
+  });
+
+  it("relocates collection videos into the author folder under author_folder_only (legacy)", async () => {
+    mocks.getSettings.mockReturnValue({
+      moveThumbnailsToVideoFolder: false,
+      moveSubtitlesToVideoFolder: false,
+      authorOrganizationMode: "author_folder_only",
+      downloadFilenamePresetId: "legacy",
+    });
+
+    const result = await downloadSinglePart(
+      "https://www.bilibili.com/video/BV1afo",
+      1,
+      1,
+      "",
+      "download-afo",
+      undefined,
+      "Collection",
+    );
+
+    expect(result.success).toBe(true);
+    // undefined options => organizeVideoByAuthor falls back to the legacy move,
+    // pulling the collection episode (and its subtitles) into the author folder
+    // instead of leaving it in /videos/Collection (issue #295 2-2 / 2-3).
+    expect(mocks.organizeVideoByAuthor).toHaveBeenCalledWith(
+      expect.any(String),
+      "Mock Author",
+      "author_folder_only",
+      "legacy",
+      undefined,
+    );
+  });
+
+  it("retries once at a height floor when an episode downloads below the preferred resolution", async () => {
+    mocks.resolveResolutionPreference.mockReturnValue({
+      height: 1080,
+      strict: false,
+    });
+    mocks.getVideoHeight.mockResolvedValue(480);
+    mocks.resolveResolutionRetryTarget.mockReturnValue(1080);
+
+    const result = await downloadSinglePart(
+      "https://www.bilibili.com/video/BV1lowres",
+      1,
+      1,
+      "",
+      "download-lowres",
+    );
+
+    expect(result.success).toBe(true);
+    // The retry re-prepares flags with the resolved floor.
+    expect(mocks.prepareBilibiliDownloadFlags).toHaveBeenCalledWith(
+      "https://www.bilibili.com/video/BV1lowres",
+      expect.any(String),
+      { retryFloorHeight: 1080 },
+    );
+    // Exactly one retry: two yt-dlp invocations total for the single part.
+    expect(mocks.executeYtDlpSpawn).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps the original metadata and file when the resolution retry fails", async () => {
+    mocks.resolveResolutionPreference.mockReturnValue({
+      height: 1080,
+      strict: false,
+    });
+    mocks.getVideoHeight.mockResolvedValue(480);
+    mocks.resolveResolutionRetryTarget.mockReturnValue(1080);
+    // First download finds the file; the retry finds nothing, so it fails and
+    // returns the generic "Bilibili Video" / "Bilibili User" fallback object.
+    mocks.findVideoFileInTemp
+      .mockReturnValueOnce("video.mp4")
+      .mockReturnValueOnce(null);
+
+    const result = await downloadSinglePart(
+      "https://www.bilibili.com/video/BV1retryfail",
+      1,
+      1,
+      "",
+      "download-retryfail",
+    );
+
+    expect(result.success).toBe(true);
+    expect(mocks.executeYtDlpSpawn).toHaveBeenCalledTimes(2);
+    // The saved video must carry the real metadata from the first (successful)
+    // download, not the retry's generic fallback (issue #295 2-1 follow-up).
+    expect(mocks.saveVideo).toHaveBeenCalledWith(
+      expect.objectContaining({ author: "Mock Author" }),
+    );
+    expect(mocks.saveVideo).not.toHaveBeenCalledWith(
+      expect.objectContaining({ author: "Bilibili User" }),
+    );
+  });
+
+  it("does not retry when the downloaded resolution already meets the preference", async () => {
+    mocks.resolveResolutionPreference.mockReturnValue({
+      height: 1080,
+      strict: false,
+    });
+    mocks.getVideoHeight.mockResolvedValue(1080);
+    mocks.resolveResolutionRetryTarget.mockReturnValue(null);
+
+    const result = await downloadSinglePart(
+      "https://www.bilibili.com/video/BV1ok",
+      1,
+      1,
+      "",
+      "download-ok",
+    );
+
+    expect(result.success).toBe(true);
+    expect(mocks.executeYtDlpSpawn).toHaveBeenCalledTimes(1);
+    expect(mocks.prepareBilibiliDownloadFlags).not.toHaveBeenCalledWith(
+      expect.any(String),
+      expect.any(String),
+      expect.objectContaining({ retryFloorHeight: expect.anything() }),
     );
   });
 

@@ -23,7 +23,10 @@ vi.mock('../../../utils/logger', () => ({
   },
 }));
 
-import { prepareBilibiliDownloadFlags } from '../../../services/downloaders/bilibili/bilibiliConfig';
+import {
+  prepareBilibiliDownloadFlags,
+  resolveResolutionRetryTarget,
+} from '../../../services/downloaders/bilibili/bilibiliConfig';
 
 describe('prepareBilibiliDownloadFlags', () => {
   const TEST_URL = 'https://www.bilibili.com/video/BV1xx411c7mD';
@@ -391,5 +394,97 @@ describe('prepareBilibiliDownloadFlags', () => {
       expect(result.flags.format).toBe('bestvideo+bestaudio');
       expect(result.formatSort).toBeUndefined();
     });
+  });
+
+  describe('under-resolution retry floor (issue #295 2-1)', () => {
+    it('pins a >= floor and keeps an unconstrained fallback so a file is always produced', () => {
+      mockGetSettings.mockReturnValue({ preferredVideoResolution: '1080' });
+
+      const result = prepareBilibiliDownloadFlags(TEST_URL, TEST_OUTPUT, {
+        retryFloorHeight: 1080,
+      });
+
+      expect(result.flags.format).toBe(
+        'bestvideo[ext=mp4][height>=1080]+bestaudio[ext=m4a]/' +
+          'best[ext=mp4][height>=1080]/best[height>=1080]/best'
+      );
+      expect(result.formatSort).toBe('res:1080');
+    });
+
+    it('combines the retry floor with a strict ceiling and keeps the cap on the fallback', () => {
+      mockGetSettings.mockReturnValue({
+        preferredVideoResolution: '1080',
+        preferredVideoResolutionStrict: true,
+      });
+
+      const result = prepareBilibiliDownloadFlags(TEST_URL, TEST_OUTPUT, {
+        retryFloorHeight: 720,
+      });
+
+      // The guaranteed fallback is best[height<=1080], NOT an unconstrained best,
+      // so a strict cap is never violated on retry (issue #295 2-1).
+      expect(result.flags.format).toBe(
+        'bestvideo[ext=mp4][height>=720][height<=1080]+bestaudio[ext=m4a]/' +
+          'best[ext=mp4][height>=720][height<=1080]/' +
+          'best[height>=720][height<=1080]/best[height<=1080]'
+      );
+      expect(result.flags.format).not.toMatch(/\/best$/);
+    });
+  });
+});
+
+describe('resolveResolutionRetryTarget', () => {
+  it('returns null when there is no resolution preference', () => {
+    expect(
+      resolveResolutionRetryTarget({ height: null, strict: false }, 480, [
+        720, 1080,
+      ])
+    ).toBeNull();
+  });
+
+  it('returns null when the actual height is unknown', () => {
+    expect(
+      resolveResolutionRetryTarget({ height: 1080, strict: false }, null, [
+        720, 1080,
+      ])
+    ).toBeNull();
+  });
+
+  it('returns null when no formats are available', () => {
+    expect(
+      resolveResolutionRetryTarget({ height: 1080, strict: false }, 480, [])
+    ).toBeNull();
+  });
+
+  it('retries to the target when a higher format is available (soft)', () => {
+    expect(
+      resolveResolutionRetryTarget({ height: 1080, strict: false }, 480, [
+        360, 480, 720, 1080, 2160,
+      ])
+    ).toBe(1080);
+  });
+
+  it('does not retry when already at the best the source offers (soft)', () => {
+    expect(
+      resolveResolutionRetryTarget({ height: 1080, strict: false }, 720, [
+        480, 720,
+      ])
+    ).toBeNull();
+  });
+
+  it('retries up to the source ceiling capped by the target (strict)', () => {
+    expect(
+      resolveResolutionRetryTarget({ height: 1080, strict: true }, 480, [
+        480, 720, 2160,
+      ])
+    ).toBe(720);
+  });
+
+  it('does not retry in strict mode when already at the capped best', () => {
+    expect(
+      resolveResolutionRetryTarget({ height: 1080, strict: true }, 1080, [
+        1080, 2160,
+      ])
+    ).toBeNull();
   });
 });

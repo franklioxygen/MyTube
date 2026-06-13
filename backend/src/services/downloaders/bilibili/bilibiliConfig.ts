@@ -118,7 +118,7 @@ export interface BilibiliResolutionPreference {
  * "auto" / empty means no preference. A numeric height (e.g. 1080) is a soft
  * preference applied via -S res:H, or a hard cap (height<=H) when strict.
  */
-function resolveResolutionPreference(): BilibiliResolutionPreference {
+export function resolveResolutionPreference(): BilibiliResolutionPreference {
   const appSettings = storageService.getSettings();
   const strict = appSettings.preferredVideoResolutionStrict === true;
   const raw =
@@ -139,13 +139,56 @@ function resolveResolutionPreference(): BilibiliResolutionPreference {
 }
 
 /**
+ * Decide whether an already-downloaded file should be re-fetched at a higher
+ * resolution, and at what floor (issue #295 2-1). Pure so it can be unit tested.
+ *
+ * Returns the height to pin as a `>=` floor on retry, or null when no retry is
+ * warranted: when there is no resolution preference, the actual height is
+ * unknown, or the file already matches the best resolution the source can offer
+ * (capped at the preference in strict mode).
+ */
+export function resolveResolutionRetryTarget(
+  preference: BilibiliResolutionPreference,
+  actualHeight: number | null,
+  availableHeights: number[],
+): number | null {
+  if (preference.height == null || actualHeight == null) {
+    return null;
+  }
+
+  const candidates = availableHeights.filter(
+    (h) => Number.isFinite(h) && h > 0,
+  );
+  const cappedCandidates = preference.strict
+    ? candidates.filter((h) => h <= preference.height!)
+    : candidates;
+  if (cappedCandidates.length === 0) {
+    return null;
+  }
+
+  const bestAvailable = Math.max(...cappedCandidates);
+  // The best we can realistically achieve: the target, or the source ceiling.
+  const desired = Math.min(preference.height, bestAvailable);
+
+  // Already at (or above) the achievable resolution — nothing to gain.
+  if (actualHeight >= desired) {
+    return null;
+  }
+
+  return desired;
+}
+
+/**
  * Build a Bilibili mp4-first format string, optionally constrained by a codec
- * filter and/or a strict height ceiling. When a height filter is present, the
- * final fallback is also constrained so a strict cap is never silently exceeded.
+ * filter and/or a height filter. When a strict ceiling is present, the final
+ * fallback is also constrained so the cap is never silently exceeded. When a
+ * retry floor is present, an unconstrained `best` fallback is appended so the
+ * retry always produces a file even if the floor cannot be met.
  */
 function buildBilibiliFormatString(
   codecFilter: string | null,
   heightFilter: string,
+  floorFallback?: string,
 ): string {
   const vcodec = codecFilter ? `[vcodec^=${codecFilter}]` : "";
   const parts = [
@@ -154,6 +197,11 @@ function buildBilibiliFormatString(
     `best[ext=mp4]${heightFilter}`,
     heightFilter ? `best${heightFilter}` : "best",
   ];
+  if (floorFallback) {
+    // Guarantee a downloadable file even when nothing meets the floor. In strict
+    // mode this fallback still carries the height cap so a retry never exceeds it.
+    parts.push(floorFallback);
+  }
   // De-duplicate (the first two parts collapse when there is no codec filter).
   return Array.from(new Set(parts)).join("/");
 }
@@ -195,6 +243,7 @@ function resolveBilibiliFormatSort(
 function resolveBilibiliFormat(
   userConfig: BilibiliDownloadFlags,
   resolutionPreference: BilibiliResolutionPreference,
+  retryFloorHeight?: number,
 ): {
   downloadFormat: string;
   codecFormatSort: string;
@@ -211,11 +260,22 @@ function resolveBilibiliFormat(
   // A strict resolution cap is enforced in the format selectors so the
   // downloader never silently exceeds the requested ceiling. A soft preference
   // is handled by formatSort (-S res:H) and leaves the selectors permissive so
-  // every episode still downloads something.
-  const heightFilter =
+  // every episode still downloads something. On an under-resolution retry a
+  // `>=` floor is added to force a higher stream (issue #295 2-1).
+  const hasFloor = retryFloorHeight != null && retryFloorHeight > 0;
+  const floorFilter = hasFloor ? `[height>=${retryFloorHeight}]` : "";
+  const capFilter =
     resolutionPreference.strict && resolutionPreference.height != null
       ? `[height<=${resolutionPreference.height}]`
       : "";
+  const heightFilter = `${floorFilter}${capFilter}`;
+  // On a retry, guarantee a file even if nothing meets the floor — but in strict
+  // mode keep the cap so the fallback can never exceed it (issue #295 2-1).
+  const floorFallback = hasFloor
+    ? capFilter
+      ? `best${capFilter}`
+      : "best"
+    : undefined;
 
   if (!hasUserFormatSort) {
     const codecPreference = resolveCodecPreference();
@@ -224,30 +284,33 @@ function resolveBilibiliFormat(
         downloadFormat: buildBilibiliFormatString(
           codecPreference.codecFilter,
           heightFilter,
+          floorFallback,
         ),
         codecFormatSort: codecPreference.codecFormatSort,
       };
     }
 
     return {
-      downloadFormat: buildBilibiliFormatString(null, heightFilter),
+      downloadFormat: buildBilibiliFormatString(null, heightFilter, floorFallback),
       codecFormatSort: "",
     };
   }
 
   // User has formatSort only — use default format string, let their sort control codec
   return {
-    downloadFormat: buildBilibiliFormatString(null, heightFilter),
+    downloadFormat: buildBilibiliFormatString(null, heightFilter, floorFallback),
     codecFormatSort: "",
   };
 }
 
 /**
- * Prepare yt-dlp flags for Bilibili video download
+ * Prepare yt-dlp flags for Bilibili video download. `retryFloorHeight` is set
+ * only by the under-resolution retry path to pin a minimum height.
  */
 export function prepareBilibiliDownloadFlags(
   url: string,
-  outputTemplate: string
+  outputTemplate: string,
+  options?: { retryFloorHeight?: number }
 ): PreparedBilibiliFlags {
   const userConfig = getUserYtDlpConfig(url);
   const networkConfig = getNetworkConfigFromUserConfig(userConfig);
@@ -256,6 +319,7 @@ export function prepareBilibiliDownloadFlags(
   const { downloadFormat, codecFormatSort } = resolveBilibiliFormat(
     userConfig,
     resolutionPreference,
+    options?.retryFloorHeight,
   );
   const formatSortValue = resolveBilibiliFormatSort(
     userConfig,

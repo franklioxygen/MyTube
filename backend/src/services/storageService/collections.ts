@@ -222,6 +222,8 @@ export function removeVideoFromCollection(
     const allCollections = getCollections();
 
     if (video) {
+      const organizationMode = resolveAuthorOrganizationMode(getSettings());
+
       // Check if video is in any other collection
       const otherCollection = allCollections.find(
         (c) => c.videos.includes(videoId) && c.id !== collectionId
@@ -234,7 +236,23 @@ export function removeVideoFromCollection(
       let imagePathPrefix = "/images";
       let subtitlePathPrefix: string | undefined = undefined;
 
-      if (otherCollection) {
+      const sanitizedAuthor = video.author
+        ? video.author.replace(/\.\./g, "").replace(/[\/\\]/g, "").trim()
+        : "";
+
+      if (organizationMode === "author_folder_only" && sanitizedAuthor) {
+        // Under author_folder_only the canonical home is always the author folder,
+        // even when the video still belongs to another collection. A collection is
+        // a logical grouping only, so unlinking must not relocate files into a
+        // sibling collection folder or dump them at the storage root
+        // (issue #295 1-B follow-on). This takes priority over otherCollection.
+        targetVideoDir = path.join(VIDEOS_DIR, sanitizedAuthor);
+        targetImageDir = path.join(IMAGES_DIR, sanitizedAuthor);
+        targetSubDir = path.join(SUBTITLES_DIR, sanitizedAuthor);
+        videoPathPrefix = `/videos/${sanitizedAuthor}`;
+        imagePathPrefix = `/images/${sanitizedAuthor}`;
+        subtitlePathPrefix = `/subtitles/${sanitizedAuthor}`;
+      } else if (otherCollection) {
         const otherName = otherCollection.name || otherCollection.title;
         if (otherName) {
           // Sanitize collection name to prevent path traversal
@@ -250,25 +268,6 @@ export function removeVideoFromCollection(
             imagePathPrefix = `/images/${sanitizedOtherName}`;
             subtitlePathPrefix = `/subtitles/${sanitizedOtherName}`;
           }
-        }
-      } else if (
-        resolveAuthorOrganizationMode(getSettings()) === "author_folder_only" &&
-        video.author
-      ) {
-        // Under author_folder_only the canonical home is the author folder, not
-        // the storage root. Moving to root here is what dumped episodes into the
-        // root when a duplicate collection was deleted (issue #295 1-B follow-on).
-        const sanitizedAuthor = video.author
-          .replace(/\.\./g, "")
-          .replace(/[\/\\]/g, "")
-          .trim();
-        if (sanitizedAuthor) {
-          targetVideoDir = path.join(VIDEOS_DIR, sanitizedAuthor);
-          targetImageDir = path.join(IMAGES_DIR, sanitizedAuthor);
-          targetSubDir = path.join(SUBTITLES_DIR, sanitizedAuthor);
-          videoPathPrefix = `/videos/${sanitizedAuthor}`;
-          imagePathPrefix = `/images/${sanitizedAuthor}`;
-          subtitlePathPrefix = `/subtitles/${sanitizedAuthor}`;
         }
       }
 

@@ -58,6 +58,52 @@ export const getVideoDuration = async (
   }
 };
 
+export const getVideoHeight = async (
+  filePath: string,
+): Promise<number | null> => {
+  try {
+    const validatedPath = validateVideoPath(filePath);
+
+    // Check if file exists first
+    if (!pathExistsSafeSync(validatedPath, VIDEOS_DIR)) {
+      throw FileError.notFound(validatedPath);
+    }
+
+    // Read the height of the first video stream.
+    const { stdout } = await execFileSafe("ffprobe", [
+      "-v",
+      "error",
+      "-select_streams",
+      "v:0",
+      "-show_entries",
+      "stream=height",
+      "-of",
+      "default=noprint_wrappers=1:nokey=1",
+      validatedPath,
+    ]);
+
+    const firstLine = stdout
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .find(Boolean);
+    if (firstLine) {
+      const height = parseInt(firstLine, 10);
+      if (!isNaN(height) && height > 0) {
+        return height;
+      }
+    }
+    return null;
+  } catch (error) {
+    // Re-throw our custom errors
+    if (error instanceof FileError || error instanceof ExecutionError) {
+      throw error;
+    }
+    // Wrap unknown errors
+    console.error(`Error getting height for ${filePath}:`, error);
+    return null;
+  }
+};
+
 export const backfillDurations = async () => {
   console.log("Starting duration backfill...");
 
