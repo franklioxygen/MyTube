@@ -511,6 +511,39 @@ describe("bilibiliVideo.downloadSinglePart", () => {
     expect(mocks.executeYtDlpSpawn).toHaveBeenCalledTimes(2);
   });
 
+  it("does not delete the first downloaded file when cancelling the resolution retry", async () => {
+    const cancelCallbacks: Array<() => void | Promise<void>> = [];
+    mocks.resolveResolutionPreference.mockReturnValue({
+      height: 1080,
+      strict: false,
+    });
+    mocks.getVideoHeight.mockResolvedValue(480);
+    mocks.resolveResolutionRetryTarget.mockReturnValue(1080);
+
+    const result = await downloadSinglePart(
+      "https://www.bilibili.com/video/BV1retrycancel",
+      1,
+      1,
+      "",
+      "download-retrycancel",
+      (cancel) => {
+        cancelCallbacks.push(cancel);
+      },
+    );
+
+    expect(result.success).toBe(true);
+    expect(cancelCallbacks).toHaveLength(2);
+
+    await cancelCallbacks[1]();
+
+    expect(mocks.cleanupFilesOnCancellation).toHaveBeenCalledTimes(1);
+    expect(mocks.cleanupFilesOnCancellation).toHaveBeenCalledWith(
+      undefined,
+      undefined,
+      "/mock/videos/temp-dir",
+    );
+  });
+
   it("keeps the original metadata and file when the resolution retry fails", async () => {
     mocks.resolveResolutionPreference.mockReturnValue({
       height: 1080,

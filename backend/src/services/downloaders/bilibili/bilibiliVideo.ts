@@ -192,7 +192,8 @@ export async function downloadVideo(
   // Internal: set only by the under-resolution retry path to pin a height floor
   // (issue #295 2-1). When set, resolution verification is skipped to bound the
   // retry to a single attempt.
-  retryFloorHeight?: number
+  retryFloorHeight?: number,
+  preserveExistingOutputOnCancel = false
 ): Promise<BilibiliVideoInfo> {
   const tempDir = createTempDir();
   let rawSourceInfo: Record<string, unknown> | null = null;
@@ -293,7 +294,11 @@ export async function downloadVideo(
 
         // Clean up partial files
         logger.info("Cleaning up partial files...");
-        await cleanupFilesOnCancellation(videoPath, thumbnailPath, tempDir);
+        await cleanupFilesOnCancellation(
+          preserveExistingOutputOnCancel ? undefined : videoPath,
+          preserveExistingOutputOnCancel ? undefined : thumbnailPath,
+          tempDir
+        );
       });
     }
 
@@ -473,7 +478,8 @@ export async function downloadVideo(
           thumbnailPath,
           downloadId,
           onStart,
-          retryTarget
+          retryTarget,
+          true
         );
         // Only adopt the retry when it actually produced a file. On failure the
         // first (lower-resolution but valid) file is still at videoPath, so keep
