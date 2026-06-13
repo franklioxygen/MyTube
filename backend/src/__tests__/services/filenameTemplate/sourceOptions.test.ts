@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const getCollectionsMock = vi.fn();
 const getVideosMock = vi.fn();
+const getSettingsMock = vi.fn();
 const subscriptionsRowsMock = {
   current: [] as Array<Record<string, unknown>>,
 };
@@ -9,6 +10,7 @@ const subscriptionsRowsMock = {
 vi.mock("../../../services/storageService", () => ({
   getCollections: () => getCollectionsMock(),
   getVideos: () => getVideosMock(),
+  getSettings: () => getSettingsMock(),
 }));
 
 import {
@@ -26,6 +28,8 @@ describe("filenameTemplate/sourceOptions", () => {
     getCollectionsMock.mockReturnValue([]);
     getVideosMock.mockReset();
     getVideosMock.mockReturnValue([]);
+    getSettingsMock.mockReset();
+    getSettingsMock.mockReturnValue({});
     subscriptionsRowsMock.current = [];
     resetDownloadCollisionReservationsForTests();
     setCollectionTypeRowsLoaderForTests(
@@ -69,6 +73,53 @@ describe("filenameTemplate/sourceOptions", () => {
       mediaPlaylistIndex: 1,
     });
     expect(result.get("v2")?.mediaPlaylistIndex).toBe(2);
+  });
+
+  it("groups collection members by author under author_folder_only (issue #295 1-A)", () => {
+    getCollectionsMock.mockReturnValue([
+      {
+        id: "col-1",
+        name: "Some Collection",
+        videos: ["v1", "v2"],
+      },
+    ]);
+    getSettingsMock.mockReturnValue({
+      authorOrganizationMode: "author_folder_only",
+    });
+
+    const result = buildStoredSourceOptionsMap([
+      { id: "v1", author: "Creator" } as any,
+      { id: "v2", author: "Creator" } as any,
+    ]);
+
+    // Folder grouping is the author, not the collection, so the batch rename
+    // keeps files in the author folder. Episode numbering is preserved.
+    expect(result.get("v1")).toMatchObject({
+      sourceCustomName: "Creator",
+      sourceCollectionName: "Creator",
+      sourceCollectionId: "col-1",
+      mediaPlaylistIndex: 1,
+    });
+    expect(result.get("v2")?.mediaPlaylistIndex).toBe(2);
+  });
+
+  it("keeps the collection name for grouping under author_collection_linked", () => {
+    getCollectionsMock.mockReturnValue([
+      {
+        id: "col-1",
+        name: "Some Collection",
+        videos: ["v1"],
+      },
+    ]);
+    getSettingsMock.mockReturnValue({
+      authorOrganizationMode: "author_collection_linked",
+    });
+
+    const result = buildStoredSourceOptionsMap([
+      { id: "v1", author: "Creator" } as any,
+    ]);
+
+    expect(result.get("v1")?.sourceCollectionName).toBe("Some Collection");
   });
 
   it("assigns per-day collision indexes deterministically", () => {
