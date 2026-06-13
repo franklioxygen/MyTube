@@ -389,8 +389,8 @@ export function renameFilesWithMetadata(
  * Clean up files on cancellation
  */
 export async function cleanupFilesOnCancellation(
-  videoPath: string,
-  thumbnailPath: string,
+  videoPath?: string,
+  thumbnailPath?: string,
   tempDir?: string
 ): Promise<void> {
   try {
@@ -398,11 +398,14 @@ export async function cleanupFilesOnCancellation(
       await safeRemove(tempDir);
       logger.info("Deleted temp directory:", tempDir);
     }
-    if (pathExistsSafeSync(videoPath, VIDEOS_DIR)) {
+    if (videoPath && pathExistsSafeSync(videoPath, VIDEOS_DIR)) {
       await safeRemove(videoPath);
       logger.info("Deleted partial video file:", videoPath);
     }
-    if (pathExistsSafeSync(thumbnailPath, [IMAGES_DIR, VIDEOS_DIR])) {
+    if (
+      thumbnailPath &&
+      pathExistsSafeSync(thumbnailPath, [IMAGES_DIR, VIDEOS_DIR])
+    ) {
       await safeRemove(thumbnailPath);
       deleteSmallThumbnailMirrorSync(thumbnailPath);
       logger.info("Deleted partial thumbnail file:", thumbnailPath);

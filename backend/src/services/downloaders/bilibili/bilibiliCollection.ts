@@ -94,9 +94,41 @@ const normalizeViewCount = (value: unknown): number | undefined => {
 const getCollectionDisplayName = (collection: Collection): string =>
   collection.name || collection.title || "";
 
+type BilibiliSourceKey = {
+  sourcePlatform: string;
+  sourceType: string;
+  sourceMid: string;
+  sourceId: string;
+};
+
+const hasBilibiliSourceKey = (collection: Collection): boolean =>
+  Boolean(
+    collection.sourcePlatform ||
+      collection.sourceType ||
+      collection.sourceMid ||
+      collection.sourceId,
+  );
+
+const matchesBilibiliSourceKey = (
+  collection: Collection,
+  sourceKey: BilibiliSourceKey,
+): boolean =>
+  collection.sourcePlatform === sourceKey.sourcePlatform &&
+  collection.sourceType === sourceKey.sourceType &&
+  collection.sourceMid === sourceKey.sourceMid &&
+  collection.sourceId === sourceKey.sourceId;
+
+const canReuseCollectionForSource = (
+  collection: Collection,
+  sourceKey?: BilibiliSourceKey,
+): boolean =>
+  !hasBilibiliSourceKey(collection) ||
+  (sourceKey != null && matchesBilibiliSourceKey(collection, sourceKey));
+
 function resolveExistingBilibiliCollection(
   videos: BilibiliVideoItem[],
   preferredCollectionName: string,
+  sourceKey?: BilibiliSourceKey,
 ): Collection | undefined {
   const candidateCounts = new Map<
     string,
@@ -112,11 +144,16 @@ function resolveExistingBilibiliCollection(
     }
 
     const memberships = storageService.getCollectionsByVideoId(existingVideo.id);
-    const preferredMemberships = memberships.filter(
+    const sourceCompatibleMemberships = memberships.filter((collection) =>
+      canReuseCollectionForSource(collection, sourceKey),
+    );
+    const preferredMemberships = sourceCompatibleMemberships.filter(
       (collection) => collection.origin !== "author_auto",
     );
     const collectionsToCount =
-      preferredMemberships.length > 0 ? preferredMemberships : memberships;
+      preferredMemberships.length > 0
+        ? preferredMemberships
+        : sourceCompatibleMemberships;
 
     for (const collection of collectionsToCount) {
       const existing = candidateCounts.get(collection.id);
@@ -158,7 +195,11 @@ function resolveExistingBilibiliCollection(
   }
 
   const namedCollection = storageService.getCollectionByName(preferredCollectionName);
-  if (namedCollection?.origin !== "author_auto") {
+  if (
+    namedCollection &&
+    namedCollection.origin !== "author_auto" &&
+    canReuseCollectionForSource(namedCollection, sourceKey)
+  ) {
     return namedCollection;
   }
 
@@ -399,6 +440,7 @@ export async function downloadCollection(
       mytubeCollection = resolveExistingBilibiliCollection(
         videos,
         resolvedCollectionName,
+        sourceKey,
       );
       if (mytubeCollection) {
         logger.info(
@@ -414,7 +456,11 @@ export async function downloadCollection(
       const namedCollection = storageService.getCollectionByName(
         resolvedCollectionName,
       );
-      if (namedCollection && namedCollection.origin !== "author_auto") {
+      if (
+        namedCollection &&
+        namedCollection.origin !== "author_auto" &&
+        canReuseCollectionForSource(namedCollection, sourceKey)
+      ) {
         mytubeCollection = namedCollection;
         logger.info(
           `Reusing existing same-named MyTube collection: ${getCollectionDisplayName(namedCollection)}`,

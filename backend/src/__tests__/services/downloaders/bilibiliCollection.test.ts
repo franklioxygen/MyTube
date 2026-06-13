@@ -288,6 +288,54 @@ describe("bilibiliCollection.downloadCollection", () => {
     );
   });
 
+  it("does not reuse a same-named Bilibili collection with a different source key", async () => {
+    mocks.getCollectionById.mockReturnValue(undefined);
+    mocks.getVideoBySourceUrl.mockReturnValue(undefined);
+    mocks.getCollectionsByVideoId.mockReturnValue([]);
+    mocks.getCollectionByName.mockReturnValue({
+      id: "col-other-source",
+      name: "Series",
+      title: "Series",
+      origin: "manual",
+      videos: [],
+      sourcePlatform: "bilibili",
+      sourceType: "collection",
+      sourceMid: "99",
+      sourceId: "100",
+    });
+
+    const result = await downloadCollection(
+      {
+        success: true,
+        type: "collection",
+        id: 42,
+        mid: 9,
+        title: "Series",
+      },
+      "Series",
+      "download-same-name-conflict",
+    );
+
+    expect(result.collectionId).not.toBe("col-other-source");
+    expect(mocks.saveCollection).toHaveBeenCalledTimes(1);
+    expect(mocks.saveCollection).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "Series",
+        sourcePlatform: "bilibili",
+        sourceType: "collection",
+        sourceMid: "9",
+        sourceId: "42",
+      }),
+    );
+    expect(mocks.saveCollection).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "col-other-source",
+        sourceMid: "9",
+        sourceId: "42",
+      }),
+    );
+  });
+
   it("marks collection retries as partial when existing videos are skipped and a missing video still fails", async () => {
     mocks.getCollectionById.mockReturnValue({
       id: "col-existing",
