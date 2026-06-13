@@ -185,6 +185,13 @@ export const en = {
   preferredAudioLanguage_pl: "Polish",
   preferredAudioLanguage_tr: "Turkish",
   preferredAudioLanguage_vi: "Vietnamese",
+  preferredVideoResolution: "Preferred video resolution",
+  preferredVideoResolutionDescription:
+    "Prefer a maximum resolution when downloading. yt-dlp picks the best stream at or below this height, which keeps collection episodes from inconsistently falling back to a low resolution. Overridden by custom yt-dlp config.",
+  preferredVideoResolutionAuto: "Auto (best available)",
+  preferredVideoResolutionStrict: "Strictly enforce the resolution cap",
+  preferredVideoResolutionStrictDescription:
+    "When on, an episode that has no stream at or below the cap fails instead of downloading a higher resolution. Leave off to treat the resolution as a soft preference.",
   defaultVideoCodec: "Preferred video codec",
   defaultVideoCodecDescription:
     "Prefer a specific video codec when downloading. yt-dlp will try to select this codec when available, falling back to other codecs if not. Overridden by custom yt-dlp config.",
