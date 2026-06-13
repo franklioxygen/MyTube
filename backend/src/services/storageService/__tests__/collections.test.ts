@@ -234,6 +234,47 @@ describe('collectionsService', () => {
              );
         });
 
+        it('should route to the author folder under author_folder_only even when another collection still holds the video (issue #295 #4)', () => {
+             const mockCollection = { id: 'col1', name: 'Col Name', videos: ['vid1'] };
+             const otherCollection = { id: 'col2', name: 'Other Col', videos: ['vid1'] };
+             const mockVideo = { id: 'vid1', author: 'Author A' };
+
+             vi.mocked(collectionRepo.atomicUpdateCollection).mockImplementation((id, fn) => {
+                 const updated = fn({ ...mockCollection } as any);
+                 return updated;
+             });
+             vi.mocked(videosService.getVideoById).mockReturnValue(mockVideo as any);
+             // The video still belongs to another collection after the unlink.
+             vi.mocked(collectionRepo.getCollections).mockReturnValue([
+                 otherCollection as any,
+             ]);
+             vi.mocked(collectionFileManager.moveAllFilesFromCollection).mockReturnValue({
+                 videoPath: '/videos/Author A/path',
+             });
+             settingsMocks.getSettings.mockReturnValue({
+                 authorOrganizationMode: 'author_folder_only',
+             });
+
+             collectionsService.removeVideoFromCollection('col1', 'vid1');
+
+             // author_folder_only wins over the other-collection branch: files must
+             // land in the author folder, not /videos/Other Col.
+             expect(collectionFileManager.moveAllFilesFromCollection).toHaveBeenCalledWith(
+                 expect.any(Object),
+                 expect.stringContaining('Author A'),
+                 expect.any(String),
+                 expect.any(String),
+                 '/videos/Author A',
+                 '/images/Author A',
+                 '/subtitles/Author A',
+                 expect.any(Array)
+             );
+             const [, targetVideoDir] = vi.mocked(
+                 collectionFileManager.moveAllFilesFromCollection
+             ).mock.calls[0];
+             expect(targetVideoDir).not.toContain('Other Col');
+        });
+
         it('should remove video without moving files when explicitly disabled', () => {
              const mockCollection = { id: 'col1', name: 'Col Name', videos: ['vid1'] };
 
