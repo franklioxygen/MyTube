@@ -23,6 +23,12 @@ export interface Collection {
   updatedAt?: string;
   name?: string;
   origin?: CollectionOrigin;
+  // Stable source identity used to reuse the same collection on re-download/repair
+  // (issue #295). See db/schema.ts collections table.
+  sourcePlatform?: string;
+  sourceType?: string;
+  sourceMid?: string;
+  sourceId?: string;
   [key: string]: any;
 }
 

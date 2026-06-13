@@ -51,6 +51,14 @@ export const collections = sqliteTable("collections", {
   origin: text("origin"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at"),
+  // Stable source identity for re-download/repair dedup (issue #295).
+  // For Bilibili: sourcePlatform="bilibili", sourceType="collection"|"series",
+  // sourceMid=uploader mid, sourceId=season/series id. Stored as text to avoid
+  // integer precision concerns and to stay platform-agnostic.
+  sourcePlatform: text("source_platform"),
+  sourceType: text("source_type"),
+  sourceMid: text("source_mid"),
+  sourceId: text("source_id"),
 });
 
 export const collectionVideos = sqliteTable(

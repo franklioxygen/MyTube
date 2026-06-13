@@ -355,11 +355,43 @@ export async function downloadCollection(
     }
 
     const resolvedCollectionName = collectionName || title || "Collection";
+
+    // Stable Bilibili source identity for this collection/series (issue #295).
+    // Used to reuse the same MyTube collection on re-download/repair instead of
+    // creating a duplicate. Only valid when type/mid/id are all present.
+    const sourceKey =
+      (type === "collection" || type === "series") &&
+      mid != null &&
+      id != null
+        ? {
+            sourcePlatform: "bilibili",
+            sourceType: type,
+            sourceMid: String(mid),
+            sourceId: String(id),
+          }
+        : undefined;
+
     let mytubeCollection: Collection | undefined;
     if (retryCollectionMetadata?.linkedCollectionId) {
       mytubeCollection = storageService.getCollectionById(
         retryCollectionMetadata.linkedCollectionId,
       );
+    }
+
+    // Prefer the stable source key: this reliably re-finds the existing collection
+    // even after renames, cleanup, or membership changes.
+    if (!mytubeCollection && sourceKey) {
+      mytubeCollection = storageService.getCollectionBySourceKey(
+        sourceKey.sourcePlatform,
+        sourceKey.sourceType,
+        sourceKey.sourceMid,
+        sourceKey.sourceId,
+      );
+      if (mytubeCollection) {
+        logger.info(
+          `Reusing existing MyTube collection by source key: ${getCollectionDisplayName(mytubeCollection)}`,
+        );
+      }
     }
 
     if (!mytubeCollection) {
@@ -374,6 +406,21 @@ export async function downloadCollection(
       }
     }
 
+    // Safety net: before creating a brand-new collection, reuse a same-named
+    // non-author collection if one already exists. This prevents two collections
+    // with the same name when the legacy resolver fails to match.
+    if (!mytubeCollection) {
+      const namedCollection = storageService.getCollectionByName(
+        resolvedCollectionName,
+      );
+      if (namedCollection && namedCollection.origin !== "author_auto") {
+        mytubeCollection = namedCollection;
+        logger.info(
+          `Reusing existing same-named MyTube collection: ${getCollectionDisplayName(namedCollection)}`,
+        );
+      }
+    }
+
     if (!mytubeCollection) {
       mytubeCollection = {
         id: Date.now().toString(),
@@ -381,8 +428,24 @@ export async function downloadCollection(
         videos: [],
         createdAt: new Date().toISOString(),
         title: resolvedCollectionName,
+        ...(sourceKey ?? {}),
       };
       storageService.saveCollection(mytubeCollection);
+    } else if (sourceKey) {
+      // Backfill the stable source key onto a reused legacy collection so future
+      // re-downloads can match it directly.
+      const needsBackfill =
+        mytubeCollection.sourcePlatform !== sourceKey.sourcePlatform ||
+        mytubeCollection.sourceType !== sourceKey.sourceType ||
+        mytubeCollection.sourceMid !== sourceKey.sourceMid ||
+        mytubeCollection.sourceId !== sourceKey.sourceId;
+      if (needsBackfill) {
+        mytubeCollection = { ...mytubeCollection, ...sourceKey };
+        storageService.saveCollection(mytubeCollection);
+        logger.info(
+          `Backfilled source key on collection: ${getCollectionDisplayName(mytubeCollection)}`,
+        );
+      }
     }
 
     const mytubeCollectionId = mytubeCollection.id;

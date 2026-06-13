@@ -74,6 +74,7 @@ export {
     generateUniqueCollectionName,
     getCollectionById,
     getCollectionByName,
+    getCollectionBySourceKey,
     getCollectionByVideoId,
     getCollectionsByVideoId,
     getCollections,

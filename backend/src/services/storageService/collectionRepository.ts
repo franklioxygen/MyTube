@@ -53,6 +53,10 @@ function hydrateCollection(rows: CollectionRow[]): Collection | undefined {
     title: sortedRows[0].c.title || sortedRows[0].c.name,
     origin: toCollectionOrigin(sortedRows[0].c.origin),
     updatedAt: sortedRows[0].c.updatedAt || undefined,
+    sourcePlatform: sortedRows[0].c.sourcePlatform ?? undefined,
+    sourceType: sortedRows[0].c.sourceType ?? undefined,
+    sourceMid: sortedRows[0].c.sourceMid ?? undefined,
+    sourceId: sortedRows[0].c.sourceId ?? undefined,
     videos: [],
   };
 
@@ -183,6 +187,39 @@ export function getCollectionByName(name: string): Collection | undefined {
   }
 }
 
+/**
+ * Find a collection by its stable source identity (issue #295).
+ * Matching is exact on platform/type/mid/id. Used to reuse the same MyTube
+ * collection when a Bilibili collection/series link is re-downloaded for repair,
+ * instead of relying on fragile name or membership matching.
+ */
+export function getCollectionBySourceKey(
+  platform: string,
+  type: string,
+  mid: string,
+  id: string
+): Collection | undefined {
+  if (!platform || !type || !mid || !id) {
+    return undefined;
+  }
+  try {
+    const allCollections = getCollections();
+    return allCollections.find(
+      (c) =>
+        c.sourcePlatform === platform &&
+        c.sourceType === type &&
+        c.sourceMid === mid &&
+        c.sourceId === id
+    );
+  } catch (error) {
+    logger.error(
+      "Error getting collection by source key",
+      error instanceof Error ? error : new Error(String(error))
+    );
+    return undefined;
+  }
+}
+
 export function saveCollection(collection: Collection): Collection {
   try {
     db.transaction(() => {
@@ -195,6 +232,10 @@ export function saveCollection(collection: Collection): Collection {
           origin: collection.origin ?? null,
           createdAt: collection.createdAt || new Date().toISOString(),
           updatedAt: collection.updatedAt,
+          sourcePlatform: collection.sourcePlatform ?? null,
+          sourceType: collection.sourceType ?? null,
+          sourceMid: collection.sourceMid ?? null,
+          sourceId: collection.sourceId ?? null,
         })
         .onConflictDoUpdate({
           target: collections.id,
@@ -203,6 +244,10 @@ export function saveCollection(collection: Collection): Collection {
             title: collection.title,
             origin: collection.origin ?? null,
             updatedAt: new Date().toISOString(),
+            sourcePlatform: collection.sourcePlatform ?? null,
+            sourceType: collection.sourceType ?? null,
+            sourceMid: collection.sourceMid ?? null,
+            sourceId: collection.sourceId ?? null,
           },
         })
         .run();

@@ -13,6 +13,7 @@ import {
     deleteCollection as deleteCollectionRepo,
     getCollectionById as getCollectionByIdRepo,
     getCollectionByName as getCollectionByNameRepo,
+    getCollectionBySourceKey as getCollectionBySourceKeyRepo,
     getCollectionByVideoId as getCollectionByVideoIdRepo,
     getCollectionsByVideoId as getCollectionsByVideoIdRepo,
     getCollections as getCollectionsRepo,
@@ -81,6 +82,15 @@ export function getCollectionsByVideoId(videoId: string): Collection[] {
  */
 export function getCollectionByName(name: string): Collection | undefined {
   return getCollectionByNameRepo(name);
+}
+
+export function getCollectionBySourceKey(
+  platform: string,
+  type: string,
+  mid: string,
+  id: string
+): Collection | undefined {
+  return getCollectionBySourceKeyRepo(platform, type, mid, id);
 }
 
 /**
