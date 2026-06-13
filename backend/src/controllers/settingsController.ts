@@ -26,6 +26,7 @@ import { testTMDBCredential as testTMDBCredentialService } from "../services/tmd
 import { twitchApiService } from "../services/twitchService";
 import {
   authorOrganizationModeToLegacySetting,
+  isAuthorOrganizationMode,
   resolveAuthorOrganizationMode,
   Settings,
   defaultSettings,
@@ -334,6 +335,13 @@ const normalizeAuthorOrganizationSettings = (
     Object.prototype.hasOwnProperty.call(normalized, "authorOrganizationMode") ||
     Object.prototype.hasOwnProperty.call(normalized, "saveAuthorFilesToCollection")
   ) {
+    if (
+      Object.prototype.hasOwnProperty.call(normalized, "authorOrganizationMode") &&
+      !isAuthorOrganizationMode(normalized.authorOrganizationMode)
+    ) {
+      return normalized;
+    }
+
     const mode = resolveAuthorOrganizationMode(normalized);
     normalized.authorOrganizationMode = mode;
     normalized.saveAuthorFilesToCollection =

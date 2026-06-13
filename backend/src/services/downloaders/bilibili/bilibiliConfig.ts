@@ -182,8 +182,8 @@ export function resolveResolutionRetryTarget(
  * Build a Bilibili mp4-first format string, optionally constrained by a codec
  * filter and/or a height filter. When a strict ceiling is present, the final
  * fallback is also constrained so the cap is never silently exceeded. When a
- * retry floor is present, an unconstrained `best` fallback is appended so the
- * retry always produces a file even if the floor cannot be met.
+ * retry floor is present, `floorFallback` can append a final best selector so
+ * the retry still produces a file if the floor cannot be met.
  */
 function buildBilibiliFormatString(
   codecFilter: string | null,

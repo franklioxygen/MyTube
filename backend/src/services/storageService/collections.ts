@@ -147,7 +147,9 @@ export function linkVideoToCollection(
   });
 
   if (collection) {
-    const shouldMoveFiles = options?.moveFiles !== false;
+    const shouldMoveFiles =
+      options?.moveFiles ??
+      resolveAuthorOrganizationMode(getSettings()) !== "author_folder_only";
     if (shouldMoveFiles) {
       const video = getVideoById(videoId);
       const collectionName = collection.name || collection.title;

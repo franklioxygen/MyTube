@@ -378,6 +378,33 @@ describe("authorCollectionUtils", () => {
         })
       );
     });
+
+    it("should leave empty UUID collections manual during origin backfill", () => {
+      const emptyPlaylistCollection: Collection = {
+        id: "123e4567-e89b-12d3-a456-426614174999",
+        name: "Playlist Queue",
+        title: "Playlist Queue",
+        videos: [],
+        createdAt: "now",
+      };
+
+      (collections.getCollections as any).mockReturnValue([
+        emptyPlaylistCollection,
+      ]);
+
+      const result = backfillLegacyCollectionOrigins();
+
+      expect(result).toEqual({
+        backfilledAuthorAuto: 0,
+        backfilledManual: 1,
+      });
+      expect(collections.saveCollection).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: emptyPlaylistCollection.id,
+          origin: "manual",
+        })
+      );
+    });
   });
 
   describe("cleanupRedundantAuthorCollectionLinks", () => {
