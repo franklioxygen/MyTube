@@ -4,9 +4,17 @@ import * as collectionRepo from '../collectionRepository';
 import * as collectionsService from '../collections';
 import * as videosService from '../videos';
 
+const settingsMocks = vi.hoisted(() => ({
+  getSettings: vi.fn(() => ({}) as any),
+}));
+
 vi.mock('../collectionRepository');
 vi.mock('../collectionFileManager');
 vi.mock('../videos');
+vi.mock('../settings', () => ({
+  getSettings: () => settingsMocks.getSettings(),
+  invalidateSettingsCache: vi.fn(),
+}));
 vi.mock('../../utils/logger', () => ({
   logger: {
     info: vi.fn(),
@@ -17,6 +25,7 @@ vi.mock('../../utils/logger', () => ({
 describe('collectionsService', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        settingsMocks.getSettings.mockReturnValue({});
     });
 
     describe('generateUniqueCollectionName', () => {
@@ -190,6 +199,37 @@ describe('collectionsService', () => {
                  '/videos',
                  '/images',
                  undefined,
+                 expect.any(Array)
+             );
+        });
+
+        it('should move files to the author folder under author_folder_only when no other collection holds the video (issue #295 1-B follow-on)', () => {
+             const mockCollection = { id: 'col1', name: 'Col Name', videos: ['vid1'] };
+             const mockVideo = { id: 'vid1', author: 'Author A' };
+
+             vi.mocked(collectionRepo.atomicUpdateCollection).mockImplementation((id, fn) => {
+                 const updated = fn({ ...mockCollection } as any);
+                 return updated;
+             });
+             vi.mocked(videosService.getVideoById).mockReturnValue(mockVideo as any);
+             vi.mocked(collectionRepo.getCollections).mockReturnValue([]); // no other collection
+             vi.mocked(collectionFileManager.moveAllFilesFromCollection).mockReturnValue({
+                 videoPath: '/videos/Author A/path',
+             });
+             settingsMocks.getSettings.mockReturnValue({
+                 authorOrganizationMode: 'author_folder_only',
+             });
+
+             collectionsService.removeVideoFromCollection('col1', 'vid1');
+
+             expect(collectionFileManager.moveAllFilesFromCollection).toHaveBeenCalledWith(
+                 expect.any(Object),
+                 expect.stringContaining('Author A'), // video dir = author folder, not root
+                 expect.any(String),
+                 expect.any(String),
+                 '/videos/Author A',
+                 '/images/Author A',
+                 '/subtitles/Author A',
                  expect.any(Array)
              );
         });

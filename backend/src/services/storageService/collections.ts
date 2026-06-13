@@ -21,6 +21,8 @@ import {
 } from "./collectionRepository";
 import { Collection } from "./types";
 import { deleteVideo, getVideoById, updateVideo } from "./videos";
+import { getSettings } from "./settings";
+import { resolveAuthorOrganizationMode } from "../../types/settings";
 
 type CollectionLinkOptions = {
   moveFiles?: boolean;
@@ -248,6 +250,25 @@ export function removeVideoFromCollection(
             imagePathPrefix = `/images/${sanitizedOtherName}`;
             subtitlePathPrefix = `/subtitles/${sanitizedOtherName}`;
           }
+        }
+      } else if (
+        resolveAuthorOrganizationMode(getSettings()) === "author_folder_only" &&
+        video.author
+      ) {
+        // Under author_folder_only the canonical home is the author folder, not
+        // the storage root. Moving to root here is what dumped episodes into the
+        // root when a duplicate collection was deleted (issue #295 1-B follow-on).
+        const sanitizedAuthor = video.author
+          .replace(/\.\./g, "")
+          .replace(/[\/\\]/g, "")
+          .trim();
+        if (sanitizedAuthor) {
+          targetVideoDir = path.join(VIDEOS_DIR, sanitizedAuthor);
+          targetImageDir = path.join(IMAGES_DIR, sanitizedAuthor);
+          targetSubDir = path.join(SUBTITLES_DIR, sanitizedAuthor);
+          videoPathPrefix = `/videos/${sanitizedAuthor}`;
+          imagePathPrefix = `/images/${sanitizedAuthor}`;
+          subtitlePathPrefix = `/subtitles/${sanitizedAuthor}`;
         }
       }
 
