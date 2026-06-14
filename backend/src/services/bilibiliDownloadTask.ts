@@ -11,6 +11,7 @@ import type {
 import * as downloadService from "./downloadService";
 import type { DownloadRetryMetadata } from "./downloadRetryMetadata";
 import * as storageService from "./storageService";
+import { resolveAuthorOrganizationMode } from "../types/settings";
 
 function buildAggregateError(result: BilibiliAggregateDownloadResult): string {
   if (result.error) {
@@ -122,6 +123,21 @@ export function buildBilibiliDownloadTask(
       const multipartCollectionName =
         options.collectionName ?? retryMetadata?.collectionName;
 
+      // Stable Bilibili source identity for this multipart video's grouping
+      // collection. Used to reuse the same MyTube collection across retries and
+      // re-downloads instead of spawning duplicate (often empty) collections when
+      // an earlier attempt failed or was cancelled before part 1 was saved
+      // (issue #295 follow-on). The bvid is stable per multipart video, so it is
+      // used for both mid and id to satisfy the all-fields-present source lookup.
+      const multipartSourceKey = videoId
+        ? {
+            sourcePlatform: "bilibili",
+            sourceType: "multipart",
+            sourceMid: videoId,
+            sourceId: videoId,
+          }
+        : undefined;
+
       if (multipartCollectionName) {
         if (retryMetadata?.shape === "bilibili_all_parts") {
           retryMetadata.collectionName = multipartCollectionName;
@@ -143,7 +159,27 @@ export function buildBilibiliDownloadTask(
           }
         }
 
-        if (existingPart1?.id) {
+        // Prefer the stable source key: this reliably re-finds a collection
+        // created by a prior attempt even when part 1 was never saved, which is
+        // what previously caused duplicate empty collections to accumulate.
+        if (!collectionId && multipartSourceKey) {
+          const bySourceKey = storageService.getCollectionBySourceKey(
+            multipartSourceKey.sourcePlatform,
+            multipartSourceKey.sourceType,
+            multipartSourceKey.sourceMid,
+            multipartSourceKey.sourceId,
+          );
+          if (bySourceKey) {
+            collectionId = bySourceKey.id;
+            logger.info(
+              `Reusing existing collection by source key "${
+                bySourceKey.name || bySourceKey.title
+              }" for this series`,
+            );
+          }
+        }
+
+        if (existingPart1?.id && !collectionId) {
           const existingCollections = storageService.getCollectionsByVideoId(
             existingPart1.id,
           );
@@ -154,11 +190,27 @@ export function buildBilibiliDownloadTask(
                 (collection.name === multipartCollectionName ||
                   collection.title === multipartCollectionName),
             ) ?? existingCollections[0];
-          if (existingCollection && !collectionId) {
+          if (existingCollection) {
             collectionId = existingCollection.id;
             logger.info(
               `Found existing collection "${
                 existingCollection.name || existingCollection.title
+              }" for this series`,
+            );
+          }
+        }
+
+        // Safety net: reuse a same-named non-author collection before creating a
+        // brand-new one, so a missing source-key match never produces a duplicate.
+        if (!collectionId) {
+          const namedCollection = storageService.getCollectionByName(
+            multipartCollectionName,
+          );
+          if (namedCollection && namedCollection.origin !== "author_auto") {
+            collectionId = namedCollection.id;
+            logger.info(
+              `Reusing existing same-named collection "${
+                namedCollection.name || namedCollection.title
               }" for this series`,
             );
           }
@@ -171,10 +223,29 @@ export function buildBilibiliDownloadTask(
             videos: [],
             createdAt: new Date().toISOString(),
             title: multipartCollectionName,
+            ...(multipartSourceKey ?? {}),
           };
           storageService.saveCollection(newCollection);
           collectionId = newCollection.id;
           logger.info(`Created new collection "${multipartCollectionName}"`);
+        } else if (multipartSourceKey) {
+          // Backfill the stable source key onto a reused legacy collection so
+          // future re-downloads match it directly via the source lookup.
+          const reused = storageService.getCollectionById(collectionId);
+          if (
+            reused &&
+            (reused.sourcePlatform !== multipartSourceKey.sourcePlatform ||
+              reused.sourceType !== multipartSourceKey.sourceType ||
+              reused.sourceMid !== multipartSourceKey.sourceMid ||
+              reused.sourceId !== multipartSourceKey.sourceId)
+          ) {
+            storageService.saveCollection({ ...reused, ...multipartSourceKey });
+            logger.info(
+              `Backfilled source key on collection "${
+                reused.name || reused.title
+              }"`,
+            );
+          }
         }
         if (retryMetadata?.shape === "bilibili_all_parts") {
           retryMetadata.linkedCollectionId = collectionId ?? undefined;
@@ -280,6 +351,30 @@ export function buildBilibiliDownloadTask(
         );
         if (!firstVideo && remainingResult.firstVideo) {
           firstVideo = remainingResult.firstVideo;
+        }
+      }
+
+      // Under author_folder_only the parts live in the author folder; remove any
+      // now-empty collection-named folder left from initial placement so it does
+      // not linger in the storage root. Mirrors the collection/series download
+      // path (issue #295 2-2). Only removes empty directories.
+      if (multipartCollectionName) {
+        try {
+          const organizationMode = resolveAuthorOrganizationMode(
+            storageService.getSettings(),
+          );
+          if (organizationMode === "author_folder_only") {
+            const cleanupName = collectionId
+              ? storageService.getCollectionById(collectionId)?.name ??
+                multipartCollectionName
+              : multipartCollectionName;
+            storageService.cleanupCollectionDirectories(cleanupName);
+          }
+        } catch (cleanupError) {
+          logger.warn(
+            "Failed to clean up residual collection directories:",
+            cleanupError,
+          );
         }
       }
 
