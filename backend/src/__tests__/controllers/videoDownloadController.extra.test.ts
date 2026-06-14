@@ -63,10 +63,12 @@ vi.mock("../../services/storageService", () => ({
   getVideoBySourceUrl: vi.fn(),
   getCollectionsByVideoId: vi.fn(),
   getCollectionByName: vi.fn(),
+  getCollectionBySourceKey: vi.fn(),
   saveCollection: vi.fn(),
   getCollectionById: vi.fn(),
   atomicUpdateCollection: vi.fn(),
   linkVideoToCollection: vi.fn(),
+  cleanupCollectionDirectories: vi.fn(),
   getDownloadStatus: vi.fn(),
 }));
 
@@ -892,7 +894,11 @@ describe("videoDownloadController extra coverage", () => {
       "https://www.bilibili.com/video/BVname",
       "bilibili",
     );
-    expect(storageService.saveCollection).not.toHaveBeenCalled();
+    // The persisted collection is reused, not duplicated. Any saveCollection call
+    // is a source-key backfill onto the SAME collection id, never a new one.
+    for (const call of vi.mocked(storageService.saveCollection).mock.calls) {
+      expect(call[0]).toEqual(expect.objectContaining({ id: "col-retry" }));
+    }
   });
 
   it("downloadVideo passes resolved collection name to first-part downloader and awaits aggregate completion", async () => {
