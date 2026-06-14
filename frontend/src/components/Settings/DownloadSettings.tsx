@@ -206,6 +206,42 @@ const DownloadSettings: React.FC<DownloadSettingsProps> = ({
                 </Typography>
             </Box>
 
+            <Box sx={{ mt: 3 }} id="preferredVideoResolution-setting">
+                <Typography variant="h6" gutterBottom>{t('preferredVideoResolution')}</Typography>
+                <FormControl fullWidth sx={{ maxWidth: 400 }}>
+                    <Select
+                        labelId="preferred-video-resolution-label"
+                        id="preferred-video-resolution"
+                        value={settings.preferredVideoResolution ?? 'auto'}
+                        onChange={(e) => onChange('preferredVideoResolution', e.target.value)}
+                    >
+                        <MenuItem value="auto">{t('preferredVideoResolutionAuto')}</MenuItem>
+                        <MenuItem value="2160">2160p (4K)</MenuItem>
+                        <MenuItem value="1440">1440p (2K)</MenuItem>
+                        <MenuItem value="1080">1080p</MenuItem>
+                        <MenuItem value="720">720p</MenuItem>
+                        <MenuItem value="480">480p</MenuItem>
+                        <MenuItem value="360">360p</MenuItem>
+                    </Select>
+                </FormControl>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 1 }}>
+                    {t('preferredVideoResolutionDescription')}
+                </Typography>
+                <FormControlLabel
+                    control={
+                        <Switch
+                            checked={settings.preferredVideoResolutionStrict ?? false}
+                            onChange={(e) => onChange('preferredVideoResolutionStrict', e.target.checked)}
+                            disabled={(settings.preferredVideoResolution ?? 'auto') === 'auto'}
+                        />
+                    }
+                    label={t('preferredVideoResolutionStrict')}
+                />
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, mb: 2 }}>
+                    {t('preferredVideoResolutionStrictDescription')}
+                </Typography>
+            </Box>
+
             <Divider sx={{ my: 3 }} />
 
             <FilenameTemplateSettings

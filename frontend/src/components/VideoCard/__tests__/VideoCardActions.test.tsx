@@ -71,7 +71,7 @@ vi.mock('../../CollectionModal', () => ({
         <div data-testid="collection-modal">
             <button onClick={() => onAddToCollection('col2')}>Add to Col 2</button>
             <button onClick={() => onCreateCollection('Collection 3')}>Create Col 3</button>
-            <button onClick={onRemoveFromCollection}>Remove From Collection</button>
+            <button onClick={() => onRemoveFromCollection('col1')}>Remove From Collection</button>
         </div>
     ) : null
 }));
@@ -200,7 +200,7 @@ describe('VideoCardActions', () => {
         await user.click(screen.getByText('Add to Collection'));
         await user.click(screen.getByText('Remove From Collection'));
 
-        expect(mockRemoveFromCollection).toHaveBeenCalledWith('vid1');
+        expect(mockRemoveFromCollection).toHaveBeenCalledWith('col1', 'vid1');
     });
 
     it('should open tags modal and normalize tags before saving', async () => {

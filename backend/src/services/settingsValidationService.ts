@@ -1,5 +1,6 @@
 import { ValidationError } from "../errors/DownloadErrors";
 import {
+  isAuthorOrganizationMode,
   DEFAULT_ADMIN_PASSWORD,
   Settings,
   defaultSettings,
@@ -208,6 +209,16 @@ export function validateSettings(newSettings: Partial<Settings>): void {
     throw new ValidationError(
       `Invalid mediaServerExportMode: "${newSettings.mediaServerExportMode}".`,
       "mediaServerExportMode"
+    );
+  }
+
+  if (
+    newSettings.authorOrganizationMode !== undefined &&
+    !isAuthorOrganizationMode(newSettings.authorOrganizationMode)
+  ) {
+    throw new ValidationError(
+      `Invalid authorOrganizationMode: "${newSettings.authorOrganizationMode}".`,
+      "authorOrganizationMode"
     );
   }
 

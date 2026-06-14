@@ -48,9 +48,20 @@ export interface DownloadResult {
   error?: string;
 }
 
-export interface CollectionDownloadResult {
+export interface BilibiliAggregateDownloadResult {
   success: boolean;
+  partial: boolean;
+  expectedCount: number;
+  downloadedCount: number;
+  skippedCount: number;
+  failedPartNumbers: number[];
+  firstVideo?: Video;
   collectionId?: string;
   videosDownloaded?: number;
+  isMultiPart?: boolean;
+  isCollection?: boolean;
+  totalParts?: number;
   error?: string;
 }
+
+export interface CollectionDownloadResult extends BilibiliAggregateDownloadResult {}

@@ -12,7 +12,7 @@ vi.mock('../../../services/storageService', () => ({
   saveVideo: vi.fn(),
   updateActiveDownload: vi.fn(),
   getSettings: vi.fn().mockReturnValue({}),
-  addVideoToAuthorCollection: vi.fn().mockReturnValue(null),
+  organizeVideoByAuthor: vi.fn().mockReturnValue(null),
   getVideoById: vi.fn().mockReturnValue(null),
 }));
 vi.mock('../../../utils/ytDlpUtils', () => ({

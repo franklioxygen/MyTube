@@ -70,6 +70,7 @@ export function HistoryTab({
                     <MenuItem value="all">{t('filterAll') || 'All'}</MenuItem>
                     <MenuItem value="success">{t('success') || 'Success'}</MenuItem>
                     <MenuItem value="failed">{t('failed') || 'Failed'}</MenuItem>
+                    <MenuItem value="partial">{t('partialDownload') || 'Incomplete'}</MenuItem>
                     <MenuItem value="pending_retry">{t('pendingRetry') || 'Pending Retry'}</MenuItem>
                     <MenuItem value="skipped">{t('skipped') || 'Skipped'}</MenuItem>
                     <MenuItem value="deleted">{t('previouslyDeleted') || 'Previously Deleted'}</MenuItem>

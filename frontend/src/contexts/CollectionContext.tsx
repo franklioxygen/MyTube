@@ -11,7 +11,7 @@ interface CollectionContextType {
     fetchCollections: () => Promise<void>;
     createCollection: (name: string, videoId: string) => Promise<Collection | null>;
     addToCollection: (collectionId: string, videoId: string) => Promise<Collection | null>;
-    removeFromCollection: (videoId: string) => Promise<boolean>;
+    removeFromCollection: (collectionId: string, videoId: string) => Promise<boolean>;
     deleteCollection: (collectionId: string, deleteVideos?: boolean) => Promise<{ success: boolean; error?: string }>;
     updateCollection: (id: string, name: string) => Promise<{ success: boolean; error?: string }>;
 }
@@ -107,18 +107,12 @@ export const CollectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         }
     };
 
-    const removeFromCollection = async (videoId: string) => {
+    const removeFromCollection = async (collectionId: string, videoId: string) => {
         try {
-            const collectionsWithVideo = collections.filter(collection =>
-                collection.videos.includes(videoId)
-            );
-
-            await Promise.all(collectionsWithVideo.map(collection =>
-                api.put(`/collections/${collection.id}`, {
-                    videoId,
-                    action: "remove"
-                })
-            ));
+            await api.put(`/collections/${collectionId}`, {
+                videoId,
+                action: "remove"
+            });
 
             queryClient.invalidateQueries({ queryKey: ['collections'] });
             queryClient.invalidateQueries({ queryKey: ['videos'] });

@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs';
 import { Request, Response } from 'express';
 import fs from 'fs-extra';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { deleteLegacyData, getSettings, migrateData, patchSettings, updateSettings } from '../../controllers/settingsController';
+import { cleanupAuthorCollections, deleteLegacyData, getSettings, migrateData, patchSettings, updateSettings } from '../../controllers/settingsController';
 import { verifyPassword } from '../../controllers/passwordController';
 import downloadManager from '../../services/downloadManager';
 import * as storageService from '../../services/storageService';
@@ -14,6 +14,7 @@ vi.mock('../../services/storageService', async (importOriginal) => {
     getSettings: vi.fn(),
     saveSettings: vi.fn(),
     formatLegacyFilenames: vi.fn(),
+    cleanupRedundantAuthorCollectionLinks: vi.fn(),
   };
 });
 vi.mock('../../services/downloadManager');
@@ -174,6 +175,16 @@ describe('SettingsController', () => {
       expect(storageService.saveSettings).toHaveBeenCalledWith(
         expect.objectContaining({ tmdbApiKey: 'tmdb-token' })
       );
+    });
+
+    it('should reject invalid author organization modes instead of normalizing them to root', async () => {
+      req.body = { authorOrganizationMode: 'author-folder' };
+      (storageService.getSettings as any).mockReturnValue({});
+
+      await expect(updateSettings(req as Request, res as Response)).rejects.toThrow(
+        /Invalid authorOrganizationMode/
+      );
+      expect(storageService.saveSettings).not.toHaveBeenCalled();
     });
 
     it('should validate and update itemsPerPage', async () => {
@@ -568,6 +579,27 @@ describe('SettingsController', () => {
 
       expect(json).toHaveBeenCalledWith(expect.objectContaining({ results: expect.anything() }));
       // It returns success but with failed list
+    });
+  });
+
+  describe('cleanupAuthorCollections', () => {
+    it('should clean up redundant author collection links', async () => {
+      (storageService.cleanupRedundantAuthorCollectionLinks as any).mockReturnValue({
+        scannedCollections: 2,
+        matchedAuthorCollections: 1,
+        removedMemberships: 3,
+      });
+
+      await cleanupAuthorCollections(req as Request, res as Response);
+
+      expect(storageService.cleanupRedundantAuthorCollectionLinks).toHaveBeenCalledTimes(1);
+      expect(json).toHaveBeenCalledWith({
+        results: expect.objectContaining({
+          scannedCollections: 2,
+          matchedAuthorCollections: 1,
+          removedMemberships: 3,
+        }),
+      });
     });
   });
 });

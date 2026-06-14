@@ -63,9 +63,9 @@ export const VideoCardActions: React.FC<VideoCardActionsProps> = ({
         await createCollection(name, video.id);
     };
 
-    const handleRemoveFromCollection = async () => {
+    const handleRemoveFromCollection = async (collectionId: string) => {
         if (!video.id) return;
-        await removeFromCollection(video.id);
+        await removeFromCollection(collectionId, video.id);
     };
 
     const handleSaveTags = async (tags: string[]) => {

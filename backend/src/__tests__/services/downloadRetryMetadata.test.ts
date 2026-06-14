@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   canRestoreDetachedTask,
   createBilibiliRetryMetadata,
+  mergeBilibiliRetryMetadata,
   parseRetryMetadata,
   requiresRetryMetadata,
   serializeRetryMetadata,
@@ -13,10 +14,12 @@ describe("downloadRetryMetadata", () => {
       createBilibiliRetryMetadata({
         downloadAllParts: true,
         collectionName: "Series",
+        normalizedSourceUrl: "https://www.bilibili.com/video/BV1xx",
       }),
     ).toEqual({
       shape: "bilibili_all_parts",
       collectionName: "Series",
+      normalizedSourceUrl: "https://www.bilibili.com/video/BV1xx",
     });
 
     expect(
@@ -29,10 +32,12 @@ describe("downloadRetryMetadata", () => {
           id: 42,
           title: "Season 1",
         },
+        normalizedSourceUrl: "https://www.bilibili.com/video/BVseason",
       }),
     ).toEqual({
       shape: "bilibili_collection",
       collectionName: "Season 1",
+      normalizedSourceUrl: "https://www.bilibili.com/video/BVseason",
       collectionInfo: {
         success: true,
         type: "collection",
@@ -75,5 +80,30 @@ describe("downloadRetryMetadata", () => {
         collectionInfo: { success: true, type: "collection" },
       }),
     ).toBe(true);
+  });
+
+  it("merges persisted Bilibili retry state for the same job shape", () => {
+    expect(
+      mergeBilibiliRetryMetadata(
+        {
+          shape: "bilibili_all_parts",
+          collectionName: "Series",
+          normalizedSourceUrl: "https://www.bilibili.com/video/BV1xx",
+        },
+        {
+          shape: "bilibili_all_parts",
+          collectionName: "Series",
+          linkedCollectionId: "col-1",
+          completedPartNumbers: [1, 2],
+          failedPartNumbers: [3],
+        },
+      ),
+    ).toEqual(
+      expect.objectContaining({
+        linkedCollectionId: "col-1",
+        completedPartNumbers: [1, 2],
+        failedPartNumbers: [3],
+      }),
+    );
   });
 });

@@ -3,12 +3,14 @@ import { extractBilibiliVideoId } from "../../utils/helpers";
 import { Video } from "../storageService";
 import { BaseDownloader, DownloadOptions, VideoInfo } from "./BaseDownloader";
 import { FilenameTemplateSourceOptions } from "../filenameTemplate/types";
+import type { DownloadRetryMetadata } from "../downloadRetryMetadata";
 import * as bilibiliApi from "./bilibili/bilibiliApi";
 import * as bilibiliCollection from "./bilibili/bilibiliCollection";
 import * as bilibiliCookie from "./bilibili/bilibiliCookie";
 import * as bilibiliSubtitle from "./bilibili/bilibiliSubtitle";
 import * as bilibiliVideo from "./bilibili/bilibiliVideo";
 import {
+  BilibiliAggregateDownloadResult,
   BilibiliCollectionCheckResult,
   BilibiliPartsCheckResult,
   BilibiliVideoInfo,
@@ -19,6 +21,7 @@ import {
 
 // Re-export all types for backward compatibility
 export type {
+  BilibiliAggregateDownloadResult,
   BilibiliCollectionCheckResult,
   BilibiliPartsCheckResult,
   BilibiliVideoInfo,
@@ -149,12 +152,16 @@ export class BilibiliDownloader extends BaseDownloader {
   static async downloadCollection(
     collectionInfo: BilibiliCollectionCheckResult,
     collectionName: string,
-    downloadId: string
+    downloadId: string,
+    onStart?: (cancel: () => void) => void,
+    retryMetadata?: DownloadRetryMetadata,
   ): Promise<CollectionDownloadResult> {
     return bilibiliCollection.downloadCollection(
       collectionInfo,
       collectionName,
-      downloadId
+      downloadId,
+      onStart,
+      retryMetadata
     );
   }
 
@@ -165,15 +172,19 @@ export class BilibiliDownloader extends BaseDownloader {
     totalParts: number,
     seriesTitle: string,
     collectionId: string | null,
-    downloadId: string
-  ): Promise<void> {
+    downloadId: string,
+    onStart?: (cancel: () => void) => void,
+    retryMetadata?: DownloadRetryMetadata,
+  ): Promise<BilibiliAggregateDownloadResult> {
     return bilibiliCollection.downloadRemainingParts(
       baseUrl,
       startPart,
       totalParts,
       seriesTitle,
       collectionId,
-      downloadId
+      downloadId,
+      onStart,
+      retryMetadata
     );
   }
 

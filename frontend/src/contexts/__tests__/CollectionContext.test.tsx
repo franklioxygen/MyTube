@@ -126,7 +126,7 @@ describe('CollectionContext', () => {
         mockedAxios.put.mockResolvedValueOnce({ data: { success: true } });
 
         await act(async () => {
-            await result.current.removeFromCollection('vid1');
+            await result.current.removeFromCollection('1', 'vid1');
         });
 
         expect(mockedAxios.put).toHaveBeenCalledWith(

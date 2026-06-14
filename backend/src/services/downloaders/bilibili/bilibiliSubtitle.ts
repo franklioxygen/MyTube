@@ -8,6 +8,7 @@ import {
   buildAllowlistedHttpUrl,
   ensureDirSafeSync,
   resolveSafeChildPath,
+  resolveSafePathInDirectories,
   writeFileSafeSync,
 } from "../../../utils/security";
 import { getCookieHeader } from "./bilibiliCookie";
@@ -15,13 +16,21 @@ import { getCookieHeader } from "./bilibiliCookie";
 type SubtitleDownloadConfig = Record<string, unknown>;
 const BILIBILI_ALLOWED_HOSTS = ["bilibili.com", "hdslb.com"];
 
+function trimTrailingSlashes(value: string): string {
+  let end = value.length;
+  while (end > 0 && value.charCodeAt(end - 1) === 47) {
+    end--;
+  }
+  return value.slice(0, end);
+}
+
 /**
  * Download subtitles for a Bilibili video
  */
 export async function downloadSubtitles(
   videoUrl: string,
   baseFilename: string,
-  _subtitleDir: string,
+  subtitleDir: string,
   subtitlePathPrefix: string,
   axiosConfig: SubtitleDownloadConfig = {}
 ): Promise<Array<{ language: string; filename: string; path: string }>> {
@@ -119,12 +128,32 @@ export async function downloadSubtitles(
 
     const savedSubtitles = [];
 
-    // Ensure subtitles directory exists
+    // Write subtitles into the same directory as the video (mirroring the
+    // author/season or collection subfolder), not the storage root (issue #295).
+    // subtitlePathPrefix decides which storage root we live under (videos vs
+    // subtitles); subtitleDir is the actual target directory the caller resolved.
     const normalizedPrefix = subtitlePathPrefix.replace(/\\/g, "/");
     const useVideoRoot = normalizedPrefix.startsWith("/videos");
-    const resolvedSubtitleDir = useVideoRoot ? VIDEOS_DIR : SUBTITLES_DIR;
-    const safePathPrefix = useVideoRoot ? "/videos" : "/subtitles";
-    ensureDirSafeSync(resolvedSubtitleDir, resolvedSubtitleDir);
+    const rootDir = useVideoRoot ? VIDEOS_DIR : SUBTITLES_DIR;
+    // Validate the caller-provided directory stays within the chosen root; fall
+    // back to the root only if it is missing or invalid.
+    let targetSubtitleDir = rootDir;
+    if (subtitleDir) {
+      try {
+        targetSubtitleDir = resolveSafePathInDirectories(subtitleDir, [rootDir]);
+      } catch {
+        logger.warn(
+          `Subtitle directory "${subtitleDir}" is outside the allowed root; writing to root instead.`
+        );
+        targetSubtitleDir = rootDir;
+      }
+    }
+    // Web path prefix preserves the subdirectory (e.g. /videos/<collection> or
+    // a planned author/season path). Strip any trailing slash.
+    const safePathPrefix =
+      trimTrailingSlashes(normalizedPrefix) ||
+      (useVideoRoot ? "/videos" : "/subtitles");
+    ensureDirSafeSync(targetSubtitleDir, rootDir);
 
     // Process subtitles (matching v1.5.14 approach - simple and direct)
     for (const sub of subtitlesData) {
@@ -160,9 +189,9 @@ export async function downloadSubtitles(
 
         if (vttContent) {
           const subFilename = `${baseFilename}.${lang}.vtt`;
-          const subPath = resolveSafeChildPath(resolvedSubtitleDir, subFilename);
+          const subPath = resolveSafeChildPath(targetSubtitleDir, subFilename);
 
-          writeFileSafeSync(subPath, resolvedSubtitleDir, vttContent);
+          writeFileSafeSync(subPath, rootDir, vttContent);
           logger.info(`Saved subtitle file: ${subPath}`);
 
           savedSubtitles.push({

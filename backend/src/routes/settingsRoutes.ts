@@ -37,6 +37,7 @@ import {
     verifyVisitorPassword,
 } from "../controllers/passwordController";
 import {
+    cleanupAuthorCollections,
     deleteLegacyData,
     formatFilenames,
     getCloudflaredStatus,
@@ -73,6 +74,7 @@ router.patch("/", asyncHandler(patchSettings));
 router.post("/migrate", asyncHandler(migrateData));
 router.post("/delete-legacy", asyncHandler(deleteLegacyData));
 router.post("/format-filenames", asyncHandler(formatFilenames));
+router.post("/cleanup-author-collections", asyncHandler(cleanupAuthorCollections));
 router.get("/cloudflared/status", asyncHandler(getCloudflaredStatus));
 router.post("/tags/rename", asyncHandler(renameTag));
 

@@ -2,7 +2,11 @@ import { Request, Response } from "express";
 import { isCancelledError, ValidationError } from "../errors/DownloadErrors";
 import downloadManager from "../services/downloadManager";
 import { buildBilibiliDownloadTask } from "../services/bilibiliDownloadTask";
-import { createBilibiliRetryMetadata } from "../services/downloadRetryMetadata";
+import {
+  createBilibiliRetryMetadata,
+  mergeBilibiliRetryMetadata,
+  parseRetryMetadata,
+} from "../services/downloadRetryMetadata";
 import * as downloadService from "../services/downloadService";
 import {
   recordEvent,
@@ -223,7 +227,9 @@ export const downloadVideo = async (
     }
 
     // Use processed URL as resolved URL
-    const resolvedUrl = validatedVideoUrl;
+    const resolvedUrl = isBilibiliUrl(validatedVideoUrl)
+      ? trimBilibiliUrl(validatedVideoUrl)
+      : validatedVideoUrl;
     logger.info("Resolved URL to:", resolvedUrl);
     // Check if video was previously downloaded (skip for collections/multi-part)
     if (sourceVideoId && !downloadAllParts && !downloadCollection) {
@@ -285,14 +291,51 @@ export const downloadVideo = async (
 
     // Generate a unique ID for this download task
     const downloadId = Date.now().toString();
-    const bilibiliRetryMetadata = isBilibiliUrl(resolvedUrl)
+    const previousBilibiliRetryMetadata = isBilibiliUrl(resolvedUrl)
+      ? parseRetryMetadata(
+          storageService.getLatestRetryHistoryItemBySourceUrl(
+            resolvedUrl,
+            "bilibili",
+          )?.retryMetadata,
+        )
+      : undefined;
+    const currentBilibiliRetryMetadata = isBilibiliUrl(resolvedUrl)
       ? createBilibiliRetryMetadata({
           downloadAllParts: !!downloadAllParts,
           downloadCollection: !!downloadCollection,
           collectionName,
           collectionInfo,
+          normalizedSourceUrl: resolvedUrl,
         })
       : undefined;
+    const bilibiliRetryMetadata = isBilibiliUrl(resolvedUrl)
+      ? currentBilibiliRetryMetadata
+        ? mergeBilibiliRetryMetadata(
+            currentBilibiliRetryMetadata,
+            previousBilibiliRetryMetadata,
+          )
+        : previousBilibiliRetryMetadata
+      : undefined;
+    const shouldReuseRetryAggregateMode =
+      isBilibiliUrl(resolvedUrl) &&
+      !downloadAllParts &&
+      !downloadCollection &&
+      !!bilibiliRetryMetadata;
+    const retryCollectionInfo =
+      bilibiliRetryMetadata?.shape === "bilibili_collection"
+        ? bilibiliRetryMetadata.collectionInfo
+        : undefined;
+    const effectiveDownloadAllParts =
+      !!downloadAllParts ||
+      (shouldReuseRetryAggregateMode &&
+        bilibiliRetryMetadata?.shape === "bilibili_all_parts");
+    const effectiveDownloadCollection =
+      !!downloadCollection ||
+      (shouldReuseRetryAggregateMode &&
+        bilibiliRetryMetadata?.shape === "bilibili_collection");
+    const effectiveCollectionName =
+      collectionName ?? bilibiliRetryMetadata?.collectionName;
+    const effectiveCollectionInfo = collectionInfo ?? retryCollectionInfo;
 
     // Define the download task function
     const downloadTask = async (
@@ -306,10 +349,11 @@ export const downloadVideo = async (
           downloadUrl,
           downloadId,
           initialTitle,
-          downloadAllParts: !!downloadAllParts,
-          downloadCollection: !!downloadCollection,
-          collectionName,
-          collectionInfo,
+          downloadAllParts: effectiveDownloadAllParts,
+          downloadCollection: effectiveDownloadCollection,
+          collectionName: effectiveCollectionName,
+          collectionInfo: effectiveCollectionInfo,
+          retryMetadata: bilibiliRetryMetadata,
           onTitleUpdate: (id, title) => {
             storageService.updateActiveDownloadTitle(id, title);
             downloadManager.updateTaskTitle(id, title);

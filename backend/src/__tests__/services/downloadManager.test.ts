@@ -256,6 +256,46 @@ describe('DownloadManager', () => {
       }
     });
 
+    it('should persist Bilibili retry metadata on successful aggregate downloads', async () => {
+      const mockDownloadFn = vi.fn().mockResolvedValue({
+        success: true,
+        partial: false,
+        video: {
+          id: 'video-success',
+          title: 'Series Episode 1',
+          videoPath: '/videos/series-ep1.mp4',
+          thumbnailPath: '/images/series-ep1.jpg',
+          sourceUrl: 'https://www.bilibili.com/video/BV1zz',
+          author: 'Uploader',
+        },
+      });
+
+      (storageService.setQueuedDownloads as any).mockImplementation(() => {});
+      (storageService.addActiveDownload as any).mockImplementation(() => {});
+      (storageService.removeActiveDownload as any).mockImplementation(() => {});
+
+      await downloadManager.addDownload(
+        mockDownloadFn,
+        'success-bili',
+        'Multipart Bilibili',
+        'https://www.bilibili.com/video/BV1zz',
+        'bilibili',
+        undefined,
+        { shape: 'bilibili_all_parts', collectionName: 'Series' },
+      );
+
+      expect(storageService.addDownloadHistoryItem).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'success-bili',
+          status: 'success',
+          retryMetadata: JSON.stringify({
+            shape: 'bilibili_all_parts',
+            collectionName: 'Series',
+          }),
+        }),
+      );
+    });
+
     it('should queue downloads when at max concurrent limit', async () => {
       // Create 4 downloads (default limit is 3)
       const downloads = Array.from({ length: 4 }, (_, i) => ({
@@ -704,13 +744,61 @@ describe('DownloadManager', () => {
         'youtube',
       );
 
-      expect(storageService.removeActiveDownload).not.toHaveBeenCalledWith('multi-1');
+      expect(storageService.removeActiveDownload).toHaveBeenCalledWith('multi-1');
       expect(storageService.updateVideoDownloadRecord).toHaveBeenCalledWith(
         'source-1',
         'video-2',
         'Custom title',
         'Uploader',
         'YouTube',
+      );
+    });
+
+    it('should record partial aggregate results with partial history status', async () => {
+      await expect(
+        downloadManager.addDownload(
+          vi.fn().mockResolvedValue({
+            success: false,
+            partial: true,
+            expectedCount: 3,
+            downloadedCount: 2,
+            skippedCount: 0,
+            failedPartNumbers: [3],
+            error: 'Bilibili multipart incomplete',
+            video: {
+              id: 'video-partial',
+              title: 'Bilibili Video',
+              sourceUrl: 'https://www.bilibili.com/video/BV1xx',
+            },
+          }),
+          'partial-1',
+          'Partial task',
+          'https://www.bilibili.com/video/BV1xx',
+          'bilibili',
+        ),
+      ).rejects.toThrow('Bilibili multipart incomplete');
+
+      expect(storageService.removeActiveDownload).toHaveBeenCalledWith('partial-1');
+      expect(storageService.addDownloadHistoryItem).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'partial-1',
+          status: 'partial',
+          error: 'Bilibili multipart incomplete',
+        }),
+      );
+      expect(HookService.executeHook).toHaveBeenCalledWith(
+        'task_fail',
+        expect.objectContaining({
+          taskId: 'partial-1',
+          error: 'Bilibili multipart incomplete',
+        }),
+      );
+      expect(HookService.executeHook).not.toHaveBeenCalledWith(
+        'task_success',
+        expect.objectContaining({ taskId: 'partial-1' }),
+      );
+      expect(CloudStorageService.uploadVideo).not.toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'video-partial' }),
       );
     });
 

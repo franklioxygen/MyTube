@@ -14,12 +14,21 @@ export interface Video {
   [key: string]: any;
 }
 
+export type CollectionOrigin = "manual" | "author_auto";
+
 export interface Collection {
   id: string;
   title: string;
   videos: string[];
   updatedAt?: string;
   name?: string;
+  origin?: CollectionOrigin;
+  // Stable source identity used to reuse the same collection on re-download/repair
+  // (issue #295). See db/schema.ts collections table.
+  sourcePlatform?: string;
+  sourceType?: string;
+  sourceMid?: string;
+  sourceId?: string;
   [key: string]: any;
 }
 
@@ -43,7 +52,7 @@ export interface DownloadHistoryItem {
   author?: string;
   sourceUrl?: string;
   finishedAt: number;
-  status: "success" | "failed" | "skipped" | "deleted" | "pending_retry";
+  status: "success" | "failed" | "partial" | "skipped" | "deleted" | "pending_retry";
   error?: string;
   videoPath?: string;
   thumbnailPath?: string;

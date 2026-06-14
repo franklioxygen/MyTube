@@ -17,6 +17,7 @@ describe('settings types', () => {
                 websiteName: "MyTube",
                 itemsPerPage: 12,
                 showYoutubeSearch: true,
+                authorOrganizationMode: "root",
                 infiniteScroll: false,
                 videoColumns: 4,
                 pauseOnFocusLoss: false,

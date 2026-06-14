@@ -13,12 +13,50 @@ import {
     deleteCollection as deleteCollectionRepo,
     getCollectionById as getCollectionByIdRepo,
     getCollectionByName as getCollectionByNameRepo,
+    getCollectionBySourceKey as getCollectionBySourceKeyRepo,
     getCollectionByVideoId as getCollectionByVideoIdRepo,
+    getCollectionsByVideoId as getCollectionsByVideoIdRepo,
     getCollections as getCollectionsRepo,
     saveCollection as saveCollectionRepo,
 } from "./collectionRepository";
 import { Collection } from "./types";
 import { deleteVideo, getVideoById, updateVideo } from "./videos";
+import { getSettings } from "./settings";
+import { resolveAuthorOrganizationMode } from "../../types/settings";
+
+type CollectionLinkOptions = {
+  moveFiles?: boolean;
+  order?: number;
+};
+
+type CollectionUnlinkOptions = {
+  moveFiles?: boolean;
+};
+
+function insertVideoAtRequestedOrder(
+  collection: Collection,
+  videoId: string,
+  order?: number,
+): void {
+  if (typeof order !== "number" || !Number.isFinite(order)) {
+    if (!collection.videos.includes(videoId)) {
+      collection.videos.push(videoId);
+    }
+    return;
+  }
+
+  const normalizedOrder = Math.max(1, Math.floor(order));
+  const existingIndex = collection.videos.indexOf(videoId);
+  if (existingIndex >= 0) {
+    collection.videos.splice(existingIndex, 1);
+  }
+
+  const targetIndex = Math.min(
+    Math.max(0, normalizedOrder - 1),
+    collection.videos.length,
+  );
+  collection.videos.splice(targetIndex, 0, videoId);
+}
 
 export function getCollections(): Collection[] {
   return getCollectionsRepo();
@@ -37,11 +75,24 @@ export function getCollectionByVideoId(
   return getCollectionByVideoIdRepo(videoId);
 }
 
+export function getCollectionsByVideoId(videoId: string): Collection[] {
+  return getCollectionsByVideoIdRepo(videoId);
+}
+
 /**
  * Find a collection by name or title
  */
 export function getCollectionByName(name: string): Collection | undefined {
   return getCollectionByNameRepo(name);
+}
+
+export function getCollectionBySourceKey(
+  platform: string,
+  type: string,
+  mid: string,
+  id: string
+): Collection | undefined {
+  return getCollectionBySourceKeyRepo(platform, type, mid, id);
 }
 
 /**
@@ -85,39 +136,24 @@ export function deleteCollection(id: string): boolean {
   return deleteCollectionRepo(id);
 }
 
-export function addVideoToCollection(
+export function linkVideoToCollection(
   collectionId: string,
   videoId: string,
-  options?: { moveFiles?: boolean }
+  options?: CollectionLinkOptions
 ): Collection | null {
-  const allCollections = getCollections();
-
-  // First, check if video is already in another collection and remove it
-  const currentCollection = allCollections.find(
-    (c) => c.videos.includes(videoId) && c.id !== collectionId
-  );
-
-  if (currentCollection) {
-    // Remove video from current collection (but don't move files yet)
-    atomicUpdateCollection(currentCollection.id, (c) => {
-      c.videos = c.videos.filter((v) => v !== videoId);
-      return c;
-    });
-  }
-
-  // Now add video to the new collection
   const collection = atomicUpdateCollection(collectionId, (c) => {
-    if (!c.videos.includes(videoId)) {
-      c.videos.push(videoId);
-    }
+    insertVideoAtRequestedOrder(c, videoId, options?.order);
     return c;
   });
 
   if (collection) {
-    const shouldMoveFiles = options?.moveFiles !== false;
+    const shouldMoveFiles =
+      options?.moveFiles ??
+      resolveAuthorOrganizationMode(getSettings()) !== "author_folder_only";
     if (shouldMoveFiles) {
       const video = getVideoById(videoId);
       const collectionName = collection.name || collection.title;
+      const allCollections = getCollections();
 
       if (video && collectionName) {
         // Use file manager to move all files to the new collection
@@ -137,9 +173,41 @@ export function addVideoToCollection(
   return collection;
 }
 
+export function moveVideoToExclusiveCollection(
+  collectionId: string,
+  videoId: string,
+  options?: CollectionLinkOptions
+): Collection | null {
+  const allCollections = getCollections();
+
+  // First, remove the video from every other collection it currently belongs to.
+  const currentCollections = allCollections.filter(
+    (c) => c.videos.includes(videoId) && c.id !== collectionId
+  );
+
+  for (const currentCollection of currentCollections) {
+    // Remove video from current collection (but don't move files yet)
+    atomicUpdateCollection(currentCollection.id, (c) => {
+      c.videos = c.videos.filter((v) => v !== videoId);
+      return c;
+    });
+  }
+
+  return linkVideoToCollection(collectionId, videoId, options);
+}
+
+export function addVideoToCollection(
+  collectionId: string,
+  videoId: string,
+  options?: CollectionLinkOptions
+): Collection | null {
+  return linkVideoToCollection(collectionId, videoId, options);
+}
+
 export function removeVideoFromCollection(
   collectionId: string,
-  videoId: string
+  videoId: string,
+  options?: CollectionUnlinkOptions
 ): Collection | null {
   const collection = atomicUpdateCollection(collectionId, (c) => {
     c.videos = c.videos.filter((v) => v !== videoId);
@@ -147,10 +215,17 @@ export function removeVideoFromCollection(
   });
 
   if (collection) {
+    const shouldMoveFiles = options?.moveFiles !== false;
+    if (!shouldMoveFiles) {
+      return collection;
+    }
+
     const video = getVideoById(videoId);
     const allCollections = getCollections();
 
     if (video) {
+      const organizationMode = resolveAuthorOrganizationMode(getSettings());
+
       // Check if video is in any other collection
       const otherCollection = allCollections.find(
         (c) => c.videos.includes(videoId) && c.id !== collectionId
@@ -163,7 +238,23 @@ export function removeVideoFromCollection(
       let imagePathPrefix = "/images";
       let subtitlePathPrefix: string | undefined = undefined;
 
-      if (otherCollection) {
+      const sanitizedAuthor = video.author
+        ? video.author.replace(/\.\./g, "").replace(/[\/\\]/g, "").trim()
+        : "";
+
+      if (organizationMode === "author_folder_only" && sanitizedAuthor) {
+        // Under author_folder_only the canonical home is always the author folder,
+        // even when the video still belongs to another collection. A collection is
+        // a logical grouping only, so unlinking must not relocate files into a
+        // sibling collection folder or dump them at the storage root
+        // (issue #295 1-B follow-on). This takes priority over otherCollection.
+        targetVideoDir = path.join(VIDEOS_DIR, sanitizedAuthor);
+        targetImageDir = path.join(IMAGES_DIR, sanitizedAuthor);
+        targetSubDir = path.join(SUBTITLES_DIR, sanitizedAuthor);
+        videoPathPrefix = `/videos/${sanitizedAuthor}`;
+        imagePathPrefix = `/images/${sanitizedAuthor}`;
+        subtitlePathPrefix = `/subtitles/${sanitizedAuthor}`;
+      } else if (otherCollection) {
         const otherName = otherCollection.name || otherCollection.title;
         if (otherName) {
           // Sanitize collection name to prevent path traversal
@@ -208,29 +299,11 @@ export function deleteCollectionWithFiles(collectionId: string): boolean {
   if (!collection) return false;
 
   const collectionName = collection.name || collection.title;
-  const allCollections = getCollections();
 
   if (collection.videos && collection.videos.length > 0) {
-    collection.videos.forEach((videoId) => {
-      const video = getVideoById(videoId);
-      if (video) {
-        // Move files back to root (no collection)
-        const updates = moveAllFilesFromCollection(
-          video,
-          VIDEOS_DIR,
-          IMAGES_DIR,
-          SUBTITLES_DIR,
-          "/videos",
-          "/images",
-          undefined, // No subtitle prefix for root
-          allCollections
-        );
-
-        if (Object.keys(updates).length > 0) {
-          updateVideo(videoId, updates);
-        }
-      }
-    });
+    for (const videoId of [...collection.videos]) {
+      removeVideoFromCollection(collectionId, videoId, { moveFiles: true });
+    }
   }
 
   // Delete collection directory if exists and empty

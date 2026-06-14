@@ -113,6 +113,28 @@ describe("settingsValidationService", () => {
         });
       }).not.toThrow();
     });
+
+    it("should accept valid author organization modes", () => {
+      expect(() => {
+        settingsValidationService.validateSettings({
+          authorOrganizationMode: "root",
+        });
+      }).not.toThrow();
+
+      expect(() => {
+        settingsValidationService.validateSettings({
+          authorOrganizationMode: "author_folder_only",
+        });
+      }).not.toThrow();
+    });
+
+    it("should reject invalid author organization modes", () => {
+      expect(() => {
+        settingsValidationService.validateSettings({
+          authorOrganizationMode: "bogus" as any,
+        });
+      }).toThrow(ValidationError);
+    });
   });
 
   describe("mergeSettings", () => {

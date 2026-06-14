@@ -6,6 +6,7 @@ import { logger } from "../../utils/logger";
 import { DownloadHistoryItem } from "./types";
 
 const PENDING_RETRY_STATUS = "pending_retry";
+const PARTIAL_STATUS = "partial";
 
 function mapDownloadHistoryRow(row: typeof downloadHistory.$inferSelect): DownloadHistoryItem {
   return {
@@ -100,6 +101,41 @@ export function getDownloadHistoryItem(id: string): DownloadHistoryItem | undefi
     return item ? mapDownloadHistoryRow(item) : undefined;
   } catch (error) {
     logger.error("Error getting download history item", error instanceof Error ? error : new Error(String(error)));
+    return undefined;
+  }
+}
+
+export function getLatestRetryHistoryItemBySourceUrl(
+  sourceUrl: string,
+  downloadType?: string,
+): DownloadHistoryItem | undefined {
+  try {
+    const items = db
+      .select()
+      .from(downloadHistory)
+      .where(eq(downloadHistory.sourceUrl, sourceUrl))
+      .orderBy(desc(downloadHistory.finishedAt))
+      .all()
+      .map(mapDownloadHistoryRow);
+
+    const matchingItems = items.filter(
+      (item) =>
+        typeof item.retryMetadata === "string" &&
+        item.retryMetadata.length > 0 &&
+        (downloadType ? item.downloadType === downloadType : true),
+    );
+
+    return matchingItems.find(
+      (item) =>
+        item.status === "failed" ||
+        item.status === PARTIAL_STATUS ||
+        item.status === PENDING_RETRY_STATUS,
+    );
+  } catch (error) {
+    logger.error(
+      "Error getting latest retry history item by source URL",
+      error instanceof Error ? error : new Error(String(error))
+    );
     return undefined;
   }
 }

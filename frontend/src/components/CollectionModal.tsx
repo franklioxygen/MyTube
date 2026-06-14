@@ -25,7 +25,7 @@ interface CollectionModalProps {
     collections?: Collection[];
     onAddToCollection?: (collectionId: string) => Promise<void>;
     onCreateCollection?: (name: string) => Promise<void>;
-    onRemoveFromCollection?: () => void;
+    onRemoveFromCollection?: (collectionId: string) => void;
 }
 
 const CollectionModal: React.FC<CollectionModalProps> = ({
@@ -64,19 +64,27 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
             <DialogTitle>{t('addToCollection')}</DialogTitle>
             <DialogContent dividers>
                 {videoCollections && videoCollections.length > 0 && onRemoveFromCollection && (
-                    <Alert severity="info" sx={{ mb: 3 }} action={
-                        <Button color="error" size="small" onClick={() => {
-                            onRemoveFromCollection();
-                            handleClose();
-                        }}>
-                            {t('remove')}
-                        </Button>
-                    }>
-                        {t('currentlyIn')} <strong>{videoCollections[0].name}</strong>
-                        <Typography variant="caption" display="block">
-                            {t('collectionWarning')}
-                        </Typography>
-                    </Alert>
+                    <Stack spacing={1.5} sx={{ mb: 3 }}>
+                        {videoCollections.map((collection) => (
+                            <Alert
+                                key={collection.id}
+                                severity="info"
+                                action={
+                                    <Button color="error" size="small" onClick={() => {
+                                        onRemoveFromCollection(collection.id);
+                                        handleClose();
+                                    }}>
+                                        {t('remove')}
+                                    </Button>
+                                }
+                            >
+                                {t('currentlyIn')} <strong>{collection.name}</strong>
+                                <Typography variant="caption" display="block">
+                                    {t('collectionWarning')}
+                                </Typography>
+                            </Alert>
+                        ))}
+                    </Stack>
                 )}
 
                 {collections && collections.length > 0 && onAddToCollection && (
@@ -90,15 +98,21 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
                                     label={t('selectCollection')}
                                     onChange={(e) => setSelectedCollection(e.target.value)}
                                 >
-                                    {collections.map(collection => (
+                                    {collections.map(collection => {
+                                        const isCurrentCollection = videoCollections?.some(
+                                            (videoCollection) => videoCollection.id === collection.id
+                                        ) || false;
+
+                                        return (
                                         <MenuItem
                                             key={collection.id}
                                             value={collection.id}
-                                            disabled={videoCollections && videoCollections.length > 0 && videoCollections[0].id === collection.id}
+                                            disabled={isCurrentCollection}
                                         >
-                                            {collection.name} {videoCollections && videoCollections.length > 0 && videoCollections[0].id === collection.id ? t('current') : ''}
+                                            {collection.name} {isCurrentCollection ? t('current') : ''}
                                         </MenuItem>
-                                    ))}
+                                        );
+                                    })}
                                 </Select>
                             </FormControl>
                             <Button
