@@ -209,16 +209,37 @@ export async function downloadVideo(
       ...networkConfig,
       noWarnings: true,
     });
-    rawSourceInfo = info as Record<string, unknown>;
 
-    const videoTitle = info.title || "Bilibili Video";
-    const videoAuthor = info.uploader || info.channel || "Bilibili User";
+    // A bare multipart Bilibili URL resolves as a playlist: --dump-single-json
+    // then returns playlist-level fields where uploader, thumbnail, upload_date
+    // and formats live on the per-part entries rather than the top level.
+    // Without this, a single-part download of a multipart video loses its author
+    // (falls back to "Bilibili User") and thumbnail, and the download spawn pulls
+    // every part into one output template, producing an "Invalid data found"
+    // merge error. Source metadata from the first entry and pin the spawn to it.
+    const playlistEntries = Array.isArray(
+      (info as { entries?: unknown }).entries
+    )
+      ? (info as { entries: Array<Record<string, any>> }).entries
+      : null;
+    const isMultipartPlaylist =
+      playlistEntries != null && playlistEntries.length > 0;
+    const metaSource: Record<string, any> = isMultipartPlaylist
+      ? { ...info, ...playlistEntries[0] }
+      : info;
+    rawSourceInfo = metaSource as Record<string, unknown>;
+
+    // Keep the playlist-level title as the video title (it is the overall video
+    // name); entry-level title is the part name and gets resolved separately.
+    const videoTitle = info.title || metaSource.title || "Bilibili Video";
+    const videoAuthor =
+      metaSource.uploader || metaSource.channel || "Bilibili User";
     const videoDate =
-      info.upload_date ||
-      info.release_date ||
+      metaSource.upload_date ||
+      metaSource.release_date ||
       new Date().toISOString().slice(0, 10).replace(/-/g, "");
-    const thumbnailUrl = info.thumbnail || null;
-    const description = info.description || "";
+    const thumbnailUrl = metaSource.thumbnail || null;
+    const description = metaSource.description || "";
 
     if (downloadId) {
       storageService.updateActiveDownload(downloadId, {
@@ -229,7 +250,8 @@ export async function downloadVideo(
     }
 
     // Try to get avatar URL from yt-dlp info first
-    let authorAvatarUrl = info.channel_avatar || info.uploader_avatar || null;
+    let authorAvatarUrl =
+      metaSource.channel_avatar || metaSource.uploader_avatar || null;
 
     // If not in yt-dlp info, get it from Bilibili API
     if (!authorAvatarUrl) {
@@ -268,8 +290,8 @@ export async function downloadVideo(
     }
 
     logger.info("Bilibili avatar info:", {
-      channel_avatar: info.channel_avatar,
-      uploader_avatar: info.uploader_avatar,
+      channel_avatar: metaSource.channel_avatar,
+      uploader_avatar: metaSource.uploader_avatar,
       authorAvatarUrl: authorAvatarUrl,
     });
 
@@ -283,6 +305,13 @@ export async function downloadVideo(
       outputTemplate,
       retryFloorHeight != null ? { retryFloorHeight } : undefined
     );
+
+    // Restrict the spawn to the first part when the URL resolved as a multipart
+    // playlist, so yt-dlp does not merge every part into the single output
+    // template (the source of the "Invalid data found" error above).
+    if (isMultipartPlaylist) {
+      flags.playlistItems = "1";
+    }
 
     // Use spawn to capture stdout for progress
     const subprocess = executeYtDlpSpawn(url, flags);

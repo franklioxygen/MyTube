@@ -636,4 +636,51 @@ describe("bilibiliVideo.downloadSinglePart", () => {
       expect.any(Object),
     );
   });
+
+  it("sources metadata from the first entry and pins part 1 when a bare URL resolves as a multipart playlist", async () => {
+    // A bare multipart BV URL makes yt-dlp emit a playlist whose uploader and
+    // thumbnail live on the per-part entries, not the top level (issue #295).
+    mocks.executeYtDlpJson.mockResolvedValue({
+      title: "Playlist Title",
+      // No top-level uploader/thumbnail, mirroring real playlist JSON.
+      entries: [
+        {
+          title: "Part 1 Title",
+          uploader: "Real Author",
+          thumbnail: "https://example.com/part1.jpg",
+          upload_date: "20240202",
+          description: "Part 1 description",
+        },
+        { title: "Part 2 Title", uploader: "Real Author" },
+      ],
+    });
+    const flags: Record<string, any> = {};
+    mocks.prepareBilibiliDownloadFlags.mockReturnValue({ flags });
+
+    const result = await downloadSinglePart(
+      "https://www.bilibili.com/video/BV1multipart",
+      1,
+      1,
+      "",
+      "download-multipart",
+    );
+
+    expect(result.success).toBe(true);
+    // Author comes from the entry, not the "Bilibili User" fallback.
+    expect(mocks.saveVideo).toHaveBeenCalledWith(
+      expect.objectContaining({ author: "Real Author" }),
+    );
+    expect(mocks.saveVideo).not.toHaveBeenCalledWith(
+      expect.objectContaining({ author: "Bilibili User" }),
+    );
+    // The entry thumbnail is downloaded.
+    expect(mocks.downloadThumbnail).toHaveBeenCalledWith(
+      "https://example.com/part1.jpg",
+      expect.any(String),
+      expect.any(Object),
+    );
+    // The download spawn is restricted to part 1 so yt-dlp does not merge every
+    // part into the single output template.
+    expect(flags.playlistItems).toBe("1");
+  });
 });
