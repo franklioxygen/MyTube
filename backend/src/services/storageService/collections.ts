@@ -20,6 +20,7 @@ import {
     saveCollection as saveCollectionRepo,
 } from "./collectionRepository";
 import { Collection } from "./types";
+import { validateCollectionName } from "./authorCollectionUtils";
 import { deleteVideo, getVideoById, updateVideo } from "./videos";
 import { getSettings } from "./settings";
 import { resolveAuthorOrganizationMode } from "../../types/settings";
@@ -238,8 +239,12 @@ export function removeVideoFromCollection(
       let imagePathPrefix = "/images";
       let subtitlePathPrefix: string | undefined = undefined;
 
+      // Use the same validation helper as the author-organization path so the
+      // unlink target matches the folder a video is actually organized into
+      // (validateCollectionName replaces characters like ?, :, trailing dots,
+      // and reserved names that the ad-hoc sanitizer left intact).
       const sanitizedAuthor = video.author
-        ? video.author.replace(/\.\./g, "").replace(/[\/\\]/g, "").trim()
+        ? validateCollectionName(video.author) ?? ""
         : "";
 
       if (organizationMode === "author_folder_only" && sanitizedAuthor) {
