@@ -5,6 +5,7 @@ import * as storageService from "../../storageService";
 import { Collection } from "../../storageService";
 import { resolveAuthorOrganizationMode } from "../../../types/settings";
 import { downloadSinglePart } from "./bilibiliVideo";
+import type { FilenameTemplateSourceOptions } from "../../filenameTemplate/types";
 import {
   BilibiliAggregateDownloadResult,
   BilibiliCollectionCheckResult,
@@ -552,6 +553,7 @@ export async function downloadCollection(
 
       try {
         // Download this video
+        const collectionName = mytubeCollection.name || mytubeCollection.title;
         const result = await downloadSinglePart(
           videoUrl,
           videoNumber,
@@ -559,7 +561,12 @@ export async function downloadCollection(
           title || "Collection",
           downloadId,
           onStart,
-          mytubeCollection.name || mytubeCollection.title // collectionName
+          collectionName, // collectionName
+          {
+            sourceCollectionName: collectionName || title || "Collection",
+            sourceCollectionType: "playlist",
+            mediaPlaylistIndex: videoNumber,
+          } // filenameTemplateSourceOptions
         );
 
         // If download was successful, add to collection
@@ -784,7 +791,12 @@ export async function downloadRemainingParts(
         seriesTitle,
         downloadId,
         onStart,
-        collectionName
+        collectionName,
+        {
+          sourceCollectionName: collectionName || seriesTitle,
+          sourceCollectionType: "playlist",
+          mediaPlaylistIndex: part,
+        } // filenameTemplateSourceOptions
       );
 
       if (result.success && result.videoData) {
