@@ -2,7 +2,7 @@
 
 ## 前提条件
 
-- **Node.js** (20.x、22.x、23.x、24.x、25.x 或 26.x)
+- **Node.js** (20.19+、22.12+、23.x、24.x、25.x 或 26.x)
 - **npm** (v9 或更高版本) 或 **yarn**
 - **Python 3.8+** (用于 yt-dlp 和 PO Token 提供者)
 - **yt-dlp** (通过 pip/pipx 安装)
