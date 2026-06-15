@@ -1,3 +1,8 @@
+<p align="center">
+<img width="256" height="256" alt="logo" src="https://github.com/user-attachments/assets/cf900a36-8ed0-41f0-97b1-d330977eaa15" />
+</p>
+
+
 # MyTube
 
 Self-hosted downloader and player for YouTube, Bilibili, Twitch, MissAV, and [yt-dlp sites](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md). Features channel subscriptions, auto-downloads, local media storage, and private RSS feed links for external readers. Organize your library into collections with a sleek UI. Includes built-in Cloudflare Tunnel support for secure remote access without port forwarding. Docker-ready deployment.
@@ -19,9 +24,13 @@ Built using the [franklioxygen/agent-workflows](https://github.com/franklioxygen
 
 ## Demo
 
-🌐 **Try the live demo (read only): [https://mytube-demo.vercel.app](https://mytube-demo.vercel.app)**
 
-[![Watch the video](https://img.youtube.com/vi/0_5ZpgsWTp0/maxresdefault.jpg)](https://www.youtube.com/watch?v=0_5ZpgsWTp0)
+
+<p align="center">
+ 🌐 Try the live demo (read only): <a href="https://mytube-demo.vercel.app">https://mytube-demo.vercel.app</a>
+ <br />
+ <img width="512" height="320" alt="app-screenshot" src="https://github.com/user-attachments/assets/6889495e-c035-4bbd-9899-977f0f3aa4fb" />
+</p>
 
 ## Features
 
