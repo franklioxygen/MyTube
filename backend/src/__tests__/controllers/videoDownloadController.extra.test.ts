@@ -914,7 +914,12 @@ describe("videoDownloadController extra coverage", () => {
       "Parts Title",
       expect.any(String),
       expect.any(Function),
-      "Resolved Collection Name"
+      "Resolved Collection Name",
+      {
+        sourceCollectionName: "Resolved Collection Name",
+        sourceCollectionType: "playlist",
+        mediaPlaylistIndex: 1,
+      },
     );
     expect(storageService.linkVideoToCollection).toHaveBeenCalledWith(
       "col-download",
