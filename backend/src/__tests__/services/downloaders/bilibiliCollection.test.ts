@@ -135,6 +135,11 @@ describe("bilibiliCollection.downloadCollection", () => {
       "download-1",
       undefined,
       "Series",
+      {
+        sourceCollectionName: "Series",
+        sourceCollectionType: "playlist",
+        mediaPlaylistIndex: 2,
+      },
     );
     expect(result).toEqual(
       expect.objectContaining({
