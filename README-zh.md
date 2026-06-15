@@ -66,7 +66,7 @@
 
 ## 开始使用
 
-**环境要求：** Node.js **20.x、22.x、23.x、24.x、25.x 或 26.x**，以及 npm v9+。后端依赖 `better-sqlite3`；不受支持的 Node 版本会在 `npm install` 时失败（在 Windows 上可能显示误导性的 `node-gyp` / Visual Studio 错误）。Docker 镜像内置 Node 22。
+**环境要求：** Node.js **20.19+、22.12+、23.x、24.x、25.x 或 26.x**，以及 npm v9+。后端依赖 `better-sqlite3`；不受支持的 Node 版本会在 `npm install` 时失败（在 Windows 上可能显示误导性的 `node-gyp` / Visual Studio 错误）。Docker 镜像内置 Node 22。
 
 有关安装和设置说明，请参阅 [开始使用](documents/zh/getting-started.md)。
 
@@ -82,7 +82,7 @@
 
 ### 后端
 
-- **运行时**: Node.js 20.x–26.x，TypeScript
+- **运行时**: Node.js 20.19+、22.12+ 或 23.x–26.x，TypeScript
 - **框架**: Express.js
 - **数据库**: SQLite with Drizzle ORM
 - **测试**: Vitest
