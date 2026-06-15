@@ -20,6 +20,7 @@ import {
     saveCollection as saveCollectionRepo,
 } from "./collectionRepository";
 import { Collection } from "./types";
+import { buildStoragePath } from "./fileHelpers";
 import { validateCollectionName } from "./authorCollectionUtils";
 import { deleteVideo, getVideoById, updateVideo } from "./videos";
 import { getSettings } from "./settings";
@@ -253,9 +254,9 @@ export function removeVideoFromCollection(
         // a logical grouping only, so unlinking must not relocate files into a
         // sibling collection folder or dump them at the storage root
         // (issue #295 1-B follow-on). This takes priority over otherCollection.
-        targetVideoDir = path.join(VIDEOS_DIR, sanitizedAuthor);
-        targetImageDir = path.join(IMAGES_DIR, sanitizedAuthor);
-        targetSubDir = path.join(SUBTITLES_DIR, sanitizedAuthor);
+        targetVideoDir = buildStoragePath(VIDEOS_DIR, sanitizedAuthor);
+        targetImageDir = buildStoragePath(IMAGES_DIR, sanitizedAuthor);
+        targetSubDir = buildStoragePath(SUBTITLES_DIR, sanitizedAuthor);
         videoPathPrefix = `/videos/${sanitizedAuthor}`;
         imagePathPrefix = `/images/${sanitizedAuthor}`;
         subtitlePathPrefix = `/subtitles/${sanitizedAuthor}`;
