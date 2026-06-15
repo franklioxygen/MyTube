@@ -66,7 +66,7 @@ For a detailed breakdown of the project structure, please refer to [Directory St
 
 ## Getting Started
 
-**Requirements:** Node.js **20.x, 22.x, 23.x, 24.x, 25.x, or 26.x** and npm v9+. The backend depends on `better-sqlite3`; unsupported Node versions fail during `npm install` (often with misleading `node-gyp` / Visual Studio errors on Windows). Docker images ship with Node 22.
+**Requirements:** Node.js **20.19+, 22.12+, 23.x, 24.x, 25.x, or 26.x** and npm v9+. The backend depends on `better-sqlite3`; unsupported Node versions fail during `npm install` (often with misleading `node-gyp` / Visual Studio errors on Windows). Docker images ship with Node 22.
 
 For installation and setup instructions, please refer to [Getting Started](documents/en/getting-started.md).
 
@@ -82,7 +82,7 @@ For a list of available API endpoints, please refer to [API Endpoints](documents
 
 ### Backend
 
-- **Runtime**: Node.js 20.x–26.x with TypeScript
+- **Runtime**: Node.js 20.19+, 22.12+, or 23.x–26.x with TypeScript
 - **Framework**: Express.js
 - **Database**: SQLite with Drizzle ORM
 - **Testing**: Vitest

@@ -15,7 +15,7 @@
     "postinstall": "node scripts/postinstall.cjs"
   },
   "engines": {
-    "node": "20.x || 22.x || 23.x || 24.x || 25.x || 26.x"
+    "node": ">=20.19.0 <21 || >=22.12.0 <27"
   },
   "keywords": [],
   "author": "",
@@ -67,7 +67,7 @@
     "vitest": "^4.1.8"
   },
   "overrides": {
-    "esbuild": "^0.25.0",
+    "esbuild": "0.28.1",
     "undici": "^7.24.0",
     "yauzl": "^3.2.1"
   }

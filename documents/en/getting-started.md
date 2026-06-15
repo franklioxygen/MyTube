@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- **Node.js** (20.x, 22.x, 23.x, 24.x, 25.x, or 26.x)
+- **Node.js** (20.19+, 22.12+, 23.x, 24.x, 25.x, or 26.x)
 - **npm** (v9 or higher) or **yarn**
 - **Python 3.8+** (for yt-dlp and PO Token provider)
 - **yt-dlp** (installed via pip/pipx)

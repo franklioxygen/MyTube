@@ -1,20 +1,44 @@
 #!/usr/bin/env node
 
-const supportedMajors = new Set([20, 22, 23, 24, 25, 26]);
 const currentVersion = process.versions.node;
-const currentMajor = Number.parseInt(currentVersion.split(".")[0], 10);
+const [currentMajor, currentMinor, currentPatch] = currentVersion
+  .split(".")
+  .map((part) => Number.parseInt(part, 10));
 const installTarget = process.argv[2] || "MyTube";
 
 if (process.env.MYTUBE_SKIP_NODE_VERSION_CHECK === "1") {
   process.exit(0);
 }
 
-if (supportedMajors.has(currentMajor)) {
+const current = {
+  major: currentMajor,
+  minor: currentMinor,
+  patch: currentPatch,
+};
+
+const atLeast = (version, major, minor, patch) => {
+  if (version.major !== major) {
+    return false;
+  }
+
+  if (version.minor !== minor) {
+    return version.minor > minor;
+  }
+
+  return version.patch >= patch;
+};
+
+const isSupported =
+  atLeast(current, 20, 19, 0) ||
+  atLeast(current, 22, 12, 0) ||
+  (current.major >= 23 && current.major <= 26);
+
+if (isSupported) {
   process.exit(0);
 }
 
 console.error(
-  `[install] ${installTarget} supports Node.js 20.x, 22.x, 23.x, 24.x, 25.x, and 26.x.`
+  `[install] ${installTarget} supports Node.js 20.19+, 22.12+, 23.x, 24.x, 25.x, and 26.x.`
 );
 console.error(`[install] Current Node.js version: ${currentVersion}`);
 console.error(
