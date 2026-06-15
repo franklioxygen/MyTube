@@ -1,3 +1,8 @@
+<p align="center">
+<img width="256" height="256" alt="logo" src="https://github.com/user-attachments/assets/cf900a36-8ed0-41f0-97b1-d330977eaa15" />
+</p>
+
+
 # MyTube
 
 支持 YouTube、Bilibili、Twitch、MissAV 及 [yt-dlp 站点](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md) 的自托管视频下载器与播放器。具备频道订阅、自动下载、本地化存储以及面向外部阅读器的私密 RSS 订阅链接。UI 设计精美，支持收藏集分类管理。内置 Cloudflare Tunnel 支持，无需端口映射即可实现安全远程访问。支持 Docker 一键部署。
@@ -19,9 +24,12 @@
 
 ## 在线演示
 
-🌐 **访问在线演示(只读): [https://mytube-demo.vercel.app](https://mytube-demo.vercel.app)**
+<p align="center">
+ 🌐 访问在线演示(只读): <a href="https://mytube-demo.vercel.app">https://mytube-demo.vercel.app</a>
+ <br />
+ <img width="512" height="320" alt="app-screenshot" src="https://github.com/user-attachments/assets/6889495e-c035-4bbd-9899-977f0f3aa4fb" />
+</p>
 
-[![Watch the video](https://img.youtube.com/vi/0_5ZpgsWTp0/maxresdefault.jpg)](https://www.youtube.com/watch?v=0_5ZpgsWTp0)
 
 ## 功能特点
 
