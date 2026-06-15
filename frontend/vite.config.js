@@ -26,10 +26,10 @@ export default defineConfig(({ mode }) => {
     build: {
       // Enable CSS code splitting for better performance
       cssCodeSplit: true,
-      // Use esbuild for faster CSS minification
-      cssMinify: "esbuild",
-      // Enable minification for better performance
-      minify: "esbuild",
+      // Use Vite 8's native Oxc minifier for fast CSS minification
+      cssMinify: "oxc",
+      // Enable minification for better performance (Oxc, Vite 8 default)
+      minify: "oxc",
       // Optimize chunk size for better loading
       chunkSizeWarningLimit: 1000,
       rollupOptions: {
