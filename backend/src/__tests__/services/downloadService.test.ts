@@ -369,7 +369,11 @@ describe("downloadService", () => {
         "d4",
         cancel,
         "Series",
-        undefined,
+        {
+          sourceCollectionName: "Series",
+          sourceCollectionType: "playlist",
+          mediaPlaylistIndex: 1,
+        },
       );
       expect(result).toEqual(
         expect.objectContaining({

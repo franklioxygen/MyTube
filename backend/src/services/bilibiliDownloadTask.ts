@@ -294,6 +294,11 @@ export function buildBilibiliDownloadTask(
           options.downloadId,
           registerCancel,
           resolvedCollectionName,
+          {
+            sourceCollectionName: resolvedCollectionName || currentTitle,
+            sourceCollectionType: "playlist",
+            mediaPlaylistIndex: 1,
+          },
         );
 
         if (collectionId && firstPartResult.videoData) {
