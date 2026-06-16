@@ -1209,9 +1209,11 @@ Total keys: 996
 | `filenameTemplateDescription` |
 | `filenamePresetLabel` |
 | `filenamePresetLegacy` |
+| `filenamePresetMediaCenterDateIndex` |
 | `filenamePresetChannelYearDateIndex` |
 | `filenamePresetPlaylistStaticIndex` |
 | `filenamePresetPlaylistStaticDate` |
+| `filenamePresetSourceDateFlat` |
 | `filenamePresetCustom` |
 | `filenameCustomTemplateLabel` |
 | `filenameCustomTemplatePlaceholder` |
@@ -1219,6 +1221,9 @@ Total keys: 996
 | `filenamePreviewVideo` |
 | `filenamePreviewThumbnail` |
 | `filenamePreviewSubtitle` |
+| `filenamePreviewScenarioChannel` |
+| `filenamePreviewScenarioPlaylist` |
+| `filenamePreviewScenarioSingle` |
 | `filenameWarningMediaPlaylistIndexUnavailable` |
 | `filenameWarningSourceCollectionMetadataMayBeEmpty` |
 | `filenameValidating` |

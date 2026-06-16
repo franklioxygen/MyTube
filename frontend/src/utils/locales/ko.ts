@@ -1288,12 +1288,15 @@ export const ko = {
     "다운로드한 파일의 이름 지정 방식을 선택합니다. 레거시가 아닌 모드에서는 미디어 센터에 적합한 폴더 구조를 사용할 수 있습니다.",
   filenamePresetLabel: "이름 지정 모드",
   filenamePresetLegacy: "현재 호환 모드(제목-작성자-연도)",
+  filenamePresetMediaCenterDateIndex:
+    "미디어 센터 - 날짜와 번호 기준 시즌/에피소드",
   filenamePresetChannelYearDateIndex:
     "채널 – 연도와 날짜 기준 시즌/에피소드",
   filenamePresetPlaylistStaticIndex:
     "재생목록 – 시즌 1 / 인덱스 기준 에피소드",
   filenamePresetPlaylistStaticDate:
     "재생목록 – 시즌 1 / 날짜 기준 에피소드",
+  filenamePresetSourceDateFlat: "소스 - 날짜 다음 제목",
   filenamePresetCustom: "사용자 지정 템플릿",
   filenameCustomTemplateLabel: "사용자 지정 템플릿",
   filenameCustomTemplatePlaceholder: "{{ source_collection_name }}/{{ season_by_year__episode_by_date_and_index }} - {{ title }}.{{ ext }}",
@@ -1301,6 +1304,9 @@ export const ko = {
   filenamePreviewVideo: "동영상",
   filenamePreviewThumbnail: "썸네일",
   filenamePreviewSubtitle: "자막",
+  filenamePreviewScenarioChannel: "채널",
+  filenamePreviewScenarioPlaylist: "재생목록",
+  filenamePreviewScenarioSingle: "단일 동영상",
   filenameWarningMediaPlaylistIndexUnavailable:
     "재생목록이 아닌 소스에서는 media_playlist_index를 사용할 수 없어 00으로 대체됩니다.",
   filenameWarningSourceCollectionMetadataMayBeEmpty:
@@ -1326,6 +1332,51 @@ export const ko = {
   filenameBatchRenameSummary:
     "{succeeded}개 이름 변경, {skipped}개 건너뜀, {failed}개 실패.",
   filenameBatchRenameError: "이름 변경 실패",
+  // Filename template reference (information panel)
+  filenameRefInformationTitle: '설명',
+  filenameRefInfoLiquid: '{{ title }}과 같은 Liquid 구문을 사용하여 MyTube 명명 별칭과 단일 단어 yt-dlp 메타데이터 필드를 참조하세요.',
+  filenameRefInfoYtdlp:
+    '%(upload_date>%Y-%m-%d)s나 %(subtitles.en.-1.ext)s와 같은 yt-dlp 구문을 사용하여 날짜 형식, 재생 시간, 중첩 원시 메타데이터 경로를 참조하세요.',
+  filenameRefInfoExtension: '파일명의 마지막 세그먼트는 .{{ ext }}, .%(ext)s 또는 .%(ext)S로 끝나야 합니다.',
+  filenameRefInfoFallbacks:
+    '단일 비디오 다운로드에서는 source_collection_name/id가 비어 있을 수 있으며, media_playlist_index는 재생목록 소스 외에서 00으로 대체됩니다.',
+  filenameRefSectionCoreTitle: '핵심 필드',
+  filenameRefSectionUploadTitle: 'upload_* 네임스페이스',
+  filenameRefSectionSourceTitle: 'source_* 네임스페이스',
+  filenameRefSectionPlaylistTitle: '재생목록 네임스페이스',
+  filenameRefSectionSeasonTitle: 'season_* 별칭',
+  filenameRefSectionStaticTitle: 'static_* 별칭',
+  filenameRefSectionRawMetadataTitle: '원시 yt-dlp 메타데이터',
+  filenameRefSectionRawMetadataDescription: '이 패턴들은 내장 별칭 이상의 yt-dlp 메타데이터를 노출합니다.',
+  filenameRefItemTitleDesc: '동영상 제목.',
+  filenameRefItemIdDesc: '플랫폼 동영상 ID 또는 로컬 동영상 ID.',
+  filenameRefItemExtDesc: '점 없는 최종 파일 확장자.',
+  filenameRefItemUploaderDesc: '업로더 또는 작성자 이름.',
+  filenameRefItemChannelDesc: '채널 이름, 업로더로 대체됩니다.',
+  filenameRefItemDurationStringDesc: 'HH-MM-SS 또는 MM-SS 형식의 재생 시간.',
+  filenameRefItemArtistNameDesc: '미디어 센터 명명을 위한 아티스트 스타일 대체 체인.',
+  filenameRefItemUploadDateDesc: 'YYYYMMDD 형식의 업로드 날짜.',
+  filenameRefItemUploadYyyyMmDdDesc: 'YYYY-MM-DD 형식의 업로드 날짜.',
+  filenameRefItemUploadYearDesc: '업로드 연도.',
+  filenameRefItemUploadMonthDesc: '업로드 월.',
+  filenameRefItemUploadDayDesc: '업로드 일(월 중 날짜).',
+  filenameRefItemSourceCustomNameDesc: '사용자 정의 소스 또는 구독 이름. 직접 다운로드는 재정의가 없을 때 업로더 또는 채널로 대체됩니다.',
+  filenameRefItemSourceCollectionNameDesc: '사용 가능할 때의 채널, 재생목록 또는 컬렉션 이름.',
+  filenameRefItemSourceCollectionIdDesc: '사용 가능할 때의 채널, 재생목록 또는 컬렉션 ID.',
+  filenameRefItemSourceCollectionTypeDesc: 'channel, playlist, single, unknown 중 하나.',
+  filenameRefItemMediaPlaylistIndexDesc: '두 자리로 패딩된 재생목록 인덱스.',
+  filenameRefItemSeasonFromDateDesc: '업로드 연도.',
+  filenameRefItemSeasonEpisodeFromDateDesc: '날짜 기반 에피소드 키.',
+  filenameRefItemSeasonEpisodeIndexFromDateDesc: '하루 두 자리 인덱스 접미사가 있는 날짜 기반 에피소드 키.',
+  filenameRefItemSeasonByYearEpisodeByDateDesc: '연도별 시즌 폴더와 날짜 기반 에피소드 키.',
+  filenameRefItemSeasonByYearEpisodeByDateAndIndexDesc: '연도별 시즌 폴더와 날짜 기반 에피소드 키(하루 인덱스 접미사 포함).',
+  filenameRefItemStaticSeasonEpisodeByIndexDesc: '시즌 1 폴더와 재생목록 순서의 두 자리 에피소드 번호.',
+  filenameRefItemStaticSeasonEpisodeByDateDesc: '시즌 1 폴더와 날짜 기반 에피소드 키.',
+  filenameRefItemGenericSingleWordDesc: '원시 메타데이터에 존재하는 모든 단일 단어 yt-dlp 메타데이터 필드는 Liquid 구문으로 참조할 수 있습니다.',
+  filenameRefItemBasicYtdlpDesc: 'yt-dlp 플레이스홀더 구문은 title, id, channel, uploader, upload_date, ext에 지원됩니다.',
+  filenameRefItemFormattedUploadDateDesc: 'yt-dlp 날짜 형식으로 upload_date를 형식화합니다.',
+  filenameRefItemFormattedDurationDesc: 'yt-dlp 시간 형식으로 재생 시간을 형식화합니다.',
+  filenameRefItemNestedPathDesc: 'yt-dlp 플레이스홀더 구문을 통해 배열 인덱스를 포함한 중첩 원시 메타데이터 경로를 읽습니다.',
 
   // Statistics
   statisticsTitle: "통계",

@@ -1312,12 +1312,15 @@ export const pt = {
     "Escolha como os arquivos baixados serão nomeados. Modos não legados habilitam estruturas de pastas mais adequadas para centrais de mídia.",
   filenamePresetLabel: "Modo de nomenclatura",
   filenamePresetLegacy: "Modo compatível atual (Título-Autor-Ano)",
+  filenamePresetMediaCenterDateIndex:
+    "Central de mídia – Temporada/Episódio por data e índice",
   filenamePresetChannelYearDateIndex:
     "Canal – Temporada/Episódio por ano e data",
   filenamePresetPlaylistStaticIndex:
     "Playlist – Temporada 1 / Episódio por índice",
   filenamePresetPlaylistStaticDate:
     "Playlist – Temporada 1 / Episódio por data",
+  filenamePresetSourceDateFlat: "Fonte – data e depois título",
   filenamePresetCustom: "Modelo personalizado",
   filenameCustomTemplateLabel: "Modelo personalizado",
   filenameCustomTemplatePlaceholder: "{{ source_collection_name }}/{{ season_by_year__episode_by_date_and_index }} - {{ title }}.{{ ext }}",
@@ -1325,6 +1328,9 @@ export const pt = {
   filenamePreviewVideo: "Vídeo",
   filenamePreviewThumbnail: "Miniatura",
   filenamePreviewSubtitle: "Legenda",
+  filenamePreviewScenarioChannel: "Canal",
+  filenamePreviewScenarioPlaylist: "Playlist",
+  filenamePreviewScenarioSingle: "Vídeo único",
   filenameWarningMediaPlaylistIndexUnavailable:
     "media_playlist_index não está disponível para fontes que não sejam playlists e voltará para 00.",
   filenameWarningSourceCollectionMetadataMayBeEmpty:
@@ -1350,6 +1356,59 @@ export const pt = {
   filenameBatchRenameSummary:
     "{succeeded} renomeados, {skipped} ignorados, {failed} com falha.",
   filenameBatchRenameError: "Falha ao renomear",
+  // Filename template reference (information panel)
+  filenameRefInformationTitle: 'Informações',
+  filenameRefInfoLiquid:
+    'Use a sintaxe Liquid como {{ title }} para aliases de nomenclatura do MyTube e campos de metadados yt-dlp de uma palavra.',
+  filenameRefInfoYtdlp:
+    'Use a sintaxe yt-dlp como %(upload_date>%Y-%m-%d)s ou %(subtitles.en.-1.ext)s para datas formatadas, durações e caminhos de metadados brutos aninhados.',
+  filenameRefInfoExtension:
+    'O segmento final do nome do arquivo deve terminar com .{{ ext }}, .%(ext)s ou .%(ext)S.',
+  filenameRefInfoFallbacks:
+    'source_collection_name/id pode estar vazio para downloads de vídeo único, e media_playlist_index reverte para 00 fora de fontes de lista de reprodução.',
+  filenameRefSectionCoreTitle: 'Campos principais',
+  filenameRefSectionUploadTitle: 'Espaço de nomes upload_*',
+  filenameRefSectionSourceTitle: 'Espaço de nomes source_*',
+  filenameRefSectionPlaylistTitle: 'Espaço de nomes de lista de reprodução',
+  filenameRefSectionSeasonTitle: 'Aliases season_*',
+  filenameRefSectionStaticTitle: 'Aliases static_*',
+  filenameRefSectionRawMetadataTitle: 'Metadados brutos do yt-dlp',
+  filenameRefSectionRawMetadataDescription: 'Esses padrões expõem metadados do yt-dlp além dos aliases integrados.',
+  filenameRefItemTitleDesc: 'Título do vídeo.',
+  filenameRefItemIdDesc: 'ID de vídeo da plataforma ou ID de vídeo local.',
+  filenameRefItemExtDesc: 'Extensão de arquivo final sem o ponto.',
+  filenameRefItemUploaderDesc: 'Nome do carregador ou autor.',
+  filenameRefItemChannelDesc: 'Nome do canal, com fallback para o carregador.',
+  filenameRefItemDurationStringDesc: 'Duração no formato HH-MM-SS ou MM-SS.',
+  filenameRefItemArtistNameDesc: 'Cadeia de fallback estilo artista para nomenclatura de centro de mídia.',
+  filenameRefItemUploadDateDesc: 'Data de upload no formato AAAAMMDD.',
+  filenameRefItemUploadYyyyMmDdDesc: 'Data de upload no formato AAAA-MM-DD.',
+  filenameRefItemUploadYearDesc: 'Ano de upload.',
+  filenameRefItemUploadMonthDesc: 'Mês de upload.',
+  filenameRefItemUploadDayDesc: 'Dia do mês de upload.',
+  filenameRefItemSourceCustomNameDesc:
+    'Nome de fonte ou assinatura definido pelo usuário. Downloads diretos revertem para o carregador ou canal quando não há valor personalizado.',
+  filenameRefItemSourceCollectionNameDesc: 'Nome do canal, lista de reprodução ou coleção quando disponível.',
+  filenameRefItemSourceCollectionIdDesc: 'ID do canal, lista de reprodução ou coleção quando disponível.',
+  filenameRefItemSourceCollectionTypeDesc: 'Um de: channel, playlist, single ou unknown.',
+  filenameRefItemMediaPlaylistIndexDesc: 'Índice de lista de reprodução preenchido com dois dígitos.',
+  filenameRefItemSeasonFromDateDesc: 'Ano de upload.',
+  filenameRefItemSeasonEpisodeFromDateDesc: 'Chave de episódio baseada em data.',
+  filenameRefItemSeasonEpisodeIndexFromDateDesc: 'Chave de episódio baseada em data com sufixo de índice diário de dois dígitos.',
+  filenameRefItemSeasonByYearEpisodeByDateDesc: 'Pasta de temporada mais chave de episódio baseada em data.',
+  filenameRefItemSeasonByYearEpisodeByDateAndIndexDesc:
+    'Pasta de temporada mais chave de episódio baseada em data com sufixo de índice diário.',
+  filenameRefItemStaticSeasonEpisodeByIndexDesc:
+    'Pasta Temporada 1 mais número de episódio de dois dígitos segundo a ordem da lista de reprodução.',
+  filenameRefItemStaticSeasonEpisodeByDateDesc: 'Pasta Temporada 1 mais chave de episódio baseada em data.',
+  filenameRefItemGenericSingleWordDesc:
+    'Qualquer campo de metadados yt-dlp de uma palavra pode ser referenciado com sintaxe Liquid quando existir nos metadados brutos.',
+  filenameRefItemBasicYtdlpDesc:
+    'A sintaxe de espaço reservado yt-dlp é suportada para title, id, channel, uploader, upload_date e ext.',
+  filenameRefItemFormattedUploadDateDesc: 'Formata upload_date com a formatação de data do yt-dlp.',
+  filenameRefItemFormattedDurationDesc: 'Formata a duração com a formatação de tempo do yt-dlp.',
+  filenameRefItemNestedPathDesc:
+    'Lê caminhos de metadados brutos aninhados, incluindo índices de array, através da sintaxe de espaço reservado yt-dlp.',
 
   // Statistics
   statisticsTitle: "Estatísticas",

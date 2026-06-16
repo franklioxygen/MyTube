@@ -43,7 +43,7 @@ interface DatabaseSettingsProps {
     onMoveThumbnailsToVideoFolderChange: (checked: boolean) => void;
     authorOrganizationMode: AuthorOrganizationMode;
     onAuthorOrganizationModeChange: (mode: AuthorOrganizationMode) => void;
-    downloadFilenamePresetId?: Settings['downloadFilenamePresetId'];
+    downloadFilenameMode?: Settings['downloadFilenameMode'];
 }
 
 const DatabaseSettings: React.FC<DatabaseSettingsProps> = ({
@@ -65,7 +65,7 @@ const DatabaseSettings: React.FC<DatabaseSettingsProps> = ({
     onMoveThumbnailsToVideoFolderChange,
     authorOrganizationMode,
     onAuthorOrganizationModeChange,
-    downloadFilenamePresetId
+    downloadFilenameMode
 }) => {
     const { t } = useLanguage();
     const importFileInputRef = useRef<HTMLInputElement>(null);
@@ -375,7 +375,7 @@ const DatabaseSettings: React.FC<DatabaseSettingsProps> = ({
                 <Alert severity="info" sx={{ mt: 2, maxWidth: 760 }}>
                     {t('authorOrganizationModeRecommendation')}
                 </Alert>
-                {downloadFilenamePresetId && downloadFilenamePresetId !== 'legacy' && (
+                {downloadFilenameMode === 'template' && (
                     <Alert severity="info" sx={{ mt: 2, maxWidth: 760 }}>
                         {t('authorOrganizationModeTemplateNote')}
                     </Alert>

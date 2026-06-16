@@ -255,7 +255,7 @@ const DownloadSettings: React.FC<DownloadSettingsProps> = ({
                     {t('cleanupTempFilesDescription')}
                 </Typography>
                 {activeDownloadsCount > 0 && (
-                    <Alert severity="warning" sx={{ mb: 2, maxWidth: 600 }}>
+                    <Alert severity="warning" sx={{ mb: 2, maxWidth: 920 }}>
                         {t('cleanupTempFilesActiveDownloads')}
                     </Alert>
                 )}

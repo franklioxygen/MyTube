@@ -97,15 +97,18 @@ describe("renderFilenameTemplate", () => {
     expect(result.basename).toBe("A B Channel.mp4");
   });
 
-  it("throws for unknown variable (validation error)", () => {
-    expect(() =>
-      renderFilenameTemplate({
-        template: "{{ nonexistent }}.{{ ext }}",
-        context: makeCtx(),
-        extension: "mp4",
-        mode: "video",
-      })
-    ).toThrow(/nonexistent/);
+  it("best-effort renders unknown single-word variables from rawInfo", () => {
+    const result = renderFilenameTemplate({
+      template: "{{ nonexistent }}.{{ ext }}",
+      context: makeCtx({
+        rawInfo: {
+          nonexistent: "Resolved From Raw Info",
+        },
+      }),
+      extension: "mp4",
+      mode: "video",
+    });
+    expect(result.basename).toBe("Resolved From Raw Info.mp4");
   });
 
   it("renders yt-dlp style placeholders", () => {
@@ -297,19 +300,19 @@ describe("planVideoOutputPaths", () => {
     expect(result.video.filename).toBe("My Video.mp4");
   });
 
-  it("custom preset falls back to legacy default when template is empty", () => {
-    const result = planVideoOutputPaths({
-      settings: {
-        downloadFilenamePresetId: "custom",
-        downloadFilenameTemplate: "",
-      },
-      context: makeCtx(),
-      videoExtension: "mp4",
-      moveThumbnailsToVideoFolder: false,
-      moveSubtitlesToVideoFolder: false,
-    });
-    expect(result.video.relativePath).not.toContain("/");
-    expect(result.video.filename).toMatch(/\.mp4$/);
+  it("custom preset rejects an empty template", () => {
+    expect(() =>
+      planVideoOutputPaths({
+        settings: {
+          downloadFilenamePresetId: "custom",
+          downloadFilenameTemplate: "",
+        },
+        context: makeCtx(),
+        videoExtension: "mp4",
+        moveThumbnailsToVideoFolder: false,
+        moveSubtitlesToVideoFolder: false,
+      })
+    ).toThrow(/non-empty filename template/);
   });
 
   it("unknown preset id falls back to legacy default template", () => {

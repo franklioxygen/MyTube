@@ -40,10 +40,16 @@ describe("validateTemplate", () => {
     expect(result.valid).toBe(true);
   });
 
-  it("rejects unknown Liquid variable", () => {
+  it("accepts unknown single-word Liquid variables as raw yt-dlp field references", () => {
     const result = validateTemplate("{{ unknown_var }}.{{ ext }}");
+    expect(result.valid).toBe(true);
+    expect(result.errors).toEqual([]);
+  });
+
+  it("rejects forbidden Liquid variables", () => {
+    const result = validateTemplate("{{ __proto__ }}.{{ ext }}");
     expect(result.valid).toBe(false);
-    expect(result.errors.some((e) => e.includes("unknown_var"))).toBe(true);
+    expect(result.errors.some((e) => e.includes("Forbidden template variable"))).toBe(true);
   });
 
   it("rejects unknown yt-dlp placeholder", () => {

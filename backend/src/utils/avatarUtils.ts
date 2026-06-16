@@ -26,7 +26,7 @@ export function getExistingAvatarPath(
   const avatarPath = resolveSafeChildPath(AVATARS_DIR, avatarFilename);
 
   if (pathExistsSafeSync(avatarPath, AVATARS_DIR)) {
-    logger.info(`Avatar already exists for ${platform} author ${author}: ${avatarPath}`);
+    logger.info("Avatar already exists", { platform });
     return avatarPath;
   }
 

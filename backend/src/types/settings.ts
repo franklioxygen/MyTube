@@ -1,9 +1,16 @@
+export type DownloadFilenameMode = "legacy" | "template";
+
 export type DownloadFilenamePresetId =
   | "legacy"
+  | "media_center_date_index"
+  | "source_date_flat"
   | "channel_year_date_index"
   | "playlist_static_index"
   | "playlist_static_date"
   | "custom";
+
+export const LEGACY_DOWNLOAD_FILENAME_TEMPLATE =
+  "{{ title }}-{{ uploader }}-{{ upload_year }}.{{ ext }}";
 
 export type MediaServerExportMode = "off" | "nfo" | "nfo_and_source_json";
 export type AuthorOrganizationMode =
@@ -77,6 +84,7 @@ export interface Settings {
   telegramNotifyOnFail?: boolean;
   twitchClientId?: string;
   twitchClientSecret?: string;
+  downloadFilenameMode?: DownloadFilenameMode;
   downloadFilenamePresetId?: DownloadFilenamePresetId;
   downloadFilenameTemplate?: string;
   mediaServerExportMode?: MediaServerExportMode;
@@ -136,8 +144,8 @@ export const defaultSettings: Settings = {
   telegramNotifyOnFail: true,
   twitchClientId: "",
   twitchClientSecret: "",
-  downloadFilenamePresetId: "legacy",
-  downloadFilenameTemplate: "{{ title }}-{{ uploader }}-{{ upload_year }}.{{ ext }}",
+  downloadFilenameMode: "legacy",
+  downloadFilenameTemplate: LEGACY_DOWNLOAD_FILENAME_TEMPLATE,
   mediaServerExportMode: "off",
   statisticsEnabled: false,
   statisticsRetentionDays: 365,

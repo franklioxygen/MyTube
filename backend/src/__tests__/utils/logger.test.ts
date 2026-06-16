@@ -43,4 +43,41 @@ describe('Logger', () => {
         expect(prefix).toContain('[ERROR]');
         expect(message).toBe('error message');
     });
+
+    it('should redact sensitive structured fields in info logs', () => {
+        const stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+        try {
+            const testLogger = new Logger(LogLevel.INFO);
+
+            testLogger.info('source log', {
+                author: 'Secret Author',
+                channelUrl: 'https://youtube.com/@secret-author',
+                platform: 'YouTube',
+            });
+
+            const output = stdoutSpy.mock.calls[0][0] as string;
+            expect(output).toContain('"author":"[REDACTED]"');
+            expect(output).not.toContain('Secret Author');
+            expect(output).toContain('"channelUrl":"https://youtube.com/@secret-author"');
+        } finally {
+            stdoutSpy.mockRestore();
+        }
+    });
+
+    it('should redact sensitive structured fields in warn logs', () => {
+        const testLogger = new Logger(LogLevel.WARN);
+
+        testLogger.warn('warning message', {
+            author: 'Secret Author',
+            authorUrl: 'https://example.com/secret-author',
+        });
+
+        expect(consoleSpy.warn).toHaveBeenCalled();
+        const [, message, context] = consoleSpy.warn.mock.calls[0];
+        expect(message).toBe('warning message');
+        expect(context).toEqual({
+            author: '[REDACTED]',
+            authorUrl: 'https://example.com/secret-author',
+        });
+    });
 });

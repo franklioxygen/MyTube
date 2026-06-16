@@ -11,6 +11,7 @@ vi.mock('../../services/storageService', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../services/storageService')>();
   return {
     ...actual,
+    deleteSettingsKeys: vi.fn(),
     getSettings: vi.fn(),
     saveSettings: vi.fn(),
     formatLegacyFilenames: vi.fn(),
@@ -140,6 +141,7 @@ describe('SettingsController', () => {
       expect(storageService.saveSettings).toHaveBeenCalled();
       expect(json).toHaveBeenCalled();
     });
+
   });
 
   describe('updateSettings', () => {
@@ -175,6 +177,31 @@ describe('SettingsController', () => {
       expect(storageService.saveSettings).toHaveBeenCalledWith(
         expect.objectContaining({ tmdbApiKey: 'tmdb-token' })
       );
+    });
+
+    it('should normalize deprecated custom preset writes into mode + template', async () => {
+      req.body = {
+        downloadFilenamePresetId: 'custom',
+        downloadFilenameTemplate: '{{ title }}.{{ ext }}',
+      };
+      (storageService.getSettings as any).mockReturnValue({});
+
+      await updateSettings(req as Request, res as Response);
+
+      expect(storageService.saveSettings).toHaveBeenCalledWith(
+        expect.objectContaining({
+          downloadFilenameMode: 'template',
+          downloadFilenameTemplate: '{{ title }}.{{ ext }}',
+        })
+      );
+      expect(storageService.saveSettings).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          downloadFilenamePresetId: 'custom',
+        })
+      );
+      expect(storageService.deleteSettingsKeys).toHaveBeenCalledWith([
+        'downloadFilenamePresetId',
+      ]);
     });
 
     it('should reject invalid author organization modes instead of normalizing them to root', async () => {
@@ -394,6 +421,37 @@ describe('SettingsController', () => {
       const savedPayload = (storageService.saveSettings as any).mock.calls[0][0];
       expect(savedPayload.password).toBe('hashed');
       expect(savedPayload.password).not.toBe('pass');
+    });
+
+    it('should keep an explicit legacy naming-mode patch from snapping back to stale custom settings', async () => {
+      req.body = { downloadFilenameMode: 'legacy' };
+      (storageService.getSettings as any).mockReturnValue({
+        downloadFilenameMode: 'template',
+        downloadFilenamePresetId: 'custom',
+        downloadFilenameTemplate: '{{ source_custom_name }}/{{ title }}.{{ ext }}',
+      });
+
+      await patchSettings(req as Request, res as Response);
+
+      expect(storageService.saveSettings).toHaveBeenCalledWith(
+        expect.objectContaining({
+          downloadFilenameMode: 'legacy',
+        })
+      );
+      const savedPayload = (storageService.saveSettings as any).mock.calls[0][0];
+      expect(savedPayload.downloadFilenameTemplate).toBeUndefined();
+      expect(storageService.deleteSettingsKeys).toHaveBeenCalledWith([
+        'downloadFilenamePresetId',
+      ]);
+      expect(json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: true,
+          settings: expect.objectContaining({
+            downloadFilenameMode: 'legacy',
+            downloadFilenamePresetId: 'legacy',
+          }),
+        })
+      );
     });
 
     it('should generate api key when api key auth is enabled without a key', async () => {

@@ -1307,12 +1307,15 @@ export const ru = {
     "Выберите, как будут называться загруженные файлы. Ненаследуемые режимы включают структуру папок, удобную для медиацентров.",
   filenamePresetLabel: "Режим именования",
   filenamePresetLegacy: "Текущий совместимый режим (Название-Автор-Год)",
+  filenamePresetMediaCenterDateIndex:
+    "Медиацентр — сезон/эпизод по дате и индексу",
   filenamePresetChannelYearDateIndex:
     "Канал – сезон/эпизод по году и дате",
   filenamePresetPlaylistStaticIndex:
     "Плейлист – сезон 1 / эпизод по индексу",
   filenamePresetPlaylistStaticDate:
     "Плейлист – сезон 1 / эпизод по дате",
+  filenamePresetSourceDateFlat: "Источник — дата, затем название",
   filenamePresetCustom: "Пользовательский шаблон",
   filenameCustomTemplateLabel: "Пользовательский шаблон",
   filenameCustomTemplatePlaceholder: "{{ source_collection_name }}/{{ season_by_year__episode_by_date_and_index }} - {{ title }}.{{ ext }}",
@@ -1320,6 +1323,9 @@ export const ru = {
   filenamePreviewVideo: "Видео",
   filenamePreviewThumbnail: "Миниатюра",
   filenamePreviewSubtitle: "Субтитры",
+  filenamePreviewScenarioChannel: "Канал",
+  filenamePreviewScenarioPlaylist: "Плейлист",
+  filenamePreviewScenarioSingle: "Одиночное видео",
   filenameWarningMediaPlaylistIndexUnavailable:
     "media_playlist_index недоступен для источников без плейлиста и будет заменён на 00.",
   filenameWarningSourceCollectionMetadataMayBeEmpty:
@@ -1345,6 +1351,58 @@ export const ru = {
   filenameBatchRenameSummary:
     "{succeeded} переименовано, {skipped} пропущено, {failed} с ошибкой.",
   filenameBatchRenameError: "Не удалось переименовать",
+  // Filename template reference (information panel)
+  filenameRefInformationTitle: 'Справка',
+  filenameRefInfoLiquid:
+    'Используйте синтаксис Liquid, например {{ title }}, для псевдонимов именования MyTube и однословных полей метаданных yt-dlp.',
+  filenameRefInfoYtdlp:
+    'Используйте синтаксис yt-dlp, например %(upload_date>%Y-%m-%d)s или %(subtitles.en.-1.ext)s, для форматированных дат, длительностей и вложенных путей к сырым метаданным.',
+  filenameRefInfoExtension:
+    'Последний сегмент имени файла должен заканчиваться на .{{ ext }}, .%(ext)s или .%(ext)S.',
+  filenameRefInfoFallbacks:
+    'source_collection_name/id может быть пустым при загрузке одного видео; media_playlist_index заменяется на 00 вне источников-плейлистов.',
+  filenameRefSectionCoreTitle: 'Основные поля',
+  filenameRefSectionUploadTitle: 'Пространство имён upload_*',
+  filenameRefSectionSourceTitle: 'Пространство имён source_*',
+  filenameRefSectionPlaylistTitle: 'Пространство имён плейлистов',
+  filenameRefSectionSeasonTitle: 'Псевдонимы season_*',
+  filenameRefSectionStaticTitle: 'Псевдонимы static_*',
+  filenameRefSectionRawMetadataTitle: 'Сырые метаданные yt-dlp',
+  filenameRefSectionRawMetadataDescription:
+    'Эти шаблоны предоставляют доступ к метаданным yt-dlp помимо встроенных псевдонимов.',
+  filenameRefItemTitleDesc: 'Название видео.',
+  filenameRefItemIdDesc: 'ID видео на платформе или локальный ID видео.',
+  filenameRefItemExtDesc: 'Конечное расширение файла без точки.',
+  filenameRefItemUploaderDesc: 'Имя загрузчика или автора.',
+  filenameRefItemChannelDesc: 'Название канала; при отсутствии используется имя загрузчика.',
+  filenameRefItemDurationStringDesc: 'Длительность в формате HH-MM-SS или MM-SS.',
+  filenameRefItemArtistNameDesc: 'Цепочка резервных значений в стиле исполнителя для именования в медиацентре.',
+  filenameRefItemUploadDateDesc: 'Дата загрузки в формате ГГГГММДД.',
+  filenameRefItemUploadYyyyMmDdDesc: 'Дата загрузки в формате ГГГГ-ММ-ДД.',
+  filenameRefItemUploadYearDesc: 'Год загрузки.',
+  filenameRefItemUploadMonthDesc: 'Месяц загрузки.',
+  filenameRefItemUploadDayDesc: 'День месяца загрузки.',
+  filenameRefItemSourceCustomNameDesc:
+    'Имя источника или подписки, заданное пользователем. При прямой загрузке используется имя загрузчика или канала, если пользовательское значение не задано.',
+  filenameRefItemSourceCollectionNameDesc: 'Название канала, плейлиста или коллекции при наличии.',
+  filenameRefItemSourceCollectionIdDesc: 'ID канала, плейлиста или коллекции при наличии.',
+  filenameRefItemSourceCollectionTypeDesc: 'Одно из: channel, playlist, single или unknown.',
+  filenameRefItemMediaPlaylistIndexDesc: 'Индекс плейлиста, дополненный до двух цифр.',
+  filenameRefItemSeasonFromDateDesc: 'Год загрузки.',
+  filenameRefItemSeasonEpisodeFromDateDesc: 'Ключ эпизода на основе даты.',
+  filenameRefItemSeasonEpisodeIndexFromDateDesc: 'Ключ эпизода на основе даты с двузначным суффиксом дневного индекса.',
+  filenameRefItemSeasonByYearEpisodeByDateDesc: 'Папка сезона плюс ключ эпизода на основе даты.',
+  filenameRefItemSeasonByYearEpisodeByDateAndIndexDesc: 'Папка сезона плюс ключ эпизода на основе даты с суффиксом дневного индекса.',
+  filenameRefItemStaticSeasonEpisodeByIndexDesc: 'Папка «Сезон 1» плюс двузначный номер эпизода по порядку плейлиста.',
+  filenameRefItemStaticSeasonEpisodeByDateDesc: 'Папка «Сезон 1» плюс ключ эпизода на основе даты.',
+  filenameRefItemGenericSingleWordDesc:
+    'Любое однословное поле метаданных yt-dlp можно использовать с синтаксисом Liquid, если оно присутствует в сырых метаданных.',
+  filenameRefItemBasicYtdlpDesc:
+    'Синтаксис заполнителей yt-dlp поддерживается для полей title, id, channel, uploader, upload_date и ext.',
+  filenameRefItemFormattedUploadDateDesc: 'Форматирует upload_date с использованием форматирования дат yt-dlp.',
+  filenameRefItemFormattedDurationDesc: 'Форматирует длительность с использованием форматирования времени yt-dlp.',
+  filenameRefItemNestedPathDesc:
+    'Читает вложенные пути к сырым метаданным, включая индексы массивов, через синтаксис заполнителей yt-dlp.',
 
   // Statistics
   statisticsTitle: "Статистика",

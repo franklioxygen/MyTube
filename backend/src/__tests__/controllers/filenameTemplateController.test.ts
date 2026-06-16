@@ -82,6 +82,7 @@ vi.mock("../../services/thumbnailMirrorService", () => ({
 
 import {
   cancelBatchRename,
+  getFilenameTemplateCatalog,
   getFilenameTemplatePresets,
   getRenameJobStatus,
   previewFilenameTemplate,
@@ -137,6 +138,26 @@ describe("filenameTemplateController — presets", () => {
     expect(body.presets.length).toBeGreaterThan(0);
     expect(body.presets[0]).toHaveProperty("id");
     expect(body.presets[0]).toHaveProperty("template");
+  });
+
+  it("returns the full catalog payload", async () => {
+    const res = makeRes();
+    await getFilenameTemplateCatalog({} as Request, res);
+    const body = (res.json as any).mock.calls[0][0];
+    expect(body.presets).toBeInstanceOf(Array);
+    expect(body.presets.some((preset: { id: string }) => preset.id === "media_center_date_index")).toBe(true);
+    expect(body.presets.some((preset: { id: string }) => preset.id === "source_date_flat")).toBe(true);
+    expect(body.deprecatedPresetAliases).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "channel_year_date_index",
+          mapsToCurrentPresetId: "media_center_date_index",
+        }),
+      ])
+    );
+    expect(body.informationNotes).toBeInstanceOf(Array);
+    expect(body.referenceSections).toBeInstanceOf(Array);
+    expect(body.presets[0]).toHaveProperty("examplePath");
   });
 });
 
@@ -208,29 +229,63 @@ describe("filenameTemplateController — preview", () => {
     expect(res.status).toHaveBeenCalledWith(400);
   });
 
-  it("renders preview paths for a valid template", async () => {
+  it("renders preview paths for all scenarios for a valid template", async () => {
     const res = makeRes();
     await previewFilenameTemplate(
       {
         body: {
+          mode: "template",
           template: "{{ title }}.{{ ext }}",
         },
       } as Request,
       res
     );
     const body = (res.json as any).mock.calls[0][0];
-    expect(body.videoPath).toMatch(/\.mp4$/);
-    expect(body.thumbnailPath).toMatch(/\.jpg$/);
-    expect(body.subtitlePath).toMatch(/\.en\.vtt$/);
+    expect(body.valid).toBe(true);
+    expect(body.previews.channel.videoPath).toMatch(/\.mp4$/);
+    expect(body.previews.playlist.thumbnailPath).toMatch(/\.jpg$/);
+    expect(body.previews.single.subtitlePath).toMatch(/\.en\.vtt$/);
   });
 
-  it("returns 400 for an invalid template", async () => {
+  it("renders channel and single scenarios honestly", async () => {
     const res = makeRes();
     await previewFilenameTemplate(
-      { body: { template: "no-extension-anywhere" } } as Request,
+      {
+        body: {
+          mode: "template",
+          template:
+            "{{ source_collection_name }}/{{ media_playlist_index }} - {{ title }}.{{ ext }}",
+        },
+      } as Request,
       res
     );
-    expect(res.status).toHaveBeenCalledWith(400);
+    const body = (res.json as any).mock.calls[0][0];
+    expect(body.previews.channel.videoPath).toContain("/00 - ");
+    expect(body.previews.single.videoPath).toContain("Unknown/00 - ");
+  });
+
+  it("returns a validation payload for an invalid template", async () => {
+    const res = makeRes();
+    await previewFilenameTemplate(
+      { body: { mode: "template", template: "no-extension-anywhere" } } as Request,
+      res
+    );
+    const body = (res.json as any).mock.calls[0][0];
+    expect(body.valid).toBe(false);
+    expect(body.errors.length).toBeGreaterThan(0);
+    expect(body.previews).toBeNull();
+  });
+
+  it("supports legacy preview without requiring a template", async () => {
+    const res = makeRes();
+    await previewFilenameTemplate(
+      { body: { mode: "legacy" } } as Request,
+      res
+    );
+    const body = (res.json as any).mock.calls[0][0];
+    expect(body.valid).toBe(true);
+    expect(body.resolved.mode).toBe("legacy");
+    expect(body.previews.channel.videoPath).toMatch(/\.mp4$/);
   });
 });
 
@@ -389,7 +444,7 @@ describe("filenameTemplateController — startBatchRename", () => {
       res
     );
     expect(res.status).toHaveBeenCalledWith(202);
-    expect(getActiveRenameJob()?.template).toContain("source_collection_name");
+    expect(getActiveRenameJob()?.template).toContain("source_custom_name");
     await waitForJobToFinish();
   });
 });

@@ -122,7 +122,9 @@ export async function getTwitchChannelVideos(
   const userConfig = getUserYtDlpConfig(targetUrl);
   const networkConfig = getNetworkConfigFromUserConfig(userConfig);
 
-  logger.info("Fetching Twitch channel videos via yt-dlp:", targetUrl);
+  logger.info("Fetching Twitch channel videos via yt-dlp", {
+    channelUrl: targetUrl,
+  });
 
   const result = await executeYtDlpJson(targetUrl, {
     ...networkConfig,

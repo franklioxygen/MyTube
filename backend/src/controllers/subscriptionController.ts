@@ -797,15 +797,20 @@ export const subscribeChannelPlaylists = async (
 
   // Create persistent watcher for future playlists
   try {
-    await subscriptionService.subscribeChannelPlaylistsWatcher(
+    const watcher = await subscriptionService.subscribeChannelPlaylistsWatcher(
       targetUrl,
       parseInt(interval),
       channelName,
       platform
     );
-    logger.info(`Created watcher for channel: ${channelName}`);
+    logger.info("Created channel playlists watcher", {
+      subscriptionId: watcher.id,
+      platform: watcher.platform,
+    });
   } catch (error) {
-    logger.error(`Error creating watcher for channel ${channelName}:`, error);
+    logger.error("Error creating channel playlists watcher", error, {
+      platform,
+    });
     // Don't fail the request if watcher creation fails, main task succeeded
   }
 

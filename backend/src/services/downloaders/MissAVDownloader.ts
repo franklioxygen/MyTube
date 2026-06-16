@@ -679,7 +679,7 @@ export class MissAVDownloader extends BaseDownloader {
           durationSeconds: undefined,
           durationString: "00-00",
           artistName: videoAuthor,
-          sourceCustomName: srcOpts.sourceCustomName || "",
+          sourceCustomName: srcOpts.sourceCustomName || videoAuthor,
           sourceCollectionName: srcOpts.sourceCollectionName || videoAuthor,
           sourceCollectionId: srcOpts.sourceCollectionId || "",
           sourceCollectionType: srcOpts.sourceCollectionType || "single",

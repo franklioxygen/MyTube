@@ -8,8 +8,11 @@ import {
   stripLegacyFilenameSuffix,
 } from "../../utils/helpers";
 import { resolveSafeChildPath } from "../../utils/security";
+import {
+  FilenameNamingRuntimeConfig,
+  toFilenameNamingRuntimeConfig,
+} from "./config";
 import { computeAliases } from "./aliases";
-import { getPresetById } from "./presets";
 import {
   enforcePathLengthLimit,
   replaceSegmentSeparators,
@@ -143,7 +146,8 @@ const UNKNOWN_FALLBACK = "Unknown";
  */
 function replaceLiquidVars(
   template: string,
-  varMap: Record<string, string>
+  varMap: Record<string, string>,
+  ctx: FilenameTemplateContext
 ): { result: string; warnings: TemplateWarning[] } {
   const warnings: TemplateWarning[] = [];
   const result = template.replace(
@@ -157,6 +161,12 @@ function replaceLiquidVars(
         }
         return replaceSegmentSeparators(val || UNKNOWN_FALLBACK);
       }
+
+      const rawValue = resolveNestedPath(ctx.rawInfo, varName);
+      if (rawValue !== UNKNOWN_FALLBACK) {
+        return replaceSegmentSeparators(rawValue);
+      }
+
       warnings.push({
         code: "unknown_variable",
         message: `Unknown template variable: {{ ${varName} }}`,
@@ -252,7 +262,7 @@ export function renderFilenameTemplate(
   const liquidVarMap = buildLiquidVarMap(ctx, aliases);
 
   // Step 5: Replace Liquid variables (aliases may contain "/" segments)
-  const liquidResult = replaceLiquidVars(normalized, liquidVarMap);
+  const liquidResult = replaceLiquidVars(normalized, liquidVarMap, ctx);
   warnings.push(...liquidResult.warnings);
 
   // Step 6: Replace yt-dlp variables
@@ -296,14 +306,29 @@ export function renderFilenameTemplate(
   };
 }
 
+type LegacyFilenameNamingSettings = {
+  downloadFilenameMode?: string;
+  downloadFilenamePresetId?: string;
+  downloadFilenameTemplate?: string;
+};
+
+function resolvePlannerNamingConfig(input: {
+  naming?: FilenameNamingRuntimeConfig;
+  settings?: LegacyFilenameNamingSettings;
+}): FilenameNamingRuntimeConfig {
+  if (input.naming) {
+    return input.naming;
+  }
+
+  return toFilenameNamingRuntimeConfig(input.settings || {});
+}
+
 /**
  * Plans the full output paths for a video, thumbnail, and subtitles.
  */
 export function planVideoOutputPaths(input: {
-  settings: {
-    downloadFilenamePresetId?: string;
-    downloadFilenameTemplate?: string;
-  };
+  naming?: FilenameNamingRuntimeConfig;
+  settings?: LegacyFilenameNamingSettings;
   context: FilenameTemplateContext;
   videoExtension: string;
   thumbnailExtension?: "jpg" | "png" | "webp";
@@ -313,15 +338,13 @@ export function planVideoOutputPaths(input: {
   existingReservedPaths?: Set<string>;
 }): import("./types").PlannedMediaOutput {
   const {
-    settings,
     context,
     videoExtension,
     thumbnailExtension = "jpg",
     moveThumbnailsToVideoFolder,
     moveSubtitlesToVideoFolder,
   } = input;
-
-  const presetId = settings.downloadFilenamePresetId || "legacy";
+  const naming = resolvePlannerNamingConfig(input);
 
   // Legacy preset bypasses the template renderer entirely so output is
   // byte-identical to formatVideoFilename(). The renderer's sanitizer keeps
@@ -329,7 +352,7 @@ export function planVideoOutputPaths(input: {
   // would not produce the same name and the rename job would not detect that
   // existing legacy files are already at the target.
   let rendered: RenderedMediaPath;
-  if (presetId === "legacy") {
+  if (naming.mode === "legacy") {
     // Round-trip safety (design §24): if the stored title already ends in a
     // recognizable -<cleanAuthor>-<year>(_<n>)? suffix that this very
     // formatter would have produced, strip it before re-applying the format.
@@ -356,19 +379,11 @@ export function planVideoOutputPaths(input: {
       warnings: [],
     };
   } else {
-    let template: string;
-    if (presetId === "custom") {
-      template =
-        settings.downloadFilenameTemplate ||
-        `{{ title }}-{{ uploader }}-{{ upload_year }}.{{ ext }}`;
-    } else {
-      const preset = getPresetById(presetId);
-      template = preset
-        ? preset.template
-        : `{{ title }}-{{ uploader }}-{{ upload_year }}.{{ ext }}`;
+    if (!naming.template || naming.template.trim().length === 0) {
+      throw new Error("Template mode requires a non-empty filename template.");
     }
     rendered = renderFilenameTemplate({
-      template,
+      template: naming.template,
       context,
       mode: "video",
       extension: videoExtension,

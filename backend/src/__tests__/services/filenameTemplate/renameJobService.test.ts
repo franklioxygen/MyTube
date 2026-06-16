@@ -116,6 +116,9 @@ describe("renameJobService — design §23 changes", () => {
         collectionId: string | null;
         subscriptionType: string | null;
         playlistId: string | null;
+        author: string | null;
+        authorUrl: string | null;
+        playlistTitle: string | null;
       }>
     );
     // Clear any leaked job from a previous test
@@ -172,7 +175,7 @@ describe("renameJobService — design §23 changes", () => {
       false,
       false
     );
-    expect(job.template).toContain("source_collection_name");
+    expect(job.template).toContain("source_custom_name");
     await waitForJobToFinish();
   });
 
@@ -298,6 +301,9 @@ describe("renameJobService — precomputeSourceOptions (design §16 step 3)", ()
         collectionId: string | null;
         subscriptionType: string | null;
         playlistId: string | null;
+        author: string | null;
+        authorUrl: string | null;
+        playlistTitle: string | null;
       }>
     );
     const job = getActiveRenameJob();
@@ -338,7 +344,14 @@ describe("renameJobService — precomputeSourceOptions (design §16 step 3)", ()
       },
     ]);
     subscriptionsRowsMock.current = [
-      { collectionId: "col-1", subscriptionType: "author", playlistId: null },
+      {
+        collectionId: "col-1",
+        subscriptionType: "author",
+        playlistId: null,
+        author: "MyChannel",
+        authorUrl: "https://youtube.com/@mychannel",
+        playlistTitle: null,
+      },
     ];
     getVideosMock.mockReturnValue([
       {
@@ -394,7 +407,14 @@ describe("renameJobService — precomputeSourceOptions (design §16 step 3)", ()
       },
     ]);
     subscriptionsRowsMock.current = [
-      { collectionId: "col-pl", subscriptionType: "playlist", playlistId: "PL123" },
+      {
+        collectionId: "col-pl",
+        subscriptionType: "playlist",
+        playlistId: "PL123",
+        author: "Creator",
+        authorUrl: "https://youtube.com/@creator",
+        playlistTitle: "MyPlaylist",
+      },
     ];
     getVideosMock.mockReturnValue([
       {

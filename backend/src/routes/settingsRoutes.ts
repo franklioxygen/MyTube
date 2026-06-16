@@ -50,6 +50,7 @@ import {
 } from "../controllers/settingsController";
 import {
     cancelBatchRename,
+    getFilenameTemplateCatalog,
     getFilenameTemplatePresets,
     getRenameJobStatus,
     previewFilenameTemplate,
@@ -137,6 +138,7 @@ router.get("/last-backup-info", asyncHandler(getLastBackupInfo));
 router.post("/restore-from-last-backup", asyncHandler(restoreFromLastBackup));
 
 // Filename template routes
+router.get("/filename-template/catalog", asyncHandler(getFilenameTemplateCatalog));
 router.get("/filename-template/presets", asyncHandler(getFilenameTemplatePresets));
 router.post("/filename-template/validate", asyncHandler(validateFilenameTemplate));
 router.post("/filename-template/preview", asyncHandler(previewFilenameTemplate));

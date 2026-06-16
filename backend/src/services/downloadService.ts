@@ -320,7 +320,7 @@ export async function downloadChannelPlaylists(
     const { continuousDownloadService } =
       await import("./continuousDownloadService");
 
-    logger.info(`Fetching playlists for channel: ${channelUrl}`);
+    logger.info("Fetching playlists for channel", { channelUrl });
 
     // Adjust URL to ensure we target playlists tab
     let targetUrl = channelUrl;

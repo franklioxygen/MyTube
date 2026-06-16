@@ -12,15 +12,19 @@ import {
     LinearProgress,
     MenuItem,
     Select,
+    Tab,
+    Tabs,
     TextField,
     Tooltip,
     Typography,
 } from '@mui/material';
-import React, { useEffect, useRef, useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import CollapsibleSection from '../CollapsibleSection';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { Settings } from '../../types';
 import { api } from '../../utils/apiClient';
+import { createTranslateOrFallback } from '../../utils/translateOrFallback';
 import { TranslationKey } from '../../utils/translations';
 
 interface FilenameTemplateSettingsProps {
@@ -28,13 +32,27 @@ interface FilenameTemplateSettingsProps {
     onChange: (field: keyof Settings, value: any) => void;
 }
 
+type PreviewScenario = 'channel' | 'playlist' | 'single';
+
+const PREVIEW_SCENARIO_ORDER: PreviewScenario[] = ['channel', 'playlist', 'single'];
+
 interface PreviewResult {
     videoPath?: string;
     thumbnailPath?: string;
     subtitlePath?: string;
     warnings?: Array<{ code: string; message: string }>;
-    errors?: string[];
-    valid?: boolean;
+}
+
+// Two scenarios are equivalent when they render the same paths and warnings.
+// Used to collapse identical preview tabs (e.g. templates that don't reference
+// any source-type-specific token produce the same result for all scenarios).
+function previewResultSignature(result: PreviewResult | undefined): string {
+    return JSON.stringify({
+        v: result?.videoPath || '',
+        t: result?.thumbnailPath || '',
+        s: result?.subtitlePath || '',
+        w: (result?.warnings || []).map((warning) => warning.code),
+    });
 }
 
 export function getFilenameTemplateWarningMessage(
@@ -81,6 +99,60 @@ function getMediaServerExportErrorMessage(
         : 'mediaServerExportRebuildError');
 }
 
+interface FilenameTemplatePresetCatalogItem {
+    id: string;
+    kind: 'legacy' | 'template';
+    labelKey: TranslationKey;
+    descriptionKey: string;
+    template: string;
+    examplePath: string;
+    recommendedSourceTypes: PreviewScenario[];
+}
+
+interface DeprecatedPresetAlias {
+    id: string;
+    labelKey: TranslationKey;
+    mapsToCurrentPresetId?: string;
+}
+
+interface FilenameTemplateReferenceItem {
+    key: string;
+    token: string;
+    descriptionKey: TranslationKey;
+    example?: string;
+    kind: 'liquid' | 'pattern';
+}
+
+interface FilenameTemplateReferenceSection {
+    id: string;
+    titleKey: TranslationKey;
+    descriptionKey?: TranslationKey;
+    items: FilenameTemplateReferenceItem[];
+}
+
+interface FilenameTemplateInformationNote {
+    id: string;
+    textKey: TranslationKey;
+}
+
+interface FilenameTemplateCatalogResponse {
+    presets: FilenameTemplatePresetCatalogItem[];
+    deprecatedPresetAliases: DeprecatedPresetAlias[];
+    informationNotes: FilenameTemplateInformationNote[];
+    referenceSections: FilenameTemplateReferenceSection[];
+}
+
+interface FilenameTemplatePreviewResponse {
+    valid: boolean;
+    errors: string[];
+    resolved: {
+        mode: 'legacy' | 'template';
+        matchedPresetId: string;
+        template: string | null;
+    };
+    previews: Record<PreviewScenario, PreviewResult> | null;
+}
+
 interface RenameJob {
     id: string;
     status: 'running' | 'completed' | 'failed' | 'cancelled';
@@ -124,13 +196,98 @@ interface MediaServerExportJob {
     }>;
 }
 
-const PRESET_OPTIONS = [
-    { value: 'legacy', labelKey: 'filenamePresetLegacy' },
-    { value: 'channel_year_date_index', labelKey: 'filenamePresetChannelYearDateIndex' },
-    { value: 'playlist_static_index', labelKey: 'filenamePresetPlaylistStaticIndex' },
-    { value: 'playlist_static_date', labelKey: 'filenamePresetPlaylistStaticDate' },
-    { value: 'custom', labelKey: 'filenamePresetCustom' },
+const PRESET_FALLBACK_OPTIONS = [
+    { value: 'legacy', labelKey: 'filenamePresetLegacy', fallbackLabel: 'Current compatible mode (Title-Author-Year)' },
+    { value: 'media_center_date_index', labelKey: 'filenamePresetMediaCenterDateIndex', fallbackLabel: 'Media center - Season/Episode by date and index' },
+    { value: 'playlist_static_index', labelKey: 'filenamePresetPlaylistStaticIndex', fallbackLabel: 'Playlist - Season 1 / Episode by index' },
+    { value: 'playlist_static_date', labelKey: 'filenamePresetPlaylistStaticDate', fallbackLabel: 'Playlist - Season 1 / Episode by date' },
+    { value: 'source_date_flat', labelKey: 'filenamePresetSourceDateFlat', fallbackLabel: 'Source - Date then title' },
+    { value: 'custom', labelKey: 'filenamePresetCustom', fallbackLabel: 'Custom template' },
 ] as const;
+
+const LEGACY_TEMPLATE = '{{ title }}-{{ uploader }}-{{ upload_year }}.{{ ext }}';
+
+function getPresetLabelFallback(labelKey: TranslationKey): string {
+    switch (labelKey) {
+        case 'filenamePresetLegacy':
+            return 'Current compatible mode (Title-Author-Year)';
+        case 'filenamePresetMediaCenterDateIndex':
+            return 'Media center - Season/Episode by date and index';
+        case 'filenamePresetPlaylistStaticIndex':
+            return 'Playlist - Season 1 / Episode by index';
+        case 'filenamePresetPlaylistStaticDate':
+            return 'Playlist - Season 1 / Episode by date';
+        case 'filenamePresetSourceDateFlat':
+            return 'Source - Date then title';
+        case 'filenamePresetCustom':
+            return 'Custom template';
+        default:
+            return labelKey;
+    }
+}
+
+function resolveVisiblePresetId(
+    presetId: string,
+    deprecatedPresetAliases: DeprecatedPresetAlias[]
+): string {
+    return deprecatedPresetAliases.find((alias) => alias.id === presetId)?.mapsToCurrentPresetId || presetId;
+}
+
+export function deriveFilenamePresetId(
+    settings: Pick<Settings, 'downloadFilenameMode' | 'downloadFilenameTemplate' | 'downloadFilenamePresetId'>,
+    presets: FilenameTemplatePresetCatalogItem[] = [],
+    deprecatedPresetAliases: DeprecatedPresetAlias[] = []
+): string {
+    if (settings.downloadFilenameMode === 'legacy') {
+        return 'legacy';
+    }
+
+    if (settings.downloadFilenameMode === 'template') {
+        const template = settings.downloadFilenameTemplate || '';
+        const matchedBuiltIn = presets.find(
+            (preset) =>
+                preset.kind === 'template' &&
+                preset.template === template
+        );
+        if (matchedBuiltIn) {
+            return matchedBuiltIn.id;
+        }
+        if (settings.downloadFilenamePresetId && settings.downloadFilenamePresetId !== 'custom') {
+            return resolveVisiblePresetId(settings.downloadFilenamePresetId, deprecatedPresetAliases);
+        }
+        return 'custom';
+    }
+
+    return resolveVisiblePresetId(settings.downloadFilenamePresetId || 'legacy', deprecatedPresetAliases);
+}
+
+export function deriveFilenameEffectiveTemplate(
+    settings: Pick<Settings, 'downloadFilenameMode' | 'downloadFilenameTemplate' | 'downloadFilenamePresetId'>,
+    presets: FilenameTemplatePresetCatalogItem[] = []
+): string {
+    if (settings.downloadFilenameMode === 'legacy') {
+        return presets.find((preset) => preset.id === 'legacy')?.template || LEGACY_TEMPLATE;
+    }
+
+    if (settings.downloadFilenameMode === 'template') {
+        return settings.downloadFilenameTemplate || '';
+    }
+
+    const presetId = settings.downloadFilenamePresetId || 'legacy';
+    return presetId === 'custom'
+        ? settings.downloadFilenameTemplate || ''
+        : presets.find((preset) => preset.id === presetId)?.template || '';
+}
+
+export function resolveFilenamePresetSelectValue(
+    derivedPresetId: string,
+    namingMode: 'legacy' | 'template',
+    forceCustomSelection: boolean
+): string {
+    return forceCustomSelection && namingMode === 'template'
+        ? 'custom'
+        : derivedPresetId;
+}
 
 const MEDIA_SERVER_EXPORT_OPTIONS = [
     { value: 'off', labelKey: 'mediaServerExportModeOff' },
@@ -143,12 +300,42 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
     onChange,
 }) => {
     const { t } = useLanguage();
+    const translateOrFallback = createTranslateOrFallback(t);
     const queryClient = useQueryClient();
+    const [previewScenario, setPreviewScenario] = useState<PreviewScenario>('channel');
+    const {
+        data: catalog,
+        isLoading: isCatalogLoading,
+    } = useQuery<FilenameTemplateCatalogResponse>({
+        queryKey: ['filename-template-catalog'],
+        queryFn: async () => {
+            const response = await api.get<FilenameTemplateCatalogResponse>(
+                '/settings/filename-template/catalog'
+            );
+            return response.data;
+        },
+        staleTime: 5 * 60 * 1000,
+    });
+    const presetDefinitions = catalog?.presets || [];
+    const deprecatedPresetAliases = catalog?.deprecatedPresetAliases || [];
+    const informationNotes = catalog?.informationNotes || [];
+    const referenceSections = catalog?.referenceSections || [];
 
-    const presetId = settings.downloadFilenamePresetId || 'legacy';
+    const derivedPresetId = deriveFilenamePresetId(
+        settings,
+        presetDefinitions,
+        deprecatedPresetAliases
+    );
     const customTemplate = settings.downloadFilenameTemplate || '';
+    const namingMode = settings.downloadFilenameMode || (derivedPresetId === 'legacy' ? 'legacy' : 'template');
+    const [forceCustomSelection, setForceCustomSelection] = useState(false);
+    const presetId = resolveFilenamePresetSelectValue(
+        derivedPresetId,
+        namingMode,
+        forceCustomSelection
+    );
 
-    const [preview, setPreview] = useState<PreviewResult | null>(null);
+    const [preview, setPreview] = useState<FilenameTemplatePreviewResponse | null>(null);
     const [isValidating, setIsValidating] = useState(false);
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [exportConfirmOpen, setExportConfirmOpen] = useState(false);
@@ -162,56 +349,63 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
     // Batch rename uses the current form state shown above, not only the last
     // saved defaults used for future downloads.
     const currentTemplateInvalid =
-        presetId === 'custom' && !!preview?.errors?.length;
+        namingMode === 'template' && !!preview?.errors?.length;
     const recommendedTvLayout =
-        !!preview?.videoPath && preview.videoPath.split('/').filter(Boolean).length >= 3;
+        Object.values(preview?.previews || {}).some(
+            (scenarioPreview) =>
+                !!scenarioPreview?.videoPath &&
+                scenarioPreview.videoPath.split('/').filter(Boolean).length >= 3
+        );
 
     // Compute effective template for preview
-    const effectiveTemplate = presetId === 'custom'
-        ? customTemplate
-        : PRESET_OPTIONS.find(p => p.value === presetId)
-            ? getPresetTemplate(presetId)
-            : '';
+    const effectiveTemplate = deriveFilenameEffectiveTemplate(settings, presetDefinitions);
 
-    function getPresetTemplate(id: string): string {
-        const map: Record<string, string> = {
-            legacy: '{{ title }}-{{ uploader }}-{{ upload_year }}.{{ ext }}',
-            channel_year_date_index:
-                '{{ source_collection_name }}/{{ season_by_year__episode_by_date_and_index }} - {{ title }}.{{ ext }}',
-            playlist_static_index:
-                '{{ source_collection_name }}/{{ static_season__episode_by_index }} - {{ title }}.{{ ext }}',
-            playlist_static_date:
-                '{{ source_collection_name }}/{{ static_season__episode_by_date }} - {{ title }}.{{ ext }}',
-        };
-        return map[id] || '';
-    }
+    useEffect(() => {
+        if (settings.downloadFilenameMode !== 'template') {
+            setForceCustomSelection(false);
+            return;
+        }
+
+        if (derivedPresetId === 'custom') {
+            setForceCustomSelection(false);
+        }
+    }, [derivedPresetId, settings.downloadFilenameMode]);
 
     // Debounced preview fetch
     useEffect(() => {
         const template = effectiveTemplate;
-        if (!template) {
+        if (namingMode === 'template' && !template) {
             setPreview(null);
             return;
         }
         setIsValidating(true);
         const timer = setTimeout(async () => {
             try {
-                const res = await api.post<PreviewResult>(
+                const res = await api.post<FilenameTemplatePreviewResponse>(
                     '/settings/filename-template/preview',
-                    { template }
+                    {
+                        mode: namingMode,
+                        template: namingMode === 'template' ? template : undefined,
+                    }
                 );
                 setPreview(res.data);
             } catch (e: any) {
                 setPreview({
-                    errors: [e?.response?.data?.error || String(e)],
                     valid: false,
+                    errors: [e?.response?.data?.error || String(e)],
+                    resolved: {
+                        mode: namingMode,
+                        matchedPresetId: presetId,
+                        template: namingMode === 'template' ? template : null,
+                    },
+                    previews: null,
                 });
             } finally {
                 setIsValidating(false);
             }
         }, 600);
         return () => clearTimeout(timer);
-    }, [effectiveTemplate]);
+    }, [effectiveTemplate, namingMode, presetId]);
 
     // Poll rename job
     useEffect(() => {
@@ -272,20 +466,33 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
     }, [exportJob?.id, exportJob?.status]);
 
     const handlePresetChange = (value: string) => {
-        if (value !== 'custom' && value !== 'legacy') {
-            // Switch to a built-in preset
-            onChange('downloadFilenamePresetId', value as any);
-        } else {
-            onChange('downloadFilenamePresetId', value as any);
+        if (value === 'legacy') {
+            setForceCustomSelection(false);
+            onChange('downloadFilenameMode', 'legacy');
+            return;
         }
+
+        onChange('downloadFilenameMode', 'template');
+
+        if (value === 'custom') {
+            setForceCustomSelection(true);
+            if (!customTemplate) {
+                onChange('downloadFilenameTemplate', effectiveTemplate);
+            }
+            return;
+        }
+
+        setForceCustomSelection(false);
+        onChange(
+            'downloadFilenameTemplate',
+            presetDefinitions.find((preset) => preset.id === value)?.template || ''
+        );
     };
 
     const handleCustomTemplateChange = (value: string) => {
-        // When user edits template text, switch to custom preset
+        setForceCustomSelection(true);
+        onChange('downloadFilenameMode', 'template');
         onChange('downloadFilenameTemplate', value);
-        if (presetId !== 'custom') {
-            onChange('downloadFilenamePresetId', 'custom');
-        }
     };
 
     const handleStartRename = async () => {
@@ -295,9 +502,9 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
             const res = await api.post<{ jobId: string; status: string; total: number }>(
                 '/settings/filename-template/rename-all',
                 {
-                    downloadFilenamePresetId: presetId,
+                    downloadFilenameMode: namingMode,
                     downloadFilenameTemplate:
-                        presetId === 'custom' ? customTemplate : undefined,
+                        namingMode === 'template' ? effectiveTemplate : undefined,
                     moveThumbnailsToVideoFolder:
                         settings.moveThumbnailsToVideoFolder || false,
                     moveSubtitlesToVideoFolder:
@@ -370,6 +577,58 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
     const exportAction = exportMode === 'off' ? 'cleanup' : 'rebuild';
     const activeExportAction = exportJob?.action || exportAction;
     const selectMaxWidth = 400;
+    const presetOptions = presetDefinitions.length > 0
+        ? [
+            ...presetDefinitions.map((preset) => ({
+                value: preset.id,
+                labelKey: preset.labelKey,
+                fallbackLabel: getPresetLabelFallback(preset.labelKey),
+            })),
+            {
+                value: 'custom',
+                labelKey: 'filenamePresetCustom' as TranslationKey,
+                fallbackLabel: getPresetLabelFallback('filenamePresetCustom'),
+            },
+        ]
+        : PRESET_FALLBACK_OPTIONS;
+    // Collapse scenarios that render identically so we don't show three tabs
+    // with the same content. A tab is shown per distinct result; its label lists
+    // every scenario it covers (e.g. "Channel / Single Video").
+    const previewGroups = useMemo(() => {
+        if (!preview?.previews) return [];
+        const scenarioLabels: Record<PreviewScenario, string> = {
+            channel: translateOrFallback('filenamePreviewScenarioChannel', 'Channel'),
+            playlist: translateOrFallback('filenamePreviewScenarioPlaylist', 'Playlist'),
+            single: translateOrFallback('filenamePreviewScenarioSingle', 'Single Video'),
+        };
+        const groups: Array<{
+            value: PreviewScenario;
+            scenarios: PreviewScenario[];
+            label: string;
+            result: PreviewResult;
+        }> = [];
+        for (const scenario of PREVIEW_SCENARIO_ORDER) {
+            const result = preview.previews[scenario];
+            const signature = previewResultSignature(result);
+            const existing = groups.find(
+                (group) => previewResultSignature(group.result) === signature
+            );
+            if (existing) {
+                existing.scenarios.push(scenario);
+            } else {
+                groups.push({ value: scenario, scenarios: [scenario], label: '', result });
+            }
+        }
+        return groups.map((group) => ({
+            ...group,
+            label: group.scenarios.map((scenario) => scenarioLabels[scenario]).join(' / '),
+        }));
+    }, [preview, translateOrFallback]);
+
+    const activeGroup =
+        previewGroups.find((group) => group.scenarios.includes(previewScenario)) ||
+        previewGroups[0];
+    const activePreview = activeGroup?.result;
 
     return (
         <Box sx={{ maxWidth: 960 }}>
@@ -402,19 +661,19 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
                 </FormControl>
 
                 {(settings.mediaServerExportMode || 'off') !== 'off' && !recommendedTvLayout && (
-                    <Alert severity="warning" sx={{ mt: 2, maxWidth: 860 }}>
+                    <Alert severity="warning" sx={{ mt: 2, maxWidth: 920 }}>
                         {t('mediaServerExportRecommendedLayoutWarning')}
                     </Alert>
                 )}
 
                 {exportMode === 'off' && (
-                    <Alert severity="info" sx={{ mt: 2, maxWidth: 860 }}>
+                    <Alert severity="info" sx={{ mt: 2, maxWidth: 920 }}>
                         {t('mediaServerExportCleanupHint')}
                     </Alert>
                 )}
 
                 {exportError && (
-                    <Alert severity="error" sx={{ mt: 2, maxWidth: 860 }}>
+                    <Alert severity="error" sx={{ mt: 2, maxWidth: 920 }}>
                         {exportError}
                     </Alert>
                 )}
@@ -435,7 +694,7 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
                 )}
 
                 {isExportComplete && exportJob && (
-                    <Alert severity="success" sx={{ mt: 2, maxWidth: 860 }}>
+                    <Alert severity="success" sx={{ mt: 2, maxWidth: 920 }}>
                         {t(activeExportAction === 'cleanup'
                             ? 'mediaServerExportCleanupComplete'
                             : 'mediaServerExportRebuildComplete')} –{' '}
@@ -480,17 +739,18 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
                     <Select
                         value={presetId}
                         onChange={(e) => handlePresetChange(e.target.value)}
+                        disabled={isCatalogLoading}
                     >
-                        {PRESET_OPTIONS.map((opt) => (
+                        {presetOptions.map((opt) => (
                             <MenuItem key={opt.value} value={opt.value}>
-                                {t(opt.labelKey)}
+                                {translateOrFallback(opt.labelKey, opt.fallbackLabel)}
                             </MenuItem>
                         ))}
                     </Select>
                 </FormControl>
 
                 {presetId === 'custom' && (
-                    <Box sx={{ mt: 2, maxWidth: 760 }}>
+                    <Box sx={{ mt: 2, maxWidth: 920 }}>
                         <Typography variant="body2" color="text.secondary" sx={{ mb: 0.75 }}>
                             {t('filenameCustomTemplateLabel')}
                         </Typography>
@@ -502,9 +762,9 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
                             value={customTemplate}
                             onChange={(e) => handleCustomTemplateChange(e.target.value)}
                             placeholder={t('filenameCustomTemplatePlaceholder')}
-                            error={!!preview?.errors?.length}
+                            error={currentTemplateInvalid}
                         />
-                        {preview?.errors && preview.errors.length > 0 && (
+                        {currentTemplateInvalid && preview?.errors && preview.errors.length > 0 && (
                             <Alert severity="error" sx={{ mt: 1 }}>
                                 {preview.errors.join('\n')}
                             </Alert>
@@ -512,38 +772,143 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
                     </Box>
                 )}
 
-                {effectiveTemplate && (
-                    <Box sx={{ mt: 2, p: 1.5, bgcolor: 'action.hover', borderRadius: 1.5, maxWidth: 760 }}>
+                {(effectiveTemplate || namingMode === 'legacy') && (
+                    <Box sx={{ mt: 2, p: 1.5, bgcolor: 'action.hover', borderRadius: 1.5, maxWidth: 920 }}>
                         <Typography variant="body2" fontWeight="bold" gutterBottom>
                             {t('filenamePreviewTitle')}
                             {isValidating && (
                                 <CircularProgress size={12} sx={{ ml: 1, verticalAlign: 'middle' }} />
                             )}
                         </Typography>
-                        {preview?.videoPath && (
-                            <Typography variant="caption" display="block" sx={{ fontFamily: 'monospace', wordBreak: 'break-all' }}>
-                                {t('filenamePreviewVideo')}: {preview.videoPath}
-                            </Typography>
+                        {preview?.errors && preview.errors.length > 0 && (
+                            <Alert severity="error" sx={{ mt: 1, mb: 1 }}>
+                                {preview.errors.join('\n')}
+                            </Alert>
                         )}
-                        {preview?.thumbnailPath && (
-                            <Typography variant="caption" display="block" sx={{ fontFamily: 'monospace', wordBreak: 'break-all' }}>
-                                {t('filenamePreviewThumbnail')}: {preview.thumbnailPath}
-                            </Typography>
+                        {preview?.previews && (
+                            <>
+                                {previewGroups.length > 1 && (
+                                    <Tabs
+                                        value={activeGroup?.value ?? previewScenario}
+                                        onChange={(_event, value: PreviewScenario) => setPreviewScenario(value)}
+                                        sx={{ minHeight: 36, mb: 1 }}
+                                    >
+                                        {previewGroups.map((group) => (
+                                            <Tab
+                                                key={group.value}
+                                                value={group.value}
+                                                label={group.label}
+                                                sx={{ minHeight: 36 }}
+                                            />
+                                        ))}
+                                    </Tabs>
+                                )}
+                                {activePreview?.videoPath && (
+                                    <Typography variant="caption" display="block" sx={{ fontFamily: 'monospace', wordBreak: 'break-all' }}>
+                                        {t('filenamePreviewVideo')}: {activePreview.videoPath}
+                                    </Typography>
+                                )}
+                                {activePreview?.thumbnailPath && (
+                                    <Typography variant="caption" display="block" sx={{ fontFamily: 'monospace', wordBreak: 'break-all' }}>
+                                        {t('filenamePreviewThumbnail')}: {activePreview.thumbnailPath}
+                                    </Typography>
+                                )}
+                                {activePreview?.subtitlePath && (
+                                    <Typography variant="caption" display="block" sx={{ fontFamily: 'monospace', wordBreak: 'break-all' }}>
+                                        {t('filenamePreviewSubtitle')}: {activePreview.subtitlePath}
+                                    </Typography>
+                                )}
+                            </>
                         )}
-                        {preview?.subtitlePath && (
-                            <Typography variant="caption" display="block" sx={{ fontFamily: 'monospace', wordBreak: 'break-all' }}>
-                                {t('filenamePreviewSubtitle')}: {preview.subtitlePath}
-                            </Typography>
-                        )}
-                        {preview?.warnings && preview.warnings.length > 0 && (
+                        {activePreview?.warnings && activePreview.warnings.length > 0 && (
                             <Alert severity="warning" sx={{ mt: 1 }}>
-                                {preview.warnings
+                                {activePreview.warnings
                                     .map((warning) => getFilenameTemplateWarningMessage(warning, t))
                                     .join('\n')}
                             </Alert>
                         )}
                     </Box>
                 )}
+            </Box>
+
+            <Box sx={{ mt: 3, maxWidth: 920 }}>
+                <CollapsibleSection title={t('filenameRefInformationTitle')} defaultExpanded={false}>
+                    <Box sx={{ mb: 2 }}>
+                        {informationNotes.map((note) => (
+                            <Typography
+                                key={note.id}
+                                variant="body2"
+                                color="text.secondary"
+                                sx={{ mb: 0.75 }}
+                            >
+                                {t(note.textKey)}
+                            </Typography>
+                        ))}
+                    </Box>
+
+                    {referenceSections.map((section) => (
+                        <Box key={section.id} sx={{ mb: 2.5 }}>
+                            <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                                {t(section.titleKey)}
+                            </Typography>
+                            {section.descriptionKey && (
+                                <Typography
+                                    variant="body2"
+                                    color="text.secondary"
+                                    sx={{ mb: 1.25 }}
+                                >
+                                    {t(section.descriptionKey)}
+                                </Typography>
+                            )}
+                            <Box
+                                sx={{
+                                    display: 'grid',
+                                    gap: 1,
+                                }}
+                            >
+                                {section.items.map((item) => (
+                                    <Box
+                                        key={item.key}
+                                        sx={{
+                                            display: 'grid',
+                                            gridTemplateColumns: {
+                                                xs: '1fr',
+                                                md: '260px minmax(0, 1fr) 180px',
+                                            },
+                                            gap: 1,
+                                            p: 1.25,
+                                            borderRadius: 1.5,
+                                            bgcolor: 'action.hover',
+                                        }}
+                                    >
+                                        <Typography
+                                            variant="body2"
+                                            sx={{
+                                                fontFamily: 'monospace',
+                                                wordBreak: 'break-all',
+                                            }}
+                                        >
+                                            {item.token}
+                                        </Typography>
+                                        <Typography variant="body2" color="text.secondary">
+                                            {t(item.descriptionKey)}
+                                        </Typography>
+                                        <Typography
+                                            variant="body2"
+                                            color="text.secondary"
+                                            sx={{
+                                                fontFamily: item.example ? 'monospace' : undefined,
+                                                wordBreak: 'break-all',
+                                            }}
+                                        >
+                                            {item.example || ''}
+                                        </Typography>
+                                    </Box>
+                                ))}
+                            </Box>
+                        </Box>
+                    ))}
+                </CollapsibleSection>
             </Box>
 
             <Box sx={{ mt: 3 }}>
@@ -555,7 +920,7 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
                 </Typography>
 
                 {renameError && (
-                    <Alert severity="error" sx={{ mb: 1 }}>
+                    <Alert severity="error" sx={{ mb: 1, maxWidth: 920 }}>
                         {renameError}
                     </Alert>
                 )}
@@ -579,7 +944,7 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
                 )}
 
                 {isRenameComplete && renameJob && (
-                    <Alert severity="success" sx={{ mb: 2 }}>
+                    <Alert severity="success" sx={{ mb: 2, maxWidth: 920 }}>
                         {t('filenameBatchRenameComplete')} –{' '}
                         {t('filenameBatchRenameSummary')
                             .replace('{succeeded}', String(renameJob.succeeded))

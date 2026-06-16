@@ -10,13 +10,16 @@ type DownloadCollisionReservation = {
   updatedAt: number;
 };
 
-type CollectionTypeRow = {
+type CollectionSourceRow = {
   collectionId: string | null;
   subscriptionType: string | null;
   playlistId: string | null;
+  author: string | null;
+  authorUrl: string | null;
+  playlistTitle: string | null;
 };
 
-type CollectionTypeRowsLoader = () => CollectionTypeRow[];
+type CollectionTypeRowsLoader = () => CollectionSourceRow[];
 type DateCollisionCountsByLookupKey = Map<string, number>;
 type StoredDateCollisionCountCache = {
   cacheKey: string;
@@ -32,7 +35,7 @@ const downloadCollisionReservations = new Map<
 >();
 let storedDateCollisionCountCache: StoredDateCollisionCountCache | null = null;
 
-function loadCollectionTypeRowsFromDatabase(): CollectionTypeRow[] {
+function loadCollectionTypeRowsFromDatabase(): CollectionSourceRow[] {
   // Lazy import to avoid initializing the DB layer at module import time.
   // Several tests import sourceOptions helpers without a real database setup.
   const { db } = require("../../db") as typeof import("../../db");
@@ -42,6 +45,9 @@ function loadCollectionTypeRowsFromDatabase(): CollectionTypeRow[] {
       collectionId: subscriptions.collectionId,
       subscriptionType: subscriptions.subscriptionType,
       playlistId: subscriptions.playlistId,
+      author: subscriptions.author,
+      authorUrl: subscriptions.authorUrl,
+      playlistTitle: subscriptions.playlistTitle,
     })
     .from(subscriptions)
     .all();
@@ -99,22 +105,69 @@ function reserveDateCollisionIndex(
   return nextIndex;
 }
 
-function getCollectionTypeMap(): Map<string, "channel" | "playlist"> {
+function getSourceCollectionType(
+  row: Pick<CollectionSourceRow, "subscriptionType" | "playlistId">
+): "channel" | "playlist" {
+  return row.subscriptionType === "playlist" || Boolean(row.playlistId)
+    ? "playlist"
+    : "channel";
+}
+
+function getCollectionSourceMaps(): {
+  collectionTypeMap: Map<string, "channel" | "playlist">;
+  collectionSourceById: Map<string, CollectionSourceRow>;
+  collectionSourceByAuthorUrl: Map<string, CollectionSourceRow>;
+} {
   const collectionTypeMap = new Map<string, "channel" | "playlist">();
+  const collectionSourceById = new Map<string, CollectionSourceRow>();
+  const collectionSourceByAuthorUrl = new Map<string, CollectionSourceRow>();
   try {
     for (const row of collectionTypeRowsLoader()) {
-      if (!row.collectionId) continue;
-      const isPlaylist =
-        row.subscriptionType === "playlist" || Boolean(row.playlistId);
-      collectionTypeMap.set(
-        row.collectionId,
-        isPlaylist ? "playlist" : "channel"
-      );
+      if (row.collectionId) {
+        collectionTypeMap.set(row.collectionId, getSourceCollectionType(row));
+        if (!collectionSourceById.has(row.collectionId)) {
+          collectionSourceById.set(row.collectionId, row);
+        }
+      }
+      if (row.authorUrl && !collectionSourceByAuthorUrl.has(row.authorUrl)) {
+        collectionSourceByAuthorUrl.set(row.authorUrl, row);
+      }
     }
   } catch (error) {
     logger.warn("Filename template source-options lookup failed:", error);
   }
-  return collectionTypeMap;
+  return {
+    collectionTypeMap,
+    collectionSourceById,
+    collectionSourceByAuthorUrl,
+  };
+}
+
+function resolveStoredSourceCustomName(
+  subscriptionRow: CollectionSourceRow | undefined,
+  author: string
+): string {
+  return subscriptionRow?.author || author;
+}
+
+function resolveStoredSourceCollectionName(input: {
+  authorFolderOnly: boolean;
+  membershipCollectionName: string;
+  sourceCustomName: string;
+  subscriptionRow?: CollectionSourceRow;
+  fallbackAuthor: string;
+}): string {
+  if (input.authorFolderOnly) {
+    return input.sourceCustomName || input.fallbackAuthor;
+  }
+
+  return (
+    input.subscriptionRow?.playlistTitle ||
+    input.subscriptionRow?.author ||
+    input.membershipCollectionName ||
+    input.sourceCustomName ||
+    input.fallbackAuthor
+  );
 }
 
 function buildDateCollisionCountKey(
@@ -162,7 +215,11 @@ export function buildStoredSourceOptionsMap(
     }
   }
 
-  const collectionTypeMap = getCollectionTypeMap();
+  const {
+    collectionTypeMap,
+    collectionSourceById,
+    collectionSourceByAuthorUrl,
+  } = getCollectionSourceMaps();
   const sourceOptionsByVideoId = new Map<string, FilenameTemplateSourceOptions>();
 
   // Under author_folder_only, collection members live in the author folder, not
@@ -184,11 +241,20 @@ export function buildStoredSourceOptionsMap(
     const membership = videoToCollection.get(video.id);
 
     if (membership) {
+      const subscriptionRow = collectionSourceById.get(membership.collectionId);
+      const sourceCustomName = resolveStoredSourceCustomName(
+        subscriptionRow,
+        author
+      );
       sourceOptionsByVideoId.set(video.id, {
-        sourceCustomName: author,
-        sourceCollectionName: authorFolderOnly
-          ? author
-          : membership.collectionName,
+        sourceCustomName,
+        sourceCollectionName: resolveStoredSourceCollectionName({
+          authorFolderOnly,
+          membershipCollectionName: membership.collectionName,
+          sourceCustomName,
+          subscriptionRow,
+          fallbackAuthor: author,
+        }),
         sourceCollectionId: membership.collectionId,
         sourceCollectionType:
           collectionTypeMap.get(membership.collectionId) || "channel",
@@ -197,11 +263,21 @@ export function buildStoredSourceOptionsMap(
       continue;
     }
 
+    const subscriptionRow = video.channelUrl
+      ? collectionSourceByAuthorUrl.get(video.channelUrl)
+      : undefined;
+    const sourceCustomName = resolveStoredSourceCustomName(
+      subscriptionRow,
+      author
+    );
     sourceOptionsByVideoId.set(video.id, {
-      sourceCustomName: author,
-      sourceCollectionName: author,
+      sourceCustomName,
+      sourceCollectionName:
+        subscriptionRow?.author || sourceCustomName || author,
       sourceCollectionId: "",
-      sourceCollectionType: "single",
+      sourceCollectionType: subscriptionRow
+        ? getSourceCollectionType(subscriptionRow)
+        : "single",
     });
   }
 

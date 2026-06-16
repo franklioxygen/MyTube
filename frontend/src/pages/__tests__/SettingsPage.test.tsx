@@ -395,7 +395,7 @@ describe('SettingsPage', () => {
     mockIsDesktop = true;
 
     const { rerender } = render(
-      <MemoryRouter initialEntries={['/settings?tab=2']}>
+      <MemoryRouter initialEntries={['/settings?tab=1']}>
         <SettingsPage />
       </MemoryRouter>
     );
@@ -404,7 +404,7 @@ describe('SettingsPage', () => {
 
     mockUserRole = undefined;
     rerender(
-      <MemoryRouter initialEntries={['/settings?tab=2']}>
+      <MemoryRouter initialEntries={['/settings?tab=1']}>
         <SettingsPage />
       </MemoryRouter>
     );
@@ -422,7 +422,7 @@ describe('SettingsPage', () => {
     target.scrollIntoView = vi.fn();
     document.body.appendChild(target);
 
-    renderPage('/settings?tab=3#focus-target');
+    renderPage('/settings?tab=0#focus-target');
 
     vi.advanceTimersByTime(500);
 
@@ -439,16 +439,13 @@ describe('SettingsPage', () => {
 
     renderPage('/settings');
 
+    // Basic tab now also contains Interface & Display and Video Playback content
     expect(screen.getByTestId('basic-settings')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('tab', { name: 'interfaceDisplay' }));
     expect(screen.getByTestId('interface-display-settings')).toBeInTheDocument();
+    expect(screen.getByTestId('video-default-settings')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('tab', { name: 'securityAccess' }));
     expect(screen.getByTestId('security-settings')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('tab', { name: 'videoPlayback' }));
-    expect(screen.getByTestId('video-default-settings')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('tab', { name: 'downloadStorage' }));
     expect(screen.getByTestId('download-settings')).toBeInTheDocument();

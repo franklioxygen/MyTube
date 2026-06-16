@@ -1,22 +1,48 @@
 import { Request, Response } from "express";
 import * as storageService from "../services/storageService";
 import {
+  DEPRECATED_TEMPLATE_ALIASES,
   FILENAME_TEMPLATE_PRESETS,
+  FILENAME_TEMPLATE_INFORMATION_NOTES,
+  FILENAME_TEMPLATE_REFERENCE_SECTIONS,
   validateTemplate,
   renderFilenameTemplate,
-  buildContextFromYtDlpInfo,
   getActiveRenameJob,
   getRenameJobById,
   cancelRenameJob,
   startRenameJob,
+  planVideoOutputPaths,
 } from "../services/filenameTemplate";
+import {
+  normalizeFilenameNamingSettings,
+  resolveFilenameNamingConfig,
+  toFilenameNamingRuntimeConfig,
+  validateFilenameNamingSelection,
+} from "../services/filenameTemplate/config";
 import { FilenameTemplateContext } from "../services/filenameTemplate/types";
-import { DownloadFilenamePresetId } from "../types/settings";
+import { DownloadFilenameMode, DownloadFilenamePresetId } from "../types/settings";
 import { logger } from "../utils/logger";
 import { getStringParam } from "../utils/paramUtils";
 import { sendBadRequest } from "../utils/response";
 
-const SAMPLE_CONTEXT: FilenameTemplateContext = {
+type PreviewScenario = "channel" | "playlist" | "single";
+
+type FilenameTemplatePreviewResult = {
+  videoPath: string;
+  thumbnailPath: string;
+  subtitlePath: string;
+  warnings: Array<{ code: string; message: string }>;
+};
+
+const SAMPLE_CONTEXT_BASE: Omit<
+  FilenameTemplateContext,
+  | "sourceCustomName"
+  | "sourceCollectionName"
+  | "sourceCollectionId"
+  | "sourceCollectionType"
+  | "mediaPlaylistIndex"
+  | "mediaPlaylistIndexWithinDate"
+> = {
   title: "Sample Video",
   id: "dQw4w9WgXcQ",
   ext: "mp4",
@@ -29,26 +55,38 @@ const SAMPLE_CONTEXT: FilenameTemplateContext = {
   durationSeconds: 212,
   durationString: "03-32",
   artistName: "Sample Channel",
-  sourceCustomName: "Sample Channel",
-  sourceCollectionName: "Sample Channel",
-  sourceCollectionId: "UC_channel_id",
-  sourceCollectionType: "channel",
-  mediaPlaylistIndex: 1,
-  mediaPlaylistIndexWithinDate: 1,
   platform: "youtube",
   sourceUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
 };
 
-const VALID_PRESET_IDS = new Set<DownloadFilenamePresetId>(
-  [
-    ...FILENAME_TEMPLATE_PRESETS.map(
-      (preset) => preset.id as DownloadFilenamePresetId
-    ),
-    "custom",
-  ]
-);
+const SAMPLE_CONTEXTS: Record<PreviewScenario, FilenameTemplateContext> = {
+  channel: {
+    ...SAMPLE_CONTEXT_BASE,
+    sourceCustomName: "Sample Channel",
+    sourceCollectionName: "Sample Channel",
+    sourceCollectionId: "UC_channel_id",
+    sourceCollectionType: "channel",
+  },
+  playlist: {
+    ...SAMPLE_CONTEXT_BASE,
+    sourceCustomName: "Sample Channel",
+    sourceCollectionName: "Sample Playlist",
+    sourceCollectionId: "PL_playlist_id",
+    sourceCollectionType: "playlist",
+    mediaPlaylistIndex: 3,
+    mediaPlaylistIndexWithinDate: 3,
+  },
+  single: {
+    ...SAMPLE_CONTEXT_BASE,
+    sourceCustomName: "Sample Channel",
+    sourceCollectionName: "",
+    sourceCollectionId: "",
+    sourceCollectionType: "single",
+  },
+};
 
 type BatchRenameRequestOverrides = {
+  downloadFilenameMode?: DownloadFilenameMode;
   downloadFilenamePresetId?: DownloadFilenamePresetId;
   downloadFilenameTemplate?: string;
   moveThumbnailsToVideoFolder?: boolean;
@@ -59,7 +97,33 @@ export async function getFilenameTemplatePresets(
   req: Request,
   res: Response
 ): Promise<void> {
-  res.json({ presets: FILENAME_TEMPLATE_PRESETS });
+  res.json({
+    presets: FILENAME_TEMPLATE_PRESETS.map((preset) => ({
+      ...preset,
+      examplePath: buildPresetExamplePath(preset),
+    })),
+  });
+}
+
+export async function getFilenameTemplateCatalog(
+  _req: Request,
+  res: Response
+): Promise<void> {
+  res.json({
+    presets: FILENAME_TEMPLATE_PRESETS.map((preset) => ({
+      ...preset,
+      examplePath: buildPresetExamplePath(preset),
+    })),
+    deprecatedPresetAliases: Object.values(DEPRECATED_TEMPLATE_ALIASES)
+      .filter((alias) => alias.matchedPresetId !== "legacy")
+      .map((alias) => ({
+        id: alias.matchedPresetId,
+        labelKey: alias.labelKey,
+        mapsToCurrentPresetId: alias.mapsToCurrentPresetId,
+      })),
+    informationNotes: FILENAME_TEMPLATE_INFORMATION_NOTES,
+    referenceSections: FILENAME_TEMPLATE_REFERENCE_SECTIONS,
+  });
 }
 
 export async function validateFilenameTemplate(
@@ -81,10 +145,10 @@ export async function validateFilenameTemplate(
   let rendered: { videoPath: string; thumbnailPath: string; subtitlePath: string } | null = null;
   if (result.valid) {
     try {
-      const videoCtx = { ...SAMPLE_CONTEXT, ext: "mp4" };
-      if (sourceCollectionType) {
-        videoCtx.sourceCollectionType = sourceCollectionType;
-      }
+      const videoCtx =
+        sourceCollectionType && sourceCollectionType in SAMPLE_CONTEXTS
+          ? { ...SAMPLE_CONTEXTS[sourceCollectionType as PreviewScenario], ext: "mp4" }
+          : { ...SAMPLE_CONTEXTS.channel, ext: "mp4" };
       const videoRendered = renderFilenameTemplate({
         template,
         context: videoCtx,
@@ -122,46 +186,49 @@ export async function previewFilenameTemplate(
   req: Request,
   res: Response
 ): Promise<void> {
-  const { template, sourceCollectionType } = req.body as {
+  const { mode, template } = req.body as {
+    mode?: DownloadFilenameMode;
     template?: string;
-    sourceCollectionType?: "channel" | "playlist" | "single" | "unknown";
   };
 
-  if (!template || typeof template !== "string") {
+  if (
+    mode !== "legacy" &&
+    (!template || typeof template !== "string")
+  ) {
     sendBadRequest(res, "template is required");
     return;
   }
 
-  const ctx = { ...SAMPLE_CONTEXT };
-  if (sourceCollectionType) ctx.sourceCollectionType = sourceCollectionType;
+  const previewSelection = {
+    downloadFilenameMode: mode || "template",
+    downloadFilenameTemplate: template,
+  };
+  const validation = validateFilenameNamingSelection(previewSelection);
+  const resolved = resolveFilenameNamingConfig(previewSelection);
 
-  try {
-    const videoRendered = renderFilenameTemplate({
-      template,
-      context: { ...ctx, ext: "mp4" },
-      mode: "video",
-      extension: "mp4",
-    });
-    const thumbBasename = `${videoRendered.basenameWithoutExt}.jpg`;
-    const thumbPath = videoRendered.directory
-      ? `${videoRendered.directory}/${thumbBasename}`
-      : thumbBasename;
-    const subBasename = `${videoRendered.basenameWithoutExt}.en.vtt`;
-    const subPath = videoRendered.directory
-      ? `${videoRendered.directory}/${subBasename}`
-      : subBasename;
-
+  if (validation.errors.length > 0) {
     res.json({
-      videoPath: videoRendered.relativePath,
-      thumbnailPath: thumbPath,
-      subtitlePath: subPath,
-      warnings: videoRendered.warnings,
+      valid: false,
+      errors: validation.errors.map((error) => error.message),
+      resolved,
+      previews: null,
     });
-  } catch (e) {
-    res.status(400).json({
-      error: e instanceof Error ? e.message : String(e),
-    });
+    return;
   }
+
+  const naming = toFilenameNamingRuntimeConfig(previewSelection);
+  const previews = {
+    channel: renderPreviewScenario(naming, SAMPLE_CONTEXTS.channel),
+    playlist: renderPreviewScenario(naming, SAMPLE_CONTEXTS.playlist),
+    single: renderPreviewScenario(naming, SAMPLE_CONTEXTS.single),
+  };
+
+  res.json({
+    valid: true,
+    errors: [],
+    resolved,
+    previews,
+  });
 }
 
 export async function startBatchRename(
@@ -189,47 +256,29 @@ export async function startBatchRename(
     const savedSettings = storageService.getSettings();
     const overrides = (req.body || {}) as BatchRenameRequestOverrides;
 
-    if (
-      overrides.downloadFilenamePresetId !== undefined &&
-      !VALID_PRESET_IDS.has(overrides.downloadFilenamePresetId)
-    ) {
+    const normalizedNamingOverrides = normalizeFilenameNamingSettings(
+      savedSettings,
+      overrides
+    );
+    const namingValidation = validateFilenameNamingSelection({
+      ...savedSettings,
+      ...normalizedNamingOverrides,
+    });
+    if (namingValidation.errors.length > 0) {
+      const [error] = namingValidation.errors;
       res.status(400).json({
-        error: `Invalid filename preset: ${overrides.downloadFilenamePresetId}`,
-        code: "invalid_preset",
-      });
-      return;
-    }
-
-    if (
-      overrides.downloadFilenameTemplate !== undefined &&
-      typeof overrides.downloadFilenameTemplate !== "string"
-    ) {
-      res.status(400).json({
-        error: "Invalid filename template override.",
-        code: "invalid_template",
-      });
-      return;
-    }
-
-    if (
-      overrides.downloadFilenamePresetId === "custom" &&
-      overrides.downloadFilenameTemplate === undefined
-    ) {
-      res.status(400).json({
-        error: "Current custom template override is required.",
-        code: "invalid_template",
+        error: error.message,
+        code:
+          error.field === "downloadFilenamePresetId"
+            ? "invalid_preset"
+            : "invalid_template",
       });
       return;
     }
 
     const settings = {
       ...savedSettings,
-      ...(overrides.downloadFilenamePresetId !== undefined
-        ? { downloadFilenamePresetId: overrides.downloadFilenamePresetId }
-        : {}),
-      ...(overrides.downloadFilenameTemplate !== undefined
-        ? { downloadFilenameTemplate: overrides.downloadFilenameTemplate }
-        : {}),
+      ...normalizedNamingOverrides,
       ...(overrides.moveThumbnailsToVideoFolder !== undefined
         ? { moveThumbnailsToVideoFolder: overrides.moveThumbnailsToVideoFolder }
         : {}),
@@ -240,18 +289,15 @@ export async function startBatchRename(
 
     // Batch rename uses the current UI selection if provided in the request;
     // Save only controls future download defaults.
-    const presetId = settings.downloadFilenamePresetId || "legacy";
-    if (presetId === "custom") {
+    if (settings.downloadFilenameMode === "template") {
       const tpl = settings.downloadFilenameTemplate || "";
       const validation = validateTemplate(tpl);
       if (!validation.valid) {
-        const templateScope =
-          overrides.downloadFilenamePresetId === "custom" ||
-          overrides.downloadFilenameTemplate !== undefined
-            ? "Current"
-            : "Saved";
+        const templateScope = overrides.downloadFilenameTemplate !== undefined
+          ? "Current"
+          : "Saved";
         res.status(400).json({
-          error: `${templateScope} custom template is invalid: ${validation.errors.join("; ")}`,
+          error: `${templateScope} template is invalid: ${validation.errors.join("; ")}`,
           code: "invalid_template",
         });
         return;
@@ -305,4 +351,41 @@ export async function cancelBatchRename(
     return;
   }
   res.json({ success: true });
+}
+
+function renderPreviewScenario(
+  naming: ReturnType<typeof toFilenameNamingRuntimeConfig>,
+  context: FilenameTemplateContext
+): FilenameTemplatePreviewResult {
+  const planned = planVideoOutputPaths({
+    naming,
+    context,
+    videoExtension: "mp4",
+    thumbnailExtension: "jpg",
+    moveThumbnailsToVideoFolder: false,
+    moveSubtitlesToVideoFolder: false,
+  });
+  const subtitleFilename = `${planned.subtitle.baseNameWithoutLanguageOrExt}.en.vtt`;
+  const subtitlePath = planned.subtitle.relativeDirectory
+    ? `${planned.subtitle.relativeDirectory}/${subtitleFilename}`
+    : subtitleFilename;
+
+  return {
+    videoPath: planned.video.relativePath,
+    thumbnailPath: planned.thumbnail.relativePath,
+    subtitlePath,
+    warnings: planned.warnings,
+  };
+}
+
+function buildPresetExamplePath(
+  preset: (typeof FILENAME_TEMPLATE_PRESETS)[number]
+): string {
+  const preferredScenario = preset.recommendedSourceTypes[0] || "single";
+  const naming = toFilenameNamingRuntimeConfig({
+    downloadFilenameMode: preset.kind,
+    downloadFilenameTemplate: preset.template,
+  });
+
+  return renderPreviewScenario(naming, SAMPLE_CONTEXTS[preferredScenario]).videoPath;
 }

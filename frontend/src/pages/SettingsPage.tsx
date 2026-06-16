@@ -431,16 +431,6 @@ const SettingsPage: React.FC = () => {
     };
 
     // Content renderers for each section (used by both desktop and mobile views)
-    const renderBasicSettingsContent = () => (
-        <BasicSettings
-            language={settings.language}
-            theme={settings.theme}
-            showThemeButton={settings.showThemeButton}
-            websiteName={settings.websiteName}
-            onChange={(field, value) => handleChange(field as keyof Settings, value)}
-        />
-    );
-
     const renderInterfaceDisplayContent = () => (
         <InterfaceDisplaySettings
             itemsPerPage={settings.itemsPerPage}
@@ -452,6 +442,20 @@ const SettingsPage: React.FC = () => {
             showTagsOnThumbnail={settings.showTagsOnThumbnail}
             onChange={(field, value) => handleChange(field as keyof Settings, value)}
         />
+    );
+
+    const renderBasicSettingsContent = () => (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <BasicSettings
+                language={settings.language}
+                theme={settings.theme}
+                showThemeButton={settings.showThemeButton}
+                websiteName={settings.websiteName}
+                onChange={(field, value) => handleChange(field as keyof Settings, value)}
+            />
+            {!isVisitor && renderInterfaceDisplayContent()}
+            {!isVisitor && renderVideoPlaybackContent()}
+        </Box>
     );
 
     const renderDeploymentSecuritySummary = () => {
@@ -703,7 +707,7 @@ const SettingsPage: React.FC = () => {
             onMoveThumbnailsToVideoFolderChange={(checked) => handleChange('moveThumbnailsToVideoFolder', checked)}
             authorOrganizationMode={settings.authorOrganizationMode || 'root'}
             onAuthorOrganizationModeChange={(mode) => handleChange('authorOrganizationMode', mode)}
-            downloadFilenamePresetId={settings.downloadFilenamePresetId}
+            downloadFilenameMode={settings.downloadFilenameMode}
         />
     );
 
@@ -743,21 +747,12 @@ const SettingsPage: React.FC = () => {
     // Helper function to render settings sections for mobile view
     const renderSettingsSections = () => (
         <>
-            {/* 1. Basic Settings */}
+            {/* 1. Basic Settings (includes Interface & Display, Video Playback) */}
             <Grid size={12}>
                 <CollapsibleSection title={t('basicSettings')} defaultExpanded={true}>
                     {renderBasicSettingsContent()}
                 </CollapsibleSection>
             </Grid>
-
-            {/* 2. Interface & Display */}
-            {!isVisitor && (
-                <Grid size={12}>
-                    <CollapsibleSection title={t('interfaceDisplay')} defaultExpanded={false}>
-                        {renderInterfaceDisplayContent()}
-                    </CollapsibleSection>
-                </Grid>
-            )}
 
             {/* 3. Security & Access */}
             {!isVisitor && (
@@ -770,13 +765,6 @@ const SettingsPage: React.FC = () => {
 
             {!isVisitor && (
                 <>
-                    {/* 4. Video Playback */}
-                    <Grid size={12}>
-                        <CollapsibleSection title={t('videoPlayback')} defaultExpanded={false}>
-                            {renderVideoPlaybackContent()}
-                        </CollapsibleSection>
-                    </Grid>
-
                     {/* 5. Download & Storage */}
                     <Grid size={12}>
                         <CollapsibleSection title={t('downloadStorage')} defaultExpanded={false}>
@@ -813,13 +801,11 @@ const SettingsPage: React.FC = () => {
     const tabs = [
         { label: t('basicSettings'), index: 0 },
         ...(!isVisitor ? [
-            { label: t('interfaceDisplay'), index: 1 },
-            { label: t('securityAccess'), index: 2 },
-            { label: t('videoPlayback'), index: 3 },
-            { label: t('downloadStorage'), index: 4 },
-            { label: t('contentManagement'), index: 5 },
-            { label: t('dataManagement'), index: 6 },
-            { label: t('advanced'), index: 7 }
+            { label: t('securityAccess'), index: 1 },
+            { label: t('downloadStorage'), index: 2 },
+            { label: t('contentManagement'), index: 3 },
+            { label: t('dataManagement'), index: 4 },
+            { label: t('advanced'), index: 5 }
         ] : [])
     ];
 
@@ -829,18 +815,14 @@ const SettingsPage: React.FC = () => {
 
         switch (currentTab) {
             case 1:
-                return renderInterfaceDisplayContent();
-            case 2:
                 return renderSecurityAccessContent();
-            case 3:
-                return renderVideoPlaybackContent();
-            case 4:
+            case 2:
                 return renderDownloadStorageContent();
-            case 5:
+            case 3:
                 return renderContentManagementContent();
-            case 6:
+            case 4:
                 return renderDataManagementContent();
-            case 7:
+            case 5:
                 return renderAdvancedContent();
             default:
                 return null;
@@ -865,7 +847,15 @@ const SettingsPage: React.FC = () => {
                             variant="scrollable"
                             scrollButtons="auto"
                             aria-label="settings tabs"
-                            sx={{ minHeight: 48 }}
+                            sx={{
+                                minHeight: 48,
+                                '& .MuiTab-root': {
+                                    minWidth: 'auto',
+                                    px: 1.5,
+                                    fontSize: '0.8125rem',
+                                    textTransform: 'none',
+                                },
+                            }}
                         >
                             {tabs.map((tabItem) => (
                                 <Tab key={tabItem.index} label={tabItem.label} value={tabItem.index} />

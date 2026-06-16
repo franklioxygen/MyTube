@@ -1311,12 +1311,15 @@ export const ja = {
     "ダウンロードしたファイルの命名方法を選択します。従来互換以外のモードでは、メディアセンター向けのフォルダー構成を利用できます。",
   filenamePresetLabel: "命名モード",
   filenamePresetLegacy: "現在の互換モード（タイトル-作者-年）",
+  filenamePresetMediaCenterDateIndex:
+    "メディアセンター - 日付と連番でシーズン/エピソード",
   filenamePresetChannelYearDateIndex:
     "チャンネル – 年と日付ごとのシーズン/エピソード",
   filenamePresetPlaylistStaticIndex:
     "プレイリスト – シーズン 1 / インデックスごとのエピソード",
   filenamePresetPlaylistStaticDate:
     "プレイリスト – シーズン 1 / 日付ごとのエピソード",
+  filenamePresetSourceDateFlat: "ソース - 日付、次にタイトル",
   filenamePresetCustom: "カスタムテンプレート",
   filenameCustomTemplateLabel: "カスタムテンプレート",
   filenameCustomTemplatePlaceholder: "{{ source_collection_name }}/{{ season_by_year__episode_by_date_and_index }} - {{ title }}.{{ ext }}",
@@ -1324,6 +1327,9 @@ export const ja = {
   filenamePreviewVideo: "動画",
   filenamePreviewThumbnail: "サムネイル",
   filenamePreviewSubtitle: "字幕",
+  filenamePreviewScenarioChannel: "チャンネル",
+  filenamePreviewScenarioPlaylist: "プレイリスト",
+  filenamePreviewScenarioSingle: "単体動画",
   filenameWarningMediaPlaylistIndexUnavailable:
     "プレイリスト以外のソースでは media_playlist_index を利用できないため、00 にフォールバックします。",
   filenameWarningSourceCollectionMetadataMayBeEmpty:
@@ -1349,6 +1355,51 @@ export const ja = {
   filenameBatchRenameSummary:
     "{succeeded} 件変更、{skipped} 件スキップ、{failed} 件失敗。",
   filenameBatchRenameError: "名前変更に失敗しました",
+  // Filename template reference (information panel)
+  filenameRefInformationTitle: '説明',
+  filenameRefInfoLiquid: '{{ title }} のような Liquid 構文を使用して、MyTube の命名エイリアスや 1 単語の yt-dlp メタデータフィールドを参照できます。',
+  filenameRefInfoYtdlp:
+    '%(upload_date>%Y-%m-%d)s や %(subtitles.en.-1.ext)s のような yt-dlp 構文を使用して、日付のフォーマット、再生時間、ネストされた生メタデータパスを参照できます。',
+  filenameRefInfoExtension: 'ファイル名の最終セグメントは .{{ ext }}、.%(ext)s、または .%(ext)S で終わる必要があります。',
+  filenameRefInfoFallbacks:
+    '単一動画のダウンロードでは source_collection_name/id が空になる場合があります。media_playlist_index はプレイリスト以外のソースでは 00 にフォールバックします。',
+  filenameRefSectionCoreTitle: 'コアフィールド',
+  filenameRefSectionUploadTitle: 'upload_* 名前空間',
+  filenameRefSectionSourceTitle: 'source_* 名前空間',
+  filenameRefSectionPlaylistTitle: 'プレイリスト名前空間',
+  filenameRefSectionSeasonTitle: 'season_* エイリアス',
+  filenameRefSectionStaticTitle: 'static_* エイリアス',
+  filenameRefSectionRawMetadataTitle: '生の yt-dlp メタデータ',
+  filenameRefSectionRawMetadataDescription: 'これらのパターンは組み込みエイリアスを超えた yt-dlp メタデータにアクセスします。',
+  filenameRefItemTitleDesc: '動画タイトル。',
+  filenameRefItemIdDesc: 'プラットフォームの動画 ID またはローカル動画 ID。',
+  filenameRefItemExtDesc: 'ドットを除いた最終ファイル拡張子。',
+  filenameRefItemUploaderDesc: '投稿者または作者名。',
+  filenameRefItemChannelDesc: 'チャンネル名。投稿者にフォールバックします。',
+  filenameRefItemDurationStringDesc: 'HH-MM-SS または MM-SS 形式の再生時間。',
+  filenameRefItemArtistNameDesc: 'メディアセンター命名用のアーティスト風フォールバックチェーン。',
+  filenameRefItemUploadDateDesc: 'YYYYMMDD 形式のアップロード日。',
+  filenameRefItemUploadYyyyMmDdDesc: 'YYYY-MM-DD 形式のアップロード日。',
+  filenameRefItemUploadYearDesc: 'アップロード年。',
+  filenameRefItemUploadMonthDesc: 'アップロード月。',
+  filenameRefItemUploadDayDesc: 'アップロード日（月の何日か）。',
+  filenameRefItemSourceCustomNameDesc: 'ユーザー定義のソースまたはサブスクリプション名。オーバーライドがない場合、直接ダウンロードは投稿者またはチャンネルにフォールバックします。',
+  filenameRefItemSourceCollectionNameDesc: '利用可能な場合のチャンネル、プレイリスト、またはコレクション名。',
+  filenameRefItemSourceCollectionIdDesc: '利用可能な場合のチャンネル、プレイリスト、またはコレクション ID。',
+  filenameRefItemSourceCollectionTypeDesc: 'channel、playlist、single、unknown のいずれか。',
+  filenameRefItemMediaPlaylistIndexDesc: '2 桁にゼロ埋めされたプレイリストインデックス。',
+  filenameRefItemSeasonFromDateDesc: 'アップロード年。',
+  filenameRefItemSeasonEpisodeFromDateDesc: '日付ベースのエピソードキー。',
+  filenameRefItemSeasonEpisodeIndexFromDateDesc: '日付ベースのエピソードキーに 1 日あたり 2 桁のインデックスサフィックス付き。',
+  filenameRefItemSeasonByYearEpisodeByDateDesc: '年別シーズンフォルダーと日付ベースのエピソードキー。',
+  filenameRefItemSeasonByYearEpisodeByDateAndIndexDesc: '年別シーズンフォルダーと日付ベースのエピソードキー（1 日あたりインデックスサフィックス付き）。',
+  filenameRefItemStaticSeasonEpisodeByIndexDesc: 'シーズン 1 フォルダーとプレイリスト順の 2 桁エピソード番号。',
+  filenameRefItemStaticSeasonEpisodeByDateDesc: 'シーズン 1 フォルダーと日付ベースのエピソードキー。',
+  filenameRefItemGenericSingleWordDesc: '生のメタデータに存在する任意の 1 単語 yt-dlp メタデータフィールドは、Liquid 構文で参照できます。',
+  filenameRefItemBasicYtdlpDesc: 'yt-dlp プレースホルダー構文は title、id、channel、uploader、upload_date、ext に対応しています。',
+  filenameRefItemFormattedUploadDateDesc: 'yt-dlp の日付フォーマットで upload_date をフォーマットします。',
+  filenameRefItemFormattedDurationDesc: 'yt-dlp の時間フォーマットで再生時間をフォーマットします。',
+  filenameRefItemNestedPathDesc: 'yt-dlp プレースホルダー構文を通じて、配列インデックスを含むネストされた生メタデータパスを読み取ります。',
 
   // Statistics
   statisticsTitle: "統計",

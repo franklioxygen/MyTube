@@ -1257,9 +1257,12 @@ export const en = {
   filenameTemplateDescription: "Choose how downloaded files are named. Non-legacy modes enable media-center-friendly folder structures.",
   filenamePresetLabel: "Naming mode",
   filenamePresetLegacy: "Current compatible mode (Title-Author-Year)",
+  filenamePresetMediaCenterDateIndex:
+    "Media center - Season/Episode by date and index",
   filenamePresetChannelYearDateIndex: "Channel – Season/Episode by year and date",
   filenamePresetPlaylistStaticIndex: "Playlist – Season 1 / Episode by index",
   filenamePresetPlaylistStaticDate: "Playlist – Season 1 / Episode by date",
+  filenamePresetSourceDateFlat: "Source - Date then title",
   filenamePresetCustom: "Custom template",
   filenameCustomTemplateLabel: "Custom template",
   filenameCustomTemplatePlaceholder: "{{ source_collection_name }}/{{ season_by_year__episode_by_date_and_index }} - {{ title }}.{{ ext }}",
@@ -1267,6 +1270,9 @@ export const en = {
   filenamePreviewVideo: "Video",
   filenamePreviewThumbnail: "Thumbnail",
   filenamePreviewSubtitle: "Subtitle",
+  filenamePreviewScenarioChannel: "Channel",
+  filenamePreviewScenarioPlaylist: "Playlist",
+  filenamePreviewScenarioSingle: "Single Video",
   filenameWarningMediaPlaylistIndexUnavailable:
     "media_playlist_index is unavailable for non-playlist sources and will fall back to 00.",
   filenameWarningSourceCollectionMetadataMayBeEmpty:
@@ -1285,6 +1291,69 @@ export const en = {
   filenameBatchRenameComplete: "Rename complete",
   filenameBatchRenameSummary: "{succeeded} renamed, {skipped} skipped, {failed} failed.",
   filenameBatchRenameError: "Rename failed",
+  // Filename template reference (information panel)
+  filenameRefInformationTitle: "Information",
+  filenameRefInfoLiquid:
+    "Use Liquid syntax like {{ title }} for MyTube naming aliases and single-word yt-dlp metadata fields.",
+  filenameRefInfoYtdlp:
+    "Use yt-dlp syntax like %(upload_date>%Y-%m-%d)s or %(subtitles.en.-1.ext)s for formatted dates, durations, and nested raw metadata paths.",
+  filenameRefInfoExtension:
+    "The final filename segment must end with .{{ ext }}, .%(ext)s, or .%(ext)S.",
+  filenameRefInfoFallbacks:
+    "source_collection_name/id can be empty for single-video downloads, and media_playlist_index falls back to 00 outside playlist sources.",
+  filenameRefSectionCoreTitle: "Core fields",
+  filenameRefSectionUploadTitle: "upload_* namespace",
+  filenameRefSectionSourceTitle: "source_* namespace",
+  filenameRefSectionPlaylistTitle: "Playlist namespace",
+  filenameRefSectionSeasonTitle: "season_* aliases",
+  filenameRefSectionStaticTitle: "static_* aliases",
+  filenameRefSectionRawMetadataTitle: "Raw yt-dlp metadata",
+  filenameRefSectionRawMetadataDescription:
+    "These patterns expose yt-dlp metadata beyond the built-in aliases.",
+  filenameRefItemTitleDesc: "Video title.",
+  filenameRefItemIdDesc: "Platform video ID or local video ID.",
+  filenameRefItemExtDesc: "Final file extension without the dot.",
+  filenameRefItemUploaderDesc: "Uploader or author name.",
+  filenameRefItemChannelDesc: "Channel name, falling back to uploader.",
+  filenameRefItemDurationStringDesc: "Duration formatted as HH-MM-SS or MM-SS.",
+  filenameRefItemArtistNameDesc:
+    "Artist-style fallback chain for media-center naming.",
+  filenameRefItemUploadDateDesc: "Upload date as YYYYMMDD.",
+  filenameRefItemUploadYyyyMmDdDesc: "Upload date as YYYY-MM-DD.",
+  filenameRefItemUploadYearDesc: "Upload year.",
+  filenameRefItemUploadMonthDesc: "Upload month.",
+  filenameRefItemUploadDayDesc: "Upload day of month.",
+  filenameRefItemSourceCustomNameDesc:
+    "User-defined source or subscription name. Direct downloads fall back to uploader or channel when no override exists.",
+  filenameRefItemSourceCollectionNameDesc:
+    "Channel, playlist, or collection name when available.",
+  filenameRefItemSourceCollectionIdDesc:
+    "Channel, playlist, or collection ID when available.",
+  filenameRefItemSourceCollectionTypeDesc:
+    "One of channel, playlist, single, or unknown.",
+  filenameRefItemMediaPlaylistIndexDesc: "Playlist index padded to two digits.",
+  filenameRefItemSeasonFromDateDesc: "Upload year.",
+  filenameRefItemSeasonEpisodeFromDateDesc: "Date-shaped episode key.",
+  filenameRefItemSeasonEpisodeIndexFromDateDesc:
+    "Date-shaped episode key with a two-digit per-day index suffix.",
+  filenameRefItemSeasonByYearEpisodeByDateDesc:
+    "Season folder plus date-based episode key.",
+  filenameRefItemSeasonByYearEpisodeByDateAndIndexDesc:
+    "Season folder plus date-based episode key with a per-day index suffix.",
+  filenameRefItemStaticSeasonEpisodeByIndexDesc:
+    "Season 1 folder plus a two-digit episode number from playlist order.",
+  filenameRefItemStaticSeasonEpisodeByDateDesc:
+    "Season 1 folder plus a date-based episode key.",
+  filenameRefItemGenericSingleWordDesc:
+    "Any single-word yt-dlp metadata field can be referenced with Liquid syntax when it exists in raw metadata.",
+  filenameRefItemBasicYtdlpDesc:
+    "yt-dlp placeholder syntax is supported for title, id, channel, uploader, upload_date, and ext.",
+  filenameRefItemFormattedUploadDateDesc:
+    "Formats upload_date with yt-dlp date formatting.",
+  filenameRefItemFormattedDurationDesc:
+    "Formats duration with yt-dlp time formatting.",
+  filenameRefItemNestedPathDesc:
+    "Reads nested raw metadata paths, including array indexes, through yt-dlp placeholder syntax.",
   // Statistics
   statisticsTitle: "Statistics",
   statisticsSection: "Statistics",

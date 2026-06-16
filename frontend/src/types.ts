@@ -146,7 +146,15 @@ export interface Settings {
   twitchClientId?: string;
   twitchClientSecret?: string;
   deploymentSecurity?: DeploymentSecurityModel;
-  downloadFilenamePresetId?: 'legacy' | 'channel_year_date_index' | 'playlist_static_index' | 'playlist_static_date' | 'custom';
+  downloadFilenameMode?: 'legacy' | 'template';
+  downloadFilenamePresetId?:
+    | 'legacy'
+    | 'media_center_date_index'
+    | 'source_date_flat'
+    | 'channel_year_date_index'
+    | 'playlist_static_index'
+    | 'playlist_static_date'
+    | 'custom';
   downloadFilenameTemplate?: string;
   mediaServerExportMode?: 'off' | 'nfo' | 'nfo_and_source_json';
   // Statistics

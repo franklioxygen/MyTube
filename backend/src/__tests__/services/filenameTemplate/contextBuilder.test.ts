@@ -22,6 +22,7 @@ describe("buildContextFromYtDlpInfo", () => {
     expect(ctx.title).toBe("Test Video");
     expect(ctx.id).toBe("yt123");
     expect(ctx.uploader).toBe("Test Channel");
+    expect(ctx.sourceCustomName).toBe("Test Channel");
     expect(ctx.uploadDate).toBe("20260430");
     expect(ctx.uploadYear).toBe("2026");
     expect(ctx.uploadMonth).toBe("04");
@@ -44,8 +45,13 @@ describe("buildContextFromYtDlpInfo", () => {
     const ctx = buildContextFromYtDlpInfo(
       "https://youtu.be/x",
       baseInfo,
-      { sourceCollectionName: "My Playlist", sourceCollectionType: "playlist" }
+      {
+        sourceCustomName: "Pinned Source Name",
+        sourceCollectionName: "My Playlist",
+        sourceCollectionType: "playlist",
+      }
     );
+    expect(ctx.sourceCustomName).toBe("Pinned Source Name");
     expect(ctx.sourceCollectionName).toBe("My Playlist");
     expect(ctx.sourceCollectionType).toBe("playlist");
   });
@@ -77,6 +83,7 @@ describe("buildContextFromBilibiliMetadata", () => {
     const ctx = buildContextFromBilibiliMetadata("https://www.bilibili.com/video/BV1abc", bilibilMeta);
     expect(ctx.title).toBe("Bilibili Video");
     expect(ctx.uploader).toBe("BiliUser");
+    expect(ctx.sourceCustomName).toBe("BiliUser");
     expect(ctx.id).toBe("BV1abc");
     expect(ctx.platform).toBe("bilibili");
   });
@@ -115,6 +122,7 @@ describe("buildContextFromVideoRecord", () => {
     const ctx = buildContextFromVideoRecord(video);
     expect(ctx.title).toBe("Stored Video");
     expect(ctx.uploader).toBe("Stored Author");
+    expect(ctx.sourceCustomName).toBe("Stored Author");
     expect(ctx.uploadYear).toBe("2026");
     expect(ctx.uploadMonth).toBe("03");
     expect(ctx.uploadDay).toBe("15");
