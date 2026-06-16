@@ -13,7 +13,7 @@ const VideoDefaultSettings: React.FC<VideoDefaultSettingsProps> = ({ settings, o
 
     return (
         <Box>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                 <FormControlLabel
                     control={
                         <Switch
