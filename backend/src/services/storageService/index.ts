@@ -24,6 +24,7 @@ export {
     clearDownloadHistory,
     getDownloadHistory,
     getDownloadHistoryItem,
+    getLatestRetryHistoryItemBySourceUrl,
     getPendingRetryHistoryItems,
     finalizePendingRetryHistoryItem,
     markDownloadHistoryDeletedByVideoId,
@@ -73,8 +74,12 @@ export {
     generateUniqueCollectionName,
     getCollectionById,
     getCollectionByName,
+    getCollectionBySourceKey,
     getCollectionByVideoId,
+    getCollectionsByVideoId,
     getCollections,
+    linkVideoToCollection,
+    moveVideoToExclusiveCollection,
     removeVideoFromCollection,
     renameCollection,
     saveCollection
@@ -83,12 +88,16 @@ export {
 // Author Collection Utils
 export {
     addVideoToAuthorCollection,
+    backfillLegacyCollectionOrigins,
+    cleanupRedundantAuthorCollectionLinks,
     findOrCreateAuthorCollection,
+    organizeVideoByAuthor,
     validateCollectionName
 } from "./authorCollectionUtils";
 
 // File Helpers
 export { findImageFile, findVideoFile, moveFile } from "./fileHelpers";
+export { cleanupCollectionDirectories } from "./collectionFileManager";
 
 // Filename Template path helpers (re-exported for convenience)
 export { getManagedRelativePath, resolveManagedWebPath } from "../filenameTemplate/pathHelpers";

@@ -820,10 +820,13 @@ export const pt = {
   speed: "Velocidade",
   finishedAt: "Terminado em",
   failed: "Falhou",
+  partialDownload: "Incompleto",
   pendingRetry: "Nova tentativa pendente",
   cancelRetry: "Cancelar tentativa",
   retryScheduledFor: "Nova tentativa agendada para",
   retryAttemptProgress: "Tentativa {current} de {total}",
+  missingEpisodes: "Episódios ausentes",
+  missingVideos: "Vídeos ausentes",
 
 
   // Snackbar Messages
@@ -1094,6 +1097,35 @@ export const pt = {
   saveAuthorFilesToCollectionOff: "Desativado",
   saveAuthorFilesToCollectionDescription:
     "Salvar automaticamente os arquivos do autor em uma coleção separada.",
+  authorOrganizationMode: "Organizacao por autor",
+  authorOrganizationModeDescription:
+    "Escolha se o nome do autor afeta as pastas fisicas, as colecoes logicas ou nenhuma das duas.",
+  authorOrganizationModeRoot: "Manter nas pastas raiz",
+  authorOrganizationModeRootDescription:
+    "Nao crie pastas nem colecoes de autor. Apenas colecoes manuais e de playlist se aplicam.",
+  authorOrganizationModeAuthorFolderOnly: "Somente pastas de autor",
+  authorOrganizationModeAuthorFolderOnlyDescription:
+    "Com nomes de arquivo legacy, mova os arquivos para pastas com nome do autor sem vincular uma colecao de autor.",
+  authorOrganizationModeAuthorCollectionLinked: "Colecao de autor + pasta",
+  authorOrganizationModeAuthorCollectionLinkedDescription:
+    "Vincula os videos a uma colecao de autor. Com nomes de arquivo legacy, os arquivos tambem sao movidos para a pasta do autor.",
+  authorOrganizationModeRecommendation:
+    "Se voce quer pastas por autor sem colecoes de autor duplicadas no MyTube, use Somente pastas de autor.",
+  authorOrganizationModeTemplateNote:
+    "Os presets de nome de arquivo nao legacy controlam a estrutura fisica de pastas. Nesses modos, a organizacao por autor afeta apenas o vinculo com colecoes.",
+  cleanupAuthorCollections: "Limpar colecoes de autor existentes",
+  cleanupAuthorCollectionsDescription:
+    "Depois de mudar para Somente pastas de autor, remova links redundantes de colecoes de autor de videos que ja pertencem a outra colecao. Os arquivos no disco nao serao movidos.",
+  cleanupAuthorCollectionsButton: "Remover links redundantes",
+  cleanupAuthorCollectionsConfirmTitle: "Remover links redundantes de colecoes de autor",
+  cleanupAuthorCollectionsConfirmMessage:
+    "Isso desvinculara colecoes de autor de videos que ja pertencem a outra colecao. Colecoes de autor vazias serao excluidas. Os arquivos no disco permanecerao onde estao.",
+  cleanupAuthorCollectionsSuccess:
+    "Removeu {links} links em {videos} videos. Excluiu {collections} colecoes de autor vazias.",
+  cleanupAuthorCollectionsNothingToDo:
+    "Nao havia links redundantes de colecoes de autor para limpar.",
+  cleanupAuthorCollectionsFailed:
+    "Falha ao limpar colecoes de autor",
 
   // Cloudflare Tunnel
   cloudflaredTunnel: "Túnel Cloudflare",
@@ -1293,6 +1325,10 @@ export const pt = {
   filenamePreviewVideo: "Vídeo",
   filenamePreviewThumbnail: "Miniatura",
   filenamePreviewSubtitle: "Legenda",
+  filenameWarningMediaPlaylistIndexUnavailable:
+    "media_playlist_index não está disponível para fontes que não sejam playlists e voltará para 00.",
+  filenameWarningSourceCollectionMetadataMayBeEmpty:
+    "source_collection_name/id pode ficar vazio em downloads de vídeo único.",
   filenameValidating: "Validando…",
   filenameValidationError: "Erro de modelo",
   filenameBatchRenameButton:

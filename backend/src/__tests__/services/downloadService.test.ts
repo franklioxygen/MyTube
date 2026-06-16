@@ -31,6 +31,7 @@ vi.mock("../../services/continuousDownloadService", () => ({
 vi.mock("../../services/storageService", () => ({
   getCollectionByName: vi.fn(),
   getCollectionById: vi.fn(),
+  getCollectionsByVideoId: vi.fn(),
   saveCollection: vi.fn(),
   generateUniqueCollectionName: vi.fn((name: string) => name),
   getActiveDownload: vi.fn(),
@@ -38,6 +39,7 @@ vi.mock("../../services/storageService", () => ({
   updateActiveDownloadTitle: vi.fn(),
   getVideoBySourceUrl: vi.fn(),
   atomicUpdateCollection: vi.fn(),
+  linkVideoToCollection: vi.fn(),
 }));
 vi.mock("../../utils/ytDlpUtils", () => ({
   executeYtDlpJson: vi.fn(),
@@ -114,10 +116,10 @@ describe("downloadService", () => {
         "u", 2, 5, "series", "d2", undefined, "collection", undefined
       );
       expect(BilibiliDownloader.downloadCollection).toHaveBeenCalledWith(
-        {}, "c", "d3"
+        {}, "c", "d3", undefined, undefined
       );
       expect(BilibiliDownloader.downloadRemainingParts).toHaveBeenCalledWith(
-        "u", 2, 5, "series", "cid", "d4"
+        "u", 2, 5, "series", "cid", "d4", undefined, undefined
       );
     });
 
@@ -325,15 +327,19 @@ describe("downloadService", () => {
         videoData: { id: "part-1" } as any,
       });
       vi.mocked(BilibiliDownloader.downloadRemainingParts).mockResolvedValue(
-        undefined as any,
+        {
+          success: true,
+          partial: false,
+          expectedCount: 1,
+          downloadedCount: 1,
+          skippedCount: 0,
+          failedPartNumbers: [],
+          isMultiPart: true,
+          totalParts: 2,
+        } as any,
       );
       vi.mocked(storageService.getVideoBySourceUrl).mockReturnValue(undefined);
-      vi.mocked(storageService.getCollectionByName).mockReturnValue({
-        id: "collection-1",
-        name: "Series",
-        title: "Series",
-        videos: [],
-      } as any);
+      vi.mocked(storageService.getCollectionsByVideoId).mockReturnValue([]);
       vi.mocked(storageService.getCollectionById).mockReturnValue({
         id: "collection-1",
         name: "Series",
@@ -348,6 +354,7 @@ describe("downloadService", () => {
         {
           shape: "bilibili_all_parts",
           collectionName: "Series",
+          linkedCollectionId: "collection-1",
         },
       );
       const cancel = vi.fn();
@@ -362,10 +369,16 @@ describe("downloadService", () => {
         "d4",
         cancel,
         "Series",
-        undefined,
+        {
+          sourceCollectionName: "Series",
+          sourceCollectionType: "playlist",
+          mediaPlaylistIndex: 1,
+        },
       );
       expect(result).toEqual(
         expect.objectContaining({
+          success: true,
+          partial: false,
           isMultiPart: true,
           totalParts: 2,
         }),

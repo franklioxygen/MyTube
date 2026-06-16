@@ -67,7 +67,11 @@ const compareViewsDesc: VideoComparator = (a, b) =>
 const compareViewsAsc: VideoComparator = (a, b) =>
   (a.viewCount || 0) - (b.viewCount || 0);
 
-const compareNameAsc: VideoComparator = (a, b) => a.title.localeCompare(b.title);
+const compareNameAsc: VideoComparator = (a, b) =>
+  a.title.localeCompare(b.title, undefined, {
+    numeric: true,
+    sensitivity: "base",
+  });
 
 const compareVideoDate = (a: Video, b: Video, ascending: boolean): number => {
   if (!a.date && !b.date) return 0;

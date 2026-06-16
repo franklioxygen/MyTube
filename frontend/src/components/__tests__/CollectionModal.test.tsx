@@ -99,7 +99,21 @@ describe('CollectionModal', () => {
 
         await user.click(screen.getByText('remove'));
 
-        expect(props.onRemoveFromCollection).toHaveBeenCalled();
+        expect(props.onRemoveFromCollection).toHaveBeenCalledWith('1');
         expect(props.onClose).toHaveBeenCalled();
+    });
+
+    it('should disable every collection the video already belongs to', async () => {
+        const user = userEvent.setup();
+        render(<CollectionModal
+            {...defaultProps}
+            videoCollections={[mockCollections[0], mockCollections[1]]}
+        />);
+
+        await user.click(screen.getByRole('combobox'));
+
+        const options = screen.getAllByRole('option');
+        expect(options[0]).toHaveAttribute('aria-disabled', 'true');
+        expect(options[1]).toHaveAttribute('aria-disabled', 'true');
     });
 });

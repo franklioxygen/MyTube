@@ -177,17 +177,17 @@ describe('useVideoCollections', () => {
         });
 
         await act(async () => {
-            await result.current.handleRemoveFromCollection();
+            await result.current.handleRemoveFromCollection('c1');
         });
 
-        expect(mockRemoveFromCollection).toHaveBeenCalledWith('v1');
+        expect(mockRemoveFromCollection).toHaveBeenCalledWith('c1', 'v1');
     });
 
     it('should not remove from a collection when no active video is selected', async () => {
         const { result } = renderHook(() => useVideoCollections({ videoId: undefined }));
 
         await act(async () => {
-            await result.current.handleRemoveFromCollection();
+            await result.current.handleRemoveFromCollection('c1');
         });
 
         expect(mockRemoveFromCollection).not.toHaveBeenCalled();
@@ -204,7 +204,7 @@ describe('useVideoCollections', () => {
         });
 
         await act(async () => {
-            await result.current.handleRemoveFromCollection();
+            await result.current.handleRemoveFromCollection('c1');
         });
 
         expect(consoleErrorSpy).toHaveBeenCalledWith('Error removing from collection:', removeError);

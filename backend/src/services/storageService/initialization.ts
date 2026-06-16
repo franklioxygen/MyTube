@@ -24,6 +24,7 @@ import {
   statTrustedSync,
   writeFileSafeSync,
 } from "../../utils/security";
+import { backfillLegacyCollectionOrigins } from "./authorCollectionUtils";
 import { findVideoFile } from "./fileHelpers";
 
 type VideoDownloadDuplicateGroup = {
@@ -486,6 +487,50 @@ export function initializeStorage(): void {
 
     // Check subscriptions table columns for playlist subscription fields
     try {
+      const collectionsTableInfo = sqlite
+        .prepare("PRAGMA table_info(collections)")
+        .all();
+      const collectionsColumns = (collectionsTableInfo as any[]).map(
+        (col: any) => col.name
+      );
+
+      if (
+        collectionsColumns.length > 0 &&
+        !collectionsColumns.includes("origin")
+      ) {
+        logger.info(
+          "Migrating database: Adding origin column to collections table..."
+        );
+        sqlite
+          .prepare("ALTER TABLE collections ADD COLUMN origin TEXT")
+          .run();
+        logger.info("Migration successful: origin added.");
+      }
+
+      if (collectionsColumns.length > 0) {
+        const sourceKeyColumns: Array<{ name: string; column: string }> = [
+          { name: "source_platform", column: "source_platform" },
+          { name: "source_type", column: "source_type" },
+          { name: "source_mid", column: "source_mid" },
+          { name: "source_id", column: "source_id" },
+        ];
+        for (const { name, column } of sourceKeyColumns) {
+          if (!collectionsColumns.includes(name)) {
+            logger.info(
+              `Migrating database: Adding ${column} column to collections table...`
+            );
+            sqlite
+              .prepare(`ALTER TABLE collections ADD COLUMN ${column} TEXT`)
+              .run();
+            logger.info(`Migration successful: ${column} added.`);
+          }
+        }
+      }
+
+      if (collectionsColumns.length > 0) {
+        backfillLegacyCollectionOrigins();
+      }
+
       const subscriptionsTableInfo = sqlite
         .prepare("PRAGMA table_info(subscriptions)")
         .all();

@@ -4,9 +4,17 @@ import * as collectionRepo from '../collectionRepository';
 import * as collectionsService from '../collections';
 import * as videosService from '../videos';
 
+const settingsMocks = vi.hoisted(() => ({
+  getSettings: vi.fn(() => ({}) as any),
+}));
+
 vi.mock('../collectionRepository');
 vi.mock('../collectionFileManager');
 vi.mock('../videos');
+vi.mock('../settings', () => ({
+  getSettings: () => settingsMocks.getSettings(),
+  invalidateSettingsCache: vi.fn(),
+}));
 vi.mock('../../utils/logger', () => ({
   logger: {
     info: vi.fn(),
@@ -17,6 +25,7 @@ vi.mock('../../utils/logger', () => ({
 describe('collectionsService', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        settingsMocks.getSettings.mockReturnValue({});
     });
 
     describe('generateUniqueCollectionName', () => {
@@ -60,6 +69,124 @@ describe('collectionsService', () => {
              expect(collectionFileManager.moveAllFilesToCollection).toHaveBeenCalled();
              expect(videosService.updateVideo).toHaveBeenCalledWith('vid1', { videoPath: '/new/path' });
         });
+
+        it('should preserve existing memberships when adding a video to another collection', () => {
+             const targetCollection = { id: 'col-target', name: 'Target', videos: [] };
+             const existingCollection = { id: 'col-existing', name: 'Existing', videos: ['vid1'] };
+
+             vi.mocked(collectionRepo.getCollections).mockReturnValue([
+                 existingCollection as any,
+                 targetCollection as any,
+             ]);
+             vi.mocked(collectionRepo.atomicUpdateCollection).mockImplementation((id, fn) => {
+                 const base = id === 'col-target' ? targetCollection : existingCollection;
+                 return fn({ ...base, videos: [...base.videos] } as any);
+             });
+
+             const result = collectionsService.addVideoToCollection('col-target', 'vid1', {
+                 moveFiles: false,
+             });
+
+             expect(collectionRepo.atomicUpdateCollection).toHaveBeenCalledTimes(1);
+             expect(result?.videos).toEqual(['vid1']);
+             expect(existingCollection.videos).toEqual(['vid1']);
+         });
+    });
+
+    describe('linkVideoToCollection', () => {
+        it('should add video without removing existing collection membership', () => {
+             const targetCollection = { id: 'col2', name: 'Target', videos: [] };
+
+             vi.mocked(collectionRepo.atomicUpdateCollection).mockImplementation((id, fn) => {
+                 const base = id === 'col2' ? targetCollection : { id, videos: ['vid1'] };
+                 return fn({ ...base } as any);
+             });
+
+             const result = collectionsService.linkVideoToCollection('col2', 'vid1', {
+                 moveFiles: false,
+             });
+
+             expect(collectionRepo.atomicUpdateCollection).toHaveBeenCalledTimes(1);
+             expect(result?.videos).toContain('vid1');
+         });
+
+        it('should insert the video at the requested collection order', () => {
+             const targetCollection = { id: 'col2', name: 'Target', videos: ['vid1', 'vid3'] };
+
+             vi.mocked(collectionRepo.atomicUpdateCollection).mockImplementation((id, fn) => {
+                 const base = id === 'col2' ? targetCollection : { id, videos: [] };
+                 return fn({ ...base } as any);
+             });
+
+             const result = collectionsService.linkVideoToCollection('col2', 'vid2', {
+                 moveFiles: false,
+                 order: 2,
+             });
+
+             expect(result?.videos).toEqual(['vid1', 'vid2', 'vid3']);
+         });
+
+        it('should not move files for omitted moveFiles under author_folder_only', () => {
+             const targetCollection = { id: 'col2', name: 'Playlist', videos: [] };
+             settingsMocks.getSettings.mockReturnValue({
+                 authorOrganizationMode: 'author_folder_only',
+             });
+             vi.mocked(collectionRepo.atomicUpdateCollection).mockImplementation((id, fn) => {
+                 return fn({ ...targetCollection, videos: [...targetCollection.videos] } as any);
+             });
+
+             const result = collectionsService.linkVideoToCollection('col2', 'vid1');
+
+             expect(result?.videos).toContain('vid1');
+             expect(collectionFileManager.moveAllFilesToCollection).not.toHaveBeenCalled();
+             expect(videosService.updateVideo).not.toHaveBeenCalled();
+         });
+    });
+
+    describe('moveVideoToExclusiveCollection', () => {
+        it('should remove the video from every previous collection before linking the new one', () => {
+             const targetCollection = { id: 'col-target', name: 'Target', videos: [] };
+             const oldCollectionOne = { id: 'col-old-1', name: 'Old One', videos: ['vid1'] };
+             const oldCollectionTwo = { id: 'col-old-2', name: 'Old Two', videos: ['vid1', 'vid2'] };
+
+             vi.mocked(collectionRepo.getCollections).mockReturnValue([
+                 targetCollection as any,
+                 oldCollectionOne as any,
+                 oldCollectionTwo as any,
+             ]);
+
+             vi.mocked(collectionRepo.atomicUpdateCollection).mockImplementation((id, fn) => {
+                 const base =
+                   id === 'col-target'
+                     ? targetCollection
+                     : id === 'col-old-1'
+                       ? oldCollectionOne
+                       : oldCollectionTwo;
+                 return fn({ ...base, videos: [...base.videos] } as any);
+             });
+
+             const result = collectionsService.moveVideoToExclusiveCollection('col-target', 'vid1', {
+                 moveFiles: false,
+             });
+
+             expect(collectionRepo.atomicUpdateCollection).toHaveBeenCalledTimes(3);
+             expect(collectionRepo.atomicUpdateCollection).toHaveBeenNthCalledWith(
+                 1,
+                 'col-old-1',
+                 expect.any(Function)
+             );
+             expect(collectionRepo.atomicUpdateCollection).toHaveBeenNthCalledWith(
+                 2,
+                 'col-old-2',
+                 expect.any(Function)
+             );
+             expect(collectionRepo.atomicUpdateCollection).toHaveBeenNthCalledWith(
+                 3,
+                 'col-target',
+                 expect.any(Function)
+             );
+             expect(result?.videos).toEqual(['vid1']);
+         });
     });
 
     describe('removeVideoFromCollection', () => {
@@ -91,17 +218,117 @@ describe('collectionsService', () => {
                  expect.any(Array)
              );
         });
+
+        it('should move files to the author folder under author_folder_only when no other collection holds the video (issue #295 1-B follow-on)', () => {
+             const mockCollection = { id: 'col1', name: 'Col Name', videos: ['vid1'] };
+             const mockVideo = { id: 'vid1', author: 'Author A' };
+
+             vi.mocked(collectionRepo.atomicUpdateCollection).mockImplementation((id, fn) => {
+                 const updated = fn({ ...mockCollection } as any);
+                 return updated;
+             });
+             vi.mocked(videosService.getVideoById).mockReturnValue(mockVideo as any);
+             vi.mocked(collectionRepo.getCollections).mockReturnValue([]); // no other collection
+             vi.mocked(collectionFileManager.moveAllFilesFromCollection).mockReturnValue({
+                 videoPath: '/videos/Author A/path',
+             });
+             settingsMocks.getSettings.mockReturnValue({
+                 authorOrganizationMode: 'author_folder_only',
+             });
+
+             collectionsService.removeVideoFromCollection('col1', 'vid1');
+
+             expect(collectionFileManager.moveAllFilesFromCollection).toHaveBeenCalledWith(
+                 expect.any(Object),
+                 expect.stringContaining('Author A'), // video dir = author folder, not root
+                 expect.any(String),
+                 expect.any(String),
+                 '/videos/Author A',
+                 '/images/Author A',
+                 '/subtitles/Author A',
+                 expect.any(Array)
+             );
+        });
+
+        it('should route to the author folder under author_folder_only even when another collection still holds the video (issue #295 #4)', () => {
+             const mockCollection = { id: 'col1', name: 'Col Name', videos: ['vid1'] };
+             const otherCollection = { id: 'col2', name: 'Other Col', videos: ['vid1'] };
+             const mockVideo = { id: 'vid1', author: 'Author A' };
+
+             vi.mocked(collectionRepo.atomicUpdateCollection).mockImplementation((id, fn) => {
+                 const updated = fn({ ...mockCollection } as any);
+                 return updated;
+             });
+             vi.mocked(videosService.getVideoById).mockReturnValue(mockVideo as any);
+             // The video still belongs to another collection after the unlink.
+             vi.mocked(collectionRepo.getCollections).mockReturnValue([
+                 otherCollection as any,
+             ]);
+             vi.mocked(collectionFileManager.moveAllFilesFromCollection).mockReturnValue({
+                 videoPath: '/videos/Author A/path',
+             });
+             settingsMocks.getSettings.mockReturnValue({
+                 authorOrganizationMode: 'author_folder_only',
+             });
+
+             collectionsService.removeVideoFromCollection('col1', 'vid1');
+
+             // author_folder_only wins over the other-collection branch: files must
+             // land in the author folder, not /videos/Other Col.
+             expect(collectionFileManager.moveAllFilesFromCollection).toHaveBeenCalledWith(
+                 expect.any(Object),
+                 expect.stringContaining('Author A'),
+                 expect.any(String),
+                 expect.any(String),
+                 '/videos/Author A',
+                 '/images/Author A',
+                 '/subtitles/Author A',
+                 expect.any(Array)
+             );
+             const [, targetVideoDir] = vi.mocked(
+                 collectionFileManager.moveAllFilesFromCollection
+             ).mock.calls[0];
+             expect(targetVideoDir).not.toContain('Other Col');
+        });
+
+        it('should remove video without moving files when explicitly disabled', () => {
+             const mockCollection = { id: 'col1', name: 'Col Name', videos: ['vid1'] };
+
+             vi.mocked(collectionRepo.atomicUpdateCollection).mockImplementation((id, fn) => {
+                 const updated = fn({ ...mockCollection } as any);
+                 return updated;
+             });
+
+             const result = collectionsService.removeVideoFromCollection('col1', 'vid1', {
+                 moveFiles: false,
+             });
+
+             expect(result?.videos).not.toContain('vid1');
+             expect(collectionFileManager.moveAllFilesFromCollection).not.toHaveBeenCalled();
+             expect(videosService.updateVideo).not.toHaveBeenCalled();
+        });
     });
 
     describe('deleteCollectionWithFiles', () => {
-        it('should move files back to root and delete collection', () => {
+        it('should remove collection memberships with file moves before deleting the collection', () => {
             const mockCollection = { id: 'col1', name: 'Col Name', videos: ['vid1'] };
             vi.mocked(collectionRepo.getCollectionById).mockReturnValue(mockCollection as any);
+            vi.mocked(collectionRepo.atomicUpdateCollection).mockImplementation((id, fn) => {
+                if (id !== 'col1') {
+                    return null;
+                }
+                return fn({ ...mockCollection, videos: [...mockCollection.videos] } as any);
+            });
+            vi.mocked(collectionRepo.getCollections).mockReturnValue([] as any);
             vi.mocked(videosService.getVideoById).mockReturnValue({ id: 'vid1' } as any);
             vi.mocked(collectionFileManager.moveAllFilesFromCollection).mockReturnValue({});
 
             collectionsService.deleteCollectionWithFiles('col1');
 
+            expect(collectionRepo.atomicUpdateCollection).toHaveBeenCalledWith(
+                'col1',
+                expect.any(Function)
+            );
             expect(collectionFileManager.moveAllFilesFromCollection).toHaveBeenCalled();
             expect(collectionFileManager.cleanupCollectionDirectories).toHaveBeenCalledWith('Col Name');
             expect(collectionRepo.deleteCollection).toHaveBeenCalledWith('col1');

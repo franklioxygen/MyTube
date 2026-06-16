@@ -19,6 +19,7 @@ const mockApiPost = vi.fn();
 const mockSaveMutate = vi.fn();
 const mockMigrateMutate = vi.fn();
 const mockCleanupMutate = vi.fn();
+const mockCleanupAuthorCollectionsMutate = vi.fn();
 const mockDeleteLegacyMutate = vi.fn();
 const mockFormatFilenamesMutate = vi.fn();
 const mockExportDatabaseMutate = vi.fn();
@@ -30,12 +31,14 @@ const mockRestoreFromLastBackupMutate = vi.fn();
 const mockRenameTagMutate = vi.fn();
 
 const mockSetShowDeleteLegacyModal = vi.fn();
+const mockSetShowCleanupAuthorCollectionsModal = vi.fn();
 const mockSetShowFormatConfirmModal = vi.fn();
 const mockSetShowMigrateConfirmModal = vi.fn();
 const mockSetShowCleanupTempFilesModal = vi.fn();
 const mockSetInfoModal = vi.fn();
 
 let modalState = {
+  showCleanupAuthorCollectionsModal: false,
   showDeleteLegacyModal: false,
   showFormatConfirmModal: false,
   showMigrateConfirmModal: false,
@@ -105,6 +108,8 @@ vi.mock('../../contexts/AuthContext', () => ({
 
 vi.mock('../../hooks/useSettingsModals', () => ({
   useSettingsModals: () => ({
+    showCleanupAuthorCollectionsModal: modalState.showCleanupAuthorCollectionsModal,
+    setShowCleanupAuthorCollectionsModal: mockSetShowCleanupAuthorCollectionsModal,
     showDeleteLegacyModal: modalState.showDeleteLegacyModal,
     setShowDeleteLegacyModal: mockSetShowDeleteLegacyModal,
     showFormatConfirmModal: modalState.showFormatConfirmModal,
@@ -134,6 +139,7 @@ vi.mock('../../hooks/useSettingsMutations', () => ({
     },
     migrateMutation: { isPending: false, mutate: (...args: any[]) => mockMigrateMutate(...args) },
     cleanupMutation: { isPending: false, mutate: (...args: any[]) => mockCleanupMutate(...args) },
+    cleanupAuthorCollectionsMutation: { isPending: false, mutate: (...args: any[]) => mockCleanupAuthorCollectionsMutate(...args) },
     deleteLegacyMutation: { isPending: false, mutate: (...args: any[]) => mockDeleteLegacyMutate(...args) },
     formatFilenamesMutation: { isPending: false, mutate: (...args: any[]) => mockFormatFilenamesMutate(...args) },
     exportDatabaseMutation: { isPending: false, mutate: (...args: any[]) => mockExportDatabaseMutate(...args) },
@@ -260,6 +266,7 @@ vi.mock('../../components/Settings/DatabaseSettings', () => ({
     onMigrate,
     onDeleteLegacy,
     onFormatFilenames,
+    onCleanupAuthorCollections,
     onExportDatabase,
     onImportDatabase,
     onPreviewMergeDatabase,
@@ -268,12 +275,13 @@ vi.mock('../../components/Settings/DatabaseSettings', () => ({
     onRestoreFromLastBackup,
     onMoveSubtitlesToVideoFolderChange,
     onMoveThumbnailsToVideoFolderChange,
-    onSaveAuthorFilesToCollectionChange,
+    onAuthorOrganizationModeChange,
   }: any) => (
     <div data-testid="database-settings">
       <button onClick={onMigrate}>open-migrate-modal</button>
       <button onClick={onDeleteLegacy}>open-delete-legacy-modal</button>
       <button onClick={onFormatFilenames}>open-format-modal</button>
+      <button onClick={onCleanupAuthorCollections}>open-author-cleanup-modal</button>
       <button onClick={onExportDatabase}>export-db</button>
       <button onClick={() => onImportDatabase(new File(['db'], 'db.zip'))}>import-db</button>
       <button onClick={() => onPreviewMergeDatabase(new File(['db'], 'merge-preview.db'))}>preview-merge-db</button>
@@ -282,7 +290,7 @@ vi.mock('../../components/Settings/DatabaseSettings', () => ({
       <button onClick={onRestoreFromLastBackup}>restore-last-backup</button>
       <button onClick={() => onMoveSubtitlesToVideoFolderChange(true)}>move-subtitles</button>
       <button onClick={() => onMoveThumbnailsToVideoFolderChange(true)}>move-thumbnails</button>
-      <button onClick={() => onSaveAuthorFilesToCollectionChange(true)}>save-author-files</button>
+      <button onClick={() => onAuthorOrganizationModeChange('author_collection_linked')}>save-author-files</button>
     </div>
   ),
 }));
@@ -335,6 +343,7 @@ describe('SettingsPage', () => {
     scanIsPending = false;
 
     modalState = {
+      showCleanupAuthorCollectionsModal: false,
       showDeleteLegacyModal: false,
       showFormatConfirmModal: false,
       showMigrateConfirmModal: false,
@@ -782,6 +791,7 @@ describe('SettingsPage', () => {
     fireEvent.click(screen.getByText('open-migrate-modal'));
     fireEvent.click(screen.getByText('open-delete-legacy-modal'));
     fireEvent.click(screen.getByText('open-format-modal'));
+    fireEvent.click(screen.getByText('open-author-cleanup-modal'));
     fireEvent.click(screen.getByText('export-db'));
     fireEvent.click(screen.getByText('import-db'));
     fireEvent.click(screen.getByText('preview-merge-db'));
@@ -801,6 +811,7 @@ describe('SettingsPage', () => {
     expect(mockSetShowMigrateConfirmModal).toHaveBeenCalledWith(true);
     expect(mockSetShowDeleteLegacyModal).toHaveBeenCalledWith(true);
     expect(mockSetShowFormatConfirmModal).toHaveBeenCalledWith(true);
+    expect(mockSetShowCleanupAuthorCollectionsModal).toHaveBeenCalledWith(true);
     expect(mockExportDatabaseMutate).toHaveBeenCalled();
     expect(mockImportDatabaseMutate).toHaveBeenCalled();
     expect(mockPreviewMergeDatabaseMutateAsync).toHaveBeenCalled();
@@ -814,6 +825,7 @@ describe('SettingsPage', () => {
   it('handles sticky save button and confirmation modal confirm/close actions', async () => {
     mockIsSticky = true;
     modalState = {
+      showCleanupAuthorCollectionsModal: true,
       showDeleteLegacyModal: true,
       showFormatConfirmModal: true,
       showMigrateConfirmModal: true,
@@ -824,11 +836,13 @@ describe('SettingsPage', () => {
     renderPage('/settings');
 
     expect(screen.getByTestId('confirmation-removeLegacyDataConfirmTitle')).toBeInTheDocument();
+    expect(screen.getByTestId('confirmation-cleanupAuthorCollectionsConfirmTitle')).toBeInTheDocument();
     expect(screen.getByTestId('confirmation-migrateDataButton')).toBeInTheDocument();
     expect(screen.getByTestId('confirmation-formatLegacyFilenamesButton')).toBeInTheDocument();
     expect(screen.getByTestId('confirmation-cleanupTempFilesConfirmTitle')).toBeInTheDocument();
     expect(screen.getByTestId('confirmation-info-title')).toBeInTheDocument();
 
+    fireEvent.click(screen.getByText('confirm-cleanupAuthorCollectionsConfirmTitle'));
     fireEvent.click(screen.getByText('confirm-removeLegacyDataConfirmTitle'));
     fireEvent.click(screen.getByText('confirm-migrateDataButton'));
     fireEvent.click(screen.getByText('confirm-formatLegacyFilenamesButton'));
@@ -836,10 +850,12 @@ describe('SettingsPage', () => {
     fireEvent.click(screen.getByText('close-info-title'));
     fireEvent.click(screen.getByText('confirm-info-title'));
 
+    expect(mockCleanupAuthorCollectionsMutate).toHaveBeenCalled();
     expect(mockDeleteLegacyMutate).toHaveBeenCalled();
     expect(mockMigrateMutate).toHaveBeenCalled();
     expect(mockFormatFilenamesMutate).toHaveBeenCalled();
     expect(mockCleanupMutate).toHaveBeenCalled();
+    expect(mockSetShowCleanupAuthorCollectionsModal).toHaveBeenCalledWith(false);
     expect(mockSetShowDeleteLegacyModal).toHaveBeenCalledWith(false);
     expect(mockSetShowMigrateConfirmModal).toHaveBeenCalledWith(false);
     expect(mockSetShowFormatConfirmModal).toHaveBeenCalledWith(false);

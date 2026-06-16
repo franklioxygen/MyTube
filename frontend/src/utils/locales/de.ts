@@ -828,10 +828,13 @@ export const de = {
   speed: "Geschwindigkeit",
   finishedAt: "Beendet am",
   failed: "Fehlgeschlagen",
+  partialDownload: "Unvollständig",
   pendingRetry: "Wiederholung ausstehend",
   cancelRetry: "Wiederholung abbrechen",
   retryScheduledFor: "Wiederholung geplant für",
   retryAttemptProgress: "Wiederholung {current} von {total}",
+  missingEpisodes: "Fehlende Folgen",
+  missingVideos: "Fehlende Videos",
 
 
   // Snackbar Messages
@@ -1104,6 +1107,35 @@ export const de = {
   saveAuthorFilesToCollectionOff: "In Stammordnern speichern",
   saveAuthorFilesToCollectionDescription:
     "Wenn aktiviert, werden neu heruntergeladene Videos, Thumbnails und Untertitel automatisch in Sammlungen organisiert, die nach dem Videoautor benannt sind. Wenn eine Sammlung nicht existiert, wird sie automatisch erstellt.",
+  authorOrganizationMode: "Autorenorganisation",
+  authorOrganizationModeDescription:
+    "Lege fest, ob Autorennamen physische Ordner, logische Sammlungen oder keines von beidem beeinflussen.",
+  authorOrganizationModeRoot: "In Stammordnern belassen",
+  authorOrganizationModeRootDescription:
+    "Es werden keine Autorenordner oder Autorensammlungen erstellt. Nur Playlist- und manuelle Sammlungen gelten.",
+  authorOrganizationModeAuthorFolderOnly: "Nur Autorenordner",
+  authorOrganizationModeAuthorFolderOnlyDescription:
+    "Bei Legacy-Dateinamen werden Dateien in nach dem Autor benannte Ordner verschoben, ohne eine Autorensammlung zu verknüpfen.",
+  authorOrganizationModeAuthorCollectionLinked: "Autorensammlung + Ordner",
+  authorOrganizationModeAuthorCollectionLinkedDescription:
+    "Verknüpft Videos mit einer Autorensammlung. Bei Legacy-Dateinamen werden Dateien zusätzlich in den Autorenordner verschoben.",
+  authorOrganizationModeRecommendation:
+    "Wenn du autorbasierte Ordner ohne doppelte Autorensammlungen in MyTube willst, verwende Nur Autorenordner.",
+  authorOrganizationModeTemplateNote:
+    "Nicht-Legacy-Dateinamenvorlagen steuern die physische Ordnerstruktur. In diesen Modi beeinflusst die Autorenorganisation nur die Sammlungsverknüpfung.",
+  cleanupAuthorCollections: "Vorhandene Autorensammlungen bereinigen",
+  cleanupAuthorCollectionsDescription:
+    "Nach dem Wechsel zu Nur Autorenordner werden redundante Autorensammlungs-Links von Videos entfernt, die bereits zu einer anderen Sammlung gehören. Dateien auf der Festplatte werden nicht verschoben.",
+  cleanupAuthorCollectionsButton: "Redundante Links entfernen",
+  cleanupAuthorCollectionsConfirmTitle: "Redundante Autorensammlungs-Links entfernen",
+  cleanupAuthorCollectionsConfirmMessage:
+    "Dadurch werden Autorensammlungen von Videos gelöst, die bereits zu einer anderen Sammlung gehören. Leere Autorensammlungen werden gelöscht. Dateien auf der Festplatte bleiben unverändert.",
+  cleanupAuthorCollectionsSuccess:
+    "{links} Links über {videos} Videos entfernt. {collections} leere Autorensammlungen gelöscht.",
+  cleanupAuthorCollectionsNothingToDo:
+    "Es mussten keine redundanten Autorensammlungs-Links bereinigt werden.",
+  cleanupAuthorCollectionsFailed:
+    "Bereinigung der Autorensammlungen fehlgeschlagen",
 
 
   // Cloudflare Tunnel
@@ -1306,6 +1338,10 @@ export const de = {
   filenamePreviewVideo: "Video",
   filenamePreviewThumbnail: "Miniaturbild",
   filenamePreviewSubtitle: "Untertitel",
+  filenameWarningMediaPlaylistIndexUnavailable:
+    "media_playlist_index ist für Nicht-Playlist-Quellen nicht verfügbar und fällt auf 00 zurück.",
+  filenameWarningSourceCollectionMetadataMayBeEmpty:
+    "source_collection_name/id kann bei Einzelvideo-Downloads leer sein.",
   filenameValidating: "Wird geprüft…",
   filenameValidationError: "Vorlagenfehler",
   filenameBatchRenameButton:

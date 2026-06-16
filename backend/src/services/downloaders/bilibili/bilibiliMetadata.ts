@@ -138,6 +138,24 @@ export async function getVideoDuration(
 }
 
 /**
+ * Get the pixel height of a downloaded video (issue #295 2-1).
+ * Used to detect under-resolution downloads so they can be retried.
+ */
+export async function getVideoHeight(
+  videoPath: string
+): Promise<number | null> {
+  try {
+    const { getVideoHeight } = await import(
+      "../../../services/metadataService"
+    );
+    return await getVideoHeight(videoPath);
+  } catch (e) {
+    logger.error("Failed to extract height from Bilibili video:", e);
+    return null;
+  }
+}
+
+/**
  * Get file size from file
  */
 export function getFileSize(filePath: string): string | undefined {

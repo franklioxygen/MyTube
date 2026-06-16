@@ -185,6 +185,13 @@ export const en = {
   preferredAudioLanguage_pl: "Polish",
   preferredAudioLanguage_tr: "Turkish",
   preferredAudioLanguage_vi: "Vietnamese",
+  preferredVideoResolution: "Preferred video resolution",
+  preferredVideoResolutionDescription:
+    "Prefer a maximum resolution when downloading. yt-dlp picks the best stream at or below this height, which keeps collection episodes from inconsistently falling back to a low resolution. Overridden by custom yt-dlp config.",
+  preferredVideoResolutionAuto: "Auto (best available)",
+  preferredVideoResolutionStrict: "Strictly enforce the resolution cap",
+  preferredVideoResolutionStrictDescription:
+    "When on, an episode that has no stream at or below the cap fails instead of downloading a higher resolution. Leave off to treat the resolution as a soft preference.",
   defaultVideoCodec: "Preferred video codec",
   defaultVideoCodecDescription:
     "Prefer a specific video codec when downloading. yt-dlp will try to select this codec when available, falling back to other codecs if not. Overridden by custom yt-dlp config.",
@@ -537,7 +544,7 @@ export const en = {
   noOtherVideos: "No other videos available",
   currentlyIn: "Currently in:",
   collectionWarning:
-    "Adding to a different collection will remove it from the current one.",
+    "Videos can belong to multiple collections. Removing one link keeps the others.",
   addToExistingCollection: "Add to existing collection:",
   selectCollection: "Select a collection",
   add: "Add",
@@ -774,10 +781,13 @@ export const en = {
   speed: "Speed",
   finishedAt: "Finished At",
   failed: "Failed",
+  partialDownload: "Incomplete",
   pendingRetry: "Pending Retry",
   cancelRetry: "Cancel Retry",
   retryScheduledFor: "Retry scheduled for",
   retryAttemptProgress: "Retry {current} of {total}",
+  missingEpisodes: "Missing episodes",
+  missingVideos: "Missing videos",
 
   // Snackbar Messages
   videoDownloading: "Video downloading",
@@ -1035,6 +1045,34 @@ export const en = {
   saveAuthorFilesToCollectionOff: "Save to root folders",
   saveAuthorFilesToCollectionDescription:
     "When enabled, new downloaded videos, thumbnails, and subtitles will be automatically organized into collections named after the video author. If a collection doesn't exist, it will be created automatically.",
+  authorOrganizationMode: "Author Organization",
+  authorOrganizationModeDescription:
+    "Choose whether author names affect physical folders, logical collections, or neither.",
+  authorOrganizationModeRoot: "Keep in root folders",
+  authorOrganizationModeRootDescription:
+    "Do not create author folders or author collections. Only playlist and manual collections apply.",
+  authorOrganizationModeAuthorFolderOnly: "Author folders only",
+  authorOrganizationModeAuthorFolderOnlyDescription:
+    "With legacy filenames, move files into author-named folders without linking an author collection.",
+  authorOrganizationModeAuthorCollectionLinked: "Author collection + folder",
+  authorOrganizationModeAuthorCollectionLinkedDescription:
+    "Link videos to an author collection. With legacy filenames, files also move into the author folder.",
+  authorOrganizationModeRecommendation:
+    "If you want author-based folders without duplicate author collections in MyTube, use Author folders only.",
+  authorOrganizationModeTemplateNote:
+    "Non-legacy filename presets control the physical folder structure. In those modes, author organization only affects collection linking.",
+  cleanupAuthorCollections: "Clean Up Existing Author Collections",
+  cleanupAuthorCollectionsDescription:
+    "After switching to Author folders only, remove redundant author-collection links from videos that already belong to another collection. Files on disk are not moved.",
+  cleanupAuthorCollectionsButton: "Remove Redundant Links",
+  cleanupAuthorCollectionsConfirmTitle: "Remove Redundant Author Collection Links",
+  cleanupAuthorCollectionsConfirmMessage:
+    "This will unlink author collections from videos that already belong to another collection. Empty author collections will be deleted. Files on disk will stay where they are.",
+  cleanupAuthorCollectionsSuccess:
+    "Removed {links} links across {videos} videos. Deleted {collections} empty author collections.",
+  cleanupAuthorCollectionsNothingToDo:
+    "No redundant author collection links needed cleanup.",
+  cleanupAuthorCollectionsFailed: "Failed to clean up author collections",
 
   // Cloudflare Tunnel
   cloudflaredTunnel: "Cloudflare Tunnel",
@@ -1229,6 +1267,10 @@ export const en = {
   filenamePreviewVideo: "Video",
   filenamePreviewThumbnail: "Thumbnail",
   filenamePreviewSubtitle: "Subtitle",
+  filenameWarningMediaPlaylistIndexUnavailable:
+    "media_playlist_index is unavailable for non-playlist sources and will fall back to 00.",
+  filenameWarningSourceCollectionMetadataMayBeEmpty:
+    "source_collection_name/id may be empty for single-video downloads.",
   filenameValidating: "Validating…",
   filenameValidationError: "Template error",
   filenameBatchRenameButton: "Rename existing files to match current pattern",

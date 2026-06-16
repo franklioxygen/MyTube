@@ -39,6 +39,16 @@ interface MigrationResults {
   downloads?: MigrationCategoryResult;
 }
 
+interface CleanupAuthorCollectionsResults {
+  scannedCollections: number;
+  matchedAuthorCollections: number;
+  removedMemberships: number;
+  affectedVideos: number;
+  deletedCollections: string[];
+  skippedCollections: string[];
+  details: string[];
+}
+
 export interface MergePreviewSummary {
   videos: { merged: number; skipped: number };
   collections: { merged: number; skipped: number };
@@ -386,6 +396,43 @@ export function useSettingsMutations({
     },
   });
 
+  const cleanupAuthorCollectionsMutation = useMutation({
+    mutationFn: async () => {
+      const res = await api.post("/settings/cleanup-author-collections");
+      return res.data.results as CleanupAuthorCollectionsResults;
+    },
+    onSuccess: (results) => {
+      const deletedCount = results.deletedCollections.length;
+      const baseMessage =
+        results.removedMemberships > 0
+          ? t("cleanupAuthorCollectionsSuccess")
+              .replace("{links}", results.removedMemberships.toString())
+              .replace("{videos}", results.affectedVideos.toString())
+              .replace("{collections}", deletedCount.toString())
+          : t("cleanupAuthorCollectionsNothingToDo");
+
+      const details =
+        results.details.length > 0 ? `\n\n${results.details.join("\n")}` : "";
+
+      setInfoModal({
+        isOpen: true,
+        title: results.removedMemberships > 0 ? t("success") : t("info"),
+        message: `${baseMessage}${details}`,
+        type: results.removedMemberships > 0 ? "success" : "info",
+      });
+      invalidateDatabaseQueries();
+    },
+    onError: async (error: unknown) => {
+      const detail = await getApiErrorMessage(error, t);
+      setInfoModal({
+        isOpen: true,
+        title: t("error"),
+        message: formatErrorText(t("cleanupAuthorCollectionsFailed"), detail),
+        type: "error",
+      });
+    },
+  });
+
   // Export database mutation
   const exportDatabaseMutation = useMutation({
     mutationFn: async () => {
@@ -609,6 +656,7 @@ export function useSettingsMutations({
     saveMutation.isPending ||
     migrateMutation.isPending ||
     cleanupMutation.isPending ||
+    cleanupAuthorCollectionsMutation.isPending ||
     deleteLegacyMutation.isPending ||
     formatFilenamesMutation.isPending ||
     exportDatabaseMutation.isPending ||
@@ -621,6 +669,7 @@ export function useSettingsMutations({
     saveMutation,
     migrateMutation,
     cleanupMutation,
+    cleanupAuthorCollectionsMutation,
     deleteLegacyMutation,
     formatFilenamesMutation,
     exportDatabaseMutation,

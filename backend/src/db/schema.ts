@@ -48,8 +48,17 @@ export const collections = sqliteTable("collections", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   title: text("title"), // Keeping for backward compatibility/alias
+  origin: text("origin"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at"),
+  // Stable source identity for re-download/repair dedup (issue #295).
+  // For Bilibili: sourcePlatform="bilibili", sourceType="collection"|"series",
+  // sourceMid=uploader mid, sourceId=season/series id. Stored as text to avoid
+  // integer precision concerns and to stay platform-agnostic.
+  sourcePlatform: text("source_platform"),
+  sourceType: text("source_type"),
+  sourceMid: text("source_mid"),
+  sourceId: text("source_id"),
 });
 
 export const collectionVideos = sqliteTable(
@@ -123,7 +132,7 @@ export const downloadHistory = sqliteTable(
     author: text("author"),
     sourceUrl: text("source_url"),
     finishedAt: integer("finished_at").notNull(), // Timestamp
-    status: text("status").notNull(), // 'success', 'failed', 'skipped', 'deleted', or 'pending_retry'
+    status: text("status").notNull(), // 'success', 'failed', 'partial', 'skipped', 'deleted', or 'pending_retry'
     error: text("error"), // Error message if failed
     videoPath: text("video_path"), // Path to video file if successful
     thumbnailPath: text("thumbnail_path"), // Path to thumbnail if successful

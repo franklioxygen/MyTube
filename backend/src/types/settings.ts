@@ -6,6 +6,10 @@ export type DownloadFilenamePresetId =
   | "custom";
 
 export type MediaServerExportMode = "off" | "nfo" | "nfo_and_source_json";
+export type AuthorOrganizationMode =
+  | "root"
+  | "author_folder_only"
+  | "author_collection_linked";
 
 export interface Settings {
   loginEnabled: boolean;
@@ -37,6 +41,7 @@ export interface Settings {
   proxyOnlyYoutube?: boolean;
   moveSubtitlesToVideoFolder?: boolean;
   moveThumbnailsToVideoFolder?: boolean;
+  authorOrganizationMode?: AuthorOrganizationMode;
   saveAuthorFilesToCollection?: boolean;
   visitorPassword?: string;
   visitorUserEnabled?: boolean;
@@ -52,6 +57,12 @@ export interface Settings {
   defaultSort?: string;
   preferredAudioLanguage?: string;
   defaultVideoCodec?: string;
+  // Preferred maximum video resolution height (issue #295). "auto" lets the
+  // downloader pick the best available; a numeric string (e.g. "1080") caps the
+  // selection. When preferredVideoResolutionStrict is true, an episode that
+  // cannot meet the cap fails instead of falling back to a lower resolution.
+  preferredVideoResolution?: string;
+  preferredVideoResolutionStrict?: boolean;
   authorTags?: Record<string, string[]>;
   collectionTags?: Record<string, string[]>;
   showTagsOnThumbnail?: boolean;
@@ -106,6 +117,9 @@ export const defaultSettings: Settings = {
   websiteName: "MyTube",
   itemsPerPage: 12,
   showYoutubeSearch: true,
+  authorOrganizationMode: "root",
+  preferredVideoResolution: "auto",
+  preferredVideoResolutionStrict: false,
   infiniteScroll: false,
   videoColumns: 4,
   pauseOnFocusLoss: false,
@@ -131,3 +145,44 @@ export const defaultSettings: Settings = {
   statisticsTrackVisitorActivity: false,
   statisticsKeepDataWhenDisabled: true,
 };
+
+export function isAuthorOrganizationMode(
+  value: unknown
+): value is AuthorOrganizationMode {
+  return (
+    value === "root" ||
+    value === "author_folder_only" ||
+    value === "author_collection_linked"
+  );
+}
+
+export function resolveAuthorOrganizationMode(settings: {
+  authorOrganizationMode?: unknown;
+  saveAuthorFilesToCollection?: unknown;
+}): AuthorOrganizationMode {
+  if (isAuthorOrganizationMode(settings.authorOrganizationMode)) {
+    return settings.authorOrganizationMode;
+  }
+
+  return settings.saveAuthorFilesToCollection === true
+    ? "author_collection_linked"
+    : "root";
+}
+
+export function authorOrganizationModeToLegacySetting(
+  mode: AuthorOrganizationMode
+): boolean {
+  return mode === "author_collection_linked";
+}
+
+export function usesAuthorCollectionLinking(
+  mode: AuthorOrganizationMode
+): boolean {
+  return mode === "author_collection_linked";
+}
+
+export function usesAuthorFolderOrganization(
+  mode: AuthorOrganizationMode
+): boolean {
+  return mode !== "root";
+}

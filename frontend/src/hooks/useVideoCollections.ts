@@ -71,11 +71,11 @@ export function useVideoCollections({ videoId }: UseVideoCollectionsProps) {
         }
     };
 
-    const handleRemoveFromCollection = async () => {
+    const handleRemoveFromCollection = async (collectionId: string) => {
         if (!activeCollectionVideoId) return;
 
         try {
-            await removeFromCollection(activeCollectionVideoId);
+            await removeFromCollection(collectionId, activeCollectionVideoId);
         } catch (error) {
             console.error('Error removing from collection:', error);
         }

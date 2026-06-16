@@ -12,7 +12,7 @@ import {
     Typography
 } from '@mui/material';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import DeleteCollectionModal from '../components/DeleteCollectionModal';
 import SortControl from '../components/SortControl';
 import TagsModal from '../components/TagsModal';
@@ -25,11 +25,13 @@ import { useSnackbar } from '../contexts/SnackbarContext';
 import { useVideo } from '../contexts/VideoContext';
 import { useSettings } from '../hooks/useSettings';
 import { useVideoSort } from '../hooks/useVideoSort';
+import type { Video } from '../types';
 
 
 const CollectionPage: React.FC = () => {
     const { t } = useLanguage();
     const { id } = useParams<{ id: string }>();
+    const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const { showSnackbar } = useSnackbar();
     const { collections, deleteCollection } = useCollection();
@@ -45,9 +47,16 @@ const CollectionPage: React.FC = () => {
     const ITEMS_PER_PAGE = 12;
 
     const collection = collections.find(c => c.id === id);
-    const collectionVideos = useMemo(() => collection
-        ? videos.filter(video => collection.videos.includes(video.id))
-        : [], [collection, videos]);
+    const videosById = useMemo(
+        () => new Map(videos.map(video => [video.id, video])),
+        [videos]
+    );
+    const collectionVideos = useMemo(() => {
+        if (!collection) return [];
+        return collection.videos
+            .map(videoId => videosById.get(videoId))
+            .filter((video): video is Video => Boolean(video));
+    }, [collection, videosById]);
     const availableTags = useMemo(
         () => Array.from(new Set(collectionVideos.flatMap(v => v.tags || []))).sort(),
         [collectionVideos]
@@ -113,7 +122,8 @@ const CollectionPage: React.FC = () => {
     } = useVideoSort({
         videos: videosFilteredByTags,
         defaultSort: 'dateDesc',
-        onSortChange: () => setPage(1)
+        onSortChange: () => setPage(1),
+        preserveOrder: !searchParams.has('sort'),
     });
 
     // Pagination logic

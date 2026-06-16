@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { formatVideoFilename } from "../../../utils/helpers";
 
 const mocks = vi.hoisted(() => ({
   existsSync: vi.fn(),
@@ -10,7 +11,7 @@ const mocks = vi.hoisted(() => ({
   getVideoBySourceUrl: vi.fn(),
   updateVideo: vi.fn(),
   saveVideo: vi.fn(),
-  addVideoToAuthorCollection: vi.fn(),
+  organizeVideoByAuthor: vi.fn(),
   updateActiveDownload: vi.fn(),
   isThumbnailReferencedByOtherVideo: vi.fn(),
   getVideoById: vi.fn(),
@@ -22,6 +23,9 @@ const mocks = vi.hoisted(() => ({
   getNetworkConfigFromUserConfig: vi.fn(),
   getAxiosProxyConfig: vi.fn(),
   prepareBilibiliDownloadFlags: vi.fn(),
+  resolveResolutionPreference: vi.fn(),
+  resolveResolutionRetryTarget: vi.fn(),
+  getVideoHeight: vi.fn(),
   createTempDir: vi.fn(),
   cleanupTempDir: vi.fn(),
   findVideoFileInTemp: vi.fn(),
@@ -91,8 +95,8 @@ vi.mock("../../../services/storageService", () => ({
   getVideoBySourceUrl: (...args: any[]) => mocks.getVideoBySourceUrl(...args),
   updateVideo: (...args: any[]) => mocks.updateVideo(...args),
   saveVideo: (...args: any[]) => mocks.saveVideo(...args),
-  addVideoToAuthorCollection: (...args: any[]) =>
-    mocks.addVideoToAuthorCollection(...args),
+  organizeVideoByAuthor: (...args: any[]) =>
+    mocks.organizeVideoByAuthor(...args),
   updateActiveDownload: (...args: any[]) =>
     mocks.updateActiveDownload(...args),
   isThumbnailReferencedByOtherVideo: (...args: any[]) =>
@@ -131,6 +135,10 @@ vi.mock("../../../services/downloaders/BaseDownloader", () => ({
 vi.mock("../../../services/downloaders/bilibili/bilibiliConfig", () => ({
   prepareBilibiliDownloadFlags: (...args: any[]) =>
     mocks.prepareBilibiliDownloadFlags(...args),
+  resolveResolutionPreference: (...args: any[]) =>
+    mocks.resolveResolutionPreference(...args),
+  resolveResolutionRetryTarget: (...args: any[]) =>
+    mocks.resolveResolutionRetryTarget(...args),
 }));
 
 vi.mock("../../../services/downloaders/bilibili/bilibiliFileManager", () => ({
@@ -149,6 +157,7 @@ vi.mock("../../../services/downloaders/bilibili/bilibiliMetadata", () => ({
   extractPartMetadata: (...args: any[]) => mocks.extractPartMetadata(...args),
   getFileSize: (...args: any[]) => mocks.getFileSize(...args),
   getVideoDuration: (...args: any[]) => mocks.getVideoDuration(...args),
+  getVideoHeight: (...args: any[]) => mocks.getVideoHeight(...args),
 }));
 
 vi.mock("../../../services/downloaders/bilibili/bilibiliSubtitle", () => ({
@@ -183,11 +192,12 @@ describe("bilibiliVideo.downloadSinglePart", () => {
     mocks.getSettings.mockReturnValue({
       moveThumbnailsToVideoFolder: false,
       moveSubtitlesToVideoFolder: false,
+      authorOrganizationMode: "root",
       saveAuthorFilesToCollection: false,
     });
     mocks.getVideoBySourceUrl.mockReturnValue(null);
     mocks.updateVideo.mockReturnValue({ id: "existing-video" });
-    mocks.addVideoToAuthorCollection.mockReturnValue(null);
+    mocks.organizeVideoByAuthor.mockReturnValue(null);
     mocks.isThumbnailReferencedByOtherVideo.mockReturnValue(false);
     mocks.resolveManagedThumbnailWebPathFromAbsolutePath.mockReturnValue(null);
     mocks.executeYtDlpJson.mockResolvedValue({
@@ -201,6 +211,12 @@ describe("bilibiliVideo.downloadSinglePart", () => {
     mocks.getUserYtDlpConfig.mockReturnValue({ mergeOutputFormat: "mp4" });
     mocks.getNetworkConfigFromUserConfig.mockReturnValue({});
     mocks.prepareBilibiliDownloadFlags.mockReturnValue({ flags: [] });
+    mocks.resolveResolutionPreference.mockReturnValue({
+      height: null,
+      strict: false,
+    });
+    mocks.resolveResolutionRetryTarget.mockReturnValue(null);
+    mocks.getVideoHeight.mockResolvedValue(null);
     mocks.createTempDir.mockReturnValue("/mock/videos/temp-dir");
     mocks.cleanupTempDir.mockResolvedValue(undefined);
     mocks.findVideoFileInTemp.mockReturnValue("video.mp4");
@@ -358,7 +374,7 @@ describe("bilibiliVideo.downloadSinglePart", () => {
     mocks.getSettings.mockReturnValue({
       moveThumbnailsToVideoFolder: false,
       moveSubtitlesToVideoFolder: false,
-      saveAuthorFilesToCollection: false,
+      authorOrganizationMode: "author_collection_linked",
       downloadFilenamePresetId: "channel_year_date_index",
     });
 
@@ -373,11 +389,12 @@ describe("bilibiliVideo.downloadSinglePart", () => {
     );
 
     expect(result.success).toBe(true);
-    expect(mocks.addVideoToAuthorCollection).toHaveBeenCalledWith(
+    expect(mocks.organizeVideoByAuthor).toHaveBeenCalledWith(
       expect.any(String),
       "Mock Author",
-      false,
+      "author_collection_linked",
       "channel_year_date_index",
+      { moveFiles: false },
     );
   });
 
@@ -385,7 +402,7 @@ describe("bilibiliVideo.downloadSinglePart", () => {
     mocks.getSettings.mockReturnValue({
       moveThumbnailsToVideoFolder: false,
       moveSubtitlesToVideoFolder: false,
-      saveAuthorFilesToCollection: false,
+      authorOrganizationMode: "author_collection_linked",
       downloadFilenamePresetId: "channel_year_date_index",
     });
     mocks.getVideoBySourceUrl.mockReturnValue(buildExistingVideo());
@@ -401,11 +418,269 @@ describe("bilibiliVideo.downloadSinglePart", () => {
     );
 
     expect(result.success).toBe(true);
-    expect(mocks.addVideoToAuthorCollection).toHaveBeenCalledWith(
+    expect(mocks.organizeVideoByAuthor).toHaveBeenCalledWith(
       "existing-video",
       "Mock Author",
-      false,
+      "author_collection_linked",
       "channel_year_date_index",
+      { moveFiles: false },
     );
+  });
+
+  it("allows direct single-video downloads to keep legacy author-folder moves enabled", async () => {
+    mocks.getSettings.mockReturnValue({
+      moveThumbnailsToVideoFolder: false,
+      moveSubtitlesToVideoFolder: false,
+      authorOrganizationMode: "author_folder_only",
+      downloadFilenamePresetId: "legacy",
+    });
+
+    const result = await downloadSinglePart(
+      "https://www.bilibili.com/video/BV1single",
+      1,
+      1,
+      "",
+      "download-direct",
+    );
+
+    expect(result.success).toBe(true);
+    expect(mocks.organizeVideoByAuthor).toHaveBeenCalledWith(
+      expect.any(String),
+      "Mock Author",
+      "author_folder_only",
+      "legacy",
+      undefined,
+    );
+  });
+
+  it("relocates collection videos into the author folder under author_folder_only (legacy)", async () => {
+    mocks.getSettings.mockReturnValue({
+      moveThumbnailsToVideoFolder: false,
+      moveSubtitlesToVideoFolder: false,
+      authorOrganizationMode: "author_folder_only",
+      downloadFilenamePresetId: "legacy",
+    });
+
+    const result = await downloadSinglePart(
+      "https://www.bilibili.com/video/BV1afo",
+      1,
+      1,
+      "",
+      "download-afo",
+      undefined,
+      "Collection",
+    );
+
+    expect(result.success).toBe(true);
+    // undefined options => organizeVideoByAuthor falls back to the legacy move,
+    // pulling the collection episode (and its subtitles) into the author folder
+    // instead of leaving it in /videos/Collection (issue #295 2-2 / 2-3).
+    expect(mocks.organizeVideoByAuthor).toHaveBeenCalledWith(
+      expect.any(String),
+      "Mock Author",
+      "author_folder_only",
+      "legacy",
+      undefined,
+    );
+  });
+
+  it("retries once at a height floor when an episode downloads below the preferred resolution", async () => {
+    mocks.resolveResolutionPreference.mockReturnValue({
+      height: 1080,
+      strict: false,
+    });
+    mocks.getVideoHeight.mockResolvedValue(480);
+    mocks.resolveResolutionRetryTarget.mockReturnValue(1080);
+
+    const result = await downloadSinglePart(
+      "https://www.bilibili.com/video/BV1lowres",
+      1,
+      1,
+      "",
+      "download-lowres",
+    );
+
+    expect(result.success).toBe(true);
+    // The retry re-prepares flags with the resolved floor.
+    expect(mocks.prepareBilibiliDownloadFlags).toHaveBeenCalledWith(
+      "https://www.bilibili.com/video/BV1lowres",
+      expect.any(String),
+      { retryFloorHeight: 1080 },
+    );
+    // Exactly one retry: two yt-dlp invocations total for the single part.
+    expect(mocks.executeYtDlpSpawn).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not delete the first downloaded file when cancelling the resolution retry", async () => {
+    const cancelCallbacks: Array<() => void | Promise<void>> = [];
+    mocks.resolveResolutionPreference.mockReturnValue({
+      height: 1080,
+      strict: false,
+    });
+    mocks.getVideoHeight.mockResolvedValue(480);
+    mocks.resolveResolutionRetryTarget.mockReturnValue(1080);
+
+    const result = await downloadSinglePart(
+      "https://www.bilibili.com/video/BV1retrycancel",
+      1,
+      1,
+      "",
+      "download-retrycancel",
+      (cancel) => {
+        cancelCallbacks.push(cancel);
+      },
+    );
+
+    expect(result.success).toBe(true);
+    expect(cancelCallbacks).toHaveLength(2);
+
+    await cancelCallbacks[1]();
+
+    expect(mocks.cleanupFilesOnCancellation).toHaveBeenCalledTimes(1);
+    expect(mocks.cleanupFilesOnCancellation).toHaveBeenCalledWith(
+      undefined,
+      undefined,
+      "/mock/videos/temp-dir",
+    );
+  });
+
+  it("keeps the original metadata and file when the resolution retry fails", async () => {
+    mocks.resolveResolutionPreference.mockReturnValue({
+      height: 1080,
+      strict: false,
+    });
+    mocks.getVideoHeight.mockResolvedValue(480);
+    mocks.resolveResolutionRetryTarget.mockReturnValue(1080);
+    // First download finds the file; the retry finds nothing, so it fails and
+    // returns the generic "Bilibili Video" / "Bilibili User" fallback object.
+    mocks.findVideoFileInTemp
+      .mockReturnValueOnce("video.mp4")
+      .mockReturnValueOnce(null);
+
+    const result = await downloadSinglePart(
+      "https://www.bilibili.com/video/BV1retryfail",
+      1,
+      1,
+      "",
+      "download-retryfail",
+    );
+
+    expect(result.success).toBe(true);
+    expect(mocks.executeYtDlpSpawn).toHaveBeenCalledTimes(2);
+    // The saved video must carry the real metadata from the first (successful)
+    // download, not the retry's generic fallback (issue #295 2-1 follow-up).
+    expect(mocks.saveVideo).toHaveBeenCalledWith(
+      expect.objectContaining({ author: "Mock Author" }),
+    );
+    expect(mocks.saveVideo).not.toHaveBeenCalledWith(
+      expect.objectContaining({ author: "Bilibili User" }),
+    );
+  });
+
+  it("does not retry when the downloaded resolution already meets the preference", async () => {
+    mocks.resolveResolutionPreference.mockReturnValue({
+      height: 1080,
+      strict: false,
+    });
+    mocks.getVideoHeight.mockResolvedValue(1080);
+    mocks.resolveResolutionRetryTarget.mockReturnValue(null);
+
+    const result = await downloadSinglePart(
+      "https://www.bilibili.com/video/BV1ok",
+      1,
+      1,
+      "",
+      "download-ok",
+    );
+
+    expect(result.success).toBe(true);
+    expect(mocks.executeYtDlpSpawn).toHaveBeenCalledTimes(1);
+    expect(mocks.prepareBilibiliDownloadFlags).not.toHaveBeenCalledWith(
+      expect.any(String),
+      expect.any(String),
+      expect.objectContaining({ retryFloorHeight: expect.anything() }),
+    );
+  });
+
+  it("uses zero-padded multipart prefixes for legacy filenames and subtitles", async () => {
+    const result = await downloadSinglePart(
+      "https://www.bilibili.com/video/BV1legacy?p=2",
+      2,
+      12,
+      "Series",
+      "download-legacy",
+      undefined,
+      "Collection",
+    );
+
+    expect(result.success).toBe(true);
+    expect(mocks.renameFilesWithMetadata).toHaveBeenCalledWith(
+      "2 Part Title",
+      "Mock Author",
+      "20240101",
+      "mp4",
+      expect.any(String),
+      expect.any(String),
+      true,
+      expect.any(String),
+      expect.any(String),
+      expect.objectContaining({
+        legacyTitleOverride: "02 Part Title",
+      }),
+    );
+    expect(mocks.downloadSubtitles).toHaveBeenCalledWith(
+      "https://www.bilibili.com/video/BV1legacy?p=2",
+      formatVideoFilename("02 Part Title", "Mock Author", "20240101"),
+      expect.any(String),
+      expect.any(String),
+      expect.any(Object),
+    );
+  });
+
+  it("sources metadata from the first entry and pins part 1 when a bare URL resolves as a multipart playlist", async () => {
+    // A bare multipart BV URL makes yt-dlp emit a playlist whose uploader and
+    // thumbnail live on the per-part entries, not the top level (issue #295).
+    mocks.executeYtDlpJson.mockResolvedValue({
+      title: "Playlist Title",
+      // No top-level uploader/thumbnail, mirroring real playlist JSON.
+      entries: [
+        {
+          title: "Part 1 Title",
+          uploader: "Real Author",
+          thumbnail: "https://example.com/part1.jpg",
+          upload_date: "20240202",
+          description: "Part 1 description",
+        },
+        { title: "Part 2 Title", uploader: "Real Author" },
+      ],
+    });
+    const flags: Record<string, any> = {};
+    mocks.prepareBilibiliDownloadFlags.mockReturnValue({ flags });
+
+    const result = await downloadSinglePart(
+      "https://www.bilibili.com/video/BV1multipart",
+      1,
+      1,
+      "",
+      "download-multipart",
+    );
+
+    expect(result.success).toBe(true);
+    // Author comes from the entry, not the "Bilibili User" fallback.
+    expect(mocks.saveVideo).toHaveBeenCalledWith(
+      expect.objectContaining({ author: "Real Author" }),
+    );
+    expect(mocks.saveVideo).not.toHaveBeenCalledWith(
+      expect.objectContaining({ author: "Bilibili User" }),
+    );
+    // The entry thumbnail is downloaded.
+    expect(mocks.downloadThumbnail).toHaveBeenCalledWith(
+      "https://example.com/part1.jpg",
+      expect.any(String),
+      expect.any(Object),
+    );
+    // The download spawn is restricted to part 1 so yt-dlp does not merge every
+    // part into the single output template.
+    expect(flags.playlistItems).toBe("1");
   });
 });

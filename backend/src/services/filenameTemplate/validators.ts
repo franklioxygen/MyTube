@@ -143,7 +143,7 @@ export function validateTemplate(
       normalized.includes("static_season__episode_by_index"))
   ) {
     warnings.push({
-      code: "metadata_missing",
+      code: "media_playlist_index_unavailable",
       message:
         "media_playlist_index is unavailable for non-playlist sources and will fall back to 00.",
     });
@@ -155,7 +155,7 @@ export function validateTemplate(
       normalized.includes("source_collection_id"))
   ) {
     warnings.push({
-      code: "metadata_missing",
+      code: "source_collection_metadata_may_be_empty",
       message:
         "source_collection_name/id may be empty for single-video downloads.",
     });

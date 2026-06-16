@@ -5,6 +5,7 @@ import { downloadAndProcessAvatar } from "../../../utils/avatarUtils";
 import { formatBytes } from "../../../utils/downloadUtils";
 import { formatVideoFilename } from "../../../utils/helpers";
 import { FilenameTemplateSourceOptions } from "../../filenameTemplate/types";
+import { resolveAuthorOrganizationMode } from "../../../types/settings";
 import { logger } from "../../../utils/logger";
 import { ProgressTracker } from "../../../utils/progressTracker";
 import {
@@ -36,7 +37,11 @@ import {
 } from "../../thumbnailMirrorService";
 import { BaseDownloader } from "../BaseDownloader";
 import { buildManagedThumbnailWebPath } from "../thumbnailPathUtils";
-import { prepareBilibiliDownloadFlags } from "./bilibiliConfig";
+import {
+  prepareBilibiliDownloadFlags,
+  resolveResolutionPreference,
+  resolveResolutionRetryTarget,
+} from "./bilibiliConfig";
 import {
   cleanupFilesOnCancellation,
   cleanupTempDir,
@@ -50,6 +55,7 @@ import {
   extractPartMetadata,
   getFileSize,
   getVideoDuration,
+  getVideoHeight,
 } from "./bilibiliMetadata";
 import { downloadSubtitles } from "./bilibiliSubtitle";
 import { BilibiliVideoInfo, DownloadResult } from "./types";
@@ -103,6 +109,19 @@ function resolveSubtitleDirectory(
     : SUBTITLES_DIR;
 }
 
+function formatLegacyMultipartTitle(
+  partNumber: number,
+  totalParts: number,
+  partTitle: string,
+): string {
+  if (totalParts <= 1) {
+    return partTitle;
+  }
+
+  const width = String(totalParts).length;
+  return `${String(partNumber).padStart(width, "0")} ${partTitle}`;
+}
+
 function resolveExistingThumbnailAbsolutePath(
   existingVideo: {
     thumbnailFilename?: string;
@@ -134,6 +153,34 @@ function resolveExistingThumbnailAbsolutePath(
 }
 
 /**
+ * Collect the pixel heights of the formats yt-dlp reported for a source, used to
+ * decide whether an under-resolution download is worth retrying (issue #295 2-1).
+ */
+function extractAvailableHeights(
+  info: Record<string, unknown> | null
+): number[] {
+  if (!info) {
+    return [];
+  }
+
+  const heights: number[] = [];
+  const formats = Array.isArray(info.formats) ? info.formats : [];
+  for (const format of formats) {
+    const height = (format as { height?: unknown })?.height;
+    if (typeof height === "number" && height > 0) {
+      heights.push(height);
+    }
+  }
+
+  // Some responses only expose a top-level height rather than a formats array.
+  if (typeof info.height === "number" && info.height > 0) {
+    heights.push(info.height);
+  }
+
+  return heights;
+}
+
+/**
  * Core video download function using yt-dlp
  */
 export async function downloadVideo(
@@ -141,7 +188,12 @@ export async function downloadVideo(
   videoPath: string,
   thumbnailPath: string,
   downloadId?: string,
-  onStart?: (cancel: () => void) => void
+  onStart?: (cancel: () => void) => void,
+  // Internal: set only by the under-resolution retry path to pin a height floor
+  // (issue #295 2-1). When set, resolution verification is skipped to bound the
+  // retry to a single attempt.
+  retryFloorHeight?: number,
+  preserveExistingOutputOnCancel = false
 ): Promise<BilibiliVideoInfo> {
   const tempDir = createTempDir();
   let rawSourceInfo: Record<string, unknown> | null = null;
@@ -157,16 +209,37 @@ export async function downloadVideo(
       ...networkConfig,
       noWarnings: true,
     });
-    rawSourceInfo = info as Record<string, unknown>;
 
-    const videoTitle = info.title || "Bilibili Video";
-    const videoAuthor = info.uploader || info.channel || "Bilibili User";
+    // A bare multipart Bilibili URL resolves as a playlist: --dump-single-json
+    // then returns playlist-level fields where uploader, thumbnail, upload_date
+    // and formats live on the per-part entries rather than the top level.
+    // Without this, a single-part download of a multipart video loses its author
+    // (falls back to "Bilibili User") and thumbnail, and the download spawn pulls
+    // every part into one output template, producing an "Invalid data found"
+    // merge error. Source metadata from the first entry and pin the spawn to it.
+    const playlistEntries = Array.isArray(
+      (info as { entries?: unknown }).entries
+    )
+      ? (info as { entries: Array<Record<string, any>> }).entries
+      : null;
+    const isMultipartPlaylist =
+      playlistEntries != null && playlistEntries.length > 0;
+    const metaSource: Record<string, any> = isMultipartPlaylist
+      ? { ...info, ...playlistEntries[0] }
+      : info;
+    rawSourceInfo = metaSource as Record<string, unknown>;
+
+    // Keep the playlist-level title as the video title (it is the overall video
+    // name); entry-level title is the part name and gets resolved separately.
+    const videoTitle = info.title || metaSource.title || "Bilibili Video";
+    const videoAuthor =
+      metaSource.uploader || metaSource.channel || "Bilibili User";
     const videoDate =
-      info.upload_date ||
-      info.release_date ||
+      metaSource.upload_date ||
+      metaSource.release_date ||
       new Date().toISOString().slice(0, 10).replace(/-/g, "");
-    const thumbnailUrl = info.thumbnail || null;
-    const description = info.description || "";
+    const thumbnailUrl = metaSource.thumbnail || null;
+    const description = metaSource.description || "";
 
     if (downloadId) {
       storageService.updateActiveDownload(downloadId, {
@@ -177,7 +250,8 @@ export async function downloadVideo(
     }
 
     // Try to get avatar URL from yt-dlp info first
-    let authorAvatarUrl = info.channel_avatar || info.uploader_avatar || null;
+    let authorAvatarUrl =
+      metaSource.channel_avatar || metaSource.uploader_avatar || null;
 
     // If not in yt-dlp info, get it from Bilibili API
     if (!authorAvatarUrl) {
@@ -216,8 +290,8 @@ export async function downloadVideo(
     }
 
     logger.info("Bilibili avatar info:", {
-      channel_avatar: info.channel_avatar,
-      uploader_avatar: info.uploader_avatar,
+      channel_avatar: metaSource.channel_avatar,
+      uploader_avatar: metaSource.uploader_avatar,
       authorAvatarUrl: authorAvatarUrl,
     });
 
@@ -226,7 +300,18 @@ export async function downloadVideo(
     const outputTemplate = resolveSafeChildPath(tempDir, "video.%(ext)s");
 
     // Prepare download flags using the config module
-    const { flags } = prepareBilibiliDownloadFlags(url, outputTemplate);
+    const { flags } = prepareBilibiliDownloadFlags(
+      url,
+      outputTemplate,
+      retryFloorHeight != null ? { retryFloorHeight } : undefined
+    );
+
+    // Restrict the spawn to the first part when the URL resolved as a multipart
+    // playlist, so yt-dlp does not merge every part into the single output
+    // template (the source of the "Invalid data found" error above).
+    if (isMultipartPlaylist) {
+      flags.playlistItems = "1";
+    }
 
     // Use spawn to capture stdout for progress
     const subprocess = executeYtDlpSpawn(url, flags);
@@ -238,7 +323,11 @@ export async function downloadVideo(
 
         // Clean up partial files
         logger.info("Cleaning up partial files...");
-        await cleanupFilesOnCancellation(videoPath, thumbnailPath, tempDir);
+        await cleanupFilesOnCancellation(
+          preserveExistingOutputOnCancel ? undefined : videoPath,
+          preserveExistingOutputOnCancel ? undefined : thumbnailPath,
+          tempDir
+        );
       });
     }
 
@@ -377,6 +466,65 @@ export async function downloadVideo(
 
     // Clean up temp directory
     await cleanupTempDir(tempDir);
+
+    // Resolution verification + one bounded retry (issue #295 2-1). When a
+    // preferred resolution is configured and the file came in below what the
+    // source can offer, re-download once with a height floor before doing the
+    // rest of the post-processing. retryFloorHeight is set on the retry itself,
+    // which guarantees at most one extra attempt.
+    if (retryFloorHeight === undefined) {
+      let retryTarget: number | null = null;
+      try {
+        const preference = resolveResolutionPreference();
+        if (preference.height != null) {
+          const actualHeight = await getVideoHeight(videoPath);
+          const availableHeights = extractAvailableHeights(rawSourceInfo);
+          retryTarget = resolveResolutionRetryTarget(
+            preference,
+            actualHeight,
+            availableHeights
+          );
+          if (retryTarget != null) {
+            logger.info(
+              `Bilibili download came in at ${
+                actualHeight ?? "unknown"
+              }p, below the preferred ${preference.height}p; retrying once with a >=${retryTarget}p floor.`
+            );
+          }
+        }
+      } catch (verifyError) {
+        logger.warn(
+          "Resolution verification failed; keeping the downloaded file:",
+          verifyError
+        );
+        retryTarget = null;
+      }
+
+      if (retryTarget != null) {
+        const retryResult = await downloadVideo(
+          url,
+          videoPath,
+          thumbnailPath,
+          downloadId,
+          onStart,
+          retryTarget,
+          true
+        );
+        // Only adopt the retry when it actually produced a file. On failure the
+        // first (lower-resolution but valid) file is still at videoPath, so keep
+        // the original real metadata instead of the retry's generic fallback
+        // object — otherwise a failed retry would save a mis-titled / mis-authored
+        // video (issue #295 2-1 follow-up).
+        if (retryResult && !retryResult.error) {
+          return retryResult;
+        }
+        logger.warn(
+          `Resolution retry to >=${retryTarget}p did not succeed (${
+            retryResult?.error ?? "unknown error"
+          }); keeping the original download and its metadata.`
+        );
+      }
+    }
 
     // Download thumbnail if available
     let thumbnailSaved = false;
@@ -567,6 +715,11 @@ export async function downloadSinglePart(
 
     // For multi-part videos, include the part number in the title
     videoTitle = totalParts > 1 ? `${partNumber} ${partTitle}` : partTitle;
+    const legacyFilenameTitle = formatLegacyMultipartTitle(
+      partNumber,
+      totalParts,
+      partTitle,
+    );
 
     videoAuthor = bilibiliInfo.author || "Bilibili User";
     videoDate =
@@ -602,6 +755,7 @@ export async function downloadSinglePart(
       {
         settings,
         filenameTemplateSourceOptions,
+        legacyTitleOverride: legacyFilenameTitle,
       }
     );
     const {
@@ -634,7 +788,7 @@ export async function downloadSinglePart(
     // For non-legacy mode use planned subtitle paths; for legacy use formatVideoFilename
     const isLegacyMode = (settings.downloadFilenamePresetId || "legacy") === "legacy";
     const newSafeBaseFilename = isLegacyMode
-      ? formatVideoFilename(videoTitle, videoAuthor, videoDate)
+      ? formatVideoFilename(legacyFilenameTitle, videoAuthor, videoDate)
       : (renameResult.subtitleStem || formatVideoFilename(videoTitle, videoAuthor, videoDate));
 
     let subtitles: Array<{
@@ -725,6 +879,19 @@ export async function downloadSinglePart(
       createdAt: new Date().toISOString(),
     };
 
+    // Under author_folder_only a collection is a logical grouping only: its
+    // members (and their thumbnails/subtitles) belong in the author folder, not a
+    // collection-named folder. Let organizeVideoByAuthor relocate them so nothing
+    // is left behind in the collection directory (issue #295 2-2 / 2-3). Other
+    // modes (root, author_collection_linked) keep the collection placement.
+    const organizationMode = resolveAuthorOrganizationMode(settings);
+    const preserveCollectionPlacement =
+      (totalParts > 1 || Boolean(collectionName)) &&
+      organizationMode !== "author_folder_only";
+    const authorOrganizationOptions = preserveCollectionPlacement
+      ? { moveFiles: false }
+      : undefined;
+
     // For multi-part videos, always create a new video entry (each part is separate)
     // For single videos, check if video with same sourceUrl already exists
     if (totalParts === 1) {
@@ -796,14 +963,15 @@ export async function downloadSinglePart(
           let finalVideoData = updatedVideo;
 
           // Add video to author collection if enabled (for existing videos too)
-          const authorCollection = storageService.addVideoToAuthorCollection(
+          const authorOrganization = storageService.organizeVideoByAuthor(
             updatedVideo.id,
             videoAuthor,
-            settings.saveAuthorFilesToCollection || false,
-            settings.downloadFilenamePresetId
+            settings.authorOrganizationMode,
+            settings.downloadFilenamePresetId,
+            authorOrganizationOptions
           );
 
-          if (authorCollection) {
+          if (authorOrganization) {
             const collectionUpdatedVideo = storageService.getVideoById(updatedVideo.id);
             if (collectionUpdatedVideo) {
               finalVideoData = collectionUpdatedVideo;
@@ -825,14 +993,15 @@ export async function downloadSinglePart(
     logger.info(`Part ${partNumber}/${totalParts} added to database`);
 
     // Add video to author collection if enabled
-    const authorCollection = storageService.addVideoToAuthorCollection(
+    const authorOrganization = storageService.organizeVideoByAuthor(
       videoData.id,
       videoAuthor,
-      settings.saveAuthorFilesToCollection || false,
-      settings.downloadFilenamePresetId
+      settings.authorOrganizationMode,
+      settings.downloadFilenamePresetId,
+      authorOrganizationOptions
     );
 
-    if (authorCollection) {
+    if (authorOrganization) {
       // If video was added to a collection, the file paths might have changed
       // Fetch the updated video from storage
       const updatedVideo = storageService.getVideoById(videoData.id);

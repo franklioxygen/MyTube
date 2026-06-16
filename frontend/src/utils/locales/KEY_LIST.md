@@ -4,7 +4,7 @@ Canonical locale key order derived from `frontend/src/utils/locales/en.ts`.
 
 This list is intentionally unnumbered. When new keys are inserted, only the local section order changes.
 
-Total keys: 994
+Total keys: 996
 
 ## Summary
 
@@ -45,7 +45,7 @@ Total keys: 994
 | History Filter | 33 | `filterAll` | `browserVideoFormatNotSupported` |
 | RSS Feed Settings | 40 | `rssFeedSettings` | `rssDays` |
 | Role-based settings middleware errors | 5 | `settingsApiKeyForbidden` | `settingsAuthRequired` |
-| Filename Template | 28 | `filenameTemplate` | `filenameBatchRenameError` |
+| Filename Template | 30 | `filenameTemplate` | `filenameBatchRenameError` |
 | Statistics | 54 | `statisticsTitle` | `recomputeStatistics` |
 
 ## Details
@@ -1022,6 +1022,24 @@ Total keys: 994
 | `saveAuthorFilesToCollectionOn` |
 | `saveAuthorFilesToCollectionOff` |
 | `saveAuthorFilesToCollectionDescription` |
+| `authorOrganizationMode` |
+| `authorOrganizationModeDescription` |
+| `authorOrganizationModeRoot` |
+| `authorOrganizationModeRootDescription` |
+| `authorOrganizationModeAuthorFolderOnly` |
+| `authorOrganizationModeAuthorFolderOnlyDescription` |
+| `authorOrganizationModeAuthorCollectionLinked` |
+| `authorOrganizationModeAuthorCollectionLinkedDescription` |
+| `authorOrganizationModeRecommendation` |
+| `authorOrganizationModeTemplateNote` |
+| `cleanupAuthorCollections` |
+| `cleanupAuthorCollectionsDescription` |
+| `cleanupAuthorCollectionsButton` |
+| `cleanupAuthorCollectionsConfirmTitle` |
+| `cleanupAuthorCollectionsConfirmMessage` |
+| `cleanupAuthorCollectionsSuccess` |
+| `cleanupAuthorCollectionsNothingToDo` |
+| `cleanupAuthorCollectionsFailed` |
 
 ### Cloudflare Tunnel
 
@@ -1201,6 +1219,8 @@ Total keys: 994
 | `filenamePreviewVideo` |
 | `filenamePreviewThumbnail` |
 | `filenamePreviewSubtitle` |
+| `filenameWarningMediaPlaylistIndexUnavailable` |
+| `filenameWarningSourceCollectionMetadataMayBeEmpty` |
 | `filenameValidating` |
 | `filenameValidationError` |
 | `filenameBatchRenameButton` |

@@ -793,10 +793,13 @@ export const ar = {
   speed: "السرعة",
   finishedAt: "انتهى في",
   failed: "فشل",
+  partialDownload: "غير مكتمل",
   pendingRetry: "بانتظار إعادة المحاولة",
   cancelRetry: "إلغاء إعادة المحاولة",
   retryScheduledFor: "إعادة المحاولة مجدولة في",
   retryAttemptProgress: "إعادة المحاولة {current} من {total}",
+  missingEpisodes: "الحلقات المفقودة",
+  missingVideos: "مقاطع الفيديو المفقودة",
 
 
   // Snackbar Messages
@@ -1062,6 +1065,35 @@ export const ar = {
   saveAuthorFilesToCollectionOff: "حفظ في المجلدات الجذرية",
   saveAuthorFilesToCollectionDescription:
     "عند التفعيل، سيتم تنظيم مقاطع الفيديو والصور المصغرة والترجمات التي تم تنزيلها حديثًا تلقائيًا في مجموعات مسماة باسم مؤلف الفيديو. إذا لم تكن المجموعة موجودة، فسيتم إنشاؤها تلقائيًا.",
+  authorOrganizationMode: "تنظيم المؤلف",
+  authorOrganizationModeDescription:
+    "اختر ما إذا كان اسم المؤلف يؤثر على المجلدات الفعلية أو المجموعات المنطقية أو لا يؤثر على أيٍ منهما.",
+  authorOrganizationModeRoot: "الاحتفاظ في المجلدات الجذرية",
+  authorOrganizationModeRootDescription:
+    "لا تُنشئ مجلدات أو مجموعات للمؤلف. تُستخدم فقط مجموعات قوائم التشغيل والمجموعات اليدوية.",
+  authorOrganizationModeAuthorFolderOnly: "مجلدات المؤلف فقط",
+  authorOrganizationModeAuthorFolderOnlyDescription:
+    "في وضع أسماء الملفات legacy، انقل الملفات إلى مجلد باسم المؤلف بدون ربطها بمجموعة مؤلف.",
+  authorOrganizationModeAuthorCollectionLinked: "مجموعة المؤلف + المجلد",
+  authorOrganizationModeAuthorCollectionLinkedDescription:
+    "اربط الفيديوهات بمجموعة مؤلف. وفي وضع legacy تُنقل الملفات أيضًا إلى مجلد المؤلف.",
+  authorOrganizationModeRecommendation:
+    "إذا كنت تريد مجلدات حسب المؤلف بدون مجموعات مؤلف مكررة داخل MyTube فاستخدم مجلدات المؤلف فقط.",
+  authorOrganizationModeTemplateNote:
+    "إعدادات أسماء الملفات غير legacy تتحكم في بنية المجلدات الفعلية. في هذه الأوضاع يؤثر تنظيم المؤلف فقط على ربط المجموعات.",
+  cleanupAuthorCollections: "تنظيف مجموعات المؤلف الحالية",
+  cleanupAuthorCollectionsDescription:
+    "بعد التبديل إلى مجلدات المؤلف فقط، أزل روابط مجموعات المؤلف الزائدة من الفيديوهات التي تنتمي بالفعل إلى مجموعة أخرى. لن يتم نقل الملفات على القرص.",
+  cleanupAuthorCollectionsButton: "إزالة الروابط الزائدة",
+  cleanupAuthorCollectionsConfirmTitle: "إزالة روابط مجموعات المؤلف الزائدة",
+  cleanupAuthorCollectionsConfirmMessage:
+    "سيؤدي هذا إلى فك ربط مجموعات المؤلف من الفيديوهات التي تنتمي بالفعل إلى مجموعة أخرى. سيتم حذف مجموعات المؤلف الفارغة. ستبقى الملفات على القرص في مكانها.",
+  cleanupAuthorCollectionsSuccess:
+    "تمت إزالة {links} روابط عبر {videos} فيديوهات، وحذف {collections} مجموعات مؤلف فارغة.",
+  cleanupAuthorCollectionsNothingToDo:
+    "لا توجد روابط زائدة لمجموعات المؤلف تحتاج إلى تنظيف.",
+  cleanupAuthorCollectionsFailed:
+    "فشل تنظيف مجموعات المؤلف",
 
 
   // Cloudflare Tunnel
@@ -1260,6 +1292,10 @@ export const ar = {
   filenamePreviewVideo: "فيديو",
   filenamePreviewThumbnail: "صورة مصغرة",
   filenamePreviewSubtitle: "ترجمة",
+  filenameWarningMediaPlaylistIndexUnavailable:
+    "المتغير media_playlist_index غير متاح للمصادر غير التابعة لقائمة تشغيل وسيتم الرجوع إلى 00.",
+  filenameWarningSourceCollectionMetadataMayBeEmpty:
+    "قد يكون source_collection_name/id فارغًا في تنزيلات الفيديو المفردة.",
   filenameValidating: "جارٍ التحقق…",
   filenameValidationError: "خطأ في القالب",
   filenameBatchRenameButton:

@@ -802,10 +802,13 @@ export const ko = {
   speed: "속도",
   finishedAt: "완료 시간",
   failed: "실패",
+  partialDownload: "미완료",
   pendingRetry: "재시도 대기 중",
   cancelRetry: "재시도 취소",
   retryScheduledFor: "재시도 예정 시간",
   retryAttemptProgress: "재시도 {current}/{total}회",
+  missingEpisodes: "누락된 에피소드",
+  missingVideos: "누락된 비디오",
 
 
   // Snackbar Messages
@@ -1072,6 +1075,35 @@ export const ko = {
   saveAuthorFilesToCollectionOff: "꺼짐",
   saveAuthorFilesToCollectionDescription:
     "작성자 파일을 별도의 컬렉션에 자동으로 저장합니다.",
+  authorOrganizationMode: "작성자 정리 방식",
+  authorOrganizationModeDescription:
+    "작성자 이름이 실제 폴더, 논리 컬렉션, 또는 둘 다에 영향을 줄지 선택합니다.",
+  authorOrganizationModeRoot: "루트 폴더에 유지",
+  authorOrganizationModeRootDescription:
+    "작성자 폴더나 작성자 컬렉션을 만들지 않습니다. 재생목록과 수동 컬렉션만 사용합니다.",
+  authorOrganizationModeAuthorFolderOnly: "작성자 폴더만",
+  authorOrganizationModeAuthorFolderOnlyDescription:
+    "legacy 파일명 모드에서는 작성자 컬렉션을 연결하지 않고 작성자 이름 폴더로 파일을 이동합니다.",
+  authorOrganizationModeAuthorCollectionLinked: "작성자 컬렉션 + 폴더",
+  authorOrganizationModeAuthorCollectionLinkedDescription:
+    "비디오를 작성자 컬렉션에 연결합니다. legacy 파일명 모드에서는 파일도 작성자 폴더로 이동합니다.",
+  authorOrganizationModeRecommendation:
+    "MyTube 안에서 중복된 작성자 컬렉션 없이 작성자별 폴더만 원하면 작성자 폴더만을 사용하세요.",
+  authorOrganizationModeTemplateNote:
+    "legacy가 아닌 파일명 프리셋은 실제 폴더 구조를 제어합니다. 이 모드에서는 작성자 정리가 컬렉션 연결에만 영향을 줍니다.",
+  cleanupAuthorCollections: "기존 작성자 컬렉션 정리",
+  cleanupAuthorCollectionsDescription:
+    "작성자 폴더만으로 전환한 뒤 이미 다른 컬렉션에 속한 비디오에서 중복된 작성자 컬렉션 링크를 제거합니다. 디스크의 파일은 이동하지 않습니다.",
+  cleanupAuthorCollectionsButton: "중복 링크 제거",
+  cleanupAuthorCollectionsConfirmTitle: "중복된 작성자 컬렉션 링크 제거",
+  cleanupAuthorCollectionsConfirmMessage:
+    "이미 다른 컬렉션에 속한 비디오에서 작성자 컬렉션 링크를 제거합니다. 비어 있는 작성자 컬렉션은 삭제됩니다. 디스크의 파일 위치는 유지됩니다.",
+  cleanupAuthorCollectionsSuccess:
+    "{videos}개 비디오에서 {links}개 링크를 제거했고 빈 작성자 컬렉션 {collections}개를 삭제했습니다.",
+  cleanupAuthorCollectionsNothingToDo:
+    "정리할 중복 작성자 컬렉션 링크가 없습니다.",
+  cleanupAuthorCollectionsFailed:
+    "작성자 컬렉션 정리에 실패했습니다",
 
   // Cloudflare Tunnel
   cloudflaredTunnel: "Cloudflare 터널",
@@ -1269,6 +1301,10 @@ export const ko = {
   filenamePreviewVideo: "동영상",
   filenamePreviewThumbnail: "썸네일",
   filenamePreviewSubtitle: "자막",
+  filenameWarningMediaPlaylistIndexUnavailable:
+    "재생목록이 아닌 소스에서는 media_playlist_index를 사용할 수 없어 00으로 대체됩니다.",
+  filenameWarningSourceCollectionMetadataMayBeEmpty:
+    "단일 동영상 다운로드에서는 source_collection_name/id가 비어 있을 수 있습니다.",
   filenameValidating: "검증 중…",
   filenameValidationError: "템플릿 오류",
   filenameBatchRenameButton:
