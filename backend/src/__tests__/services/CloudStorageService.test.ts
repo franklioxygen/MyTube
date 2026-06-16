@@ -26,10 +26,12 @@ describe("CloudStorageService", () => {
     call.some((arg) => typeof arg === "string" && arg.includes(text));
 
   let stdoutWriteSpy: any;
+  let stderrWriteSpy: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
     stdoutWriteSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    stderrWriteSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
     console.error = vi.fn();
     // Ensure axios.put is properly mocked
     (axios.put as any) = vi.fn();
@@ -37,6 +39,7 @@ describe("CloudStorageService", () => {
 
   afterEach(() => {
     stdoutWriteSpy.mockRestore();
+    stderrWriteSpy.mockRestore();
   });
 
   describe("uploadVideo", () => {
@@ -237,11 +240,12 @@ describe("CloudStorageService", () => {
 
       await CloudStorageService.uploadVideo(mockVideoData);
 
-      expect(console.error).toHaveBeenCalled();
-      const errorCall = (console.error as any).mock.calls.find((call: any[]) =>
-        callContainsText(call, "[CloudStorage] Video file not found: /videos/missing.mp4")
-      );
-      expect(errorCall).toBeDefined();
+      expect(stderrWriteSpy).toHaveBeenCalled();
+      expect(
+        stderrWriteSpy.mock.calls.some((call: [string]) =>
+          call[0].includes("[CloudStorage] Video file not found: /videos/missing.mp4")
+        )
+      ).toBe(true);
       // Metadata will still be uploaded even if video is missing
       // So we check that video upload was not attempted
       const putCalls = (axios.put as any).mock.calls;
@@ -285,20 +289,14 @@ describe("CloudStorageService", () => {
 
       await CloudStorageService.uploadVideo(mockVideoData);
 
-      expect(console.error).toHaveBeenCalled();
-      const errorCall = (console.error as any).mock.calls.find((call: any[]) =>
-        callContainsText(call, "[CloudStorage] Upload failed for Test Video:")
-      );
-      expect(errorCall).toBeDefined();
-      expect(
-        errorCall.some(
-          (arg: any) =>
-            typeof arg === "object" &&
-            arg !== null &&
-            typeof arg.message === "string" &&
-            arg.message.includes("Upload failed")
-        )
-      ).toBe(true);
+      expect(stderrWriteSpy).toHaveBeenCalled();
+      const errorOutput = stderrWriteSpy.mock.calls
+        .map((call: [string]) => call[0])
+        .find((output: string) =>
+          output.includes("[CloudStorage] Upload failed for Test Video:")
+        );
+      expect(errorOutput).toBeDefined();
+      expect(errorOutput).toContain("Upload failed");
     });
 
     it("should sanitize filename for metadata", async () => {
@@ -376,7 +374,7 @@ describe("CloudStorageService", () => {
 
       await CloudStorageService.uploadVideo(mockVideoData);
 
-      expect(console.error).toHaveBeenCalled();
+      expect(stderrWriteSpy).toHaveBeenCalled();
     });
 
     it("should handle network timeout errors", async () => {
@@ -418,7 +416,7 @@ describe("CloudStorageService", () => {
 
       await CloudStorageService.uploadVideo(mockVideoData);
 
-      expect(console.error).toHaveBeenCalled();
+      expect(stderrWriteSpy).toHaveBeenCalled();
     });
 
     it("should handle file not found errors", async () => {
@@ -460,7 +458,7 @@ describe("CloudStorageService", () => {
 
       await CloudStorageService.uploadVideo(mockVideoData);
 
-      expect(console.error).toHaveBeenCalled();
+      expect(stderrWriteSpy).toHaveBeenCalled();
     });
   });
 
