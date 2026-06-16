@@ -241,9 +241,7 @@ export function findOrCreateAuthorCollection(
   // Validate and sanitize the author name
   const validatedName = validateCollectionName(authorName);
   if (!validatedName) {
-    logger.warn(
-      `Invalid author name for collection: "${authorName}", skipping collection creation`
-    );
+    logger.warn("Invalid author name for collection, skipping collection creation");
     return null;
   }
 
@@ -277,21 +275,19 @@ export function findOrCreateAuthorCollection(
     };
 
     saveCollection(newCollection);
-    logger.info(`Created new collection for author: ${uniqueName}`);
+    logger.info("Created new collection for author");
     return newCollection;
   } catch (error) {
     // If save fails, it might be due to a race condition
     // Try to get the collection one more time
     collection = getAuthorAutoCollectionByName(uniqueName);
     if (collection) {
-      logger.info(
-        `Collection "${uniqueName}" was created by another process, using existing collection`
-      );
+      logger.info("Collection was created by another process, using existing collection");
       return collection;
     }
 
     logger.error(
-      `Error creating collection for author "${uniqueName}":`,
+      "Error creating collection for author",
       error instanceof Error ? error : new Error(String(error))
     );
     return null;
@@ -343,9 +339,7 @@ export function addVideoToAuthorCollection(
     const collection = findOrCreateAuthorCollection(authorName);
 
     if (!collection) {
-      logger.warn(
-        `Failed to find or create collection for author: ${authorName}`
-      );
+      logger.warn("Failed to find or create author collection");
       return null;
     }
 
@@ -357,16 +351,11 @@ export function addVideoToAuthorCollection(
     });
 
     if (updatedCollection) {
-      logger.info(
-        `Added video to author collection: ${authorName}${
-          (options?.moveFiles ?? isLegacy) ? " (with file move)" : " (membership only)"
-        }`
-      );
+      const moveLabel = (options?.moveFiles ?? isLegacy) ? "with file move" : "membership only";
+      logger.info(`Added video to author collection (${moveLabel})`);
       return updatedCollection;
     } else {
-      logger.warn(
-        `Failed to add video ${videoId} to collection for author: ${authorName}`
-      );
+      logger.warn("Failed to add video to author collection");
       return null;
     }
   } catch (error) {
@@ -404,7 +393,7 @@ function moveVideoFilesToAuthorFolder(
   }
 
   updateVideo(videoId, updates);
-  logger.info(`Moved video files into author folder: ${validatedAuthorName}`);
+  logger.info("Moved video files into author folder");
   return true;
 }
 
