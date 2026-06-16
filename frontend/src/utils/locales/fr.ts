@@ -1333,12 +1333,15 @@ export const fr = {
     "Choisissez comment les fichiers téléchargés sont nommés. Les modes non hérités permettent des structures de dossiers plus adaptées aux media centers.",
   filenamePresetLabel: "Mode de nommage",
   filenamePresetLegacy: "Mode compatible actuel (Titre-Auteur-Année)",
+  filenamePresetMediaCenterDateIndex:
+    "Centre multimédia – Saison/épisode par date et index",
   filenamePresetChannelYearDateIndex:
     "Chaîne – Saison/Épisode par année et date",
   filenamePresetPlaylistStaticIndex:
     "Playlist – Saison 1 / Épisode par index",
   filenamePresetPlaylistStaticDate:
     "Playlist – Saison 1 / Épisode par date",
+  filenamePresetSourceDateFlat: "Source – date puis titre",
   filenamePresetCustom: "Modèle personnalisé",
   filenameCustomTemplateLabel: "Modèle personnalisé",
   filenameCustomTemplatePlaceholder: "{{ source_collection_name }}/{{ season_by_year__episode_by_date_and_index }} - {{ title }}.{{ ext }}",
@@ -1346,6 +1349,9 @@ export const fr = {
   filenamePreviewVideo: "Vidéo",
   filenamePreviewThumbnail: "Miniature",
   filenamePreviewSubtitle: "Sous-titre",
+  filenamePreviewScenarioChannel: "Chaîne",
+  filenamePreviewScenarioPlaylist: "Playlist",
+  filenamePreviewScenarioSingle: "Vidéo unique",
   filenameWarningMediaPlaylistIndexUnavailable:
     "media_playlist_index n'est pas disponible pour les sources hors playlist et sera remplacé par 00.",
   filenameWarningSourceCollectionMetadataMayBeEmpty:

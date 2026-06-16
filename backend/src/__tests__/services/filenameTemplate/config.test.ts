@@ -3,7 +3,7 @@ import {
   normalizeFilenameNamingSettings,
   resolveFilenameNamingConfig,
 } from "../../../services/filenameTemplate/config";
-import { getPresetById } from "../../../services/filenameTemplate/presets";
+import { resolvePresetById } from "../../../services/filenameTemplate/presets";
 
 describe("filenameTemplate config resolver", () => {
   it("treats explicit legacy mode as authoritative over stale deprecated presets", () => {
@@ -24,12 +24,27 @@ describe("filenameTemplate config resolver", () => {
     expect(
       resolveFilenameNamingConfig({
         downloadFilenameMode: "template",
-        downloadFilenamePresetId: "playlist_static_index",
+        downloadFilenamePresetId: "channel_year_date_index",
       })
     ).toEqual({
       mode: "template",
-      template: getPresetById("playlist_static_index")?.template ?? null,
-      matchedPresetId: "playlist_static_index",
+      template: resolvePresetById("channel_year_date_index")?.template ?? null,
+      matchedPresetId: "media_center_date_index",
+    });
+  });
+
+  it("matches deprecated built-in templates without collapsing them to custom", () => {
+    expect(
+      resolveFilenameNamingConfig({
+        downloadFilenameMode: "template",
+        downloadFilenameTemplate:
+          "{{ source_collection_name }}/{{ season_by_year__episode_by_date_and_index }} - {{ title }}.{{ ext }}",
+      })
+    ).toEqual({
+      mode: "template",
+      template:
+        "{{ source_collection_name }}/{{ season_by_year__episode_by_date_and_index }} - {{ title }}.{{ ext }}",
+      matchedPresetId: "channel_year_date_index",
     });
   });
 

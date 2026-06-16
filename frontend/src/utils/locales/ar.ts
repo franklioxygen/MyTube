@@ -1279,12 +1279,15 @@ export const ar = {
     "اختر كيفية تسمية الملفات التي تم تنزيلها. تتيح الأوضاع غير التقليدية بنى مجلدات مناسبة لمراكز الوسائط.",
   filenamePresetLabel: "وضع التسمية",
   filenamePresetLegacy: "الوضع المتوافق الحالي (العنوان-المؤلف-السنة)",
+  filenamePresetMediaCenterDateIndex:
+    "مركز الوسائط – الموسم/الحلقة حسب التاريخ والفهرس",
   filenamePresetChannelYearDateIndex:
     "القناة – الموسم/الحلقة حسب السنة والتاريخ",
   filenamePresetPlaylistStaticIndex:
     "قائمة التشغيل – الموسم 1 / الحلقة حسب الفهرس",
   filenamePresetPlaylistStaticDate:
     "قائمة التشغيل – الموسم 1 / الحلقة حسب التاريخ",
+  filenamePresetSourceDateFlat: "المصدر – التاريخ ثم العنوان",
   filenamePresetCustom: "قالب مخصص",
   filenameCustomTemplateLabel: "قالب مخصص",
   filenameCustomTemplatePlaceholder: "{{ source_collection_name }}/{{ season_by_year__episode_by_date_and_index }} - {{ title }}.{{ ext }}",
@@ -1292,6 +1295,9 @@ export const ar = {
   filenamePreviewVideo: "فيديو",
   filenamePreviewThumbnail: "صورة مصغرة",
   filenamePreviewSubtitle: "ترجمة",
+  filenamePreviewScenarioChannel: "القناة",
+  filenamePreviewScenarioPlaylist: "قائمة التشغيل",
+  filenamePreviewScenarioSingle: "فيديو مفرد",
   filenameWarningMediaPlaylistIndexUnavailable:
     "المتغير media_playlist_index غير متاح للمصادر غير التابعة لقائمة تشغيل وسيتم الرجوع إلى 00.",
   filenameWarningSourceCollectionMetadataMayBeEmpty:

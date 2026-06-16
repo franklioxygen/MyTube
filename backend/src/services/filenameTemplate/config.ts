@@ -3,7 +3,12 @@ import {
   DownloadFilenamePresetId,
   LEGACY_DOWNLOAD_FILENAME_TEMPLATE,
 } from "../../types/settings";
-import { getPresetById, FILENAME_TEMPLATE_PRESETS } from "./presets";
+import {
+  DEPRECATED_PRESET_ID_TO_CURRENT_PRESET_ID,
+  DEPRECATED_TEMPLATE_ALIASES,
+  resolvePresetById,
+  FILENAME_TEMPLATE_PRESETS,
+} from "./presets";
 import { validateTemplate } from "./validators";
 
 export type MatchedPresetId = string;
@@ -22,6 +27,7 @@ export interface FilenameNamingRuntimeConfig {
 const DEPRECATED_CUSTOM_PRESET_ID = "custom";
 const VALID_DEPRECATED_PRESET_IDS = new Set<string>([
   ...FILENAME_TEMPLATE_PRESETS.map((preset) => preset.id),
+  ...Object.keys(DEPRECATED_PRESET_ID_TO_CURRENT_PRESET_ID),
   DEPRECATED_CUSTOM_PRESET_ID,
 ]);
 
@@ -60,7 +66,7 @@ export function resolveTemplateFromPresetId(id: unknown): string | null {
     return null;
   }
 
-  return getPresetById(id)?.template ?? null;
+  return resolvePresetById(id)?.template ?? null;
 }
 
 export function matchPresetIdFromTemplate(
@@ -82,6 +88,14 @@ export function matchPresetIdFromTemplate(
     if (preset.template === template) {
       return preset.id;
     }
+  }
+
+  const deprecatedAlias = DEPRECATED_TEMPLATE_ALIASES[template];
+  if (
+    deprecatedAlias &&
+    (!deprecatedAlias.onlyWhenMode || deprecatedAlias.onlyWhenMode === mode)
+  ) {
+    return deprecatedAlias.matchedPresetId;
   }
 
   return DEPRECATED_CUSTOM_PRESET_ID;

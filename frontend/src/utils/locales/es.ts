@@ -1324,12 +1324,15 @@ export const es = {
     "Elige cómo se nombran los archivos descargados. Los modos no heredados habilitan estructuras de carpetas más adecuadas para centros multimedia.",
   filenamePresetLabel: "Modo de nombres",
   filenamePresetLegacy: "Modo compatible actual (Título-Autor-Año)",
+  filenamePresetMediaCenterDateIndex:
+    "Centro multimedia – Temporada/Episodio por fecha e índice",
   filenamePresetChannelYearDateIndex:
     "Canal – Temporada/Episodio por año y fecha",
   filenamePresetPlaylistStaticIndex:
     "Lista de reproducción – Temporada 1 / Episodio por índice",
   filenamePresetPlaylistStaticDate:
     "Lista de reproducción – Temporada 1 / Episodio por fecha",
+  filenamePresetSourceDateFlat: "Fuente – fecha y luego título",
   filenamePresetCustom: "Plantilla personalizada",
   filenameCustomTemplateLabel: "Plantilla personalizada",
   filenameCustomTemplatePlaceholder: "{{ source_collection_name }}/{{ season_by_year__episode_by_date_and_index }} - {{ title }}.{{ ext }}",
@@ -1337,6 +1340,9 @@ export const es = {
   filenamePreviewVideo: "Vídeo",
   filenamePreviewThumbnail: "Miniatura",
   filenamePreviewSubtitle: "Subtítulo",
+  filenamePreviewScenarioChannel: "Canal",
+  filenamePreviewScenarioPlaylist: "Lista de reproducción",
+  filenamePreviewScenarioSingle: "Vídeo individual",
   filenameWarningMediaPlaylistIndexUnavailable:
     "media_playlist_index no está disponible para fuentes que no sean listas de reproducción y volverá a 00.",
   filenameWarningSourceCollectionMetadataMayBeEmpty:

@@ -1235,9 +1235,11 @@ export const zh = {
   filenameTemplateDescription: "选择下载文件的命名方式。非传统模式支持媒体中心友好的目录结构。",
   filenamePresetLabel: "命名模式",
   filenamePresetLegacy: "当前兼容模式（标题-作者-年份）",
+  filenamePresetMediaCenterDateIndex: "媒体中心 – 按日期和序号分季/集",
   filenamePresetChannelYearDateIndex: "频道 – 按年份和日期分季/集",
   filenamePresetPlaylistStaticIndex: "播放列表 – 第1季 / 按序号分集",
   filenamePresetPlaylistStaticDate: "播放列表 – 第1季 / 按日期分集",
+  filenamePresetSourceDateFlat: "来源 – 日期后接标题",
   filenamePresetCustom: "自定义模板",
   filenameCustomTemplateLabel: "自定义模板",
   filenameCustomTemplatePlaceholder: "{{ source_collection_name }}/{{ season_by_year__episode_by_date_and_index }} - {{ title }}.{{ ext }}",
@@ -1245,6 +1247,9 @@ export const zh = {
   filenamePreviewVideo: "视频",
   filenamePreviewThumbnail: "缩略图",
   filenamePreviewSubtitle: "字幕",
+  filenamePreviewScenarioChannel: "频道",
+  filenamePreviewScenarioPlaylist: "播放列表",
+  filenamePreviewScenarioSingle: "单个视频",
   filenameWarningMediaPlaylistIndexUnavailable:
     "非播放列表来源不提供 media_playlist_index，将回退为 00。",
   filenameWarningSourceCollectionMetadataMayBeEmpty:

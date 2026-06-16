@@ -34,11 +34,70 @@ const render = (ui: React.ReactElement) => {
 describe('FilenameTemplateSettings information section', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        vi.mocked(api.get).mockResolvedValue({
+            data: {
+                presets: [
+                    {
+                        id: 'legacy',
+                        kind: 'legacy',
+                        labelKey: 'filenamePresetLegacy',
+                        descriptionKey: 'filenamePresetLegacy',
+                        template: '{{ title }}-{{ uploader }}-{{ upload_year }}.{{ ext }}',
+                        examplePath: 'Sample Video-Sample Channel-2026.mp4',
+                        recommendedSourceTypes: ['channel', 'playlist', 'single'],
+                    },
+                ],
+                deprecatedPresetAliases: [],
+                informationNotes: [
+                    { id: 'liquid', textKey: 'filenameRefInfoLiquid' },
+                    { id: 'extension', textKey: 'filenameRefInfoExtension' },
+                ],
+                referenceSections: [
+                    {
+                        id: 'source',
+                        titleKey: 'filenameRefSectionSourceTitle',
+                        items: [
+                            {
+                                key: 'source_custom_name',
+                                token: '{{ source_custom_name }}',
+                                descriptionKey: 'filenameRefItemSourceCustomNameDesc',
+                                example: 'Sample Channel',
+                                kind: 'liquid',
+                            },
+                        ],
+                    },
+                ],
+            },
+        } as any);
         vi.mocked(api.post).mockResolvedValue({
             data: {
-                videoPath: 'Sample Video.mp4',
-                thumbnailPath: 'Sample Video.jpg',
-                subtitlePath: 'Sample Video.en.vtt',
+                valid: true,
+                errors: [],
+                resolved: {
+                    mode: 'template',
+                    matchedPresetId: 'custom',
+                    template: '{{ title }}.{{ ext }}',
+                },
+                previews: {
+                    channel: {
+                        videoPath: 'Sample Video.mp4',
+                        thumbnailPath: 'Sample Video.jpg',
+                        subtitlePath: 'Sample Video.en.vtt',
+                        warnings: [],
+                    },
+                    playlist: {
+                        videoPath: 'Sample Playlist/Sample Video.mp4',
+                        thumbnailPath: 'Sample Playlist/Sample Video.jpg',
+                        subtitlePath: 'Sample Playlist/Sample Video.en.vtt',
+                        warnings: [],
+                    },
+                    single: {
+                        videoPath: 'Sample Video.mp4',
+                        thumbnailPath: 'Sample Video.jpg',
+                        subtitlePath: 'Sample Video.en.vtt',
+                        warnings: [],
+                    },
+                },
             },
         } as any);
     });
@@ -63,7 +122,7 @@ describe('FilenameTemplateSettings information section', () => {
         expect(screen.getByText('filenameRefInfoExtension')).toBeInTheDocument();
     });
 
-    it('does not call the presets endpoint for reference data', async () => {
+    it('loads the catalog endpoint for reference data', async () => {
         render(
             <FilenameTemplateSettings
                 settings={{
@@ -82,6 +141,6 @@ describe('FilenameTemplateSettings information section', () => {
             );
         });
 
-        expect(api.get).not.toHaveBeenCalledWith('/settings/filename-template/presets');
+        expect(api.get).toHaveBeenCalledWith('/settings/filename-template/catalog');
     });
 });

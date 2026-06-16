@@ -1288,12 +1288,15 @@ export const ko = {
     "다운로드한 파일의 이름 지정 방식을 선택합니다. 레거시가 아닌 모드에서는 미디어 센터에 적합한 폴더 구조를 사용할 수 있습니다.",
   filenamePresetLabel: "이름 지정 모드",
   filenamePresetLegacy: "현재 호환 모드(제목-작성자-연도)",
+  filenamePresetMediaCenterDateIndex:
+    "미디어 센터 - 날짜와 번호 기준 시즌/에피소드",
   filenamePresetChannelYearDateIndex:
     "채널 – 연도와 날짜 기준 시즌/에피소드",
   filenamePresetPlaylistStaticIndex:
     "재생목록 – 시즌 1 / 인덱스 기준 에피소드",
   filenamePresetPlaylistStaticDate:
     "재생목록 – 시즌 1 / 날짜 기준 에피소드",
+  filenamePresetSourceDateFlat: "소스 - 날짜 다음 제목",
   filenamePresetCustom: "사용자 지정 템플릿",
   filenameCustomTemplateLabel: "사용자 지정 템플릿",
   filenameCustomTemplatePlaceholder: "{{ source_collection_name }}/{{ season_by_year__episode_by_date_and_index }} - {{ title }}.{{ ext }}",
@@ -1301,6 +1304,9 @@ export const ko = {
   filenamePreviewVideo: "동영상",
   filenamePreviewThumbnail: "썸네일",
   filenamePreviewSubtitle: "자막",
+  filenamePreviewScenarioChannel: "채널",
+  filenamePreviewScenarioPlaylist: "재생목록",
+  filenamePreviewScenarioSingle: "단일 동영상",
   filenameWarningMediaPlaylistIndexUnavailable:
     "재생목록이 아닌 소스에서는 media_playlist_index를 사용할 수 없어 00으로 대체됩니다.",
   filenameWarningSourceCollectionMetadataMayBeEmpty:

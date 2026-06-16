@@ -1307,12 +1307,15 @@ export const ru = {
     "Выберите, как будут называться загруженные файлы. Ненаследуемые режимы включают структуру папок, удобную для медиацентров.",
   filenamePresetLabel: "Режим именования",
   filenamePresetLegacy: "Текущий совместимый режим (Название-Автор-Год)",
+  filenamePresetMediaCenterDateIndex:
+    "Медиацентр — сезон/эпизод по дате и индексу",
   filenamePresetChannelYearDateIndex:
     "Канал – сезон/эпизод по году и дате",
   filenamePresetPlaylistStaticIndex:
     "Плейлист – сезон 1 / эпизод по индексу",
   filenamePresetPlaylistStaticDate:
     "Плейлист – сезон 1 / эпизод по дате",
+  filenamePresetSourceDateFlat: "Источник — дата, затем название",
   filenamePresetCustom: "Пользовательский шаблон",
   filenameCustomTemplateLabel: "Пользовательский шаблон",
   filenameCustomTemplatePlaceholder: "{{ source_collection_name }}/{{ season_by_year__episode_by_date_and_index }} - {{ title }}.{{ ext }}",
@@ -1320,6 +1323,9 @@ export const ru = {
   filenamePreviewVideo: "Видео",
   filenamePreviewThumbnail: "Миниатюра",
   filenamePreviewSubtitle: "Субтитры",
+  filenamePreviewScenarioChannel: "Канал",
+  filenamePreviewScenarioPlaylist: "Плейлист",
+  filenamePreviewScenarioSingle: "Одиночное видео",
   filenameWarningMediaPlaylistIndexUnavailable:
     "media_playlist_index недоступен для источников без плейлиста и будет заменён на 00.",
   filenameWarningSourceCollectionMetadataMayBeEmpty:

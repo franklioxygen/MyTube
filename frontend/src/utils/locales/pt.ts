@@ -1312,12 +1312,15 @@ export const pt = {
     "Escolha como os arquivos baixados serão nomeados. Modos não legados habilitam estruturas de pastas mais adequadas para centrais de mídia.",
   filenamePresetLabel: "Modo de nomenclatura",
   filenamePresetLegacy: "Modo compatível atual (Título-Autor-Ano)",
+  filenamePresetMediaCenterDateIndex:
+    "Central de mídia – Temporada/Episódio por data e índice",
   filenamePresetChannelYearDateIndex:
     "Canal – Temporada/Episódio por ano e data",
   filenamePresetPlaylistStaticIndex:
     "Playlist – Temporada 1 / Episódio por índice",
   filenamePresetPlaylistStaticDate:
     "Playlist – Temporada 1 / Episódio por data",
+  filenamePresetSourceDateFlat: "Fonte – data e depois título",
   filenamePresetCustom: "Modelo personalizado",
   filenameCustomTemplateLabel: "Modelo personalizado",
   filenameCustomTemplatePlaceholder: "{{ source_collection_name }}/{{ season_by_year__episode_by_date_and_index }} - {{ title }}.{{ ext }}",
@@ -1325,6 +1328,9 @@ export const pt = {
   filenamePreviewVideo: "Vídeo",
   filenamePreviewThumbnail: "Miniatura",
   filenamePreviewSubtitle: "Legenda",
+  filenamePreviewScenarioChannel: "Canal",
+  filenamePreviewScenarioPlaylist: "Playlist",
+  filenamePreviewScenarioSingle: "Vídeo único",
   filenameWarningMediaPlaylistIndexUnavailable:
     "media_playlist_index não está disponível para fontes que não sejam playlists e voltará para 00.",
   filenameWarningSourceCollectionMetadataMayBeEmpty:

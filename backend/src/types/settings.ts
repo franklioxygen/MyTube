@@ -2,6 +2,8 @@ export type DownloadFilenameMode = "legacy" | "template";
 
 export type DownloadFilenamePresetId =
   | "legacy"
+  | "media_center_date_index"
+  | "source_date_flat"
   | "channel_year_date_index"
   | "playlist_static_index"
   | "playlist_static_date"

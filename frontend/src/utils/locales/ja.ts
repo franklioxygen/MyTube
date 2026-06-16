@@ -1311,12 +1311,15 @@ export const ja = {
     "ダウンロードしたファイルの命名方法を選択します。従来互換以外のモードでは、メディアセンター向けのフォルダー構成を利用できます。",
   filenamePresetLabel: "命名モード",
   filenamePresetLegacy: "現在の互換モード（タイトル-作者-年）",
+  filenamePresetMediaCenterDateIndex:
+    "メディアセンター - 日付と連番でシーズン/エピソード",
   filenamePresetChannelYearDateIndex:
     "チャンネル – 年と日付ごとのシーズン/エピソード",
   filenamePresetPlaylistStaticIndex:
     "プレイリスト – シーズン 1 / インデックスごとのエピソード",
   filenamePresetPlaylistStaticDate:
     "プレイリスト – シーズン 1 / 日付ごとのエピソード",
+  filenamePresetSourceDateFlat: "ソース - 日付、次にタイトル",
   filenamePresetCustom: "カスタムテンプレート",
   filenameCustomTemplateLabel: "カスタムテンプレート",
   filenameCustomTemplatePlaceholder: "{{ source_collection_name }}/{{ season_by_year__episode_by_date_and_index }} - {{ title }}.{{ ext }}",
@@ -1324,6 +1327,9 @@ export const ja = {
   filenamePreviewVideo: "動画",
   filenamePreviewThumbnail: "サムネイル",
   filenamePreviewSubtitle: "字幕",
+  filenamePreviewScenarioChannel: "チャンネル",
+  filenamePreviewScenarioPlaylist: "プレイリスト",
+  filenamePreviewScenarioSingle: "単体動画",
   filenameWarningMediaPlaylistIndexUnavailable:
     "プレイリスト以外のソースでは media_playlist_index を利用できないため、00 にフォールバックします。",
   filenameWarningSourceCollectionMetadataMayBeEmpty:

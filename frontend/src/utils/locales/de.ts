@@ -1325,12 +1325,15 @@ export const de = {
     "Wählen Sie, wie heruntergeladene Dateien benannt werden. Nicht-legacy Modi aktivieren mediencenterfreundliche Ordnerstrukturen.",
   filenamePresetLabel: "Benennungsmodus",
   filenamePresetLegacy: "Aktueller kompatibler Modus (Titel-Autor-Jahr)",
+  filenamePresetMediaCenterDateIndex:
+    "Mediencenter – Staffel/Folge nach Datum und Index",
   filenamePresetChannelYearDateIndex:
     "Kanal – Staffel/Folge nach Jahr und Datum",
   filenamePresetPlaylistStaticIndex:
     "Playlist – Staffel 1 / Folge nach Index",
   filenamePresetPlaylistStaticDate:
     "Playlist – Staffel 1 / Folge nach Datum",
+  filenamePresetSourceDateFlat: "Quelle – Datum, dann Titel",
   filenamePresetCustom: "Benutzerdefinierte Vorlage",
   filenameCustomTemplateLabel: "Benutzerdefinierte Vorlage",
   filenameCustomTemplatePlaceholder: "{{ source_collection_name }}/{{ season_by_year__episode_by_date_and_index }} - {{ title }}.{{ ext }}",
@@ -1338,6 +1341,9 @@ export const de = {
   filenamePreviewVideo: "Video",
   filenamePreviewThumbnail: "Miniaturbild",
   filenamePreviewSubtitle: "Untertitel",
+  filenamePreviewScenarioChannel: "Kanal",
+  filenamePreviewScenarioPlaylist: "Playlist",
+  filenamePreviewScenarioSingle: "Einzelnes Video",
   filenameWarningMediaPlaylistIndexUnavailable:
     "media_playlist_index ist für Nicht-Playlist-Quellen nicht verfügbar und fällt auf 00 zurück.",
   filenameWarningSourceCollectionMetadataMayBeEmpty:

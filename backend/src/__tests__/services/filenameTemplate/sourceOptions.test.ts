@@ -37,6 +37,9 @@ describe("filenameTemplate/sourceOptions", () => {
         collectionId: string | null;
         subscriptionType: string | null;
         playlistId: string | null;
+        author: string | null;
+        authorUrl: string | null;
+        playlistTitle: string | null;
       }>
     );
   });
@@ -58,6 +61,9 @@ describe("filenameTemplate/sourceOptions", () => {
         collectionId: "col-pl",
         subscriptionType: "playlist",
         playlistId: "PL123",
+        author: "Source Label",
+        authorUrl: "https://youtube.com/@source-label",
+        playlistTitle: "Pinned Playlist",
       },
     ];
 
@@ -67,7 +73,8 @@ describe("filenameTemplate/sourceOptions", () => {
     ]);
 
     expect(result.get("v1")).toMatchObject({
-      sourceCollectionName: "My Playlist",
+      sourceCustomName: "Source Label",
+      sourceCollectionName: "Pinned Playlist",
       sourceCollectionId: "col-pl",
       sourceCollectionType: "playlist",
       mediaPlaylistIndex: 1,
@@ -101,6 +108,33 @@ describe("filenameTemplate/sourceOptions", () => {
       mediaPlaylistIndex: 1,
     });
     expect(result.get("v2")?.mediaPlaylistIndex).toBe(2);
+  });
+
+  it("reconstructs sourceCustomName from a matching channel subscription", () => {
+    subscriptionsRowsMock.current = [
+      {
+        collectionId: null,
+        subscriptionType: "author",
+        playlistId: null,
+        author: "Source Label",
+        authorUrl: "https://youtube.com/@source-label",
+        playlistTitle: null,
+      },
+    ];
+
+    const result = buildStoredSourceOptionsMap([
+      {
+        id: "v1",
+        author: "Creator",
+        channelUrl: "https://youtube.com/@source-label",
+      } as any,
+    ]);
+
+    expect(result.get("v1")).toMatchObject({
+      sourceCustomName: "Source Label",
+      sourceCollectionName: "Source Label",
+      sourceCollectionType: "channel",
+    });
   });
 
   it("keeps the collection name for grouping under author_collection_linked", () => {

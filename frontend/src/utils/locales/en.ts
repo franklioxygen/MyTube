@@ -1257,9 +1257,12 @@ export const en = {
   filenameTemplateDescription: "Choose how downloaded files are named. Non-legacy modes enable media-center-friendly folder structures.",
   filenamePresetLabel: "Naming mode",
   filenamePresetLegacy: "Current compatible mode (Title-Author-Year)",
+  filenamePresetMediaCenterDateIndex:
+    "Media center - Season/Episode by date and index",
   filenamePresetChannelYearDateIndex: "Channel – Season/Episode by year and date",
   filenamePresetPlaylistStaticIndex: "Playlist – Season 1 / Episode by index",
   filenamePresetPlaylistStaticDate: "Playlist – Season 1 / Episode by date",
+  filenamePresetSourceDateFlat: "Source - Date then title",
   filenamePresetCustom: "Custom template",
   filenameCustomTemplateLabel: "Custom template",
   filenameCustomTemplatePlaceholder: "{{ source_collection_name }}/{{ season_by_year__episode_by_date_and_index }} - {{ title }}.{{ ext }}",
@@ -1267,6 +1270,9 @@ export const en = {
   filenamePreviewVideo: "Video",
   filenamePreviewThumbnail: "Thumbnail",
   filenamePreviewSubtitle: "Subtitle",
+  filenamePreviewScenarioChannel: "Channel",
+  filenamePreviewScenarioPlaylist: "Playlist",
+  filenamePreviewScenarioSingle: "Single Video",
   filenameWarningMediaPlaylistIndexUnavailable:
     "media_playlist_index is unavailable for non-playlist sources and will fall back to 00.",
   filenameWarningSourceCollectionMetadataMayBeEmpty:
