@@ -67,6 +67,7 @@ describe('Logger', () => {
     });
 
     it('should redact sensitive structured fields in warn logs', () => {
+        const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
         const testLogger = new Logger(LogLevel.WARN);
 
         testLogger.warn('warning message', {
@@ -74,12 +75,13 @@ describe('Logger', () => {
             authorUrl: 'https://example.com/secret-author',
         });
 
-        expect(consoleSpy.warn).toHaveBeenCalled();
-        const [, message, context] = consoleSpy.warn.mock.calls[0];
-        expect(message).toBe('warning message');
-        expect(context).toEqual({
-            author: '[REDACTED]',
-            authorUrl: 'https://example.com/secret-author',
-        });
+        expect(stderrSpy).toHaveBeenCalled();
+        const output = stderrSpy.mock.calls[0][0] as string;
+        expect(output).toContain('[WARN]');
+        expect(output).toContain('warning message');
+        expect(output).toContain('"author":"[REDACTED]"');
+        expect(output).toContain('"authorUrl":"https://example.com/secret-author"');
+        expect(output).not.toContain('Secret Author');
+        stderrSpy.mockRestore();
     });
 });

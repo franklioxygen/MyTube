@@ -163,9 +163,14 @@ export class Logger {
    */
   warn(message: string, ...args: any[]): void {
     if (this.level <= LogLevel.WARN) {
+      const timestamp = this.formatTimestamp();
       const sanitizedMessage = redactSensitive(sanitizeLogMessage(message));
       const sanitizedArgs = this.sanitizeArgs(args);
-      console.warn(`[${this.formatTimestamp()}] [WARN]`, sanitizedMessage, ...sanitizedArgs);
+      const serializedArgs = sanitizedArgs.map((arg) => this.formatArg(arg));
+      const line = [`[${timestamp}] [WARN]`, sanitizedMessage, ...serializedArgs]
+        .join(" ")
+        .trim();
+      process.stderr.write(`${line}\n`);
     }
   }
 
