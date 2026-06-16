@@ -128,9 +128,9 @@ export function backfillLegacyCollectionOrigins(): LegacyCollectionOriginBackfil
         origin: AUTHOR_AUTO_COLLECTION_ORIGIN,
       });
       results.backfilledAuthorAuto += 1;
-      logger.info(
-        `Backfilled legacy author collection origin for "${getCollectionName(collection)}"`
-      );
+      logger.info("Backfilled legacy author collection origin", {
+        author: getCollectionName(collection),
+      });
       continue;
     }
 
@@ -241,7 +241,9 @@ export function findOrCreateAuthorCollection(
   // Validate and sanitize the author name
   const validatedName = validateCollectionName(authorName);
   if (!validatedName) {
-    logger.warn("Invalid author name for collection, skipping collection creation");
+    logger.warn("Invalid author name for collection, skipping collection creation", {
+      author: authorName,
+    });
     return null;
   }
 
@@ -275,20 +277,23 @@ export function findOrCreateAuthorCollection(
     };
 
     saveCollection(newCollection);
-    logger.info("Created new collection for author");
+    logger.info("Created new collection for author", { author: uniqueName });
     return newCollection;
   } catch (error) {
     // If save fails, it might be due to a race condition
     // Try to get the collection one more time
     collection = getAuthorAutoCollectionByName(uniqueName);
     if (collection) {
-      logger.info("Collection was created by another process, using existing collection");
+      logger.info("Collection was created by another process, using existing collection", {
+        author: uniqueName,
+      });
       return collection;
     }
 
     logger.error(
       "Error creating collection for author",
-      error instanceof Error ? error : new Error(String(error))
+      error instanceof Error ? error : new Error(String(error)),
+      { author: uniqueName }
     );
     return null;
   }
@@ -339,7 +344,9 @@ export function addVideoToAuthorCollection(
     const collection = findOrCreateAuthorCollection(authorName);
 
     if (!collection) {
-      logger.warn("Failed to find or create author collection");
+      logger.warn("Failed to find or create collection for author", {
+        author: authorName,
+      });
       return null;
     }
 
@@ -351,11 +358,18 @@ export function addVideoToAuthorCollection(
     });
 
     if (updatedCollection) {
-      const moveLabel = (options?.moveFiles ?? isLegacy) ? "with file move" : "membership only";
-      logger.info(`Added video to author collection (${moveLabel})`);
+      const moveLabel = (options?.moveFiles ?? isLegacy)
+        ? "with file move"
+        : "membership only";
+      logger.info(`Added video to author collection (${moveLabel})`, {
+        author: authorName,
+      });
       return updatedCollection;
     } else {
-      logger.warn("Failed to add video to author collection");
+      logger.warn("Failed to add video to collection for author", {
+        author: authorName,
+        videoId,
+      });
       return null;
     }
   } catch (error) {
@@ -393,7 +407,9 @@ function moveVideoFilesToAuthorFolder(
   }
 
   updateVideo(videoId, updates);
-  logger.info("Moved video files into author folder");
+  logger.info("Moved video files into author folder", {
+    author: validatedAuthorName,
+  });
   return true;
 }
 

@@ -180,21 +180,22 @@ export class Logger {
       const timestamp = this.formatTimestamp();
       const sanitizedMessage = redactSensitive(sanitizeLogMessage(message));
       const sanitizedArgs = this.sanitizeArgs(args);
+      const lineParts: string[] = [`[${timestamp}] [ERROR]`, sanitizedMessage];
       if (error instanceof Error) {
         const safeError = {
           name: sanitizeLogMessage(error.name),
           message: redactSensitive(sanitizeLogMessage(error.message)),
         };
-        console.error(`[${timestamp}] [ERROR]`, sanitizedMessage, safeError, ...sanitizedArgs);
+        lineParts.push(this.formatArg(safeError));
       } else if (error !== undefined) {
         const sanitizedError =
           typeof error === "string"
             ? redactSensitive(sanitizeLogMessage(error))
             : this.sanitizeArgs([error])[0];
-        console.error(`[${timestamp}] [ERROR]`, sanitizedMessage, sanitizedError, ...sanitizedArgs);
-      } else {
-        console.error(`[${timestamp}] [ERROR]`, sanitizedMessage, ...sanitizedArgs);
+        lineParts.push(this.formatArg(sanitizedError));
       }
+      lineParts.push(...sanitizedArgs.map((arg) => this.formatArg(arg)));
+      process.stderr.write(`${lineParts.join(" ").trim()}\n`);
     }
   }
 }

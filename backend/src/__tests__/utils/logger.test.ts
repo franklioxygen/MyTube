@@ -36,12 +36,14 @@ describe('Logger', () => {
     });
 
     it('should log error messages', () => {
+        const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
         const testLogger = new Logger(LogLevel.INFO);
         testLogger.error('error message');
-        expect(consoleSpy.error).toHaveBeenCalled();
-        const [prefix, message] = consoleSpy.error.mock.calls[0];
-        expect(prefix).toContain('[ERROR]');
-        expect(message).toBe('error message');
+        expect(stderrSpy).toHaveBeenCalled();
+        const output = stderrSpy.mock.calls[0][0] as string;
+        expect(output).toContain('[ERROR]');
+        expect(output).toContain('error message');
+        stderrSpy.mockRestore();
     });
 
     it('should redact sensitive structured fields in info logs', () => {
