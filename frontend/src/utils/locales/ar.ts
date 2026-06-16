@@ -1317,6 +1317,56 @@ export const ar = {
   filenameBatchRenameSummary:
     "تمت إعادة تسمية {succeeded}، وتخطي {skipped}، وفشل {failed}.",
   filenameBatchRenameError: "فشلت إعادة التسمية",
+  // Filename template reference (information panel)
+  filenameRefInformationTitle: 'معلومات',
+  filenameRefInfoLiquid:
+    'استخدم صيغة Liquid مثل {{ title }} للوصول إلى أسماء MyTube المختصرة وحقول بيانات yt-dlp الوصفية ذات الكلمة الواحدة.',
+  filenameRefInfoYtdlp:
+    'استخدم صيغة yt-dlp مثل %(upload_date>%Y-%m-%d)s أو %(subtitles.en.-1.ext)s للتواريخ المنسقة والمدد ومسارات البيانات الوصفية الخام المتداخلة.',
+  filenameRefInfoExtension: 'يجب أن ينتهي الجزء الأخير من اسم الملف بـ .{{ ext }} أو .%(ext)s أو .%(ext)S.',
+  filenameRefInfoFallbacks:
+    'قد يكون source_collection_name/id فارغاً عند تنزيل فيديو واحد، ويعود media_playlist_index إلى 00 خارج مصادر قوائم التشغيل.',
+  filenameRefSectionCoreTitle: 'الحقول الأساسية',
+  filenameRefSectionUploadTitle: 'نطاق upload_*',
+  filenameRefSectionSourceTitle: 'نطاق source_*',
+  filenameRefSectionPlaylistTitle: 'نطاق قائمة التشغيل',
+  filenameRefSectionSeasonTitle: 'أسماء مستعارة لـ season_*',
+  filenameRefSectionStaticTitle: 'أسماء مستعارة لـ static_*',
+  filenameRefSectionRawMetadataTitle: 'بيانات yt-dlp الوصفية الخام',
+  filenameRefSectionRawMetadataDescription: 'تكشف هذه الأنماط بيانات yt-dlp الوصفية بما يتجاوز الأسماء المستعارة المضمنة.',
+  filenameRefItemTitleDesc: 'عنوان الفيديو.',
+  filenameRefItemIdDesc: 'معرف الفيديو على المنصة أو المعرف المحلي للفيديو.',
+  filenameRefItemExtDesc: 'امتداد الملف النهائي بدون النقطة.',
+  filenameRefItemUploaderDesc: 'اسم المُحمِّل أو المؤلف.',
+  filenameRefItemChannelDesc: 'اسم القناة، مع الرجوع إلى المُحمِّل.',
+  filenameRefItemDurationStringDesc: 'المدة بتنسيق HH-MM-SS أو MM-SS.',
+  filenameRefItemArtistNameDesc: 'سلسلة احتياطية بأسلوب الفنان لتسمية مركز الوسائط.',
+  filenameRefItemUploadDateDesc: 'تاريخ الرفع بتنسيق YYYYMMDD.',
+  filenameRefItemUploadYyyyMmDdDesc: 'تاريخ الرفع بتنسيق YYYY-MM-DD.',
+  filenameRefItemUploadYearDesc: 'سنة الرفع.',
+  filenameRefItemUploadMonthDesc: 'شهر الرفع.',
+  filenameRefItemUploadDayDesc: 'يوم الشهر للرفع.',
+  filenameRefItemSourceCustomNameDesc:
+    'اسم المصدر أو الاشتراك المحدد من قِبل المستخدم. تعود التنزيلات المباشرة إلى المُحمِّل أو القناة عند عدم وجود قيمة مخصصة.',
+  filenameRefItemSourceCollectionNameDesc: 'اسم القناة أو قائمة التشغيل أو المجموعة عند توفره.',
+  filenameRefItemSourceCollectionIdDesc: 'معرف القناة أو قائمة التشغيل أو المجموعة عند توفره.',
+  filenameRefItemSourceCollectionTypeDesc: 'أحد القيم: channel أو playlist أو single أو unknown.',
+  filenameRefItemMediaPlaylistIndexDesc: 'فهرس قائمة التشغيل مكمَّل برقمين.',
+  filenameRefItemSeasonFromDateDesc: 'سنة الرفع.',
+  filenameRefItemSeasonEpisodeFromDateDesc: 'مفتاح الحلقة المستند إلى التاريخ.',
+  filenameRefItemSeasonEpisodeIndexFromDateDesc: 'مفتاح الحلقة المستند إلى التاريخ مع لاحقة فهرس يومي برقمين.',
+  filenameRefItemSeasonByYearEpisodeByDateDesc: 'مجلد الموسم مع مفتاح الحلقة المستند إلى التاريخ.',
+  filenameRefItemSeasonByYearEpisodeByDateAndIndexDesc: 'مجلد الموسم مع مفتاح الحلقة المستند إلى التاريخ ولاحقة الفهرس اليومي.',
+  filenameRefItemStaticSeasonEpisodeByIndexDesc: 'مجلد الموسم 1 مع رقم حلقة برقمين وفق ترتيب قائمة التشغيل.',
+  filenameRefItemStaticSeasonEpisodeByDateDesc: 'مجلد الموسم 1 مع مفتاح الحلقة المستند إلى التاريخ.',
+  filenameRefItemGenericSingleWordDesc:
+    'يمكن الإشارة إلى أي حقل بيانات وصفية yt-dlp ذي كلمة واحدة بصيغة Liquid إذا كان موجوداً في البيانات الخام.',
+  filenameRefItemBasicYtdlpDesc:
+    'صيغة العنصر النائب لـ yt-dlp مدعومة للحقول: title وid وchannel وuploader وupload_date وext.',
+  filenameRefItemFormattedUploadDateDesc: 'ينسّق upload_date باستخدام تنسيق التاريخ في yt-dlp.',
+  filenameRefItemFormattedDurationDesc: 'ينسّق المدة باستخدام تنسيق الوقت في yt-dlp.',
+  filenameRefItemNestedPathDesc:
+    'يقرأ مسارات البيانات الوصفية الخام المتداخلة، بما فيها فهارس المصفوفات، عبر صيغة العنصر النائب لـ yt-dlp.',
 
   // Statistics
   statisticsTitle: "الإحصاءات",

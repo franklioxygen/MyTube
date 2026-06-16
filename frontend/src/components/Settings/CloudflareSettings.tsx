@@ -121,7 +121,7 @@ const CloudflareSettings: React.FC<CloudflareSettingsProps> = ({ enabled, token,
                     )}
                 </Box>
             ) : (enabled && cloudflaredStatus && (
-                <Box sx={{ mt: 2, p: 2, bgcolor: 'background.paper', borderRadius: 1, border: 1, borderColor: 'divider' }}>
+                <Box sx={{ mt: 2, p: 2, bgcolor: 'background.paper', borderRadius: 1, border: 1, borderColor: 'divider', maxWidth: 640 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, gap: 1 }}>
                         <Typography variant="subtitle2">{t('status') || 'Status'}:</Typography>
                         <Typography variant="body2" color={cloudflaredStatus.isRunning ? 'success.main' : 'error.main'} fontWeight="bold">

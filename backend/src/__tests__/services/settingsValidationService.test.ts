@@ -114,6 +114,15 @@ describe("settingsValidationService", () => {
       }).not.toThrow();
     });
 
+    it("should accept deprecated custom preset input during the transition", () => {
+      expect(() => {
+        settingsValidationService.validateSettings({
+          downloadFilenamePresetId: "custom",
+          downloadFilenameTemplate: "{{ title }}.{{ ext }}",
+        });
+      }).not.toThrow();
+    });
+
     it("should accept valid author organization modes", () => {
       expect(() => {
         settingsValidationService.validateSettings({

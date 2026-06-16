@@ -1363,6 +1363,57 @@ export const de = {
   filenameBatchRenameSummary:
     "{succeeded} umbenannt, {skipped} übersprungen, {failed} fehlgeschlagen.",
   filenameBatchRenameError: "Umbenennung fehlgeschlagen",
+  // Filename template reference (information panel)
+  filenameRefInformationTitle: 'Information',
+  filenameRefInfoLiquid:
+    'Verwende Liquid-Syntax wie {{ title }} für MyTube-Benennungsaliase und einwortige yt-dlp-Metadatenfelder.',
+  filenameRefInfoYtdlp:
+    'Verwende yt-dlp-Syntax wie %(upload_date>%Y-%m-%d)s oder %(subtitles.en.-1.ext)s für formatierte Daten, Dauern und verschachtelte Roh-Metadatenpfade.',
+  filenameRefInfoExtension: 'Das letzte Dateinamensegment muss mit .{{ ext }}, .%(ext)s oder .%(ext)S enden.',
+  filenameRefInfoFallbacks:
+    'source_collection_name/id kann bei Einzelvideo-Downloads leer sein; media_playlist_index fällt außerhalb von Wiedergabelisten-Quellen auf 00 zurück.',
+  filenameRefSectionCoreTitle: 'Kernfelder',
+  filenameRefSectionUploadTitle: 'upload_*-Namensraum',
+  filenameRefSectionSourceTitle: 'source_*-Namensraum',
+  filenameRefSectionPlaylistTitle: 'Wiedergabelisten-Namensraum',
+  filenameRefSectionSeasonTitle: 'season_*-Aliase',
+  filenameRefSectionStaticTitle: 'static_*-Aliase',
+  filenameRefSectionRawMetadataTitle: 'Roh-yt-dlp-Metadaten',
+  filenameRefSectionRawMetadataDescription: 'Diese Muster erschließen yt-dlp-Metadaten jenseits der eingebauten Aliase.',
+  filenameRefItemTitleDesc: 'Videotitel.',
+  filenameRefItemIdDesc: 'Plattform-Video-ID oder lokale Video-ID.',
+  filenameRefItemExtDesc: 'Endgültige Dateiendung ohne den Punkt.',
+  filenameRefItemUploaderDesc: 'Name des Uploaders oder Autors.',
+  filenameRefItemChannelDesc: 'Kanalname, mit Rückfall auf den Uploader.',
+  filenameRefItemDurationStringDesc: 'Dauer im Format HH-MM-SS oder MM-SS.',
+  filenameRefItemArtistNameDesc: 'Künstler-ähnliche Rückfallkette für Media-Center-Benennung.',
+  filenameRefItemUploadDateDesc: 'Upload-Datum als JJJJMMTT.',
+  filenameRefItemUploadYyyyMmDdDesc: 'Upload-Datum als JJJJ-MM-TT.',
+  filenameRefItemUploadYearDesc: 'Upload-Jahr.',
+  filenameRefItemUploadMonthDesc: 'Upload-Monat.',
+  filenameRefItemUploadDayDesc: 'Upload-Tag des Monats.',
+  filenameRefItemSourceCustomNameDesc:
+    'Benutzerdefinierter Quell- oder Abonnementname. Direkte Downloads fallen auf Uploader oder Kanal zurück, wenn keine Überschreibung vorhanden ist.',
+  filenameRefItemSourceCollectionNameDesc: 'Kanal-, Wiedergabelisten- oder Sammlungsname, falls verfügbar.',
+  filenameRefItemSourceCollectionIdDesc: 'Kanal-, Wiedergabelisten- oder Sammlungs-ID, falls verfügbar.',
+  filenameRefItemSourceCollectionTypeDesc: 'Eines von: channel, playlist, single oder unknown.',
+  filenameRefItemMediaPlaylistIndexDesc: 'Wiedergabelisten-Index auf zwei Stellen aufgefüllt.',
+  filenameRefItemSeasonFromDateDesc: 'Upload-Jahr.',
+  filenameRefItemSeasonEpisodeFromDateDesc: 'Datumsbasierter Episodenschlüssel.',
+  filenameRefItemSeasonEpisodeIndexFromDateDesc: 'Datumsbasierter Episodenschlüssel mit zweistelligem Tagesindex-Suffix.',
+  filenameRefItemSeasonByYearEpisodeByDateDesc: 'Staffelordner plus datumsbasierter Episodenschlüssel.',
+  filenameRefItemSeasonByYearEpisodeByDateAndIndexDesc: 'Staffelordner plus datumsbasierter Episodenschlüssel mit Tagesindex-Suffix.',
+  filenameRefItemStaticSeasonEpisodeByIndexDesc:
+    'Ordner Staffel 1 plus zweistellige Episodennummer aus der Wiedergabelisten-Reihenfolge.',
+  filenameRefItemStaticSeasonEpisodeByDateDesc: 'Ordner Staffel 1 plus datumsbasierter Episodenschlüssel.',
+  filenameRefItemGenericSingleWordDesc:
+    'Jedes einwortige yt-dlp-Metadatenfeld kann mit Liquid-Syntax referenziert werden, wenn es in den Roh-Metadaten vorhanden ist.',
+  filenameRefItemBasicYtdlpDesc:
+    'yt-dlp-Platzhalter-Syntax wird für title, id, channel, uploader, upload_date und ext unterstützt.',
+  filenameRefItemFormattedUploadDateDesc: 'Formatiert upload_date mit der yt-dlp-Datumsformatierung.',
+  filenameRefItemFormattedDurationDesc: 'Formatiert die Dauer mit der yt-dlp-Zeitformatierung.',
+  filenameRefItemNestedPathDesc:
+    'Liest verschachtelte Roh-Metadatenpfade einschließlich Array-Indizes über die yt-dlp-Platzhalter-Syntax.',
 
   // Statistics
   statisticsTitle: "Statistiken",

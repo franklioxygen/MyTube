@@ -43,6 +43,13 @@ function formatDuration(seconds: number | undefined): string {
   return `${mm}-${ss}`;
 }
 
+function resolveSourceCustomName(
+  explicitValue: string | undefined,
+  fallbackValue: string | undefined
+): string {
+  return explicitValue || fallbackValue || "";
+}
+
 // Map of platform -> allowed hostname suffixes. Matched against the parsed
 // URL hostname only (not via substring includes()), so an attacker URL like
 // "https://evil.com/?youtube.com" is correctly classified as "unknown".
@@ -128,7 +135,13 @@ export function buildContextFromYtDlpInfo(
     durationSeconds: durationSec,
     durationString: formatDuration(durationSec),
     artistName: uploader,
-    sourceCustomName: options.sourceCustomName || "",
+    // For direct single-video downloads there may be no subscription/source
+    // context. Fall back to uploader/channel so {{ source_custom_name }} does
+    // not render as "Unknown" for an otherwise well-identified video.
+    sourceCustomName: resolveSourceCustomName(
+      options.sourceCustomName,
+      uploader || channel
+    ),
     sourceCollectionName: options.sourceCollectionName || info.playlist_title || info.channel || "",
     sourceCollectionId: options.sourceCollectionId || info.playlist_id || info.channel_id || "",
     sourceCollectionType: options.sourceCollectionType || "single",
@@ -170,7 +183,7 @@ export function buildContextFromBilibiliMetadata(
     durationSeconds: durationSec,
     durationString: formatDuration(durationSec),
     artistName: owner,
-    sourceCustomName: options.sourceCustomName || "",
+    sourceCustomName: resolveSourceCustomName(options.sourceCustomName, owner),
     sourceCollectionName: options.sourceCollectionName || metadata.seriesTitle || "",
     sourceCollectionId: options.sourceCollectionId || metadata.seasonId || "",
     sourceCollectionType: options.sourceCollectionType || "single",
@@ -213,7 +226,7 @@ export function buildContextFromVideoRecord(
     durationSeconds: durationSec,
     durationString: formatDuration(durationSec),
     artistName: author,
-    sourceCustomName: options.sourceCustomName || "",
+    sourceCustomName: resolveSourceCustomName(options.sourceCustomName, author),
     sourceCollectionName: options.sourceCollectionName || author,
     sourceCollectionId: options.sourceCollectionId || "",
     sourceCollectionType: options.sourceCollectionType || "unknown",

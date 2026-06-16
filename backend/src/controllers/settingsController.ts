@@ -14,6 +14,7 @@ import {
 } from "../config/paths";
 import { cloudflaredService } from "../services/cloudflaredService";
 import downloadManager from "../services/downloadManager";
+import { normalizeFilenameNamingSettings, resolveFilenameNamingConfig } from "../services/filenameTemplate/config";
 import * as passwordService from "../services/passwordService";
 import * as settingsValidationService from "../services/settingsValidationService";
 import {
@@ -85,6 +86,7 @@ const buildSafeSettingsPayload = (
   req: Request,
   settings: PersistedSettingsResponse
 ): Record<string, unknown> => {
+  const resolvedFilenameNaming = resolveFilenameNamingConfig(settings);
   const canExposeAdminOnlySettings =
     req.user?.role === "admin" || settings.loginEnabled !== true;
   const safeSettings = Object.fromEntries(
@@ -106,6 +108,8 @@ const buildSafeSettingsPayload = (
   return {
     ...safeSettings,
     ...adminOnlySettings,
+    downloadFilenameMode: resolvedFilenameNaming.mode,
+    downloadFilenamePresetId: resolvedFilenameNaming.matchedPresetId,
     deploymentSecurity: getDeploymentSecurityModel(),
     password: undefined,
     visitorPassword: undefined,
@@ -762,7 +766,10 @@ const persistSettingsUpdate = async (
   }
 
   const normalizedIncomingSettings =
-    normalizeAuthorOrganizationSettings(trustedIncomingSettings);
+    normalizeFilenameNamingSettings(
+      existingSettings,
+      normalizeAuthorOrganizationSettings(trustedIncomingSettings)
+    );
 
   settingsValidationService.validateSettings(normalizedIncomingSettings);
 
@@ -788,6 +795,7 @@ const persistSettingsUpdate = async (
         };
 
   removeUndefinedSettings(settingsToPersist);
+  delete settingsToPersist.downloadFilenamePresetId;
 
   const finalSettings =
     mode === "replace"
@@ -797,6 +805,18 @@ const persistSettingsUpdate = async (
   ensureApiKeyWhenEnabled(settingsToPersist, finalSettings);
   applyStatisticsToggleSideEffects(existingSettings, finalSettings);
   storageService.saveSettings(settingsToPersist as Record<string, unknown>);
+  if (
+    Object.prototype.hasOwnProperty.call(
+      normalizedIncomingSettings,
+      "downloadFilenameMode"
+    ) ||
+    Object.prototype.hasOwnProperty.call(
+      trustedIncomingSettings,
+      "downloadFilenamePresetId"
+    )
+  ) {
+    storageService.deleteSettingsKeys(["downloadFilenamePresetId"]);
+  }
   invalidateStatisticsSettingsCache();
   if (
     settingsToPersist.twitchClientId !== undefined ||

@@ -10,8 +10,12 @@ import {
   cancelRenameJob,
   startRenameJob,
 } from "../services/filenameTemplate";
+import {
+  normalizeFilenameNamingSettings,
+  validateFilenameNamingSelection,
+} from "../services/filenameTemplate/config";
 import { FilenameTemplateContext } from "../services/filenameTemplate/types";
-import { DownloadFilenamePresetId } from "../types/settings";
+import { DownloadFilenameMode, DownloadFilenamePresetId } from "../types/settings";
 import { logger } from "../utils/logger";
 import { getStringParam } from "../utils/paramUtils";
 import { sendBadRequest } from "../utils/response";
@@ -39,16 +43,8 @@ const SAMPLE_CONTEXT: FilenameTemplateContext = {
   sourceUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
 };
 
-const VALID_PRESET_IDS = new Set<DownloadFilenamePresetId>(
-  [
-    ...FILENAME_TEMPLATE_PRESETS.map(
-      (preset) => preset.id as DownloadFilenamePresetId
-    ),
-    "custom",
-  ]
-);
-
 type BatchRenameRequestOverrides = {
+  downloadFilenameMode?: DownloadFilenameMode;
   downloadFilenamePresetId?: DownloadFilenamePresetId;
   downloadFilenameTemplate?: string;
   moveThumbnailsToVideoFolder?: boolean;
@@ -59,7 +55,9 @@ export async function getFilenameTemplatePresets(
   req: Request,
   res: Response
 ): Promise<void> {
-  res.json({ presets: FILENAME_TEMPLATE_PRESETS });
+  res.json({
+    presets: FILENAME_TEMPLATE_PRESETS,
+  });
 }
 
 export async function validateFilenameTemplate(
@@ -189,47 +187,29 @@ export async function startBatchRename(
     const savedSettings = storageService.getSettings();
     const overrides = (req.body || {}) as BatchRenameRequestOverrides;
 
-    if (
-      overrides.downloadFilenamePresetId !== undefined &&
-      !VALID_PRESET_IDS.has(overrides.downloadFilenamePresetId)
-    ) {
+    const normalizedNamingOverrides = normalizeFilenameNamingSettings(
+      savedSettings,
+      overrides
+    );
+    const namingValidation = validateFilenameNamingSelection({
+      ...savedSettings,
+      ...normalizedNamingOverrides,
+    });
+    if (namingValidation.errors.length > 0) {
+      const [error] = namingValidation.errors;
       res.status(400).json({
-        error: `Invalid filename preset: ${overrides.downloadFilenamePresetId}`,
-        code: "invalid_preset",
-      });
-      return;
-    }
-
-    if (
-      overrides.downloadFilenameTemplate !== undefined &&
-      typeof overrides.downloadFilenameTemplate !== "string"
-    ) {
-      res.status(400).json({
-        error: "Invalid filename template override.",
-        code: "invalid_template",
-      });
-      return;
-    }
-
-    if (
-      overrides.downloadFilenamePresetId === "custom" &&
-      overrides.downloadFilenameTemplate === undefined
-    ) {
-      res.status(400).json({
-        error: "Current custom template override is required.",
-        code: "invalid_template",
+        error: error.message,
+        code:
+          error.field === "downloadFilenamePresetId"
+            ? "invalid_preset"
+            : "invalid_template",
       });
       return;
     }
 
     const settings = {
       ...savedSettings,
-      ...(overrides.downloadFilenamePresetId !== undefined
-        ? { downloadFilenamePresetId: overrides.downloadFilenamePresetId }
-        : {}),
-      ...(overrides.downloadFilenameTemplate !== undefined
-        ? { downloadFilenameTemplate: overrides.downloadFilenameTemplate }
-        : {}),
+      ...normalizedNamingOverrides,
       ...(overrides.moveThumbnailsToVideoFolder !== undefined
         ? { moveThumbnailsToVideoFolder: overrides.moveThumbnailsToVideoFolder }
         : {}),
@@ -240,18 +220,15 @@ export async function startBatchRename(
 
     // Batch rename uses the current UI selection if provided in the request;
     // Save only controls future download defaults.
-    const presetId = settings.downloadFilenamePresetId || "legacy";
-    if (presetId === "custom") {
+    if (settings.downloadFilenameMode === "template") {
       const tpl = settings.downloadFilenameTemplate || "";
       const validation = validateTemplate(tpl);
       if (!validation.valid) {
-        const templateScope =
-          overrides.downloadFilenamePresetId === "custom" ||
-          overrides.downloadFilenameTemplate !== undefined
-            ? "Current"
-            : "Saved";
+        const templateScope = overrides.downloadFilenameTemplate !== undefined
+          ? "Current"
+          : "Saved";
         res.status(400).json({
-          error: `${templateScope} custom template is invalid: ${validation.errors.join("; ")}`,
+          error: `${templateScope} template is invalid: ${validation.errors.join("; ")}`,
           code: "invalid_template",
         });
         return;

@@ -1,3 +1,5 @@
+import { LEGACY_DOWNLOAD_FILENAME_TEMPLATE } from "../../types/settings";
+
 export interface FilenameTemplatePreset {
   id: string;
   labelKey: string;
@@ -8,7 +10,7 @@ export const FILENAME_TEMPLATE_PRESETS: FilenameTemplatePreset[] = [
   {
     id: "legacy",
     labelKey: "filenamePresetLegacy",
-    template: "{{ title }}-{{ uploader }}-{{ upload_year }}.{{ ext }}",
+    template: LEGACY_DOWNLOAD_FILENAME_TEMPLATE,
   },
   {
     id: "channel_year_date_index",

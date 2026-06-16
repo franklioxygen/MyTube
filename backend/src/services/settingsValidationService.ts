@@ -11,10 +11,7 @@ import {
   getTwitchCredentialValidationCode,
   normalizeTwitchCredential,
 } from "../utils/twitch";
-import { validateTemplate } from "./filenameTemplate/validators";
-import { getPresetById, FILENAME_TEMPLATE_PRESETS } from "./filenameTemplate/presets";
-
-const VALID_PRESET_IDS = FILENAME_TEMPLATE_PRESETS.map((p) => p.id);
+import { validateFilenameNamingSelection } from "./filenameTemplate/config";
 const VALID_MEDIA_SERVER_EXPORT_MODES = new Set([
   "off",
   "nfo",
@@ -191,15 +188,10 @@ export function validateSettings(newSettings: Partial<Settings>): void {
     newSettings.defaultSort = "dateDesc";
   }
 
-  // Validate downloadFilenamePresetId
-  if (
-    newSettings.downloadFilenamePresetId !== undefined &&
-    !VALID_PRESET_IDS.includes(newSettings.downloadFilenamePresetId as any)
-  ) {
-    throw new ValidationError(
-      `Invalid downloadFilenamePresetId: "${newSettings.downloadFilenamePresetId}".`,
-      "downloadFilenamePresetId"
-    );
+  const filenameNamingValidation = validateFilenameNamingSelection(newSettings);
+  if (filenameNamingValidation.errors.length > 0) {
+    const [error] = filenameNamingValidation.errors;
+    throw new ValidationError(error.message, error.field);
   }
 
   if (
@@ -220,20 +212,6 @@ export function validateSettings(newSettings: Partial<Settings>): void {
       `Invalid authorOrganizationMode: "${newSettings.authorOrganizationMode}".`,
       "authorOrganizationMode"
     );
-  }
-
-  // Validate downloadFilenameTemplate when saving custom preset
-  if (
-    newSettings.downloadFilenamePresetId === "custom" &&
-    newSettings.downloadFilenameTemplate !== undefined
-  ) {
-    const result = validateTemplate(newSettings.downloadFilenameTemplate);
-    if (!result.valid) {
-      throw new ValidationError(
-        `Invalid filename template: ${result.errors.join("; ")}`,
-        "downloadFilenameTemplate"
-      );
-    }
   }
 
   // Validate tags: no case-insensitive duplicates (e.g. "aaa" and "Aaa" cannot both exist)

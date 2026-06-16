@@ -18,10 +18,15 @@ import {
 } from '@mui/material';
 import React, { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import CollapsibleSection from '../CollapsibleSection';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { Settings } from '../../types';
 import { api } from '../../utils/apiClient';
 import { TranslationKey } from '../../utils/translations';
+import {
+    FILENAME_TEMPLATE_INFORMATION_NOTES,
+    FILENAME_TEMPLATE_REFERENCE_SECTIONS,
+} from '../../utils/filenameTemplateReference';
 
 interface FilenameTemplateSettingsProps {
     settings: Settings;
@@ -132,6 +137,68 @@ const PRESET_OPTIONS = [
     { value: 'custom', labelKey: 'filenamePresetCustom' },
 ] as const;
 
+const PRESET_TEMPLATE_MAP: Record<string, string> = {
+    legacy: '{{ title }}-{{ uploader }}-{{ upload_year }}.{{ ext }}',
+    channel_year_date_index:
+        '{{ source_collection_name }}/{{ season_by_year__episode_by_date_and_index }} - {{ title }}.{{ ext }}',
+    playlist_static_index:
+        '{{ source_collection_name }}/{{ static_season__episode_by_index }} - {{ title }}.{{ ext }}',
+    playlist_static_date:
+        '{{ source_collection_name }}/{{ static_season__episode_by_date }} - {{ title }}.{{ ext }}',
+};
+
+export function getPresetTemplate(id: string): string {
+    return PRESET_TEMPLATE_MAP[id] || '';
+}
+
+export function deriveFilenamePresetId(
+    settings: Pick<Settings, 'downloadFilenameMode' | 'downloadFilenameTemplate' | 'downloadFilenamePresetId'>
+): string {
+    if (settings.downloadFilenameMode === 'legacy') {
+        return 'legacy';
+    }
+
+    if (settings.downloadFilenameMode === 'template') {
+        const template = settings.downloadFilenameTemplate || '';
+        const matchedBuiltIn = PRESET_OPTIONS.find(
+            (option) =>
+                option.value !== 'legacy' &&
+                option.value !== 'custom' &&
+                getPresetTemplate(option.value) === template
+        );
+        return matchedBuiltIn?.value || 'custom';
+    }
+
+    return settings.downloadFilenamePresetId || 'legacy';
+}
+
+export function deriveFilenameEffectiveTemplate(
+    settings: Pick<Settings, 'downloadFilenameMode' | 'downloadFilenameTemplate' | 'downloadFilenamePresetId'>
+): string {
+    if (settings.downloadFilenameMode === 'legacy') {
+        return getPresetTemplate('legacy');
+    }
+
+    if (settings.downloadFilenameMode === 'template') {
+        return settings.downloadFilenameTemplate || '';
+    }
+
+    const presetId = settings.downloadFilenamePresetId || 'legacy';
+    return presetId === 'custom'
+        ? settings.downloadFilenameTemplate || ''
+        : getPresetTemplate(presetId);
+}
+
+export function resolveFilenamePresetSelectValue(
+    derivedPresetId: string,
+    namingMode: 'legacy' | 'template',
+    forceCustomSelection: boolean
+): string {
+    return forceCustomSelection && namingMode === 'template'
+        ? 'custom'
+        : derivedPresetId;
+}
+
 const MEDIA_SERVER_EXPORT_OPTIONS = [
     { value: 'off', labelKey: 'mediaServerExportModeOff' },
     { value: 'nfo', labelKey: 'mediaServerExportModeNfo' },
@@ -145,8 +212,15 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
     const { t } = useLanguage();
     const queryClient = useQueryClient();
 
-    const presetId = settings.downloadFilenamePresetId || 'legacy';
+    const derivedPresetId = deriveFilenamePresetId(settings);
     const customTemplate = settings.downloadFilenameTemplate || '';
+    const namingMode = settings.downloadFilenameMode || (derivedPresetId === 'legacy' ? 'legacy' : 'template');
+    const [forceCustomSelection, setForceCustomSelection] = useState(false);
+    const presetId = resolveFilenamePresetSelectValue(
+        derivedPresetId,
+        namingMode,
+        forceCustomSelection
+    );
 
     const [preview, setPreview] = useState<PreviewResult | null>(null);
     const [isValidating, setIsValidating] = useState(false);
@@ -162,29 +236,23 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
     // Batch rename uses the current form state shown above, not only the last
     // saved defaults used for future downloads.
     const currentTemplateInvalid =
-        presetId === 'custom' && !!preview?.errors?.length;
+        namingMode === 'template' && presetId === 'custom' && !!preview?.errors?.length;
     const recommendedTvLayout =
         !!preview?.videoPath && preview.videoPath.split('/').filter(Boolean).length >= 3;
 
     // Compute effective template for preview
-    const effectiveTemplate = presetId === 'custom'
-        ? customTemplate
-        : PRESET_OPTIONS.find(p => p.value === presetId)
-            ? getPresetTemplate(presetId)
-            : '';
+    const effectiveTemplate = deriveFilenameEffectiveTemplate(settings);
 
-    function getPresetTemplate(id: string): string {
-        const map: Record<string, string> = {
-            legacy: '{{ title }}-{{ uploader }}-{{ upload_year }}.{{ ext }}',
-            channel_year_date_index:
-                '{{ source_collection_name }}/{{ season_by_year__episode_by_date_and_index }} - {{ title }}.{{ ext }}',
-            playlist_static_index:
-                '{{ source_collection_name }}/{{ static_season__episode_by_index }} - {{ title }}.{{ ext }}',
-            playlist_static_date:
-                '{{ source_collection_name }}/{{ static_season__episode_by_date }} - {{ title }}.{{ ext }}',
-        };
-        return map[id] || '';
-    }
+    useEffect(() => {
+        if (settings.downloadFilenameMode !== 'template') {
+            setForceCustomSelection(false);
+            return;
+        }
+
+        if (derivedPresetId === 'custom') {
+            setForceCustomSelection(false);
+        }
+    }, [derivedPresetId, settings.downloadFilenameMode]);
 
     // Debounced preview fetch
     useEffect(() => {
@@ -272,20 +340,30 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
     }, [exportJob?.id, exportJob?.status]);
 
     const handlePresetChange = (value: string) => {
-        if (value !== 'custom' && value !== 'legacy') {
-            // Switch to a built-in preset
-            onChange('downloadFilenamePresetId', value as any);
-        } else {
-            onChange('downloadFilenamePresetId', value as any);
+        if (value === 'legacy') {
+            setForceCustomSelection(false);
+            onChange('downloadFilenameMode', 'legacy');
+            return;
         }
+
+        onChange('downloadFilenameMode', 'template');
+
+        if (value === 'custom') {
+            setForceCustomSelection(true);
+            if (!customTemplate) {
+                onChange('downloadFilenameTemplate', effectiveTemplate);
+            }
+            return;
+        }
+
+        setForceCustomSelection(false);
+        onChange('downloadFilenameTemplate', getPresetTemplate(value));
     };
 
     const handleCustomTemplateChange = (value: string) => {
-        // When user edits template text, switch to custom preset
+        setForceCustomSelection(true);
+        onChange('downloadFilenameMode', 'template');
         onChange('downloadFilenameTemplate', value);
-        if (presetId !== 'custom') {
-            onChange('downloadFilenamePresetId', 'custom');
-        }
     };
 
     const handleStartRename = async () => {
@@ -295,9 +373,9 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
             const res = await api.post<{ jobId: string; status: string; total: number }>(
                 '/settings/filename-template/rename-all',
                 {
-                    downloadFilenamePresetId: presetId,
+                    downloadFilenameMode: namingMode,
                     downloadFilenameTemplate:
-                        presetId === 'custom' ? customTemplate : undefined,
+                        namingMode === 'template' ? effectiveTemplate : undefined,
                     moveThumbnailsToVideoFolder:
                         settings.moveThumbnailsToVideoFolder || false,
                     moveSubtitlesToVideoFolder:
@@ -402,19 +480,19 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
                 </FormControl>
 
                 {(settings.mediaServerExportMode || 'off') !== 'off' && !recommendedTvLayout && (
-                    <Alert severity="warning" sx={{ mt: 2, maxWidth: 860 }}>
+                    <Alert severity="warning" sx={{ mt: 2, maxWidth: 920 }}>
                         {t('mediaServerExportRecommendedLayoutWarning')}
                     </Alert>
                 )}
 
                 {exportMode === 'off' && (
-                    <Alert severity="info" sx={{ mt: 2, maxWidth: 860 }}>
+                    <Alert severity="info" sx={{ mt: 2, maxWidth: 920 }}>
                         {t('mediaServerExportCleanupHint')}
                     </Alert>
                 )}
 
                 {exportError && (
-                    <Alert severity="error" sx={{ mt: 2, maxWidth: 860 }}>
+                    <Alert severity="error" sx={{ mt: 2, maxWidth: 920 }}>
                         {exportError}
                     </Alert>
                 )}
@@ -435,7 +513,7 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
                 )}
 
                 {isExportComplete && exportJob && (
-                    <Alert severity="success" sx={{ mt: 2, maxWidth: 860 }}>
+                    <Alert severity="success" sx={{ mt: 2, maxWidth: 920 }}>
                         {t(activeExportAction === 'cleanup'
                             ? 'mediaServerExportCleanupComplete'
                             : 'mediaServerExportRebuildComplete')} –{' '}
@@ -490,7 +568,7 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
                 </FormControl>
 
                 {presetId === 'custom' && (
-                    <Box sx={{ mt: 2, maxWidth: 760 }}>
+                    <Box sx={{ mt: 2, maxWidth: 920 }}>
                         <Typography variant="body2" color="text.secondary" sx={{ mb: 0.75 }}>
                             {t('filenameCustomTemplateLabel')}
                         </Typography>
@@ -513,7 +591,7 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
                 )}
 
                 {effectiveTemplate && (
-                    <Box sx={{ mt: 2, p: 1.5, bgcolor: 'action.hover', borderRadius: 1.5, maxWidth: 760 }}>
+                    <Box sx={{ mt: 2, p: 1.5, bgcolor: 'action.hover', borderRadius: 1.5, maxWidth: 920 }}>
                         <Typography variant="body2" fontWeight="bold" gutterBottom>
                             {t('filenamePreviewTitle')}
                             {isValidating && (
@@ -546,6 +624,86 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
                 )}
             </Box>
 
+            <Box sx={{ mt: 3, maxWidth: 920 }}>
+                <CollapsibleSection title={t('filenameRefInformationTitle')} defaultExpanded={false}>
+                    <Box sx={{ mb: 2 }}>
+                        {FILENAME_TEMPLATE_INFORMATION_NOTES.map((note) => (
+                            <Typography
+                                key={note.id}
+                                variant="body2"
+                                color="text.secondary"
+                                sx={{ mb: 0.75 }}
+                            >
+                                {t(note.textKey)}
+                            </Typography>
+                        ))}
+                    </Box>
+
+                    {FILENAME_TEMPLATE_REFERENCE_SECTIONS.map((section) => (
+                        <Box key={section.id} sx={{ mb: 2.5 }}>
+                            <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                                {t(section.titleKey)}
+                            </Typography>
+                            {section.descriptionKey && (
+                                <Typography
+                                    variant="body2"
+                                    color="text.secondary"
+                                    sx={{ mb: 1.25 }}
+                                >
+                                    {t(section.descriptionKey)}
+                                </Typography>
+                            )}
+                            <Box
+                                sx={{
+                                    display: 'grid',
+                                    gap: 1,
+                                }}
+                            >
+                                {section.items.map((item) => (
+                                    <Box
+                                        key={item.key}
+                                        sx={{
+                                            display: 'grid',
+                                            gridTemplateColumns: {
+                                                xs: '1fr',
+                                                md: '260px minmax(0, 1fr) 180px',
+                                            },
+                                            gap: 1,
+                                            p: 1.25,
+                                            borderRadius: 1.5,
+                                            bgcolor: 'action.hover',
+                                        }}
+                                    >
+                                        <Typography
+                                            variant="body2"
+                                            sx={{
+                                                fontFamily: 'monospace',
+                                                wordBreak: 'break-all',
+                                            }}
+                                        >
+                                            {item.token}
+                                        </Typography>
+                                        <Typography variant="body2" color="text.secondary">
+                                            {t(item.descriptionKey)}
+                                        </Typography>
+                                        <Typography
+                                            variant="body2"
+                                            color="text.secondary"
+                                            sx={{
+                                                fontFamily: item.example ? 'monospace' : undefined,
+                                                wordBreak: 'break-all',
+                                            }}
+                                        >
+                                            {item.example || ''}
+                                        </Typography>
+                                    </Box>
+                                ))}
+                            </Box>
+                        </Box>
+                    ))}
+                </CollapsibleSection>
+            </Box>
+
             <Box sx={{ mt: 3 }}>
                 <Typography variant="h6" gutterBottom>
                     {t('filenameBatchRenameButton')}
@@ -555,7 +713,7 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
                 </Typography>
 
                 {renameError && (
-                    <Alert severity="error" sx={{ mb: 1 }}>
+                    <Alert severity="error" sx={{ mb: 1, maxWidth: 920 }}>
                         {renameError}
                     </Alert>
                 )}
@@ -579,7 +737,7 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
                 )}
 
                 {isRenameComplete && renameJob && (
-                    <Alert severity="success" sx={{ mb: 2 }}>
+                    <Alert severity="success" sx={{ mb: 2, maxWidth: 920 }}>
                         {t('filenameBatchRenameComplete')} –{' '}
                         {t('filenameBatchRenameSummary')
                             .replace('{succeeded}', String(renameJob.succeeded))

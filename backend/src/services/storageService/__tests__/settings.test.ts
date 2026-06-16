@@ -61,6 +61,8 @@ describe('storageService settings', () => {
                 boolKey: true,
                 authorOrganizationMode: 'root',
                 saveAuthorFilesToCollection: false,
+                downloadFilenameMode: 'legacy',
+                downloadFilenamePresetId: 'legacy',
             });
         });
 

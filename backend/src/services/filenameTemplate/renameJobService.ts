@@ -4,6 +4,7 @@ import { db } from "../../db";
 import { downloadHistory, videos } from "../../db/schema";
 import { eq, and } from "drizzle-orm";
 import { IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../../config/paths";
+import { LEGACY_DOWNLOAD_FILENAME_TEMPLATE } from "../../types/settings";
 import { logger } from "../../utils/logger";
 import {
   ensureDirSafeSync,
@@ -22,7 +23,10 @@ import { buildContextFromVideoRecord } from "./contextBuilder";
 import { applyDedupeToRelatedPaths } from "./dedupe";
 import { resolveManagedWebPath } from "./pathHelpers";
 import { planMediaServerExportPaths } from "../mediaServerExport/pathPlanner";
-import { getPresetById } from "./presets";
+import {
+  resolveFilenameNamingConfig,
+  toFilenameNamingRuntimeConfig,
+} from "./config";
 import { planVideoOutputPaths } from "./renderer";
 import { acquireRenameLock, releaseRenameLock } from "./renameLockService";
 import {
@@ -86,7 +90,11 @@ export function cancelRenameJob(jobId: string): boolean {
  * Returns the job on success or throws if a job is already running or prerequisites aren't met.
  */
 export async function startRenameJob(
-  settings: { downloadFilenamePresetId?: string; downloadFilenameTemplate?: string },
+  settings: {
+    downloadFilenameMode?: string;
+    downloadFilenamePresetId?: string;
+    downloadFilenameTemplate?: string;
+  },
   moveThumbnailsToVideoFolder: boolean,
   moveSubtitlesToVideoFolder: boolean
 ): Promise<RenameJob> {
@@ -97,15 +105,11 @@ export async function startRenameJob(
   // Per design §23, the rename job runs for any saved preset including
   // "legacy" — the planner falls back to formatVideoFilename for legacy so
   // already-legacy files are detected as no-ops and the job is safe to re-run.
-  const presetId = settings.downloadFilenamePresetId || "legacy";
-  let template: string;
-  if (presetId === "legacy") {
-    template = "{{ title }}-{{ uploader }}-{{ upload_year }}.{{ ext }}";
-  } else if (presetId === "custom") {
-    template = settings.downloadFilenameTemplate || "";
-  } else {
-    template = getPresetById(presetId)?.template || "";
-  }
+  const resolvedNaming = resolveFilenameNamingConfig(settings);
+  const template =
+    resolvedNaming.mode === "legacy"
+      ? LEGACY_DOWNLOAD_FILENAME_TEMPLATE
+      : resolvedNaming.template || "";
 
   const jobId = `rename_${Date.now()}`;
   const now = Date.now();
@@ -257,7 +261,11 @@ function hasOutputPathConflict(
 async function processRenameJob(
   job: RenameJob,
   allVideos: Video[],
-  settings: { downloadFilenamePresetId?: string; downloadFilenameTemplate?: string },
+  settings: {
+    downloadFilenameMode?: string;
+    downloadFilenamePresetId?: string;
+    downloadFilenameTemplate?: string;
+  },
   moveThumbnailsToVideoFolder: boolean,
   moveSubtitlesToVideoFolder: boolean
 ): Promise<void> {
@@ -302,7 +310,11 @@ async function processRenameJob(
 async function processOneVideo(
   video: Video,
   job: RenameJob,
-  settings: { downloadFilenamePresetId?: string; downloadFilenameTemplate?: string },
+  settings: {
+    downloadFilenameMode?: string;
+    downloadFilenamePresetId?: string;
+    downloadFilenameTemplate?: string;
+  },
   moveThumbnailsToVideoFolder: boolean,
   moveSubtitlesToVideoFolder: boolean,
   sourceOptions: FilenameTemplateSourceOptions
@@ -354,7 +366,7 @@ async function processOneVideo(
 
     // Plan output
     const planned = planVideoOutputPaths({
-      settings,
+      naming: toFilenameNamingRuntimeConfig(settings),
       context,
       videoExtension: videoExt,
       moveThumbnailsToVideoFolder,

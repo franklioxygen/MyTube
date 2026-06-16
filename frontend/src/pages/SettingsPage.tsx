@@ -703,7 +703,7 @@ const SettingsPage: React.FC = () => {
             onMoveThumbnailsToVideoFolderChange={(checked) => handleChange('moveThumbnailsToVideoFolder', checked)}
             authorOrganizationMode={settings.authorOrganizationMode || 'root'}
             onAuthorOrganizationModeChange={(mode) => handleChange('authorOrganizationMode', mode)}
-            downloadFilenamePresetId={settings.downloadFilenamePresetId}
+            downloadFilenameMode={settings.downloadFilenameMode}
         />
     );
 

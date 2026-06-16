@@ -38,7 +38,7 @@ describe('DatabaseSettings', () => {
         onMoveThumbnailsToVideoFolderChange: vi.fn(),
         authorOrganizationMode: 'root' as const,
         onAuthorOrganizationModeChange: vi.fn(),
-        downloadFilenamePresetId: 'legacy' as const,
+        downloadFilenameMode: 'legacy' as const,
     };
 
     beforeEach(() => {
@@ -160,11 +160,11 @@ describe('DatabaseSettings', () => {
         expect(defaultProps.onAuthorOrganizationModeChange).toHaveBeenCalledWith('author_folder_only');
     });
 
-    it('should show template note for non-legacy filename presets', () => {
+    it('should show template note for template naming mode', () => {
         render(
             <DatabaseSettings
                 {...defaultProps}
-                downloadFilenamePresetId="channel_year_date_index"
+                downloadFilenameMode="template"
             />
         );
 

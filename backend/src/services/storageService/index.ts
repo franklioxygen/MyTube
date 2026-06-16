@@ -44,6 +44,7 @@ export {
 
 // Settings
 export {
+    deleteSettingsKeys,
     getSettings,
     invalidateSettingsCache,
     saveSettings,

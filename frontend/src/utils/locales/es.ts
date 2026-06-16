@@ -1362,6 +1362,59 @@ export const es = {
   filenameBatchRenameSummary:
     "{succeeded} renombrados, {skipped} omitidos, {failed} fallidos.",
   filenameBatchRenameError: "Error al renombrar",
+  // Filename template reference (information panel)
+  filenameRefInformationTitle: 'Información',
+  filenameRefInfoLiquid:
+    'Usa la sintaxis Liquid como {{ title }} para los alias de nomenclatura de MyTube y campos de metadatos de yt-dlp de una sola palabra.',
+  filenameRefInfoYtdlp:
+    'Usa la sintaxis de yt-dlp como %(upload_date>%Y-%m-%d)s o %(subtitles.en.-1.ext)s para fechas con formato, duraciones y rutas de metadatos sin procesar anidadas.',
+  filenameRefInfoExtension:
+    'El segmento final del nombre de archivo debe terminar con .{{ ext }}, .%(ext)s o .%(ext)S.',
+  filenameRefInfoFallbacks:
+    'source_collection_name/id puede estar vacío en descargas de video único, y media_playlist_index vuelve a 00 fuera de fuentes de lista de reproducción.',
+  filenameRefSectionCoreTitle: 'Campos principales',
+  filenameRefSectionUploadTitle: 'Espacio de nombres upload_*',
+  filenameRefSectionSourceTitle: 'Espacio de nombres source_*',
+  filenameRefSectionPlaylistTitle: 'Espacio de nombres de lista de reproducción',
+  filenameRefSectionSeasonTitle: 'Alias season_*',
+  filenameRefSectionStaticTitle: 'Alias static_*',
+  filenameRefSectionRawMetadataTitle: 'Metadatos brutos de yt-dlp',
+  filenameRefSectionRawMetadataDescription: 'Estos patrones exponen metadatos de yt-dlp más allá de los alias integrados.',
+  filenameRefItemTitleDesc: 'Título del video.',
+  filenameRefItemIdDesc: 'ID de video de la plataforma o ID de video local.',
+  filenameRefItemExtDesc: 'Extensión de archivo final sin el punto.',
+  filenameRefItemUploaderDesc: 'Nombre del subidor o autor.',
+  filenameRefItemChannelDesc: 'Nombre del canal, con retroceso al subidor.',
+  filenameRefItemDurationStringDesc: 'Duración con formato HH-MM-SS o MM-SS.',
+  filenameRefItemArtistNameDesc: 'Cadena de retroceso estilo artista para nomenclatura de centro multimedia.',
+  filenameRefItemUploadDateDesc: 'Fecha de subida en formato YYYYMMDD.',
+  filenameRefItemUploadYyyyMmDdDesc: 'Fecha de subida en formato YYYY-MM-DD.',
+  filenameRefItemUploadYearDesc: 'Año de subida.',
+  filenameRefItemUploadMonthDesc: 'Mes de subida.',
+  filenameRefItemUploadDayDesc: 'Día del mes de subida.',
+  filenameRefItemSourceCustomNameDesc:
+    'Nombre de fuente o suscripción definido por el usuario. Las descargas directas retroceden al subidor o canal cuando no hay anulación.',
+  filenameRefItemSourceCollectionNameDesc: 'Nombre del canal, lista de reproducción o colección cuando esté disponible.',
+  filenameRefItemSourceCollectionIdDesc: 'ID del canal, lista de reproducción o colección cuando esté disponible.',
+  filenameRefItemSourceCollectionTypeDesc: 'Uno de: channel, playlist, single o unknown.',
+  filenameRefItemMediaPlaylistIndexDesc: 'Índice de lista de reproducción rellenado a dos dígitos.',
+  filenameRefItemSeasonFromDateDesc: 'Año de subida.',
+  filenameRefItemSeasonEpisodeFromDateDesc: 'Clave de episodio basada en fecha.',
+  filenameRefItemSeasonEpisodeIndexFromDateDesc: 'Clave de episodio basada en fecha con sufijo de índice diario de dos dígitos.',
+  filenameRefItemSeasonByYearEpisodeByDateDesc: 'Carpeta de temporada más clave de episodio basada en fecha.',
+  filenameRefItemSeasonByYearEpisodeByDateAndIndexDesc:
+    'Carpeta de temporada más clave de episodio basada en fecha con sufijo de índice diario.',
+  filenameRefItemStaticSeasonEpisodeByIndexDesc:
+    'Carpeta Temporada 1 más número de episodio de dos dígitos según el orden de la lista de reproducción.',
+  filenameRefItemStaticSeasonEpisodeByDateDesc: 'Carpeta Temporada 1 más clave de episodio basada en fecha.',
+  filenameRefItemGenericSingleWordDesc:
+    'Cualquier campo de metadatos de yt-dlp de una sola palabra puede referenciarse con sintaxis Liquid cuando existe en los metadatos sin procesar.',
+  filenameRefItemBasicYtdlpDesc:
+    'La sintaxis de marcador de posición de yt-dlp es compatible para title, id, channel, uploader, upload_date y ext.',
+  filenameRefItemFormattedUploadDateDesc: 'Formatea upload_date con el formato de fecha de yt-dlp.',
+  filenameRefItemFormattedDurationDesc: 'Formatea la duración con el formato de tiempo de yt-dlp.',
+  filenameRefItemNestedPathDesc:
+    'Lee rutas de metadatos sin procesar anidadas, incluidos índices de array, mediante la sintaxis de marcador de posición de yt-dlp.',
 
   // Statistics
   statisticsTitle: "Estadísticas",

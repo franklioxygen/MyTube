@@ -1,31 +1,9 @@
 import { TemplateWarning } from "./types";
+import { KNOWN_FILENAME_TEMPLATE_LIQUID_KEYS } from "./reference";
 
-const KNOWN_LIQUID_VARS = new Set([
-  "title",
-  "id",
-  "ext",
-  "uploader",
-  "channel",
-  "upload_date",
-  "upload_yyyy_mm_dd",
-  "upload_year",
-  "upload_month",
-  "upload_day",
-  "duration_string",
-  "artist_name",
-  "source_custom_name",
-  "source_collection_name",
-  "source_collection_id",
-  "source_collection_type",
-  "media_playlist_index",
-  "season_from_date",
-  "season_episode_from_date",
-  "season_episode_index_from_date",
-  "season_by_year__episode_by_date",
-  "season_by_year__episode_by_date_and_index",
-  "static_season__episode_by_index",
-  "static_season__episode_by_date",
-]);
+const KNOWN_LIQUID_VARS = new Set(KNOWN_FILENAME_TEMPLATE_LIQUID_KEYS);
+
+const FORBIDDEN_LIQUID_VARS = new Set(["__proto__", "constructor", "prototype"]);
 
 const KNOWN_YTDLP_VARS = new Set([
   "title",
@@ -103,7 +81,12 @@ export function validateTemplate(
   let m: RegExpExecArray | null;
   while ((m = liquidRe.exec(normalized)) !== null) {
     const varName = m[1];
-    if (!KNOWN_LIQUID_VARS.has(varName)) {
+    if (FORBIDDEN_LIQUID_VARS.has(varName)) {
+      errors.push(`Forbidden template variable: {{ ${varName} }}`);
+      continue;
+    }
+
+    if (!KNOWN_LIQUID_VARS.has(varName) && !/^[a-zA-Z0-9_]+$/.test(varName)) {
       errors.push(`Unknown template variable: {{ ${varName} }}`);
     }
   }

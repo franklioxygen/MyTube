@@ -1,6 +1,8 @@
 import { db } from "../../db";
 import { settings } from "../../db/schema";
+import { eq } from "drizzle-orm";
 import { DatabaseError } from "../../errors/DownloadErrors";
+import { resolveFilenameNamingConfig } from "../filenameTemplate/config";
 import {
   authorOrganizationModeToLegacySetting,
   resolveAuthorOrganizationMode,
@@ -56,6 +58,13 @@ function loadSettingsMapFromDatabase(): Record<string, any> {
   if (settingsMap.saveAuthorFilesToCollection === undefined) {
     settingsMap.saveAuthorFilesToCollection =
       authorOrganizationModeToLegacySetting(authorOrganizationMode);
+  }
+
+  const resolvedFilenameNaming = resolveFilenameNamingConfig(settingsMap);
+  settingsMap.downloadFilenameMode = resolvedFilenameNaming.mode;
+  settingsMap.downloadFilenamePresetId = resolvedFilenameNaming.matchedPresetId;
+  if (resolvedFilenameNaming.template !== null) {
+    settingsMap.downloadFilenameTemplate = resolvedFilenameNaming.template;
   }
 
   return settingsMap;
@@ -169,6 +178,7 @@ export const WHITELISTED_SETTINGS = [
   "telegramNotifyOnFail",
   "twitchClientId",
   "twitchClientSecret",
+  "downloadFilenameMode",
   "downloadFilenamePresetId",
   "downloadFilenameTemplate",
   "mediaServerExportMode",
@@ -229,6 +239,31 @@ export function saveSettings(
       "Failed to save settings",
       error instanceof Error ? error : new Error(String(error)),
       "saveSettings"
+    );
+  }
+}
+
+export function deleteSettingsKeys(keys: string[]): void {
+  if (keys.length === 0) {
+    return;
+  }
+
+  try {
+    db.transaction(() => {
+      for (const key of keys) {
+        db.delete(settings).where(eq(settings.key, key)).run();
+      }
+    });
+    invalidateSettingsCache();
+  } catch (error) {
+    logger.error(
+      "Error deleting settings keys",
+      error instanceof Error ? error : new Error(String(error))
+    );
+    throw new DatabaseError(
+      "Failed to delete settings keys",
+      error instanceof Error ? error : new Error(String(error)),
+      "deleteSettingsKeys"
     );
   }
 }
