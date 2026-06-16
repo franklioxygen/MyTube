@@ -173,6 +173,24 @@ export interface Subscription {
   lastFailureReason?: string | null;
 }
 
+function getSubscriptionLogContext(
+  sub: {
+    id: string;
+    author?: string | null;
+    authorUrl?: string | null;
+    platform?: string | null;
+  },
+  extras: Record<string, unknown> = {}
+): Record<string, unknown> {
+  return {
+    subscriptionId: sub.id,
+    author: sub.author,
+    authorUrl: sub.authorUrl,
+    platform: sub.platform,
+    ...extras,
+  };
+}
+
 export class SubscriptionService {
   private static instance: SubscriptionService;
   private checkTask: ScheduledTask | null = null;
@@ -472,7 +490,7 @@ export class SubscriptionService {
     };
 
     await db.insert(subscriptions).values(newSubscription);
-    logger.info(`Created playlist subscription: ${displayName} (${platform})`);
+    logger.info("Created playlist subscription", getSubscriptionLogContext(newSubscription));
     return newSubscription;
   }
 
@@ -511,7 +529,10 @@ export class SubscriptionService {
     };
 
     await db.insert(subscriptions).values(newSubscription);
-    logger.info(`Created channel playlists watcher: ${newSubscription.author}`);
+    logger.info(
+      "Created channel playlists watcher",
+      getSubscriptionLogContext(newSubscription)
+    );
     return newSubscription;
   }
 
@@ -520,7 +541,10 @@ export class SubscriptionService {
    */
   async checkChannelPlaylists(sub: Subscription): Promise<number> {
     try {
-      logger.info(`Checking channel playlists for ${sub.author}...`);
+      logger.info(
+        "Checking channel playlists",
+        getSubscriptionLogContext(sub)
+      );
 
       const {
         executeYtDlpJson,
@@ -550,7 +574,10 @@ export class SubscriptionService {
       });
 
       if (!result.entries || result.entries.length === 0) {
-        logger.debug(`No playlists found for watcher ${sub.author}`);
+        logger.debug(
+          "No playlists found for watcher",
+          getSubscriptionLogContext(sub)
+        );
         return 0;
       }
 
@@ -642,7 +669,8 @@ export class SubscriptionService {
 
       if (newSubscriptionsCount > 0) {
         logger.info(
-          `Watcher ${sub.author} added ${newSubscriptionsCount} new playlists`
+          "Watcher added new playlists",
+          getSubscriptionLogContext(sub, { newSubscriptionsCount })
         );
       }
 
@@ -653,7 +681,11 @@ export class SubscriptionService {
         .where(eq(subscriptions.id, sub.id));
       return newSubscriptionsCount;
     } catch (error) {
-      logger.error(`Error in playlists watcher for ${sub.author}:`, error);
+      logger.error(
+        "Error in playlists watcher",
+        error,
+        getSubscriptionLogContext(sub)
+      );
       return 0;
     }
   }
@@ -673,7 +705,8 @@ export class SubscriptionService {
 
     const subscription = existing[0];
     logger.info(
-      `Unsubscribing from ${subscription.author} (${subscription.platform}) - ID: ${id}`
+      "Unsubscribing from subscription",
+      getSubscriptionLogContext(subscription)
     );
 
     // Delete the subscription
@@ -694,7 +727,8 @@ export class SubscriptionService {
     }
 
     logger.info(
-      `Successfully unsubscribed from ${subscription.author} (${subscription.platform})`
+      "Successfully unsubscribed from subscription",
+      getSubscriptionLogContext(subscription)
     );
   }
 
@@ -714,7 +748,10 @@ export class SubscriptionService {
       .set({ paused: 1 })
       .where(eq(subscriptions.id, id));
 
-    logger.info(`Paused subscription ${id} (${existing[0].author})`);
+    logger.info("Paused subscription", {
+      subscriptionId: id,
+      author: existing[0].author,
+    });
   }
 
   async updateSubscriptionSettings(
@@ -741,9 +778,11 @@ export class SubscriptionService {
       throw NotFoundError.subscription(id);
     }
 
-    logger.info(
-      `Updated subscription ${updated[0].id} (${updated[0].author}) settings: ${JSON.stringify(updates)}`
-    );
+    logger.info("Updated subscription settings", {
+      subscriptionId: updated[0].id,
+      author: updated[0].author,
+      updates,
+    });
   }
 
   async resumeSubscription(id: string): Promise<void> {
@@ -762,7 +801,10 @@ export class SubscriptionService {
       .set({ paused: 0 })
       .where(eq(subscriptions.id, id));
 
-    logger.info(`Resumed subscription ${id} (${existing[0].author})`);
+    logger.info("Resumed subscription", {
+      subscriptionId: id,
+      author: existing[0].author,
+    });
   }
 
   async listSubscriptions(): Promise<Subscription[]> {
@@ -845,7 +887,8 @@ export class SubscriptionService {
         if (sub.paused) {
           // We can log this at debug level to avoid spamming logs
           logger.debug(
-            `Skipping paused subscription: ${sub.id} (${sub.author})`
+            "Skipping paused subscription",
+            getSubscriptionLogContext(sub)
           );
           continue;
         }
@@ -860,7 +903,8 @@ export class SubscriptionService {
           let checkNewVideoCount = 0;
           try {
             logger.info(
-              `Checking subscription for ${sub.author} (${sub.platform})...`
+              "Checking subscription",
+              getSubscriptionLogContext(sub)
             );
 
           // 1. Fetch latest video link based on platform and subscription type
@@ -883,7 +927,10 @@ export class SubscriptionService {
               : await this.getLatestVideoUrl(sub.authorUrl, sub.platform);
 
             if (latestVideoUrl && latestVideoUrl !== sub.lastVideoLink) {
-              logger.info(`New video found for ${sub.author}: ${latestVideoUrl}`);
+              logger.info(
+                "New video found for subscription",
+                getSubscriptionLogContext(sub, { latestVideoUrl })
+              );
 
               // 2. Update lastCheck *before* download to prevent concurrent processing
               // If no rows were updated, the subscription was removed concurrently.
@@ -897,7 +944,8 @@ export class SubscriptionService {
 
               if (lockResult.length === 0) {
                 logger.warn(
-                  `Subscription ${sub.id} (${sub.author}) was deleted during processing, skipping download`
+                  "Subscription was deleted during processing, skipping download",
+                  getSubscriptionLogContext(sub)
                 );
                 continue;
               }
@@ -987,9 +1035,10 @@ export class SubscriptionService {
                   .returning({ id: subscriptions.id });
 
                 if (updateResult.length === 0) {
-                  logger.warn(
-                    `Subscription ${sub.id} (${sub.author}) was deleted after download completed`
-                  );
+                    logger.warn(
+                      "Subscription was deleted after download completed",
+                      getSubscriptionLogContext(sub, { latestVideoUrl })
+                    );
                   continue;
                 } else {
                   notifySubscriptionDownloadResult({
@@ -998,7 +1047,8 @@ export class SubscriptionService {
                     sourceUrl: latestVideoUrl,
                   });
                   logger.debug(
-                    `Successfully processed subscription ${sub.id} (${sub.author})`
+                    "Successfully processed subscription",
+                    getSubscriptionLogContext(sub, { latestVideoUrl })
                   );
                 }
               } catch (downloadError: any) {
@@ -1009,8 +1059,9 @@ export class SubscriptionService {
 
                 if (videoDownloaded) {
                   logger.error(
-                    `Error updating subscription after video download for ${sub.author}:`,
-                    downloadError
+                    "Error updating subscription after video download",
+                    downloadError,
+                    getSubscriptionLogContext(sub, { latestVideoUrl })
                   );
 
                   notifySubscriptionDownloadResult({
@@ -1023,8 +1074,9 @@ export class SubscriptionService {
                 }
 
                 logger.error(
-                  `Error downloading subscription video for ${sub.author}:`,
-                  downloadError
+                  "Error downloading subscription video",
+                  downloadError,
+                  getSubscriptionLogContext(sub, { latestVideoUrl })
                 );
                 notifySubscriptionDownloadResult({
                   taskTitle: `Video from ${sub.author}`,
@@ -1065,7 +1117,8 @@ export class SubscriptionService {
 
               if (updateResult.length === 0) {
                 logger.warn(
-                  `Subscription ${sub.id} (${sub.author}) was deleted before lastCheck update`
+                  "Subscription was deleted before lastCheck update",
+                  getSubscriptionLogContext(sub)
                 );
                 continue;
               }
@@ -1081,7 +1134,8 @@ export class SubscriptionService {
 
               if (shortCheckSubscription.length === 0) {
                 logger.debug(
-                  `Skipping shorts check for deleted subscription: ${sub.id} (${sub.author})`
+                  "Skipping shorts check for deleted subscription",
+                  getSubscriptionLogContext(sub)
                 );
                 continue;
               }
@@ -1093,7 +1147,8 @@ export class SubscriptionService {
 
               if (latestShortUrl && latestShortUrl !== sub.lastShortVideoLink) {
                 logger.info(
-                  `New short found for ${sub.author}: ${latestShortUrl}`
+                  "New short found for subscription",
+                  getSubscriptionLogContext(sub, { latestShortUrl })
                 );
 
                 // Download the short
@@ -1149,7 +1204,8 @@ export class SubscriptionService {
 
                   if (shortUpdateResult.length === 0) {
                     logger.warn(
-                      `Subscription ${sub.id} (${sub.author}) was deleted after short download completed`
+                      "Subscription was deleted after short download completed",
+                      getSubscriptionLogContext(sub, { latestShortUrl })
                     );
                     continue;
                   }
@@ -1161,16 +1217,18 @@ export class SubscriptionService {
                   });
 
                   logger.debug(
-                    `Successfully processed short for ${sub.author}: ${latestShortUrl}`
+                    "Successfully processed subscription short",
+                    getSubscriptionLogContext(sub, { latestShortUrl })
                   );
                 } catch (downloadError: unknown) {
                   logger.error(
                     shortDownloaded
-                      ? `Error updating subscription after short download for ${sub.author}:`
-                      : `Error downloading subscription short for ${sub.author}:`,
+                      ? "Error updating subscription after short download"
+                      : "Error downloading subscription short",
                     downloadError instanceof Error
                       ? downloadError
-                      : new Error(String(downloadError))
+                      : new Error(String(downloadError)),
+                    getSubscriptionLogContext(sub, { latestShortUrl })
                   );
 
                   const errorMessage = getErrorMessage(
@@ -1215,15 +1273,17 @@ export class SubscriptionService {
               }
               } catch (shortsError) {
                 logger.error(
-                  `Error checking shorts for ${sub.author}:`,
-                  shortsError
+                  "Error checking subscription shorts",
+                  shortsError,
+                  getSubscriptionLogContext(sub)
                 );
               }
             }
           } catch (error) {
             logger.error(
-              `Error checking subscription for ${sub.author}:`,
-              error
+              "Error checking subscription",
+              error,
+              getSubscriptionLogContext(sub)
             );
             checkStatus = "fail";
             checkFailureReason = bucketDownloadError(
@@ -1260,7 +1320,8 @@ export class SubscriptionService {
 
     if (lockResult.length === 0) {
       logger.warn(
-        `Twitch subscription ${sub.id} (${sub.author}) was deleted before polling`
+        "Twitch subscription was deleted before polling",
+        getSubscriptionLogContext(sub)
       );
       return 0;
     }
@@ -1277,8 +1338,9 @@ export class SubscriptionService {
       }
 
       logger.warn(
-        `Falling back to yt-dlp for Twitch subscription ${sub.id} (${sub.author}) after Helix polling failed`,
-        error instanceof Error ? error : new Error(String(error))
+        "Falling back to yt-dlp for Twitch subscription after Helix polling failed",
+        error instanceof Error ? error : new Error(String(error)),
+        getSubscriptionLogContext(sub)
       );
       return await this.checkTwitchSubscriptionWithYtDlp(sub);
     }
@@ -1573,7 +1635,8 @@ export class SubscriptionService {
 
         if (updateResult.length === 0) {
           logger.warn(
-            `Twitch subscription ${sub.id} (${sub.author}) was deleted after download completed`
+            "Twitch subscription was deleted after download completed",
+            getSubscriptionLogContext(sub, { latestVideoUrl: video.url })
           );
           break;
         }
@@ -1591,8 +1654,9 @@ export class SubscriptionService {
 
         if (twitchVideoDownloaded) {
           logger.error(
-            `Error updating Twitch subscription after video download for ${sub.author}:`,
-            downloadError
+            "Error updating Twitch subscription after video download",
+            downloadError,
+            getSubscriptionLogContext(sub, { latestVideoUrl: video.url })
           );
 
           notifySubscriptionDownloadResult({
@@ -1605,8 +1669,9 @@ export class SubscriptionService {
         }
 
         logger.error(
-          `Error downloading Twitch subscription video for ${sub.author}:`,
-          downloadError
+          "Error downloading Twitch subscription video",
+          downloadError,
+          getSubscriptionLogContext(sub, { latestVideoUrl: video.url })
         );
         storageService.addDownloadHistoryItem({
           id: uuidv4(),

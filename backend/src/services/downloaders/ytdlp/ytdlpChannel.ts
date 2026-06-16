@@ -51,7 +51,7 @@ export async function getLatestVideoUrl(
   channelUrl: string
 ): Promise<string | null> {
   try {
-    logger.info("Fetching latest video for channel:", channelUrl);
+    logger.info("Fetching latest video for channel", { channelUrl });
 
     // Get user config for network options
     const userConfig = getUserYtDlpConfig(channelUrl);
@@ -61,7 +61,7 @@ export async function getLatestVideoUrl(
     // Append /videos to channel URL to ensure we get videos and not the channel tab
     const targetUrl = buildYouTubeTabUrl(channelUrl, "videos");
     if (targetUrl !== channelUrl) {
-      logger.info("Modified channel URL to:", targetUrl);
+      logger.info("Modified channel URL", { channelUrl: targetUrl });
     }
 
     // Use yt-dlp to get the first video in the channel (playlist)
@@ -116,7 +116,7 @@ export async function getLatestShortsUrl(
   channelUrl: string
 ): Promise<string | null> {
   try {
-    logger.info("Fetching latest Shorts for channel:", channelUrl);
+    logger.info("Fetching latest Shorts for channel", { channelUrl });
 
     // Get user config for network options
     const userConfig = getUserYtDlpConfig(channelUrl);
@@ -126,7 +126,7 @@ export async function getLatestShortsUrl(
     // Construct Shorts URL
     const targetUrl = buildYouTubeTabUrl(channelUrl, "shorts");
 
-    logger.info("Fetching Shorts from:", targetUrl);
+    logger.info("Fetching Shorts from channel", { channelUrl: targetUrl });
 
     // First entry in the shorts playlist is treated as "latest" (see JSDoc above).
     const result = await executeYtDlpJson(targetUrl, {

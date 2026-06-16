@@ -10,6 +10,22 @@ export enum LogLevel {
   ERROR = 3,
 }
 
+const SENSITIVE_FIELD_NAMES = new Set([
+  "author",
+  "videoauthor",
+  "uploader",
+  "email",
+  "username",
+  "password",
+  "token",
+  "secret",
+  "apikey",
+]);
+
+function isSensitiveField(key: string): boolean {
+  return SENSITIVE_FIELD_NAMES.has(key.toLowerCase().replace(/[-_]/g, ""));
+}
+
 export class Logger {
   private level: LogLevel;
 
@@ -80,12 +96,13 @@ export class Logger {
               for (const key in obj) {
                 if (Object.prototype.hasOwnProperty.call(obj, key)) {
                   const value = obj[key];
-                  result[key] =
-                    typeof value === "string"
-                      ? redactSensitive(sanitizeLogMessage(value))
-                      : typeof value === "object" && value !== null
-                      ? sanitizeObject(value)
-                      : value;
+                  result[key] = isSensitiveField(key)
+                    ? "[REDACTED]"
+                    : typeof value === "string"
+                    ? redactSensitive(sanitizeLogMessage(value))
+                    : typeof value === "object" && value !== null
+                    ? sanitizeObject(value)
+                    : value;
                 }
               }
               return result;

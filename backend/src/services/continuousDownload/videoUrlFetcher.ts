@@ -316,7 +316,10 @@ export class VideoUrlFetcher {
       }
     }
 
-    logger.info(`Found ${entries.length} video entries for ${authorUrl}`);
+    logger.info("Found video entries for source", {
+      entryCount: entries.length,
+      authorUrl,
+    });
     return entries;
   }
 
@@ -372,7 +375,10 @@ export class VideoUrlFetcher {
             });
           }
 
-          logger.info(`Found ${entries.length} Bilibili video entries for ${authorUrl}`);
+          logger.info("Found Bilibili video entries for source", {
+            entryCount: entries.length,
+            authorUrl,
+          });
           return entries;
         }
       }
@@ -493,7 +499,10 @@ export class VideoUrlFetcher {
       throw error;
     }
 
-    logger.info(`Found ${entries.length} Bilibili video entries for ${authorUrl}`);
+    logger.info("Found Bilibili video entries for source", {
+      entryCount: entries.length,
+      authorUrl,
+    });
     return entries;
   }
 
@@ -546,7 +555,10 @@ export class VideoUrlFetcher {
         );
       }
 
-      logger.info(`Found ${entries.length} Twitch video entries for ${authorUrl}`);
+      logger.info("Found Twitch video entries for source", {
+        entryCount: entries.length,
+        authorUrl,
+      });
       return entries;
     }
 
@@ -594,7 +606,10 @@ export class VideoUrlFetcher {
     await fetchTypeEntries("archive");
     await fetchTypeEntries("upload");
 
-    logger.info(`Found ${entries.length} Twitch video entries for ${authorUrl}`);
+    logger.info("Found Twitch video entries for source", {
+      entryCount: entries.length,
+      authorUrl,
+    });
     return entries;
   }
 
@@ -771,7 +786,10 @@ export class VideoUrlFetcher {
       throw error;
     }
 
-    logger.info(`Found ${videoUrls.length} videos for ${authorUrl}`);
+    logger.info("Found videos for source", {
+      videoCount: videoUrls.length,
+      authorUrl,
+    });
     return videoUrls;
   }
 
@@ -964,7 +982,10 @@ export class VideoUrlFetcher {
       }
     }
 
-    logger.info(`Found ${videoUrls.length} videos for ${authorUrl}`);
+    logger.info("Found videos for source", {
+      videoCount: videoUrls.length,
+      authorUrl,
+    });
     return videoUrls;
   }
 }

@@ -217,7 +217,7 @@ export async function downloadVideo(
     if (!channelUrl && (isYouTubeUrl(videoUrl) || source === "twitch")) {
       logger.info("Channel URL not in info, fetching using yt-dlp...");
       channelUrl = await getChannelUrlFromVideo(videoUrl, networkConfig);
-      logger.info("Channel URL fetched:", channelUrl);
+      logger.info("Channel URL fetched", { channelUrl });
     }
 
     if (source === "twitch" && twitchApiService.isConfigured()) {
