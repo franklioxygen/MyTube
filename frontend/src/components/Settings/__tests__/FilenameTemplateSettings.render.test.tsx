@@ -144,3 +144,84 @@ describe('FilenameTemplateSettings information section', () => {
         expect(api.get).toHaveBeenCalledWith('/settings/filename-template/catalog');
     });
 });
+
+describe('FilenameTemplateSettings preview tab grouping', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        vi.mocked(api.get).mockResolvedValue({
+            data: {
+                presets: [],
+                deprecatedPresetAliases: [],
+                informationNotes: [],
+                referenceSections: [],
+            },
+        } as any);
+    });
+
+    const renderComponent = () =>
+        render(
+            <FilenameTemplateSettings
+                settings={{
+                    downloadFilenameMode: 'template',
+                    downloadFilenameTemplate: '{{ title }}.{{ ext }}',
+                    mediaServerExportMode: 'off',
+                } as any}
+                onChange={vi.fn()}
+            />
+        );
+
+    const mockPreview = (
+        previews: Record<'channel' | 'playlist' | 'single', { videoPath: string }>
+    ) =>
+        vi.mocked(api.post).mockResolvedValue({
+            data: {
+                valid: true,
+                errors: [],
+                resolved: {
+                    mode: 'template',
+                    matchedPresetId: 'custom',
+                    template: '{{ title }}.{{ ext }}',
+                },
+                previews: {
+                    channel: { ...previews.channel, warnings: [] },
+                    playlist: { ...previews.playlist, warnings: [] },
+                    single: { ...previews.single, warnings: [] },
+                },
+            },
+        } as any);
+
+    it('merges scenarios with identical paths and splits the one that differs', async () => {
+        // Channel and Single render the same path; Playlist differs.
+        mockPreview({
+            channel: { videoPath: 'Sample Video.mp4' },
+            playlist: { videoPath: 'Sample Playlist/Sample Video.mp4' },
+            single: { videoPath: 'Sample Video.mp4' },
+        });
+
+        renderComponent();
+
+        // The two identical scenarios collapse into a single combined tab.
+        expect(
+            await screen.findByRole('tab', { name: 'Channel / Single Video' })
+        ).toBeInTheDocument();
+        expect(screen.getByRole('tab', { name: 'Playlist' })).toBeInTheDocument();
+        expect(screen.getAllByRole('tab')).toHaveLength(2);
+    });
+
+    it('renders no tabs when all scenarios are identical', async () => {
+        mockPreview({
+            channel: { videoPath: 'Sample Video.mp4' },
+            playlist: { videoPath: 'Sample Video.mp4' },
+            single: { videoPath: 'Sample Video.mp4' },
+        });
+
+        renderComponent();
+
+        // The single preview line renders...
+        expect(
+            await screen.findByText(/filenamePreviewVideo:\s*Sample Video\.mp4/)
+        ).toBeInTheDocument();
+        // ...but no scenario tabs, since all three results are identical.
+        expect(screen.queryByRole('tab')).not.toBeInTheDocument();
+    });
+});

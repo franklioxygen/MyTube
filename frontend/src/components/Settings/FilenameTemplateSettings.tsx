@@ -18,7 +18,7 @@ import {
     Tooltip,
     Typography,
 } from '@mui/material';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import CollapsibleSection from '../CollapsibleSection';
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -34,11 +34,25 @@ interface FilenameTemplateSettingsProps {
 
 type PreviewScenario = 'channel' | 'playlist' | 'single';
 
+const PREVIEW_SCENARIO_ORDER: PreviewScenario[] = ['channel', 'playlist', 'single'];
+
 interface PreviewResult {
     videoPath?: string;
     thumbnailPath?: string;
     subtitlePath?: string;
     warnings?: Array<{ code: string; message: string }>;
+}
+
+// Two scenarios are equivalent when they render the same paths and warnings.
+// Used to collapse identical preview tabs (e.g. templates that don't reference
+// any source-type-specific token produce the same result for all scenarios).
+function previewResultSignature(result: PreviewResult | undefined): string {
+    return JSON.stringify({
+        v: result?.videoPath || '',
+        t: result?.thumbnailPath || '',
+        s: result?.subtitlePath || '',
+        w: (result?.warnings || []).map((warning) => warning.code),
+    });
 }
 
 export function getFilenameTemplateWarningMessage(
@@ -577,7 +591,44 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
             },
         ]
         : PRESET_FALLBACK_OPTIONS;
-    const activePreview = preview?.previews?.[previewScenario];
+    // Collapse scenarios that render identically so we don't show three tabs
+    // with the same content. A tab is shown per distinct result; its label lists
+    // every scenario it covers (e.g. "Channel / Single Video").
+    const previewGroups = useMemo(() => {
+        if (!preview?.previews) return [];
+        const scenarioLabels: Record<PreviewScenario, string> = {
+            channel: translateOrFallback('filenamePreviewScenarioChannel', 'Channel'),
+            playlist: translateOrFallback('filenamePreviewScenarioPlaylist', 'Playlist'),
+            single: translateOrFallback('filenamePreviewScenarioSingle', 'Single Video'),
+        };
+        const groups: Array<{
+            value: PreviewScenario;
+            scenarios: PreviewScenario[];
+            label: string;
+            result: PreviewResult;
+        }> = [];
+        for (const scenario of PREVIEW_SCENARIO_ORDER) {
+            const result = preview.previews[scenario];
+            const signature = previewResultSignature(result);
+            const existing = groups.find(
+                (group) => previewResultSignature(group.result) === signature
+            );
+            if (existing) {
+                existing.scenarios.push(scenario);
+            } else {
+                groups.push({ value: scenario, scenarios: [scenario], label: '', result });
+            }
+        }
+        return groups.map((group) => ({
+            ...group,
+            label: group.scenarios.map((scenario) => scenarioLabels[scenario]).join(' / '),
+        }));
+    }, [preview, translateOrFallback]);
+
+    const activeGroup =
+        previewGroups.find((group) => group.scenarios.includes(previewScenario)) ||
+        previewGroups[0];
+    const activePreview = activeGroup?.result;
 
     return (
         <Box sx={{ maxWidth: 960 }}>
@@ -736,27 +787,22 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
                         )}
                         {preview?.previews && (
                             <>
-                                <Tabs
-                                    value={previewScenario}
-                                    onChange={(_event, value: PreviewScenario) => setPreviewScenario(value)}
-                                    sx={{ minHeight: 36, mb: 1 }}
-                                >
-                                    <Tab
-                                        value="channel"
-                                        label={translateOrFallback('filenamePreviewScenarioChannel', 'Channel')}
-                                        sx={{ minHeight: 36 }}
-                                    />
-                                    <Tab
-                                        value="playlist"
-                                        label={translateOrFallback('filenamePreviewScenarioPlaylist', 'Playlist')}
-                                        sx={{ minHeight: 36 }}
-                                    />
-                                    <Tab
-                                        value="single"
-                                        label={translateOrFallback('filenamePreviewScenarioSingle', 'Single Video')}
-                                        sx={{ minHeight: 36 }}
-                                    />
-                                </Tabs>
+                                {previewGroups.length > 1 && (
+                                    <Tabs
+                                        value={activeGroup?.value ?? previewScenario}
+                                        onChange={(_event, value: PreviewScenario) => setPreviewScenario(value)}
+                                        sx={{ minHeight: 36, mb: 1 }}
+                                    >
+                                        {previewGroups.map((group) => (
+                                            <Tab
+                                                key={group.value}
+                                                value={group.value}
+                                                label={group.label}
+                                                sx={{ minHeight: 36 }}
+                                            />
+                                        ))}
+                                    </Tabs>
+                                )}
                                 {activePreview?.videoPath && (
                                     <Typography variant="caption" display="block" sx={{ fontFamily: 'monospace', wordBreak: 'break-all' }}>
                                         {t('filenamePreviewVideo')}: {activePreview.videoPath}
