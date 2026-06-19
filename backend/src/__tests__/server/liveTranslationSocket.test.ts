@@ -1,6 +1,10 @@
-import { IncomingMessage } from "http";
+import { IncomingMessage, Server } from "http";
+import { Duplex } from "stream";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { validateLiveTranslationUpgrade } from "../../server/liveTranslationSocket";
+import {
+  registerLiveTranslationSocket,
+  validateLiveTranslationUpgrade,
+} from "../../server/liveTranslationSocket";
 import * as storageService from "../../services/storageService";
 import {
   __resetTicketsForTest,
@@ -117,5 +121,35 @@ describe("validateLiveTranslationUpgrade", () => {
     });
     const result = validateLiveTranslationUpgrade(makeRequest({ ticket }));
     expect(result).toMatchObject({ ok: false, code: "feature_disabled" });
+  });
+});
+
+describe("registerLiveTranslationSocket", () => {
+  it("closes sockets for unhandled upgrade paths", () => {
+    const mockServer = {
+      on: vi.fn(),
+    } as unknown as Server;
+
+    registerLiveTranslationSocket(mockServer);
+
+    expect(mockServer.on).toHaveBeenCalledWith("upgrade", expect.any(Function));
+    const upgradeHandler = (mockServer.on as any).mock.calls[0][1];
+
+    const mockRequest = {
+      url: "/some/other/path",
+      headers: { host: "localhost" },
+    } as IncomingMessage;
+
+    const mockSocket = {
+      write: vi.fn(),
+      destroy: vi.fn(),
+    } as unknown as Duplex;
+
+    const mockHead = Buffer.from([]);
+
+    upgradeHandler(mockRequest, mockSocket, mockHead);
+
+    expect(mockSocket.write).toHaveBeenCalledWith("HTTP/1.1 404 Not Found\r\n\r\n");
+    expect(mockSocket.destroy).toHaveBeenCalled();
   });
 });

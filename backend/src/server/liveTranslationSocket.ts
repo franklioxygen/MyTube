@@ -166,7 +166,10 @@ export function registerLiveTranslationSocket(server: Server): WebSocketServer {
   server.on("upgrade", (request, socket, head) => {
     const url = parseRequestUrl(request);
     if (!url || url.pathname !== LIVE_TRANSLATION_WS_PATH) {
-      // Not ours: leave the socket for other upgrade handlers.
+      // Not ours: reject and close the socket. There is currently no shared
+      // upgrade dispatcher, so unhandled paths must be cleaned up here.
+      socket.write("HTTP/1.1 404 Not Found\r\n\r\n");
+      socket.destroy();
       return;
     }
 
