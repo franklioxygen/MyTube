@@ -30,6 +30,11 @@ interface SubtitleControlProps {
     onUploadSubtitle?: (file: File) => void;
     onDeleteSubtitle?: (index: number) => void | Promise<void>;
     isFullscreen?: boolean;
+    // Dynamic "Live translation" option (not file-backed, not deletable).
+    liveSubtitleAvailable?: boolean;
+    liveSubtitleLabel?: string;
+    liveSubtitleSelected?: boolean;
+    onSelectLiveSubtitle?: () => void;
 }
 
 const SubtitleControlView: React.FC<SubtitleControlProps> = ({
@@ -43,7 +48,11 @@ const SubtitleControlView: React.FC<SubtitleControlProps> = ({
     showOnMobile = false,
     onUploadSubtitle,
     onDeleteSubtitle,
-    isFullscreen = false
+    isFullscreen = false,
+    liveSubtitleAvailable = false,
+    liveSubtitleLabel = '',
+    liveSubtitleSelected = false,
+    onSelectLiveSubtitle,
 }) => {
     const { t } = useLanguage();
     const isTouch = useMediaQuery('(hover: none), (pointer: coarse)');
@@ -87,8 +96,11 @@ const SubtitleControlView: React.FC<SubtitleControlProps> = ({
     };
 
     const hasSubtitles = subtitles.length > 0;
-    const showControl = hasSubtitles || onUploadSubtitle;
+    const showControl = hasSubtitles || onUploadSubtitle || liveSubtitleAvailable;
     if (!showControl) return null;
+
+    const activeTrackCount =
+        selectedSubtitleIndices.length + (liveSubtitleSelected ? 1 : 0);
 
     return (
         <>
@@ -108,14 +120,30 @@ const SubtitleControlView: React.FC<SubtitleControlProps> = ({
                 onClose={onCloseMenu}
                 container={isFullscreen ? document.fullscreenElement as HTMLElement : undefined}
             >
-                {hasSubtitles && (
+                {(hasSubtitles || liveSubtitleAvailable) && (
                     <MenuItem onClick={() => onSelectSubtitle(-1)}>
                         {t('off') || 'Off'}
                     </MenuItem>
                 )}
+                {liveSubtitleAvailable && (
+                    <MenuItem
+                        onClick={() => onSelectLiveSubtitle?.()}
+                        sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                    >
+                        <Checkbox
+                            checked={liveSubtitleSelected}
+                            size="small"
+                            disableRipple
+                            sx={{ p: 0, mr: 1 }}
+                        />
+                        <span style={{ flex: 1 }}>
+                            {liveSubtitleLabel || t('liveTranslation') || 'Live translation'}
+                        </span>
+                    </MenuItem>
+                )}
                 {subtitles?.map((subtitle, index) => {
                     const isChecked = selectedSubtitleIndices.includes(index);
-                    const isDisabled = !isChecked && selectedSubtitleIndices.length >= 2;
+                    const isDisabled = !isChecked && activeTrackCount >= 2;
                     return (
                         <MenuItem
                             key={`${subtitle.language}-${index}`}

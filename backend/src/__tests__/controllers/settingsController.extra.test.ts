@@ -42,6 +42,7 @@ vi.mock("../../services/storageService", () => {
 vi.mock("../../services/settingsValidationService", () => ({
   mergeSettings: vi.fn(),
   validateSettings: vi.fn(),
+  validateLiveTranslationFinalSettings: vi.fn(),
   prepareSettingsForSave: vi.fn(),
 }));
 

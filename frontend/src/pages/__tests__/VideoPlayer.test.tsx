@@ -138,6 +138,23 @@ vi.mock('../../components/VideoPlayer/VideoControls', () => ({
     },
 }));
 
+vi.mock('../../components/VideoPlayer/LiveTranslationToggle', () => ({
+    default: () => <div data-testid="live-translation-toggle" />,
+}));
+vi.mock('../../hooks/useLiveTranslationAvailability', () => ({
+    useLiveTranslationAvailability: () => ({ data: undefined }),
+}));
+vi.mock('../../hooks/useLiveTranslationSubtitleTrack', () => ({
+    useLiveTranslationSubtitleTrack: () => ({
+        track: null,
+        isActive: false,
+        label: '',
+        activate: vi.fn(),
+        deactivate: vi.fn(),
+        addCue: vi.fn(),
+    }),
+}));
+
 vi.mock('../../components/VideoPlayer/VideoInfo', () => ({
     default: (props: Record<string, unknown>) => {
         capturedVideoInfoProps = props as CapturedVideoInfoProps;

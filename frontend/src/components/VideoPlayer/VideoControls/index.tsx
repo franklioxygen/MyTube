@@ -33,6 +33,8 @@ interface VideoControlsProps {
     statisticsVideoId?: string | null;
     statisticsPlatform?: string | null;
     statisticsRelatedEventId?: string | null;
+    onVideoElementReady?: (videoElement: HTMLVideoElement | null) => void;
+    liveSubtitle?: { available: boolean; label: string; track: TextTrack | null };
 }
 
 const VideoControls: React.FC<VideoControlsProps> = ({
@@ -56,6 +58,8 @@ const VideoControls: React.FC<VideoControlsProps> = ({
     statisticsVideoId = null,
     statisticsPlatform = null,
     statisticsRelatedEventId = null,
+    onVideoElementReady,
+    liveSubtitle,
 }) => {
     // Core video player logic
     const videoPlayer = useVideoPlayer({
@@ -66,6 +70,17 @@ const VideoControls: React.FC<VideoControlsProps> = ({
         onTimeUpdate,
         onLoadedMetadata
     });
+
+    // Expose the underlying <video> element to the parent (live translation
+    // needs direct access for Web Audio capture). Report null on cleanup.
+    useEffect(() => {
+        if (!onVideoElementReady) {
+            return;
+        }
+        onVideoElementReady(videoPlayer.videoRef.current);
+        return () => onVideoElementReady(null);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [onVideoElementReady, src]);
 
     // Auto-pause on focus loss
     useFocusPause(videoPlayer.videoRef, pauseOnFocusLoss);
@@ -92,7 +107,8 @@ const VideoControls: React.FC<VideoControlsProps> = ({
         subtitles,
         initialSubtitlesEnabled,
         videoRef: videoPlayer.videoRef,
-        onSubtitlesToggle
+        onSubtitlesToggle,
+        liveSubtitle
     });
 
     // Memoize seek callbacks to prevent unnecessary re-registration of keyboard listeners
@@ -271,6 +287,10 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                         onSubtitleClick={subtitlesHook.handleSubtitleClick}
                         onCloseSubtitleMenu={subtitlesHook.handleCloseSubtitleMenu}
                         onSelectSubtitle={subtitlesHook.handleSelectSubtitle}
+                        liveSubtitleAvailable={subtitlesHook.liveSubtitleAvailable}
+                        liveSubtitleLabel={subtitlesHook.liveSubtitleLabel}
+                        liveSubtitleSelected={subtitlesHook.liveSubtitleSelected}
+                        onSelectLiveSubtitle={subtitlesHook.handleSelectLiveSubtitle}
                         onToggleFullscreen={fullscreen.handleToggleFullscreen}
                         onToggleLoop={handleToggleLoop}
                         onControlsMouseEnter={fullscreen.handleControlsMouseEnter}

@@ -68,6 +68,8 @@ export type AuthorOrganizationMode =
 
 export type AdminTrustLevel = 'application' | 'container' | 'host';
 
+export type LiveTranslationModel = 'gemini-3.5-live-translate-preview';
+
 export interface DeploymentSecurityModel {
   adminTrustLevel: AdminTrustLevel;
   adminTrustedWithContainer: boolean;
@@ -164,4 +166,11 @@ export interface Settings {
   statisticsTrackVisitorActivity?: boolean;
   statisticsKeepDataWhenDisabled?: boolean;
   statisticsTimezone?: string;
+  // Live audio translation
+  liveTranslationEnabled?: boolean;
+  liveTranslationModel?: LiveTranslationModel;
+  liveTranslationApiKey?: string;
+  liveTranslationSourceLanguage?: string; // "auto" or BCP-47
+  liveTranslationTargetLanguage?: string; // BCP-47
+  liveTranslationApiKeyConfigured?: boolean; // response-only, not persisted
 }

@@ -12,6 +12,12 @@ import {
   normalizeTwitchCredential,
 } from "../utils/twitch";
 import { validateFilenameNamingSelection } from "./filenameTemplate/config";
+import {
+  isSupportedSourceLanguage,
+  isSupportedTargetLanguage,
+  LIVE_TRANSLATION_MODELS,
+  LIVE_TRANSLATION_SOURCE_AUTO,
+} from "./liveTranslation/languages";
 const VALID_MEDIA_SERVER_EXPORT_MODES = new Set([
   "off",
   "nfo",
@@ -214,6 +220,8 @@ export function validateSettings(newSettings: Partial<Settings>): void {
     );
   }
 
+  validateLiveTranslationIncomingSettings(newSettings);
+
   // Validate tags: no case-insensitive duplicates (e.g. "aaa" and "Aaa" cannot both exist)
   if (newSettings.tags !== undefined && Array.isArray(newSettings.tags)) {
     const collision = findCaseInsensitiveTagCollision(newSettings.tags);
@@ -224,6 +232,121 @@ export function validateSettings(newSettings: Partial<Settings>): void {
         "tags"
       );
     }
+  }
+}
+
+/**
+ * Validate per-field live translation settings on an incoming patch. This runs
+ * with only the incoming fields, so it cannot enforce "API key required when
+ * enabled" (the key may already be persisted). That cross-field rule is enforced
+ * by validateLiveTranslationFinalSettings against the merged final settings.
+ */
+function validateLiveTranslationIncomingSettings(
+  newSettings: Partial<Settings>
+): void {
+  if (
+    newSettings.liveTranslationEnabled !== undefined &&
+    typeof newSettings.liveTranslationEnabled !== "boolean"
+  ) {
+    throw new ValidationError(
+      "Live translation enabled flag must be a boolean.",
+      "liveTranslationEnabled"
+    );
+  }
+
+  if (
+    newSettings.liveTranslationModel !== undefined &&
+    !LIVE_TRANSLATION_MODELS.has(newSettings.liveTranslationModel)
+  ) {
+    throw new ValidationError(
+      `Invalid live translation model: "${newSettings.liveTranslationModel}".`,
+      "liveTranslationModel"
+    );
+  }
+
+  if (newSettings.liveTranslationApiKey !== undefined) {
+    if (typeof newSettings.liveTranslationApiKey !== "string") {
+      throw new ValidationError(
+        "Live translation API key must be a string.",
+        "liveTranslationApiKey"
+      );
+    }
+    newSettings.liveTranslationApiKey = newSettings.liveTranslationApiKey.trim();
+  }
+
+  if (
+    newSettings.liveTranslationSourceLanguage !== undefined &&
+    !isSupportedSourceLanguage(newSettings.liveTranslationSourceLanguage)
+  ) {
+    throw new ValidationError(
+      `Invalid live translation source language: "${newSettings.liveTranslationSourceLanguage}".`,
+      "liveTranslationSourceLanguage"
+    );
+  }
+
+  if (newSettings.liveTranslationTargetLanguage !== undefined) {
+    if (
+      newSettings.liveTranslationTargetLanguage === LIVE_TRANSLATION_SOURCE_AUTO
+    ) {
+      throw new ValidationError(
+        "Live translation target language cannot be auto.",
+        "liveTranslationTargetLanguage"
+      );
+    }
+    if (
+      !isSupportedTargetLanguage(newSettings.liveTranslationTargetLanguage)
+    ) {
+      throw new ValidationError(
+        `Invalid live translation target language: "${newSettings.liveTranslationTargetLanguage}".`,
+        "liveTranslationTargetLanguage"
+      );
+    }
+  }
+}
+
+/**
+ * Cross-field validation that runs against the merged final settings, before
+ * persisting. When the feature is enabled it requires a stored or incoming API
+ * key, a valid model, and a valid target language. Must run before
+ * storageService.saveSettings(...) and before any enable side effects so an
+ * invalid enable request rejects without partially persisting.
+ */
+export function validateLiveTranslationFinalSettings(
+  finalSettings: Partial<Settings>
+): void {
+  if (finalSettings.liveTranslationEnabled !== true) {
+    return;
+  }
+
+  const apiKey =
+    typeof finalSettings.liveTranslationApiKey === "string"
+      ? finalSettings.liveTranslationApiKey.trim()
+      : "";
+  if (apiKey.length === 0) {
+    throw new ValidationError(
+      "A Gemini API key is required to enable live translation.",
+      "liveTranslationApiKey"
+    );
+  }
+
+  const model = finalSettings.liveTranslationModel;
+  if (model === undefined || !LIVE_TRANSLATION_MODELS.has(model)) {
+    throw new ValidationError(
+      "A valid live translation model is required to enable live translation.",
+      "liveTranslationModel"
+    );
+  }
+
+  const targetLanguage = finalSettings.liveTranslationTargetLanguage;
+  if (
+    targetLanguage === undefined ||
+    targetLanguage === LIVE_TRANSLATION_SOURCE_AUTO ||
+    !isSupportedTargetLanguage(targetLanguage)
+  ) {
+    throw new ValidationError(
+      "A valid target language is required to enable live translation.",
+      "liveTranslationTargetLanguage"
+    );
   }
 }
 

@@ -537,7 +537,7 @@ describe('SettingsPage', () => {
         twitchClientId: 'client-id',
         twitchClientSecret: 'client-secret',
       }),
-      undefined
+      expect.objectContaining({ onSuccess: expect.any(Function) })
     );
   });
 

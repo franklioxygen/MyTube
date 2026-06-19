@@ -6,6 +6,7 @@ import { roleBasedAuthMiddleware } from "../../middleware/roleBasedAuthMiddlewar
 import { roleBasedSettingsMiddleware } from "../../middleware/roleBasedSettingsMiddleware";
 import apiRoutes, { apiKeyRoutes } from "../../routes/api";
 import settingsRoutes from "../../routes/settingsRoutes";
+import liveTranslationRoutes from "../../routes/liveTranslationRoutes";
 
 vi.mock("../../middleware/authMiddleware", () => ({
   authMiddleware: vi.fn(),
@@ -28,6 +29,10 @@ vi.mock("../../routes/settingsRoutes", () => ({
   default: { __router: "settings" },
 }));
 
+vi.mock("../../routes/liveTranslationRoutes", () => ({
+  default: { __router: "liveTranslation" },
+}));
+
 vi.mock("../../controllers/rssController", () => ({
   serveFeed: vi.fn(),
 }));
@@ -47,6 +52,7 @@ describe("registerApiRoutes", () => {
       passkeyRegistrationLimiter: vi.fn(),
       statisticsIngestionLimiter: vi.fn(),
       feedLimiter: vi.fn(),
+      liveTranslationSessionLimiter: vi.fn(),
     };
 
     registerApiRoutes(app, authLimiters as any);
@@ -98,25 +104,35 @@ describe("registerApiRoutes", () => {
       "/api/statistics/events",
       authLimiters.statisticsIngestionLimiter
     );
+    expect(app.post).toHaveBeenCalledWith(
+      "/api/live-translation/sessions",
+      authLimiters.liveTranslationSessionLimiter
+    );
 
     expect(app.use).toHaveBeenNthCalledWith(1, "/api", authMiddleware);
     expect(app.use).toHaveBeenNthCalledWith(2, "/api", apiKeyRoutes);
     expect(app.use).toHaveBeenNthCalledWith(
       3,
+      "/api/live-translation",
+      roleBasedAuthMiddleware,
+      liveTranslationRoutes
+    );
+    expect(app.use).toHaveBeenNthCalledWith(
+      4,
       "/api",
       roleBasedAuthMiddleware,
       apiRoutes
     );
     expect(app.use).toHaveBeenNthCalledWith(
-      4,
+      5,
       "/api/settings",
       roleBasedSettingsMiddleware,
       settingsRoutes
     );
 
-    expect(app.post).toHaveBeenCalledTimes(9);
+    expect(app.post).toHaveBeenCalledTimes(10);
     expect(app.get).toHaveBeenCalledTimes(2);
-    expect(app.use).toHaveBeenCalledTimes(4);
+    expect(app.use).toHaveBeenCalledTimes(5);
   });
 
   it("can skip feed registration when it is registered before static routes", () => {
@@ -129,13 +145,14 @@ describe("registerApiRoutes", () => {
       passkeyRegistrationLimiter: vi.fn(),
       statisticsIngestionLimiter: vi.fn(),
       feedLimiter: vi.fn(),
+      liveTranslationSessionLimiter: vi.fn(),
     };
 
     registerApiRoutes(app, authLimiters as any, { includeFeedRoute: false });
 
     expect(app.get).not.toHaveBeenCalled();
-    expect(app.post).toHaveBeenCalledTimes(9);
-    expect(app.use).toHaveBeenCalledTimes(4);
+    expect(app.post).toHaveBeenCalledTimes(10);
+    expect(app.use).toHaveBeenCalledTimes(5);
   });
 
   it("registers the public feed route independently", () => {

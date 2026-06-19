@@ -4,6 +4,7 @@ import { useLanguage } from '../../../contexts/LanguageContext';
 import { neutral, overlay } from '../../../theme/colors';
 import { getBackendUrl } from '../../../utils/apiUrl';
 import { getSubtitleLanguageLabel } from '../../../utils/formatUtils';
+import { getMediaCrossOriginAttr } from '../../../utils/mediaOrigin';
 
 type GlobalVideoCounterScope = typeof globalThis & {
     __videoControlCounter?: number;
@@ -240,23 +241,7 @@ const VideoElement: React.FC<VideoElementProps> = ({
                 onSeeking={onSeeking}
                 onSeeked={onSeeked}
                 playsInline
-                crossOrigin={(() => {
-                    if (!src) return undefined;
-                    // Only set crossOrigin for cross-origin URLs
-                    if (src.startsWith('http://') || src.startsWith('https://')) {
-                        try {
-                            const srcUrl = new URL(src);
-                            const currentOrigin = window.location.origin;
-                            // If different origin, we need CORS
-                            return srcUrl.origin !== currentOrigin ? 'anonymous' : undefined;
-                        } catch {
-                            // If URL parsing fails, default to undefined for same-origin safety
-                            return undefined;
-                        }
-                    }
-                    // Relative URLs are same-origin, no CORS needed
-                    return undefined;
-                })()}
+                crossOrigin={getMediaCrossOriginAttr(src)}
                 poster={poster}
             >
                 {subtitles && subtitles.map((subtitle, index) => (

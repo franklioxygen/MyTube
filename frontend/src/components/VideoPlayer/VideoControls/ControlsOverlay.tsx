@@ -50,6 +50,10 @@ interface ControlsOverlayProps {
     onToggleCinemaMode?: () => void;
     onUploadSubtitle?: (file: File) => void;
     onDeleteSubtitle?: (index: number) => void | Promise<void>;
+    liveSubtitleAvailable?: boolean;
+    liveSubtitleLabel?: string;
+    liveSubtitleSelected?: boolean;
+    onSelectLiveSubtitle?: () => void;
 }
 
 const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
@@ -89,7 +93,11 @@ const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
     isCinemaMode = false,
     onToggleCinemaMode,
     onUploadSubtitle,
-    onDeleteSubtitle
+    onDeleteSubtitle,
+    liveSubtitleAvailable = false,
+    liveSubtitleLabel = '',
+    liveSubtitleSelected = false,
+    onSelectLiveSubtitle,
 }) => {
     const theme = useTheme();
     const { t } = useLanguage();
@@ -186,6 +194,10 @@ const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
                         onUploadSubtitle={onUploadSubtitle}
                         onDeleteSubtitle={onDeleteSubtitle}
                         isFullscreen={isFullscreen}
+                        liveSubtitleAvailable={liveSubtitleAvailable}
+                        liveSubtitleLabel={liveSubtitleLabel}
+                        liveSubtitleSelected={liveSubtitleSelected}
+                        onSelectLiveSubtitle={onSelectLiveSubtitle}
                     />
 
                     {/* Right Side: Fullscreen, Cinema Mode (large screens only), Subtitle, Loop (Desktop only) */}
@@ -216,6 +228,10 @@ const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
                             onUploadSubtitle={onUploadSubtitle}
                             onDeleteSubtitle={onDeleteSubtitle}
                             isFullscreen={isFullscreen}
+                            liveSubtitleAvailable={liveSubtitleAvailable}
+                            liveSubtitleLabel={liveSubtitleLabel}
+                            liveSubtitleSelected={liveSubtitleSelected}
+                            onSelectLiveSubtitle={onSelectLiveSubtitle}
                         />
 
                         <LoopControl

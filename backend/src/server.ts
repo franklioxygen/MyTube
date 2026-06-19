@@ -23,6 +23,7 @@ import { registerCloudRoutes } from "./server/cloudRoutes";
 import { configureRateLimiting } from "./server/rateLimit";
 import { registerSpaFallback, registerStaticRoutes } from "./server/staticRoutes";
 import { startBackgroundJobs } from "./server/startupJobs";
+import { registerLiveTranslationSocket } from "./server/liveTranslationSocket";
 
 VERSION.displayVersion();
 
@@ -83,10 +84,13 @@ const startServer = async (): Promise<void> => {
     app.use(errorHandler);
 
     const HOST = process.env.HOST || "0.0.0.0";
-    app.listen(PORT, HOST, () => {
+    const server = app.listen(PORT, HOST, () => {
       logger.info(`Server running on ${HOST}:${PORT}`);
       startBackgroundJobs(PORT);
     });
+    // Register the live translation WebSocket on the same HTTP server (noServer
+    // mode handles only the live translation upgrade path).
+    registerLiveTranslationSocket(server);
   } catch (error) {
     logger.error(
       "Failed to start server:",

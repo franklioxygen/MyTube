@@ -38,6 +38,7 @@ import StatisticsSettings from '../components/Settings/StatisticsSettings';
 import TagsSettings from '../components/Settings/TagsSettings';
 import TwitchSettings from '../components/Settings/TwitchSettings';
 import VideoDefaultSettings from '../components/Settings/VideoDefaultSettings';
+import LiveTranslationSettings from '../components/Settings/LiveTranslationSettings';
 import YtDlpSettings from '../components/Settings/YtDlpSettings';
 import { useAuth } from '../contexts/AuthContext';
 import { useDownload } from '../contexts/DownloadContext';
@@ -112,6 +113,11 @@ const SettingsPage: React.FC = () => {
         message: string;
     } | null>(null);
     const [isGlowing, setIsGlowing] = useState(false);
+    // Live translation Gemini API key is never fetched into `settings` (hidden in
+    // responses). It only lives in this transient draft while the page is open.
+    const [liveTranslationApiKeyDraft, setLiveTranslationApiKeyDraft] = useState('');
+    const [clearLiveTranslationApiKeyRequested, setClearLiveTranslationApiKeyRequested] =
+        useState(false);
     const [currentTab, setCurrentTab] = useState(0);
     const [showTrustDetailsModal, setShowTrustDetailsModal] = useState(false);
     const twitchCredentialValidationCode = getTwitchCredentialValidationCode(
@@ -378,9 +384,32 @@ const SettingsPage: React.FC = () => {
     };
 
     const handleSave = () => {
-        if (!saveMutation.isPending && !hasTwitchCredentialValidationError) {
-            saveMutation.mutate(settings);
+        if (saveMutation.isPending || hasTwitchCredentialValidationError) {
+            return;
         }
+
+        // Construct a secret-safe payload for the Gemini live translation key:
+        // - omit it when the draft is empty and no clear was requested
+        //   (so unrelated saves never wipe an existing stored key)
+        // - include the trimmed draft only when replacing the key
+        // - include "" only for an explicit clear-key action
+        const settingsToSave: Settings = { ...settings };
+        delete settingsToSave.liveTranslationApiKey;
+        const apiKeyDraft = liveTranslationApiKeyDraft.trim();
+        if (clearLiveTranslationApiKeyRequested) {
+            settingsToSave.liveTranslationApiKey = '';
+        } else if (apiKeyDraft.length > 0) {
+            settingsToSave.liveTranslationApiKey = apiKeyDraft;
+        }
+
+        saveMutation.mutate(settingsToSave, {
+            onSuccess: () => {
+                // Drop the transient draft/clear state and rely on the refetched
+                // liveTranslationApiKeyConfigured flag.
+                setLiveTranslationApiKeyDraft('');
+                setClearLiveTranslationApiKeyRequested(false);
+            },
+        });
     };
 
     const handleTagsChange = (newTags: string[]) => {
@@ -536,10 +565,31 @@ const SettingsPage: React.FC = () => {
     );
 
     const renderVideoPlaybackContent = () => (
-        <VideoDefaultSettings
-            settings={settings}
-            onChange={handleChange}
-        />
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <VideoDefaultSettings
+                settings={settings}
+                onChange={handleChange}
+            />
+            <LiveTranslationSettings
+                settings={settings}
+                apiKeyConfigured={settings.liveTranslationApiKeyConfigured === true}
+                apiKeyDraft={liveTranslationApiKeyDraft}
+                clearApiKeyRequested={clearLiveTranslationApiKeyRequested}
+                onChange={(field, value) => handleChange(field as keyof Settings, value)}
+                onApiKeyDraftChange={(value) => {
+                    setLiveTranslationApiKeyDraft(value);
+                    if (clearLiveTranslationApiKeyRequested && value.length > 0) {
+                        setClearLiveTranslationApiKeyRequested(false);
+                    }
+                    triggerGlow();
+                }}
+                onClearApiKey={() => {
+                    setClearLiveTranslationApiKeyRequested(true);
+                    setLiveTranslationApiKeyDraft('');
+                    triggerGlow();
+                }}
+            />
+        </Box>
     );
 
     const renderDownloadStorageContent = () => (

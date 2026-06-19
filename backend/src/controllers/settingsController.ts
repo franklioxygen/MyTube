@@ -54,6 +54,9 @@ const TRUST_GATED_SETTINGS_REQUIREMENTS: Partial<
 const RESPONSE_HIDDEN_SETTINGS_KEYS = new Set([
   "password",
   "visitorPassword",
+  // Gemini key has per-use billing cost; never round-trip it to any client,
+  // not even admins. Clients learn only the derived liveTranslationApiKeyConfigured flag.
+  "liveTranslationApiKey",
 ]);
 
 const ADMIN_ONLY_SETTINGS_KEYS = new Set([
@@ -105,14 +108,24 @@ const buildSafeSettingsPayload = (
         )
       : {};
 
+  const hasLiveTranslationApiKey =
+    typeof settings.liveTranslationApiKey === "string" &&
+    settings.liveTranslationApiKey.trim().length > 0;
+
   return {
     ...safeSettings,
     ...adminOnlySettings,
+    // Gate the configured flag behind the same admin/login check used for
+    // adminOnlySettings so visitors do not learn whether a key is configured.
+    ...(canExposeAdminOnlySettings
+      ? { liveTranslationApiKeyConfigured: hasLiveTranslationApiKey }
+      : {}),
     downloadFilenameMode: resolvedFilenameNaming.mode,
     downloadFilenamePresetId: resolvedFilenameNaming.matchedPresetId,
     deploymentSecurity: getDeploymentSecurityModel(),
     password: undefined,
     visitorPassword: undefined,
+    liveTranslationApiKey: undefined,
     passkeys: undefined,
   };
 };
@@ -801,6 +814,11 @@ const persistSettingsUpdate = async (
     mode === "replace"
       ? (settingsToPersist as Settings)
       : ({ ...existingSettings, ...settingsToPersist } as Settings);
+
+  // Cross-field live translation validation against merged final settings. Must
+  // run before saveSettings and before any enable side effects so an invalid
+  // enable request rejects without partially persisting.
+  settingsValidationService.validateLiveTranslationFinalSettings(finalSettings);
 
   ensureApiKeyWhenEnabled(settingsToPersist, finalSettings);
   applyStatisticsToggleSideEffects(existingSettings, finalSettings);

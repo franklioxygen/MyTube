@@ -12,6 +12,7 @@ export interface AuthLimiters {
   passkeyRegistrationLimiter: RequestHandler;
   feedLimiter: RequestHandler;
   statisticsIngestionLimiter: RequestHandler;
+  liveTranslationSessionLimiter: RequestHandler;
 }
 
 type RateLimitedRequest = Request & {
@@ -151,6 +152,10 @@ export const configureRateLimiting = (app: Express): AuthLimiters => {
     passkeyRegistrationLimiter: createScopedAuthLimiter("passkey-registration"),
     feedLimiter: createFeedLimiter(),
     statisticsIngestionLimiter: createStatisticsIngestionLimiter(),
+    // Ticket minting has per-use Gemini cost; rate limit it per client.
+    liveTranslationSessionLimiter: createScopedAuthLimiter(
+      "live-translation-session"
+    ),
   };
 
   app.use((req, res, next) => {

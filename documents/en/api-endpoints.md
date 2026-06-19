@@ -155,11 +155,15 @@ All API routes are mounted under `/api` unless noted otherwise.
 - `GET /api/settings` - Get app settings (password hashes are excluded)
   - Response may include service configuration for admin users, or for any client when login protection is disabled
   - When login protection is enabled, visitor and unauthenticated responses hide service secrets such as `apiKey`, `openListToken`, `cloudflaredToken`, `telegramBotToken`, `twitchClientId`, and `twitchClientSecret`
+  - The Gemini live translation key (`liveTranslationApiKey`) is never returned to any client (not even admins); responses instead expose a derived `liveTranslationApiKeyConfigured` boolean (admins / login-disabled only)
 - `PATCH /api/settings` - Partially update settings
   - Body: partial settings object
   - Supports `apiKeyEnabled?: boolean` and `apiKey?: string`
   - Supports `twitchClientId?: string` and `twitchClientSecret?: string`
   - If `apiKeyEnabled` is set to `true` and `apiKey` is empty/missing, server auto-generates a 64-character hex key
+  - Supports live translation fields: `liveTranslationEnabled?: boolean`, `liveTranslationModel?: string`, `liveTranslationApiKey?: string`, `liveTranslationSourceLanguage?: string` (`"auto"` or BCP-47), `liveTranslationTargetLanguage?: string` (BCP-47, not `"auto"`)
+    - Enabling the feature requires a stored or incoming API key, a valid model, and a target language
+    - Send `liveTranslationApiKey: ""` to clear the stored key; omit it to leave the stored key unchanged
 - `POST /api/settings/migrate` - Migrate legacy JSON data to SQLite
 - `POST /api/settings/delete-legacy` - Delete legacy JSON data files
 - `POST /api/settings/format-filenames` - Format legacy filenames
@@ -242,6 +246,29 @@ All API routes are mounted under `/api` unless noted otherwise.
   - Response is streamed JSON lines progress events
 - `DELETE /api/cloud/thumbnail-cache` - Clear local cloud thumbnail cache
 - `GET /api/cloud/thumbnail-cache/:filename` - Serve cached cloud thumbnail file (static route)
+
+## Live Audio Translation
+
+Optional admin feature that translates the playing video's audio in real time via Google Gemini Live Translation. The Gemini API key is stored server-side and never returned to clients. API key authentication is rejected for all live translation endpoints; visitor access is rejected in the current implementation.
+
+- `GET /api/live-translation/config` - Get secret-free feature availability for the current user
+  - Response: `{ enabled, available, canUse, model, sourceLanguage, targetLanguage, apiKeyConfigured, requiresAdmin, reason }`
+  - `reason` is `null` when usable, otherwise one of: `feature_disabled`, `unsupported_model`, `api_key_missing`, `target_language_missing`, `admin_required`
+  - `apiKeyConfigured` is only included for admins / when login is disabled
+- `POST /api/live-translation/sessions` - Mint a one-use, short-lived WebSocket ticket
+  - Body: `{ videoId: string }`
+  - Requires a normal authenticated session and CSRF token; requires the admin role when login is enabled; rate limited
+  - Response: `{ ticket, expiresAt, ttlMs, wsPath, config: { model, sourceLanguage, targetLanguage } }`
+  - The ticket is one-use and expires quickly (~60s); the config snapshot is captured at mint time
+
+WebSocket stream (mounted under `/api`, upgraded — not a JSON route):
+
+- `GET /api/live-translation/ws?ticket=<ticket>` - WebSocket upgrade for the live audio stream
+  - The ticket may also be supplied via the `Sec-WebSocket-Protocol` header to keep it out of access logs
+  - Validated on upgrade: `Origin` must match the host/allowed hosts; the ticket must exist, be unexpired and unused; visitor tickets and a disabled/unconfigured feature are rejected
+  - Client → server messages: `start`, `audio` (base64 PCM16, 16 kHz mono, ~100 ms chunks), `pause`, `resume`, `seek`, `stop`, `ping`
+  - Server → client messages: `ready`, `status`, `inputTranscript`, `outputTranscript`, `audio` (base64 PCM16, 24 kHz mono), `pong`, `error`, `closed`
+  - Per-server active session cap and a session duration cap apply; audio and transcript content are not persisted or logged
 
 ## System
 

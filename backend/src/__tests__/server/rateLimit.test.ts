@@ -51,7 +51,7 @@ describe("configureRateLimiting", () => {
 
     const authLimiters = configureRateLimiting(app);
 
-    expect(mocked.rateLimitFactory).toHaveBeenCalledTimes(8);
+    expect(mocked.rateLimitFactory).toHaveBeenCalledTimes(9);
     expect(mocked.createdLimiters[1]).toBe(authLimiters.adminPasswordLimiter);
     expect(mocked.createdLimiters[2]).toBe(authLimiters.visitorPasswordLimiter);
     expect(mocked.createdLimiters[3]).toBe(authLimiters.adminReauthLimiter);
@@ -59,6 +59,9 @@ describe("configureRateLimiting", () => {
     expect(mocked.createdLimiters[5]).toBe(authLimiters.passkeyRegistrationLimiter);
     expect(mocked.createdLimiters[6]).toBe(authLimiters.feedLimiter);
     expect(mocked.createdLimiters[7]).toBe(authLimiters.statisticsIngestionLimiter);
+    expect(mocked.createdLimiters[8]).toBe(
+      authLimiters.liveTranslationSessionLimiter
+    );
     expect(app.use).toHaveBeenCalledTimes(1);
 
     const generalOptions = (mocked.createdLimiters[0] as any).__options;
