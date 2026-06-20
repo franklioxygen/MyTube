@@ -51,7 +51,8 @@ function sendRateLimitResponse(
   req: Request,
   res: Response,
   windowMs: number,
-  scope: string
+  scope: string,
+  message = "Too many failed attempts. Please wait before trying again."
 ): void {
   const waitTime = getRateLimitWaitTimeMs(req as RateLimitedRequest, windowMs);
   logger.warn("Authentication rate limit triggered", {
@@ -66,7 +67,7 @@ function sendRateLimitResponse(
 
   res.status(429).json({
     success: false,
-    message: "Too many failed attempts. Please wait before trying again.",
+    message,
     waitTime,
     statusCode: 429,
   });
@@ -142,6 +143,27 @@ const createScopedAuthLimiter = (scope: string): RequestHandler => {
   });
 };
 
+const createLiveTranslationSessionLimiter = (): RequestHandler => {
+  return rateLimit({
+    windowMs: AUTH_WINDOW_MS,
+    max: AUTH_MAX_ATTEMPTS,
+    message: "Too many live translation sessions, please try again later.",
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => getClientIp(req),
+    handler: (req, res) => {
+      sendRateLimitResponse(
+        req,
+        res,
+        AUTH_WINDOW_MS,
+        "live-translation-session",
+        "Too many live translation sessions. Please wait before trying again."
+      );
+    },
+    validate: RATE_LIMIT_VALIDATE_OPTIONS,
+  });
+};
+
 export const configureRateLimiting = (app: Express): AuthLimiters => {
   const generalLimiter = createGeneralLimiter();
   const authLimiters: AuthLimiters = {
@@ -153,9 +175,7 @@ export const configureRateLimiting = (app: Express): AuthLimiters => {
     feedLimiter: createFeedLimiter(),
     statisticsIngestionLimiter: createStatisticsIngestionLimiter(),
     // Ticket minting has per-use Gemini cost; rate limit it per client.
-    liveTranslationSessionLimiter: createScopedAuthLimiter(
-      "live-translation-session"
-    ),
+    liveTranslationSessionLimiter: createLiveTranslationSessionLimiter(),
   };
 
   app.use((req, res, next) => {

@@ -72,7 +72,8 @@ const VideoControls: React.FC<VideoControlsProps> = ({
     });
 
     // Expose the underlying <video> element to the parent (live translation
-    // needs direct access for Web Audio capture). Report null on cleanup.
+    // needs direct access for Web Audio capture). Report null only when the
+    // element unmounts or the callback is replaced, not for same-element src changes.
     useEffect(() => {
         if (!onVideoElementReady) {
             return;
@@ -80,7 +81,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
         onVideoElementReady(videoPlayer.videoRef.current);
         return () => onVideoElementReady(null);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [onVideoElementReady, src]);
+    }, [onVideoElementReady]);
 
     // Auto-pause on focus loss
     useFocusPause(videoPlayer.videoRef, pauseOnFocusLoss);

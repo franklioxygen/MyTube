@@ -46,7 +46,7 @@ describe("configureRateLimiting", () => {
     mocked.createdLimiters.length = 0;
   });
 
-  it("creates general + scoped auth limiters and returns the limiter set", () => {
+  it("creates general, scoped auth, and live translation limiters", () => {
     const app = { use: vi.fn() } as any;
 
     const authLimiters = configureRateLimiting(app);
@@ -66,10 +66,13 @@ describe("configureRateLimiting", () => {
 
     const generalOptions = (mocked.createdLimiters[0] as any).__options;
     const authOptions = (mocked.createdLimiters[1] as any).__options;
+    const liveTranslationOptions = (mocked.createdLimiters[8] as any).__options;
 
     expect(generalOptions.max).toBe(1000);
     expect(authOptions.max).toBe(5);
     expect(authOptions.skipSuccessfulRequests).toBe(true);
+    expect(liveTranslationOptions.max).toBe(5);
+    expect(liveTranslationOptions.skipSuccessfulRequests).toBeUndefined();
     expect(typeof authOptions.handler).toBe("function");
 
     const req = { path: "/api/anything" } as any;

@@ -79,6 +79,16 @@ function makeControllers() {
   return { capture, playback };
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
 describe('useLiveTranslationSession', () => {
   beforeEach(() => {
     MockWebSocket.instances = [];
@@ -126,6 +136,45 @@ describe('useLiveTranslationSession', () => {
     expect(ws.url).not.toContain('ticket=ticket-123');
     expect(ws.protocols).toEqual(['ticket', 'ticket-123']);
     expect(ws.url.startsWith('ws')).toBe(true);
+  });
+
+  it('does not open a WebSocket when stopped while CSRF is pending', async () => {
+    const csrf = deferred<void>();
+    ensureCsrfToken.mockReturnValueOnce(csrf.promise);
+    const s = setup();
+
+    act(() => s.hook.result.current.start());
+    expect(s.hook.result.current.status).toBe('connecting');
+
+    act(() => s.hook.result.current.stop());
+    await act(async () => {
+      csrf.resolve();
+      await csrf.promise;
+    });
+
+    expect(post).not.toHaveBeenCalled();
+    expect(MockWebSocket.instances).toHaveLength(0);
+    expect(s.hook.result.current.status).toBe('idle');
+  });
+
+  it('does not open a WebSocket when stopped while ticket minting is pending', async () => {
+    const ticketMint = deferred<{ data: { ticket: string; wsPath: string } }>();
+    post.mockReturnValueOnce(ticketMint.promise);
+    const s = setup();
+
+    act(() => s.hook.result.current.start());
+    await waitFor(() => expect(post).toHaveBeenCalledWith('/live-translation/sessions', { videoId: 'video-1' }));
+
+    act(() => s.hook.result.current.stop());
+    await act(async () => {
+      ticketMint.resolve({
+        data: { ticket: 'ticket-after-stop', wsPath: '/api/live-translation/ws' },
+      });
+      await ticketMint.promise;
+    });
+
+    expect(MockWebSocket.instances).toHaveLength(0);
+    expect(s.hook.result.current.status).toBe('idle');
   });
 
   it('primes audio synchronously and sends start, then begins capture on open', async () => {

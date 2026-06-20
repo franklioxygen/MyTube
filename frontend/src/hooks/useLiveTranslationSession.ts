@@ -74,6 +74,7 @@ export function useLiveTranslationSession(
   const [retryable, setRetryable] = useState(false);
 
   const wsRef = useRef<WebSocket | null>(null);
+  const startAttemptRef = useRef(0);
   const seqRef = useRef(0);
   const audioSeqRef = useRef(0);
   const mediaListenersRef = useRef<(() => void) | null>(null);
@@ -90,6 +91,7 @@ export function useLiveTranslationSession(
 
   const cleanup = useCallback(
     (nextStatus: LiveTranslationSessionStatus) => {
+      startAttemptRef.current += 1;
       detachMediaListeners();
       const element = videoElementRef.current;
       if (element) {
@@ -232,11 +234,21 @@ export function useLiveTranslationSession(
     capture.prime(element);
     playback.prime();
     setStatus('connecting');
+    const startAttempt = startAttemptRef.current + 1;
+    startAttemptRef.current = startAttempt;
+    const isCurrentStart = () =>
+      startAttemptRef.current === startAttempt && videoElementRef.current === element;
 
     void (async () => {
       try {
         await ensureCsrfToken();
+        if (!isCurrentStart()) {
+          return;
+        }
         const res = await api.post('/live-translation/sessions', { videoId });
+        if (!isCurrentStart()) {
+          return;
+        }
         const ticket = res.data?.ticket as string;
         const wsPath = (res.data?.wsPath as string) || '/api/live-translation/ws';
         if (!ticket) {
@@ -298,6 +310,9 @@ export function useLiveTranslationSession(
           }
         };
       } catch {
+        if (!isCurrentStart()) {
+          return;
+        }
         fail('gemini_connect_failed', 'Failed to start live translation.', true);
       }
     })();

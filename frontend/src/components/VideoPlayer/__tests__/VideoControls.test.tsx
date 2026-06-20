@@ -145,6 +145,29 @@ describe('VideoControls', () => {
         await user.click(screen.getByText('Play Pause'));
         expect(mockVideoPlayer.handlePlayPause).toHaveBeenCalled();
     });
+
+    it('keeps the video element ready callback stable across src changes', () => {
+        const onVideoElementReady = vi.fn();
+        const { rerender, unmount } = render(
+            <VideoControls {...defaultProps} onVideoElementReady={onVideoElementReady} />
+        );
+
+        expect(onVideoElementReady).toHaveBeenCalledWith(mockVideoPlayer.videoRef.current);
+        onVideoElementReady.mockClear();
+
+        rerender(
+            <VideoControls
+                {...defaultProps}
+                src="next-video.mp4"
+                onVideoElementReady={onVideoElementReady}
+            />
+        );
+
+        expect(onVideoElementReady).not.toHaveBeenCalled();
+
+        unmount();
+        expect(onVideoElementReady).toHaveBeenCalledWith(null);
+    });
 });
 
 // Re-defining mocks for interactive tests if needed, or simple render check is enough?
