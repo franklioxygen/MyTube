@@ -74,8 +74,9 @@ export function getLiveTranslationServerConfig(
     enabled: settings.liveTranslationEnabled === true,
     model:
       settings.liveTranslationModel || "gemini-3.5-live-translate-preview",
-    sourceLanguage:
-      settings.liveTranslationSourceLanguage || LIVE_TRANSLATION_SOURCE_AUTO,
+    // Gemini Live Translation auto-detects the source language and does not
+    // expose a source-language setup field. Clamp legacy stored values to auto.
+    sourceLanguage: LIVE_TRANSLATION_SOURCE_AUTO,
     targetLanguage: settings.liveTranslationTargetLanguage || "en",
     apiKey,
     apiKeyConfigured: apiKey.length > 0,

@@ -18,8 +18,6 @@ import React, { useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { Settings } from '../../types';
 import {
-    LIVE_TRANSLATION_SOURCE_AUTO,
-    LIVE_TRANSLATION_SOURCE_LANGUAGE_OPTIONS,
     LIVE_TRANSLATION_TARGET_LANGUAGE_OPTIONS,
 } from '../../utils/liveTranslationLanguages';
 
@@ -54,7 +52,6 @@ const LiveTranslationSettings: React.FC<LiveTranslationSettingsProps> = ({
 
     const enabled = settings.liveTranslationEnabled === true;
     const model = settings.liveTranslationModel || 'gemini-3.5-live-translate-preview';
-    const sourceLanguage = settings.liveTranslationSourceLanguage || LIVE_TRANSLATION_SOURCE_AUTO;
     const targetLanguage = settings.liveTranslationTargetLanguage || 'en';
     // A configured key is still considered present unless the admin requested a clear.
     const effectiveKeyConfigured = apiKeyConfigured && !clearApiKeyRequested;
@@ -142,28 +139,6 @@ const LiveTranslationSettings: React.FC<LiveTranslationSettingsProps> = ({
                             {LIVE_TRANSLATION_MODELS.map((option) => (
                                 <MenuItem key={option.value} value={option.value}>
                                     {option.label}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
-
-                    <FormControl fullWidth>
-                        <InputLabel id="live-translation-source-label">
-                            {t('liveTranslationSourceLanguage')}
-                        </InputLabel>
-                        <Select
-                            labelId="live-translation-source-label"
-                            label={t('liveTranslationSourceLanguage')}
-                            value={sourceLanguage}
-                            onChange={(e) =>
-                                onChange('liveTranslationSourceLanguage', e.target.value)
-                            }
-                        >
-                            {LIVE_TRANSLATION_SOURCE_LANGUAGE_OPTIONS.map((option) => (
-                                <MenuItem key={option.code} value={option.code}>
-                                    {option.code === LIVE_TRANSLATION_SOURCE_AUTO
-                                        ? t('liveTranslationSourceAuto')
-                                        : option.label}
                                 </MenuItem>
                             ))}
                         </Select>

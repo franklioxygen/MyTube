@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ValidationError } from "../../errors/DownloadErrors";
+import { getLiveTranslationServerConfig } from "../../services/liveTranslation/config";
 import * as settingsValidationService from "../../services/settingsValidationService";
 import { defaultSettings } from "../../types/settings";
 
@@ -32,10 +33,10 @@ describe("live translation settings validation", () => {
       }).toThrow(ValidationError);
     });
 
-    it("rejects an unsupported source language", () => {
+    it("rejects a non-auto source language", () => {
       expect(() => {
         settingsValidationService.validateSettings({
-          liveTranslationSourceLanguage: "klingon",
+          liveTranslationSourceLanguage: "es",
         });
       }).toThrow(ValidationError);
     });
@@ -122,6 +123,15 @@ describe("live translation settings validation", () => {
       expect(defaultSettings.liveTranslationSourceLanguage).toBe("auto");
       expect(defaultSettings.liveTranslationTargetLanguage).toBe("en");
       expect(defaultSettings.liveTranslationApiKey).toBe("");
+    });
+
+    it("clamps legacy non-auto source settings to auto in server config", () => {
+      const config = getLiveTranslationServerConfig({
+        ...defaultSettings,
+        liveTranslationSourceLanguage: "es",
+      });
+
+      expect(config.sourceLanguage).toBe("auto");
     });
   });
 });

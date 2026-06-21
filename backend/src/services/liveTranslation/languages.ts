@@ -69,9 +69,10 @@ export function isSupportedTargetLanguage(code: string): boolean {
 }
 
 /**
- * Whether a value is a valid source-language selection. `auto` is allowed (and
- * is the default) because the source language is auto-detected by the model.
+ * Whether a value is a valid source-language selection. Gemini Live Translation
+ * currently auto-detects source language and does not expose a source-language
+ * setup field, so only the auto-detect setting is accepted.
  */
 export function isSupportedSourceLanguage(code: string): boolean {
-  return code === LIVE_TRANSLATION_SOURCE_AUTO || SUPPORTED_LANGUAGE_CODES.has(code);
+  return code === LIVE_TRANSLATION_SOURCE_AUTO;
 }

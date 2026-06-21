@@ -101,7 +101,7 @@ export interface Settings {
   liveTranslationEnabled?: boolean;
   liveTranslationModel?: LiveTranslationModel;
   liveTranslationApiKey?: string;
-  liveTranslationSourceLanguage?: string; // "auto" or BCP-47
+  liveTranslationSourceLanguage?: string; // currently "auto" only
   liveTranslationTargetLanguage?: string; // BCP-47
   liveTranslationApiKeyConfigured?: boolean; // response-only, not persisted
 }

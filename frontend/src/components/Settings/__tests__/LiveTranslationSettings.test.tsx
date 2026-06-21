@@ -68,7 +68,7 @@ describe('LiveTranslationSettings', () => {
         renderComponent({ settings: { liveTranslationEnabled: true } });
         expect(screen.getByLabelText('liveTranslationApiKey')).toBeInTheDocument();
         expect(screen.getAllByText('liveTranslationModel').length).toBeGreaterThan(0);
-        expect(screen.getAllByText('liveTranslationSourceLanguage').length).toBeGreaterThan(0);
+        expect(screen.queryByText('liveTranslationSourceLanguage')).not.toBeInTheDocument();
         expect(screen.getAllByText('liveTranslationTargetLanguage').length).toBeGreaterThan(0);
     });
 

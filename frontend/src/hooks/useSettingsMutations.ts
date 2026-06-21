@@ -133,6 +133,9 @@ const buildSettingsPatchPayload = (
   ) as Partial<Settings>;
 };
 
+const hasLiveTranslationSettingsChange = (settings: Partial<Settings>): boolean =>
+  Object.keys(settings).some((key) => key.startsWith("liveTranslation"));
+
 /**
  * Custom hook to manage all settings-related API mutations
  */
@@ -183,6 +186,9 @@ export function useSettingsMutations({
     },
     onSuccess: (result, newSettings) => {
       setMessage({ text: t("settingsSaved"), type: "success" });
+      const liveTranslationSettingsChanged = hasLiveTranslationSettingsChange(
+        result.patchPayload
+      );
 
       // The Gemini key is a hidden secret and must never sit in the React Query
       // settings cache, even transiently. Strip it from both the patch merge and
@@ -199,6 +205,9 @@ export function useSettingsMutations({
       // Skip refetch when no fields changed.
       if (!result.skipped) {
         void queryClient.invalidateQueries({ queryKey: ["settings"] });
+      }
+      if (liveTranslationSettingsChanged) {
+        void queryClient.invalidateQueries({ queryKey: ["liveTranslationConfig"] });
       }
       if (changedSettings.tags !== undefined) {
         void queryClient.invalidateQueries({ queryKey: ["videos"] });

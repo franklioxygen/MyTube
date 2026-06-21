@@ -264,6 +264,9 @@ export function useLiveTranslationSession(
         audioSeqRef.current = 0;
 
         ws.onopen = () => {
+          if (!isCurrentStart() || wsRef.current !== ws) {
+            return;
+          }
           sendControl({
             type: 'start',
             videoId,
@@ -273,6 +276,9 @@ export function useLiveTranslationSession(
           void capture
             .start(element, (pcm16) => {
               const socket = wsRef.current;
+              if (!isCurrentStart() || socket !== ws) {
+                return;
+              }
               // Only forward audio while the video is actually playing.
               if (element.paused) {
                 return;
@@ -290,7 +296,15 @@ export function useLiveTranslationSession(
                 );
               }
             })
+            .then(() => {
+              if (!isCurrentStart() || wsRef.current !== ws) {
+                capture.stop(element);
+              }
+            })
             .catch(() => {
+              if (!isCurrentStart() || wsRef.current !== ws) {
+                return;
+              }
               fail('audio_capture_failed', 'Audio capture failed to start.', false);
             });
           attachMediaListeners();

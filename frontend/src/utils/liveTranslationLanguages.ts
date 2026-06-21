@@ -44,12 +44,9 @@ export const LIVE_TRANSLATION_LANGUAGE_OPTIONS: readonly LiveTranslationLanguage
     { code: 'fil', label: 'Filipino' },
   ] as const;
 
-/** Source language options, including the auto-detect default at the top. */
+/** Source language options. Gemini currently supports source auto-detection only. */
 export const LIVE_TRANSLATION_SOURCE_LANGUAGE_OPTIONS: readonly LiveTranslationLanguageOption[] =
-  [
-    { code: LIVE_TRANSLATION_SOURCE_AUTO, label: 'Auto-detect' },
-    ...LIVE_TRANSLATION_LANGUAGE_OPTIONS,
-  ];
+  [{ code: LIVE_TRANSLATION_SOURCE_AUTO, label: 'Auto-detect' }];
 
 /** Target language options exclude `auto`. */
 export const LIVE_TRANSLATION_TARGET_LANGUAGE_OPTIONS =

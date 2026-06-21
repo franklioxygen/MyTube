@@ -193,6 +193,44 @@ describe('useLiveTranslationSession', () => {
     expect(s.hook.result.current.status).toBe('translating');
   });
 
+  it('stops capture again when capture startup finishes after Stop', async () => {
+    const captureStart = deferred<void>();
+    const s = setup();
+    s.capture.start.mockReturnValueOnce(captureStart.promise);
+
+    const ws = await startAndOpen(s);
+    expect(ws.typed('start')).toHaveLength(1);
+
+    act(() => s.hook.result.current.stop());
+    expect(s.capture.stop).toHaveBeenCalledWith(s.videoElement);
+
+    await act(async () => {
+      captureStart.resolve();
+      await captureStart.promise;
+    });
+
+    expect(s.capture.stop).toHaveBeenCalledTimes(2);
+    expect(s.hook.result.current.status).toBe('idle');
+    expect(s.hook.result.current.errorCode).toBeNull();
+  });
+
+  it('ignores capture startup failures after Stop', async () => {
+    const captureStart = deferred<void>();
+    const s = setup();
+    s.capture.start.mockReturnValueOnce(captureStart.promise);
+
+    await startAndOpen(s);
+    act(() => s.hook.result.current.stop());
+
+    await act(async () => {
+      captureStart.reject(new Error('worklet failed after stop'));
+      await captureStart.promise.catch(() => undefined);
+    });
+
+    expect(s.hook.result.current.status).toBe('idle');
+    expect(s.hook.result.current.errorCode).toBeNull();
+  });
+
   it('enqueues translated audio and forwards transcripts', async () => {
     const onTranscript = vi.fn();
     const s = setup(onTranscript);
