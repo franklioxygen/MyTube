@@ -101,18 +101,19 @@ export function getLiveTranslationPublicConfig(
   // requiresAdmin reflects the MVP policy: when login is enabled, only admins
   // may spend Gemini quota.
   const requiresAdmin = context.loginRequired;
+  const canSeeApiKeyState = context.isAdmin || !context.loginRequired;
 
   let reason: LiveTranslationReason = null;
   if (!server.enabled) {
     reason = "feature_disabled";
   } else if (!modelSupported) {
     reason = "unsupported_model";
+  } else if (!canSeeApiKeyState) {
+    reason = "admin_required";
   } else if (!server.apiKeyConfigured) {
     reason = "api_key_missing";
   } else if (!targetValid) {
     reason = "target_language_missing";
-  } else if (requiresAdmin && !context.isAdmin) {
-    reason = "admin_required";
   }
 
   const available =
@@ -121,12 +122,12 @@ export function getLiveTranslationPublicConfig(
 
   return {
     enabled: server.enabled,
-    available,
+    available: canSeeApiKeyState ? available : false,
     canUse,
     model: server.model,
     sourceLanguage: server.sourceLanguage,
     targetLanguage: server.targetLanguage,
-    apiKeyConfigured: server.apiKeyConfigured,
+    apiKeyConfigured: canSeeApiKeyState ? server.apiKeyConfigured : false,
     requiresAdmin,
     reason,
   };

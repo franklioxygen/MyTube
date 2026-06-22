@@ -75,6 +75,7 @@ describe("liveTranslationController", () => {
 
       const payload = json.mock.calls[0][0];
       expect(payload.available).toBe(false);
+      expect(payload.apiKeyConfigured).toBe(false);
       expect(payload.reason).toBe("api_key_missing");
     });
 
@@ -86,7 +87,26 @@ describe("liveTranslationController", () => {
       await getConfig(req as Request, res as Response);
 
       const payload = json.mock.calls[0][0];
+      expect(payload.available).toBe(false);
       expect(payload.canUse).toBe(false);
+      expect(payload.apiKeyConfigured).toBe(false);
+      expect(payload.reason).toBe("admin_required");
+    });
+
+    it("does not reveal missing API-key state to visitors when login is enabled", async () => {
+      (passwordService.isLoginRequired as any).mockReturnValue(true);
+      (storageService.getSettings as any).mockReturnValue({
+        ...enabledSettings,
+        liveTranslationApiKey: "",
+      });
+      req.user = { role: "visitor" } as any;
+
+      await getConfig(req as Request, res as Response);
+
+      const payload = json.mock.calls[0][0];
+      expect(payload.available).toBe(false);
+      expect(payload.canUse).toBe(false);
+      expect(payload.apiKeyConfigured).toBe(false);
       expect(payload.reason).toBe("admin_required");
     });
 

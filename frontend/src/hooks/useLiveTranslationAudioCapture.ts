@@ -7,8 +7,9 @@ import {
 /**
  * Live translation audio capture.
  *
- * Routes the video element through a Web Audio graph and taps it with an
- * AudioWorklet that emits 100 ms Int16 PCM chunks at 16 kHz. Using a
+ * Routes the video element through a Web Audio graph at the browser's normal
+ * output rate and taps it with an AudioWorklet that emits 100 ms Int16 PCM
+ * chunks resampled to 16 kHz. Using a
  * `MediaElementAudioSourceNode` (rather than `captureStream()`) decouples capture
  * from speaker output, so muting the original audio to suppress echo does not
  * also silence what we send to Gemini.
@@ -53,9 +54,10 @@ class MediaCaptureGraph {
   private moduleLoaded = false;
 
   constructor(element: HTMLMediaElement, Ctor: AudioContextCtor) {
-    // 16 kHz context: the browser resamples at the graph boundary so the worklet
-    // receives 16 kHz frames directly (no hand-rolled, aliasing decimation).
-    this.ctx = new Ctor({ sampleRate: 16000 });
+    // Use the browser's normal output rate for the media graph. The worklet
+    // resamples only the capture tap to 16 kHz so regular playback is not
+    // downsampled after a live-translation start/stop cycle.
+    this.ctx = new Ctor();
     this.source = this.ctx.createMediaElementSource(element);
     this.gain = this.ctx.createGain();
     this.gain.gain.value = 1;

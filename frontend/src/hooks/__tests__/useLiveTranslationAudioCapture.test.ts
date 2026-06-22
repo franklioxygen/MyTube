@@ -59,6 +59,7 @@ const destination = { id: 'destination' };
 let gains: FakeGraphNode[];
 let worklets: FakeWorkletNode[];
 let mediaSourceCalls: number;
+let audioContextOptions: Array<AudioContextOptions | undefined>;
 
 class FakeGraphNode {
   gain = { value: 1 };
@@ -85,6 +86,9 @@ class FakeGraphAudioContext {
   state = 'suspended';
   destination = destination;
   audioWorklet = { addModule: () => Promise.resolve() };
+  constructor(options?: AudioContextOptions) {
+    audioContextOptions.push(options);
+  }
   resume() {
     this.state = 'running';
     return Promise.resolve();
@@ -108,6 +112,7 @@ describe('capture graph wiring', () => {
     gains = [];
     worklets = [];
     mediaSourceCalls = 0;
+    audioContextOptions = [];
     vi.stubGlobal('AudioContext', FakeGraphAudioContext as unknown as typeof AudioContext);
     vi.stubGlobal('AudioWorkletNode', FakeWorkletNode as unknown as typeof AudioWorkletNode);
   });
@@ -126,6 +131,17 @@ describe('capture graph wiring', () => {
     expect(sink.gain.value).toBe(0);
     expect(sink.connectedTo).toContain(destination);
 
+    result.current.dispose(el);
+  });
+
+  it('uses the default output sample rate for the media graph', async () => {
+    const { result } = renderHook(() => useLiveTranslationAudioCapture());
+    const el = {} as HTMLMediaElement;
+    await act(async () => {
+      await result.current.start(el, () => {});
+    });
+
+    expect(audioContextOptions[0]).toBeUndefined();
     result.current.dispose(el);
   });
 
