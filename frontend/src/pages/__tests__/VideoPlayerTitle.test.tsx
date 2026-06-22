@@ -106,9 +106,19 @@ vi.mock('../../hooks/useVideoRecommendations', () => ({
 
 // Mock child components
 vi.mock('../../components/VideoPlayer/VideoControls', () => ({ default: () => <div>Controls</div> }));
-vi.mock('../../components/VideoPlayer/LiveTranslationToggle', () => ({ default: () => <div>LiveTranslate</div> }));
 vi.mock('../../hooks/useLiveTranslationAvailability', () => ({
     useLiveTranslationAvailability: () => ({ data: undefined }),
+}));
+vi.mock('../../hooks/useLiveTranslationSession', () => ({
+    useLiveTranslationSession: () => ({
+        status: 'idle',
+        isActive: false,
+        errorCode: null,
+        errorMessage: null,
+        retryable: false,
+        start: vi.fn(),
+        stop: vi.fn(),
+    }),
 }));
 vi.mock('../../hooks/useLiveTranslationSubtitleTrack', () => ({
     useLiveTranslationSubtitleTrack: () => ({

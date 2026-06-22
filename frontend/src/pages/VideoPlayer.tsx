@@ -13,8 +13,9 @@ import SubscribeModal from '../components/SubscribeModal';
 import CommentsSection from '../components/VideoPlayer/CommentsSection';
 import UpNextSidebar from '../components/VideoPlayer/UpNextSidebar';
 import VideoControls from '../components/VideoPlayer/VideoControls';
-import LiveTranslationToggle from '../components/VideoPlayer/LiveTranslationToggle';
+import LiveTranslationStatusAlert from '../components/VideoPlayer/LiveTranslationStatusAlert';
 import VideoInfo from '../components/VideoPlayer/VideoInfo';
+import { LiveTranslationProvider } from '../contexts/LiveTranslationContext';
 import { useLiveTranslationAvailability } from '../hooks/useLiveTranslationAvailability';
 import { useLiveTranslationSubtitleTrack } from '../hooks/useLiveTranslationSubtitleTrack';
 import { getLiveTranslationLanguageLabel } from '../utils/liveTranslationLanguages';
@@ -372,6 +373,19 @@ const VideoPlayer: React.FC = () => {
             >
                 {/* Main Column: Video + Info + Comments */}
                 <Box sx={{ gridArea: 'main' }}>
+                    <LiveTranslationProvider
+                        videoId={video.id}
+                        videoElement={videoElement}
+                        src={(videoUrl || video?.sourceUrl) || null}
+                        onTranscript={liveSubtitleTrack.addCue}
+                        onActiveChange={(active) => {
+                            if (active) {
+                                liveSubtitleTrack.activate();
+                            } else {
+                                liveSubtitleTrack.deactivate();
+                            }
+                        }}
+                    >
                     <VideoControls
                         src={(videoUrl || video?.sourceUrl) || null}
                         poster={posterUrl || localPosterUrl || video?.thumbnailUrl}
@@ -411,25 +425,8 @@ const VideoPlayer: React.FC = () => {
                         }}
                     />
 
-                    <Box sx={{
-                        maxWidth: isCinemaMode ? '1200px' : 'none',
-                        mx: isCinemaMode ? 'auto' : 0,
-                        width: '100%'
-                    }}>
-                        <LiveTranslationToggle
-                            videoId={video.id}
-                            videoElement={videoElement}
-                            src={(videoUrl || video?.sourceUrl) || null}
-                            onTranscript={liveSubtitleTrack.addCue}
-                            onActiveChange={(active) => {
-                                if (active) {
-                                    liveSubtitleTrack.activate();
-                                } else {
-                                    liveSubtitleTrack.deactivate();
-                                }
-                            }}
-                        />
-                    </Box>
+                    <LiveTranslationStatusAlert isCinemaMode={isCinemaMode} />
+                    </LiveTranslationProvider>
 
                     <Box sx={{
                         px: { xs: 2, md: 0 },

@@ -5,6 +5,7 @@ import { brand, gradient, modeColors, overlay } from '../../../theme/colors';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import CinemaModeControl from './CinemaModeControl';
 import FullscreenControl from './FullscreenControl';
+import LiveTranslationControlButton from './LiveTranslationControlButton';
 import LoopControl from './LoopControl';
 import PlaybackControls from './PlaybackControls';
 import SpeedControl from './SpeedControl';
@@ -252,8 +253,10 @@ const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
                 isFullscreen={isFullscreen}
             />
 
-            {/* Mobile: Fullscreen, Loop, Speed */}
+            {/* Mobile: Live Translate, Fullscreen, Loop, Speed */}
             <Stack direction="row" spacing={0.5} alignItems="center" sx={{ display: { xs: 'flex', sm: 'none' }, ml: 1, justifyContent: 'center', mt: 1 }}>
+                <LiveTranslationControlButton />
+
                 <FullscreenControl
                     isFullscreen={isFullscreen}
                     onToggle={onToggleFullscreen}

@@ -59,3 +59,47 @@ const LANGUAGE_LABEL_BY_CODE = new Map(
 export function getLiveTranslationLanguageLabel(code: string): string {
   return LANGUAGE_LABEL_BY_CODE.get(code) ?? code;
 }
+
+/**
+ * Short uppercase badge shown on the in-player Live Translate control when a
+ * translation is active (e.g. "EN", "CN"). These are deliberately country/locale
+ * flavored rather than strict ISO language codes to match common user mental
+ * models (Chinese -> "CN", not "ZH").
+ */
+const LANGUAGE_ABBREVIATION_BY_CODE: Record<string, string> = {
+  en: 'EN',
+  'zh-Hans': 'CN',
+  'zh-Hant': 'TW',
+  ja: 'JP',
+  ko: 'KR',
+  es: 'ES',
+  fr: 'FR',
+  de: 'DE',
+  'pt-BR': 'BR',
+  'pt-PT': 'PT',
+  ru: 'RU',
+  ar: 'AR',
+  hi: 'HI',
+  it: 'IT',
+  nl: 'NL',
+  pl: 'PL',
+  tr: 'TR',
+  vi: 'VI',
+  id: 'ID',
+  th: 'TH',
+  uk: 'UK',
+  he: 'HE',
+  fa: 'FA',
+  ms: 'MS',
+  fil: 'PH',
+};
+
+export function getLiveTranslationLanguageAbbreviation(code: string): string {
+  const mapped = LANGUAGE_ABBREVIATION_BY_CODE[code];
+  if (mapped) {
+    return mapped;
+  }
+  // Fallback: primary subtag (before any region/script), uppercased to 2 chars.
+  const primary = code.split('-')[0] ?? code;
+  return primary.slice(0, 2).toUpperCase() || code.toUpperCase();
+}

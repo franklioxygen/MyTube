@@ -8,6 +8,7 @@ import {
 } from '@mui/icons-material';
 import { Box, IconButton, Stack, Tooltip, useMediaQuery } from '@mui/material';
 import React from 'react';
+import LiveTranslationControlButton from './LiveTranslationControlButton';
 import SpeedControl from './SpeedControl';
 
 interface PlaybackControlsProps {
@@ -35,6 +36,10 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({
             alignItems="center"
             sx={{ width: '100%', flexWrap: 'wrap' }}
         >
+            {/* Live Translate trigger (desktop only; mobile shows it in the bottom row) */}
+            <LiveTranslationControlButton
+                sx={{ display: { xs: 'none', sm: 'inline-flex' }, padding: '8px' }}
+            />
             <Tooltip title="-10m" disableHoverListener={isTouch}>
                 <IconButton
                     onClick={() => onSeek(-600)}
