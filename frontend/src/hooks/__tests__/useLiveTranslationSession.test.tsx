@@ -301,6 +301,20 @@ describe('useLiveTranslationSession', () => {
     expect(MockWebSocket.instances).toHaveLength(0);
   });
 
+  it('surfaces audio capture failure when synchronous priming throws', () => {
+    const s = setup();
+    s.capture.prime.mockImplementationOnce(() => {
+      throw new Error('audio graph failed');
+    });
+
+    act(() => s.hook.result.current.start());
+
+    expect(s.hook.result.current.status).toBe('error');
+    expect(s.hook.result.current.errorCode).toBe('audio_capture_failed');
+    expect(post).not.toHaveBeenCalled();
+    expect(MockWebSocket.instances).toHaveLength(0);
+  });
+
   it('stops live translation if playback rate changes while active', async () => {
     const s = setup();
     const ws = await startAndOpen(s);

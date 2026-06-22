@@ -69,16 +69,36 @@ describe('useLiveTranslationSubtitleTrack', () => {
     expect(cue.endTime).toBe(6);
   });
 
-  it('avoids overlapping cues by chaining start times', () => {
+  it('anchors overlapping cues at transcript time and trims the prior cue', () => {
     const { el, track } = makeFakeVideo();
     const { result } = renderHook(() =>
       useLiveTranslationSubtitleTrack(el, 'en', 'Live'),
     );
     act(() => result.current.addCue({ kind: 'output', text: 'a', mediaTime: 0 }));
     act(() => result.current.addCue({ kind: 'output', text: 'b', mediaTime: 1 }));
+    const first = track.cues[0] as FakeVTTCue;
     const second = track.cues[1] as FakeVTTCue;
-    // First cue ends at 4, so the second must not start before 4.
-    expect(second.startTime).toBe(4);
+    expect(first.endTime).toBe(1);
+    expect(second.startTime).toBe(1);
+    expect(second.endTime).toBe(5);
+  });
+
+  it('anchors live cues without mediaTime to current playback time', () => {
+    const { el, track } = makeFakeVideo(10);
+    const { result } = renderHook(() =>
+      useLiveTranslationSubtitleTrack(el, 'en', 'Live'),
+    );
+    act(() => result.current.addCue({ kind: 'output', text: 'a' }));
+
+    el.currentTime = 11;
+    act(() => result.current.addCue({ kind: 'output', text: 'b' }));
+
+    const first = track.cues[0] as FakeVTTCue;
+    const second = track.cues[1] as FakeVTTCue;
+    expect(first.startTime).toBe(10);
+    expect(first.endTime).toBe(11);
+    expect(second.startTime).toBe(11);
+    expect(second.endTime).toBe(15);
   });
 
   it('clears cues and disables the track on deactivate', () => {

@@ -33,14 +33,12 @@ export function useLiveTranslationSubtitleTrack(
   const [, setVersion] = useState(0);
   const trackRef = useRef<TextTrack | null>(null);
   const elementRef = useRef<HTMLVideoElement | null>(null);
-  const lastCueEndRef = useRef(0);
 
   // A track belongs to one element; drop the reference if the element changes.
   useEffect(() => {
     if (elementRef.current !== videoElement) {
       trackRef.current = null;
       elementRef.current = videoElement;
-      lastCueEndRef.current = 0;
       setIsActive(false);
     }
   }, [videoElement]);
@@ -82,7 +80,6 @@ export function useLiveTranslationSubtitleTrack(
         // ignore
       }
     }
-    lastCueEndRef.current = 0;
     setIsActive(false);
   }, []);
 
@@ -106,12 +103,24 @@ export function useLiveTranslationSubtitleTrack(
         typeof event.mediaTime === 'number'
           ? event.mediaTime
           : (videoElement?.currentTime ?? 0);
-      // Avoid overlapping cues by starting after the previous cue when needed.
-      const start = Math.max(baseTime, lastCueEndRef.current);
+      const start = Math.max(0, baseTime);
       const end = start + DEFAULT_CUE_DURATION_S;
       try {
+        const cues = track.cues;
+        if (cues) {
+          for (let i = cues.length - 1; i >= 0; i--) {
+            const cue = cues[i];
+            if (!cue || cue.endTime <= start) {
+              continue;
+            }
+            if (cue.startTime >= start) {
+              track.removeCue(cue);
+            } else {
+              cue.endTime = start;
+            }
+          }
+        }
         track.addCue(new VTTCue(start, end, text));
-        lastCueEndRef.current = end;
       } catch {
         // ignore malformed cue
       }

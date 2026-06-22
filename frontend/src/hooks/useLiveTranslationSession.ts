@@ -241,8 +241,13 @@ export function useLiveTranslationSession(
 
     // Create + resume the audio contexts synchronously within this user gesture
     // so the browser autoplay policy allows them to run.
-    capture.prime(element);
-    playback.prime();
+    try {
+      capture.prime(element);
+      playback.prime();
+    } catch {
+      fail('audio_capture_failed', 'Audio capture failed to start.', false);
+      return;
+    }
     setStatus('connecting');
     const startAttempt = startAttemptRef.current + 1;
     startAttemptRef.current = startAttempt;
