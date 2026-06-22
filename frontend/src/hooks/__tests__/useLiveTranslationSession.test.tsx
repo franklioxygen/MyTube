@@ -128,6 +128,10 @@ describe('useLiveTranslationSession', () => {
     await act(async () => {
       ws.serverOpen();
     });
+    // Gemini reports readiness — this is when capture actually starts.
+    await act(async () => {
+      ws.serverSend({ type: 'status', status: 'translating' });
+    });
     return ws;
   }
 
@@ -180,7 +184,7 @@ describe('useLiveTranslationSession', () => {
     expect(s.hook.result.current.status).toBe('idle');
   });
 
-  it('primes audio synchronously and sends start, then begins capture on open', async () => {
+  it('primes audio synchronously and sends start on open, but defers capture until Gemini is ready', async () => {
     const s = setup();
     // prime happens synchronously inside the click handler (before any await).
     act(() => s.hook.result.current.start());
@@ -191,9 +195,45 @@ describe('useLiveTranslationSession', () => {
     const ws = MockWebSocket.instances[0];
     await act(async () => ws.serverOpen());
 
+    // start is sent, but capture must NOT start yet (original audio stays
+    // audible) and the status stays 'connecting'.
     expect(ws.typed('start')).toHaveLength(1);
+    expect(s.capture.start).not.toHaveBeenCalled();
+    expect(s.hook.result.current.status).toBe('connecting');
+
+    // Server signals Gemini is ready -> capture starts, status -> translating.
+    await act(async () => ws.serverSend({ type: 'status', status: 'translating' }));
     expect(s.capture.start).toHaveBeenCalledWith(s.videoElement, expect.any(Function));
     expect(s.hook.result.current.status).toBe('translating');
+  });
+
+  it('drops translated audio that arrives while paused', async () => {
+    const s = setup();
+    const ws = await startAndOpen(s);
+
+    await act(async () => {
+      (s.videoElement as unknown as { paused: boolean }).paused = true;
+      s.videoElement.dispatchEvent(new Event('pause'));
+    });
+    // The queue is flushed on pause.
+    expect(s.playback.flush).toHaveBeenCalled();
+    s.playback.enqueueBase64.mockClear();
+
+    // Audio arriving while paused is ignored (not queued).
+    await act(async () => {
+      ws.serverSend({ type: 'audio', seq: 1, sampleRate: 24000, channels: 1, pcm16Base64: 'QUJD' });
+    });
+    expect(s.playback.enqueueBase64).not.toHaveBeenCalled();
+
+    // After resume, audio is enqueued again.
+    await act(async () => {
+      (s.videoElement as unknown as { paused: boolean }).paused = false;
+      s.videoElement.dispatchEvent(new Event('play'));
+    });
+    await act(async () => {
+      ws.serverSend({ type: 'audio', seq: 2, sampleRate: 24000, channels: 1, pcm16Base64: 'QUJD' });
+    });
+    expect(s.playback.enqueueBase64).toHaveBeenCalledWith('QUJD');
   });
 
   it('sends initial pause when starting from a paused video', async () => {

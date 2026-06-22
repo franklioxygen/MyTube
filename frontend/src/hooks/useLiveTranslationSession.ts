@@ -79,6 +79,14 @@ export function useLiveTranslationSession(
   const seqRef = useRef(0);
   const audioSeqRef = useRef(0);
   const mediaListenersRef = useRef<(() => void) | null>(null);
+  // Capture is deferred until Gemini reports readiness (server `status:
+  // translating`) so the original audio stays audible — and nothing is dropped —
+  // during setup latency. `beginCaptureRef` holds the per-session starter.
+  const captureStartedRef = useRef(false);
+  const beginCaptureRef = useRef<(() => void) | null>(null);
+  // Tracks whether the video is paused so translated chunks that arrive while
+  // paused are dropped instead of queued (they would otherwise play on resume).
+  const pausedRef = useRef(false);
   // Keep latest values for callbacks/cleanup without re-creating handlers.
   const videoElementRef = useRef(videoElement);
   videoElementRef.current = videoElement;
@@ -93,6 +101,9 @@ export function useLiveTranslationSession(
   const cleanup = useCallback(
     (nextStatus: LiveTranslationSessionStatus) => {
       startAttemptRef.current += 1;
+      captureStartedRef.current = false;
+      beginCaptureRef.current = null;
+      pausedRef.current = false;
       detachMediaListeners();
       const element = videoElementRef.current;
       if (element) {
@@ -144,11 +155,16 @@ export function useLiveTranslationSession(
       return;
     }
     const onPause = () => {
+      pausedRef.current = true;
       sendControl({ type: 'pause', currentTime: element.currentTime });
+      // Drop any queued translated audio so it cannot overlay later video on
+      // resume; new chunks that arrive while paused are ignored (handleServerData).
+      playback.flush();
       playback.pause();
       setStatus((prev) => (prev === 'translating' ? 'paused' : prev));
     };
     const onPlay = () => {
+      pausedRef.current = false;
       sendControl({ type: 'resume', currentTime: element.currentTime });
       playback.resume();
       setStatus((prev) => (prev === 'paused' ? 'translating' : prev));
@@ -191,8 +207,14 @@ export function useLiveTranslationSession(
       }
       switch (message.type) {
         case 'status':
-          if (message.status === 'translating') setStatus('translating');
-          else if (message.status === 'paused') setStatus('paused');
+          if (message.status === 'translating') {
+            // Gemini is ready: now start (and mute via) capture. Until this point
+            // the original audio stayed audible so no words were lost.
+            beginCaptureRef.current?.();
+            setStatus(pausedRef.current ? 'paused' : 'translating');
+          } else if (message.status === 'paused') {
+            setStatus('paused');
+          }
           break;
         case 'inputTranscript':
           onTranscriptRef.current?.({
@@ -211,6 +233,11 @@ export function useLiveTranslationSession(
           });
           break;
         case 'audio':
+          // Ignore translated audio that arrives while paused; otherwise it
+          // would sit in the suspended context and play (stale) on resume.
+          if (pausedRef.current) {
+            break;
+          }
           playback.enqueueBase64(message.pcm16Base64);
           break;
         case 'error':
@@ -241,10 +268,13 @@ export function useLiveTranslationSession(
       return;
     }
 
-    // Reset any prior error.
+    // Reset any prior error and per-session state.
     setErrorCode(null);
     setErrorMessage(null);
     setRetryable(false);
+    captureStartedRef.current = false;
+    beginCaptureRef.current = null;
+    pausedRef.current = false;
 
     // Create + resume the audio contexts synchronously within this user gesture
     // so the browser autoplay policy allows them to run.
@@ -295,48 +325,65 @@ export function useLiveTranslationSession(
             currentTime: element.currentTime,
             playbackRate: element.playbackRate,
           });
-          void capture
-            .start(element, (pcm16) => {
-              const socket = wsRef.current;
-              if (!isCurrentStart() || socket !== ws) {
-                return;
-              }
-              // Only forward audio while the video is actually playing.
-              if (element.paused) {
-                return;
-              }
-              if (socket && socket.readyState === WS_OPEN) {
-                socket.send(
-                  encodeClientMessage({
-                    type: 'audio',
-                    seq: audioSeqRef.current++,
-                    mediaTime: element.currentTime,
-                    sampleRate: 16000,
-                    channels: 1,
-                    pcm16Base64: int16ToBase64(pcm16),
-                  }),
-                );
-              }
-            })
-            .then(() => {
-              if (!isCurrentStart() || wsRef.current !== ws) {
-                capture.stop(element);
-              }
-            })
-            .catch(() => {
-              if (!isCurrentStart() || wsRef.current !== ws) {
-                return;
-              }
-              fail('audio_capture_failed', 'Audio capture failed to start.', false);
-            });
+
+          // Defer starting capture (which mutes the original audio) until the
+          // server reports `status: translating`, i.e. Gemini can accept audio.
+          // The backend drops audio until setup completes, so muting earlier
+          // would silently lose the words playing during setup latency.
+          const startCapture = () => {
+            if (
+              captureStartedRef.current ||
+              !isCurrentStart() ||
+              wsRef.current !== ws
+            ) {
+              return;
+            }
+            captureStartedRef.current = true;
+            void capture
+              .start(element, (pcm16) => {
+                const socket = wsRef.current;
+                if (!isCurrentStart() || socket !== ws) {
+                  return;
+                }
+                // Only forward audio while the video is actually playing.
+                if (element.paused) {
+                  return;
+                }
+                if (socket && socket.readyState === WS_OPEN) {
+                  socket.send(
+                    encodeClientMessage({
+                      type: 'audio',
+                      seq: audioSeqRef.current++,
+                      mediaTime: element.currentTime,
+                      sampleRate: 16000,
+                      channels: 1,
+                      pcm16Base64: int16ToBase64(pcm16),
+                    }),
+                  );
+                }
+              })
+              .then(() => {
+                if (!isCurrentStart() || wsRef.current !== ws) {
+                  capture.stop(element);
+                }
+              })
+              .catch(() => {
+                if (!isCurrentStart() || wsRef.current !== ws) {
+                  return;
+                }
+                fail('audio_capture_failed', 'Audio capture failed to start.', false);
+              });
+          };
+          beginCaptureRef.current = startCapture;
+
           attachMediaListeners();
           if (element.paused) {
+            pausedRef.current = true;
             sendControl({ type: 'pause', currentTime: element.currentTime });
             playback.pause();
-            setStatus('paused');
-          } else {
-            setStatus('translating');
           }
+          // Status stays 'connecting' until the server reports 'translating';
+          // the original audio remains audible until then.
         };
         ws.onmessage = (event: MessageEvent) => {
           if (typeof event.data === 'string') {
