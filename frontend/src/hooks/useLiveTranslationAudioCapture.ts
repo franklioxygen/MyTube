@@ -44,6 +44,11 @@ class MediaCaptureGraph {
   private readonly ctx: AudioContext;
   private readonly source: MediaElementAudioSourceNode;
   private readonly gain: GainNode;
+  // Zero-gain sink that keeps the capture worklet reachable from the
+  // destination. Some browsers only pull `process()` for AudioWorklet nodes
+  // that are part of the rendered graph, so a disconnected tap never fires; this
+  // renders the branch while emitting no audible output.
+  private readonly workletSink: GainNode;
   private worklet: AudioWorkletNode | null = null;
   private moduleLoaded = false;
 
@@ -57,6 +62,10 @@ class MediaCaptureGraph {
     // Original audio reaches the speakers only via this gain node now.
     this.source.connect(this.gain);
     this.gain.connect(this.ctx.destination);
+
+    this.workletSink = this.ctx.createGain();
+    this.workletSink.gain.value = 0;
+    this.workletSink.connect(this.ctx.destination);
   }
 
   /** Resume the context within a user gesture (autoplay policy). */
@@ -78,6 +87,8 @@ class MediaCaptureGraph {
         LIVE_TRANSLATION_WORKLET_PROCESSOR,
       );
       this.source.connect(this.worklet);
+      // Render the tap (silently) so the processor is pulled.
+      this.worklet.connect(this.workletSink);
     }
     this.worklet.port.onmessage = (event: MessageEvent) => {
       onChunk(new Int16Array(event.data as ArrayBuffer));
@@ -107,6 +118,7 @@ class MediaCaptureGraph {
     try {
       this.source.disconnect();
       this.gain.disconnect();
+      this.workletSink.disconnect();
     } catch {
       // ignore
     }

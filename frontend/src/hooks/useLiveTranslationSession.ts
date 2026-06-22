@@ -164,15 +164,22 @@ export function useLiveTranslationSession(
       sendControl({ type: 'stop' });
       fail('unsupported_playback_rate', UNSUPPORTED_PLAYBACK_RATE_MESSAGE, false);
     };
+    const onVolumeChange = () => {
+      playback.setVolume(element.volume, element.muted);
+    };
+    // Apply the current volume/mute immediately, then track changes.
+    playback.setVolume(element.volume, element.muted);
     element.addEventListener('pause', onPause);
     element.addEventListener('play', onPlay);
     element.addEventListener('seeking', onSeeking);
     element.addEventListener('ratechange', onRateChange);
+    element.addEventListener('volumechange', onVolumeChange);
     mediaListenersRef.current = () => {
       element.removeEventListener('pause', onPause);
       element.removeEventListener('play', onPlay);
       element.removeEventListener('seeking', onSeeking);
       element.removeEventListener('ratechange', onRateChange);
+      element.removeEventListener('volumechange', onVolumeChange);
     };
   }, [fail, playback, sendControl]);
 

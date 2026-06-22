@@ -77,6 +77,7 @@ function makeControllers() {
     pause: vi.fn(),
     resume: vi.fn(),
     close: vi.fn(),
+    setVolume: vi.fn(),
   };
   return { capture, playback };
 }

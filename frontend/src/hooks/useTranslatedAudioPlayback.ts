@@ -28,7 +28,12 @@ function getAudioContextCtor(): AudioContextCtor | null {
 
 class TranslatedAudioPlayer {
   private ctx: AudioContext | null = null;
+  private masterGain: GainNode | null = null;
   private nextStart = 0;
+  // Mirrors the <video> element volume/mute so the player's volume control also
+  // governs translated speech (which bypasses the element and plays via Web Audio).
+  private volume = 1;
+  private muted = false;
   private readonly sources = new Set<AudioBufferSourceNode>();
 
   private ensureContext(): AudioContext | null {
@@ -40,7 +45,19 @@ class TranslatedAudioPlayer {
       return null;
     }
     this.ctx = new Ctor();
+    this.masterGain = this.ctx.createGain();
+    this.masterGain.gain.value = this.muted ? 0 : this.volume;
+    this.masterGain.connect(this.ctx.destination);
     return this.ctx;
+  }
+
+  /** Sync the output gain with the player's volume/mute state. */
+  setVolume(volume: number, muted: boolean): void {
+    this.volume = Math.min(Math.max(volume, 0), 1);
+    this.muted = muted;
+    if (this.masterGain) {
+      this.masterGain.gain.value = this.muted ? 0 : this.volume;
+    }
   }
 
   /** Create + resume the context within a user gesture (autoplay policy). */
@@ -66,7 +83,7 @@ class TranslatedAudioPlayer {
 
     const node = ctx.createBufferSource();
     node.buffer = buffer;
-    node.connect(ctx.destination);
+    node.connect(this.masterGain ?? ctx.destination);
 
     const now = ctx.currentTime;
     if (this.nextStart < now + JITTER_SECONDS) {
@@ -108,6 +125,14 @@ class TranslatedAudioPlayer {
 
   close(): void {
     this.flush();
+    if (this.masterGain) {
+      try {
+        this.masterGain.disconnect();
+      } catch {
+        // ignore
+      }
+      this.masterGain = null;
+    }
     if (this.ctx) {
       void this.ctx.close().catch(() => undefined);
       this.ctx = null;
