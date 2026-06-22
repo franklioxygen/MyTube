@@ -32,10 +32,14 @@ const DEFAULT_AVAILABILITY: LiveTranslationAvailability = {
  * to decide whether to show / enable the Live Translate button.
  */
 export function useLiveTranslationAvailability() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, userRole, loginRequired } = useAuth();
 
   return useQuery<LiveTranslationAvailability>({
-    queryKey: ['liveTranslationConfig'],
+    // The response is requester-dependent (canUse/reason/apiKeyConfigured differ
+    // by role and login state), so scope the cache by role + login state. This
+    // prevents reusing a stale entry across an auth change (e.g. visitor -> admin)
+    // within the staleTime window.
+    queryKey: ['liveTranslationConfig', userRole, loginRequired],
     queryFn: async () => {
       const res = await api.get('/live-translation/config');
       return res.data as LiveTranslationAvailability;
