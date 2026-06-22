@@ -77,6 +77,8 @@ export type ServerMessage =
       pcm16Base64: string;
     }
   | { type: 'pong'; ts: number }
+  // Gemini interrupted the in-progress response (barge-in); flush queued audio.
+  | { type: 'interrupted' }
   | {
       type: 'error';
       code: LiveTranslationErrorCode;

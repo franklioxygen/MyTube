@@ -115,6 +115,21 @@ describe("GeminiLiveTranslationClient", () => {
     expect(onAudio).toHaveBeenCalledWith("QUJD");
   });
 
+  it("emits onInterrupted when Gemini reports a barge-in", () => {
+    const onInterrupted = vi.fn();
+    const onAudio = vi.fn();
+    const { client, fake } = makeClient({ onInterrupted, onAudio });
+    client.connect();
+    fake.open();
+    fake.message({ setupComplete: {} });
+
+    fake.message({ serverContent: { interrupted: true } });
+    expect(onInterrupted).toHaveBeenCalledOnce();
+    // A non-interrupted serverContent must not trigger it.
+    fake.message({ serverContent: { outputTranscription: { text: "hi" } } });
+    expect(onInterrupted).toHaveBeenCalledOnce();
+  });
+
   it("reports a setup failure when closed before setupComplete (code 1007)", () => {
     const onError = vi.fn();
     const onClose = vi.fn();

@@ -144,6 +144,10 @@ export class LiveTranslationGateway {
         this.bumpStallTimer();
         this.forwardTranslatedAudio(base64);
       },
+      onInterrupted: () => {
+        // Barge-in: tell the browser to drop any queued translated audio.
+        this.send({ type: "interrupted" });
+      },
       onError: (code, message, retryable) => {
         this.sendError(code, message, retryable);
       },

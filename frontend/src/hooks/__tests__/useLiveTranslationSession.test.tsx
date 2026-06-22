@@ -302,6 +302,18 @@ describe('useLiveTranslationSession', () => {
     );
   });
 
+  it('flushes queued translated audio on a server interruption', async () => {
+    const s = setup();
+    const ws = await startAndOpen(s);
+    s.playback.flush.mockClear();
+
+    await act(async () => {
+      ws.serverSend({ type: 'interrupted' });
+    });
+
+    expect(s.playback.flush).toHaveBeenCalled();
+  });
+
   it('sends pause/resume/seek from media element events', async () => {
     const s = setup();
     const ws = await startAndOpen(s);

@@ -183,6 +183,16 @@ describe("LiveTranslationGateway", () => {
     expect(audio[0].pcm16Base64).toBe("QUJD");
   });
 
+  it("forwards a Gemini interruption to the browser", () => {
+    const { browser, gemini, gateway } = makeGateway();
+    gateway.start();
+    gemini.open();
+    gemini.message({ setupComplete: {} });
+
+    gemini.message({ serverContent: { interrupted: true } });
+    expect(browser.typed("interrupted")).toHaveLength(1);
+  });
+
   it("does not forward audio while paused", () => {
     const { browser, gemini, gateway } = makeGateway();
     gateway.start();

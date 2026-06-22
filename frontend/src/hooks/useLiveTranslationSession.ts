@@ -240,6 +240,11 @@ export function useLiveTranslationSession(
           }
           playback.enqueueBase64(message.pcm16Base64);
           break;
+        case 'interrupted':
+          // Gemini cut off the in-progress response (barge-in); drop queued
+          // translated audio so it does not play over later video.
+          playback.flush();
+          break;
         case 'error':
           fail(message.code, message.message, message.retryable);
           break;

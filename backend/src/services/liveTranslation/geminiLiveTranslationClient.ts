@@ -25,6 +25,9 @@ export interface GeminiClientHandlers {
   onInputTranscript?: (text: string, languageCode?: string) => void;
   onOutputTranscript?: (text: string, languageCode?: string) => void;
   onAudio?: (base64Pcm24: string) => void;
+  /** Gemini signalled that the in-progress response was interrupted (barge-in);
+   * downstream should stop and clear any queued translated audio. */
+  onInterrupted?: () => void;
   onError?: (
     code: LiveTranslationErrorCode,
     message: string,
@@ -211,6 +214,12 @@ export class GeminiLiveTranslationClient {
       | undefined;
     if (!serverContent) {
       return;
+    }
+
+    // Barge-in / interruption: the in-progress model response was cut off, so
+    // already-queued translated audio is stale and must be flushed downstream.
+    if (serverContent.interrupted === true) {
+      this.opts.handlers.onInterrupted?.();
     }
 
     const input = serverContent.inputTranscription as
