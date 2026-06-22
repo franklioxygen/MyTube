@@ -41,6 +41,11 @@ export const STALL_TIMEOUT_MS = 30 * 1000;
 // 100 ms of 16 kHz mono PCM16 is ~3200 bytes -> ~4267 base64 chars. Allow ample
 // headroom for JSON overhead while still rejecting absurd payloads.
 export const MAX_AUDIO_BASE64_LENGTH = 64 * 1024;
+// Per-session ingress budget. Normal clients send 100 ms chunks (~10 frames/sec);
+// this allows jitter while stopping tight loops before forwarding to Gemini.
+export const AUDIO_RATE_WINDOW_MS = 1_000;
+export const MAX_AUDIO_FRAMES_PER_WINDOW = 20;
+export const MAX_AUDIO_BASE64_CHARS_PER_WINDOW = 96 * 1024;
 // Close if the server -> browser buffer grows beyond this (unbounded growth).
 export const MAX_BROWSER_BUFFERED_BYTES = 8 * 1024 * 1024;
 
@@ -74,6 +79,9 @@ export class LiveTranslationGateway {
   private disposed = false;
   private started = false;
   private outboundAudioSeq = 0;
+  private audioRateWindowStartedAt: number | null = null;
+  private audioFramesInWindow = 0;
+  private audioBase64CharsInWindow = 0;
 
   private durationTimer: NodeJS.Timeout | null = null;
   private stallTimer: NodeJS.Timeout | null = null;
@@ -289,8 +297,38 @@ export class LiveTranslationGateway {
       // Drop until Gemini is ready rather than buffering unbounded audio.
       return;
     }
+    if (!this.consumeAudioBudget(base64.length)) {
+      this.sendError(
+        "audio_backpressure",
+        "Audio is arriving faster than live translation can process.",
+        true
+      );
+      this.close("audio_rate_limited");
+      return;
+    }
     this.bumpStallTimer();
     this.gemini.sendAudio(base64);
+  }
+
+  private consumeAudioBudget(base64Chars: number): boolean {
+    const now = this.now();
+    if (
+      this.audioRateWindowStartedAt === null ||
+      now < this.audioRateWindowStartedAt ||
+      now - this.audioRateWindowStartedAt >= AUDIO_RATE_WINDOW_MS
+    ) {
+      this.audioRateWindowStartedAt = now;
+      this.audioFramesInWindow = 0;
+      this.audioBase64CharsInWindow = 0;
+    }
+
+    this.audioFramesInWindow += 1;
+    this.audioBase64CharsInWindow += base64Chars;
+
+    return (
+      this.audioFramesInWindow <= MAX_AUDIO_FRAMES_PER_WINDOW &&
+      this.audioBase64CharsInWindow <= MAX_AUDIO_BASE64_CHARS_PER_WINDOW
+    );
   }
 
   private forwardTranslatedAudio(base64: string): void {

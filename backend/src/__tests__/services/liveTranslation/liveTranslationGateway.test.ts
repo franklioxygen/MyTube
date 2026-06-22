@@ -2,8 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   __resetActiveSessionsForTest,
   BrowserSocketLike,
+  GatewayOptions,
   getActiveSessionCount,
   LiveTranslationGateway,
+  MAX_AUDIO_BASE64_CHARS_PER_WINDOW,
+  MAX_AUDIO_BASE64_LENGTH,
+  MAX_AUDIO_FRAMES_PER_WINDOW,
   MAX_ACTIVE_SESSIONS,
   SESSION_DURATION_CAP_MS,
   STALL_TIMEOUT_MS,
@@ -71,13 +75,14 @@ class FakeGemini implements GeminiSocketLike {
   }
 }
 
-function makeGateway() {
+function makeGateway(overrides: Partial<GatewayOptions> = {}) {
   const browser = new FakeBrowser();
   const gemini = new FakeGemini();
   const gateway = new LiveTranslationGateway(browser, {
     config,
     videoId: "v1",
     geminiSocketFactory: () => gemini,
+    ...overrides,
   });
   return { browser, gemini, gateway };
 }
@@ -127,6 +132,78 @@ describe("LiveTranslationGateway", () => {
     const audioOut = gemini.sent.filter((m) => m.realtimeInput?.audio);
     expect(audioOut).toHaveLength(1);
     expect(audioOut[0].realtimeInput.audio.mimeType).toBe("audio/pcm;rate=16000");
+  });
+
+  it("rate-limits browser audio frame cadence before forwarding to Gemini", () => {
+    const now = 1_000;
+    const { browser, gemini, gateway } = makeGateway({ now: () => now });
+    gateway.start();
+    gemini.open();
+    gemini.message({ setupComplete: {} });
+    startBrowserStream(browser);
+
+    for (let seq = 1; seq <= MAX_AUDIO_FRAMES_PER_WINDOW; seq += 1) {
+      browser.clientMessage({
+        type: "audio",
+        seq,
+        mediaTime: seq / 10,
+        sampleRate: 16000,
+        channels: 1,
+        pcm16Base64: "AAAA",
+      });
+    }
+
+    expect(gemini.sent.filter((m) => m.realtimeInput?.audio)).toHaveLength(
+      MAX_AUDIO_FRAMES_PER_WINDOW
+    );
+
+    browser.clientMessage({
+      type: "audio",
+      seq: MAX_AUDIO_FRAMES_PER_WINDOW + 1,
+      mediaTime: 2.1,
+      sampleRate: 16000,
+      channels: 1,
+      pcm16Base64: "AAAA",
+    });
+
+    expect(browser.typed("error")[0].code).toBe("audio_backpressure");
+    expect(browser.typed("closed")[0].reason).toBe("audio_rate_limited");
+    expect(gemini.sent.filter((m) => m.realtimeInput?.audio)).toHaveLength(
+      MAX_AUDIO_FRAMES_PER_WINDOW
+    );
+  });
+
+  it("rate-limits browser audio bytes before forwarding to Gemini", () => {
+    const { browser, gemini, gateway } = makeGateway({ now: () => 2_000 });
+    gateway.start();
+    gemini.open();
+    gemini.message({ setupComplete: {} });
+    startBrowserStream(browser);
+
+    const largePayload = "A".repeat(MAX_AUDIO_BASE64_LENGTH);
+    expect(MAX_AUDIO_BASE64_LENGTH * 2).toBeGreaterThan(
+      MAX_AUDIO_BASE64_CHARS_PER_WINDOW
+    );
+
+    browser.clientMessage({
+      type: "audio",
+      seq: 1,
+      mediaTime: 0,
+      sampleRate: 16000,
+      channels: 1,
+      pcm16Base64: largePayload,
+    });
+    browser.clientMessage({
+      type: "audio",
+      seq: 2,
+      mediaTime: 0.1,
+      sampleRate: 16000,
+      channels: 1,
+      pcm16Base64: largePayload,
+    });
+
+    expect(browser.typed("error")[0].code).toBe("audio_backpressure");
+    expect(gemini.sent.filter((m) => m.realtimeInput?.audio)).toHaveLength(1);
   });
 
   it("rejects audio before a valid start message", () => {

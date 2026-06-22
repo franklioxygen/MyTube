@@ -508,6 +508,28 @@ describe('SettingsPage', () => {
     expect(savingButton).toBeDisabled();
   });
 
+  it('disables live translation when clearing a configured API key before save', async () => {
+    mockSettingsData = {
+      liveTranslationEnabled: true,
+      liveTranslationModel: 'gemini-3.5-live-translate-preview',
+      liveTranslationTargetLanguage: 'en',
+      liveTranslationApiKeyConfigured: true,
+    };
+
+    renderPage('/settings');
+
+    fireEvent.click(await screen.findByRole('button', { name: 'liveTranslationClearApiKey' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'save' })[0]);
+
+    expect(mockSaveMutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        liveTranslationEnabled: false,
+        liveTranslationApiKey: '',
+      }),
+      expect.objectContaining({ onSuccess: expect.any(Function) })
+    );
+  });
+
   it('renders Twitch credential fields and includes them in the save payload', async () => {
     renderPage('/settings');
 

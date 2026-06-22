@@ -586,6 +586,7 @@ const SettingsPage: React.FC = () => {
                 onClearApiKey={() => {
                     setClearLiveTranslationApiKeyRequested(true);
                     setLiveTranslationApiKeyDraft('');
+                    setSettings(prev => ({ ...prev, liveTranslationEnabled: false }));
                     triggerGlow();
                 }}
             />
