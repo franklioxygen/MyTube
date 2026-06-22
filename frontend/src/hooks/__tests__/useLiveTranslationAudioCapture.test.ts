@@ -60,6 +60,17 @@ let gains: FakeGraphNode[];
 let worklets: FakeWorkletNode[];
 let mediaSourceCalls: number;
 let audioContextOptions: Array<AudioContextOptions | undefined>;
+let addModuleImpl: () => Promise<void>;
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
 
 class FakeGraphNode {
   gain = { value: 1 };
@@ -85,7 +96,7 @@ class FakeWorkletNode {
 class FakeGraphAudioContext {
   state = 'suspended';
   destination = destination;
-  audioWorklet = { addModule: () => Promise.resolve() };
+  audioWorklet = { addModule: () => addModuleImpl() };
   constructor(options?: AudioContextOptions) {
     audioContextOptions.push(options);
   }
@@ -113,6 +124,7 @@ describe('capture graph wiring', () => {
     worklets = [];
     mediaSourceCalls = 0;
     audioContextOptions = [];
+    addModuleImpl = () => Promise.resolve();
     vi.stubGlobal('AudioContext', FakeGraphAudioContext as unknown as typeof AudioContext);
     vi.stubGlobal('AudioWorkletNode', FakeWorkletNode as unknown as typeof AudioWorkletNode);
   });
@@ -156,6 +168,45 @@ describe('capture graph wiring', () => {
       await result.current.start(el, () => {});
     });
     expect(mediaSourceCalls).toBe(1);
+    result.current.dispose(el);
+  });
+
+  it('does not let a superseded async start replace the newer chunk handler', async () => {
+    const firstModule = deferred<void>();
+    const secondModule = deferred<void>();
+    addModuleImpl = vi
+      .fn()
+      .mockReturnValueOnce(firstModule.promise)
+      .mockReturnValueOnce(secondModule.promise);
+    const onOldChunk = vi.fn();
+    const onNewChunk = vi.fn();
+    const { result } = renderHook(() => useLiveTranslationAudioCapture());
+    const el = {} as HTMLMediaElement;
+
+    const firstStart = result.current.start(el, onOldChunk);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const secondStart = result.current.start(el, onNewChunk);
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      secondModule.resolve();
+      await secondStart;
+    });
+    await act(async () => {
+      firstModule.resolve();
+      await firstStart;
+    });
+
+    worklets[0].port.onmessage?.({
+      data: new Int16Array([1]).buffer,
+    } as MessageEvent);
+
+    expect(onOldChunk).not.toHaveBeenCalled();
+    expect(onNewChunk).toHaveBeenCalledTimes(1);
     result.current.dispose(el);
   });
 });

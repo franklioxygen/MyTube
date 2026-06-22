@@ -52,6 +52,7 @@ class MediaCaptureGraph {
   private readonly workletSink: GainNode;
   private worklet: AudioWorkletNode | null = null;
   private moduleLoaded = false;
+  private startGeneration = 0;
 
   constructor(element: HTMLMediaElement, Ctor: AudioContextCtor) {
     // Use the browser's normal output rate for the media graph. The worklet
@@ -78,12 +79,22 @@ class MediaCaptureGraph {
   }
 
   async start(onChunk: (pcm16: Int16Array) => void): Promise<void> {
+    const generation = (this.startGeneration += 1);
     await this.prime();
+    if (generation !== this.startGeneration) {
+      return;
+    }
     if (!this.moduleLoaded) {
       await this.ctx.audioWorklet.addModule(createCaptureWorkletUrl());
+      if (generation !== this.startGeneration) {
+        return;
+      }
       this.moduleLoaded = true;
     }
     if (!this.worklet) {
+      if (generation !== this.startGeneration) {
+        return;
+      }
       this.worklet = new AudioWorkletNode(
         this.ctx,
         LIVE_TRANSLATION_WORKLET_PROCESSOR,
@@ -101,6 +112,7 @@ class MediaCaptureGraph {
   }
 
   stop(): void {
+    this.startGeneration += 1;
     if (this.worklet) {
       this.worklet.port.onmessage = null;
       try {

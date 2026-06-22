@@ -369,7 +369,11 @@ export function useLiveTranslationSession(
               })
               .then(() => {
                 if (!isCurrentStart() || wsRef.current !== ws) {
-                  capture.stop(element);
+                  const currentSessionOwnsElement =
+                    wsRef.current !== null && videoElementRef.current === element;
+                  if (!currentSessionOwnsElement) {
+                    capture.stop(element);
+                  }
                 }
               })
               .catch(() => {

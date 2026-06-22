@@ -269,6 +269,35 @@ describe('useLiveTranslationSession', () => {
     expect(s.hook.result.current.errorCode).toBeNull();
   });
 
+  it('does not let stale capture startup stop a restarted session', async () => {
+    const firstCaptureStart = deferred<void>();
+    const s = setup();
+    s.capture.start
+      .mockReturnValueOnce(firstCaptureStart.promise)
+      .mockResolvedValueOnce(undefined);
+
+    await startAndOpen(s);
+    act(() => s.hook.result.current.stop());
+    expect(s.capture.stop).toHaveBeenCalledTimes(1);
+
+    act(() => s.hook.result.current.start());
+    await waitFor(() => expect(MockWebSocket.instances).toHaveLength(2));
+    const ws2 = MockWebSocket.instances[1];
+    await act(async () => {
+      ws2.serverOpen();
+      ws2.serverSend({ type: 'status', status: 'translating' });
+    });
+    expect(s.capture.start).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      firstCaptureStart.resolve();
+      await firstCaptureStart.promise;
+    });
+
+    expect(s.capture.stop).toHaveBeenCalledTimes(1);
+    expect(s.hook.result.current.status).toBe('translating');
+  });
+
   it('ignores capture startup failures after Stop', async () => {
     const captureStart = deferred<void>();
     const s = setup();
