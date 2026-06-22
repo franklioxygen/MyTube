@@ -17,6 +17,7 @@ import {
 } from './useTranslatedAudioPlayback';
 
 const WS_OPEN = 1;
+const UNSUPPORTED_PLAYBACK_RATE_MESSAGE = 'Live translation requires 1x playback speed.';
 
 export type LiveTranslationSessionStatus =
   | 'idle'
@@ -156,15 +157,24 @@ export function useLiveTranslationSession(
       sendControl({ type: 'seek', currentTime: element.currentTime });
       playback.flush();
     };
+    const onRateChange = () => {
+      if (element.playbackRate === 1) {
+        return;
+      }
+      sendControl({ type: 'stop' });
+      fail('unsupported_playback_rate', UNSUPPORTED_PLAYBACK_RATE_MESSAGE, false);
+    };
     element.addEventListener('pause', onPause);
     element.addEventListener('play', onPlay);
     element.addEventListener('seeking', onSeeking);
+    element.addEventListener('ratechange', onRateChange);
     mediaListenersRef.current = () => {
       element.removeEventListener('pause', onPause);
       element.removeEventListener('play', onPlay);
       element.removeEventListener('seeking', onSeeking);
+      element.removeEventListener('ratechange', onRateChange);
     };
-  }, [playback, sendControl]);
+  }, [fail, playback, sendControl]);
 
   const handleServerData = useCallback(
     (data: string) => {
@@ -218,7 +228,7 @@ export function useLiveTranslationSession(
     if (element.playbackRate !== 1) {
       fail(
         'unsupported_playback_rate',
-        'Live translation requires 1x playback speed.',
+        UNSUPPORTED_PLAYBACK_RATE_MESSAGE,
         false,
       );
       return;
@@ -308,7 +318,13 @@ export function useLiveTranslationSession(
               fail('audio_capture_failed', 'Audio capture failed to start.', false);
             });
           attachMediaListeners();
-          setStatus('translating');
+          if (element.paused) {
+            sendControl({ type: 'pause', currentTime: element.currentTime });
+            playback.pause();
+            setStatus('paused');
+          } else {
+            setStatus('translating');
+          }
         };
         ws.onmessage = (event: MessageEvent) => {
           if (typeof event.data === 'string') {

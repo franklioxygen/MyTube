@@ -54,9 +54,11 @@ function createFakeVideo(): HTMLVideoElement {
   const el = new EventTarget() as unknown as HTMLVideoElement & {
     playbackRate: number;
     currentTime: number;
+    paused: boolean;
   };
   el.playbackRate = 1;
   el.currentTime = 0;
+  el.paused = false;
   return el as HTMLVideoElement;
 }
 
@@ -193,6 +195,18 @@ describe('useLiveTranslationSession', () => {
     expect(s.hook.result.current.status).toBe('translating');
   });
 
+  it('sends initial pause when starting from a paused video', async () => {
+    const s = setup();
+    (s.videoElement as unknown as { paused: boolean }).paused = true;
+
+    const ws = await startAndOpen(s);
+
+    expect(ws.typed('start')).toHaveLength(1);
+    expect(ws.typed('pause')).toHaveLength(1);
+    expect(s.playback.pause).toHaveBeenCalled();
+    expect(s.hook.result.current.status).toBe('paused');
+  });
+
   it('stops capture again when capture startup finishes after Stop', async () => {
     const captureStart = deferred<void>();
     const s = setup();
@@ -285,6 +299,22 @@ describe('useLiveTranslationSession', () => {
     act(() => s.hook.result.current.start());
     expect(s.hook.result.current.status).toBe('error');
     expect(MockWebSocket.instances).toHaveLength(0);
+  });
+
+  it('stops live translation if playback rate changes while active', async () => {
+    const s = setup();
+    const ws = await startAndOpen(s);
+
+    await act(async () => {
+      (s.videoElement as unknown as { playbackRate: number }).playbackRate = 1.25;
+      s.videoElement.dispatchEvent(new Event('ratechange'));
+    });
+
+    expect(ws.typed('stop')).toHaveLength(1);
+    expect(s.capture.stop).toHaveBeenCalledWith(s.videoElement);
+    expect(s.playback.close).toHaveBeenCalled();
+    expect(s.hook.result.current.status).toBe('error');
+    expect(s.hook.result.current.errorCode).toBe('unsupported_playback_rate');
   });
 
   it('surfaces a server error message', async () => {

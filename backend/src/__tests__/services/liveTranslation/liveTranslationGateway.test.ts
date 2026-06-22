@@ -6,6 +6,7 @@ import {
   LiveTranslationGateway,
   MAX_ACTIVE_SESSIONS,
   SESSION_DURATION_CAP_MS,
+  STALL_TIMEOUT_MS,
 } from "../../../services/liveTranslation/liveTranslationGateway";
 import { LiveTranslationServerConfig } from "../../../services/liveTranslation/config";
 import { GeminiSocketLike } from "../../../services/liveTranslation/geminiLiveTranslationClient";
@@ -199,6 +200,23 @@ describe("LiveTranslationGateway", () => {
       pcm16Base64: "AAAA",
     });
     expect(gemini.sent.filter((m) => m.realtimeInput?.audio)).toHaveLength(0);
+  });
+
+  it("stays paused when pause arrives before Gemini setup completes", () => {
+    vi.useFakeTimers();
+    const { browser, gemini, gateway } = makeGateway();
+    gateway.start();
+    startBrowserStream(browser);
+    browser.clientMessage({ type: "pause", currentTime: 1 });
+
+    gemini.open();
+    gemini.message({ setupComplete: {} });
+
+    expect(browser.typed("status").map((m) => m.status)).toContain("paused");
+    expect(browser.typed("status").map((m) => m.status)).not.toContain("translating");
+
+    vi.advanceTimersByTime(STALL_TIMEOUT_MS + 10);
+    expect(browser.typed("closed")).toHaveLength(0);
   });
 
   it("stops cleanly on a client stop message", () => {

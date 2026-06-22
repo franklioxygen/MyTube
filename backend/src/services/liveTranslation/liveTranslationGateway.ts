@@ -125,6 +125,10 @@ export class LiveTranslationGateway {
   private openGemini(): void {
     const handlers: GeminiClientHandlers = {
       onReady: () => {
+        if (this.status === "paused") {
+          this.clearStallTimer();
+          return;
+        }
         this.setStatus("translating");
         this.armStallTimer();
       },
@@ -206,7 +210,11 @@ export class LiveTranslationGateway {
         return;
       case "resume":
         this.setStatus("translating");
-        this.armStallTimer();
+        if (this.gemini?.ready) {
+          this.armStallTimer();
+        } else {
+          this.clearStallTimer();
+        }
         return;
       case "seek":
         // Backend has no Gemini seek concept; flushing browser-side queues is a
