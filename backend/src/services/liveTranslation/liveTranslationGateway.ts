@@ -213,10 +213,11 @@ export class LiveTranslationGateway {
         this.clearStallTimer();
         return;
       case "resume":
-        this.setStatus("translating");
         if (this.gemini?.ready) {
+          this.setStatus("translating");
           this.armStallTimer();
         } else {
+          this.setStatus("connecting");
           this.clearStallTimer();
         }
         return;

@@ -229,6 +229,32 @@ describe("LiveTranslationGateway", () => {
     expect(browser.typed("closed")).toHaveLength(0);
   });
 
+  it("keeps resume in connecting until Gemini setup completes", () => {
+    vi.useFakeTimers();
+    const { browser, gemini, gateway } = makeGateway();
+    gateway.start();
+    startBrowserStream(browser);
+    browser.clientMessage({ type: "pause", currentTime: 1 });
+
+    browser.clientMessage({ type: "resume", currentTime: 2 });
+
+    expect(browser.typed("status").map((m) => m.status)).toEqual([
+      "paused",
+      "connecting",
+    ]);
+
+    vi.advanceTimersByTime(STALL_TIMEOUT_MS + 10);
+    expect(browser.typed("closed")).toHaveLength(0);
+
+    gemini.open();
+    gemini.message({ setupComplete: {} });
+    expect(browser.typed("status").map((m) => m.status)).toEqual([
+      "paused",
+      "connecting",
+      "translating",
+    ]);
+  });
+
   it("stops cleanly on a client stop message", () => {
     const { browser, gateway } = makeGateway();
     gateway.start();
