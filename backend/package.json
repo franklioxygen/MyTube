@@ -70,7 +70,7 @@
   },
   "overrides": {
     "esbuild": "0.28.1",
-    "undici": "^7.24.0",
+    "undici": "^7.28.0",
     "yauzl": "^3.2.1"
   }
 }
