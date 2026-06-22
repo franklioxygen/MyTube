@@ -138,6 +138,31 @@ vi.mock('../../components/VideoPlayer/VideoControls', () => ({
     },
 }));
 
+vi.mock('../../hooks/useLiveTranslationAvailability', () => ({
+    useLiveTranslationAvailability: () => ({ data: undefined }),
+}));
+vi.mock('../../hooks/useLiveTranslationSession', () => ({
+    useLiveTranslationSession: () => ({
+        status: 'idle',
+        isActive: false,
+        errorCode: null,
+        errorMessage: null,
+        retryable: false,
+        start: vi.fn(),
+        stop: vi.fn(),
+    }),
+}));
+vi.mock('../../hooks/useLiveTranslationSubtitleTrack', () => ({
+    useLiveTranslationSubtitleTrack: () => ({
+        track: null,
+        isActive: false,
+        label: '',
+        activate: vi.fn(),
+        deactivate: vi.fn(),
+        addCue: vi.fn(),
+    }),
+}));
+
 vi.mock('../../components/VideoPlayer/VideoInfo', () => ({
     default: (props: Record<string, unknown>) => {
         capturedVideoInfoProps = props as CapturedVideoInfoProps;

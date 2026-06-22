@@ -142,6 +142,50 @@ describe('SettingsController', () => {
       expect(json).toHaveBeenCalled();
     });
 
+    it('should hide the live translation API key and expose a configured flag to admins', async () => {
+      (storageService.getSettings as any).mockReturnValue({
+        loginEnabled: false,
+        liveTranslationEnabled: true,
+        liveTranslationApiKey: 'gemini-secret-key',
+      });
+
+      await getSettings(req as Request, res as Response);
+
+      const responsePayload = json.mock.calls[0][0];
+      expect(responsePayload.liveTranslationApiKey).toBeUndefined();
+      expect(responsePayload.liveTranslationApiKeyConfigured).toBe(true);
+      expect(responsePayload.liveTranslationEnabled).toBe(true);
+    });
+
+    it('should report liveTranslationApiKeyConfigured false when no key is stored', async () => {
+      (storageService.getSettings as any).mockReturnValue({
+        loginEnabled: false,
+        liveTranslationEnabled: true,
+        liveTranslationApiKey: '',
+      });
+
+      await getSettings(req as Request, res as Response);
+
+      const responsePayload = json.mock.calls[0][0];
+      expect(responsePayload.liveTranslationApiKey).toBeUndefined();
+      expect(responsePayload.liveTranslationApiKeyConfigured).toBe(false);
+    });
+
+    it('should not reveal liveTranslationApiKeyConfigured to visitors', async () => {
+      req.user = { role: 'visitor' } as any;
+      (storageService.getSettings as any).mockReturnValue({
+        loginEnabled: true,
+        liveTranslationEnabled: true,
+        liveTranslationApiKey: 'gemini-secret-key',
+      });
+
+      await getSettings(req as Request, res as Response);
+
+      const responsePayload = json.mock.calls[0][0];
+      expect(responsePayload.liveTranslationApiKey).toBeUndefined();
+      expect(responsePayload.liveTranslationApiKeyConfigured).toBeUndefined();
+    });
+
   });
 
   describe('updateSettings', () => {

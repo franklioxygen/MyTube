@@ -46,12 +46,12 @@ describe("configureRateLimiting", () => {
     mocked.createdLimiters.length = 0;
   });
 
-  it("creates general + scoped auth limiters and returns the limiter set", () => {
+  it("creates general, scoped auth, and live translation limiters", () => {
     const app = { use: vi.fn() } as any;
 
     const authLimiters = configureRateLimiting(app);
 
-    expect(mocked.rateLimitFactory).toHaveBeenCalledTimes(8);
+    expect(mocked.rateLimitFactory).toHaveBeenCalledTimes(9);
     expect(mocked.createdLimiters[1]).toBe(authLimiters.adminPasswordLimiter);
     expect(mocked.createdLimiters[2]).toBe(authLimiters.visitorPasswordLimiter);
     expect(mocked.createdLimiters[3]).toBe(authLimiters.adminReauthLimiter);
@@ -59,14 +59,20 @@ describe("configureRateLimiting", () => {
     expect(mocked.createdLimiters[5]).toBe(authLimiters.passkeyRegistrationLimiter);
     expect(mocked.createdLimiters[6]).toBe(authLimiters.feedLimiter);
     expect(mocked.createdLimiters[7]).toBe(authLimiters.statisticsIngestionLimiter);
+    expect(mocked.createdLimiters[8]).toBe(
+      authLimiters.liveTranslationSessionLimiter
+    );
     expect(app.use).toHaveBeenCalledTimes(1);
 
     const generalOptions = (mocked.createdLimiters[0] as any).__options;
     const authOptions = (mocked.createdLimiters[1] as any).__options;
+    const liveTranslationOptions = (mocked.createdLimiters[8] as any).__options;
 
     expect(generalOptions.max).toBe(1000);
     expect(authOptions.max).toBe(5);
     expect(authOptions.skipSuccessfulRequests).toBe(true);
+    expect(liveTranslationOptions.max).toBe(5);
+    expect(liveTranslationOptions.skipSuccessfulRequests).toBeUndefined();
     expect(typeof authOptions.handler).toBe("function");
 
     const req = { path: "/api/anything" } as any;

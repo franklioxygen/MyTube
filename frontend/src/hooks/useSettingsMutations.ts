@@ -133,6 +133,9 @@ const buildSettingsPatchPayload = (
   ) as Partial<Settings>;
 };
 
+const hasLiveTranslationSettingsChange = (settings: Partial<Settings>): boolean =>
+  Object.keys(settings).some((key) => key.startsWith("liveTranslation"));
+
 /**
  * Custom hook to manage all settings-related API mutations
  */
@@ -183,15 +186,28 @@ export function useSettingsMutations({
     },
     onSuccess: (result, newSettings) => {
       setMessage({ text: t("settingsSaved"), type: "success" });
+      const liveTranslationSettingsChanged = hasLiveTranslationSettingsChange(
+        result.patchPayload
+      );
 
-      const changedSettings = result.patchPayload;
+      // The Gemini key is a hidden secret and must never sit in the React Query
+      // settings cache, even transiently. Strip it from both the patch merge and
+      // the no-cache fallback; the invalidate/refetch below re-fetches the safe,
+      // key-free payload.
+      const { liveTranslationApiKey: _changedApiKey, ...changedSettings } =
+        result.patchPayload;
+      const { liveTranslationApiKey: _submittedApiKey, ...safeNewSettings } =
+        newSettings;
       // Update settings cache immediately so Header and other consumers react without waiting for refetch
       queryClient.setQueryData(["settings"], (old: Settings | undefined) =>
-        old ? { ...old, ...changedSettings } : ({ ...newSettings } as Settings)
+        old ? { ...old, ...changedSettings } : ({ ...safeNewSettings } as Settings)
       );
       // Skip refetch when no fields changed.
       if (!result.skipped) {
         void queryClient.invalidateQueries({ queryKey: ["settings"] });
+      }
+      if (liveTranslationSettingsChanged) {
+        void queryClient.invalidateQueries({ queryKey: ["liveTranslationConfig"] });
       }
       if (changedSettings.tags !== undefined) {
         void queryClient.invalidateQueries({ queryKey: ["videos"] });

@@ -10,6 +10,9 @@ build
 *.local
 
 # Environment variables
+.env
+.env.temp
+.env.*.local
 .env.local
 .env.development.local
 .env.test.local

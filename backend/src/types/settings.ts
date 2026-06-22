@@ -18,6 +18,8 @@ export type AuthorOrganizationMode =
   | "author_folder_only"
   | "author_collection_linked";
 
+export type LiveTranslationModel = "gemini-3.5-live-translate-preview";
+
 export interface Settings {
   loginEnabled: boolean;
   password?: string;
@@ -95,6 +97,13 @@ export interface Settings {
   statisticsTrackVisitorActivity?: boolean;
   statisticsKeepDataWhenDisabled?: boolean;
   statisticsTimezone?: string;
+  // Live audio translation
+  liveTranslationEnabled?: boolean;
+  liveTranslationModel?: LiveTranslationModel;
+  liveTranslationApiKey?: string;
+  liveTranslationSourceLanguage?: string; // currently "auto" only
+  liveTranslationTargetLanguage?: string; // BCP-47
+  liveTranslationApiKeyConfigured?: boolean; // response-only, not persisted
 }
 
 // nosemgrep: codacy.javascript.security.hard-coded-password
@@ -152,6 +161,11 @@ export const defaultSettings: Settings = {
   statisticsCaptureSearchText: false,
   statisticsTrackVisitorActivity: false,
   statisticsKeepDataWhenDisabled: true,
+  liveTranslationEnabled: false,
+  liveTranslationModel: "gemini-3.5-live-translate-preview",
+  liveTranslationApiKey: "",
+  liveTranslationSourceLanguage: "auto",
+  liveTranslationTargetLanguage: "en",
 };
 
 export function isAuthorOrganizationMode(

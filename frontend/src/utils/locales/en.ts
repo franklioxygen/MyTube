@@ -165,6 +165,51 @@ export const en = {
     "The selected media server export mode is not supported.",
   mediaServerExportCleanupUnsupportedModeError:
     "This server version does not support cleanup while media server sidecar export is off.",
+  liveTranslation: "Live audio translation",
+  liveTranslationDescription:
+    "Stream the current video's audio to Gemini Live Translation and play translated speech with live subtitles. While active, the video's audio is sent to Google's Gemini API.",
+  enableLiveTranslation: "Enable live audio translation",
+  liveTranslationApiKey: "Gemini API key",
+  liveTranslationApiKeyConfigured: "API key is configured",
+  liveTranslationApiKeyReplaceHelper:
+    "An API key is configured. Enter a new key to replace it, or leave blank to keep the current key.",
+  liveTranslationClearApiKey: "Clear key",
+  liveTranslationModel: "Live translation model",
+  liveTranslationSourceLanguage: "Source language",
+  liveTranslationTargetLanguage: "Target language",
+  liveTranslationSourceAuto: "Auto-detect",
+  liveTranslationTargetRequired: "A target language is required.",
+  liveTranslationSettingsSaved: "Live translation settings saved.",
+  liveTranslationDocumentation: "Gemini Live Translation documentation",
+  liveTranslate: "Live Translate",
+  stopLiveTranslation: "Stop Live Translation",
+  liveTranslationConnecting: "Connecting…",
+  liveTranslationTranslatingTo: "Translating to {language}",
+  liveTranslationPaused: "Paused",
+  liveTranslationRetry: "Retry",
+  liveTranslationUnavailable: "Live translation is currently unavailable.",
+  liveTranslationUnsupportedBrowser:
+    "Live translation is not supported in this browser.",
+  liveTranslationAudioCaptureBlocked:
+    "Live translation is unavailable for this video's audio source.",
+  liveTranslationAdminRequiredPlayer:
+    "Live translation requires an admin account.",
+  liveTranslationApiKeyMissingPlayer:
+    "Live translation is not configured. Add a Gemini API key in Settings.",
+  liveTranslationErrorGeneric: "Live translation error. Please try again.",
+  liveTranslationErrorRequiresNormalSpeed:
+    "Live translation requires 1x playback speed.",
+  liveTranslationErrorTicket:
+    "Your live translation session could not start. Please try again.",
+  liveTranslationErrorCaptureFailed: "Could not capture this video's audio.",
+  liveTranslationErrorConnection:
+    "Could not connect to the translation service. Please try again.",
+  liveTranslationErrorRateLimited:
+    "The translation service is busy. Please try again shortly.",
+  liveTranslationErrorSessionTimeout:
+    "The live translation session reached its time limit. You can restart it.",
+  liveTranslationErrorTooManySessions:
+    "Too many active live translation sessions. Please try again shortly.",
   preferredAudioLanguage: "Preferred audio language",
   preferredAudioLanguageDescription:
     "When available, YouTube multistream audio in this language will be preferred for downloads.",

@@ -187,6 +187,11 @@ export const WHITELISTED_SETTINGS = [
   "statisticsCaptureSearchText",
   "statisticsTrackVisitorActivity",
   "statisticsKeepDataWhenDisabled",
+  "liveTranslationEnabled",
+  "liveTranslationModel",
+  "liveTranslationApiKey",
+  "liveTranslationSourceLanguage",
+  "liveTranslationTargetLanguage",
 ] as const;
 
 export interface SaveSettingsOptions {

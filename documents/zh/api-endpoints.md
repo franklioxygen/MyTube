@@ -155,11 +155,15 @@
 - `GET /api/settings` - 获取应用设置 (不包含密码哈希)
   - 响应可能包含服务配置；当关闭登录保护时，未登录客户端也会看到这些字段
   - 启用登录保护后，访客和未认证请求不会返回 `apiKey`、`openListToken`、`cloudflaredToken`、`telegramBotToken`、`twitchClientId`、`twitchClientSecret` 等敏感字段
+  - Gemini 实时翻译密钥 (`liveTranslationApiKey`) 绝不会返回给任何客户端（包括管理员）；响应改为提供派生的布尔字段 `liveTranslationApiKeyConfigured`（仅管理员/关闭登录时可见）
 - `PATCH /api/settings` - 部分更新设置
   - 请求体: 部分设置对象
   - 支持 `apiKeyEnabled?: boolean` 和 `apiKey?: string`
   - 支持 `twitchClientId?: string` 和 `twitchClientSecret?: string`
   - 当 `apiKeyEnabled` 设为 `true` 且 `apiKey` 为空/缺失时，服务端会自动生成 64 位十六进制密钥
+  - 支持实时翻译字段：`liveTranslationEnabled?: boolean`、`liveTranslationModel?: string`、`liveTranslationApiKey?: string`、`liveTranslationSourceLanguage?: string`（`"auto"` 或 BCP-47）、`liveTranslationTargetLanguage?: string`（BCP-47，不能为 `"auto"`）
+    - 启用该功能需要已保存或本次提交的 API 密钥、有效的模型以及目标语言
+    - 提交 `liveTranslationApiKey: ""` 可清除已保存的密钥；省略该字段则保持现有密钥不变
 - `POST /api/settings/migrate` - 将旧版 JSON 数据迁移至 SQLite
 - `POST /api/settings/delete-legacy` - 删除旧版 JSON 数据文件
 - `POST /api/settings/format-filenames` - 格式化旧版文件名
@@ -242,6 +246,29 @@
   - 响应为流式 JSON 行进度事件
 - `DELETE /api/cloud/thumbnail-cache` - 清除本地云缩略图缓存
 - `GET /api/cloud/thumbnail-cache/:filename` - 提供缓存的云缩略图文件 (静态路由)
+
+## 实时音频翻译
+
+可选的管理员功能，通过 Google Gemini 实时翻译对正在播放的视频音频进行实时翻译。Gemini API 密钥仅保存在服务器端，绝不会返回给客户端。所有实时翻译端点均拒绝 API Key 认证；当前实现也拒绝访客访问。
+
+- `GET /api/live-translation/config` - 获取当前用户的功能可用性（不含任何密钥）
+  - 响应: `{ enabled, available, canUse, model, sourceLanguage, targetLanguage, apiKeyConfigured, requiresAdmin, reason }`
+  - 可用时 `reason` 为 `null`，否则为以下之一：`feature_disabled`、`unsupported_model`、`api_key_missing`、`target_language_missing`、`admin_required`
+  - `apiKeyConfigured` 仅在管理员/关闭登录时返回
+- `POST /api/live-translation/sessions` - 签发一次性、短期有效的 WebSocket 票据
+  - 请求体: `{ videoId: string }`
+  - 需要正常的已认证会话和 CSRF 令牌；启用登录时需要管理员角色；有速率限制
+  - 响应: `{ ticket, expiresAt, ttlMs, wsPath, config: { model, sourceLanguage, targetLanguage } }`
+  - 票据一次性使用且很快过期（约 60 秒）；配置快照在签发时确定
+
+WebSocket 流（挂载在 `/api` 下，通过升级建立——非 JSON 路由）：
+
+- `GET /api/live-translation/ws?ticket=<ticket>` - 建立实时音频流的 WebSocket 升级
+  - 票据也可通过 `Sec-WebSocket-Protocol` 头传递，以避免出现在访问日志中
+  - 升级时校验：`Origin` 必须匹配主机/允许的主机；票据必须存在、未过期且未使用；访客票据以及功能被禁用/未配置时将被拒绝
+  - 客户端 → 服务端消息：`start`、`audio`（base64 PCM16，16 kHz 单声道，约 100 ms 分块）、`pause`、`resume`、`seek`、`stop`、`ping`
+  - 服务端 → 客户端消息：`ready`、`status`、`inputTranscript`、`outputTranscript`、`audio`（base64 PCM16，24 kHz 单声道）、`pong`、`error`、`closed`
+  - 应用了单服务器活动会话上限和会话时长上限；音频与转录内容不会被持久化或记录
 
 ## 系统
 

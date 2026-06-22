@@ -6,6 +6,7 @@ import { roleBasedSettingsMiddleware } from "../middleware/roleBasedSettingsMidd
 import { serveFeed } from "../controllers/rssController";
 import apiRoutes, { apiKeyRoutes } from "../routes/api";
 import settingsRoutes from "../routes/settingsRoutes";
+import liveTranslationRoutes from "../routes/liveTranslationRoutes";
 import { AuthLimiters } from "./rateLimit";
 
 type RegisterApiRoutesOptions = {
@@ -73,8 +74,21 @@ export const registerApiRoutes = (
     authLimiters.statisticsIngestionLimiter
   );
 
+  // Live translation ticket minting has per-use Gemini cost; rate limit it.
+  app.post(
+    "/api/live-translation/sessions",
+    authLimiters.liveTranslationSessionLimiter
+  );
+
   app.use("/api", authMiddleware);
   app.use("/api", apiKeyRoutes);
+  // Mounted inside the session-authenticated, role-checked stack so it inherits
+  // cookie-session auth + role enforcement and is not reachable via apiKeyRoutes.
+  app.use(
+    "/api/live-translation",
+    roleBasedAuthMiddleware,
+    liveTranslationRoutes
+  );
   app.use("/api", roleBasedAuthMiddleware, apiRoutes);
   app.use("/api/settings", roleBasedSettingsMiddleware, settingsRoutes);
 };

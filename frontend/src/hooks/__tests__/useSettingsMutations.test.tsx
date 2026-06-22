@@ -289,6 +289,58 @@ describe('useSettingsMutations', () => {
         });
     });
 
+    it('invalidates live translation availability when live translation settings change', async () => {
+        const queryClient = createTestQueryClient();
+        const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+        queryClient.setQueryData(['settings'], makeSettings({
+            liveTranslationEnabled: false,
+            liveTranslationTargetLanguage: 'en',
+        }));
+        const { result } = renderSettingsHook({ queryClient });
+
+        await act(async () => {
+            await result.current.saveMutation.mutateAsync(
+                makeSettings({
+                    liveTranslationEnabled: true,
+                    liveTranslationTargetLanguage: 'es',
+                })
+            );
+        });
+
+        expect(api.patch).toHaveBeenCalledWith(
+            '/settings',
+            expect.objectContaining({
+                liveTranslationEnabled: true,
+                liveTranslationTargetLanguage: 'es',
+            }),
+        );
+        expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['settings'] });
+        expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['liveTranslationConfig'] });
+    });
+
+    it('invalidates live translation availability when only the API key changes', async () => {
+        const testApiKey = 'test-key';
+        const queryClient = createTestQueryClient();
+        const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+        queryClient.setQueryData(['settings'], makeSettings());
+        const { result } = renderSettingsHook({ queryClient });
+
+        await act(async () => {
+            await result.current.saveMutation.mutateAsync(
+                makeSettings({ liveTranslationApiKey: testApiKey })
+            );
+        });
+
+        expect(api.patch).toHaveBeenCalledWith('/settings', {
+            liveTranslationApiKey: testApiKey,
+        });
+        expect(queryClient.getQueryData<Settings>(['settings'])).not.toHaveProperty(
+            'liveTranslationApiKey',
+            testApiKey,
+        );
+        expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['liveTranslationConfig'] });
+    });
+
     it('reports the shared fallback message when save rejects with a non-API error shape', async () => {
         const queryClient = createTestQueryClient();
         queryClient.setQueryData(['settings'], makeSettings());

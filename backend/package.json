@@ -44,7 +44,8 @@
     "puppeteer": "^24.34.0",
     "sanitize-filename": "^1.6.3",
     "socks-proxy-agent": "^8.0.5",
-    "uuid": "^14.0.0"
+    "uuid": "^14.0.0",
+    "ws": "^8.21.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
@@ -58,6 +59,7 @@
     "@types/node-cron": "^3.0.11",
     "@types/supertest": "^6.0.3",
     "@types/uuid": "^10.0.0",
+    "@types/ws": "^8.18.1",
     "@vitest/coverage-v8": "^4.1.8",
     "drizzle-kit": "^0.31.8",
     "nodemon": "^3.0.3",

@@ -5,6 +5,7 @@ import { brand, gradient, modeColors, overlay } from '../../../theme/colors';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import CinemaModeControl from './CinemaModeControl';
 import FullscreenControl from './FullscreenControl';
+import LiveTranslationControlButton from './LiveTranslationControlButton';
 import LoopControl from './LoopControl';
 import PlaybackControls from './PlaybackControls';
 import SpeedControl from './SpeedControl';
@@ -50,6 +51,10 @@ interface ControlsOverlayProps {
     onToggleCinemaMode?: () => void;
     onUploadSubtitle?: (file: File) => void;
     onDeleteSubtitle?: (index: number) => void | Promise<void>;
+    liveSubtitleAvailable?: boolean;
+    liveSubtitleLabel?: string;
+    liveSubtitleSelected?: boolean;
+    onSelectLiveSubtitle?: () => void;
 }
 
 const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
@@ -89,7 +94,11 @@ const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
     isCinemaMode = false,
     onToggleCinemaMode,
     onUploadSubtitle,
-    onDeleteSubtitle
+    onDeleteSubtitle,
+    liveSubtitleAvailable = false,
+    liveSubtitleLabel = '',
+    liveSubtitleSelected = false,
+    onSelectLiveSubtitle,
 }) => {
     const theme = useTheme();
     const { t } = useLanguage();
@@ -186,6 +195,10 @@ const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
                         onUploadSubtitle={onUploadSubtitle}
                         onDeleteSubtitle={onDeleteSubtitle}
                         isFullscreen={isFullscreen}
+                        liveSubtitleAvailable={liveSubtitleAvailable}
+                        liveSubtitleLabel={liveSubtitleLabel}
+                        liveSubtitleSelected={liveSubtitleSelected}
+                        onSelectLiveSubtitle={onSelectLiveSubtitle}
                     />
 
                     {/* Right Side: Fullscreen, Cinema Mode (large screens only), Subtitle, Loop (Desktop only) */}
@@ -216,6 +229,10 @@ const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
                             onUploadSubtitle={onUploadSubtitle}
                             onDeleteSubtitle={onDeleteSubtitle}
                             isFullscreen={isFullscreen}
+                            liveSubtitleAvailable={liveSubtitleAvailable}
+                            liveSubtitleLabel={liveSubtitleLabel}
+                            liveSubtitleSelected={liveSubtitleSelected}
+                            onSelectLiveSubtitle={onSelectLiveSubtitle}
                         />
 
                         <LoopControl
@@ -236,8 +253,10 @@ const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
                 isFullscreen={isFullscreen}
             />
 
-            {/* Mobile: Fullscreen, Loop, Speed */}
+            {/* Mobile: Live Translate, Fullscreen, Loop, Speed */}
             <Stack direction="row" spacing={0.5} alignItems="center" sx={{ display: { xs: 'flex', sm: 'none' }, ml: 1, justifyContent: 'center', mt: 1 }}>
+                <LiveTranslationControlButton />
+
                 <FullscreenControl
                     isFullscreen={isFullscreen}
                     onToggle={onToggleFullscreen}

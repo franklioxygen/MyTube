@@ -65,6 +65,8 @@ export default defineConfig(({ mode }) => {
           target: env.VITE_BACKEND_URL || "http://127.0.0.1:5551",
           changeOrigin: true,
           secure: false,
+          // Forward WebSocket upgrades (live audio translation) to the backend.
+          ws: true,
         },
         "/cloud": {
           target: env.VITE_BACKEND_URL || "http://127.0.0.1:5551",
