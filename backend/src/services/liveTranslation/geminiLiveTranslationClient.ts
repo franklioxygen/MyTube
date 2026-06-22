@@ -43,9 +43,20 @@ export interface GeminiClientOptions {
 }
 
 /**
- * Build the Gemini Live `setup` message. Confirmed against the live API on
- * 2026-06-18: `translationConfig` lives inside `generationConfig`, while the
- * transcription configs are siblings of `generationConfig` at the `setup` level.
+ * Build the Gemini Live `setup` message.
+ *
+ * IMPORTANT — placement of the transcription configs is counterintuitive and
+ * has been re-raised against the public docs, so it is documented here.
+ * Verified empirically against the live `gemini-3.5-live-translate-preview`
+ * WebSocket endpoint (re-confirmed 2026-06-22):
+ *   - `translationConfig` MUST live inside `generationConfig`.
+ *   - `inputAudioTranscription` / `outputAudioTranscription` MUST be siblings of
+ *     `generationConfig` at the `setup` level. Nesting them inside
+ *     `generationConfig` (as some docs/examples show) makes the server reject
+ *     the setup and close with code 1007:
+ *       `Unknown name "inputAudioTranscription" at 'setup.generation_config'`
+ *     and NO transcripts are ever delivered. Do not "fix" this by moving them
+ *     into `generationConfig`.
  */
 export function buildSetupMessage(opts: {
   model: string;
@@ -66,6 +77,7 @@ export function buildSetupMessage(opts: {
           echoTargetLanguage: opts.echoTargetLanguage === true,
         },
       },
+      // Must stay at the setup level — see buildSetupMessage docblock.
       inputAudioTranscription: {},
       outputAudioTranscription: {},
     },
