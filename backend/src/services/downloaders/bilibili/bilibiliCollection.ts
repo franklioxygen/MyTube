@@ -147,6 +147,18 @@ const canReuseCollectionForSource = (
   !hasBilibiliSourceKey(collection) ||
   (sourceKey != null && matchesBilibiliSourceKey(collection, sourceKey));
 
+const getCollectionCleanupNames = (
+  collection: Collection,
+  fallbackName: string,
+): string[] =>
+  Array.from(
+    new Set(
+      [collection.name, collection.title, fallbackName].filter(
+        (name): name is string => typeof name === "string" && name.trim() !== "",
+      ),
+    ),
+  );
+
 function resolveExistingBilibiliCollection(
   videos: BilibiliVideoItem[],
   preferredCollectionName: string,
@@ -686,8 +698,13 @@ export async function downloadCollection(
       const organizationMode = resolveAuthorOrganizationMode(
         storageService.getSettings(),
       );
-      if (organizationMode === "author_folder_only" && resolvedCollectionName) {
-        storageService.cleanupCollectionDirectories(resolvedCollectionName);
+      if (organizationMode === "author_folder_only") {
+        for (const cleanupName of getCollectionCleanupNames(
+          mytubeCollection,
+          resolvedCollectionName,
+        )) {
+          storageService.cleanupCollectionDirectories(cleanupName);
+        }
       }
     } catch (cleanupError) {
       logger.warn(

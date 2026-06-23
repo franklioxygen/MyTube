@@ -246,6 +246,9 @@ describe("bilibiliCollection.downloadCollection", () => {
       }
       return undefined;
     });
+    mocks.getSettings.mockReturnValue({
+      authorOrganizationMode: "author_folder_only",
+    });
     mocks.getCollectionBySourceKey.mockImplementation(
       (platform: string, type: string, mid: string, id: string) => {
         if (
@@ -256,8 +259,8 @@ describe("bilibiliCollection.downloadCollection", () => {
         ) {
           return {
             id: "col-existing",
-            name: "Series",
-            title: "Series",
+            name: "Renamed Series",
+            title: "Renamed Series",
             origin: "manual",
             videos: ["video-1"],
             sourcePlatform: "bilibili",
@@ -294,12 +297,28 @@ describe("bilibiliCollection.downloadCollection", () => {
     expect(mocks.saveCollection).not.toHaveBeenCalled();
     // Only the missing episode is downloaded; the existing one is linked.
     expect(mocks.downloadSinglePart).toHaveBeenCalledTimes(1);
+    expect(mocks.downloadSinglePart).toHaveBeenCalledWith(
+      "https://www.bilibili.com/video/BV2",
+      2,
+      2,
+      "Series",
+      "download-3",
+      undefined,
+      "Renamed Series",
+      expect.objectContaining({
+        sourceCollectionName: "Renamed Series",
+      }),
+    );
     expect(mocks.linkVideoToCollection).toHaveBeenNthCalledWith(
       1,
       "col-existing",
       "video-1",
       { moveFiles: false, order: 1 },
     );
+    expect(mocks.cleanupCollectionDirectories).toHaveBeenCalledWith(
+      "Renamed Series",
+    );
+    expect(mocks.cleanupCollectionDirectories).toHaveBeenCalledWith("Series");
   });
 
   it("does not reuse a same-named Bilibili collection with a different source key", async () => {
