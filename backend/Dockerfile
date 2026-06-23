@@ -106,8 +106,12 @@ RUN set -eux; \
 
 # Install yt-dlp and related packages. Versions are pinned for reproducible builds.
 # To upgrade: check https://pypi.org/project/yt-dlp/ and update versions below.
-# yt-dlp-ejs must track the yt-dlp release: yt-dlp 2026.6.9 expects EJS 0.8.0 for
-# the YouTube JS challenge solver, so keep these two bumped in lockstep.
+# yt-dlp-ejs and curl-cffi must track the yt-dlp release:
+#  - yt-dlp 2026.6.9 expects EJS 0.8.0 for the YouTube JS challenge solver.
+#  - it also pins the curl-cffi extra to 0.15.0, which adds the newer Chrome
+#    impersonation targets (chrome145/146). Staying on 0.14.0 would cap
+#    --impersonate at the older chrome142 fingerprint.
+# Keep all three bumped in lockstep with yt-dlp.
 # Note: bgutil-ytdlp-pot-provider is coupled to the Node server under
 # backend/bgutil-ytdlp-pot-provider/server — bump both in lockstep, not just here.
 # Using --break-system-packages because we are in a container and want to install globally
@@ -115,7 +119,7 @@ RUN pip3 install --no-cache-dir \
     "yt-dlp==2026.6.9" \
     "bgutil-ytdlp-pot-provider==1.2.2" \
     "yt-dlp-ejs==0.8.0" \
-    "curl-cffi==0.14.0" \
+    "curl-cffi==0.15.0" \
     --break-system-packages
 
 ARG BUILD_DATE=unknown
