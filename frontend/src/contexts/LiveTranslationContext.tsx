@@ -6,7 +6,10 @@ import {
     useLiveTranslationSession,
 } from '../hooks/useLiveTranslationSession';
 import { useLiveTranslationAvailability } from '../hooks/useLiveTranslationAvailability';
-import { isAudioCaptureSupported } from '../hooks/useLiveTranslationAudioCapture';
+import {
+    isAudioCaptureSupported,
+    isSecureContextForCapture,
+} from '../hooks/useLiveTranslationAudioCapture';
 import { isCaptureSupportedForSrc } from '../utils/mediaOrigin';
 import {
     getLiveTranslationLanguageAbbreviation,
@@ -25,6 +28,7 @@ const ERROR_MESSAGE_KEY_BY_CODE: Partial<Record<LiveTranslationErrorCode, Transl
     ticket_missing: 'liveTranslationErrorTicket',
     ticket_expired: 'liveTranslationErrorTicket',
     ticket_used: 'liveTranslationErrorTicket',
+    websocket_connect_failed: 'liveTranslationErrorWebSocket',
     gemini_connect_failed: 'liveTranslationErrorConnection',
     gemini_setup_failed: 'liveTranslationErrorConnection',
     gemini_stream_closed: 'liveTranslationErrorConnection',
@@ -136,7 +140,12 @@ export const LiveTranslationProvider: React.FC<LiveTranslationProviderProps> = (
                 disabledReason = t('liveTranslationUnavailable');
             }
         } else if (!isAudioCaptureSupported()) {
-            disabledReason = t('liveTranslationUnsupportedBrowser');
+            // AudioWorklet is missing. The usual real-world cause is an insecure
+            // origin (http:// on a LAN IP), where browsers don't expose it — point
+            // users at HTTPS/localhost rather than implying the browser is too old.
+            disabledReason = isSecureContextForCapture()
+                ? t('liveTranslationUnsupportedBrowser')
+                : t('liveTranslationInsecureContext');
         } else if (!isCaptureSupportedForSrc(src)) {
             disabledReason = t('liveTranslationAudioCaptureBlocked');
         } else if (!videoElement) {

@@ -51,7 +51,8 @@ export type LiveTranslationErrorCode =
   | 'protocol_error'
   // Client-only conditions (the backend never emits these).
   | 'unsupported_playback_rate'
-  | 'audio_capture_failed';
+  | 'audio_capture_failed'
+  | 'websocket_connect_failed';
 
 export type ServerMessage =
   | { type: 'ready'; sessionId: string }

@@ -429,6 +429,39 @@ describe('useLiveTranslationSession', () => {
     expect(s.hook.result.current.retryable).toBe(true);
   });
 
+  it('reports websocket_connect_failed when the socket errors before opening', async () => {
+    const s = setup();
+    act(() => s.hook.result.current.start());
+    await waitFor(() => expect(MockWebSocket.instances).toHaveLength(1));
+    const ws = MockWebSocket.instances[0];
+    await act(async () => {
+      ws.onerror?.({});
+    });
+    expect(s.hook.result.current.status).toBe('error');
+    expect(s.hook.result.current.errorCode).toBe('websocket_connect_failed');
+    expect(s.hook.result.current.retryable).toBe(true);
+  });
+
+  it('reports websocket_connect_failed when the socket closes before opening', async () => {
+    const s = setup();
+    act(() => s.hook.result.current.start());
+    await waitFor(() => expect(MockWebSocket.instances).toHaveLength(1));
+    const ws = MockWebSocket.instances[0];
+    await act(async () => {
+      ws.onclose?.({});
+    });
+    expect(s.hook.result.current.errorCode).toBe('websocket_connect_failed');
+  });
+
+  it('reports gemini_connect_failed when the socket errors after opening', async () => {
+    const s = setup();
+    const ws = await startAndOpen(s);
+    await act(async () => {
+      ws.onerror?.({});
+    });
+    expect(s.hook.result.current.errorCode).toBe('gemini_connect_failed');
+  });
+
   it('disposes the capture graph on unmount', async () => {
     const s = setup();
     await startAndOpen(s);

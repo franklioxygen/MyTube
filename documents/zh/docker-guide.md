@@ -238,6 +238,43 @@ MYTUBE_ADMIN_TRUST_LEVEL=container
    docker-compose up -d
    ```
 
+## 🔌 部署在反向代理之后 (WebSocket 支持)
+
+**实时翻译 (Live Translation)** 功能使用 **WebSocket** 连接 (`/api/live-translation/ws`)。MyTube 自带的 `frontend` 容器已经配置好将 WebSocket 升级转发到后端,因此**直接部署开箱即用**,无需任何额外配置。
+
+但如果你在 MyTube 前面再套了**自己的**反向代理(Nginx Proxy Manager、Traefik、Caddy、手写的 Nginx vhost、群晖/QNAP 反向代理、Cloudflare Tunnel 等)来做 TLS 或自定义域名,那么这层代理**必须转发 WebSocket 升级**。这是所有使用 WebSocket 的应用的通用要求。如果没有开启,浏览器会报:
+
+> WebSocket connection to 'wss://your-domain/api/live-translation/ws' failed: There was a bad response from the server.
+
+在你的代理上开启 WebSocket 透传:
+
+- **Nginx(手写 vhost):** 在代理 MyTube 的 location 中加上升级头。
+
+    ```nginx
+    location / {
+        proxy_pass http://MYTUBE_FRONTEND_HOST:5556;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+    }
+    ```
+
+- **Nginx Proxy Manager:** 编辑该 Proxy Host → **Details** 标签 → 打开 **Websockets Support** 开关 → 保存。
+- **群晖 / QNAP 反向代理:** 在规则的 **自定义标头 (Custom Header)** 中添加 **WebSocket** 预设(会写入 `Upgrade` / `Connection`)。
+- **Traefik / Caddy:** 无需额外配置,二者会自动转发 WebSocket 升级。
+- **Cloudflare(代理 DNS / Tunnel):** 默认即支持 WebSocket,无需更改。
+
+> [!TIP]
+> 可以用 `curl` 端到端验证。配置正确的端点会抵达后端的升级处理器,返回一个**裸 `401`** 并带有 `X-Live-Translation-Error: ticket_missing` 头(裸 curl 没带票据,所以 ticket_missing 是预期的)。如果返回的是 **JSON 格式的 `401`**、HTML 页面或 `404`,说明前面某层代理把升级请求剥掉了。
+>
+> ```bash
+> curl -i -H "Connection: Upgrade" -H "Upgrade: websocket" \
+>   -H "Sec-WebSocket-Version: 13" -H "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==" \
+>   -H "Origin: https://your-domain" \
+>   https://your-domain/api/live-translation/ws
+> ```
+
 ## 🏗️ 从源码构建 (可选)
 
 如果您更喜欢自己构建镜像（例如，为了修改代码），请按照以下步骤操作：
@@ -322,3 +359,8 @@ docker-compose -f stacks/docker-compose.host-network.yml up -d
 ```
 docker-compose -f stacks/docker-compose.single-container.yml up -d
 ```
+
+### 5. 实时翻译报 "bad response from the server" (WebSocket)
+
+- **原因:** MyTube 前面的某层反向代理没有转发 `/api/live-translation/ws` 的 WebSocket 升级。这只影响自己额外加了代理(TLS、自定义域名)的部署;自带的 `frontend` 容器已经处理好了。
+- **修复:** 在你的代理上开启 WebSocket 支持 —— 参见 [部署在反向代理之后 (WebSocket 支持)](#-部署在反向代理之后-websocket-支持)。

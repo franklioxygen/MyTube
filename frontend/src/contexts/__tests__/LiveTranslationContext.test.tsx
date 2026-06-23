@@ -7,6 +7,10 @@ import {
 } from '../LiveTranslationContext';
 import { useLiveTranslationAvailability } from '../../hooks/useLiveTranslationAvailability';
 import { useLiveTranslationSession } from '../../hooks/useLiveTranslationSession';
+import {
+    isAudioCaptureSupported,
+    isSecureContextForCapture,
+} from '../../hooks/useLiveTranslationAudioCapture';
 
 vi.mock('../LanguageContext', () => ({
     useLanguage: () => ({ t: (key: string) => key }),
@@ -18,7 +22,8 @@ vi.mock('../../hooks/useLiveTranslationSession', () => ({
     useLiveTranslationSession: vi.fn(),
 }));
 vi.mock('../../hooks/useLiveTranslationAudioCapture', () => ({
-    isAudioCaptureSupported: () => true,
+    isAudioCaptureSupported: vi.fn(() => true),
+    isSecureContextForCapture: vi.fn(() => true),
     useLiveTranslationAudioCapture: () => ({}),
 }));
 vi.mock('../../utils/mediaOrigin', () => ({
@@ -27,6 +32,8 @@ vi.mock('../../utils/mediaOrigin', () => ({
 
 const mockAvailability = useLiveTranslationAvailability as unknown as Mock;
 const mockSession = useLiveTranslationSession as unknown as Mock;
+const mockAudioSupported = isAudioCaptureSupported as unknown as Mock;
+const mockSecureContext = isSecureContextForCapture as unknown as Mock;
 
 function setAvailability(overrides: Record<string, unknown> = {}) {
     mockAvailability.mockReturnValue({
@@ -92,6 +99,9 @@ function renderProvider() {
 describe('LiveTranslationContext', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        // Re-establish defaults after clearAllMocks so per-test overrides don't leak.
+        mockAudioSupported.mockReturnValue(true);
+        mockSecureContext.mockReturnValue(true);
     });
 
     it('does not render the control when the feature is disabled globally', () => {
@@ -114,6 +124,24 @@ describe('LiveTranslationContext', () => {
         setSession();
         renderProvider();
         expect(screen.getByTestId('disabled').textContent).toBe('liveTranslationAdminRequiredPlayer');
+    });
+
+    it('hints at HTTPS when capture is unsupported because of an insecure context', () => {
+        setAvailability();
+        setSession();
+        mockAudioSupported.mockReturnValue(false);
+        mockSecureContext.mockReturnValue(false);
+        renderProvider();
+        expect(screen.getByTestId('disabled').textContent).toBe('liveTranslationInsecureContext');
+    });
+
+    it('blames the browser when capture is unsupported in a secure context', () => {
+        setAvailability();
+        setSession();
+        mockAudioSupported.mockReturnValue(false);
+        mockSecureContext.mockReturnValue(true);
+        renderProvider();
+        expect(screen.getByTestId('disabled').textContent).toBe('liveTranslationUnsupportedBrowser');
     });
 
     it('starts the session via onToggle when idle', async () => {

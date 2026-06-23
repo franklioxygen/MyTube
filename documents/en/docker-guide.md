@@ -241,6 +241,43 @@ However, if you experience connection issues where the frontend cannot reach the
     ```
     
 
+## 🔌 Deploying Behind a Reverse Proxy (WebSocket Support)
+
+The **Live Translation** feature uses a **WebSocket** connection (`/api/live-translation/ws`). MyTube's built-in `frontend` container already proxies WebSocket upgrades to the backend, so **direct deployments work out of the box** — there is nothing to configure.
+
+However, if you put **your own** reverse proxy in front of MyTube (Nginx Proxy Manager, Traefik, Caddy, a hand-written Nginx vhost, a Synology/QNAP reverse proxy, a Cloudflare Tunnel, etc.) to add TLS or a custom domain, that proxy **must forward the WebSocket upgrade**. This is a standard requirement for any app that uses WebSockets. If it is not enabled, the browser reports:
+
+> WebSocket connection to 'wss://your-domain/api/live-translation/ws' failed: There was a bad response from the server.
+
+Enable WebSocket passthrough on your proxy:
+
+- **Nginx (hand-written vhost):** add the upgrade headers to the location that proxies MyTube.
+
+    ```nginx
+    location / {
+        proxy_pass http://MYTUBE_FRONTEND_HOST:5556;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+    }
+    ```
+
+- **Nginx Proxy Manager:** edit the Proxy Host → **Details** tab → toggle **Websockets Support** ON → Save.
+- **Synology / QNAP reverse proxy:** in the rule's **Custom Header** section, add the **WebSocket** header preset (sets `Upgrade` / `Connection`).
+- **Traefik / Caddy:** no extra config — both forward WebSocket upgrades automatically.
+- **Cloudflare (proxied DNS / Tunnel):** WebSockets are supported by default; no change needed.
+
+> [!TIP]
+> Verify the path end-to-end with `curl`. A correctly proxied endpoint reaches the backend's upgrade handler and returns a **bare `401`** with an `X-Live-Translation-Error: ticket_missing` header (the missing-ticket case is expected for a raw curl). A **JSON `401` body**, an HTML page, or a `404` means a proxy in front stripped the upgrade.
+>
+> ```bash
+> curl -i -H "Connection: Upgrade" -H "Upgrade: websocket" \
+>   -H "Sec-WebSocket-Version: 13" -H "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==" \
+>   -H "Origin: https://your-domain" \
+>   https://your-domain/api/live-translation/ws
+> ```
+
 ## 🏗️ Building from Source (Optional)
 
 If you prefer to build the images yourself (e.g., to modify code), follow these steps:
@@ -334,3 +371,8 @@ For unified frontend+backend deployment, the repo also includes:
 ```
 docker-compose -f stacks/docker-compose.single-container.yml up -d
 ```
+
+### 5. Live Translation fails with "bad response from the server" (WebSocket)
+
+- **Cause:** A reverse proxy in front of MyTube is not forwarding the WebSocket upgrade for `/api/live-translation/ws`. This only affects deployments that add their own proxy (TLS termination, custom domain); the built-in `frontend` container already handles it.
+- **Fix:** Enable WebSocket support on your proxy — see [Deploying Behind a Reverse Proxy (WebSocket Support)](#-deploying-behind-a-reverse-proxy-websocket-support).
