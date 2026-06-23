@@ -611,7 +611,9 @@ export async function downloadCollection(
         // control even with a valid cookie. Back off once and retry the part
         // before marking it failed (issue #295). Cancellations throw rather than
         // returning a failure result, so they are never retried here.
-        if (!result.success && isLikelyBilibiliAuthFailure(result.error)) {
+        const hitRiskControl =
+          !result.success && isLikelyBilibiliAuthFailure(result.error);
+        if (hitRiskControl) {
           logger.warn(
             `Video ${videoNumber}/${videos.length} hit a possible Bilibili risk-control/cookie rejection; ` +
               `backing off ${RISK_CONTROL_RETRY_DELAY_MS / 1000}s and retrying once. ` +
@@ -649,7 +651,10 @@ export async function downloadCollection(
           );
         } else {
           failedPartNumbers.push(videoNumber);
-          if (isLikelyBilibiliAuthFailure(result.error)) {
+          // The retry overwrites `result`, so key off the first attempt: a part
+          // that hit risk control and then failed (even with a generic retry
+          // error) must still surface the cookie-refresh hint (issue #295).
+          if (hitRiskControl) {
             sawRiskControlFailure = true;
           }
           if (retryCollectionMetadata) {

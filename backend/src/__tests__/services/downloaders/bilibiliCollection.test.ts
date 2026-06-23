@@ -83,6 +83,7 @@ describe("bilibiliCollection.downloadCollection", () => {
       activeDownloads: [
         { id: "download-riskretry" },
         { id: "download-riskhint" },
+        { id: "download-riskthengeneric" },
       ],
     });
     mocks.saveCollection.mockImplementation((collection: any) => collection);
@@ -516,6 +517,45 @@ describe("bilibiliCollection.downloadCollection", () => {
       const result = await promise;
 
       // Initial attempt + one retry, then it gives up and surfaces the hint.
+      expect(mocks.downloadSinglePart).toHaveBeenCalledTimes(2);
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("refresh");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps the cookie-refresh hint when risk control is followed by a generic retry failure (issue #295)", async () => {
+    vi.useFakeTimers();
+    try {
+      mocks.axiosGet.mockResolvedValue({
+        data: {
+          data: {
+            archives: [{ bvid: "BV1", title: "Episode 1", aid: 1 }],
+            page: { total: 1 },
+          },
+        },
+      });
+      mocks.getCollectionById.mockReturnValue(undefined);
+      mocks.getVideoBySourceUrl.mockReturnValue(undefined);
+      // First attempt hits risk control; the retry fails with an unrelated
+      // generic error. The hint must still come from the first attempt rather
+      // than being dropped because the retry's error is not risk-control.
+      mocks.downloadSinglePart
+        .mockResolvedValueOnce({
+          success: false,
+          error: "ERROR: HTTP Error 412: Precondition Failed (-352)",
+        })
+        .mockResolvedValueOnce({ success: false, error: "network error" });
+
+      const promise = downloadCollection(
+        { success: true, type: "collection", id: 42, mid: 9, title: "Series" },
+        "Series",
+        "download-riskthengeneric",
+      );
+      await vi.runAllTimersAsync();
+      const result = await promise;
+
       expect(mocks.downloadSinglePart).toHaveBeenCalledTimes(2);
       expect(result.success).toBe(false);
       expect(result.error).toContain("refresh");
