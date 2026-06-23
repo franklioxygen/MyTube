@@ -206,6 +206,7 @@ export const ko = {
   liveTranslationErrorTicket: "실시간 번역 세션을 시작할 수 없습니다. 다시 시도하세요.",
   liveTranslationErrorCaptureFailed: "이 동영상의 오디오를 캡처할 수 없습니다.",
   liveTranslationErrorConnection: "번역 서비스에 연결할 수 없습니다. 다시 시도하세요.",
+  liveTranslationErrorWebSocket: "실시간 번역 연결을 열 수 없습니다. 이 사이트가 리버스 프록시 뒤에 있는 경우 /api/live-translation/ws에 대한 WebSocket(Upgrade) 요청을 전달하도록 설정하세요.",
   liveTranslationErrorRateLimited: "번역 서비스가 혼잡합니다. 잠시 후 다시 시도하세요.",
   liveTranslationErrorSessionTimeout: "실시간 번역 세션이 시간 제한에 도달했습니다. 다시 시작할 수 있습니다.",
   liveTranslationErrorTooManySessions: "활성 실시간 번역 세션이 너무 많습니다. 잠시 후 다시 시도하세요.",

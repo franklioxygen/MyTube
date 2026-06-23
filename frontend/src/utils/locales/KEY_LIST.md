@@ -225,6 +225,7 @@ Total keys: 996
 | `liveTranslationAudioCaptureBlocked` |
 | `liveTranslationAdminRequiredPlayer` |
 | `liveTranslationApiKeyMissingPlayer` |
+| `liveTranslationErrorWebSocket` |
 | `liveTranslationErrorGeneric` |
 | `liveTranslationErrorRequiresNormalSpeed` |
 | `liveTranslationErrorTicket` |

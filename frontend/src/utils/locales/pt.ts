@@ -209,6 +209,7 @@ export const pt = {
   liveTranslationErrorTicket: "Não foi possível iniciar a sessão de tradução ao vivo. Tente novamente.",
   liveTranslationErrorCaptureFailed: "Não foi possível capturar o áudio deste vídeo.",
   liveTranslationErrorConnection: "Não foi possível conectar ao serviço de tradução. Tente novamente.",
+  liveTranslationErrorWebSocket: "Não foi possível abrir a conexão de tradução ao vivo. Se este site estiver atrás de um proxy reverso, verifique se ele encaminha as solicitações WebSocket (Upgrade) para /api/live-translation/ws.",
   liveTranslationErrorRateLimited: "O serviço de tradução está ocupado. Tente novamente em instantes.",
   liveTranslationErrorSessionTimeout: "A sessão de tradução ao vivo atingiu o limite de tempo. Você pode reiniciá-la.",
   liveTranslationErrorTooManySessions: "Muitas sessões de tradução ao vivo ativas. Tente novamente em instantes.",

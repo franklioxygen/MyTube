@@ -202,6 +202,7 @@ export const ar = {
   liveTranslationErrorTicket: "تعذّر بدء جلسة الترجمة المباشرة. حاول مرة أخرى.",
   liveTranslationErrorCaptureFailed: "تعذّر التقاط صوت هذا الفيديو.",
   liveTranslationErrorConnection: "تعذّر الاتصال بخدمة الترجمة. حاول مرة أخرى.",
+  liveTranslationErrorWebSocket: "تعذّر فتح اتصال الترجمة المباشرة. إذا كان هذا الموقع خلف وكيل عكسي، فتأكد من أنه يمرّر طلبات WebSocket (Upgrade) للمسار /api/live-translation/ws.",
   liveTranslationErrorRateLimited: "خدمة الترجمة مشغولة. حاول مرة أخرى بعد قليل.",
   liveTranslationErrorSessionTimeout: "بلغت جلسة الترجمة المباشرة حدّها الزمني. يمكنك إعادة تشغيلها.",
   liveTranslationErrorTooManySessions: "عدد جلسات الترجمة المباشرة النشطة كبير جدًا. حاول مرة أخرى بعد قليل.",

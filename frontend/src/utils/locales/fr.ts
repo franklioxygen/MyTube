@@ -210,6 +210,7 @@ export const fr = {
   liveTranslationErrorTicket: "La session de traduction en direct n'a pas pu démarrer. Veuillez réessayer.",
   liveTranslationErrorCaptureFailed: "Impossible de capturer l'audio de cette vidéo.",
   liveTranslationErrorConnection: "Impossible de se connecter au service de traduction. Veuillez réessayer.",
+  liveTranslationErrorWebSocket: "Impossible d'ouvrir la connexion de traduction en direct. Si ce site est derrière un proxy inverse, assurez-vous qu'il transmet les requêtes WebSocket (Upgrade) pour /api/live-translation/ws.",
   liveTranslationErrorRateLimited: "Le service de traduction est occupé. Veuillez réessayer dans un instant.",
   liveTranslationErrorSessionTimeout: "La session de traduction en direct a atteint sa limite de temps. Vous pouvez la redémarrer.",
   liveTranslationErrorTooManySessions: "Trop de sessions de traduction en direct actives. Veuillez réessayer dans un instant.",

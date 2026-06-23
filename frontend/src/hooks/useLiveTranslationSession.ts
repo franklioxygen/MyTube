@@ -319,11 +319,16 @@ export function useLiveTranslationSession(
         wsRef.current = ws;
         seqRef.current = 0;
         audioSeqRef.current = 0;
+        // Whether the upgrade handshake completed. If the socket errors/closes
+        // before this flips true, the connection never opened — the usual cause
+        // is a reverse proxy that does not forward the WebSocket upgrade.
+        let opened = false;
 
         ws.onopen = () => {
           if (!isCurrentStart() || wsRef.current !== ws) {
             return;
           }
+          opened = true;
           sendControl({
             type: 'start',
             videoId,
@@ -400,10 +405,30 @@ export function useLiveTranslationSession(
           }
         };
         ws.onerror = () => {
-          fail('gemini_connect_failed', 'Live translation connection failed.', true);
+          if (!opened) {
+            // Handshake never completed: the WebSocket upgrade was rejected or
+            // dropped before the session opened (commonly a reverse proxy that
+            // does not forward Upgrade requests).
+            fail(
+              'websocket_connect_failed',
+              'Could not open the live translation connection.',
+              true,
+            );
+          } else {
+            fail('gemini_connect_failed', 'Live translation connection failed.', true);
+          }
         };
         ws.onclose = () => {
-          if (wsRef.current === ws) {
+          if (wsRef.current !== ws) {
+            return;
+          }
+          if (!opened) {
+            fail(
+              'websocket_connect_failed',
+              'Could not open the live translation connection.',
+              true,
+            );
+          } else {
             cleanup('idle');
           }
         };

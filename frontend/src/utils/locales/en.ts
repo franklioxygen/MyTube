@@ -206,6 +206,8 @@ export const en = {
   liveTranslationErrorCaptureFailed: "Could not capture this video's audio.",
   liveTranslationErrorConnection:
     "Could not connect to the translation service. Please try again.",
+  liveTranslationErrorWebSocket:
+    "Couldn't open the live translation connection. If this site is behind a reverse proxy, make sure it forwards WebSocket (Upgrade) requests for /api/live-translation/ws.",
   liveTranslationErrorRateLimited:
     "The translation service is busy. Please try again shortly.",
   liveTranslationErrorSessionTimeout:

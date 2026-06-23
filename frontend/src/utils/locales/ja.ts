@@ -209,6 +209,7 @@ export const ja = {
   liveTranslationErrorTicket: "ライブ翻訳セッションを開始できませんでした。もう一度お試しください。",
   liveTranslationErrorCaptureFailed: "この動画の音声を取得できませんでした。",
   liveTranslationErrorConnection: "翻訳サービスに接続できませんでした。もう一度お試しください。",
+  liveTranslationErrorWebSocket: "ライブ翻訳の接続を確立できませんでした。このサイトがリバースプロキシの背後にある場合は、/api/live-translation/ws の WebSocket（Upgrade）リクエストを転送するように設定してください。",
   liveTranslationErrorRateLimited: "翻訳サービスが混雑しています。しばらくしてからお試しください。",
   liveTranslationErrorSessionTimeout: "ライブ翻訳セッションが時間制限に達しました。再開できます。",
   liveTranslationErrorTooManySessions: "アクティブなライブ翻訳セッションが多すぎます。しばらくしてからお試しください。",

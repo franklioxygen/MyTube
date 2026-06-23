@@ -195,6 +195,7 @@ export const zh = {
   liveTranslationErrorTicket: "无法启动实时翻译会话，请重试。",
   liveTranslationErrorCaptureFailed: "无法捕获此视频的音频。",
   liveTranslationErrorConnection: "无法连接到翻译服务，请重试。",
+  liveTranslationErrorWebSocket: "无法建立实时翻译连接。如果本站点位于反向代理之后，请确保它为 /api/live-translation/ws 转发 WebSocket（Upgrade）请求。",
   liveTranslationErrorRateLimited: "翻译服务繁忙，请稍后重试。",
   liveTranslationErrorSessionTimeout: "实时翻译会话已达到时长上限，可重新开始。",
   liveTranslationErrorTooManySessions: "当前活动的实时翻译会话过多，请稍后重试。",

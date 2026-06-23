@@ -212,6 +212,7 @@ export const de = {
   liveTranslationErrorTicket: "Die Live-Übersetzungssitzung konnte nicht gestartet werden. Bitte versuchen Sie es erneut.",
   liveTranslationErrorCaptureFailed: "Der Ton dieses Videos konnte nicht erfasst werden.",
   liveTranslationErrorConnection: "Verbindung zum Übersetzungsdienst fehlgeschlagen. Bitte versuchen Sie es erneut.",
+  liveTranslationErrorWebSocket: "Die Verbindung für die Live-Übersetzung konnte nicht hergestellt werden. Wenn diese Seite hinter einem Reverse-Proxy läuft, stellen Sie sicher, dass er WebSocket-(Upgrade-)Anfragen für /api/live-translation/ws weiterleitet.",
   liveTranslationErrorRateLimited: "Der Übersetzungsdienst ist ausgelastet. Bitte versuchen Sie es in Kürze erneut.",
   liveTranslationErrorSessionTimeout: "Die Live-Übersetzungssitzung hat ihr Zeitlimit erreicht. Sie können sie neu starten.",
   liveTranslationErrorTooManySessions: "Zu viele aktive Live-Übersetzungssitzungen. Bitte versuchen Sie es in Kürze erneut.",
