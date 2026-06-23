@@ -38,12 +38,13 @@ cd ../backend && npm install
 **注意**: 后端安装会自动构建 `bgutil-ytdlp-pot-provider` 服务器。但是，您必须确保在环境中安装了 `yt-dlp` 和 `bgutil-ytdlp-pot-provider` Python 插件：
 
 ```bash
-# 安装 yt-dlp 和插件
-pip install yt-dlp bgutil-ytdlp-pot-provider
+# 安装 yt-dlp 和插件。curl-cffi 用于启用 yt-dlp 的浏览器模拟，
+# MissAV 下载需要它来绕过 Cloudflare。
+pip install yt-dlp bgutil-ytdlp-pot-provider curl-cffi
 
 # 或使用 pipx (推荐，用于隔离)
 pipx install yt-dlp
-pipx inject yt-dlp bgutil-ytdlp-pot-provider
+pipx inject yt-dlp bgutil-ytdlp-pot-provider curl-cffi
 ```
 
 ### 3. 配置环境变量

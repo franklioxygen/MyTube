@@ -5,7 +5,7 @@ import puppeteer from 'puppeteer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MissAVDownloader } from '../../../services/downloaders/MissAVDownloader';
 import { cleanupTemporaryFiles, isCancellationError } from '../../../utils/downloadUtils';
-import { flagsToArgs } from '../../../utils/ytDlpUtils';
+import { flagsToArgs, isYtDlpImpersonateAvailable } from '../../../utils/ytDlpUtils';
 import * as security from '../../../utils/security';
 
 vi.mock('puppeteer');
@@ -22,6 +22,7 @@ vi.mock('../../../utils/ytDlpUtils', () => ({
   flagsToArgs: vi.fn().mockReturnValue([]),
   getAxiosProxyConfig: vi.fn().mockReturnValue({}),
   InvalidProxyError: class InvalidProxyError extends Error {},
+  isYtDlpImpersonateAvailable: vi.fn().mockResolvedValue(true),
 }));
 vi.mock('../../../utils/downloadUtils', () => ({
   cleanupTemporaryFiles: vi.fn().mockResolvedValue(undefined),
@@ -424,6 +425,24 @@ describe('MissAVDownloader', () => {
       expect(flags.extractorArgs).toBeUndefined();
       // Referer is the only extra header the CDN needs once impersonation is on;
       // the earlier Origin/Sec-Fetch headers were a red herring and are dropped.
+      expect(flags.addHeader).toEqual(['Referer:https://missav.com/']);
+    });
+
+    it('omits --impersonate when curl_cffi is unavailable instead of hard-failing', async () => {
+      (isYtDlpImpersonateAvailable as ReturnType<typeof vi.fn>).mockResolvedValueOnce(false);
+      const mockPage = buildPageMock('success');
+      const mockBrowser = { newPage: vi.fn().mockResolvedValue(mockPage), close: vi.fn().mockResolvedValue(undefined) };
+      (puppeteer.launch as ReturnType<typeof vi.fn>).mockResolvedValue(mockBrowser);
+
+      // spawn exits with code 1 (top-level mock); swallow the resulting error
+      await MissAVDownloader.downloadVideo('https://missav.com/test-video').catch(() => {});
+
+      const calls = (flagsToArgs as ReturnType<typeof vi.fn>).mock.calls;
+      const flags = calls[calls.length - 1]?.[0] ?? {};
+
+      // Without curl_cffi, `--impersonate` would error ("target not available"),
+      // so the flag must be omitted and the download attempted unimpersonated.
+      expect(flags.impersonate).toBeUndefined();
       expect(flags.addHeader).toEqual(['Referer:https://missav.com/']);
     });
 

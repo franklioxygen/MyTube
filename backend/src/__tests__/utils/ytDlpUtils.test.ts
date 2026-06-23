@@ -543,6 +543,7 @@ describe("ytDlpUtils", () => {
         "--user",
         "yt-dlp",
         "bgutil-ytdlp-pot-provider",
+        "curl-cffi",
       ]);
     });
 

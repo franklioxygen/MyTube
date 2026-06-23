@@ -33,6 +33,7 @@ import {
   getNetworkConfigFromUserConfig,
   getUserYtDlpConfig,
   InvalidProxyError,
+  isYtDlpImpersonateAvailable,
 } from "../../utils/ytDlpUtils";
 import { syncMediaServerArtifactsForRecord } from "../mediaServerExport";
 import * as storageService from "../storageService";
@@ -818,27 +819,40 @@ export class MissAVDownloader extends BaseDownloader {
       const referer = `${urlObjForReferer.protocol}//${urlObjForReferer.host}/`;
       logger.info("Using Referer:", referer);
 
+      // The m3u8 host (e.g. surrit.com) sits behind Cloudflare bot management
+      // that fingerprints the TLS/JA3 handshake; a default yt-dlp request gets a
+      // 403. Route every request through curl_cffi browser impersonation so the
+      // handshake matches a real browser.
+      //
+      // IMPORTANT: this must be the GLOBAL `--impersonate` flag, not the
+      // `--extractor-args generic:impersonate` arg that yt-dlp's own error
+      // message suggests. The extractor-arg only impersonates the initial
+      // webpage fetch; the m3u8 manifest (and segment) downloads still go out
+      // with the default fingerprint and 403. The global flag impersonates the
+      // whole session. Verified directly against surrit.com from the deployment
+      // environment: `--impersonate chrome` succeeds where the extractor-arg
+      // returns 403. Referer is the only extra header the CDN needs.
+      //
+      // Gate on availability: `--impersonate` hard-fails ("target not available")
+      // when curl_cffi is missing, which can happen on non-Docker installs. When
+      // unavailable, omit it and warn — the download proceeds unimpersonated
+      // (works for non-blocked hosts) instead of erroring outright.
+      const canImpersonate = await isYtDlpImpersonateAvailable();
+      if (!canImpersonate) {
+        logger.warn(
+          "[MissAV] yt-dlp browser impersonation is unavailable (curl_cffi not installed); " +
+            "proceeding without --impersonate. Cloudflare-protected hosts may return 403. " +
+            "Install it with: pip install curl-cffi",
+        );
+      }
+
       // Prepare flags object - merge user config with required settings
       const flags: any = {
         ...networkConfig, // Apply network settings (proxy, etc.)
         output: newVideoPath,
         format: downloadFormat,
         mergeOutputFormat: mergeOutputFormat,
-        // The m3u8 host (e.g. surrit.com) sits behind Cloudflare bot management
-        // that fingerprints the TLS/JA3 handshake; a default yt-dlp request gets
-        // a 403. Route every request through curl_cffi browser impersonation so
-        // the handshake matches a real browser (curl-cffi is bundled in the
-        // backend image, so no extra runtime dependency is needed).
-        //
-        // IMPORTANT: this must be the GLOBAL `--impersonate` flag, not the
-        // `--extractor-args generic:impersonate` arg that yt-dlp's own error
-        // message suggests. The extractor-arg only impersonates the initial
-        // webpage fetch; the m3u8 manifest (and segment) downloads still go out
-        // with the default fingerprint and 403. The global flag impersonates the
-        // whole session. Verified directly against surrit.com from the deployment
-        // environment: `--impersonate chrome` succeeds where the extractor-arg
-        // returns 403. Referer is the only extra header the CDN needs.
-        impersonate: "chrome",
+        ...(canImpersonate ? { impersonate: "chrome" } : {}),
         addHeader: [`Referer:${referer}`],
       };
 
