@@ -1,5 +1,9 @@
 import axios from "axios";
 import { logger } from "../../../utils/logger";
+import {
+  isCancellationError,
+  throwIfCancelled,
+} from "../../../utils/downloadUtils";
 import type { DownloadRetryMetadata } from "../../downloadRetryMetadata";
 import * as storageService from "../../storageService";
 import { Collection } from "../../storageService";
@@ -22,6 +26,14 @@ import {
 // control, wait this long before the single retry — longer than the normal
 // 2s inter-part delay to let a transient throttle clear (issue #295).
 const RISK_CONTROL_RETRY_DELAY_MS = 15000;
+
+async function waitForRiskControlRetry(downloadId: string): Promise<void> {
+  throwIfCancelled(downloadId);
+  await new Promise((resolve) =>
+    setTimeout(resolve, RISK_CONTROL_RETRY_DELAY_MS),
+  );
+  throwIfCancelled(downloadId);
+}
 
 const buildAggregateErrorMessage = (
   label: string,
@@ -593,9 +605,7 @@ export async function downloadCollection(
               `backing off ${RISK_CONTROL_RETRY_DELAY_MS / 1000}s and retrying once. ` +
               `If episodes keep failing, refresh your Bilibili cookie and re-download.`,
           );
-          await new Promise((resolve) =>
-            setTimeout(resolve, RISK_CONTROL_RETRY_DELAY_MS),
-          );
+          await waitForRiskControlRetry(downloadId);
           result = await downloadPart();
         }
 
@@ -643,6 +653,9 @@ export async function downloadCollection(
           );
         }
       } catch (videoError) {
+        if (isCancellationError(videoError)) {
+          throw videoError;
+        }
         failedPartNumbers.push(videoNumber);
         if (retryCollectionMetadata) {
           retryCollectionMetadata.failedVideoBvids = Array.from(
@@ -712,6 +725,9 @@ export async function downloadCollection(
       error: error || undefined,
     };
   } catch (error: any) {
+    if (isCancellationError(error)) {
+      throw error;
+    }
     logger.error(`Error downloading ${collectionInfo.type}:`, error);
     return {
       success: false,
