@@ -14,25 +14,6 @@
     />
     <meta name="theme-color" content="#ff3e3e" />
     <title>MyTube - My Videos, My Rules.</title>
-    <script>
-      (() => {
-        if (typeof window.matchMedia !== "function") {
-          return;
-        }
-
-        try {
-          Object.defineProperty(window, "styleMedia", {
-            configurable: true,
-            value: {
-              matchMedium: (query) => window.matchMedia(query).matches,
-              type: "screen",
-            },
-          });
-        } catch {
-          // Ignore browsers that do not allow overriding this legacy API.
-        }
-      })();
-    </script>
   </head>
   <body>
     <div id="root"></div>
