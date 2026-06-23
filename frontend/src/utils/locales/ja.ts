@@ -200,6 +200,7 @@ export const ja = {
   liveTranslationRetry: "再試行",
   liveTranslationUnavailable: "ライブ翻訳は現在利用できません。",
   liveTranslationUnsupportedBrowser: "このブラウザはライブ翻訳に対応していません。",
+  liveTranslationInsecureContext: "ライブ翻訳には安全な接続（HTTPS または localhost）が必要です。",
   liveTranslationAudioCaptureBlocked: "この動画の音声ソースではライブ翻訳を利用できません。",
   liveTranslationAdminRequiredPlayer: "ライブ翻訳には管理者アカウントが必要です。",
   liveTranslationApiKeyMissingPlayer: "ライブ翻訳が設定されていません。設定で Gemini API キーを追加してください。",

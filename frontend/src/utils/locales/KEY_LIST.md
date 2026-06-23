@@ -221,6 +221,7 @@ Total keys: 996
 | `liveTranslationRetry` |
 | `liveTranslationUnavailable` |
 | `liveTranslationUnsupportedBrowser` |
+| `liveTranslationInsecureContext` |
 | `liveTranslationAudioCaptureBlocked` |
 | `liveTranslationAdminRequiredPlayer` |
 | `liveTranslationApiKeyMissingPlayer` |

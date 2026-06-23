@@ -203,6 +203,7 @@ export const de = {
   liveTranslationRetry: "Erneut versuchen",
   liveTranslationUnavailable: "Live-Übersetzung ist derzeit nicht verfügbar.",
   liveTranslationUnsupportedBrowser: "Dieser Browser unterstützt keine Live-Übersetzung.",
+  liveTranslationInsecureContext: "Live-Übersetzung erfordert eine sichere Verbindung (HTTPS oder localhost).",
   liveTranslationAudioCaptureBlocked: "Für die Audioquelle dieses Videos ist keine Live-Übersetzung verfügbar.",
   liveTranslationAdminRequiredPlayer: "Live-Übersetzung erfordert ein Administratorkonto.",
   liveTranslationApiKeyMissingPlayer: "Live-Übersetzung ist nicht konfiguriert. Fügen Sie in den Einstellungen einen Gemini-API-Schlüssel hinzu.",

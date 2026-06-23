@@ -197,6 +197,7 @@ export const ko = {
   liveTranslationRetry: "다시 시도",
   liveTranslationUnavailable: "실시간 번역을 현재 사용할 수 없습니다.",
   liveTranslationUnsupportedBrowser: "이 브라우저는 실시간 번역을 지원하지 않습니다.",
+  liveTranslationInsecureContext: "실시간 번역에는 보안 연결(HTTPS 또는 localhost)이 필요합니다.",
   liveTranslationAudioCaptureBlocked: "이 동영상의 오디오 소스에서는 실시간 번역을 사용할 수 없습니다.",
   liveTranslationAdminRequiredPlayer: "실시간 번역에는 관리자 계정이 필요합니다.",
   liveTranslationApiKeyMissingPlayer: "실시간 번역이 구성되지 않았습니다. 설정에서 Gemini API 키를 추가하세요.",

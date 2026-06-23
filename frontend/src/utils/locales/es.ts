@@ -200,6 +200,7 @@ export const es = {
   liveTranslationRetry: "Reintentar",
   liveTranslationUnavailable: "La traducción en vivo no está disponible por ahora.",
   liveTranslationUnsupportedBrowser: "Este navegador no admite la traducción en vivo.",
+  liveTranslationInsecureContext: "La traducción en vivo requiere una conexión segura (HTTPS o localhost).",
   liveTranslationAudioCaptureBlocked: "La traducción en vivo no está disponible para la fuente de audio de este video.",
   liveTranslationAdminRequiredPlayer: "La traducción en vivo requiere una cuenta de administrador.",
   liveTranslationApiKeyMissingPlayer: "La traducción en vivo no está configurada. Añade una clave de API de Gemini en Ajustes.",

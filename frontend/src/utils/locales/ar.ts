@@ -193,6 +193,7 @@ export const ar = {
   liveTranslationRetry: "إعادة المحاولة",
   liveTranslationUnavailable: "الترجمة المباشرة غير متاحة حاليًا.",
   liveTranslationUnsupportedBrowser: "هذا المتصفح لا يدعم الترجمة المباشرة.",
+  liveTranslationInsecureContext: "تتطلب الترجمة المباشرة اتصالاً آمناً (HTTPS أو localhost).",
   liveTranslationAudioCaptureBlocked: "الترجمة المباشرة غير متاحة لمصدر صوت هذا الفيديو.",
   liveTranslationAdminRequiredPlayer: "تتطلب الترجمة المباشرة حساب مسؤول.",
   liveTranslationApiKeyMissingPlayer: "الترجمة المباشرة غير مهيأة. أضف مفتاح Gemini API في الإعدادات.",

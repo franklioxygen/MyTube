@@ -41,6 +41,21 @@ export function isAudioCaptureSupported(): boolean {
   );
 }
 
+/**
+ * Whether the page is a secure context. The capture tap relies on AudioWorklet,
+ * which browsers expose only over https:// or http://localhost. On a plain
+ * http:// LAN-IP origin `AudioWorkletNode` is undefined, so capture is reported
+ * as unsupported; this lets the UI show a "needs HTTPS" hint instead of blaming
+ * the browser. Treats an unknown value as secure so we never surface a false
+ * insecure-context warning.
+ */
+export function isSecureContextForCapture(): boolean {
+  if (typeof window === 'undefined') {
+    return true;
+  }
+  return window.isSecureContext !== false;
+}
+
 class MediaCaptureGraph {
   private readonly ctx: AudioContext;
   private readonly source: MediaElementAudioSourceNode;

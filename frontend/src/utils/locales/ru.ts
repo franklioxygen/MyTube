@@ -200,6 +200,7 @@ export const ru = {
   liveTranslationRetry: "Повторить",
   liveTranslationUnavailable: "Живой перевод сейчас недоступен.",
   liveTranslationUnsupportedBrowser: "Этот браузер не поддерживает живой перевод.",
+  liveTranslationInsecureContext: "Для живого перевода требуется защищённое соединение (HTTPS или localhost).",
   liveTranslationAudioCaptureBlocked: "Живой перевод недоступен для источника звука этого видео.",
   liveTranslationAdminRequiredPlayer: "Для живого перевода требуется учётная запись администратора.",
   liveTranslationApiKeyMissingPlayer: "Живой перевод не настроен. Добавьте ключ API Gemini в настройках.",

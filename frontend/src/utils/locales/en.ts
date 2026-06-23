@@ -190,6 +190,8 @@ export const en = {
   liveTranslationUnavailable: "Live translation is currently unavailable.",
   liveTranslationUnsupportedBrowser:
     "Live translation is not supported in this browser.",
+  liveTranslationInsecureContext:
+    "Live translation requires a secure connection (HTTPS or localhost).",
   liveTranslationAudioCaptureBlocked:
     "Live translation is unavailable for this video's audio source.",
   liveTranslationAdminRequiredPlayer:

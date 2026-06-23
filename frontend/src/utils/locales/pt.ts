@@ -200,6 +200,7 @@ export const pt = {
   liveTranslationRetry: "Tentar novamente",
   liveTranslationUnavailable: "A tradução ao vivo está indisponível no momento.",
   liveTranslationUnsupportedBrowser: "Este navegador não oferece suporte à tradução ao vivo.",
+  liveTranslationInsecureContext: "A tradução ao vivo requer uma conexão segura (HTTPS ou localhost).",
   liveTranslationAudioCaptureBlocked: "A tradução ao vivo não está disponível para a fonte de áudio deste vídeo.",
   liveTranslationAdminRequiredPlayer: "A tradução ao vivo requer uma conta de administrador.",
   liveTranslationApiKeyMissingPlayer: "A tradução ao vivo não está configurada. Adicione uma chave de API do Gemini nas Configurações.",

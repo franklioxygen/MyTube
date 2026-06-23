@@ -186,6 +186,7 @@ export const zh = {
   liveTranslationRetry: "重试",
   liveTranslationUnavailable: "实时翻译当前不可用。",
   liveTranslationUnsupportedBrowser: "此浏览器不支持实时翻译。",
+  liveTranslationInsecureContext: "实时翻译需要安全连接（HTTPS 或 localhost）。",
   liveTranslationAudioCaptureBlocked: "此视频的音频来源无法用于实时翻译。",
   liveTranslationAdminRequiredPlayer: "实时翻译需要管理员账户。",
   liveTranslationApiKeyMissingPlayer: "实时翻译尚未配置。请在设置中添加 Gemini API 密钥。",
