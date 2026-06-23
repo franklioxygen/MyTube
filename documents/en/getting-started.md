@@ -38,12 +38,13 @@ cd ../backend && npm install
 **Note**: The backend installation will automatically build the `bgutil-ytdlp-pot-provider` server. It also performs a best-effort auto-install for `ffmpeg`/`ffprobe` if missing (does not fail install when auto-install is unavailable). You can disable this behavior with `SKIP_FFMPEG_AUTO_INSTALL=1`. You must still ensure `yt-dlp` and the `bgutil-ytdlp-pot-provider` python plugin are installed in your environment:
 
 ```bash
-# Install yt-dlp and the plugin
-pip install yt-dlp bgutil-ytdlp-pot-provider
+# Install yt-dlp and the plugin. curl-cffi enables yt-dlp browser
+# impersonation, which MissAV downloads need to get past Cloudflare.
+pip install yt-dlp bgutil-ytdlp-pot-provider curl-cffi
 
 # OR using pipx (recommended for isolation)
 pipx install yt-dlp
-pipx inject yt-dlp bgutil-ytdlp-pot-provider
+pipx inject yt-dlp bgutil-ytdlp-pot-provider curl-cffi
 ```
 
 ### 3. Configure Environment Variables

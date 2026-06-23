@@ -53,6 +53,7 @@ type CookiesFileCache = CookiesFileSignature & {
 
 let jsRuntimeFlagPromise: Promise<YouTubeJsRuntimeFlag | null> | null = null;
 let remoteComponentsSupportPromise: Promise<boolean> | null = null;
+let impersonateSupportPromise: Promise<boolean> | null = null;
 const runtimeWarningCache = new Set<string>();
 let cookiesFileCache: CookiesFileCache | null = null;
 
@@ -564,6 +565,7 @@ export function resetYtDlpAvailabilityCacheForTests(): void {
   resolvedYtDlpPathCache = null;
   jsRuntimeFlagPromise = null;
   remoteComponentsSupportPromise = null;
+  impersonateSupportPromise = null;
   runtimeWarningCache.clear();
   cookiesFileCache = null;
 }
@@ -573,7 +575,11 @@ export function resetYtDlpAvailabilityCacheForTests(): void {
  */
 async function installYtDlp(options: { upgrade?: boolean } = {}): Promise<void> {
   const { upgrade = false } = options;
-  const packages = ["yt-dlp", "bgutil-ytdlp-pot-provider"];
+  // curl-cffi powers yt-dlp's browser impersonation (--impersonate), which the
+  // MissAV downloader needs to get past Cloudflare on the m3u8 CDN. The Docker
+  // image installs it explicitly; install it here too so non-Docker setups
+  // gain the capability instead of hard-failing on --impersonate.
+  const packages = ["yt-dlp", "bgutil-ytdlp-pot-provider", "curl-cffi"];
   const installArgs = ["install"];
   if (upgrade) {
     installArgs.push("-U");
@@ -863,6 +869,74 @@ async function isDenoAvailable(): Promise<boolean> {
   });
 
   return denoAvailablePromise;
+}
+
+/**
+ * Whether the resolved yt-dlp binary can impersonate a Chrome browser via
+ * curl_cffi. Probes `--list-impersonate-targets`: when curl_cffi is missing,
+ * yt-dlp still lists targets but tags every one "(unavailable)", and passing
+ * `--impersonate` would then hard-fail the download. Callers use this to gate
+ * the flag and degrade gracefully instead of erroring. Cached per process.
+ */
+export async function isYtDlpImpersonateAvailable(): Promise<boolean> {
+  if (impersonateSupportPromise) {
+    return impersonateSupportPromise;
+  }
+
+  impersonateSupportPromise = (async () => {
+    try {
+      const ytDlpPath = await resolveYtDlpPath();
+      return await new Promise<boolean>((resolve) => {
+        let output = "";
+        let settled = false;
+        const finish = (value: boolean) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeout);
+          // A usable target row names a client and ends with the curl_cffi
+          // source without the "(unavailable)" marker.
+          const available = output
+            .split("\n")
+            .some(
+              (line) =>
+                /chrome/i.test(line) &&
+                /curl_cffi/.test(line) &&
+                !/unavailable/i.test(line),
+            );
+          if (!available) {
+            impersonateSupportPromise = null;
+          }
+          resolve(available && value);
+        };
+        const timeout = setTimeout(() => {
+          proc.kill("SIGTERM");
+          finish(true);
+        }, YT_DLP_HELP_PROBE_TIMEOUT_MS);
+        timeout.unref?.();
+
+        // ytDlpPath is either explicitly configured by the operator or selected
+        // from enumerated PATH entries and fixed executable names above.
+        // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process
+        const proc = spawn(ytDlpPath, ["--list-impersonate-targets"], {
+          env: getYtDlpSpawnEnv(),
+          stdio: ["ignore", "pipe", "pipe"],
+        });
+        proc.stdout?.on("data", (data: Buffer) => {
+          output += data.toString();
+        });
+        proc.on("close", () => finish(true));
+        proc.on("error", () => {
+          impersonateSupportPromise = null;
+          finish(false);
+        });
+      });
+    } catch {
+      impersonateSupportPromise = null;
+      return false;
+    }
+  })();
+
+  return impersonateSupportPromise;
 }
 
 function warnRuntimeOnce(key: string, message: string): void {
