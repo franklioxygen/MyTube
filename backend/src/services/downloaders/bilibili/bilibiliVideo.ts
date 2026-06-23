@@ -182,6 +182,23 @@ function extractAvailableHeights(
   return heights;
 }
 
+function formatYtDlpFailureMessage(error: unknown): string {
+  const message =
+    typeof (error as { message?: unknown })?.message === "string"
+      ? (error as { message: string }).message.trim()
+      : "";
+  const stderr =
+    typeof (error as { stderr?: unknown })?.stderr === "string"
+      ? (error as { stderr: string }).stderr.trim()
+      : "";
+
+  if (message && stderr && message !== stderr && !message.includes(stderr)) {
+    return `${message}\nstderr: ${stderr}`;
+  }
+
+  return message || stderr || "Unknown error";
+}
+
 /**
  * Core video download function using yt-dlp
  */
@@ -418,9 +435,7 @@ export async function downloadVideo(
         throw DownloadCancelledError.create();
       }
       throw new Error(
-        `yt-dlp download failed: ${
-          downloadError.message || downloadError.stderr || "Unknown error"
-        }`
+        `yt-dlp download failed: ${formatYtDlpFailureMessage(downloadError)}`
       );
     }
 
@@ -429,8 +444,8 @@ export async function downloadVideo(
       await cleanupTempDir(tempDir);
       const errorMsg = downloadError
         ? `Downloaded video file not found. yt-dlp error: ${
-            downloadError.message
-          }. stderr: ${(downloadError.stderr || "").substring(0, 500)}`
+            formatYtDlpFailureMessage(downloadError)
+          }`
         : `Downloaded video file not found.`;
       throw new Error(errorMsg);
     }
@@ -630,7 +645,7 @@ export async function downloadVideo(
       date: new Date().toISOString().slice(0, 10).replace(/-/g, ""),
       thumbnailUrl: null,
       thumbnailSaved: false,
-      error: error.message,
+      error: formatYtDlpFailureMessage(error),
     };
   }
 }

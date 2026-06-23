@@ -629,9 +629,10 @@ describe("bilibiliVideo.downloadSinglePart", () => {
   });
 
   it("surfaces a cookie-refresh hint when the download fails with a risk-control error", async () => {
-    const failing: any = Promise.reject(
-      new Error("ERROR: HTTP Error 412: Precondition Failed"),
-    );
+    const ytDlpError = new Error("yt-dlp process exited with code 1");
+    (ytDlpError as any).stderr =
+      "ERROR: HTTP Error 412: Precondition Failed (-352)";
+    const failing: any = Promise.reject(ytDlpError);
     // Mark the rejection handled so it is not reported as an unhandled rejection;
     // downloadVideo attaches its own handler via `await`.
     failing.catch(() => {});
@@ -650,6 +651,7 @@ describe("bilibiliVideo.downloadSinglePart", () => {
     );
 
     expect(result.success).toBe(false);
+    expect(result.error).toContain("yt-dlp process exited with code 1");
     expect(result.error).toContain("412");
     expect(result.error).toContain("refresh");
     expect(mocks.saveVideo).not.toHaveBeenCalled();
