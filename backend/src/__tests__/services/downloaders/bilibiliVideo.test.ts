@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { formatVideoFilename } from "../../../utils/helpers";
+import { DownloadCancelledError } from "../../../errors/DownloadErrors";
 
 const mocks = vi.hoisted(() => ({
   existsSync: vi.fn(),
@@ -39,6 +40,7 @@ const mocks = vi.hoisted(() => ({
   downloadSubtitles: vi.fn(),
   downloadAndProcessAvatar: vi.fn(),
   downloadThumbnail: vi.fn(),
+  throwIfCancelled: vi.fn(),
   logger: {
     info: vi.fn(),
     warn: vi.fn(),
@@ -122,7 +124,9 @@ vi.mock("../../../services/downloaders/BaseDownloader", () => ({
       }
     }
 
-    protected throwIfCancelled(_downloadId?: string): void {}
+    protected throwIfCancelled(downloadId?: string): void {
+      mocks.throwIfCancelled(downloadId);
+    }
 
     protected async downloadThumbnail(
       ...args: any[]
@@ -189,6 +193,8 @@ const buildExistingVideo = (overrides: Record<string, any> = {}) => ({
 describe("bilibiliVideo.downloadSinglePart", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Default: not cancelled. Individual tests opt into cancellation.
+    mocks.throwIfCancelled.mockReset();
 
     const subprocess: any = Promise.resolve(undefined);
     subprocess.stdout = { on: vi.fn() };
@@ -655,6 +661,33 @@ describe("bilibiliVideo.downloadSinglePart", () => {
     expect(result.error).toContain("412");
     expect(result.error).toContain("refresh");
     expect(mocks.saveVideo).not.toHaveBeenCalled();
+  });
+
+  it("propagates cancellation instead of recording a failed episode when the part is cancelled (issue #295)", async () => {
+    // A cancelled part comes back from downloadVideo through its fallback return
+    // (error set, no file), not as a thrown error. downloadSinglePart must
+    // re-check and surface DownloadCancelledError so downloadCollection aborts the
+    // whole collection rather than logging a normal failed episode and continuing
+    // to the next video.
+    // existsSync=false keeps downloadVideo off the temp-dir cleanup branch so the
+    // cancellation surfaces as a clean "Download cancelled by user" fallback.
+    mocks.existsSync.mockReturnValue(false);
+    mocks.throwIfCancelled.mockImplementation(() => {
+      throw DownloadCancelledError.create();
+    });
+
+    await expect(
+      downloadSinglePart(
+        "https://www.bilibili.com/video/BV1cancelled",
+        1,
+        1,
+        "",
+        "download-cancelled",
+      ),
+    ).rejects.toBeInstanceOf(DownloadCancelledError);
+
+    expect(mocks.saveVideo).not.toHaveBeenCalled();
+    expect(mocks.organizeVideoByAuthor).not.toHaveBeenCalled();
   });
 
   it("uses zero-padded multipart prefixes for legacy filenames and subtitles", async () => {

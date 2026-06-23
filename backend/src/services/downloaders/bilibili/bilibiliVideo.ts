@@ -2,7 +2,7 @@ import path from "path";
 import { IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../../../config/paths";
 import { DownloadCancelledError } from "../../../errors/DownloadErrors";
 import { downloadAndProcessAvatar } from "../../../utils/avatarUtils";
-import { formatBytes } from "../../../utils/downloadUtils";
+import { formatBytes, isCancellationError } from "../../../utils/downloadUtils";
 import { formatVideoFilename } from "../../../utils/helpers";
 import { FilenameTemplateSourceOptions } from "../../filenameTemplate/types";
 import { resolveAuthorOrganizationMode } from "../../../types/settings";
@@ -724,6 +724,15 @@ export async function downloadSinglePart(
     // with generic "Bilibili User" metadata, and surface a cookie-refresh hint
     // when the failure looks like Bilibili risk control (issue #295).
     if (bilibiliInfo.error) {
+      // downloadVideo funnels cancellations through its fallback return path
+      // (its catch swallows DownloadCancelledError instead of rethrowing), so a
+      // cancelled collection part arrives here with a cancellation message.
+      // Re-check the download id first and propagate DownloadCancelledError;
+      // otherwise downloadCollection would record this as a normal failed
+      // episode and keep downloading the rest of the collection (issue #295).
+      const downloader = new BilibiliDownloaderHelper();
+      downloader.throwIfCancelledPublic(downloadId);
+
       const failureError = isLikelyBilibiliAuthFailure(bilibiliInfo.error)
         ? `${bilibiliInfo.error} — ${BILIBILI_COOKIE_REFRESH_HINT}`
         : bilibiliInfo.error;
@@ -1049,6 +1058,13 @@ export async function downloadSinglePart(
     });
     return { success: true, videoData };
   } catch (error: any) {
+    // A cancelled part must abort the whole download, not be recorded as a
+    // failed episode. downloadCollection relies on a thrown DownloadCancelledError
+    // to stop its loop, so let cancellations propagate instead of swallowing
+    // them into a { success: false } result (issue #295).
+    if (isCancellationError(error)) {
+      throw error;
+    }
     logger.error(
       `Error downloading Bilibili part ${partNumber}/${totalParts}:`,
       error
