@@ -370,3 +370,44 @@ export function prepareBilibiliDownloadFlags(
     formatSort: formatSortValue,
   };
 }
+
+/**
+ * Hint surfaced to the user when a Bilibili download fails in a way that looks
+ * like an auth / risk-control (风控) rejection rather than a generic error.
+ */
+export const BILIBILI_COOKIE_REFRESH_HINT =
+  "Bilibili rejected the request (possible risk control / expired cookie). " +
+  "Try refreshing your Bilibili cookie in Settings, then download again.";
+
+// High-signal substrings that indicate Bilibili refused the request for auth /
+// risk-control reasons (HTTP 412 + API code -352 are the classic risk-control
+// pair; -101 is "not logged in"). Kept conservative so a generic network or
+// format error does not trigger a needless backoff retry (issue #295).
+const BILIBILI_AUTH_FAILURE_SIGNATURES = [
+  "-352",
+  "-101",
+  "412",
+  "precondition failed",
+  "风控",
+  "risk control",
+  "请先登录",
+  "需要登录",
+  "account_freeze",
+  "not logged in",
+  "please log in",
+];
+
+/**
+ * Whether an error/stderr string looks like a Bilibili auth or risk-control
+ * rejection (as opposed to a generic download failure). Used to drive a single
+ * backoff retry and to surface the cookie-refresh hint (issue #295).
+ */
+export function isLikelyBilibiliAuthFailure(text?: string | null): boolean {
+  if (!text) {
+    return false;
+  }
+  const lower = text.toLowerCase();
+  return BILIBILI_AUTH_FAILURE_SIGNATURES.some((signature) =>
+    lower.includes(signature)
+  );
+}

@@ -132,14 +132,23 @@ vi.mock("../../../services/downloaders/BaseDownloader", () => ({
   },
 }));
 
-vi.mock("../../../services/downloaders/bilibili/bilibiliConfig", () => ({
-  prepareBilibiliDownloadFlags: (...args: any[]) =>
-    mocks.prepareBilibiliDownloadFlags(...args),
-  resolveResolutionPreference: (...args: any[]) =>
-    mocks.resolveResolutionPreference(...args),
-  resolveResolutionRetryTarget: (...args: any[]) =>
-    mocks.resolveResolutionRetryTarget(...args),
-}));
+vi.mock(
+  "../../../services/downloaders/bilibili/bilibiliConfig",
+  async (importOriginal) => {
+    // Keep the real, pure helpers (isLikelyBilibiliAuthFailure, the cookie hint)
+    // and override only the settings-driven functions the tests control.
+    const actual = await importOriginal<any>();
+    return {
+      ...actual,
+      prepareBilibiliDownloadFlags: (...args: any[]) =>
+        mocks.prepareBilibiliDownloadFlags(...args),
+      resolveResolutionPreference: (...args: any[]) =>
+        mocks.resolveResolutionPreference(...args),
+      resolveResolutionRetryTarget: (...args: any[]) =>
+        mocks.resolveResolutionRetryTarget(...args),
+    };
+  },
+);
 
 vi.mock("../../../services/downloaders/bilibili/bilibiliFileManager", () => ({
   cleanupFilesOnCancellation: (...args: any[]) =>
@@ -600,6 +609,50 @@ describe("bilibiliVideo.downloadSinglePart", () => {
       expect.any(String),
       expect.objectContaining({ retryFloorHeight: expect.anything() }),
     );
+  });
+
+  it("returns a failure instead of saving a record when the download fails (issue #295)", async () => {
+    // No file is produced — downloadVideo returns its fallback object with an error.
+    mocks.findVideoFileInTemp.mockReturnValue(null);
+
+    const result = await downloadSinglePart(
+      "https://www.bilibili.com/video/BV1nofile",
+      1,
+      1,
+      "",
+      "download-nofile",
+    );
+
+    expect(result.success).toBe(false);
+    expect(mocks.saveVideo).not.toHaveBeenCalled();
+    expect(mocks.organizeVideoByAuthor).not.toHaveBeenCalled();
+  });
+
+  it("surfaces a cookie-refresh hint when the download fails with a risk-control error", async () => {
+    const failing: any = Promise.reject(
+      new Error("ERROR: HTTP Error 412: Precondition Failed"),
+    );
+    // Mark the rejection handled so it is not reported as an unhandled rejection;
+    // downloadVideo attaches its own handler via `await`.
+    failing.catch(() => {});
+    failing.stdout = { on: vi.fn() };
+    failing.stderr = { on: vi.fn() };
+    failing.kill = vi.fn();
+    mocks.executeYtDlpSpawn.mockReturnValue(failing);
+    mocks.findVideoFileInTemp.mockReturnValue(null);
+
+    const result = await downloadSinglePart(
+      "https://www.bilibili.com/video/BV1risk",
+      1,
+      1,
+      "",
+      "download-risk",
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("412");
+    expect(result.error).toContain("refresh");
+    expect(mocks.saveVideo).not.toHaveBeenCalled();
   });
 
   it("uses zero-padded multipart prefixes for legacy filenames and subtitles", async () => {

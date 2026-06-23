@@ -27,6 +27,7 @@ vi.mock("../collections", () => ({
 
 vi.mock("../collectionFileManager", () => ({
   moveAllFilesToCollection: vi.fn(),
+  cleanupCollectionDirectories: vi.fn(),
 }));
 
 vi.mock("../videos", () => ({
@@ -282,6 +283,64 @@ describe("authorCollectionUtils", () => {
         videoPath: "/videos/TestAuthor/video.mp4",
       });
       expect(collections.linkVideoToCollection).not.toHaveBeenCalled();
+    });
+
+    it.each(["Bilibili User", "Bilibili User 12345"])(
+      "should not create an author folder for the unresolved author %s (issue #295 follow-up)",
+      (placeholder) => {
+        const result = organizeVideoByAuthor(
+          "vid1",
+          placeholder,
+          "author_folder_only",
+          "legacy"
+        );
+
+        expect(result).toBeNull();
+        expect(
+          collectionFileManager.moveAllFilesToCollection
+        ).not.toHaveBeenCalled();
+        expect(videos.updateVideo).not.toHaveBeenCalled();
+      }
+    );
+
+    it("should clean up the folder a video is moved out of so no empty 'Bilibili User' dir is left (issue #295 follow-up)", () => {
+      (videos.getVideoById as any).mockReturnValue({
+        id: "vid1",
+        videoFilename: "video.mp4",
+        videoPath: "/videos/Bilibili User/video.mp4",
+      });
+      (collectionFileManager.moveAllFilesToCollection as any).mockReturnValue({
+        videoPath: "/videos/RealAuthor/video.mp4",
+      });
+
+      const result = organizeVideoByAuthor(
+        "vid1",
+        "RealAuthor",
+        "author_folder_only",
+        "legacy"
+      );
+
+      expect(result).toEqual({ collection: null, filesMoved: true });
+      expect(
+        collectionFileManager.cleanupCollectionDirectories
+      ).toHaveBeenCalledWith("Bilibili User");
+    });
+
+    it("should not clean up the destination folder when the video was already at the videos root", () => {
+      (videos.getVideoById as any).mockReturnValue({
+        id: "vid1",
+        videoFilename: "video.mp4",
+        videoPath: "/videos/video.mp4",
+      });
+      (collectionFileManager.moveAllFilesToCollection as any).mockReturnValue({
+        videoPath: "/videos/RealAuthor/video.mp4",
+      });
+
+      organizeVideoByAuthor("vid1", "RealAuthor", "author_folder_only", "legacy");
+
+      expect(
+        collectionFileManager.cleanupCollectionDirectories
+      ).not.toHaveBeenCalled();
     });
 
     it("should skip folder-only organization for template-based naming when file moves are disabled", () => {

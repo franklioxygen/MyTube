@@ -6,7 +6,10 @@ import {
   usesAuthorCollectionLinking,
 } from "../../types/settings";
 import { logger } from "../../utils/logger";
-import { moveAllFilesToCollection } from "./collectionFileManager";
+import {
+  cleanupCollectionDirectories,
+  moveAllFilesToCollection,
+} from "./collectionFileManager";
 import {
   deleteCollection,
   generateUniqueCollectionName,
@@ -47,6 +50,34 @@ function isLegacyFilenameNamingValue(value?: string): boolean {
 
 function getCollectionName(collection: Collection): string {
   return collection.name || collection.title;
+}
+
+/**
+ * Placeholder author names produced when the real uploader could not be
+ * resolved (e.g. a Bilibili cookie failure during a collection download).
+ * Such videos must not get their own author folder — otherwise an empty
+ * "Bilibili User" directory is left at the storage root once the real author is
+ * resolved on a later re-download (issue #295 follow-up).
+ */
+function isUnresolvedAuthorName(authorName: string): boolean {
+  return (
+    authorName === "Unknown" ||
+    authorName === "Bilibili User" ||
+    /^Bilibili User \d+$/.test(authorName)
+  );
+}
+
+/**
+ * The managed subfolder a video currently lives in (e.g. an old author folder or
+ * a collection folder), derived from its stored web path. Returns null when the
+ * file sits directly at the videos root.
+ */
+function getCurrentVideoSubfolder(videoPath?: string): string | null {
+  if (!videoPath) {
+    return null;
+  }
+  const match = videoPath.match(/^\/videos\/([^/]+)\/[^/]+$/);
+  return match ? match[1] : null;
 }
 
 function isUuidLikeCollectionId(collectionId: string): boolean {
@@ -396,6 +427,11 @@ function moveVideoFilesToAuthorFolder(
     return false;
   }
 
+  // Remember where the files lived so we can clean up the folder they leave
+  // behind (e.g. a stale "Bilibili User" folder from a cookie-failed download
+  // that is now being re-homed under the real author — issue #295 follow-up).
+  const previousSubfolder = getCurrentVideoSubfolder(video.videoPath);
+
   const updates = moveAllFilesToCollection(
     video,
     validatedAuthorName,
@@ -410,6 +446,13 @@ function moveVideoFilesToAuthorFolder(
   logger.info("Moved video files into author folder", {
     author: validatedAuthorName,
   });
+
+  if (previousSubfolder && previousSubfolder !== validatedAuthorName) {
+    // Only removes the directory if it is now empty, so collections that still
+    // hold other videos are never touched.
+    cleanupCollectionDirectories(previousSubfolder);
+  }
+
   return true;
 }
 
@@ -545,7 +588,7 @@ export function organizeVideoByAuthor(
     return null;
   }
 
-  if (!authorName || authorName === "Unknown") {
+  if (!authorName || isUnresolvedAuthorName(authorName)) {
     return null;
   }
 

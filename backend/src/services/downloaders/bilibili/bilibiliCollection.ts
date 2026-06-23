@@ -5,6 +5,10 @@ import * as storageService from "../../storageService";
 import { Collection } from "../../storageService";
 import { resolveAuthorOrganizationMode } from "../../../types/settings";
 import { downloadSinglePart } from "./bilibiliVideo";
+import {
+  BILIBILI_COOKIE_REFRESH_HINT,
+  isLikelyBilibiliAuthFailure,
+} from "./bilibiliConfig";
 import type { FilenameTemplateSourceOptions } from "../../filenameTemplate/types";
 import {
   BilibiliAggregateDownloadResult,
@@ -13,6 +17,11 @@ import {
   BilibiliVideosResult,
   CollectionDownloadResult,
 } from "./types";
+
+// When a collection episode is rejected for what looks like Bilibili risk
+// control, wait this long before the single retry — longer than the normal
+// 2s inter-part delay to let a transient throttle clear (issue #295).
+const RISK_CONTROL_RETRY_DELAY_MS = 15000;
 
 const buildAggregateErrorMessage = (
   label: string,
@@ -504,6 +513,7 @@ export async function downloadCollection(
     logger.info(`Using MyTube collection: ${mytubeCollection.name}`);
     let downloadedCount = 0;
     const failedPartNumbers: number[] = [];
+    let sawRiskControlFailure = false;
     let firstVideo: CollectionDownloadResult["firstVideo"];
 
     // Download each video sequentially
@@ -554,20 +564,40 @@ export async function downloadCollection(
       try {
         // Download this video
         const collectionName = mytubeCollection.name || mytubeCollection.title;
-        const result = await downloadSinglePart(
-          videoUrl,
-          videoNumber,
-          videos.length,
-          title || "Collection",
-          downloadId,
-          onStart,
-          collectionName, // collectionName
-          {
-            sourceCollectionName: collectionName || title || "Collection",
-            sourceCollectionType: "playlist",
-            mediaPlaylistIndex: videoNumber,
-          } // filenameTemplateSourceOptions
-        );
+        const sourceOptions: FilenameTemplateSourceOptions = {
+          sourceCollectionName: collectionName || title || "Collection",
+          sourceCollectionType: "playlist",
+          mediaPlaylistIndex: videoNumber,
+        };
+        const downloadPart = () =>
+          downloadSinglePart(
+            videoUrl,
+            videoNumber,
+            videos.length,
+            title || "Collection",
+            downloadId,
+            onStart,
+            collectionName, // collectionName
+            sourceOptions, // filenameTemplateSourceOptions
+          );
+
+        let result = await downloadPart();
+
+        // Bilibili sometimes rejects individual episodes mid-collection for risk
+        // control even with a valid cookie. Back off once and retry the part
+        // before marking it failed (issue #295). Cancellations throw rather than
+        // returning a failure result, so they are never retried here.
+        if (!result.success && isLikelyBilibiliAuthFailure(result.error)) {
+          logger.warn(
+            `Video ${videoNumber}/${videos.length} hit a possible Bilibili risk-control/cookie rejection; ` +
+              `backing off ${RISK_CONTROL_RETRY_DELAY_MS / 1000}s and retrying once. ` +
+              `If episodes keep failing, refresh your Bilibili cookie and re-download.`,
+          );
+          await new Promise((resolve) =>
+            setTimeout(resolve, RISK_CONTROL_RETRY_DELAY_MS),
+          );
+          result = await downloadPart();
+        }
 
         // If download was successful, add to collection
         if (result.success && result.videoData) {
@@ -597,6 +627,9 @@ export async function downloadCollection(
           );
         } else {
           failedPartNumbers.push(videoNumber);
+          if (isLikelyBilibiliAuthFailure(result.error)) {
+            sawRiskControlFailure = true;
+          }
           if (retryCollectionMetadata) {
             retryCollectionMetadata.failedVideoBvids = Array.from(
               new Set([
@@ -654,13 +687,16 @@ export async function downloadCollection(
     const partial =
       failedPartNumbers.length > 0 && downloadedCount + skippedCount > 0;
     const success = failedPartNumbers.length === 0;
-    const error = buildAggregateErrorMessage(
+    let error = buildAggregateErrorMessage(
       "collection",
       videos.length,
       downloadedCount,
       skippedCount,
       failedPartNumbers,
     );
+    if (error && sawRiskControlFailure) {
+      error = `${error}. ${BILIBILI_COOKIE_REFRESH_HINT}`;
+    }
 
     return {
       success,

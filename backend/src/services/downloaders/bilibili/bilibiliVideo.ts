@@ -38,6 +38,8 @@ import {
 import { BaseDownloader } from "../BaseDownloader";
 import { buildManagedThumbnailWebPath } from "../thumbnailPathUtils";
 import {
+  BILIBILI_COOKIE_REFRESH_HINT,
+  isLikelyBilibiliAuthFailure,
   prepareBilibiliDownloadFlags,
   resolveResolutionPreference,
   resolveResolutionRetryTarget,
@@ -700,6 +702,20 @@ export async function downloadSinglePart(
 
     if (!bilibiliInfo) {
       throw new Error("Failed to get Bilibili video info");
+    }
+
+    // downloadVideo only returns its fallback object (error set, no usable file)
+    // when the download genuinely failed. Stop here rather than saving a record
+    // with generic "Bilibili User" metadata, and surface a cookie-refresh hint
+    // when the failure looks like Bilibili risk control (issue #295).
+    if (bilibiliInfo.error) {
+      const failureError = isLikelyBilibiliAuthFailure(bilibiliInfo.error)
+        ? `${bilibiliInfo.error} — ${BILIBILI_COOKIE_REFRESH_HINT}`
+        : bilibiliInfo.error;
+      logger.error(
+        `Bilibili download failed for ${url}: ${failureError}`
+      );
+      return { success: false, error: failureError };
     }
 
     logger.info("Bilibili download info:", bilibiliInfo);

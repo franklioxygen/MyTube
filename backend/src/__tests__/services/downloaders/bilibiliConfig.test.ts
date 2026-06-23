@@ -24,6 +24,7 @@ vi.mock('../../../utils/logger', () => ({
 }));
 
 import {
+  isLikelyBilibiliAuthFailure,
   prepareBilibiliDownloadFlags,
   resolveResolutionRetryTarget,
 } from '../../../services/downloaders/bilibili/bilibiliConfig';
@@ -486,5 +487,28 @@ describe('resolveResolutionRetryTarget', () => {
         1080, 2160,
       ])
     ).toBeNull();
+  });
+});
+
+describe('isLikelyBilibiliAuthFailure', () => {
+  it.each([
+    'ERROR: HTTP Error 412: Precondition Failed',
+    'bilibili API error code -352',
+    'code -101 (not logged in)',
+    '请先登录后再试',
+    'request blocked by risk control',
+  ])('treats %s as an auth/risk-control failure', (message) => {
+    expect(isLikelyBilibiliAuthFailure(message)).toBe(true);
+  });
+
+  it.each([
+    'network error',
+    'Requested format is not available',
+    'Connection timed out',
+    '',
+    undefined,
+    null,
+  ])('treats %s as a generic failure', (message) => {
+    expect(isLikelyBilibiliAuthFailure(message as any)).toBe(false);
   });
 });

@@ -423,4 +423,103 @@ describe("bilibiliCollection.downloadCollection", () => {
 
     expect(mocks.cleanupCollectionDirectories).not.toHaveBeenCalled();
   });
+
+  it("retries an episode once after a Bilibili risk-control rejection (issue #295)", async () => {
+    vi.useFakeTimers();
+    try {
+      mocks.axiosGet.mockResolvedValue({
+        data: {
+          data: {
+            archives: [{ bvid: "BV1", title: "Episode 1", aid: 1 }],
+            page: { total: 1 },
+          },
+        },
+      });
+      mocks.getCollectionById.mockReturnValue(undefined);
+      mocks.getVideoBySourceUrl.mockReturnValue(undefined);
+      mocks.downloadSinglePart
+        .mockResolvedValueOnce({
+          success: false,
+          error: "ERROR: HTTP Error 412: Precondition Failed (-352)",
+        })
+        .mockResolvedValueOnce({ success: true, videoData: { id: "video-1" } });
+
+      const promise = downloadCollection(
+        { success: true, type: "collection", id: 42, mid: 9, title: "Series" },
+        "Series",
+        "download-riskretry",
+      );
+      await vi.runAllTimersAsync();
+      const result = await promise;
+
+      // Initial attempt + exactly one backoff retry.
+      expect(mocks.downloadSinglePart).toHaveBeenCalledTimes(2);
+      expect(result.success).toBe(true);
+      expect(result.downloadedCount).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("surfaces a cookie-refresh hint when an episode keeps failing risk control", async () => {
+    vi.useFakeTimers();
+    try {
+      mocks.axiosGet.mockResolvedValue({
+        data: {
+          data: {
+            archives: [{ bvid: "BV1", title: "Episode 1", aid: 1 }],
+            page: { total: 1 },
+          },
+        },
+      });
+      mocks.getCollectionById.mockReturnValue(undefined);
+      mocks.getVideoBySourceUrl.mockReturnValue(undefined);
+      mocks.downloadSinglePart.mockResolvedValue({
+        success: false,
+        error: "请先登录 (-101)",
+      });
+
+      const promise = downloadCollection(
+        { success: true, type: "collection", id: 42, mid: 9, title: "Series" },
+        "Series",
+        "download-riskhint",
+      );
+      await vi.runAllTimersAsync();
+      const result = await promise;
+
+      // Initial attempt + one retry, then it gives up and surfaces the hint.
+      expect(mocks.downloadSinglePart).toHaveBeenCalledTimes(2);
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("refresh");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not retry a generic (non-risk-control) failure", async () => {
+    mocks.axiosGet.mockResolvedValue({
+      data: {
+        data: {
+          archives: [{ bvid: "BV1", title: "Episode 1", aid: 1 }],
+          page: { total: 1 },
+        },
+      },
+    });
+    mocks.getCollectionById.mockReturnValue(undefined);
+    mocks.getVideoBySourceUrl.mockReturnValue(undefined);
+    mocks.downloadSinglePart.mockResolvedValue({
+      success: false,
+      error: "network error",
+    });
+
+    const result = await downloadCollection(
+      { success: true, type: "collection", id: 42, mid: 9, title: "Series" },
+      "Series",
+      "download-generic-fail",
+    );
+
+    expect(mocks.downloadSinglePart).toHaveBeenCalledTimes(1);
+    expect(result.success).toBe(false);
+    expect(result.error ?? "").not.toContain("refresh");
+  });
 });
