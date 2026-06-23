@@ -510,6 +510,23 @@ export class MissAVDownloader extends BaseDownloader {
           }
         });
 
+        // Telemetry: record the status the browser gets for each m3u8 response
+        // (plus Cloudflare markers). When a download later 403s, this line shows
+        // whether the CDN still serves the browser — distinguishing a yt-dlp/
+        // impersonation regression from the CDN blocking this host outright.
+        page.on("response", (response) => {
+          const resUrl = response.url();
+          if (!isM3u8(resUrl)) return;
+          const headers = response.headers();
+          logger.info(
+            `[MissAV m3u8 probe] status=${response.status()} ` +
+              `cf-mitigated=${headers["cf-mitigated"] ?? "none"} ` +
+              `cf-ray=${headers["cf-ray"] ?? "none"} ` +
+              `server=${headers["server"] ?? "?"} ` +
+              `set-cookie=${headers["set-cookie"] ? "yes" : "no"} ${resUrl}`,
+          );
+        });
+
         await navigateMissAvPage(page, safeNavigationUrl);
 
         // Extra wait is created AFTER networkidle2, so the full 20 s budget
@@ -807,10 +824,22 @@ export class MissAVDownloader extends BaseDownloader {
         output: newVideoPath,
         format: downloadFormat,
         mergeOutputFormat: mergeOutputFormat,
-        addHeader: [
-          `Referer:${referer}`,
-          `User-Agent:${MISSAV_BROWSER_USER_AGENT}`,
-        ],
+        // The m3u8 host (e.g. surrit.com) sits behind Cloudflare bot management
+        // that fingerprints the TLS/JA3 handshake; a default yt-dlp request gets
+        // a 403. Route every request through curl_cffi browser impersonation so
+        // the handshake matches a real browser (curl-cffi is bundled in the
+        // backend image, so no extra runtime dependency is needed).
+        //
+        // IMPORTANT: this must be the GLOBAL `--impersonate` flag, not the
+        // `--extractor-args generic:impersonate` arg that yt-dlp's own error
+        // message suggests. The extractor-arg only impersonates the initial
+        // webpage fetch; the m3u8 manifest (and segment) downloads still go out
+        // with the default fingerprint and 403. The global flag impersonates the
+        // whole session. Verified directly against surrit.com from the deployment
+        // environment: `--impersonate chrome` succeeds where the extractor-arg
+        // returns 403. Referer is the only extra header the CDN needs.
+        impersonate: "chrome",
+        addHeader: [`Referer:${referer}`],
       };
 
       // Apply format sort if user specified it
