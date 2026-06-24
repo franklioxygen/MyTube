@@ -6,7 +6,11 @@ import { formatBytes, isCancellationError } from "../../../utils/downloadUtils";
 import { formatVideoFilename } from "../../../utils/helpers";
 import { FilenameTemplateSourceOptions } from "../../filenameTemplate/types";
 import { resolveAuthorOrganizationMode } from "../../../types/settings";
-import { logger } from "../../../utils/logger";
+import {
+  logger,
+  redactSensitive,
+  sanitizeLogMessage,
+} from "../../../utils/logger";
 import { ProgressTracker } from "../../../utils/progressTracker";
 import {
   pathExistsSafeSync,
@@ -182,6 +186,38 @@ function extractAvailableHeights(
   return heights;
 }
 
+const USER_VISIBLE_YTDLP_FAILURE_LIMIT = 500;
+
+function redactYtDlpFailureDetail(value: string): string {
+  const redacted = value
+    .replace(
+      /\b(cookie|set-cookie|authorization)\s*[:=]\s*[^\r\n]+/gi,
+      "$1=[REDACTED]",
+    )
+    .replace(
+      /\b(SESSDATA|bili_jct|DedeUserID|DedeUserID__ckMd5|buvid3|buvid4|sid)=([^;\s]+)/gi,
+      "$1=[REDACTED]",
+    )
+    .replace(
+      /([?&](?:access_token|token|api[_-]?key|apikey|key|signature|sig|auth|authorization|X-Amz-Signature|X-Amz-Credential|Policy)=)[^&\s]+/gi,
+      "$1[REDACTED]",
+    )
+    .replace(/([a-z][a-z0-9+.-]*:\/\/)[^/\s:@]+:[^/\s@]+@/gi, "$1[REDACTED]@")
+    .replace(/\b(?:\/Users|\/home|\/var|\/tmp|\/private)\/[^\s)]+/g, "[local path redacted]")
+    .replace(/\b[A-Za-z]:\\[^\s)]+/g, "[local path redacted]");
+
+  return redactSensitive(redacted);
+}
+
+function toUserVisibleYtDlpFailureDetail(value: string): string {
+  const redacted = sanitizeLogMessage(redactYtDlpFailureDetail(value.trim()));
+  if (redacted.length <= USER_VISIBLE_YTDLP_FAILURE_LIMIT) {
+    return redacted;
+  }
+
+  return `${redacted.slice(0, USER_VISIBLE_YTDLP_FAILURE_LIMIT)}... [truncated]`;
+}
+
 function formatYtDlpFailureMessage(error: unknown): string {
   const message =
     typeof (error as { message?: unknown })?.message === "string"
@@ -192,11 +228,21 @@ function formatYtDlpFailureMessage(error: unknown): string {
       ? (error as { stderr: string }).stderr.trim()
       : "";
 
+  const rawFailure = [message, stderr].filter(Boolean).join("\n");
+  const authSignal =
+    rawFailure && isLikelyBilibiliAuthFailure(rawFailure)
+      ? "Bilibili risk control/auth failure detected."
+      : "";
+  const formatDetail = (value: string) =>
+    toUserVisibleYtDlpFailureDetail(
+      authSignal ? `${value}\n${authSignal}` : value,
+    );
+
   if (message && stderr && message !== stderr && !message.includes(stderr)) {
-    return `${message}\nstderr: ${stderr}`;
+    return `${formatDetail(message)} stderr: ${formatDetail(stderr)}`;
   }
 
-  return message || stderr || "Unknown error";
+  return message || stderr ? formatDetail(message || stderr) : "Unknown error";
 }
 
 /**

@@ -74,9 +74,13 @@ vi.mock("../../../utils/avatarUtils", () => ({
     mocks.downloadAndProcessAvatar(...args),
 }));
 
-vi.mock("../../../utils/logger", () => ({
-  logger: mocks.logger,
-}));
+vi.mock("../../../utils/logger", async (importOriginal) => {
+  const actual = await importOriginal<any>();
+  return {
+    ...actual,
+    logger: mocks.logger,
+  };
+});
 
 vi.mock("../../../utils/ytDlpUtils", () => {
   class InvalidProxyError extends Error {}
@@ -636,8 +640,13 @@ describe("bilibiliVideo.downloadSinglePart", () => {
 
   it("surfaces a cookie-refresh hint when the download fails with a risk-control error", async () => {
     const ytDlpError = new Error("yt-dlp process exited with code 1");
-    (ytDlpError as any).stderr =
-      "ERROR: HTTP Error 412: Precondition Failed (-352)";
+    (ytDlpError as any).stderr = [
+      "ERROR: HTTP Error 412: Precondition Failed (-352)",
+      "Cookie: SESSDATA=very-secret; bili_jct=csrf-secret",
+      "authorization=Bearer abc123",
+      "https://user:pass@example.com/video?token=rawtoken",
+      "/Users/franklioxygen/private/cookies.txt",
+    ].join("\n");
     const failing: any = Promise.reject(ytDlpError);
     // Mark the rejection handled so it is not reported as an unhandled rejection;
     // downloadVideo attaches its own handler via `await`.
@@ -660,6 +669,12 @@ describe("bilibiliVideo.downloadSinglePart", () => {
     expect(result.error).toContain("yt-dlp process exited with code 1");
     expect(result.error).toContain("412");
     expect(result.error).toContain("refresh");
+    expect(result.error).not.toContain("very-secret");
+    expect(result.error).not.toContain("csrf-secret");
+    expect(result.error).not.toContain("abc123");
+    expect(result.error).not.toContain("user:pass");
+    expect(result.error).not.toContain("rawtoken");
+    expect(result.error).not.toContain("/Users/franklioxygen");
     expect(mocks.saveVideo).not.toHaveBeenCalled();
   });
 
