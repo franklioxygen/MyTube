@@ -5,6 +5,14 @@ import * as storageService from "../services/storageService";
 import { getStringParam } from "../utils/paramUtils";
 import { logger } from "../utils/logger";
 
+declare global {
+  namespace Express {
+    interface Request {
+      rssTokenRole?: storageService.VideoCallerRole;
+    }
+  }
+}
+
 // Cookie/query key that carries an RSS feed token so media URLs emitted by the
 // RSS feed (which have no session cookie) can still authenticate against the
 // media routes when login is enabled. The token id is already the feed's
@@ -64,17 +72,19 @@ export const requireAuthenticatedMediaAccess = async (
     return;
   }
 
-  if (req.user || req.apiKeyAuthenticated === true) {
+  if (req.user?.role === "admin" || req.apiKeyAuthenticated === true) {
     next();
     return;
   }
 
-  // RSS readers don't carry a session cookie; allow a feed token.
+  // RSS readers don't carry a session cookie; allow a feed token and preserve
+  // its role so admin RSS feeds can resolve hidden media URLs they emit.
   const rssTokenId = getRssTokenFromRequest(req);
   if (rssTokenId) {
     try {
       const token = await getRssToken(rssTokenId);
       if (token?.isActive) {
+        req.rssTokenRole = token.role;
         next();
         return;
       }
@@ -83,6 +93,11 @@ export const requireAuthenticatedMediaAccess = async (
         error: error instanceof Error ? error.message : String(error),
       });
     }
+  }
+
+  if (req.user) {
+    next();
+    return;
   }
 
   res.status(401).json({
@@ -100,7 +115,8 @@ type MediaKind =
   | "images-small"
   | "subtitles"
   | "cloud-video"
-  | "cloud-image";
+  | "cloud-image"
+  | "cloud-thumbnail-cache";
 
 const safeDecode = (value: string): string => {
   try {
@@ -126,7 +142,8 @@ const classifyMediaRequest = (
     case "images-small": {
       // Small thumbnails mirror the original thumbnail, which may live under
       // either /images or /videos. Check both candidate originals.
-      const sub = safeDecode(req.path);
+      const wildcardPath = getStringParam(req.params["0"]);
+      const sub = safeDecode(wildcardPath ? `/${wildcardPath}` : req.path);
       return storageService.classifyMediaVisibility({
         exactPaths: [`/images${sub}`, `/videos${sub}`],
       });
@@ -142,6 +159,10 @@ const classifyMediaRequest = (
         exactPaths: [`cloud:${filename}`],
       });
     }
+    case "cloud-thumbnail-cache":
+      return storageService.classifyMediaVisibility({
+        cloudThumbnailCacheKeys: [safeDecode(req.path)],
+      });
     default:
       return "unknown";
   }
@@ -172,7 +193,11 @@ export const requireVisibleMediaForVisitors =
 
     // Admins and API-key automation (admin-configured owner access) may always
     // reach hidden media.
-    if (req.user?.role === "admin" || req.apiKeyAuthenticated === true) {
+    if (
+      req.user?.role === "admin" ||
+      req.rssTokenRole === "admin" ||
+      req.apiKeyAuthenticated === true
+    ) {
       next();
       return;
     }

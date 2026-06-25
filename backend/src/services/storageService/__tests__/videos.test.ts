@@ -1,4 +1,5 @@
 import fs from "fs-extra";
+import crypto from "crypto";
 import path from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AVATARS_DIR, IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../../../config/paths";
@@ -723,6 +724,19 @@ describe("storageService videos", () => {
       return allMock;
     };
 
+    const cacheKeyFor = (cloudPath: string) =>
+      `${crypto.createHash("sha256").update(cloudPath).digest("hex")}.jpg`;
+
+    const mockCachedCloudThumbnailRows = (rows: any[]) => {
+      const allMock = vi.fn().mockReturnValue(rows);
+      vi.mocked(db.select).mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({ all: allMock }),
+        }),
+      } as any);
+      return allMock;
+    };
+
     it("returns 'unknown' when no candidate paths are supplied", () => {
       expect(classifyMediaVisibility({})).toBe("unknown");
     });
@@ -755,6 +769,41 @@ describe("storageService videos", () => {
       expect(
         classifyMediaVisibility({ exactPaths: ["/videos/secret.mp4"] })
       ).toBe("hidden");
+    });
+
+    it("classifies cloud thumbnail cache keys by matching cloud thumbnail paths", () => {
+      const key = cacheKeyFor("cloud:secret-thumb.jpg");
+      mockCachedCloudThumbnailRows([
+        { thumbnailPath: "cloud:secret-thumb.jpg", visibility: 0 },
+        { thumbnailPath: "cloud:public-thumb.jpg", visibility: 1 },
+      ]);
+
+      expect(
+        classifyMediaVisibility({ cloudThumbnailCacheKeys: [`/${key}`] })
+      ).toBe("hidden");
+    });
+
+    it("treats a cached cloud thumbnail as public when any matching video is public", () => {
+      const key = cacheKeyFor("cloud:shared-thumb.jpg");
+      mockCachedCloudThumbnailRows([
+        { thumbnailPath: "cloud:shared-thumb.jpg", visibility: 0 },
+        { thumbnailPath: "cloud:shared-thumb.jpg", visibility: 1 },
+      ]);
+
+      expect(
+        classifyMediaVisibility({ cloudThumbnailCacheKeys: [key] })
+      ).toBe("public");
+    });
+
+    it("returns 'unknown' for cached cloud thumbnails with no matching video", () => {
+      const key = cacheKeyFor("cloud:orphan-thumb.jpg");
+      mockCachedCloudThumbnailRows([
+        { thumbnailPath: "cloud:other-thumb.jpg", visibility: 0 },
+      ]);
+
+      expect(
+        classifyMediaVisibility({ cloudThumbnailCacheKeys: [key] })
+      ).toBe("unknown");
     });
   });
 

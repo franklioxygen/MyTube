@@ -137,14 +137,15 @@ describe("server/staticRoutes", () => {
     // avatars, api/cloud/thumbnail-cache, subtitles) and must carry the two auth
     // middlewares (authMiddleware + requireAuthenticatedMediaAccess) before the
     // static result. Per-video media (videos/images/images-small/subtitles) also
-    // carries the requireVisibleMediaForVisitors guard; avatars and the cloud
-    // thumbnail cache are not per-video so they keep just the auth stack.
+    // carries the requireVisibleMediaForVisitors guard. The cloud thumbnail cache
+    // also carries the guard because cache filenames map back to cloud thumbnail
+    // paths. Avatars keep just the auth stack.
     const mediaPaths: Array<{ path: string; hasVisibilityGuard: boolean }> = [
       { path: "/videos", hasVisibilityGuard: true },
       { path: "/images", hasVisibilityGuard: true },
       { path: "/images-small", hasVisibilityGuard: true },
       { path: "/avatars", hasVisibilityGuard: false },
-      { path: "/api/cloud/thumbnail-cache", hasVisibilityGuard: false },
+      { path: "/api/cloud/thumbnail-cache", hasVisibilityGuard: true },
       { path: "/subtitles", hasVisibilityGuard: true },
     ];
     mediaPaths.forEach(({ path: expectedPath, hasVisibilityGuard }, index) => {

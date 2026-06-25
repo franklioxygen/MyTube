@@ -210,6 +210,7 @@ export const registerStaticRoutes = (
   app.use(
     "/api/cloud/thumbnail-cache",
     ...mediaAuthStack,
+    requireVisibleMediaForVisitors("cloud-thumbnail-cache"),
     express.static(CLOUD_THUMBNAIL_CACHE_DIR, {
       fallthrough: false,
     })

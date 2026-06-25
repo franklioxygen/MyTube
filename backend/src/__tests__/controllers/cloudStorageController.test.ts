@@ -18,11 +18,15 @@ import {
   getVideos,
   isCloudFileVisibleToVisitor,
 } from "../../services/storageService";
+import { isLoginRequired } from "../../services/passwordService";
 import { logger } from "../../utils/logger";
 
 vi.mock("../../services/storageService", () => ({
   getVideos: vi.fn(),
   isCloudFileVisibleToVisitor: vi.fn(() => true),
+}));
+vi.mock("../../services/passwordService", () => ({
+  isLoginRequired: vi.fn(() => true),
 }));
 vi.mock("../../services/CloudStorageService", () => ({
   CloudStorageService: {
@@ -74,6 +78,8 @@ describe("cloudStorageController", () => {
       end: endMock,
     };
     vi.mocked(resolveAbsolutePath).mockReturnValue(null);
+    vi.mocked(isLoginRequired).mockReturnValue(true);
+    vi.mocked(isCloudFileVisibleToVisitor).mockReturnValue(true);
   });
 
   describe("getSignedUrl", () => {
@@ -104,6 +110,25 @@ describe("cloudStorageController", () => {
         expect.objectContaining({ success: false })
       );
       expect(CloudStorageService.getSignedUrl).not.toHaveBeenCalled();
+    });
+
+    it("should ignore stale visitor roles when login is disabled", async () => {
+      req.query = { filename: "secret.mp4", type: "video" };
+      req.user = { role: "visitor" } as any;
+      vi.mocked(isLoginRequired).mockReturnValue(false);
+      vi.mocked(isCloudFileVisibleToVisitor).mockReturnValue(false);
+      (CloudStorageService.getSignedUrl as any).mockResolvedValue(
+        "https://signed.example/secret.mp4"
+      );
+
+      await getSignedUrl(req as Request, res as Response);
+
+      expect(isCloudFileVisibleToVisitor).not.toHaveBeenCalled();
+      expect(CloudStorageService.getSignedUrl).toHaveBeenCalledWith(
+        "secret.mp4",
+        "video"
+      );
+      expect(statusMock).toHaveBeenCalledWith(200);
     });
 
     it("should let a visitor fetch a public cloud file", async () => {

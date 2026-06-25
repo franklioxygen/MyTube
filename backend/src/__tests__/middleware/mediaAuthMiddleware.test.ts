@@ -90,33 +90,54 @@ describe("middleware/mediaAuthMiddleware", () => {
 
   it("allows access with a valid, active RSS token query param", async () => {
     isLoginRequiredMock.mockReturnValue(true);
-    getRssTokenMock.mockResolvedValue({ isActive: true });
+    getRssTokenMock.mockResolvedValue({ isActive: true, role: "visitor" });
     const next = vi.fn();
+    const req = createReq({
+      query: { rss: "550e8400-e29b-41d4-a716-446655440000" },
+    } as any);
     await requireAuthenticatedMediaAccess(
-      createReq({ query: { rss: "550e8400-e29b-41d4-a716-446655440000" } } as any),
+      req,
       createRes(),
       next as any
     );
     expect(getRssTokenMock).toHaveBeenCalledWith(
       "550e8400-e29b-41d4-a716-446655440000"
     );
+    expect(req.rssTokenRole).toBe("visitor");
     expect(next).toHaveBeenCalledTimes(1);
   });
 
   it("allows access with a valid RSS token cookie", async () => {
     isLoginRequiredMock.mockReturnValue(true);
-    getRssTokenMock.mockResolvedValue({ isActive: true });
+    getRssTokenMock.mockResolvedValue({ isActive: true, role: "admin" });
     const next = vi.fn();
+    const req = createReq({
+      cookies: { mytube_rss_token: "550e8400-e29b-41d4-a716-446655440000" },
+    } as any);
     await requireAuthenticatedMediaAccess(
-      createReq({
-        cookies: { mytube_rss_token: "550e8400-e29b-41d4-a716-446655440000" },
-      } as any),
+      req,
       createRes(),
       next as any
     );
     expect(getRssTokenMock).toHaveBeenCalledWith(
       "550e8400-e29b-41d4-a716-446655440000"
     );
+    expect(req.rssTokenRole).toBe("admin");
+    expect(next).toHaveBeenCalledTimes(1);
+  });
+
+  it("lets a valid admin RSS token override a stale visitor session", async () => {
+    isLoginRequiredMock.mockReturnValue(true);
+    getRssTokenMock.mockResolvedValue({ isActive: true, role: "admin" });
+    const next = vi.fn();
+    const req = createReq({
+      user: { role: "visitor" },
+      query: { rss: "550e8400-e29b-41d4-a716-446655440000" },
+    } as any);
+
+    await requireAuthenticatedMediaAccess(req, createRes(), next as any);
+
+    expect(req.rssTokenRole).toBe("admin");
     expect(next).toHaveBeenCalledTimes(1);
   });
 
@@ -227,6 +248,18 @@ describe("middleware/requireVisibleMediaForVisitors", () => {
     expect(classifyMediaVisibilityMock).not.toHaveBeenCalled();
   });
 
+  it("lets admin RSS tokens reach hidden media without classifying", () => {
+    isLoginRequiredMock.mockReturnValue(true);
+    const next = vi.fn();
+    requireVisibleMediaForVisitors("videos")(
+      createReq({ rssTokenRole: "admin" } as any),
+      createRes(),
+      next
+    );
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(classifyMediaVisibilityMock).not.toHaveBeenCalled();
+  });
+
   it("404s a visitor requesting media that belongs solely to a hidden video", () => {
     isLoginRequiredMock.mockReturnValue(true);
     classifyMediaVisibilityMock.mockReturnValue("hidden");
@@ -286,6 +319,41 @@ describe("middleware/requireVisibleMediaForVisitors", () => {
     expect(classifyMediaVisibilityMock).toHaveBeenCalledWith({
       exactPaths: ["/images/poster.jpg", "/videos/poster.jpg"],
     });
+  });
+
+  it("uses the wildcard-relative path for explicit images-small routes", () => {
+    isLoginRequiredMock.mockReturnValue(true);
+    classifyMediaVisibilityMock.mockReturnValue("public");
+    requireVisibleMediaForVisitors("images-small")(
+      createReq({
+        user: { role: "visitor" } as any,
+        path: "/images-small/poster.jpg",
+        params: { 0: "poster.jpg" },
+      } as any),
+      createRes(),
+      vi.fn()
+    );
+    expect(classifyMediaVisibilityMock).toHaveBeenCalledWith({
+      exactPaths: ["/images/poster.jpg", "/videos/poster.jpg"],
+    });
+  });
+
+  it("classifies cloud thumbnail cache routes by cache filename", () => {
+    isLoginRequiredMock.mockReturnValue(true);
+    classifyMediaVisibilityMock.mockReturnValue("hidden");
+    const res = createRes();
+    requireVisibleMediaForVisitors("cloud-thumbnail-cache")(
+      createReq({
+        user: { role: "visitor" } as any,
+        path: "/abc123.jpg",
+      }),
+      res,
+      vi.fn()
+    );
+    expect(classifyMediaVisibilityMock).toHaveBeenCalledWith({
+      cloudThumbnailCacheKeys: ["/abc123.jpg"],
+    });
+    expect(res.status).toHaveBeenCalledWith(404);
   });
 
   it("classifies cloud routes by the cloud: filename param", () => {

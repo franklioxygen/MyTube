@@ -1,4 +1,5 @@
 import { and, desc, eq, or, sql, type SQL } from "drizzle-orm";
+import crypto from "crypto";
 import path from "path";
 import {
     AVATARS_DIR,
@@ -150,6 +151,42 @@ export type MediaVisibility = "public" | "hidden" | "unknown";
 const escapeLikePattern = (value: string): string =>
   value.replace(/[\\%_]/g, "\\$&");
 
+const CLOUD_THUMBNAIL_CACHE_KEY_PATTERN = /^[a-f0-9]{64}\.jpg$/;
+
+const normalizeCloudThumbnailCacheKey = (value: string): string | null => {
+  const key = path.posix.basename(value).toLowerCase();
+  return CLOUD_THUMBNAIL_CACHE_KEY_PATTERN.test(key) ? key : null;
+};
+
+const getCloudThumbnailCacheKey = (cloudPath: string): string =>
+  `${crypto.createHash("sha256").update(cloudPath).digest("hex")}.jpg`;
+
+const getCachedCloudThumbnailVisibilityRows = (
+  cacheKeys: Set<string>
+): Array<{ visibility: number | null }> => {
+  if (cacheKeys.size === 0) {
+    return [];
+  }
+
+  const rows = db
+    .select({
+      thumbnailPath: videos.thumbnailPath,
+      visibility: videos.visibility,
+    })
+    .from(videos)
+    .where(sql`${videos.thumbnailPath} LIKE ${"cloud:%"}`)
+    .all();
+
+  return rows
+    .filter((row) => {
+      if (!row.thumbnailPath) {
+        return false;
+      }
+      return cacheKeys.has(getCloudThumbnailCacheKey(row.thumbnailPath));
+    })
+    .map((row) => ({ visibility: row.visibility }));
+};
+
 /**
  * Classify a piece of static media by the visibility of the video(s) that
  * reference it. Used as defense-in-depth on the static/cloud media routes
@@ -159,6 +196,9 @@ const escapeLikePattern = (value: string): string =>
  *
  * - `exactPaths` are matched against `videoPath`/`thumbnailPath`.
  * - `subtitlePaths` are matched against entries inside the `subtitles` JSON.
+ * - `cloudThumbnailCacheKeys` are matched by recomputing the stable cache key
+ *   for cloud thumbnail paths, which lets the static cache route enforce the
+ *   same visibility rule even though its URL only contains a hash filename.
  *
  * Returns "public" if any referencing video is visible, "hidden" if every
  * referencing video is hidden, and "unknown" if no video references the media
@@ -167,8 +207,14 @@ const escapeLikePattern = (value: string): string =>
 export function classifyMediaVisibility(opts: {
   exactPaths?: string[];
   subtitlePaths?: string[];
+  cloudThumbnailCacheKeys?: string[];
 }): MediaVisibility {
   const conditions: SQL[] = [];
+  const cloudThumbnailCacheKeys = new Set(
+    (opts.cloudThumbnailCacheKeys ?? [])
+      .map(normalizeCloudThumbnailCacheKey)
+      .filter((key): key is string => key != null)
+  );
 
   for (const candidate of opts.exactPaths ?? []) {
     if (!candidate) continue;
@@ -182,16 +228,21 @@ export function classifyMediaVisibility(opts: {
     conditions.push(sql`${videos.subtitles} LIKE ${pattern} ESCAPE '\\'`);
   }
 
-  if (conditions.length === 0) {
+  if (conditions.length === 0 && cloudThumbnailCacheKeys.size === 0) {
     return "unknown";
   }
 
   try {
-    const rows = db
-      .select({ visibility: videos.visibility })
-      .from(videos)
-      .where(or(...conditions))
-      .all();
+    const rows: Array<{ visibility: number | null }> =
+      conditions.length > 0
+        ? db
+            .select({ visibility: videos.visibility })
+            .from(videos)
+            .where(or(...conditions))
+            .all()
+        : [];
+
+    rows.push(...getCachedCloudThumbnailVisibilityRows(cloudThumbnailCacheKeys));
 
     if (rows.length === 0) {
       return "unknown";
