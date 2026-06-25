@@ -755,6 +755,13 @@ describe("storageService videos", () => {
       ).toBe("hidden");
     });
 
+    it("checks legacy thumbnailUrl values for exact media paths", () => {
+      mockClassifyRows([{ visibility: 0 }]);
+      expect(
+        classifyMediaVisibility({ exactPaths: ["/images/legacy-secret.jpg"] })
+      ).toBe("hidden");
+    });
+
     it("returns 'public' when any referencing video is visible (shared thumbnail)", () => {
       mockClassifyRows([{ visibility: 0 }, { visibility: 1 }]);
       expect(
@@ -804,6 +811,21 @@ describe("storageService videos", () => {
       expect(
         classifyMediaVisibility({ cloudThumbnailCacheKeys: [key] })
       ).toBe("unknown");
+    });
+
+    it("classifies cached cloud thumbnails from legacy thumbnailUrl values", () => {
+      const key = cacheKeyFor("cloud:legacy-secret-thumb.jpg");
+      mockCachedCloudThumbnailRows([
+        {
+          thumbnailPath: null,
+          thumbnailUrl: "cloud:legacy-secret-thumb.jpg",
+          visibility: 0,
+        },
+      ]);
+
+      expect(
+        classifyMediaVisibility({ cloudThumbnailCacheKeys: [key] })
+      ).toBe("hidden");
     });
   });
 

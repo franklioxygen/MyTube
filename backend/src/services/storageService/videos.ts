@@ -171,18 +171,26 @@ const getCachedCloudThumbnailVisibilityRows = (
   const rows = db
     .select({
       thumbnailPath: videos.thumbnailPath,
+      thumbnailUrl: videos.thumbnailUrl,
       visibility: videos.visibility,
     })
     .from(videos)
-    .where(sql`${videos.thumbnailPath} LIKE ${"cloud:%"}`)
+    .where(
+      or(
+        sql`${videos.thumbnailPath} LIKE ${"cloud:%"}`,
+        sql`${videos.thumbnailUrl} LIKE ${"cloud:%"}`
+      )
+    )
     .all();
 
   return rows
     .filter((row) => {
-      if (!row.thumbnailPath) {
-        return false;
-      }
-      return cacheKeys.has(getCloudThumbnailCacheKey(row.thumbnailPath));
+      const candidates = [row.thumbnailPath, row.thumbnailUrl].filter(
+        (value): value is string => typeof value === "string" && value.length > 0
+      );
+      return candidates.some((candidate) =>
+        cacheKeys.has(getCloudThumbnailCacheKey(candidate))
+      );
     })
     .map((row) => ({ visibility: row.visibility }));
 };
@@ -194,7 +202,7 @@ const getCachedCloudThumbnailVisibilityRows = (
  * hidden videos must not be served to non-admin callers, while public media
  * stays reachable (e.g. for RSS clients).
  *
- * - `exactPaths` are matched against `videoPath`/`thumbnailPath`.
+ * - `exactPaths` are matched against `videoPath`/`thumbnailPath`/`thumbnailUrl`.
  * - `subtitlePaths` are matched against entries inside the `subtitles` JSON.
  * - `cloudThumbnailCacheKeys` are matched by recomputing the stable cache key
  *   for cloud thumbnail paths, which lets the static cache route enforce the
@@ -220,6 +228,7 @@ export function classifyMediaVisibility(opts: {
     if (!candidate) continue;
     conditions.push(eq(videos.videoPath, candidate));
     conditions.push(eq(videos.thumbnailPath, candidate));
+    conditions.push(eq(videos.thumbnailUrl, candidate));
   }
 
   for (const candidate of opts.subtitlePaths ?? []) {
