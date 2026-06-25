@@ -646,6 +646,7 @@ describe("bilibiliVideo.downloadSinglePart", () => {
       "authorization=Bearer abc123",
       "https://user:pass@example.com/video?token=rawtoken",
       "/Users/franklioxygen/private/cookies.txt",
+      "ERROR: unable to open file /Users/leaky-user/data/output.mp4",
     ].join("\n");
     const failing: any = Promise.reject(ytDlpError);
     // Mark the rejection handled so it is not reported as an unhandled rejection;
@@ -675,6 +676,9 @@ describe("bilibiliVideo.downloadSinglePart", () => {
     expect(result.error).not.toContain("user:pass");
     expect(result.error).not.toContain("rawtoken");
     expect(result.error).not.toContain("/Users/franklioxygen");
+    // A space-preceded absolute path must also be redacted, not just one that
+    // happens to follow a word char.
+    expect(result.error).not.toContain("/Users/leaky-user");
     expect(mocks.saveVideo).not.toHaveBeenCalled();
   });
 

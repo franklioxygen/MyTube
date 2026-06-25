@@ -386,7 +386,9 @@ export const BILIBILI_COOKIE_REFRESH_HINT =
 const BILIBILI_AUTH_FAILURE_SIGNATURES = [
   "-352",
   "-101",
-  "412",
+  // Keep "412" in HTTP-status context so a bare 3-digit number elsewhere in the
+  // error (a byte count, an id) does not trigger a needless backoff retry.
+  "error 412",
   "precondition failed",
   "风控",
   "risk control",

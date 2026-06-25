@@ -203,7 +203,10 @@ function redactYtDlpFailureDetail(value: string): string {
       "$1[REDACTED]",
     )
     .replace(/([a-z][a-z0-9+.-]*:\/\/)[^/\s:@]+:[^/\s@]+@/gi, "$1[REDACTED]@")
-    .replace(/\b(?:\/Users|\/home|\/var|\/tmp|\/private)\/[^\s)]+/g, "[local path redacted]")
+    // No leading \b: an absolute path's leading "/" is usually preceded by a
+    // space, newline, or start-of-string (all non-word), where \b would not
+    // match and the home prefix (e.g. /Users/<name>) would leak.
+    .replace(/(?:\/Users|\/home|\/var|\/tmp|\/private)\/[^\s)]+/g, "[local path redacted]")
     .replace(/\b[A-Za-z]:\\[^\s)]+/g, "[local path redacted]");
 
   return redactSensitive(redacted);
@@ -233,16 +236,19 @@ function formatYtDlpFailureMessage(error: unknown): string {
     rawFailure && isLikelyBilibiliAuthFailure(rawFailure)
       ? "Bilibili risk control/auth failure detected."
       : "";
-  const formatDetail = (value: string) =>
-    toUserVisibleYtDlpFailureDetail(
-      authSignal ? `${value}\n${authSignal}` : value,
-    );
+  const combined =
+    message && stderr && message !== stderr && !message.includes(stderr)
+      ? `${toUserVisibleYtDlpFailureDetail(message)} stderr: ${toUserVisibleYtDlpFailureDetail(stderr)}`
+      : message || stderr
+        ? toUserVisibleYtDlpFailureDetail(message || stderr)
+        : "Unknown error";
 
-  if (message && stderr && message !== stderr && !message.includes(stderr)) {
-    return `${formatDetail(message)} stderr: ${formatDetail(stderr)}`;
-  }
-
-  return message || stderr ? formatDetail(message || stderr) : "Unknown error";
+  // Append the auth-failure note once. The `includes` guard keeps it from being
+  // duplicated when this output is wrapped in an Error and re-formatted (the
+  // note text itself trips isLikelyBilibiliAuthFailure on the second pass).
+  return authSignal && !combined.includes(authSignal)
+    ? `${combined} ${authSignal}`
+    : combined;
 }
 
 /**
