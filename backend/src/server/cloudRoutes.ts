@@ -8,6 +8,7 @@ import { getCachedThumbnail } from "../services/cloudStorage/cloudThumbnailCache
 import { CloudStorageService } from "../services/CloudStorageService";
 import * as storageService from "../services/storageService";
 import { logger } from "../utils/logger";
+import { mediaVisibilityGuard } from "../middleware/mediaAccessMiddleware";
 import { getStringParam } from "../utils/paramUtils";
 import {
   validateCloudThumbnailCachePath,
@@ -127,12 +128,20 @@ const redirectCloudFile = async (
 };
 
 export const registerCloudRoutes = (app: Express): void => {
-  app.get("/cloud/videos/:filename", (req, res) => {
-    void redirectCloudFile(req, res, "video");
-  });
-  app.get("/cloud/images/:filename", (req, res) => {
-    void redirectCloudFile(req, res, "image");
-  });
+  app.get(
+    "/cloud/videos/:filename",
+    mediaVisibilityGuard("cloud-video"),
+    (req, res) => {
+      void redirectCloudFile(req, res, "video");
+    }
+  );
+  app.get(
+    "/cloud/images/:filename",
+    mediaVisibilityGuard("cloud-image"),
+    (req, res) => {
+      void redirectCloudFile(req, res, "image");
+    }
+  );
 };
 
 export const startCloudflaredIfEnabled = (port: number): void => {

@@ -53,17 +53,20 @@ export {
 
 // Videos
 export {
+    classifyMediaVisibility,
     deleteVideo,
     formatLegacyFilenames,
     getVideoById,
     getVideoBySourceUrl,
     getVideos,
     isThumbnailReferencedByOtherVideo,
+    isVideoPublic,
     saveVideo,
     saveVideoIfAbsent,
     saveVideoWithInsertFlag,
     updateVideo
 } from "./videos";
+export type { MediaVisibility } from "./videos";
 
 // Collections
 export {

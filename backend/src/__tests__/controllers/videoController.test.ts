@@ -17,6 +17,7 @@ import {
 import { rateVideo } from "../../controllers/videoMetadataController";
 import downloadManager from "../../services/downloadManager";
 import * as downloadService from "../../services/downloadService";
+import { isLoginRequired } from "../../services/passwordService";
 import * as storageService from "../../services/storageService";
 
 vi.mock("../../db", () => ({
@@ -34,6 +35,12 @@ vi.mock("../../db", () => ({
 
 vi.mock("../../services/downloadService");
 vi.mock("../../services/storageService");
+// isLoginRequired defaults to false (single-user mode) so existing tests are
+// unaffected; visibility tests override it per-case.
+vi.mock("../../services/passwordService", async (importOriginal) => {
+  const actual = await importOriginal<any>();
+  return { ...actual, isLoginRequired: vi.fn(() => false) };
+});
 vi.mock("../../services/downloadManager");
 vi.mock("../../services/metadataService");
 vi.mock("../../services/statistics", () => ({
@@ -112,6 +119,11 @@ describe("VideoController", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // clearAllMocks does not reset implementations; restore safe defaults so a
+    // return value set by one test does not leak into later tests.
+    vi.mocked(isLoginRequired).mockReturnValue(false);
+    vi.mocked(storageService.getVideoById).mockReturnValue(undefined);
+    vi.mocked(storageService.getVideos).mockReturnValue([]);
     json = vi.fn();
     status = vi.fn().mockReturnValue({ json });
     req = { headers: {} };
@@ -347,6 +359,39 @@ describe("VideoController", () => {
       expect(status).toHaveBeenCalledWith(200);
       expect(json).toHaveBeenCalledWith(mockVideos);
     });
+
+    it("filters out hidden videos for a visitor when login is enabled", () => {
+      vi.mocked(isLoginRequired).mockReturnValue(true);
+      (storageService.isVideoPublic as any).mockImplementation(
+        (v: any) => (v.visibility ?? 1) === 1
+      );
+      (storageService.getVideos as any).mockReturnValue([
+        { id: "public", visibility: 1 },
+        { id: "hidden", visibility: 0 },
+      ]);
+      req.user = { role: "visitor", id: "v1" } as any;
+
+      getVideos(req as Request, res as Response);
+
+      expect(json).toHaveBeenCalledWith([{ id: "public", visibility: 1 }]);
+    });
+
+    it("returns hidden videos to an admin when login is enabled", () => {
+      vi.mocked(isLoginRequired).mockReturnValue(true);
+      (storageService.isVideoPublic as any).mockImplementation(
+        (v: any) => (v.visibility ?? 1) === 1
+      );
+      const all = [
+        { id: "public", visibility: 1 },
+        { id: "hidden", visibility: 0 },
+      ];
+      (storageService.getVideos as any).mockReturnValue(all);
+      req.user = { role: "admin", id: "a1" } as any;
+
+      getVideos(req as Request, res as Response);
+
+      expect(json).toHaveBeenCalledWith(all);
+    });
   });
 
   describe("getVideoById", () => {
@@ -365,6 +410,26 @@ describe("VideoController", () => {
     it("should throw NotFoundError if not found", async () => {
       req.params = { id: "1" };
       (storageService.getVideoById as any).mockReturnValue(undefined);
+
+      try {
+        await getVideoById(req as Request, res as Response);
+        expect.fail("Should have thrown");
+      } catch (error: any) {
+        expect(error.name).toBe("NotFoundError");
+      }
+    });
+
+    it("returns 404 (NotFoundError) for a visitor requesting a hidden video", async () => {
+      vi.mocked(isLoginRequired).mockReturnValue(true);
+      (storageService.isVideoPublic as any).mockImplementation(
+        (v: any) => (v.visibility ?? 1) === 1
+      );
+      req.params = { id: "hidden" };
+      req.user = { role: "visitor", id: "v1" } as any;
+      (storageService.getVideoById as any).mockReturnValue({
+        id: "hidden",
+        visibility: 0,
+      });
 
       try {
         await getVideoById(req as Request, res as Response);

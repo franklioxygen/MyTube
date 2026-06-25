@@ -17,6 +17,7 @@ import {
   normalizeSafeAbsolutePath,
   resolveSafeChildPath,
 } from "../utils/security";
+import { mediaVisibilityGuard } from "../middleware/mediaAccessMiddleware";
 
 const setCommonImageHeaders = (res: Response): void => {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -113,6 +114,7 @@ export const registerStaticRoutes = (
 
   app.use(
     "/videos",
+    mediaVisibilityGuard("videos"),
     express.static(VIDEOS_DIR, {
       fallthrough: false,
       setHeaders: (res, filePath) => {
@@ -157,18 +159,24 @@ export const registerStaticRoutes = (
 
   app.use(
     "/images",
+    mediaVisibilityGuard("images"),
     express.static(IMAGES_DIR, {
       fallthrough: false,
       setHeaders: setCommonImageHeaders,
     })
   );
 
-  app.get("/images-small/*", (req, res, next) => {
-    void ensureSmallThumbnail(req, res, next);
-  });
+  app.get(
+    "/images-small/*",
+    mediaVisibilityGuard("images-small"),
+    (req, res, next) => {
+      void ensureSmallThumbnail(req, res, next);
+    }
+  );
 
   app.use(
     "/images-small",
+    mediaVisibilityGuard("images-small"),
     express.static(IMAGES_SMALL_DIR, {
       fallthrough: false,
       setHeaders: setCommonImageHeaders,
@@ -192,6 +200,7 @@ export const registerStaticRoutes = (
 
   app.use(
     "/subtitles",
+    mediaVisibilityGuard("subtitles"),
     express.static(SUBTITLES_DIR, {
       fallthrough: false,
       setHeaders: (res, filePath) => {

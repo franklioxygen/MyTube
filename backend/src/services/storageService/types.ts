@@ -11,6 +11,7 @@ export interface Video {
   progress?: number;
   fileSize?: string;
   description?: string;
+  visibility?: number; // 1 = visible, 0 = hidden
   [key: string]: any;
 }
 

@@ -37,10 +37,21 @@ vi.mock("fs-extra", () => ({
   pathExists: pathExistsMock,
 }));
 
+// The media visibility guard is covered by its own suite; treat it as a
+// transparent passthrough so these tests stay focused on static mount config.
+vi.mock("../../middleware/mediaAccessMiddleware", () => ({
+  mediaVisibilityGuard: () => (_req: any, _res: any, next: any) => next(),
+}));
+
 import {
   registerSpaFallback,
   registerStaticRoutes,
 } from "../../server/staticRoutes";
+
+// Guarded mounts register [path, guard, static]; pick the final argument (the
+// express.static config or route handler). Avoids Array.prototype.at for the
+// project's TS lib target.
+const lastArg = (call: any[]): any => call[call.length - 1];
 
 describe("server/staticRoutes", () => {
   beforeEach(() => {
@@ -57,22 +68,32 @@ describe("server/staticRoutes", () => {
     registerStaticRoutes(app, "/frontend-dist");
 
     expect(use).toHaveBeenCalledTimes(8);
-    expect(get).toHaveBeenCalledWith("/images-small/*", expect.any(Function));
+    expect(get).toHaveBeenCalledWith(
+      "/images-small/*",
+      expect.any(Function),
+      expect.any(Function)
+    );
 
-    const [videosPath, videosStatic] = use.mock.calls[0];
+    // Guarded mounts register [path, guard, static]; the static config is the
+    // last argument. Unguarded mounts (e.g. /assets) register [path, static].
+    const videosPath = use.mock.calls[0][0];
+    const videosStatic = lastArg(use.mock.calls[0]);
     expect(videosPath).toBe("/videos");
     expect(videosStatic.dir).toContain("/uploads/videos");
     expect(videosStatic.options.fallthrough).toBe(false);
 
-    const [imagesPath, imagesStatic] = use.mock.calls[1];
+    const imagesPath = use.mock.calls[1][0];
+    const imagesStatic = lastArg(use.mock.calls[1]);
     expect(imagesPath).toBe("/images");
     expect(imagesStatic.options.fallthrough).toBe(false);
 
-    const [smallImagesPath, smallImagesStatic] = use.mock.calls[2];
+    const smallImagesPath = use.mock.calls[2][0];
+    const smallImagesStatic = lastArg(use.mock.calls[2]);
     expect(smallImagesPath).toBe("/images-small");
     expect(smallImagesStatic.options.fallthrough).toBe(false);
 
-    const [assetsPath, assetsStatic] = use.mock.calls[6];
+    const assetsPath = use.mock.calls[6][0];
+    const assetsStatic = lastArg(use.mock.calls[6]);
     expect(assetsPath).toBe("/assets");
     expect(assetsStatic.dir).toBe("/frontend-dist/assets");
     expect(assetsStatic.options.fallthrough).toBe(false);
@@ -105,7 +126,7 @@ describe("server/staticRoutes", () => {
     const app = { use, get } as any;
     registerStaticRoutes(app, "/frontend-dist");
 
-    const subtitlesStatic = use.mock.calls[5][1];
+    const subtitlesStatic = lastArg(use.mock.calls[5]);
     const setHeaders = subtitlesStatic.options.setHeaders as (
       res: any,
       filePath: string
@@ -132,7 +153,7 @@ describe("server/staticRoutes", () => {
     const app = { use, get } as any;
     registerStaticRoutes(app, "/frontend-dist");
 
-    const smallImageHandler = get.mock.calls[0][1];
+    const smallImageHandler = lastArg(get.mock.calls[0]);
     const res = {
       status: vi.fn().mockReturnThis(),
       send: vi.fn(),
@@ -167,7 +188,7 @@ describe("server/staticRoutes", () => {
     const app = { use, get } as any;
     registerStaticRoutes(app, "/frontend-dist");
 
-    const smallImageHandler = get.mock.calls[0][1];
+    const smallImageHandler = lastArg(get.mock.calls[0]);
     const res = {
       status: vi.fn().mockReturnThis(),
       send: vi.fn(),
@@ -206,7 +227,7 @@ describe("server/staticRoutes", () => {
     const app = { use, get } as any;
     registerStaticRoutes(app, "/frontend-dist");
 
-    const smallImageHandler = get.mock.calls[0][1];
+    const smallImageHandler = lastArg(get.mock.calls[0]);
     const sendFile = vi.fn((_path: string, cb?: (err?: Error | null) => void) => {
       cb?.(null);
     });

@@ -10,12 +10,14 @@ import * as fileHelpers from "../fileHelpers";
 import { markDownloadHistoryDeletedByVideoId } from "../downloadHistory";
 import { markVideoDownloadDeleted } from "../videoDownloadTracking";
 import {
+  classifyMediaVisibility,
   deleteVideo,
   formatLegacyFilenames,
   getVideoById,
   getVideoBySourceUrl,
   getVideoPartBySourceUrl,
   getVideos,
+  isVideoPublic,
   saveVideo,
   updateVideo,
 } from "../videos";
@@ -697,6 +699,63 @@ describe("storageService videos", () => {
         throw new Error("db fail");
       });
       expect(() => deleteVideo("1")).toThrow(DatabaseError);
+    });
+  });
+
+  describe("isVideoPublic", () => {
+    it("treats visibility 1, null and undefined as public; 0 as hidden", () => {
+      expect(isVideoPublic({ visibility: 1 })).toBe(true);
+      expect(isVideoPublic({ visibility: null })).toBe(true);
+      expect(isVideoPublic({})).toBe(true);
+      expect(isVideoPublic({ visibility: 0 })).toBe(false);
+    });
+  });
+
+  describe("classifyMediaVisibility", () => {
+    const mockClassifyRows = (rows: any[]) => {
+      const allMock = vi.fn().mockReturnValue(rows);
+      vi.mocked(db.select).mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({ all: allMock }),
+        }),
+      } as any);
+      return allMock;
+    };
+
+    it("returns 'unknown' without querying when there are no candidates", () => {
+      const allMock = mockClassifyRows([]);
+      expect(classifyMediaVisibility({})).toBe("unknown");
+      expect(allMock).not.toHaveBeenCalled();
+    });
+
+    it("returns 'unknown' when no video references the media", () => {
+      mockClassifyRows([]);
+      expect(
+        classifyMediaVisibility({ exactPaths: ["/videos/orphan.mp4"] })
+      ).toBe("unknown");
+    });
+
+    it("returns 'hidden' when every referencing video is hidden", () => {
+      mockClassifyRows([{ visibility: 0 }]);
+      expect(
+        classifyMediaVisibility({ exactPaths: ["/videos/secret.mp4"] })
+      ).toBe("hidden");
+    });
+
+    it("returns 'public' when any referencing video is visible", () => {
+      mockClassifyRows([{ visibility: 0 }, { visibility: 1 }]);
+      expect(
+        classifyMediaVisibility({ subtitlePaths: ["/subtitles/shared.vtt"] })
+      ).toBe("public");
+    });
+
+    it("fails closed to 'hidden' on a database error", () => {
+      vi.mocked(db.select).mockImplementation(() => {
+        throw new Error("db down");
+      });
+      expect(
+        classifyMediaVisibility({ exactPaths: ["/videos/secret.mp4"] })
+      ).toBe("hidden");
     });
   });
 });

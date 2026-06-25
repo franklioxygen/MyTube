@@ -32,6 +32,7 @@ import {
   getUploadVideoId,
   UploadedVideoFile,
 } from "../utils/videoUpload";
+import { isLoginRequired } from "../services/passwordService";
 import { resolvePlayableVideoFilePath } from "../utils/videoFileResolver";
 import {
   createReadStreamSafe,
@@ -45,6 +46,17 @@ import {
   unlinkSafeSync,
   writeFileSafeSync,
 } from "../utils/security";
+
+/**
+ * When login is enabled, non-admin callers (visitors and any request that
+ * reaches here without an admin session) must only see public videos. In
+ * single-user mode (login disabled) every caller is owner-equivalent. API-key
+ * automation is admin-configured owner access, so it is never restricted.
+ */
+const restrictToPublicVideos = (req: Request): boolean =>
+  isLoginRequired() &&
+  req.apiKeyAuthenticated !== true &&
+  req.user?.role !== "admin";
 
 const MAX_VIDEO_UPLOAD_FILE_SIZE = 100 * 1024 * 1024 * 1024;
 const MAX_BATCH_UPLOAD_FILES = 100;
@@ -526,12 +538,17 @@ const resolveVideoWebPath = (absoluteVideoPath: string): string | null => {
  * Note: Returns array directly for backward compatibility with frontend
  */
 export const getVideos = async (
-  _req: Request,
+  req: Request,
   res: Response
 ): Promise<void> => {
   const videos = storageService.getVideos();
+  // Visitors must never receive hidden videos: the visibility filter is enforced
+  // here on the backend, not just in the frontend.
+  const visibleVideos = restrictToPublicVideos(req)
+    ? videos.filter((video) => storageService.isVideoPublic(video))
+    : videos;
   // Return array directly for backward compatibility (frontend expects response.data to be Video[])
-  sendData(res, videos);
+  sendData(res, visibleVideos);
 };
 
 /**
@@ -547,6 +564,12 @@ export const getVideoById = async (
   const video = storageService.getVideoById(id);
 
   if (!video) {
+    throw new NotFoundError("Video", id);
+  }
+
+  // Hidden videos do not exist for visitors — return 404 (not 403) so the
+  // response is indistinguishable from a genuinely missing video.
+  if (restrictToPublicVideos(req) && !storageService.isVideoPublic(video)) {
     throw new NotFoundError("Video", id);
   }
 
@@ -660,6 +683,13 @@ export const getVideoComments = async (
   res: Response
 ): Promise<void> => {
   const id = getStringParam(req.params.id) ?? "";
+  // Don't reveal a hidden video's existence/comments to visitors.
+  if (restrictToPublicVideos(req)) {
+    const video = storageService.getVideoById(id);
+    if (!video || !storageService.isVideoPublic(video)) {
+      throw new NotFoundError("Video", id);
+    }
+  }
   const comments = await import("../services/commentService").then((m) =>
     m.getComments(id)
   );
@@ -1216,6 +1246,11 @@ export const serveMountVideo = async (
   const video = storageService.getVideoById(id);
 
   if (!video) {
+    throw new NotFoundError("Video", id);
+  }
+
+  // Visitors must not be able to stream hidden mount videos.
+  if (restrictToPublicVideos(req) && !storageService.isVideoPublic(video)) {
     throw new NotFoundError("Video", id);
   }
 

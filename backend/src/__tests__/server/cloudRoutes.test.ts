@@ -16,6 +16,12 @@ vi.mock("../../services/storageService", () => ({
   getSettings: vi.fn(),
 }));
 
+// The media visibility guard is exercised in its own test suite; here we focus
+// on the cloud redirect handlers, so the guard is a transparent passthrough.
+vi.mock("../../middleware/mediaAccessMiddleware", () => ({
+  mediaVisibilityGuard: () => (_req: any, _res: any, next: any) => next(),
+}));
+
 vi.mock("../../services/cloudStorage/cloudThumbnailCache", () => ({
   getCachedThumbnail: vi.fn(),
 }));
@@ -87,8 +93,9 @@ describe("server/cloudRoutes", () => {
   const registerAndGetHandlers = () => {
     const handlers: Record<string, any> = {};
     const app = {
-      get: vi.fn((route: string, handler: any) => {
-        handlers[route] = handler;
+      get: vi.fn((route: string, ...routeHandlers: any[]) => {
+        // Routes now register [guard, handler]; keep the final handler.
+        handlers[route] = routeHandlers[routeHandlers.length - 1];
       }),
     } as any;
     registerCloudRoutes(app);
