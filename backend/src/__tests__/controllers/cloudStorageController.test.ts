@@ -14,11 +14,15 @@ import {
   getCachedThumbnail,
 } from "../../services/cloudStorage/cloudThumbnailCache";
 import { resolveAbsolutePath } from "../../services/cloudStorage/pathUtils";
-import { getVideos } from "../../services/storageService";
+import {
+  getVideos,
+  isCloudFileVisibleToVisitor,
+} from "../../services/storageService";
 import { logger } from "../../utils/logger";
 
 vi.mock("../../services/storageService", () => ({
   getVideos: vi.fn(),
+  isCloudFileVisibleToVisitor: vi.fn(() => true),
 }));
 vi.mock("../../services/CloudStorageService", () => ({
   CloudStorageService: {
@@ -85,6 +89,35 @@ describe("cloudStorageController", () => {
       await expect(getSignedUrl(req as Request, res as Response)).rejects.toThrow(
         ValidationError
       );
+    });
+
+    it("should 404 a visitor requesting a hidden cloud file", async () => {
+      req.query = { filename: "secret.mp4", type: "video" };
+      req.user = { role: "visitor" } as any;
+      vi.mocked(isCloudFileVisibleToVisitor).mockReturnValue(false);
+
+      await getSignedUrl(req as Request, res as Response);
+
+      expect(isCloudFileVisibleToVisitor).toHaveBeenCalledWith("secret.mp4");
+      expect(statusMock).toHaveBeenCalledWith(404);
+      expect(jsonMock).toHaveBeenCalledWith(
+        expect.objectContaining({ success: false })
+      );
+      expect(CloudStorageService.getSignedUrl).not.toHaveBeenCalled();
+    });
+
+    it("should let a visitor fetch a public cloud file", async () => {
+      req.query = { filename: "pub.mp4", type: "video" };
+      req.user = { role: "visitor" } as any;
+      vi.mocked(isCloudFileVisibleToVisitor).mockReturnValue(true);
+      (CloudStorageService.getSignedUrl as any).mockResolvedValue(
+        "https://signed.example/pub.mp4"
+      );
+
+      await getSignedUrl(req as Request, res as Response);
+
+      expect(isCloudFileVisibleToVisitor).toHaveBeenCalledWith("pub.mp4");
+      expect(statusMock).toHaveBeenCalledWith(200);
     });
 
     it("should return cached thumbnail if present", async () => {

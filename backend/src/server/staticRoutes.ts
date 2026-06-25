@@ -10,7 +10,10 @@ import {
   VIDEOS_DIR,
 } from "../config/paths";
 import { authMiddleware } from "../middleware/authMiddleware";
-import { requireAuthenticatedMediaAccess } from "../middleware/mediaAuthMiddleware";
+import {
+  requireAuthenticatedMediaAccess,
+  requireVisibleMediaForVisitors,
+} from "../middleware/mediaAuthMiddleware";
 import {
   ensureSmallThumbnailForRelativePath,
   getThumbnailRelativePath,
@@ -123,6 +126,7 @@ export const registerStaticRoutes = (
   app.use(
     "/videos",
     ...mediaAuthStack,
+    requireVisibleMediaForVisitors("videos"),
     express.static(VIDEOS_DIR, {
       fallthrough: false,
       setHeaders: (res, filePath) => {
@@ -168,6 +172,7 @@ export const registerStaticRoutes = (
   app.use(
     "/images",
     ...mediaAuthStack,
+    requireVisibleMediaForVisitors("images"),
     express.static(IMAGES_DIR, {
       fallthrough: false,
       setHeaders: setCommonImageHeaders,
@@ -177,6 +182,7 @@ export const registerStaticRoutes = (
   app.get(
     "/images-small/*",
     ...mediaAuthStack,
+    requireVisibleMediaForVisitors("images-small"),
     (req, res, next) => {
       void ensureSmallThumbnail(req, res, next);
     }
@@ -185,6 +191,7 @@ export const registerStaticRoutes = (
   app.use(
     "/images-small",
     ...mediaAuthStack,
+    requireVisibleMediaForVisitors("images-small"),
     express.static(IMAGES_SMALL_DIR, {
       fallthrough: false,
       setHeaders: setCommonImageHeaders,
@@ -211,6 +218,7 @@ export const registerStaticRoutes = (
   app.use(
     "/subtitles",
     ...mediaAuthStack,
+    requireVisibleMediaForVisitors("subtitles"),
     express.static(SUBTITLES_DIR, {
       fallthrough: false,
       setHeaders: (res, filePath) => {

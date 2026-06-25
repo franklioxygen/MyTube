@@ -6,6 +6,7 @@ import { CLOUD_THUMBNAIL_CACHE_DIR } from "../../config/paths";
 import { cloudflaredService } from "../../services/cloudflaredService";
 import { getCachedThumbnail } from "../../services/cloudStorage/cloudThumbnailCache";
 import { CloudStorageService } from "../../services/CloudStorageService";
+import { requireVisibleMediaForVisitors } from "../../middleware/mediaAuthMiddleware";
 import * as storageService from "../../services/storageService";
 import {
   validateCloudThumbnailCachePath,
@@ -51,6 +52,11 @@ vi.mock("../../middleware/authMiddleware", () => ({
 
 vi.mock("../../middleware/mediaAuthMiddleware", () => ({
   requireAuthenticatedMediaAccess: vi.fn((_req, _res, next) => next()),
+  // Per-file visitor visibility is enforced by this guard (covered in its own
+  // suite). Pass-through here so the redirect handler logic can be tested.
+  requireVisibleMediaForVisitors: vi.fn(
+    () => (_req: any, _res: any, next: any) => next()
+  ),
 }));
 
 const flushAsync = () => new Promise((resolve) => setTimeout(resolve, 0));
@@ -120,20 +126,13 @@ describe("server/cloudRoutes", () => {
     ]);
   });
 
-  it("should 404 for a visitor requesting a hidden cloud video", async () => {
-    vi.mocked(storageService.getVideos).mockReturnValue([
-      { videoPath: "cloud:secret.mp4", visibility: 0 } as any,
-    ]);
-    const handlers = registerAndGetHandlers();
-    const req = createReq("secret.mp4", "visitor");
-    const res = createRes();
-
-    handlers["/cloud/videos/:filename"](req, res);
-    await flushAsync();
-
-    expect(res.status).toHaveBeenCalledWith(404);
-    expect(res.send).toHaveBeenCalledWith("File not found");
-    expect(CloudStorageService.getSignedUrl).not.toHaveBeenCalled();
+  it("should register both routes with the visitor visibility guard", () => {
+    registerAndGetHandlers();
+    // The guard factory is invoked once per cloud route (video + image) so the
+    // per-file visibility check is wired in front of each redirect handler.
+    expect(
+      vi.mocked(requireVisibleMediaForVisitors).mock.calls.map((c) => c[0])
+    ).toEqual(["cloud-video", "cloud-image"]);
   });
 
   it("should allow a visitor to fetch a public cloud video", async () => {

@@ -8,7 +8,7 @@ import {
 } from "../services/cloudStorage/cloudThumbnailCache";
 import { resolveAbsolutePath } from "../services/cloudStorage/pathUtils";
 import { CloudStorageService } from "../services/CloudStorageService";
-import { getVideos } from "../services/storageService";
+import { getVideos, isCloudFileVisibleToVisitor } from "../services/storageService";
 import { logger } from "../utils/logger";
 
 /**
@@ -34,22 +34,13 @@ export const getSignedUrl = async (
 
   // Visitor scoping (GHSA-hcm6-w6x8-6jhr): do not hand a visitor a signed URL
   // (or a local cache URL) for a cloud file that belongs to a hidden video.
-  if (req.user?.role === "visitor") {
-    const cloudRef = `cloud:${filename}`;
-    const allowed = getVideos().some((video) => {
-      const isPublic = (video as { visibility?: number | null }).visibility !== 0;
-      if (!isPublic) return false;
-      return fileType === "video"
-        ? video.videoPath === cloudRef
-        : video.thumbnailPath === cloudRef;
+  // Uses the same shared rule as the cloud redirect routes.
+  if (req.user?.role === "visitor" && !isCloudFileVisibleToVisitor(filename)) {
+    res.status(404).json({
+      success: false,
+      message: "File not found",
     });
-    if (!allowed) {
-      res.status(404).json({
-        success: false,
-        message: "File not found",
-      });
-      return;
-    }
+    return;
   }
 
   // For thumbnails, check local cache first

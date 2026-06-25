@@ -1,6 +1,8 @@
 import { NextFunction, Request, Response } from "express";
 import { isLoginRequired } from "../services/passwordService";
 import { getRssToken } from "../services/rssService";
+import * as storageService from "../services/storageService";
+import { getStringParam } from "../utils/paramUtils";
 import { logger } from "../utils/logger";
 
 // Cookie/query key that carries an RSS feed token so media URLs emitted by the
@@ -88,3 +90,99 @@ export const requireAuthenticatedMediaAccess = async (
     error: "Authentication required. Please log in to access this resource.",
   });
 };
+
+// The static media mounts strip their route prefix from req.path, so it is
+// re-added here to reconstruct the stored web path (e.g. videoPath
+// "/videos/foo.mp4"). Cloud routes carry the cloud filename as a route param.
+type MediaKind =
+  | "videos"
+  | "images"
+  | "images-small"
+  | "subtitles"
+  | "cloud-video"
+  | "cloud-image";
+
+const safeDecode = (value: string): string => {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+};
+
+const classifyMediaRequest = (
+  kind: MediaKind,
+  req: Request
+): storageService.MediaVisibility => {
+  switch (kind) {
+    case "videos":
+      return storageService.classifyMediaVisibility({
+        exactPaths: [`/videos${safeDecode(req.path)}`],
+      });
+    case "images":
+      return storageService.classifyMediaVisibility({
+        exactPaths: [`/images${safeDecode(req.path)}`],
+      });
+    case "images-small": {
+      // Small thumbnails mirror the original thumbnail, which may live under
+      // either /images or /videos. Check both candidate originals.
+      const sub = safeDecode(req.path);
+      return storageService.classifyMediaVisibility({
+        exactPaths: [`/images${sub}`, `/videos${sub}`],
+      });
+    }
+    case "subtitles":
+      return storageService.classifyMediaVisibility({
+        subtitlePaths: [`/subtitles${safeDecode(req.path)}`],
+      });
+    case "cloud-video":
+    case "cloud-image": {
+      const filename = getStringParam(req.params.filename) ?? "";
+      return storageService.classifyMediaVisibility({
+        exactPaths: [`cloud:${filename}`],
+      });
+    }
+    default:
+      return "unknown";
+  }
+};
+
+/**
+ * Defense-in-depth per-file visibility guard for static + cloud media routes.
+ *
+ * `requireAuthenticatedMediaAccess` only enforces *authentication* (the login
+ * wall). A logged-in visitor passes that wall, so without this guard they could
+ * still fetch a hidden video's file by a known path. This guard closes that gap
+ * by classifying the requested media against the videos that reference it and
+ * blocking non-admin callers from media that belongs solely to hidden videos.
+ * Public/unknown (orphan, shared, frontend asset) media stays reachable, so RSS
+ * clients keep working. Part of GHSA-hcm6-w6x8-6jhr.
+ *
+ * Must be mounted AFTER `authMiddleware` (so `req.user` / `req.apiKeyAuthenticated`
+ * are populated) and AFTER `requireAuthenticatedMediaAccess`.
+ */
+export const requireVisibleMediaForVisitors =
+  (kind: MediaKind) =>
+  (req: Request, res: Response, next: NextFunction): void => {
+    // Single-user mode: no roles, owner-equivalent access to everything.
+    if (!isLoginRequired()) {
+      next();
+      return;
+    }
+
+    // Admins and API-key automation (admin-configured owner access) may always
+    // reach hidden media.
+    if (req.user?.role === "admin" || req.apiKeyAuthenticated === true) {
+      next();
+      return;
+    }
+
+    // Visitors and RSS-token callers: serve public/unknown media, but never
+    // media that belongs solely to a hidden video.
+    if (classifyMediaRequest(kind, req) === "hidden") {
+      res.status(404).send("Not Found");
+      return;
+    }
+
+    next();
+  };
