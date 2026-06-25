@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Fix
+
+- Gate static and cloud media routes behind authentication when login is enabled, and enforce visitor visibility per-file as defense-in-depth (GHSA-rwwf-29mq-5j43, GHSA-hcm6-w6x8-6jhr)
+
+### Note
+
+- When login is enabled, RSS feed media URLs carry an `?rss=<token>` query parameter so feed readers (which send no session cookie) can still load cover art. This token is the feed's existing secret and introduces no new exposure, but it will now appear in reverse-proxy/access logs that record query strings.
+
 ## v1.9.32 (2026-06-05)
 
 ### Feat

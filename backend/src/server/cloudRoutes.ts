@@ -13,6 +13,11 @@ import {
   validateCloudThumbnailCachePath,
   validateRedirectUrl,
 } from "../utils/security";
+import { authMiddleware } from "../middleware/authMiddleware";
+import {
+  requireAuthenticatedMediaAccess,
+  requireVisibleMediaForVisitors,
+} from "../middleware/mediaAuthMiddleware";
 
 const redirectCloudFile = async (
   req: Request,
@@ -31,6 +36,10 @@ const redirectCloudFile = async (
       res.status(404).send("Cloud storage not configured");
       return;
     }
+
+    // Visitor scoping (GHSA-hcm6-w6x8-6jhr) is enforced by the
+    // requireVisibleMediaForVisitors guard on the route, which blocks non-admin
+    // callers from cloud files that belong solely to hidden videos.
 
     if (fileType === "image") {
       const cloudPath = `cloud:${filename}`;
@@ -127,12 +136,27 @@ const redirectCloudFile = async (
 };
 
 export const registerCloudRoutes = (app: Express): void => {
-  app.get("/cloud/videos/:filename", (req, res) => {
-    void redirectCloudFile(req, res, "video");
-  });
-  app.get("/cloud/images/:filename", (req, res) => {
-    void redirectCloudFile(req, res, "image");
-  });
+  // Cloud media routes were registered before the auth stack and were fully
+  // unauthenticated (GHSA-rwwf-29mq-5j43). The media auth stack enforces login
+  // when loginEnabled=true (session, API key, or RSS feed token).
+  const cloudMediaAuth = [authMiddleware, requireAuthenticatedMediaAccess];
+
+  app.get(
+    "/cloud/videos/:filename",
+    ...cloudMediaAuth,
+    requireVisibleMediaForVisitors("cloud-video"),
+    (req, res) => {
+      void redirectCloudFile(req, res, "video");
+    }
+  );
+  app.get(
+    "/cloud/images/:filename",
+    ...cloudMediaAuth,
+    requireVisibleMediaForVisitors("cloud-image"),
+    (req, res) => {
+      void redirectCloudFile(req, res, "image");
+    }
+  );
 };
 
 export const startCloudflaredIfEnabled = (port: number): void => {

@@ -17,6 +17,7 @@ import {
 import { rateVideo } from "../../controllers/videoMetadataController";
 import downloadManager from "../../services/downloadManager";
 import * as downloadService from "../../services/downloadService";
+import { isLoginRequired } from "../../services/passwordService";
 import * as storageService from "../../services/storageService";
 
 vi.mock("../../db", () => ({
@@ -34,6 +35,12 @@ vi.mock("../../db", () => ({
 
 vi.mock("../../services/downloadService");
 vi.mock("../../services/storageService");
+// isLoginRequired defaults to false (single-user mode) so existing tests are
+// unaffected; visitor-visibility tests opt into login-enabled per-case.
+vi.mock("../../services/passwordService", async (importOriginal) => {
+  const actual = await importOriginal<any>();
+  return { ...actual, isLoginRequired: vi.fn(() => false) };
+});
 vi.mock("../../services/downloadManager");
 vi.mock("../../services/metadataService");
 vi.mock("../../services/statistics", () => ({
@@ -112,6 +119,9 @@ describe("VideoController", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // clearAllMocks resets call history but not implementations; restore the
+    // single-user default so a login-enabled test doesn't leak into later ones.
+    vi.mocked(isLoginRequired).mockReturnValue(false);
     json = vi.fn();
     status = vi.fn().mockReturnValue({ json });
     req = { headers: {} };
@@ -347,6 +357,33 @@ describe("VideoController", () => {
       expect(status).toHaveBeenCalledWith(200);
       expect(json).toHaveBeenCalledWith(mockVideos);
     });
+
+    it("should scope videos to public-only when caller is a visitor", () => {
+      vi.mocked(isLoginRequired).mockReturnValue(true);
+      const mockVideos = [{ id: "1" }];
+      (storageService.getVideos as any).mockReturnValue(mockVideos);
+      req.user = { role: "visitor" } as any;
+
+      getVideos(req as Request, res as Response);
+
+      expect(storageService.getVideos).toHaveBeenCalledWith("visitor");
+      expect(json).toHaveBeenCalledWith(mockVideos);
+    });
+
+    it("should ignore a stale visitor role when login is disabled", () => {
+      // Regression for the single-user-mode compatibility gap: when login is
+      // off, a leftover visitor session must not scope the query (which would
+      // wrongly hide hidden videos in single-user mode).
+      vi.mocked(isLoginRequired).mockReturnValue(false);
+      const mockVideos = [{ id: "1" }];
+      (storageService.getVideos as any).mockReturnValue(mockVideos);
+      req.user = { role: "visitor" } as any;
+
+      getVideos(req as Request, res as Response);
+
+      expect(storageService.getVideos).toHaveBeenCalledWith(undefined);
+      expect(json).toHaveBeenCalledWith(mockVideos);
+    });
   });
 
   describe("getVideoById", () => {
@@ -357,9 +394,29 @@ describe("VideoController", () => {
 
       getVideoById(req as Request, res as Response);
 
-      expect(storageService.getVideoById).toHaveBeenCalledWith("1");
+      // Unauthenticated caller -> role undefined (admin/server-side default).
+      expect(storageService.getVideoById).toHaveBeenCalledWith("1", undefined);
       expect(status).toHaveBeenCalledWith(200);
       expect(json).toHaveBeenCalledWith(mockVideo);
+    });
+
+    it("should treat hidden videos as not found for a visitor", async () => {
+      vi.mocked(isLoginRequired).mockReturnValue(true);
+      req.params = { id: "hidden-1" };
+      req.user = { role: "visitor" } as any;
+      // getVideoById returns undefined for a hidden video when role=visitor.
+      (storageService.getVideoById as any).mockReturnValue(undefined);
+
+      try {
+        await getVideoById(req as Request, res as Response);
+        expect.fail("Should have thrown");
+      } catch (error: any) {
+        expect(error.name).toBe("NotFoundError");
+      }
+      expect(storageService.getVideoById).toHaveBeenCalledWith(
+        "hidden-1",
+        "visitor"
+      );
     });
 
     it("should throw NotFoundError if not found", async () => {
@@ -567,6 +624,25 @@ describe("VideoController", () => {
 
       expect(status).toHaveBeenCalledWith(200);
       expect(json).toHaveBeenCalledWith([]);
+    });
+
+    it("should treat a hidden video's comments as not found for a visitor", async () => {
+      vi.mocked(isLoginRequired).mockReturnValue(true);
+      req.params = { id: "hidden-1" };
+      req.user = { role: "visitor" } as any;
+      // Query-layer role filter yields undefined for a hidden id + visitor.
+      (storageService.getVideoById as any).mockReturnValue(undefined);
+
+      await expect(
+        import("../../controllers/videoController").then((m) =>
+          m.getVideoComments(req as Request, res as Response)
+        )
+      ).rejects.toMatchObject({ name: "NotFoundError" });
+
+      expect(storageService.getVideoById).toHaveBeenCalledWith(
+        "hidden-1",
+        "visitor"
+      );
     });
   });
 

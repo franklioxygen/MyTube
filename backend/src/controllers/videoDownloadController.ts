@@ -14,6 +14,7 @@ import {
   normalizeSurface,
   platformFromUrl,
 } from "../services/statistics";
+import { isLoginRequired } from "../services/passwordService";
 import * as storageService from "../services/storageService";
 import {
   extractBilibiliVideoId,
@@ -42,6 +43,15 @@ function isDownloadStillQueued(downloadId: string): boolean {
     return false;
   }
 }
+
+const getVisibilityScopedRole = (
+  req: Request
+): storageService.VideoCallerRole | undefined => {
+  if (!isLoginRequired()) {
+    return undefined;
+  }
+  return req.user?.role as storageService.VideoCallerRole | undefined;
+};
 
 /**
  * Search for videos
@@ -105,10 +115,24 @@ export const checkVideoDownloadStatus = async (
     storageService.checkVideoDownloadBySourceId(sourceVideoId, platform);
 
   if (downloadCheck.found) {
+    const visibilityScopedRole = getVisibilityScopedRole(req);
+    const getVisibleVideoById = (videoId: string) =>
+      storageService.getVideoById(videoId, visibilityScopedRole);
+
+    if (
+      visibilityScopedRole === "visitor" &&
+      downloadCheck.status === "exists" &&
+      downloadCheck.videoId &&
+      !getVisibleVideoById(downloadCheck.videoId)
+    ) {
+      sendData(res, { found: false });
+      return;
+    }
+
     // Verify video exists if status is "exists"
     const verification = storageService.verifyVideoExists(
       downloadCheck,
-      storageService.getVideoById,
+      getVisibleVideoById,
     );
 
     if (verification.updatedCheck) {

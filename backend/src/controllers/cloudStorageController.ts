@@ -8,7 +8,8 @@ import {
 } from "../services/cloudStorage/cloudThumbnailCache";
 import { resolveAbsolutePath } from "../services/cloudStorage/pathUtils";
 import { CloudStorageService } from "../services/CloudStorageService";
-import { getVideos } from "../services/storageService";
+import { isLoginRequired } from "../services/passwordService";
+import { getVideos, isCloudFileVisibleToVisitor } from "../services/storageService";
 import { logger } from "../utils/logger";
 
 /**
@@ -31,6 +32,21 @@ export const getSignedUrl = async (
   }
 
   const fileType = (type as "video" | "thumbnail") || "video";
+
+  // Visitor scoping (GHSA-hcm6-w6x8-6jhr): do not hand a visitor a signed URL
+  // (or a local cache URL) for a cloud file that belongs to a hidden video.
+  // Uses the same shared rule as the cloud redirect routes.
+  if (
+    isLoginRequired() &&
+    req.user?.role === "visitor" &&
+    !isCloudFileVisibleToVisitor(filename)
+  ) {
+    res.status(404).json({
+      success: false,
+      message: "File not found",
+    });
+    return;
+  }
 
   // For thumbnails, check local cache first
   if (fileType === "thumbnail") {

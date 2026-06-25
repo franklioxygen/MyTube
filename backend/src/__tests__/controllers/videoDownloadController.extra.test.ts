@@ -14,6 +14,7 @@ import { ValidationError } from "../../errors/DownloadErrors";
 import downloadManager from "../../services/downloadManager";
 import * as downloadService from "../../services/downloadService";
 import * as storageService from "../../services/storageService";
+import { isLoginRequired } from "../../services/passwordService";
 import {
   extractBilibiliVideoId,
   getMissAVPlaceholderTitle,
@@ -70,6 +71,10 @@ vi.mock("../../services/storageService", () => ({
   linkVideoToCollection: vi.fn(),
   cleanupCollectionDirectories: vi.fn(),
   getDownloadStatus: vi.fn(),
+}));
+
+vi.mock("../../services/passwordService", () => ({
+  isLoginRequired: vi.fn(() => true),
 }));
 
 vi.mock("../../services/statistics", () => ({
@@ -217,6 +222,7 @@ describe("videoDownloadController extra coverage", () => {
       activeDownloads: [],
       queuedDownloads: [],
     } as any);
+    vi.mocked(isLoginRequired).mockReturnValue(true);
     vi.mocked(downloadManager.addDownload).mockImplementation(
       async (task: any) => task(vi.fn())
     );
@@ -352,6 +358,74 @@ describe("videoDownloadController extra coverage", () => {
         status: "exists",
         videoId: "video-2",
         videoPath: "/videos/v2.mp4",
+      })
+    );
+  });
+
+  it("checkVideoDownloadStatus hides existing hidden downloads from visitors", async () => {
+    req.query = { url: "http://ok" } as any;
+    req.user = { role: "visitor" } as any;
+    vi.mocked(processVideoUrl).mockResolvedValue({
+      sourceVideoId: "id-hidden",
+      platform: "youtube",
+    } as any);
+    vi.mocked(storageService.checkVideoDownloadBySourceId).mockReturnValue({
+      found: true,
+      status: "exists",
+      videoId: "hidden-video",
+      title: "Hidden Title",
+      author: "Hidden Author",
+      downloadedAt: "2026-01-03",
+    } as any);
+    vi.mocked(storageService.getVideoById).mockReturnValue(undefined);
+
+    await checkVideoDownloadStatus(req as Request, res as Response);
+
+    expect(storageService.getVideoById).toHaveBeenCalledWith(
+      "hidden-video",
+      "visitor"
+    );
+    expect(storageService.verifyVideoExists).not.toHaveBeenCalled();
+    expect(json).toHaveBeenCalledWith({ found: false });
+  });
+
+  it("checkVideoDownloadStatus ignores stale visitor roles when login is disabled", async () => {
+    req.query = { url: "http://ok" } as any;
+    req.user = { role: "visitor" } as any;
+    vi.mocked(isLoginRequired).mockReturnValue(false);
+    vi.mocked(processVideoUrl).mockResolvedValue({
+      sourceVideoId: "id-owner",
+      platform: "youtube",
+    } as any);
+    vi.mocked(storageService.checkVideoDownloadBySourceId).mockReturnValue({
+      found: true,
+      status: "exists",
+      videoId: "owner-video",
+    } as any);
+    vi.mocked(storageService.verifyVideoExists).mockReturnValue({
+      exists: true,
+      video: {
+        id: "owner-video",
+        title: "Owner Visible",
+        videoPath: "/videos/owner.mp4",
+        thumbnailPath: "/images/owner.jpg",
+      },
+    } as any);
+
+    await checkVideoDownloadStatus(req as Request, res as Response);
+
+    const getVideoById = vi.mocked(storageService.verifyVideoExists).mock
+      .calls[0][1];
+    getVideoById("owner-video");
+    expect(storageService.getVideoById).toHaveBeenCalledWith(
+      "owner-video",
+      undefined
+    );
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        found: true,
+        status: "exists",
+        videoId: "owner-video",
       })
     );
   });

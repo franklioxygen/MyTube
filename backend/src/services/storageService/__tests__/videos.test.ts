@@ -1,4 +1,5 @@
 import fs from "fs-extra";
+import crypto from "crypto";
 import path from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AVATARS_DIR, IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../../../config/paths";
@@ -10,12 +11,15 @@ import * as fileHelpers from "../fileHelpers";
 import { markDownloadHistoryDeletedByVideoId } from "../downloadHistory";
 import { markVideoDownloadDeleted } from "../videoDownloadTracking";
 import {
+  classifyMediaVisibility,
   deleteVideo,
   formatLegacyFilenames,
   getVideoById,
   getVideoBySourceUrl,
   getVideoPartBySourceUrl,
   getVideos,
+  isCloudFileVisibleToVisitor,
+  isVideoPublic,
   saveVideo,
   updateVideo,
 } from "../videos";
@@ -697,6 +701,160 @@ describe("storageService videos", () => {
         throw new Error("db fail");
       });
       expect(() => deleteVideo("1")).toThrow(DatabaseError);
+    });
+  });
+
+  describe("isVideoPublic", () => {
+    it("treats visibility 1, null and undefined as public; 0 as hidden", () => {
+      expect(isVideoPublic({ visibility: 1 })).toBe(true);
+      expect(isVideoPublic({ visibility: null })).toBe(true);
+      expect(isVideoPublic({})).toBe(true);
+      expect(isVideoPublic({ visibility: 0 })).toBe(false);
+    });
+  });
+
+  describe("classifyMediaVisibility", () => {
+    const mockClassifyRows = (rows: any[]) => {
+      const allMock = vi.fn().mockReturnValue(rows);
+      vi.mocked(db.select).mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({ all: allMock }),
+        }),
+      } as any);
+      return allMock;
+    };
+
+    const cacheKeyFor = (cloudPath: string) =>
+      `${crypto.createHash("sha256").update(cloudPath).digest("hex")}.jpg`;
+
+    const mockCachedCloudThumbnailRows = (rows: any[]) => {
+      const allMock = vi.fn().mockReturnValue(rows);
+      vi.mocked(db.select).mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({ all: allMock }),
+        }),
+      } as any);
+      return allMock;
+    };
+
+    it("returns 'unknown' when no candidate paths are supplied", () => {
+      expect(classifyMediaVisibility({})).toBe("unknown");
+    });
+
+    it("returns 'unknown' for an orphan file with no matching video", () => {
+      mockClassifyRows([]);
+      expect(
+        classifyMediaVisibility({ exactPaths: ["/videos/orphan.mp4"] })
+      ).toBe("unknown");
+    });
+
+    it("returns 'hidden' when every referencing video is hidden", () => {
+      mockClassifyRows([{ visibility: 0 }]);
+      expect(
+        classifyMediaVisibility({ exactPaths: ["/videos/secret.mp4"] })
+      ).toBe("hidden");
+    });
+
+    it("checks legacy thumbnailUrl values for exact media paths", () => {
+      mockClassifyRows([{ visibility: 0 }]);
+      expect(
+        classifyMediaVisibility({ exactPaths: ["/images/legacy-secret.jpg"] })
+      ).toBe("hidden");
+    });
+
+    it("returns 'public' when any referencing video is visible (shared thumbnail)", () => {
+      mockClassifyRows([{ visibility: 0 }, { visibility: 1 }]);
+      expect(
+        classifyMediaVisibility({ subtitlePaths: ["/subtitles/shared.vtt"] })
+      ).toBe("public");
+    });
+
+    it("fails closed to 'hidden' on a database error", () => {
+      vi.mocked(db.select).mockImplementation(() => {
+        throw new Error("db down");
+      });
+      expect(
+        classifyMediaVisibility({ exactPaths: ["/videos/secret.mp4"] })
+      ).toBe("hidden");
+    });
+
+    it("classifies cloud thumbnail cache keys by matching cloud thumbnail paths", () => {
+      const key = cacheKeyFor("cloud:secret-thumb.jpg");
+      mockCachedCloudThumbnailRows([
+        { thumbnailPath: "cloud:secret-thumb.jpg", visibility: 0 },
+        { thumbnailPath: "cloud:public-thumb.jpg", visibility: 1 },
+      ]);
+
+      expect(
+        classifyMediaVisibility({ cloudThumbnailCacheKeys: [`/${key}`] })
+      ).toBe("hidden");
+    });
+
+    it("treats a cached cloud thumbnail as public when any matching video is public", () => {
+      const key = cacheKeyFor("cloud:shared-thumb.jpg");
+      mockCachedCloudThumbnailRows([
+        { thumbnailPath: "cloud:shared-thumb.jpg", visibility: 0 },
+        { thumbnailPath: "cloud:shared-thumb.jpg", visibility: 1 },
+      ]);
+
+      expect(
+        classifyMediaVisibility({ cloudThumbnailCacheKeys: [key] })
+      ).toBe("public");
+    });
+
+    it("returns 'unknown' for cached cloud thumbnails with no matching video", () => {
+      const key = cacheKeyFor("cloud:orphan-thumb.jpg");
+      mockCachedCloudThumbnailRows([
+        { thumbnailPath: "cloud:other-thumb.jpg", visibility: 0 },
+      ]);
+
+      expect(
+        classifyMediaVisibility({ cloudThumbnailCacheKeys: [key] })
+      ).toBe("unknown");
+    });
+
+    it("classifies cached cloud thumbnails from legacy thumbnailUrl values", () => {
+      const key = cacheKeyFor("cloud:legacy-secret-thumb.jpg");
+      mockCachedCloudThumbnailRows([
+        {
+          thumbnailPath: null,
+          thumbnailUrl: "cloud:legacy-secret-thumb.jpg",
+          visibility: 0,
+        },
+      ]);
+
+      expect(
+        classifyMediaVisibility({ cloudThumbnailCacheKeys: [key] })
+      ).toBe("hidden");
+    });
+  });
+
+  describe("isCloudFileVisibleToVisitor", () => {
+    const mockClassifyRows = (rows: any[]) => {
+      vi.mocked(db.select).mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({ all: vi.fn().mockReturnValue(rows) }),
+        }),
+      } as any);
+    };
+
+    it("allows an empty filename (non-blocking)", () => {
+      expect(isCloudFileVisibleToVisitor("")).toBe(true);
+    });
+
+    it("blocks a cloud file that belongs solely to a hidden video", () => {
+      mockClassifyRows([{ visibility: 0 }]);
+      expect(isCloudFileVisibleToVisitor("secret.mp4")).toBe(false);
+    });
+
+    it("allows a cloud file referenced by a public video", () => {
+      mockClassifyRows([{ visibility: 1 }]);
+      expect(isCloudFileVisibleToVisitor("pub.mp4")).toBe(true);
+    });
+
+    it("allows an orphan cloud file (no matching video)", () => {
+      mockClassifyRows([]);
+      expect(isCloudFileVisibleToVisitor("orphan.jpg")).toBe(true);
     });
   });
 });

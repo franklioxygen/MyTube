@@ -8,6 +8,7 @@ import sanitizeFilename from "sanitize-filename";
 import { IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../config/paths";
 import { NotFoundError, ValidationError } from "../errors/DownloadErrors";
 import { syncMediaServerArtifactsForRecord } from "../services/mediaServerExport";
+import { isLoginRequired } from "../services/passwordService";
 import * as storageService from "../services/storageService";
 import {
   deleteSmallThumbnailMirrorSync,
@@ -45,6 +46,26 @@ import {
   unlinkSafeSync,
   writeFileSafeSync,
 } from "../utils/security";
+
+/**
+ * Resolve the caller role to pass into the visibility-aware storage queries
+ * (`getVideos`/`getVideoById`). When login is disabled (single-user mode) every
+ * caller is owner-equivalent, so any stale visitor session/JWT role left on the
+ * request must be ignored — otherwise hidden videos would wrongly 404 / vanish
+ * right after login is turned off. Only scope by role while login is enforced.
+ */
+const getVisibilityScopedRole = (
+  req: Request
+):
+  | import("../services/storageService").VideoCallerRole
+  | undefined => {
+  if (!isLoginRequired()) {
+    return undefined;
+  }
+  return req.user?.role as
+    | import("../services/storageService").VideoCallerRole
+    | undefined;
+};
 
 const MAX_VIDEO_UPLOAD_FILE_SIZE = 100 * 1024 * 1024 * 1024;
 const MAX_BATCH_UPLOAD_FILES = 100;
@@ -526,10 +547,13 @@ const resolveVideoWebPath = (absoluteVideoPath: string): string | null => {
  * Note: Returns array directly for backward compatibility with frontend
  */
 export const getVideos = async (
-  _req: Request,
+  req: Request,
   res: Response
 ): Promise<void> => {
-  const videos = storageService.getVideos();
+  // Visitors must only see public (visibility=1) videos. The query layer
+  // enforces this so the frontend filter (VideoContext) is no longer the only
+  // gate. Fixes GHSA-hcm6-w6x8-6jhr.
+  const videos = storageService.getVideos(getVisibilityScopedRole(req));
   // Return array directly for backward compatibility (frontend expects response.data to be Video[])
   sendData(res, videos);
 };
@@ -544,7 +568,9 @@ export const getVideoById = async (
   res: Response
 ): Promise<void> => {
   const id = getStringParam(req.params.id) ?? "";
-  const video = storageService.getVideoById(id);
+  // Visitors are restricted to public videos; a hidden video is treated as
+  // "not found" for them. Fixes GHSA-hcm6-w6x8-6jhr.
+  const video = storageService.getVideoById(id, getVisibilityScopedRole(req));
 
   if (!video) {
     throw new NotFoundError("Video", id);
@@ -660,6 +686,14 @@ export const getVideoComments = async (
   res: Response
 ): Promise<void> => {
   const id = getStringParam(req.params.id) ?? "";
+  // Don't reveal a hidden video's comments to visitors: a hidden video is
+  // treated as "not found" for them. The query-layer role filter returns
+  // undefined for a hidden id when the caller is a visitor (and ignores stale
+  // roles when login is disabled). Fixes GHSA-hcm6-w6x8-6jhr.
+  const role = getVisibilityScopedRole(req);
+  if (role === "visitor" && !storageService.getVideoById(id, role)) {
+    throw new NotFoundError("Video", id);
+  }
   const comments = await import("../services/commentService").then((m) =>
     m.getComments(id)
   );
@@ -1213,7 +1247,8 @@ export const serveMountVideo = async (
   res: Response
 ): Promise<void> => {
   const id = getStringParam(req.params.id) ?? "";
-  const video = storageService.getVideoById(id);
+  // Visitors must not be able to stream hidden mount-directory videos.
+  const video = storageService.getVideoById(id, getVisibilityScopedRole(req));
 
   if (!video) {
     throw new NotFoundError("Video", id);

@@ -9,6 +9,11 @@ import {
   SUBTITLES_DIR,
   VIDEOS_DIR,
 } from "../config/paths";
+import { authMiddleware } from "../middleware/authMiddleware";
+import {
+  requireAuthenticatedMediaAccess,
+  requireVisibleMediaForVisitors,
+} from "../middleware/mediaAuthMiddleware";
 import {
   ensureSmallThumbnailForRelativePath,
   getThumbnailRelativePath,
@@ -17,6 +22,13 @@ import {
   normalizeSafeAbsolutePath,
   resolveSafeChildPath,
 } from "../utils/security";
+
+// Media-serving routes were historically mounted before the API auth stack,
+// leaving them fully unauthenticated (GHSA-rwwf-29mq-5j43). These two
+// middlewares re-introduce the credential check for media access:
+//  - authMiddleware: resolves req.user / req.apiKeyAuthenticated (does not block)
+//  - requireAuthenticatedMediaAccess: enforces login when loginEnabled=true
+const mediaAuthStack = [authMiddleware, requireAuthenticatedMediaAccess];
 
 const setCommonImageHeaders = (res: Response): void => {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -113,6 +125,8 @@ export const registerStaticRoutes = (
 
   app.use(
     "/videos",
+    ...mediaAuthStack,
+    requireVisibleMediaForVisitors("videos"),
     express.static(VIDEOS_DIR, {
       fallthrough: false,
       setHeaders: (res, filePath) => {
@@ -157,18 +171,27 @@ export const registerStaticRoutes = (
 
   app.use(
     "/images",
+    ...mediaAuthStack,
+    requireVisibleMediaForVisitors("images"),
     express.static(IMAGES_DIR, {
       fallthrough: false,
       setHeaders: setCommonImageHeaders,
     })
   );
 
-  app.get("/images-small/*", (req, res, next) => {
-    void ensureSmallThumbnail(req, res, next);
-  });
+  app.get(
+    "/images-small/*",
+    ...mediaAuthStack,
+    requireVisibleMediaForVisitors("images-small"),
+    (req, res, next) => {
+      void ensureSmallThumbnail(req, res, next);
+    }
+  );
 
   app.use(
     "/images-small",
+    ...mediaAuthStack,
+    requireVisibleMediaForVisitors("images-small"),
     express.static(IMAGES_SMALL_DIR, {
       fallthrough: false,
       setHeaders: setCommonImageHeaders,
@@ -177,6 +200,7 @@ export const registerStaticRoutes = (
 
   app.use(
     "/avatars",
+    ...mediaAuthStack,
     express.static(AVATARS_DIR, {
       fallthrough: false,
       setHeaders: setCommonImageHeaders,
@@ -185,6 +209,8 @@ export const registerStaticRoutes = (
 
   app.use(
     "/api/cloud/thumbnail-cache",
+    ...mediaAuthStack,
+    requireVisibleMediaForVisitors("cloud-thumbnail-cache"),
     express.static(CLOUD_THUMBNAIL_CACHE_DIR, {
       fallthrough: false,
     })
@@ -192,6 +218,8 @@ export const registerStaticRoutes = (
 
   app.use(
     "/subtitles",
+    ...mediaAuthStack,
+    requireVisibleMediaForVisitors("subtitles"),
     express.static(SUBTITLES_DIR, {
       fallthrough: false,
       setHeaders: (res, filePath) => {
