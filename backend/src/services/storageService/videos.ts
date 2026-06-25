@@ -1,4 +1,4 @@
-import { and, desc, eq, or, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, isNull, or, sql, type SQL } from "drizzle-orm";
 import crypto from "crypto";
 import path from "path";
 import {
@@ -39,9 +39,13 @@ export type VideoCallerRole = "admin" | "visitor";
 // Visibility: 0 = hidden, 1 = public (see db/schema.ts). Visitors are only
 // allowed to see public videos; admins see everything. Mirrors the existing
 // RSS feed filter (rssService.ts). Used to fix GHSA-hcm6-w6x8-6jhr.
+// A NULL visibility is treated as public to match the `(visibility ?? 1) === 1`
+// contract in isVideoPublic and the media classifier; a plain `= 1` would hide
+// imported/legacy rows that wrote NULL from visitors only.
 // Built lazily so the schema reference is not evaluated at module load time
 // (which would break tests that partially mock the db schema).
-const publicOnlyVisitorFilter = () => eq(videos.visibility, 1);
+const publicOnlyVisitorFilter = () =>
+  or(eq(videos.visibility, 1), isNull(videos.visibility));
 
 export function getVideos(
   role?: VideoCallerRole
