@@ -32,6 +32,26 @@ export const getSignedUrl = async (
 
   const fileType = (type as "video" | "thumbnail") || "video";
 
+  // Visitor scoping (GHSA-hcm6-w6x8-6jhr): do not hand a visitor a signed URL
+  // (or a local cache URL) for a cloud file that belongs to a hidden video.
+  if (req.user?.role === "visitor") {
+    const cloudRef = `cloud:${filename}`;
+    const allowed = getVideos().some((video) => {
+      const isPublic = (video as { visibility?: number | null }).visibility !== 0;
+      if (!isPublic) return false;
+      return fileType === "video"
+        ? video.videoPath === cloudRef
+        : video.thumbnailPath === cloudRef;
+    });
+    if (!allowed) {
+      res.status(404).json({
+        success: false,
+        message: "File not found",
+      });
+      return;
+    }
+  }
+
   // For thumbnails, check local cache first
   if (fileType === "thumbnail") {
     const cloudPath = `cloud:${filename}`;

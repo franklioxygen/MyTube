@@ -14,6 +14,7 @@ import {
 
 vi.mock("../../services/storageService", () => ({
   getSettings: vi.fn(),
+  getVideos: vi.fn(() => []),
 }));
 
 vi.mock("../../services/cloudStorage/cloudThumbnailCache", () => ({
@@ -42,6 +43,14 @@ vi.mock("../../utils/logger", () => ({
     warn: vi.fn(),
     error: vi.fn(),
   },
+}));
+
+vi.mock("../../middleware/authMiddleware", () => ({
+  authMiddleware: vi.fn((_req, _res, next) => next()),
+}));
+
+vi.mock("../../middleware/mediaAuthMiddleware", () => ({
+  requireAuthenticatedMediaAccess: vi.fn((_req, _res, next) => next()),
 }));
 
 const flushAsync = () => new Promise((resolve) => setTimeout(resolve, 0));
@@ -87,16 +96,21 @@ describe("server/cloudRoutes", () => {
   const registerAndGetHandlers = () => {
     const handlers: Record<string, any> = {};
     const app = {
-      get: vi.fn((route: string, handler: any) => {
-        handlers[route] = handler;
+      get: vi.fn((route: string, ...args: any[]) => {
+        // Route registration is now app.get(route, authMiddleware,
+        // requireAuthenticatedMediaAccess, handler); the handler is last.
+        handlers[route] = args[args.length - 1];
       }),
     } as any;
     registerCloudRoutes(app);
     return handlers;
   };
 
-  const createReq = (filename: string): Request =>
-    ({ params: { filename } } as unknown as Request);
+  const createReq = (filename: string, role?: "visitor" | "admin"): Request =>
+    ({
+      params: { filename },
+      user: role ? ({ role } as any) : undefined,
+    } as unknown as Request);
 
   it("should register cloud video/image routes", () => {
     const handlers = registerAndGetHandlers();
@@ -104,6 +118,44 @@ describe("server/cloudRoutes", () => {
       "/cloud/videos/:filename",
       "/cloud/images/:filename",
     ]);
+  });
+
+  it("should 404 for a visitor requesting a hidden cloud video", async () => {
+    vi.mocked(storageService.getVideos).mockReturnValue([
+      { videoPath: "cloud:secret.mp4", visibility: 0 } as any,
+    ]);
+    const handlers = registerAndGetHandlers();
+    const req = createReq("secret.mp4", "visitor");
+    const res = createRes();
+
+    handlers["/cloud/videos/:filename"](req, res);
+    await flushAsync();
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.send).toHaveBeenCalledWith("File not found");
+    expect(CloudStorageService.getSignedUrl).not.toHaveBeenCalled();
+  });
+
+  it("should allow a visitor to fetch a public cloud video", async () => {
+    (CloudStorageService.getSignedUrl as any).mockResolvedValue(
+      "https://cdn.example/pub.mp4?sign=ok"
+    );
+    vi.mocked(validateRedirectUrl).mockReturnValue(
+      "https://cdn.example/pub.mp4?sign=ok"
+    );
+    vi.mocked(storageService.getVideos).mockReturnValue([
+      { videoPath: "cloud:pub.mp4", visibility: 1 } as any,
+    ]);
+    const handlers = registerAndGetHandlers();
+    const req = createReq("pub.mp4", "visitor");
+    const res = createRes();
+
+    handlers["/cloud/videos/:filename"](req, res);
+    await flushAsync();
+
+    expect(res.writeHead).toHaveBeenCalledWith(302, {
+      Location: "https://cdn.example/pub.mp4?sign=ok",
+    });
   });
 
   it("should return 404 when cloud storage is not configured", async () => {

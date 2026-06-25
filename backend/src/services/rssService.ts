@@ -456,19 +456,34 @@ function buildAbsoluteUrl(baseUrl: string, webPath: string): string {
   return `${baseUrl}${webPath.startsWith("/") ? webPath : `/${webPath}`}`;
 }
 
+// Appends the feed token as a query param so media URLs emitted by the feed can
+// authenticate against the now-auth-gated media routes when login is enabled
+// (see mediaAuthMiddleware). The token id is already the feed's secret
+// credential, so this adds no new secret surface. External absolute URLs are
+// left untouched.
+function attachRssToken(url: string, tokenId: string): string {
+  if (!tokenId) return url;
+  const separator = url.includes("?") ? "&" : "?";
+  return `${url}${separator}rss=${encodeURIComponent(tokenId)}`;
+}
+
 export function buildRssFeedUrl(baseUrl: string, tokenId: string): string {
   return `${baseUrl}${RSS_FEED_PATH_PREFIX}/${tokenId}`;
 }
 
 function buildThumbnailUrl(
   video: typeof videos.$inferSelect,
-  baseUrl: string
+  baseUrl: string,
+  tokenId: string
 ): string | null {
   const rawPath = video.thumbnailPath || video.thumbnailUrl;
   if (!rawPath) return null;
 
   if (rawPath.startsWith("cloud:")) {
-    return `${baseUrl}/cloud/images/${encodeURIComponent(rawPath.slice("cloud:".length))}`;
+    return attachRssToken(
+      `${baseUrl}/cloud/images/${encodeURIComponent(rawPath.slice("cloud:".length))}`,
+      tokenId
+    );
   }
 
   if (
@@ -476,12 +491,15 @@ function buildThumbnailUrl(
     rawPath.startsWith("/images-small/") ||
     rawPath.startsWith("/videos/")
   ) {
-    return buildAbsoluteUrl(baseUrl, rawPath);
+    return attachRssToken(buildAbsoluteUrl(baseUrl, rawPath), tokenId);
   }
 
   if (/^https?:\/\//i.test(rawPath)) return rawPath;
 
-  return buildAbsoluteUrl(baseUrl, rawPath.replace(/^\/+/, ""));
+  return attachRssToken(
+    buildAbsoluteUrl(baseUrl, rawPath.replace(/^\/+/, "")),
+    tokenId
+  );
 }
 
 function inferThumbnailMimeType(url: string): string | null {
@@ -569,7 +587,7 @@ export function buildRssXml(
     }
 
     const videoLink = `${baseUrl}/video/${video.id}`;
-    const thumbnailUrl = buildThumbnailUrl(video, baseUrl);
+    const thumbnailUrl = buildThumbnailUrl(video, baseUrl, token.id);
 
     let parsedTags: string[] = [];
     try {

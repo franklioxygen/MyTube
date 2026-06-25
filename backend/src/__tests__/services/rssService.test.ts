@@ -142,7 +142,11 @@ describe("rssService", () => {
       expect(xml).toContain("<title>Title &lt;tag&gt; &amp; more</title>");
       expect(xml).toContain("<dc:creator>Author &lt;script&gt;</dc:creator>");
       expect(xml).toContain("<category>alpha &amp; beta</category>");
-      expect(xml).toContain('url="https://mytube.example/images/thumb.webp"');
+      // Media URLs carry the feed token so they authenticate against the
+      // auth-gated media routes (see mediaAuthMiddleware).
+      expect(xml).toContain(
+        `url="https://mytube.example/images/thumb.webp?rss=${baseToken.id}"`
+      );
       expect(xml).toContain('type="image/webp"');
       expect(xml).toContain("Author &lt;script&gt;");
       expect(xml).toContain("<p>来源：YouTube</p>");

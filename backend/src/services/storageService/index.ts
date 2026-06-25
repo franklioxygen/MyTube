@@ -64,6 +64,7 @@ export {
     saveVideoWithInsertFlag,
     updateVideo
 } from "./videos";
+export type { VideoCallerRole } from "./videos";
 
 // Collections
 export {

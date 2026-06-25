@@ -526,10 +526,17 @@ const resolveVideoWebPath = (absoluteVideoPath: string): string | null => {
  * Note: Returns array directly for backward compatibility with frontend
  */
 export const getVideos = async (
-  _req: Request,
+  req: Request,
   res: Response
 ): Promise<void> => {
-  const videos = storageService.getVideos();
+  // Visitors must only see public (visibility=1) videos. The query layer
+  // enforces this so the frontend filter (VideoContext) is no longer the only
+  // gate. Fixes GHSA-hcm6-w6x8-6jhr.
+  const videos = storageService.getVideos(
+    req.user?.role as
+      | import("../services/storageService").VideoCallerRole
+      | undefined
+  );
   // Return array directly for backward compatibility (frontend expects response.data to be Video[])
   sendData(res, videos);
 };
@@ -544,7 +551,14 @@ export const getVideoById = async (
   res: Response
 ): Promise<void> => {
   const id = getStringParam(req.params.id) ?? "";
-  const video = storageService.getVideoById(id);
+  // Visitors are restricted to public videos; a hidden video is treated as
+  // "not found" for them. Fixes GHSA-hcm6-w6x8-6jhr.
+  const video = storageService.getVideoById(
+    id,
+    req.user?.role as
+      | import("../services/storageService").VideoCallerRole
+      | undefined
+  );
 
   if (!video) {
     throw new NotFoundError("Video", id);
@@ -1213,7 +1227,13 @@ export const serveMountVideo = async (
   res: Response
 ): Promise<void> => {
   const id = getStringParam(req.params.id) ?? "";
-  const video = storageService.getVideoById(id);
+  // Visitors must not be able to stream hidden mount-directory videos.
+  const video = storageService.getVideoById(
+    id,
+    req.user?.role as
+      | import("../services/storageService").VideoCallerRole
+      | undefined
+  );
 
   if (!video) {
     throw new NotFoundError("Video", id);

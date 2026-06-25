@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import path from "path";
 import {
     AVATARS_DIR,
@@ -33,13 +33,27 @@ import {
   resolveManagedThumbnailWebPathFromAbsolutePath,
 } from "../thumbnailMirrorService";
 
-export function getVideos(): import("./types").Video[] {
+export type VideoCallerRole = "admin" | "visitor";
+
+// Visibility: 0 = hidden, 1 = public (see db/schema.ts). Visitors are only
+// allowed to see public videos; admins see everything. Mirrors the existing
+// RSS feed filter (rssService.ts). Used to fix GHSA-hcm6-w6x8-6jhr.
+// Built lazily so the schema reference is not evaluated at module load time
+// (which would break tests that partially mock the db schema).
+const publicOnlyVisitorFilter = () => eq(videos.visibility, 1);
+
+export function getVideos(
+  role?: VideoCallerRole
+): import("./types").Video[] {
   try {
-    const allVideos = db
+    const baseQuery = db
       .select()
       .from(videos)
-      .orderBy(desc(videos.createdAt))
-      .all();
+      .orderBy(desc(videos.createdAt));
+    const allVideos =
+      role === "visitor"
+        ? baseQuery.where(publicOnlyVisitorFilter()).all()
+        : baseQuery.all();
     return allVideos.map((v) => ({
       ...v,
       tags: v.tags ? JSON.parse(v.tags) : [],
@@ -86,9 +100,20 @@ export function getVideoBySourceUrl(
   }
 }
 
-export function getVideoById(id: string): import("./types").Video | undefined {
+export function getVideoById(
+  id: string,
+  role?: VideoCallerRole
+): import("./types").Video | undefined {
   try {
-    const video = db.select().from(videos).where(eq(videos.id, id)).get();
+    const baseQuery = db.select().from(videos);
+    const video =
+      role === "visitor"
+        ? baseQuery
+            .where(
+              and(eq(videos.id, id), publicOnlyVisitorFilter())
+            )
+            .get()
+        : baseQuery.where(eq(videos.id, id)).get();
     if (video) {
       return {
         ...video,

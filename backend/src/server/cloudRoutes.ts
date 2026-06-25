@@ -13,6 +13,39 @@ import {
   validateCloudThumbnailCachePath,
   validateRedirectUrl,
 } from "../utils/security";
+import { authMiddleware } from "../middleware/authMiddleware";
+import { requireAuthenticatedMediaAccess } from "../middleware/mediaAuthMiddleware";
+
+/**
+ * Determine whether a cloud-stored file belongs to at least one public video
+ * the visitor is allowed to see. Videos (fileType "video") match on
+ * videoPath === "cloud:<filename>"; thumbnails (fileType "image") match on
+ * thumbnailPath === "cloud:<filename>". Orphan files with no matching record
+ * are treated as public (non-blocking) so cached thumbnails still resolve.
+ *
+ * Part of the visitor scoping fix for GHSA-hcm6-w6x8-6jhr.
+ */
+const cloudFilenameIsPublic = (
+  filename: string,
+  fileType: "video" | "image"
+): boolean => {
+  if (!filename) return true;
+  const cloudRef = `cloud:${filename}`;
+  try {
+    const videos = storageService.getVideos();
+    return videos.some((video) => {
+      const isPublic = (video as { visibility?: number | null }).visibility !== 0;
+      if (!isPublic) return false;
+      return fileType === "video"
+        ? video.videoPath === cloudRef
+        : video.thumbnailPath === cloudRef;
+    });
+  } catch {
+    // Be non-blocking on lookup failure; the media auth guard already verified
+    // the caller is a logged-in visitor.
+    return true;
+  }
+};
 
 const redirectCloudFile = async (
   req: Request,
@@ -29,6 +62,17 @@ const redirectCloudFile = async (
       !settings.openListToken
     ) {
       res.status(404).send("Cloud storage not configured");
+      return;
+    }
+
+    // Visitor scoping (GHSA-hcm6-w6x8-6jhr): a visitor may only fetch cloud
+    // media for videos they are allowed to see (visibility=1). Admins and any
+    // RSS-token-authenticated caller (which already passed the feed's own
+    // visitor/public filter when building the URL) are allowed. We look the
+    // filename up against video records; if no record matches we do not block,
+    // since orphan thumbnails can still be cached.
+    if (req.user?.role === "visitor" && !cloudFilenameIsPublic(filename, fileType)) {
+      res.status(404).send("File not found");
       return;
     }
 
@@ -127,12 +171,25 @@ const redirectCloudFile = async (
 };
 
 export const registerCloudRoutes = (app: Express): void => {
-  app.get("/cloud/videos/:filename", (req, res) => {
-    void redirectCloudFile(req, res, "video");
-  });
-  app.get("/cloud/images/:filename", (req, res) => {
-    void redirectCloudFile(req, res, "image");
-  });
+  // Cloud media routes were registered before the auth stack and were fully
+  // unauthenticated (GHSA-rwwf-29mq-5j43). The media auth stack enforces login
+  // when loginEnabled=true (session, API key, or RSS feed token).
+  const cloudMediaAuth = [authMiddleware, requireAuthenticatedMediaAccess];
+
+  app.get(
+    "/cloud/videos/:filename",
+    ...cloudMediaAuth,
+    (req, res) => {
+      void redirectCloudFile(req, res, "video");
+    }
+  );
+  app.get(
+    "/cloud/images/:filename",
+    ...cloudMediaAuth,
+    (req, res) => {
+      void redirectCloudFile(req, res, "image");
+    }
+  );
 };
 
 export const startCloudflaredIfEnabled = (port: number): void => {

@@ -419,6 +419,43 @@ describe('StorageService', () => {
       expect(result).toHaveLength(1);
       expect(result[0].tags).toEqual(['tag1']);
     });
+
+    it('should filter to public-only videos for a visitor', () => {
+      const mockVideos = [{ id: '1', title: 'Public', tags: '[]' }];
+      const whereMock = vi.fn().mockReturnValue({
+        all: vi.fn().mockReturnValue(mockVideos),
+      });
+      (db.select as any).mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          orderBy: vi.fn().mockReturnValue({
+            where: whereMock,
+            all: vi.fn().mockReturnValue([]),
+          }),
+        }),
+      });
+
+      const result = storageService.getVideos('visitor');
+      expect(whereMock).toHaveBeenCalledTimes(1);
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('1');
+    });
+
+    it('should not apply a visibility filter when no role is given', () => {
+      const allMock = vi.fn().mockReturnValue([{ id: '1', title: 'Any', tags: '[]' }]);
+      const whereMock = vi.fn();
+      (db.select as any).mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          orderBy: vi.fn().mockReturnValue({
+            where: whereMock,
+            all: allMock,
+          }),
+        }),
+      });
+
+      storageService.getVideos();
+      expect(whereMock).not.toHaveBeenCalled();
+      expect(allMock).toHaveBeenCalled();
+    });
   });
 
   describe('getVideoById', () => {
@@ -447,6 +484,21 @@ describe('StorageService', () => {
       });
 
       const result = storageService.getVideoById('1');
+      expect(result).toBeUndefined();
+    });
+
+    it('should treat hidden videos as not found for a visitor', () => {
+      // The visitor path adds a visibility filter; a hidden row is excluded.
+      const getMock = vi.fn().mockReturnValue(null);
+      const whereMock = vi.fn().mockReturnValue({ get: getMock });
+      (db.select as any).mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: whereMock,
+        }),
+      });
+
+      const result = storageService.getVideoById('hidden-1', 'visitor');
+      expect(whereMock).toHaveBeenCalledTimes(1);
       expect(result).toBeUndefined();
     });
   });

@@ -37,6 +37,14 @@ vi.mock("fs-extra", () => ({
   pathExists: pathExistsMock,
 }));
 
+vi.mock("../../middleware/authMiddleware", () => ({
+  authMiddleware: vi.fn((_req, _res, next) => next()),
+}));
+
+vi.mock("../../middleware/mediaAuthMiddleware", () => ({
+  requireAuthenticatedMediaAccess: vi.fn((_req, _res, next) => next()),
+}));
+
 import {
   registerSpaFallback,
   registerStaticRoutes,
@@ -57,21 +65,30 @@ describe("server/staticRoutes", () => {
     registerStaticRoutes(app, "/frontend-dist");
 
     expect(use).toHaveBeenCalledTimes(8);
-    expect(get).toHaveBeenCalledWith("/images-small/*", expect.any(Function));
+    // /images-small/* now carries the media auth stack before its handler.
+    expect(get).toHaveBeenCalledWith(
+      "/images-small/*",
+      expect.any(Function),
+      expect.any(Function),
+      expect.any(Function)
+    );
 
-    const [videosPath, videosStatic] = use.mock.calls[0];
+    // Media mounts carry the auth stack (authMiddleware, requireAuthenticatedMediaAccess)
+    // before the express.static() result. Index 3 holds that static result.
+    const [videosPath, , , videosStatic] = use.mock.calls[0];
     expect(videosPath).toBe("/videos");
     expect(videosStatic.dir).toContain("/uploads/videos");
     expect(videosStatic.options.fallthrough).toBe(false);
 
-    const [imagesPath, imagesStatic] = use.mock.calls[1];
+    const [imagesPath, , , imagesStatic] = use.mock.calls[1];
     expect(imagesPath).toBe("/images");
     expect(imagesStatic.options.fallthrough).toBe(false);
 
-    const [smallImagesPath, smallImagesStatic] = use.mock.calls[2];
+    const [smallImagesPath, , , smallImagesStatic] = use.mock.calls[2];
     expect(smallImagesPath).toBe("/images-small");
     expect(smallImagesStatic.options.fallthrough).toBe(false);
 
+    // /assets is the frontend bundle (login page assets) and stays unguarded.
     const [assetsPath, assetsStatic] = use.mock.calls[6];
     expect(assetsPath).toBe("/assets");
     expect(assetsStatic.dir).toBe("/frontend-dist/assets");
@@ -99,13 +116,46 @@ describe("server/staticRoutes", () => {
     expect(res.setHeader).toHaveBeenCalledWith("Content-Type", "video/mp4");
   });
 
+  it("should gate media mounts behind the media auth stack", () => {
+    const use = vi.fn();
+    const get = vi.fn();
+    const app = { use, get } as any;
+    registerStaticRoutes(app, "/frontend-dist");
+
+    // The first six use() calls are media routes (videos, images, images-small,
+    // avatars, api/cloud/thumbnail-cache, subtitles) and must carry two auth
+    // middlewares before the static result. /assets and the SPA dist do not.
+    const mediaPaths = [
+      "/videos",
+      "/images",
+      "/images-small",
+      "/avatars",
+      "/api/cloud/thumbnail-cache",
+      "/subtitles",
+    ];
+    mediaPaths.forEach((expectedPath, index) => {
+      const call = use.mock.calls[index];
+      expect(call[0]).toBe(expectedPath);
+      // path + authMiddleware + requireAuthenticatedMediaAccess + static result
+      expect(call).toHaveLength(4);
+      expect(typeof call[1]).toBe("function");
+      expect(typeof call[2]).toBe("function");
+      expect(call[3]).toBeTruthy();
+    });
+
+    // /assets (index 6) and the SPA dist (index 7) are NOT auth-gated.
+    expect(use.mock.calls[6][0]).toBe("/assets");
+    expect(use.mock.calls[6]).toHaveLength(2);
+  });
+
   it("should set subtitle content-type headers by extension", () => {
     const use = vi.fn();
     const get = vi.fn();
     const app = { use, get } as any;
     registerStaticRoutes(app, "/frontend-dist");
 
-    const subtitlesStatic = use.mock.calls[5][1];
+    // /subtitles is media call index 5; its static result sits at arg index 3.
+    const subtitlesStatic = use.mock.calls[5][3];
     const setHeaders = subtitlesStatic.options.setHeaders as (
       res: any,
       filePath: string
@@ -132,7 +182,9 @@ describe("server/staticRoutes", () => {
     const app = { use, get } as any;
     registerStaticRoutes(app, "/frontend-dist");
 
-    const smallImageHandler = get.mock.calls[0][1];
+    // The /images-small/* GET carries [authMiddleware, requireMedia, handler];
+    // the handler is the 4th argument (index 3).
+    const smallImageHandler = get.mock.calls[0][3];
     const res = {
       status: vi.fn().mockReturnThis(),
       send: vi.fn(),
@@ -167,7 +219,7 @@ describe("server/staticRoutes", () => {
     const app = { use, get } as any;
     registerStaticRoutes(app, "/frontend-dist");
 
-    const smallImageHandler = get.mock.calls[0][1];
+    const smallImageHandler = get.mock.calls[0][3];
     const res = {
       status: vi.fn().mockReturnThis(),
       send: vi.fn(),
@@ -206,7 +258,7 @@ describe("server/staticRoutes", () => {
     const app = { use, get } as any;
     registerStaticRoutes(app, "/frontend-dist");
 
-    const smallImageHandler = get.mock.calls[0][1];
+    const smallImageHandler = get.mock.calls[0][3];
     const sendFile = vi.fn((_path: string, cb?: (err?: Error | null) => void) => {
       cb?.(null);
     });

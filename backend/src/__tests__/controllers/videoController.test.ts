@@ -347,6 +347,17 @@ describe("VideoController", () => {
       expect(status).toHaveBeenCalledWith(200);
       expect(json).toHaveBeenCalledWith(mockVideos);
     });
+
+    it("should scope videos to public-only when caller is a visitor", () => {
+      const mockVideos = [{ id: "1" }];
+      (storageService.getVideos as any).mockReturnValue(mockVideos);
+      req.user = { role: "visitor" } as any;
+
+      getVideos(req as Request, res as Response);
+
+      expect(storageService.getVideos).toHaveBeenCalledWith("visitor");
+      expect(json).toHaveBeenCalledWith(mockVideos);
+    });
   });
 
   describe("getVideoById", () => {
@@ -357,9 +368,28 @@ describe("VideoController", () => {
 
       getVideoById(req as Request, res as Response);
 
-      expect(storageService.getVideoById).toHaveBeenCalledWith("1");
+      // Unauthenticated caller -> role undefined (admin/server-side default).
+      expect(storageService.getVideoById).toHaveBeenCalledWith("1", undefined);
       expect(status).toHaveBeenCalledWith(200);
       expect(json).toHaveBeenCalledWith(mockVideo);
+    });
+
+    it("should treat hidden videos as not found for a visitor", async () => {
+      req.params = { id: "hidden-1" };
+      req.user = { role: "visitor" } as any;
+      // getVideoById returns undefined for a hidden video when role=visitor.
+      (storageService.getVideoById as any).mockReturnValue(undefined);
+
+      try {
+        await getVideoById(req as Request, res as Response);
+        expect.fail("Should have thrown");
+      } catch (error: any) {
+        expect(error.name).toBe("NotFoundError");
+      }
+      expect(storageService.getVideoById).toHaveBeenCalledWith(
+        "hidden-1",
+        "visitor"
+      );
     });
 
     it("should throw NotFoundError if not found", async () => {
