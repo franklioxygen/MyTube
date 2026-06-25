@@ -278,6 +278,29 @@ describe("middleware/requireVisibleMediaForVisitors", () => {
     expect(next).not.toHaveBeenCalled();
   });
 
+  it("checks video-root subtitle files through subtitle metadata", () => {
+    isLoginRequiredMock.mockReturnValue(true);
+    classifyMediaVisibilityMock.mockReturnValue("hidden");
+    const res = createRes();
+    const next = vi.fn();
+
+    requireVisibleMediaForVisitors("videos")(
+      createReq({
+        user: { role: "visitor" } as any,
+        path: "/Collection/secret.en.vtt",
+      }),
+      res,
+      next
+    );
+
+    expect(classifyMediaVisibilityMock).toHaveBeenCalledWith({
+      exactPaths: ["/videos/Collection/secret.en.vtt"],
+      subtitlePaths: ["/videos/Collection/secret.en.vtt"],
+    });
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(next).not.toHaveBeenCalled();
+  });
+
   it("allows a visitor to reach public media", () => {
     isLoginRequiredMock.mockReturnValue(true);
     classifyMediaVisibilityMock.mockReturnValue("public");

@@ -126,15 +126,27 @@ const safeDecode = (value: string): string => {
   }
 };
 
+const isSubtitlePath = (value: string): boolean =>
+  /\.(ass|srt|ssa|vtt)$/i.test(value);
+
 const classifyMediaRequest = (
   kind: MediaKind,
   req: Request
 ): storageService.MediaVisibility => {
   switch (kind) {
-    case "videos":
-      return storageService.classifyMediaVisibility({
-        exactPaths: [`/videos${safeDecode(req.path)}`],
-      });
+    case "videos": {
+      const mediaPath = `/videos${safeDecode(req.path)}`;
+      const opts: {
+        exactPaths: string[];
+        subtitlePaths?: string[];
+      } = {
+        exactPaths: [mediaPath],
+      };
+      if (isSubtitlePath(mediaPath)) {
+        opts.subtitlePaths = [mediaPath];
+      }
+      return storageService.classifyMediaVisibility(opts);
+    }
     case "images":
       return storageService.classifyMediaVisibility({
         exactPaths: [`/images${safeDecode(req.path)}`],
