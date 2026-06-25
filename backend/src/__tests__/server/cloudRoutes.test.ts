@@ -87,8 +87,8 @@ describe("server/cloudRoutes", () => {
   const registerAndGetHandlers = () => {
     const handlers: Record<string, any> = {};
     const app = {
-      get: vi.fn((route: string, handler: any) => {
-        handlers[route] = handler;
+      get: vi.fn((route: string, ...routeHandlers: any[]) => {
+        handlers[route] = routeHandlers[routeHandlers.length - 1];
       }),
     } as any;
     registerCloudRoutes(app);

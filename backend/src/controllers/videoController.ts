@@ -46,6 +46,10 @@ import {
   writeFileSafeSync,
 } from "../utils/security";
 
+const isVisitorRequest = (req: Request): boolean => req.user?.role === "visitor";
+const isVisibleToVisitor = (video: storageService.Video): boolean =>
+  (video.visibility ?? 1) === 1;
+
 const MAX_VIDEO_UPLOAD_FILE_SIZE = 100 * 1024 * 1024 * 1024;
 const MAX_BATCH_UPLOAD_FILES = 100;
 const MAX_BATCH_UPLOAD_TOTAL_SIZE = MAX_VIDEO_UPLOAD_FILE_SIZE;
@@ -526,10 +530,16 @@ const resolveVideoWebPath = (absoluteVideoPath: string): string | null => {
  * Note: Returns array directly for backward compatibility with frontend
  */
 export const getVideos = async (
-  _req: Request,
+  req: Request,
   res: Response
 ): Promise<void> => {
-  const videos = storageService.getVideos();
+  const videos = storageService.getVideos().filter((video) => {
+    if (!isVisitorRequest(req)) {
+      return true;
+    }
+
+    return isVisibleToVisitor(video);
+  });
   // Return array directly for backward compatibility (frontend expects response.data to be Video[])
   sendData(res, videos);
 };
@@ -547,6 +557,10 @@ export const getVideoById = async (
   const video = storageService.getVideoById(id);
 
   if (!video) {
+    throw new NotFoundError("Video", id);
+  }
+
+  if (isVisitorRequest(req) && !isVisibleToVisitor(video)) {
     throw new NotFoundError("Video", id);
   }
 
@@ -1216,6 +1230,10 @@ export const serveMountVideo = async (
   const video = storageService.getVideoById(id);
 
   if (!video) {
+    throw new NotFoundError("Video", id);
+  }
+
+  if (isVisitorRequest(req) && !isVisibleToVisitor(video)) {
     throw new NotFoundError("Video", id);
   }
 

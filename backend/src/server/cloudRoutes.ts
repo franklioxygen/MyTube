@@ -3,6 +3,8 @@ import path from "path";
 import {
   CLOUD_THUMBNAIL_CACHE_DIR,
 } from "../config/paths";
+import { authMiddleware } from "../middleware/authMiddleware";
+import { mediaAccessMiddleware } from "../middleware/mediaAccessMiddleware";
 import { cloudflaredService } from "../services/cloudflaredService";
 import { getCachedThumbnail } from "../services/cloudStorage/cloudThumbnailCache";
 import { CloudStorageService } from "../services/CloudStorageService";
@@ -127,12 +129,22 @@ const redirectCloudFile = async (
 };
 
 export const registerCloudRoutes = (app: Express): void => {
-  app.get("/cloud/videos/:filename", (req, res) => {
-    void redirectCloudFile(req, res, "video");
-  });
-  app.get("/cloud/images/:filename", (req, res) => {
-    void redirectCloudFile(req, res, "image");
-  });
+  app.get(
+    "/cloud/videos/:filename",
+    authMiddleware,
+    mediaAccessMiddleware,
+    (req, res) => {
+      void redirectCloudFile(req, res, "video");
+    }
+  );
+  app.get(
+    "/cloud/images/:filename",
+    authMiddleware,
+    mediaAccessMiddleware,
+    (req, res) => {
+      void redirectCloudFile(req, res, "image");
+    }
+  );
 };
 
 export const startCloudflaredIfEnabled = (port: number): void => {

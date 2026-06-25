@@ -5,6 +5,7 @@ import {
     deleteVideo,
     getVideoById,
     getVideos,
+    serveMountVideo,
     updateVideoDetails,
 } from "../../controllers/videoController";
 import {
@@ -347,6 +348,23 @@ describe("VideoController", () => {
       expect(status).toHaveBeenCalledWith(200);
       expect(json).toHaveBeenCalledWith(mockVideos);
     });
+
+    it("should only return public videos to visitors", () => {
+      req.user = { role: "visitor" } as any;
+      const mockVideos = [
+        { id: "1", visibility: 1 },
+        { id: "2", visibility: 0 },
+        { id: "3" },
+      ];
+      (storageService.getVideos as any).mockReturnValue(mockVideos);
+
+      getVideos(req as Request, res as Response);
+
+      expect(json).toHaveBeenCalledWith([
+        { id: "1", visibility: 1 },
+        { id: "3" },
+      ]);
+    });
   });
 
   describe("getVideoById", () => {
@@ -368,6 +386,41 @@ describe("VideoController", () => {
 
       try {
         await getVideoById(req as Request, res as Response);
+        expect.fail("Should have thrown");
+      } catch (error: any) {
+        expect(error.name).toBe("NotFoundError");
+      }
+    });
+
+    it("should return 404 semantics for hidden videos requested by visitors", async () => {
+      req.params = { id: "1" };
+      req.user = { role: "visitor" } as any;
+      (storageService.getVideoById as any).mockReturnValue({
+        id: "1",
+        visibility: 0,
+      });
+
+      try {
+        await getVideoById(req as Request, res as Response);
+        expect.fail("Should have thrown");
+      } catch (error: any) {
+        expect(error.name).toBe("NotFoundError");
+      }
+    });
+  });
+
+  describe("serveMountVideo", () => {
+    it("should return 404 semantics for hidden mount videos requested by visitors", async () => {
+      req.params = { id: "1" };
+      req.user = { role: "visitor" } as any;
+      (storageService.getVideoById as any).mockReturnValue({
+        id: "1",
+        visibility: 0,
+        videoPath: "mount:/private/video.mp4",
+      });
+
+      try {
+        await serveMountVideo(req as Request, res as Response);
         expect.fail("Should have thrown");
       } catch (error: any) {
         expect(error.name).toBe("NotFoundError");

@@ -9,6 +9,8 @@ import {
   SUBTITLES_DIR,
   VIDEOS_DIR,
 } from "../config/paths";
+import { authMiddleware } from "../middleware/authMiddleware";
+import { mediaAccessMiddleware } from "../middleware/mediaAccessMiddleware";
 import {
   ensureSmallThumbnailForRelativePath,
   getThumbnailRelativePath,
@@ -33,6 +35,15 @@ const IMAGE_MIME_TYPES = new Map([
 
 const getImageMimeType = (filePath: string): string | null =>
   IMAGE_MIME_TYPES.get(path.extname(filePath).toLowerCase()) ?? null;
+
+const PROTECTED_MEDIA_PATHS = [
+  "/videos",
+  "/images",
+  "/images-small",
+  "/avatars",
+  "/api/cloud/thumbnail-cache",
+  "/subtitles",
+];
 
 const isReservedBackendPath = (requestPath: string): boolean =>
   requestPath.startsWith("/api") ||
@@ -110,6 +121,8 @@ export const registerStaticRoutes = (
 ): void => {
   const safeFrontendDist = normalizeSafeAbsolutePath(frontendDist);
   const safeFrontendAssetsDir = resolveSafeChildPath(safeFrontendDist, "assets");
+
+  app.use(PROTECTED_MEDIA_PATHS, authMiddleware, mediaAccessMiddleware);
 
   app.use(
     "/videos",

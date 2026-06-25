@@ -30,10 +30,20 @@ vi.mock("../../services/thumbnailMirrorService", () => ({
   getThumbnailRelativePath: getThumbnailRelativePathMock,
 }));
 
+vi.mock("../../middleware/authMiddleware", () => ({
+  authMiddleware: vi.fn((_req, _res, next) => next()),
+}));
+
+vi.mock("../../middleware/mediaAccessMiddleware", () => ({
+  mediaAccessMiddleware: vi.fn((_req, _res, next) => next()),
+}));
+
 vi.mock("fs-extra", () => ({
   default: {
+    ensureDirSync: vi.fn(),
     pathExists: pathExistsMock,
   },
+  ensureDirSync: vi.fn(),
   pathExists: pathExistsMock,
 }));
 
@@ -56,23 +66,32 @@ describe("server/staticRoutes", () => {
     const app = { use, get } as any;
     registerStaticRoutes(app, "/frontend-dist");
 
-    expect(use).toHaveBeenCalledTimes(8);
+    expect(use).toHaveBeenCalledTimes(9);
     expect(get).toHaveBeenCalledWith("/images-small/*", expect.any(Function));
 
-    const [videosPath, videosStatic] = use.mock.calls[0];
+    expect(use.mock.calls[0][0]).toEqual([
+      "/videos",
+      "/images",
+      "/images-small",
+      "/avatars",
+      "/api/cloud/thumbnail-cache",
+      "/subtitles",
+    ]);
+
+    const [videosPath, videosStatic] = use.mock.calls[1];
     expect(videosPath).toBe("/videos");
     expect(videosStatic.dir).toContain("/uploads/videos");
     expect(videosStatic.options.fallthrough).toBe(false);
 
-    const [imagesPath, imagesStatic] = use.mock.calls[1];
+    const [imagesPath, imagesStatic] = use.mock.calls[2];
     expect(imagesPath).toBe("/images");
     expect(imagesStatic.options.fallthrough).toBe(false);
 
-    const [smallImagesPath, smallImagesStatic] = use.mock.calls[2];
+    const [smallImagesPath, smallImagesStatic] = use.mock.calls[3];
     expect(smallImagesPath).toBe("/images-small");
     expect(smallImagesStatic.options.fallthrough).toBe(false);
 
-    const [assetsPath, assetsStatic] = use.mock.calls[6];
+    const [assetsPath, assetsStatic] = use.mock.calls[7];
     expect(assetsPath).toBe("/assets");
     expect(assetsStatic.dir).toBe("/frontend-dist/assets");
     expect(assetsStatic.options.fallthrough).toBe(false);
@@ -105,7 +124,7 @@ describe("server/staticRoutes", () => {
     const app = { use, get } as any;
     registerStaticRoutes(app, "/frontend-dist");
 
-    const subtitlesStatic = use.mock.calls[5][1];
+    const subtitlesStatic = use.mock.calls[6][1];
     const setHeaders = subtitlesStatic.options.setHeaders as (
       res: any,
       filePath: string
