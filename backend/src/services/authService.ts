@@ -87,6 +87,19 @@ export const getUserPayloadFromSession = (
  * Set HTTP-only cookie with opaque server-side session id
  * This avoids storing sensitive auth material in clear-text client cookies.
  */
+/**
+ * Decide whether auth cookies should carry the `Secure` attribute.
+ *
+ * Secure cookies are not sent by browsers over plain HTTP, which would break
+ * the common LAN-over-HTTP self-hosted deployment. So we enable `Secure`
+ * automatically when the request actually arrived over HTTPS (req.secure is
+ * derived from x-forwarded-proto under `trust proxy`), and still honour an
+ * explicit SECURE_COOKIES=true opt-in for setups that terminate TLS opaquely.
+ */
+const shouldUseSecureCookie = (res: Response): boolean => {
+  return process.env.SECURE_COOKIES === "true" || res.req?.secure === true;
+};
+
 export const setAuthCookie = (
   res: Response,
   token: string,
@@ -94,7 +107,7 @@ export const setAuthCookie = (
 ): string => {
   const payload = verifyToken(token) ?? { role, id: uuidv4() };
   const sessionId = createSession(payload);
-  const isSecure = process.env.SECURE_COOKIES === "true";
+  const isSecure = shouldUseSecureCookie(res);
 
   res.cookie(SESSION_COOKIE_NAME, sessionId, {
     httpOnly: true, // Not accessible to JavaScript, preventing XSS attacks
@@ -111,7 +124,7 @@ export const setAuthCookie = (
  * Clear authentication cookies
  */
 export const clearAuthCookie = (res: Response): void => {
-  const isSecure = process.env.SECURE_COOKIES === "true";
+  const isSecure = shouldUseSecureCookie(res);
   res.clearCookie(SESSION_COOKIE_NAME, {
     httpOnly: true,
     secure: isSecure,
