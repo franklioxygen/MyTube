@@ -30,6 +30,12 @@ VERSION.displayVersion();
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 5551;
 
+// Bound the in-memory JSON/urlencoded body parsers. File uploads (videos,
+// thumbnails, subtitles, cookies.txt, DB restores) stream to disk via multer
+// and are unaffected by this limit, so a generous-but-sane ceiling protects
+// against memory-exhaustion DoS without breaking any metadata/settings payload.
+const JSON_BODY_LIMIT = process.env.MYTUBE_JSON_BODY_LIMIT || "10mb";
+
 app.set("trust proxy", 1);
 app.disable("x-powered-by");
 
@@ -38,8 +44,8 @@ app.use(cors(buildCorsOptionsDelegate()));
 app.use(cookieParser());
 app.use(rssManagementNoStoreHeaders);
 app.use("/api/statistics/events", statisticsEventsJsonParser);
-app.use(express.json({ limit: "100gb" }));
-app.use(express.urlencoded({ extended: true, limit: "100gb" }));
+app.use(express.json({ limit: JSON_BODY_LIMIT }));
+app.use(express.urlencoded({ extended: true, limit: JSON_BODY_LIMIT }));
 app.use(csrfProtection);
 app.use(csrfTokenProvider);
 

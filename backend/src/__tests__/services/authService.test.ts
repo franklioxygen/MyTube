@@ -58,4 +58,51 @@ describe("authService", () => {
     expect(getUserPayloadFromSession("missing-session")).toBeNull();
     expect(verifyToken("not-a-token")).toBeNull();
   });
+
+  describe("Secure cookie attribute (F-3)", () => {
+    const setCookieAndReadSecure = (
+      reqSecure: boolean | undefined,
+      secureCookiesEnv?: string,
+    ): boolean => {
+      const previous = process.env.SECURE_COOKIES;
+      if (secureCookiesEnv === undefined) {
+        delete process.env.SECURE_COOKIES;
+      } else {
+        process.env.SECURE_COOKIES = secureCookiesEnv;
+      }
+      try {
+        const res = {
+          cookie: vi.fn(),
+          clearCookie: vi.fn(),
+          req: reqSecure === undefined ? undefined : { secure: reqSecure },
+        } as any;
+        setAuthCookie(res, generateToken({ role: "admin" }), "admin");
+        const [, , cookieOptions] = vi.mocked(res.cookie).mock.calls[0] as [
+          string,
+          string,
+          Record<string, unknown>,
+        ];
+        return cookieOptions.secure === true;
+      } finally {
+        if (previous === undefined) {
+          delete process.env.SECURE_COOKIES;
+        } else {
+          process.env.SECURE_COOKIES = previous;
+        }
+      }
+    };
+
+    it("is NOT secure on a plain-HTTP request (keeps LAN logins working)", () => {
+      expect(setCookieAndReadSecure(false)).toBe(false);
+      expect(setCookieAndReadSecure(undefined)).toBe(false);
+    });
+
+    it("is secure automatically when the request arrived over HTTPS", () => {
+      expect(setCookieAndReadSecure(true)).toBe(true);
+    });
+
+    it("honours SECURE_COOKIES=true even on a plain-HTTP request", () => {
+      expect(setCookieAndReadSecure(false, "true")).toBe(true);
+    });
+  });
 });

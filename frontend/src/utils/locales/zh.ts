@@ -1261,7 +1261,7 @@ export const zh = {
   settingsApiKeyForbidden: "API 密钥认证无法访问设置端点。",
   settingsVisitorAccessRestricted: "访客角色：无权访问此资源。",
   settingsVisitorWriteRestricted:
-    "访客角色：仅允许读取设置和更新 CloudFlare 设置。",
+    "访客角色：不允许写入操作。仅允许只读访问。",
   settingsVisitorWriteForbidden: "访客角色：不允许写入操作。",
   settingsAuthRequired: "需要身份验证。请登录以访问此资源。",
 

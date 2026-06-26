@@ -103,7 +103,9 @@ export const roleBasedSettingsMiddleware = (
       return;
     }
 
-    // For write requests, allow only auth endpoints and CloudFlare settings updates.
+    // For write requests, allow only auth endpoints. Settings writes — including
+    // Cloudflare tunnel config (cloudflaredToken / cloudflaredTunnelEnabled) — are
+    // admin-only: a visitor must not be able to repoint or disable the tunnel.
     if (req.method === "POST" || req.method === "PATCH") {
       if (matchesExactPath(req, VISITOR_ALLOWED_WRITE_EXACT_PATHS)) {
         next();
@@ -115,29 +117,10 @@ export const roleBasedSettingsMiddleware = (
         return;
       }
 
-      const body = req.body || {};
-
-      // Allow CloudFlare tunnel settings updates (read-only access mechanism)
-      const isOnlyCloudflareUpdate =
-        (body.cloudflaredTunnelEnabled !== undefined ||
-          body.cloudflaredToken !== undefined) &&
-        Object.keys(body).every(
-          (key) =>
-            key === "cloudflaredTunnelEnabled" ||
-            key === "cloudflaredToken"
-        );
-
-      if (isOnlyCloudflareUpdate) {
-        // Allow CloudFlare settings updates
-        next();
-        return;
-      }
-
-      // Block all other settings updates
+      // Block all settings updates (including Cloudflare tunnel config)
       res.status(403).json({
         success: false,
-        error:
-          "Visitor role: Only reading settings and updating CloudFlare settings is allowed.",
+        error: "Visitor role: Write operations are not allowed. Read-only access only.",
         errorKey: "settingsVisitorWriteRestricted",
       });
       return;

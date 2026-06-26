@@ -1295,7 +1295,7 @@ export const en = {
   settingsVisitorAccessRestricted:
     "Visitor role: Access to this resource is restricted.",
   settingsVisitorWriteRestricted:
-    "Visitor role: Only reading settings and updating CloudFlare settings is allowed.",
+    "Visitor role: Write operations are not allowed. Read-only access only.",
   settingsVisitorWriteForbidden:
     "Visitor role: Write operations are not allowed.",
   settingsAuthRequired:

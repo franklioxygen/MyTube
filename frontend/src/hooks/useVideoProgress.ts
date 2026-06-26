@@ -2,7 +2,7 @@ import { QueryClient, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { Video } from "../types";
-import { api, apiClient } from "../utils/apiClient";
+import { api, sendVideoProgressWithKeepalive } from "../utils/apiClient";
 import { parseDuration } from "../utils/formatUtils";
 
 interface UseVideoProgressProps {
@@ -13,6 +13,17 @@ interface UseVideoProgressProps {
 function getViewThreshold(duration: string | undefined): number {
   const durationSeconds = parseDuration(duration);
   return durationSeconds > 0 && durationSeconds < 20 ? 4 : 10;
+}
+
+function getResumeProgress(currentTime: number, duration: string | undefined): number {
+  const progress = Math.max(0, Math.floor(currentTime));
+  const durationSeconds = parseDuration(duration);
+
+  if (durationSeconds > 1 && progress >= Math.floor(durationSeconds)) {
+    return Math.max(0, Math.floor(durationSeconds) - 1);
+  }
+
+  return progress;
 }
 
 function syncVideoPlaybackCache(
@@ -43,11 +54,6 @@ function syncVideoPlaybackCache(
   }
 }
 
-function getApiRequestUrl(path: string) {
-  const baseURL = (apiClient.defaults.baseURL as string | undefined) || "/api";
-  return `${baseURL.replace(/\/$/, "")}${path}`;
-}
-
 /**
  * Custom hook to manage video progress tracking and view counting
  */
@@ -59,12 +65,18 @@ export function useVideoProgress({ videoId, video }: UseVideoProgressProps) {
   const lastProgressSave = useRef<number>(0);
   const currentTimeRef = useRef<number>(0);
   const isDeletingRef = useRef<boolean>(false);
+  const durationRef = useRef<string | undefined>(undefined);
+  const videoDuration = video?.duration;
 
   // Reset hasViewed when video changes
   useEffect(() => {
     setHasViewed(false);
     currentTimeRef.current = 0;
   }, [videoId]);
+
+  useEffect(() => {
+    durationRef.current = videoDuration;
+  }, [videoDuration]);
 
   // Save progress on unmount
   useEffect(() => {
@@ -75,26 +87,13 @@ export function useVideoProgress({ videoId, video }: UseVideoProgressProps) {
         !isDeletingRef.current &&
         !isVisitor
       ) {
-        const progress = Math.floor(currentTimeRef.current);
+        const progress = getResumeProgress(currentTimeRef.current, durationRef.current);
 
         syncVideoPlaybackCache(queryClient, videoId, {
           progress,
         });
 
-        // Use fetch with keepalive to ensure request completes even if tab is closed
-        fetch(getApiRequestUrl(`/videos/${videoId}/progress`), {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            progress,
-          }),
-          keepalive: true,
-          credentials: "include", // Send cookies for authentication
-        }).catch((err) => {
-          console.error("Error saving progress on unmount:", err);
-        });
+        sendVideoProgressWithKeepalive(videoId, progress);
       }
     };
   }, [queryClient, videoId, isVisitor]);
@@ -103,7 +102,7 @@ export function useVideoProgress({ videoId, video }: UseVideoProgressProps) {
     currentTimeRef.current = currentTime;
 
     // Increment views and refresh watch history at the same threshold.
-    const viewThreshold = getViewThreshold(video?.duration);
+    const viewThreshold = getViewThreshold(videoDuration);
     if (currentTime >= viewThreshold && !hasViewed && videoId && !isVisitor) {
       setHasViewed(true);
       const lastPlayedAt = Date.now();
@@ -126,7 +125,7 @@ export function useVideoProgress({ videoId, video }: UseVideoProgressProps) {
     const now = Date.now();
     if (now - lastProgressSave.current > 5000 && videoId && !isVisitor) {
       lastProgressSave.current = now;
-      const progress = Math.floor(currentTime);
+      const progress = getResumeProgress(currentTime, videoDuration);
 
       syncVideoPlaybackCache(queryClient, videoId, {
         progress,

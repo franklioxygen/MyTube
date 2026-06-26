@@ -1311,7 +1311,7 @@ export const ko = {
   settingsVisitorAccessRestricted:
     "방문자 역할: 이 리소스에 대한 접근이 제한되어 있습니다.",
   settingsVisitorWriteRestricted:
-    "방문자 역할: 설정 읽기와 CloudFlare 설정 업데이트만 허용됩니다.",
+    "방문자 역할: 쓰기 작업은 허용되지 않습니다. 읽기 전용 접근만 가능합니다.",
   settingsVisitorWriteForbidden:
     "방문자 역할: 쓰기 작업은 허용되지 않습니다.",
   settingsAuthRequired:

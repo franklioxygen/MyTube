@@ -109,6 +109,42 @@ describe("useVideoPlayer seek behavior", () => {
     // fastSeek should be called with 0
     expect(videoElement.fastSeek).toHaveBeenCalledWith(0);
   });
+
+  it("treats progress slider values as seconds instead of percent", () => {
+    Object.defineProperty(videoElement, "duration", {
+      writable: true,
+      value: 200,
+    });
+    const { result } = renderHook(() => useVideoPlayer({ src: "test.mp4" }));
+
+    result.current.videoRef.current = videoElement;
+
+    act(() => {
+      result.current.handleLoadedMetadata({ currentTarget: videoElement } as React.SyntheticEvent<HTMLVideoElement>);
+    });
+
+    act(() => {
+      result.current.handleProgressChangeCommitted(50);
+    });
+
+    expect(videoElement.fastSeek).toHaveBeenCalledWith(50);
+  });
+
+  it("does not seek progress slider commits to the exact end", () => {
+    const { result } = renderHook(() => useVideoPlayer({ src: "test.mp4" }));
+
+    result.current.videoRef.current = videoElement;
+
+    act(() => {
+      result.current.handleLoadedMetadata({ currentTarget: videoElement } as React.SyntheticEvent<HTMLVideoElement>);
+    });
+
+    act(() => {
+      result.current.handleProgressChangeCommitted(100);
+    });
+
+    expect(videoElement.fastSeek).toHaveBeenCalledWith(99.75);
+  });
 });
 
 describe("useVideoPlayer startTime behavior", () => {

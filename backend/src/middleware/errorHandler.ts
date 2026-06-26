@@ -19,6 +19,7 @@ type ErrorWithHttpMetadata = Error & {
   code?: string;
   status?: number;
   statusCode?: number;
+  type?: string;
 };
 
 function getErrorStatus(err: ErrorWithHttpMetadata): number | undefined {
@@ -116,6 +117,18 @@ export function errorHandler(
 
   const errorWithHttpMetadata = err as ErrorWithHttpMetadata;
   const errorStatus = getErrorStatus(errorWithHttpMetadata);
+
+  if (
+    errorStatus === 413 ||
+    errorWithHttpMetadata.type === "entity.too.large"
+  ) {
+    res.status(413).json({
+      error: "Payload too large.",
+      type: "validation",
+    });
+    return;
+  }
+
   const isStaticAssetNotFound =
     isStaticAssetRequest(req) &&
     (errorStatus === 404 || errorWithHttpMetadata.code === "ENOENT");

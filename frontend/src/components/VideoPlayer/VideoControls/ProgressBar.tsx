@@ -23,6 +23,10 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
     const sliderColor = isFullscreen ? brand.primaryDark : theme.palette.primary.main;
     const textColor = isFullscreen ? overlay.white92 : 'text.primary';
     const railColor = isFullscreen ? overlay.white32 : undefined;
+    const hasDuration = duration > 0 && isFinite(duration);
+    const sliderValue = hasDuration
+        ? Math.max(0, Math.min(currentTime, duration))
+        : 0;
 
     const formatTime = (seconds: number): string => {
         if (isNaN(seconds) || !isFinite(seconds)) return '0:00';
@@ -42,7 +46,10 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
                 {formatTime(currentTime)}
             </Typography>
             <Slider
-                value={duration > 0 && isFinite(duration) ? (currentTime / duration) * 100 : 0}
+                min={0}
+                max={hasDuration ? duration : 0}
+                step={0.1}
+                value={sliderValue}
                 onChange={(_event, newValue) => {
                     const value = Array.isArray(newValue) ? newValue[0] : newValue;
                     onProgressChange(value);
@@ -52,7 +59,7 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
                     onProgressChangeCommitted(value);
                 }}
                 onMouseDown={onProgressMouseDown}
-                disabled={duration <= 0 || !isFinite(duration)}
+                disabled={!hasDuration}
                 size="small"
                 sx={{
                     flex: 1,

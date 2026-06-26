@@ -45,6 +45,42 @@ describe('security', () => {
         it('should reject internal IPs', () => {
             expect(() => security.validateUrl('http://127.0.0.1')).toThrow('SSRF protection');
             expect(() => security.validateUrl('http://localhost')).toThrow('SSRF protection');
+            expect(() => security.validateUrl('http://localhost.')).toThrow('SSRF protection');
+        });
+
+        it('should reject the cloud metadata / link-local range (169.254.0.0/16)', () => {
+            expect(() => security.validateUrl('http://169.254.169.254/latest/meta-data/')).toThrow(
+                'SSRF protection',
+            );
+            expect(() => security.validateUrl('http://169.254.0.1')).toThrow('SSRF protection');
+        });
+
+        it('should reject the CGNAT range (100.64.0.0/10) but allow public 100.x neighbours', () => {
+            expect(() => security.validateUrl('http://100.64.0.1')).toThrow('SSRF protection');
+            expect(() => security.validateUrl('http://100.127.255.254')).toThrow('SSRF protection');
+            // 100.63.x and 100.128.x are outside the CGNAT block and stay reachable.
+            expect(security.validateUrl('http://100.63.0.1')).toBe('http://100.63.0.1');
+            expect(security.validateUrl('http://100.128.0.1')).toBe('http://100.128.0.1');
+        });
+
+        it('should reject private/internal IPv6 literals', () => {
+            expect(() => security.validateUrl('http://[::1]')).toThrow('SSRF protection');
+            expect(() => security.validateUrl('http://[fe80::1]')).toThrow('SSRF protection'); // link-local
+            expect(() => security.validateUrl('http://[fd00::1]')).toThrow('SSRF protection'); // unique-local
+            // IPv4-mapped IPv6 wrapping the metadata IP (parser canonicalizes to hex hextets).
+            expect(() => security.validateUrl('http://[::ffff:169.254.169.254]')).toThrow(
+                'SSRF protection',
+            );
+        });
+
+        it('should reject alternate IPv4 encodings of loopback', () => {
+            expect(() => security.validateUrl('http://2130706433')).toThrow('SSRF protection'); // decimal 127.0.0.1
+            expect(() => security.validateUrl('http://0x7f000001')).toThrow('SSRF protection'); // hex 127.0.0.1
+        });
+
+        it('should still allow public hosts', () => {
+            expect(security.validateUrl('https://google.com')).toBe('https://google.com');
+            expect(security.validateUrl('http://93.184.216.34')).toBe('http://93.184.216.34');
         });
     });
 

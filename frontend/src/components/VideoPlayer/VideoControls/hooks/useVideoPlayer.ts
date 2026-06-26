@@ -31,6 +31,39 @@ export const useVideoPlayer = ({
   // Track last applied startTime so we apply again when it updates (e.g. progress loaded after initial render)
   const lastAppliedStartTimeRef = useRef<number>(-1);
   const START_TIME_APPLY_TOLERANCE_SECONDS = 1;
+  const END_SEEK_GUARD_SECONDS = 0.25;
+
+  const getMaxPlayableTime = useCallback((videoDuration: number): number => {
+    if (!isFinite(videoDuration) || videoDuration <= 0) {
+      return 0;
+    }
+
+    return Math.max(0, videoDuration - END_SEEK_GUARD_SECONDS);
+  }, []);
+
+  const clampPlaybackTime = useCallback(
+    (time: number, videoDuration: number): number => {
+      if (!isFinite(time) || time <= 0) {
+        return 0;
+      }
+      if (!isFinite(videoDuration) || videoDuration <= 0) {
+        return time;
+      }
+
+      return Math.max(0, Math.min(time, getMaxPlayableTime(videoDuration)));
+    },
+    [getMaxPlayableTime]
+  );
+
+  const seekTo = useCallback((videoElement: HTMLVideoElement, time: number) => {
+    const safeTime = clampPlaybackTime(time, videoElement.duration);
+
+    if (typeof videoElement.fastSeek === "function") {
+      videoElement.fastSeek(safeTime);
+    }
+    videoElement.currentTime = safeTime;
+    setCurrentTime(safeTime);
+  }, [clampPlaybackTime]);
 
   const shouldApplyStartTime = useCallback(
     (videoElement: HTMLVideoElement) => {
@@ -129,15 +162,11 @@ export const useVideoPlayer = ({
     if (!videoElement || startTime <= 0) return;
 
     if (shouldApplyStartTime(videoElement)) {
-      if (typeof videoElement.fastSeek === "function") {
-        videoElement.fastSeek(startTime);
-      }
-      videoElement.currentTime = startTime;
-      setCurrentTime(startTime);
+      seekTo(videoElement, startTime);
       startTimeAppliedRef.current = true;
       lastAppliedStartTimeRef.current = startTime;
     }
-  }, [shouldApplyStartTime, startTime]);
+  }, [seekTo, shouldApplyStartTime, startTime]);
 
   const handlePlayPause = () => {
     const videoElement = videoRef.current;
@@ -161,33 +190,19 @@ export const useVideoPlayer = ({
       Math.min(videoElement.duration, videoElement.currentTime + seconds)
     );
 
-    // fastSeek() is optimized for mobile - better audio/video sync during seeks
-    // Falls back to currentTime if fastSeek is not available
-    if (typeof videoElement.fastSeek === "function") {
-      videoElement.fastSeek(newTime);
-    } else {
-      videoElement.currentTime = newTime;
-    }
-  }, []);
+    seekTo(videoElement, newTime);
+  }, [seekTo]);
 
-  const handleProgressChange = (newValue: number) => {
+  const handleProgressChange = (newTime: number) => {
     if (!videoRef.current || duration <= 0 || !isFinite(duration)) return;
-    const newTime = (newValue / 100) * duration;
-    setCurrentTime(newTime);
+    setCurrentTime(clampPlaybackTime(newTime, duration));
   };
 
-  const handleProgressChangeCommitted = (newValue: number) => {
+  const handleProgressChangeCommitted = (newTime: number) => {
     const videoElement = videoRef.current;
     if (!videoElement || duration <= 0 || !isFinite(duration)) return;
 
-    const newTime = (newValue / 100) * duration;
-
-    // Use fastSeek on mobile for better audio sync
-    if (typeof videoElement.fastSeek === "function") {
-      videoElement.fastSeek(newTime);
-    } else {
-      videoElement.currentTime = newTime;
-    }
+    seekTo(videoElement, newTime);
     setIsDragging(false);
   };
 
@@ -234,8 +249,7 @@ export const useVideoPlayer = ({
       setDuration(videoDuration);
     }
     if (shouldApplyStartTime(e.currentTarget)) {
-      e.currentTarget.currentTime = startTime;
-      setCurrentTime(startTime);
+      seekTo(e.currentTarget, startTime);
       startTimeAppliedRef.current = true;
       lastAppliedStartTimeRef.current = startTime;
     }
@@ -264,15 +278,11 @@ export const useVideoPlayer = ({
 
     // Apply startTime when not yet applied or when it updated (e.g. progress loaded after first paint)
     if (shouldApplyStartTime(videoElement)) {
-      if (typeof videoElement.fastSeek === "function") {
-        videoElement.fastSeek(startTime);
-      }
-      videoElement.currentTime = startTime;
-      setCurrentTime(startTime);
+      seekTo(videoElement, startTime);
       startTimeAppliedRef.current = true;
       lastAppliedStartTimeRef.current = startTime;
     }
-  }, [duration, shouldApplyStartTime, startTime]);
+  }, [duration, seekTo, shouldApplyStartTime, startTime]);
 
   const handlePlay = () => {
     setIsPlaying(true);

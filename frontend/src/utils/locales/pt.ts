@@ -1335,7 +1335,7 @@ export const pt = {
   settingsVisitorAccessRestricted:
     "Função de visitante: O acesso a este recurso é restrito.",
   settingsVisitorWriteRestricted:
-    "Função de visitante: Somente a leitura de configurações e a atualização das configurações do CloudFlare são permitidas.",
+    "Função de visitante: Operações de escrita não são permitidas. Apenas acesso de leitura.",
   settingsVisitorWriteForbidden:
     "Função de visitante: Operações de escrita não são permitidas.",
   settingsAuthRequired:

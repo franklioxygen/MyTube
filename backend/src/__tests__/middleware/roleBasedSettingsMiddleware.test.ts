@@ -131,7 +131,7 @@ describe('roleBasedSettingsMiddleware Security', () => {
     expect(next).toHaveBeenCalled();
   });
 
-  it('should ALLOW visitor PATCH for cloudflare-only update', () => {
+  it('should BLOCK visitor PATCH for cloudflare-only update (admin-only)', () => {
     req = {
       method: "PATCH",
       path: "/",
@@ -142,8 +142,8 @@ describe('roleBasedSettingsMiddleware Security', () => {
 
     roleBasedSettingsMiddleware(req as Request, res as Response, next);
 
-    expect(next).toHaveBeenCalled();
-    expect(status).not.toHaveBeenCalled();
+    expect(next).not.toHaveBeenCalled();
+    expect(status).toHaveBeenCalledWith(403);
   });
 
   it('should ALLOW visitor POST verify password endpoints', () => {
@@ -189,7 +189,7 @@ describe('roleBasedSettingsMiddleware Security', () => {
       expect.objectContaining({
         success: false,
         error: expect.stringContaining(
-          'Only reading settings and updating CloudFlare settings is allowed'
+          'Write operations are not allowed'
         ),
       })
     );
@@ -249,7 +249,7 @@ describe('roleBasedSettingsMiddleware Security', () => {
       expect.objectContaining({
         success: false,
         error: expect.stringContaining(
-          'Only reading settings and updating CloudFlare settings is allowed'
+          'Write operations are not allowed'
         ),
       })
     );
@@ -442,7 +442,7 @@ describe('roleBasedSettingsMiddleware Security', () => {
     expect(status).toHaveBeenCalledWith(403);
     expect(json).toHaveBeenCalledWith(expect.objectContaining({
       success: false,
-      error: expect.stringContaining('Only reading settings and updating CloudFlare settings is allowed'),
+      error: expect.stringContaining('Write operations are not allowed'),
     }));
   });
 });
