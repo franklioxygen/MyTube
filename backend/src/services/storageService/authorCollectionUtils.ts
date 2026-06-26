@@ -71,6 +71,12 @@ function isUnresolvedAuthorName(authorName: string): boolean {
  * The managed subfolder a video currently lives in (e.g. an old author folder or
  * a collection folder), derived from its stored web path. Returns null when the
  * file sits directly at the videos root.
+ *
+ * The pattern matches exactly one subfolder level (`/videos/<folder>/<file>`),
+ * which is the only layout the managed store produces today. A deeper or
+ * shallower path yields null, so the caller skips the leftover-folder cleanup
+ * instead of acting on an unexpected layout — null is the safe (no-op)
+ * direction, never a wrong delete.
  */
 function getCurrentVideoSubfolder(videoPath?: string): string | null {
   if (!videoPath) {

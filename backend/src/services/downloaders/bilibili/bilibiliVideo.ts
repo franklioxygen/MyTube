@@ -190,6 +190,9 @@ const USER_VISIBLE_YTDLP_FAILURE_LIMIT = 500;
 
 function redactYtDlpFailureDetail(value: string): string {
   const redacted = value
+    // Redact the cookie/authorization header value through to end-of-line.
+    // Headers sit one-per-line, so consuming the rest of the line scrubs the
+    // whole secret; any over-capture here is safe over-redaction, never a leak.
     .replace(
       /\b(cookie|set-cookie|authorization)\s*[:=]\s*[^\r\n]+/gi,
       "$1=[REDACTED]",
@@ -209,6 +212,13 @@ function redactYtDlpFailureDetail(value: string): string {
     .replace(/(?:\/Users|\/home|\/var|\/tmp|\/private)\/[^\s)]+/g, "[local path redacted]")
     .replace(/\b[A-Za-z]:\\[^\s)]+/g, "[local path redacted]");
 
+  // Final pass through the shared logger redactor. Complementary, not redundant:
+  // the patterns above only catch token/key/secret material in URL-query form
+  // (?key=...), while redactSensitive also strips plain key=value forms
+  // (password=, secret=, api_key=, token=) that show up in free-text yt-dlp
+  // output. Some already-redacted values can match both passes (for example
+  // authorization or query-style token/api_key values), which is harmless — do
+  // not drop this call.
   return redactSensitive(redacted);
 }
 
