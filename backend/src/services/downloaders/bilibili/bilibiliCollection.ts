@@ -1,10 +1,18 @@
 import axios from "axios";
 import { logger } from "../../../utils/logger";
+import {
+  isCancellationError,
+  throwIfCancelled,
+} from "../../../utils/downloadUtils";
 import type { DownloadRetryMetadata } from "../../downloadRetryMetadata";
 import * as storageService from "../../storageService";
 import { Collection } from "../../storageService";
 import { resolveAuthorOrganizationMode } from "../../../types/settings";
 import { downloadSinglePart } from "./bilibiliVideo";
+import {
+  BILIBILI_COOKIE_REFRESH_HINT,
+  isLikelyBilibiliAuthFailure,
+} from "./bilibiliConfig";
 import type { FilenameTemplateSourceOptions } from "../../filenameTemplate/types";
 import {
   BilibiliAggregateDownloadResult,
@@ -13,6 +21,19 @@ import {
   BilibiliVideosResult,
   CollectionDownloadResult,
 } from "./types";
+
+// When a collection episode is rejected for what looks like Bilibili risk
+// control, wait this long before the single retry — longer than the normal
+// 2s inter-part delay to let a transient throttle clear (issue #295).
+const RISK_CONTROL_RETRY_DELAY_MS = 15000;
+
+async function waitForRiskControlRetry(downloadId: string): Promise<void> {
+  throwIfCancelled(downloadId);
+  await new Promise((resolve) =>
+    setTimeout(resolve, RISK_CONTROL_RETRY_DELAY_MS),
+  );
+  throwIfCancelled(downloadId);
+}
 
 const buildAggregateErrorMessage = (
   label: string,
@@ -125,6 +146,18 @@ const canReuseCollectionForSource = (
 ): boolean =>
   !hasBilibiliSourceKey(collection) ||
   (sourceKey != null && matchesBilibiliSourceKey(collection, sourceKey));
+
+const getCollectionCleanupNames = (
+  collection: Collection,
+  fallbackName: string,
+): string[] =>
+  Array.from(
+    new Set(
+      [collection.name, collection.title, fallbackName].filter(
+        (name): name is string => typeof name === "string" && name.trim() !== "",
+      ),
+    ),
+  );
 
 function resolveExistingBilibiliCollection(
   videos: BilibiliVideoItem[],
@@ -504,6 +537,7 @@ export async function downloadCollection(
     logger.info(`Using MyTube collection: ${mytubeCollection.name}`);
     let downloadedCount = 0;
     const failedPartNumbers: number[] = [];
+    let sawRiskControlFailure = false;
     let firstVideo: CollectionDownloadResult["firstVideo"];
 
     // Download each video sequentially
@@ -554,20 +588,40 @@ export async function downloadCollection(
       try {
         // Download this video
         const collectionName = mytubeCollection.name || mytubeCollection.title;
-        const result = await downloadSinglePart(
-          videoUrl,
-          videoNumber,
-          videos.length,
-          title || "Collection",
-          downloadId,
-          onStart,
-          collectionName, // collectionName
-          {
-            sourceCollectionName: collectionName || title || "Collection",
-            sourceCollectionType: "playlist",
-            mediaPlaylistIndex: videoNumber,
-          } // filenameTemplateSourceOptions
-        );
+        const sourceOptions: FilenameTemplateSourceOptions = {
+          sourceCollectionName: collectionName || title || "Collection",
+          sourceCollectionType: "playlist",
+          mediaPlaylistIndex: videoNumber,
+        };
+        const downloadPart = () =>
+          downloadSinglePart(
+            videoUrl,
+            videoNumber,
+            videos.length,
+            title || "Collection",
+            downloadId,
+            onStart,
+            collectionName, // collectionName
+            sourceOptions, // filenameTemplateSourceOptions
+          );
+
+        let result = await downloadPart();
+
+        // Bilibili sometimes rejects individual episodes mid-collection for risk
+        // control even with a valid cookie. Back off once and retry the part
+        // before marking it failed (issue #295). Cancellations throw rather than
+        // returning a failure result, so they are never retried here.
+        const hitRiskControl =
+          !result.success && isLikelyBilibiliAuthFailure(result.error);
+        if (hitRiskControl) {
+          logger.warn(
+            `Video ${videoNumber}/${videos.length} hit a possible Bilibili risk-control/cookie rejection; ` +
+              `backing off ${RISK_CONTROL_RETRY_DELAY_MS / 1000}s and retrying once. ` +
+              `If episodes keep failing, refresh your Bilibili cookie and re-download.`,
+          );
+          await waitForRiskControlRetry(downloadId);
+          result = await downloadPart();
+        }
 
         // If download was successful, add to collection
         if (result.success && result.videoData) {
@@ -597,6 +651,12 @@ export async function downloadCollection(
           );
         } else {
           failedPartNumbers.push(videoNumber);
+          // The retry overwrites `result`, so key off the first attempt: a part
+          // that hit risk control and then failed (even with a generic retry
+          // error) must still surface the cookie-refresh hint (issue #295).
+          if (hitRiskControl) {
+            sawRiskControlFailure = true;
+          }
           if (retryCollectionMetadata) {
             retryCollectionMetadata.failedVideoBvids = Array.from(
               new Set([
@@ -610,6 +670,9 @@ export async function downloadCollection(
           );
         }
       } catch (videoError) {
+        if (isCancellationError(videoError)) {
+          throw videoError;
+        }
         failedPartNumbers.push(videoNumber);
         if (retryCollectionMetadata) {
           retryCollectionMetadata.failedVideoBvids = Array.from(
@@ -640,8 +703,13 @@ export async function downloadCollection(
       const organizationMode = resolveAuthorOrganizationMode(
         storageService.getSettings(),
       );
-      if (organizationMode === "author_folder_only" && resolvedCollectionName) {
-        storageService.cleanupCollectionDirectories(resolvedCollectionName);
+      if (organizationMode === "author_folder_only") {
+        for (const cleanupName of getCollectionCleanupNames(
+          mytubeCollection,
+          resolvedCollectionName,
+        )) {
+          storageService.cleanupCollectionDirectories(cleanupName);
+        }
       }
     } catch (cleanupError) {
       logger.warn(
@@ -654,13 +722,16 @@ export async function downloadCollection(
     const partial =
       failedPartNumbers.length > 0 && downloadedCount + skippedCount > 0;
     const success = failedPartNumbers.length === 0;
-    const error = buildAggregateErrorMessage(
+    let error = buildAggregateErrorMessage(
       "collection",
       videos.length,
       downloadedCount,
       skippedCount,
       failedPartNumbers,
     );
+    if (error && sawRiskControlFailure) {
+      error = `${error}. ${BILIBILI_COOKIE_REFRESH_HINT}`;
+    }
 
     return {
       success,
@@ -676,6 +747,9 @@ export async function downloadCollection(
       error: error || undefined,
     };
   } catch (error: any) {
+    if (isCancellationError(error)) {
+      throw error;
+    }
     logger.error(`Error downloading ${collectionInfo.type}:`, error);
     return {
       success: false,

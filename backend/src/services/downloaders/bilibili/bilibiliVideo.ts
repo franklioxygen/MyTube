@@ -2,11 +2,15 @@ import path from "path";
 import { IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../../../config/paths";
 import { DownloadCancelledError } from "../../../errors/DownloadErrors";
 import { downloadAndProcessAvatar } from "../../../utils/avatarUtils";
-import { formatBytes } from "../../../utils/downloadUtils";
+import { formatBytes, isCancellationError } from "../../../utils/downloadUtils";
 import { formatVideoFilename } from "../../../utils/helpers";
 import { FilenameTemplateSourceOptions } from "../../filenameTemplate/types";
 import { resolveAuthorOrganizationMode } from "../../../types/settings";
-import { logger } from "../../../utils/logger";
+import {
+  logger,
+  redactSensitive,
+  sanitizeLogMessage,
+} from "../../../utils/logger";
 import { ProgressTracker } from "../../../utils/progressTracker";
 import {
   pathExistsSafeSync,
@@ -38,6 +42,8 @@ import {
 import { BaseDownloader } from "../BaseDownloader";
 import { buildManagedThumbnailWebPath } from "../thumbnailPathUtils";
 import {
+  BILIBILI_COOKIE_REFRESH_HINT,
+  isLikelyBilibiliAuthFailure,
   prepareBilibiliDownloadFlags,
   resolveResolutionPreference,
   resolveResolutionRetryTarget,
@@ -178,6 +184,81 @@ function extractAvailableHeights(
   }
 
   return heights;
+}
+
+const USER_VISIBLE_YTDLP_FAILURE_LIMIT = 500;
+
+function redactYtDlpFailureDetail(value: string): string {
+  const redacted = value
+    // Redact the cookie/authorization header value through to end-of-line.
+    // Headers sit one-per-line, so consuming the rest of the line scrubs the
+    // whole secret; any over-capture here is safe over-redaction, never a leak.
+    .replace(
+      /\b(cookie|set-cookie|authorization)\s*[:=]\s*[^\r\n]+/gi,
+      "$1=[REDACTED]",
+    )
+    .replace(
+      /\b(SESSDATA|bili_jct|DedeUserID|DedeUserID__ckMd5|buvid3|buvid4|sid)=([^;\s]+)/gi,
+      "$1=[REDACTED]",
+    )
+    .replace(
+      /([?&](?:access_token|token|api[_-]?key|apikey|key|signature|sig|auth|authorization|X-Amz-Signature|X-Amz-Credential|Policy)=)[^&\s]+/gi,
+      "$1[REDACTED]",
+    )
+    .replace(/([a-z][a-z0-9+.-]*:\/\/)[^/\s:@]+:[^/\s@]+@/gi, "$1[REDACTED]@")
+    // No leading \b: an absolute path's leading "/" is usually preceded by a
+    // space, newline, or start-of-string (all non-word), where \b would not
+    // match and the home prefix (e.g. /Users/<name>) would leak.
+    .replace(/(?:\/Users|\/home|\/var|\/tmp|\/private)\/[^\s)]+/g, "[local path redacted]")
+    .replace(/\b[A-Za-z]:\\[^\s)]+/g, "[local path redacted]");
+
+  // Final pass through the shared logger redactor. Complementary, not redundant:
+  // the patterns above only catch token/key/secret material in URL-query form
+  // (?key=...), while redactSensitive also strips plain key=value forms
+  // (password=, secret=, api_key=, token=) that show up in free-text yt-dlp
+  // output. Some already-redacted values can match both passes (for example
+  // authorization or query-style token/api_key values), which is harmless — do
+  // not drop this call.
+  return redactSensitive(redacted);
+}
+
+function toUserVisibleYtDlpFailureDetail(value: string): string {
+  const redacted = sanitizeLogMessage(redactYtDlpFailureDetail(value.trim()));
+  if (redacted.length <= USER_VISIBLE_YTDLP_FAILURE_LIMIT) {
+    return redacted;
+  }
+
+  return `${redacted.slice(0, USER_VISIBLE_YTDLP_FAILURE_LIMIT)}... [truncated]`;
+}
+
+function formatYtDlpFailureMessage(error: unknown): string {
+  const message =
+    typeof (error as { message?: unknown })?.message === "string"
+      ? (error as { message: string }).message.trim()
+      : "";
+  const stderr =
+    typeof (error as { stderr?: unknown })?.stderr === "string"
+      ? (error as { stderr: string }).stderr.trim()
+      : "";
+
+  const rawFailure = [message, stderr].filter(Boolean).join("\n");
+  const authSignal =
+    rawFailure && isLikelyBilibiliAuthFailure(rawFailure)
+      ? "Bilibili risk control/auth failure detected."
+      : "";
+  const combined =
+    message && stderr && message !== stderr && !message.includes(stderr)
+      ? `${toUserVisibleYtDlpFailureDetail(message)} stderr: ${toUserVisibleYtDlpFailureDetail(stderr)}`
+      : message || stderr
+        ? toUserVisibleYtDlpFailureDetail(message || stderr)
+        : "Unknown error";
+
+  // Append the auth-failure note once. The `includes` guard keeps it from being
+  // duplicated when this output is wrapped in an Error and re-formatted (the
+  // note text itself trips isLikelyBilibiliAuthFailure on the second pass).
+  return authSignal && !combined.includes(authSignal)
+    ? `${combined} ${authSignal}`
+    : combined;
 }
 
 /**
@@ -416,19 +497,26 @@ export async function downloadVideo(
         throw DownloadCancelledError.create();
       }
       throw new Error(
-        `yt-dlp download failed: ${
-          downloadError.message || downloadError.stderr || "Unknown error"
-        }`
+        `yt-dlp download failed: ${formatYtDlpFailureMessage(downloadError)}`
       );
     }
 
-    // If no file found and no error was caught, something went wrong
+    // If no file found and no error was caught, something went wrong. With
+    // `ignoreErrors: true` yt-dlp can exit 0 after silently skipping a rejected
+    // download, so a Bilibili 412/-352 rejection lands here with no
+    // downloadError and the risk-control text only in the captured stderr. Fold
+    // that stderr into the failure so isLikelyBilibiliAuthFailure can still
+    // classify it and drive the collection backoff / cookie-refresh hint
+    // (issue #295).
     if (!videoFile) {
       await cleanupTempDir(tempDir);
-      const errorMsg = downloadError
+      const failureSource =
+        downloadError ??
+        (stderrOutput.trim() ? { stderr: stderrOutput } : null);
+      const errorMsg = failureSource
         ? `Downloaded video file not found. yt-dlp error: ${
-            downloadError.message
-          }. stderr: ${(downloadError.stderr || "").substring(0, 500)}`
+            formatYtDlpFailureMessage(failureSource)
+          }`
         : `Downloaded video file not found.`;
       throw new Error(errorMsg);
     }
@@ -628,7 +716,7 @@ export async function downloadVideo(
       date: new Date().toISOString().slice(0, 10).replace(/-/g, ""),
       thumbnailUrl: null,
       thumbnailSaved: false,
-      error: error.message,
+      error: formatYtDlpFailureMessage(error),
     };
   }
 }
@@ -700,6 +788,29 @@ export async function downloadSinglePart(
 
     if (!bilibiliInfo) {
       throw new Error("Failed to get Bilibili video info");
+    }
+
+    // downloadVideo only returns its fallback object (error set, no usable file)
+    // when the download genuinely failed. Stop here rather than saving a record
+    // with generic "Bilibili User" metadata, and surface a cookie-refresh hint
+    // when the failure looks like Bilibili risk control (issue #295).
+    if (bilibiliInfo.error) {
+      // downloadVideo funnels cancellations through its fallback return path
+      // (its catch swallows DownloadCancelledError instead of rethrowing), so a
+      // cancelled collection part arrives here with a cancellation message.
+      // Re-check the download id first and propagate DownloadCancelledError;
+      // otherwise downloadCollection would record this as a normal failed
+      // episode and keep downloading the rest of the collection (issue #295).
+      const downloader = new BilibiliDownloaderHelper();
+      downloader.throwIfCancelledPublic(downloadId);
+
+      const failureError = isLikelyBilibiliAuthFailure(bilibiliInfo.error)
+        ? `${bilibiliInfo.error} — ${BILIBILI_COOKIE_REFRESH_HINT}`
+        : bilibiliInfo.error;
+      logger.error(
+        `Bilibili download failed for ${url}: ${failureError}`
+      );
+      return { success: false, error: failureError };
     }
 
     logger.info("Bilibili download info:", bilibiliInfo);
@@ -1018,6 +1129,13 @@ export async function downloadSinglePart(
     });
     return { success: true, videoData };
   } catch (error: any) {
+    // A cancelled part must abort the whole download, not be recorded as a
+    // failed episode. downloadCollection relies on a thrown DownloadCancelledError
+    // to stop its loop, so let cancellations propagate instead of swallowing
+    // them into a { success: false } result (issue #295).
+    if (isCancellationError(error)) {
+      throw error;
+    }
     logger.error(
       `Error downloading Bilibili part ${partNumber}/${totalParts}:`,
       error
