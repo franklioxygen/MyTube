@@ -1347,7 +1347,7 @@ export const es = {
   settingsVisitorAccessRestricted:
     "Rol de visitante: El acceso a este recurso está restringido.",
   settingsVisitorWriteRestricted:
-    "Rol de visitante: Solo se permite leer la configuración y actualizar la configuración de CloudFlare.",
+    "Rol de visitante: No se permiten operaciones de escritura. Solo acceso de lectura.",
   settingsVisitorWriteForbidden:
     "Rol de visitante: Las operaciones de escritura no están permitidas.",
   settingsAuthRequired:

@@ -1302,7 +1302,7 @@ export const ar = {
   settingsVisitorAccessRestricted:
     "دور الزائر: الوصول إلى هذا المورد مقيّد.",
   settingsVisitorWriteRestricted:
-    "دور الزائر: يُسمح فقط بقراءة الإعدادات وتحديث إعدادات CloudFlare.",
+    "دور الزائر: عمليات الكتابة غير مسموح بها. الوصول للقراءة فقط.",
   settingsVisitorWriteForbidden:
     "دور الزائر: عمليات الكتابة غير مسموح بها.",
   settingsAuthRequired:

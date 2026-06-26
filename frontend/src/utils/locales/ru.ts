@@ -1330,7 +1330,7 @@ export const ru = {
   settingsVisitorAccessRestricted:
     "Роль посетителя: Доступ к этому ресурсу ограничен.",
   settingsVisitorWriteRestricted:
-    "Роль посетителя: Разрешено только чтение настроек и обновление настроек CloudFlare.",
+    "Роль посетителя: Операции записи запрещены. Доступ только для чтения.",
   settingsVisitorWriteForbidden:
     "Роль посетителя: Операции записи не разрешены.",
   settingsAuthRequired:

@@ -683,6 +683,10 @@ const BLOCKED_PRIVATE_HOST_PREFIXES = [
   ...Array.from({ length: 64 }, (_, i) => `100.${i + 64}.`), // CGNAT 100.64.0.0/10
 ];
 
+function normalizeHostnameForBlocklist(hostname: string): string {
+  return hostname.toLowerCase().replace(/\.+$/, "");
+}
+
 /**
  * Normalize non-dotted IPv4 encodings (e.g. decimal "2130706433" or hex
  * "0x7f000001", both = 127.0.0.1) to dotted-quad so range checks below cannot
@@ -777,7 +781,7 @@ function isBlockedIpv6Hostname(hostname: string): boolean {
 }
 
 function isBlockedPrivateHostname(hostname: string): boolean {
-  const normalized = hostname.toLowerCase();
+  const normalized = normalizeHostnameForBlocklist(hostname);
 
   if (BLOCKED_PRIVATE_HOSTNAMES.has(normalized)) {
     return true;

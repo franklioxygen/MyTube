@@ -1334,7 +1334,7 @@ export const ja = {
   settingsVisitorAccessRestricted:
     "訪問者ロール：このリソースへのアクセスは制限されています。",
   settingsVisitorWriteRestricted:
-    "訪問者ロール：設定の読み取りと CloudFlare 設定の更新のみ許可されています。",
+    "訪問者ロール：書き込み操作は許可されていません。読み取り専用アクセスのみです。",
   settingsVisitorWriteForbidden:
     "訪問者ロール：書き込み操作は許可されていません。",
   settingsAuthRequired:

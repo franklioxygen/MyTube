@@ -45,6 +45,7 @@ describe('security', () => {
         it('should reject internal IPs', () => {
             expect(() => security.validateUrl('http://127.0.0.1')).toThrow('SSRF protection');
             expect(() => security.validateUrl('http://localhost')).toThrow('SSRF protection');
+            expect(() => security.validateUrl('http://localhost.')).toThrow('SSRF protection');
         });
 
         it('should reject the cloud metadata / link-local range (169.254.0.0/16)', () => {

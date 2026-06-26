@@ -1356,7 +1356,7 @@ export const fr = {
   settingsVisitorAccessRestricted:
     "Rôle visiteur : L'accès à cette ressource est restreint.",
   settingsVisitorWriteRestricted:
-    "Rôle visiteur : Seules la lecture des paramètres et la mise à jour des paramètres CloudFlare sont autorisées.",
+    "Rôle visiteur : Les opérations d'écriture ne sont pas autorisées. Accès en lecture seule uniquement.",
   settingsVisitorWriteForbidden:
     "Rôle visiteur : Les opérations d'écriture ne sont pas autorisées.",
   settingsAuthRequired:

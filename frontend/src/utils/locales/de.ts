@@ -1348,7 +1348,7 @@ export const de = {
   settingsVisitorAccessRestricted:
     "Besucherrolle: Der Zugriff auf diese Ressource ist eingeschränkt.",
   settingsVisitorWriteRestricted:
-    "Besucherrolle: Nur das Lesen von Einstellungen und das Aktualisieren der CloudFlare-Einstellungen ist erlaubt.",
+    "Besucherrolle: Schreibvorgänge sind nicht erlaubt. Nur Lesezugriff ist erlaubt.",
   settingsVisitorWriteForbidden:
     "Besucherrolle: Schreibvorgänge sind nicht erlaubt.",
   settingsAuthRequired:

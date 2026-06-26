@@ -230,6 +230,22 @@ describe('ErrorHandler Middleware', () => {
       });
     });
 
+    it('should handle body parser payload limit errors with 413 status', () => {
+      const error = Object.assign(new Error('request entity too large'), {
+        status: 413,
+        type: 'entity.too.large',
+      });
+
+      errorHandler(error, req as Request, res as Response, next);
+
+      expect(logger.error).not.toHaveBeenCalled();
+      expect(status).toHaveBeenCalledWith(413);
+      expect(json).toHaveBeenCalledWith({
+        error: 'Payload too large.',
+        type: 'validation',
+      });
+    });
+
     it('should include error message in development mode', () => {
       const originalEnv = process.env.NODE_ENV;
       process.env.NODE_ENV = 'development';
