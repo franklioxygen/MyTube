@@ -664,6 +664,45 @@ describe("videoMetadataController", () => {
         },
       });
     });
+
+    it("validates body video id for keepalive progress updates", async () => {
+      const { res } = createResponse();
+
+      await expect(
+        videoMetadataController.updateProgressByBody(
+          {
+            body: { progress: 40 },
+          } as unknown as Request,
+          res
+        )
+      ).rejects.toThrow("Video id is required");
+    });
+
+    it("updates progress from a fixed keepalive route body", async () => {
+      const { res, json } = createResponse();
+      vi.mocked(storageService.updateVideo as any).mockReturnValue({
+        id: "v2",
+        progress: 45,
+      });
+
+      await videoMetadataController.updateProgressByBody(
+        {
+          body: { videoId: "v2", progress: 45 },
+        } as unknown as Request,
+        res
+      );
+
+      expect(storageService.updateVideo).toHaveBeenCalledWith(
+        "v2",
+        expect.objectContaining({ progress: 45 })
+      );
+      expect(json).toHaveBeenCalledWith({
+        success: true,
+        data: {
+          progress: 45,
+        },
+      });
+    });
   });
 
   describe("uploadThumbnail", () => {

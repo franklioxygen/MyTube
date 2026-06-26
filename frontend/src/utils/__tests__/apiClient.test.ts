@@ -190,7 +190,7 @@ describe("api wrappers", () => {
     fetchSpy.mockRestore();
   });
 
-  it("sends video progress keepalive with the warm CSRF token", () => {
+  it("sends video progress keepalive with the warm CSRF token", async () => {
     const responseHandlers = (apiClient.interceptors.response as any).handlers;
     const onResponseFulfilled = responseHandlers?.[0]?.fulfilled as
       | ((response: any) => any)
@@ -204,17 +204,17 @@ describe("api wrappers", () => {
     expect(sendVideoProgressWithKeepalive("video/with slash", 42)).toBe(true);
 
     expect(fetchSpy).toHaveBeenCalledTimes(1);
-    const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
-    expect(new URL(url).pathname).toBe(
-      "/api/videos/video%2Fwith%20slash/progress"
-    );
-    expect(init.method).toBe("PUT");
-    expect(init.credentials).toBe("include");
-    expect(init.keepalive).toBe(true);
-    expect(new Headers(init.headers).get("X-CSRF-Token")).toBe(
-      "csrf-progress-123"
-    );
-    expect(init.body).toBe(JSON.stringify({ progress: 42 }));
+    const [request] = fetchSpy.mock.calls[0] as [Request];
+    expect(request).toBeInstanceOf(Request);
+    expect(new URL(request.url).pathname).toBe("/api/videos/progress");
+    expect(request.method).toBe("PUT");
+    expect(request.credentials).toBe("include");
+    expect(request.keepalive).toBe(true);
+    expect(request.headers.get("X-CSRF-Token")).toBe("csrf-progress-123");
+    await expect(request.json()).resolves.toEqual({
+      videoId: "video/with slash",
+      progress: 42,
+    });
 
     fetchSpy.mockRestore();
   });

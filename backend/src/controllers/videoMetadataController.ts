@@ -577,13 +577,7 @@ export const incrementViewCount = async (
  * Update progress
  * Errors are automatically handled by asyncHandler middleware
  */
-export const updateProgress = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  const id = getStringParam(req.params.id) ?? "";
-  const { progress } = req.body;
-
+function updateVideoProgress(id: string, progress: unknown): number | null | undefined {
   if (typeof progress !== "number") {
     throw new ValidationError("Progress must be a number", "progress");
   }
@@ -596,9 +590,38 @@ export const updateProgress = async (
     throw new NotFoundError("Video", id);
   }
 
+  return updatedVideo.progress;
+}
+
+export const updateProgress = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const id = getStringParam(req.params.id) ?? "";
+  const { progress } = req.body;
+  const updatedProgress = updateVideoProgress(id, progress);
+
   res.status(200).json(
     successResponse({
-      progress: updatedVideo.progress,
+      progress: updatedProgress,
+    })
+  );
+};
+
+export const updateProgressByBody = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const id = getStringParam(req.body?.videoId);
+  if (!id) {
+    throw new ValidationError("Video id is required", "videoId");
+  }
+
+  const updatedProgress = updateVideoProgress(id, req.body?.progress);
+
+  res.status(200).json(
+    successResponse({
+      progress: updatedProgress,
     })
   );
 };

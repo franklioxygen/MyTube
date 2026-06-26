@@ -141,6 +141,9 @@ const buildInternalApiRequestUrl = (path: string): string => {
 const buildCloudSyncRequestUrl = (): string =>
   buildInternalApiRequestUrl("/cloud/sync");
 
+const buildVideoProgressRequestUrl = (): string =>
+  buildInternalApiRequestUrl("/videos/progress");
+
 export const fetchCloudSyncWithCsrf = async (
   init: RequestInit = {}
 ): Promise<Response> => {
@@ -210,20 +213,16 @@ export const sendVideoProgressWithKeepalive = (
       "Content-Type": "application/json",
       "X-CSRF-Token": csrfToken,
     });
-    // Fixed internal endpoint shape; videoId is encoded as one path segment.
+    // Fixed internal endpoint; videoId stays in the JSON payload.
     // nosemgrep
-    void fetch(
-      buildInternalApiRequestUrl(
-        `/videos/${encodeURIComponent(videoId)}/progress`
-      ),
-      {
-        method: "PUT",
-        credentials: "include",
-        keepalive: true,
-        headers,
-        body: JSON.stringify({ progress }),
-      }
-    );
+    const request = new Request(buildVideoProgressRequestUrl(), {
+      method: "PUT",
+      credentials: "include",
+      keepalive: true,
+      headers,
+      body: JSON.stringify({ videoId, progress }),
+    });
+    void fetch(request);
     return true;
   } catch {
     return false;
