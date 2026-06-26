@@ -682,6 +682,43 @@ describe("bilibiliVideo.downloadSinglePart", () => {
     expect(mocks.saveVideo).not.toHaveBeenCalled();
   });
 
+  it("surfaces a cookie-refresh hint when yt-dlp exits 0 with no file but risk-control stderr (issue #295)", async () => {
+    // With `ignoreErrors: true`, yt-dlp can resolve (exit 0) after skipping a
+    // rejected download: no rejection, no file, and the 412/-352 text only in
+    // stderr. The no-file path must still fold that stderr into the failure so
+    // the risk-control classification (and the cookie hint) fire.
+    const riskStderr =
+      "ERROR: [BiliBili] HTTP Error 412: Precondition Failed (-352)\n" +
+      "Cookie: SESSDATA=very-secret; bili_jct=csrf-secret\n";
+    const resolving: any = Promise.resolve(undefined);
+    resolving.stdout = { on: vi.fn() };
+    resolving.stderr = {
+      on: vi.fn((event: string, cb: (chunk: Buffer) => void) => {
+        if (event === "data") {
+          cb(Buffer.from(riskStderr));
+        }
+      }),
+    };
+    resolving.kill = vi.fn();
+    mocks.executeYtDlpSpawn.mockReturnValue(resolving);
+    mocks.findVideoFileInTemp.mockReturnValue(null);
+
+    const result = await downloadSinglePart(
+      "https://www.bilibili.com/video/BV1ignoreerr",
+      1,
+      1,
+      "",
+      "download-ignoreerr",
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("412");
+    expect(result.error).toContain("refresh");
+    expect(result.error).not.toContain("very-secret");
+    expect(result.error).not.toContain("csrf-secret");
+    expect(mocks.saveVideo).not.toHaveBeenCalled();
+  });
+
   it("propagates cancellation instead of recording a failed episode when the part is cancelled (issue #295)", async () => {
     // A cancelled part comes back from downloadVideo through its fallback return
     // (error set, no file), not as a thrown error. downloadSinglePart must

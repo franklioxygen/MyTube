@@ -501,12 +501,21 @@ export async function downloadVideo(
       );
     }
 
-    // If no file found and no error was caught, something went wrong
+    // If no file found and no error was caught, something went wrong. With
+    // `ignoreErrors: true` yt-dlp can exit 0 after silently skipping a rejected
+    // download, so a Bilibili 412/-352 rejection lands here with no
+    // downloadError and the risk-control text only in the captured stderr. Fold
+    // that stderr into the failure so isLikelyBilibiliAuthFailure can still
+    // classify it and drive the collection backoff / cookie-refresh hint
+    // (issue #295).
     if (!videoFile) {
       await cleanupTempDir(tempDir);
-      const errorMsg = downloadError
+      const failureSource =
+        downloadError ??
+        (stderrOutput.trim() ? { stderr: stderrOutput } : null);
+      const errorMsg = failureSource
         ? `Downloaded video file not found. yt-dlp error: ${
-            formatYtDlpFailureMessage(downloadError)
+            formatYtDlpFailureMessage(failureSource)
           }`
         : `Downloaded video file not found.`;
       throw new Error(errorMsg);
