@@ -126,9 +126,10 @@ export const ensureCsrfToken = async (
  * Wrapper around native fetch that injects the CSRF token and session cookies.
  * Use instead of raw fetch() for state-changing requests that need streaming responses.
  */
-const buildCloudSyncRequestUrl = (): string => {
+const buildInternalApiRequestUrl = (path: string): string => {
   const baseURL = API_URL.replace(/\/$/, "");
-  const requestUrl = `${baseURL}/cloud/sync`;
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  const requestUrl = `${baseURL}${normalizedPath}`;
 
   if (requestUrl.startsWith("/")) {
     return new URL(requestUrl, globalThis.location.origin).toString();
@@ -136,6 +137,9 @@ const buildCloudSyncRequestUrl = (): string => {
 
   return requestUrl;
 };
+
+const buildCloudSyncRequestUrl = (): string =>
+  buildInternalApiRequestUrl("/cloud/sync");
 
 export const fetchCloudSyncWithCsrf = async (
   init: RequestInit = {}
@@ -187,6 +191,39 @@ export const sendStatisticsEventsWithKeepalive = (body: unknown): boolean => {
       headers,
       body: JSON.stringify(body),
     });
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+export const sendVideoProgressWithKeepalive = (
+  videoId: string,
+  progress: number
+): boolean => {
+  if (!csrfToken) {
+    return false;
+  }
+
+  try {
+    const headers = new Headers({
+      "Content-Type": "application/json",
+      "X-CSRF-Token": csrfToken,
+    });
+    // Fixed internal endpoint shape; videoId is encoded as one path segment.
+    // nosemgrep
+    void fetch(
+      buildInternalApiRequestUrl(
+        `/videos/${encodeURIComponent(videoId)}/progress`
+      ),
+      {
+        method: "PUT",
+        credentials: "include",
+        keepalive: true,
+        headers,
+        body: JSON.stringify({ progress }),
+      }
+    );
     return true;
   } catch {
     return false;

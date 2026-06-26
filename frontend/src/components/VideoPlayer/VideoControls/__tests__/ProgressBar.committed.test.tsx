@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -24,7 +23,7 @@ vi.mock('@mui/material', async () => {
 import ProgressBar from '../ProgressBar';
 
 describe('ProgressBar onChangeCommitted', () => {
-    it('calls onProgressChangeCommitted with normalized slider value', () => {
+    it('calls onProgressChangeCommitted with the selected time in seconds', () => {
         const onProgressChange = vi.fn();
         const onProgressChangeCommitted = vi.fn();
         const onProgressMouseDown = vi.fn();

@@ -6,6 +6,7 @@ import { useVideoProgress } from "../useVideoProgress";
 
 const mockApiPost = vi.fn();
 const mockApiPut = vi.fn();
+const mockSendVideoProgressWithKeepalive = vi.fn();
 let mockUserRole = "admin";
 
 vi.mock("../../contexts/AuthContext", () => ({
@@ -22,6 +23,8 @@ vi.mock("../../utils/apiClient", () => ({
       baseURL: "/api",
     },
   },
+  sendVideoProgressWithKeepalive: (...args: any[]) =>
+    mockSendVideoProgressWithKeepalive(...args),
 }));
 
 const createWrapper = () => {
@@ -45,6 +48,7 @@ describe("useVideoProgress", () => {
     mockUserRole = "admin";
     mockApiPost.mockResolvedValue({ data: { success: true, viewCount: 1 } });
     mockApiPut.mockResolvedValue({ data: { success: true } });
+    mockSendVideoProgressWithKeepalive.mockReturnValue(true);
     global.fetch = vi.fn().mockResolvedValue({ ok: true }) as any;
   });
 
@@ -215,15 +219,11 @@ describe("useVideoProgress", () => {
       unmount();
     });
 
-    expect(global.fetch).toHaveBeenCalledWith(
-      "/api/videos/video-3/progress",
-      expect.objectContaining({
-        method: "PUT",
-        keepalive: true,
-        credentials: "include",
-        body: JSON.stringify({ progress: 3 }),
-      })
+    expect(mockSendVideoProgressWithKeepalive).toHaveBeenCalledWith(
+      "video-3",
+      3
     );
+    expect(global.fetch).not.toHaveBeenCalled();
     expect(queryClient.getQueryData(["videos"])).toEqual([
       expect.objectContaining({
         id: "video-3",
@@ -246,5 +246,35 @@ describe("useVideoProgress", () => {
     );
 
     dateNowSpy.mockRestore();
+  });
+
+  it("does not persist exact duration as the resume progress", () => {
+    const video = {
+      id: "video-4",
+      duration: "120",
+      progress: 0,
+      viewCount: 0,
+    } as any;
+    const { queryClient, wrapper } = createWrapper();
+    queryClient.setQueryData(["videos"], [video]);
+    queryClient.setQueryData(["video", "video-4"], video);
+
+    const { result } = renderHook(
+      () => useVideoProgress({ videoId: "video-4", video }),
+      { wrapper },
+    );
+
+    act(() => {
+      result.current.handleTimeUpdate(120);
+    });
+
+    expect(mockApiPut).toHaveBeenCalledWith("/videos/video-4/progress", {
+      progress: 119,
+    });
+    expect(queryClient.getQueryData(["video", "video-4"])).toEqual(
+      expect.objectContaining({
+        progress: 119,
+      })
+    );
   });
 });
