@@ -1,13 +1,10 @@
 
-import { Close } from '@mui/icons-material';
 import {
     Box,
     Button,
     Dialog,
     DialogActions,
     DialogContent,
-    DialogTitle,
-    IconButton,
     Table,
     TableBody,
     TableCell,
@@ -18,6 +15,7 @@ import {
 } from '@mui/material';
 import React from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
+import DialogHeader from '../DialogHeader';
 import { createTranslateOrFallback } from '../../utils/translateOrFallback';
 
 interface DeploymentSecurityDetailsModalProps {
@@ -112,18 +110,11 @@ const DeploymentSecurityDetailsModal: React.FC<DeploymentSecurityDetailsModalPro
 
     return (
         <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-            <DialogTitle sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="h6" component="div" sx={{ fontWeight: 600 }}>
-                    {translateOrFallback('deploymentSecurityDetailsTitle', 'Deployment Security Details')}
-                </Typography>
-                <IconButton
-                    aria-label="close"
-                    onClick={onClose}
-                    sx={{ color: (muiTheme) => muiTheme.palette.grey[500] }}
-                >
-                    <Close />
-                </IconButton>
-            </DialogTitle>
+            <DialogHeader
+                title={translateOrFallback('deploymentSecurityDetailsTitle', 'Deployment Security Details')}
+                onClose={onClose}
+                closeLabel={translateOrFallback('close', 'Close')}
+            />
             <DialogContent dividers>
                 <TableContainer sx={{ overflowX: 'auto' }}>
                     <Table size="small">

@@ -1,4 +1,4 @@
-import { Close, Delete, Download, History, Upload } from '@mui/icons-material';
+import { Delete, Download, History, Upload } from '@mui/icons-material';
 import {
     Alert,
     Box,
@@ -8,10 +8,8 @@ import {
     DialogActions,
     DialogContent,
     DialogContentText,
-    DialogTitle,
     FormControl,
     FormControlLabel,
-    IconButton,
     Radio,
     RadioGroup,
     Switch,
@@ -19,6 +17,7 @@ import {
 } from '@mui/material';
 import React, { useRef, useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
+import DialogHeader from '../DialogHeader';
 import type { MergePreviewSummary } from '../../hooks/useSettingsMutations';
 import type { AuthorOrganizationMode, Settings } from '../../types';
 import { getApiErrorMessage } from '../../utils/apiClient';
@@ -467,20 +466,7 @@ const DatabaseSettings: React.FC<DatabaseSettingsProps> = ({
                     }
                 }}
             >
-                <DialogTitle sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="h6" component="div" sx={{ fontWeight: 600 }}>
-                        {t('importDatabase')}
-                    </Typography>
-                    <IconButton
-                        aria-label="close"
-                        onClick={handleCloseImportModal}
-                        sx={{
-                            color: (theme) => theme.palette.grey[500],
-                        }}
-                    >
-                        <Close />
-                    </IconButton>
-                </DialogTitle>
+                <DialogHeader title={t('importDatabase')} onClose={handleCloseImportModal} closeLabel={t('close')} />
                 <DialogContent dividers>
                     <DialogContentText sx={{ mb: 2, color: 'text.primary' }}>
                         {t('importDatabaseWarning')}
@@ -528,20 +514,7 @@ const DatabaseSettings: React.FC<DatabaseSettingsProps> = ({
                     }
                 }}
             >
-                <DialogTitle sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="h6" component="div" sx={{ fontWeight: 600 }}>
-                        {t('mergeDatabase')}
-                    </Typography>
-                    <IconButton
-                        aria-label="close"
-                        onClick={handleCloseMergeModal}
-                        sx={{
-                            color: (theme) => theme.palette.grey[500],
-                        }}
-                    >
-                        <Close />
-                    </IconButton>
-                </DialogTitle>
+                <DialogHeader title={t('mergeDatabase')} onClose={handleCloseMergeModal} closeLabel={t('close')} />
                 <DialogContent dividers>
                     <DialogContentText sx={{ mb: 2, color: 'text.primary' }}>
                         {t('mergeDatabaseWarning')}
@@ -643,20 +616,7 @@ const DatabaseSettings: React.FC<DatabaseSettingsProps> = ({
                     }
                 }}
             >
-                <DialogTitle sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="h6" component="div" sx={{ fontWeight: 600 }}>
-                        {t('cleanupBackupDatabases')}
-                    </Typography>
-                    <IconButton
-                        aria-label="close"
-                        onClick={handleCloseCleanupModal}
-                        sx={{
-                            color: (theme) => theme.palette.grey[500],
-                        }}
-                    >
-                        <Close />
-                    </IconButton>
-                </DialogTitle>
+                <DialogHeader title={t('cleanupBackupDatabases')} onClose={handleCloseCleanupModal} closeLabel={t('close')} />
                 <DialogContent dividers>
                     <DialogContentText sx={{ mb: 2, color: 'text.primary' }}>
                         {t('cleanupBackupDatabasesWarning')}
@@ -688,20 +648,7 @@ const DatabaseSettings: React.FC<DatabaseSettingsProps> = ({
                     }
                 }}
             >
-                <DialogTitle sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="h6" component="div" sx={{ fontWeight: 600 }}>
-                        {t('restoreFromLastBackup')}
-                    </Typography>
-                    <IconButton
-                        aria-label="close"
-                        onClick={handleCloseRestoreModal}
-                        sx={{
-                            color: (theme) => theme.palette.grey[500],
-                        }}
-                    >
-                        <Close />
-                    </IconButton>
-                </DialogTitle>
+                <DialogHeader title={t('restoreFromLastBackup')} onClose={handleCloseRestoreModal} closeLabel={t('close')} />
                 <DialogContent dividers>
                     <DialogContentText sx={{ mb: 2, color: 'text.primary' }}>
                         {t('restoreFromLastBackupWarning')}

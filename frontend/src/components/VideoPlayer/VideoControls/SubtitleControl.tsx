@@ -6,17 +6,16 @@ import {
     DialogActions,
     DialogContent,
     DialogContentText,
-    DialogTitle,
     IconButton,
     Menu,
     MenuItem,
     Tooltip,
-    Typography,
     useMediaQuery
 } from '@mui/material';
 import React, { useState } from 'react';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import { getSubtitleLanguageLabel } from '../../../utils/formatUtils';
+import DialogHeader from '../../DialogHeader';
 
 interface SubtitleControlProps {
     subtitles: Array<{ language: string; filename: string; path: string }>;
@@ -201,21 +200,12 @@ const SubtitleControlView: React.FC<SubtitleControlProps> = ({
                     }
                 }}
             >
-                <DialogTitle
+                <DialogHeader
                     id="delete-subtitle-dialog-title"
-                    sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-                >
-                    <Typography variant="h6" component="div" sx={{ fontWeight: 600 }}>
-                        {t('confirm') || 'Confirm'}
-                    </Typography>
-                    <IconButton
-                        aria-label="close"
-                        onClick={handleCloseDeleteModal}
-                        sx={{ color: (theme) => theme.palette.grey[500] }}
-                    >
-                        <Close />
-                    </IconButton>
-                </DialogTitle>
+                    title={t('confirm') || 'Confirm'}
+                    onClose={handleCloseDeleteModal}
+                    closeLabel={t('close')}
+                />
                 <DialogContent dividers>
                     <DialogContentText id="delete-subtitle-dialog-description" sx={{ color: 'text.primary' }}>
                         {t('confirmDeleteSubtitle') || 'Delete this subtitle?'}
