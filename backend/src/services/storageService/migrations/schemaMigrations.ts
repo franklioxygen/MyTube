@@ -1,0 +1,559 @@
+import { sqlite } from "../../../db";
+import { MigrationError } from "../../../errors/DownloadErrors";
+import { logger } from "../../../utils/logger";
+import { backfillLegacyCollectionOrigins } from "../authorCollectionUtils";
+import {
+  deduplicateVideoDownloadsBySourceAndPlatform,
+  normalizeLegacyTwitchDownloads,
+} from "./legacyTwitchDownloads";
+import {
+  backfillDownloadHistoryVideoIds,
+  populateVideoFileSizes,
+} from "./dataBackfill";
+
+// Check and migrate the tags column on the videos table if needed.
+export function migrateTagsColumn(): void {
+  try {
+    const tableInfo = sqlite.prepare("PRAGMA table_info(videos)").all();
+    const hasTags = (tableInfo as any[]).some(
+      (col: any) => col.name === "tags"
+    );
+
+    if (!hasTags) {
+      logger.info("Migrating database: Adding tags column to videos table...");
+      sqlite.prepare("ALTER TABLE videos ADD COLUMN tags TEXT").run();
+      logger.info("Migration successful.");
+    }
+  } catch (error) {
+    logger.error(
+      "Error checking/migrating tags column",
+      error instanceof Error ? error : new Error(String(error))
+    );
+    throw new MigrationError(
+      "Failed to migrate tags column",
+      "tags_column",
+      error instanceof Error ? error : new Error(String(error))
+    );
+  }
+}
+
+// Collections + subscriptions self-heal columns. Tolerates tables that may not
+// exist yet on very old installs.
+function migrateCollectionsAndSubscriptionsColumns(): void {
+  try {
+    const collectionsTableInfo = sqlite
+      .prepare("PRAGMA table_info(collections)")
+      .all();
+    const collectionsColumns = (collectionsTableInfo as any[]).map(
+      (col: any) => col.name
+    );
+
+    if (
+      collectionsColumns.length > 0 &&
+      !collectionsColumns.includes("origin")
+    ) {
+      logger.info(
+        "Migrating database: Adding origin column to collections table..."
+      );
+      sqlite
+        .prepare("ALTER TABLE collections ADD COLUMN origin TEXT")
+        .run();
+      logger.info("Migration successful: origin added.");
+    }
+
+    if (collectionsColumns.length > 0) {
+      const sourceKeyColumns: Array<{ name: string; column: string }> = [
+        { name: "source_platform", column: "source_platform" },
+        { name: "source_type", column: "source_type" },
+        { name: "source_mid", column: "source_mid" },
+        { name: "source_id", column: "source_id" },
+      ];
+      for (const { name, column } of sourceKeyColumns) {
+        if (!collectionsColumns.includes(name)) {
+          logger.info(
+            `Migrating database: Adding ${column} column to collections table...`
+          );
+          sqlite
+            .prepare(`ALTER TABLE collections ADD COLUMN ${column} TEXT`)
+            .run();
+          logger.info(`Migration successful: ${column} added.`);
+        }
+      }
+    }
+
+    if (collectionsColumns.length > 0) {
+      backfillLegacyCollectionOrigins();
+    }
+
+    const subscriptionsTableInfo = sqlite
+      .prepare("PRAGMA table_info(subscriptions)")
+      .all();
+    const subscriptionsColumns = (subscriptionsTableInfo as any[]).map(
+      (col: any) => col.name
+    );
+
+    if (!subscriptionsColumns.includes("playlist_id")) {
+      logger.info(
+        "Migrating database: Adding playlist_id column to subscriptions table..."
+      );
+      sqlite
+        .prepare("ALTER TABLE subscriptions ADD COLUMN playlist_id TEXT")
+        .run();
+      logger.info("Migration successful: playlist_id added.");
+    }
+
+    if (!subscriptionsColumns.includes("playlist_title")) {
+      logger.info(
+        "Migrating database: Adding playlist_title column to subscriptions table..."
+      );
+      sqlite
+        .prepare("ALTER TABLE subscriptions ADD COLUMN playlist_title TEXT")
+        .run();
+      logger.info("Migration successful: playlist_title added.");
+    }
+
+    if (!subscriptionsColumns.includes("subscription_type")) {
+      logger.info(
+        "Migrating database: Adding subscription_type column to subscriptions table..."
+      );
+      sqlite
+        .prepare(
+          "ALTER TABLE subscriptions ADD COLUMN subscription_type TEXT DEFAULT 'author'"
+        )
+        .run();
+      logger.info("Migration successful: subscription_type added.");
+    }
+
+    if (!subscriptionsColumns.includes("collection_id")) {
+      logger.info(
+        "Migrating database: Adding collection_id column to subscriptions table..."
+      );
+      sqlite
+        .prepare("ALTER TABLE subscriptions ADD COLUMN collection_id TEXT")
+        .run();
+      logger.info("Migration successful: collection_id added.");
+    }
+
+    if (!subscriptionsColumns.includes("download_shorts")) {
+      logger.info(
+        "Migrating database: Adding download_shorts column to subscriptions table..."
+      );
+      sqlite
+        .prepare(
+          "ALTER TABLE subscriptions ADD COLUMN download_shorts INTEGER DEFAULT 0"
+        )
+        .run();
+      logger.info("Migration successful: download_shorts added.");
+    }
+
+    if (!subscriptionsColumns.includes("last_short_video_link")) {
+      logger.info(
+        "Migrating database: Adding last_short_video_link column to subscriptions table..."
+      );
+      sqlite
+        .prepare(
+          "ALTER TABLE subscriptions ADD COLUMN last_short_video_link TEXT"
+        )
+        .run();
+      logger.info("Migration successful: last_short_video_link added.");
+    }
+
+    if (!subscriptionsColumns.includes("twitch_broadcaster_id")) {
+      logger.info(
+        "Migrating database: Adding twitch_broadcaster_id column to subscriptions table..."
+      );
+      sqlite
+        .prepare(
+          "ALTER TABLE subscriptions ADD COLUMN twitch_broadcaster_id TEXT"
+        )
+        .run();
+      logger.info("Migration successful: twitch_broadcaster_id added.");
+    }
+
+    if (!subscriptionsColumns.includes("twitch_broadcaster_login")) {
+      logger.info(
+        "Migrating database: Adding twitch_broadcaster_login column to subscriptions table..."
+      );
+      sqlite
+        .prepare(
+          "ALTER TABLE subscriptions ADD COLUMN twitch_broadcaster_login TEXT"
+        )
+        .run();
+      logger.info("Migration successful: twitch_broadcaster_login added.");
+    }
+
+    if (!subscriptionsColumns.includes("last_twitch_video_id")) {
+      logger.info(
+        "Migrating database: Adding last_twitch_video_id column to subscriptions table..."
+      );
+      sqlite
+        .prepare(
+          "ALTER TABLE subscriptions ADD COLUMN last_twitch_video_id TEXT"
+        )
+        .run();
+      logger.info("Migration successful: last_twitch_video_id added.");
+    }
+
+    if (!subscriptionsColumns.includes("retention_days")) {
+      logger.info(
+        "Migrating database: Adding retention_days column to subscriptions table..."
+      );
+      sqlite
+        .prepare("ALTER TABLE subscriptions ADD COLUMN retention_days INTEGER")
+        .run();
+      logger.info("Migration successful: retention_days added.");
+    }
+  } catch (subscriptionsError) {
+    // Subscriptions table might not exist yet, ignore error
+    logger.debug(
+      "Subscriptions table migration skipped (table may not exist yet)",
+      subscriptionsError instanceof Error
+        ? subscriptionsError
+        : new Error(String(subscriptionsError))
+    );
+  }
+}
+
+// Check continuous_download_tasks table columns for download-order feature fields.
+// This is a runtime self-heal for older databases where drizzle migrations were skipped.
+function migrateContinuousDownloadTaskColumns(): void {
+  try {
+    const taskTableInfo = sqlite
+      .prepare("PRAGMA table_info(continuous_download_tasks)")
+      .all();
+    const taskColumns = (taskTableInfo as any[]).map((col: any) => col.name);
+
+    if (taskColumns.length > 0) {
+      if (!taskColumns.includes("download_order")) {
+        logger.info(
+          "Migrating database: Adding download_order column to continuous_download_tasks table..."
+        );
+        sqlite
+          .prepare(
+            "ALTER TABLE continuous_download_tasks ADD COLUMN download_order TEXT NOT NULL DEFAULT 'dateDesc'"
+          )
+          .run();
+        logger.info("Migration successful: download_order added.");
+      }
+
+      if (!taskColumns.includes("frozen_video_list_path")) {
+        logger.info(
+          "Migrating database: Adding frozen_video_list_path column to continuous_download_tasks table..."
+        );
+        sqlite
+          .prepare(
+            "ALTER TABLE continuous_download_tasks ADD COLUMN frozen_video_list_path TEXT"
+          )
+          .run();
+        logger.info("Migration successful: frozen_video_list_path added.");
+      }
+    }
+  } catch (taskTableMigrationError) {
+    // Table might not exist yet on very old installs; migration will be handled by drizzle.
+    logger.debug(
+      "Continuous download tasks table migration skipped (table may not exist yet)",
+      taskTableMigrationError instanceof Error
+        ? taskTableMigrationError
+        : new Error(String(taskTableMigrationError))
+    );
+  }
+}
+
+// Additive column/table self-heal for videos, downloads, collections,
+// subscriptions, continuous tasks, video_downloads, rss_tokens and
+// download_history, plus the file-size/video_id data backfills.
+export function migrateColumnsAndTables(): void {
+  try {
+    const tableInfo = sqlite.prepare("PRAGMA table_info(videos)").all();
+    const columns = (tableInfo as any[]).map((col: any) => col.name);
+
+    if (!columns.includes("view_count")) {
+      logger.info(
+        "Migrating database: Adding view_count column to videos table..."
+      );
+      sqlite
+        .prepare("ALTER TABLE videos ADD COLUMN view_count INTEGER DEFAULT 0")
+        .run();
+      logger.info("Migration successful: view_count added.");
+    }
+
+    if (!columns.includes("progress")) {
+      logger.info(
+        "Migrating database: Adding progress column to videos table..."
+      );
+      sqlite
+        .prepare("ALTER TABLE videos ADD COLUMN progress INTEGER DEFAULT 0")
+        .run();
+      logger.info("Migration successful: progress added.");
+    }
+
+    if (!columns.includes("duration")) {
+      logger.info(
+        "Migrating database: Adding duration column to videos table..."
+      );
+      sqlite.prepare("ALTER TABLE videos ADD COLUMN duration TEXT").run();
+      logger.info("Migration successful: duration added.");
+    }
+
+    if (!columns.includes("file_size")) {
+      logger.info(
+        "Migrating database: Adding file_size column to videos table..."
+      );
+      sqlite.prepare("ALTER TABLE videos ADD COLUMN file_size TEXT").run();
+      logger.info("Migration successful: file_size added.");
+    }
+
+    if (!columns.includes("last_played_at")) {
+      logger.info(
+        "Migrating database: Adding last_played_at column to videos table..."
+      );
+      sqlite
+        .prepare("ALTER TABLE videos ADD COLUMN last_played_at INTEGER")
+        .run();
+      logger.info("Migration successful: last_played_at added.");
+    }
+
+    if (!columns.includes("subtitles")) {
+      logger.info(
+        "Migrating database: Adding subtitles column to videos table..."
+      );
+      sqlite.prepare("ALTER TABLE videos ADD COLUMN subtitles TEXT").run();
+      logger.info("Migration successful: subtitles added.");
+    }
+
+    if (!columns.includes("description")) {
+      logger.info(
+        "Migrating database: Adding description column to videos table..."
+      );
+      sqlite.prepare("ALTER TABLE videos ADD COLUMN description TEXT").run();
+      logger.info("Migration successful: description added.");
+    }
+
+    if (!columns.includes("author_avatar_filename")) {
+      logger.info(
+        "Migrating database: Adding author_avatar_filename column to videos table..."
+      );
+      sqlite
+        .prepare("ALTER TABLE videos ADD COLUMN author_avatar_filename TEXT")
+        .run();
+      logger.info("Migration successful: author_avatar_filename added.");
+    }
+
+    if (!columns.includes("author_avatar_path")) {
+      logger.info(
+        "Migrating database: Adding author_avatar_path column to videos table..."
+      );
+      sqlite
+        .prepare("ALTER TABLE videos ADD COLUMN author_avatar_path TEXT")
+        .run();
+      logger.info("Migration successful: author_avatar_path added.");
+    }
+
+    // Check downloads table columns
+    const downloadsTableInfo = sqlite
+      .prepare("PRAGMA table_info(downloads)")
+      .all();
+    const downloadsColumns = (downloadsTableInfo as any[]).map(
+      (col: any) => col.name
+    );
+
+    if (!downloadsColumns.includes("source_url")) {
+      logger.info(
+        "Migrating database: Adding source_url column to downloads table..."
+      );
+      sqlite.prepare("ALTER TABLE downloads ADD COLUMN source_url TEXT").run();
+      logger.info("Migration successful: source_url added.");
+    }
+
+    if (!downloadsColumns.includes("type")) {
+      logger.info(
+        "Migrating database: Adding type column to downloads table..."
+      );
+      sqlite.prepare("ALTER TABLE downloads ADD COLUMN type TEXT").run();
+      logger.info("Migration successful: type added.");
+    }
+
+    if (!downloadsColumns.includes("retry_metadata")) {
+      logger.info(
+        "Migrating database: Adding retry_metadata column to downloads table..."
+      );
+      sqlite
+        .prepare("ALTER TABLE downloads ADD COLUMN retry_metadata TEXT")
+        .run();
+      logger.info("Migration successful: retry_metadata added.");
+    }
+
+    // Check subscriptions table columns for playlist subscription fields
+    migrateCollectionsAndSubscriptionsColumns();
+
+    // Check continuous_download_tasks table columns for download-order feature fields.
+    migrateContinuousDownloadTaskColumns();
+
+    // Create video_downloads table if it doesn't exist
+    sqlite
+      .prepare(
+        `
+      CREATE TABLE IF NOT EXISTS video_downloads (
+        id TEXT PRIMARY KEY NOT NULL,
+        source_video_id TEXT NOT NULL,
+        source_url TEXT NOT NULL,
+        platform TEXT NOT NULL,
+        video_id TEXT,
+        title TEXT,
+        author TEXT,
+        status TEXT DEFAULT 'exists' NOT NULL,
+        downloaded_at INTEGER NOT NULL,
+        deleted_at INTEGER
+      )
+    `
+      )
+      .run();
+
+    // Create indexes for video_downloads
+    try {
+      normalizeLegacyTwitchDownloads();
+      deduplicateVideoDownloadsBySourceAndPlatform();
+      sqlite
+        .prepare(
+          `CREATE UNIQUE INDEX IF NOT EXISTS video_downloads_source_video_id_platform_uidx ON video_downloads (source_video_id, platform)`
+        )
+        .run();
+      sqlite
+        .prepare(
+          `CREATE INDEX IF NOT EXISTS video_downloads_source_video_id_idx ON video_downloads (source_video_id)`
+        )
+        .run();
+      sqlite
+        .prepare(
+          `CREATE INDEX IF NOT EXISTS video_downloads_source_url_idx ON video_downloads (source_url)`
+        )
+        .run();
+    } catch (indexError) {
+      // Indexes might already exist, ignore error
+      logger.debug(
+        "Index creation skipped (may already exist)",
+        indexError instanceof Error ? indexError : new Error(String(indexError))
+      );
+    }
+
+    // Ensure RSS tokens table exists even if older self-healing migrations stopped
+    // Drizzle before the RSS migration was applied.
+    sqlite
+      .prepare(
+        `
+      CREATE TABLE IF NOT EXISTS rss_tokens (
+        id TEXT PRIMARY KEY NOT NULL,
+        label TEXT DEFAULT '' NOT NULL,
+        role TEXT DEFAULT 'visitor' NOT NULL,
+        filters TEXT DEFAULT '{}' NOT NULL,
+        is_active INTEGER DEFAULT 1 NOT NULL,
+        access_count INTEGER DEFAULT 0 NOT NULL,
+        last_accessed_at INTEGER,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        CONSTRAINT rss_tokens_role_check CHECK(role IN ('admin', 'visitor'))
+      )
+    `
+      )
+      .run();
+    sqlite
+      .prepare(
+        "CREATE INDEX IF NOT EXISTS idx_rss_tokens_active ON rss_tokens (is_active)"
+      )
+      .run();
+    sqlite
+      .prepare(
+        "CREATE INDEX IF NOT EXISTS idx_rss_tokens_created_at ON rss_tokens (created_at)"
+      )
+      .run();
+
+    // Check download_history table for video_id, downloaded_at, deleted_at columns
+    const downloadHistoryTableInfo = sqlite
+      .prepare("PRAGMA table_info(download_history)")
+      .all();
+    const downloadHistoryColumns = (downloadHistoryTableInfo as any[]).map(
+      (col: any) => col.name
+    );
+
+    if (!downloadHistoryColumns.includes("video_id")) {
+      logger.info(
+        "Migrating database: Adding video_id column to download_history table..."
+      );
+      sqlite
+        .prepare("ALTER TABLE download_history ADD COLUMN video_id TEXT")
+        .run();
+      downloadHistoryColumns.push("video_id");
+      logger.info("Migration successful: video_id added to download_history.");
+    }
+
+    if (!downloadHistoryColumns.includes("downloaded_at")) {
+      logger.info(
+        "Migrating database: Adding downloaded_at column to download_history table..."
+      );
+      sqlite
+        .prepare(
+          "ALTER TABLE download_history ADD COLUMN downloaded_at INTEGER"
+        )
+        .run();
+      logger.info(
+        "Migration successful: downloaded_at added to download_history."
+      );
+      downloadHistoryColumns.push("downloaded_at");
+    }
+
+    if (!downloadHistoryColumns.includes("deleted_at")) {
+      logger.info(
+        "Migrating database: Adding deleted_at column to download_history table..."
+      );
+      sqlite
+        .prepare("ALTER TABLE download_history ADD COLUMN deleted_at INTEGER")
+        .run();
+      logger.info(
+        "Migration successful: deleted_at added to download_history."
+      );
+      downloadHistoryColumns.push("deleted_at");
+    }
+
+    if (
+      downloadHistoryColumns.includes("subscription_id") &&
+      downloadHistoryColumns.includes("status") &&
+      downloadHistoryColumns.includes("finished_at")
+    ) {
+      sqlite
+        .prepare(
+          `CREATE INDEX IF NOT EXISTS download_history_retention_subscription_idx
+           ON download_history (subscription_id, status, finished_at)`
+        )
+        .run();
+    }
+
+    if (
+      downloadHistoryColumns.includes("video_id") &&
+      downloadHistoryColumns.includes("status") &&
+      downloadHistoryColumns.includes("subscription_id")
+    ) {
+      sqlite
+        .prepare(
+          `CREATE INDEX IF NOT EXISTS download_history_retention_video_refs_idx
+           ON download_history (video_id, status, subscription_id)`
+        )
+        .run();
+    }
+
+    // Populate fileSize for existing videos
+    populateVideoFileSizes();
+
+    // Backfill video_id in download_history for existing records
+    backfillDownloadHistoryVideoIds();
+  } catch (error) {
+    logger.error(
+      "Error checking/migrating viewCount/progress/duration/fileSize columns",
+      error instanceof Error ? error : new Error(String(error))
+    );
+    throw new MigrationError(
+      "Failed to migrate database columns",
+      "columns_migration",
+      error instanceof Error ? error : new Error(String(error))
+    );
+  }
+}
