@@ -750,6 +750,7 @@ export const ja = {
   loading: "読み込み中...",
   error: "エラー",
   success: "成功",
+  info: "情報",
   cancel: "キャンセル",
   close: "閉じる",
   ok: "OK",
@@ -832,6 +833,7 @@ export const ja = {
 
   // Downloads
   downloads: "ダウンロード",
+  openMenu: "メニューを開く",
   activeDownloads: "アクティブなダウンロード",
   manageDownloads: "ダウンロードの管理",
   queuedDownloads: "待機中のダウンロード",
@@ -1280,7 +1282,7 @@ export const ja = {
   videoDecodeError:
     "動画のデコードエラーです。ファイルが破損しているか、未対応のコーデックを使用している可能性があります。",
   safariVideoFormatNotSupported:
-    "Safari ではこの動画形式はサポートされていません。Safari では H.264/MP4 動画が最も適しています。H.264 コーデックで再ダウンロードしてください。",
+    "Safari ではこの動画形式はサポートされていません。Safari では H.264/MP4 動画が最も適しています。H.264 コーデックで再ダウンロードするか、Chrome などの別のブラウザをお試しください。",
   browserVideoFormatNotSupported:
     "お使いのブラウザではこの動画形式はサポートされていません。",
 

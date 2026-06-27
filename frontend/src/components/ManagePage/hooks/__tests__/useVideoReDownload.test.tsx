@@ -70,7 +70,9 @@ describe('useVideoReDownload', () => {
     });
 
     it('prevents duplicate downloads while the same source URL is already downloading', async () => {
-        let resolveDownload: ((value: { data: Record<string, never> }) => void) | undefined;
+        // Captured from the mocked api.post Promise; typed loosely since the
+        // real resolve is typed for an AxiosResponse we don't construct here.
+        let resolveDownload: ((value: any) => void) | undefined;
         vi.mocked(api.post).mockImplementation(
             () =>
                 new Promise((resolve) => {

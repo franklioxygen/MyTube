@@ -5,6 +5,7 @@ import axios, {
   AxiosResponse,
 } from "axios";
 import { getApiUrl } from "./apiUrl";
+import type { TranslationKey } from "./translations";
 
 /**
  * Centralized API client for all backend API calls
@@ -243,7 +244,7 @@ export interface ApiResponse<T = any> {
 }
 
 type TranslationFn = (
-  key: string,
+  key: TranslationKey,
   replacements?: Record<string, string | number>
 ) => string;
 
@@ -361,7 +362,9 @@ export async function getApiErrorMessage(
   const errorKey = typeof data?.errorKey === "string" ? data.errorKey : undefined;
 
   if (errorKey && t) {
-    const translated = t(errorKey);
+    // errorKey comes from the backend and may not be a known TranslationKey;
+    // t() returns the key unchanged when there's no match, which we detect below.
+    const translated = t(errorKey as TranslationKey);
     if (translated && translated !== errorKey) {
       return translated;
     }

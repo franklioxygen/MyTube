@@ -157,7 +157,13 @@ const UpNextSidebar: React.FC<UpNextSidebarProps> = ({
                                 <Typography variant="body2" fontWeight="bold" sx={{ lineHeight: 1.2, mb: 0.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                                     {relatedVideo.title}
                                 </Typography>
-                                <Typography variant="caption" display="block" color="text.secondary">
+                                <Typography
+                                    variant="caption"
+                                    display="block"
+                                    color="text.secondary"
+                                    title={relatedVideo.author}
+                                    sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                                >
                                     {relatedVideo.author}
                                 </Typography>
                                 <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', mt: 'auto' }}>

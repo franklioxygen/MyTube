@@ -31,7 +31,6 @@ describe('SearchInput', () => {
         isSubmitting: false,
         error: '',
         isSearchMode: false,
-        searchTerm: '',
         onResetSearch: vi.fn(),
         onSubmit: vi.fn((e) => e.preventDefault()),
     };
@@ -197,20 +196,24 @@ describe('SearchInput', () => {
         expect(screen.getAllByRole('button')).toHaveLength(1);
     });
 
-    it('should call onResetSearch when reset search button is clicked', () => {
-        render(<SearchInput {...defaultProps} isSearchMode={true} searchTerm="cats" videoUrl="cats" />);
+    it('renders a single clear button that clears the input and resets active search', () => {
+        render(<SearchInput {...defaultProps} isSearchMode={true} videoUrl="cats" />);
+
+        // Desktop layout: [paste] [clear] [submit] — only one clear button now.
+        const buttons = screen.getAllByRole('button');
+        expect(buttons).toHaveLength(3);
+        fireEvent.click(buttons[1]);
+
+        expect(defaultProps.setVideoUrl).toHaveBeenCalledWith('');
+        expect(defaultProps.onResetSearch).toHaveBeenCalled();
+    });
+
+    it('clears only the input (not the global search) when not in search mode', () => {
+        render(<SearchInput {...defaultProps} isSearchMode={false} videoUrl="https://example.com" />);
 
         fireEvent.click(screen.getAllByRole('button')[1]);
 
-        expect(defaultProps.onResetSearch).toHaveBeenCalled();
-        expect(defaultProps.setVideoUrl).not.toHaveBeenCalled();
-    });
-
-    it('should clear the input when clear button is clicked', () => {
-        render(<SearchInput {...defaultProps} isSearchMode={true} searchTerm="cats" videoUrl="cats" />);
-
-        fireEvent.click(screen.getAllByRole('button')[2]);
-
         expect(defaultProps.setVideoUrl).toHaveBeenCalledWith('');
+        expect(defaultProps.onResetSearch).not.toHaveBeenCalled();
     });
 });

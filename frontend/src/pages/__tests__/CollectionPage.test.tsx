@@ -265,7 +265,7 @@ describe('CollectionPage', () => {
 
             renderCollectionPage();
 
-            const callArgs = mockUseVideoSort.mock.calls[0][0];
+            const callArgs = mockUseVideoSort.mock.calls[0][0] as { videos: { id: string }[] };
             expect(callArgs.videos.map((video: { id: string }) => video.id)).toEqual(['v2', 'v1']);
         });
     });

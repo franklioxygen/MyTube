@@ -1,4 +1,4 @@
-import { Close, Visibility, VisibilityOff } from '@mui/icons-material';
+import { Visibility, VisibilityOff } from '@mui/icons-material';
 import {
     Button,
     CircularProgress,
@@ -6,14 +6,13 @@ import {
     DialogActions,
     DialogContent,
     DialogContentText,
-    DialogTitle,
     IconButton,
     InputAdornment,
-    TextField,
-    Typography
+    TextField
 } from '@mui/material';
 import React, { useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
+import DialogHeader from './DialogHeader';
 
 interface PasswordModalProps {
     isOpen: boolean;
@@ -74,21 +73,13 @@ const PasswordModal: React.FC<PasswordModalProps> = ({
                 }
             }}
         >
-            <DialogTitle id="password-dialog-title" sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="h6" component="div" sx={{ fontWeight: 600 }}>
-                    {title || t('enterPassword')}
-                </Typography>
-                <IconButton
-                    aria-label={t('close')}
-                    onClick={handleClose}
-                    sx={{
-                        color: (theme) => theme.palette.grey[500],
-                    }}
-                    disabled={isLoading}
-                >
-                    <Close />
-                </IconButton>
-            </DialogTitle>
+            <DialogHeader
+                id="password-dialog-title"
+                title={title || t('enterPassword')}
+                onClose={handleClose}
+                closeDisabled={isLoading}
+                closeLabel={t('close')}
+            />
             <form onSubmit={handleConfirm}>
                 <DialogContent dividers>
                     {message && (

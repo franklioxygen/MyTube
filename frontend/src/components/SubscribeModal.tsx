@@ -1,4 +1,4 @@
-import { Close, Warning } from '@mui/icons-material';
+import { Warning } from '@mui/icons-material';
 import {
     Alert,
     Button,
@@ -7,9 +7,7 @@ import {
     DialogActions,
     DialogContent,
     DialogContentText,
-    DialogTitle,
     FormControlLabel,
-    IconButton,
     MenuItem,
     Select,
     FormControl,
@@ -19,6 +17,7 @@ import {
 } from '@mui/material';
 import React, { useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
+import DialogHeader from './DialogHeader';
 
 type DownloadOrder = 'dateDesc' | 'dateAsc' | 'viewsDesc' | 'viewsAsc';
 
@@ -83,20 +82,7 @@ const SubscribeModal: React.FC<SubscribeModalProps> = ({
                 }
             }}
         >
-            <DialogTitle sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="h6" component="div" sx={{ fontWeight: 600 }}>
-                    {resolvedTitle}
-                </Typography>
-                <IconButton
-                    aria-label="close"
-                    onClick={onClose}
-                    sx={{
-                        color: (theme) => theme.palette.grey[500],
-                    }}
-                >
-                    <Close />
-                </IconButton>
-            </DialogTitle>
+            <DialogHeader title={resolvedTitle} onClose={onClose} closeLabel={t('close')} />
             <DialogContent dividers>
                 <DialogContentText sx={{ mb: 2, color: 'text.primary' }}>
                     {resolvedDescription}

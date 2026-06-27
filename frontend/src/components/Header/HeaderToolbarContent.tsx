@@ -2,6 +2,7 @@ import { Menu as MenuIcon } from '@mui/icons-material';
 import { Box, IconButton } from '@mui/material';
 import { FormEvent } from 'react';
 
+import { useLanguage } from '../../contexts/LanguageContext';
 import { Collection, Video } from '../../types';
 import ActionButtons from './ActionButtons';
 import Logo from './Logo';
@@ -39,7 +40,6 @@ interface HeaderToolbarContentProps {
     isSubmitting: boolean;
     error: string;
     isSearchMode: boolean;
-    searchTerm: string;
     onSubmit: (event: FormEvent) => void;
     collections: Collection[];
     videos: Video[];
@@ -71,13 +71,13 @@ const HeaderToolbarContent: React.FC<HeaderToolbarContentProps> = ({
     isSubmitting,
     error,
     isSearchMode,
-    searchTerm,
     onSubmit,
     collections,
     videos,
     showTagsInMobileMenu,
     effectiveTags
 }) => {
+    const { t } = useLanguage();
     const actionButtons = (
         <ActionButtons
             activeDownloads={activeDownloads}
@@ -103,7 +103,7 @@ const HeaderToolbarContent: React.FC<HeaderToolbarContentProps> = ({
                     width: '100%',
                     py: 0,
                     px: 2,
-                    transition: 'all 0.3s ease-in-out',
+                    transition: 'padding 0.3s ease-in-out',
                     '& img': {
                         height: '24px !important',
                         transition: 'height 0.3s ease-in-out'
@@ -130,7 +130,7 @@ const HeaderToolbarContent: React.FC<HeaderToolbarContentProps> = ({
                     justifyContent: 'space-between',
                     width: isMobile ? '100%' : 'auto',
                     mr: isMobile ? 0 : 2,
-                    transition: 'all 0.3s ease-in-out',
+                    transition: 'margin 0.3s ease-in-out',
                     '& img': {
                         transition: 'height 0.3s ease-in-out'
                     },
@@ -144,7 +144,7 @@ const HeaderToolbarContent: React.FC<HeaderToolbarContentProps> = ({
                 {isMobile && (
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         {actionButtons}
-                        <IconButton onClick={onToggleMobileMenu}>
+                        <IconButton onClick={onToggleMobileMenu} aria-label={t('openMenu')}>
                             <MenuIcon />
                         </IconButton>
                     </Box>
@@ -160,7 +160,6 @@ const HeaderToolbarContent: React.FC<HeaderToolbarContentProps> = ({
                             isSubmitting={isSubmitting}
                             error={error}
                             isSearchMode={isSearchMode}
-                            searchTerm={searchTerm}
                             onResetSearch={onResetSearch}
                             onSubmit={onSubmit}
                         />
@@ -172,15 +171,14 @@ const HeaderToolbarContent: React.FC<HeaderToolbarContentProps> = ({
             )}
 
             {isMobile && (
-                <MobileMenu
-                    open={mobileMenuOpen}
-                    videoUrl={videoUrl}
-                    setVideoUrl={setVideoUrl}
-                    isSubmitting={isSubmitting}
-                    error={error}
-                    isSearchMode={isSearchMode}
-                    searchTerm={searchTerm}
-                    onResetSearch={onResetSearch}
+                        <MobileMenu
+                            open={mobileMenuOpen}
+                            videoUrl={videoUrl}
+                            setVideoUrl={setVideoUrl}
+                            isSubmitting={isSubmitting}
+                            error={error}
+                            isSearchMode={isSearchMode}
+                            onResetSearch={onResetSearch}
                     onSubmit={onSubmit}
                     onClose={onCloseMobileMenu}
                     collections={collections}

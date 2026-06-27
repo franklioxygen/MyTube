@@ -425,7 +425,7 @@ describe('ManagePage', () => {
             fireEvent.click(screen.getByTestId('videos-delete-btn'));
 
             const dialog = screen.getByRole('dialog');
-            fireEvent.click(within(dialog).getByLabelText('close'));
+            fireEvent.click(within(dialog).getByLabelText('Close'));
 
             await waitFor(() => {
                 expect(screen.queryByRole('dialog')).not.toBeInTheDocument();

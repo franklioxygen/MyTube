@@ -1,15 +1,12 @@
-import { Close } from '@mui/icons-material';
 import {
     Button,
     Dialog,
     DialogActions,
     DialogContent,
-    DialogContentText,
-    DialogTitle,
-    IconButton,
-    Typography
+    DialogContentText
 } from '@mui/material';
 import React from 'react';
+import DialogHeader from './DialogHeader';
 
 interface ConfirmationModalProps {
     isOpen: boolean;
@@ -51,20 +48,7 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
                 }
             }}
         >
-            <DialogTitle id="alert-dialog-title" sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="h6" component="div" sx={{ fontWeight: 600 }}>
-                    {title}
-                </Typography>
-                <IconButton
-                    aria-label="close"
-                    onClick={onClose}
-                    sx={{
-                        color: (theme) => theme.palette.grey[500],
-                    }}
-                >
-                    <Close />
-                </IconButton>
-            </DialogTitle>
+            <DialogHeader id="alert-dialog-title" title={title} onClose={onClose} />
             <DialogContent dividers>
                 <DialogContentText id="alert-dialog-description" sx={{ whiteSpace: 'pre-wrap' }}>
                     {message}

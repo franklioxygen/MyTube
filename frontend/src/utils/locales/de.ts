@@ -763,6 +763,7 @@ export const de = {
   loading: "Laden...",
   error: "Fehler",
   success: "Erfolg",
+  info: "Info",
   cancel: "Abbrechen",
   close: "Schließen",
   ok: "OK",
@@ -844,6 +845,7 @@ export const de = {
 
   // Downloads
   downloads: "Downloads",
+  openMenu: "Menü öffnen",
   activeDownloads: "Aktive Downloads",
   manageDownloads: "Downloads Verwalten",
   queuedDownloads: "Warteschlange",
@@ -1294,7 +1296,7 @@ export const de = {
   videoDecodeError:
     "Fehler beim Dekodieren des Videos. Die Datei ist möglicherweise beschädigt oder verwendet einen nicht unterstützten Codec.",
   safariVideoFormatNotSupported:
-    "Dieses Videoformat wird von Safari nicht unterstützt. Safari funktioniert am besten mit H.264/MP4-Videos. Bitte laden Sie das Video mit H.264-Codec erneut herunter.",
+    "Dieses Videoformat wird von Safari nicht unterstützt. Safari funktioniert am besten mit H.264/MP4-Videos. Bitte laden Sie das Video mit H.264-Codec erneut herunter oder versuchen Sie einen anderen Browser wie Chrome.",
   browserVideoFormatNotSupported:
     "Dieses Videoformat wird von Ihrem Browser nicht unterstützt.",
 

@@ -737,6 +737,7 @@ export const ko = {
   loading: "로드 중...",
   error: "오류",
   success: "성공",
+  info: "정보",
   cancel: "취소",
   close: "닫기",
   ok: "확인",
@@ -818,6 +819,7 @@ export const ko = {
 
   // Downloads
   downloads: "다운로드",
+  openMenu: "메뉴 열기",
   activeDownloads: "진행 중인 다운로드",
   manageDownloads: "다운로드 관리",
   queuedDownloads: "대기 중인 다운로드",
@@ -1257,7 +1259,7 @@ export const ko = {
   videoDecodeError:
     "동영상 디코딩 오류입니다. 파일이 손상되었거나 지원되지 않는 코덱을 사용할 수 있습니다.",
   safariVideoFormatNotSupported:
-    "Safari에서 이 동영상 형식은 지원되지 않습니다. Safari는 H.264/MP4 동영상에서 가장 잘 작동합니다. H.264 코덱으로 다시 다운로드해 주세요.",
+    "Safari에서 이 동영상 형식은 지원되지 않습니다. Safari는 H.264/MP4 동영상에서 가장 잘 작동합니다. H.264 코덱으로 다시 다운로드하거나 Chrome과 같은 다른 브라우저를 사용해 보세요.",
   browserVideoFormatNotSupported:
     "브라우저에서 이 동영상 형식을 지원하지 않습니다.",
 

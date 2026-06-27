@@ -4,6 +4,7 @@ import React, { Suspense } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { lazyWithRetry } from '../utils/lazyWithRetry';
 import { ViewMode } from '../hooks/useViewMode';
+import type { TranslationKey } from '../utils/translations';
 
 const SortControlMenu = lazyWithRetry(
     () => import('./SortControlMenu'),
@@ -12,7 +13,7 @@ const SortControlMenu = lazyWithRetry(
 
 const getViewModeLabel = (
     viewMode: ViewMode,
-    t: (key: string) => string
+    t: (key: TranslationKey) => string
 ): string => {
     switch (viewMode) {
         case 'collections':

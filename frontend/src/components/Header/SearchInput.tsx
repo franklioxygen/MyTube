@@ -20,7 +20,6 @@ interface SearchInputProps {
     isSubmitting: boolean;
     error: string;
     isSearchMode: boolean;
-    searchTerm: string;
     onResetSearch?: () => void;
     onSubmit: (e: FormEvent) => void;
 }
@@ -31,7 +30,6 @@ const SearchInput: React.FC<SearchInputProps> = ({
     isSubmitting,
     error,
     isSearchMode,
-    searchTerm,
     onResetSearch,
     onSubmit
 }) => {
@@ -95,6 +93,11 @@ const SearchInput: React.FC<SearchInputProps> = ({
 
     const handleClear = () => {
         setVideoUrl('');
+        // Also reset the global search state when active, so clearing the
+        // input also dismisses stale search results (single unified "clear").
+        if (isSearchMode) {
+            onResetSearch?.();
+        }
     };
 
     return (
@@ -152,6 +155,7 @@ const SearchInput: React.FC<SearchInputProps> = ({
                                     edge="start"
                                     size="small"
                                     type="button"
+                                    aria-label={t('pasteUrl')}
                                     disabled={isSubmitting}
                                     sx={{ ml: 0 }}
                                 >
@@ -161,17 +165,13 @@ const SearchInput: React.FC<SearchInputProps> = ({
                         ) : null,
                         endAdornment: (
                             <InputAdornment position="end">
-                                {isSearchMode && searchTerm && videoUrl && (
-                                    <IconButton onClick={onResetSearch} edge="end" size="small" type="button" sx={{ mr: 0.5 }}>
-                                        <Clear />
-                                    </IconButton>
-                                )}
                                 {videoUrl && (
                                     <IconButton
                                         onClick={handleClear}
                                         edge="end"
                                         size="small"
                                         type="button"
+                                        aria-label={t('clear')}
                                         disabled={isSubmitting}
                                         sx={{ mr: 0.5 }}
                                     >

@@ -712,6 +712,7 @@ export const zh = {
   loading: "加载中...",
   error: "错误",
   success: "成功",
+  info: "信息",
   cancel: "取消",
   close: "关闭",
   ok: "确定",
@@ -788,6 +789,7 @@ export const zh = {
 
   // Downloads
   downloads: "下载",
+  openMenu: "打开菜单",
   activeDownloads: "进行中的下载",
   manageDownloads: "管理下载",
   queuedDownloads: "排队中的下载",
@@ -1210,7 +1212,7 @@ export const zh = {
   videoDecodeError:
     "视频解码错误。文件可能已损坏或使用了不受支持的编解码器。",
   safariVideoFormatNotSupported:
-    "Safari 不支持此视频格式。Safari 最适合播放 H.264/MP4 视频。请使用 H.264 编解码器重新下载。",
+    "Safari 不支持此视频格式。Safari 最适合播放 H.264/MP4 视频。请使用 H.264 编解码器重新下载，或尝试使用其他浏览器（如 Chrome）。",
   browserVideoFormatNotSupported: "您的浏览器不支持此视频格式。",
 
   // RSS 订阅设置

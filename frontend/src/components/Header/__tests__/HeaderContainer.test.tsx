@@ -91,7 +91,6 @@ describe('HeaderContainer', () => {
                 activeDownloads={[]}
                 queuedDownloads={[]}
                 isSearchMode={false}
-                searchTerm=""
                 collections={[]}
                 videos={[]}
             />

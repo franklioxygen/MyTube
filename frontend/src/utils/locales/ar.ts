@@ -730,6 +730,7 @@ export const ar = {
   loading: "جاري التحميل...",
   error: "خطأ",
   success: "نجاح",
+  info: "معلومات",
   cancel: "إلغاء",
   close: "إغلاق",
   ok: "موافق",
@@ -809,6 +810,7 @@ export const ar = {
 
   // Downloads
   downloads: "التنزيلات",
+  openMenu: "فتح القائمة",
   activeDownloads: "التنزيلات النشطة",
   manageDownloads: "إدارة التنزيلات",
   queuedDownloads: "التنزيلات في الانتظار",
@@ -1248,7 +1250,7 @@ export const ar = {
   videoDecodeError:
     "خطأ في فك ترميز الفيديو. قد يكون الملف تالفًا أو يستخدم ترميزًا غير مدعوم.",
   safariVideoFormatNotSupported:
-    "صيغة الفيديو غير مدعومة في Safari. يعمل Safari بشكل أفضل مع فيديوهات H.264/MP4. يرجى إعادة تنزيل الفيديو بترميز H.264.",
+    "صيغة الفيديو غير مدعومة في Safari. يعمل Safari بشكل أفضل مع فيديوهات H.264/MP4. يرجى إعادة تنزيل الفيديو بترميز H.264، أو جرّب متصفحًا آخر مثل Chrome.",
   browserVideoFormatNotSupported:
     "صيغة الفيديو غير مدعومة في متصفحك.",
 

@@ -613,8 +613,8 @@ describe('SubscriptionsPage', () => {
         const dialog = screen.getByRole('dialog');
         expect(dialog).toBeInTheDocument();
 
-        // Click the close icon button (aria-label="close")
-        fireEvent.click(within(dialog).getByLabelText('close'));
+        // Click the close icon button (aria-label="Close")
+        fireEvent.click(within(dialog).getByLabelText('Close'));
 
         await waitFor(() => {
             expect(screen.queryByRole('dialog')).not.toBeInTheDocument();

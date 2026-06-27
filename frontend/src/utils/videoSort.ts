@@ -118,8 +118,8 @@ export const sortVideos = (
       return [...videos].sort(compareVideoDateDesc);
     case "videoDateAsc":
       return [...videos].sort(compareVideoDateAsc);
-    case "random":
     default:
+      // "random" is handled by the early return above; any other value is unsorted.
       return [...videos];
   }
 };

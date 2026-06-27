@@ -51,7 +51,6 @@ function AppContent() {
         videos,
         loading,
         isSearchMode,
-        searchTerm,
         handleSearch,
         resetSearch
     } = useVideo();
@@ -125,7 +124,6 @@ function AppContent() {
                             activeDownloads={activeDownloads}
                             queuedDownloads={queuedDownloads}
                             isSearchMode={isSearchMode}
-                            searchTerm={searchTerm}
                             onResetSearch={resetSearch}
 
                             collections={collections}

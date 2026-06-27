@@ -17,7 +17,6 @@ interface MobileMenuProps {
     isSubmitting: boolean;
     error: string;
     isSearchMode: boolean;
-    searchTerm: string;
     onResetSearch?: () => void;
     onSubmit: (e: React.FormEvent) => void;
     onClose: () => void;
@@ -36,7 +35,6 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
     isSubmitting,
     error,
     isSearchMode,
-    searchTerm,
     onResetSearch,
     onSubmit,
     onClose,
@@ -72,7 +70,6 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
                             isSubmitting={isSubmitting}
                             error={error}
                             isSearchMode={isSearchMode}
-                            searchTerm={searchTerm}
                             onResetSearch={onResetSearch}
                             onSubmit={onSubmit}
                         />

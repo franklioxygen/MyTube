@@ -38,6 +38,7 @@ import {
     useStatisticsTimeseries,
 } from '../hooks/useStatistics';
 import { api } from '../utils/apiClient';
+import type { TranslationKey } from '../utils/translations';
 import { gradient, modeColors } from '../theme/colors';
 
 const formatBytes = (bytes: number): string => {
@@ -60,7 +61,10 @@ const formatDuration = (seconds: number): string => {
     return `${m}m`;
 };
 
-type TranslateFn = (key: string, params?: Record<string, unknown>) => string | undefined;
+// Matches the real `t` from useLanguage so it can be passed directly. The
+// helpers below intentionally accept arbitrary string keys (computed at
+// runtime, e.g. failure buckets) and bridge to `t` via translateOrFallback.
+type TranslateFn = (key: TranslationKey, replacements?: Record<string, string | number>) => string;
 
 const RANGE_OPTIONS = [
     { value: 7, labelKey: 'last7Days', fallback: 'Last 7 days' },
@@ -87,9 +91,12 @@ const translateOrFallback = (
     t: TranslateFn,
     key: string,
     fallback: string,
-    params?: Record<string, unknown>
+    params?: Record<string, string | number>
 ): string => {
-    const translated = t(key, params);
+    // key may be a runtime-computed string (e.g. a failure-bucket key) that is
+    // not a known TranslationKey; t() returns the key unchanged on a miss,
+    // which the fallback check below handles.
+    const translated = t(key as TranslationKey, params);
     return translated && translated !== key ? translated : fallback;
 };
 

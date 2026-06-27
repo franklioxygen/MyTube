@@ -10,7 +10,7 @@ import PasswordModal from '../PasswordModal';
 
 interface HookSettingsProps {
     settings: Settings;
-    onChange: (field: keyof Settings, value: unknown) => void;
+    onChange: (field: keyof Settings, value: string | boolean | number) => void;
 }
 
 const HookSettings: React.FC<HookSettingsProps> = () => {

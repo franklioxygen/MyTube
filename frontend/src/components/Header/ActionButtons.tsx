@@ -44,7 +44,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             {!isVisitor && (
                 <>
-                    <IconButton color="inherit" onClick={onDownloadsClick}>
+                    <IconButton color="inherit" aria-label={t('downloads')} onClick={onDownloadsClick}>
                         <Badge badgeContent={activeDownloads.length + queuedDownloads.length} color="secondary">
                             <Download />
                         </Badge>

@@ -754,6 +754,7 @@ export const pt = {
   loading: "Carregando...",
   error: "Erro",
   success: "Sucesso",
+  info: "Informação",
   cancel: "Cancelar",
   close: "Fechar",
   ok: "OK",
@@ -836,6 +837,7 @@ export const pt = {
 
   // Downloads
   downloads: "Downloads",
+  openMenu: "Abrir menu",
   activeDownloads: "Downloads Ativos",
   manageDownloads: "Gerenciar Downloads",
   queuedDownloads: "Downloads na Fila",
@@ -1281,7 +1283,7 @@ export const pt = {
   videoDecodeError:
     "Erro de decodificação de vídeo. O arquivo pode estar corrompido ou usar um codec não compatível.",
   safariVideoFormatNotSupported:
-    "Formato de vídeo não compatível com o Safari. O Safari funciona melhor com vídeos H.264/MP4. Baixe novamente com o codec H.264.",
+    "Formato de vídeo não compatível com o Safari. O Safari funciona melhor com vídeos H.264/MP4. Baixe novamente com o codec H.264 ou tente outro navegador como o Chrome.",
   browserVideoFormatNotSupported:
     "O formato de vídeo não é compatível com seu navegador.",
 

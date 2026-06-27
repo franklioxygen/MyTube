@@ -65,7 +65,7 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
                     flex: 1,
                     minWidth: 0,
                     color: sliderColor,
-                    transition: 'all 0.2s ease',
+                    transition: 'color 0.2s ease',
                     '& .MuiSlider-thumb': {
                         width: 12,
                         height: 12,

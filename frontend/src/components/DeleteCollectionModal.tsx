@@ -1,16 +1,14 @@
-import { Close, Warning } from '@mui/icons-material';
+import { Warning } from '@mui/icons-material';
 import {
     Button,
     Dialog,
     DialogActions,
     DialogContent,
     DialogContentText,
-    DialogTitle,
-    IconButton,
-    Stack,
-    Typography
+    Stack
 } from '@mui/material';
 import React from 'react';
+import DialogHeader from './DialogHeader';
 
 interface DeleteCollectionModalProps {
     isOpen: boolean;
@@ -44,20 +42,7 @@ const DeleteCollectionModal: React.FC<DeleteCollectionModalProps> = ({
                 }
             }}
         >
-            <DialogTitle sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="h6" component="div" sx={{ fontWeight: 600 }}>
-                    {t('deleteCollectionTitle')}
-                </Typography>
-                <IconButton
-                    aria-label="close"
-                    onClick={onClose}
-                    sx={{
-                        color: (theme) => theme.palette.grey[500],
-                    }}
-                >
-                    <Close />
-                </IconButton>
-            </DialogTitle>
+            <DialogHeader title={t('deleteCollectionTitle')} onClose={onClose} closeLabel={t('close')} />
             <DialogContent dividers>
                 <DialogContentText sx={{ mb: 2, color: 'text.primary' }}>
                     {t('deleteCollectionConfirmation')} <strong>"{collectionName}"</strong>?

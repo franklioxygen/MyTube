@@ -4,6 +4,7 @@ import { useCollection } from '../../contexts/CollectionContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useVideo } from '../../contexts/VideoContext';
 import { useShareVideo } from '../../hooks/useShareVideo';
+import { Video } from '../../types';
 import { neutral, overlay } from '../../theme/colors';
 import CollectionModal from '../CollectionModal';
 import ConfirmationModal from '../ConfirmationModal';

@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { ReactNode } from 'react';
 
 interface PageTransitionProps {
@@ -20,6 +20,14 @@ const pageVariants = {
     },
 };
 
+// Variants used when the user prefers reduced motion: fade only, no vertical
+// movement, so motion-sensitive users don't experience the slide animation.
+const reducedMotionVariants = {
+    initial: { opacity: 0 },
+    in: { opacity: 1 },
+    out: { opacity: 0 },
+};
+
 const pageTransition = {
     type: 'tween',
     ease: 'anticipate',
@@ -27,12 +35,14 @@ const pageTransition = {
 } as const;
 
 const PageTransition = ({ children }: PageTransitionProps) => {
+    const shouldReduceMotion = useReducedMotion();
+
     return (
         <motion.div
             initial="initial"
             animate="in"
             exit="out"
-            variants={pageVariants}
+            variants={shouldReduceMotion ? reducedMotionVariants : pageVariants}
             transition={pageTransition}
             style={{ width: '100%', height: '100%' }}
         >
