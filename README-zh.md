@@ -19,6 +19,7 @@
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/266f0b53788f463a97230cb0c9d1d890)](https://app.codacy.com/gh/franklioxygen/MyTube/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 [![Codacy Badge](https://app.codacy.com/project/badge/Coverage/266f0b53788f463a97230cb0c9d1d890)](https://app.codacy.com/gh/franklioxygen/MyTube/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_coverage)
 [![GitHub Repo stars](https://img.shields.io/github/stars/franklioxygen/mytube)](https://github.com/franklioxygen/mytube)
+[![代码行数](https://sloc.xyz/github/franklioxygen/mytube?category=code)](https://github.com/franklioxygen/mytube)
 
 [English](README.md) | [更新日志](CHANGELOG.md)
 
