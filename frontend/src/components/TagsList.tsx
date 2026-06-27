@@ -59,7 +59,7 @@ const TagsList: React.FC<TagsListProps> = ({ availableTags, selectedTags, onTagT
                                 icon={isSelected ? <LocalOffer sx={{ fontSize: '1rem !important' }} /> : undefined}
                                 sx={{
                                     cursor: 'pointer',
-                                    transition: 'all 0.2s',
+                                    transition: 'background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s',
                                     '&:hover': {
                                         bgcolor: isSelected ? 'primary.dark' : 'action.hover'
                                     }

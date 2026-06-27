@@ -103,7 +103,7 @@ const HeaderToolbarContent: React.FC<HeaderToolbarContentProps> = ({
                     width: '100%',
                     py: 0,
                     px: 2,
-                    transition: 'all 0.3s ease-in-out',
+                    transition: 'padding 0.3s ease-in-out',
                     '& img': {
                         height: '24px !important',
                         transition: 'height 0.3s ease-in-out'
@@ -130,7 +130,7 @@ const HeaderToolbarContent: React.FC<HeaderToolbarContentProps> = ({
                     justifyContent: 'space-between',
                     width: isMobile ? '100%' : 'auto',
                     mr: isMobile ? 0 : 2,
-                    transition: 'all 0.3s ease-in-out',
+                    transition: 'margin 0.3s ease-in-out',
                     '& img': {
                         transition: 'height 0.3s ease-in-out'
                     },

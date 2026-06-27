@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { CssBaseline, ThemeProvider as MuiThemeProvider, PaletteMode, useMediaQuery } from '@mui/material';
+import { CssBaseline, GlobalStyles, ThemeProvider as MuiThemeProvider, PaletteMode, useMediaQuery } from '@mui/material';
 import React, { createContext, useContext, useEffect, useEffectEvent, useMemo, useState } from 'react';
 import getTheme from '../theme';
 import { applyThemeCssVariables } from '../theme/cssVariables';
@@ -124,6 +124,23 @@ export const ThemeContextProvider: React.FC<{ children: React.ReactNode }> = ({ 
         <ThemeContext.Provider value={{ mode, preference, setPreference, toggleTheme }}>
             <MuiThemeProvider theme={theme}>
                 <CssBaseline />
+                {/*
+                 * Respect the user's "reduce motion" OS setting: near-instant
+                 * CSS transitions/animations app-wide for motion-sensitive users.
+                 * Framer Motion animations are handled separately via useReducedMotion.
+                 */}
+                <GlobalStyles
+                    styles={{
+                        '@media (prefers-reduced-motion: reduce)': {
+                            '*, *::before, *::after': {
+                                animationDuration: '0.01ms !important',
+                                animationIterationCount: '1 !important',
+                                transitionDuration: '0.01ms !important',
+                                scrollBehavior: 'auto !important',
+                            },
+                        },
+                    }}
+                />
                 {children}
             </MuiThemeProvider>
         </ThemeContext.Provider>
