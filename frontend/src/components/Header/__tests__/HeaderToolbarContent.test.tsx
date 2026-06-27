@@ -18,6 +18,10 @@ vi.mock('../SearchInput', () => ({
     default: () => <div data-testid="search-input">search-input</div>,
 }));
 
+vi.mock('../../../contexts/LanguageContext', () => ({
+    useLanguage: () => ({ t: (key: string) => key }),
+}));
+
 describe('HeaderToolbarContent', () => {
     const baseProps = {
         isMobile: false,
