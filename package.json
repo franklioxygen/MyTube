@@ -15,6 +15,8 @@
     "build": "cd frontend && npm run build",
     "lint": "npm run lint:frontend",
     "lint:frontend": "cd frontend && npm run lint",
+    "typecheck": "npm run typecheck:frontend",
+    "typecheck:frontend": "cd frontend && npm run typecheck",
     "test": "npm run test:backend && npm run test:frontend",
     "test:watch": "concurrently --names backend,frontend \"npm run test:backend:watch\" \"npm run test:frontend:watch\"",
     "test:frontend": "cd frontend && npm run test",
