@@ -1,16 +1,14 @@
-import { Close } from '@mui/icons-material';
 import {
     Button,
     Dialog,
     DialogActions,
     DialogContent,
     DialogContentText,
-    DialogTitle,
-    IconButton,
     Typography
 } from '@mui/material';
 import React from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
+import DialogHeader from './DialogHeader';
 
 interface ChannelSubscribeChoiceModalProps {
     open: boolean;
@@ -39,20 +37,7 @@ const ChannelSubscribeChoiceModal: React.FC<ChannelSubscribeChoiceModalProps> = 
                 }
             }}
         >
-            <DialogTitle sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="h6" component="div" sx={{ fontWeight: 600 }}>
-                    {t('subscribeToChannel') || 'Subscribe to Channel'}
-                </Typography>
-                <IconButton
-                    aria-label="close"
-                    onClick={onClose}
-                    sx={{
-                        color: (theme) => theme.palette.grey[500],
-                    }}
-                >
-                    <Close />
-                </IconButton>
-            </DialogTitle>
+            <DialogHeader title={t('subscribeToChannel') || 'Subscribe to Channel'} onClose={onClose} closeLabel={t('close')} />
             <DialogContent dividers>
                 <DialogContentText sx={{ mb: 3, color: 'text.primary' }}>
                     {t('subscribeChannelChoiceMessage') || 'How would you like to subscribe to this channel?'}

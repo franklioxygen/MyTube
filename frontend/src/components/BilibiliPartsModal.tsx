@@ -1,4 +1,3 @@
-import { Close } from '@mui/icons-material';
 import {
     Box,
     Button,
@@ -7,14 +6,13 @@ import {
     DialogActions,
     DialogContent,
     DialogContentText,
-    DialogTitle,
     FormControlLabel,
-    IconButton,
     TextField,
     Typography
 } from '@mui/material';
 import { useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
+import DialogHeader from './DialogHeader';
 
 interface BilibiliPartsModalProps {
     isOpen: boolean;
@@ -123,20 +121,7 @@ const BilibiliPartsModal: React.FC<BilibiliPartsModalProps> = ({
                 }
             }}
         >
-            <DialogTitle sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="h6" component="div" sx={{ fontWeight: 600 }}>
-                    {getHeaderText()}
-                </Typography>
-                <IconButton
-                    aria-label="close"
-                    onClick={handleClose}
-                    sx={{
-                        color: (theme) => theme.palette.grey[500],
-                    }}
-                >
-                    <Close />
-                </IconButton>
-            </DialogTitle>
+            <DialogHeader title={getHeaderText()} onClose={handleClose} closeLabel={t('close')} />
             <DialogContent dividers>
                 <DialogContentText sx={{ mb: 2 }}>
                     {getDescriptionText()}

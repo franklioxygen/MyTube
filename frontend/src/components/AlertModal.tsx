@@ -3,12 +3,11 @@ import {
     Dialog,
     DialogActions,
     DialogContent,
-    DialogContentText,
-    DialogTitle,
-    Typography
+    DialogContentText
 } from '@mui/material';
 import React from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
+import DialogHeader from './DialogHeader';
 
 interface AlertModalProps {
     open: boolean;
@@ -32,11 +31,7 @@ const AlertModal: React.FC<AlertModalProps> = ({ open, onClose, title, message }
                 }
             }}
         >
-            <DialogTitle sx={{ m: 0, p: 2 }}>
-                <Typography variant="h6" component="div" sx={{ fontWeight: 600 }}>
-                    {title}
-                </Typography>
-            </DialogTitle>
+            <DialogHeader title={title} />
             <DialogContent dividers>
                 <DialogContentText
                     sx={{
