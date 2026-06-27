@@ -829,6 +829,7 @@ export const ru = {
 
   // Downloads
   downloads: "Загрузки",
+  openMenu: "Открыть меню",
   activeDownloads: "Активные загрузки",
   manageDownloads: "Управление загрузками",
   queuedDownloads: "Загрузки в очереди",

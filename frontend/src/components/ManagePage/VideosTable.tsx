@@ -507,6 +507,7 @@ const VideosTable: React.FC<VideosTableProps> = ({
                                                 <IconButton
                                                     size="small"
                                                     color="primary"
+                                                    aria-label={t('save')}
                                                     onClick={() => handleSaveTitle(video.id)}
                                                     disabled={isSavingTitle}
                                                 >
@@ -515,6 +516,7 @@ const VideosTable: React.FC<VideosTableProps> = ({
                                                 <IconButton
                                                     size="small"
                                                     color="error"
+                                                    aria-label={t('cancel')}
                                                     onClick={handleCancelEdit}
                                                     disabled={isSavingTitle}
                                                 >

@@ -818,6 +818,7 @@ export const ko = {
 
   // Downloads
   downloads: "다운로드",
+  openMenu: "메뉴 열기",
   activeDownloads: "진행 중인 다운로드",
   manageDownloads: "다운로드 관리",
   queuedDownloads: "대기 중인 다운로드",

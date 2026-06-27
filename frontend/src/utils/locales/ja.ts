@@ -832,6 +832,7 @@ export const ja = {
 
   // Downloads
   downloads: "ダウンロード",
+  openMenu: "メニューを開く",
   activeDownloads: "アクティブなダウンロード",
   manageDownloads: "ダウンロードの管理",
   queuedDownloads: "待機中のダウンロード",

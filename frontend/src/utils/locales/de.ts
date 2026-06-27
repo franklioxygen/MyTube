@@ -844,6 +844,7 @@ export const de = {
 
   // Downloads
   downloads: "Downloads",
+  openMenu: "Menü öffnen",
   activeDownloads: "Aktive Downloads",
   manageDownloads: "Downloads Verwalten",
   queuedDownloads: "Warteschlange",

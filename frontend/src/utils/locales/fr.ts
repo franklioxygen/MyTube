@@ -844,6 +844,7 @@ export const fr = {
 
   // Downloads
   downloads: "Téléchargements",
+  openMenu: "Ouvrir le menu",
   activeDownloads: "Téléchargements Actifs",
   manageDownloads: "Gérer les Téléchargements",
   queuedDownloads: "Téléchargements en File d'Attente",

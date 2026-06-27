@@ -841,6 +841,7 @@ export const es = {
 
   // Downloads
   downloads: "Descargas",
+  openMenu: "Abrir menú",
   activeDownloads: "Descargas Activas",
   manageDownloads: "Gestionar Descargas",
   queuedDownloads: "Descargas en Cola",

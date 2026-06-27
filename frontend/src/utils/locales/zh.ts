@@ -788,6 +788,7 @@ export const zh = {
 
   // Downloads
   downloads: "下载",
+  openMenu: "打开菜单",
   activeDownloads: "进行中的下载",
   manageDownloads: "管理下载",
   queuedDownloads: "排队中的下载",

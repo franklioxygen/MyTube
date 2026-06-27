@@ -836,6 +836,7 @@ export const pt = {
 
   // Downloads
   downloads: "Downloads",
+  openMenu: "Abrir menu",
   activeDownloads: "Downloads Ativos",
   manageDownloads: "Gerenciar Downloads",
   queuedDownloads: "Downloads na Fila",

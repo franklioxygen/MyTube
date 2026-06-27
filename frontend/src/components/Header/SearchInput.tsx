@@ -152,6 +152,7 @@ const SearchInput: React.FC<SearchInputProps> = ({
                                     edge="start"
                                     size="small"
                                     type="button"
+                                    aria-label={t('pasteUrl')}
                                     disabled={isSubmitting}
                                     sx={{ ml: 0 }}
                                 >
@@ -162,7 +163,7 @@ const SearchInput: React.FC<SearchInputProps> = ({
                         endAdornment: (
                             <InputAdornment position="end">
                                 {isSearchMode && searchTerm && videoUrl && (
-                                    <IconButton onClick={onResetSearch} edge="end" size="small" type="button" sx={{ mr: 0.5 }}>
+                                    <IconButton onClick={onResetSearch} edge="end" size="small" type="button" aria-label={t('clear')} sx={{ mr: 0.5 }}>
                                         <Clear />
                                     </IconButton>
                                 )}
@@ -172,6 +173,7 @@ const SearchInput: React.FC<SearchInputProps> = ({
                                         edge="end"
                                         size="small"
                                         type="button"
+                                        aria-label={t('clear')}
                                         disabled={isSubmitting}
                                         sx={{ mr: 0.5 }}
                                     >

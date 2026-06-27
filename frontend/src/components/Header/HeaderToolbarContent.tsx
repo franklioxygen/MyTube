@@ -2,6 +2,7 @@ import { Menu as MenuIcon } from '@mui/icons-material';
 import { Box, IconButton } from '@mui/material';
 import { FormEvent } from 'react';
 
+import { useLanguage } from '../../contexts/LanguageContext';
 import { Collection, Video } from '../../types';
 import ActionButtons from './ActionButtons';
 import Logo from './Logo';
@@ -78,6 +79,7 @@ const HeaderToolbarContent: React.FC<HeaderToolbarContentProps> = ({
     showTagsInMobileMenu,
     effectiveTags
 }) => {
+    const { t } = useLanguage();
     const actionButtons = (
         <ActionButtons
             activeDownloads={activeDownloads}
@@ -144,7 +146,7 @@ const HeaderToolbarContent: React.FC<HeaderToolbarContentProps> = ({
                 {isMobile && (
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         {actionButtons}
-                        <IconButton onClick={onToggleMobileMenu}>
+                        <IconButton onClick={onToggleMobileMenu} aria-label={t('openMenu')}>
                             <MenuIcon />
                         </IconButton>
                     </Box>

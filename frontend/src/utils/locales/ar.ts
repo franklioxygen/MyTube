@@ -809,6 +809,7 @@ export const ar = {
 
   // Downloads
   downloads: "التنزيلات",
+  openMenu: "فتح القائمة",
   activeDownloads: "التنزيلات النشطة",
   manageDownloads: "إدارة التنزيلات",
   queuedDownloads: "التنزيلات في الانتظار",

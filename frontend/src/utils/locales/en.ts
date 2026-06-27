@@ -811,6 +811,7 @@ export const en = {
 
   // Downloads
   downloads: "Downloads",
+  openMenu: "Open menu",
   activeDownloads: "Active Downloads",
   manageDownloads: "Manage Downloads",
   queuedDownloads: "Queued Downloads",
