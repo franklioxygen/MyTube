@@ -2,7 +2,6 @@ import { createTheme } from "@mui/material/styles";
 import {
   brand,
   modeColors,
-  overlay,
   shadow,
   type ThemeMode,
 } from "./theme/colors";

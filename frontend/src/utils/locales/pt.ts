@@ -754,6 +754,7 @@ export const pt = {
   loading: "Carregando...",
   error: "Erro",
   success: "Sucesso",
+  info: "Informação",
   cancel: "Cancelar",
   close: "Fechar",
   ok: "OK",

@@ -750,6 +750,7 @@ export const ja = {
   loading: "読み込み中...",
   error: "エラー",
   success: "成功",
+  info: "情報",
   cancel: "キャンセル",
   close: "閉じる",
   ok: "OK",

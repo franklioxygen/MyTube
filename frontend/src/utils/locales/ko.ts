@@ -737,6 +737,7 @@ export const ko = {
   loading: "로드 중...",
   error: "오류",
   success: "성공",
+  info: "정보",
   cancel: "취소",
   close: "닫기",
   ok: "확인",

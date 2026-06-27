@@ -737,6 +737,7 @@ export const en = {
   loading: "Loading...",
   error: "Error",
   success: "Success",
+  info: "Info",
   cancel: "Cancel",
   close: "Close",
   ok: "OK",

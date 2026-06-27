@@ -712,6 +712,7 @@ export const zh = {
   loading: "加载中...",
   error: "错误",
   success: "成功",
+  info: "信息",
   cancel: "取消",
   close: "关闭",
   ok: "确定",

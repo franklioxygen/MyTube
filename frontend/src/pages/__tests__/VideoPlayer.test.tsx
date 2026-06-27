@@ -51,7 +51,7 @@ let mockVideoQueryReturn: Record<string, unknown>;
 let mockAuthReturn: unknown;
 let mockVideoMutationsReturn: MockVideoMutationsReturn;
 let mockVideoSubscriptionsReturn: Record<string, unknown>;
-let mockVideoCollectionsReturn: unknown;
+let mockVideoCollectionsReturn: Record<string, unknown>;
 let mockVideoRecommendationsReturn: unknown;
 let mockVideoPlayerSettingsReturn: Record<string, unknown>;
 

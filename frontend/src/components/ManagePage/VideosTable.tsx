@@ -43,6 +43,7 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { useVideo } from '../../contexts/VideoContext';
 import { useCloudStorageUrl } from '../../hooks/useCloudStorageUrl';
 import { Video } from '../../types';
+import type { TranslationKey } from '../../utils/translations';
 import { formatDuration, formatSize } from '../../utils/formatUtils';
 import CollectionModal from '../CollectionModal';
 import ConfirmationModal from '../ConfirmationModal';
@@ -164,7 +165,8 @@ const VideosTable: React.FC<VideosTableProps> = ({
     const isVisitor = userRole === 'visitor';
     const isTouch = useMediaQuery('(hover: none), (pointer: coarse)');
     const getLabel = (key: string, fallback: string) => {
-        const translated = t(key);
+        // key is a known literal here; cast bridges the string param to TranslationKey.
+        const translated = t(key as TranslationKey);
         return translated === key ? fallback : translated;
     };
     const refreshThumbnailLabel = getLabel('refreshThumbnail', 'Refresh Thumbnail');

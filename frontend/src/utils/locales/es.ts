@@ -760,6 +760,7 @@ export const es = {
   loading: "Cargando...",
   error: "Error",
   success: "Éxito",
+  info: "Información",
   cancel: "Cancelar",
   close: "Cerrar",
   ok: "OK",

@@ -136,7 +136,10 @@ const renderSettingsHook = (options?: {
     const wrapper = createWrapper(queryClient);
 
     const hook = renderHook(
-        () => useSettingsMutations({ setMessage, setInfoModal }),
+        () =>
+            useSettingsMutations(
+                { setMessage, setInfoModal } as Parameters<typeof useSettingsMutations>[0]
+            ),
         { wrapper }
     );
 

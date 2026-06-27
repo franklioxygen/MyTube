@@ -763,6 +763,7 @@ export const de = {
   loading: "Laden...",
   error: "Fehler",
   success: "Erfolg",
+  info: "Info",
   cancel: "Abbrechen",
   close: "Schließen",
   ok: "OK",

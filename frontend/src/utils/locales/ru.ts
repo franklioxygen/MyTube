@@ -747,6 +747,7 @@ export const ru = {
   loading: "Загрузка...",
   error: "Ошибка",
   success: "Успех",
+  info: "Информация",
   cancel: "Отмена",
   close: "Закрыть",
   ok: "ОК",

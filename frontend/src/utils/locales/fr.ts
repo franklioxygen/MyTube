@@ -759,6 +759,7 @@ export const fr = {
   loading: "Chargement...",
   error: "Erreur",
   success: "Succès",
+  info: "Info",
   cancel: "Annuler",
   close: "Fermer",
   ok: "OK",

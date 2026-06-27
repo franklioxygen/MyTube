@@ -730,6 +730,7 @@ export const ar = {
   loading: "جاري التحميل...",
   error: "خطأ",
   success: "نجاح",
+  info: "معلومات",
   cancel: "إلغاء",
   close: "إغلاق",
   ok: "موافق",
