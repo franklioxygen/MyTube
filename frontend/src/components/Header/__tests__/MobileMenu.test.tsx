@@ -69,7 +69,6 @@ describe('MobileMenu', () => {
         isSubmitting: false,
         error: '',
         isSearchMode: false,
-        searchTerm: '',
         onResetSearch: vi.fn(),
         onSubmit: vi.fn(),
         onClose: vi.fn(),

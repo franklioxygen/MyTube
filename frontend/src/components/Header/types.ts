@@ -17,7 +17,6 @@ export interface HeaderProps {
   activeDownloads?: DownloadInfo[];
   queuedDownloads?: DownloadInfo[];
   isSearchMode?: boolean;
-  searchTerm?: string;
   onResetSearch?: () => void;
   collections?: Collection[];
   videos?: Video[];

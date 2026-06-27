@@ -40,7 +40,6 @@ interface HeaderToolbarContentProps {
     isSubmitting: boolean;
     error: string;
     isSearchMode: boolean;
-    searchTerm: string;
     onSubmit: (event: FormEvent) => void;
     collections: Collection[];
     videos: Video[];
@@ -72,7 +71,6 @@ const HeaderToolbarContent: React.FC<HeaderToolbarContentProps> = ({
     isSubmitting,
     error,
     isSearchMode,
-    searchTerm,
     onSubmit,
     collections,
     videos,
@@ -162,7 +160,6 @@ const HeaderToolbarContent: React.FC<HeaderToolbarContentProps> = ({
                             isSubmitting={isSubmitting}
                             error={error}
                             isSearchMode={isSearchMode}
-                            searchTerm={searchTerm}
                             onResetSearch={onResetSearch}
                             onSubmit={onSubmit}
                         />
@@ -174,15 +171,14 @@ const HeaderToolbarContent: React.FC<HeaderToolbarContentProps> = ({
             )}
 
             {isMobile && (
-                <MobileMenu
-                    open={mobileMenuOpen}
-                    videoUrl={videoUrl}
-                    setVideoUrl={setVideoUrl}
-                    isSubmitting={isSubmitting}
-                    error={error}
-                    isSearchMode={isSearchMode}
-                    searchTerm={searchTerm}
-                    onResetSearch={onResetSearch}
+                        <MobileMenu
+                            open={mobileMenuOpen}
+                            videoUrl={videoUrl}
+                            setVideoUrl={setVideoUrl}
+                            isSubmitting={isSubmitting}
+                            error={error}
+                            isSearchMode={isSearchMode}
+                            onResetSearch={onResetSearch}
                     onSubmit={onSubmit}
                     onClose={onCloseMobileMenu}
                     collections={collections}

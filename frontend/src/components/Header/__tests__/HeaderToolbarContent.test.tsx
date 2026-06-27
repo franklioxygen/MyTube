@@ -47,7 +47,6 @@ describe('HeaderToolbarContent', () => {
         isSubmitting: false,
         error: '',
         isSearchMode: false,
-        searchTerm: '',
         onSubmit: vi.fn(),
         collections: [],
         videos: [],

@@ -31,7 +31,6 @@ const HeaderContainer: React.FC<HeaderProps> = ({
     activeDownloads = [],
     queuedDownloads = [],
     isSearchMode = false,
-    searchTerm = '',
     onResetSearch,
     collections = [],
     videos = []
@@ -186,7 +185,6 @@ const HeaderContainer: React.FC<HeaderProps> = ({
                             isSubmitting={isSubmitting}
                             error={error}
                             isSearchMode={isSearchMode}
-                            searchTerm={searchTerm}
                             onSubmit={handleToolbarSubmit}
                             collections={collections}
                             videos={videos}
