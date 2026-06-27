@@ -1241,7 +1241,7 @@ export const en = {
   videoDecodeError:
     "Video decoding error. The file may be corrupted or use an unsupported codec.",
   safariVideoFormatNotSupported:
-    "Video format not supported by Safari. Safari works best with H.264/MP4 videos. Please re-download with H.264 codec.",
+    "Video format not supported by Safari. Safari works best with H.264/MP4 videos. Please re-download with H.264 codec, or try another browser like Chrome.",
   browserVideoFormatNotSupported:
     "Video format not supported by your browser.",
 

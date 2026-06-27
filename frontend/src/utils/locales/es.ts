@@ -1293,7 +1293,7 @@ export const es = {
   videoDecodeError:
     "Error al decodificar el video. El archivo puede estar dañado o usar un códec no compatible.",
   safariVideoFormatNotSupported:
-    "Safari no admite este formato de video. Safari funciona mejor con videos H.264/MP4. Vuelva a descargarlo con códec H.264.",
+    "Safari no admite este formato de video. Safari funciona mejor con videos H.264/MP4. Vuelva a descargarlo con códec H.264 o pruebe con otro navegador como Chrome.",
   browserVideoFormatNotSupported:
     "El formato de video no es compatible con su navegador.",
 

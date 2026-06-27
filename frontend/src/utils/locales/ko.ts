@@ -1257,7 +1257,7 @@ export const ko = {
   videoDecodeError:
     "동영상 디코딩 오류입니다. 파일이 손상되었거나 지원되지 않는 코덱을 사용할 수 있습니다.",
   safariVideoFormatNotSupported:
-    "Safari에서 이 동영상 형식은 지원되지 않습니다. Safari는 H.264/MP4 동영상에서 가장 잘 작동합니다. H.264 코덱으로 다시 다운로드해 주세요.",
+    "Safari에서 이 동영상 형식은 지원되지 않습니다. Safari는 H.264/MP4 동영상에서 가장 잘 작동합니다. H.264 코덱으로 다시 다운로드하거나 Chrome과 같은 다른 브라우저를 사용해 보세요.",
   browserVideoFormatNotSupported:
     "브라우저에서 이 동영상 형식을 지원하지 않습니다.",
 

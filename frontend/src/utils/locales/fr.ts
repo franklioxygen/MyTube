@@ -1302,7 +1302,7 @@ export const fr = {
   videoDecodeError:
     "Erreur de décodage vidéo. Le fichier est peut-être corrompu ou utilise un codec non pris en charge.",
   safariVideoFormatNotSupported:
-    "Format vidéo non pris en charge par Safari. Safari fonctionne mieux avec les vidéos H.264/MP4. Veuillez retélécharger la vidéo avec le codec H.264.",
+    "Format vidéo non pris en charge par Safari. Safari fonctionne mieux avec les vidéos H.264/MP4. Veuillez retélécharger la vidéo avec le codec H.264 ou essayer un autre navigateur comme Chrome.",
   browserVideoFormatNotSupported:
     "Le format vidéo n'est pas pris en charge par votre navigateur.",
 
