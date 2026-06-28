@@ -1,7 +1,8 @@
-import { LocalOffer } from '@mui/icons-material';
-import { Autocomplete, Box, Chip, TextField } from '@mui/material';
+import { Add, LocalOffer } from '@mui/icons-material';
+import { Autocomplete, Box, Chip, TextField, Typography, useMediaQuery, useTheme } from '@mui/material';
 import React, { useState } from 'react';
 import { useLanguage } from '../../../contexts/LanguageContext';
+import TagsModal from '../../TagsModal';
 
 interface VideoTagsProps {
     tags: string[] | undefined;
@@ -11,11 +12,50 @@ interface VideoTagsProps {
 
 const VideoTags: React.FC<VideoTagsProps> = ({ tags, availableTags, onTagsUpdate }) => {
     const { t } = useLanguage();
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('md'));
     const [open, setOpen] = useState(false);
+    const [modalOpen, setModalOpen] = useState(false);
 
     // Ensure tags and availableTags are always arrays
     const tagsArray = Array.isArray(tags) ? tags : [];
     const availableTagsArray = Array.isArray(availableTags) ? availableTags : [];
+
+    // On touch/mobile the inline autocomplete dropdown is awkward: it's anchored to
+    // a tiny input and the on-screen keyboard covers it. Show the current tags as
+    // chips and edit them through the centered TagsModal dialog instead.
+    if (isMobile) {
+        return (
+            <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1, mt: 2, flexWrap: 'wrap' }}>
+                <LocalOffer color="action" fontSize="small" />
+                {tagsArray.length > 0 ? (
+                    tagsArray.map((tag) => (
+                        <Chip key={tag} label={tag} size="small" variant="outlined" />
+                    ))
+                ) : (
+                    <Typography variant="body2" color="text.secondary">
+                        {t('tags') || 'Tags'}
+                    </Typography>
+                )}
+                <Chip
+                    icon={<Add fontSize="small" />}
+                    label={t('addTags') || 'Add Tags'}
+                    size="small"
+                    variant="outlined"
+                    color="primary"
+                    onClick={() => setModalOpen(true)}
+                    sx={{ cursor: 'pointer' }}
+                />
+                <TagsModal
+                    open={modalOpen}
+                    onClose={() => setModalOpen(false)}
+                    videoTags={tagsArray}
+                    availableTags={availableTagsArray}
+                    onSave={onTagsUpdate}
+                />
+            </Box>
+        );
+    }
 
     // Combine available tags with video tags to ensure current tags are valid options
     const allOptions = Array.from(new Set([...availableTagsArray, ...tagsArray])).sort();
@@ -86,7 +126,6 @@ const VideoTags: React.FC<VideoTagsProps> = ({ tags, availableTags, onTagsUpdate
                             input: {
                                 ...params.InputProps,
                                 disableUnderline: true,
-                                readOnly: true,
                                 endAdornment: null
                             }
                         }}

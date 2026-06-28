@@ -277,6 +277,7 @@ const SettingsPage: React.FC = () => {
         cleanupBackupDatabasesMutation,
         restoreFromLastBackupMutation,
         renameTagMutation,
+        updateTagsMutation,
         lastBackupInfo,
         isSaving
     } = mutations;
@@ -413,8 +414,11 @@ const SettingsPage: React.FC = () => {
     };
 
     const handleTagsChange = (newTags: string[]) => {
+        // Reflect the change locally for snappy UI, then persist immediately so
+        // tags added/removed in Tags Management survive a reload without needing
+        // the global Save button.
         setSettings(prev => ({ ...prev, tags: newTags }));
-        triggerGlow();
+        updateTagsMutation.mutate(newTags);
     };
 
     const handleRenameTag = (oldTag: string, newTag: string) => {

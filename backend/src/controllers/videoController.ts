@@ -7,6 +7,7 @@ import { SUBTITLES_DIR, VIDEOS_DIR } from "../config/paths";
 import { NotFoundError, ValidationError } from "../errors/DownloadErrors";
 import { syncMediaServerArtifactsForRecord } from "../services/mediaServerExport";
 import * as storageService from "../services/storageService";
+import { addTagsToGlobalSettings } from "../services/tagService";
 import { logger } from "../utils/logger";
 import { getStringParam } from "../utils/paramUtils";
 import { successResponse } from "../utils/response";
@@ -315,6 +316,12 @@ export const updateVideoDetails = async (
 
   if (!updatedVideo) {
     throw new NotFoundError("Video", id);
+  }
+
+  // Keep the global tag catalog (settings.tags) in sync so tags created while
+  // tagging a video also appear in Tags Management and as suggestions.
+  if (Array.isArray(allowedUpdates.tags) && allowedUpdates.tags.length > 0) {
+    addTagsToGlobalSettings(allowedUpdates.tags);
   }
 
   syncMediaServerArtifactsForRecord(updatedVideo);
