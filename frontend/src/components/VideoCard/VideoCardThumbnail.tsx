@@ -251,7 +251,10 @@ const VideoCardThumbnailView: React.FC<VideoCardThumbnailProps> = ({
                                         height: 20,
                                         fontSize: '0.65rem',
                                         bgcolor: isSelected ? theme.palette.primary.main : overlay.black50,
-                                        color: neutral.white,
+                                        // Selected chips sit on the bright primary color; use its
+                                        // computed contrast text (dark in dark mode) so the label
+                                        // stands out instead of white-on-bright.
+                                        color: isSelected ? theme.palette.primary.contrastText : neutral.white,
                                         backdropFilter: 'blur(2px)',
                                         '& .MuiChip-label': {
                                             px: 1

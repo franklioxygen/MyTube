@@ -29,6 +29,7 @@ const mockMergeDatabaseMutate = vi.fn();
 const mockCleanupBackupDatabasesMutate = vi.fn();
 const mockRestoreFromLastBackupMutate = vi.fn();
 const mockRenameTagMutate = vi.fn();
+const mockUpdateTagsMutate = vi.fn();
 
 const mockSetShowDeleteLegacyModal = vi.fn();
 const mockSetShowCleanupAuthorCollectionsModal = vi.fn();
@@ -152,6 +153,14 @@ vi.mock('../../hooks/useSettingsMutations', () => ({
     cleanupBackupDatabasesMutation: { isPending: false, mutate: (...args: any[]) => mockCleanupBackupDatabasesMutate(...args) },
     restoreFromLastBackupMutation: { isPending: false, mutate: (...args: any[]) => mockRestoreFromLastBackupMutate(...args) },
     renameTagMutation: { isPending: false, mutate: (...args: any[]) => mockRenameTagMutate(...args) },
+    updateTagsMutation: {
+      isPending: false,
+      mutate: (...args: any[]) => mockUpdateTagsMutate(...args),
+      mutateAsync: (...args: any[]) => {
+        mockUpdateTagsMutate(...args);
+        return Promise.resolve();
+      },
+    },
     lastBackupInfo: null,
     isSaving: false,
   }),
@@ -839,6 +848,18 @@ describe('SettingsPage', () => {
     expect(mockRestoreFromLastBackupMutate).toHaveBeenCalled();
     expect(mockRenameTagMutate).toHaveBeenCalledTimes(1);
     expect(mockSetShowCleanupTempFilesModal).toHaveBeenCalledWith(true);
+  });
+
+  it('persists tag changes immediately via updateTagsMutation', async () => {
+    renderPage('/settings');
+
+    fireEvent.click(screen.getByText('tags-change'));
+
+    // Saves are serialized through a promise chain, so the PATCH fires on a
+    // microtask rather than synchronously.
+    await waitFor(() => {
+      expect(mockUpdateTagsMutate).toHaveBeenCalledWith(['a', 'b']);
+    });
   });
 
   it('handles sticky save button and confirmation modal confirm/close actions', async () => {

@@ -667,9 +667,40 @@ export function useSettingsMutations({
     },
   });
 
+  // Persist a tags-only change immediately (used by Tags Management add/delete).
+  // PATCHes just the `tags` field so it never flushes other half-edited settings.
+  const updateTagsMutation = useMutation({
+    mutationFn: async (tags: string[]) => {
+      await api.patch("/settings", { tags });
+      return tags;
+    },
+    onSuccess: (tags) => {
+      setMessage({ text: t("settingsSaved"), type: "success" });
+      // `tags` is the authoritative full list the caller just saved, so update
+      // the cache directly instead of invalidating. A refetch would change the
+      // `["settings"]` reference and make SettingsPage re-hydrate the whole form,
+      // clobbering any unsaved edits to other fields.
+      queryClient.setQueryData(["settings"], (old: Settings | undefined) =>
+        old ? { ...old, tags } : old
+      );
+      void queryClient.invalidateQueries({ queryKey: ["videos"] });
+    },
+    onError: async (error: unknown) => {
+      const apiMsg = await getApiErrorMessage(error, t);
+      setMessage({
+        text: typeof apiMsg === "string" && apiMsg ? apiMsg : t("settingsFailed"),
+        type: "error",
+      });
+      // The caller optimistically updated local settings; refetch so the form
+      // reverts to server truth instead of showing tags that never persisted.
+      void queryClient.invalidateQueries({ queryKey: ["settings"] });
+    },
+  });
+
   // Computed isSaving state
   const isSaving =
     saveMutation.isPending ||
+    updateTagsMutation.isPending ||
     migrateMutation.isPending ||
     cleanupMutation.isPending ||
     cleanupAuthorCollectionsMutation.isPending ||
@@ -695,6 +726,7 @@ export function useSettingsMutations({
     cleanupBackupDatabasesMutation,
     restoreFromLastBackupMutation,
     renameTagMutation,
+    updateTagsMutation,
     lastBackupInfo,
     isSaving,
   };

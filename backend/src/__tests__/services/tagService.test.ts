@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { db } from "../../db";
 import * as settingsService from "../../services/storageService/settings";
-import { deleteTagsFromVideos, renameTag } from "../../services/tagService";
+import {
+  addTagsToGlobalSettings,
+  deleteTagsFromVideos,
+  renameTag,
+} from "../../services/tagService";
 
 // Mock dependencies
 vi.mock("../../db", () => ({
@@ -129,6 +133,61 @@ describe("TagService", () => {
 
     it("should return 0 if tagsToDelete is empty", () => {
         expect(deleteTagsFromVideos([])).toBe(0);
+    });
+  });
+
+  describe("addTagsToGlobalSettings", () => {
+    it("adds genuinely new tags to the global catalog (sorted)", () => {
+      vi.mocked(settingsService.getSettings).mockReturnValue({
+        websiteName: "MyTube",
+        tags: ["beta"],
+      } as any);
+
+      const changed = addTagsToGlobalSettings(["alpha", "beta"]);
+
+      expect(changed).toBe(true);
+      expect(settingsService.saveSettings).toHaveBeenCalledWith(
+        expect.objectContaining({
+          websiteName: "MyTube",
+          tags: ["alpha", "beta"],
+        })
+      );
+    });
+
+    it("seeds the catalog when settings has no tags yet", () => {
+      vi.mocked(settingsService.getSettings).mockReturnValue({} as any);
+
+      const changed = addTagsToGlobalSettings(["123"]);
+
+      expect(changed).toBe(true);
+      expect(settingsService.saveSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ tags: ["123"] })
+      );
+    });
+
+    it("skips tags that already exist case-insensitively and trims input", () => {
+      vi.mocked(settingsService.getSettings).mockReturnValue({
+        tags: ["Music"],
+      } as any);
+
+      const changed = addTagsToGlobalSettings(["  music  "]);
+
+      expect(changed).toBe(false);
+      expect(settingsService.saveSettings).not.toHaveBeenCalled();
+    });
+
+    it("does nothing for empty input", () => {
+      expect(addTagsToGlobalSettings([])).toBe(false);
+      expect(settingsService.getSettings).not.toHaveBeenCalled();
+      expect(settingsService.saveSettings).not.toHaveBeenCalled();
+    });
+
+    it("never throws if settings access fails", () => {
+      vi.mocked(settingsService.getSettings).mockImplementation(() => {
+        throw new Error("boom");
+      });
+
+      expect(addTagsToGlobalSettings(["x"])).toBe(false);
     });
   });
 });

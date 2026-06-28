@@ -93,6 +93,56 @@ export function renameTag(oldTag: string, newTag: string): RenameTagResult {
 }
 
 /**
+ * Merge tags into the global settings tag catalog (settings.tags).
+ *
+ * Used to keep the global tag list in sync whenever a video is tagged, so tags
+ * created from the player (or any API caller) show up in Tags Management.
+ * Only genuinely new tags are added; existing tags are matched
+ * case-insensitively so we never create "music"/"Music" duplicates, which the
+ * settings validator rejects.
+ *
+ * @param tags Tags applied to a video
+ * @returns true if the global catalog was changed and saved
+ */
+export function addTagsToGlobalSettings(tags: string[]): boolean {
+  if (!tags || tags.length === 0) return false;
+
+  try {
+    const currentSettings = getSettings();
+    const existing: string[] = Array.isArray(currentSettings.tags)
+      ? (currentSettings.tags as string[])
+      : [];
+    const existingLower = new Set(existing.map((t) => t.toLowerCase()));
+
+    const toAdd: string[] = [];
+    for (const tag of tags) {
+      const trimmed = typeof tag === "string" ? tag.trim() : "";
+      if (!trimmed) continue;
+      const lower = trimmed.toLowerCase();
+      if (existingLower.has(lower)) continue;
+      existingLower.add(lower);
+      toAdd.push(trimmed);
+    }
+
+    if (toAdd.length === 0) return false;
+
+    const updatedTags = [...existing, ...toAdd].sort((a, b) =>
+      a.localeCompare(b)
+    );
+    saveSettings({ ...currentSettings, tags: updatedTags });
+    logger.info(`Added new tags to global catalog: [${toAdd.join(", ")}]`);
+    return true;
+  } catch (error) {
+    // Don't fail the video update if catalog sync fails; just log it.
+    logger.error(
+      `Error adding tags to global settings: [${tags.join(", ")}]`,
+      error instanceof Error ? error : new Error(String(error))
+    );
+    return false;
+  }
+}
+
+/**
  * Remove specific tags from all videos in the database
  * @param tagsToDelete Array of tag names to remove
  * @returns Number of videos updated
