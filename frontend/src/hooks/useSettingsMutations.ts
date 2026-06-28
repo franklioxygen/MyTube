@@ -674,9 +674,15 @@ export function useSettingsMutations({
       await api.patch("/settings", { tags });
       return tags;
     },
-    onSuccess: () => {
+    onSuccess: (tags) => {
       setMessage({ text: t("settingsSaved"), type: "success" });
-      void queryClient.invalidateQueries({ queryKey: ["settings"] });
+      // `tags` is the authoritative full list the caller just saved, so update
+      // the cache directly instead of invalidating. A refetch would change the
+      // `["settings"]` reference and make SettingsPage re-hydrate the whole form,
+      // clobbering any unsaved edits to other fields.
+      queryClient.setQueryData(["settings"], (old: Settings | undefined) =>
+        old ? { ...old, tags } : old
+      );
       void queryClient.invalidateQueries({ queryKey: ["videos"] });
     },
     onError: async (error: unknown) => {

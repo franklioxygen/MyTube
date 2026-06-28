@@ -246,8 +246,11 @@ const SettingsPage: React.FC = () => {
         }
     }, [location.search, location.hash]);
 
+    const hasHydratedSettings = useRef(false);
     useEffect(() => {
-        if (settingsData) {
+        if (!settingsData) return;
+        if (!hasHydratedSettings.current) {
+            // Initial load: populate the whole form from server truth.
             const newSettings = {
                 ...settingsData,
                 tags: settingsData.tags || [],
@@ -258,7 +261,14 @@ const SettingsPage: React.FC = () => {
                 authorOrganizationMode: resolveAuthorOrganizationMode(settingsData),
             };
             setSettings(newSettings);
+            hasHydratedSettings.current = true;
+            return;
         }
+        // After hydration the form is user-owned. The only field that legitimately
+        // changes externally (player-added tags, Tags Management, tag rename) is
+        // `tags`, so sync just that and leave the user's unsaved edits to other
+        // fields intact.
+        setSettings(prev => ({ ...prev, tags: settingsData.tags || [] }));
     }, [settingsData]);
 
     // Settings mutations

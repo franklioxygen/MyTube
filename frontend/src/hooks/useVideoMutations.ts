@@ -71,6 +71,10 @@ export function useVideoMutations({
         queryClient.setQueryData(["video", videoId], (old: Video | undefined) =>
           old ? { ...old, tags: newTags } : old
         );
+        // The backend syncs player-added tags into the global tag catalog
+        // (settings.tags). Refresh the settings cache so the new tags show up as
+        // suggestions in other pickers without waiting for the 10-minute staleTime.
+        void queryClient.invalidateQueries({ queryKey: ["settings"] });
       }
     },
     onError: () => {
