@@ -60,6 +60,30 @@ const VideoTags: React.FC<VideoTagsProps> = ({ tags, availableTags, onTagsUpdate
     // Combine available tags with video tags to ensure current tags are valid options
     const allOptions = Array.from(new Set([...availableTagsArray, ...tagsArray])).sort();
 
+    // freeSolo lets users type arbitrary values. Trim, drop blanks, and dedupe
+    // case-insensitively before saving, reusing an existing tag's canonical
+    // casing so the video stores values that match the global tag catalog (which
+    // also trims/case-folds). Otherwise a stray "foo " or casing variant would be
+    // attached to the video but never match Tags Management delete/rename paths.
+    const handleTagsChange = (newValue: string[]) => {
+        const canonicalByLower = new Map<string, string>();
+        for (const option of allOptions) {
+            const lower = option.toLowerCase();
+            if (!canonicalByLower.has(lower)) canonicalByLower.set(lower, option);
+        }
+        const seen = new Set<string>();
+        const normalized: string[] = [];
+        for (const raw of newValue) {
+            const trimmed = typeof raw === 'string' ? raw.trim() : '';
+            if (!trimmed) continue;
+            const lower = trimmed.toLowerCase();
+            if (seen.has(lower)) continue;
+            seen.add(lower);
+            normalized.push(canonicalByLower.get(lower) ?? trimmed);
+        }
+        void onTagsUpdate(normalized);
+    };
+
     return (
         <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1, mt: 2 }}>
             <LocalOffer color="action" fontSize="small" />
@@ -90,7 +114,7 @@ const VideoTags: React.FC<VideoTagsProps> = ({ tags, availableTags, onTagsUpdate
                 options={allOptions}
                 value={tagsArray}
                 isOptionEqualToValue={(option, value) => option === value}
-                onChange={(_, newValue) => onTagsUpdate(newValue)}
+                onChange={(_, newValue) => handleTagsChange(newValue)}
                 slotProps={{
                     chip: { variant: 'outlined', size: 'small' },
                     listbox: {

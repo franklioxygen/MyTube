@@ -247,6 +247,8 @@ const SettingsPage: React.FC = () => {
     }, [location.search, location.hash]);
 
     const hasHydratedSettings = useRef(false);
+    // Tail of the in-flight tag-save chain; keeps immediate tag PATCHes ordered.
+    const tagSaveChain = useRef<Promise<unknown>>(Promise.resolve());
     useEffect(() => {
         if (!settingsData) return;
         if (!hasHydratedSettings.current) {
@@ -264,11 +266,19 @@ const SettingsPage: React.FC = () => {
             hasHydratedSettings.current = true;
             return;
         }
-        // After hydration the form is user-owned. The only field that legitimately
-        // changes externally (player-added tags, Tags Management, tag rename) is
-        // `tags`, so sync just that and leave the user's unsaved edits to other
-        // fields intact.
-        setSettings(prev => ({ ...prev, tags: settingsData.tags || [] }));
+        // After hydration the form is user-owned, so we must not clobber unsaved
+        // edits. But the server is authoritative for response-only/derived fields
+        // (which aren't editable drafts) and for the immediately-persisted tag
+        // list, so sync just those from each refetch and leave everything else as
+        // the user left it.
+        setSettings(prev => ({
+            ...prev,
+            tags: settingsData.tags || [],
+            isPasswordSet: settingsData.isPasswordSet,
+            isVisitorPasswordSet: settingsData.isVisitorPasswordSet,
+            deploymentSecurity: settingsData.deploymentSecurity,
+            liveTranslationApiKeyConfigured: settingsData.liveTranslationApiKeyConfigured,
+        }));
     }, [settingsData]);
 
     // Settings mutations
@@ -428,7 +438,13 @@ const SettingsPage: React.FC = () => {
         // tags added/removed in Tags Management survive a reload without needing
         // the global Save button.
         setSettings(prev => ({ ...prev, tags: newTags }));
-        updateTagsMutation.mutate(newTags);
+        // Serialize saves: chaining each PATCH after the previous one prevents a
+        // slow earlier request from settling after a newer one and persisting a
+        // stale tag list (which the settings sync would then copy back into state).
+        tagSaveChain.current = tagSaveChain.current
+            .catch(() => undefined)
+            .then(() => updateTagsMutation.mutateAsync(newTags))
+            .catch(() => undefined);
     };
 
     const handleRenameTag = (oldTag: string, newTag: string) => {

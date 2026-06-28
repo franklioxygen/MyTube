@@ -153,7 +153,14 @@ vi.mock('../../hooks/useSettingsMutations', () => ({
     cleanupBackupDatabasesMutation: { isPending: false, mutate: (...args: any[]) => mockCleanupBackupDatabasesMutate(...args) },
     restoreFromLastBackupMutation: { isPending: false, mutate: (...args: any[]) => mockRestoreFromLastBackupMutate(...args) },
     renameTagMutation: { isPending: false, mutate: (...args: any[]) => mockRenameTagMutate(...args) },
-    updateTagsMutation: { isPending: false, mutate: (...args: any[]) => mockUpdateTagsMutate(...args) },
+    updateTagsMutation: {
+      isPending: false,
+      mutate: (...args: any[]) => mockUpdateTagsMutate(...args),
+      mutateAsync: (...args: any[]) => {
+        mockUpdateTagsMutate(...args);
+        return Promise.resolve();
+      },
+    },
     lastBackupInfo: null,
     isSaving: false,
   }),
@@ -848,7 +855,11 @@ describe('SettingsPage', () => {
 
     fireEvent.click(screen.getByText('tags-change'));
 
-    expect(mockUpdateTagsMutate).toHaveBeenCalledWith(['a', 'b']);
+    // Saves are serialized through a promise chain, so the PATCH fires on a
+    // microtask rather than synchronously.
+    await waitFor(() => {
+      expect(mockUpdateTagsMutate).toHaveBeenCalledWith(['a', 'b']);
+    });
   });
 
   it('handles sticky save button and confirmation modal confirm/close actions', async () => {
