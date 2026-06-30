@@ -20,27 +20,7 @@ import {
     getNetworkConfigFromUserConfig,
     getUserYtDlpConfig,
 } from "../utils/ytDlpUtils";
-import { getStringParam } from "../utils/paramUtils";
-
-const parsePositiveInteger = (value: unknown): number | null => {
-  if (typeof value === "number") {
-    return Number.isSafeInteger(value) && value > 0 ? value : null;
-  }
-
-  if (typeof value !== "string") {
-    return null;
-  }
-
-  const trimmedValue = value.trim();
-  if (!/^\d+$/.test(trimmedValue)) {
-    return null;
-  }
-
-  const parsedValue = Number(trimmedValue);
-  return Number.isSafeInteger(parsedValue) && parsedValue > 0
-    ? parsedValue
-    : null;
-};
+import { getPositiveIntegerParam, getStringParam } from "../utils/paramUtils";
 
 /**
  * Create a new subscription
@@ -204,8 +184,8 @@ export const updateSubscription = async (
 
   let parsedInterval: number | undefined;
   if (hasInterval) {
-    const parsed = parsePositiveInteger(req.body.interval);
-    if (parsed === null) {
+    const parsed = getPositiveIntegerParam(req.body.interval);
+    if (parsed === undefined) {
       throw new ValidationError(
         "Interval must be a positive integer",
         "interval"
@@ -220,8 +200,8 @@ export const updateSubscription = async (
     if (rawRetentionDays === null || rawRetentionDays === "") {
       retentionDays = null;
     } else {
-      const parsed = parsePositiveInteger(rawRetentionDays);
-      if (parsed === null) {
+      const parsed = getPositiveIntegerParam(rawRetentionDays);
+      if (parsed === undefined) {
         throw new ValidationError(
           "retentionDays must be a positive integer or null",
           "retentionDays"

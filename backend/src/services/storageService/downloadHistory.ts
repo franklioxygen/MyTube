@@ -4,9 +4,7 @@ import { db } from "../../db";
 import { downloadHistory } from "../../db/schema";
 import { logger } from "../../utils/logger";
 import { DownloadHistoryItem } from "./types";
-
-const PENDING_RETRY_STATUS = "pending_retry";
-const PARTIAL_STATUS = "partial";
+import { PARTIAL_STATUS, PENDING_RETRY_STATUS } from "./downloadHistoryStatus";
 
 function mapDownloadHistoryRow(row: typeof downloadHistory.$inferSelect): DownloadHistoryItem {
   return {

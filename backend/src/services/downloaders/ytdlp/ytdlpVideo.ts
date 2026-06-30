@@ -2,7 +2,6 @@ import fs from "fs-extra";
 import { getErrorMessage } from "../../../utils/errors";
 import path from "path";
 import { AVATARS_DIR, IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../../../config/paths";
-import { ValidationError } from "../../../errors/DownloadErrors";
 import { downloadAndProcessAvatar } from "../../../utils/avatarUtils";
 import {
   cleanupSubtitleFiles,
@@ -53,6 +52,12 @@ import { prepareDownloadFlags } from "./ytdlpConfig";
 import { getProviderScript } from "./ytdlpHelpers";
 import { extractVideoMetadata } from "./ytdlpMetadata";
 import { processSubtitles } from "./ytdlpSubtitle";
+import {
+  createYtDlpOutputTemplate,
+  isExpectedTwitchMetadataError,
+  pathExistsWithAnyKnownVideoExtension,
+  stripTrailingExtension,
+} from "./ytdlpVideoHelpers";
 
 // Helper class to access BaseDownloader methods without circular dependency
 class YtDlpDownloaderHelper extends BaseDownloader {
@@ -82,54 +87,6 @@ class YtDlpDownloaderHelper extends BaseDownloader {
   ): Promise<boolean> {
     return this.downloadThumbnail(thumbnailUrl, savePath, axiosConfig);
   }
-}
-
-function stripTrailingExtension(value: string, extension: string): string {
-  return value.endsWith(extension) ? value.slice(0, -extension.length) : value;
-}
-
-const VIDEO_CONTAINER_EXTENSIONS = [
-  ".mp4",
-  ".webm",
-  ".mkv",
-  ".avi",
-  ".mov",
-  ".m4v",
-  ".flv",
-  ".3gp",
-];
-
-function createYtDlpOutputTemplate(outputPath: string): string {
-  const outputDir = path.dirname(outputPath);
-  const outputFilename = path.basename(outputPath, path.extname(outputPath));
-  return resolveSafeChildPath(outputDir, `${outputFilename}.%(ext)s`);
-}
-
-function pathExistsWithAnyKnownVideoExtension(basePath: string): boolean {
-  return VIDEO_CONTAINER_EXTENSIONS.some((extension) =>
-    pathExistsSafeSync(`${basePath}${extension}`, VIDEOS_DIR)
-  );
-}
-
-function isExpectedTwitchMetadataError(error: unknown): boolean {
-  if (error instanceof ValidationError) {
-    return true;
-  }
-
-  if (
-    typeof error === "object" &&
-    error !== null &&
-    "response" in error &&
-    typeof (error as { response?: { status?: number } }).response?.status ===
-      "number"
-  ) {
-    return (error as { response?: { status?: number } }).response?.status === 429;
-  }
-
-  return (
-    error instanceof Error &&
-    error.message.includes("Twitch API is temporarily rate limited")
-  );
 }
 
 /**

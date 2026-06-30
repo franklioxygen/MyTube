@@ -4,6 +4,7 @@ import {
   normalizeTwitchChannelUrl,
 } from "../../../utils/helpers";
 import { logger } from "../../../utils/logger";
+import { clampLimit } from "../../../utils/paramUtils";
 import {
   executeYtDlpJson,
   getNetworkConfigFromUserConfig,
@@ -117,7 +118,7 @@ export async function getTwitchChannelVideos(
   options: GetTwitchChannelVideosOptions = {}
 ): Promise<TwitchYtDlpChannelResult> {
   const startIndex = Math.max(options.startIndex ?? 0, 0);
-  const limit = Math.min(Math.max(options.limit ?? 20, 1), 100);
+  const limit = clampLimit(options.limit, 20, 100);
   const targetUrl = buildTwitchVideosUrl(channelUrl);
   const userConfig = getUserYtDlpConfig(targetUrl);
   const networkConfig = getNetworkConfigFromUserConfig(userConfig);
