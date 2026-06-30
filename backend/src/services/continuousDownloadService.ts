@@ -198,6 +198,10 @@ export class ContinuousDownloadService {
     // Mark as cancelled FIRST so status checks stop processing immediately
     await this.taskRepository.cancelTask(id);
 
+    // Signal the running loop (if any) so it observes the cancellation without
+    // waiting for its next throttled DB status read.
+    this.taskProcessor.signalInterruption(id);
+
     // Remove from processing set to stop any ongoing processing immediately
     this.processingTasks.delete(id);
 
@@ -298,6 +302,9 @@ export class ContinuousDownloadService {
     }
 
     await this.taskRepository.pauseTask(id);
+
+    // Signal the running loop so it observes the pause promptly.
+    this.taskProcessor.signalInterruption(id);
   }
 
   /**

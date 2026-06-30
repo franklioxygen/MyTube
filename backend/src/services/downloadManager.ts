@@ -3,6 +3,7 @@ import {
     isCancelledError,
 } from "../errors/DownloadErrors";
 import { extractSourceVideoId } from "../utils/helpers";
+import { getErrorMessage } from "../utils/errors";
 import { logger, sanitizeLogMessage } from "../utils/logger";
 import { CloudStorageService } from "./CloudStorageService";
 import { createDownloadTask } from "./downloadService";
@@ -68,10 +69,6 @@ const DEFAULT_AUTO_RETRY_INTERVAL_MINUTES = 5;
 const AUTO_RETRY_INTERVAL_OPTIONS = new Set([1, 5, 10, 30, 60]);
 const PENDING_RETRY_STATUS = "pending_retry";
 const PARTIAL_STATUS = "partial";
-
-function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
 
 function isStructuredDownloadResult(
   value: unknown,

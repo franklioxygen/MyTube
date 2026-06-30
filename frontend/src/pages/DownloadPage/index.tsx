@@ -230,7 +230,7 @@ const DownloadPage: React.FC = () => {
                 showSnackbar(t('videoDownloading') || 'Video downloading');
                 queryClient.invalidateQueries({ queryKey: ['downloadStatus'] });
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Error re-downloading video:', error);
             showSnackbar(t('error') || 'Error');
         } finally {

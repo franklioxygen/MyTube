@@ -78,6 +78,7 @@ describe('TaskProcessor', () => {
     expect(mockVideoUrlFetcher.getAllVideoUrls).toHaveBeenCalledWith(mockTask.authorUrl, mockTask.platform);
     expect(mockTaskRepository.updateTotalVideos).toHaveBeenCalledWith(mockTask.id, 2);
     expect(downloadService.downloadYouTubeVideo).toHaveBeenCalledTimes(2);
+    expect(mockTaskRepository.getTaskStatus).toHaveBeenCalledTimes(1);
     expect(mockTaskRepository.completeTask).toHaveBeenCalledWith(mockTask.id);
   });
 

@@ -18,7 +18,7 @@ vi.mock("../../contexts/SnackbarContext", () => ({
 }));
 
 vi.mock("../../contexts/VideoContext", () => ({
-  useVideo: () => ({ incrementView: mockIncrementView }),
+  useVideoActions: () => ({ incrementView: mockIncrementView }),
 }));
 
 vi.mock("../../utils/playerUtils", () => ({

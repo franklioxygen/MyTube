@@ -1,6 +1,7 @@
+import { hasAxiosStatus, hasAnyAxiosStatus } from '../utils/errors';
 import { useQueryClient } from '@tanstack/react-query';
 import { CssBaseline, GlobalStyles, ThemeProvider as MuiThemeProvider, PaletteMode, useMediaQuery } from '@mui/material';
-import React, { createContext, useContext, useEffect, useEffectEvent, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useEffectEvent, useMemo, useState } from 'react';
 import getTheme from '../theme';
 import { applyThemeCssVariables } from '../theme/cssVariables';
 import { api } from '../utils/apiClient';
@@ -64,9 +65,9 @@ export const ThemeContextProvider: React.FC<{ children: React.ReactNode }> = ({ 
             const backendTheme = normalizeThemePreference(settings.theme);
             setPreferenceState(backendTheme);
             localStorage.setItem('themeMode', backendTheme);
-        } catch (error: any) {
+        } catch (error: unknown) {
             // Silently handle auth-related failures when not authenticated
-            if (error?.response?.status !== 401 && error?.response?.status !== 403) {
+            if (!hasAnyAxiosStatus(error, [401, 403])) {
                 console.error('Error fetching settings for theme:', error);
             }
         }
@@ -84,7 +85,7 @@ export const ThemeContextProvider: React.FC<{ children: React.ReactNode }> = ({ 
         return () => window.removeEventListener('mytube-login', onLogin);
     }, [queryClient, syncThemePreference]);
 
-    const setPreference = async (newPreference: ThemePreference) => {
+    const setPreference = useCallback(async (newPreference: ThemePreference) => {
         const normalizedPreference = normalizeThemePreference(newPreference);
         setPreferenceState(normalizedPreference);
         localStorage.setItem('themeMode', normalizedPreference);
@@ -94,12 +95,12 @@ export const ThemeContextProvider: React.FC<{ children: React.ReactNode }> = ({ 
             await api.patch('/settings', {
                 theme: normalizedPreference
             });
-        } catch (error: any) {
-            if (error?.response?.status !== 401) {
+        } catch (error: unknown) {
+            if (!hasAxiosStatus(error, 401)) {
                 console.error('Error saving theme setting:', error);
             }
         }
-    };
+    }, []);
 
     const mode: PaletteMode = useMemo(() => {
         if (preference === 'system') {
@@ -114,14 +115,18 @@ export const ThemeContextProvider: React.FC<{ children: React.ReactNode }> = ({ 
         applyThemeCssVariables(mode);
     }, [mode]);
 
-    const toggleTheme = () => {
+    const toggleTheme = useCallback(() => {
         setPreference(mode === 'light' ? 'dark' : 'light');
-    };
+    }, [setPreference, mode]);
 
     const theme = useMemo(() => getTheme(mode), [mode]);
 
+    const contextValue = useMemo<ThemeContextType>(() => ({
+        mode, preference, setPreference, toggleTheme,
+    }), [mode, preference, setPreference, toggleTheme]);
+
     return (
-        <ThemeContext.Provider value={{ mode, preference, setPreference, toggleTheme }}>
+        <ThemeContext.Provider value={contextValue}>
             <MuiThemeProvider theme={theme}>
                 <CssBaseline />
                 {/*

@@ -36,8 +36,11 @@ const mockUpdateVideo = vi.fn();
 // Mock child components that trigger complex logic or portals
 vi.mock('../../../contexts/VideoContext', () => {
     return {
-        useVideo: () => ({
+        useVideoActions: () => ({
             updateVideo: mockUpdateVideo,
+            incrementView: vi.fn(),
+        }),
+        useVideoTags: () => ({
             availableTags: []
         }),
         VideoProvider: ({ children }: any) => <div>{children}</div>

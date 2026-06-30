@@ -1,4 +1,5 @@
 import fs from "fs-extra";
+import { getErrorMessage } from "../../../utils/errors";
 import path from "path";
 import { AVATARS_DIR, IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../../../config/paths";
 import { ValidationError } from "../../../errors/DownloadErrors";
@@ -465,15 +466,15 @@ export async function downloadVideo(
 
     // Wait for download to complete
     try {
-      await subprocess;
-    } catch (error: any) {
+      await Promise.resolve(subprocess).finally(() => progressTracker.dispose());
+    } catch (error: unknown) {
       await downloader.handleCancellationErrorPublic(error, async () => {
         await cleanupVideoArtifacts(newSafeBaseFilename);
         await cleanupSubtitleFiles(newSafeBaseFilename);
       });
 
       // Check if error is subtitle-related and video file exists
-      const stderr = error.stderr || "";
+      const stderr = (error as { stderr?: string }).stderr || "";
       const isSubtitleError =
         stderr.includes("Unable to download video subtitles") ||
         stderr.includes("Unable to download subtitles") ||
@@ -487,7 +488,7 @@ export async function downloadVideo(
         if (resolvedVideoPath) {
           logger.warn(
             "Subtitle download failed, but video was downloaded successfully. Continuing...",
-            error.message
+            getErrorMessage(error)
           );
           // Log the subtitle error details
           if (stderr) {

@@ -13,8 +13,21 @@ export interface ProgressUpdate {
   speed: string;
 }
 
+/**
+ * Minimum interval between persisted progress writes. yt-dlp emits a progress
+ * line roughly every 100ms; better-sqlite3 is synchronous so each persisted
+ * update blocks the event loop with a committed write. Keeping the latest
+ * progress in memory and persisting at most this often removes hundreds of
+ * blocking writes per download without sacrificing visible progress accuracy.
+ */
+const PROGRESS_PERSIST_INTERVAL_MS = 1000;
+
 export class ProgressTracker {
   private downloadId?: string;
+  // Latest progress not yet persisted (kept so the throttled write catches it).
+  private pendingProgress: ProgressUpdate | null = null;
+  private lastPersistedAt = 0;
+  private flushTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(downloadId?: string) {
     this.downloadId = downloadId;
@@ -102,7 +115,12 @@ export class ProgressTracker {
   }
 
   /**
-   * Update download progress in storage service
+   * Update download progress in storage service.
+   *
+   * Persists at most once per PROGRESS_PERSIST_INTERVAL_MS to avoid hammering
+   * the synchronous SQLite writer on every yt-dlp progress line. The latest
+   * progress is always kept in memory and flushed either on the next eligible
+   * tick, on completion (>= 100%), or when flush()/dispose() is called.
    * @param progress - Progress update to apply
    */
   update(progress: ProgressUpdate): void {
@@ -110,12 +128,63 @@ export class ProgressTracker {
       return;
     }
 
+    this.pendingProgress = progress;
+
+    // Always persist the final 100% immediately so completion is not delayed.
+    const isComplete = progress.percentage >= 100;
+    const now = Date.now();
+    const due = now - this.lastPersistedAt >= PROGRESS_PERSIST_INTERVAL_MS;
+
+    if (isComplete || due) {
+      this.persistNow();
+      return;
+    }
+
+    // Schedule a flush so the in-memory progress reaches the DB even if no
+    // further lines arrive (e.g. a slow tail). Coalesced to a single timer.
+    if (this.flushTimer === null) {
+      this.flushTimer = setTimeout(() => {
+        this.flushTimer = null;
+        if (this.pendingProgress) {
+          this.persistNow();
+        }
+      }, PROGRESS_PERSIST_INTERVAL_MS);
+    }
+  }
+
+  private persistNow(): void {
+    if (!this.downloadId || !this.pendingProgress) {
+      return;
+    }
+    const progress = this.pendingProgress;
+    this.pendingProgress = null;
+    this.lastPersistedAt = Date.now();
     storageService.updateActiveDownload(this.downloadId, {
       progress: progress.percentage,
       totalSize: progress.totalSize,
       downloadedSize: progress.downloadedSize,
       speed: progress.speed,
     });
+  }
+
+  /**
+   * Force-persist any pending progress. Call on download completion/failure so
+   * the final state is written before the active-download row is removed.
+   */
+  flush(): void {
+    if (this.flushTimer !== null) {
+      clearTimeout(this.flushTimer);
+      this.flushTimer = null;
+    }
+    this.persistNow();
+  }
+
+  /**
+   * Flush pending progress and stop the scheduled timer. Call when the tracker
+   * is no longer needed to avoid leaking a pending timer.
+   */
+  dispose(): void {
+    this.flush();
   }
 
   /**

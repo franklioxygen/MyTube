@@ -142,7 +142,7 @@ export const clearThumbnailCacheEndpoint = async (
       success: true,
       message: "Thumbnail cache cleared successfully",
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error("[CloudStorage] Failed to clear thumbnail cache:", error);
     res.status(500).json({
@@ -251,7 +251,7 @@ export const syncToCloud = async (
         logger.info(
           `[CloudSync] Successfully synced video: ${video.title || video.id}`
         );
-      } catch (error: any) {
+      } catch (error: unknown) {
         failed++;
         const errorMessage =
           error instanceof Error ? error.message : String(error);
@@ -287,7 +287,7 @@ export const syncToCloud = async (
 
       cloudScanAdded = scanResult.added;
       cloudScanErrors.push(...scanResult.errors);
-    } catch (error: any) {
+    } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
       cloudScanErrors.push(`Cloud scan failed: ${errorMessage}`);
@@ -312,7 +312,7 @@ export const syncToCloud = async (
     });
 
     res.end();
-  } catch (error: any) {
+  } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error(
       "[CloudSync] Sync failed:",

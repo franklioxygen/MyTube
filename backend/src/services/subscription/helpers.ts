@@ -1,3 +1,4 @@
+import { getErrorMessage as getSharedErrorMessage } from "../../utils/errors";
 import { logger } from "../../utils/logger";
 import { FilenameTemplateSourceOptions } from "../filenameTemplate/types";
 import { TelegramService } from "../telegramService";
@@ -17,19 +18,12 @@ export function notifySubscriptionDownloadResult(context: {
   });
 }
 
+/**
+ * Re-export of the shared {@link getErrorMessage} from utils/errors.
+ * Kept here so existing subscription-module imports continue to resolve.
+ */
 export function getErrorMessage(error: unknown, fallback: string): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  if (error && typeof error === "object") {
-    const maybeError = error as { message?: unknown };
-    if (typeof maybeError.message === "string") {
-      return maybeError.message;
-    }
-  }
-
-  return fallback;
+  return getSharedErrorMessage(error, fallback);
 }
 
 export function buildFilenameTemplateSourceOptions(

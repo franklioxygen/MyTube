@@ -1,5 +1,6 @@
+import { getApiErrorMessage } from '../utils/errors';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import React, { createContext, useContext } from 'react';
+import React, { createContext, useCallback, useContext, useMemo } from 'react';
 import { Collection } from '../types';
 import { api } from '../utils/apiClient';
 import { useAuth } from './AuthContext';
@@ -51,9 +52,9 @@ export const CollectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         },
     });
 
-    const fetchCollections = async () => {
+    const fetchCollections = useCallback(async () => {
         await fetchCollectionsQuery();
-    };
+    }, [fetchCollectionsQuery]);
 
     const createCollectionMutation = useMutation({
         mutationFn: async ({ name, videoId }: { name: string, videoId: string }) => {
@@ -73,13 +74,13 @@ export const CollectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         }
     });
 
-    const createCollection = async (name: string, videoId: string) => {
+    const createCollection = useCallback(async (name: string, videoId: string) => {
         try {
             return await createCollectionMutation.mutateAsync({ name, videoId });
         } catch {
             return null;
         }
-    };
+    }, [createCollectionMutation]);
 
     const addToCollectionMutation = useMutation({
         mutationFn: async ({ collectionId, videoId }: { collectionId: string, videoId: string }) => {
@@ -99,15 +100,15 @@ export const CollectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         }
     });
 
-    const addToCollection = async (collectionId: string, videoId: string) => {
+    const addToCollection = useCallback(async (collectionId: string, videoId: string) => {
         try {
             return await addToCollectionMutation.mutateAsync({ collectionId, videoId });
         } catch {
             return null;
         }
-    };
+    }, [addToCollectionMutation]);
 
-    const removeFromCollection = async (collectionId: string, videoId: string) => {
+    const removeFromCollection = useCallback(async (collectionId: string, videoId: string) => {
         try {
             await api.put(`/collections/${collectionId}`, {
                 videoId,
@@ -122,7 +123,7 @@ export const CollectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             console.error('Error removing video from collection:', error);
             return false;
         }
-    };
+    }, [queryClient, showSnackbar, t]);
 
     const deleteCollectionMutation = useMutation({
         mutationFn: async ({ collectionId, deleteVideos }: { collectionId: string, deleteVideos: boolean }) => {
@@ -144,14 +145,14 @@ export const CollectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         }
     });
 
-    const deleteCollection = async (collectionId: string, deleteVideos = false) => {
+    const deleteCollection = useCallback(async (collectionId: string, deleteVideos = false) => {
         try {
             await deleteCollectionMutation.mutateAsync({ collectionId, deleteVideos });
             return { success: true };
         } catch {
             return { success: false, error: 'Failed to delete collection' };
         }
-    };
+    }, [deleteCollectionMutation]);
 
     const updateCollectionMutation = useMutation({
         mutationFn: async ({ id, name }: { id: string, name: string }) => {
@@ -170,25 +171,30 @@ export const CollectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         }
     });
 
-    const updateCollection = async (id: string, name: string) => {
+    const updateCollection = useCallback(async (id: string, name: string) => {
         try {
             await updateCollectionMutation.mutateAsync({ id, name });
             return { success: true };
-        } catch (error: any) {
-            return { success: false, error: error.response?.data?.error || t('updateCollectionFailed') };
+        } catch (error: unknown) {
+            return { success: false, error: getApiErrorMessage(error) || t('updateCollectionFailed') };
         }
-    };
+    }, [updateCollectionMutation, t]);
+
+    const value = useMemo<CollectionContextType>(() => ({
+        collections,
+        fetchCollections,
+        createCollection,
+        addToCollection,
+        removeFromCollection,
+        deleteCollection,
+        updateCollection,
+    }), [
+        collections, fetchCollections, createCollection, addToCollection,
+        removeFromCollection, deleteCollection, updateCollection,
+    ]);
 
     return (
-        <CollectionContext.Provider value={{
-            collections,
-            fetchCollections,
-            createCollection,
-            addToCollection,
-            removeFromCollection,
-            deleteCollection,
-            updateCollection
-        }}>
+        <CollectionContext.Provider value={value}>
             {children}
         </CollectionContext.Provider>
     );

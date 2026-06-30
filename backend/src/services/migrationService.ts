@@ -92,14 +92,14 @@ export async function runMigration() {
             .onConflictDoNothing()
             .run();
           results.videos.count++;
-        } catch (error: any) {
+        } catch (error: unknown) {
           console.error(`Error migrating video ${video.id}:`, error);
           const errorMsg =
             error instanceof Error ? error.message : String(error);
           results.errors.push(`Video ${video.id}: ${errorMsg}`);
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       const errorMsg =
         error instanceof FileError
           ? error.message
@@ -146,7 +146,7 @@ export async function runMigration() {
                   })
                   .onConflictDoNothing()
                   .run();
-              } catch (err: any) {
+              } catch (err: unknown) {
                 console.error(
                   `Error linking video ${videoId} to collection ${collection.id}:`,
                   err
@@ -159,14 +159,14 @@ export async function runMigration() {
               }
             }
           }
-        } catch (error: any) {
+        } catch (error: unknown) {
           console.error(`Error migrating collection ${collection.id}:`, error);
           const errorMsg =
             error instanceof Error ? error.message : String(error);
           results.errors.push(`Collection ${collection.id}: ${errorMsg}`);
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       const errorMsg =
         error instanceof FileError
           ? error.message
@@ -198,7 +198,7 @@ export async function runMigration() {
           .run();
         results.settings.count++;
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error migrating settings:", error);
       const errorMsg = error instanceof Error ? error.message : String(error);
       results.errors.push(`Settings: ${errorMsg}`);
@@ -275,7 +275,7 @@ export async function runMigration() {
           results.downloads.count++;
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error migrating status:", error);
       const errorMsg = error instanceof Error ? error.message : String(error);
       results.errors.push(`Status: ${errorMsg}`);

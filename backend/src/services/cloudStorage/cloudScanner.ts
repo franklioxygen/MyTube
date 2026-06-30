@@ -530,7 +530,7 @@ export async function scanCloudFiles(
         }
 
         return { success: true };
-      } catch (error: any) {
+      } catch (error: unknown) {
         const errorMessage =
           error instanceof Error ? error.message : String(error);
         logger.error(
@@ -606,7 +606,7 @@ export async function scanCloudFiles(
     );
 
     return { added, errors };
-  } catch (error: any) {
+  } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error(
       "[CloudStorage] Cloud scan failed:",

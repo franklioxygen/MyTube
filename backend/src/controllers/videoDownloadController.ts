@@ -467,7 +467,7 @@ export const downloadVideo = async (
         logger.warn("Failed to fetch video info for title:", err);
       }
     })();
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Error queuing download:", error);
     sendInternalError(res, "Failed to queue download");
   }

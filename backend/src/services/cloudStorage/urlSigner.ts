@@ -19,6 +19,31 @@ const signedUrlCache = new Map<string, CachedSignedUrl>();
 // Cache TTL: 5 minutes (signs typically expire after some time, but we refresh proactively)
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
+// How often to sweep expired entries from the cache. Without this the map grew
+// unbounded over the process lifetime (entries were skipped on read once
+// expired but never removed).
+const CACHE_SWEEP_INTERVAL_MS = 5 * 60 * 1000;
+
+function sweepExpiredSignedUrls(): void {
+  const now = Date.now();
+  let removed = 0;
+  for (const [key, entry] of signedUrlCache) {
+    if (entry.expiresAt <= now) {
+      signedUrlCache.delete(key);
+      removed++;
+    }
+  }
+  if (removed > 0) {
+    logger.debug(
+      `[CloudStorage] Swept ${removed} expired signed URL cache entries`
+    );
+  }
+}
+
+// Register the periodic sweep once. setInterval is kept on the module so the
+// timer reference is not GC'd; the process is long-lived so this is intentional.
+setInterval(sweepExpiredSignedUrls, CACHE_SWEEP_INTERVAL_MS).unref?.();
+
 // Inflight requests for getSignedUrl: key is "filename:type", value is Promise<string | null>
 // Used for request coalescing to prevent duplicate concurrent API calls
 const inflightRequests = new Map<string, Promise<string | null>>();
@@ -291,7 +316,7 @@ async function getFileUrlsWithSign(
     }
 
     return result;
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error(
       `[CloudStorage] Failed to get file URLs with sign:`,
       error instanceof Error ? error : new Error(String(error))
@@ -319,11 +344,15 @@ export async function getSignedUrl(
   const cached = signedUrlCache.get(cacheKey);
   const now = Date.now();
 
-  if (cached && now < cached.expiresAt) {
-    logger.debug(
-      `[CloudStorage] Using cached signed URL for ${filename} (${fileType})`
-    );
-    return cached.url;
+  if (cached) {
+    if (now < cached.expiresAt) {
+      logger.debug(
+        `[CloudStorage] Using cached signed URL for ${filename} (${fileType})`
+      );
+      return cached.url;
+    }
+    // Expired: evict now so the map doesn't retain dead entries between sweeps.
+    signedUrlCache.delete(cacheKey);
   }
 
   // Check if there's already an inflight request for this file

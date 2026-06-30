@@ -456,19 +456,17 @@ export class SubscriptionService {
       getSubscriptionLogContext(subscription)
     );
 
-    // Delete the subscription
-    await db.delete(subscriptions).where(eq(subscriptions.id, id));
-
-    // Verify deletion succeeded
-    const verifyDeleted = await db
-      .select()
-      .from(subscriptions)
+    // Delete the subscription. better-sqlite3's run() reports the affected row
+    // count in `.changes`, so we can confirm the deletion took effect without a
+    // follow-up SELECT.
+    const result = await db
+      .delete(subscriptions)
       .where(eq(subscriptions.id, id))
-      .limit(1);
+      .run();
 
-    if (verifyDeleted.length > 0) {
+    if (result.changes === 0) {
       logger.error(
-        `Failed to delete subscription ${id} - still exists in database`
+        `Failed to delete subscription ${id} - no rows affected`
       );
       throw new Error(`Failed to delete subscription ${id}`);
     }
@@ -798,7 +796,7 @@ export class SubscriptionService {
                     getSubscriptionLogContext(sub, { latestVideoUrl })
                   );
                 }
-              } catch (downloadError: any) {
+              } catch (downloadError: unknown) {
                 const errorMessage = getErrorMessage(
                   downloadError,
                   "Download failed"

@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import React, { createContext, useContext, useEffect } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo } from 'react';
 import { api } from '../utils/apiClient';
 import { authSettingsQueryOptions } from '../utils/settingsQueries';
 
@@ -39,7 +39,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error('Error checking auth settings:', authSettingsError);
     }, [authSettingsError]);
 
-    const login = (role?: 'admin' | 'visitor') => {
+    const login = useCallback((role?: 'admin' | 'visitor') => {
         queryClient.setQueryData(authSettingsQueryOptions.queryKey, (current: any) => ({
             ...(current ?? {}),
             loginRequired: current?.loginRequired ?? true,
@@ -48,9 +48,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Notify LanguageContext to refetch settings (e.g. so language persists in new browser)
         window.dispatchEvent(new CustomEvent('mytube-login'));
         // Token is now stored in HTTP-only cookie by backend, no need to store it here
-    };
+    }, [queryClient]);
 
-    const logout = async () => {
+    const logout = useCallback(async () => {
         queryClient.setQueryData(authSettingsQueryOptions.queryKey, (current: any) => ({
             ...(current ?? {}),
             loginRequired: current?.loginRequired ?? true,
@@ -68,10 +68,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Invalidate and refetch auth settings to ensure fresh auth state
         queryClient.invalidateQueries({ queryKey: ['authSettings'] });
         queryClient.refetchQueries({ queryKey: ['authSettings'] });
-    };
+    }, [queryClient]);
+
+    const value = useMemo<AuthContextType>(() => ({
+        isAuthenticated, loginRequired, checkingAuth, userRole, login, logout,
+    }), [isAuthenticated, loginRequired, checkingAuth, userRole, login, logout]);
 
     return (
-        <AuthContext.Provider value={{ isAuthenticated, loginRequired, checkingAuth, userRole, login, logout }}>
+        <AuthContext.Provider value={value}>
             {children}
         </AuthContext.Provider>
     );

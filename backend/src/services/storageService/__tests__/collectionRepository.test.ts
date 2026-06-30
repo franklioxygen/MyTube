@@ -94,15 +94,27 @@ describe('collectionRepository', () => {
     });
 
     describe('getCollectionBySourceKey', () => {
-        function mockCollectionsSelect(rows: any[]) {
+        // The lookup issues a targeted indexed query (select id ... where the
+        // four source-key columns match) and then hydrates via getCollectionById.
+        function mockSourceKeyLookup(matchId: string | undefined) {
+            // First select(): the source-key id lookup (.from().where().get())
+            const get = vi.fn().mockReturnValue(matchId ? { id: matchId } : undefined);
+            const where = vi.fn().mockReturnValue({ get });
+            const from = vi.fn().mockReturnValue({ where });
+            return from;
+        }
+
+        function mockCollectionHydration(rows: any[]) {
+            // Second select(): getCollectionById's hydration (.from().leftJoin().where().all())
             const all = vi.fn().mockReturnValue(rows);
-            const leftJoin = vi.fn().mockReturnValue({ all });
-            const from = vi.fn().mockReturnValue({ leftJoin });
-            vi.mocked(db.select).mockReturnValue({ from } as any);
+            const where = vi.fn().mockReturnValue({ all });
+            const leftJoin = vi.fn().mockReturnValue({ where });
+            return vi.fn().mockReturnValue({ leftJoin });
         }
 
         it('matches a collection on platform/type/mid/id', () => {
-            mockCollectionsSelect([
+            const idLookup = mockSourceKeyLookup('col1');
+            const hydrate = mockCollectionHydration([
                 {
                     c: {
                         id: 'col1',
@@ -117,40 +129,25 @@ describe('collectionRepository', () => {
                     cv: { videoId: 'vid1', order: 1 },
                 },
             ]);
+            vi.mocked(db.select)
+                .mockReturnValueOnce({ from: idLookup } as any)
+                .mockReturnValue({ from: hydrate } as any);
 
             const result = getCollectionBySourceKey('bilibili', 'collection', '9', '42');
             expect(result?.id).toBe('col1');
         });
 
         it('returns undefined when no source key matches', () => {
-            mockCollectionsSelect([
-                {
-                    c: {
-                        id: 'col1',
-                        name: 'Series',
-                        title: 'Series',
-                        origin: 'manual',
-                        sourcePlatform: 'bilibili',
-                        sourceType: 'collection',
-                        sourceMid: '9',
-                        sourceId: '42',
-                    },
-                    cv: null,
-                },
-            ]);
+            // No match → source-key lookup returns undefined → no hydration.
+            const idLookup = mockSourceKeyLookup(undefined);
+            vi.mocked(db.select).mockReturnValue({ from: idLookup } as any);
 
             expect(getCollectionBySourceKey('bilibili', 'collection', '9', '99')).toBeUndefined();
             expect(getCollectionBySourceKey('bilibili', 'series', '9', '42')).toBeUndefined();
         });
 
         it('returns undefined when any key part is empty (no false positives on legacy rows)', () => {
-            mockCollectionsSelect([
-                {
-                    c: { id: 'col1', name: 'Series', title: 'Series', origin: 'manual' },
-                    cv: null,
-                },
-            ]);
-
+            // Empty key parts short-circuit before any query is issued.
             expect(getCollectionBySourceKey('bilibili', 'collection', '', '42')).toBeUndefined();
             expect(getCollectionBySourceKey('', 'collection', '9', '42')).toBeUndefined();
         });

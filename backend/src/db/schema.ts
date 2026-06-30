@@ -10,56 +10,83 @@ import {
     uniqueIndex,
 } from "drizzle-orm/sqlite-core";
 
-export const videos = sqliteTable("videos", {
-  id: text("id").primaryKey(),
-  title: text("title").notNull(),
-  author: text("author"),
-  date: text("date"),
-  source: text("source"),
-  sourceUrl: text("source_url"),
-  videoFilename: text("video_filename"),
-  thumbnailFilename: text("thumbnail_filename"),
-  videoPath: text("video_path"),
-  thumbnailPath: text("thumbnail_path"),
-  thumbnailUrl: text("thumbnail_url"),
-  addedAt: text("added_at"),
-  createdAt: text("created_at").notNull(),
-  updatedAt: text("updated_at"),
-  partNumber: integer("part_number"),
-  totalParts: integer("total_parts"),
-  seriesTitle: text("series_title"),
-  rating: integer("rating"),
-  // Additional fields that might be present
-  description: text("description"),
-  viewCount: integer("view_count"),
-  duration: text("duration"),
-  tags: text("tags"), // JSON stringified array of strings
-  progress: integer("progress"), // Playback progress in seconds
-  fileSize: text("file_size"),
-  lastPlayedAt: integer("last_played_at"), // Timestamp when video was last played
-  subtitles: text("subtitles"), // JSON stringified array of subtitle objects
-  channelUrl: text("channel_url"), // Author channel URL for subscriptions
-  visibility: integer("visibility").default(1), // 1 = visible, 0 = hidden
-  authorAvatarFilename: text("author_avatar_filename"), // Author avatar filename
-  authorAvatarPath: text("author_avatar_path"), // Author avatar path
-});
+export const videos = sqliteTable(
+  "videos",
+  {
+    id: text("id").primaryKey(),
+    title: text("title").notNull(),
+    author: text("author"),
+    date: text("date"),
+    source: text("source"),
+    sourceUrl: text("source_url"),
+    videoFilename: text("video_filename"),
+    thumbnailFilename: text("thumbnail_filename"),
+    videoPath: text("video_path"),
+    thumbnailPath: text("thumbnail_path"),
+    thumbnailUrl: text("thumbnail_url"),
+    addedAt: text("added_at"),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at"),
+    partNumber: integer("part_number"),
+    totalParts: integer("total_parts"),
+    seriesTitle: text("series_title"),
+    rating: integer("rating"),
+    // Additional fields that might be present
+    description: text("description"),
+    viewCount: integer("view_count"),
+    duration: text("duration"),
+    tags: text("tags"), // JSON stringified array of strings
+    progress: integer("progress"), // Playback progress in seconds
+    fileSize: text("file_size"),
+    lastPlayedAt: integer("last_played_at"), // Timestamp when video was last played
+    subtitles: text("subtitles"), // JSON stringified array of subtitle objects
+    channelUrl: text("channel_url"), // Author channel URL for subscriptions
+    visibility: integer("visibility").default(1), // 1 = visible, 0 = hidden
+    authorAvatarFilename: text("author_avatar_filename"), // Author avatar filename
+    authorAvatarPath: text("author_avatar_path"), // Author avatar path
+  },
+  (table) => ({
+    // source_url is looked up on every download attempt, cloud-scan duplicate
+    // check, and bilibili collection iteration (getVideoBySourceUrl).
+    sourceUrlIdx: index("idx_videos_source_url").on(table.sourceUrl),
+    // createdAt backs the default ORDER BY for video listings.
+    createdAtIdx: index("idx_videos_created_at").on(table.createdAt),
+    // visibility is filtered on every visitor request.
+    visibilityIdx: index("idx_videos_visibility").on(table.visibility),
+  })
+);
 
-export const collections = sqliteTable("collections", {
-  id: text("id").primaryKey(),
-  name: text("name").notNull(),
-  title: text("title"), // Keeping for backward compatibility/alias
-  origin: text("origin"),
-  createdAt: text("created_at").notNull(),
-  updatedAt: text("updated_at"),
-  // Stable source identity for re-download/repair dedup (issue #295).
-  // For Bilibili: sourcePlatform="bilibili", sourceType="collection"|"series",
-  // sourceMid=uploader mid, sourceId=season/series id. Stored as text to avoid
-  // integer precision concerns and to stay platform-agnostic.
-  sourcePlatform: text("source_platform"),
-  sourceType: text("source_type"),
-  sourceMid: text("source_mid"),
-  sourceId: text("source_id"),
-});
+export const collections = sqliteTable(
+  "collections",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    title: text("title"), // Keeping for backward compatibility/alias
+    origin: text("origin"),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at"),
+    // Stable source identity for re-download/repair dedup (issue #295).
+    // For Bilibili: sourcePlatform="bilibili", sourceType="collection"|"series",
+    // sourceMid=uploader mid, sourceId=season/series id. Stored as text to avoid
+    // integer precision concerns and to stay platform-agnostic.
+    sourcePlatform: text("source_platform"),
+    sourceType: text("source_type"),
+    sourceMid: text("source_mid"),
+    sourceId: text("source_id"),
+  },
+  (table) => ({
+    // name/title lookups (getCollectionByName) used in playlist subscription checks.
+    nameIdx: index("idx_collections_name").on(table.name),
+    titleIdx: index("idx_collections_title").on(table.title),
+    // Stable source-identity lookups (getCollectionBySourceKey).
+    sourceKeyIdx: index("idx_collections_source_key").on(
+      table.sourcePlatform,
+      table.sourceType,
+      table.sourceMid,
+      table.sourceId
+    ),
+  })
+);
 
 export const collectionVideos = sqliteTable(
   "collection_videos",
@@ -78,6 +105,10 @@ export const collectionVideos = sqliteTable(
       columns: [t.videoId],
       foreignColumns: [videos.id],
     }).onDelete("cascade"),
+    // The composite PK serves (collection_id, video_id) lookups but cannot
+    // serve a video_id-leading lookup; this index backs per-video membership
+    // queries (e.g. getCollectionsByVideoId, retention deletion).
+    videoIdIdx: index("idx_collection_videos_video_id").on(t.videoId),
   })
 );
 

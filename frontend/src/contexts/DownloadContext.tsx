@@ -1,8 +1,9 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import React, { Suspense, createContext, useContext, useEffect, useRef, useState } from 'react';
+import React, { Suspense, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useSettings } from '../hooks/useSettings';
 import { DownloadInfo } from '../types';
 import { api } from '../utils/apiClient';
+import { getApiErrorMessage, hasAxiosStatus } from '../utils/errors';
 import { lazyWithRetry } from '../utils/lazyWithRetry';
 import { INFO_SOUNDS } from '../utils/sounds';
 import { resolveSubscriptionErrorMessage } from '../utils/subscriptionErrors';
@@ -185,6 +186,10 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     // Reference to track current download IDs for detecting completion
     const currentDownloadIdsRef = useRef<Set<string>>(new Set());
+    // Tracks the last persisted (active count, queued count) so we only write
+    // to localStorage when membership meaningfully changes — not on every 2s
+    // poll tick while a download is in progress.
+    const lastPersistedCountsRef = useRef<{ active: number; queued: number } | null>(null);
 
     useEffect(() => {
         const newIds = new Set<string>([
@@ -216,22 +221,32 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         }
 
         if (activeDownloads.length > 0 || queuedDownloads.length > 0) {
-            const statusData = {
-                activeDownloads,
-                queuedDownloads,
-                timestamp: Date.now()
-            };
-            localStorage.setItem(DOWNLOAD_STATUS_STORAGE_ID, JSON.stringify(statusData));
+            // Skip the write if the active/queued counts are unchanged since the
+            // last persist — this avoids re-stringifying on every poll tick.
+            const prev = lastPersistedCountsRef.current;
+            if (!prev || prev.active !== activeDownloads.length || prev.queued !== queuedDownloads.length) {
+                const statusData = {
+                    activeDownloads,
+                    queuedDownloads,
+                    timestamp: Date.now()
+                };
+                localStorage.setItem(DOWNLOAD_STATUS_STORAGE_ID, JSON.stringify(statusData));
+                lastPersistedCountsRef.current = { active: activeDownloads.length, queued: queuedDownloads.length };
+            }
         } else {
-            localStorage.removeItem(DOWNLOAD_STATUS_STORAGE_ID);
+            // Transition to idle: clear both the storage entry and the tracker.
+            if (lastPersistedCountsRef.current !== null) {
+                localStorage.removeItem(DOWNLOAD_STATUS_STORAGE_ID);
+                lastPersistedCountsRef.current = null;
+            }
         }
     }, [activeDownloads, queuedDownloads, fetchVideos, settings]);
 
-    const checkBackendDownloadStatus = async () => {
+    const checkBackendDownloadStatus = useCallback(async () => {
         await queryClient.invalidateQueries({ queryKey: ['downloadStatus'] });
-    };
+    }, [queryClient]);
 
-    const handleVideoSubmit = async (
+    const handleVideoSubmit = useCallback(async (
         videoUrl: string,
         skipCollectionCheck = false,
         skipPartsCheck: boolean | { relatedEventId?: string | null; sourceKind?: string; surface?: string } = false,
@@ -406,24 +421,31 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
             showSnackbar(t('videoDownloading'));
             return { success: true };
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Error downloading video:', err);
 
-            // Check if the error is because the input is a search term
-            if (err.response?.data?.isSearchTerm) {
+            // Check if the error is because the input is a search term. The
+            // backend signals this with a specific response body shape; match
+            // it directly rather than requiring a full AxiosError instance.
+            const responseData = err && typeof err === 'object' && 'response' in err
+                ? (err as { response?: { data?: { isSearchTerm?: boolean; searchTerm?: string } } }).response?.data
+                : undefined;
+            if (responseData?.isSearchTerm && typeof responseData.searchTerm === 'string') {
                 // Handle as search term
-                return await handleSearch(err.response.data.searchTerm);
+                return await handleSearch(responseData.searchTerm);
             }
 
             return {
                 success: false,
-                error: err.response?.data?.error || t('failedToDownloadVideo')
+                error: getApiErrorMessage(err) || t('failedToDownloadVideo')
             };
         }
-    };
+    }, [
+        checkBackendDownloadStatus, setVideos, showSnackbar, t, queryClient, handleSearch,
+    ]);
 
 
-    const handleDownloadAllBilibiliParts = async (collectionName: string, subscribeInfo?: SubscribeInfo) => {
+    const handleDownloadAllBilibiliParts = useCallback(async (collectionName: string, subscribeInfo?: SubscribeInfo) => {
         try {
             setShowBilibiliPartsModal(false);
 
@@ -493,21 +515,21 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
             showSnackbar(t('downloadStartedSuccessfully'));
             return { success: true };
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Error downloading Bilibili parts/collection:', err);
 
             return {
                 success: false,
-                error: err.response?.data?.error || t('failedToDownload')
+                error: getApiErrorMessage(err) || t('failedToDownload')
             };
         }
-    };
+    }, [bilibiliPartsInfo, checkBackendDownloadStatus, fetchCollections, showSnackbar, t]);
 
-    const handleDownloadCurrentBilibiliPart = async () => {
+    const handleDownloadCurrentBilibiliPart = useCallback(async () => {
         setShowBilibiliPartsModal(false);
         // Pass true to skip collection/series check AND parts check since we already know about it
         return await handleVideoSubmit(bilibiliPartsInfo.url, true, true);
-    };
+    }, [handleVideoSubmit, bilibiliPartsInfo.url]);
 
     // Subscription logic
     const [showSubscribeModal, setShowSubscribeModal] = useState(false);
@@ -536,9 +558,9 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             setShowSubscribeModal(false);
             setSubscribeUrl('');
             setSubscribeSource(undefined);
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Error subscribing:', error);
-            if (error.response && error.response.status === 409) {
+            if (hasAxiosStatus(error, 409)) {
                 setShowSubscribeModal(false);
                 setSubscribeSource(undefined);
                 setShowDuplicateModal(true);
@@ -559,9 +581,9 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             showSnackbar(response.data.message || t('downloadStartedSuccessfully'));
             setShowChannelPlaylistsModal(false);
             setChannelPlaylistsUrl('');
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Error downloading channel playlists:', err);
-            showSnackbar(err.response?.data?.error || t('failedToDownload'), 'error');
+            showSnackbar(getApiErrorMessage(err) || t('failedToDownload'), 'error');
             setShowChannelPlaylistsModal(false);
             setChannelPlaylistsUrl('');
         }
@@ -642,12 +664,12 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             setShowSubscribeModal(false);
             setSubscribeSource(undefined);
 
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Error subscribing to channel playlists:', err);
-            if (err.response && err.response.status === 409) {
+            if (hasAxiosStatus(err, 409)) {
                 showSnackbar(t('subscriptionAlreadyExists'), 'warning');
             } else {
-                showSnackbar(err.response?.data?.error || t('error'), 'error');
+                showSnackbar(getApiErrorMessage(err) || t('error'), 'error');
             }
             setSubscribeUrl('');
             setShowSubscribeModal(false);
@@ -663,18 +685,24 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         }
     };
 
+    const value = useMemo<DownloadContextType>(() => ({
+        activeDownloads,
+        queuedDownloads,
+        handleVideoSubmit,
+        showBilibiliPartsModal,
+        setShowBilibiliPartsModal,
+        bilibiliPartsInfo,
+        isCheckingParts,
+        handleDownloadAllBilibiliParts,
+        handleDownloadCurrentBilibiliPart,
+    }), [
+        activeDownloads, queuedDownloads, handleVideoSubmit, showBilibiliPartsModal,
+        bilibiliPartsInfo, isCheckingParts, handleDownloadAllBilibiliParts,
+        handleDownloadCurrentBilibiliPart,
+    ]);
+
     return (
-        <DownloadContext.Provider value={{
-            activeDownloads,
-            queuedDownloads,
-            handleVideoSubmit,
-            showBilibiliPartsModal,
-            setShowBilibiliPartsModal,
-            bilibiliPartsInfo,
-            isCheckingParts,
-            handleDownloadAllBilibiliParts,
-            handleDownloadCurrentBilibiliPart
-        }}>
+        <DownloadContext.Provider value={value}>
             {children}
             <Suspense fallback={null}>
                 {showChannelSubscribeChoiceModal && (

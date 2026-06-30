@@ -67,11 +67,12 @@ function createDatabaseConnection(
       const db = new Database(dbPath);
       configureDatabase(db);
       return db;
-    } catch (error: any) {
-      if (error.code === "SQLITE_BUSY" || error.code === "SQLITE_LOCKED") {
+    } catch (error: unknown) {
+      const e = error as NodeJS.ErrnoException;
+      if (e.code === "SQLITE_BUSY" || e.code === "SQLITE_LOCKED") {
         if (attempt < retries) {
           console.warn(
-            `Database connection attempt ${attempt} failed (${error.code}), retrying in ${delayMs}ms...`
+            `Database connection attempt ${attempt} failed (${e.code}), retrying in ${delayMs}ms...`
           );
           lastError = error;
           sleepWithoutBusySpin(delayMs);
@@ -81,7 +82,7 @@ function createDatabaseConnection(
       }
       // Provide an actionable message for permission errors — the most common
       // failure when upgrading Docker bind-mount deployments.
-      if (error.code === "EACCES") {
+      if (e.code === "EACCES") {
         const uid = typeof process.getuid === "function" ? process.getuid() : undefined;
         const gid = typeof process.getgid === "function" ? process.getgid() : undefined;
         const identity = uid != null && gid != null ? `uid/gid ${uid}/${gid}` : "the current user";

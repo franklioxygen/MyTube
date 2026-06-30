@@ -3,6 +3,7 @@
  */
 
 import axios from "axios";
+import { getErrorMessage } from "../../utils/errors";
 import path from "path";
 import { FileError, NetworkError } from "../../errors/DownloadErrors";
 import { logger } from "../../utils/logger";
@@ -188,33 +189,39 @@ export async function uploadFile(
         response.status || 500
       );
     }
-  } catch (error: any) {
-    // Error handling logic
-    if (error.response) {
+  } catch (error: unknown) {
+    // Error handling logic. Narrow the axios-style error shape once.
+    const e = error as {
+      response?: { status?: number; data?: unknown };
+      request?: unknown;
+      code?: string;
+      message?: string;
+    };
+    if (e.response) {
       // HTTP error response
-      const statusCode = error.response.status;
+      const statusCode = e.response.status ?? 500;
       logger.error(
         `[CloudStorage] HTTP Error: ${statusCode}`,
-        new Error(JSON.stringify(error.response.data))
+        new Error(JSON.stringify(e.response.data))
       );
       throw NetworkError.withStatus(
-        `Upload failed: ${error.message}`,
+        `Upload failed: ${getErrorMessage(error)}`,
         statusCode
       );
-    } else if (error.request) {
+    } else if (e.request) {
       // Request was made but no response received
       logger.error("[CloudStorage] Network Error: No response received.");
       throw NetworkError.timeout();
-    } else if (error.code === "ENOENT") {
+    } else if (e.code === "ENOENT") {
       // File not found
       throw FileError.notFound(filePath);
     } else {
       // Other errors
       logger.error(
         "[CloudStorage] Upload Error:",
-        error instanceof Error ? error : new Error(error.message)
+        error instanceof Error ? error : new Error(getErrorMessage(error))
       );
-      throw FileError.writeError(filePath, error.message);
+      throw FileError.writeError(filePath, getErrorMessage(error));
     }
   }
 }

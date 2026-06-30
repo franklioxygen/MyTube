@@ -1,3 +1,4 @@
+import { getApiErrorMessage } from '../utils/errors';
 import {
     Box,
     Button,
@@ -102,11 +103,9 @@ const TagsModal: React.FC<TagsModalProps> = ({
             }
             await onSave(selectedTags);
             handleClose();
-        } catch (error: any) {
+        } catch (error: unknown) {
             // Extract error message from various error formats
-            const errorMessage = error?.message ||
-                error?.response?.data?.error ||
-                error?.error ||
+            const errorMessage = getApiErrorMessage(error) ||
                 t('failedToSaveTags') ||
                 'Failed to save tags';
             showSnackbar(errorMessage, 'error');

@@ -10,7 +10,7 @@ import {
     Typography
 } from '@mui/material';
 import { useMutation } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import ConfirmationModal from '../components/ConfirmationModal';
 import DeleteCollectionModal from '../components/DeleteCollectionModal';
 import CollectionsTable from '../components/ManagePage/CollectionsTable';
@@ -115,7 +115,19 @@ const ManagePage: React.FC = () => {
         }
     });
 
-    const filteredVideos = videos.filter(video =>
+    // Precompute a videoId -> size-in-bytes map once so per-collection size
+    // lookups are O(members) instead of O(videos × members). Rebuilt only when
+    // the videos list changes.
+    const videoSizeById = useMemo(() => {
+        const map = new Map<string, number>();
+        for (const video of videos) {
+            const size = video.fileSize ? parseInt(video.fileSize, 10) : 0;
+            map.set(video.id, isNaN(size) ? 0 : size);
+        }
+        return map;
+    }, [videos]);
+
+    const filteredVideos = useMemo(() => videos.filter(video =>
         video.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         video.author.toLowerCase().includes(searchTerm.toLowerCase())
     ).sort((a, b) => {
@@ -134,39 +146,31 @@ const ManagePage: React.FC = () => {
             return order === 'asc' ? -1 : 1;
         }
         return 0;
-    });
+    }), [videos, searchTerm, orderBy, order]);
 
-    const totalSize = filteredVideos.reduce((acc, video) => {
+    const totalSize = useMemo(() => filteredVideos.reduce((acc, video) => {
         const size = video.fileSize ? parseInt(video.fileSize, 10) : 0;
         return acc + (isNaN(size) ? 0 : size);
-    }, 0);
+    }, 0), [filteredVideos]);
 
-    const getCollectionSize = (collectionVideoIds: string[]) => {
-        const totalBytes = collectionVideoIds.reduce((acc, videoId) => {
-            const video = videos.find(v => v.id === videoId);
-            if (video && video.fileSize) {
-                const size = parseInt(video.fileSize, 10);
-                return acc + (isNaN(size) ? 0 : size);
+    // Helper to sum the size (in bytes) of a collection's video ids using the
+    // precomputed map, so this is O(members) rather than O(videos × members).
+    const getCollectionSizeBytes = useMemo(() => {
+        return (collectionVideoIds: string[]) => {
+            let total = 0;
+            for (const videoId of collectionVideoIds) {
+                total += videoSizeById.get(videoId) ?? 0;
             }
-            return acc;
-        }, 0);
-        return formatSize(totalBytes);
-    };
+            return total;
+        };
+    }, [videoSizeById]);
 
-    // Helper to get collection size as bytes (number) for sorting
-    const getCollectionSizeBytes = (collectionVideoIds: string[]) => {
-        return collectionVideoIds.reduce((acc, videoId) => {
-            const video = videos.find(v => v.id === videoId);
-            if (video && video.fileSize) {
-                const size = parseInt(video.fileSize, 10);
-                return acc + (isNaN(size) ? 0 : size);
-            }
-            return acc;
-        }, 0);
-    };
+    const getCollectionSize = useMemo(() => {
+        return (collectionVideoIds: string[]) => formatSize(getCollectionSizeBytes(collectionVideoIds));
+    }, [getCollectionSizeBytes]);
 
     // Sort collections
-    const sortedCollections = [...collections].sort((a, b) => {
+    const sortedCollections = useMemo(() => [...collections].sort((a, b) => {
         let aValue: any;
         let bValue: any;
 
@@ -193,7 +197,7 @@ const ManagePage: React.FC = () => {
             return collectionOrder === 'asc' ? -1 : 1;
         }
         return 0;
-    });
+    }), [collections, collectionOrderBy, collectionOrder, getCollectionSizeBytes]);
 
     // Pagination logic
     const totalCollectionPages = Math.ceil(sortedCollections.length / ITEMS_PER_PAGE);

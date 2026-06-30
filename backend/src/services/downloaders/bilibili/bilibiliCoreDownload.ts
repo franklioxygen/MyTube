@@ -1,4 +1,5 @@
 import path from "path";
+import { getErrorMessage } from "../../../utils/errors";
 import { VIDEOS_DIR } from "../../../config/paths";
 import { DownloadCancelledError } from "../../../errors/DownloadErrors";
 import { downloadAndProcessAvatar } from "../../../utils/avatarUtils";
@@ -227,21 +228,22 @@ export async function downloadVideo(
     // Wait for download to complete
     let downloadError: any = null;
     try {
-      await subprocess;
-    } catch (error: any) {
+      await Promise.resolve(subprocess).finally(() => progressTracker.dispose());
+    } catch (error: unknown) {
       downloadError = error;
+      const e = error as { stderr?: string };
       // Only log as warning if it's an expected subtitle-related issue
       // "Invalid data found when processing input" is a real error, not expected
-      const stderrMsg = error.stderr || "";
+      const stderrMsg = e.stderr || "";
       const isExpectedSubtitleError = stderrMsg.includes(
         "Subtitles are only available when logged in"
       );
       if (isExpectedSubtitleError) {
-        logger.warn("yt-dlp subtitle warning (continuing):", error.message);
+        logger.warn("yt-dlp subtitle warning (continuing):", getErrorMessage(error));
       } else {
-        logger.error("yt-dlp download failed:", error.message);
-        if (error.stderr) {
-          logger.error("yt-dlp error output:", error.stderr);
+        logger.error("yt-dlp download failed:", getErrorMessage(error));
+        if (e.stderr) {
+          logger.error("yt-dlp error output:", e.stderr);
         }
       }
     }
@@ -483,7 +485,7 @@ export async function downloadVideo(
       authorAvatarFilename: authorAvatarFilename,
       authorAvatarPath: authorAvatarPath,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Error in downloadBilibiliVideo:", error);
 
     // Make sure we clean up the temp directory if it exists

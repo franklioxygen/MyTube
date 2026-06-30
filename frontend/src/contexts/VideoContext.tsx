@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Video } from '../types';
 import { useStatisticsIngestion } from '../hooks/useStatisticsIngestion';
 import { api } from '../utils/apiClient';
@@ -40,13 +40,44 @@ interface VideoContextType {
     loadingMore: boolean;
 }
 
+interface VideoTagsContextType {
+    availableTags: string[];
+    selectedTags: string[];
+    handleTagToggle: (tag: string) => void;
+}
+
+interface VideoActionsContextType {
+    updateVideo: (id: string, updates: Partial<Video>) => Promise<{ success: boolean; error?: string }>;
+    incrementView: (id: string) => Promise<{ success: boolean; error?: string }>;
+}
+
 const VideoContext = createContext<VideoContextType | undefined>(undefined);
+const VideoTagsContext = createContext<VideoTagsContextType | undefined>(undefined);
+const VideoActionsContext = createContext<VideoActionsContextType | undefined>(undefined);
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const useVideo = () => {
     const context = useContext(VideoContext);
     if (!context) {
         throw new Error('useVideo must be used within a VideoProvider');
+    }
+    return context;
+};
+
+// eslint-disable-next-line react-refresh/only-export-components
+export const useVideoTags = () => {
+    const context = useContext(VideoTagsContext);
+    if (!context) {
+        throw new Error('useVideoTags must be used within a VideoProvider');
+    }
+    return context;
+};
+
+// eslint-disable-next-line react-refresh/only-export-components
+export const useVideoActions = () => {
+    const context = useContext(VideoActionsContext);
+    if (!context) {
+        throw new Error('useVideoActions must be used within a VideoProvider');
     }
     return context;
 };
@@ -125,12 +156,12 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const loadMoreInProgress = useRef<boolean>(false);
 
     // Wrapper for refetch to match interface
-    const fetchVideos = async () => {
+    const fetchVideos = useCallback(async () => {
         await refetchVideos();
-    };
+    }, [refetchVideos]);
 
     // Emulate setVideos for compatibility
-    const setVideos: React.Dispatch<React.SetStateAction<Video[]>> = (updater) => {
+    const setVideos: React.Dispatch<React.SetStateAction<Video[]>> = useCallback((updater) => {
         queryClient.setQueryData(['videos'], (oldVideos: Video[] | undefined) => {
             const currentVideos = oldVideos || [];
             if (typeof updater === 'function') {
@@ -138,7 +169,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             }
             return updater;
         });
-    };
+    }, [queryClient]);
 
     const deleteVideoMutation = useMutation({
         mutationFn: async ({ id }: { id: string; options?: { showSnackbar?: boolean } }) => {
@@ -158,16 +189,16 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
     });
 
-    const deleteVideo = async (id: string, options?: { showSnackbar?: boolean }) => {
+    const deleteVideo = useCallback(async (id: string, options?: { showSnackbar?: boolean }) => {
         try {
             await deleteVideoMutation.mutateAsync({ id, options });
             return { success: true };
         } catch {
             return { success: false, error: t('failedToDeleteVideo') };
         }
-    };
+    }, [deleteVideoMutation, t]);
 
-    const deleteVideos = async (ids: string[]) => {
+    const deleteVideos = useCallback(async (ids: string[]) => {
         try {
             // Delete videos sequentially to avoid overwhelming the server
             // or we could implement a batch delete API endpoint if available, but for now loop client-side
@@ -194,9 +225,9 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         } catch {
             return { success: false, error: t('failedToDeleteVideo') };
         }
-    };
+    }, [deleteVideoMutation, showSnackbar, t]);
 
-    const searchLocalVideos = (query: string) => {
+    const searchLocalVideos = useCallback((query: string) => {
         if (!query || !videos.length) return [];
 
         // Normalize query: lowercase, trim, split by whitespace
@@ -218,9 +249,9 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             // Check if ALL terms are present (AND logic)
             return terms.every(term => searchableText.includes(term));
         });
-    };
+    }, [videos]);
 
-    const resetSearch = () => {
+    const resetSearch = useCallback(() => {
         if (searchAbortController.current) {
             searchAbortController.current.abort();
             searchAbortController.current = null;
@@ -233,9 +264,9 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setYoutubeLoading(false);
         setLoadingMore(false);
         setLastSearchEventId(null);
-    };
+    }, []);
 
-    const handleSearch = async (query: string): Promise<any> => {
+    const handleSearch = useCallback(async (query: string): Promise<any> => {
         if (!query || query.trim() === '') {
             resetSearch();
             return { success: false, error: t('pleaseEnterSearchTerm') };
@@ -273,8 +304,11 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                         externalResults = results;
                         setSearchResults(results.slice(0, MAX_SEARCH_RESULTS));
                     }
-                } catch (youtubeErr: any) {
-                    if (youtubeErr.name !== 'CanceledError' && youtubeErr.name !== 'AbortError') {
+                } catch (youtubeErr: unknown) {
+                    const errorName = youtubeErr && typeof youtubeErr === 'object' && 'name' in youtubeErr
+                        ? String((youtubeErr as { name: unknown }).name)
+                        : '';
+                    if (errorName !== 'CanceledError' && errorName !== 'AbortError') {
                         console.error('Error searching YouTube:', youtubeErr);
                     }
                 } finally {
@@ -309,8 +343,11 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             }
 
             return { success: true };
-        } catch (err: any) {
-            if (err.name !== 'CanceledError' && err.name !== 'AbortError') {
+        } catch (err: unknown) {
+            const errorName = err && typeof err === 'object' && 'name' in err
+                ? String((err as { name: unknown }).name)
+                : '';
+            if (errorName !== 'CanceledError' && errorName !== 'AbortError') {
                 console.error('Error in search process:', err);
                 const localResults = searchLocalVideos(query);
                 if (localResults.length > 0) {
@@ -323,9 +360,9 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             }
             return { success: false, error: t('searchCancelled') };
         }
-    };
+    }, [resetSearch, showYoutubeSearch, searchLocalVideos, statisticsIngestion, captureSearchText, t]);
 
-    const loadMoreSearchResults = async (): Promise<void> => {
+    const loadMoreSearchResults = useCallback(async (): Promise<void> => {
         // Use ref check first to prevent race conditions (immediate, synchronous check)
         if (!searchTerm || loadMoreInProgress.current || loadingMore || !showYoutubeSearch) return;
 
@@ -369,15 +406,15 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             loadMoreInProgress.current = false;
             setLoadingMore(false);
         }
-    };
+    }, [searchTerm, loadingMore, showYoutubeSearch, searchResults.length, showSnackbar, t]);
 
-    const handleTagToggle = (tag: string) => {
+    const handleTagToggle = useCallback((tag: string) => {
         setSelectedTags(prev =>
             prev.includes(tag)
                 ? prev.filter(t => t !== tag)
                 : [...prev, tag]
         );
-    };
+    }, []);
 
     // Cleanup search on unmount
     useEffect(() => {
@@ -414,7 +451,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
     });
 
-    const refreshThumbnail = async (id: string) => {
+    const refreshThumbnail = useCallback(async (id: string) => {
         try {
             const result = await refreshThumbnailMutation.mutateAsync(id);
             if (result.data.success) {
@@ -424,7 +461,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         } catch {
             return { success: false, error: t('thumbnailRefreshFailed') };
         }
-    };
+    }, [refreshThumbnailMutation, t]);
 
     const redownloadThumbnailMutation = useMutation({
         mutationFn: async (id: string) => {
@@ -451,7 +488,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
     });
 
-    const redownloadThumbnail = async (id: string) => {
+    const redownloadThumbnail = useCallback(async (id: string) => {
         try {
             const result = await redownloadThumbnailMutation.mutateAsync(id);
             if (result.data.success) {
@@ -461,7 +498,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         } catch {
             return { success: false, error: t('thumbnailRefreshFailed') };
         }
-    };
+    }, [redownloadThumbnailMutation, t]);
 
     const uploadThumbnailMutation = useMutation({
         mutationFn: async ({ id, file }: { id: string; file: File }) => {
@@ -492,9 +529,9 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
     });
 
-    const uploadThumbnail = async (id: string, file: File): Promise<void> => {
+    const uploadThumbnail = useCallback(async (id: string, file: File): Promise<void> => {
         await uploadThumbnailMutation.mutateAsync({ id, file });
-    };
+    }, [uploadThumbnailMutation]);
 
     const updateVideoMutation = useMutation({
         mutationFn: async ({ id, updates }: { id: string; updates: Partial<Video> }) => {
@@ -521,7 +558,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
     });
 
-    const updateVideo = async (id: string, updates: Partial<Video>) => {
+    const updateVideo = useCallback(async (id: string, updates: Partial<Video>) => {
         try {
             const result = await updateVideoMutation.mutateAsync({ id, updates });
             if (result.data.success) {
@@ -531,9 +568,9 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         } catch {
             return { success: false, error: t('videoUpdateFailed') };
         }
-    };
+    }, [updateVideoMutation, t]);
 
-    const incrementView = async (id: string) => {
+    const incrementView = useCallback(async (id: string) => {
         try {
             const res = await api.post(`/videos/${id}/view`);
             if (res.data.success) {
@@ -556,40 +593,64 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             console.error('Error incrementing view count:', error);
             return { success: false, error: 'Failed to increment view' };
         }
-    };
+    }, [queryClient]);
+
+    const value = useMemo<VideoContextType>(() => ({
+        videos,
+        loading: videosLoading,
+        error: videosError ? (videosError as Error).message : null,
+        fetchVideos,
+        deleteVideo,
+        deleteVideos,
+        updateVideo,
+        refreshThumbnail,
+        redownloadThumbnail,
+        uploadThumbnail,
+        incrementView,
+        searchLocalVideos,
+        searchResults,
+        localSearchResults,
+        isSearchMode,
+        searchTerm,
+        youtubeLoading,
+        handleSearch,
+        lastSearchEventId,
+        resetSearch,
+        setVideos,
+        setIsSearchMode,
+        availableTags,
+        selectedTags,
+        handleTagToggle,
+        showYoutubeSearch,
+        loadMoreSearchResults,
+        loadingMore,
+    }), [
+        videos, videosLoading, videosError, fetchVideos, deleteVideo, deleteVideos,
+        updateVideo, refreshThumbnail, redownloadThumbnail, uploadThumbnail,
+        incrementView, searchLocalVideos, searchResults, localSearchResults,
+        isSearchMode, searchTerm, youtubeLoading, handleSearch, lastSearchEventId,
+        resetSearch, setVideos, availableTags, selectedTags, handleTagToggle,
+        showYoutubeSearch, loadMoreSearchResults, loadingMore,
+    ]);
+
+    const tagsValue = useMemo<VideoTagsContextType>(() => ({
+        availableTags,
+        selectedTags,
+        handleTagToggle,
+    }), [availableTags, selectedTags, handleTagToggle]);
+
+    const actionsValue = useMemo<VideoActionsContextType>(() => ({
+        updateVideo,
+        incrementView,
+    }), [updateVideo, incrementView]);
 
     return (
-        <VideoContext.Provider value={{
-            videos,
-            loading: videosLoading,
-            error: videosError ? (videosError as Error).message : null,
-            fetchVideos,
-            deleteVideo,
-            deleteVideos,
-            updateVideo,
-            refreshThumbnail,
-            redownloadThumbnail,
-            uploadThumbnail,
-            incrementView,
-            searchLocalVideos,
-            searchResults,
-            localSearchResults,
-            isSearchMode,
-            searchTerm,
-            youtubeLoading,
-            handleSearch,
-            lastSearchEventId,
-            resetSearch,
-            setVideos,
-            setIsSearchMode,
-            availableTags,
-            selectedTags,
-            handleTagToggle,
-            showYoutubeSearch,
-            loadMoreSearchResults,
-            loadingMore
-        }}>
-            {children}
+        <VideoContext.Provider value={value}>
+            <VideoActionsContext.Provider value={actionsValue}>
+                <VideoTagsContext.Provider value={tagsValue}>
+                    {children}
+                </VideoTagsContext.Provider>
+            </VideoActionsContext.Provider>
         </VideoContext.Provider>
     );
 };

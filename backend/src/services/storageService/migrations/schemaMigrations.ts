@@ -11,6 +11,76 @@ import {
   populateVideoFileSizes,
 } from "./dataBackfill";
 
+// Create performance indexes on the videos, collection_videos, and collections
+// tables for existing databases. These indexes are declared in the schema but
+// older installs created via runtime self-heal (rather than drizzle-kit) will
+// not have them, so we add them idempotently at startup. CREATE INDEX IF NOT
+// EXISTS makes this safe to run on every boot.
+function migratePerformanceIndexes(): void {
+  const indexDefs: Array<{ label: string; sql: string; requires?: string[] }> = [
+    {
+      label: "videos.source_url",
+      sql: "CREATE INDEX IF NOT EXISTS idx_videos_source_url ON videos (source_url)",
+    },
+    {
+      label: "videos.created_at",
+      sql: "CREATE INDEX IF NOT EXISTS idx_videos_created_at ON videos (created_at)",
+    },
+    {
+      label: "videos.visibility",
+      sql: "CREATE INDEX IF NOT EXISTS idx_videos_visibility ON videos (visibility)",
+    },
+    {
+      label: "collection_videos.video_id",
+      sql: "CREATE INDEX IF NOT EXISTS idx_collection_videos_video_id ON collection_videos (video_id)",
+      requires: ["collection_videos"],
+    },
+    {
+      label: "collections.name",
+      sql: "CREATE INDEX IF NOT EXISTS idx_collections_name ON collections (name)",
+      requires: ["collections"],
+    },
+    {
+      label: "collections.title",
+      sql: "CREATE INDEX IF NOT EXISTS idx_collections_title ON collections (title)",
+      requires: ["collections"],
+    },
+    {
+      label: "collections.source_key",
+      sql:
+        "CREATE INDEX IF NOT EXISTS idx_collections_source_key ON collections " +
+        "(source_platform, source_type, source_mid, source_id)",
+      requires: ["collections"],
+    },
+  ];
+
+  for (const { label, sql, requires } of indexDefs) {
+    try {
+      if (requires && requires.length > 0) {
+        // Only create the index if the table exists (very old installs).
+        const tableCheck = sqlite
+          .prepare(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name = ?"
+          )
+          .get(requires[0]);
+        if (!tableCheck) {
+          continue;
+        }
+      }
+      sqlite.prepare(sql).run();
+      logger.debug(`Index ensured: ${label}`);
+    } catch (indexError) {
+      // Indexes might already exist or table might not be ready; ignore.
+      logger.debug(
+        `Index creation skipped for ${label} (may already exist)`,
+        indexError instanceof Error
+          ? indexError
+          : new Error(String(indexError))
+      );
+    }
+  }
+}
+
 // Check and migrate the tags column on the videos table if needed.
 export function migrateTagsColumn(): void {
   try {
@@ -545,6 +615,9 @@ export function migrateColumnsAndTables(): void {
 
     // Backfill video_id in download_history for existing records
     backfillDownloadHistoryVideoIds();
+
+    // Ensure performance indexes exist on existing databases.
+    migratePerformanceIndexes();
   } catch (error) {
     logger.error(
       "Error checking/migrating viewCount/progress/duration/fileSize columns",

@@ -504,6 +504,8 @@ export class MissAVDownloader extends BaseDownloader {
           });
 
           child.on("close", (code, signal) => {
+            // Flush any throttled progress and clear the tracker's timer.
+            progressTracker.dispose();
             if (code === 0) {
               resolve();
             } else if (
@@ -537,7 +539,7 @@ export class MissAVDownloader extends BaseDownloader {
         });
 
         logger.info("Video downloaded successfully");
-      } catch (err: any) {
+      } catch (err: unknown) {
         // Use base class helper for cancellation handling
         const downloader = new MissAVDownloader();
         await downloader.handleCancellationError(err, async () => {
@@ -666,7 +668,7 @@ export class MissAVDownloader extends BaseDownloader {
         },
       });
       return videoData;
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (isCancelledError(error)) {
         logger.info("MissAV-family download cancelled:", { downloadId });
         throw error;

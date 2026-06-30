@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { getErrorMessage } from "../utils/errors";
 import { ValidationError } from "../errors/DownloadErrors";
 import { continuousDownloadService } from "../services/continuousDownloadService";
 import { DownloadOrder } from "../services/continuousDownload/types";
@@ -718,12 +719,12 @@ export const subscribeChannelPlaylists = async (
           collectionId
         );
         subscribedCount++;
-      } catch (error: any) {
+      } catch (error: unknown) {
         logger.error(`Error subscribing to playlist "${title}":`, error);
-        if (error.name === "DuplicateError") {
+        if (error instanceof Error && error.name === "DuplicateError") {
           skippedCount++;
         } else {
-          errors.push(`${title}: ${error.message || "Unknown error"}`);
+          errors.push(`${title}: ${getErrorMessage(error, "Unknown error")}`);
         }
         // Continue to check if we should create download task even if subscription failed
       }

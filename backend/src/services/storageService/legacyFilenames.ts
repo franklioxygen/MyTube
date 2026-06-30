@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { getErrorMessage } from "../../utils/errors";
 import path from "path";
 import { IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../../config/paths";
 import { db } from "../../db";
@@ -313,18 +314,18 @@ export function formatLegacyFilenames(): {
           results.details.push(`Skipped (file missing): ${video.title}`);
           // results.errors++; // Not necessarily an error, maybe just missing file
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         logger.error(
           `Error renaming video ${video.id}`,
           err instanceof Error ? err : new Error(String(err))
         );
         results.errors++;
-        results.details.push(`Error: ${video.title} - ${err.message}`);
+        results.details.push(`Error: ${video.title} - ${getErrorMessage(err)}`);
       }
     }
 
     return results;
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error(
       "Error in formatLegacyFilenames",
       error instanceof Error ? error : new Error(String(error))

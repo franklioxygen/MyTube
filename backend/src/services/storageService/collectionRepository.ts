@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db } from "../../db";
 import { collections, collectionVideos, videos } from "../../db/schema";
 import { DatabaseError } from "../../errors/DownloadErrors";
@@ -172,12 +172,29 @@ export function getCollectionsByVideoId(videoId: string): Collection[] {
 }
 
 /**
- * Find a collection by name or title
+ * Find a collection by name or title.
+ * Uses indexed name/title lookups instead of hydrating every collection
+ * (the previous implementation loaded all collections + their videos). Keep
+ * the title fallback for older rows, but split it into a second query so SQLite
+ * can use the separate indexes rather than planning an OR table scan.
  */
 export function getCollectionByName(name: string): Collection | undefined {
   try {
-    const allCollections = getCollections();
-    return allCollections.find((c) => c.name === name || c.title === name);
+    const nameMatch = db
+      .select({ id: collections.id })
+      .from(collections)
+      .where(eq(collections.name, name))
+      .get();
+    if (nameMatch) {
+      return getCollectionById(nameMatch.id);
+    }
+
+    const titleMatch = db
+      .select({ id: collections.id })
+      .from(collections)
+      .where(eq(collections.title, name))
+      .get();
+    return titleMatch ? getCollectionById(titleMatch.id) : undefined;
   } catch (error) {
     logger.error(
       "Error getting collection by name",
@@ -192,6 +209,7 @@ export function getCollectionByName(name: string): Collection | undefined {
  * Matching is exact on platform/type/mid/id. Used to reuse the same MyTube
  * collection when a Bilibili collection/series link is re-downloaded for repair,
  * instead of relying on fragile name or membership matching.
+ * Backed by idx_collections_source_key.
  */
 export function getCollectionBySourceKey(
   platform: string,
@@ -203,14 +221,19 @@ export function getCollectionBySourceKey(
     return undefined;
   }
   try {
-    const allCollections = getCollections();
-    return allCollections.find(
-      (c) =>
-        c.sourcePlatform === platform &&
-        c.sourceType === type &&
-        c.sourceMid === mid &&
-        c.sourceId === id
-    );
+    const match = db
+      .select({ id: collections.id })
+      .from(collections)
+      .where(
+        and(
+          eq(collections.sourcePlatform, platform),
+          eq(collections.sourceType, type),
+          eq(collections.sourceMid, mid),
+          eq(collections.sourceId, id)
+        )
+      )
+      .get();
+    return match ? getCollectionById(match.id) : undefined;
   } catch (error) {
     logger.error(
       "Error getting collection by source key",
@@ -289,6 +312,62 @@ export function saveCollection(collection: Collection): Collection {
       `Failed to save collection: ${collection.id}`,
       error instanceof Error ? error : new Error(String(error)),
       "saveCollection"
+    );
+  }
+}
+
+/**
+ * Append a single video to the end of a collection without rebuilding the
+ * whole link set. Does a single conditional INSERT guarded by an EXISTS check
+ * (so it never violates the FK), skipping silently if the video is already a
+ * member. Use this instead of saveCollection() when adding one video to a
+ * large collection — saveCollection re-inserts every link with a per-row
+ * existence check.
+ *
+ * Returns the updated collection, or null if the collection does not exist.
+ */
+export function appendVideoToCollection(
+  collectionId: string,
+  videoId: string
+): Collection | null {
+  try {
+    const collection = getCollectionById(collectionId);
+    if (!collection) {
+      return null;
+    }
+
+    // Already a member? Nothing to do.
+    if (collection.videos.includes(videoId)) {
+      return collection;
+    }
+
+    db.transaction(() => {
+      // Single guarded insert: append at the end (order = current size + 1).
+      db.run(sql`
+        INSERT INTO collection_videos (collection_id, video_id, "order")
+        SELECT ${collectionId}, ${videoId}, COALESCE(
+          (SELECT MAX("order") FROM collection_videos WHERE collection_id = ${collectionId}),
+          0
+        ) + 1
+        WHERE EXISTS (SELECT 1 FROM collections WHERE id = ${collectionId})
+          AND EXISTS (SELECT 1 FROM videos WHERE id = ${videoId})
+          AND NOT EXISTS (
+            SELECT 1 FROM collection_videos
+            WHERE collection_id = ${collectionId} AND video_id = ${videoId}
+          )
+      `);
+    });
+
+    return getCollectionById(collectionId) ?? null;
+  } catch (error) {
+    logger.error(
+      "Error appending video to collection",
+      error instanceof Error ? error : new Error(String(error))
+    );
+    throw new DatabaseError(
+      `Failed to append video ${videoId} to collection ${collectionId}`,
+      error instanceof Error ? error : new Error(String(error)),
+      "appendVideoToCollection"
     );
   }
 }

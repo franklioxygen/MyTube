@@ -3,8 +3,7 @@ import path from "path";
 import { NotFoundError, ValidationError } from "../../errors/DownloadErrors";
 import {
   normalizeSafeAbsolutePath,
-  pathExistsTrustedSync,
-  statTrustedSync,
+  statTrusted,
 } from "../../utils/security";
 
 const VIDEO_CONTENT_TYPE_BY_EXTENSION: Record<string, string> = {
@@ -43,11 +42,16 @@ export const resolveMountFilePath = (rawFilePath: string): string => {
   return filePath;
 };
 
-export const assertMountFileExists = (filePath: string): void => {
-  if (!pathExistsTrustedSync(filePath)) {
+export const assertMountFileExists = async (filePath: string): Promise<void> => {
+  // A single async stat call covers both the existence check and the file-type
+  // check on the per-range-request streaming path.
+  let stats: Awaited<ReturnType<typeof statTrusted>>;
+  try {
+    stats = await statTrusted(filePath);
+  } catch {
     throw new NotFoundError("Video file", filePath);
   }
-  if (!statTrustedSync(filePath).isFile()) {
+  if (!stats.isFile()) {
     throw new ValidationError("Path is not a file", "videoPath");
   }
 };

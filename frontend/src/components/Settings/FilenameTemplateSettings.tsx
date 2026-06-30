@@ -1,3 +1,4 @@
+import { getApiErrorMessage } from '../../utils/errors';
 import {
     Alert,
     Box,
@@ -389,10 +390,10 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
                     }
                 );
                 setPreview(res.data);
-            } catch (e: any) {
+            } catch (e: unknown) {
                 setPreview({
                     valid: false,
-                    errors: [e?.response?.data?.error || String(e)],
+                    errors: [getApiErrorMessage(e) || String(e)],
                     resolved: {
                         mode: namingMode,
                         matchedPresetId: presetId,
@@ -524,9 +525,9 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
                 failed: 0,
                 items: [],
             });
-        } catch (e: any) {
+        } catch (e: unknown) {
             setRenameError(
-                e?.response?.data?.error || t('filenameBatchRenameError')
+                getApiErrorMessage(e) || t('filenameBatchRenameError')
             );
         }
     };
@@ -564,7 +565,7 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
                 failed: jobData.failed,
                 items: [],
             });
-        } catch (e: any) {
+        } catch (e: unknown) {
             setExportError(getMediaServerExportErrorMessage(e, mode, t));
         }
     };

@@ -1,3 +1,4 @@
+import { getApiErrorMessage, hasAnyAxiosStatus } from '../../utils/errors';
 import { Alert, Box, Button, CircularProgress, FormControlLabel, LinearProgress, Switch, TextField, Typography } from '@mui/material';
 import axios from 'axios';
 import React, { useState } from 'react';
@@ -161,13 +162,14 @@ const CloudDriveSettings: React.FC<CloudDriveSettingsProps> = ({ settings, onCha
                     message: t('connectionFailedStatus', { status: response.status })
                 });
             }
-        } catch (error: any) {
-            if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
+        } catch (error: unknown) {
+            const code = (error as { code?: string }).code;
+            if (code === 'ECONNREFUSED' || code === 'ENOTFOUND') {
                 setTestResult({
                     type: 'error',
                     message: t('connectionFailedUrl')
                 });
-            } else if (error.response?.status === 401 || error.response?.status === 403) {
+            } else if (hasAnyAxiosStatus(error, [401, 403])) {
                 setTestResult({
                     type: 'error',
                     message: t('authFailed')
@@ -175,7 +177,7 @@ const CloudDriveSettings: React.FC<CloudDriveSettingsProps> = ({ settings, onCha
             } else {
                 setTestResult({
                     type: 'error',
-                    message: t('connectionTestFailed', { error: error.message || t('error') })
+                    message: t('connectionTestFailed', { error: getApiErrorMessage(error) || t('error') })
                 });
             }
         } finally {
@@ -250,11 +252,11 @@ const CloudDriveSettings: React.FC<CloudDriveSettingsProps> = ({ settings, onCha
                     console.error('Failed to parse final progress:', e);
                 }
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             setSyncing(false);
             setTestResult({
                 type: 'error',
-                message: error.message || t('syncFailedMessage'),
+                message: getApiErrorMessage(error) || t('syncFailedMessage'),
             });
         }
     };
@@ -275,10 +277,10 @@ const CloudDriveSettings: React.FC<CloudDriveSettingsProps> = ({ settings, onCha
             } else {
                 throw new Error(response.data?.message || 'Failed to clear cache');
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             setTestResult({
                 type: 'error',
-                message: error.response?.data?.message || error.message || t('clearThumbnailCacheError'),
+                message: getApiErrorMessage(error) || t('clearThumbnailCacheError'),
             });
         } finally {
             setClearingCache(false);

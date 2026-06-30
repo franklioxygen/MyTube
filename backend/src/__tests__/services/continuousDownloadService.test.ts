@@ -66,6 +66,8 @@ vi.mock("../../services/continuousDownload/taskProcessor", () => ({
   TaskProcessor: vi.fn().mockImplementation(function () {
     return {
       processTask: vi.fn().mockResolvedValue(undefined),
+      signalInterruption: vi.fn(),
+      isTaskInterrupted: vi.fn(() => false),
     };
   }),
 }));

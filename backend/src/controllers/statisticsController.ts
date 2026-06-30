@@ -198,6 +198,13 @@ export const ingestEvents = async (
   res.status(202).json(result);
 };
 
+// The overview endpoint runs ~16 COUNT/SUM queries plus several synchronous
+// statfs/stat calls per request. It's an admin dashboard, so the data doesn't
+// change meaningfully within seconds — cache the computed response briefly to
+// avoid re-running the full path on every dashboard poll. Keyed by range.
+const OVERVIEW_CACHE_TTL_MS = 30 * 1000;
+const overviewCache = new Map<number, { value: Record<string, unknown>; expiresAt: number }>();
+
 export const getOverviewEndpoint = async (
   req: Request,
   res: Response
@@ -205,9 +212,18 @@ export const getOverviewEndpoint = async (
   if (!requireAdminAccess(req, res)) return;
   const range = parseRange(req.query.range);
   try {
+    const now = Date.now();
+    const cached = overviewCache.get(range);
+    if (cached && cached.expiresAt > now) {
+      res.json(cached.value);
+      return;
+    }
+
     const overview = getOverview(range);
     const runway = estimateDiskRunway();
-    res.json({ ...overview, diskRunway: runway, statisticsEnabled: isStatisticsEnabled() });
+    const value = { ...overview, diskRunway: runway, statisticsEnabled: isStatisticsEnabled() };
+    overviewCache.set(range, { value, expiresAt: now + OVERVIEW_CACHE_TTL_MS });
+    res.json(value);
   } catch (error) {
     logger.warn(
       "statistics overview failed",

@@ -1,4 +1,5 @@
 import { spawn } from "child_process";
+import { getErrorMessage } from "../errors";
 import { YT_DLP_STALE_AFTER_DAYS } from "./constants";
 import {
   hasCustomConfiguredYtDlpPath,
@@ -81,8 +82,10 @@ async function installYtDlp(options: { upgrade?: boolean } = {}): Promise<void> 
       );
       updatePathAfterAutoInstall();
       return;
-    } catch (error: any) {
-      const stderr = String(error?.stderr || "").trim();
+    } catch (error: unknown) {
+      const stderr = String(
+        (error as { stderr?: unknown })?.stderr || ""
+      ).trim();
       if (stderr) {
         console.warn(`[yt-dlp] ${cmd} failed: ${stderr.split("\n").pop()}`);
       }
@@ -136,29 +139,30 @@ export async function ensureYtDlpAvailable(): Promise<void> {
             resetJsRuntimeFlag();
             resetRemoteComponentsSupport();
             continue;
-          } catch (upgradeError: any) {
+          } catch (upgradeError: unknown) {
             console.warn(
-              `[yt-dlp] Automatic update failed (${upgradeError?.message || "unknown error"}). Continuing with the existing yt-dlp binary.`
+              `[yt-dlp] Automatic update failed (${getErrorMessage(upgradeError, "unknown error")}). Continuing with the existing yt-dlp binary.`
             );
             return;
           }
         }
 
         return;
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const e = err as NodeJS.ErrnoException & { kind?: string };
         // Non-zero exit from --version means binary executed; continue.
-        if (err.kind === "close") {
+        if (e.kind === "close") {
           return;
         }
 
-        if (err.code === "EACCES" || err.code === "EPERM") {
+        if (e.code === "EACCES" || e.code === "EPERM") {
           throw new Error(
             `yt-dlp exists but is not executable at: ${ytDlpPath}. ` +
               "Please fix file permissions or install yt-dlp manually."
           );
         }
 
-        if (err.code === "ENOENT") {
+        if (e.code === "ENOENT") {
           // Only auto-install when using the default path (not a user-configured path).
           if (hasCustomConfiguredYtDlpPath()) {
             throw new Error(
@@ -188,11 +192,11 @@ export async function ensureYtDlpAvailable(): Promise<void> {
         if (hasCustomConfiguredYtDlpPath()) {
           throw new Error(
             `Failed to execute configured yt-dlp at ${ytDlpPath} ` +
-              `(${err.code || "unknown"}): ${err.message}`
+              `(${e.code || "unknown"}): ${e.message}`
           );
         }
         throw new Error(
-          `Failed to execute yt-dlp (${err.code || "unknown"}): ${err.message}`
+          `Failed to execute yt-dlp (${e.code || "unknown"}): ${e.message}`
         );
       }
     }

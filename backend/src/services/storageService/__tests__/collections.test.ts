@@ -49,14 +49,12 @@ describe('collectionsService', () => {
 
     describe('addVideoToCollection', () => {
         it('should add video and move files', () => {
-             const mockCollection = { id: 'col1', name: 'Col Name', videos: [] };
+             const mockCollection = { id: 'col1', name: 'Col Name', videos: ['vid1'] };
              const mockVideo = { id: 'vid1' };
-             
-             // Mock atomic update to call callback immediately
-             vi.mocked(collectionRepo.atomicUpdateCollection).mockImplementation((id, fn) => {
-                 const updated = fn({ ...mockCollection } as any);
-                 return updated;
-             });
+
+             // addVideoToCollection -> linkVideoToCollection uses the single-insert
+             // append path (no specific order requested).
+             vi.mocked(collectionRepo.appendVideoToCollection).mockReturnValue(mockCollection as any);
 
              vi.mocked(videosService.getVideoById).mockReturnValue(mockVideo as any);
              vi.mocked(collectionRepo.getCollections).mockReturnValue([mockCollection as any]);
@@ -64,55 +62,47 @@ describe('collectionsService', () => {
 
              const result = collectionsService.addVideoToCollection('col1', 'vid1');
 
-             expect(collectionRepo.atomicUpdateCollection).toHaveBeenCalledWith('col1', expect.any(Function));
+             expect(collectionRepo.appendVideoToCollection).toHaveBeenCalledWith('col1', 'vid1');
              expect(result?.videos).toContain('vid1');
              expect(collectionFileManager.moveAllFilesToCollection).toHaveBeenCalled();
              expect(videosService.updateVideo).toHaveBeenCalledWith('vid1', { videoPath: '/new/path' });
         });
 
         it('should preserve existing memberships when adding a video to another collection', () => {
-             const targetCollection = { id: 'col-target', name: 'Target', videos: [] };
-             const existingCollection = { id: 'col-existing', name: 'Existing', videos: ['vid1'] };
+             const targetCollection = { id: 'col-target', name: 'Target', videos: ['vid1'] };
 
-             vi.mocked(collectionRepo.getCollections).mockReturnValue([
-                 existingCollection as any,
-                 targetCollection as any,
-             ]);
-             vi.mocked(collectionRepo.atomicUpdateCollection).mockImplementation((id, fn) => {
-                 const base = id === 'col-target' ? targetCollection : existingCollection;
-                 return fn({ ...base, videos: [...base.videos] } as any);
-             });
+             vi.mocked(collectionRepo.appendVideoToCollection).mockReturnValue(targetCollection as any);
 
              const result = collectionsService.addVideoToCollection('col-target', 'vid1', {
                  moveFiles: false,
              });
 
-             expect(collectionRepo.atomicUpdateCollection).toHaveBeenCalledTimes(1);
+             // Append path issues a single guarded insert and does not touch
+             // other collections' memberships.
+             expect(collectionRepo.appendVideoToCollection).toHaveBeenCalledTimes(1);
              expect(result?.videos).toEqual(['vid1']);
-             expect(existingCollection.videos).toEqual(['vid1']);
          });
     });
 
     describe('linkVideoToCollection', () => {
         it('should add video without removing existing collection membership', () => {
-             const targetCollection = { id: 'col2', name: 'Target', videos: [] };
+             const targetCollection = { id: 'col2', name: 'Target', videos: ['vid1'] };
 
-             vi.mocked(collectionRepo.atomicUpdateCollection).mockImplementation((id, fn) => {
-                 const base = id === 'col2' ? targetCollection : { id, videos: ['vid1'] };
-                 return fn({ ...base } as any);
-             });
+             // No specific order requested → single-insert append path.
+             vi.mocked(collectionRepo.appendVideoToCollection).mockReturnValue(targetCollection as any);
 
              const result = collectionsService.linkVideoToCollection('col2', 'vid1', {
                  moveFiles: false,
              });
 
-             expect(collectionRepo.atomicUpdateCollection).toHaveBeenCalledTimes(1);
+             expect(collectionRepo.appendVideoToCollection).toHaveBeenCalledTimes(1);
              expect(result?.videos).toContain('vid1');
          });
 
         it('should insert the video at the requested collection order', () => {
              const targetCollection = { id: 'col2', name: 'Target', videos: ['vid1', 'vid3'] };
 
+             // A specific order is requested → full atomic-update rebuild path.
              vi.mocked(collectionRepo.atomicUpdateCollection).mockImplementation((id, fn) => {
                  const base = id === 'col2' ? targetCollection : { id, videos: [] };
                  return fn({ ...base } as any);
@@ -123,17 +113,35 @@ describe('collectionsService', () => {
                  order: 2,
              });
 
+             expect(collectionRepo.atomicUpdateCollection).toHaveBeenCalledTimes(1);
+             expect(result?.videos).toEqual(['vid1', 'vid2', 'vid3']);
+         });
+
+        it('should use the single-insert append path when the requested order is past the current end', () => {
+             // Bilibili-style ordered backfill appends videos in increasing
+             // playlist order, so the requested order is always past the current
+             // end. This must use the single guarded INSERT, not the O(n) rebuild.
+             const existing = { id: 'col2', name: 'Target', videos: ['vid1', 'vid2'] };
+             const appended = { id: 'col2', name: 'Target', videos: ['vid1', 'vid2', 'vid3'] };
+             vi.mocked(collectionRepo.getCollectionById).mockReturnValue(existing as any);
+             vi.mocked(collectionRepo.appendVideoToCollection).mockReturnValue(appended as any);
+
+             const result = collectionsService.linkVideoToCollection('col2', 'vid3', {
+                 moveFiles: false,
+                 order: 3,
+             });
+
+             expect(collectionRepo.appendVideoToCollection).toHaveBeenCalledTimes(1);
+             expect(collectionRepo.atomicUpdateCollection).not.toHaveBeenCalled();
              expect(result?.videos).toEqual(['vid1', 'vid2', 'vid3']);
          });
 
         it('should not move files for omitted moveFiles under author_folder_only', () => {
-             const targetCollection = { id: 'col2', name: 'Playlist', videos: [] };
+             const targetCollection = { id: 'col2', name: 'Playlist', videos: ['vid1'] };
              settingsMocks.getSettings.mockReturnValue({
                  authorOrganizationMode: 'author_folder_only',
              });
-             vi.mocked(collectionRepo.atomicUpdateCollection).mockImplementation((id, fn) => {
-                 return fn({ ...targetCollection, videos: [...targetCollection.videos] } as any);
-             });
+             vi.mocked(collectionRepo.appendVideoToCollection).mockReturnValue(targetCollection as any);
 
              const result = collectionsService.linkVideoToCollection('col2', 'vid1');
 
@@ -145,7 +153,7 @@ describe('collectionsService', () => {
 
     describe('moveVideoToExclusiveCollection', () => {
         it('should remove the video from every previous collection before linking the new one', () => {
-             const targetCollection = { id: 'col-target', name: 'Target', videos: [] };
+             const targetCollection = { id: 'col-target', name: 'Target', videos: ['vid1'] };
              const oldCollectionOne = { id: 'col-old-1', name: 'Old One', videos: ['vid1'] };
              const oldCollectionTwo = { id: 'col-old-2', name: 'Old Two', videos: ['vid1', 'vid2'] };
 
@@ -155,21 +163,23 @@ describe('collectionsService', () => {
                  oldCollectionTwo as any,
              ]);
 
+             // Removal from prior collections uses the atomic-update rebuild path;
+             // the final link uses the single-insert append path.
              vi.mocked(collectionRepo.atomicUpdateCollection).mockImplementation((id, fn) => {
                  const base =
-                   id === 'col-target'
-                     ? targetCollection
-                     : id === 'col-old-1'
-                       ? oldCollectionOne
-                       : oldCollectionTwo;
+                   id === 'col-old-1'
+                     ? oldCollectionOne
+                     : oldCollectionTwo;
                  return fn({ ...base, videos: [...base.videos] } as any);
              });
+             vi.mocked(collectionRepo.appendVideoToCollection).mockReturnValue(targetCollection as any);
 
              const result = collectionsService.moveVideoToExclusiveCollection('col-target', 'vid1', {
                  moveFiles: false,
              });
 
-             expect(collectionRepo.atomicUpdateCollection).toHaveBeenCalledTimes(3);
+             // atomicUpdateCollection is used only for the two prior-collection removals.
+             expect(collectionRepo.atomicUpdateCollection).toHaveBeenCalledTimes(2);
              expect(collectionRepo.atomicUpdateCollection).toHaveBeenNthCalledWith(
                  1,
                  'col-old-1',
@@ -180,11 +190,8 @@ describe('collectionsService', () => {
                  'col-old-2',
                  expect.any(Function)
              );
-             expect(collectionRepo.atomicUpdateCollection).toHaveBeenNthCalledWith(
-                 3,
-                 'col-target',
-                 expect.any(Function)
-             );
+             // The final link into the target uses the append path.
+             expect(collectionRepo.appendVideoToCollection).toHaveBeenCalledWith('col-target', 'vid1');
              expect(result?.videos).toEqual(['vid1']);
          });
     });

@@ -7,6 +7,8 @@ vi.mock("drizzle-orm", () => ({
   desc: vi.fn((value) => ({ descBy: value })),
   eq: vi.fn((left, right) => ({ left, right })),
   ne: vi.fn((left, right) => ({ left, right })),
+  inArray: vi.fn((column, values) => ({ column, values })),
+  isNotNull: vi.fn((column) => ({ column })),
 }));
 
 vi.mock("../../../db/schema", () => ({
@@ -209,44 +211,19 @@ describe("downloadHistory", () => {
   });
 
   it("returns the latest retryable history item by source url", () => {
-    const all = vi.fn().mockReturnValue([
-      {
-        id: "success-1",
-        title: "Done",
-        status: "success",
-        finishedAt: 300,
-        sourceUrl: "https://www.bilibili.com/video/BV1xx",
-        retryMetadata: "{\"shape\":\"bilibili_all_parts\"}",
-      },
-      {
-        id: "partial-1",
-        title: "Incomplete",
-        status: "partial",
-        finishedAt: 250,
-        sourceUrl: "https://www.bilibili.com/video/BV1xx",
-        downloadType: "bilibili",
-        retryMetadata: "{\"shape\":\"bilibili_all_parts\"}",
-      },
-      {
-        id: "retry-1",
-        title: "Retrying",
-        status: "pending_retry",
-        finishedAt: 200,
-        sourceUrl: "https://www.bilibili.com/video/BV1xx",
-        downloadType: "bilibili",
-        retryMetadata: "{\"shape\":\"bilibili_all_parts\"}",
-      },
-      {
-        id: "failed-1",
-        title: "Failed",
-        status: "failed",
-        finishedAt: 100,
-        sourceUrl: "https://www.bilibili.com/video/BV1xx",
-        downloadType: "bilibili",
-        retryMetadata: "{\"shape\":\"bilibili_all_parts\"}",
-      },
-    ]);
-    const orderBy = vi.fn(() => ({ all }));
+    // The SQL-side filter now excludes success items and orders retryable rows
+    // by finishedAt desc with LIMIT 1, so the mock returns only partial-1.
+    const get = vi.fn().mockReturnValue({
+      id: "partial-1",
+      title: "Incomplete",
+      status: "partial",
+      finishedAt: 250,
+      sourceUrl: "https://www.bilibili.com/video/BV1xx",
+      downloadType: "bilibili",
+      retryMetadata: "{\"shape\":\"bilibili_all_parts\"}",
+    });
+    const limit = vi.fn(() => ({ get }));
+    const orderBy = vi.fn(() => ({ limit }));
     const where = vi.fn(() => ({ orderBy }));
     const from = vi.fn(() => ({ where }));
     vi.mocked(db.select).mockReturnValue({ from } as any);
@@ -265,27 +242,10 @@ describe("downloadHistory", () => {
   });
 
   it("ignores successful items when no retryable history exists", () => {
-    const all = vi.fn().mockReturnValue([
-      {
-        id: "success-1",
-        title: "Done",
-        status: "success",
-        finishedAt: 300,
-        sourceUrl: "https://www.bilibili.com/video/BV1yy",
-        downloadType: "bilibili",
-        retryMetadata: "{\"shape\":\"bilibili_all_parts\"}",
-      },
-      {
-        id: "success-2",
-        title: "Older",
-        status: "success",
-        finishedAt: 200,
-        sourceUrl: "https://www.bilibili.com/video/BV1yy",
-        downloadType: "bilibili",
-        retryMetadata: "{\"shape\":\"bilibili_all_parts\"}",
-      },
-    ]);
-    const orderBy = vi.fn(() => ({ all }));
+    // The SQL-side filter excludes success items, so the query returns nothing.
+    const get = vi.fn().mockReturnValue(undefined);
+    const limit = vi.fn(() => ({ get }));
+    const orderBy = vi.fn(() => ({ limit }));
     const where = vi.fn(() => ({ orderBy }));
     const from = vi.fn(() => ({ where }));
     vi.mocked(db.select).mockReturnValue({ from } as any);
