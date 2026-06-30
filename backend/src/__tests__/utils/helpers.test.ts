@@ -6,8 +6,6 @@ import {
     extractTwitchVideoId,
     extractYouTubeVideoId,
     extractBilibiliMid,
-    extractBilibiliSeasonId,
-    extractBilibiliSeriesId,
     extractBilibiliVideoId,
     extractUrlFromText,
     formatAvatarFilename,
@@ -372,26 +370,6 @@ describe('Helpers', () => {
 
     it('should return null if no mid found', () => {
       expect(extractBilibiliMid('https://www.bilibili.com/')).toBe(null);
-    });
-  });
-
-  describe('extractBilibiliSeasonId', () => {
-    it('should extract season_id', () => {
-      expect(extractBilibiliSeasonId('https://www.bilibili.com/bangumi/play/ss123?season_id=456')).toBe('456');
-    });
-
-    it('should return null for invalid season URL', () => {
-      expect(extractBilibiliSeasonId('not-url')).toBe(null);
-    });
-  });
-
-  describe('extractBilibiliSeriesId', () => {
-    it('should extract series_id', () => {
-      expect(extractBilibiliSeriesId('https://www.bilibili.com/video/BV1xx?series_id=789')).toBe('789');
-    });
-
-    it('should return null for invalid series URL', () => {
-      expect(extractBilibiliSeriesId('not-url')).toBe(null);
     });
   });
 

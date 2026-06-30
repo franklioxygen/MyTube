@@ -14,6 +14,7 @@ import {
 } from "../services/statistics";
 import { getClientIp } from "../utils/security";
 import { logger } from "../utils/logger";
+import { getLimitParam, getPositiveIntegerParam } from "../utils/paramUtils";
 import { sendBadRequest } from "../utils/response";
 
 const MAX_EVENTS_PER_REQUEST = 50;
@@ -198,6 +199,13 @@ export const ingestEvents = async (
   res.status(202).json(result);
 };
 
+// The overview endpoint runs ~16 COUNT/SUM queries plus several synchronous
+// statfs/stat calls per request. It's an admin dashboard, so the data doesn't
+// change meaningfully within seconds — cache the computed response briefly to
+// avoid re-running the full path on every dashboard poll. Keyed by range.
+const OVERVIEW_CACHE_TTL_MS = 30 * 1000;
+const overviewCache = new Map<number, { value: Record<string, unknown>; expiresAt: number }>();
+
 export const getOverviewEndpoint = async (
   req: Request,
   res: Response
@@ -205,9 +213,18 @@ export const getOverviewEndpoint = async (
   if (!requireAdminAccess(req, res)) return;
   const range = parseRange(req.query.range);
   try {
+    const now = Date.now();
+    const cached = overviewCache.get(range);
+    if (cached && cached.expiresAt > now) {
+      res.json(cached.value);
+      return;
+    }
+
     const overview = getOverview(range);
     const runway = estimateDiskRunway();
-    res.json({ ...overview, diskRunway: runway, statisticsEnabled: isStatisticsEnabled() });
+    const value = { ...overview, diskRunway: runway, statisticsEnabled: isStatisticsEnabled() };
+    overviewCache.set(range, { value, expiresAt: now + OVERVIEW_CACHE_TTL_MS });
+    res.json(value);
   } catch (error) {
     logger.warn(
       "statistics overview failed",
@@ -249,9 +266,8 @@ export const getRankingEndpoint = async (
     sendBadRequest(res, "Metric name is required.");
     return;
   }
-  const limit =
-    typeof req.query.limit === "string" ? parseInt(req.query.limit, 10) : 20;
-  res.json({ metric, rows: getRanking(metric, Number.isFinite(limit) ? limit : 20) });
+  const limit = getLimitParam(req.query.limit, 20, 100);
+  res.json({ metric, rows: getRanking(metric, limit) });
 };
 
 export const getHealthEndpoint = async (
@@ -278,8 +294,7 @@ export const exportEndpoint = async (
     typeof req.query.range === "string"
       ? parseRange(req.query.range)
       : undefined;
-  const limit =
-    typeof req.query.limit === "string" ? parseInt(req.query.limit, 10) : undefined;
+  const limit = getPositiveIntegerParam(req.query.limit);
   const body = exportRawEvents({
     format,
     view:
@@ -299,7 +314,7 @@ export const exportEndpoint = async (
       typeof req.query.actorRole === "string" ? req.query.actorRole : undefined,
     sourceKind:
       typeof req.query.sourceKind === "string" ? req.query.sourceKind : undefined,
-    limit: Number.isFinite(limit) ? limit : undefined,
+    limit,
   });
   res.setHeader("X-Content-Type-Options", "nosniff");
   if (format === "csv") {

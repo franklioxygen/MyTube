@@ -11,13 +11,93 @@ import {
   populateVideoFileSizes,
 } from "./dataBackfill";
 
+interface TableColumnInfo {
+  name: string;
+}
+
+/**
+ * Column names from a `PRAGMA table_info(...)` result. Centralizes the single
+ * cast so the migration self-heal checks don't each sprinkle `as any[]`.
+ */
+function columnNames(tableInfo: unknown[]): string[] {
+  return (tableInfo as TableColumnInfo[]).map((col) => col.name);
+}
+
+// Create performance indexes on the videos, collection_videos, and collections
+// tables for existing databases. These indexes are declared in the schema but
+// older installs created via runtime self-heal (rather than drizzle-kit) will
+// not have them, so we add them idempotently at startup. CREATE INDEX IF NOT
+// EXISTS makes this safe to run on every boot.
+function migratePerformanceIndexes(): void {
+  const indexDefs: Array<{ label: string; sql: string; requires?: string[] }> = [
+    {
+      label: "videos.source_url",
+      sql: "CREATE INDEX IF NOT EXISTS idx_videos_source_url ON videos (source_url)",
+    },
+    {
+      label: "videos.created_at",
+      sql: "CREATE INDEX IF NOT EXISTS idx_videos_created_at ON videos (created_at)",
+    },
+    {
+      label: "videos.visibility",
+      sql: "CREATE INDEX IF NOT EXISTS idx_videos_visibility ON videos (visibility)",
+    },
+    {
+      label: "collection_videos.video_id",
+      sql: "CREATE INDEX IF NOT EXISTS idx_collection_videos_video_id ON collection_videos (video_id)",
+      requires: ["collection_videos"],
+    },
+    {
+      label: "collections.name",
+      sql: "CREATE INDEX IF NOT EXISTS idx_collections_name ON collections (name)",
+      requires: ["collections"],
+    },
+    {
+      label: "collections.title",
+      sql: "CREATE INDEX IF NOT EXISTS idx_collections_title ON collections (title)",
+      requires: ["collections"],
+    },
+    {
+      label: "collections.source_key",
+      sql:
+        "CREATE INDEX IF NOT EXISTS idx_collections_source_key ON collections " +
+        "(source_platform, source_type, source_mid, source_id)",
+      requires: ["collections"],
+    },
+  ];
+
+  for (const { label, sql, requires } of indexDefs) {
+    try {
+      if (requires && requires.length > 0) {
+        // Only create the index if the table exists (very old installs).
+        const tableCheck = sqlite
+          .prepare(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name = ?"
+          )
+          .get(requires[0]);
+        if (!tableCheck) {
+          continue;
+        }
+      }
+      sqlite.prepare(sql).run();
+      logger.debug(`Index ensured: ${label}`);
+    } catch (indexError) {
+      // Indexes might already exist or table might not be ready; ignore.
+      logger.debug(
+        `Index creation skipped for ${label} (may already exist)`,
+        indexError instanceof Error
+          ? indexError
+          : new Error(String(indexError))
+      );
+    }
+  }
+}
+
 // Check and migrate the tags column on the videos table if needed.
 export function migrateTagsColumn(): void {
   try {
     const tableInfo = sqlite.prepare("PRAGMA table_info(videos)").all();
-    const hasTags = (tableInfo as any[]).some(
-      (col: any) => col.name === "tags"
-    );
+    const hasTags = columnNames(tableInfo).includes("tags");
 
     if (!hasTags) {
       logger.info("Migrating database: Adding tags column to videos table...");
@@ -44,9 +124,7 @@ function migrateCollectionsAndSubscriptionsColumns(): void {
     const collectionsTableInfo = sqlite
       .prepare("PRAGMA table_info(collections)")
       .all();
-    const collectionsColumns = (collectionsTableInfo as any[]).map(
-      (col: any) => col.name
-    );
+    const collectionsColumns = columnNames(collectionsTableInfo);
 
     if (
       collectionsColumns.length > 0 &&
@@ -88,9 +166,7 @@ function migrateCollectionsAndSubscriptionsColumns(): void {
     const subscriptionsTableInfo = sqlite
       .prepare("PRAGMA table_info(subscriptions)")
       .all();
-    const subscriptionsColumns = (subscriptionsTableInfo as any[]).map(
-      (col: any) => col.name
-    );
+    const subscriptionsColumns = columnNames(subscriptionsTableInfo);
 
     if (!subscriptionsColumns.includes("playlist_id")) {
       logger.info(
@@ -221,7 +297,7 @@ function migrateContinuousDownloadTaskColumns(): void {
     const taskTableInfo = sqlite
       .prepare("PRAGMA table_info(continuous_download_tasks)")
       .all();
-    const taskColumns = (taskTableInfo as any[]).map((col: any) => col.name);
+    const taskColumns = columnNames(taskTableInfo);
 
     if (taskColumns.length > 0) {
       if (!taskColumns.includes("download_order")) {
@@ -265,7 +341,7 @@ function migrateContinuousDownloadTaskColumns(): void {
 export function migrateColumnsAndTables(): void {
   try {
     const tableInfo = sqlite.prepare("PRAGMA table_info(videos)").all();
-    const columns = (tableInfo as any[]).map((col: any) => col.name);
+    const columns = columnNames(tableInfo);
 
     if (!columns.includes("view_count")) {
       logger.info(
@@ -353,9 +429,7 @@ export function migrateColumnsAndTables(): void {
     const downloadsTableInfo = sqlite
       .prepare("PRAGMA table_info(downloads)")
       .all();
-    const downloadsColumns = (downloadsTableInfo as any[]).map(
-      (col: any) => col.name
-    );
+    const downloadsColumns = columnNames(downloadsTableInfo);
 
     if (!downloadsColumns.includes("source_url")) {
       logger.info(
@@ -471,9 +545,7 @@ export function migrateColumnsAndTables(): void {
     const downloadHistoryTableInfo = sqlite
       .prepare("PRAGMA table_info(download_history)")
       .all();
-    const downloadHistoryColumns = (downloadHistoryTableInfo as any[]).map(
-      (col: any) => col.name
-    );
+    const downloadHistoryColumns = columnNames(downloadHistoryTableInfo);
 
     if (!downloadHistoryColumns.includes("video_id")) {
       logger.info(
@@ -545,6 +617,9 @@ export function migrateColumnsAndTables(): void {
 
     // Backfill video_id in download_history for existing records
     backfillDownloadHistoryVideoIds();
+
+    // Ensure performance indexes exist on existing databases.
+    migratePerformanceIndexes();
   } catch (error) {
     logger.error(
       "Error checking/migrating viewCount/progress/duration/fileSize columns",

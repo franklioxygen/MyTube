@@ -40,20 +40,21 @@ describe("TagService", () => {
         tags: ["oldTag", "otherTag"],
       } as any);
 
-      // Mock DB videos
+      // Mock DB videos: the SQL-side json_each filter returns only matching rows,
+      // so the mock supplies only the video that contains oldTag.
       const mockVideos = [
-        { id: "1", tags: JSON.stringify(["oldTag", "tag2"]) }, // Should update
-        { id: "2", tags: JSON.stringify(["tag3"]) },       // Should not update
+        { id: "1", tags: JSON.stringify(["oldTag", "tag2"]) }, // matches oldTag
       ];
 
-      // Setup DB chain mocks
+      // Setup DB chain mocks: select().from().where().all()
       const mockAll = vi.fn().mockReturnValue(mockVideos);
-      const mockFrom = vi.fn().mockReturnValue({ all: mockAll });
+      const mockWhere = vi.fn().mockReturnValue({ all: mockAll });
+      const mockFrom = vi.fn().mockReturnValue({ where: mockWhere });
       vi.mocked(db.select).mockReturnValue({ from: mockFrom } as any);
 
       const mockRun = vi.fn();
-      const mockWhere = vi.fn().mockReturnValue({ run: mockRun });
-      const mockSet = vi.fn().mockReturnValue({ where: mockWhere });
+      const mockWhereUpdate = vi.fn().mockReturnValue({ run: mockRun });
+      const mockSet = vi.fn().mockReturnValue({ where: mockWhereUpdate });
       vi.mocked(db.update).mockReturnValue({ set: mockSet } as any);
 
       const result = renameTag("oldTag", "newTag");
@@ -80,13 +81,14 @@ describe("TagService", () => {
       ];
 
       const mockAll = vi.fn().mockReturnValue(mockVideos);
-      const mockFrom = vi.fn().mockReturnValue({ all: mockAll });
+      const mockWhere = vi.fn().mockReturnValue({ all: mockAll });
+      const mockFrom = vi.fn().mockReturnValue({ where: mockWhere });
       vi.mocked(db.select).mockReturnValue({ from: mockFrom } as any);
 
       // mocks for update
       const mockRun = vi.fn();
-      const mockWhere = vi.fn().mockReturnValue({ run: mockRun });
-      const mockSet = vi.fn().mockReturnValue({ where: mockWhere });
+      const mockWhereUpdate = vi.fn().mockReturnValue({ run: mockRun });
+      const mockSet = vi.fn().mockReturnValue({ where: mockWhereUpdate });
       vi.mocked(db.update).mockReturnValue({ set: mockSet } as any);
 
       renameTag("oldTag", "newTag");
@@ -99,30 +101,31 @@ describe("TagService", () => {
       // Video tags should dedup
       expect(mockSet).toHaveBeenCalledWith({ tags: JSON.stringify(["newTag"]) });
     });
-    
+
     it("should handle error gracefully", () => {
          vi.mocked(settingsService.getSettings).mockImplementation(() => {
              throw new Error("Settings error");
          });
-         
+
          expect(() => renameTag("old", "new")).toThrow("Failed to rename tag");
     });
   });
 
   describe("deleteTagsFromVideos", () => {
     it("should delete tags from videos", () => {
+      // The SQL-side filter returns only videos containing the tag to delete.
       const mockVideos = [
         { id: "1", tags: JSON.stringify(["tagToDelete", "keepTag"]) },
-        { id: "2", tags: JSON.stringify(["keepTag"]) },
       ];
 
       const mockAll = vi.fn().mockReturnValue(mockVideos);
-      const mockFrom = vi.fn().mockReturnValue({ all: mockAll });
+      const mockWhere = vi.fn().mockReturnValue({ all: mockAll });
+      const mockFrom = vi.fn().mockReturnValue({ where: mockWhere });
       vi.mocked(db.select).mockReturnValue({ from: mockFrom } as any);
 
       const mockRun = vi.fn();
-      const mockWhere = vi.fn().mockReturnValue({ run: mockRun });
-      const mockSet = vi.fn().mockReturnValue({ where: mockWhere });
+      const mockWhereUpdate = vi.fn().mockReturnValue({ run: mockRun });
+      const mockSet = vi.fn().mockReturnValue({ where: mockWhereUpdate });
       vi.mocked(db.update).mockReturnValue({ set: mockSet } as any);
 
       const count = deleteTagsFromVideos(["tagToDelete"]);

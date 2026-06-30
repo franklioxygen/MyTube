@@ -1,6 +1,8 @@
-import { en } from "./locales/en";
+import type { en as enTranslations } from "./locales/en";
 
-export const defaultTranslations = en;
+type EnglishTranslations = typeof enTranslations;
+
+export const defaultTranslations: Partial<EnglishTranslations> = {};
 
 // Type-safe locale loader function
 type LocaleLoader = () => Promise<{ [key: string]: any }>;
@@ -8,7 +10,7 @@ type LocaleLoader = () => Promise<{ [key: string]: any }>;
 const getLocaleLoader = (lang: Language): LocaleLoader | null => {
   switch (lang) {
     case "en":
-      return () => Promise.resolve({ en });
+      return () => import("./locales/en");
     case "zh":
       return () => import("./locales/zh");
     case "es":
@@ -72,7 +74,7 @@ export const loadLocale = async (lang: Language) => {
 };
 
 export const translations = {
-  en,
+  en: defaultTranslations as EnglishTranslations,
 };
 
 export type Language =
@@ -86,7 +88,7 @@ export type Language =
   | "ar"
   | "pt"
   | "ru";
-export type TranslationKey = keyof typeof translations.en;
+export type TranslationKey = keyof EnglishTranslations;
 
 /**
  * Maps WebAuthn error messages to translation keys

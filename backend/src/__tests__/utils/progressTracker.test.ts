@@ -137,6 +137,78 @@ describe('ProgressTracker', () => {
     });
   });
 
+  describe('update throttling', () => {
+    it('coalesces rapid updates into a single persisted write within the interval', () => {
+      vi.useFakeTimers();
+      const now = Date.now();
+      vi.setSystemTime(now);
+      try {
+        const tracker = new ProgressTracker('download-throttle');
+        const progress = (p: number) => ({
+          percentage: p,
+          downloadedSize: `${p}MiB`,
+          totalSize: '100MiB',
+          speed: '5MiB/s',
+        });
+
+        // First call persists immediately (lastPersistedAt starts at 0).
+        tracker.update(progress(10));
+        // Subsequent calls within the interval are coalesced (kept in memory only).
+        tracker.update(progress(20));
+        tracker.update(progress(30));
+        tracker.update(progress(40));
+
+        expect(storageService.updateActiveDownload).toHaveBeenCalledTimes(1);
+
+        // After the interval elapses, the pending (latest) progress flushes.
+        vi.advanceTimersByTime(1000);
+        expect(storageService.updateActiveDownload).toHaveBeenCalledTimes(2);
+        expect(storageService.updateActiveDownload).toHaveBeenLastCalledWith(
+          'download-throttle',
+          expect.objectContaining({ progress: 40 })
+        );
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('persists immediately on completion (>= 100%) regardless of throttle', () => {
+      const tracker = new ProgressTracker('download-complete');
+      // Warm up the throttle by setting lastPersistedAt to now.
+      tracker.update({ percentage: 50, downloadedSize: '50MiB', totalSize: '100MiB', speed: '5MiB/s' });
+      const callsBefore = vi.mocked(storageService.updateActiveDownload).mock.calls.length;
+
+      tracker.update({ percentage: 100, downloadedSize: '100MiB', totalSize: '100MiB', speed: '5MiB/s' });
+
+      expect(vi.mocked(storageService.updateActiveDownload).mock.calls.length).toBe(callsBefore + 1);
+      tracker.dispose();
+    });
+
+    it('flush() persists pending progress and clears the scheduled timer', () => {
+      vi.useFakeTimers();
+      try {
+        const tracker = new ProgressTracker('download-flush');
+        tracker.update({ percentage: 50, downloadedSize: '50MiB', totalSize: '100MiB', speed: '5MiB/s' });
+        // A throttled update queued behind the warm-up write.
+        tracker.update({ percentage: 60, downloadedSize: '60MiB', totalSize: '100MiB', speed: '5MiB/s' });
+
+        tracker.flush();
+
+        // Flushing advances the persisted value to the latest pending progress.
+        expect(storageService.updateActiveDownload).toHaveBeenLastCalledWith(
+          'download-flush',
+          expect.objectContaining({ progress: 60 })
+        );
+        // Advancing timers must not trigger a further write (timer was cleared).
+        vi.advanceTimersByTime(1000);
+        const callsAfterFlush = vi.mocked(storageService.updateActiveDownload).mock.calls.length;
+        expect(vi.mocked(storageService.updateActiveDownload).mock.calls.length).toBe(callsAfterFlush);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
+
   describe('parseAndUpdate', () => {
     it('should parse and update when valid progress is found', () => {
       const tracker = new ProgressTracker('download-123');

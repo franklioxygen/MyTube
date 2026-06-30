@@ -1,4 +1,5 @@
 import { isHostnameAllowed } from "./security";
+import { getErrorMessage } from "./errors";
 import {
   extractTwitchChannelLogin as extractLocalTwitchChannelLogin,
   isTwitchChannelUrl as isLocalTwitchChannelUrl,
@@ -158,8 +159,8 @@ export async function resolveShortUrl(url: string): Promise<string> {
       `Short URL host is allowed. Returning normalized URL without outbound resolution: ${safeShortUrl}`,
     );
     return safeShortUrl;
-  } catch (error: any) {
-    console.error(`Error resolving shortened URL: ${error.message}`);
+  } catch (error: unknown) {
+    console.error(`Error resolving shortened URL: ${getErrorMessage(error)}`);
     // If validation fails, return original URL only if it's already validated
     try {
       return buildSafeRequestUrl(url, ALLOWED_BILIBILI_SHORTENER_HOSTNAMES);
@@ -489,28 +490,6 @@ export function extractBilibiliMid(url: string): string | null {
   }
 
   return null;
-}
-
-// Helper function to extract season_id from Bilibili URL
-export function extractBilibiliSeasonId(url: string): string | null {
-  try {
-    const urlObj = new URL(url);
-    const seasonId = urlObj.searchParams.get("season_id");
-    return seasonId;
-  } catch (error) {
-    return null;
-  }
-}
-
-// Helper function to extract series_id from Bilibili URL
-export function extractBilibiliSeriesId(url: string): string | null {
-  try {
-    const urlObj = new URL(url);
-    const seriesId = urlObj.searchParams.get("series_id");
-    return seriesId;
-  } catch (error) {
-    return null;
-  }
 }
 
 // Helper to clean segments for the legacy filename format: remove symbols

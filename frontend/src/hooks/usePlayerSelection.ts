@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
-import { useVideo } from '../contexts/VideoContext';
+import { useVideoActions } from '../contexts/VideoContext';
 import { Video } from '../types';
 import { getAvailablePlayers, getPlayerUrl } from '../utils/playerUtils';
 
@@ -20,7 +20,7 @@ type ClipboardWithOptionalWrite = {
 export const usePlayerSelection = ({ video, getVideoUrl }: UsePlayerSelectionProps) => {
     const { t } = useLanguage();
     const { showSnackbar } = useSnackbar();
-    const { incrementView } = useVideo();
+    const { incrementView } = useVideoActions();
     const [playerMenuAnchor, setPlayerMenuAnchor] = useState<null | HTMLElement>(null);
 
     const handlePlayerMenuClose = () => {

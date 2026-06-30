@@ -1,4 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
+import { getErrorMessage } from "../../utils/errors";
 import { logger } from "../../utils/logger";
 import {
   downloadSingleBilibiliPart,
@@ -19,6 +20,11 @@ import { VideoUrlFetcher } from "./videoUrlFetcher";
  * - YouTube returns Video (direct video object)
  */
 type DownloadResultUnion = DownloadResult | Video;
+
+// Re-read the task status from the DB at most every N iterations. The loop
+// also observes the in-memory interruption signal every iteration, so this
+// only governs how often we re-confirm external (DB-level) changes.
+const STATUS_DB_CHECK_EVERY_ITERS = 10;
 
 /**
  * Extract Video data from download result, handling both result formats
@@ -67,18 +73,93 @@ function getArrayItem<T>(items: readonly T[], index: number): T | null {
   return item ?? null;
 }
 
-function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
 /**
  * Service for processing continuous download tasks
  */
 export class TaskProcessor {
+  // In-memory set of task ids that have been paused/cancelled since the
+  // running loop last checked. Lets the hot loop detect interruption without
+  // polling the DB on every iteration; the loop still falls back to a
+  // throttled DB read as the source of truth.
+  private interruptedTaskIds = new Set<string>();
+
   constructor(
     private taskRepository: TaskRepository,
     private videoUrlFetcher: VideoUrlFetcher
   ) {}
+
+  /**
+   * Signal that a task has been paused or cancelled. The running loop (if any)
+   * observes this via isTaskInterrupted() on its next iteration.
+   */
+  signalInterruption(taskId: string): void {
+    this.interruptedTaskIds.add(taskId);
+  }
+
+  /**
+   * Cheap in-memory interruption check (no DB round-trip).
+   */
+  isTaskInterrupted(taskId: string): boolean {
+    return this.interruptedTaskIds.has(taskId);
+  }
+
+  /**
+   * Drop a task's in-memory interruption signal. Called when a task is resumed
+   * so a quick pause→resume doesn't leave a stale flag that kills the resumed
+   * worker before it observes the new "active" status.
+   */
+  clearInterruption(taskId: string): void {
+    this.interruptedTaskIds.delete(taskId);
+  }
+
+  /**
+   * Decide whether the loop should stop because of an interruption signal.
+   *
+   * The in-memory flag is only a fast hint, not the source of truth: when it is
+   * set we confirm against the DB. If the task is "active" again (a quick
+   * pause→resume landed while this loop was mid-iteration), the signal is stale —
+   * we clear it and keep going so the task isn't left active with no worker.
+   * Returns true only when the DB confirms the task is no longer active.
+   */
+  private async shouldStopForInterruption(taskId: string): Promise<boolean> {
+    if (!this.isTaskInterrupted(taskId)) {
+      return false;
+    }
+    const status = await this.taskRepository.getTaskStatus(taskId);
+    if (status === "active") {
+      this.clearInterruption(taskId);
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * Returns true if the task is still "active" and the loop should continue.
+   *
+   * Checks the cheap in-memory interruption signal first (confirmed against the
+   * DB before stopping — see shouldStopForInterruption). To stay resilient to
+   * external (DB-level) status changes, it also re-reads the DB status on a
+   * throttle (every STATUS_DB_CHECK_EVERY_ITERS iterations) rather than on
+   * every iteration — this removes the per-video DB round-trips while still
+   * bounding the worst-case detection latency.
+   */
+  private async isTaskStillActive(
+    taskId: string,
+    iteration: number,
+    startIndex: number
+  ): Promise<boolean> {
+    if (await this.shouldStopForInterruption(taskId)) {
+      return false;
+    }
+    const sinceStart = iteration - startIndex;
+    if (sinceStart % STATUS_DB_CHECK_EVERY_ITERS === 0) {
+      const status = await this.taskRepository.getTaskStatus(taskId);
+      if (status !== "active") {
+        return false;
+      }
+    }
+    return true;
+  }
 
   /**
    * Process a continuous download task
@@ -124,10 +205,12 @@ export class TaskProcessor {
     let batchStartIndex = -1;
 
     // Process videos one by one
-    for (let i = task.currentVideoIndex; i < totalVideos; i++) {
-      // Check if task was cancelled or paused - check EVERY iteration
-      const currentTaskStatus = await this.taskRepository.getTaskStatus(task.id);
-      if (currentTaskStatus !== "active") {
+    const startIndex = task.currentVideoIndex;
+    for (let i = startIndex; i < totalVideos; i++) {
+      // Check if task was cancelled or paused. Uses the in-memory interruption
+      // signal plus a throttled DB read (see isTaskStillActive).
+      const stillActive = await this.isTaskStillActive(task.id, i, startIndex);
+      if (!stillActive) {
         logger.info(`Task ${task.id} was cancelled or paused`);
         break;
       }
@@ -187,12 +270,10 @@ export class TaskProcessor {
         videoUrl = fullListVideoUrl;
       }
 
-      // Double-check status right before starting video download
-      // This prevents starting a new download if task was paused between iterations
-      const taskStatusBeforeDownload = await this.taskRepository.getTaskStatus(
-        task.id
-      );
-      if (taskStatusBeforeDownload !== "active") {
+      // Re-check the interruption signal before starting the slow download.
+      // The in-memory flag is confirmed against the DB so a quick pause→resume
+      // doesn't abort the (now active) task here.
+      if (await this.shouldStopForInterruption(task.id)) {
         logger.info(
           `Task ${task.id} was cancelled or paused before starting video download`
         );
@@ -260,12 +341,10 @@ export class TaskProcessor {
         }
       }
 
-      // Check status again after video processing completes
-      // This ensures we stop immediately if task was paused during the download
-      const taskStatusAfterDownload = await this.taskRepository.getTaskStatus(
-        task.id
-      );
-      if (taskStatusAfterDownload !== "active") {
+      // Stop promptly if task was paused/cancelled during the download. Avoid a
+      // per-video DB poll here; service-level pause/cancel sets the interruption
+      // signal and external DB changes are covered by the throttled loop check.
+      if (this.isTaskInterrupted(task.id)) {
         logger.info(
           `Task ${task.id} was cancelled or paused after video download`
         );
@@ -295,6 +374,10 @@ export class TaskProcessor {
         `Completed continuous download task ${task.id}: ${finalTask.downloadedCount} downloaded, ${finalTask.skippedCount} skipped, ${finalTask.failedCount} failed`
       );
     }
+
+    // Clear any in-memory interruption flag so a future run of the same task id
+    // isn't observed as already interrupted.
+    this.clearInterruption(task.id);
   }
 
   /**
@@ -358,18 +441,14 @@ export class TaskProcessor {
     progressState: TaskProgressState,
     maxConcurrentDownloads: number
   ): Promise<void> {
-    // Check status one more time right before starting the download
-    // This is the last chance to abort before a potentially long download operation
-    const taskStatusCheck = await this.taskRepository.getTaskStatus(task.id);
-    if (taskStatusCheck !== "active") {
+    // Last cheap chance to abort before a potentially long download operation.
+    // The outer loop already performs throttled DB checks; this avoids turning
+    // every successful video into another status round-trip.
+    if (this.isTaskInterrupted(task.id)) {
       logger.info(
         `Task ${task.id} was cancelled or paused, aborting video download`
       );
-      throw new Error(
-        `Task ${task.id} is not active (status: ${
-          taskStatusCheck || "not found"
-        })`
-      );
+      throw new Error(`Task ${task.id} is not active (interrupted)`);
     }
 
     // Check if video already exists
@@ -503,19 +582,15 @@ export class TaskProcessor {
     taskId: string,
     maxConcurrent: number
   ): Promise<void> {
-    // Poll until a slot is available
+    // Poll until a slot is available. DB status is re-read on the same throttle
+    // used by the main loop; service-level pause/cancel is checked every poll.
+    let pollCount = 0;
     for (;;) {
-      // Check if task was cancelled or paused while waiting
-      const currentTaskStatus = await this.taskRepository.getTaskStatus(taskId);
-      if (currentTaskStatus !== "active") {
+      if (this.isTaskInterrupted(taskId)) {
         logger.info(
           `Task ${taskId} was cancelled or paused while waiting for download slot`
         );
-        throw new Error(
-          `Task ${taskId} is not active (status: ${
-            currentTaskStatus || "not found"
-          })`
-        );
+        throw new Error(`Task ${taskId} is not active (interrupted)`);
       }
 
       const downloadStatus = storageService.getDownloadStatus();
@@ -528,6 +603,21 @@ export class TaskProcessor {
         );
         return;
       }
+
+      if (pollCount % STATUS_DB_CHECK_EVERY_ITERS === 0) {
+        const currentTaskStatus = await this.taskRepository.getTaskStatus(taskId);
+        if (currentTaskStatus !== "active") {
+          logger.info(
+            `Task ${taskId} was cancelled or paused while waiting for download slot`
+          );
+          throw new Error(
+            `Task ${taskId} is not active (status: ${
+              currentTaskStatus || "not found"
+            })`
+          );
+        }
+      }
+      pollCount++;
 
       // Wait a bit before checking again
       // Conservative polling interval prevents excessive CPU usage while

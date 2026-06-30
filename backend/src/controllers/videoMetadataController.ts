@@ -23,7 +23,6 @@ import {
   isPathWithinDirectory,
   normalizeSafeAbsolutePath,
   pathExistsSafe,
-  pathExistsSafeSync,
   removeSafe,
   resolveSafeChildPath,
   statSafe,
@@ -48,9 +47,9 @@ const resolveStoredThumbnailPath = (thumbnailPath: string): string | null => {
   return getThumbnailRelativePath(thumbnailPath);
 };
 
-const resolveLocalThumbnailAbsolutePath = (
+const resolveLocalThumbnailAbsolutePath = async (
   thumbnailPath: string,
-): string | null => {
+): Promise<string | null> => {
   const relativePath = getThumbnailRelativePath(thumbnailPath);
   if (!relativePath) {
     return null;
@@ -82,7 +81,7 @@ const resolveLocalThumbnailAbsolutePath = (
   }
 
   const imageCandidate = resolveSafeChildPath(IMAGES_DIR, relativePath);
-  if (pathExistsSafeSync(imageCandidate, IMAGES_DIR)) {
+  if (await pathExistsSafe(imageCandidate, IMAGES_DIR)) {
     return imageCandidate;
   }
 
@@ -90,7 +89,7 @@ const resolveLocalThumbnailAbsolutePath = (
 };
 
 const removeImageFileSafely = async (imagePath: string): Promise<void> => {
-  const safeResolvedPath = resolveLocalThumbnailAbsolutePath(imagePath);
+  const safeResolvedPath = await resolveLocalThumbnailAbsolutePath(imagePath);
   if (!safeResolvedPath) {
     return;
   }
@@ -272,7 +271,7 @@ export const refreshThumbnail = async (
     const relativePath = video.videoPath.replace(/^\/videos\//, "");
     const candidatePath = validateVideoPath(`${VIDEOS_DIR}/${relativePath}`);
     attemptedPaths.push(candidatePath);
-    if (pathExistsSafeSync(candidatePath, VIDEOS_DIR)) {
+    if (await pathExistsSafe(candidatePath, VIDEOS_DIR)) {
       validatedVideoPath = candidatePath;
     }
   }
@@ -281,7 +280,7 @@ export const refreshThumbnail = async (
     const safeVideoFilename = path.basename(video.videoFilename);
     const rootPath = validateVideoPath(`${VIDEOS_DIR}/${safeVideoFilename}`);
     attemptedPaths.push(rootPath);
-    if (pathExistsSafeSync(rootPath, VIDEOS_DIR)) {
+    if (await pathExistsSafe(rootPath, VIDEOS_DIR)) {
       validatedVideoPath = rootPath;
     } else {
       const fallbackPath = storageService.findVideoFile(
@@ -291,7 +290,7 @@ export const refreshThumbnail = async (
       if (fallbackPath) {
         const safeFallbackPath = validateVideoPath(fallbackPath);
         attemptedPaths.push(safeFallbackPath);
-        if (pathExistsSafeSync(safeFallbackPath, VIDEOS_DIR)) {
+        if (await pathExistsSafe(safeFallbackPath, VIDEOS_DIR)) {
           validatedVideoPath = safeFallbackPath;
         }
       }

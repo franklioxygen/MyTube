@@ -16,11 +16,10 @@ import { resolvePlayableVideoFilePath } from "../utils/videoFileResolver";
 import {
   createReadStreamSafe,
   createWriteStreamSafe,
-  pathExistsSafeSync,
+  removeSafe,
   resolveSafePath,
   sanitizePathSegment,
-  unlinkSafeSync,
-  writeFileSafeSync,
+  writeFileSafe,
 } from "../utils/security";
 import { getVisibilityScopedRole } from "./video/visibility";
 import { sendData, sendSuccess } from "./video/responses";
@@ -397,21 +396,20 @@ export const uploadSubtitle = async (
   if (!sourceFilename) {
     throw new ValidationError("Invalid subtitle file path", "file");
   }
-  fs.ensureDirSync(SUBTITLES_DIR);
+  await fs.ensureDir(SUBTITLES_DIR);
   // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
   let sourcePath = resolveSafePath(path.join(SUBTITLES_DIR, sourceFilename), SUBTITLES_DIR);
-  writeFileSafeSync(sourcePath, SUBTITLES_DIR, req.file.buffer);
+  await writeFileSafe(sourcePath, SUBTITLES_DIR, req.file.buffer);
   let filename = sourceFilename;
 
   // Find the video first
   const video = storageService.getVideoById(id);
   if (!video) {
-    // Clean up the uploaded file if video doesn't exist
+    // Clean up the uploaded file if video doesn't exist. removeSafe is a no-op
+    // when the path is already gone, so no existence check is needed.
     if (req.file) {
       try {
-        if (pathExistsSafeSync(sourcePath, SUBTITLES_DIR)) {
-          unlinkSafeSync(sourcePath, SUBTITLES_DIR);
-        }
+        await removeSafe(sourcePath, SUBTITLES_DIR);
       } catch {
         // Ignore cleanup path validation errors for already-missing/invalid temp paths.
       }
@@ -446,13 +444,11 @@ export const uploadSubtitle = async (
         readStream.pipe(assToVttStream);
         assToVttStream.pipe(writeStream);
       });
-      unlinkSafeSync(sourcePath, SUBTITLES_DIR);
+      await removeSafe(sourcePath, SUBTITLES_DIR);
       sourcePath = vttPath;
       filename = path.basename(vttPath);
     } catch (err) {
-      if (pathExistsSafeSync(sourcePath, SUBTITLES_DIR)) {
-        unlinkSafeSync(sourcePath, SUBTITLES_DIR);
-      }
+      await removeSafe(sourcePath, SUBTITLES_DIR);
       logger.error("ASS/SSA to VTT conversion failed:", err);
       throw new ValidationError(
         "Invalid ASS/SSA file or conversion failed. Try uploading VTT or SRT.",
@@ -600,7 +596,7 @@ export const serveMountVideo = async (
 
   const rawFilePath = mountVideoPath.substring(6);
   const filePath = resolveMountFilePath(rawFilePath);
-  assertMountFileExists(filePath);
+  await assertMountFileExists(filePath);
   setMountVideoHeaders(res, filePath);
   res.sendFile(path.basename(filePath), { root: path.dirname(filePath) });
 };

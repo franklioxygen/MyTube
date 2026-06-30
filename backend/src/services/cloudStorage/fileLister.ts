@@ -17,6 +17,29 @@ const fileListCache = new Map<string, CachedFileList>();
 // File list cache TTL: 1 minute
 const FILE_LIST_CACHE_TTL_MS = 60 * 1000;
 
+// How often to sweep expired entries. Without this the map grew unbounded over
+// the process lifetime — entries were skipped on read once expired but never
+// removed, retaining file-list arrays indefinitely.
+const FILE_LIST_SWEEP_INTERVAL_MS = 5 * 60 * 1000;
+
+function sweepExpiredFileLists(): void {
+  const now = Date.now();
+  let removed = 0;
+  for (const [key, entry] of fileListCache) {
+    if (entry.timestamp + FILE_LIST_CACHE_TTL_MS <= now) {
+      fileListCache.delete(key);
+      removed++;
+    }
+  }
+  if (removed > 0) {
+    logger.debug(
+      `[CloudStorage] Swept ${removed} expired file list cache entries`
+    );
+  }
+}
+
+setInterval(sweepExpiredFileLists, FILE_LIST_SWEEP_INTERVAL_MS).unref?.();
+
 /**
  * Get file list from OpenList with caching
  * @param config - Cloud drive configuration
@@ -31,11 +54,15 @@ export async function getFileList(
   const cached = fileListCache.get(cacheKey);
   const now = Date.now();
 
-  if (cached && now < cached.timestamp + FILE_LIST_CACHE_TTL_MS) {
-    logger.debug(
-      `[CloudStorage] Using cached file list for path: ${uploadPath}`
-    );
-    return cached.files;
+  if (cached) {
+    if (now < cached.timestamp + FILE_LIST_CACHE_TTL_MS) {
+      logger.debug(
+        `[CloudStorage] Using cached file list for path: ${uploadPath}`
+      );
+      return cached.files;
+    }
+    // Expired: evict now so the map doesn't retain dead entries between sweeps.
+    fileListCache.delete(cacheKey);
   }
 
   // Cache miss or expired, fetch from OpenList

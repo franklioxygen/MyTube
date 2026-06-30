@@ -1,4 +1,5 @@
 import { IMAGES_DIR, VIDEOS_DIR } from "../../../config/paths";
+import { getErrorMessage } from "../../../utils/errors";
 import { DownloadCancelledError } from "../../../errors/DownloadErrors";
 import { isCancellationError } from "../../../utils/downloadUtils";
 import { formatVideoFilename } from "../../../utils/helpers";
@@ -107,7 +108,7 @@ export async function downloadSinglePart(
         downloadId,
         onStart
       );
-    } catch (error: any) {
+    } catch (error: unknown) {
       // If download was cancelled, re-throw immediately without downloading subtitles or creating video data
       const downloader = new BilibiliDownloaderHelper();
       downloader.handleCancellationErrorPublic(error);
@@ -456,7 +457,7 @@ export async function downloadSinglePart(
       rawSourceInfo: bilibiliInfo,
     });
     return { success: true, videoData };
-  } catch (error: any) {
+  } catch (error: unknown) {
     // A cancelled part must abort the whole download, not be recorded as a
     // failed episode. downloadCollection relies on a thrown DownloadCancelledError
     // to stop its loop, so let cancellations propagate instead of swallowing
@@ -468,6 +469,6 @@ export async function downloadSinglePart(
       `Error downloading Bilibili part ${partNumber}/${totalParts}:`,
       error
     );
-    return { success: false, error: error.message };
+    return { success: false, error: getErrorMessage(error) };
   }
 }

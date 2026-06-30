@@ -3,6 +3,7 @@
  */
 
 import path from "path";
+import { getErrorMessage } from "../../utils/errors";
 import { logger } from "../../utils/logger";
 import { updateVideo } from "../storageService";
 import { clearFileListCache } from "./fileLister";
@@ -192,12 +193,12 @@ export async function uploadVideo(
             deletedFiles.push(filePath);
             logger.info(`[CloudStorage] Deleted local file: ${filePath}`);
           }
-        } catch (deleteError: any) {
+        } catch (deleteError: unknown) {
           logger.error(
             `[CloudStorage] Failed to delete local file ${filePath}:`,
             deleteError instanceof Error
               ? deleteError
-              : new Error(deleteError.message)
+              : new Error(getErrorMessage(deleteError))
           );
           // Don't throw - continue with other files
         }
@@ -237,12 +238,12 @@ export async function uploadVideo(
           const uploadPath = normalizeUploadPath(config.uploadPath);
           clearFileListCache(uploadPath);
         }
-      } catch (updateError: any) {
+      } catch (updateError: unknown) {
         logger.error(
           `[CloudStorage] Failed to update video record with cloud paths:`,
           updateError instanceof Error
             ? updateError
-            : new Error(updateError.message)
+            : new Error(getErrorMessage(updateError))
         );
         // Don't throw - file deletion was successful
       }

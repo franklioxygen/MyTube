@@ -6,17 +6,9 @@ import {
   resolveSafeChildPath,
   statSafeSync,
 } from "./security";
+import { VIDEO_CONTAINER_EXTENSIONS } from "./videoExtensions";
 
-const VIDEO_CONTAINER_EXTENSIONS = new Set([
-  ".mp4",
-  ".webm",
-  ".mkv",
-  ".avi",
-  ".mov",
-  ".m4v",
-  ".flv",
-  ".3gp",
-]);
+const VIDEO_CONTAINER_EXTENSION_SET = new Set<string>(VIDEO_CONTAINER_EXTENSIONS);
 
 const TEMP_FILE_SUFFIXES = [".part", ".ytdl"];
 const AUDIO_ONLY_YTDLP_FORMAT_IDS = new Set([
@@ -74,7 +66,7 @@ const isLikelySplitVideoArtifact = (
   }
 
   const ext = path.extname(filename).toLowerCase();
-  return VIDEO_CONTAINER_EXTENSIONS.has(ext);
+  return VIDEO_CONTAINER_EXTENSION_SET.has(ext);
 };
 
 const isLikelyMergedOutputCandidate = (
@@ -88,7 +80,7 @@ const isLikelyMergedOutputCandidate = (
   const parsed = path.parse(filename);
   return (
     parsed.name === expectedBaseName &&
-    VIDEO_CONTAINER_EXTENSIONS.has(parsed.ext.toLowerCase())
+    VIDEO_CONTAINER_EXTENSION_SET.has(parsed.ext.toLowerCase())
   );
 };
 

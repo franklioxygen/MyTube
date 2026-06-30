@@ -402,51 +402,77 @@ export function ingestBatch(
   const tz = getResolvedTimezone();
   const ins = insertStatement();
 
-  for (const evt of events) {
-    if (!FRONTEND_ALLOWED_TYPES.has(evt.eventType)) {
-      result.droppedCount += 1;
-      continue;
-    }
-    try {
-      const recordedAt = Date.now();
-      const day = dayBucket(recordedAt, tz);
-      if (isDaySealed(day)) {
-        handleSealedDayDrop(result);
+  // Ingest the whole batch inside one transaction so the per-event event insert,
+  // day-dirty upsert, and ingestion-minute counter upserts commit together once
+  // instead of fsync-ing on every event (better-sqlite3 is synchronous). Per-event
+  // failures are caught inside the loop, so one bad event never rolls back the rest.
+  const ingestAll = sqlite.transaction((batch: BatchIngestEvent[]) => {
+    for (const evt of batch) {
+      if (!FRONTEND_ALLOWED_TYPES.has(evt.eventType)) {
+        result.droppedCount += 1;
         continue;
       }
+      try {
+        const recordedAt = Date.now();
+        const day = dayBucket(recordedAt, tz);
+        if (isDaySealed(day)) {
+          handleSealedDayDrop(result);
+          continue;
+        }
 
-      writePersistedStatisticsEvent(
-        ins,
-        buildPersistedStatisticsEvent(
-          {
-            ...evt,
-            actorRole: options.actorRole,
-            eventType: evt.eventType,
-            platform: evt.platform ? normalizePlatform(evt.platform) : null,
-            sourceKind: evt.sourceKind ? normalizeSourceKind(evt.sourceKind) : null,
-            surface: normalizeSurface(options.surface),
-          },
-          {
-            recordedAt,
-            day,
-            clientOccurredAt: sanitizeClientOccurredAt(evt.clientOccurredAt, recordedAt),
-            surface: normalizeSurface(evt.surface ?? options.surface ?? "web"),
-            subscriptionId: null,
-            rssTokenId: null,
-          }
-        )
-      );
-      markDayDirty(day, recordedAt);
-      result.acceptedCount += 1;
-      bumpIngestionMinute("accepted");
-    } catch (error) {
-      logger.debug(
-        "Failed to ingest batch event",
-        error instanceof Error ? error : new Error(String(error))
-      );
-      result.droppedCount += 1;
-      bumpIngestionMinute("error");
+        writePersistedStatisticsEvent(
+          ins,
+          buildPersistedStatisticsEvent(
+            {
+              ...evt,
+              actorRole: options.actorRole,
+              eventType: evt.eventType,
+              platform: evt.platform ? normalizePlatform(evt.platform) : null,
+              sourceKind: evt.sourceKind ? normalizeSourceKind(evt.sourceKind) : null,
+              surface: normalizeSurface(options.surface),
+            },
+            {
+              recordedAt,
+              day,
+              clientOccurredAt: sanitizeClientOccurredAt(evt.clientOccurredAt, recordedAt),
+              surface: normalizeSurface(evt.surface ?? options.surface ?? "web"),
+              subscriptionId: null,
+              rssTokenId: null,
+            }
+          )
+        );
+        markDayDirty(day, recordedAt);
+        result.acceptedCount += 1;
+        bumpIngestionMinute("accepted");
+      } catch (error) {
+        logger.debug(
+          "Failed to ingest batch event",
+          error instanceof Error ? error : new Error(String(error))
+        );
+        result.droppedCount += 1;
+        bumpIngestionMinute("error");
+      }
     }
+  });
+
+  try {
+    ingestAll(events);
+  } catch (error) {
+    // A failure at the transaction boundary (e.g. commit-time SQLITE_BUSY or a
+    // full disk) rolls the whole batch back — nothing was persisted, even though
+    // the in-memory `result` counters were incremented inside the function. Don't
+    // let this bubble into a 500; report the batch as dropped and record one
+    // ingestion-health error (outside the rolled-back transaction).
+    logger.warn(
+      "Statistics batch ingest transaction failed; dropping batch",
+      error instanceof Error ? error : new Error(String(error))
+    );
+    bumpIngestionMinute("error");
+    return {
+      acceptedCount: 0,
+      droppedCount: events.length,
+      sealedDayDropCount: 0,
+    };
   }
   return result;
 }

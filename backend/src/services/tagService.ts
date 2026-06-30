@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "../db";
 import { videos } from "../db/schema";
 import { DatabaseError } from "../errors/DownloadErrors";
@@ -8,6 +8,45 @@ import { getSettings, saveSettings } from "./storageService/settings";
 interface RenameTagResult {
   updatedVideosCount: number;
   settingsUpdated: boolean;
+}
+
+/**
+ * Return the {id, tags} rows for every video whose tags JSON array contains
+ * `tagName`. Uses SQLite's json_each so we only hydrate matching rows instead
+ * of loading and parsing the entire videos table (the previous implementation
+ * scanned every video in JS).
+ */
+function getVideosWithTag(tagName: string): Array<{ id: string; tags: string | null }> {
+  return db
+    .select({ id: videos.id, tags: videos.tags })
+    .from(videos)
+    .where(
+      sql`EXISTS (SELECT 1 FROM json_each(${videos.tags}) WHERE json_valid(${videos.tags}) AND json_each.value = ${tagName})`
+    )
+    .all();
+}
+
+/**
+ * Return the {id, tags} rows for every video whose tags JSON array contains any
+ * of `tagNames`.
+ */
+function getVideosWithAnyTag(
+  tagNames: string[]
+): Array<{ id: string; tags: string | null }> {
+  if (tagNames.length === 0) return [];
+  // Build a parameterized IN-list over json_each values. Each entry in the
+  // sql.join is bound as a separate parameter.
+  const inList = sql.join(
+    tagNames.map((name) => sql`${name}`),
+    sql`, `
+  );
+  return db
+    .select({ id: videos.id, tags: videos.tags })
+    .from(videos)
+    .where(
+      sql`EXISTS (SELECT 1 FROM json_each(${videos.tags}) WHERE json_valid(${videos.tags}) AND json_each.value IN (${inList}))`
+    )
+    .all();
 }
 
 /**
@@ -41,41 +80,35 @@ export function renameTag(oldTag: string, newTag: string): RenameTagResult {
       result.settingsUpdated = true;
     }
 
-    // 2. Update videos
-    // There is no easy "update where json contains" in standard SQL without json extensions, 
-    // and we are using drizzle with sqlite which might support it but it's often safer/easier 
-    // to just iterate given the likely scale (thousands of videos is fine).
-    // Efficiency note: If we had millions, we'd need a better query.
-    
-    const allVideos = db.select().from(videos).all();
-    
+    // 2. Update videos. Only load rows whose tags JSON array actually contains
+    // oldTag (filtered in SQL via json_each), then rewrite each match.
+    const matchingVideos = getVideosWithTag(oldTag);
+
     db.transaction(() => {
-        for (const video of allVideos) {
+        for (const video of matchingVideos) {
             if (!video.tags) continue;
-            
+
             let videoTags: string[] = [];
             try {
                 videoTags = JSON.parse(video.tags);
-            } catch (e) {
+            } catch {
                 continue;
             }
 
-            if (videoTags.includes(oldTag)) {
-                // Replace oldTag with newTag
-                const updatedTags = videoTags.map(t => t === oldTag ? newTag : t);
-                // Dedup
-                const uniqueUpdatedTags = [...new Set(updatedTags)];
-                
-                db.update(videos)
-                  .set({ tags: JSON.stringify(uniqueUpdatedTags) })
-                  .where(eq(videos.id, video.id))
-                  .run();
-                
-                result.updatedVideosCount++;
-            }
+            // Replace oldTag with newTag
+            const updatedTags = videoTags.map(t => t === oldTag ? newTag : t);
+            // Dedup
+            const uniqueUpdatedTags = [...new Set(updatedTags)];
+
+            db.update(videos)
+              .set({ tags: JSON.stringify(uniqueUpdatedTags) })
+              .where(eq(videos.id, video.id))
+              .run();
+
+            result.updatedVideosCount++;
         }
     });
-    
+
     logger.info(`Renamed tag "${oldTag}" to "${newTag}". Updated ${result.updatedVideosCount} videos.`);
     return result;
 
@@ -152,33 +185,30 @@ export function deleteTagsFromVideos(tagsToDelete: string[]): number {
 
   try {
     let updatedVideosCount = 0;
-    const allVideos = db.select().from(videos).all();
+    // Only load rows whose tags JSON array contains at least one of the tags
+    // being deleted (filtered in SQL via json_each).
+    const matchingVideos = getVideosWithAnyTag(tagsToDelete);
 
     db.transaction(() => {
-      for (const video of allVideos) {
+      for (const video of matchingVideos) {
         if (!video.tags) continue;
 
         let videoTags: string[] = [];
         try {
           videoTags = JSON.parse(video.tags);
-        } catch (e) {
+        } catch {
           continue;
         }
 
-        // Check if video has any of the tags to delete
-        const hasTagToDelete = videoTags.some(tag => tagsToDelete.includes(tag));
-        
-        if (hasTagToDelete) {
-          // Filter out deleted tags
-          const updatedTags = videoTags.filter(tag => !tagsToDelete.includes(tag));
-          
-          db.update(videos)
-            .set({ tags: JSON.stringify(updatedTags) })
-            .where(eq(videos.id, video.id))
-            .run();
+        // Filter out deleted tags
+        const updatedTags = videoTags.filter(tag => !tagsToDelete.includes(tag));
 
-          updatedVideosCount++;
-        }
+        db.update(videos)
+          .set({ tags: JSON.stringify(updatedTags) })
+          .where(eq(videos.id, video.id))
+          .run();
+
+        updatedVideosCount++;
       }
     });
 

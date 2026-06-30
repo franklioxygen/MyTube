@@ -12,11 +12,14 @@ interface LCPImagePreloaderProps {
 }
 
 export const LCPImagePreloader: React.FC<LCPImagePreloaderProps> = ({ videos }) => {
-    useLayoutEffect(() => {
-        if (videos.length === 0) return;
+    // Derive a stable key from the first video so the effect only re-runs (and
+    // re-inserts a preload link) when the LCP candidate actually changes, not on
+    // every render with a new `videos` array reference.
+    const firstVideo = videos[0];
+    const lcpKey = firstVideo?.id ?? '';
 
-        // Get the first video (likely to be the LCP element)
-        const firstVideo = videos[0];
+    useLayoutEffect(() => {
+        if (!firstVideo) return;
 
         // Determine thumbnail URL
         const isVideoInCloud = firstVideo.videoPath?.startsWith('cloud:') ?? false;
@@ -40,7 +43,9 @@ export const LCPImagePreloader: React.FC<LCPImagePreloaderProps> = ({ videos }) 
         }
 
         if (thumbnailUrl) {
-            // Preload the image using a link tag for highest priority
+            // A single high-priority <link rel="preload"> is sufficient to start
+            // the fetch early. (Previously this also created a `new Image()` for
+            // the same URL, which triggered a redundant fetch.)
             const link = document.createElement('link');
             link.rel = 'preload';
             link.as = 'image';
@@ -48,44 +53,14 @@ export const LCPImagePreloader: React.FC<LCPImagePreloaderProps> = ({ videos }) 
             link.setAttribute('fetchpriority', 'high');
             document.head.appendChild(link);
 
-            // Also create an Image object to start loading and handle errors
-            const img = new Image();
-            img.src = thumbnailUrl;
-            img.loading = 'eager';
-            img.fetchPriority = 'high';
-
-            // Handle image load success
-            img.onload = () => {
-                // Image loaded successfully - no action needed
-                // The preload link will be cleaned up by the cleanup function
-            };
-
-            // Handle image load failure
-            img.onerror = (error) => {
-                // Silently handle preload failures - this is just an optimization
-                // The actual image will still be loaded by the VideoCard component
-                // Log error in development mode for debugging
-                if (import.meta.env.DEV) {
-                    console.warn('LCPImagePreloader: Failed to preload thumbnail:', thumbnailUrl, error);
-                }
-                // Remove the failed preload link to avoid keeping invalid references
-                if (link.parentNode === document.head) {
-                    document.head.removeChild(link);
-                }
-            };
-
-            // Cleanup
+            // Cleanup: remove the link on unmount or when the LCP candidate changes.
             return () => {
-                // Remove error handlers to prevent memory leaks
-                img.onload = null;
-                img.onerror = null;
-                // Check if link still exists before removing to avoid errors
                 if (link.parentNode === document.head) {
                     document.head.removeChild(link);
                 }
             };
         }
-    }, [videos]);
+    }, [lcpKey, firstVideo]);
 
     // This component doesn't render anything
     return null;

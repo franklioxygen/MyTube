@@ -54,6 +54,15 @@ interface StatisticsStorageSettings {
   mountDirectories?: string;
 }
 
+const STORAGE_FS_CACHE_TTL_MS = 30 * 1000;
+let writableLocalMediaRootsCache:
+  | { key: string; value: string[]; expiresAt: number }
+  | null = null;
+const freeBytesCache = new Map<
+  string,
+  { value: number | null; expiresAt: number }
+>();
+
 function hasAnyNonCloudVideos(): boolean {
   const row = sqlite
     .prepare(
@@ -66,8 +75,22 @@ function hasAnyNonCloudVideos(): boolean {
 }
 
 function getWritableLocalMediaRoots(): string[] {
-  const roots = new Set<string>();
+  const now = Date.now();
   const settings = storageService.getSettings() as StatisticsStorageSettings;
+  const cacheKey = JSON.stringify({
+    cloudDriveEnabled: settings.cloudDriveEnabled === true,
+    mountDirectories: settings.mountDirectories ?? "",
+  });
+
+  if (
+    writableLocalMediaRootsCache &&
+    writableLocalMediaRootsCache.key === cacheKey &&
+    writableLocalMediaRootsCache.expiresAt > now
+  ) {
+    return writableLocalMediaRootsCache.value;
+  }
+
+  const roots = new Set<string>();
   const mountRoots: string[] = [];
 
   if (typeof settings.mountDirectories === "string") {
@@ -106,10 +129,30 @@ function getWritableLocalMediaRoots(): string[] {
     roots.add(root);
   }
 
-  return Array.from(roots);
+  const value = Array.from(roots);
+  writableLocalMediaRootsCache = {
+    key: cacheKey,
+    value,
+    expiresAt: now + STORAGE_FS_CACHE_TTL_MS,
+  };
+  return value;
 }
 
 function getFreeBytes(rootPath: string): number | null {
+  const now = Date.now();
+  const cached = freeBytesCache.get(rootPath);
+  if (cached && cached.expiresAt > now) {
+    return cached.value;
+  }
+
+  const cacheResult = (value: number | null): number | null => {
+    freeBytesCache.set(rootPath, {
+      value,
+      expiresAt: now + STORAGE_FS_CACHE_TTL_MS,
+    });
+    return value;
+  };
+
   try {
     const statfsSync = (
       fs as unknown as {
@@ -120,7 +163,7 @@ function getFreeBytes(rootPath: string): number | null {
       }
     ).statfsSync;
     if (typeof statfsSync !== "function") {
-      return null;
+      return cacheResult(null);
     }
 
     const stats = statfsSync(rootPath);
@@ -128,12 +171,12 @@ function getFreeBytes(rootPath: string): number | null {
       typeof stats.bavail !== "number" ||
       typeof stats.bsize !== "number"
     ) {
-      return null;
+      return cacheResult(null);
     }
 
-    return stats.bavail * stats.bsize;
+    return cacheResult(stats.bavail * stats.bsize);
   } catch {
-    return null;
+    return cacheResult(null);
   }
 }
 

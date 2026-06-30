@@ -1,3 +1,4 @@
+import { getApiErrorMessage } from '../../utils/errors';
 import {
     Alert,
     Box,
@@ -47,10 +48,10 @@ const StatisticsSettings: React.FC<StatisticsSettingsProps> = ({ settings, onCha
                 type: 'success',
                 message: t('statisticsClearSuccess') || 'Statistics data cleared.',
             });
-        } catch (error: any) {
+        } catch (error: unknown) {
             setFeedback({
                 type: 'error',
-                message: error?.response?.data?.error || error.message,
+                message: getApiErrorMessage(error) ?? '',
             });
         } finally {
             setClearing(false);

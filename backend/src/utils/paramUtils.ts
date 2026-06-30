@@ -24,6 +24,25 @@ function parseIntegerValue(value: unknown): number | undefined {
   return isNaN(parsed) ? undefined : parsed;
 }
 
+function parseStrictPositiveInteger(value: unknown): number | undefined {
+  if (typeof value === "number") {
+    return Number.isSafeInteger(value) && value > 0 ? value : undefined;
+  }
+
+  const candidate = Array.isArray(value) ? value[0] : value;
+  if (candidate === undefined || candidate === null) {
+    return undefined;
+  }
+
+  const text = String(candidate).trim();
+  if (!/^\d+$/.test(text)) {
+    return undefined;
+  }
+
+  const parsed = Number(text);
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : undefined;
+}
+
 function isTruthyBooleanString(value: unknown): boolean {
   return TRUTHY_BOOLEAN_VALUES.has(String(value).toLowerCase());
 }
@@ -87,6 +106,55 @@ export function getNumberParam(
 
   const parsed = parseIntegerValue(candidate);
   return parsed ?? defaultValue;
+}
+
+/**
+ * Extract a strictly positive integer parameter. Unlike getNumberParam(), this
+ * rejects decimals, negative values, zero, and mixed strings such as "10px".
+ *
+ * When a `defaultValue` is supplied the result is always a `number`, so callers
+ * don't need a redundant `?? default` fallback.
+ */
+export function getPositiveIntegerParam(
+  value: ExpressQueryValue | number,
+  defaultValue: number
+): number;
+export function getPositiveIntegerParam(
+  value: ExpressQueryValue | number
+): number | undefined;
+export function getPositiveIntegerParam(
+  value: ExpressQueryValue | number,
+  defaultValue?: number
+): number | undefined {
+  return parseStrictPositiveInteger(value) ?? defaultValue;
+}
+
+/**
+ * Clamp a numeric limit into a safe positive range.
+ */
+export function clampLimit(
+  value: number | undefined,
+  defaultValue: number,
+  maxValue: number
+): number {
+  const candidate =
+    typeof value === "number" && Number.isFinite(value) ? value : defaultValue;
+  return Math.max(1, Math.min(Math.floor(candidate), maxValue));
+}
+
+/**
+ * Extract and clamp a positive integer limit parameter in one step.
+ */
+export function getLimitParam(
+  value: ExpressQueryValue | number,
+  defaultValue: number,
+  maxValue: number
+): number {
+  return clampLimit(
+    getPositiveIntegerParam(value, defaultValue),
+    defaultValue,
+    maxValue
+  );
 }
 
 /**

@@ -3,6 +3,7 @@ import {
     isCancelledError,
 } from "../errors/DownloadErrors";
 import { extractSourceVideoId } from "../utils/helpers";
+import { getErrorMessage } from "../utils/errors";
 import { logger, sanitizeLogMessage } from "../utils/logger";
 import { CloudStorageService } from "./CloudStorageService";
 import { createDownloadTask } from "./downloadService";
@@ -13,6 +14,12 @@ import {
   serializeRetryMetadata,
   type DownloadRetryMetadata,
 } from "./downloadRetryMetadata";
+import {
+  normalizeAutoRetryIntervalMinutes,
+  normalizeAutoRetryTimes,
+  PARTIAL_STATUS,
+  PENDING_RETRY_STATUS,
+} from "./downloadManager/retryPolicy";
 import { assertDownloadsAllowed } from "./filenameTemplate/renameLockService";
 import { HookService } from "./hookService";
 import {
@@ -63,15 +70,6 @@ export interface AddDownloadStatisticsOptions {
 
 const TASK_FAIL_HOOK_WAIT_TIMEOUT_MS = 5000;
 const CANCEL_TASK_WAIT_TIMEOUT_MS = 5000;
-const DEFAULT_AUTO_RETRY_TIMES = 3;
-const DEFAULT_AUTO_RETRY_INTERVAL_MINUTES = 5;
-const AUTO_RETRY_INTERVAL_OPTIONS = new Set([1, 5, 10, 30, 60]);
-const PENDING_RETRY_STATUS = "pending_retry";
-const PARTIAL_STATUS = "partial";
-
-function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
 
 function isStructuredDownloadResult(
   value: unknown,
@@ -96,27 +94,6 @@ function getStructuredDownloadResult(
 
   const result = (error as { downloadResult?: unknown }).downloadResult;
   return isStructuredDownloadResult(result) ? result : undefined;
-}
-
-function normalizeAutoRetryTimes(value: unknown): number {
-  const numeric = typeof value === "number" ? value : Number(value);
-  if (!Number.isFinite(numeric)) {
-    return DEFAULT_AUTO_RETRY_TIMES;
-  }
-
-  return Math.min(10, Math.max(1, Math.floor(numeric)));
-}
-
-function normalizeAutoRetryIntervalMinutes(value: unknown): number {
-  const numeric = typeof value === "number" ? value : Number(value);
-  if (!Number.isFinite(numeric)) {
-    return DEFAULT_AUTO_RETRY_INTERVAL_MINUTES;
-  }
-
-  const normalized = Math.floor(numeric);
-  return AUTO_RETRY_INTERVAL_OPTIONS.has(normalized)
-    ? normalized
-    : DEFAULT_AUTO_RETRY_INTERVAL_MINUTES;
 }
 
 async function awaitTaskFailHook(

@@ -1,4 +1,5 @@
 import axios from "axios";
+import { getErrorMessage } from "../../../utils/errors";
 import { logger } from "../../../utils/logger";
 import {
   isCancellationError,
@@ -746,7 +747,7 @@ export async function downloadCollection(
       isCollection: true,
       error: error || undefined,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (isCancellationError(error)) {
       throw error;
     }
@@ -759,7 +760,7 @@ export async function downloadCollection(
       skippedCount: 0,
       failedPartNumbers: [],
       isCollection: true,
-      error: error.message,
+      error: getErrorMessage(error),
     };
   }
 }

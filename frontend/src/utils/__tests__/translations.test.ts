@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Language, loadLocale, TranslationKey, translations } from "../translations";
+import { Language, loadLocale, TranslationKey } from "../translations";
 
 describe("translations", () => {
   it("should export all expected languages", async () => {
@@ -17,19 +17,15 @@ describe("translations", () => {
     ];
 
     for (const lang of expectedLanguages) {
-      if (lang === "en") {
-        expect(translations.en).toBeDefined();
-        expect(typeof translations.en).toBe("object");
-      } else {
-        const loadedTranslations = await loadLocale(lang);
-        expect(loadedTranslations).toBeDefined();
-        expect(typeof loadedTranslations).toBe("object");
-      }
+      const loadedTranslations = await loadLocale(lang);
+      expect(loadedTranslations).toBeDefined();
+      expect(typeof loadedTranslations).toBe("object");
     }
   });
 
   it("should have consistent keys across all languages", async () => {
-    const englishKeys = Object.keys(translations.en) as TranslationKey[];
+    const english = await loadLocale("en");
+    const englishKeys = Object.keys(english) as TranslationKey[];
     const expectedLanguages: Language[] = [
       "en",
       "zh",
@@ -55,11 +51,12 @@ describe("translations", () => {
     }
   });
 
-  it("should have non-empty string values for all keys in English", () => {
-    const englishKeys = Object.keys(translations.en) as TranslationKey[];
+  it("should have non-empty string values for all keys in English", async () => {
+    const english = await loadLocale("en");
+    const englishKeys = Object.keys(english) as TranslationKey[];
 
     englishKeys.forEach((key) => {
-      const value = translations.en[key];
+      const value = english[key];
       expect(value).toBeDefined();
       expect(typeof value).toBe("string");
       expect(value.length).toBeGreaterThan(0);

@@ -168,12 +168,14 @@ export async function runMigrations() {
     try {
       migrate(db, { migrationsFolder });
       console.log("Database migrations completed successfully.");
-    } catch (migrationError: any) {
+    } catch (migrationError: unknown) {
+      const cause = (migrationError as { cause?: { code?: string; message?: string } })
+        ?.cause;
       // Handle duplicate column errors gracefully
       // This can happen if migrations were manually applied or if columns already exist
       if (
-        migrationError?.cause?.code === "SQLITE_ERROR" &&
-        migrationError?.cause?.message?.includes("duplicate column name")
+        cause?.code === "SQLITE_ERROR" &&
+        cause?.message?.includes("duplicate column name")
       ) {
         console.warn(
           "Migration encountered duplicate column (may have been applied manually).",

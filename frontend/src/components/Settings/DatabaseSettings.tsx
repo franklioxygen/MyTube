@@ -154,7 +154,7 @@ const DatabaseSettings: React.FC<DatabaseSettingsProps> = ({
                 return;
             }
             setMergePreviewSummary(summary);
-        } catch (error: any) {
+        } catch (error: unknown) {
             if (mergePreviewRequestIdRef.current !== requestId) {
                 return;
             }

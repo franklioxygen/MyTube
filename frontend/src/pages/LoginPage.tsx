@@ -1,3 +1,4 @@
+import { hasAxiosStatus, hasAnyAxiosStatus } from '../utils/errors';
 import { ErrorOutline, Fingerprint, LockOutlined, Refresh, Visibility, VisibilityOff } from '@mui/icons-material';
 import {
     Alert,
@@ -48,14 +49,14 @@ const LoginPage: React.FC = () => {
             try {
                 const response = await api.get('/settings/password-enabled', { timeout: 5000 });
                 return response.data;
-            } catch (error: any) {
+            } catch (error: unknown) {
                 // Handle 401 errors (expected when not authenticated)
-                if (error?.response?.status === 401) {
+                if (hasAxiosStatus(error, 401)) {
                     // Return default values for 401
                     return { loginRequired: true, passwordEnabled: false };
                 }
                 // Handle 429 errors (rate limited) - return default values
-                if (error?.response?.status === 429) {
+                if (hasAxiosStatus(error, 429)) {
                     // Return default values for rate limiting
                     return { loginRequired: true, passwordEnabled: false };
                 }
@@ -96,9 +97,9 @@ const LoginPage: React.FC = () => {
             try {
                 const response = await api.get('/settings/passkeys/exists', { timeout: 5000 });
                 return response.data;
-            } catch (error: any) {
+            } catch (error: unknown) {
                 // Handle 401 or 429 errors gracefully
-                if (error?.response?.status === 401 || error?.response?.status === 429) {
+                if (hasAnyAxiosStatus(error, [401, 429])) {
                     return { exists: false };
                 }
                 // Log other errors but still return default

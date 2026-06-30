@@ -34,10 +34,34 @@ export default defineConfig(({ mode }) => {
       chunkSizeWarningLimit: 1000,
       rollupOptions: {
         output: {
-          // Use Vite's automatic code splitting strategy to avoid circular dependency issues
-          // Vite automatically handles chunk splitting intelligently based on imports
-          // This prevents "Cannot access before initialization" errors from circular dependencies
-          manualChunks: undefined,
+          // Split stable vendor dependencies into their own long-cacheable chunks
+          // so app-code changes don't bust the vendor chunks on redeploy. Only
+          // third-party packages are routed here — they never import app code,
+          // so this cannot introduce the circular-dependency initialization
+          // errors that an app-aware manualChunks function risked.
+          manualChunks: (id) => {
+            if (!id.includes("node_modules")) return undefined;
+            if (id.includes("react-router") || id.includes("@remix-run")) {
+              return "vendor-react-router";
+            }
+            if (id.includes("@tanstack")) {
+              return "vendor-tanstack";
+            }
+            if (id.includes("@mui") || id.includes("@emotion")) {
+              return "vendor-mui";
+            }
+            if (
+              id.includes("/react/") ||
+              id.includes("/react-dom/") ||
+              id.includes("/scheduler/")
+            ) {
+              return "vendor-react";
+            }
+            if (id.includes("axios")) {
+              return "vendor-axios";
+            }
+            return undefined;
+          },
           // Optimize chunk names for better caching
           chunkFileNames: "assets/js/[name]-[hash].js",
           entryFileNames: "assets/js/[name]-[hash].js",

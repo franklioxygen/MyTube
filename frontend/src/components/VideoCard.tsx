@@ -5,7 +5,7 @@ import {
     useTheme
 } from '@mui/material';
 import React from 'react';
-import { useVideo } from '../contexts/VideoContext';
+import { useVideoTags } from '../contexts/VideoContext';
 import { usePlayerSelection } from '../hooks/usePlayerSelection';
 import { useVideoCardActions } from '../hooks/useVideoCardActions';
 import { useVideoCardMetadata } from '../hooks/useVideoCardMetadata';
@@ -32,7 +32,7 @@ interface VideoCardProps {
     showTagsOnThumbnail?: boolean;
 }
 
-const VideoCard: React.FC<VideoCardProps> = ({
+const VideoCardBase: React.FC<VideoCardProps> = ({
     video,
     collections = [],
     onDeleteVideo,
@@ -48,7 +48,7 @@ const VideoCard: React.FC<VideoCardProps> = ({
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const isTouch = useMediaQuery('(hover: none), (pointer: coarse)');
-    const { availableTags, selectedTags, handleTagToggle } = useVideo();
+    const { availableTags, selectedTags, handleTagToggle } = useVideoTags();
 
     // Get collection information
     const collectionInfo = getVideoCardCollectionInfo(
@@ -165,5 +165,27 @@ const VideoCard: React.FC<VideoCardProps> = ({
         </Card>
     );
 };
+
+/**
+ * Memoized so a card only re-renders when its own props change. The grids render
+ * many of these, and the VideoContext value is now memoized, so cards skip
+ * re-rendering on unrelated context changes (e.g. search typing). A custom
+ * comparator guards the array/object props that callers may recreate.
+ */
+const VideoCard = React.memo(VideoCardBase, (prevProps, nextProps) => {
+    if (prevProps.video !== nextProps.video) return false;
+    if (prevProps.onDeleteVideo !== nextProps.onDeleteVideo) return false;
+    if (prevProps.showDeleteButton !== nextProps.showDeleteButton) return false;
+    if (prevProps.disableCollectionGrouping !== nextProps.disableCollectionGrouping) return false;
+    if (prevProps.statisticsRelatedEventId !== nextProps.statisticsRelatedEventId) return false;
+    if (prevProps.sourceCollectionId !== nextProps.sourceCollectionId) return false;
+    if (prevProps.isAboveTheFold !== nextProps.isAboveTheFold) return false;
+    if (prevProps.isHeroImage !== nextProps.isHeroImage) return false;
+    if (prevProps.showTagsOnThumbnail !== nextProps.showTagsOnThumbnail) return false;
+    // collections / playbackQueueVideoIds are arrays; compare by reference then length.
+    if (prevProps.collections !== nextProps.collections) return false;
+    if (prevProps.playbackQueueVideoIds !== nextProps.playbackQueueVideoIds) return false;
+    return true;
+});
 
 export default VideoCard;

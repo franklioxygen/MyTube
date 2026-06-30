@@ -156,18 +156,10 @@ describe('SubscriptionService', () => {
   describe('unsubscribe', () => {
     it('should unsubscribe successfully', async () => {
       const subId = 'sub-1';
-      // First call (check existence): return [sub]
-      // Second call (delete): return whatever
-      // Third call (verify): return []
-      
-      let callCount = 0;
-      mockBuilder.then = (cb: any) => {
-        callCount++;
-        if (callCount === 1) return Promise.resolve([{ id: subId, author: 'User', platform: 'YouTube' }]).then(cb);
-        if (callCount === 2) return Promise.resolve(undefined).then(cb); // Delete result
-        if (callCount === 3) return Promise.resolve([]).then(cb); // Verify result
-        return Promise.resolve([]).then(cb);
-      };
+      // Existence check returns the subscription; the delete reports one row changed.
+      mockBuilder.then = (cb: any) =>
+        Promise.resolve([{ id: subId, author: 'User', platform: 'YouTube' }]).then(cb);
+      mockBuilder.run = vi.fn().mockReturnValue({ changes: 1 });
 
       await subscriptionService.unsubscribe(subId);
 
@@ -467,13 +459,11 @@ describe('SubscriptionService', () => {
 
   describe('subscription state management', () => {
     it('should throw when unsubscribe verification fails', async () => {
-      let callCount = 0;
-      mockBuilder.then = (cb: any) => {
-        callCount++;
-        if (callCount === 1) return Promise.resolve([{ id: 'sub1', author: 'A', platform: 'YouTube' }]).then(cb);
-        if (callCount === 2) return Promise.resolve(undefined).then(cb);
-        return Promise.resolve([{ id: 'sub1' }]).then(cb);
-      };
+      // Existence check finds the subscription, but the delete reports no rows
+      // changed (e.g. concurrently deleted) — the service should throw.
+      mockBuilder.then = (cb: any) =>
+        Promise.resolve([{ id: 'sub1', author: 'A', platform: 'YouTube' }]).then(cb);
+      mockBuilder.run = vi.fn().mockReturnValue({ changes: 0 });
 
       await expect(subscriptionService.unsubscribe('sub1')).rejects.toThrow(
         'Failed to delete subscription sub1'

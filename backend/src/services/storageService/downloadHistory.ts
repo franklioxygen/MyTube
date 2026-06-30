@@ -1,12 +1,10 @@
-import { and, asc, desc, eq, ne } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, ne } from "drizzle-orm";
 import { DatabaseError } from "../../errors/DownloadErrors";
 import { db } from "../../db";
 import { downloadHistory } from "../../db/schema";
 import { logger } from "../../utils/logger";
 import { DownloadHistoryItem } from "./types";
-
-const PENDING_RETRY_STATUS = "pending_retry";
-const PARTIAL_STATUS = "partial";
+import { PARTIAL_STATUS, PENDING_RETRY_STATUS } from "./downloadHistoryStatus";
 
 function mapDownloadHistoryRow(row: typeof downloadHistory.$inferSelect): DownloadHistoryItem {
   return {
@@ -110,27 +108,31 @@ export function getLatestRetryHistoryItemBySourceUrl(
   downloadType?: string,
 ): DownloadHistoryItem | undefined {
   try {
-    const items = db
+    // Filter in SQL so we only hydrate matching rows: retryMetadata must be
+    // present, the status must be retryable, and downloadType is optional.
+    const conditions = [
+      eq(downloadHistory.sourceUrl, sourceUrl),
+      isNotNull(downloadHistory.retryMetadata),
+      ne(downloadHistory.retryMetadata, ""),
+      inArray(downloadHistory.status, [
+        "failed",
+        PARTIAL_STATUS,
+        PENDING_RETRY_STATUS,
+      ]),
+    ];
+    if (downloadType) {
+      conditions.push(eq(downloadHistory.downloadType, downloadType));
+    }
+
+    const item = db
       .select()
       .from(downloadHistory)
-      .where(eq(downloadHistory.sourceUrl, sourceUrl))
+      .where(and(...conditions))
       .orderBy(desc(downloadHistory.finishedAt))
-      .all()
-      .map(mapDownloadHistoryRow);
+      .limit(1)
+      .get();
 
-    const matchingItems = items.filter(
-      (item) =>
-        typeof item.retryMetadata === "string" &&
-        item.retryMetadata.length > 0 &&
-        (downloadType ? item.downloadType === downloadType : true),
-    );
-
-    return matchingItems.find(
-      (item) =>
-        item.status === "failed" ||
-        item.status === PARTIAL_STATUS ||
-        item.status === PENDING_RETRY_STATUS,
-    );
+    return item ? mapDownloadHistoryRow(item) : undefined;
   } catch (error) {
     logger.error(
       "Error getting latest retry history item by source URL",

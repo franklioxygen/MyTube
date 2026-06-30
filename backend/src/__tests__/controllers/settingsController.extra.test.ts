@@ -91,11 +91,13 @@ vi.mock("fs-extra", () => ({
     ensureDirSync: vi.fn(),
     ensureFileSync: vi.fn(),
     existsSync: vi.fn(() => true),
+    writeFile: vi.fn(),
     writeFileSync: vi.fn(),
   },
   ensureDirSync: vi.fn(),
   ensureFileSync: vi.fn(),
   existsSync: vi.fn(() => true),
+  writeFile: vi.fn(),
   writeFileSync: vi.fn(),
 }));
 
@@ -234,7 +236,7 @@ describe("settingsController extra coverage", () => {
     expect(cloudflaredService.start).toHaveBeenCalledWith(undefined, 5551);
     expect(downloadManager.setMaxConcurrentDownloads).toHaveBeenCalledWith(7);
 
-    expect(fs.writeFileSync).toHaveBeenCalledWith(
+    expect(fs.writeFile).toHaveBeenCalledWith(
       expect.stringContaining("frontend/.env.local"),
       expect.stringContaining("VITE_ALLOWED_HOSTS=abc.comscript"),
       "utf8"
@@ -322,9 +324,7 @@ describe("settingsController extra coverage", () => {
   });
 
   it("warns instead of throwing when allowedHosts env write fails", async () => {
-    vi.mocked(fs.writeFileSync).mockImplementation(() => {
-      throw new Error("disk full");
-    });
+    vi.mocked(fs.writeFile as any).mockRejectedValue(new Error("disk full"));
     req.body = { allowedHosts: "dev.local" };
 
     await patchSettings(req as Request, res as Response);

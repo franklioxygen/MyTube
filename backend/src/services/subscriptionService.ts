@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import cron, { ScheduledTask } from "node-cron";
+import { ScheduledTask } from "node-cron";
 import { v4 as uuidv4 } from "uuid";
 import { db } from "../db";
 import { subscriptions } from "../db/schema";
@@ -27,7 +27,6 @@ import { getTwitchChannelVideos } from "./downloaders/ytdlp/ytdlpTwitch";
 import { YtDlpDownloader } from "./downloaders/YtDlpDownloader";
 import { recordEvent, bucketDownloadError } from "./statistics";
 import * as storageService from "./storageService";
-import { runSubscriptionRetentionCleanup } from "./subscriptionRetentionService";
 import { twitchApiService } from "./twitchService";
 import {
   buildFilenameTemplateSourceOptions,
@@ -36,6 +35,10 @@ import {
   notifySubscriptionDownloadResult,
 } from "./subscription/helpers";
 import { Subscription } from "./subscription/types";
+import {
+  createSubscriptionSchedulerTasks,
+  stopSubscriptionSchedulerTasks,
+} from "./subscription/scheduler";
 import { resolveYouTubeAuthorName } from "./subscription/youtubeAuthor";
 import {
   checkTwitchSubscription as checkTwitchSubscriptionImpl,
@@ -456,19 +459,17 @@ export class SubscriptionService {
       getSubscriptionLogContext(subscription)
     );
 
-    // Delete the subscription
-    await db.delete(subscriptions).where(eq(subscriptions.id, id));
-
-    // Verify deletion succeeded
-    const verifyDeleted = await db
-      .select()
-      .from(subscriptions)
+    // Delete the subscription. better-sqlite3's run() reports the affected row
+    // count in `.changes`, so we can confirm the deletion took effect without a
+    // follow-up SELECT.
+    const result = await db
+      .delete(subscriptions)
       .where(eq(subscriptions.id, id))
-      .limit(1);
+      .run();
 
-    if (verifyDeleted.length > 0) {
+    if (result.changes === 0) {
       logger.error(
-        `Failed to delete subscription ${id} - still exists in database`
+        `Failed to delete subscription ${id} - no rows affected`
       );
       throw new Error(`Failed to delete subscription ${id}`);
     }
@@ -798,7 +799,7 @@ export class SubscriptionService {
                     getSubscriptionLogContext(sub, { latestVideoUrl })
                   );
                 }
-              } catch (downloadError: any) {
+              } catch (downloadError: unknown) {
                 const errorMessage = getErrorMessage(
                   downloadError,
                   "Download failed"
@@ -1074,31 +1075,16 @@ export class SubscriptionService {
   }
 
   startScheduler() {
-    if (this.checkTask) {
-      this.checkTask.stop();
-    }
-    if (this.retentionCleanupTask) {
-      this.retentionCleanupTask.stop();
-    }
-
-    // Run every minute
-    this.checkTask = cron.schedule("* * * * *", () => {
-      this.checkSubscriptions().catch((error) => {
-        logger.error("Subscription scheduler tick failed:", error);
-      });
+    stopSubscriptionSchedulerTasks({
+      checkTask: this.checkTask,
+      retentionCleanupTask: this.retentionCleanupTask,
     });
-    logger.info("Subscription scheduler started (node-cron).");
 
-    // Run subscription retention cleanup once per hour
-    this.retentionCleanupTask = cron.schedule("0 * * * *", () => {
-      runSubscriptionRetentionCleanup().catch((error) => {
-        logger.error(
-          "Subscription retention cleanup failed:",
-          error instanceof Error ? error : new Error(String(error))
-        );
-      });
-    });
-    logger.info("Subscription retention scheduler started (node-cron).");
+    const tasks = createSubscriptionSchedulerTasks(() =>
+      this.checkSubscriptions()
+    );
+    this.checkTask = tasks.checkTask;
+    this.retentionCleanupTask = tasks.retentionCleanupTask;
   }
 
   // Helper to get latest video URL based on platform

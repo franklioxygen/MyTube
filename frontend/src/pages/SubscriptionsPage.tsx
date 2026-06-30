@@ -12,6 +12,7 @@ import {
     TableCell,
     TableContainer,
     TableHead,
+    TablePagination,
     TableRow,
     TextField,
     Typography,
@@ -19,12 +20,13 @@ import {
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useQuery } from '@tanstack/react-query';
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import { api } from '../utils/apiClient';
+import { useSubscriptions } from '../hooks/useSubscriptions';
 import { formatDisplayDateTimeMinutes } from '../utils/formatUtils';
 import type { TranslationKey } from '../utils/translations';
 
@@ -86,6 +88,8 @@ const parsePositiveInteger = (value: string): number | null => {
         : null;
 };
 
+const DEFAULT_SUBSCRIPTIONS_ROWS_PER_PAGE = 10;
+
 const SubscriptionsPage: React.FC = () => {
     const theme = useTheme();
     const isMobileLayout = useMediaQuery(theme.breakpoints.down('md'));
@@ -106,14 +110,11 @@ const SubscriptionsPage: React.FC = () => {
     const [editedRetention, setEditedRetention] = useState<string>('');
     const [isSavingRetention, setIsSavingRetention] = useState(false);
     const [isRetentionHelpOpen, setIsRetentionHelpOpen] = useState(false);
+    const [subscriptionsPage, setSubscriptionsPage] = useState(0);
+    const [subscriptionsRowsPerPage, setSubscriptionsRowsPerPage] = useState(DEFAULT_SUBSCRIPTIONS_ROWS_PER_PAGE);
 
     // Use React Query for better caching and memory management
-    const { data: subscriptions = [], refetch: refetchSubscriptions } = useQuery({
-        queryKey: ['subscriptions'],
-        queryFn: async () => {
-            const response = await api.get('/subscriptions');
-            return response.data as Subscription[];
-        },
+    const { data: subscriptions = [], refetch: refetchSubscriptions } = useSubscriptions<Subscription[]>({
         refetchInterval: 30000, // Refetch every 30 seconds (less frequent)
         staleTime: 10000, // Consider data fresh for 10 seconds
         gcTime: 10 * 60 * 1000, // Garbage collect after 10 minutes
@@ -135,6 +136,28 @@ const SubscriptionsPage: React.FC = () => {
         staleTime: 5000, // Consider data fresh for 5 seconds
         gcTime: 10 * 60 * 1000, // Garbage collect after 10 minutes
     });
+
+    // Newest-first task list. Memoized so we don't allocate a fresh reversed
+    // array on every render (this polls every 10s while tasks are active).
+    const reversedTasks = useMemo(() => [...tasks].reverse(), [tasks]);
+    const maxSubscriptionsPage = Math.max(
+        0,
+        Math.ceil(subscriptions.length / subscriptionsRowsPerPage) - 1
+    );
+    const safeSubscriptionsPage = Math.min(subscriptionsPage, maxSubscriptionsPage);
+    const paginatedSubscriptions = useMemo(() => {
+        const start = safeSubscriptionsPage * subscriptionsRowsPerPage;
+        return subscriptions.slice(start, start + subscriptionsRowsPerPage);
+    }, [subscriptions, safeSubscriptionsPage, subscriptionsRowsPerPage]);
+
+    const handleSubscriptionsPageChange = (_event: unknown, page: number) => {
+        setSubscriptionsPage(page);
+    };
+
+    const handleSubscriptionsRowsPerPageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        setSubscriptionsRowsPerPage(parseInt(event.target.value, 10));
+        setSubscriptionsPage(0);
+    };
 
     const handleUnsubscribeClick = (id: string, author: string, subscriptionType?: string) => {
         // Format display name with translated suffix for playlists watchers
@@ -523,7 +546,7 @@ const SubscriptionsPage: React.FC = () => {
                                 </TableCell>
                             </TableRow>
                         ) : (
-                            subscriptions.map((sub) => {
+                            paginatedSubscriptions.map((sub) => {
                                 const isEditingInterval = editingSubscriptionId === sub.id;
                                 const isEditingRetention = editingRetentionId === sub.id;
 
@@ -643,9 +666,20 @@ const SubscriptionsPage: React.FC = () => {
                                 </TableRow>
                             )})
                         )}
-                    </TableBody>
-                </Table>
-            </TableContainer>
+	                    </TableBody>
+	                </Table>
+                    {subscriptions.length > DEFAULT_SUBSCRIPTIONS_ROWS_PER_PAGE && (
+                        <TablePagination
+                            component="div"
+                            count={subscriptions.length}
+                            page={safeSubscriptionsPage}
+                            onPageChange={handleSubscriptionsPageChange}
+                            rowsPerPage={subscriptionsRowsPerPage}
+                            onRowsPerPageChange={handleSubscriptionsRowsPerPageChange}
+                            rowsPerPageOptions={[10, 25, 50]}
+                        />
+                    )}
+	            </TableContainer>
 
             {tasks.length > 0 && (
                 <Box sx={{ mt: 4 }}>
@@ -680,7 +714,7 @@ const SubscriptionsPage: React.FC = () => {
                                 </TableRow>
                             </TableHead>
                             <TableBody>
-                                {tasks.slice().reverse().map((task) => (
+                                {reversedTasks.map((task) => (
                                     <TableRow key={task.id}>
                                         <TableCell>{task.playlistName || task.author}</TableCell>
                                         <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{task.platform}</TableCell>

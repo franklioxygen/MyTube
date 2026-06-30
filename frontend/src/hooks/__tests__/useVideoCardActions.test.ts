@@ -16,7 +16,7 @@ vi.mock('../../contexts/LanguageContext', () => ({
 }));
 
 vi.mock('../../contexts/VideoContext', () => ({
-    useVideo: () => ({ updateVideo: mockUpdateVideo })
+    useVideoActions: () => ({ updateVideo: mockUpdateVideo, incrementView: vi.fn() })
 }));
 
 describe('useVideoCardActions', () => {

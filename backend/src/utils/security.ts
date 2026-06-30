@@ -318,6 +318,11 @@ export function statTrustedSync(filePath: string): Stats {
   return fs.statSync(safePath);
 }
 
+export async function statTrusted(filePath: string): Promise<Stats> {
+  const safePath = normalizeSafeAbsolutePath(filePath);
+  return fs.stat(safePath);
+}
+
 export async function statSafe(
   filePath: string,
   allowedDirOrDirs: string | readonly string[],

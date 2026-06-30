@@ -1,5 +1,5 @@
 import { isAxiosError } from "axios";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { useLanguage } from "../contexts/LanguageContext";
 import { useSnackbar } from "../contexts/SnackbarContext";
@@ -7,6 +7,7 @@ import { Video } from "../types";
 import { api } from "../utils/apiClient";
 import { resolveSubscriptionErrorMessage } from "../utils/subscriptionErrors";
 import { validateUrlForOpen } from "../utils/urlValidation";
+import { SUBSCRIPTIONS_QUERY_KEY, useSubscriptions } from "./useSubscriptions";
 
 interface UseVideoSubscriptionsProps {
   video: Video | undefined;
@@ -43,14 +44,8 @@ export function useVideoSubscriptions({ video }: UseVideoSubscriptionsProps) {
   const [authorChannelUrl, setAuthorChannelUrl] = useState<string | null>(null);
   const [showSubscribeModal, setShowSubscribeModal] = useState<boolean>(false);
 
-  // Fetch subscriptions
-  const { data: subscriptions = [] } = useQuery<SubscriptionRecord[]>({
-    queryKey: ["subscriptions"],
-    queryFn: async () => {
-      const response = await api.get("/subscriptions");
-      return response.data as SubscriptionRecord[];
-    },
-  });
+  // Fetch subscriptions (shared query — see useSubscriptions)
+  const { data: subscriptions = [] } = useSubscriptions<SubscriptionRecord[]>();
 
   // Get author channel URL
   useEffect(() => {
@@ -187,7 +182,7 @@ export function useVideoSubscriptions({ video }: UseVideoSubscriptionsProps) {
         ...(downloadAllPrevious ? { downloadOrder } : {}),
       });
       showSnackbar(t("subscribedSuccessfully"));
-      void queryClient.invalidateQueries({ queryKey: ["subscriptions"] });
+      void queryClient.invalidateQueries({ queryKey: SUBSCRIPTIONS_QUERY_KEY });
       setShowSubscribeModal(false);
     } catch (error: unknown) {
       console.error("Error subscribing:", error);
@@ -217,7 +212,7 @@ export function useVideoSubscriptions({ video }: UseVideoSubscriptionsProps) {
     },
     onSuccess: () => {
       showSnackbar(t("unsubscribedSuccessfully"));
-      void queryClient.invalidateQueries({ queryKey: ["subscriptions"] });
+      void queryClient.invalidateQueries({ queryKey: SUBSCRIPTIONS_QUERY_KEY });
     },
     onError: () => {
       showSnackbar(t("error"), "error");

@@ -1,9 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, expect, it } from "vitest";
 import {
+  clampLimit,
   getArrayParam,
   getBooleanParam,
+  getLimitParam,
   getNumberParam,
+  getPositiveIntegerParam,
   getRequiredNumberParam,
   getRequiredStringParam,
   getStringParam,
@@ -79,6 +82,33 @@ describe("paramUtils", () => {
       expect(() => getRequiredNumberParam("bad" as any, "page")).toThrow(
         "Missing or invalid required parameter: page"
       );
+    });
+  });
+
+  describe("getPositiveIntegerParam", () => {
+    it("accepts positive integer numbers and strings", () => {
+      expect(getPositiveIntegerParam(5)).toBe(5);
+      expect(getPositiveIntegerParam("12" as any)).toBe(12);
+      expect(getPositiveIntegerParam(["7"] as any)).toBe(7);
+    });
+
+    it("rejects zero, negative, decimals, and mixed strings", () => {
+      expect(getPositiveIntegerParam(0)).toBeUndefined();
+      expect(getPositiveIntegerParam("-1" as any)).toBeUndefined();
+      expect(getPositiveIntegerParam("1.5" as any)).toBeUndefined();
+      expect(getPositiveIntegerParam("10px" as any)).toBeUndefined();
+      expect(getPositiveIntegerParam("bad" as any, 3)).toBe(3);
+    });
+  });
+
+  describe("limit helpers", () => {
+    it("clamps limits to the configured positive range", () => {
+      expect(clampLimit(undefined, 20, 100)).toBe(20);
+      expect(clampLimit(0, 20, 100)).toBe(1);
+      expect(clampLimit(500, 20, 100)).toBe(100);
+      expect(getLimitParam("50" as any, 20, 100)).toBe(50);
+      expect(getLimitParam("500" as any, 20, 100)).toBe(100);
+      expect(getLimitParam("bad" as any, 20, 100)).toBe(20);
     });
   });
 

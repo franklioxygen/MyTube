@@ -1,3 +1,4 @@
+import { getApiErrorMessage } from '../../utils/errors';
 import { Alert, Box, Button, CircularProgress, Divider, FormControlLabel, Switch, TextField, Typography } from '@mui/material';
 import React, { useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -51,8 +52,8 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
                 chatId: telegramChatId,
             });
             setTestResult({ type: 'success', message: t('telegramTestSuccess') });
-        } catch (error: any) {
-            const message = error.response?.data?.error || error.message;
+        } catch (error: unknown) {
+            const message = getApiErrorMessage(error) ?? '';
             setTestResult({ type: 'error', message: t('telegramTestFailed', { error: message }) });
         } finally {
             setTesting(false);

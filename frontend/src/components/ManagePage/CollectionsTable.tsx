@@ -1,3 +1,4 @@
+import { getApiErrorMessage } from '../../utils/errors';
 import { Check, Close, Delete, Edit, Folder } from '@mui/icons-material';
 import {
     Alert,
@@ -131,8 +132,8 @@ const CollectionsTable: React.FC<CollectionsTableProps> = ({
             await onUpdate(id, trimmedName);
             setEditingCollectionId(null);
             setEditName('');
-        } catch (error: any) {
-            const errorMessage = error?.message || error?.response?.data?.error || t('failedToUpdateCollection') || 'Failed to update collection';
+        } catch (error: unknown) {
+            const errorMessage = getApiErrorMessage(error) || t('failedToUpdateCollection') || 'Failed to update collection';
             setNameError(errorMessage);
             showSnackbar(errorMessage, 'error');
         } finally {

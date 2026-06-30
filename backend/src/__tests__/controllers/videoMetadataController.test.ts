@@ -242,8 +242,8 @@ describe("videoMetadataController", () => {
         thumbnailPath: "/images/a.jpg",
       });
       vi.mocked(validateVideoPath as any).mockReturnValue("/safe/a.mp4");
-      vi.mocked(fs.existsSync as any).mockImplementation(
-        (targetPath: string) => targetPath !== "/safe/a.mp4"
+      vi.mocked(fs.pathExists as any).mockImplementation((targetPath: string) =>
+        Promise.resolve(targetPath !== "/safe/a.mp4")
       );
 
       await expect(
@@ -266,7 +266,7 @@ describe("videoMetadataController", () => {
       });
       vi.mocked(validateImagePath as any).mockReturnValue("/safe/missing.jpg");
       vi.mocked(validateUrl as any).mockReturnValue("https://example.com/thumb.jpg");
-      vi.mocked(fs.existsSync as any).mockReturnValue(false);
+      vi.mocked(fs.pathExists as any).mockResolvedValue(false);
       vi.mocked(storageService.findVideoFile as any).mockReturnValue(null);
       vi.mocked(storageService.getCollections as any).mockReturnValue([]);
 
@@ -392,8 +392,8 @@ describe("videoMetadataController", () => {
       vi.mocked(storageService.findVideoFile as any).mockReturnValue(
         fallbackVideoPath
       );
-      vi.mocked(fs.existsSync as any).mockImplementation(
-        (targetPath: string) => targetPath === fallbackVideoPath
+      vi.mocked(fs.pathExists as any).mockImplementation((targetPath: string) =>
+        Promise.resolve(targetPath === fallbackVideoPath)
       );
       vi.mocked(validateImagePath as any).mockReturnValue("/safe/movie.jpg");
 

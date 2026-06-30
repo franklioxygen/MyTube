@@ -10,6 +10,7 @@ import {
 } from "./collectionFileManager";
 import {
     atomicUpdateCollection as atomicUpdateCollectionRepo,
+    appendVideoToCollection as appendVideoToCollectionRepo,
     deleteCollection as deleteCollectionRepo,
     getCollectionById as getCollectionByIdRepo,
     getCollectionByName as getCollectionByNameRepo,
@@ -127,6 +128,18 @@ export function saveCollection(collection: Collection): Collection {
   return saveCollectionRepo(collection);
 }
 
+/**
+ * Append a single video to the end of a collection via a single guarded INSERT
+ * (no full link-set rebuild). Returns the updated collection or null if the
+ * collection does not exist.
+ */
+export function appendVideoToCollection(
+  collectionId: string,
+  videoId: string
+): Collection | null {
+  return appendVideoToCollectionRepo(collectionId, videoId);
+}
+
 export function atomicUpdateCollection(
   id: string,
   updateFn: (collection: Collection) => Collection | null
@@ -143,10 +156,33 @@ export function linkVideoToCollection(
   videoId: string,
   options?: CollectionLinkOptions
 ): Collection | null {
-  const collection = atomicUpdateCollection(collectionId, (c) => {
-    insertVideoAtRequestedOrder(c, videoId, options?.order);
-    return c;
-  });
+  // The full saveCollection rebuild (delete every link + re-insert each with a
+  // per-row existence check) is only needed when an insert must shift existing
+  // rows — i.e. a mid-list insert. Both a plain append (no order) and an insert
+  // *past the current end* land the video last, so they can use the single
+  // guarded INSERT fast path. The latter is the common case for ordered
+  // backfills (e.g. Bilibili collections append in increasing playlist order),
+  // which previously paid an O(n) rebuild on every video.
+  const requestedOrder = options?.order;
+  const requestsSpecificOrder =
+    typeof requestedOrder === "number" && Number.isFinite(requestedOrder);
+
+  let collection: Collection | null;
+  if (requestsSpecificOrder) {
+    const existing = getCollectionByIdRepo(collectionId);
+    const appendsAtEnd =
+      !!existing &&
+      !existing.videos.includes(videoId) &&
+      Math.floor(requestedOrder) > existing.videos.length;
+    collection = appendsAtEnd
+      ? appendVideoToCollectionRepo(collectionId, videoId)
+      : atomicUpdateCollection(collectionId, (c) => {
+          insertVideoAtRequestedOrder(c, videoId, requestedOrder);
+          return c;
+        });
+  } else {
+    collection = appendVideoToCollectionRepo(collectionId, videoId);
+  }
 
   if (collection) {
     const shouldMoveFiles =

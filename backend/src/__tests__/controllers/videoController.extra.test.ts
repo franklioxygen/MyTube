@@ -98,24 +98,32 @@ vi.mock("axios", () => ({
 
 vi.mock("fs-extra", () => ({
   default: {
+    ensureDir: vi.fn(),
     ensureDirSync: vi.fn(),
     ensureFileSync: vi.fn(),
     existsSync: vi.fn(),
     readdirSync: vi.fn(),
+    stat: vi.fn(),
     statSync: vi.fn(),
+    writeFile: vi.fn(),
     writeFileSync: vi.fn(),
     moveSync: vi.fn(),
+    remove: vi.fn(),
     unlinkSync: vi.fn(),
     createReadStream: vi.fn(),
     createWriteStream: vi.fn(),
   },
+  ensureDir: vi.fn(),
   ensureDirSync: vi.fn(),
   ensureFileSync: vi.fn(),
   existsSync: vi.fn(),
   readdirSync: vi.fn(),
+  stat: vi.fn(),
   statSync: vi.fn(),
+  writeFile: vi.fn(),
   writeFileSync: vi.fn(),
   moveSync: vi.fn(),
+  remove: vi.fn(),
   unlinkSync: vi.fn(),
   createReadStream: vi.fn(),
   createWriteStream: vi.fn(),
@@ -526,7 +534,7 @@ describe("videoController extra coverage", () => {
       videoPath: "mount:/mnt/media/video.mp4",
     } as any);
     vi.mocked(fs.existsSync).mockReturnValue(true);
-    vi.mocked(fs.statSync).mockReturnValue({ isFile: () => true } as any);
+    vi.mocked(fs.stat).mockResolvedValue({ isFile: () => true } as any);
 
     await serveMountVideo(req as Request, res as Response);
 
@@ -566,6 +574,9 @@ describe("videoController extra coverage", () => {
       videoPath: "mount:/mnt/missing.mp4",
     } as any);
     vi.mocked(fs.existsSync).mockReturnValue(false);
+    // assertMountFileExists stats the file in one async call; a missing file
+    // surfaces as stat rejecting (ENOENT).
+    vi.mocked(fs.stat).mockRejectedValue(new Error("ENOENT") as any);
     await expect(serveMountVideo(req as Request, res as Response)).rejects.toThrow(
       "Video file not found"
     );
@@ -577,7 +588,7 @@ describe("videoController extra coverage", () => {
       videoPath: "mount:/mnt/folder",
     } as any);
     vi.mocked(fs.existsSync).mockReturnValue(true);
-    vi.mocked(fs.statSync).mockReturnValue({ isFile: () => false } as any);
+    vi.mocked(fs.stat).mockResolvedValue({ isFile: () => false } as any);
     await expect(serveMountVideo(req as Request, res as Response)).rejects.toThrow(
       "Path is not a file"
     );
@@ -589,7 +600,7 @@ describe("videoController extra coverage", () => {
       videoPath: "mount:/mnt/media/video.mkv",
     } as any);
     vi.mocked(fs.existsSync).mockReturnValue(true);
-    vi.mocked(fs.statSync).mockReturnValue({ isFile: () => true } as any);
+    vi.mocked(fs.stat).mockResolvedValue({ isFile: () => true } as any);
 
     await serveMountVideo(req as Request, res as Response);
 
@@ -929,7 +940,7 @@ describe("videoController extra coverage", () => {
     await expect(uploadSubtitle(req as Request, res as Response)).rejects.toThrow(
       "Video not found"
     );
-    expect(fs.unlinkSync).toHaveBeenCalled();
+    expect(fs.remove).toHaveBeenCalled();
   });
 
   it("uploadSubtitle moves subtitles into mirrored subtitles directory and auto-detects language", async () => {

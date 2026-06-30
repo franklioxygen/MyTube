@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import { useLanguage } from '../contexts/LanguageContext';
-import { useVideo } from '../contexts/VideoContext';
+import { useVideoActions } from '../contexts/VideoContext';
 import { Video } from '../types';
 
 interface UseVideoCardActionsProps {
@@ -20,7 +20,7 @@ export const useVideoCardActions = ({
 }: UseVideoCardActionsProps) => {
     const { t } = useLanguage();
     const { showSnackbar } = useSnackbar();
-    const { updateVideo } = useVideo();
+    const { updateVideo } = useVideoActions();
     const [isDeleting, setIsDeleting] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
 

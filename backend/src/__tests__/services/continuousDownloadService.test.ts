@@ -66,6 +66,9 @@ vi.mock("../../services/continuousDownload/taskProcessor", () => ({
   TaskProcessor: vi.fn().mockImplementation(function () {
     return {
       processTask: vi.fn().mockResolvedValue(undefined),
+      signalInterruption: vi.fn(),
+      clearInterruption: vi.fn(),
+      isTaskInterrupted: vi.fn(() => false),
     };
   }),
 }));
@@ -235,6 +238,9 @@ describe("ContinuousDownloadService", () => {
       repo.getTaskById.mockResolvedValueOnce({ id: "x", status: "paused" });
       await service.resumeTask("x");
       expect(repo.resumeTask).toHaveBeenCalledWith("x");
+      // Resume must drop any stale pause/cancel signal so the (possibly still
+      // draining) loop doesn't kill the resumed task.
+      expect(processor.clearInterruption).toHaveBeenCalledWith("x");
       expect(processSpy).toHaveBeenCalledWith("x");
       processSpy.mockRestore();
     });

@@ -1,3 +1,4 @@
+import { getErrorMessage } from "../utils/errors";
 import {
   extractBilibiliVideoId,
   isBilibiliUrl,
@@ -497,12 +498,12 @@ export async function downloadChannelPlaylists(
       success: true,
       message: `Started downloading ${startedCount} playlists. Collections created.`,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     const { logger } = await import("../utils/logger");
     logger.error("Error processing channel playlists:", error);
     return {
       success: false,
-      message: error.message || "Failed to download channel playlists",
+      message: getErrorMessage(error, "Failed to download channel playlists"),
     };
   }
 }

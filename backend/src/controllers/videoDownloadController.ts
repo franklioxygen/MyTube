@@ -30,7 +30,7 @@ import {
   trimBilibiliUrl,
 } from "../utils/helpers";
 import { logger } from "../utils/logger";
-import { getNumberParam, getStringParam } from "../utils/paramUtils";
+import { getLimitParam, getPositiveIntegerParam, getStringParam } from "../utils/paramUtils";
 import { sendBadRequest, sendData, sendInternalError } from "../utils/response";
 import { validateUrl } from "../utils/security";
 
@@ -68,8 +68,8 @@ export const searchVideos = async (
     throw new ValidationError("Search query is required", "query");
   }
 
-  const limit = getNumberParam(req.query.limit, 8) || 8;
-  const offset = getNumberParam(req.query.offset, 1) || 1;
+  const limit = getLimitParam(req.query.limit, 8, 50);
+  const offset = getPositiveIntegerParam(req.query.offset, 1);
 
   const results = await downloadService.searchYouTube(query, limit, offset);
   // Return { results } format for backward compatibility (frontend expects response.data.results)
@@ -467,7 +467,7 @@ export const downloadVideo = async (
         logger.warn("Failed to fetch video info for title:", err);
       }
     })();
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Error queuing download:", error);
     sendInternalError(res, "Failed to queue download");
   }

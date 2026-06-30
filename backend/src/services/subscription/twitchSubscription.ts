@@ -407,7 +407,7 @@ export async function processTwitchSubscriptionVideos(
         status: "success",
         sourceUrl: video.url,
       });
-    } catch (downloadError: any) {
+    } catch (downloadError: unknown) {
       const errorMessage = getErrorMessage(downloadError, "Download failed");
 
       if (twitchVideoDownloaded) {

@@ -391,11 +391,13 @@ const SettingsPage: React.FC = () => {
                         translateOrFallback('tmdbCredentialValid', 'TMDB credential is valid.')
                 ),
             });
-        } catch (error: any) {
+        } catch (error: unknown) {
+            const errorKey = (error as { response?: { data?: { errorKey?: string } } })
+                .response?.data?.errorKey;
             setTmdbCredentialTestResult({
                 type: 'error',
                 message: getTMDBCredentialMessage(
-                    error.response?.data?.errorKey,
+                    errorKey,
                     translateOrFallback('tmdbCredentialTestFailed', 'Failed to test TMDB credential.')
                 ),
             });

@@ -2,7 +2,7 @@ import { Box, Menu, MenuItem } from '@mui/material';
 import React from 'react';
 import { useCollection } from '../../contexts/CollectionContext';
 import { useLanguage } from '../../contexts/LanguageContext';
-import { useVideo } from '../../contexts/VideoContext';
+import { useVideoActions, useVideoTags } from '../../contexts/VideoContext';
 import { useShareVideo } from '../../hooks/useShareVideo';
 import { Video } from '../../types';
 import { neutral, overlay } from '../../theme/colors';
@@ -46,7 +46,8 @@ export const VideoCardActions: React.FC<VideoCardActionsProps> = ({
 }) => {
     const { t } = useLanguage();
     const { collections: allCollections, addToCollection, createCollection, removeFromCollection } = useCollection();
-    const { updateVideo, availableTags } = useVideo();
+    const { updateVideo } = useVideoActions();
+    const { availableTags } = useVideoTags();
     const { handleShare } = useShareVideo(video);
     const [showCollectionModal, setShowCollectionModal] = React.useState(false);
     const [showTagsModal, setShowTagsModal] = React.useState(false);

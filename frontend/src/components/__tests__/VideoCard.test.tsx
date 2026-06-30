@@ -46,9 +46,14 @@ vi.mock('../../contexts/SnackbarContext', () => ({
 
 const mockUpdateVideo = vi.fn();
 vi.mock('../../contexts/VideoContext', () => ({
-    useVideo: () => ({
+    useVideoActions: () => ({
         updateVideo: mockUpdateVideo,
+        incrementView: vi.fn(),
+    }),
+    useVideoTags: () => ({
         availableTags: ['tag1', 'tag2', 'tag3'],
+        selectedTags: [],
+        handleTagToggle: vi.fn(),
     }),
 }));
 

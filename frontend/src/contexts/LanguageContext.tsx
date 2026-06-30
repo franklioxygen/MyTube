@@ -1,5 +1,6 @@
+import { hasAxiosStatus, hasAnyAxiosStatus } from '../utils/errors';
 import { useQueryClient } from '@tanstack/react-query';
-import React, { createContext, ReactNode, useContext, useEffect, useEffectEvent, useState } from 'react';
+import React, { createContext, ReactNode, useCallback, useContext, useEffect, useEffectEvent, useMemo, useState } from 'react';
 import { defaultTranslations, Language, loadLocale, TranslationKey } from '../utils/translations';
 import { api } from '../utils/apiClient';
 import { fetchReadableSettings } from '../utils/settingsQueries';
@@ -85,9 +86,9 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
             } catch (error) {
                 console.error('Error saving language to localStorage:', error);
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             // Silently handle auth-related failures when not authenticated
-            if (error?.response?.status !== 401 && error?.response?.status !== 403) {
+            if (!hasAnyAxiosStatus(error, [401, 403])) {
                 console.error('Error fetching settings for language:', error);
             }
             // If backend fails, keep using localStorage value
@@ -105,7 +106,7 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
         return () => window.removeEventListener('mytube-login', onLogin);
     }, [queryClient, syncLanguagePreference]);
 
-    const setLanguage = async (lang: Language) => {
+    const setLanguage = useCallback(async (lang: Language) => {
         const normalizedLanguage = normalizeLanguage(lang);
         setLanguageState(normalizedLanguage);
         // Save to localStorage immediately for instant UI update
@@ -119,16 +120,16 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
         // (backend accepts when login is disabled, or when cookies are sent; 401 is ignored)
         try {
             await api.patch('/settings', { language: normalizedLanguage });
-        } catch (error: any) {
+        } catch (error: unknown) {
             // Silently handle 401 errors (expected when not authenticated)
             // Language is already saved to localStorage, so UI will update correctly
-            if (error?.response?.status !== 401) {
+            if (!hasAxiosStatus(error, 401)) {
                 console.error('Error saving language setting:', error);
             }
         }
-    };
+    }, []);
 
-    const t = (key: TranslationKey, replacements?: Record<string, string | number>): string => {
+    const t = useCallback((key: TranslationKey, replacements?: Record<string, string | number>): string => {
         let text = translations[key] || key;
         if (replacements) {
             Object.entries(replacements).forEach(([placeholder, value]) => {
@@ -147,10 +148,12 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
             });
         }
         return text;
-    };
+    }, [translations]);
+
+    const value = useMemo<LanguageContextType>(() => ({ language, setLanguage, t }), [language, setLanguage, t]);
 
     return (
-        <LanguageContext.Provider value={{ language, setLanguage, t }}>
+        <LanguageContext.Provider value={value}>
             {children}
         </LanguageContext.Provider>
     );
