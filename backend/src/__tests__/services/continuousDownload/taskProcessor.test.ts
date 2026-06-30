@@ -132,6 +132,42 @@ describe('TaskProcessor', () => {
      expect(mockTaskRepository.completeTask).not.toHaveBeenCalled();
   });
 
+  it('continues and clears the flag when an interruption signal is stale (quick pause→resume)', async () => {
+     // Simulate a pause that was immediately followed by a resume: the in-memory
+     // interruption flag is set, but the DB status is back to "active".
+     const videoUrls = ['http://vid1', 'http://vid2'];
+     mockVideoUrlFetcher.getAllVideoUrls.mockResolvedValue(videoUrls);
+     (storageService.getVideoBySourceUrl as any).mockReturnValue(null);
+     (downloadService.downloadYouTubeVideo as any).mockResolvedValue({
+       videoData: { id: 'v1', title: 'V', videoPath: '/tmp/1', thumbnailPath: '/tmp/t1' },
+     });
+     mockTaskRepository.getTaskStatus.mockResolvedValue('active');
+
+     taskProcessor.signalInterruption(mockTask.id);
+
+     await taskProcessor.processTask({ ...mockTask });
+
+     // Loop confirmed against the DB, saw "active", dropped the stale flag, and
+     // finished normally instead of leaving the task active with no worker.
+     expect(taskProcessor.isTaskInterrupted(mockTask.id)).toBe(false);
+     expect(downloadService.downloadYouTubeVideo).toHaveBeenCalledTimes(2);
+     expect(mockTaskRepository.completeTask).toHaveBeenCalledWith(mockTask.id);
+  });
+
+  it('stops when an interruption signal is confirmed by a non-active DB status', async () => {
+     const videoUrls = ['http://vid1', 'http://vid2'];
+     mockVideoUrlFetcher.getAllVideoUrls.mockResolvedValue(videoUrls);
+     mockTaskRepository.getTaskStatus.mockResolvedValue('paused');
+     mockTaskRepository.getTaskById.mockResolvedValue({ ...mockTask, status: 'paused' });
+
+     taskProcessor.signalInterruption(mockTask.id);
+
+     await taskProcessor.processTask({ ...mockTask });
+
+     expect(downloadService.downloadYouTubeVideo).not.toHaveBeenCalled();
+     expect(mockTaskRepository.completeTask).not.toHaveBeenCalled();
+  });
+
   it('should use incremental fetching for YouTube playlists', async () => {
     vi.useFakeTimers();
     

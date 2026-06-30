@@ -103,14 +103,41 @@ export class TaskProcessor {
     return this.interruptedTaskIds.has(taskId);
   }
 
-  private clearInterruption(taskId: string): void {
+  /**
+   * Drop a task's in-memory interruption signal. Called when a task is resumed
+   * so a quick pause→resume doesn't leave a stale flag that kills the resumed
+   * worker before it observes the new "active" status.
+   */
+  clearInterruption(taskId: string): void {
     this.interruptedTaskIds.delete(taskId);
+  }
+
+  /**
+   * Decide whether the loop should stop because of an interruption signal.
+   *
+   * The in-memory flag is only a fast hint, not the source of truth: when it is
+   * set we confirm against the DB. If the task is "active" again (a quick
+   * pause→resume landed while this loop was mid-iteration), the signal is stale —
+   * we clear it and keep going so the task isn't left active with no worker.
+   * Returns true only when the DB confirms the task is no longer active.
+   */
+  private async shouldStopForInterruption(taskId: string): Promise<boolean> {
+    if (!this.isTaskInterrupted(taskId)) {
+      return false;
+    }
+    const status = await this.taskRepository.getTaskStatus(taskId);
+    if (status === "active") {
+      this.clearInterruption(taskId);
+      return false;
+    }
+    return true;
   }
 
   /**
    * Returns true if the task is still "active" and the loop should continue.
    *
-   * Checks the cheap in-memory interruption signal first. To stay resilient to
+   * Checks the cheap in-memory interruption signal first (confirmed against the
+   * DB before stopping — see shouldStopForInterruption). To stay resilient to
    * external (DB-level) status changes, it also re-reads the DB status on a
    * throttle (every STATUS_DB_CHECK_EVERY_ITERS iterations) rather than on
    * every iteration — this removes the per-video DB round-trips while still
@@ -121,7 +148,7 @@ export class TaskProcessor {
     iteration: number,
     startIndex: number
   ): Promise<boolean> {
-    if (this.isTaskInterrupted(taskId)) {
+    if (await this.shouldStopForInterruption(taskId)) {
       return false;
     }
     const sinceStart = iteration - startIndex;
@@ -243,10 +270,10 @@ export class TaskProcessor {
         videoUrl = fullListVideoUrl;
       }
 
-      // Re-check the cheap in-memory signal before starting the slow download.
-      // External DB-level status changes are picked up by the throttled loop
-      // check; pause/cancel through the service is observed immediately.
-      if (this.isTaskInterrupted(task.id)) {
+      // Re-check the interruption signal before starting the slow download.
+      // The in-memory flag is confirmed against the DB so a quick pause→resume
+      // doesn't abort the (now active) task here.
+      if (await this.shouldStopForInterruption(task.id)) {
         logger.info(
           `Task ${task.id} was cancelled or paused before starting video download`
         );
