@@ -19,6 +19,26 @@ import {
 import { flagsToArgs } from "./flags";
 
 /**
+ * Error thrown when a yt-dlp invocation fails. Carries the captured `stderr` and
+ * the exit `code`/signal as typed fields so callers can inspect them without
+ * `(error as any)` casts.
+ */
+export class YtDlpExecutionError extends Error {
+  readonly stderr?: string;
+  readonly code?: string | number | null;
+
+  constructor(
+    message: string,
+    options: { stderr?: string; code?: string | number | null } = {}
+  ) {
+    super(message);
+    this.name = "YtDlpExecutionError";
+    this.stderr = options.stderr;
+    this.code = options.code;
+  }
+}
+
+/**
  * Preprocess URL to handle specific domain replacements
  * e.g. xvideos.red -> xvideos.com to support yt-dlp extraction
  */
@@ -124,11 +144,12 @@ export async function executeYtDlpJson(
               return;
             } catch (retryError) {
               // If retry also fails, reject with original error
-              const error = new Error(
-                `yt-dlp process exited with code ${code}`
+              reject(
+                new YtDlpExecutionError(
+                  `yt-dlp process exited with code ${code}`,
+                  { stderr, code }
+                )
               );
-              (error as any).stderr = stderr;
-              reject(error);
               return;
             }
           } else if (!effectiveFlags.ignoreConfig) {
@@ -146,19 +167,23 @@ export async function executeYtDlpJson(
               return;
             } catch (retryError) {
               // If retry also fails, reject with original error
-              const error = new Error(
-                `yt-dlp process exited with code ${code}`
+              reject(
+                new YtDlpExecutionError(
+                  `yt-dlp process exited with code ${code}`,
+                  { stderr, code }
+                )
               );
-              (error as any).stderr = stderr;
-              reject(error);
               return;
             }
           }
         }
 
-        const error = new Error(`yt-dlp process exited with code ${code}`);
-        (error as any).stderr = stderr;
-        reject(error);
+        reject(
+          new YtDlpExecutionError(`yt-dlp process exited with code ${code}`, {
+            stderr,
+            code,
+          })
+        );
         return;
       }
 
@@ -430,7 +455,7 @@ export function executeYtDlpSpawn(
       return;
     }
 
-    if (typeof (source as any).pipe === "function") {
+    if (typeof (source as { pipe?: unknown }).pipe === "function") {
       source.pipe(target, { end: true });
       return;
     }
@@ -471,9 +496,11 @@ export function executeYtDlpSpawn(
           if (killRequested) {
             rejected = true;
             endPassThroughStreams();
-            const error = new Error("yt-dlp process cancelled before start");
-            (error as any).code = "SIGTERM";
-            reject(error);
+            reject(
+              new YtDlpExecutionError("yt-dlp process cancelled before start", {
+                code: "SIGTERM",
+              })
+            );
             return;
           }
 
@@ -497,25 +524,25 @@ export function executeYtDlpSpawn(
                 resolve();
               } else if (killRequested) {
                 rejected = true;
-                const error = new Error(
-                  signal
-                    ? `yt-dlp process cancelled by ${signal}`
-                    : "yt-dlp process cancelled"
+                reject(
+                  new YtDlpExecutionError(
+                    signal
+                      ? `yt-dlp process cancelled by ${signal}`
+                      : "yt-dlp process cancelled",
+                    { stderr, code: signal || killSignal || "SIGTERM" }
+                  )
                 );
-                (error as any).stderr = stderr;
-                (error as any).code = signal || killSignal || "SIGTERM";
-                reject(error);
               } else {
                 rejected = true;
-                const error = new Error(
-                  signal
-                    ? `yt-dlp process exited due to signal ${signal}`
-                    : `yt-dlp process exited with code ${code}`
-                );
-                (error as any).stderr = stderr;
-                (error as any).code = signal || code;
                 console.error("yt-dlp error output:", stderr);
-                reject(error);
+                reject(
+                  new YtDlpExecutionError(
+                    signal
+                      ? `yt-dlp process exited due to signal ${signal}`
+                      : `yt-dlp process exited with code ${code}`,
+                    { stderr, code: signal || code }
+                  )
+                );
               }
             }
           });

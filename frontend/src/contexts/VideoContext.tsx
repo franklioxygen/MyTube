@@ -200,18 +200,29 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const deleteVideos = useCallback(async (ids: string[]) => {
         try {
-            // Delete videos sequentially to avoid overwhelming the server
-            // or we could implement a batch delete API endpoint if available, but for now loop client-side
+            // Delete in small bounded-concurrency batches: much faster than fully
+            // sequential for large selections, but capped so we never fire one
+            // request per video at once and flood the server.
+            const DELETE_CONCURRENCY = 5;
             let successCount = 0;
             let failCount = 0;
 
-            for (const id of ids) {
-                try {
-                    await deleteVideoMutation.mutateAsync({ id, options: { showSnackbar: false } });
-                    successCount++;
-                } catch (error) {
-                    console.error(`Failed to delete video ${id}:`, error);
-                    failCount++;
+            for (let i = 0; i < ids.length; i += DELETE_CONCURRENCY) {
+                const chunk = ids.slice(i, i + DELETE_CONCURRENCY);
+                const outcomes = await Promise.all(
+                    chunk.map(async (id) => {
+                        try {
+                            await deleteVideoMutation.mutateAsync({ id, options: { showSnackbar: false } });
+                            return true;
+                        } catch (error) {
+                            console.error(`Failed to delete video ${id}:`, error);
+                            return false;
+                        }
+                    })
+                );
+                for (const ok of outcomes) {
+                    if (ok) successCount++;
+                    else failCount++;
                 }
             }
 

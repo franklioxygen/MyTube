@@ -121,41 +121,27 @@ describe('videoDownloadTracking', () => {
     });
 
     describe('recordVideoDownload', () => {
-        it('should insert record when sourceVideoId does not exist', () => {
-             const mockSelectGet = vi.fn().mockReturnValue(undefined);
-             const mockSelectWhere = vi.fn().mockReturnValue({ get: mockSelectGet });
-             const mockSelectFrom = vi.fn().mockReturnValue({ where: mockSelectWhere });
-             vi.mocked(db.select).mockReturnValue({ from: mockSelectFrom } as any);
-
+        it('should upsert via a single insert keyed on the (sourceVideoId, platform) unique index', () => {
              const mockInsertRun = vi.fn();
              const mockOnConflict = vi.fn().mockReturnValue({ run: mockInsertRun });
              const mockValues = vi.fn().mockReturnValue({ onConflictDoUpdate: mockOnConflict });
              vi.mocked(db.insert).mockReturnValue({ values: mockValues } as any);
 
              recordVideoDownload('src1', 'url', 'yt', 'vid1');
-             expect(db.insert).toHaveBeenCalled();
+
+             // Single upsert: no separate existence SELECT, no UPDATE branch.
+             expect(db.select).not.toHaveBeenCalled();
              expect(db.update).not.toHaveBeenCalled();
-             expect(mockValues).toHaveBeenCalled();
-        });
-
-        it('should update existing record when sourceVideoId exists', () => {
-            const mockSelectGet = vi.fn().mockReturnValue({ id: 'existing-id' });
-            const mockSelectWhere = vi.fn().mockReturnValue({ get: mockSelectGet });
-            const mockSelectFrom = vi.fn().mockReturnValue({ where: mockSelectWhere });
-            vi.mocked(db.select).mockReturnValue({ from: mockSelectFrom } as any);
-
-            const mockUpdateRun = vi.fn();
-            const mockUpdateWhere = vi.fn().mockReturnValue({ run: mockUpdateRun });
-            const mockUpdateSet = vi.fn().mockReturnValue({ where: mockUpdateWhere });
-            vi.mocked(db.update).mockReturnValue({ set: mockUpdateSet } as any);
-
-            recordVideoDownload('src1', 'url', 'yt', 'vid1');
-            expect(db.update).toHaveBeenCalled();
-            expect(db.insert).not.toHaveBeenCalled();
+             expect(db.insert).toHaveBeenCalledTimes(1);
+             expect(mockValues).toHaveBeenCalledWith(
+               expect.objectContaining({ id: 'yt:src1', sourceVideoId: 'src1', platform: 'yt' })
+             );
+             expect(mockOnConflict).toHaveBeenCalledTimes(1);
+             expect(mockInsertRun).toHaveBeenCalledTimes(1);
         });
 
         it('should swallow errors while recording download', () => {
-            vi.mocked(db.select).mockImplementation(() => {
+            vi.mocked(db.insert).mockImplementation(() => {
               throw new Error('write failed');
             });
 

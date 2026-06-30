@@ -4,7 +4,9 @@ const mockGetSettings = vi.fn();
 const mockSaveSettings = vi.fn();
 
 vi.mock("../../../db", () => ({
-  sqlite: { prepare: vi.fn() },
+  // transaction(fn) returns a wrapped fn that runs fn when invoked, mirroring
+  // better-sqlite3's API closely enough for the collector's batch ingest path.
+  sqlite: { prepare: vi.fn(), transaction: vi.fn((fn: any) => fn) },
 }));
 
 vi.mock("../../../services/storageService", () => ({
@@ -246,6 +248,26 @@ describe("statistics collector", () => {
 
       expect(result.acceptedCount).toBe(1);
       expect(result.droppedCount).toBe(0);
+    });
+
+    it("drops the batch without throwing when the transaction fails to commit", () => {
+      vi.mocked(sqlite.prepare).mockReturnValue(makeStmt() as any);
+      // Simulate a commit-time failure (e.g. SQLITE_BUSY / disk full): the
+      // transaction wrapper throws when invoked.
+      vi.mocked(sqlite.transaction).mockReturnValueOnce((() => {
+        throw new Error("database is locked");
+      }) as any);
+
+      const result = ingestBatch(
+        [{ eventType: "search_submitted" }, { eventType: "video_play_started" }],
+        { actorRole: "admin", surface: "web" }
+      );
+
+      expect(result).toEqual({
+        acceptedCount: 0,
+        droppedCount: 2,
+        sealedDayDropCount: 0,
+      });
     });
 
     it("handles mixed allowed and disallowed events", () => {

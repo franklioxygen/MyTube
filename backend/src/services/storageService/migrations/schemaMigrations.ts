@@ -11,6 +11,18 @@ import {
   populateVideoFileSizes,
 } from "./dataBackfill";
 
+interface TableColumnInfo {
+  name: string;
+}
+
+/**
+ * Column names from a `PRAGMA table_info(...)` result. Centralizes the single
+ * cast so the migration self-heal checks don't each sprinkle `as any[]`.
+ */
+function columnNames(tableInfo: unknown[]): string[] {
+  return (tableInfo as TableColumnInfo[]).map((col) => col.name);
+}
+
 // Create performance indexes on the videos, collection_videos, and collections
 // tables for existing databases. These indexes are declared in the schema but
 // older installs created via runtime self-heal (rather than drizzle-kit) will
@@ -85,9 +97,7 @@ function migratePerformanceIndexes(): void {
 export function migrateTagsColumn(): void {
   try {
     const tableInfo = sqlite.prepare("PRAGMA table_info(videos)").all();
-    const hasTags = (tableInfo as any[]).some(
-      (col: any) => col.name === "tags"
-    );
+    const hasTags = columnNames(tableInfo).includes("tags");
 
     if (!hasTags) {
       logger.info("Migrating database: Adding tags column to videos table...");
@@ -114,9 +124,7 @@ function migrateCollectionsAndSubscriptionsColumns(): void {
     const collectionsTableInfo = sqlite
       .prepare("PRAGMA table_info(collections)")
       .all();
-    const collectionsColumns = (collectionsTableInfo as any[]).map(
-      (col: any) => col.name
-    );
+    const collectionsColumns = columnNames(collectionsTableInfo);
 
     if (
       collectionsColumns.length > 0 &&
@@ -158,9 +166,7 @@ function migrateCollectionsAndSubscriptionsColumns(): void {
     const subscriptionsTableInfo = sqlite
       .prepare("PRAGMA table_info(subscriptions)")
       .all();
-    const subscriptionsColumns = (subscriptionsTableInfo as any[]).map(
-      (col: any) => col.name
-    );
+    const subscriptionsColumns = columnNames(subscriptionsTableInfo);
 
     if (!subscriptionsColumns.includes("playlist_id")) {
       logger.info(
@@ -291,7 +297,7 @@ function migrateContinuousDownloadTaskColumns(): void {
     const taskTableInfo = sqlite
       .prepare("PRAGMA table_info(continuous_download_tasks)")
       .all();
-    const taskColumns = (taskTableInfo as any[]).map((col: any) => col.name);
+    const taskColumns = columnNames(taskTableInfo);
 
     if (taskColumns.length > 0) {
       if (!taskColumns.includes("download_order")) {
@@ -335,7 +341,7 @@ function migrateContinuousDownloadTaskColumns(): void {
 export function migrateColumnsAndTables(): void {
   try {
     const tableInfo = sqlite.prepare("PRAGMA table_info(videos)").all();
-    const columns = (tableInfo as any[]).map((col: any) => col.name);
+    const columns = columnNames(tableInfo);
 
     if (!columns.includes("view_count")) {
       logger.info(
@@ -423,9 +429,7 @@ export function migrateColumnsAndTables(): void {
     const downloadsTableInfo = sqlite
       .prepare("PRAGMA table_info(downloads)")
       .all();
-    const downloadsColumns = (downloadsTableInfo as any[]).map(
-      (col: any) => col.name
-    );
+    const downloadsColumns = columnNames(downloadsTableInfo);
 
     if (!downloadsColumns.includes("source_url")) {
       logger.info(
@@ -541,9 +545,7 @@ export function migrateColumnsAndTables(): void {
     const downloadHistoryTableInfo = sqlite
       .prepare("PRAGMA table_info(download_history)")
       .all();
-    const downloadHistoryColumns = (downloadHistoryTableInfo as any[]).map(
-      (col: any) => col.name
-    );
+    const downloadHistoryColumns = columnNames(downloadHistoryTableInfo);
 
     if (!downloadHistoryColumns.includes("video_id")) {
       logger.info(

@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import React, { Suspense, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useSettings } from '../hooks/useSettings';
+import { SUBSCRIPTIONS_QUERY_KEY } from '../hooks/useSubscriptions';
 import { DownloadInfo } from '../types';
 import { api } from '../utils/apiClient';
 import { getApiErrorMessage, hasAxiosStatus } from '../utils/errors';
@@ -659,7 +660,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             }
 
             showSnackbar(message);
-            queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
+            queryClient.invalidateQueries({ queryKey: SUBSCRIPTIONS_QUERY_KEY });
             setSubscribeUrl('');
             setShowSubscribeModal(false);
             setSubscribeSource(undefined);

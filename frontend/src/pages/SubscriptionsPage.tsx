@@ -26,6 +26,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import { api } from '../utils/apiClient';
+import { useSubscriptions } from '../hooks/useSubscriptions';
 import { formatDisplayDateTimeMinutes } from '../utils/formatUtils';
 import type { TranslationKey } from '../utils/translations';
 
@@ -113,12 +114,7 @@ const SubscriptionsPage: React.FC = () => {
     const [subscriptionsRowsPerPage, setSubscriptionsRowsPerPage] = useState(DEFAULT_SUBSCRIPTIONS_ROWS_PER_PAGE);
 
     // Use React Query for better caching and memory management
-    const { data: subscriptions = [], refetch: refetchSubscriptions } = useQuery({
-        queryKey: ['subscriptions'],
-        queryFn: async () => {
-            const response = await api.get('/subscriptions');
-            return response.data as Subscription[];
-        },
+    const { data: subscriptions = [], refetch: refetchSubscriptions } = useSubscriptions<Subscription[]>({
         refetchInterval: 30000, // Refetch every 30 seconds (less frequent)
         staleTime: 10000, // Consider data fresh for 10 seconds
         gcTime: 10 * 60 * 1000, // Garbage collect after 10 minutes

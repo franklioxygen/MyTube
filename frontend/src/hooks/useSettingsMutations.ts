@@ -4,6 +4,7 @@ import { Settings } from "../types";
 import { api, getApiErrorData, getApiErrorMessage } from "../utils/apiClient";
 import { generateTimestamp } from "../utils/formatUtils";
 import { InfoModalState } from "./useSettingsModals";
+import { SUBSCRIPTIONS_QUERY_KEY } from "./useSubscriptions";
 
 interface UseSettingsMutationsProps {
   setMessage: (
@@ -150,7 +151,7 @@ export function useSettingsMutations({
     void queryClient.invalidateQueries({ queryKey: ["settings"] });
     void queryClient.invalidateQueries({ queryKey: ["videos"] });
     void queryClient.invalidateQueries({ queryKey: ["collections"] });
-    void queryClient.invalidateQueries({ queryKey: ["subscriptions"] });
+    void queryClient.invalidateQueries({ queryKey: SUBSCRIPTIONS_QUERY_KEY });
     void queryClient.invalidateQueries({ queryKey: ["subscriptionTasks"] });
     void queryClient.invalidateQueries({ queryKey: ["downloadHistory"] });
   };

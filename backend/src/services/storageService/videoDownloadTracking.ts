@@ -131,38 +131,11 @@ export function recordVideoDownload(
   author?: string
 ): void {
   try {
-    // Keep a single canonical row per (sourceVideoId, platform) to prevent drift/duplicates.
-    // We update the existing row when present; otherwise create a deterministic id.
-    const existingRecord = db
-      .select()
-      .from(videoDownloads)
-      .where(
-        and(
-          eq(videoDownloads.sourceVideoId, sourceVideoId),
-          eq(videoDownloads.platform, platform)
-        )
-      )
-      .get();
-
-    if (existingRecord) {
-      db.update(videoDownloads)
-        .set({
-          sourceUrl,
-          platform,
-          videoId,
-          title,
-          author,
-          status: "exists",
-          deletedAt: null,
-        })
-        .where(eq(videoDownloads.id, existingRecord.id))
-        .run();
-      logger.info(
-        `Updated video download record: ${title || sourceVideoId} (${platform})`
-      );
-      return;
-    }
-
+    // Keep a single canonical row per (sourceVideoId, platform). A single upsert
+    // keyed on the (sourceVideoId, platform) unique index handles both insert and
+    // update — no separate existence SELECT needed. Existing rows (including
+    // legacy random ids) match on the unique constraint and are updated in place,
+    // so the `id` column is never rewritten.
     const deterministicId = `${platform}:${sourceVideoId}`;
     db.insert(videoDownloads)
       .values({
@@ -177,10 +150,9 @@ export function recordVideoDownload(
         downloadedAt: Date.now(),
       })
       .onConflictDoUpdate({
-        target: videoDownloads.id,
+        target: [videoDownloads.sourceVideoId, videoDownloads.platform],
         set: {
           sourceUrl,
-          platform,
           videoId,
           title,
           author,
