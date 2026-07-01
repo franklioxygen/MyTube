@@ -82,6 +82,10 @@ export const useVideoActions = () => {
     return context;
 };
 
+// Stable fallback so the provider-value useMemo deps don't see a fresh array
+// identity on every render while the settings query is unresolved.
+const EMPTY_TAGS: string[] = [];
+
 export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const { showSnackbar } = useSnackbar();
     const { t } = useLanguage();
@@ -134,7 +138,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         enabled: isAuthenticated,
     });
 
-    const availableTags = settingsData?.tags || [];
+    const availableTags = settingsData?.tags ?? EMPTY_TAGS;
     const showYoutubeSearch = settingsData?.showYoutubeSearch ?? true;
     const captureSearchText = settingsData?.statisticsCaptureSearchText === true;
 

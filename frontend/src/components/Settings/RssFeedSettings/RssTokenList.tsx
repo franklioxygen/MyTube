@@ -33,6 +33,10 @@ const getVideoTags = (tags: VideoItem['tags']): string[] => {
     return [];
 };
 
+// Stable fallback so the option-list useMemos don't recompute on every render
+// while the videos query is unresolved.
+const EMPTY_VIDEOS: VideoItem[] = [];
+
 const RssTokenList: React.FC = () => {
     const { t } = useLanguage();
     const queryClient = useQueryClient();
@@ -55,7 +59,7 @@ const RssTokenList: React.FC = () => {
         staleTime: 5 * 60 * 1000,
     });
 
-    const videos: VideoItem[] = videosData ?? [];
+    const videos: VideoItem[] = videosData ?? EMPTY_VIDEOS;
 
     const channelOptions = useMemo(() => {
         const seen = new Set<string>();
