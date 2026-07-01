@@ -23,6 +23,10 @@ services:
     restart: unless-stopped
     networks:
       - mytube-network
+    # Avoid Chromium/Puppeteer stalls on hosts with half-enabled IPv6.
+    sysctls:
+      - net.ipv6.conf.all.disable_ipv6=1
+      - net.ipv6.conf.default.disable_ipv6=1
     # For OpenWrt/iStoreOS systems where bridge network cannot access internet,
     # uncomment the following lines to use host network mode:
     # network_mode: host

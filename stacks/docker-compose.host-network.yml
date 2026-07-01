@@ -29,6 +29,9 @@ services:
     restart: unless-stopped
     # Note: In host mode, the container uses the host's network stack directly
     # The backend will be accessible at localhost:5551 on the host
+    # Docker cannot apply net.* sysctls to host-network containers. If the host
+    # has half-enabled IPv6 and Chromium navigation times out on dual-stack
+    # domains, disable IPv6 on the host itself with sysctl.
 
   frontend:
     image: franklioxygen/mytube:frontend-latest
