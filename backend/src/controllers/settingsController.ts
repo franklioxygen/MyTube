@@ -2,19 +2,12 @@ import { Request, Response } from "express";
 import crypto from "crypto";
 import path from "path";
 import {
-  AdminTrustLevel,
-  createAdminTrustLevelError,
-  getDeploymentSecurityModel,
-  isAdminTrustLevelAtLeast,
-} from "../config/adminTrust";
-import {
-    COLLECTIONS_DATA_PATH,
-    STATUS_DATA_PATH,
-    VIDEOS_DATA_PATH,
+  COLLECTIONS_DATA_PATH,
+  STATUS_DATA_PATH,
+  VIDEOS_DATA_PATH,
 } from "../config/paths";
 import { cloudflaredService } from "../services/cloudflaredService";
-import downloadManager from "../services/downloadManager";
-import { normalizeFilenameNamingSettings, resolveFilenameNamingConfig } from "../services/filenameTemplate/config";
+import { normalizeFilenameNamingSettings } from "../services/filenameTemplate/config";
 import * as passwordService from "../services/passwordService";
 import * as settingsValidationService from "../services/settingsValidationService";
 import {
@@ -25,7 +18,20 @@ import {
 import * as storageService from "../services/storageService";
 import { testTMDBCredential as testTMDBCredentialService } from "../services/tmdbService";
 import { twitchApiService } from "../services/twitchService";
+import { applyCloudflaredSettingChanges } from "./settingsController/cloudflaredEffects";
+import {
+  moveSubtitlesIfSettingChanged,
+  moveThumbnailsIfSettingChanged,
+  persistAllowedHostsEnv,
+  applyRuntimeSettingChanges,
+} from "./settingsController/fileMoveEffects";
 import { isSecurePasskeySettingsRequest } from "./settingsController/requestSecurity";
+import {
+  buildSafeSettingsPayload,
+  PersistedSettingsResponse,
+} from "./settingsController/settingsResponse";
+import { processTagChanges } from "./settingsController/tagMutations";
+import { enforceTrustLevelForSettingsChanges } from "./settingsController/trustGating";
 import {
   authorOrganizationModeToLegacySetting,
   isAuthorOrganizationMode,
@@ -39,177 +45,7 @@ import {
   pathExistsSafeSync,
   resolveSafeChildPath,
   unlinkSafeSync,
-  writeFileSafe,
 } from "../utils/security";
-
-type PersistedSettingsResponse = Settings & { passkeys?: unknown };
-
-const TRUST_GATED_SETTINGS_REQUIREMENTS: Partial<
-  Record<keyof Settings, AdminTrustLevel>
-> = {
-  ytDlpConfig: "container",
-  proxyOnlyYoutube: "container",
-  mountDirectories: "host",
-};
-
-const RESPONSE_HIDDEN_SETTINGS_KEYS = new Set([
-  "password",
-  "visitorPassword",
-  // Gemini key has per-use billing cost; never round-trip it to any client,
-  // not even admins. Clients learn only the derived liveTranslationApiKeyConfigured flag.
-  "liveTranslationApiKey",
-]);
-
-const ADMIN_ONLY_SETTINGS_KEYS = new Set([
-  // Secrets and tokens should only round-trip to admin clients.
-  "apiKey",
-  "apiKeyEnabled",
-  "openListToken",
-  "cloudflaredToken",
-  "tmdbApiKey",
-  "telegramBotToken",
-  "twitchClientId",
-  "twitchClientSecret",
-  // Statistics settings: hidden from visitor-safe responses
-  "statisticsEnabled",
-  "statisticsRetentionDays",
-  "statisticsCaptureSearchText",
-  "statisticsTrackVisitorActivity",
-  "statisticsKeepDataWhenDisabled",
-  "statisticsTimezone",
-]);
-
-const RESPONSE_VISIBLE_SETTINGS_KEYS =
-  storageService.WHITELISTED_SETTINGS.filter(
-    (key) =>
-      !RESPONSE_HIDDEN_SETTINGS_KEYS.has(key) &&
-      !ADMIN_ONLY_SETTINGS_KEYS.has(key)
-  );
-
-const buildSafeSettingsPayload = (
-  req: Request,
-  settings: PersistedSettingsResponse
-): Record<string, unknown> => {
-  const resolvedFilenameNaming = resolveFilenameNamingConfig(settings);
-  const canExposeAdminOnlySettings =
-    req.user?.role === "admin" || settings.loginEnabled !== true;
-  const safeSettings = Object.fromEntries(
-    RESPONSE_VISIBLE_SETTINGS_KEYS
-      .filter((key) => Object.prototype.hasOwnProperty.call(settings, key))
-      .map((key) => [key, settings[key as keyof PersistedSettingsResponse]])
-  );
-  const adminOnlySettings =
-    canExposeAdminOnlySettings
-      ? Object.fromEntries(
-          Array.from(ADMIN_ONLY_SETTINGS_KEYS)
-            .filter((key) =>
-              Object.prototype.hasOwnProperty.call(settings, key)
-            )
-            .map((key) => [key, settings[key as keyof PersistedSettingsResponse]])
-        )
-      : {};
-
-  const hasLiveTranslationApiKey =
-    typeof settings.liveTranslationApiKey === "string" &&
-    settings.liveTranslationApiKey.trim().length > 0;
-
-  return {
-    ...safeSettings,
-    ...adminOnlySettings,
-    // Gate the configured flag behind the same admin/login check used for
-    // adminOnlySettings so visitors do not learn whether a key is configured.
-    ...(canExposeAdminOnlySettings
-      ? { liveTranslationApiKeyConfigured: hasLiveTranslationApiKey }
-      : {}),
-    downloadFilenameMode: resolvedFilenameNaming.mode,
-    downloadFilenamePresetId: resolvedFilenameNaming.matchedPresetId,
-    deploymentSecurity: getDeploymentSecurityModel(),
-    password: undefined,
-    visitorPassword: undefined,
-    liveTranslationApiKey: undefined,
-    passkeys: undefined,
-  };
-};
-
-const areSettingValuesEqual = (a: unknown, b: unknown): boolean => {
-  if (a === b) {
-    return true;
-  }
-
-  if (Array.isArray(a) && Array.isArray(b)) {
-    return JSON.stringify(a) === JSON.stringify(b);
-  }
-
-  if (
-    typeof a === "object" &&
-    a !== null &&
-    typeof b === "object" &&
-    b !== null
-  ) {
-    return JSON.stringify(a) === JSON.stringify(b);
-  }
-
-  return false;
-};
-
-const normalizeTrustGatedSettingValue = (
-  key: keyof Settings,
-  value: unknown
-): unknown => {
-  if ((key === "ytDlpConfig" || key === "mountDirectories") && value == null) {
-    return "";
-  }
-
-  if (key === "proxyOnlyYoutube" && value == null) {
-    return false;
-  }
-
-  return value;
-};
-
-const enforceTrustLevelForSettingsChanges = (
-  res: Response,
-  existingSettings: Settings,
-  incomingSettings: Partial<Settings>
-): Partial<Settings> | null => {
-  const sanitizedSettings = { ...incomingSettings };
-
-  for (const [rawKey, requiredTrustLevel] of Object.entries(
-    TRUST_GATED_SETTINGS_REQUIREMENTS
-  )) {
-    const key = rawKey as keyof Settings;
-
-    if (
-      requiredTrustLevel === undefined ||
-      !Object.prototype.hasOwnProperty.call(sanitizedSettings, key)
-    ) {
-      continue;
-    }
-
-    if (isAdminTrustLevelAtLeast(requiredTrustLevel)) {
-      continue;
-    }
-
-    const nextValue = normalizeTrustGatedSettingValue(
-      key,
-      sanitizedSettings[key]
-    );
-    const currentValue = normalizeTrustGatedSettingValue(
-      key,
-      existingSettings[key]
-    );
-
-    if (areSettingValuesEqual(currentValue, nextValue)) {
-      delete sanitizedSettings[key];
-      continue;
-    }
-
-    res.status(403).json(createAdminTrustLevelError(requiredTrustLevel));
-    return null;
-  }
-
-  return sanitizedSettings;
-};
 
 /**
  * Get application settings
@@ -316,10 +152,8 @@ export const cleanupAuthorCollections = async (
   res.json({ results });
 };
 
-/**
- * Handle settings updates
- * Errors are automatically handled by asyncHandler middleware
- */
+// ---- Update-flow helpers (update-path-local; not reused elsewhere) ----
+
 type SettingsUpdateMode = "replace" | "patch";
 
 const hasOwnSetting = (
@@ -378,9 +212,6 @@ const removeUndefinedSettings = (settings: Partial<Settings>): void => {
   });
 };
 
-const getDeletedTags = (oldTags: string[], newTags: string[]): string[] =>
-  oldTags.filter((old) => !newTags.some((n) => n.toLowerCase() === old.toLowerCase()));
-
 const isPasswordLoginDisableRequested = (
   existingSettings: Settings,
   incomingSettings: Partial<Settings>
@@ -388,224 +219,6 @@ const isPasswordLoginDisableRequested = (
   hasOwnSetting(incomingSettings, "passwordLoginAllowed") &&
   incomingSettings.passwordLoginAllowed === false &&
   existingSettings.passwordLoginAllowed !== false;
-
-const getRenamedTagPairs = (
-  oldTags: string[],
-  newTags: string[]
-): [string, string][] => {
-  const renamedPairs: [string, string][] = [];
-  for (const oldTag of oldTags) {
-    const newTag = newTags.find((n) => n.toLowerCase() === oldTag.toLowerCase());
-    if (newTag !== undefined && newTag !== oldTag) {
-      renamedPairs.push([oldTag, newTag]);
-    }
-  }
-  return renamedPairs;
-};
-
-const applyTagMutations = (
-  renamedPairs: [string, string][],
-  deletedTags: string[]
-): void => {
-  import("../services/tagService")
-    .then(({ deleteTagsFromVideos, renameTag: renameTagFn }) => {
-      for (const [oldTag, newTag] of renamedPairs) {
-        renameTagFn(oldTag, newTag);
-      }
-      if (deletedTags.length > 0) {
-        deleteTagsFromVideos(deletedTags);
-      }
-    })
-    .catch((err) => {
-      logger.error("Error processing tag deletions/renames:", err);
-    });
-};
-
-const processTagChanges = (
-  existingSettings: Settings,
-  settingsToPersist: Partial<Settings>
-): void => {
-  if (
-    !hasOwnSetting(settingsToPersist, "tags") ||
-    !Array.isArray(settingsToPersist.tags)
-  ) {
-    return;
-  }
-
-  const oldTags = Array.isArray(existingSettings.tags)
-    ? (existingSettings.tags as string[])
-    : [];
-  const newTags = settingsToPersist.tags as string[];
-  const deletedTags = getDeletedTags(oldTags, newTags);
-  const renamedPairs = getRenamedTagPairs(oldTags, newTags);
-
-  if (deletedTags.length === 0 && renamedPairs.length === 0) {
-    return;
-  }
-
-  applyTagMutations(renamedPairs, deletedTags);
-};
-
-const moveSubtitlesIfSettingChanged = async (
-  existingSettings: Settings,
-  settingsToPersist: Partial<Settings>
-): Promise<void> => {
-  if (
-    !hasOwnSetting(settingsToPersist, "moveSubtitlesToVideoFolder") ||
-    settingsToPersist.moveSubtitlesToVideoFolder ===
-      existingSettings.moveSubtitlesToVideoFolder ||
-    settingsToPersist.moveSubtitlesToVideoFolder === undefined
-  ) {
-    return;
-  }
-
-  const { moveAllSubtitles } = await import("../services/subtitleService");
-  moveAllSubtitles(settingsToPersist.moveSubtitlesToVideoFolder).catch((err) =>
-    logger.error("Error moving subtitles in background:", err)
-  );
-};
-
-const moveThumbnailsIfSettingChanged = async (
-  existingSettings: Settings,
-  settingsToPersist: Partial<Settings>
-): Promise<void> => {
-  if (
-    !hasOwnSetting(settingsToPersist, "moveThumbnailsToVideoFolder") ||
-    settingsToPersist.moveThumbnailsToVideoFolder ===
-      existingSettings.moveThumbnailsToVideoFolder ||
-    settingsToPersist.moveThumbnailsToVideoFolder === undefined
-  ) {
-    return;
-  }
-
-  const { moveAllThumbnails } = await import("../services/thumbnailService");
-  moveAllThumbnails(settingsToPersist.moveThumbnailsToVideoFolder).catch(
-    (err) => logger.error("Error moving thumbnails in background:", err)
-  );
-};
-
-const didCloudflaredEnabledChange = (
-  existingSettings: Settings,
-  settingsToPersist: Partial<Settings>
-): boolean => {
-  if (!hasOwnSetting(settingsToPersist, "cloudflaredTunnelEnabled")) {
-    return false;
-  }
-  return (
-    settingsToPersist.cloudflaredTunnelEnabled !==
-    existingSettings.cloudflaredTunnelEnabled
-  );
-};
-
-const didCloudflaredTokenChange = (
-  existingSettings: Settings,
-  settingsToPersist: Partial<Settings>
-): boolean => {
-  if (!hasOwnSetting(settingsToPersist, "cloudflaredToken")) {
-    return false;
-  }
-  return settingsToPersist.cloudflaredToken !== existingSettings.cloudflaredToken;
-};
-
-const getCloudflaredPort = (): number =>
-  process.env.PORT ? parseInt(process.env.PORT) : 5551;
-
-const restartCloudflared = (settings: Settings, port: number): void => {
-  if (settings.cloudflaredToken) {
-    cloudflaredService.restart(settings.cloudflaredToken);
-    return;
-  }
-  cloudflaredService.restart(undefined, port);
-};
-
-const startCloudflared = (settings: Settings, port: number): void => {
-  if (settings.cloudflaredToken) {
-    cloudflaredService.start(settings.cloudflaredToken);
-    return;
-  }
-  cloudflaredService.start(undefined, port);
-};
-
-const applyCloudflaredSettingChanges = (
-  existingSettings: Settings,
-  settingsToPersist: Partial<Settings>,
-  finalSettings: Settings
-): void => {
-  const cloudflaredEnabledChanged = didCloudflaredEnabledChange(
-    existingSettings,
-    settingsToPersist
-  );
-  const cloudflaredTokenChanged = didCloudflaredTokenChange(
-    existingSettings,
-    settingsToPersist
-  );
-
-  if (!cloudflaredEnabledChanged && !cloudflaredTokenChanged) {
-    return;
-  }
-
-  if (!finalSettings.cloudflaredTunnelEnabled) {
-    if (cloudflaredEnabledChanged) {
-      cloudflaredService.stop();
-    }
-    return;
-  }
-
-  const port = getCloudflaredPort();
-  if (existingSettings.cloudflaredTunnelEnabled) {
-    restartCloudflared(finalSettings, port);
-    return;
-  }
-
-  startCloudflared(finalSettings, port);
-};
-
-const persistAllowedHostsEnv = async (
-  existingSettings: Settings,
-  settingsToPersist: Partial<Settings>,
-  finalSettings: Settings
-): Promise<void> => {
-  const allowedHostsChanged =
-    hasOwnSetting(settingsToPersist, "allowedHosts") &&
-    settingsToPersist.allowedHosts !== existingSettings.allowedHosts;
-
-  if (!allowedHostsChanged) {
-    return;
-  }
-
-  try {
-    const basePath = path.resolve(__dirname, "../../../frontend");
-    const envLocalPath = resolveSafeChildPath(basePath, ".env.local");
-
-    const sanitizedHosts = (finalSettings.allowedHosts || "")
-      .replace(/[\r\n]/g, "")
-      .replace(/[^\w\s.,-]/g, "");
-
-    const envContent = `# Auto-generated by MyTube settings\n# Restart dev server for changes to take effect\nVITE_ALLOWED_HOSTS=${sanitizedHosts}\n`;
-    // Async write to keep the FS I/O off the event loop on this request path.
-    await writeFileSafe(envLocalPath, basePath, envContent, "utf8");
-    logger.info(`Updated VITE_ALLOWED_HOSTS in .env.local: ${sanitizedHosts}`);
-  } catch (error) {
-    logger.warn(
-      "Failed to write allowedHosts to .env.local:",
-      error instanceof Error ? error : new Error(String(error))
-    );
-  }
-};
-
-const applyRuntimeSettingChanges = (
-  settingsToPersist: Partial<Settings>,
-  finalSettings: Settings
-): void => {
-  if (
-    hasOwnSetting(settingsToPersist, "maxConcurrentDownloads") &&
-    finalSettings.maxConcurrentDownloads !== undefined
-  ) {
-    downloadManager.setMaxConcurrentDownloads(
-      finalSettings.maxConcurrentDownloads
-    );
-  }
-};
 
 const generateApiKey = (): string => crypto.randomBytes(32).toString("hex");
 
@@ -664,6 +277,9 @@ const applyStatisticsToggleSideEffects = (
   }
 };
 
+/**
+ * Core settings-update orchestrator shared by update/patch.
+ */
 const persistSettingsUpdate = async (
   req: Request,
   res: Response,

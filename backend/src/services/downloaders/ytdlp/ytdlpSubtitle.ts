@@ -11,29 +11,7 @@ import {
   unlinkSafeSync,
   writeFileSafeSync,
 } from "../../../utils/security";
-import { BaseDownloader } from "../BaseDownloader";
-
-// Helper class to access BaseDownloader methods without circular dependency
-class YtDlpDownloaderHelper extends BaseDownloader {
-  async getVideoInfo(): Promise<any> {
-    throw new Error("Not implemented");
-  }
-  async downloadVideo(): Promise<any> {
-    throw new Error("Not implemented");
-  }
-
-  // Expose protected methods as public for use in module functions
-  public handleCancellationErrorPublic(
-    error: unknown,
-    cleanupFn?: () => void | Promise<void>,
-  ): Promise<void> {
-    return this.handleCancellationError(error, cleanupFn);
-  }
-
-  public throwIfCancelledPublic(downloadId?: string): void {
-    return this.throwIfCancelled(downloadId);
-  }
-}
+import { YtDlpDownloaderHelper } from "./ytdlpDownloaderHelper";
 
 /**
  * Process subtitle files downloaded by yt-dlp.

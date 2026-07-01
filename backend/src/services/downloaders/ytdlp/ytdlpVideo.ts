@@ -1,8 +1,7 @@
 import fs from "fs-extra";
 import { getErrorMessage } from "../../../utils/errors";
 import path from "path";
-import { AVATARS_DIR, IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../../../config/paths";
-import { downloadAndProcessAvatar } from "../../../utils/avatarUtils";
+import { IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../../../config/paths";
 import {
   cleanupSubtitleFiles,
   cleanupVideoArtifacts,
@@ -22,7 +21,6 @@ import { logger } from "../../../utils/logger";
 import { ProgressTracker } from "../../../utils/progressTracker";
 import { resolvePlayableVideoFilePath } from "../../../utils/videoFileResolver";
 import {
-  downloadChannelAvatar,
   executeYtDlpJson,
   executeYtDlpSpawn,
   getAxiosProxyConfig,
@@ -32,7 +30,6 @@ import {
   InvalidProxyError,
 } from "../../../utils/ytDlpUtils";
 import {
-  moveSafeSync,
   pathExistsSafeSync,
   removeSafe,
   resolveSafeChildPath,
@@ -52,42 +49,14 @@ import { prepareDownloadFlags } from "./ytdlpConfig";
 import { getProviderScript } from "./ytdlpHelpers";
 import { extractVideoMetadata } from "./ytdlpMetadata";
 import { processSubtitles } from "./ytdlpSubtitle";
+import { YtDlpDownloaderHelper } from "./ytdlpDownloaderHelper";
+import { downloadVideoAvatar } from "./avatarDownload";
 import {
   createYtDlpOutputTemplate,
   isExpectedTwitchMetadataError,
   pathExistsWithAnyKnownVideoExtension,
   stripTrailingExtension,
 } from "./ytdlpVideoHelpers";
-
-// Helper class to access BaseDownloader methods without circular dependency
-class YtDlpDownloaderHelper extends BaseDownloader {
-  async getVideoInfo(): Promise<any> {
-    throw new Error("Not implemented");
-  }
-  async downloadVideo(): Promise<any> {
-    throw new Error("Not implemented");
-  }
-
-  // Expose protected methods as public for use in module functions
-  public handleCancellationErrorPublic(
-    error: unknown,
-    cleanupFn?: () => void | Promise<void>
-  ): Promise<void> {
-    return this.handleCancellationError(error, cleanupFn);
-  }
-
-  public throwIfCancelledPublic(downloadId?: string): void {
-    return this.throwIfCancelled(downloadId);
-  }
-
-  public async downloadThumbnailPublic(
-    thumbnailUrl: string,
-    savePath: string,
-    axiosConfig: any = {}
-  ): Promise<boolean> {
-    return this.downloadThumbnail(thumbnailUrl, savePath, axiosConfig);
-  }
-}
 
 /**
  * Core video download function using yt-dlp
@@ -534,123 +503,20 @@ export async function downloadVideo(
     }
 
     // Download and process author avatar
-    let authorAvatarPath: string | null = null;
-    const platform =
-      source === "youtube" || source === "twitch" ? source : "generic";
-
-    if (channelUrl && isYouTubeUrl(videoUrl)) {
-      logger.info("Downloading author avatar from channel:", {
-        channelUrl: channelUrl,
-        author: videoAuthor,
-        platform: platform,
-      });
-
-      // Download channel avatar using yt-dlp to a temp file first
-      const tempAvatarPath = resolveSafeChildPath(
-        AVATARS_DIR,
-        `temp_${Date.now()}.jpg`
-      );
-      fs.ensureDirSync(AVATARS_DIR);
-
-      const downloaded = await downloadChannelAvatar(
-        channelUrl,
-        tempAvatarPath,
-        networkConfig
-      );
-
-      if (downloaded && pathExistsSafeSync(tempAvatarPath, AVATARS_DIR)) {
-        // Process the downloaded avatar (check if exists, resize)
-        authorAvatarPath = await downloadAndProcessAvatar(
-          tempAvatarPath, // Use temp file path as "URL" for processing
-          platform,
-          videoAuthor,
-          async (url: string, savePath: string) => {
-            // This function just moves the temp file
-            if (pathExistsSafeSync(url, AVATARS_DIR)) {
-              moveSafeSync(url, AVATARS_DIR, savePath, AVATARS_DIR, {
-                overwrite: true,
-              });
-              return true;
-            }
-            return false;
-          }
-        );
-        authorAvatarSaved = authorAvatarPath !== null;
-
-        // Clean up temp file if it still exists (in case processing failed or file wasn't moved)
-        if (pathExistsSafeSync(tempAvatarPath, AVATARS_DIR)) {
-          try {
-            unlinkSafeSync(tempAvatarPath, AVATARS_DIR);
-            logger.info(`Cleaned up temp avatar file: ${tempAvatarPath}`);
-          } catch (cleanupError) {
-            logger.warn(
-              `Failed to clean up temp avatar file: ${tempAvatarPath}`,
-              cleanupError
-            );
-          }
-        }
-      } else if (pathExistsSafeSync(tempAvatarPath, AVATARS_DIR)) {
-        // Clean up temp file if download failed
-        try {
-          unlinkSafeSync(tempAvatarPath, AVATARS_DIR);
-          logger.info(
-            `Cleaned up temp avatar file after failed download: ${tempAvatarPath}`
-          );
-        } catch (cleanupError) {
-          logger.warn(
-            `Failed to clean up temp avatar file: ${tempAvatarPath}`,
-            cleanupError
-          );
-        }
-      }
-    } else {
-      // Fallback: try to get avatar URL from info if available
-      authorAvatarUrl =
-        authorAvatarUrl || info.channel_avatar || info.uploader_avatar || null;
-      if (authorAvatarUrl) {
-        logger.info("Downloading author avatar from URL:", {
-          url: authorAvatarUrl,
-          author: videoAuthor,
-          platform: platform,
-        });
-
-        // Prepare axios config with proxy if available
-        let avatarAxiosConfig = {};
-        if (downloadUserConfig.proxy) {
-          try {
-            avatarAxiosConfig = getAxiosProxyConfig(downloadUserConfig.proxy);
-          } catch (error) {
-            if (error instanceof InvalidProxyError) {
-              logger.warn(
-                "Invalid proxy configuration for avatar download, proceeding without proxy:",
-                error.message
-              );
-            } else {
-              throw error;
-            }
-          }
-        }
-
-        // Use the utility function to download and process avatar
-        authorAvatarPath = await downloadAndProcessAvatar(
-          authorAvatarUrl,
-          platform,
-          videoAuthor,
-          downloader.downloadThumbnailPublic.bind(downloader),
-          avatarAxiosConfig
-        );
-        authorAvatarSaved = authorAvatarPath !== null;
-      } else {
-        logger.info(
-          "No channel URL or avatar URL available, skipping avatar download"
-        );
-      }
-    }
-
-    // Get the final avatar filename from the path if avatar was saved
-    if (authorAvatarPath) {
-      finalAuthorAvatarFilename = path.basename(authorAvatarPath);
-    }
+    const avatarResult = await downloadVideoAvatar({
+      channelUrl,
+      videoUrl,
+      videoAuthor,
+      source,
+      authorAvatarUrl,
+      info,
+      networkConfig,
+      downloadUserConfig,
+      downloader,
+    });
+    authorAvatarUrl = avatarResult.authorAvatarUrl;
+    authorAvatarSaved = avatarResult.authorAvatarSaved;
+    finalAuthorAvatarFilename = avatarResult.finalAuthorAvatarFilename;
 
     // Check again if download was cancelled before processing subtitles
     try {

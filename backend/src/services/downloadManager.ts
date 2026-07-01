@@ -4,9 +4,8 @@ import {
 } from "../errors/DownloadErrors";
 import { extractSourceVideoId } from "../utils/helpers";
 import { getErrorMessage } from "../utils/errors";
-import { logger, sanitizeLogMessage } from "../utils/logger";
+import { sanitizeLogMessage } from "../utils/logger";
 import { CloudStorageService } from "./CloudStorageService";
-import { createDownloadTask } from "./downloadService";
 import {
   canRestoreDetachedTask,
   parseRetryMetadata,
@@ -14,12 +13,20 @@ import {
   serializeRetryMetadata,
   type DownloadRetryMetadata,
 } from "./downloadRetryMetadata";
+import { awaitTaskCancellationHook, awaitTaskFailHook } from "./downloadManager/hooks";
 import {
-  normalizeAutoRetryIntervalMinutes,
-  normalizeAutoRetryTimes,
-  PARTIAL_STATUS,
-  PENDING_RETRY_STATUS,
-} from "./downloadManager/retryPolicy";
+  buildDetachedTask,
+  buildRetryHistoryItem,
+  BILIBILI_RETRY_RESTORE_FAILED_MESSAGE,
+  resolveRetryPolicy,
+} from "./downloadManager/retryScheduler";
+import { PARTIAL_STATUS, PENDING_RETRY_STATUS } from "./downloadManager/retryPolicy";
+import {
+  getStructuredDownloadResult,
+  isStructuredDownloadResult,
+  type AddDownloadStatisticsOptions,
+  type DownloadTask,
+} from "./downloadManager/types";
 import { assertDownloadsAllowed } from "./filenameTemplate/renameLockService";
 import { HookService } from "./hookService";
 import {
@@ -28,124 +35,8 @@ import {
   normalizeSourceKind,
   normalizeSurface,
 } from "./statistics";
-import type {
-  ActorRole,
-  CanonicalSourceKind,
-  StatisticsSurface,
-} from "./statistics";
 import type { DownloadHistoryItem } from "./storageService";
 import * as storageService from "./storageService";
-
-interface StatisticsAttribution {
-  actorRole: ActorRole;
-  surface: StatisticsSurface;
-  sourceKind: CanonicalSourceKind;
-  relatedEventId: string | null;
-  enqueuedEventId: string | null;
-}
-
-interface DownloadTask {
-  downloadFn: (registerCancel: (cancel: () => void) => void) => Promise<any>;
-  id: string;
-  title: string;
-  resolve: (value: any) => void;
-  reject: (reason?: any) => void;
-  cancelFn?: () => void;
-  sourceUrl?: string;
-  type?: string;
-  retryMetadata?: DownloadRetryMetadata;
-  cancelled?: boolean;
-  cancellationFinalized?: boolean;
-  cancellationRejected?: boolean;
-  statistics?: StatisticsAttribution;
-}
-
-export interface AddDownloadStatisticsOptions {
-  actorRole?: ActorRole;
-  surface?: StatisticsSurface | string;
-  sourceKind?: CanonicalSourceKind | string;
-  relatedEventId?: string | null;
-  enqueuedEventId?: string | null;
-}
-
-const TASK_FAIL_HOOK_WAIT_TIMEOUT_MS = 5000;
-const CANCEL_TASK_WAIT_TIMEOUT_MS = 5000;
-
-function isStructuredDownloadResult(
-  value: unknown,
-): value is {
-  success: boolean;
-  partial?: boolean;
-  error?: string;
-} {
-  return Boolean(value) && typeof value === "object" && "success" in (value as any);
-}
-
-function getStructuredDownloadResult(
-  error: unknown,
-): {
-  success: boolean;
-  partial?: boolean;
-  error?: string;
-} | undefined {
-  if (!error || typeof error !== "object" || !("downloadResult" in error)) {
-    return undefined;
-  }
-
-  const result = (error as { downloadResult?: unknown }).downloadResult;
-  return isStructuredDownloadResult(result) ? result : undefined;
-}
-
-async function awaitTaskFailHook(
-  context: Record<string, string | undefined>,
-): Promise<void> {
-  let timeoutId: NodeJS.Timeout | null = null;
-
-  try {
-    await Promise.race([
-      HookService.executeHook("task_fail", context),
-      new Promise<void>((resolve) => {
-        timeoutId = setTimeout(() => {
-          console.warn(
-            `task_fail hook exceeded ${TASK_FAIL_HOOK_WAIT_TIMEOUT_MS}ms; continuing task failure handling.`
-          );
-          resolve();
-        }, TASK_FAIL_HOOK_WAIT_TIMEOUT_MS);
-      }),
-    ]);
-  } catch (error) {
-    console.error("task_fail hook failed:", error);
-  } finally {
-    if (timeoutId) {
-      clearTimeout(timeoutId);
-    }
-  }
-}
-
-async function awaitTaskCancellationHook(
-  taskId: string,
-  cancelFn: () => void | Promise<void>,
-): Promise<void> {
-  let timeoutId: NodeJS.Timeout | null = null;
-
-  try {
-    await Promise.race([
-      Promise.resolve().then(() => cancelFn()),
-      new Promise<void>((resolve) => {
-        timeoutId = setTimeout(() => {
-          console.warn(
-            `Cancel hook for download ${sanitizeLogMessage(taskId)} exceeded ${CANCEL_TASK_WAIT_TIMEOUT_MS}ms; finalizing cancellation anyway.`
-          );
-          resolve();
-        }, CANCEL_TASK_WAIT_TIMEOUT_MS);
-      }),
-    ]);
-  } finally {
-    if (timeoutId) {
-      clearTimeout(timeoutId);
-    }
-  }
-}
 
 class DownloadManager {
   private queue: DownloadTask[];
@@ -174,39 +65,6 @@ class DownloadManager {
     } catch (error) {
       console.error("Error loading settings in DownloadManager:", error);
     }
-  }
-
-  private createDetachedTask(
-    id: string,
-    title: string,
-    sourceUrl: string,
-    type: string,
-    retryMetadata?: DownloadRetryMetadata,
-    rawRetryMetadata?: string | null,
-  ): DownloadTask | null {
-    if (!canRestoreDetachedTask(type, rawRetryMetadata)) {
-      return null;
-    }
-
-    return {
-      downloadFn: createDownloadTask(type, sourceUrl, id, retryMetadata),
-      id,
-      title,
-      sourceUrl,
-      type,
-      retryMetadata,
-      resolve: (value) =>
-        console.log("Restored task completed", sanitizeLogMessage(id), value),
-      reject: (error) =>
-        console.error("Restored task failed", sanitizeLogMessage(id), error),
-    };
-  }
-
-  private finalizeUnrestorableRetry(
-    id: string,
-    errorMessage: string,
-  ): void {
-    storageService.finalizePendingRetryHistoryItem(id, errorMessage);
   }
 
   private hasTask(id: string): boolean {
@@ -286,15 +144,15 @@ class DownloadManager {
       }
 
       if (!canRestoreDetachedTask(item.downloadType, item.retryMetadata)) {
-        this.finalizeUnrestorableRetry(
+        storageService.finalizePendingRetryHistoryItem(
           item.id,
-          "Bilibili retry could not be restored after restart. Please download again.",
+          BILIBILI_RETRY_RESTORE_FAILED_MESSAGE,
         );
         continue;
       }
 
       const retryMetadata = parseRetryMetadata(item.retryMetadata);
-      const task = this.createDetachedTask(
+      const task = buildDetachedTask(
         item.id,
         item.title,
         item.sourceUrl,
@@ -303,9 +161,9 @@ class DownloadManager {
         item.retryMetadata,
       );
       if (!task) {
-        this.finalizeUnrestorableRetry(
+        storageService.finalizePendingRetryHistoryItem(
           item.id,
-          "Bilibili retry could not be restored after restart. Please download again.",
+          BILIBILI_RETRY_RESTORE_FAILED_MESSAGE,
         );
         continue;
       }
@@ -324,37 +182,24 @@ class DownloadManager {
     }
 
     const existingHistory = storageService.getDownloadHistoryItem(task.id);
-    const retryLimit =
-      existingHistory?.retryLimit ??
-      normalizeAutoRetryTimes(settings.autoRetryTimes);
-    const retryIntervalMinutes =
-      existingHistory?.retryIntervalMinutes ??
-      normalizeAutoRetryIntervalMinutes(settings.autoRetryIntervalMinutes);
-    const retryCount = existingHistory?.retryCount ?? 0;
-
-    if (retryCount >= retryLimit) {
+    const policy = resolveRetryPolicy(
+      task,
+      settings.autoRetryTimes,
+      settings.autoRetryIntervalMinutes,
+      existingHistory,
+    );
+    if (!policy) {
       return false;
     }
 
-    const historyItem: DownloadHistoryItem = {
-      id: task.id,
-      title: task.title,
-      finishedAt: Date.now(),
-      status: PENDING_RETRY_STATUS,
-      error: getErrorMessage(error),
-      sourceUrl: task.sourceUrl,
-      platform: platformFromUrl(task.sourceUrl),
-      sourceKind: task.statistics?.sourceKind ?? existingHistory?.sourceKind ?? "unknown",
-      downloadType: task.type,
-      retryCount: retryCount + 1,
-      retryLimit,
-      retryIntervalMinutes,
-      nextRetryAt: Date.now() + retryIntervalMinutes * 60 * 1000,
-      retryMetadata:
-        task.retryMetadata && requiresRetryMetadata(task.retryMetadata)
-          ? serializeRetryMetadata(task.retryMetadata)
-          : existingHistory?.retryMetadata,
-    };
+    const historyItem = buildRetryHistoryItem({
+      task,
+      error,
+      retryLimit: policy.retryLimit,
+      retryIntervalMinutes: policy.retryIntervalMinutes,
+      retryCount: policy.retryCount,
+      existingHistory,
+    });
 
     storageService.addDownloadHistoryItem(historyItem);
     this.scheduleRetryTask(task, historyItem);
@@ -389,7 +234,7 @@ class DownloadManager {
               continue;
             }
 
-            const restoredTask = this.createDetachedTask(
+            const restoredTask = buildDetachedTask(
               download.id,
               download.title,
               download.sourceUrl,
