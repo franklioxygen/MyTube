@@ -251,13 +251,12 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (terms.length === 0) return videos;
 
         return videos.filter(video => {
-            // Prepare searchable text
-            // We join all searchable fields into one large string for easy checking
-            // You can optimize this by checking fields individually if performance becomes an issue
+            // Prepare searchable text. The list payload intentionally omits
+            // description (heavy column, only the player loads it), so local
+            // search matches title/author/tags.
             const searchableText = [
                 video.title,
                 video.author,
-                video.description || '', // Description might be undefined
                 ...(video.tags || [])
             ].join(' ').toLowerCase();
 

@@ -44,6 +44,73 @@ export function getVideos(
   }
 }
 
+// Every videos column except the heavy free-text ones. `description` (KBs of
+// YouTube description per row) and `subtitles` (JSON blobs) are only consumed
+// by the player, which fetches the full row via getVideoById — omitting them
+// here keeps the list payload and its per-row JSON.parse cost proportional to
+// what list views actually render.
+const videoSummaryColumns = {
+  id: videos.id,
+  title: videos.title,
+  author: videos.author,
+  date: videos.date,
+  source: videos.source,
+  sourceUrl: videos.sourceUrl,
+  videoFilename: videos.videoFilename,
+  thumbnailFilename: videos.thumbnailFilename,
+  videoPath: videos.videoPath,
+  thumbnailPath: videos.thumbnailPath,
+  thumbnailUrl: videos.thumbnailUrl,
+  addedAt: videos.addedAt,
+  createdAt: videos.createdAt,
+  updatedAt: videos.updatedAt,
+  partNumber: videos.partNumber,
+  totalParts: videos.totalParts,
+  seriesTitle: videos.seriesTitle,
+  rating: videos.rating,
+  viewCount: videos.viewCount,
+  duration: videos.duration,
+  tags: videos.tags,
+  progress: videos.progress,
+  fileSize: videos.fileSize,
+  lastPlayedAt: videos.lastPlayedAt,
+  channelUrl: videos.channelUrl,
+  visibility: videos.visibility,
+  authorAvatarFilename: videos.authorAvatarFilename,
+  authorAvatarPath: videos.authorAvatarPath,
+};
+
+/**
+ * List-view projection of the library: all columns except `description` and
+ * `subtitles`. Used by the GET /videos list endpoint; internal callers that
+ * need full rows keep using getVideos().
+ */
+export function getVideoSummaries(
+  role?: VideoCallerRole
+): import("./types").Video[] {
+  try {
+    const baseQuery = db
+      .select(videoSummaryColumns)
+      .from(videos)
+      .orderBy(desc(videos.createdAt));
+    const allVideos =
+      role === "visitor"
+        ? baseQuery.where(publicOnlyVisitorFilter()).all()
+        : baseQuery.all();
+    return allVideos.map((v) => ({
+      ...v,
+      tags: v.tags ? JSON.parse(v.tags) : [],
+    })) as import("./types").Video[];
+  } catch (error) {
+    logger.error(
+      "Error getting video summaries",
+      error instanceof Error ? error : new Error(String(error))
+    );
+    // Return empty array for backward compatibility with frontend
+    return [];
+  }
+}
+
 export function getVideoBySourceUrl(
   sourceUrl: string
 ): import("./types").Video | undefined {

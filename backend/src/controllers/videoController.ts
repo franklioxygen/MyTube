@@ -67,7 +67,34 @@ export const getVideos = async (
   // Visitors must only see public (visibility=1) videos. The query layer
   // enforces this so the frontend filter (VideoContext) is no longer the only
   // gate. Fixes GHSA-hcm6-w6x8-6jhr.
-  const videos = storageService.getVideos(getVisibilityScopedRole(req));
+  const role = getVisibilityScopedRole(req);
+
+  // Conditional-request short-circuit: the frontend refetches the whole list
+  // after every completed download and on many mutations. When nothing in the
+  // videos table changed since the client's copy, answer 304 from the
+  // in-process revision counter without hydrating/serializing the table.
+  const etag = storageService.getVideosListETag(
+    role === "visitor" ? "visitor" : "all"
+  );
+  const ifNoneMatch = req.headers["if-none-match"];
+  if (
+    typeof ifNoneMatch === "string" &&
+    ifNoneMatch
+      .split(",")
+      .map((tag) => tag.trim())
+      .includes(etag)
+  ) {
+    res.status(304).end();
+    return;
+  }
+  res.set("ETag", etag);
+  // Cache but always revalidate, and never share across users (role-scoped).
+  res.set("Cache-Control", "private, no-cache");
+
+  // List views never render description/subtitles; the player loads the full
+  // row via GET /videos/:id. Omitting them keeps the payload flat as the
+  // library and its per-video description sizes grow.
+  const videos = storageService.getVideoSummaries(role);
   // Return array directly for backward compatibility (frontend expects response.data to be Video[])
   sendData(res, videos);
 };

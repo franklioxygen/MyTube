@@ -53,12 +53,15 @@ export {
 
 // Videos
 export {
+    bumpVideosListRevision,
     classifyMediaVisibility,
     deleteVideo,
     formatLegacyFilenames,
     getVideoById,
     getVideoBySourceUrl,
     getVideos,
+    getVideoSummaries,
+    getVideosListETag,
     isCloudFileVisibleToVisitor,
     isThumbnailReferencedByOtherVideo,
     isVideoPublic,

@@ -29,6 +29,7 @@ import {
   deleteSmallThumbnailMirrorSync,
   resolveManagedThumbnailWebPathFromAbsolutePath,
 } from "../thumbnailMirrorService";
+import { bumpVideosListRevision } from "./videoListRevision";
 import { getVideoById, getVideos } from "./videoQueries";
 
 export function deleteVideo(
@@ -61,6 +62,7 @@ export function deleteVideo(
 
     // Delete from DB
     db.delete(videos).where(eq(videos.id, id)).run();
+    bumpVideosListRevision();
     removeMediaServerArtifactsForVideo(videoToDelete, {
       libraryVideos: getVideos(),
     });

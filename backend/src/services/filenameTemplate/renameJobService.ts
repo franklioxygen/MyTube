@@ -19,6 +19,7 @@ import {
 } from "../mediaServerExport";
 import { moveSmallThumbnailMirrorSync } from "../thumbnailMirrorService";
 import * as storageService from "../storageService";
+import { bumpVideosListRevision } from "../storageService/videoListRevision";
 import { buildContextFromVideoRecord } from "./contextBuilder";
 import { applyDedupeToRelatedPaths } from "./dedupe";
 import { resolveManagedWebPath } from "./pathHelpers";
@@ -647,6 +648,7 @@ async function processOneVideo(
         )
         .run();
     });
+    bumpVideosListRevision();
 
     const oldMediaServerPlan = planMediaServerExportPaths(video);
     const updatedVideo = storageService.getVideoById(video.id);

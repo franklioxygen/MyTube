@@ -123,11 +123,12 @@ describe("VideoController", () => {
     // single-user default so a login-enabled test doesn't leak into later ones.
     vi.mocked(isLoginRequired).mockReturnValue(false);
     json = vi.fn();
-    status = vi.fn().mockReturnValue({ json });
+    status = vi.fn().mockReturnValue({ json, end: vi.fn() });
     req = { headers: {} };
     res = {
       json,
       status,
+      set: vi.fn(),
     };
     (storageService.handleVideoDownloadCheck as any) = vi.fn().mockReturnValue({
       shouldSkip: false,
@@ -347,13 +348,19 @@ describe("VideoController", () => {
   });
 
   describe("getVideos", () => {
-    it("should return all videos", () => {
+    beforeEach(() => {
+      (storageService.getVideosListETag as any) = vi
+        .fn()
+        .mockReturnValue('W/"videos-all-test-1"');
+    });
+
+    it("should return all video summaries", () => {
       const mockVideos = [{ id: "1" }];
-      (storageService.getVideos as any).mockReturnValue(mockVideos);
+      (storageService.getVideoSummaries as any).mockReturnValue(mockVideos);
 
       getVideos(req as Request, res as Response);
 
-      expect(storageService.getVideos).toHaveBeenCalled();
+      expect(storageService.getVideoSummaries).toHaveBeenCalled();
       expect(status).toHaveBeenCalledWith(200);
       expect(json).toHaveBeenCalledWith(mockVideos);
     });
@@ -361,12 +368,13 @@ describe("VideoController", () => {
     it("should scope videos to public-only when caller is a visitor", () => {
       vi.mocked(isLoginRequired).mockReturnValue(true);
       const mockVideos = [{ id: "1" }];
-      (storageService.getVideos as any).mockReturnValue(mockVideos);
+      (storageService.getVideoSummaries as any).mockReturnValue(mockVideos);
       req.user = { role: "visitor" } as any;
 
       getVideos(req as Request, res as Response);
 
-      expect(storageService.getVideos).toHaveBeenCalledWith("visitor");
+      expect(storageService.getVideoSummaries).toHaveBeenCalledWith("visitor");
+      expect(storageService.getVideosListETag).toHaveBeenCalledWith("visitor");
       expect(json).toHaveBeenCalledWith(mockVideos);
     });
 
@@ -376,13 +384,37 @@ describe("VideoController", () => {
       // wrongly hide hidden videos in single-user mode).
       vi.mocked(isLoginRequired).mockReturnValue(false);
       const mockVideos = [{ id: "1" }];
-      (storageService.getVideos as any).mockReturnValue(mockVideos);
+      (storageService.getVideoSummaries as any).mockReturnValue(mockVideos);
       req.user = { role: "visitor" } as any;
 
       getVideos(req as Request, res as Response);
 
-      expect(storageService.getVideos).toHaveBeenCalledWith(undefined);
+      expect(storageService.getVideoSummaries).toHaveBeenCalledWith(undefined);
+      expect(storageService.getVideosListETag).toHaveBeenCalledWith("all");
       expect(json).toHaveBeenCalledWith(mockVideos);
+    });
+
+    it("should set the list ETag on full responses", () => {
+      (storageService.getVideoSummaries as any).mockReturnValue([]);
+
+      getVideos(req as Request, res as Response);
+
+      expect(res.set).toHaveBeenCalledWith("ETag", 'W/"videos-all-test-1"');
+      expect(res.set).toHaveBeenCalledWith("Cache-Control", "private, no-cache");
+    });
+
+    it("should answer 304 without querying when If-None-Match matches", () => {
+      const end = vi.fn();
+      status = vi.fn().mockReturnValue({ json, end });
+      res = { json, status, set: vi.fn() };
+      req.headers = { "if-none-match": 'W/"videos-all-test-1"' };
+
+      getVideos(req as Request, res as Response);
+
+      expect(status).toHaveBeenCalledWith(304);
+      expect(end).toHaveBeenCalled();
+      expect(storageService.getVideoSummaries).not.toHaveBeenCalled();
+      expect(json).not.toHaveBeenCalled();
     });
   });
 

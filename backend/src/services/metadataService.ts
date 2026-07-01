@@ -4,6 +4,7 @@ import { VIDEOS_DIR } from "../config/paths";
 import { db } from "../db";
 import { videos } from "../db/schema";
 import { ExecutionError, FileError } from "../errors/DownloadErrors";
+import { bumpVideosListRevision } from "./storageService/videoListRevision";
 import {
   execFileSafe,
   pathExistsSafeSync,
@@ -151,6 +152,9 @@ export const backfillDurations = async () => {
     }
 
     if (updatedCount > 0) {
+      // The backfill runs async after startup and can finish after the first
+      // list requests were served, so the list ETag must move.
+      bumpVideosListRevision();
       console.log(
         `Duration backfill finished. Updated ${updatedCount} videos.`,
       );
