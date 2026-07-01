@@ -13,7 +13,6 @@ import {
   recomputeAllUnsealedDays,
   shouldTrackVisitorActivity,
 } from "../services/statistics";
-import { getAuthCookieName } from "../services/authService";
 import { getClientIp } from "../utils/security";
 import { logger } from "../utils/logger";
 import { getLimitParam, getPositiveIntegerParam } from "../utils/paramUtils";
@@ -104,13 +103,14 @@ const getServerDerivedSessionId = (
   req: Request,
   surface: "web" | "extension" | "api"
 ): string => {
-  const authCookieName = getAuthCookieName();
-  const authSessionCookie =
-    typeof req.cookies?.[authCookieName] === "string"
-      ? req.cookies[authCookieName]
-      : "";
+  // req.user is only ever populated by authMiddleware after verifying the
+  // session cookie server-side or checking a JWT signature, so it's the only
+  // safe identity source here. The raw `req.cookies` value must not be used:
+  // a request can carry an unverified/stale auth cookie alongside a valid
+  // Bearer token, and authMiddleware still resolves req.user from the token
+  // in that case, leaving the raw cookie value attacker-controlled.
   const userId = typeof req.user?.id === "string" ? req.user.id : "";
-  const basis = authSessionCookie || userId || getClientIp(req);
+  const basis = userId || getClientIp(req);
   return `${surface}:${hashServerSessionBasis(basis)}`;
 };
 
