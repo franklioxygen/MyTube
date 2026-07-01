@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import express, { Request, RequestHandler, Response } from "express";
 import {
   clearAllStatisticsData,
@@ -22,6 +23,7 @@ const MAX_REQUEST_SIZE_BYTES = 128 * 1024;
 const MAX_REQUEST_SIZE_LABEL = "128kb";
 const MAX_EVENTS_PER_SESSION_PER_MINUTE = 300;
 const EXPORT_FILENAME_BASE = "statistics-export";
+const SERVER_SESSION_HASH_LENGTH = 32;
 
 type SessionEventQuota = {
   count: number;
@@ -88,6 +90,55 @@ const detectSurface = (req: Request): "web" | "extension" | "api" => {
   }
   if (req.apiKeyAuthenticated === true) return "api";
   return "web";
+};
+
+const hashServerSessionBasis = (basis: string): string =>
+  crypto
+    .createHash("sha256")
+    .update(basis)
+    .digest("hex")
+    .slice(0, SERVER_SESSION_HASH_LENGTH);
+
+const getServerDerivedSessionId = (
+  req: Request,
+  surface: "web" | "extension" | "api"
+): string => {
+  const authSessionCookie =
+    typeof req.cookies?.mytube_auth_session === "string"
+      ? req.cookies.mytube_auth_session
+      : "";
+  const userId = typeof req.user?.id === "string" ? req.user.id : "";
+  const basis = authSessionCookie || userId || getClientIp(req);
+  return `${surface}:${hashServerSessionBasis(basis)}`;
+};
+
+const sanitizeVisitorEvent = (
+  event: unknown,
+  serverSessionId: string,
+  surface: "web" | "extension" | "api"
+): unknown => {
+  if (typeof event !== "object" || event === null) {
+    return event;
+  }
+
+  return {
+    ...(event as Record<string, unknown>),
+    sessionId: serverSessionId,
+    platform: "unknown",
+    sourceKind: "unknown",
+    surface,
+  };
+};
+
+const sanitizeVisitorEvents = (
+  events: unknown[],
+  req: Request,
+  surface: "web" | "extension" | "api"
+): unknown[] => {
+  const serverSessionId = getServerDerivedSessionId(req, surface);
+  return events.map((event) =>
+    sanitizeVisitorEvent(event, serverSessionId, surface)
+  );
 };
 
 const cleanupExpiredSessionQuotas = (currentMinuteBucket: number): void => {
@@ -180,10 +231,16 @@ export const ingestEvents = async (
   }
 
   const actorRole: "admin" | "visitor" = isVisitorCaller(req) ? "visitor" : "admin";
-  const surface = detectSurface(req);
-  const fallbackSessionKey = `${surface}:${getClientIp(req)}`;
+  const detectedSurface = detectSurface(req);
+  const surface = actorRole === "visitor" ? "web" : detectedSurface;
+  const eventsForIngestion =
+    actorRole === "visitor" ? sanitizeVisitorEvents(events, req, surface) : events;
+  const fallbackSessionKey =
+    actorRole === "visitor"
+      ? getServerDerivedSessionId(req, surface)
+      : `${surface}:${getClientIp(req)}`;
   const { allowedEvents, droppedCount: rateLimitedDropCount } =
-    takeSessionEventQuota(events, fallbackSessionKey);
+    takeSessionEventQuota(eventsForIngestion, fallbackSessionKey);
   const result =
     allowedEvents.length > 0
       ? ingestBatch(allowedEvents as Parameters<typeof ingestBatch>[0], {
