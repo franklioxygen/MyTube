@@ -389,6 +389,49 @@ const FRONTEND_ALLOWED_TYPES: ReadonlySet<StatisticsEventType> = new Set<Statist
   "video_watch_chunk_recorded",
 ]);
 
+const MAX_VISITOR_WATCH_CHUNK_SECONDS = 120;
+const MAX_VISITOR_SEARCH_RESULT_COUNT = 10_000;
+
+function sanitizeBoundedInteger(
+  value: unknown,
+  maxValue: number
+): number | undefined {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return undefined;
+  }
+  return Math.min(Math.max(Math.round(value), 0), maxValue);
+}
+
+function sanitizeVisitorDurationSeconds(event: BatchIngestEvent): number | undefined {
+  if (event.eventType !== "video_watch_chunk_recorded") {
+    return undefined;
+  }
+  return sanitizeBoundedInteger(
+    event.durationSeconds,
+    MAX_VISITOR_WATCH_CHUNK_SECONDS
+  );
+}
+
+function sanitizeVisitorPayload(event: BatchIngestEvent): Record<string, unknown> | undefined {
+  if (event.eventType !== "search_submitted") {
+    return undefined;
+  }
+
+  const payload = event.payload ?? {};
+  return {
+    localResultCount:
+      sanitizeBoundedInteger(
+        payload.localResultCount,
+        MAX_VISITOR_SEARCH_RESULT_COUNT
+      ) ?? 0,
+    externalResultCount:
+      sanitizeBoundedInteger(
+        payload.externalResultCount,
+        MAX_VISITOR_SEARCH_RESULT_COUNT
+      ) ?? 0,
+  };
+}
+
 function sanitizeBatchEventForActor(
   event: BatchIngestEvent,
   options: BatchIngestOptions
@@ -403,9 +446,9 @@ function sanitizeBatchEventForActor(
     platform: "unknown",
     sourceKind: "unknown",
     surface: normalizeSurface(options.surface),
-    durationSeconds: undefined,
+    durationSeconds: sanitizeVisitorDurationSeconds(event),
     value: undefined,
-    payload: undefined,
+    payload: sanitizeVisitorPayload(event),
   };
 }
 
