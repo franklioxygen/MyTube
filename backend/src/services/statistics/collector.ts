@@ -377,16 +377,85 @@ export interface BatchIngestResult {
   sealedDayDropCount: number;
 }
 
+interface BatchIngestOptions {
+  actorRole: "admin" | "visitor";
+  surface: string;
+  serverSessionId?: string;
+}
+
 const FRONTEND_ALLOWED_TYPES: ReadonlySet<StatisticsEventType> = new Set<StatisticsEventType>([
   "search_submitted",
   "video_play_started",
   "video_watch_chunk_recorded",
 ]);
 
+const MAX_VISITOR_WATCH_CHUNK_SECONDS = 120;
+const MAX_VISITOR_SEARCH_RESULT_COUNT = 10_000;
+
+function sanitizeBoundedInteger(
+  value: unknown,
+  maxValue: number
+): number | undefined {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return undefined;
+  }
+  return Math.min(Math.max(Math.round(value), 0), maxValue);
+}
+
+function sanitizeVisitorDurationSeconds(event: BatchIngestEvent): number | undefined {
+  if (event.eventType !== "video_watch_chunk_recorded") {
+    return undefined;
+  }
+  return sanitizeBoundedInteger(
+    event.durationSeconds,
+    MAX_VISITOR_WATCH_CHUNK_SECONDS
+  );
+}
+
+function sanitizeVisitorPayload(event: BatchIngestEvent): Record<string, unknown> | undefined {
+  if (event.eventType !== "search_submitted") {
+    return undefined;
+  }
+
+  const payload = event.payload ?? {};
+  return {
+    localResultCount:
+      sanitizeBoundedInteger(
+        payload.localResultCount,
+        MAX_VISITOR_SEARCH_RESULT_COUNT
+      ) ?? 0,
+    externalResultCount:
+      sanitizeBoundedInteger(
+        payload.externalResultCount,
+        MAX_VISITOR_SEARCH_RESULT_COUNT
+      ) ?? 0,
+  };
+}
+
+function sanitizeBatchEventForActor(
+  event: BatchIngestEvent,
+  options: BatchIngestOptions
+): BatchIngestEvent {
+  if (options.actorRole !== "visitor") {
+    return event;
+  }
+
+  return {
+    ...event,
+    sessionId: options.serverSessionId,
+    platform: "unknown",
+    sourceKind: "unknown",
+    surface: normalizeSurface(options.surface),
+    durationSeconds: sanitizeVisitorDurationSeconds(event),
+    value: undefined,
+    payload: sanitizeVisitorPayload(event),
+  };
+}
+
 // Best-effort batch ingestion for the dedicated POST /api/statistics/events route.
 export function ingestBatch(
   events: BatchIngestEvent[],
-  options: { actorRole: "admin" | "visitor"; surface: string }
+  options: BatchIngestOptions
 ): BatchIngestResult {
   const result: BatchIngestResult = {
     acceptedCount: 0,
@@ -413,6 +482,7 @@ export function ingestBatch(
         continue;
       }
       try {
+        const safeEvent = sanitizeBatchEventForActor(evt, options);
         const recordedAt = Date.now();
         const day = dayBucket(recordedAt, tz);
         if (isDaySealed(day)) {
@@ -424,18 +494,18 @@ export function ingestBatch(
           ins,
           buildPersistedStatisticsEvent(
             {
-              ...evt,
+              ...safeEvent,
               actorRole: options.actorRole,
-              eventType: evt.eventType,
-              platform: evt.platform ? normalizePlatform(evt.platform) : null,
-              sourceKind: evt.sourceKind ? normalizeSourceKind(evt.sourceKind) : null,
+              eventType: safeEvent.eventType,
+              platform: safeEvent.platform ? normalizePlatform(safeEvent.platform) : null,
+              sourceKind: safeEvent.sourceKind ? normalizeSourceKind(safeEvent.sourceKind) : null,
               surface: normalizeSurface(options.surface),
             },
             {
               recordedAt,
               day,
-              clientOccurredAt: sanitizeClientOccurredAt(evt.clientOccurredAt, recordedAt),
-              surface: normalizeSurface(evt.surface ?? options.surface ?? "web"),
+              clientOccurredAt: sanitizeClientOccurredAt(safeEvent.clientOccurredAt, recordedAt),
+              surface: normalizeSurface(safeEvent.surface ?? options.surface ?? "web"),
               subscriptionId: null,
               rssTokenId: null,
             }

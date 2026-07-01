@@ -338,6 +338,87 @@ describe("statistics collector", () => {
 
       expect(result.acceptedCount).toBe(1);
     });
+
+    it("neutralizes visitor-controlled classification and bounds watch duration", () => {
+      const runMock = vi.fn();
+      vi.mocked(sqlite.prepare)
+        .mockReturnValueOnce({ run: runMock } as any)                 // insertStatement
+        .mockReturnValueOnce(makeStmt({ get: undefined }) as any)     // isDaySealed
+        .mockReturnValueOnce(makeStmt() as any)                       // markDayDirty
+        .mockReturnValueOnce(makeStmt() as any);                      // bumpIngestionMinute
+
+      const result = ingestBatch(
+        [
+          {
+            eventType: "video_watch_chunk_recorded",
+            sessionId: "attacker-session",
+            platform: "youtube",
+            sourceKind: "subscription",
+            surface: "api",
+            videoId: "video-1",
+            durationSeconds: 86_400,
+            value: 999,
+            payload: { forged: true },
+          },
+        ],
+        {
+          actorRole: "visitor",
+          surface: "web",
+          serverSessionId: "web:server-derived-session",
+        }
+      );
+
+      expect(result.acceptedCount).toBe(1);
+      const insertedArgs = runMock.mock.calls[0];
+      expect(insertedArgs[7]).toBe("web");
+      expect(insertedArgs[8]).toBe("web:server-derived-session");
+      expect(insertedArgs[14]).toBe("unknown");
+      expect(insertedArgs[15]).toBe("unknown");
+      expect(insertedArgs[16]).toBe(120);
+      expect(insertedArgs[17]).toBeNull();
+      expect(insertedArgs[18]).toBe("{}");
+    });
+
+    it("preserves bounded visitor search result counts without query text", () => {
+      const runMock = vi.fn();
+      vi.mocked(sqlite.prepare)
+        .mockReturnValueOnce({ run: runMock } as any)                 // insertStatement
+        .mockReturnValueOnce(makeStmt({ get: undefined }) as any)     // isDaySealed
+        .mockReturnValueOnce(makeStmt() as any)                       // markDayDirty
+        .mockReturnValueOnce(makeStmt() as any);                      // bumpIngestionMinute
+
+      const result = ingestBatch(
+        [
+          {
+            eventType: "search_submitted",
+            sessionId: "attacker-session",
+            platform: "youtube",
+            sourceKind: "subscription",
+            surface: "api",
+            payload: {
+              queryText: "private search",
+              localResultCount: 2.4,
+              externalResultCount: 99_999,
+              extra: "dropped",
+            },
+          },
+        ],
+        {
+          actorRole: "visitor",
+          surface: "web",
+          serverSessionId: "web:server-derived-session",
+        }
+      );
+
+      expect(result.acceptedCount).toBe(1);
+      const insertedArgs = runMock.mock.calls[0];
+      expect(insertedArgs[14]).toBe("unknown");
+      expect(insertedArgs[15]).toBe("unknown");
+      expect(JSON.parse(insertedArgs[18])).toEqual({
+        localResultCount: 2,
+        externalResultCount: 10_000,
+      });
+    });
   });
 
   describe("invalidateStatisticsSettingsCache", () => {

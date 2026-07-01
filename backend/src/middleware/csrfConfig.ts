@@ -1,5 +1,7 @@
 import { Request } from "express";
 import crypto from "crypto";
+import { getAuthCookieName } from "../services/authService";
+import { isApiKeyAuthorized } from "../utils/apiKeyAuth";
 
 export const CSRF_SECRET =
   process.env.CSRF_SECRET || crypto.randomBytes(32).toString("hex");
@@ -16,7 +18,7 @@ export const csrfCookieOptions = {
 };
 
 export const getCsrfSessionIdentifier = (req: Request): string =>
-  req.cookies?.mytube_auth_session ?? "anonymous";
+  req.cookies?.[getAuthCookieName()] ?? "anonymous";
 
 export const getCsrfTokenFromRequest = (
   req: Request
@@ -34,12 +36,5 @@ export const isRssManagementRequest = (req: Request): boolean => {
   );
 };
 
-export const isApiKeyRequest = (req: Request): boolean => {
-  return Boolean(
-    req.headers["x-api-key"] ||
-      req.headers.authorization?.startsWith("ApiKey ")
-  );
-};
-
 export const shouldSkipCsrfProtection = (req: Request): boolean =>
-  !isRssManagementRequest(req) && isApiKeyRequest(req);
+  !isRssManagementRequest(req) && isApiKeyAuthorized(req);

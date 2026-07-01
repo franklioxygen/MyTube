@@ -432,4 +432,121 @@ describe("statisticsController", () => {
 
     expect(res.status).toHaveBeenCalledWith(400);
   });
+
+  it("passes a server-derived visitor session to the batch ingester", async () => {
+    const req: any = {
+      body: {
+        events: [
+          {
+            eventType: "video_play_started",
+            sessionId: "attacker-session",
+            platform: "youtube",
+            sourceKind: "subscription",
+            surface: "api",
+            videoId: "video-1",
+          },
+        ],
+      },
+      headers: { "x-mytube-client": "extension" },
+      cookies: { mytube_auth_session: "server-session-1" },
+      user: { role: "visitor", id: "visitor-1" },
+      apiKeyAuthenticated: false,
+    };
+    const res = createResponse();
+
+    await ingestEvents(req, res);
+
+    const [eventsArg, optionsArg] = mockIngestBatch.mock.calls[0];
+    expect(optionsArg).toEqual({
+      actorRole: "visitor",
+      surface: "web",
+      serverSessionId: expect.stringMatching(/^web:[a-f0-9]{32}$/),
+    });
+    expect(eventsArg[0]).toMatchObject({
+      eventType: "video_play_started",
+      sessionId: "attacker-session",
+      platform: "youtube",
+      sourceKind: "subscription",
+      surface: "api",
+      videoId: "video-1",
+    });
+  });
+
+  it("preserves admin statistics dimensions for normal dashboard analytics", async () => {
+    const req: any = {
+      body: {
+        events: [
+          {
+            eventType: "search_submitted",
+            sessionId: "admin-session",
+            platform: "youtube",
+            sourceKind: "search_result",
+            surface: "web",
+          },
+        ],
+      },
+      headers: {},
+      user: { role: "admin" },
+      apiKeyAuthenticated: false,
+    };
+    const res = createResponse();
+
+    await ingestEvents(req, res);
+
+    const [eventsArg, optionsArg] = mockIngestBatch.mock.calls[0];
+    expect(optionsArg).toEqual({ actorRole: "admin", surface: "web" });
+    expect(eventsArg[0]).toMatchObject({
+      sessionId: "admin-session",
+      platform: "youtube",
+      sourceKind: "search_result",
+      surface: "web",
+    });
+  });
+
+  it("rate limits visitor events by server-derived session, not client sessionId", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T00:02:00Z"));
+
+    try {
+      for (let i = 0; i < 6; i += 1) {
+        const req: any = {
+          body: { events: createEvents(50, `forged-session-${i}`) },
+          headers: {},
+          cookies: { mytube_auth_session: "visitor-rate-limit-session" },
+          user: { role: "visitor", id: "visitor-1" },
+          apiKeyAuthenticated: false,
+        };
+        const res = createResponse();
+
+        await ingestEvents(req, res);
+
+        expect(res.status).toHaveBeenCalledWith(202);
+        expect(res.json).toHaveBeenCalledWith({
+          acceptedCount: 50,
+          droppedCount: 0,
+          sealedDayDropCount: 0,
+        });
+      }
+
+      const req: any = {
+        body: { events: createEvents(1, "fresh-forged-session") },
+        headers: {},
+        cookies: { mytube_auth_session: "visitor-rate-limit-session" },
+        user: { role: "visitor", id: "visitor-1" },
+        apiKeyAuthenticated: false,
+      };
+      const res = createResponse();
+
+      await ingestEvents(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(202);
+      expect(res.json).toHaveBeenCalledWith({
+        acceptedCount: 0,
+        droppedCount: 1,
+        sealedDayDropCount: 0,
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

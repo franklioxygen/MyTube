@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import express, { Request, RequestHandler, Response } from "express";
 import {
   clearAllStatisticsData,
@@ -22,6 +23,7 @@ const MAX_REQUEST_SIZE_BYTES = 128 * 1024;
 const MAX_REQUEST_SIZE_LABEL = "128kb";
 const MAX_EVENTS_PER_SESSION_PER_MINUTE = 300;
 const EXPORT_FILENAME_BASE = "statistics-export";
+const SERVER_SESSION_HASH_LENGTH = 32;
 
 type SessionEventQuota = {
   count: number;
@@ -90,6 +92,28 @@ const detectSurface = (req: Request): "web" | "extension" | "api" => {
   return "web";
 };
 
+const hashServerSessionBasis = (basis: string): string =>
+  crypto
+    .createHash("sha256")
+    .update(basis)
+    .digest("hex")
+    .slice(0, SERVER_SESSION_HASH_LENGTH);
+
+const getServerDerivedSessionId = (
+  req: Request,
+  surface: "web" | "extension" | "api"
+): string => {
+  // req.user is only ever populated by authMiddleware after verifying the
+  // session cookie server-side or checking a JWT signature, so it's the only
+  // safe identity source here. The raw `req.cookies` value must not be used:
+  // a request can carry an unverified/stale auth cookie alongside a valid
+  // Bearer token, and authMiddleware still resolves req.user from the token
+  // in that case, leaving the raw cookie value attacker-controlled.
+  const userId = typeof req.user?.id === "string" ? req.user.id : "";
+  const basis = userId || getClientIp(req);
+  return `${surface}:${hashServerSessionBasis(basis)}`;
+};
+
 const cleanupExpiredSessionQuotas = (currentMinuteBucket: number): void => {
   for (const [key, value] of sessionEventQuotaByKey.entries()) {
     if (value.minuteBucket < currentMinuteBucket) {
@@ -100,7 +124,8 @@ const cleanupExpiredSessionQuotas = (currentMinuteBucket: number): void => {
 
 const takeSessionEventQuota = (
   events: unknown[],
-  fallbackSessionKey: string
+  fallbackSessionKey: string,
+  options: { forceFallbackSessionKey?: boolean } = {}
 ): { allowedEvents: unknown[]; droppedCount: number } => {
   const currentMinuteBucket = Math.floor(Date.now() / 60_000);
   cleanupExpiredSessionQuotas(currentMinuteBucket);
@@ -109,13 +134,16 @@ const takeSessionEventQuota = (
   let droppedCount = 0;
 
   for (const event of events) {
-    const eventSessionId =
+    let eventSessionId = fallbackSessionKey;
+    if (
+      options.forceFallbackSessionKey !== true &&
       typeof event === "object" &&
       event !== null &&
       typeof (event as { sessionId?: unknown }).sessionId === "string" &&
       (event as { sessionId: string }).sessionId.trim().length > 0
-        ? (event as { sessionId: string }).sessionId.trim()
-        : fallbackSessionKey;
+    ) {
+      eventSessionId = (event as { sessionId: string }).sessionId.trim();
+    }
 
     const currentQuota = sessionEventQuotaByKey.get(eventSessionId);
     const quota: SessionEventQuota =
@@ -180,15 +208,24 @@ export const ingestEvents = async (
   }
 
   const actorRole: "admin" | "visitor" = isVisitorCaller(req) ? "visitor" : "admin";
-  const surface = detectSurface(req);
-  const fallbackSessionKey = `${surface}:${getClientIp(req)}`;
+  const detectedSurface = detectSurface(req);
+  const surface = actorRole === "visitor" ? "web" : detectedSurface;
+  const visitorServerSessionId =
+    actorRole === "visitor" ? getServerDerivedSessionId(req, surface) : undefined;
+  const fallbackSessionKey =
+    visitorServerSessionId ?? `${surface}:${getClientIp(req)}`;
   const { allowedEvents, droppedCount: rateLimitedDropCount } =
-    takeSessionEventQuota(events, fallbackSessionKey);
+    takeSessionEventQuota(events, fallbackSessionKey, {
+      forceFallbackSessionKey: actorRole === "visitor",
+    });
   const result =
     allowedEvents.length > 0
       ? ingestBatch(allowedEvents as Parameters<typeof ingestBatch>[0], {
           actorRole,
           surface,
+          ...(visitorServerSessionId
+            ? { serverSessionId: visitorServerSessionId }
+            : {}),
         })
       : {
           acceptedCount: 0,
