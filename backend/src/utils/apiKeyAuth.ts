@@ -3,6 +3,8 @@ import crypto from "crypto";
 import * as storageService from "../services/storageService";
 import { defaultSettings } from "../types/settings";
 
+const requestApiKeyAuthorizationCache = new WeakMap<Request, boolean>();
+
 export const readHeaderValue = (
   value: string | string[] | undefined
 ): string | undefined => {
@@ -33,6 +35,19 @@ export const getApiKeyFromRequest = (req: Request): string | null => {
   return null;
 };
 
+export const hasApiKeyCredential = (req: Request): boolean => {
+  const directHeaderKey = readHeaderValue(req.headers["x-api-key"]);
+  if (typeof directHeaderKey === "string" && directHeaderKey.trim().length > 0) {
+    return true;
+  }
+
+  const authorizationHeader = readHeaderValue(req.headers.authorization);
+  return (
+    typeof authorizationHeader === "string" &&
+    authorizationHeader.startsWith("ApiKey ")
+  );
+};
+
 const isApiKeyMatch = (providedApiKey: string, storedApiKey: string): boolean => {
   // Compare API keys in constant time without using a password-hash primitive.
   // Buffers are zero-padded to equal length so timingSafeEqual can be used safely.
@@ -52,14 +67,21 @@ const isApiKeyMatch = (providedApiKey: string, storedApiKey: string): boolean =>
 };
 
 export const isApiKeyAuthorized = (req: Request): boolean => {
+  const cachedResult = requestApiKeyAuthorizationCache.get(req);
+  if (cachedResult !== undefined) {
+    return cachedResult;
+  }
+
   const providedApiKey = getApiKeyFromRequest(req);
   if (!providedApiKey) {
+    requestApiKeyAuthorizationCache.set(req, false);
     return false;
   }
 
   const settings = storageService.getSettings();
   const mergedSettings = { ...defaultSettings, ...settings };
   if (mergedSettings.apiKeyEnabled !== true) {
+    requestApiKeyAuthorizationCache.set(req, false);
     return false;
   }
 
@@ -68,8 +90,11 @@ export const isApiKeyAuthorized = (req: Request): boolean => {
       ? mergedSettings.apiKey.trim()
       : "";
   if (storedApiKey.length === 0) {
+    requestApiKeyAuthorizationCache.set(req, false);
     return false;
   }
 
-  return isApiKeyMatch(providedApiKey, storedApiKey);
+  const isAuthorized = isApiKeyMatch(providedApiKey, storedApiKey);
+  requestApiKeyAuthorizationCache.set(req, isAuthorized);
+  return isAuthorized;
 };

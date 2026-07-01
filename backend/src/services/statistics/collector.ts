@@ -377,16 +377,42 @@ export interface BatchIngestResult {
   sealedDayDropCount: number;
 }
 
+interface BatchIngestOptions {
+  actorRole: "admin" | "visitor";
+  surface: string;
+  serverSessionId?: string;
+}
+
 const FRONTEND_ALLOWED_TYPES: ReadonlySet<StatisticsEventType> = new Set<StatisticsEventType>([
   "search_submitted",
   "video_play_started",
   "video_watch_chunk_recorded",
 ]);
 
+function sanitizeBatchEventForActor(
+  event: BatchIngestEvent,
+  options: BatchIngestOptions
+): BatchIngestEvent {
+  if (options.actorRole !== "visitor") {
+    return event;
+  }
+
+  return {
+    ...event,
+    sessionId: options.serverSessionId,
+    platform: "unknown",
+    sourceKind: "unknown",
+    surface: normalizeSurface(options.surface),
+    durationSeconds: undefined,
+    value: undefined,
+    payload: undefined,
+  };
+}
+
 // Best-effort batch ingestion for the dedicated POST /api/statistics/events route.
 export function ingestBatch(
   events: BatchIngestEvent[],
-  options: { actorRole: "admin" | "visitor"; surface: string }
+  options: BatchIngestOptions
 ): BatchIngestResult {
   const result: BatchIngestResult = {
     acceptedCount: 0,
@@ -413,6 +439,7 @@ export function ingestBatch(
         continue;
       }
       try {
+        const safeEvent = sanitizeBatchEventForActor(evt, options);
         const recordedAt = Date.now();
         const day = dayBucket(recordedAt, tz);
         if (isDaySealed(day)) {
@@ -424,18 +451,18 @@ export function ingestBatch(
           ins,
           buildPersistedStatisticsEvent(
             {
-              ...evt,
+              ...safeEvent,
               actorRole: options.actorRole,
-              eventType: evt.eventType,
-              platform: evt.platform ? normalizePlatform(evt.platform) : null,
-              sourceKind: evt.sourceKind ? normalizeSourceKind(evt.sourceKind) : null,
+              eventType: safeEvent.eventType,
+              platform: safeEvent.platform ? normalizePlatform(safeEvent.platform) : null,
+              sourceKind: safeEvent.sourceKind ? normalizeSourceKind(safeEvent.sourceKind) : null,
               surface: normalizeSurface(options.surface),
             },
             {
               recordedAt,
               day,
-              clientOccurredAt: sanitizeClientOccurredAt(evt.clientOccurredAt, recordedAt),
-              surface: normalizeSurface(evt.surface ?? options.surface ?? "web"),
+              clientOccurredAt: sanitizeClientOccurredAt(safeEvent.clientOccurredAt, recordedAt),
+              surface: normalizeSurface(safeEvent.surface ?? options.surface ?? "web"),
               subscriptionId: null,
               rssTokenId: null,
             }

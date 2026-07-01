@@ -13,6 +13,7 @@ import {
   recomputeAllUnsealedDays,
   shouldTrackVisitorActivity,
 } from "../services/statistics";
+import { getAuthCookieName } from "../services/authService";
 import { getClientIp } from "../utils/security";
 import { logger } from "../utils/logger";
 import { getLimitParam, getPositiveIntegerParam } from "../utils/paramUtils";
@@ -103,42 +104,14 @@ const getServerDerivedSessionId = (
   req: Request,
   surface: "web" | "extension" | "api"
 ): string => {
+  const authCookieName = getAuthCookieName();
   const authSessionCookie =
-    typeof req.cookies?.mytube_auth_session === "string"
-      ? req.cookies.mytube_auth_session
+    typeof req.cookies?.[authCookieName] === "string"
+      ? req.cookies[authCookieName]
       : "";
   const userId = typeof req.user?.id === "string" ? req.user.id : "";
   const basis = authSessionCookie || userId || getClientIp(req);
   return `${surface}:${hashServerSessionBasis(basis)}`;
-};
-
-const sanitizeVisitorEvent = (
-  event: unknown,
-  serverSessionId: string,
-  surface: "web" | "extension" | "api"
-): unknown => {
-  if (typeof event !== "object" || event === null) {
-    return event;
-  }
-
-  return {
-    ...(event as Record<string, unknown>),
-    sessionId: serverSessionId,
-    platform: "unknown",
-    sourceKind: "unknown",
-    surface,
-  };
-};
-
-const sanitizeVisitorEvents = (
-  events: unknown[],
-  req: Request,
-  surface: "web" | "extension" | "api"
-): unknown[] => {
-  const serverSessionId = getServerDerivedSessionId(req, surface);
-  return events.map((event) =>
-    sanitizeVisitorEvent(event, serverSessionId, surface)
-  );
 };
 
 const cleanupExpiredSessionQuotas = (currentMinuteBucket: number): void => {
@@ -151,7 +124,8 @@ const cleanupExpiredSessionQuotas = (currentMinuteBucket: number): void => {
 
 const takeSessionEventQuota = (
   events: unknown[],
-  fallbackSessionKey: string
+  fallbackSessionKey: string,
+  options: { forceFallbackSessionKey?: boolean } = {}
 ): { allowedEvents: unknown[]; droppedCount: number } => {
   const currentMinuteBucket = Math.floor(Date.now() / 60_000);
   cleanupExpiredSessionQuotas(currentMinuteBucket);
@@ -160,13 +134,16 @@ const takeSessionEventQuota = (
   let droppedCount = 0;
 
   for (const event of events) {
-    const eventSessionId =
+    let eventSessionId = fallbackSessionKey;
+    if (
+      options.forceFallbackSessionKey !== true &&
       typeof event === "object" &&
       event !== null &&
       typeof (event as { sessionId?: unknown }).sessionId === "string" &&
       (event as { sessionId: string }).sessionId.trim().length > 0
-        ? (event as { sessionId: string }).sessionId.trim()
-        : fallbackSessionKey;
+    ) {
+      eventSessionId = (event as { sessionId: string }).sessionId.trim();
+    }
 
     const currentQuota = sessionEventQuotaByKey.get(eventSessionId);
     const quota: SessionEventQuota =
@@ -233,19 +210,22 @@ export const ingestEvents = async (
   const actorRole: "admin" | "visitor" = isVisitorCaller(req) ? "visitor" : "admin";
   const detectedSurface = detectSurface(req);
   const surface = actorRole === "visitor" ? "web" : detectedSurface;
-  const eventsForIngestion =
-    actorRole === "visitor" ? sanitizeVisitorEvents(events, req, surface) : events;
+  const visitorServerSessionId =
+    actorRole === "visitor" ? getServerDerivedSessionId(req, surface) : undefined;
   const fallbackSessionKey =
-    actorRole === "visitor"
-      ? getServerDerivedSessionId(req, surface)
-      : `${surface}:${getClientIp(req)}`;
+    visitorServerSessionId ?? `${surface}:${getClientIp(req)}`;
   const { allowedEvents, droppedCount: rateLimitedDropCount } =
-    takeSessionEventQuota(eventsForIngestion, fallbackSessionKey);
+    takeSessionEventQuota(events, fallbackSessionKey, {
+      forceFallbackSessionKey: actorRole === "visitor",
+    });
   const result =
     allowedEvents.length > 0
       ? ingestBatch(allowedEvents as Parameters<typeof ingestBatch>[0], {
           actorRole,
           surface,
+          ...(visitorServerSessionId
+            ? { serverSessionId: visitorServerSessionId }
+            : {}),
         })
       : {
           acceptedCount: 0,

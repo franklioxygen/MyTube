@@ -433,7 +433,7 @@ describe("statisticsController", () => {
     expect(res.status).toHaveBeenCalledWith(400);
   });
 
-  it("overwrites visitor-controlled statistics dimensions before ingest", async () => {
+  it("passes a server-derived visitor session to the batch ingester", async () => {
     const req: any = {
       body: {
         events: [
@@ -457,16 +457,19 @@ describe("statisticsController", () => {
     await ingestEvents(req, res);
 
     const [eventsArg, optionsArg] = mockIngestBatch.mock.calls[0];
-    expect(optionsArg).toEqual({ actorRole: "visitor", surface: "web" });
+    expect(optionsArg).toEqual({
+      actorRole: "visitor",
+      surface: "web",
+      serverSessionId: expect.stringMatching(/^web:[a-f0-9]{32}$/),
+    });
     expect(eventsArg[0]).toMatchObject({
       eventType: "video_play_started",
-      sessionId: expect.stringMatching(/^web:[a-f0-9]{32}$/),
-      platform: "unknown",
-      sourceKind: "unknown",
-      surface: "web",
+      sessionId: "attacker-session",
+      platform: "youtube",
+      sourceKind: "subscription",
+      surface: "api",
       videoId: "video-1",
     });
-    expect(eventsArg[0].sessionId).not.toBe("attacker-session");
   });
 
   it("preserves admin statistics dimensions for normal dashboard analytics", async () => {

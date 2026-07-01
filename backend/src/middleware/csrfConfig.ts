@@ -1,5 +1,6 @@
 import { Request } from "express";
 import crypto from "crypto";
+import { getAuthCookieName } from "../services/authService";
 import { isApiKeyAuthorized } from "../utils/apiKeyAuth";
 
 export const CSRF_SECRET =
@@ -17,7 +18,7 @@ export const csrfCookieOptions = {
 };
 
 export const getCsrfSessionIdentifier = (req: Request): string =>
-  req.cookies?.mytube_auth_session ?? "anonymous";
+  req.cookies?.[getAuthCookieName()] ?? "anonymous";
 
 export const getCsrfTokenFromRequest = (
   req: Request
