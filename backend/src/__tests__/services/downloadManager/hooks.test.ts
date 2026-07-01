@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { awaitTaskCancellationHook, awaitTaskFailHook } from "../../../services/downloadManager/hooks";
 import { HookService } from "../../../services/hookService";
+import { logger } from "../../../utils/logger";
 
 vi.mock("../../../services/hookService", () => ({
   HookService: {
@@ -21,8 +22,8 @@ describe("downloadManager hooks", () => {
   describe("awaitTaskFailHook", () => {
     it("awaits the task_fail hook when it resolves", async () => {
       vi.mocked(HookService.executeHook).mockResolvedValue(undefined);
-      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const warnSpy = vi.spyOn(logger, "warn").mockImplementation(() => {});
+      const errorSpy = vi.spyOn(logger, "error").mockImplementation(() => {});
 
       await awaitTaskFailHook({ taskId: "t1", status: "fail" });
 
@@ -37,7 +38,7 @@ describe("downloadManager hooks", () => {
     it("warns and continues after the 5000ms timeout", async () => {
       // Never resolves -> the timeout branch must fire
       vi.mocked(HookService.executeHook).mockReturnValue(new Promise(() => {}));
-      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const warnSpy = vi.spyOn(logger, "warn").mockImplementation(() => {});
 
       const promise = awaitTaskFailHook({ taskId: "t2", status: "fail" });
       await vi.advanceTimersByTimeAsync(5000);
@@ -50,7 +51,7 @@ describe("downloadManager hooks", () => {
 
     it("swallows a rejected hook and logs an error (never throws)", async () => {
       vi.mocked(HookService.executeHook).mockRejectedValue(new Error("boom"));
-      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const errorSpy = vi.spyOn(logger, "error").mockImplementation(() => {});
 
       await expect(awaitTaskFailHook({ taskId: "t3", status: "fail" })).resolves.toBeUndefined();
       expect(errorSpy).toHaveBeenCalledWith("task_fail hook failed:", expect.any(Error));
@@ -60,7 +61,7 @@ describe("downloadManager hooks", () => {
   describe("awaitTaskCancellationHook", () => {
     it("awaits the provided cancel function when it resolves quickly", async () => {
       const cancelFn = vi.fn().mockResolvedValue(undefined);
-      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const warnSpy = vi.spyOn(logger, "warn").mockImplementation(() => {});
 
       await awaitTaskCancellationHook("task-id", cancelFn);
 
@@ -70,7 +71,7 @@ describe("downloadManager hooks", () => {
 
     it("finalizes anyway after the 5000ms timeout when cancel never resolves", async () => {
       const cancelFn = vi.fn().mockReturnValue(new Promise(() => {}));
-      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const warnSpy = vi.spyOn(logger, "warn").mockImplementation(() => {});
 
       const promise = awaitTaskCancellationHook("task-id", cancelFn);
       await vi.advanceTimersByTimeAsync(5000);

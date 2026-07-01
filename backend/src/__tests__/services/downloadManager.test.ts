@@ -5,6 +5,7 @@ import { createDownloadTask } from '../../services/downloadService';
 import { HookService } from '../../services/hookService';
 import * as storageService from '../../services/storageService';
 import { extractSourceVideoId } from '../../utils/helpers';
+import { logger } from "../../utils/logger";
 
 vi.mock('../../db', () => ({
   db: {
@@ -870,7 +871,7 @@ describe('DownloadManager', () => {
 
     it('should stop waiting on task_fail hook after the timeout and reject the task', async () => {
       vi.useFakeTimers();
-      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => {});
 
       try {
         vi.mocked(HookService.executeHook).mockImplementation((eventName: string) => {
@@ -902,7 +903,7 @@ describe('DownloadManager', () => {
     });
 
     it('should still reject with the download error when task_fail hook rejects', async () => {
-      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const errorSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
 
       try {
         vi.mocked(HookService.executeHook).mockImplementation((eventName: string) => {

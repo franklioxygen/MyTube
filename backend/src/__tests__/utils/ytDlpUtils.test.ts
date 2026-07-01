@@ -25,6 +25,7 @@ import {
   parseYtDlpConfig,
   resetYtDlpAvailabilityCacheForTests,
 } from "../../utils/ytDlpUtils";
+import { logger } from "../../utils/logger";
 
 vi.mock("child_process", () => ({
   spawn: vi.fn(),
@@ -1203,7 +1204,7 @@ describe("ytDlpUtils", () => {
 
     it("should skip remote components when yt-dlp help does not expose the flag", async () => {
       vi.mocked(getProviderScript).mockReturnValue("/tmp/provider.js");
-      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const warnSpy = vi.spyOn(logger, "warn").mockImplementation(() => {});
       const proc = createMockProcess();
       mockSpawnWithVersionYouTubeHelpCheck("none", proc);
 
@@ -1355,7 +1356,7 @@ describe("ytDlpUtils", () => {
 
     it("should skip js runtime args when yt-dlp help exposes neither runtime flag", async () => {
       process.env.YT_DLP_JS_RUNTIME = "deno";
-      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const warnSpy = vi.spyOn(logger, "warn").mockImplementation(() => {});
       const proc = createMockProcess();
       mockSpawnWithVersionAndHelpCheck("none", proc);
 
@@ -1406,7 +1407,7 @@ describe("ytDlpUtils", () => {
 
     it("should warn explicitly when YT_DLP_JS_RUNTIME=deno but deno is unavailable", async () => {
       process.env.YT_DLP_JS_RUNTIME = "deno";
-      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const warnSpy = vi.spyOn(logger, "warn").mockImplementation(() => {});
       const denoCheckProc = createMockProcess();
       const ytProc = createMockProcess();
       vi.mocked(spawn)
@@ -1437,7 +1438,7 @@ describe("ytDlpUtils", () => {
 
     it("should fall back to deno runtime when YT_DLP_JS_RUNTIME is invalid", async () => {
       process.env.YT_DLP_JS_RUNTIME = "BUN";
-      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const warnSpy = vi.spyOn(logger, "warn").mockImplementation(() => {});
       const proc = createMockProcess();
       mockSpawnWithVersionHelpAndDenoCheck("plural", proc);
 
@@ -1458,7 +1459,7 @@ describe("ytDlpUtils", () => {
 
     it("should warn clearly when YT_DLP_JS_RUNTIME is invalid and deno is unavailable", async () => {
       process.env.YT_DLP_JS_RUNTIME = "BUN";
-      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const warnSpy = vi.spyOn(logger, "warn").mockImplementation(() => {});
       const denoCheckProc = createMockProcess();
       const ytProc = createMockProcess();
       vi.mocked(spawn)
@@ -1491,7 +1492,7 @@ describe("ytDlpUtils", () => {
     });
 
     it("should fall back to node when deno is unavailable by default", async () => {
-      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const warnSpy = vi.spyOn(logger, "warn").mockImplementation(() => {});
       const denoCheckProc = createMockProcess();
       const ytProc = createMockProcess();
       vi.mocked(spawn)

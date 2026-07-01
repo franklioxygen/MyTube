@@ -16,6 +16,7 @@ import {
 } from "../db/schema";
 import { FileError } from "../errors/DownloadErrors";
 import { pathExistsSafeSync } from "../utils/security";
+import { logger } from "../utils/logger";
 
 // Hardcoded path for settings since it might not be exported from paths.ts
 const SETTINGS_DATA_PATH = path.join(
@@ -24,7 +25,7 @@ const SETTINGS_DATA_PATH = path.join(
 );
 
 export async function runMigration() {
-  console.log("Starting migration...");
+  logger.info("Starting migration...");
   const results = {
     videos: { count: 0, path: VIDEOS_DATA_PATH, found: false },
     collections: { count: 0, path: COLLECTIONS_DATA_PATH, found: false },
@@ -47,7 +48,7 @@ export async function runMigration() {
     results.videos.found = true;
     try {
       const videosData = fs.readJSONSync(VIDEOS_DATA_PATH);
-      console.log(`Found ${videosData.length} videos to migrate.`);
+      logger.info(`Found ${videosData.length} videos to migrate.`);
 
       for (const video of videosData) {
         try {
@@ -93,7 +94,7 @@ export async function runMigration() {
             .run();
           results.videos.count++;
         } catch (error: unknown) {
-          console.error(`Error migrating video ${video.id}:`, error);
+          logger.error(`Error migrating video ${video.id}:`, error);
           const errorMsg =
             error instanceof Error ? error.message : String(error);
           results.errors.push(`Video ${video.id}: ${errorMsg}`);
@@ -115,7 +116,7 @@ export async function runMigration() {
     results.collections.found = true;
     try {
       const collectionsData = fs.readJSONSync(COLLECTIONS_DATA_PATH);
-      console.log(`Found ${collectionsData.length} collections to migrate.`);
+      logger.info(`Found ${collectionsData.length} collections to migrate.`);
 
       for (const collection of collectionsData) {
         try {
@@ -147,7 +148,7 @@ export async function runMigration() {
                   .onConflictDoNothing()
                   .run();
               } catch (err: unknown) {
-                console.error(
+                logger.error(
                   `Error linking video ${videoId} to collection ${collection.id}:`,
                   err
                 );
@@ -160,7 +161,7 @@ export async function runMigration() {
             }
           }
         } catch (error: unknown) {
-          console.error(`Error migrating collection ${collection.id}:`, error);
+          logger.error(`Error migrating collection ${collection.id}:`, error);
           const errorMsg =
             error instanceof Error ? error.message : String(error);
           results.errors.push(`Collection ${collection.id}: ${errorMsg}`);
@@ -182,7 +183,7 @@ export async function runMigration() {
     results.settings.found = true;
     try {
       const settingsData = fs.readJSONSync(SETTINGS_DATA_PATH);
-      console.log("Found settings.json to migrate.");
+      logger.info("Found settings.json to migrate.");
 
       for (const [key, value] of Object.entries(settingsData)) {
         await db
@@ -199,7 +200,7 @@ export async function runMigration() {
         results.settings.count++;
       }
     } catch (error: unknown) {
-      console.error("Error migrating settings:", error);
+      logger.error("Error migrating settings:", error);
       const errorMsg = error instanceof Error ? error.message : String(error);
       results.errors.push(`Settings: ${errorMsg}`);
     }
@@ -210,7 +211,7 @@ export async function runMigration() {
     results.downloads.found = true;
     try {
       const statusData = fs.readJSONSync(STATUS_DATA_PATH);
-      console.log("Found status.json to migrate.");
+      logger.info("Found status.json to migrate.");
 
       // Migrate active downloads
       if (
@@ -276,12 +277,12 @@ export async function runMigration() {
         }
       }
     } catch (error: unknown) {
-      console.error("Error migrating status:", error);
+      logger.error("Error migrating status:", error);
       const errorMsg = error instanceof Error ? error.message : String(error);
       results.errors.push(`Status: ${errorMsg}`);
     }
   }
 
-  console.log("Migration finished successfully.");
+  logger.info("Migration finished successfully.");
   return results;
 }

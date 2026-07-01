@@ -7,6 +7,7 @@ import {
 import { getYtDlpSpawnEnv } from "./spawnEnv";
 import { resolveYtDlpPath } from "./pathResolver";
 import { isYouTubeUrl } from "../helpers";
+import { logger } from "../logger";
 
 let denoAvailablePromise: Promise<boolean> | null = null;
 let jsRuntimeFlagPromise: Promise<YouTubeJsRuntimeFlag | null> | null = null;
@@ -109,7 +110,7 @@ function warnRuntimeOnce(key: string, message: string): void {
     return;
   }
   runtimeWarningCache.add(key);
-  console.warn(message);
+  logger.warn(message);
 }
 
 export async function getYouTubeJsRuntimeFlag(): Promise<YouTubeJsRuntimeFlag | null> {

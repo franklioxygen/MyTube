@@ -49,7 +49,10 @@ export function getVideos(
 // by the player, which fetches the full row via getVideoById — omitting them
 // here keeps the list payload and its per-row JSON.parse cost proportional to
 // what list views actually render.
-const videoSummaryColumns = {
+// Built lazily (like publicOnlyVisitorFilter above) so the schema reference is
+// not evaluated at module load time, which would break tests that partially
+// mock the db schema.
+const videoSummaryColumns = () => ({
   id: videos.id,
   title: videos.title,
   author: videos.author,
@@ -78,7 +81,7 @@ const videoSummaryColumns = {
   visibility: videos.visibility,
   authorAvatarFilename: videos.authorAvatarFilename,
   authorAvatarPath: videos.authorAvatarPath,
-};
+});
 
 /**
  * List-view projection of the library: all columns except `description` and
@@ -90,7 +93,7 @@ export function getVideoSummaries(
 ): import("./types").Video[] {
   try {
     const baseQuery = db
-      .select(videoSummaryColumns)
+      .select(videoSummaryColumns())
       .from(videos)
       .orderBy(desc(videos.createdAt));
     const allVideos =

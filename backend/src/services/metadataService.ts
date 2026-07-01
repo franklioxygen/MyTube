@@ -11,6 +11,7 @@ import {
   resolveSafeChildPath,
   validateVideoPath,
 } from "../utils/security";
+import { logger } from "../utils/logger";
 
 const TEMPORARY_VIDEO_ARTIFACT_PATTERN = /(\.temp\.)|(\.part$)|(\.ytdl$)|(\.f\d+\.)/i;
 
@@ -54,7 +55,7 @@ export const getVideoDuration = async (
       throw error;
     }
     // Wrap unknown errors
-    console.error(`Error getting duration for ${filePath}:`, error);
+    logger.error(`Error getting duration for ${filePath}:`, error);
     return null;
   }
 };
@@ -100,17 +101,17 @@ export const getVideoHeight = async (
       throw error;
     }
     // Wrap unknown errors
-    console.error(`Error getting height for ${filePath}:`, error);
+    logger.error(`Error getting height for ${filePath}:`, error);
     return null;
   }
 };
 
 export const backfillDurations = async () => {
-  console.log("Starting duration backfill...");
+  logger.info("Starting duration backfill...");
 
   try {
     const allVideos = await db.select().from(videos).all();
-    console.log(`Found ${allVideos.length} videos to check for duration.`);
+    logger.info(`Found ${allVideos.length} videos to check for duration.`);
 
     let updatedCount = 0;
 
@@ -131,7 +132,7 @@ export const backfillDurations = async () => {
       }
 
       if (!pathExistsSafeSync(fsPath, VIDEOS_DIR)) {
-        // console.warn(`File not found: ${fsPath}`); // Reduce noise
+        // logger.warn(`File not found: ${fsPath}`); // Reduce noise
         continue;
       }
 
@@ -146,7 +147,7 @@ export const backfillDurations = async () => {
           .set({ duration: duration.toString() })
           .where(eq(videos.id, video.id))
           .run();
-        console.log(`Updated duration for ${video.title}: ${duration}s`);
+        logger.info(`Updated duration for ${video.title}: ${duration}s`);
         updatedCount++;
       }
     }
@@ -155,13 +156,13 @@ export const backfillDurations = async () => {
       // The backfill runs async after startup and can finish after the first
       // list requests were served, so the list ETag must move.
       bumpVideosListRevision();
-      console.log(
+      logger.info(
         `Duration backfill finished. Updated ${updatedCount} videos.`,
       );
     } else {
-      console.log("Duration backfill finished. No videos needed update.");
+      logger.info("Duration backfill finished. No videos needed update.");
     }
   } catch (error) {
-    console.error("Error during duration backfill:", error);
+    logger.error("Error during duration backfill:", error);
   }
 };

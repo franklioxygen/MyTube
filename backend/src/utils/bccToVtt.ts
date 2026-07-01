@@ -1,3 +1,4 @@
+import { logger } from "./logger";
 
 /**
  * Convert Bilibili BCC subtitle format to WebVTT
@@ -39,7 +40,7 @@ export function bccToVtt(bccContent: BccBody | string): string {
         try {
             bcc = JSON.parse(bccContent);
         } catch (e) {
-            console.error('Failed to parse BCC content', e);
+            logger.error('Failed to parse BCC content', e);
             return '';
         }
     } else {

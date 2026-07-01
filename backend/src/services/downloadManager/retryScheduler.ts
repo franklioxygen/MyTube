@@ -16,6 +16,7 @@ import {
 import { platformFromUrl } from "../statistics";
 import type { DownloadHistoryItem } from "../storageService";
 import type { DownloadTask } from "./types";
+import { logger } from "../../utils/logger";
 
 export const BILIBILI_RETRY_RESTORE_FAILED_MESSAGE =
   "Bilibili retry could not be restored after restart. Please download again.";
@@ -48,9 +49,9 @@ export function buildDetachedTask(
     type,
     retryMetadata,
     resolve: (value) =>
-      console.log("Restored task completed", sanitizeLogMessage(id), value),
+      logger.info("Restored task completed", sanitizeLogMessage(id), value),
     reject: (error) =>
-      console.error("Restored task failed", sanitizeLogMessage(id), error),
+      logger.error("Restored task failed", sanitizeLogMessage(id), error),
   };
 }
 

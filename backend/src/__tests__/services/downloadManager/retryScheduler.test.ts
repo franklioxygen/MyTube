@@ -7,6 +7,7 @@ import {
 } from "../../../services/downloadManager/retryScheduler";
 import type { DownloadTask } from "../../../services/downloadManager/types";
 import type { DownloadHistoryItem } from "../../../services/storageService";
+import { logger } from "../../../utils/logger";
 
 // createDownloadTask is imported by retryScheduler from downloadService; mock it
 // so buildDetachedTask doesn't require a real downloader at import time.
@@ -34,8 +35,8 @@ describe("downloadManager retryScheduler", () => {
 
   describe("buildDetachedTask", () => {
     it("returns a task that logs on resolve/reject (no caller to notify)", () => {
-      const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-      const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const logSpy = vi.spyOn(logger, "info").mockImplementation(() => {});
+      const errSpy = vi.spyOn(logger, "error").mockImplementation(() => {});
 
       const task = buildDetachedTask("id", "title", "https://x", "youtube");
       expect(task).not.toBeNull();

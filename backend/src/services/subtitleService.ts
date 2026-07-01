@@ -9,9 +9,10 @@ import {
   resolveSafeChildPath,
   sanitizePathSegment,
 } from "../utils/security";
+import { logger } from "../utils/logger";
 
 export const moveAllSubtitles = async (toVideoFolder: boolean) => {
-    console.log(`Starting to move all subtitles. Target: ${toVideoFolder ? 'Video Folders' : 'Central Subtitles Folder'}`);
+    logger.info(`Starting to move all subtitles. Target: ${toVideoFolder ? 'Video Folders' : 'Central Subtitles Folder'}`);
     const allVideos = storageService.getVideos();
     let movedCount = 0;
     let errorCount = 0;
@@ -95,7 +96,7 @@ export const moveAllSubtitles = async (toVideoFolder: boolean) => {
                 }
 
                 if (!currentAbsPath || !pathExistsSafeSync(currentAbsPath, [SUBTITLES_DIR, VIDEOS_DIR])) {
-                    console.warn(`Subtitle file not found: ${sub.path} or ${currentAbsPath}`);
+                    logger.warn(`Subtitle file not found: ${sub.path} or ${currentAbsPath}`);
                     newSubtitles.push(sub); // Keep the record even if file missing? Or maybe better to keep it to avoid data loss.
                     continue;
                 }
@@ -153,10 +154,10 @@ export const moveAllSubtitles = async (toVideoFolder: boolean) => {
                 }
 
             } catch (err) {
-                console.error(`Failed to move subtitle ${sub.filename}:`, err);
+                logger.error(`Failed to move subtitle ${sub.filename}:`, err);
                 // If it's a FileError, log it but continue
                 if (err instanceof FileError) {
-                    console.error(`File error: ${err.message}`, err.filePath);
+                    logger.error(`File error: ${err.message}`, err.filePath);
                 }
                 newSubtitles.push(sub); // Keep original on error
                 errorCount++;
@@ -168,6 +169,6 @@ export const moveAllSubtitles = async (toVideoFolder: boolean) => {
         }
     }
 
-    console.log(`Finished moving subtitles. Moved: ${movedCount}, Errors: ${errorCount}`);
+    logger.info(`Finished moving subtitles. Moved: ${movedCount}, Errors: ${errorCount}`);
     return { movedCount, errorCount };
 };

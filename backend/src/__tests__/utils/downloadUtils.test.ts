@@ -4,6 +4,7 @@ import { DownloadCancelledError } from "../../errors/DownloadErrors";
 import * as storageService from "../../services/storageService";
 import * as downloadUtils from "../../utils/downloadUtils";
 import { sanitizeLogMessage } from "../../utils/logger";
+import { logger } from "../../utils/logger";
 
 vi.mock("fs-extra", () => ({
   default: {
@@ -17,6 +18,12 @@ vi.mock("../../services/storageService", () => ({
 }));
 vi.mock("../../utils/logger", () => ({
   sanitizeLogMessage: vi.fn((input: string) => input),
+  logger: {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+  },
 }));
 
 describe("downloadUtils", () => {
@@ -128,7 +135,7 @@ describe("downloadUtils", () => {
 
     it("handles cleanup exceptions and returns empty list", async () => {
       const consoleErrorSpy = vi
-        .spyOn(console, "error")
+        .spyOn(logger, "error")
         .mockImplementation(() => undefined);
 
       vi.mocked(fs.existsSync as any).mockReturnValue(true);
@@ -185,7 +192,7 @@ describe("downloadUtils", () => {
 
     it("handles temporary file cleanup errors", async () => {
       const consoleErrorSpy = vi
-        .spyOn(console, "error")
+        .spyOn(logger, "error")
         .mockImplementation(() => undefined);
 
       vi.mocked(fs.existsSync as any).mockReturnValue(true);
@@ -218,7 +225,7 @@ describe("downloadUtils", () => {
 
     it("handles partial cleanup errors", async () => {
       const consoleErrorSpy = vi
-        .spyOn(console, "error")
+        .spyOn(logger, "error")
         .mockImplementation(() => undefined);
 
       vi.mocked(fs.existsSync as any).mockImplementation(() => {
@@ -299,7 +306,7 @@ describe("downloadUtils", () => {
 
     it("handles artifact cleanup exceptions", async () => {
       const consoleErrorSpy = vi
-        .spyOn(console, "error")
+        .spyOn(logger, "error")
         .mockImplementation(() => undefined);
 
       vi.mocked(fs.existsSync as any).mockReturnValue(true);
@@ -319,7 +326,7 @@ describe("downloadUtils", () => {
   describe("safeRemove", () => {
     it("refuses to remove paths outside allow-list", async () => {
       const consoleErrorSpy = vi
-        .spyOn(console, "error")
+        .spyOn(logger, "error")
         .mockImplementation(() => undefined);
 
       await downloadUtils.safeRemove("/etc/passwd", 1, 0);
@@ -357,7 +364,7 @@ describe("downloadUtils", () => {
 
     it("logs error after final retry failure", async () => {
       const consoleErrorSpy = vi
-        .spyOn(console, "error")
+        .spyOn(logger, "error")
         .mockImplementation(() => undefined);
 
       vi.mocked(fs.remove as any).mockRejectedValue(new Error("still locked"));

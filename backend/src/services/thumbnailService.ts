@@ -13,6 +13,7 @@ import {
     resolveSafeChildPath,
     sanitizePathSegment,
 } from "../utils/security";
+import { logger } from "../utils/logger";
 
 const SHARED_THUMBNAIL_ALLOWED_DIRS = [IMAGES_DIR, VIDEOS_DIR] as const;
 
@@ -41,7 +42,7 @@ const resolveManagedThumbnailAbsolutePath = (
 };
 
 export const moveAllThumbnails = async (toVideoFolder: boolean) => {
-    console.log(`Starting to move all thumbnails. Target: ${toVideoFolder ? 'Video Folders' : 'Central Images Folder'}`);
+    logger.info(`Starting to move all thumbnails. Target: ${toVideoFolder ? 'Video Folders' : 'Central Images Folder'}`);
     const allVideos = storageService.getVideos();
     let movedCount = 0;
     let errorCount = 0;
@@ -112,7 +113,7 @@ export const moveAllThumbnails = async (toVideoFolder: boolean) => {
                 !currentAbsPath ||
                 !pathExistsSafeSync(currentAbsPath, SHARED_THUMBNAIL_ALLOWED_DIRS)
             ) {
-                // console.warn(`Thumbnail file not found: ${video.thumbnailFilename}`);
+                // logger.warn(`Thumbnail file not found: ${video.thumbnailFilename}`);
                 continue;
             }
 
@@ -171,11 +172,11 @@ export const moveAllThumbnails = async (toVideoFolder: boolean) => {
             await ensureSmallThumbnailForThumbnailPath(newWebPath);
 
         } catch (err) {
-            console.error(`Failed to move thumbnail ${video.thumbnailFilename}:`, err);
+            logger.error(`Failed to move thumbnail ${video.thumbnailFilename}:`, err);
             errorCount++;
         }
     }
 
-    console.log(`Finished moving thumbnails. Moved: ${movedCount}, Errors: ${errorCount}`);
+    logger.info(`Finished moving thumbnails. Moved: ${movedCount}, Errors: ${errorCount}`);
     return { movedCount, errorCount };
 };

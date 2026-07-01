@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { db } from '../../db';
 import * as metadataService from '../../services/metadataService';
 import * as security from '../../utils/security';
+import { logger } from "../../utils/logger";
 
 // Mock dependencies
 vi.mock('fs-extra');
@@ -59,7 +60,7 @@ describe('metadataService', () => {
         });
 
         it('should log and return null for unknown errors', async () => {
-            const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
+            const consoleErrorSpy = vi.spyOn(logger, 'error').mockImplementation(() => { });
             (security.execFileSafe as any).mockRejectedValueOnce(new Error('unexpected'));
 
             const duration = await metadataService.getVideoDuration('/path/to/video.mp4');
@@ -98,7 +99,7 @@ describe('metadataService', () => {
         });
 
         it('should skip already-filled, invalid-prefix, and missing files then log no updates', async () => {
-            const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => { });
+            const consoleLogSpy = vi.spyOn(logger, 'info').mockImplementation(() => { });
             const mockVideos = [
                 { id: '1', title: 'Already Filled', videoPath: '/videos/already.mp4', duration: '33' },
                 { id: '2', title: 'Bad Prefix', videoPath: '/tmp/video.mp4', duration: null },
@@ -117,7 +118,7 @@ describe('metadataService', () => {
         });
 
         it('should catch and log backfill errors', async () => {
-            const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
+            const consoleErrorSpy = vi.spyOn(logger, 'error').mockImplementation(() => { });
             (db.all as any).mockRejectedValueOnce(new Error('db failed'));
 
             await metadataService.backfillDurations();

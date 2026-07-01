@@ -12,6 +12,7 @@ import {
   writeFileSafeSync,
 } from "../utils/security";
 import { configureDatabase, db, sqlite } from "./index";
+import { logger } from "../utils/logger";
 
 const DB_FILENAME = "mytube.db";
 
@@ -144,14 +145,14 @@ function isReadonlySqliteError(error: unknown): boolean {
 
 export async function runMigrations() {
   try {
-    console.log("Running database migrations...");
+    logger.info("Running database migrations...");
 
     // For network filesystems (NFS/SMB), add a small delay to ensure
     // the database file is fully accessible before attempting migration
     // This helps prevent "database is locked" errors on first deployment
     const dbPath = path.join(ROOT_DIR, "data", DB_FILENAME);
     if (!pathExistsSafeSync(dbPath, DATA_DIR)) {
-      console.log(
+      logger.info(
         "Database file does not exist yet, waiting for file system sync..."
       );
       await new Promise((resolve) => setTimeout(resolve, 2000)); // 2 second delay
@@ -167,7 +168,7 @@ export async function runMigrations() {
 
     try {
       migrate(db, { migrationsFolder });
-      console.log("Database migrations completed successfully.");
+      logger.info("Database migrations completed successfully.");
     } catch (migrationError: unknown) {
       const cause = (migrationError as { cause?: { code?: string; message?: string } })
         ?.cause;
@@ -177,7 +178,7 @@ export async function runMigrations() {
         cause?.code === "SQLITE_ERROR" &&
         cause?.message?.includes("duplicate column name")
       ) {
-        console.warn(
+        logger.warn(
           "Migration encountered duplicate column (may have been applied manually).",
           "Columns will be verified by initialization.ts"
         );
@@ -203,7 +204,7 @@ export async function runMigrations() {
     // or if the database file already existed with WAL mode
     // This is critical for NTFS/FUSE filesystem compatibility
     configureDatabase(sqlite);
-    console.log("Database configuration applied (NTFS/FUSE compatible mode).");
+    logger.info("Database configuration applied (NTFS/FUSE compatible mode).");
 
     // Check for legacy data files and run data migration if found
     const { runMigration: runDataMigration } = await import(
@@ -225,16 +226,16 @@ export async function runMigrations() {
       pathExistsSafeSync(SETTINGS_DATA_PATH, DATA_DIR);
 
     if (hasLegacyData) {
-      console.log("Legacy data files found. Running data migration...");
+      logger.info("Legacy data files found. Running data migration...");
       await runDataMigration();
     } else {
-      console.log("No legacy data files found. Skipping data migration.");
+      logger.info("No legacy data files found. Skipping data migration.");
     }
   } catch (error) {
-    console.error("Error running database migrations:", error);
+    logger.error("Error running database migrations:", error);
     // Don't throw, as we might want the app to start even if migration fails (though it might be broken)
     // But for initial setup, it's critical.
     throw error;
-    // console.warn("Migration failed but continuing server startup...");
+    // logger.warn("Migration failed but continuing server startup...");
   }
 }

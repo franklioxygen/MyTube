@@ -11,6 +11,7 @@ import {
   resolveSafeChildPath,
   unlinkSafeSync,
 } from "./security";
+import { logger } from "./logger";
 
 const HEADER_SNIFF_BYTES = 4096;
 
@@ -269,7 +270,7 @@ export const createVideoUploadStorage = (
         ensureDirSafeSync(destinationDir, destinationDir);
         writeStream = createWriteStreamSafe(targetPath, destinationDir);
         writeStream.on("error", (error) => {
-          console.error("Error writing uploaded video stream:", error);
+          logger.error("Error writing uploaded video stream:", error);
           cleanup();
           if (!settled) {
             complete(error as Error);
@@ -348,7 +349,7 @@ export const createVideoUploadStorage = (
       });
 
       file.stream.on("error", (error) => {
-        console.error("Error reading uploaded video stream:", error);
+        logger.error("Error reading uploaded video stream:", error);
         cleanup();
         if (!settled) {
           complete(error as Error);

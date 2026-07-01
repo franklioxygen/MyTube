@@ -10,6 +10,7 @@ import {
   isValidNetscapeCookiesFile,
   normalizeCookiesFileContent,
 } from "../cookieFileFormat";
+import { logger } from "../logger";
 
 type CookiesFileSignature = {
   mtimeMs: number;
@@ -77,7 +78,7 @@ export function ensureCookiesFileIsNormalized(): string | null {
     const normalizedContent = normalizeCookiesFileContent(content);
     writeFileSafeSync(cookiesPath, DATA_DIR, normalizedContent, "utf8");
     updateCookiesFileCacheFromDisk(cookiesPath, cookiesPath);
-    console.warn(
+    logger.warn(
       "[yt-dlp] Converted cookies.txt from Cookie header format to Netscape format."
     );
     return cookiesPath;
@@ -87,7 +88,7 @@ export function ensureCookiesFileIsNormalized(): string | null {
         // path=null means this exact file signature is known to be unparseable.
         cookiesFileCache = { ...signature, path: null };
       }
-      console.warn(
+      logger.warn(
         `[yt-dlp] Ignoring invalid cookies.txt: ${error.message}`
       );
       return null;
@@ -99,7 +100,7 @@ export function ensureCookiesFileIsNormalized(): string | null {
     }
 
     cookiesFileCache = null;
-    console.warn(
+    logger.warn(
       "[yt-dlp] Unable to read cookies.txt; continuing without cookies.",
       error
     );

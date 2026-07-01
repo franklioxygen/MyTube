@@ -5,6 +5,7 @@ import {
   isTwitchChannelUrl as isLocalTwitchChannelUrl,
   normalizeTwitchChannelUrl as normalizeLocalTwitchChannelUrl,
 } from "./twitch";
+import { logger } from "./logger";
 
 const YOUTUBE_HOSTNAMES = ["youtube.com", "youtu.be"] as const;
 const BILIBILI_HOSTNAMES = ["bilibili.com", "b23.tv", "bili2233.cn"] as const;
@@ -149,18 +150,18 @@ export function extractUrlFromText(text: string): string {
 // Helper function to resolve shortened URLs (like b23.tv)
 export async function resolveShortUrl(url: string): Promise<string> {
   try {
-    console.log(`Resolving shortened URL: ${url}`);
+    logger.info(`Resolving shortened URL: ${url}`);
 
     const safeShortUrl = buildSafeRequestUrl(
       url,
       ALLOWED_BILIBILI_SHORTENER_HOSTNAMES,
     );
-    console.log(
+    logger.info(
       `Short URL host is allowed. Returning normalized URL without outbound resolution: ${safeShortUrl}`,
     );
     return safeShortUrl;
   } catch (error: unknown) {
-    console.error(`Error resolving shortened URL: ${getErrorMessage(error)}`);
+    logger.error(`Error resolving shortened URL: ${getErrorMessage(error)}`);
     // If validation fails, return original URL only if it's already validated
     try {
       return buildSafeRequestUrl(url, ALLOWED_BILIBILI_SHORTENER_HOSTNAMES);
@@ -183,7 +184,7 @@ export function trimBilibiliUrl(url: string): string {
         ? `https://www.bilibili.com/video/${videoId}`
         : `https://www.bilibili.com/video/${videoId}`;
 
-      console.log(`Trimmed Bilibili URL from "${url}" to "${cleanUrl}"`);
+      logger.info(`Trimmed Bilibili URL from "${url}" to "${cleanUrl}"`);
       return cleanUrl;
     }
 
@@ -192,14 +193,14 @@ export function trimBilibiliUrl(url: string): string {
     try {
       const urlObj = new URL(url);
       const cleanUrl = `${urlObj.origin}${urlObj.pathname}`;
-      console.log(`Trimmed Bilibili URL from "${url}" to "${cleanUrl}"`);
+      logger.info(`Trimmed Bilibili URL from "${url}" to "${cleanUrl}"`);
       return cleanUrl;
     } catch (urlError) {
-      console.error("Error parsing URL:", urlError);
+      logger.error("Error parsing URL:", urlError);
       return url;
     }
   } catch (error) {
-    console.error("Error trimming Bilibili URL:", error);
+    logger.error("Error trimming Bilibili URL:", error);
     return url; // Return original URL if there's an error
   }
 }
@@ -301,7 +302,7 @@ export function extractMissAVVideoId(url: string): string | null {
     // Fallback to old regex pattern for URLs like /v/VIDEO_ID or /dm*/VIDEO_ID (without language code)
     return extractByPatternList(url, [/\/(?:v|dm\d*)\/([a-zA-Z0-9-]+)(?:\/|$)/]);
   } catch (error) {
-    console.error("Error extracting MissAV video ID:", error);
+    logger.error("Error extracting MissAV video ID:", error);
     return null;
   }
 }

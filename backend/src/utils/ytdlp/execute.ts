@@ -17,6 +17,7 @@ import {
   withDefaultYouTubeExtractorArgs,
 } from "./extractorArgs";
 import { flagsToArgs } from "./flags";
+import { logger } from "../logger";
 
 /**
  * Error thrown when a yt-dlp invocation fails. Carries the captured `stderr` and
@@ -47,7 +48,7 @@ function preprocessUrl(url: string): string {
 
   // Handle XVideos mirrors
   if (url.includes("xvideos.red")) {
-    console.log(`Preprocessing URL: replacing xvideos.red with xvideos.com`);
+    logger.info(`Preprocessing URL: replacing xvideos.red with xvideos.com`);
     return url.replace("xvideos.red", "xvideos.com");
   }
 
@@ -87,7 +88,7 @@ export async function executeYtDlpJson(
   args.push(url);
 
   const ytDlpPath = getConfiguredYtDlpPath();
-  console.log(`Executing: ${ytDlpPath} ${args.join(" ")}`);
+  logger.info(`Executing: ${ytDlpPath} ${args.join(" ")}`);
 
   return new Promise<any>((resolve, reject) => {
     const subprocess = spawn(ytDlpPath, args, {
@@ -125,7 +126,7 @@ export async function executeYtDlpJson(
             (effectiveFlags.f !== undefined && effectiveFlags.f !== null);
 
           if (hasFormatRestrictions) {
-            console.log(
+            logger.info(
               "Format not available, retrying without format restrictions and with --ignore-config..."
             );
             try {
@@ -153,7 +154,7 @@ export async function executeYtDlpJson(
               return;
             }
           } else if (!effectiveFlags.ignoreConfig) {
-            console.log(
+            logger.info(
               "Format not available without explicit format flags, retrying with --ignore-config..."
             );
             try {
@@ -192,14 +193,14 @@ export async function executeYtDlpJson(
         !stderr.includes("[download]") &&
         !stderr.includes("[info]")
       ) {
-        console.warn("yt-dlp stderr:", stderr);
+        logger.warn("yt-dlp stderr:", stderr);
       }
 
       try {
         resolve(JSON.parse(stdout));
       } catch (parseError) {
-        console.error("Failed to parse yt-dlp JSON output:", parseError);
-        console.error("Output:", stdout);
+        logger.error("Failed to parse yt-dlp JSON output:", parseError);
+        logger.error("Output:", stdout);
         reject(new Error("Failed to parse yt-dlp output as JSON"));
       }
     });
@@ -223,7 +224,7 @@ export async function getChannelUrlFromVideo(
   } catch (error) {
     // Swallow availability errors: channel URL is supplementary metadata, not critical.
     // Callers treat null as "not found", which is the correct fallback behavior here.
-    console.warn("yt-dlp unavailable when fetching channel URL:", error);
+    logger.warn("yt-dlp unavailable when fetching channel URL:", error);
     return null;
   }
 
@@ -266,7 +267,7 @@ export async function getChannelUrlFromVideo(
 
     subprocess.on("close", (code) => {
       if (code !== 0) {
-        console.warn(`Failed to get channel URL: ${stderr}`);
+        logger.warn(`Failed to get channel URL: ${stderr}`);
         resolve(null);
         return;
       }
@@ -276,7 +277,7 @@ export async function getChannelUrlFromVideo(
     });
 
     subprocess.on("error", (error) => {
-      console.warn(`Error getting channel URL:`, error);
+      logger.warn(`Error getting channel URL:`, error);
       resolve(null);
     });
   });
@@ -296,7 +297,7 @@ export async function downloadChannelAvatar(
   } catch (error) {
     // Swallow availability errors: avatar download failures are non-fatal.
     // Callers treat false as "avatar unavailable" and continue without it.
-    console.warn("yt-dlp unavailable when downloading channel avatar:", error);
+    logger.warn("yt-dlp unavailable when downloading channel avatar:", error);
     return false;
   }
 
@@ -344,10 +345,10 @@ export async function downloadChannelAvatar(
 
     subprocess.on("close", (code) => {
       if (code !== 0) {
-        console.warn(`Failed to download channel avatar: ${stderr}`);
+        logger.warn(`Failed to download channel avatar: ${stderr}`);
         // For Bilibili, this might be expected - log but don't fail completely
         if (isBilibiliUrl(channelUrl)) {
-          console.warn(`Bilibili channel avatar download may not be supported by yt-dlp`);
+          logger.warn(`Bilibili channel avatar download may not be supported by yt-dlp`);
         }
         resolve(false);
         return;
@@ -369,7 +370,7 @@ export async function downloadChannelAvatar(
                 overwrite: true,
               });
             } catch (error) {
-              console.warn(`Failed to rename avatar to .jpg:`, error);
+              logger.warn(`Failed to rename avatar to .jpg:`, error);
               // If rename fails, just use the original file
               resolve(true);
               return;
@@ -391,14 +392,14 @@ export async function downloadChannelAvatar(
       }
 
       if (!foundFile) {
-        console.warn(`Channel avatar file not found after download. Checked extensions: ${possibleExtensions.join(", ")}`);
-        console.warn(`Output directory: ${outputDir}, Output filename: ${outputFilename}`);
+        logger.warn(`Channel avatar file not found after download. Checked extensions: ${possibleExtensions.join(", ")}`);
+        logger.warn(`Output directory: ${outputDir}, Output filename: ${outputFilename}`);
       }
       resolve(foundFile);
     });
 
     subprocess.on("error", (error) => {
-      console.warn(`Error downloading channel avatar:`, error);
+      logger.warn(`Error downloading channel avatar:`, error);
       resolve(false);
     });
   });
@@ -490,7 +491,7 @@ export function executeYtDlpSpawn(
         await appendYouTubeJsRuntimeArg(args, url);
         args.push(url);
 
-        console.log(`Spawning: ${ytDlpPath} ${args.join(" ")}`);
+        logger.info(`Spawning: ${ytDlpPath} ${args.join(" ")}`);
 
         return await new Promise<void>((resolve, reject) => {
           if (killRequested) {
@@ -534,7 +535,7 @@ export function executeYtDlpSpawn(
                 );
               } else {
                 rejected = true;
-                console.error("yt-dlp error output:", stderr);
+                logger.error("yt-dlp error output:", stderr);
                 reject(
                   new YtDlpExecutionError(
                     signal

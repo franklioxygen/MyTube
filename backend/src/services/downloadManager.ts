@@ -37,6 +37,7 @@ import {
 } from "./statistics";
 import type { DownloadHistoryItem } from "./storageService";
 import * as storageService from "./storageService";
+import { logger } from "../utils/logger";
 
 class DownloadManager {
   private queue: DownloadTask[];
@@ -58,12 +59,12 @@ class DownloadManager {
       const settings = storageService.getSettings();
       if (settings.maxConcurrentDownloads) {
         this.maxConcurrentDownloads = settings.maxConcurrentDownloads;
-        console.log(
+        logger.info(
           `Loaded maxConcurrentDownloads from database: ${this.maxConcurrentDownloads}`
         );
       }
     } catch (error) {
-      console.error("Error loading settings in DownloadManager:", error);
+      logger.error("Error loading settings in DownloadManager:", error);
     }
   }
 
@@ -211,24 +212,24 @@ class DownloadManager {
    */
   initialize(): void {
     try {
-      console.log("Initializing DownloadManager...");
+      logger.info("Initializing DownloadManager...");
       this.loadSettings();
       const status = storageService.getDownloadStatus();
       const queuedDownloads = status.queuedDownloads;
 
       if (queuedDownloads && queuedDownloads.length > 0) {
-        console.log("Restoring queued downloads...", queuedDownloads.length);
+        logger.info("Restoring queued downloads...", queuedDownloads.length);
 
         for (const download of queuedDownloads) {
           if (download.sourceUrl && download.type) {
-            console.log(
+            logger.info(
               "Restoring task:",
               sanitizeLogMessage(download.title),
               sanitizeLogMessage(download.id),
             );
 
             if (!canRestoreDetachedTask(download.type, download.retryMetadata)) {
-              console.warn(
+              logger.warn(
                 `Skipping restoration of task ${download.id} due to unrestorable Bilibili retry metadata`,
               );
               continue;
@@ -243,7 +244,7 @@ class DownloadManager {
               download.retryMetadata,
             );
             if (!restoredTask) {
-              console.warn(
+              logger.warn(
                 `Skipping restoration of task ${download.id} due to invalid retry metadata`,
               );
               continue;
@@ -251,7 +252,7 @@ class DownloadManager {
 
             this.queue.push(restoredTask);
           } else {
-            console.warn(
+            logger.warn(
               `Skipping restoration of task ${download.id} due to missing sourceUrl or type`
             );
           }
@@ -261,7 +262,7 @@ class DownloadManager {
       this.restorePendingRetries();
       this.processQueue();
     } catch (error) {
-      console.error("Error initializing DownloadManager:", error);
+      logger.error("Error initializing DownloadManager:", error);
     }
   }
 
@@ -329,7 +330,7 @@ class DownloadManager {
     // Check active tasks
     const activeTask = this.activeTasks.get(id);
     if (activeTask) {
-      console.log(
+      logger.info(
         "Updating active task title:",
         sanitizeLogMessage(id),
         sanitizeLogMessage(title),
@@ -340,7 +341,7 @@ class DownloadManager {
       // Check queued tasks
       const queuedTask = this.queue.find((t) => t.id === id);
       if (queuedTask) {
-        console.log(
+        logger.info(
           "Updating queued task title:",
           sanitizeLogMessage(id),
           sanitizeLogMessage(title),
@@ -398,7 +399,7 @@ class DownloadManager {
   async cancelDownload(id: string): Promise<void> {
     const task = this.activeTasks.get(id);
     if (task) {
-      console.log(
+      logger.info(
         "Cancelling active download:",
         sanitizeLogMessage(task.title),
         sanitizeLogMessage(id),
@@ -413,7 +414,7 @@ class DownloadManager {
             task.cancelFn as () => void | Promise<void>,
           );
         } catch (error) {
-          console.error(
+          logger.error(
             "Error calling cancel function for download:",
             sanitizeLogMessage(id),
             error,
@@ -426,14 +427,14 @@ class DownloadManager {
       // Check if it's in the queue and remove it
       const inQueue = this.queue.some((t) => t.id === id);
       if (inQueue) {
-        console.log("Removing queued download:", sanitizeLogMessage(id));
+        logger.info("Removing queued download:", sanitizeLogMessage(id));
         this.removeFromQueue(id);
         return;
       }
 
       const pendingRetryItem = storageService.getDownloadHistoryItem(id);
       if (pendingRetryItem?.status === PENDING_RETRY_STATUS) {
-        console.log("Cancelling pending retry:", sanitizeLogMessage(id));
+        logger.info("Cancelling pending retry:", sanitizeLogMessage(id));
         this.clearRetryTimer(id);
         storageService.finalizePendingRetryHistoryItem(
           id,
@@ -553,7 +554,7 @@ class DownloadManager {
     }
 
     try {
-      console.log(
+      logger.info(
         "Starting download:",
         sanitizeLogMessage(task.title),
         sanitizeLogMessage(task.id),
@@ -589,7 +590,7 @@ class DownloadManager {
       const videoData = result.video || result.videoData || result;
       storageService.removeActiveDownload(task.id);
 
-      console.log(
+      logger.info(
         "Download finished for task",
         sanitizeLogMessage(task.title),
         sanitizeLogMessage(videoData.title),
@@ -701,13 +702,13 @@ class DownloadManager {
         ...videoData,
         title: finalTitle || task.title,
         sourceUrl: task.sourceUrl,
-      }).catch((err) => console.error("Background cloud upload failed:", err));
+      }).catch((err) => logger.error("Background cloud upload failed:", err));
 
       task.resolve(result);
     } catch (error) {
       // Check if this is a cancellation - handle differently
       if (isCancelledError(error) || task.cancelled) {
-        console.log("Download cancelled:", sanitizeLogMessage(task.title));
+        logger.info("Download cancelled:", sanitizeLogMessage(task.title));
         task.cancelled = true;
         this.finalizeCancelledTask(
           task,
@@ -715,7 +716,7 @@ class DownloadManager {
         );
         return;
       } else {
-        console.error(
+        logger.error(
           "Error downloading task:",
           sanitizeLogMessage(task.title),
           error,
