@@ -1,15 +1,27 @@
 import cookieParser from "cookie-parser";
 import express from "express";
 import request from "supertest";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   csrfProtection,
   csrfTokenProvider,
   refreshCsrfTokenForSession,
 } from "../../middleware/csrfMiddleware";
 import { clearAuthCookie, setAuthCookie } from "../../services/authService";
+import { getSettings } from "../../services/storageService";
+
+vi.mock("../../services/storageService", () => ({
+  getSettings: vi.fn(),
+}));
 
 describe("csrfMiddleware", () => {
+  beforeEach(() => {
+    vi.mocked(getSettings).mockReturnValue({
+      apiKeyEnabled: true,
+      apiKey: "automation-key",
+    } as any);
+  });
+
   const buildApp = () => {
     const app = express();
     app.use(cookieParser());
@@ -124,7 +136,7 @@ describe("csrfMiddleware", () => {
     expect(loginAgainResponse.status).toBe(200);
   });
 
-  it("lets non-RSS API-key requests bypass CSRF but still protects RSS management", async () => {
+  it("lets valid non-RSS API-key requests bypass CSRF but still protects RSS management", async () => {
     const agent = request.agent(buildApp());
 
     const protectedResponse = await agent
@@ -140,5 +152,16 @@ describe("csrfMiddleware", () => {
       .send({});
 
     expect(rssManagementResponse.status).toBe(403);
+  });
+
+  it("does not bypass CSRF for an arbitrary X-API-Key header value", async () => {
+    const agent = request.agent(buildApp());
+
+    const protectedResponse = await agent
+      .post("/api/protected")
+      .set("X-API-Key", "wrong-key")
+      .send({});
+
+    expect(protectedResponse.status).toBe(403);
   });
 });
