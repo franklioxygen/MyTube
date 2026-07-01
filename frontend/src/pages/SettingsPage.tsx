@@ -1,13 +1,9 @@
 
 import {
-    FindInPage
-} from '@mui/icons-material';
-import {
     Alert,
     Box,
     Button,
     Container,
-    CircularProgress,
     Grid,
     Snackbar,
     Tab,
@@ -16,8 +12,6 @@ import {
     useMediaQuery,
     useTheme
 } from '@mui/material';
-import TextField from '@mui/material/TextField';
-import { useMutation } from '@tanstack/react-query';
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import CollapsibleSection from '../components/CollapsibleSection';
@@ -29,13 +23,16 @@ import CloudflareSettings from '../components/Settings/CloudflareSettings';
 import CookieSettings from '../components/Settings/CookieSettings';
 import DatabaseSettings from '../components/Settings/DatabaseSettings';
 import DeploymentSecurityDetailsModal from '../components/Settings/DeploymentSecurityDetailsModal';
+import DeploymentSecuritySummary from '../components/Settings/DeploymentSecuritySummary';
 import DownloadSettings from '../components/Settings/DownloadSettings';
 import HookSettings from '../components/Settings/HookSettings';
 import InterfaceDisplaySettings from '../components/Settings/InterfaceDisplaySettings';
+import MountDirectoriesSettings from '../components/Settings/MountDirectoriesSettings';
 import RssFeedSettings from '../components/Settings/RssFeedSettings';
 import SecuritySettings from '../components/Settings/SecuritySettings';
 import StatisticsSettings from '../components/Settings/StatisticsSettings';
 import TagsSettings from '../components/Settings/TagsSettings';
+import TmdbApiKeySettings from '../components/Settings/TmdbApiKeySettings';
 import TwitchSettings from '../components/Settings/TwitchSettings';
 import VideoDefaultSettings from '../components/Settings/VideoDefaultSettings';
 import LiveTranslationSettings from '../components/Settings/LiveTranslationSettings';
@@ -50,7 +47,6 @@ import { useSettingsMutations } from '../hooks/useSettingsMutations';
 import { useStickyButton } from '../hooks/useStickyButton';
 import { AdminTrustLevel, Settings } from '../types';
 import { overlay } from '../theme/colors';
-import { api, getApiErrorMessage } from '../utils/apiClient';
 import { resolveAuthorOrganizationMode } from '../utils/authorOrganizationMode';
 import ConsoleManager from '../utils/consoleManager';
 import { SNACKBAR_AUTO_HIDE_DURATION } from '../utils/constants';
@@ -107,11 +103,6 @@ const SettingsPage: React.FC = () => {
     });
     const { setPreference } = useThemeContext();
     const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null);
-    const [tmdbCredentialTesting, setTmdbCredentialTesting] = useState(false);
-    const [tmdbCredentialTestResult, setTmdbCredentialTestResult] = useState<{
-        type: 'success' | 'error';
-        message: string;
-    } | null>(null);
     const [isGlowing, setIsGlowing] = useState(false);
     // Live translation Gemini API key is never fetched into `settings` (hidden in
     // responses). It only lives in this transient draft while the page is open.
@@ -126,44 +117,6 @@ const SettingsPage: React.FC = () => {
     );
     const hasTwitchCredentialValidationError = twitchCredentialValidationCode !== null;
     const translateOrFallback = createTranslateOrFallback(t);
-    const getTMDBCredentialMessage = (
-        messageKey?: string,
-        fallback?: string
-    ): string => {
-        switch (messageKey) {
-            case 'tmdbCredentialMissing':
-                return translateOrFallback('tmdbCredentialMissing', 'Please enter a TMDB credential first.');
-            case 'tmdbCredentialValid':
-                return translateOrFallback('tmdbCredentialValid', 'TMDB credential is valid.');
-            case 'tmdbCredentialValidApiKey':
-                return translateOrFallback('tmdbCredentialValidApiKey', 'TMDB API key is valid.');
-            case 'tmdbCredentialValidReadAccessToken':
-                return translateOrFallback(
-                    'tmdbCredentialValidReadAccessToken',
-                    'TMDB Read Access Token is valid.'
-                );
-            case 'tmdbCredentialInvalid':
-                return translateOrFallback(
-                    'tmdbCredentialInvalid',
-                    'TMDB credential is invalid. Check whether it is a valid API key or Read Access Token.'
-                );
-            case 'tmdbCredentialRequestFailed':
-                return translateOrFallback(
-                    'tmdbCredentialRequestFailed',
-                    'Failed to reach TMDB. Please try again.'
-                );
-            case 'tmdbCredentialTestFailed':
-                return translateOrFallback(
-                    'tmdbCredentialTestFailed',
-                    'Failed to test TMDB credential.'
-                );
-            default:
-                return fallback || translateOrFallback(
-                    'tmdbCredentialTestFailed',
-                    'Failed to test TMDB credential.'
-                );
-        }
-    };
     const deploymentSecurityDetailsTitle = translateOrFallback(
         'deploymentSecurityDetailsTitle',
         'Deployment Security Details',
@@ -302,62 +255,8 @@ const SettingsPage: React.FC = () => {
         isSaving
     } = mutations;
 
-    // Scan mount directories mutation
-    const scanMountDirectoriesMutation = useMutation({
-        mutationFn: async ({ directories, mountDirectoriesText }: { directories: string[]; mountDirectoriesText: string }) => {
-            // Mount scans can take much longer than the global API default timeout.
-            const res = await api.post('/scan-mount-directories', { directories }, { timeout: 0 });
-            // Return scan results along with mountDirectoriesText for saving
-            return { addedCount: res.data.addedCount, deletedCount: res.data.deletedCount, mountDirectoriesText };
-        },
-        onSuccess: (data) => {
-            // Save settings after successful scan to persist mountDirectories
-            // Use the mountDirectoriesText passed to the mutation to ensure we save the latest value
-            const settingsToSave = {
-                ...settings,
-                mountDirectories: data.mountDirectoriesText
-            };
-
-            if (!saveMutation.isPending) {
-                saveMutation.mutate(settingsToSave, {
-                    onSuccess: () => {
-                        const scanMsg = t('scanMountDirectoriesSuccess', {
-                            addedCount: data.addedCount,
-                            deletedCount: data.deletedCount
-                        }) || `Mount directories scan complete. Added ${data.addedCount} new videos. Deleted ${data.deletedCount} missing videos.`;
-                        const saveMsg = t('settingsSaved') || 'Settings saved.';
-                        setMessage({ text: `${scanMsg} ${saveMsg}`, type: 'success' });
-                        // Update local settings state to reflect saved mountDirectories
-                        setSettings(prev => ({ ...prev, mountDirectories: data.mountDirectoriesText }));
-                    },
-                    onError: async (saveError: any) => {
-                        const scanMsg = t('scanMountDirectoriesSuccess', {
-                            addedCount: data.addedCount,
-                            deletedCount: data.deletedCount
-                        }) || `Mount directories scan complete. Added ${data.addedCount} new videos. Deleted ${data.deletedCount} missing videos.`;
-                        const saveErrorMsg = await getApiErrorMessage(saveError, t) || t('settingsFailed') || 'Failed to save settings.';
-                        setMessage({ text: `${scanMsg} Warning: ${saveErrorMsg}`, type: 'warning' });
-                    }
-                });
-            } else {
-                const scanMsg = t('scanMountDirectoriesSuccess', {
-                    addedCount: data.addedCount,
-                    deletedCount: data.deletedCount
-                }) || `Mount directories scan complete. Added ${data.addedCount} new videos. Deleted ${data.deletedCount} missing videos.`;
-                setMessage({ text: scanMsg, type: 'success' });
-            }
-        },
-        onError: async (error: any) => {
-            const detail = await getApiErrorMessage(error, t);
-            setMessage({ text: `${t('scanFilesFailed') || 'Scan failed'}: ${detail}`, type: 'error' });
-        }
-    });
-
     const handleChange = (field: keyof Settings, value: string | boolean | number) => {
         setSettings(prev => ({ ...prev, [field]: value }));
-        if (field === 'tmdbApiKey') {
-            setTmdbCredentialTestResult(null);
-        }
         if (field === 'language') {
             setLanguage(value as Language);
         }
@@ -365,45 +264,6 @@ const SettingsPage: React.FC = () => {
             setPreference(value as any);
         }
         triggerGlow();
-    };
-
-    const handleTestTMDBCredential = async () => {
-        const tmdbApiKey = settings.tmdbApiKey?.trim() || '';
-
-        if (!tmdbApiKey) {
-            setTmdbCredentialTestResult({
-                type: 'error',
-                message: getTMDBCredentialMessage('tmdbCredentialMissing'),
-            });
-            return;
-        }
-
-        setTmdbCredentialTesting(true);
-        setTmdbCredentialTestResult(null);
-
-        try {
-            const res = await api.post('/settings/tmdb/test', { tmdbApiKey });
-            setTmdbCredentialTestResult({
-                type: 'success',
-                message: getTMDBCredentialMessage(
-                    res.data?.messageKey,
-                    res.data?.message ||
-                        translateOrFallback('tmdbCredentialValid', 'TMDB credential is valid.')
-                ),
-            });
-        } catch (error: unknown) {
-            const errorKey = (error as { response?: { data?: { errorKey?: string } } })
-                .response?.data?.errorKey;
-            setTmdbCredentialTestResult({
-                type: 'error',
-                message: getTMDBCredentialMessage(
-                    errorKey,
-                    translateOrFallback('tmdbCredentialTestFailed', 'Failed to test TMDB credential.')
-                ),
-            });
-        } finally {
-            setTmdbCredentialTesting(false);
-        }
     };
 
     const handleSave = () => {
@@ -478,19 +338,6 @@ const SettingsPage: React.FC = () => {
         restoreFromLastBackupMutation.mutate();
     };
 
-    const handleScanMountDirectories = () => {
-        const mountDirectoriesText = settings.mountDirectories || '';
-        const directories = mountDirectoriesText
-            .split('\n')
-            .map(line => line.trim())
-            .filter(line => line.length > 0);
-        if (directories.length === 0) {
-            setMessage({ text: t('mountDirectoriesEmptyError'), type: 'error' });
-            return;
-        }
-        scanMountDirectoriesMutation.mutate({ directories, mountDirectoriesText });
-    };
-
     // Content renderers for each section (used by both desktop and mobile views)
     const renderInterfaceDisplayContent = () => (
         <InterfaceDisplaySettings
@@ -519,61 +366,13 @@ const SettingsPage: React.FC = () => {
         </Box>
     );
 
-    const renderDeploymentSecuritySummary = () => {
-        const renderDetailsLink = () => renderDeploymentSecurityDetailsButton(deploymentSecurityDetailsTitle);
-
-        if (!deploymentSecurity || !adminTrustLevel) {
-            return (
-                <Alert severity="info">
-                    <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
-                        {translateOrFallback('deploymentSecurityTitle', 'Deployment Security Model')}
-                    </Typography>
-                    <Typography variant="body2">
-                        {translateOrFallback(
-                            'deploymentSecurityLoading',
-                            'Deployment security policy is loading. Restricted features remain hidden until the policy is available.'
-                        )}
-                        {renderDetailsLink()}
-                    </Typography>
-                </Alert>
-            );
-        }
-
-        const levelLabels: Record<AdminTrustLevel, string> = {
-            application: translateOrFallback('adminTrustLevelApplication', 'Application'),
-            container: translateOrFallback('adminTrustLevelContainer', 'Container'),
-            host: translateOrFallback('adminTrustLevelHost', 'Host'),
-        };
-        const levelDescriptions: Record<AdminTrustLevel, string> = {
-            application: translateOrFallback(
-                'adminTrustLevelApplicationDescription',
-                'Admin is trusted at the application layer only.'
-            ),
-            container: translateOrFallback(
-                'adminTrustLevelContainerDescription',
-                'Admin is trusted with backend/container-process-level actions.'
-            ),
-            host: translateOrFallback(
-                'adminTrustLevelHostDescription',
-                'Admin is trusted with host-scoped administrative actions.'
-            ),
-        };
-
-        return (
-            <Alert severity={adminTrustLevel === 'application' ? 'success' : 'info'}>
-                <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
-                    {translateOrFallback('deploymentSecurityTitle', 'Deployment Security Model')}
-                </Typography>
-                <Typography variant="body2" sx={{ mb: 0.5 }}>
-                    {translateOrFallback('adminTrustLevelLabel', 'Admin Trust Level')}: {levelLabels[adminTrustLevel]}
-                </Typography>
-                <Typography variant="body2">
-                    {levelDescriptions[adminTrustLevel]}
-                    {renderDetailsLink()}
-                </Typography>
-            </Alert>
-        );
-    };
+    const renderDeploymentSecuritySummary = () => (
+        <DeploymentSecuritySummary
+            deploymentSecurity={deploymentSecurity}
+            onShowDetails={() => setShowTrustDetailsModal(true)}
+            detailsButtonAriaLabel={deploymentSecurityDetailsTitle}
+        />
+    );
 
     const renderSecurityAccessContent = () => (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -679,81 +478,24 @@ const SettingsPage: React.FC = () => {
     );
 
     const renderMountDirectories = () => (
-        <Box sx={{ maxWidth: 400 }}>
-            <Typography variant="h6" sx={{ mb: 2 }}>
-                {t('mountDirectories')}
-            </Typography>
-            {canUseHostAdminFeatures ? (
-                <>
-                    <TextField
-                        fullWidth
-                        multiline
-                        rows={4}
-                        value={settings.mountDirectories || ''}
-                        onChange={(e) => handleChange('mountDirectories' as keyof Settings, e.target.value)}
-                        placeholder={t('mountDirectoriesPlaceholder')}
-                        helperText={t('mountDirectoriesHelper')}
-                    />
-                    <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
-                        <Button
-                            variant="outlined"
-                            startIcon={<FindInPage />}
-                            onClick={handleScanMountDirectories}
-                            disabled={scanMountDirectoriesMutation.isPending}
-                        >
-                            {scanMountDirectoriesMutation.isPending ? (t('scanning') || 'Scanning...') : (t('scanFiles') || 'Scan Files')}
-                        </Button>
-                    </Box>
-                </>
-            ) : (
-                <Alert severity="info">
-                    {translateOrFallback(
-                        'mountDirectoriesPolicyNotice',
-                        'Mount directories require host-level admin trust.'
-                    )}
-                    {renderDeploymentSecurityDetailsButton(
-                        `${deploymentSecurityDetailsTitle}: ${translateOrFallback('mountDirectories', 'Mount Directories')}`
-                    )}
-                </Alert>
-            )}
-        </Box>
+        <MountDirectoriesSettings
+            mountDirectories={settings.mountDirectories || ''}
+            onChange={handleChange}
+            canUseHostAdminFeatures={canUseHostAdminFeatures}
+            settings={settings}
+            setSettings={setSettings}
+            saveMutation={saveMutation}
+            onShowDetails={() => setShowTrustDetailsModal(true)}
+            detailsButtonAriaLabel={`${deploymentSecurityDetailsTitle}: ${translateOrFallback('mountDirectories', 'Mount Directories')}`}
+            setMessage={setMessage}
+        />
     );
 
     const renderTmdbApiKey = () => (
-        <Box sx={{ maxWidth: 400 }}>
-            <Typography variant="h6" sx={{ mb: 2 }}>
-                {t('tmdbApiKey')}
-            </Typography>
-            <TextField
-                fullWidth
-                value={settings.tmdbApiKey || ''}
-                onChange={(e) => handleChange('tmdbApiKey' as keyof Settings, e.target.value)}
-                type="password"
-                helperText={t('tmdbApiKeyHelper')}
-                placeholder="Enter your TMDB API key"
-            />
-            <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
-                <Button
-                    variant="outlined"
-                    startIcon={tmdbCredentialTesting ? <CircularProgress size={16} /> : <FindInPage />}
-                    onClick={handleTestTMDBCredential}
-                    disabled={!settings.tmdbApiKey?.trim() || tmdbCredentialTesting}
-                >
-                    {tmdbCredentialTesting
-                        ? translateOrFallback('testing', 'Testing...')
-                        : translateOrFallback('testTmdbCredential', 'Test Credential')}
-                </Button>
-            </Box>
-            {tmdbCredentialTestResult && (
-                <Alert
-                    severity={tmdbCredentialTestResult.type === 'success' ? 'success' : 'error'}
-                    onClose={() => setTmdbCredentialTestResult(null)}
-                    sx={{ mt: 2 }}
-                >
-                    {tmdbCredentialTestResult.message}
-                </Alert>
-            )}
-        </Box>
+        <TmdbApiKeySettings
+            tmdbApiKey={settings.tmdbApiKey || ''}
+            onChange={handleChange}
+        />
     );
 
     const renderContentManagementContent = () => (

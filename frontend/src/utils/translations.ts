@@ -1,8 +1,11 @@
-import type { en as enTranslations } from "./locales/en";
+import { en } from "./locales/en";
 
-type EnglishTranslations = typeof enTranslations;
+type EnglishTranslations = typeof en;
 
-export const defaultTranslations: Partial<EnglishTranslations> = {};
+// Real English strings, available synchronously so the first render (and any
+// render before loadLocale resolves, or if a locale chunk fails to load)
+// shows readable text instead of raw translation keys.
+export const defaultTranslations: EnglishTranslations = en;
 
 // Type-safe locale loader function
 type LocaleLoader = () => Promise<{ [key: string]: any }>;
@@ -10,7 +13,7 @@ type LocaleLoader = () => Promise<{ [key: string]: any }>;
 const getLocaleLoader = (lang: Language): LocaleLoader | null => {
   switch (lang) {
     case "en":
-      return () => import("./locales/en");
+      return () => Promise.resolve({ en });
     case "zh":
       return () => import("./locales/zh");
     case "es":
@@ -74,7 +77,7 @@ export const loadLocale = async (lang: Language) => {
 };
 
 export const translations = {
-  en: defaultTranslations as EnglishTranslations,
+  en,
 };
 
 export type Language =

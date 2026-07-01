@@ -39,6 +39,7 @@ import {
   createSubscriptionSchedulerTasks,
   stopSubscriptionSchedulerTasks,
 } from "./subscription/scheduler";
+import { checkChannelPlaylistsForWatcher } from "./subscription/channelPlaylists";
 import { resolveYouTubeAuthorName } from "./subscription/youtubeAuthor";
 import {
   checkTwitchSubscription as checkTwitchSubscriptionImpl,
@@ -287,157 +288,26 @@ export class SubscriptionService {
   }
 
   /**
-   * Check for new playlists on a channel and subscribe to them
+   * Check for new playlists on a channel and subscribe to them.
+   *
+   * Retained as an instance method because tests spy on it directly; it now
+   * delegates to the extracted module function, passing the service's own
+   * subscribe/list methods as dependencies.
    */
   async checkChannelPlaylists(sub: Subscription): Promise<number> {
-    try {
-      logger.info(
-        "Checking channel playlists",
-        getSubscriptionLogContext(sub)
-      );
-
-      const {
-        executeYtDlpJson,
-        getNetworkConfigFromUserConfig,
-        getUserYtDlpConfig,
-      } = await import("../utils/ytDlpUtils");
-      const { getProviderScript } = await import(
-        "./downloaders/ytdlp/ytdlpHelpers"
-      );
-
-      const userConfig = getUserYtDlpConfig(sub.authorUrl);
-      const networkConfig = getNetworkConfigFromUserConfig(userConfig);
-      const PROVIDER_SCRIPT = getProviderScript();
-
-      // Use yt-dlp to get all playlists
-      const result = await executeYtDlpJson(sub.authorUrl, {
-        ...networkConfig,
-        noWarnings: true,
-        flatPlaylist: true,
-        dumpSingleJson: true,
-        playlistEnd: 100, // Limit to 100 playlists for safety
-        ...(PROVIDER_SCRIPT
-          ? {
-              extractorArgs: `youtubepot-bgutilscript:script_path=${PROVIDER_SCRIPT}`,
-            }
-          : {}),
-      });
-
-      if (!result.entries || result.entries.length === 0) {
-        logger.debug(
-          "No playlists found for watcher",
-          getSubscriptionLogContext(sub)
-        );
-        return 0;
-      }
-
-      // Extract channel name if needed (to update watcher name if generic?)
-      // For now keep existing name.
-
-      let newSubscriptionsCount = 0;
-      const existingSubscriptions = await this.listSubscriptions();
-      const subscribedUrls = new Set(
-        existingSubscriptions.map((item) => item.authorUrl)
-      );
-      // Process each playlist
-      for (const entry of result.entries) {
-        if (!entry.url && !entry.id) continue;
-
-        const playlistUrl =
-          entry.url || `https://www.youtube.com/playlist?list=${entry.id}`;
-        const title = (entry.title || "Untitled Playlist")
-          .replace(/[\/\\:*?"<>|]/g, "-")
-          .trim();
-
-        if (subscribedUrls.has(playlistUrl)) {
-          continue;
-        }
-
-        logger.info(`Watcher found new playlist: ${title} (${playlistUrl})`);
-
-        let collectionId: string | null = null;
-
-        // Determine channel name for collection naming and subscription
-        // For channel_playlists subscriptions, author is already the clean channel name
-        const channelName = sub.author;
-
-        // Get or create collection
-        const cleanChannelName = channelName
-          .replace(/[\/\\:*?"<>|]/g, "-")
-          .trim();
-        const collectionName = cleanChannelName
-          ? `${title} - ${cleanChannelName}`
-          : title;
-
-        let collection = storageService.getCollectionByName(collectionName);
-        if (!collection) {
-          collection = storageService.getCollectionByName(title);
-        }
-
-        if (!collection) {
-          const uniqueCollectionName =
-            storageService.generateUniqueCollectionName(collectionName);
-          collection = {
-            id: Date.now().toString(),
-            name: uniqueCollectionName,
-            videos: [],
-            createdAt: new Date().toISOString(),
-            title: uniqueCollectionName,
-          };
-          storageService.saveCollection(collection);
-        }
-        collectionId = collection.id;
-
-        // Extract playlist ID
-        let playlistId: string | null = null;
-        if (entry.id) {
-          playlistId = entry.id;
-        } else {
-          const match = playlistUrl.match(/[?&]list=([a-zA-Z0-9_-]+)/);
-          if (match && match[1]) {
-            playlistId = match[1];
-          }
-        }
-
-        try {
-          // Subscribe to the new playlist
-          await this.subscribePlaylist(
-            playlistUrl,
-            sub.interval, // Use same interval as watcher
-            title,
-            playlistId || "",
-            channelName,
-            sub.platform,
-            collectionId
-          );
-          subscribedUrls.add(playlistUrl);
-          newSubscriptionsCount++;
-        } catch (error) {
-          logger.error(`Error auto-subscribing to playlist ${title}:`, error);
-        }
-      }
-
-      if (newSubscriptionsCount > 0) {
-        logger.info(
-          "Watcher added new playlists",
-          getSubscriptionLogContext(sub, { newSubscriptionsCount })
-        );
-      }
-
-      // Update last check time
-      await db
-        .update(subscriptions)
-        .set({ lastCheck: Date.now() })
-        .where(eq(subscriptions.id, sub.id));
-      return newSubscriptionsCount;
-    } catch (error) {
-      logger.error(
-        "Error in playlists watcher",
-        error,
-        getSubscriptionLogContext(sub)
-      );
-      return 0;
-    }
+    return checkChannelPlaylistsForWatcher(sub, {
+      listSubscriptions: () => this.listSubscriptions(),
+      subscribePlaylist: (playlistUrl, interval, title, playlistId, channelName, platform, collectionId) =>
+        this.subscribePlaylist(
+          playlistUrl,
+          interval,
+          title,
+          playlistId,
+          channelName,
+          platform,
+          collectionId
+        ),
+    });
   }
 
   async unsubscribe(id: string): Promise<void> {

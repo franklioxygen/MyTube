@@ -21,6 +21,17 @@ import {
     getUserYtDlpConfig,
 } from "../utils/ytDlpUtils";
 import { getPositiveIntegerParam, getStringParam } from "../utils/paramUtils";
+import {
+    detectPlaylistPlatform,
+    deriveChannelName,
+    extractBilibiliPlaylistId,
+    extractPlaylistAuthor,
+    extractYouTubePlaylistId,
+    resolveChannelPlaylistCollection,
+    resolvePlaylistCollection,
+    sanitizePlaylistTitle,
+    toPlaylistsTabUrl,
+} from "../services/subscription/playlistResolution";
 
 /**
  * Create a new subscription
@@ -340,7 +351,7 @@ export const createPlaylistSubscription = async (
 
   // Detect platform
   const isBilibili = isBilibiliUrl(playlistUrl);
-  const platform = isBilibili ? "Bilibili" : "YouTube";
+  const platform = detectPlaylistPlatform(playlistUrl);
 
   // Validate playlist URL format based on platform
   let playlistId: string | null = null;
@@ -367,15 +378,13 @@ export const createPlaylistSubscription = async (
     playlistId = null; // Will be extracted from playlist info if available
   } else {
     // For YouTube, check for list parameter
-    const playlistRegex = /[?&]list=([a-zA-Z0-9_-]+)/;
-    const playlistMatch = playlistUrl.match(playlistRegex);
-    if (!playlistMatch) {
+    playlistId = extractYouTubePlaylistId(playlistUrl);
+    if (!playlistId) {
       throw new ValidationError(
         "YouTube URL must contain a playlist parameter (list=)",
         "playlistUrl"
       );
     }
-    playlistId = playlistMatch[1];
   }
 
   // Get playlist info (skip if we already have collectionInfo for Bilibili)
@@ -414,89 +423,14 @@ export const createPlaylistSubscription = async (
 
   // Extract playlist ID from yt-dlp info if not already extracted (for Bilibili)
   if (!playlistId && isBilibili) {
-    try {
-      const userConfig = getUserYtDlpConfig(playlistUrl);
-      const networkConfig = getNetworkConfigFromUserConfig(userConfig);
-
-      const info = await executeYtDlpJson(playlistUrl, {
-        ...networkConfig,
-        noWarnings: true,
-        flatPlaylist: true,
-        playlistEnd: 1,
-      });
-
-      // Try to extract playlist ID from Bilibili playlist info
-      if (info.id) {
-        playlistId = info.id;
-      } else if (info.extractor_key === "bilibili:playlist") {
-        // For Bilibili playlists, the ID might be in the URL or extractor info
-        playlistId = info.playlist_id || info.id || null;
-      }
-    } catch (error) {
-      logger.warn(
-        "Could not extract playlist ID, continuing without it:",
-        error
-      );
-    }
+    playlistId = await extractBilibiliPlaylistId(playlistUrl);
   }
 
   // Create or find collection
-  // First, try to find existing collection by name
-  let collection = storageService.getCollectionByName(collectionName);
-
-  if (!collection) {
-    // Create new collection
-    const uniqueCollectionName =
-      storageService.generateUniqueCollectionName(collectionName);
-    collection = {
-      id: Date.now().toString(),
-      name: uniqueCollectionName,
-      videos: [],
-      createdAt: new Date().toISOString(),
-      title: uniqueCollectionName,
-    };
-    storageService.saveCollection(collection);
-    logger.info(
-      `Created collection "${uniqueCollectionName}" with ID ${collection.id}`
-    );
-  } else {
-    logger.info(
-      `Using existing collection "${collection.name}" with ID ${collection.id}`
-    );
-  }
+  const collection = resolvePlaylistCollection(collectionName);
 
   // Extract author from playlist
-  let author = "Playlist Author";
-
-  try {
-    const userConfig = getUserYtDlpConfig(playlistUrl);
-    const networkConfig = getNetworkConfigFromUserConfig(userConfig);
-
-    const info = await executeYtDlpJson(playlistUrl, {
-      ...networkConfig,
-      noWarnings: true,
-      flatPlaylist: true,
-      playlistEnd: 1,
-    });
-
-    if (info.entries && info.entries.length > 0) {
-      const firstEntry = info.entries[0];
-      if (firstEntry.uploader) {
-        author = firstEntry.uploader;
-      } else if (firstEntry.channel) {
-        author = firstEntry.channel;
-      }
-    } else if (info.uploader) {
-      author = info.uploader;
-    } else if (info.channel) {
-      author = info.channel;
-    }
-  } catch (error) {
-    logger.warn(
-      "Could not extract author from playlist, using default:",
-      error
-    );
-  }
+  const author = await extractPlaylistAuthor(playlistUrl);
 
   // Create subscription
   const subscription = await subscriptionService.subscribePlaylist(
@@ -558,12 +492,7 @@ export const subscribeChannelPlaylists = async (
   }
 
   // Adjust URL to ensure we target playlists tab
-  let targetUrl = url;
-  if (!targetUrl.includes("/playlists")) {
-    targetUrl = targetUrl.endsWith("/")
-      ? `${targetUrl}playlists`
-      : `${targetUrl}/playlists`;
-  }
+  const targetUrl = toPlaylistsTabUrl(url);
 
   const userConfig = getUserYtDlpConfig(targetUrl);
   const networkConfig = getNetworkConfigFromUserConfig(userConfig);
@@ -590,34 +519,14 @@ export const subscribeChannelPlaylists = async (
     throw new ValidationError("No playlists found on this channel", "body");
   }
 
-  // Extract channel name from result
-  let channelName = "Unknown";
-  if (result.uploader) {
-    channelName = result.uploader;
-  } else if (result.channel) {
-    channelName = result.channel;
-  } else if (result.channel_id && result.entries && result.entries.length > 0) {
-    const firstEntry = result.entries[0];
-    if (firstEntry.uploader) {
-      channelName = firstEntry.uploader;
-    } else if (firstEntry.channel) {
-      channelName = firstEntry.channel;
-    }
-  }
-
-  // Fallback: try to extract from URL if still not found
-  if (channelName === "Unknown") {
-    const match = decodeURI(url).match(/youtube\.com\/(@[^\/]+)/);
-    if (match && match[1]) {
-      channelName = match[1];
-    }
-  }
+  // Extract channel name from result (with URL-handle fallback)
+  const channelName = deriveChannelName(result, url);
 
   logger.info(
     `Found ${result.entries.length} playlists for channel: ${channelName}`
   );
 
-  const platform = isBilibiliUrl(targetUrl) ? "Bilibili" : "YouTube";
+  const platform = detectPlaylistPlatform(targetUrl);
   let subscribedCount = 0;
   let skippedCount = 0;
   const errors: string[] = [];
@@ -629,9 +538,7 @@ export const subscribeChannelPlaylists = async (
 
     const playlistUrl =
       entry.url || `https://www.youtube.com/playlist?list=${entry.id}`;
-    const title = (entry.title || "Untitled Playlist")
-      .replace(/[\/\\:*?"<>|]/g, "-")
-      .trim();
+    const title = sanitizePlaylistTitle(entry.title);
 
     logger.info(`Processing playlist subscription: ${title} (${playlistUrl})`);
 
@@ -641,49 +548,12 @@ export const subscribeChannelPlaylists = async (
       (sub) => sub.authorUrl === playlistUrl
     );
 
-    let collectionId: string | null = null;
-
     // Get or create collection for this playlist
-    const cleanChannelName =
-      channelName && channelName !== "Unknown"
-        ? channelName.replace(/[\/\\:*?"<>|]/g, "-").trim()
-        : null;
-    const collectionName = cleanChannelName
-      ? `${title} - ${cleanChannelName}`
-      : title;
-
-    let collection = storageService.getCollectionByName(collectionName);
-    if (!collection) {
-      collection = storageService.getCollectionByName(title);
-    }
-
-    if (!collection) {
-      const uniqueCollectionName =
-        storageService.generateUniqueCollectionName(collectionName);
-      collection = {
-        id: Date.now().toString(),
-        name: uniqueCollectionName,
-        videos: [],
-        createdAt: new Date().toISOString(),
-        title: uniqueCollectionName,
-      };
-      storageService.saveCollection(collection);
-      logger.info(
-        `Created collection "${uniqueCollectionName}" for playlist: ${title}`
-      );
-    }
-    collectionId = collection.id;
+    const collection = resolveChannelPlaylistCollection(title, channelName);
+    const collectionId = collection.id;
 
     // Extract playlist ID
-    let playlistId: string | null = null;
-    if (entry.id) {
-      playlistId = entry.id;
-    } else {
-      const match = playlistUrl.match(/[?&]list=([a-zA-Z0-9_-]+)/);
-      if (match && match[1]) {
-        playlistId = match[1];
-      }
-    }
+    const playlistId = entry.id ?? extractYouTubePlaylistId(playlistUrl);
 
     // Create subscription if not already subscribed
     if (!alreadySubscribed) {
@@ -826,13 +696,12 @@ export const createPlaylistTask = async (
 
   // Detect platform
   const isBilibili = isBilibiliUrl(playlistUrl);
-  const platform = isBilibili ? "Bilibili" : "YouTube";
+  const platform = detectPlaylistPlatform(playlistUrl);
 
   // Validate playlist URL format based on platform
   if (!isBilibili) {
     // For YouTube, check for list parameter
-    const playlistRegex = /[?&]list=([a-zA-Z0-9_-]+)/;
-    if (!playlistRegex.test(playlistUrl)) {
+    if (!extractYouTubePlaylistId(playlistUrl)) {
       throw new ValidationError(
         "YouTube URL must contain a playlist parameter (list=)",
         "playlistUrl"
