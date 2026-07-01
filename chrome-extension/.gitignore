@@ -16,3 +16,6 @@ package-lock.json
 
 # Package files
 .package-temp/
+
+# Store submission archives (build artifacts — attach to GitHub Releases instead)
+*.zip

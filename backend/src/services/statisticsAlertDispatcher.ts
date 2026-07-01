@@ -33,6 +33,18 @@ function shouldDispatchAlert(key: string): boolean {
   return Date.now() - entry.lastDispatchedAt > ALERT_DEBOUNCE_MS;
 }
 
+// Entries past the debounce window would re-dispatch anyway, so keeping them
+// only leaks keys for since-deleted subscriptions/volumes. Swept on each
+// evaluation pass.
+function sweepExpiredAlertEntries(): void {
+  const now = Date.now();
+  for (const [key, entry] of recent) {
+    if (now - entry.lastDispatchedAt > ALERT_DEBOUNCE_MS) {
+      recent.delete(key);
+    }
+  }
+}
+
 function markAlertDispatched(key: string): void {
   recent.set(key, { key, lastDispatchedAt: Date.now() });
 }
@@ -100,6 +112,7 @@ function evaluateDiskRunway(): void {
 }
 
 export async function evaluateAlertsNow(): Promise<void> {
+  sweepExpiredAlertEntries();
   evaluateSubscriptionFailureStreaks();
   evaluateDiskRunway();
 }

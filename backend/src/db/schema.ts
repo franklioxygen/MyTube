@@ -53,6 +53,10 @@ export const videos = sqliteTable(
     createdAtIdx: index("idx_videos_created_at").on(table.createdAt),
     // visibility is filtered on every visitor request.
     visibilityIdx: index("idx_videos_visibility").on(table.visibility),
+    // author / channel_url back the RSS feed filters (rssService), which are
+    // polled on a schedule by feed readers.
+    authorIdx: index("idx_videos_author").on(table.author),
+    channelUrlIdx: index("idx_videos_channel_url").on(table.channelUrl),
   })
 );
 
@@ -201,6 +205,10 @@ export const downloadHistory = sqliteTable(
       table.status,
       table.nextRetryAt
     ),
+    // source_url backs getLatestRetryHistoryItemBySourceUrl, which runs on
+    // every Bilibili download enqueue; without it each enqueue scans the
+    // append-only history table.
+    sourceUrlIdx: index("download_history_source_url_idx").on(table.sourceUrl),
   })
 );
 

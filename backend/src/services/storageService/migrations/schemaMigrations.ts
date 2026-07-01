@@ -64,6 +64,21 @@ function migratePerformanceIndexes(): void {
         "(source_platform, source_type, source_mid, source_id)",
       requires: ["collections"],
     },
+    {
+      label: "videos.author",
+      sql: "CREATE INDEX IF NOT EXISTS idx_videos_author ON videos (author)",
+    },
+    {
+      label: "videos.channel_url",
+      sql: "CREATE INDEX IF NOT EXISTS idx_videos_channel_url ON videos (channel_url)",
+    },
+    {
+      label: "download_history.source_url",
+      sql:
+        "CREATE INDEX IF NOT EXISTS download_history_source_url_idx " +
+        "ON download_history (source_url)",
+      requires: ["download_history"],
+    },
   ];
 
   for (const { label, sql, requires } of indexDefs) {

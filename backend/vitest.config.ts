@@ -15,7 +15,6 @@ export default defineConfig({
         '**/*.config.ts',
         '**/__tests__/**',
         'scripts/**',
-        'src/test_sanitize.ts',
         'src/version.ts',
         'src/services/downloaders/**',
         'src/services/migrationService.ts',
