@@ -14,11 +14,7 @@ vi.mock("../../../db", () => ({
 }));
 
 // Mock dependencies
-vi.mock("../../../services/continuousDownload/videoUrlFetcher");
 vi.mock("../../../services/storageService");
-vi.mock("../../../services/downloadService", () => ({
-  getVideoInfo: vi.fn(),
-}));
 vi.mock("../../../services/downloadManager", () => ({
   default: {
     cancelDownload: vi.fn(),
@@ -27,8 +23,8 @@ vi.mock("../../../services/downloadManager", () => ({
 vi.mock("../../../utils/downloadUtils", () => ({
   cleanupVideoArtifacts: vi.fn().mockResolvedValue([]),
 }));
-vi.mock("../../../utils/helpers", () => ({
-  formatVideoFilename: vi.fn().mockReturnValue("formatted-name"),
+vi.mock("../../../utils/security", () => ({
+  readFileSafeSync: vi.fn(),
 }));
 vi.mock("../../../config/paths", () => ({
   AVATARS_DIR: "/tmp/avatars",
@@ -41,8 +37,8 @@ vi.mock("../../../config/paths", () => ({
 }));
 vi.mock("../../../utils/logger", () => ({
   logger: {
-    info: vi.fn((msg) => console.log("[INFO]", msg)),
-    error: vi.fn((msg, err) => console.error("[ERROR]", msg, err)),
+    info: vi.fn(),
+    error: vi.fn(),
     debug: vi.fn(),
   },
 }));
@@ -68,15 +64,13 @@ vi.mock("fs-extra", () => ({
 
 import { TaskCleanup } from "../../../services/continuousDownload/taskCleanup";
 import { ContinuousDownloadTask } from "../../../services/continuousDownload/types";
-import { VideoUrlFetcher } from "../../../services/continuousDownload/videoUrlFetcher";
-import { getVideoInfo } from "../../../services/downloadService";
 import * as storageService from "../../../services/storageService";
 import { cleanupVideoArtifacts } from "../../../utils/downloadUtils";
+import { readFileSafeSync } from "../../../utils/security";
 import { logger } from "../../../utils/logger";
 
 describe("TaskCleanup", () => {
   let taskCleanup: TaskCleanup;
-  let mockVideoUrlFetcher: any;
 
   const mockTask: ContinuousDownloadTask = {
     id: "task-1",
@@ -90,22 +84,15 @@ describe("TaskCleanup", () => {
     downloadedCount: 0,
     skippedCount: 0,
     failedCount: 0,
+    frozenVideoListPath: "/tmp/data/frozen-lists/task-1.json",
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockVideoUrlFetcher = {
-      getAllVideoUrls: vi.fn(),
-    };
-    taskCleanup = new TaskCleanup(
-      mockVideoUrlFetcher as unknown as VideoUrlFetcher
-    );
+    taskCleanup = new TaskCleanup();
 
-    // Default mocks
-    (getVideoInfo as any).mockResolvedValue({
-      title: "Video Title",
-      author: "Author",
-    });
+    // Default mocks: frozen list resolves url1 at index 1, no active downloads
+    (readFileSafeSync as any).mockReturnValue(JSON.stringify(["url0", "url1"]));
     (storageService.getDownloadStatus as any).mockReturnValue({
       activeDownloads: [],
     });
@@ -117,27 +104,25 @@ describe("TaskCleanup", () => {
         ...mockTask,
         currentVideoIndex: 0,
       });
-      expect(mockVideoUrlFetcher.getAllVideoUrls).not.toHaveBeenCalled();
+      expect(readFileSafeSync).not.toHaveBeenCalled();
+      expect(storageService.getDownloadStatus).not.toHaveBeenCalled();
     });
 
-    it("should cleanup temp files for current video url", async () => {
-      const urls = ["url0", "url1"];
-      mockVideoUrlFetcher.getAllVideoUrls.mockResolvedValue(urls);
+    it("stays offline: no lookup happens without a frozen list", async () => {
+      await taskCleanup.cleanupCurrentVideoTempFiles({
+        ...mockTask,
+        frozenVideoListPath: undefined,
+      });
 
-      await taskCleanup.cleanupCurrentVideoTempFiles(mockTask); // index 1 -> url1
-
-      expect(mockVideoUrlFetcher.getAllVideoUrls).toHaveBeenCalled();
-      expect(getVideoInfo).toHaveBeenCalledWith("url1");
-      expect(cleanupVideoArtifacts).toHaveBeenCalledWith(
-        "formatted-name",
-        "/tmp/videos"
-      );
+      // The caller (cancelTask) already cancelled downloads it could match;
+      // without the frozen list this path must not reach for the network or
+      // guess filenames.
+      expect(readFileSafeSync).not.toHaveBeenCalled();
+      expect(storageService.getDownloadStatus).not.toHaveBeenCalled();
+      expect(cleanupVideoArtifacts).not.toHaveBeenCalled();
     });
 
-    it("should cancel active download if matches current video", async () => {
-      const urls = ["url0", "url1"];
-      mockVideoUrlFetcher.getAllVideoUrls.mockResolvedValue(urls);
-
+    it("should cancel active download matching the current video url", async () => {
       const activeDownload = {
         id: "dl-1",
         sourceUrl: "url1",
@@ -147,26 +132,60 @@ describe("TaskCleanup", () => {
         activeDownloads: [activeDownload],
       });
 
-      await taskCleanup.cleanupCurrentVideoTempFiles(mockTask);
+      await taskCleanup.cleanupCurrentVideoTempFiles(mockTask); // index 1 -> url1
 
-      // Verify download manager was called to cancel
       const downloadManager = await import("../../../services/downloadManager");
       expect(downloadManager.default.cancelDownload).toHaveBeenCalledWith(
         "dl-1"
       );
-      // Check if cleanup was called for the active download file
-      expect(cleanupVideoArtifacts).toHaveBeenCalledWith("file", "/tmp/videos");
+      // Artifact deletion is owned by the downloader's cancel hook; no
+      // filename reconstruction happens here on the success path.
+      expect(cleanupVideoArtifacts).not.toHaveBeenCalled();
       expect(logger.error).not.toHaveBeenCalled();
     });
 
-    it("should handle errors gracefully", async () => {
-      mockVideoUrlFetcher.getAllVideoUrls.mockRejectedValue(
-        new Error("Fetch failed")
+    it("should ignore active downloads for other videos", async () => {
+      (storageService.getDownloadStatus as any).mockReturnValue({
+        activeDownloads: [
+          { id: "dl-other", sourceUrl: "url0", filename: "other.mp4" },
+        ],
+      });
+
+      await taskCleanup.cleanupCurrentVideoTempFiles(mockTask);
+
+      const downloadManager = await import("../../../services/downloadManager");
+      expect(downloadManager.default.cancelDownload).not.toHaveBeenCalled();
+    });
+
+    it("falls back to record removal + filename sweep when cancel fails", async () => {
+      const activeDownload = {
+        id: "dl-1",
+        sourceUrl: "url1",
+        filename: "file.mp4",
+      };
+      (storageService.getDownloadStatus as any).mockReturnValue({
+        activeDownloads: [activeDownload],
+      });
+      const downloadManager = await import("../../../services/downloadManager");
+      (downloadManager.default.cancelDownload as any).mockRejectedValue(
+        new Error("cancel failed")
       );
+
+      await taskCleanup.cleanupCurrentVideoTempFiles(mockTask);
+
+      expect(storageService.removeActiveDownload).toHaveBeenCalledWith("dl-1");
+      expect(cleanupVideoArtifacts).toHaveBeenCalledWith("file", "/tmp/videos");
+    });
+
+    it("should handle unreadable frozen lists gracefully", async () => {
+      (readFileSafeSync as any).mockImplementation(() => {
+        throw new Error("missing file");
+      });
 
       await expect(
         taskCleanup.cleanupCurrentVideoTempFiles(mockTask)
       ).resolves.not.toThrow();
+      expect(storageService.getDownloadStatus).not.toHaveBeenCalled();
     });
   });
 });
