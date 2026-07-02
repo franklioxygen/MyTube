@@ -40,12 +40,22 @@ const SubscribeModal = lazyWithRetry(
     'subscribe-modal',
 );
 
+// Payload from GET /check-bilibili-collection, forwarded to the download API
+// when the user confirms a collection/series download.
+interface BilibiliCollectionInfo {
+    type: 'collection' | 'series';
+    id: string | number;
+    mid: string | number;
+    title: string;
+    count: number;
+}
+
 interface BilibiliPartsInfo {
     videosNumber: number;
     title: string;
     url: string;
     type: 'parts' | 'collection' | 'series' | 'playlist';
-    collectionInfo: any;
+    collectionInfo: BilibiliCollectionInfo | null;
 }
 
 
@@ -148,7 +158,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         enabled: isAuthenticated,
         // Poll with dynamic interval: fast when busy, low-frequency when idle.
         refetchInterval: (query) => {
-            const data = query.state.data as { activeDownloads?: any[]; queuedDownloads?: any[] } | undefined;
+            const data = query.state.data as { activeDownloads?: unknown[]; queuedDownloads?: unknown[] } | undefined;
             const hasActive = (data?.activeDownloads?.length ?? 0) > 0;
             const hasQueued = (data?.queuedDownloads?.length ?? 0) > 0;
             // Keep low-frequency polling even when idle so tasks submitted from external API clients appear in UI.
@@ -160,9 +170,9 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         staleTime: 1000, // Consider data stale after 1 second
         gcTime: 5 * 60 * 1000, // Garbage collect after 5 minutes
         // Suppress errors when not authenticated (expected behavior)
-        retry: (failureCount, error: any) => {
+        retry: (failureCount, error: unknown) => {
             // Don't retry on 401 errors (unauthorized) - user is not authenticated
-            if (error?.response?.status === 401) {
+            if (hasAxiosStatus(error, 401)) {
                 return false;
             }
             // Retry other errors up to 3 times

@@ -128,6 +128,7 @@ export const WHITELISTED_SETTINGS = [
   "autoRetryEnabled",
   "autoRetryTimes",
   "autoRetryIntervalMinutes",
+  "downloadHistoryRetentionDays",
   "dontSkipDeletedVideo",
   "language",
   "tags",

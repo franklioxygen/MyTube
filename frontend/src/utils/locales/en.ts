@@ -941,6 +941,10 @@ export const en = {
   // Subscription Retention
   retentionDays: "Auto-Delete After",
   retentionDaysUnit: "days",
+  downloadHistoryRetention: "Download History Retention",
+  downloadHistoryRetentionDescription:
+    "Automatically delete completed download history entries (success, failed, skipped) older than this. Entries for deleted videos and scheduled retries are always kept, and entries a subscription's auto-delete window still needs are never removed.",
+  downloadHistoryRetentionKeepForever: "Keep forever",
   retentionDaysDisabled: "Off",
   editRetention: "Edit Auto-Delete",
   retentionDaysHelpTitle: "About Auto-Delete",

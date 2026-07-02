@@ -2,6 +2,7 @@ import crypto from "crypto";
 import { NotFoundError } from "../errors/DownloadErrors";
 import { executeYtDlpJson } from "../utils/ytDlpUtils";
 import * as storageService from "./storageService";
+import { logger } from "../utils/logger";
 
 export interface Comment {
   id: string;
@@ -32,7 +33,7 @@ export const getComments = async (videoId: string): Promise<Comment[]> => {
     // Use yt-dlp for both Bilibili and YouTube as it's more reliable
     return await getCommentsWithYtDlp(video.sourceUrl);
   } catch (error) {
-    console.error("Error fetching comments:", error);
+    logger.error("Error fetching comments:", error);
     return [];
   }
 };
@@ -40,7 +41,7 @@ export const getComments = async (videoId: string): Promise<Comment[]> => {
 // Fetch comments using yt-dlp (works for YouTube and Bilibili)
 const getCommentsWithYtDlp = async (url: string): Promise<Comment[]> => {
   try {
-    console.log(`[CommentService] Fetching comments using yt-dlp for: ${url}`);
+    logger.info(`[CommentService] Fetching comments using yt-dlp for: ${url}`);
     const info = await executeYtDlpJson(url, {
       writeComments: true, // Include comments in JSON output
       noWarnings: true,
@@ -65,7 +66,7 @@ const getCommentsWithYtDlp = async (url: string): Promise<Comment[]> => {
 
     return [];
   } catch (error) {
-    console.error("Error fetching comments with yt-dlp:", error);
+    logger.error("Error fetching comments with yt-dlp:", error);
     return [];
   }
 };

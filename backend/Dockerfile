@@ -48,9 +48,10 @@ RUN --mount=type=cache,target=/root/.npm \
 # Copy backend source
 COPY backend/ .
 
-# Build bgutil-ytdlp-pot-provider
+# Build bgutil-ytdlp-pot-provider, then drop its dev dependencies so the
+# final stage can copy production node_modules only.
 WORKDIR /app/bgutil-ytdlp-pot-provider/server
-RUN CXXFLAGS="-include cstdint" npm install && npx tsc
+RUN CXXFLAGS="-include cstdint" npm install && npx tsc && npm prune --omit=dev
 WORKDIR /app
 
 RUN npm run build
@@ -81,10 +82,24 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && ln -sf /usr/bin/python3 /usr/bin/python
 
-# Install cloudflared (Binary download)
+# Install cloudflared (pinned + checksum verified — same policy as deno below;
+# `releases/latest` made image builds non-reproducible). Upstream publishes no
+# per-asset checksum files, so the digests are recorded here at pin time.
+# To upgrade: bump the version, download both arch binaries, sha256sum them.
 ARG TARGETARCH
-RUN curl -L --retry 5 --retry-delay 2 --output /usr/local/bin/cloudflared https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${TARGETARCH:-amd64} && \
-    chmod +x /usr/local/bin/cloudflared
+ARG CLOUDFLARED_VERSION=2026.6.1
+RUN set -eux; \
+    case "${TARGETARCH:-amd64}" in \
+      amd64) CLOUDFLARED_SHA256="5861a10a438fe8ddcfebb3b830f83966cbf193edafce0fe2eeb198fbae1f7a22" ;; \
+      arm64) CLOUDFLARED_SHA256="59816ce9b16db71f5bc2a86d59b3632a96c8c3ee934bde2bc8641ee83a6070eb" ;; \
+      *) echo "Unsupported TARGETARCH for cloudflared: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac; \
+    curl -fsSL --retry 5 --retry-delay 2 \
+      "https://github.com/cloudflare/cloudflared/releases/download/${CLOUDFLARED_VERSION}/cloudflared-linux-${TARGETARCH:-amd64}" \
+      -o /usr/local/bin/cloudflared; \
+    echo "${CLOUDFLARED_SHA256}  /usr/local/bin/cloudflared" | sha256sum -c -; \
+    chmod +x /usr/local/bin/cloudflared; \
+    cloudflared --version
 
 # Install deno for yt-dlp JavaScript runtime support (pinned + checksum verified)
 ARG DENO_VERSION=2.3.1
@@ -151,8 +166,15 @@ COPY --from=builder /app/dist ./dist
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 # Copy drizzle migrations
 COPY --from=builder /app/drizzle ./drizzle
-# Copy bgutil-ytdlp-pot-provider
-COPY --from=builder /app/bgutil-ytdlp-pot-provider /app/bgutil-ytdlp-pot-provider
+# Copy bgutil-ytdlp-pot-provider runtime pieces only: the built server, its
+# production node_modules, and the yt-dlp plugin package. TS sources, dev
+# dependencies, and repo metadata stay in the builder (tens of MB smaller).
+# Runtime consumers: server/build/generate_once.js and plugin/yt_dlp_plugins
+# (see ytdlpHelpers.ts).
+COPY --from=builder /app/bgutil-ytdlp-pot-provider/server/build /app/bgutil-ytdlp-pot-provider/server/build
+COPY --from=builder /app/bgutil-ytdlp-pot-provider/server/node_modules /app/bgutil-ytdlp-pot-provider/server/node_modules
+COPY --from=builder /app/bgutil-ytdlp-pot-provider/server/package.json /app/bgutil-ytdlp-pot-provider/server/package.json
+COPY --from=builder /app/bgutil-ytdlp-pot-provider/plugin /app/bgutil-ytdlp-pot-provider/plugin
 
 # Create necessary directories
 RUN mkdir -p \

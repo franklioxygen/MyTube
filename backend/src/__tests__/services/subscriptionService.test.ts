@@ -34,6 +34,17 @@ vi.mock('../../db/schema', () => ({
 
 vi.mock('../../services/downloadService');
 vi.mock('../../services/storageService');
+// Passthrough queue: execute the downloadFn immediately and resolve with its
+// result, so every existing assertion on downloadService.* still validates
+// the real subscription semantics.
+vi.mock('../../services/downloadManager', () => ({
+  default: {
+    addDownload: vi.fn(
+      (downloadFn: (registerCancel: (cancel: () => void) => void) => Promise<unknown>) =>
+        downloadFn(vi.fn())
+    ),
+  },
+}));
 vi.mock('../../services/telegramService', () => ({
   TelegramService: {
     notifyTaskComplete: vi.fn().mockResolvedValue(undefined),
@@ -215,8 +226,8 @@ describe('SubscriptionService', () => {
 
       expect(downloadService.downloadYouTubeVideo).toHaveBeenCalledWith(
         'new-link',
-        undefined,
-        undefined,
+        'test-uuid',
+        expect.any(Function),
         expect.objectContaining({
           sourceCustomName: 'User',
           sourceCollectionName: 'User',
@@ -265,8 +276,8 @@ describe('SubscriptionService', () => {
       expect(YtDlpDownloader.getLatestShortsUrl).toHaveBeenCalled();
       expect(downloadService.downloadYouTubeVideo).toHaveBeenCalledWith(
         'new-short',
-        undefined,
-        undefined,
+        'test-uuid',
+        expect.any(Function),
         expect.objectContaining({
           sourceCustomName: 'User',
           sourceCollectionName: 'User',
@@ -337,6 +348,102 @@ describe('SubscriptionService', () => {
 
       expect(YtDlpDownloader.getLatestShortsUrl).not.toHaveBeenCalled();
       expect(downloadService.downloadYouTubeVideo).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('checkSubscriptions concurrency', () => {
+    const makeSub = (id: string) => ({
+      id,
+      author: `Author-${id}`,
+      platform: 'YouTube',
+      authorUrl: `https://youtube.com/@${id}`,
+      lastCheck: 0,
+      interval: 10,
+      lastVideoLink: 'same-link',
+    });
+
+    // First select is listSubscriptions; every later builder await (lastCheck
+    // updates etc.) returns a matched row.
+    const primeListSubscriptions = (subs: unknown[]) => {
+      let firstSelect = true;
+      mockBuilder.then = (cb: any) => {
+        if (firstSelect) {
+          firstSelect = false;
+          return Promise.resolve(subs).then(cb);
+        }
+        return Promise.resolve([{ id: 'row' }]).then(cb);
+      };
+    };
+
+    it('checks due subscriptions with bounded concurrency and completes all of them', async () => {
+      const subs = ['s1', 's2', 's3', 's4', 's5'].map(makeSub);
+      primeListSubscriptions(subs);
+
+      let inFlight = 0;
+      let maxInFlight = 0;
+      const release: Array<() => void> = [];
+      (YtDlpDownloader.getLatestVideoUrl as any).mockImplementation(() => {
+        inFlight++;
+        maxInFlight = Math.max(maxInFlight, inFlight);
+        return new Promise<string>((resolve) => {
+          release.push(() => {
+            inFlight--;
+            resolve('same-link'); // no new video -> no download path
+          });
+        });
+      });
+
+      // Drain probes as they appear (macrotask, so pending microtask work —
+      // i.e. starting the next batch of probes — settles first).
+      const drain = setInterval(() => {
+        while (release.length > 0) release.shift()!();
+      }, 0);
+      try {
+        await subscriptionService.checkSubscriptions();
+      } finally {
+        clearInterval(drain);
+      }
+
+      expect(YtDlpDownloader.getLatestVideoUrl).toHaveBeenCalledTimes(5);
+      // The bound is the hard invariant: never more than CHECK_CONCURRENCY.
+      expect(maxInFlight).toBeLessThanOrEqual(3);
+      // And the sweep actually used the parallelism instead of serializing.
+      expect(maxInFlight).toBeGreaterThan(1);
+    });
+
+    it('keeps checking other subscriptions when one probe fails', async () => {
+      const subs = ['fails', 'works'].map(makeSub);
+      primeListSubscriptions(subs);
+
+      (YtDlpDownloader.getLatestVideoUrl as any).mockImplementation(
+        (url: string) =>
+          url.includes('fails')
+            ? Promise.reject(new Error('probe exploded'))
+            : Promise.resolve('same-link')
+      );
+
+      await subscriptionService.checkSubscriptions();
+
+      expect(YtDlpDownloader.getLatestVideoUrl).toHaveBeenCalledTimes(2);
+      expect(YtDlpDownloader.getLatestVideoUrl).toHaveBeenCalledWith(
+        'https://youtube.com/@works'
+      );
+      expect(downloadService.downloadYouTubeVideo).not.toHaveBeenCalled();
+    });
+
+    it('does not probe subscriptions that are not due yet', async () => {
+      const dueSub = makeSub('due');
+      const notDueSub = { ...makeSub('fresh'), lastCheck: Date.now() };
+      primeListSubscriptions([dueSub, notDueSub]);
+
+      (YtDlpDownloader.getLatestVideoUrl as any).mockResolvedValue('same-link');
+
+      await subscriptionService.checkSubscriptions();
+
+      expect(YtDlpDownloader.getLatestVideoUrl).toHaveBeenCalledTimes(1);
+      expect(YtDlpDownloader.getLatestVideoUrl).toHaveBeenCalledWith(
+        'https://youtube.com/@due'
+      );
     });
   });
 
@@ -990,8 +1097,8 @@ describe('SubscriptionService', () => {
         1,
         1,
         '',
-        undefined,
-        undefined,
+        'test-uuid',
+        expect.any(Function),
         undefined,
         expect.objectContaining({
           sourceCustomName: 'BiliAuthor',

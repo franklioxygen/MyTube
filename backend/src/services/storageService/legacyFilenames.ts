@@ -14,6 +14,7 @@ import {
   renamePath,
 } from "./fileHelpers";
 import { moveSmallThumbnailMirrorSync } from "../thumbnailMirrorService";
+import { bumpVideosListRevision } from "./videoListRevision";
 import { getVideos } from "./videoQueries";
 
 /**
@@ -324,6 +325,9 @@ export function formatLegacyFilenames(): {
       }
     }
 
+    if (results.renamed > 0) {
+      bumpVideosListRevision();
+    }
     return results;
   } catch (error: unknown) {
     logger.error(

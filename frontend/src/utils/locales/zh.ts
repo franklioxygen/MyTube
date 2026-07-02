@@ -916,6 +916,10 @@ export const zh = {
   // Subscription Retention
   retentionDays: "自动删除期限",
   retentionDaysUnit: "天",
+  downloadHistoryRetention: "下载历史保留",
+  downloadHistoryRetentionDescription:
+    "自动删除早于此时间的已完成下载历史记录（成功、失败、跳过）。已删除视频和计划重试的记录将始终保留；订阅自动删除仍需要的记录也不会被删除。",
+  downloadHistoryRetentionKeepForever: "永久保留",
   retentionDaysDisabled: "关闭",
   editRetention: "编辑自动删除",
   retentionDaysHelpTitle: "关于自动删除",

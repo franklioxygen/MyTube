@@ -4,6 +4,7 @@ import {
   CANCEL_TASK_WAIT_TIMEOUT_MS,
   TASK_FAIL_HOOK_WAIT_TIMEOUT_MS,
 } from "./types";
+import { logger } from "../../utils/logger";
 
 export async function awaitTaskFailHook(
   context: Record<string, string | undefined>,
@@ -15,7 +16,7 @@ export async function awaitTaskFailHook(
       HookService.executeHook("task_fail", context),
       new Promise<void>((resolve) => {
         timeoutId = setTimeout(() => {
-          console.warn(
+          logger.warn(
             `task_fail hook exceeded ${TASK_FAIL_HOOK_WAIT_TIMEOUT_MS}ms; continuing task failure handling.`
           );
           resolve();
@@ -23,7 +24,7 @@ export async function awaitTaskFailHook(
       }),
     ]);
   } catch (error) {
-    console.error("task_fail hook failed:", error);
+    logger.error("task_fail hook failed:", error);
   } finally {
     if (timeoutId) {
       clearTimeout(timeoutId);
@@ -42,7 +43,7 @@ export async function awaitTaskCancellationHook(
       Promise.resolve().then(() => cancelFn()),
       new Promise<void>((resolve) => {
         timeoutId = setTimeout(() => {
-          console.warn(
+          logger.warn(
             `Cancel hook for download ${sanitizeLogMessage(taskId)} exceeded ${CANCEL_TASK_WAIT_TIMEOUT_MS}ms; finalizing cancellation anyway.`
           );
           resolve();

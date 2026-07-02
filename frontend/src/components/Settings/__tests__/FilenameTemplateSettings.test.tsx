@@ -4,7 +4,7 @@ import {
     deriveFilenamePresetId,
     resolveFilenamePresetSelectValue,
     getFilenameTemplateWarningMessage
-} from '../FilenameTemplateSettings';
+} from '../filenameTemplateShared';
 
 const catalogPresets = [
     {

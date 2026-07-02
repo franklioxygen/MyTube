@@ -9,7 +9,11 @@ import { syncMediaServerArtifactsForRecord } from "../services/mediaServerExport
 import * as storageService from "../services/storageService";
 import { addTagsToGlobalSettings } from "../services/tagService";
 import { logger } from "../utils/logger";
-import { getStringParam } from "../utils/paramUtils";
+import {
+  getLimitParam,
+  getPositiveIntegerParam,
+  getStringParam,
+} from "../utils/paramUtils";
 import { successResponse } from "../utils/response";
 import { createUploadValidationError } from "../utils/videoUpload";
 import { resolvePlayableVideoFilePath } from "../utils/videoFileResolver";
@@ -67,7 +71,44 @@ export const getVideos = async (
   // Visitors must only see public (visibility=1) videos. The query layer
   // enforces this so the frontend filter (VideoContext) is no longer the only
   // gate. Fixes GHSA-hcm6-w6x8-6jhr.
-  const videos = storageService.getVideos(getVisibilityScopedRole(req));
+  const role = getVisibilityScopedRole(req);
+
+  // Conditional-request short-circuit: the frontend refetches the whole list
+  // after every completed download and on many mutations. When nothing in the
+  // videos table changed since the client's copy, answer 304 from the
+  // in-process revision counter without hydrating/serializing the table.
+  const etag = storageService.getVideosListETag(
+    role === "visitor" ? "visitor" : "all"
+  );
+  const ifNoneMatch = req.headers["if-none-match"];
+  if (
+    typeof ifNoneMatch === "string" &&
+    ifNoneMatch
+      .split(",")
+      .map((tag) => tag.trim())
+      .includes(etag)
+  ) {
+    res.status(304).end();
+    return;
+  }
+  res.set("ETag", etag);
+  // Cache but always revalidate, and never share across users (role-scoped).
+  res.set("Cache-Control", "private, no-cache");
+
+  // Opt-in pagination groundwork (P-1 step 3): external API consumers can
+  // request a window; without params the full-list contract is unchanged.
+  const page =
+    req.query?.limit !== undefined
+      ? {
+          limit: getLimitParam(req.query.limit, 100, 500),
+          offset: getPositiveIntegerParam(req.query.offset) ?? 0,
+        }
+      : undefined;
+
+  // List views never render description/subtitles; the player loads the full
+  // row via GET /videos/:id. Omitting them keeps the payload flat as the
+  // library and its per-video description sizes grow.
+  const videos = storageService.getVideoSummaries(role, page);
   // Return array directly for backward compatibility (frontend expects response.data to be Video[])
   sendData(res, videos);
 };
@@ -146,7 +187,7 @@ export const getVideoById = async (
     );
 
     if (signedUrl) {
-      (video as any).signedUrl = signedUrl;
+      video.signedUrl = signedUrl;
     }
 
     if (video.thumbnailPath?.startsWith("cloud:")) {
@@ -157,7 +198,7 @@ export const getVideoById = async (
       );
 
       if (signedThumbnailUrl) {
-        (video as any).signedThumbnailUrl = signedThumbnailUrl;
+        video.signedThumbnailUrl = signedThumbnailUrl;
       }
     }
   }
@@ -165,7 +206,7 @@ export const getVideoById = async (
   // Check if video is in mount directory and inject mount video URL
   if (video.videoPath?.startsWith("mount:")) {
     // For mount directory videos, provide a special URL that will be served by the mount video endpoint
-    (video as any).signedUrl = `/api/mount-video/${id}`;
+    video.signedUrl = `/api/mount-video/${id}`;
   }
 
   // Return video object directly for backward compatibility (frontend expects response.data to be Video)
@@ -298,7 +339,7 @@ export const updateVideoDetails = async (
   const updates = req.body;
 
   // Filter allowed updates
-  const allowedUpdates: any = {};
+  const allowedUpdates: Partial<import("../services/storageService").Video> = {};
   if (updates.title !== undefined) allowedUpdates.title = updates.title;
   if (updates.tags !== undefined) allowedUpdates.tags = updates.tags;
   if (updates.visibility !== undefined)

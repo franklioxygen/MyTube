@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { Video } from '../types';
+import { Video, VideoSearchResult } from '../types';
 import { useStatisticsIngestion } from '../hooks/useStatisticsIngestion';
 import { api } from '../utils/apiClient';
+import { hasAxiosStatus } from '../utils/errors';
 import { settingsQueryOptions } from '../utils/settingsQueries';
 import { useAuth } from './AuthContext';
 import { useLanguage } from './LanguageContext';
@@ -21,7 +22,7 @@ interface VideoContextType {
     redownloadThumbnail: (id: string) => Promise<{ success: boolean; error?: string }>;
     uploadThumbnail: (id: string, file: File) => Promise<void>;
     searchLocalVideos: (query: string) => Video[];
-    searchResults: any[];
+    searchResults: VideoSearchResult[];
     localSearchResults: Video[];
     isSearchMode: boolean;
     searchTerm: string;
@@ -82,6 +83,10 @@ export const useVideoActions = () => {
     return context;
 };
 
+// Stable fallback so the provider-value useMemo deps don't see a fresh array
+// identity on every render while the settings query is unresolved.
+const EMPTY_TAGS: string[] = [];
+
 export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const { showSnackbar } = useSnackbar();
     const { t } = useLanguage();
@@ -103,9 +108,9 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         },
         // Only query when authenticated to avoid 401 errors on login page
         enabled: isAuthenticated,
-        retry: (failureCount, error: any) => {
+        retry: (failureCount, error: unknown) => {
             // Don't retry on 401 errors (unauthorized) - user is not authenticated
-            if (error?.response?.status === 401) {
+            if (hasAxiosStatus(error, 401)) {
                 return false;
             }
             // Retry other errors up to 3 times
@@ -134,7 +139,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         enabled: isAuthenticated,
     });
 
-    const availableTags = settingsData?.tags || [];
+    const availableTags = settingsData?.tags ?? EMPTY_TAGS;
     const showYoutubeSearch = settingsData?.showYoutubeSearch ?? true;
     const captureSearchText = settingsData?.statisticsCaptureSearchText === true;
 
@@ -143,7 +148,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const statisticsIngestion = useStatisticsIngestion();
 
     // Search state
-    const [searchResults, setSearchResults] = useState<any[]>([]);
+    const [searchResults, setSearchResults] = useState<VideoSearchResult[]>([]);
     const [localSearchResults, setLocalSearchResults] = useState<Video[]>([]);
     const [isSearchMode, setIsSearchMode] = useState<boolean>(false);
     const [searchTerm, setSearchTerm] = useState<string>('');
@@ -247,13 +252,12 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (terms.length === 0) return videos;
 
         return videos.filter(video => {
-            // Prepare searchable text
-            // We join all searchable fields into one large string for easy checking
-            // You can optimize this by checking fields individually if performance becomes an issue
+            // Prepare searchable text. The list payload intentionally omits
+            // description (heavy column, only the player loads it), so local
+            // search matches title/author/tags.
             const searchableText = [
                 video.title,
                 video.author,
-                video.description || '', // Description might be undefined
                 ...(video.tags || [])
             ].join(' ').toLowerCase();
 
@@ -298,7 +302,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             const localResults = searchLocalVideos(query);
             setLocalSearchResults(localResults);
 
-            let externalResults: any[] = [];
+            let externalResults: VideoSearchResult[] = [];
             // Only search YouTube if showYoutubeSearch is enabled
             if (showYoutubeSearch) {
                 setYoutubeLoading(true);
@@ -404,7 +408,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                     // Create a Set of existing IDs for fast lookup
                     const existingIds = new Set(prev.map(result => result.id));
                     // Filter out duplicates by ID
-                    const newResults = response.data.results.filter((result: any) => !existingIds.has(result.id));
+                    const newResults = response.data.results.filter((result: VideoSearchResult) => !existingIds.has(result.id));
                     // Only append new, non-duplicate results, up to MAX_SEARCH_RESULTS
                     const combined = [...prev, ...newResults];
                     return combined.slice(0, MAX_SEARCH_RESULTS);
@@ -535,7 +539,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 showSnackbar(t('thumbnailUploaded') || 'Thumbnail uploaded');
             }
         },
-        onError: (error: any) => {
+        onError: (error: unknown) => {
             console.error('Error uploading thumbnail:', error);
         }
     });

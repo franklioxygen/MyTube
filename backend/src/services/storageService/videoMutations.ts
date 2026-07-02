@@ -3,6 +3,7 @@ import { db } from "../../db";
 import { videos } from "../../db/schema";
 import { DatabaseError } from "../../errors/DownloadErrors";
 import { logger } from "../../utils/logger";
+import { bumpVideosListRevision } from "./videoListRevision";
 
 export interface SaveVideoOptions {
   // When true, suppress the library_video_added statistics event even on insert
@@ -36,20 +37,23 @@ export function saveVideoWithInsertFlag(
       .where(eq(videos.id, videoData.id))
       .all();
     const inserted = existing.length === 0;
+    // Video allows extra keys via its index signature; the cast narrows the
+    // serialized row to the table's insert shape.
     const videoToSave = {
       ...videoData,
       tags: videoData.tags ? JSON.stringify(videoData.tags) : undefined,
       subtitles: videoData.subtitles
         ? JSON.stringify(videoData.subtitles)
         : undefined,
-    };
+    } as typeof videos.$inferInsert;
     db.insert(videos)
-      .values(videoToSave as any)
+      .values(videoToSave)
       .onConflictDoUpdate({
         target: videos.id,
         set: videoToSave,
       })
       .run();
+    bumpVideosListRevision();
     return { video: videoData, inserted };
   } catch (error) {
     logger.error(
@@ -70,7 +74,7 @@ function emitLibraryVideoAdded(
 ): void {
   try {
     const { recordEvent } = require("../statistics") as {
-      recordEvent: (input: any) => string | null;
+      recordEvent: (input: Record<string, unknown>) => string | null;
     };
     const fileSizeBytes =
       videoData.fileSize !== undefined && videoData.fileSize !== null
@@ -106,16 +110,19 @@ export function saveVideoIfAbsent(
       subtitles: videoData.subtitles
         ? JSON.stringify(videoData.subtitles)
         : undefined,
-    };
+    } as typeof videos.$inferInsert;
 
     const result = db
       .insert(videos)
-      .values(videoToSave as any)
+      .values(videoToSave)
       .onConflictDoNothing({
         target: videos.id,
       })
       .run();
 
+    if (result.changes > 0) {
+      bumpVideosListRevision();
+    }
     return result.changes > 0;
   } catch (error) {
     logger.error(
@@ -163,12 +170,13 @@ export function updateVideo(
 
     const result = db
       .update(videos)
-      .set(updatesToSave as any)
+      .set(updatesToSave as Partial<typeof videos.$inferInsert>)
       .where(eq(videos.id, id))
       .returning()
       .get();
 
     if (result) {
+      bumpVideosListRevision();
       return {
         ...result,
         tags: result.tags ? JSON.parse(result.tags) : [],

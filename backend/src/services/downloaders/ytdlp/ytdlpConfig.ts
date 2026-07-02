@@ -117,10 +117,10 @@ function extractUserConfigOptions(
 ): {
   safeUserConfig: UserYtDlpConfig;
   formatSortValue: string | undefined;
-  userWriteSubs: any;
-  userWriteAutoSubs: any;
-  userSubLangs: any;
-  userConvertSubs: any;
+  userWriteSubs: unknown;
+  userWriteAutoSubs: unknown;
+  userSubLangs: unknown;
+  userConvertSubs: unknown;
   userMergeOutputFormat: string | undefined;
   networkOptions: UserYtDlpConfig;
 } {
@@ -187,10 +187,10 @@ function buildBaseFlags(args: {
   outputPath: string;
   defaultFormat: string;
   mergeOutputFormat: string;
-  userWriteSubs: any;
-  userWriteAutoSubs: any;
-  userSubLangs: any;
-  userConvertSubs: any;
+  userWriteSubs: unknown;
+  userWriteAutoSubs: unknown;
+  userSubLangs: unknown;
+  userConvertSubs: unknown;
 }): YtDlpFlags {
   const {
     safeUserConfig,
@@ -485,7 +485,7 @@ function applyPostBuildRules(context: DownloadFlagContext): string {
 export function prepareDownloadFlags(
   videoUrl: string,
   outputPath: string,
-  userConfig?: any,
+  userConfig?: UserYtDlpConfig,
 ): PreparedFlags {
   const config = (userConfig || getUserYtDlpConfig(videoUrl) || {}) as UserYtDlpConfig;
   const context = createDownloadFlagContext(videoUrl, outputPath, config);

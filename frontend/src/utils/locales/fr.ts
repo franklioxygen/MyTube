@@ -982,6 +982,10 @@ export const fr = {
   // Subscription Retention
   retentionDays: "Suppression automatique après",
   retentionDaysUnit: "jours",
+  downloadHistoryRetention: "Rétention de l'historique des téléchargements",
+  downloadHistoryRetentionDescription:
+    "Supprime automatiquement les entrées terminées de l'historique des téléchargements (réussies, échouées, ignorées) plus anciennes que cette durée. Les entrées des vidéos supprimées et des nouvelles tentatives planifiées sont toujours conservées, et aucune entrée encore nécessaire à la fenêtre de suppression automatique d'un abonnement n'est retirée.",
+  downloadHistoryRetentionKeepForever: "Conserver pour toujours",
   retentionDaysDisabled: "Désactivé",
   editRetention: "Modifier la suppression automatique",
   retentionDaysHelpTitle: "À propos de la suppression automatique",

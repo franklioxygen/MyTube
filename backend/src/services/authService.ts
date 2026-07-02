@@ -1,10 +1,11 @@
 import { Response } from "express";
 import jwt from "jsonwebtoken";
 import { v4 as uuidv4 } from "uuid";
+import { logger } from "../utils/logger";
 
 // Warn if JWT_SECRET is not set in production
 if (!process.env.JWT_SECRET && process.env.NODE_ENV === "production") {
-  console.error("WARNING: JWT_SECRET is not set in production environment. This is a security risk!");
+  logger.error("WARNING: JWT_SECRET is not set in production environment. This is a security risk!");
 }
 
 const JWT_SECRET = process.env.JWT_SECRET || "default_development_secret_do_not_use_in_production";

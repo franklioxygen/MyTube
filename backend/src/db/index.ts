@@ -5,6 +5,7 @@ import path from "path";
 import { DATA_DIR } from "../config/paths";
 import { pathExistsTrustedSync } from "../utils/security";
 import * as schema from "./schema";
+import { logger } from "../utils/logger";
 
 // Ensure data directory exists
 fs.ensureDirSync(DATA_DIR);
@@ -71,7 +72,7 @@ function createDatabaseConnection(
       const e = error as NodeJS.ErrnoException;
       if (e.code === "SQLITE_BUSY" || e.code === "SQLITE_LOCKED") {
         if (attempt < retries) {
-          console.warn(
+          logger.warn(
             `Database connection attempt ${attempt} failed (${e.code}), retrying in ${delayMs}ms...`
           );
           lastError = error;

@@ -12,6 +12,7 @@ import {
   resetJsRuntimeFlag,
   resetRemoteComponentsSupport,
 } from "./runtime";
+import { logger } from "../logger";
 
 // Cached promise so we only check/install once per process
 let ytDlpAvailablePromise: Promise<void> | null = null;
@@ -54,7 +55,7 @@ async function installYtDlp(options: { upgrade?: boolean } = {}): Promise<void> 
 
   for (const [cmd, ...args] of candidates) {
     try {
-      console.log(`[yt-dlp] Attempting: ${cmd} ${args.join(" ")}`);
+      logger.info(`[yt-dlp] Attempting: ${cmd} ${args.join(" ")}`);
       await new Promise<void>((resolve, reject) => {
         let stderr = "";
         const proc = spawn(cmd, args, {
@@ -75,7 +76,7 @@ async function installYtDlp(options: { upgrade?: boolean } = {}): Promise<void> 
         );
         proc.on("error", reject);
       });
-      console.log(
+      logger.info(
         upgrade
           ? "[yt-dlp] Successfully updated yt-dlp and bgutil provider."
           : "[yt-dlp] Successfully installed yt-dlp and bgutil provider."
@@ -87,7 +88,7 @@ async function installYtDlp(options: { upgrade?: boolean } = {}): Promise<void> 
         (error as { stderr?: unknown })?.stderr || ""
       ).trim();
       if (stderr) {
-        console.warn(`[yt-dlp] ${cmd} failed: ${stderr.split("\n").pop()}`);
+        logger.warn(`[yt-dlp] ${cmd} failed: ${stderr.split("\n").pop()}`);
       }
       // Try next candidate
     }
@@ -130,7 +131,7 @@ export async function ensureYtDlpAvailable(): Promise<void> {
           versionInfo.isStale
         ) {
           attemptedAutoUpgrade = true;
-          console.warn(
+          logger.warn(
             `[yt-dlp] ${versionInfo.version || ytDlpPath} is older than ${YT_DLP_STALE_AFTER_DAYS} days. Updating yt-dlp and the bgutil provider to avoid known YouTube 360p regressions.`
           );
           try {
@@ -140,7 +141,7 @@ export async function ensureYtDlpAvailable(): Promise<void> {
             resetRemoteComponentsSupport();
             continue;
           } catch (upgradeError: unknown) {
-            console.warn(
+            logger.warn(
               `[yt-dlp] Automatic update failed (${getErrorMessage(upgradeError, "unknown error")}). Continuing with the existing yt-dlp binary.`
             );
             return;
@@ -178,7 +179,7 @@ export async function ensureYtDlpAvailable(): Promise<void> {
             );
           }
 
-          console.warn(
+          logger.warn(
             "[yt-dlp] yt-dlp not found in PATH. Attempting automatic installation..."
           );
           attemptedAutoInstall = true;

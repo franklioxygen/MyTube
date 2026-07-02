@@ -24,6 +24,7 @@ import {
   resolveSafeChildPath,
   resolveSafePathInDirectories,
 } from "./security";
+import { logger } from "./logger";
 
 const SAFE_REMOVE_ALLOWED_DIRS = [
   VIDEOS_DIR,
@@ -94,11 +95,11 @@ export async function cleanupSubtitleFiles(
       if (pathExistsSafeSync(subtitlePath, directory)) {
         await safeRemove(subtitlePath);
         deletedFiles.push(subtitlePath);
-        console.log("Deleted subtitle file:", subtitlePath);
+        logger.info("Deleted subtitle file:", subtitlePath);
       }
     }
   } catch (error) {
-    console.error("Error cleaning up subtitle files:", error);
+    logger.error("Error cleaning up subtitle files:", error);
   }
 
   return deletedFiles;
@@ -139,7 +140,7 @@ export async function cleanupTemporaryFiles(videoPath: string): Promise<string[]
       if (pathExistsSafeSync(tempFilePath, videoDir)) {
         await safeRemove(tempFilePath);
         deletedFiles.push(tempFilePath);
-        console.log("Deleted temporary file:", tempFilePath);
+        logger.info("Deleted temporary file:", tempFilePath);
       }
     }
 
@@ -147,10 +148,10 @@ export async function cleanupTemporaryFiles(videoPath: string): Promise<string[]
     if (pathExistsSafeSync(videoPath, SAFE_REMOVE_ALLOWED_DIRS)) {
       await safeRemove(videoPath);
       deletedFiles.push(videoPath);
-      console.log("Deleted partial video file:", videoPath);
+      logger.info("Deleted partial video file:", videoPath);
     }
   } catch (error) {
-    console.error("Error cleaning up temporary files:", error);
+    logger.error("Error cleaning up temporary files:", error);
   }
 
   return deletedFiles;
@@ -170,16 +171,16 @@ export async function cleanupPartialVideoFiles(videoPath: string): Promise<strin
     if (pathExistsSafeSync(partVideoPath, SAFE_REMOVE_ALLOWED_DIRS)) {
       await safeRemove(partVideoPath);
       deletedFiles.push(partVideoPath);
-      console.log("Deleted partial video file:", partVideoPath);
+      logger.info("Deleted partial video file:", partVideoPath);
     }
 
     if (pathExistsSafeSync(videoPath, SAFE_REMOVE_ALLOWED_DIRS)) {
       await safeRemove(videoPath);
       deletedFiles.push(videoPath);
-      console.log("Deleted video file:", videoPath);
+      logger.info("Deleted video file:", videoPath);
     }
   } catch (error) {
-    console.error("Error cleaning up partial video files:", error);
+    logger.error("Error cleaning up partial video files:", error);
   }
 
   return deletedFiles;
@@ -288,11 +289,11 @@ export async function cleanupVideoArtifacts(
       if (pathExistsSafeSync(artifactPath, directory)) {
         await safeRemove(artifactPath);
         deletedFiles.push(artifactPath);
-        console.log("Deleted artifact file:", artifactPath);
+        logger.info("Deleted artifact file:", artifactPath);
       }
     }
   } catch (error) {
-    console.error("Error cleaning up video artifacts:", error);
+    logger.error("Error cleaning up video artifacts:", error);
   }
 
   return deletedFiles;
@@ -314,7 +315,7 @@ export async function safeRemove(
       SAFE_REMOVE_ALLOWED_DIRS
     );
   } catch {
-    console.error(
+    logger.error(
       "Refusing to remove path outside allowed directories:",
       sanitizeLogMessage(pathToRemove),
     );
@@ -332,7 +333,7 @@ export async function safeRemove(
       return;
     } catch (err) {
       if (i === retryCount - 1) {
-        console.error(
+        logger.error(
           "Failed to remove path after retry attempts:",
           sanitizeLogMessage(resolvedPath),
           retryCount,

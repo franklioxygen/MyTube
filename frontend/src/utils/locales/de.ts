@@ -981,6 +981,10 @@ export const de = {
   // Subscription Retention
   retentionDays: "Automatisch löschen nach",
   retentionDaysUnit: "Tage",
+  downloadHistoryRetention: "Aufbewahrung des Download-Verlaufs",
+  downloadHistoryRetentionDescription:
+    "Abgeschlossene Einträge im Download-Verlauf (erfolgreich, fehlgeschlagen, übersprungen), die älter als dieser Zeitraum sind, automatisch löschen. Einträge zu gelöschten Videos und geplanten Wiederholungen bleiben immer erhalten; Einträge, die das Auto-Lösch-Fenster eines Abonnements noch benötigt, werden nie entfernt.",
+  downloadHistoryRetentionKeepForever: "Für immer behalten",
   retentionDaysDisabled: "Aus",
   editRetention: "Automatisches Löschen bearbeiten",
   retentionDaysHelpTitle: "Über automatisches Löschen",

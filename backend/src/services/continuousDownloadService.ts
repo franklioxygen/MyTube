@@ -37,7 +37,7 @@ export class ContinuousDownloadService {
   private constructor() {
     this.taskRepository = new TaskRepository();
     this.videoUrlFetcher = new VideoUrlFetcher();
-    this.taskCleanup = new TaskCleanup(this.videoUrlFetcher);
+    this.taskCleanup = new TaskCleanup();
     this.taskProcessor = new TaskProcessor(
       this.taskRepository,
       this.videoUrlFetcher

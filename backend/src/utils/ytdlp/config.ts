@@ -1,6 +1,7 @@
 import { isAdminTrustLevelAtLeast } from "../../config/adminTrust";
 import * as storageService from "../../services/storageService";
 import { isYouTubeUrl } from "../helpers";
+import { logger } from "../logger";
 
 /**
  * Parse yt-dlp configuration text into flags object
@@ -95,13 +96,13 @@ export function getUserYtDlpConfig(url?: string): Record<string, any> {
 
     if (configText) {
       const parsedConfig = parseYtDlpConfig(configText);
-      console.log("Parsed user yt-dlp config:", parsedConfig);
+      logger.info("Parsed user yt-dlp config:", parsedConfig);
 
       // If proxy is restricted to YouTube only, and we have a non-YouTube URL
       if (proxyOnlyYoutube && url) {
         const isYoutube = isYouTubeUrl(url);
         if (!isYoutube) {
-          console.log(
+          logger.info(
             "Proxy restricted to YouTube only. Removing proxy settings for:",
             url
           );
@@ -115,7 +116,7 @@ export function getUserYtDlpConfig(url?: string): Record<string, any> {
       return parsedConfig;
     }
   } catch (error) {
-    console.error("Error reading user yt-dlp config:", error);
+    logger.error("Error reading user yt-dlp config:", error);
   }
   return {};
 }

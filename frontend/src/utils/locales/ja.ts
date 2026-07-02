@@ -966,6 +966,10 @@ export const ja = {
   // Subscription Retention
   retentionDays: "自動削除まで",
   retentionDaysUnit: "日",
+  downloadHistoryRetention: "ダウンロード履歴の保持期間",
+  downloadHistoryRetentionDescription:
+    "この期間より古い完了済みのダウンロード履歴（成功・失敗・スキップ）を自動的に削除します。削除済み動画と再試行予定の履歴は常に保持され、購読の自動削除期間内に必要な履歴も削除されません。",
+  downloadHistoryRetentionKeepForever: "無期限に保持",
   retentionDaysDisabled: "オフ",
   editRetention: "自動削除を編集",
   retentionDaysHelpTitle: "自動削除について",

@@ -1,4 +1,5 @@
 import { SocksProxyAgent } from "socks-proxy-agent";
+import { logger } from "../logger";
 
 /**
  * Error thrown when proxy configuration is invalid
@@ -49,10 +50,10 @@ export function getAxiosProxyConfig(proxyUrl: string): any {
       // If user already specified socks5h, keep it as-is
       if (protocol === "socks5") {
         agentUrl = proxyUrl.replace("socks5://", "socks5h://");
-        console.log("Converted socks5 to socks5h for remote DNS resolution");
+        logger.info("Converted socks5 to socks5h for remote DNS resolution");
       } else if (protocol === "socks5h") {
         // Already using remote DNS, no conversion needed
-        console.log("Using socks5h (remote DNS resolution)");
+        logger.info("Using socks5h (remote DNS resolution)");
       }
       // Note: socks4/socks4a don't support remote DNS, so we leave them as-is
 
@@ -99,7 +100,7 @@ export function getAxiosProxyConfig(proxyUrl: string): any {
     }
     // Wrap other errors (like URL parsing errors) in InvalidProxyError
     // This ensures we fail rather than silently falling back to direct connection
-    console.error("Invalid proxy URL:", proxyUrl, error);
+    logger.error("Invalid proxy URL:", proxyUrl, error);
     throw new InvalidProxyError(
       proxyUrl,
       error instanceof Error ? error : new Error(String(error))

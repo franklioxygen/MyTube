@@ -3,18 +3,20 @@ import { readFileSafeSync } from "../../utils/security";
 import { logger } from "../../utils/logger";
 import * as storageService from "../storageService";
 import { ContinuousDownloadTask } from "./types";
-import { VideoUrlFetcher } from "./videoUrlFetcher";
 
 /**
  * Service for cleaning up temporary files and resources for tasks
  */
 export class TaskCleanup {
-  constructor(private videoUrlFetcher: VideoUrlFetcher) {}
-
   /**
-   * Clean up temporary files for the current video being downloaded in a task.
-   * Uses the frozen list when available to identify the current video URL,
-   * avoiding an extra network fetch.
+   * Cancel the active download for the task's current video, if any.
+   *
+   * Deliberately offline: the current video URL comes from the frozen list
+   * only, and artifact deletion is owned by the downloader's cancel hook
+   * (registered with downloadManager), which knows the exact filenames it
+   * created. The previous implementation reconstructed filenames here via
+   * getVideoInfo — and, without a frozen list, a full channel enumeration —
+   * putting network fetches on the cancellation path.
    */
   async cleanupCurrentVideoTempFiles(
     task: ContinuousDownloadTask
@@ -25,104 +27,45 @@ export class TaskCleanup {
     }
 
     try {
-      // Prefer frozen list to identify the current video URL
-      let videoUrls: string[] | null = null;
+      const currentVideoUrl = this.resolveCurrentVideoUrl(task);
+      if (!currentVideoUrl) {
+        // Without a frozen list there is no offline way to attribute an
+        // active download to the current video. The caller (cancelTask)
+        // already cancelled every download it could match against the task's
+        // known URL set, so stop here rather than enumerate the channel.
+        return;
+      }
 
-      if (task.frozenVideoListPath) {
-        try {
-          const raw = readFileSafeSync(task.frozenVideoListPath, DATA_DIR, "utf8");
-          videoUrls = JSON.parse(raw) as string[];
-        } catch (err) {
-          logger.debug(`Could not read frozen list for cleanup of task ${task.id}:`, err);
+      const { activeDownloads } = storageService.getDownloadStatus();
+      const downloadManager = await import("../downloadManager");
+
+      for (const download of activeDownloads) {
+        if (download.sourceUrl !== currentVideoUrl) {
+          continue;
         }
-      }
-
-      if (!videoUrls) {
-        // Fallback: fetch all URLs (legacy path for incremental tasks or missing frozen list)
-        videoUrls = await this.videoUrlFetcher.getAllVideoUrls(
-          task.authorUrl,
-          task.platform
-        );
-      }
-
-      if (task.currentVideoIndex < videoUrls.length) {
-        const currentVideoUrl = videoUrls[task.currentVideoIndex];
         logger.info(
-          `Cleaning up temp files for current video: ${currentVideoUrl}`
+          `Cancelling active download ${download.id} for video ${currentVideoUrl}`
         );
-
-        // Get video info to determine the expected filename
-        const { getVideoInfo } = await import("../downloadService");
-        const videoInfo = await getVideoInfo(currentVideoUrl);
-
-        if (videoInfo.title) {
-          const { formatVideoFilename } = await import("../../utils/helpers");
-          const { VIDEOS_DIR } = await import("../../config/paths");
-          const path = await import("path");
-
-          // Generate the expected base filename
-          const baseFilename = formatVideoFilename(
-            videoInfo.title,
-            videoInfo.author || task.author,
-            videoInfo.date ||
-              new Date().toISOString().slice(0, 10).replace(/-/g, "")
-          );
-
-          // Clean up video artifacts (temp files, .part files, etc.)
-          const { cleanupVideoArtifacts } = await import(
-            "../../utils/downloadUtils"
-          );
-          const deletedFiles = await cleanupVideoArtifacts(
-            baseFilename,
-            VIDEOS_DIR
-          );
-
-          if (deletedFiles.length > 0) {
-            logger.info(
-              `Cleaned up ${deletedFiles.length} temp files for cancelled task ${task.id}`
+        try {
+          // The downloader's cancel hook kills the subprocess and deletes its
+          // partial video/thumbnail/subtitle artifacts.
+          await downloadManager.default.cancelDownload(download.id);
+        } catch (error) {
+          logger.error(`Error cancelling download ${download.id}:`, error);
+          // Fallback: drop the record and sweep artifacts by the record's own
+          // filename — still offline information.
+          storageService.removeActiveDownload(download.id);
+          if (download.filename) {
+            const { cleanupVideoArtifacts } = await import(
+              "../../utils/downloadUtils"
             );
-          }
-
-          // Also check active downloads and cancel any matching download
-          const downloadStatus = storageService.getDownloadStatus();
-          const activeDownloads = downloadStatus.activeDownloads;
-
-          // Import download manager to properly cancel downloads
-          const downloadManager = await import("../downloadManager");
-
-          for (const download of activeDownloads) {
-            if (
-              download.sourceUrl === currentVideoUrl ||
-              (download.filename && download.filename.includes(baseFilename))
-            ) {
-              logger.info(
-                `Cancelling active download ${download.id} for video ${currentVideoUrl}`
-              );
-              try {
-                await downloadManager.default.cancelDownload(download.id);
-              } catch (error) {
-                logger.error(
-                  `Error cancelling download ${download.id}:`,
-                  error
-                );
-                // Fallback: just remove from database if download manager fails
-                storageService.removeActiveDownload(download.id);
-              }
-
-              // Clean up temp files for this download
-              if (download.filename) {
-                const { cleanupVideoArtifacts: cleanupArtifacts } =
-                  await import("../../utils/downloadUtils");
-                const path = await import("path");
-                const { VIDEOS_DIR } = await import("../../config/paths");
-                // Extract base filename without extension
-                const baseFilenameForCleanup = path.basename(
-                  download.filename,
-                  path.extname(download.filename)
-                );
-                await cleanupArtifacts(baseFilenameForCleanup, VIDEOS_DIR);
-              }
-            }
+            const path = await import("path");
+            const { VIDEOS_DIR } = await import("../../config/paths");
+            const baseFilename = path.basename(
+              download.filename,
+              path.extname(download.filename)
+            );
+            await cleanupVideoArtifacts(baseFilename, VIDEOS_DIR);
           }
         }
       }
@@ -133,5 +76,25 @@ export class TaskCleanup {
       );
       // Don't throw - we want cancellation to proceed even if cleanup fails
     }
+  }
+
+  /** Current video URL from the frozen list, or null when unavailable. */
+  private resolveCurrentVideoUrl(task: ContinuousDownloadTask): string | null {
+    if (!task.frozenVideoListPath) {
+      return null;
+    }
+    try {
+      const raw = readFileSafeSync(task.frozenVideoListPath, DATA_DIR, "utf8");
+      const videoUrls = JSON.parse(raw) as string[];
+      if (task.currentVideoIndex < videoUrls.length) {
+        return videoUrls[task.currentVideoIndex] ?? null;
+      }
+    } catch (err) {
+      logger.debug(
+        `Could not read frozen list for cleanup of task ${task.id}:`,
+        err
+      );
+    }
+    return null;
   }
 }

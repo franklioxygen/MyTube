@@ -4,10 +4,16 @@
 export type { VideoCallerRole } from "./videoQueries";
 export {
   getVideos,
+  getVideoSummaries,
   getVideoBySourceUrl,
   getVideoById,
   getVideoPartBySourceUrl,
 } from "./videoQueries";
+
+export {
+  bumpVideosListRevision,
+  getVideosListETag,
+} from "./videoListRevision";
 
 export type { MediaVisibility } from "./videoVisibility";
 export {

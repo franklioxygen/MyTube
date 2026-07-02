@@ -4,6 +4,7 @@ import { videos } from "../db/schema";
 import { DatabaseError } from "../errors/DownloadErrors";
 import { logger } from "../utils/logger";
 import { getSettings, saveSettings } from "./storageService/settings";
+import { bumpVideosListRevision } from "./storageService/videoListRevision";
 
 interface RenameTagResult {
   updatedVideosCount: number;
@@ -108,6 +109,9 @@ export function renameTag(oldTag: string, newTag: string): RenameTagResult {
             result.updatedVideosCount++;
         }
     });
+    if (result.updatedVideosCount > 0) {
+      bumpVideosListRevision();
+    }
 
     logger.info(`Renamed tag "${oldTag}" to "${newTag}". Updated ${result.updatedVideosCount} videos.`);
     return result;
@@ -211,6 +215,9 @@ export function deleteTagsFromVideos(tagsToDelete: string[]): number {
         updatedVideosCount++;
       }
     });
+    if (updatedVideosCount > 0) {
+      bumpVideosListRevision();
+    }
 
     logger.info(`Deleted tags [${tagsToDelete.join(", ")}] from ${updatedVideosCount} videos.`);
     return updatedVideosCount;

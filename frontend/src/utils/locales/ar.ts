@@ -941,6 +941,10 @@ export const ar = {
   // Subscription Retention
   retentionDays: "الحذف التلقائي بعد",
   retentionDaysUnit: "أيام",
+  downloadHistoryRetention: "الاحتفاظ بسجل التنزيلات",
+  downloadHistoryRetentionDescription:
+    "احذف تلقائيًا إدخالات سجل التنزيلات المكتملة (الناجحة والفاشلة والمتخطاة) الأقدم من هذه المدة. يُحتفظ دائمًا بإدخالات الفيديوهات المحذوفة وإعادة المحاولات المجدولة، ولا تُحذف الإدخالات التي لا تزال نافذة الحذف التلقائي للاشتراك بحاجة إليها.",
+  downloadHistoryRetentionKeepForever: "الاحتفاظ للأبد",
   retentionDaysDisabled: "إيقاف",
   editRetention: "تعديل الحذف التلقائي",
   retentionDaysHelpTitle: "حول الحذف التلقائي",
