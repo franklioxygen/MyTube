@@ -125,6 +125,31 @@ const DownloadSettings: React.FC<DownloadSettingsProps> = ({
                 )}
             </Box>
 
+            <Box sx={{ mt: 3 }} id="downloadHistoryRetention-setting">
+                <Typography variant="subtitle2" gutterBottom>
+                    {t('downloadHistoryRetention') || 'Download History Retention'}
+                </Typography>
+                <FormControl fullWidth sx={{ maxWidth: 240 }}>
+                    <Select
+                        value={settings.downloadHistoryRetentionDays ?? 0}
+                        onChange={(e) => onChange('downloadHistoryRetentionDays', Number(e.target.value))}
+                    >
+                        <MenuItem value={0}>
+                            {t('downloadHistoryRetentionKeepForever') || 'Keep forever'}
+                        </MenuItem>
+                        {[30, 90, 180, 365].map((days) => (
+                            <MenuItem key={days} value={days}>
+                                {`${days} ${t('retentionDaysUnit') || 'days'}`}
+                            </MenuItem>
+                        ))}
+                    </Select>
+                </FormControl>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 2 }}>
+                    {t('downloadHistoryRetentionDescription') ||
+                        'Automatically delete completed download history entries older than this. Entries for deleted videos and scheduled retries are always kept.'}
+                </Typography>
+            </Box>
+
             <Box sx={{ mt: 3 }} id="dontSkipDeletedVideo-setting">
                 <FormControlLabel
                     control={

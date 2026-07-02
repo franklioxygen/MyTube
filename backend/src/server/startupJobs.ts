@@ -24,6 +24,30 @@ export const startBackgroundJobs = (port: number): void => {
       );
     });
 
+  // Download-history retention (opt-in via downloadHistoryRetentionDays):
+  // prune shortly after boot, then daily. No-op while the setting is 0/unset.
+  import("../services/storageService")
+    .then((storage) => {
+      const runHistoryPrune = () => {
+        try {
+          storage.pruneDownloadHistory();
+        } catch (error) {
+          logger.error(
+            "Download history retention prune failed:",
+            error instanceof Error ? error : new Error(String(error))
+          );
+        }
+      };
+      setTimeout(runHistoryPrune, 30_000);
+      setInterval(runHistoryPrune, 24 * 60 * 60 * 1000);
+    })
+    .catch((error) => {
+      logger.error(
+        "Failed to schedule download history retention:",
+        error instanceof Error ? error : new Error(String(error))
+      );
+    });
+
   // Statistics rollup + retention workers and the alert dispatch loop.
   import("../services/statistics")
     .then((statistics) => {

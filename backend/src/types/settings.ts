@@ -32,6 +32,10 @@ export interface Settings {
   autoRetryEnabled?: boolean;
   autoRetryTimes?: number;
   autoRetryIntervalMinutes?: number;
+  // Days to keep completed download-history rows (success/failed/partial/
+  // skipped). 0 disables pruning. Rows for deleted videos and pending retries
+  // are always kept — other features read them.
+  downloadHistoryRetentionDays?: number;
   dontSkipDeletedVideo?: boolean;
   language: string;
   tags?: string[];
@@ -120,6 +124,7 @@ export const defaultSettings: Settings = {
   autoRetryEnabled: false,
   autoRetryTimes: 3,
   autoRetryIntervalMinutes: 5,
+  downloadHistoryRetentionDays: 0,
   language: "en",
   theme: "system",
   defaultSort: "dateDesc",

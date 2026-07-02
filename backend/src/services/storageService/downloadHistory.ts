@@ -1,8 +1,9 @@
-import { and, asc, desc, eq, inArray, isNotNull, ne } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, lt, ne } from "drizzle-orm";
 import { DatabaseError } from "../../errors/DownloadErrors";
 import { db } from "../../db";
-import { downloadHistory } from "../../db/schema";
+import { downloadHistory, subscriptions } from "../../db/schema";
 import { logger } from "../../utils/logger";
+import { getSettings } from "./settings";
 import { DownloadHistoryItem } from "./types";
 import { PARTIAL_STATUS, PENDING_RETRY_STATUS } from "./downloadHistoryStatus";
 
@@ -229,5 +230,78 @@ export function clearDownloadHistory(): void {
       error instanceof Error ? error : new Error(String(error)),
       "clearDownloadHistory"
     );
+  }
+}
+
+// Statuses eligible for retention pruning. 'deleted' rows back the
+// re-download skip logic and the deleted-videos history tab; 'pending_retry'
+// rows drive the retry scheduler — both are always kept.
+const PRUNABLE_HISTORY_STATUSES = [
+  "success",
+  "failed",
+  PARTIAL_STATUS,
+  "skipped",
+];
+
+export interface DownloadHistoryPruneResult {
+  deletedRows: number;
+  effectiveRetentionDays: number;
+}
+
+/**
+ * Opt-in retention for the append-only download history. No-op unless the
+ * `downloadHistoryRetentionDays` setting is a positive number.
+ *
+ * The cutoff never reaches inside the widest per-subscription retention
+ * window (+1 day margin): subscription retention discovers expired videos
+ * through their success rows, so pruning those early would silently disable
+ * it.
+ */
+export function pruneDownloadHistory(): DownloadHistoryPruneResult | null {
+  try {
+    const configured = Number(getSettings().downloadHistoryRetentionDays);
+    if (!Number.isFinite(configured) || configured <= 0) {
+      return null;
+    }
+
+    const subscriptionRetention = db
+      .select({ retentionDays: subscriptions.retentionDays })
+      .from(subscriptions)
+      .where(isNotNull(subscriptions.retentionDays))
+      .all();
+    const maxSubscriptionDays = subscriptionRetention.reduce(
+      (max, row) => Math.max(max, row.retentionDays ?? 0),
+      0
+    );
+
+    const effectiveRetentionDays = Math.max(
+      Math.floor(configured),
+      maxSubscriptionDays > 0 ? maxSubscriptionDays + 1 : 0
+    );
+    const cutoff = Date.now() - effectiveRetentionDays * 24 * 60 * 60 * 1000;
+
+    const result = db
+      .delete(downloadHistory)
+      .where(
+        and(
+          lt(downloadHistory.finishedAt, cutoff),
+          inArray(downloadHistory.status, PRUNABLE_HISTORY_STATUSES)
+        )
+      )
+      .run();
+
+    if (result.changes > 0) {
+      logger.info(
+        `Download history retention pruned ${result.changes} rows older than ${effectiveRetentionDays} days`
+      );
+    }
+    return { deletedRows: result.changes, effectiveRetentionDays };
+  } catch (error) {
+    logger.error(
+      "Error pruning download history",
+      error instanceof Error ? error : new Error(String(error))
+    );
+    // Don't throw - retention is best-effort maintenance
+    return null;
   }
 }

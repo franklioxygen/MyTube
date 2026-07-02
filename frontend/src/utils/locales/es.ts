@@ -978,6 +978,10 @@ export const es = {
   // Subscription Retention
   retentionDays: "Eliminar automáticamente después de",
   retentionDaysUnit: "días",
+  downloadHistoryRetention: "Retención del historial de descargas",
+  downloadHistoryRetentionDescription:
+    "Elimina automáticamente las entradas completadas del historial de descargas (éxito, fallo, omitido) anteriores a este plazo. Las entradas de vídeos eliminados y los reintentos programados se conservan siempre, y nunca se eliminan entradas que la ventana de borrado automático de una suscripción aún necesite.",
+  downloadHistoryRetentionKeepForever: "Conservar para siempre",
   retentionDaysDisabled: "Desactivado",
   editRetention: "Editar eliminación automática",
   retentionDaysHelpTitle: "Acerca de la eliminación automática",

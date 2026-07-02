@@ -950,6 +950,10 @@ export const ko = {
   // Subscription Retention
   retentionDays: "자동 삭제 기준",
   retentionDaysUnit: "일",
+  downloadHistoryRetention: "다운로드 기록 보존",
+  downloadHistoryRetentionDescription:
+    "이 기간보다 오래된 완료된 다운로드 기록(성공, 실패, 건너뜀)을 자동으로 삭제합니다. 삭제된 동영상과 예약된 재시도 기록은 항상 유지되며, 구독의 자동 삭제 기간에 필요한 기록은 제거되지 않습니다.",
+  downloadHistoryRetentionKeepForever: "영구 보존",
   retentionDaysDisabled: "꺼짐",
   editRetention: "자동 삭제 편집",
   retentionDaysHelpTitle: "자동 삭제 정보",

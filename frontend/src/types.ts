@@ -106,6 +106,8 @@ export interface Settings {
   autoRetryEnabled?: boolean;
   autoRetryTimes?: number;
   autoRetryIntervalMinutes?: number;
+  // Days to keep completed download-history entries; 0 = keep forever.
+  downloadHistoryRetentionDays?: number;
   dontSkipDeletedVideo?: boolean;
   language: string;
   tags: string[];

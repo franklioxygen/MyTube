@@ -964,6 +964,10 @@ export const ru = {
   // Subscription Retention
   retentionDays: "Автоудаление через",
   retentionDaysUnit: "дн.",
+  downloadHistoryRetention: "Хранение истории загрузок",
+  downloadHistoryRetentionDescription:
+    "Автоматически удалять завершённые записи истории загрузок (успех, ошибка, пропуск) старше этого срока. Записи удалённых видео и запланированных повторов всегда сохраняются; записи, ещё нужные окну автоудаления подписки, не удаляются.",
+  downloadHistoryRetentionKeepForever: "Хранить бессрочно",
   retentionDaysDisabled: "Выкл.",
   editRetention: "Изменить автоудаление",
   retentionDaysHelpTitle: "Об автоудалении",

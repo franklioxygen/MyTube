@@ -25,6 +25,7 @@ export {
     getDownloadHistory,
     getDownloadHistoryItem,
     getLatestRetryHistoryItemBySourceUrl,
+    pruneDownloadHistory,
     getPendingRetryHistoryItems,
     finalizePendingRetryHistoryItem,
     markDownloadHistoryDeletedByVideoId,

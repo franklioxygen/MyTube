@@ -970,6 +970,10 @@ export const pt = {
   // Subscription Retention
   retentionDays: "Excluir automaticamente após",
   retentionDaysUnit: "dias",
+  downloadHistoryRetention: "Retenção do histórico de downloads",
+  downloadHistoryRetentionDescription:
+    "Exclui automaticamente entradas concluídas do histórico de downloads (sucesso, falha, ignorado) mais antigas que este período. Entradas de vídeos excluídos e novas tentativas agendadas são sempre mantidas, e entradas ainda necessárias à janela de exclusão automática de uma assinatura nunca são removidas.",
+  downloadHistoryRetentionKeepForever: "Manter para sempre",
   retentionDaysDisabled: "Desativado",
   editRetention: "Editar exclusão automática",
   retentionDaysHelpTitle: "Sobre a exclusão automática",
