@@ -448,6 +448,16 @@ export const downloadVideo = async (
       let videoTitle = initialTitle;
 
       try {
+        // MissAV metadata extraction uses Puppeteer. Running it while the task is
+        // still queued can launch extra Chromium instances on weak hosts; the
+        // MissAV downloader fetches and applies the real title when the task starts.
+        if (isMissAVUrl(resolvedUrl)) {
+          logger.debug(
+            "Skipping queued MissAV title lookup; metadata will be fetched when the download starts.",
+          );
+          return;
+        }
+
         // Active downloads fetch metadata inside the downloader. Only queued tasks
         // need this lightweight background lookup to improve their displayed title.
         if (!isDownloadStillQueued(downloadId)) {

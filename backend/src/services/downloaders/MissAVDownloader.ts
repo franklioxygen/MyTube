@@ -47,6 +47,12 @@ import {
 import { selectBestM3u8Url } from "./missav/m3u8";
 import { planMissAvOutputPaths } from "./missav/outputPaths";
 
+const MISSAV_FAILED_REQUEST_LOG_LIMIT = 10;
+
+function isPuppeteerTimeoutError(error: unknown): boolean {
+  return error instanceof Error && error.name === "TimeoutError";
+}
+
 export class MissAVDownloader extends BaseDownloader {
   // Implementation of IDownloader.getVideoInfo
   async getVideoInfo(url: string): Promise<VideoInfo> {
@@ -155,6 +161,7 @@ export class MissAVDownloader extends BaseDownloader {
       // Declared before try so they are accessible after browser is closed.
       const m3u8Urls: string[] = [];
       const isM3u8 = (u: string) => u.includes(".m3u8") && !u.includes("preview");
+      let failedRequestLogCount = 0;
       let html = "";
 
       try {
@@ -187,7 +194,35 @@ export class MissAVDownloader extends BaseDownloader {
           );
         });
 
-        await navigateMissAvPage(page, safeNavigationUrl);
+        page.on("requestfailed", (request) => {
+          if (failedRequestLogCount >= MISSAV_FAILED_REQUEST_LOG_LIMIT) return;
+          failedRequestLogCount += 1;
+
+          const failure = request.failure();
+          logger.warn(
+            `[MissAV request failed] resource=${request.resourceType()} ` +
+              `method=${request.method()} ` +
+              `error=${failure?.errorText ?? "unknown"} ${request.url()}`,
+          );
+
+          if (failedRequestLogCount === MISSAV_FAILED_REQUEST_LOG_LIMIT) {
+            logger.warn(
+              `[MissAV request failed] further failures suppressed after ${MISSAV_FAILED_REQUEST_LOG_LIMIT} entries.`,
+            );
+          }
+        });
+
+        try {
+          await navigateMissAvPage(page, safeNavigationUrl);
+        } catch (error) {
+          if (isPuppeteerTimeoutError(error) && m3u8Urls.length > 0) {
+            logger.warn(
+              "MissAV page navigation timed out after m3u8 capture; continuing with captured stream URLs.",
+            );
+          } else {
+            throw error;
+          }
+        }
 
         // Extra wait is created AFTER networkidle2, so the full 20 s budget
         // belongs entirely to player initialisation — not shared with page load.

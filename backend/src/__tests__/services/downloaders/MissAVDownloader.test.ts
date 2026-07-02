@@ -7,6 +7,7 @@ import { MissAVDownloader } from '../../../services/downloaders/MissAVDownloader
 import { cleanupTemporaryFiles, isCancellationError } from '../../../utils/downloadUtils';
 import { flagsToArgs, isYtDlpImpersonateAvailable } from '../../../utils/ytDlpUtils';
 import * as security from '../../../utils/security';
+import { logger } from '../../../utils/logger';
 
 vi.mock('puppeteer');
 vi.mock('../../../services/storageService', () => ({
@@ -282,6 +283,12 @@ describe('MissAVDownloader', () => {
       return err;
     }
 
+    function makeNavigationTimeoutError(): Error {
+      const err = new Error('Navigation timeout of 60000 ms exceeded');
+      err.name = 'TimeoutError';
+      return err;
+    }
+
     function buildPageMock(
       waitForResponseResult: 'timeout' | 'non-timeout' | 'success',
       requestCallback?: { capture: (cb: (req: { url(): string }) => void) => void },
@@ -500,6 +507,90 @@ describe('MissAVDownloader', () => {
       await MissAVDownloader.downloadVideo('https://missav.com/test-video').catch(() => {});
 
       expect(mockPage.waitForResponse).not.toHaveBeenCalled();
+    });
+
+    it('continues with captured m3u8 URLs when navigation times out after capture', async () => {
+      let capturedCb: ((req: { url(): string }) => void) | null = null;
+      const requestHook = { capture: (cb: (req: { url(): string }) => void) => { capturedCb = cb; } };
+
+      const mockPage = buildPageMock('timeout', requestHook);
+      mockPage.goto.mockImplementation(async () => {
+        capturedCb?.({ url: () => 'https://surrit.com/playlist.m3u8' });
+        throw makeNavigationTimeoutError();
+      });
+
+      const mockBrowser = { newPage: vi.fn().mockResolvedValue(mockPage), close: vi.fn().mockResolvedValue(undefined) };
+      (puppeteer.launch as ReturnType<typeof vi.fn>).mockResolvedValue(mockBrowser);
+
+      await MissAVDownloader.downloadVideo('https://missav.com/test-video').catch(() => {});
+
+      expect(mockPage.waitForResponse).not.toHaveBeenCalled();
+      expect(spawn).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.arrayContaining(['https://surrit.com/playlist.m3u8']),
+      );
+      expect(mockBrowser.close).toHaveBeenCalled();
+    });
+
+    it('re-throws navigation timeouts when no m3u8 URL was captured', async () => {
+      const mockPage = buildPageMock('timeout');
+      mockPage.goto.mockRejectedValue(makeNavigationTimeoutError());
+
+      const mockBrowser = { newPage: vi.fn().mockResolvedValue(mockPage), close: vi.fn().mockResolvedValue(undefined) };
+      (puppeteer.launch as ReturnType<typeof vi.fn>).mockResolvedValue(mockBrowser);
+
+      await expect(
+        MissAVDownloader.downloadVideo('https://missav.com/test-video'),
+      ).rejects.toThrow('Navigation timeout of 60000 ms exceeded');
+
+      expect(mockPage.waitForResponse).not.toHaveBeenCalled();
+      expect(mockBrowser.close).toHaveBeenCalled();
+    });
+
+    it('logs failed browser requests before surfacing an early connection reset', async () => {
+      const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => undefined);
+      let requestFailedCb: ((req: {
+        url(): string;
+        resourceType(): string;
+        method(): string;
+        failure(): { errorText: string };
+      }) => void) | null = null;
+
+      const resetError = new Error('net::ERR_CONNECTION_RESET at https://missav.com/test-video');
+      const mockPage = {
+        on: vi.fn((event: string, cb: typeof requestFailedCb) => {
+          if (event === 'requestfailed') requestFailedCb = cb;
+        }),
+        goto: vi.fn().mockImplementation(async () => {
+          requestFailedCb?.({
+            url: () => 'https://missav.com/test-video',
+            resourceType: () => 'document',
+            method: () => 'GET',
+            failure: () => ({ errorText: 'net::ERR_CONNECTION_RESET' }),
+          });
+          throw resetError;
+        }),
+        title: vi.fn().mockResolvedValue('Test Title'),
+        waitForFunction: vi.fn().mockResolvedValue(undefined),
+        waitForResponse: vi.fn(),
+        content: vi.fn().mockResolvedValue('<html><head></head><body></body></html>'),
+      };
+      const mockBrowser = { newPage: vi.fn().mockResolvedValue(mockPage), close: vi.fn().mockResolvedValue(undefined) };
+      (puppeteer.launch as ReturnType<typeof vi.fn>).mockResolvedValue(mockBrowser);
+
+      try {
+        await expect(
+          MissAVDownloader.downloadVideo('https://missav.com/test-video'),
+        ).rejects.toThrow('net::ERR_CONNECTION_RESET');
+
+        expect(warnSpy).toHaveBeenCalledWith(
+          '[MissAV request failed] resource=document method=GET error=net::ERR_CONNECTION_RESET https://missav.com/test-video',
+        );
+        expect(mockPage.waitForResponse).not.toHaveBeenCalled();
+        expect(mockBrowser.close).toHaveBeenCalled();
+      } finally {
+        warnSpy.mockRestore();
+      }
     });
 
     it('surfaces a Cloudflare challenge as a specific error', async () => {

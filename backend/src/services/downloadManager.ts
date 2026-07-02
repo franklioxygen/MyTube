@@ -499,6 +499,9 @@ class DownloadManager {
           "Retry removed from queue by user"
         );
         task.reject(new Error("Retry removed from queue by user"));
+      } else if (!task.cancellationRejected) {
+        task.cancellationRejected = true;
+        task.reject(DownloadCancelledError.create());
       }
     }
     this.updateQueuedDownloads();

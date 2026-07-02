@@ -23,8 +23,14 @@ services:
     restart: unless-stopped
     networks:
       - mytube-network
+    # Avoid Chromium/Puppeteer stalls on hosts with half-enabled IPv6.
+    sysctls:
+      - net.ipv6.conf.all.disable_ipv6=1
+      - net.ipv6.conf.default.disable_ipv6=1
     # For OpenWrt/iStoreOS systems where bridge network cannot access internet,
-    # uncomment the following lines to use host network mode:
+    # prefer stacks/docker-compose.host-network.yml. If adapting this file
+    # manually, remove the backend networks and sysctls blocks before enabling
+    # host networking; Docker rejects net.* sysctls with network_mode: host.
     # network_mode: host
     # Then set NGINX_BACKEND_URL=http://localhost:5551 for frontend service
 
