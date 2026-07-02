@@ -1,14 +1,187 @@
 # Change Log
 
-## Unreleased
+## v1.10.7 (2026-07-02)
+
+### Feat
+
+- Add opt-in limit/offset support on `GET /videos` and model search-result types (30b826b6)
+- Route subscription downloads through the download queue (7a540099)
+- Add opt-in download-history retention (214e827f)
 
 ### Fix
 
-- Gate static and cloud media routes behind authentication when login is enabled, and enforce visitor visibility per-file as defense-in-depth (GHSA-rwwf-29mq-5j43, GHSA-hcm6-w6x8-6jhr)
+- Carry the collision counter into the yt-dlp legacy cleanup stem (953f9412)
+- Settle download tasks removed by clearing the queue (ff02303b)
+- Make MissAV downloads survive navigation timeouts, disable IPv6 in containers, and skip queued title prefetch (2822d827, c0ced354)
+
+### Perf
+
+- Stabilize empty-array fallbacks feeding memoized frontend context values (e160b843)
+- Index download history/RSS filter columns, slim `GET /videos`, and answer 304 responses via list revisions (906905c0, 75b1210a)
+- Run due subscription checks with bounded concurrency (0d98f581)
+- Make continuous-download task-cancellation cleanup fully offline (432e5f0b)
+
+### Refactor
+
+- Extract filename-template shared modules, job-polling hooks, and sibling JSX sections (746122ce, 8b6d8138)
+- Extract yt-dlp download path planning into a unit-tested planner (206ed4ef)
+- Retire any-annotations in hotspot files (73a8f021)
+
+### Build
+
+- Pin cloudflared with checksum verification and prune the pot-provider copy step (f468d3de)
+
+### Docs
+
+- Clarify host-network Docker Compose sysctl limits (3cd27958)
+
+### Chore
+
+- Route production `console.*` calls through the structured logger (c373be6c)
+
+## v1.10.6 (2026-07-01)
+
+### Fix
+
+- Validate API keys before CSRF bypass, sanitize visitor statistics ingestion, harden advisory follow-up paths, preserve bounded visitor telemetry, and derive visitor session IDs only from verified identity (b2000d8b, d65913a9, 60424529, 079f2db9, 5cfbc221)
+
+## v1.10.5 (2026-06-30)
+
+### Feat
+
+- Suggest trying another browser when Safari does not support a video format (f0e3c7b4)
+- Honor `prefers-reduced-motion` and replace broad `transition: all` usage (8291955f)
+
+### Fix
+
+- Add accessible names to icon-only buttons and truncate long Up Next author names (d9c2e56b, fe19238d)
+- Merge duplicate search clear buttons into one `SearchInput` control (db4451c0)
+- Sync player-added tags into the global tags directory, keep settings cache fresh, normalize tag saves, and serialize server flag sync (774856a9, 50d0f2c7, 2844843f)
+- Clear the stale continuous-download pause signal on resume (76d3aec7)
+- Restore synchronous English translation fallback (9d992d1c)
+- Converge translation-function types and clear remaining frontend type errors (95feb65a, a707b9c7)
+
+### Perf
+
+- Implement optimization-report findings across database queries, React, filesystem handling, and error handling (454dcc08)
+- Finish lower-priority optimization-report items and any-annotation debt (8588bce5)
+
+### Refactor
+
+- Split large TMDB, yt-dlp, subscription, video, MissAV, storage, backup, security, and Bilibili modules into focused files (483d07c2, 4f351dfa, 36184970, 63d45cff, bdaca0d5, 75405c4c, 27ec116f, 28ae77b8, 0f5685c9, aec83e95, 8adb0cab)
+- Extract shared dialog headers and converge remaining inline modal headers (4ee7c52e, bf4248d5)
+- Extract god-file modules and split settings controller, download manager, subscription service, and yt-dlp downloader follow-up hotspots (01e33f61, 363321ed)
+
+### Test
+
+- Update header and modal tests for DialogHeader and i18n menu changes (ba43af62)
+
+### Docs
+
+- Add a Lines of Code badge to the README (0d843c46)
+
+### Ci
+
+- Type-check the frontend in CI to prevent type regressions (b5b6c24b)
+
+## v1.10.4 (2026-06-26)
+
+### Fix
+
+- Harden request handling by capping body size, completing the SSRF block-list, making Cloudflare tunnel config admin-only, and using HTTPS-aware session cookies (9f9176d0, 7e14ec3e, 9e47042b)
+- Harden player progress seeking/saving and use the fixed progress keepalive endpoint (65567b37, 7a4a7670)
+- Improve Bilibili author-folder cleanup, risk-control retry recovery, stderr preservation, cancellation propagation, staging cleanup, risk hints, and failure redaction (8ed0bae6, e3e3c47d, 44c06f02, d6155d03, 60893a1e, 7545faba, b76abf0b, 4c3022d1, 98439dc5)
+
+### Docs
+
+- Clarify Bilibili redaction and subfolder-cleanup assumptions (54ab0985)
+
+### Revert
+
+- Revert the deprecated `styleMedia` warning suppression (70769eea, f4db91d2)
+
+## v1.10.3 (2026-06-25)
+
+### Fix
+
+- Gate static and cloud media routes behind authentication when login is enabled, enforce visitor visibility per-file as defense-in-depth (GHSA-rwwf-29mq-5j43, GHSA-hcm6-w6x8-6jhr), and include thumbnail, subtitle, and download-status visibility checks (7cc7c6a7, 456d0989, f9ae048c, b631778e, 905cecc0, 6cb2080a, dc254c50)
 
 ### Note
 
 - When login is enabled, RSS feed media URLs carry an `?rss=<token>` query parameter so feed readers (which send no session cookie) can still load cover art. This token is the feed's existing secret and introduces no new exposure, but it will now appear in reverse-proxy/access logs that record query strings.
+
+## v1.10.2 (2026-06-23)
+
+### Feat
+
+- Add live audio translation with control-bar trigger, capture worklet routing through player volume, pause/rate handling, privacy-aware availability, interruption flushing, and readiness guards (1b1e31a3, 3288d27e, c5ad8f5b, cecc7b7e, 0a440722, 553bbe18, 13c62caf, ce14edb6, 2c6ab71f, 2e75030d, 23e7bf30, 9788df7f, cfb477c2, 4ef77fd8, 4537ce60)
+
+### Fix
+
+- Remove author names from log messages and fix clear-text logger/warn sinks (0e7ab69c, 66a7ed73, fa4f11e0)
+- Patch Dependabot undici and brace-expansion vulnerabilities (b001dc0a, d38a7311)
+- Fix MissAV 403 downloads with yt-dlp browser impersonation gated on curl-cffi availability (bdf31533, 50d30cd0)
+- Fix live-translation WebSocket proxying and surface HTTPS/reverse-proxy hints (eaeb330e, 823c97e7, b9f288bf)
+
+### Chore
+
+- Bump yt-dlp, yt-dlp-ejs, and curl-cffi in lockstep for MissAV Cloudflare impersonation (9e05907c, a19ab8bf, 0a41e321)
+
+### Docs
+
+- Document why live translation transcription configs stay at the Gemini setup level (f20af85c)
+
+## v1.10.1 (2026-06-16)
+
+### Fix
+
+- Patch six Dependabot security alerts, including the multer 2.2.0 upgrade (d5c13d89, 0368bf32)
+
+## v1.10.0 (2026-06-16)
+
+### Feat
+
+- Inline subscription metadata in history items (50be37f1)
+- Implement the issue #295 media organization redesign, including author/collection origin tracking, exclusive collection moves, legacy origin backfill, author-folder cleanup, subtitle placement, retry restoration, and multipart playlist handling (b5e92dc4, 75fad836, d217eb5a, 6d645d7d, 70449f08, 55ed68ff, 175d2a95, 3ad341c6, 8db3e9b0, fe4f5a8c, 1555e30e, ef884774, 959627ca, 5adef61a, 429524e7, 0413d3f2, b2807d3f, 729fb491, 87fdc1f5, 96846a2a, db32c560, b4519b70)
+- Add the preferred Bilibili video resolution setting and Download settings UI (7cd67976, ce7e586e)
+- Move filename-template reference data to the frontend with full i18n, add the catalog API and three-scenario preview, reconstruct `source_custom_name`, and collapse identical preview scenario tabs (2a142884, 9066a58b, 06dcb287)
+- Consolidate Interface & Display and Video Playback into Basic Settings (441aa643)
+
+### Fix
+
+- Reduce desktop header search prominence when inactive (ab3a6c96)
+- Align Node support with Vite requirements and update setup docs (a87cbe9c, 7d682d13)
+- Patch Dependabot esbuild alerts (e9c61f60)
+- Localize filename-template warnings (aa08b2fe)
+- Redact PII in logs and fix CodeQL clear-text logging alerts (c7a3917e)
+
+### Test
+
+- Assert Bilibili collection source options and multipart first-part playlist source options (e538e9ae, 33636fcb)
+- Update SettingsPage tests for the merged Basic Settings tab (557ee0ba)
+
+### Docs
+
+- Enhance README demo sections and Chinese README feature/demo links (4a8a6054, a02eb5ba)
+
+### Chore
+
+- Update Lighthouse performance badge publishing through GitHub Pages (645192c1, 603d7597, 573544b3)
+- Bump shell-quote and concurrently (713ef968)
+
+## v1.9.33 (2026-06-06)
+
+### Fix
+
+- Improve frontend color token contrast and light-mode elevation (cf5a18f5)
+
+### Refactor
+
+- Centralize frontend color tokens for consistent theming (995f4231)
+
+### Test
+
+- Remove broken localStorage cleanup in AuthContext tests (462dff57)
 
 ## v1.9.32 (2026-06-05)
 
