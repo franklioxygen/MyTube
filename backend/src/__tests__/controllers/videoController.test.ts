@@ -373,7 +373,10 @@ describe("VideoController", () => {
 
       getVideos(req as Request, res as Response);
 
-      expect(storageService.getVideoSummaries).toHaveBeenCalledWith("visitor");
+      expect(storageService.getVideoSummaries).toHaveBeenCalledWith(
+        "visitor",
+        undefined
+      );
       expect(storageService.getVideosListETag).toHaveBeenCalledWith("visitor");
       expect(json).toHaveBeenCalledWith(mockVideos);
     });
@@ -389,9 +392,36 @@ describe("VideoController", () => {
 
       getVideos(req as Request, res as Response);
 
-      expect(storageService.getVideoSummaries).toHaveBeenCalledWith(undefined);
+      expect(storageService.getVideoSummaries).toHaveBeenCalledWith(
+        undefined,
+        undefined
+      );
       expect(storageService.getVideosListETag).toHaveBeenCalledWith("all");
       expect(json).toHaveBeenCalledWith(mockVideos);
+    });
+
+    it("should pass an opt-in pagination window to the query layer", () => {
+      (storageService.getVideoSummaries as any).mockReturnValue([]);
+      req.query = { limit: "50", offset: "100" };
+
+      getVideos(req as Request, res as Response);
+
+      expect(storageService.getVideoSummaries).toHaveBeenCalledWith(undefined, {
+        limit: 50,
+        offset: 100,
+      });
+    });
+
+    it("should clamp out-of-range pagination values", () => {
+      (storageService.getVideoSummaries as any).mockReturnValue([]);
+      req.query = { limit: "99999", offset: "not-a-number" };
+
+      getVideos(req as Request, res as Response);
+
+      expect(storageService.getVideoSummaries).toHaveBeenCalledWith(undefined, {
+        limit: 500,
+        offset: 0,
+      });
     });
 
     it("should set the list ETag on full responses", () => {

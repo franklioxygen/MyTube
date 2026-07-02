@@ -40,12 +40,22 @@ const SubscribeModal = lazyWithRetry(
     'subscribe-modal',
 );
 
+// Payload from GET /check-bilibili-collection, forwarded to the download API
+// when the user confirms a collection/series download.
+interface BilibiliCollectionInfo {
+    type: 'collection' | 'series';
+    id: string | number;
+    mid: string | number;
+    title: string;
+    count: number;
+}
+
 interface BilibiliPartsInfo {
     videosNumber: number;
     title: string;
     url: string;
     type: 'parts' | 'collection' | 'series' | 'playlist';
-    collectionInfo: any;
+    collectionInfo: BilibiliCollectionInfo | null;
 }
 
 

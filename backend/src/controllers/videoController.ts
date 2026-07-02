@@ -9,7 +9,11 @@ import { syncMediaServerArtifactsForRecord } from "../services/mediaServerExport
 import * as storageService from "../services/storageService";
 import { addTagsToGlobalSettings } from "../services/tagService";
 import { logger } from "../utils/logger";
-import { getStringParam } from "../utils/paramUtils";
+import {
+  getLimitParam,
+  getPositiveIntegerParam,
+  getStringParam,
+} from "../utils/paramUtils";
 import { successResponse } from "../utils/response";
 import { createUploadValidationError } from "../utils/videoUpload";
 import { resolvePlayableVideoFilePath } from "../utils/videoFileResolver";
@@ -91,10 +95,20 @@ export const getVideos = async (
   // Cache but always revalidate, and never share across users (role-scoped).
   res.set("Cache-Control", "private, no-cache");
 
+  // Opt-in pagination groundwork (P-1 step 3): external API consumers can
+  // request a window; without params the full-list contract is unchanged.
+  const page =
+    req.query?.limit !== undefined
+      ? {
+          limit: getLimitParam(req.query.limit, 100, 500),
+          offset: getPositiveIntegerParam(req.query.offset) ?? 0,
+        }
+      : undefined;
+
   // List views never render description/subtitles; the player loads the full
   // row via GET /videos/:id. Omitting them keeps the payload flat as the
   // library and its per-video description sizes grow.
-  const videos = storageService.getVideoSummaries(role);
+  const videos = storageService.getVideoSummaries(role, page);
   // Return array directly for backward compatibility (frontend expects response.data to be Video[])
   sendData(res, videos);
 };

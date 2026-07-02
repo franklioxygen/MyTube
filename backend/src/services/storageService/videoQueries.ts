@@ -83,23 +83,37 @@ const videoSummaryColumns = () => ({
   authorAvatarPath: videos.authorAvatarPath,
 });
 
+export interface VideoSummaryPage {
+  limit: number;
+  offset: number;
+}
+
 /**
  * List-view projection of the library: all columns except `description` and
  * `subtitles`. Used by the GET /videos list endpoint; internal callers that
  * need full rows keep using getVideos().
+ *
+ * `page` is opt-in pagination groundwork: when omitted the full list is
+ * returned unchanged (the current frontend contract).
  */
 export function getVideoSummaries(
-  role?: VideoCallerRole
+  role?: VideoCallerRole,
+  page?: VideoSummaryPage
 ): import("./types").Video[] {
   try {
     const baseQuery = db
       .select(videoSummaryColumns())
       .from(videos)
-      .orderBy(desc(videos.createdAt));
-    const allVideos =
+      .orderBy(desc(videos.createdAt))
+      .$dynamic();
+    const scopedQuery =
       role === "visitor"
-        ? baseQuery.where(publicOnlyVisitorFilter()).all()
-        : baseQuery.all();
+        ? baseQuery.where(publicOnlyVisitorFilter())
+        : baseQuery;
+    const pagedQuery = page
+      ? scopedQuery.limit(page.limit).offset(page.offset)
+      : scopedQuery;
+    const allVideos = pagedQuery.all();
     return allVideos.map((v) => ({
       ...v,
       tags: v.tags ? JSON.parse(v.tags) : [],

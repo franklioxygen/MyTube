@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { Video } from '../types';
+import { Video, VideoSearchResult } from '../types';
 import { useStatisticsIngestion } from '../hooks/useStatisticsIngestion';
 import { api } from '../utils/apiClient';
 import { hasAxiosStatus } from '../utils/errors';
@@ -22,7 +22,7 @@ interface VideoContextType {
     redownloadThumbnail: (id: string) => Promise<{ success: boolean; error?: string }>;
     uploadThumbnail: (id: string, file: File) => Promise<void>;
     searchLocalVideos: (query: string) => Video[];
-    searchResults: any[];
+    searchResults: VideoSearchResult[];
     localSearchResults: Video[];
     isSearchMode: boolean;
     searchTerm: string;
@@ -148,7 +148,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const statisticsIngestion = useStatisticsIngestion();
 
     // Search state
-    const [searchResults, setSearchResults] = useState<any[]>([]);
+    const [searchResults, setSearchResults] = useState<VideoSearchResult[]>([]);
     const [localSearchResults, setLocalSearchResults] = useState<Video[]>([]);
     const [isSearchMode, setIsSearchMode] = useState<boolean>(false);
     const [searchTerm, setSearchTerm] = useState<string>('');
@@ -302,7 +302,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             const localResults = searchLocalVideos(query);
             setLocalSearchResults(localResults);
 
-            let externalResults: any[] = [];
+            let externalResults: VideoSearchResult[] = [];
             // Only search YouTube if showYoutubeSearch is enabled
             if (showYoutubeSearch) {
                 setYoutubeLoading(true);
@@ -408,7 +408,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                     // Create a Set of existing IDs for fast lookup
                     const existingIds = new Set(prev.map(result => result.id));
                     // Filter out duplicates by ID
-                    const newResults = response.data.results.filter((result: any) => !existingIds.has(result.id));
+                    const newResults = response.data.results.filter((result: VideoSearchResult) => !existingIds.has(result.id));
                     // Only append new, non-duplicate results, up to MAX_SEARCH_RESULTS
                     const combined = [...prev, ...newResults];
                     return combined.slice(0, MAX_SEARCH_RESULTS);

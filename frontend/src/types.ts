@@ -31,6 +31,21 @@ export interface Video {
   [key: string]: any;
 }
 
+/**
+ * One entry of the external (YouTube/Bilibili) search results returned by
+ * GET /api/search — see backend ytdlpSearch.ts for the field mapping.
+ */
+export interface VideoSearchResult {
+  id: string;
+  title: string;
+  author?: string;
+  thumbnailUrl?: string;
+  duration?: number | string;
+  viewCount?: number;
+  sourceUrl: string;
+  source: "youtube" | "bilibili";
+}
+
 export interface Collection {
   id: string;
   name: string;
