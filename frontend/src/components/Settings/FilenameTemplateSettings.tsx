@@ -2,50 +2,37 @@ import { getApiErrorMessage } from '../../utils/errors';
 import {
     Alert,
     Box,
-    Button,
     CircularProgress,
-    Dialog,
-    DialogActions,
-    DialogContent,
-    DialogContentText,
-    DialogTitle,
     FormControl,
-    LinearProgress,
     MenuItem,
     Select,
     Tab,
     Tabs,
     TextField,
-    Tooltip,
     Typography,
 } from '@mui/material';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import CollapsibleSection from '../CollapsibleSection';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useLanguage } from '../../contexts/LanguageContext';
-import { useSettingsJobPolling } from '../../hooks/useSettingsJobPolling';
 import { Settings } from '../../types';
 import { api } from '../../utils/apiClient';
 import { createTranslateOrFallback } from '../../utils/translateOrFallback';
 import { TranslationKey } from '../../utils/translations';
+import FilenameBatchRenameSection from './FilenameBatchRenameSection';
+import FilenameTemplateReference from './FilenameTemplateReference';
+import MediaServerExportSettings from './MediaServerExportSettings';
 import {
     FilenameTemplateCatalogResponse,
     FilenameTemplatePreviewResponse,
-    MEDIA_SERVER_EXPORT_OPTIONS,
-    MediaServerExportJob,
     PRESET_FALLBACK_OPTIONS,
     PREVIEW_SCENARIO_ORDER,
     PreviewResult,
     PreviewScenario,
-    RenameJob,
     deriveFilenameEffectiveTemplate,
     deriveFilenamePresetId,
     getFilenameTemplateWarningMessage,
-    getMediaServerExportErrorMessage,
     getPresetLabelFallback,
-    mediaServerExportJobUrl,
     previewResultSignature,
-    renameJobUrl,
     resolveFilenamePresetSelectValue,
 } from './filenameTemplateShared';
 
@@ -60,7 +47,6 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
 }) => {
     const { t } = useLanguage();
     const translateOrFallback = createTranslateOrFallback(t);
-    const queryClient = useQueryClient();
     const [previewScenario, setPreviewScenario] = useState<PreviewScenario>('channel');
     const {
         data: catalog,
@@ -96,12 +82,6 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
 
     const [preview, setPreview] = useState<FilenameTemplatePreviewResponse | null>(null);
     const [isValidating, setIsValidating] = useState(false);
-    const [confirmOpen, setConfirmOpen] = useState(false);
-    const [exportConfirmOpen, setExportConfirmOpen] = useState(false);
-    const [renameJob, setRenameJob] = useState<RenameJob | null>(null);
-    const [renameError, setRenameError] = useState<string | null>(null);
-    const [exportJob, setExportJob] = useState<MediaServerExportJob | null>(null);
-    const [exportError, setExportError] = useState<string | null>(null);
 
     // Batch rename uses the current form state shown above, not only the last
     // saved defaults used for future downloads.
@@ -164,17 +144,6 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
         return () => clearTimeout(timer);
     }, [effectiveTemplate, namingMode, presetId]);
 
-    // On rename completion the library's paths changed on disk: refresh every
-    // query that renders them.
-    const handleRenameCompleted = useCallback(() => {
-        queryClient.invalidateQueries({ queryKey: ['videos'] });
-        queryClient.invalidateQueries({ queryKey: ['collections'] });
-        queryClient.invalidateQueries({ queryKey: ['downloadHistory'] });
-    }, [queryClient]);
-
-    useSettingsJobPolling(renameJob, renameJobUrl, setRenameJob, handleRenameCompleted);
-    useSettingsJobPolling(exportJob, mediaServerExportJobUrl, setExportJob);
-
     const handlePresetChange = (value: string) => {
         if (value === 'legacy') {
             setForceCustomSelection(false);
@@ -205,87 +174,6 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
         onChange('downloadFilenameTemplate', value);
     };
 
-    const handleStartRename = async () => {
-        setConfirmOpen(false);
-        setRenameError(null);
-        try {
-            const res = await api.post<{ jobId: string; status: string; total: number }>(
-                '/settings/filename-template/rename-all',
-                {
-                    downloadFilenameMode: namingMode,
-                    downloadFilenameTemplate:
-                        namingMode === 'template' ? effectiveTemplate : undefined,
-                    moveThumbnailsToVideoFolder:
-                        settings.moveThumbnailsToVideoFolder || false,
-                    moveSubtitlesToVideoFolder:
-                        settings.moveSubtitlesToVideoFolder || false,
-                }
-            );
-            const jobData = res.data;
-            setRenameJob({
-                id: jobData.jobId,
-                status: jobData.status as any,
-                lockedAt: Date.now(),
-                template: effectiveTemplate,
-                total: jobData.total,
-                processed: 0,
-                succeeded: 0,
-                skipped: 0,
-                failed: 0,
-                items: [],
-            });
-        } catch (e: unknown) {
-            setRenameError(
-                getApiErrorMessage(e) || t('filenameBatchRenameError')
-            );
-        }
-    };
-
-    const handleStartMediaServerExportRebuild = async () => {
-        setExportConfirmOpen(false);
-        setExportError(null);
-        const mode = settings.mediaServerExportMode || 'off';
-        try {
-            const res = await api.post<{
-                jobId: string;
-                status: string;
-                total: number;
-                processed: number;
-                succeeded: number;
-                skipped: number;
-                failed: number;
-                action: 'rebuild' | 'cleanup';
-                mode: 'off' | 'nfo' | 'nfo_and_source_json';
-            }>(
-                '/settings/media-server-export/rebuild',
-                { mediaServerExportMode: mode }
-            );
-            const jobData = res.data;
-            setExportJob({
-                id: jobData.jobId,
-                status: jobData.status as any,
-                lockedAt: Date.now(),
-                mode: jobData.mode,
-                action: jobData.action,
-                total: jobData.total,
-                processed: jobData.processed,
-                succeeded: jobData.succeeded,
-                skipped: jobData.skipped,
-                failed: jobData.failed,
-                items: [],
-            });
-        } catch (e: unknown) {
-            setExportError(getMediaServerExportErrorMessage(e, mode, t));
-        }
-    };
-
-    const isRenameRunning = renameJob?.status === 'running';
-    const isRenameComplete = renameJob?.status === 'completed';
-    const isExportRunning = exportJob?.status === 'running';
-    const isExportComplete = exportJob?.status === 'completed';
-    const exportMode = settings.mediaServerExportMode || 'off';
-    const exportAction = exportMode === 'off' ? 'cleanup' : 'rebuild';
-    const activeExportAction = exportJob?.action || exportAction;
     const selectMaxWidth = 400;
     const presetOptions = presetDefinitions.length > 0
         ? [
@@ -347,98 +235,11 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
                 {t('filenameTemplateDescription')}
             </Typography>
 
-            <Box sx={{ mt: 3 }}>
-                <Typography variant="h6" gutterBottom>
-                    {t('mediaServerExportMode')}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                    {exportMode === 'off'
-                        ? t('mediaServerExportModeOffDescription')
-                        : t('mediaServerExportModeDescription')}
-                </Typography>
-
-                <FormControl fullWidth sx={{ maxWidth: selectMaxWidth }}>
-                    <Select
-                        value={settings.mediaServerExportMode || 'off'}
-                        onChange={(e) => onChange('mediaServerExportMode', e.target.value)}
-                    >
-                        {MEDIA_SERVER_EXPORT_OPTIONS.map((opt) => (
-                            <MenuItem key={opt.value} value={opt.value}>
-                                {t(opt.labelKey)}
-                            </MenuItem>
-                        ))}
-                    </Select>
-                </FormControl>
-
-                {(settings.mediaServerExportMode || 'off') !== 'off' && !recommendedTvLayout && (
-                    <Alert severity="warning" sx={{ mt: 2, maxWidth: 920 }}>
-                        {t('mediaServerExportRecommendedLayoutWarning')}
-                    </Alert>
-                )}
-
-                {exportMode === 'off' && (
-                    <Alert severity="info" sx={{ mt: 2, maxWidth: 920 }}>
-                        {t('mediaServerExportCleanupHint')}
-                    </Alert>
-                )}
-
-                {exportError && (
-                    <Alert severity="error" sx={{ mt: 2, maxWidth: 920 }}>
-                        {exportError}
-                    </Alert>
-                )}
-
-                {isExportRunning && exportJob && (
-                    <Box sx={{ mt: 2, maxWidth: 520 }}>
-                        <Typography variant="body2" sx={{ mb: 0.75 }}>
-                            {t(activeExportAction === 'cleanup'
-                                ? 'mediaServerExportCleanupRunning'
-                                : 'mediaServerExportRebuildRunning')} {exportJob.processed}/{exportJob.total}
-                            {exportJob.currentTitle && ` – ${exportJob.currentTitle}`}
-                        </Typography>
-                        <LinearProgress
-                            variant="determinate"
-                            value={exportJob.total > 0 ? (exportJob.processed / exportJob.total) * 100 : 0}
-                        />
-                    </Box>
-                )}
-
-                {isExportComplete && exportJob && (
-                    <Alert severity="success" sx={{ mt: 2, maxWidth: 920 }}>
-                        {t(activeExportAction === 'cleanup'
-                            ? 'mediaServerExportCleanupComplete'
-                            : 'mediaServerExportRebuildComplete')} –{' '}
-                        {t(activeExportAction === 'cleanup'
-                            ? 'mediaServerExportCleanupSummary'
-                            : 'mediaServerExportRebuildSummary')
-                            .replace('{succeeded}', String(exportJob.succeeded))
-                            .replace('{skipped}', String(exportJob.skipped))
-                            .replace('{failed}', String(exportJob.failed))}
-                    </Alert>
-                )}
-
-                <Tooltip
-                    title={
-                        isExportRunning
-                                ? t('mediaServerExportRebuildDisabledRunning')
-                                : ''
-                    }
-                    disableHoverListener={!isExportRunning}
-                >
-                    <span>
-                        <Button
-                            variant="outlined"
-                            onClick={() => setExportConfirmOpen(true)}
-                            disabled={isExportRunning}
-                            sx={{ mt: 2 }}
-                        >
-                            {t(exportAction === 'cleanup'
-                                ? 'mediaServerExportCleanup'
-                                : 'mediaServerExportRebuild')}
-                        </Button>
-                    </span>
-                </Tooltip>
-            </Box>
+            <MediaServerExportSettings
+                settings={settings}
+                onChange={onChange}
+                recommendedTvLayout={recommendedTvLayout}
+            />
 
             <Box sx={{ mt: 3 }}>
                 <Typography variant="h6" gutterBottom>
@@ -541,187 +342,17 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
                 )}
             </Box>
 
-            <Box sx={{ mt: 3, maxWidth: 920 }}>
-                <CollapsibleSection title={t('filenameRefInformationTitle')} defaultExpanded={false}>
-                    <Box sx={{ mb: 2 }}>
-                        {informationNotes.map((note) => (
-                            <Typography
-                                key={note.id}
-                                variant="body2"
-                                color="text.secondary"
-                                sx={{ mb: 0.75 }}
-                            >
-                                {t(note.textKey)}
-                            </Typography>
-                        ))}
-                    </Box>
+            <FilenameTemplateReference
+                informationNotes={informationNotes}
+                referenceSections={referenceSections}
+            />
 
-                    {referenceSections.map((section) => (
-                        <Box key={section.id} sx={{ mb: 2.5 }}>
-                            <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-                                {t(section.titleKey)}
-                            </Typography>
-                            {section.descriptionKey && (
-                                <Typography
-                                    variant="body2"
-                                    color="text.secondary"
-                                    sx={{ mb: 1.25 }}
-                                >
-                                    {t(section.descriptionKey)}
-                                </Typography>
-                            )}
-                            <Box
-                                sx={{
-                                    display: 'grid',
-                                    gap: 1,
-                                }}
-                            >
-                                {section.items.map((item) => (
-                                    <Box
-                                        key={item.key}
-                                        sx={{
-                                            display: 'grid',
-                                            gridTemplateColumns: {
-                                                xs: '1fr',
-                                                md: '260px minmax(0, 1fr) 180px',
-                                            },
-                                            gap: 1,
-                                            p: 1.25,
-                                            borderRadius: 1.5,
-                                            bgcolor: 'action.hover',
-                                        }}
-                                    >
-                                        <Typography
-                                            variant="body2"
-                                            sx={{
-                                                fontFamily: 'monospace',
-                                                wordBreak: 'break-all',
-                                            }}
-                                        >
-                                            {item.token}
-                                        </Typography>
-                                        <Typography variant="body2" color="text.secondary">
-                                            {t(item.descriptionKey)}
-                                        </Typography>
-                                        <Typography
-                                            variant="body2"
-                                            color="text.secondary"
-                                            sx={{
-                                                fontFamily: item.example ? 'monospace' : undefined,
-                                                wordBreak: 'break-all',
-                                            }}
-                                        >
-                                            {item.example || ''}
-                                        </Typography>
-                                    </Box>
-                                ))}
-                            </Box>
-                        </Box>
-                    ))}
-                </CollapsibleSection>
-            </Box>
-
-            <Box sx={{ mt: 3 }}>
-                <Typography variant="h6" gutterBottom>
-                    {t('filenameBatchRenameButton')}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                    {t('filenameBatchRenameDescription')}
-                </Typography>
-
-                {renameError && (
-                    <Alert severity="error" sx={{ mb: 1, maxWidth: 920 }}>
-                        {renameError}
-                    </Alert>
-                )}
-
-                {isRenameRunning && renameJob && (
-                    <Box sx={{ mb: 2, maxWidth: 520 }}>
-                        <Typography variant="body2" sx={{ mb: 0.5 }}>
-                            {t('filenameBatchRenameRunning')} {renameJob.processed}/{renameJob.total}
-                            {renameJob.currentTitle && ` – ${renameJob.currentTitle}`}
-                        </Typography>
-                        <LinearProgress
-                            variant="determinate"
-                            value={renameJob.total > 0 ? (renameJob.processed / renameJob.total) * 100 : 0}
-                        />
-                        {renameJob.lockedAt && (
-                            <Typography variant="caption" color="warning.main" display="block" sx={{ mt: 0.5 }}>
-                                {t('filenameBatchRenamePaused')}
-                            </Typography>
-                        )}
-                    </Box>
-                )}
-
-                {isRenameComplete && renameJob && (
-                    <Alert severity="success" sx={{ mb: 2, maxWidth: 920 }}>
-                        {t('filenameBatchRenameComplete')} –{' '}
-                        {t('filenameBatchRenameSummary')
-                            .replace('{succeeded}', String(renameJob.succeeded))
-                            .replace('{skipped}', String(renameJob.skipped))
-                            .replace('{failed}', String(renameJob.failed))}
-                    </Alert>
-                )}
-
-                <Tooltip
-                    title={
-                        currentTemplateInvalid
-                            ? t('filenameBatchRenameDisabledInvalidTemplate')
-                            : isRenameRunning
-                                ? t('filenameBatchRenameDisabledRunning')
-                                : ''
-                    }
-                    disableHoverListener={!currentTemplateInvalid && !isRenameRunning}
-                >
-                    <span>
-                        <Button
-                            variant="outlined"
-                            color="warning"
-                            onClick={() => setConfirmOpen(true)}
-                            disabled={isRenameRunning || currentTemplateInvalid}
-                        >
-                            {t('filenameBatchRenameButton')}
-                        </Button>
-                    </span>
-                </Tooltip>
-            </Box>
-
-            {/* Confirmation dialog */}
-            <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
-                <DialogTitle>{t('filenameBatchRenameConfirmTitle')}</DialogTitle>
-                <DialogContent>
-                    <DialogContentText>
-                        {t('filenameBatchRenameConfirmBody')}
-                    </DialogContentText>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setConfirmOpen(false)}>{t('cancel')}</Button>
-                    <Button onClick={handleStartRename} color="warning" variant="contained">
-                        {t('filenameBatchRenameConfirm')}
-                    </Button>
-                </DialogActions>
-            </Dialog>
-
-            <Dialog open={exportConfirmOpen} onClose={() => setExportConfirmOpen(false)}>
-                <DialogTitle>{t(exportAction === 'cleanup'
-                    ? 'mediaServerExportCleanupConfirmTitle'
-                    : 'mediaServerExportRebuildConfirmTitle')}</DialogTitle>
-                <DialogContent>
-                    <DialogContentText>
-                        {t(exportAction === 'cleanup'
-                            ? 'mediaServerExportCleanupConfirmBody'
-                            : 'mediaServerExportRebuildConfirmBody')}
-                    </DialogContentText>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setExportConfirmOpen(false)}>{t('cancel')}</Button>
-                    <Button onClick={handleStartMediaServerExportRebuild} variant="contained">
-                        {t(exportAction === 'cleanup'
-                            ? 'mediaServerExportCleanup'
-                            : 'mediaServerExportRebuild')}
-                    </Button>
-                </DialogActions>
-            </Dialog>
+            <FilenameBatchRenameSection
+                settings={settings}
+                namingMode={namingMode}
+                effectiveTemplate={effectiveTemplate}
+                currentTemplateInvalid={currentTemplateInvalid}
+            />
         </Box>
     );
 };
