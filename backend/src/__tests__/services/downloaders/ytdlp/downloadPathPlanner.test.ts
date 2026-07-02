@@ -115,10 +115,11 @@ describe("planDownloadPaths", () => {
       );
       expect(planned.videoFilename).toBe("Title-Author-20240101_2.mp4");
       expect(planned.thumbnailFilename).toBe("Title-Author-20240101_2.jpg");
-      // Characterization of preserved behavior (candidate bug, see planner
-      // NOTE): the cleanup base does NOT carry the collision counter in the
-      // legacy branch, unlike the template branch.
-      expect(planned.safeBaseFilename).toBe("Title-Author-20240101");
+      // The cleanup/subtitle stem carries the collision counter, matching the
+      // template branch. An un-suffixed stem let cancel-time cleanup delete
+      // the pre-existing video (exact-stem artifact match) and let subtitle
+      // processing overwrite the original's subtitle files.
+      expect(planned.safeBaseFilename).toBe("Title-Author-20240101_2");
     });
 
     it("treats a missing preset id as legacy", () => {

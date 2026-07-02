@@ -195,11 +195,14 @@ export function planDownloadPaths(
       ? resolveSafeChildPath(VIDEOS_DIR, thumbnailFilename)
       : resolveSafeChildPath(IMAGES_DIR, thumbnailFilename);
     logger.info(`File exists, using deduplicated filename: ${videoFilename}`);
-    // NOTE (behavior preserved from the original inline block): the legacy
-    // branch does NOT append the collision counter to safeBaseFilename, while
-    // the template branch does. Artifact/subtitle cleanup for a deduplicated
-    // legacy download therefore matches the un-suffixed stem — kept as-is by
-    // this extraction; flagged as a follow-up candidate.
+    // The cleanup/subtitle stem must carry the collision counter, matching
+    // the template branch. Artifact cleanup exact-matches this stem and
+    // subtitle processing renames every `startsWith(stem)` match to
+    // `<stem>.<lang>.<ext>`, so an un-suffixed stem would target the
+    // pre-existing video's files: cancel-time cleanup could delete the
+    // original video/subtitles, and subtitle processing would overwrite the
+    // original's subtitle with the new download's.
+    safeBaseFilename = `${baseName}_${counter}`;
   }
 
   logger.info("Preparing video download path:", videoAbsolutePath);
