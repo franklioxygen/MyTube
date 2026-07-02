@@ -74,7 +74,7 @@ if (apiClient?.interceptors?.response?.use) {
       if (error.response) {
         // Server responded with error status
         const status = error.response.status;
-        const data = error.response.data as any;
+        const data: unknown = error.response.data;
 
         // Handle specific error cases
         if (status === 401) {
@@ -439,7 +439,7 @@ export const api = {
    */
   post: <T = any>(
     url: string,
-    data?: any,
+    data?: unknown,
     config?: AxiosRequestConfig
   ): Promise<AxiosResponse<T>> => {
     if (config !== undefined) {
@@ -456,7 +456,7 @@ export const api = {
    */
   put: <T = any>(
     url: string,
-    data?: any,
+    data?: unknown,
     config?: AxiosRequestConfig
   ): Promise<AxiosResponse<T>> => {
     if (config !== undefined) {

@@ -3,6 +3,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import { Video } from '../types';
 import { useStatisticsIngestion } from '../hooks/useStatisticsIngestion';
 import { api } from '../utils/apiClient';
+import { hasAxiosStatus } from '../utils/errors';
 import { settingsQueryOptions } from '../utils/settingsQueries';
 import { useAuth } from './AuthContext';
 import { useLanguage } from './LanguageContext';
@@ -107,9 +108,9 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         },
         // Only query when authenticated to avoid 401 errors on login page
         enabled: isAuthenticated,
-        retry: (failureCount, error: any) => {
+        retry: (failureCount, error: unknown) => {
             // Don't retry on 401 errors (unauthorized) - user is not authenticated
-            if (error?.response?.status === 401) {
+            if (hasAxiosStatus(error, 401)) {
                 return false;
             }
             // Retry other errors up to 3 times
@@ -538,7 +539,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 showSnackbar(t('thumbnailUploaded') || 'Thumbnail uploaded');
             }
         },
-        onError: (error: any) => {
+        onError: (error: unknown) => {
             console.error('Error uploading thumbnail:', error);
         }
     });

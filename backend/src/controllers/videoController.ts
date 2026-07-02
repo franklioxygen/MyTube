@@ -173,7 +173,7 @@ export const getVideoById = async (
     );
 
     if (signedUrl) {
-      (video as any).signedUrl = signedUrl;
+      video.signedUrl = signedUrl;
     }
 
     if (video.thumbnailPath?.startsWith("cloud:")) {
@@ -184,7 +184,7 @@ export const getVideoById = async (
       );
 
       if (signedThumbnailUrl) {
-        (video as any).signedThumbnailUrl = signedThumbnailUrl;
+        video.signedThumbnailUrl = signedThumbnailUrl;
       }
     }
   }
@@ -192,7 +192,7 @@ export const getVideoById = async (
   // Check if video is in mount directory and inject mount video URL
   if (video.videoPath?.startsWith("mount:")) {
     // For mount directory videos, provide a special URL that will be served by the mount video endpoint
-    (video as any).signedUrl = `/api/mount-video/${id}`;
+    video.signedUrl = `/api/mount-video/${id}`;
   }
 
   // Return video object directly for backward compatibility (frontend expects response.data to be Video)
@@ -325,7 +325,7 @@ export const updateVideoDetails = async (
   const updates = req.body;
 
   // Filter allowed updates
-  const allowedUpdates: any = {};
+  const allowedUpdates: Partial<import("../services/storageService").Video> = {};
   if (updates.title !== undefined) allowedUpdates.title = updates.title;
   if (updates.tags !== undefined) allowedUpdates.tags = updates.tags;
   if (updates.visibility !== undefined)

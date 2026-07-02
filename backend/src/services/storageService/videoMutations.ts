@@ -37,15 +37,17 @@ export function saveVideoWithInsertFlag(
       .where(eq(videos.id, videoData.id))
       .all();
     const inserted = existing.length === 0;
+    // Video allows extra keys via its index signature; the cast narrows the
+    // serialized row to the table's insert shape.
     const videoToSave = {
       ...videoData,
       tags: videoData.tags ? JSON.stringify(videoData.tags) : undefined,
       subtitles: videoData.subtitles
         ? JSON.stringify(videoData.subtitles)
         : undefined,
-    };
+    } as typeof videos.$inferInsert;
     db.insert(videos)
-      .values(videoToSave as any)
+      .values(videoToSave)
       .onConflictDoUpdate({
         target: videos.id,
         set: videoToSave,
@@ -72,7 +74,7 @@ function emitLibraryVideoAdded(
 ): void {
   try {
     const { recordEvent } = require("../statistics") as {
-      recordEvent: (input: any) => string | null;
+      recordEvent: (input: Record<string, unknown>) => string | null;
     };
     const fileSizeBytes =
       videoData.fileSize !== undefined && videoData.fileSize !== null
@@ -108,11 +110,11 @@ export function saveVideoIfAbsent(
       subtitles: videoData.subtitles
         ? JSON.stringify(videoData.subtitles)
         : undefined,
-    };
+    } as typeof videos.$inferInsert;
 
     const result = db
       .insert(videos)
-      .values(videoToSave as any)
+      .values(videoToSave)
       .onConflictDoNothing({
         target: videos.id,
       })
@@ -168,7 +170,7 @@ export function updateVideo(
 
     const result = db
       .update(videos)
-      .set(updatesToSave as any)
+      .set(updatesToSave as Partial<typeof videos.$inferInsert>)
       .where(eq(videos.id, id))
       .returning()
       .get();
