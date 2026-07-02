@@ -27,6 +27,7 @@ export interface DownloadTask {
   cancellationFinalized?: boolean;
   cancellationRejected?: boolean;
   statistics?: StatisticsAttribution;
+  options?: AddDownloadTaskOptions;
 }
 
 export interface AddDownloadStatisticsOptions {
@@ -35,6 +36,25 @@ export interface AddDownloadStatisticsOptions {
   sourceKind?: CanonicalSourceKind | string;
   relatedEventId?: string | null;
   enqueuedEventId?: string | null;
+}
+
+/**
+ * Per-task behavior switches for callers that await the addDownload promise
+ * and own the completion side effects themselves (subscription checks).
+ * Suppression only covers the manager's *duplicate* effects — hooks, cloud
+ * upload, and video-download dedupe tracking always run.
+ */
+export interface AddDownloadTaskOptions {
+  /** Skip the manager's success/failed/cancelled download_history rows. */
+  suppressHistory?: boolean;
+  /** Skip the manager's Telegram completion/failure notification. */
+  suppressCompletionNotification?: boolean;
+  /**
+   * Never hand the task to the auto-retry scheduler: a retried task settles
+   * its promise only after the retry chain ends, which would park an awaiting
+   * caller for the whole retry window.
+   */
+  disableAutoRetry?: boolean;
 }
 
 export const TASK_FAIL_HOOK_WAIT_TIMEOUT_MS = 5000;

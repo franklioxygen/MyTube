@@ -30,6 +30,11 @@ vi.mock('../../services/hookService', () => ({
     executeHook: vi.fn().mockResolvedValue(undefined),
   },
 }));
+vi.mock('../../services/telegramService', () => ({
+  TelegramService: {
+    notifyTaskComplete: vi.fn().mockResolvedValue(undefined),
+  },
+}));
 vi.mock('../../services/CloudStorageService', () => ({
   CloudStorageService: {
     uploadVideo: vi.fn().mockResolvedValue(undefined),
@@ -320,6 +325,161 @@ describe('DownloadManager', () => {
 
       // Wait for all to complete
       await Promise.all(promises);
+    });
+  });
+
+  describe('addDownload task options (awaited callers)', () => {
+    const successResult = {
+      video: {
+        id: 'vid-1',
+        title: 'Subscribed Video',
+        videoPath: '/videos/sub.mp4',
+        thumbnailPath: '/images/sub.jpg',
+        sourceUrl: 'https://youtube.com/watch?v=sub',
+        author: 'Author',
+      },
+    };
+
+    it('suppressHistory skips the success history row but keeps hooks', async () => {
+      const mockDownloadFn = vi.fn().mockResolvedValue(successResult);
+
+      const result = await downloadManager.addDownload(
+        mockDownloadFn,
+        'sub-1',
+        'Subscribed Video',
+        'https://youtube.com/watch?v=sub',
+        'youtube',
+        { sourceKind: 'subscription' },
+        undefined,
+        { suppressHistory: true },
+      );
+
+      expect(result).toEqual(successResult);
+      expect(storageService.addDownloadHistoryItem).not.toHaveBeenCalled();
+      expect(HookService.executeHook).toHaveBeenCalledWith(
+        'task_success',
+        expect.objectContaining({ taskId: 'sub-1' }),
+      );
+    });
+
+    it('suppressHistory skips the failure history row; rejection still propagates', async () => {
+      const mockDownloadFn = vi.fn().mockRejectedValue(new Error('boom'));
+
+      await expect(
+        downloadManager.addDownload(
+          mockDownloadFn,
+          'sub-2',
+          'Subscribed Video',
+          'https://youtube.com/watch?v=sub',
+          'youtube',
+          undefined,
+          undefined,
+          { suppressHistory: true },
+        ),
+      ).rejects.toThrow('boom');
+
+      expect(storageService.addDownloadHistoryItem).not.toHaveBeenCalled();
+    });
+
+    it('suppressCompletionNotification skips the Telegram notify', async () => {
+      const telegram = await import('../../services/telegramService');
+      const mockDownloadFn = vi.fn().mockResolvedValue(successResult);
+
+      await downloadManager.addDownload(
+        mockDownloadFn,
+        'sub-3',
+        'Subscribed Video',
+        'https://youtube.com/watch?v=sub',
+        'youtube',
+        undefined,
+        undefined,
+        { suppressCompletionNotification: true },
+      );
+      // The notify is fire-and-forget behind a dynamic import; flush it.
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(telegram.TelegramService.notifyTaskComplete).not.toHaveBeenCalled();
+    });
+
+    it('still notifies Telegram without the suppression flag', async () => {
+      const telegram = await import('../../services/telegramService');
+      const mockDownloadFn = vi.fn().mockResolvedValue(successResult);
+
+      await downloadManager.addDownload(
+        mockDownloadFn,
+        'plain-1',
+        'Manual Video',
+        'https://youtube.com/watch?v=plain',
+        'youtube',
+      );
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(telegram.TelegramService.notifyTaskComplete).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'success' }),
+      );
+    });
+
+    it('disableAutoRetry rejects immediately even when auto retry is enabled', async () => {
+      const mockDownloadFn = vi.fn().mockRejectedValue(new Error('flaky'));
+      (storageService.getSettings as any).mockReturnValue({
+        autoRetryEnabled: true,
+        autoRetryTimes: 3,
+        autoRetryIntervalMinutes: 1,
+      });
+
+      await expect(
+        downloadManager.addDownload(
+          mockDownloadFn,
+          'sub-4',
+          'Subscribed Video',
+          'https://youtube.com/watch?v=sub',
+          'youtube',
+          undefined,
+          undefined,
+          { disableAutoRetry: true },
+        ),
+      ).rejects.toThrow('flaky');
+
+      // No pending_retry row was scheduled; the (unsuppressed) failure row is written.
+      expect(storageService.addDownloadHistoryItem).not.toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'pending_retry' }),
+      );
+      expect(storageService.addDownloadHistoryItem).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'sub-4', status: 'failed' }),
+      );
+    });
+
+    it('settles awaited tasks that are cancelled while still queued', async () => {
+      downloadManager.setMaxConcurrentDownloads(1);
+      let releaseFirst: (value: unknown) => void = () => {};
+      const blockingFn = vi.fn().mockImplementation(
+        () => new Promise((resolve) => { releaseFirst = resolve; }),
+      );
+      const queuedFn = vi.fn().mockResolvedValue(successResult);
+
+      const first = downloadManager.addDownload(blockingFn, 'busy-1', 'Busy');
+      const queued = downloadManager.addDownload(
+        queuedFn,
+        'queued-1',
+        'Queued Subscribed Video',
+        'https://youtube.com/watch?v=q',
+        'youtube',
+        undefined,
+        undefined,
+        { suppressHistory: true },
+      );
+      // Let the first task occupy the single slot.
+      await new Promise((resolve) => setImmediate(resolve));
+
+      await downloadManager.cancelDownload('queued-1');
+
+      // Message-based assertion: vi.resetModules gives the manager its own
+      // copy of the error class, so instanceof against our import would fail.
+      await expect(queued).rejects.toThrow('Download cancelled by user');
+      expect(queuedFn).not.toHaveBeenCalled();
+
+      releaseFirst(successResult);
+      await first;
     });
   });
 
@@ -687,7 +847,7 @@ describe('DownloadManager', () => {
 
     it('should remove queued task when cancelling non-active download', async () => {
       downloadManager.setMaxConcurrentDownloads(0);
-      downloadManager.addDownload(
+      const queuedPromise = downloadManager.addDownload(
         vi.fn().mockResolvedValue({ success: true }),
         'queued-cancel',
         'Queued cancel',
@@ -698,6 +858,8 @@ describe('DownloadManager', () => {
 
       await downloadManager.cancelDownload('queued-cancel');
 
+      // Removal settles the promise so awaiting callers don't hang.
+      await expect(queuedPromise).rejects.toThrow('Download cancelled by user');
       expect(downloadManager.getStatus().queued).toBe(0);
       expect(storageService.setQueuedDownloads).toHaveBeenCalled();
     });

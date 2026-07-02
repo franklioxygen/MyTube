@@ -19,6 +19,7 @@ import {
 } from "../utils/helpers";
 import { logger } from "../utils/logger";
 import { runWithConcurrencyLimit } from "../utils/concurrency";
+import downloadManager from "./downloadManager";
 import {
     downloadSingleBilibiliPart,
     downloadYouTubeVideo,
@@ -594,30 +595,23 @@ export class SubscriptionService {
           return;
         }
 
-        // 3. Download the video
+        // 3. Download the video through the queue so it is visible and
+        // cancellable in the downloads UI, counts against the global
+        // concurrency limit, and gains cloud upload / hooks / dedupe
+        // tracking. addDownload resolves with the download result on
+        // completion; the manager's own history rows, Telegram notification,
+        // and auto-retry are suppressed because this check owns those
+        // (subscription-stamped history below, notifySubscriptionDownloadResult,
+        // and the check interval as backoff).
         let downloadResult: any;
         let videoDownloaded = false;
         let downloadedVideoTitle = `New video from ${sub.author}`;
         try {
-          if (sub.platform === "Bilibili") {
-            downloadResult = await downloadSingleBilibiliPart(
-              latestVideoUrl,
-              1,
-              1,
-              "",
-              undefined,
-              undefined,
-              undefined,
-              buildFilenameTemplateSourceOptions(sub)
-            );
-          } else {
-            downloadResult = await downloadYouTubeVideo(
-              latestVideoUrl,
-              undefined,
-              undefined,
-              buildFilenameTemplateSourceOptions(sub)
-            );
-          }
+          downloadResult = await this.enqueueSubscriptionDownload(
+            sub,
+            latestVideoUrl,
+            downloadedVideoTitle
+          );
 
           // Add to download history on success
           const videoData =
@@ -795,15 +789,14 @@ export class SubscriptionService {
             getSubscriptionLogContext(sub, { latestShortUrl })
           );
 
-          // Download the short
+          // Download the short (queue-routed; see the main-video comment).
           let shortDownloaded = false;
           let downloadedShortTitle = `New short from ${sub.author}`;
           try {
-            const downloadResult = await downloadYouTubeVideo(
+            const downloadResult = await this.enqueueSubscriptionDownload(
+              sub,
               latestShortUrl,
-              undefined,
-              undefined,
-              buildFilenameTemplateSourceOptions(sub)
+              downloadedShortTitle
             );
 
             // Add to download history on success
@@ -943,6 +936,57 @@ export class SubscriptionService {
         // statistics is best-effort
       }
     }
+  }
+
+  /**
+   * Run one subscription download through downloadManager's queue and await
+   * its completion. The queue provides UI visibility, cancellation, the
+   * global concurrency limit, cloud upload, hooks, and dedupe tracking; the
+   * manager's duplicate side effects (history rows, Telegram notification,
+   * auto-retry) are suppressed because the calling check owns them.
+   */
+  private enqueueSubscriptionDownload(
+    sub: Subscription,
+    videoUrl: string,
+    initialTitle: string
+  ): Promise<any> {
+    const downloadTaskId = uuidv4();
+    const isBilibili = sub.platform === "Bilibili";
+    return downloadManager.addDownload(
+      (registerCancel) =>
+        isBilibili
+          ? downloadSingleBilibiliPart(
+              videoUrl,
+              1,
+              1,
+              "",
+              downloadTaskId,
+              registerCancel,
+              undefined,
+              buildFilenameTemplateSourceOptions(sub)
+            )
+          : downloadYouTubeVideo(
+              videoUrl,
+              downloadTaskId,
+              registerCancel,
+              buildFilenameTemplateSourceOptions(sub)
+            ),
+      downloadTaskId,
+      initialTitle,
+      videoUrl,
+      isBilibili ? "bilibili" : "youtube",
+      {
+        actorRole: "system",
+        surface: "background",
+        sourceKind: "subscription",
+      },
+      undefined,
+      {
+        suppressHistory: true,
+        suppressCompletionNotification: true,
+        disableAutoRetry: true,
+      }
+    );
   }
 
   /**

@@ -34,6 +34,17 @@ vi.mock('../../db/schema', () => ({
 
 vi.mock('../../services/downloadService');
 vi.mock('../../services/storageService');
+// Passthrough queue: execute the downloadFn immediately and resolve with its
+// result, so every existing assertion on downloadService.* still validates
+// the real subscription semantics.
+vi.mock('../../services/downloadManager', () => ({
+  default: {
+    addDownload: vi.fn(
+      (downloadFn: (registerCancel: (cancel: () => void) => void) => Promise<unknown>) =>
+        downloadFn(vi.fn())
+    ),
+  },
+}));
 vi.mock('../../services/telegramService', () => ({
   TelegramService: {
     notifyTaskComplete: vi.fn().mockResolvedValue(undefined),
@@ -215,8 +226,8 @@ describe('SubscriptionService', () => {
 
       expect(downloadService.downloadYouTubeVideo).toHaveBeenCalledWith(
         'new-link',
-        undefined,
-        undefined,
+        'test-uuid',
+        expect.any(Function),
         expect.objectContaining({
           sourceCustomName: 'User',
           sourceCollectionName: 'User',
@@ -265,8 +276,8 @@ describe('SubscriptionService', () => {
       expect(YtDlpDownloader.getLatestShortsUrl).toHaveBeenCalled();
       expect(downloadService.downloadYouTubeVideo).toHaveBeenCalledWith(
         'new-short',
-        undefined,
-        undefined,
+        'test-uuid',
+        expect.any(Function),
         expect.objectContaining({
           sourceCustomName: 'User',
           sourceCollectionName: 'User',
@@ -1086,8 +1097,8 @@ describe('SubscriptionService', () => {
         1,
         1,
         '',
-        undefined,
-        undefined,
+        'test-uuid',
+        expect.any(Function),
         undefined,
         expect.objectContaining({
           sourceCustomName: 'BiliAuthor',

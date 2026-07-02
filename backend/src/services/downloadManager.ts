@@ -25,6 +25,7 @@ import {
   getStructuredDownloadResult,
   isStructuredDownloadResult,
   type AddDownloadStatisticsOptions,
+  type AddDownloadTaskOptions,
   type DownloadTask,
 } from "./downloadManager/types";
 import { assertDownloadsAllowed } from "./filenameTemplate/renameLockService";
@@ -173,6 +174,11 @@ class DownloadManager {
   }
 
   private maybeScheduleRetry(task: DownloadTask, error: unknown): boolean {
+    if (task.options?.disableAutoRetry) {
+      // Awaiting callers (subscription checks) rely on immediate settlement;
+      // their own cadence provides the retry/backoff.
+      return false;
+    }
     if (!task.sourceUrl || !task.type) {
       return false;
     }
@@ -292,6 +298,7 @@ class DownloadManager {
     type?: string,
     statistics?: AddDownloadStatisticsOptions,
     retryMetadata?: DownloadRetryMetadata,
+    options?: AddDownloadTaskOptions,
   ): Promise<any> {
     assertDownloadsAllowed();
     return new Promise((resolve, reject) => {
@@ -304,6 +311,7 @@ class DownloadManager {
         sourceUrl,
         type,
         retryMetadata,
+        options,
         statistics: statistics
           ? {
               actorRole: statistics.actorRole ?? "admin",
@@ -364,17 +372,19 @@ class DownloadManager {
       task.cancellationFinalized = true;
       this.clearRetryTimer(task.id);
       storageService.removeActiveDownload(task.id);
-      storageService.addDownloadHistoryItem({
-        id: task.id,
-        title: task.title,
-        finishedAt: Date.now(),
-        status: "failed",
-        error: "Download cancelled by user",
-        sourceUrl: task.sourceUrl,
-        platform: platformFromUrl(task.sourceUrl),
-        sourceKind: task.statistics?.sourceKind ?? "unknown",
-        downloadType: task.type,
-      });
+      if (!task.options?.suppressHistory) {
+        storageService.addDownloadHistoryItem({
+          id: task.id,
+          title: task.title,
+          finishedAt: Date.now(),
+          status: "failed",
+          error: "Download cancelled by user",
+          sourceUrl: task.sourceUrl,
+          platform: platformFromUrl(task.sourceUrl),
+          sourceKind: task.statistics?.sourceKind ?? "unknown",
+          downloadType: task.type,
+        });
+      }
 
       HookService.executeHook("task_cancel", {
         taskId: task.id,
@@ -463,6 +473,12 @@ class DownloadManager {
     for (const task of removedTasks) {
       if (isPendingRetry) {
         task.reject(new Error("Retry removed from queue by user"));
+      } else if (!task.cancellationRejected) {
+        // addDownload promises resolve on completion; a task removed from the
+        // queue never completes, so settle it (awaiting callers — subscription
+        // checks — would otherwise hang on a queued-task cancellation).
+        task.cancellationRejected = true;
+        task.reject(DownloadCancelledError.create());
       }
     }
     this.updateQueuedDownloads();
@@ -618,25 +634,27 @@ class DownloadManager {
           typeof videoData.fileSize === "string" || typeof videoData.fileSize === "number"
             ? String(videoData.fileSize)
             : undefined;
-        storageService.addDownloadHistoryItem({
-          id: task.id,
-          title: finalTitle || task.title,
-          finishedAt: Date.now(),
-          status: "success",
-          videoPath: videoData.videoPath,
-          thumbnailPath: videoData.thumbnailPath,
-          sourceUrl: historySourceUrl,
-          author: videoData.author,
-          videoId: videoData.id,
-          totalSize: historyTotalSize,
-          platform: platformFromUrl(historySourceUrl),
-          sourceKind: task.statistics?.sourceKind ?? "manual",
-          downloadType: task.type,
-          retryMetadata:
-            task.retryMetadata && requiresRetryMetadata(task.retryMetadata)
-              ? serializeRetryMetadata(task.retryMetadata)
-              : undefined,
-        });
+        if (!task.options?.suppressHistory) {
+          storageService.addDownloadHistoryItem({
+            id: task.id,
+            title: finalTitle || task.title,
+            finishedAt: Date.now(),
+            status: "success",
+            videoPath: videoData.videoPath,
+            thumbnailPath: videoData.thumbnailPath,
+            sourceUrl: historySourceUrl,
+            author: videoData.author,
+            videoId: videoData.id,
+            totalSize: historyTotalSize,
+            platform: platformFromUrl(historySourceUrl),
+            sourceKind: task.statistics?.sourceKind ?? "manual",
+            downloadType: task.type,
+            retryMetadata:
+              task.retryMetadata && requiresRetryMetadata(task.retryMetadata)
+                ? serializeRetryMetadata(task.retryMetadata)
+                : undefined,
+          });
+        }
 
         // Record video download for future duplicate detection
         const sourceUrl = videoData.sourceUrl || task.sourceUrl;
@@ -686,13 +704,15 @@ class DownloadManager {
         thumbnailPath: videoData.thumbnailPath,
       });
 
-      import("./telegramService").then(({ TelegramService }) =>
-        TelegramService.notifyTaskComplete({
-          taskTitle: finalTitle || task.title,
-          status: "success",
-          sourceUrl: task.sourceUrl,
-        })
-      ).catch(() => {});
+      if (!task.options?.suppressCompletionNotification) {
+        import("./telegramService").then(({ TelegramService }) =>
+          TelegramService.notifyTaskComplete({
+            taskTitle: finalTitle || task.title,
+            status: "success",
+            sourceUrl: task.sourceUrl,
+          })
+        ).catch(() => {});
+      }
 
       // Trigger Cloud Upload (Async, don't await to block queue processing?)
       // Actually, we might want to await it if we want to ensure it's done before resolving,
@@ -734,22 +754,24 @@ class DownloadManager {
 
       if (!task.cancelled && !retryScheduled) {
         this.clearRetryTimer(task.id);
-        const structuredResult = getStructuredDownloadResult(error);
-        storageService.addDownloadHistoryItem({
-          id: task.id,
-          title: task.title,
-          finishedAt: Date.now(),
-          status: structuredResult?.partial === true ? PARTIAL_STATUS : "failed",
-          error: getErrorMessage(error),
-          sourceUrl: task.sourceUrl,
-          platform: platformFromUrl(task.sourceUrl),
-          sourceKind: task.statistics?.sourceKind ?? "unknown",
-          downloadType: task.type,
-          retryMetadata:
-            task.retryMetadata && requiresRetryMetadata(task.retryMetadata)
-              ? serializeRetryMetadata(task.retryMetadata)
-              : undefined,
-        });
+        if (!task.options?.suppressHistory) {
+          const structuredResult = getStructuredDownloadResult(error);
+          storageService.addDownloadHistoryItem({
+            id: task.id,
+            title: task.title,
+            finishedAt: Date.now(),
+            status: structuredResult?.partial === true ? PARTIAL_STATUS : "failed",
+            error: getErrorMessage(error),
+            sourceUrl: task.sourceUrl,
+            platform: platformFromUrl(task.sourceUrl),
+            sourceKind: task.statistics?.sourceKind ?? "unknown",
+            downloadType: task.type,
+            retryMetadata:
+              task.retryMetadata && requiresRetryMetadata(task.retryMetadata)
+                ? serializeRetryMetadata(task.retryMetadata)
+                : undefined,
+          });
+        }
       }
 
       if (!retryScheduled) {
@@ -763,14 +785,16 @@ class DownloadManager {
           error: getErrorMessage(error),
         });
 
-        import("./telegramService").then(({ TelegramService }) =>
-          TelegramService.notifyTaskComplete({
-            taskTitle: task.title,
-            status: "fail",
-            sourceUrl: task.sourceUrl,
-            error: getErrorMessage(error),
-          })
-        ).catch(() => {});
+        if (!task.options?.suppressCompletionNotification) {
+          import("./telegramService").then(({ TelegramService }) =>
+            TelegramService.notifyTaskComplete({
+              taskTitle: task.title,
+              status: "fail",
+              sourceUrl: task.sourceUrl,
+              error: getErrorMessage(error),
+            })
+          ).catch(() => {});
+        }
 
         task.reject(error);
       }
