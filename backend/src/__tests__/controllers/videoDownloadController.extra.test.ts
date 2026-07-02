@@ -758,6 +758,49 @@ describe("videoDownloadController extra coverage", () => {
     expect(downloadManager.updateTaskTitle).not.toHaveBeenCalled();
   });
 
+  it("downloadVideo skips queued MissAV title lookup to avoid extra Puppeteer work", async () => {
+    req.body = { youtubeUrl: "https://missav.ws/cn/san-467" };
+    vi.mocked(processVideoUrl).mockResolvedValue({
+      videoUrl: "https://missav.ws/cn/san-467",
+      sourceVideoId: "san-467",
+      platform: "missav",
+    } as any);
+    vi.mocked(isMissAVUrl).mockReturnValue(true);
+    vi.mocked(getMissAVPlaceholderTitle).mockReturnValue("MissAV: SAN-467");
+    vi.mocked(downloadService.downloadMissAVVideo).mockResolvedValue({
+      id: "video-missav",
+      title: "Real MissAV Title",
+    } as any);
+    vi.mocked(storageService.getDownloadStatus).mockReturnValue({
+      activeDownloads: [],
+      queuedDownloads: [
+        { id: "queued-missav", title: "MissAV: SAN-467", timestamp: Date.now() },
+      ],
+    } as any);
+
+    await downloadVideo(req as Request, res as Response);
+    await flushBackgroundTasks();
+
+    expect(downloadManager.addDownload).toHaveBeenCalledWith(
+      expect.any(Function),
+      expect.any(String),
+      "MissAV: SAN-467",
+      "https://missav.ws/cn/san-467",
+      "missav",
+      expect.objectContaining({
+        actorRole: "admin",
+        surface: "web",
+        sourceKind: "manual",
+      }),
+      undefined,
+    );
+    expect(downloadService.getVideoInfo).not.toHaveBeenCalled();
+    expect(downloadManager.updateTaskTitle).not.toHaveBeenCalled();
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({ success: true, message: "Download queued" })
+    );
+  });
+
   it("downloadVideo handles bilibili collection download task", async () => {
     req.body = {
       youtubeUrl: "https://www.bilibili.com/video/BV1xx",
