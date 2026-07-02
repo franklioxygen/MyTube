@@ -8,15 +8,11 @@ import {
 } from "../../../utils/downloadUtils";
 import {
   extractTwitchVideoId,
-  formatVideoFilename,
   isYouTubeUrl,
 } from "../../../utils/helpers";
-import { buildContextFromYtDlpInfo } from "../../filenameTemplate/contextBuilder";
-import { planVideoOutputPaths } from "../../filenameTemplate/renderer";
-import { dedupeRelativePath } from "../../filenameTemplate/dedupe";
 import { resolveManagedWebPath } from "../../filenameTemplate/pathHelpers";
-import { enrichSourceOptionsForDownload } from "../../filenameTemplate/sourceOptions";
 import { FilenameTemplateSourceOptions } from "../../filenameTemplate/types";
+import { planDownloadPaths } from "./downloadPathPlanner";
 import { logger } from "../../../utils/logger";
 import { ProgressTracker } from "../../../utils/progressTracker";
 import { resolvePlayableVideoFilePath } from "../../../utils/videoFileResolver";
@@ -54,8 +50,6 @@ import { downloadVideoAvatar } from "./avatarDownload";
 import {
   createYtDlpOutputTemplate,
   isExpectedTwitchMetadataError,
-  pathExistsWithAnyKnownVideoExtension,
-  stripTrailingExtension,
 } from "./ytdlpVideoHelpers";
 
 /**
@@ -226,133 +220,25 @@ export async function downloadVideo(
       );
     }
 
-    // Plan output paths using the template planner
-    if (downloadFilenamePresetId !== "legacy") {
-      // Non-legacy: use template planner
-      const sourceOptions = enrichSourceOptionsForDownload(
-        {
-          ...filenameTemplateSourceOptions,
-          sourceCollectionType:
-            filenameTemplateSourceOptions?.sourceCollectionType ?? "single",
-        },
-        {
-          author: videoAuthor || info.uploader || info.channel,
-          uploadDate: videoDate,
-        }
-      );
-      const context = buildContextFromYtDlpInfo(videoUrl, info, {
-        ...sourceOptions,
-      });
-      const planned = planVideoOutputPaths({
-        settings,
-        context,
-        videoExtension,
-        thumbnailExtension: "jpg",
-        moveThumbnailsToVideoFolder,
-        moveSubtitlesToVideoFolder,
-      });
-
-      // Deduplicate
-      const dedupedRelative = dedupeRelativePath(
-        planned.video.relativePath,
-        VIDEOS_DIR,
-        new Set()
-      );
-      const stemChanged = dedupedRelative !== planned.video.relativePath;
-      const suffix = stemChanged
-        ? dedupedRelative.slice(
-            planned.video.basenameWithoutExt.length +
-              (planned.video.relativePath.lastIndexOf("/") >= 0
-                ? planned.video.relativePath.lastIndexOf("/") + 1
-                : 0),
-            dedupedRelative.lastIndexOf(".")
-          )
-        : "";
-      const preferredVideoExt = path.extname(dedupedRelative);
-      const videoBaseRelative = stripTrailingExtension(
-        dedupedRelative,
-        preferredVideoExt
-      );
-      let finalVideoRelative = dedupedRelative;
-      let collisionSuffix = "";
-      let counter = 1;
-      while (
-        pathExistsWithAnyKnownVideoExtension(
-          resolveSafeChildPath(VIDEOS_DIR, `${videoBaseRelative}${collisionSuffix}`)
-        )
-      ) {
-        collisionSuffix = `_${counter}`;
-        finalVideoRelative =
-          `${videoBaseRelative}${collisionSuffix}${preferredVideoExt}`;
-        counter++;
-      }
-
-      newVideoPathWithFormat = resolveSafeChildPath(VIDEOS_DIR, finalVideoRelative);
-      finalVideoFilename = path.basename(finalVideoRelative);
-      newSafeBaseFilename =
-        `${planned.video.basenameWithoutExt}${suffix}${collisionSuffix}`;
-
-      // Thumbnail
-      const thumbBase = planned.thumbnail.filename.replace(
-        /\.jpg$/,
-        `${suffix}${collisionSuffix}.jpg`
-      );
-      const thumbDir = path.dirname(planned.thumbnail.relativePath);
-      const thumbRelative =
-        thumbDir && thumbDir !== "." ? `${thumbDir}/${thumbBase}` : thumbBase;
-      newThumbnailPath = resolveSafeChildPath(
-        moveThumbnailsToVideoFolder ? VIDEOS_DIR : IMAGES_DIR,
-        thumbRelative
-      );
-      finalThumbnailFilename = thumbBase;
-
-      logger.info("Preparing video download path (template):", newVideoPathWithFormat);
-    } else {
-      // Legacy: use formatVideoFilename
-      newSafeBaseFilename = formatVideoFilename(
-        videoTitle,
-        videoAuthor,
-        videoDate
-      );
-      const newVideoFilename = `${newSafeBaseFilename}.${videoExtension}`;
-      const newThumbnailFilename = `${newSafeBaseFilename}.jpg`;
-
-      finalVideoFilename = newVideoFilename;
-      finalThumbnailFilename = newThumbnailFilename;
-
-      newVideoPathWithFormat = resolveSafeChildPath(VIDEOS_DIR, finalVideoFilename);
-      newThumbnailPath = moveThumbnailsToVideoFolder
-        ? resolveSafeChildPath(VIDEOS_DIR, finalThumbnailFilename)
-        : resolveSafeChildPath(IMAGES_DIR, finalThumbnailFilename);
-
-      // If file already exists (e.g. redownload), deduplicate the filename
-      if (
-        pathExistsSafeSync(newVideoPathWithFormat, VIDEOS_DIR) ||
-        pathExistsWithAnyKnownVideoExtension(
-          stripTrailingExtension(newVideoPathWithFormat, `.${videoExtension}`)
-        )
-      ) {
-        let counter = 1;
-        const ext = `.${videoExtension}`;
-        const basePath = stripTrailingExtension(newVideoPathWithFormat, ext);
-        const baseName = stripTrailingExtension(finalVideoFilename, ext);
-        while (pathExistsWithAnyKnownVideoExtension(`${basePath}_${counter}`)) {
-          counter++;
-        }
-        newVideoPathWithFormat = `${basePath}_${counter}${ext}`;
-        finalVideoFilename = `${baseName}_${counter}${ext}`;
-        finalThumbnailFilename = finalThumbnailFilename.replace(
-          /\.jpg$/,
-          `_${counter}.jpg`
-        );
-        newThumbnailPath = moveThumbnailsToVideoFolder
-          ? resolveSafeChildPath(VIDEOS_DIR, finalThumbnailFilename)
-          : resolveSafeChildPath(IMAGES_DIR, finalThumbnailFilename);
-        logger.info(`File exists, using deduplicated filename: ${finalVideoFilename}`);
-      }
-
-      logger.info("Preparing video download path:", newVideoPathWithFormat);
-    }
+    // Plan output paths (template planner or legacy naming, with collision
+    // dedup). Extracted to downloadPathPlanner for unit-testability (M-2).
+    const plannedPaths = planDownloadPaths({
+      videoUrl,
+      info,
+      settings,
+      filenameTemplateSourceOptions,
+      videoTitle,
+      videoAuthor,
+      videoDate,
+      videoExtension,
+      moveThumbnailsToVideoFolder,
+      moveSubtitlesToVideoFolder,
+    });
+    newVideoPathWithFormat = plannedPaths.videoAbsolutePath;
+    finalVideoFilename = plannedPaths.videoFilename;
+    newThumbnailPath = plannedPaths.thumbnailAbsolutePath;
+    finalThumbnailFilename = plannedPaths.thumbnailFilename;
+    newSafeBaseFilename = plannedPaths.safeBaseFilename;
 
     // Update output path in flags
     flags.output = createYtDlpOutputTemplate(newVideoPathWithFormat);
