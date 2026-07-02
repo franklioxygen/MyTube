@@ -1095,20 +1095,31 @@ describe('DownloadManager', () => {
 
     it('should clear queue explicitly', async () => {
       downloadManager.setMaxConcurrentDownloads(0);
-      downloadManager.addDownload(
-        vi.fn().mockResolvedValue({ success: true }),
+      const queuedOneFn = vi.fn().mockResolvedValue({ success: true });
+      const queuedTwoFn = vi.fn().mockResolvedValue({ success: true });
+      const queuedOne = downloadManager.addDownload(
+        queuedOneFn,
         'queued-1',
         'Queued 1',
       );
-      downloadManager.addDownload(
-        vi.fn().mockResolvedValue({ success: true }),
+      const queuedTwo = downloadManager.addDownload(
+        queuedTwoFn,
         'queued-2',
         'Queued 2',
       );
       await waitForQueue();
+      const queuedOneRejection = expect(queuedOne).rejects.toThrow(
+        'Download cancelled by user',
+      );
+      const queuedTwoRejection = expect(queuedTwo).rejects.toThrow(
+        'Download cancelled by user',
+      );
 
       downloadManager.clearQueue();
 
+      await Promise.all([queuedOneRejection, queuedTwoRejection]);
+      expect(queuedOneFn).not.toHaveBeenCalled();
+      expect(queuedTwoFn).not.toHaveBeenCalled();
       expect(downloadManager.getStatus().queued).toBe(0);
       expect(storageService.setQueuedDownloads).toHaveBeenCalled();
     });
