@@ -67,10 +67,33 @@ describe("computePreloadStrategy", () => {
     });
 
     describe("without the Network Information API", () => {
-        it("returns 'auto' for desktop Safari (linear WebM loader needs read-ahead)", () => {
+        it("returns 'auto' for desktop Safari WebM (linear WebM loader needs read-ahead)", () => {
             mockUserAgent(UA.safariMac);
             mockMaxTouchPoints(0);
-            expect(computePreloadStrategy()).toBe("auto");
+            expect(computePreloadStrategy({ src: "/videos/clip.webm" })).toBe("auto");
+        });
+
+        it("returns 'metadata' for desktop Safari MP4", () => {
+            mockUserAgent(UA.safariMac);
+            mockMaxTouchPoints(0);
+            expect(computePreloadStrategy({ src: "/videos/clip.mp4" })).toBe("metadata");
+        });
+
+        it("returns 'auto' for desktop Safari WebM when the playback URL has no extension", () => {
+            mockUserAgent(UA.safariMac);
+            mockMaxTouchPoints(0);
+            expect(
+                computePreloadStrategy({
+                    src: "/api/mount-video/v1",
+                    mediaPath: "mount:/library/videos/clip.webm",
+                })
+            ).toBe("auto");
+        });
+
+        it("returns 'metadata' for desktop Safari when neither URL nor media path identifies WebM", () => {
+            mockUserAgent(UA.safariMac);
+            mockMaxTouchPoints(0);
+            expect(computePreloadStrategy({ src: "/api/mount-video/v1" })).toBe("metadata");
         });
 
         it("returns 'metadata' for desktop Firefox (range-seeks fine)", () => {

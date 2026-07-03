@@ -18,7 +18,27 @@ type NavigatorWithConnection = Navigator & {
   webkitConnection?: NetworkInformationLike;
 };
 
-export const computePreloadStrategy = (): "auto" | "metadata" | "none" => {
+type PreloadStrategyInput = {
+  src?: string | null;
+  mediaPath?: string | null;
+};
+
+const hasWebMExtension = (value: string | null | undefined): boolean => {
+  if (!value) {
+    return false;
+  }
+
+  const withoutQuery = value.trim().split(/[?#]/, 1)[0]?.toLowerCase() ?? "";
+  return withoutQuery.endsWith(".webm");
+};
+
+const isWebMSource = ({ src, mediaPath }: PreloadStrategyInput): boolean =>
+  hasWebMExtension(mediaPath) || hasWebMExtension(src);
+
+export const computePreloadStrategy = ({
+  src = null,
+  mediaPath = null,
+}: PreloadStrategyInput = {}): "auto" | "metadata" | "none" => {
   const navigatorWithConnection = navigator as NavigatorWithConnection;
   const connection =
     navigatorWithConnection.connection ||
@@ -45,10 +65,9 @@ export const computePreloadStrategy = (): "auto" | "metadata" | "none" => {
     return "metadata";
   }
 
-  // Desktop Safari gets 'auto': read-ahead buffering is what makes
-  // timeline seeks land in already-buffered data, and Safari's native
-  // WebM pipeline downloads linearly and cannot byte-range seek. Other
-  // desktop browsers without the API (Firefox) range-seek fine and
-  // keep their long-standing 'metadata' behavior.
-  return isSafari() ? "auto" : "metadata";
+  // Desktop Safari gets 'auto' only for WebM: read-ahead buffering is
+  // what makes timeline seeks land in already-buffered data, and
+  // Safari's native WebM pipeline downloads linearly. Other formats and
+  // browsers keep their long-standing 'metadata' behavior.
+  return isSafari() && isWebMSource({ src, mediaPath }) ? "auto" : "metadata";
 };

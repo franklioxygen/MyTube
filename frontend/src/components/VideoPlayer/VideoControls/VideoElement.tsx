@@ -14,6 +14,7 @@ type GlobalVideoCounterScope = typeof globalThis & {
 interface VideoElementProps {
     videoRef: React.RefObject<HTMLVideoElement | null>;
     src: string;
+    mediaPath?: string | null;
     poster?: string;
     isLoading: boolean;
     loadError: string | null;
@@ -40,6 +41,7 @@ interface VideoElementProps {
 const VideoElement: React.FC<VideoElementProps> = ({
     videoRef,
     src,
+    mediaPath,
     poster,
     isLoading,
     loadError,
@@ -72,11 +74,11 @@ const VideoElement: React.FC<VideoElementProps> = ({
         return `video-controls-${Date.now()}-${counter}`;
     }, []);
 
-    // Computed once per mount: the connection info the strategy depends on
-    // does not change mid-playback, and a lazy initializer guarantees the
-    // <video> element never starts loading with a downgraded placeholder.
-    const [preloadStrategy] = React.useState<'auto' | 'metadata' | 'none'>(
-        computePreloadStrategy
+    // Compute during render so the <video> element never starts loading
+    // with a downgraded placeholder, and recalculate when the media changes.
+    const preloadStrategy = useMemo<'auto' | 'metadata' | 'none'>(
+        () => computePreloadStrategy({ src, mediaPath }),
+        [src, mediaPath]
     );
     const [mobileAspectRatio, setMobileAspectRatio] = React.useState<string>('16/9');
 

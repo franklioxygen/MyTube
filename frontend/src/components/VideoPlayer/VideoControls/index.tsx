@@ -14,6 +14,7 @@ import VideoElement from './VideoElement';
 
 interface VideoControlsProps {
     src: string;
+    mediaPath?: string | null;
     autoPlay?: boolean;
     autoLoop?: boolean;
     pauseOnFocusLoss?: boolean;
@@ -39,6 +40,7 @@ interface VideoControlsProps {
 
 const VideoControls: React.FC<VideoControlsProps> = ({
     src,
+    mediaPath,
     autoPlay = false,
     autoLoop = false,
     pauseOnFocusLoss = false,
@@ -222,6 +224,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                 <VideoElement
                     videoRef={videoPlayer.videoRef}
                     src={src}
+                    mediaPath={mediaPath}
                     poster={poster}
                     isLoading={loading.isLoading}
                     loadError={loading.loadError}
