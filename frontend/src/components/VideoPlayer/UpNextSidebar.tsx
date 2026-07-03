@@ -199,9 +199,10 @@ const UpNextSidebar: React.FC<UpNextSidebarProps> = ({
                                                 bottom: 4,
                                                 right: 4,
                                                 padding: 0.5,
-                                                bgcolor: overlay.black90,
+                                                // Light mode: same grey as the player control icons (action.active)
+                                                bgcolor: theme.palette.mode === 'light' ? 'action.active' : overlay.black90,
                                                 color: neutral.white,
-                                                '&:hover': { bgcolor: neutral.black },
+                                                '&:hover': { bgcolor: theme.palette.mode === 'light' ? overlay.black70 : neutral.black },
                                             }}
                                         >
                                             <Add fontSize="small" />
