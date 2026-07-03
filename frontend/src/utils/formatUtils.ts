@@ -327,7 +327,46 @@ export function getLanguageFromSubtitlePath(
   if (lastDot <= 0) return null;
   const withoutExt = basename.slice(0, lastDot);
   const segment = withoutExt.split(".").pop() ?? "";
-  return /^[a-z]{2}(-[A-Z]{2})?$/.test(segment) ? segment : null;
+  return /^[a-z]{2,3}(?:-[a-z]{4})?(?:-(?:[a-z]{2}|\d{3}))?$/i.test(segment)
+    ? segment
+    : null;
+}
+
+const UNKNOWN_SUBTITLE_LANGUAGE_CODES = new Set(["unknown", "und"]);
+
+function getSubtitleLanguageCode(
+  lang: string | null | undefined,
+  pathOrFilename?: string,
+): string {
+  let code = typeof lang === "string" ? lang.trim() : "";
+  const normalizedCode = code.toLowerCase();
+  if (
+    (!code ||
+      UNKNOWN_SUBTITLE_LANGUAGE_CODES.has(normalizedCode) ||
+      normalizedCode === "is") &&
+    pathOrFilename
+  ) {
+    const fromPath = getLanguageFromSubtitlePath(pathOrFilename);
+    if (fromPath) code = fromPath;
+  }
+  return code;
+}
+
+/**
+ * Normalize a subtitle language for HTMLTrackElement.srclang.
+ *
+ * Stored subtitle metadata can contain the legacy sentinel "unknown", but
+ * browsers validate srclang as BCP 47 and warn on that value. BCP 47's "und"
+ * tag represents an undetermined language and keeps the track valid.
+ */
+export function getSubtitleTrackLanguage(
+  lang: string | null | undefined,
+  pathOrFilename?: string,
+): string {
+  const code = getSubtitleLanguageCode(lang, pathOrFilename);
+  return !code || UNKNOWN_SUBTITLE_LANGUAGE_CODES.has(code.toLowerCase())
+    ? "und"
+    : code;
 }
 
 /**
@@ -336,15 +375,12 @@ export function getLanguageFromSubtitlePath(
  * Falls back to uppercase code if Intl is unavailable or code is unknown.
  */
 export function getSubtitleLanguageLabel(
-  lang: string,
+  lang: string | null | undefined,
   pathOrFilename?: string,
 ): string {
-  let code = lang;
-  if ((!code || code === "unknown" || code === "is") && pathOrFilename) {
-    const fromPath = getLanguageFromSubtitlePath(pathOrFilename);
-    if (fromPath) code = fromPath;
-  }
-  if (!code || code === "unknown") return code === "unknown" ? "Unknown" : "";
+  const code = getSubtitleLanguageCode(lang, pathOrFilename);
+  if (!code) return "";
+  if (UNKNOWN_SUBTITLE_LANGUAGE_CODES.has(code.toLowerCase())) return "Unknown";
   try {
     const display = new Intl.DisplayNames(undefined, { type: "language" });
     return display.of(code) ?? code.toUpperCase();

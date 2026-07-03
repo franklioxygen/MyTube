@@ -7,6 +7,9 @@ import {
   formatDuration,
   formatRelativeDownloadTime,
   formatSize,
+  getLanguageFromSubtitlePath,
+  getSubtitleLanguageLabel,
+  getSubtitleTrackLanguage,
   parseDuration,
 } from "../formatUtils";
 
@@ -365,6 +368,43 @@ describe("formatUtils", () => {
         mockTranslation
       );
       expect(result).toBe("2022-11-20");
+    });
+  });
+
+  describe("subtitle language helpers", () => {
+    it("extracts subtitle language from the filename segment before the extension", () => {
+      expect(getLanguageFromSubtitlePath("/subtitles/video.en.vtt")).toBe("en");
+      expect(getLanguageFromSubtitlePath("video.pt-BR.srt")).toBe("pt-BR");
+      expect(getLanguageFromSubtitlePath("video.zh-Hans.vtt")).toBe("zh-Hans");
+      expect(getLanguageFromSubtitlePath("video.unknown.vtt")).toBeNull();
+    });
+
+    it("normalizes legacy unknown subtitle language to a valid srclang tag", () => {
+      expect(
+        getSubtitleTrackLanguage("unknown", "/subtitles/video.unknown.vtt")
+      ).toBe("und");
+      expect(getSubtitleTrackLanguage("", "/subtitles/video.vtt")).toBe("und");
+      expect(getSubtitleTrackLanguage(undefined, "/subtitles/video.vtt")).toBe(
+        "und"
+      );
+    });
+
+    it("uses a filename language before falling back to undetermined", () => {
+      expect(
+        getSubtitleTrackLanguage("unknown", "/subtitles/video.fr.vtt")
+      ).toBe("fr");
+      expect(getSubtitleTrackLanguage("is", "/subtitles/video.en.vtt")).toBe(
+        "en"
+      );
+    });
+
+    it("labels undetermined subtitle languages as unknown", () => {
+      expect(
+        getSubtitleLanguageLabel("unknown", "/subtitles/video.unknown.vtt")
+      ).toBe("Unknown");
+      expect(getSubtitleLanguageLabel("und", "/subtitles/video.und.vtt")).toBe(
+        "Unknown"
+      );
     });
   });
 });
