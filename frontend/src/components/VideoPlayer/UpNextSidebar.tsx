@@ -200,6 +200,8 @@ const UpNextSidebar: React.FC<UpNextSidebarProps> = ({
                                                 right: 4,
                                                 padding: 0.5,
                                                 bgcolor: overlay.black90,
+                                                color: neutral.white,
+                                                '&:hover': { bgcolor: neutral.black },
                                             }}
                                         >
                                             <Add fontSize="small" />
