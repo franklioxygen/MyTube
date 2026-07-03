@@ -52,12 +52,12 @@ const SidebarThumbnail: React.FC<{ video: Video }> = ({ video }) => {
         : undefined;
 
     return (
-        <Box sx={{ width: 168, minWidth: 168, position: 'relative' }}>
+        <Box sx={{ width: 180, minWidth: 180, position: 'relative', borderRadius: '12px', overflow: 'hidden' }}>
             {!isImageLoaded && (
                 <Skeleton
                     variant="rectangular"
                     width="100%"
-                    height={94}
+                    height="100%"
                     animation="wave"
                     sx={{
                         position: 'absolute',
@@ -71,8 +71,9 @@ const SidebarThumbnail: React.FC<{ video: Video }> = ({ video }) => {
                 component="img"
                 loading="lazy"
                 sx={{
+                    display: 'block',
                     width: '100%',
-                    height: 94,
+                    aspectRatio: '16 / 9',
                     objectFit: 'cover',
                     opacity: isImageLoaded ? 1 : 0,
                     transition: 'opacity 0.2s',
@@ -92,8 +93,8 @@ const SidebarThumbnail: React.FC<{ video: Video }> = ({ video }) => {
                     size="small"
                     sx={{
                         position: 'absolute',
-                        bottom: 4,
-                        right: 4,
+                        bottom: 6,
+                        right: 6,
                         height: 20,
                         fontSize: '0.75rem',
                         bgcolor: overlay.black80,
@@ -142,18 +143,31 @@ const UpNextSidebar: React.FC<UpNextSidebarProps> = ({
                     sx={{ ml: 0, mr: 0 }}
                 />
             </Stack>
-            <Grid container spacing={2}>
+            <Grid container spacing={1.5}>
                 {relatedVideos.map(relatedVideo => (
                     <Grid key={relatedVideo.id} size={{ xs: 12, md: 6, lg: 12 }}>
                         <Card
-                            sx={{ display: 'flex', cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' }, position: 'relative' }}
+                            elevation={0}
+                            sx={{
+                                display: 'flex',
+                                cursor: 'pointer',
+                                position: 'relative',
+                                bgcolor: 'transparent',
+                                border: 'none',
+                                boxShadow: 'none',
+                                backdropFilter: 'none',
+                                backgroundImage: 'none',
+                                borderRadius: '12px',
+                                transition: 'background-color 0.15s ease',
+                                '&:hover': { bgcolor: 'action.hover' }
+                            }}
                             onClick={() => onVideoClick(relatedVideo.id)}
                             onMouseEnter={() => setHoveredVideoId(relatedVideo.id)}
                             onMouseLeave={() => setHoveredVideoId(null)}
                         >
                             <SidebarThumbnail video={relatedVideo} />
 
-                            <CardContent sx={{ flex: '1 1 auto', minWidth: 0, p: 1, '&:last-child': { pb: 1 }, position: 'relative', display: 'flex', flexDirection: 'column' }}>
+                            <CardContent sx={{ flex: '1 1 auto', minWidth: 0, py: 0.25, pl: 1.5, pr: 1, '&:last-child': { pb: 0.25 }, position: 'relative', display: 'flex', flexDirection: 'column' }}>
                                 <Typography variant="body2" fontWeight="bold" sx={{ lineHeight: 1.2, mb: 0.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                                     {relatedVideo.title}
                                 </Typography>
