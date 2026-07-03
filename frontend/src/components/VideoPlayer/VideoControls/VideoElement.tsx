@@ -3,7 +3,7 @@ import React, { useMemo } from 'react';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import { neutral, overlay } from '../../../theme/colors';
 import { getBackendUrl } from '../../../utils/apiUrl';
-import { getSubtitleLanguageLabel } from '../../../utils/formatUtils';
+import { getSubtitleLanguageLabel, getSubtitleTrackLanguage } from '../../../utils/formatUtils';
 import { getMediaCrossOriginAttr } from '../../../utils/mediaOrigin';
 
 type GlobalVideoCounterScope = typeof globalThis & {
@@ -249,7 +249,7 @@ const VideoElement: React.FC<VideoElementProps> = ({
                         key={`${subtitle.language}-${index}`}
                         kind="subtitles"
                         src={`${getBackendUrl()}${subtitle.path}`}
-                        srcLang={subtitle.language}
+                        srcLang={getSubtitleTrackLanguage(subtitle.language, subtitle.path)}
                         label={getSubtitleLanguageLabel(subtitle.language, subtitle.path)}
                     />
                 ))}
