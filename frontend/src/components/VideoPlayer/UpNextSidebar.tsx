@@ -52,7 +52,7 @@ const SidebarThumbnail: React.FC<{ video: Video }> = ({ video }) => {
         : undefined;
 
     return (
-        <Box sx={{ width: 180, minWidth: 180, position: 'relative', borderRadius: '12px', overflow: 'hidden' }}>
+        <Box sx={{ width: 180, minWidth: 180, position: 'relative', borderRadius: 2, overflow: 'hidden' }}>
             {!isImageLoaded && (
                 <Skeleton
                     variant="rectangular"
@@ -157,7 +157,7 @@ const UpNextSidebar: React.FC<UpNextSidebarProps> = ({
                                 boxShadow: 'none',
                                 backdropFilter: 'none',
                                 backgroundImage: 'none',
-                                borderRadius: '12px',
+                                borderRadius: 2,
                                 transition: 'background-color 0.15s ease',
                                 '&:hover': { bgcolor: 'action.hover' }
                             }}
@@ -168,7 +168,7 @@ const UpNextSidebar: React.FC<UpNextSidebarProps> = ({
                             <SidebarThumbnail video={relatedVideo} />
 
                             <CardContent sx={{ flex: '1 1 auto', minWidth: 0, py: 0.25, pl: 1.5, pr: 1, '&:last-child': { pb: 0.25 }, position: 'relative', display: 'flex', flexDirection: 'column' }}>
-                                <Typography variant="body2" fontWeight="bold" sx={{ lineHeight: 1.2, mb: 0.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                <Typography variant="body2" fontWeight="bold" sx={{ lineHeight: 1.2, mb: 0.5, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                                     {relatedVideo.title}
                                 </Typography>
                                 <Typography
