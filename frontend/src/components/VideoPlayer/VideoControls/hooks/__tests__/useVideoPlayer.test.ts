@@ -175,8 +175,9 @@ describe("useVideoPlayer startTime behavior", () => {
       result.current.handleLoadedMetadata({ currentTarget: videoElement } as React.SyntheticEvent<HTMLVideoElement>);
     });
 
-    // startTime should be applied
-    expect(videoElement.currentTime).toBe(30);
+    // startTime should be applied with a single seek
+    expect(videoElement.fastSeek).toHaveBeenCalledWith(30);
+    expect(videoElement.fastSeek).toHaveBeenCalledTimes(1);
   });
 
   it("should apply startTime only once via handleCanPlay", () => {
@@ -191,7 +192,7 @@ describe("useVideoPlayer startTime behavior", () => {
       result.current.handleCanPlay();
     });
 
-    expect(videoElement.currentTime).toBe(30);
+    expect(videoElement.fastSeek).toHaveBeenCalledWith(30);
 
     // Reset currentTime to 0 (simulating user seek to 0)
     videoElement.currentTime = 0;
@@ -201,7 +202,8 @@ describe("useVideoPlayer startTime behavior", () => {
       result.current.handleCanPlay();
     });
 
-    // currentTime should remain at 0, not reset to 30
+    // No second seek back to startTime
+    expect(videoElement.fastSeek).toHaveBeenCalledTimes(1);
     expect(videoElement.currentTime).toBe(0);
   });
 
@@ -217,12 +219,14 @@ describe("useVideoPlayer startTime behavior", () => {
       result.current.handleLoadedMetadata({ currentTarget: videoElement } as React.SyntheticEvent<HTMLVideoElement>);
     });
 
-    expect(videoElement.currentTime).toBe(30);
+    expect(videoElement.fastSeek).toHaveBeenCalledWith(30);
 
     // User seeks to 0
     act(() => {
       result.current.handleProgressChangeCommitted(0);
     });
+
+    expect(videoElement.fastSeek).toHaveBeenLastCalledWith(0);
 
     // Simulate canplay event after seek
     videoElement.currentTime = 0;
@@ -230,7 +234,8 @@ describe("useVideoPlayer startTime behavior", () => {
       result.current.handleCanPlay();
     });
 
-    // Should stay at 0, not reset to startTime
+    // Should stay at 0, not seek back to startTime
+    expect(videoElement.fastSeek).toHaveBeenCalledTimes(2);
     expect(videoElement.currentTime).toBe(0);
   });
 
@@ -275,7 +280,7 @@ describe("useVideoPlayer startTime behavior", () => {
       } as React.SyntheticEvent<HTMLVideoElement>);
     });
 
-    expect(videoElement.currentTime).toBe(10);
+    expect(videoElement.fastSeek).toHaveBeenCalledWith(10);
 
     videoElement.fastSeek = vi.fn();
     videoElement.currentTime = 10.4;
@@ -283,7 +288,6 @@ describe("useVideoPlayer startTime behavior", () => {
     rerender({ src: "test.mp4", startTime: 45 });
 
     expect(videoElement.fastSeek).toHaveBeenCalledWith(45);
-    expect(videoElement.currentTime).toBe(45);
   });
 
   it("should not seek again when startTime changes during active playback", () => {

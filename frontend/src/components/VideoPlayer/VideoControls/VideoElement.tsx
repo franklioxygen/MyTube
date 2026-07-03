@@ -21,6 +21,37 @@ type NavigatorWithConnection = Navigator & {
     webkitConnection?: NetworkInformationLike;
 };
 
+const isLikelyMobileUserAgent = (): boolean =>
+    /iPhone|iPod|Android.*Mobile|Mobi/i.test(navigator.userAgent);
+
+const computePreloadStrategy = (): 'auto' | 'metadata' | 'none' => {
+    const navigatorWithConnection = navigator as NavigatorWithConnection;
+    const connection =
+        navigatorWithConnection.connection ||
+        navigatorWithConnection.mozConnection ||
+        navigatorWithConnection.webkitConnection;
+
+    if (connection) {
+        const type = connection.effectiveType; // 'slow-2g', '2g', '3g', '4g'
+        const saveData = connection.saveData;
+
+        if (saveData) {
+            return 'none'; // Save data mode -> minimal loading
+        }
+        if (type === '4g') {
+            return 'auto'; // Good connection -> auto preload
+        }
+        return 'metadata'; // Slower connection -> metadata only
+    }
+
+    // Browsers without the Network Information API (Safari, Firefox).
+    // Desktop gets 'auto': read-ahead buffering is what makes timeline
+    // seeks land in already-buffered data — critical for Safari, whose
+    // native WebM pipeline downloads linearly and cannot byte-range
+    // seek. Mobile stays conservative to avoid burning cellular data.
+    return isLikelyMobileUserAgent() ? 'metadata' : 'auto';
+};
+
 interface VideoElementProps {
     videoRef: React.RefObject<HTMLVideoElement | null>;
     src: string;
@@ -82,39 +113,18 @@ const VideoElement: React.FC<VideoElementProps> = ({
         return `video-controls-${Date.now()}-${counter}`;
     }, []);
 
-    const [preloadStrategy, setPreloadStrategy] = React.useState<'auto' | 'metadata' | 'none'>('metadata');
+    // Computed once per mount: the connection info the strategy depends on
+    // does not change mid-playback, and a lazy initializer guarantees the
+    // <video> element never starts loading with a downgraded placeholder.
+    const [preloadStrategy] = React.useState<'auto' | 'metadata' | 'none'>(
+        computePreloadStrategy
+    );
     const [mobileAspectRatio, setMobileAspectRatio] = React.useState<string>('16/9');
 
     React.useEffect(() => {
         // Reset to default ratio while new source metadata is loading
         setMobileAspectRatio('16/9');
     }, [src]);
-
-    React.useEffect(() => {
-        // Dynamic preload strategy based on connection
-        const navigatorWithConnection = navigator as NavigatorWithConnection;
-        const connection =
-            navigatorWithConnection.connection ||
-            navigatorWithConnection.mozConnection ||
-            navigatorWithConnection.webkitConnection;
-
-        if (connection) {
-            // If we have connection info
-            const type = connection.effectiveType; // 'slow-2g', '2g', '3g', '4g'
-            const saveData = connection.saveData; // boolean
-
-            if (saveData) {
-                setPreloadStrategy('none'); // Save data mode -> minimal loading
-            } else if (type === '4g' && !saveData) {
-                setPreloadStrategy('auto'); // Good connection -> auto preload
-            } else {
-                setPreloadStrategy('metadata'); // Slower connection -> metadata only
-            }
-        } else {
-            // Fallback for browsers without Network Information API
-            setPreloadStrategy('metadata');
-        }
-    }, []);
 
     return (
         <Box

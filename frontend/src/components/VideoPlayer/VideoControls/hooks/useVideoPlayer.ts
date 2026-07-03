@@ -58,10 +58,16 @@ export const useVideoPlayer = ({
   const seekTo = useCallback((videoElement: HTMLVideoElement, time: number) => {
     const safeTime = clampPlaybackTime(time, videoElement.duration);
 
+    // Issue exactly one seek. Calling fastSeek() and then assigning
+    // currentTime queues two seek operations; Safari's linear WebM loader
+    // restarts its full-file download for each one, doubling seek latency
+    // and bandwidth. fastSeek (keyframe-aligned, Safari/Firefox) is
+    // preferred for speed; precise seeking is the fallback elsewhere.
     if (typeof videoElement.fastSeek === "function") {
       videoElement.fastSeek(safeTime);
+    } else {
+      videoElement.currentTime = safeTime;
     }
-    videoElement.currentTime = safeTime;
     setCurrentTime(safeTime);
   }, [clampPlaybackTime]);
 
@@ -112,7 +118,8 @@ export const useVideoPlayer = ({
     }
 
     if (src) {
-      videoElement.preload = "metadata";
+      // preload is governed by the <video preload> prop in VideoElement;
+      // overriding it here would defeat the adaptive preload strategy.
       videoElement.src = src;
       // Reset flag when setting new source (for initial load)
       if (!previousSrc) {
@@ -180,7 +187,6 @@ export const useVideoPlayer = ({
     setIsPlaying(!isPlaying);
   };
 
-  // Seek using fastSeek() on mobile for better audio sync, fallback to currentTime
   const handleSeek = useCallback((seconds: number) => {
     const videoElement = videoRef.current;
     if (!videoElement || !isFinite(videoElement.duration)) return;
