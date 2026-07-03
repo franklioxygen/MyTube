@@ -312,6 +312,57 @@ describe("useVideoPlayer startTime behavior", () => {
     expect(videoElement.fastSeek).not.toHaveBeenCalled();
     expect(videoElement.currentTime).toBe(35);
   });
+
+  it("suppresses pre-restore timeupdates so they cannot clobber saved progress", () => {
+    const onTimeUpdate = vi.fn();
+    const { result } = renderHook(() =>
+      useVideoPlayer({ src: "test.mp4", startTime: 30, onTimeUpdate })
+    );
+
+    result.current.videoRef.current = videoElement;
+
+    // Safari emits a timeupdate at ~0 before the restore seek is issued
+    // at loadedmetadata; it must not reach the progress tracker.
+    videoElement.currentTime = 0.4;
+    act(() => {
+      result.current.handleTimeUpdate({ currentTarget: videoElement } as React.SyntheticEvent<HTMLVideoElement>);
+    });
+
+    expect(onTimeUpdate).not.toHaveBeenCalled();
+    expect(result.current.currentTime).toBe(0);
+
+    // Restore applies at loadedmetadata...
+    act(() => {
+      result.current.handleLoadedMetadata({ currentTarget: videoElement } as React.SyntheticEvent<HTMLVideoElement>);
+    });
+    expect(videoElement.currentTime).toBe(30);
+
+    // ...after which timeupdates flow again.
+    videoElement.currentTime = 30.2;
+    act(() => {
+      result.current.handleTimeUpdate({ currentTarget: videoElement } as React.SyntheticEvent<HTMLVideoElement>);
+    });
+
+    expect(onTimeUpdate).toHaveBeenCalledWith(30.2);
+  });
+
+  it("propagates timeupdates past the tolerance even if the restore never applied", () => {
+    const onTimeUpdate = vi.fn();
+    const { result } = renderHook(() =>
+      useVideoPlayer({ src: "test.mp4", startTime: 30, onTimeUpdate })
+    );
+
+    result.current.videoRef.current = videoElement;
+
+    // Escape valve: if playback somehow progresses without the restore
+    // being applied, progress saving must not stay suppressed.
+    videoElement.currentTime = 5;
+    act(() => {
+      result.current.handleTimeUpdate({ currentTarget: videoElement } as React.SyntheticEvent<HTMLVideoElement>);
+    });
+
+    expect(onTimeUpdate).toHaveBeenCalledWith(5);
+  });
 });
 
 describe("useVideoPlayer playbackRate behavior", () => {

@@ -116,6 +116,8 @@ describe("useVideoProgress", () => {
   });
 
   it("syncs progress writes into the cache before the view threshold is reached", async () => {
+    let now = 1000;
+    const dateNowSpy = vi.spyOn(Date, "now").mockImplementation(() => now);
     const video = {
       id: "video-2",
       duration: "120",
@@ -131,6 +133,7 @@ describe("useVideoProgress", () => {
       { wrapper },
     );
 
+    now = 7000;
     act(() => {
       result.current.handleTimeUpdate(5);
     });
@@ -189,6 +192,8 @@ describe("useVideoProgress", () => {
     act(() => {
       result.current.setIsDeleting(true);
     });
+
+    dateNowSpy.mockRestore();
   });
 
   it("sends progress on unmount and keeps the cache resume point fresh", () => {
@@ -249,6 +254,8 @@ describe("useVideoProgress", () => {
   });
 
   it("does not persist exact duration as the resume progress", () => {
+    let now = 1000;
+    const dateNowSpy = vi.spyOn(Date, "now").mockImplementation(() => now);
     const video = {
       id: "video-4",
       duration: "120",
@@ -264,6 +271,7 @@ describe("useVideoProgress", () => {
       { wrapper },
     );
 
+    now = 7000;
     act(() => {
       result.current.handleTimeUpdate(120);
     });
@@ -276,5 +284,50 @@ describe("useVideoProgress", () => {
         progress: 119,
       })
     );
+
+    dateNowSpy.mockRestore();
+  });
+
+  it("does not clobber saved progress with an immediate save on the first timeupdate", () => {
+    let now = 1000;
+    const dateNowSpy = vi.spyOn(Date, "now").mockImplementation(() => now);
+    const video = {
+      id: "video-5",
+      duration: "1776",
+      progress: 1222,
+      viewCount: 0,
+    } as any;
+    const { queryClient, wrapper } = createWrapper();
+    queryClient.setQueryData(["videos"], [video]);
+    queryClient.setQueryData(["video", "video-5"], video);
+
+    const { result } = renderHook(
+      () => useVideoProgress({ videoId: "video-5", video }),
+      { wrapper },
+    );
+
+    // Pre-restore tick at ~0, right after mount: the old code saved
+    // instantly here (throttle clock started at 0), overwriting the
+    // stored resume position with 0.
+    act(() => {
+      result.current.handleTimeUpdate(0.3);
+    });
+
+    expect(mockApiPut).not.toHaveBeenCalled();
+    expect(queryClient.getQueryData(["video", "video-5"])).toEqual(
+      expect.objectContaining({ progress: 1222 })
+    );
+
+    // Once real playback has run past the throttle window, saves flow.
+    now = 7000;
+    act(() => {
+      result.current.handleTimeUpdate(1230);
+    });
+
+    expect(mockApiPut).toHaveBeenCalledWith("/videos/video-5/progress", {
+      progress: 1230,
+    });
+
+    dateNowSpy.mockRestore();
   });
 });

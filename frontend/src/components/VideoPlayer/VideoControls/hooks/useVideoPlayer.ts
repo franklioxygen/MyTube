@@ -239,6 +239,20 @@ export const useVideoPlayer = ({
       return;
     }
 
+    // Drop pre-restore ticks. Browsers (Safari in particular) emit a
+    // timeupdate at ~0 before the saved-progress seek is issued at
+    // loadedmetadata; propagating it lets the progress tracker
+    // overwrite the stored position with 0. The tolerance check is an
+    // escape valve: if the restore is ever skipped, ticks past 1s flow
+    // again so progress saving cannot stay suppressed for a session.
+    if (
+      startTime > 0 &&
+      !startTimeAppliedRef.current &&
+      time < START_TIME_APPLY_TOLERANCE_SECONDS
+    ) {
+      return;
+    }
+
     setCurrentTime(time);
 
     if (onTimeUpdate) {
