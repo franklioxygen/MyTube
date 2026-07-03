@@ -43,7 +43,7 @@ describe("useVideoPlayer seek behavior", () => {
     });
   });
 
-  it("should use fastSeek when seeking to a non-zero time if available", () => {
+  it("seeks via a single currentTime assignment, never fastSeek", () => {
     const { result } = renderHook(() => useVideoPlayer({ src: "test.mp4" }));
 
     // Manually set the current ref value since renderHook won't attach it to our mock
@@ -63,7 +63,10 @@ describe("useVideoPlayer seek behavior", () => {
       result.current.handleSeek(-40); // 50 - 40 = 10
     });
 
-    expect(videoElement.fastSeek).toHaveBeenCalledWith(10);
+    expect(videoElement.currentTime).toBe(10);
+    // Safari silently ignores fastSeek() for the saved-progress seek
+    // issued right after loadedmetadata, so it must never be used.
+    expect(videoElement.fastSeek).not.toHaveBeenCalled();
   });
 
   it("should allow seeking to 0 via handleSeek", () => {
@@ -84,8 +87,8 @@ describe("useVideoPlayer seek behavior", () => {
       result.current.handleSeek(-60); // max(0, 50 - 60) = 0
     });
 
-    // fastSeek should be called with 0
-    expect(videoElement.fastSeek).toHaveBeenCalledWith(0);
+    expect(videoElement.currentTime).toBe(0);
+    expect(videoElement.fastSeek).not.toHaveBeenCalled();
   });
 
   it("should allow seeking to 0 via slider", () => {
@@ -106,8 +109,8 @@ describe("useVideoPlayer seek behavior", () => {
       result.current.handleProgressChangeCommitted(0);
     });
 
-    // fastSeek should be called with 0
-    expect(videoElement.fastSeek).toHaveBeenCalledWith(0);
+    expect(videoElement.currentTime).toBe(0);
+    expect(videoElement.fastSeek).not.toHaveBeenCalled();
   });
 
   it("treats progress slider values as seconds instead of percent", () => {
@@ -127,7 +130,7 @@ describe("useVideoPlayer seek behavior", () => {
       result.current.handleProgressChangeCommitted(50);
     });
 
-    expect(videoElement.fastSeek).toHaveBeenCalledWith(50);
+    expect(videoElement.currentTime).toBe(50);
   });
 
   it("does not seek progress slider commits to the exact end", () => {
@@ -143,7 +146,7 @@ describe("useVideoPlayer seek behavior", () => {
       result.current.handleProgressChangeCommitted(100);
     });
 
-    expect(videoElement.fastSeek).toHaveBeenCalledWith(99.75);
+    expect(videoElement.currentTime).toBe(99.75);
   });
 });
 
@@ -175,9 +178,10 @@ describe("useVideoPlayer startTime behavior", () => {
       result.current.handleLoadedMetadata({ currentTarget: videoElement } as React.SyntheticEvent<HTMLVideoElement>);
     });
 
-    // startTime should be applied with a single seek
-    expect(videoElement.fastSeek).toHaveBeenCalledWith(30);
-    expect(videoElement.fastSeek).toHaveBeenCalledTimes(1);
+    // startTime must be applied via currentTime: Safari silently ignores
+    // fastSeek() for this restore seek and playback would start from 0.
+    expect(videoElement.currentTime).toBe(30);
+    expect(videoElement.fastSeek).not.toHaveBeenCalled();
   });
 
   it("should apply startTime only once via handleCanPlay", () => {
@@ -192,7 +196,7 @@ describe("useVideoPlayer startTime behavior", () => {
       result.current.handleCanPlay();
     });
 
-    expect(videoElement.fastSeek).toHaveBeenCalledWith(30);
+    expect(videoElement.currentTime).toBe(30);
 
     // Reset currentTime to 0 (simulating user seek to 0)
     videoElement.currentTime = 0;
@@ -202,8 +206,7 @@ describe("useVideoPlayer startTime behavior", () => {
       result.current.handleCanPlay();
     });
 
-    // No second seek back to startTime
-    expect(videoElement.fastSeek).toHaveBeenCalledTimes(1);
+    // currentTime should remain at 0, not reset to 30
     expect(videoElement.currentTime).toBe(0);
   });
 
@@ -219,23 +222,21 @@ describe("useVideoPlayer startTime behavior", () => {
       result.current.handleLoadedMetadata({ currentTarget: videoElement } as React.SyntheticEvent<HTMLVideoElement>);
     });
 
-    expect(videoElement.fastSeek).toHaveBeenCalledWith(30);
+    expect(videoElement.currentTime).toBe(30);
 
     // User seeks to 0
     act(() => {
       result.current.handleProgressChangeCommitted(0);
     });
 
-    expect(videoElement.fastSeek).toHaveBeenLastCalledWith(0);
+    expect(videoElement.currentTime).toBe(0);
 
     // Simulate canplay event after seek
-    videoElement.currentTime = 0;
     act(() => {
       result.current.handleCanPlay();
     });
 
     // Should stay at 0, not seek back to startTime
-    expect(videoElement.fastSeek).toHaveBeenCalledTimes(2);
     expect(videoElement.currentTime).toBe(0);
   });
 
@@ -260,8 +261,8 @@ describe("useVideoPlayer startTime behavior", () => {
     // Simulate fetch completing and updating startTime to 45
     rerender({ src: "test.mp4", startTime: 45 });
 
-    // Should update to new startTime using fastSeek
-    expect(videoElement.fastSeek).toHaveBeenCalledWith(45);
+    // Should update to new startTime
+    expect(videoElement.currentTime).toBe(45);
   });
 
   it("should apply a fresher positive startTime while playback is still near the previous resume point", () => {
@@ -280,14 +281,13 @@ describe("useVideoPlayer startTime behavior", () => {
       } as React.SyntheticEvent<HTMLVideoElement>);
     });
 
-    expect(videoElement.fastSeek).toHaveBeenCalledWith(10);
+    expect(videoElement.currentTime).toBe(10);
 
-    videoElement.fastSeek = vi.fn();
     videoElement.currentTime = 10.4;
 
     rerender({ src: "test.mp4", startTime: 45 });
 
-    expect(videoElement.fastSeek).toHaveBeenCalledWith(45);
+    expect(videoElement.currentTime).toBe(45);
   });
 
   it("should not seek again when startTime changes during active playback", () => {
@@ -539,7 +539,7 @@ describe("useVideoPlayer lifecycle and interaction behavior", () => {
     expect(result.current.isLooping).toBe(true);
   });
 
-  it("falls back to currentTime when fastSeek is unavailable", () => {
+  it("seeks via currentTime when fastSeek is not defined on the element", () => {
     const { result } = renderHook(() => useVideoPlayer({ src: "test.mp4" }));
     const player = document.createElement("video");
     Object.defineProperty(player, "duration", {
