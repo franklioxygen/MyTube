@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { getAvailablePlayers, getPlayerUrl, isAndroid, isIOS, isMac, isWindows } from '../playerUtils';
+import { getAvailablePlayers, getPlayerUrl, isAndroid, isIOS, isMac, isSafari, isWindows } from '../playerUtils';
 
 describe('playerUtils', () => {
     const originalUserAgent = navigator.userAgent;
@@ -35,6 +35,21 @@ describe('playerUtils', () => {
          it('should detect Android', () => {
             mockUserAgent('Mozilla/5.0 (Linux; Android 10; SM-G960U)');
             expect(isAndroid()).toBe(true);
+        });
+
+        it('should detect desktop Safari', () => {
+            mockUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.5.2 Safari/605.1.15');
+            expect(isSafari()).toBe(true);
+        });
+
+        it('should detect iOS Safari', () => {
+            mockUserAgent('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1');
+            expect(isSafari()).toBe(true);
+        });
+
+        it('should not report Chrome as Safari despite its Safari UA token', () => {
+            mockUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36');
+            expect(isSafari()).toBe(false);
         });
     });
 

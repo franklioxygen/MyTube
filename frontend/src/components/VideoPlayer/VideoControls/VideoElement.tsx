@@ -5,51 +5,10 @@ import { neutral, overlay } from '../../../theme/colors';
 import { getBackendUrl } from '../../../utils/apiUrl';
 import { getSubtitleLanguageLabel } from '../../../utils/formatUtils';
 import { getMediaCrossOriginAttr } from '../../../utils/mediaOrigin';
+import { computePreloadStrategy } from '../../../utils/preloadStrategy';
 
 type GlobalVideoCounterScope = typeof globalThis & {
     __videoControlCounter?: number;
-};
-
-type NetworkInformationLike = {
-    effectiveType?: string;
-    saveData?: boolean;
-};
-
-type NavigatorWithConnection = Navigator & {
-    connection?: NetworkInformationLike;
-    mozConnection?: NetworkInformationLike;
-    webkitConnection?: NetworkInformationLike;
-};
-
-const isLikelyMobileUserAgent = (): boolean =>
-    /iPhone|iPod|Android.*Mobile|Mobi/i.test(navigator.userAgent);
-
-const computePreloadStrategy = (): 'auto' | 'metadata' | 'none' => {
-    const navigatorWithConnection = navigator as NavigatorWithConnection;
-    const connection =
-        navigatorWithConnection.connection ||
-        navigatorWithConnection.mozConnection ||
-        navigatorWithConnection.webkitConnection;
-
-    if (connection) {
-        const type = connection.effectiveType; // 'slow-2g', '2g', '3g', '4g'
-        const saveData = connection.saveData;
-
-        if (saveData) {
-            return 'none'; // Save data mode -> minimal loading
-        }
-        if (type === '4g') {
-            return 'auto'; // Good connection -> auto preload
-        }
-        return 'metadata'; // Slower connection -> metadata only
-    }
-
-    // Browsers without the Network Information API (Safari, Firefox).
-    // Desktop gets 'auto': read-ahead buffering is what makes timeline
-    // seeks land in already-buffered data — critical for Safari, whose
-    // native WebM pipeline downloads linearly and cannot byte-range
-    // seek. Mobile stays conservative to avoid burning cellular data.
-    return isLikelyMobileUserAgent() ? 'metadata' : 'auto';
 };
 
 interface VideoElementProps {

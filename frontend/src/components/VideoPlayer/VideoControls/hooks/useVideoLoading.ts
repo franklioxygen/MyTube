@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useLanguage } from "../../../../contexts/LanguageContext";
+import { isSafari } from "../../../../utils/playerUtils";
 
 export const useVideoLoading = () => {
   const { t } = useLanguage();
@@ -55,10 +56,7 @@ export const useVideoLoading = () => {
       console.error("Video error code:", videoElement.error.code);
       console.error("Video error message:", videoElement.error.message);
 
-      // Detect Safari browser
-      const isSafari = /^((?!chrome|android).)*safari/i.test(
-        navigator.userAgent,
-      );
+      const safari = isSafari();
 
       let errorMessage = t("failedToLoadVideo");
       switch (videoElement.error.code) {
@@ -70,7 +68,7 @@ export const useVideoLoading = () => {
           break;
         case 3: // MEDIA_ERR_DECODE
           // Safari-specific message for decode errors (often codec-related)
-          if (isSafari) {
+          if (safari) {
             const src = videoElement.src || "";
             const isWebM = src.toLowerCase().includes(".webm");
             if (isWebM) {
@@ -83,7 +81,7 @@ export const useVideoLoading = () => {
           }
           break;
         case 4: // MEDIA_ERR_SRC_NOT_SUPPORTED
-          if (isSafari) {
+          if (safari) {
             errorMessage = t("safariVideoFormatNotSupported");
           } else {
             errorMessage = t("browserVideoFormatNotSupported");
