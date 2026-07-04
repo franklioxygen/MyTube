@@ -10,6 +10,7 @@ interface Options {
   platform?: string | null;
   // optional related event id — use VideoContext.lastSearchEventId for search-origin plays
   relatedEventId?: string | null;
+  autoplayFromVideoId?: string | null;
 }
 
 // Tracks qualified playback time and emits:
@@ -25,7 +26,7 @@ interface Options {
 // Buffering, seeking, and rate changes do not contribute time. Only wall-clock
 // playback advances qualified time.
 export function useStatisticsWatchTracker(options: Options): void {
-  const { videoRef, videoId, platform, relatedEventId } = options;
+  const { videoRef, videoId, platform, relatedEventId, autoplayFromVideoId } = options;
   const {
     enabled,
     recordEvent,
@@ -43,12 +44,37 @@ export function useStatisticsWatchTracker(options: Options): void {
   );
   const isPiPRef = useRef<boolean>(false);
   const tickTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const qualifiedSessionSecondsRef = useRef<number>(0);
+  const autoplayAbandonedRecordedRef = useRef<boolean>(false);
 
   useEffect(() => {
     if (!enabled) return;
     if (!videoId) return;
     const videoEl = videoRef.current;
     if (!videoEl) return;
+
+    const recordAutoplayAbandonedIfNeeded = () => {
+      if (!autoplayFromVideoId || autoplayAbandonedRecordedRef.current) return;
+      if (!playSessionRef.current?.active) return;
+
+      const qualifiedSeconds = Math.round(qualifiedSessionSecondsRef.current);
+      if (qualifiedSeconds >= 30) return;
+
+      autoplayAbandonedRecordedRef.current = true;
+      recordEvent({
+        eventType: 'autoplay_abandoned',
+        surface: 'web',
+        videoId,
+        platform: (platform ?? null) as any,
+        durationSeconds: qualifiedSeconds,
+        relatedEventId,
+        payload: {
+          fromVideoId: autoplayFromVideoId,
+          toVideoId: videoId,
+          qualifiedSeconds,
+        },
+      });
+    };
 
     const flushChunk = () => {
       if (accumulatedRef.current >= 1) {
@@ -71,6 +97,8 @@ export function useStatisticsWatchTracker(options: Options): void {
     const startSessionIfNeeded = () => {
       if (playSessionRef.current?.active) return;
       playSessionRef.current = { active: true, startedAt: Date.now() };
+      qualifiedSessionSecondsRef.current = 0;
+      autoplayAbandonedRecordedRef.current = false;
       recordEvent({
         eventType: 'video_play_started',
         surface: 'web',
@@ -81,8 +109,11 @@ export function useStatisticsWatchTracker(options: Options): void {
       });
     };
 
-    const endSession = () => {
+    const endSession = (recordAbandonment = true) => {
       flushChunk();
+      if (recordAbandonment) {
+        recordAutoplayAbandonedIfNeeded();
+      }
       playSessionRef.current = null;
     };
 
@@ -102,6 +133,7 @@ export function useStatisticsWatchTracker(options: Options): void {
           const elapsed = (now - lastTickRef.current) / 1000;
           if (elapsed > 0 && elapsed < 5) {
             accumulatedRef.current += elapsed * (videoEl.playbackRate > 0 ? 1 : 1);
+            qualifiedSessionSecondsRef.current += elapsed;
           }
         }
         lastTickRef.current = now;
@@ -121,7 +153,7 @@ export function useStatisticsWatchTracker(options: Options): void {
       flushChunk();
     };
     const handleEnded = () => {
-      endSession();
+      endSession(false);
     };
     const handleSeeking = () => {
       flushChunk();
@@ -169,7 +201,18 @@ export function useStatisticsWatchTracker(options: Options): void {
         tickTimerRef.current = null;
       }
       flushChunk();
+      recordAutoplayAbandonedIfNeeded();
       flushNow();
     };
-  }, [enabled, flushKeepalive, flushNow, platform, recordEvent, relatedEventId, videoId, videoRef]);
+  }, [
+    autoplayFromVideoId,
+    enabled,
+    flushKeepalive,
+    flushNow,
+    platform,
+    recordEvent,
+    relatedEventId,
+    videoId,
+    videoRef
+  ]);
 }

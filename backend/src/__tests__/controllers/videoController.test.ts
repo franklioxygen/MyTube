@@ -18,6 +18,7 @@ import { rateVideo } from "../../controllers/videoMetadataController";
 import downloadManager from "../../services/downloadManager";
 import * as downloadService from "../../services/downloadService";
 import { isLoginRequired } from "../../services/passwordService";
+import { invalidateRecommendationSignalsCache } from "../../services/recommendationSignalsService";
 import * as storageService from "../../services/storageService";
 
 vi.mock("../../db", () => ({
@@ -35,6 +36,9 @@ vi.mock("../../db", () => ({
 
 vi.mock("../../services/downloadService");
 vi.mock("../../services/storageService");
+vi.mock("../../services/recommendationSignalsService", () => ({
+  invalidateRecommendationSignalsCache: vi.fn(),
+}));
 // isLoginRequired defaults to false (single-user mode) so existing tests are
 // unaffected; visitor-visibility tests opt into login-enabled per-case.
 vi.mock("../../services/passwordService", async (importOriginal) => {
@@ -583,6 +587,18 @@ describe("VideoController", () => {
 
       updateVideoDetails(req as Request, res as Response);
 
+      expect(status).toHaveBeenCalledWith(200);
+    });
+
+    it("invalidates recommendation signals when visibility changes", () => {
+      req.params = { id: "1" };
+      req.body = { visibility: 0 };
+      const mockVideo = { id: "1", visibility: 0 };
+      (storageService.updateVideo as any).mockReturnValue(mockVideo);
+
+      updateVideoDetails(req as Request, res as Response);
+
+      expect(invalidateRecommendationSignalsCache).toHaveBeenCalledTimes(1);
       expect(status).toHaveBeenCalledWith(200);
     });
 

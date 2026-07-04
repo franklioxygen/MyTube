@@ -6,6 +6,7 @@ import path from "path";
 import { SUBTITLES_DIR, VIDEOS_DIR } from "../config/paths";
 import { NotFoundError, ValidationError } from "../errors/DownloadErrors";
 import { syncMediaServerArtifactsForRecord } from "../services/mediaServerExport";
+import { invalidateRecommendationSignalsCache } from "../services/recommendationSignalsService";
 import * as storageService from "../services/storageService";
 import { addTagsToGlobalSettings } from "../services/tagService";
 import { logger } from "../utils/logger";
@@ -362,6 +363,10 @@ export const updateVideoDetails = async (
   // tagging a video also appear in Tags Management and as suggestions.
   if (Array.isArray(allowedUpdates.tags) && allowedUpdates.tags.length > 0) {
     addTagsToGlobalSettings(allowedUpdates.tags);
+  }
+
+  if (allowedUpdates.visibility !== undefined) {
+    invalidateRecommendationSignalsCache();
   }
 
   syncMediaServerArtifactsForRecord(updatedVideo);

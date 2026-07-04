@@ -8,6 +8,7 @@ import { logger } from "../../utils/logger";
 import * as storageService from "../storageService";
 import { Settings } from "../../types/settings";
 import {
+  FRONTEND_EVENT_TYPES,
   StatisticsEventInput,
   StatisticsEventType,
 } from "./eventTypes";
@@ -383,14 +384,17 @@ interface BatchIngestOptions {
   serverSessionId?: string;
 }
 
-const FRONTEND_ALLOWED_TYPES: ReadonlySet<StatisticsEventType> = new Set<StatisticsEventType>([
-  "search_submitted",
-  "video_play_started",
-  "video_watch_chunk_recorded",
-]);
-
 const MAX_VISITOR_WATCH_CHUNK_SECONDS = 120;
 const MAX_VISITOR_SEARCH_RESULT_COUNT = 10_000;
+// autoplay_abandoned only fires below 30 qualified seconds, so anything larger
+// is forged; up_next_clicked positions are 1-based slate indexes.
+const MAX_VISITOR_AUTOPLAY_ABANDONED_SECONDS = 30;
+const MAX_VISITOR_UP_NEXT_POSITION = 100;
+const VISITOR_UP_NEXT_LANES: ReadonlySet<string> = new Set([
+  "continue",
+  "related",
+  "discover",
+]);
 
 function sanitizeBoundedInteger(
   value: unknown,
@@ -403,16 +407,44 @@ function sanitizeBoundedInteger(
 }
 
 function sanitizeVisitorDurationSeconds(event: BatchIngestEvent): number | undefined {
-  if (event.eventType !== "video_watch_chunk_recorded") {
+  if (event.eventType === "video_watch_chunk_recorded") {
+    return sanitizeBoundedInteger(
+      event.durationSeconds,
+      MAX_VISITOR_WATCH_CHUNK_SECONDS
+    );
+  }
+  if (event.eventType === "autoplay_abandoned") {
+    return sanitizeBoundedInteger(
+      event.durationSeconds,
+      MAX_VISITOR_AUTOPLAY_ABANDONED_SECONDS
+    );
+  }
+  return undefined;
+}
+
+function sanitizeVisitorValue(event: BatchIngestEvent): number | undefined {
+  if (event.eventType !== "up_next_clicked") {
     return undefined;
   }
-  return sanitizeBoundedInteger(
-    event.durationSeconds,
-    MAX_VISITOR_WATCH_CHUNK_SECONDS
-  );
+  return sanitizeBoundedInteger(event.value, MAX_VISITOR_UP_NEXT_POSITION);
 }
 
 function sanitizeVisitorPayload(event: BatchIngestEvent): Record<string, unknown> | undefined {
+  if (event.eventType === "up_next_clicked") {
+    const payload = event.payload ?? {};
+    return {
+      lane:
+        typeof payload.lane === "string" && VISITOR_UP_NEXT_LANES.has(payload.lane)
+          ? payload.lane
+          : "unknown",
+      position:
+        sanitizeBoundedInteger(
+          payload.position,
+          MAX_VISITOR_UP_NEXT_POSITION
+        ) ?? 0,
+    };
+  }
+
   if (event.eventType !== "search_submitted") {
     return undefined;
   }
@@ -447,7 +479,7 @@ function sanitizeBatchEventForActor(
     sourceKind: "unknown",
     surface: normalizeSurface(options.surface),
     durationSeconds: sanitizeVisitorDurationSeconds(event),
-    value: undefined,
+    value: sanitizeVisitorValue(event),
     payload: sanitizeVisitorPayload(event),
   };
 }
@@ -477,7 +509,7 @@ export function ingestBatch(
   // failures are caught inside the loop, so one bad event never rolls back the rest.
   const ingestAll = sqlite.transaction((batch: BatchIngestEvent[]) => {
     for (const evt of batch) {
-      if (!FRONTEND_ALLOWED_TYPES.has(evt.eventType)) {
+      if (!FRONTEND_EVENT_TYPES.has(evt.eventType)) {
         result.droppedCount += 1;
         continue;
       }

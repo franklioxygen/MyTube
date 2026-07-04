@@ -34,6 +34,7 @@ interface VideoControlsProps {
     statisticsVideoId?: string | null;
     statisticsPlatform?: string | null;
     statisticsRelatedEventId?: string | null;
+    statisticsAutoplayFromVideoId?: string | null;
     onVideoElementReady?: (videoElement: HTMLVideoElement | null) => void;
     liveSubtitle?: { available: boolean; label: string; track: TextTrack | null };
 }
@@ -60,6 +61,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
     statisticsVideoId = null,
     statisticsPlatform = null,
     statisticsRelatedEventId = null,
+    statisticsAutoplayFromVideoId = null,
     onVideoElementReady,
     liveSubtitle,
 }) => {
@@ -94,6 +96,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
         videoId: statisticsVideoId,
         platform: statisticsPlatform,
         relatedEventId: statisticsRelatedEventId,
+        autoplayFromVideoId: statisticsAutoplayFromVideoId,
     });
 
     // Fullscreen management

@@ -3,6 +3,8 @@ import { useCollection } from '../contexts/CollectionContext';
 import { useVideo } from '../contexts/VideoContext';
 import { Video } from '../types';
 import { getRecommendations } from '../utils/recommendations';
+import { useRecommendationSignals } from './useRecommendationSignals';
+import { useSettings } from './useSettings';
 
 interface UseVideoRecommendationsProps {
     video: Video | undefined;
@@ -20,8 +22,13 @@ export function useVideoRecommendations({
 }: UseVideoRecommendationsProps) {
     const { videos } = useVideo();
     const { collections } = useCollection();
+    const { data: settings } = useSettings();
+    const { data: signals } = useRecommendationSignals({
+        enabled: settings?.statisticsEnabled === true
+    });
     const deferredVideos = useDeferredValue(videos);
     const deferredCollections = useDeferredValue(collections);
+    const deferredSignals = useDeferredValue(signals);
     const recommendationVideo = useMemo(() => {
         if (!video) return undefined;
 
@@ -30,12 +37,20 @@ export function useVideoRecommendations({
             author: video.author,
             tags: video.tags,
             seriesTitle: video.seriesTitle,
+            partNumber: video.partNumber,
+            totalParts: video.totalParts,
+            rating: video.rating,
             title: video.title,
             videoFilename: video.videoFilename,
             source: video.source,
+            sourceUrl: video.sourceUrl,
             date: video.date,
             addedAt: video.addedAt,
-            duration: video.duration
+            duration: video.duration,
+            progress: video.progress,
+            viewCount: video.viewCount,
+            lastPlayedAt: video.lastPlayedAt,
+            channelUrl: video.channelUrl
         } as Video;
     }, [video]);
     const deferredRecommendationVideo = useDeferredValue(recommendationVideo);
@@ -48,12 +63,14 @@ export function useVideoRecommendations({
             allVideos: deferredVideos,
             collections: deferredCollections,
             sourceCollectionId,
-            playbackQueueVideoIds
+            playbackQueueVideoIds,
+            signals: deferredSignals
         }).slice(0, 10);
     }, [
         deferredRecommendationVideo,
         deferredVideos,
         deferredCollections,
+        deferredSignals,
         sourceCollectionId,
         playbackQueueVideoIds
     ]);
