@@ -371,8 +371,8 @@ export async function updateUser(
   if (Object.prototype.hasOwnProperty.call(patch, "enabled")) {
     if (typeof patch.enabled !== "boolean") {
       throw new UserValidationError(
-        "enabled must be a boolean.",
-        "userUsernameInvalid"
+        "Enabled must be true or false.",
+        "userEnabledInvalid"
       );
     }
     update.enabled = patch.enabled ? 1 : 0;

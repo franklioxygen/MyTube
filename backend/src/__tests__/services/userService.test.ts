@@ -190,6 +190,18 @@ describe("userService", () => {
     expect(revokeSessionsByUserId).toHaveBeenCalledWith("user-1");
   });
 
+  it("rejects non-boolean enabled values with the userEnabledInvalid key", async () => {
+    rows = [makeRow()];
+
+    await expect(
+      updateUser("user-1", { enabled: "yes" as any })
+    ).rejects.toMatchObject({
+      name: "UserValidationError",
+      errorKey: "userEnabledInvalid",
+    });
+    expect(revokeSessionsByUserId).not.toHaveBeenCalled();
+  });
+
   it("renames users without revoking sessions", async () => {
     rows = [makeRow({ username: "alice" })];
 

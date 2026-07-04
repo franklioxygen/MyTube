@@ -48,10 +48,10 @@ export async function listUsers(_req: Request, res: Response): Promise<void> {
 
 export async function createUser(req: Request, res: Response): Promise<void> {
   if (!isBodyObject(req.body)) {
+    // No errorKey: this is a malformed request, not a case the UI translates.
     res.status(400).json({
       success: false,
       error: "Request body must be an object.",
-      errorKey: "userEmptyPatch",
     });
     return;
   }

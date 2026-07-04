@@ -491,6 +491,7 @@ export const en = {
   userUsernameReserved: "This username is reserved.",
   userUsernameTaken: "Username is already taken.",
   userPasswordInvalid: "Password must be 6-128 characters.",
+  userEnabledInvalid: "Invalid enabled value.",
   userNotFound: "User not found.",
   userEmptyPatch: "Nothing to update.",
   noVisitorUsers: "No visitor accounts yet.",

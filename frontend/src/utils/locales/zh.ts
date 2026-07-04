@@ -465,6 +465,7 @@ export const zh = {
   userUsernameReserved: "该用户名为保留名称。",
   userUsernameTaken: "用户名已被占用。",
   userPasswordInvalid: "密码须为 6-128 个字符。",
+  userEnabledInvalid: "无效的启用状态值。",
   userNotFound: "用户不存在。",
   userEmptyPatch: "没有需要更新的内容。",
   noVisitorUsers: "暂无访客账户。",

@@ -1,5 +1,6 @@
 export type UserErrorKey =
   | "userEmptyPatch"
+  | "userEnabledInvalid"
   | "userNotFound"
   | "userPasswordInvalid"
   | "userUsernameInvalid"

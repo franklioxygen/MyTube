@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import UserManagementSettings from '../UserManagementSettings';
@@ -112,6 +112,47 @@ describe('UserManagementSettings', () => {
                 enabled: false,
             });
         });
+    });
+
+    it('deletes a user after confirmation', async () => {
+        const user = userEvent.setup();
+        renderComponent();
+
+        await screen.findByText('alice');
+        await user.click(screen.getByRole('button', { name: 'deleteUser' }));
+
+        const dialog = await screen.findByRole('dialog');
+        expect(within(dialog).getByText('userDeleteConfirm')).toBeInTheDocument();
+        await user.click(within(dialog).getByRole('button', { name: 'deleteUser' }));
+
+        await waitFor(() => {
+            expect(userApi.deleteUser).toHaveBeenCalledWith('user-1', expect.anything());
+        });
+    });
+
+    it('shows the legacy tooltip icon only for migrated accounts', async () => {
+        vi.mocked(userApi.fetchUsers).mockResolvedValue([
+            visitorUser,
+            { ...visitorUser, id: 'user-2', username: 'visitor', isLegacyShared: true },
+        ]);
+        renderComponent();
+
+        await screen.findByText('visitor');
+        expect(screen.getAllByTestId('InfoOutlinedIcon')).toHaveLength(1);
+    });
+
+    it('shows inline validation and blocks saving for invalid usernames', async () => {
+        const user = userEvent.setup();
+        vi.mocked(userApi.fetchUsers).mockResolvedValue([]);
+        renderComponent();
+
+        await user.click(await screen.findByRole('button', { name: 'addVisitorUser' }));
+        await user.type(screen.getByLabelText('username'), 'a!');
+        await user.type(screen.getByLabelText('password'), 'secret1');
+
+        expect(await screen.findByText('userUsernameInvalid')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'save' })).toBeDisabled();
+        expect(userApi.createUser).not.toHaveBeenCalled();
     });
 
     it('is hidden for visitor sessions', () => {

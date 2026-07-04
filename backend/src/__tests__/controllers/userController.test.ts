@@ -65,6 +65,19 @@ describe("userController", () => {
     expect(json).toHaveBeenCalledWith({ success: true, user: safeUser });
   });
 
+  it("rejects non-object create bodies without a translatable error key", async () => {
+    req.body = "not-an-object";
+
+    await userController.createUser(req as Request, res as Response);
+
+    expect(status).toHaveBeenCalledWith(400);
+    expect(json).toHaveBeenCalledWith({
+      success: false,
+      error: "Request body must be an object.",
+    });
+    expect(userService.createUser).not.toHaveBeenCalled();
+  });
+
   it("maps validation and conflict errors to API response bodies", async () => {
     req.body = { username: "admin", password: "secret1" };
     vi.mocked(userService.createUser).mockRejectedValueOnce(
