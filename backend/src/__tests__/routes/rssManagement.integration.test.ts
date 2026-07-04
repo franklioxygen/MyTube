@@ -105,7 +105,7 @@ describe("RSS management route security", () => {
     expect(response.headers["cache-control"]).toBe("no-store");
     expect(response.body).toEqual({
       success: false,
-      error: "API key authentication cannot manage RSS tokens.",
+      error: "API key authentication cannot access admin management endpoints.",
     });
   });
 
@@ -133,7 +133,7 @@ describe("RSS management route security", () => {
     expect(response.headers["cache-control"]).toBe("no-store");
     expect(response.body).toEqual({
       success: false,
-      error: "API key authentication cannot manage RSS tokens.",
+      error: "API key authentication cannot access admin management endpoints.",
     });
   });
 });
