@@ -30,12 +30,20 @@ export function useVideoRecommendations({
             author: video.author,
             tags: video.tags,
             seriesTitle: video.seriesTitle,
+            partNumber: video.partNumber,
+            totalParts: video.totalParts,
+            rating: video.rating,
             title: video.title,
             videoFilename: video.videoFilename,
             source: video.source,
+            sourceUrl: video.sourceUrl,
             date: video.date,
             addedAt: video.addedAt,
-            duration: video.duration
+            duration: video.duration,
+            progress: video.progress,
+            viewCount: video.viewCount,
+            lastPlayedAt: video.lastPlayedAt,
+            channelUrl: video.channelUrl
         } as Video;
     }, [video]);
     const deferredRecommendationVideo = useDeferredValue(recommendationVideo);
