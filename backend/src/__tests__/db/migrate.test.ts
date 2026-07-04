@@ -6,6 +6,7 @@ const migrateMock = vi.hoisted(() => vi.fn());
 const configureDatabaseMock = vi.hoisted(() => vi.fn());
 const runDataMigrationMock = vi.hoisted(() => vi.fn());
 const migrateLegacySharedVisitorPasswordMock = vi.hoisted(() => vi.fn());
+const ensureVisitorUsersTableMock = vi.hoisted(() => vi.fn());
 const securityMocks = vi.hoisted(() => ({
   accessTrustedSync: vi.fn(),
   pathExistsSafeSync: vi.fn(),
@@ -55,6 +56,10 @@ vi.mock("../../services/userService", () => ({
   migrateLegacySharedVisitorPassword: migrateLegacySharedVisitorPasswordMock,
 }));
 
+vi.mock("../../services/storageService/migrations/schemaMigrations", () => ({
+  ensureVisitorUsersTable: ensureVisitorUsersTableMock,
+}));
+
 describe("runMigrations", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -72,6 +77,7 @@ describe("runMigrations", () => {
     configureDatabaseMock.mockImplementation(() => undefined);
     runDataMigrationMock.mockResolvedValue(undefined);
     migrateLegacySharedVisitorPasswordMock.mockResolvedValue(undefined);
+    ensureVisitorUsersTableMock.mockImplementation(() => undefined);
   });
 
   it("runs drizzle, legacy data import, and visitor password migration in order", async () => {
@@ -80,12 +86,20 @@ describe("runMigrations", () => {
     expect(migrateMock).toHaveBeenCalledTimes(1);
     expect(configureDatabaseMock).toHaveBeenCalledTimes(1);
     expect(runDataMigrationMock).toHaveBeenCalledTimes(1);
+    expect(ensureVisitorUsersTableMock).toHaveBeenCalledTimes(1);
     expect(migrateLegacySharedVisitorPasswordMock).toHaveBeenCalledTimes(1);
     expect(
       migrateMock.mock.invocationCallOrder[0]
     ).toBeLessThan(runDataMigrationMock.mock.invocationCallOrder[0]);
     expect(
       runDataMigrationMock.mock.invocationCallOrder[0]
+    ).toBeLessThan(
+      migrateLegacySharedVisitorPasswordMock.mock.invocationCallOrder[0]
+    );
+    // The users table must be self-healed before the legacy-password
+    // migration touches it, otherwise it fails with "no such table: users".
+    expect(
+      ensureVisitorUsersTableMock.mock.invocationCallOrder[0]
     ).toBeLessThan(
       migrateLegacySharedVisitorPasswordMock.mock.invocationCallOrder[0]
     );

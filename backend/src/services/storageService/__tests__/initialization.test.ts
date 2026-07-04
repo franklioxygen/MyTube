@@ -171,6 +171,12 @@ describe("storageService initialization", () => {
     expect(sqlite.prepare).toHaveBeenCalledWith(
       "CREATE INDEX IF NOT EXISTS idx_rss_tokens_created_at ON rss_tokens (created_at)"
     );
+    expect(sqlite.prepare).toHaveBeenCalledWith(
+      expect.stringContaining("CREATE TABLE IF NOT EXISTS users")
+    );
+    expect(sqlite.prepare).toHaveBeenCalledWith(
+      "CREATE UNIQUE INDEX IF NOT EXISTS users_username_lower_uidx ON users (lower(username))"
+    );
     expect(dedupeDeleteRun).toHaveBeenCalledWith("src-1", "youtube", "keep-1");
     expect(logger.warn).toHaveBeenCalledWith(
       expect.stringContaining("duplicated video_downloads groups")
@@ -235,7 +241,10 @@ describe("storageService initialization", () => {
           ]),
         } as any;
       }
-      if (sql.includes("CREATE UNIQUE INDEX")) {
+      if (
+        sql.includes("CREATE UNIQUE INDEX") &&
+        sql.includes("video_downloads")
+      ) {
         return { run: indexRun } as any;
       }
       if (

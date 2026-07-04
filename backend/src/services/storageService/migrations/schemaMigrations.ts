@@ -350,8 +350,58 @@ function migrateContinuousDownloadTaskColumns(): void {
   }
 }
 
+// Ensure the visitor `users` table (and its case-insensitive username index)
+// exists even if drizzle never applied the visitor-users migration (0019).
+//
+// On installs whose __drizzle_migrations journal is out of sync with the
+// migration files, drizzle-kit aborts the whole migration batch on the first
+// duplicate-column ALTER it encounters. runMigrations() swallows that error
+// ("verified by initialization.ts"), which means every migration ordered after
+// the failing one -- including the CREATE TABLE users in 0019 -- silently never
+// runs, leaving the app to throw "no such table: users" on every request.
+// CREATE TABLE / INDEX IF NOT EXISTS makes this idempotent and safe on every
+// boot, mirroring the rss_tokens / video_downloads self-heals below.
+export function ensureVisitorUsersTable(): void {
+  try {
+    sqlite
+      .prepare(
+        `
+      CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY NOT NULL,
+        username TEXT NOT NULL,
+        password_hash TEXT NOT NULL,
+        role TEXT DEFAULT 'visitor' NOT NULL,
+        enabled INTEGER DEFAULT 1 NOT NULL,
+        is_legacy_shared INTEGER DEFAULT 0 NOT NULL,
+        session_version INTEGER DEFAULT 1 NOT NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        last_login_at INTEGER,
+        CONSTRAINT users_role_check CHECK(role IN ('visitor'))
+      )
+    `
+      )
+      .run();
+    sqlite
+      .prepare(
+        "CREATE UNIQUE INDEX IF NOT EXISTS users_username_lower_uidx ON users (lower(username))"
+      )
+      .run();
+  } catch (error) {
+    logger.error(
+      "Error ensuring visitor users table exists",
+      error instanceof Error ? error : new Error(String(error))
+    );
+    throw new MigrationError(
+      "Failed to ensure visitor users table",
+      "users_table",
+      error instanceof Error ? error : new Error(String(error))
+    );
+  }
+}
+
 // Additive column/table self-heal for videos, downloads, collections,
-// subscriptions, continuous tasks, video_downloads, rss_tokens and
+// subscriptions, continuous tasks, video_downloads, rss_tokens, users and
 // download_history, plus the file-size/video_id data backfills.
 export function migrateColumnsAndTables(): void {
   try {
@@ -555,6 +605,10 @@ export function migrateColumnsAndTables(): void {
         "CREATE INDEX IF NOT EXISTS idx_rss_tokens_created_at ON rss_tokens (created_at)"
       )
       .run();
+
+    // Ensure the visitor users table exists even if drizzle stopped before the
+    // 0019 visitor-users migration was applied.
+    ensureVisitorUsersTable();
 
     // Check download_history table for video_id, downloaded_at, deleted_at columns
     const downloadHistoryTableInfo = sqlite

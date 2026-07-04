@@ -232,6 +232,17 @@ export async function runMigrations() {
       logger.info("No legacy data files found. Skipping data migration.");
     }
 
+    // Guarantee the visitor `users` table exists before the legacy-password
+    // migration (and every subsequent request) touches it. Drizzle may have
+    // aborted its batch on a swallowed duplicate-column error above, never
+    // reaching the 0019 CREATE TABLE users; this idempotent self-heal covers
+    // that case so migrateLegacySharedVisitorPassword succeeds on first boot
+    // instead of failing with "no such table: users".
+    const { ensureVisitorUsersTable } = await import(
+      "../services/storageService/migrations/schemaMigrations"
+    );
+    ensureVisitorUsersTable();
+
     const { migrateLegacySharedVisitorPassword } = await import(
       "../services/userService"
     );
