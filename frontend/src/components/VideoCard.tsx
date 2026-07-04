@@ -157,6 +157,7 @@ const VideoCardBase: React.FC<VideoCardProps> = ({
                     video={video}
                     collectionInfo={collectionInfo}
                     onAuthorClick={navigation.handleAuthorClick}
+                    isHovered={hoverPreview.isHovered}
                 />
             </CardActionArea>
 
