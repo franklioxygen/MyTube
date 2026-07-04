@@ -4,6 +4,7 @@ import path from "path";
 import { DATA_DIR } from "../../config/paths";
 import { reinitializeDatabase as reinitDb, sqlite } from "../../db";
 import { ValidationError } from "../../errors/DownloadErrors";
+import { invalidateUserCache } from "../userService";
 import { generateTimestamp } from "../../utils/helpers";
 import { logger } from "../../utils/logger";
 import {
@@ -150,5 +151,6 @@ export function reinitializeDatabase(): void {
   sqlite.close();
   logger.info("Closed current database connection");
   reinitDb();
+  invalidateUserCache();
   logger.info("Database connection reinitialized");
 }

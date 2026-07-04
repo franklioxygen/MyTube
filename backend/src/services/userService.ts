@@ -564,7 +564,9 @@ export async function migrateLegacySharedVisitorPassword(): Promise<void> {
   }
 }
 
-export function __resetUserCacheForTests(): void {
+export function invalidateUserCache(): void {
   usersById = null;
   usersByLowerUsername = null;
 }
+
+export const __resetUserCacheForTests = invalidateUserCache;
