@@ -6,6 +6,8 @@ import { useVideoRecommendations } from '../useVideoRecommendations';
 const mocks = vi.hoisted(() => ({
     videos: [] as Video[],
     collections: [] as any[],
+    settings: { statisticsEnabled: false },
+    signals: null as any,
     getRecommendations: vi.fn()
 }));
 
@@ -25,10 +27,24 @@ vi.mock('../../utils/recommendations', () => ({
     getRecommendations: mocks.getRecommendations
 }));
 
+vi.mock('../useSettings', () => ({
+    useSettings: () => ({
+        data: mocks.settings
+    })
+}));
+
+vi.mock('../useRecommendationSignals', () => ({
+    useRecommendationSignals: () => ({
+        data: mocks.signals
+    })
+}));
+
 describe('useVideoRecommendations', () => {
     beforeEach(() => {
         mocks.videos = [];
         mocks.collections = [];
+        mocks.settings = { statisticsEnabled: false };
+        mocks.signals = null;
         mocks.getRecommendations.mockReset();
         mocks.getRecommendations.mockReturnValue([]);
     });

@@ -3,6 +3,7 @@ import * as cleanupController from "../controllers/cleanupController";
 import * as cloudStorageController from "../controllers/cloudStorageController";
 import * as collectionController from "../controllers/collectionController";
 import * as downloadController from "../controllers/downloadController";
+import * as recommendationController from "../controllers/recommendationController";
 import * as rssController from "../controllers/rssController";
 import * as scanController from "../controllers/scanController";
 import * as statisticsController from "../controllers/statisticsController";
@@ -240,6 +241,13 @@ const apiRouteDefinitions: ApiRouteDefinition[] = [
     method: "delete",
     path: "/collections/:id",
     handlers: [asyncHandler(collectionController.deleteCollection)],
+  },
+
+  // Recommendation routes
+  {
+    method: "get",
+    path: "/recommendations/signals",
+    handlers: [asyncHandler(recommendationController.getRecommendationSignalsEndpoint)],
   },
 
   // Subscription routes

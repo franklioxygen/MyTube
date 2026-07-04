@@ -63,6 +63,14 @@ export function deleteVideo(
     // Delete from DB
     db.delete(videos).where(eq(videos.id, id)).run();
     bumpVideosListRevision();
+    try {
+      const { invalidateRecommendationSignalsCache } = require("../recommendationSignalsService") as {
+        invalidateRecommendationSignalsCache: () => void;
+      };
+      invalidateRecommendationSignalsCache();
+    } catch {
+      // recommendation signals are best-effort
+    }
     removeMediaServerArtifactsForVideo(videoToDelete, {
       libraryVideos: getVideos(),
     });

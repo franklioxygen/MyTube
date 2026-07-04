@@ -3,6 +3,8 @@ import { useCollection } from '../contexts/CollectionContext';
 import { useVideo } from '../contexts/VideoContext';
 import { Video } from '../types';
 import { getRecommendations } from '../utils/recommendations';
+import { useRecommendationSignals } from './useRecommendationSignals';
+import { useSettings } from './useSettings';
 
 interface UseVideoRecommendationsProps {
     video: Video | undefined;
@@ -20,8 +22,13 @@ export function useVideoRecommendations({
 }: UseVideoRecommendationsProps) {
     const { videos } = useVideo();
     const { collections } = useCollection();
+    const { data: settings } = useSettings();
+    const { data: signals } = useRecommendationSignals({
+        enabled: settings?.statisticsEnabled === true
+    });
     const deferredVideos = useDeferredValue(videos);
     const deferredCollections = useDeferredValue(collections);
+    const deferredSignals = useDeferredValue(signals);
     const recommendationVideo = useMemo(() => {
         if (!video) return undefined;
 
@@ -56,12 +63,14 @@ export function useVideoRecommendations({
             allVideos: deferredVideos,
             collections: deferredCollections,
             sourceCollectionId,
-            playbackQueueVideoIds
+            playbackQueueVideoIds,
+            signals: deferredSignals
         }).slice(0, 10);
     }, [
         deferredRecommendationVideo,
         deferredVideos,
         deferredCollections,
+        deferredSignals,
         sourceCollectionId,
         playbackQueueVideoIds
     ]);
