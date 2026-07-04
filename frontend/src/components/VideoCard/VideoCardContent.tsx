@@ -1,4 +1,4 @@
-import { Avatar, Box, CardContent, Typography } from '@mui/material';
+import { Avatar, Box, CardContent, Typography, useMediaQuery, useTheme } from '@mui/material';
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useCloudStorageUrl } from '../../hooks/useCloudStorageUrl';
@@ -22,6 +22,8 @@ export const VideoCardContent: React.FC<VideoCardContentProps> = ({
     isHovered = false
 }) => {
     const { t } = useLanguage();
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const avatarUrl = useCloudStorageUrl(video.authorAvatarPath, 'thumbnail');
 
     const authorContainerRef = useRef<HTMLDivElement>(null);
@@ -132,7 +134,7 @@ export const VideoCardContent: React.FC<VideoCardContentProps> = ({
     }, [layoutSettled, video.author]);
 
     return (
-        <CardContent sx={{ flexGrow: 1, px: 1, py: 1, display: 'flex', flexDirection: 'column' }}>
+        <CardContent sx={{ flexGrow: 1, px: 1, py: isMobile ? 1.5 : 1, display: 'flex', flexDirection: 'column' }}>
             <Typography 
                 gutterBottom 
                 variant="subtitle1" 

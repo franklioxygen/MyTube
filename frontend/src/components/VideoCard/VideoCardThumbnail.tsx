@@ -1,5 +1,5 @@
 import { Folder } from '@mui/icons-material';
-import { Box, CardMedia, Chip, Skeleton, useTheme } from '@mui/material';
+import { Box, CardMedia, Chip, Skeleton, useMediaQuery, useTheme } from '@mui/material';
 import React, { useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { mask, neutral, overlay, shadow } from '../../theme/colors';
@@ -49,6 +49,7 @@ const VideoCardThumbnailView: React.FC<VideoCardThumbnailProps> = ({
 }) => {
     const { t } = useLanguage();
     const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const [isImageLoaded, setIsImageLoaded] = useState(false);
 
     return (
@@ -56,7 +57,7 @@ const VideoCardThumbnailView: React.FC<VideoCardThumbnailProps> = ({
             sx={{
                 position: 'relative',
                 paddingTop: '56.25%', // 16:9 aspect ratio
-                borderRadius: 2,
+                borderRadius: isMobile ? 0 : 2,
                 overflow: 'hidden'
             }}
         >
