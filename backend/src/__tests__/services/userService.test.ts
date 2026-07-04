@@ -33,6 +33,7 @@ vi.mock("../../services/authService", () => ({
 }));
 
 vi.mock("../../services/storageService", () => ({
+  deleteSettingsKeys: vi.fn(),
   getSettings: vi.fn(),
   saveSettings: vi.fn(),
 }));
@@ -298,6 +299,14 @@ describe("userService", () => {
       { visitorPasswordMigratedAt: 2000 },
       { extraWhitelistedKeys: ["visitorPasswordMigratedAt"] }
     );
+    expect(storageService.deleteSettingsKeys).toHaveBeenCalledWith([
+      "visitorPassword",
+    ]);
+    expect(
+      vi.mocked(storageService.deleteSettingsKeys).mock.invocationCallOrder[0]
+    ).toBeLessThan(
+      vi.mocked(storageService.saveSettings).mock.invocationCallOrder[0]
+    );
 
     vi.mocked(storageService.getSettings).mockReturnValue({
       visitorPasswordMigratedAt: 2000,
@@ -307,6 +316,7 @@ describe("userService", () => {
     await migrateLegacySharedVisitorPassword();
 
     expect(rows).toHaveLength(1);
+    expect(storageService.deleteSettingsKeys).toHaveBeenCalledTimes(1);
   });
 
   it("marks empty legacy visitor passwords as migrated without creating a user", async () => {
@@ -317,6 +327,9 @@ describe("userService", () => {
     await migrateLegacySharedVisitorPassword();
 
     expect(rows).toEqual([]);
+    expect(storageService.deleteSettingsKeys).toHaveBeenCalledWith([
+      "visitorPassword",
+    ]);
     expect(storageService.saveSettings).toHaveBeenCalledWith(
       { visitorPasswordMigratedAt: 2000 },
       { extraWhitelistedKeys: ["visitorPasswordMigratedAt"] }

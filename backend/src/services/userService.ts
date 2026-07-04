@@ -256,6 +256,16 @@ async function verifyRecordPassword(
   return persistUserLoginState(record, updates);
 }
 
+function markLegacySharedVisitorPasswordMigrated(now: number): void {
+  // Drop the legacy shared secret before writing the marker so plaintext
+  // credentials cannot remain indefinitely after a successful migration.
+  storageService.deleteSettingsKeys(["visitorPassword"]);
+  storageService.saveSettings(
+    { visitorPasswordMigratedAt: now },
+    { extraWhitelistedKeys: ["visitorPasswordMigratedAt"] }
+  );
+}
+
 export function listUsers(): SafeVisitorUser[] {
   ensureCache();
   return Array.from(usersById!.values())
@@ -510,10 +520,7 @@ export async function migrateLegacySharedVisitorPassword(): Promise<void> {
     const now = Date.now();
     const raw = settings.visitorPassword;
     if (typeof raw !== "string" || raw.length === 0) {
-      storageService.saveSettings(
-        { visitorPasswordMigratedAt: now },
-        { extraWhitelistedKeys: ["visitorPasswordMigratedAt"] }
-      );
+      markLegacySharedVisitorPasswordMigrated(now);
       return;
     }
 
@@ -549,10 +556,7 @@ export async function migrateLegacySharedVisitorPassword(): Promise<void> {
       });
     }
 
-    storageService.saveSettings(
-      { visitorPasswordMigratedAt: now },
-      { extraWhitelistedKeys: ["visitorPasswordMigratedAt"] }
-    );
+    markLegacySharedVisitorPasswordMigrated(now);
   } catch (error) {
     logger.error(
       "Failed to migrate legacy shared visitor password to user account",
