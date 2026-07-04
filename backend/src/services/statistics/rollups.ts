@@ -89,6 +89,20 @@ class DailyAggregator {
     bump(entry.acc, value);
   }
 
+  addSummary(key: UpsertKey, count: number, sum: number): void {
+    if (count <= 0) return;
+    const stringKey = makeKey(key);
+    let entry = this.map.get(stringKey);
+    if (!entry) {
+      entry = { key, acc: emptyAccumulator() };
+      this.map.set(stringKey, entry);
+    }
+    entry.acc.count += count;
+    entry.acc.sum += sum;
+    entry.acc.min = entry.acc.min === null ? sum : Math.min(entry.acc.min, sum);
+    entry.acc.max = entry.acc.max === null ? sum : Math.max(entry.acc.max, sum);
+  }
+
   entries(): Array<{ key: UpsertKey; acc: DailyAccumulator }> {
     return Array.from(this.map.values());
   }
@@ -169,6 +183,14 @@ function getCompletionBucket(completionRatio: number): string {
   return "90-100";
 }
 
+function incrementCounter(
+  map: Map<string, number>,
+  key: string,
+  amount = 1
+): void {
+  map.set(key, (map.get(key) ?? 0) + amount);
+}
+
 function recomputeDay(day: string): void {
   const events = getEventsForDay(day);
 
@@ -177,6 +199,10 @@ function recomputeDay(day: string): void {
   // Track watch-chunk runs per (sessionId, videoId) to merge contiguous segments
   // for completion math. "Adjacent" = next chunk's start within 90s of prev end.
   const sessionRuns = new Map<string, WatchSessionRun[]>();
+  const upNextImpressionsByRole = new Map<string, number>();
+  const upNextClicksByRole = new Map<string, number>();
+  const autoplayAdvancedByRole = new Map<string, number>();
+  const autoplayAbandonedByRole = new Map<string, number>();
 
   for (const e of events) {
     const platform = e.platform ?? "unknown";
@@ -241,6 +267,40 @@ function recomputeDay(day: string): void {
             sessionRuns.set(key, list);
           }
         }
+        break;
+      }
+      case "up_next_impression": {
+        aggregator.add({
+          metricKey: "up_next_impression",
+          dimensions: { actor_role: role },
+        });
+        incrementCounter(upNextImpressionsByRole, role);
+        break;
+      }
+      case "up_next_clicked": {
+        const lane = typeof payload.lane === "string" ? payload.lane : "unknown";
+        const position = Number(payload.position ?? e.value ?? 0);
+        aggregator.add({
+          metricKey: "up_next_clicked",
+          dimensions: { actor_role: role, lane },
+        }, Number.isFinite(position) ? position : 0);
+        incrementCounter(upNextClicksByRole, role);
+        break;
+      }
+      case "autoplay_advanced": {
+        aggregator.add({
+          metricKey: "autoplay_advanced",
+          dimensions: { actor_role: role },
+        });
+        incrementCounter(autoplayAdvancedByRole, role);
+        break;
+      }
+      case "autoplay_abandoned": {
+        aggregator.add({
+          metricKey: "autoplay_abandoned",
+          dimensions: { actor_role: role },
+        }, Math.max(0, Number(e.durationSeconds ?? 0)));
+        incrementCounter(autoplayAbandonedByRole, role);
         break;
       }
       case "download_enqueued": {
@@ -322,6 +382,23 @@ function recomputeDay(day: string): void {
       default:
         break;
     }
+  }
+
+  for (const [role, impressionCount] of upNextImpressionsByRole.entries()) {
+    aggregator.addSummary(
+      { metricKey: "up_next_ctr", dimensions: { actor_role: role } },
+      impressionCount,
+      upNextClicksByRole.get(role) ?? 0
+    );
+  }
+
+  for (const [role, advancedCount] of autoplayAdvancedByRole.entries()) {
+    const abandonedCount = autoplayAbandonedByRole.get(role) ?? 0;
+    aggregator.addSummary(
+      { metricKey: "autoplay_survival", dimensions: { actor_role: role } },
+      advancedCount,
+      Math.max(0, advancedCount - abandonedCount)
+    );
   }
 
   const durationByVideoId = getVideoDurations(

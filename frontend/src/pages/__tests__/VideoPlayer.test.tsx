@@ -44,6 +44,7 @@ const mockDeleteSubtitleMutateAsync = vi.fn();
 const mockHandleTimeUpdate = vi.fn();
 const mockSetIsDeleting = vi.fn();
 const mockHandleSubtitlesToggle = vi.fn(), mockHandleLoopToggle = vi.fn(), mockScrollTo = vi.fn();
+const mockStatisticsRecordEvent = vi.fn();
 
 // ---- Mutable mock state (overridable per test) ----
 
@@ -54,6 +55,7 @@ let mockVideoSubscriptionsReturn: Record<string, unknown>;
 let mockVideoCollectionsReturn: Record<string, unknown>;
 let mockVideoRecommendationsReturn: unknown;
 let mockVideoPlayerSettingsReturn: Record<string, unknown>;
+let mockStatisticsIngestionReturn: Record<string, unknown>;
 
 // ---- Mock hooks ----
 
@@ -115,6 +117,10 @@ vi.mock('../../hooks/useVideoProgress', () => ({
 
 vi.mock('../../hooks/useVideoRecommendations', () => ({
     useVideoRecommendations: () => mockVideoRecommendationsReturn,
+}));
+
+vi.mock('../../hooks/useStatisticsIngestion', () => ({
+    useStatisticsIngestion: () => mockStatisticsIngestionReturn,
 }));
 
 vi.mock('../../utils/apiUrl', () => ({
@@ -268,6 +274,14 @@ function resetDefaults() {
     };
 
     mockVideoRecommendationsReturn = { relatedVideos: [] };
+
+    mockStatisticsIngestionReturn = {
+        enabled: false,
+        recordEvent: mockStatisticsRecordEvent,
+        flushNow: vi.fn(),
+        flushKeepalive: vi.fn(),
+        sessionId: 'stats-session',
+    };
 
     mockVideoPlayerSettingsReturn = {
         autoPlay: false,
@@ -557,6 +571,39 @@ describe('VideoPlayer', () => {
             expect(mockNavigate).toHaveBeenCalledWith('/video/v2');
         });
 
+        it('records autoplay advancement when statistics are enabled', () => {
+            localStorageMock.setItem('autoPlayNext', 'true');
+            mockVideoRecommendationsReturn = { relatedVideos: [{ id: 'v2' }] };
+            mockStatisticsIngestionReturn = {
+                ...mockStatisticsIngestionReturn,
+                enabled: true,
+            };
+            mockStatisticsRecordEvent
+                .mockReturnValueOnce('impression-1')
+                .mockReturnValueOnce('autoplay-1');
+            render(<VideoPlayer />);
+
+            act(() => { capturedVideoControlsProps.onEnded(); });
+
+            expect(mockStatisticsRecordEvent).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    eventType: 'autoplay_advanced',
+                    videoId: 'v2',
+                    relatedEventId: 'impression-1',
+                    payload: expect.objectContaining({
+                        fromVideoId: 'v1',
+                        toVideoId: 'v2',
+                    }),
+                })
+            );
+            expect(mockNavigate).toHaveBeenCalledWith('/video/v2', {
+                state: {
+                    statisticsRelatedEventId: 'autoplay-1',
+                    autoplayFromVideoId: 'v1',
+                },
+            });
+        });
+
         it('does not navigate when autoPlayNext is off', () => {
             mockVideoRecommendationsReturn = { relatedVideos: [{ id: 'v2' }] };
             render(<VideoPlayer />);
@@ -741,8 +788,52 @@ describe('VideoPlayer', () => {
     describe('UpNextSidebar onVideoClick', () => {
         it('navigates to video page when a related video is clicked', () => {
             render(<VideoPlayer />);
-            act(() => { capturedUpNextSidebarProps.onVideoClick('v5'); });
+            act(() => { capturedUpNextSidebarProps.onVideoClick('v5', 0); });
             expect(mockNavigate).toHaveBeenCalledWith('/video/v5');
+        });
+
+        it('records Up Next impression and click events when statistics are enabled', () => {
+            mockVideoRecommendationsReturn = { relatedVideos: [{ id: 'v5', title: 'Next' }] };
+            mockStatisticsIngestionReturn = {
+                ...mockStatisticsIngestionReturn,
+                enabled: true,
+            };
+            mockStatisticsRecordEvent
+                .mockReturnValueOnce('impression-1')
+                .mockReturnValueOnce('click-1');
+
+            render(<VideoPlayer />);
+
+            expect(mockStatisticsRecordEvent).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    eventType: 'up_next_impression',
+                    videoId: 'v1',
+                    payload: expect.objectContaining({
+                        fromVideoId: 'v1',
+                        slate: [{ videoId: 'v5', lane: 'related', position: 1 }],
+                    }),
+                })
+            );
+
+            act(() => { capturedUpNextSidebarProps.onVideoClick('v5', 0); });
+
+            expect(mockStatisticsRecordEvent).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    eventType: 'up_next_clicked',
+                    videoId: 'v5',
+                    relatedEventId: 'impression-1',
+                    value: 1,
+                    payload: expect.objectContaining({
+                        fromVideoId: 'v1',
+                        toVideoId: 'v5',
+                        position: 1,
+                        lane: 'related',
+                    }),
+                })
+            );
+            expect(mockNavigate).toHaveBeenCalledWith('/video/v5', {
+                state: { statisticsRelatedEventId: 'click-1' },
+            });
         });
     });
 

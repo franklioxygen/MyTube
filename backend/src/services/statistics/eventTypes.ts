@@ -37,6 +37,10 @@ export type StatisticsEventType =
   | "search_submitted"
   | "video_play_started"
   | "video_watch_chunk_recorded"
+  | "up_next_impression"
+  | "up_next_clicked"
+  | "autoplay_advanced"
+  | "autoplay_abandoned"
   // Backend
   | "download_enqueued"
   | "download_started"
@@ -50,6 +54,10 @@ export const FRONTEND_EVENT_TYPES: ReadonlySet<StatisticsEventType> = new Set([
   "search_submitted",
   "video_play_started",
   "video_watch_chunk_recorded",
+  "up_next_impression",
+  "up_next_clicked",
+  "autoplay_advanced",
+  "autoplay_abandoned",
 ]);
 
 export const BACKEND_EVENT_TYPES: ReadonlySet<StatisticsEventType> = new Set([
