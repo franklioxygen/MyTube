@@ -57,6 +57,7 @@ export interface Settings {
   authorOrganizationMode?: AuthorOrganizationMode;
   saveAuthorFilesToCollection?: boolean;
   visitorPassword?: string;
+  visitorPasswordMigratedAt?: number;
   visitorUserEnabled?: boolean;
   infiniteScroll?: boolean;
   videoColumns?: number;

@@ -28,6 +28,7 @@ import { createTranslateOrFallback } from '../utils/translateOrFallback';
 import { getWebAuthnErrorTranslationKey } from '../utils/translations';
 
 const LoginPage: React.FC = () => {
+    const [visitorUsername, setVisitorUsername] = useState('');
     const [visitorPassword, setVisitorPassword] = useState('');
     const [showVisitorPassword, setShowVisitorPassword] = useState(false);
     const [password, setPassword] = useState('');
@@ -79,9 +80,8 @@ const LoginPage: React.FC = () => {
     const passwordEnabledData = statusData;
 
     const passwordLoginAllowed = passwordEnabledData?.passwordLoginAllowed !== false;
-    // Show visitor tab if visitor user is enabled AND visitorPassword is set
     const visitorUserEnabled = passwordEnabledData?.visitorUserEnabled !== false;
-    const showVisitorTab = visitorUserEnabled && !!passwordEnabledData?.isVisitorPasswordSet;
+    const showVisitorTab = visitorUserEnabled && (!!passwordEnabledData?.hasVisitorUsers || !!passwordEnabledData?.isVisitorPasswordSet);
 
     // Update website name when settings are loaded
     useEffect(() => {
@@ -190,7 +190,8 @@ const LoginPage: React.FC = () => {
         if (
             message === 'Incorrect password' ||
             message === 'Incorrect admin password' ||
-            message === 'Incorrect visitor password'
+            message === 'Incorrect visitor password' ||
+            message === 'Incorrect username or password'
         ) {
             return fallbackMessage;
         }
@@ -241,17 +242,17 @@ const LoginPage: React.FC = () => {
     });
 
     const visitorLoginMutation = useMutation({
-        mutationFn: async (passwordToVerify: string) => {
+        mutationFn: async (credentials: { username: string; password: string }) => {
             await ensureCsrfToken({ refresh: true });
-            const response = await api.post('/settings/verify-visitor-password', { password: passwordToVerify });
+            const response = await api.post('/settings/verify-user-login', credentials);
             return response.data;
         },
         onSuccess: (data) => {
             setWaitTime(0);
-            login(data.role);
+            login(data.role, data.username ?? visitorUsername);
         },
         onError: (error: unknown) => {
-            handlePasswordLoginError(error, t('incorrectPassword'));
+            handlePasswordLoginError(error, t('incorrectUsernameOrPassword') || t('incorrectPassword'));
         }
     });
 
@@ -260,7 +261,10 @@ const LoginPage: React.FC = () => {
         if (waitTime > 0) {
             return;
         }
-        visitorLoginMutation.mutate(visitorPassword);
+        visitorLoginMutation.mutate({
+            username: visitorUsername,
+            password: visitorPassword,
+        });
     }
 
     // Passkey authentication mutation
@@ -547,13 +551,28 @@ const LoginPage: React.FC = () => {
                                                     margin="normal"
                                                     required
                                                     fullWidth
-                                                    name="visitorPassword"
-                                                    label={t('visitorPassword') || 'Visitor Password'}
+                                                    name="username"
+                                                    label={t('username') || 'Username'}
+                                                    type="text"
+                                                    id="visitorUsername"
+                                                    value={visitorUsername}
+                                                    onChange={(e) => setVisitorUsername(e.target.value)}
+                                                    autoComplete="username"
+                                                    autoFocus={activeTab === 1}
+                                                    disabled={waitTime > 0 || visitorLoginMutation.isPending}
+                                                    helperText={t('visitorLoginHint') || 'If you used the old shared password, your username is "visitor".'}
+                                                />
+                                                <TextField
+                                                    margin="normal"
+                                                    required
+                                                    fullWidth
+                                                    name="password"
+                                                    label={t('password') || 'Password'}
                                                     type={showVisitorPassword ? 'text' : 'password'}
                                                     id="visitorPassword"
                                                     value={visitorPassword}
                                                     onChange={(e) => setVisitorPassword(e.target.value)}
-                                                    autoFocus={activeTab === 1}
+                                                    autoComplete="current-password"
                                                     disabled={waitTime > 0 || visitorLoginMutation.isPending}
                                                     slotProps={{
                                                         input: {

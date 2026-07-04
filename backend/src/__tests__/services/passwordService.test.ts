@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { generateToken } from "../../services/authService";
 import * as passwordService from "../../services/passwordService";
 import * as storageService from "../../services/storageService";
+import * as userService from "../../services/userService";
 import { logger } from "../../utils/logger";
 
 vi.mock("../../services/storageService");
@@ -16,6 +17,12 @@ vi.mock("../../services/authService", () => ({
   generateToken: vi.fn((payload: { role: "admin" | "visitor" }) =>
     `token-${payload.role}`
   ),
+}));
+vi.mock("../../services/userService", () => ({
+  hasEnabledLegacySharedUser: vi.fn(),
+  hasEnabledVisitorUsers: vi.fn(),
+  verifyLegacySharedVisitorPassword: vi.fn(),
+  verifyUserLogin: vi.fn(),
 }));
 vi.mock("bcryptjs", () => ({
   default: {
@@ -41,6 +48,13 @@ describe("passwordService", () => {
     vi.clearAllMocks();
 
     vi.mocked(storageService.getSettings).mockReturnValue(buildSettings() as any);
+    vi.mocked(userService.hasEnabledLegacySharedUser).mockReturnValue(false);
+    vi.mocked(userService.hasEnabledVisitorUsers).mockReturnValue(false);
+    vi.mocked(userService.verifyLegacySharedVisitorPassword).mockResolvedValue({
+      ok: false,
+      notConfigured: true,
+    });
+    vi.mocked(userService.verifyUserLogin).mockResolvedValue({ ok: false });
 
     vi.mocked(bcrypt.compare as any).mockResolvedValue(false);
     vi.mocked(bcrypt.genSalt as any).mockResolvedValue("salt-10");
@@ -70,6 +84,8 @@ describe("passwordService", () => {
       vi.mocked(storageService.getSettings).mockReturnValue(
         buildSettings({ visitorPassword: "visitor-secret" }) as any
       );
+      vi.mocked(userService.hasEnabledLegacySharedUser).mockReturnValue(true);
+      vi.mocked(userService.hasEnabledVisitorUsers).mockReturnValue(true);
 
       const result = passwordService.isPasswordEnabled();
 
@@ -78,6 +94,7 @@ describe("passwordService", () => {
         loginRequired: true,
         visitorUserEnabled: true,
         isVisitorPasswordSet: true,
+        hasVisitorUsers: true,
         passwordLoginAllowed: true,
         websiteName: "MyTube",
       });
@@ -157,14 +174,25 @@ describe("passwordService", () => {
       });
     });
 
-    it("logs in as visitor when admin mismatches and visitor matches", async () => {
-      const visitorHash = `$2b$10$${"b".repeat(53)}`;
+    it("logs in as visitor through the migrated legacy account when admin mismatches", async () => {
       vi.mocked(storageService.getSettings).mockReturnValue(
-        buildSettings({ visitorPassword: visitorHash }) as any
+        buildSettings() as any
       );
-      vi.mocked(bcrypt.compare as any)
-        .mockResolvedValueOnce(false)
-        .mockResolvedValueOnce(true);
+      vi.mocked(bcrypt.compare as any).mockResolvedValueOnce(false);
+      vi.mocked(userService.verifyLegacySharedVisitorPassword).mockResolvedValue({
+        ok: true,
+        user: {
+          id: "user-1",
+          username: "visitor",
+          role: "visitor",
+          enabled: true,
+          isLegacyShared: true,
+          sessionVersion: 4,
+          createdAt: 1,
+          updatedAt: 1,
+          lastLoginAt: null,
+        },
+      });
 
       const result = await passwordService.verifyPassword("visitor-pass");
 
@@ -173,7 +201,12 @@ describe("passwordService", () => {
         role: "visitor",
         token: "token-visitor",
       });
-      expect(generateToken).toHaveBeenCalledWith({ role: "visitor" });
+      expect(generateToken).toHaveBeenCalledWith({
+        role: "visitor",
+        userId: "user-1",
+        username: "visitor",
+        sessionVersion: 4,
+      });
     });
 
     it("supports legacy plaintext admin password and migrates hash", async () => {
@@ -371,7 +404,7 @@ describe("passwordService", () => {
   describe("verifyVisitorPassword", () => {
     it("rejects when visitor mode is disabled", async () => {
       vi.mocked(storageService.getSettings).mockReturnValue(
-        buildSettings({ visitorUserEnabled: false, visitorPassword: "x" }) as any
+        buildSettings({ visitorUserEnabled: false }) as any
       );
 
       const result = await passwordService.verifyVisitorPassword("visitor");
@@ -384,7 +417,7 @@ describe("passwordService", () => {
 
     it("rejects when password login is disabled", async () => {
       vi.mocked(storageService.getSettings).mockReturnValue(
-        buildSettings({ passwordLoginAllowed: false, visitorPassword: "x" }) as any
+        buildSettings({ passwordLoginAllowed: false }) as any
       );
 
       const result = await passwordService.verifyVisitorPassword("visitor");
@@ -394,9 +427,10 @@ describe("passwordService", () => {
     });
 
     it("returns config error when visitor password is missing", async () => {
-      vi.mocked(storageService.getSettings).mockReturnValue(
-        buildSettings({ visitorPassword: "" }) as any
-      );
+      vi.mocked(userService.verifyLegacySharedVisitorPassword).mockResolvedValue({
+        ok: false,
+        notConfigured: true,
+      });
 
       const result = await passwordService.verifyVisitorPassword("visitor");
 
@@ -407,10 +441,20 @@ describe("passwordService", () => {
     });
 
     it("logs in visitor on bcrypt match", async () => {
-      vi.mocked(storageService.getSettings).mockReturnValue(
-        buildSettings({ visitorPassword: BCRYPT_HASH }) as any
-      );
-      vi.mocked(bcrypt.compare as any).mockResolvedValue(true);
+      vi.mocked(userService.verifyLegacySharedVisitorPassword).mockResolvedValue({
+        ok: true,
+        user: {
+          id: "legacy-user",
+          username: "visitor",
+          role: "visitor",
+          enabled: true,
+          isLegacyShared: true,
+          sessionVersion: 2,
+          createdAt: 1,
+          updatedAt: 1,
+          lastLoginAt: null,
+        },
+      });
 
       const result = await passwordService.verifyVisitorPassword("visitor");
 
@@ -419,31 +463,96 @@ describe("passwordService", () => {
         role: "visitor",
         token: "token-visitor",
       });
-    });
-
-    it("supports legacy plaintext visitor password and migration", async () => {
-      vi.mocked(storageService.getSettings).mockReturnValue(
-        buildSettings({ visitorPassword: "legacy-visitor" }) as any
-      );
-
-      const result = await passwordService.verifyVisitorPassword("legacy-visitor");
-
-      expect(result.success).toBe(true);
-      expect(storageService.saveSettings).toHaveBeenCalledWith({
-        visitorPassword: "hashed-password",
+      expect(generateToken).toHaveBeenCalledWith({
+        role: "visitor",
+        userId: "legacy-user",
+        username: "visitor",
+        sessionVersion: 2,
       });
     });
 
     it("returns failure on visitor mismatch", async () => {
-      vi.mocked(storageService.getSettings).mockReturnValue(
-        buildSettings({ visitorPassword: "legacy-visitor" }) as any
-      );
+      vi.mocked(userService.verifyLegacySharedVisitorPassword).mockResolvedValue({
+        ok: false,
+        notConfigured: false,
+      });
 
       const result = await passwordService.verifyVisitorPassword("wrong");
 
       expect(result).toEqual({
         success: false,
         message: "Incorrect visitor password",
+      });
+    });
+  });
+
+  describe("verifyVisitorUserLogin", () => {
+    it("rejects disabled visitor mode and password-login disabled state", async () => {
+      vi.mocked(storageService.getSettings).mockReturnValueOnce(
+        buildSettings({ visitorUserEnabled: false }) as any
+      );
+      await expect(
+        passwordService.verifyVisitorUserLogin("alice", "secret")
+      ).resolves.toEqual({
+        success: false,
+        message: "Visitor user is not enabled.",
+      });
+
+      vi.mocked(storageService.getSettings).mockReturnValueOnce(
+        buildSettings({ passwordLoginAllowed: false }) as any
+      );
+      await expect(
+        passwordService.verifyVisitorUserLogin("alice", "secret")
+      ).resolves.toEqual({
+        success: false,
+        message:
+          "Password login is not allowed. Please use passkey authentication.",
+      });
+    });
+
+    it("returns generic failure for invalid named visitor credentials", async () => {
+      vi.mocked(userService.verifyUserLogin).mockResolvedValue({ ok: false });
+
+      await expect(
+        passwordService.verifyVisitorUserLogin("alice", "wrong")
+      ).resolves.toEqual({
+        success: false,
+        message: "Incorrect username or password",
+      });
+    });
+
+    it("issues a user-backed visitor token on named visitor login", async () => {
+      vi.mocked(userService.verifyUserLogin).mockResolvedValue({
+        ok: true,
+        user: {
+          id: "user-1",
+          username: "Alice",
+          role: "visitor",
+          enabled: true,
+          isLegacyShared: false,
+          sessionVersion: 3,
+          createdAt: 1,
+          updatedAt: 1,
+          lastLoginAt: null,
+        },
+      });
+
+      const result = await passwordService.verifyVisitorUserLogin(
+        "alice",
+        "secret"
+      );
+
+      expect(result).toEqual({
+        success: true,
+        role: "visitor",
+        token: "token-visitor",
+        username: "Alice",
+      });
+      expect(generateToken).toHaveBeenCalledWith({
+        role: "visitor",
+        userId: "user-1",
+        username: "Alice",
+        sessionVersion: 3,
       });
     });
   });

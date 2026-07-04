@@ -85,6 +85,18 @@ export type AdminTrustLevel = 'application' | 'container' | 'host';
 
 export type LiveTranslationModel = 'gemini-3.5-live-translate-preview';
 
+export interface VisitorUser {
+  id: string;
+  username: string;
+  role: 'visitor';
+  enabled: boolean;
+  isLegacyShared: boolean;
+  sessionVersion?: number;
+  createdAt: number;
+  updatedAt: number;
+  lastLoginAt: number | null;
+}
+
 export interface DeploymentSecurityModel {
   adminTrustLevel: AdminTrustLevel;
   adminTrustedWithContainer: boolean;
@@ -100,6 +112,7 @@ export interface Settings {
   isPasswordSet?: boolean;
   passwordLoginAllowed?: boolean;
   isVisitorPasswordSet?: boolean;
+  hasVisitorUsers?: boolean;
   defaultAutoPlay: boolean;
   defaultAutoLoop: boolean;
   maxConcurrentDownloads: number;

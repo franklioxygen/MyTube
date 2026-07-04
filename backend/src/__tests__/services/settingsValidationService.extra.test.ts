@@ -87,7 +87,7 @@ describe("settingsValidationService extra coverage", () => {
       "Password update rejected: password login is not allowed"
     );
     expect(prepared.password).toBeUndefined();
-    expect(prepared.visitorPassword).toBe(existing.visitorPassword);
+    expect(prepared.visitorPassword).toBeUndefined();
   });
 
   it("prepareSettingsForSave preserves existing password when an empty password is explicitly sent", async () => {
@@ -135,7 +135,7 @@ describe("settingsValidationService extra coverage", () => {
     expect(prepared.password).toBe("hash:123");
   });
 
-  it("prepareSettingsForSave hashes visitor password and preserves it when empty", async () => {
+  it("prepareSettingsForSave ignores deprecated visitor password updates", async () => {
     const existing = {
       password: "old-hash",
       visitorPassword: "old-visitor-hash",
@@ -157,8 +157,9 @@ describe("settingsValidationService extra coverage", () => {
       hashPassword
     );
 
-    expect(hashed.visitorPassword).toBe("hash:visitor-new");
-    expect(preserved.visitorPassword).toBe("old-visitor-hash");
+    expect(hashed.visitorPassword).toBeUndefined();
+    expect(preserved.visitorPassword).toBeUndefined();
+    expect(hashPassword).not.toHaveBeenCalledWith("visitor-new");
   });
 
   it("prepareSettingsForSave preserves tags on empty payload in preserve mode", async () => {

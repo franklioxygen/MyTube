@@ -9,9 +9,11 @@ import React, { useEffect, useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { Settings } from '../../types';
 import { api } from '../../utils/apiClient';
+import { copyTextToClipboard } from '../../utils/clipboard';
 import { getWebAuthnErrorTranslationKey } from '../../utils/translations';
 import AlertModal from '../AlertModal';
 import ConfirmationModal from '../ConfirmationModal';
+import UserManagementSettings from './UserManagementSettings';
 
 interface SecuritySettingsProps {
     settings: Settings;
@@ -33,33 +35,6 @@ const generateApiKey = (): string => {
     const bytes = new Uint8Array(32);
     window.crypto.getRandomValues(bytes);
     return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
-};
-
-const copyTextToClipboard = async (text: string): Promise<boolean> => {
-    const clipboardWriteText =
-        typeof navigator.clipboard?.writeText === 'function'
-            ? navigator.clipboard.writeText.bind(navigator.clipboard)
-            : null;
-
-    if (clipboardWriteText) {
-        await clipboardWriteText(text);
-        return true;
-    }
-
-    const textArea = document.createElement('textarea');
-    textArea.value = text;
-    textArea.style.position = 'fixed';
-    textArea.style.left = '-999999px';
-    textArea.style.top = '-999999px';
-    document.body.appendChild(textArea);
-    textArea.focus();
-    textArea.select();
-
-    try {
-        return document.execCommand('copy');
-    } finally {
-        document.body.removeChild(textArea);
-    }
 };
 
 const SecuritySettings: React.FC<SecuritySettingsProps> = ({ settings, onChange }) => {
@@ -372,26 +347,10 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ settings, onChange 
 
 
                     {settings.visitorUserEnabled !== false && (
-                        <>
-                            <Box sx={{ mt: 1, mb: 2 }}>
-                                <Typography variant="body2" color="text.secondary">
-                                    {t('visitorUserHelper') || 'Set a password for the Visitor User role. Users logging in with this password will have read-only access and cannot change settings.'}
-                                </Typography>
-                            </Box>
-                            <TextField
-                                fullWidth
-                                sx={{ mb: 2, maxWidth: 400 }}
-                                label={t('visitorPassword') || 'Visitor Password'}
-                                type="text"
-                                value={settings.visitorPassword || ''}
-                                onChange={(e) => onChange('visitorPassword', e.target.value)}
-                                helperText={
-                                    settings.isVisitorPasswordSet
-                                        ? (t('visitorPasswordSetHelper') || 'Password is set. Leave empty to keep it.')
-                                        : (t('visitorPasswordHelper') || 'Password for the Visitor User to log in.')
-                                }
-                            />
-                        </>
+                        <UserManagementSettings
+                            loginEnabled={settings.loginEnabled}
+                            visitorUserEnabled={true}
+                        />
                     )}
 
                 </Box>

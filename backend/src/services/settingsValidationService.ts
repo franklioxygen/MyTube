@@ -461,17 +461,6 @@ export async function prepareSettingsForSave(
     prepared.password = existingSettings.password;
   }
 
-  // Handle visitor password hashing
-  if (hasField("visitorPassword")) {
-    if (newSettings.visitorPassword) {
-      prepared.visitorPassword = await hashPassword(newSettings.visitorPassword);
-    } else if (preserveUnsetFields) {
-      prepared.visitorPassword = existingSettings.visitorPassword;
-    }
-  } else if (preserveUnsetFields) {
-    prepared.visitorPassword = existingSettings.visitorPassword;
-  }
-
   // Handle tags
   const oldTags: string[] = existingSettings.tags || [];
   if (!hasField("tags")) {

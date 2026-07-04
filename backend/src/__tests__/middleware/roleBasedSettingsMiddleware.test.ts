@@ -149,8 +149,8 @@ describe('roleBasedSettingsMiddleware Security', () => {
   it('should ALLOW visitor POST verify password endpoints', () => {
     req = {
       method: 'POST',
-      path: '/verify-admin-password',
-      url: '/verify-admin-password',
+      path: '/verify-user-login',
+      url: '/verify-user-login',
       body: {},
       user: { role: 'visitor' } as any,
     };
@@ -357,9 +357,9 @@ describe('roleBasedSettingsMiddleware Security', () => {
 
   it('should ALLOW unauthenticated access to public endpoints when login is required', () => {
     req = {
-      method: 'GET',
-      path: '/password-enabled',
-      url: '/password-enabled',
+      method: 'POST',
+      path: '/verify-user-login',
+      url: '/verify-user-login',
       user: undefined,
     };
     vi.mocked(isLoginRequired).mockReturnValue(true);

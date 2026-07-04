@@ -34,6 +34,7 @@ import {
     logout,
     verifyPassword,
     verifyAdminPassword,
+    verifyVisitorUserLogin,
     verifyVisitorPassword,
 } from "../controllers/passwordController";
 import {
@@ -83,6 +84,7 @@ router.post("/tags/rename", asyncHandler(renameTag));
 router.get("/password-enabled", asyncHandler(getPasswordEnabled));
 router.post("/verify-password", asyncHandler(verifyPassword));
 router.post("/verify-admin-password", asyncHandler(verifyAdminPassword));
+router.post("/verify-user-login", asyncHandler(verifyVisitorUserLogin));
 router.post("/verify-visitor-password", asyncHandler(verifyVisitorPassword));
 router.post("/confirm-admin-password", asyncHandler(confirmAdminPassword));
 router.post("/logout", asyncHandler(logout));

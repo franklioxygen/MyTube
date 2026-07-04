@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { reinitializeDatabase as reinitDb, sqlite } from "../../db";
 import * as databaseBackupService from "../../services/databaseBackupService";
 import { invalidateSettingsCache } from "../../services/storageService/settings";
+import { invalidateUserCache } from "../../services/userService";
 import { logger } from "../../utils/logger";
 import { isPathWithinDirectory, resolveSafePath } from "../../utils/security";
 
@@ -37,6 +38,9 @@ vi.mock("../../db", () => ({
 }));
 vi.mock("../../services/storageService/settings", () => ({
   invalidateSettingsCache: vi.fn(),
+}));
+vi.mock("../../services/userService", () => ({
+  invalidateUserCache: vi.fn(),
 }));
 vi.mock("../../utils/helpers", () => ({
   generateTimestamp: vi.fn(() => "20240101010101"),
@@ -288,6 +292,7 @@ describe("databaseBackupService", () => {
       expect(fs.copyFileSync).toHaveBeenCalledTimes(2);
       expect(sqlite.close).toHaveBeenCalledTimes(2);
       expect(reinitDb).toHaveBeenCalledTimes(1);
+      expect(invalidateUserCache).toHaveBeenCalledTimes(1);
       expect(fs.unlinkSync).toHaveBeenCalledTimes(1);
       expect(logger.info).toHaveBeenCalledWith(
         "Closed current database connection for import"
@@ -882,6 +887,7 @@ describe("databaseBackupService", () => {
       expect(fs.copyFileSync).toHaveBeenCalledTimes(2);
       expect(sqlite.close).toHaveBeenCalledTimes(2);
       expect(reinitDb).toHaveBeenCalledTimes(1);
+      expect(invalidateUserCache).toHaveBeenCalledTimes(1);
       expect(logger.info).toHaveBeenCalledWith(
         expect.stringContaining("Database file restored successfully")
       );

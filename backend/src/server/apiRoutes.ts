@@ -48,6 +48,10 @@ export const registerApiRoutes = (
     authLimiters.visitorPasswordLimiter
   );
   app.post(
+    "/api/settings/verify-user-login",
+    authLimiters.visitorPasswordLimiter
+  );
+  app.post(
     "/api/settings/confirm-admin-password",
     authLimiters.adminReauthLimiter
   );

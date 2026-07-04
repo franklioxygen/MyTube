@@ -31,12 +31,14 @@ export const getPasswordEnabled = async (
   res.json({
     ...result,
     authenticatedRole: req.user?.role ?? null,
+    authenticatedUsername: req.user?.username ?? null,
   });
 };
 
 /**
  * Verify password for authentication
- * @deprecated Use verifyAdminPassword or verifyVisitorPassword instead for better security
+ * @deprecated Use verifyAdminPassword or verifyVisitorUserLogin. The visitor
+ * branch is kept only for legacy shared-password compatibility.
  * Errors are automatically handled by asyncHandler middleware
  */
 export const verifyPassword = async (
@@ -92,7 +94,8 @@ export const verifyAdminPassword = async (
 
 /**
  * Verify visitor password for authentication
- * Only checks visitor password, not admin password
+ * @deprecated Shared visitor-password compatibility endpoint. Use
+ * verifyVisitorUserLogin for named visitor accounts.
  * Errors are automatically handled by asyncHandler middleware
  */
 export const verifyVisitorPassword = async (
@@ -112,6 +115,30 @@ export const verifyVisitorPassword = async (
     res.json({ 
       success: true,
       role: result.role
+    });
+  } else {
+    sendAuthFailure(res, result);
+  }
+};
+
+export const verifyVisitorUserLogin = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const { username, password } = req.body;
+
+  const result = await passwordService.verifyVisitorUserLogin(
+    username,
+    password
+  );
+
+  if (result.success && result.token && result.role) {
+    const sessionId = setAuthCookie(res, result.token, result.role);
+    refreshCsrfTokenForSession(req, res, sessionId);
+    res.json({
+      success: true,
+      role: result.role,
+      username: result.username,
     });
   } else {
     sendAuthFailure(res, result);

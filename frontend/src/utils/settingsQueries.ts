@@ -7,6 +7,12 @@ import { stableQueryConfig } from './queryConfig';
 export interface AuthSettingsResponse {
     loginRequired?: boolean;
     authenticatedRole?: 'admin' | 'visitor' | null;
+    authenticatedUsername?: string | null;
+    hasVisitorUsers?: boolean;
+    visitorUserEnabled?: boolean;
+    isVisitorPasswordSet?: boolean;
+    passwordLoginAllowed?: boolean;
+    websiteName?: string;
 }
 
 const getErrorStatus = (error: unknown): number | undefined => {

@@ -136,6 +136,7 @@ const setNormalState = (overrides: Record<string, unknown> = {}) => {
                 passwordLoginAllowed: true,
                 visitorUserEnabled: false,
                 isVisitorPasswordSet: false,
+                hasVisitorUsers: false,
                 websiteName: 'MyTube',
                 ...overrides,
             },
@@ -351,28 +352,39 @@ describe('LoginPage', () => {
             const visitorTab = screen.getByText('visitorUser');
             fireEvent.click(visitorTab);
 
+            const visitorUsernameInput = container.querySelector('#visitorUsername') as HTMLInputElement;
             const visitorPasswordInput = container.querySelector('#visitorPassword') as HTMLInputElement;
+            fireEvent.change(visitorUsernameInput, { target: { value: 'alice' } });
             fireEvent.change(visitorPasswordInput, { target: { value: 'visitorPass' } });
 
             const form = visitorPasswordInput.closest('form')!;
             fireEvent.submit(form);
 
-            expect(mutationMocks['visitorLogin'].mutate).toHaveBeenCalledWith('visitorPass');
+            expect(mutationMocks['visitorLogin'].mutate).toHaveBeenCalledWith({
+                username: 'alice',
+                password: 'visitorPass',
+            });
         });
 
-        it('refreshes CSRF before posting the visitor password', async () => {
+        it('refreshes CSRF before posting named visitor credentials', async () => {
             setNormalState({
                 visitorUserEnabled: true,
-                isVisitorPasswordSet: true,
+                hasVisitorUsers: true,
             });
-            vi.mocked(api.post).mockResolvedValue({ data: { success: true, role: 'visitor' } } as any);
+            vi.mocked(api.post).mockResolvedValue({ data: { success: true, role: 'visitor', username: 'Alice' } } as any);
             render(<LoginPage />);
 
-            const result = await mutationFns['visitorLogin']('visitorPass');
+            const result = await mutationFns['visitorLogin']({
+                username: 'alice',
+                password: 'visitorPass',
+            });
 
             expect(ensureCsrfToken).toHaveBeenCalledWith({ refresh: true });
-            expect(api.post).toHaveBeenCalledWith('/settings/verify-visitor-password', { password: 'visitorPass' });
-            expect(result).toEqual({ success: true, role: 'visitor' });
+            expect(api.post).toHaveBeenCalledWith('/settings/verify-user-login', {
+                username: 'alice',
+                password: 'visitorPass',
+            });
+            expect(result).toEqual({ success: true, role: 'visitor', username: 'Alice' });
         });
 
         it('does not submit visitor form when waitTime > 0', () => {
@@ -665,10 +677,11 @@ describe('LoginPage', () => {
                 mutationCallbacks['visitorLogin']?.onSuccess?.({
                     success: true,
                     role: 'visitor',
+                    username: 'Alice',
                 });
             });
 
-            expect(mockLogin).toHaveBeenCalledWith('visitor');
+            expect(mockLogin).toHaveBeenCalledWith('visitor', 'Alice');
         });
     });
 
@@ -704,7 +717,7 @@ describe('LoginPage', () => {
             expect(within(dialog).getByText(/tooManyAttempts/)).toBeInTheDocument();
         });
 
-        it('shows alert on visitor login incorrect password', () => {
+        it('shows alert on visitor login incorrect username or password', () => {
             setNormalState({
                 visitorUserEnabled: true,
                 isVisitorPasswordSet: true,
@@ -715,13 +728,13 @@ describe('LoginPage', () => {
                 mutationCallbacks['visitorLogin']?.onError?.({
                     response: {
                         status: 401,
-                        data: { message: 'Incorrect visitor password' },
+                        data: { message: 'Incorrect username or password' },
                     },
                 });
             });
 
             const dialog = screen.getByRole('dialog');
-            expect(within(dialog).getByText('incorrectPassword')).toBeInTheDocument();
+            expect(within(dialog).getByText('incorrectUsernameOrPassword')).toBeInTheDocument();
         });
 
         it('shows alert on visitor login network error', () => {

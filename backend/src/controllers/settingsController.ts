@@ -16,6 +16,7 @@ import {
   invalidateStatisticsSettingsCache,
 } from "../services/statistics";
 import * as storageService from "../services/storageService";
+import * as userService from "../services/userService";
 import { testTMDBCredential as testTMDBCredentialService } from "../services/tmdbService";
 import { twitchApiService } from "../services/twitchService";
 import { applyCloudflaredSettingChanges } from "./settingsController/cloudflaredEffects";
@@ -70,8 +71,9 @@ export const getSettings = async (
   res.json({
     ...buildSafeSettingsPayload(req, mergedSettings as PersistedSettingsResponse),
     isPasswordSet: !!mergedSettings.password,
-    isVisitorPasswordSet: !!mergedSettings.visitorPassword,
+    isVisitorPasswordSet: userService.hasEnabledLegacySharedUser(),
     authenticatedRole: req.user?.role ?? null,
+    authenticatedUsername: req.user?.username ?? null,
   });
 };
 
