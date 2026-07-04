@@ -5,25 +5,16 @@ import { neutral, overlay } from '../../../theme/colors';
 import { getBackendUrl } from '../../../utils/apiUrl';
 import { getSubtitleLanguageLabel, getSubtitleTrackLanguage } from '../../../utils/formatUtils';
 import { getMediaCrossOriginAttr } from '../../../utils/mediaOrigin';
+import { computePreloadStrategy } from '../../../utils/preloadStrategy';
 
 type GlobalVideoCounterScope = typeof globalThis & {
     __videoControlCounter?: number;
 };
 
-type NetworkInformationLike = {
-    effectiveType?: string;
-    saveData?: boolean;
-};
-
-type NavigatorWithConnection = Navigator & {
-    connection?: NetworkInformationLike;
-    mozConnection?: NetworkInformationLike;
-    webkitConnection?: NetworkInformationLike;
-};
-
 interface VideoElementProps {
     videoRef: React.RefObject<HTMLVideoElement | null>;
     src: string;
+    mediaPath?: string | null;
     poster?: string;
     isLoading: boolean;
     loadError: string | null;
@@ -50,6 +41,7 @@ interface VideoElementProps {
 const VideoElement: React.FC<VideoElementProps> = ({
     videoRef,
     src,
+    mediaPath,
     poster,
     isLoading,
     loadError,
@@ -82,39 +74,18 @@ const VideoElement: React.FC<VideoElementProps> = ({
         return `video-controls-${Date.now()}-${counter}`;
     }, []);
 
-    const [preloadStrategy, setPreloadStrategy] = React.useState<'auto' | 'metadata' | 'none'>('metadata');
+    // Compute during render so the <video> element never starts loading
+    // with a downgraded placeholder, and recalculate when the media changes.
+    const preloadStrategy = useMemo<'auto' | 'metadata' | 'none'>(
+        () => computePreloadStrategy({ src, mediaPath }),
+        [src, mediaPath]
+    );
     const [mobileAspectRatio, setMobileAspectRatio] = React.useState<string>('16/9');
 
     React.useEffect(() => {
         // Reset to default ratio while new source metadata is loading
         setMobileAspectRatio('16/9');
     }, [src]);
-
-    React.useEffect(() => {
-        // Dynamic preload strategy based on connection
-        const navigatorWithConnection = navigator as NavigatorWithConnection;
-        const connection =
-            navigatorWithConnection.connection ||
-            navigatorWithConnection.mozConnection ||
-            navigatorWithConnection.webkitConnection;
-
-        if (connection) {
-            // If we have connection info
-            const type = connection.effectiveType; // 'slow-2g', '2g', '3g', '4g'
-            const saveData = connection.saveData; // boolean
-
-            if (saveData) {
-                setPreloadStrategy('none'); // Save data mode -> minimal loading
-            } else if (type === '4g' && !saveData) {
-                setPreloadStrategy('auto'); // Good connection -> auto preload
-            } else {
-                setPreloadStrategy('metadata'); // Slower connection -> metadata only
-            }
-        } else {
-            // Fallback for browsers without Network Information API
-            setPreloadStrategy('metadata');
-        }
-    }, []);
 
     return (
         <Box

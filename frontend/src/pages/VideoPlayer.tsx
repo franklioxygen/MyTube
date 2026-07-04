@@ -388,6 +388,7 @@ const VideoPlayer: React.FC = () => {
                     >
                     <VideoControls
                         src={(videoUrl || video?.sourceUrl) || null}
+                        mediaPath={video.videoPath}
                         poster={posterUrl || localPosterUrl || video?.thumbnailUrl}
                         autoPlay={autoPlay}
                         autoLoop={autoLoop}

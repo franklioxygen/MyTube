@@ -38,6 +38,12 @@ export const isIOS = () => {
 
 export const isAndroid = () => /Android/.test(navigator.userAgent);
 
+// True for Safari on any Apple platform. Chromium-based browsers also
+// advertise "Safari" in their UA, so anything carrying "Chrome"/"Android"
+// tokens is excluded.
+export const isSafari = () =>
+  /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+
 export const isLinux = () => {
   const userAgent = navigator.userAgent;
   return /Linux/.test(userAgent) && !isAndroid() && !/Android/.test(userAgent);

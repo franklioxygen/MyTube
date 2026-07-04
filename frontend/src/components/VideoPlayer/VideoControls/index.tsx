@@ -14,6 +14,7 @@ import VideoElement from './VideoElement';
 
 interface VideoControlsProps {
     src: string;
+    mediaPath?: string | null;
     autoPlay?: boolean;
     autoLoop?: boolean;
     pauseOnFocusLoss?: boolean;
@@ -39,6 +40,7 @@ interface VideoControlsProps {
 
 const VideoControls: React.FC<VideoControlsProps> = ({
     src,
+    mediaPath,
     autoPlay = false,
     autoLoop = false,
     pauseOnFocusLoss = false,
@@ -141,13 +143,12 @@ const VideoControls: React.FC<VideoControlsProps> = ({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [src]);
 
-    // Handle video loading events
+    // Handle video loading events. preload is owned by VideoElement's
+    // adaptive strategy; forcing 'metadata' here disabled read-ahead
+    // buffering in every browser and made seeks outside the buffer stall
+    // (worst on Safari, whose WebM pipeline cannot byte-range seek).
     const handleLoadStart = () => {
         loading.startLoading();
-        const videoElement = videoPlayer.videoRef.current;
-        if (videoElement) {
-            videoElement.preload = 'metadata';
-        }
     };
 
     const handleCanPlay = () => {
@@ -223,6 +224,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                 <VideoElement
                     videoRef={videoPlayer.videoRef}
                     src={src}
+                    mediaPath={mediaPath}
                     poster={poster}
                     isLoading={loading.isLoading}
                     loadError={loading.loadError}

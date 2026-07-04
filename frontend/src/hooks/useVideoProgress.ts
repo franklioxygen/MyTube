@@ -72,6 +72,10 @@ export function useVideoProgress({ videoId, video }: UseVideoProgressProps) {
   useEffect(() => {
     setHasViewed(false);
     currentTimeRef.current = 0;
+    // Start the periodic-save throttle now: with the initial 0 the very
+    // first timeupdate saved immediately, racing the saved-progress
+    // restore and overwriting the stored position with ~0.
+    lastProgressSave.current = Date.now();
   }, [videoId]);
 
   useEffect(() => {

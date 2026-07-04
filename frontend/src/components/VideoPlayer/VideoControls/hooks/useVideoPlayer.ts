@@ -58,9 +58,12 @@ export const useVideoPlayer = ({
   const seekTo = useCallback((videoElement: HTMLVideoElement, time: number) => {
     const safeTime = clampPlaybackTime(time, videoElement.duration);
 
-    if (typeof videoElement.fastSeek === "function") {
-      videoElement.fastSeek(safeTime);
-    }
+    // Issue exactly one seek, via currentTime only. Pairing fastSeek()
+    // with a currentTime assignment queues two seek operations, and
+    // Safari's linear WebM loader restarts its full-file download for
+    // each one. fastSeek() alone is not an option either: Safari
+    // silently ignores it for the saved-progress seek issued right
+    // after loadedmetadata, so playback would start from the beginning.
     videoElement.currentTime = safeTime;
     setCurrentTime(safeTime);
   }, [clampPlaybackTime]);
@@ -112,7 +115,8 @@ export const useVideoPlayer = ({
     }
 
     if (src) {
-      videoElement.preload = "metadata";
+      // preload is governed by the <video preload> prop in VideoElement;
+      // overriding it here would defeat the adaptive preload strategy.
       videoElement.src = src;
       // Reset flag when setting new source (for initial load)
       if (!previousSrc) {
@@ -180,7 +184,6 @@ export const useVideoPlayer = ({
     setIsPlaying(!isPlaying);
   };
 
-  // Seek using fastSeek() on mobile for better audio sync, fallback to currentTime
   const handleSeek = useCallback((seconds: number) => {
     const videoElement = videoRef.current;
     if (!videoElement || !isFinite(videoElement.duration)) return;
@@ -233,6 +236,20 @@ export const useVideoPlayer = ({
 
     // Don't update UI during dragging or seeking
     if (isDragging || isSeeking) {
+      return;
+    }
+
+    // Drop pre-restore ticks. Browsers (Safari in particular) emit a
+    // timeupdate at ~0 before the saved-progress seek is issued at
+    // loadedmetadata; propagating it lets the progress tracker
+    // overwrite the stored position with 0. The tolerance check is an
+    // escape valve: if the restore is ever skipped, ticks past 1s flow
+    // again so progress saving cannot stay suppressed for a session.
+    if (
+      startTime > 0 &&
+      !startTimeAppliedRef.current &&
+      time < START_TIME_APPLY_TOLERANCE_SECONDS
+    ) {
       return;
     }
 
