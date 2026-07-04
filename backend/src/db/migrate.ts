@@ -231,6 +231,11 @@ export async function runMigrations() {
     } else {
       logger.info("No legacy data files found. Skipping data migration.");
     }
+
+    const { migrateLegacySharedVisitorPassword } = await import(
+      "../services/userService"
+    );
+    await migrateLegacySharedVisitorPassword();
   } catch (error) {
     logger.error("Error running database migrations:", error);
     // Don't throw, as we might want the app to start even if migration fails (though it might be broken)

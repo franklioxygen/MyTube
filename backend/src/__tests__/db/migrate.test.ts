@@ -5,6 +5,7 @@ import { runMigrations } from "../../db/migrate";
 const migrateMock = vi.hoisted(() => vi.fn());
 const configureDatabaseMock = vi.hoisted(() => vi.fn());
 const runDataMigrationMock = vi.hoisted(() => vi.fn());
+const migrateLegacySharedVisitorPasswordMock = vi.hoisted(() => vi.fn());
 const securityMocks = vi.hoisted(() => ({
   accessTrustedSync: vi.fn(),
   pathExistsSafeSync: vi.fn(),
@@ -50,6 +51,10 @@ vi.mock("../../services/migrationService", () => ({
   runMigration: runDataMigrationMock,
 }));
 
+vi.mock("../../services/userService", () => ({
+  migrateLegacySharedVisitorPassword: migrateLegacySharedVisitorPasswordMock,
+}));
+
 describe("runMigrations", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -66,6 +71,24 @@ describe("runMigrations", () => {
     migrateMock.mockImplementation(() => undefined);
     configureDatabaseMock.mockImplementation(() => undefined);
     runDataMigrationMock.mockResolvedValue(undefined);
+    migrateLegacySharedVisitorPasswordMock.mockResolvedValue(undefined);
+  });
+
+  it("runs drizzle, legacy data import, and visitor password migration in order", async () => {
+    await runMigrations();
+
+    expect(migrateMock).toHaveBeenCalledTimes(1);
+    expect(configureDatabaseMock).toHaveBeenCalledTimes(1);
+    expect(runDataMigrationMock).toHaveBeenCalledTimes(1);
+    expect(migrateLegacySharedVisitorPasswordMock).toHaveBeenCalledTimes(1);
+    expect(
+      migrateMock.mock.invocationCallOrder[0]
+    ).toBeLessThan(runDataMigrationMock.mock.invocationCallOrder[0]);
+    expect(
+      runDataMigrationMock.mock.invocationCallOrder[0]
+    ).toBeLessThan(
+      migrateLegacySharedVisitorPasswordMock.mock.invocationCallOrder[0]
+    );
   });
 
   it("fails fast with an actionable message when the database file is not writable", async () => {

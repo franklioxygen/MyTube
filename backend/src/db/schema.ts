@@ -144,6 +144,26 @@ export const settings = sqliteTable("settings", {
   value: text("value").notNull(), // JSON stringified value
 });
 
+export const users = sqliteTable(
+  "users",
+  {
+    id: text("id").primaryKey(),
+    username: text("username").notNull(),
+    passwordHash: text("password_hash").notNull(),
+    role: text("role").notNull().default("visitor"),
+    enabled: integer("enabled").notNull().default(1),
+    isLegacyShared: integer("is_legacy_shared").notNull().default(0),
+    sessionVersion: integer("session_version").notNull().default(1),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+    lastLoginAt: integer("last_login_at"),
+  },
+  (table) => [
+    check("users_role_check", sql`${table.role} IN ('visitor')`),
+    uniqueIndex("users_username_lower_uidx").on(sql`lower(${table.username})`),
+  ]
+);
+
 export const downloads = sqliteTable("downloads", {
   id: text("id").primaryKey(),
   title: text("title").notNull(),

@@ -42,6 +42,9 @@ function createSession(payload: UserPayload): string {
 export interface UserPayload {
   role: "admin" | "visitor";
   id?: string;
+  userId?: string;
+  username?: string;
+  sessionVersion?: number;
 }
 
 /**
@@ -82,6 +85,38 @@ export const getUserPayloadFromSession = (
   }
 
   return session.payload;
+};
+
+export const deleteSession = (sessionId: string): void => {
+  if (!sessionId) {
+    return;
+  }
+
+  authSessions.delete(sessionId);
+};
+
+export const revokeSessionsByUserId = (userId: string): number => {
+  let revoked = 0;
+
+  for (const [sessionId, session] of authSessions.entries()) {
+    if (session.payload.userId === userId) {
+      authSessions.delete(sessionId);
+      revoked += 1;
+    }
+  }
+
+  return revoked;
+};
+
+export const updateSessionUsernames = (
+  userId: string,
+  username: string
+): void => {
+  for (const session of authSessions.values()) {
+    if (session.payload.userId === userId) {
+      session.payload.username = username;
+    }
+  }
 };
 
 /**
