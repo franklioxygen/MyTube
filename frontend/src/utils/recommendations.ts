@@ -13,21 +13,25 @@ export interface RecommendationWeights {
     dateProximity: number;
     duration: number;
     watchState: number;
+    rating: number;
 }
 
 export const DEFAULT_WEIGHTS: RecommendationWeights = {
-    recency: 0.08,
-    frequency: 0.04,
-    collection: 0.4,
-    tags: 0.35,
-    author: 0.3,
-    filename: 0.0, // Used as tie-breaker mostly
-    sequence: 0.25, // Boost for the immediate next file
-    source: 0.08,
-    title: 0.25,
-    dateProximity: 0.08,
+    // Deprecated Phase 1 inputs kept for callers that pass partial custom weights.
+    // Recency/watch-state are now represented by the re-watch cooldown multiplier.
+    recency: 0,
+    frequency: 0,
+    collection: 0.3,
+    tags: 0.2,
+    author: 0.25,
+    filename: 0,
+    sequence: 0.35,
+    source: 0.05,
+    title: 0.1,
+    dateProximity: 0.05,
     duration: 0.05,
-    watchState: 0.2,
+    watchState: 0,
+    rating: 0.15,
 };
 
 const STOP_WORDS = new Set([
@@ -38,6 +42,8 @@ const STOP_WORDS = new Set([
     'as',
     'at',
     'by',
+    'episode',
+    'ep',
     'for',
     'from',
     'in',
@@ -47,6 +53,7 @@ const STOP_WORDS = new Set([
     'on',
     'or',
     'part',
+    'pt',
     'the',
     'to',
     'video',
@@ -54,7 +61,11 @@ const STOP_WORDS = new Set([
 ]);
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const ONE_YEAR_MS = 365 * DAY_MS;
+const REWATCH_HALF_LIFE_MS = 45 * DAY_MS;
+const RESUME_WINDOW_MS = 30 * DAY_MS;
+const MAX_RECOMMENDATIONS = 10;
+const RELATED_AUTHOR_CAP = 3;
+const RELATED_COLLECTION_CAP = 3;
 
 const normalizeText = (value: string | undefined | null): string =>
     (value ?? '').trim().toLowerCase();
@@ -87,6 +98,9 @@ const jaccardScore = (a: string[], b: string[]): number => {
     const union = new Set([...aSet, ...bSet]);
     return intersection / union.size;
 };
+
+const clamp = (value: number, min: number, max: number): number =>
+    Math.min(max, Math.max(min, value));
 
 const parseDateValue = (value: string | undefined): number | null => {
     if (!value) return null;
@@ -138,21 +152,393 @@ const getDurationSimilarityScore = (currentVideo: Video, candidate: Video): numb
     return shorterDuration / longerDuration;
 };
 
-const getWatchStateScore = (video: Video): number => {
-    const viewCount = video.viewCount || 0;
+const getProgressRatio = (video: Video): number => {
     const duration = parseDurationSeconds(video.duration);
     const progress = typeof video.progress === 'number' ? video.progress : 0;
 
-    if (duration && progress > 0) {
-        const progressRatio = Math.min(progress / duration, 1);
-        if (progressRatio >= 0.9) return -0.8;
-        return 0.7;
+    if (!duration || progress <= 0) return 0;
+    return clamp(progress / duration, 0, 1);
+};
+
+const isInProgress = (video: Video): boolean => {
+    const progressRatio = getProgressRatio(video);
+    return progressRatio > 0.05 && progressRatio < 0.9;
+};
+
+const isCompleted = (video: Video): boolean => getProgressRatio(video) >= 0.9;
+
+const isUnwatched = (video: Video): boolean =>
+    (video.viewCount || 0) === 0 && getProgressRatio(video) === 0;
+
+const getRewatchMultiplier = (video: Video, now: number): number => {
+    if (isInProgress(video)) return 1.15;
+    if (!isCompleted(video)) return 1;
+
+    const lastFinishedAt = typeof video.lastPlayedAt === 'number' ? video.lastPlayedAt : null;
+    if (!lastFinishedAt) return 1;
+
+    const age = Math.max(0, now - lastFinishedAt);
+    const base = 1 - Math.pow(2, -age / REWATCH_HALF_LIFE_MS);
+    const rating = typeof video.rating === 'number' ? clamp(video.rating, 1, 5) : 3;
+    const ratingBoost = 1 + 0.3 * ((rating - 3) / 2);
+    const viewCount = video.viewCount || 0;
+    const rewatchRate = viewCount > 0 ? Math.max(0, viewCount - 1) / viewCount : 0;
+
+    return clamp(base * (ratingBoost + 0.5 * rewatchRate), 0, 1);
+};
+
+const getRatingAffinity = (video: Video, weight: number): number => {
+    if (typeof video.rating !== 'number') return 0;
+    return clamp((video.rating - 3) / 2, -1, 1) * weight;
+};
+
+const getAuthorKey = (video: Video): string =>
+    normalizeText(typeof video.channelUrl === 'string' ? video.channelUrl : video.author);
+
+const sortByNaturalName = (a: Video, b: Video): number =>
+    getName(a).localeCompare(getName(b), undefined, { numeric: true, sensitivity: 'base' });
+
+const getAddedAtTimestamp = (video: Video): number =>
+    parseDateValue(video.addedAt) ?? parseDateValue(video.date) ?? 0;
+
+const sortByNewest = (a: Video, b: Video): number =>
+    getAddedAtTimestamp(b) - getAddedAtTimestamp(a) || sortByNaturalName(a, b);
+
+type CollectionMembership = Map<string, Array<{ id: string; index: number }>>;
+
+const buildCollectionMembership = (collections: Collection[]): CollectionMembership => {
+    const membership: CollectionMembership = new Map();
+
+    collections.forEach(collection => {
+        collection.videos.forEach((videoId, index) => {
+            const existing = membership.get(videoId) ?? [];
+            existing.push({ id: collection.id, index });
+            membership.set(videoId, existing);
+        });
+    });
+
+    return membership;
+};
+
+const getCollectionPositionScore = (
+    currentVideo: Video,
+    candidate: Video,
+    membership: CollectionMembership
+): number => {
+    const currentMembership = membership.get(currentVideo.id) ?? [];
+    const candidateMembership = membership.get(candidate.id) ?? [];
+    let bestScore = 0;
+
+    currentMembership.forEach(currentItem => {
+        const candidateItem = candidateMembership.find(item => item.id === currentItem.id);
+        if (!candidateItem) return;
+
+        const distance = Math.abs(candidateItem.index - currentItem.index);
+        if (distance === 0) return;
+
+        bestScore = Math.max(bestScore, 1 / distance);
+    });
+
+    return clamp(bestScore, 0, 1);
+};
+
+const hasSameSeries = (currentVideo: Video, candidate: Video): boolean =>
+    Boolean(
+        currentVideo.seriesTitle &&
+        candidate.seriesTitle &&
+        normalizeText(currentVideo.seriesTitle) === normalizeText(candidate.seriesTitle)
+    );
+
+const getSeriesStem = (video: Video): string =>
+    tokenize(getName(video))
+        .filter(token => !/^\d+$/.test(token))
+        .join(' ');
+
+const findNextEpisode = (currentVideo: Video, candidates: Video[]): Video | undefined => {
+    if (!currentVideo.seriesTitle || typeof currentVideo.partNumber !== 'number') return undefined;
+
+    const nextPartNumber = currentVideo.partNumber + 1;
+    return candidates
+        .filter(candidate =>
+            hasSameSeries(currentVideo, candidate) &&
+            candidate.partNumber === nextPartNumber
+        )
+        .sort((a, b) => {
+            const totalA = typeof a.totalParts === 'number' ? a.totalParts : Number.MAX_SAFE_INTEGER;
+            const totalB = typeof b.totalParts === 'number' ? b.totalParts : Number.MAX_SAFE_INTEGER;
+            return totalA - totalB || sortByNaturalName(a, b);
+        })[0];
+};
+
+const findNextSharedCollectionVideo = (
+    currentVideo: Video,
+    candidatesById: Map<string, Video>,
+    collections: Collection[]
+): Video | undefined => {
+    const options: Array<{ video: Video; distance: number; collectionIndex: number }> = [];
+
+    collections.forEach((collection, collectionIndex) => {
+        const currentIndex = collection.videos.indexOf(currentVideo.id);
+        if (currentIndex === -1) return;
+
+        for (let index = currentIndex + 1; index < collection.videos.length; index += 1) {
+            const candidate = candidatesById.get(collection.videos[index]);
+            if (!candidate || isCompleted(candidate)) continue;
+
+            options.push({
+                video: candidate,
+                distance: index - currentIndex,
+                collectionIndex
+            });
+            break;
+        }
+    });
+
+    return options.sort((a, b) =>
+        a.distance - b.distance ||
+        a.collectionIndex - b.collectionIndex ||
+        sortByNaturalName(a.video, b.video)
+    )[0]?.video;
+};
+
+const findFilenameAdjacentVideo = (currentVideo: Video, candidates: Video[]): Video | undefined => {
+    const currentAuthor = getAuthorKey(currentVideo);
+    const currentStem = getSeriesStem(currentVideo);
+    if (!currentAuthor || !currentStem) return undefined;
+
+    const scopedVideos = [currentVideo, ...candidates]
+        .filter(video => getAuthorKey(video) === currentAuthor && getSeriesStem(video) === currentStem)
+        .sort(sortByNaturalName);
+    const currentIndex = scopedVideos.findIndex(video => video.id === currentVideo.id);
+
+    if (currentIndex === -1 || currentIndex >= scopedVideos.length - 1) return undefined;
+    return scopedVideos[currentIndex + 1];
+};
+
+interface ScoredCandidate {
+    video: Video;
+    score: number;
+    collectionScore: number;
+}
+
+const scoreCandidate = (
+    currentVideo: Video,
+    candidate: Video,
+    allVideos: Video[],
+    membership: CollectionMembership,
+    weights: RecommendationWeights,
+    now: number,
+    currentTags: string[],
+    currentTitleTokens: string[],
+    nextScopedSequenceId: string | null
+): ScoredCandidate => {
+    const candidateTags = normalizeTags(candidate.tags);
+    const candidateTitleTokens = tokenize(`${candidate.title} ${candidate.videoFilename ?? ''}`);
+    const collectionScore = Math.max(
+        getCollectionPositionScore(currentVideo, candidate, membership),
+        hasSameSeries(currentVideo, candidate) ? 1 : 0
+    );
+    const authorScore = getAuthorKey(currentVideo) && getAuthorKey(currentVideo) === getAuthorKey(candidate) ? 1 : 0;
+    const sourceScore = currentVideo.source && candidate.source && currentVideo.source === candidate.source ? 1 : 0;
+    const maxViewCount = Math.max(...allVideos.map(video => video.viewCount || 0), 1);
+    const frequencyScore = (candidate.viewCount || 0) / maxViewCount;
+    const sequenceScore = candidate.id === nextScopedSequenceId ? 1 : 0;
+
+    const similarity =
+        collectionScore * weights.collection +
+        authorScore * weights.author +
+        jaccardScore(currentTags, candidateTags) * weights.tags +
+        jaccardScore(currentTitleTokens, candidateTitleTokens) * weights.title +
+        getDateProximityScore(currentVideo, candidate) * weights.dateProximity +
+        getDurationSimilarityScore(currentVideo, candidate) * weights.duration +
+        sourceScore * weights.source +
+        sequenceScore * weights.sequence +
+        frequencyScore * weights.frequency;
+
+    const score = similarity *
+        (1 + getRatingAffinity(candidate, weights.rating)) *
+        getRewatchMultiplier(candidate, now);
+
+    return {
+        video: candidate,
+        score,
+        collectionScore
+    };
+};
+
+const sortScoredCandidates = (a: ScoredCandidate, b: ScoredCandidate): number => {
+    if (Math.abs(a.score - b.score) > 0.001) return b.score - a.score;
+    if (Math.abs(a.collectionScore - b.collectionScore) > 0.001) {
+        return b.collectionScore - a.collectionScore;
     }
 
-    if (viewCount === 0) return 1;
-    if (viewCount <= 2) return 0.25;
+    return sortByNaturalName(a.video, b.video);
+};
 
-    return -0.1;
+const addCandidate = (candidateIds: Set<string>, video: Video | undefined, currentVideoId: string) => {
+    if (video && video.id !== currentVideoId) candidateIds.add(video.id);
+};
+
+const buildCandidatePool = (
+    currentVideo: Video,
+    allCandidates: Video[],
+    collections: Collection[],
+    membership: CollectionMembership
+): Video[] => {
+    const candidateIds = new Set<string>();
+    const allCandidatesById = new Map(allCandidates.map(video => [video.id, video]));
+    const currentTags = new Set(normalizeTags(currentVideo.tags));
+    const currentAuthor = getAuthorKey(currentVideo);
+
+    (membership.get(currentVideo.id) ?? []).forEach(item => {
+        const collection = collections.find(collectionItem => collectionItem.id === item.id);
+        collection?.videos.forEach(videoId => {
+            addCandidate(candidateIds, allCandidatesById.get(videoId), currentVideo.id);
+        });
+    });
+
+    allCandidates
+        .filter(video => getAuthorKey(video) === currentAuthor)
+        .sort(sortByNewest)
+        .slice(0, 50)
+        .forEach(video => addCandidate(candidateIds, video, currentVideo.id));
+
+    allCandidates
+        .filter(video => normalizeTags(video.tags).some(tag => currentTags.has(tag)))
+        .forEach(video => addCandidate(candidateIds, video, currentVideo.id));
+
+    allCandidates
+        .filter(video => hasSameSeries(currentVideo, video))
+        .forEach(video => addCandidate(candidateIds, video, currentVideo.id));
+
+    allCandidates
+        .filter(video => isInProgress(video))
+        .forEach(video => addCandidate(candidateIds, video, currentVideo.id));
+
+    allCandidates
+        .filter(video => typeof video.rating === 'number' && video.rating >= 4)
+        .sort((a, b) => (b.rating || 0) - (a.rating || 0) || sortByNewest(a, b))
+        .slice(0, 30)
+        .forEach(video => addCandidate(candidateIds, video, currentVideo.id));
+
+    allCandidates
+        .sort(sortByNewest)
+        .slice(0, 30)
+        .forEach(video => addCandidate(candidateIds, video, currentVideo.id));
+
+    if (candidateIds.size < Math.min(MAX_RECOMMENDATIONS, allCandidates.length)) {
+        allCandidates.forEach(video => addCandidate(candidateIds, video, currentVideo.id));
+    }
+
+    return Array.from(candidateIds)
+        .map(videoId => allCandidatesById.get(videoId))
+        .filter((video): video is Video => Boolean(video));
+};
+
+interface DiversityState {
+    authorCounts: Map<string, number>;
+    collectionCounts: Map<string, number>;
+}
+
+const createDiversityState = (): DiversityState => ({
+    authorCounts: new Map(),
+    collectionCounts: new Map(),
+});
+
+const recordDiversity = (
+    video: Video,
+    membership: CollectionMembership,
+    state: DiversityState
+) => {
+    const authorKey = getAuthorKey(video);
+    if (authorKey) {
+        state.authorCounts.set(authorKey, (state.authorCounts.get(authorKey) || 0) + 1);
+    }
+
+    (membership.get(video.id) ?? []).forEach(item => {
+        state.collectionCounts.set(item.id, (state.collectionCounts.get(item.id) || 0) + 1);
+    });
+};
+
+const canSelectByDiversity = (
+    video: Video,
+    membership: CollectionMembership,
+    state: DiversityState
+): boolean => {
+    const authorKey = getAuthorKey(video);
+    if (authorKey && (state.authorCounts.get(authorKey) || 0) >= RELATED_AUTHOR_CAP) return false;
+
+    return (membership.get(video.id) ?? []).every(item =>
+        (state.collectionCounts.get(item.id) || 0) < RELATED_COLLECTION_CAP
+    );
+};
+
+const pickRelatedVideos = (
+    scoredCandidates: ScoredCandidate[],
+    selectedIds: Set<string>,
+    membership: CollectionMembership,
+    diversityState: DiversityState,
+    limit: number
+): Video[] => {
+    const selected: Video[] = [];
+
+    for (const item of scoredCandidates) {
+        if (selected.length >= limit) break;
+        if (selectedIds.has(item.video.id)) continue;
+        if (!canSelectByDiversity(item.video, membership, diversityState)) continue;
+
+        selected.push(item.video);
+        selectedIds.add(item.video.id);
+        recordDiversity(item.video, membership, diversityState);
+    }
+
+    return selected;
+};
+
+const pickDiscoverVideos = (
+    scoredCandidates: ScoredCandidate[],
+    selectedIds: Set<string>,
+    membership: CollectionMembership,
+    diversityState: DiversityState,
+    now: number,
+    limit: number
+): Video[] => {
+    const selected: Video[] = [];
+    const candidateVideos = scoredCandidates.map(item => item.video);
+    const freshestUnwatched = candidateVideos
+        .filter(video => !selectedIds.has(video.id) && isUnwatched(video))
+        .sort((a, b) => (b.rating || 0) - (a.rating || 0) || sortByNewest(a, b))[0];
+
+    if (
+        freshestUnwatched &&
+        canSelectByDiversity(freshestUnwatched, membership, diversityState)
+    ) {
+        selected.push(freshestUnwatched);
+        selectedIds.add(freshestUnwatched.id);
+        recordDiversity(freshestUnwatched, membership, diversityState);
+    }
+
+    if (selected.length >= limit) return selected;
+
+    const rewatchPick = candidateVideos
+        .filter(video => {
+            if (selectedIds.has(video.id) || !isCompleted(video)) return false;
+            return getRewatchMultiplier(video, now) >= 0.5 &&
+                ((video.rating || 0) >= 4 || (video.viewCount || 0) > 1);
+        })
+        .sort((a, b) =>
+            (getRewatchMultiplier(b, now) * (1 + getRatingAffinity(b, DEFAULT_WEIGHTS.rating))) -
+            (getRewatchMultiplier(a, now) * (1 + getRatingAffinity(a, DEFAULT_WEIGHTS.rating))) ||
+            sortByNewest(a, b)
+        )[0];
+
+    if (rewatchPick && canSelectByDiversity(rewatchPick, membership, diversityState)) {
+        selected.push(rewatchPick);
+        selectedIds.add(rewatchPick.id);
+        recordDiversity(rewatchPick, membership, diversityState);
+    }
+
+    return selected;
 };
 
 export interface RecommendationContext {
@@ -168,8 +554,7 @@ export const getRecommendations = (context: RecommendationContext): Video[] => {
     const { currentVideo, allVideos, collections, weights, sourceCollectionId, playbackQueueVideoIds } = context;
     const finalWeights = { ...DEFAULT_WEIGHTS, ...weights };
 
-    // Filter out current video
-    const candidates = allVideos.filter(v => v.id !== currentVideo.id);
+    const candidates = allVideos.filter(video => video.id !== currentVideo.id);
     const candidateById = new Map(candidates.map(video => [video.id, video]));
 
     const sourceCollection = sourceCollectionId
@@ -207,115 +592,76 @@ export const getRecommendations = (context: RecommendationContext): Video[] => {
         }
     }
 
-    // Pre-calculate collection membership for current video
-    const currentVideoCollections = collections.filter(c => c.videos.includes(currentVideo.id)).map(c => c.id);
+    if (candidates.length === 0) return [];
 
-    // Calculate max values for normalization
-    const maxViewCount = Math.max(...allVideos.map(v => v.viewCount || 0), 1);
     const now = Date.now();
+    const membership = buildCollectionMembership(collections);
+    const candidatePool = buildCandidatePool(currentVideo, candidates, collections, membership);
     const currentTags = normalizeTags(currentVideo.tags);
     const currentTitleTokens = tokenize(`${currentVideo.title} ${currentVideo.videoFilename ?? ''}`);
+    const nextEpisode = findNextEpisode(currentVideo, candidatePool);
+    const nextSharedCollectionVideo = findNextSharedCollectionVideo(currentVideo, candidateById, collections);
+    const filenameAdjacentVideo = findFilenameAdjacentVideo(currentVideo, candidatePool);
+    const nextScopedSequenceId =
+        nextEpisode?.id ??
+        nextSharedCollectionVideo?.id ??
+        filenameAdjacentVideo?.id ??
+        null;
+    const scoredCandidates = candidatePool
+        .map(candidate => scoreCandidate(
+            currentVideo,
+            candidate,
+            allVideos,
+            membership,
+            finalWeights,
+            now,
+            currentTags,
+            currentTitleTokens,
+            nextScopedSequenceId
+        ))
+        .sort(sortScoredCandidates);
 
-    // Determine natural sequence
-    // Sort all videos by filename/title to find the "next" one naturally
-    const sortedAllVideos = [...allVideos].sort((a, b) => {
-        const nameA = getName(a);
-        const nameB = getName(b);
-        return nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' });
-    });
-    const currentIndex = sortedAllVideos.findIndex(v => v.id === currentVideo.id);
-    const nextInSequenceId = currentIndex !== -1 && currentIndex < sortedAllVideos.length - 1 
-        ? sortedAllVideos[currentIndex + 1].id 
-        : null;
+    const selectedIds = new Set<string>();
+    const diversityState = createDiversityState();
+    const slate: Video[] = [];
 
-    const scoredCandidates = candidates.map(video => {
-        let score = 0;
+    [nextEpisode, nextSharedCollectionVideo, filenameAdjacentVideo].forEach(video => {
+        if (!video || selectedIds.has(video.id) || slate.length >= 3) return;
 
-        // 1. Recency (lastPlayedAt)
-        // Higher score for more recently played.
-        // If never played, score is 0.
-        if (video.lastPlayedAt) {
-            const age = Math.max(0, now - video.lastPlayedAt);
-            const recencyScore = Math.max(0, 1 - (age / ONE_YEAR_MS));
-            score += recencyScore * finalWeights.recency;
-        }
-
-        // 2. Frequency (viewCount). Kept intentionally weak so watched videos
-        // do not dominate topic relevance.
-        const frequencyScore = (video.viewCount || 0) / maxViewCount;
-        score += frequencyScore * finalWeights.frequency;
-
-        // 3. Collection/Series
-        // Check if video is in the same collection as current video
-        const videoCollections = collections.filter(c => c.videos.includes(video.id)).map(c => c.id);
-        const inSameCollection = currentVideoCollections.some(id => videoCollections.includes(id));
-        
-        // Also check seriesTitle if available
-        const sameSeriesTitle = currentVideo.seriesTitle && video.seriesTitle && currentVideo.seriesTitle === video.seriesTitle;
-
-        if (inSameCollection || sameSeriesTitle) {
-            score += 1.0 * finalWeights.collection;
-        }
-
-        // 4. Tags
-        // Jaccard index or simple overlap
-        const videoTags = normalizeTags(video.tags);
-        score += jaccardScore(currentTags, videoTags) * finalWeights.tags;
-
-        // 5. Author
-        if (currentVideo.author && video.author && currentVideo.author === video.author) {
-            score += 1.0 * finalWeights.author;
-        }
-
-        // 6. Platform/source
-        if (currentVideo.source && video.source && currentVideo.source === video.source) {
-            score += 1.0 * finalWeights.source;
-        }
-
-        // 7. Title/filename similarity
-        const videoTitleTokens = tokenize(`${video.title} ${video.videoFilename ?? ''}`);
-        score += jaccardScore(currentTitleTokens, videoTitleTokens) * finalWeights.title;
-
-        // 8. Video/add date proximity
-        score += getDateProximityScore(currentVideo, video) * finalWeights.dateProximity;
-
-        // 9. Duration similarity
-        score += getDurationSimilarityScore(currentVideo, video) * finalWeights.duration;
-
-        // 10. Watch state: prefer discovery and resumable videos.
-        score += getWatchStateScore(video) * finalWeights.watchState;
-        
-        // 11. Sequence (Natural Order)
-        if (video.id === nextInSequenceId) {
-            score += 1.0 * finalWeights.sequence;
-        }
-        
-        return {
-            video,
-            score,
-            inSameCollection
-        };
+        slate.push(video);
+        selectedIds.add(video.id);
+        recordDiversity(video, membership, diversityState);
     });
 
-    // Sort by score descending
-    scoredCandidates.sort((a, b) => {
-        if (Math.abs(a.score - b.score) > 0.001) {
-            return b.score - a.score;
-        }
+    const resumeVideo = scoredCandidates
+        .map(item => item.video)
+        .filter(video =>
+            !selectedIds.has(video.id) &&
+            isInProgress(video) &&
+            typeof video.lastPlayedAt === 'number' &&
+            now - video.lastPlayedAt <= RESUME_WINDOW_MS
+        )[0];
 
-        // Tie-breakers
-        
-        // 1. Same collection
-        if (a.inSameCollection !== b.inSameCollection) {
-            return a.inSameCollection ? -1 : 1;
-        }
+    if (resumeVideo && slate.length < 3) {
+        slate.push(resumeVideo);
+        selectedIds.add(resumeVideo.id);
+        recordDiversity(resumeVideo, membership, diversityState);
+    }
 
-        // 2. Filename natural order
-        const nameA = getName(a.video);
-        const nameB = getName(b.video);
-        
-        return nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' });
-    });
+    const discoverSlots = Math.min(2, Math.max(0, MAX_RECOMMENDATIONS - slate.length));
+    const relatedSlots = Math.max(0, MAX_RECOMMENDATIONS - slate.length - discoverSlots);
+    slate.push(...pickRelatedVideos(scoredCandidates, selectedIds, membership, diversityState, relatedSlots));
+    slate.push(...pickDiscoverVideos(scoredCandidates, selectedIds, membership, diversityState, now, discoverSlots));
 
-    return scoredCandidates.map(item => item.video);
+    if (slate.length < Math.min(MAX_RECOMMENDATIONS, candidates.length)) {
+        slate.push(...pickRelatedVideos(
+            scoredCandidates,
+            selectedIds,
+            membership,
+            diversityState,
+            Math.min(MAX_RECOMMENDATIONS, candidates.length) - slate.length
+        ));
+    }
+
+    return slate;
 };

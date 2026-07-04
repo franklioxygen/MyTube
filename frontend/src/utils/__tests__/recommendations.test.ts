@@ -219,13 +219,22 @@ describe("recommendations", () => {
       expect(recommendations[0]).toEqual(inProgressVideo);
     });
 
-    it("should prioritize recently played videos", () => {
+    it("should not reward recently completed videos during the re-watch cooldown", () => {
       const now = Date.now();
       const currentVideo = createMockVideo("1");
       const recentlyPlayed = createMockVideo("2", {
+        title: "Video Topic",
+        duration: "10:00",
+        progress: 600,
+        viewCount: 5,
         lastPlayedAt: now - 1000 * 60 * 60, // 1 hour ago
       });
-      const neverPlayed = createMockVideo("3");
+      const neverPlayed = createMockVideo("3", {
+        title: "Video Topic",
+        duration: "10:00",
+        progress: 0,
+        viewCount: 0,
+      });
 
       const recommendations = getRecommendations({
         currentVideo,
@@ -233,48 +242,84 @@ describe("recommendations", () => {
         collections: [],
       });
 
-      // Recently played should be ranked higher
       const recentIndex = recommendations.findIndex((v) => v.id === "2");
       const neverPlayedIndex = recommendations.findIndex((v) => v.id === "3");
-      expect(recentIndex).toBeLessThan(neverPlayedIndex);
+      expect(neverPlayedIndex).toBeLessThan(recentIndex);
     });
 
-    it("should prioritize videos with higher view count", () => {
+    it("should use rating affinity when relevance is comparable", () => {
       const currentVideo = createMockVideo("1");
-      const highViews = createMockVideo("2", { viewCount: 1000 });
-      const lowViews = createMockVideo("3", { viewCount: 10 });
+      const highRated = createMockVideo("2", {
+        title: "Comparable Topic",
+        rating: 5,
+        viewCount: 0,
+      });
+      const lowRated = createMockVideo("3", {
+        title: "Comparable Topic",
+        rating: 2,
+        viewCount: 0,
+      });
 
       const recommendations = getRecommendations({
         currentVideo,
-        allVideos: [currentVideo, highViews, lowViews],
+        allVideos: [currentVideo, lowRated, highRated],
         collections: [],
       });
 
-      // Higher view count should be ranked higher
-      const highViewsIndex = recommendations.findIndex((v) => v.id === "2");
-      const lowViewsIndex = recommendations.findIndex((v) => v.id === "3");
-      expect(highViewsIndex).toBeLessThan(lowViewsIndex);
+      expect(recommendations[0]).toEqual(highRated);
     });
 
-    it("should prioritize next video in sequence", () => {
+    it("should prioritize exact next episodes using part numbers", () => {
       const currentVideo = createMockVideo("1", {
-        videoFilename: "video_001.mp4",
+        seriesTitle: "Course",
+        partNumber: 1,
+        totalParts: 3,
       });
-      const nextInSequence = createMockVideo("2", {
-        videoFilename: "video_002.mp4",
+      const nextEpisode = createMockVideo("2", {
+        seriesTitle: "Course",
+        partNumber: 2,
+        totalParts: 3,
       });
       const otherVideo = createMockVideo("3", {
-        videoFilename: "video_010.mp4",
+        seriesTitle: "Course",
+        partNumber: 3,
+        totalParts: 3,
       });
 
       const recommendations = getRecommendations({
         currentVideo,
-        allVideos: [currentVideo, nextInSequence, otherVideo],
+        allVideos: [currentVideo, otherVideo, nextEpisode],
         collections: [],
       });
 
-      // Next in sequence should be ranked higher
-      expect(recommendations[0]).toEqual(nextInSequence);
+      expect(recommendations[0]).toEqual(nextEpisode);
+    });
+
+    it("should scope filename-adjacent sequence recommendations to the same author and title stem", () => {
+      const currentVideo = createMockVideo("1", {
+        author: "Author A",
+        title: "Course 001",
+        videoFilename: "course_001.mp4",
+      });
+      const sameAuthorNext = createMockVideo("2", {
+        author: "Author A",
+        title: "Course 002",
+        videoFilename: "course_002.mp4",
+      });
+      const globalAlphabeticNext = createMockVideo("3", {
+        author: "Author B",
+        title: "Course 001b",
+        videoFilename: "course_001b.mp4",
+      });
+
+      const recommendations = getRecommendations({
+        currentVideo,
+        allVideos: [currentVideo, globalAlphabeticNext, sameAuthorNext],
+        collections: [],
+      });
+
+      expect(recommendations[0]).toEqual(sameAuthorNext);
+      expect(recommendations[0]).not.toEqual(globalAlphabeticNext);
     });
 
     it("should prioritize remaining videos from the source collection queue", () => {
@@ -376,6 +421,56 @@ describe("recommendations", () => {
       expect(recommendations[0]).toEqual(sameSeriesVideo);
     });
 
+    it("should prefer the next unwatched video by shared collection order", () => {
+      const currentVideo = createMockVideo("1");
+      const nextCollectionVideo = createMockVideo("2", { viewCount: 0 });
+      const laterCollectionVideo = createMockVideo("3", { viewCount: 0 });
+      const outsideVideo = createMockVideo("4", { rating: 5 });
+
+      const recommendations = getRecommendations({
+        currentVideo,
+        allVideos: [
+          currentVideo,
+          laterCollectionVideo,
+          outsideVideo,
+          nextCollectionVideo,
+        ],
+        collections: [createMockCollection("col1", ["1", "2", "3"])],
+      });
+
+      expect(recommendations[0]).toEqual(nextCollectionVideo);
+    });
+
+    it("should apply author diversity caps across the slate", () => {
+      const currentVideo = createMockVideo("1", {
+        author: "Author A",
+        title: "Current Topic",
+      });
+      const sameAuthorVideos = Array.from({ length: 5 }, (_, index) =>
+        createMockVideo(`${index + 2}`, {
+          author: "Author A",
+          title: `Same Author ${index}`,
+          addedAt: `2023-01-0${index + 2}`,
+        })
+      );
+      const differentAuthorVideo = createMockVideo("7", {
+        author: "Author B",
+        title: "Different Author",
+        addedAt: "2023-01-08",
+      });
+
+      const recommendations = getRecommendations({
+        currentVideo,
+        allVideos: [currentVideo, ...sameAuthorVideos, differentAuthorVideo],
+        collections: [],
+      });
+
+      expect(recommendations.slice(0, 4)).toContain(differentAuthorVideo);
+      expect(
+        recommendations.filter(video => video.author === "Author A").length
+      ).toBeLessThanOrEqual(3);
+    });
+
     it("should return all candidates when no specific criteria match", () => {
       const currentVideo = createMockVideo("1");
       const videos = [
@@ -405,6 +500,7 @@ describe("recommendations", () => {
       expect(DEFAULT_WEIGHTS).toHaveProperty("author");
       expect(DEFAULT_WEIGHTS).toHaveProperty("filename");
       expect(DEFAULT_WEIGHTS).toHaveProperty("sequence");
+      expect(DEFAULT_WEIGHTS).toHaveProperty("rating");
     });
 
     it("should have numeric weight values", () => {
