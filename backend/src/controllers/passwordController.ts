@@ -31,6 +31,7 @@ export const getPasswordEnabled = async (
   res.json({
     ...result,
     authenticatedRole: req.user?.role ?? null,
+    authenticatedUsername: req.user?.username ?? null,
   });
 };
 
@@ -112,6 +113,30 @@ export const verifyVisitorPassword = async (
     res.json({ 
       success: true,
       role: result.role
+    });
+  } else {
+    sendAuthFailure(res, result);
+  }
+};
+
+export const verifyVisitorUserLogin = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const { username, password } = req.body;
+
+  const result = await passwordService.verifyVisitorUserLogin(
+    username,
+    password
+  );
+
+  if (result.success && result.token && result.role) {
+    const sessionId = setAuthCookie(res, result.token, result.role);
+    refreshCsrfTokenForSession(req, res, sessionId);
+    res.json({
+      success: true,
+      role: result.role,
+      username: result.username,
     });
   } else {
     sendAuthFailure(res, result);

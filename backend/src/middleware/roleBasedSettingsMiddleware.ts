@@ -8,6 +8,7 @@ import {
 const PUBLIC_EXACT_PATHS = [
   "/verify-password",
   "/verify-admin-password",
+  "/verify-user-login",
   "/verify-visitor-password",
   "/logout",
   "/password-enabled",
@@ -32,6 +33,7 @@ const VISITOR_ALLOWED_GET_PATHS = [
 const VISITOR_ALLOWED_WRITE_EXACT_PATHS = [
   "/verify-password",
   "/verify-admin-password",
+  "/verify-user-login",
   "/verify-visitor-password",
   "/logout",
 ] as const;

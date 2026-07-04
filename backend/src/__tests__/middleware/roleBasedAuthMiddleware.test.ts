@@ -46,6 +46,20 @@ describe("roleBasedAuthMiddleware", () => {
     expect(status).not.toHaveBeenCalled();
   });
 
+  it("allows visitor named-login POST requests", () => {
+    req = {
+      method: "POST",
+      path: "/settings/verify-user-login",
+      url: "/settings/verify-user-login",
+      user: { role: "visitor" } as any,
+    };
+
+    roleBasedAuthMiddleware(req as Request, res as Response, next);
+
+    expect(next).toHaveBeenCalled();
+    expect(status).not.toHaveBeenCalled();
+  });
+
   it("blocks visitor write requests that are not explicitly allowed", () => {
     req = {
       method: "POST",

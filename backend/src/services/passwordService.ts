@@ -3,6 +3,7 @@ import { DEFAULT_ADMIN_PASSWORD, defaultSettings } from "../types/settings";
 import { logger } from "../utils/logger";
 import * as storageService from "./storageService";
 import { generateToken } from "./authService";
+import * as userService from "./userService";
 
 const BCRYPT_HASH_PATTERN = /^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$/;
 
@@ -122,6 +123,7 @@ export function isPasswordEnabled(): {
   loginRequired?: boolean;
   visitorUserEnabled?: boolean;
   isVisitorPasswordSet?: boolean;
+  hasVisitorUsers?: boolean;
   passwordLoginAllowed?: boolean;
   websiteName?: string;
 } {
@@ -138,7 +140,8 @@ export function isPasswordEnabled(): {
     enabled: isEnabled,
     loginRequired: mergedSettings.loginEnabled === true,
     visitorUserEnabled: mergedSettings.visitorUserEnabled !== false,
-    isVisitorPasswordSet: !!mergedSettings.visitorPassword,
+    isVisitorPasswordSet: userService.hasEnabledLegacySharedUser(),
+    hasVisitorUsers: userService.hasEnabledVisitorUsers(),
     passwordLoginAllowed,
     websiteName: mergedSettings.websiteName,
   };
@@ -206,22 +209,17 @@ export async function verifyPassword(
     }
   }
 
-  // 2. Check Visitor Password (if visitorPassword is set and visitor user is enabled)
-  // Permission control is now based on user role
-  // If password matches visitorPassword, assign visitor role
+  // 2. Check the migrated legacy visitor account for the deprecated combined endpoint.
   const visitorUserEnabled = mergedSettings.visitorUserEnabled !== false;
-  if (visitorUserEnabled && mergedSettings.visitorPassword) {
-    const visitorMatchResult = await compareStoredPassword(
-      password,
-      mergedSettings.visitorPassword,
-    );
-    if (visitorMatchResult !== "mismatch") {
-      await persistHashForCompatibleMatch(
-        "visitorPassword",
-        password,
-        visitorMatchResult,
-      );
-      const token = generateToken({ role: "visitor" });
+  if (visitorUserEnabled) {
+    const visitorResult = await userService.verifyLegacySharedVisitorPassword(password);
+    if (visitorResult.ok) {
+      const token = generateToken({
+        role: "visitor",
+        userId: visitorResult.user.id,
+        username: visitorResult.user.username,
+        sessionVersion: visitorResult.user.sessionVersion,
+      });
       return { success: true, role: "visitor", token };
     }
   }
@@ -302,6 +300,58 @@ export async function verifyAdminPassword(
   };
 }
 
+export async function verifyVisitorUserLogin(
+  username: string,
+  password: string
+): Promise<{
+  success: boolean;
+  role?: "visitor";
+  token?: string;
+  username?: string;
+  message?: string;
+}> {
+  const settings = storageService.getSettings();
+  const mergedSettings = { ...defaultSettings, ...settings };
+
+  const visitorUserEnabled = mergedSettings.visitorUserEnabled !== false;
+  if (!visitorUserEnabled) {
+    return {
+      success: false,
+      message: "Visitor user is not enabled.",
+    };
+  }
+
+  const passwordLoginAllowed = mergedSettings.passwordLoginAllowed !== false;
+  if (!passwordLoginAllowed) {
+    return {
+      success: false,
+      message: "Password login is not allowed. Please use passkey authentication.",
+    };
+  }
+
+  const result = await userService.verifyUserLogin(username, password);
+  if (!result.ok) {
+    return {
+      success: false,
+      message: "Incorrect username or password",
+    };
+  }
+
+  const token = generateToken({
+    role: "visitor",
+    userId: result.user.id,
+    username: result.user.username,
+    sessionVersion: result.user.sessionVersion,
+  });
+
+  return {
+    success: true,
+    role: "visitor",
+    token,
+    username: result.user.username,
+  };
+}
+
 /**
  * Verify visitor password for authentication
  * Only checks visitor password, not admin password
@@ -337,27 +387,22 @@ export async function verifyVisitorPassword(
     };
   }
 
-  // Check Visitor Password only
-  if (mergedSettings.visitorPassword) {
-    const visitorMatchResult = await compareStoredPassword(
-      password,
-      mergedSettings.visitorPassword,
-    );
-    if (visitorMatchResult !== "mismatch") {
-      await persistHashForCompatibleMatch(
-        "visitorPassword",
-        password,
-        visitorMatchResult,
-      );
-      const token = generateToken({ role: "visitor" });
-      return { success: true, role: "visitor", token };
-    }
-  } else {
-    // No visitor password set
+  const visitorResult = await userService.verifyLegacySharedVisitorPassword(password);
+  if (!visitorResult.ok && visitorResult.notConfigured) {
     return {
       success: false,
       message: "Visitor password is not configured.",
     };
+  }
+
+  if (visitorResult.ok) {
+    const token = generateToken({
+      role: "visitor",
+      userId: visitorResult.user.id,
+      username: visitorResult.user.username,
+      sessionVersion: visitorResult.user.sessionVersion,
+    });
+    return { success: true, role: "visitor", token };
   }
 
   return {

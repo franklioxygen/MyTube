@@ -20,6 +20,9 @@ vi.mock('../../services/storageService', async (importOriginal) => {
 });
 vi.mock('../../services/downloadManager');
 vi.mock('../../services/passwordService');
+vi.mock('../../services/userService', () => ({
+  hasEnabledLegacySharedUser: vi.fn(() => false),
+}));
 vi.mock('bcryptjs');
 vi.mock('fs-extra');
 vi.mock('../../services/migrationService', () => ({

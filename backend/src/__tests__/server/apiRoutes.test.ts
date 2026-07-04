@@ -81,6 +81,10 @@ describe("registerApiRoutes", () => {
       authLimiters.visitorPasswordLimiter
     );
     expect(app.post).toHaveBeenCalledWith(
+      "/api/settings/verify-user-login",
+      authLimiters.visitorPasswordLimiter
+    );
+    expect(app.post).toHaveBeenCalledWith(
       "/api/settings/confirm-admin-password",
       authLimiters.adminReauthLimiter
     );
@@ -130,7 +134,7 @@ describe("registerApiRoutes", () => {
       settingsRoutes
     );
 
-    expect(app.post).toHaveBeenCalledTimes(10);
+    expect(app.post).toHaveBeenCalledTimes(11);
     expect(app.get).toHaveBeenCalledTimes(2);
     expect(app.use).toHaveBeenCalledTimes(5);
   });
@@ -151,7 +155,7 @@ describe("registerApiRoutes", () => {
     registerApiRoutes(app, authLimiters as any, { includeFeedRoute: false });
 
     expect(app.get).not.toHaveBeenCalled();
-    expect(app.post).toHaveBeenCalledTimes(10);
+    expect(app.post).toHaveBeenCalledTimes(11);
     expect(app.use).toHaveBeenCalledTimes(5);
   });
 

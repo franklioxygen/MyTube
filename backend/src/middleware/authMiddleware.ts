@@ -1,10 +1,12 @@
 import { NextFunction, Request, Response } from "express";
 import {
+  deleteSession,
   getAuthCookieName,
   getUserPayloadFromSession,
   UserPayload,
   verifyToken,
 } from "../services/authService";
+import { isUserSessionPayloadValid } from "../services/userService";
 import { isApiKeyAuthorized } from "../utils/apiKeyAuth";
 
 // Extend Express Request type to include user property
@@ -36,9 +38,13 @@ export const authMiddleware = (
   if (sessionIdFromCookie) {
     const sessionPayload = getUserPayloadFromSession(sessionIdFromCookie);
     if (sessionPayload) {
-      req.user = sessionPayload;
-      next();
-      return;
+      if (!isUserSessionPayloadValid(sessionPayload)) {
+        deleteSession(sessionIdFromCookie);
+      } else {
+        req.user = sessionPayload;
+        next();
+        return;
+      }
     }
   }
 
@@ -50,8 +56,8 @@ export const authMiddleware = (
     const token = authHeader.split(" ")[1];
     const decoded = verifyToken(token);
 
-    // Only set req.user if token is valid (server-verified)
-    if (decoded) {
+    // Only set req.user if token is valid and still valid for user-backed sessions.
+    if (decoded && isUserSessionPayloadValid(decoded)) {
       req.user = decoded;
       next();
       return;

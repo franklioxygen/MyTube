@@ -10,6 +10,7 @@ import {
 const PUBLIC_EXACT_PATHS = [
   "/settings/verify-password",
   "/settings/verify-admin-password",
+  "/settings/verify-user-login",
   "/settings/verify-visitor-password",
   "/settings/password-enabled",
   "/settings/passkeys/exists",
@@ -23,6 +24,7 @@ const PUBLIC_PREFIX_PATHS = [
 const VISITOR_ALLOWED_POST_EXACT_PATHS = [
   "/settings/verify-password",
   "/settings/verify-admin-password",
+  "/settings/verify-user-login",
   "/settings/verify-visitor-password",
   "/settings/logout",
 ] as const;

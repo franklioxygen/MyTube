@@ -46,6 +46,7 @@ describe('passwordController', () => {
       expect(mockRes.json).toHaveBeenCalledWith({
         ...mockResult,
         authenticatedRole: 'visitor',
+        authenticatedUsername: null,
       });
     });
 
@@ -57,6 +58,7 @@ describe('passwordController', () => {
       expect(jsonMock).toHaveBeenCalledWith({
         enabled: false,
         authenticatedRole: null,
+        authenticatedUsername: null,
       });
     });
   });
@@ -188,6 +190,63 @@ describe('passwordController', () => {
           message: 'wait',
         })
       );
+    });
+  });
+
+  describe('verifyVisitorUserLogin', () => {
+    it('should set auth cookie on successful named visitor verification', async () => {
+      mockReq.body = { username: 'alice', password: 'visitor-pass' };
+      (passwordService.verifyVisitorUserLogin as any).mockResolvedValue({
+        success: true,
+        token: 'visitor-token',
+        role: 'visitor',
+        username: 'Alice',
+      });
+      vi.mocked(authService.setAuthCookie).mockReturnValue('session-4');
+
+      await passwordController.verifyVisitorUserLogin(
+        mockReq as Request,
+        mockRes as Response
+      );
+
+      expect(passwordService.verifyVisitorUserLogin).toHaveBeenCalledWith(
+        'alice',
+        'visitor-pass'
+      );
+      expect(authService.setAuthCookie).toHaveBeenCalledWith(
+        mockRes,
+        'visitor-token',
+        'visitor'
+      );
+      expect(csrfMiddleware.refreshCsrfTokenForSession).toHaveBeenCalledWith(
+        mockReq,
+        mockRes,
+        'session-4'
+      );
+      expect(jsonMock).toHaveBeenCalledWith({
+        success: true,
+        role: 'visitor',
+        username: 'Alice',
+      });
+    });
+
+    it('should return 401 when named visitor verification fails', async () => {
+      mockReq.body = { username: 'alice', password: 'wrong' };
+      (passwordService.verifyVisitorUserLogin as any).mockResolvedValue({
+        success: false,
+        message: 'Incorrect username or password',
+      });
+
+      await passwordController.verifyVisitorUserLogin(
+        mockReq as Request,
+        mockRes as Response
+      );
+
+      expect(statusMock).toHaveBeenCalledWith(401);
+      expect(jsonMock).toHaveBeenCalledWith({
+        success: false,
+        message: 'Incorrect username or password',
+      });
     });
   });
 

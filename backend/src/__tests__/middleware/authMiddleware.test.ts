@@ -3,16 +3,23 @@ import { NextFunction, Request, Response } from "express";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { authMiddleware } from "../../middleware/authMiddleware";
 import {
+  deleteSession,
   getAuthCookieName,
   getUserPayloadFromSession,
   verifyToken,
 } from "../../services/authService";
 import { getSettings } from "../../services/storageService";
+import { isUserSessionPayloadValid } from "../../services/userService";
 
 vi.mock("../../services/authService", () => ({
+  deleteSession: vi.fn(),
   getAuthCookieName: vi.fn(),
   getUserPayloadFromSession: vi.fn(),
   verifyToken: vi.fn(),
+}));
+
+vi.mock("../../services/userService", () => ({
+  isUserSessionPayloadValid: vi.fn(),
 }));
 
 vi.mock("../../services/storageService", () => ({
@@ -30,6 +37,7 @@ describe("authMiddleware", () => {
     res = {};
     next = vi.fn();
     vi.mocked(getAuthCookieName).mockReturnValue("mytube_auth_session");
+    vi.mocked(isUserSessionPayloadValid).mockReturnValue(true);
     vi.mocked(getSettings).mockReturnValue({
       apiKeyEnabled: false,
       apiKey: "",
@@ -49,6 +57,24 @@ describe("authMiddleware", () => {
     expect(next).toHaveBeenCalledTimes(1);
   });
 
+  it("deletes stale user-backed sessions and continues unauthenticated", () => {
+    const payload = {
+      role: "visitor",
+      id: "login-1",
+      userId: "user-1",
+      sessionVersion: 1,
+    } as const;
+    req.cookies = { mytube_auth_session: "sid-1" };
+    vi.mocked(getUserPayloadFromSession).mockReturnValue(payload as any);
+    vi.mocked(isUserSessionPayloadValid).mockReturnValue(false);
+
+    authMiddleware(req as Request, res as Response, next);
+
+    expect(deleteSession).toHaveBeenCalledWith("sid-1");
+    expect((req as Request).user).toBeUndefined();
+    expect(next).toHaveBeenCalledTimes(1);
+  });
+
   it("falls back to bearer token when session cookie is missing", () => {
     const payload = { role: "visitor", id: "u2" } as const;
     req.headers = { authorization: "Bearer token-123" };
@@ -59,6 +85,25 @@ describe("authMiddleware", () => {
 
     expect(verifyToken).toHaveBeenCalledWith("token-123");
     expect((req as Request).user).toEqual(payload);
+    expect(next).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores stale user-backed bearer tokens", () => {
+    const payload = {
+      role: "visitor",
+      id: "login-1",
+      userId: "user-1",
+      sessionVersion: 1,
+    } as const;
+    req.headers = { authorization: "Bearer token-123" };
+    vi.mocked(getUserPayloadFromSession).mockReturnValue(null);
+    vi.mocked(verifyToken).mockReturnValue(payload as any);
+    vi.mocked(isUserSessionPayloadValid).mockReturnValue(false);
+
+    authMiddleware(req as Request, res as Response, next);
+
+    expect((req as Request).user).toBeUndefined();
+    expect(deleteSession).not.toHaveBeenCalled();
     expect(next).toHaveBeenCalledTimes(1);
   });
 

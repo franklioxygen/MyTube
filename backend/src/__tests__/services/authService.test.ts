@@ -2,10 +2,13 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   clearAuthCookie,
+  deleteSession,
   generateToken,
   getAuthCookieName,
   getUserPayloadFromSession,
+  revokeSessionsByUserId,
   setAuthCookie,
+  updateSessionUsernames,
   verifyToken,
 } from "../../services/authService";
 
@@ -52,6 +55,39 @@ describe("authService", () => {
         path: "/",
       }),
     );
+  });
+
+  it("revokes and updates user-backed sessions by user id", () => {
+    const res = {
+      cookie: vi.fn(),
+      clearCookie: vi.fn(),
+    } as any;
+    const token = generateToken({
+      role: "visitor",
+      userId: "user-1",
+      username: "Alice",
+      sessionVersion: 1,
+    });
+
+    const sessionId = setAuthCookie(res, token, "visitor");
+
+    updateSessionUsernames("user-1", "Alicia");
+    expect(getUserPayloadFromSession(sessionId)?.username).toBe("Alicia");
+
+    expect(revokeSessionsByUserId("user-1")).toBe(1);
+    expect(getUserPayloadFromSession(sessionId)).toBeNull();
+  });
+
+  it("deletes an individual session", () => {
+    const res = {
+      cookie: vi.fn(),
+      clearCookie: vi.fn(),
+    } as any;
+    const sessionId = setAuthCookie(res, generateToken({ role: "admin" }), "admin");
+
+    deleteSession(sessionId);
+
+    expect(getUserPayloadFromSession(sessionId)).toBeNull();
   });
 
   it("returns null for unknown sessions and invalid tokens", () => {
