@@ -301,6 +301,34 @@ describe("statistics rollups", () => {
             }),
             makeEvent({
               id: "evt-19",
+              eventType: "up_next_impression",
+              recordedAt: 975_000,
+            }),
+            makeEvent({
+              id: "evt-20",
+              eventType: "up_next_clicked",
+              payload: JSON.stringify({ lane: "related", position: 2 }),
+              value: 2,
+              recordedAt: 976_000,
+            }),
+            makeEvent({
+              id: "evt-21",
+              eventType: "autoplay_advanced",
+              recordedAt: 977_000,
+            }),
+            makeEvent({
+              id: "evt-22",
+              eventType: "autoplay_advanced",
+              recordedAt: 978_000,
+            }),
+            makeEvent({
+              id: "evt-23",
+              eventType: "autoplay_abandoned",
+              durationSeconds: 12,
+              recordedAt: 979_000,
+            }),
+            makeEvent({
+              id: "evt-24",
               eventType: "unknown_event",
               recordedAt: 980_000,
             }),
@@ -338,6 +366,25 @@ describe("statistics rollups", () => {
     );
     expect(findRollupRow(rows, "search_zero_result", { actor_role: "admin" })).toEqual(
       expect.objectContaining({ count: 1, sum: 1 })
+    );
+    expect(findRollupRow(rows, "up_next_impression", { actor_role: "admin" })).toEqual(
+      expect.objectContaining({ count: 1 })
+    );
+    expect(findRollupRow(rows, "up_next_clicked", {
+      actor_role: "admin",
+      lane: "related",
+    })).toEqual(expect.objectContaining({ count: 1, sum: 2 }));
+    expect(findRollupRow(rows, "up_next_ctr", { actor_role: "admin" })).toEqual(
+      expect.objectContaining({ count: 1, sum: 1 })
+    );
+    expect(findRollupRow(rows, "autoplay_advanced", { actor_role: "admin" })).toEqual(
+      expect.objectContaining({ count: 2 })
+    );
+    expect(findRollupRow(rows, "autoplay_abandoned", { actor_role: "admin" })).toEqual(
+      expect.objectContaining({ count: 1, sum: 12 })
+    );
+    expect(findRollupRow(rows, "autoplay_survival", { actor_role: "admin" })).toEqual(
+      expect.objectContaining({ count: 2, sum: 1 })
     );
     expect(
       findRollupRow(rows, "download_enqueued", {

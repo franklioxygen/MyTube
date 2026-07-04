@@ -5,7 +5,7 @@ import {
     Container,
     Typography
 } from '@mui/material';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import CollectionModal from '../components/CollectionModal';
 import ConfirmationModal from '../components/ConfirmationModal';
@@ -24,6 +24,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useVideo } from '../contexts/VideoContext';
 import { useCloudStorageUrl } from '../hooks/useCloudStorageUrl';
 import { useSettings } from '../hooks/useSettings';
+import { useStatisticsIngestion } from '../hooks/useStatisticsIngestion';
 import { useVideoCollections } from '../hooks/useVideoCollections';
 import { useVideoMutations } from '../hooks/useVideoMutations';
 import { useVideoPlayerSettings } from '../hooks/useVideoPlayerSettings';
@@ -47,12 +48,14 @@ const VideoPlayer: React.FC = () => {
             statisticsRelatedEventId?: string | null;
             sourceCollectionId?: string | null;
             playbackQueueVideoIds?: string[];
+            autoplayFromVideoId?: string | null;
         }
         | null;
     const statisticsRelatedEventId =
         navigationState?.statisticsRelatedEventId ?? null;
     const sourceCollectionId = navigationState?.sourceCollectionId ?? null;
     const playbackQueueVideoIds = navigationState?.playbackQueueVideoIds;
+    const autoplayFromVideoId = navigationState?.autoplayFromVideoId ?? null;
 
     const [showComments, setShowComments] = useState<boolean>(false);
     const [autoPlayNext, setAutoPlayNext] = useState<boolean>(() => {
@@ -63,6 +66,9 @@ const VideoPlayer: React.FC = () => {
     // Underlying <video> element, exposed by VideoControls for live translation capture.
     const [videoElement, setVideoElement] = useState<HTMLVideoElement | null>(null);
     const { data: liveTranslationAvailability } = useLiveTranslationAvailability();
+    const statisticsIngestion = useStatisticsIngestion();
+    const upNextImpressionEventIdRef = useRef<string | null>(null);
+    const upNextImpressionKeyRef = useRef<string | null>(null);
     const liveTargetLanguage = liveTranslationAvailability?.targetLanguage || 'en';
     const liveSubtitleLabel = `${t('liveTranslation') || 'Live translation'} (${getLiveTranslationLanguageLabel(liveTargetLanguage)})`;
     const liveSubtitleTrack = useLiveTranslationSubtitleTrack(
@@ -200,6 +206,64 @@ const VideoPlayer: React.FC = () => {
         playbackQueueVideoIds
     });
 
+    const upNextSlate = useMemo(() => {
+        if (!video) return [];
+
+        const queueIds = playbackQueueVideoIds?.includes(video.id)
+            ? playbackQueueVideoIds
+            : sourceCollectionId
+                ? collections.find(collection =>
+                    collection.id === sourceCollectionId &&
+                    collection.videos.includes(video.id)
+                )?.videos
+                : undefined;
+        const currentQueueIndex = queueIds?.indexOf(video.id) ?? -1;
+
+        return relatedVideos.map((relatedVideo, index) => {
+            let lane: 'continue' | 'related' | 'discover' = 'related';
+            if (
+                currentQueueIndex !== -1 &&
+                queueIds?.slice(currentQueueIndex + 1, currentQueueIndex + 4).includes(relatedVideo.id)
+            ) {
+                lane = 'continue';
+            } else if (
+                index < 3 &&
+                video.seriesTitle &&
+                relatedVideo.seriesTitle === video.seriesTitle &&
+                typeof video.partNumber === 'number' &&
+                relatedVideo.partNumber === video.partNumber + 1
+            ) {
+                lane = 'continue';
+            } else if (index >= Math.max(relatedVideos.length - 2, 3)) {
+                lane = 'discover';
+            }
+
+            return {
+                videoId: relatedVideo.id,
+                lane,
+                position: index + 1
+            };
+        });
+    }, [collections, playbackQueueVideoIds, relatedVideos, sourceCollectionId, video]);
+
+    useEffect(() => {
+        if (!statisticsIngestion.enabled || !video || upNextSlate.length === 0) return;
+
+        const slateKey = `${video.id}:${upNextSlate.map(item => `${item.videoId}:${item.lane}`).join(',')}`;
+        if (upNextImpressionKeyRef.current === slateKey) return;
+
+        upNextImpressionKeyRef.current = slateKey;
+        upNextImpressionEventIdRef.current = statisticsIngestion.recordEvent({
+            eventType: 'up_next_impression',
+            surface: 'web',
+            videoId: video.id,
+            payload: {
+                fromVideoId: video.id,
+                slate: upNextSlate
+            }
+        });
+    }, [statisticsIngestion, upNextSlate, video]);
+
     const handleToggleComments = () => {
         setShowComments(!showComments);
     };
@@ -332,20 +396,42 @@ const VideoPlayer: React.FC = () => {
 
 
 
+    const buildPlaybackState = (
+        relatedEventId: string | null = statisticsRelatedEventId,
+        extras: Record<string, unknown> = {}
+    ) => ({
+        ...(relatedEventId ? { statisticsRelatedEventId: relatedEventId } : {}),
+        ...(sourceCollectionId ? { sourceCollectionId } : {}),
+        ...(playbackQueueVideoIds ? { playbackQueueVideoIds } : {}),
+        ...extras
+    });
+
     const handleVideoEnded = () => {
         if (autoPlayNext && relatedVideos.length > 0) {
-            const state = {
-                ...(statisticsRelatedEventId ? { statisticsRelatedEventId } : {}),
-                ...(sourceCollectionId ? { sourceCollectionId } : {}),
-                ...(playbackQueueVideoIds ? { playbackQueueVideoIds } : {})
-            };
+            const nextVideo = relatedVideos[0];
+            const autoplayEventId = statisticsIngestion.enabled && video
+                ? statisticsIngestion.recordEvent({
+                    eventType: 'autoplay_advanced',
+                    surface: 'web',
+                    videoId: nextVideo.id,
+                    relatedEventId: upNextImpressionEventIdRef.current,
+                    payload: {
+                        fromVideoId: video.id,
+                        toVideoId: nextVideo.id
+                    }
+                })
+                : null;
+            const state = buildPlaybackState(
+                autoplayEventId ?? statisticsRelatedEventId,
+                statisticsIngestion.enabled && video ? { autoplayFromVideoId: video.id } : {}
+            );
 
             if (Object.keys(state).length > 0) {
-                navigate(`/video/${relatedVideos[0].id}`, { state });
+                navigate(`/video/${nextVideo.id}`, { state });
                 return;
             }
 
-            navigate(`/video/${relatedVideos[0].id}`);
+            navigate(`/video/${nextVideo.id}`);
         }
     };
 
@@ -406,6 +492,7 @@ const VideoPlayer: React.FC = () => {
                             typeof video.source === 'string' ? video.source.toLowerCase() : null
                         }
                         statisticsRelatedEventId={statisticsRelatedEventId}
+                        statisticsAutoplayFromVideoId={autoplayFromVideoId}
                         onUploadSubtitle={async (file: File) => {
                             if (!id) return;
                             await uploadSubtitleMutation.mutateAsync({ file });
@@ -476,12 +563,28 @@ const VideoPlayer: React.FC = () => {
                         relatedVideos={relatedVideos}
                         autoPlayNext={autoPlayNext}
                         onAutoPlayNextChange={setAutoPlayNext}
-                        onVideoClick={(videoId) => {
-                            const state = {
-                                ...(statisticsRelatedEventId ? { statisticsRelatedEventId } : {}),
-                                ...(sourceCollectionId ? { sourceCollectionId } : {}),
-                                ...(playbackQueueVideoIds ? { playbackQueueVideoIds } : {})
+                        onVideoClick={(videoId, index) => {
+                            const slateItem = upNextSlate[index] ?? {
+                                videoId,
+                                lane: 'related',
+                                position: index + 1
                             };
+                            const clickEventId = statisticsIngestion.enabled && video
+                                ? statisticsIngestion.recordEvent({
+                                    eventType: 'up_next_clicked',
+                                    surface: 'web',
+                                    videoId,
+                                    relatedEventId: upNextImpressionEventIdRef.current,
+                                    value: slateItem.position,
+                                    payload: {
+                                        fromVideoId: video.id,
+                                        toVideoId: videoId,
+                                        position: slateItem.position,
+                                        lane: slateItem.lane
+                                    }
+                                })
+                                : null;
+                            const state = buildPlaybackState(clickEventId ?? statisticsRelatedEventId);
 
                             if (Object.keys(state).length > 0) {
                                 navigate(`/video/${videoId}`, { state });

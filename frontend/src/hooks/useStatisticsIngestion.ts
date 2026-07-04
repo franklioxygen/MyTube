@@ -11,7 +11,11 @@ const MAX_BATCH_SIZE = 50;
 export type FrontendEventType =
   | 'search_submitted'
   | 'video_play_started'
-  | 'video_watch_chunk_recorded';
+  | 'video_watch_chunk_recorded'
+  | 'up_next_impression'
+  | 'up_next_clicked'
+  | 'autoplay_advanced'
+  | 'autoplay_abandoned';
 
 export interface StatisticsEventInput {
   eventType: FrontendEventType;

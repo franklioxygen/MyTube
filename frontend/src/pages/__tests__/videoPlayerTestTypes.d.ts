@@ -42,7 +42,7 @@ export interface CapturedCommentsSectionProps extends Record<string, unknown> {
 
 export interface CapturedUpNextSidebarProps extends Record<string, unknown> {
     onAutoPlayNextChange: (value: boolean) => void;
-    onVideoClick: (id: string) => void;
+    onVideoClick: (id: string, position: number) => void;
     autoPlayNext: boolean;
 }
 

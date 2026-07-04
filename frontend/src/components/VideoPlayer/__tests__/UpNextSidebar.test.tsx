@@ -77,6 +77,6 @@ describe('UpNextSidebar', () => {
         // UpNextSidebar implements its own item rendering.
 
         await user.click(screen.getByText('Video 1'));
-        expect(mockOnVideoClick).toHaveBeenCalledWith('1');
+        expect(mockOnVideoClick).toHaveBeenCalledWith('1', 0);
     });
 });

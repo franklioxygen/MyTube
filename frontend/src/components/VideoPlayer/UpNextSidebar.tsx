@@ -33,7 +33,7 @@ interface UpNextSidebarProps {
     relatedVideos: Video[];
     autoPlayNext: boolean;
     onAutoPlayNextChange: (checked: boolean) => void;
-    onVideoClick: (videoId: string) => void;
+    onVideoClick: (videoId: string, position: number) => void;
     onAddToCollection: (videoId: string) => void;
 }
 
@@ -144,7 +144,7 @@ const UpNextSidebar: React.FC<UpNextSidebarProps> = ({
                 />
             </Stack>
             <Grid container spacing={1.5}>
-                {relatedVideos.map(relatedVideo => (
+                {relatedVideos.map((relatedVideo, index) => (
                     <Grid key={relatedVideo.id} size={{ xs: 12, md: 6, lg: 12 }}>
                         <Card
                             elevation={0}
@@ -161,7 +161,7 @@ const UpNextSidebar: React.FC<UpNextSidebarProps> = ({
                                 transition: 'background-color 0.15s ease',
                                 '&:hover': { bgcolor: 'action.hover' }
                             }}
-                            onClick={() => onVideoClick(relatedVideo.id)}
+                            onClick={() => onVideoClick(relatedVideo.id, index)}
                             onMouseEnter={() => setHoveredVideoId(relatedVideo.id)}
                             onMouseLeave={() => setHoveredVideoId(null)}
                         >

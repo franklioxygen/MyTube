@@ -9,7 +9,7 @@
 
 - [x] Phase 1 — frontend heuristic ranker redesign completed on 2026-07-04.
 - [x] Phase 2 — backend recommendation signals and client integration completed on 2026-07-04.
-- [ ] Phase 3 — Up Next feedback events, rollups, and replay evaluation.
+- [x] Phase 3 — Up Next feedback events, rollups, and replay evaluation completed on 2026-07-04.
 
 ---
 
