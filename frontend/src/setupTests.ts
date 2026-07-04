@@ -15,3 +15,32 @@ Object.defineProperty(window, 'matchMedia', {
     dispatchEvent: vi.fn(),
   })),
 });
+
+// jsdom does not implement media playback or scrollTo. Without these stubs,
+// jsdom emits "Not implemented" errors via its virtual console, which vitest
+// forwards to the main process as onUserConsoleLog RPC calls. Media cleanup
+// (e.g. pausing a <video> on unmount) can run asynchronously after a test has
+// finished, so that log RPC can be in flight exactly as the worker tears down
+// its environment — producing the flaky
+// "EnvironmentTeardownError: Closing rpc while 'onUserConsoleLog' was pending".
+// Stubbing the unimplemented methods removes the noise and the race.
+Object.defineProperty(window.HTMLMediaElement.prototype, 'play', {
+  configurable: true,
+  writable: true,
+  value: vi.fn().mockResolvedValue(undefined),
+});
+Object.defineProperty(window.HTMLMediaElement.prototype, 'pause', {
+  configurable: true,
+  writable: true,
+  value: vi.fn(),
+});
+Object.defineProperty(window.HTMLMediaElement.prototype, 'load', {
+  configurable: true,
+  writable: true,
+  value: vi.fn(),
+});
+Object.defineProperty(window, 'scrollTo', {
+  configurable: true,
+  writable: true,
+  value: vi.fn(),
+});

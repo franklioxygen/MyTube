@@ -48,6 +48,13 @@ vi.mock('../../contexts/AuthContext', () => ({
     AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
+vi.mock('../../hooks/useSettings', () => ({
+    useSettings: () => ({
+        data: { websiteName: 'TestTube', infiniteScroll: false, showThemeButton: true },
+        isLoading: false,
+    }),
+}));
+
 // Mock child components to avoid context dependency issues
 vi.mock('../AuthorsList', () => ({ default: () => <div data-testid="authors-list" /> }));
 vi.mock('../Collections', () => ({ default: () => <div data-testid="collections-list" /> }));
