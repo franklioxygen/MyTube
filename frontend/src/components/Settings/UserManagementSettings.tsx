@@ -50,21 +50,26 @@ const USERNAME_MIN_LENGTH = 3;
 const USERNAME_MAX_LENGTH = 32;
 const PASSWORD_MIN_LENGTH = 6;
 const PASSWORD_MAX_LENGTH = 128;
-const PASSWORD_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789._-';
+const GENERATED_CREDENTIAL_CHARSETS = [
+    'ABCDEFGHJKLMNPQRSTUVWXYZ',
+    'abcdefghijkmnopqrstuvwxyz',
+    '23456789._-',
+];
+const GENERATED_CREDENTIAL_ALPHABET = GENERATED_CREDENTIAL_CHARSETS.join('');
 
 const GENERATED_PASSWORD_LENGTH = 16;
 
 const generatePassword = (): string => {
     // Rejection sampling: discard bytes above the largest multiple of the
     // alphabet size so every character is equally likely.
-    const maxUnbiasedByte = Math.floor(256 / PASSWORD_ALPHABET.length) * PASSWORD_ALPHABET.length;
+    const maxUnbiasedByte = Math.floor(256 / GENERATED_CREDENTIAL_ALPHABET.length) * GENERATED_CREDENTIAL_ALPHABET.length;
     const chars: string[] = [];
     while (chars.length < GENERATED_PASSWORD_LENGTH) {
         const bytes = new Uint8Array(GENERATED_PASSWORD_LENGTH * 2);
         window.crypto.getRandomValues(bytes);
         for (const byte of bytes) {
             if (byte < maxUnbiasedByte && chars.length < GENERATED_PASSWORD_LENGTH) {
-                chars.push(PASSWORD_ALPHABET[byte % PASSWORD_ALPHABET.length]);
+                chars.push(GENERATED_CREDENTIAL_ALPHABET[byte % GENERATED_CREDENTIAL_ALPHABET.length]);
             }
         }
     }
