@@ -7,6 +7,10 @@ import { startRegistration } from '@simplewebauthn/browser';
 import SecuritySettings from '../SecuritySettings';
 import { api } from '../../../utils/apiClient';
 
+vi.mock('../UserManagementSettings', () => ({
+    default: () => <div data-testid="user-management-settings">UserManagementSettings</div>,
+}));
+
 vi.mock('../../../contexts/LanguageContext', () => ({
     useLanguage: () => ({ t: (key: string) => key }),
 }));
@@ -102,7 +106,7 @@ describe('SecuritySettings', () => {
         expect(screen.getByRole('switch', { name: 'enableLogin' })).toBeInTheDocument();
     });
 
-    it('shows password and visitor password fields when login is enabled', () => {
+    it('shows password field and visitor user management when login is enabled', () => {
         render(
             <SecuritySettings
                 settings={{ ...defaultSettings, loginEnabled: true, isPasswordSet: true, isVisitorPasswordSet: true }}
@@ -112,11 +116,10 @@ describe('SecuritySettings', () => {
 
         expect(screen.getByLabelText('password')).toBeInTheDocument();
         expect(screen.getByText('passwordHelper')).toBeInTheDocument();
-        expect(screen.getByLabelText('visitorPassword')).toBeInTheDocument();
-        expect(screen.getByText('visitorPasswordSetHelper')).toBeInTheDocument();
+        expect(screen.getByTestId('user-management-settings')).toBeInTheDocument();
     });
 
-    it('hides visitor password field when visitor user is disabled', () => {
+    it('hides visitor user management when visitor user is disabled', () => {
         render(
             <SecuritySettings
                 settings={{ ...defaultSettings, loginEnabled: true, visitorUserEnabled: false }}
@@ -124,7 +127,7 @@ describe('SecuritySettings', () => {
             />
         );
 
-        expect(screen.queryByLabelText('visitorPassword')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('user-management-settings')).not.toBeInTheDocument();
     });
 
     it('auto-enables password login when no passkeys exist', async () => {
@@ -278,12 +281,10 @@ describe('SecuritySettings', () => {
         await user.click(screen.getByRole('switch', { name: 'enableLogin' }));
         await user.click(screen.getByRole('switch', { name: 'enableVisitorUser' }));
         await user.type(screen.getByLabelText('password'), 'secret');
-        await user.type(screen.getByLabelText('visitorPassword'), 'guest');
 
         expect(mockOnChange).toHaveBeenCalledWith('loginEnabled', false);
         expect(mockOnChange).toHaveBeenCalledWith('visitorUserEnabled', false);
         expect(mockOnChange).toHaveBeenCalledWith('password', 's');
-        expect(mockOnChange).toHaveBeenCalledWith('visitorPassword', 'g');
     });
 
     it('generates an api key when enabling api key auth without an existing key', async () => {

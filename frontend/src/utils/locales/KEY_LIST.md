@@ -4,7 +4,7 @@ Canonical locale key order derived from `frontend/src/utils/locales/en.ts`.
 
 This list is intentionally unnumbered. When new keys are inserted, only the local section order changes.
 
-Total keys: 996
+Total keys: 1030
 
 ## Summary
 
@@ -13,7 +13,7 @@ Total keys: 996
 | Header | 11 | `myTube` | `instruction` |
 | Home | 19 | `pasteUrl` | `views` |
 | Settings | 4 | `general` | `downloadSettings` |
-| Settings Categories | 143 | `basicSettings` | `enterNewTagName` |
+| Settings Categories | 177 | `basicSettings` | `enterNewTagName` |
 | Database | 40 | `database` | `cleanupTempFilesConfirmMessage` |
 | Task Hooks | 69 | `taskHooks` | `cleanupTempFilesFailed` |
 | Cookie Settings | 12 | `cookieSettings` | `cookiesDeleteFailed` |
@@ -433,6 +433,40 @@ Total keys: 996
 | `visitorPassword` |
 | `visitorPasswordHelper` |
 | `visitorPasswordSetHelper` |
+| `visitorAccounts` |
+| `addVisitorUser` |
+| `editVisitorUser` |
+| `username` |
+| `userStatus` |
+| `userEnabled` |
+| `userDisabled` |
+| `userLastLogin` |
+| `userNeverLoggedIn` |
+| `userActions` |
+| `enableUser` |
+| `disableUser` |
+| `deleteUser` |
+| `setNewPassword` |
+| `generatePassword` |
+| `copyPassword` |
+| `passwordCopied` |
+| `userCreated` |
+| `userUpdated` |
+| `userDeleted` |
+| `userDeleteConfirm` |
+| `userDisableConfirm` |
+| `userPasswordChangeWarning` |
+| `userUsernameInvalid` |
+| `userUsernameReserved` |
+| `userUsernameTaken` |
+| `userPasswordInvalid` |
+| `userNotFound` |
+| `userEmptyPatch` |
+| `noVisitorUsers` |
+| `legacySharedUserTooltip` |
+| `visitorUsersImmediateHint` |
+| `visitorLoginHint` |
+| `incorrectUsernameOrPassword` |
 | `cleanupTempFilesSuccess` |
 | `cleanupTempFilesFailed` |
 

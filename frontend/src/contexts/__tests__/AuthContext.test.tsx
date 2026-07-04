@@ -10,13 +10,14 @@ vi.mock('axios');
 const mockedAxios = vi.mocked(axios, true);
 
 const TestComponent = () => {
-    const { isAuthenticated, loginRequired, checkingAuth, login, logout } = useAuth();
+    const { isAuthenticated, loginRequired, checkingAuth, login, logout, username } = useAuth();
     return (
         <div>
             <div data-testid="auth-status">{isAuthenticated ? 'Authenticated' : 'Not Authenticated'}</div>
             <div data-testid="login-required">{loginRequired ? 'Required' : 'Optional'}</div>
             <div data-testid="checking-auth">{checkingAuth ? 'Checking' : 'Settled'}</div>
-            <button onClick={() => login('admin')}>Login</button>
+            <div data-testid="username">{username ?? 'none'}</div>
+            <button onClick={() => login('visitor', 'alice')}>Login</button>
             <button onClick={logout}>Logout</button>
         </div>
     );
@@ -93,13 +94,14 @@ describe('AuthContext', () => {
 
     it('should use authenticatedRole from settings response', async () => {
         mockedAxios.get.mockResolvedValueOnce({
-            data: { loginRequired: true, authenticatedRole: 'admin' }
+            data: { loginRequired: true, authenticatedRole: 'visitor', authenticatedUsername: 'alice' }
         });
 
         renderWithProviders(<TestComponent />);
 
         await waitFor(() => {
             expect(screen.getByTestId('auth-status')).toHaveTextContent('Authenticated');
+            expect(screen.getByTestId('username')).toHaveTextContent('alice');
         });
     });
 
@@ -174,6 +176,7 @@ describe('AuthContext', () => {
         await user.click(screen.getByText('Login'));
 
         expect(screen.getByTestId('auth-status')).toHaveTextContent('Authenticated');
+        expect(screen.getByTestId('username')).toHaveTextContent('alice');
     });
 
     it('should handle logout', async () => {
@@ -193,6 +196,7 @@ describe('AuthContext', () => {
 
         await waitFor(() => {
             expect(screen.getByTestId('auth-status')).toHaveTextContent('Not Authenticated');
+            expect(screen.getByTestId('username')).toHaveTextContent('none');
         });
     });
 });

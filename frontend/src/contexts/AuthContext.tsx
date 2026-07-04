@@ -8,7 +8,8 @@ interface AuthContextType {
     loginRequired: boolean;
     checkingAuth: boolean;
     userRole: 'admin' | 'visitor' | null;
-    login: (role?: 'admin' | 'visitor') => void;
+    username: string | null;
+    login: (role?: 'admin' | 'visitor', username?: string | null) => void;
     logout: () => void;
 }
 
@@ -30,6 +31,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const loginRequired = authSettings?.loginRequired !== false;
     const isAuthenticated = !loginRequired || authenticatedRole !== null;
     const userRole = authenticatedRole;
+    const username = authSettings?.authenticatedUsername ?? null;
 
     useEffect(() => {
         if (!authSettingsError) {
@@ -39,11 +41,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error('Error checking auth settings:', authSettingsError);
     }, [authSettingsError]);
 
-    const login = useCallback((role?: 'admin' | 'visitor') => {
+    const login = useCallback((role?: 'admin' | 'visitor', username?: string | null) => {
         queryClient.setQueryData(authSettingsQueryOptions.queryKey, (current: any) => ({
             ...(current ?? {}),
             loginRequired: current?.loginRequired ?? true,
-            authenticatedRole: role ?? current?.authenticatedRole ?? 'admin'
+            authenticatedRole: role ?? current?.authenticatedRole ?? 'admin',
+            authenticatedUsername: username ?? current?.authenticatedUsername ?? null,
         }));
         // Notify LanguageContext to refetch settings (e.g. so language persists in new browser)
         window.dispatchEvent(new CustomEvent('mytube-login'));
@@ -54,7 +57,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         queryClient.setQueryData(authSettingsQueryOptions.queryKey, (current: any) => ({
             ...(current ?? {}),
             loginRequired: current?.loginRequired ?? true,
-            authenticatedRole: null
+            authenticatedRole: null,
+            authenticatedUsername: null,
         }));
 
         try {
@@ -71,8 +75,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, [queryClient]);
 
     const value = useMemo<AuthContextType>(() => ({
-        isAuthenticated, loginRequired, checkingAuth, userRole, login, logout,
-    }), [isAuthenticated, loginRequired, checkingAuth, userRole, login, logout]);
+        isAuthenticated, loginRequired, checkingAuth, userRole, username, login, logout,
+    }), [isAuthenticated, loginRequired, checkingAuth, userRole, username, login, logout]);
 
     return (
         <AuthContext.Provider value={value}>
