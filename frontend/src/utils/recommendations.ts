@@ -16,6 +16,21 @@ export interface RecommendationWeights {
     rating: number;
 }
 
+export interface RecommendationSignals {
+    computedAt: number;
+    perVideo: Record<string, {
+        ws: number;
+        cr: number;
+        ar: number;
+        lf: number | null;
+        rw: number;
+        nb: [string, number][];
+    }>;
+    authorAffinity: Record<string, number>;
+    tagAffinity: Record<string, number>;
+    durationBands: number[];
+}
+
 export const DEFAULT_WEIGHTS: RecommendationWeights = {
     // Deprecated Phase 1 inputs kept for callers that pass partial custom weights.
     // Recency/watch-state are now represented by the re-watch cooldown multiplier.
@@ -170,11 +185,18 @@ const isCompleted = (video: Video): boolean => getProgressRatio(video) >= 0.9;
 const isUnwatched = (video: Video): boolean =>
     (video.viewCount || 0) === 0 && getProgressRatio(video) === 0;
 
-const getRewatchMultiplier = (video: Video, now: number): number => {
+const getRewatchMultiplier = (
+    video: Video,
+    now: number,
+    signal?: RecommendationSignals['perVideo'][string]
+): number => {
     if (isInProgress(video)) return 1.15;
-    if (!isCompleted(video)) return 1;
 
-    const lastFinishedAt = typeof video.lastPlayedAt === 'number' ? video.lastPlayedAt : null;
+    const signalFinishedAt = signal?.lf ?? null;
+    if (!signalFinishedAt && !isCompleted(video)) return 1;
+
+    const lastFinishedAt = signalFinishedAt ??
+        (typeof video.lastPlayedAt === 'number' ? video.lastPlayedAt : null);
     if (!lastFinishedAt) return 1;
 
     const age = Math.max(0, now - lastFinishedAt);
@@ -182,7 +204,8 @@ const getRewatchMultiplier = (video: Video, now: number): number => {
     const rating = typeof video.rating === 'number' ? clamp(video.rating, 1, 5) : 3;
     const ratingBoost = 1 + 0.3 * ((rating - 3) / 2);
     const viewCount = video.viewCount || 0;
-    const rewatchRate = viewCount > 0 ? Math.max(0, viewCount - 1) / viewCount : 0;
+    const rewatchRate = signal?.rw ??
+        (viewCount > 0 ? Math.max(0, viewCount - 1) / viewCount : 0);
 
     return clamp(base * (ratingBoost + 0.5 * rewatchRate), 0, 1);
 };
@@ -203,6 +226,72 @@ const getAddedAtTimestamp = (video: Video): number =>
 
 const sortByNewest = (a: Video, b: Video): number =>
     getAddedAtTimestamp(b) - getAddedAtTimestamp(a) || sortByNaturalName(a, b);
+
+const getDurationBand = (durationSeconds: number | null): number => {
+    if (!durationSeconds || durationSeconds < 5 * 60) return 0;
+    if (durationSeconds < 15 * 60) return 1;
+    if (durationSeconds < 45 * 60) return 2;
+    return 3;
+};
+
+const getDurationFit = (video: Video, signals?: RecommendationSignals): number => {
+    if (!signals || signals.durationBands.length === 0) return 0;
+    const duration = parseDurationSeconds(video.duration);
+    return signals.durationBands[getDurationBand(duration)] ?? 0;
+};
+
+const getTagAffinity = (video: Video, signals?: RecommendationSignals): number => {
+    if (!signals) return 0;
+    const tags = normalizeTags(video.tags);
+    if (tags.length === 0) return 0;
+
+    return clamp(
+        tags.reduce((sum, tag) => sum + (signals.tagAffinity[tag] ?? 0), 0) / tags.length,
+        0,
+        1
+    );
+};
+
+const getCoPlayScore = (
+    currentVideo: Video,
+    candidate: Video,
+    signals?: RecommendationSignals
+): number => {
+    const currentSignals = signals?.perVideo[currentVideo.id];
+    if (!currentSignals) return 0;
+
+    return currentSignals.nb.find(([videoId]) => videoId === candidate.id)?.[1] ?? 0;
+};
+
+const getBehavioralAffinity = (
+    currentVideo: Video,
+    candidate: Video,
+    signals: RecommendationSignals | undefined,
+    ratingWeight: number
+): number => {
+    const ratingAffinity = getRatingAffinity(candidate, ratingWeight);
+    if (!signals) return ratingAffinity;
+
+    const authorAffinity = signals.authorAffinity[getAuthorKey(candidate)] ?? 0;
+
+    return clamp(
+        getCoPlayScore(currentVideo, candidate, signals) * 0.4 +
+        authorAffinity * 0.3 +
+        getTagAffinity(candidate, signals) * 0.15 +
+        ratingAffinity +
+        getDurationFit(candidate, signals) * 0.1,
+        -1,
+        1
+    );
+};
+
+const getAvailabilityMultiplier = (
+    candidate: Video,
+    signals?: RecommendationSignals
+): number => {
+    const abandonRate = signals?.perVideo[candidate.id]?.ar ?? 0;
+    return clamp(1 - 0.5 * abandonRate, 0.5, 1);
+};
 
 type CollectionMembership = Map<string, Array<{ id: string; index: number }>>;
 
@@ -330,7 +419,8 @@ const scoreCandidate = (
     now: number,
     currentTags: string[],
     currentTitleTokens: string[],
-    nextScopedSequenceId: string | null
+    nextScopedSequenceId: string | null,
+    signals?: RecommendationSignals
 ): ScoredCandidate => {
     const candidateTags = normalizeTags(candidate.tags);
     const candidateTitleTokens = tokenize(`${candidate.title} ${candidate.videoFilename ?? ''}`);
@@ -356,8 +446,9 @@ const scoreCandidate = (
         frequencyScore * weights.frequency;
 
     const score = similarity *
-        (1 + getRatingAffinity(candidate, weights.rating)) *
-        getRewatchMultiplier(candidate, now);
+        (1 + getBehavioralAffinity(currentVideo, candidate, signals, weights.rating)) *
+        getRewatchMultiplier(candidate, now, signals?.perVideo[candidate.id]) *
+        getAvailabilityMultiplier(candidate, signals);
 
     return {
         video: candidate,
@@ -383,7 +474,8 @@ const buildCandidatePool = (
     currentVideo: Video,
     allCandidates: Video[],
     collections: Collection[],
-    membership: CollectionMembership
+    membership: CollectionMembership,
+    signals?: RecommendationSignals
 ): Video[] => {
     const candidateIds = new Set<string>();
     const allCandidatesById = new Map(allCandidates.map(video => [video.id, video]));
@@ -395,6 +487,10 @@ const buildCandidatePool = (
         collection?.videos.forEach(videoId => {
             addCandidate(candidateIds, allCandidatesById.get(videoId), currentVideo.id);
         });
+    });
+
+    signals?.perVideo[currentVideo.id]?.nb.forEach(([videoId]) => {
+        addCandidate(candidateIds, allCandidatesById.get(videoId), currentVideo.id);
     });
 
     allCandidates
@@ -501,7 +597,8 @@ const pickDiscoverVideos = (
     membership: CollectionMembership,
     diversityState: DiversityState,
     now: number,
-    limit: number
+    limit: number,
+    signals?: RecommendationSignals
 ): Video[] => {
     const selected: Video[] = [];
     const candidateVideos = scoredCandidates.map(item => item.video);
@@ -523,12 +620,20 @@ const pickDiscoverVideos = (
     const rewatchPick = candidateVideos
         .filter(video => {
             if (selectedIds.has(video.id) || !isCompleted(video)) return false;
-            return getRewatchMultiplier(video, now) >= 0.5 &&
+            return getRewatchMultiplier(video, now, signals?.perVideo[video.id]) >= 0.5 &&
                 ((video.rating || 0) >= 4 || (video.viewCount || 0) > 1);
         })
         .sort((a, b) =>
-            (getRewatchMultiplier(b, now) * (1 + getRatingAffinity(b, DEFAULT_WEIGHTS.rating))) -
-            (getRewatchMultiplier(a, now) * (1 + getRatingAffinity(a, DEFAULT_WEIGHTS.rating))) ||
+            (getRewatchMultiplier(b, now, signals?.perVideo[b.id]) *
+                (1 + getRatingAffinity(b, DEFAULT_WEIGHTS.rating) +
+                    (signals?.authorAffinity[getAuthorKey(b)] ?? 0) +
+                    getTagAffinity(b, signals) +
+                    getDurationFit(b, signals))) -
+            (getRewatchMultiplier(a, now, signals?.perVideo[a.id]) *
+                (1 + getRatingAffinity(a, DEFAULT_WEIGHTS.rating) +
+                    (signals?.authorAffinity[getAuthorKey(a)] ?? 0) +
+                    getTagAffinity(a, signals) +
+                    getDurationFit(a, signals))) ||
             sortByNewest(a, b)
         )[0];
 
@@ -548,10 +653,11 @@ export interface RecommendationContext {
     weights?: Partial<RecommendationWeights>;
     sourceCollectionId?: string | null;
     playbackQueueVideoIds?: string[];
+    signals?: RecommendationSignals | null;
 }
 
 export const getRecommendations = (context: RecommendationContext): Video[] => {
-    const { currentVideo, allVideos, collections, weights, sourceCollectionId, playbackQueueVideoIds } = context;
+    const { currentVideo, allVideos, collections, weights, sourceCollectionId, playbackQueueVideoIds, signals } = context;
     const finalWeights = { ...DEFAULT_WEIGHTS, ...weights };
 
     const candidates = allVideos.filter(video => video.id !== currentVideo.id);
@@ -585,7 +691,8 @@ export const getRecommendations = (context: RecommendationContext): Video[] => {
                     video.id === currentVideo.id || !queuedVideoIds.has(video.id)
                 ),
                 collections,
-                weights
+                weights,
+                signals
             });
 
             return [...queuedRecommendations, ...fallbackRecommendations];
@@ -596,7 +703,13 @@ export const getRecommendations = (context: RecommendationContext): Video[] => {
 
     const now = Date.now();
     const membership = buildCollectionMembership(collections);
-    const candidatePool = buildCandidatePool(currentVideo, candidates, collections, membership);
+    const candidatePool = buildCandidatePool(
+        currentVideo,
+        candidates,
+        collections,
+        membership,
+        signals ?? undefined
+    );
     const currentTags = normalizeTags(currentVideo.tags);
     const currentTitleTokens = tokenize(`${currentVideo.title} ${currentVideo.videoFilename ?? ''}`);
     const nextEpisode = findNextEpisode(currentVideo, candidatePool);
@@ -617,7 +730,8 @@ export const getRecommendations = (context: RecommendationContext): Video[] => {
             now,
             currentTags,
             currentTitleTokens,
-            nextScopedSequenceId
+            nextScopedSequenceId,
+            signals ?? undefined
         ))
         .sort(sortScoredCandidates);
 
@@ -651,7 +765,15 @@ export const getRecommendations = (context: RecommendationContext): Video[] => {
     const discoverSlots = Math.min(2, Math.max(0, MAX_RECOMMENDATIONS - slate.length));
     const relatedSlots = Math.max(0, MAX_RECOMMENDATIONS - slate.length - discoverSlots);
     slate.push(...pickRelatedVideos(scoredCandidates, selectedIds, membership, diversityState, relatedSlots));
-    slate.push(...pickDiscoverVideos(scoredCandidates, selectedIds, membership, diversityState, now, discoverSlots));
+    slate.push(...pickDiscoverVideos(
+        scoredCandidates,
+        selectedIds,
+        membership,
+        diversityState,
+        now,
+        discoverSlots,
+        signals ?? undefined
+    ));
 
     if (slate.length < Math.min(MAX_RECOMMENDATIONS, candidates.length)) {
         slate.push(...pickRelatedVideos(

@@ -471,6 +471,45 @@ describe("recommendations", () => {
       ).toBeLessThanOrEqual(3);
     });
 
+    it("should boost co-play neighbors when recommendation signals are available", () => {
+      const currentVideo = createMockVideo("1", {
+        title: "Current Topic",
+        source: "youtube",
+      });
+      const coPlayVideo = createMockVideo("2", {
+        title: "Related Topic",
+        source: "youtube",
+      });
+      const comparableVideo = createMockVideo("3", {
+        title: "Related Topic",
+        source: "youtube",
+      });
+
+      const recommendations = getRecommendations({
+        currentVideo,
+        allVideos: [currentVideo, comparableVideo, coPlayVideo],
+        collections: [],
+        signals: {
+          computedAt: Date.now(),
+          perVideo: {
+            "1": {
+              ws: 120,
+              cr: 1,
+              ar: 0,
+              lf: null,
+              rw: 0,
+              nb: [["2", 0.8]],
+            },
+          },
+          authorAffinity: {},
+          tagAffinity: {},
+          durationBands: [0, 1, 0, 0],
+        },
+      });
+
+      expect(recommendations[0]).toEqual(coPlayVideo);
+    });
+
     it("should return all candidates when no specific criteria match", () => {
       const currentVideo = createMockVideo("1");
       const videos = [
