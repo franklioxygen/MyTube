@@ -520,7 +520,6 @@ export async function migrateLegacySharedVisitorPassword(): Promise<void> {
     const now = Date.now();
     const raw = settings.visitorPassword;
     if (typeof raw !== "string" || raw.length === 0) {
-      markLegacySharedVisitorPasswordMigrated(now);
       return;
     }
 

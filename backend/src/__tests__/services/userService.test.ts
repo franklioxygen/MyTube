@@ -319,7 +319,7 @@ describe("userService", () => {
     expect(storageService.deleteSettingsKeys).toHaveBeenCalledTimes(1);
   });
 
-  it("marks empty legacy visitor passwords as migrated without creating a user", async () => {
+  it("does not mark empty legacy visitor passwords as migrated", async () => {
     vi.mocked(storageService.getSettings).mockReturnValue({
       visitorPassword: "",
     });
@@ -327,12 +327,17 @@ describe("userService", () => {
     await migrateLegacySharedVisitorPassword();
 
     expect(rows).toEqual([]);
-    expect(storageService.deleteSettingsKeys).toHaveBeenCalledWith([
-      "visitorPassword",
-    ]);
-    expect(storageService.saveSettings).toHaveBeenCalledWith(
-      { visitorPasswordMigratedAt: 2000 },
-      { extraWhitelistedKeys: ["visitorPasswordMigratedAt"] }
-    );
+    expect(storageService.deleteSettingsKeys).not.toHaveBeenCalled();
+    expect(storageService.saveSettings).not.toHaveBeenCalled();
+  });
+
+  it("does not mark absent legacy visitor passwords as migrated", async () => {
+    vi.mocked(storageService.getSettings).mockReturnValue({});
+
+    await migrateLegacySharedVisitorPassword();
+
+    expect(rows).toEqual([]);
+    expect(storageService.deleteSettingsKeys).not.toHaveBeenCalled();
+    expect(storageService.saveSettings).not.toHaveBeenCalled();
   });
 });
