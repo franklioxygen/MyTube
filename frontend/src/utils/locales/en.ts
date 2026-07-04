@@ -756,10 +756,10 @@ export const en = {
   collection: "Collection",
   new: "NEW",
   justNow: "Just now",
-  hoursAgo: "{hours} hours ago",
+  hoursAgo: "{hours}h ago",
   today: "Today",
   thisWeek: "This week",
-  weeksAgo: "{weeks} weeks ago",
+  weeksAgo: "{weeks}w ago",
 
   // Upload Modal
   selectVideoFile: "Select Video File",
