@@ -69,7 +69,7 @@ describe("requireAdmin", () => {
     expect(json).toHaveBeenCalledWith(
       expect.objectContaining({
         success: false,
-        error: "API key authentication cannot manage RSS tokens.",
+        error: "API key authentication cannot access admin management endpoints.",
       })
     );
   });
@@ -85,7 +85,7 @@ describe("requireAdmin", () => {
     expect(json).toHaveBeenCalledWith(
       expect.objectContaining({
         success: false,
-        error: "API key authentication cannot manage RSS tokens.",
+        error: "API key authentication cannot access admin management endpoints.",
       })
     );
   });

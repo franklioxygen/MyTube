@@ -32,6 +32,11 @@ const testRouteDefinitions: ApiRouteDefinition[] = [
     allowApiKey: true,
     handlers: [(req, res) => res.status(200).json({ route: `video:${req.params.id}` })],
   },
+  {
+    method: "patch",
+    path: "/users/:id",
+    handlers: [(req, res) => res.status(200).json({ route: `user:${req.params.id}` })],
+  },
 ];
 
 describe("buildApiRouter", () => {
@@ -108,5 +113,32 @@ describe("buildApiRouter", () => {
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ route: "system/version" });
     expect(systemControllerMocks.getLatestVersion).toHaveBeenCalledTimes(1);
+  });
+
+  it("registers patch routes in the normal API router", async () => {
+    const app = express();
+    app.use(buildApiRouter(false, testRouteDefinitions));
+
+    const response = await request(app).patch("/users/user-1");
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ route: "user:user-1" });
+  });
+
+  it("does not allow api-key-authenticated requests to reach user management", async () => {
+    const app = express();
+    app.use((req, _res, next) => {
+      req.apiKeyAuthenticated = true;
+      next();
+    });
+    app.use(buildApiRouter(true, testRouteDefinitions));
+    app.use((_req, res) => {
+      res.status(403).json({ blocked: true });
+    });
+
+    const response = await request(app).patch("/users/user-1");
+
+    expect(response.status).toBe(403);
+    expect(response.body).toEqual({ blocked: true });
   });
 });

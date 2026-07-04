@@ -9,13 +9,14 @@ import * as scanController from "../controllers/scanController";
 import * as statisticsController from "../controllers/statisticsController";
 import * as subscriptionController from "../controllers/subscriptionController";
 import * as systemController from "../controllers/systemController";
+import * as userController from "../controllers/userController";
 import * as videoController from "../controllers/videoController";
 import * as videoDownloadController from "../controllers/videoDownloadController";
 import * as videoMetadataController from "../controllers/videoMetadataController";
 import { asyncHandler } from "../middleware/errorHandler";
 import { requireAdmin } from "../middleware/requireAdmin";
 
-type ApiRouteMethod = "delete" | "get" | "post" | "put";
+type ApiRouteMethod = "delete" | "get" | "patch" | "post" | "put";
 
 export type ApiRouteDefinition = {
   allowApiKey?: boolean;
@@ -411,6 +412,28 @@ const apiRouteDefinitions: ApiRouteDefinition[] = [
     handlers: [requireAdmin, asyncHandler(statisticsController.clearEndpoint)],
   },
 
+  // Visitor user management (admin only)
+  {
+    method: "get",
+    path: "/users",
+    handlers: [requireAdmin, asyncHandler(userController.listUsers)],
+  },
+  {
+    method: "post",
+    path: "/users",
+    handlers: [requireAdmin, asyncHandler(userController.createUser)],
+  },
+  {
+    method: "patch",
+    path: "/users/:id",
+    handlers: [requireAdmin, asyncHandler(userController.updateUser)],
+  },
+  {
+    method: "delete",
+    path: "/users/:id",
+    handlers: [requireAdmin, asyncHandler(userController.deleteUser)],
+  },
+
   // RSS token management (admin only)
   {
     method: "get",
@@ -457,6 +480,9 @@ const registerRoute = (
       return;
     case "post":
       router.post(definition.path, ...handlers);
+      return;
+    case "patch":
+      router.patch(definition.path, ...handlers);
       return;
     case "put":
       router.put(definition.path, ...handlers);

@@ -6,7 +6,7 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction): v
   if (req.apiKeyAuthenticated === true || hasApiKeyCredential(req)) {
     res.status(403).json({
       success: false,
-      error: "API key authentication cannot manage RSS tokens.",
+      error: "API key authentication cannot access admin management endpoints.",
     });
     return;
   }
