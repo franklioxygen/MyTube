@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '../contexts/AuthContext';
 import { api } from '../utils/apiClient';
 import { RecommendationSignals } from '../utils/recommendations';
 
@@ -8,9 +9,11 @@ interface UseRecommendationSignalsOptions {
 
 export const useRecommendationSignals = (
     options: UseRecommendationSignalsOptions = {}
-) =>
-    useQuery({
-        queryKey: ['recommendations', 'signals'],
+) => {
+    const { isAuthenticated, loginRequired, userRole } = useAuth();
+
+    return useQuery({
+        queryKey: ['recommendations', 'signals', userRole, loginRequired],
         queryFn: async (): Promise<RecommendationSignals | null> => {
             try {
                 const response = await api.get('/recommendations/signals', {
@@ -26,9 +29,10 @@ export const useRecommendationSignals = (
                 return null;
             }
         },
-        enabled: options.enabled ?? true,
+        enabled: (options.enabled ?? true) && isAuthenticated,
         staleTime: 6 * 60 * 60 * 1000,
         gcTime: 6 * 60 * 60 * 1000,
         refetchOnWindowFocus: false,
         retry: false,
     });
+};

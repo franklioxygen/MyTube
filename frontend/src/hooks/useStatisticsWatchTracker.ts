@@ -109,9 +109,11 @@ export function useStatisticsWatchTracker(options: Options): void {
       });
     };
 
-    const endSession = () => {
+    const endSession = (recordAbandonment = true) => {
       flushChunk();
-      recordAutoplayAbandonedIfNeeded();
+      if (recordAbandonment) {
+        recordAutoplayAbandonedIfNeeded();
+      }
       playSessionRef.current = null;
     };
 
@@ -151,7 +153,7 @@ export function useStatisticsWatchTracker(options: Options): void {
       flushChunk();
     };
     const handleEnded = () => {
-      endSession();
+      endSession(false);
     };
     const handleSeeking = () => {
       flushChunk();
