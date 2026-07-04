@@ -158,7 +158,10 @@ const queryStatisticsEvents = (): StatisticsSignalEventRow[] =>
        FROM usage_statistics_events
        WHERE event_type IN ('video_play_started', 'video_watch_chunk_recorded')
          AND video_id IS NOT NULL
-       ORDER BY COALESCE(session_id, ''), recorded_at ASC`
+       ORDER BY COALESCE(session_id, ''),
+                COALESCE(client_occurred_at, recorded_at) ASC,
+                recorded_at ASC,
+                rowid ASC`
     )
     .all() as StatisticsSignalEventRow[];
 

@@ -57,6 +57,21 @@ describe("recommendationSignalsService", () => {
     expect(mockPrepare).not.toHaveBeenCalled();
   });
 
+  it("orders session events by client occurrence with stable tie-breakers", () => {
+    // Batch ingest stamps recorded_at in a tight loop, so ties within a session
+    // are common; without a deterministic order a chunk can precede its
+    // video_play_started row and get dropped from play accounting.
+    installRows({ videos: [], events: [] });
+
+    getRecommendationSignals();
+
+    const eventsSql = mockPrepare.mock.calls
+      .map(([sql]) => sql as string)
+      .find(sql => sql.includes("FROM usage_statistics_events"));
+    expect(eventsSql).toContain("COALESCE(client_occurred_at, recorded_at)");
+    expect(eventsSql).toContain("rowid ASC");
+  });
+
   it("aggregates watch, affinity, and co-play signals", () => {
     const now = Date.now();
     installRows({

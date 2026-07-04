@@ -436,6 +436,106 @@ describe("statistics collector", () => {
         externalResultCount: 10_000,
       });
     });
+
+    it("preserves bounded visitor up next click lane, position, and value", () => {
+      const runMock = vi.fn();
+      vi.mocked(sqlite.prepare)
+        .mockReturnValueOnce({ run: runMock } as any)                 // insertStatement
+        .mockReturnValueOnce(makeStmt({ get: undefined }) as any)     // isDaySealed
+        .mockReturnValueOnce(makeStmt() as any)                       // markDayDirty
+        .mockReturnValueOnce(makeStmt() as any);                      // bumpIngestionMinute
+
+      const result = ingestBatch(
+        [
+          {
+            eventType: "up_next_clicked",
+            videoId: "video-2",
+            value: 999,
+            payload: {
+              lane: "continue",
+              position: 3,
+              fromVideoId: "video-1",
+              toVideoId: "video-2",
+            },
+          },
+        ],
+        {
+          actorRole: "visitor",
+          surface: "web",
+          serverSessionId: "web:server-derived-session",
+        }
+      );
+
+      expect(result.acceptedCount).toBe(1);
+      const insertedArgs = runMock.mock.calls[0];
+      expect(insertedArgs[16]).toBeNull();
+      expect(insertedArgs[17]).toBe(100);
+      expect(JSON.parse(insertedArgs[18])).toEqual({
+        lane: "continue",
+        position: 3,
+      });
+    });
+
+    it("defaults forged visitor up next lanes to unknown", () => {
+      const runMock = vi.fn();
+      vi.mocked(sqlite.prepare)
+        .mockReturnValueOnce({ run: runMock } as any)                 // insertStatement
+        .mockReturnValueOnce(makeStmt({ get: undefined }) as any)     // isDaySealed
+        .mockReturnValueOnce(makeStmt() as any)                       // markDayDirty
+        .mockReturnValueOnce(makeStmt() as any);                      // bumpIngestionMinute
+
+      const result = ingestBatch(
+        [
+          {
+            eventType: "up_next_clicked",
+            videoId: "video-2",
+            payload: { lane: "forged", position: 99_999 },
+          },
+        ],
+        {
+          actorRole: "visitor",
+          surface: "web",
+          serverSessionId: "web:server-derived-session",
+        }
+      );
+
+      expect(result.acceptedCount).toBe(1);
+      const insertedArgs = runMock.mock.calls[0];
+      expect(JSON.parse(insertedArgs[18])).toEqual({
+        lane: "unknown",
+        position: 100,
+      });
+    });
+
+    it("bounds visitor autoplay abandonment duration", () => {
+      const runMock = vi.fn();
+      vi.mocked(sqlite.prepare)
+        .mockReturnValueOnce({ run: runMock } as any)                 // insertStatement
+        .mockReturnValueOnce(makeStmt({ get: undefined }) as any)     // isDaySealed
+        .mockReturnValueOnce(makeStmt() as any)                       // markDayDirty
+        .mockReturnValueOnce(makeStmt() as any);                      // bumpIngestionMinute
+
+      const result = ingestBatch(
+        [
+          {
+            eventType: "autoplay_abandoned",
+            videoId: "video-2",
+            durationSeconds: 86_400,
+            payload: { fromVideoId: "video-1", toVideoId: "video-2" },
+          },
+        ],
+        {
+          actorRole: "visitor",
+          surface: "web",
+          serverSessionId: "web:server-derived-session",
+        }
+      );
+
+      expect(result.acceptedCount).toBe(1);
+      const insertedArgs = runMock.mock.calls[0];
+      expect(insertedArgs[16]).toBe(30);
+      expect(insertedArgs[18]).toBe("{}");
+    });
   });
 
   describe("invalidateStatisticsSettingsCache", () => {
