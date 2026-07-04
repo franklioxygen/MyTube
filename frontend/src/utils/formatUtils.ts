@@ -204,10 +204,10 @@ export const formatRelativeDownloadTime = (
     // Fallback to English if no translation function provided
     const fallbacks: Record<RelativeDownloadTimeKey, string> = {
       justNow: "Just now",
-      hoursAgo: "{hours} hours ago",
+      hoursAgo: "{hours}h ago",
       today: "Today",
       thisWeek: "This week",
-      weeksAgo: "{weeks} weeks ago",
+      weeksAgo: "{weeks}w ago",
       unknownDate: "Unknown date",
     };
     let text = fallbacks[key] || key;

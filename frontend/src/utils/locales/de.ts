@@ -783,10 +783,10 @@ export const de = {
   collection: "Sammlung",
   new: "NEU",
   justNow: "Gerade eben",
-  hoursAgo: "vor {hours} Stunden",
+  hoursAgo: "vor {hours} Std.",
   today: "Heute",
   thisWeek: "Diese Woche",
-  weeksAgo: "vor {weeks} Wochen",
+  weeksAgo: "vor {weeks} Wo.",
 
 
   // Upload Modal

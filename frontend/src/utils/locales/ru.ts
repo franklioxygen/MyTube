@@ -767,10 +767,10 @@ export const ru = {
   collection: "Коллекция",
   new: "НОВЫЙ",
   justNow: "Только что",
-  hoursAgo: "{hours} часов назад",
+  hoursAgo: "{hours} ч назад",
   today: "Сегодня",
   thisWeek: "На этой неделе",
-  weeksAgo: "{weeks} недель назад",
+  weeksAgo: "{weeks} нед назад",
 
 
   // Upload Modal

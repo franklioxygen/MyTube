@@ -780,10 +780,10 @@ export const es = {
   collection: "Colección",
   new: "NUEVO",
   justNow: "Ahora mismo",
-  hoursAgo: "Hace {hours} horas",
+  hoursAgo: "Hace {hours} h",
   today: "Hoy",
   thisWeek: "Esta semana",
-  weeksAgo: "Hace {weeks} semanas",
+  weeksAgo: "Hace {weeks} sem",
 
 
   // Upload Modal

@@ -779,10 +779,10 @@ export const fr = {
   collection: "Collection",
   new: "NOUVEAU",
   justNow: "À l'instant",
-  hoursAgo: "Il y a {hours} heures",
+  hoursAgo: "Il y a {hours} h",
   today: "Aujourd'hui",
   thisWeek: "Cette semaine",
-  weeksAgo: "Il y a {weeks} semaines",
+  weeksAgo: "Il y a {weeks} sem.",
 
 
   // Upload Modal

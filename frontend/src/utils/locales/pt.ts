@@ -774,10 +774,10 @@ export const pt = {
   collection: "Coleção",
   new: "NOVO",
   justNow: "Agora mesmo",
-  hoursAgo: "Há {hours} horas",
+  hoursAgo: "Há {hours} h",
   today: "Hoje",
   thisWeek: "Esta semana",
-  weeksAgo: "Há {weeks} semanas",
+  weeksAgo: "Há {weeks} sem.",
 
 
   // Upload Modal
