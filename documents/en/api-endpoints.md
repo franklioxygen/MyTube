@@ -176,17 +176,34 @@ All API routes are mounted under `/api` unless noted otherwise.
 ## Password & Session
 
 - `GET /api/settings/password-enabled` - Check whether login/password is enabled
+  - Response includes `hasVisitorUsers`, `isVisitorPasswordSet`, `visitorUserEnabled`, `passwordLoginAllowed`, and the authenticated role/username context when available
 - `GET /api/settings/reset-password-cooldown` - Removed
   - This endpoint was tied to the deprecated public web reset flow and is no longer available.
 - `POST /api/settings/verify-password` - Verify password (deprecated, kept for compatibility)
   - Body: `{ password: string }`
 - `POST /api/settings/verify-admin-password` - Verify admin password
   - Body: `{ password: string }`
-- `POST /api/settings/verify-visitor-password` - Verify visitor password
+- `POST /api/settings/verify-user-login` - Verify a named visitor user and issue an auth cookie
+  - Body: `{ username: string, password: string }`
+- `POST /api/settings/verify-visitor-password` - Verify the legacy shared visitor password (deprecated, kept for compatibility)
   - Body: `{ password: string }`
 - `POST /api/settings/reset-password` - Removed
   - Password recovery must be performed from the backend environment via `node dist/scripts/reset-password.js <new-password>` or the equivalent Docker command.
 - `POST /api/settings/logout` - Clear auth cookie
+
+## Visitor Users
+
+Visitor user management requires an admin session. Visitor sessions, unauthenticated requests, and API-key authentication are rejected.
+
+- `GET /api/users` - List visitor users
+  - Response: `{ users: VisitorUser[] }`
+- `POST /api/users` - Create a visitor user
+  - Body: `{ username: string, password: string }`
+- `PATCH /api/users/:id` - Update a visitor user
+  - Body allows: `{ username?: string, password?: string, enabled?: boolean }`
+  - Password changes and disabling a user revoke that user's active sessions immediately.
+- `DELETE /api/users/:id` - Delete a visitor user and revoke that user's active sessions
+- `VisitorUser`: `{ id, username, role, enabled, isLegacyShared, sessionVersion, lastLoginAt, createdAt, updatedAt }`; password hashes are never returned.
 
 ## Passkeys
 

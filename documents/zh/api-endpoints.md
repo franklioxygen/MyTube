@@ -176,17 +176,34 @@
 ## 密码与会话
 
 - `GET /api/settings/password-enabled` - 检查是否启用了登录/密码
+  - 响应包含 `hasVisitorUsers`、`isVisitorPasswordSet`、`visitorUserEnabled`、`passwordLoginAllowed`，以及可用时的当前认证角色/用户名
 - `GET /api/settings/reset-password-cooldown` - 已移除
   - 该端点与已废弃的公开网页重置流程绑定，现已不可用。
 - `POST /api/settings/verify-password` - 验证密码 (已废弃，保留兼容性)
   - 请求体: `{ password: string }`
 - `POST /api/settings/verify-admin-password` - 验证管理员密码
   - 请求体: `{ password: string }`
-- `POST /api/settings/verify-visitor-password` - 验证访客密码
+- `POST /api/settings/verify-user-login` - 验证具名访客用户并签发认证 Cookie
+  - 请求体: `{ username: string, password: string }`
+- `POST /api/settings/verify-visitor-password` - 验证旧版共享访客密码 (已废弃，保留兼容性)
   - 请求体: `{ password: string }`
 - `POST /api/settings/reset-password` - 已移除
   - 密码恢复必须在后端环境中执行，使用 `node dist/scripts/reset-password.js <new-password>` 或等效的 Docker 命令。
 - `POST /api/settings/logout` - 清除认证 Cookie
+
+## 访客用户
+
+访客用户管理需要管理员会话。访客会话、未认证请求和 API Key 认证都会被拒绝。
+
+- `GET /api/users` - 列出访客用户
+  - 响应: `{ users: VisitorUser[] }`
+- `POST /api/users` - 创建访客用户
+  - 请求体: `{ username: string, password: string }`
+- `PATCH /api/users/:id` - 更新访客用户
+  - 请求体允许: `{ username?: string, password?: string, enabled?: boolean }`
+  - 修改密码或禁用用户会立即撤销该用户的活动会话。
+- `DELETE /api/users/:id` - 删除访客用户并撤销该用户的活动会话
+- `VisitorUser`: `{ id, username, role, enabled, isLegacyShared, sessionVersion, lastLoginAt, createdAt, updatedAt }`；响应永不返回密码哈希。
 
 ## 通行密钥 (Passkeys)
 

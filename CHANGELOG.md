@@ -1,5 +1,20 @@
 # Change Log
 
+## Unreleased
+
+### Feat
+
+- Add named visitor user management with SQLite-backed visitor accounts, admin-only CRUD APIs, immediate session revocation on disable/delete/password change, and username+password visitor login.
+- Automatically migrate the legacy shared visitor password to a `visitor` account while preserving compatibility for cached clients.
+
+### Deprecated
+
+- Deprecate the shared visitor password login endpoint (`POST /api/settings/verify-visitor-password`) and the visitor branch of the combined password endpoint (`POST /api/settings/verify-password`). Use `POST /api/settings/verify-user-login` for visitor logins.
+
+### Docs
+
+- Document visitor account management, automatic shared-password migration, and the new visitor-user API surface.
+
 ## v1.10.7 (2026-07-02)
 
 ### Feat

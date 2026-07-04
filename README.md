@@ -48,7 +48,7 @@ Built using the [franklioxygen/agent-workflows](https://github.com/franklioxygen
 - **Subscriptions**: Manage YouTube, Bilibili and Twitch channel subscriptions to automatically download new content.
 - **RSS Feeds**: Create private RSS links for external feed readers with per-link filters for channels, authors, tags, sources, recent videos, and item limits.
 - **Login Protection**: Secure your application with password login and optional passkeys (WebAuthn).
-- **Visitor User**: Enable a read-only role for safe sharing without modification capabilities.
+- **Visitor Users**: Create named read-only visitor accounts for safe sharing without modification capabilities.
 - **Internationalization**: Support for multiple languages including English, Chinese, Spanish, French, German, Japanese, Korean, Arabic, Portuguese, and Russian.
 - **Mobile Optimizations**: Mobile-friendly tags menu and optimized layout for smaller screens.
 - **Cookie Management**: Support for uploading `cookies.txt` to enable downloading of age-restricted or premium content.
@@ -80,6 +80,12 @@ For a detailed breakdown of the project structure, please refer to [Directory St
 **Requirements:** Node.js **20.19+, 22.12+, 23.x, 24.x, 25.x, or 26.x** and npm v9+. The backend depends on `better-sqlite3`; unsupported Node versions fail during `npm install` (often with misleading `node-gyp` / Visual Studio errors on Windows). Docker images ship with Node 22.
 
 For installation and setup instructions, please refer to [Getting Started](documents/en/getting-started.md).
+
+## Visitor Accounts
+
+When login protection is enabled, admins can create named visitor accounts under **Settings -> Security**. Visitor accounts are read-only, and account changes such as create, disable, delete, and password reset apply immediately without saving the broader settings form.
+
+Existing installations with a shared visitor password are migrated automatically to a `visitor` account. Users who had the shared password can sign in with username `visitor` and the same password. The legacy shared-password login endpoint remains for compatibility and is deprecated.
 
 ## Deployment Security Model
 

@@ -149,7 +149,8 @@ export function isPasswordEnabled(): {
 
 /**
  * Verify password for authentication
- * @deprecated Use verifyAdminPassword or verifyVisitorPassword instead for better security
+ * @deprecated Use verifyAdminPassword or verifyVisitorUserLogin. The visitor
+ * branch is kept only for legacy shared-password compatibility.
  */
 
 export async function verifyPassword(
@@ -354,7 +355,8 @@ export async function verifyVisitorUserLogin(
 
 /**
  * Verify visitor password for authentication
- * Only checks visitor password, not admin password
+ * @deprecated Shared visitor-password compatibility endpoint. Use
+ * verifyVisitorUserLogin for named visitor accounts.
  */
 export async function verifyVisitorPassword(
   password: string

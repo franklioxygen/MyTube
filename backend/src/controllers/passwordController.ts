@@ -37,7 +37,8 @@ export const getPasswordEnabled = async (
 
 /**
  * Verify password for authentication
- * @deprecated Use verifyAdminPassword or verifyVisitorPassword instead for better security
+ * @deprecated Use verifyAdminPassword or verifyVisitorUserLogin. The visitor
+ * branch is kept only for legacy shared-password compatibility.
  * Errors are automatically handled by asyncHandler middleware
  */
 export const verifyPassword = async (
@@ -93,7 +94,8 @@ export const verifyAdminPassword = async (
 
 /**
  * Verify visitor password for authentication
- * Only checks visitor password, not admin password
+ * @deprecated Shared visitor-password compatibility endpoint. Use
+ * verifyVisitorUserLogin for named visitor accounts.
  * Errors are automatically handled by asyncHandler middleware
  */
 export const verifyVisitorPassword = async (
