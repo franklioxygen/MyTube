@@ -54,9 +54,6 @@ interface StatisticsSignalEventRow {
 interface SessionPlay {
   videoId: string;
   recordedAt: number;
-}
-
-interface SessionVideoWatch {
   rawSeconds: number;
   lastRecordedAt: number;
 }
@@ -173,8 +170,10 @@ const createStats = (): MutableVideoStats => ({
   lastFinishedAt: null,
 });
 
-const getAbandonThreshold = (durationSeconds: number | null): number =>
-  Math.max(30, (durationSeconds ?? 0) * 0.05);
+const getAbandonThreshold = (durationSeconds: number | null): number => {
+  if (!durationSeconds || durationSeconds <= 0) return 30;
+  return Math.min(durationSeconds, Math.max(30, durationSeconds * 0.05));
+};
 
 const addToRecord = (
   record: Record<string, number>,
@@ -205,7 +204,7 @@ const buildSignals = (role: VisibilityRole, now: number): RecommendationSignals 
 
   const statsByVideoId = new Map<string, MutableVideoStats>();
   const sessionPlays = new Map<string, SessionPlay[]>();
-  const watchBySessionVideo = new Map<string, SessionVideoWatch>();
+  const latestPlayBySessionVideo = new Map<string, SessionPlay>();
   const decayedWatchByVideoId = new Map<string, number>();
   const durationBands = [0, 0, 0, 0];
 
@@ -217,8 +216,15 @@ const buildSignals = (role: VisibilityRole, now: number): RecommendationSignals 
     if (row.eventType === "video_play_started") {
       const sessionId = row.sessionId || `play:${row.videoId}:${row.recordedAt}`;
       const plays = sessionPlays.get(sessionId) ?? [];
-      plays.push({ videoId: row.videoId, recordedAt: row.recordedAt });
+      const play = {
+        videoId: row.videoId,
+        recordedAt: row.recordedAt,
+        rawSeconds: 0,
+        lastRecordedAt: row.recordedAt,
+      };
+      plays.push(play);
       sessionPlays.set(sessionId, plays);
+      latestPlayBySessionVideo.set(getSessionVideoKey(sessionId, row.videoId), play);
       const stats = statsByVideoId.get(row.videoId) ?? createStats();
       stats.sessions += 1;
       statsByVideoId.set(row.videoId, stats);
@@ -237,10 +243,10 @@ const buildSignals = (role: VisibilityRole, now: number): RecommendationSignals 
 
     if (!row.sessionId) continue;
     const key = getSessionVideoKey(row.sessionId, row.videoId);
-    const watch = watchBySessionVideo.get(key) ?? { rawSeconds: 0, lastRecordedAt: row.recordedAt };
-    watch.rawSeconds += durationSecondsWatched;
-    watch.lastRecordedAt = Math.max(watch.lastRecordedAt, row.recordedAt);
-    watchBySessionVideo.set(key, watch);
+    const play = latestPlayBySessionVideo.get(key);
+    if (!play) continue;
+    play.rawSeconds += durationSecondsWatched;
+    play.lastRecordedAt = Math.max(play.lastRecordedAt, row.recordedAt);
   }
 
   for (const [videoId, watchSeconds] of decayedWatchByVideoId.entries()) {
@@ -249,14 +255,13 @@ const buildSignals = (role: VisibilityRole, now: number): RecommendationSignals 
     statsByVideoId.set(videoId, stats);
   }
 
-  for (const [sessionId, plays] of sessionPlays.entries()) {
+  for (const plays of sessionPlays.values()) {
     for (const play of plays) {
       const video = videoById.get(play.videoId);
       if (!video) continue;
 
       const durationSeconds = parseDurationSeconds(video.duration);
-      const watch = watchBySessionVideo.get(getSessionVideoKey(sessionId, play.videoId));
-      const rawSeconds = watch?.rawSeconds ?? 0;
+      const rawSeconds = play.rawSeconds;
       const stats = statsByVideoId.get(play.videoId) ?? createStats();
       stats.rawWatchSeconds += rawSeconds;
 
@@ -267,7 +272,7 @@ const buildSignals = (role: VisibilityRole, now: number): RecommendationSignals 
       if (durationSeconds && rawSeconds / durationSeconds >= 0.9) {
         stats.lastFinishedAt = Math.max(
           stats.lastFinishedAt ?? 0,
-          watch?.lastRecordedAt ?? play.recordedAt
+          play.lastRecordedAt
         );
       }
 
@@ -278,12 +283,11 @@ const buildSignals = (role: VisibilityRole, now: number): RecommendationSignals 
   const edgeWeights = new Map<string, Map<string, number>>();
   const edgeTotals = new Map<string, number>();
 
-  for (const [sessionId, plays] of sessionPlays.entries()) {
+  for (const plays of sessionPlays.values()) {
     const qualifiedPlays = plays.filter(play => {
       const video = videoById.get(play.videoId);
       if (!video) return false;
-      const watch = watchBySessionVideo.get(getSessionVideoKey(sessionId, play.videoId));
-      return (watch?.rawSeconds ?? 0) >= getAbandonThreshold(parseDurationSeconds(video.duration));
+      return play.rawSeconds >= getAbandonThreshold(parseDurationSeconds(video.duration));
     });
 
     for (let sourceIndex = 0; sourceIndex < qualifiedPlays.length; sourceIndex += 1) {

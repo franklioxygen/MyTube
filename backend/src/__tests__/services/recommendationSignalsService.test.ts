@@ -220,4 +220,129 @@ describe("recommendationSignalsService", () => {
     expect(signals?.perVideo.visible.nb).toEqual([]);
     expect(signals?.tagAffinity.private).toBeUndefined();
   });
+
+  it("segments repeated watches of the same video by play instance", () => {
+    const now = Date.now();
+    installRows({
+      videos: [
+        {
+          id: "repeat",
+          author: "Ada",
+          channelUrl: null,
+          tags: "[]",
+          duration: "100",
+          rating: null,
+          viewCount: 1,
+          progress: 0,
+          lastPlayedAt: null,
+          visibility: 1,
+        },
+      ],
+      events: [
+        {
+          eventType: "video_play_started",
+          recordedAt: now - 4_000,
+          sessionId: "s1",
+          videoId: "repeat",
+          durationSeconds: null,
+        },
+        {
+          eventType: "video_watch_chunk_recorded",
+          recordedAt: now - 3_000,
+          sessionId: "s1",
+          videoId: "repeat",
+          durationSeconds: 20,
+        },
+        {
+          eventType: "video_play_started",
+          recordedAt: now - 2_000,
+          sessionId: "s1",
+          videoId: "repeat",
+          durationSeconds: null,
+        },
+        {
+          eventType: "video_watch_chunk_recorded",
+          recordedAt: now - 1_000,
+          sessionId: "s1",
+          videoId: "repeat",
+          durationSeconds: 20,
+        },
+      ],
+    });
+
+    const signals = getRecommendationSignals();
+
+    expect(signals?.perVideo.repeat.cr).toBe(0.2);
+    expect(signals?.perVideo.repeat.ar).toBe(1);
+    expect(signals?.perVideo.repeat.rw).toBe(0.5);
+    expect(signals?.perVideo.repeat.lf).toBeNull();
+  });
+
+  it("does not count fully watched short videos as abandoned", () => {
+    const now = Date.now();
+    installRows({
+      videos: [
+        {
+          id: "short",
+          author: "Ada",
+          channelUrl: null,
+          tags: "[]",
+          duration: "20",
+          rating: null,
+          viewCount: 1,
+          progress: 0,
+          lastPlayedAt: null,
+          visibility: 1,
+        },
+        {
+          id: "next",
+          author: "Ada",
+          channelUrl: null,
+          tags: "[]",
+          duration: "60",
+          rating: null,
+          viewCount: 1,
+          progress: 0,
+          lastPlayedAt: null,
+          visibility: 1,
+        },
+      ],
+      events: [
+        {
+          eventType: "video_play_started",
+          recordedAt: now - 4_000,
+          sessionId: "s1",
+          videoId: "short",
+          durationSeconds: null,
+        },
+        {
+          eventType: "video_watch_chunk_recorded",
+          recordedAt: now - 3_000,
+          sessionId: "s1",
+          videoId: "short",
+          durationSeconds: 20,
+        },
+        {
+          eventType: "video_play_started",
+          recordedAt: now - 2_000,
+          sessionId: "s1",
+          videoId: "next",
+          durationSeconds: null,
+        },
+        {
+          eventType: "video_watch_chunk_recorded",
+          recordedAt: now - 1_000,
+          sessionId: "s1",
+          videoId: "next",
+          durationSeconds: 60,
+        },
+      ],
+    });
+
+    const signals = getRecommendationSignals();
+
+    expect(signals?.perVideo.short.cr).toBe(1);
+    expect(signals?.perVideo.short.ar).toBe(0);
+    expect(signals?.perVideo.short.nb[0][0]).toBe("next");
+  });
 });
