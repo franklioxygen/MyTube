@@ -89,6 +89,7 @@ const VideoCardBase: React.FC<VideoCardProps> = ({
 
     return (
         <Card
+            elevation={0}
             ref={cardRef}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={hoverPreview.handleMouseLeave}
@@ -97,17 +98,16 @@ const VideoCardBase: React.FC<VideoCardProps> = ({
                 display: 'flex',
                 flexDirection: 'column',
                 position: 'relative',
-                transition: 'transform 0.2s, box-shadow 0.2s, background-color 0.3s, color 0.3s, border-color 0.3s',
-                borderRadius: isMobile ? 0 : undefined,
+                bgcolor: 'transparent',
+                backgroundImage: 'none',
+                boxShadow: 'none',
+                borderRadius: 2,
+                overflow: 'visible',
+                transition: 'background-color 0.15s ease, color 0.3s, border-color 0.3s',
                 ...(!isMobile && {
                     '&:hover': {
-                        boxShadow: theme.shadows[8],
-                        '& .delete-btn': {
-                            opacity: 1
-                        },
-                        '& .add-btn': {
-                            opacity: 1
-                        }
+                        bgcolor: 'action.hover',
+                        boxShadow: 'none'
                     }
                 }),
                 border: collectionInfo.isFirstInAnyCollection
@@ -117,7 +117,21 @@ const VideoCardBase: React.FC<VideoCardProps> = ({
         >
             <CardActionArea
                 onClick={navigation.handleVideoNavigation}
-                sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}
+                sx={{
+                    flexGrow: 1,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'stretch',
+                    borderRadius: 2,
+                    color: 'inherit',
+                    '& .MuiCardActionArea-focusHighlight': {
+                        bgcolor: 'transparent'
+                    },
+                    '&.Mui-focusVisible': {
+                        outline: `2px solid ${theme.palette.primary.main}`,
+                        outlineOffset: 2
+                    }
+                }}
             >
                 <VideoCardThumbnail
                     video={video}

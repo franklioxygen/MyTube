@@ -1,6 +1,7 @@
-import { Box, CardContent, Typography } from '@mui/material';
+import { Avatar, Box, CardContent, Typography } from '@mui/material';
 import React from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { useCloudStorageUrl } from '../../hooks/useCloudStorageUrl';
 import { Video } from '../../types';
 import { formatRelativeDownloadTime } from '../../utils/formatUtils';
 import { VideoCardCollectionInfo } from '../../utils/videoCardUtils';
@@ -17,9 +18,10 @@ export const VideoCardContent: React.FC<VideoCardContentProps> = ({
     onAuthorClick
 }) => {
     const { t } = useLanguage();
+    const avatarUrl = useCloudStorageUrl(video.authorAvatarPath, 'thumbnail');
 
     return (
-        <CardContent sx={{ flexGrow: 1, p: 2, display: 'flex', flexDirection: 'column' }}>
+        <CardContent sx={{ flexGrow: 1, px: 1, py: 1, display: 'flex', flexDirection: 'column' }}>
             <Typography 
                 gutterBottom 
                 variant="subtitle1" 
@@ -53,23 +55,39 @@ export const VideoCardContent: React.FC<VideoCardContentProps> = ({
             </Typography>
 
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 'auto', gap: 1 }}>
-                <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    onClick={onAuthorClick}
-                    sx={{
-                        cursor: 'pointer',
-                        '&:hover': { color: 'primary.main' },
-                        fontWeight: 500,
-                        flex: 1,
-                        minWidth: 0, // Allows flex item to shrink below content size
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap'
-                    }}
-                >
-                    {video.author}
-                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', minWidth: 0, flex: 1 }}>
+                    <Avatar
+                        src={avatarUrl || undefined}
+                        onClick={onAuthorClick}
+                        sx={{
+                            width: 24,
+                            height: 24,
+                            bgcolor: 'primary.main',
+                            mr: 0.75,
+                            fontSize: '0.75rem',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        {video.author ? video.author.charAt(0).toUpperCase() : 'A'}
+                    </Avatar>
+                    <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        onClick={onAuthorClick}
+                        sx={{
+                            cursor: 'pointer',
+                            '&:hover': { color: 'primary.main' },
+                            fontWeight: 500,
+                            flex: 1,
+                            minWidth: 0, // Allows flex item to shrink below content size
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap'
+                        }}
+                    >
+                        {video.author}
+                    </Typography>
+                </Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
                     <Typography variant="caption" color="text.secondary">
                         {formatRelativeDownloadTime(video.addedAt, video.date, t)}

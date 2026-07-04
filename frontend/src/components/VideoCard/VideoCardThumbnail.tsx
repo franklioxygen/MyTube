@@ -52,7 +52,14 @@ const VideoCardThumbnailView: React.FC<VideoCardThumbnailProps> = ({
     const [isImageLoaded, setIsImageLoaded] = useState(false);
 
     return (
-        <Box sx={{ position: 'relative', paddingTop: '56.25%' /* 16:9 aspect ratio */ }}>
+        <Box
+            sx={{
+                position: 'relative',
+                paddingTop: '56.25%', // 16:9 aspect ratio
+                borderRadius: 2,
+                overflow: 'hidden'
+            }}
+        >
             {/* Video Element (only shown on hover) */}
             {isHovered && videoUrl && (
                 <Box
@@ -73,6 +80,7 @@ const VideoCardThumbnailView: React.FC<VideoCardThumbnailProps> = ({
                         height: '100%',
                         objectFit: 'cover',
                         bgcolor: neutral.black,
+                        borderRadius: 'inherit',
                         zIndex: 1 // Ensure video is above thumbnail when playing
                     }}
                     onLoadedMetadata={(e) => {
@@ -106,6 +114,7 @@ const VideoCardThumbnailView: React.FC<VideoCardThumbnailProps> = ({
                         top: 0,
                         left: 0,
                         bgcolor: 'grey.800',
+                        borderRadius: 'inherit',
                         zIndex: 2
                     }}
                 />
@@ -135,6 +144,7 @@ const VideoCardThumbnailView: React.FC<VideoCardThumbnailProps> = ({
                     objectFit: 'cover',
                     opacity: (isImageLoaded && (!isHovered || !isVideoPlaying)) ? 1 : 0,
                     transition: 'opacity 0.2s',
+                    borderRadius: 'inherit',
                     pointerEvents: 'none', // Ensure hover events pass through
                     zIndex: 2
                 }}
