@@ -311,7 +311,9 @@ beloved-but-unrelated video outrank on-topic ones, and everything degrades to pl
 
 **Diversity re-rank:** greedy fill of Lane B slots with a hard cap of 3 per author and 3 per
 collection across the whole slate, skipping to the next-best candidate on violation
-(MMR-lite; no pairwise similarity matrix needed).
+(MMR-lite; no pairwise similarity matrix needed). The caps order candidates, they don't
+truncate: if the capped passes cannot fill the slate (single-author or single-collection
+libraries), the final backfill relaxes them — fullness (§5.2) wins over diversity.
 
 ### 5.4 Architecture: backend signal aggregates + client ranker (hybrid)
 

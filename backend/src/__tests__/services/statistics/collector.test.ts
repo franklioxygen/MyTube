@@ -250,6 +250,23 @@ describe("statistics collector", () => {
       expect(result.droppedCount).toBe(0);
     });
 
+    it("accepts the up-next feedback event types", () => {
+      vi.mocked(sqlite.prepare).mockReturnValue(makeStmt() as any);
+
+      const result = ingestBatch(
+        [
+          { eventType: "up_next_impression", sessionId: "sess-1" },
+          { eventType: "up_next_clicked", sessionId: "sess-1", value: 2 },
+          { eventType: "autoplay_advanced", sessionId: "sess-1" },
+          { eventType: "autoplay_abandoned", sessionId: "sess-1", durationSeconds: 12 },
+        ],
+        { actorRole: "admin", surface: "web" }
+      );
+
+      expect(result.acceptedCount).toBe(4);
+      expect(result.droppedCount).toBe(0);
+    });
+
     it("drops the batch without throwing when the transaction fails to commit", () => {
       vi.mocked(sqlite.prepare).mockReturnValue(makeStmt() as any);
       // Simulate a commit-time failure (e.g. SQLITE_BUSY / disk full): the

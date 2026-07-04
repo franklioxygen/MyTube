@@ -574,14 +574,15 @@ const pickRelatedVideos = (
     selectedIds: Set<string>,
     membership: CollectionMembership,
     diversityState: DiversityState,
-    limit: number
+    limit: number,
+    enforceDiversityCaps = true
 ): Video[] => {
     const selected: Video[] = [];
 
     for (const item of scoredCandidates) {
         if (selected.length >= limit) break;
         if (selectedIds.has(item.video.id)) continue;
-        if (!canSelectByDiversity(item.video, membership, diversityState)) continue;
+        if (enforceDiversityCaps && !canSelectByDiversity(item.video, membership, diversityState)) continue;
 
         selected.push(item.video);
         selectedIds.add(item.video.id);
@@ -775,13 +776,28 @@ export const getRecommendations = (context: RecommendationContext): Video[] => {
         signals ?? undefined
     ));
 
-    if (slate.length < Math.min(MAX_RECOMMENDATIONS, candidates.length)) {
+    const targetSlateSize = Math.min(MAX_RECOMMENDATIONS, candidates.length);
+    if (slate.length < targetSlateSize) {
         slate.push(...pickRelatedVideos(
             scoredCandidates,
             selectedIds,
             membership,
             diversityState,
-            Math.min(MAX_RECOMMENDATIONS, candidates.length) - slate.length
+            targetSlateSize - slate.length
+        ));
+    }
+
+    if (slate.length < targetSlateSize) {
+        // Diversity caps yield to fullness: in a homogeneous library (one author or
+        // one collection) the capped passes cannot fill the slate, so backfill by
+        // score instead of returning a truncated list.
+        slate.push(...pickRelatedVideos(
+            scoredCandidates,
+            selectedIds,
+            membership,
+            diversityState,
+            targetSlateSize - slate.length,
+            false
         ));
     }
 

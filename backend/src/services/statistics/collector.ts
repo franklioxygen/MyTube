@@ -8,6 +8,7 @@ import { logger } from "../../utils/logger";
 import * as storageService from "../storageService";
 import { Settings } from "../../types/settings";
 import {
+  FRONTEND_EVENT_TYPES,
   StatisticsEventInput,
   StatisticsEventType,
 } from "./eventTypes";
@@ -383,12 +384,6 @@ interface BatchIngestOptions {
   serverSessionId?: string;
 }
 
-const FRONTEND_ALLOWED_TYPES: ReadonlySet<StatisticsEventType> = new Set<StatisticsEventType>([
-  "search_submitted",
-  "video_play_started",
-  "video_watch_chunk_recorded",
-]);
-
 const MAX_VISITOR_WATCH_CHUNK_SECONDS = 120;
 const MAX_VISITOR_SEARCH_RESULT_COUNT = 10_000;
 
@@ -477,7 +472,7 @@ export function ingestBatch(
   // failures are caught inside the loop, so one bad event never rolls back the rest.
   const ingestAll = sqlite.transaction((batch: BatchIngestEvent[]) => {
     for (const evt of batch) {
-      if (!FRONTEND_ALLOWED_TYPES.has(evt.eventType)) {
+      if (!FRONTEND_EVENT_TYPES.has(evt.eventType)) {
         result.droppedCount += 1;
         continue;
       }

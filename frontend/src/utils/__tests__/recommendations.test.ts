@@ -453,22 +453,60 @@ describe("recommendations", () => {
           addedAt: `2023-01-0${index + 2}`,
         })
       );
-      const differentAuthorVideo = createMockVideo("7", {
-        author: "Author B",
-        title: "Different Author",
-        addedAt: "2023-01-08",
-      });
+      const differentAuthorVideos = Array.from({ length: 8 }, (_, index) =>
+        createMockVideo(`${index + 7}`, {
+          author: `Author B${index}`,
+          title: `Different Author ${index}`,
+          addedAt: "2023-01-08",
+        })
+      );
 
       const recommendations = getRecommendations({
         currentVideo,
-        allVideos: [currentVideo, ...sameAuthorVideos, differentAuthorVideo],
+        allVideos: [currentVideo, ...sameAuthorVideos, ...differentAuthorVideos],
         collections: [],
       });
 
-      expect(recommendations.slice(0, 4)).toContain(differentAuthorVideo);
+      expect(recommendations).toHaveLength(10);
+      expect(
+        recommendations.slice(0, 4).some(video => video.author !== "Author A")
+      ).toBe(true);
       expect(
         recommendations.filter(video => video.author === "Author A").length
       ).toBeLessThanOrEqual(3);
+    });
+
+    it("should relax author caps instead of truncating single-author libraries", () => {
+      const videos = Array.from({ length: 12 }, (_, index) =>
+        createMockVideo(`${index + 1}`, {
+          author: "Solo Author",
+          title: `Solo Video ${index + 1}`,
+        })
+      );
+
+      const recommendations = getRecommendations({
+        currentVideo: videos[0],
+        allVideos: videos,
+        collections: [],
+      });
+
+      expect(recommendations).toHaveLength(10);
+    });
+
+    it("should relax collection caps instead of truncating single-collection libraries", () => {
+      const videos = Array.from({ length: 12 }, (_, index) =>
+        createMockVideo(`${index + 1}`)
+      );
+
+      const recommendations = getRecommendations({
+        currentVideo: videos[0],
+        allVideos: videos,
+        collections: [
+          createMockCollection("col1", videos.map(video => video.id)),
+        ],
+      });
+
+      expect(recommendations).toHaveLength(10);
     });
 
     it("should boost co-play neighbors when recommendation signals are available", () => {
