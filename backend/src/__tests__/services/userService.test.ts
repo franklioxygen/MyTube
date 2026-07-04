@@ -319,6 +319,24 @@ describe("userService", () => {
     expect(storageService.deleteSettingsKeys).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps the migrated visitor account enabled when visitorUserEnabled is false", async () => {
+    vi.mocked(storageService.getSettings).mockReturnValue({
+      visitorPassword: "legacy-secret",
+      visitorUserEnabled: false,
+    });
+
+    await migrateLegacySharedVisitorPassword();
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toEqual(
+      expect.objectContaining({
+        username: "visitor",
+        enabled: 1,
+        isLegacyShared: 1,
+      })
+    );
+  });
+
   it("does not mark empty legacy visitor passwords as migrated", async () => {
     vi.mocked(storageService.getSettings).mockReturnValue({
       visitorPassword: "",

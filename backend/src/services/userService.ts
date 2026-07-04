@@ -541,7 +541,11 @@ export async function migrateLegacySharedVisitorPassword(): Promise<void> {
           username,
           passwordHash,
           role: "visitor",
-          enabled: settings.visitorUserEnabled === false ? 0 : 1,
+          // Keep the migrated account enabled regardless of the current
+          // visitorUserEnabled setting: that global toggle gates visitor
+          // logins at request time, and re-enabling it must restore the
+          // existing shared password just as it did before the migration.
+          enabled: 1,
           isLegacyShared: 1,
           sessionVersion: 1,
           createdAt: now,
