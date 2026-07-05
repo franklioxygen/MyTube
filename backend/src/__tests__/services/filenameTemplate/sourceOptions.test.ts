@@ -40,6 +40,7 @@ describe("filenameTemplate/sourceOptions", () => {
         author: string | null;
         authorUrl: string | null;
         playlistTitle: string | null;
+        channelName: string | null;
       }>
     );
   });
@@ -64,6 +65,7 @@ describe("filenameTemplate/sourceOptions", () => {
         author: "Source Label",
         authorUrl: "https://youtube.com/@source-label",
         playlistTitle: "Pinned Playlist",
+        channelName: null,
       },
     ];
 
@@ -80,6 +82,48 @@ describe("filenameTemplate/sourceOptions", () => {
       mediaPlaylistIndex: 1,
     });
     expect(result.get("v2")?.mediaPlaylistIndex).toBe(2);
+  });
+
+  it("prefers subscription playlist metadata over author collections", () => {
+    getCollectionsMock.mockReturnValue([
+      {
+        id: "author-col",
+        name: "Channel A",
+        origin: "author_auto",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        videos: ["v1"],
+      },
+      {
+        id: "playlist-col",
+        name: "Travel Playlist - Channel A",
+        origin: "manual",
+        createdAt: "2026-02-01T00:00:00.000Z",
+        videos: ["v1"],
+      },
+    ]);
+    subscriptionsRowsMock.current = [
+      {
+        collectionId: "playlist-col",
+        subscriptionType: "playlist",
+        playlistId: "PL123",
+        author: "Renamed Subscription Label",
+        authorUrl: "https://youtube.com/playlist?list=PL123",
+        playlistTitle: "Travel Playlist",
+        channelName: "Channel A",
+      },
+    ];
+
+    const result = buildStoredSourceOptionsMap([
+      { id: "v1", author: "Channel A" } as any,
+    ]);
+
+    expect(result.get("v1")).toMatchObject({
+      sourceCustomName: "Channel A",
+      sourceCollectionName: "Travel Playlist",
+      sourceCollectionId: "playlist-col",
+      sourceCollectionType: "playlist",
+      mediaPlaylistIndex: 1,
+    });
   });
 
   it("groups collection members by author under author_folder_only (issue #295 1-A)", () => {
@@ -119,6 +163,7 @@ describe("filenameTemplate/sourceOptions", () => {
         author: "Source Label",
         authorUrl: "https://youtube.com/@source-label",
         playlistTitle: null,
+        channelName: null,
       },
     ];
 

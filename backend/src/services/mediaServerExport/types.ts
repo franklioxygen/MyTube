@@ -59,6 +59,8 @@ export interface MediaServerExportJob {
   succeeded: number;
   skipped: number;
   failed: number;
+  sweptFiles: number;
+  sweptList?: string[];
   currentVideoId?: string;
   currentTitle?: string;
   items: MediaServerExportJobItem[];

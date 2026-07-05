@@ -1,7 +1,8 @@
 import { eq, type InferSelectModel } from "drizzle-orm";
 import { db } from "../../db";
-import { continuousDownloadTasks } from "../../db/schema";
+import { continuousDownloadTasks, subscriptions } from "../../db/schema";
 import { logger } from "../../utils/logger";
+import type { Subscription } from "../subscription/types";
 import { ContinuousDownloadTask, type DownloadOrder } from "./types";
 
 type TaskStatus = "active" | "paused" | "completed" | "cancelled";
@@ -271,6 +272,52 @@ export class TaskRepository {
     const { task, playlistName } = result[0];
 
     return mapTaskRowToEntity(task, playlistName);
+  }
+
+  /**
+   * Resolve the subscription that owns a task, preferring the linked collection
+   * when present so playlist tasks inherit the same filename-template metadata
+   * as subscription checks. Channel tasks (including the "/shorts" bulk task,
+   * whose authorUrl never matches a subscription row) resolve through their
+   * subscriptionId so they render with the same source options as checks.
+   */
+  async getSubscriptionForTask(
+    task: Pick<
+      ContinuousDownloadTask,
+      "collectionId" | "subscriptionId" | "authorUrl"
+    >
+  ): Promise<Subscription | null> {
+    if (task.collectionId) {
+      const byCollection = await db
+        .select()
+        .from(subscriptions)
+        .where(eq(subscriptions.collectionId, task.collectionId))
+        .limit(1);
+
+      if (byCollection[0]) {
+        return byCollection[0] as Subscription;
+      }
+    }
+
+    if (task.subscriptionId) {
+      const bySubscriptionId = await db
+        .select()
+        .from(subscriptions)
+        .where(eq(subscriptions.id, task.subscriptionId))
+        .limit(1);
+
+      if (bySubscriptionId[0]) {
+        return bySubscriptionId[0] as Subscription;
+      }
+    }
+
+    const byAuthorUrl = await db
+      .select()
+      .from(subscriptions)
+      .where(eq(subscriptions.authorUrl, task.authorUrl))
+      .limit(1);
+
+    return (byAuthorUrl[0] as Subscription | undefined) || null;
   }
 
   /**

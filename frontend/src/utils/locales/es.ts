@@ -170,6 +170,8 @@ export const es = {
   mediaServerExportCleanupComplete: "Media server sidecar cleanup complete",
   mediaServerExportCleanupSummary:
     "{succeeded} cleaned, {skipped} skipped, {failed} failed.",
+  mediaServerExportSweptSummary:
+    "También se eliminaron {count} archivos complementarios huérfanos.",
   mediaServerExportActiveDownloadsError:
     "Cannot run media server sidecar maintenance while downloads are active.",
   mediaServerExportQueuedDownloadsError:
@@ -1177,7 +1179,7 @@ export const es = {
   moveThumbnailsToVideoFolderOff: "En carpeta de imágenes aislada",
 
   moveThumbnailsToVideoFolderDescription:
-    "Cuando está habilitado, los archivos de miniaturas se moverán a la misma carpeta que el archivo de video. Cuando está deshabilitado, se moverán a la carpeta de imágenes aislada.",
+    "Cuando está habilitado, los archivos de miniaturas de tamaño completo se moverán a la misma carpeta que el archivo de video. Cuando está deshabilitado, se moverán a la carpeta de imágenes aislada. MyTube también mantiene una pequeña caché interna de vista previa en `images-small/` que replica la estructura de carpetas de miniaturas; puede ignorarse o excluirse de las bibliotecas del servidor multimedia.",
   saveAuthorFilesToCollection: "Guardar archivos del autor en colección",
   saveAuthorFilesToCollectionOn: "Activado",
   saveAuthorFilesToCollectionOff: "Desactivado",

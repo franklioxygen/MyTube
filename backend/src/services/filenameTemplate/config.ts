@@ -177,6 +177,12 @@ export function resolveFilenameNamingConfig(
   };
 }
 
+export function isLegacyFilenameNaming(
+  input: FilenameNamingSelectionInput
+): boolean {
+  return resolveFilenameNamingConfig(input).mode === "legacy";
+}
+
 export function validateFilenameNamingSelection(
   input: FilenameNamingSelectionInput
 ): FilenameNamingValidationResult {

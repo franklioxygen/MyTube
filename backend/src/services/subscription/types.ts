@@ -14,6 +14,7 @@ export interface Subscription {
   // Playlist subscription fields
   playlistId?: string;
   playlistTitle?: string;
+  channelName?: string;
   subscriptionType?: string; // 'author' or 'playlist'
   collectionId?: string;
 

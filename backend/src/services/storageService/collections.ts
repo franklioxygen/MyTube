@@ -26,6 +26,8 @@ import { validateCollectionName } from "./authorCollectionUtils";
 import { deleteVideo, getVideoById, updateVideo } from "./videos";
 import { getSettings } from "./settings";
 import { resolveAuthorOrganizationMode } from "../../types/settings";
+import { isLegacyFilenameNaming } from "../filenameTemplate/config";
+import { relocateMediaServerArtifactsAroundMove } from "../mediaServerExport/artifactRelocation";
 
 type CollectionLinkOptions = {
   moveFiles?: boolean;
@@ -185,25 +187,32 @@ export function linkVideoToCollection(
   }
 
   if (collection) {
+    const settings = getSettings();
     const shouldMoveFiles =
       options?.moveFiles ??
-      resolveAuthorOrganizationMode(getSettings()) !== "author_folder_only";
+      (isLegacyFilenameNaming(settings) &&
+        resolveAuthorOrganizationMode(settings) !== "author_folder_only");
     if (shouldMoveFiles) {
       const video = getVideoById(videoId);
       const collectionName = collection.name || collection.title;
       const allCollections = getCollections();
 
       if (video && collectionName) {
-        // Use file manager to move all files to the new collection
-        const updates = moveAllFilesToCollection(
-          video,
-          collectionName,
-          allCollections
-        );
+        relocateMediaServerArtifactsAroundMove(video, () => {
+          // Use file manager to move all files to the new collection
+          const updates = moveAllFilesToCollection(
+            video,
+            collectionName,
+            allCollections
+          );
 
-        if (Object.keys(updates).length > 0) {
+          if (Object.keys(updates).length === 0) {
+            return false;
+          }
+
           updateVideo(videoId, updates);
-        }
+          return true;
+        });
       }
     }
   }
@@ -253,7 +262,8 @@ export function removeVideoFromCollection(
   });
 
   if (collection) {
-    const shouldMoveFiles = options?.moveFiles !== false;
+    const shouldMoveFiles =
+      options?.moveFiles ?? isLegacyFilenameNaming(getSettings());
     if (!shouldMoveFiles) {
       return collection;
     }
@@ -315,21 +325,26 @@ export function removeVideoFromCollection(
         }
       }
 
-      // Use file manager to move all files
-      const updates = moveAllFilesFromCollection(
-        video,
-        targetVideoDir,
-        targetImageDir,
-        targetSubDir,
-        videoPathPrefix,
-        imagePathPrefix,
-        subtitlePathPrefix,
-        allCollections
-      );
+      relocateMediaServerArtifactsAroundMove(video, () => {
+        // Use file manager to move all files
+        const updates = moveAllFilesFromCollection(
+          video,
+          targetVideoDir,
+          targetImageDir,
+          targetSubDir,
+          videoPathPrefix,
+          imagePathPrefix,
+          subtitlePathPrefix,
+          allCollections
+        );
 
-      if (Object.keys(updates).length > 0) {
+        if (Object.keys(updates).length === 0) {
+          return false;
+        }
+
         updateVideo(videoId, updates);
-      }
+        return true;
+      });
     }
   }
 
@@ -343,8 +358,11 @@ export function deleteCollectionWithFiles(collectionId: string): boolean {
   const collectionName = collection.name || collection.title;
 
   if (collection.videos && collection.videos.length > 0) {
+    const shouldMoveFiles = isLegacyFilenameNaming(getSettings());
     for (const videoId of [...collection.videos]) {
-      removeVideoFromCollection(collectionId, videoId, { moveFiles: true });
+      removeVideoFromCollection(collectionId, videoId, {
+        moveFiles: shouldMoveFiles,
+      });
     }
   }
 

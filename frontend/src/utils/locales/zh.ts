@@ -156,6 +156,8 @@ export const zh = {
   mediaServerExportCleanupComplete: "媒体服务器附属文件清理完成",
   mediaServerExportCleanupSummary:
     "已清理 {succeeded} 个，已跳过 {skipped} 个，失败 {failed} 个。",
+  mediaServerExportSweptSummary:
+    "另外清理了 {count} 个残留附属文件。",
   mediaServerExportActiveDownloadsError:
     "当前有下载任务在运行，无法执行媒体服务器附属文件维护。",
   mediaServerExportQueuedDownloadsError:
@@ -1106,7 +1108,7 @@ export const zh = {
   moveThumbnailsToVideoFolderOn: "与视频在一起",
   moveThumbnailsToVideoFolderOff: "在独立的图片文件夹中",
   moveThumbnailsToVideoFolderDescription:
-    "启用后，封面文件将被移动到与视频文件相同的文件夹中。禁用后，它们将被移动到独立的图片文件夹中。",
+    "启用后，完整尺寸封面文件将被移动到与视频文件相同的文件夹中。禁用后，它们将被移动到独立的图片文件夹中。MyTube 仍会在 `images-small/` 下保留用于界面预览的小图缓存，它会镜像封面目录结构，可忽略或从媒体库中排除。",
   saveAuthorFilesToCollection: "将作者文件保存到合集",
   saveAuthorFilesToCollectionOn: "按作者整理",
   saveAuthorFilesToCollectionOff: "保存到根文件夹",

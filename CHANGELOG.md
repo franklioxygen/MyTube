@@ -7,6 +7,14 @@
 - Add named visitor user management with SQLite-backed visitor accounts, admin-only CRUD APIs, immediate session revocation on disable/delete/password change, and username+password visitor login.
 - Automatically migrate the legacy shared visitor password to a `visitor` account while preserving compatibility for cached clients.
 
+### Fix
+
+- Keep filename-template playlist downloads in their rendered folder layout, preserve consistent playlist source names across download entry points, relocate media-server companion files during legacy moves, and sweep MyTube-generated orphan companion files during rebuild.
+
+### Changed
+
+- Under non-legacy filename naming (custom template or preset), adding or removing a video to/from a collection no longer moves the underlying files; collection membership is now purely logical and the filename template alone controls the on-disk folder structure. Legacy naming is unchanged. To organize files per collection under template naming, include `{{ source_collection_name }}` in the template.
+
 ### Deprecated
 
 - Deprecate the shared visitor password login endpoint (`POST /api/settings/verify-visitor-password`) and the visitor branch of the combined password endpoint (`POST /api/settings/verify-password`). Use `POST /api/settings/verify-user-login` for visitor logins.
@@ -14,6 +22,7 @@
 ### Docs
 
 - Document visitor account management, automatic shared-password migration, and the new visitor-user API surface.
+- Clarify that `images-small/` is an internal downscaled preview cache and can be excluded from media-server libraries.
 
 ## v1.10.7 (2026-07-02)
 

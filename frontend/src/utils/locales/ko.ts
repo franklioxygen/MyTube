@@ -167,6 +167,8 @@ export const ko = {
   mediaServerExportCleanupComplete: "Media server sidecar cleanup complete",
   mediaServerExportCleanupSummary:
     "{succeeded} cleaned, {skipped} skipped, {failed} failed.",
+  mediaServerExportSweptSummary:
+    "고아 사이드카 파일 {count}개도 제거했습니다.",
   mediaServerExportActiveDownloadsError:
     "Cannot run media server sidecar maintenance while downloads are active.",
   mediaServerExportQueuedDownloadsError:
@@ -1144,7 +1146,7 @@ export const ko = {
   moveThumbnailsToVideoFolderOn: "동영상과 함께",
   moveThumbnailsToVideoFolderOff: "분리된 이미지 폴더",
   moveThumbnailsToVideoFolderDescription:
-    "활성화하면 썸네일 파일이 동영상 파일과 같은 폴더로 이동합니다. 비활성화하면 분리된 이미지 폴더로 이동합니다.",
+    "활성화하면 전체 크기 썸네일 파일이 동영상 파일과 같은 폴더로 이동합니다. 비활성화하면 분리된 이미지 폴더로 이동합니다. MyTube는 `images-small/` 아래에 내부 미리보기용 작은 캐시도 유지하며 썸네일 폴더 구조를 그대로 반영합니다. 이 폴더는 무시하거나 미디어 서버 라이브러리에서 제외할 수 있습니다.",
 
   saveAuthorFilesToCollection: "작성자 파일을 컬렉션에 저장",
   saveAuthorFilesToCollectionOn: "켜짐",

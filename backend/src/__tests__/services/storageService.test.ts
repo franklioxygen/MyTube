@@ -1021,7 +1021,7 @@ describe('StorageService', () => {
       (fs.existsSync as any).mockReturnValue(true);
       (fs.moveSync as any).mockImplementation(() => {});
 
-      storageService.removeVideoFromCollection('1', 'v1');
+      storageService.removeVideoFromCollection('1', 'v1', { moveFiles: false });
       
       expect(mockRun).toHaveBeenCalled();
     });

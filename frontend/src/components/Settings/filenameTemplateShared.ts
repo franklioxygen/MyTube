@@ -158,6 +158,8 @@ export interface MediaServerExportJob {
     succeeded: number;
     skipped: number;
     failed: number;
+    sweptFiles?: number;
+    sweptList?: string[];
     currentTitle?: string;
     items: Array<{
         videoId: string;

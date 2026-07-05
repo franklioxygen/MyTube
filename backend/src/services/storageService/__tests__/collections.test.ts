@@ -149,6 +149,43 @@ describe('collectionsService', () => {
              expect(collectionFileManager.moveAllFilesToCollection).not.toHaveBeenCalled();
              expect(videosService.updateVideo).not.toHaveBeenCalled();
          });
+
+        it('should not move files for omitted moveFiles under template naming', () => {
+             const targetCollection = { id: 'col2', name: 'Playlist', videos: ['vid1'] };
+             settingsMocks.getSettings.mockReturnValue({
+                 authorOrganizationMode: 'author_collection_and_folder',
+                 downloadFilenameMode: 'template',
+                 downloadFilenameTemplate: '{{ source_custom_name }}/{{ source_collection_name }}/{{ title }}.{{ ext }}',
+             });
+             vi.mocked(collectionRepo.appendVideoToCollection).mockReturnValue(targetCollection as any);
+
+             const result = collectionsService.linkVideoToCollection('col2', 'vid1');
+
+             expect(result?.videos).toContain('vid1');
+             expect(collectionFileManager.moveAllFilesToCollection).not.toHaveBeenCalled();
+             expect(videosService.updateVideo).not.toHaveBeenCalled();
+         });
+
+        it('should still honor explicit moveFiles under template naming', () => {
+             const targetCollection = { id: 'col2', name: 'Playlist', videos: ['vid1'] };
+             settingsMocks.getSettings.mockReturnValue({
+                 downloadFilenameMode: 'template',
+                 downloadFilenameTemplate: '{{ source_custom_name }}/{{ source_collection_name }}/{{ title }}.{{ ext }}',
+             });
+             vi.mocked(collectionRepo.appendVideoToCollection).mockReturnValue(targetCollection as any);
+             vi.mocked(videosService.getVideoById).mockReturnValue({ id: 'vid1' } as any);
+             vi.mocked(collectionRepo.getCollections).mockReturnValue([targetCollection as any]);
+             vi.mocked(collectionFileManager.moveAllFilesToCollection).mockReturnValue({
+                 videoPath: '/videos/Playlist/video.mp4',
+             });
+
+             collectionsService.linkVideoToCollection('col2', 'vid1', { moveFiles: true });
+
+             expect(collectionFileManager.moveAllFilesToCollection).toHaveBeenCalled();
+             expect(videosService.updateVideo).toHaveBeenCalledWith('vid1', {
+                 videoPath: '/videos/Playlist/video.mp4',
+             });
+         });
     });
 
     describe('moveVideoToExclusiveCollection', () => {
@@ -313,7 +350,24 @@ describe('collectionsService', () => {
              expect(result?.videos).not.toContain('vid1');
              expect(collectionFileManager.moveAllFilesFromCollection).not.toHaveBeenCalled();
              expect(videosService.updateVideo).not.toHaveBeenCalled();
-        });
+         });
+
+        it('should not move files for omitted moveFiles under template naming', () => {
+             const mockCollection = { id: 'col1', name: 'Col Name', videos: ['vid1'] };
+             settingsMocks.getSettings.mockReturnValue({
+                 downloadFilenameMode: 'template',
+                 downloadFilenameTemplate: '{{ source_custom_name }}/{{ source_collection_name }}/{{ title }}.{{ ext }}',
+             });
+             vi.mocked(collectionRepo.atomicUpdateCollection).mockImplementation((id, fn) => {
+                 return fn({ ...mockCollection } as any);
+             });
+
+             const result = collectionsService.removeVideoFromCollection('col1', 'vid1');
+
+             expect(result?.videos).not.toContain('vid1');
+             expect(collectionFileManager.moveAllFilesFromCollection).not.toHaveBeenCalled();
+             expect(videosService.updateVideo).not.toHaveBeenCalled();
+         });
     });
 
     describe('deleteCollectionWithFiles', () => {
@@ -337,6 +391,31 @@ describe('collectionsService', () => {
                 expect.any(Function)
             );
             expect(collectionFileManager.moveAllFilesFromCollection).toHaveBeenCalled();
+            expect(collectionFileManager.cleanupCollectionDirectories).toHaveBeenCalledWith('Col Name');
+            expect(collectionRepo.deleteCollection).toHaveBeenCalledWith('col1');
+        });
+
+        it('should remove collection memberships without file moves under template naming', () => {
+            const mockCollection = { id: 'col1', name: 'Col Name', videos: ['vid1'] };
+            settingsMocks.getSettings.mockReturnValue({
+                downloadFilenameMode: 'template',
+                downloadFilenameTemplate: '{{ source_custom_name }}/{{ source_collection_name }}/{{ title }}.{{ ext }}',
+            });
+            vi.mocked(collectionRepo.getCollectionById).mockReturnValue(mockCollection as any);
+            vi.mocked(collectionRepo.atomicUpdateCollection).mockImplementation((id, fn) => {
+                if (id !== 'col1') {
+                    return null;
+                }
+                return fn({ ...mockCollection, videos: [...mockCollection.videos] } as any);
+            });
+
+            collectionsService.deleteCollectionWithFiles('col1');
+
+            expect(collectionRepo.atomicUpdateCollection).toHaveBeenCalledWith(
+                'col1',
+                expect.any(Function)
+            );
+            expect(collectionFileManager.moveAllFilesFromCollection).not.toHaveBeenCalled();
             expect(collectionFileManager.cleanupCollectionDirectories).toHaveBeenCalledWith('Col Name');
             expect(collectionRepo.deleteCollection).toHaveBeenCalledWith('col1');
         });

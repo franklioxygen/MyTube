@@ -1,11 +1,12 @@
 import { v4 as uuidv4 } from "uuid";
-import { resolveFilenameNamingConfig } from "../filenameTemplate/config";
+import { isLegacyFilenameNaming } from "../filenameTemplate/config";
 import {
   AuthorOrganizationMode,
   resolveAuthorOrganizationMode,
   usesAuthorCollectionLinking,
 } from "../../types/settings";
 import { logger } from "../../utils/logger";
+import { relocateMediaServerArtifactsAroundMove } from "../mediaServerExport/artifactRelocation";
 import {
   cleanupCollectionDirectories,
   moveAllFilesToCollection,
@@ -43,9 +44,9 @@ function isLegacyFilenameNamingValue(value?: string): boolean {
     return value === "legacy";
   }
 
-  return resolveFilenameNamingConfig({
+  return isLegacyFilenameNaming({
     downloadFilenamePresetId: value,
-  }).mode === "legacy";
+  });
 }
 
 function getCollectionName(collection: Collection): string {
@@ -438,17 +439,25 @@ function moveVideoFilesToAuthorFolder(
   // that is now being re-homed under the real author — issue #295 follow-up).
   const previousSubfolder = getCurrentVideoSubfolder(video.videoPath);
 
-  const updates = moveAllFilesToCollection(
-    video,
-    validatedAuthorName,
-    getCollections()
-  );
+  const filesMoved = relocateMediaServerArtifactsAroundMove(video, () => {
+    const updates = moveAllFilesToCollection(
+      video,
+      validatedAuthorName,
+      getCollections()
+    );
 
-  if (Object.keys(updates).length === 0) {
+    if (Object.keys(updates).length === 0) {
+      return false;
+    }
+
+    updateVideo(videoId, updates);
+    return true;
+  });
+
+  if (!filesMoved) {
     return false;
   }
 
-  updateVideo(videoId, updates);
   logger.info("Moved video files into author folder", {
     author: validatedAuthorName,
   });

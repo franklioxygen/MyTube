@@ -195,6 +195,7 @@ Total keys: 1031
 | `mediaServerExportCleanupRunning` |
 | `mediaServerExportCleanupComplete` |
 | `mediaServerExportCleanupSummary` |
+| `mediaServerExportSweptSummary` |
 | `mediaServerExportActiveDownloadsError` |
 | `mediaServerExportQueuedDownloadsError` |
 | `mediaServerExportUnsupportedModeError` |

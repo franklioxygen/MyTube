@@ -7,9 +7,12 @@ import {
 } from "../downloadService";
 import { platformFromUrl } from "../statistics";
 import { DownloadResult } from "../downloaders/bilibili/types";
+import { stripChannelSuffixFromPlaylistName } from "../filenameTemplate/sourceNaming";
 import { FilenameTemplateSourceOptions } from "../filenameTemplate/types";
 import * as storageService from "../storageService";
 import { Video } from "../storageService";
+import { buildFilenameTemplateSourceOptions } from "../subscription/helpers";
+import type { Subscription } from "../subscription/types";
 import { TaskRepository } from "./taskRepository";
 import { ContinuousDownloadTask } from "./types";
 import { VideoUrlFetcher } from "./videoUrlFetcher";
@@ -186,6 +189,15 @@ export class TaskProcessor {
 
     const totalVideos = task.totalVideos || 0;
     const fetchBatchSize = 50; // Fetch 50 URLs at a time
+    let taskSubscription: Subscription | null = null;
+    try {
+      taskSubscription = await this.taskRepository.getSubscriptionForTask(task);
+    } catch (error) {
+      logger.warn(
+        `Unable to resolve subscription source options for task ${task.id}; falling back to task metadata`,
+        error instanceof Error ? error : new Error(String(error))
+      );
+    }
 
     // For non-incremental tasks, ensure we have the video URLs
     let allVideoUrls: string[] = [];
@@ -292,7 +304,8 @@ export class TaskProcessor {
           videoUrl,
           i,
           progressState,
-          maxConcurrentDownloads
+          maxConcurrentDownloads,
+          taskSubscription
         );
       } catch (downloadError: unknown) {
         const downloadErrorMessage = getErrorMessage(downloadError);
@@ -439,7 +452,8 @@ export class TaskProcessor {
     videoUrl: string,
     videoIndex: number,
     progressState: TaskProgressState,
-    maxConcurrentDownloads: number
+    maxConcurrentDownloads: number,
+    taskSubscription: Subscription | null
   ): Promise<void> {
     // Last cheap chance to abort before a potentially long download operation.
     // The outer loop already performs throttled DB checks; this avoids turning
@@ -476,15 +490,10 @@ export class TaskProcessor {
       type: task.platform.toLowerCase(),
     });
 
-    // Build filename template source options from task context
-    const sourceCollectionName = task.playlistName || task.author;
-    const sourceCollectionType: FilenameTemplateSourceOptions["sourceCollectionType"] =
-      task.collectionId ? "playlist" : task.subscriptionId ? "channel" : "single";
-    const filenameTemplateSourceOptions: FilenameTemplateSourceOptions = {
-      sourceCollectionName,
-      sourceCollectionType,
-      mediaPlaylistIndex: videoIndex + 1,
-    };
+    const filenameTemplateSourceOptions =
+      taskSubscription
+        ? buildFilenameTemplateSourceOptions(taskSubscription, videoIndex + 1)
+        : this.buildFallbackFilenameTemplateSourceOptions(task, videoIndex);
 
     try {
       // Download the video
@@ -573,6 +582,29 @@ export class TaskProcessor {
       // Always remove from active downloads when done (success or failure)
       storageService.removeActiveDownload(downloadId);
     }
+  }
+
+  private buildFallbackFilenameTemplateSourceOptions(
+    task: ContinuousDownloadTask,
+    videoIndex: number
+  ): FilenameTemplateSourceOptions {
+    // Standalone tasks do not have subscription metadata. Playlist tasks store
+    // the display collection name, which may include " - <channel>", so pass
+    // the clean playlist title when possible.
+    const sourceCollectionName = task.collectionId
+      ? stripChannelSuffixFromPlaylistName(task.playlistName, task.author) ||
+        task.playlistName ||
+        task.author
+      : task.playlistName || task.author;
+    const sourceCollectionType: FilenameTemplateSourceOptions["sourceCollectionType"] =
+      task.collectionId ? "playlist" : task.subscriptionId ? "channel" : "single";
+
+    return {
+      sourceCustomName: task.author,
+      sourceCollectionName,
+      sourceCollectionType,
+      mediaPlaylistIndex: videoIndex + 1,
+    };
   }
 
   /**
