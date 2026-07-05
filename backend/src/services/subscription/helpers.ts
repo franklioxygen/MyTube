@@ -1,5 +1,9 @@
 import { getErrorMessage as getSharedErrorMessage } from "../../utils/errors";
 import { logger } from "../../utils/logger";
+import {
+  isPlaylistSource,
+  resolvePlaylistSourceCustomName,
+} from "../filenameTemplate/sourceNaming";
 import { FilenameTemplateSourceOptions } from "../filenameTemplate/types";
 import { TelegramService } from "../telegramService";
 import { Subscription } from "./types";
@@ -30,11 +34,13 @@ export function buildFilenameTemplateSourceOptions(
   sub: Subscription,
   mediaPlaylistIndex?: number
 ): FilenameTemplateSourceOptions {
-  const isPlaylist =
-    sub.subscriptionType === "playlist" || Boolean(sub.playlistId);
+  const isPlaylist = isPlaylistSource(sub);
+  const sourceCustomName = isPlaylist
+    ? resolvePlaylistSourceCustomName(sub)
+    : sub.author;
 
   return {
-    sourceCustomName: sub.author,
+    sourceCustomName,
     sourceCollectionName: sub.playlistTitle || sub.author,
     sourceCollectionId: sub.playlistId || sub.collectionId || "",
     sourceCollectionType: isPlaylist ? "playlist" : "channel",

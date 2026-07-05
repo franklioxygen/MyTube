@@ -26,6 +26,7 @@ import { validateCollectionName } from "./authorCollectionUtils";
 import { deleteVideo, getVideoById, updateVideo } from "./videos";
 import { getSettings } from "./settings";
 import { resolveAuthorOrganizationMode } from "../../types/settings";
+import { isLegacyFilenameNaming } from "../filenameTemplate/config";
 
 type CollectionLinkOptions = {
   moveFiles?: boolean;
@@ -185,9 +186,11 @@ export function linkVideoToCollection(
   }
 
   if (collection) {
+    const settings = getSettings();
     const shouldMoveFiles =
       options?.moveFiles ??
-      resolveAuthorOrganizationMode(getSettings()) !== "author_folder_only";
+      (isLegacyFilenameNaming(settings) &&
+        resolveAuthorOrganizationMode(settings) !== "author_folder_only");
     if (shouldMoveFiles) {
       const video = getVideoById(videoId);
       const collectionName = collection.name || collection.title;
@@ -253,7 +256,8 @@ export function removeVideoFromCollection(
   });
 
   if (collection) {
-    const shouldMoveFiles = options?.moveFiles !== false;
+    const shouldMoveFiles =
+      options?.moveFiles ?? isLegacyFilenameNaming(getSettings());
     if (!shouldMoveFiles) {
       return collection;
     }
@@ -343,8 +347,11 @@ export function deleteCollectionWithFiles(collectionId: string): boolean {
   const collectionName = collection.name || collection.title;
 
   if (collection.videos && collection.videos.length > 0) {
+    const shouldMoveFiles = isLegacyFilenameNaming(getSettings());
     for (const videoId of [...collection.videos]) {
-      removeVideoFromCollection(collectionId, videoId, { moveFiles: true });
+      removeVideoFromCollection(collectionId, videoId, {
+        moveFiles: shouldMoveFiles,
+      });
     }
   }
 

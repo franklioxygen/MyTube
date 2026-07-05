@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
-import { resolveFilenameNamingConfig } from "../filenameTemplate/config";
+import { isLegacyFilenameNaming } from "../filenameTemplate/config";
 import {
   AuthorOrganizationMode,
   resolveAuthorOrganizationMode,
@@ -43,9 +43,9 @@ function isLegacyFilenameNamingValue(value?: string): boolean {
     return value === "legacy";
   }
 
-  return resolveFilenameNamingConfig({
+  return isLegacyFilenameNaming({
     downloadFilenamePresetId: value,
-  }).mode === "legacy";
+  });
 }
 
 function getCollectionName(collection: Collection): string {

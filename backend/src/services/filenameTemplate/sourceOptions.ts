@@ -2,6 +2,10 @@ import { logger } from "../../utils/logger";
 import * as storageService from "../storageService";
 import { Video } from "../storageService/types";
 import { resolveAuthorOrganizationMode } from "../../types/settings";
+import {
+  isPlaylistSource,
+  resolvePlaylistSourceCustomName,
+} from "./sourceNaming";
 import { FilenameTemplateSourceOptions } from "./types";
 
 type DownloadCollisionReservation = {
@@ -108,9 +112,7 @@ function reserveDateCollisionIndex(
 function getSourceCollectionType(
   row: Pick<CollectionSourceRow, "subscriptionType" | "playlistId">
 ): "channel" | "playlist" {
-  return row.subscriptionType === "playlist" || Boolean(row.playlistId)
-    ? "playlist"
-    : "channel";
+  return isPlaylistSource(row) ? "playlist" : "channel";
 }
 
 function getCollectionSourceMaps(): {
@@ -147,6 +149,10 @@ function resolveStoredSourceCustomName(
   subscriptionRow: CollectionSourceRow | undefined,
   author: string
 ): string {
+  if (subscriptionRow && isPlaylistSource(subscriptionRow)) {
+    return resolvePlaylistSourceCustomName(subscriptionRow) || author;
+  }
+
   return subscriptionRow?.author || author;
 }
 
@@ -186,13 +192,20 @@ function buildDateCollisionCountKey(
 export function buildStoredSourceOptionsMap(
   allVideos: Video[]
 ): Map<string, FilenameTemplateSourceOptions> {
-  const videoToCollection = new Map<
+  const {
+    collectionTypeMap,
+    collectionSourceById,
+    collectionSourceByAuthorUrl,
+  } = getCollectionSourceMaps();
+  const videoToCollections = new Map<
     string,
-    {
+    Array<{
       collectionId: string;
       collectionName: string;
       indexInCollection: number;
-    }
+      origin?: string;
+      createdAt?: string;
+    }>
   >();
 
   let collections = [] as ReturnType<typeof storageService.getCollections>;
@@ -205,21 +218,17 @@ export function buildStoredSourceOptionsMap(
   for (const collection of collections) {
     for (let i = 0; i < collection.videos.length; i++) {
       const videoId = collection.videos[i];
-      if (!videoToCollection.has(videoId)) {
-        videoToCollection.set(videoId, {
-          collectionId: collection.id,
-          collectionName: collection.name || collection.title || "",
-          indexInCollection: i + 1,
-        });
-      }
+      const memberships = videoToCollections.get(videoId) ?? [];
+      memberships.push({
+        collectionId: collection.id,
+        collectionName: collection.name || collection.title || "",
+        indexInCollection: i + 1,
+        origin: collection.origin,
+        createdAt: collection.createdAt,
+      });
+      videoToCollections.set(videoId, memberships);
     }
   }
-
-  const {
-    collectionTypeMap,
-    collectionSourceById,
-    collectionSourceByAuthorUrl,
-  } = getCollectionSourceMaps();
   const sourceOptionsByVideoId = new Map<string, FilenameTemplateSourceOptions>();
 
   // Under author_folder_only, collection members live in the author folder, not
@@ -238,7 +247,10 @@ export function buildStoredSourceOptionsMap(
 
   for (const video of allVideos) {
     const author = video.author || "";
-    const membership = videoToCollection.get(video.id);
+    const membership = selectStoredSourceMembership(
+      videoToCollections.get(video.id) ?? [],
+      collectionSourceById
+    );
 
     if (membership) {
       const subscriptionRow = collectionSourceById.get(membership.collectionId);
@@ -282,6 +294,58 @@ export function buildStoredSourceOptionsMap(
   }
 
   return sourceOptionsByVideoId;
+}
+
+function selectStoredSourceMembership(
+  memberships: Array<{
+    collectionId: string;
+    collectionName: string;
+    indexInCollection: number;
+    origin?: string;
+    createdAt?: string;
+  }>,
+  collectionSourceById: Map<string, CollectionSourceRow>
+):
+  | {
+      collectionId: string;
+      collectionName: string;
+      indexInCollection: number;
+    }
+  | undefined {
+  if (memberships.length === 0) {
+    return undefined;
+  }
+
+  return [...memberships].sort((a, b) => {
+    const rankA = getStoredSourceMembershipRank(a, collectionSourceById);
+    const rankB = getStoredSourceMembershipRank(b, collectionSourceById);
+    if (rankA !== rankB) {
+      return rankA - rankB;
+    }
+
+    const createdA = Date.parse(a.createdAt || "") || 0;
+    const createdB = Date.parse(b.createdAt || "") || 0;
+    if (createdA !== createdB) {
+      return createdA - createdB;
+    }
+
+    return a.collectionId.localeCompare(b.collectionId);
+  })[0];
+}
+
+function getStoredSourceMembershipRank(
+  membership: { collectionId: string; origin?: string },
+  collectionSourceById: Map<string, CollectionSourceRow>
+): number {
+  if (collectionSourceById.has(membership.collectionId)) {
+    return 0;
+  }
+
+  if (membership.origin === "author_auto") {
+    return 2;
+  }
+
+  return 1;
 }
 
 function buildDateCollisionCountsByLookupKey(

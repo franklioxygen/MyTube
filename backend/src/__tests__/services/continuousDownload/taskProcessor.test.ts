@@ -115,6 +115,39 @@ describe('TaskProcessor', () => {
     }));
   });
 
+  it('passes clean playlist source options to playlist downloads', async () => {
+    const playlistTask: ContinuousDownloadTask = {
+      ...mockTask,
+      collectionId: 'col-1',
+      playlistName: 'Travel Playlist - Test Author',
+    };
+    const videoUrls = ['http://vid1'];
+    mockVideoUrlFetcher.getAllVideoUrls.mockResolvedValue(videoUrls);
+    (storageService.getVideoBySourceUrl as any).mockReturnValue(null);
+    (downloadService.downloadYouTubeVideo as any).mockResolvedValue({
+      videoData: {
+        id: 'v1',
+        title: 'Video 1',
+        videoPath: '/videos/Test Author/Travel Playlist/Video 1.mp4',
+        thumbnailPath: '/videos/Test Author/Travel Playlist/Video 1.jpg',
+      },
+    });
+
+    await taskProcessor.processTask(playlistTask);
+
+    expect(downloadService.downloadYouTubeVideo).toHaveBeenCalledWith(
+      'http://vid1',
+      expect.any(String),
+      undefined,
+      expect.objectContaining({
+        sourceCustomName: 'Test Author',
+        sourceCollectionName: 'Travel Playlist',
+        sourceCollectionType: 'playlist',
+        mediaPlaylistIndex: 1,
+      })
+    );
+  });
+
   it('should stop processing if task is cancelled', async () => {
      // Return cancelled logic:
      // If we return 'cancelled' immediately, the loop breaks at check #1.

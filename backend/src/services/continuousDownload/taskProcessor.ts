@@ -7,6 +7,7 @@ import {
 } from "../downloadService";
 import { platformFromUrl } from "../statistics";
 import { DownloadResult } from "../downloaders/bilibili/types";
+import { stripChannelSuffixFromPlaylistName } from "../filenameTemplate/sourceNaming";
 import { FilenameTemplateSourceOptions } from "../filenameTemplate/types";
 import * as storageService from "../storageService";
 import { Video } from "../storageService";
@@ -476,11 +477,18 @@ export class TaskProcessor {
       type: task.platform.toLowerCase(),
     });
 
-    // Build filename template source options from task context
-    const sourceCollectionName = task.playlistName || task.author;
+    // Build filename template source options from task context. Playlist tasks
+    // store the display collection name, which may include " - <channel>";
+    // templates should receive the clean playlist title for nesting.
+    const sourceCollectionName = task.collectionId
+      ? stripChannelSuffixFromPlaylistName(task.playlistName, task.author) ||
+        task.playlistName ||
+        task.author
+      : task.playlistName || task.author;
     const sourceCollectionType: FilenameTemplateSourceOptions["sourceCollectionType"] =
       task.collectionId ? "playlist" : task.subscriptionId ? "channel" : "single";
     const filenameTemplateSourceOptions: FilenameTemplateSourceOptions = {
+      sourceCustomName: task.author,
       sourceCollectionName,
       sourceCollectionType,
       mediaPlaylistIndex: videoIndex + 1,
