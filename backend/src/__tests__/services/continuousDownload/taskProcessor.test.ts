@@ -15,6 +15,7 @@ vi.mock('../../../utils/logger', () => ({
   logger: {
     info: vi.fn(),
     error: vi.fn(),
+    warn: vi.fn(),
     debug: vi.fn(),
   },
 }));
@@ -47,6 +48,7 @@ describe('TaskProcessor', () => {
       updateTotalVideos: vi.fn().mockResolvedValue(undefined),
       updateProgress: vi.fn().mockResolvedValue(undefined),
       completeTask: vi.fn().mockResolvedValue(undefined),
+      getSubscriptionForTask: vi.fn().mockResolvedValue(null),
     };
 
     mockVideoUrlFetcher = {
@@ -142,6 +144,56 @@ describe('TaskProcessor', () => {
       expect.objectContaining({
         sourceCustomName: 'Test Author',
         sourceCollectionName: 'Travel Playlist',
+        sourceCollectionType: 'playlist',
+        mediaPlaylistIndex: 1,
+      })
+    );
+  });
+
+  it('uses linked subscription source options for playlist task downloads', async () => {
+    const playlistTask: ContinuousDownloadTask = {
+      ...mockTask,
+      collectionId: 'col-1',
+      playlistName: 'Travel Playlist - Test Author',
+    };
+    mockTaskRepository.getSubscriptionForTask.mockResolvedValue({
+      id: 'sub-1',
+      author: 'Renamed Subscription Label',
+      authorUrl: playlistTask.authorUrl,
+      interval: 60,
+      downloadCount: 0,
+      createdAt: Date.now(),
+      platform: 'YouTube',
+      playlistId: 'PL123',
+      playlistTitle: 'Travel Playlist',
+      channelName: 'Test Author',
+      subscriptionType: 'playlist',
+      collectionId: 'col-1',
+    });
+    mockVideoUrlFetcher.getAllVideoUrls.mockResolvedValue(['http://vid1']);
+    (storageService.getVideoBySourceUrl as any).mockReturnValue(null);
+    (downloadService.downloadYouTubeVideo as any).mockResolvedValue({
+      videoData: {
+        id: 'v1',
+        title: 'Video 1',
+        videoPath: '/videos/Test Author/Travel Playlist/Video 1.mp4',
+        thumbnailPath: '/videos/Test Author/Travel Playlist/Video 1.jpg',
+      },
+    });
+
+    await taskProcessor.processTask(playlistTask);
+
+    expect(mockTaskRepository.getSubscriptionForTask).toHaveBeenCalledWith(
+      playlistTask
+    );
+    expect(downloadService.downloadYouTubeVideo).toHaveBeenCalledWith(
+      'http://vid1',
+      expect.any(String),
+      undefined,
+      expect.objectContaining({
+        sourceCustomName: 'Test Author',
+        sourceCollectionName: 'Travel Playlist',
+        sourceCollectionId: 'PL123',
         sourceCollectionType: 'playlist',
         mediaPlaylistIndex: 1,
       })

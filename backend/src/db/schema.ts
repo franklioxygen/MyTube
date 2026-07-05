@@ -246,6 +246,7 @@ export const subscriptions = sqliteTable("subscriptions", {
   // Playlist subscription fields
   playlistId: text("playlist_id"), // Platform-specific playlist ID (YouTube list=, Bilibili season_id, etc.)
   playlistTitle: text("playlist_title"), // Original playlist title
+  channelName: text("channel_name"), // Clean channel name for playlist subscriptions
   subscriptionType: text("subscription_type").default("author"), // 'author' or 'playlist'
   collectionId: text("collection_id"), // Reference to collection for auto-adding videos
   downloadShorts: integer("download_shorts").default(0), // 0 = disabled, 1 = enabled

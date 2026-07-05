@@ -163,6 +163,8 @@ export const ar = {
   mediaServerExportCleanupComplete: "Media server sidecar cleanup complete",
   mediaServerExportCleanupSummary:
     "{succeeded} cleaned, {skipped} skipped, {failed} failed.",
+  mediaServerExportSweptSummary:
+    "كما تمت إزالة {count} من الملفات الجانبية اليتيمة.",
   mediaServerExportActiveDownloadsError:
     "Cannot run media server sidecar maintenance while downloads are active.",
   mediaServerExportQueuedDownloadsError:
@@ -1135,7 +1137,7 @@ export const ar = {
   moveThumbnailsToVideoFolderOn: "مع الفيديو",
   moveThumbnailsToVideoFolderOff: "في مجلد صور معزول",
   moveThumbnailsToVideoFolderDescription:
-    "عند التفعيل، سيتم نقل ملفات الصور المصغرة إلى نفس المجلد الموجود به ملف الفيديو. عند التعطيل، سيتم نقلها إلى مجلد الصور المعزول.",
+    "عند التفعيل، سيتم نقل ملفات الصور المصغرة بالحجم الكامل إلى نفس المجلد الموجود به ملف الفيديو. عند التعطيل، سيتم نقلها إلى مجلد الصور المعزول. يحتفظ MyTube أيضًا بذاكرة تخزين مؤقت داخلية صغيرة للمعاينة تحت `images-small/` تعكس بنية مجلد الصور المصغرة؛ يمكن تجاهلها أو استبعادها من مكتبات خادم الوسائط.",
   saveAuthorFilesToCollection: "حفظ ملفات المؤلف في مجموعة",
   saveAuthorFilesToCollectionOn: "تنتظيم حسب المؤلف",
   saveAuthorFilesToCollectionOff: "حفظ في المجلدات الجذرية",

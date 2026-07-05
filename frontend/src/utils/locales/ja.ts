@@ -170,6 +170,8 @@ export const ja = {
   mediaServerExportCleanupComplete: "Media server sidecar cleanup complete",
   mediaServerExportCleanupSummary:
     "{succeeded} cleaned, {skipped} skipped, {failed} failed.",
+  mediaServerExportSweptSummary:
+    "孤立した付属ファイルも {count} 件削除しました。",
   mediaServerExportActiveDownloadsError:
     "Cannot run media server sidecar maintenance while downloads are active.",
   mediaServerExportQueuedDownloadsError:
@@ -1163,7 +1165,7 @@ export const ja = {
   moveThumbnailsToVideoFolderOff: "独立した画像フォルダ",
 
   moveThumbnailsToVideoFolderDescription:
-    "有効にすると、サムネイルファイルは動画ファイルと同じフォルダに移動されます。無効にすると、独立した画像フォルダに移動されます。",
+    "有効にすると、フルサイズのサムネイルファイルは動画ファイルと同じフォルダに移動されます。無効にすると、独立した画像フォルダに移動されます。MyTube は `images-small/` に内部プレビュー用の小さなキャッシュも保持し、サムネイルのフォルダ構造を反映します。これは無視するか、メディアサーバーのライブラリから除外できます。",
   saveAuthorFilesToCollection: "著者のファイルをコレクションに保存",
   saveAuthorFilesToCollectionOn: "オン",
   saveAuthorFilesToCollectionOff: "オフ",

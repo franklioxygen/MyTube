@@ -170,6 +170,8 @@ export const ru = {
   mediaServerExportCleanupComplete: "Media server sidecar cleanup complete",
   mediaServerExportCleanupSummary:
     "{succeeded} cleaned, {skipped} skipped, {failed} failed.",
+  mediaServerExportSweptSummary:
+    "Также удалено осиротевших вспомогательных файлов: {count}.",
   mediaServerExportActiveDownloadsError:
     "Cannot run media server sidecar maintenance while downloads are active.",
   mediaServerExportQueuedDownloadsError:
@@ -1159,7 +1161,7 @@ export const ru = {
   moveThumbnailsToVideoFolderOn: "Вместе с видео",
   moveThumbnailsToVideoFolderOff: "В отдельной папке изображений",
   moveThumbnailsToVideoFolderDescription:
-    "Если включено, файлы миниатюр будут перемещены в ту же папку, что и видеофайл. Если выключено, они будут перемещены в отдельную папку изображений.",
+    "Если включено, полноразмерные файлы миниатюр будут перемещены в ту же папку, что и видеофайл. Если выключено, они будут перемещены в отдельную папку изображений. MyTube также хранит небольшой внутренний кэш предпросмотра в `images-small/`, который повторяет структуру папок миниатюр; его можно игнорировать или исключить из библиотек медиасервера.",
 
   saveAuthorFilesToCollection: "Сохранять файлы автора в коллекцию",
   saveAuthorFilesToCollectionOn: "Вкл",

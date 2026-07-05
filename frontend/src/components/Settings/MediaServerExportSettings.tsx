@@ -165,6 +165,9 @@ const MediaServerExportSettings: React.FC<MediaServerExportSettingsProps> = ({
                         .replace('{succeeded}', String(exportJob.succeeded))
                         .replace('{skipped}', String(exportJob.skipped))
                         .replace('{failed}', String(exportJob.failed))}
+                    {exportJob.sweptFiles && exportJob.sweptFiles > 0
+                        ? ` ${t('mediaServerExportSweptSummary').replace('{count}', String(exportJob.sweptFiles))}`
+                        : ''}
                 </Alert>
             )}
 

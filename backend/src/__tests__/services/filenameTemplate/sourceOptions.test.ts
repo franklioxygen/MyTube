@@ -40,6 +40,7 @@ describe("filenameTemplate/sourceOptions", () => {
         author: string | null;
         authorUrl: string | null;
         playlistTitle: string | null;
+        channelName: string | null;
       }>
     );
   });
@@ -64,6 +65,7 @@ describe("filenameTemplate/sourceOptions", () => {
         author: "Source Label",
         authorUrl: "https://youtube.com/@source-label",
         playlistTitle: "Pinned Playlist",
+        channelName: null,
       },
     ];
 
@@ -104,9 +106,10 @@ describe("filenameTemplate/sourceOptions", () => {
         collectionId: "playlist-col",
         subscriptionType: "playlist",
         playlistId: "PL123",
-        author: "Travel Playlist - Channel A",
+        author: "Renamed Subscription Label",
         authorUrl: "https://youtube.com/playlist?list=PL123",
         playlistTitle: "Travel Playlist",
+        channelName: "Channel A",
       },
     ];
 
@@ -160,6 +163,7 @@ describe("filenameTemplate/sourceOptions", () => {
         author: "Source Label",
         authorUrl: "https://youtube.com/@source-label",
         playlistTitle: null,
+        channelName: null,
       },
     ];
 

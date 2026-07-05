@@ -1,5 +1,6 @@
 type PlaylistSourceLike = {
   author?: string | null;
+  channelName?: string | null;
   playlistTitle?: string | null;
   subscriptionType?: string | null;
   playlistId?: string | null;
@@ -49,8 +50,8 @@ export function resolvePlaylistSourceCustomName(
   input: PlaylistSourceLike
 ): string {
   return (
+    clean(input.channelName) ||
     inferPlaylistChannelNameFromDisplayName(input.author, input.playlistTitle) ||
     clean(input.author)
   );
 }
-

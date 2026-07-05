@@ -203,6 +203,16 @@ function migrateCollectionsAndSubscriptionsColumns(): void {
       logger.info("Migration successful: playlist_title added.");
     }
 
+    if (!subscriptionsColumns.includes("channel_name")) {
+      logger.info(
+        "Migrating database: Adding channel_name column to subscriptions table..."
+      );
+      sqlite
+        .prepare("ALTER TABLE subscriptions ADD COLUMN channel_name TEXT")
+        .run();
+      logger.info("Migration successful: channel_name added.");
+    }
+
     if (!subscriptionsColumns.includes("subscription_type")) {
       logger.info(
         "Migrating database: Adding subscription_type column to subscriptions table..."
@@ -294,6 +304,20 @@ function migrateCollectionsAndSubscriptionsColumns(): void {
         .run();
       logger.info("Migration successful: retention_days added.");
     }
+
+    sqlite
+      .prepare(
+        `
+        UPDATE subscriptions
+        SET channel_name = substr(author, length(playlist_title) + 4)
+        WHERE subscription_type = 'playlist'
+          AND (channel_name IS NULL OR channel_name = '')
+          AND playlist_title IS NOT NULL
+          AND playlist_title != ''
+          AND substr(author, 1, length(playlist_title) + 3) = playlist_title || ' - '
+      `
+      )
+      .run();
   } catch (subscriptionsError) {
     // Subscriptions table might not exist yet, ignore error
     logger.debug(

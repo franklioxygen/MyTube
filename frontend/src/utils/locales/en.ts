@@ -157,6 +157,8 @@ export const en = {
   mediaServerExportCleanupComplete: "Media server sidecar cleanup complete",
   mediaServerExportCleanupSummary:
     "{succeeded} cleaned, {skipped} skipped, {failed} failed.",
+  mediaServerExportSweptSummary:
+    "Also removed {count} orphaned sidecar files.",
   mediaServerExportActiveDownloadsError:
     "Cannot run media server sidecar maintenance while downloads are active.",
   mediaServerExportQueuedDownloadsError:
@@ -1129,7 +1131,7 @@ export const en = {
   moveThumbnailsToVideoFolderOn: "With video together",
   moveThumbnailsToVideoFolderOff: "In isolated images folder",
   moveThumbnailsToVideoFolderDescription:
-    "When enabled, thumbnail files will be moved to the same folder as the video file. When disabled, they will be moved to the isolated images folder.",
+    "When enabled, full-size thumbnail files will be moved to the same folder as the video file. When disabled, they will be moved to the isolated images folder. MyTube also keeps a small internal preview cache under `images-small/` that mirrors the thumbnail folder layout; it can be ignored or excluded from media-server libraries.",
   saveAuthorFilesToCollection: "Save Author's Files in Collection",
   saveAuthorFilesToCollectionOn: "Organize by author",
   saveAuthorFilesToCollectionOff: "Save to root folders",

@@ -12,6 +12,7 @@ import {
   removeMediaServerArtifactsForVideo,
   syncMediaServerArtifactsForRecord,
 } from "./syncService";
+import { sweepOrphanMediaServerArtifacts } from "./orphanSweep";
 import type {
   MediaServerExportJob,
   MediaServerExportJobItem,
@@ -69,6 +70,8 @@ export async function startMediaServerExportJob(
     succeeded: 0,
     skipped: 0,
     failed: 0,
+    sweptFiles: 0,
+    sweptList: [],
     items: [],
     cancelRequested: false,
   };
@@ -92,6 +95,16 @@ async function processMediaServerExportJob(
   job: MediaServerExportJob,
   allVideos: Video[]
 ): Promise<void> {
+  if (job.cancelRequested) {
+    job.status = "cancelled";
+    releaseRenameLock();
+    return;
+  }
+
+  const sweepResult = sweepOrphanMediaServerArtifacts(allVideos);
+  job.sweptFiles = sweepResult.sweptFiles;
+  job.sweptList = sweepResult.sweptList;
+
   for (const video of allVideos) {
     if (job.cancelRequested) {
       job.status = "cancelled";

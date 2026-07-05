@@ -21,6 +21,7 @@ type CollectionSourceRow = {
   author: string | null;
   authorUrl: string | null;
   playlistTitle: string | null;
+  channelName: string | null;
 };
 
 type CollectionTypeRowsLoader = () => CollectionSourceRow[];
@@ -52,6 +53,7 @@ function loadCollectionTypeRowsFromDatabase(): CollectionSourceRow[] {
       author: subscriptions.author,
       authorUrl: subscriptions.authorUrl,
       playlistTitle: subscriptions.playlistTitle,
+      channelName: subscriptions.channelName,
     })
     .from(subscriptions)
     .all();

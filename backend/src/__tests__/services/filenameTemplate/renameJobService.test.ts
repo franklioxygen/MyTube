@@ -119,6 +119,7 @@ describe("renameJobService — design §23 changes", () => {
         author: string | null;
         authorUrl: string | null;
         playlistTitle: string | null;
+        channelName: string | null;
       }>
     );
     // Clear any leaked job from a previous test
@@ -304,6 +305,7 @@ describe("renameJobService — precomputeSourceOptions (design §16 step 3)", ()
         author: string | null;
         authorUrl: string | null;
         playlistTitle: string | null;
+        channelName: string | null;
       }>
     );
     const job = getActiveRenameJob();
@@ -351,6 +353,7 @@ describe("renameJobService — precomputeSourceOptions (design §16 step 3)", ()
         author: "MyChannel",
         authorUrl: "https://youtube.com/@mychannel",
         playlistTitle: null,
+        channelName: null,
       },
     ];
     getVideosMock.mockReturnValue([
@@ -414,6 +417,7 @@ describe("renameJobService — precomputeSourceOptions (design §16 step 3)", ()
         author: "Creator",
         authorUrl: "https://youtube.com/@creator",
         playlistTitle: "MyPlaylist",
+        channelName: null,
       },
     ];
     getVideosMock.mockReturnValue([

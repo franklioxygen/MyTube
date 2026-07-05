@@ -242,6 +242,7 @@ export class SubscriptionService {
       paused: 0,
       playlistId,
       playlistTitle,
+      channelName: author,
       subscriptionType: "playlist",
       collectionId: collectionId || undefined,
     };

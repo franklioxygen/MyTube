@@ -76,6 +76,19 @@ For installation and usage instructions, please refer to [Browser Extension](doc
 
 For a detailed breakdown of the project structure, please refer to [Directory Structure](documents/en/directory-structure.md).
 
+### Runtime Storage Layout
+
+By default, media and caches live under `backend/uploads/`:
+
+| Folder | Purpose |
+|---|---|
+| `videos/` | Downloaded video files and, when enabled, full-size thumbnails/subtitles/TV companion files stored next to videos. |
+| `images/` | Full-size thumbnails when thumbnail storage is set to the isolated images folder. |
+| `images-small/` | Internal downscaled preview cache for the UI. It mirrors the full-size thumbnail folder layout and can be ignored or excluded from media-server libraries. |
+| `subtitles/` | Subtitle files when subtitle storage is set to the isolated subtitles folder. |
+| `avatars/` | Channel/avatar artwork used by the app and media-server export. |
+| `cloud-thumbnail-cache/` | Internal cache for thumbnails fetched from cloud-backed media. |
+
 ## Getting Started
 
 **Requirements:** Node.js **20.19+, 22.12+, 23.x, 24.x, 25.x, or 26.x** and npm v9+. The backend depends on `better-sqlite3`; unsupported Node versions fail during `npm install` (often with misleading `node-gyp` / Visual Studio errors on Windows). Docker images ship with Node 22.

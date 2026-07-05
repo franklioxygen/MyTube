@@ -5,7 +5,7 @@ describe("subscription helpers", () => {
   it("uses the clean channel name for playlist subscription templates", () => {
     const result = buildFilenameTemplateSourceOptions({
       id: "sub-1",
-      author: "Travel Playlist - Channel A",
+      author: "My Custom Label",
       authorUrl: "https://youtube.com/playlist?list=PL123",
       interval: 60,
       downloadCount: 0,
@@ -13,6 +13,7 @@ describe("subscription helpers", () => {
       platform: "YouTube",
       playlistId: "PL123",
       playlistTitle: "Travel Playlist",
+      channelName: "Channel A",
       subscriptionType: "playlist",
       collectionId: "col-1",
     });
@@ -25,7 +26,25 @@ describe("subscription helpers", () => {
     });
   });
 
-  it("falls back to the stored author when a playlist display name was customized", () => {
+  it("infers the channel name from legacy playlist display names", () => {
+    const result = buildFilenameTemplateSourceOptions({
+      id: "sub-1",
+      author: "Travel Playlist - Channel A",
+      authorUrl: "https://youtube.com/playlist?list=PL123",
+      interval: 60,
+      downloadCount: 0,
+      createdAt: Date.now(),
+      platform: "YouTube",
+      playlistId: "PL123",
+      playlistTitle: "Travel Playlist",
+      subscriptionType: "playlist",
+      collectionId: "col-1",
+    });
+
+    expect(result.sourceCustomName).toBe("Channel A");
+  });
+
+  it("falls back to the stored author when legacy playlist labels cannot be parsed", () => {
     const result = buildFilenameTemplateSourceOptions({
       id: "sub-1",
       author: "My Custom Label",
@@ -44,4 +63,3 @@ describe("subscription helpers", () => {
     expect(result.sourceCollectionName).toBe("Travel Playlist");
   });
 });
-

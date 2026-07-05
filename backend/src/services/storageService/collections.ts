@@ -27,6 +27,7 @@ import { deleteVideo, getVideoById, updateVideo } from "./videos";
 import { getSettings } from "./settings";
 import { resolveAuthorOrganizationMode } from "../../types/settings";
 import { isLegacyFilenameNaming } from "../filenameTemplate/config";
+import { relocateMediaServerArtifactsAroundMove } from "../mediaServerExport/artifactRelocation";
 
 type CollectionLinkOptions = {
   moveFiles?: boolean;
@@ -197,16 +198,21 @@ export function linkVideoToCollection(
       const allCollections = getCollections();
 
       if (video && collectionName) {
-        // Use file manager to move all files to the new collection
-        const updates = moveAllFilesToCollection(
-          video,
-          collectionName,
-          allCollections
-        );
+        relocateMediaServerArtifactsAroundMove(video, () => {
+          // Use file manager to move all files to the new collection
+          const updates = moveAllFilesToCollection(
+            video,
+            collectionName,
+            allCollections
+          );
 
-        if (Object.keys(updates).length > 0) {
+          if (Object.keys(updates).length === 0) {
+            return false;
+          }
+
           updateVideo(videoId, updates);
-        }
+          return true;
+        });
       }
     }
   }
@@ -319,21 +325,26 @@ export function removeVideoFromCollection(
         }
       }
 
-      // Use file manager to move all files
-      const updates = moveAllFilesFromCollection(
-        video,
-        targetVideoDir,
-        targetImageDir,
-        targetSubDir,
-        videoPathPrefix,
-        imagePathPrefix,
-        subtitlePathPrefix,
-        allCollections
-      );
+      relocateMediaServerArtifactsAroundMove(video, () => {
+        // Use file manager to move all files
+        const updates = moveAllFilesFromCollection(
+          video,
+          targetVideoDir,
+          targetImageDir,
+          targetSubDir,
+          videoPathPrefix,
+          imagePathPrefix,
+          subtitlePathPrefix,
+          allCollections
+        );
 
-      if (Object.keys(updates).length > 0) {
+        if (Object.keys(updates).length === 0) {
+          return false;
+        }
+
         updateVideo(videoId, updates);
-      }
+        return true;
+      });
     }
   }
 
