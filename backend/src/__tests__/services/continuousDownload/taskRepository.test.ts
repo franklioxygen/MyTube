@@ -24,6 +24,11 @@ vi.mock('../../../db/schema', () => ({
   collections: {
     id: 'id',
     name: 'name'
+  },
+  subscriptions: {
+    id: 'sub.id',
+    collectionId: 'sub.collectionId',
+    authorUrl: 'sub.authorUrl'
   }
 }));
 
@@ -190,6 +195,72 @@ describe('TaskRepository', () => {
       })
     );
     expect(mockBuilder.where).toHaveBeenCalled();
+  });
+
+  describe('getSubscriptionForTask', () => {
+    const subRow = { id: 'sub-1', author: 'Test Author', subscriptionType: 'author' };
+
+    it('resolves playlist tasks by collectionId first', async () => {
+      const byCollection = createMockQueryBuilder([subRow]);
+      (db.select as any).mockReturnValueOnce(byCollection);
+
+      const result = await taskRepository.getSubscriptionForTask({
+        collectionId: 'col-1',
+        subscriptionId: undefined,
+        authorUrl: 'https://youtube.com/playlist?list=PL123',
+      });
+
+      expect(result).toEqual(subRow);
+      expect(db.select).toHaveBeenCalledTimes(1);
+    });
+
+    it('resolves channel tasks by subscriptionId when there is no collection (Shorts bulk task)', async () => {
+      // The Shorts bulk task appends "/shorts" to the channel URL, so the
+      // authorUrl lookup can never match; the subscriptionId lookup must win.
+      const bySubscriptionId = createMockQueryBuilder([subRow]);
+      (db.select as any).mockReturnValueOnce(bySubscriptionId);
+
+      const result = await taskRepository.getSubscriptionForTask({
+        collectionId: undefined,
+        subscriptionId: 'sub-1',
+        authorUrl: 'https://youtube.com/channel/test/shorts',
+      });
+
+      expect(result).toEqual(subRow);
+      expect(db.select).toHaveBeenCalledTimes(1);
+    });
+
+    it('falls back to authorUrl when collection and subscription lookups miss', async () => {
+      const byCollection = createMockQueryBuilder([]);
+      const bySubscriptionId = createMockQueryBuilder([]);
+      const byAuthorUrl = createMockQueryBuilder([subRow]);
+      (db.select as any)
+        .mockReturnValueOnce(byCollection)
+        .mockReturnValueOnce(bySubscriptionId)
+        .mockReturnValueOnce(byAuthorUrl);
+
+      const result = await taskRepository.getSubscriptionForTask({
+        collectionId: 'col-gone',
+        subscriptionId: 'sub-gone',
+        authorUrl: 'https://youtube.com/channel/test',
+      });
+
+      expect(result).toEqual(subRow);
+      expect(db.select).toHaveBeenCalledTimes(3);
+    });
+
+    it('returns null when no subscription matches', async () => {
+      const byAuthorUrl = createMockQueryBuilder([]);
+      (db.select as any).mockReturnValueOnce(byAuthorUrl);
+
+      const result = await taskRepository.getSubscriptionForTask({
+        collectionId: undefined,
+        subscriptionId: undefined,
+        authorUrl: 'https://youtube.com/channel/orphan',
+      });
+
+      expect(result).toBeNull();
+    });
   });
 
   it('clearFrozenVideoListPath should set path to null and update updatedAt', async () => {

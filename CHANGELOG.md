@@ -11,6 +11,10 @@
 
 - Keep filename-template playlist downloads in their rendered folder layout, preserve consistent playlist source names across download entry points, relocate media-server companion files during legacy moves, and sweep MyTube-generated orphan companion files during rebuild.
 
+### Changed
+
+- Under non-legacy filename naming (custom template or preset), adding or removing a video to/from a collection no longer moves the underlying files; collection membership is now purely logical and the filename template alone controls the on-disk folder structure. Legacy naming is unchanged. To organize files per collection under template naming, include `{{ source_collection_name }}` in the template.
+
 ### Deprecated
 
 - Deprecate the shared visitor password login endpoint (`POST /api/settings/verify-visitor-password`) and the visitor branch of the combined password endpoint (`POST /api/settings/verify-password`). Use `POST /api/settings/verify-user-login` for visitor logins.

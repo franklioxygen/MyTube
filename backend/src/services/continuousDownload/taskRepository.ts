@@ -277,10 +277,15 @@ export class TaskRepository {
   /**
    * Resolve the subscription that owns a task, preferring the linked collection
    * when present so playlist tasks inherit the same filename-template metadata
-   * as subscription checks.
+   * as subscription checks. Channel tasks (including the "/shorts" bulk task,
+   * whose authorUrl never matches a subscription row) resolve through their
+   * subscriptionId so they render with the same source options as checks.
    */
   async getSubscriptionForTask(
-    task: Pick<ContinuousDownloadTask, "collectionId" | "authorUrl">
+    task: Pick<
+      ContinuousDownloadTask,
+      "collectionId" | "subscriptionId" | "authorUrl"
+    >
   ): Promise<Subscription | null> {
     if (task.collectionId) {
       const byCollection = await db
@@ -291,6 +296,18 @@ export class TaskRepository {
 
       if (byCollection[0]) {
         return byCollection[0] as Subscription;
+      }
+    }
+
+    if (task.subscriptionId) {
+      const bySubscriptionId = await db
+        .select()
+        .from(subscriptions)
+        .where(eq(subscriptions.id, task.subscriptionId))
+        .limit(1);
+
+      if (bySubscriptionId[0]) {
+        return bySubscriptionId[0] as Subscription;
       }
     }
 

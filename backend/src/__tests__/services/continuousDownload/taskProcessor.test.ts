@@ -200,6 +200,55 @@ describe('TaskProcessor', () => {
     );
   });
 
+  it('uses the channel subscription source options for Shorts bulk tasks', async () => {
+    // Shorts tasks are created with author "<channel> (Shorts)" and a /shorts
+    // authorUrl; resolving the owning subscription must give them the same
+    // source options as regular channel subscription checks.
+    const shortsTask: ContinuousDownloadTask = {
+      ...mockTask,
+      author: 'Test Author (Shorts)',
+      authorUrl: 'https://youtube.com/channel/test/shorts',
+      subscriptionId: 'sub-1',
+    };
+    mockTaskRepository.getSubscriptionForTask.mockResolvedValue({
+      id: 'sub-1',
+      author: 'Test Author',
+      authorUrl: 'https://youtube.com/channel/test',
+      interval: 60,
+      downloadCount: 0,
+      createdAt: Date.now(),
+      platform: 'YouTube',
+      subscriptionType: 'author',
+    });
+    mockVideoUrlFetcher.getAllVideoUrls.mockResolvedValue(['http://short1']);
+    (storageService.getVideoBySourceUrl as any).mockReturnValue(null);
+    (downloadService.downloadYouTubeVideo as any).mockResolvedValue({
+      videoData: {
+        id: 's1',
+        title: 'Short 1',
+        videoPath: '/videos/Test Author/Test Author/Short 1.mp4',
+        thumbnailPath: '/videos/Test Author/Test Author/Short 1.jpg',
+      },
+    });
+
+    await taskProcessor.processTask(shortsTask);
+
+    expect(mockTaskRepository.getSubscriptionForTask).toHaveBeenCalledWith(
+      shortsTask
+    );
+    expect(downloadService.downloadYouTubeVideo).toHaveBeenCalledWith(
+      'http://short1',
+      expect.any(String),
+      undefined,
+      expect.objectContaining({
+        sourceCustomName: 'Test Author',
+        sourceCollectionName: 'Test Author',
+        sourceCollectionType: 'channel',
+        mediaPlaylistIndex: 1,
+      })
+    );
+  });
+
   it('should stop processing if task is cancelled', async () => {
      // Return cancelled logic:
      // If we return 'cancelled' immediately, the loop breaks at check #1.
