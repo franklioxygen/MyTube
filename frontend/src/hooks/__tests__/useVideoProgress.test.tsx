@@ -253,6 +253,95 @@ describe("useVideoProgress", () => {
     dateNowSpy.mockRestore();
   });
 
+  it("samples the media element on unmount when no timeupdate fired", () => {
+    const dateNowSpy = vi.spyOn(Date, "now").mockReturnValue(1000);
+    const video = {
+      id: "video-element-unmount",
+      duration: "120",
+      progress: 0,
+      viewCount: 0,
+    } as any;
+    const videoElement = document.createElement("video");
+    Object.defineProperty(videoElement, "currentTime", {
+      configurable: true,
+      value: 37.8,
+    });
+    const { queryClient, wrapper } = createWrapper();
+    queryClient.setQueryData(["videos"], [video]);
+    queryClient.setQueryData(["video", "video-element-unmount"], video);
+
+    const { unmount } = renderHook(
+      () => useVideoProgress({ videoId: "video-element-unmount", video, videoElement }),
+      { wrapper },
+    );
+
+    act(() => {
+      unmount();
+    });
+
+    expect(mockSendVideoProgressWithKeepalive).toHaveBeenCalledWith(
+      "video-element-unmount",
+      37
+    );
+    expect(queryClient.getQueryData(["videos"])).toEqual([
+      expect.objectContaining({
+        id: "video-element-unmount",
+        progress: 37,
+      }),
+    ]);
+    expect(queryClient.getQueryData(["video", "video-element-unmount"])).toEqual(
+      expect.objectContaining({
+        id: "video-element-unmount",
+        progress: 37,
+      })
+    );
+
+    dateNowSpy.mockRestore();
+  });
+
+  it("flushes sampled media element progress on pagehide", () => {
+    const dateNowSpy = vi.spyOn(Date, "now").mockReturnValue(1000);
+    const video = {
+      id: "video-pagehide",
+      duration: "120",
+      progress: 0,
+      viewCount: 0,
+    } as any;
+    const videoElement = document.createElement("video");
+    Object.defineProperty(videoElement, "currentTime", {
+      configurable: true,
+      value: 42.2,
+    });
+    const { queryClient, wrapper } = createWrapper();
+    queryClient.setQueryData(["videos"], [video]);
+    queryClient.setQueryData(["video", "video-pagehide"], video);
+
+    const { result } = renderHook(
+      () => useVideoProgress({ videoId: "video-pagehide", video, videoElement }),
+      { wrapper },
+    );
+
+    act(() => {
+      window.dispatchEvent(new Event("pagehide"));
+    });
+
+    expect(mockSendVideoProgressWithKeepalive).toHaveBeenCalledWith(
+      "video-pagehide",
+      42
+    );
+    expect(queryClient.getQueryData(["video", "video-pagehide"])).toEqual(
+      expect.objectContaining({
+        progress: 42,
+      })
+    );
+
+    act(() => {
+      result.current.setIsDeleting(true);
+    });
+
+    dateNowSpy.mockRestore();
+  });
+
   it("does not persist exact duration as the resume progress", () => {
     let now = 1000;
     const dateNowSpy = vi.spyOn(Date, "now").mockImplementation(() => now);

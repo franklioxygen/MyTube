@@ -198,7 +198,7 @@ const VideoPlayer: React.FC = () => {
         onDeleteSuccess: () => navigate('/', { replace: true })
     });
 
-    const { handleTimeUpdate, setIsDeleting } = useVideoProgress({ videoId: id, video });
+    const { handleTimeUpdate, setIsDeleting } = useVideoProgress({ videoId: id, video, videoElement });
 
     const { relatedVideos } = useVideoRecommendations({
         video,

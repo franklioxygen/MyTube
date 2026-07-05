@@ -1,5 +1,5 @@
 import { QueryClient, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { Video } from "../types";
 import { api, sendVideoProgressWithKeepalive } from "../utils/apiClient";
@@ -8,7 +8,10 @@ import { parseDuration } from "../utils/formatUtils";
 interface UseVideoProgressProps {
   videoId: string | undefined;
   video: Video | undefined;
+  videoElement?: HTMLVideoElement | null;
 }
+
+const PROGRESS_SAVE_INTERVAL_MS = 5000;
 
 function getViewThreshold(duration: string | undefined): number {
   const durationSeconds = parseDuration(duration);
@@ -57,7 +60,7 @@ function syncVideoPlaybackCache(
 /**
  * Custom hook to manage video progress tracking and view counting
  */
-export function useVideoProgress({ videoId, video }: UseVideoProgressProps) {
+export function useVideoProgress({ videoId, video, videoElement }: UseVideoProgressProps) {
   const { userRole } = useAuth();
   const isVisitor = userRole === "visitor";
   const queryClient = useQueryClient();
@@ -66,6 +69,7 @@ export function useVideoProgress({ videoId, video }: UseVideoProgressProps) {
   const currentTimeRef = useRef<number>(0);
   const isDeletingRef = useRef<boolean>(false);
   const durationRef = useRef<string | undefined>(undefined);
+  const videoElementRef = useRef<HTMLVideoElement | null>(null);
   const videoDuration = video?.duration;
 
   // Reset hasViewed when video changes
@@ -82,25 +86,112 @@ export function useVideoProgress({ videoId, video }: UseVideoProgressProps) {
     durationRef.current = videoDuration;
   }, [videoDuration]);
 
+  useEffect(() => {
+    videoElementRef.current = videoElement ?? null;
+  }, [videoElement]);
+
+  const samplePlaybackTime = useCallback(() => {
+    const mediaElement = videoElementRef.current;
+    const sampledTime = mediaElement?.currentTime;
+
+    if (typeof sampledTime !== "number" || !Number.isFinite(sampledTime)) {
+      return currentTimeRef.current;
+    }
+
+    if (sampledTime <= 0 && currentTimeRef.current > 0) {
+      return currentTimeRef.current;
+    }
+
+    currentTimeRef.current = Math.max(0, sampledTime);
+    return currentTimeRef.current;
+  }, []);
+
+  const saveProgress = useCallback((
+    playbackTime: number,
+    options: { keepalive?: boolean } = {}
+  ) => {
+    if (!videoId || isDeletingRef.current || isVisitor) {
+      return;
+    }
+
+    const progress = getResumeProgress(playbackTime, durationRef.current);
+
+    if (progress <= 0) {
+      return;
+    }
+
+    syncVideoPlaybackCache(queryClient, videoId, {
+      progress,
+    });
+
+    if (options.keepalive) {
+      sendVideoProgressWithKeepalive(videoId, progress);
+      return;
+    }
+
+    api
+      .put(`/videos/${videoId}/progress`, {
+        progress,
+      })
+      .catch((err) => {
+        console.error("Error saving progress:", err);
+      });
+  }, [isVisitor, queryClient, videoId]);
+
+  const flushSampledProgress = useCallback((options: { keepalive?: boolean } = {}) => {
+    const playbackTime = samplePlaybackTime();
+    saveProgress(playbackTime, options);
+  }, [samplePlaybackTime, saveProgress]);
+
+  useEffect(() => {
+    if (!videoId || isVisitor || !videoElement) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      const now = Date.now();
+      if (now - lastProgressSave.current <= PROGRESS_SAVE_INTERVAL_MS) {
+        return;
+      }
+
+      lastProgressSave.current = now;
+      flushSampledProgress();
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [flushSampledProgress, isVisitor, videoElement, videoId]);
+
+  // Save progress when the page is hidden or discarded. Safari can defer
+  // timeupdate events for very large WebM files, so sample the media element.
+  useEffect(() => {
+    if (!videoId || isVisitor) {
+      return;
+    }
+
+    const flushWithKeepalive = () => {
+      flushSampledProgress({ keepalive: true });
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        flushWithKeepalive();
+      }
+    };
+
+    window.addEventListener("pagehide", flushWithKeepalive);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener("pagehide", flushWithKeepalive);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [flushSampledProgress, isVisitor, videoId]);
+
   // Save progress on unmount
   useEffect(() => {
     return () => {
-      if (
-        videoId &&
-        currentTimeRef.current > 0 &&
-        !isDeletingRef.current &&
-        !isVisitor
-      ) {
-        const progress = getResumeProgress(currentTimeRef.current, durationRef.current);
-
-        syncVideoPlaybackCache(queryClient, videoId, {
-          progress,
-        });
-
-        sendVideoProgressWithKeepalive(videoId, progress);
-      }
+      flushSampledProgress({ keepalive: true });
     };
-  }, [queryClient, videoId, isVisitor]);
+  }, [flushSampledProgress]);
 
   const handleTimeUpdate = (currentTime: number) => {
     currentTimeRef.current = currentTime;
@@ -127,21 +218,9 @@ export function useVideoProgress({ videoId, video }: UseVideoProgressProps) {
 
     // Save progress every 5 seconds
     const now = Date.now();
-    if (now - lastProgressSave.current > 5000 && videoId && !isVisitor) {
+    if (now - lastProgressSave.current > PROGRESS_SAVE_INTERVAL_MS && videoId && !isVisitor) {
       lastProgressSave.current = now;
-      const progress = getResumeProgress(currentTime, videoDuration);
-
-      syncVideoPlaybackCache(queryClient, videoId, {
-        progress,
-      });
-
-      api
-        .put(`/videos/${videoId}/progress`, {
-          progress,
-        })
-        .catch((err) => {
-          console.error("Error saving progress:", err);
-        });
+      saveProgress(currentTime);
     }
   };
 
