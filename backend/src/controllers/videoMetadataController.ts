@@ -581,8 +581,23 @@ function updateVideoProgress(id: string, progress: unknown): number | null | und
     throw new ValidationError("Progress must be a number", "progress");
   }
 
+  const normalizedProgress = Math.max(0, Math.floor(progress));
+  const existingVideo = storageService.getVideoById(id);
+  if (!existingVideo) {
+    throw new NotFoundError("Video", id);
+  }
+
+  const existingProgress =
+    typeof existingVideo.progress === "number" && Number.isFinite(existingVideo.progress)
+      ? existingVideo.progress
+      : 0;
+
+  if (normalizedProgress <= 1 && existingProgress > 30) {
+    return existingProgress;
+  }
+
   const updatedVideo = storageService.updateVideo(id, {
-    progress,
+    progress: normalizedProgress,
   });
 
   if (!updatedVideo) {

@@ -33,6 +33,7 @@ import { useVideoQueries } from '../hooks/useVideoQueries';
 import { useVideoRecommendations } from '../hooks/useVideoRecommendations';
 import { useVideoSubscriptions } from '../hooks/useVideoSubscriptions';
 import { getBackendUrl } from '../utils/apiUrl';
+import { getBestVideoResumeProgress } from '../utils/videoResumeProgress';
 
 const VideoPlayer: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -437,7 +438,9 @@ const VideoPlayer: React.FC = () => {
 
     // Determine start time based on saved progress only.
     // Playback-local time should not be fed back into startTime on unrelated rerenders.
-    const startTimeResult = playFromBeginning ? 0 : (video.progress ?? 0);
+    const startTimeResult = playFromBeginning
+        ? 0
+        : getBestVideoResumeProgress(id, video.progress, video.lastPlayedAt);
 
     return (
         <Container maxWidth={false} disableGutters sx={{ py: { xs: 2, md: 4 }, px: { xs: 0, md: 2 } }}>

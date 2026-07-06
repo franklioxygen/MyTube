@@ -3,6 +3,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useVideoProgress } from "../useVideoProgress";
+import { readVideoResumeProgress } from "../../utils/videoResumeProgress";
 
 const mockApiPost = vi.fn();
 const mockApiPut = vi.fn();
@@ -45,6 +46,7 @@ const createWrapper = () => {
 describe("useVideoProgress", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     mockUserRole = "admin";
     mockApiPost.mockResolvedValue({ data: { success: true, viewCount: 1 } });
     mockApiPut.mockResolvedValue({ data: { success: true } });
@@ -334,6 +336,42 @@ describe("useVideoProgress", () => {
         progress: 42,
       })
     );
+
+    act(() => {
+      result.current.setIsDeleting(true);
+    });
+
+    dateNowSpy.mockRestore();
+  });
+
+  it("keeps local resume progress fresh from native media events", () => {
+    const dateNowSpy = vi.spyOn(Date, "now").mockReturnValue(1000);
+    const video = {
+      id: "video-native-event",
+      duration: "120",
+      progress: 0,
+      viewCount: 0,
+    } as any;
+    const videoElement = document.createElement("video");
+    Object.defineProperty(videoElement, "currentTime", {
+      configurable: true,
+      value: 58.6,
+    });
+    const { wrapper } = createWrapper();
+
+    const { result } = renderHook(
+      () => useVideoProgress({ videoId: "video-native-event", video, videoElement }),
+      { wrapper },
+    );
+
+    act(() => {
+      videoElement.dispatchEvent(new Event("timeupdate"));
+    });
+
+    expect(readVideoResumeProgress("video-native-event")).toEqual({
+      progress: 58,
+      updatedAt: 1000,
+    });
 
     act(() => {
       result.current.setIsDeleting(true);

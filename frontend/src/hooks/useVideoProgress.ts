@@ -4,6 +4,10 @@ import { useAuth } from "../contexts/AuthContext";
 import { Video } from "../types";
 import { api, sendVideoProgressWithKeepalive } from "../utils/apiClient";
 import { parseDuration } from "../utils/formatUtils";
+import {
+  readVideoResumeProgress,
+  writeVideoResumeProgress,
+} from "../utils/videoResumeProgress";
 
 interface UseVideoProgressProps {
   videoId: string | undefined;
@@ -12,6 +16,7 @@ interface UseVideoProgressProps {
 }
 
 const PROGRESS_SAVE_INTERVAL_MS = 5000;
+const LOCAL_PROGRESS_SAMPLE_INTERVAL_MS = 1000;
 
 function getViewThreshold(duration: string | undefined): number {
   const durationSeconds = parseDuration(duration);
@@ -75,12 +80,19 @@ export function useVideoProgress({ videoId, video, videoElement }: UseVideoProgr
   // Reset hasViewed when video changes
   useEffect(() => {
     setHasViewed(false);
-    currentTimeRef.current = 0;
+    currentTimeRef.current = readVideoResumeProgress(videoId)?.progress ?? 0;
     // Start the periodic-save throttle now: with the initial 0 the very
     // first timeupdate saved immediately, racing the saved-progress
     // restore and overwriting the stored position with ~0.
     lastProgressSave.current = Date.now();
   }, [videoId]);
+
+  useEffect(() => {
+    if (currentTimeRef.current <= 0 && video?.progress) {
+      currentTimeRef.current =
+        readVideoResumeProgress(videoId)?.progress ?? video.progress;
+    }
+  }, [video?.progress, videoId]);
 
   useEffect(() => {
     durationRef.current = videoDuration;
@@ -106,6 +118,14 @@ export function useVideoProgress({ videoId, video, videoElement }: UseVideoProgr
     return currentTimeRef.current;
   }, []);
 
+  const cacheProgressLocally = useCallback((playbackTime: number) => {
+    const progress = getResumeProgress(playbackTime, durationRef.current);
+    if (progress > 0) {
+      writeVideoResumeProgress(videoId, progress);
+    }
+    return progress;
+  }, [videoId]);
+
   const saveProgress = useCallback((
     playbackTime: number,
     options: { keepalive?: boolean } = {}
@@ -114,7 +134,7 @@ export function useVideoProgress({ videoId, video, videoElement }: UseVideoProgr
       return;
     }
 
-    const progress = getResumeProgress(playbackTime, durationRef.current);
+    const progress = cacheProgressLocally(playbackTime);
 
     if (progress <= 0) {
       return;
@@ -136,7 +156,7 @@ export function useVideoProgress({ videoId, video, videoElement }: UseVideoProgr
       .catch((err) => {
         console.error("Error saving progress:", err);
       });
-  }, [isVisitor, queryClient, videoId]);
+  }, [cacheProgressLocally, isVisitor, queryClient, videoId]);
 
   const flushSampledProgress = useCallback((options: { keepalive?: boolean } = {}) => {
     const playbackTime = samplePlaybackTime();
@@ -149,17 +169,59 @@ export function useVideoProgress({ videoId, video, videoElement }: UseVideoProgr
     }
 
     const timer = window.setInterval(() => {
+      const playbackTime = samplePlaybackTime();
+      cacheProgressLocally(playbackTime);
+
       const now = Date.now();
       if (now - lastProgressSave.current <= PROGRESS_SAVE_INTERVAL_MS) {
         return;
       }
 
       lastProgressSave.current = now;
-      flushSampledProgress();
-    }, 1000);
+      saveProgress(playbackTime);
+    }, LOCAL_PROGRESS_SAMPLE_INTERVAL_MS);
 
     return () => window.clearInterval(timer);
-  }, [flushSampledProgress, isVisitor, videoElement, videoId]);
+  }, [
+    cacheProgressLocally,
+    isVisitor,
+    samplePlaybackTime,
+    saveProgress,
+    videoElement,
+    videoId,
+  ]);
+
+  useEffect(() => {
+    if (!videoId || isVisitor || !videoElement) {
+      return;
+    }
+
+    const sampleAndCache = () => {
+      cacheProgressLocally(samplePlaybackTime());
+    };
+    const sampleAndSave = () => {
+      flushSampledProgress();
+    };
+
+    videoElement.addEventListener("timeupdate", sampleAndCache);
+    videoElement.addEventListener("playing", sampleAndCache);
+    videoElement.addEventListener("seeked", sampleAndSave);
+    videoElement.addEventListener("pause", sampleAndSave);
+
+    return () => {
+      videoElement.removeEventListener("timeupdate", sampleAndCache);
+      videoElement.removeEventListener("playing", sampleAndCache);
+      videoElement.removeEventListener("seeked", sampleAndSave);
+      videoElement.removeEventListener("pause", sampleAndSave);
+    };
+  }, [
+    cacheProgressLocally,
+    flushSampledProgress,
+    isVisitor,
+    samplePlaybackTime,
+    videoElement,
+    videoId,
+  ]);
 
   // Save progress when the page is hidden or discarded. Safari can defer
   // timeupdate events for very large WebM files, so sample the media element.
@@ -195,6 +257,7 @@ export function useVideoProgress({ videoId, video, videoElement }: UseVideoProgr
 
   const handleTimeUpdate = (currentTime: number) => {
     currentTimeRef.current = currentTime;
+    cacheProgressLocally(currentTime);
 
     // Increment views and refresh watch history at the same threshold.
     const viewThreshold = getViewThreshold(videoDuration);

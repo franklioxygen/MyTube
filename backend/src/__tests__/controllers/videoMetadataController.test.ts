@@ -138,6 +138,10 @@ describe("videoMetadataController", () => {
     vi.mocked(getVideoDuration as any).mockResolvedValue(120);
     vi.mocked(execFileSafe as any).mockResolvedValue(undefined);
     vi.mocked(storageService.findVideoFile as any).mockReturnValue(null);
+    vi.mocked(storageService.getVideoById as any).mockReturnValue({
+      id: "v1",
+      progress: 0,
+    });
     vi.mocked(storageService.getCollections as any).mockReturnValue([]);
     vi.mocked(storageService.isThumbnailReferencedByOtherVideo as any).mockReturnValue(false);
     vi.mocked(storageService.getSettings as any).mockReturnValue({
@@ -625,7 +629,7 @@ describe("videoMetadataController", () => {
 
     it("throws when updating missing video", async () => {
       const { res } = createResponse();
-      vi.mocked(storageService.updateVideo as any).mockReturnValue(null);
+      vi.mocked(storageService.getVideoById as any).mockReturnValue(null);
 
       await expect(
         videoMetadataController.updateProgress(
@@ -640,6 +644,10 @@ describe("videoMetadataController", () => {
 
     it("updates progress and returns standardized success response", async () => {
       const { res, json } = createResponse();
+      vi.mocked(storageService.getVideoById as any).mockReturnValue({
+        id: "v1",
+        progress: 10,
+      });
       vi.mocked(storageService.updateVideo as any).mockReturnValue({
         id: "v1",
         progress: 75,
@@ -665,6 +673,30 @@ describe("videoMetadataController", () => {
       });
     });
 
+    it("does not let a near-zero progress update overwrite an existing resume point", async () => {
+      const { res, json } = createResponse();
+      vi.mocked(storageService.getVideoById as any).mockReturnValue({
+        id: "v1",
+        progress: 747,
+      });
+
+      await videoMetadataController.updateProgress(
+        {
+          params: { id: "v1" },
+          body: { progress: 0.4 },
+        } as unknown as Request,
+        res
+      );
+
+      expect(storageService.updateVideo).not.toHaveBeenCalled();
+      expect(json).toHaveBeenCalledWith({
+        success: true,
+        data: {
+          progress: 747,
+        },
+      });
+    });
+
     it("validates body video id for keepalive progress updates", async () => {
       const { res } = createResponse();
 
@@ -680,6 +712,10 @@ describe("videoMetadataController", () => {
 
     it("updates progress from a fixed keepalive route body", async () => {
       const { res, json } = createResponse();
+      vi.mocked(storageService.getVideoById as any).mockReturnValue({
+        id: "v2",
+        progress: 10,
+      });
       vi.mocked(storageService.updateVideo as any).mockReturnValue({
         id: "v2",
         progress: 45,

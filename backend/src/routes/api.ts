@@ -83,6 +83,11 @@ const apiRouteDefinitions: ApiRouteDefinition[] = [
     handlers: [asyncHandler(videoMetadataController.updateProgressByBody)],
   },
   {
+    method: "post",
+    path: "/videos/progress",
+    handlers: [asyncHandler(videoMetadataController.updateProgressByBody)],
+  },
+  {
     method: "put",
     path: "/videos/:id",
     handlers: [asyncHandler(videoController.updateVideoDetails)],

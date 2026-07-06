@@ -204,14 +204,14 @@ describe("api wrappers", () => {
     expect(sendVideoProgressWithKeepalive("video/with slash", 42)).toBe(true);
 
     expect(fetchSpy).toHaveBeenCalledTimes(1);
-    const [request] = fetchSpy.mock.calls[0] as [Request];
-    expect(request).toBeInstanceOf(Request);
-    expect(new URL(request.url).pathname).toBe("/api/videos/progress");
-    expect(request.method).toBe("PUT");
-    expect(request.credentials).toBe("include");
-    expect(request.keepalive).toBe(true);
-    expect(request.headers.get("X-CSRF-Token")).toBe("csrf-progress-123");
-    await expect(request.json()).resolves.toEqual({
+    const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    const headers = new Headers(init.headers);
+    expect(new URL(url).pathname).toBe("/api/videos/progress");
+    expect(init.method).toBe("POST");
+    expect(init.credentials).toBe("include");
+    expect(init.keepalive).toBe(true);
+    expect(headers.get("X-CSRF-Token")).toBe("csrf-progress-123");
+    expect(JSON.parse(String(init.body))).toEqual({
       videoId: "video/with slash",
       progress: 42,
     });

@@ -216,14 +216,13 @@ export const sendVideoProgressWithKeepalive = (
     });
     // Fixed internal endpoint; videoId stays in the JSON payload.
     // nosemgrep
-    const request = new Request(buildVideoProgressRequestUrl(), {
-      method: "PUT",
+    void fetch(buildVideoProgressRequestUrl(), {
+      method: "POST",
       credentials: "include",
       keepalive: true,
       headers,
       body: JSON.stringify({ videoId, progress }),
     });
-    void fetch(request);
     return true;
   } catch {
     return false;
