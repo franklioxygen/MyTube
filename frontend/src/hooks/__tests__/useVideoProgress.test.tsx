@@ -578,6 +578,58 @@ describe("useVideoProgress", () => {
     dateNowSpy.mockRestore();
   });
 
+  it("uses a fresher lower server resume point instead of stale local progress", () => {
+    const dateNowSpy = vi.spyOn(Date, "now").mockReturnValue(1000);
+    writeVideoResumeProgress("video-server-rewind", 120);
+    dateNowSpy.mockReturnValue(80_000);
+
+    const video = {
+      id: "video-server-rewind",
+      duration: "1776",
+      progress: 20,
+      lastPlayedAt: 70_000,
+      viewCount: 0,
+    } as any;
+    const videoElement = document.createElement("video");
+    Object.defineProperty(videoElement, "currentTime", {
+      configurable: true,
+      writable: true,
+      value: 20,
+    });
+    const { queryClient, wrapper } = createWrapper();
+    queryClient.setQueryData(["videos"], [video]);
+    queryClient.setQueryData(["video", "video-server-rewind"], video);
+
+    const { result } = renderHook(
+      () => useVideoProgress({ videoId: "video-server-rewind", video, videoElement }),
+      { wrapper },
+    );
+
+    act(() => {
+      window.dispatchEvent(new Event("pagehide"));
+    });
+
+    expect(mockSendVideoProgressWithKeepalive).toHaveBeenCalledWith(
+      "video-server-rewind",
+      20
+    );
+    expect(mockSendVideoProgressWithKeepalive).not.toHaveBeenCalledWith(
+      "video-server-rewind",
+      120
+    );
+    expect(queryClient.getQueryData(["video", "video-server-rewind"])).toEqual(
+      expect.objectContaining({
+        progress: 20,
+      })
+    );
+
+    act(() => {
+      result.current.setIsDeleting(true);
+    });
+
+    dateNowSpy.mockRestore();
+  });
+
   it("does not persist exact duration as the resume progress", () => {
     let now = 1000;
     const dateNowSpy = vi.spyOn(Date, "now").mockImplementation(() => now);

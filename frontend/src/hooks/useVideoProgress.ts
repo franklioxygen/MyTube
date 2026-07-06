@@ -105,8 +105,9 @@ export function useVideoProgress({ videoId, video, videoElement }: UseVideoProgr
     );
 
     if (
-      resumeProgress > 0 &&
-      (currentTimeRef.current <= 0 || currentTimeRef.current < resumeProgress)
+      currentTimeRef.current <= 0 ||
+      currentTimeRef.current < resumeProgress ||
+      !resumeGuardObservedRef.current
     ) {
       currentTimeRef.current = resumeProgress;
       resumeGuardTargetRef.current =
