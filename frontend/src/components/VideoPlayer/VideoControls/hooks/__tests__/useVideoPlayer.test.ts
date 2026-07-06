@@ -34,10 +34,12 @@ describe("useVideoPlayer seek behavior", () => {
 
     // Mock other properties
     Object.defineProperty(videoElement, "duration", {
+      configurable: true,
       writable: true,
       value: 100,
     });
     Object.defineProperty(videoElement, "currentTime", {
+      configurable: true,
       writable: true,
       value: 0,
     });
@@ -158,10 +160,12 @@ describe("useVideoPlayer startTime behavior", () => {
     videoElement.fastSeek = vi.fn();
 
     Object.defineProperty(videoElement, "duration", {
+      configurable: true,
       writable: true,
       value: 100,
     });
     Object.defineProperty(videoElement, "currentTime", {
+      configurable: true,
       writable: true,
       value: 0,
     });
@@ -198,8 +202,10 @@ describe("useVideoPlayer startTime behavior", () => {
 
     expect(videoElement.currentTime).toBe(30);
 
-    // Reset currentTime to 0 (simulating user seek to 0)
-    videoElement.currentTime = 0;
+    // Reset currentTime to 0 through the real user seek path.
+    act(() => {
+      result.current.handleProgressChangeCommitted(0);
+    });
 
     // Second handleCanPlay should NOT reset to startTime
     act(() => {
@@ -346,7 +352,7 @@ describe("useVideoPlayer startTime behavior", () => {
     expect(onTimeUpdate).toHaveBeenCalledWith(30.2);
   });
 
-  it("propagates timeupdates past the tolerance even if the restore never applied", () => {
+  it("suppresses low timeupdates after restore assignment until the target time is observed", () => {
     const onTimeUpdate = vi.fn();
     const { result } = renderHook(() =>
       useVideoPlayer({ src: "test.mp4", startTime: 30, onTimeUpdate })
@@ -354,14 +360,71 @@ describe("useVideoPlayer startTime behavior", () => {
 
     result.current.videoRef.current = videoElement;
 
-    // Escape valve: if playback somehow progresses without the restore
-    // being applied, progress saving must not stay suppressed.
+    act(() => {
+      result.current.handleLoadedMetadata({ currentTarget: videoElement } as React.SyntheticEvent<HTMLVideoElement>);
+    });
+
+    expect(videoElement.currentTime).toBe(30);
+
+    // Safari can report low playback after accepting the restore seek
+    // assignment for a large WebM. The hook must not publish that as real
+    // progress, because the progress saver would persist it.
     videoElement.currentTime = 5;
     act(() => {
       result.current.handleTimeUpdate({ currentTarget: videoElement } as React.SyntheticEvent<HTMLVideoElement>);
     });
 
-    expect(onTimeUpdate).toHaveBeenCalledWith(5);
+    expect(onTimeUpdate).not.toHaveBeenCalled();
+    expect(result.current.currentTime).toBe(30);
+
+    videoElement.currentTime = 30.1;
+    act(() => {
+      result.current.handleTimeUpdate({ currentTarget: videoElement } as React.SyntheticEvent<HTMLVideoElement>);
+    });
+
+    expect(onTimeUpdate).toHaveBeenCalledWith(30.1);
+  });
+
+  it("suppresses low seeked events while a startTime restore is pending", () => {
+    const onTimeUpdate = vi.fn();
+    const { result } = renderHook(() =>
+      useVideoPlayer({ src: "test.mp4", startTime: 30, onTimeUpdate })
+    );
+
+    result.current.videoRef.current = videoElement;
+
+    act(() => {
+      result.current.handleLoadedMetadata({ currentTarget: videoElement } as React.SyntheticEvent<HTMLVideoElement>);
+    });
+
+    videoElement.currentTime = 4;
+    act(() => {
+      result.current.handleSeeked({ currentTarget: videoElement } as React.SyntheticEvent<HTMLVideoElement>);
+    });
+
+    expect(onTimeUpdate).not.toHaveBeenCalled();
+    expect(result.current.currentTime).toBe(30);
+  });
+
+  it("tracks the clamped startTime as the pending restore target", () => {
+    const onTimeUpdate = vi.fn();
+    const { result } = renderHook(() =>
+      useVideoPlayer({ src: "test.mp4", startTime: 150, onTimeUpdate })
+    );
+
+    result.current.videoRef.current = videoElement;
+
+    act(() => {
+      result.current.handleLoadedMetadata({ currentTarget: videoElement } as React.SyntheticEvent<HTMLVideoElement>);
+    });
+
+    expect(videoElement.currentTime).toBe(99.75);
+
+    act(() => {
+      result.current.handleTimeUpdate({ currentTarget: videoElement } as React.SyntheticEvent<HTMLVideoElement>);
+    });
+
+    expect(onTimeUpdate).toHaveBeenCalledWith(99.75);
   });
 });
 

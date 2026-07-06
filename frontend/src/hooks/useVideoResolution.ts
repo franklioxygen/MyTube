@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Video } from "../types";
 import { useCloudStorageUrl } from "./useCloudStorageUrl";
+import { isSafari } from "../utils/playerUtils";
 
 // Format video resolution from video object
 export const formatResolution = (video: Video): string | null => {
@@ -47,6 +48,15 @@ export const formatResolution = (video: Video): string | null => {
   return null;
 };
 
+const hasWebMExtension = (value: string | null | undefined): boolean => {
+  if (!value) {
+    return false;
+  }
+
+  const withoutQuery = value.trim().split(/[?#]/, 1)[0]?.toLowerCase() ?? "";
+  return withoutQuery.endsWith(".webm");
+};
+
 export const useVideoResolution = (video: Video) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [detectedResolution, setDetectedResolution] = useState<string | null>(
@@ -56,9 +66,14 @@ export const useVideoResolution = (video: Video) => {
 
   // First check if resolution is already available in video object
   const resolutionFromObject = formatResolution(video);
+  const skipSafariWebMDetection =
+    isSafari() &&
+    (hasWebMExtension(video.videoPath) || hasWebMExtension(videoUrl));
 
-  // Only create video element if resolution is not available in video object
-  const needsDetection = !resolutionFromObject;
+  // Only create a probe video when resolution is unknown and probing will not
+  // compete with the main player. Safari's WebM loader is linear, so a hidden
+  // probe of a large WebM can interfere with the visible player's resume seek.
+  const needsDetection = !resolutionFromObject && !skipSafariWebMDetection;
 
   useEffect(() => {
     // Skip video element creation if resolution is already available

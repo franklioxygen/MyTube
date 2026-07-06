@@ -210,6 +210,7 @@ describe("storageService initialization", () => {
           all: vi.fn(() => [
             { name: "view_count" },
             { name: "progress" },
+            { name: "progress_updated_at" },
             { name: "duration" },
             { name: "file_size" },
             { name: "last_played_at" },
@@ -389,6 +390,7 @@ describe("storageService initialization", () => {
             { name: "tags" },
             { name: "view_count" },
             { name: "progress" },
+            { name: "progress_updated_at" },
             { name: "duration" },
             { name: "file_size" },
             { name: "last_played_at" },

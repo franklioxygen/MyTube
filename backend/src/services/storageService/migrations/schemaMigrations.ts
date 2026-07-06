@@ -452,6 +452,16 @@ export function migrateColumnsAndTables(): void {
       logger.info("Migration successful: progress added.");
     }
 
+    if (!columns.includes("progress_updated_at")) {
+      logger.info(
+        "Migrating database: Adding progress_updated_at column to videos table..."
+      );
+      sqlite
+        .prepare("ALTER TABLE videos ADD COLUMN progress_updated_at INTEGER")
+        .run();
+      logger.info("Migration successful: progress_updated_at added.");
+    }
+
     if (!columns.includes("duration")) {
       logger.info(
         "Migrating database: Adding duration column to videos table..."

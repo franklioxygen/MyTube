@@ -576,20 +576,54 @@ export const incrementViewCount = async (
  * Update progress
  * Errors are automatically handled by asyncHandler middleware
  */
-function updateVideoProgress(id: string, progress: unknown): number | null | undefined {
+interface UpdatedVideoProgress {
+  progress: number | null | undefined;
+  progressUpdatedAt?: number | null;
+}
+
+function updateVideoProgress(id: string, progress: unknown): UpdatedVideoProgress {
   if (typeof progress !== "number") {
     throw new ValidationError("Progress must be a number", "progress");
   }
 
+  const normalizedProgress = Math.max(0, Math.floor(progress));
+  const existingVideo = storageService.getVideoById(id);
+  if (!existingVideo) {
+    throw new NotFoundError("Video", id);
+  }
+
+  const existingProgress =
+    typeof existingVideo.progress === "number" && Number.isFinite(existingVideo.progress)
+      ? existingVideo.progress
+      : 0;
+
+  if (normalizedProgress <= 1 && existingProgress > 30) {
+    return {
+      progress: existingProgress,
+      progressUpdatedAt:
+        typeof existingVideo.progressUpdatedAt === "number"
+          ? existingVideo.progressUpdatedAt
+          : null,
+    };
+  }
+
+  const progressUpdatedAt = Date.now();
   const updatedVideo = storageService.updateVideo(id, {
-    progress,
+    progress: normalizedProgress,
+    progressUpdatedAt,
   });
 
   if (!updatedVideo) {
     throw new NotFoundError("Video", id);
   }
 
-  return updatedVideo.progress;
+  return {
+    progress: updatedVideo.progress,
+    progressUpdatedAt:
+      typeof updatedVideo.progressUpdatedAt === "number"
+        ? updatedVideo.progressUpdatedAt
+        : progressUpdatedAt,
+  };
 }
 
 export const updateProgress = async (
@@ -602,7 +636,8 @@ export const updateProgress = async (
 
   res.status(200).json(
     successResponse({
-      progress: updatedProgress,
+      progress: updatedProgress.progress,
+      progressUpdatedAt: updatedProgress.progressUpdatedAt,
     })
   );
 };
@@ -620,7 +655,8 @@ export const updateProgressByBody = async (
 
   res.status(200).json(
     successResponse({
-      progress: updatedProgress,
+      progress: updatedProgress.progress,
+      progressUpdatedAt: updatedProgress.progressUpdatedAt,
     })
   );
 };

@@ -9,6 +9,7 @@ export interface Video {
   tags?: string[];
   viewCount?: number;
   progress?: number;
+  progressUpdatedAt?: number;
   fileSize?: string;
   description?: string;
   [key: string]: any;

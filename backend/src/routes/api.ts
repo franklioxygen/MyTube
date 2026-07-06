@@ -78,6 +78,14 @@ const apiRouteDefinitions: ApiRouteDefinition[] = [
     handlers: [asyncHandler(videoController.serveMountVideo)],
   },
   {
+    // Current keepalive/beacon path for body-based progress updates.
+    method: "post",
+    path: "/videos/progress",
+    handlers: [asyncHandler(videoMetadataController.updateProgressByBody)],
+  },
+  {
+    // Back-compat: older cached clients issued this beacon as PUT before the
+    // switch to POST. Kept so their unload progress beacons still succeed.
     method: "put",
     path: "/videos/progress",
     handlers: [asyncHandler(videoMetadataController.updateProgressByBody)],

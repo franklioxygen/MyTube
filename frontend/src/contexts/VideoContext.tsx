@@ -3,6 +3,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import { Video, VideoSearchResult } from '../types';
 import { useStatisticsIngestion } from '../hooks/useStatisticsIngestion';
 import { api } from '../utils/apiClient';
+import { withCanonicalAuthorAvatars } from '../utils/authorAvatar';
 import { hasAxiosStatus } from '../utils/errors';
 import { settingsQueryOptions } from '../utils/settingsQueries';
 import { useAuth } from './AuthContext';
@@ -126,10 +127,11 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     // Filter invisible videos when in visitor mode
     const videos = useMemo(() => {
+        const normalizedVideos = withCanonicalAuthorAvatars(videosRaw);
         if (isVisitor) {
-            return videosRaw.filter(video => (video.visibility ?? 1) === 1);
+            return normalizedVideos.filter(video => (video.visibility ?? 1) === 1);
         }
-        return videosRaw;
+        return normalizedVideos;
     }, [videosRaw, isVisitor]);
 
     // Settings Query (tags and showYoutubeSearch)
