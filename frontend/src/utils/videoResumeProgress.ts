@@ -21,18 +21,21 @@ const getKey = (videoId: string): string =>
 
 const isStoredProgressFresh = (
   stored: StoredVideoResumeProgress,
-  lastPlayedAt?: number | null
+  serverProgressUpdatedAt?: number | null
 ): boolean => {
   const now = Date.now();
   if (now - stored.updatedAt > LOCAL_PROGRESS_MAX_AGE_MS) {
     return false;
   }
 
-  if (!lastPlayedAt || !Number.isFinite(lastPlayedAt)) {
+  if (!serverProgressUpdatedAt || !Number.isFinite(serverProgressUpdatedAt)) {
     return true;
   }
 
-  return stored.updatedAt + LOCAL_PROGRESS_FRESHNESS_SLOP_MS >= lastPlayedAt;
+  return (
+    stored.updatedAt + LOCAL_PROGRESS_FRESHNESS_SLOP_MS >=
+    serverProgressUpdatedAt
+  );
 };
 
 export function readVideoResumeProgress(
@@ -104,7 +107,7 @@ export function writeVideoResumeProgress(
 export function getBestVideoResumeProgress(
   videoId: string | undefined,
   serverProgress: number | null | undefined,
-  lastPlayedAt?: number | null
+  serverProgressUpdatedAt?: number | null
 ): number {
   const normalizedServerProgress =
     typeof serverProgress === "number" && Number.isFinite(serverProgress)
@@ -112,7 +115,7 @@ export function getBestVideoResumeProgress(
       : 0;
   const stored = readVideoResumeProgress(videoId);
 
-  if (!stored || !isStoredProgressFresh(stored, lastPlayedAt)) {
+  if (!stored || !isStoredProgressFresh(stored, serverProgressUpdatedAt)) {
     return normalizedServerProgress;
   }
 

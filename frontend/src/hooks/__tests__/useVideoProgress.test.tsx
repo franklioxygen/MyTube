@@ -587,7 +587,8 @@ describe("useVideoProgress", () => {
       id: "video-server-rewind",
       duration: "1776",
       progress: 20,
-      lastPlayedAt: 70_000,
+      lastPlayedAt: 500,
+      progressUpdatedAt: 70_000,
       viewCount: 0,
     } as any;
     const videoElement = document.createElement("video");

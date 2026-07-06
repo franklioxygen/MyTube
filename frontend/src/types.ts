@@ -18,6 +18,7 @@ export interface Video {
   tags?: string[];
   viewCount?: number;
   progress?: number;
+  progressUpdatedAt?: number;
   duration?: string;
   fileSize?: string; // Size in bytes as string
   lastPlayedAt?: number;

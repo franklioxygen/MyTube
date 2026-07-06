@@ -75,6 +75,7 @@ const videoSummaryColumns = () => ({
   duration: videos.duration,
   tags: videos.tags,
   progress: videos.progress,
+  progressUpdatedAt: videos.progressUpdatedAt,
   fileSize: videos.fileSize,
   lastPlayedAt: videos.lastPlayedAt,
   channelUrl: videos.channelUrl,

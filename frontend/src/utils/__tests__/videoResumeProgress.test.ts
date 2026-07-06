@@ -36,6 +36,15 @@ describe("videoResumeProgress", () => {
     expect(getBestVideoResumeProgress("video-3", 20, 100_000)).toBe(20);
   });
 
+  it("falls back to a fresher lower server progress save", () => {
+    vi.spyOn(Date, "now").mockReturnValue(10_000);
+    writeVideoResumeProgress("video-progress-save", 120);
+
+    expect(
+      getBestVideoResumeProgress("video-progress-save", 5, 100_000)
+    ).toBe(5);
+  });
+
   it("does not let a fresh low local value override a much later server resume point", () => {
     vi.spyOn(Date, "now").mockReturnValue(10_000);
     writeVideoResumeProgress("video-4", 5);

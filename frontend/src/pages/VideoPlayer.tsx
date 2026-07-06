@@ -440,7 +440,11 @@ const VideoPlayer: React.FC = () => {
     // Playback-local time should not be fed back into startTime on unrelated rerenders.
     const startTimeResult = playFromBeginning
         ? 0
-        : getBestVideoResumeProgress(id, video.progress, video.lastPlayedAt);
+        : getBestVideoResumeProgress(
+            id,
+            video.progress,
+            video.progressUpdatedAt ?? video.lastPlayedAt
+        );
 
     return (
         <Container maxWidth={false} disableGutters sx={{ py: { xs: 2, md: 4 }, px: { xs: 0, md: 2 } }}>

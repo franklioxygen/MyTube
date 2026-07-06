@@ -101,7 +101,7 @@ export function useVideoProgress({ videoId, video, videoElement }: UseVideoProgr
     const resumeProgress = getBestVideoResumeProgress(
       videoId,
       video?.progress,
-      video?.lastPlayedAt
+      video?.progressUpdatedAt ?? video?.lastPlayedAt
     );
 
     if (
@@ -117,7 +117,7 @@ export function useVideoProgress({ videoId, video, videoElement }: UseVideoProgr
       resumeGuardObservedRef.current =
         resumeGuardTargetRef.current <= RESTORE_GUARD_MIN_PROGRESS_SECONDS;
     }
-  }, [video?.lastPlayedAt, video?.progress, videoId]);
+  }, [video?.lastPlayedAt, video?.progress, video?.progressUpdatedAt, videoId]);
 
   useEffect(() => {
     durationRef.current = videoDuration;
@@ -191,8 +191,10 @@ export function useVideoProgress({ videoId, video, videoElement }: UseVideoProgr
       return;
     }
 
+    const progressUpdatedAt = Date.now();
     syncVideoPlaybackCache(queryClient, videoId, {
       progress,
+      progressUpdatedAt,
     });
 
     if (options.keepalive) {
