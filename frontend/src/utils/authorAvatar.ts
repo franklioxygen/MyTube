@@ -22,6 +22,10 @@ const getSourceKey = (video: Video): string =>
   typeof video.source === "string" ? video.source.toLocaleLowerCase() : "";
 
 const getAuthorFallbackKey = (video: Video): string => {
+  if (normalizeChannelUrl(video.channelUrl)) {
+    return "";
+  }
+
   const author = normalizeAuthorName(video.author);
   if (!author) {
     return "";

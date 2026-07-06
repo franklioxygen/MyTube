@@ -592,7 +592,7 @@ function updateVideoProgress(id: string, progress: unknown): number | null | und
       ? existingVideo.progress
       : 0;
 
-  if (normalizedProgress < 30 && existingProgress > 30) {
+  if (normalizedProgress <= 1 && existingProgress > 30) {
     return existingProgress;
   }
 

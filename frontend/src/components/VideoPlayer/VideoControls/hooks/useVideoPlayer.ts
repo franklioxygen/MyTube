@@ -70,6 +70,7 @@ export const useVideoPlayer = ({
     // after loadedmetadata, so playback would start from the beginning.
     videoElement.currentTime = safeTime;
     setCurrentTime(safeTime);
+    return safeTime;
   }, [clampPlaybackTime]);
 
   const markStartTimeRestorePending = useCallback((targetTime: number) => {
@@ -81,8 +82,8 @@ export const useVideoPlayer = ({
 
   const applyStartTime = useCallback(
     (videoElement: HTMLVideoElement, targetTime: number) => {
-      seekTo(videoElement, targetTime);
-      markStartTimeRestorePending(targetTime);
+      const appliedTime = seekTo(videoElement, targetTime);
+      markStartTimeRestorePending(appliedTime);
     },
     [markStartTimeRestorePending, seekTo]
   );

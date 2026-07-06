@@ -86,4 +86,24 @@ describe("authorAvatar", () => {
       })
     );
   });
+
+  it("does not fall back to author-name avatars for a different channel URL", () => {
+    const videos = [
+      createVideo({
+        id: "channel-with-avatar",
+        author: "Same Name",
+        channelUrl: "https://www.youtube.com/channel/one",
+        authorAvatarPath: "/avatars/channel-one.jpg",
+      }),
+      createVideo({
+        id: "different-channel",
+        author: "Same Name",
+        channelUrl: "https://www.youtube.com/channel/two",
+      }),
+    ];
+
+    expect(withCanonicalAuthorAvatars(videos)[1]).not.toHaveProperty(
+      "authorAvatarPath"
+    );
+  });
 });

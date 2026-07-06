@@ -405,6 +405,27 @@ describe("useVideoPlayer startTime behavior", () => {
     expect(onTimeUpdate).not.toHaveBeenCalled();
     expect(result.current.currentTime).toBe(30);
   });
+
+  it("tracks the clamped startTime as the pending restore target", () => {
+    const onTimeUpdate = vi.fn();
+    const { result } = renderHook(() =>
+      useVideoPlayer({ src: "test.mp4", startTime: 150, onTimeUpdate })
+    );
+
+    result.current.videoRef.current = videoElement;
+
+    act(() => {
+      result.current.handleLoadedMetadata({ currentTarget: videoElement } as React.SyntheticEvent<HTMLVideoElement>);
+    });
+
+    expect(videoElement.currentTime).toBe(99.75);
+
+    act(() => {
+      result.current.handleTimeUpdate({ currentTarget: videoElement } as React.SyntheticEvent<HTMLVideoElement>);
+    });
+
+    expect(onTimeUpdate).toHaveBeenCalledWith(99.75);
+  });
 });
 
 describe("useVideoPlayer playbackRate behavior", () => {
