@@ -1,6 +1,7 @@
 const VIDEO_RESUME_PROGRESS_PREFIX = "mytube:video-resume-progress:";
 const LOCAL_PROGRESS_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 const LOCAL_PROGRESS_FRESHNESS_SLOP_MS = 60 * 1000;
+const LOCAL_PROGRESS_REGRESSION_GUARD_SECONDS = 30;
 
 interface StoredVideoResumeProgress {
   progress: number;
@@ -112,6 +113,14 @@ export function getBestVideoResumeProgress(
   const stored = readVideoResumeProgress(videoId);
 
   if (!stored || !isStoredProgressFresh(stored, lastPlayedAt)) {
+    return normalizedServerProgress;
+  }
+
+  if (
+    normalizedServerProgress > LOCAL_PROGRESS_REGRESSION_GUARD_SECONDS &&
+    stored.progress + LOCAL_PROGRESS_REGRESSION_GUARD_SECONDS <
+      normalizedServerProgress
+  ) {
     return normalizedServerProgress;
   }
 

@@ -673,7 +673,7 @@ describe("videoMetadataController", () => {
       });
     });
 
-    it("does not let a near-zero progress update overwrite an existing resume point", async () => {
+    it("does not let a low progress update overwrite an existing resume point", async () => {
       const { res, json } = createResponse();
       vi.mocked(storageService.getVideoById as any).mockReturnValue({
         id: "v1",
@@ -683,7 +683,7 @@ describe("videoMetadataController", () => {
       await videoMetadataController.updateProgress(
         {
           params: { id: "v1" },
-          body: { progress: 0.4 },
+          body: { progress: 20.4 },
         } as unknown as Request,
         res
       );

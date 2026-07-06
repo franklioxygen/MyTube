@@ -72,7 +72,6 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
             {needsDetection && (videoUrl || video.sourceUrl) && (
                 <video
                     ref={videoRef}
-                    src={videoUrl || video.sourceUrl}
                     style={{
                         position: 'absolute',
                         width: '1px',

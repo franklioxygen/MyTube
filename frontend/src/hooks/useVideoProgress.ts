@@ -5,6 +5,7 @@ import { Video } from "../types";
 import { api, sendVideoProgressWithKeepalive } from "../utils/apiClient";
 import { parseDuration } from "../utils/formatUtils";
 import {
+  getBestVideoResumeProgress,
   readVideoResumeProgress,
   writeVideoResumeProgress,
 } from "../utils/videoResumeProgress";
@@ -17,6 +18,8 @@ interface UseVideoProgressProps {
 
 const PROGRESS_SAVE_INTERVAL_MS = 5000;
 const LOCAL_PROGRESS_SAMPLE_INTERVAL_MS = 1000;
+const RESTORE_GUARD_MIN_PROGRESS_SECONDS = 30;
+const RESTORE_GUARD_TOLERANCE_SECONDS = 2;
 
 function getViewThreshold(duration: string | undefined): number {
   const durationSeconds = parseDuration(duration);
@@ -75,12 +78,19 @@ export function useVideoProgress({ videoId, video, videoElement }: UseVideoProgr
   const isDeletingRef = useRef<boolean>(false);
   const durationRef = useRef<string | undefined>(undefined);
   const videoElementRef = useRef<HTMLVideoElement | null>(null);
+  const resumeGuardTargetRef = useRef<number>(0);
+  const resumeGuardObservedRef = useRef<boolean>(true);
   const videoDuration = video?.duration;
 
   // Reset hasViewed when video changes
   useEffect(() => {
     setHasViewed(false);
-    currentTimeRef.current = readVideoResumeProgress(videoId)?.progress ?? 0;
+    const storedProgress = readVideoResumeProgress(videoId)?.progress ?? 0;
+    currentTimeRef.current = storedProgress;
+    resumeGuardTargetRef.current =
+      storedProgress > RESTORE_GUARD_MIN_PROGRESS_SECONDS ? storedProgress : 0;
+    resumeGuardObservedRef.current =
+      resumeGuardTargetRef.current <= RESTORE_GUARD_MIN_PROGRESS_SECONDS;
     // Start the periodic-save throttle now: with the initial 0 the very
     // first timeupdate saved immediately, racing the saved-progress
     // restore and overwriting the stored position with ~0.
@@ -88,11 +98,27 @@ export function useVideoProgress({ videoId, video, videoElement }: UseVideoProgr
   }, [videoId]);
 
   useEffect(() => {
-    if (currentTimeRef.current <= 0 && video?.progress) {
-      currentTimeRef.current =
-        readVideoResumeProgress(videoId)?.progress ?? video.progress;
+    const resumeProgress = getBestVideoResumeProgress(
+      videoId,
+      video?.progress,
+      video?.lastPlayedAt
+    );
+
+    if (
+      resumeProgress > 0 &&
+      (currentTimeRef.current <= 0 ||
+        currentTimeRef.current + RESTORE_GUARD_MIN_PROGRESS_SECONDS <
+          resumeProgress)
+    ) {
+      currentTimeRef.current = resumeProgress;
+      resumeGuardTargetRef.current =
+        resumeProgress > RESTORE_GUARD_MIN_PROGRESS_SECONDS
+          ? resumeProgress
+          : 0;
+      resumeGuardObservedRef.current =
+        resumeGuardTargetRef.current <= RESTORE_GUARD_MIN_PROGRESS_SECONDS;
     }
-  }, [video?.progress, videoId]);
+  }, [video?.lastPlayedAt, video?.progress, videoId]);
 
   useEffect(() => {
     durationRef.current = videoDuration;
@@ -102,21 +128,47 @@ export function useVideoProgress({ videoId, video, videoElement }: UseVideoProgr
     videoElementRef.current = videoElement ?? null;
   }, [videoElement]);
 
+  const getTrustedPlaybackTime = useCallback((playbackTime: number) => {
+    if (typeof playbackTime !== "number" || !Number.isFinite(playbackTime)) {
+      return null;
+    }
+
+    const safeTime = Math.max(0, playbackTime);
+    const resumeTarget = resumeGuardTargetRef.current;
+
+    if (
+      resumeTarget > RESTORE_GUARD_MIN_PROGRESS_SECONDS &&
+      !resumeGuardObservedRef.current
+    ) {
+      if (safeTime + RESTORE_GUARD_TOLERANCE_SECONDS >= resumeTarget) {
+        resumeGuardObservedRef.current = true;
+      } else {
+        return null;
+      }
+    }
+
+    return safeTime;
+  }, []);
+
   const samplePlaybackTime = useCallback(() => {
     const mediaElement = videoElementRef.current;
     const sampledTime = mediaElement?.currentTime;
+    const trustedTime =
+      typeof sampledTime === "number" && Number.isFinite(sampledTime)
+        ? getTrustedPlaybackTime(sampledTime)
+        : null;
 
-    if (typeof sampledTime !== "number" || !Number.isFinite(sampledTime)) {
+    if (trustedTime === null) {
       return currentTimeRef.current;
     }
 
-    if (sampledTime <= 0 && currentTimeRef.current > 0) {
+    if (trustedTime <= 0 && currentTimeRef.current > 0) {
       return currentTimeRef.current;
     }
 
-    currentTimeRef.current = Math.max(0, sampledTime);
+    currentTimeRef.current = trustedTime;
     return currentTimeRef.current;
-  }, []);
+  }, [getTrustedPlaybackTime]);
 
   const cacheProgressLocally = useCallback((playbackTime: number) => {
     const progress = getResumeProgress(playbackTime, durationRef.current);
@@ -203,13 +255,15 @@ export function useVideoProgress({ videoId, video, videoElement }: UseVideoProgr
       flushSampledProgress();
     };
 
-    videoElement.addEventListener("timeupdate", sampleAndCache);
+    // The React onTimeUpdate handler already caches on every "timeupdate", so we
+    // do not listen for it again here (doing so double-wrote localStorage on each
+    // tick). "playing" backfills the cache when playback resumes, and the 1s
+    // interval covers Safari's deferred-timeupdate case.
     videoElement.addEventListener("playing", sampleAndCache);
     videoElement.addEventListener("seeked", sampleAndSave);
     videoElement.addEventListener("pause", sampleAndSave);
 
     return () => {
-      videoElement.removeEventListener("timeupdate", sampleAndCache);
       videoElement.removeEventListener("playing", sampleAndCache);
       videoElement.removeEventListener("seeked", sampleAndSave);
       videoElement.removeEventListener("pause", sampleAndSave);
@@ -256,12 +310,24 @@ export function useVideoProgress({ videoId, video, videoElement }: UseVideoProgr
   }, [flushSampledProgress]);
 
   const handleTimeUpdate = (currentTime: number) => {
-    currentTimeRef.current = currentTime;
-    cacheProgressLocally(currentTime);
+    // The player suppresses onTimeUpdate while a saved-progress seek is still
+    // pending, so any value delivered here is authoritative: the restore has
+    // completed, or the user seeked/started somewhere else. Release the sampling
+    // guard so the deferred-sample paths (native events, interval, pagehide)
+    // track the live position instead of holding the previous resume point.
+    resumeGuardObservedRef.current = true;
+
+    const trustedCurrentTime = getTrustedPlaybackTime(currentTime);
+    if (trustedCurrentTime === null) {
+      return;
+    }
+
+    currentTimeRef.current = trustedCurrentTime;
+    cacheProgressLocally(trustedCurrentTime);
 
     // Increment views and refresh watch history at the same threshold.
     const viewThreshold = getViewThreshold(videoDuration);
-    if (currentTime >= viewThreshold && !hasViewed && videoId && !isVisitor) {
+    if (trustedCurrentTime >= viewThreshold && !hasViewed && videoId && !isVisitor) {
       setHasViewed(true);
       const lastPlayedAt = Date.now();
       api
@@ -283,7 +349,7 @@ export function useVideoProgress({ videoId, video, videoElement }: UseVideoProgr
     const now = Date.now();
     if (now - lastProgressSave.current > PROGRESS_SAVE_INTERVAL_MS && videoId && !isVisitor) {
       lastProgressSave.current = now;
-      saveProgress(currentTime);
+      saveProgress(trustedCurrentTime);
     }
   };
 

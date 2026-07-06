@@ -3,7 +3,10 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useVideoProgress } from "../useVideoProgress";
-import { readVideoResumeProgress } from "../../utils/videoResumeProgress";
+import {
+  readVideoResumeProgress,
+  writeVideoResumeProgress,
+} from "../../utils/videoResumeProgress";
 
 const mockApiPost = vi.fn();
 const mockApiPut = vi.fn();
@@ -365,13 +368,156 @@ describe("useVideoProgress", () => {
     );
 
     act(() => {
-      videoElement.dispatchEvent(new Event("timeupdate"));
+      videoElement.dispatchEvent(new Event("playing"));
     });
 
     expect(readVideoResumeProgress("video-native-event")).toEqual({
       progress: 58,
       updatedAt: 1000,
     });
+
+    act(() => {
+      result.current.setIsDeleting(true);
+    });
+
+    dateNowSpy.mockRestore();
+  });
+
+  it("does not clobber a higher resume point with low native Safari samples before restore is observed", () => {
+    const dateNowSpy = vi.spyOn(Date, "now").mockReturnValue(1000);
+    const video = {
+      id: "video-safari-restore",
+      duration: "1776",
+      progress: 826,
+      lastPlayedAt: 900,
+      viewCount: 0,
+    } as any;
+    const videoElement = document.createElement("video");
+    Object.defineProperty(videoElement, "currentTime", {
+      configurable: true,
+      writable: true,
+      value: 5,
+    });
+    const { queryClient, wrapper } = createWrapper();
+    queryClient.setQueryData(["videos"], [video]);
+    queryClient.setQueryData(["video", "video-safari-restore"], video);
+
+    const { result } = renderHook(
+      () => useVideoProgress({ videoId: "video-safari-restore", video, videoElement }),
+      { wrapper },
+    );
+
+    act(() => {
+      videoElement.dispatchEvent(new Event("timeupdate"));
+      window.dispatchEvent(new Event("pagehide"));
+    });
+
+    expect(mockSendVideoProgressWithKeepalive).toHaveBeenCalledWith(
+      "video-safari-restore",
+      826
+    );
+    expect(readVideoResumeProgress("video-safari-restore")).toEqual({
+      progress: 826,
+      updatedAt: 1000,
+    });
+    expect(queryClient.getQueryData(["video", "video-safari-restore"])).toEqual(
+      expect.objectContaining({
+        progress: 826,
+      })
+    );
+
+    act(() => {
+      result.current.setIsDeleting(true);
+    });
+
+    dateNowSpy.mockRestore();
+  });
+
+  it("releases the resume guard once the player reports a trusted low time", () => {
+    const dateNowSpy = vi.spyOn(Date, "now").mockReturnValue(1000);
+    const video = {
+      id: "video-guard-release",
+      duration: "1776",
+      progress: 826,
+      lastPlayedAt: 900,
+      viewCount: 0,
+    } as any;
+    const videoElement = document.createElement("video");
+    Object.defineProperty(videoElement, "currentTime", {
+      configurable: true,
+      writable: true,
+      value: 5,
+    });
+    const { queryClient, wrapper } = createWrapper();
+    queryClient.setQueryData(["videos"], [video]);
+    queryClient.setQueryData(["video", "video-guard-release"], video);
+
+    const { result } = renderHook(
+      () => useVideoProgress({ videoId: "video-guard-release", video, videoElement }),
+      { wrapper },
+    );
+
+    // The player only forwards a time once its saved-progress seek settles, so
+    // this simulates the user scrubbing back to 100s before the restore point is
+    // reached. That trusted value must release the guard so the real position is
+    // persisted instead of the stale 826s resume point.
+    videoElement.currentTime = 100;
+    act(() => {
+      result.current.handleTimeUpdate(100);
+    });
+
+    act(() => {
+      window.dispatchEvent(new Event("pagehide"));
+    });
+
+    expect(mockSendVideoProgressWithKeepalive).toHaveBeenCalledWith(
+      "video-guard-release",
+      100
+    );
+    expect(mockSendVideoProgressWithKeepalive).not.toHaveBeenCalledWith(
+      "video-guard-release",
+      826
+    );
+
+    act(() => {
+      result.current.setIsDeleting(true);
+    });
+
+    dateNowSpy.mockRestore();
+  });
+
+  it("uses the server resume point when local progress is a stale low Safari sample", () => {
+    const dateNowSpy = vi.spyOn(Date, "now").mockReturnValue(1000);
+    writeVideoResumeProgress("video-low-local", 5);
+
+    const video = {
+      id: "video-low-local",
+      duration: "1776",
+      progress: 826,
+      lastPlayedAt: 900,
+      viewCount: 0,
+    } as any;
+    const videoElement = document.createElement("video");
+    Object.defineProperty(videoElement, "currentTime", {
+      configurable: true,
+      writable: true,
+      value: 5,
+    });
+    const { wrapper } = createWrapper();
+
+    const { result } = renderHook(
+      () => useVideoProgress({ videoId: "video-low-local", video, videoElement }),
+      { wrapper },
+    );
+
+    act(() => {
+      window.dispatchEvent(new Event("pagehide"));
+    });
+
+    expect(mockSendVideoProgressWithKeepalive).toHaveBeenCalledWith(
+      "video-low-local",
+      826
+    );
 
     act(() => {
       result.current.setIsDeleting(true);

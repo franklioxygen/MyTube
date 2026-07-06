@@ -35,4 +35,11 @@ describe("videoResumeProgress", () => {
 
     expect(getBestVideoResumeProgress("video-3", 20, 100_000)).toBe(20);
   });
+
+  it("does not let a fresh low local value override a much later server resume point", () => {
+    vi.spyOn(Date, "now").mockReturnValue(10_000);
+    writeVideoResumeProgress("video-4", 5);
+
+    expect(getBestVideoResumeProgress("video-4", 826, 9_000)).toBe(826);
+  });
 });

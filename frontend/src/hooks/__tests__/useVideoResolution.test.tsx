@@ -47,6 +47,7 @@ describe("formatResolution", () => {
 describe("useVideoResolution", () => {
   const originalRequestIdleCallback = (window as any).requestIdleCallback;
   const originalCancelIdleCallback = (window as any).cancelIdleCallback;
+  const originalUserAgent = window.navigator.userAgent;
   let loadSpy: ReturnType<typeof vi.spyOn>;
   let pauseSpy: ReturnType<typeof vi.spyOn>;
 
@@ -78,6 +79,10 @@ describe("useVideoResolution", () => {
     } else {
       delete (window as any).cancelIdleCallback;
     }
+    Object.defineProperty(window.navigator, "userAgent", {
+      value: originalUserAgent,
+      configurable: true,
+    });
   });
 
   it("skips detection when resolution exists on video object", () => {
@@ -92,6 +97,20 @@ describe("useVideoResolution", () => {
 
     expect(screen.getByTestId("probe-needs")).toHaveTextContent("true");
     expect(screen.getByTestId("probe-resolution")).toHaveTextContent("");
+  });
+
+  it("skips hidden video detection for Safari WebM sources", () => {
+    Object.defineProperty(window.navigator, "userAgent", {
+      value:
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
+      configurable: true,
+    });
+
+    render(<Probe video={{ id: "safari-webm", videoPath: "/videos/file.webm", sourceUrl: "https://origin/video" }} />);
+
+    expect(screen.getByTestId("probe-needs")).toHaveTextContent("false");
+    expect(screen.getByTestId("probe-resolution")).toHaveTextContent("");
+    expect(loadSpy).not.toHaveBeenCalled();
   });
 
   it("detects resolution with delayed metadata loading fallback", async () => {
