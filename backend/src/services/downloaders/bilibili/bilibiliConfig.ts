@@ -109,6 +109,22 @@ function resolveSubtitleDefaults(userConfig: BilibiliDownloadFlags): {
   };
 }
 
+export function resolveBilibiliMergeOutputFormat(
+  userConfig: BilibiliDownloadFlags
+): string {
+  const userMergeOutputFormat =
+    typeof userConfig.mergeOutputFormat === "string" &&
+    userConfig.mergeOutputFormat
+      ? userConfig.mergeOutputFormat
+      : undefined;
+
+  return (
+    userMergeOutputFormat ||
+    resolveExplicitPreferredVideoContainer(storageService.getSettings()) ||
+    "mp4"
+  );
+}
+
 export interface BilibiliResolutionPreference {
   height: number | null;
   strict: boolean;
@@ -328,6 +344,7 @@ export function prepareBilibiliDownloadFlags(
     resolutionPreference,
   );
   const subtitleDefaults = resolveSubtitleDefaults(userConfig);
+  const mergeOutputFormat = resolveBilibiliMergeOutputFormat(userConfig);
 
   // Prepare base flags from user config (excluding output options we manage)
   const {
@@ -340,14 +357,10 @@ export function prepareBilibiliDownloadFlags(
     writeSubs: _writeSubs,
     writeAutoSubs: _writeAutoSubs,
     convertSubs: _convertSubs,
-    mergeOutputFormat: userMergeOutputFormat,
+    mergeOutputFormat: _mergeOutputFormat,
     ...safeUserConfig
   } = userConfig;
 
-  const mergeOutputFormat =
-    userMergeOutputFormat ||
-    resolveExplicitPreferredVideoContainer(storageService.getSettings()) ||
-    "mp4";
   logger.info(`Using merge output format: ${mergeOutputFormat}`);
 
   const flags: BilibiliDownloadFlags = {

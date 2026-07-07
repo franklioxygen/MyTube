@@ -241,7 +241,7 @@ describe("bilibiliVideo.downloadSinglePart", () => {
     mocks.findVideoFileInTemp.mockReturnValue("video.mp4");
     mocks.moveVideoFile.mockImplementation(() => undefined);
     mocks.prepareFilePaths.mockImplementation(
-      (_format: string, collectionName?: string, moveThumbs = false) => {
+      (format: string, collectionName?: string, moveThumbs = false) => {
         const baseDir =
           collectionName && moveThumbs
             ? `/mock/videos/${collectionName}`
@@ -252,8 +252,8 @@ describe("bilibiliVideo.downloadSinglePart", () => {
                 : "/mock/images";
         return {
           videoPath: collectionName
-            ? `/mock/videos/${collectionName}/video_1.mp4`
-            : "/mock/videos/video_1.mp4",
+            ? `/mock/videos/${collectionName}/video_1.${format}`
+            : `/mock/videos/video_1.${format}`,
           thumbnailPath: `${baseDir}/video_1.jpg`,
           videoDir: collectionName
             ? `/mock/videos/${collectionName}`
@@ -267,16 +267,16 @@ describe("bilibiliVideo.downloadSinglePart", () => {
         _title: string,
         _author: string,
         _date: string,
-        _format: string,
+        format: string,
         _videoPath: string,
         _thumbnailPath: string,
         _thumbnailSaved: boolean,
         videoDir: string,
         imageDir: string,
       ) => ({
-        newVideoPath: `${videoDir}/final-video.mp4`,
+        newVideoPath: `${videoDir}/final-video.${format}`,
         newThumbnailPath: `${imageDir}/final-thumb.jpg`,
-        finalVideoFilename: "final-video.mp4",
+        finalVideoFilename: `final-video.${format}`,
         finalThumbnailFilename: "final-thumb.jpg",
       }),
     );
@@ -469,6 +469,51 @@ describe("bilibiliVideo.downloadSinglePart", () => {
       "author_folder_only",
       "legacy",
       undefined,
+    );
+  });
+
+  it("uses the app preferred container when planning Bilibili single-part output paths", async () => {
+    mocks.getSettings.mockReturnValue({
+      moveThumbnailsToVideoFolder: false,
+      moveSubtitlesToVideoFolder: false,
+      authorOrganizationMode: "root",
+      saveAuthorFilesToCollection: false,
+      preferredVideoContainer: "mkv",
+    });
+    mocks.getUserYtDlpConfig.mockReturnValue({});
+    mocks.findVideoFileInTemp.mockReturnValue("video.mkv");
+
+    const result = await downloadSinglePart(
+      "https://www.bilibili.com/video/BV1mkv",
+      1,
+      1,
+      "",
+      "download-mkv",
+    );
+
+    expect(result.success).toBe(true);
+    expect(mocks.prepareFilePaths).toHaveBeenCalledWith(
+      "mkv",
+      undefined,
+      false,
+    );
+    expect(mocks.renameFilesWithMetadata).toHaveBeenCalledWith(
+      "Part Title",
+      "Mock Author",
+      "20240101",
+      "mkv",
+      "/mock/videos/video_1.mkv",
+      "/mock/images/video_1.jpg",
+      true,
+      "/mock/videos",
+      "/mock/images",
+      expect.any(Object),
+    );
+    expect(mocks.saveVideo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        videoFilename: "final-video.mkv",
+        videoPath: "/videos/final-video.mkv",
+      }),
     );
   });
 

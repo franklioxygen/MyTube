@@ -29,6 +29,7 @@ import { buildManagedThumbnailWebPath } from "../thumbnailPathUtils";
 import {
   BILIBILI_COOKIE_REFRESH_HINT,
   isLikelyBilibiliAuthFailure,
+  resolveBilibiliMergeOutputFormat,
 } from "./bilibiliConfig";
 import {
   cleanupFilesOnCancellation,
@@ -68,9 +69,9 @@ export async function downloadSinglePart(
       `Downloading Bilibili part ${partNumber}/${totalParts}: ${url}`
     );
 
-    // Get user's yt-dlp configuration for merge output format
+    // Keep destination paths aligned with the Bilibili yt-dlp merge container.
     const userConfig = getUserYtDlpConfig(url);
-    const mergeOutputFormat = userConfig.mergeOutputFormat || "mp4";
+    const mergeOutputFormat = resolveBilibiliMergeOutputFormat(userConfig);
     const settings = storageService.getSettings();
     const moveThumbnailsToVideoFolder =
       settings.moveThumbnailsToVideoFolder || false;
