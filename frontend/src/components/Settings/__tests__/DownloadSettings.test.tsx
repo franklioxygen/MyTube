@@ -45,6 +45,9 @@ describe('DownloadSettings', () => {
         );
     };
 
+    const getFinalContainerSelect = () =>
+        screen.getByRole('combobox', { name: 'preferredVideoContainer' });
+
     beforeEach(() => {
         vi.clearAllMocks();
     });
@@ -122,6 +125,26 @@ describe('DownloadSettings', () => {
         renderDownloadSettings();
 
         expect(screen.getByText('defaultVideoCodecDescription')).toBeInTheDocument();
+    });
+
+    it('should render final container dropdown and call onChange when selection changes', async () => {
+        const user = userEvent.setup();
+        renderDownloadSettings();
+
+        const containerDropdown = getFinalContainerSelect();
+        expect(containerDropdown).toBeInTheDocument();
+
+        await user.click(containerDropdown);
+        const option = await screen.findByRole('option', { name: 'preferredVideoContainer_mkv' });
+        await user.click(option);
+
+        expect(mockOnChange).toHaveBeenCalledWith('preferredVideoContainer', 'mkv');
+    });
+
+    it('should show final container description', () => {
+        renderDownloadSettings();
+
+        expect(screen.getByText('preferredVideoContainerDescription')).toBeInTheDocument();
     });
 
     it('should toggle dont skip deleted video setting', async () => {
@@ -213,6 +236,26 @@ describe('DownloadSettings', () => {
         renderDownloadSettings({ settings: { ...defaultProps.settings, defaultVideoCodec: 'xvid' } });
 
         expect(screen.getAllByRole('combobox')[2]).toHaveTextContent('xvid');
+        consoleWarnSpy.mockRestore();
+    });
+
+    it('should render the default final container label when missing', () => {
+        renderDownloadSettings({ settings: { ...defaultProps.settings, preferredVideoContainer: undefined } });
+
+        expect(getFinalContainerSelect()).toHaveTextContent('preferredVideoContainer_auto');
+    });
+
+    it('should render the translated final container label for known values', () => {
+        renderDownloadSettings({ settings: { ...defaultProps.settings, preferredVideoContainer: 'mkv' } });
+
+        expect(getFinalContainerSelect()).toHaveTextContent('preferredVideoContainer_mkv');
+    });
+
+    it('should render the raw final container value when it is unknown', () => {
+        const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        renderDownloadSettings({ settings: { ...defaultProps.settings, preferredVideoContainer: 'ogv' as any } });
+
+        expect(getFinalContainerSelect()).toHaveTextContent('ogv');
         consoleWarnSpy.mockRestore();
     });
 });

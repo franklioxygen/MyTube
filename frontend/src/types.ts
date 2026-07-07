@@ -163,6 +163,7 @@ export interface Settings {
   showTagsOnThumbnail?: boolean;
   preferredAudioLanguage?: string;
   defaultVideoCodec?: string;
+  preferredVideoContainer?: 'auto' | 'mp4' | 'webm' | 'mkv';
   preferredVideoResolution?: string;
   preferredVideoResolutionStrict?: boolean;
   authorTags?: Record<string, string[]>;

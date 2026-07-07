@@ -1,4 +1,5 @@
 import * as storageService from "../../../services/storageService";
+import { resolveExplicitPreferredVideoContainer } from "../../../types/settings";
 import { logger } from "../../../utils/logger";
 import {
   getNetworkConfigFromUserConfig,
@@ -343,7 +344,10 @@ export function prepareBilibiliDownloadFlags(
     ...safeUserConfig
   } = userConfig;
 
-  const mergeOutputFormat = userMergeOutputFormat || "mp4";
+  const mergeOutputFormat =
+    userMergeOutputFormat ||
+    resolveExplicitPreferredVideoContainer(storageService.getSettings()) ||
+    "mp4";
   logger.info(`Using merge output format: ${mergeOutputFormat}`);
 
   const flags: BilibiliDownloadFlags = {

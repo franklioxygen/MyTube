@@ -1,4 +1,5 @@
 import * as storageService from "../../../services/storageService";
+import { resolveExplicitPreferredVideoContainer } from "../../../types/settings";
 import { isTwitterUrl, isYouTubeUrl } from "../../../utils/helpers";
 import { logger } from "../../../utils/logger";
 import { getUserYtDlpConfig } from "../../../utils/ytDlpUtils";
@@ -23,6 +24,7 @@ interface DownloadFlagContext {
   formatSortValue?: string;
   youtubeFormat: string;
   mergeOutputFormat: string;
+  hasUserMergeOutputFormat: boolean;
 }
 
 const DEFAULT_FORMAT =
@@ -267,9 +269,10 @@ function applyPreferredAudioLanguageIfNeeded(
     flags: YtDlpFlags;
     isYouTube: boolean;
     config: UserYtDlpConfig;
+    hasUserMergeOutputFormat: boolean;
   },
 ): boolean {
-  const { flags, isYouTube, config } = args;
+  const { flags, isYouTube, config, hasUserMergeOutputFormat } = args;
   if (!isYouTube || hasUserSpecifiedFormat(config)) {
     return false;
   }
@@ -301,7 +304,9 @@ function applyPreferredAudioLanguageIfNeeded(
     `bestvideo[ext=${ve}][vcodec^=${vf}]+bestaudio[ext=${ae}]/` +
     `bestvideo[ext=${ve}]+bestaudio[language=${lang}]/` +
     `bestvideo[ext=${ve}]+bestaudio[ext=${ae}]/best[ext=${ve}]/best`;
-  flags.mergeOutputFormat = codecConfig ? codecConfig.mergeOutputFormat : "mp4";
+  if (!hasUserMergeOutputFormat) {
+    flags.mergeOutputFormat = codecConfig ? codecConfig.mergeOutputFormat : "mp4";
+  }
 
   if (codecConfig) {
     flags.formatSort = codecConfig.formatSortValue;
@@ -316,9 +321,10 @@ function applyDefaultVideoCodecIfNeeded(
     flags: YtDlpFlags;
     config: UserYtDlpConfig;
     isTwitter: boolean;
+    hasUserMergeOutputFormat: boolean;
   },
 ): boolean {
-  const { flags, config, isTwitter } = args;
+  const { flags, config, isTwitter, hasUserMergeOutputFormat } = args;
   if (hasUserFormatControl(config) || isTwitter) {
     return false;
   }
@@ -345,10 +351,32 @@ function applyDefaultVideoCodecIfNeeded(
     `bestvideo[ext=${ve}]+bestaudio[ext=${ae}]/` +
     `bestvideo+bestaudio/best`;
 
-  flags.mergeOutputFormat = codecConfig.mergeOutputFormat;
+  if (!hasUserMergeOutputFormat) {
+    flags.mergeOutputFormat = codecConfig.mergeOutputFormat;
+  }
 
   logger.info(`Applied default video codec preference: ${vf}`);
   return true;
+}
+
+function applyPreferredVideoContainerIfNeeded(
+  flags: YtDlpFlags,
+  hasUserMergeOutputFormat: boolean,
+): string | null {
+  if (hasUserMergeOutputFormat) {
+    return null;
+  }
+
+  const preferredContainer = resolveExplicitPreferredVideoContainer(
+    storageService.getSettings()
+  );
+  if (!preferredContainer) {
+    return null;
+  }
+
+  flags.mergeOutputFormat = preferredContainer;
+  logger.info(`Applied preferred final video container: ${preferredContainer}`);
+  return preferredContainer;
 }
 
 function applyYouTubeExtractorArgsIfNeeded(
@@ -449,11 +477,20 @@ function createDownloadFlagContext(
     formatSortValue,
     youtubeFormat,
     mergeOutputFormat,
+    hasUserMergeOutputFormat: Boolean(userMergeOutputFormat),
   };
 }
 
 function applyPostBuildRules(context: DownloadFlagContext): string {
-  const { flags, isYouTube, isTwitter, config, formatSortValue, youtubeFormat } = context;
+  const {
+    flags,
+    isYouTube,
+    isTwitter,
+    config,
+    formatSortValue,
+    youtubeFormat,
+    hasUserMergeOutputFormat,
+  } = context;
   let mergeOutputFormat = context.mergeOutputFormat;
 
   applyYouTubeFormatIfNeeded({
@@ -465,11 +502,33 @@ function applyPostBuildRules(context: DownloadFlagContext): string {
   });
 
   // Audio language takes priority and already integrates codec preference internally
-  if (applyPreferredAudioLanguageIfNeeded({ flags, isYouTube, config })) {
+  if (
+    applyPreferredAudioLanguageIfNeeded({
+      flags,
+      isYouTube,
+      config,
+      hasUserMergeOutputFormat,
+    })
+  ) {
     mergeOutputFormat = flags.mergeOutputFormat || "mp4";
-  } else if (applyDefaultVideoCodecIfNeeded({ flags, config, isTwitter })) {
+  } else if (
+    applyDefaultVideoCodecIfNeeded({
+      flags,
+      config,
+      isTwitter,
+      hasUserMergeOutputFormat,
+    })
+  ) {
     // Standalone codec only applies when audio language didn't already handle it
     mergeOutputFormat = flags.mergeOutputFormat || mergeOutputFormat;
+  }
+
+  const preferredContainer = applyPreferredVideoContainerIfNeeded(
+    flags,
+    hasUserMergeOutputFormat,
+  );
+  if (preferredContainer) {
+    mergeOutputFormat = preferredContainer;
   }
 
   applyYouTubeExtractorArgsIfNeeded({ flags, isYouTube, config });

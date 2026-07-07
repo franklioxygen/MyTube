@@ -17,6 +17,17 @@ export type AuthorOrganizationMode =
   | "root"
   | "author_folder_only"
   | "author_collection_linked";
+export const PREFERRED_VIDEO_CONTAINERS = [
+  "auto",
+  "mp4",
+  "webm",
+  "mkv",
+] as const;
+export type PreferredVideoContainer = (typeof PREFERRED_VIDEO_CONTAINERS)[number];
+export type ExplicitPreferredVideoContainer = Exclude<
+  PreferredVideoContainer,
+  "auto"
+>;
 
 export type LiveTranslationModel = "gemini-3.5-live-translate-preview";
 
@@ -71,6 +82,7 @@ export interface Settings {
   defaultSort?: string;
   preferredAudioLanguage?: string;
   defaultVideoCodec?: string;
+  preferredVideoContainer?: PreferredVideoContainer;
   // Preferred maximum video resolution height (issue #295). "auto" lets the
   // downloader pick the best available; a numeric string (e.g. "1080") caps the
   // selection. When preferredVideoResolutionStrict is true, an episode that
@@ -141,6 +153,7 @@ export const defaultSettings: Settings = {
   itemsPerPage: 12,
   showYoutubeSearch: true,
   authorOrganizationMode: "root",
+  preferredVideoContainer: "auto",
   preferredVideoResolution: "auto",
   preferredVideoResolutionStrict: false,
   infiniteScroll: false,
@@ -213,4 +226,33 @@ export function usesAuthorFolderOrganization(
   mode: AuthorOrganizationMode
 ): boolean {
   return mode !== "root";
+}
+
+export function isPreferredVideoContainer(
+  value: unknown
+): value is PreferredVideoContainer {
+  return (
+    typeof value === "string" &&
+    PREFERRED_VIDEO_CONTAINERS.includes(value as PreferredVideoContainer)
+  );
+}
+
+export function normalizePreferredVideoContainer(
+  value: unknown
+): PreferredVideoContainer {
+  if (typeof value !== "string") {
+    return "auto";
+  }
+
+  const normalized = value.trim().toLowerCase();
+  return isPreferredVideoContainer(normalized) ? normalized : "auto";
+}
+
+export function resolveExplicitPreferredVideoContainer(settings: {
+  preferredVideoContainer?: unknown;
+}): ExplicitPreferredVideoContainer | null {
+  const normalized = normalizePreferredVideoContainer(
+    settings.preferredVideoContainer
+  );
+  return normalized === "auto" ? null : normalized;
 }

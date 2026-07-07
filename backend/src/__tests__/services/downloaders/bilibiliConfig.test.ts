@@ -247,6 +247,25 @@ describe('prepareBilibiliDownloadFlags', () => {
 
       expect(result.mergeOutputFormat).toBe('mp4');
     });
+
+    it('uses app preferredVideoContainer when user mergeOutputFormat is not specified', () => {
+      mockGetSettings.mockReturnValue({ preferredVideoContainer: 'mkv' });
+
+      const result = prepareBilibiliDownloadFlags(TEST_URL, TEST_OUTPUT);
+
+      expect(result.flags.mergeOutputFormat).toBe('mkv');
+      expect(result.mergeOutputFormat).toBe('mkv');
+    });
+
+    it('keeps user mergeOutputFormat ahead of app preferredVideoContainer', () => {
+      mockGetSettings.mockReturnValue({ preferredVideoContainer: 'webm' });
+      mockGetUserYtDlpConfig.mockReturnValue({ mergeOutputFormat: 'mkv' });
+
+      const result = prepareBilibiliDownloadFlags(TEST_URL, TEST_OUTPUT);
+
+      expect(result.flags.mergeOutputFormat).toBe('mkv');
+      expect(result.mergeOutputFormat).toBe('mkv');
+    });
   });
 
   describe('network config passthrough', () => {
