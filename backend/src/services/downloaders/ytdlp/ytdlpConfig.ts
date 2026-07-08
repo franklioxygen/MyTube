@@ -359,6 +359,23 @@ function applyDefaultVideoCodecIfNeeded(
   return true;
 }
 
+function isMp4OnlyFormatSelection(format: unknown): boolean {
+  if (typeof format !== "string") {
+    return false;
+  }
+
+  const explicitExtensions = Array.from(
+    format.matchAll(/\[ext=([^\]]+)\]/g),
+    (match) => match[1]?.trim().toLowerCase(),
+  ).filter(Boolean);
+
+  return (
+    explicitExtensions.length > 0 &&
+    !explicitExtensions.includes("webm") &&
+    explicitExtensions.every((ext) => ext === "mp4" || ext === "m4a")
+  );
+}
+
 function applyPreferredVideoContainerIfNeeded(
   flags: YtDlpFlags,
   hasUserMergeOutputFormat: boolean,
@@ -371,6 +388,13 @@ function applyPreferredVideoContainerIfNeeded(
     storageService.getSettings()
   );
   if (!preferredContainer) {
+    return null;
+  }
+
+  if (preferredContainer === "webm" && isMp4OnlyFormatSelection(flags.format)) {
+    logger.info(
+      "Skipping preferred WebM container because the selected format is MP4/M4A-only"
+    );
     return null;
   }
 
