@@ -117,12 +117,22 @@ export function resolveBilibiliMergeOutputFormat(
     userConfig.mergeOutputFormat
       ? userConfig.mergeOutputFormat
       : undefined;
+  if (userMergeOutputFormat) {
+    return userMergeOutputFormat;
+  }
 
-  return (
-    userMergeOutputFormat ||
-    resolveExplicitPreferredVideoContainer(storageService.getSettings()) ||
-    "mp4"
+  const preferredContainer = resolveExplicitPreferredVideoContainer(
+    storageService.getSettings()
   );
+
+  // Bilibili's default selectors download MP4 video with M4A audio. Applying a
+  // global WebM container would force an incompatible remux; keep MP4 unless the
+  // user explicitly overrides Bilibili mergeOutputFormat.
+  if (preferredContainer === "webm") {
+    return "mp4";
+  }
+
+  return preferredContainer || "mp4";
 }
 
 export interface BilibiliResolutionPreference {

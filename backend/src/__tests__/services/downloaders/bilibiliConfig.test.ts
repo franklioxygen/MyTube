@@ -257,6 +257,15 @@ describe('prepareBilibiliDownloadFlags', () => {
       expect(result.mergeOutputFormat).toBe('mkv');
     });
 
+    it('falls back to mp4 for app WebM preference because Bilibili selects MP4/M4A streams', () => {
+      mockGetSettings.mockReturnValue({ preferredVideoContainer: 'webm' });
+
+      const result = prepareBilibiliDownloadFlags(TEST_URL, TEST_OUTPUT);
+
+      expect(result.flags.mergeOutputFormat).toBe('mp4');
+      expect(result.mergeOutputFormat).toBe('mp4');
+    });
+
     it('keeps user mergeOutputFormat ahead of app preferredVideoContainer', () => {
       mockGetSettings.mockReturnValue({ preferredVideoContainer: 'webm' });
       mockGetUserYtDlpConfig.mockReturnValue({ mergeOutputFormat: 'mkv' });
