@@ -5,9 +5,10 @@ import puppeteer from 'puppeteer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MissAVDownloader } from '../../../services/downloaders/MissAVDownloader';
 import { cleanupTemporaryFiles, isCancellationError } from '../../../utils/downloadUtils';
-import { flagsToArgs, isYtDlpImpersonateAvailable } from '../../../utils/ytDlpUtils';
+import { flagsToArgs, getUserYtDlpConfig, isYtDlpImpersonateAvailable } from '../../../utils/ytDlpUtils';
 import * as security from '../../../utils/security';
 import { logger } from '../../../utils/logger';
+import * as storageService from '../../../services/storageService';
 
 vi.mock('puppeteer');
 vi.mock('../../../services/storageService', () => ({
@@ -77,6 +78,8 @@ describe('MissAVDownloader', () => {
   beforeEach(() => {
     vi.mocked(fs.existsSync).mockReturnValue(false);
     vi.mocked(security.pathExistsTrustedSync).mockReturnValue(false);
+    vi.mocked(storageService.getSettings).mockReturnValue({} as any);
+    (getUserYtDlpConfig as ReturnType<typeof vi.fn>).mockReturnValue({});
   });
 
   afterEach(() => {
@@ -451,6 +454,43 @@ describe('MissAVDownloader', () => {
       // so the flag must be omitted and the download attempted unimpersonated.
       expect(flags.impersonate).toBeUndefined();
       expect(flags.addHeader).toEqual(['Referer:https://missav.com/']);
+    });
+
+    it('uses the app preferred container for MissAV when user mergeOutputFormat is not set', async () => {
+      vi.mocked(storageService.getSettings).mockReturnValue({
+        preferredVideoContainer: 'mkv',
+      } as any);
+      const mockPage = buildPageMock('success');
+      const mockBrowser = { newPage: vi.fn().mockResolvedValue(mockPage), close: vi.fn().mockResolvedValue(undefined) };
+      (puppeteer.launch as ReturnType<typeof vi.fn>).mockResolvedValue(mockBrowser);
+
+      await MissAVDownloader.downloadVideo('https://missav.com/test-video').catch(() => {});
+
+      const calls = (flagsToArgs as ReturnType<typeof vi.fn>).mock.calls;
+      const flags = calls[calls.length - 1]?.[0] ?? {};
+
+      expect(flags.mergeOutputFormat).toBe('mkv');
+      expect(flags.output).toMatch(/\.mkv$/);
+    });
+
+    it('keeps explicit MissAV mergeOutputFormat ahead of the app preferred container', async () => {
+      vi.mocked(storageService.getSettings).mockReturnValue({
+        preferredVideoContainer: 'mkv',
+      } as any);
+      (getUserYtDlpConfig as ReturnType<typeof vi.fn>).mockReturnValue({
+        mergeOutputFormat: 'mp4',
+      });
+      const mockPage = buildPageMock('success');
+      const mockBrowser = { newPage: vi.fn().mockResolvedValue(mockPage), close: vi.fn().mockResolvedValue(undefined) };
+      (puppeteer.launch as ReturnType<typeof vi.fn>).mockResolvedValue(mockBrowser);
+
+      await MissAVDownloader.downloadVideo('https://missav.com/test-video').catch(() => {});
+
+      const calls = (flagsToArgs as ReturnType<typeof vi.fn>).mock.calls;
+      const flags = calls[calls.length - 1]?.[0] ?? {};
+
+      expect(flags.mergeOutputFormat).toBe('mp4');
+      expect(flags.output).toMatch(/\.mp4$/);
     });
 
     it('treats SIGTERM from user cancellation as DownloadCancelledError', async () => {

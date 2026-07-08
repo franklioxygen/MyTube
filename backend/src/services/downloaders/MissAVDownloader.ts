@@ -4,6 +4,7 @@ import fs from "fs-extra";
 import path from "path";
 import puppeteer from "puppeteer";
 import { DATA_DIR, IMAGES_DIR, VIDEOS_DIR } from "../../config/paths";
+import { resolveExplicitPreferredVideoContainer } from "../../types/settings";
 import {
   DownloadCancelledError,
   isCancelledError,
@@ -48,6 +49,23 @@ import { selectBestM3u8Url } from "./missav/m3u8";
 import { planMissAvOutputPaths } from "./missav/outputPaths";
 
 const MISSAV_FAILED_REQUEST_LOG_LIMIT = 10;
+
+function resolveMissAvMergeOutputFormat(
+  userConfig: Record<string, unknown>,
+  settings: { preferredVideoContainer?: unknown },
+): string {
+  const userMergeOutputFormat =
+    typeof userConfig.mergeOutputFormat === "string" &&
+    userConfig.mergeOutputFormat
+      ? userConfig.mergeOutputFormat
+      : undefined;
+
+  return (
+    userMergeOutputFormat ||
+    resolveExplicitPreferredVideoContainer(settings) ||
+    "mp4"
+  );
+}
 
 function isPuppeteerTimeoutError(error: unknown): boolean {
   return error instanceof Error && error.name === "TimeoutError";
@@ -349,11 +367,14 @@ export class MissAVDownloader extends BaseDownloader {
       // 5. Get network configuration from user config (already loaded above)
       const networkConfig = getNetworkConfigFromUserConfig(userConfig);
 
-      // Get merge output format from user config or default to mp4
-      const mergeOutputFormat = userConfig.mergeOutputFormat || "mp4";
+      // Get merge output format from user config, app settings, or default to mp4.
+      const settings = storageService.getSettings();
+      const mergeOutputFormat = resolveMissAvMergeOutputFormat(
+        userConfig,
+        settings,
+      );
 
       // 6. Compute output paths using template or legacy formatter
-      const settings = storageService.getSettings();
       const {
         finalVideoFilename,
         finalThumbnailFilename,
@@ -713,7 +734,10 @@ export class MissAVDownloader extends BaseDownloader {
       // Cleanup - try to get the correct extension from config, fallback to mp4
       try {
         const cleanupConfig = getUserYtDlpConfig(url);
-        const cleanupFormat = cleanupConfig.mergeOutputFormat || "mp4";
+        const cleanupFormat = resolveMissAvMergeOutputFormat(
+          cleanupConfig,
+          storageService.getSettings(),
+        );
         const cleanupSafeBaseFilename = formatVideoFilename(
           videoTitle,
           videoAuthor,
