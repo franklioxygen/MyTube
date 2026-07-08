@@ -11,6 +11,8 @@ export interface Video {
   progress?: number;
   progressUpdatedAt?: number;
   fileSize?: string;
+  width?: number;
+  height?: number;
   description?: string;
   [key: string]: any;
 }

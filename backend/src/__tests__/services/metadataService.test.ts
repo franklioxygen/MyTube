@@ -74,6 +74,35 @@ describe('metadataService', () => {
         });
     });
 
+    describe('getVideoDimensions', () => {
+        it('should return dimensions when ffprobe returns width and height', async () => {
+            (security.execFileSafe as any).mockResolvedValueOnce({ stdout: '1920x1080\n' });
+
+            const dimensions = await metadataService.getVideoDimensions('/path/to/video.mp4');
+
+            expect(dimensions).toEqual({ width: 1920, height: 1080 });
+            expect(security.execFileSafe).toHaveBeenCalledWith('ffprobe', [
+                '-v',
+                'error',
+                '-select_streams',
+                'v:0',
+                '-show_entries',
+                'stream=width,height',
+                '-of',
+                'csv=p=0:s=x',
+                '/path/to/video.mp4',
+            ]);
+        });
+
+        it('should return null for incomplete dimension output', async () => {
+            (security.execFileSafe as any).mockResolvedValueOnce({ stdout: '1920xN/A\n' });
+
+            const dimensions = await metadataService.getVideoDimensions('/path/to/video.mp4');
+
+            expect(dimensions).toBeNull();
+        });
+    });
+
     describe('backfillDurations', () => {
         it('should update videos with missing durations', async () => {
             const mockVideos = [
@@ -128,6 +157,32 @@ describe('metadataService', () => {
                 expect.any(Error)
             );
             consoleErrorSpy.mockRestore();
+        });
+    });
+
+    describe('backfillVideoDimensions', () => {
+        it('should update videos with missing dimensions', async () => {
+            const mockVideos = [
+                { id: '1', title: 'Vid 1', videoPath: '/videos/vid1.mp4', width: null, height: null }
+            ];
+            (db.all as any).mockResolvedValue(mockVideos);
+            (security.execFileSafe as any).mockResolvedValueOnce({ stdout: '1920x1080\n' });
+
+            await metadataService.backfillVideoDimensions();
+
+            expect(db.update).toHaveBeenCalled();
+            expect((db as any).set).toHaveBeenCalledWith({ width: 1920, height: 1080 });
+        });
+
+        it('should skip videos that already have dimensions', async () => {
+            const mockVideos = [
+                { id: '1', title: 'Already Filled', videoPath: '/videos/already.mp4', width: 1920, height: 1080 }
+            ];
+            (db.all as any).mockResolvedValue(mockVideos);
+
+            await metadataService.backfillVideoDimensions();
+
+            expect(db.update).not.toHaveBeenCalled();
         });
     });
 });

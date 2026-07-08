@@ -39,6 +39,7 @@ import {
 import {
   extractPartMetadata,
   getFileSize,
+  getVideoDimensions,
   getVideoDuration,
 } from "./bilibiliMetadata";
 import { downloadSubtitles } from "./bilibiliSubtitle";
@@ -206,8 +207,9 @@ export async function downloadSinglePart(
       finalThumbnailFilename,
     } = renameResult;
 
-    // Get video duration and file size using metadata module
+    // Get video duration, dimensions, and file size using metadata module
     const duration = await getVideoDuration(newVideoPath);
+    const dimensions = await getVideoDimensions(newVideoPath);
     const fileSize = getFileSize(newVideoPath);
     const thumbnailWebPath = thumbnailSaved
       ? resolveManagedThumbnailWebPathFromAbsolutePath(newThumbnailPath) ||
@@ -308,6 +310,8 @@ export async function downloadSinglePart(
       thumbnailPath: thumbnailWebPath,
       duration: duration,
       fileSize: fileSize,
+      width: dimensions?.width,
+      height: dimensions?.height,
       channelUrl: channelUrl || undefined,
       authorAvatarFilename: authorAvatarSaved
         ? authorAvatarFilename
@@ -388,6 +392,8 @@ export async function downloadSinglePart(
             : existingVideo.thumbnailPath,
           duration: duration,
           fileSize: fileSize,
+          width: dimensions?.width,
+          height: dimensions?.height,
           title: videoData.title, // Update title in case it changed
           description: videoData.description, // Update description in case it changed
           authorAvatarFilename: authorAvatarSaved

@@ -642,6 +642,8 @@ export class MissAVDownloader extends BaseDownloader {
 
       // 9. Get video duration
       let duration: string | undefined;
+      let width: number | undefined;
+      let height: number | undefined;
       try {
         const { getVideoDuration } =
           await import("../../services/metadataService");
@@ -651,6 +653,18 @@ export class MissAVDownloader extends BaseDownloader {
         }
       } catch (e) {
         logger.error("Failed to extract duration from MissAV video:", e);
+      }
+
+      try {
+        const { getVideoDimensions } =
+          await import("../../services/metadataService");
+        const dimensions = await getVideoDimensions(newVideoPath);
+        if (dimensions) {
+          width = dimensions.width;
+          height = dimensions.height;
+        }
+      } catch (e) {
+        logger.error("Failed to extract dimensions from MissAV video:", e);
       }
 
       // 10. Get file size
@@ -679,6 +693,8 @@ export class MissAVDownloader extends BaseDownloader {
         thumbnailPath: thumbnailSaved ? finalThumbnailWebPath : null,
         duration: duration,
         fileSize: fileSize,
+        width,
+        height,
         addedAt: new Date().toISOString(),
         createdAt: new Date().toISOString(),
       };

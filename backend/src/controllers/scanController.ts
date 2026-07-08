@@ -264,6 +264,57 @@ const extractDuration = async (
   }
 };
 
+type VideoDimensions = {
+  width: number;
+  height: number;
+};
+
+const extractDimensions = async (
+  safeFilePath: string
+): Promise<VideoDimensions | undefined> => {
+  try {
+    const { stdout } = await execFileSafe("ffprobe", [
+      "-v",
+      "error",
+      "-select_streams",
+      "v:0",
+      "-show_entries",
+      "stream=width,height",
+      "-of",
+      "csv=p=0:s=x",
+      safeFilePath,
+    ], { timeout: SCAN_FFPROBE_TIMEOUT_MS });
+
+    const firstLine = stdout
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .find(Boolean);
+    if (!firstLine) {
+      return undefined;
+    }
+
+    const [rawWidth, rawHeight] = firstLine
+      .split(/[x,]/)
+      .map((part) => part.trim());
+    const width = Number.parseInt(rawWidth ?? "", 10);
+    const height = Number.parseInt(rawHeight ?? "", 10);
+
+    if (
+      Number.isFinite(width) &&
+      Number.isFinite(height) &&
+      width > 0 &&
+      height > 0
+    ) {
+      return { width, height };
+    }
+
+    return undefined;
+  } catch (error) {
+    logger.error("Error getting video dimensions:", error);
+    return undefined;
+  }
+};
+
 const maybeGenerateThumbnail = async (
   safeFilePath: string
 ): Promise<string | null> => {
@@ -377,6 +428,9 @@ const processSingleVideoFile = async (
   const duration = safeFilePath
     ? await extractDuration(safeFilePath)
     : undefined;
+  const dimensions = safeFilePath
+    ? await extractDimensions(safeFilePath)
+    : undefined;
 
   const thumbnail = await resolveThumbnail(
     filename,
@@ -419,6 +473,8 @@ const processSingleVideoFile = async (
     addedAt: new Date().toISOString(),
     date: finalDateString,
     duration,
+    width: dimensions?.width,
+    height: dimensions?.height,
     fileSize,
   };
 

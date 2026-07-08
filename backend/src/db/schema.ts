@@ -35,6 +35,8 @@ export const videos = sqliteTable(
     description: text("description"),
     viewCount: integer("view_count"),
     duration: text("duration"),
+    width: integer("width"),
+    height: integer("height"),
     tags: text("tags"), // JSON stringified array of strings
     progress: integer("progress"), // Playback progress in seconds
     progressUpdatedAt: integer("progress_updated_at"), // Timestamp when progress was last saved

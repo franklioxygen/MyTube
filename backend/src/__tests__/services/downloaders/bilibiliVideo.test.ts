@@ -36,6 +36,7 @@ const mocks = vi.hoisted(() => ({
   cleanupFilesOnCancellation: vi.fn(),
   extractPartMetadata: vi.fn(),
   getVideoDuration: vi.fn(),
+  getVideoDimensions: vi.fn(),
   getFileSize: vi.fn(),
   downloadSubtitles: vi.fn(),
   downloadAndProcessAvatar: vi.fn(),
@@ -174,6 +175,7 @@ vi.mock("../../../services/downloaders/bilibili/bilibiliMetadata", () => ({
   extractPartMetadata: (...args: any[]) => mocks.extractPartMetadata(...args),
   getFileSize: (...args: any[]) => mocks.getFileSize(...args),
   getVideoDuration: (...args: any[]) => mocks.getVideoDuration(...args),
+  getVideoDimensions: (...args: any[]) => mocks.getVideoDimensions(...args),
   getVideoHeight: (...args: any[]) => mocks.getVideoHeight(...args),
 }));
 
@@ -285,6 +287,7 @@ describe("bilibiliVideo.downloadSinglePart", () => {
       partTitle: "Part Title",
     });
     mocks.getVideoDuration.mockResolvedValue(123);
+    mocks.getVideoDimensions.mockResolvedValue({ width: 1920, height: 1080 });
     mocks.getFileSize.mockReturnValue(456);
     mocks.downloadSubtitles.mockResolvedValue([]);
     mocks.downloadAndProcessAvatar.mockResolvedValue(null);
@@ -513,6 +516,8 @@ describe("bilibiliVideo.downloadSinglePart", () => {
       expect.objectContaining({
         videoFilename: "final-video.mkv",
         videoPath: "/videos/final-video.mkv",
+        width: 1920,
+        height: 1080,
       }),
     );
   });

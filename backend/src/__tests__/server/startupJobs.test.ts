@@ -14,6 +14,7 @@ vi.mock("../../services/subscriptionService", () => ({
 
 vi.mock("../../services/metadataService", () => ({
   backfillDurations: vi.fn(),
+  backfillVideoDimensions: vi.fn(),
 }));
 
 vi.mock("../../server/cloudRoutes", () => ({
@@ -38,6 +39,7 @@ const flushBackgroundWork = async () => {
 
 const startSchedulerMock = vi.mocked(subscriptionService.startScheduler);
 const backfillDurationsMock = vi.mocked(metadataService.backfillDurations);
+const backfillVideoDimensionsMock = vi.mocked(metadataService.backfillVideoDimensions);
 const startCloudflaredIfEnabledMock = vi.mocked(startCloudflaredIfEnabled);
 const startTelegramDownloadPollingMock = vi.mocked(startTelegramDownloadPolling);
 const loggerErrorMock = vi.mocked(logger.error);
@@ -53,6 +55,7 @@ describe("startBackgroundJobs", () => {
 
     expect(startSchedulerMock).toHaveBeenCalledTimes(1);
     expect(backfillDurationsMock).toHaveBeenCalledTimes(1);
+    expect(backfillVideoDimensionsMock).toHaveBeenCalledTimes(1);
     expect(startTelegramDownloadPollingMock).toHaveBeenCalledTimes(1);
     expect(startCloudflaredIfEnabledMock).toHaveBeenCalledWith(3000);
     expect(loggerErrorMock).not.toHaveBeenCalled();

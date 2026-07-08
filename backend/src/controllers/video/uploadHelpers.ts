@@ -22,6 +22,7 @@ import {
 import { logger } from "../../utils/logger";
 import {
   execFileSafe,
+  getVideoDimensions,
   getVideoDuration,
   uploadedFileHasVideoStream,
 } from "./mediaProbe";
@@ -277,6 +278,7 @@ export const getUploadVideoPayload = async (
   }
 
   const duration = await getVideoDuration(validatedVideoPath);
+  const dimensions = await getVideoDimensions(validatedVideoPath);
 
   const fileSize =
     typeof file.size === "number" && Number.isFinite(file.size)
@@ -295,6 +297,8 @@ export const getUploadVideoPayload = async (
     thumbnailPath: thumbnailExists ? thumbnailWebPath : undefined,
     thumbnailUrl: thumbnailExists ? thumbnailWebPath : undefined,
     duration: duration ? duration.toString() : undefined,
+    width: dimensions?.width,
+    height: dimensions?.height,
     fileSize,
     createdAt: new Date().toISOString(),
     date: new Date().toISOString().split("T")[0].replace(/-/g, ""),

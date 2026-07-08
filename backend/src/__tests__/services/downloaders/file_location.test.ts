@@ -99,6 +99,7 @@ vi.mock('axios', () => ({
 
 vi.mock('../../../services/metadataService', () => ({
     getVideoDuration: vi.fn().mockResolvedValue(null),
+    getVideoDimensions: vi.fn().mockResolvedValue(null),
 }));
 
 vi.mock('../../../utils/downloadUtils', () => ({

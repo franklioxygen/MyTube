@@ -98,6 +98,7 @@ vi.mock('axios', () => {
 // Mock metadataService to avoid file system errors
 vi.mock('../../../services/metadataService', () => ({
     getVideoDuration: vi.fn().mockResolvedValue(null),
+    getVideoDimensions: vi.fn().mockResolvedValue({ width: 1920, height: 1080 }),
 }));
 
 import { YtDlpDownloader } from '../../../services/downloaders/YtDlpDownloader';
