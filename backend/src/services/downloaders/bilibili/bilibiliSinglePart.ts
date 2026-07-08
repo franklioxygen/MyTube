@@ -174,6 +174,9 @@ export async function downloadSinglePart(
     authorAvatarSaved = bilibiliInfo.authorAvatarSaved || false;
     authorAvatarFilename = bilibiliInfo.authorAvatarFilename;
     authorAvatarPath = bilibiliInfo.authorAvatarPath;
+    const actualVideoPath = bilibiliInfo.downloadedVideoPath || videoPath;
+    const actualVideoExtension =
+      bilibiliInfo.downloadedVideoExtension || mergeOutputFormat;
 
     // Check if download was cancelled before processing files
     const downloader = new BilibiliDownloaderHelper();
@@ -188,8 +191,8 @@ export async function downloadSinglePart(
       videoTitle,
       videoAuthor,
       videoDate,
-      mergeOutputFormat,
-      videoPath,
+      actualVideoExtension,
+      actualVideoPath,
       thumbnailPath,
       thumbnailSaved,
       videoDir,

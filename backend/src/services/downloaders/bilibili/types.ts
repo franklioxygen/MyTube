@@ -11,6 +11,8 @@ export interface BilibiliVideoInfo {
   authorAvatarSaved?: boolean;
   authorAvatarFilename?: string;
   authorAvatarPath?: string;
+  downloadedVideoPath?: string;
+  downloadedVideoExtension?: string;
   error?: string;
 }
 

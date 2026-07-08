@@ -522,6 +522,56 @@ describe("bilibiliVideo.downloadSinglePart", () => {
     );
   });
 
+  it("preserves the actual Bilibili output extension when yt-dlp does not remux", async () => {
+    mocks.getSettings.mockReturnValue({
+      moveThumbnailsToVideoFolder: false,
+      moveSubtitlesToVideoFolder: false,
+      authorOrganizationMode: "root",
+      saveAuthorFilesToCollection: false,
+      preferredVideoContainer: "mkv",
+    });
+    mocks.getUserYtDlpConfig.mockReturnValue({});
+    mocks.findVideoFileInTemp.mockReturnValue("video.mp4");
+
+    const result = await downloadSinglePart(
+      "https://www.bilibili.com/video/BV1mkvfallback",
+      1,
+      1,
+      "",
+      "download-mkv-fallback",
+    );
+
+    expect(result.success).toBe(true);
+    expect(mocks.prepareFilePaths).toHaveBeenCalledWith(
+      "mkv",
+      undefined,
+      false,
+    );
+    expect(mocks.moveVideoFile).toHaveBeenCalledWith(
+      "/mock/videos/temp-dir",
+      "video.mp4",
+      "/mock/videos/video_1.mp4",
+    );
+    expect(mocks.renameFilesWithMetadata).toHaveBeenCalledWith(
+      "Part Title",
+      "Mock Author",
+      "20240101",
+      "mp4",
+      "/mock/videos/video_1.mp4",
+      "/mock/images/video_1.jpg",
+      true,
+      "/mock/videos",
+      "/mock/images",
+      expect.any(Object),
+    );
+    expect(mocks.saveVideo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        videoFilename: "final-video.mp4",
+        videoPath: "/videos/final-video.mp4",
+      }),
+    );
+  });
+
   it("relocates collection videos into the author folder under author_folder_only (legacy)", async () => {
     mocks.getSettings.mockReturnValue({
       moveThumbnailsToVideoFolder: false,
