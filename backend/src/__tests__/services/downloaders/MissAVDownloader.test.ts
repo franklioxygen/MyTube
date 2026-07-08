@@ -473,6 +473,23 @@ describe('MissAVDownloader', () => {
       expect(flags.output).toMatch(/\.mkv$/);
     });
 
+    it('keeps MP4 for MissAV when the app preferred container is WebM', async () => {
+      vi.mocked(storageService.getSettings).mockReturnValue({
+        preferredVideoContainer: 'webm',
+      } as any);
+      const mockPage = buildPageMock('success');
+      const mockBrowser = { newPage: vi.fn().mockResolvedValue(mockPage), close: vi.fn().mockResolvedValue(undefined) };
+      (puppeteer.launch as ReturnType<typeof vi.fn>).mockResolvedValue(mockBrowser);
+
+      await MissAVDownloader.downloadVideo('https://missav.com/test-video').catch(() => {});
+
+      const calls = (flagsToArgs as ReturnType<typeof vi.fn>).mock.calls;
+      const flags = calls[calls.length - 1]?.[0] ?? {};
+
+      expect(flags.mergeOutputFormat).toBe('mp4');
+      expect(flags.output).toMatch(/\.mp4$/);
+    });
+
     it('keeps explicit MissAV mergeOutputFormat ahead of the app preferred container', async () => {
       vi.mocked(storageService.getSettings).mockReturnValue({
         preferredVideoContainer: 'mkv',
@@ -491,6 +508,26 @@ describe('MissAVDownloader', () => {
 
       expect(flags.mergeOutputFormat).toBe('mp4');
       expect(flags.output).toMatch(/\.mp4$/);
+    });
+
+    it('keeps explicit MissAV WebM mergeOutputFormat ahead of the app compatibility guard', async () => {
+      vi.mocked(storageService.getSettings).mockReturnValue({
+        preferredVideoContainer: 'webm',
+      } as any);
+      (getUserYtDlpConfig as ReturnType<typeof vi.fn>).mockReturnValue({
+        mergeOutputFormat: 'webm',
+      });
+      const mockPage = buildPageMock('success');
+      const mockBrowser = { newPage: vi.fn().mockResolvedValue(mockPage), close: vi.fn().mockResolvedValue(undefined) };
+      (puppeteer.launch as ReturnType<typeof vi.fn>).mockResolvedValue(mockBrowser);
+
+      await MissAVDownloader.downloadVideo('https://missav.com/test-video').catch(() => {});
+
+      const calls = (flagsToArgs as ReturnType<typeof vi.fn>).mock.calls;
+      const flags = calls[calls.length - 1]?.[0] ?? {};
+
+      expect(flags.mergeOutputFormat).toBe('webm');
+      expect(flags.output).toMatch(/\.webm$/);
     });
 
     it('treats SIGTERM from user cancellation as DownloadCancelledError', async () => {

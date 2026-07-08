@@ -60,11 +60,20 @@ function resolveMissAvMergeOutputFormat(
       ? userConfig.mergeOutputFormat
       : undefined;
 
-  return (
-    userMergeOutputFormat ||
-    resolveExplicitPreferredVideoContainer(settings) ||
-    "mp4"
-  );
+  if (userMergeOutputFormat) {
+    return userMergeOutputFormat;
+  }
+
+  const preferredContainer = resolveExplicitPreferredVideoContainer(settings);
+
+  // MissAV downloads extracted HLS streams, which are normally H.264/AAC.
+  // Applying a global WebM container would force an incompatible remux; keep
+  // MP4 unless the user explicitly overrides MissAV mergeOutputFormat.
+  if (preferredContainer === "webm") {
+    return "mp4";
+  }
+
+  return preferredContainer || "mp4";
 }
 
 function isPuppeteerTimeoutError(error: unknown): boolean {
