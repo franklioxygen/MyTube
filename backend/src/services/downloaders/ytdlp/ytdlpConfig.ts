@@ -377,6 +377,30 @@ function isMp4OnlyFormatSelection(format: unknown): boolean {
   );
 }
 
+const MP4_PREFERRED_FORMAT =
+  "bestvideo[ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a]/bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best";
+
+function isWebmFirstFormatSelection(format: unknown): boolean {
+  if (typeof format !== "string") {
+    return false;
+  }
+
+  const firstBranch = format
+    .split("/")
+    .map((value) => value.trim())
+    .find(Boolean);
+  if (!firstBranch) {
+    return false;
+  }
+
+  const normalized = firstBranch.toLowerCase();
+  return (
+    normalized.includes("ext=webm") ||
+    normalized.includes("vcodec^=vp9") ||
+    normalized.includes("vcodec:vp9")
+  );
+}
+
 function isDirectHlsManifestUrl(videoUrl: string): boolean {
   try {
     return new URL(videoUrl).pathname.toLowerCase().includes(".m3u8");
@@ -396,6 +420,7 @@ function applyPreferredVideoContainerIfNeeded(
   flags: YtDlpFlags,
   hasUserMergeOutputFormat: boolean,
   isKnownHls: boolean,
+  hasUserFormat: boolean,
 ): string | null {
   if (hasUserMergeOutputFormat) {
     return null;
@@ -422,6 +447,22 @@ function applyPreferredVideoContainerIfNeeded(
       "Skipping preferred WebM container because the generic HLS format does not constrain codecs"
     );
     return null;
+  }
+
+  // Forcing MP4 only constrains the merge container, not the format selector.
+  // A WebM-first selector (default YouTube selector or a VP9 codec preference)
+  // would still fetch VP9/WebM streams and remux into an MP4 that does not
+  // actually satisfy the compatibility setting, so switch the selector to
+  // MP4/M4A. We only rewrite our own default selectors, never a user's format.
+  if (
+    preferredContainer === "mp4" &&
+    !hasUserFormat &&
+    isWebmFirstFormatSelection(flags.format)
+  ) {
+    flags.format = MP4_PREFERRED_FORMAT;
+    logger.info(
+      "Switched WebM-first selector to MP4/M4A to satisfy preferred MP4 container"
+    );
   }
 
   flags.mergeOutputFormat = preferredContainer;
@@ -580,6 +621,7 @@ function applyPostBuildRules(context: DownloadFlagContext): string {
     flags,
     hasUserMergeOutputFormat,
     isKnownHls,
+    hasUserSpecifiedFormat(config),
   );
   if (preferredContainer) {
     mergeOutputFormat = preferredContainer;

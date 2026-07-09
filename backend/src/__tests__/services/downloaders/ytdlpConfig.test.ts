@@ -34,6 +34,62 @@ describe("prepareDownloadFlags final container preference", () => {
     expect(result.videoExtension).toBe("webm");
   });
 
+  it("switches the default YouTube WebM-first selector to MP4 when forcing MP4", () => {
+    mockGetSettings.mockReturnValue({
+      preferredVideoContainer: "mp4",
+    });
+
+    const result = prepareDownloadFlags(
+      "https://www.youtube.com/watch?v=abc123",
+      "/tmp/video.mp4",
+      {},
+    );
+
+    expect(result.flags.format).not.toContain("ext=webm");
+    expect(result.flags.format).not.toContain("vp9");
+    expect(result.flags.format).toContain("ext=mp4");
+    expect(result.flags.mergeOutputFormat).toBe("mp4");
+    expect(result.mergeOutputFormat).toBe("mp4");
+    expect(result.videoExtension).toBe("mp4");
+  });
+
+  it("switches a VP9 codec selector to MP4 when forcing MP4", () => {
+    mockGetSettings.mockReturnValue({
+      defaultVideoCodec: "vp9",
+      preferredVideoContainer: "mp4",
+    });
+
+    const result = prepareDownloadFlags(
+      "https://www.youtube.com/watch?v=abc123",
+      "/tmp/video.mp4",
+      {},
+    );
+
+    expect(result.flags.format).not.toContain("vcodec^=vp9");
+    expect(result.flags.format).toContain("ext=mp4");
+    expect(result.flags.mergeOutputFormat).toBe("mp4");
+    expect(result.mergeOutputFormat).toBe("mp4");
+    expect(result.videoExtension).toBe("mp4");
+  });
+
+  it("keeps a user-specified WebM-first format even when forcing MP4", () => {
+    mockGetSettings.mockReturnValue({
+      preferredVideoContainer: "mp4",
+    });
+
+    const result = prepareDownloadFlags(
+      "https://www.youtube.com/watch?v=abc123",
+      "/tmp/video.mp4",
+      { format: "bestvideo[ext=webm]+bestaudio[ext=webm]" },
+    );
+
+    expect(result.flags.format).toBe(
+      "bestvideo[ext=webm]+bestaudio[ext=webm]",
+    );
+    expect(result.flags.mergeOutputFormat).toBe("mp4");
+    expect(result.mergeOutputFormat).toBe("mp4");
+  });
+
   it("uses the preferred final container after codec selection", () => {
     mockGetSettings.mockReturnValue({
       defaultVideoCodec: "vp9",
