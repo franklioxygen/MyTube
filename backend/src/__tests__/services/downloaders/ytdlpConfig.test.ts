@@ -72,6 +72,28 @@ describe("prepareDownloadFlags final container preference", () => {
     expect(result.videoExtension).toBe("mp4");
   });
 
+  it("preserves the audio-language filter when forcing MP4 over a VP9 codec", () => {
+    mockGetSettings.mockReturnValue({
+      preferredAudioLanguage: "en",
+      defaultVideoCodec: "vp9",
+      preferredVideoContainer: "mp4",
+    });
+
+    const result = prepareDownloadFlags(
+      "https://www.youtube.com/watch?v=abc123",
+      "/tmp/video.mp4",
+      {},
+    );
+
+    expect(result.flags.format).toContain("language=en");
+    expect(result.flags.format).toContain("ext=mp4");
+    expect(result.flags.format).not.toContain("ext=webm");
+    expect(result.flags.format).not.toContain("vcodec^=vp9");
+    expect(result.flags.mergeOutputFormat).toBe("mp4");
+    expect(result.mergeOutputFormat).toBe("mp4");
+    expect(result.videoExtension).toBe("mp4");
+  });
+
   it("keeps a user-specified WebM-first format even when forcing MP4", () => {
     mockGetSettings.mockReturnValue({
       preferredVideoContainer: "mp4",

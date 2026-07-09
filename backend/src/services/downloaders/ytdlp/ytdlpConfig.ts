@@ -380,6 +380,30 @@ function isMp4OnlyFormatSelection(format: unknown): boolean {
 const MP4_PREFERRED_FORMAT =
   "bestvideo[ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a]/bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best";
 
+function extractAudioLanguageFilter(format: unknown): string | null {
+  if (typeof format !== "string") {
+    return null;
+  }
+  return format.match(/\[language=([^\]]+)\]/)?.[1] ?? null;
+}
+
+function buildMp4PreferredFormat(previousFormat: unknown): string {
+  const lang = extractAudioLanguageFilter(previousFormat);
+  if (!lang) {
+    return MP4_PREFERRED_FORMAT;
+  }
+
+  // Mirror the audio-language selector but prefer MP4/M4A/AVC1, keeping the
+  // language constraint on the leading branches and falling back to
+  // language-agnostic MP4 so selection never fails when no such audio exists.
+  return (
+    `bestvideo[ext=mp4][vcodec^=avc1]+bestaudio[language=${lang}][ext=m4a]/` +
+    `bestvideo[ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a]/` +
+    `bestvideo[ext=mp4]+bestaudio[language=${lang}]/` +
+    `bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best`
+  );
+}
+
 function isWebmFirstFormatSelection(format: unknown): boolean {
   if (typeof format !== "string") {
     return false;
@@ -459,7 +483,7 @@ function applyPreferredVideoContainerIfNeeded(
     !hasUserFormat &&
     isWebmFirstFormatSelection(flags.format)
   ) {
-    flags.format = MP4_PREFERRED_FORMAT;
+    flags.format = buildMp4PreferredFormat(flags.format);
     logger.info(
       "Switched WebM-first selector to MP4/M4A to satisfy preferred MP4 container"
     );
