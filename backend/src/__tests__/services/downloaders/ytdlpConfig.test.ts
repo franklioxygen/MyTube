@@ -88,6 +88,74 @@ describe("prepareDownloadFlags final container preference", () => {
     expect(result.videoExtension).toBe("mp4");
   });
 
+  it("does not force app WebM preference onto Twitch generic HLS selections", () => {
+    mockGetSettings.mockReturnValue({
+      preferredVideoContainer: "webm",
+    });
+
+    const result = prepareDownloadFlags(
+      "https://www.twitch.tv/videos/123456789",
+      "/tmp/video.mp4",
+      {},
+    );
+
+    expect(result.flags.format).toContain("bestvideo");
+    expect(result.flags.format).not.toContain("ext=webm");
+    expect(result.flags.mergeOutputFormat).toBe("mp4");
+    expect(result.mergeOutputFormat).toBe("mp4");
+    expect(result.videoExtension).toBe("mp4");
+  });
+
+  it("does not force app WebM preference onto direct HLS manifest selections", () => {
+    mockGetSettings.mockReturnValue({
+      preferredVideoContainer: "webm",
+    });
+
+    const result = prepareDownloadFlags(
+      "https://stream.example.com/live/master.m3u8?token=abc",
+      "/tmp/video.mp4",
+      {},
+    );
+
+    expect(result.flags.format).toContain("bestvideo");
+    expect(result.flags.format).not.toContain("ext=webm");
+    expect(result.flags.mergeOutputFormat).toBe("mp4");
+    expect(result.mergeOutputFormat).toBe("mp4");
+    expect(result.videoExtension).toBe("mp4");
+  });
+
+  it("keeps app WebM preference for non-HLS generic downloads", () => {
+    mockGetSettings.mockReturnValue({
+      preferredVideoContainer: "webm",
+    });
+
+    const result = prepareDownloadFlags(
+      "https://video.example.com/watch/123",
+      "/tmp/video.mp4",
+      {},
+    );
+
+    expect(result.flags.mergeOutputFormat).toBe("webm");
+    expect(result.mergeOutputFormat).toBe("webm");
+    expect(result.videoExtension).toBe("webm");
+  });
+
+  it("preserves explicit WebM mergeOutputFormat for Twitch downloads", () => {
+    mockGetSettings.mockReturnValue({
+      preferredVideoContainer: "mp4",
+    });
+
+    const result = prepareDownloadFlags(
+      "https://www.twitch.tv/videos/123456789",
+      "/tmp/video.mp4",
+      { mergeOutputFormat: "webm" },
+    );
+
+    expect(result.flags.mergeOutputFormat).toBe("webm");
+    expect(result.mergeOutputFormat).toBe("webm");
+    expect(result.videoExtension).toBe("webm");
+  });
+
   it("does not force app WebM preference onto H.264 MP4/M4A selections", () => {
     mockGetSettings.mockReturnValue({
       defaultVideoCodec: "h264",

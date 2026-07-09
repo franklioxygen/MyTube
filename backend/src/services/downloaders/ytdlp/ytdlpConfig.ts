@@ -1,6 +1,6 @@
 import * as storageService from "../../../services/storageService";
 import { resolveExplicitPreferredVideoContainer } from "../../../types/settings";
-import { isTwitterUrl, isYouTubeUrl } from "../../../utils/helpers";
+import { isTwitchUrl, isTwitterUrl, isYouTubeUrl } from "../../../utils/helpers";
 import { logger } from "../../../utils/logger";
 import { getUserYtDlpConfig } from "../../../utils/ytDlpUtils";
 import { getProviderScript } from "./ytdlpHelpers";
@@ -21,6 +21,7 @@ interface DownloadFlagContext {
   config: UserYtDlpConfig;
   isYouTube: boolean;
   isTwitter: boolean;
+  isKnownHls: boolean;
   formatSortValue?: string;
   youtubeFormat: string;
   mergeOutputFormat: string;
@@ -376,9 +377,25 @@ function isMp4OnlyFormatSelection(format: unknown): boolean {
   );
 }
 
+function isDirectHlsManifestUrl(videoUrl: string): boolean {
+  try {
+    return new URL(videoUrl).pathname.toLowerCase().includes(".m3u8");
+  } catch {
+    return videoUrl.toLowerCase().includes(".m3u8");
+  }
+}
+
+function isGenericHlsDefaultFormatSelection(
+  format: unknown,
+  isKnownHls: boolean,
+): boolean {
+  return isKnownHls && format === DEFAULT_FORMAT;
+}
+
 function applyPreferredVideoContainerIfNeeded(
   flags: YtDlpFlags,
   hasUserMergeOutputFormat: boolean,
+  isKnownHls: boolean,
 ): string | null {
   if (hasUserMergeOutputFormat) {
     return null;
@@ -394,6 +411,15 @@ function applyPreferredVideoContainerIfNeeded(
   if (preferredContainer === "webm" && isMp4OnlyFormatSelection(flags.format)) {
     logger.info(
       "Skipping preferred WebM container because the selected format is MP4/M4A-only"
+    );
+    return null;
+  }
+  if (
+    preferredContainer === "webm" &&
+    isGenericHlsDefaultFormatSelection(flags.format, isKnownHls)
+  ) {
+    logger.info(
+      "Skipping preferred WebM container because the generic HLS format does not constrain codecs"
     );
     return null;
   }
@@ -473,6 +499,7 @@ function createDownloadFlagContext(
 
   const isTwitter = isTwitterUrl(videoUrl);
   const isYouTube = isYouTubeUrl(videoUrl);
+  const isKnownHls = isTwitchUrl(videoUrl) || isDirectHlsManifestUrl(videoUrl);
   const mergeOutputFormat = resolveMergeOutputFormat({
     isYouTube,
     isTwitter,
@@ -498,6 +525,7 @@ function createDownloadFlagContext(
     config,
     isYouTube,
     isTwitter,
+    isKnownHls,
     formatSortValue,
     youtubeFormat,
     mergeOutputFormat,
@@ -510,6 +538,7 @@ function applyPostBuildRules(context: DownloadFlagContext): string {
     flags,
     isYouTube,
     isTwitter,
+    isKnownHls,
     config,
     formatSortValue,
     youtubeFormat,
@@ -550,6 +579,7 @@ function applyPostBuildRules(context: DownloadFlagContext): string {
   const preferredContainer = applyPreferredVideoContainerIfNeeded(
     flags,
     hasUserMergeOutputFormat,
+    isKnownHls,
   );
   if (preferredContainer) {
     mergeOutputFormat = preferredContainer;
