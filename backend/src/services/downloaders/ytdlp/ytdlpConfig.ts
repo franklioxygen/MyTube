@@ -92,10 +92,6 @@ function hasUserSpecifiedFormatSort(config: UserYtDlpConfig): boolean {
   return Boolean(config.S || config.formatSort);
 }
 
-function hasUserFormatControl(config: UserYtDlpConfig): boolean {
-  return hasUserSpecifiedFormat(config) || hasUserSpecifiedFormatSort(config);
-}
-
 function resolveDownloadFormats(config: UserYtDlpConfig): {
   defaultFormat: string;
   youtubeFormat: string;
@@ -326,7 +322,7 @@ function applyDefaultVideoCodecIfNeeded(
   },
 ): boolean {
   const { flags, config, isTwitter, hasUserMergeOutputFormat } = args;
-  if (hasUserFormatControl(config) || isTwitter) {
+  if (hasUserSpecifiedFormat(config) || isTwitter) {
     return false;
   }
 

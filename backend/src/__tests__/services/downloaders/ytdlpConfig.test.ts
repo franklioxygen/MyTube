@@ -254,6 +254,27 @@ describe("prepareDownloadFlags final container preference", () => {
     expect(result.videoExtension).toBe("mp4");
   });
 
+  it("combines H.264 preference with a user resolution format sort", () => {
+    mockGetSettings.mockReturnValue({
+      defaultVideoCodec: "h264",
+      preferredVideoContainer: "auto",
+    });
+
+    const result = prepareDownloadFlags(
+      "https://www.youtube.com/watch?v=abc123",
+      "/tmp/video.mp4",
+      { S: "res:2160" },
+    );
+
+    expect(result.flags.formatSort).toBe("vcodec:h264,res:2160");
+    expect(result.flags.format).toContain("vcodec^=avc1");
+    expect(result.flags.format).toContain("ext=mp4");
+    expect(result.flags.format).toContain("ext=m4a");
+    expect(result.flags.mergeOutputFormat).toBe("mp4");
+    expect(result.mergeOutputFormat).toBe("mp4");
+    expect(result.videoExtension).toBe("mp4");
+  });
+
   it("does not force app WebM preference onto preferred-language MP4/M4A selections", () => {
     mockGetSettings.mockReturnValue({
       preferredAudioLanguage: "en",
