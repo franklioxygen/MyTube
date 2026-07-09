@@ -56,6 +56,14 @@ vi.mock('../../hooks/useSettings', () => ({
     }),
 }));
 
+vi.mock('../../hooks/useFavoriteCollections', () => ({
+    useFavoriteCollections: () => ({
+        isFavorite: () => false,
+        toggle: vi.fn(),
+        isToggling: false,
+    }),
+}));
+
 const mockSaveMutateAsync = vi.fn().mockResolvedValue(undefined);
 vi.mock('../../hooks/useSettingsMutations', () => ({
     useSettingsMutations: () => ({

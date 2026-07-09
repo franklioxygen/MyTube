@@ -120,6 +120,40 @@ export const collectionVideos = sqliteTable(
   })
 );
 
+export const favoriteCollections = sqliteTable(
+  "favorite_collections",
+  {
+    userId: text("user_id").notNull(),
+    collectionId: text("collection_id").notNull(),
+    createdAt: integer("created_at").notNull(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.userId, table.collectionId] }),
+    collectionFk: foreignKey({
+      columns: [table.collectionId],
+      foreignColumns: [collections.id],
+    }).onDelete("cascade"),
+    userIdIdx: index("idx_favorite_collections_user").on(table.userId),
+  })
+);
+
+export const favoriteAuthors = sqliteTable(
+  "favorite_authors",
+  {
+    userId: text("user_id").notNull(),
+    author: text("author").notNull(),
+    displayName: text("display_name"),
+    avatarPath: text("avatar_path"),
+    channelUrl: text("channel_url"),
+    createdAt: integer("created_at").notNull(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.userId, table.author] }),
+    userIdIdx: index("idx_favorite_authors_user").on(table.userId),
+    authorIdx: index("idx_favorite_authors_author").on(table.author),
+  })
+);
+
 // Relations
 export const videosRelations = relations(videos, ({ many }) => ({
   collections: many(collectionVideos),

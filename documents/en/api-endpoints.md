@@ -96,6 +96,21 @@ All API routes are mounted under `/api` unless noted otherwise.
 - `DELETE /api/collections/:id` - Delete collection
   - Query params: `deleteVideos=true` (optional, also delete videos in the collection)
 
+## Favorites
+
+Favorites are scoped to the authenticated owner. When login protection is disabled, the legacy single-user owner is used. Visitor sessions may read and change their own favorites; API-key authentication is not accepted for these personal endpoints.
+
+- `GET /api/favorites/collections` - List the caller's favorite collections
+  - Response items include `collectionId`, display metadata, `videoCount`, `thumbnailVideoId`, and `favoritedAt`
+- `POST /api/favorites/collections/:id` - Favorite a collection (idempotent)
+- `DELETE /api/favorites/collections/:id` - Remove a collection from favorites
+- `GET /api/favorites/authors` - List the caller's favorite authors
+  - Response items include the exact `author` key, display metadata, visibility-scoped `videoCount`, and `favoritedAt`
+- `POST /api/favorites/authors` - Favorite or refresh an author metadata snapshot (idempotent upsert)
+  - Body: `{ author: string, displayName?: string, avatarPath?: string, channelUrl?: string }`
+- `DELETE /api/favorites/authors` - Remove an author from favorites
+  - Body: `{ author: string }`; the author is carried in the body so names containing `/`, `?`, or `#` remain exact
+
 ## Subscriptions
 
 - `GET /api/subscriptions` - Get all subscriptions

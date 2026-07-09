@@ -31,6 +31,11 @@ const VISITOR_ALLOWED_POST_EXACT_PATHS = [
 
 const VISITOR_ALLOWED_POST_PREFIX_PATHS = [
   "/settings/passkeys/authenticate",
+  "/favorites",
+] as const;
+
+const VISITOR_ALLOWED_DELETE_PREFIX_PATHS = [
+  "/favorites",
 ] as const;
 
 /**
@@ -143,6 +148,14 @@ export const roleBasedAuthMiddleware = (
         next();
         return;
       }
+    }
+
+    if (
+      req.method === "DELETE" &&
+      matchesPathOrSubpath(req, VISITOR_ALLOWED_DELETE_PREFIX_PATHS)
+    ) {
+      next();
+      return;
     }
 
     // Block all other write operations (POST, PUT, DELETE, PATCH)

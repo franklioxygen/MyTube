@@ -1,6 +1,7 @@
 import { CreateNewFolder, Delete, LocalOffer, ViewSidebar } from '@mui/icons-material';
 import { Avatar, Box, Button, IconButton, Tooltip, Typography } from '@mui/material';
 
+import FavoriteToggle from '../../components/FavoriteToggle';
 import SortControl from '../../components/SortControl';
 
 interface AuthorVideosHeaderProps {
@@ -21,6 +22,11 @@ interface AuthorVideosHeaderProps {
     onOpenTagsModal: () => void;
     onOpenCreateCollectionModal: () => void;
     onOpenDeleteModal: () => void;
+    isFavorite: boolean;
+    onToggleFavorite: () => void;
+    favoriteLabel: string;
+    unfavoriteLabel: string;
+    favoriteDisabled: boolean;
 }
 
 const AuthorVideosHeader: React.FC<AuthorVideosHeaderProps> = ({
@@ -40,7 +46,12 @@ const AuthorVideosHeader: React.FC<AuthorVideosHeaderProps> = ({
     onToggleSidebar,
     onOpenTagsModal,
     onOpenCreateCollectionModal,
-    onOpenDeleteModal
+    onOpenDeleteModal,
+    isFavorite,
+    onToggleFavorite,
+    favoriteLabel,
+    unfavoriteLabel,
+    favoriteDisabled,
 }) => {
     const initial = authorDisplayName ? authorDisplayName.charAt(0).toUpperCase() : 'A';
     const displayName = authorDisplayName || unknownAuthorLabel;
@@ -87,6 +98,13 @@ const AuthorVideosHeader: React.FC<AuthorVideosHeaderProps> = ({
                                 <LocalOffer />
                             </IconButton>
                         </Tooltip>
+                        <FavoriteToggle
+                            active={isFavorite}
+                            onToggle={onToggleFavorite}
+                            label={favoriteLabel}
+                            activeLabel={unfavoriteLabel}
+                            disabled={favoriteDisabled}
+                        />
                         {hasVideos && (
                             <>
                                 <Tooltip title={createCollectionTooltip}>

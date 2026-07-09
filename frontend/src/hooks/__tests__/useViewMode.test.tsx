@@ -50,6 +50,18 @@ describe('useViewMode', () => {
         expect(result.current.viewMode).toBe('collections');
     });
 
+    it('accepts the favorite mode from local storage', () => {
+        localStorageMock.setItem('homeViewMode', 'favorite');
+        const { result } = renderHook(() => useViewMode());
+        expect(result.current.viewMode).toBe('favorite');
+    });
+
+    it('lets a deep-link mode override stale local storage', () => {
+        localStorageMock.setItem('homeViewMode', 'history');
+        const { result } = renderHook(() => useViewMode('favorite'));
+        expect(result.current.viewMode).toBe('favorite');
+    });
+
     it('should update view mode and local storage when handleViewModeChange is called', () => {
         const { result } = renderHook(() => useViewMode());
 

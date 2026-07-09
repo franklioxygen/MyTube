@@ -1,5 +1,5 @@
 import { Box, CircularProgress, Container } from '@mui/material';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import ConfirmationModal from '../../components/ConfirmationModal';
@@ -12,6 +12,7 @@ import { useVideo } from '../../contexts/VideoContext';
 import { useCloudStorageUrl } from '../../hooks/useCloudStorageUrl';
 import { useSettings } from '../../hooks/useSettings';
 import { useVideoSort } from '../../hooks/useVideoSort';
+import { useFavoriteAuthors } from '../../hooks/useFavoriteAuthors';
 import AuthorVideosContent from './AuthorVideosContent';
 import AuthorVideosHeader from './AuthorVideosHeader';
 import { useAuthorTagFilter } from './useAuthorTagFilter';
@@ -26,6 +27,12 @@ const AuthorVideosPage: React.FC = () => {
     const { showSnackbar } = useSnackbar();
     const navigate = useNavigate();
     const { data: settings } = useSettings();
+    const {
+        isFavorite: isFavoriteAuthor,
+        toggle: toggleFavoriteAuthor,
+        refreshMetadata: refreshFavoriteAuthorMetadata,
+        isToggling: isFavoriteToggling,
+    } = useFavoriteAuthors();
 
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const authorVideos = useMemo(
@@ -59,6 +66,24 @@ const AuthorVideosPage: React.FC = () => {
         [authorVideos]
     );
     const avatarUrl = useCloudStorageUrl(authorAvatarPath, 'thumbnail') ?? null;
+    const favoriteAuthorDraft = useMemo(() => ({
+        author: authorDisplayName,
+        displayName: authorDisplayName,
+        avatarPath: authorVideos.find((video) => video.authorAvatarPath)?.authorAvatarPath,
+        channelUrl: authorVideos.find((video) => video.channelUrl)?.channelUrl,
+    }), [authorDisplayName, authorVideos]);
+    const refreshedFavoriteAuthor = useRef<string | null>(null);
+
+    useEffect(() => {
+        if (
+            authorVideos.length > 0 &&
+            isFavoriteAuthor(authorDisplayName) &&
+            refreshedFavoriteAuthor.current !== authorDisplayName
+        ) {
+            refreshedFavoriteAuthor.current = authorDisplayName;
+            refreshFavoriteAuthorMetadata(favoriteAuthorDraft);
+        }
+    }, [authorDisplayName, authorVideos.length, favoriteAuthorDraft, isFavoriteAuthor, refreshFavoriteAuthorMetadata]);
 
     const actions = useAuthorVideoActions({
         authorDisplayName,
@@ -118,6 +143,11 @@ const AuthorVideosPage: React.FC = () => {
                         onOpenTagsModal={actions.openTagsModal}
                         onOpenCreateCollectionModal={actions.openCreateCollectionModal}
                         onOpenDeleteModal={actions.openDeleteModal}
+                        isFavorite={isFavoriteAuthor(authorDisplayName)}
+                        onToggleFavorite={() => toggleFavoriteAuthor(favoriteAuthorDraft)}
+                        favoriteLabel={t('favoriteAuthor')}
+                        unfavoriteLabel={t('unfavorite')}
+                        favoriteDisabled={isFavoriteToggling}
                     />
 
                     <AuthorVideosContent

@@ -145,6 +145,10 @@ export const useVideoFiltering = ({
   );
 
   return useMemo(() => {
+    if (viewMode === "favorite") {
+      return [];
+    }
+
     if (viewMode === "all-videos") {
       return videoArray.filter((video) =>
         videoMatchesTags(

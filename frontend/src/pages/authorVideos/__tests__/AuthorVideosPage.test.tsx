@@ -99,6 +99,15 @@ vi.mock('../../../hooks/useSettings', () => ({
     }),
 }));
 
+vi.mock('../../../hooks/useFavoriteAuthors', () => ({
+    useFavoriteAuthors: () => ({
+        isFavorite: () => false,
+        toggle: vi.fn(),
+        refreshMetadata: vi.fn(),
+        isToggling: false,
+    }),
+}));
+
 vi.mock('../../../hooks/useVideoSort', () => ({
     useVideoSort: (props: { videos: unknown[]; [key: string]: unknown }) => ({
         sortedVideos: props.videos,

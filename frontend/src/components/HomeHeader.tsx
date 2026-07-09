@@ -1,4 +1,4 @@
-import { Collections as CollectionsIcon, Delete as DeleteIcon, GridView, History, Sort, ViewSidebar } from '@mui/icons-material';
+import { Collections as CollectionsIcon, Delete as DeleteIcon, GridView, History, Sort, Star, ViewSidebar } from '@mui/icons-material';
 import { Box, Button, IconButton, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
 import React, { Suspense } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -20,6 +20,8 @@ const getViewModeLabel = (
             return t('collections');
         case 'history':
             return t('history');
+        case 'favorite':
+            return t('favorite');
         case 'all-videos':
         default:
             return t('allVideos');
@@ -67,7 +69,7 @@ export const HomeHeader: React.FC<HomeHeaderProps> = ({
                 >
                     <ViewSidebar sx={{ transform: 'rotate(180deg)' }} />
                 </Button>
-                {selectedTagsCount > 0 && (
+                {selectedTagsCount > 0 && viewMode !== 'favorite' && (
                     <Tooltip title={t('deleteAllFilteredVideos')}>
                         <IconButton
                             color="error"
@@ -108,9 +110,15 @@ export const HomeHeader: React.FC<HomeHeaderProps> = ({
                             {t('history')}
                         </Box>
                     </ToggleButton>
+                    <ToggleButton value="favorite" sx={{ px: { xs: 2, md: 2 } }}>
+                        <Star fontSize="small" sx={{ mr: { xs: 0, md: 1 } }} />
+                        <Box component="span" sx={{ display: { xs: 'none', md: 'block' } }}>
+                            {t('favorite')}
+                        </Box>
+                    </ToggleButton>
                 </ToggleButtonGroup>
 
-                <Box sx={{ display: 'flex' }}>
+                {viewMode !== 'favorite' && <Box sx={{ display: 'flex' }}>
                     <Button
                         variant="outlined"
                         onClick={onSortClick}
@@ -137,7 +145,7 @@ export const HomeHeader: React.FC<HomeHeaderProps> = ({
                             />
                         </Suspense>
                     )}
-                </Box>
+                </Box>}
             </Box>
         </Box>
     );

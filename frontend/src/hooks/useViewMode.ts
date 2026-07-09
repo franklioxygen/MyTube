@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
-export type ViewMode = 'collections' | 'all-videos' | 'history';
+export type ViewMode = 'favorite' | 'collections' | 'all-videos' | 'history';
 
 interface UseViewModeReturn {
     viewMode: ViewMode;
@@ -9,11 +9,15 @@ interface UseViewModeReturn {
     handleViewModeChange: (mode: ViewMode) => void;
 }
 
-export const useViewMode = (): UseViewModeReturn => {
+export const useViewMode = (initialMode?: ViewMode): UseViewModeReturn => {
     const [_searchParams, setSearchParams] = useSearchParams();
     const [viewMode, setViewMode] = useState<ViewMode>(() => {
+        if (initialMode) {
+            return initialMode;
+        }
         const saved = localStorage.getItem('homeViewMode');
         if (
+            saved === 'favorite' ||
             saved === 'collections' ||
             saved === 'all-videos' ||
             saved === 'history'
