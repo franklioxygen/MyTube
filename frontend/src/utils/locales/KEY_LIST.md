@@ -4,7 +4,7 @@ Canonical locale key order derived from `frontend/src/utils/locales/en.ts`.
 
 This list is intentionally unnumbered. When new keys are inserted, only the local section order changes.
 
-Total keys: 1031
+Total keys: 1037
 
 ## Summary
 
@@ -13,7 +13,7 @@ Total keys: 1031
 | Header | 11 | `myTube` | `instruction` |
 | Home | 19 | `pasteUrl` | `views` |
 | Settings | 4 | `general` | `downloadSettings` |
-| Settings Categories | 178 | `basicSettings` | `enterNewTagName` |
+| Settings Categories | 184 | `basicSettings` | `enterNewTagName` |
 | Database | 40 | `database` | `cleanupTempFilesConfirmMessage` |
 | Task Hooks | 69 | `taskHooks` | `cleanupTempFilesFailed` |
 | Cookie Settings | 12 | `cookieSettings` | `cookiesDeleteFailed` |
@@ -261,6 +261,12 @@ Total keys: 1031
 | `defaultVideoCodec_h265` |
 | `defaultVideoCodec_av1` |
 | `defaultVideoCodec_vp9` |
+| `preferredVideoContainer` |
+| `preferredVideoContainerDescription` |
+| `preferredVideoContainer_auto` |
+| `preferredVideoContainer_mp4` |
+| `preferredVideoContainer_webm` |
+| `preferredVideoContainer_mkv` |
 | `saveSettings` |
 | `saving` |
 | `backToManage` |

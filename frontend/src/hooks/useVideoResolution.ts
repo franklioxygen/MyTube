@@ -3,6 +3,27 @@ import { Video } from "../types";
 import { useCloudStorageUrl } from "./useCloudStorageUrl";
 import { isSafari } from "../utils/playerUtils";
 
+const formatHeightAsResolution = (height: unknown): string | null => {
+  if (height === undefined || height === null || height === "") {
+    return null;
+  }
+
+  const h = typeof height === "number" ? height : parseInt(String(height), 10);
+  if (isNaN(h)) {
+    return null;
+  }
+
+  if (h >= 2160) return "4K";
+  if (h >= 1440) return "1440P";
+  if (h >= 1080) return "1080P";
+  if (h >= 720) return "720P";
+  if (h >= 480) return "480P";
+  if (h >= 360) return "360P";
+  if (h >= 240) return "240P";
+  if (h >= 144) return "144P";
+  return null;
+};
+
 // Format video resolution from video object
 export const formatResolution = (video: Video): string | null => {
   // Check if resolution is directly available
@@ -18,22 +39,11 @@ export const formatResolution = (video: Video): string | null => {
     }
   }
 
-  // Check if width and height are available
-  const width = (video as any).width;
-  const height = (video as any).height;
-
-  if (width && height) {
-    const h = typeof height === "number" ? height : parseInt(String(height));
-    if (!isNaN(h)) {
-      if (h >= 2160) return "4K";
-      if (h >= 1440) return "1440P";
-      if (h >= 1080) return "1080P";
-      if (h >= 720) return "720P";
-      if (h >= 480) return "480P";
-      if (h >= 360) return "360P";
-      if (h >= 240) return "240P";
-      if (h >= 144) return "144P";
-    }
+  // Check if stored height is available. Width is useful metadata, but
+  // resolution labels are height-based.
+  const resolutionFromHeight = formatHeightAsResolution(video.height);
+  if (resolutionFromHeight) {
+    return resolutionFromHeight;
   }
 
   // Check if there's a format_id or format that might contain resolution info
@@ -91,19 +101,7 @@ export const useVideoResolution = (video: Video) => {
 
     const handleLoadedMetadata = () => {
       const height = videoElement.videoHeight;
-      if (height && height > 0) {
-        if (height >= 2160) setDetectedResolution("4K");
-        else if (height >= 1440) setDetectedResolution("1440P");
-        else if (height >= 1080) setDetectedResolution("1080P");
-        else if (height >= 720) setDetectedResolution("720P");
-        else if (height >= 480) setDetectedResolution("480P");
-        else if (height >= 360) setDetectedResolution("360P");
-        else if (height >= 240) setDetectedResolution("240P");
-        else if (height >= 144) setDetectedResolution("144P");
-        else setDetectedResolution(null);
-      } else {
-        setDetectedResolution(null);
-      }
+      setDetectedResolution(formatHeightAsResolution(height));
     };
 
     const handleError = () => {

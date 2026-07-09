@@ -1,4 +1,5 @@
 import * as storageService from "../../../services/storageService";
+import { resolveExplicitPreferredVideoContainer } from "../../../types/settings";
 import { logger } from "../../../utils/logger";
 import {
   getNetworkConfigFromUserConfig,
@@ -106,6 +107,32 @@ function resolveSubtitleDefaults(userConfig: BilibiliDownloadFlags): {
         ? userConfig.convertSubs
         : "vtt",
   };
+}
+
+export function resolveBilibiliMergeOutputFormat(
+  userConfig: BilibiliDownloadFlags
+): string {
+  const userMergeOutputFormat =
+    typeof userConfig.mergeOutputFormat === "string" &&
+    userConfig.mergeOutputFormat
+      ? userConfig.mergeOutputFormat
+      : undefined;
+  if (userMergeOutputFormat) {
+    return userMergeOutputFormat;
+  }
+
+  const preferredContainer = resolveExplicitPreferredVideoContainer(
+    storageService.getSettings()
+  );
+
+  // Bilibili's default selectors download MP4 video with M4A audio. Applying a
+  // global WebM container would force an incompatible remux; keep MP4 unless the
+  // user explicitly overrides Bilibili mergeOutputFormat.
+  if (preferredContainer === "webm") {
+    return "mp4";
+  }
+
+  return preferredContainer || "mp4";
 }
 
 export interface BilibiliResolutionPreference {
@@ -327,6 +354,7 @@ export function prepareBilibiliDownloadFlags(
     resolutionPreference,
   );
   const subtitleDefaults = resolveSubtitleDefaults(userConfig);
+  const mergeOutputFormat = resolveBilibiliMergeOutputFormat(userConfig);
 
   // Prepare base flags from user config (excluding output options we manage)
   const {
@@ -339,11 +367,10 @@ export function prepareBilibiliDownloadFlags(
     writeSubs: _writeSubs,
     writeAutoSubs: _writeAutoSubs,
     convertSubs: _convertSubs,
-    mergeOutputFormat: userMergeOutputFormat,
+    mergeOutputFormat: _mergeOutputFormat,
     ...safeUserConfig
   } = userConfig;
 
-  const mergeOutputFormat = userMergeOutputFormat || "mp4";
   logger.info(`Using merge output format: ${mergeOutputFormat}`);
 
   const flags: BilibiliDownloadFlags = {

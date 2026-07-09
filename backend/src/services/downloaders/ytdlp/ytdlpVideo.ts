@@ -512,6 +512,19 @@ export async function downloadVideo(
     logger.error("Failed to extract duration from downloaded file:", e);
   }
 
+  try {
+    const { getVideoDimensions } = await import(
+      "../../../services/metadataService"
+    );
+    const dimensions = await getVideoDimensions(finalVideoPath);
+    if (dimensions) {
+      videoData.width = dimensions.width;
+      videoData.height = dimensions.height;
+    }
+  } catch (e) {
+    logger.error("Failed to extract dimensions from downloaded file:", e);
+  }
+
   // Get file size
   try {
     if (pathExistsSafeSync(finalVideoPath, VIDEOS_DIR)) {
@@ -596,6 +609,8 @@ export async function downloadVideo(
       thumbnailPath: thumbnailSaved ? finalThumbnailWebPath : existingVideo.thumbnailPath,
       duration: videoData.duration,
       fileSize: videoData.fileSize,
+      width: videoData.width,
+      height: videoData.height,
       addedAt: new Date().toISOString(), // Update download date
       title: videoData.title, // Update title in case it changed
       description: videoData.description, // Update description in case it changed

@@ -156,6 +156,23 @@ export async function getVideoHeight(
 }
 
 /**
+ * Get the pixel dimensions of a downloaded video.
+ */
+export async function getVideoDimensions(
+  videoPath: string
+): Promise<{ width: number; height: number } | null> {
+  try {
+    const { getVideoDimensions } = await import(
+      "../../../services/metadataService"
+    );
+    return await getVideoDimensions(videoPath);
+  } catch (e) {
+    logger.error("Failed to extract dimensions from Bilibili video:", e);
+    return null;
+  }
+}
+
+/**
  * Get file size from file
  */
 export function getFileSize(filePath: string): string | undefined {

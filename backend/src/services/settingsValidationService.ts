@@ -4,6 +4,7 @@ import {
   DEFAULT_ADMIN_PASSWORD,
   Settings,
   defaultSettings,
+  isPreferredVideoContainer,
 } from "../types/settings";
 import { logger } from "../utils/logger";
 import * as storageService from "./storageService";
@@ -207,6 +208,16 @@ export function validateSettings(newSettings: Partial<Settings>): void {
     throw new ValidationError(
       `Invalid mediaServerExportMode: "${newSettings.mediaServerExportMode}".`,
       "mediaServerExportMode"
+    );
+  }
+
+  if (
+    newSettings.preferredVideoContainer !== undefined &&
+    !isPreferredVideoContainer(newSettings.preferredVideoContainer)
+  ) {
+    throw new ValidationError(
+      `Invalid preferredVideoContainer: "${newSettings.preferredVideoContainer}".`,
+      "preferredVideoContainer"
     );
   }
 

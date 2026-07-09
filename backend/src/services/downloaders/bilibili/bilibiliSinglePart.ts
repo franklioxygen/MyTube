@@ -29,6 +29,7 @@ import { buildManagedThumbnailWebPath } from "../thumbnailPathUtils";
 import {
   BILIBILI_COOKIE_REFRESH_HINT,
   isLikelyBilibiliAuthFailure,
+  resolveBilibiliMergeOutputFormat,
 } from "./bilibiliConfig";
 import {
   cleanupFilesOnCancellation,
@@ -38,6 +39,7 @@ import {
 import {
   extractPartMetadata,
   getFileSize,
+  getVideoDimensions,
   getVideoDuration,
 } from "./bilibiliMetadata";
 import { downloadSubtitles } from "./bilibiliSubtitle";
@@ -68,9 +70,9 @@ export async function downloadSinglePart(
       `Downloading Bilibili part ${partNumber}/${totalParts}: ${url}`
     );
 
-    // Get user's yt-dlp configuration for merge output format
+    // Keep destination paths aligned with the Bilibili yt-dlp merge container.
     const userConfig = getUserYtDlpConfig(url);
-    const mergeOutputFormat = userConfig.mergeOutputFormat || "mp4";
+    const mergeOutputFormat = resolveBilibiliMergeOutputFormat(userConfig);
     const settings = storageService.getSettings();
     const moveThumbnailsToVideoFolder =
       settings.moveThumbnailsToVideoFolder || false;
@@ -172,6 +174,9 @@ export async function downloadSinglePart(
     authorAvatarSaved = bilibiliInfo.authorAvatarSaved || false;
     authorAvatarFilename = bilibiliInfo.authorAvatarFilename;
     authorAvatarPath = bilibiliInfo.authorAvatarPath;
+    const actualVideoPath = bilibiliInfo.downloadedVideoPath || videoPath;
+    const actualVideoExtension =
+      bilibiliInfo.downloadedVideoExtension || mergeOutputFormat;
 
     // Check if download was cancelled before processing files
     const downloader = new BilibiliDownloaderHelper();
@@ -186,8 +191,8 @@ export async function downloadSinglePart(
       videoTitle,
       videoAuthor,
       videoDate,
-      mergeOutputFormat,
-      videoPath,
+      actualVideoExtension,
+      actualVideoPath,
       thumbnailPath,
       thumbnailSaved,
       videoDir,
@@ -205,8 +210,9 @@ export async function downloadSinglePart(
       finalThumbnailFilename,
     } = renameResult;
 
-    // Get video duration and file size using metadata module
+    // Get video duration, dimensions, and file size using metadata module
     const duration = await getVideoDuration(newVideoPath);
+    const dimensions = await getVideoDimensions(newVideoPath);
     const fileSize = getFileSize(newVideoPath);
     const thumbnailWebPath = thumbnailSaved
       ? resolveManagedThumbnailWebPathFromAbsolutePath(newThumbnailPath) ||
@@ -307,6 +313,8 @@ export async function downloadSinglePart(
       thumbnailPath: thumbnailWebPath,
       duration: duration,
       fileSize: fileSize,
+      width: dimensions?.width,
+      height: dimensions?.height,
       channelUrl: channelUrl || undefined,
       authorAvatarFilename: authorAvatarSaved
         ? authorAvatarFilename
@@ -387,6 +395,8 @@ export async function downloadSinglePart(
             : existingVideo.thumbnailPath,
           duration: duration,
           fileSize: fileSize,
+          width: dimensions?.width,
+          height: dimensions?.height,
           title: videoData.title, // Update title in case it changed
           description: videoData.description, // Update description in case it changed
           authorAvatarFilename: authorAvatarSaved

@@ -15,7 +15,7 @@ import React from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { Settings } from '../../types';
 import { PREFERRED_AUDIO_LANGUAGE_OPTIONS } from '../../utils/audioLanguages';
-import { VIDEO_CODEC_OPTIONS } from '../../utils/videoCodecs';
+import { VIDEO_CODEC_OPTIONS, VIDEO_CONTAINER_OPTIONS } from '../../utils/videoCodecs';
 import FilenameTemplateSettings from './FilenameTemplateSettings';
 
 interface DownloadSettingsProps {
@@ -228,6 +228,32 @@ const DownloadSettings: React.FC<DownloadSettingsProps> = ({
                 </FormControl>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 2 }}>
                     {t('defaultVideoCodecDescription')}
+                </Typography>
+            </Box>
+
+            <Box sx={{ mt: 3 }} id="preferredVideoContainer-setting">
+                <Typography variant="h6" gutterBottom>{t('preferredVideoContainer')}</Typography>
+                <FormControl fullWidth sx={{ maxWidth: 400 }}>
+                    <Select
+                        labelId="preferred-video-container-label"
+                        id="preferred-video-container"
+                        value={settings.preferredVideoContainer ?? 'auto'}
+                        onChange={(e) => onChange('preferredVideoContainer', e.target.value)}
+                        inputProps={{ 'aria-label': t('preferredVideoContainer') }}
+                        renderValue={(v) => {
+                            const opt = VIDEO_CONTAINER_OPTIONS.find((o) => o.value === v);
+                            return opt ? t(opt.labelKey) : v;
+                        }}
+                    >
+                        {VIDEO_CONTAINER_OPTIONS.map((opt) => (
+                            <MenuItem key={opt.value} value={opt.value}>
+                                {t(opt.labelKey)}
+                            </MenuItem>
+                        ))}
+                    </Select>
+                </FormControl>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 2 }}>
+                    {t('preferredVideoContainerDescription')}
                 </Typography>
             </Box>
 

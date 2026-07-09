@@ -73,6 +73,8 @@ const videoSummaryColumns = () => ({
   rating: videos.rating,
   viewCount: videos.viewCount,
   duration: videos.duration,
+  width: videos.width,
+  height: videos.height,
   tags: videos.tags,
   progress: videos.progress,
   progressUpdatedAt: videos.progressUpdatedAt,

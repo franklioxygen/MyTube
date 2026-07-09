@@ -35,6 +35,10 @@ describe("formatResolution", () => {
     expect(formatResolution({ width: 256, height: 144 } as any)).toBe("144P");
   });
 
+  it("derives resolution from height when width is unavailable", () => {
+    expect(formatResolution({ height: 1080 } as any)).toBe("1080P");
+  });
+
   it("derives resolution from format_id", () => {
     expect(formatResolution({ format_id: "video-144p" } as any)).toBe("144P");
   });

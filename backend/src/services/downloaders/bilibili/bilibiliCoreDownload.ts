@@ -42,6 +42,46 @@ import {
   formatYtDlpFailureMessage,
 } from "./bilibiliVideoHelpers";
 
+function resolveDownloadedVideoDestination(
+  plannedVideoPath: string,
+  downloadedVideoFile: string,
+): { path: string; extension: string } {
+  const downloadedExtension = path
+    .extname(downloadedVideoFile)
+    .slice(1)
+    .toLowerCase();
+  const plannedExtension = path
+    .extname(plannedVideoPath)
+    .slice(1)
+    .toLowerCase();
+
+  if (!downloadedExtension || downloadedExtension === plannedExtension) {
+    return {
+      path: plannedVideoPath,
+      extension: plannedExtension || downloadedExtension,
+    };
+  }
+
+  const plannedDirectory = path.dirname(plannedVideoPath);
+  const plannedBasename = path.basename(
+    plannedVideoPath,
+    path.extname(plannedVideoPath),
+  );
+  const actualVideoPath = resolveSafeChildPath(
+    plannedDirectory,
+    `${plannedBasename}.${downloadedExtension}`,
+  );
+
+  logger.warn(
+    `Bilibili requested .${plannedExtension || "unknown"} output but yt-dlp produced .${downloadedExtension}; preserving the actual container extension.`,
+  );
+
+  return {
+    path: actualVideoPath,
+    extension: downloadedExtension,
+  };
+}
+
 /**
  * Core video download function using yt-dlp
  */
@@ -331,8 +371,14 @@ export async function downloadVideo(
       });
     }
 
-    // Move the file to the desired location
-    moveVideoFile(tempDir, videoFile, videoPath);
+    const downloadedVideoDestination = resolveDownloadedVideoDestination(
+      videoPath,
+      videoFile,
+    );
+
+    // Move the file to the desired location, preserving the actual container
+    // extension when yt-dlp did not need to remux the source.
+    moveVideoFile(tempDir, videoFile, downloadedVideoDestination.path);
 
     // Clean up temp directory
     await cleanupTempDir(tempDir);
@@ -347,7 +393,9 @@ export async function downloadVideo(
       try {
         const preference = resolveResolutionPreference();
         if (preference.height != null) {
-          const actualHeight = await getVideoHeight(videoPath);
+          const actualHeight = await getVideoHeight(
+            downloadedVideoDestination.path,
+          );
           const availableHeights = extractAvailableHeights(rawSourceInfo);
           retryTarget = resolveResolutionRetryTarget(
             preference,
@@ -386,6 +434,21 @@ export async function downloadVideo(
         // object — otherwise a failed retry would save a mis-titled / mis-authored
         // video (issue #295 2-1 follow-up).
         if (retryResult && !retryResult.error) {
+          const retryVideoPath = retryResult.downloadedVideoPath || videoPath;
+          if (retryVideoPath !== downloadedVideoDestination.path) {
+            try {
+              if (
+                pathExistsSafeSync(downloadedVideoDestination.path, VIDEOS_DIR)
+              ) {
+                await removeSafe(downloadedVideoDestination.path, VIDEOS_DIR);
+              }
+            } catch (cleanupError) {
+              logger.warn(
+                "Failed to remove superseded Bilibili download after resolution retry:",
+                cleanupError,
+              );
+            }
+          }
           return retryResult;
         }
         logger.warn(
@@ -484,6 +547,8 @@ export async function downloadVideo(
       authorAvatarSaved,
       authorAvatarFilename: authorAvatarFilename,
       authorAvatarPath: authorAvatarPath,
+      downloadedVideoPath: downloadedVideoDestination.path,
+      downloadedVideoExtension: downloadedVideoDestination.extension,
     };
   } catch (error: unknown) {
     logger.error("Error in downloadBilibiliVideo:", error);

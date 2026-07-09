@@ -15,7 +15,9 @@ export const startBackgroundJobs = (port: number): void => {
 
   import("../services/metadataService")
     .then((service) => {
-      void service.backfillDurations();
+      void Promise.resolve(service.backfillDurations()).then(() =>
+        service.backfillVideoDimensions()
+      );
     })
     .catch((error) => {
       logger.error(

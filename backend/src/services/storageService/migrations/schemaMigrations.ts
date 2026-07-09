@@ -470,6 +470,22 @@ export function migrateColumnsAndTables(): void {
       logger.info("Migration successful: duration added.");
     }
 
+    if (!columns.includes("width")) {
+      logger.info(
+        "Migrating database: Adding width column to videos table..."
+      );
+      sqlite.prepare("ALTER TABLE videos ADD COLUMN width INTEGER").run();
+      logger.info("Migration successful: width added.");
+    }
+
+    if (!columns.includes("height")) {
+      logger.info(
+        "Migrating database: Adding height column to videos table..."
+      );
+      sqlite.prepare("ALTER TABLE videos ADD COLUMN height INTEGER").run();
+      logger.info("Migration successful: height added.");
+    }
+
     if (!columns.includes("file_size")) {
       logger.info(
         "Migrating database: Adding file_size column to videos table..."

@@ -21,6 +21,8 @@ export interface Video {
   progressUpdatedAt?: number;
   duration?: string;
   fileSize?: string; // Size in bytes as string
+  width?: number;
+  height?: number;
   lastPlayedAt?: number;
   subtitles?: Array<{ language: string; filename: string; path: string }>;
   description?: string;
@@ -163,6 +165,7 @@ export interface Settings {
   showTagsOnThumbnail?: boolean;
   preferredAudioLanguage?: string;
   defaultVideoCodec?: string;
+  preferredVideoContainer?: 'auto' | 'mp4' | 'webm' | 'mkv';
   preferredVideoResolution?: string;
   preferredVideoResolutionStrict?: boolean;
   authorTags?: Record<string, string[]>;

@@ -114,6 +114,20 @@ describe("settingsValidationService", () => {
       }).not.toThrow();
     });
 
+    it("should validate preferred video container values", () => {
+      expect(() => {
+        settingsValidationService.validateSettings({
+          preferredVideoContainer: "mkv",
+        });
+      }).not.toThrow();
+
+      expect(() => {
+        settingsValidationService.validateSettings({
+          preferredVideoContainer: "avi" as any,
+        });
+      }).toThrow(ValidationError);
+    });
+
     it("should accept deprecated custom preset input during the transition", () => {
       expect(() => {
         settingsValidationService.validateSettings({

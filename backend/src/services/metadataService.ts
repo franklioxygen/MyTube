@@ -19,6 +19,37 @@ const isTemporaryVideoArtifact = (filePath: string): boolean => {
   return TEMPORARY_VIDEO_ARTIFACT_PATTERN.test(path.basename(filePath));
 };
 
+export interface VideoDimensions {
+  width: number;
+  height: number;
+}
+
+const parseVideoDimensions = (stdout: string): VideoDimensions | null => {
+  const firstLine = stdout
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .find(Boolean);
+
+  if (!firstLine) {
+    return null;
+  }
+
+  const [rawWidth, rawHeight] = firstLine.split(/[x,]/).map((part) => part.trim());
+  const width = Number.parseInt(rawWidth ?? "", 10);
+  const height = Number.parseInt(rawHeight ?? "", 10);
+
+  if (
+    Number.isFinite(width) &&
+    Number.isFinite(height) &&
+    width > 0 &&
+    height > 0
+  ) {
+    return { width, height };
+  }
+
+  return null;
+};
+
 export const getVideoDuration = async (
   filePath: string,
 ): Promise<number | null> => {
@@ -56,6 +87,38 @@ export const getVideoDuration = async (
     }
     // Wrap unknown errors
     logger.error(`Error getting duration for ${filePath}:`, error);
+    return null;
+  }
+};
+
+export const getVideoDimensions = async (
+  filePath: string,
+): Promise<VideoDimensions | null> => {
+  try {
+    const validatedPath = validateVideoPath(filePath);
+
+    if (!pathExistsSafeSync(validatedPath, VIDEOS_DIR)) {
+      throw FileError.notFound(validatedPath);
+    }
+
+    const { stdout } = await execFileSafe("ffprobe", [
+      "-v",
+      "error",
+      "-select_streams",
+      "v:0",
+      "-show_entries",
+      "stream=width,height",
+      "-of",
+      "csv=p=0:s=x",
+      validatedPath,
+    ]);
+
+    return parseVideoDimensions(stdout);
+  } catch (error) {
+    if (error instanceof FileError || error instanceof ExecutionError) {
+      throw error;
+    }
+    logger.error(`Error getting dimensions for ${filePath}:`, error);
     return null;
   }
 };
@@ -103,6 +166,66 @@ export const getVideoHeight = async (
     // Wrap unknown errors
     logger.error(`Error getting height for ${filePath}:`, error);
     return null;
+  }
+};
+
+export const backfillVideoDimensions = async () => {
+  logger.info("Starting video dimensions backfill...");
+
+  try {
+    const allVideos = await db.select().from(videos).all();
+    logger.info(`Found ${allVideos.length} videos to check for dimensions.`);
+
+    let updatedCount = 0;
+
+    for (const video of allVideos) {
+      if (video.width && video.height) {
+        continue;
+      }
+
+      let videoPath = video.videoPath;
+      if (!videoPath) continue;
+
+      let fsPath = "";
+      if (videoPath.startsWith("/videos/")) {
+        const relativePath = videoPath.replace("/videos/", "");
+        fsPath = resolveSafeChildPath(VIDEOS_DIR, relativePath);
+      } else {
+        continue;
+      }
+
+      if (!pathExistsSafeSync(fsPath, VIDEOS_DIR)) {
+        continue;
+      }
+
+      if (isTemporaryVideoArtifact(fsPath)) {
+        continue;
+      }
+
+      const dimensions = await getVideoDimensions(fsPath);
+
+      if (dimensions !== null) {
+        db.update(videos)
+          .set({ width: dimensions.width, height: dimensions.height })
+          .where(eq(videos.id, video.id))
+          .run();
+        logger.info(
+          `Updated dimensions for ${video.title}: ${dimensions.width}x${dimensions.height}`,
+        );
+        updatedCount++;
+      }
+    }
+
+    if (updatedCount > 0) {
+      bumpVideosListRevision();
+      logger.info(
+        `Video dimensions backfill finished. Updated ${updatedCount} videos.`,
+      );
+    } else {
+      logger.info("Video dimensions backfill finished. No videos needed update.");
+    }
+  } catch (error) {
+    logger.error("Error during video dimensions backfill:", error);
   }
 };
 
