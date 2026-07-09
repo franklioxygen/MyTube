@@ -5,6 +5,7 @@ import {
   Settings,
   defaultSettings,
   isPreferredVideoContainer,
+  AUDIO_FORMATS,
 } from "../types/settings";
 import { logger } from "../utils/logger";
 import * as storageService from "./storageService";
@@ -218,6 +219,17 @@ export function validateSettings(newSettings: Partial<Settings>): void {
     throw new ValidationError(
       `Invalid preferredVideoContainer: "${newSettings.preferredVideoContainer}".`,
       "preferredVideoContainer"
+    );
+  }
+
+  if (
+    newSettings.audioFormat !== undefined &&
+    (typeof newSettings.audioFormat !== "string" ||
+      !AUDIO_FORMATS.includes(newSettings.audioFormat as (typeof AUDIO_FORMATS)[number]))
+  ) {
+    throw new ValidationError(
+      `Invalid audioFormat: "${newSettings.audioFormat}".`,
+      "audioFormat"
     );
   }
 

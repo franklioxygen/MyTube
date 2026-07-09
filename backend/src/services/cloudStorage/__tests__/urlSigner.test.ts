@@ -43,6 +43,17 @@ describe('cloudStorage urlSigner', () => {
             expect(url).toBe('https://cdn.example.com/d/uploads/video.mp4?sign=test-signature');
         });
 
+        it('should return signed URL for audio found in upload path', async () => {
+            getFileListMock.mockResolvedValue([
+                { name: 'audio.m4a', is_dir: false, sign: 'audio-signature' }
+            ]);
+
+            const url = await getSignedUrl('audio.m4a', 'audio', mockConfig);
+
+            expect(getFileListMock).toHaveBeenCalledWith(mockConfig, '/uploads');
+            expect(url).toBe('https://cdn.example.com/d/uploads/audio.m4a?sign=audio-signature');
+        });
+
         it('should return cached URL if available and valid', async () => {
             getFileListMock.mockResolvedValue([
                 { name: 'video.mp4', is_dir: false, sign: 'first-signature' }

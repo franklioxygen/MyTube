@@ -540,6 +540,16 @@ export function migrateColumnsAndTables(): void {
       logger.info("Migration successful: author_avatar_path added.");
     }
 
+    if (!columns.includes("media_type")) {
+      logger.info(
+        "Migrating database: Adding media_type column to videos table..."
+      );
+      sqlite
+        .prepare("ALTER TABLE videos ADD COLUMN media_type TEXT DEFAULT 'video'")
+        .run();
+      logger.info("Migration successful: media_type added.");
+    }
+
     // Check downloads table columns
     const downloadsTableInfo = sqlite
       .prepare("PRAGMA table_info(downloads)")

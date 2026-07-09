@@ -36,7 +36,8 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
     const isTouch = useMediaQuery('(hover: none), (pointer: coarse)');
     const [playerMenuAnchor, setPlayerMenuAnchor] = useState<null | HTMLElement>(null);
-    const videoUrl = useCloudStorageUrl(video.videoPath, 'video');
+    const mediaType = video.mediaType === 'audio' ? 'audio' : 'video';
+    const videoUrl = useCloudStorageUrl(video.videoPath, mediaType);
 
     const getVideoUrl = async (): Promise<string> => {
         // If we have a cloud storage URL, use it directly
@@ -48,7 +49,7 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
         if (video.videoPath?.startsWith('cloud:')) {
             // Try to get the signed URL directly
             const { getFileUrl } = await import('../../../utils/cloudStorage');
-            const cloudUrl = await getFileUrl(video.videoPath, 'video');
+            const cloudUrl = await getFileUrl(video.videoPath, mediaType);
             if (cloudUrl) {
                 return cloudUrl;
             }

@@ -84,6 +84,7 @@ const videoSummaryColumns = () => ({
   visibility: videos.visibility,
   authorAvatarFilename: videos.authorAvatarFilename,
   authorAvatarPath: videos.authorAvatarPath,
+  mediaType: videos.mediaType,
 });
 
 export interface VideoSummaryPage {

@@ -1,5 +1,10 @@
 import { Video } from "../storageService";
-import { BaseDownloader, DownloadOptions, VideoInfo } from "./BaseDownloader";
+import {
+  BaseDownloader,
+  DownloadModeOptions,
+  DownloadOptions,
+  VideoInfo,
+} from "./BaseDownloader";
 import { getLatestVideoUrl } from "./ytdlp/ytdlpChannel";
 import { getVideoInfo as getVideoInfoFromModule } from "./ytdlp/ytdlpMetadata";
 import { searchVideos } from "./ytdlp/ytdlpSearch";
@@ -38,21 +43,34 @@ export class YtDlpDownloader extends BaseDownloader {
 
   // Implementation of IDownloader.downloadVideo
   async downloadVideo(url: string, options?: DownloadOptions): Promise<Video> {
-    return YtDlpDownloader.downloadVideo(
-      url,
-      options?.downloadId,
-      options?.onStart,
-      options?.filenameTemplateSourceOptions
-    );
+    return YtDlpDownloader.downloadVideo(url, options);
   }
 
-  // Download video (Static wrapper/Implementation)
+  // Download video (Static wrapper/Implementation). The positional overload is
+  // retained for existing integrations; new callers use DownloadModeOptions.
+  static async downloadVideo(
+    videoUrl: string,
+    options?: DownloadModeOptions,
+  ): Promise<Video>;
   static async downloadVideo(
     videoUrl: string,
     downloadId?: string,
     onStart?: (cancel: () => void) => void,
+    filenameTemplateSourceOptions?: import("../filenameTemplate/types").FilenameTemplateSourceOptions,
+  ): Promise<Video>;
+  static async downloadVideo(
+    videoUrl: string,
+    downloadId?: string | DownloadModeOptions,
+    onStart?: (cancel: () => void) => void,
     filenameTemplateSourceOptions?: import("../filenameTemplate/types").FilenameTemplateSourceOptions
   ): Promise<Video> {
-    return downloadVideoFromModule(videoUrl, downloadId, onStart, filenameTemplateSourceOptions);
+    if (typeof downloadId === "object" && downloadId !== null) {
+      return downloadVideoFromModule(videoUrl, downloadId);
+    }
+    return downloadVideoFromModule(videoUrl, {
+      downloadId,
+      onStart,
+      filenameTemplateSourceOptions,
+    });
   }
 }

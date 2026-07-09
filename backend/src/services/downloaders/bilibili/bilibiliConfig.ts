@@ -1,5 +1,9 @@
 import * as storageService from "../../../services/storageService";
-import { resolveExplicitPreferredVideoContainer } from "../../../types/settings";
+import {
+  normalizeAudioFormat,
+  resolveExplicitPreferredVideoContainer,
+  type AudioFormat,
+} from "../../../types/settings";
 import { logger } from "../../../utils/logger";
 import {
   getNetworkConfigFromUserConfig,
@@ -337,10 +341,42 @@ function resolveBilibiliFormat(
 export function prepareBilibiliDownloadFlags(
   url: string,
   outputTemplate: string,
-  options?: { retryFloorHeight?: number }
+  options?: { retryFloorHeight?: number; audioOnly?: boolean; audioFormat?: AudioFormat }
 ): PreparedBilibiliFlags {
   const userConfig = getUserYtDlpConfig(url);
   const networkConfig = getNetworkConfigFromUserConfig(userConfig);
+
+  if (options?.audioOnly === true) {
+    const {
+      output: _output,
+      o: _o,
+      f: _f,
+      format: _format,
+      S: _S,
+      formatSort: _formatSort,
+      writeSubs: _writeSubs,
+      writeAutoSubs: _writeAutoSubs,
+      convertSubs: _convertSubs,
+      mergeOutputFormat: _mergeOutputFormat,
+      ...safeUserConfig
+    } = userConfig;
+    const audioFormat = normalizeAudioFormat(options.audioFormat);
+    return {
+      flags: {
+        ...networkConfig,
+        ...safeUserConfig,
+        output: outputTemplate,
+        format: "bestaudio[ext=m4a]/bestaudio/best",
+        extractAudio: true,
+        audioFormat,
+        audioQuality: 0,
+        ignoreErrors: true,
+        noWarnings: false,
+        noPlaylist: true,
+      },
+      mergeOutputFormat: audioFormat,
+    };
+  }
 
   const resolutionPreference = resolveResolutionPreference();
   const { downloadFormat, codecFormatSort } = resolveBilibiliFormat(

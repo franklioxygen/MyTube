@@ -1,3 +1,9 @@
+export type MediaType = "video" | "audio";
+
+export function normalizeMediaType(value: unknown): MediaType {
+  return value === "audio" ? "audio" : "video";
+}
+
 export interface Video {
   id: string;
   title: string;
@@ -13,6 +19,7 @@ export interface Video {
   fileSize?: string;
   width?: number;
   height?: number;
+  mediaType?: MediaType;
   description?: string;
   [key: string]: any;
 }

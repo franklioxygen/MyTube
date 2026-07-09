@@ -72,7 +72,10 @@ export const useVideoResolution = (video: Video) => {
   const [detectedResolution, setDetectedResolution] = useState<string | null>(
     null
   );
-  const videoUrl = useCloudStorageUrl(video.videoPath, "video");
+  const videoUrl = useCloudStorageUrl(
+    video.videoPath,
+    video.mediaType === "audio" ? "audio" : "video",
+  );
 
   // First check if resolution is already available in video object
   const resolutionFromObject = formatResolution(video);

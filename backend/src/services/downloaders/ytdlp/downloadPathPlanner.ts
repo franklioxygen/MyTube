@@ -12,7 +12,7 @@ import { planVideoOutputPaths } from "../../filenameTemplate/renderer";
 import { enrichSourceOptionsForDownload } from "../../filenameTemplate/sourceOptions";
 import { FilenameTemplateSourceOptions } from "../../filenameTemplate/types";
 import {
-  pathExistsWithAnyKnownVideoExtension,
+  pathExistsWithAnyKnownMediaExtension,
   stripTrailingExtension,
 } from "./ytdlpVideoHelpers";
 
@@ -123,7 +123,7 @@ export function planDownloadPaths(
     let collisionSuffix = "";
     let counter = 1;
     while (
-      pathExistsWithAnyKnownVideoExtension(
+      pathExistsWithAnyKnownMediaExtension(
         resolveSafeChildPath(VIDEOS_DIR, `${videoBaseRelative}${collisionSuffix}`)
       )
     ) {
@@ -177,7 +177,7 @@ export function planDownloadPaths(
   // If file already exists (e.g. redownload), deduplicate the filename
   if (
     pathExistsSafeSync(videoAbsolutePath, VIDEOS_DIR) ||
-    pathExistsWithAnyKnownVideoExtension(
+    pathExistsWithAnyKnownMediaExtension(
       stripTrailingExtension(videoAbsolutePath, `.${videoExtension}`)
     )
   ) {
@@ -185,7 +185,7 @@ export function planDownloadPaths(
     const ext = `.${videoExtension}`;
     const basePath = stripTrailingExtension(videoAbsolutePath, ext);
     const baseName = stripTrailingExtension(videoFilename, ext);
-    while (pathExistsWithAnyKnownVideoExtension(`${basePath}_${counter}`)) {
+    while (pathExistsWithAnyKnownMediaExtension(`${basePath}_${counter}`)) {
       counter++;
     }
     videoAbsolutePath = `${basePath}_${counter}${ext}`;

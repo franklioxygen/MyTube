@@ -198,6 +198,24 @@ const DownloadSettings: React.FC<DownloadSettingsProps> = ({
                 </Typography>
             </Box>
 
+            <Box sx={{ mt: 3 }} id="audioFormat-setting">
+                <Typography variant="h6" gutterBottom>{t('audioFormat')}</Typography>
+                <FormControl fullWidth sx={{ maxWidth: 400 }}>
+                    <Select
+                        value={settings.audioFormat ?? 'm4a'}
+                        onChange={(e) => onChange('audioFormat', e.target.value)}
+                        inputProps={{ 'aria-label': t('audioFormat') }}
+                    >
+                        <MenuItem value="m4a">{t('audioFormatM4a')}</MenuItem>
+                        <MenuItem value="mp3">{t('audioFormatMp3')}</MenuItem>
+                        <MenuItem value="opus">{t('audioFormatOpus')}</MenuItem>
+                    </Select>
+                </FormControl>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 2 }}>
+                    {t('downloadAudioOnlyHint')}
+                </Typography>
+            </Box>
+
             <Box sx={{ mt: 3 }} id="defaultVideoCodec-setting">
                 <Typography variant="h6" gutterBottom>{t('defaultVideoCodec')}</Typography>
                 <FormControl fullWidth sx={{ maxWidth: 400 }}>
@@ -207,6 +225,7 @@ const DownloadSettings: React.FC<DownloadSettingsProps> = ({
                         value={settings.defaultVideoCodec ?? ''}
                         onChange={(e) => onChange('defaultVideoCodec', e.target.value)}
                         displayEmpty
+                        inputProps={{ 'aria-label': t('defaultVideoCodec') }}
                         renderValue={(v) =>
                             v === ''
                                 ? t('defaultVideoCodecDefault')

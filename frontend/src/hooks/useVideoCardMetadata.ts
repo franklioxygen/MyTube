@@ -30,7 +30,8 @@ export const useVideoCardMetadata = ({ video }: UseVideoCardMetadataProps) => {
         || video.thumbnailUrl;
 
     // Use cloud storage hook for video URL
-    const videoUrl = useCloudStorageUrl(video.videoPath, 'video');
+    const mediaType = video.mediaType === 'audio' ? 'audio' : 'video';
+    const videoUrl = useCloudStorageUrl(video.videoPath, mediaType);
 
     // Get video URL with fallback logic
     const getVideoUrl = async (): Promise<string> => {
@@ -43,7 +44,7 @@ export const useVideoCardMetadata = ({ video }: UseVideoCardMetadataProps) => {
         if (video.videoPath?.startsWith('cloud:')) {
             // Try to get the signed URL directly
             const { getFileUrl } = await import('../utils/cloudStorage');
-            const cloudUrl = await getFileUrl(video.videoPath, 'video');
+            const cloudUrl = await getFileUrl(video.videoPath, mediaType);
             if (cloudUrl) {
                 return cloudUrl;
             }

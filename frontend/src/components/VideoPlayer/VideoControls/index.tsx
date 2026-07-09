@@ -37,6 +37,7 @@ interface VideoControlsProps {
     statisticsAutoplayFromVideoId?: string | null;
     onVideoElementReady?: (videoElement: HTMLVideoElement | null) => void;
     liveSubtitle?: { available: boolean; label: string; track: TextTrack | null };
+    audioMode?: boolean;
 }
 
 const VideoControls: React.FC<VideoControlsProps> = ({
@@ -64,6 +65,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
     statisticsAutoplayFromVideoId = null,
     onVideoElementReady,
     liveSubtitle,
+    audioMode = false,
 }) => {
     // Core video player logic
     const videoPlayer = useVideoPlayer({
@@ -249,6 +251,8 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                     onSeeking={videoPlayer.handleSeeking}
                     onSeeked={videoPlayer.handleSeeked}
                     onSubtitleInit={subtitlesHook.initializeSubtitles}
+                    audioMode={audioMode}
+                    isPlaying={videoPlayer.isPlaying}
                 />
 
                 <Box
@@ -315,6 +319,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                         })()}
                         onUploadSubtitle={onUploadSubtitle}
                         onDeleteSubtitle={onDeleteSubtitle}
+                        isAudio={audioMode}
                     />
                 </Box>
             </Box>

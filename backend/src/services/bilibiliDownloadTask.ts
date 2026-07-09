@@ -9,9 +9,10 @@ import type {
   BilibiliCollectionCheckResult,
 } from "./downloaders/BilibiliDownloader";
 import * as downloadService from "./downloadService";
-import type { DownloadRetryMetadata } from "./downloadRetryMetadata";
+import type { BilibiliRetryMetadata } from "./downloadRetryMetadata";
 import * as storageService from "./storageService";
 import { resolveAuthorOrganizationMode } from "../types/settings";
+import type { AudioFormat } from "../types/settings";
 
 function buildAggregateError(result: BilibiliAggregateDownloadResult): string {
   if (result.error) {
@@ -33,8 +34,10 @@ export interface BilibiliDownloadTaskOptions {
   downloadCollection?: boolean;
   collectionName?: string;
   collectionInfo?: BilibiliCollectionCheckResult;
-  retryMetadata?: DownloadRetryMetadata;
+  retryMetadata?: BilibiliRetryMetadata;
   onTitleUpdate?: (downloadId: string, title: string) => void;
+  audioOnly?: boolean;
+  audioFormat?: AudioFormat;
 }
 
 export function buildBilibiliDownloadTask(
@@ -286,20 +289,21 @@ export function buildBilibiliDownloadTask(
           title ||
           "Bilibili Video";
 
-        firstPartResult = await downloadService.downloadSingleBilibiliPart(
-          firstPartUrl,
-          1,
-          videosNumber,
-          currentTitle,
-          options.downloadId,
-          registerCancel,
-          resolvedCollectionName,
-          {
-            sourceCollectionName: resolvedCollectionName || currentTitle,
-            sourceCollectionType: "playlist",
-            mediaPlaylistIndex: 1,
-          },
-        );
+        const filenameOptions = {
+          sourceCollectionName: resolvedCollectionName || currentTitle,
+          sourceCollectionType: "playlist" as const,
+          mediaPlaylistIndex: 1,
+        };
+        firstPartResult = options.audioOnly === true
+          ? await downloadService.downloadSingleBilibiliPart(
+              firstPartUrl, 1, videosNumber, currentTitle, options.downloadId,
+              registerCancel, resolvedCollectionName, filenameOptions,
+              { audioOnly: true, audioFormat: options.audioFormat },
+            )
+          : await downloadService.downloadSingleBilibiliPart(
+              firstPartUrl, 1, videosNumber, currentTitle, options.downloadId,
+              registerCancel, resolvedCollectionName, filenameOptions,
+            );
 
         if (collectionId && firstPartResult.videoData) {
           storageService.linkVideoToCollection(
@@ -421,14 +425,15 @@ export function buildBilibiliDownloadTask(
     }
 
     logger.info("Downloading single Bilibili video part");
-    const result = await downloadService.downloadSingleBilibiliPart(
-      downloadUrl,
-      1,
-      1,
-      "",
-      options.downloadId,
-      registerCancel,
-    );
+    const result = options.audioOnly === true
+      ? await downloadService.downloadSingleBilibiliPart(
+          downloadUrl, 1, 1, "", options.downloadId, registerCancel,
+          undefined, undefined,
+          { audioOnly: true, audioFormat: options.audioFormat },
+        )
+      : await downloadService.downloadSingleBilibiliPart(
+          downloadUrl, 1, 1, "", options.downloadId, registerCancel,
+        );
 
     return {
       ...result,
@@ -440,7 +445,7 @@ export function buildBilibiliDownloadTask(
 export function buildBilibiliDownloadTaskFromRetryMetadata(
   url: string,
   downloadId: string,
-  metadata: DownloadRetryMetadata,
+  metadata: BilibiliRetryMetadata,
 ): (registerCancel: (cancel: () => void) => void) => Promise<any> {
   if (metadata.shape === "bilibili_collection") {
     return buildBilibiliDownloadTask({

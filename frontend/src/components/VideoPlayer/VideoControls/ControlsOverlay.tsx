@@ -55,6 +55,7 @@ interface ControlsOverlayProps {
     liveSubtitleLabel?: string;
     liveSubtitleSelected?: boolean;
     onSelectLiveSubtitle?: () => void;
+    isAudio?: boolean;
 }
 
 const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
@@ -99,6 +100,7 @@ const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
     liveSubtitleLabel = '',
     liveSubtitleSelected = false,
     onSelectLiveSubtitle,
+    isAudio = false,
 }) => {
     const theme = useTheme();
     const { t } = useLanguage();
@@ -183,7 +185,7 @@ const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
                     />
 
                     {/* Subtitle Button (Mobile only, next to progress bar) */}
-                    <SubtitleControl
+                    {!isAudio && <SubtitleControl
                         subtitles={subtitles}
                         subtitlesEnabled={subtitlesEnabled}
                         selectedSubtitleIndices={selectedSubtitleIndices}
@@ -199,17 +201,17 @@ const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
                         liveSubtitleLabel={liveSubtitleLabel}
                         liveSubtitleSelected={liveSubtitleSelected}
                         onSelectLiveSubtitle={onSelectLiveSubtitle}
-                    />
+                    />}
 
                     {/* Right Side: Fullscreen, Cinema Mode (large screens only), Subtitle, Loop (Desktop only) */}
                     <Stack direction="row" spacing={0.5} alignItems="center" sx={{ ml: 1, display: { xs: 'none', sm: 'flex' } }}>
-                        <FullscreenControl
+                        {!isAudio && <FullscreenControl
                             isFullscreen={isFullscreen}
                             onToggle={onToggleFullscreen}
-                        />
+                        />}
 
                         {/* Cinema Mode - only on large screens (lg and above) */}
-                        {onToggleCinemaMode && (
+                        {!isAudio && onToggleCinemaMode && (
                             <Box sx={{ display: { xs: 'none', sm: 'none', lg: 'block' } }}>
                                 <CinemaModeControl
                                     isCinemaMode={isCinemaMode}
@@ -218,7 +220,7 @@ const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
                             </Box>
                         )}
 
-                        <SubtitleControl
+                        {!isAudio && <SubtitleControl
                             subtitles={subtitles}
                             subtitlesEnabled={subtitlesEnabled}
                             selectedSubtitleIndices={selectedSubtitleIndices}
@@ -233,7 +235,7 @@ const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
                             liveSubtitleLabel={liveSubtitleLabel}
                             liveSubtitleSelected={liveSubtitleSelected}
                             onSelectLiveSubtitle={onSelectLiveSubtitle}
-                        />
+                        />}
 
                         <LoopControl
                             isLooping={isLooping}
@@ -255,12 +257,12 @@ const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
 
             {/* Mobile: Live Translate, Fullscreen, Loop, Speed */}
             <Stack direction="row" spacing={0.5} alignItems="center" sx={{ display: { xs: 'flex', sm: 'none' }, ml: 1, justifyContent: 'center', mt: 1 }}>
-                <LiveTranslationControlButton />
+                {!isAudio && <LiveTranslationControlButton />}
 
-                <FullscreenControl
+                {!isAudio && <FullscreenControl
                     isFullscreen={isFullscreen}
                     onToggle={onToggleFullscreen}
-                />
+                />}
 
                 <LoopControl
                     isLooping={isLooping}

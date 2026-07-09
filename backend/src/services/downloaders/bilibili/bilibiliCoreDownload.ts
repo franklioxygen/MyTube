@@ -36,6 +36,7 @@ import {
 } from "./bilibiliFileManager";
 import { getVideoHeight } from "./bilibiliMetadata";
 import { BilibiliVideoInfo } from "./types";
+import type { DownloadModeOptions } from "../BaseDownloader";
 import {
   BilibiliDownloaderHelper,
   extractAvailableHeights,
@@ -95,7 +96,8 @@ export async function downloadVideo(
   // (issue #295 2-1). When set, resolution verification is skipped to bound the
   // retry to a single attempt.
   retryFloorHeight?: number,
-  preserveExistingOutputOnCancel = false
+  preserveExistingOutputOnCancel = false,
+  modeOptions?: DownloadModeOptions
 ): Promise<BilibiliVideoInfo> {
   const tempDir = createTempDir();
   let rawSourceInfo: Record<string, unknown> | null = null;
@@ -205,7 +207,11 @@ export async function downloadVideo(
     const { flags } = prepareBilibiliDownloadFlags(
       url,
       outputTemplate,
-      retryFloorHeight != null ? { retryFloorHeight } : undefined
+      {
+        ...(retryFloorHeight != null ? { retryFloorHeight } : {}),
+        audioOnly: modeOptions?.audioOnly,
+        audioFormat: modeOptions?.audioFormat,
+      }
     );
 
     // Restrict the spawn to the first part when the URL resolved as a multipart
@@ -391,7 +397,9 @@ export async function downloadVideo(
     if (retryFloorHeight === undefined) {
       let retryTarget: number | null = null;
       try {
-        const preference = resolveResolutionPreference();
+        const preference = modeOptions?.audioOnly
+          ? { height: null, strict: false }
+          : resolveResolutionPreference();
         if (preference.height != null) {
           const actualHeight = await getVideoHeight(
             downloadedVideoDestination.path,
@@ -426,7 +434,8 @@ export async function downloadVideo(
           downloadId,
           onStart,
           retryTarget,
-          true
+          true,
+          modeOptions,
         );
         // Only adopt the retry when it actually produced a file. On failure the
         // first (lower-resolution but valid) file is still at videoPath, so keep

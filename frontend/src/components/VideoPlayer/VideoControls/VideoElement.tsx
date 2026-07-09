@@ -1,4 +1,5 @@
-import { Box, Typography } from '@mui/material';
+import { Box, IconButton, Typography } from '@mui/material';
+import { Pause, PlayArrow } from '@mui/icons-material';
 import React, { useMemo } from 'react';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import { neutral, overlay } from '../../../theme/colors';
@@ -36,6 +37,8 @@ interface VideoElementProps {
     onSeeking?: () => void;
     onSeeked?: (e: React.SyntheticEvent<HTMLVideoElement>) => void;
     onSubtitleInit: (e: React.SyntheticEvent<HTMLVideoElement>) => void;
+    audioMode?: boolean;
+    isPlaying?: boolean;
 }
 
 const VideoElement: React.FC<VideoElementProps> = ({
@@ -62,7 +65,9 @@ const VideoElement: React.FC<VideoElementProps> = ({
     onCanPlayThrough,
     onSeeking,
     onSeeked,
-    onSubtitleInit
+    onSubtitleInit,
+    audioMode = false,
+    isPlaying = false,
 }) => {
     const { t } = useLanguage();
     // Use useMemo to generate a stable unique ID per component instance
@@ -90,7 +95,16 @@ const VideoElement: React.FC<VideoElementProps> = ({
     return (
         <Box
             sx={{
-                ...(isFullscreen
+                ...(audioMode
+                    ? {
+                          maxWidth: { xs: '100%', sm: 480 },
+                          width: '100%',
+                          aspectRatio: '1 / 1',
+                          position: 'relative',
+                          display: 'block',
+                          mx: 'auto',
+                      }
+                    : isFullscreen
                     ? {
                           position: 'absolute',
                           inset: 0,
@@ -176,6 +190,44 @@ const VideoElement: React.FC<VideoElementProps> = ({
                 </Box>
             )}
 
+            {audioMode && (
+                <Box
+                    onClick={onClick}
+                    role="button"
+                    aria-label={isPlaying ? 'Pause audio' : 'Play audio'}
+                    sx={{
+                        position: 'absolute',
+                        inset: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        overflow: 'hidden',
+                        background: `linear-gradient(135deg, #161b2d 0%, #3b1d5a 55%, #0f766e 100%)`,
+                        cursor: 'pointer',
+                    }}
+                >
+                    {poster ? (
+                        <Box
+                            component="img"
+                            src={poster}
+                            alt=""
+                            sx={{ width: '72%', height: '72%', objectFit: 'cover', borderRadius: 3, boxShadow: 8 }}
+                        />
+                    ) : (
+                        <Typography variant="h1" color="primary.contrastText" aria-hidden>
+                            ♪
+                        </Typography>
+                    )}
+                    <IconButton
+                        aria-label={isPlaying ? 'Pause audio' : 'Play audio'}
+                        onClick={(event) => { event.stopPropagation(); onClick(); }}
+                        sx={{ position: 'absolute', bgcolor: 'background.paper', color: 'primary.main', '&:hover': { bgcolor: 'background.paper' } }}
+                    >
+                        {isPlaying ? <Pause /> : <PlayArrow />}
+                    </IconButton>
+                </Box>
+            )}
+
             <video
                 id={videoId}
                 ref={videoRef}
@@ -183,7 +235,7 @@ const VideoElement: React.FC<VideoElementProps> = ({
                     width: '100%',
                     height: '100%',
                     objectFit: 'contain',
-                    display: 'block',
+                    display: audioMode ? 'none' : 'block',
                     cursor: 'pointer'
                 }}
                 controls={false}

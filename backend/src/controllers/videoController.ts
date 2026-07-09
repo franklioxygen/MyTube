@@ -17,7 +17,10 @@ import {
 } from "../utils/paramUtils";
 import { successResponse } from "../utils/response";
 import { createUploadValidationError } from "../utils/videoUpload";
-import { resolvePlayableVideoFilePath } from "../utils/videoFileResolver";
+import {
+  resolvePlayableMediaFilePath,
+  resolvePlayableVideoFilePath,
+} from "../utils/videoFileResolver";
 import {
   createReadStreamSafe,
   createWriteStreamSafe,
@@ -139,7 +142,10 @@ export const getVideoById = async (
     const expectedVideoPath = path.resolve(
       path.join(VIDEOS_DIR, ...relativeVideoPath.split("/"))
     );
-    const resolvedVideoPath = resolvePlayableVideoFilePath(expectedVideoPath);
+    const resolvedVideoPath =
+      video.mediaType === "audio"
+        ? resolvePlayableMediaFilePath(expectedVideoPath, "audio")
+        : resolvePlayableVideoFilePath(expectedVideoPath);
 
     if (
       resolvedVideoPath &&
@@ -184,7 +190,7 @@ export const getVideoById = async (
     const videoFilename = extractCloudFilename(video.videoPath);
     const signedUrl = await CloudStorageService.getSignedUrl(
       videoFilename,
-      "video"
+      video.mediaType === "audio" ? "audio" : "video"
     );
 
     if (signedUrl) {

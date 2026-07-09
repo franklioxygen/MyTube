@@ -37,10 +37,11 @@ export const useVideoPrefetch = ({ videoId, video }: UseVideoPrefetchProps) => {
     // Prefetch cloud storage URLs if video is in cloud storage
     if (video) {
       const isVideoInCloud = video.videoPath?.startsWith("cloud:") ?? false;
+      const mediaType = video.mediaType === "audio" ? "audio" : "video";
 
       if (isVideoInCloud && video.videoPath) {
         // Prefetch video URL
-        getFileUrl(video.videoPath, "video").catch((error) => {
+        getFileUrl(video.videoPath, mediaType).catch((error) => {
           console.warn("Failed to prefetch video URL:", error);
         });
 

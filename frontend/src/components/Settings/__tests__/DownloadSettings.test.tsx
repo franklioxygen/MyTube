@@ -47,6 +47,8 @@ describe('DownloadSettings', () => {
 
     const getFinalContainerSelect = () =>
         screen.getByRole('combobox', { name: 'preferredVideoContainer' });
+    const getVideoCodecSelect = () =>
+        screen.getByRole('combobox', { name: 'defaultVideoCodec' });
 
     beforeEach(() => {
         vi.clearAllMocks();
@@ -110,8 +112,7 @@ describe('DownloadSettings', () => {
         const user = userEvent.setup();
         renderDownloadSettings();
 
-        const dropdowns = screen.getAllByRole('combobox');
-        const codecDropdown = dropdowns[2];
+        const codecDropdown = getVideoCodecSelect();
         expect(codecDropdown).toBeInTheDocument();
 
         await user.click(codecDropdown);
@@ -222,20 +223,20 @@ describe('DownloadSettings', () => {
     it('should render the default video codec label when empty', () => {
         renderDownloadSettings({ settings: { ...defaultProps.settings, defaultVideoCodec: '' } });
 
-        expect(screen.getAllByRole('combobox')[2]).toHaveTextContent('defaultVideoCodecDefault');
+        expect(getVideoCodecSelect()).toHaveTextContent('defaultVideoCodecDefault');
     });
 
     it('should render the translated video codec label for known values', () => {
         renderDownloadSettings({ settings: { ...defaultProps.settings, defaultVideoCodec: 'av1' } });
 
-        expect(screen.getAllByRole('combobox')[2]).toHaveTextContent('defaultVideoCodec_av1');
+        expect(getVideoCodecSelect()).toHaveTextContent('defaultVideoCodec_av1');
     });
 
     it('should render the raw video codec value when it is unknown', () => {
         const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
         renderDownloadSettings({ settings: { ...defaultProps.settings, defaultVideoCodec: 'xvid' } });
 
-        expect(screen.getAllByRole('combobox')[2]).toHaveTextContent('xvid');
+        expect(getVideoCodecSelect()).toHaveTextContent('xvid');
         consoleWarnSpy.mockRestore();
     });
 

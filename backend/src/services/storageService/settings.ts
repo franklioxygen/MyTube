@@ -162,6 +162,7 @@ export const WHITELISTED_SETTINGS = [
   "mountDirectories",
   "defaultSort",
   "preferredAudioLanguage",
+  "audioFormat",
   "defaultVideoCodec",
   "preferredVideoContainer",
   "preferredVideoResolution",

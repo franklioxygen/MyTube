@@ -6,9 +6,13 @@ import {
   resolveSafeChildPath,
   statSafeSync,
 } from "./security";
-import { VIDEO_CONTAINER_EXTENSIONS } from "./videoExtensions";
+import {
+  AUDIO_CONTAINER_EXTENSIONS,
+  MEDIA_FILE_EXTENSIONS,
+} from "./videoExtensions";
 
-const VIDEO_CONTAINER_EXTENSION_SET = new Set<string>(VIDEO_CONTAINER_EXTENSIONS);
+const MEDIA_FILE_EXTENSION_SET = new Set<string>(MEDIA_FILE_EXTENSIONS);
+const AUDIO_CONTAINER_EXTENSION_SET = new Set<string>(AUDIO_CONTAINER_EXTENSIONS);
 
 const TEMP_FILE_SUFFIXES = [".part", ".ytdl"];
 const AUDIO_ONLY_YTDLP_FORMAT_IDS = new Set([
@@ -66,7 +70,7 @@ const isLikelySplitVideoArtifact = (
   }
 
   const ext = path.extname(filename).toLowerCase();
-  return VIDEO_CONTAINER_EXTENSION_SET.has(ext);
+  return MEDIA_FILE_EXTENSION_SET.has(ext);
 };
 
 const isLikelyMergedOutputCandidate = (
@@ -80,7 +84,7 @@ const isLikelyMergedOutputCandidate = (
   const parsed = path.parse(filename);
   return (
     parsed.name === expectedBaseName &&
-    VIDEO_CONTAINER_EXTENSION_SET.has(parsed.ext.toLowerCase())
+    MEDIA_FILE_EXTENSION_SET.has(parsed.ext.toLowerCase())
   );
 };
 
@@ -157,11 +161,12 @@ const sortCandidates = (a: CandidateFile, b: CandidateFile): number => {
 };
 
 /**
- * Resolve a playable video file path when the expected merged output is missing.
- * Falls back to yt-dlp split artifacts like `name.f137.mp4`.
+ * Resolve a playable media file path when the expected output is missing.
+ * Falls back to yt-dlp split artifacts like `name.f137.mp4` or `name.f140.m4a`.
  */
-export const resolvePlayableVideoFilePath = (
-  expectedFilePath: string
+export const resolvePlayableMediaFilePath = (
+  expectedFilePath: string,
+  mediaType: "video" | "audio" = "video",
 ): string | null => {
   try {
     const videoDir = path.dirname(expectedFilePath);
@@ -228,11 +233,20 @@ export const resolvePlayableVideoFilePath = (
       return candidates[0].candidatePath;
     }
 
-    const confirmedVideoCandidates = candidates.filter(
-      (candidate) => candidate.hasVideoStream === true
-    );
-    if (confirmedVideoCandidates.length > 0) {
-      return confirmedVideoCandidates[0].candidatePath;
+    if (mediaType === "audio") {
+      const confirmedAudioCandidates = candidates.filter(
+        (candidate) => candidate.hasVideoStream === false || AUDIO_CONTAINER_EXTENSION_SET.has(path.extname(candidate.candidatePath).toLowerCase())
+      );
+      if (confirmedAudioCandidates.length > 0) {
+        return confirmedAudioCandidates[0].candidatePath;
+      }
+    } else {
+      const confirmedVideoCandidates = candidates.filter(
+        (candidate) => candidate.hasVideoStream === true
+      );
+      if (confirmedVideoCandidates.length > 0) {
+        return confirmedVideoCandidates[0].candidatePath;
+      }
     }
 
     const unknownCandidates = candidates.filter(
@@ -248,3 +262,7 @@ export const resolvePlayableVideoFilePath = (
     return null;
   }
 };
+
+export const resolvePlayableVideoFilePath = (
+  expectedFilePath: string,
+): string | null => resolvePlayableMediaFilePath(expectedFilePath, "video");

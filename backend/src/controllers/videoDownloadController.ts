@@ -4,9 +4,11 @@ import downloadManager from "../services/downloadManager";
 import { buildBilibiliDownloadTask } from "../services/bilibiliDownloadTask";
 import {
   createBilibiliRetryMetadata,
+  createDownloadModeRetryMetadata,
   mergeBilibiliRetryMetadata,
   parseRetryMetadata,
 } from "../services/downloadRetryMetadata";
+import { normalizeAudioFormat } from "../types/settings";
 import * as downloadService from "../services/downloadService";
 import {
   recordEvent,
@@ -195,7 +197,15 @@ export const downloadVideo = async (
       collectionInfo,
       forceDownload, // Allow re-download of deleted videos
       statisticsContext, // optional attribution metadata for the statistics feature
+      audioOnly,
     } = req.body;
+    // Audio-only is an explicit per-request intent. Never fall back to a
+    // persisted setting so extensions, API callers, and subscriptions remain
+    // video downloads unless they opt in themselves.
+    const effectiveAudioOnly = audioOnly === true;
+    const audioFormat = normalizeAudioFormat(
+      storageService.getSettings()?.audioFormat,
+    );
     let videoUrl = youtubeUrl;
 
     if (!videoUrl) {
@@ -315,7 +325,7 @@ export const downloadVideo = async (
 
     // Generate a unique ID for this download task
     const downloadId = Date.now().toString();
-    const previousBilibiliRetryMetadata = isBilibiliUrl(resolvedUrl)
+    const parsedPreviousRetryMetadata = isBilibiliUrl(resolvedUrl)
       ? parseRetryMetadata(
           storageService.getLatestRetryHistoryItemBySourceUrl(
             resolvedUrl,
@@ -323,6 +333,10 @@ export const downloadVideo = async (
           )?.retryMetadata,
         )
       : undefined;
+    const previousBilibiliRetryMetadata =
+      parsedPreviousRetryMetadata?.shape !== "download_mode"
+        ? parsedPreviousRetryMetadata
+        : undefined;
     const currentBilibiliRetryMetadata = isBilibiliUrl(resolvedUrl)
       ? createBilibiliRetryMetadata({
           downloadAllParts: !!downloadAllParts,
@@ -360,6 +374,12 @@ export const downloadVideo = async (
     const effectiveCollectionName =
       collectionName ?? bilibiliRetryMetadata?.collectionName;
     const effectiveCollectionInfo = collectionInfo ?? retryCollectionInfo;
+    const isAggregateBilibiliDownload =
+      effectiveDownloadAllParts || effectiveDownloadCollection;
+    const modeRetryMetadata =
+      effectiveAudioOnly && !isMissAVUrl(resolvedUrl) && !isAggregateBilibiliDownload
+        ? createDownloadModeRetryMetadata({ audioOnly: true, audioFormat })
+        : undefined;
 
     // Define the download task function
     const downloadTask = async (
@@ -378,6 +398,8 @@ export const downloadVideo = async (
           collectionName: effectiveCollectionName,
           collectionInfo: effectiveCollectionInfo,
           retryMetadata: bilibiliRetryMetadata,
+          audioOnly: effectiveAudioOnly && !isAggregateBilibiliDownload,
+          audioFormat,
           onTitleUpdate: (id, title) => {
             storageService.updateActiveDownloadTitle(id, title);
             downloadManager.updateTaskTitle(id, title);
@@ -393,11 +415,18 @@ export const downloadVideo = async (
         return { success: true, video: videoData };
       } else {
         // YouTube download
-        const videoData = await downloadService.downloadYouTubeVideo(
-          downloadUrl,
-          downloadId,
-          registerCancel,
-        );
+        const videoData = effectiveAudioOnly
+          ? await downloadService.downloadYouTubeVideo(downloadUrl, {
+              downloadId,
+              onStart: registerCancel,
+              audioOnly: true,
+              audioFormat,
+            })
+          : await downloadService.downloadYouTubeVideo(
+              downloadUrl,
+              downloadId,
+              registerCancel,
+            );
         return { success: true, video: videoData };
       }
     };
@@ -420,7 +449,7 @@ export const downloadVideo = async (
         sourceKind: statisticsSourceKind,
         relatedEventId: statisticsRelatedEventId,
         enqueuedEventId: downloadEnqueuedEventId,
-      }, bilibiliRetryMetadata)
+      }, bilibiliRetryMetadata ?? modeRetryMetadata)
       .then((result: any) => {
         logger.info("Download completed successfully:", result);
       })

@@ -1,5 +1,9 @@
 import * as storageService from "../../../services/storageService";
-import { resolveExplicitPreferredVideoContainer } from "../../../types/settings";
+import {
+  normalizeAudioFormat,
+  resolveExplicitPreferredVideoContainer,
+  type AudioFormat,
+} from "../../../types/settings";
 import { isTwitchUrl, isTwitterUrl, isYouTubeUrl } from "../../../utils/helpers";
 import { logger } from "../../../utils/logger";
 import { getUserYtDlpConfig } from "../../../utils/ytDlpUtils";
@@ -13,6 +17,11 @@ export interface PreparedFlags {
   flags: YtDlpFlags;
   mergeOutputFormat: string;
   videoExtension: string;
+}
+
+export interface PreparedAudioFlags {
+  flags: YtDlpFlags;
+  audioExtension: AudioFormat;
 }
 
 type UserYtDlpConfig = Record<string, any>;
@@ -708,4 +717,36 @@ export function prepareDownloadFlags(
     mergeOutputFormat,
     videoExtension: resolvePreferredVideoExtension(mergeOutputFormat),
   };
+}
+
+/**
+ * Prepare the deliberately small yt-dlp flag set used for audio-only jobs.
+ * Video selectors, mux settings, subtitle defaults, and resolution preferences
+ * must not leak into this branch.
+ */
+export function prepareAudioDownloadFlags(
+  videoUrl: string,
+  outputPath: string,
+  audioFormat: AudioFormat,
+  userConfig?: UserYtDlpConfig,
+): PreparedAudioFlags {
+  const config = (userConfig || getUserYtDlpConfig(videoUrl) || {}) as UserYtDlpConfig;
+  const { networkOptions } = extractUserConfigOptions(config);
+  const normalizedFormat = normalizeAudioFormat(audioFormat);
+  const flags: YtDlpFlags = {
+    ...networkOptions,
+    output: outputPath,
+    format: "bestaudio/best",
+    extractAudio: true,
+    audioFormat: normalizedFormat,
+    audioQuality: 0,
+    ignoreErrors: true,
+    noPlaylist: true,
+  };
+
+  appendProviderExtractorArg(flags);
+  finalizeExtractorArgs(flags);
+  logProxyPreservation(flags, config);
+
+  return { flags, audioExtension: normalizedFormat };
 }

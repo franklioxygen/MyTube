@@ -5,6 +5,7 @@ import {
   isMissAVUrl,
 } from "../utils/helpers";
 import { VideoInfo } from "./downloaders/BaseDownloader";
+import type { DownloadModeOptions } from "./downloaders/BaseDownloader";
 import {
   BilibiliAggregateDownloadResult,
   BilibiliCollectionCheckResult,
@@ -156,17 +157,18 @@ export async function downloadSingleBilibiliPart(
   onStart?: (cancel: () => void) => void,
   collectionName?: string,
   filenameTemplateSourceOptions?: import("./filenameTemplate/types").FilenameTemplateSourceOptions,
+  modeOptions?: DownloadModeOptions,
 ): Promise<DownloadResult> {
   assertDownloadsAllowed();
+  if (modeOptions) {
+    return BilibiliDownloader.downloadSinglePart(
+      url, partNumber, totalParts, seriesTitle, downloadId, onStart,
+      collectionName, filenameTemplateSourceOptions, modeOptions,
+    );
+  }
   return BilibiliDownloader.downloadSinglePart(
-    url,
-    partNumber,
-    totalParts,
-    seriesTitle,
-    downloadId,
-    onStart,
-    collectionName,
-    filenameTemplateSourceOptions,
+    url, partNumber, totalParts, seriesTitle, downloadId, onStart,
+    collectionName, filenameTemplateSourceOptions,
   );
 }
 
@@ -224,12 +226,15 @@ export async function searchYouTube(
 // Download generic video (using yt-dlp)
 export async function downloadYouTubeVideo(
   videoUrl: string,
-  downloadId?: string,
+  optionsOrDownloadId?: DownloadModeOptions | string,
   onStart?: (cancel: () => void) => void,
   filenameTemplateSourceOptions?: import("./filenameTemplate/types").FilenameTemplateSourceOptions
 ): Promise<Video> {
   assertDownloadsAllowed();
-  return YtDlpDownloader.downloadVideo(videoUrl, downloadId, onStart, filenameTemplateSourceOptions);
+  if (typeof optionsOrDownloadId === "object" && optionsOrDownloadId !== null) {
+    return YtDlpDownloader.downloadVideo(videoUrl, optionsOrDownloadId);
+  }
+  return YtDlpDownloader.downloadVideo(videoUrl, optionsOrDownloadId, onStart, filenameTemplateSourceOptions);
 }
 
 // Helper function to download MissAV video
@@ -275,7 +280,11 @@ export function createDownloadTask(
     if (type === "missav") {
       return MissAVDownloader.downloadVideo(url, downloadId, registerCancel);
     } else if (type === "bilibili") {
-      if (parsedMetadata) {
+      if (
+        parsedMetadata &&
+        (parsedMetadata.shape === "bilibili_all_parts" ||
+          parsedMetadata.shape === "bilibili_collection")
+      ) {
         return buildBilibiliDownloadTaskFromRetryMetadata(
           url,
           downloadId,
@@ -283,16 +292,25 @@ export function createDownloadTask(
         )(registerCancel);
       }
 
+      if (parsedMetadata?.shape === "download_mode") {
+        return BilibiliDownloader.downloadSinglePart(
+          url, 1, 1, "", downloadId, registerCancel, undefined, undefined,
+          { audioOnly: parsedMetadata.audioOnly, audioFormat: parsedMetadata.audioFormat },
+        );
+      }
       return BilibiliDownloader.downloadSinglePart(
-        url,
-        1,
-        1,
-        "",
-        downloadId,
-        registerCancel,
+        url, 1, 1, "", downloadId, registerCancel,
       );
     } else {
       // Default to yt-dlp
+      if (parsedMetadata?.shape === "download_mode") {
+        return YtDlpDownloader.downloadVideo(url, {
+          downloadId,
+          onStart: registerCancel,
+          audioOnly: parsedMetadata.audioOnly,
+          audioFormat: parsedMetadata.audioFormat,
+        });
+      }
       return YtDlpDownloader.downloadVideo(url, downloadId, registerCancel);
     }
   };

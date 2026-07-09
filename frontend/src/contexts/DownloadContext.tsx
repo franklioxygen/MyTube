@@ -13,10 +13,12 @@ import { useCollection } from './CollectionContext';
 import { useLanguage } from './LanguageContext';
 import { useSnackbar } from './SnackbarContext';
 import { useVideo } from './VideoContext';
+import DownloadConfirmModal from '../components/DownloadConfirmModal';
 import {
     isTwitchChannelUrl,
     normalizeTwitchChannelUrlOrNull,
 } from '../utils/twitch';
+import { isMissAVUrl } from '../utils/missav';
 const LEGACY_DOWNLOAD_STATUS_STORAGE_ID = 'mytube_download_status';
 const DOWNLOAD_STATUS_STORAGE_ID = 'mytube:download-status';
 const DOWNLOAD_STATUS_STORAGE_IDS = [
@@ -75,6 +77,15 @@ interface DownloadContextType {
             surface?: string;
         }
     ) => Promise<any>;
+    showDownloadConfirmModal: boolean;
+    setShowDownloadConfirmModal: (show: boolean) => void;
+    downloadConfirmInfo: {
+        url: string;
+        title: string;
+        forceDownload: boolean;
+        statisticsContext?: { relatedEventId?: string | null; sourceKind?: string; surface?: string };
+    } | null;
+    handleConfirmDownload: (options: { audioOnly: boolean }) => Promise<any>;
     showBilibiliPartsModal: boolean;
     setShowBilibiliPartsModal: (show: boolean) => void;
     bilibiliPartsInfo: BilibiliPartsInfo;
@@ -131,6 +142,15 @@ const isBilibiliUrl = (url: string): boolean => {
             hostname === 'bili2233.cn' ||
             hostname.endsWith('.bili2233.cn')
         );
+    } catch {
+        return false;
+    }
+};
+
+const isHttpUrl = (url: string): boolean => {
+    try {
+        const parsed = new URL(url);
+        return parsed.protocol === 'http:' || parsed.protocol === 'https:';
     } catch {
         return false;
     }
@@ -193,6 +213,13 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         collectionInfo: null // For collection/series, stores the API response
     });
     const [isCheckingParts, setIsCheckingParts] = useState<boolean>(false);
+    const [showDownloadConfirmModal, setShowDownloadConfirmModal] = useState(false);
+    const [downloadConfirmInfo, setDownloadConfirmInfo] = useState<{
+        url: string;
+        title: string;
+        forceDownload: boolean;
+        statisticsContext?: { relatedEventId?: string | null; sourceKind?: string; surface?: string };
+    } | null>(null);
 
 
     // Reference to track current download IDs for detecting completion
@@ -402,10 +429,25 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 }
             }
 
+            // Normal single downloads use the confirmation modal so the
+            // audio-only option is discoverable even before it has been used.
+            // MissAV stays on its existing immediate, video-only path.
+            if (isHttpUrl(videoUrl) && !isMissAVUrl(videoUrl)) {
+                setDownloadConfirmInfo({
+                    url: videoUrl,
+                    title: 'Pending...',
+                    forceDownload,
+                    statisticsContext: statisticsCtx,
+                });
+                setShowDownloadConfirmModal(true);
+                return { success: true, deferred: true };
+            }
+
             // Normal download flow
             const response = await api.post('/download', {
                 youtubeUrl: videoUrl,
                 forceDownload: forceDownload,
+                audioOnly: false,
                 statisticsContext: statisticsCtx,
             });
 
@@ -453,6 +495,58 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         }
     }, [
         checkBackendDownloadStatus, setVideos, showSnackbar, t, queryClient, handleSearch,
+    ]);
+
+    const handleConfirmDownload = useCallback(async ({ audioOnly }: { audioOnly: boolean }) => {
+        const info = downloadConfirmInfo;
+        setShowDownloadConfirmModal(false);
+        setDownloadConfirmInfo(null);
+        if (!info) {
+            return { success: false, error: 'Download request is no longer available' };
+        }
+
+        try {
+            const response = await api.post('/download', {
+                youtubeUrl: info.url,
+                forceDownload: info.forceDownload,
+                audioOnly: audioOnly === true,
+                statisticsContext: info.statisticsContext,
+            });
+
+            if (response.data.skipped) {
+                showSnackbar(
+                    response.data.previouslyDeleted
+                        ? (t('videoSkippedDeleted') || 'Video was previously deleted, skipped download')
+                        : (t('videoSkippedExists') || 'Video already exists, skipped download'),
+                    'warning',
+                );
+                queryClient.invalidateQueries({ queryKey: ['downloadHistory'] });
+                return { success: true, skipped: true };
+            }
+
+            if (response.data.downloadId) {
+                checkBackendDownloadStatus();
+            } else if (response.data.video) {
+                setVideos((prevVideos) => [response.data.video, ...prevVideos]);
+            }
+
+            showSnackbar(t('videoDownloading'));
+            return { success: true };
+        } catch (err: unknown) {
+            console.error('Error downloading video:', err);
+            showSnackbar(getApiErrorMessage(err) || t('failedToDownloadVideo'), 'error');
+            return {
+                success: false,
+                error: getApiErrorMessage(err) || t('failedToDownloadVideo'),
+            };
+        }
+    }, [
+        checkBackendDownloadStatus,
+        downloadConfirmInfo,
+        queryClient,
+        setVideos,
+        showSnackbar,
+        t,
     ]);
 
 
@@ -513,7 +607,8 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 downloadAllParts: !isCollection, // Only set this for multi-part videos
                 downloadCollection: isCollection, // Set this for collections/series
                 collectionInfo: isCollection ? bilibiliPartsInfo.collectionInfo : null,
-                collectionName
+                collectionName,
+                audioOnly: false,
             });
 
             // Trigger immediate status check
@@ -700,6 +795,10 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         activeDownloads,
         queuedDownloads,
         handleVideoSubmit,
+        showDownloadConfirmModal,
+        setShowDownloadConfirmModal,
+        downloadConfirmInfo,
+        handleConfirmDownload,
         showBilibiliPartsModal,
         setShowBilibiliPartsModal,
         bilibiliPartsInfo,
@@ -707,7 +806,8 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         handleDownloadAllBilibiliParts,
         handleDownloadCurrentBilibiliPart,
     }), [
-        activeDownloads, queuedDownloads, handleVideoSubmit, showBilibiliPartsModal,
+        activeDownloads, queuedDownloads, handleVideoSubmit, showDownloadConfirmModal,
+        downloadConfirmInfo, handleConfirmDownload, showBilibiliPartsModal,
         bilibiliPartsInfo, isCheckingParts, handleDownloadAllBilibiliParts,
         handleDownloadCurrentBilibiliPart,
     ]);
@@ -715,6 +815,19 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return (
         <DownloadContext.Provider value={value}>
             {children}
+            {downloadConfirmInfo && (
+                <DownloadConfirmModal
+                    isOpen={showDownloadConfirmModal}
+                    onClose={() => {
+                        setShowDownloadConfirmModal(false);
+                        setDownloadConfirmInfo(null);
+                    }}
+                    videoTitle={downloadConfirmInfo.title}
+                    sourceUrl={downloadConfirmInfo.url}
+                    isMissAV={isMissAVUrl(downloadConfirmInfo.url)}
+                    onConfirm={handleConfirmDownload}
+                />
+            )}
             <Suspense fallback={null}>
                 {showChannelSubscribeChoiceModal && (
                     <ChannelSubscribeChoiceModal

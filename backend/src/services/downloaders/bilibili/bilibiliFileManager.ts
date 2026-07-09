@@ -137,6 +137,9 @@ export function findVideoFileInTemp(tempDir: string): string | null {
 
   const files = readdirSafeSync(tempDir, VIDEOS_DIR);
   const videoFile =
+    files.find((file: string) => file.endsWith(".m4a")) ||
+    files.find((file: string) => file.endsWith(".mp3")) ||
+    files.find((file: string) => file.endsWith(".opus")) ||
     files.find((file: string) => file.endsWith(".mp4")) ||
     files.find((file: string) => file.endsWith(".mkv")) ||
     files.find((file: string) => file.endsWith(".webm")) ||

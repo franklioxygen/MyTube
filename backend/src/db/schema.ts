@@ -47,6 +47,7 @@ export const videos = sqliteTable(
     visibility: integer("visibility").default(1), // 1 = visible, 0 = hidden
     authorAvatarFilename: text("author_avatar_filename"), // Author avatar filename
     authorAvatarPath: text("author_avatar_path"), // Author avatar path
+    mediaType: text("media_type").default("video"), // "video" | "audio"
   },
   (table) => ({
     // source_url is looked up on every download attempt, cloud-scan duplicate

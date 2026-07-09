@@ -12,6 +12,8 @@ import ConfirmationModal from '../components/ConfirmationModal';
 import SubscribeModal from '../components/SubscribeModal';
 import CommentsSection from '../components/VideoPlayer/CommentsSection';
 import UpNextSidebar from '../components/VideoPlayer/UpNextSidebar';
+import AudioModePlayer from '../components/VideoPlayer/AudioModePlayer';
+import AudioUpNextSidebar from '../components/VideoPlayer/AudioUpNextSidebar';
 import VideoControls from '../components/VideoPlayer/VideoControls';
 import LiveTranslationStatusAlert from '../components/VideoPlayer/LiveTranslationStatusAlert';
 import VideoInfo from '../components/VideoPlayer/VideoInfo';
@@ -99,6 +101,7 @@ const VideoPlayer: React.FC = () => {
         videos,
         showComments
     });
+    const isAudio = (video?.mediaType ?? 'video') === 'audio';
 
     // Handle error redirect and invisible videos in visitor mode
     useEffect(() => {
@@ -149,7 +152,7 @@ const VideoPlayer: React.FC = () => {
     const autoPlay = autoPlayNext || settingsAutoPlay;
 
     // Get cloud storage URLs
-    const videoUrl = useCloudStorageUrl(video?.videoPath, 'video', video?.signedUrl);
+    const videoUrl = useCloudStorageUrl(video?.videoPath, isAudio ? 'audio' : 'video', video?.signedUrl);
 
     // Get thumbnail URL for poster
     // Only load thumbnail from cloud if the video itself is in cloud storage
@@ -206,6 +209,7 @@ const VideoPlayer: React.FC = () => {
         sourceCollectionId,
         playbackQueueVideoIds
     });
+    const effectiveCinemaMode = isCinemaMode && !isAudio;
 
     const upNextSlate = useMemo(() => {
         if (!video) return [];
@@ -453,14 +457,14 @@ const VideoPlayer: React.FC = () => {
                 sx={{
                     display: 'grid',
                     gap: 4,
-                    mt: isCinemaMode ? 0 : { xs: 0, md: 4 },
+                    mt: effectiveCinemaMode ? 0 : { xs: 0, md: 4 },
                     gridTemplateColumns: {
                         xs: 'minmax(0, 1fr)',
-                        lg: isCinemaMode ? '1fr' : 'minmax(0, 1fr) minmax(280px, 360px)'
+                        lg: effectiveCinemaMode ? '1fr' : 'minmax(0, 1fr) minmax(280px, 360px)'
                     },
                     gridTemplateAreas: {
                         xs: '"main" "sidebar"',
-                        lg: isCinemaMode ? '"main" "sidebar"' : '"main sidebar"'
+                        lg: effectiveCinemaMode ? '"main" "sidebar"' : '"main sidebar"'
                     }
                 }}
             >
@@ -479,7 +483,7 @@ const VideoPlayer: React.FC = () => {
                             }
                         }}
                     >
-                    <VideoControls
+                    {isAudio ? <AudioModePlayer
                         src={(videoUrl || video?.sourceUrl) || null}
                         mediaPath={video.videoPath}
                         poster={posterUrl || localPosterUrl || video?.thumbnailUrl}
@@ -493,7 +497,7 @@ const VideoPlayer: React.FC = () => {
                         onSubtitlesToggle={handleSubtitlesToggle}
                         onLoopToggle={handleLoopToggle}
                         onEnded={handleVideoEnded}
-                        isCinemaMode={isCinemaMode}
+                        isCinemaMode={false}
                         onToggleCinemaMode={() => setIsCinemaMode(!isCinemaMode)}
                         statisticsVideoId={video.id}
                         statisticsPlatform={
@@ -518,15 +522,45 @@ const VideoPlayer: React.FC = () => {
                             label: liveSubtitleTrack.label,
                             track: liveSubtitleTrack.track,
                         }}
-                    />
+                    /> : <VideoControls
+                        src={(videoUrl || video?.sourceUrl) || null}
+                        mediaPath={video.videoPath}
+                        poster={posterUrl || localPosterUrl || video?.thumbnailUrl}
+                        autoPlay={autoPlay}
+                        autoLoop={autoLoop}
+                        pauseOnFocusLoss={pauseOnFocusLoss}
+                        onTimeUpdate={handleTimeUpdate}
+                        startTime={startTimeResult}
+                        subtitles={video.subtitles}
+                        subtitlesEnabled={subtitlesEnabled}
+                        onSubtitlesToggle={handleSubtitlesToggle}
+                        onLoopToggle={handleLoopToggle}
+                        onEnded={handleVideoEnded}
+                        isCinemaMode={isCinemaMode}
+                        onToggleCinemaMode={() => setIsCinemaMode(!isCinemaMode)}
+                        statisticsVideoId={video.id}
+                        statisticsPlatform={typeof video.source === 'string' ? video.source.toLowerCase() : null}
+                        statisticsRelatedEventId={statisticsRelatedEventId}
+                        statisticsAutoplayFromVideoId={autoplayFromVideoId}
+                        onUploadSubtitle={async (file: File) => {
+                            if (!id) return;
+                            await uploadSubtitleMutation.mutateAsync({ file });
+                        }}
+                        onDeleteSubtitle={async (index: number) => {
+                            if (!video?.subtitles) return;
+                            await deleteSubtitleMutation.mutateAsync({ index, currentSubtitles: video.subtitles });
+                        }}
+                        onVideoElementReady={setVideoElement}
+                        liveSubtitle={{ available: liveSubtitleTrack.isActive, label: liveSubtitleTrack.label, track: liveSubtitleTrack.track }}
+                    />}
 
-                    <LiveTranslationStatusAlert isCinemaMode={isCinemaMode} />
+                    <LiveTranslationStatusAlert isCinemaMode={effectiveCinemaMode} />
                     </LiveTranslationProvider>
 
                     <Box sx={{
                         px: { xs: 2, md: 0 },
-                        maxWidth: isCinemaMode ? '1200px' : 'none',
-                        mx: isCinemaMode ? 'auto' : 0,
+                        maxWidth: effectiveCinemaMode ? '1200px' : 'none',
+                        mx: effectiveCinemaMode ? 'auto' : 0,
                         width: '100%'
                     }}>
                         <VideoInfo
@@ -563,11 +597,11 @@ const VideoPlayer: React.FC = () => {
                 {/* Sidebar Section */}
                 <Box sx={{
                     gridArea: 'sidebar',
-                    maxWidth: isCinemaMode ? '1200px' : 'none',
-                    mx: isCinemaMode ? 'auto' : 0,
+                    maxWidth: effectiveCinemaMode ? '1200px' : 'none',
+                    mx: effectiveCinemaMode ? 'auto' : 0,
                     width: '100%'
                 }}>
-                    <UpNextSidebar
+                    {isAudio ? <AudioUpNextSidebar
                         relatedVideos={relatedVideos}
                         autoPlayNext={autoPlayNext}
                         onAutoPlayNextChange={setAutoPlayNext}
@@ -602,7 +636,22 @@ const VideoPlayer: React.FC = () => {
                             navigate(`/video/${videoId}`);
                         }}
                         onAddToCollection={handleAddToCollection}
-                    />
+                        currentVideoId={video.id}
+                    /> : <UpNextSidebar
+                        relatedVideos={relatedVideos}
+                        autoPlayNext={autoPlayNext}
+                        onAutoPlayNextChange={setAutoPlayNext}
+                        onVideoClick={(videoId, index) => {
+                            const slateItem = upNextSlate[index] ?? { videoId, lane: 'related', position: index + 1 };
+                            const clickEventId = statisticsIngestion.enabled && video
+                                ? statisticsIngestion.recordEvent({ eventType: 'up_next_clicked', surface: 'web', videoId, relatedEventId: upNextImpressionEventIdRef.current, value: slateItem.position, payload: { fromVideoId: video.id, toVideoId: videoId, position: slateItem.position, lane: slateItem.lane } })
+                                : null;
+                            const state = buildPlaybackState(clickEventId ?? statisticsRelatedEventId);
+                            if (Object.keys(state).length > 0) { navigate(`/video/${videoId}`, { state }); return; }
+                            navigate(`/video/${videoId}`);
+                        }}
+                        onAddToCollection={handleAddToCollection}
+                    />}
                 </Box>
             </Box>
 

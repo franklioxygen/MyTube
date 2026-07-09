@@ -275,7 +275,7 @@ export async function cleanupVideoArtifacts(
       // yt-dlp often uses .f[format_id]. in filenames for intermediate streams
       if (/\.f[0-9]+/.test(file) || /\.temp\./.test(file)) return true;
       
-      // Cleanup the main video file variants (mp4, mkv, webm, etc) if this is called during cleanup
+      // Cleanup the main media file variants (video and audio containers) if this is called during cleanup
       // This matches strictly files that share the base filename
       const ext = path.extname(file);
       const fileWithoutExt = path.basename(file, ext);

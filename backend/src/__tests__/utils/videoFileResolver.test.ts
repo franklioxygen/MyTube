@@ -1,7 +1,10 @@
 import fs from "fs-extra";
 import path from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { resolvePlayableVideoFilePath } from "../../utils/videoFileResolver";
+import {
+  resolvePlayableMediaFilePath,
+  resolvePlayableVideoFilePath,
+} from "../../utils/videoFileResolver";
 
 const mockSpawnSync = vi.hoisted(() => vi.fn());
 
@@ -184,5 +187,22 @@ describe("resolvePlayableVideoFilePath", () => {
     const result = resolvePlayableVideoFilePath(expected);
 
     expect(result).toBeNull();
+  });
+});
+
+describe("resolvePlayableMediaFilePath audio mode", () => {
+  it("finds an audio-only split output", () => {
+    const expected = path.resolve("/virtual/videos/track.m4a");
+    const videoDir = path.dirname(expected);
+    const splitAudio = path.join(videoDir, "track.f140.m4a");
+
+    vi.mocked(fs.existsSync).mockImplementation((target: unknown) => {
+      const value = String(target);
+      return value === videoDir || value === splitAudio;
+    });
+    vi.mocked(fs.readdirSync).mockReturnValue(asReaddirResult(["track.f140.m4a"]));
+    vi.mocked(fs.statSync).mockReturnValue({ size: 1024 } as unknown as fs.Stats);
+
+    expect(resolvePlayableMediaFilePath(expected, "audio")).toBe(splitAudio);
   });
 });

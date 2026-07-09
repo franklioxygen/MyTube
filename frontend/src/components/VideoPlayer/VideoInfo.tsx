@@ -51,7 +51,10 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
     onToggleVisibility
 }) => {
     const { videoRef, videoResolution, needsDetection } = useVideoResolution(video);
-    const videoUrl = useCloudStorageUrl(video.videoPath, 'video');
+    const videoUrl = useCloudStorageUrl(
+        video.videoPath,
+        video.mediaType === 'audio' ? 'audio' : 'video',
+    );
 
     // Cleanup video element on unmount or when video changes
     useEffect(() => {

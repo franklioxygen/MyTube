@@ -14,7 +14,10 @@ vi.mock("../../../services/downloaders/ytdlp/ytdlpHelpers", () => ({
   getProviderScript: () => null,
 }));
 
-import { prepareDownloadFlags } from "../../../services/downloaders/ytdlp/ytdlpConfig";
+import {
+  prepareAudioDownloadFlags,
+  prepareDownloadFlags,
+} from "../../../services/downloaders/ytdlp/ytdlpConfig";
 
 describe("prepareDownloadFlags final container preference", () => {
   beforeEach(() => {
@@ -32,6 +35,27 @@ describe("prepareDownloadFlags final container preference", () => {
     expect(result.flags.mergeOutputFormat).toBe("webm/mp4");
     expect(result.mergeOutputFormat).toBe("webm/mp4");
     expect(result.videoExtension).toBe("webm");
+  });
+
+  it("prepares an audio-only flag set without video mux or subtitle flags", () => {
+    const result = prepareAudioDownloadFlags(
+      "https://www.youtube.com/watch?v=abc123",
+      "/tmp/track.m4a",
+      "m4a",
+      { proxy: "http://proxy.example" },
+    );
+
+    expect(result.audioExtension).toBe("m4a");
+    expect(result.flags).toMatchObject({
+      format: "bestaudio/best",
+      extractAudio: true,
+      audioFormat: "m4a",
+      audioQuality: 0,
+      noPlaylist: true,
+      proxy: "http://proxy.example",
+    });
+    expect(result.flags.mergeOutputFormat).toBeUndefined();
+    expect(result.flags.writeSubs).toBeUndefined();
   });
 
   it("switches the default YouTube WebM-first selector to MP4 when forcing MP4", () => {

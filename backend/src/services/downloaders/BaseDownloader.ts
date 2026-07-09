@@ -17,6 +17,7 @@ import {
   validateUrl,
 } from "../../utils/security";
 import { Video } from "../storageService";
+import type { AudioFormat } from "../../types/settings";
 
 export interface VideoInfo {
   title: string;
@@ -27,10 +28,15 @@ export interface VideoInfo {
   duration?: string;
 }
 
-export interface DownloadOptions {
+export interface DownloadModeOptions {
   downloadId?: string;
   onStart?: (cancel: () => void) => void;
   filenameTemplateSourceOptions?: import("../filenameTemplate/types").FilenameTemplateSourceOptions;
+  audioOnly?: boolean;
+  audioFormat?: AudioFormat;
+}
+
+export interface DownloadOptions extends DownloadModeOptions {
   // Generic key-value store for specific downloader options
   [key: string]: any;
 }

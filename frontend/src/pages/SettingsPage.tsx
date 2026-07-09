@@ -96,6 +96,7 @@ const SettingsPage: React.FC = () => {
         mountDirectories: '',
         defaultSort: 'dateDesc',
         preferredAudioLanguage: '',
+        audioFormat: 'm4a',
         twitchClientId: '',
         twitchClientSecret: '',
         telegramDownloadEnabled: false,
