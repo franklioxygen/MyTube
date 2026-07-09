@@ -92,6 +92,36 @@ function hasUserSpecifiedFormatSort(config: UserYtDlpConfig): boolean {
   return Boolean(config.S || config.formatSort);
 }
 
+// yt-dlp --format-sort field names that let a user's sort already control the
+// codec or container. When the user's sort uses one of these, applying the app
+// codec preset would clobber their explicit choice, so we leave it untouched.
+const CODEC_OR_CONTAINER_SORT_KEYS = new Set([
+  "codec",
+  "vcodec",
+  "acodec",
+  "ext",
+  "vext",
+  "aext",
+]);
+
+function userFormatSortControlsCodecOrContainer(
+  config: UserYtDlpConfig,
+): boolean {
+  const sort = config.S || config.formatSort;
+  if (typeof sort !== "string") {
+    return false;
+  }
+  return sort.split(",").some((field) => {
+    const key = field
+      .trim()
+      .replace(/^[+-]/, "")
+      .split(":")[0]
+      ?.trim()
+      .toLowerCase();
+    return key !== undefined && CODEC_OR_CONTAINER_SORT_KEYS.has(key);
+  });
+}
+
 function resolveDownloadFormats(config: UserYtDlpConfig): {
   defaultFormat: string;
   youtubeFormat: string;
@@ -322,7 +352,11 @@ function applyDefaultVideoCodecIfNeeded(
   },
 ): boolean {
   const { flags, config, isTwitter, hasUserMergeOutputFormat } = args;
-  if (hasUserSpecifiedFormat(config) || isTwitter) {
+  if (
+    hasUserSpecifiedFormat(config) ||
+    userFormatSortControlsCodecOrContainer(config) ||
+    isTwitter
+  ) {
     return false;
   }
 
