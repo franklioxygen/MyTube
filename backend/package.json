@@ -1,6 +1,6 @@
 {
   "name": "backend",
-  "version": "1.10.10",
+  "version": "1.10.11",
   "main": "server.js",
   "scripts": {
     "preinstall": "node scripts/check-supported-node.cjs backend",
