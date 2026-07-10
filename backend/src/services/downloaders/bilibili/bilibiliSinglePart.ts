@@ -355,7 +355,12 @@ export async function downloadSinglePart(
     // For multi-part videos, always create a new video entry (each part is separate)
     // For single videos, check if video with same sourceUrl already exists
     if (totalParts === 1) {
-      const existingVideo = storageService.getVideoBySourceUrl(url);
+      // Scope by media type so an audio-only download becomes its own library
+      // item instead of overwriting the existing video row for the same URL.
+      const existingVideo = storageService.getVideoBySourceUrl(
+        url,
+        audioOnly ? "audio" : "video"
+      );
 
       if (existingVideo) {
         // Update existing video with new subtitle information and file paths

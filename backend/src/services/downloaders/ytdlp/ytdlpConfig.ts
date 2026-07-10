@@ -722,7 +722,11 @@ export function prepareDownloadFlags(
 /**
  * Prepare the deliberately small yt-dlp flag set used for audio-only jobs.
  * Video selectors, mux settings, subtitle defaults, and resolution preferences
- * must not leak into this branch.
+ * must not leak into this branch, but the remaining safe user config (cookies,
+ * browser cookies, custom headers, extractor args, auth, etc.) is preserved so
+ * private/age-gated/authenticated sources work the same as video downloads.
+ * `extractUserConfigOptions` already strips output/format/subtitle/mux/proxy
+ * keys from `safeUserConfig`, so spreading it here cannot reintroduce them.
  */
 export function prepareAudioDownloadFlags(
   videoUrl: string,
@@ -731,9 +735,10 @@ export function prepareAudioDownloadFlags(
   userConfig?: UserYtDlpConfig,
 ): PreparedAudioFlags {
   const config = (userConfig || getUserYtDlpConfig(videoUrl) || {}) as UserYtDlpConfig;
-  const { networkOptions } = extractUserConfigOptions(config);
+  const { safeUserConfig, networkOptions } = extractUserConfigOptions(config);
   const normalizedFormat = normalizeAudioFormat(audioFormat);
   const flags: YtDlpFlags = {
+    ...safeUserConfig,
     ...networkOptions,
     output: outputPath,
     format: "bestaudio/best",

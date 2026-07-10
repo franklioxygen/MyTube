@@ -58,6 +58,40 @@ describe("prepareDownloadFlags final container preference", () => {
     expect(result.flags.writeSubs).toBeUndefined();
   });
 
+  it("preserves auth-related safe user config for audio jobs while stripping video/subtitle/mux options", () => {
+    const result = prepareAudioDownloadFlags(
+      "https://www.youtube.com/watch?v=abc123",
+      "/tmp/track.m4a",
+      "m4a",
+      {
+        cookies: "/cookies.txt",
+        cookiesFromBrowser: "firefox",
+        addHeaders: "Referer:https://example.com",
+        extractorArgs: "youtube:player_client=web",
+        proxy: "http://proxy.example",
+        // These must not leak into the audio branch.
+        format: "bestvideo+bestaudio",
+        mergeOutputFormat: "mkv",
+        writeSubs: true,
+        subLangs: "en",
+      } as any,
+    );
+
+    // Auth/network config is preserved.
+    expect(result.flags).toMatchObject({
+      cookies: "/cookies.txt",
+      cookiesFromBrowser: "firefox",
+      addHeaders: "Referer:https://example.com",
+      extractorArgs: "youtube:player_client=web",
+      proxy: "http://proxy.example",
+    });
+    // Audio selectors win; video/subtitle/mux options are stripped.
+    expect(result.flags.format).toBe("bestaudio/best");
+    expect(result.flags.mergeOutputFormat).toBeUndefined();
+    expect(result.flags.writeSubs).toBeUndefined();
+    expect(result.flags.subLangs).toBeUndefined();
+  });
+
   it("switches the default YouTube WebM-first selector to MP4 when forcing MP4", () => {
     mockGetSettings.mockReturnValue({
       preferredVideoContainer: "mp4",

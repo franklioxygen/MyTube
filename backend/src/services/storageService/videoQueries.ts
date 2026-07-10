@@ -133,14 +133,25 @@ export function getVideoSummaries(
 }
 
 export function getVideoBySourceUrl(
-  sourceUrl: string
+  sourceUrl: string,
+  mediaType?: import("./types").MediaType
 ): import("./types").Video | undefined {
   try {
-    const result = db
-      .select()
-      .from(videos)
-      .where(eq(videos.sourceUrl, sourceUrl))
-      .get();
+    // Audio-only and video downloads for the same URL are separate library
+    // items. When a media type is supplied, scope the lookup to it so an audio
+    // download never reuses (and overwrites) the existing video row, and vice
+    // versa. Legacy rows with a null media_type are treated as "video".
+    let condition = eq(videos.sourceUrl, sourceUrl);
+    if (mediaType === "audio") {
+      condition = and(condition, eq(videos.mediaType, "audio"))!;
+    } else if (mediaType === "video") {
+      condition = and(
+        condition,
+        or(eq(videos.mediaType, "video"), isNull(videos.mediaType))
+      )!;
+    }
+
+    const result = db.select().from(videos).where(condition).get();
 
     if (result) {
       return {

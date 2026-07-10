@@ -573,8 +573,13 @@ export async function downloadVideo(
     logger.error("Failed to get file size:", e);
   }
 
-  // Check if video with same sourceUrl already exists
-  const existingVideo = storageService.getVideoBySourceUrl(videoUrl);
+  // Check if a library item with the same sourceUrl AND media type already
+  // exists. Scoping by media type keeps audio-only downloads as their own item
+  // instead of overwriting (and deleting the file of) the existing video row.
+  const existingVideo = storageService.getVideoBySourceUrl(
+    videoUrl,
+    audioOnly ? "audio" : "video"
+  );
 
   if (existingVideo) {
     // Update existing video with new subtitle information and file paths
