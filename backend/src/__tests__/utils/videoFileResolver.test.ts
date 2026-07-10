@@ -176,6 +176,42 @@ describe("resolvePlayableVideoFilePath", () => {
     expect(result).toBeNull();
   });
 
+  it("returns null in video mode when only an audio-only split artifact remains and ffprobe is unavailable", () => {
+    // A failed video download that left only name.f140.m4a must not be saved as
+    // a no-frame "video" item when ffprobe cannot confirm a video stream.
+    const expected = path.resolve("/virtual/videos/movie.webm");
+    const videoDir = path.dirname(expected);
+    const audioOnlyFile = path.join(videoDir, "movie.f140.m4a");
+
+    vi.mocked(fs.existsSync).mockImplementation((target: unknown) => {
+      const value = String(target);
+      return value === videoDir || value === audioOnlyFile;
+    });
+    vi.mocked(fs.readdirSync).mockReturnValue(
+      asReaddirResult(["movie.f140.m4a"])
+    );
+    vi.mocked(fs.statSync).mockReturnValue({ size: 4096 } as unknown as fs.Stats);
+
+    expect(resolvePlayableVideoFilePath(expected)).toBeNull();
+    // ffprobe availability is probed, but no stream inspection is needed.
+    expect(mockSpawnSync).toHaveBeenCalled();
+  });
+
+  it("returns null in video mode when only a bare audio container remains and ffprobe is unavailable", () => {
+    const expected = path.resolve("/virtual/videos/movie.mp4");
+    const videoDir = path.dirname(expected);
+    const bareAudio = path.join(videoDir, "movie.m4a");
+
+    vi.mocked(fs.existsSync).mockImplementation((target: unknown) => {
+      const value = String(target);
+      return value === videoDir || value === bareAudio;
+    });
+    vi.mocked(fs.readdirSync).mockReturnValue(asReaddirResult(["movie.m4a"]));
+    vi.mocked(fs.statSync).mockReturnValue({ size: 4096 } as unknown as fs.Stats);
+
+    expect(resolvePlayableVideoFilePath(expected)).toBeNull();
+  });
+
   it("returns null when neither merged nor split video files exist", () => {
     const expected = path.resolve("/virtual/videos/missing.mp4");
     const videoDir = path.dirname(expected);

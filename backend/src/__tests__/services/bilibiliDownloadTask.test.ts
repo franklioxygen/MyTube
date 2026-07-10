@@ -139,6 +139,47 @@ describe("buildBilibiliDownloadTask multipart collection handling", () => {
     expect(mocks.cleanupCollectionDirectories).toHaveBeenCalledWith("My Series");
   });
 
+  it("scopes the part-1 reuse check to audio for audio-only multipart requests", async () => {
+    // Part 1 already exists as a *video* for this URL. An audio-only request
+    // must look up the audio row (finding none) and download the audio part
+    // instead of skipping to the existing video item.
+    mocks.getVideoBySourceUrl.mockImplementation(
+      (_url: string, mediaType?: string) =>
+        mediaType === "audio" ? undefined : { id: "existing-video-part1" },
+    );
+    mocks.getCollectionById.mockImplementation((id: string) => ({
+      id,
+      name: "My Series",
+      title: "My Series",
+      videos: [],
+    }));
+
+    const result = await buildBilibiliDownloadTask({
+      downloadUrl: SERIES_URL,
+      downloadId: "dl-audio",
+      downloadAllParts: true,
+      collectionName: "My Series",
+      audioOnly: true,
+      audioFormat: "m4a",
+    })(() => {});
+
+    expect(result.success).toBe(true);
+    // The reuse lookup is scoped to the requested media type.
+    expect(mocks.getVideoBySourceUrl).toHaveBeenCalledWith(
+      "https://www.bilibili.com/video/BV1xx?p=1",
+      "audio",
+    );
+    // Part 1 is downloaded as audio rather than skipped to the video row.
+    const part1Call = mocks.downloadSingleBilibiliPart.mock.calls.find(
+      (call: any[]) => typeof call[0] === "string" && call[0].includes("?p=1"),
+    );
+    expect(part1Call).toBeDefined();
+    expect(part1Call[part1Call.length - 1]).toEqual({
+      audioOnly: true,
+      audioFormat: "m4a",
+    });
+  });
+
   it("reuses an existing source-keyed collection instead of creating a duplicate", async () => {
     const existing = {
       id: "col-existing",

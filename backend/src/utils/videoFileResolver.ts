@@ -141,6 +141,10 @@ type CandidateFile = {
   extensionPriority: number;
   size: number;
   likelyAudioOnly: boolean;
+  // True when the artifact cannot carry a video stream (audio container
+  // extension, or a yt-dlp audio-only format id). Such files must never be
+  // returned for a video-mode download when a video stream is unconfirmed.
+  isAudioOnlyArtifact: boolean;
   hasVideoStream: boolean | null;
 };
 
@@ -219,6 +223,9 @@ export const resolvePlayableMediaFilePath = (
           likelyAudioOnly: isMergedOutput
             ? false
             : isLikelyAudioOnlyFormatId(filename),
+          isAudioOnlyArtifact:
+            AUDIO_CONTAINER_EXTENSION_SET.has(candidateExt) ||
+            (!isMergedOutput && isLikelyAudioOnlyFormatId(filename)),
           hasVideoStream,
         };
       })
@@ -230,7 +237,16 @@ export const resolvePlayableMediaFilePath = (
     }
 
     if (!ffprobeAvailable) {
-      return candidates[0].candidatePath;
+      if (mediaType === "audio") {
+        return candidates[0].candidatePath;
+      }
+      // Without ffprobe a video stream cannot be confirmed, so never fall back
+      // to an audio-only artifact for a video download — it would be saved as a
+      // no-frame "video" item. Prefer a real video container; fail otherwise.
+      const videoCapableCandidate = candidates.find(
+        (candidate) => !candidate.isAudioOnlyArtifact
+      );
+      return videoCapableCandidate?.candidatePath ?? null;
     }
 
     if (mediaType === "audio") {
@@ -249,8 +265,13 @@ export const resolvePlayableMediaFilePath = (
       }
     }
 
+    // Fall back to candidates whose stream type ffprobe could not determine.
+    // For video mode, still exclude audio-only artifacts so a failed video
+    // download does not become a no-frame item.
     const unknownCandidates = candidates.filter(
-      (candidate) => candidate.hasVideoStream === null
+      (candidate) =>
+        candidate.hasVideoStream === null &&
+        (mediaType === "audio" || !candidate.isAudioOnlyArtifact)
     );
     if (unknownCandidates.length > 0) {
       return unknownCandidates[0].candidatePath;

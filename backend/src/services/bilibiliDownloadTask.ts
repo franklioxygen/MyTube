@@ -119,7 +119,13 @@ export function buildBilibiliDownloadTask(
 
       const baseUrl = downloadUrl.split("?")[0];
       const firstPartUrl = `${baseUrl}?p=1`;
-      const existingPart1 = storageService.getVideoBySourceUrl(firstPartUrl);
+      // Scope the part-1 reuse check to the requested media type so an audio
+      // request for a multipart video whose part 1 already exists as a video
+      // still downloads the audio item instead of skipping to the video row.
+      const existingPart1 = storageService.getVideoBySourceUrl(
+        firstPartUrl,
+        options.audioOnly === true ? "audio" : "video",
+      );
       let firstPartResult: downloadService.DownloadResult;
       let firstVideo = existingPart1;
       let collectionId: string | null = null;
