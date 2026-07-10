@@ -2,6 +2,7 @@ import { Audiotrack, Clear, ContentPaste, Search } from '@mui/icons-material';
 import {
     alpha,
     Box,
+    ButtonGroup,
     Button,
     CircularProgress,
     IconButton,
@@ -197,27 +198,32 @@ const SearchInput: React.FC<SearchInputProps> = ({
                                         <Clear />
                                     </IconButton>
                                 )}
-                                <Box
+                                <ButtonGroup
+                                    variant="contained"
+                                    disabled={isSubmitting}
                                     sx={{
-                                        display: 'flex',
-                                        alignItems: 'center',
                                         height: '100%',
-                                        ml: 0.25,
-                                        gap: 0.25,
-                                    }}
-                                >
-                                    <Button
-                                        type="submit"
-                                        aria-label={t('download')}
-                                        disabled={isSubmitting}
-                                        variant="contained"
-                                        sx={{
-                                            minWidth: 'auto',
-                                            px: 2.5,
-                                            height: '100%',
-                                            borderRadius: 1.5,
+                                        borderRadius: 999,
+                                        overflow: 'hidden',
+                                        boxShadow: 'none',
+                                        '& .MuiButton-root': {
+                                            minHeight: '100%',
+                                            borderRadius: 0,
                                             transition: desktopTransition,
-                                            ...(!isMobile && !isSearchActive && {
+                                        },
+                                        '& .MuiButton-root:first-of-type': {
+                                            borderTopLeftRadius: 999,
+                                            borderBottomLeftRadius: 999,
+                                        },
+                                        '& .MuiButton-root:last-of-type': {
+                                            borderTopRightRadius: 999,
+                                            borderBottomRightRadius: 999,
+                                        },
+                                        '& .MuiButton-root + .MuiButton-root': {
+                                            borderLeft: `1px solid ${alpha(theme.palette.primary.contrastText, 0.32)}`,
+                                        },
+                                        ...(!isMobile && !isSearchActive && {
+                                            '& .MuiButton-root': {
                                                 bgcolor: alpha(theme.palette.primary.main, 0.35),
                                                 color: alpha(theme.palette.primary.contrastText, 0.85),
                                                 boxShadow: 'none',
@@ -225,34 +231,30 @@ const SearchInput: React.FC<SearchInputProps> = ({
                                                     bgcolor: alpha(theme.palette.primary.main, 0.5),
                                                     boxShadow: 'none',
                                                 },
-                                            }),
-                                        }}
+                                            },
+                                        }),
+                                    }}
+                                >
+                                    <Button
+                                        type="submit"
+                                        aria-label={t('download')}
+                                        sx={{ minWidth: 'auto', px: 2.5 }}
                                     >
                                         {isSubmitting ? <CircularProgress size={24} color="inherit" /> : <Search />}
                                     </Button>
                                     {!isVisitor && showAudioDownloadButton && !isMissAVInput && (
-                                        <IconButton
+                                        <Button
                                             type="button"
                                             aria-label={t('downloadAudioOnly')}
                                             title={t('downloadAudioOnly')}
                                             onClick={handleAudioDownload}
-                                            disabled={isSubmitting || !canDownloadAudio}
-                                            size="small"
-                                            sx={{
-                                                p: 0.75,
-                                                color: theme.palette.text.secondary,
-                                                borderRadius: 1.25,
-                                                transition: desktopTransition,
-                                                '&:hover': {
-                                                    bgcolor: alpha(theme.palette.text.primary, 0.08),
-                                                    color: theme.palette.text.primary,
-                                                },
-                                            }}
+                                            disabled={!canDownloadAudio}
+                                            sx={{ minWidth: 42, px: 1 }}
                                         >
                                             <Audiotrack fontSize="small" />
-                                        </IconButton>
+                                        </Button>
                                     )}
-                                </Box>
+                                </ButtonGroup>
                             </InputAdornment>
                         ),
                         sx: { pr: 0, borderRadius: 2 }
