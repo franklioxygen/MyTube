@@ -1253,6 +1253,8 @@ export const ko = {
   mergeDatabasePreviewDownloadHistory: "다운로드 기록",
   mergeDatabasePreviewVideoDownloads: "다운로드 추적",
   mergeDatabasePreviewTags: "태그",
+  mergeDatabasePreviewFavoriteCollections: "즐겨찾기 컬렉션",
+  mergeDatabasePreviewFavoriteAuthors: "즐겨찾기 제작자",
   selectDatabaseFile: "데이터베이스 파일 선택",
   databaseExportedSuccess: "데이터베이스 내보내기 성공",
   databaseExportFailed: "데이터베이스 내보내기 실패",

@@ -1244,6 +1244,8 @@ export const en = {
   mergeDatabasePreviewDownloadHistory: "Download history",
   mergeDatabasePreviewVideoDownloads: "Download tracking",
   mergeDatabasePreviewTags: "Tags",
+  mergeDatabasePreviewFavoriteCollections: "Favorite collections",
+  mergeDatabasePreviewFavoriteAuthors: "Favorite authors",
   selectDatabaseFile: "Select Database File",
   databaseExportedSuccess: "Database exported successfully",
   databaseExportFailed: "Failed to export database",

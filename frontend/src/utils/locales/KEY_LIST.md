@@ -1179,6 +1179,8 @@ Total keys: 1044
 | `mergeDatabasePreviewDownloadHistory` |
 | `mergeDatabasePreviewVideoDownloads` |
 | `mergeDatabasePreviewTags` |
+| `mergeDatabasePreviewFavoriteCollections` |
+| `mergeDatabasePreviewFavoriteAuthors` |
 | `selectDatabaseFile` |
 | `databaseExportedSuccess` |
 | `databaseExportFailed` |

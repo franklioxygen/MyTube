@@ -1244,6 +1244,8 @@ export const ar = {
   mergeDatabasePreviewDownloadHistory: "سجل التنزيلات",
   mergeDatabasePreviewVideoDownloads: "تتبع التنزيل",
   mergeDatabasePreviewTags: "العلامات",
+  mergeDatabasePreviewFavoriteCollections: "المجموعات المفضلة",
+  mergeDatabasePreviewFavoriteAuthors: "المؤلفون المفضلون",
   selectDatabaseFile: "اختر ملف قاعدة البيانات",
   databaseExportedSuccess: "تم تصدير قاعدة البيانات بنجاح",
   databaseExportFailed: "فشل تصدير قاعدة البيانات",

@@ -1272,6 +1272,8 @@ export const ja = {
   mergeDatabasePreviewDownloadHistory: "ダウンロード履歴",
   mergeDatabasePreviewVideoDownloads: "ダウンロード追跡",
   mergeDatabasePreviewTags: "タグ",
+  mergeDatabasePreviewFavoriteCollections: "お気に入りのコレクション",
+  mergeDatabasePreviewFavoriteAuthors: "お気に入りの作者",
   selectDatabaseFile: "データベースファイルを選択",
   databaseExportedSuccess: "データベースのエクスポートが成功しました",
   databaseExportFailed: "データベースのエクスポートに失敗しました",

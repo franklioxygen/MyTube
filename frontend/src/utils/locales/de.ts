@@ -1288,6 +1288,8 @@ export const de = {
   mergeDatabasePreviewDownloadHistory: "Download-Verlauf",
   mergeDatabasePreviewVideoDownloads: "Download-Tracking",
   mergeDatabasePreviewTags: "Tags",
+  mergeDatabasePreviewFavoriteCollections: "Favorisierte Sammlungen",
+  mergeDatabasePreviewFavoriteAuthors: "Favorisierte Autoren",
   selectDatabaseFile: "Datenbankdatei Auswählen",
   databaseExportedSuccess: "Datenbank erfolgreich exportiert",
   databaseExportFailed: "Fehler beim Exportieren der Datenbank",

@@ -1269,6 +1269,8 @@ export const ru = {
   mergeDatabasePreviewDownloadHistory: "История загрузок",
   mergeDatabasePreviewVideoDownloads: "Отслеживание загрузок",
   mergeDatabasePreviewTags: "Теги",
+  mergeDatabasePreviewFavoriteCollections: "Избранные коллекции",
+  mergeDatabasePreviewFavoriteAuthors: "Избранные авторы",
   selectDatabaseFile: "Выбрать Файл Базы Данных",
   databaseExportedSuccess: "База данных успешно экспортирована",
   databaseExportFailed: "Не удалось экспортировать базу данных",

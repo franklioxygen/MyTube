@@ -1287,6 +1287,8 @@ export const es = {
   mergeDatabasePreviewDownloadHistory: "Historial de descargas",
   mergeDatabasePreviewVideoDownloads: "Seguimiento de descargas",
   mergeDatabasePreviewTags: "Etiquetas",
+  mergeDatabasePreviewFavoriteCollections: "Colecciones favoritas",
+  mergeDatabasePreviewFavoriteAuthors: "Autores favoritos",
   selectDatabaseFile: "Seleccionar Archivo de Base de Datos",
   databaseExportedSuccess: "Base de datos exportada exitosamente",
   databaseExportFailed: "Error al exportar la base de datos",

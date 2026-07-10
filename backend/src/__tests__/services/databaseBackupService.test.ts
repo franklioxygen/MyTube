@@ -616,6 +616,8 @@ describe("databaseBackupService", () => {
         downloadHistory: { merged: 1, skipped: 1 },
         videoDownloads: { merged: 1, skipped: 1 },
         tags: { merged: 2, skipped: 1 },
+        favoriteCollections: { merged: 0, skipped: 0 },
+        favoriteAuthors: { merged: 0, skipped: 0 },
       });
       expect(sqlite.transaction).toHaveBeenCalledTimes(1);
       expect(invalidateSettingsCache).toHaveBeenCalledTimes(1);
@@ -901,6 +903,8 @@ describe("databaseBackupService", () => {
         downloadHistory: { merged: 0, skipped: 0 },
         videoDownloads: { merged: 0, skipped: 0 },
         tags: { merged: 3, skipped: 1 },
+        favoriteCollections: { merged: 0, skipped: 0 },
+        favoriteAuthors: { merged: 0, skipped: 0 },
       });
       expect(sqlite.transaction).not.toHaveBeenCalled();
       expect(fs.copyFileSync).not.toHaveBeenCalled();

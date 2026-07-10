@@ -1217,6 +1217,8 @@ export const zh = {
   mergeDatabasePreviewDownloadHistory: "下载历史",
   mergeDatabasePreviewVideoDownloads: "下载跟踪",
   mergeDatabasePreviewTags: "标签",
+  mergeDatabasePreviewFavoriteCollections: "收藏的合集",
+  mergeDatabasePreviewFavoriteAuthors: "收藏的作者",
   selectDatabaseFile: "选择数据库文件",
   databaseExportedSuccess: "数据库导出成功",
   databaseExportFailed: "数据库导出失败",

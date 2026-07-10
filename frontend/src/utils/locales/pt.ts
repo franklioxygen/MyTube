@@ -1276,6 +1276,8 @@ export const pt = {
   mergeDatabasePreviewDownloadHistory: "Histórico de Downloads",
   mergeDatabasePreviewVideoDownloads: "Rastreamento de downloads",
   mergeDatabasePreviewTags: "Tags",
+  mergeDatabasePreviewFavoriteCollections: "Coleções favoritas",
+  mergeDatabasePreviewFavoriteAuthors: "Autores favoritos",
   selectDatabaseFile: "Selecionar Arquivo de Banco de Dados",
   databaseExportedSuccess: "Banco de dados exportado com sucesso",
   databaseExportFailed: "Falha ao exportar banco de dados",
