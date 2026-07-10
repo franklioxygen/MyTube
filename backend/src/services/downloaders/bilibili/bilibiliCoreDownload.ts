@@ -313,8 +313,13 @@ export async function downloadVideo(
       }
     }
 
-    // Check if file exists first
-    const videoFile = findVideoFileInTemp(tempDir);
+    // Check if file exists first. Prefer the audio track only in audio-only
+    // mode so a leftover split audio stream from a failed merge is never picked
+    // as the item for a normal video download.
+    const videoFile = findVideoFileInTemp(
+      tempDir,
+      Boolean(modeOptions?.audioOnly)
+    );
 
     // If there was a download error and no file was found, throw the error
     if (downloadError && !videoFile) {

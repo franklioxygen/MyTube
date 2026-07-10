@@ -127,25 +127,39 @@ export function prepareFilePaths(
   };
 }
 
+const AUDIO_TEMP_EXTENSIONS = [".m4a", ".mp3", ".opus"];
+const VIDEO_TEMP_EXTENSIONS = [".mp4", ".mkv", ".webm", ".flv"];
+
 /**
- * Find video file in temp directory
+ * Find the downloaded file in the temp directory.
+ *
+ * Extension preference depends on the download mode: audio-only jobs prefer the
+ * extracted audio track, while normal video downloads must prefer the video
+ * container. A failed/absent ffmpeg merge can leave both a split `*.mp4` video
+ * stream and a `*.m4a` audio stream behind — always preferring audio there would
+ * save the audio-only stream as a "video" item with no frames.
  */
-export function findVideoFileInTemp(tempDir: string): string | null {
+export function findVideoFileInTemp(
+  tempDir: string,
+  audioOnly = false
+): string | null {
   if (!pathExistsSafeSync(tempDir, VIDEOS_DIR)) {
     return null;
   }
 
   const files = readdirSafeSync(tempDir, VIDEOS_DIR);
-  const videoFile =
-    files.find((file: string) => file.endsWith(".m4a")) ||
-    files.find((file: string) => file.endsWith(".mp3")) ||
-    files.find((file: string) => file.endsWith(".opus")) ||
-    files.find((file: string) => file.endsWith(".mp4")) ||
-    files.find((file: string) => file.endsWith(".mkv")) ||
-    files.find((file: string) => file.endsWith(".webm")) ||
-    files.find((file: string) => file.endsWith(".flv"));
+  const orderedExtensions = audioOnly
+    ? [...AUDIO_TEMP_EXTENSIONS, ...VIDEO_TEMP_EXTENSIONS]
+    : [...VIDEO_TEMP_EXTENSIONS, ...AUDIO_TEMP_EXTENSIONS];
 
-  return videoFile || null;
+  for (const ext of orderedExtensions) {
+    const match = files.find((file: string) => file.endsWith(ext));
+    if (match) {
+      return match;
+    }
+  }
+
+  return null;
 }
 
 /**
