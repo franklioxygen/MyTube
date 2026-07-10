@@ -203,7 +203,7 @@ const SearchInput: React.FC<SearchInputProps> = ({
                                     disabled={isSubmitting}
                                     sx={{
                                         height: '100%',
-                                        borderRadius: 999,
+                                        borderRadius: 2,
                                         overflow: 'hidden',
                                         boxShadow: 'none',
                                         '& .MuiButton-root': {
@@ -212,12 +212,12 @@ const SearchInput: React.FC<SearchInputProps> = ({
                                             transition: desktopTransition,
                                         },
                                         '& .MuiButton-root:first-of-type': {
-                                            borderTopLeftRadius: 999,
-                                            borderBottomLeftRadius: 999,
+                                            borderTopLeftRadius: 2,
+                                            borderBottomLeftRadius: 2,
                                         },
                                         '& .MuiButton-root:last-of-type': {
-                                            borderTopRightRadius: 999,
-                                            borderBottomRightRadius: 999,
+                                            borderTopRightRadius: 2,
+                                            borderBottomRightRadius: 2,
                                         },
                                         '& .MuiButton-root + .MuiButton-root': {
                                             borderLeft: `1px solid ${alpha(theme.palette.primary.contrastText, 0.32)}`,
