@@ -150,4 +150,18 @@ describe('CollectionContext', () => {
             expect.anything()
         );
     });
+
+    it('should invalidate favorite collections when a collection is deleted', async () => {
+        const invalidateSpy = vi.spyOn(QueryClient.prototype, 'invalidateQueries');
+        mockedAxios.delete.mockResolvedValueOnce({ data: { success: true } });
+
+        const { result } = renderHook(() => useCollection(), { wrapper: createWrapper() });
+
+        await act(async () => {
+            await result.current.deleteCollection('col1');
+        });
+
+        // The backend cascades favorite_collections, so the cache must refresh.
+        expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['favorite-collections'] });
+    });
 });

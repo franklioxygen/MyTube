@@ -137,6 +137,10 @@ export const CollectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             if (deleteVideos) {
                 queryClient.invalidateQueries({ queryKey: ['videos'] });
             }
+            // The backend cascades favorite_collections when a collection is
+            // deleted, so refresh favorites too (all scopes) to avoid rendering
+            // a deleted collection that navigates to a not-found page.
+            queryClient.invalidateQueries({ queryKey: ['favorite-collections'] });
             showSnackbar(t('collectionDeletedSuccessfully'));
         },
         onError: (error) => {
