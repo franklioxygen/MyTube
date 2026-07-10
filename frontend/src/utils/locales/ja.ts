@@ -1560,6 +1560,8 @@ export const ja = {
   favorite: "お気に入り",
   favoritesEmptyTitle: "お気に入りはまだありません",
   favoritesEmptySubtitle: "コレクションや作者に星を付けるとここに表示されます。",
+  favoritesHeading: "お気に入り",
+  favoritesPageSubtitle: "星を付けたすべてを、ひとつの場所に",
   favoriteCollection: "コレクションをお気に入りに追加",
   favoriteAuthor: "作者をお気に入りに追加",
   unfavorite: "お気に入りから削除",

@@ -4,7 +4,10 @@ import { useNavigate } from 'react-router-dom';
 import FavoriteToggle from '../../components/FavoriteToggle';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useCloudStorageUrl } from '../../hooks/useCloudStorageUrl';
+import { brand } from '../../theme/colors';
 import type { FavoriteAuthorItem } from '../../types';
+import FavoriteRailCarousel from './FavoriteRailCarousel';
+import FavoriteSectionHeader from './FavoriteSectionHeader';
 
 interface FavoriteAuthorRailProps {
     favorites: FavoriteAuthorItem[];
@@ -28,10 +31,11 @@ const FavoriteAuthorCard: React.FC<{
         <Card
             sx={{
                 position: 'relative',
-                minWidth: { xs: '100%', md: 128 },
-                flex: { xs: '1 1 auto', md: '0 0 128px' },
+                width: { xs: 104, md: 128 },
+                flex: { xs: '0 0 104px', md: '0 0 128px' },
                 bgcolor: 'transparent',
                 boxShadow: 'none',
+                border: 'none',
                 scrollSnapAlign: 'start',
             }}
         >
@@ -39,28 +43,51 @@ const FavoriteAuthorCard: React.FC<{
                 disabled={isUnavailable}
                 onClick={() => navigate(`/author/${encodeURIComponent(favorite.author)}`)}
                 sx={{
-                    p: 1,
-                    borderRadius: 2,
+                    p: 1.25,
+                    borderRadius: 3,
+                    '&:hover .favorite-author-ring': { transform: 'scale(1.06)' },
                     '&:hover .favorite-author-avatar': {
-                        boxShadow: (theme) => `0 0 0 3px ${theme.palette.primary.main}`,
+                        boxShadow: (theme) => `0 0 0 3px ${theme.palette.background.paper}`,
                     },
                 }}
             >
-                <Avatar
-                    className="favorite-author-avatar"
-                    src={avatarUrl}
-                    alt={favorite.displayName}
-                    sx={{ width: 80, height: 80, mx: 'auto', transition: 'box-shadow 0.2s' }}
+                {/* Gradient ring frames the avatar for a premium, deliberate look */}
+                <Box
+                    className="favorite-author-ring"
+                    sx={{
+                        width: { xs: 76, md: 92 },
+                        height: { xs: 76, md: 92 },
+                        mx: 'auto',
+                        borderRadius: '50%',
+                        p: '3px',
+                        background: isUnavailable
+                            ? 'transparent'
+                            : `linear-gradient(135deg, ${brand.primaryDark}, ${brand.secondary})`,
+                        transition: 'transform 0.2s ease',
+                    }}
                 >
-                    {isUnavailable ? <WarningAmber /> : <Person />}
-                </Avatar>
+                    <Avatar
+                        className="favorite-author-avatar"
+                        src={avatarUrl}
+                        alt={favorite.displayName}
+                        sx={{ width: '100%', height: '100%', transition: 'box-shadow 0.2s' }}
+                    >
+                        {isUnavailable ? <WarningAmber /> : <Person />}
+                    </Avatar>
+                </Box>
                 <Typography
                     variant="body2"
                     align="center"
-                    sx={{ mt: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                    fontWeight={600}
+                    sx={{ mt: 1.25, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                 >
                     {isUnavailable ? t('favoriteUnavailable') : favorite.displayName}
                 </Typography>
+                {!isUnavailable && (
+                    <Typography variant="caption" color="text.secondary" align="center" display="block" noWrap>
+                        {favorite.videoCount} {t('videos')}
+                    </Typography>
+                )}
             </CardActionArea>
             <Box sx={{ position: 'absolute', top: 0, right: 0 }}>
                 <FavoriteToggle
@@ -82,22 +109,15 @@ const FavoriteAuthorRail: React.FC<FavoriteAuthorRailProps> = ({ favorites, load
 
     return (
         <Box component="section" aria-labelledby="favorite-authors-heading" sx={{ mt: 5 }}>
-            <Typography id="favorite-authors-heading" variant="h5" fontWeight={700} sx={{ mb: 2 }}>
-                {t('favoriteAuthors')}
-            </Typography>
-            <Box
-                sx={{
-                    display: 'flex',
-                    gap: 2,
-                    overflowX: { xs: 'visible', md: 'auto' },
-                    flexDirection: { xs: 'column', md: 'row' },
-                    pb: 1,
-                    scrollSnapType: 'x mandatory',
-                }}
-            >
+            <FavoriteSectionHeader
+                id="favorite-authors-heading"
+                title={t('favoriteAuthors')}
+                count={favorites.length}
+            />
+            <FavoriteRailCarousel prevLabel={t('previous')} nextLabel={t('next')}>
                 {loading && favorites.length === 0
                     ? [1, 2, 3, 4].map((item) => (
-                        <Box key={item} sx={{ minWidth: { xs: '100%', md: 128 }, height: 120, bgcolor: 'action.hover', borderRadius: 2 }} />
+                        <Box key={item} sx={{ flex: { xs: '0 0 104px', md: '0 0 128px' }, height: 120, bgcolor: 'action.hover', borderRadius: 2 }} />
                     ))
                     : favorites.map((favorite) => (
                         <FavoriteAuthorCard
@@ -106,7 +126,7 @@ const FavoriteAuthorRail: React.FC<FavoriteAuthorRailProps> = ({ favorites, load
                             onUnfavorite={() => onUnfavorite(favorite)}
                         />
                     ))}
-            </Box>
+            </FavoriteRailCarousel>
         </Box>
     );
 };

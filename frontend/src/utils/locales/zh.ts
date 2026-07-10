@@ -1478,6 +1478,8 @@ export const zh = {
   favorite: "收藏",
   favoritesEmptyTitle: "还没有收藏",
   favoritesEmptySubtitle: "为合集和作者加星标，它们会显示在这里。",
+  favoritesHeading: "我的收藏",
+  favoritesPageSubtitle: "你收藏的一切，尽在此处",
   favoriteCollection: "收藏合集",
   favoriteAuthor: "收藏作者",
   unfavorite: "取消收藏",

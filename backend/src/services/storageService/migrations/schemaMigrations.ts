@@ -424,9 +424,79 @@ export function ensureVisitorUsersTable(): void {
   }
 }
 
+// Ensure the favorites tables (favorite_collections / favorite_authors) exist
+// even if drizzle never applied the favorites migration (0021).
+//
+// Same failure mode as ensureVisitorUsersTable above: on installs whose
+// __drizzle_migrations journal is out of sync with the migration files,
+// drizzle-kit aborts the whole batch on the first duplicate-column ALTER, and
+// runMigrations() swallows that error. Every migration ordered after the
+// failing one -- including the CREATE TABLEs in 0021 -- then silently never
+// runs, so GET /favorites/collections and /favorites/authors throw
+// "no such table: favorite_collections" (HTTP 500) on every request.
+// CREATE TABLE / INDEX IF NOT EXISTS makes this idempotent and safe every boot.
+export function ensureFavoritesTables(): void {
+  try {
+    sqlite
+      .prepare(
+        `
+      CREATE TABLE IF NOT EXISTS favorite_collections (
+        user_id TEXT NOT NULL,
+        collection_id TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        PRIMARY KEY (user_id, collection_id),
+        FOREIGN KEY (collection_id) REFERENCES collections(id) ON UPDATE no action ON DELETE cascade
+      )
+    `
+      )
+      .run();
+    sqlite
+      .prepare(
+        "CREATE INDEX IF NOT EXISTS idx_favorite_collections_user ON favorite_collections (user_id)"
+      )
+      .run();
+
+    sqlite
+      .prepare(
+        `
+      CREATE TABLE IF NOT EXISTS favorite_authors (
+        user_id TEXT NOT NULL,
+        author TEXT NOT NULL,
+        display_name TEXT,
+        avatar_path TEXT,
+        channel_url TEXT,
+        created_at INTEGER NOT NULL,
+        PRIMARY KEY (user_id, author)
+      )
+    `
+      )
+      .run();
+    sqlite
+      .prepare(
+        "CREATE INDEX IF NOT EXISTS idx_favorite_authors_user ON favorite_authors (user_id)"
+      )
+      .run();
+    sqlite
+      .prepare(
+        "CREATE INDEX IF NOT EXISTS idx_favorite_authors_author ON favorite_authors (author)"
+      )
+      .run();
+  } catch (error) {
+    logger.error(
+      "Error ensuring favorites tables exist",
+      error instanceof Error ? error : new Error(String(error))
+    );
+    throw new MigrationError(
+      "Failed to ensure favorites tables",
+      "favorites_tables",
+      error instanceof Error ? error : new Error(String(error))
+    );
+  }
+}
+
 // Additive column/table self-heal for videos, downloads, collections,
-// subscriptions, continuous tasks, video_downloads, rss_tokens, users and
-// download_history, plus the file-size/video_id data backfills.
+// subscriptions, continuous tasks, video_downloads, rss_tokens, users,
+// favorites and download_history, plus the file-size/video_id data backfills.
 export function migrateColumnsAndTables(): void {
   try {
     const tableInfo = sqlite.prepare("PRAGMA table_info(videos)").all();
@@ -691,6 +761,10 @@ export function migrateColumnsAndTables(): void {
     // Ensure the visitor users table exists even if drizzle stopped before the
     // 0019 visitor-users migration was applied.
     ensureVisitorUsersTable();
+
+    // Ensure the favorites tables exist even if drizzle stopped before the
+    // 0021 favorites migration was applied.
+    ensureFavoritesTables();
 
     // Check download_history table for video_id, downloaded_at, deleted_at columns
     const downloadHistoryTableInfo = sqlite

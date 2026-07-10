@@ -1,16 +1,12 @@
-import { Folder } from '@mui/icons-material';
-import {
-    Box,
-    Card,
-    CardActionArea,
-    CardContent,
-    CardMedia,
-    Typography,
-} from '@mui/material';
+import { VideoLibrary } from '@mui/icons-material';
+import { Box, Card, CardActionArea, CardMedia, Chip, Typography } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import FavoriteToggle from '../../components/FavoriteToggle';
-import type { FavoriteCollectionItem, Video } from '../../types';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { neutral, overlay } from '../../theme/colors';
+import type { FavoriteCollectionItem, Video } from '../../types';
+import FavoriteRailCarousel from './FavoriteRailCarousel';
+import FavoriteSectionHeader from './FavoriteSectionHeader';
 import { useFavoriteThumbnail } from './useFavoriteThumbnail';
 
 interface FavoriteCollectionRailProps {
@@ -20,6 +16,22 @@ interface FavoriteCollectionRailProps {
     onUnfavorite: (favorite: FavoriteCollectionItem) => void;
 }
 
+/** Deterministic branded gradient so cover-less collections still look intentional. */
+const COVER_GRADIENTS = [
+    'linear-gradient(140deg, #00e5ff 0%, #651fff 100%)',
+    'linear-gradient(140deg, #FF7eb3 0%, #651fff 100%)',
+    'linear-gradient(140deg, #00bfff 0%, #00727d 100%)',
+    'linear-gradient(140deg, #f857a6 0%, #ff5858 100%)',
+    'linear-gradient(140deg, #7028e4 0%, #00e5ff 100%)',
+    'linear-gradient(140deg, #f7971e 0%, #ff3e3e 100%)',
+] as const;
+
+const gradientForName = (name: string): string => {
+    let hash = 0;
+    for (let i = 0; i < name.length; i += 1) hash = (hash + name.charCodeAt(i)) % COVER_GRADIENTS.length;
+    return COVER_GRADIENTS[hash];
+};
+
 const FavoriteCollectionCard: React.FC<{
     favorite: FavoriteCollectionItem;
     video?: Video;
@@ -28,60 +40,108 @@ const FavoriteCollectionCard: React.FC<{
     const { t } = useLanguage();
     const navigate = useNavigate();
     const thumbnail = useFavoriteThumbnail(video);
+    const hasCover = Boolean(video);
 
     return (
         <Card
             sx={{
                 position: 'relative',
-                minWidth: { xs: '100%', md: 220 },
-                flex: { xs: '1 1 auto', md: '0 0 220px' },
+                width: { xs: 150, md: 208 },
+                flex: { xs: '0 0 150px', md: '0 0 208px' },
                 scrollSnapAlign: 'start',
-                transition: 'transform 0.2s, box-shadow 0.2s',
-                '&:hover': { transform: 'translateY(-4px)', boxShadow: 8 },
+                border: 'none',
             }}
         >
             <CardActionArea onClick={() => navigate(`/collection/${encodeURIComponent(favorite.collectionId)}`)}>
-                {video ? (
-                    <CardMedia
-                        component="img"
-                        image={thumbnail}
-                        alt={favorite.name}
-                        height="280"
-                        loading="lazy"
-                        sx={{ objectFit: 'cover', aspectRatio: '2 / 3' }}
-                    />
-                ) : (
+                <Box sx={{ position: 'relative', aspectRatio: '2 / 3', overflow: 'hidden' }}>
+                    {hasCover ? (
+                        <CardMedia
+                            component="img"
+                            image={thumbnail}
+                            alt={favorite.name}
+                            loading="lazy"
+                            sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        />
+                    ) : (
+                        <Box
+                            sx={{
+                                width: '100%',
+                                height: '100%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                background: gradientForName(favorite.name),
+                            }}
+                        >
+                            <VideoLibrary sx={{ fontSize: 72, color: overlay.white32 }} />
+                            <Typography
+                                aria-hidden
+                                sx={{
+                                    position: 'absolute',
+                                    fontSize: 88,
+                                    fontWeight: 800,
+                                    color: overlay.white70,
+                                    lineHeight: 1,
+                                    userSelect: 'none',
+                                }}
+                            >
+                                {favorite.name.charAt(0).toUpperCase()}
+                            </Typography>
+                        </Box>
+                    )}
+
+                    {/* Bottom scrim so the title is legible over any cover */}
                     <Box
+                        aria-hidden
                         sx={{
-                            aspectRatio: '2 / 3',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            bgcolor: 'action.hover',
+                            position: 'absolute',
+                            inset: 0,
+                            background: `linear-gradient(to top, ${overlay.black90} 0%, ${overlay.black45} 34%, transparent 62%)`,
                         }}
-                    >
-                        <Folder sx={{ fontSize: 64, color: 'text.disabled' }} />
+                    />
+
+                    {/* Video-count badge */}
+                    <Chip
+                        icon={<VideoLibrary sx={{ fontSize: 15 }} />}
+                        label={favorite.videoCount}
+                        size="small"
+                        sx={{
+                            position: 'absolute',
+                            top: 8,
+                            left: 8,
+                            height: 24,
+                            fontWeight: 700,
+                            color: neutral.white,
+                            bgcolor: overlay.black70,
+                            backdropFilter: 'blur(4px)',
+                            '& .MuiChip-icon': { color: neutral.white, ml: 0.5 },
+                        }}
+                    />
+
+                    {/* Title + meta over the scrim */}
+                    <Box sx={{ position: 'absolute', left: 12, right: 12, bottom: 12 }}>
+                        <Typography
+                            variant="subtitle1"
+                            fontWeight={700}
+                            sx={{
+                                color: neutral.white,
+                                lineHeight: 1.25,
+                                display: '-webkit-box',
+                                overflow: 'hidden',
+                                WebkitBoxOrient: 'vertical',
+                                WebkitLineClamp: 2,
+                                textShadow: '0 1px 4px rgba(0,0,0,0.6)',
+                            }}
+                        >
+                            {favorite.name}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: overlay.white80 }}>
+                            {favorite.videoCount} {t('videos')}
+                        </Typography>
                     </Box>
-                )}
-                <CardContent sx={{ pr: 5 }}>
-                    <Typography
-                        variant="subtitle1"
-                        fontWeight={600}
-                        sx={{
-                            display: '-webkit-box',
-                            overflow: 'hidden',
-                            WebkitBoxOrient: 'vertical',
-                            WebkitLineClamp: 2,
-                        }}
-                    >
-                        {favorite.name}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                        {favorite.videoCount} {t('videos')}
-                    </Typography>
-                </CardContent>
+                </Box>
             </CardActionArea>
-            <Box sx={{ position: 'absolute', top: 8, right: 8 }}>
+            <Box sx={{ position: 'absolute', top: 4, right: 4 }}>
                 <FavoriteToggle
                     active
                     onToggle={onUnfavorite}
@@ -106,22 +166,15 @@ const FavoriteCollectionRail: React.FC<FavoriteCollectionRailProps> = ({
 
     return (
         <Box component="section" aria-labelledby="favorite-collections-heading" sx={{ mt: 5 }}>
-            <Typography id="favorite-collections-heading" variant="h5" fontWeight={700} sx={{ mb: 2 }}>
-                {t('favoriteCollections')}
-            </Typography>
-            <Box
-                sx={{
-                    display: 'flex',
-                    gap: 2,
-                    overflowX: { xs: 'visible', md: 'auto' },
-                    flexDirection: { xs: 'column', md: 'row' },
-                    pb: 1,
-                    scrollSnapType: 'x mandatory',
-                }}
-            >
+            <FavoriteSectionHeader
+                id="favorite-collections-heading"
+                title={t('favoriteCollections')}
+                count={favorites.length}
+            />
+            <FavoriteRailCarousel prevLabel={t('previous')} nextLabel={t('next')}>
                 {loading && favorites.length === 0
                     ? [1, 2, 3].map((item) => (
-                        <Box key={item} sx={{ minWidth: { xs: '100%', md: 220 }, height: 360, bgcolor: 'action.hover', borderRadius: 2 }} />
+                        <Box key={item} sx={{ flex: { xs: '0 0 150px', md: '0 0 208px' }, aspectRatio: '2 / 3', bgcolor: 'action.hover', borderRadius: 4 }} />
                     ))
                     : favorites.map((favorite) => (
                         <FavoriteCollectionCard
@@ -131,7 +184,7 @@ const FavoriteCollectionRail: React.FC<FavoriteCollectionRailProps> = ({
                             onUnfavorite={() => onUnfavorite(favorite)}
                         />
                     ))}
-            </Box>
+            </FavoriteRailCarousel>
         </Box>
     );
 };

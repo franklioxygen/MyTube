@@ -1,4 +1,5 @@
-import { Alert, Box, CircularProgress, Fade, useMediaQuery } from '@mui/material';
+import { Star } from '@mui/icons-material';
+import { Alert, Box, CircularProgress, Fade, Typography, useMediaQuery } from '@mui/material';
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCollection } from '../contexts/CollectionContext';
@@ -6,12 +7,16 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useVideo } from '../contexts/VideoContext';
 import { useFavoriteAuthors } from '../hooks/useFavoriteAuthors';
 import { useFavoriteCollections } from '../hooks/useFavoriteCollections';
+import { brand, neutral } from '../theme/colors';
 import type { Video } from '../types';
 import FavoriteAuthorRail from './favorite/FavoriteAuthorRail';
 import FavoriteCollectionRail from './favorite/FavoriteCollectionRail';
 import FavoriteEmptyState from './favorite/FavoriteEmptyState';
-import FavoriteHero from './favorite/FavoriteHero';
+import FavoriteHeroCarousel, { type FavoriteHeroItem } from './favorite/FavoriteHeroCarousel';
 import FavoriteTopRatedRail from './favorite/FavoriteTopRatedRail';
+
+// How many top-rated videos the Featured hero rotates through.
+const FEATURED_LIMIT = 5;
 
 interface FavoritePageProps {
     onBrowseCollections: () => void;
@@ -40,13 +45,15 @@ const FavoritePage: React.FC<FavoritePageProps> = ({ onBrowseCollections }) => {
         [videos],
     );
     const featuredVideo = topRatedVideos[0];
-    const featuredCollection = useMemo(() => {
-        if (!featuredVideo) return undefined;
-        return favoriteCollections.data?.find((favorite) => {
+    const featuredItems = useMemo<FavoriteHeroItem[]>(() => {
+        const findCollection = (video: Video) => favoriteCollections.data?.find((favorite) => {
             const collection = collections.find((candidate) => candidate.id === favorite.collectionId);
-            return collection?.videos.includes(featuredVideo.id);
+            return collection?.videos.includes(video.id);
         });
-    }, [collections, favoriteCollections.data, featuredVideo]);
+        return topRatedVideos
+            .slice(0, FEATURED_LIMIT)
+            .map((video) => ({ video, collection: findCollection(video) }));
+    }, [collections, favoriteCollections.data, topRatedVideos]);
 
     const favoriteCollectionItems = favoriteCollections.data ?? [];
     const favoriteAuthorItems = favoriteAuthors.data ?? [];
@@ -74,10 +81,38 @@ const FavoritePage: React.FC<FavoritePageProps> = ({ onBrowseCollections }) => {
                 />
             ) : (
                 <>
-                    {featuredVideo && (
+                    <Fade in timeout={isReducedMotion ? 0 : 300}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.75, mb: 3 }}>
+                            <Box
+                                aria-hidden
+                                sx={{
+                                    width: 48,
+                                    height: 48,
+                                    borderRadius: 2.5,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    background: `linear-gradient(135deg, ${brand.primaryDark}, ${brand.secondary})`,
+                                    boxShadow: '0 6px 18px rgba(101,31,255,0.35)',
+                                    flexShrink: 0,
+                                }}
+                            >
+                                <Star sx={{ color: neutral.white, fontSize: 28 }} />
+                            </Box>
+                            <Box>
+                                <Typography variant="h4" component="h1" fontWeight={800} sx={{ lineHeight: 1.1 }}>
+                                    {t('favoritesHeading')}
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
+                                    {t('favoritesPageSubtitle')}
+                                </Typography>
+                            </Box>
+                        </Box>
+                    </Fade>
+                    {featuredItems.length > 0 && (
                         <Fade in timeout={isReducedMotion ? 0 : 400}>
                             <Box>
-                                <FavoriteHero video={featuredVideo} collection={featuredCollection} />
+                                <FavoriteHeroCarousel items={featuredItems} />
                             </Box>
                         </Fade>
                     )}
