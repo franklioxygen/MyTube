@@ -164,4 +164,47 @@ describe('CollectionContext', () => {
         // The backend cascades favorite_collections, so the cache must refresh.
         expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['favorite-collections'] });
     });
+
+    it('invalidates favorite collections on add / remove / rename', async () => {
+        const invalidateSpy = vi.spyOn(QueryClient.prototype, 'invalidateQueries');
+        mockedAxios.put.mockResolvedValue({ data: { success: true } });
+
+        const { result } = renderHook(() => useCollection(), { wrapper: createWrapper() });
+
+        await act(async () => {
+            await result.current.addToCollection('col1', 'vid1');
+        });
+        await act(async () => {
+            await result.current.removeFromCollection('col1', 'vid1');
+        });
+        await act(async () => {
+            await result.current.updateCollection('col1', 'Renamed');
+        });
+
+        // A favorited collection's derived count/cover/name changes on each.
+        const favoriteCollectionCalls = invalidateSpy.mock.calls.filter(
+            ([arg]) => Array.isArray((arg as { queryKey?: unknown[] })?.queryKey)
+                && (arg as { queryKey: unknown[] }).queryKey[0] === 'favorite-collections'
+        );
+        expect(favoriteCollectionCalls.length).toBeGreaterThanOrEqual(3);
+    });
+
+    it('invalidates favorite authors only when deleting the collection videos', async () => {
+        const invalidateSpy = vi.spyOn(QueryClient.prototype, 'invalidateQueries');
+        mockedAxios.delete.mockResolvedValue({ data: { success: true } });
+
+        const { result } = renderHook(() => useCollection(), { wrapper: createWrapper() });
+
+        // Collection-only delete leaves videos (and thus authors) intact.
+        await act(async () => {
+            await result.current.deleteCollection('col1', false);
+        });
+        expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: ['favorite-authors'] });
+
+        // Deleting the videos too can remove an author's last videos.
+        await act(async () => {
+            await result.current.deleteCollection('col2', true);
+        });
+        expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['favorite-authors'] });
+    });
 });
