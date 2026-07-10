@@ -9,33 +9,34 @@ interface UseViewModeReturn {
     handleViewModeChange: (mode: ViewMode) => void;
 }
 
+const isViewMode = (value: unknown): value is ViewMode =>
+    value === 'favorite' ||
+    value === 'collections' ||
+    value === 'all-videos' ||
+    value === 'history';
+
+// The mode Home should show when the route provides no authoritative one
+// (i.e. on `/`): the last-selected saved mode, otherwise the default.
+const resolveStoredViewMode = (): ViewMode => {
+    const saved = localStorage.getItem('homeViewMode');
+    return isViewMode(saved) ? saved : 'all-videos';
+};
+
 export const useViewMode = (initialMode?: ViewMode): UseViewModeReturn => {
     const [_searchParams, setSearchParams] = useSearchParams();
-    const [viewMode, setViewMode] = useState<ViewMode>(() => {
-        if (initialMode) {
-            return initialMode;
-        }
-        const saved = localStorage.getItem('homeViewMode');
-        if (
-            saved === 'favorite' ||
-            saved === 'collections' ||
-            saved === 'all-videos' ||
-            saved === 'history'
-        ) {
-            return saved;
-        }
-        return 'all-videos';
-    });
+    const [viewMode, setViewMode] = useState<ViewMode>(
+        () => initialMode ?? resolveStoredViewMode()
+    );
 
     // React Router reuses the Home instance between `/` and `/favorites`, so
     // the state initializer above does not re-run when the route (and thus
-    // `initialMode`) changes. Re-assert an authoritative route mode whenever it
-    // is provided so the `/favorites` deep link stays correct after in-app
-    // navigation such as Back from `/`.
+    // `initialMode`) changes. Keep viewMode in sync with the route: adopt an
+    // authoritative mode when provided (so the `/favorites` deep link stays
+    // correct after Back from `/`), and fall back to the saved/default mode
+    // when it is cleared (so leaving `/favorites` via a plain link such as the
+    // logo stops rendering FavoritePage at `/`).
     useEffect(() => {
-        if (initialMode) {
-            setViewMode(initialMode);
-        }
+        setViewMode(initialMode ?? resolveStoredViewMode());
     }, [initialMode]);
 
     const handleViewModeChange = (mode: ViewMode) => {

@@ -84,6 +84,31 @@ describe('useViewMode', () => {
         expect(result.current.viewMode).toBe('favorite');
     });
 
+    it('resets to the saved mode when the favorite route is left via a plain link', () => {
+        // Simulates clicking the logo link on `/favorites`: initialMode goes
+        // from 'favorite' to undefined without handleHomeViewModeChange running.
+        localStorageMock.setItem('homeViewMode', 'collections');
+        const { result, rerender } = renderHook(
+            ({ mode }: { mode?: ViewMode }) => useViewMode(mode),
+            { initialProps: { mode: 'favorite' } as { mode?: ViewMode } }
+        );
+        expect(result.current.viewMode).toBe('favorite');
+
+        rerender({ mode: undefined });
+        expect(result.current.viewMode).toBe('collections');
+    });
+
+    it('falls back to the default mode when leaving favorites with no saved mode', () => {
+        const { result, rerender } = renderHook(
+            ({ mode }: { mode?: ViewMode }) => useViewMode(mode),
+            { initialProps: { mode: 'favorite' } as { mode?: ViewMode } }
+        );
+        expect(result.current.viewMode).toBe('favorite');
+
+        rerender({ mode: undefined });
+        expect(result.current.viewMode).toBe('all-videos');
+    });
+
     it('should update view mode and local storage when handleViewModeChange is called', () => {
         const { result } = renderHook(() => useViewMode());
 
