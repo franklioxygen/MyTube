@@ -87,6 +87,9 @@ export const checkVideoDownloadStatus = async (
   res: Response,
 ): Promise<void> => {
   const url = getStringParam(req.query.url);
+  // Audio and video are tracked independently; scope the check so an existing
+  // video download does not report an audio-only request as already present.
+  const audioOnly = getStringParam(req.query.audioOnly) === "true";
 
   if (!url) {
     throw new ValidationError("URL is required", "url");
@@ -113,8 +116,11 @@ export const checkVideoDownloadStatus = async (
   }
 
   // Check if video was previously downloaded
-  const downloadCheck =
-    storageService.checkVideoDownloadBySourceId(sourceVideoId, platform);
+  const downloadCheck = storageService.checkVideoDownloadBySourceId(
+    sourceVideoId,
+    platform,
+    audioOnly ? "audio" : "video",
+  );
 
   if (downloadCheck.found) {
     const visibilityScopedRole = getVisibilityScopedRole(req);
@@ -265,10 +271,15 @@ export const downloadVideo = async (
       ? trimBilibiliUrl(validatedVideoUrl)
       : validatedVideoUrl;
     logger.info("Resolved URL to:", resolvedUrl);
-    // Check if video was previously downloaded (skip for collections/multi-part)
+    // Check if video was previously downloaded (skip for collections/multi-part).
+    // Scope the lookup to the requested media type so an existing video download
+    // never masks a new audio-only request (and vice versa).
     if (sourceVideoId && !downloadAllParts && !downloadCollection) {
-      const downloadCheck =
-        storageService.checkVideoDownloadBySourceId(sourceVideoId, platform);
+      const downloadCheck = storageService.checkVideoDownloadBySourceId(
+        sourceVideoId,
+        platform,
+        effectiveAudioOnly ? "audio" : "video",
+      );
 
       // Get settings to check dontSkipDeletedVideo
       const settings = storageService.getSettings();

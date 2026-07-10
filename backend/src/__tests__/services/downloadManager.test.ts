@@ -596,6 +596,7 @@ describe('DownloadManager', () => {
         'restored-video',
         'Restored Task',
         'Restored Author',
+        'video',
       );
       expect(CloudStorageService.uploadVideo).toHaveBeenCalled();
     });
@@ -914,6 +915,7 @@ describe('DownloadManager', () => {
         'Custom title',
         'Uploader',
         'YouTube',
+        'video',
       );
     });
 

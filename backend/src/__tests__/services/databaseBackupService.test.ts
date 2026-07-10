@@ -192,7 +192,7 @@ const createSqlitePrepareMock = (
 
     if (
       sql ===
-      "SELECT id, source_video_id AS source_video_id, platform FROM video_downloads"
+      "SELECT id, source_video_id AS source_video_id, platform, media_type AS media_type FROM video_downloads"
     ) {
       return createStatement({ allResult: tables.video_downloads || [] });
     }

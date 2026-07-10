@@ -177,7 +177,13 @@ export function buildVideoDownloadKey(row: MergeRow): string | null {
     return null;
   }
 
-  return `${sourceVideoId}::${platform}`;
+  // Audio-only and video downloads for the same source are distinct rows, so
+  // the merge key includes media type to avoid collapsing them. Backups made
+  // before the media_type column default to "video".
+  const mediaType =
+    toLookupKey(row.media_type, { caseInsensitive: true }) || "video";
+
+  return `${sourceVideoId}::${platform}::${mediaType}`;
 }
 
 export function parseTagList(value: unknown): string[] {

@@ -389,7 +389,7 @@ function mergeVideoDownloads(
 
   const existingRows = targetDb
     .prepare(
-      "SELECT id, source_video_id AS source_video_id, platform FROM video_downloads"
+      "SELECT id, source_video_id AS source_video_id, platform, media_type AS media_type FROM video_downloads"
     )
     .all() as MergeRow[];
   const existingIds = new Set<string>();
