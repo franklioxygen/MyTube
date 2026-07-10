@@ -208,7 +208,7 @@ const VideoCardThumbnailView: React.FC<VideoCardThumbnailProps> = ({
                     title={t('downloadAudioOnly')}
                     sx={{
                         position: 'absolute',
-                        top: isNew ? 32 : 8,
+                        top: 8,
                         left: 8,
                         width: 28,
                         height: 28,
