@@ -58,7 +58,7 @@ export const useHeaderPreferences = (
     }, [isAuthenticated]);
 
     return useMemo(() => {
-        if (isAuthenticated && settingsData) {
+        if (settingsData) {
             return {
                 websiteName: settingsData.websiteName?.trim() || 'MyTube',
                 infiniteScroll: settingsData.infiniteScroll ?? false,
@@ -74,7 +74,6 @@ export const useHeaderPreferences = (
             showAudioDownloadButton: showAudioDownloadButtonState,
         };
     }, [
-        isAuthenticated,
         settingsData,
         websiteNameState,
         infiniteScrollState,

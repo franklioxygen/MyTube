@@ -83,6 +83,18 @@ describe("useHeaderPreferences", () => {
     expect(mockApiGet).not.toHaveBeenCalled();
   });
 
+  it("uses provided settings data for public users instead of the default visibility", () => {
+    const { result } = renderHook(() =>
+      useHeaderPreferences(false, {
+        websiteName: "Public Site",
+        showAudioDownloadButton: false,
+      })
+    );
+
+    expect(result.current.websiteName).toBe("Public Site");
+    expect(result.current.showAudioDownloadButton).toBe(false);
+  });
+
   it("falls back to authenticated defaults when settingsData is missing", () => {
     const { result } = renderHook(() => useHeaderPreferences(true));
 
