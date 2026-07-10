@@ -5,6 +5,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { reinitializeDatabase as reinitDb, sqlite } from "../../db";
 import * as databaseBackupService from "../../services/databaseBackupService";
 import { invalidateSettingsCache } from "../../services/storageService/settings";
+import {
+  ensureFavoritesTables,
+  ensureVisitorUsersTable,
+} from "../../services/storageService/migrations/schemaMigrations";
 import { invalidateUserCache } from "../../services/userService";
 import { logger } from "../../utils/logger";
 import { isPathWithinDirectory, resolveSafePath } from "../../utils/security";
@@ -41,6 +45,10 @@ vi.mock("../../services/storageService/settings", () => ({
 }));
 vi.mock("../../services/userService", () => ({
   invalidateUserCache: vi.fn(),
+}));
+vi.mock("../../services/storageService/migrations/schemaMigrations", () => ({
+  ensureVisitorUsersTable: vi.fn(),
+  ensureFavoritesTables: vi.fn(),
 }));
 vi.mock("../../utils/helpers", () => ({
   generateTimestamp: vi.fn(() => "20240101010101"),
@@ -310,6 +318,10 @@ describe("databaseBackupService", () => {
       expect(sqlite.close).toHaveBeenCalledTimes(2);
       expect(reinitDb).toHaveBeenCalledTimes(1);
       expect(invalidateUserCache).toHaveBeenCalledTimes(1);
+      // A pre-favorites backup must be self-healed so /favorites does not 500
+      // until the next restart.
+      expect(ensureVisitorUsersTable).toHaveBeenCalledTimes(1);
+      expect(ensureFavoritesTables).toHaveBeenCalledTimes(1);
       expect(fs.unlinkSync).toHaveBeenCalledTimes(1);
       expect(logger.info).toHaveBeenCalledWith(
         "Closed current database connection for import"
@@ -1074,6 +1086,8 @@ describe("databaseBackupService", () => {
       expect(sqlite.close).toHaveBeenCalledTimes(2);
       expect(reinitDb).toHaveBeenCalledTimes(1);
       expect(invalidateUserCache).toHaveBeenCalledTimes(1);
+      expect(ensureVisitorUsersTable).toHaveBeenCalledTimes(1);
+      expect(ensureFavoritesTables).toHaveBeenCalledTimes(1);
       expect(logger.info).toHaveBeenCalledWith(
         expect.stringContaining("Database file restored successfully")
       );

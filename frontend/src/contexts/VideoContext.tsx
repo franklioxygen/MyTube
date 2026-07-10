@@ -187,6 +187,12 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             queryClient.setQueryData(['videos'], (old: Video[] | undefined) =>
                 old ? old.filter(video => video.id !== id) : []
             );
+            // Deleting a video changes visibility-aware favorite counts/covers
+            // (e.g. removing an author's last video, or a favorited collection's
+            // cover), so refresh favorites to avoid stale cards that link to now
+            // empty author/collection pages.
+            queryClient.invalidateQueries({ queryKey: ['favorite-authors'] });
+            queryClient.invalidateQueries({ queryKey: ['favorite-collections'] });
             if (variables.options?.showSnackbar !== false) {
                 showSnackbar(t('videoRemovedSuccessfully'));
             }
