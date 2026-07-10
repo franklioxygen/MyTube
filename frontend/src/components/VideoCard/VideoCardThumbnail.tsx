@@ -208,8 +208,8 @@ const VideoCardThumbnailView: React.FC<VideoCardThumbnailProps> = ({
                     title={t('downloadAudioOnly')}
                     sx={{
                         position: 'absolute',
-                        top: 8,
-                        right: 8,
+                        top: isNew ? 32 : 8,
+                        left: 8,
                         width: 28,
                         height: 28,
                         display: 'flex',
@@ -236,7 +236,7 @@ const VideoCardThumbnailView: React.FC<VideoCardThumbnailProps> = ({
                     size="small"
                     sx={{
                         position: 'absolute',
-                        top: isNew ? 32 : 8,
+                        top: (isNew ? 32 : 8) + (video.mediaType === 'audio' ? 36 : 0),
                         left: 8,
                         zIndex: 3
                     }}
