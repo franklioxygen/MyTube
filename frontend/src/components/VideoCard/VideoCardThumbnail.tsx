@@ -1,4 +1,4 @@
-import { Folder } from '@mui/icons-material';
+import { Folder, MusicNote } from '@mui/icons-material';
 import { Box, CardMedia, Chip, Skeleton, useMediaQuery, useTheme } from '@mui/material';
 import React, { useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -198,6 +198,32 @@ const VideoCardThumbnailView: React.FC<VideoCardThumbnailProps> = ({
                         pointerEvents: 'none'
                     }}
                 />
+            )}
+
+            {video.mediaType === 'audio' && (
+                <Box
+                    component="span"
+                    role="img"
+                    aria-label={t('downloadAudioOnly')}
+                    title={t('downloadAudioOnly')}
+                    sx={{
+                        position: 'absolute',
+                        top: 8,
+                        right: 8,
+                        width: 28,
+                        height: 28,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        bgcolor: overlay.black60,
+                        color: neutral.white,
+                        borderRadius: '50%',
+                        zIndex: 3,
+                        pointerEvents: 'none',
+                    }}
+                >
+                    <MusicNote fontSize="small" />
+                </Box>
             )}
 
             {collectionInfo.isFirstInAnyCollection && (

@@ -70,6 +70,38 @@ describe('VideoCardThumbnail', () => {
         expect(screen.getByText('10:00')).toBeInTheDocument();
     });
 
+    it('should render a music icon for audio-only media', () => {
+        render(
+            <VideoCardThumbnail
+                video={{ ...defaultVideo, mediaType: 'audio' }}
+                isHovered={false}
+                isVideoPlaying={false}
+                setIsVideoPlaying={mockSetIsVideoPlaying}
+                videoRef={mockVideoRef}
+                collectionInfo={defaultCollectionInfo}
+                isNew={false}
+            />
+        );
+
+        expect(screen.getByRole('img', { name: 'downloadAudioOnly' })).toBeInTheDocument();
+    });
+
+    it('should not render the audio-only icon for video media', () => {
+        render(
+            <VideoCardThumbnail
+                video={{ ...defaultVideo, mediaType: 'video' }}
+                isHovered={false}
+                isVideoPlaying={false}
+                setIsVideoPlaying={mockSetIsVideoPlaying}
+                videoRef={mockVideoRef}
+                collectionInfo={defaultCollectionInfo}
+                isNew={false}
+            />
+        );
+
+        expect(screen.queryByRole('img', { name: 'downloadAudioOnly' })).not.toBeInTheDocument();
+    });
+
     it('should render part chip if multipart', () => {
         const multipartVideo = { ...defaultVideo, totalParts: 2, partNumber: 1 };
         render(
