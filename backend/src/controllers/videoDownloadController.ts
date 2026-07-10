@@ -354,8 +354,18 @@ export const downloadVideo = async (
           )?.retryMetadata,
         )
       : undefined;
+    // An explicit audio-only request is a fresh intent that must not resurrect a
+    // previously failed all-parts/collection retry for the same URL. Ignoring
+    // the prior aggregate retry state keeps bilibiliRetryMetadata undefined for
+    // a single audio request, so the audio track is downloaded (audioOnly: true)
+    // and download-mode retry metadata is stored instead of the old aggregate.
+    const isExplicitBilibiliAudioRequest =
+      isBilibiliUrl(resolvedUrl) &&
+      !isMissAVUrl(resolvedUrl) &&
+      effectiveAudioOnly;
     const previousBilibiliRetryMetadata =
-      parsedPreviousRetryMetadata?.shape !== "download_mode"
+      parsedPreviousRetryMetadata?.shape !== "download_mode" &&
+      !isExplicitBilibiliAudioRequest
         ? parsedPreviousRetryMetadata
         : undefined;
     const currentBilibiliRetryMetadata = isBilibiliUrl(resolvedUrl)
