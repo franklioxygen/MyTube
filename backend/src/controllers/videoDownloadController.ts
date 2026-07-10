@@ -115,11 +115,15 @@ export const checkVideoDownloadStatus = async (
     return;
   }
 
+  // MissAV/123av/njavtv always download a normal video even for audio requests,
+  // so treat an audio check there as video to match what actually gets saved.
+  const effectiveAudioOnly = audioOnly && !isMissAVUrl(videoUrl);
+
   // Check if video was previously downloaded
   const downloadCheck = storageService.checkVideoDownloadBySourceId(
     sourceVideoId,
     platform,
-    audioOnly ? "audio" : "video",
+    effectiveAudioOnly ? "audio" : "video",
   );
 
   if (downloadCheck.found) {
@@ -271,6 +275,12 @@ export const downloadVideo = async (
       ? trimBilibiliUrl(validatedVideoUrl)
       : validatedVideoUrl;
     logger.info("Resolved URL to:", resolvedUrl);
+    // The MissAV/123av/njavtv branch ignores audio mode and always downloads a
+    // normal video, so an audio request there is effectively a video download.
+    // Mirror that here (as the retry metadata already does) so the media type
+    // used for dedupe/recording matches what actually gets saved.
+    const effectiveMediaType: "audio" | "video" =
+      effectiveAudioOnly && !isMissAVUrl(resolvedUrl) ? "audio" : "video";
     // Check if video was previously downloaded (skip for collections/multi-part).
     // Scope the lookup to the requested media type so an existing video download
     // never masks a new audio-only request (and vice versa).
@@ -278,7 +288,7 @@ export const downloadVideo = async (
       const downloadCheck = storageService.checkVideoDownloadBySourceId(
         sourceVideoId,
         platform,
-        effectiveAudioOnly ? "audio" : "video",
+        effectiveMediaType,
       );
 
       // Get settings to check dontSkipDeletedVideo

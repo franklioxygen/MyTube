@@ -38,9 +38,16 @@ describe("findVideoFileInTemp", () => {
     expect(findVideoFileInTemp("/tmp/x", true)).toBe("video_1.m4a");
   });
 
-  it("still returns an audio file for normal downloads when only audio is present", () => {
+  it("returns null for normal downloads when only an audio stream remains", () => {
+    // A video-mode download that produced only audio must fail rather than
+    // save an audio-only file as a mediaType:"video" item with no frames.
     mocks.readdirSafeSync.mockReturnValue(["video_1.m4a"]);
-    expect(findVideoFileInTemp("/tmp/x")).toBe("video_1.m4a");
+    expect(findVideoFileInTemp("/tmp/x")).toBeNull();
+  });
+
+  it("falls back to a video container in audio-only mode when no audio stream exists", () => {
+    mocks.readdirSafeSync.mockReturnValue(["video_1.mp4"]);
+    expect(findVideoFileInTemp("/tmp/x", true)).toBe("video_1.mp4");
   });
 
   it("returns null when no known media extension is present", () => {
