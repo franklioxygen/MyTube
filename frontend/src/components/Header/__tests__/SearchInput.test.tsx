@@ -13,12 +13,6 @@ vi.mock('../../../contexts/AuthContext', () => ({
     useAuth: () => ({ userRole: mockUserRole }),
 }));
 
-const mockPersistAudioOnly = vi.fn();
-let mockStoredAudioOnly = false;
-vi.mock('../../../hooks/useDownloadAudioOnlyPreference', () => ({
-    useDownloadAudioOnlyPreference: () => [mockStoredAudioOnly, mockPersistAudioOnly],
-}));
-
 // Mock useMediaQuery
 let mockIsMobile = false;
 vi.mock('@mui/material', async () => {
@@ -40,12 +34,12 @@ describe('SearchInput', () => {
         onResetSearch: vi.fn(),
         onSubmit: vi.fn((e) => e.preventDefault()),
         onAudioSubmit: vi.fn().mockResolvedValue({ success: true }),
+        showAudioDownloadButton: true,
     };
 
     beforeEach(() => {
         vi.clearAllMocks();
         mockUserRole = 'admin';
-        mockStoredAudioOnly = false;
         mockIsMobile = false;
         vi.mocked(mockT).mockImplementation((key) => key);
         document.execCommand = vi.fn();
@@ -207,7 +201,7 @@ describe('SearchInput', () => {
     it('renders a single clear button that clears the input and resets active search', () => {
         render(<SearchInput {...defaultProps} isSearchMode={true} videoUrl="cats" />);
 
-        // Desktop layout: [paste] [clear] [submit] [download options].
+        // Desktop layout: [paste] [clear] [video download] [audio download].
         const buttons = screen.getAllByRole('button');
         expect(buttons).toHaveLength(4);
         fireEvent.click(buttons[1]);
@@ -225,7 +219,7 @@ describe('SearchInput', () => {
         expect(defaultProps.onResetSearch).not.toHaveBeenCalled();
     });
 
-    it('starts an audio-only download from the split-button menu', async () => {
+    it('starts an audio-only download from the direct button', async () => {
         const onAudioSubmit = vi.fn().mockResolvedValue({ success: true });
         render(
             <SearchInput
@@ -235,12 +229,10 @@ describe('SearchInput', () => {
             />,
         );
 
-        fireEvent.click(screen.getByRole('button', { name: 'downloadOptions' }));
-        fireEvent.click(screen.getByRole('menuitem', { name: 'downloadAudioOnly' }));
+        fireEvent.click(screen.getByRole('button', { name: 'downloadAudioOnly' }));
 
         await waitFor(() => {
             expect(onAudioSubmit).toHaveBeenCalledWith('https://youtube.com/watch?v=audio');
-            expect(mockPersistAudioOnly).toHaveBeenCalledWith(true);
         });
     });
 
@@ -252,7 +244,12 @@ describe('SearchInput', () => {
             />,
         );
 
-        fireEvent.click(screen.getByRole('button', { name: 'downloadOptions' }));
-        expect(screen.queryByRole('menuitem', { name: 'downloadAudioOnly' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'downloadAudioOnly' })).not.toBeInTheDocument();
+    });
+
+    it('hides the audio button when the setting is disabled', () => {
+        render(<SearchInput {...defaultProps} showAudioDownloadButton={false} />);
+
+        expect(screen.queryByRole('button', { name: 'downloadAudioOnly' })).not.toBeInTheDocument();
     });
 });

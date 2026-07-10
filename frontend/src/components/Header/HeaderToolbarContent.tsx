@@ -32,6 +32,7 @@ interface HeaderToolbarContentProps {
     onManageClose: () => void;
     hasActiveSubscriptions: boolean;
     showThemeButton: boolean;
+    showAudioDownloadButton?: boolean;
     mobileMenuOpen: boolean;
     onToggleMobileMenu: () => void;
     onCloseMobileMenu: () => void;
@@ -64,6 +65,7 @@ const HeaderToolbarContent: React.FC<HeaderToolbarContentProps> = ({
     onManageClose,
     hasActiveSubscriptions,
     showThemeButton,
+    showAudioDownloadButton = true,
     mobileMenuOpen,
     onToggleMobileMenu,
     onCloseMobileMenu,
@@ -165,6 +167,7 @@ const HeaderToolbarContent: React.FC<HeaderToolbarContentProps> = ({
                             onResetSearch={onResetSearch}
                             onSubmit={onSubmit}
                             onAudioSubmit={onAudioOnlySubmit}
+                            showAudioDownloadButton={showAudioDownloadButton}
                         />
                     </Box>
                     <Box sx={{ display: 'flex', alignItems: 'center', ml: desktopActionsMarginLeft }}>
@@ -184,6 +187,7 @@ const HeaderToolbarContent: React.FC<HeaderToolbarContentProps> = ({
                             onResetSearch={onResetSearch}
                     onSubmit={onSubmit}
                     onAudioOnlySubmit={onAudioOnlySubmit}
+                    showAudioDownloadButton={showAudioDownloadButton}
                     onClose={onCloseMobileMenu}
                     collections={collections}
                     videos={videos}

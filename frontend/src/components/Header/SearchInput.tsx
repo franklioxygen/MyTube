@@ -1,4 +1,4 @@
-import { ArrowDropDown, Check, Clear, ContentPaste, MusicNote, Search } from '@mui/icons-material';
+import { Audiotrack, Clear, ContentPaste, Search } from '@mui/icons-material';
 import {
     alpha,
     Box,
@@ -7,10 +7,6 @@ import {
     CircularProgress,
     IconButton,
     InputAdornment,
-    ListItemIcon,
-    ListItemText,
-    Menu,
-    MenuItem,
     TextField,
     useMediaQuery,
     useTheme
@@ -18,7 +14,6 @@ import {
 import { FormEvent, useRef, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
-import { useDownloadAudioOnlyPreference } from '../../hooks/useDownloadAudioOnlyPreference';
 import { isMissAVUrl } from '../../utils/missav';
 
 interface SearchInputProps {
@@ -30,6 +25,7 @@ interface SearchInputProps {
     onResetSearch?: () => void;
     onSubmit: (e: FormEvent) => void;
     onAudioSubmit?: (url: string) => Promise<unknown>;
+    showAudioDownloadButton?: boolean;
 }
 
 const SearchInput: React.FC<SearchInputProps> = ({
@@ -41,6 +37,7 @@ const SearchInput: React.FC<SearchInputProps> = ({
     onResetSearch,
     onSubmit,
     onAudioSubmit,
+    showAudioDownloadButton = true,
 }) => {
     const { t } = useLanguage();
     const { userRole } = useAuth();
@@ -50,9 +47,6 @@ const SearchInput: React.FC<SearchInputProps> = ({
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
     const [isFocused, setIsFocused] = useState(false);
-    const [downloadMenuAnchor, setDownloadMenuAnchor] = useState<HTMLElement | null>(null);
-    const [storedAudioOnly, persistAudioOnly] = useDownloadAudioOnlyPreference();
-    const [audioOnlySelected, setAudioOnlySelected] = useState(storedAudioOnly);
 
     const isSearchActive = isMobile || isFocused || !!videoUrl || !!error || isSubmitting;
     const desktopTransition = 'opacity 0.3s ease-in-out, background-color 0.3s ease-in-out, border-color 0.3s ease-in-out';
@@ -60,6 +54,7 @@ const SearchInput: React.FC<SearchInputProps> = ({
     const activeBorderColor = alpha(theme.palette.text.primary, 0.23);
     const canDownloadAudio = Boolean(
         !isVisitor &&
+        showAudioDownloadButton &&
         onAudioSubmit &&
         /^https?:\/\/[^\s]+$/i.test(videoUrl.trim()) &&
         !isMissAVUrl(videoUrl.trim()),
@@ -120,11 +115,8 @@ const SearchInput: React.FC<SearchInputProps> = ({
     };
 
     const handleAudioDownload = () => {
-        setDownloadMenuAnchor(null);
         if (!canDownloadAudio || !onAudioSubmit) return;
 
-        setAudioOnlySelected(true);
-        persistAudioOnly(true);
         void onAudioSubmit(videoUrl.trim());
     };
 
@@ -235,40 +227,19 @@ const SearchInput: React.FC<SearchInputProps> = ({
                                     >
                                         {isSubmitting ? <CircularProgress size={24} color="inherit" /> : <Search />}
                                     </Button>
-                                    {!isVisitor && (
+                                    {!isVisitor && showAudioDownloadButton && !isMissAVInput && (
                                         <Button
                                             type="button"
-                                            aria-label={t('downloadOptions')}
-                                            aria-haspopup="menu"
-                                            aria-expanded={Boolean(downloadMenuAnchor)}
-                                            onClick={(event) => setDownloadMenuAnchor(event.currentTarget)}
-                                            sx={{ minWidth: 34, px: 0.5 }}
+                                            aria-label={t('downloadAudioOnly')}
+                                            title={t('downloadAudioOnly')}
+                                            onClick={handleAudioDownload}
+                                            disabled={!canDownloadAudio}
+                                            sx={{ minWidth: 34, px: 0.75 }}
                                         >
-                                            <ArrowDropDown />
+                                            <Audiotrack />
                                         </Button>
                                     )}
                                 </ButtonGroup>
-                                <Menu
-                                    anchorEl={downloadMenuAnchor}
-                                    open={Boolean(downloadMenuAnchor)}
-                                    onClose={() => setDownloadMenuAnchor(null)}
-                                    MenuListProps={{ 'aria-label': t('downloadOptions') }}
-                                >
-                                    {!isVisitor && !isMissAVInput && (
-                                        <MenuItem
-                                            disabled={!canDownloadAudio}
-                                            onClick={handleAudioDownload}
-                                        >
-                                            <ListItemIcon>
-                                                {audioOnlySelected ? <Check fontSize="small" /> : <MusicNote fontSize="small" />}
-                                            </ListItemIcon>
-                                            <ListItemText
-                                                primary={t('downloadAudioOnly')}
-                                                secondary={!videoUrl.trim() ? t('downloadAudioOnlyHint') : undefined}
-                                            />
-                                        </MenuItem>
-                                    )}
-                                </Menu>
                             </InputAdornment>
                         ),
                         sx: { pr: 0, borderRadius: 2 }

@@ -173,6 +173,7 @@ export const WHITELISTED_SETTINGS = [
   "playFromBeginning",
   "theme",
   "showThemeButton",
+  "showAudioDownloadButton",
   "telegramEnabled",
   "telegramBotToken",
   "telegramChatId",

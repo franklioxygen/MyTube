@@ -18,6 +18,7 @@ describe("useHeaderPreferences", () => {
         websiteName: " Public Name ",
         infiniteScroll: true,
         showThemeButton: false,
+        showAudioDownloadButton: false,
       },
     });
   });
@@ -31,6 +32,7 @@ describe("useHeaderPreferences", () => {
 
     expect(result.current.infiniteScroll).toBe(true);
     expect(result.current.showThemeButton).toBe(false);
+    expect(result.current.showAudioDownloadButton).toBe(false);
     expect(mockApiGet).toHaveBeenCalledWith("/settings");
   });
 
@@ -46,6 +48,7 @@ describe("useHeaderPreferences", () => {
     expect(result.current.websiteName).toBe("MyTube");
     expect(result.current.infiniteScroll).toBe(false);
     expect(result.current.showThemeButton).toBe(true);
+    expect(result.current.showAudioDownloadButton).toBe(true);
   });
 
   it("keeps defaults when unauthenticated fetch throws", async () => {
@@ -60,6 +63,7 @@ describe("useHeaderPreferences", () => {
     expect(result.current.websiteName).toBe("MyTube");
     expect(result.current.infiniteScroll).toBe(false);
     expect(result.current.showThemeButton).toBe(true);
+    expect(result.current.showAudioDownloadButton).toBe(true);
   });
 
   it("uses authenticated settingsData and skips public fetch", () => {
@@ -68,12 +72,14 @@ describe("useHeaderPreferences", () => {
         websiteName: "  Admin Site  ",
         infiniteScroll: true,
         showThemeButton: false,
+        showAudioDownloadButton: false,
       })
     );
 
     expect(result.current.websiteName).toBe("Admin Site");
     expect(result.current.infiniteScroll).toBe(true);
     expect(result.current.showThemeButton).toBe(false);
+    expect(result.current.showAudioDownloadButton).toBe(false);
     expect(mockApiGet).not.toHaveBeenCalled();
   });
 
@@ -83,6 +89,7 @@ describe("useHeaderPreferences", () => {
     expect(result.current.websiteName).toBe("MyTube");
     expect(result.current.infiniteScroll).toBe(false);
     expect(result.current.showThemeButton).toBe(true);
+    expect(result.current.showAudioDownloadButton).toBe(true);
     expect(mockApiGet).not.toHaveBeenCalled();
   });
 });

@@ -77,6 +77,7 @@ const SettingsPage: React.FC = () => {
         language: 'en',
         theme: 'system',
         showThemeButton: true,
+        showAudioDownloadButton: true,
         tags: [],
         cloudDriveEnabled: false,
         openListApiUrl: '',
@@ -359,6 +360,7 @@ const SettingsPage: React.FC = () => {
                 language={settings.language}
                 theme={settings.theme}
                 showThemeButton={settings.showThemeButton}
+                showAudioDownloadButton={settings.showAudioDownloadButton}
                 websiteName={settings.websiteName}
                 onChange={(field, value) => handleChange(field as keyof Settings, value)}
             />

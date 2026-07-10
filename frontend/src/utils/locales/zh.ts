@@ -22,7 +22,6 @@ export const zh = {
   downloadStarted: "开始下载",
   downloadFailed: "下载失败",
   downloadSuccess: "下载已成功开始",
-  downloadOptions: "下载选项",
   downloadAudioOnly: "仅下载音频",
   downloadAudioOnlyHint: "仅保存音频轨道（不含视频）。",
   audioFormat: "音频格式",
@@ -66,6 +65,7 @@ export const zh = {
   themeDark: "始终深色",
   themeSystem: "跟随系统",
   showThemeButtonInHeader: "在页眉显示主题按钮",
+  showAudioDownloadButton: "显示音频下载按钮",
   tmdbApiKey: "TMDB API 密钥",
   tmdbApiKeyHelper:
     "TheMovieDB API 密钥，用于抓取电影/电视剧元数据和海报。在 https://www.themoviedb.org/settings/api 获取您的密钥",

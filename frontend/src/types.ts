@@ -175,6 +175,7 @@ export interface Settings {
   playFromBeginning?: boolean;
   theme?: 'light' | 'dark' | 'system';
   showThemeButton?: boolean;
+  showAudioDownloadButton?: boolean;
   telegramEnabled?: boolean;
   telegramBotToken?: string;
   telegramChatId?: string;

@@ -78,7 +78,6 @@ Total keys: 1044
 | `downloadStarted` |
 | `downloadFailed` |
 | `downloadSuccess` |
-| `downloadOptions` |
 | `downloadAudioOnly` |
 | `downloadAudioOnlyHint` |
 | `confirmDownloadAllPlaylists` |
@@ -122,6 +121,7 @@ Total keys: 1044
 | `themeDark` |
 | `themeSystem` |
 | `showThemeButtonInHeader` |
+| `showAudioDownloadButton` |
 | `tmdbApiKey` |
 | `tmdbApiKeyHelper` |
 | `testTmdbCredential` |

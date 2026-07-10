@@ -20,6 +20,7 @@ interface MobileMenuProps {
     onResetSearch?: () => void;
     onSubmit: (e: React.FormEvent) => void;
     onAudioOnlySubmit?: (url: string) => Promise<any>;
+    showAudioDownloadButton?: boolean;
     onClose: () => void;
     collections?: Collection[];
     videos?: Video[];
@@ -39,6 +40,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
     onResetSearch,
     onSubmit,
     onAudioOnlySubmit,
+    showAudioDownloadButton = true,
     onClose,
     collections = [],
     videos = [],
@@ -75,6 +77,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
                             onResetSearch={onResetSearch}
                             onSubmit={onSubmit}
                             onAudioSubmit={onAudioOnlySubmit}
+                            showAudioDownloadButton={showAudioDownloadButton}
                         />
                     </Box>
 

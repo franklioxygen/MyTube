@@ -39,6 +39,7 @@ describe('HeaderToolbarContent', () => {
         onManageClose: vi.fn(),
         hasActiveSubscriptions: false,
         showThemeButton: true,
+        showAudioDownloadButton: true,
         mobileMenuOpen: false,
         onToggleMobileMenu: vi.fn(),
         onCloseMobileMenu: vi.fn(),

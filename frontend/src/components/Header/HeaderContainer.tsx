@@ -58,7 +58,7 @@ const HeaderContainer: React.FC<HeaderProps> = ({
         onTagToggle: handleTagToggle
     };
 
-    const { websiteName, infiniteScroll, showThemeButton } = useHeaderPreferences(
+    const { websiteName, infiniteScroll, showThemeButton, showAudioDownloadButton } = useHeaderPreferences(
         isAuthenticated,
         settingsData
     );
@@ -180,6 +180,7 @@ const HeaderContainer: React.FC<HeaderProps> = ({
                             onManageClose={handleManageClose}
                             hasActiveSubscriptions={hasActiveSubscriptions}
                             showThemeButton={showThemeButton}
+                            showAudioDownloadButton={showAudioDownloadButton}
                             mobileMenuOpen={mobileMenuOpen}
                             onToggleMobileMenu={handleToggleMobileMenu}
                             onCloseMobileMenu={handleCloseMobileMenu}

@@ -6,12 +6,14 @@ interface HeaderSettings {
     websiteName?: string;
     infiniteScroll?: boolean;
     showThemeButton?: boolean;
+    showAudioDownloadButton?: boolean;
 }
 
 interface HeaderPreferences {
     websiteName: string;
     infiniteScroll: boolean;
     showThemeButton: boolean;
+    showAudioDownloadButton: boolean;
 }
 
 export const useHeaderPreferences = (
@@ -21,6 +23,7 @@ export const useHeaderPreferences = (
     const [websiteNameState, setWebsiteNameState] = useState('MyTube');
     const [infiniteScrollState, setInfiniteScrollState] = useState(false);
     const [showThemeButtonState, setShowThemeButtonState] = useState(true);
+    const [showAudioDownloadButtonState, setShowAudioDownloadButtonState] = useState(true);
 
     useEffect(() => {
         if (isAuthenticated) {
@@ -43,6 +46,9 @@ export const useHeaderPreferences = (
                 if (typeof data.showThemeButton !== 'undefined') {
                     setShowThemeButtonState(Boolean(data.showThemeButton));
                 }
+                if (typeof data.showAudioDownloadButton !== 'undefined') {
+                    setShowAudioDownloadButtonState(Boolean(data.showAudioDownloadButton));
+                }
             } catch (error) {
                 console.error('Failed to fetch settings for header:', error);
             }
@@ -56,14 +62,23 @@ export const useHeaderPreferences = (
             return {
                 websiteName: settingsData.websiteName?.trim() || 'MyTube',
                 infiniteScroll: settingsData.infiniteScroll ?? false,
-                showThemeButton: settingsData.showThemeButton !== false
+                showThemeButton: settingsData.showThemeButton !== false,
+                showAudioDownloadButton: settingsData.showAudioDownloadButton !== false,
             };
         }
 
         return {
             websiteName: websiteNameState.trim() || 'MyTube',
             infiniteScroll: infiniteScrollState,
-            showThemeButton: showThemeButtonState
+            showThemeButton: showThemeButtonState,
+            showAudioDownloadButton: showAudioDownloadButtonState,
         };
-    }, [isAuthenticated, settingsData, websiteNameState, infiniteScrollState, showThemeButtonState]);
+    }, [
+        isAuthenticated,
+        settingsData,
+        websiteNameState,
+        infiniteScrollState,
+        showThemeButtonState,
+        showAudioDownloadButtonState,
+    ]);
 };
