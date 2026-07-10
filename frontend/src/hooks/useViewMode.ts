@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 export type ViewMode = 'favorite' | 'collections' | 'all-videos' | 'history';
@@ -26,6 +26,17 @@ export const useViewMode = (initialMode?: ViewMode): UseViewModeReturn => {
         }
         return 'all-videos';
     });
+
+    // React Router reuses the Home instance between `/` and `/favorites`, so
+    // the state initializer above does not re-run when the route (and thus
+    // `initialMode`) changes. Re-assert an authoritative route mode whenever it
+    // is provided so the `/favorites` deep link stays correct after in-app
+    // navigation such as Back from `/`.
+    useEffect(() => {
+        if (initialMode) {
+            setViewMode(initialMode);
+        }
+    }, [initialMode]);
 
     const handleViewModeChange = (mode: ViewMode) => {
         setViewMode(mode);
