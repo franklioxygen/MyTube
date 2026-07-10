@@ -186,6 +186,22 @@ export function buildVideoDownloadKey(row: MergeRow): string | null {
   return `${sourceVideoId}::${platform}::${mediaType}`;
 }
 
+export function buildVideoMergeKey(row: MergeRow): string | null {
+  const sourceUrl = toLookupKey(row.source_url);
+
+  if (!sourceUrl) {
+    return null;
+  }
+
+  // Audio-only and video items can share a source_url as separate library
+  // entries, so the videos merge key includes media type to avoid dropping one
+  // on import. Backups made before the media_type column default to "video".
+  const mediaType =
+    toLookupKey(row.media_type, { caseInsensitive: true }) || "video";
+
+  return `${sourceUrl}::${mediaType}`;
+}
+
 export function parseTagList(value: unknown): string[] {
   if (typeof value !== "string") {
     return [];

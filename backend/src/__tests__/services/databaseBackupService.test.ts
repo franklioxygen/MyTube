@@ -164,7 +164,7 @@ const createSqlitePrepareMock = (
       });
     }
 
-    if (sql === "SELECT id, source_url AS source_url FROM videos") {
+    if (sql === "SELECT id, source_url AS source_url, media_type AS media_type FROM videos") {
       return createStatement({ allResult: tables.videos || [] });
     }
 
@@ -653,7 +653,7 @@ describe("databaseBackupService", () => {
         });
       });
       vi.mocked(sqlite.prepare as any).mockImplementation((sql: string) => {
-        if (sql === "SELECT id, source_url AS source_url FROM videos") {
+        if (sql === "SELECT id, source_url AS source_url, media_type AS media_type FROM videos") {
           return createStatement({ allResult: targetTables.videos });
         }
 
@@ -715,6 +715,105 @@ describe("databaseBackupService", () => {
           id: "source-video-path-only",
           video_path: "/videos/shared.mp4",
         })
+      );
+    });
+
+    it("keeps audio and video items sharing a source_url as separate library entries", () => {
+      const sourceTables = {
+        videos: [
+          {
+            id: "source-video",
+            title: "Video",
+            source_url: "https://example.com/watch/1",
+            media_type: "video",
+            created_at: "2024-01-01T00:00:00.000Z",
+          },
+          {
+            id: "source-audio",
+            title: "Audio",
+            source_url: "https://example.com/watch/1",
+            media_type: "audio",
+            created_at: "2024-01-02T00:00:00.000Z",
+          },
+        ],
+      };
+
+      const targetTables = {
+        videos: [
+          {
+            id: "target-video",
+            source_url: "https://example.com/watch/1",
+            media_type: "video",
+          },
+        ],
+        settings: [],
+      };
+
+      const videoInsertRun = vi.fn(() => ({ changes: 1 }));
+      vi.mocked(Database as any).mockImplementation(function () {
+        return createSourceDbHandle(sourceTables, {
+          videos: ["id", "title", "source_url", "media_type", "created_at"],
+        });
+      });
+      vi.mocked(sqlite.prepare as any).mockImplementation((sql: string) => {
+        if (
+          sql ===
+          "SELECT id, source_url AS source_url, media_type AS media_type FROM videos"
+        ) {
+          return createStatement({ allResult: targetTables.videos });
+        }
+
+        if (sql.includes("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1")) {
+          return {
+            all: vi.fn(),
+            run: vi.fn(),
+            get: vi.fn((tableName: string) =>
+              tableName === "videos" || tableName === "settings"
+                ? { 1: 1 }
+                : undefined
+            ),
+          };
+        }
+
+        if (sql === 'PRAGMA table_info("videos")') {
+          return createStatement({
+            allResult: [
+              { name: "id" },
+              { name: "title" },
+              { name: "source_url" },
+              { name: "media_type" },
+              { name: "created_at" },
+            ],
+          });
+        }
+
+        if (sql === 'PRAGMA table_info("settings")') {
+          return createStatement({
+            allResult: [{ name: "key" }, { name: "value" }],
+          });
+        }
+
+        if (sql.startsWith('INSERT INTO "videos"')) {
+          return { all: vi.fn(() => []), get: vi.fn(), run: videoInsertRun };
+        }
+
+        if (sql === "SELECT value FROM settings WHERE key = 'tags' LIMIT 1") {
+          return createStatement({ getResult: undefined });
+        }
+
+        return createStatement();
+      });
+
+      const summary = databaseBackupService.mergeDatabase(
+        Buffer.from("sqlite-bytes")
+      );
+
+      // The video matches the existing row (skipped); the audio for the same URL
+      // is a distinct item and must be inserted, not dropped.
+      expect(summary.videos).toEqual({ merged: 1, skipped: 1 });
+      expect(videoInsertRun).toHaveBeenCalledTimes(1);
+      expect(videoInsertRun).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "source-audio", media_type: "audio" })
       );
     });
 
