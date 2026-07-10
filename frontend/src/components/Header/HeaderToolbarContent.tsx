@@ -41,6 +41,7 @@ interface HeaderToolbarContentProps {
     error: string;
     isSearchMode: boolean;
     onSubmit: (event: FormEvent) => void;
+    onAudioOnlySubmit?: (url: string) => Promise<any>;
     collections: Collection[];
     videos: Video[];
     showTagsInMobileMenu: boolean;
@@ -72,6 +73,7 @@ const HeaderToolbarContent: React.FC<HeaderToolbarContentProps> = ({
     error,
     isSearchMode,
     onSubmit,
+    onAudioOnlySubmit,
     collections,
     videos,
     showTagsInMobileMenu,
@@ -162,6 +164,7 @@ const HeaderToolbarContent: React.FC<HeaderToolbarContentProps> = ({
                             isSearchMode={isSearchMode}
                             onResetSearch={onResetSearch}
                             onSubmit={onSubmit}
+                            onAudioSubmit={onAudioOnlySubmit}
                         />
                     </Box>
                     <Box sx={{ display: 'flex', alignItems: 'center', ml: desktopActionsMarginLeft }}>
@@ -180,6 +183,7 @@ const HeaderToolbarContent: React.FC<HeaderToolbarContentProps> = ({
                             isSearchMode={isSearchMode}
                             onResetSearch={onResetSearch}
                     onSubmit={onSubmit}
+                    onAudioOnlySubmit={onAudioOnlySubmit}
                     onClose={onCloseMobileMenu}
                     collections={collections}
                     videos={videos}

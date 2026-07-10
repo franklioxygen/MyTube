@@ -29,7 +29,6 @@ export const zh = {
   audioFormatM4a: "M4A",
   audioFormatMp3: "MP3",
   audioFormatOpus: "Opus",
-  pending: "等待中...",
   confirmDownloadAllPlaylists:
     "是否下载该频道的所有播放列表？这将为每个播放列表创建一个合集。",
   downloadAll: "下载全部",

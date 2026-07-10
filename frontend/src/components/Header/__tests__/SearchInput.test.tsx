@@ -13,6 +13,12 @@ vi.mock('../../../contexts/AuthContext', () => ({
     useAuth: () => ({ userRole: mockUserRole }),
 }));
 
+const mockPersistAudioOnly = vi.fn();
+let mockStoredAudioOnly = false;
+vi.mock('../../../hooks/useDownloadAudioOnlyPreference', () => ({
+    useDownloadAudioOnlyPreference: () => [mockStoredAudioOnly, mockPersistAudioOnly],
+}));
+
 // Mock useMediaQuery
 let mockIsMobile = false;
 vi.mock('@mui/material', async () => {
@@ -33,11 +39,13 @@ describe('SearchInput', () => {
         isSearchMode: false,
         onResetSearch: vi.fn(),
         onSubmit: vi.fn((e) => e.preventDefault()),
+        onAudioSubmit: vi.fn().mockResolvedValue({ success: true }),
     };
 
     beforeEach(() => {
         vi.clearAllMocks();
         mockUserRole = 'admin';
+        mockStoredAudioOnly = false;
         mockIsMobile = false;
         vi.mocked(mockT).mockImplementation((key) => key);
         document.execCommand = vi.fn();
@@ -193,15 +201,15 @@ describe('SearchInput', () => {
 
         render(<SearchInput {...defaultProps} />);
 
-        expect(screen.getAllByRole('button')).toHaveLength(1);
+        expect(screen.getAllByRole('button')).toHaveLength(2);
     });
 
     it('renders a single clear button that clears the input and resets active search', () => {
         render(<SearchInput {...defaultProps} isSearchMode={true} videoUrl="cats" />);
 
-        // Desktop layout: [paste] [clear] [submit] — only one clear button now.
+        // Desktop layout: [paste] [clear] [submit] [download options].
         const buttons = screen.getAllByRole('button');
-        expect(buttons).toHaveLength(3);
+        expect(buttons).toHaveLength(4);
         fireEvent.click(buttons[1]);
 
         expect(defaultProps.setVideoUrl).toHaveBeenCalledWith('');
@@ -215,5 +223,36 @@ describe('SearchInput', () => {
 
         expect(defaultProps.setVideoUrl).toHaveBeenCalledWith('');
         expect(defaultProps.onResetSearch).not.toHaveBeenCalled();
+    });
+
+    it('starts an audio-only download from the split-button menu', async () => {
+        const onAudioSubmit = vi.fn().mockResolvedValue({ success: true });
+        render(
+            <SearchInput
+                {...defaultProps}
+                videoUrl="https://youtube.com/watch?v=audio"
+                onAudioSubmit={onAudioSubmit}
+            />,
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: 'downloadOptions' }));
+        fireEvent.click(screen.getByRole('menuitem', { name: 'downloadAudioOnly' }));
+
+        await waitFor(() => {
+            expect(onAudioSubmit).toHaveBeenCalledWith('https://youtube.com/watch?v=audio');
+            expect(mockPersistAudioOnly).toHaveBeenCalledWith(true);
+        });
+    });
+
+    it('hides the audio option for MissAV links', () => {
+        render(
+            <SearchInput
+                {...defaultProps}
+                videoUrl="https://missav.com/en/v/video"
+            />,
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: 'downloadOptions' }));
+        expect(screen.queryByRole('menuitem', { name: 'downloadAudioOnly' })).not.toBeInTheDocument();
     });
 });

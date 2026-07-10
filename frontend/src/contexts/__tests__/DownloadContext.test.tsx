@@ -114,16 +114,6 @@ const createWrapper = () => {
   return { wrapper, queryClient };
 };
 
-const confirmDownloadModal = async (audioOnly = false) => {
-  await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
-  if (audioOnly) {
-    fireEvent.click(screen.getByRole('checkbox', { name: 'downloadAudioOnly' }));
-  }
-  await act(async () => {
-    fireEvent.click(screen.getByRole('button', { name: 'download' }));
-  });
-};
-
 describe('DownloadContext', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -233,9 +223,7 @@ describe('DownloadContext', () => {
 
     const response = await result.current.handleVideoSubmit('https://youtube.com/watch?v=abc');
 
-    expect(response).toEqual({ success: true, deferred: true });
-    expect(mockApiPost).not.toHaveBeenCalledWith('/download', expect.anything());
-    await confirmDownloadModal();
+    expect(response).toEqual({ success: true });
     expect(mockApiPost).toHaveBeenCalledWith('/download', {
       youtubeUrl: 'https://youtube.com/watch?v=abc',
       forceDownload: false,
@@ -244,6 +232,27 @@ describe('DownloadContext', () => {
     });
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['downloadStatus'] });
     expect(mockShowSnackbar).toHaveBeenCalledWith('videoDownloading');
+  });
+
+  it('starts audio-only downloads directly and keeps MissAV video-only', async () => {
+    const { wrapper } = createWrapper();
+    const { result } = renderHook(() => useDownload(), { wrapper });
+
+    await result.current.handleAudioOnlyDownload('https://youtube.com/watch?v=audio');
+    expect(mockApiPost).toHaveBeenCalledWith('/download', {
+      youtubeUrl: 'https://youtube.com/watch?v=audio',
+      forceDownload: false,
+      audioOnly: true,
+      statisticsContext: undefined,
+    });
+
+    await result.current.handleAudioOnlyDownload('https://missav.com/en/v/video');
+    expect(mockApiPost).toHaveBeenCalledWith('/download', {
+      youtubeUrl: 'https://missav.com/en/v/video',
+      forceDownload: false,
+      audioOnly: false,
+      statisticsContext: undefined,
+    });
   });
 
   it('handles skipped downloads and invalidates download history', async () => {
@@ -257,7 +266,6 @@ describe('DownloadContext', () => {
     });
 
     await result.current.handleVideoSubmit('https://youtube.com/watch?v=del');
-    await confirmDownloadModal();
     const deletedResult = { success: true, skipped: true };
     expect(deletedResult).toEqual({ success: true, skipped: true });
     expect(mockShowSnackbar).toHaveBeenCalledWith('videoSkippedDeleted', 'warning');
@@ -267,7 +275,6 @@ describe('DownloadContext', () => {
     });
 
     await result.current.handleVideoSubmit('https://youtube.com/watch?v=exists');
-    await confirmDownloadModal();
     const existsResult = { success: true, skipped: true };
     expect(existsResult).toEqual({ success: true, skipped: true });
     expect(mockShowSnackbar).toHaveBeenCalledWith('videoSkippedExists', 'warning');
@@ -283,8 +290,7 @@ describe('DownloadContext', () => {
     mockApiPost.mockResolvedValueOnce({ data: { video: immediateVideo } });
 
     const submitResult = await result.current.handleVideoSubmit('https://youtube.com/watch?v=instant');
-    expect(submitResult).toEqual({ success: true, deferred: true });
-    await confirmDownloadModal();
+    expect(submitResult).toEqual({ success: true });
     expect(mockSetVideos).toHaveBeenCalled();
 
     const updater = mockSetVideos.mock.calls[0][0];
@@ -315,7 +321,6 @@ describe('DownloadContext', () => {
     });
 
     await result.current.handleVideoSubmit('https://youtube.com/watch?v=bad');
-    await confirmDownloadModal();
     await waitFor(() => {
       expect(mockShowSnackbar).toHaveBeenCalledWith('download failed hard', 'error');
     });
@@ -461,7 +466,6 @@ describe('DownloadContext', () => {
     });
 
     expect(screen.queryByTestId('subscribe-modal')).not.toBeInTheDocument();
-    await confirmDownloadModal();
     expect(mockApiPost).toHaveBeenCalledWith('/download', {
       youtubeUrl: 'https://clips.twitch.tv/FunnyClipSlug',
       forceDownload: false,
@@ -586,8 +590,7 @@ describe('DownloadContext', () => {
     await act(async () => {
       currentPartResult = await result.current.handleDownloadCurrentBilibiliPart();
     });
-    await confirmDownloadModal();
-    expect(currentPartResult).toEqual({ success: true, deferred: true });
+    expect(currentPartResult).toEqual({ success: true });
 
     const getCalls = mockApiGet.mock.calls.map((c: any[]) => c[0]);
     expect(getCalls).not.toContain('/check-bilibili-collection');

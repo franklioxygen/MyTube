@@ -12,6 +12,7 @@ type TranslateFn = (key: TranslationKey, replacements?: Record<string, string | 
 
 interface UseHeaderSubmissionParams {
     onSubmit: (url: string) => Promise<HeaderSubmitResult>;
+    onAudioOnlySubmit?: (url: string) => Promise<HeaderSubmitResult>;
     isVisitor: boolean;
     navigate: NavigateFunction;
     t: TranslateFn;
@@ -27,6 +28,7 @@ const toSearchPath = (value: string): string => `/search?q=${encodeURIComponent(
 
 export const useHeaderSubmission = ({
     onSubmit,
+    onAudioOnlySubmit,
     isVisitor,
     navigate,
     t,
@@ -86,11 +88,49 @@ export const useHeaderSubmission = ({
         }
     };
 
+    const handleAudioSubmit = async (url: string): Promise<HeaderSubmitResult> => {
+        const input = url.trim();
+        if (!input) {
+            setError(t('pleaseEnterUrlOrSearchTerm'));
+            return { success: false, error: t('pleaseEnterUrlOrSearchTerm') };
+        }
+
+        if (isVisitor) {
+            const errorMessage = t('visitorModeUrlRestricted') || 'Visitors cannot process URLs';
+            setError(errorMessage);
+            return { success: false, error: errorMessage };
+        }
+
+        if (!onAudioOnlySubmit) {
+            return { success: false, error: t('unexpectedErrorOccurred') };
+        }
+
+        setError('');
+        setIsSubmitting(true);
+        try {
+            const result = await onAudioOnlySubmit(input);
+            if (result.success) {
+                resetInputAndCloseMenu();
+                return result;
+            }
+
+            setError(result.error || t('unexpectedErrorOccurred'));
+            return result;
+        } catch (submitError) {
+            setError(t('unexpectedErrorOccurred'));
+            console.error(submitError);
+            return { success: false, error: t('unexpectedErrorOccurred') };
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
     return {
         videoUrl,
         setVideoUrl,
         isSubmitting,
         error,
-        handleSubmit
+        handleSubmit,
+        handleAudioSubmit,
     };
 };

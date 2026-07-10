@@ -29,7 +29,6 @@ export const en = {
   audioFormatM4a: "M4A",
   audioFormatMp3: "MP3",
   audioFormatOpus: "Opus",
-  pending: "Pending...",
   confirmDownloadAllPlaylists:
     "Download all playlists from this channel? This will create a collection for each playlist.",
   downloadAll: "Download All",

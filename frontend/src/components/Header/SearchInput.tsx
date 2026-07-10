@@ -1,11 +1,16 @@
-import { Clear, ContentPaste, Search } from '@mui/icons-material';
+import { ArrowDropDown, Check, Clear, ContentPaste, MusicNote, Search } from '@mui/icons-material';
 import {
     alpha,
     Box,
+    ButtonGroup,
     Button,
     CircularProgress,
     IconButton,
     InputAdornment,
+    ListItemIcon,
+    ListItemText,
+    Menu,
+    MenuItem,
     TextField,
     useMediaQuery,
     useTheme
@@ -13,6 +18,8 @@ import {
 import { FormEvent, useRef, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { useDownloadAudioOnlyPreference } from '../../hooks/useDownloadAudioOnlyPreference';
+import { isMissAVUrl } from '../../utils/missav';
 
 interface SearchInputProps {
     videoUrl: string;
@@ -22,6 +29,7 @@ interface SearchInputProps {
     isSearchMode: boolean;
     onResetSearch?: () => void;
     onSubmit: (e: FormEvent) => void;
+    onAudioSubmit?: (url: string) => Promise<unknown>;
 }
 
 const SearchInput: React.FC<SearchInputProps> = ({
@@ -31,7 +39,8 @@ const SearchInput: React.FC<SearchInputProps> = ({
     error,
     isSearchMode,
     onResetSearch,
-    onSubmit
+    onSubmit,
+    onAudioSubmit,
 }) => {
     const { t } = useLanguage();
     const { userRole } = useAuth();
@@ -41,11 +50,21 @@ const SearchInput: React.FC<SearchInputProps> = ({
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
     const [isFocused, setIsFocused] = useState(false);
+    const [downloadMenuAnchor, setDownloadMenuAnchor] = useState<HTMLElement | null>(null);
+    const [storedAudioOnly, persistAudioOnly] = useDownloadAudioOnlyPreference();
+    const [audioOnlySelected, setAudioOnlySelected] = useState(storedAudioOnly);
 
     const isSearchActive = isMobile || isFocused || !!videoUrl || !!error || isSubmitting;
     const desktopTransition = 'opacity 0.3s ease-in-out, background-color 0.3s ease-in-out, border-color 0.3s ease-in-out';
     const inactiveBorderColor = alpha(theme.palette.text.primary, 0.12);
     const activeBorderColor = alpha(theme.palette.text.primary, 0.23);
+    const canDownloadAudio = Boolean(
+        !isVisitor &&
+        onAudioSubmit &&
+        /^https?:\/\/[^\s]+$/i.test(videoUrl.trim()) &&
+        !isMissAVUrl(videoUrl.trim()),
+    );
+    const isMissAVInput = isMissAVUrl(videoUrl.trim());
 
     const pasteIntoInputFallback = async (): Promise<string> => {
         const input = inputRef.current;
@@ -98,6 +117,15 @@ const SearchInput: React.FC<SearchInputProps> = ({
         if (isSearchMode) {
             onResetSearch?.();
         }
+    };
+
+    const handleAudioDownload = () => {
+        setDownloadMenuAnchor(null);
+        if (!canDownloadAudio || !onAudioSubmit) return;
+
+        setAudioOnlySelected(true);
+        persistAudioOnly(true);
+        void onAudioSubmit(videoUrl.trim());
     };
 
     return (
@@ -178,30 +206,69 @@ const SearchInput: React.FC<SearchInputProps> = ({
                                         <Clear />
                                     </IconButton>
                                 )}
-                                <Button
-                                    type="submit"
+                                <ButtonGroup
                                     variant="contained"
                                     disabled={isSubmitting}
                                     sx={{
-                                        borderTopLeftRadius: 0,
-                                        borderBottomLeftRadius: 0,
                                         height: '100%',
-                                        minWidth: 'auto',
-                                        px: 3,
-                                        transition: desktopTransition,
+                                        '& .MuiButton-root': {
+                                            borderRadius: 0,
+                                            transition: desktopTransition,
+                                        },
                                         ...(!isMobile && !isSearchActive && {
-                                            bgcolor: alpha(theme.palette.primary.main, 0.35),
-                                            color: alpha(theme.palette.primary.contrastText, 0.85),
-                                            boxShadow: 'none',
-                                            '&:hover': {
-                                                bgcolor: alpha(theme.palette.primary.main, 0.5),
+                                            '& .MuiButton-root': {
+                                                bgcolor: alpha(theme.palette.primary.main, 0.35),
+                                                color: alpha(theme.palette.primary.contrastText, 0.85),
                                                 boxShadow: 'none',
+                                                '&:hover': {
+                                                    bgcolor: alpha(theme.palette.primary.main, 0.5),
+                                                    boxShadow: 'none',
+                                                },
                                             },
                                         }),
                                     }}
                                 >
-                                    {isSubmitting ? <CircularProgress size={24} color="inherit" /> : <Search />}
-                                </Button>
+                                    <Button
+                                        type="submit"
+                                        aria-label={t('download')}
+                                        sx={{ minWidth: 'auto', px: 2.5 }}
+                                    >
+                                        {isSubmitting ? <CircularProgress size={24} color="inherit" /> : <Search />}
+                                    </Button>
+                                    {!isVisitor && (
+                                        <Button
+                                            type="button"
+                                            aria-label={t('downloadOptions')}
+                                            aria-haspopup="menu"
+                                            aria-expanded={Boolean(downloadMenuAnchor)}
+                                            onClick={(event) => setDownloadMenuAnchor(event.currentTarget)}
+                                            sx={{ minWidth: 34, px: 0.5 }}
+                                        >
+                                            <ArrowDropDown />
+                                        </Button>
+                                    )}
+                                </ButtonGroup>
+                                <Menu
+                                    anchorEl={downloadMenuAnchor}
+                                    open={Boolean(downloadMenuAnchor)}
+                                    onClose={() => setDownloadMenuAnchor(null)}
+                                    MenuListProps={{ 'aria-label': t('downloadOptions') }}
+                                >
+                                    {!isVisitor && !isMissAVInput && (
+                                        <MenuItem
+                                            disabled={!canDownloadAudio}
+                                            onClick={handleAudioDownload}
+                                        >
+                                            <ListItemIcon>
+                                                {audioOnlySelected ? <Check fontSize="small" /> : <MusicNote fontSize="small" />}
+                                            </ListItemIcon>
+                                            <ListItemText
+                                                primary={t('downloadAudioOnly')}
+                                                secondary={!videoUrl.trim() ? t('downloadAudioOnlyHint') : undefined}
+                                            />
+                                        </MenuItem>
+                                    )}
+                                </Menu>
                             </InputAdornment>
                         ),
                         sx: { pr: 0, borderRadius: 2 }

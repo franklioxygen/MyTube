@@ -4,7 +4,7 @@ Canonical locale key order derived from `frontend/src/utils/locales/en.ts`.
 
 This list is intentionally unnumbered. When new keys are inserted, only the local section order changes.
 
-Total keys: 1045
+Total keys: 1044
 
 ## Summary
 
@@ -81,7 +81,6 @@ Total keys: 1045
 | `downloadOptions` |
 | `downloadAudioOnly` |
 | `downloadAudioOnlyHint` |
-| `pending` |
 | `confirmDownloadAllPlaylists` |
 | `downloadAll` |
 | `loadingVideos` |

@@ -28,6 +28,7 @@ import { useHeaderSubscriptions } from './useHeaderSubscriptions';
 
 const HeaderContainer: React.FC<HeaderProps> = ({
     onSubmit,
+    onAudioOnlySubmit,
     activeDownloads = [],
     queuedDownloads = [],
     isSearchMode = false,
@@ -81,9 +82,11 @@ const HeaderContainer: React.FC<HeaderProps> = ({
         setVideoUrl,
         isSubmitting,
         error,
-        handleSubmit
+        handleSubmit,
+        handleAudioSubmit,
     } = useHeaderSubmission({
         onSubmit,
+        onAudioOnlySubmit,
         isVisitor,
         navigate,
         t,
@@ -186,6 +189,7 @@ const HeaderContainer: React.FC<HeaderProps> = ({
                             error={error}
                             isSearchMode={isSearchMode}
                             onSubmit={handleToolbarSubmit}
+                            onAudioOnlySubmit={handleAudioSubmit}
                             collections={collections}
                             videos={videos}
                             showTagsInMobileMenu={showTagsInMobileMenu}
