@@ -202,6 +202,23 @@ const createSqlitePrepareMock = (
       return createStatement({ getResult: tagsRow ? { value: tagsRow.value } : undefined });
     }
 
+    if (
+      sql ===
+      "SELECT user_id AS user_id, collection_id AS collection_id FROM favorite_collections"
+    ) {
+      return createStatement({ allResult: tables.favorite_collections || [] });
+    }
+
+    if (
+      sql === "SELECT user_id AS user_id, author AS author FROM favorite_authors"
+    ) {
+      return createStatement({ allResult: tables.favorite_authors || [] });
+    }
+
+    if (sql === "SELECT id FROM users") {
+      return createStatement({ allResult: tables.users || [] });
+    }
+
     if (sql.startsWith("INSERT INTO")) {
       return createStatement();
     }
@@ -622,6 +639,72 @@ describe("databaseBackupService", () => {
       expect(sqlite.transaction).toHaveBeenCalledTimes(1);
       expect(invalidateSettingsCache).toHaveBeenCalledTimes(1);
       expect(fs.copyFileSync).toHaveBeenCalledTimes(1);
+    });
+
+    it("only merges favorites whose owner resolves on the target", () => {
+      const sourceTables = {
+        collections: [
+          {
+            id: "source-collection",
+            name: "Watch Later",
+            title: "Watch Later",
+            created_at: "2024-01-01T00:00:00.000Z",
+          },
+        ],
+        favorite_collections: [
+          // Shared owner sentinel: always resolvable across instances.
+          { user_id: "__admin__", collection_id: "source-collection" },
+          // Visitor whose durable users.id also exists on the target.
+          { user_id: "visitor-known", collection_id: "source-collection" },
+          // Visitor with no matching target user: unmappable, must be skipped.
+          { user_id: "visitor-orphan", collection_id: "source-collection" },
+        ],
+        favorite_authors: [
+          { user_id: "__admin__", author: "Owner Author" },
+          { user_id: "visitor-orphan", author: "Orphan Author" },
+        ],
+      };
+
+      const sourceColumns = {
+        collections: ["id", "name", "title", "created_at"],
+        favorite_collections: ["user_id", "collection_id"],
+        favorite_authors: ["user_id", "author"],
+      };
+
+      const targetTables = {
+        collections: [
+          {
+            id: "target-collection",
+            name: "Watch Later",
+            title: "Watch Later",
+          },
+        ],
+        users: [{ id: "visitor-known" }],
+        favorite_collections: [],
+        favorite_authors: [],
+      };
+
+      const targetColumns = {
+        collections: ["id", "name", "title", "created_at"],
+        users: ["id"],
+        favorite_collections: ["user_id", "collection_id"],
+        favorite_authors: ["user_id", "author"],
+      };
+
+      vi.mocked(Database as any).mockImplementation(function () {
+        return createSourceDbHandle(sourceTables, sourceColumns);
+      });
+      vi.mocked(sqlite.prepare as any).mockImplementation(
+        createSqlitePrepareMock(targetTables, targetColumns)
+      );
+
+      const summary = databaseBackupService.mergeDatabase(
+        Buffer.from("sqlite-bytes")
+      );
+
+      // sentinel + known visitor merge; the orphaned visitor is skipped.
+      expect(summary.favoriteCollections).toEqual({ merged: 2, skipped: 1 });
+      expect(summary.favoriteAuthors).toEqual({ merged: 1, skipped: 1 });
     });
 
     it("does not deduplicate videos by local path across instances", () => {

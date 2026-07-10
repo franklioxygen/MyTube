@@ -18,8 +18,9 @@ import {
   videos,
 } from "../db/schema";
 import { isLoginRequired } from "./passwordService";
+import { OWNER_FAVORITES_USER_ID } from "./favoriteOwner";
 
-export const OWNER_FAVORITES_USER_ID = "__admin__";
+export { OWNER_FAVORITES_USER_ID };
 
 export type FavoriteVisibilityRole = "admin" | "visitor";
 

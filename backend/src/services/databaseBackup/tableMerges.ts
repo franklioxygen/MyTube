@@ -21,6 +21,34 @@ import {
   MergeExecutionOptions,
   MergeRow,
 } from "./types";
+import { OWNER_FAVORITES_USER_ID } from "../favoriteOwner";
+
+/**
+ * Build the set of favorite owner IDs that resolve to a real owner on the
+ * target. The shared owner sentinel is always valid; per-visitor UUIDs are
+ * only valid when the same durable users.id already exists on the target,
+ * because the users table is intentionally not mergeable. Favorites owned by
+ * unmappable source visitors are skipped rather than inserted as orphans.
+ */
+function collectValidFavoriteOwnerIds(
+  targetDb: Database.Database
+): Set<string> {
+  const ownerIds = new Set<string>([OWNER_FAVORITES_USER_ID]);
+
+  if (!hasTable(targetDb, "users")) {
+    return ownerIds;
+  }
+
+  const rows = targetDb.prepare("SELECT id FROM users").all() as MergeRow[];
+  for (const row of rows) {
+    const id = toLookupKey(row.id);
+    if (id) {
+      ownerIds.add(id);
+    }
+  }
+
+  return ownerIds;
+}
 
 function mergeVideos(
   sourceDb: Database.Database,
@@ -447,6 +475,7 @@ function mergeFavoriteCollections(
   targetDb: Database.Database,
   summary: DatabaseMergeSummary,
   collectionIdMap: Map<string, string>,
+  validOwnerIds: Set<string>,
   options: MergeExecutionOptions
 ): void {
   if (!hasTable(targetDb, "favorite_collections")) {
@@ -495,7 +524,7 @@ function mergeFavoriteCollections(
       ? collectionIdMap.get(sourceCollectionId)
       : undefined;
 
-    if (!userId || !targetCollectionId) {
+    if (!userId || !targetCollectionId || !validOwnerIds.has(userId)) {
       summary.favoriteCollections.skipped += 1;
       continue;
     }
@@ -523,6 +552,7 @@ function mergeFavoriteAuthors(
   sourceDb: Database.Database,
   targetDb: Database.Database,
   summary: DatabaseMergeSummary,
+  validOwnerIds: Set<string>,
   options: MergeExecutionOptions
 ): void {
   if (!hasTable(targetDb, "favorite_authors")) {
@@ -560,7 +590,7 @@ function mergeFavoriteAuthors(
     const userId = toLookupKey(row.user_id);
     const author = toLookupKey(row.author);
 
-    if (!userId || !author) {
+    if (!userId || !author || !validOwnerIds.has(userId)) {
       summary.favoriteAuthors.skipped += 1;
       continue;
     }
@@ -674,14 +704,22 @@ export function executeDatabaseMerge(
     options
   );
   mergeVideoDownloads(sourceDb, targetDb, summary, videoIdMap, options);
+  const validFavoriteOwnerIds = collectValidFavoriteOwnerIds(targetDb);
   mergeFavoriteCollections(
     sourceDb,
     targetDb,
     summary,
     collectionIdMap,
+    validFavoriteOwnerIds,
     options
   );
-  mergeFavoriteAuthors(sourceDb, targetDb, summary, options);
+  mergeFavoriteAuthors(
+    sourceDb,
+    targetDb,
+    summary,
+    validFavoriteOwnerIds,
+    options
+  );
   mergeTagSettings(sourceDb, targetDb, summary, options);
 
   return summary;
