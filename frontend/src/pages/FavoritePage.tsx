@@ -47,6 +47,17 @@ const isUnfinished = (video: Video): boolean => {
     return true;
 };
 
+const getSecureRandomIndex = (upperBound: number): number => {
+    // Avoid modulo bias by discarding values above the largest multiple of the
+    // upper bound. This keeps the Fisher–Yates shuffle uniform.
+    const limit = Math.floor(0x1_0000_0000 / upperBound) * upperBound;
+    const value = new Uint32Array(1);
+    do {
+        crypto.getRandomValues(value);
+    } while (value[0] >= limit);
+    return value[0] % upperBound;
+};
+
 const FavoritePage: React.FC<FavoritePageProps> = ({ onBrowseCollections, onFindAuthors }) => {
     const { t } = useLanguage();
     const isReducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
@@ -78,7 +89,7 @@ const FavoritePage: React.FC<FavoritePageProps> = ({ onBrowseCollections, onFind
         const continueIds = new Set(continueWatchingVideos.map((video) => video.id));
         const pool = topRatedVideos.filter((video) => !continueIds.has(video.id));
         for (let i = pool.length - 1; i > 0; i -= 1) {
-            const j = Math.floor(Math.random() * (i + 1));
+            const j = getSecureRandomIndex(i + 1);
             [pool[i], pool[j]] = [pool[j], pool[i]];
         }
         return pool.slice(0, RANDOM_FEATURED_LIMIT);
@@ -150,6 +161,7 @@ const FavoritePage: React.FC<FavoritePageProps> = ({ onBrowseCollections, onFind
                             <FavoriteAuthorRail
                                 favorites={favoriteAuthorItems}
                                 loading={favoriteAuthors.isLoading}
+                                onUnfavorite={(favorite) => favoriteAuthors.toggle({ author: favorite.author })}
                             />
                         </Box>
                     </Fade>
