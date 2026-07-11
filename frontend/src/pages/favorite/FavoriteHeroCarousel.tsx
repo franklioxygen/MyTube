@@ -54,7 +54,9 @@ const FavoriteHeroCarousel: React.FC<FavoriteHeroCarouselProps> = ({ items }) =>
 
     return (
         <Box
-            sx={{ position: 'relative' }}
+            // On mobile, break out of FavoritePage's `px: 2` so the hero spans
+            // the full screen width edge-to-edge; unchanged on desktop.
+            sx={{ position: 'relative', mx: { xs: -2, md: 0 } }}
             onMouseEnter={() => setPaused(true)}
             onMouseLeave={() => setPaused(false)}
             onFocusCapture={() => setPaused(true)}

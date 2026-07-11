@@ -1539,8 +1539,6 @@ export const ko = {
   favorite: "즐겨찾기",
   favoritesEmptyTitle: "아직 즐겨찾기가 없습니다",
   favoritesEmptySubtitle: "컬렉션과 제작자에 별표를 표시하면 여기에 고정됩니다.",
-  favoritesHeading: "즐겨찾기",
-  favoritesPageSubtitle: "별표를 표시한 모든 것을 한곳에서",
   favoriteCollection: "컬렉션 즐겨찾기",
   favoriteAuthor: "제작자 즐겨찾기",
   unfavorite: "즐겨찾기에서 제거",

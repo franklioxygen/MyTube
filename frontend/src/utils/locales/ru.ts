@@ -1566,8 +1566,6 @@ export const ru = {
   favorite: "Избранное",
   favoritesEmptyTitle: "Избранного пока нет",
   favoritesEmptySubtitle: "Поставьте звезду коллекциям и авторам, чтобы закрепить их здесь.",
-  favoritesHeading: "Избранное",
-  favoritesPageSubtitle: "Всё, что вы отметили, в одном месте",
   favoriteCollection: "Добавить коллекцию в избранное",
   favoriteAuthor: "Добавить автора в избранное",
   unfavorite: "Удалить из избранного",

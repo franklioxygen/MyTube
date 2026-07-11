@@ -1534,8 +1534,6 @@ export const ar = {
   favorite: "المفضلة",
   favoritesEmptyTitle: "لا توجد مفضلات بعد",
   favoritesEmptySubtitle: "ضع نجمة على المجموعات والمؤلفين لتثبيتها هنا.",
-  favoritesHeading: "المفضلة",
-  favoritesPageSubtitle: "كل ما وضعت له نجمة، في مكان واحد",
   favoriteCollection: "إضافة المجموعة إلى المفضلة",
   favoriteAuthor: "إضافة المؤلف إلى المفضلة",
   unfavorite: "إزالة من المفضلة",

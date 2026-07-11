@@ -1,5 +1,4 @@
-import { Star } from '@mui/icons-material';
-import { Alert, Box, CircularProgress, Fade, Typography, useMediaQuery } from '@mui/material';
+import { Alert, Box, CircularProgress, Fade, useMediaQuery } from '@mui/material';
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCollection } from '../contexts/CollectionContext';
@@ -7,7 +6,6 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useVideo } from '../contexts/VideoContext';
 import { useFavoriteAuthors } from '../hooks/useFavoriteAuthors';
 import { useFavoriteCollections } from '../hooks/useFavoriteCollections';
-import { brand, neutral } from '../theme/colors';
 import type { Video } from '../types';
 import FavoriteAuthorRail from './favorite/FavoriteAuthorRail';
 import FavoriteCollectionRail from './favorite/FavoriteCollectionRail';
@@ -81,34 +79,6 @@ const FavoritePage: React.FC<FavoritePageProps> = ({ onBrowseCollections }) => {
                 />
             ) : (
                 <>
-                    <Fade in timeout={isReducedMotion ? 0 : 300}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.75, mb: 3 }}>
-                            <Box
-                                aria-hidden
-                                sx={{
-                                    width: 48,
-                                    height: 48,
-                                    borderRadius: 2.5,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    background: `linear-gradient(135deg, ${brand.primaryDark}, ${brand.secondary})`,
-                                    boxShadow: '0 6px 18px rgba(101,31,255,0.35)',
-                                    flexShrink: 0,
-                                }}
-                            >
-                                <Star sx={{ color: neutral.white, fontSize: 28 }} />
-                            </Box>
-                            <Box>
-                                <Typography variant="h4" component="h1" fontWeight={800} sx={{ lineHeight: 1.1 }}>
-                                    {t('favoritesHeading')}
-                                </Typography>
-                                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
-                                    {t('favoritesPageSubtitle')}
-                                </Typography>
-                            </Box>
-                        </Box>
-                    </Fade>
                     {featuredItems.length > 0 && (
                         <Fade in timeout={isReducedMotion ? 0 : 400}>
                             <Box>

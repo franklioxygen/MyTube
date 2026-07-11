@@ -1595,8 +1595,6 @@ export const fr = {
   favorite: "Favori",
   favoritesEmptyTitle: "Aucun favori pour le moment",
   favoritesEmptySubtitle: "Ajoutez une étoile aux collections et aux auteurs pour les épingler ici.",
-  favoritesHeading: "Favoris",
-  favoritesPageSubtitle: "Tout ce que vous avez mis en favori, au même endroit",
   favoriteCollection: "Ajouter la collection aux favoris",
   favoriteAuthor: "Ajouter l’auteur aux favoris",
   unfavorite: "Retirer des favoris",

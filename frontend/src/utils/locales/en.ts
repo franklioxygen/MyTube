@@ -1534,8 +1534,6 @@ export const en = {
   favorite: "Favorite",
   favoritesEmptyTitle: "No favorites yet",
   favoritesEmptySubtitle: "Star collections and authors to pin them here.",
-  favoritesHeading: "Favorites",
-  favoritesPageSubtitle: "Everything you've starred, in one place",
   favoriteCollection: "Favorite collection",
   favoriteAuthor: "Favorite author",
   unfavorite: "Remove from favorites",

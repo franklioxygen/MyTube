@@ -1581,8 +1581,6 @@ export const de = {
   favorite: "Favorit",
   favoritesEmptyTitle: "Noch keine Favoriten",
   favoritesEmptySubtitle: "Markiere Sammlungen und Autoren mit einem Stern, um sie hier zu speichern.",
-  favoritesHeading: "Favoriten",
-  favoritesPageSubtitle: "Alles, was du markiert hast, an einem Ort",
   favoriteCollection: "Sammlung favorisieren",
   favoriteAuthor: "Autor favorisieren",
   unfavorite: "Aus Favoriten entfernen",
