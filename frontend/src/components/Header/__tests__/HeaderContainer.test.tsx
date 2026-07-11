@@ -1,15 +1,16 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import HeaderContainer from '../HeaderContainer';
 
 const mockNavigate = vi.fn();
+let mockPathname = '/';
 
 vi.mock('react-router-dom', async () => {
     const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
     return {
         ...actual,
         useNavigate: () => mockNavigate,
-        useLocation: () => ({ pathname: '/' }),
+        useLocation: () => ({ pathname: mockPathname }),
     };
 });
 
@@ -76,11 +77,39 @@ vi.mock('../HeaderToolbarContent', () => ({
             <button onClick={props.onManageClose}>close-manage</button>
             <button onClick={props.onToggleMobileMenu}>toggle-mobile-menu</button>
             <button onClick={props.onCloseMobileMenu}>close-mobile-menu</button>
+            <span data-testid="show-tags-in-mobile-menu">{String(props.showTagsInMobileMenu)}</span>
         </div>
     ),
 }));
 
+const renderHeader = () =>
+    render(
+        <HeaderContainer
+            onSubmit={vi.fn()}
+            onSearch={vi.fn()}
+            activeDownloads={[]}
+            queuedDownloads={[]}
+            isSearchMode={false}
+            collections={[]}
+            videos={[]}
+        />
+    );
+
 describe('HeaderContainer', () => {
+    afterEach(() => {
+        mockPathname = '/';
+    });
+
+    it.each([
+        ['/', 'true'],
+        ['/collections', 'true'],
+        ['/favorites', 'false'],
+    ])('shows mobile tag menu on %s -> %s', (pathname, expected) => {
+        mockPathname = pathname;
+        renderHeader();
+        expect(screen.getByTestId('show-tags-in-mobile-menu').textContent).toBe(expected);
+    });
+
     it('handles toolbar callbacks, click-away, and scroll-to-top button click', () => {
         const scrollSpy = vi.spyOn(window, 'scrollTo').mockImplementation(() => { });
 

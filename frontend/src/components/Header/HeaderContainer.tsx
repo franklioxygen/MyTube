@@ -65,7 +65,9 @@ const HeaderContainer: React.FC<HeaderProps> = ({
     const hasActiveSubscriptions = useHeaderSubscriptions(isVisitor);
 
     const isSettingsPage = location.pathname.startsWith('/settings');
-    const isHomePage = location.pathname === '/';
+    // `/collections` renders the same Home page (collections view), which
+    // supports tag filtering and infinite scroll, so treat it as a home route.
+    const isHomePage = location.pathname === '/' || location.pathname === '/collections';
     const isAuthorPage = location.pathname.startsWith('/author/');
     const isCollectionPage = location.pathname.startsWith('/collection/');
     const showTagsInMobileMenu = isHomePage || isAuthorPage || isCollectionPage;
