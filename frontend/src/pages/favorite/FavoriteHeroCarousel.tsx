@@ -1,6 +1,7 @@
 import { ChevronLeft, ChevronRight } from '@mui/icons-material';
-import { Box, Fade, IconButton, useMediaQuery } from '@mui/material';
-import { useCallback, useEffect, useState } from 'react';
+import { Box, IconButton, useMediaQuery, useTheme } from '@mui/material';
+import { motion } from 'framer-motion';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { neutral, overlay } from '../../theme/colors';
 import type { FavoriteCollectionItem, Video } from '../../types';
@@ -25,9 +26,14 @@ const AUTO_ADVANCE_MS = 7000;
  */
 const FavoriteHeroCarousel: React.FC<FavoriteHeroCarouselProps> = ({ items }) => {
     const { t } = useLanguage();
+    const theme = useTheme();
     const isReducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
+    const isMobile = useMediaQuery(theme.breakpoints.down('md'));
     const [index, setIndex] = useState(0);
     const [paused, setPaused] = useState(false);
+    const [slideDirection, setSlideDirection] = useState(1);
+    const touchStart = useRef<{ x: number; y: number } | null>(null);
+    const suppressClick = useRef(false);
     const count = items.length;
 
     // Keep the index valid if the favorites list shrinks under us.
@@ -35,9 +41,31 @@ const FavoriteHeroCarousel: React.FC<FavoriteHeroCarouselProps> = ({ items }) =>
         if (index >= count && count > 0) setIndex(0);
     }, [count, index]);
 
-    const go = useCallback((next: number) => {
+    const go = useCallback((next: number, direction = 1) => {
+        setSlideDirection(direction);
         setIndex(((next % count) + count) % count);
     }, [count]);
+
+    const handleTouchEnd = (event: React.TouchEvent<HTMLDivElement>) => {
+        const start = touchStart.current;
+        touchStart.current = null;
+        if (!start || !isMobile || count <= 1) return;
+
+        const touch = event.changedTouches[0];
+        const horizontalDistance = touch.clientX - start.x;
+        const verticalDistance = touch.clientY - start.y;
+
+        // Keep natural page scrolling intact; only deliberate horizontal swipes
+        // change slides.
+        if (Math.abs(horizontalDistance) < 48 || Math.abs(horizontalDistance) <= Math.abs(verticalDistance)) return;
+
+        suppressClick.current = true;
+        if (horizontalDistance < 0) {
+            go(index + 1, 1);
+        } else {
+            go(index - 1, -1);
+        }
+    };
 
     useEffect(() => {
         if (isReducedMotion || paused || count <= 1) return undefined;
@@ -56,17 +84,40 @@ const FavoriteHeroCarousel: React.FC<FavoriteHeroCarouselProps> = ({ items }) =>
         <Box
             // On mobile, break out of FavoritePage's `px: 2` so the hero spans
             // the full screen width edge-to-edge; unchanged on desktop.
-            sx={{ position: 'relative', mx: { xs: -2, md: 0 } }}
+            data-testid="favorite-hero-carousel"
+            sx={{
+                position: 'relative',
+                mx: { xs: -2, md: 0 },
+                // Allows vertical page scrolling while keeping horizontal
+                // gestures available for the mobile carousel.
+                touchAction: isMobile && count > 1 ? 'pan-y' : 'auto',
+            }}
             onMouseEnter={() => setPaused(true)}
             onMouseLeave={() => setPaused(false)}
             onFocusCapture={() => setPaused(true)}
             onBlurCapture={() => setPaused(false)}
+            onTouchStart={(event) => {
+                if (!isMobile || count <= 1) return;
+                const touch = event.touches[0];
+                touchStart.current = { x: touch.clientX, y: touch.clientY };
+            }}
+            onTouchEnd={handleTouchEnd}
+            onTouchCancel={() => { touchStart.current = null; }}
+            onClickCapture={(event) => {
+                if (!suppressClick.current) return;
+                event.preventDefault();
+                event.stopPropagation();
+                suppressClick.current = false;
+            }}
         >
-            <Fade in key={current.video.id} timeout={isReducedMotion ? 0 : 450} appear>
-                <Box>
-                    <FavoriteHero video={current.video} collection={current.collection} />
-                </Box>
-            </Fade>
+            <motion.div
+                key={current.video.id}
+                initial={isReducedMotion ? false : { opacity: 0, x: slideDirection * 24 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={isReducedMotion ? { duration: 0 } : { duration: 0.3, ease: 'easeOut' }}
+            >
+                <FavoriteHero video={current.video} collection={current.collection} />
+            </motion.div>
 
             {count > 1 && (
                 <Box
@@ -88,7 +139,7 @@ const FavoriteHeroCarousel: React.FC<FavoriteHeroCarouselProps> = ({ items }) =>
                     <IconButton
                         size="small"
                         aria-label={t('previous')}
-                        onClick={() => go(safeIndex - 1)}
+                        onClick={() => go(safeIndex - 1, -1)}
                         sx={{ color: neutral.white, p: 0.5 }}
                     >
                         <ChevronLeft fontSize="small" />
@@ -101,7 +152,7 @@ const FavoriteHeroCarousel: React.FC<FavoriteHeroCarouselProps> = ({ items }) =>
                                 type="button"
                                 aria-label={`${t('featured')} ${dotIndex + 1}`}
                                 aria-current={dotIndex === safeIndex}
-                                onClick={() => setIndex(dotIndex)}
+                                onClick={() => go(dotIndex, dotIndex >= safeIndex ? 1 : -1)}
                                 sx={{
                                     p: 0,
                                     border: 'none',
@@ -118,7 +169,7 @@ const FavoriteHeroCarousel: React.FC<FavoriteHeroCarouselProps> = ({ items }) =>
                     <IconButton
                         size="small"
                         aria-label={t('next')}
-                        onClick={() => go(safeIndex + 1)}
+                        onClick={() => go(safeIndex + 1, 1)}
                         sx={{ color: neutral.white, p: 0.5 }}
                     >
                         <ChevronRight fontSize="small" />

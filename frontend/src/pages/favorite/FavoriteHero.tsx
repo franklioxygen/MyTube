@@ -27,6 +27,9 @@ const FavoriteHero: React.FC<FavoriteHeroProps> = ({ video, collection }) => {
                 sx={{
                     position: 'relative',
                     overflow: 'hidden',
+                    // Keep the carousel from shifting surrounding content when
+                    // the featured title changes between one and two lines.
+                    height: { xs: 432, sm: 448, md: 'clamp(340px, 30vw, 440px)' },
                     // Full-bleed edge-to-edge card on mobile; rounded on desktop.
                     borderRadius: { xs: 0, md: 2 },
                     bgcolor: theme.palette.mode === 'dark' ? 'grey.900' : 'grey.100',
@@ -136,6 +139,9 @@ const FavoriteHero: React.FC<FavoriteHeroProps> = ({ video, collection }) => {
                             fontWeight={800}
                             sx={{
                                 lineHeight: 1.2,
+                                // Reserve both clamped title lines even when a
+                                // featured video has a shorter title.
+                                minHeight: '2.4em',
                                 display: '-webkit-box',
                                 overflow: 'hidden',
                                 WebkitBoxOrient: 'vertical',
