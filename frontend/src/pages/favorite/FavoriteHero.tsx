@@ -27,9 +27,10 @@ const FavoriteHero: React.FC<FavoriteHeroProps> = ({ video, collection }) => {
                 sx={{
                     position: 'relative',
                     overflow: 'hidden',
-                    // Keep the carousel from shifting surrounding content when
-                    // the featured title changes between one and two lines.
-                    height: { xs: 432, sm: 448, md: 'clamp(340px, 30vw, 440px)' },
+                    // Mobile keeps a fixed card height; desktop follows the
+                    // natural 16:9 media height so the card stays compact
+                    // without cropping the featured thumbnail.
+                    height: { xs: 432, sm: 448, md: 'auto' },
                     // Full-bleed edge-to-edge card on mobile; rounded on desktop.
                     borderRadius: { xs: 0, md: 2 },
                     bgcolor: theme.palette.mode === 'dark' ? 'grey.900' : 'grey.100',
@@ -106,7 +107,12 @@ const FavoriteHero: React.FC<FavoriteHeroProps> = ({ video, collection }) => {
                             className="hero-img"
                             image={thumbnail}
                             alt={video.title}
-                            sx={{ width: '100%', aspectRatio: '16 / 9', objectFit: 'cover', display: 'block' }}
+                            sx={{
+                                width: '100%',
+                                aspectRatio: '16 / 9',
+                                objectFit: 'cover',
+                                display: 'block',
+                            }}
                         />
                         {video.duration && (
                             <Chip

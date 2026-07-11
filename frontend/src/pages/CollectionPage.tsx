@@ -233,8 +233,8 @@ const CollectionPage: React.FC = () => {
                 />
 
                 <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: { xs: 'flex-start', md: 'center' }, mb: 3 }}>
+                        <Box sx={{ display: 'flex', alignItems: { xs: 'flex-start', md: 'center' }, flex: '1 1 auto', minWidth: 0 }}>
                             <Button
                                 onClick={() => setIsSidebarOpen(prev => !prev)}
                                 variant="outlined"
@@ -251,34 +251,47 @@ const CollectionPage: React.FC = () => {
                             >
                                 <ViewSidebar sx={{ transform: 'rotate(180deg)' }} />
                             </Button>
-                            <Avatar sx={{ width: 56, height: 56, bgcolor: 'secondary.main', mr: 2 }}>
+                            <Avatar
+                                sx={{
+                                    display: { xs: 'none', md: 'flex' },
+                                    width: 56,
+                                    height: 56,
+                                    bgcolor: 'secondary.main',
+                                    mr: 2,
+                                    flexShrink: 0,
+                                }}
+                            >
                                 <Folder fontSize="large" />
                             </Avatar>
-                            <Box>
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                    <Typography variant="h4" component="h1" fontWeight="bold">
+                            <Box sx={{ minWidth: 0 }}>
+                                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: { xs: 0, md: 1 } }}>
+                                    <Typography
+                                        variant="h4"
+                                        component="h1"
+                                        fontWeight="bold"
+                                        sx={{
+                                            fontSize: { xs: '1.5rem', md: '2.125rem' },
+                                            lineHeight: { xs: 1.25, md: 1.235 },
+                                            overflowWrap: 'anywhere',
+                                            minWidth: 0,
+                                        }}
+                                    >
+                                        <Avatar
+                                            component="span"
+                                            aria-hidden
+                                            sx={{
+                                                display: { xs: 'inline-flex', md: 'none' },
+                                                width: 40,
+                                                height: 40,
+                                                mr: 1,
+                                                verticalAlign: 'middle',
+                                                bgcolor: 'secondary.main',
+                                            }}
+                                        >
+                                            <Folder sx={{ fontSize: 24 }} />
+                                        </Avatar>
                                         {collection.name}
                                     </Typography>
-                                    <Tooltip title={t('addTags')}>
-                                        <IconButton
-                                            color="primary"
-                                            onClick={() => setIsTagsModalOpen(true)}
-                                            aria-label="add tags to collection"
-                                        >
-                                            <LocalOffer />
-                                        </IconButton>
-                                    </Tooltip>
-                                    <FavoriteToggle
-                                        active={isFavoriteCollection(collection.id)}
-                                        onToggle={() => toggleFavoriteCollection(collection.id, {
-                                            name: collection.name,
-                                            title: collection.title,
-                                            videoCount: collectionVideos.length,
-                                        })}
-                                        label={t('favoriteCollection')}
-                                        activeLabel={t('unfavorite')}
-                                        disabled={isFavoriteToggling}
-                                    />
                                 </Box>
                                 <Typography variant="subtitle1" color="text.secondary">
                                     {collectionVideos.length === 0
@@ -290,15 +303,39 @@ const CollectionPage: React.FC = () => {
                             </Box>
                         </Box>
 
-                        {collectionVideos.length > 0 && (
-                            <SortControl
-                                sortOption={sortOption}
-                                sortAnchorEl={sortAnchorEl}
-                                onSortClick={handleSortClick}
-                                onSortClose={handleSortClose}
-                                sx={{ height: 38 }}
-                            />
-                        )}
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
+                                <Tooltip title={t('addTags')}>
+                                    <IconButton
+                                        color="primary"
+                                        onClick={() => setIsTagsModalOpen(true)}
+                                        aria-label="add tags to collection"
+                                    >
+                                        <LocalOffer />
+                                    </IconButton>
+                                </Tooltip>
+                                <FavoriteToggle
+                                    active={isFavoriteCollection(collection.id)}
+                                    onToggle={() => toggleFavoriteCollection(collection.id, {
+                                        name: collection.name,
+                                        title: collection.title,
+                                        videoCount: collectionVideos.length,
+                                    })}
+                                    label={t('favoriteCollection')}
+                                    activeLabel={t('unfavorite')}
+                                    disabled={isFavoriteToggling}
+                                />
+                            </Box>
+                            {collectionVideos.length > 0 && (
+                                <SortControl
+                                    sortOption={sortOption}
+                                    sortAnchorEl={sortAnchorEl}
+                                    onSortClick={handleSortClick}
+                                    onSortClose={handleSortClose}
+                                    sx={{ height: 38 }}
+                                />
+                            )}
+                        </Box>
                     </Box>
 
                     {collectionVideos.length === 0 ? (

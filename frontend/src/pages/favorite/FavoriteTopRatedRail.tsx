@@ -1,4 +1,3 @@
-import { Star } from '@mui/icons-material';
 import { Box, Card, CardActionArea, CardMedia, Chip, Typography } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -47,9 +46,6 @@ const MiniVideoCard: React.FC<{ video: Video }> = ({ video }) => {
                     <Typography variant="caption" color="text.secondary" noWrap display="block">
                         {video.author || t('unknownAuthor')}
                     </Typography>
-                    <Box aria-label={`${video.rating ?? 5} ${t('stars')}`} sx={{ display: 'flex', mt: 0.5 }}>
-                        {[1, 2, 3, 4, 5].map((star) => <Star key={star} sx={{ fontSize: 15, color: neutral.grey400 }} />)}
-                    </Box>
                 </Box>
             </CardActionArea>
         </Card>
