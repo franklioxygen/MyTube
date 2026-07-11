@@ -72,6 +72,10 @@ For installation and usage instructions, please refer to [Browser Extension](doc
 
 [mytube-android](https://github.com/franklioxygen/mytube-android) is a native Android client for MyTube. It connects to your MyTube server through the API for browsing and playback on mobile devices.
 
+## MCP Server
+
+[mytube-mcp](https://github.com/franklioxygen/mytube-mcp) is a Model Context Protocol (MCP) server for MyTube. It exposes your MyTube instance to AI assistants and agents through the API, so they can search, manage, and play your video library on your behalf.
+
 ## Directory Structure
 
 For a detailed breakdown of the project structure, please refer to [Directory Structure](documents/en/directory-structure.md).
