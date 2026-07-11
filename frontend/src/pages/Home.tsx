@@ -201,6 +201,7 @@ const Home: React.FC<HomeProps> = ({ initialViewMode }) => {
                         {viewMode === 'favorite' ? (
                             <FavoritePage
                                 onBrowseCollections={() => handleHomeViewModeChange('collections')}
+                                onFindAuthors={() => handleHomeViewModeChange('all-videos')}
                             />
                         ) : viewMode === 'collections' && displayedVideos.length === 0 ? (
                             <Box sx={{ py: 8, textAlign: 'center' }}>

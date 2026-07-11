@@ -44,7 +44,7 @@ describe('FavoritePage', () => {
 
     const renderPage = () => render(
         <ThemeProvider theme={createTheme()}>
-            <FavoritePage onBrowseCollections={vi.fn()} />
+            <FavoritePage onBrowseCollections={vi.fn()} onFindAuthors={vi.fn()} />
         </ThemeProvider>,
     );
 

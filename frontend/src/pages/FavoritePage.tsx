@@ -1,6 +1,5 @@
 import { Alert, Box, CircularProgress, Fade, useMediaQuery } from '@mui/material';
 import { useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useCollection } from '../contexts/CollectionContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useVideo } from '../contexts/VideoContext';
@@ -18,6 +17,7 @@ const FEATURED_LIMIT = 5;
 
 interface FavoritePageProps {
     onBrowseCollections: () => void;
+    onFindAuthors: () => void;
 }
 
 const getActivityTimestamp = (video: Video): number => {
@@ -27,8 +27,7 @@ const getActivityTimestamp = (video: Video): number => {
     return Number.isFinite(numericValue) ? numericValue : Date.parse(String(value)) || 0;
 };
 
-const FavoritePage: React.FC<FavoritePageProps> = ({ onBrowseCollections }) => {
-    const navigate = useNavigate();
+const FavoritePage: React.FC<FavoritePageProps> = ({ onBrowseCollections, onFindAuthors }) => {
     const { t } = useLanguage();
     const isReducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
     const { videos } = useVideo();
@@ -75,7 +74,7 @@ const FavoritePage: React.FC<FavoritePageProps> = ({ onBrowseCollections }) => {
             {!hasContent ? (
                 <FavoriteEmptyState
                     onBrowseCollections={onBrowseCollections}
-                    onFindAuthors={() => navigate('/')}
+                    onFindAuthors={onFindAuthors}
                 />
             ) : (
                 <>
