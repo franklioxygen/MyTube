@@ -600,6 +600,10 @@ export const es = {
   title: "Título",
   author: "Autor",
   authors: "Autores",
+  all: "Todos",
+  showAll: "Ver todos",
+  allAuthors: "Todos los autores",
+
   created: "Creado",
   name: "Nombre",
   size: "Tamaño",

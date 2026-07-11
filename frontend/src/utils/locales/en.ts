@@ -599,6 +599,10 @@ export const en = {
   title: "Title",
   author: "Author",
   authors: "Authors",
+  all: "All",
+  showAll: "Show all",
+  allAuthors: "All Authors",
+
   created: "Created",
   name: "Name",
   size: "Size",

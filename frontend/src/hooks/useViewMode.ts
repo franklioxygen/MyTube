@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 export type ViewMode = 'favorite' | 'collections' | 'all-videos' | 'history';
@@ -39,7 +39,7 @@ export const useViewMode = (initialMode?: ViewMode): UseViewModeReturn => {
         setViewMode(initialMode ?? resolveStoredViewMode());
     }, [initialMode]);
 
-    const handleViewModeChange = (mode: ViewMode) => {
+    const handleViewModeChange = useCallback((mode: ViewMode) => {
         setViewMode(mode);
         localStorage.setItem('homeViewMode', mode);
         setSearchParams((prev: URLSearchParams) => {
@@ -47,7 +47,7 @@ export const useViewMode = (initialMode?: ViewMode): UseViewModeReturn => {
             newParams.set('page', '1');
             return newParams;
         });
-    };
+    }, [setSearchParams]);
 
     return {
         viewMode,

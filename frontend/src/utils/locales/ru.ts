@@ -593,6 +593,10 @@ export const ru = {
   title: "Название",
   author: "Автор",
   authors: "Авторы",
+  all: "Все",
+  showAll: "Показать все",
+  allAuthors: "Все авторы",
+
   created: "Создано",
   name: "Имя",
   size: "Размер",

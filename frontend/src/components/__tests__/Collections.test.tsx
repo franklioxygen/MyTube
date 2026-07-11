@@ -99,6 +99,70 @@ describe('Collections', () => {
         await user.click(screen.getByText('Collection 1'));
         expect(defaultProps.onItemClick).toHaveBeenCalled();
     });
+
+    it('keeps omitted empty collections reachable when the sidebar is truncated', () => {
+        const collections = Array.from({ length: 21 }, (_, index) => ({
+            id: `full-${index}`,
+            name: `Full Collection ${index}`,
+            videos: Array.from({ length: 21 - index }, (__, videoIndex) => `v-${index}-${videoIndex}`),
+            createdAt: '',
+        } as Collection));
+        collections.push({
+            id: 'empty-collection',
+            name: 'Empty Collection',
+            videos: [],
+            createdAt: '',
+        } as Collection);
+
+        render(
+            <MemoryRouter>
+                <Collections collections={collections} />
+            </MemoryRouter>
+        );
+
+        expect(screen.getByText('Empty Collection')).toBeInTheDocument();
+        expect(screen.getByText('showAll')).toBeInTheDocument();
+        expect(screen.queryByText('Full Collection 20')).not.toBeInTheDocument();
+    });
+
+    it('keeps omitted collections reachable when their first video collides', () => {
+        const collections = [
+            {
+                id: 'top-shared',
+                name: 'Top Shared Collection',
+                videos: ['shared-video', ...Array.from({ length: 30 }, (_, index) => `top-${index}`)],
+                createdAt: '',
+            } as Collection,
+            ...Array.from({ length: 19 }, (_, index) => ({
+                id: `top-${index}`,
+                name: `Top Collection ${index}`,
+                videos: Array.from({ length: 29 - index }, (__, videoIndex) => `v-${index}-${videoIndex}`),
+                createdAt: '',
+            } as Collection)),
+            {
+                id: 'omitted-collision',
+                name: 'Omitted Collision',
+                videos: ['shared-video'],
+                createdAt: '',
+            } as Collection,
+            {
+                id: 'omitted-unique',
+                name: 'Omitted Unique',
+                videos: ['unique-video'],
+                createdAt: '',
+            } as Collection,
+        ];
+
+        render(
+            <MemoryRouter>
+                <Collections collections={collections} />
+            </MemoryRouter>
+        );
+
+        expect(screen.getByText('Omitted Collision')).toBeInTheDocument();
+        expect(screen.queryByText('Omitted Unique')).not.toBeInTheDocument();
+        expect(screen.getByText('showAll')).toBeInTheDocument();
+    });
 });
 
 import { waitFor } from '@testing-library/react'; // Import waitFor separately

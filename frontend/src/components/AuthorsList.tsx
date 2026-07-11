@@ -1,7 +1,8 @@
-import { ExpandLess, ExpandMore } from '@mui/icons-material';
+import { ExpandLess, ExpandMore, GridView } from '@mui/icons-material';
 import {
     Avatar,
     Collapse,
+    IconButton,
     List,
     ListItemButton,
     ListItemText,
@@ -69,24 +70,37 @@ const AuthorListItem: React.FC<AuthorListItemProps> = React.memo(({ author, avat
 
 AuthorListItem.displayName = 'AuthorListItem';
 
+const TOP_AUTHORS_LIMIT = 20;
+
 const AuthorsList: React.FC<AuthorsListProps> = ({ videos, onItemClick }) => {
     const { t } = useLanguage();
     const [isOpen, setIsOpen] = useState<boolean>(true);
-    const [authors, setAuthors] = useState<string[]>([]);
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
-    useEffect(() => {
-        // Extract unique authors from videos
-        if (videos && videos.length > 0) {
-            const uniqueAuthors = [...new Set(videos.map(video => video.author))]
-                .filter(author => author) // Filter out null/undefined authors
-                .sort((a, b) => a.localeCompare(b)); // Sort alphabetically
-
-            setAuthors(uniqueAuthors);
-        } else {
-            setAuthors([]);
+    // Count videos per author, then show only the most prolific authors.
+    // "Show all" (and the full /authors page) only matters when the list is
+    // actually truncated.
+    const { topAuthors, hasMore } = useMemo(() => {
+        if (!videos || videos.length === 0) {
+            return { topAuthors: [] as string[], hasMore: false };
         }
+
+        const counts = new Map<string, number>();
+        videos.forEach(video => {
+            if (video.author) {
+                counts.set(video.author, (counts.get(video.author) ?? 0) + 1);
+            }
+        });
+
+        const sorted = [...counts.entries()]
+            .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+            .map(([author]) => author);
+
+        return {
+            topAuthors: sorted.slice(0, TOP_AUTHORS_LIMIT),
+            hasMore: sorted.length > TOP_AUTHORS_LIMIT,
+        };
     }, [videos]);
 
     // Create a map of author to their avatar path (from first video with avatar)
@@ -111,7 +125,7 @@ const AuthorsList: React.FC<AuthorsListProps> = ({ videos, onItemClick }) => {
         }
     }, [isMobile]);
 
-    if (!authors.length) {
+    if (!topAuthors.length) {
         return null;
     }
 
@@ -121,11 +135,25 @@ const AuthorsList: React.FC<AuthorsListProps> = ({ videos, onItemClick }) => {
                 <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontWeight: 600 }}>
                     {t('authors')}
                 </Typography>
+                <IconButton
+                    component={Link}
+                    to="/authors"
+                    size="small"
+                    aria-label={t('all')}
+                    title={t('all')}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onItemClick?.();
+                    }}
+                    sx={{ mr: 1 }}
+                >
+                    <GridView fontSize="small" />
+                </IconButton>
                 {isOpen ? <ExpandLess /> : <ExpandMore />}
             </ListItemButton>
             <Collapse in={isOpen} timeout="auto" unmountOnExit>
                 <List component="div" disablePadding>
-                    {authors.map(author => (
+                    {topAuthors.map(author => (
                         <AuthorListItem
                             key={author}
                             author={author}
@@ -133,6 +161,23 @@ const AuthorsList: React.FC<AuthorsListProps> = ({ videos, onItemClick }) => {
                             onItemClick={onItemClick}
                         />
                     ))}
+                    {hasMore && (
+                        <ListItemButton
+                            component={Link}
+                            to="/authors"
+                            onClick={onItemClick}
+                            sx={{ pl: 2, borderRadius: 1 }}
+                        >
+                            <ListItemText
+                                primary={t('showAll')}
+                                primaryTypographyProps={{
+                                    variant: 'body2',
+                                    color: 'primary',
+                                    fontWeight: 600,
+                                }}
+                            />
+                        </ListItemButton>
+                    )}
                 </List>
             </Collapse>
         </Paper>

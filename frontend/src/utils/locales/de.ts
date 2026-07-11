@@ -604,6 +604,10 @@ export const de = {
   title: "Titel",
   author: "Autor",
   authors: "Autoren",
+  all: "Alle",
+  showAll: "Alle anzeigen",
+  allAuthors: "Alle Autoren",
+
   created: "Erstellt",
   name: "Name",
   size: "Größe",

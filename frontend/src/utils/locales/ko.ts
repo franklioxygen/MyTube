@@ -588,6 +588,10 @@ export const ko = {
   title: "제목",
   author: "작성자",
   authors: "작성자 목록",
+  all: "전체",
+  showAll: "전체 보기",
+  allAuthors: "모든 작성자",
+
   created: "생성일",
   name: "이름",
   size: "크기",

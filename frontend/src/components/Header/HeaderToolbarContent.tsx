@@ -76,8 +76,6 @@ const HeaderToolbarContent: React.FC<HeaderToolbarContentProps> = ({
     isSearchMode,
     onSubmit,
     onAudioOnlySubmit,
-    collections,
-    videos,
     showTagsInMobileMenu,
     effectiveTags
 }) => {
@@ -97,7 +95,7 @@ const HeaderToolbarContent: React.FC<HeaderToolbarContentProps> = ({
         />
     );
 
-    if (isMobile && isScrolled) {
+    if (isMobile && isScrolled && !mobileMenuOpen) {
         return (
             <Box
                 sx={{
@@ -189,8 +187,6 @@ const HeaderToolbarContent: React.FC<HeaderToolbarContentProps> = ({
                     onAudioOnlySubmit={onAudioOnlySubmit}
                     showAudioDownloadButton={showAudioDownloadButton}
                     onClose={onCloseMobileMenu}
-                    collections={collections}
-                    videos={videos}
                     showTags={showTagsInMobileMenu}
                     availableTags={effectiveTags.availableTags}
                     selectedTags={effectiveTags.selectedTags}

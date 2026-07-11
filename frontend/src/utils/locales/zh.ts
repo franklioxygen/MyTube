@@ -575,6 +575,10 @@ export const zh = {
   title: "标题",
   author: "作者",
   authors: "作者列表",
+  all: "全部",
+  showAll: "显示全部",
+  allAuthors: "所有作者",
+
   created: "创建时间",
   name: "名称",
   size: "大小",
