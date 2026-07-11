@@ -7,11 +7,11 @@ import { useLocation } from 'react-router-dom';
  * an author or collection page lands the user in the middle of the new page.
  */
 const ScrollToTop: React.FC = () => {
-    const { pathname } = useLocation();
+    const { pathname, search } = useLocation();
 
     useEffect(() => {
         window.scrollTo(0, 0);
-    }, [pathname]);
+    }, [pathname, search]);
 
     return null;
 };
