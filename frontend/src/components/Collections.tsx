@@ -40,11 +40,27 @@ const Collections: React.FC<CollectionsProps> = ({ collections, onItemClick }) =
         );
         const topCollections = sortedCollections.slice(0, TOP_COLLECTIONS_LIMIT);
         const topCollectionIds = new Set(topCollections.map(collection => collection.id));
-        const omittedEmptyCollections = sortedCollections.filter(collection =>
-            !topCollectionIds.has(collection.id) && (collection.videos?.length ?? 0) === 0
-        );
+        const firstVideoIdCounts = new Map<string, number>();
+        for (const collection of collections) {
+            const firstVideoId = collection.videos?.[0];
+            if (firstVideoId) {
+                firstVideoIdCounts.set(firstVideoId, (firstVideoIdCounts.get(firstVideoId) ?? 0) + 1);
+            }
+        }
+        const omittedDirectLinkCollections = sortedCollections.filter(collection => {
+            if (topCollectionIds.has(collection.id)) {
+                return false;
+            }
 
-        return [...topCollections, ...omittedEmptyCollections];
+            if ((collection.videos?.length ?? 0) === 0) {
+                return true;
+            }
+
+            const firstVideoId = collection.videos?.[0];
+            return firstVideoId ? (firstVideoIdCounts.get(firstVideoId) ?? 0) > 1 : false;
+        });
+
+        return [...topCollections, ...omittedDirectLinkCollections];
     }, [collections]);
 
     // Auto-collapse on mobile by default
