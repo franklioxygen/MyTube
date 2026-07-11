@@ -10,6 +10,9 @@ import FavoriteHero from './FavoriteHero';
 export interface FavoriteHeroItem {
     video: Video;
     collection?: FavoriteCollectionItem;
+    // 'continue' renders a "Continue watching" chip and a playback progress
+    // line; 'featured' is the default top-rated presentation.
+    variant?: 'continue' | 'featured';
 }
 
 interface FavoriteHeroCarouselProps {
@@ -134,7 +137,7 @@ const FavoriteHeroCarousel: React.FC<FavoriteHeroCarouselProps> = ({ items }) =>
                 animate={{ opacity: 1, x: 0 }}
                 transition={isReducedMotion ? { duration: 0 } : { duration: 0.3, ease: 'easeOut' }}
             >
-                <FavoriteHero video={current.video} collection={current.collection} />
+                <FavoriteHero video={current.video} collection={current.collection} variant={current.variant} />
             </motion.div>
 
             {count > 1 && (

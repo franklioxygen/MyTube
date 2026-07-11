@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import './App.css';
 import Footer from './components/Footer';
 import Header from './components/Header';
+import ScrollToTop from './components/ScrollToTop';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { CollectionProvider, useCollection } from './contexts/CollectionContext';
 import { DownloadProvider, useDownload } from './contexts/DownloadContext';
@@ -117,6 +118,7 @@ function AppContent() {
                 )
             ) : (
                 <Router>
+                    <ScrollToTop />
                     <PageTagFilterProvider>
                         <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
                             <Header

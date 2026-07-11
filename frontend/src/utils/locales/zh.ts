@@ -1488,6 +1488,7 @@ export const zh = {
   topRated: "高评分",
   topRatedSubtitle: "媒体库中的高评分视频",
   featured: "精选",
+  continueWatching: "继续观看",
   browseCollections: "浏览合集",
   findAuthors: "查找作者",
   favoritesUpdateFailed: "无法更新收藏",

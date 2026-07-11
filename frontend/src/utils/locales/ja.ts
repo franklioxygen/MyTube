@@ -1570,6 +1570,7 @@ export const ja = {
   topRated: "高評価",
   topRatedSubtitle: "ライブラリの高評価動画",
   featured: "おすすめ",
+  continueWatching: "続きを見る",
   browseCollections: "コレクションを閲覧",
   findAuthors: "作者を検索",
   favoritesUpdateFailed: "お気に入りを更新できませんでした",

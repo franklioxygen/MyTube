@@ -1580,6 +1580,7 @@ export const pt = {
   topRated: "Mais bem avaliados",
   topRatedSubtitle: "Vídeos mais bem avaliados da biblioteca",
   featured: "Destaque",
+  continueWatching: "Continuar assistindo",
   browseCollections: "Explorar coleções",
   findAuthors: "Encontrar autores",
   favoritesUpdateFailed: "Não foi possível atualizar os favoritos",
