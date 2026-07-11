@@ -148,7 +148,7 @@ function AppContent() {
                             )}
                         </Suspense>
 
-                        <Box component="main" sx={{ flexGrow: 1, p: 0, width: '100%', overflowX: 'hidden' }}>
+                        <Box component="main" sx={{ flexGrow: 1, p: 0, width: '100%', overflowX: 'clip' }}>
                             <Suspense fallback={
                                 <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
                                     <CircularProgress />
