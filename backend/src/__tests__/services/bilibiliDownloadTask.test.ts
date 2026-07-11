@@ -173,7 +173,9 @@ describe("buildBilibiliDownloadTask multipart collection handling", () => {
     const part1Call = mocks.downloadSingleBilibiliPart.mock.calls.find(
       (call: any[]) => typeof call[0] === "string" && call[0].includes("?p=1"),
     );
-    expect(part1Call).toBeDefined();
+    if (!part1Call) {
+      throw new Error("expected part 1 to be downloaded");
+    }
     expect(part1Call[part1Call.length - 1]).toEqual({
       audioOnly: true,
       audioFormat: "m4a",
