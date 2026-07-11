@@ -4,10 +4,6 @@ import path from "path";
 import { DATA_DIR } from "../../config/paths";
 import { reinitializeDatabase as reinitDb, sqlite } from "../../db";
 import { ValidationError } from "../../errors/DownloadErrors";
-import {
-  ensureFavoritesTables,
-  ensureVisitorUsersTable,
-} from "../storageService/migrations/schemaMigrations";
 import { invalidateUserCache } from "../userService";
 import { generateTimestamp } from "../../utils/helpers";
 import { logger } from "../../utils/logger";
@@ -156,11 +152,5 @@ export function reinitializeDatabase(): void {
   logger.info("Closed current database connection");
   reinitDb();
   invalidateUserCache();
-  // A replaced/restored database may predate later migrations (e.g. a backup
-  // taken before the visitor users or favorites tables existed). Import/restore
-  // does not run runMigrations(), so apply the same idempotent self-heals here
-  // to keep those endpoints from 500-ing until the next server restart.
-  ensureVisitorUsersTable();
-  ensureFavoritesTables();
   logger.info("Database connection reinitialized");
 }

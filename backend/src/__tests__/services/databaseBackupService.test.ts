@@ -5,10 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { reinitializeDatabase as reinitDb, sqlite } from "../../db";
 import * as databaseBackupService from "../../services/databaseBackupService";
 import { invalidateSettingsCache } from "../../services/storageService/settings";
-import {
-  ensureFavoritesTables,
-  ensureVisitorUsersTable,
-} from "../../services/storageService/migrations/schemaMigrations";
+import { runMigrations } from "../../db/migrate";
 import { invalidateUserCache } from "../../services/userService";
 import { logger } from "../../utils/logger";
 import { isPathWithinDirectory, resolveSafePath } from "../../utils/security";
@@ -46,9 +43,8 @@ vi.mock("../../services/storageService/settings", () => ({
 vi.mock("../../services/userService", () => ({
   invalidateUserCache: vi.fn(),
 }));
-vi.mock("../../services/storageService/migrations/schemaMigrations", () => ({
-  ensureVisitorUsersTable: vi.fn(),
-  ensureFavoritesTables: vi.fn(),
+vi.mock("../../db/migrate", () => ({
+  runMigrations: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("../../utils/helpers", () => ({
   generateTimestamp: vi.fn(() => "20240101010101"),
@@ -281,54 +277,54 @@ describe("databaseBackupService", () => {
   });
 
   describe("importDatabase", () => {
-    it("rejects invalid buffers", () => {
-      expect(() => databaseBackupService.importDatabase(Buffer.alloc(0))).toThrow(
-        "Invalid uploaded database file"
-      );
-      expect(() => databaseBackupService.importDatabase(null as any)).toThrow(
-        "Invalid uploaded database file"
-      );
+    it("rejects invalid buffers", async () => {
+      await expect(
+        databaseBackupService.importDatabase(Buffer.alloc(0))
+      ).rejects.toThrow("Invalid uploaded database file");
+      await expect(
+        databaseBackupService.importDatabase(null as any)
+      ).rejects.toThrow("Invalid uploaded database file");
     });
 
-    it("rejects when resolved db path is unsafe", () => {
+    it("rejects when resolved db path is unsafe", async () => {
       vi.mocked(isPathWithinDirectory as any).mockImplementation(
         (candidate: string) => !candidate.includes("mytube.db")
       );
 
-      expect(() =>
+      await expect(
         databaseBackupService.importDatabase(Buffer.from("sqlite"))
-      ).toThrow("Invalid database path");
+      ).rejects.toThrow("Invalid database path");
     });
 
-    it("rejects invalid sqlite uploads during validation", () => {
+    it("rejects invalid sqlite uploads during validation", async () => {
       vi.mocked(Database as any).mockImplementation(function () {
         throw new Error("bad sqlite");
       });
 
-      expect(() =>
+      await expect(
         databaseBackupService.importDatabase(Buffer.from("sqlite"))
-      ).toThrow("Invalid database file");
+      ).rejects.toThrow("Invalid database file");
     });
 
-    it("imports database successfully", () => {
-      databaseBackupService.importDatabase(Buffer.from("sqlite-bytes"));
+    it("imports database successfully", async () => {
+      await databaseBackupService.importDatabase(Buffer.from("sqlite-bytes"));
 
       expect(fs.writeFileSync).toHaveBeenCalledTimes(1);
       expect(fs.copyFileSync).toHaveBeenCalledTimes(2);
       expect(sqlite.close).toHaveBeenCalledTimes(2);
       expect(reinitDb).toHaveBeenCalledTimes(1);
       expect(invalidateUserCache).toHaveBeenCalledTimes(1);
-      // A pre-favorites backup must be self-healed so /favorites does not 500
-      // until the next restart.
-      expect(ensureVisitorUsersTable).toHaveBeenCalledTimes(1);
-      expect(ensureFavoritesTables).toHaveBeenCalledTimes(1);
+      // Migrations run against the imported DB so a pre-migration backup is
+      // brought up to schema and the Drizzle journal is recorded (avoiding a
+      // "table already exists" crash on the next startup).
+      expect(runMigrations).toHaveBeenCalledTimes(1);
       expect(fs.unlinkSync).toHaveBeenCalledTimes(1);
       expect(logger.info).toHaveBeenCalledWith(
         "Closed current database connection for import"
       );
     });
 
-    it("restores backup when replacement fails", () => {
+    it("restores backup when replacement fails", async () => {
       let copyCall = 0;
       vi.mocked(fs.copyFileSync as any).mockImplementation(() => {
         copyCall += 1;
@@ -337,9 +333,9 @@ describe("databaseBackupService", () => {
         }
       });
 
-      expect(() =>
+      await expect(
         databaseBackupService.importDatabase(Buffer.from("sqlite-bytes"))
-      ).toThrow("replace failed");
+      ).rejects.toThrow("replace failed");
 
       expect(fs.copyFileSync).toHaveBeenCalledTimes(3);
       expect(logger.info).toHaveBeenCalledWith(
@@ -351,7 +347,7 @@ describe("databaseBackupService", () => {
       );
     });
 
-    it("logs restore failure when backup validation fails during rollback", () => {
+    it("logs restore failure when backup validation fails during rollback", async () => {
       let copyCall = 0;
       vi.mocked(fs.copyFileSync as any).mockImplementation(() => {
         copyCall += 1;
@@ -369,9 +365,9 @@ describe("databaseBackupService", () => {
         return true;
       });
 
-      expect(() =>
+      await expect(
         databaseBackupService.importDatabase(Buffer.from("sqlite-bytes"))
-      ).toThrow("replace failed");
+      ).rejects.toThrow("replace failed");
 
       expect(logger.error).toHaveBeenCalledWith(
         "Failed to restore database from backup:",
@@ -379,12 +375,12 @@ describe("databaseBackupService", () => {
       );
     });
 
-    it("logs temp cleanup error if unlink fails", () => {
+    it("logs temp cleanup error if unlink fails", async () => {
       vi.mocked(fs.unlinkSync as any).mockImplementation(() => {
         throw new Error("unlink failed");
       });
 
-      databaseBackupService.importDatabase(Buffer.from("sqlite-bytes"));
+      await databaseBackupService.importDatabase(Buffer.from("sqlite-bytes"));
 
       expect(logger.error).toHaveBeenCalledWith(
         "Error cleaning up temp file:",
@@ -1038,15 +1034,15 @@ describe("databaseBackupService", () => {
   });
 
   describe("restoreFromLastBackup", () => {
-    it("throws when no backups are available", () => {
+    it("throws when no backups are available", async () => {
       vi.mocked(fs.readdirSync as any).mockReturnValue([]);
 
-      expect(() => databaseBackupService.restoreFromLastBackup()).toThrow(
-        "Backup database file not found"
-      );
+      await expect(
+        databaseBackupService.restoreFromLastBackup()
+      ).rejects.toThrow("Backup database file not found");
     });
 
-    it("throws when backup path is unsafe", () => {
+    it("throws when backup path is unsafe", async () => {
       vi.mocked(fs.readdirSync as any).mockReturnValue([
         "mytube-backup-unsafe.db.backup",
       ]);
@@ -1055,12 +1051,12 @@ describe("databaseBackupService", () => {
         (candidate: string) => !candidate.includes("unsafe")
       );
 
-      expect(() => databaseBackupService.restoreFromLastBackup()).toThrow(
-        "Invalid backup file path"
-      );
+      await expect(
+        databaseBackupService.restoreFromLastBackup()
+      ).rejects.toThrow("Invalid backup file path");
     });
 
-    it("throws when backup file is not a valid sqlite database", () => {
+    it("throws when backup file is not a valid sqlite database", async () => {
       vi.mocked(fs.readdirSync as any).mockReturnValue([
         "mytube-backup-corrupt.db.backup",
       ]);
@@ -1069,25 +1065,25 @@ describe("databaseBackupService", () => {
         throw new Error("corrupt");
       });
 
-      expect(() => databaseBackupService.restoreFromLastBackup()).toThrow(
-        "Invalid database file"
-      );
+      await expect(
+        databaseBackupService.restoreFromLastBackup()
+      ).rejects.toThrow("Invalid database file");
     });
 
-    it("restores from latest backup and reinitializes DB", () => {
+    it("restores from latest backup and reinitializes DB", async () => {
       vi.mocked(fs.readdirSync as any).mockReturnValue([
         "mytube-backup-ok.db.backup",
       ]);
       vi.mocked(fs.statSync as any).mockReturnValue({ mtimeMs: 500 });
 
-      databaseBackupService.restoreFromLastBackup();
+      await databaseBackupService.restoreFromLastBackup();
 
       expect(fs.copyFileSync).toHaveBeenCalledTimes(2);
       expect(sqlite.close).toHaveBeenCalledTimes(2);
       expect(reinitDb).toHaveBeenCalledTimes(1);
       expect(invalidateUserCache).toHaveBeenCalledTimes(1);
-      expect(ensureVisitorUsersTable).toHaveBeenCalledTimes(1);
-      expect(ensureFavoritesTables).toHaveBeenCalledTimes(1);
+      // Restored DB is migrated up to schema (journal recorded).
+      expect(runMigrations).toHaveBeenCalledTimes(1);
       expect(logger.info).toHaveBeenCalledWith(
         expect.stringContaining("Database file restored successfully")
       );

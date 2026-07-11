@@ -49,7 +49,7 @@ export const importDatabase = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  databaseBackupService.importDatabase(getValidatedDatabaseUpload(req));
+  await databaseBackupService.importDatabase(getValidatedDatabaseUpload(req));
 
   res.json(
     successMessage(
@@ -150,7 +150,7 @@ export const restoreFromLastBackup = async (
   _req: Request,
   res: Response
 ): Promise<void> => {
-  databaseBackupService.restoreFromLastBackup();
+  await databaseBackupService.restoreFromLastBackup();
 
   res.json(successMessage("Database restored successfully from backup file."));
 };
