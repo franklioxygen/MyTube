@@ -109,6 +109,20 @@ describe("runMigrations", () => {
     );
   });
 
+  it("skips the legacy JSON data migration when skipLegacyDataMigration is set", async () => {
+    await runMigrations({ skipLegacyDataMigration: true });
+
+    // Schema migration, config, self-heals, and the visitor-password migration
+    // still run — only the legacy JSON → DB import is suppressed so a database
+    // import/restore cannot be overwritten by stale on-disk files.
+    expect(migrateMock).toHaveBeenCalledTimes(1);
+    expect(configureDatabaseMock).toHaveBeenCalledTimes(1);
+    expect(ensureVisitorUsersTableMock).toHaveBeenCalledTimes(1);
+    expect(ensureFavoritesTablesMock).toHaveBeenCalledTimes(1);
+    expect(migrateLegacySharedVisitorPasswordMock).toHaveBeenCalledTimes(1);
+    expect(runDataMigrationMock).not.toHaveBeenCalled();
+  });
+
   it("fails fast with an actionable message when the database file is not writable", async () => {
     securityMocks.accessTrustedSync.mockImplementation(() => {
       throw Object.assign(new Error("EACCES: permission denied"), {

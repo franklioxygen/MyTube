@@ -71,8 +71,9 @@ export async function importDatabase(fileBuffer: Buffer): Promise<void> {
     // may predate recent migrations; running them (rather than an ad-hoc table
     // self-heal) also records Drizzle's migration journal, so the next startup
     // does not re-run an already-applied migration and crash on "table already
-    // exists".
-    await runMigrations();
+    // exists". Skip the legacy JSON data migration so stale on-disk files do
+    // not overwrite the just-imported backup.
+    await runMigrations({ skipLegacyDataMigration: true });
   } catch (error: unknown) {
     // Restore backup if import failed
     if (pathExistsSafeSync(backupPath, DATA_DIR)) {
@@ -268,8 +269,10 @@ export async function restoreFromLastBackup(): Promise<void> {
 
   // Migrate the restored database to the current schema and record Drizzle's
   // migration journal, so an older backup does not leave later migrations
-  // unapplied (and does not crash a subsequent startup re-running them).
-  await runMigrations();
+  // unapplied (and does not crash a subsequent startup re-running them). Skip
+  // the legacy JSON data migration so stale on-disk files do not overwrite the
+  // just-restored backup.
+  await runMigrations({ skipLegacyDataMigration: true });
 }
 
 /**

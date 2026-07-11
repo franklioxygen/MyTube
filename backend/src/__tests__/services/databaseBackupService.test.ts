@@ -316,8 +316,12 @@ describe("databaseBackupService", () => {
       expect(invalidateUserCache).toHaveBeenCalledTimes(1);
       // Migrations run against the imported DB so a pre-migration backup is
       // brought up to schema and the Drizzle journal is recorded (avoiding a
-      // "table already exists" crash on the next startup).
+      // "table already exists" crash on the next startup), but the legacy JSON
+      // data migration is skipped so it cannot overwrite the imported backup.
       expect(runMigrations).toHaveBeenCalledTimes(1);
+      expect(runMigrations).toHaveBeenCalledWith({
+        skipLegacyDataMigration: true,
+      });
       expect(fs.unlinkSync).toHaveBeenCalledTimes(1);
       expect(logger.info).toHaveBeenCalledWith(
         "Closed current database connection for import"
@@ -1082,8 +1086,12 @@ describe("databaseBackupService", () => {
       expect(sqlite.close).toHaveBeenCalledTimes(2);
       expect(reinitDb).toHaveBeenCalledTimes(1);
       expect(invalidateUserCache).toHaveBeenCalledTimes(1);
-      // Restored DB is migrated up to schema (journal recorded).
+      // Restored DB is migrated up to schema (journal recorded), skipping the
+      // legacy JSON data migration so it cannot overwrite the restored backup.
       expect(runMigrations).toHaveBeenCalledTimes(1);
+      expect(runMigrations).toHaveBeenCalledWith({
+        skipLegacyDataMigration: true,
+      });
       expect(logger.info).toHaveBeenCalledWith(
         expect.stringContaining("Database file restored successfully")
       );
