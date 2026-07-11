@@ -91,7 +91,6 @@ const FavoritePage: React.FC<FavoritePageProps> = ({ onBrowseCollections, onFind
                                 favorites={favoriteCollectionItems}
                                 videos={videos}
                                 loading={favoriteCollections.isLoading}
-                                onUnfavorite={(favorite) => favoriteCollections.toggle(favorite.collectionId)}
                             />
                         </Box>
                     </Fade>

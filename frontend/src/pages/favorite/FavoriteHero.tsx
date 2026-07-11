@@ -27,9 +27,15 @@ const FavoriteHero: React.FC<FavoriteHeroProps> = ({ video, collection }) => {
                 sx={{
                     position: 'relative',
                     overflow: 'hidden',
+                    // Compact floor on mobile that can still grow: below md the
+                    // layout stacks vertically with a full-width 16:9 thumbnail,
+                    // so a fixed height would clip the title/metadata/button at
+                    // tablet/landscape widths. minHeight keeps the card compact
+                    // while letting it expand to fit its content.
+                    minHeight: { xs: 432, sm: 448 },
                     // Full-bleed edge-to-edge card on mobile; rounded on desktop.
                     borderRadius: { xs: 0, md: 2 },
-                    bgcolor: theme.palette.mode === 'dark' ? 'grey.900' : 'grey.100',
+                    bgcolor: theme.palette.mode === 'dark' ? 'grey.900' : 'background.paper',
                     border: 'none',
                     transition: isReducedMotion ? 'none' : 'box-shadow 0.3s ease',
                     boxShadow: theme.palette.mode === 'dark'
@@ -47,7 +53,7 @@ const FavoriteHero: React.FC<FavoriteHeroProps> = ({ video, collection }) => {
                         backgroundSize: 'cover',
                         backgroundPosition: 'center',
                         filter: 'blur(28px)',
-                        opacity: 0.5,
+                        opacity: theme.palette.mode === 'dark' ? 0.5 : 0,
                         transform: 'scale(1.1)',
                     }}
                 />
@@ -56,11 +62,16 @@ const FavoriteHero: React.FC<FavoriteHeroProps> = ({ video, collection }) => {
                     sx={{
                         position: 'absolute',
                         inset: 0,
-                        // Vertical scrim on mobile (text sits below the image),
-                        // horizontal on desktop (text sits beside it).
+                        // Dark mode keeps the cinematic thumbnail wash. Light
+                        // mode uses a clean paper surface instead of a muddy
+                        // dark backdrop against the surrounding page.
                         background: {
-                            xs: `linear-gradient(to top, ${overlay.black90} 0%, ${overlay.black70} 46%, ${overlay.black35} 74%, transparent 100%)`,
-                            md: `linear-gradient(105deg, ${overlay.black90} 0%, ${overlay.black70} 42%, ${overlay.black35} 72%, transparent 100%)`,
+                            xs: theme.palette.mode === 'dark'
+                                ? `linear-gradient(to top, ${overlay.black90} 0%, ${overlay.black70} 46%, ${overlay.black35} 74%, transparent 100%)`
+                                : 'linear-gradient(to bottom, rgba(255,255,255,0.96), rgba(255,255,255,0.9))',
+                            md: theme.palette.mode === 'dark'
+                                ? `linear-gradient(105deg, ${overlay.black90} 0%, ${overlay.black70} 42%, ${overlay.black35} 72%, transparent 100%)`
+                                : 'linear-gradient(105deg, rgba(255,255,255,0.98), rgba(255,255,255,0.92))',
                         },
                     }}
                 />
@@ -103,7 +114,12 @@ const FavoriteHero: React.FC<FavoriteHeroProps> = ({ video, collection }) => {
                             className="hero-img"
                             image={thumbnail}
                             alt={video.title}
-                            sx={{ width: '100%', aspectRatio: '16 / 9', objectFit: 'cover', display: 'block' }}
+                            sx={{
+                                width: '100%',
+                                aspectRatio: '16 / 9',
+                                objectFit: 'cover',
+                                display: 'block',
+                            }}
                         />
                         {video.duration && (
                             <Chip
@@ -114,7 +130,7 @@ const FavoriteHero: React.FC<FavoriteHeroProps> = ({ video, collection }) => {
                         )}
                     </Box>
 
-                    <Box sx={{ color: neutral.white, maxWidth: 620, width: { xs: '100%', md: 'auto' } }}>
+                    <Box sx={{ color: theme.palette.mode === 'dark' ? neutral.white : 'text.primary', maxWidth: 620, width: { xs: '100%', md: 'auto' } }}>
                         <Chip
                             icon={<Star sx={{ fontSize: 15 }} />}
                             label={t('featured')}
@@ -136,6 +152,9 @@ const FavoriteHero: React.FC<FavoriteHeroProps> = ({ video, collection }) => {
                             fontWeight={800}
                             sx={{
                                 lineHeight: 1.2,
+                                // Reserve both clamped title lines even when a
+                                // featured video has a shorter title.
+                                minHeight: '2.4em',
                                 display: '-webkit-box',
                                 overflow: 'hidden',
                                 WebkitBoxOrient: 'vertical',
@@ -145,7 +164,7 @@ const FavoriteHero: React.FC<FavoriteHeroProps> = ({ video, collection }) => {
                             {video.title}
                         </Typography>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 1, flexWrap: 'wrap' }}>
-                            <Typography sx={{ opacity: 0.9, fontWeight: 500 }}>
+                            <Typography sx={{ color: theme.palette.mode === 'dark' ? overlay.white80 : 'text.secondary', fontWeight: 500 }}>
                                 {video.author || t('unknownAuthor')}
                                 {video.duration ? ` · ${formatDuration(video.duration)}` : ''}
                             </Typography>
@@ -157,7 +176,9 @@ const FavoriteHero: React.FC<FavoriteHeroProps> = ({ video, collection }) => {
                             <Box sx={{ display: 'flex', gap: 1.5, mt: 2.5, flexWrap: 'wrap' }}>
                                 <Button
                                     variant="outlined"
-                                    sx={{ color: neutral.white, borderColor: overlay.white70, '&:hover': { borderColor: neutral.white, bgcolor: overlay.white10 } }}
+                                    sx={theme.palette.mode === 'dark'
+                                        ? { color: neutral.white, borderColor: overlay.white70, '&:hover': { borderColor: neutral.white, bgcolor: overlay.white10 } }
+                                        : undefined}
                                     onClick={() => navigate(`/collection/${encodeURIComponent(collection.collectionId)}`)}
                                 >
                                     {t('openCollection')}

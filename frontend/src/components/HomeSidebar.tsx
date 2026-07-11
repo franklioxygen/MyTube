@@ -39,8 +39,8 @@ export const HomeSidebar: React.FC<HomeSidebarProps> = ({
                     <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
                         <Box sx={{
                             position: 'sticky',
-                            maxHeight: 'calc(100% - 80px)',
-                            minHeight: 'calc(100vh - 80px)',
+                            top: 0,
+                            maxHeight: 'calc(100vh - 80px)',
                             overflowY: 'auto',
                             '&::-webkit-scrollbar': {
                                 width: '6px',

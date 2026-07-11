@@ -235,13 +235,6 @@ const SearchInput: React.FC<SearchInputProps> = ({
                                         }),
                                     }}
                                 >
-                                    <Button
-                                        type="submit"
-                                        aria-label={t('download')}
-                                        sx={{ minWidth: 'auto', px: 2.5 }}
-                                    >
-                                        {isSubmitting ? <CircularProgress size={24} color="inherit" /> : <Search />}
-                                    </Button>
                                     {!isVisitor && showAudioDownloadButton && !isMissAVInput && (
                                         <Button
                                             type="button"
@@ -254,10 +247,24 @@ const SearchInput: React.FC<SearchInputProps> = ({
                                             <Audiotrack fontSize="small" />
                                         </Button>
                                     )}
+                                    <Button
+                                        type="submit"
+                                        aria-label={t('download')}
+                                        sx={{ minWidth: 'auto', px: 2.5 }}
+                                    >
+                                        {isSubmitting ? <CircularProgress size={24} color="inherit" /> : <Search />}
+                                    </Button>
                                 </ButtonGroup>
                             </InputAdornment>
                         ),
-                        sx: { pr: 0, borderRadius: 2 }
+                        sx: {
+                            pr: 0,
+                            borderRadius: 2,
+                            '& .MuiInputAdornment-positionEnd': {
+                                maxHeight: 'none',
+                                height: '100%',
+                            },
+                        }
                     }
                 }}
             />

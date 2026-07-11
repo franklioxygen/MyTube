@@ -57,8 +57,8 @@ const AuthorVideosHeader: React.FC<AuthorVideosHeaderProps> = ({
     const displayName = authorDisplayName || unknownAuthorLabel;
 
     return (
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: { xs: 'flex-start', md: 'center' }, mb: 3 }}>
+            <Box sx={{ display: 'flex', alignItems: { xs: 'flex-start', md: 'center' }, flex: '1 1 auto', minWidth: 0 }}>
                 <Button
                     onClick={onToggleSidebar}
                     variant="outlined"
@@ -78,57 +78,50 @@ const AuthorVideosHeader: React.FC<AuthorVideosHeaderProps> = ({
 
                 <Avatar
                     src={avatarUrl || undefined}
-                    sx={{ width: 56, height: 56, bgcolor: 'primary.main', mr: 2, fontSize: '1.5rem' }}
+                    sx={{
+                        display: { xs: 'none', md: 'flex' },
+                        width: 56,
+                        height: 56,
+                        bgcolor: 'primary.main',
+                        mr: 2,
+                        fontSize: '1.5rem',
+                        flexShrink: 0,
+                    }}
                 >
                     {initial}
                 </Avatar>
 
-                <Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                        <Typography variant="h4" component="h1" fontWeight="bold">
+                <Box sx={{ minWidth: 0 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: { xs: 0, md: 2 } }}>
+                        <Typography
+                            variant="h4"
+                            component="h1"
+                            fontWeight="bold"
+                            sx={{
+                                fontSize: { xs: '1.5rem', md: '2.125rem' },
+                                lineHeight: { xs: 1.25, md: 1.235 },
+                                overflowWrap: 'anywhere',
+                                minWidth: 0,
+                            }}
+                        >
+                            <Avatar
+                                component="span"
+                                src={avatarUrl || undefined}
+                                aria-hidden
+                                sx={{
+                                    display: { xs: 'inline-flex', md: 'none' },
+                                    width: 40,
+                                    height: 40,
+                                    mr: 1,
+                                    verticalAlign: 'middle',
+                                    bgcolor: 'primary.main',
+                                    fontSize: '1.1rem',
+                                }}
+                            >
+                                {initial}
+                            </Avatar>
                             {displayName}
                         </Typography>
-                        <Tooltip title={addTagsLabel}>
-                            <IconButton
-                                color="primary"
-                                onClick={onOpenTagsModal}
-                                disabled={isBusy}
-                                aria-label="add tags to author"
-                            >
-                                <LocalOffer />
-                            </IconButton>
-                        </Tooltip>
-                        <FavoriteToggle
-                            active={isFavorite}
-                            onToggle={onToggleFavorite}
-                            label={favoriteLabel}
-                            activeLabel={unfavoriteLabel}
-                            disabled={favoriteDisabled}
-                        />
-                        {hasVideos && (
-                            <>
-                                <Tooltip title={createCollectionTooltip}>
-                                    <IconButton
-                                        color="primary"
-                                        onClick={onOpenCreateCollectionModal}
-                                        disabled={isBusy}
-                                        aria-label="create collection from author"
-                                    >
-                                        <CreateNewFolder />
-                                    </IconButton>
-                                </Tooltip>
-                                <Tooltip title={deleteAuthorLabel}>
-                                    <IconButton
-                                        color="error"
-                                        onClick={onOpenDeleteModal}
-                                        disabled={isBusy}
-                                        aria-label="delete author"
-                                    >
-                                        <Delete />
-                                    </IconButton>
-                                </Tooltip>
-                            </>
-                        )}
                     </Box>
 
                     <Typography variant="subtitle1" color="text.secondary">
@@ -137,15 +130,60 @@ const AuthorVideosHeader: React.FC<AuthorVideosHeaderProps> = ({
                 </Box>
             </Box>
 
-            {hasVideos && (
-                <SortControl
-                    sortOption={sortOption}
-                    sortAnchorEl={sortAnchorEl}
-                    onSortClick={onSortClick}
-                    onSortClose={onSortClose}
-                    sx={{ height: 38 }}
-                />
-            )}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
+                    <Tooltip title={addTagsLabel}>
+                        <IconButton
+                            color="primary"
+                            onClick={onOpenTagsModal}
+                            disabled={isBusy}
+                            aria-label="add tags to author"
+                        >
+                            <LocalOffer />
+                        </IconButton>
+                    </Tooltip>
+                    <FavoriteToggle
+                        active={isFavorite}
+                        onToggle={onToggleFavorite}
+                        label={favoriteLabel}
+                        activeLabel={unfavoriteLabel}
+                        disabled={favoriteDisabled}
+                    />
+                    {hasVideos && (
+                        <>
+                            <Tooltip title={createCollectionTooltip}>
+                                <IconButton
+                                    color="primary"
+                                    onClick={onOpenCreateCollectionModal}
+                                    disabled={isBusy}
+                                    aria-label="create collection from author"
+                                >
+                                    <CreateNewFolder />
+                                </IconButton>
+                            </Tooltip>
+                            <Tooltip title={deleteAuthorLabel}>
+                                <IconButton
+                                    color="error"
+                                    onClick={onOpenDeleteModal}
+                                    disabled={isBusy}
+                                    aria-label="delete author"
+                                >
+                                    <Delete />
+                                </IconButton>
+                            </Tooltip>
+                        </>
+                    )}
+                </Box>
+                {hasVideos && (
+                    <SortControl
+                        sortOption={sortOption}
+                        sortAnchorEl={sortAnchorEl}
+                        onSortClick={onSortClick}
+                        onSortClose={onSortClose}
+                        sx={{ height: 38 }}
+                    />
+                )}
+            </Box>
         </Box>
     );
 };

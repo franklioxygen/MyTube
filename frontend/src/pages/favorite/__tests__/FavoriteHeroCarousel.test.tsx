@@ -70,6 +70,25 @@ describe('FavoriteHeroCarousel', () => {
         expect(screen.getByTestId('hero-slide')).toHaveTextContent('C');
     });
 
+    it('changes slides after a horizontal swipe on mobile', () => {
+        window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+            matches: query.includes('max-width'),
+            media: query,
+            addEventListener: vi.fn(),
+            removeEventListener: vi.fn(),
+            addListener: vi.fn(),
+            removeListener: vi.fn(),
+            dispatchEvent: vi.fn(),
+        })) as never;
+        renderCarousel(makeItems(['A', 'B', 'C']));
+        const carousel = screen.getByTestId('favorite-hero-carousel');
+
+        fireEvent.touchStart(carousel, { touches: [{ clientX: 240, clientY: 80 }] });
+        fireEvent.touchEnd(carousel, { changedTouches: [{ clientX: 140, clientY: 84 }] });
+
+        expect(screen.getByTestId('hero-slide')).toHaveTextContent('B');
+    });
+
     it('jumps to a slide when its dot is clicked', () => {
         renderCarousel(makeItems(['A', 'B', 'C']));
         fireEvent.click(screen.getByRole('button', { name: 'featured 3' }));

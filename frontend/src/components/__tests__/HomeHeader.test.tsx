@@ -35,6 +35,13 @@ describe('HomeHeader', () => {
         expect(screen.getByText('favorite')).toBeInTheDocument();
     });
 
+    it('uses a compact mobile title while preserving the full view name', () => {
+        render(<HomeHeader {...defaultProps} />);
+
+        expect(screen.getByTitle('allVideos')).toHaveTextContent('videos');
+        expect(screen.getByRole('button', { name: 'allVideos' })).toBeInTheDocument();
+    });
+
     it('should call onViewModeChange when toggle button is clicked', () => {
         render(<HomeHeader {...defaultProps} />);
 
