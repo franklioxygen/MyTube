@@ -5,17 +5,20 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { useCloudStorageUrl } from '../../hooks/useCloudStorageUrl';
 import { brand } from '../../theme/colors';
 import type { FavoriteAuthorItem } from '../../types';
+import FavoriteToggle from '../../components/FavoriteToggle';
 import FavoriteRailCarousel from './FavoriteRailCarousel';
 import FavoriteSectionHeader from './FavoriteSectionHeader';
 
 interface FavoriteAuthorRailProps {
     favorites: FavoriteAuthorItem[];
     loading?: boolean;
+    onUnfavorite: (favorite: FavoriteAuthorItem) => void;
 }
 
 const FavoriteAuthorCard: React.FC<{
     favorite: FavoriteAuthorItem;
-}> = ({ favorite }) => {
+    onUnfavorite: () => void;
+}> = ({ favorite, onUnfavorite }) => {
     const { t } = useLanguage();
     const navigate = useNavigate();
     const avatarUrl = useCloudStorageUrl(
@@ -86,11 +89,22 @@ const FavoriteAuthorCard: React.FC<{
                     </Typography>
                 )}
             </CardActionArea>
+            {/* Overlay remove control so favorites (including unavailable
+                authors whose card is disabled) can be removed from the rail. */}
+            <Box sx={{ position: 'absolute', top: 0, right: 0 }}>
+                <FavoriteToggle
+                    active
+                    onToggle={onUnfavorite}
+                    label={t('favoriteAuthor')}
+                    activeLabel={t('unfavorite')}
+                    color="warning"
+                />
+            </Box>
         </Card>
     );
 };
 
-const FavoriteAuthorRail: React.FC<FavoriteAuthorRailProps> = ({ favorites, loading = false }) => {
+const FavoriteAuthorRail: React.FC<FavoriteAuthorRailProps> = ({ favorites, loading = false, onUnfavorite }) => {
     const { t } = useLanguage();
 
     if (!loading && favorites.length === 0) return null;
@@ -111,6 +125,7 @@ const FavoriteAuthorRail: React.FC<FavoriteAuthorRailProps> = ({ favorites, load
                         <FavoriteAuthorCard
                             key={favorite.author}
                             favorite={favorite}
+                            onUnfavorite={() => onUnfavorite(favorite)}
                         />
                     ))}
             </FavoriteRailCarousel>

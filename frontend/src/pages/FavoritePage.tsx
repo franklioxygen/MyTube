@@ -99,6 +99,7 @@ const FavoritePage: React.FC<FavoritePageProps> = ({ onBrowseCollections, onFind
                             <FavoriteAuthorRail
                                 favorites={favoriteAuthorItems}
                                 loading={favoriteAuthors.isLoading}
+                                onUnfavorite={(favorite) => favoriteAuthors.toggle({ author: favorite.author })}
                             />
                         </Box>
                     </Fade>
