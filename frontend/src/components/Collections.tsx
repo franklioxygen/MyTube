@@ -29,19 +29,22 @@ const Collections: React.FC<CollectionsProps> = ({ collections, onItemClick }) =
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
-    // Show only the collections with the most videos; the rest live on the
-    // Home "Collections" tab, reached via the "All" / "Show all" links.
-    const topCollections = useMemo(() => {
+    const sidebarCollections = useMemo(() => {
         if (!collections) {
             return [] as Collection[];
         }
 
-        return [...collections]
-            .sort((a, b) =>
-                (b.videos?.length ?? 0) - (a.videos?.length ?? 0) ||
-                a.name.localeCompare(b.name)
-            )
-            .slice(0, TOP_COLLECTIONS_LIMIT);
+        const sortedCollections = [...collections].sort((a, b) =>
+            (b.videos?.length ?? 0) - (a.videos?.length ?? 0) ||
+            a.name.localeCompare(b.name)
+        );
+        const topCollections = sortedCollections.slice(0, TOP_COLLECTIONS_LIMIT);
+        const topCollectionIds = new Set(topCollections.map(collection => collection.id));
+        const omittedEmptyCollections = sortedCollections.filter(collection =>
+            !topCollectionIds.has(collection.id) && (collection.videos?.length ?? 0) === 0
+        );
+
+        return [...topCollections, ...omittedEmptyCollections];
     }, [collections]);
 
     // Auto-collapse on mobile by default
@@ -81,7 +84,7 @@ const Collections: React.FC<CollectionsProps> = ({ collections, onItemClick }) =
             </ListItemButton>
             <Collapse in={isOpen} timeout="auto" unmountOnExit>
                 <List component="div" disablePadding>
-                    {topCollections.map(collection => (
+                    {sidebarCollections.map(collection => (
                         <ListItemButton
                             key={collection.id}
                             component={Link}
