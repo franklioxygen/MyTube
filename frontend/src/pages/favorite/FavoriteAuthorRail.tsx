@@ -89,17 +89,19 @@ const FavoriteAuthorCard: React.FC<{
                     </Typography>
                 )}
             </CardActionArea>
-            {/* Keep stale/unavailable authors removable even though their card
-                navigation is disabled. */}
-            <Box sx={{ position: 'absolute', top: 0, right: 0 }}>
-                <FavoriteToggle
-                    active
-                    onToggle={onUnfavorite}
-                    label={t('favoriteAuthor')}
-                    activeLabel={t('unfavorite')}
-                    color="warning"
-                />
-            </Box>
+            {/* Stale/unavailable authors can no longer be opened, so keep a
+                remove control on those cards as the only way to prune them. */}
+            {isUnavailable && (
+                <Box sx={{ position: 'absolute', top: 0, right: 0 }}>
+                    <FavoriteToggle
+                        active
+                        onToggle={onUnfavorite}
+                        label={t('favoriteAuthor')}
+                        activeLabel={t('unfavorite')}
+                        color="warning"
+                    />
+                </Box>
+            )}
         </Card>
     );
 };

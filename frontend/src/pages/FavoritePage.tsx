@@ -7,6 +7,7 @@ import { useFavoriteAuthors } from '../hooks/useFavoriteAuthors';
 import { useFavoriteCollections } from '../hooks/useFavoriteCollections';
 import type { Video } from '../types';
 import { parseDuration } from '../utils/formatUtils';
+import { getBestVideoResumeProgress, readVideoResumeProgress } from '../utils/videoResumeProgress';
 import FavoriteAuthorRail from './favorite/FavoriteAuthorRail';
 import FavoriteCollectionRail from './favorite/FavoriteCollectionRail';
 import FavoriteEmptyState from './favorite/FavoriteEmptyState';
@@ -33,14 +34,24 @@ const getActivityTimestamp = (video: Video): number => {
     return Number.isFinite(numericValue) ? numericValue : Date.parse(String(value)) || 0;
 };
 
+// Playback progress the player would actually resume from. Visitor accounts (and
+// any failed/offline server save) only have progress in the local resume store,
+// so relying on video.progress alone would drop those videos from the hero.
+const getEffectiveProgress = (video: Video): number =>
+    getBestVideoResumeProgress(video.id, video.progress, video.progressUpdatedAt);
+
 // Most recent playback activity, used to order the continue-watching videos.
-const getProgressTimestamp = (video: Video): number =>
-    video.progressUpdatedAt ?? video.lastPlayedAt ?? 0;
+// Prefer whichever of the server or local resume timestamps is newer.
+const getProgressTimestamp = (video: Video): number => {
+    const serverTimestamp = video.progressUpdatedAt ?? video.lastPlayedAt ?? 0;
+    const localTimestamp = readVideoResumeProgress(video.id)?.updatedAt ?? 0;
+    return Math.max(serverTimestamp, localTimestamp);
+};
 
 // A video is resumable when it has meaningful progress that hasn't reached the
 // (near) end. Finished videos already have their progress reset to 0 upstream.
 const isUnfinished = (video: Video): boolean => {
-    const progress = typeof video.progress === 'number' ? video.progress : 0;
+    const progress = getEffectiveProgress(video);
     if (progress <= 0) return false;
     const duration = parseDuration(video.duration);
     if (duration > 0 && progress / duration >= FINISHED_RATIO) return false;
