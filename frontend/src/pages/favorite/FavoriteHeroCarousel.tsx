@@ -34,7 +34,13 @@ const FavoriteHeroCarousel: React.FC<FavoriteHeroCarouselProps> = ({ items }) =>
     const [slideDirection, setSlideDirection] = useState(1);
     const touchStart = useRef<{ x: number; y: number } | null>(null);
     const suppressClick = useRef(false);
+    const suppressClickTimer = useRef<number | null>(null);
     const count = items.length;
+
+    // Clear the pending suppress-click reset on unmount.
+    useEffect(() => () => {
+        if (suppressClickTimer.current) window.clearTimeout(suppressClickTimer.current);
+    }, []);
 
     // Keep the index valid if the favorites list shrinks under us.
     useEffect(() => {
@@ -59,7 +65,15 @@ const FavoriteHeroCarousel: React.FC<FavoriteHeroCarouselProps> = ({ items }) =>
         // change slides.
         if (Math.abs(horizontalDistance) < 48 || Math.abs(horizontalDistance) <= Math.abs(verticalDistance)) return;
 
+        // Suppress the synthetic click that some browsers dispatch after the
+        // swipe, but auto-clear shortly after so the flag never lingers to
+        // swallow the user's next genuine tap when no such click fires.
         suppressClick.current = true;
+        if (suppressClickTimer.current) window.clearTimeout(suppressClickTimer.current);
+        suppressClickTimer.current = window.setTimeout(() => {
+            suppressClick.current = false;
+            suppressClickTimer.current = null;
+        }, 400);
         if (horizontalDistance < 0) {
             go(index + 1, 1);
         } else {
@@ -108,6 +122,10 @@ const FavoriteHeroCarousel: React.FC<FavoriteHeroCarouselProps> = ({ items }) =>
                 event.preventDefault();
                 event.stopPropagation();
                 suppressClick.current = false;
+                if (suppressClickTimer.current) {
+                    window.clearTimeout(suppressClickTimer.current);
+                    suppressClickTimer.current = null;
+                }
             }}
         >
             <motion.div

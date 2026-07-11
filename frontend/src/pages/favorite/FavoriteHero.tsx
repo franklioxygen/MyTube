@@ -27,10 +27,12 @@ const FavoriteHero: React.FC<FavoriteHeroProps> = ({ video, collection }) => {
                 sx={{
                     position: 'relative',
                     overflow: 'hidden',
-                    // Mobile keeps a fixed card height; desktop follows the
-                    // natural 16:9 media height so the card stays compact
-                    // without cropping the featured thumbnail.
-                    height: { xs: 432, sm: 448, md: 'auto' },
+                    // Compact floor on mobile that can still grow: below md the
+                    // layout stacks vertically with a full-width 16:9 thumbnail,
+                    // so a fixed height would clip the title/metadata/button at
+                    // tablet/landscape widths. minHeight keeps the card compact
+                    // while letting it expand to fit its content.
+                    minHeight: { xs: 432, sm: 448 },
                     // Full-bleed edge-to-edge card on mobile; rounded on desktop.
                     borderRadius: { xs: 0, md: 2 },
                     bgcolor: theme.palette.mode === 'dark' ? 'grey.900' : 'background.paper',
