@@ -1,12 +1,9 @@
-import { Logout, Settings, VideoLibrary } from '@mui/icons-material';
+import { Group, Logout, Settings, VideoLibrary } from '@mui/icons-material';
 import { Box, Button, Collapse, Divider, Stack } from '@mui/material';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useSettings } from '../../hooks/useSettings';
-import { Collection, Video } from '../../types';
-import AuthorsList from '../AuthorsList';
-import Collections from '../Collections';
 import TagsList from '../TagsList';
 import SearchInput from './SearchInput';
 
@@ -22,8 +19,6 @@ interface MobileMenuProps {
     onAudioOnlySubmit?: (url: string) => Promise<any>;
     showAudioDownloadButton?: boolean;
     onClose: () => void;
-    collections?: Collection[];
-    videos?: Video[];
     showTags?: boolean;
     availableTags?: string[];
     selectedTags?: string[];
@@ -42,8 +37,6 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
     onAudioOnlySubmit,
     showAudioDownloadButton = true,
     onClose,
-    collections = [],
-    videos = [],
     showTags = false,
     availableTags = [],
     selectedTags = [],
@@ -121,12 +114,18 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
                         </>
                     )}
 
-                    {/* Mobile Navigation Items - Tags only on home/author/collection */}
+                    {/* Mobile navigation sections */}
                     <Box sx={{ mt: 2 }}>
-                        <Collections
-                            collections={collections}
-                            onItemClick={onClose}
-                        />
+                        <Button
+                            component={Link}
+                            to="/authors"
+                            variant="outlined"
+                            fullWidth
+                            onClick={onClose}
+                            startIcon={<Group />}
+                        >
+                            {t('authors')}
+                        </Button>
                         {showTags && (
                             <Box sx={{ mt: 2 }}>
                                 <TagsList
@@ -136,12 +135,6 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
                                 />
                             </Box>
                         )}
-                        <Box sx={{ mt: 2 }}>
-                            <AuthorsList
-                                videos={videos}
-                                onItemClick={onClose}
-                            />
-                        </Box>
                     </Box>
                 </Stack>
             </Box>
