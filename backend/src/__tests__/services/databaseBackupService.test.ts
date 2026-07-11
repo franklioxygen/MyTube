@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { reinitializeDatabase as reinitDb, sqlite } from "../../db";
 import * as databaseBackupService from "../../services/databaseBackupService";
 import { invalidateSettingsCache } from "../../services/storageService/settings";
+import { runMigrations } from "../../db/migrate";
 import { invalidateUserCache } from "../../services/userService";
 import { logger } from "../../utils/logger";
 import { isPathWithinDirectory, resolveSafePath } from "../../utils/security";
@@ -41,6 +42,9 @@ vi.mock("../../services/storageService/settings", () => ({
 }));
 vi.mock("../../services/userService", () => ({
   invalidateUserCache: vi.fn(),
+}));
+vi.mock("../../db/migrate", () => ({
+  runMigrations: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("../../utils/helpers", () => ({
   generateTimestamp: vi.fn(() => "20240101010101"),
@@ -202,6 +206,23 @@ const createSqlitePrepareMock = (
       return createStatement({ getResult: tagsRow ? { value: tagsRow.value } : undefined });
     }
 
+    if (
+      sql ===
+      "SELECT user_id AS user_id, collection_id AS collection_id FROM favorite_collections"
+    ) {
+      return createStatement({ allResult: tables.favorite_collections || [] });
+    }
+
+    if (
+      sql === "SELECT user_id AS user_id, author AS author FROM favorite_authors"
+    ) {
+      return createStatement({ allResult: tables.favorite_authors || [] });
+    }
+
+    if (sql === "SELECT id FROM users") {
+      return createStatement({ allResult: tables.users || [] });
+    }
+
     if (sql.startsWith("INSERT INTO")) {
       return createStatement();
     }
@@ -256,50 +277,58 @@ describe("databaseBackupService", () => {
   });
 
   describe("importDatabase", () => {
-    it("rejects invalid buffers", () => {
-      expect(() => databaseBackupService.importDatabase(Buffer.alloc(0))).toThrow(
-        "Invalid uploaded database file"
-      );
-      expect(() => databaseBackupService.importDatabase(null as any)).toThrow(
-        "Invalid uploaded database file"
-      );
+    it("rejects invalid buffers", async () => {
+      await expect(
+        databaseBackupService.importDatabase(Buffer.alloc(0))
+      ).rejects.toThrow("Invalid uploaded database file");
+      await expect(
+        databaseBackupService.importDatabase(null as any)
+      ).rejects.toThrow("Invalid uploaded database file");
     });
 
-    it("rejects when resolved db path is unsafe", () => {
+    it("rejects when resolved db path is unsafe", async () => {
       vi.mocked(isPathWithinDirectory as any).mockImplementation(
         (candidate: string) => !candidate.includes("mytube.db")
       );
 
-      expect(() =>
+      await expect(
         databaseBackupService.importDatabase(Buffer.from("sqlite"))
-      ).toThrow("Invalid database path");
+      ).rejects.toThrow("Invalid database path");
     });
 
-    it("rejects invalid sqlite uploads during validation", () => {
+    it("rejects invalid sqlite uploads during validation", async () => {
       vi.mocked(Database as any).mockImplementation(function () {
         throw new Error("bad sqlite");
       });
 
-      expect(() =>
+      await expect(
         databaseBackupService.importDatabase(Buffer.from("sqlite"))
-      ).toThrow("Invalid database file");
+      ).rejects.toThrow("Invalid database file");
     });
 
-    it("imports database successfully", () => {
-      databaseBackupService.importDatabase(Buffer.from("sqlite-bytes"));
+    it("imports database successfully", async () => {
+      await databaseBackupService.importDatabase(Buffer.from("sqlite-bytes"));
 
       expect(fs.writeFileSync).toHaveBeenCalledTimes(1);
       expect(fs.copyFileSync).toHaveBeenCalledTimes(2);
       expect(sqlite.close).toHaveBeenCalledTimes(2);
       expect(reinitDb).toHaveBeenCalledTimes(1);
       expect(invalidateUserCache).toHaveBeenCalledTimes(1);
+      // Migrations run against the imported DB so a pre-migration backup is
+      // brought up to schema and the Drizzle journal is recorded (avoiding a
+      // "table already exists" crash on the next startup), but the legacy JSON
+      // data migration is skipped so it cannot overwrite the imported backup.
+      expect(runMigrations).toHaveBeenCalledTimes(1);
+      expect(runMigrations).toHaveBeenCalledWith({
+        skipLegacyDataMigration: true,
+      });
       expect(fs.unlinkSync).toHaveBeenCalledTimes(1);
       expect(logger.info).toHaveBeenCalledWith(
         "Closed current database connection for import"
       );
     });
 
-    it("restores backup when replacement fails", () => {
+    it("restores backup when replacement fails", async () => {
       let copyCall = 0;
       vi.mocked(fs.copyFileSync as any).mockImplementation(() => {
         copyCall += 1;
@@ -308,9 +337,9 @@ describe("databaseBackupService", () => {
         }
       });
 
-      expect(() =>
+      await expect(
         databaseBackupService.importDatabase(Buffer.from("sqlite-bytes"))
-      ).toThrow("replace failed");
+      ).rejects.toThrow("replace failed");
 
       expect(fs.copyFileSync).toHaveBeenCalledTimes(3);
       expect(logger.info).toHaveBeenCalledWith(
@@ -322,7 +351,7 @@ describe("databaseBackupService", () => {
       );
     });
 
-    it("logs restore failure when backup validation fails during rollback", () => {
+    it("logs restore failure when backup validation fails during rollback", async () => {
       let copyCall = 0;
       vi.mocked(fs.copyFileSync as any).mockImplementation(() => {
         copyCall += 1;
@@ -340,9 +369,9 @@ describe("databaseBackupService", () => {
         return true;
       });
 
-      expect(() =>
+      await expect(
         databaseBackupService.importDatabase(Buffer.from("sqlite-bytes"))
-      ).toThrow("replace failed");
+      ).rejects.toThrow("replace failed");
 
       expect(logger.error).toHaveBeenCalledWith(
         "Failed to restore database from backup:",
@@ -350,12 +379,12 @@ describe("databaseBackupService", () => {
       );
     });
 
-    it("logs temp cleanup error if unlink fails", () => {
+    it("logs temp cleanup error if unlink fails", async () => {
       vi.mocked(fs.unlinkSync as any).mockImplementation(() => {
         throw new Error("unlink failed");
       });
 
-      databaseBackupService.importDatabase(Buffer.from("sqlite-bytes"));
+      await databaseBackupService.importDatabase(Buffer.from("sqlite-bytes"));
 
       expect(logger.error).toHaveBeenCalledWith(
         "Error cleaning up temp file:",
@@ -616,10 +645,78 @@ describe("databaseBackupService", () => {
         downloadHistory: { merged: 1, skipped: 1 },
         videoDownloads: { merged: 1, skipped: 1 },
         tags: { merged: 2, skipped: 1 },
+        favoriteCollections: { merged: 0, skipped: 0 },
+        favoriteAuthors: { merged: 0, skipped: 0 },
       });
       expect(sqlite.transaction).toHaveBeenCalledTimes(1);
       expect(invalidateSettingsCache).toHaveBeenCalledTimes(1);
       expect(fs.copyFileSync).toHaveBeenCalledTimes(1);
+    });
+
+    it("only merges favorites whose owner resolves on the target", () => {
+      const sourceTables = {
+        collections: [
+          {
+            id: "source-collection",
+            name: "Watch Later",
+            title: "Watch Later",
+            created_at: "2024-01-01T00:00:00.000Z",
+          },
+        ],
+        favorite_collections: [
+          // Shared owner sentinel: always resolvable across instances.
+          { user_id: "__admin__", collection_id: "source-collection" },
+          // Visitor whose durable users.id also exists on the target.
+          { user_id: "visitor-known", collection_id: "source-collection" },
+          // Visitor with no matching target user: unmappable, must be skipped.
+          { user_id: "visitor-orphan", collection_id: "source-collection" },
+        ],
+        favorite_authors: [
+          { user_id: "__admin__", author: "Owner Author" },
+          { user_id: "visitor-orphan", author: "Orphan Author" },
+        ],
+      };
+
+      const sourceColumns = {
+        collections: ["id", "name", "title", "created_at"],
+        favorite_collections: ["user_id", "collection_id"],
+        favorite_authors: ["user_id", "author"],
+      };
+
+      const targetTables = {
+        collections: [
+          {
+            id: "target-collection",
+            name: "Watch Later",
+            title: "Watch Later",
+          },
+        ],
+        users: [{ id: "visitor-known" }],
+        favorite_collections: [],
+        favorite_authors: [],
+      };
+
+      const targetColumns = {
+        collections: ["id", "name", "title", "created_at"],
+        users: ["id"],
+        favorite_collections: ["user_id", "collection_id"],
+        favorite_authors: ["user_id", "author"],
+      };
+
+      vi.mocked(Database as any).mockImplementation(function () {
+        return createSourceDbHandle(sourceTables, sourceColumns);
+      });
+      vi.mocked(sqlite.prepare as any).mockImplementation(
+        createSqlitePrepareMock(targetTables, targetColumns)
+      );
+
+      const summary = databaseBackupService.mergeDatabase(
+        Buffer.from("sqlite-bytes")
+      );
+
+      // sentinel + known visitor merge; the orphaned visitor is skipped.
+      expect(summary.favoriteCollections).toEqual({ merged: 2, skipped: 1 });
+      expect(summary.favoriteAuthors).toEqual({ merged: 1, skipped: 1 });
     });
 
     it("does not deduplicate videos by local path across instances", () => {
@@ -901,6 +998,8 @@ describe("databaseBackupService", () => {
         downloadHistory: { merged: 0, skipped: 0 },
         videoDownloads: { merged: 0, skipped: 0 },
         tags: { merged: 3, skipped: 1 },
+        favoriteCollections: { merged: 0, skipped: 0 },
+        favoriteAuthors: { merged: 0, skipped: 0 },
       });
       expect(sqlite.transaction).not.toHaveBeenCalled();
       expect(fs.copyFileSync).not.toHaveBeenCalled();
@@ -939,15 +1038,15 @@ describe("databaseBackupService", () => {
   });
 
   describe("restoreFromLastBackup", () => {
-    it("throws when no backups are available", () => {
+    it("throws when no backups are available", async () => {
       vi.mocked(fs.readdirSync as any).mockReturnValue([]);
 
-      expect(() => databaseBackupService.restoreFromLastBackup()).toThrow(
-        "Backup database file not found"
-      );
+      await expect(
+        databaseBackupService.restoreFromLastBackup()
+      ).rejects.toThrow("Backup database file not found");
     });
 
-    it("throws when backup path is unsafe", () => {
+    it("throws when backup path is unsafe", async () => {
       vi.mocked(fs.readdirSync as any).mockReturnValue([
         "mytube-backup-unsafe.db.backup",
       ]);
@@ -956,12 +1055,12 @@ describe("databaseBackupService", () => {
         (candidate: string) => !candidate.includes("unsafe")
       );
 
-      expect(() => databaseBackupService.restoreFromLastBackup()).toThrow(
-        "Invalid backup file path"
-      );
+      await expect(
+        databaseBackupService.restoreFromLastBackup()
+      ).rejects.toThrow("Invalid backup file path");
     });
 
-    it("throws when backup file is not a valid sqlite database", () => {
+    it("throws when backup file is not a valid sqlite database", async () => {
       vi.mocked(fs.readdirSync as any).mockReturnValue([
         "mytube-backup-corrupt.db.backup",
       ]);
@@ -970,23 +1069,29 @@ describe("databaseBackupService", () => {
         throw new Error("corrupt");
       });
 
-      expect(() => databaseBackupService.restoreFromLastBackup()).toThrow(
-        "Invalid database file"
-      );
+      await expect(
+        databaseBackupService.restoreFromLastBackup()
+      ).rejects.toThrow("Invalid database file");
     });
 
-    it("restores from latest backup and reinitializes DB", () => {
+    it("restores from latest backup and reinitializes DB", async () => {
       vi.mocked(fs.readdirSync as any).mockReturnValue([
         "mytube-backup-ok.db.backup",
       ]);
       vi.mocked(fs.statSync as any).mockReturnValue({ mtimeMs: 500 });
 
-      databaseBackupService.restoreFromLastBackup();
+      await databaseBackupService.restoreFromLastBackup();
 
       expect(fs.copyFileSync).toHaveBeenCalledTimes(2);
       expect(sqlite.close).toHaveBeenCalledTimes(2);
       expect(reinitDb).toHaveBeenCalledTimes(1);
       expect(invalidateUserCache).toHaveBeenCalledTimes(1);
+      // Restored DB is migrated up to schema (journal recorded), skipping the
+      // legacy JSON data migration so it cannot overwrite the restored backup.
+      expect(runMigrations).toHaveBeenCalledTimes(1);
+      expect(runMigrations).toHaveBeenCalledWith({
+        skipLegacyDataMigration: true,
+      });
       expect(logger.info).toHaveBeenCalledWith(
         expect.stringContaining("Database file restored successfully")
       );

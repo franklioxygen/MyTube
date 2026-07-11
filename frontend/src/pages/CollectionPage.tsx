@@ -14,6 +14,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import DeleteCollectionModal from '../components/DeleteCollectionModal';
+import FavoriteToggle from '../components/FavoriteToggle';
 import SortControl from '../components/SortControl';
 import TagsModal from '../components/TagsModal';
 import { TagsSidebar } from '../components/TagsSidebar';
@@ -25,6 +26,7 @@ import { useSnackbar } from '../contexts/SnackbarContext';
 import { useVideo } from '../contexts/VideoContext';
 import { useSettings } from '../hooks/useSettings';
 import { useVideoSort } from '../hooks/useVideoSort';
+import { useFavoriteCollections } from '../hooks/useFavoriteCollections';
 import type { Video } from '../types';
 
 
@@ -38,6 +40,11 @@ const CollectionPage: React.FC = () => {
     const { videos, deleteVideo, availableTags: globalAvailableTags, updateVideo } = useVideo();
     const { setPageTagFilter } = usePageTagFilter();
     const { data: settings } = useSettings();
+    const {
+        isFavorite: isFavoriteCollection,
+        toggle: toggleFavoriteCollection,
+        isToggling: isFavoriteToggling,
+    } = useFavoriteCollections();
 
     const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
     const [isTagsModalOpen, setIsTagsModalOpen] = useState(false);
@@ -261,6 +268,17 @@ const CollectionPage: React.FC = () => {
                                             <LocalOffer />
                                         </IconButton>
                                     </Tooltip>
+                                    <FavoriteToggle
+                                        active={isFavoriteCollection(collection.id)}
+                                        onToggle={() => toggleFavoriteCollection(collection.id, {
+                                            name: collection.name,
+                                            title: collection.title,
+                                            videoCount: collectionVideos.length,
+                                        })}
+                                        label={t('favoriteCollection')}
+                                        activeLabel={t('unfavorite')}
+                                        disabled={isFavoriteToggling}
+                                    />
                                 </Box>
                                 <Typography variant="subtitle1" color="text.secondary">
                                     {collectionVideos.length === 0

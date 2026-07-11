@@ -21,6 +21,34 @@ import {
   MergeExecutionOptions,
   MergeRow,
 } from "./types";
+import { OWNER_FAVORITES_USER_ID } from "../favoriteOwner";
+
+/**
+ * Build the set of favorite owner IDs that resolve to a real owner on the
+ * target. The shared owner sentinel is always valid; per-visitor UUIDs are
+ * only valid when the same durable users.id already exists on the target,
+ * because the users table is intentionally not mergeable. Favorites owned by
+ * unmappable source visitors are skipped rather than inserted as orphans.
+ */
+function collectValidFavoriteOwnerIds(
+  targetDb: Database.Database
+): Set<string> {
+  const ownerIds = new Set<string>([OWNER_FAVORITES_USER_ID]);
+
+  if (!hasTable(targetDb, "users")) {
+    return ownerIds;
+  }
+
+  const rows = targetDb.prepare("SELECT id FROM users").all() as MergeRow[];
+  for (const row of rows) {
+    const id = toLookupKey(row.id);
+    if (id) {
+      ownerIds.add(id);
+    }
+  }
+
+  return ownerIds;
+}
 
 function mergeVideos(
   sourceDb: Database.Database,
@@ -442,6 +470,146 @@ function mergeVideoDownloads(
   }
 }
 
+function mergeFavoriteCollections(
+  sourceDb: Database.Database,
+  targetDb: Database.Database,
+  summary: DatabaseMergeSummary,
+  collectionIdMap: Map<string, string>,
+  validOwnerIds: Set<string>,
+  options: MergeExecutionOptions
+): void {
+  if (!hasTable(targetDb, "favorite_collections")) {
+    return;
+  }
+
+  const sharedColumns = getSharedColumns(
+    sourceDb,
+    targetDb,
+    "favorite_collections"
+  );
+  const sourceRows = readTableRows(
+    sourceDb,
+    "favorite_collections",
+    sharedColumns
+  );
+
+  if (sourceRows.length === 0) {
+    return;
+  }
+
+  const existingPairs = new Set<string>(
+    (
+      targetDb
+        .prepare(
+          "SELECT user_id AS user_id, collection_id AS collection_id FROM favorite_collections"
+        )
+        .all() as MergeRow[]
+    ).map((row) => {
+      const userId = getRequiredString(row, "user_id");
+      const collectionId = getRequiredString(row, "collection_id");
+      return `${userId}::${collectionId}`;
+    })
+  );
+
+  const insertStatement = buildInsertStatement(
+    targetDb,
+    "favorite_collections",
+    sharedColumns
+  );
+
+  for (const row of sourceRows) {
+    const userId = toLookupKey(row.user_id);
+    const sourceCollectionId = toLookupKey(row.collection_id);
+    const targetCollectionId = sourceCollectionId
+      ? collectionIdMap.get(sourceCollectionId)
+      : undefined;
+
+    if (!userId || !targetCollectionId || !validOwnerIds.has(userId)) {
+      summary.favoriteCollections.skipped += 1;
+      continue;
+    }
+
+    const pairKey = `${userId}::${targetCollectionId}`;
+    if (existingPairs.has(pairKey)) {
+      summary.favoriteCollections.skipped += 1;
+      continue;
+    }
+
+    if (options.applyChanges) {
+      insertStatement.run(
+        remapRow(row, sharedColumns, {
+          collection_id: targetCollectionId,
+        })
+      );
+    }
+
+    existingPairs.add(pairKey);
+    summary.favoriteCollections.merged += 1;
+  }
+}
+
+function mergeFavoriteAuthors(
+  sourceDb: Database.Database,
+  targetDb: Database.Database,
+  summary: DatabaseMergeSummary,
+  validOwnerIds: Set<string>,
+  options: MergeExecutionOptions
+): void {
+  if (!hasTable(targetDb, "favorite_authors")) {
+    return;
+  }
+
+  const sharedColumns = getSharedColumns(sourceDb, targetDb, "favorite_authors");
+  const sourceRows = readTableRows(sourceDb, "favorite_authors", sharedColumns);
+
+  if (sourceRows.length === 0) {
+    return;
+  }
+
+  const existingPairs = new Set<string>(
+    (
+      targetDb
+        .prepare(
+          "SELECT user_id AS user_id, author AS author FROM favorite_authors"
+        )
+        .all() as MergeRow[]
+    ).map((row) => {
+      const userId = getRequiredString(row, "user_id");
+      const author = getRequiredString(row, "author");
+      return `${userId}::${author}`;
+    })
+  );
+
+  const insertStatement = buildInsertStatement(
+    targetDb,
+    "favorite_authors",
+    sharedColumns
+  );
+
+  for (const row of sourceRows) {
+    const userId = toLookupKey(row.user_id);
+    const author = toLookupKey(row.author);
+
+    if (!userId || !author || !validOwnerIds.has(userId)) {
+      summary.favoriteAuthors.skipped += 1;
+      continue;
+    }
+
+    const pairKey = `${userId}::${author}`;
+    if (existingPairs.has(pairKey)) {
+      summary.favoriteAuthors.skipped += 1;
+      continue;
+    }
+
+    if (options.applyChanges) {
+      insertStatement.run(remapRow(row, sharedColumns));
+    }
+
+    existingPairs.add(pairKey);
+    summary.favoriteAuthors.merged += 1;
+  }
+}
+
 function mergeTagSettings(
   sourceDb: Database.Database,
   targetDb: Database.Database,
@@ -536,6 +704,22 @@ export function executeDatabaseMerge(
     options
   );
   mergeVideoDownloads(sourceDb, targetDb, summary, videoIdMap, options);
+  const validFavoriteOwnerIds = collectValidFavoriteOwnerIds(targetDb);
+  mergeFavoriteCollections(
+    sourceDb,
+    targetDb,
+    summary,
+    collectionIdMap,
+    validFavoriteOwnerIds,
+    options
+  );
+  mergeFavoriteAuthors(
+    sourceDb,
+    targetDb,
+    summary,
+    validFavoriteOwnerIds,
+    options
+  );
   mergeTagSettings(sourceDb, targetDb, summary, options);
 
   return summary;

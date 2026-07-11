@@ -143,7 +143,17 @@ function isReadonlySqliteError(error: unknown): boolean {
   );
 }
 
-export async function runMigrations() {
+export interface RunMigrationsOptions {
+  /**
+   * Skip the legacy JSON → SQLite data migration (videos.json, collections.json,
+   * settings.json, status.json). Used when replacing the database via
+   * import/restore: those flows must migrate the uploaded database's schema
+   * without re-inserting stale on-disk JSON data over the imported contents.
+   */
+  skipLegacyDataMigration?: boolean;
+}
+
+export async function runMigrations(options: RunMigrationsOptions = {}) {
   try {
     logger.info("Running database migrations...");
 
@@ -206,30 +216,38 @@ export async function runMigrations() {
     configureDatabase(sqlite);
     logger.info("Database configuration applied (NTFS/FUSE compatible mode).");
 
-    // Check for legacy data files and run data migration if found
-    const { runMigration: runDataMigration } = await import(
-      "../services/migrationService"
-    );
-    const { VIDEOS_DATA_PATH, COLLECTIONS_DATA_PATH, STATUS_DATA_PATH } =
-      await import("../config/paths");
-
-    // Hardcoded path for settings as in migrationService
-    const SETTINGS_DATA_PATH = path.join(
-      path.dirname(VIDEOS_DATA_PATH),
-      "settings.json"
-    );
-
-    const hasLegacyData =
-      pathExistsSafeSync(VIDEOS_DATA_PATH, DATA_DIR) ||
-      pathExistsSafeSync(COLLECTIONS_DATA_PATH, DATA_DIR) ||
-      pathExistsSafeSync(STATUS_DATA_PATH, DATA_DIR) ||
-      pathExistsSafeSync(SETTINGS_DATA_PATH, DATA_DIR);
-
-    if (hasLegacyData) {
-      logger.info("Legacy data files found. Running data migration...");
-      await runDataMigration();
+    // Check for legacy data files and run data migration if found. Skipped for
+    // database import/restore: re-inserting on-disk JSON there would overwrite
+    // the just-uploaded backup with stale data.
+    if (options.skipLegacyDataMigration) {
+      logger.info(
+        "Skipping legacy JSON data migration (database replacement)."
+      );
     } else {
-      logger.info("No legacy data files found. Skipping data migration.");
+      const { runMigration: runDataMigration } = await import(
+        "../services/migrationService"
+      );
+      const { VIDEOS_DATA_PATH, COLLECTIONS_DATA_PATH, STATUS_DATA_PATH } =
+        await import("../config/paths");
+
+      // Hardcoded path for settings as in migrationService
+      const SETTINGS_DATA_PATH = path.join(
+        path.dirname(VIDEOS_DATA_PATH),
+        "settings.json"
+      );
+
+      const hasLegacyData =
+        pathExistsSafeSync(VIDEOS_DATA_PATH, DATA_DIR) ||
+        pathExistsSafeSync(COLLECTIONS_DATA_PATH, DATA_DIR) ||
+        pathExistsSafeSync(STATUS_DATA_PATH, DATA_DIR) ||
+        pathExistsSafeSync(SETTINGS_DATA_PATH, DATA_DIR);
+
+      if (hasLegacyData) {
+        logger.info("Legacy data files found. Running data migration...");
+        await runDataMigration();
+      } else {
+        logger.info("No legacy data files found. Skipping data migration.");
+      }
     }
 
     // Guarantee the visitor `users` table exists before the legacy-password
@@ -238,10 +256,16 @@ export async function runMigrations() {
     // reaching the 0019 CREATE TABLE users; this idempotent self-heal covers
     // that case so migrateLegacySharedVisitorPassword succeeds on first boot
     // instead of failing with "no such table: users".
-    const { ensureVisitorUsersTable } = await import(
+    const { ensureVisitorUsersTable, ensureFavoritesTables } = await import(
       "../services/storageService/migrations/schemaMigrations"
     );
     ensureVisitorUsersTable();
+
+    // Same self-heal for the favorites tables (migration 0021): if drizzle
+    // aborted its batch above, favorite_collections / favorite_authors were
+    // never created, and every /favorites request would 500 with
+    // "no such table". Idempotent CREATE TABLE IF NOT EXISTS covers that.
+    ensureFavoritesTables();
 
     const { migrateLegacySharedVisitorPassword } = await import(
       "../services/userService"

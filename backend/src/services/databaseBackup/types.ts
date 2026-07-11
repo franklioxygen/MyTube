@@ -11,6 +11,8 @@ export type DatabaseMergeSummary = {
   downloadHistory: MergeCount;
   videoDownloads: MergeCount;
   tags: MergeCount;
+  favoriteCollections: MergeCount;
+  favoriteAuthors: MergeCount;
 };
 
 export type MergeRow = Record<string, unknown>;
@@ -28,6 +30,8 @@ export const MERGEABLE_TABLES = [
   "download_history",
   "video_downloads",
   "settings",
+  "favorite_collections",
+  "favorite_authors",
 ] as const;
 
 export function createEmptyMergeSummary(): DatabaseMergeSummary {
@@ -39,5 +43,7 @@ export function createEmptyMergeSummary(): DatabaseMergeSummary {
     downloadHistory: { merged: 0, skipped: 0 },
     videoDownloads: { merged: 0, skipped: 0 },
     tags: { merged: 0, skipped: 0 },
+    favoriteCollections: { merged: 0, skipped: 0 },
+    favoriteAuthors: { merged: 0, skipped: 0 },
   };
 }

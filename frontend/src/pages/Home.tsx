@@ -1,6 +1,6 @@
 import { Alert, Box, Container, Pagination, Typography, useMediaQuery, useTheme } from '@mui/material';
 import React, { Suspense, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { HomeHeader } from '../components/HomeHeader';
 import { HomeLoadingSkeleton } from '../components/HomeLoadingSkeleton';
 import { HomeSidebar } from '../components/HomeSidebar';
@@ -16,6 +16,8 @@ import { useSettings } from '../hooks/useSettings';
 import { useVideoFiltering } from '../hooks/useVideoFiltering';
 import { useVideoSort } from '../hooks/useVideoSort';
 import { useViewMode } from '../hooks/useViewMode';
+import type { ViewMode } from '../hooks/useViewMode';
+import FavoritePage from './FavoritePage';
 import { lazyWithRetry } from '../utils/lazyWithRetry';
 
 const HOME_SORT_STORAGE_SLOT = 'homeSortOption';
@@ -25,7 +27,11 @@ const ConfirmationModal = lazyWithRetry(
     'confirmation-modal',
 );
 
-const Home: React.FC = () => {
+interface HomeProps {
+    initialViewMode?: ViewMode;
+}
+
+const Home: React.FC<HomeProps> = ({ initialViewMode }) => {
     const { t } = useLanguage();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -42,10 +48,18 @@ const Home: React.FC = () => {
     const { collections } = useCollection();
     const { data: settings, isLoading: settingsLoading } = useSettings();
     const [_searchParams, setSearchParams] = useSearchParams();
+    const location = useLocation();
+    const navigate = useNavigate();
     const [isDeleteFilteredOpen, setIsDeleteFilteredOpen] = useState(false);
 
     // Custom hooks
-    const { viewMode, handleViewModeChange } = useViewMode();
+    const { viewMode, handleViewModeChange } = useViewMode(initialViewMode);
+    const handleHomeViewModeChange = (mode: ViewMode) => {
+        handleViewModeChange(mode);
+        if (location.pathname === '/favorites' && mode !== 'favorite') {
+            navigate('/?page=1');
+        }
+    };
     const {
         isSidebarOpen,
         itemsPerPage,
@@ -133,7 +147,7 @@ const Home: React.FC = () => {
             {priorityVideos.length > 0 && <LCPImagePreloader videos={priorityVideos} />}
 
             {/* Delete Filtered Videos Modal - deletes the same set as currently shown when filtering */}
-            {isDeleteFilteredOpen && (
+            {isDeleteFilteredOpen && viewMode !== 'favorite' && (
                 <Suspense fallback={null}>
                     <ConfirmationModal
                         isOpen={isDeleteFilteredOpen}
@@ -154,7 +168,7 @@ const Home: React.FC = () => {
                 </Suspense>
             )}
 
-            {videoArray.length === 0 ? (
+            {videoArray.length === 0 && viewMode !== 'favorite' ? (
                 <Box sx={{ textAlign: 'center', py: 8 }}>
                     <Typography variant="h5" color="text.secondary">
                         {t('noVideosYet')}
@@ -175,7 +189,7 @@ const Home: React.FC = () => {
                     <Box sx={{ flex: 1, minWidth: 0 }}>
                         <HomeHeader
                             viewMode={viewMode}
-                            onViewModeChange={handleViewModeChange}
+                            onViewModeChange={handleHomeViewModeChange}
                             onSidebarToggle={handleSidebarToggle}
                             selectedTagsCount={selectedTags.length}
                             onDeleteFilteredClick={() => setIsDeleteFilteredOpen(true)}
@@ -184,7 +198,12 @@ const Home: React.FC = () => {
                             onSortClick={handleSortClick}
                             onSortClose={handleSortClose}
                         />
-                        {viewMode === 'collections' && displayedVideos.length === 0 ? (
+                        {viewMode === 'favorite' ? (
+                            <FavoritePage
+                                onBrowseCollections={() => handleHomeViewModeChange('collections')}
+                                onFindAuthors={() => handleHomeViewModeChange('all-videos')}
+                            />
+                        ) : viewMode === 'collections' && displayedVideos.length === 0 ? (
                             <Box sx={{ py: 8, textAlign: 'center' }}>
                                 <Typography variant="h6" color="text.secondary">
                                     {t('noCollectionsFound')}
@@ -204,7 +223,7 @@ const Home: React.FC = () => {
                             />
                         )}
 
-                        {!infiniteScroll && totalPages > 1 && (
+                        {viewMode !== 'favorite' && !infiniteScroll && totalPages > 1 && (
                             <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center', px: { xs: 2, sm: 0 } }}>
                                 <Pagination
                                     count={totalPages}

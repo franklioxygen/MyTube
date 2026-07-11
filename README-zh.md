@@ -71,6 +71,10 @@
 
 [mytube-android](https://github.com/franklioxygen/mytube-android) 是 MyTube 的原生 Android 客户端，通过 API 连接到您的 MyTube 服务器，可在移动设备上浏览和播放视频。
 
+## MCP 服务器
+
+[mytube-mcp](https://github.com/franklioxygen/mytube-mcp) 是 MyTube 的 Model Context Protocol (MCP) 服务器，通过 API 将您的 MyTube 实例暴露给 AI 助手和智能体，使其能够代您搜索、管理和播放您的视频库。
+
 ## 目录结构
 
 有关项目结构的详细说明，请参阅 [目录结构](documents/zh/directory-structure.md)。

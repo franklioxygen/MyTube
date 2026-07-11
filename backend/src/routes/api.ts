@@ -3,6 +3,7 @@ import * as cleanupController from "../controllers/cleanupController";
 import * as cloudStorageController from "../controllers/cloudStorageController";
 import * as collectionController from "../controllers/collectionController";
 import * as downloadController from "../controllers/downloadController";
+import * as favoriteController from "../controllers/favoriteController";
 import * as recommendationController from "../controllers/recommendationController";
 import * as rssController from "../controllers/rssController";
 import * as scanController from "../controllers/scanController";
@@ -250,6 +251,38 @@ const apiRouteDefinitions: ApiRouteDefinition[] = [
     method: "delete",
     path: "/collections/:id",
     handlers: [asyncHandler(collectionController.deleteCollection)],
+  },
+
+  // Favorite routes
+  {
+    method: "get",
+    path: "/favorites/collections",
+    handlers: [asyncHandler(favoriteController.getFavoriteCollections)],
+  },
+  {
+    method: "post",
+    path: "/favorites/collections/:id",
+    handlers: [asyncHandler(favoriteController.addFavoriteCollection)],
+  },
+  {
+    method: "delete",
+    path: "/favorites/collections/:id",
+    handlers: [asyncHandler(favoriteController.removeFavoriteCollection)],
+  },
+  {
+    method: "get",
+    path: "/favorites/authors",
+    handlers: [asyncHandler(favoriteController.getFavoriteAuthors)],
+  },
+  {
+    method: "post",
+    path: "/favorites/authors",
+    handlers: [asyncHandler(favoriteController.addFavoriteAuthor)],
+  },
+  {
+    method: "delete",
+    path: "/favorites/authors",
+    handlers: [asyncHandler(favoriteController.removeFavoriteAuthor)],
   },
 
   // Recommendation routes

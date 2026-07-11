@@ -93,6 +93,9 @@ export const CollectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['collections'] });
             queryClient.invalidateQueries({ queryKey: ['videos'] });
+            // A favorited collection's derived videoCount/cover changes, so
+            // refresh favorites to avoid a stale rail card.
+            queryClient.invalidateQueries({ queryKey: ['favorite-collections'] });
             showSnackbar(t('videoAddedToCollection'));
         },
         onError: (error) => {
@@ -117,6 +120,9 @@ export const CollectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
             queryClient.invalidateQueries({ queryKey: ['collections'] });
             queryClient.invalidateQueries({ queryKey: ['videos'] });
+            // A favorited collection's derived videoCount/cover changes, so
+            // refresh favorites to avoid a stale rail card.
+            queryClient.invalidateQueries({ queryKey: ['favorite-collections'] });
             showSnackbar(t('videoRemovedFromCollection'));
             return true;
         } catch (error) {
@@ -136,7 +142,14 @@ export const CollectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             queryClient.invalidateQueries({ queryKey: ['collections'] });
             if (deleteVideos) {
                 queryClient.invalidateQueries({ queryKey: ['videos'] });
+                // Deleting every video in the collection can remove an author's
+                // last videos, so refresh the favorite authors rail too.
+                queryClient.invalidateQueries({ queryKey: ['favorite-authors'] });
             }
+            // The backend cascades favorite_collections when a collection is
+            // deleted, so refresh favorites too (all scopes) to avoid rendering
+            // a deleted collection that navigates to a not-found page.
+            queryClient.invalidateQueries({ queryKey: ['favorite-collections'] });
             showSnackbar(t('collectionDeletedSuccessfully'));
         },
         onError: (error) => {
@@ -163,6 +176,9 @@ export const CollectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             queryClient.invalidateQueries({ queryKey: ['collections'] });
             // Video paths might change if collection renamed, so invalidate videos too
             queryClient.invalidateQueries({ queryKey: ['videos'] });
+            // A favorited collection's name/cover changes on rename, so refresh
+            // favorites to avoid a stale rail card.
+            queryClient.invalidateQueries({ queryKey: ['favorite-collections'] });
             showSnackbar(t('collectionUpdatedSuccessfully') || 'Collection updated');
         },
         onError: (error: any) => {

@@ -7,6 +7,8 @@ import Home from '../Home';
 const mockSetSearchParams = vi.fn();
 vi.mock('react-router-dom', () => ({
     useSearchParams: () => [new URLSearchParams(), mockSetSearchParams],
+    useLocation: () => ({ pathname: '/' }),
+    useNavigate: () => vi.fn(),
 }));
 
 vi.mock('../../contexts/LanguageContext', () => ({

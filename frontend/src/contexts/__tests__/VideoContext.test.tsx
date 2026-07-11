@@ -286,7 +286,8 @@ describe('VideoContext', () => {
   });
 
   it('deleteVideo respects snackbar option and reports failures', async () => {
-    const { wrapper } = createWrapper();
+    const { wrapper, queryClient } = createWrapper();
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
     const { result } = renderHook(() => useVideo(), { wrapper });
 
     await waitFor(() => {
@@ -296,6 +297,9 @@ describe('VideoContext', () => {
     const ok = await result.current.deleteVideo('v1');
     expect(ok).toEqual({ success: true });
     expect(mockShowSnackbar).toHaveBeenCalledWith('videoRemovedSuccessfully');
+    // Deleting a video can change favorite author/collection counts and covers.
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['favorite-authors'] });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['favorite-collections'] });
 
     mockApiDelete.mockRejectedValueOnce(new Error('delete fail'));
     const failed = await result.current.deleteVideo('v2', { showSnackbar: false });

@@ -162,6 +162,13 @@
       "when": 1783729266000,
       "tag": "0022_download_media_type",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "6",
+      "when": 1783730035912,
+      "tag": "0023_striped_ender_wiggin",
+      "breakpoints": true
     }
   ]
 }

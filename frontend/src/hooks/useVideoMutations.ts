@@ -34,6 +34,13 @@ export function useVideoMutations({
       queryClient.setQueryData(["video", videoId], (old: Video | undefined) =>
         old ? { ...old, rating: newValue } : old
       );
+      // Keep the shared ['videos'] list in sync so rating-derived views
+      // (e.g. Favorites Featured / Top Rated) update without a full refetch.
+      queryClient.setQueryData(["videos"], (old: Video[] | undefined) =>
+        old?.map((video) =>
+          video.id === videoId ? { ...video, rating: newValue } : video
+        )
+      );
     },
   });
 

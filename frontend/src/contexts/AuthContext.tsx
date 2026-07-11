@@ -60,6 +60,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             authenticatedRole: null,
             authenticatedUsername: null,
         }));
+        queryClient.removeQueries({ queryKey: ['favorite-collections'] });
+        queryClient.removeQueries({ queryKey: ['favorite-authors'] });
 
         try {
             // Call backend logout endpoint to clear HTTP-only cookies

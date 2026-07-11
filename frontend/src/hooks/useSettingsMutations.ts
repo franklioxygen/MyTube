@@ -58,6 +58,8 @@ export interface MergePreviewSummary {
   downloadHistory: { merged: number; skipped: number };
   videoDownloads: { merged: number; skipped: number };
   tags: { merged: number; skipped: number };
+  favoriteCollections?: { merged: number; skipped: number };
+  favoriteAuthors?: { merged: number; skipped: number };
 }
 
 const areSettingValuesEqual = (a: unknown, b: unknown): boolean => {

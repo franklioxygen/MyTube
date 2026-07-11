@@ -32,6 +32,7 @@ describe('HomeHeader', () => {
         expect(screen.getAllByText('allVideos').length).toBeGreaterThan(0);
         expect(screen.getByText('collections')).toBeInTheDocument();
         expect(screen.getByText('history')).toBeInTheDocument();
+        expect(screen.getByText('favorite')).toBeInTheDocument();
     });
 
     it('should call onViewModeChange when toggle button is clicked', () => {
@@ -39,6 +40,13 @@ describe('HomeHeader', () => {
 
         fireEvent.click(screen.getByText('collections'));
         expect(defaultProps.onViewModeChange).toHaveBeenCalledWith('collections');
+    });
+
+    it('should switch to the favorite mode', () => {
+        render(<HomeHeader {...defaultProps} />);
+
+        fireEvent.click(screen.getByText('favorite'));
+        expect(defaultProps.onViewModeChange).toHaveBeenCalledWith('favorite');
     });
 
     it('should call onSidebarToggle when sidebar button is clicked', () => {

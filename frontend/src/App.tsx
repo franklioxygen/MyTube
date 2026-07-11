@@ -156,6 +156,7 @@ function AppContent() {
                             }>
                                 <Routes>
                                     <Route path="/" element={<Home />} />
+                                    <Route path="/favorites" element={<Home initialViewMode="favorite" />} />
                                     <Route path="/search" element={<SearchPage />} />
                                     <Route path="/manage" element={<ManagePage />} />
                                     <Route path="/settings" element={<SettingsPage />} />

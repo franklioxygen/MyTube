@@ -59,6 +59,25 @@ export interface Collection {
   [key: string]: any;
 }
 
+export interface FavoriteCollectionItem {
+  collectionId: string;
+  name: string;
+  title?: string;
+  sourcePlatform?: string;
+  videoCount: number;
+  thumbnailVideoId?: string;
+  favoritedAt: number;
+}
+
+export interface FavoriteAuthorItem {
+  author: string;
+  displayName: string;
+  avatarPath?: string;
+  channelUrl?: string;
+  videoCount: number;
+  favoritedAt: number;
+}
+
 export interface DownloadInfo {
   id: string;
   title: string;

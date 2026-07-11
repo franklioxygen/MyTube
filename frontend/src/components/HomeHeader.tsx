@@ -1,4 +1,4 @@
-import { Collections as CollectionsIcon, Delete as DeleteIcon, GridView, History, Sort, ViewSidebar } from '@mui/icons-material';
+import { Collections as CollectionsIcon, Delete as DeleteIcon, GridView, History, Sort, Star, ViewSidebar } from '@mui/icons-material';
 import { Box, Button, IconButton, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
 import React, { Suspense } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -20,6 +20,8 @@ const getViewModeLabel = (
             return t('collections');
         case 'history':
             return t('history');
+        case 'favorite':
+            return t('favorite');
         case 'all-videos':
         default:
             return t('allVideos');
@@ -50,6 +52,7 @@ export const HomeHeader: React.FC<HomeHeaderProps> = ({
     onSortClose
 }) => {
     const { t } = useLanguage();
+    const isFavorite = viewMode === 'favorite';
 
     return (
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, px: { xs: 2, sm: 0 } }}>
@@ -67,7 +70,7 @@ export const HomeHeader: React.FC<HomeHeaderProps> = ({
                 >
                     <ViewSidebar sx={{ transform: 'rotate(180deg)' }} />
                 </Button>
-                {selectedTagsCount > 0 && (
+                {selectedTagsCount > 0 && viewMode !== 'favorite' && (
                     <Tooltip title={t('deleteAllFilteredVideos')}>
                         <IconButton
                             color="error"
@@ -83,7 +86,7 @@ export const HomeHeader: React.FC<HomeHeaderProps> = ({
                     {getViewModeLabel(viewMode, t)}
                 </Box>
             </Typography>
-            <Box sx={{ display: 'flex', gap: 2 }}>
+            <Box sx={{ display: 'flex' }}>
                 <ToggleButtonGroup
                     value={viewMode}
                     exclusive
@@ -108,19 +111,41 @@ export const HomeHeader: React.FC<HomeHeaderProps> = ({
                             {t('history')}
                         </Box>
                     </ToggleButton>
+                    <ToggleButton value="favorite" sx={{ px: { xs: 2, md: 2 } }}>
+                        <Star fontSize="small" sx={{ mr: { xs: 0, md: 1 } }} />
+                        <Box component="span" sx={{ display: { xs: 'none', md: 'block' } }}>
+                            {t('favorite')}
+                        </Box>
+                    </ToggleButton>
                 </ToggleButtonGroup>
 
-                <Box sx={{ display: 'flex' }}>
+                {/* Kept mounted so it can slide out to the right (rather than
+                    vanish) when the Favorite tab hides sorting. */}
+                <Box
+                    aria-hidden={isFavorite}
+                    sx={{
+                        display: 'flex',
+                        overflow: 'hidden',
+                        transition: 'max-width 0.3s ease, opacity 0.3s ease, transform 0.3s ease, margin-left 0.3s ease',
+                        maxWidth: isFavorite ? 0 : 160,
+                        ml: isFavorite ? 0 : 2,
+                        opacity: isFavorite ? 0 : 1,
+                        transform: isFavorite ? 'translateX(24px)' : 'translateX(0)',
+                        pointerEvents: isFavorite ? 'none' : 'auto',
+                    }}
+                >
                     <Button
                         variant="outlined"
                         onClick={onSortClick}
                         size="small"
+                        tabIndex={isFavorite ? -1 : undefined}
                         sx={{
                             minWidth: 'auto',
                             px: { xs: 1, md: 2 },
                             height: '100%',
                             color: 'text.secondary',
                             borderColor: 'text.secondary',
+                            whiteSpace: 'nowrap',
                         }}
                     >
                         <Sort fontSize="small" sx={{ mr: { xs: 0, md: 1 } }} />
@@ -128,7 +153,7 @@ export const HomeHeader: React.FC<HomeHeaderProps> = ({
                             {t('sort')}
                         </Box>
                     </Button>
-                    {sortAnchorEl && (
+                    {sortAnchorEl && !isFavorite && (
                         <Suspense fallback={null}>
                             <SortControlMenu
                                 sortOption={sortOption}

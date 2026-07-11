@@ -2,6 +2,7 @@ import Database from "better-sqlite3";
 import path from "path";
 import { DATA_DIR } from "../config/paths";
 import { sqlite } from "../db";
+import { runMigrations } from "../db/migrate";
 import { NotFoundError, ValidationError } from "../errors/DownloadErrors";
 import { logger } from "../utils/logger";
 import {
@@ -48,7 +49,7 @@ export function exportDatabase(): string {
  * Import database from backup file
  * @param fileBuffer - Uploaded SQLite database bytes
  */
-export function importDatabase(fileBuffer: Buffer): void {
+export async function importDatabase(fileBuffer: Buffer): Promise<void> {
   const tempImportPath = prepareTempImportFile(fileBuffer);
 
   // Create backup of current database before import
@@ -65,6 +66,14 @@ export function importDatabase(fileBuffer: Buffer): void {
 
     // Reinitialize the database connection with the new file
     reinitializeDatabase();
+
+    // Bring the imported database up to the current schema. An older backup
+    // may predate recent migrations; running them (rather than an ad-hoc table
+    // self-heal) also records Drizzle's migration journal, so the next startup
+    // does not re-run an already-applied migration and crash on "table already
+    // exists". Skip the legacy JSON data migration so stale on-disk files do
+    // not overwrite the just-imported backup.
+    await runMigrations({ skipLegacyDataMigration: true });
   } catch (error: unknown) {
     // Restore backup if import failed
     if (pathExistsSafeSync(backupPath, DATA_DIR)) {
@@ -83,6 +92,9 @@ export function importDatabase(fileBuffer: Buffer): void {
           RESOLVED_DB_PATH,
           DATA_DIR,
         );
+        // The failure may have happened after the connection was reopened on
+        // the (bad) imported file, so point it back at the restored backup.
+        reinitializeDatabase();
         logger.info("Restored database from backup after failed import");
       } catch (restoreError) {
         logger.error("Failed to restore database from backup:", restoreError);
@@ -215,7 +227,7 @@ export function getLastBackupInfo(): {
 /**
  * Restore database from last backup file
  */
-export function restoreFromLastBackup(): void {
+export async function restoreFromLastBackup(): Promise<void> {
   const backupFiles = getBackupFiles();
 
   if (backupFiles.length === 0) {
@@ -254,6 +266,13 @@ export function restoreFromLastBackup(): void {
 
   // Reinitialize the database connection with the restored file
   reinitializeDatabase();
+
+  // Migrate the restored database to the current schema and record Drizzle's
+  // migration journal, so an older backup does not leave later migrations
+  // unapplied (and does not crash a subsequent startup re-running them). Skip
+  // the legacy JSON data migration so stale on-disk files do not overwrite the
+  // just-restored backup.
+  await runMigrations({ skipLegacyDataMigration: true });
 }
 
 /**
