@@ -30,6 +30,7 @@ interface VideoCardProps {
     isAboveTheFold?: boolean; // For LCP optimization
     isHeroImage?: boolean;
     showTagsOnThumbnail?: boolean;
+    onTagClick?: (tag: string) => void;
 }
 
 const VideoCardBase: React.FC<VideoCardProps> = ({
@@ -43,7 +44,8 @@ const VideoCardBase: React.FC<VideoCardProps> = ({
     playbackQueueVideoIds,
     isAboveTheFold = false,
     isHeroImage = false,
-    showTagsOnThumbnail = false
+    showTagsOnThumbnail = false,
+    onTagClick
 }) => {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -150,7 +152,7 @@ const VideoCardBase: React.FC<VideoCardProps> = ({
                     showTagsOnThumbnail={showTagsOnThumbnail}
                     availableTags={availableTags}
                     selectedTags={selectedTags}
-                    onTagClick={handleTagToggle}
+                    onTagClick={onTagClick ?? handleTagToggle}
                 />
 
                 <VideoCardContent
@@ -197,6 +199,7 @@ const VideoCard = React.memo(VideoCardBase, (prevProps, nextProps) => {
     if (prevProps.isAboveTheFold !== nextProps.isAboveTheFold) return false;
     if (prevProps.isHeroImage !== nextProps.isHeroImage) return false;
     if (prevProps.showTagsOnThumbnail !== nextProps.showTagsOnThumbnail) return false;
+    if (prevProps.onTagClick !== nextProps.onTagClick) return false;
     // collections / playbackQueueVideoIds are arrays; compare by reference then length.
     if (prevProps.collections !== nextProps.collections) return false;
     if (prevProps.playbackQueueVideoIds !== nextProps.playbackQueueVideoIds) return false;

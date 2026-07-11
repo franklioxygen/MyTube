@@ -10,6 +10,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { CollectionProvider, useCollection } from './contexts/CollectionContext';
 import { DownloadProvider, useDownload } from './contexts/DownloadContext';
 import { LanguageProvider } from './contexts/LanguageContext';
+import { HomeViewModeRequestProvider } from './contexts/HomeViewModeRequestContext';
 import { PageTagFilterProvider } from './contexts/PageTagFilterContext';
 import { SnackbarProvider } from './contexts/SnackbarContext';
 import { ThemeContextProvider } from './contexts/ThemeContext';
@@ -121,63 +122,64 @@ function AppContent() {
                 <Router>
                     <ScrollToTop />
                     <PageTagFilterProvider>
-                        <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-                            <Header
-                            onSearch={handleSearch}
-                            onSubmit={handleVideoSubmit}
-                            onAudioOnlySubmit={handleAudioOnlyDownload}
-                            activeDownloads={activeDownloads}
-                            queuedDownloads={queuedDownloads}
-                            isSearchMode={isSearchMode}
-                            onResetSearch={resetSearch}
-
-                            collections={collections}
-                            videos={videos}
-                        />
-
-                        {/* Bilibili Parts Modal */}
-                        <Suspense fallback={null}>
-                            {showBilibiliPartsModal && (
-                                <BilibiliPartsModal
-                                    isOpen={showBilibiliPartsModal}
-                                    onClose={() => setShowBilibiliPartsModal(false)}
-                                    videosNumber={bilibiliPartsInfo.videosNumber}
-                                    videoTitle={bilibiliPartsInfo.title}
-                                    onDownloadAll={handleDownloadAllBilibiliParts}
-                                    onDownloadCurrent={handleDownloadCurrentBilibiliPart}
-                                    isLoading={loading || isCheckingParts}
-                                    type={bilibiliPartsInfo.type}
+                        <HomeViewModeRequestProvider>
+                            <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+                                <Header
+                                    onSearch={handleSearch}
+                                    onSubmit={handleVideoSubmit}
+                                    onAudioOnlySubmit={handleAudioOnlyDownload}
+                                    activeDownloads={activeDownloads}
+                                    queuedDownloads={queuedDownloads}
+                                    isSearchMode={isSearchMode}
+                                    onResetSearch={resetSearch}
+                                    collections={collections}
+                                    videos={videos}
                                 />
-                            )}
-                        </Suspense>
 
-                        <Box component="main" sx={{ flexGrow: 1, p: 0, width: '100%', overflowX: 'clip' }}>
-                            <Suspense fallback={
-                                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
-                                    <CircularProgress />
+                                {/* Bilibili Parts Modal */}
+                                <Suspense fallback={null}>
+                                    {showBilibiliPartsModal && (
+                                        <BilibiliPartsModal
+                                            isOpen={showBilibiliPartsModal}
+                                            onClose={() => setShowBilibiliPartsModal(false)}
+                                            videosNumber={bilibiliPartsInfo.videosNumber}
+                                            videoTitle={bilibiliPartsInfo.title}
+                                            onDownloadAll={handleDownloadAllBilibiliParts}
+                                            onDownloadCurrent={handleDownloadCurrentBilibiliPart}
+                                            isLoading={loading || isCheckingParts}
+                                            type={bilibiliPartsInfo.type}
+                                        />
+                                    )}
+                                </Suspense>
+
+                                <Box component="main" sx={{ flexGrow: 1, p: 0, width: '100%', overflowX: 'clip' }}>
+                                    <Suspense fallback={
+                                        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+                                            <CircularProgress />
+                                        </Box>
+                                    }>
+                                        <Routes>
+                                            <Route path="/" element={<Home />} />
+                                            <Route path="/favorites" element={<Home initialViewMode="favorite" />} />
+                                            <Route path="/collections" element={<Home initialViewMode="collections" />} />
+                                            <Route path="/search" element={<SearchPage />} />
+                                            <Route path="/manage" element={<ManagePage />} />
+                                            <Route path="/settings" element={<SettingsPage />} />
+                                            <Route path="/statistics" element={<StatisticsPage />} />
+                                            <Route path="/downloads" element={<DownloadPage />} />
+                                            <Route path="/collection/:id" element={<CollectionPage />} />
+                                            <Route path="/authors" element={<AllAuthorsPage />} />
+                                            <Route path="/author/:authorName" element={<AuthorVideos />} />
+                                            <Route path="/video/:id" element={<VideoPlayer />} />
+                                            <Route path="/subscriptions" element={<SubscriptionsPage />} />
+                                            <Route path="/instruction" element={<InstructionPage />} />
+                                        </Routes>
+                                    </Suspense>
                                 </Box>
-                            }>
-                                <Routes>
-                                    <Route path="/" element={<Home />} />
-                                    <Route path="/favorites" element={<Home initialViewMode="favorite" />} />
-                                    <Route path="/collections" element={<Home initialViewMode="collections" />} />
-                                    <Route path="/search" element={<SearchPage />} />
-                                    <Route path="/manage" element={<ManagePage />} />
-                                    <Route path="/settings" element={<SettingsPage />} />
-                                    <Route path="/statistics" element={<StatisticsPage />} />
-                                    <Route path="/downloads" element={<DownloadPage />} />
-                                    <Route path="/collection/:id" element={<CollectionPage />} />
-                                    <Route path="/authors" element={<AllAuthorsPage />} />
-                                    <Route path="/author/:authorName" element={<AuthorVideos />} />
-                                    <Route path="/video/:id" element={<VideoPlayer />} />
-                                    <Route path="/subscriptions" element={<SubscriptionsPage />} />
-                                    <Route path="/instruction" element={<InstructionPage />} />
-                                </Routes>
-                            </Suspense>
-                        </Box>
 
-                            <Footer />
-                        </Box>
+                                <Footer />
+                            </Box>
+                        </HomeViewModeRequestProvider>
                     </PageTagFilterProvider>
                 </Router>
             )}

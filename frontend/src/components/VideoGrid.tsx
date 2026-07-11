@@ -29,6 +29,7 @@ interface VideoGridProps {
     gridProps: GridProps;
     onDeleteVideo: (id: string) => Promise<{ success: boolean; error?: string }>;
     showTagsOnThumbnail?: boolean;
+    onTagToggle?: (tag: string) => void;
 }
 
 export const VideoGrid: React.FC<VideoGridProps> = ({
@@ -40,7 +41,8 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
     infiniteScroll,
     gridProps,
     onDeleteVideo,
-    showTagsOnThumbnail
+    showTagsOnThumbnail,
+    onTagToggle
 }) => {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -71,6 +73,7 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
                     isAboveTheFold={isAboveTheFold}
                     isHeroImage={isHeroImage}
                     showTagsOnThumbnail={showTagsOnThumbnail}
+                    onTagClick={onTagToggle}
                 />
             );
         }
@@ -97,6 +100,7 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
                 isAboveTheFold={isAboveTheFold}
                 isHeroImage={isHeroImage}
                 showTagsOnThumbnail={showTagsOnThumbnail}
+                onTagClick={onTagToggle}
             />
         );
     }, [
@@ -104,6 +108,7 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
         firstVideoCollectionMap,
         isMobile,
         onDeleteVideo,
+        onTagToggle,
         showTagsOnThumbnail,
         videos,
         viewMode

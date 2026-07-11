@@ -5,6 +5,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Home from '../Home';
 
 const mockSetSearchParams = vi.fn();
+const mockHandleViewModeChange = vi.fn();
+let mockViewMode = 'all-videos';
 vi.mock('react-router-dom', () => ({
     useSearchParams: () => [new URLSearchParams(), mockSetSearchParams],
     useLocation: () => ({ pathname: '/' }),
@@ -36,7 +38,7 @@ vi.mock('../../contexts/CollectionContext', () => ({
 }));
 
 vi.mock('../../hooks/useViewMode', () => ({
-    useViewMode: () => ({ viewMode: 'grid', handleViewModeChange: vi.fn() }),
+    useViewMode: () => ({ viewMode: mockViewMode, handleViewModeChange: mockHandleViewModeChange }),
 }));
 
 vi.mock('../../hooks/useHomeSettings', () => ({
@@ -111,7 +113,13 @@ vi.mock('../../components/HomeHeader', () => ({
     ),
 }));
 vi.mock('../../components/HomeSidebar', () => ({
-    HomeSidebar: () => <div data-testid="HomeSidebar" />,
+    HomeSidebar: ({ onTagToggle }: { onTagToggle: (tag: string) => void }) => (
+        <div data-testid="HomeSidebar">
+            <button data-testid="sidebar-tag-toggle" onClick={() => onTagToggle('tag1')}>
+                Toggle Tag
+            </button>
+        </div>
+    ),
 }));
 vi.mock('../../components/LCPImagePreloader', () => ({
     LCPImagePreloader: () => <div data-testid="LCPImagePreloader" />,
@@ -128,9 +136,11 @@ describe('Home Page', () => {
         mockUseVideoReturn.error = null;
         mockUseVideoReturn.videos = [];
         mockUseVideoReturn.selectedTags = [];
+        mockViewMode = 'all-videos';
 
         // Reset specific mocks if needed
         mockUseVideoSort.mockClear();
+        mockHandleViewModeChange.mockClear();
         // Since we defined mockUseVideoSort with a specific implementation that returns an object, 
         // mockClear clears the call history but keeps the implementation.
         // mockClear clears the call history but keeps the implementation.
@@ -180,6 +190,18 @@ describe('Home Page', () => {
         expect(screen.getByTestId('delete-filtered-btn')).toBeInTheDocument(); // HomeHeader
         expect(screen.getByTestId('HomeSidebar')).toBeInTheDocument();
         expect(screen.getByTestId('VideoGrid')).toBeInTheDocument();
+    });
+
+    it('switches to All Videos when a home sidebar tag is toggled', () => {
+        mockViewMode = 'collections';
+        mockUseVideoReturn.videos = [{ id: '1', tags: ['tag1'] }] as any;
+
+        renderHome();
+
+        fireEvent.click(screen.getByTestId('sidebar-tag-toggle'));
+
+        expect(mockHandleViewModeChange).toHaveBeenCalledWith('all-videos');
+        expect(mockUseVideoReturn.handleTagToggle).toHaveBeenCalledWith('tag1');
     });
 
     it('handles delete filtered videos flow', async () => {

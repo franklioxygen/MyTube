@@ -10,10 +10,11 @@ import {
     useMediaQuery,
     useTheme
 } from '@mui/material';
-import { FormEvent, useState } from 'react';
+import { FormEvent, useCallback, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../../contexts/AuthContext';
+import { useHomeViewModeRequestOptional } from '../../contexts/HomeViewModeRequestContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { usePageTagFilterOptional } from '../../contexts/PageTagFilterContext';
 import { useThemeContext } from '../../contexts/ThemeContext';
@@ -49,14 +50,15 @@ const HeaderContainer: React.FC<HeaderProps> = ({
     const { userRole, isAuthenticated } = useAuth();
     const { data: settingsData } = useSettings();
     const { availableTags, selectedTags, handleTagToggle } = useVideo();
+    const homeViewModeRequest = useHomeViewModeRequestOptional();
 
     const isVisitor = userRole === 'visitor';
     const pageTagFilter = usePageTagFilterOptional()?.pageTagFilter ?? null;
-    const effectiveTags = pageTagFilter ?? {
+    const effectiveTags = useMemo(() => pageTagFilter ?? {
         availableTags,
         selectedTags,
         onTagToggle: handleTagToggle
-    };
+    }, [availableTags, handleTagToggle, pageTagFilter, selectedTags]);
 
     const { websiteName, infiniteScroll, showThemeButton, showAudioDownloadButton } = useHeaderPreferences(
         isAuthenticated,
@@ -71,6 +73,16 @@ const HeaderContainer: React.FC<HeaderProps> = ({
     const isAuthorPage = location.pathname.startsWith('/author/');
     const isCollectionPage = location.pathname.startsWith('/collection/');
     const showTagsInMobileMenu = isHomePage || isAuthorPage || isCollectionPage;
+    const handleMobileTagToggle = useCallback((tag: string) => {
+        if (isHomePage) {
+            homeViewModeRequest?.requestHomeViewMode('all-videos');
+        }
+        effectiveTags.onTagToggle(tag);
+    }, [effectiveTags, homeViewModeRequest, isHomePage]);
+    const mobileEffectiveTags = useMemo(() => ({
+        ...effectiveTags,
+        onTagToggle: handleMobileTagToggle,
+    }), [effectiveTags, handleMobileTagToggle]);
     const isScrolled = useHeaderScrollState(isMobile, infiniteScroll, isHomePage);
     const handleCloseMobileMenu = () => {
         setMobileMenuOpen(false);
@@ -124,8 +136,8 @@ const HeaderContainer: React.FC<HeaderProps> = ({
     const desktopBackgroundColor = isMobile
         ? 'background.paper'
         : alpha(theme.palette.background.paper, 0.7);
-    const collapsedMobileHeader = isMobile && isScrolled;
-    const toolbarPaddingY = isMobile ? (isScrolled ? 0.5 : 1) : 0;
+    const collapsedMobileHeader = isMobile && isScrolled && !mobileMenuOpen;
+    const toolbarPaddingY = isMobile ? (collapsedMobileHeader ? 0.5 : 1) : 0;
     const toolbarMinHeight = collapsedMobileHeader ? '40px !important' : undefined;
     const spacerHeight = collapsedMobileHeader ? '40px' : isMobile ? '50px' : '64px';
     const showScrollTopButton = isScrolled && !isSettingsPage && (isMobile || (infiniteScroll && isHomePage));
@@ -196,7 +208,7 @@ const HeaderContainer: React.FC<HeaderProps> = ({
                             collections={collections}
                             videos={videos}
                             showTagsInMobileMenu={showTagsInMobileMenu}
-                            effectiveTags={effectiveTags}
+                            effectiveTags={mobileEffectiveTags}
                         />
                     </Toolbar>
                 </AppBar>

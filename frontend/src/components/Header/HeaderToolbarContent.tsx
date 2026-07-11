@@ -95,7 +95,7 @@ const HeaderToolbarContent: React.FC<HeaderToolbarContentProps> = ({
         />
     );
 
-    if (isMobile && isScrolled) {
+    if (isMobile && isScrolled && !mobileMenuOpen) {
         return (
             <Box
                 sx={{

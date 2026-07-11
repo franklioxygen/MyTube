@@ -1,5 +1,5 @@
 import { Alert, Box, Container, Pagination, Typography, useMediaQuery, useTheme } from '@mui/material';
-import React, { Suspense, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { HomeHeader } from '../components/HomeHeader';
 import { HomeLoadingSkeleton } from '../components/HomeLoadingSkeleton';
@@ -7,6 +7,7 @@ import { HomeSidebar } from '../components/HomeSidebar';
 import { LCPImagePreloader } from '../components/LCPImagePreloader';
 import { VideoGrid } from '../components/VideoGrid';
 import { useCollection } from '../contexts/CollectionContext';
+import { useHomeViewModeRequestOptional } from '../contexts/HomeViewModeRequestContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useVideo } from '../contexts/VideoContext';
 import { useGridLayout } from '../hooks/useGridLayout';
@@ -51,15 +52,30 @@ const Home: React.FC<HomeProps> = ({ initialViewMode }) => {
     const location = useLocation();
     const navigate = useNavigate();
     const [isDeleteFilteredOpen, setIsDeleteFilteredOpen] = useState(false);
+    const homeViewModeRequest = useHomeViewModeRequestOptional();
 
     // Custom hooks
     const { viewMode, handleViewModeChange } = useViewMode(initialViewMode);
-    const handleHomeViewModeChange = (mode: ViewMode) => {
+    const handleHomeViewModeChange = useCallback((mode: ViewMode) => {
         handleViewModeChange(mode);
-        if (location.pathname === '/favorites' && mode !== 'favorite') {
+        if ((location.pathname === '/favorites' || location.pathname === '/collections') && mode !== 'favorite') {
             navigate('/?page=1');
         }
-    };
+    }, [handleViewModeChange, location.pathname, navigate]);
+    const handleHomeTagToggle = useCallback((tag: string) => {
+        handleHomeViewModeChange('all-videos');
+        handleTagToggle(tag);
+    }, [handleHomeViewModeChange, handleTagToggle]);
+
+    useEffect(() => {
+        const request = homeViewModeRequest?.request;
+        if (!request) {
+            return;
+        }
+
+        handleHomeViewModeChange(request.mode);
+        homeViewModeRequest.clearHomeViewModeRequest(request.sequence);
+    }, [handleHomeViewModeChange, homeViewModeRequest]);
     const {
         isSidebarOpen,
         itemsPerPage,
@@ -181,7 +197,7 @@ const Home: React.FC<HomeProps> = ({ initialViewMode }) => {
                         collections={collections}
                         availableTags={availableTags}
                         selectedTags={selectedTags}
-                        onTagToggle={handleTagToggle}
+                        onTagToggle={handleHomeTagToggle}
                         videos={videoArray}
                     />
 
@@ -220,6 +236,7 @@ const Home: React.FC<HomeProps> = ({ initialViewMode }) => {
                                 gridProps={gridProps}
                                 onDeleteVideo={deleteVideo}
                                 showTagsOnThumbnail={showTagsOnThumbnail}
+                                onTagToggle={handleHomeTagToggle}
                             />
                         )}
 

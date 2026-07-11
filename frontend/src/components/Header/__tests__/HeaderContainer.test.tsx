@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import HeaderContainer from '../HeaderContainer';
 
 const mockNavigate = vi.fn();
+const mockHandleTagToggle = vi.fn();
+const mockRequestHomeViewMode = vi.fn();
 let mockPathname = '/';
 
 vi.mock('react-router-dom', async () => {
@@ -22,6 +24,14 @@ vi.mock('../../../contexts/LanguageContext', () => ({
     useLanguage: () => ({ t: (key: string) => key }),
 }));
 
+vi.mock('../../../contexts/HomeViewModeRequestContext', () => ({
+    useHomeViewModeRequestOptional: () => ({
+        request: null,
+        requestHomeViewMode: mockRequestHomeViewMode,
+        clearHomeViewModeRequest: vi.fn(),
+    }),
+}));
+
 vi.mock('../../../contexts/PageTagFilterContext', () => ({
     usePageTagFilterOptional: () => null,
 }));
@@ -34,7 +44,7 @@ vi.mock('../../../contexts/VideoContext', () => ({
     useVideo: () => ({
         availableTags: [],
         selectedTags: [],
-        handleTagToggle: vi.fn(),
+        handleTagToggle: mockHandleTagToggle,
     }),
 }));
 
@@ -77,6 +87,7 @@ vi.mock('../HeaderToolbarContent', () => ({
             <button onClick={props.onManageClose}>close-manage</button>
             <button onClick={props.onToggleMobileMenu}>toggle-mobile-menu</button>
             <button onClick={props.onCloseMobileMenu}>close-mobile-menu</button>
+            <button onClick={() => props.effectiveTags.onTagToggle('tag1')}>toggle-tag</button>
             <span data-testid="show-tags-in-mobile-menu">{String(props.showTagsInMobileMenu)}</span>
         </div>
     ),
@@ -98,6 +109,7 @@ const renderHeader = () =>
 describe('HeaderContainer', () => {
     afterEach(() => {
         mockPathname = '/';
+        vi.clearAllMocks();
     });
 
     it.each([
@@ -139,5 +151,27 @@ describe('HeaderContainer', () => {
         expect(scrollSpy).toHaveBeenCalled();
 
         scrollSpy.mockRestore();
+    });
+
+    it('requests All Videos when a mobile header tag is toggled on a home route', () => {
+        mockPathname = '/collections';
+
+        renderHeader();
+
+        fireEvent.click(screen.getByText('toggle-tag'));
+
+        expect(mockRequestHomeViewMode).toHaveBeenCalledWith('all-videos');
+        expect(mockHandleTagToggle).toHaveBeenCalledWith('tag1');
+    });
+
+    it('does not request Home tab changes for page-local tag filters', () => {
+        mockPathname = '/author/Alice';
+
+        renderHeader();
+
+        fireEvent.click(screen.getByText('toggle-tag'));
+
+        expect(mockRequestHomeViewMode).not.toHaveBeenCalled();
+        expect(mockHandleTagToggle).toHaveBeenCalledWith('tag1');
     });
 });

@@ -57,7 +57,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
 
     return (
         <Collapse in={open} sx={{ width: '100%' }}>
-            <Box sx={{ maxHeight: '80vh', overflowY: 'auto' }}>
+            <Box sx={{ maxHeight: '80vh', overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch' }}>
                 <Stack spacing={2} sx={{ py: 2 }}>
                     {/* Row 1: Search Input */}
                     <Box>

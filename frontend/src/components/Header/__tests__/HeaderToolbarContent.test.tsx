@@ -11,7 +11,11 @@ vi.mock('../Logo', () => ({
 }));
 
 vi.mock('../MobileMenu', () => ({
-    default: () => <div data-testid="mobile-menu">mobile-menu</div>,
+    default: ({ open }: { open: boolean }) => (
+        <div data-testid="mobile-menu" data-open={String(open)}>
+            mobile-menu
+        </div>
+    ),
 }));
 
 vi.mock('../SearchInput', () => ({
@@ -71,5 +75,19 @@ describe('HeaderToolbarContent', () => {
         expect(screen.getByTestId('logo')).toHaveTextContent('MyTube');
         expect(screen.queryByTestId('action-buttons')).not.toBeInTheDocument();
         expect(screen.queryByTestId('mobile-menu')).not.toBeInTheDocument();
+    });
+
+    it('keeps the mobile menu rendered when scrolled while open', () => {
+        render(
+            <HeaderToolbarContent
+                {...baseProps}
+                isMobile={true}
+                isScrolled={true}
+                mobileMenuOpen={true}
+            />
+        );
+
+        expect(screen.getByTestId('mobile-menu')).toHaveAttribute('data-open', 'true');
+        expect(screen.getByTestId('action-buttons')).toBeInTheDocument();
     });
 });
