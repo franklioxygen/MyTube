@@ -579,6 +579,10 @@ export const ar = {
   title: "العنوان",
   author: "المؤلف",
   authors: "المؤلفون",
+  all: "الكل",
+  showAll: "عرض الكل",
+  allAuthors: "كل المؤلفين",
+
   created: "تاريخ الإنشاء",
   name: "الاسم",
   size: "الحجم",

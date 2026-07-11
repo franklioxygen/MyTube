@@ -595,6 +595,10 @@ export const ja = {
   title: "タイトル",
   author: "作成者",
   authors: "作成者一覧",
+  all: "すべて",
+  showAll: "すべて表示",
+  allAuthors: "すべての作成者",
+
   created: "作成日",
   name: "名前",
   size: "サイズ",

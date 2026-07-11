@@ -597,6 +597,10 @@ export const pt = {
   title: "Título",
   author: "Autor",
   authors: "Autores",
+  all: "Todos",
+  showAll: "Ver todos",
+  allAuthors: "Todos os autores",
+
   created: "Criado",
   name: "Nome",
   size: "Tamanho",

@@ -1,7 +1,8 @@
-import { ExpandLess, ExpandMore, Folder } from '@mui/icons-material';
+import { ExpandLess, ExpandMore, Folder, GridView } from '@mui/icons-material';
 import {
     Chip,
     Collapse,
+    IconButton,
     List,
     ListItemButton,
     ListItemText,
@@ -10,7 +11,7 @@ import {
     useMediaQuery,
     useTheme
 } from '@mui/material';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { Collection } from '../types';
@@ -20,11 +21,28 @@ interface CollectionsProps {
     onItemClick?: () => void;
 }
 
+const TOP_COLLECTIONS_LIMIT = 20;
+
 const Collections: React.FC<CollectionsProps> = ({ collections, onItemClick }) => {
     const { t } = useLanguage();
     const [isOpen, setIsOpen] = useState<boolean>(true);
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+
+    // Show only the collections with the most videos; the rest live on the
+    // Home "Collections" tab, reached via the "All" / "Show all" links.
+    const topCollections = useMemo(() => {
+        if (!collections) {
+            return [] as Collection[];
+        }
+
+        return [...collections]
+            .sort((a, b) =>
+                (b.videos?.length ?? 0) - (a.videos?.length ?? 0) ||
+                a.name.localeCompare(b.name)
+            )
+            .slice(0, TOP_COLLECTIONS_LIMIT);
+    }, [collections]);
 
     // Auto-collapse on mobile by default
     useEffect(() => {
@@ -45,11 +63,25 @@ const Collections: React.FC<CollectionsProps> = ({ collections, onItemClick }) =
                 <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontWeight: 600 }}>
                     {t('collections')}
                 </Typography>
+                <IconButton
+                    component={Link}
+                    to="/collections"
+                    size="small"
+                    aria-label={t('all')}
+                    title={t('all')}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onItemClick?.();
+                    }}
+                    sx={{ mr: 1 }}
+                >
+                    <GridView fontSize="small" />
+                </IconButton>
                 {isOpen ? <ExpandLess /> : <ExpandMore />}
             </ListItemButton>
             <Collapse in={isOpen} timeout="auto" unmountOnExit>
                 <List component="div" disablePadding>
-                    {collections.map(collection => (
+                    {topCollections.map(collection => (
                         <ListItemButton
                             key={collection.id}
                             component={Link}
@@ -84,6 +116,25 @@ const Collections: React.FC<CollectionsProps> = ({ collections, onItemClick }) =
                             />
                         </ListItemButton>
                     ))}
+                    {collections.length > TOP_COLLECTIONS_LIMIT && (
+                        <ListItemButton
+                            component={Link}
+                            to="/collections"
+                            onClick={onItemClick}
+                            sx={{ pl: 2, borderRadius: 1 }}
+                        >
+                            <ListItemText
+                                primary={t('showAll')}
+                                slotProps={{
+                                    primary: {
+                                        variant: 'body2',
+                                        color: 'primary',
+                                        fontWeight: 600
+                                    }
+                                }}
+                            />
+                        </ListItemButton>
+                    )}
                 </List>
             </Collapse>
         </Paper>

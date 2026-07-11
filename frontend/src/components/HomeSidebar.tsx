@@ -24,50 +24,49 @@ export const HomeSidebar: React.FC<HomeSidebarProps> = ({
     videos
 }) => {
     return (
-        <Box sx={{ display: { xs: 'none', md: 'block' } }}>
-            <Collapse 
-                in={isSidebarOpen} 
-                orientation="horizontal" 
-                timeout={300} 
-                sx={{ 
-                    height: '100%', 
-                    '& .MuiCollapse-wrapper': { height: '100%' }, 
-                    '& .MuiCollapse-wrapperInner': { height: '100%' } 
-                }}
+        // The flex item itself is sticky and self-scrolling. Because it stays
+        // in normal flow (no absolute positioning), a long list contributes to
+        // the row height and can never overlap the footer, while its own
+        // overflow caps it to the viewport. `alignSelf: flex-start` keeps it
+        // from stretching to the video column so it retains room to stick while
+        // the grid scrolls.
+        <Box sx={{
+            display: { xs: 'none', md: 'block' },
+            alignSelf: 'flex-start',
+            position: 'sticky',
+            top: 16,
+            maxHeight: 'calc(100vh - 32px)',
+            overflowY: 'auto',
+            '&::-webkit-scrollbar': {
+                width: '6px',
+            },
+            '&::-webkit-scrollbar-track': {
+                background: 'transparent',
+            },
+            '&::-webkit-scrollbar-thumb': {
+                background: overlay.sidebarTrack,
+                borderRadius: '3px',
+            },
+            '&:hover::-webkit-scrollbar-thumb': {
+                background: overlay.sidebarThumb,
+            },
+        }}>
+            <Collapse
+                in={isSidebarOpen}
+                orientation="horizontal"
+                timeout={300}
             >
-                <Box sx={{ width: 280, mr: 4, flexShrink: 0, height: '100%', position: 'relative' }}>
-                    <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
-                        <Box sx={{
-                            position: 'sticky',
-                            top: 0,
-                            maxHeight: 'calc(100vh - 80px)',
-                            overflowY: 'auto',
-                            '&::-webkit-scrollbar': {
-                                width: '6px',
-                            },
-                            '&::-webkit-scrollbar-track': {
-                                background: 'transparent',
-                            },
-                            '&::-webkit-scrollbar-thumb': {
-                                background: overlay.sidebarTrack,
-                                borderRadius: '3px',
-                            },
-                            '&:hover::-webkit-scrollbar-thumb': {
-                                background: overlay.sidebarThumb,
-                            },
-                        }}>
-                            <Collections collections={collections} />
-                            <Box sx={{ mt: 2 }}>
-                                <TagsList
-                                    availableTags={availableTags}
-                                    selectedTags={selectedTags}
-                                    onTagToggle={onTagToggle}
-                                />
-                            </Box>
-                            <Box sx={{ mt: 2 }}>
-                                <AuthorsList videos={videos} />
-                            </Box>
-                        </Box>
+                <Box sx={{ width: 280, mr: 4, flexShrink: 0 }}>
+                    <Collections collections={collections} />
+                    <Box sx={{ mt: 2 }}>
+                        <TagsList
+                            availableTags={availableTags}
+                            selectedTags={selectedTags}
+                            onTagToggle={onTagToggle}
+                        />
+                    </Box>
+                    <Box sx={{ mt: 2 }}>
+                        <AuthorsList videos={videos} />
                     </Box>
                 </Box>
             </Collapse>
