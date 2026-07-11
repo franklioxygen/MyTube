@@ -29,7 +29,7 @@ const AuthorCard: React.FC<{ summary: AuthorSummary; videosLabel: string }> = ({
                 component={Link}
                 to={`/author/${encodeURIComponent(summary.author)}`}
                 sx={{
-                    p: 1.5,
+                    p: { xs: 1, md: 1.5 },
                     borderRadius: 3,
                     '&:hover .all-authors-ring': { transform: 'scale(1.06)' },
                 }}
@@ -38,8 +38,8 @@ const AuthorCard: React.FC<{ summary: AuthorSummary; videosLabel: string }> = ({
                 <Box
                     className="all-authors-ring"
                     sx={{
-                        width: { xs: 84, md: 100 },
-                        height: { xs: 84, md: 100 },
+                        width: { xs: 72, md: 100 },
+                        height: { xs: 72, md: 100 },
                         mx: 'auto',
                         borderRadius: '50%',
                         p: '3px',
@@ -126,11 +126,15 @@ const AllAuthorsPage: React.FC = () => {
                 <Box
                     sx={{
                         display: 'grid',
+                        // Fluid columns via auto-fill so cards never overflow on
+                        // narrow phones: each column is at least the card's min
+                        // width and stretches to fill. `xs` has no intermediate
+                        // breakpoint (0–599px), so a fixed column count can't fit
+                        // both 320px and 599px well.
                         gridTemplateColumns: {
-                            xs: 'repeat(3, 1fr)',
-                            sm: 'repeat(4, 1fr)',
-                            md: 'repeat(6, 1fr)',
-                            lg: 'repeat(8, 1fr)',
+                            xs: 'repeat(auto-fill, minmax(96px, 1fr))',
+                            sm: 'repeat(auto-fill, minmax(120px, 1fr))',
+                            md: 'repeat(auto-fill, minmax(150px, 1fr))',
                         },
                         gap: 1,
                     }}
