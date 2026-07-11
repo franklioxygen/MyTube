@@ -1603,6 +1603,7 @@ export const fr = {
   topRated: "Les mieux notés",
   topRatedSubtitle: "Vidéos les mieux notées de la bibliothèque",
   featured: "À la une",
+  continueWatching: "Reprendre la lecture",
   browseCollections: "Parcourir les collections",
   findAuthors: "Rechercher des auteurs",
   favoritesUpdateFailed: "Impossible de mettre à jour les favoris",

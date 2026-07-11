@@ -1547,6 +1547,7 @@ export const ko = {
   topRated: "최고 평점",
   topRatedSubtitle: "라이브러리의 최고 평점 동영상",
   featured: "추천",
+  continueWatching: "계속 시청",
   browseCollections: "컬렉션 찾아보기",
   findAuthors: "제작자 찾기",
   favoritesUpdateFailed: "즐겨찾기를 업데이트할 수 없습니다",

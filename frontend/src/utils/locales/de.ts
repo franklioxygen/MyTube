@@ -1589,6 +1589,7 @@ export const de = {
   topRated: "Top bewertet",
   topRatedSubtitle: "Am besten bewertete Videos aus der Bibliothek",
   featured: "Hervorgehoben",
+  continueWatching: "Weiterschauen",
   browseCollections: "Sammlungen durchsuchen",
   findAuthors: "Autoren suchen",
   favoritesUpdateFailed: "Favoriten konnten nicht aktualisiert werden",

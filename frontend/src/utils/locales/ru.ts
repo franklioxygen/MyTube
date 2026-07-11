@@ -1574,6 +1574,7 @@ export const ru = {
   topRated: "Лучшие оценки",
   topRatedSubtitle: "Видео с лучшими оценками в библиотеке",
   featured: "Рекомендуемое",
+  continueWatching: "Продолжить просмотр",
   browseCollections: "Просмотреть коллекции",
   findAuthors: "Найти авторов",
   favoritesUpdateFailed: "Не удалось обновить избранное",

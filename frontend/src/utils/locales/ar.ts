@@ -1542,6 +1542,7 @@ export const ar = {
   topRated: "الأعلى تقييمًا",
   topRatedSubtitle: "الفيديوهات الأعلى تقييمًا في المكتبة",
   featured: "مميز",
+  continueWatching: "متابعة المشاهدة",
   browseCollections: "تصفح المجموعات",
   findAuthors: "البحث عن مؤلفين",
   favoritesUpdateFailed: "تعذر تحديث المفضلة",

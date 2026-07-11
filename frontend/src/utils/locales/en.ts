@@ -1542,6 +1542,7 @@ export const en = {
   topRated: "Top Rated",
   topRatedSubtitle: "Top-rated videos from the library",
   featured: "Featured",
+  continueWatching: "Continue watching",
   browseCollections: "Browse collections",
   findAuthors: "Find authors",
   favoritesUpdateFailed: "Could not update favorites",

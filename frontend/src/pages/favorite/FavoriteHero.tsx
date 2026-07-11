@@ -1,23 +1,48 @@
 import { Star } from '@mui/icons-material';
 import { Box, Button, Card, CardMedia, Chip, Typography, useMediaQuery, useTheme } from '@mui/material';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { brand, neutral, overlay } from '../../theme/colors';
 import type { FavoriteCollectionItem, Video } from '../../types';
-import { formatDuration } from '../../utils/formatUtils';
+import { api } from '../../utils/apiClient';
+import { formatDuration, parseDuration } from '../../utils/formatUtils';
 import { useFavoriteThumbnail } from './useFavoriteThumbnail';
 
 interface FavoriteHeroProps {
     video: Video;
     collection?: FavoriteCollectionItem;
+    variant?: 'continue' | 'featured';
 }
 
-const FavoriteHero: React.FC<FavoriteHeroProps> = ({ video, collection }) => {
+const FavoriteHero: React.FC<FavoriteHeroProps> = ({ video, collection, variant = 'featured' }) => {
     const { t } = useLanguage();
     const navigate = useNavigate();
     const theme = useTheme();
     const isReducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
     const thumbnail = useFavoriteThumbnail(video);
+
+    const isContinue = variant === 'continue';
+    // Playback progress as a 0–1 fraction, for the resume line on the thumbnail.
+    const durationSeconds = parseDuration(video.duration);
+    const progressSeconds = typeof video.progress === 'number' ? video.progress : 0;
+    const progressRatio = durationSeconds > 0
+        ? Math.min(1, Math.max(0, progressSeconds / durationSeconds))
+        : 0;
+    const showProgressLine = isContinue && progressRatio > 0;
+
+    // The favorites list projection omits `description` (a heavy free-text
+    // column), so fetch the full video record for the featured item to show
+    // its description. Shares the ['video', id] cache key with the player and
+    // uses the list row as a placeholder for an instant first paint.
+    const { data: fullVideo } = useQuery<Video>({
+        queryKey: ['video', video.id],
+        queryFn: async () => (await api.get(`/videos/${video.id}`)).data,
+        placeholderData: video,
+        enabled: !!video.id,
+        retry: false,
+    });
+    const description = fullVideo?.description;
 
     const openVideo = () => navigate(`/video/${encodeURIComponent(video.id)}`);
 
@@ -27,12 +52,9 @@ const FavoriteHero: React.FC<FavoriteHeroProps> = ({ video, collection }) => {
                 sx={{
                     position: 'relative',
                     overflow: 'hidden',
-                    // Compact floor on mobile that can still grow: below md the
-                    // layout stacks vertically with a full-width 16:9 thumbnail,
-                    // so a fixed height would clip the title/metadata/button at
-                    // tablet/landscape widths. minHeight keeps the card compact
-                    // while letting it expand to fit its content.
-                    minHeight: { xs: 432, sm: 448 },
+                    // The card is sized entirely by its content — thumbnail, the
+                    // two reserved title lines and an optional button — so it has
+                    // no empty band under short featured videos on any viewport.
                     // Full-bleed edge-to-edge card on mobile; rounded on desktop.
                     borderRadius: { xs: 0, md: 2 },
                     bgcolor: theme.palette.mode === 'dark' ? 'grey.900' : 'background.paper',
@@ -128,50 +150,91 @@ const FavoriteHero: React.FC<FavoriteHeroProps> = ({ video, collection }) => {
                                 sx={{ position: 'absolute', bottom: 8, right: 8, height: 22, bgcolor: overlay.black75, color: neutral.white, fontWeight: 600 }}
                             />
                         )}
+                        {/* Resume progress line pinned to the bottom edge */}
+                        {showProgressLine && (
+                            <Box
+                                aria-hidden
+                                sx={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '2px', bgcolor: overlay.black55 }}
+                            >
+                                <Box
+                                    sx={{
+                                        height: '100%',
+                                        width: `${progressRatio * 100}%`,
+                                        background: `linear-gradient(135deg, ${brand.primaryDark}, ${brand.secondary})`,
+                                    }}
+                                />
+                            </Box>
+                        )}
                     </Box>
 
                     <Box sx={{ color: theme.palette.mode === 'dark' ? neutral.white : 'text.primary', maxWidth: 620, width: { xs: '100%', md: 'auto' } }}>
-                        <Chip
-                            icon={<Star sx={{ fontSize: 15 }} />}
-                            label={t('featured')}
-                            size="small"
-                            id="favorite-featured-heading"
-                            sx={{
-                                mb: 1.25,
-                                fontWeight: 700,
-                                letterSpacing: 0.6,
-                                textTransform: 'uppercase',
-                                color: neutral.white,
-                                background: `linear-gradient(135deg, ${brand.primaryDark}, ${brand.secondary})`,
-                                '& .MuiChip-icon': { color: neutral.white },
-                            }}
-                        />
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.25, flexWrap: 'wrap' }}>
+                            <Chip
+                                icon={<Star sx={{ fontSize: 15 }} />}
+                                label={isContinue ? t('continueWatching') : t('featured')}
+                                size="small"
+                                id="favorite-featured-heading"
+                                sx={{
+                                    fontWeight: 700,
+                                    letterSpacing: 0.6,
+                                    textTransform: 'uppercase',
+                                    color: neutral.white,
+                                    background: `linear-gradient(135deg, ${brand.primaryDark}, ${brand.secondary})`,
+                                    '& .MuiChip-icon': { color: neutral.white },
+                                }}
+                            />
+                            <Typography
+                                sx={{
+                                    color: theme.palette.mode === 'dark' ? overlay.white80 : 'text.secondary',
+                                    fontWeight: 500,
+                                }}
+                            >
+                                {video.author || t('unknownAuthor')}
+                            </Typography>
+                        </Box>
                         <Typography
                             variant="h5"
                             component="h2"
                             fontWeight={800}
                             sx={{
                                 lineHeight: 1.2,
-                                // Reserve both clamped title lines even when a
-                                // featured video has a shorter title.
+                                // Reserve two title lines even for a shorter
+                                // title; allow up to three lines on desktop.
                                 minHeight: '2.4em',
                                 display: '-webkit-box',
                                 overflow: 'hidden',
                                 WebkitBoxOrient: 'vertical',
-                                WebkitLineClamp: 2,
+                                WebkitLineClamp: { xs: 2, md: 3 },
+                                // Break long unbreakable runs (URLs, hashtag
+                                // strings) so the clamp wraps instead of
+                                // overflowing the card horizontally.
+                                overflowWrap: 'anywhere',
+                                wordBreak: 'break-word',
                             }}
                         >
                             {video.title}
                         </Typography>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 1, flexWrap: 'wrap' }}>
-                            <Typography sx={{ color: theme.palette.mode === 'dark' ? overlay.white80 : 'text.secondary', fontWeight: 500 }}>
-                                {video.author || t('unknownAuthor')}
-                                {video.duration ? ` · ${formatDuration(video.duration)}` : ''}
+                        {/* Short description, desktop only, clamped to three lines */}
+                        {description && (
+                            <Typography
+                                variant="body2"
+                                sx={{
+                                    display: { xs: 'none', md: '-webkit-box' },
+                                    mt: 1,
+                                    color: theme.palette.mode === 'dark' ? overlay.white80 : 'text.secondary',
+                                    lineHeight: 1.4,
+                                    overflow: 'hidden',
+                                    WebkitBoxOrient: 'vertical',
+                                    WebkitLineClamp: 3,
+                                    // Break long unbreakable runs so the clamp
+                                    // wraps instead of overflowing horizontally.
+                                    overflowWrap: 'anywhere',
+                                    wordBreak: 'break-word',
+                                }}
+                            >
+                                {description}
                             </Typography>
-                            <Box sx={{ display: 'flex' }} aria-label={`5 ${t('stars')}`}>
-                                {[1, 2, 3, 4, 5].map((star) => <Star key={star} sx={{ fontSize: 16, color: neutral.grey400 }} />)}
-                            </Box>
-                        </Box>
+                        )}
                         {collection && (
                             <Box sx={{ display: 'flex', gap: 1.5, mt: 2.5, flexWrap: 'wrap' }}>
                                 <Button
