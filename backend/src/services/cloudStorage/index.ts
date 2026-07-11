@@ -31,7 +31,7 @@ export class CloudStorageService {
    * Uses caching to reduce OpenList API calls
    * Implements request coalescing to handle concurrent requests
    * @param filename - The filename to get signed URL for
-   * @param fileType - 'video' or 'thumbnail'
+   * @param fileType - 'video', 'audio', or 'thumbnail'
    */
   static async getSignedUrl(
     filename: string,

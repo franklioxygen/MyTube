@@ -203,6 +203,17 @@ describe('SettingsController', () => {
       expect(json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
     });
 
+    it('should persist disabling the audio download button', async () => {
+      req.body = { showAudioDownloadButton: false };
+      (storageService.getSettings as any).mockReturnValue({});
+
+      await updateSettings(req as Request, res as Response);
+
+      expect(storageService.saveSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ showAudioDownloadButton: false })
+      );
+    });
+
     it('should hash password if provided', async () => {
       req.body = { password: 'pass' };
       (storageService.getSettings as any).mockReturnValue({});

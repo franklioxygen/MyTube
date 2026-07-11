@@ -1,4 +1,4 @@
-import { Folder } from '@mui/icons-material';
+import { Folder, MusicNote } from '@mui/icons-material';
 import { Box, CardMedia, Chip, Skeleton, useMediaQuery, useTheme } from '@mui/material';
 import React, { useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -200,6 +200,32 @@ const VideoCardThumbnailView: React.FC<VideoCardThumbnailProps> = ({
                 />
             )}
 
+            {video.mediaType === 'audio' && (
+                <Box
+                    component="span"
+                    role="img"
+                    aria-label={t('downloadAudioOnly')}
+                    title={t('downloadAudioOnly')}
+                    sx={{
+                        position: 'absolute',
+                        top: 8,
+                        left: 8,
+                        width: 28,
+                        height: 28,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        bgcolor: overlay.black60,
+                        color: neutral.white,
+                        borderRadius: '50%',
+                        zIndex: 3,
+                        pointerEvents: 'none',
+                    }}
+                >
+                    <MusicNote fontSize="small" />
+                </Box>
+            )}
+
             {collectionInfo.isFirstInAnyCollection && (
                 <Chip
                     icon={<Folder />}
@@ -210,7 +236,7 @@ const VideoCardThumbnailView: React.FC<VideoCardThumbnailProps> = ({
                     size="small"
                     sx={{
                         position: 'absolute',
-                        top: isNew ? 32 : 8,
+                        top: (isNew ? 32 : 8) + (video.mediaType === 'audio' ? 36 : 0),
                         left: 8,
                         zIndex: 3
                     }}

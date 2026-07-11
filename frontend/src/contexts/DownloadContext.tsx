@@ -17,6 +17,7 @@ import {
     isTwitchChannelUrl,
     normalizeTwitchChannelUrlOrNull,
 } from '../utils/twitch';
+import { isMissAVUrl } from '../utils/missav';
 const LEGACY_DOWNLOAD_STATUS_STORAGE_ID = 'mytube_download_status';
 const DOWNLOAD_STATUS_STORAGE_ID = 'mytube:download-status';
 const DOWNLOAD_STATUS_STORAGE_IDS = [
@@ -74,6 +75,10 @@ interface DownloadContextType {
             sourceKind?: string;
             surface?: string;
         }
+    ) => Promise<any>;
+    handleAudioOnlyDownload: (
+        videoUrl: string,
+        statisticsContext?: { relatedEventId?: string | null; sourceKind?: string; surface?: string },
     ) => Promise<any>;
     showBilibiliPartsModal: boolean;
     setShowBilibiliPartsModal: (show: boolean) => void;
@@ -193,8 +198,6 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         collectionInfo: null // For collection/series, stores the API response
     });
     const [isCheckingParts, setIsCheckingParts] = useState<boolean>(false);
-
-
     // Reference to track current download IDs for detecting completion
     const currentDownloadIdsRef = useRef<Set<string>>(new Set());
     // Tracks the last persisted (active count, queued count) so we only write
@@ -406,6 +409,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             const response = await api.post('/download', {
                 youtubeUrl: videoUrl,
                 forceDownload: forceDownload,
+                audioOnly: false,
                 statisticsContext: statisticsCtx,
             });
 
@@ -446,13 +450,62 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 return await handleSearch(responseData.searchTerm);
             }
 
+            const errorMessage = getApiErrorMessage(err) || t('failedToDownloadVideo');
+            showSnackbar(errorMessage, 'error');
             return {
                 success: false,
-                error: getApiErrorMessage(err) || t('failedToDownloadVideo')
+                error: errorMessage,
             };
         }
     }, [
         checkBackendDownloadStatus, setVideos, showSnackbar, t, queryClient, handleSearch,
+    ]);
+
+    const handleAudioOnlyDownload = useCallback(async (
+        videoUrl: string,
+        statisticsContext?: { relatedEventId?: string | null; sourceKind?: string; surface?: string },
+    ) => {
+        try {
+            const response = await api.post('/download', {
+                youtubeUrl: videoUrl,
+                forceDownload: false,
+                audioOnly: isMissAVUrl(videoUrl) ? false : true,
+                statisticsContext,
+            });
+
+            if (response.data.skipped) {
+                showSnackbar(
+                    response.data.previouslyDeleted
+                        ? (t('videoSkippedDeleted') || 'Video was previously deleted, skipped download')
+                        : (t('videoSkippedExists') || 'Video already exists, skipped download'),
+                    'warning',
+                );
+                queryClient.invalidateQueries({ queryKey: ['downloadHistory'] });
+                return { success: true, skipped: true };
+            }
+
+            if (response.data.downloadId) {
+                checkBackendDownloadStatus();
+            } else if (response.data.video) {
+                setVideos((prevVideos) => [response.data.video, ...prevVideos]);
+            }
+
+            showSnackbar(t('videoDownloading'));
+            return { success: true };
+        } catch (err: unknown) {
+            console.error('Error downloading video:', err);
+            showSnackbar(getApiErrorMessage(err) || t('failedToDownloadVideo'), 'error');
+            return {
+                success: false,
+                error: getApiErrorMessage(err) || t('failedToDownloadVideo'),
+            };
+        }
+    }, [
+        checkBackendDownloadStatus,
+        queryClient,
+        setVideos,
+        showSnackbar,
+        t,
     ]);
 
 
@@ -513,7 +566,8 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 downloadAllParts: !isCollection, // Only set this for multi-part videos
                 downloadCollection: isCollection, // Set this for collections/series
                 collectionInfo: isCollection ? bilibiliPartsInfo.collectionInfo : null,
-                collectionName
+                collectionName,
+                audioOnly: false,
             });
 
             // Trigger immediate status check
@@ -700,6 +754,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         activeDownloads,
         queuedDownloads,
         handleVideoSubmit,
+        handleAudioOnlyDownload,
         showBilibiliPartsModal,
         setShowBilibiliPartsModal,
         bilibiliPartsInfo,
@@ -707,7 +762,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         handleDownloadAllBilibiliParts,
         handleDownloadCurrentBilibiliPart,
     }), [
-        activeDownloads, queuedDownloads, handleVideoSubmit, showBilibiliPartsModal,
+        activeDownloads, queuedDownloads, handleVideoSubmit, handleAudioOnlyDownload, showBilibiliPartsModal,
         bilibiliPartsInfo, isCheckingParts, handleDownloadAllBilibiliParts,
         handleDownloadCurrentBilibiliPart,
     ]);

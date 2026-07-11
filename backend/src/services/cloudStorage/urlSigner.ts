@@ -331,7 +331,7 @@ async function getFileUrlsWithSign(
  * Uses caching to reduce OpenList API calls
  * Implements request coalescing to handle concurrent requests
  * @param filename - The filename to get signed URL for
- * @param fileType - 'video' or 'thumbnail'
+ * @param fileType - 'video', 'audio', or 'thumbnail'
  * @param config - Cloud drive configuration
  */
 export async function getSignedUrl(
@@ -368,12 +368,12 @@ export async function getSignedUrl(
     try {
       const result = await getFileUrlsWithSign(
         config,
-        fileType === "video" ? filename : undefined,
+        fileType === "video" || fileType === "audio" ? filename : undefined,
         fileType === "thumbnail" ? filename : undefined
       );
 
       let url: string | null = null;
-      if (fileType === "video") {
+      if (fileType === "video" || fileType === "audio") {
         url = result.videoUrl || null;
       } else {
         url = result.thumbnailUrl || result.thumbnailThumbUrl || null;

@@ -28,6 +28,7 @@ import { useHeaderSubscriptions } from './useHeaderSubscriptions';
 
 const HeaderContainer: React.FC<HeaderProps> = ({
     onSubmit,
+    onAudioOnlySubmit,
     activeDownloads = [],
     queuedDownloads = [],
     isSearchMode = false,
@@ -57,7 +58,7 @@ const HeaderContainer: React.FC<HeaderProps> = ({
         onTagToggle: handleTagToggle
     };
 
-    const { websiteName, infiniteScroll, showThemeButton } = useHeaderPreferences(
+    const { websiteName, infiniteScroll, showThemeButton, showAudioDownloadButton } = useHeaderPreferences(
         isAuthenticated,
         settingsData
     );
@@ -81,9 +82,11 @@ const HeaderContainer: React.FC<HeaderProps> = ({
         setVideoUrl,
         isSubmitting,
         error,
-        handleSubmit
+        handleSubmit,
+        handleAudioSubmit,
     } = useHeaderSubmission({
         onSubmit,
+        onAudioOnlySubmit,
         isVisitor,
         navigate,
         t,
@@ -177,6 +180,7 @@ const HeaderContainer: React.FC<HeaderProps> = ({
                             onManageClose={handleManageClose}
                             hasActiveSubscriptions={hasActiveSubscriptions}
                             showThemeButton={showThemeButton}
+                            showAudioDownloadButton={showAudioDownloadButton}
                             mobileMenuOpen={mobileMenuOpen}
                             onToggleMobileMenu={handleToggleMobileMenu}
                             onCloseMobileMenu={handleCloseMobileMenu}
@@ -186,6 +190,7 @@ const HeaderContainer: React.FC<HeaderProps> = ({
                             error={error}
                             isSearchMode={isSearchMode}
                             onSubmit={handleToolbarSubmit}
+                            onAudioOnlySubmit={handleAudioSubmit}
                             collections={collections}
                             videos={videos}
                             showTagsInMobileMenu={showTagsInMobileMenu}

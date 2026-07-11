@@ -64,7 +64,7 @@ describe("storageService initialization", () => {
       if (sql.includes("GROUP BY source_video_id, platform")) {
         return {
           all: vi.fn(() => [
-            { sourceVideoId: "src-1", platform: "youtube", count: 2 },
+            { sourceVideoId: "src-1", platform: "youtube", mediaType: "video", count: 2 },
           ]),
         } as any;
       }
@@ -177,7 +177,7 @@ describe("storageService initialization", () => {
     expect(sqlite.prepare).toHaveBeenCalledWith(
       "CREATE UNIQUE INDEX IF NOT EXISTS users_username_lower_uidx ON users (lower(username))"
     );
-    expect(dedupeDeleteRun).toHaveBeenCalledWith("src-1", "youtube", "keep-1");
+    expect(dedupeDeleteRun).toHaveBeenCalledWith("src-1", "youtube", "video", "keep-1");
     expect(logger.warn).toHaveBeenCalledWith(
       expect.stringContaining("duplicated video_downloads groups")
     );

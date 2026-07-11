@@ -1,4 +1,5 @@
 import type { BilibiliCollectionCheckResult } from "./downloaders/BilibiliDownloader";
+import type { AudioFormat } from "../types/settings";
 
 type BilibiliRetryBase = {
   normalizedSourceUrl?: string;
@@ -7,7 +8,14 @@ type BilibiliRetryBase = {
   lastAttemptedAt?: number;
 };
 
+export type DownloadModeRetryMetadata = {
+  shape: "download_mode";
+  audioOnly: boolean;
+  audioFormat?: AudioFormat;
+};
+
 export type DownloadRetryMetadata =
+  | DownloadModeRetryMetadata
   | (BilibiliRetryBase & {
       shape: "bilibili_all_parts";
       collectionName?: string;
@@ -23,13 +31,18 @@ export type DownloadRetryMetadata =
       failedVideoBvids?: string[];
     });
 
+export type BilibiliRetryMetadata = Exclude<
+  DownloadRetryMetadata,
+  DownloadModeRetryMetadata
+>;
+
 export function createBilibiliRetryMetadata(options: {
   downloadAllParts?: boolean;
   downloadCollection?: boolean;
   collectionName?: string;
   collectionInfo?: BilibiliCollectionCheckResult;
   normalizedSourceUrl?: string;
-}): DownloadRetryMetadata | undefined {
+}): BilibiliRetryMetadata | undefined {
   if (options.downloadCollection && options.collectionInfo) {
     return {
       shape: "bilibili_collection",
@@ -50,6 +63,17 @@ export function createBilibiliRetryMetadata(options: {
   return undefined;
 }
 
+export function createDownloadModeRetryMetadata(options: {
+  audioOnly: boolean;
+  audioFormat?: AudioFormat;
+}): DownloadModeRetryMetadata {
+  return {
+    shape: "download_mode",
+    audioOnly: options.audioOnly,
+    audioFormat: options.audioFormat,
+  };
+}
+
 export function serializeRetryMetadata(
   metadata: DownloadRetryMetadata,
 ): string {
@@ -66,6 +90,7 @@ export function parseRetryMetadata(
   try {
     const parsed = JSON.parse(raw) as DownloadRetryMetadata;
     if (
+      parsed.shape === "download_mode" ||
       parsed.shape === "bilibili_all_parts" ||
       (parsed.shape === "bilibili_collection" && parsed.collectionInfo)
     ) {
@@ -110,9 +135,9 @@ function sameCollectionIdentity(
 }
 
 export function mergeBilibiliRetryMetadata(
-  current: DownloadRetryMetadata | undefined,
-  previous: DownloadRetryMetadata | undefined,
-): DownloadRetryMetadata | undefined {
+  current: BilibiliRetryMetadata | undefined,
+  previous: BilibiliRetryMetadata | undefined,
+): BilibiliRetryMetadata | undefined {
   if (!current || !previous || current.shape !== previous.shape) {
     return current;
   }
@@ -186,6 +211,7 @@ export function requiresRetryMetadata(
   metadata: DownloadRetryMetadata | undefined,
 ): boolean {
   return (
+    metadata?.shape === "download_mode" ||
     metadata?.shape === "bilibili_all_parts" ||
     metadata?.shape === "bilibili_collection"
   );

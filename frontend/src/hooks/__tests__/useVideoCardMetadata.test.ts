@@ -50,6 +50,26 @@ describe('useVideoCardMetadata', () => {
         expect(mockGetFileUrl).not.toHaveBeenCalled();
     });
 
+    it('should withhold the preview URL for audio-only cards while still resolving it for playback', async () => {
+        mockUseCloudStorageUrl.mockImplementation((path: string, type: string) => {
+            if (type === 'audio' && path === 'cloud:audio.m4a') return 'https://cdn/audio.m4a';
+            return undefined;
+        });
+
+        const mockVideo = {
+            id: 'a1',
+            mediaType: 'audio',
+            videoPath: 'cloud:audio.m4a'
+        };
+
+        const { result } = renderHook(() => useVideoCardMetadata({ video: mockVideo as any }));
+
+        // Preview URL is withheld so the hover <video> never renders a black frame.
+        expect(result.current.videoUrl).toBeUndefined();
+        // Playback still resolves the underlying audio URL.
+        await expect(result.current.getVideoUrl()).resolves.toBe('https://cdn/audio.m4a');
+    });
+
     it('should fetch cloud URL directly when cloud path exists but hook URL is unavailable', async () => {
         mockGetFileUrl.mockResolvedValue('https://signed/video-2.mp4');
 

@@ -292,6 +292,25 @@ describe('useSettingsMutations', () => {
         });
     });
 
+    it('persists disabling the audio download button and updates the settings cache', async () => {
+        const queryClient = createTestQueryClient();
+        queryClient.setQueryData(['settings'], makeSettings({ showAudioDownloadButton: true }));
+        const { result } = renderSettingsHook({ queryClient });
+
+        await act(async () => {
+            await result.current.saveMutation.mutateAsync(
+                makeSettings({ showAudioDownloadButton: false })
+            );
+        });
+
+        expect(api.patch).toHaveBeenCalledWith('/settings', {
+            showAudioDownloadButton: false,
+        });
+        expect(queryClient.getQueryData<Settings>(['settings'])).toMatchObject({
+            showAudioDownloadButton: false,
+        });
+    });
+
     it('invalidates live translation availability when live translation settings change', async () => {
         const queryClient = createTestQueryClient();
         const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');

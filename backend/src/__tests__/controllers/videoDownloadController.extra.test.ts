@@ -681,6 +681,59 @@ describe("videoDownloadController extra coverage", () => {
     );
   });
 
+  it("downloadVideo ignores prior aggregate retry state for an explicit audio-only request", async () => {
+    req.body = {
+      youtubeUrl: "https://www.bilibili.com/video/BVaudio",
+      audioOnly: true,
+    };
+    vi.mocked(processVideoUrl).mockResolvedValue({
+      videoUrl: "https://www.bilibili.com/video/BVaudio",
+      sourceVideoId: "bv-audio",
+      platform: "bilibili",
+    } as any);
+    vi.mocked(isBilibiliUrl).mockReturnValue(true);
+    vi.mocked(extractBilibiliVideoId).mockReturnValue("BVaudio");
+    // A previous all-parts run failed for the same URL.
+    vi.mocked(storageService.getLatestRetryHistoryItemBySourceUrl).mockReturnValue({
+      id: "retry-audio",
+      title: "Aggregate Series",
+      status: "failed",
+      finishedAt: Date.now(),
+      sourceUrl: "https://www.bilibili.com/video/BVaudio",
+      downloadType: "bilibili",
+      retryMetadata: JSON.stringify({
+        shape: "bilibili_all_parts",
+        collectionName: "Aggregate Series",
+        linkedCollectionId: "col-audio",
+      }),
+    } as any);
+    vi.mocked(storageService.checkVideoDownloadBySourceId).mockReturnValue({
+      found: false,
+    } as any);
+    vi.mocked(downloadService.downloadSingleBilibiliPart).mockResolvedValue({
+      success: true,
+      videoData: { id: "audio-item", mediaType: "audio" },
+    } as any);
+
+    await downloadVideo(req as Request, res as Response);
+    await flushBackgroundTasks();
+
+    // The audio button must not resurrect the aggregate run: download-mode audio
+    // retry metadata is stored, not the bilibili_all_parts metadata, and the
+    // aggregate part/collection downloaders are never invoked.
+    expect(downloadManager.addDownload).toHaveBeenCalledWith(
+      expect.any(Function),
+      expect.any(String),
+      "Bilibili Video",
+      "https://www.bilibili.com/video/BVaudio",
+      "bilibili",
+      expect.anything(),
+      { shape: "download_mode", audioOnly: true, audioFormat: "m4a" },
+    );
+    expect(downloadService.downloadRemainingBilibiliParts).not.toHaveBeenCalled();
+    expect(downloadService.downloadBilibiliCollection).not.toHaveBeenCalled();
+  });
+
   it("downloadVideo reuses persisted multipart retry metadata for URL-only retries", async () => {
     req.body = {
       youtubeUrl: "https://www.bilibili.com/video/BVretryonly",

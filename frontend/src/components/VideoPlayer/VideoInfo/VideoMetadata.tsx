@@ -26,7 +26,10 @@ const VideoMetadata: React.FC<VideoMetadataProps> = ({
     const theme = useTheme();
     const { t } = useLanguage();
     const { showSnackbar } = useSnackbar();
-    const videoUrl = useCloudStorageUrl(video.videoPath, 'video');
+    const videoUrl = useCloudStorageUrl(
+        video.videoPath,
+        video.mediaType === 'audio' ? 'audio' : 'video',
+    );
 
     const fallbackCopy = (text: string): boolean => {
         const textArea = document.createElement('textarea');

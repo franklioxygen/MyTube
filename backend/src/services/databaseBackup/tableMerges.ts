@@ -4,6 +4,7 @@ import {
   buildHistoryMergeKey,
   buildInsertStatement,
   buildVideoDownloadKey,
+  buildVideoMergeKey,
   collectImportedTags,
   getInsertId,
   getRequiredString,
@@ -36,19 +37,19 @@ function mergeVideos(
   }
 
   const existingRows = targetDb
-    .prepare("SELECT id, source_url AS source_url FROM videos")
+    .prepare("SELECT id, source_url AS source_url, media_type AS media_type FROM videos")
     .all() as MergeRow[];
 
   const existingIds = new Set<string>();
-  const existingBySourceUrl = new Map<string, string>();
+  const existingByKey = new Map<string, string>();
 
   for (const row of existingRows) {
     const rowId = getRequiredString(row, "id");
     existingIds.add(rowId);
 
-    const sourceUrlKey = toLookupKey(row.source_url);
-    if (sourceUrlKey) {
-      existingBySourceUrl.set(sourceUrlKey, rowId);
+    const mergeKey = buildVideoMergeKey(row);
+    if (mergeKey) {
+      existingByKey.set(mergeKey, rowId);
     }
   }
 
@@ -58,8 +59,8 @@ function mergeVideos(
 
   for (const row of sourceRows) {
     const sourceId = getRequiredString(row, "id");
-    const sourceUrlKey = toLookupKey(row.source_url);
-    const targetId = (sourceUrlKey && existingBySourceUrl.get(sourceUrlKey)) || null;
+    const mergeKey = buildVideoMergeKey(row);
+    const targetId = (mergeKey && existingByKey.get(mergeKey)) || null;
 
     if (!targetId) {
       const insertId = getInsertId(existingIds, sourceId);
@@ -69,8 +70,8 @@ function mergeVideos(
 
       existingIds.add(insertId);
 
-      if (sourceUrlKey) {
-        existingBySourceUrl.set(sourceUrlKey, insertId);
+      if (mergeKey) {
+        existingByKey.set(mergeKey, insertId);
       }
 
       summary.videos.merged += 1;
@@ -389,7 +390,7 @@ function mergeVideoDownloads(
 
   const existingRows = targetDb
     .prepare(
-      "SELECT id, source_video_id AS source_video_id, platform FROM video_downloads"
+      "SELECT id, source_video_id AS source_video_id, platform, media_type AS media_type FROM video_downloads"
     )
     .all() as MergeRow[];
   const existingIds = new Set<string>();

@@ -14,7 +14,10 @@ vi.mock("../../../services/downloaders/ytdlp/ytdlpHelpers", () => ({
   getProviderScript: () => null,
 }));
 
-import { prepareDownloadFlags } from "../../../services/downloaders/ytdlp/ytdlpConfig";
+import {
+  prepareAudioDownloadFlags,
+  prepareDownloadFlags,
+} from "../../../services/downloaders/ytdlp/ytdlpConfig";
 
 describe("prepareDownloadFlags final container preference", () => {
   beforeEach(() => {
@@ -32,6 +35,61 @@ describe("prepareDownloadFlags final container preference", () => {
     expect(result.flags.mergeOutputFormat).toBe("webm/mp4");
     expect(result.mergeOutputFormat).toBe("webm/mp4");
     expect(result.videoExtension).toBe("webm");
+  });
+
+  it("prepares an audio-only flag set without video mux or subtitle flags", () => {
+    const result = prepareAudioDownloadFlags(
+      "https://www.youtube.com/watch?v=abc123",
+      "/tmp/track.m4a",
+      "m4a",
+      { proxy: "http://proxy.example" },
+    );
+
+    expect(result.audioExtension).toBe("m4a");
+    expect(result.flags).toMatchObject({
+      format: "bestaudio/best",
+      extractAudio: true,
+      audioFormat: "m4a",
+      audioQuality: 0,
+      noPlaylist: true,
+      proxy: "http://proxy.example",
+    });
+    expect(result.flags.mergeOutputFormat).toBeUndefined();
+    expect(result.flags.writeSubs).toBeUndefined();
+  });
+
+  it("preserves auth-related safe user config for audio jobs while stripping video/subtitle/mux options", () => {
+    const result = prepareAudioDownloadFlags(
+      "https://www.youtube.com/watch?v=abc123",
+      "/tmp/track.m4a",
+      "m4a",
+      {
+        cookies: "/cookies.txt",
+        cookiesFromBrowser: "firefox",
+        addHeaders: "Referer:https://example.com",
+        extractorArgs: "youtube:player_client=web",
+        proxy: "http://proxy.example",
+        // These must not leak into the audio branch.
+        format: "bestvideo+bestaudio",
+        mergeOutputFormat: "mkv",
+        writeSubs: true,
+        subLangs: "en",
+      } as any,
+    );
+
+    // Auth/network config is preserved.
+    expect(result.flags).toMatchObject({
+      cookies: "/cookies.txt",
+      cookiesFromBrowser: "firefox",
+      addHeaders: "Referer:https://example.com",
+      extractorArgs: "youtube:player_client=web",
+      proxy: "http://proxy.example",
+    });
+    // Audio selectors win; video/subtitle/mux options are stripped.
+    expect(result.flags.format).toBe("bestaudio/best");
+    expect(result.flags.mergeOutputFormat).toBeUndefined();
+    expect(result.flags.writeSubs).toBeUndefined();
+    expect(result.flags.subLangs).toBeUndefined();
   });
 
   it("switches the default YouTube WebM-first selector to MP4 when forcing MP4", () => {

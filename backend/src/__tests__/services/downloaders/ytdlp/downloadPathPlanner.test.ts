@@ -35,7 +35,7 @@ vi.mock("../../../../services/filenameTemplate/sourceOptions", () => ({
 vi.mock(
   "../../../../services/downloaders/ytdlp/ytdlpVideoHelpers",
   () => ({
-    pathExistsWithAnyKnownVideoExtension: vi.fn().mockReturnValue(false),
+    pathExistsWithAnyKnownMediaExtension: vi.fn().mockReturnValue(false),
     stripTrailingExtension: vi.fn((value: string, ext: string) =>
       ext && value.endsWith(ext) ? value.slice(0, -ext.length) : value
     ),
@@ -46,7 +46,7 @@ import { planDownloadPaths } from "../../../../services/downloaders/ytdlp/downlo
 import { dedupeRelativePath } from "../../../../services/filenameTemplate/dedupe";
 import { planVideoOutputPaths } from "../../../../services/filenameTemplate/renderer";
 import { pathExistsSafeSync } from "../../../../utils/security";
-import { pathExistsWithAnyKnownVideoExtension } from "../../../../services/downloaders/ytdlp/ytdlpVideoHelpers";
+import { pathExistsWithAnyKnownMediaExtension } from "../../../../services/downloaders/ytdlp/ytdlpVideoHelpers";
 
 const baseArgs = {
   videoUrl: "https://youtube.com/watch?v=abc",
@@ -64,7 +64,7 @@ describe("planDownloadPaths", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(pathExistsSafeSync).mockReturnValue(false);
-    vi.mocked(pathExistsWithAnyKnownVideoExtension).mockReturnValue(false);
+    vi.mocked(pathExistsWithAnyKnownMediaExtension).mockReturnValue(false);
     vi.mocked(dedupeRelativePath).mockImplementation((rel: string) => rel);
   });
 
@@ -101,7 +101,7 @@ describe("planDownloadPaths", () => {
     it("appends a collision counter when the target already exists", () => {
       vi.mocked(pathExistsSafeSync).mockReturnValue(true);
       // _1 is also taken; _2 is free.
-      vi.mocked(pathExistsWithAnyKnownVideoExtension).mockImplementation(
+      vi.mocked(pathExistsWithAnyKnownMediaExtension).mockImplementation(
         (candidate: string) => candidate.endsWith("_1")
       );
 
@@ -194,7 +194,7 @@ describe("planDownloadPaths", () => {
     it("appends an on-disk collision counter including the cleanup base", () => {
       primePlanner();
       // The un-suffixed base exists on disk; _1 is free.
-      vi.mocked(pathExistsWithAnyKnownVideoExtension).mockImplementation(
+      vi.mocked(pathExistsWithAnyKnownMediaExtension).mockImplementation(
         (candidate: string) => candidate === "/tmp/videos/Show/S01E01"
       );
 

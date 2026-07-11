@@ -8,11 +8,19 @@ interface BasicSettingsProps {
     language: string;
     theme?: ThemePreference;
     showThemeButton?: boolean;
+    showAudioDownloadButton?: boolean;
     websiteName?: string;
     onChange: (field: string, value: string | number | boolean) => void;
 }
 
-const BasicSettings: React.FC<BasicSettingsProps> = ({ language, theme, showThemeButton = true, websiteName, onChange }) => {
+const BasicSettings: React.FC<BasicSettingsProps> = ({
+    language,
+    theme,
+    showThemeButton = true,
+    showAudioDownloadButton = true,
+    websiteName,
+    onChange,
+}) => {
     const { t } = useLanguage();
     const { userRole } = useAuth();
     const isVisitor = userRole === 'visitor';
@@ -67,6 +75,19 @@ const BasicSettings: React.FC<BasicSettingsProps> = ({ language, theme, showThem
                             />
                         }
                         label={t('showThemeButtonInHeader')}
+                    />
+                )}
+
+                {!isVisitor && (
+                    <FormControlLabel
+                        control={
+                            <Switch
+                                checked={showAudioDownloadButton !== false}
+                                onChange={(e) => onChange('showAudioDownloadButton', e.target.checked)}
+                                color="primary"
+                            />
+                        }
+                        label={t('showAudioDownloadButton')}
                     />
                 )}
 

@@ -540,6 +540,16 @@ export function migrateColumnsAndTables(): void {
       logger.info("Migration successful: author_avatar_path added.");
     }
 
+    if (!columns.includes("media_type")) {
+      logger.info(
+        "Migrating database: Adding media_type column to videos table..."
+      );
+      sqlite
+        .prepare("ALTER TABLE videos ADD COLUMN media_type TEXT DEFAULT 'video'")
+        .run();
+      logger.info("Migration successful: media_type added.");
+    }
+
     // Check downloads table columns
     const downloadsTableInfo = sqlite
       .prepare("PRAGMA table_info(downloads)")
@@ -587,6 +597,7 @@ export function migrateColumnsAndTables(): void {
         source_video_id TEXT NOT NULL,
         source_url TEXT NOT NULL,
         platform TEXT NOT NULL,
+        media_type TEXT DEFAULT 'video' NOT NULL,
         video_id TEXT,
         title TEXT,
         author TEXT,
@@ -598,13 +609,34 @@ export function migrateColumnsAndTables(): void {
       )
       .run();
 
+    // Self-heal the media_type column on older databases so audio-only
+    // downloads can be tracked separately from the video for the same source.
+    const videoDownloadsInfo = sqlite
+      .prepare("PRAGMA table_info(video_downloads)")
+      .all();
+    if (!columnNames(videoDownloadsInfo).includes("media_type")) {
+      sqlite
+        .prepare(
+          "ALTER TABLE video_downloads ADD COLUMN media_type TEXT DEFAULT 'video' NOT NULL"
+        )
+        .run();
+    }
+
     // Create indexes for video_downloads
     try {
       normalizeLegacyTwitchDownloads();
       deduplicateVideoDownloadsBySourceAndPlatform();
+      // The unique constraint now includes media_type; drop the legacy
+      // (source_video_id, platform) index so audio and video rows for the same
+      // source can coexist.
       sqlite
         .prepare(
-          `CREATE UNIQUE INDEX IF NOT EXISTS video_downloads_source_video_id_platform_uidx ON video_downloads (source_video_id, platform)`
+          `DROP INDEX IF EXISTS video_downloads_source_video_id_platform_uidx`
+        )
+        .run();
+      sqlite
+        .prepare(
+          `CREATE UNIQUE INDEX IF NOT EXISTS video_downloads_source_video_id_platform_media_type_uidx ON video_downloads (source_video_id, platform, media_type)`
         )
         .run();
       sqlite

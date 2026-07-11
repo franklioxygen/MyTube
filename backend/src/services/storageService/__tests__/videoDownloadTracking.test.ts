@@ -140,6 +140,24 @@ describe('videoDownloadTracking', () => {
              expect(mockInsertRun).toHaveBeenCalledTimes(1);
         });
 
+        it('should suffix the id and persist mediaType for audio-only downloads', () => {
+             const mockInsertRun = vi.fn();
+             const mockOnConflict = vi.fn().mockReturnValue({ run: mockInsertRun });
+             const mockValues = vi.fn().mockReturnValue({ onConflictDoUpdate: mockOnConflict });
+             vi.mocked(db.insert).mockReturnValue({ values: mockValues } as any);
+
+             recordVideoDownload('src1', 'url', 'yt', 'vid1', 'Title', 'Author', 'audio');
+
+             expect(mockValues).toHaveBeenCalledWith(
+               expect.objectContaining({
+                 id: 'yt:src1:audio',
+                 sourceVideoId: 'src1',
+                 platform: 'yt',
+                 mediaType: 'audio',
+               })
+             );
+        });
+
         it('should swallow errors while recording download', () => {
             vi.mocked(db.insert).mockImplementation(() => {
               throw new Error('write failed');

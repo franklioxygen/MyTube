@@ -59,6 +59,42 @@ describe('videoDownloadController', () => {
             }));
         });
 
+        it('treats an audio-only request for MissAV as a video lookup', async () => {
+             const mockUrl = 'https://missav.com/en/abc';
+             mockReq.query = { url: mockUrl, audioOnly: 'true' };
+             (helpers.trimBilibiliUrl as any).mockReturnValue(mockUrl);
+             (helpers.isValidUrl as any).mockReturnValue(true);
+             (helpers.isMissAVUrl as any).mockReturnValue(true);
+             (helpers.processVideoUrl as any).mockResolvedValue({
+                 videoUrl: mockUrl,
+                 sourceVideoId: 'abc',
+                 platform: 'missav',
+             });
+             (storageService.checkVideoDownloadBySourceId as any).mockReturnValue({ found: false });
+
+             await videoDownloadController.checkVideoDownloadStatus(mockReq as Request, mockRes as Response);
+
+             expect(storageService.checkVideoDownloadBySourceId).toHaveBeenCalledWith('abc', 'missav', 'video');
+        });
+
+        it('scopes a non-MissAV audio-only request to the audio media type', async () => {
+             const mockUrl = 'https://youtube.com/watch?v=abc';
+             mockReq.query = { url: mockUrl, audioOnly: 'true' };
+             (helpers.trimBilibiliUrl as any).mockReturnValue(mockUrl);
+             (helpers.isValidUrl as any).mockReturnValue(true);
+             (helpers.isMissAVUrl as any).mockReturnValue(false);
+             (helpers.processVideoUrl as any).mockResolvedValue({
+                 videoUrl: mockUrl,
+                 sourceVideoId: 'abc',
+                 platform: 'youtube',
+             });
+             (storageService.checkVideoDownloadBySourceId as any).mockReturnValue({ found: false });
+
+             await videoDownloadController.checkVideoDownloadStatus(mockReq as Request, mockRes as Response);
+
+             expect(storageService.checkVideoDownloadBySourceId).toHaveBeenCalledWith('abc', 'youtube', 'audio');
+        });
+
         it('should return not found if video does not exist', async () => {
              const mockUrl = 'http://example.com/new';
              mockReq.query = { url: mockUrl };

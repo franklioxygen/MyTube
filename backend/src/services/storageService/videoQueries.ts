@@ -84,6 +84,7 @@ const videoSummaryColumns = () => ({
   visibility: videos.visibility,
   authorAvatarFilename: videos.authorAvatarFilename,
   authorAvatarPath: videos.authorAvatarPath,
+  mediaType: videos.mediaType,
 });
 
 export interface VideoSummaryPage {
@@ -132,14 +133,24 @@ export function getVideoSummaries(
 }
 
 export function getVideoBySourceUrl(
-  sourceUrl: string
+  sourceUrl: string,
+  mediaType: import("./types").MediaType = "video"
 ): import("./types").Video | undefined {
   try {
-    const result = db
-      .select()
-      .from(videos)
-      .where(eq(videos.sourceUrl, sourceUrl))
-      .get();
+    // Audio-only and video downloads for the same URL are separate library
+    // items, so every lookup is scoped to a media type. The default is "video"
+    // (with legacy null media_type treated as video) so video-only callers
+    // never accidentally match an audio row once one exists for the same URL;
+    // audio flows pass "audio" explicitly.
+    const condition =
+      mediaType === "audio"
+        ? and(eq(videos.sourceUrl, sourceUrl), eq(videos.mediaType, "audio"))!
+        : and(
+            eq(videos.sourceUrl, sourceUrl),
+            or(eq(videos.mediaType, "video"), isNull(videos.mediaType))
+          )!;
+
+    const result = db.select().from(videos).where(condition).get();
 
     if (result) {
       return {

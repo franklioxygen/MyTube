@@ -83,7 +83,7 @@ const signedUrlPromiseCache = new Map<string, Promise<string | null>>();
  */
 export const getCloudStorageSignedUrl = async (
   filename: string,
-  type: "video" | "thumbnail" = "video"
+  type: "video" | "audio" | "thumbnail" = "video"
 ): Promise<string | null> => {
   const cacheKey = `${filename}:${type}`;
   const now = Date.now();
@@ -214,7 +214,7 @@ export const getCloudStorageSignedUrl = async (
  */
 export const getFileUrl = async (
   path: string | null | undefined,
-  type: "video" | "thumbnail" = "video"
+  type: "video" | "audio" | "thumbnail" = "video"
 ): Promise<string | undefined> => {
   if (!path) return undefined;
 

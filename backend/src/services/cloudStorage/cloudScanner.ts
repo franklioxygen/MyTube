@@ -7,6 +7,7 @@ import path from "path";
 import { IMAGES_DIR } from "../../config/paths";
 import { formatVideoFilename } from "../../utils/helpers";
 import { logger } from "../../utils/logger";
+import { AUDIO_CONTAINER_EXTENSIONS, MEDIA_FILE_EXTENSIONS } from "../../utils/videoExtensions";
 import {
   ensureDirSafeSync,
   execFileSafe,
@@ -74,11 +75,12 @@ export async function scanCloudFiles(
       );
     }
 
-    // Filter for video files
-    const videoExtensions = [".mp4", ".mkv", ".webm", ".avi", ".mov"];
+    // Filter for playable media files
+    const mediaExtensions = new Set<string>(MEDIA_FILE_EXTENSIONS);
+    const audioExtensions = new Set<string>(AUDIO_CONTAINER_EXTENSIONS);
     const videoFiles = allCloudFiles.filter(({ file }) => {
       const ext = path.extname(file.name).toLowerCase();
-      return videoExtensions.includes(ext);
+      return mediaExtensions.has(ext);
     });
 
     logger.info(
@@ -169,13 +171,16 @@ export async function scanCloudFiles(
     ): Promise<{ success: boolean; error?: string }> => {
       const { file, path: filePath } = videoData;
       const filename = file.name;
+      const mediaType: "audio" | "video" = audioExtensions.has(path.extname(filename).toLowerCase())
+        ? "audio"
+        : "video";
 
       onProgress?.(`Processing: ${filename}`, index + 1, total);
 
       try {
         // Get signed URL for video
         // Try to get signed URL using the standard method first
-        let videoSignedUrl = await getSignedUrl(filename, "video", config);
+        let videoSignedUrl = await getSignedUrl(filename, mediaType, config);
 
         // If not found and file has sign property (for files in subdirectories), construct URL directly
         if (!videoSignedUrl && file.sign) {
@@ -482,6 +487,7 @@ export async function scanCloudFiles(
           source: "cloud",
           sourceUrl: "",
           videoFilename: filename, // Keep original filename
+          mediaType,
           // Store path relative to root (e.g., "a/movies/video/1.mp4" or "video/1.mp4")
           videoPath: `cloud:${relativeVideoPath}`,
           thumbnailFilename: relativeThumbnailPath

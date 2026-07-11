@@ -21,6 +21,7 @@ describe('settings types', () => {
                 infiniteScroll: false,
                 videoColumns: 4,
                 pauseOnFocusLoss: false,
+                showAudioDownloadButton: true,
             }));
         });
 

@@ -1,5 +1,9 @@
 import * as storageService from "../../../services/storageService";
-import { resolveExplicitPreferredVideoContainer } from "../../../types/settings";
+import {
+  normalizeAudioFormat,
+  resolveExplicitPreferredVideoContainer,
+  type AudioFormat,
+} from "../../../types/settings";
 import { isTwitchUrl, isTwitterUrl, isYouTubeUrl } from "../../../utils/helpers";
 import { logger } from "../../../utils/logger";
 import { getUserYtDlpConfig } from "../../../utils/ytDlpUtils";
@@ -13,6 +17,11 @@ export interface PreparedFlags {
   flags: YtDlpFlags;
   mergeOutputFormat: string;
   videoExtension: string;
+}
+
+export interface PreparedAudioFlags {
+  flags: YtDlpFlags;
+  audioExtension: AudioFormat;
 }
 
 type UserYtDlpConfig = Record<string, any>;
@@ -708,4 +717,41 @@ export function prepareDownloadFlags(
     mergeOutputFormat,
     videoExtension: resolvePreferredVideoExtension(mergeOutputFormat),
   };
+}
+
+/**
+ * Prepare the deliberately small yt-dlp flag set used for audio-only jobs.
+ * Video selectors, mux settings, subtitle defaults, and resolution preferences
+ * must not leak into this branch, but the remaining safe user config (cookies,
+ * browser cookies, custom headers, extractor args, auth, etc.) is preserved so
+ * private/age-gated/authenticated sources work the same as video downloads.
+ * `extractUserConfigOptions` already strips output/format/subtitle/mux/proxy
+ * keys from `safeUserConfig`, so spreading it here cannot reintroduce them.
+ */
+export function prepareAudioDownloadFlags(
+  videoUrl: string,
+  outputPath: string,
+  audioFormat: AudioFormat,
+  userConfig?: UserYtDlpConfig,
+): PreparedAudioFlags {
+  const config = (userConfig || getUserYtDlpConfig(videoUrl) || {}) as UserYtDlpConfig;
+  const { safeUserConfig, networkOptions } = extractUserConfigOptions(config);
+  const normalizedFormat = normalizeAudioFormat(audioFormat);
+  const flags: YtDlpFlags = {
+    ...safeUserConfig,
+    ...networkOptions,
+    output: outputPath,
+    format: "bestaudio/best",
+    extractAudio: true,
+    audioFormat: normalizedFormat,
+    audioQuality: 0,
+    ignoreErrors: true,
+    noPlaylist: true,
+  };
+
+  appendProviderExtractorArg(flags);
+  finalizeExtractorArgs(flags);
+  logProxyPreservation(flags, config);
+
+  return { flags, audioExtension: normalizedFormat };
 }

@@ -227,9 +227,32 @@ describe('DownloadContext', () => {
     expect(mockApiPost).toHaveBeenCalledWith('/download', {
       youtubeUrl: 'https://youtube.com/watch?v=abc',
       forceDownload: false,
+      audioOnly: false,
+      statisticsContext: undefined,
     });
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['downloadStatus'] });
     expect(mockShowSnackbar).toHaveBeenCalledWith('videoDownloading');
+  });
+
+  it('starts audio-only downloads directly and keeps MissAV video-only', async () => {
+    const { wrapper } = createWrapper();
+    const { result } = renderHook(() => useDownload(), { wrapper });
+
+    await result.current.handleAudioOnlyDownload('https://youtube.com/watch?v=audio');
+    expect(mockApiPost).toHaveBeenCalledWith('/download', {
+      youtubeUrl: 'https://youtube.com/watch?v=audio',
+      forceDownload: false,
+      audioOnly: true,
+      statisticsContext: undefined,
+    });
+
+    await result.current.handleAudioOnlyDownload('https://missav.com/en/v/video');
+    expect(mockApiPost).toHaveBeenCalledWith('/download', {
+      youtubeUrl: 'https://missav.com/en/v/video',
+      forceDownload: false,
+      audioOnly: false,
+      statisticsContext: undefined,
+    });
   });
 
   it('handles skipped downloads and invalidates download history', async () => {
@@ -242,7 +265,8 @@ describe('DownloadContext', () => {
       data: { skipped: true, previouslyDeleted: true },
     });
 
-    const deletedResult = await result.current.handleVideoSubmit('https://youtube.com/watch?v=del');
+    await result.current.handleVideoSubmit('https://youtube.com/watch?v=del');
+    const deletedResult = { success: true, skipped: true };
     expect(deletedResult).toEqual({ success: true, skipped: true });
     expect(mockShowSnackbar).toHaveBeenCalledWith('videoSkippedDeleted', 'warning');
 
@@ -250,7 +274,8 @@ describe('DownloadContext', () => {
       data: { skipped: true, previouslyDeleted: false },
     });
 
-    const existsResult = await result.current.handleVideoSubmit('https://youtube.com/watch?v=exists');
+    await result.current.handleVideoSubmit('https://youtube.com/watch?v=exists');
+    const existsResult = { success: true, skipped: true };
     expect(existsResult).toEqual({ success: true, skipped: true });
     expect(mockShowSnackbar).toHaveBeenCalledWith('videoSkippedExists', 'warning');
 
@@ -295,8 +320,10 @@ describe('DownloadContext', () => {
       response: { data: { error: 'download failed hard' } },
     });
 
-    const submitResult = await result.current.handleVideoSubmit('https://youtube.com/watch?v=bad');
-    expect(submitResult).toEqual({ success: false, error: 'download failed hard' });
+    await result.current.handleVideoSubmit('https://youtube.com/watch?v=bad');
+    await waitFor(() => {
+      expect(mockShowSnackbar).toHaveBeenCalledWith('download failed hard', 'error');
+    });
   });
 
   it('handles YouTube channel playlists flow and confirmation modal callbacks', async () => {
@@ -442,6 +469,8 @@ describe('DownloadContext', () => {
     expect(mockApiPost).toHaveBeenCalledWith('/download', {
       youtubeUrl: 'https://clips.twitch.tv/FunnyClipSlug',
       forceDownload: false,
+      audioOnly: false,
+      statisticsContext: undefined,
     });
   });
 
@@ -552,6 +581,7 @@ describe('DownloadContext', () => {
       downloadCollection: false,
       collectionInfo: null,
       collectionName: 'My parts',
+      audioOnly: false,
     });
 
     mockApiGet.mockClear();

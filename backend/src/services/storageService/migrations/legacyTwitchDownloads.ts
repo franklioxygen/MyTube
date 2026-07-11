@@ -5,6 +5,7 @@ import { logger } from "../../../utils/logger";
 type VideoDownloadDuplicateGroup = {
   sourceVideoId: string;
   platform: string;
+  mediaType: string;
   count: number;
 };
 
@@ -34,9 +35,10 @@ export function deduplicateVideoDownloadsBySourceAndPlatform(): void {
       SELECT
         source_video_id AS sourceVideoId,
         platform,
+        media_type AS mediaType,
         COUNT(*) AS count
       FROM video_downloads
-      GROUP BY source_video_id, platform
+      GROUP BY source_video_id, platform, media_type
       HAVING COUNT(*) > 1
       `
     )
@@ -57,7 +59,7 @@ export function deduplicateVideoDownloadsBySourceAndPlatform(): void {
       status,
       downloaded_at AS downloadedAt
     FROM video_downloads
-    WHERE source_video_id = ? AND platform = ?
+    WHERE source_video_id = ? AND platform = ? AND media_type = ?
     ORDER BY
       CASE WHEN status = 'exists' THEN 0 ELSE 1 END ASC,
       COALESCE(downloaded_at, 0) DESC,
@@ -68,14 +70,15 @@ export function deduplicateVideoDownloadsBySourceAndPlatform(): void {
   const deleteDuplicatesStatement = sqlite.prepare(
     `
     DELETE FROM video_downloads
-    WHERE source_video_id = ? AND platform = ? AND id <> ?
+    WHERE source_video_id = ? AND platform = ? AND media_type = ? AND id <> ?
     `
   );
 
   for (const group of duplicateGroups) {
     const records = getRecordsStatement.all(
       group.sourceVideoId,
-      group.platform
+      group.platform,
+      group.mediaType
     ) as VideoDownloadRecord[];
 
     if (records.length <= 1) {
@@ -86,11 +89,12 @@ export function deduplicateVideoDownloadsBySourceAndPlatform(): void {
     const deletedCount = deleteDuplicatesStatement.run(
       group.sourceVideoId,
       group.platform,
+      group.mediaType,
       keepRecord.id
     ).changes;
 
     logger.warn(
-      `Deduplicated video_downloads (${group.sourceVideoId}, ${group.platform}), kept ${keepRecord.id}, removed ${deletedCount} records`
+      `Deduplicated video_downloads (${group.sourceVideoId}, ${group.platform}, ${group.mediaType}), kept ${keepRecord.id}, removed ${deletedCount} records`
     );
   }
 }

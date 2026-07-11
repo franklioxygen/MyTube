@@ -15,7 +15,7 @@ import { FilenameTemplateSourceOptions } from "../../filenameTemplate/types";
 import { planDownloadPaths } from "./downloadPathPlanner";
 import { logger } from "../../../utils/logger";
 import { ProgressTracker } from "../../../utils/progressTracker";
-import { resolvePlayableVideoFilePath } from "../../../utils/videoFileResolver";
+import { resolvePlayableMediaFilePath } from "../../../utils/videoFileResolver";
 import {
   executeYtDlpJson,
   executeYtDlpSpawn,
@@ -40,8 +40,12 @@ import * as storageService from "../../storageService";
 import { Video } from "../../storageService";
 import { deleteSmallThumbnailMirrorSync } from "../../thumbnailMirrorService";
 import { twitchApiService } from "../../twitchService";
-import { BaseDownloader } from "../BaseDownloader";
-import { prepareDownloadFlags } from "./ytdlpConfig";
+import { BaseDownloader, DownloadModeOptions } from "../BaseDownloader";
+import { normalizeAudioFormat } from "../../../types/settings";
+import {
+  prepareAudioDownloadFlags,
+  prepareDownloadFlags,
+} from "./ytdlpConfig";
 import { getProviderScript } from "./ytdlpHelpers";
 import { extractVideoMetadata } from "./ytdlpMetadata";
 import { processSubtitles } from "./ytdlpSubtitle";
@@ -57,10 +61,23 @@ import {
  */
 export async function downloadVideo(
   videoUrl: string,
-  downloadId?: string,
-  onStart?: (cancel: () => void) => void,
-  filenameTemplateSourceOptions?: import("../../filenameTemplate/types").FilenameTemplateSourceOptions
+  optionsOrDownloadId?: DownloadModeOptions | string,
+  legacyOnStart?: (cancel: () => void) => void,
+  legacyFilenameTemplateSourceOptions?: import("../../filenameTemplate/types").FilenameTemplateSourceOptions
 ): Promise<Video> {
+  const options: DownloadModeOptions =
+    typeof optionsOrDownloadId === "object" && optionsOrDownloadId !== null
+      ? optionsOrDownloadId
+      : {
+          downloadId: optionsOrDownloadId,
+          onStart: legacyOnStart,
+          filenameTemplateSourceOptions: legacyFilenameTemplateSourceOptions,
+        };
+  const downloadId = options.downloadId;
+  const onStart = options.onStart;
+  const filenameTemplateSourceOptions = options.filenameTemplateSourceOptions;
+  const audioOnly = options.audioOnly === true;
+  const audioFormat = normalizeAudioFormat(options.audioFormat);
   logger.info("Detected URL:", videoUrl);
 
   // Create a safe base filename (without extension)
@@ -68,7 +85,7 @@ export async function downloadVideo(
   const safeBaseFilename = `video_${timestamp}`;
 
   // Add extensions for video and thumbnail
-  const videoFilename = `${safeBaseFilename}.mp4`;
+  const videoFilename = `${safeBaseFilename}.${audioOnly ? audioFormat : "mp4"}`;
   const thumbnailFilename = `${safeBaseFilename}.jpg`;
 
   let videoTitle: string,
@@ -204,12 +221,25 @@ export async function downloadVideo(
     }
 
     // Prepare download flags with a temp path to determine mergeOutputFormat
-    const tempVideoPath = resolveSafeChildPath(VIDEOS_DIR, `${safeBaseFilename}.mp4`);
-    const { flags, mergeOutputFormat, videoExtension } = prepareDownloadFlags(
-      videoUrl,
-      tempVideoPath,
-      downloadUserConfig
+    const tempVideoPath = resolveSafeChildPath(
+      VIDEOS_DIR,
+      `${safeBaseFilename}.${audioOnly ? audioFormat : "mp4"}`
     );
+    const preparedFlags = audioOnly
+      ? prepareAudioDownloadFlags(
+          videoUrl,
+          tempVideoPath,
+          audioFormat,
+          downloadUserConfig,
+        )
+      : prepareDownloadFlags(videoUrl, tempVideoPath, downloadUserConfig);
+    const flags = preparedFlags.flags;
+    const mergeOutputFormat = audioOnly
+      ? audioFormat
+      : (preparedFlags as ReturnType<typeof prepareDownloadFlags>).mergeOutputFormat;
+    const videoExtension = audioOnly
+      ? audioFormat
+      : (preparedFlags as ReturnType<typeof prepareDownloadFlags>).videoExtension;
 
     if (flags.proxy) {
       logger.info("Proxy included in download flags:", flags.proxy);
@@ -294,8 +324,9 @@ export async function downloadVideo(
 
       if (isSubtitleError) {
         // Check if video file was successfully downloaded
-        const resolvedVideoPath = resolvePlayableVideoFilePath(
-          newVideoPathWithFormat
+        const resolvedVideoPath = resolvePlayableMediaFilePath(
+          newVideoPathWithFormat,
+          audioOnly ? "audio" : "video",
         );
         if (resolvedVideoPath) {
           logger.warn(
@@ -326,8 +357,9 @@ export async function downloadVideo(
       throw error;
     }
 
-    const resolvedVideoPath = resolvePlayableVideoFilePath(
-      newVideoPathWithFormat
+    const resolvedVideoPath = resolvePlayableMediaFilePath(
+      newVideoPathWithFormat,
+      audioOnly ? "audio" : "video",
     );
     if (!resolvedVideoPath) {
       throw new Error(
@@ -404,11 +436,14 @@ export async function downloadVideo(
     authorAvatarSaved = avatarResult.authorAvatarSaved;
     finalAuthorAvatarFilename = avatarResult.finalAuthorAvatarFilename;
 
-    // Check again if download was cancelled before processing subtitles
+    // Audio downloads keep their thumbnail as album art but do not fetch
+    // subtitles, which are a video-only presentation feature.
     try {
       downloader.throwIfCancelledPublic(downloadId);
     } catch (error) {
-      await cleanupSubtitleFiles(newSafeBaseFilename);
+      if (!audioOnly) {
+        await cleanupSubtitleFiles(newSafeBaseFilename);
+      }
       throw error;
     }
 
@@ -425,18 +460,20 @@ export async function downloadVideo(
         ? videoSubDir
         : resolveSafeChildPath(SUBTITLES_DIR, videoSubRelative)
       : undefined;
-    subtitles = await processSubtitles(
-      newSafeBaseFilename,
-      downloadId,
-      moveSubtitlesToVideoFolder,
-      isVideoInSubDir ? videoSubDir : undefined,
-      subtitleSubDir,
-      isVideoInSubDir
-        ? moveSubtitlesToVideoFolder
-          ? `/videos/${videoSubRelative}`
-          : `/subtitles/${videoSubRelative}`
-        : undefined,
-    );
+    if (!audioOnly) {
+      subtitles = await processSubtitles(
+        newSafeBaseFilename,
+        downloadId,
+        moveSubtitlesToVideoFolder,
+        isVideoInSubDir ? videoSubDir : undefined,
+        subtitleSubDir,
+        isVideoInSubDir
+          ? moveSubtitlesToVideoFolder
+            ? `/videos/${videoSubRelative}`
+            : `/subtitles/${videoSubRelative}`
+          : undefined,
+      );
+    }
   } catch (error) {
     logger.error(
       "Error in download process:",
@@ -477,6 +514,7 @@ export async function downloadVideo(
     date: videoDate || new Date().toISOString().slice(0, 10).replace(/-/g, ""),
     source: source, // Use extracted source
     sourceUrl: videoUrl,
+    mediaType: audioOnly ? "audio" : "video",
     videoFilename: path.basename(finalVideoRelative),
     thumbnailFilename: thumbnailSaved ? path.basename(finalThumbnailFilename) : undefined,
     thumbnailUrl: thumbnailUrl || undefined,
@@ -535,8 +573,13 @@ export async function downloadVideo(
     logger.error("Failed to get file size:", e);
   }
 
-  // Check if video with same sourceUrl already exists
-  const existingVideo = storageService.getVideoBySourceUrl(videoUrl);
+  // Check if a library item with the same sourceUrl AND media type already
+  // exists. Scoping by media type keeps audio-only downloads as their own item
+  // instead of overwriting (and deleting the file of) the existing video row.
+  const existingVideo = storageService.getVideoBySourceUrl(
+    videoUrl,
+    audioOnly ? "audio" : "video"
+  );
 
   if (existingVideo) {
     // Update existing video with new subtitle information and file paths
@@ -614,6 +657,7 @@ export async function downloadVideo(
       addedAt: new Date().toISOString(), // Update download date
       title: videoData.title, // Update title in case it changed
       description: videoData.description, // Update description in case it changed
+      mediaType: videoData.mediaType,
       authorAvatarFilename: authorAvatarSaved
         ? finalAuthorAvatarFilename
         : existingVideo.authorAvatarFilename,

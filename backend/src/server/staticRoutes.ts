@@ -156,6 +156,12 @@ export const registerStaticRoutes = (
           res.setHeader("Content-Type", "video/x-flv");
         } else if (lowerPath.endsWith(".3gp")) {
           res.setHeader("Content-Type", "video/3gpp");
+        } else if (lowerPath.endsWith(".m4a")) {
+          res.setHeader("Content-Type", "audio/mp4");
+        } else if (lowerPath.endsWith(".mp3")) {
+          res.setHeader("Content-Type", "audio/mpeg");
+        } else if (lowerPath.endsWith(".opus")) {
+          res.setHeader("Content-Type", "audio/ogg");
         } else if (lowerPath.endsWith(".vtt")) {
           res.setHeader("Content-Type", "text/vtt");
         } else if (lowerPath.endsWith(".srt")) {

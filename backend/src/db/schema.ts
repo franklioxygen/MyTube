@@ -47,6 +47,7 @@ export const videos = sqliteTable(
     visibility: integer("visibility").default(1), // 1 = visible, 0 = hidden
     authorAvatarFilename: text("author_avatar_filename"), // Author avatar filename
     authorAvatarPath: text("author_avatar_path"), // Author avatar path
+    mediaType: text("media_type").default("video"), // "video" | "audio"
   },
   (table) => ({
     // source_url is looked up on every download attempt, cloud-scan duplicate
@@ -272,6 +273,10 @@ export const videoDownloads = sqliteTable(
     sourceVideoId: text("source_video_id").notNull(), // Video ID from source (YouTube ID, Bilibili BV ID, etc.)
     sourceUrl: text("source_url").notNull(), // Original source URL
     platform: text("platform").notNull(), // YouTube, Bilibili, MissAV, etc.
+    // Media type of the tracked download. Audio-only downloads are tracked as a
+    // separate row from the video for the same source so downloading one does
+    // not mask the other as a duplicate.
+    mediaType: text("media_type").notNull().default("video"), // "video" | "audio"
     videoId: text("video_id"), // Reference to local video ID (null if deleted)
     title: text("title"), // Video title for display
     author: text("author"), // Video author
@@ -280,9 +285,9 @@ export const videoDownloads = sqliteTable(
     deletedAt: integer("deleted_at"), // Timestamp when video was deleted (nullable)
   },
   (table) => ({
-    sourceVideoPlatformUnique: uniqueIndex(
-      "video_downloads_source_video_id_platform_uidx"
-    ).on(table.sourceVideoId, table.platform),
+    sourceVideoPlatformMediaTypeUnique: uniqueIndex(
+      "video_downloads_source_video_id_platform_media_type_uidx"
+    ).on(table.sourceVideoId, table.platform, table.mediaType),
   })
 );
 

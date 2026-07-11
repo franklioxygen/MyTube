@@ -1,7 +1,7 @@
 import { SUBTITLES_DIR } from "../../config/paths";
 import { extractBilibiliVideoId } from "../../utils/helpers";
 import { Video } from "../storageService";
-import { BaseDownloader, DownloadOptions, VideoInfo } from "./BaseDownloader";
+import { BaseDownloader, DownloadModeOptions, DownloadOptions, VideoInfo } from "./BaseDownloader";
 import { FilenameTemplateSourceOptions } from "../filenameTemplate/types";
 import type { DownloadRetryMetadata } from "../downloadRetryMetadata";
 import * as bilibiliApi from "./bilibili/bilibiliApi";
@@ -55,7 +55,10 @@ export class BilibiliDownloader extends BaseDownloader {
       1,
       "",
       options?.downloadId,
-      options?.onStart
+      options?.onStart,
+      undefined,
+      options?.filenameTemplateSourceOptions,
+      options,
     );
 
     if (result.success && result.videoData) {
@@ -84,14 +87,18 @@ export class BilibiliDownloader extends BaseDownloader {
     videoPath: string,
     thumbnailPath: string,
     downloadId?: string,
-    onStart?: (cancel: () => void) => void
+    onStart?: (cancel: () => void) => void,
+    modeOptions?: DownloadModeOptions,
   ): Promise<BilibiliVideoInfo> {
     return bilibiliVideo.downloadVideo(
       url,
       videoPath,
       thumbnailPath,
       downloadId,
-      onStart
+      onStart,
+      undefined,
+      false,
+      modeOptions,
     );
   }
 
@@ -134,17 +141,18 @@ export class BilibiliDownloader extends BaseDownloader {
     downloadId?: string,
     onStart?: (cancel: () => void) => void,
     collectionName?: string,
-    filenameTemplateSourceOptions?: FilenameTemplateSourceOptions
+    filenameTemplateSourceOptions?: FilenameTemplateSourceOptions,
+    modeOptions?: DownloadModeOptions
   ): Promise<DownloadResult> {
+    if (modeOptions) {
+      return bilibiliVideo.downloadSinglePart(
+        url, partNumber, totalParts, seriesTitle, downloadId, onStart,
+        collectionName, filenameTemplateSourceOptions, modeOptions,
+      );
+    }
     return bilibiliVideo.downloadSinglePart(
-      url,
-      partNumber,
-      totalParts,
-      seriesTitle,
-      downloadId,
-      onStart,
-      collectionName,
-      filenameTemplateSourceOptions
+      url, partNumber, totalParts, seriesTitle, downloadId, onStart,
+      collectionName, filenameTemplateSourceOptions,
     );
   }
 

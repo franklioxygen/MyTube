@@ -61,6 +61,7 @@ function AppContent() {
         activeDownloads,
         queuedDownloads,
         handleVideoSubmit,
+        handleAudioOnlyDownload,
         showBilibiliPartsModal,
         setShowBilibiliPartsModal,
         bilibiliPartsInfo,
@@ -121,6 +122,7 @@ function AppContent() {
                             <Header
                             onSearch={handleSearch}
                             onSubmit={handleVideoSubmit}
+                            onAudioOnlySubmit={handleAudioOnlyDownload}
                             activeDownloads={activeDownloads}
                             queuedDownloads={queuedDownloads}
                             isSearchMode={isSearchMode}

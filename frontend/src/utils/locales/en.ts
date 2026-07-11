@@ -22,6 +22,12 @@ export const en = {
   downloadStarted: "Download started",
   downloadFailed: "Download failed",
   downloadSuccess: "Download started successfully",
+  downloadAudioOnly: "Download audio only",
+  downloadAudioOnlyHint: "Stores only the audio track (no video).",
+  audioFormat: "Audio format",
+  audioFormatM4a: "M4A",
+  audioFormatMp3: "MP3",
+  audioFormatOpus: "Opus",
   confirmDownloadAllPlaylists:
     "Download all playlists from this channel? This will create a collection for each playlist.",
   downloadAll: "Download All",
@@ -57,6 +63,7 @@ export const en = {
   themeDark: "Always Dark",
   themeSystem: "Match System",
   showThemeButtonInHeader: "Show theme button in header",
+  showAudioDownloadButton: "Show audio download button",
   tmdbApiKey: "TMDB API Key",
   tmdbApiKeyHelper:
     "TheMovieDB API key for scraping movie/TV show metadata and posters. Get your key at https://www.themoviedb.org/settings/api",

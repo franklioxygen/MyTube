@@ -38,5 +38,4 @@ export interface ScanResult {
   errors: string[];
 }
 
-export type FileType = "video" | "thumbnail";
-
+export type FileType = "video" | "audio" | "thumbnail";

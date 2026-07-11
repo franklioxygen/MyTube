@@ -11,6 +11,7 @@ import * as storageService from "../services/storageService";
 import { scrapeMetadataFromTMDB } from "../services/tmdbService";
 import { formatVideoFilename } from "../utils/helpers";
 import { logger } from "../utils/logger";
+import { AUDIO_CONTAINER_EXTENSIONS, MEDIA_FILE_EXTENSIONS } from "../utils/videoExtensions";
 import { errorResponse, sendBadRequest, successResponse } from "../utils/response";
 import {
   execFileSafe,
@@ -26,7 +27,8 @@ import {
   statSafe,
 } from "../utils/security";
 
-const VIDEO_EXTENSIONS = [".mp4", ".mkv", ".webm", ".avi", ".mov"];
+const MEDIA_EXTENSIONS: string[] = [...MEDIA_FILE_EXTENSIONS];
+const AUDIO_EXTENSIONS = new Set<string>(AUDIO_CONTAINER_EXTENSIONS);
 const DEFAULT_SCAN_FILE_CONCURRENCY = 3;
 const DEFAULT_SCAN_FFPROBE_TIMEOUT_MS = 15000;
 const DEFAULT_SCAN_FFMPEG_TIMEOUT_MS = 30000;
@@ -465,6 +467,9 @@ const processSingleVideoFile = async (
     sourceUrl: "",
     videoFilename: filename,
     videoPath: webPath,
+    mediaType: (AUDIO_EXTENSIONS.has(path.extname(filename).toLowerCase())
+      ? "audio"
+      : "video") as "audio" | "video",
     thumbnailFilename: thumbnail.path ? thumbnail.filename : undefined,
     thumbnailPath: thumbnail.path,
     thumbnailUrl: thumbnail.url,
@@ -654,7 +659,7 @@ export const scanFiles = async (
 
   for (const filePath of allFiles) {
     const ext = path.extname(filePath).toLowerCase();
-    if (!VIDEO_EXTENSIONS.includes(ext)) {
+    if (!MEDIA_EXTENSIONS.includes(ext)) {
       continue;
     }
 
@@ -691,7 +696,7 @@ export const scanFiles = async (
   const { addedCount, updatedCount } = await processDirectoryFiles(
     VIDEOS_DIR,
     existingVideosByPath,
-    VIDEO_EXTENSIONS,
+    MEDIA_EXTENSIONS,
     { scannedFiles: allFiles }
   );
 
@@ -783,7 +788,7 @@ export const scanMountDirectories = async (
     const { addedCount, updatedCount, allFiles } = await processDirectoryFiles(
       directory,
       existingVideosByPath,
-      VIDEO_EXTENSIONS,
+      MEDIA_EXTENSIONS,
       { isMountDirectory: true }
     );
 
@@ -792,7 +797,7 @@ export const scanMountDirectories = async (
 
     for (const filePath of allFiles) {
       const ext = path.extname(filePath).toLowerCase();
-      if (VIDEO_EXTENSIONS.includes(ext)) {
+      if (MEDIA_EXTENSIONS.includes(ext)) {
         actualMountPathsOnDisk.add(normalizeSafeAbsolutePath(filePath));
       }
     }

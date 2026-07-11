@@ -27,7 +27,7 @@ const constructFullUrl = (initialUrl: string): string => {
  */
 export const useCloudStorageUrl = (
   path: string | null | undefined,
-  type: "video" | "thumbnail" = "video",
+  type: "video" | "audio" | "thumbnail" = "video",
   initialUrl?: string
 ): string | undefined => {
   // For regular paths (non-cloud, non-mount), compute URL synchronously with useMemo

@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "../../db";
 import { videoDownloads } from "../../db/schema";
 import { logger } from "../../utils/logger";
-import { DownloadHistoryItem, Video, VideoDownloadCheckResult } from "./types";
+import { DownloadHistoryItem, MediaType, Video, VideoDownloadCheckResult } from "./types";
 
 type DownloadTrackingRow = {
   status: "exists" | "deleted" | string;
@@ -15,16 +15,21 @@ type DownloadTrackingRow = {
 
 function buildSourceVideoQueryCondition(
   sourceVideoId: string,
-  platform?: string
+  platform?: string,
+  mediaType: MediaType = "video"
 ) {
-  if (!platform) {
-    return eq(videoDownloads.sourceVideoId, sourceVideoId);
+  const conditions = [
+    eq(videoDownloads.sourceVideoId, sourceVideoId),
+    // Audio and video are tracked as distinct rows, so every lookup is scoped
+    // to the requested media type. Callers that omit it default to "video".
+    eq(videoDownloads.mediaType, mediaType),
+  ];
+
+  if (platform) {
+    conditions.push(eq(videoDownloads.platform, platform));
   }
 
-  return and(
-    eq(videoDownloads.sourceVideoId, sourceVideoId),
-    eq(videoDownloads.platform, platform)
-  );
+  return and(...conditions);
 }
 
 function selectPreferredDownloadRecord(
@@ -58,13 +63,14 @@ function toDownloadCheckResult(record: DownloadTrackingRow): VideoDownloadCheckR
  */
 export function checkVideoDownloadBySourceId(
   sourceVideoId: string,
-  platform?: string
+  platform?: string,
+  mediaType: MediaType = "video"
 ): VideoDownloadCheckResult {
   try {
     const records = db
       .select()
       .from(videoDownloads)
-      .where(buildSourceVideoQueryCondition(sourceVideoId, platform))
+      .where(buildSourceVideoQueryCondition(sourceVideoId, platform, mediaType))
       .all();
 
     const preferredRecord = selectPreferredDownloadRecord(records as DownloadTrackingRow[]);
@@ -128,21 +134,28 @@ export function recordVideoDownload(
   platform: string,
   videoId: string,
   title?: string,
-  author?: string
+  author?: string,
+  mediaType: MediaType = "video"
 ): void {
   try {
-    // Keep a single canonical row per (sourceVideoId, platform). A single upsert
-    // keyed on the (sourceVideoId, platform) unique index handles both insert and
-    // update — no separate existence SELECT needed. Existing rows (including
-    // legacy random ids) match on the unique constraint and are updated in place,
-    // so the `id` column is never rewritten.
-    const deterministicId = `${platform}:${sourceVideoId}`;
+    // Keep a single canonical row per (sourceVideoId, platform, mediaType). A
+    // single upsert keyed on that unique index handles both insert and update —
+    // no separate existence SELECT needed. Existing rows (including legacy
+    // random ids) match on the unique constraint and are updated in place, so
+    // the `id` column is never rewritten. Video ids keep the legacy
+    // `${platform}:${sourceVideoId}` shape; audio rows get a media-type suffix
+    // so they never collide with the video row's primary key.
+    const deterministicId =
+      mediaType === "video"
+        ? `${platform}:${sourceVideoId}`
+        : `${platform}:${sourceVideoId}:${mediaType}`;
     db.insert(videoDownloads)
       .values({
         id: deterministicId,
         sourceVideoId,
         sourceUrl,
         platform,
+        mediaType,
         videoId,
         title,
         author,
@@ -150,7 +163,11 @@ export function recordVideoDownload(
         downloadedAt: Date.now(),
       })
       .onConflictDoUpdate({
-        target: [videoDownloads.sourceVideoId, videoDownloads.platform],
+        target: [
+          videoDownloads.sourceVideoId,
+          videoDownloads.platform,
+          videoDownloads.mediaType,
+        ],
         set: {
           sourceUrl,
           videoId,
@@ -161,7 +178,9 @@ export function recordVideoDownload(
         },
       })
       .run();
-    logger.info(`Recorded video download: ${title || sourceVideoId} (${platform})`);
+    logger.info(
+      `Recorded ${mediaType} download: ${title || sourceVideoId} (${platform})`
+    );
   } catch (error) {
     logger.error(
       "Error recording video download",
@@ -202,15 +221,15 @@ export function updateVideoDownloadRecord(
   newVideoId: string,
   title?: string,
   author?: string,
-  platform?: string
+  platform?: string,
+  mediaType: MediaType = "video"
 ): void {
   try {
-    const updateCondition = platform
-      ? and(
-          eq(videoDownloads.sourceVideoId, sourceVideoId),
-          eq(videoDownloads.platform, platform)
-        )
-      : eq(videoDownloads.sourceVideoId, sourceVideoId);
+    const updateCondition = buildSourceVideoQueryCondition(
+      sourceVideoId,
+      platform,
+      mediaType
+    );
 
     db.update(videoDownloads)
       .set({

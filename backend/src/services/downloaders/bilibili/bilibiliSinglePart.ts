@@ -21,6 +21,8 @@ import {
 } from "../../mediaServerExport";
 import * as storageService from "../../storageService";
 import { Video } from "../../storageService";
+import { normalizeAudioFormat } from "../../../types/settings";
+import type { DownloadModeOptions } from "../BaseDownloader";
 import {
   deleteSmallThumbnailMirrorSync,
   resolveManagedThumbnailWebPathFromAbsolutePath,
@@ -63,7 +65,8 @@ export async function downloadSinglePart(
   downloadId?: string,
   onStart?: (cancel: () => void) => void,
   collectionName?: string,
-  filenameTemplateSourceOptions?: FilenameTemplateSourceOptions
+  filenameTemplateSourceOptions?: FilenameTemplateSourceOptions,
+  modeOptions?: DownloadModeOptions
 ): Promise<DownloadResult> {
   try {
     logger.info(
@@ -72,7 +75,10 @@ export async function downloadSinglePart(
 
     // Keep destination paths aligned with the Bilibili yt-dlp merge container.
     const userConfig = getUserYtDlpConfig(url);
-    const mergeOutputFormat = resolveBilibiliMergeOutputFormat(userConfig);
+    const audioOnly = modeOptions?.audioOnly === true;
+    const mergeOutputFormat = audioOnly
+      ? normalizeAudioFormat(modeOptions?.audioFormat)
+      : resolveBilibiliMergeOutputFormat(userConfig);
     const settings = storageService.getSettings();
     const moveThumbnailsToVideoFolder =
       settings.moveThumbnailsToVideoFolder || false;
@@ -108,7 +114,10 @@ export async function downloadSinglePart(
         videoPath,
         thumbnailPath,
         downloadId,
-        onStart
+        onStart,
+        undefined,
+        false,
+        modeOptions,
       );
     } catch (error: unknown) {
       // If download was cancelled, re-throw immediately without downloading subtitles or creating video data
@@ -230,7 +239,7 @@ export async function downloadSinglePart(
       throw error;
     }
 
-    // Download subtitles
+    // Download subtitles for video media only.
     // For non-legacy mode use planned subtitle paths; for legacy use formatVideoFilename
     const isLegacyMode = (settings.downloadFilenamePresetId || "legacy") === "legacy";
     const newSafeBaseFilename = isLegacyMode
@@ -242,43 +251,45 @@ export async function downloadSinglePart(
       filename: string;
       path: string;
     }> = [];
-    try {
-      logger.info("Attempting to download subtitles...");
-      const subtitleDir = isLegacyMode
-        ? resolveSubtitleDirectory(collectionName, moveSubtitlesToVideoFolder, videoDir)
-        : (renameResult.subtitleBaseDir || resolveSubtitleDirectory(collectionName, moveSubtitlesToVideoFolder, videoDir));
-      const subtitlePathPrefix = isLegacyMode
-        ? (moveSubtitlesToVideoFolder
-            ? collectionName ? `/videos/${collectionName}` : `/videos`
-            : collectionName ? `/subtitles/${collectionName}` : `/subtitles`)
-        : (renameResult.subtitleWebBaseDir || (moveSubtitlesToVideoFolder ? `/videos` : `/subtitles`));
-      let axiosConfig = {};
-      if (userConfig.proxy) {
-        try {
-          axiosConfig = getAxiosProxyConfig(userConfig.proxy);
-        } catch (error) {
-          if (error instanceof InvalidProxyError) {
-            logger.warn(
-              "Invalid proxy configuration for subtitle download, proceeding without proxy:",
-              error.message
-            );
-          } else {
-            throw error;
+    if (!audioOnly) {
+      try {
+        logger.info("Attempting to download subtitles...");
+        const subtitleDir = isLegacyMode
+          ? resolveSubtitleDirectory(collectionName, moveSubtitlesToVideoFolder, videoDir)
+          : (renameResult.subtitleBaseDir || resolveSubtitleDirectory(collectionName, moveSubtitlesToVideoFolder, videoDir));
+        const subtitlePathPrefix = isLegacyMode
+          ? (moveSubtitlesToVideoFolder
+              ? collectionName ? `/videos/${collectionName}` : `/videos`
+              : collectionName ? `/subtitles/${collectionName}` : `/subtitles`)
+          : (renameResult.subtitleWebBaseDir || (moveSubtitlesToVideoFolder ? `/videos` : `/subtitles`));
+        let axiosConfig = {};
+        if (userConfig.proxy) {
+          try {
+            axiosConfig = getAxiosProxyConfig(userConfig.proxy);
+          } catch (error) {
+            if (error instanceof InvalidProxyError) {
+              logger.warn(
+                "Invalid proxy configuration for subtitle download, proceeding without proxy:",
+                error.message
+              );
+            } else {
+              throw error;
+            }
           }
         }
+        subtitles = await downloadSubtitles(
+          url,
+          newSafeBaseFilename,
+          subtitleDir,
+          subtitlePathPrefix,
+          axiosConfig
+        );
+        logger.info(`Downloaded ${subtitles.length} subtitles`);
+      } catch (e) {
+        // If it's a cancellation error, re-throw it
+        downloader.handleCancellationErrorPublic(e);
+        logger.error("Error downloading subtitles:", e);
       }
-      subtitles = await downloadSubtitles(
-        url,
-        newSafeBaseFilename,
-        subtitleDir,
-        subtitlePathPrefix,
-        axiosConfig
-      );
-      logger.info(`Downloaded ${subtitles.length} subtitles`);
-    } catch (e) {
-      // If it's a cancellation error, re-throw it
-      downloader.handleCancellationErrorPublic(e);
-      logger.error("Error downloading subtitles:", e);
     }
 
     // Check if download was cancelled before creating video data
@@ -302,6 +313,7 @@ export async function downloadSinglePart(
       description: videoDescription,
       date: videoDate,
       source: "bilibili",
+      mediaType: audioOnly ? "audio" : "video",
       sourceUrl: url,
       videoFilename: finalVideoFilename,
       thumbnailFilename: thumbnailSaved ? finalThumbnailFilename : undefined,
@@ -343,7 +355,12 @@ export async function downloadSinglePart(
     // For multi-part videos, always create a new video entry (each part is separate)
     // For single videos, check if video with same sourceUrl already exists
     if (totalParts === 1) {
-      const existingVideo = storageService.getVideoBySourceUrl(url);
+      // Scope by media type so an audio-only download becomes its own library
+      // item instead of overwriting the existing video row for the same URL.
+      const existingVideo = storageService.getVideoBySourceUrl(
+        url,
+        audioOnly ? "audio" : "video"
+      );
 
       if (existingVideo) {
         // Update existing video with new subtitle information and file paths
@@ -399,6 +416,7 @@ export async function downloadSinglePart(
           height: dimensions?.height,
           title: videoData.title, // Update title in case it changed
           description: videoData.description, // Update description in case it changed
+          mediaType: videoData.mediaType,
           authorAvatarFilename: authorAvatarSaved
             ? authorAvatarFilename
             : existingVideo.authorAvatarFilename,

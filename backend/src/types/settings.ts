@@ -30,6 +30,14 @@ export type ExplicitPreferredVideoContainer = Exclude<
 >;
 
 export type LiveTranslationModel = "gemini-3.5-live-translate-preview";
+export const AUDIO_FORMATS = ["m4a", "mp3", "opus"] as const;
+export type AudioFormat = (typeof AUDIO_FORMATS)[number];
+
+export function normalizeAudioFormat(value: unknown): AudioFormat {
+  return typeof value === "string" && AUDIO_FORMATS.includes(value as AudioFormat)
+    ? (value as AudioFormat)
+    : "m4a";
+}
 
 export interface Settings {
   loginEnabled: boolean;
@@ -81,6 +89,7 @@ export interface Settings {
   mountDirectories?: string;
   defaultSort?: string;
   preferredAudioLanguage?: string;
+  audioFormat?: AudioFormat;
   defaultVideoCodec?: string;
   preferredVideoContainer?: PreferredVideoContainer;
   // Preferred maximum video resolution height (issue #295). "auto" lets the
@@ -95,6 +104,7 @@ export interface Settings {
   playFromBeginning?: boolean;
   theme?: 'light' | 'dark' | 'system';
   showThemeButton?: boolean;
+  showAudioDownloadButton?: boolean;
   telegramEnabled?: boolean;
   telegramBotToken?: string;
   telegramChatId?: string;
@@ -154,6 +164,7 @@ export const defaultSettings: Settings = {
   showYoutubeSearch: true,
   authorOrganizationMode: "root",
   preferredVideoContainer: "auto",
+  audioFormat: "m4a",
   preferredVideoResolution: "auto",
   preferredVideoResolutionStrict: false,
   infiniteScroll: false,
@@ -164,6 +175,7 @@ export const defaultSettings: Settings = {
   showTagsOnThumbnail: true,
   playFromBeginning: false,
   showThemeButton: true,
+  showAudioDownloadButton: true,
   telegramEnabled: false,
   telegramBotToken: "",
   telegramChatId: "",

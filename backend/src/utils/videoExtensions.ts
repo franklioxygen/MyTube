@@ -13,3 +13,14 @@ export const VIDEO_CONTAINER_EXTENSIONS = [
   ".flv",
   ".3gp",
 ] as const;
+
+export const AUDIO_CONTAINER_EXTENSIONS = [
+  ".m4a",
+  ".mp3",
+  ".opus",
+] as const;
+
+export const MEDIA_FILE_EXTENSIONS = [
+  ...VIDEO_CONTAINER_EXTENSIONS,
+  ...AUDIO_CONTAINER_EXTENSIONS,
+] as const;

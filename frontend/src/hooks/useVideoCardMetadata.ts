@@ -30,7 +30,9 @@ export const useVideoCardMetadata = ({ video }: UseVideoCardMetadataProps) => {
         || video.thumbnailUrl;
 
     // Use cloud storage hook for video URL
-    const videoUrl = useCloudStorageUrl(video.videoPath, 'video');
+    const isAudioOnly = video.mediaType === 'audio';
+    const mediaType = isAudioOnly ? 'audio' : 'video';
+    const videoUrl = useCloudStorageUrl(video.videoPath, mediaType);
 
     // Get video URL with fallback logic
     const getVideoUrl = async (): Promise<string> => {
@@ -43,7 +45,7 @@ export const useVideoCardMetadata = ({ video }: UseVideoCardMetadataProps) => {
         if (video.videoPath?.startsWith('cloud:')) {
             // Try to get the signed URL directly
             const { getFileUrl } = await import('../utils/cloudStorage');
-            const cloudUrl = await getFileUrl(video.videoPath, 'video');
+            const cloudUrl = await getFileUrl(video.videoPath, mediaType);
             if (cloudUrl) {
                 return cloudUrl;
             }
@@ -66,7 +68,11 @@ export const useVideoCardMetadata = ({ video }: UseVideoCardMetadataProps) => {
         thumbnailSrc,
         thumbnailSrcSet: undefined,
         thumbnailSizes: undefined,
-        videoUrl,
+        // Audio-only cards have no video frames, so feeding this URL into the
+        // hover-preview <video> would fade the cover to a black, silent player.
+        // Withhold the preview URL for audio; getVideoUrl still resolves it for
+        // actual playback.
+        videoUrl: isAudioOnly ? undefined : videoUrl,
         getVideoUrl,
         isNew
     };

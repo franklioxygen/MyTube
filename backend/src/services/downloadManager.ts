@@ -665,11 +665,16 @@ class DownloadManager {
           const { id: sourceVideoId, platform } =
             extractSourceVideoId(sourceUrl);
           if (sourceVideoId) {
+            // Track audio-only downloads as their own row so they never collide
+            // with the video download for the same source.
+            const mediaType =
+              videoData.mediaType === "audio" ? "audio" : "video";
             // Check if this is a re-download of previously deleted video
             const existingRecord =
               storageService.checkVideoDownloadBySourceId(
                 sourceVideoId,
-                platform
+                platform,
+                mediaType
               );
             if (existingRecord.found && existingRecord.status === "deleted") {
               // Update existing record
@@ -678,7 +683,8 @@ class DownloadManager {
                 videoData.id,
                 finalTitle || task.title,
                 videoData.author,
-                platform
+                platform,
+                mediaType
               );
             } else if (!existingRecord.found) {
               // New download, create record
@@ -688,7 +694,8 @@ class DownloadManager {
                 platform,
                 videoData.id,
                 finalTitle || task.title,
-                videoData.author
+                videoData.author,
+                mediaType
               );
             }
           }

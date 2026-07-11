@@ -14,7 +14,7 @@ import { logger } from "../utils/logger";
 
 /**
  * Get signed URL for a cloud storage file
- * GET /api/cloud/signed-url?filename=xxx&type=video|thumbnail
+ * GET /api/cloud/signed-url?filename=xxx&type=video|audio|thumbnail
  * For thumbnails, checks local cache first before fetching from cloud
  */
 export const getSignedUrl = async (
@@ -27,11 +27,11 @@ export const getSignedUrl = async (
     throw new ValidationError("filename is required", "filename");
   }
 
-  if (type && type !== "video" && type !== "thumbnail") {
-    throw new ValidationError("type must be 'video' or 'thumbnail'", "type");
+  if (type && type !== "video" && type !== "audio" && type !== "thumbnail") {
+    throw new ValidationError("type must be 'video', 'audio', or 'thumbnail'", "type");
   }
 
-  const fileType = (type as "video" | "thumbnail") || "video";
+  const fileType = (type as "video" | "audio" | "thumbnail") || "video";
 
   // Visitor scoping (GHSA-hcm6-w6x8-6jhr): do not hand a visitor a signed URL
   // (or a local cache URL) for a cloud file that belongs to a hidden video.

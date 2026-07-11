@@ -2,7 +2,7 @@ import path from "path";
 import { VIDEOS_DIR } from "../../../config/paths";
 import { ValidationError } from "../../../errors/DownloadErrors";
 import { pathExistsSafeSync, resolveSafeChildPath } from "../../../utils/security";
-import { VIDEO_CONTAINER_EXTENSIONS } from "../../../utils/videoExtensions";
+import { MEDIA_FILE_EXTENSIONS } from "../../../utils/videoExtensions";
 
 export function stripTrailingExtension(
   value: string,
@@ -17,11 +17,17 @@ export function createYtDlpOutputTemplate(outputPath: string): string {
   return resolveSafeChildPath(outputDir, `${outputFilename}.%(ext)s`);
 }
 
-export function pathExistsWithAnyKnownVideoExtension(basePath: string): boolean {
-  return VIDEO_CONTAINER_EXTENSIONS.some((extension) =>
+export function pathExistsWithAnyKnownMediaExtension(basePath: string): boolean {
+  return MEDIA_FILE_EXTENSIONS.some((extension) =>
     pathExistsSafeSync(`${basePath}${extension}`, VIDEOS_DIR)
   );
 }
+
+// Kept for callers that use the old video-specific name. The collision check
+// is intentionally media-wide so an audio and video download cannot reuse the
+// same stem and confuse later resolution.
+export const pathExistsWithAnyKnownVideoExtension =
+  pathExistsWithAnyKnownMediaExtension;
 
 export function isExpectedTwitchMetadataError(error: unknown): boolean {
   if (error instanceof ValidationError) {

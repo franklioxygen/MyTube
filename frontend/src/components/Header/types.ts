@@ -13,6 +13,7 @@ export interface DownloadInfo {
 
 export interface HeaderProps {
   onSubmit: (url: string) => Promise<any>;
+  onAudioOnlySubmit?: (url: string) => Promise<any>;
   onSearch: (term: string) => Promise<any>;
   activeDownloads?: DownloadInfo[];
   queuedDownloads?: DownloadInfo[];

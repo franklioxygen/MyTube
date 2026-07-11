@@ -4,9 +4,11 @@ import downloadManager from "../services/downloadManager";
 import { buildBilibiliDownloadTask } from "../services/bilibiliDownloadTask";
 import {
   createBilibiliRetryMetadata,
+  createDownloadModeRetryMetadata,
   mergeBilibiliRetryMetadata,
   parseRetryMetadata,
 } from "../services/downloadRetryMetadata";
+import { normalizeAudioFormat } from "../types/settings";
 import * as downloadService from "../services/downloadService";
 import {
   recordEvent,
@@ -85,6 +87,9 @@ export const checkVideoDownloadStatus = async (
   res: Response,
 ): Promise<void> => {
   const url = getStringParam(req.query.url);
+  // Audio and video are tracked independently; scope the check so an existing
+  // video download does not report an audio-only request as already present.
+  const audioOnly = getStringParam(req.query.audioOnly) === "true";
 
   if (!url) {
     throw new ValidationError("URL is required", "url");
@@ -110,9 +115,16 @@ export const checkVideoDownloadStatus = async (
     return;
   }
 
+  // MissAV/123av/njavtv always download a normal video even for audio requests,
+  // so treat an audio check there as video to match what actually gets saved.
+  const effectiveAudioOnly = audioOnly && !isMissAVUrl(videoUrl);
+
   // Check if video was previously downloaded
-  const downloadCheck =
-    storageService.checkVideoDownloadBySourceId(sourceVideoId, platform);
+  const downloadCheck = storageService.checkVideoDownloadBySourceId(
+    sourceVideoId,
+    platform,
+    effectiveAudioOnly ? "audio" : "video",
+  );
 
   if (downloadCheck.found) {
     const visibilityScopedRole = getVisibilityScopedRole(req);
@@ -195,7 +207,15 @@ export const downloadVideo = async (
       collectionInfo,
       forceDownload, // Allow re-download of deleted videos
       statisticsContext, // optional attribution metadata for the statistics feature
+      audioOnly,
     } = req.body;
+    // Audio-only is an explicit per-request intent. Never fall back to a
+    // persisted setting so extensions, API callers, and subscriptions remain
+    // video downloads unless they opt in themselves.
+    const effectiveAudioOnly = audioOnly === true;
+    const audioFormat = normalizeAudioFormat(
+      storageService.getSettings()?.audioFormat,
+    );
     let videoUrl = youtubeUrl;
 
     if (!videoUrl) {
@@ -255,10 +275,21 @@ export const downloadVideo = async (
       ? trimBilibiliUrl(validatedVideoUrl)
       : validatedVideoUrl;
     logger.info("Resolved URL to:", resolvedUrl);
-    // Check if video was previously downloaded (skip for collections/multi-part)
+    // The MissAV/123av/njavtv branch ignores audio mode and always downloads a
+    // normal video, so an audio request there is effectively a video download.
+    // Mirror that here (as the retry metadata already does) so the media type
+    // used for dedupe/recording matches what actually gets saved.
+    const effectiveMediaType: "audio" | "video" =
+      effectiveAudioOnly && !isMissAVUrl(resolvedUrl) ? "audio" : "video";
+    // Check if video was previously downloaded (skip for collections/multi-part).
+    // Scope the lookup to the requested media type so an existing video download
+    // never masks a new audio-only request (and vice versa).
     if (sourceVideoId && !downloadAllParts && !downloadCollection) {
-      const downloadCheck =
-        storageService.checkVideoDownloadBySourceId(sourceVideoId, platform);
+      const downloadCheck = storageService.checkVideoDownloadBySourceId(
+        sourceVideoId,
+        platform,
+        effectiveMediaType,
+      );
 
       // Get settings to check dontSkipDeletedVideo
       const settings = storageService.getSettings();
@@ -315,7 +346,7 @@ export const downloadVideo = async (
 
     // Generate a unique ID for this download task
     const downloadId = Date.now().toString();
-    const previousBilibiliRetryMetadata = isBilibiliUrl(resolvedUrl)
+    const parsedPreviousRetryMetadata = isBilibiliUrl(resolvedUrl)
       ? parseRetryMetadata(
           storageService.getLatestRetryHistoryItemBySourceUrl(
             resolvedUrl,
@@ -323,6 +354,20 @@ export const downloadVideo = async (
           )?.retryMetadata,
         )
       : undefined;
+    // An explicit audio-only request is a fresh intent that must not resurrect a
+    // previously failed all-parts/collection retry for the same URL. Ignoring
+    // the prior aggregate retry state keeps bilibiliRetryMetadata undefined for
+    // a single audio request, so the audio track is downloaded (audioOnly: true)
+    // and download-mode retry metadata is stored instead of the old aggregate.
+    const isExplicitBilibiliAudioRequest =
+      isBilibiliUrl(resolvedUrl) &&
+      !isMissAVUrl(resolvedUrl) &&
+      effectiveAudioOnly;
+    const previousBilibiliRetryMetadata =
+      parsedPreviousRetryMetadata?.shape !== "download_mode" &&
+      !isExplicitBilibiliAudioRequest
+        ? parsedPreviousRetryMetadata
+        : undefined;
     const currentBilibiliRetryMetadata = isBilibiliUrl(resolvedUrl)
       ? createBilibiliRetryMetadata({
           downloadAllParts: !!downloadAllParts,
@@ -360,6 +405,12 @@ export const downloadVideo = async (
     const effectiveCollectionName =
       collectionName ?? bilibiliRetryMetadata?.collectionName;
     const effectiveCollectionInfo = collectionInfo ?? retryCollectionInfo;
+    const isAggregateBilibiliDownload =
+      effectiveDownloadAllParts || effectiveDownloadCollection;
+    const modeRetryMetadata =
+      effectiveAudioOnly && !isMissAVUrl(resolvedUrl) && !isAggregateBilibiliDownload
+        ? createDownloadModeRetryMetadata({ audioOnly: true, audioFormat })
+        : undefined;
 
     // Define the download task function
     const downloadTask = async (
@@ -378,6 +429,8 @@ export const downloadVideo = async (
           collectionName: effectiveCollectionName,
           collectionInfo: effectiveCollectionInfo,
           retryMetadata: bilibiliRetryMetadata,
+          audioOnly: effectiveAudioOnly && !isAggregateBilibiliDownload,
+          audioFormat,
           onTitleUpdate: (id, title) => {
             storageService.updateActiveDownloadTitle(id, title);
             downloadManager.updateTaskTitle(id, title);
@@ -393,11 +446,18 @@ export const downloadVideo = async (
         return { success: true, video: videoData };
       } else {
         // YouTube download
-        const videoData = await downloadService.downloadYouTubeVideo(
-          downloadUrl,
-          downloadId,
-          registerCancel,
-        );
+        const videoData = effectiveAudioOnly
+          ? await downloadService.downloadYouTubeVideo(downloadUrl, {
+              downloadId,
+              onStart: registerCancel,
+              audioOnly: true,
+              audioFormat,
+            })
+          : await downloadService.downloadYouTubeVideo(
+              downloadUrl,
+              downloadId,
+              registerCancel,
+            );
         return { success: true, video: videoData };
       }
     };
@@ -420,7 +480,7 @@ export const downloadVideo = async (
         sourceKind: statisticsSourceKind,
         relatedEventId: statisticsRelatedEventId,
         enqueuedEventId: downloadEnqueuedEventId,
-      }, bilibiliRetryMetadata)
+      }, bilibiliRetryMetadata ?? modeRetryMetadata)
       .then((result: any) => {
         logger.info("Download completed successfully:", result);
       })

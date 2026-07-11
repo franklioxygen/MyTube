@@ -694,6 +694,7 @@ export class MissAVDownloader extends BaseDownloader {
         author: videoAuthor,
         date: videoDate,
         source: "missav",
+        mediaType: "video",
         sourceUrl: url,
         videoFilename: finalVideoFilename,
         thumbnailFilename: thumbnailSaved ? finalThumbnailFilename : undefined,

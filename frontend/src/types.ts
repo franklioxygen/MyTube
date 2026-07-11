@@ -23,6 +23,7 @@ export interface Video {
   fileSize?: string; // Size in bytes as string
   width?: number;
   height?: number;
+  mediaType?: 'video' | 'audio';
   lastPlayedAt?: number;
   subtitles?: Array<{ language: string; filename: string; path: string }>;
   description?: string;
@@ -164,6 +165,7 @@ export interface Settings {
   defaultSort?: string;
   showTagsOnThumbnail?: boolean;
   preferredAudioLanguage?: string;
+  audioFormat?: 'm4a' | 'mp3' | 'opus';
   defaultVideoCodec?: string;
   preferredVideoContainer?: 'auto' | 'mp4' | 'webm' | 'mkv';
   preferredVideoResolution?: string;
@@ -173,6 +175,7 @@ export interface Settings {
   playFromBeginning?: boolean;
   theme?: 'light' | 'dark' | 'system';
   showThemeButton?: boolean;
+  showAudioDownloadButton?: boolean;
   telegramEnabled?: boolean;
   telegramBotToken?: string;
   telegramChatId?: string;

@@ -165,6 +165,34 @@ describe("storageService videos", () => {
       );
     });
 
+    it("should scope the lookup by media type when one is provided", () => {
+      const audio = mockSelect({
+        whereRow: {
+          id: "a1",
+          sourceUrl: "https://example.com/v1",
+          mediaType: "audio",
+          tags: "[]",
+        },
+      });
+      expect(
+        getVideoBySourceUrl("https://example.com/v1", "audio")?.id
+      ).toBe("a1");
+      expect(audio.getMock).toHaveBeenCalled();
+
+      const video = mockSelect({
+        whereRow: {
+          id: "v1",
+          sourceUrl: "https://example.com/v1",
+          mediaType: "video",
+          tags: "[]",
+        },
+      });
+      expect(
+        getVideoBySourceUrl("https://example.com/v1", "video")?.id
+      ).toBe("v1");
+      expect(video.getMock).toHaveBeenCalled();
+    });
+
     it("should throw DatabaseError when getVideoBySourceUrl fails", () => {
       vi.mocked(db.select).mockImplementation(() => {
         throw new Error("boom");
