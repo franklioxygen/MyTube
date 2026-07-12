@@ -947,6 +947,9 @@ export const es = {
     "El nombre de la colección contiene caracteres no válidos",
   collectionNameReserved: "El nombre de la colección está reservado",
   updateCollectionFailed: "Error al actualizar la colección",
+  createCollectionFailed: "Error al crear la colección",
+  collectionExistsVideoAdded:
+    "La colección ya existe: el video se agregó a ella",
   uploadSubtitle: "Subir subtítulo",
   subtitleUploaded: "Subtítulo subido correctamente",
   confirmDeleteSubtitle: "¿Eliminar este subtítulo?",

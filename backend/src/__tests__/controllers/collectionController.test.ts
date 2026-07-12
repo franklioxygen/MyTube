@@ -73,6 +73,46 @@ describe('CollectionController', () => {
       }
     });
 
+    it('should throw DuplicateError if name already exists', async () => {
+      req.body = { name: 'Existing Col' };
+      (storageService.getCollectionByName as any).mockReturnValueOnce({
+        id: '99',
+        title: 'Existing Col',
+        videos: [],
+      });
+
+      try {
+        await createCollection(req as Request, res as Response);
+        expect.fail('Should have thrown');
+      } catch (error: any) {
+        expect(error.name).toBe('DuplicateError');
+      }
+
+      expect(storageService.saveCollection).not.toHaveBeenCalled();
+    });
+
+    it('should add video to existing collection instead of duplicating when name exists', () => {
+      req.body = { name: 'Existing Col', videoId: 'v1' };
+      (storageService.getCollectionByName as any).mockReturnValueOnce({
+        id: '99',
+        title: 'Existing Col',
+        videos: [],
+      });
+      const merged = { id: '99', title: 'Existing Col', videos: ['v1'] };
+      (storageService.addVideoToCollection as any).mockReturnValue(merged);
+
+      createCollection(req as Request, res as Response);
+
+      expect(storageService.saveCollection).not.toHaveBeenCalled();
+      expect(storageService.addVideoToCollection).toHaveBeenCalledWith(
+        '99',
+        'v1',
+        { moveFiles: false }
+      );
+      expect(status).toHaveBeenCalledWith(200);
+      expect(json).toHaveBeenCalledWith(merged);
+    });
+
     it('should add video if videoId provided', () => {
       req.body = { name: 'New Col', videoId: 'v1' };
       const mockCollection = { id: '1', title: 'New Col', videos: ['v1'] };

@@ -1,5 +1,9 @@
 import { Request, Response } from "express";
-import { NotFoundError, ValidationError } from "../errors/DownloadErrors";
+import {
+  DuplicateError,
+  NotFoundError,
+  ValidationError,
+} from "../errors/DownloadErrors";
 import * as storageService from "../services/storageService";
 import { Collection } from "../services/storageService";
 import { getStringParam } from "../utils/paramUtils";
@@ -32,6 +36,29 @@ export const createCollection = async (
 
   if (!name) {
     throw new ValidationError("Collection name is required", "name");
+  }
+
+  // Collection names must be unique.
+  const existing = storageService.getCollectionByName(name);
+  if (existing) {
+    // If a video is being added, merge it into the existing collection
+    // instead of creating a duplicate. Signalled with 200 (vs 201 for a new
+    // collection) so the frontend can tell the user it was added to an
+    // existing collection.
+    if (videoId) {
+      const updatedCollection = storageService.addVideoToCollection(
+        existing.id,
+        videoId,
+        { moveFiles: false }
+      );
+      res.status(200).json(updatedCollection ?? existing);
+      return;
+    }
+
+    throw new DuplicateError(
+      "Collection",
+      `Collection name "${name}" already exists`
+    );
   }
 
   // Create a new collection

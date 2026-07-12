@@ -912,6 +912,8 @@ export const ar = {
   collectionNameInvalidChars: "اسم المجموعة يحتوي على أحرف غير صالحة",
   collectionNameReserved: "اسم المجموعة محجوز",
   updateCollectionFailed: "فشل تحديث المجموعة",
+  createCollectionFailed: "فشل إنشاء المجموعة",
+  collectionExistsVideoAdded: "المجموعة موجودة بالفعل — تمت إضافة الفيديو إليها",
   uploadSubtitle: "رفع الترجمة",
   subtitleUploaded: "تم رفع الترجمة بنجاح",
   confirmDeleteSubtitle: "حذف هذه الترجمة؟",

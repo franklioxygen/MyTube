@@ -950,6 +950,9 @@ export const fr = {
     "Le nom de la collection contient des caractères invalides",
   collectionNameReserved: "Le nom de la collection est réservé",
   updateCollectionFailed: "Échec de la mise à jour de la collection",
+  createCollectionFailed: "Échec de la création de la collection",
+  collectionExistsVideoAdded:
+    "La collection existe déjà — la vidéo y a été ajoutée",
   uploadSubtitle: "Télécharger le sous-titre",
   subtitleUploaded: "Sous-titre téléchargé avec succès",
   confirmDeleteSubtitle: "Supprimer ce sous-titre ?",
