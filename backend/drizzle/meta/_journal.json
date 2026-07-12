@@ -169,6 +169,13 @@
       "when": 1783730035912,
       "tag": "0023_striped_ender_wiggin",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "6",
+      "when": 1783898448220,
+      "tag": "0024_subscription_ytdlp_config",
+      "breakpoints": true
     }
   ]
 }

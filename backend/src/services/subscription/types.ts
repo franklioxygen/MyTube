@@ -34,4 +34,8 @@ export interface Subscription {
   consecutiveFailureCount?: number;
   lastCheckStatus?: string | null;
   lastFailureReason?: string | null;
+
+  // Per-subscription yt-dlp config override (issue #345).
+  // Free-text yt-dlp config snippet; empty/undefined = use the global config.
+  ytdlpConfig?: string | null;
 }

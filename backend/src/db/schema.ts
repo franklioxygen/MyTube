@@ -297,6 +297,10 @@ export const subscriptions = sqliteTable("subscriptions", {
   consecutiveFailureCount: integer("consecutive_failure_count").notNull().default(0),
   lastCheckStatus: text("last_check_status"), // 'success' | 'fail'
   lastFailureReason: text("last_failure_reason"), // bucket key only, never raw error text
+  // Per-subscription yt-dlp config override (issue #345).
+  // Free-text yt-dlp config snippet; null/empty = use the global ytDlpConfig.
+  // Same format as the global setting. Trust-gated to "container".
+  ytdlpConfig: text("ytdlp_config"),
 });
 
 // Track downloaded video IDs to prevent re-downloading

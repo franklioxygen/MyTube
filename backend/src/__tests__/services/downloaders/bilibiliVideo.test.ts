@@ -93,6 +93,8 @@ vi.mock("../../../utils/ytDlpUtils", () => {
     getNetworkConfigFromUserConfig: (...args: any[]) =>
       mocks.getNetworkConfigFromUserConfig(...args),
     getUserYtDlpConfig: (...args: any[]) => mocks.getUserYtDlpConfig(...args),
+    // No subscription override in these tests → effective config == global config.
+    getEffectiveUserYtDlpConfig: (url: any) => mocks.getUserYtDlpConfig(url),
     InvalidProxyError,
   };
 });
@@ -624,7 +626,7 @@ describe("bilibiliVideo.downloadSinglePart", () => {
     expect(mocks.prepareBilibiliDownloadFlags).toHaveBeenCalledWith(
       "https://www.bilibili.com/video/BV1lowres",
       expect.any(String),
-      { retryFloorHeight: 1080 },
+      expect.objectContaining({ retryFloorHeight: 1080 }),
     );
     // Exactly one retry: two yt-dlp invocations total for the single part.
     expect(mocks.executeYtDlpSpawn).toHaveBeenCalledTimes(2);

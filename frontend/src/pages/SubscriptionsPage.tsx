@@ -1,9 +1,14 @@
-import { AutoDelete, Cancel, Check, Close, Delete, DeleteOutline, Edit, HelpOutline, Pause, PlayArrow } from '@mui/icons-material';
+import { AutoDelete, Cancel, Check, Close, Delete, DeleteOutline, Edit, HelpOutline, Pause, PlayArrow, Tune } from '@mui/icons-material';
 import {
     Box,
     Button,
     CircularProgress,
     Container,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogContentText,
+    DialogTitle,
     IconButton,
     LinearProgress,
     Paper,
@@ -27,6 +32,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import { api } from '../utils/apiClient';
 import { useSubscriptions } from '../hooks/useSubscriptions';
+import { useSettings } from '../hooks/useSettings';
 import { formatDisplayDateTimeMinutes } from '../utils/formatUtils';
 import type { TranslationKey } from '../utils/translations';
 
@@ -47,6 +53,7 @@ interface Subscription {
     subscriptionType?: string; // 'author' or 'playlist'
     collectionId?: string;
     retentionDays?: number | null;
+    ytdlpConfig?: string | null;
 }
 
 interface ContinuousDownloadTask {
@@ -110,6 +117,10 @@ const SubscriptionsPage: React.FC = () => {
     const [editedRetention, setEditedRetention] = useState<string>('');
     const [isSavingRetention, setIsSavingRetention] = useState(false);
     const [isRetentionHelpOpen, setIsRetentionHelpOpen] = useState(false);
+    // Per-subscription yt-dlp config override (issue #345). Edited in a dialog.
+    const [ytdlpConfigSub, setYtdlpConfigSub] = useState<Subscription | null>(null);
+    const [editedYtdlpConfig, setEditedYtdlpConfig] = useState<string>('');
+    const [isSavingYtdlpConfig, setIsSavingYtdlpConfig] = useState(false);
     const [subscriptionsPage, setSubscriptionsPage] = useState(0);
     const [subscriptionsRowsPerPage, setSubscriptionsRowsPerPage] = useState(DEFAULT_SUBSCRIPTIONS_ROWS_PER_PAGE);
 
@@ -119,6 +130,11 @@ const SubscriptionsPage: React.FC = () => {
         staleTime: 10000, // Consider data fresh for 10 seconds
         gcTime: 10 * 60 * 1000, // Garbage collect after 10 minutes
     });
+
+    // The per-subscription yt-dlp override is trust-gated to "container" (same as
+    // the global ytDlpConfig). Hide the editor entirely below that trust level.
+    const { data: settingsData } = useSettings();
+    const canEditYtdlpConfig = settingsData?.deploymentSecurity?.adminTrustedWithContainer === true;
 
     const { data: tasks = [], refetch: refetchTasks } = useQuery({
         queryKey: ['subscriptionTasks'],
@@ -344,6 +360,34 @@ const SubscriptionsPage: React.FC = () => {
             console.error('Error updating subscription retention:', error);
             showSnackbar(t('retentionDaysUpdateFailed'));
             setIsSavingRetention(false);
+        }
+    };
+
+    const handleStartEditingYtdlpConfig = (subscription: Subscription) => {
+        setYtdlpConfigSub(subscription);
+        setEditedYtdlpConfig(subscription.ytdlpConfig ?? '');
+    };
+
+    const handleCancelEditingYtdlpConfig = () => {
+        setYtdlpConfigSub(null);
+        setEditedYtdlpConfig('');
+        setIsSavingYtdlpConfig(false);
+    };
+
+    const handleSaveYtdlpConfig = async () => {
+        if (!ytdlpConfigSub) return;
+        setIsSavingYtdlpConfig(true);
+        try {
+            await api.put(`/subscriptions/${ytdlpConfigSub.id}`, {
+                ytdlpConfig: editedYtdlpConfig,
+            });
+            showSnackbar(t('ytdlpConfigOverrideUpdated'));
+            await refetchSubscriptions();
+            handleCancelEditingYtdlpConfig();
+        } catch (error) {
+            console.error('Error updating subscription yt-dlp config:', error);
+            showSnackbar(t('ytdlpConfigOverrideUpdateFailed'));
+            setIsSavingYtdlpConfig(false);
         }
     };
 
@@ -630,6 +674,16 @@ const SubscriptionsPage: React.FC = () => {
                                             >
                                                 <AutoDelete />
                                             </IconButton>
+                                            {canEditYtdlpConfig && (
+                                                <IconButton
+                                                    color={sub.ytdlpConfig ? 'secondary' : 'primary'}
+                                                    onClick={() => handleStartEditingYtdlpConfig(sub)}
+                                                    title={t('editYtdlpConfigOverride')}
+                                                    disabled={isEditingInterval || isEditingRetention}
+                                                >
+                                                    <Tune />
+                                                </IconButton>
+                                            )}
                                             <IconButton
                                                 color="error"
                                                 onClick={createUnsubscribeHandler(sub)}
@@ -850,6 +904,43 @@ const SubscriptionsPage: React.FC = () => {
                 confirmText={t('ok')}
                 showCancel={false}
             />
+            <Dialog
+                open={ytdlpConfigSub !== null}
+                onClose={handleCancelEditingYtdlpConfig}
+                maxWidth="sm"
+                fullWidth
+            >
+                <DialogTitle>{t('editYtdlpConfigOverride')}</DialogTitle>
+                <DialogContent>
+                    <DialogContentText sx={{ mb: 2 }}>
+                        {t('ytdlpConfigOverrideHelp')}
+                    </DialogContentText>
+                    <TextField
+                        autoFocus
+                        fullWidth
+                        multiline
+                        minRows={3}
+                        variant="outlined"
+                        placeholder={t('ytdlpConfigOverridePlaceholder')}
+                        value={editedYtdlpConfig}
+                        onChange={(e) => setEditedYtdlpConfig(e.target.value)}
+                        slotProps={{ htmlInput: { spellCheck: false, style: { fontFamily: 'monospace' } } }}
+                    />
+                </DialogContent>
+                <DialogActions sx={{ p: 2 }}>
+                    <Button onClick={handleCancelEditingYtdlpConfig} color="inherit" disabled={isSavingYtdlpConfig}>
+                        {t('cancel')}
+                    </Button>
+                    <Button
+                        onClick={() => void handleSaveYtdlpConfig()}
+                        variant="contained"
+                        color="primary"
+                        disabled={isSavingYtdlpConfig}
+                    >
+                        {t('save')}
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </Container >
     );
 };

@@ -495,6 +495,10 @@ export class TaskProcessor {
         ? buildFilenameTemplateSourceOptions(taskSubscription, videoIndex + 1)
         : this.buildFallbackFilenameTemplateSourceOptions(task, videoIndex);
 
+    // Per-subscription yt-dlp override (issue #345). Null when the task has no
+    // resolvable subscription → identical to today's behaviour (global config).
+    const subscriptionYtdlpConfig = taskSubscription?.ytdlpConfig ?? null;
+
     try {
       // Download the video
       let downloadResult: DownloadResultUnion;
@@ -507,7 +511,8 @@ export class TaskProcessor {
           downloadId,
           undefined,
           undefined,
-          filenameTemplateSourceOptions
+          filenameTemplateSourceOptions,
+          { subscriptionYtdlpConfig }
         );
 
         // Check for Bilibili download errors
@@ -518,12 +523,11 @@ export class TaskProcessor {
           );
         }
       } else {
-        downloadResult = await downloadYouTubeVideo(
-          videoUrl,
+        downloadResult = await downloadYouTubeVideo(videoUrl, {
           downloadId,
-          undefined,
-          filenameTemplateSourceOptions
-        );
+          filenameTemplateSourceOptions,
+          subscriptionYtdlpConfig,
+        });
       }
 
       // Extract video data from result (handles both DownloadResult and Video formats)

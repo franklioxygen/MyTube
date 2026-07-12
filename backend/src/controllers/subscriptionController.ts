@@ -1,4 +1,8 @@
 import { Request, Response } from "express";
+import {
+    createAdminTrustLevelError,
+    isAdminTrustLevelAtLeast,
+} from "../config/adminTrust";
 import { getErrorMessage } from "../utils/errors";
 import { ValidationError } from "../errors/DownloadErrors";
 import { continuousDownloadService } from "../services/continuousDownloadService";
@@ -33,6 +37,57 @@ import {
     toPlaylistsTabUrl,
 } from "../services/subscription/playlistResolution";
 
+// Per-subscription yt-dlp config override (issue #345). Same free-text format
+// and trust requirement ("container") as the global ytDlpConfig setting.
+const MAX_YTDLP_CONFIG_LENGTH = 4096;
+
+/**
+ * Validate and normalize a raw ytdlp_config value from the request body.
+ * Accepts a string or null; treats empty/whitespace as "cleared" (null).
+ * Throws ValidationError on wrong type or excessive length.
+ */
+function normalizeYtdlpConfigInput(raw: unknown): string | null {
+  if (raw === null || raw === undefined) {
+    return null;
+  }
+  if (typeof raw !== "string") {
+    throw new ValidationError(
+      "ytdlpConfig must be a string or null",
+      "ytdlpConfig"
+    );
+  }
+  if (raw.length > MAX_YTDLP_CONFIG_LENGTH) {
+    throw new ValidationError(
+      `ytdlpConfig must be at most ${MAX_YTDLP_CONFIG_LENGTH} characters`,
+      "ytdlpConfig"
+    );
+  }
+  const trimmed = raw.trim();
+  return trimmed === "" ? null : trimmed;
+}
+
+/**
+ * Enforce the "container" admin-trust requirement for a ytdlp_config change.
+ * Returns true if the request may proceed. When trust is insufficient and the
+ * value actually changes, responds 403 and returns false; an unchanged value is
+ * treated as a no-op (proceed) — mirroring the global setting's trust gating.
+ */
+function ensureYtdlpConfigTrust(
+  res: Response,
+  nextValue: string | null,
+  existingValue: string | null
+): boolean {
+  if (isAdminTrustLevelAtLeast("container")) {
+    return true;
+  }
+  const normalizedExisting = normalizeYtdlpConfigInput(existingValue);
+  if (nextValue === normalizedExisting) {
+    return true;
+  }
+  res.status(403).json(createAdminTrustLevelError("container"));
+  return false;
+}
+
 /**
  * Create a new subscription
  * Errors are automatically handled by asyncHandler middleware
@@ -44,6 +99,12 @@ export const createSubscription = async (
   const { url, interval, authorName, downloadAllPrevious, downloadShorts: rawDownloadShorts, downloadOrder: rawDownloadOrder } =
     req.body;
   const downloadShorts = Boolean(rawDownloadShorts);
+
+  // Per-subscription yt-dlp override (issue #345). Trust-gated; empty => null.
+  const ytdlpConfig = normalizeYtdlpConfigInput(req.body.ytdlpConfig);
+  if (!ensureYtdlpConfigTrust(res, ytdlpConfig, null)) {
+    return;
+  }
 
   const validDownloadOrders: DownloadOrder[] = ["dateDesc", "dateAsc", "viewsDesc", "viewsAsc"];
   let downloadOrder: DownloadOrder = "dateDesc";
@@ -77,7 +138,8 @@ export const createSubscription = async (
     normalizedUrl,
     parseInt(interval),
     authorName,
-    downloadShorts
+    downloadShorts,
+    ytdlpConfig
   );
 
   // If user wants to download all previous videos, create a continuous download task
@@ -185,8 +247,12 @@ export const updateSubscription = async (
     req.body,
     "retentionDays"
   );
+  const hasYtdlpConfig = Object.prototype.hasOwnProperty.call(
+    req.body,
+    "ytdlpConfig"
+  );
 
-  if (!hasInterval && !hasRetentionDays) {
+  if (!hasInterval && !hasRetentionDays && !hasYtdlpConfig) {
     throw new ValidationError(
       "At least one subscription setting is required",
       "body"
@@ -222,12 +288,38 @@ export const updateSubscription = async (
     }
   }
 
-  const updates: { interval?: number; retentionDays?: number | null } = {};
+  const updates: {
+    interval?: number;
+    retentionDays?: number | null;
+    ytdlpConfig?: string | null;
+  } = {};
   if (parsedInterval !== undefined) {
     updates.interval = parsedInterval;
   }
   if (retentionDays !== undefined) {
     updates.retentionDays = retentionDays;
+  }
+
+  if (hasYtdlpConfig) {
+    const nextYtdlpConfig = normalizeYtdlpConfigInput(req.body.ytdlpConfig);
+    const existing = await subscriptionService.getSubscriptionById(id);
+    if (!existing) {
+      throw new ValidationError("Subscription not found", "id");
+    }
+    if (!ensureYtdlpConfigTrust(res, nextYtdlpConfig, existing.ytdlpConfig ?? null)) {
+      return;
+    }
+    // Only persist when the value actually changes (keeps below-trust no-ops out
+    // of the update payload so updateSubscriptionSettings never sees an empty set
+    // just because an unchanged override was echoed back).
+    if (nextYtdlpConfig !== (existing.ytdlpConfig ?? null)) {
+      updates.ytdlpConfig = nextYtdlpConfig;
+    }
+  }
+
+  if (Object.keys(updates).length === 0) {
+    res.status(200).json(successMessage("Subscription updated"));
+    return;
   }
 
   await subscriptionService.updateSubscriptionSettings(id, updates);

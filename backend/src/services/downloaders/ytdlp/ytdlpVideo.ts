@@ -21,6 +21,7 @@ import {
   executeYtDlpSpawn,
   getAxiosProxyConfig,
   getChannelUrlFromVideo,
+  getEffectiveUserYtDlpConfig,
   getNetworkConfigFromUserConfig,
   getUserYtDlpConfig,
   InvalidProxyError,
@@ -78,6 +79,7 @@ export async function downloadVideo(
   const filenameTemplateSourceOptions = options.filenameTemplateSourceOptions;
   const audioOnly = options.audioOnly === true;
   const audioFormat = normalizeAudioFormat(options.audioFormat);
+  const subscriptionYtdlpConfig = options.subscriptionYtdlpConfig;
   logger.info("Detected URL:", videoUrl);
 
   // Create a safe base filename (without extension)
@@ -114,8 +116,12 @@ export async function downloadVideo(
   try {
     const PROVIDER_SCRIPT = getProviderScript();
 
-    // Get user's yt-dlp configuration for network options (including proxy)
-    const userConfig = getUserYtDlpConfig(videoUrl);
+    // Get user's yt-dlp configuration for network options (including proxy),
+    // layering any per-subscription override on top of the global config (#345).
+    const userConfig = getEffectiveUserYtDlpConfig(
+      videoUrl,
+      subscriptionYtdlpConfig
+    );
     const networkConfig = getNetworkConfigFromUserConfig(userConfig);
 
     // Get video info first

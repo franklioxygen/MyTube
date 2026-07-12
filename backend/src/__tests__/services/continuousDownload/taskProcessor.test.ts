@@ -139,13 +139,15 @@ describe('TaskProcessor', () => {
 
     expect(downloadService.downloadYouTubeVideo).toHaveBeenCalledWith(
       'http://vid1',
-      expect.any(String),
-      undefined,
       expect.objectContaining({
-        sourceCustomName: 'Test Author',
-        sourceCollectionName: 'Travel Playlist',
-        sourceCollectionType: 'playlist',
-        mediaPlaylistIndex: 1,
+        downloadId: expect.any(String),
+        subscriptionYtdlpConfig: null,
+        filenameTemplateSourceOptions: expect.objectContaining({
+          sourceCustomName: 'Test Author',
+          sourceCollectionName: 'Travel Playlist',
+          sourceCollectionType: 'playlist',
+          mediaPlaylistIndex: 1,
+        }),
       })
     );
   });
@@ -188,14 +190,16 @@ describe('TaskProcessor', () => {
     );
     expect(downloadService.downloadYouTubeVideo).toHaveBeenCalledWith(
       'http://vid1',
-      expect.any(String),
-      undefined,
       expect.objectContaining({
-        sourceCustomName: 'Test Author',
-        sourceCollectionName: 'Travel Playlist',
-        sourceCollectionId: 'PL123',
-        sourceCollectionType: 'playlist',
-        mediaPlaylistIndex: 1,
+        downloadId: expect.any(String),
+        subscriptionYtdlpConfig: null,
+        filenameTemplateSourceOptions: expect.objectContaining({
+          sourceCustomName: 'Test Author',
+          sourceCollectionName: 'Travel Playlist',
+          sourceCollectionId: 'PL123',
+          sourceCollectionType: 'playlist',
+          mediaPlaylistIndex: 1,
+        }),
       })
     );
   });
@@ -238,13 +242,15 @@ describe('TaskProcessor', () => {
     );
     expect(downloadService.downloadYouTubeVideo).toHaveBeenCalledWith(
       'http://short1',
-      expect.any(String),
-      undefined,
       expect.objectContaining({
-        sourceCustomName: 'Test Author',
-        sourceCollectionName: 'Test Author',
-        sourceCollectionType: 'channel',
-        mediaPlaylistIndex: 1,
+        downloadId: expect.any(String),
+        subscriptionYtdlpConfig: null,
+        filenameTemplateSourceOptions: expect.objectContaining({
+          sourceCustomName: 'Test Author',
+          sourceCollectionName: 'Test Author',
+          sourceCollectionType: 'channel',
+          mediaPlaylistIndex: 1,
+        }),
       })
     );
   });

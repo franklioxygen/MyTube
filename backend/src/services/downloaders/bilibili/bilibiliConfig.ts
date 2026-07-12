@@ -341,9 +341,16 @@ function resolveBilibiliFormat(
 export function prepareBilibiliDownloadFlags(
   url: string,
   outputTemplate: string,
-  options?: { retryFloorHeight?: number; audioOnly?: boolean; audioFormat?: AudioFormat }
+  options?: {
+    retryFloorHeight?: number;
+    audioOnly?: boolean;
+    audioFormat?: AudioFormat;
+    // Effective (global + per-subscription) config computed by the caller (#345).
+    // Falls back to the global config when not supplied.
+    userConfig?: Record<string, any>;
+  }
 ): PreparedBilibiliFlags {
-  const userConfig = getUserYtDlpConfig(url);
+  const userConfig = options?.userConfig ?? getUserYtDlpConfig(url);
   const networkConfig = getNetworkConfigFromUserConfig(userConfig);
 
   if (options?.audioOnly === true) {

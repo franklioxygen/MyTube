@@ -122,6 +122,63 @@ export function getUserYtDlpConfig(url?: string): Record<string, any> {
 }
 
 /**
+ * Compute the effective yt-dlp user config for a download, layering an optional
+ * per-subscription override on top of the global config (issue #345).
+ *
+ * Precedence (per-key): subscriptionOverride > global. Keys the override does
+ * not set (typically network/proxy) are inherited from the global config, so a
+ * per-subscription override changes only what it explicitly mentions.
+ *
+ * The override carries the same arbitrary-args capability surface as the global
+ * ytDlpConfig, so it is gated to the same "container" admin-trust level: below
+ * that level the override is dropped entirely and this behaves identically to
+ * getUserYtDlpConfig(url). An empty/whitespace override is likewise ignored,
+ * preserving today's global-only behaviour (backward compatibility).
+ *
+ * @param url - URL being downloaded (used for the proxyOnlyYoutube logic).
+ * @param subscriptionOverride - Raw override text from subscriptions.ytdlp_config.
+ */
+export function getEffectiveUserYtDlpConfig(
+  url?: string,
+  subscriptionOverride?: string | null
+): Record<string, any> {
+  const globalConfig = getUserYtDlpConfig(url);
+
+  if (
+    subscriptionOverride &&
+    typeof subscriptionOverride === "string" &&
+    subscriptionOverride.trim() &&
+    isAdminTrustLevelAtLeast("container")
+  ) {
+    const overrideConfig = parseYtDlpConfig(subscriptionOverride);
+    logger.info("Applying per-subscription yt-dlp override:", overrideConfig);
+
+    // Start from the global config, then drop any global key that the override
+    // supersedes via an *alias* (short/long form of the same option) so the
+    // override's value cleanly wins. Without this, e.g. a global `--format X`
+    // (key `format`) and an override `-f Y` (key `f`) would both survive the
+    // spread, leaving two competing format keys in the flags object.
+    const merged: Record<string, any> = { ...globalConfig };
+    const ALIAS_GROUPS = [
+      ["f", "format"],
+      ["S", "formatSort"],
+    ];
+    for (const group of ALIAS_GROUPS) {
+      if (group.some((key) => key in overrideConfig)) {
+        for (const key of group) {
+          delete merged[key];
+        }
+      }
+    }
+
+    // Override keys win; everything else inherits from the global config.
+    return { ...merged, ...overrideConfig };
+  }
+
+  return globalConfig;
+}
+
+/**
  * Extract network-related options from user config
  * These are safe to apply to all operations (search, info, download)
  */

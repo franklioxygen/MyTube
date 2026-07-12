@@ -74,7 +74,8 @@ export class SubscriptionService {
     authorUrl: string,
     interval: number,
     providedAuthorName?: string,
-    downloadShorts: boolean = false
+    downloadShorts: boolean = false,
+    ytdlpConfig?: string | null
   ): Promise<Subscription> {
     // Detect platform and validate URL
     let platform: string;
@@ -199,6 +200,7 @@ export class SubscriptionService {
       twitchBroadcasterId,
       twitchBroadcasterLogin,
       lastTwitchVideoId,
+      ytdlpConfig: ytdlpConfig ?? null,
     };
 
     await db.insert(subscriptions).values(newSubscription);
@@ -381,7 +383,11 @@ export class SubscriptionService {
 
   async updateSubscriptionSettings(
     id: string,
-    updates: { interval?: number; retentionDays?: number | null }
+    updates: {
+      interval?: number;
+      retentionDays?: number | null;
+      ytdlpConfig?: string | null;
+    }
   ): Promise<void> {
     if (Object.keys(updates).length === 0) {
       throw new ValidationError(
@@ -436,6 +442,17 @@ export class SubscriptionService {
     // @ts-ignore - Drizzle type inference might be tricky with raw select sometimes, but this should be fine.
     // Actually, db.select().from(subscriptions) returns the inferred type.
     return await db.select().from(subscriptions);
+  }
+
+  async getSubscriptionById(id: string): Promise<Subscription | null> {
+    const rows = await db
+      .select()
+      .from(subscriptions)
+      .where(eq(subscriptions.id, id))
+      .limit(1);
+    // @ts-ignore - Drizzle infers `string | null` for nullable columns while the
+    // Subscription interface uses `string | undefined`; same shim as listSubscriptions.
+    return rows[0] ?? null;
   }
 
   // Update durable subscription counters in-band with the statistics event so
@@ -964,14 +981,16 @@ export class SubscriptionService {
               downloadTaskId,
               registerCancel,
               undefined,
-              buildFilenameTemplateSourceOptions(sub)
+              buildFilenameTemplateSourceOptions(sub),
+              { subscriptionYtdlpConfig: sub.ytdlpConfig }
             )
-          : downloadYouTubeVideo(
-              videoUrl,
-              downloadTaskId,
-              registerCancel,
-              buildFilenameTemplateSourceOptions(sub)
-            ),
+          : downloadYouTubeVideo(videoUrl, {
+              downloadId: downloadTaskId,
+              onStart: registerCancel,
+              filenameTemplateSourceOptions:
+                buildFilenameTemplateSourceOptions(sub),
+              subscriptionYtdlpConfig: sub.ytdlpConfig,
+            }),
       downloadTaskId,
       initialTitle,
       videoUrl,

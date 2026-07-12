@@ -226,12 +226,15 @@ describe('SubscriptionService', () => {
 
       expect(downloadService.downloadYouTubeVideo).toHaveBeenCalledWith(
         'new-link',
-        'test-uuid',
-        expect.any(Function),
         expect.objectContaining({
-          sourceCustomName: 'User',
-          sourceCollectionName: 'User',
-          sourceCollectionType: 'channel',
+          downloadId: 'test-uuid',
+          onStart: expect.any(Function),
+          filenameTemplateSourceOptions: expect.objectContaining({
+            sourceCustomName: 'User',
+            sourceCollectionName: 'User',
+            sourceCollectionType: 'channel',
+          }),
+          subscriptionYtdlpConfig: undefined,
         })
       );
       expect(storageService.addDownloadHistoryItem).toHaveBeenCalledWith(expect.objectContaining({
@@ -276,12 +279,15 @@ describe('SubscriptionService', () => {
       expect(YtDlpDownloader.getLatestShortsUrl).toHaveBeenCalled();
       expect(downloadService.downloadYouTubeVideo).toHaveBeenCalledWith(
         'new-short',
-        'test-uuid',
-        expect.any(Function),
         expect.objectContaining({
-          sourceCustomName: 'User',
-          sourceCollectionName: 'User',
-          sourceCollectionType: 'channel',
+          downloadId: 'test-uuid',
+          onStart: expect.any(Function),
+          filenameTemplateSourceOptions: expect.objectContaining({
+            sourceCustomName: 'User',
+            sourceCollectionName: 'User',
+            sourceCollectionType: 'channel',
+          }),
+          subscriptionYtdlpConfig: undefined,
         })
       );
       expect(TelegramService.notifyTaskComplete).toHaveBeenCalledWith({
@@ -1104,7 +1110,8 @@ describe('SubscriptionService', () => {
           sourceCustomName: 'BiliAuthor',
           sourceCollectionName: 'BiliAuthor',
           sourceCollectionType: 'channel',
-        })
+        }),
+        { subscriptionYtdlpConfig: undefined }
       );
       expect(storageService.addDownloadHistoryItem).toHaveBeenCalledWith(
         expect.objectContaining({ status: 'success', sourceUrl: 'https://www.bilibili.com/video/BV1x' })

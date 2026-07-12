@@ -6,6 +6,7 @@
 
 - Add an All Tags page (`/tags`) with usage-ranked tags, expandable strip, sorting, pagination, and filtered video grid; enhance Home/mobile tag sidebars with top-20 ranking and links to All Tags (1e3ec609)
 - Add a subtitle-only live translation mode that keeps original audio audible, shows translated subtitles, and skips translated speech playback (f1f596a2)
+- Add a per-subscription yt-dlp config override: each subscription can declare its own yt-dlp options (e.g. `--format bestaudio` for an audio-only channel) that apply to all its downloads across every platform; empty inherits the global config, and the override merges over it (subscription wins per-key, network/proxy inherited). Trust-gated to `container`, same as the global config. Closes #345
 
 ### Chore
 

@@ -17,8 +17,8 @@ import {
   executeYtDlpJson,
   executeYtDlpSpawn,
   getAxiosProxyConfig,
+  getEffectiveUserYtDlpConfig,
   getNetworkConfigFromUserConfig,
-  getUserYtDlpConfig,
   InvalidProxyError,
 } from "../../../utils/ytDlpUtils";
 import * as storageService from "../../storageService";
@@ -105,8 +105,12 @@ export async function downloadVideo(
   try {
     logger.info("Downloading Bilibili video using yt-dlp to:", tempDir);
 
-    // Get video info first
-    const userConfig = getUserYtDlpConfig(url);
+    // Get video info first. Layer any per-subscription override on top of the
+    // global config (issue #345).
+    const userConfig = getEffectiveUserYtDlpConfig(
+      url,
+      modeOptions?.subscriptionYtdlpConfig
+    );
     const networkConfig = getNetworkConfigFromUserConfig(userConfig);
 
     const info = await executeYtDlpJson(url, {
@@ -211,6 +215,9 @@ export async function downloadVideo(
         ...(retryFloorHeight != null ? { retryFloorHeight } : {}),
         audioOnly: modeOptions?.audioOnly,
         audioFormat: modeOptions?.audioFormat,
+        // Reuse the effective (global + subscription override) config so the
+        // Bilibili resolution picker short-circuits on a sub-supplied format.
+        userConfig,
       }
     );
 

@@ -19,6 +19,7 @@ export {
 export {
   parseYtDlpConfig,
   getUserYtDlpConfig,
+  getEffectiveUserYtDlpConfig,
   getNetworkConfigFromUserConfig,
 } from "./ytdlp/config";
 export { InvalidProxyError, getAxiosProxyConfig } from "./ytdlp/proxy";
