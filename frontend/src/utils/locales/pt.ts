@@ -939,6 +939,9 @@ export const pt = {
   collectionNameInvalidChars: "O nome da coleção contém caracteres inválidos",
   collectionNameReserved: "O nome da coleção é reservado",
   updateCollectionFailed: "Falha ao atualizar coleção",
+  createCollectionFailed: "Falha ao criar coleção",
+  collectionExistsVideoAdded:
+    "A coleção já existe — o vídeo foi adicionado a ela",
   uploadSubtitle: "Enviar legenda",
   subtitleUploaded: "Legenda enviada com sucesso",
   confirmDeleteSubtitle: "Excluir esta legenda?",

@@ -4,7 +4,7 @@ Canonical locale key order derived from `frontend/src/utils/locales/en.ts`.
 
 This list is intentionally unnumbered. When new keys are inserted, only the local section order changes.
 
-Total keys: 1044
+Total keys: 1046
 
 ## Summary
 
@@ -30,7 +30,7 @@ Total keys: 1044
 | Upload Modal | 19 | `selectVideoFile` | `thumbnailUploaded` |
 | Bilibili Modal | 22 | `bilibiliCollectionDetected` | `waitingInQueue` |
 | Downloads | 20 | `downloads` | `failed` |
-| Snackbar Messages | 19 | `videoDownloading` | `subtitleDeleted` |
+| Snackbar Messages | 21 | `videoDownloading` | `subtitleDeleted` |
 | Batch Download | 6 | `batchDownload` | `addBatchTasks` |
 | Subscriptions | 62 | `subscribeToAuthor` | `retentionDaysUpdateFailed` |
 | Subscription Pause/Resume | 12 | `pause` | `viaContinuousDownload` |
@@ -882,6 +882,8 @@ Total keys: 1044
 | `collectionNameInvalidChars` |
 | `collectionNameReserved` |
 | `updateCollectionFailed` |
+| `createCollectionFailed` |
+| `collectionExistsVideoAdded` |
 | `uploadSubtitle` |
 | `subtitleUploaded` |
 | `confirmDeleteSubtitle` |

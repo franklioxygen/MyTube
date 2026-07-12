@@ -936,6 +936,9 @@ export const ja = {
   collectionNameInvalidChars: "コレクション名に無効な文字が含まれています",
   collectionNameReserved: "コレクション名は予約されています",
   updateCollectionFailed: "コレクションの更新に失敗しました",
+  createCollectionFailed: "コレクションの作成に失敗しました",
+  collectionExistsVideoAdded:
+    "コレクションは既に存在します — 動画を既存のコレクションに追加しました",
   uploadSubtitle: "字幕をアップロード",
   subtitleUploaded: "字幕のアップロードに成功しました",
   confirmDeleteSubtitle: "この字幕を削除しますか？",

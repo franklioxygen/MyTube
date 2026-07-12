@@ -949,6 +949,9 @@ export const de = {
   collectionNameInvalidChars: "Name der Sammlung enthält ungültige Zeichen",
   collectionNameReserved: "Name der Sammlung ist reserviert",
   updateCollectionFailed: "Sammlung konnte nicht aktualisiert werden",
+  createCollectionFailed: "Sammlung konnte nicht erstellt werden",
+  collectionExistsVideoAdded:
+    "Sammlung existiert bereits – Video wurde stattdessen hinzugefügt",
   uploadSubtitle: "Untertitel hochladen",
   subtitleUploaded: "Untertitel erfolgreich hochgeladen",
   confirmDeleteSubtitle: "Diesen Untertitel löschen?",

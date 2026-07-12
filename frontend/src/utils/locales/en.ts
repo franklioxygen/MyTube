@@ -919,6 +919,9 @@ export const en = {
   collectionNameInvalidChars: "Collection name contains invalid characters",
   collectionNameReserved: "Collection name is reserved",
   updateCollectionFailed: "Failed to update collection",
+  createCollectionFailed: "Failed to create collection",
+  collectionExistsVideoAdded:
+    "Collection already exists — video added to it instead",
   uploadSubtitle: "Upload Subtitle",
   subtitleUploaded: "Subtitle uploaded successfully",
   confirmDeleteSubtitle: "Delete this subtitle?",

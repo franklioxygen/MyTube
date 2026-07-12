@@ -62,21 +62,33 @@ export const CollectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                 name,
                 videoId
             });
-            return response.data;
+            return response;
         },
-        onSuccess: () => {
+        onSuccess: (response) => {
             queryClient.invalidateQueries({ queryKey: ['collections'] });
             queryClient.invalidateQueries({ queryKey: ['videos'] });
-            showSnackbar(t('collectionCreatedSuccessfully'));
+            // 200 means the name already existed and the video was merged into
+            // the existing collection; 201 means a new collection was created.
+            if (response.status === 200) {
+                // The merge target may be a favorited collection whose derived
+                // videoCount/cover changed, so refresh favorites to avoid a
+                // stale rail card (matches addToCollection).
+                queryClient.invalidateQueries({ queryKey: ['favorite-collections'] });
+                showSnackbar(t('collectionExistsVideoAdded'));
+            } else {
+                showSnackbar(t('collectionCreatedSuccessfully'));
+            }
         },
-        onError: (error) => {
+        onError: (error: unknown) => {
             console.error('Error creating collection:', error);
+            showSnackbar(getApiErrorMessage(error) || t('createCollectionFailed'), 'error');
         }
     });
 
     const createCollection = useCallback(async (name: string, videoId: string) => {
         try {
-            return await createCollectionMutation.mutateAsync({ name, videoId });
+            const response = await createCollectionMutation.mutateAsync({ name, videoId });
+            return response.data as Collection;
         } catch {
             return null;
         }
