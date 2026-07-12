@@ -6,6 +6,7 @@ import { api } from '../utils/apiClient';
 import { withCanonicalAuthorAvatars } from '../utils/authorAvatar';
 import { hasAxiosStatus } from '../utils/errors';
 import { settingsQueryOptions } from '../utils/settingsQueries';
+import { normalizeTagKey } from '../utils/tagUtils';
 import { useAuth } from './AuthContext';
 import { useLanguage } from './LanguageContext';
 import { useSnackbar } from './SnackbarContext';
@@ -434,11 +435,14 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }, [searchTerm, loadingMore, showYoutubeSearch, searchResults.length, showSnackbar, t]);
 
     const handleTagToggle = useCallback((tag: string) => {
-        setSelectedTags(prev =>
-            prev.includes(tag)
-                ? prev.filter(t => t !== tag)
-                : [...prev, tag]
-        );
+        setSelectedTags((prev) => {
+            const key = normalizeTagKey(tag);
+            const alreadySelected = prev.some((t) => normalizeTagKey(t) === key);
+            if (alreadySelected) {
+                return prev.filter((t) => normalizeTagKey(t) !== key);
+            }
+            return [...prev, tag];
+        });
     }, []);
 
     const clearSelectedTags = useCallback(() => {

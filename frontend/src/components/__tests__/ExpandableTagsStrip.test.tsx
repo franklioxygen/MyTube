@@ -66,4 +66,14 @@ describe('ExpandableTagsStrip', () => {
         fireEvent.click(screen.getByText('b'));
         expect(onTagToggle).toHaveBeenCalledWith('b');
     });
+
+    it('highlights selected tags case-insensitively', () => {
+        renderStrip({
+            tags: ['Music', 'Tech'],
+            selectedTags: ['music'],
+            measureOverflow: () => false,
+        });
+        expect(screen.getByText('Music').closest('.MuiChip-root')).toHaveClass('MuiChip-colorPrimary');
+        expect(screen.getByText('Tech').closest('.MuiChip-root')).not.toHaveClass('MuiChip-colorPrimary');
+    });
 });

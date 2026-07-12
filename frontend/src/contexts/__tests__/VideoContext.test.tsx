@@ -446,6 +446,13 @@ describe('VideoContext', () => {
 
     expect(result.current.selectedTags).toEqual(['vue']);
 
+    act(() => {
+      result.current.handleTagToggle('Music');
+      result.current.handleTagToggle('music');
+    });
+
+    expect(result.current.selectedTags).toEqual(['vue']);
+
     await act(async () => {
       await result.current.handleSearch('react');
     });

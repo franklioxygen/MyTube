@@ -2,6 +2,7 @@ import { LocalOffer } from '@mui/icons-material';
 import { Box, Button, Chip } from '@mui/material';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
+import { normalizeTagKey } from '../utils/tagUtils';
 
 const DEFAULT_MAX_COLLAPSED_LINES = 3;
 const CHIP_ROW_GAP_PX = 8;
@@ -110,7 +111,9 @@ const ExpandableTagsStrip: React.FC<ExpandableTagsStripProps> = ({
                     <Chip label="measure" size="medium" />
                 </Box>
                 {tags.map((tag) => {
-                    const isSelected = selectedTags.includes(tag);
+                    const isSelected = selectedTags.some(
+                        (selected) => normalizeTagKey(selected) === normalizeTagKey(tag)
+                    );
                     return (
                         <Chip
                             key={tag}
