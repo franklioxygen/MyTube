@@ -92,6 +92,7 @@ interface LiveTranslationProviderProps {
     videoElement: HTMLVideoElement | null;
     src: string | null;
     originalAudioWithSubtitles?: boolean;
+    originalAudioWithSubtitlesReady?: boolean;
     onTranscript?: (event: LiveTranslationTranscriptEvent) => void;
     onActiveChange?: (active: boolean) => void;
     children: React.ReactNode;
@@ -107,6 +108,7 @@ export const LiveTranslationProvider: React.FC<LiveTranslationProviderProps> = (
     videoElement,
     src,
     originalAudioWithSubtitles,
+    originalAudioWithSubtitlesReady = true,
     onTranscript,
     onActiveChange,
     children,
@@ -127,7 +129,7 @@ export const LiveTranslationProvider: React.FC<LiveTranslationProviderProps> = (
     }, [session.isActive, onActiveChange]);
 
     const value = useMemo<LiveTranslationControl>(() => {
-        const shouldRender = !!availability && availability.enabled;
+        const shouldRender = !!availability && availability.enabled && originalAudioWithSubtitlesReady;
         if (!shouldRender) {
             return DEFAULT_CONTROL;
         }
@@ -188,7 +190,7 @@ export const LiveTranslationProvider: React.FC<LiveTranslationProviderProps> = (
             retryable: session.retryable,
             retry: () => session.start(),
         };
-    }, [availability, session, src, videoElement, t]);
+    }, [availability, originalAudioWithSubtitlesReady, session, src, videoElement, t]);
 
     return (
         <LiveTranslationContext.Provider value={value}>

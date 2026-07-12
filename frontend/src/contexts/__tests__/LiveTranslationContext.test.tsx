@@ -131,6 +131,22 @@ describe('LiveTranslationContext', () => {
         );
     });
 
+    it('withholds the control until the subtitle-only setting is ready', () => {
+        setAvailability();
+        setSession();
+        render(
+            <LiveTranslationProvider
+                videoId="v1"
+                videoElement={{ playbackRate: 1 } as unknown as HTMLVideoElement}
+                src="/videos/clip.mp4"
+                originalAudioWithSubtitlesReady={false}
+            >
+                <Probe />
+            </LiveTranslationProvider>,
+        );
+        expect(screen.getByTestId('shouldRender').textContent).toBe('false');
+    });
+
     it('does not render the control when the feature is disabled globally', () => {
         setAvailability({ enabled: false });
         setSession();

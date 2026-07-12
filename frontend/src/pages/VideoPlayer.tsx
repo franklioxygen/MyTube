@@ -44,7 +44,7 @@ const VideoPlayer: React.FC = () => {
     const { t } = useLanguage();
     const { videos } = useVideo();
     const { userRole } = useAuth();
-    const { data: settings } = useSettings();
+    const { data: settings, isLoading: settingsLoading = false } = useSettings();
     const isVisitor = userRole === 'visitor';
     const navigationState = (location.state ?? null) as
         | {
@@ -477,6 +477,7 @@ const VideoPlayer: React.FC = () => {
                         originalAudioWithSubtitles={
                             settings?.liveTranslationOriginalAudioWithSubtitles === true
                         }
+                        originalAudioWithSubtitlesReady={!settingsLoading}
                         onTranscript={liveSubtitleTrack.addCue}
                         onActiveChange={(active) => {
                             if (active) {
