@@ -1,0 +1,103 @@
+name: Lines of Code Badge
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths-ignore:
+      - "badges/**"
+      - "**.md"
+      - "CHANGELOG.md"
+      - "README.md"
+      - "README-zh.md"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: loc-badge-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lines-of-code:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install scc
+        env:
+          SCC_VERSION: "3.7.0"
+        run: |
+          set -euo pipefail
+          curl -sL "https://github.com/boyter/scc/releases/download/v${SCC_VERSION}/scc_Linux_x86_64.tar.gz" \
+            | tar -xz -C /usr/local/bin scc
+          scc --version
+
+      - name: Count lines of code
+        run: |
+          set -euo pipefail
+          mkdir -p .scc badges
+          scc --format json \
+            --exclude-dir node_modules,dist,build,coverage,.git \
+            -o .scc/scc.json \
+            .
+
+      - name: Generate Badge Payload
+        run: >
+          node scripts/loc/generate-badge.mjs
+          .scc/scc.json
+          --output badges/lines-of-code.json
+          --label "lines of code"
+
+      - name: Publish Badge Update
+        if: github.ref == 'refs/heads/master'
+        run: |
+          set -euo pipefail
+
+          REPO_ROOT="$PWD"
+          BADGE_FILE="badges/lines-of-code.json"
+
+          publish_once() {
+            local BADGE_WORKTREE
+            BADGE_WORKTREE="$(mktemp -d)"
+
+            cleanup() {
+              cd "$REPO_ROOT"
+              git worktree remove "$BADGE_WORKTREE" --force >/dev/null 2>&1 || true
+              rm -rf "$BADGE_WORKTREE"
+            }
+
+            trap cleanup RETURN
+
+            git fetch origin gh-pages:refs/remotes/origin/gh-pages
+            git worktree add "$BADGE_WORKTREE" origin/gh-pages
+
+            mkdir -p "$BADGE_WORKTREE/badges"
+            cp "$REPO_ROOT/$BADGE_FILE" "$BADGE_WORKTREE/badges/lines-of-code.json"
+
+            cd "$BADGE_WORKTREE"
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+            if [ -z "$(git status --porcelain -- badges/lines-of-code.json)" ]; then
+              return 0
+            fi
+
+            git add badges/lines-of-code.json
+            git commit -m "Update lines of code badge"
+            git push origin HEAD:gh-pages
+          }
+
+          for attempt in 1 2 3; do
+            if publish_once; then
+              exit 0
+            fi
+            echo "Publish attempt ${attempt} failed; retrying..."
+            sleep $((attempt * 5))
+          done
+
+          echo "Failed to publish lines-of-code badge after retries"
+          exit 1
