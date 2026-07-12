@@ -4,16 +4,76 @@
 
 ### Feat
 
-- Add named visitor user management with SQLite-backed visitor accounts, admin-only CRUD APIs, immediate session revocation on disable/delete/password change, and username+password visitor login.
-- Automatically migrate the legacy shared visitor password to a `visitor` account while preserving compatibility for cached clients.
+- Add an All Tags page (`/tags`) with usage-ranked tags, expandable strip, sorting, pagination, and filtered video grid; enhance Home/mobile tag sidebars with top-20 ranking and links to All Tags (1e3ec609)
+- Add a subtitle-only live translation mode that keeps original audio audible, shows translated subtitles, and skips translated speech playback (f1f596a2)
+
+## v1.10.13 (2026-07-11)
+
+### Feat
+
+- Add an All Authors page (`/authors`), a `/collections` deep link for the Collections tab, and streamline sidebar Authors/Collections sections to top-20 by video count with conditional Show all links (36f103ed)
 
 ### Fix
 
-- Keep filename-template playlist downloads in their rendered folder layout, preserve consistent playlist source names across download entry points, relocate media-server companion files during legacy moves, and sweep MyTube-generated orphan companion files during rebuild.
+- Keep the Home sidebar in normal flow as a sticky, self-scrolling flex item so long lists no longer overlap the footer (36f103ed)
+- Keep empty and duplicate-first-video collections reachable in the sidebar, prevent All Authors cards from overflowing on narrow phones, and treat `/collections` as a home route for mobile tag controls (36f103ed)
+
+## v1.10.12 (2026-07-11)
+
+### Feat
+
+- Add owner-scoped collection and author favorites with SQLite persistence, favorites APIs, React Query hooks, `/favorites` UI with hero/rails, and Top Rated labeling for 5-star videos (f0986bff)
+- Add immediate audio-only downloads (direct audio action beside video download), yt-dlp/Bilibili audio extraction with configurable output format, and an audio player redesign with queue and persisted playback state (24be789a)
+
+### Fix
+
+- Polish Favorites mobile swipe/transitions, responsive headers, and recover safely when favorites tables predate their Drizzle migration (059225bf)
+- Rework the Favorites hero (content-driven height, continue-watching lead-ins, description wrapping) and reset scroll on route and search-query changes (912b4867)
+
+## v1.10.11 (2026-07-09)
+
+### Feat
+
+- Add an opt-in preferred final video container setting (`auto` / `MP4` / `WebM` / `MKV`) applied to yt-dlp and Bilibili downloads (116610cd)
+
+### Fix
+
+- Apply the default codec preference alongside user format sorts instead of silently ignoring it when only a sort is set (1b83200e)
+- Flush video progress from the actual media element on interval/pagehide/hide/unmount, and normalize author avatar reuse by stable author keys (54e04161)
+
+## v1.10.10 (2026-07-05)
+
+### Fix
+
+- Keep filename-template playlist downloads in their rendered folder layout, preserve consistent playlist source names across download entry points, relocate media-server companion files during legacy moves, and sweep MyTube-generated orphan companion files during rebuild (1c263e94)
 
 ### Changed
 
 - Under non-legacy filename naming (custom template or preset), adding or removing a video to/from a collection no longer moves the underlying files; collection membership is now purely logical and the filename template alone controls the on-disk folder structure. Legacy naming is unchanged. To organize files per collection under template naming, include `{{ source_collection_name }}` in the template.
+
+### Docs
+
+- Clarify that `images-small/` is an internal downscaled preview cache and can be excluded from media-server libraries.
+
+## v1.10.9 (2026-07-04)
+
+### Fix
+
+- Self-heal a missing visitor `users` table on startup so installs with an out-of-sync Drizzle journal no longer fail after shared-password migration (4c38012b)
+
+## v1.10.8 (2026-07-04)
+
+### Feat
+
+- Add named visitor user management with SQLite-backed visitor accounts, admin-only CRUD APIs, immediate session revocation on disable/delete/password change, and username+password visitor login; automatically migrate the legacy shared visitor password to a `visitor` account (f7419301)
+- Redesign the Up Next recommender with continuation/series heuristics, backend recommendation signals, and feedback metrics (59fe0e90)
+- Flatten homepage video cards, tighten content padding, and show author avatars on cards (b07314b5)
+- Redesign the Up Next sidebar with flatter cards, larger thumbnails, and three-line titles (6efd9cf7)
+
+### Fix
+
+- Improve Safari WebM seek performance with direct `currentTime` seeking and adaptive preload (5fd72ace)
+- Normalize subtitle `srclang` values and map legacy `unknown` languages to BCP 47 `und` (ade17e9a)
 
 ### Deprecated
 
@@ -22,7 +82,6 @@
 ### Docs
 
 - Document visitor account management, automatic shared-password migration, and the new visitor-user API surface.
-- Clarify that `images-small/` is an internal downscaled preview cache and can be excluded from media-server libraries.
 
 ## v1.10.7 (2026-07-02)
 
