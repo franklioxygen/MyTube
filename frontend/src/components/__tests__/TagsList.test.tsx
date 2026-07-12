@@ -134,6 +134,24 @@ describe('TagsList', () => {
         expect(screen.getByRole('link', { name: 'Show all' })).toBeInTheDocument();
     });
 
+    it('keeps case-insensitive selected tags outside the top 20 using catalog casing', () => {
+        const popularTags = Array.from({ length: 20 }, (_, i) => `tag${String(i).padStart(2, '0')}`);
+        const availableTags = [...popularTags, 'Music'];
+        const videos = [
+            ...popularTags.flatMap((tag) => Array.from({ length: 3 }, () => ({ tags: [tag] }))),
+            { tags: ['Music'] },
+        ];
+        renderTagsList({
+            availableTags,
+            videos,
+            selectedTags: ['music'],
+            linkToAllTags: true,
+        });
+
+        expect(screen.getByText('Music')).toBeInTheDocument();
+        expect(screen.getByText('Music').closest('.MuiChip-root')).toHaveClass('MuiChip-colorPrimary');
+    });
+
     it('hides Show all when 20 or fewer tags', () => {
         const availableTags = Array.from({ length: 20 }, (_, i) => `tag${String(i).padStart(2, '0')}`);
         renderTagsList({ availableTags, linkToAllTags: true });

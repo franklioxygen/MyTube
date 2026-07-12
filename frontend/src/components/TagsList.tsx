@@ -14,7 +14,7 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
-import { sortTagsByUsage } from '../utils/tagUtils';
+import { normalizeTagKey, sortTagsByUsage } from '../utils/tagUtils';
 
 const TOP_TAGS_LIMIT = 20;
 
@@ -68,11 +68,22 @@ const TagsList: React.FC<TagsListProps> = ({
         }
 
         const top = ordered.slice(0, TOP_TAGS_LIMIT);
-        const topSet = new Set(top);
-        // Keep selected tags visible even when they fall outside the top N
-        const selectedOutsideTop = selectedTags.filter(
-            (tag) => availableTags.includes(tag) && !topSet.has(tag)
+        const topKeys = new Set(top.map(normalizeTagKey));
+        const catalogByKey = new Map(
+            availableTags.map((tag) => [normalizeTagKey(tag), tag])
         );
+        // Keep selected tags visible even when they fall outside the top N.
+        // Match case-insensitively so thumbnail-selected casing still maps to catalog.
+        const selectedOutsideTop: string[] = [];
+        const seenKeys = new Set(topKeys);
+        for (const tag of selectedTags) {
+            const canonical = catalogByKey.get(normalizeTagKey(tag));
+            if (!canonical) continue;
+            const key = normalizeTagKey(canonical);
+            if (seenKeys.has(key)) continue;
+            seenKeys.add(key);
+            selectedOutsideTop.push(canonical);
+        }
 
         return {
             displayTags: [...top, ...selectedOutsideTop],
@@ -80,6 +91,10 @@ const TagsList: React.FC<TagsListProps> = ({
         };
     }, [availableTags, linkToAllTags, videos, selectedTags]);
 
+    const selectedTagKeys = useMemo(
+        () => new Set(selectedTags.map(normalizeTagKey)),
+        [selectedTags]
+    );
     if (displayTags.length === 0) {
         return null;
     }
@@ -111,7 +126,7 @@ const TagsList: React.FC<TagsListProps> = ({
             <Collapse in={isOpen} timeout="auto" unmountOnExit>
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, px: 2, pb: 2 }}>
                     {displayTags.map(tag => {
-                        const isSelected = selectedTags.includes(tag);
+                        const isSelected = selectedTagKeys.has(normalizeTagKey(tag));
                         return (
                             <Chip
                                 key={tag}
