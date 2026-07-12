@@ -76,6 +76,28 @@ const LiveTranslationSettings: React.FC<LiveTranslationSettingsProps> = ({
             {enabled && (
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
                     <Box>
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    checked={
+                                        settings.liveTranslationOriginalAudioWithSubtitles === true
+                                    }
+                                    onChange={(e) =>
+                                        onChange(
+                                            'liveTranslationOriginalAudioWithSubtitles',
+                                            e.target.checked,
+                                        )
+                                    }
+                                />
+                            }
+                            label={t('liveTranslationOriginalAudioWithSubtitles')}
+                        />
+                        <Typography variant="body2" color="text.secondary" sx={{ ml: 4 }}>
+                            {t('liveTranslationOriginalAudioWithSubtitlesDescription')}
+                        </Typography>
+                    </Box>
+
+                    <Box>
                         <TextField
                             fullWidth
                             label={t('liveTranslationApiKey')}

@@ -106,17 +106,27 @@ describe('useLiveTranslationSession', () => {
     vi.unstubAllGlobals();
   });
 
-  function setup(onTranscript?: (e: LiveTranslationTranscriptEvent) => void) {
+  function setup(
+    onTranscript?: (e: LiveTranslationTranscriptEvent) => void,
+    options: { originalAudioWithSubtitles?: boolean } = {},
+  ) {
     const videoElement = createFakeVideo();
     const { capture, playback } = makeControllers();
-    const hook = renderHook(() =>
-      useLiveTranslationSession({
-        videoElement,
-        videoId: 'video-1',
-        onTranscript,
-        captureController: capture,
-        playbackController: playback as any,
-      }),
+    const hook = renderHook(
+      (props: { originalAudioWithSubtitles?: boolean }) =>
+        useLiveTranslationSession({
+          videoElement,
+          videoId: 'video-1',
+          onTranscript,
+          originalAudioWithSubtitles: props.originalAudioWithSubtitles,
+          captureController: capture,
+          playbackController: playback as any,
+        }),
+      {
+        initialProps: {
+          originalAudioWithSubtitles: options.originalAudioWithSubtitles,
+        },
+      },
     );
     return { hook, videoElement, capture, playback };
   }
@@ -203,8 +213,65 @@ describe('useLiveTranslationSession', () => {
 
     // Server signals Gemini is ready -> capture starts, status -> translating.
     await act(async () => ws.serverSend({ type: 'status', status: 'translating' }));
-    expect(s.capture.start).toHaveBeenCalledWith(s.videoElement, expect.any(Function));
+    expect(s.capture.start).toHaveBeenCalledWith(
+      s.videoElement,
+      expect.any(Function),
+      { keepOriginalAudioAudible: false },
+    );
     expect(s.hook.result.current.status).toBe('translating');
+  });
+
+  it('passes keepOriginalAudioAudible when subtitle-only mode is enabled', async () => {
+    const s = setup(undefined, { originalAudioWithSubtitles: true });
+    const ws = await startAndOpen(s);
+    expect(s.capture.start).toHaveBeenCalledWith(
+      s.videoElement,
+      expect.any(Function),
+      { keepOriginalAudioAudible: true },
+    );
+    expect(ws).toBeDefined();
+  });
+
+  it('does not enqueue translated audio in subtitle-only mode', async () => {
+    const onTranscript = vi.fn();
+    const s = setup(onTranscript, { originalAudioWithSubtitles: true });
+    const ws = await startAndOpen(s);
+
+    await act(async () => {
+      ws.serverSend({ type: 'audio', seq: 1, sampleRate: 24000, channels: 1, pcm16Base64: 'QUJD' });
+      ws.serverSend({ type: 'outputTranscript', text: 'hello', languageCode: 'en' });
+    });
+
+    expect(s.playback.enqueueBase64).not.toHaveBeenCalled();
+    expect(onTranscript).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'output', text: 'hello' }),
+    );
+  });
+
+  it('snapshots subtitle-only mode at start and ignores later prop changes', async () => {
+    const s = setup(undefined, { originalAudioWithSubtitles: false });
+    act(() => s.hook.result.current.start());
+    await waitFor(() => expect(MockWebSocket.instances).toHaveLength(1));
+    const ws = MockWebSocket.instances[0];
+    await act(async () => {
+      ws.serverOpen();
+    });
+
+    s.hook.rerender({ originalAudioWithSubtitles: true });
+
+    await act(async () => {
+      ws.serverSend({ type: 'status', status: 'translating' });
+    });
+    expect(s.capture.start).toHaveBeenCalledWith(
+      s.videoElement,
+      expect.any(Function),
+      { keepOriginalAudioAudible: false },
+    );
+
+    await act(async () => {
+      ws.serverSend({ type: 'audio', seq: 1, sampleRate: 24000, channels: 1, pcm16Base64: 'QUJD' });
+    });
+    expect(s.playback.enqueueBase64).toHaveBeenCalledWith('QUJD');
   });
 
   it('drops translated audio that arrives while paused', async () => {

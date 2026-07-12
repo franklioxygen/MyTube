@@ -278,6 +278,16 @@ function validateLiveTranslationIncomingSettings(
   }
 
   if (
+    newSettings.liveTranslationOriginalAudioWithSubtitles !== undefined &&
+    typeof newSettings.liveTranslationOriginalAudioWithSubtitles !== "boolean"
+  ) {
+    throw new ValidationError(
+      "Live translation original audio with subtitles flag must be a boolean.",
+      "liveTranslationOriginalAudioWithSubtitles"
+    );
+  }
+
+  if (
     newSettings.liveTranslationModel !== undefined &&
     !LIVE_TRANSLATION_MODELS.has(newSettings.liveTranslationModel)
   ) {

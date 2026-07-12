@@ -51,6 +51,47 @@ describe('useSubtitles — live translation option', () => {
     expect(result.current.subtitlesEnabled).toBe(false);
   });
 
+  it('auto-selects the live track in subtitle-only mode even when file subtitles are globally disabled', () => {
+    const liveTrack = { mode: 'hidden' } as unknown as TextTrack;
+    const { result } = renderHook(() =>
+      useSubtitles({
+        subtitles: subtitles2,
+        initialSubtitlesEnabled: false,
+        videoRef: makeVideoRef(2),
+        liveSubtitle: { available: true, label: 'Live', track: liveTrack },
+        forceLiveSubtitleOnAvailable: true,
+      }),
+    );
+    expect(result.current.liveSubtitleAvailable).toBe(true);
+    expect(result.current.liveSubtitleSelected).toBe(true);
+    expect(liveTrack.mode).toBe('showing');
+    expect(result.current.subtitlesEnabled).toBe(true);
+  });
+
+  it('auto-selects the live track when subtitle-only mode activates after the track exists', () => {
+    const liveTrack = { mode: 'hidden' } as unknown as TextTrack;
+    const { result, rerender } = renderHook(
+      ({ force }: { force: boolean }) =>
+        useSubtitles({
+          subtitles: subtitles2,
+          initialSubtitlesEnabled: false,
+          videoRef: makeVideoRef(2),
+          liveSubtitle: { available: true, label: 'Live', track: liveTrack },
+          forceLiveSubtitleOnAvailable: force,
+        }),
+      { initialProps: { force: false } },
+    );
+
+    expect(result.current.liveSubtitleSelected).toBe(false);
+    expect(liveTrack.mode).toBe('hidden');
+
+    rerender({ force: true });
+
+    expect(result.current.liveSubtitleSelected).toBe(true);
+    expect(liveTrack.mode).toBe('showing');
+    expect(result.current.subtitlesEnabled).toBe(true);
+  });
+
   it('toggles the live track on and off', () => {
     const liveTrack = { mode: 'hidden' } as unknown as TextTrack;
     const { result } = renderHook(() =>

@@ -32,6 +32,12 @@ vi.mock('../../../hooks/useSettings', () => ({
     useSettings: mockUseSettings,
 }));
 
+vi.mock('../../Collections', () => ({
+    default: ({ onItemClick }: { onItemClick: () => void }) => (
+        <button onClick={onItemClick}>collections-item</button>
+    ),
+}));
+
 vi.mock('../../TagsList', () => ({
     default: ({ onTagToggle }: { onTagToggle: (tag: string) => void }) => (
         <button onClick={() => onTagToggle('tag-1')}>tags-item</button>
@@ -60,6 +66,7 @@ describe('MobileMenu', () => {
         onResetSearch: vi.fn(),
         onSubmit: vi.fn(),
         onClose: vi.fn(),
+        collections: [],
         showTags: false,
         availableTags: [],
         selectedTags: [],
@@ -94,12 +101,12 @@ describe('MobileMenu', () => {
         expect(screen.getByRole('link', { name: 'authors' })).toHaveAttribute('href', '/authors');
         expect(screen.queryByRole('button', { name: 'logout' })).not.toBeInTheDocument();
         expect(screen.queryByText('tags-item')).not.toBeInTheDocument();
-        expect(screen.queryByText('collections-item')).not.toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('link', { name: 'manageVideos' }));
         fireEvent.click(screen.getByRole('link', { name: 'settings' }));
+        fireEvent.click(screen.getByText('collections-item'));
         fireEvent.click(screen.getByRole('link', { name: 'authors' }));
-        expect(onClose).toHaveBeenCalledTimes(3);
+        expect(onClose).toHaveBeenCalledTimes(4);
 
         fireEvent.click(screen.getByText('search-submit'));
         fireEvent.click(screen.getByText('search-reset'));
@@ -107,7 +114,7 @@ describe('MobileMenu', () => {
         expect(onResetSearch).toHaveBeenCalledTimes(1);
     });
 
-    it('renders tags section and forwards tag toggle callback', () => {
+    it('renders collections before authors and tags', () => {
         const onTagToggle = vi.fn();
         renderMenu({
             showTags: true,
@@ -116,13 +123,18 @@ describe('MobileMenu', () => {
             selectedTags: ['tag-1'],
         });
 
+        const collectionsItem = screen.getByText('collections-item');
         const authorsLink = screen.getByRole('link', { name: 'authors' });
         const tagsItem = screen.getByText('tags-item');
+
+        expect(
+            collectionsItem.compareDocumentPosition(authorsLink) & Node.DOCUMENT_POSITION_FOLLOWING
+        ).toBeTruthy();
         expect(
             authorsLink.compareDocumentPosition(tagsItem) & Node.DOCUMENT_POSITION_FOLLOWING
         ).toBeTruthy();
 
-        fireEvent.click(screen.getByText('tags-item'));
+        fireEvent.click(tagsItem);
         expect(onTagToggle).toHaveBeenCalledWith('tag-1');
     });
 

@@ -36,6 +36,8 @@ export interface LiveTranslationTranscriptEvent {
 export interface UseLiveTranslationSessionOptions {
   videoElement: HTMLVideoElement | null;
   videoId: string;
+  /** When true, keep original audio and show subtitles without playing translated speech. */
+  originalAudioWithSubtitles?: boolean;
   onTranscript?: (event: LiveTranslationTranscriptEvent) => void;
   /** Injectable for tests; default to the real controllers. */
   captureController?: LiveTranslationAudioCaptureController;
@@ -63,7 +65,7 @@ function buildLiveTranslationWsUrl(wsPath: string): string {
 export function useLiveTranslationSession(
   options: UseLiveTranslationSessionOptions,
 ): UseLiveTranslationSessionResult {
-  const { videoElement, videoId, onTranscript } = options;
+  const { videoElement, videoId, onTranscript, originalAudioWithSubtitles } = options;
   const defaultCapture = useLiveTranslationAudioCapture();
   const defaultPlayback = useTranslatedAudioPlayback();
   const capture = options.captureController ?? defaultCapture;
@@ -92,6 +94,9 @@ export function useLiveTranslationSession(
   videoElementRef.current = videoElement;
   const onTranscriptRef = useRef(onTranscript);
   onTranscriptRef.current = onTranscript;
+  const latestOriginalAudioWithSubtitlesRef = useRef(false);
+  latestOriginalAudioWithSubtitlesRef.current = !!originalAudioWithSubtitles;
+  const sessionOriginalAudioWithSubtitlesRef = useRef(false);
 
   const detachMediaListeners = useCallback(() => {
     mediaListenersRef.current?.();
@@ -181,10 +186,13 @@ export function useLiveTranslationSession(
       fail('unsupported_playback_rate', UNSUPPORTED_PLAYBACK_RATE_MESSAGE, false);
     };
     const onVolumeChange = () => {
-      playback.setVolume(element.volume, element.muted);
+      if (!sessionOriginalAudioWithSubtitlesRef.current) {
+        playback.setVolume(element.volume, element.muted);
+      }
     };
-    // Apply the current volume/mute immediately, then track changes.
-    playback.setVolume(element.volume, element.muted);
+    if (!sessionOriginalAudioWithSubtitlesRef.current) {
+      playback.setVolume(element.volume, element.muted);
+    }
     element.addEventListener('pause', onPause);
     element.addEventListener('play', onPlay);
     element.addEventListener('seeking', onSeeking);
@@ -233,9 +241,9 @@ export function useLiveTranslationSession(
           });
           break;
         case 'audio':
-          // Ignore translated audio that arrives while paused; otherwise it
-          // would sit in the suspended context and play (stale) on resume.
-          if (pausedRef.current) {
+          // Ignore translated audio that arrives while paused, or in subtitle-only
+          // mode where translated speech is not played.
+          if (pausedRef.current || sessionOriginalAudioWithSubtitlesRef.current) {
             break;
           }
           playback.enqueueBase64(message.pcm16Base64);
@@ -280,6 +288,8 @@ export function useLiveTranslationSession(
     captureStartedRef.current = false;
     beginCaptureRef.current = null;
     pausedRef.current = false;
+    sessionOriginalAudioWithSubtitlesRef.current =
+      latestOriginalAudioWithSubtitlesRef.current;
 
     // Create + resume the audio contexts synchronously within this user gesture
     // so the browser autoplay policy allows them to run.
@@ -350,7 +360,9 @@ export function useLiveTranslationSession(
             }
             captureStartedRef.current = true;
             void capture
-              .start(element, (pcm16) => {
+              .start(
+                element,
+                (pcm16) => {
                 const socket = wsRef.current;
                 if (!isCurrentStart() || socket !== ws) {
                   return;
@@ -371,7 +383,12 @@ export function useLiveTranslationSession(
                     }),
                   );
                 }
-              })
+              },
+                {
+                  keepOriginalAudioAudible:
+                    sessionOriginalAudioWithSubtitlesRef.current,
+                },
+              )
               .then(() => {
                 if (!isCurrentStart() || wsRef.current !== ws) {
                   const currentSessionOwnsElement =

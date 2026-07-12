@@ -19,6 +19,12 @@ interface UseSubtitlesProps {
     onSubtitlesToggle?: (enabled: boolean) => void;
     // Optional dynamic "Live translation" subtitle track (design §9.5/§9.6).
     liveSubtitle?: LiveSubtitleInput;
+    /**
+     * When true, auto-select the live track as soon as it becomes available even
+     * if file subtitles are globally off. Used by subtitle-only live translation
+     * where translated speech is suppressed and captions are the only output.
+     */
+    forceLiveSubtitleOnAvailable?: boolean;
 }
 
 const MAX_ACTIVE_TRACKS = 2;
@@ -29,6 +35,7 @@ export const useSubtitles = ({
     videoRef,
     onSubtitlesToggle,
     liveSubtitle,
+    forceLiveSubtitleOnAvailable = false,
 }: UseSubtitlesProps) => {
     const [subtitlesEnabled, setSubtitlesEnabled] = useState<boolean>(
         initialSubtitlesEnabled && subtitles.length > 0
@@ -41,6 +48,7 @@ export const useSubtitles = ({
 
     const liveAvailable = liveSubtitle?.available === true;
     const prevLiveAvailableRef = useRef(false);
+    const prevForceLiveSubtitleRef = useRef(false);
 
     // Apply showing/hidden modes by identity: file tracks occupy textTracks
     // [0..subtitles.length-1] (in array order); the dynamic live track — added via
@@ -58,6 +66,20 @@ export const useSubtitles = ({
         if (liveTrack) {
             liveTrack.mode = liveSelected ? 'showing' : 'hidden';
         }
+    };
+
+    const selectLiveSubtitleTrack = () => {
+        setSelectedSubtitleIndices((fileIndices) => {
+            let nextFile = fileIndices;
+            if (fileIndices.length >= MAX_ACTIVE_TRACKS) {
+                // Replace the oldest selected file subtitle.
+                nextFile = fileIndices.slice(1);
+            }
+            applyTrackModes(nextFile, true);
+            return nextFile;
+        });
+        setLiveSubtitleSelected(true);
+        setSubtitlesEnabled(true);
     };
 
     // Re-initialize FILE subtitle tracks only when the subtitles array changes
@@ -78,26 +100,21 @@ export const useSubtitles = ({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [subtitles]); // intentionally omit initialSubtitlesEnabled — see comment above
 
-    // Auto-select the live track when it becomes available only if subtitles are
-    // globally enabled. If the user has subtitles off, keep the live option
-    // available in the menu without showing it.
+    // Auto-select the live track when it becomes available if subtitles are
+    // globally enabled, or when subtitle-only live translation requires captions
+    // as its only output. Otherwise keep the live option in the menu without showing it.
     useEffect(() => {
         const wasAvailable = prevLiveAvailableRef.current;
+        const wasForceLiveSubtitle = prevForceLiveSubtitleRef.current;
         prevLiveAvailableRef.current = liveAvailable;
+        prevForceLiveSubtitleRef.current = forceLiveSubtitleOnAvailable;
+
+        const shouldAutoSelectLive =
+            initialSubtitlesEnabled || forceLiveSubtitleOnAvailable;
 
         if (liveAvailable && !wasAvailable) {
-            if (initialSubtitlesEnabled) {
-                setSelectedSubtitleIndices((fileIndices) => {
-                    let nextFile = fileIndices;
-                    if (fileIndices.length >= MAX_ACTIVE_TRACKS) {
-                        // Replace the oldest selected file subtitle.
-                        nextFile = fileIndices.slice(1);
-                    }
-                    applyTrackModes(nextFile, true);
-                    return nextFile;
-                });
-                setLiveSubtitleSelected(true);
-                setSubtitlesEnabled(true);
+            if (shouldAutoSelectLive) {
+                selectLiveSubtitleTrack();
             } else {
                 applyTrackModes(selectedSubtitleIndices, false);
                 setLiveSubtitleSelected(false);
@@ -110,9 +127,16 @@ export const useSubtitles = ({
                 setSubtitlesEnabled(fileIndices.length > 0);
                 return fileIndices;
             });
+        } else if (
+            liveAvailable &&
+            forceLiveSubtitleOnAvailable &&
+            !wasForceLiveSubtitle
+        ) {
+            // Subtitle-only mode became active after the live track already existed.
+            selectLiveSubtitleTrack();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [liveAvailable]);
+    }, [liveAvailable, forceLiveSubtitleOnAvailable]);
 
     const handleSubtitleClick = (event: React.MouseEvent<HTMLElement>) => {
         setSubtitleMenuAnchor(event.currentTarget);

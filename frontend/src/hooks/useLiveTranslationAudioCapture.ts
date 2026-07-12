@@ -93,7 +93,10 @@ class MediaCaptureGraph {
     }
   }
 
-  async start(onChunk: (pcm16: Int16Array) => void): Promise<void> {
+  async start(
+    onChunk: (pcm16: Int16Array) => void,
+    keepOriginalAudioAudible = false,
+  ): Promise<void> {
     const generation = (this.startGeneration += 1);
     await this.prime();
     if (generation !== this.startGeneration) {
@@ -118,12 +121,18 @@ class MediaCaptureGraph {
       // Render the tap (silently) so the processor is pulled.
       this.worklet.connect(this.workletSink);
     }
+    if (generation !== this.startGeneration) {
+      return;
+    }
     this.worklet.port.onmessage = (event: MessageEvent) => {
       onChunk(new Int16Array(event.data as ArrayBuffer));
     };
-    // Suppress the original audio while translating (translated speech plays via
-    // the separate playback context).
-    this.gain.gain.value = 0;
+    if (generation !== this.startGeneration) {
+      return;
+    }
+    // Suppress the original audio while translating unless subtitle-only mode
+    // keeps it audible (translated speech plays via the separate playback context).
+    this.gain.gain.value = keepOriginalAudioAudible ? 1 : 0;
   }
 
   stop(): void {
@@ -171,6 +180,11 @@ function ensureGraph(element: HTMLMediaElement): MediaCaptureGraph | null {
   return graph;
 }
 
+export interface LiveTranslationCaptureOptions {
+  /** When true, do not mute the speaker gain path. Defaults to false. */
+  keepOriginalAudioAudible?: boolean;
+}
+
 export interface LiveTranslationAudioCaptureController {
   isSupported(): boolean;
   /** Synchronously create + resume the graph within a user gesture. */
@@ -178,6 +192,7 @@ export interface LiveTranslationAudioCaptureController {
   start(
     element: HTMLMediaElement,
     onChunk: (pcm16: Int16Array) => void,
+    options?: LiveTranslationCaptureOptions,
   ): Promise<void>;
   stop(element: HTMLMediaElement): void;
   /** Fully tear down the per-element graph (only on unmount/replace). */
@@ -190,12 +205,12 @@ const controller: LiveTranslationAudioCaptureController = {
     const graph = ensureGraph(element);
     void graph?.prime();
   },
-  async start(element, onChunk) {
+  async start(element, onChunk, options) {
     const graph = ensureGraph(element);
     if (!graph) {
       throw new Error('Audio capture is not supported in this browser.');
     }
-    await graph.start(onChunk);
+    await graph.start(onChunk, options?.keepOriginalAudioAudible === true);
   },
   stop(element) {
     graphs.get(element)?.stop();

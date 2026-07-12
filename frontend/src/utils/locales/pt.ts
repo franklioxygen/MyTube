@@ -183,6 +183,9 @@ export const pt = {
   liveTranslation: "Tradução de áudio ao vivo",
   liveTranslationDescription: "Transmite o áudio do vídeo atual para o Gemini Live Translation e reproduz a fala traduzida com legendas ao vivo. Enquanto ativo, o áudio do vídeo é enviado para a API Gemini do Google.",
   enableLiveTranslation: "Ativar tradução de áudio ao vivo",
+  liveTranslationOriginalAudioWithSubtitles: "Áudio original e legenda traduzida",
+  liveTranslationOriginalAudioWithSubtitlesDescription:
+    "Manter o áudio original do vídeo e exibir legendas traduzidas sem reproduzir a fala traduzida.",
   liveTranslationApiKey: "Chave de API do Gemini",
   liveTranslationApiKeyConfigured: "A chave de API está configurada",
   liveTranslationApiKeyReplaceHelper: "Há uma chave de API configurada. Insira uma nova chave para substituí-la ou deixe em branco para manter a atual.",

@@ -4,6 +4,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useSettings } from '../../hooks/useSettings';
+import { Collection } from '../../types';
+import Collections from '../Collections';
 import TagsList from '../TagsList';
 import SearchInput from './SearchInput';
 
@@ -19,6 +21,7 @@ interface MobileMenuProps {
     onAudioOnlySubmit?: (url: string) => Promise<any>;
     showAudioDownloadButton?: boolean;
     onClose: () => void;
+    collections?: Collection[];
     showTags?: boolean;
     availableTags?: string[];
     selectedTags?: string[];
@@ -40,6 +43,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
     onAudioOnlySubmit,
     showAudioDownloadButton = true,
     onClose,
+    collections = [],
     showTags = false,
     availableTags = [],
     selectedTags = [],
@@ -119,18 +123,26 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
                         </>
                     )}
 
-                    {/* Mobile navigation sections */}
+                    {/* Mobile navigation sections — Collections keeps direct
+                        /collection/:id links for empty and first-video-collision
+                        collections that the /collections card grid cannot show. */}
                     <Box sx={{ mt: 2 }}>
-                        <Button
-                            component={Link}
-                            to="/authors"
-                            variant="outlined"
-                            fullWidth
-                            onClick={onClose}
-                            startIcon={<Group />}
-                        >
-                            {t('authors')}
-                        </Button>
+                        <Collections
+                            collections={collections}
+                            onItemClick={onClose}
+                        />
+                        <Box sx={{ mt: 2 }}>
+                            <Button
+                                component={Link}
+                                to="/authors"
+                                variant="outlined"
+                                fullWidth
+                                onClick={onClose}
+                                startIcon={<Group />}
+                            >
+                                {t('authors')}
+                            </Button>
+                        </Box>
                         {showTags && (
                             <Box sx={{ mt: 2 }}>
                                 <TagsList

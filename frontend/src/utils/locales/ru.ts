@@ -183,6 +183,9 @@ export const ru = {
   liveTranslation: "Живой перевод аудио",
   liveTranslationDescription: "Передаёт звук текущего видео в Gemini Live Translation и воспроизводит переведённую речь с живыми субтитрами. Во время работы звук видео отправляется в API Gemini от Google.",
   enableLiveTranslation: "Включить живой перевод аудио",
+  liveTranslationOriginalAudioWithSubtitles: "Оригинальный звук и переведённые субтитры",
+  liveTranslationOriginalAudioWithSubtitlesDescription:
+    "Сохранять оригинальный звук видео и показывать переведённые субтитры без воспроизведения переведённой речи.",
   liveTranslationApiKey: "Ключ API Gemini",
   liveTranslationApiKeyConfigured: "Ключ API настроен",
   liveTranslationApiKeyReplaceHelper: "Ключ API настроен. Введите новый ключ, чтобы заменить его, или оставьте поле пустым, чтобы сохранить текущий ключ.",

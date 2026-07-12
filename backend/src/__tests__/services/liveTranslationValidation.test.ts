@@ -65,6 +65,33 @@ describe("live translation settings validation", () => {
       }).toThrow(ValidationError);
     });
 
+    it("rejects a non-boolean original-audio subtitle flag", () => {
+      expect(() => {
+        settingsValidationService.validateSettings({
+          liveTranslationOriginalAudioWithSubtitles: "yes" as unknown as boolean,
+        });
+      }).toThrow(ValidationError);
+    });
+
+    it("accepts boolean original-audio subtitle values", () => {
+      expect(() => {
+        settingsValidationService.validateSettings({
+          liveTranslationOriginalAudioWithSubtitles: true,
+        });
+        settingsValidationService.validateSettings({
+          liveTranslationOriginalAudioWithSubtitles: false,
+        });
+      }).not.toThrow();
+    });
+
+    it("rejects null for original-audio subtitle flag", () => {
+      expect(() => {
+        settingsValidationService.validateSettings({
+          liveTranslationOriginalAudioWithSubtitles: null as unknown as boolean,
+        });
+      }).toThrow(ValidationError);
+    });
+
     it("trims the API key", () => {
       const settings = { liveTranslationApiKey: "  secret-key  " };
       settingsValidationService.validateSettings(settings);
@@ -123,6 +150,7 @@ describe("live translation settings validation", () => {
       expect(defaultSettings.liveTranslationSourceLanguage).toBe("auto");
       expect(defaultSettings.liveTranslationTargetLanguage).toBe("en");
       expect(defaultSettings.liveTranslationApiKey).toBe("");
+      expect(defaultSettings.liveTranslationOriginalAudioWithSubtitles).toBe(false);
     });
 
     it("clamps legacy non-auto source settings to auto in server config", () => {

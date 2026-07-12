@@ -78,6 +78,9 @@ const Probe: React.FC = () => {
             <span data-testid="disabled">{control.disabledReason ?? ''}</span>
             <span data-testid="errorVisible">{String(control.errorVisible)}</span>
             <span data-testid="errorText">{control.errorText}</span>
+            <span data-testid="originalAudioWithSubtitles">
+                {String(control.originalAudioWithSubtitles)}
+            </span>
             <button onClick={control.onToggle}>toggle</button>
             <button onClick={control.retry}>retry</button>
         </div>
@@ -102,6 +105,51 @@ describe('LiveTranslationContext', () => {
         // Re-establish defaults after clearAllMocks so per-test overrides don't leak.
         mockAudioSupported.mockReturnValue(true);
         mockSecureContext.mockReturnValue(true);
+    });
+
+    it('passes originalAudioWithSubtitles to the session hook', () => {
+        setAvailability();
+        setSession();
+        render(
+            <LiveTranslationProvider
+                videoId="v1"
+                videoElement={{ playbackRate: 1 } as unknown as HTMLVideoElement}
+                src="/videos/clip.mp4"
+                originalAudioWithSubtitles
+            >
+                <Probe />
+            </LiveTranslationProvider>,
+        );
+        expect(mockSession).toHaveBeenCalledWith(
+            expect.objectContaining({ originalAudioWithSubtitles: true }),
+        );
+        expect(screen.getByTestId('originalAudioWithSubtitles').textContent).toBe('true');
+    });
+
+    it('normalizes a missing originalAudioWithSubtitles prop to false', () => {
+        setAvailability();
+        setSession();
+        renderProvider();
+        expect(mockSession).toHaveBeenCalledWith(
+            expect.objectContaining({ originalAudioWithSubtitles: undefined }),
+        );
+        expect(screen.getByTestId('originalAudioWithSubtitles').textContent).toBe('false');
+    });
+
+    it('withholds the control until the subtitle-only setting is ready', () => {
+        setAvailability();
+        setSession();
+        render(
+            <LiveTranslationProvider
+                videoId="v1"
+                videoElement={{ playbackRate: 1 } as unknown as HTMLVideoElement}
+                src="/videos/clip.mp4"
+                originalAudioWithSubtitlesReady={false}
+            >
+                <Probe />
+            </LiveTranslationProvider>,
+        );
+        expect(screen.getByTestId('shouldRender').textContent).toBe('false');
     });
 
     it('does not render the control when the feature is disabled globally', () => {

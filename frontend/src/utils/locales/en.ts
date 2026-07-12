@@ -176,8 +176,11 @@ export const en = {
     "This server version does not support cleanup while media server sidecar export is off.",
   liveTranslation: "Live audio translation",
   liveTranslationDescription:
-    "Stream the current video's audio to Gemini Live Translation and play translated speech with live subtitles. While active, the video's audio is sent to Google's Gemini API.",
+    "Stream the current video's audio to Gemini Live Translation and show live subtitles, with optional translated speech playback. While active, the video's audio is sent to Google's Gemini API.",
   enableLiveTranslation: "Enable live audio translation",
+  liveTranslationOriginalAudioWithSubtitles: "Original audio and translated subtitle",
+  liveTranslationOriginalAudioWithSubtitlesDescription:
+    "Keep the video's original audio and show translated subtitles without playing translated speech.",
   liveTranslationApiKey: "Gemini API key",
   liveTranslationApiKeyConfigured: "API key is configured",
   liveTranslationApiKeyReplaceHelper:

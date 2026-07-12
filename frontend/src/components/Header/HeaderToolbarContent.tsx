@@ -79,6 +79,7 @@ const HeaderToolbarContent: React.FC<HeaderToolbarContentProps> = ({
     onAudioOnlySubmit,
     showTagsInMobileMenu,
     linkToAllTagsInMobileMenu = false,
+    collections,
     videos,
     effectiveTags
 }) => {
@@ -190,6 +191,7 @@ const HeaderToolbarContent: React.FC<HeaderToolbarContentProps> = ({
                     onAudioOnlySubmit={onAudioOnlySubmit}
                     showAudioDownloadButton={showAudioDownloadButton}
                     onClose={onCloseMobileMenu}
+                    collections={collections}
                     showTags={showTagsInMobileMenu}
                     availableTags={effectiveTags.availableTags}
                     selectedTags={effectiveTags.selectedTags}
