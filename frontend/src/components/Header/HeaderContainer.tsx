@@ -73,6 +73,7 @@ const HeaderContainer: React.FC<HeaderProps> = ({
     const isAuthorPage = location.pathname.startsWith('/author/');
     const isCollectionPage = location.pathname.startsWith('/collection/');
     const showTagsInMobileMenu = isHomePage || isAuthorPage || isCollectionPage;
+    const linkToAllTagsInMobileMenu = isHomePage;
     const handleMobileTagToggle = useCallback((tag: string) => {
         if (isHomePage) {
             homeViewModeRequest?.requestHomeViewMode('all-videos');
@@ -208,6 +209,7 @@ const HeaderContainer: React.FC<HeaderProps> = ({
                             collections={collections}
                             videos={videos}
                             showTagsInMobileMenu={showTagsInMobileMenu}
+                            linkToAllTagsInMobileMenu={linkToAllTagsInMobileMenu}
                             effectiveTags={mobileEffectiveTags}
                         />
                     </Toolbar>

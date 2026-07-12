@@ -45,14 +45,16 @@ export const useHomePagination = ({
 
     // Normalize invalid or out-of-range page params while preserving other
     // query params (sort / seed). Fixes Home and /tags together.
+    // Skip out-of-range clamping while videos are still loading (totalPages === 0)
+    // so deep links like /?page=2 are not rewritten to page=1 prematurely.
     useEffect(() => {
         if (infiniteScroll) return;
-        const safeTotal = Math.max(totalPages, 1);
         const isInvalidPageParam = pageParam != null && (
             !Number.isInteger(parsedPage) ||
             parsedPage < 1
         );
-        if (isInvalidPageParam || page > safeTotal) {
+        const isOutOfRange = totalPages > 0 && page > totalPages;
+        if (isInvalidPageParam || isOutOfRange) {
             setSearchParams((prev: URLSearchParams) => {
                 const newParams = new URLSearchParams(prev);
                 newParams.set('page', '1');

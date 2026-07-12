@@ -139,4 +139,10 @@ describe('useHomePagination', () => {
         setupHook();
         expect(mockSetSearchParams).not.toHaveBeenCalled();
     });
+
+    it('does not clamp page while videos are still loading (empty list)', () => {
+        mockSearchParams.set('page', '2');
+        setupHook({ videos: [] });
+        expect(mockSetSearchParams).not.toHaveBeenCalled();
+    });
 });
