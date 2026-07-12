@@ -591,6 +591,10 @@ export const ko = {
   all: "전체",
   showAll: "전체 보기",
   allAuthors: "모든 작성자",
+  allTags: "모든 태그",
+  showMoreTags: "태그 더 보기",
+  showLessTags: "태그 접기",
+  filteredByTags: "{count}개 태그로 필터링됨",
 
   created: "생성일",
   name: "이름",

@@ -596,6 +596,10 @@ export const ru = {
   all: "Все",
   showAll: "Показать все",
   allAuthors: "Все авторы",
+  allTags: "Все теги",
+  showMoreTags: "Показать больше тегов",
+  showLessTags: "Показать меньше тегов",
+  filteredByTags: "Отфильтровано по {count} тегам",
 
   created: "Создано",
   name: "Имя",

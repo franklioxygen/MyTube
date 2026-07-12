@@ -1,45 +1,69 @@
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { fireEvent, render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import TagsList from '../TagsList';
 
-// Mock LanguageContext
 vi.mock('../../contexts/LanguageContext', () => ({
     useLanguage: () => ({
-        t: (key: string) => key === 'tags' ? 'Tags' : key,
+        t: (key: string) => {
+            if (key === 'tags') return 'Tags';
+            if (key === 'all') return 'All';
+            if (key === 'allTags') return 'All Tags';
+            if (key === 'showAll') return 'Show all';
+            return key;
+        },
     }),
 }));
 
-describe('TagsList', () => {
-    const mockOnTagToggle = vi.fn();
+const theme = createTheme();
 
+const renderTagsList = (props: {
+    availableTags?: string[];
+    selectedTags?: string[];
+    onTagToggle?: (tag: string) => void;
+    onItemClick?: () => void;
+    videos?: Array<{ tags?: string[] }>;
+    linkToAllTags?: boolean;
+} = {}) => {
+    const onTagToggle = props.onTagToggle ?? vi.fn();
+    const onItemClick = props.onItemClick;
+    render(
+        <MemoryRouter>
+            <ThemeProvider theme={theme}>
+                <TagsList
+                    availableTags={props.availableTags ?? ['tag1', 'tag2', 'tag3']}
+                    selectedTags={props.selectedTags ?? []}
+                    onTagToggle={onTagToggle}
+                    onItemClick={onItemClick}
+                    videos={props.videos}
+                    linkToAllTags={props.linkToAllTags ?? true}
+                />
+            </ThemeProvider>
+        </MemoryRouter>
+    );
+    return { onTagToggle, onItemClick };
+};
+
+describe('TagsList', () => {
     beforeEach(() => {
         vi.clearAllMocks();
     });
 
     it('renders nothing when no tags available', () => {
-        const theme = createTheme();
         const { container } = render(
-            <ThemeProvider theme={theme}>
-                <TagsList availableTags={[]} selectedTags={[]} onTagToggle={mockOnTagToggle} />
-            </ThemeProvider>
+            <MemoryRouter>
+                <ThemeProvider theme={theme}>
+                    <TagsList availableTags={[]} selectedTags={[]} onTagToggle={vi.fn()} />
+                </ThemeProvider>
+            </MemoryRouter>
         );
 
         expect(container.firstChild).toBeNull();
     });
 
     it('renders tags list with available tags', () => {
-        const theme = createTheme();
-        render(
-            <ThemeProvider theme={theme}>
-                <TagsList
-                    availableTags={['tag1', 'tag2', 'tag3']}
-                    selectedTags={[]}
-                    onTagToggle={mockOnTagToggle}
-                />
-            </ThemeProvider>
-        );
-
+        renderTagsList();
         expect(screen.getByText('Tags')).toBeInTheDocument();
         expect(screen.getByText('tag1')).toBeInTheDocument();
         expect(screen.getByText('tag2')).toBeInTheDocument();
@@ -47,70 +71,101 @@ describe('TagsList', () => {
     });
 
     it('highlights selected tags', () => {
-        const theme = createTheme();
-        render(
-            <ThemeProvider theme={theme}>
-                <TagsList
-                    availableTags={['tag1', 'tag2', 'tag3']}
-                    selectedTags={['tag1', 'tag3']}
-                    onTagToggle={mockOnTagToggle}
-                />
-            </ThemeProvider>
-        );
-
-        const tag1 = screen.getByText('tag1');
-        const tag2 = screen.getByText('tag2');
-        const tag3 = screen.getByText('tag3');
-
-        // Selected tags should have different styling (we can check by role or parent)
-        expect(tag1).toBeInTheDocument();
-        expect(tag2).toBeInTheDocument();
-        expect(tag3).toBeInTheDocument();
+        renderTagsList({ selectedTags: ['tag1', 'tag3'] });
+        expect(screen.getByText('tag1')).toBeInTheDocument();
+        expect(screen.getByText('tag2')).toBeInTheDocument();
+        expect(screen.getByText('tag3')).toBeInTheDocument();
     });
 
     it('calls onTagToggle when tag is clicked', () => {
-        const theme = createTheme();
-        render(
-            <ThemeProvider theme={theme}>
-                <TagsList
-                    availableTags={['tag1', 'tag2']}
-                    selectedTags={[]}
-                    onTagToggle={mockOnTagToggle}
-                />
-            </ThemeProvider>
-        );
+        const { onTagToggle } = renderTagsList({ availableTags: ['tag1', 'tag2'] });
+        fireEvent.click(screen.getByText('tag1'));
+        expect(onTagToggle).toHaveBeenCalledWith('tag1');
+        expect(onTagToggle).toHaveBeenCalledTimes(1);
+    });
 
-        const tag1 = screen.getByText('tag1');
-        fireEvent.click(tag1);
-
-        expect(mockOnTagToggle).toHaveBeenCalledWith('tag1');
-        expect(mockOnTagToggle).toHaveBeenCalledTimes(1);
+    it('links All icon to /tags without toggling collapse', () => {
+        const onItemClick = vi.fn();
+        renderTagsList({ onItemClick, linkToAllTags: true });
+        const allLink = screen.getByRole('link', { name: 'All Tags' });
+        expect(allLink).toHaveAttribute('href', '/tags');
+        expect(screen.getByText('tag1')).toBeInTheDocument();
+        fireEvent.click(allLink);
+        expect(onItemClick).toHaveBeenCalledTimes(1);
+        // Collapse was not toggled — tags remain visible
+        expect(screen.getByText('tag1')).toBeInTheDocument();
     });
 
     it('toggles collapse when header is clicked', () => {
-        const theme = createTheme();
-        render(
-            <ThemeProvider theme={theme}>
-                <TagsList
-                    availableTags={['tag1', 'tag2']}
-                    selectedTags={[]}
-                    onTagToggle={mockOnTagToggle}
-                />
-            </ThemeProvider>
-        );
-
+        renderTagsList({ availableTags: ['tag1', 'tag2'] });
         const header = screen.getByText('Tags');
-        header.closest('div')?.querySelector('[role="region"]');
-
-        // Initially should be open (tags visible)
         expect(screen.getByText('tag1')).toBeInTheDocument();
-
-        // Click to collapse
         fireEvent.click(header);
-
-        // Tags should still be in DOM but collapsed (MUI Collapse keeps them)
-        // We can verify by checking the collapse state
         expect(screen.getByText('tag1')).toBeInTheDocument();
     });
-});
 
+    it('shows at most 20 tags and a Show all link when catalog is larger', () => {
+        const availableTags = Array.from({ length: 25 }, (_, i) => `tag${String(i).padStart(2, '0')}`);
+        const videos = availableTags.map((tag) => ({ tags: [tag] }));
+        renderTagsList({ availableTags, videos, linkToAllTags: true });
+
+        const chips = screen.getAllByRole('button').filter((el) => el.className.includes('MuiChip-root'));
+        expect(chips).toHaveLength(20);
+        expect(screen.queryByText('tag24')).not.toBeInTheDocument();
+        const showAll = screen.getByRole('link', { name: 'Show all' });
+        expect(showAll).toHaveAttribute('href', '/tags');
+    });
+
+    it('orders by usage and keeps selected tags outside the top 20 visible', () => {
+        const availableTags = Array.from({ length: 22 }, (_, i) => `tag${String(i).padStart(2, '0')}`);
+        const videos = [
+            ...Array.from({ length: 5 }, () => ({ tags: ['tag21'] })),
+            ...Array.from({ length: 19 }, (_, i) => ({ tags: [`tag${String(i).padStart(2, '0')}`] })),
+        ];
+        renderTagsList({
+            availableTags,
+            videos,
+            selectedTags: ['tag20'],
+            linkToAllTags: true,
+        });
+
+        expect(screen.getByText('tag21')).toBeInTheDocument();
+        expect(screen.getByText('tag20')).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'Show all' })).toBeInTheDocument();
+    });
+
+    it('keeps case-insensitive selected tags outside the top 20 using catalog casing', () => {
+        const popularTags = Array.from({ length: 20 }, (_, i) => `tag${String(i).padStart(2, '0')}`);
+        const availableTags = [...popularTags, 'Music'];
+        const videos = [
+            ...popularTags.flatMap((tag) => Array.from({ length: 3 }, () => ({ tags: [tag] }))),
+            { tags: ['Music'] },
+        ];
+        renderTagsList({
+            availableTags,
+            videos,
+            selectedTags: ['music'],
+            linkToAllTags: true,
+        });
+
+        expect(screen.getByText('Music')).toBeInTheDocument();
+        expect(screen.getByText('Music').closest('.MuiChip-root')).toHaveClass('MuiChip-colorPrimary');
+    });
+
+    it('hides Show all when 20 or fewer tags', () => {
+        const availableTags = Array.from({ length: 20 }, (_, i) => `tag${String(i).padStart(2, '0')}`);
+        renderTagsList({ availableTags, linkToAllTags: true });
+        expect(screen.queryByRole('link', { name: 'Show all' })).not.toBeInTheDocument();
+    });
+
+    it('shows all page-local tags without global links when linkToAllTags is false', () => {
+        const availableTags = Array.from({ length: 25 }, (_, i) => `tag${String(i).padStart(2, '0')}`);
+        renderTagsList({ availableTags, linkToAllTags: false });
+
+        const chips = screen.getAllByRole('button').filter((el) => el.className.includes('MuiChip-root'));
+        expect(chips).toHaveLength(25);
+        expect(screen.getByText('tag24')).toBeInTheDocument();
+        expect(screen.queryByRole('link', { name: 'All Tags' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('link', { name: 'Show all' })).not.toBeInTheDocument();
+    });
+});

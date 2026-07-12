@@ -6,6 +6,7 @@ import { api } from '../utils/apiClient';
 import { withCanonicalAuthorAvatars } from '../utils/authorAvatar';
 import { hasAxiosStatus } from '../utils/errors';
 import { settingsQueryOptions } from '../utils/settingsQueries';
+import { normalizeTagKey } from '../utils/tagUtils';
 import { useAuth } from './AuthContext';
 import { useLanguage } from './LanguageContext';
 import { useSnackbar } from './SnackbarContext';
@@ -37,6 +38,7 @@ interface VideoContextType {
     availableTags: string[];
     selectedTags: string[];
     handleTagToggle: (tag: string) => void;
+    clearSelectedTags: () => void;
     showYoutubeSearch: boolean;
     loadMoreSearchResults: () => Promise<void>;
     loadingMore: boolean;
@@ -46,6 +48,7 @@ interface VideoTagsContextType {
     availableTags: string[];
     selectedTags: string[];
     handleTagToggle: (tag: string) => void;
+    clearSelectedTags: () => void;
 }
 
 interface VideoActionsContextType {
@@ -432,11 +435,18 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }, [searchTerm, loadingMore, showYoutubeSearch, searchResults.length, showSnackbar, t]);
 
     const handleTagToggle = useCallback((tag: string) => {
-        setSelectedTags(prev =>
-            prev.includes(tag)
-                ? prev.filter(t => t !== tag)
-                : [...prev, tag]
-        );
+        setSelectedTags((prev) => {
+            const key = normalizeTagKey(tag);
+            const alreadySelected = prev.some((t) => normalizeTagKey(t) === key);
+            if (alreadySelected) {
+                return prev.filter((t) => normalizeTagKey(t) !== key);
+            }
+            return [...prev, tag];
+        });
+    }, []);
+
+    const clearSelectedTags = useCallback(() => {
+        setSelectedTags([]);
     }, []);
 
     // Cleanup search on unmount
@@ -644,6 +654,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         availableTags,
         selectedTags,
         handleTagToggle,
+        clearSelectedTags,
         showYoutubeSearch,
         loadMoreSearchResults,
         loadingMore,
@@ -653,14 +664,15 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         incrementView, searchLocalVideos, searchResults, localSearchResults,
         isSearchMode, searchTerm, youtubeLoading, handleSearch, lastSearchEventId,
         resetSearch, setVideos, availableTags, selectedTags, handleTagToggle,
-        showYoutubeSearch, loadMoreSearchResults, loadingMore,
+        clearSelectedTags, showYoutubeSearch, loadMoreSearchResults, loadingMore,
     ]);
 
     const tagsValue = useMemo<VideoTagsContextType>(() => ({
         availableTags,
         selectedTags,
         handleTagToggle,
-    }), [availableTags, selectedTags, handleTagToggle]);
+        clearSelectedTags,
+    }), [availableTags, selectedTags, handleTagToggle, clearSelectedTags]);
 
     const actionsValue = useMemo<VideoActionsContextType>(() => ({
         updateVideo,

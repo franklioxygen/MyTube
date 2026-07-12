@@ -102,4 +102,47 @@ describe('useHomePagination', () => {
         act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' })); });
         expect(mockSetSearchParams).not.toHaveBeenCalled();
     });
+
+    it('clamps out-of-range page to 1 and preserves other query params', () => {
+        mockSearchParams.set('page', '99');
+        mockSearchParams.set('sort', 'dateAsc');
+        mockSearchParams.set('seed', 'abc');
+        setupHook({ videos: mockVideos.slice(0, 5) });
+        expect(mockSetSearchParams).toHaveBeenCalled();
+        const newParams = mockSetSearchParams.mock.calls[0][0](
+            new URLSearchParams('page=99&sort=dateAsc&seed=abc')
+        );
+        expect(newParams.get('page')).toBe('1');
+        expect(newParams.get('sort')).toBe('dateAsc');
+        expect(newParams.get('seed')).toBe('abc');
+    });
+
+    it.each(['abc', '0', '-3', '1.5'])('normalizes invalid page %s to 1', (page) => {
+        mockSearchParams.set('page', page);
+        setupHook();
+        expect(mockSetSearchParams).toHaveBeenCalled();
+        const newParams = mockSetSearchParams.mock.calls[0][0](
+            new URLSearchParams(`page=${page}&sort=dateAsc`)
+        );
+        expect(newParams.get('page')).toBe('1');
+        expect(newParams.get('sort')).toBe('dateAsc');
+    });
+
+    it('does not clamp page when infiniteScroll is enabled', () => {
+        mockSearchParams.set('page', '99');
+        setupHook({ infiniteScroll: true, videos: mockVideos.slice(0, 5) });
+        expect(mockSetSearchParams).not.toHaveBeenCalled();
+    });
+
+    it('does not clamp a valid page', () => {
+        mockSearchParams.set('page', '2');
+        setupHook();
+        expect(mockSetSearchParams).not.toHaveBeenCalled();
+    });
+
+    it('does not clamp page while videos are still loading (empty list)', () => {
+        mockSearchParams.set('page', '2');
+        setupHook({ videos: [] });
+        expect(mockSetSearchParams).not.toHaveBeenCalled();
+    });
 });

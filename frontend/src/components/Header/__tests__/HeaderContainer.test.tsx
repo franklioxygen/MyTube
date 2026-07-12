@@ -89,6 +89,7 @@ vi.mock('../HeaderToolbarContent', () => ({
             <button onClick={props.onCloseMobileMenu}>close-mobile-menu</button>
             <button onClick={() => props.effectiveTags.onTagToggle('tag1')}>toggle-tag</button>
             <span data-testid="show-tags-in-mobile-menu">{String(props.showTagsInMobileMenu)}</span>
+            <span data-testid="link-to-all-tags-in-mobile-menu">{String(props.linkToAllTagsInMobileMenu)}</span>
         </div>
     ),
 }));
@@ -120,6 +121,17 @@ describe('HeaderContainer', () => {
         mockPathname = pathname;
         renderHeader();
         expect(screen.getByTestId('show-tags-in-mobile-menu').textContent).toBe(expected);
+    });
+
+    it.each([
+        ['/', 'true'],
+        ['/collections', 'true'],
+        ['/author/Alice', 'false'],
+        ['/collection/1', 'false'],
+    ])('links mobile tags to /tags only on home routes: %s -> %s', (pathname, expected) => {
+        mockPathname = pathname;
+        renderHeader();
+        expect(screen.getByTestId('link-to-all-tags-in-mobile-menu').textContent).toBe(expected);
     });
 
     it('handles toolbar callbacks, click-away, and scroll-to-top button click', () => {

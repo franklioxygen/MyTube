@@ -582,6 +582,10 @@ export const ar = {
   all: "الكل",
   showAll: "عرض الكل",
   allAuthors: "كل المؤلفين",
+  allTags: "كل الوسوم",
+  showMoreTags: "عرض المزيد من الوسوم",
+  showLessTags: "عرض عدد أقل من الوسوم",
+  filteredByTags: "تمت التصفية حسب {count} وسوم",
 
   created: "تاريخ الإنشاء",
   name: "الاسم",

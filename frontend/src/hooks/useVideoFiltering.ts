@@ -1,12 +1,12 @@
 import { useMemo } from "react";
 import { Collection, Video } from "../types";
+import { normalizeTagKey } from "../utils/tagUtils";
 import { ViewMode } from "./useViewMode";
 
 const EMPTY_TAG_SET = new Set<string>();
 
 function normalizeTag(value: string | undefined | null): string {
-  if (value == null) return "";
-  return String(value).trim().toLowerCase();
+  return normalizeTagKey(value);
 }
 
 function normalizeTagList(tags: string[] | undefined | null): string[] {

@@ -43,6 +43,7 @@ const Home: React.FC<HomeProps> = ({ initialViewMode }) => {
         availableTags,
         selectedTags,
         handleTagToggle,
+        clearSelectedTags,
         deleteVideo,
         deleteVideos
     } = useVideo();
@@ -209,6 +210,7 @@ const Home: React.FC<HomeProps> = ({ initialViewMode }) => {
                             onSidebarToggle={handleSidebarToggle}
                             selectedTagsCount={selectedTags.length}
                             onDeleteFilteredClick={() => setIsDeleteFilteredOpen(true)}
+                            onClearTagFilter={clearSelectedTags}
                             sortOption={sortOption}
                             sortAnchorEl={sortAnchorEl}
                             onSortClick={handleSortClick}

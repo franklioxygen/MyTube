@@ -46,6 +46,7 @@ interface HeaderToolbarContentProps {
     collections: Collection[];
     videos: Video[];
     showTagsInMobileMenu: boolean;
+    linkToAllTagsInMobileMenu?: boolean;
     effectiveTags: EffectiveTags;
 }
 
@@ -77,6 +78,8 @@ const HeaderToolbarContent: React.FC<HeaderToolbarContentProps> = ({
     onSubmit,
     onAudioOnlySubmit,
     showTagsInMobileMenu,
+    linkToAllTagsInMobileMenu = false,
+    videos,
     effectiveTags
 }) => {
     const { t } = useLanguage();
@@ -191,6 +194,8 @@ const HeaderToolbarContent: React.FC<HeaderToolbarContentProps> = ({
                     availableTags={effectiveTags.availableTags}
                     selectedTags={effectiveTags.selectedTags}
                     onTagToggle={effectiveTags.onTagToggle}
+                    videos={videos}
+                    linkToAllTags={linkToAllTagsInMobileMenu}
                 />
             )}
         </>

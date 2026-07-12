@@ -25,6 +25,7 @@ const mockUseVideoReturn = {
     availableTags: [],
     selectedTags: [] as string[],
     handleTagToggle: vi.fn(),
+    clearSelectedTags: vi.fn(),
     deleteVideo: vi.fn(),
     deleteVideos: vi.fn(),
 };

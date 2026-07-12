@@ -63,6 +63,8 @@ export const HomeSidebar: React.FC<HomeSidebarProps> = ({
                             availableTags={availableTags}
                             selectedTags={selectedTags}
                             onTagToggle={onTagToggle}
+                            videos={videos}
+                            linkToAllTags
                         />
                     </Box>
                     <Box sx={{ mt: 2 }}>

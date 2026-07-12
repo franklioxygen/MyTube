@@ -25,6 +25,7 @@ const BilibiliPartsModal = lazyWithRetry(
 );
 const AuthorVideos = lazyWithRetry(() => import('./pages/AuthorVideos'), 'author-videos');
 const AllAuthorsPage = lazyWithRetry(() => import('./pages/AllAuthorsPage'), 'all-authors');
+const AllTagsPage = lazyWithRetry(() => import('./pages/AllTagsPage'), 'all-tags');
 const CollectionPage = lazyWithRetry(
     () => import('./pages/CollectionPage'),
     'collection-page',
@@ -169,6 +170,7 @@ function AppContent() {
                                             <Route path="/downloads" element={<DownloadPage />} />
                                             <Route path="/collection/:id" element={<CollectionPage />} />
                                             <Route path="/authors" element={<AllAuthorsPage />} />
+                                            <Route path="/tags" element={<AllTagsPage />} />
                                             <Route path="/author/:authorName" element={<AuthorVideos />} />
                                             <Route path="/video/:id" element={<VideoPlayer />} />
                                             <Route path="/subscriptions" element={<SubscriptionsPage />} />

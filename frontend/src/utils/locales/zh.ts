@@ -578,6 +578,10 @@ export const zh = {
   all: "全部",
   showAll: "显示全部",
   allAuthors: "所有作者",
+  allTags: "所有标签",
+  showMoreTags: "显示更多标签",
+  showLessTags: "显示更少标签",
+  filteredByTags: "已按 {count} 个标签筛选",
 
   created: "创建时间",
   name: "名称",

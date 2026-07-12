@@ -600,6 +600,10 @@ export const pt = {
   all: "Todos",
   showAll: "Ver todos",
   allAuthors: "Todos os autores",
+  allTags: "Todas as tags",
+  showMoreTags: "Mostrar mais tags",
+  showLessTags: "Mostrar menos tags",
+  filteredByTags: "Filtrado por {count} tags",
 
   created: "Criado",
   name: "Nome",

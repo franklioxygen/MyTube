@@ -107,4 +107,18 @@ describe('HomeHeader', () => {
         // Actually, let's mock the Delete icon? 
         // Or simpler: Mock Tooltip to just render children with a data attribute.
     });
+
+    it('shows clear filter affordance when tags are selected', () => {
+        const onClearTagFilter = vi.fn();
+        render(
+            <HomeHeader
+                {...defaultProps}
+                selectedTagsCount={2}
+                onClearTagFilter={onClearTagFilter}
+            />
+        );
+        const clearButton = screen.getByRole('button', { name: /filteredByTags/i });
+        fireEvent.click(clearButton);
+        expect(onClearTagFilter).toHaveBeenCalledTimes(1);
+    });
 });
