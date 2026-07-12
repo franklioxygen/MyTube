@@ -43,6 +43,7 @@ const AllTagsPage: React.FC = () => {
     const {
         videos,
         loading,
+        error,
         availableTags,
         selectedTags,
         handleTagToggle,
@@ -119,6 +120,14 @@ const AllTagsPage: React.FC = () => {
             <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
                 <CircularProgress />
             </Box>
+        );
+    }
+
+    if (error && videoArray.length === 0) {
+        return (
+            <Container sx={{ mt: 4 }}>
+                <Alert severity="error">{error}</Alert>
+            </Container>
         );
     }
 

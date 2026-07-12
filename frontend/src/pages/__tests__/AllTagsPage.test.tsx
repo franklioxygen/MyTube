@@ -14,6 +14,7 @@ const mockUseVideoReturn = {
         { id: 'v3', title: 'Three', tags: ['Music', 'Tech'] },
     ] as Video[],
     loading: false,
+    error: null as string | null,
     availableTags: ['Music', 'Tech', 'Unused'],
     selectedTags: [] as string[],
     handleTagToggle: mockHandleTagToggle,
@@ -130,6 +131,7 @@ describe('AllTagsPage', () => {
         vi.clearAllMocks();
         mockUseVideoReturn.selectedTags = [];
         mockUseVideoReturn.loading = false;
+        mockUseVideoReturn.error = null;
         mockUseVideoReturn.videos = [
             { id: 'v1', title: 'One', tags: ['Music'] },
             { id: 'v2', title: 'Two', tags: ['Tech'] },
@@ -175,6 +177,14 @@ describe('AllTagsPage', () => {
         mockUseVideoReturn.videos = [];
         renderPage();
         expect(screen.getByRole('progressbar')).toBeInTheDocument();
+    });
+
+    it('shows error alert when video load fails and there are no videos', () => {
+        mockUseVideoReturn.error = 'Failed to load videos';
+        mockUseVideoReturn.videos = [];
+        renderPage();
+        expect(screen.getByText('Failed to load videos')).toBeInTheDocument();
+        expect(screen.queryByText('noVideosYet')).not.toBeInTheDocument();
     });
 
     it('shows empty catalog message when no tags exist', () => {
