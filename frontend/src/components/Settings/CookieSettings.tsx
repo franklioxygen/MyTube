@@ -4,6 +4,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import React, { useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { api, getApiErrorMessage } from '../../utils/apiClient';
+import { runMutationAsync } from '../../utils/mutationUtils';
 import ConfirmationModal from '../ConfirmationModal';
 
 interface CookieSettingsProps {
@@ -13,6 +14,7 @@ interface CookieSettingsProps {
 
 const CookieSettings: React.FC<CookieSettingsProps> = ({ onSuccess, onError }) => {
     const { t } = useLanguage();
+    const [uploadingCookies, setUploadingCookies] = useState(false);
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -26,6 +28,7 @@ const CookieSettings: React.FC<CookieSettingsProps> = ({ onSuccess, onError }) =
         const formData = new FormData();
         formData.append('file', file);
 
+        setUploadingCookies(true);
         try {
             await api.post('/settings/upload-cookies', formData, {
                 headers: {
@@ -36,6 +39,9 @@ const CookieSettings: React.FC<CookieSettingsProps> = ({ onSuccess, onError }) =
         } catch (error) {
             console.error('Error uploading cookies:', error);
             onError(await getApiErrorMessage(error, t) || t('cookiesUploadFailed') || 'Failed to upload cookies');
+        } finally {
+            setUploadingCookies(false);
+            e.target.value = '';
         }
 
     };
@@ -74,9 +80,8 @@ const CookieSettings: React.FC<CookieSettingsProps> = ({ onSuccess, onError }) =
         setShowDeleteConfirm(true);
     };
 
-    const confirmDelete = () => {
-        deleteMutation.mutate();
-        setShowDeleteConfirm(false);
+    const confirmDelete = async () => {
+        await runMutationAsync(deleteMutation, undefined);
     };
 
     return (
@@ -92,6 +97,8 @@ const CookieSettings: React.FC<CookieSettingsProps> = ({ onSuccess, onError }) =
                     variant="outlined"
                     component="label"
                     startIcon={<CloudUpload />}
+                    loading={uploadingCookies}
+                    loadingPosition="start"
                 >
                     {t('uploadCookies') || 'Upload Cookies'}
                     <input
@@ -109,7 +116,8 @@ const CookieSettings: React.FC<CookieSettingsProps> = ({ onSuccess, onError }) =
                             color="error"
                             startIcon={<Delete />}
                             onClick={handleDelete}
-                            disabled={deleteMutation.isPending}
+                            loading={deleteMutation.isPending}
+                            loadingPosition="start"
                         >
                             {t('deleteCookies') || 'Delete Cookies'}
                         </Button>

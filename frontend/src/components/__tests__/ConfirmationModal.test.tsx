@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { act } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ConfirmationModal from '../ConfirmationModal';
 
@@ -64,5 +65,46 @@ describe('ConfirmationModal', () => {
 
         expect(screen.getByText('Yes, do it')).toBeInTheDocument();
         expect(screen.getByText('No, wait')).toBeInTheDocument();
+    });
+
+    it('shows loading state and disables cancel while async confirm is pending', async () => {
+        let resolveConfirm!: () => void;
+        const onConfirm = vi.fn(
+            () =>
+                new Promise<void>((resolve) => {
+                    resolveConfirm = resolve;
+                })
+        );
+        const onClose = vi.fn();
+
+        render(<ConfirmationModal {...defaultProps} onConfirm={onConfirm} onClose={onClose} />);
+
+        const user = userEvent.setup();
+        await user.click(screen.getByRole('button', { name: 'Confirm' }));
+
+        expect(screen.getByRole('button', { name: 'Confirm' })).toBeDisabled();
+        expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
+        expect(screen.getByRole('progressbar')).toBeInTheDocument();
+        expect(onClose).not.toHaveBeenCalled();
+
+        await act(async () => {
+            resolveConfirm();
+        });
+
+        expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the modal open when async confirm rejects', async () => {
+        const onConfirm = vi.fn(() => Promise.reject(new Error('failed')));
+        const onClose = vi.fn();
+
+        render(<ConfirmationModal {...defaultProps} onConfirm={onConfirm} onClose={onClose} />);
+
+        const user = userEvent.setup();
+        await user.click(screen.getByRole('button', { name: 'Confirm' }));
+
+        expect(onConfirm).toHaveBeenCalledTimes(1);
+        expect(onClose).not.toHaveBeenCalled();
+        expect(screen.getByText('Confirm Action')).toBeInTheDocument();
     });
 });

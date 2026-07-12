@@ -5,6 +5,7 @@ import React, { useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { Settings } from '../../types';
 import { api, getApiErrorMessage, getWaitTime, isRateLimitError } from '../../utils/apiClient';
+import { runMutationAsync } from '../../utils/mutationUtils';
 import ConfirmationModal from '../ConfirmationModal';
 import PasswordModal from '../PasswordModal';
 
@@ -120,9 +121,9 @@ const HookSettings: React.FC<HookSettingsProps> = () => {
         setDeleteHookName(hookName);
     };
 
-    const confirmDelete = () => {
+    const confirmDelete = async () => {
         if (deleteHookName) {
-            deleteMutation.mutate(deleteHookName);
+            await runMutationAsync(deleteMutation, deleteHookName);
         }
     };
 
@@ -201,9 +202,10 @@ const HookSettings: React.FC<HookSettingsProps> = () => {
                                                 component="label"
                                                 size="small"
                                                 startIcon={<CloudUpload />}
-                                                disabled={uploadMutation.isPending}
+                                                loading={uploadMutation.isPending && pendingUpload?.hookName === hook.name}
+                                                loadingPosition="start"
                                             >
-                                                {uploadMutation.isPending ? 'Up...' : (t('uploadHook') || 'Upload .sh')}
+                                                {t('uploadHook') || 'Upload .sh'}
                                                 <input
                                                     type="file"
                                                     hidden
@@ -219,7 +221,8 @@ const HookSettings: React.FC<HookSettingsProps> = () => {
                                                     size="small"
                                                     startIcon={<Delete />}
                                                     onClick={() => { handleDelete(hook.name); }}
-                                                    disabled={deleteMutation.isPending}
+                                                    loading={deleteMutation.isPending && deleteHookName === hook.name}
+                                                    loadingPosition="start"
                                                 >
                                                     {t('delete') || 'Delete'}
                                                 </Button>

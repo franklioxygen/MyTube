@@ -30,8 +30,8 @@ interface RssTokenDialogProps {
     authorOptions?: string[];
     tagOptions?: string[];
     onClose: () => void;
-    onCreate?: (input: CreateTokenInput) => void;
-    onUpdate?: (id: string, patch: UpdateTokenInput) => void;
+    onCreate?: (input: CreateTokenInput) => void | Promise<unknown>;
+    onUpdate?: (id: string, patch: UpdateTokenInput) => void | Promise<unknown>;
     isLoading?: boolean;
 }
 
@@ -89,7 +89,17 @@ const RssTokenDialog: React.FC<RssTokenDialogProps> = ({
     const title = mode === 'create' ? t('rssCreateToken') : t('rssEditToken');
 
     return (
-        <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+        <Dialog
+            open={open}
+            onClose={() => {
+                if (!isLoading) {
+                    onClose();
+                }
+            }}
+            disableEscapeKeyDown={isLoading}
+            maxWidth="sm"
+            fullWidth
+        >
             <DialogTitle>{title}</DialogTitle>
             <DialogContent>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
@@ -156,7 +166,12 @@ const RssTokenDialog: React.FC<RssTokenDialogProps> = ({
                 <Button onClick={onClose} disabled={isLoading}>
                     {t('cancel')}
                 </Button>
-                <Button onClick={handleSubmit} variant="contained" disabled={isLoading}>
+                <Button
+                    onClick={handleSubmit}
+                    variant="contained"
+                    loading={isLoading}
+                    loadingPosition="start"
+                >
                     {mode === 'create' ? t('rssCreateToken') : t('save')}
                 </Button>
             </DialogActions>

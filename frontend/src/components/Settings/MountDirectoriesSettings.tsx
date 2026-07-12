@@ -148,9 +148,10 @@ const MountDirectoriesSettings: React.FC<MountDirectoriesSettingsProps> = ({
                             variant="outlined"
                             startIcon={<FindInPage />}
                             onClick={handleScanMountDirectories}
-                            disabled={scanMountDirectoriesMutation.isPending}
+                            loading={scanMountDirectoriesMutation.isPending}
+                            loadingPosition="start"
                         >
-                            {scanMountDirectoriesMutation.isPending ? (t('scanning') || 'Scanning...') : (t('scanFiles') || 'Scan Files')}
+                            {t('scanFiles') || 'Scan Files'}
                         </Button>
                     </Box>
                 </>

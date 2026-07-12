@@ -22,6 +22,7 @@ export const useVideoCardActions = ({
     const { showSnackbar } = useSnackbar();
     const { updateVideo } = useVideoActions();
     const [isDeleting, setIsDeleting] = useState(false);
+    const [isTogglingVisibility, setIsTogglingVisibility] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
 
     // Handle confirm delete
@@ -33,6 +34,8 @@ export const useVideoCardActions = ({
             await onDeleteVideo(video.id);
         } catch (error) {
             console.error('Error deleting video:', error);
+            throw error;
+        } finally {
             setIsDeleting(false);
         }
     };
@@ -41,11 +44,16 @@ export const useVideoCardActions = ({
     const handleToggleVisibility = async () => {
         if (!video.id) return;
         const newVisibility = (video.visibility ?? 1) === 0 ? 1 : 0;
-        const result = await updateVideo(video.id, { visibility: newVisibility });
-        if (result.success) {
-            showSnackbar(newVisibility === 1 ? t('showVideo') : t('hideVideo'), 'success');
-        } else {
-            showSnackbar(t('error'), 'error');
+        setIsTogglingVisibility(true);
+        try {
+            const result = await updateVideo(video.id, { visibility: newVisibility });
+            if (result.success) {
+                showSnackbar(newVisibility === 1 ? t('showVideo') : t('hideVideo'), 'success');
+            } else {
+                showSnackbar(t('error'), 'error');
+            }
+        } finally {
+            setIsTogglingVisibility(false);
         }
     };
 
@@ -55,6 +63,7 @@ export const useVideoCardActions = ({
         setShowDeleteModal,
         confirmDelete,
         handleToggleVisibility,
+        isTogglingVisibility,
         canDelete: showDeleteButton && !!onDeleteVideo
     };
 };

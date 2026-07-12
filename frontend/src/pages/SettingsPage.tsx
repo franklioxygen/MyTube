@@ -53,6 +53,7 @@ import { SNACKBAR_AUTO_HIDE_DURATION } from '../utils/constants';
 import { getTwitchCredentialValidationCode } from '../utils/twitch';
 import { createTranslateOrFallback } from '../utils/translateOrFallback';
 import { Language } from '../utils/translations';
+import { runMutationAsync } from '../utils/mutationUtils';
 
 const SettingsPage: React.FC = () => {
     const { t, setLanguage } = useLanguage();
@@ -720,12 +721,14 @@ const SettingsPage: React.FC = () => {
                     color="primary"
                     size="large"
                     onClick={handleSave}
-                    disabled={saveMutation.isPending || hasTwitchCredentialValidationError}
+                    disabled={hasTwitchCredentialValidationError}
+                    loading={saveMutation.isPending}
+                    loadingPosition="start"
                     sx={{ visibility: isSticky ? 'hidden' : 'visible' }}
                     className={isGlowing ? 'button-glow-animation' : ''}
                     onAnimationEnd={() => setIsGlowing(false)}
                 >
-                    {saveMutation.isPending ? t('saving') || 'Saving...' : t('save') || 'Save'}
+                    {t('save') || 'Save'}
                 </Button>
             </Box>
 
@@ -753,11 +756,13 @@ const SettingsPage: React.FC = () => {
                                 color="primary"
                                 size="large"
                                 onClick={handleSave}
-                                disabled={saveMutation.isPending || hasTwitchCredentialValidationError}
+                                disabled={hasTwitchCredentialValidationError}
+                                loading={saveMutation.isPending}
+                                loadingPosition="start"
                                 className={isGlowing ? 'button-glow-animation' : ''}
                                 onAnimationEnd={() => setIsGlowing(false)}
                             >
-                                {saveMutation.isPending ? t('saving') || 'Saving...' : t('save') || 'Save'}
+                                {t('save') || 'Save'}
                             </Button>
                         </Box>
                     </Container>
@@ -777,9 +782,8 @@ const SettingsPage: React.FC = () => {
             <ConfirmationModal
                 isOpen={showCleanupAuthorCollectionsModal}
                 onClose={() => setShowCleanupAuthorCollectionsModal(false)}
-                onConfirm={() => {
-                    setShowCleanupAuthorCollectionsModal(false);
-                    cleanupAuthorCollectionsMutation.mutate();
+                onConfirm={async () => {
+                    await runMutationAsync(cleanupAuthorCollectionsMutation, undefined);
                 }}
                 title={t('cleanupAuthorCollectionsConfirmTitle')}
                 message={t('cleanupAuthorCollectionsConfirmMessage')}
@@ -789,9 +793,8 @@ const SettingsPage: React.FC = () => {
             <ConfirmationModal
                 isOpen={showDeleteLegacyModal}
                 onClose={() => setShowDeleteLegacyModal(false)}
-                onConfirm={() => {
-                    setShowDeleteLegacyModal(false);
-                    deleteLegacyMutation.mutate();
+                onConfirm={async () => {
+                    await runMutationAsync(deleteLegacyMutation, undefined);
                 }}
                 title={t('removeLegacyDataConfirmTitle')}
                 message={t('removeLegacyDataConfirmMessage')}
@@ -804,9 +807,8 @@ const SettingsPage: React.FC = () => {
             <ConfirmationModal
                 isOpen={showMigrateConfirmModal}
                 onClose={() => setShowMigrateConfirmModal(false)}
-                onConfirm={() => {
-                    setShowMigrateConfirmModal(false);
-                    migrateMutation.mutate();
+                onConfirm={async () => {
+                    await runMutationAsync(migrateMutation, undefined);
                 }}
                 title={t('migrateDataButton')}
                 message={t('migrateConfirmation')}
@@ -818,9 +820,8 @@ const SettingsPage: React.FC = () => {
             <ConfirmationModal
                 isOpen={showFormatConfirmModal}
                 onClose={() => setShowFormatConfirmModal(false)}
-                onConfirm={() => {
-                    setShowFormatConfirmModal(false);
-                    formatFilenamesMutation.mutate();
+                onConfirm={async () => {
+                    await runMutationAsync(formatFilenamesMutation, undefined);
                 }}
                 title={t('formatLegacyFilenamesButton')}
                 message={t('formatLegacyFilenamesDescription')} // Reusing description as message, or could add a specific confirm message
@@ -833,9 +834,8 @@ const SettingsPage: React.FC = () => {
             <ConfirmationModal
                 isOpen={showCleanupTempFilesModal}
                 onClose={() => setShowCleanupTempFilesModal(false)}
-                onConfirm={() => {
-                    setShowCleanupTempFilesModal(false);
-                    cleanupMutation.mutate();
+                onConfirm={async () => {
+                    await runMutationAsync(cleanupMutation, undefined);
                 }}
                 title={t('cleanupTempFilesConfirmTitle')}
                 message={t('cleanupTempFilesConfirmMessage')}

@@ -262,11 +262,23 @@ const DownloadPage: React.FC = () => {
         clearHistoryMutation.mutate();
     };
 
-    const handleRetry = (sourceUrl: string) => {
-        if (!isDownloadInProgress(sourceUrl)) {
-            handleVideoSubmit(sourceUrl);
-        } else {
+    const handleRetry = async (sourceUrl: string) => {
+        if (isDownloadInProgress(sourceUrl)) {
             showSnackbar('Download already in progress or queued');
+            return;
+        }
+
+        setDownloadingItems(prev => new Set(prev).add(sourceUrl));
+        try {
+            await handleVideoSubmit(sourceUrl);
+        } finally {
+            setTimeout(() => {
+                setDownloadingItems(prev => {
+                    const next = new Set(prev);
+                    next.delete(sourceUrl);
+                    return next;
+                });
+            }, 1000);
         }
     };
 
@@ -328,6 +340,7 @@ const DownloadPage: React.FC = () => {
                 <ActiveDownloadsTab
                     downloads={activeDownloads}
                     onCancel={handleCancelDownload}
+                    cancellingId={cancelMutation.isPending ? cancelMutation.variables ?? null : null}
                 />
             </CustomTabPanel>
 
@@ -336,6 +349,8 @@ const DownloadPage: React.FC = () => {
                     downloads={queuedDownloads}
                     onRemove={handleRemoveFromQueue}
                     onClear={handleClearQueue}
+                    removingId={removeFromQueueMutation.isPending ? removeFromQueueMutation.variables ?? null : null}
+                    clearing={clearQueueMutation.isPending}
                 />
             </CustomTabPanel>
 
@@ -349,6 +364,9 @@ const DownloadPage: React.FC = () => {
                     onReDownload={handleReDownload}
                     onViewVideo={handleViewVideo}
                     isDownloadInProgress={isDownloadInProgress}
+                    removingId={removeFromHistoryMutation.isPending ? removeFromHistoryMutation.variables ?? null : null}
+                    cancellingRetryId={cancelRetryMutation.isPending ? cancelRetryMutation.variables ?? null : null}
+                    clearing={clearHistoryMutation.isPending}
                 />
             </CustomTabPanel>
 

@@ -576,6 +576,8 @@ const VideoPlayer: React.FC = () => {
                             onAddToCollection={handleAddToCollection}
                             onDelete={handleDelete}
                             isDeleting={deleteMutation.isPending}
+                            isSavingTitle={titleMutation.isPending}
+                            isTogglingVisibility={visibilityMutation.isPending}
                             deleteError={deleteMutation.error ? (deleteMutation.error as any).message || t('deleteFailed') : null}
                             videoCollections={videoCollections}
                             onCollectionClick={handleCollectionClick}

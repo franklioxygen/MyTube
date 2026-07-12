@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import React, { useMemo, useState } from 'react';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import { api } from '../../../utils/apiClient';
+import { runMutationAsync } from '../../../utils/mutationUtils';
 import { CreateTokenInput, RssToken, UpdateTokenInput, rssApi } from '../../../utils/rssApi';
 import RssTokenCard from './RssTokenCard';
 import RssTokenDialog from './RssTokenDialog';
@@ -165,15 +166,19 @@ const RssTokenList: React.FC = () => {
                     authorOptions={authorOptions}
                     tagOptions={tagOptions}
                     onUpdate={(id, patch) => {
-                        updateMutation.mutate({ id, patch });
+                        return runMutationAsync(updateMutation, { id, patch });
                     }}
                     onDelete={(id) => {
-                        deleteMutation.mutate(id);
+                        return runMutationAsync(deleteMutation, id);
                     }}
                     onReset={(id) => {
-                        resetMutation.mutate(id);
+                        return runMutationAsync(resetMutation, id);
                     }}
-                    isUpdating={updateMutation.isPending}
+                    isUpdating={
+                        (updateMutation.isPending && updateMutation.variables?.id === token.id) ||
+                        (deleteMutation.isPending && deleteMutation.variables === token.id) ||
+                        (resetMutation.isPending && resetMutation.variables === token.id)
+                    }
                 />
             ))}
 
@@ -187,7 +192,7 @@ const RssTokenList: React.FC = () => {
                     setShowCreateDialog(false);
                 }}
                 onCreate={(input) => {
-                    createMutation.mutate(input);
+                    return runMutationAsync(createMutation, input);
                 }}
                 isLoading={createMutation.isPending}
             />

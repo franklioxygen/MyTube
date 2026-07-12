@@ -47,7 +47,8 @@ describe('PasswordModal', () => {
     it('should disable inputs and show loading when isLoading is true', () => {
         render(<PasswordModal {...defaultProps} isLoading={true} />);
         expect(screen.getByLabelText('password')).toBeDisabled();
-        expect(screen.getByText('verifying')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'confirm' })).toBeDisabled();
+        expect(screen.getByRole('progressbar')).toBeInTheDocument();
     });
 
     it('should toggle password visibility', async () => {

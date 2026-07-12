@@ -20,9 +20,9 @@ interface RssTokenCardProps {
     channelOptions?: { channelUrl: string; author: string }[];
     authorOptions?: string[];
     tagOptions?: string[];
-    onUpdate: (id: string, patch: UpdateTokenInput) => void;
-    onDelete: (id: string) => void;
-    onReset: (id: string) => void;
+    onUpdate: (id: string, patch: UpdateTokenInput) => void | Promise<unknown>;
+    onDelete: (id: string) => void | Promise<unknown>;
+    onReset: (id: string) => void | Promise<unknown>;
     isUpdating?: boolean;
 }
 
@@ -68,7 +68,7 @@ const RssTokenCard: React.FC<RssTokenCardProps> = ({
     };
 
     const handleToggleActive = () => {
-        onUpdate(token.id, { isActive: !token.isActive });
+        void onUpdate(token.id, { isActive: !token.isActive });
     };
 
     const filterSummary = () => {
@@ -176,7 +176,8 @@ const RssTokenCard: React.FC<RssTokenCardProps> = ({
                     onClick={handleToggleActive}
                     variant="outlined"
                     color={token.isActive ? 'error' : 'success'}
-                    disabled={isUpdating}
+                    loading={isUpdating}
+                    loadingPosition="start"
                 >
                     {token.isActive ? t('rssDisableLink') : t('rssEnableLink')}
                 </Button>
@@ -203,8 +204,8 @@ const RssTokenCard: React.FC<RssTokenCardProps> = ({
                 onClose={() => {
                     setShowEditDialog(false);
                 }}
-                onUpdate={(id, patch) => {
-                    onUpdate(id, patch);
+                onUpdate={async (id, patch) => {
+                    await onUpdate(id, patch);
                     setShowEditDialog(false);
                 }}
                 isLoading={isUpdating}
@@ -217,9 +218,8 @@ const RssTokenCard: React.FC<RssTokenCardProps> = ({
                 message={t('rssDeleteLinkConfirm')}
                 confirmText={t('delete')}
                 cancelText={t('cancel')}
-                onConfirm={() => {
-                    setShowDeleteConfirm(false);
-                    onDelete(token.id);
+                onConfirm={async () => {
+                    await onDelete(token.id);
                 }}
                 onClose={() => {
                     setShowDeleteConfirm(false);
@@ -234,9 +234,8 @@ const RssTokenCard: React.FC<RssTokenCardProps> = ({
                 message={t('rssResetLinkConfirm')}
                 confirmText={t('reset')}
                 cancelText={t('cancel')}
-                onConfirm={() => {
-                    setShowResetConfirm(false);
-                    onReset(token.id);
+                onConfirm={async () => {
+                    await onReset(token.id);
                 }}
                 onClose={() => {
                     setShowResetConfirm(false);

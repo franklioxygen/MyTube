@@ -4,7 +4,6 @@ import {
     Box,
     ButtonGroup,
     Button,
-    CircularProgress,
     IconButton,
     InputAdornment,
     TextField,
@@ -250,9 +249,10 @@ const SearchInput: React.FC<SearchInputProps> = ({
                                     <Button
                                         type="submit"
                                         aria-label={t('download')}
+                                        loading={isSubmitting}
                                         sx={{ minWidth: 'auto', px: 2.5 }}
                                     >
-                                        {isSubmitting ? <CircularProgress size={24} color="inherit" /> : <Search />}
+                                        <Search />
                                     </Button>
                                 </ButtonGroup>
                             </InputAdornment>

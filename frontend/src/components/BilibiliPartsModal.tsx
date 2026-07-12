@@ -47,6 +47,7 @@ const BilibiliPartsModal: React.FC<BilibiliPartsModalProps> = ({
 
     // Reset state when modal closes
     const handleClose = () => {
+        if (isLoading) return;
         setSubscribeToPlaylist(false);
         setSubscriptionInterval(60);
         onClose();
@@ -80,8 +81,6 @@ const BilibiliPartsModal: React.FC<BilibiliPartsModalProps> = ({
     };
 
     const getDownloadAllButtonText = () => {
-        if (isLoading) return t('processing');
-
         switch (type) {
             case 'collection':
                 return t('downloadAllVideos', { count: videosNumber });
@@ -95,8 +94,6 @@ const BilibiliPartsModal: React.FC<BilibiliPartsModalProps> = ({
     };
 
     const getCurrentButtonText = () => {
-        if (isLoading) return t('processing');
-
         switch (type) {
             case 'collection':
                 return t('downloadThisVideoOnly');
@@ -113,6 +110,7 @@ const BilibiliPartsModal: React.FC<BilibiliPartsModalProps> = ({
         <Dialog
             open={isOpen}
             onClose={handleClose}
+            disableEscapeKeyDown={isLoading}
             maxWidth="sm"
             fullWidth
             slotProps={{
@@ -121,7 +119,7 @@ const BilibiliPartsModal: React.FC<BilibiliPartsModalProps> = ({
                 }
             }}
         >
-            <DialogHeader title={getHeaderText()} onClose={handleClose} closeLabel={t('close')} />
+            <DialogHeader title={getHeaderText()} onClose={handleClose} closeDisabled={isLoading} closeLabel={t('close')} />
             <DialogContent dividers>
                 <DialogContentText sx={{ mb: 2 }}>
                     {getDescriptionText()}
@@ -184,13 +182,16 @@ const BilibiliPartsModal: React.FC<BilibiliPartsModalProps> = ({
                         onDownloadCurrent();
                     }}
                     disabled={isLoading}
+                    loading={isLoading}
+                    loadingPosition="start"
                     color="inherit"
                 >
                     {getCurrentButtonText()}
                 </Button>
                 <Button
                     onClick={handleDownloadAll}
-                    disabled={isLoading}
+                    loading={isLoading}
+                    loadingPosition="start"
                     variant="contained"
                     color="primary"
                 >

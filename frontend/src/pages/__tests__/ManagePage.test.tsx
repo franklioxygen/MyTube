@@ -670,7 +670,9 @@ describe('ManagePage', () => {
 
             renderManagePage();
 
-            expect(screen.getByText('scanning')).toBeInTheDocument();
+            const scanButton = screen.getByRole('button', { name: 'scanFiles' });
+            expect(scanButton).toBeDisabled();
+            expect(within(scanButton).getByRole('progressbar')).toBeInTheDocument();
 
             fireEvent.click(screen.getByRole('tab', { name: /videos/i }));
             expect(capturedVideosTableProps!.isRefreshingFileSizes).toBe(true);

@@ -12,6 +12,7 @@ interface VideoKebabMenuProps {
     onAddToCollection: () => void;
     onDelete?: () => void;
     isDeleting?: boolean;
+    isTogglingVisibility?: boolean;
     onToggleVisibility?: () => void;
     onAddTag?: () => void;
     video?: { visibility?: number };
@@ -25,6 +26,7 @@ const VideoKebabMenu: React.FC<VideoKebabMenuProps> = ({
     onAddToCollection,
     onDelete,
     isDeleting = false,
+    isTogglingVisibility = false,
     onToggleVisibility,
     onAddTag,
     video,
@@ -113,6 +115,7 @@ const VideoKebabMenu: React.FC<VideoKebabMenuProps> = ({
                                     variant="outlined"
                                     color="inherit"
                                     onClick={handleToggleVisibility}
+                                    loading={isTogglingVisibility}
                                     sx={{ minWidth: 'auto', p: 1, color: 'text.secondary', borderColor: 'text.secondary', '&:hover': { color: 'primary.main', borderColor: 'primary.main' } }}
                                 >
                                     {video?.visibility === 0 ? <Visibility /> : <VisibilityOff />}
@@ -135,7 +138,7 @@ const VideoKebabMenu: React.FC<VideoKebabMenuProps> = ({
                                     variant="outlined"
                                     color="inherit"
                                     onClick={handleDelete}
-                                    disabled={isDeleting}
+                                    loading={isDeleting}
                                     sx={{ minWidth: 'auto', p: 1, color: 'text.secondary', borderColor: 'text.secondary', '&:hover': { color: 'error.main', borderColor: 'error.main' } }}
                                 >
                                     <Delete />

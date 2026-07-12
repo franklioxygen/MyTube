@@ -24,7 +24,7 @@ type DownloadOrder = 'dateDesc' | 'dateAsc' | 'viewsDesc' | 'viewsAsc';
 interface SubscribeModalProps {
     open: boolean;
     onClose: () => void;
-    onConfirm: (interval: number, downloadAllPrevious: boolean, downloadShorts: boolean, downloadOrder: DownloadOrder) => void;
+    onConfirm: (interval: number, downloadAllPrevious: boolean, downloadShorts: boolean, downloadOrder: DownloadOrder) => void | Promise<void>;
     authorName?: string;
     url: string;
     source?: string;
@@ -49,6 +49,7 @@ const SubscribeModal: React.FC<SubscribeModalProps> = ({
     const [downloadAllPrevious, setDownloadAllPrevious] = useState<boolean>(false);
     const [downloadShorts, setDownloadShorts] = useState<boolean>(false);
     const [downloadOrder, setDownloadOrder] = useState<DownloadOrder>('dateDesc');
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const isTwitch = source === 'twitch';
     const showDownloadShorts = source !== 'bilibili' && source !== 'twitch';
     const resolvedTitle =
@@ -63,9 +64,22 @@ const SubscribeModal: React.FC<SubscribeModalProps> = ({
         ? t('twitchSubscriptionVodsOnly')
         : t('subscribeDescription');
 
-    const handleConfirm = () => {
-        onConfirm(interval, downloadAllPrevious, downloadShorts, downloadOrder);
-        onClose();
+    const handleClose = () => {
+        if (!isSubmitting) {
+            onClose();
+        }
+    };
+
+    const handleConfirm = async () => {
+        setIsSubmitting(true);
+        try {
+            await onConfirm(interval, downloadAllPrevious, downloadShorts, downloadOrder);
+            onClose();
+        } catch {
+            // Keep the modal open so the action can be retried.
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     const showOrderDropdown = downloadAllPrevious && enableDownloadOrder;
@@ -73,7 +87,8 @@ const SubscribeModal: React.FC<SubscribeModalProps> = ({
     return (
         <Dialog
             open={open}
-            onClose={onClose}
+            onClose={handleClose}
+            disableEscapeKeyDown={isSubmitting}
             maxWidth="sm"
             fullWidth
             slotProps={{
@@ -82,7 +97,7 @@ const SubscribeModal: React.FC<SubscribeModalProps> = ({
                 }
             }}
         >
-            <DialogHeader title={resolvedTitle} onClose={onClose} closeLabel={t('close')} />
+            <DialogHeader title={resolvedTitle} onClose={handleClose} closeDisabled={isSubmitting} closeLabel={t('close')} />
             <DialogContent dividers>
                 <DialogContentText sx={{ mb: 2, color: 'text.primary' }}>
                     {resolvedDescription}
@@ -101,6 +116,7 @@ const SubscribeModal: React.FC<SubscribeModalProps> = ({
                     value={interval}
                     onChange={(e) => setInterval(Number(e.target.value))}
                     slotProps={{ htmlInput: { min: 1 } }}
+                    disabled={isSubmitting}
                     sx={{ mb: 2 }}
                 />
                 {showDownloadShorts && (
@@ -109,6 +125,7 @@ const SubscribeModal: React.FC<SubscribeModalProps> = ({
                             <Checkbox
                                 checked={downloadShorts}
                                 onChange={(e) => setDownloadShorts(e.target.checked)}
+                                disabled={isSubmitting}
                             />
                         }
                         label={t('downloadShorts') || "Download Shorts"}
@@ -119,6 +136,7 @@ const SubscribeModal: React.FC<SubscribeModalProps> = ({
                         <Checkbox
                             checked={downloadAllPrevious}
                             onChange={(e) => setDownloadAllPrevious(e.target.checked)}
+                            disabled={isSubmitting}
                         />
                     }
                     label={t('downloadAllPreviousVideos')}
@@ -131,6 +149,7 @@ const SubscribeModal: React.FC<SubscribeModalProps> = ({
                             value={downloadOrder}
                             label={t('downloadOrder') || 'Download Order'}
                             onChange={(e) => setDownloadOrder(e.target.value as DownloadOrder)}
+                            disabled={isSubmitting}
                         >
                             <MenuItem value="dateDesc">{t('downloadOrderDateDesc') || 'Date (Newest First)'}</MenuItem>
                             <MenuItem value="dateAsc">{t('downloadOrderDateAsc') || 'Date (Oldest First)'}</MenuItem>
@@ -162,10 +181,16 @@ const SubscribeModal: React.FC<SubscribeModalProps> = ({
                 )}
             </DialogContent>
             <DialogActions sx={{ p: 2 }}>
-                <Button onClick={onClose} color="inherit">
+                <Button onClick={handleClose} color="inherit" disabled={isSubmitting}>
                     {t('cancel')}
                 </Button>
-                <Button onClick={handleConfirm} variant="contained" color="primary">
+                <Button
+                    onClick={() => { void handleConfirm(); }}
+                    variant="contained"
+                    color="primary"
+                    loading={isSubmitting}
+                    loadingPosition="start"
+                >
                     {t('subscribe')}
                 </Button>
             </DialogActions>

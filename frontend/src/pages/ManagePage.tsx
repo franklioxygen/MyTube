@@ -24,6 +24,7 @@ import { useSnackbar } from '../contexts/SnackbarContext';
 import { useVideo } from '../contexts/VideoContext';
 import { Collection, Video } from '../types';
 import { formatSize } from '../utils/formatUtils';
+import { runMutationAsync } from '../utils/mutationUtils';
 
 const ManagePage: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState<string>('');
@@ -229,10 +230,13 @@ const ManagePage: React.FC = () => {
         if (!videoToDelete) return;
 
         setDeletingId(videoToDelete);
-        await deleteVideo(videoToDelete);
-        setDeletingId(null);
-        setVideoToDelete(null);
-        setShowVideoDeleteModal(false); // Close the modal after deletion
+        try {
+            await deleteVideo(videoToDelete);
+            setVideoToDelete(null);
+            setShowVideoDeleteModal(false);
+        } finally {
+            setDeletingId(null);
+        }
     };
 
     const handleDelete = (id: string) => {
@@ -247,17 +251,23 @@ const ManagePage: React.FC = () => {
     const handleCollectionDeleteOnly = async () => {
         if (!collectionToDelete) return;
         setIsDeletingCollection(true);
-        await deleteCollection(collectionToDelete.id, false);
-        setIsDeletingCollection(false);
-        setCollectionToDelete(null);
+        try {
+            await deleteCollection(collectionToDelete.id, false);
+            setCollectionToDelete(null);
+        } finally {
+            setIsDeletingCollection(false);
+        }
     };
 
     const handleCollectionDeleteAll = async () => {
         if (!collectionToDelete) return;
         setIsDeletingCollection(true);
-        await deleteCollection(collectionToDelete.id, true);
-        setIsDeletingCollection(false);
-        setCollectionToDelete(null);
+        try {
+            await deleteCollection(collectionToDelete.id, true);
+            setCollectionToDelete(null);
+        } finally {
+            setIsDeletingCollection(false);
+        }
     };
 
     const handleRefreshThumbnail = async (id: string) => {
@@ -302,9 +312,10 @@ const ManagePage: React.FC = () => {
                             variant="outlined"
                             startIcon={<FindInPage />}
                             onClick={() => setShowScanConfirmModal(true)}
-                            disabled={scanMutation.isPending}
+                            loading={scanMutation.isPending}
+                            loadingPosition="start"
                         >
-                            {scanMutation.isPending ? (t('scanning') || 'Scanning...') : (t('scanFiles') || 'Scan Files')}
+                            {t('scanFiles') || 'Scan Files'}
                         </Button>
                     </Box>
                 )}
@@ -336,9 +347,8 @@ const ManagePage: React.FC = () => {
             <ConfirmationModal
                 isOpen={showScanConfirmModal}
                 onClose={() => setShowScanConfirmModal(false)}
-                onConfirm={() => {
-                    setShowScanConfirmModal(false);
-                    scanMutation.mutate();
+                onConfirm={async () => {
+                    await runMutationAsync(scanMutation, undefined);
                 }}
                 title={t('scanFiles') || 'Scan Files'}
                 message={t('scanFilesConfirmMessage') || 'The system will scan the root folder of the video path. New files will be added, and missing video files will be removed from the system.'}

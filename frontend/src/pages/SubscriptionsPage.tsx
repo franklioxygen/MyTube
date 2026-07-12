@@ -2,7 +2,6 @@ import { AutoDelete, Cancel, Check, Close, Delete, DeleteOutline, Edit, HelpOutl
 import {
     Box,
     Button,
-    CircularProgress,
     Container,
     IconButton,
     LinearProgress,
@@ -112,6 +111,8 @@ const SubscriptionsPage: React.FC = () => {
     const [isRetentionHelpOpen, setIsRetentionHelpOpen] = useState(false);
     const [subscriptionsPage, setSubscriptionsPage] = useState(0);
     const [subscriptionsRowsPerPage, setSubscriptionsRowsPerPage] = useState(DEFAULT_SUBSCRIPTIONS_ROWS_PER_PAGE);
+    const [subscriptionActionId, setSubscriptionActionId] = useState<string | null>(null);
+    const [taskActionId, setTaskActionId] = useState<string | null>(null);
 
     // Use React Query for better caching and memory management
     const { data: subscriptions = [], refetch: refetchSubscriptions } = useSubscriptions<Subscription[]>({
@@ -178,10 +179,9 @@ const SubscriptionsPage: React.FC = () => {
         } catch (error) {
             console.error('Error unsubscribing:', error);
             showSnackbar(t('error'));
-        } finally {
-            setIsUnsubscribeModalOpen(false);
-            setSelectedSubscription(null);
+            throw error;
         }
+        setSelectedSubscription(null);
     };
 
     const handleCancelTaskClick = (task: ContinuousDownloadTask) => {
@@ -199,10 +199,9 @@ const SubscriptionsPage: React.FC = () => {
         } catch (error) {
             console.error('Error cancelling task:', error);
             showSnackbar(t('error'));
-        } finally {
-            setIsCancelTaskModalOpen(false);
-            setSelectedTask(null);
+            throw error;
         }
+        setSelectedTask(null);
     };
 
     const handleDeleteTaskClick = (task: ContinuousDownloadTask) => {
@@ -220,10 +219,9 @@ const SubscriptionsPage: React.FC = () => {
         } catch (error) {
             console.error('Error deleting task:', error);
             showSnackbar(t('error'));
-        } finally {
-            setIsDeleteTaskModalOpen(false);
-            setSelectedTask(null);
+            throw error;
         }
+        setSelectedTask(null);
     };
 
     const handleClearFinishedClick = () => {
@@ -238,12 +236,12 @@ const SubscriptionsPage: React.FC = () => {
         } catch (error) {
             console.error('Error clearing finished tasks:', error);
             showSnackbar(t('error'));
-        } finally {
-            setIsClearFinishedModalOpen(false);
+            throw error;
         }
     };
 
     const handlePauseSubscription = async (id: string) => {
+        setSubscriptionActionId(id);
         try {
             await api.put(`/subscriptions/${id}/pause`);
             showSnackbar(t('subscriptionPaused'));
@@ -251,10 +249,13 @@ const SubscriptionsPage: React.FC = () => {
         } catch (error) {
             console.error('Error pausing subscription:', error);
             showSnackbar(t('error'));
+        } finally {
+            setSubscriptionActionId(null);
         }
     };
 
     const handleResumeSubscription = async (id: string) => {
+        setSubscriptionActionId(id);
         try {
             await api.put(`/subscriptions/${id}/resume`);
             showSnackbar(t('subscriptionResumed'));
@@ -262,6 +263,8 @@ const SubscriptionsPage: React.FC = () => {
         } catch (error) {
             console.error('Error resuming subscription:', error);
             showSnackbar(t('error'));
+        } finally {
+            setSubscriptionActionId(null);
         }
     };
 
@@ -354,6 +357,7 @@ const SubscriptionsPage: React.FC = () => {
     );
 
     const handlePauseTask = async (task: ContinuousDownloadTask) => {
+        setTaskActionId(task.id);
         try {
             await api.put(`/subscriptions/tasks/${task.id}/pause`);
             showSnackbar(t('taskPaused'));
@@ -361,10 +365,13 @@ const SubscriptionsPage: React.FC = () => {
         } catch (error) {
             console.error('Error pausing task:', error);
             showSnackbar(t('error'));
+        } finally {
+            setTaskActionId(null);
         }
     };
 
     const handleResumeTask = async (task: ContinuousDownloadTask) => {
+        setTaskActionId(task.id);
         try {
             await api.put(`/subscriptions/tasks/${task.id}/resume`);
             showSnackbar(t('taskResumed'));
@@ -372,6 +379,8 @@ const SubscriptionsPage: React.FC = () => {
         } catch (error) {
             console.error('Error resuming task:', error);
             showSnackbar(t('error'));
+        } finally {
+            setTaskActionId(null);
         }
     };
 
@@ -421,9 +430,10 @@ const SubscriptionsPage: React.FC = () => {
                 color="primary"
                 title={t('save')}
                 onClick={() => void handleSaveSubscriptionInterval(subscriptionId)}
-                disabled={!isEditedIntervalValid || isSavingInterval}
+                disabled={!isEditedIntervalValid}
+                loading={isSavingInterval}
             >
-                {isSavingInterval ? <CircularProgress size={18} /> : <Check fontSize="small" />}
+                <Check fontSize="small" />
             </IconButton>
             <IconButton
                 size="small"
@@ -482,9 +492,10 @@ const SubscriptionsPage: React.FC = () => {
                     onClick={() => {
                         void handleSaveRetention(subscriptionId);
                     }}
-                    disabled={!isEditedRetentionValid || isSavingRetention}
+                    disabled={!isEditedRetentionValid}
+                    loading={isSavingRetention}
                 >
-                    {isSavingRetention ? <CircularProgress size={18} /> : <Check fontSize="small" />}
+                    <Check fontSize="small" />
                 </IconButton>
                 <IconButton
                     size="small"
@@ -646,6 +657,7 @@ const SubscriptionsPage: React.FC = () => {
                                                     }}
                                                     title={t('resumeSubscription')}
                                                     disabled={(isEditingInterval && isSavingInterval) || (isEditingRetention && isSavingRetention)}
+                                                    loading={subscriptionActionId === sub.id}
                                                 >
                                                     <PlayArrow />
                                                 </IconButton>
@@ -657,6 +669,7 @@ const SubscriptionsPage: React.FC = () => {
                                                     }}
                                                     title={t('pauseSubscription')}
                                                     disabled={(isEditingInterval && isSavingInterval) || (isEditingRetention && isSavingRetention)}
+                                                    loading={subscriptionActionId === sub.id}
                                                 >
                                                     <Pause />
                                                 </IconButton>
@@ -766,6 +779,7 @@ const SubscriptionsPage: React.FC = () => {
                                                             onClick={() => handlePauseTask(task)}
                                                             title={t('pauseTask')}
                                                             size="small"
+                                                            loading={taskActionId === task.id}
                                                         >
                                                             <Pause />
                                                         </IconButton>
@@ -776,6 +790,7 @@ const SubscriptionsPage: React.FC = () => {
                                                             onClick={() => handleResumeTask(task)}
                                                             title={t('resumeTask')}
                                                             size="small"
+                                                            loading={taskActionId === task.id}
                                                         >
                                                             <PlayArrow />
                                                         </IconButton>

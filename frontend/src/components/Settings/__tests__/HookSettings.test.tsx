@@ -60,7 +60,7 @@ vi.mock('../../ConfirmationModal', () => ({
             <div data-testid="confirmation-modal">
                 <div>{title}</div>
                 <div>{message}</div>
-                <button onClick={onConfirm}>Confirm delete</button>
+                <button onClick={() => { void Promise.resolve(onConfirm()).catch(() => undefined); }}>Confirm delete</button>
                 <button onClick={onClose}>Cancel delete</button>
             </div>
         );

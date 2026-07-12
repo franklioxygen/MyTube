@@ -16,6 +16,7 @@ interface VideoActionButtonsProps {
     onAddToCollection: () => void;
     onDelete: () => void;
     isDeleting: boolean;
+    isTogglingVisibility?: boolean;
     onToggleVisibility?: () => void;
 }
 
@@ -24,6 +25,7 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
     onAddToCollection,
     onDelete,
     isDeleting,
+    isTogglingVisibility = false,
     onToggleVisibility
 }) => {
     const { t } = useLanguage();
@@ -257,6 +259,7 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
                                 variant="outlined"
                                 color="inherit"
                                 onClick={onToggleVisibility}
+                                loading={isTogglingVisibility}
                                 sx={{ minWidth: 'auto', p: 1, color: 'text.secondary', borderColor: 'text.secondary', '&:hover': { color: 'primary.main', borderColor: 'primary.main' } }}
                             >
                                 {video.visibility === 0 ? <Visibility /> : <VisibilityOff />}
@@ -278,7 +281,7 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
                             variant="outlined"
                             color="inherit"
                             onClick={onDelete}
-                            disabled={isDeleting}
+                            loading={isDeleting}
                             sx={{ minWidth: 'auto', p: 1, color: 'text.secondary', borderColor: 'text.secondary', '&:hover': { color: 'error.main', borderColor: 'error.main' } }}
                         >
                             <Delete />
@@ -298,6 +301,7 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
                     onAddToCollection={onAddToCollection}
                     onDelete={onDelete}
                     isDeleting={isDeleting}
+                    isTogglingVisibility={isTogglingVisibility}
                     onToggleVisibility={onToggleVisibility}
                     video={video}
                 />

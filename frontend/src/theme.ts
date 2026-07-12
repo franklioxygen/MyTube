@@ -48,6 +48,34 @@ const getTheme = (mode: ThemeMode) => {
             borderRadius: 8,
             textTransform: "none",
             fontWeight: 600,
+            "&.MuiButton-loading": {
+              textAlign: "center",
+              color: "transparent",
+              "& .MuiButton-loadingIndicator": {
+                color: colors.textSecondary,
+              },
+            },
+            "&.MuiButton-loadingPositionStart.MuiButton-loading": {
+              "& .MuiButton-startIcon": {
+                display: "none",
+              },
+              "& .MuiButton-loadingIndicator": {
+                left: "50%",
+                position: "absolute",
+                transform: "translateX(-50%)",
+              },
+            },
+            "&.MuiButton-loadingPositionEnd.MuiButton-loading": {
+              "& .MuiButton-endIcon": {
+                display: "none",
+              },
+              "& .MuiButton-loadingIndicator": {
+                position: "absolute",
+                right: "auto",
+                left: "50%",
+                transform: "translateX(-50%)",
+              },
+            },
           },
           containedPrimary: {
             boxShadow: mode === "dark" ? shadow.primaryGlow : "none",

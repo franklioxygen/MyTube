@@ -3,7 +3,6 @@ import {
     Alert,
     Box,
     Button,
-    CircularProgress,
     FormControl,
     FormControlLabel,
     InputLabel,
@@ -143,13 +142,10 @@ const StatisticsSettings: React.FC<StatisticsSettingsProps> = ({ settings, onCha
                     variant="outlined"
                     color="error"
                     onClick={handleClear}
-                    disabled={clearing}
+                    loading={clearing}
+                    loadingPosition="start"
                 >
-                    {clearing ? (
-                        <CircularProgress size={16} />
-                    ) : (
-                        t('statisticsClear') || 'Clear collected statistics'
-                    )}
+                    {t('statisticsClear') || 'Clear collected statistics'}
                 </Button>
             </Box>
 

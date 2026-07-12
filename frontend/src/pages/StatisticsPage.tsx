@@ -380,44 +380,83 @@ const StatisticsToolbar: React.FC<{
     onRecompute: () => Promise<void>;
     onClear: () => Promise<void>;
     t: TranslateFn;
-}> = ({ rangeDays, setRangeDays, onExport, onRecompute, onClear, t }) => (
-    <Stack
-        direction={{ xs: 'column', md: 'row' }}
-        justifyContent="space-between"
-        alignItems={{ xs: 'flex-start', md: 'center' }}
-        spacing={2}
-        sx={{ mb: 3 }}
-    >
-        <Typography variant="h4" component="h1" fontWeight="bold">
-            {translateOrFallback(t, 'statisticsTitle', 'Statistics')}
-        </Typography>
-        <Stack direction="row" spacing={1} flexWrap="wrap">
-            <Select
-                size="small"
-                value={rangeDays}
-                onChange={(event) => setRangeDays(Number(event.target.value))}
-            >
-                {RANGE_OPTIONS.map((option) => (
-                    <MenuItem key={option.value} value={option.value}>
-                        {translateOrFallback(t, option.labelKey, option.fallback)}
-                    </MenuItem>
-                ))}
-            </Select>
-            <Button variant="outlined" onClick={() => void onExport('csv')}>
-                {translateOrFallback(t, 'exportCsv', 'Export CSV')}
-            </Button>
-            <Button variant="outlined" onClick={() => void onExport('json')}>
-                {translateOrFallback(t, 'exportJson', 'Export JSON')}
-            </Button>
-            <Button variant="outlined" onClick={() => void onRecompute()}>
-                {translateOrFallback(t, 'recomputeStatistics', 'Recompute')}
-            </Button>
-            <Button variant="outlined" color="error" onClick={() => void onClear()}>
-                {translateOrFallback(t, 'statisticsClear', 'Clear')}
-            </Button>
+}> = ({ rangeDays, setRangeDays, onExport, onRecompute, onClear, t }) => {
+    const [pendingAction, setPendingAction] = useState<'csv' | 'json' | 'recompute' | 'clear' | null>(null);
+
+    const runAction = async (action: NonNullable<typeof pendingAction>, task: () => Promise<void>) => {
+        setPendingAction(action);
+        try {
+            await task();
+        } finally {
+            setPendingAction(null);
+        }
+    };
+
+    return (
+        <Stack
+            direction={{ xs: 'column', md: 'row' }}
+            justifyContent="space-between"
+            alignItems={{ xs: 'flex-start', md: 'center' }}
+            spacing={2}
+            sx={{ mb: 3 }}
+        >
+            <Typography variant="h4" component="h1" fontWeight="bold">
+                {translateOrFallback(t, 'statisticsTitle', 'Statistics')}
+            </Typography>
+            <Stack direction="row" spacing={1} flexWrap="wrap">
+                <Select
+                    size="small"
+                    value={rangeDays}
+                    onChange={(event) => setRangeDays(Number(event.target.value))}
+                    disabled={Boolean(pendingAction)}
+                >
+                    {RANGE_OPTIONS.map((option) => (
+                        <MenuItem key={option.value} value={option.value}>
+                            {translateOrFallback(t, option.labelKey, option.fallback)}
+                        </MenuItem>
+                    ))}
+                </Select>
+                <Button
+                    variant="outlined"
+                    onClick={() => { void runAction('csv', () => onExport('csv')); }}
+                    disabled={Boolean(pendingAction)}
+                    loading={pendingAction === 'csv'}
+                    loadingPosition="start"
+                >
+                    {translateOrFallback(t, 'exportCsv', 'Export CSV')}
+                </Button>
+                <Button
+                    variant="outlined"
+                    onClick={() => { void runAction('json', () => onExport('json')); }}
+                    disabled={Boolean(pendingAction)}
+                    loading={pendingAction === 'json'}
+                    loadingPosition="start"
+                >
+                    {translateOrFallback(t, 'exportJson', 'Export JSON')}
+                </Button>
+                <Button
+                    variant="outlined"
+                    onClick={() => { void runAction('recompute', onRecompute); }}
+                    disabled={Boolean(pendingAction)}
+                    loading={pendingAction === 'recompute'}
+                    loadingPosition="start"
+                >
+                    {translateOrFallback(t, 'recomputeStatistics', 'Recompute')}
+                </Button>
+                <Button
+                    variant="outlined"
+                    color="error"
+                    onClick={() => { void runAction('clear', onClear); }}
+                    disabled={Boolean(pendingAction)}
+                    loading={pendingAction === 'clear'}
+                    loadingPosition="start"
+                >
+                    {translateOrFallback(t, 'statisticsClear', 'Clear')}
+                </Button>
+            </Stack>
         </Stack>
-    </Stack>
-);
+    );
+};
 
 const StatisticsPage: React.FC = () => {
     const { t } = useLanguage();

@@ -16,7 +16,6 @@ import {
     Box,
     Button,
     Checkbox,
-    CircularProgress,
     IconButton,
     InputAdornment,
     Pagination,
@@ -193,7 +192,7 @@ const VideosTable: React.FC<VideosTableProps> = ({
     const [uploadThumbnailVideoId, setUploadThumbnailVideoId] = useState<string | null>(null);
 
     // Re-download hook
-    const { handleReDownload } = useVideoReDownload();
+    const { handleReDownload, isReDownloading } = useVideoReDownload();
 
     // Helper function to check if a video is currently downloading
     const isVideoDownloading = (sourceUrl: string | undefined) => {
@@ -217,10 +216,13 @@ const VideosTable: React.FC<VideosTableProps> = ({
         if (!editTitle.trim()) return;
 
         setIsSavingTitle(true);
-        await onUpdateVideo(id, { title: editTitle });
-        setIsSavingTitle(false);
-        setEditingVideoId(null);
-        setEditTitle('');
+        try {
+            await onUpdateVideo(id, { title: editTitle });
+            setEditingVideoId(null);
+            setEditTitle('');
+        } finally {
+            setIsSavingTitle(false);
+        }
     };
 
     const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -247,6 +249,7 @@ const VideosTable: React.FC<VideosTableProps> = ({
             setIsBulkDeleteModalOpen(false);
         } catch (error) {
             console.error('Failed to delete videos', error);
+            throw error;
         } finally {
             setIsBulkDeleting(false);
         }
@@ -385,14 +388,10 @@ const VideosTable: React.FC<VideosTableProps> = ({
                                                     <IconButton
                                                         size="small"
                                                         onClick={onRefreshFileSizes}
-                                                        disabled={isRefreshingFileSizes}
+                                                        loading={isRefreshingFileSizes}
                                                         aria-label="Refresh all file sizes"
                                                     >
-                                                        {isRefreshingFileSizes ? (
-                                                            <CircularProgress size={16} />
-                                                        ) : (
-                                                            <Refresh sx={{ fontSize: 18 }} />
-                                                        )}
+                                                        <Refresh sx={{ fontSize: 18 }} />
                                                     </IconButton>
                                                 </span>
                                             </Tooltip>
@@ -440,34 +439,36 @@ const VideosTable: React.FC<VideosTableProps> = ({
                                                         <IconButton
                                                             size="small"
                                                             onClick={() => onRefreshThumbnail(video.id)}
-                                                            aria-label={refreshThumbnailLabel}
-                                                            disabled={refreshingId === video.id || redownloadingThumbnailIds[video.id] === true}
-                                                            sx={{
+	                                                            aria-label={refreshThumbnailLabel}
+	                                                            disabled={redownloadingThumbnailIds[video.id] === true}
+	                                                            loading={refreshingId === video.id}
+	                                                            sx={{
                                                                 position: 'absolute',
                                                                 top: 0,
                                                                 right: 0,
                                                                 ...thumbnailActionButtonSx
                                                             }}
                                                         >
-                                                            {refreshingId === video.id ? <CircularProgress size={14} color="inherit" /> : <Refresh sx={{ fontSize: 16 }} />}
-                                                        </IconButton>
+	                                                            <Refresh sx={{ fontSize: 16 }} />
+	                                                        </IconButton>
                                                     </Tooltip>
                                                     {video.sourceUrl && (
                                                         <Tooltip title={redownloadThumbnailLabel} disableHoverListener={isTouch}>
                                                             <IconButton
                                                                 size="small"
                                                                 onClick={() => onRedownloadThumbnail(video.id)}
-                                                                aria-label={redownloadThumbnailLabel}
-                                                                disabled={redownloadingThumbnailIds[video.id] === true || refreshingId === video.id}
-                                                                sx={{
+	                                                                aria-label={redownloadThumbnailLabel}
+	                                                                disabled={refreshingId === video.id}
+	                                                                loading={redownloadingThumbnailIds[video.id] === true}
+	                                                                sx={{
                                                                     position: 'absolute',
                                                                     top: 0,
                                                                     left: 0,
                                                                     ...thumbnailActionButtonSx
                                                                 }}
                                                             >
-                                                                {redownloadingThumbnailIds[video.id] === true ? <CircularProgress size={14} color="inherit" /> : <CloudDownload sx={{ fontSize: 16 }} />}
-                                                            </IconButton>
+	                                                                <CloudDownload sx={{ fontSize: 16 }} />
+	                                                            </IconButton>
                                                         </Tooltip>
                                                     )}
                                                     <Tooltip title={uploadThumbnailLabel} disableHoverListener={isTouch}>
@@ -509,12 +510,12 @@ const VideosTable: React.FC<VideosTableProps> = ({
                                                 <IconButton
                                                     size="small"
                                                     color="primary"
-                                                    aria-label={t('save')}
-                                                    onClick={() => handleSaveTitle(video.id)}
-                                                    disabled={isSavingTitle}
-                                                >
-                                                    {isSavingTitle ? <CircularProgress size={20} /> : <Check />}
-                                                </IconButton>
+	                                                    aria-label={t('save')}
+	                                                    onClick={() => handleSaveTitle(video.id)}
+	                                                    loading={isSavingTitle}
+	                                                >
+	                                                    <Check />
+	                                                </IconButton>
                                                 <IconButton
                                                     size="small"
                                                     color="error"
@@ -571,16 +572,17 @@ const VideosTable: React.FC<VideosTableProps> = ({
                                     <TableCell>{formatSize(video.fileSize)}</TableCell>
                                     {!isVisitor && (
                                         <TableCell align="right">
-                                            {video.sourceUrl && !isVideoDownloading(video.sourceUrl) && (
-                                                <Tooltip
+	                                            {video.sourceUrl && (!isVideoDownloading(video.sourceUrl) || isReDownloading(video.sourceUrl)) && (
+	                                                <Tooltip
                                                     title={redownloadVideoLabel}
                                                     disableHoverListener={isTouch}
                                                 >
                                                     <IconButton
                                                         color="primary"
-                                                        aria-label={redownloadVideoLabel}
-                                                        onClick={() => handleReDownload(video)}
-                                                    >
+	                                                        aria-label={redownloadVideoLabel}
+	                                                        onClick={() => { void handleReDownload(video); }}
+	                                                        loading={isReDownloading(video.sourceUrl)}
+	                                                    >
                                                         <Replay />
                                                     </IconButton>
                                                 </Tooltip>
@@ -589,11 +591,11 @@ const VideosTable: React.FC<VideosTableProps> = ({
                                                 <IconButton
                                                     color="error"
                                                     aria-label={deleteVideoLabel}
-                                                    onClick={() => onDeleteClick(video.id)}
-                                                    disabled={deletingId === video.id}
-                                                >
-                                                    {deletingId === video.id ? <CircularProgress size={24} /> : <Delete />}
-                                                </IconButton>
+	                                                    onClick={() => onDeleteClick(video.id)}
+	                                                    loading={deletingId === video.id}
+	                                                >
+	                                                    <Delete />
+	                                                </IconButton>
                                             </Tooltip>
                                         </TableCell>
                                     )}

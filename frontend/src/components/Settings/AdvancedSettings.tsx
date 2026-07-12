@@ -1,5 +1,5 @@
 import { getApiErrorMessage } from '../../utils/errors';
-import { Alert, Box, Button, CircularProgress, Divider, FormControlLabel, Switch, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, Divider, FormControlLabel, Switch, TextField, Typography } from '@mui/material';
 import React, { useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { Settings } from '../../types';
@@ -152,8 +152,9 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
                     <Button
                         variant="outlined"
                         onClick={handleTestTelegram}
-                        disabled={!telegramEnabled || !telegramBotToken || !telegramChatId || testing}
-                        startIcon={testing ? <CircularProgress size={16} /> : undefined}
+                        disabled={!telegramEnabled || !telegramBotToken || !telegramChatId}
+                        loading={testing}
+                        loadingPosition="start"
                     >
                         {t('telegramTestButton')}
                     </Button>

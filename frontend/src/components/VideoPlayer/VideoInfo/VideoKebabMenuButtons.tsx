@@ -14,6 +14,7 @@ interface VideoKebabMenuButtonsProps {
     onAddToCollection: () => void;
     onDelete?: () => void;
     isDeleting?: boolean;
+    isTogglingVisibility?: boolean;
     onToggleVisibility?: () => void;
     onAddTag?: () => void;
     video?: { visibility?: number };
@@ -26,6 +27,7 @@ const VideoKebabMenuButtons: React.FC<VideoKebabMenuButtonsProps> = ({
     onAddToCollection,
     onDelete,
     isDeleting = false,
+    isTogglingVisibility = false,
     onToggleVisibility,
     onAddTag,
     video,
@@ -80,6 +82,7 @@ const VideoKebabMenuButtons: React.FC<VideoKebabMenuButtonsProps> = ({
                         onAddToCollection={onAddToCollection}
                         onDelete={onDelete}
                         isDeleting={isDeleting}
+                        isTogglingVisibility={isTogglingVisibility}
                         onToggleVisibility={onToggleVisibility}
                         onAddTag={onAddTag}
                         video={video}
