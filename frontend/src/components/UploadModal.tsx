@@ -2,7 +2,6 @@ import { CloudUpload, CreateNewFolder } from '@mui/icons-material';
 import {
     Box,
     Button,
-    CircularProgress,
     Dialog,
     DialogActions,
     DialogContent,
@@ -363,9 +362,11 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadSucces
                 <Button
                     onClick={handleUpload}
                     variant="contained"
-                    disabled={files.length === 0 || uploadMutation.isPending}
+                    disabled={files.length === 0}
+                    loading={uploadMutation.isPending}
+                    loadingPosition="start"
                 >
-                    {uploadMutation.isPending ? <CircularProgress size={24} /> : t('upload')}
+                    {t('upload')}
                 </Button>
             </DialogActions>
         </Dialog>

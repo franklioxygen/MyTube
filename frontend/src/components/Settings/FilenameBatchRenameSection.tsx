@@ -44,6 +44,7 @@ const FilenameBatchRenameSection: React.FC<FilenameBatchRenameSectionProps> = ({
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [renameJob, setRenameJob] = useState<RenameJob | null>(null);
     const [renameError, setRenameError] = useState<string | null>(null);
+    const [startingRename, setStartingRename] = useState(false);
 
     // On rename completion the library's paths changed on disk: refresh every
     // query that renders them.
@@ -56,7 +57,7 @@ const FilenameBatchRenameSection: React.FC<FilenameBatchRenameSectionProps> = ({
     useSettingsJobPolling(renameJob, renameJobUrl, setRenameJob, handleRenameCompleted);
 
     const handleStartRename = async () => {
-        setConfirmOpen(false);
+        setStartingRename(true);
         setRenameError(null);
         try {
             const res = await api.post<{ jobId: string; status: string; total: number }>(
@@ -84,10 +85,13 @@ const FilenameBatchRenameSection: React.FC<FilenameBatchRenameSectionProps> = ({
                 failed: 0,
                 items: [],
             });
+            setConfirmOpen(false);
         } catch (e: unknown) {
             setRenameError(
                 getApiErrorMessage(e) || t('filenameBatchRenameError')
             );
+        } finally {
+            setStartingRename(false);
         }
     };
 
@@ -159,7 +163,15 @@ const FilenameBatchRenameSection: React.FC<FilenameBatchRenameSectionProps> = ({
                 </span>
             </Tooltip>
 
-            <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
+            <Dialog
+                open={confirmOpen}
+                onClose={() => {
+                    if (!startingRename) {
+                        setConfirmOpen(false);
+                    }
+                }}
+                disableEscapeKeyDown={startingRename}
+            >
                 <DialogTitle>{t('filenameBatchRenameConfirmTitle')}</DialogTitle>
                 <DialogContent>
                     <DialogContentText>
@@ -167,8 +179,14 @@ const FilenameBatchRenameSection: React.FC<FilenameBatchRenameSectionProps> = ({
                     </DialogContentText>
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={() => setConfirmOpen(false)}>{t('cancel')}</Button>
-                    <Button onClick={handleStartRename} color="warning" variant="contained">
+                    <Button onClick={() => setConfirmOpen(false)} disabled={startingRename}>{t('cancel')}</Button>
+                    <Button
+                        onClick={() => { void handleStartRename(); }}
+                        color="warning"
+                        variant="contained"
+                        loading={startingRename}
+                        loadingPosition="start"
+                    >
                         {t('filenameBatchRenameConfirm')}
                     </Button>
                 </DialogActions>

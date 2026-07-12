@@ -1,7 +1,6 @@
 import { Visibility, VisibilityOff } from '@mui/icons-material';
 import {
     Button,
-    CircularProgress,
     Dialog,
     DialogActions,
     DialogContent,
@@ -125,10 +124,11 @@ const PasswordModal: React.FC<PasswordModalProps> = ({
                         type="submit"
                         color="primary"
                         variant="contained"
-                        disabled={isLoading || !password}
-                        startIcon={isLoading ? <CircularProgress size={20} color="inherit" /> : null}
+                        disabled={!password}
+                        loading={isLoading}
+                        loadingPosition="start"
                     >
-                        {isLoading ? t('verifying') : t('confirm')}
+                        {t('confirm')}
                     </Button>
                 </DialogActions>
             </form>

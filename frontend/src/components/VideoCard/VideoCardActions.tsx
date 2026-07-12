@@ -22,6 +22,7 @@ interface VideoCardActionsProps {
     confirmDelete: () => void;
     isDeleting: boolean;
     handleToggleVisibility: () => void;
+    isTogglingVisibility?: boolean;
     canDelete: boolean;
     isMobile: boolean;
     isTouch: boolean;
@@ -39,6 +40,7 @@ export const VideoCardActions: React.FC<VideoCardActionsProps> = ({
     confirmDelete,
     isDeleting,
     handleToggleVisibility,
+    isTogglingVisibility = false,
     canDelete,
     isMobile,
     isTouch,
@@ -103,6 +105,7 @@ export const VideoCardActions: React.FC<VideoCardActionsProps> = ({
                     onAddToCollection={() => setShowCollectionModal(true)}
                     onDelete={canDelete ? () => setShowDeleteModal(true) : undefined}
                     isDeleting={isDeleting}
+                    isTogglingVisibility={isTogglingVisibility}
                     onToggleVisibility={handleToggleVisibility}
                     onAddTag={() => setShowTagsModal(true)}
                     video={video}

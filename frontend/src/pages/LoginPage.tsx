@@ -484,9 +484,11 @@ const LoginPage: React.FC = () => {
                                                         fullWidth
                                                         variant="contained"
                                                         sx={{ mt: 3, mb: 2 }}
-                                                        disabled={adminLoginMutation.isPending || waitTime > 0}
+                                                        disabled={waitTime > 0}
+                                                        loading={adminLoginMutation.isPending}
+                                                        loadingPosition="start"
                                                     >
-                                                        {adminLoginMutation.isPending ? (t('verifying') || 'Verifying...') : (t('signIn') || 'Admin Sign In')}
+                                                        {t('signIn') || 'Admin Sign In'}
                                                     </Button>
                                                 </Box>
                                             )}
@@ -500,11 +502,11 @@ const LoginPage: React.FC = () => {
                                                         startIcon={<Fingerprint />}
                                                         onClick={handlePasskeyLogin}
                                                         sx={{ mb: 2 }}
-                                                        disabled={passkeyLoginMutation.isPending || waitTime > 0}
+                                                        disabled={waitTime > 0}
+                                                        loading={passkeyLoginMutation.isPending}
+                                                        loadingPosition="start"
                                                     >
-                                                        {passkeyLoginMutation.isPending
-                                                            ? (t('authenticating') || 'Authenticating...')
-                                                            : (t('loginWithPasskey') || 'Login with Passkey')}
+                                                        {t('loginWithPasskey') || 'Login with Passkey'}
                                                     </Button>
                                                 </>
                                             )}
@@ -516,11 +518,11 @@ const LoginPage: React.FC = () => {
                                                     startIcon={<Fingerprint />}
                                                     onClick={handlePasskeyLogin}
                                                     sx={{ mt: 3, mb: 2 }}
-                                                    disabled={passkeyLoginMutation.isPending || waitTime > 0}
+                                                    disabled={waitTime > 0}
+                                                    loading={passkeyLoginMutation.isPending}
+                                                    loadingPosition="start"
                                                 >
-                                                    {passkeyLoginMutation.isPending
-                                                        ? (t('authenticating') || 'Authenticating...')
-                                                        : (t('loginWithPasskey') || 'Login with Passkey')}
+                                                    {t('loginWithPasskey') || 'Login with Passkey'}
                                                 </Button>
                                             )}
 
@@ -595,9 +597,11 @@ const LoginPage: React.FC = () => {
                                                     fullWidth
                                                     variant="contained"
                                                     sx={{ mt: 3, mb: 2 }}
-                                                    disabled={visitorLoginMutation.isPending || waitTime > 0}
+                                                    disabled={waitTime > 0}
+                                                    loading={visitorLoginMutation.isPending}
+                                                    loadingPosition="start"
                                                 >
-                                                    {visitorLoginMutation.isPending ? (t('verifying') || 'Verifying...') : (t('visitorSignIn') || 'Visitor Sign In')}
+                                                    {t('visitorSignIn') || 'Visitor Sign In'}
                                                 </Button>
                                             </Box>
                                         )}

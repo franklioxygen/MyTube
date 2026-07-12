@@ -1,5 +1,5 @@
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import SearchResults from '../SearchResults';
 
@@ -253,8 +253,9 @@ describe('SearchResults Page', () => {
         ];
         renderSearchResults();
 
-        const loadMoreBtn = screen.getByRole('button', { name: /loading/i });
+        const loadMoreBtn = screen.getByRole('button', { name: 'more' });
         expect(loadMoreBtn).toBeDisabled();
+        expect(within(loadMoreBtn).getByRole('progressbar')).toBeInTheDocument();
     });
 
     // --- 13. formatViewCount ---

@@ -7,9 +7,10 @@ import { useAuth } from '../../../contexts/AuthContext';
 interface EditableTitleProps {
     title: string;
     onSave: (newTitle: string) => Promise<void>;
+    isSaving?: boolean;
 }
 
-const EditableTitle: React.FC<EditableTitleProps> = ({ title, onSave }) => {
+const EditableTitle: React.FC<EditableTitleProps> = ({ title, onSave, isSaving = false }) => {
     const { t } = useLanguage();
     const { userRole } = useAuth();
     const isVisitor = userRole === 'visitor';
@@ -45,8 +46,12 @@ const EditableTitle: React.FC<EditableTitleProps> = ({ title, onSave }) => {
 
     const handleSaveTitle = async () => {
         if (!editedTitle.trim()) return;
-        await onSave(editedTitle);
-        setIsEditingTitle(false);
+        try {
+            await onSave(editedTitle);
+            setIsEditingTitle(false);
+        } catch {
+            // Keep editing open so the title can be retried.
+        }
     };
 
     if (isEditingTitle) {
@@ -59,16 +64,18 @@ const EditableTitle: React.FC<EditableTitleProps> = ({ title, onSave }) => {
                     variant="outlined"
                     size="small"
                     autoFocus
+                    disabled={isSaving}
                     onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                            handleSaveTitle();
+                        if (e.key === 'Enter' && !isSaving) {
+                            void handleSaveTitle();
                         }
                     }}
                 />
                 <Button
                     variant="contained"
                     color="primary"
-                    onClick={handleSaveTitle}
+                    onClick={() => { void handleSaveTitle(); }}
+                    loading={isSaving}
                     sx={{ minWidth: 'auto', p: 0.5 }}
                 >
                     <Check />
@@ -77,6 +84,7 @@ const EditableTitle: React.FC<EditableTitleProps> = ({ title, onSave }) => {
                     variant="outlined"
                     color="secondary"
                     onClick={handleCancelEditingTitle}
+                    disabled={isSaving}
                     sx={{ minWidth: 'auto', p: 0.5 }}
                 >
                     <Close />
@@ -135,4 +143,3 @@ const EditableTitle: React.FC<EditableTitleProps> = ({ title, onSave }) => {
 };
 
 export default EditableTitle;
-

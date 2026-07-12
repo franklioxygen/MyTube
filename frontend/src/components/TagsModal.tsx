@@ -194,8 +194,8 @@ const TagsModal: React.FC<TagsModalProps> = ({
             </DialogContent>
             <DialogActions>
                 <Button onClick={handleClose} color="inherit" disabled={saving}>{t('cancel')}</Button>
-                <Button onClick={handleSave} variant="contained" disabled={saving}>
-                    {saving ? t('saving') : t('save')}
+                <Button onClick={handleSave} variant="contained" loading={saving} loadingPosition="start">
+                    {t('save')}
                 </Button>
             </DialogActions>
         </Dialog>

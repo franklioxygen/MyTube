@@ -1,5 +1,5 @@
 import { getApiErrorMessage, hasAnyAxiosStatus } from '../../utils/errors';
-import { Alert, Box, Button, CircularProgress, FormControlLabel, LinearProgress, Switch, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, FormControlLabel, LinearProgress, Switch, TextField, Typography } from '@mui/material';
 import axios from 'axios';
 import React, { useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -186,7 +186,6 @@ const CloudDriveSettings: React.FC<CloudDriveSettingsProps> = ({ settings, onCha
     };
 
     const handleSync = async () => {
-        setShowSyncModal(false);
         setSyncing(true);
         setSyncProgress(null);
         setTestResult(null);
@@ -258,11 +257,11 @@ const CloudDriveSettings: React.FC<CloudDriveSettingsProps> = ({ settings, onCha
                 type: 'error',
                 message: getApiErrorMessage(error) || t('syncFailedMessage'),
             });
+            throw error;
         }
     };
 
     const handleClearThumbnailCache = async () => {
-        setShowClearCacheModal(false);
         setClearingCache(true);
         setTestResult(null);
 
@@ -282,6 +281,7 @@ const CloudDriveSettings: React.FC<CloudDriveSettingsProps> = ({ settings, onCha
                 type: 'error',
                 message: getApiErrorMessage(error) || t('clearThumbnailCacheError'),
             });
+            throw error;
         } finally {
             setClearingCache(false);
         }
@@ -381,17 +381,20 @@ const CloudDriveSettings: React.FC<CloudDriveSettingsProps> = ({ settings, onCha
                         <Button
                             variant="outlined"
                             onClick={handleTestConnection}
-                            disabled={testing || syncing || clearingCache || !settings.openListApiUrl || !settings.openListToken}
-                            startIcon={testing ? <CircularProgress size={16} /> : null}
+                            disabled={syncing || clearingCache || !settings.openListApiUrl || !settings.openListToken}
+                            loading={testing}
+                            loadingPosition="start"
                         >
-                            {testing ? t('testing') : t('testConnection')}
+                            {t('testConnection')}
                         </Button>
 
                         <Button
                             variant="contained"
                             color="primary"
                             onClick={() => setShowSyncModal(true)}
-                            disabled={testing || syncing || clearingCache || !settings.openListApiUrl || !settings.openListToken}
+                            disabled={testing || clearingCache || !settings.openListApiUrl || !settings.openListToken}
+                            loading={syncing}
+                            loadingPosition="start"
                         >
                             {t('sync')}
                         </Button>
@@ -400,10 +403,11 @@ const CloudDriveSettings: React.FC<CloudDriveSettingsProps> = ({ settings, onCha
                             variant="outlined"
                             color="warning"
                             onClick={() => setShowClearCacheModal(true)}
-                            disabled={testing || syncing || clearingCache}
-                            startIcon={clearingCache ? <CircularProgress size={16} /> : null}
+                            disabled={testing || syncing}
+                            loading={clearingCache}
+                            loadingPosition="start"
                         >
-                            {clearingCache ? t('clearing') : t('clearThumbnailCache')}
+                            {t('clearThumbnailCache')}
                         </Button>
                     </Box>
 

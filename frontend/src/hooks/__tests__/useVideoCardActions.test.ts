@@ -99,7 +99,7 @@ describe('useVideoCardActions', () => {
         }));
 
         await act(async () => {
-            await result.current.confirmDelete();
+            await expect(result.current.confirmDelete()).rejects.toThrow('delete failed');
         });
 
         expect(consoleErrorSpy).toHaveBeenCalled();

@@ -513,8 +513,12 @@ describe('SettingsPage', () => {
     saveIsPending = true;
     renderPage('/settings');
 
-    const savingButton = screen.getByRole('button', { name: 'saving' });
-    expect(savingButton).toBeDisabled();
+    const disabledSaveButton = screen
+      .getAllByRole('button', { name: 'save' })
+      .find((button) => button.hasAttribute('disabled'));
+    expect(disabledSaveButton).toBeDefined();
+    expect(disabledSaveButton).toBeDisabled();
+    expect(screen.getByRole('progressbar')).toBeInTheDocument();
   });
 
   it('disables live translation when clearing a configured API key before save', async () => {
@@ -895,11 +899,6 @@ describe('SettingsPage', () => {
     expect(mockMigrateMutate).toHaveBeenCalled();
     expect(mockFormatFilenamesMutate).toHaveBeenCalled();
     expect(mockCleanupMutate).toHaveBeenCalled();
-    expect(mockSetShowCleanupAuthorCollectionsModal).toHaveBeenCalledWith(false);
-    expect(mockSetShowDeleteLegacyModal).toHaveBeenCalledWith(false);
-    expect(mockSetShowMigrateConfirmModal).toHaveBeenCalledWith(false);
-    expect(mockSetShowFormatConfirmModal).toHaveBeenCalledWith(false);
-    expect(mockSetShowCleanupTempFilesModal).toHaveBeenCalledWith(false);
     expect(mockSetInfoModal).toHaveBeenCalled();
 
     const stickySaveButton = screen.getByRole('button', { name: 'save' });

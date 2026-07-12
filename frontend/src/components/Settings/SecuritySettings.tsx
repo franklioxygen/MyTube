@@ -10,6 +10,7 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { Settings } from '../../types';
 import { api } from '../../utils/apiClient';
 import { copyTextToClipboard } from '../../utils/clipboard';
+import { runMutationAsync } from '../../utils/mutationUtils';
 import { getWebAuthnErrorTranslationKey } from '../../utils/translations';
 import AlertModal from '../AlertModal';
 import ConfirmationModal from '../ConfirmationModal';
@@ -164,8 +165,8 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ settings, onChange 
         createPasskeyMutation.mutate();
     };
 
-    const handleRemovePasskeys = () => {
-        removePasskeysMutation.mutate();
+    const handleRemovePasskeys = async () => {
+        await runMutationAsync(removePasskeysMutation, undefined);
     };
 
     const handleApiKeyToggle = (enabled: boolean) => {
@@ -307,12 +308,12 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ settings, onChange 
                                 variant="outlined"
                                 startIcon={<FingerprintIcon />}
                                 onClick={handleCreatePasskey}
-                                disabled={!settings.loginEnabled || createPasskeyMutation.isPending}
+                                disabled={!settings.loginEnabled}
+                                loading={createPasskeyMutation.isPending}
+                                loadingPosition="start"
                                 fullWidth
                             >
-                                {createPasskeyMutation.isPending
-                                    ? (t('creatingPasskey') || 'Creating...')
-                                    : (t('createPasskey') || 'Create Passkey')}
+                                {t('createPasskey') || 'Create Passkey'}
                             </Button>
                         </Box>
                         <Button
@@ -320,7 +321,9 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ settings, onChange 
                             color="error"
                             startIcon={<DeleteIcon />}
                             onClick={() => setShowRemoveModal(true)}
-                            disabled={!settings.loginEnabled || !passkeysExist || removePasskeysMutation.isPending}
+                            disabled={!settings.loginEnabled || !passkeysExist}
+                            loading={removePasskeysMutation.isPending}
+                            loadingPosition="start"
                             fullWidth
                         >
                             {t('removePasskeys') || 'Remove All Passkeys'}
@@ -361,7 +364,6 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ settings, onChange 
                 onClose={() => setShowRefreshKeyModal(false)}
                 onConfirm={() => {
                     handleRefreshApiKey();
-                    setShowRefreshKeyModal(false);
                 }}
                 title={t('refreshApiKeyTitle') || 'Refresh API Key'}
                 message={t('refreshApiKeyConfirm') || 'Regenerating the API key will invalidate the existing one. All clients using the old key will need to be updated after saving.'}

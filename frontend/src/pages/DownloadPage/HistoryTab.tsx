@@ -25,6 +25,9 @@ interface HistoryTabProps {
     onReDownload: (sourceUrl: string) => void;
     onViewVideo: (videoId: string) => void;
     isDownloadInProgress: (sourceUrl: string) => boolean;
+    removingId?: string | null;
+    cancellingRetryId?: string | null;
+    clearing?: boolean;
 }
 
 const ITEMS_PER_PAGE = 20;
@@ -37,7 +40,10 @@ export function HistoryTab({
     onRetry,
     onReDownload,
     onViewVideo,
-    isDownloadInProgress
+    isDownloadInProgress,
+    removingId = null,
+    cancellingRetryId = null,
+    clearing = false
 }: HistoryTabProps) {
     const { t } = useLanguage();
     const theme = useTheme();
@@ -80,6 +86,8 @@ export function HistoryTab({
                     startIcon={<ClearAllIcon />}
                     onClick={onClear}
                     disabled={history.length === 0}
+                    loading={clearing}
+                    loadingPosition="start"
                 >
                     {t('clearHistory') || 'Clear History'}
                 </Button>
@@ -101,6 +109,8 @@ export function HistoryTab({
                                     onReDownload={onReDownload}
                                     onViewVideo={onViewVideo}
                                     isDownloadInProgress={isDownloadInProgress}
+                                    isRemoving={removingId === item.id}
+                                    isCancellingRetry={cancellingRetryId === item.id}
                                     dontSkipDeletedVideo={settings?.dontSkipDeletedVideo}
                                 />
                             ))}

@@ -25,8 +25,10 @@ interface CollectionModalProps {
     collections?: Collection[];
     onAddToCollection?: (collectionId: string) => Promise<void>;
     onCreateCollection?: (name: string) => Promise<void>;
-    onRemoveFromCollection?: (collectionId: string) => void;
+    onRemoveFromCollection?: (collectionId: string) => void | Promise<void>;
 }
+
+type PendingAction = 'add' | 'create' | `remove:${string}` | null;
 
 const CollectionModal: React.FC<CollectionModalProps> = ({
     open,
@@ -40,8 +42,10 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
     const { t } = useLanguage();
     const [newCollectionName, setNewCollectionName] = useState<string>('');
     const [selectedCollection, setSelectedCollection] = useState<string>('');
+    const [pendingAction, setPendingAction] = useState<PendingAction>(null);
 
     const handleClose = () => {
+        if (pendingAction) return;
         setNewCollectionName('');
         setSelectedCollection('');
         onClose();
@@ -49,18 +53,51 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
 
     const handleCreate = async () => {
         if (!newCollectionName.trim() || !onCreateCollection) return;
-        await onCreateCollection(newCollectionName);
-        handleClose();
+        setPendingAction('create');
+        try {
+            await onCreateCollection(newCollectionName);
+            setNewCollectionName('');
+            setSelectedCollection('');
+            onClose();
+        } catch {
+            // Keep the modal open so the action can be retried.
+        } finally {
+            setPendingAction(null);
+        }
     };
 
     const handleAdd = async () => {
         if (!selectedCollection || !onAddToCollection) return;
-        await onAddToCollection(selectedCollection);
-        handleClose();
+        setPendingAction('add');
+        try {
+            await onAddToCollection(selectedCollection);
+            setNewCollectionName('');
+            setSelectedCollection('');
+            onClose();
+        } catch {
+            // Keep the modal open so the action can be retried.
+        } finally {
+            setPendingAction(null);
+        }
+    };
+
+    const handleRemove = async (collectionId: string) => {
+        if (!onRemoveFromCollection) return;
+        setPendingAction(`remove:${collectionId}`);
+        try {
+            await onRemoveFromCollection(collectionId);
+            setNewCollectionName('');
+            setSelectedCollection('');
+            onClose();
+        } catch {
+            // Keep the modal open so the action can be retried.
+        } finally {
+            setPendingAction(null);
+        }
     };
 
     return (
-        <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+        <Dialog open={open} onClose={handleClose} disableEscapeKeyDown={Boolean(pendingAction)} maxWidth="sm" fullWidth>
             <DialogTitle>{t('addToCollection')}</DialogTitle>
             <DialogContent dividers>
                 {videoCollections && videoCollections.length > 0 && onRemoveFromCollection && (
@@ -70,10 +107,14 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
                                 key={collection.id}
                                 severity="info"
                                 action={
-                                    <Button color="error" size="small" onClick={() => {
-                                        onRemoveFromCollection(collection.id);
-                                        handleClose();
-                                    }}>
+                                    <Button
+                                        color="error"
+                                        size="small"
+                                        onClick={() => { void handleRemove(collection.id); }}
+                                        disabled={Boolean(pendingAction)}
+                                        loading={pendingAction === `remove:${collection.id}`}
+                                        loadingPosition="start"
+                                    >
                                         {t('remove')}
                                     </Button>
                                 }
@@ -97,6 +138,7 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
                                     value={selectedCollection}
                                     label={t('selectCollection')}
                                     onChange={(e) => setSelectedCollection(e.target.value)}
+                                    disabled={Boolean(pendingAction)}
                                 >
                                     {collections.map(collection => {
                                         const isCurrentCollection = videoCollections?.some(
@@ -117,8 +159,10 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
                             </FormControl>
                             <Button
                                 variant="contained"
-                                onClick={handleAdd}
-                                disabled={!selectedCollection}
+                                onClick={() => { void handleAdd(); }}
+                                disabled={!selectedCollection || Boolean(pendingAction)}
+                                loading={pendingAction === 'add'}
+                                loadingPosition="start"
                             >
                                 {t('add')}
                             </Button>
@@ -136,12 +180,15 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
                                 label={t('collectionName')}
                                 value={newCollectionName}
                                 onChange={(e) => setNewCollectionName(e.target.value)}
-                                onKeyPress={(e) => e.key === 'Enter' && newCollectionName.trim() && handleCreate()}
+                                onKeyPress={(e) => e.key === 'Enter' && newCollectionName.trim() && !pendingAction && void handleCreate()}
+                                disabled={Boolean(pendingAction)}
                             />
                             <Button
                                 variant="contained"
-                                onClick={handleCreate}
-                                disabled={!newCollectionName.trim()}
+                                onClick={() => { void handleCreate(); }}
+                                disabled={!newCollectionName.trim() || Boolean(pendingAction)}
+                                loading={pendingAction === 'create'}
+                                loadingPosition="start"
                             >
                                 {t('create')}
                             </Button>
@@ -150,7 +197,7 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
                 )}
             </DialogContent>
             <DialogActions>
-                <Button onClick={handleClose} color="inherit">{t('cancel')}</Button>
+                <Button onClick={handleClose} color="inherit" disabled={Boolean(pendingAction)}>{t('cancel')}</Button>
             </DialogActions>
         </Dialog>
     );

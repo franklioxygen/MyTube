@@ -50,11 +50,12 @@ const MediaServerExportSettings: React.FC<MediaServerExportSettingsProps> = ({
     const [exportConfirmOpen, setExportConfirmOpen] = useState(false);
     const [exportJob, setExportJob] = useState<MediaServerExportJob | null>(null);
     const [exportError, setExportError] = useState<string | null>(null);
+    const [startingExport, setStartingExport] = useState(false);
 
     useSettingsJobPolling(exportJob, mediaServerExportJobUrl, setExportJob);
 
     const handleStartMediaServerExportRebuild = async () => {
-        setExportConfirmOpen(false);
+        setStartingExport(true);
         setExportError(null);
         const mode = settings.mediaServerExportMode || 'off';
         try {
@@ -86,8 +87,11 @@ const MediaServerExportSettings: React.FC<MediaServerExportSettingsProps> = ({
                 failed: jobData.failed,
                 items: [],
             });
+            setExportConfirmOpen(false);
         } catch (e: unknown) {
             setExportError(getMediaServerExportErrorMessage(e, mode, t));
+        } finally {
+            setStartingExport(false);
         }
     };
 
@@ -193,7 +197,15 @@ const MediaServerExportSettings: React.FC<MediaServerExportSettingsProps> = ({
                 </span>
             </Tooltip>
 
-            <Dialog open={exportConfirmOpen} onClose={() => setExportConfirmOpen(false)}>
+            <Dialog
+                open={exportConfirmOpen}
+                onClose={() => {
+                    if (!startingExport) {
+                        setExportConfirmOpen(false);
+                    }
+                }}
+                disableEscapeKeyDown={startingExport}
+            >
                 <DialogTitle>{t(exportAction === 'cleanup'
                     ? 'mediaServerExportCleanupConfirmTitle'
                     : 'mediaServerExportRebuildConfirmTitle')}</DialogTitle>
@@ -205,8 +217,13 @@ const MediaServerExportSettings: React.FC<MediaServerExportSettingsProps> = ({
                     </DialogContentText>
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={() => setExportConfirmOpen(false)}>{t('cancel')}</Button>
-                    <Button onClick={handleStartMediaServerExportRebuild} variant="contained">
+                    <Button onClick={() => setExportConfirmOpen(false)} disabled={startingExport}>{t('cancel')}</Button>
+                    <Button
+                        onClick={() => { void handleStartMediaServerExportRebuild(); }}
+                        variant="contained"
+                        loading={startingExport}
+                        loadingPosition="start"
+                    >
                         {t(exportAction === 'cleanup'
                             ? 'mediaServerExportCleanup'
                             : 'mediaServerExportRebuild')}

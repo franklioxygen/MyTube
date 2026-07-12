@@ -20,6 +20,8 @@ interface VideoInfoProps {
     onAddToCollection: () => void;
     onDelete: () => void;
     isDeleting: boolean;
+    isSavingTitle?: boolean;
+    isTogglingVisibility?: boolean;
     deleteError: string | null;
     videoCollections: Collection[];
     onCollectionClick: (id: string) => void;
@@ -40,6 +42,8 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
     onAddToCollection,
     onDelete,
     isDeleting,
+    isSavingTitle = false,
+    isTogglingVisibility = false,
     deleteError,
     videoCollections,
     onCollectionClick,
@@ -89,7 +93,7 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
                 />
             )}
 
-            <EditableTitle title={video.title} onSave={onTitleSave} />
+            <EditableTitle title={video.title} onSave={onTitleSave} isSaving={isSavingTitle} />
 
             <VideoRating
                 rating={video.rating}
@@ -127,6 +131,7 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
                     onAddToCollection={onAddToCollection}
                     onDelete={onDelete}
                     isDeleting={isDeleting}
+                    isTogglingVisibility={isTogglingVisibility}
                     onToggleVisibility={onToggleVisibility}
                 />
             </Stack>

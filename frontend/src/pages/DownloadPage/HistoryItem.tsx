@@ -56,6 +56,8 @@ interface HistoryItemProps {
     onReDownload: (sourceUrl: string) => void;
     onViewVideo: (videoId: string) => void;
     isDownloadInProgress: (sourceUrl: string) => boolean;
+    isRemoving?: boolean;
+    isCancellingRetry?: boolean;
     dontSkipDeletedVideo?: boolean;
 }
 
@@ -67,6 +69,8 @@ export function HistoryItem({
     onReDownload,
     onViewVideo,
     isDownloadInProgress,
+    isRemoving = false,
+    isCancellingRetry = false,
     dontSkipDeletedVideo
 }: HistoryItemProps) {
     const { t } = useLanguage();
@@ -278,6 +282,8 @@ export function HistoryItem({
                                 startIcon={<ReplayIcon />}
                                 onClick={() => onRetry(item.sourceUrl!)}
                                 disabled={isDownloadInProgress(item.sourceUrl)}
+                                loading={isDownloadInProgress(item.sourceUrl)}
+                                loadingPosition="start"
                                 sx={{ minWidth: actionButtonMinWidth, order: { xs: 1, md: 2 } }}
                             >
                                 {t('retry') || 'Retry'}
@@ -290,6 +296,8 @@ export function HistoryItem({
                                 size="small"
                                 startIcon={<CancelIcon />}
                                 onClick={() => onCancelRetry(item.id)}
+                                loading={isCancellingRetry}
+                                loadingPosition="start"
                                 sx={{ minWidth: actionButtonMinWidth, order: { xs: 1, md: 2 } }}
                             >
                                 {t('cancelRetry') || 'Cancel Retry'}
@@ -327,6 +335,8 @@ export function HistoryItem({
                                 startIcon={<ReplayIcon />}
                                 onClick={() => onReDownload(item.sourceUrl!)}
                                 disabled={isDownloadInProgress(item.sourceUrl)}
+                                loading={isDownloadInProgress(item.sourceUrl)}
+                                loadingPosition="start"
                                 sx={{ minWidth: actionButtonMinWidth, order: { xs: 1, md: 2 } }}
                             >
                                 {t('downloadAgain') || 'Download Again'}
@@ -336,6 +346,7 @@ export function HistoryItem({
                             aria-label="remove"
                             onClick={() => onRemove(item.id)}
                             disabled={isPendingRetry}
+                            loading={isRemoving}
                             sx={{ order: { xs: 3, md: 1 }, alignSelf: { xs: 'center', md: 'flex-end' } }}
                         >
                             <DeleteIcon />

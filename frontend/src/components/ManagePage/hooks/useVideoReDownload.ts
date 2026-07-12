@@ -50,5 +50,9 @@ export const useVideoReDownload = () => {
         }
     };
 
-    return { handleReDownload };
+    const isReDownloading = (sourceUrl: string | undefined) => (
+        Boolean(sourceUrl && downloadingItems.has(sourceUrl))
+    );
+
+    return { handleReDownload, isReDownloading };
 };

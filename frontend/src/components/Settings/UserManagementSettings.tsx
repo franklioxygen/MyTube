@@ -35,6 +35,7 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { VisitorUser } from '../../types';
 import { getApiErrorMessage } from '../../utils/apiClient';
 import { copyTextToClipboard } from '../../utils/clipboard';
+import { runMutationAsync } from '../../utils/mutationUtils';
 import { userApi } from '../../utils/userApi';
 import AlertModal from '../AlertModal';
 import ConfirmationModal from '../ConfirmationModal';
@@ -412,10 +413,21 @@ const UserManagementSettings: React.FC<UserManagementSettingsProps> = ({
                 {t('addVisitorUser')}
             </Button>
 
-            <Dialog open={dialogMode !== null} onClose={closeDialog} fullWidth maxWidth="sm">
+            <Dialog
+                open={dialogMode !== null}
+                onClose={() => {
+                    if (!mutationPending) {
+                        closeDialog();
+                    }
+                }}
+                disableEscapeKeyDown={mutationPending}
+                fullWidth
+                maxWidth="sm"
+            >
                 <DialogHeader
                     title={dialogMode === 'create' ? t('addVisitorUser') : t('editVisitorUser')}
                     onClose={closeDialog}
+                    closeDisabled={mutationPending}
                 />
                 <Box component="form" onSubmit={handleSubmit}>
                     <DialogContent dividers>
@@ -503,8 +515,14 @@ const UserManagementSettings: React.FC<UserManagementSettingsProps> = ({
                         <Button onClick={closeDialog} color="inherit" disabled={mutationPending}>
                             {t('cancel')}
                         </Button>
-                        <Button type="submit" variant="contained" disabled={!canSubmit || mutationPending}>
-                            {mutationPending ? t('saving') || t('loading') : t('save')}
+                        <Button
+                            type="submit"
+                            variant="contained"
+                            disabled={!canSubmit}
+                            loading={createMutation.isPending || updateMutation.isPending}
+                            loadingPosition="start"
+                        >
+                            {t('save')}
                         </Button>
                     </DialogActions>
                 </Box>
@@ -513,9 +531,9 @@ const UserManagementSettings: React.FC<UserManagementSettingsProps> = ({
             <ConfirmationModal
                 isOpen={confirmDisableUser !== null}
                 onClose={() => setConfirmDisableUser(null)}
-                onConfirm={() => {
+                onConfirm={async () => {
                     if (confirmDisableUser) {
-                        updateMutation.mutate({ id: confirmDisableUser.id, patch: { enabled: false } });
+                        await runMutationAsync(updateMutation, { id: confirmDisableUser.id, patch: { enabled: false } });
                     }
                 }}
                 title={t('disableUser')}
@@ -528,9 +546,9 @@ const UserManagementSettings: React.FC<UserManagementSettingsProps> = ({
             <ConfirmationModal
                 isOpen={confirmDeleteUser !== null}
                 onClose={() => setConfirmDeleteUser(null)}
-                onConfirm={() => {
+                onConfirm={async () => {
                     if (confirmDeleteUser) {
-                        deleteMutation.mutate(confirmDeleteUser.id);
+                        await runMutationAsync(deleteMutation, confirmDeleteUser.id);
                     }
                 }}
                 title={t('deleteUser')}

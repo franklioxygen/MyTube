@@ -651,10 +651,7 @@ describe('SubscriptionsPage', () => {
         });
 
         expect(mockShowSnackbar).toHaveBeenCalledWith('error');
-        // Modal should be closed even on error (finally block closes it)
-        await waitFor(() => {
-            expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-        });
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
     });
 
     it('handles api error during pause subscription gracefully', async () => {

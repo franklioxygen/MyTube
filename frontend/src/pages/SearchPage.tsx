@@ -223,8 +223,9 @@ const SearchPage: React.FC = () => {
                                                     fullWidth
                                                     variant="contained"
                                                     startIcon={<Download />}
-                                                    onClick={() => handleDownload(result.id, result.sourceUrl)}
-                                                    disabled={downloadingId === result.id}
+                                                    onClick={() => { void handleDownload(result.id, result.sourceUrl); }}
+                                                    loading={downloadingId === result.id}
+                                                    loadingPosition="start"
                                                 >
                                                     {t('download')}
                                                 </Button>
@@ -237,10 +238,10 @@ const SearchPage: React.FC = () => {
                                 <Button
                                     variant="outlined"
                                     onClick={loadMoreSearchResults}
-                                    disabled={loadingMore}
-                                    startIcon={loadingMore ? <CircularProgress size={20} color="inherit" /> : null}
+                                    loading={loadingMore}
+                                    loadingPosition="start"
                                 >
-                                    {loadingMore ? t('loading') : t('more')}
+                                    {t('more')}
                                 </Button>
                             </Box>
                         </>

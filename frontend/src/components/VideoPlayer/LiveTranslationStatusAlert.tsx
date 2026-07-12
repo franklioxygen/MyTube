@@ -2,6 +2,7 @@ import { Alert, Box, Button } from '@mui/material';
 import React from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useLiveTranslationControl } from '../../contexts/LiveTranslationContext';
+import { useAsyncAction } from '../../hooks/useAsyncAction';
 
 interface LiveTranslationStatusAlertProps {
     isCinemaMode?: boolean;
@@ -17,6 +18,9 @@ const LiveTranslationStatusAlert: React.FC<LiveTranslationStatusAlertProps> = ({
 }) => {
     const { t } = useLanguage();
     const { errorVisible, errorText, retryable, retry } = useLiveTranslationControl();
+    const { run: runRetry, pending: retrying } = useAsyncAction(async () => {
+        await retry();
+    });
 
     if (!errorVisible) {
         return null;
@@ -36,7 +40,13 @@ const LiveTranslationStatusAlert: React.FC<LiveTranslationStatusAlertProps> = ({
                 severity="error"
                 action={
                     retryable ? (
-                        <Button color="inherit" size="small" onClick={retry}>
+                        <Button
+                            color="inherit"
+                            size="small"
+                            onClick={() => { void runRetry(); }}
+                            loading={retrying}
+                            loadingPosition="start"
+                        >
                             {t('liveTranslationRetry')}
                         </Button>
                     ) : undefined

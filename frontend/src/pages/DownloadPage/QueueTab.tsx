@@ -23,11 +23,13 @@ interface QueueTabProps {
     downloads: Download[];
     onRemove: (id: string) => void;
     onClear: () => void;
+    removingId?: string | null;
+    clearing?: boolean;
 }
 
 const ITEMS_PER_PAGE = 20;
 
-export function QueueTab({ downloads, onRemove, onClear }: QueueTabProps) {
+export function QueueTab({ downloads, onRemove, onClear, removingId = null, clearing = false }: QueueTabProps) {
     const { t } = useLanguage();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -41,6 +43,8 @@ export function QueueTab({ downloads, onRemove, onClear }: QueueTabProps) {
                     startIcon={<ClearAllIcon />}
                     onClick={onClear}
                     disabled={downloads.length === 0}
+                    loading={clearing}
+                    loadingPosition="start"
                 >
                     {t('clearQueue') || 'Clear Queue'}
                 </Button>
@@ -57,7 +61,12 @@ export function QueueTab({ downloads, onRemove, onClear }: QueueTabProps) {
                                     <ListItem
                                         disableGutters
                                         secondaryAction={
-                                            <IconButton edge="end" aria-label="remove" onClick={() => onRemove(download.id)}>
+                                            <IconButton
+                                                edge="end"
+                                                aria-label="remove"
+                                                onClick={() => onRemove(download.id)}
+                                                loading={removingId === download.id}
+                                            >
                                                 <DeleteIcon />
                                             </IconButton>
                                         }
@@ -86,4 +95,3 @@ export function QueueTab({ downloads, onRemove, onClear }: QueueTabProps) {
         </>
     );
 }
-

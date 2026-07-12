@@ -3,7 +3,6 @@ import { Check, Close, Delete, Edit, Folder } from '@mui/icons-material';
 import {
     Alert,
     Box,
-    CircularProgress,
     IconButton,
     Pagination,
     Paper,
@@ -217,10 +216,10 @@ const CollectionsTable: React.FC<CollectionsTableProps> = ({
                                                     size="small"
                                                     color="primary"
                                                     onClick={() => handleSave(collection.id)}
-                                                    disabled={isSaving}
+                                                    loading={isSaving}
                                                     aria-label="save collection name"
                                                 >
-                                                    {isSaving ? <CircularProgress size={20} /> : <Check />}
+                                                    <Check />
                                                 </IconButton>
                                                 <IconButton
                                                     size="small"

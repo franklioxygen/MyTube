@@ -2,7 +2,6 @@ import {
     Box,
     Button,
     Chip,
-    CircularProgress,
     Dialog,
     DialogActions,
     DialogContent,
@@ -139,8 +138,13 @@ const TagsSettings: React.FC<TagsSettingsProps> = ({ tags, onTagsChange, onRenam
                     <Button onClick={() => setRenameDialogOpen(false)} disabled={isRenaming}>
                         {t('cancel') || 'Cancel'}
                     </Button>
-                    <Button onClick={handleRenameSubmit} disabled={isRenaming || !newTagName || newTagName === tagToRename}>
-                        {isRenaming ? <CircularProgress size={24} /> : (t('confirmRenameTag') || 'Rename')}
+                    <Button
+                        onClick={handleRenameSubmit}
+                        disabled={!newTagName || newTagName === tagToRename}
+                        loading={isRenaming}
+                        loadingPosition="start"
+                    >
+                        {t('confirmRenameTag') || 'Rename'}
                     </Button>
                 </DialogActions>
             </Dialog>

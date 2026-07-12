@@ -6,15 +6,15 @@ import {
     DialogContentText,
     Typography
 } from '@mui/material';
-import React from 'react';
+import React, { useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import DialogHeader from './DialogHeader';
 
 interface ChannelSubscribeChoiceModalProps {
     open: boolean;
     onClose: () => void;
-    onChooseVideos: () => void;
-    onChoosePlaylists: () => void;
+    onChooseVideos: () => void | Promise<void>;
+    onChoosePlaylists: () => void | Promise<void>;
 }
 
 const ChannelSubscribeChoiceModal: React.FC<ChannelSubscribeChoiceModalProps> = ({
@@ -24,11 +24,31 @@ const ChannelSubscribeChoiceModal: React.FC<ChannelSubscribeChoiceModalProps> = 
     onChoosePlaylists
 }) => {
     const { t } = useLanguage();
+    const [pendingAction, setPendingAction] = useState<'playlists' | 'videos' | null>(null);
+
+    const handleClose = () => {
+        if (!pendingAction) {
+            onClose();
+        }
+    };
+
+    const handleChoose = async (action: 'playlists' | 'videos') => {
+        setPendingAction(action);
+        try {
+            await (action === 'playlists' ? onChoosePlaylists() : onChooseVideos());
+            onClose();
+        } catch {
+            // Keep the modal open so the action can be retried.
+        } finally {
+            setPendingAction(null);
+        }
+    };
 
     return (
         <Dialog
             open={open}
-            onClose={onClose}
+            onClose={handleClose}
+            disableEscapeKeyDown={Boolean(pendingAction)}
             maxWidth="sm"
             fullWidth
             slotProps={{
@@ -37,7 +57,12 @@ const ChannelSubscribeChoiceModal: React.FC<ChannelSubscribeChoiceModalProps> = 
                 }
             }}
         >
-            <DialogHeader title={t('subscribeToChannel') || 'Subscribe to Channel'} onClose={onClose} closeLabel={t('close')} />
+            <DialogHeader
+                title={t('subscribeToChannel') || 'Subscribe to Channel'}
+                onClose={handleClose}
+                closeDisabled={Boolean(pendingAction)}
+                closeLabel={t('close')}
+            />
             <DialogContent dividers>
                 <DialogContentText sx={{ mb: 3, color: 'text.primary' }}>
                     {t('subscribeChannelChoiceMessage') || 'How would you like to subscribe to this channel?'}
@@ -47,25 +72,27 @@ const ChannelSubscribeChoiceModal: React.FC<ChannelSubscribeChoiceModalProps> = 
                 </Typography>
             </DialogContent>
             <DialogActions sx={{ p: 2, gap: 1, flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'flex-end' }}>
-                <Button onClick={onClose} color="inherit" variant="outlined" sx={{ width: { xs: '100%', sm: 'auto' } }}>
+                <Button onClick={handleClose} color="inherit" variant="outlined" disabled={Boolean(pendingAction)} sx={{ width: { xs: '100%', sm: 'auto' } }}>
                     {t('cancel')}
                 </Button>
                 <Button
-                    onClick={() => {
-                        onChoosePlaylists();
-                    }}
+                    onClick={() => { void handleChoose('playlists'); }}
                     variant="contained"
                     color="primary"
+                    disabled={Boolean(pendingAction)}
+                    loading={pendingAction === 'playlists'}
+                    loadingPosition="start"
                     sx={{ width: { xs: '100%', sm: 'auto' } }}
                 >
                     {t('subscribeAllPlaylists') || 'Subscribe All Playlists'}
                 </Button>
                 <Button
-                    onClick={() => {
-                        onChooseVideos();
-                    }}
+                    onClick={() => { void handleChoose('videos'); }}
                     variant="contained"
                     color="primary"
+                    disabled={Boolean(pendingAction)}
+                    loading={pendingAction === 'videos'}
+                    loadingPosition="start"
                     sx={{ width: { xs: '100%', sm: 'auto' } }}
                 >
                     {t('subscribeAllVideos') || 'Subscribe All Videos'}

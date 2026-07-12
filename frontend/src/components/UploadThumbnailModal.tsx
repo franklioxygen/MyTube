@@ -3,7 +3,6 @@ import {
     Alert,
     Box,
     Button,
-    CircularProgress,
     Dialog,
     DialogActions,
     DialogContent,
@@ -154,10 +153,12 @@ const UploadThumbnailModal: React.FC<UploadThumbnailModalProps> = ({ open, onClo
                 <Button
                     variant="contained"
                     onClick={() => { void handleUpload(); }}
-                    disabled={!selectedFile || isUploading}
-                    startIcon={isUploading ? <CircularProgress size={16} color="inherit" /> : <CloudUpload />}
+                    disabled={!selectedFile}
+                    loading={isUploading}
+                    loadingPosition="start"
+                    startIcon={<CloudUpload />}
                 >
-                    {isUploading ? (t('uploading') || 'Uploading...') : (t('upload') || 'Upload')}
+                    {t('upload') || 'Upload'}
                 </Button>
             </DialogActions>
         </Dialog>

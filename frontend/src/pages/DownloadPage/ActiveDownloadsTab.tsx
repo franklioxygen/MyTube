@@ -23,9 +23,10 @@ interface Download {
 interface ActiveDownloadsTabProps {
     downloads: Download[];
     onCancel: (id: string) => void;
+    cancellingId?: string | null;
 }
 
-export function ActiveDownloadsTab({ downloads, onCancel }: ActiveDownloadsTabProps) {
+export function ActiveDownloadsTab({ downloads, onCancel, cancellingId = null }: ActiveDownloadsTabProps) {
     const { t } = useLanguage();
 
     if (downloads.length === 0) {
@@ -39,7 +40,12 @@ export function ActiveDownloadsTab({ downloads, onCancel }: ActiveDownloadsTabPr
                     <ListItem
                         disableGutters
                         secondaryAction={
-                            <IconButton edge="end" aria-label="cancel" onClick={() => onCancel(download.id)}>
+                            <IconButton
+                                edge="end"
+                                aria-label="cancel"
+                                onClick={() => onCancel(download.id)}
+                                loading={cancellingId === download.id}
+                            >
                                 <CancelIcon />
                             </IconButton>
                         }

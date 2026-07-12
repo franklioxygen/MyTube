@@ -137,8 +137,11 @@ describe('UploadThumbnailModal', () => {
         fireEvent.click(screen.getByRole('button', { name: 'upload' }));
 
         const cancelButton = await screen.findByRole('button', { name: 'cancel' });
+        const uploadButton = screen.getByRole('button', { name: 'upload' });
+
         expect(cancelButton).toBeDisabled();
-        expect(screen.getByRole('button', { name: 'uploading' })).toBeDisabled();
+        expect(uploadButton).toBeDisabled();
+        expect(within(uploadButton).getByRole('progressbar')).toBeInTheDocument();
         fireEvent.click(cancelButton);
         expect(onClose).not.toHaveBeenCalled();
     });

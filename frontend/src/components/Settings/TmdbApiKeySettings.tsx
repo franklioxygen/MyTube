@@ -3,7 +3,6 @@ import {
     Alert,
     Box,
     Button,
-    CircularProgress,
     TextField,
     Typography,
 } from '@mui/material';
@@ -132,13 +131,13 @@ const TmdbApiKeySettings: React.FC<TmdbApiKeySettingsProps> = ({
             <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
                 <Button
                     variant="outlined"
-                    startIcon={tmdbCredentialTesting ? <CircularProgress size={16} /> : <FindInPage />}
+                    startIcon={<FindInPage />}
                     onClick={handleTestTMDBCredential}
-                    disabled={!tmdbApiKey?.trim() || tmdbCredentialTesting}
+                    disabled={!tmdbApiKey?.trim()}
+                    loading={tmdbCredentialTesting}
+                    loadingPosition="start"
                 >
-                    {tmdbCredentialTesting
-                        ? translateOrFallback('testing', 'Testing...')
-                        : translateOrFallback('testTmdbCredential', 'Test Credential')}
+                    {translateOrFallback('testTmdbCredential', 'Test Credential')}
                 </Button>
             </Box>
             {tmdbCredentialTestResult && (

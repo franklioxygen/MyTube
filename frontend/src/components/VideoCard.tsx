@@ -174,6 +174,7 @@ const VideoCardBase: React.FC<VideoCardProps> = ({
                 confirmDelete={actions.confirmDelete}
                 isDeleting={actions.isDeleting}
                 handleToggleVisibility={actions.handleToggleVisibility}
+                isTogglingVisibility={actions.isTogglingVisibility}
                 canDelete={actions.canDelete}
                 isMobile={isMobile}
                 isTouch={isTouch}
