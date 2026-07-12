@@ -70,6 +70,10 @@ export const CollectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             // 200 means the name already existed and the video was merged into
             // the existing collection; 201 means a new collection was created.
             if (response.status === 200) {
+                // The merge target may be a favorited collection whose derived
+                // videoCount/cover changed, so refresh favorites to avoid a
+                // stale rail card (matches addToCollection).
+                queryClient.invalidateQueries({ queryKey: ['favorite-collections'] });
                 showSnackbar(t('collectionExistsVideoAdded'));
             } else {
                 showSnackbar(t('collectionCreatedSuccessfully'));
