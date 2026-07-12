@@ -7,6 +7,10 @@
 - Add an All Tags page (`/tags`) with usage-ranked tags, expandable strip, sorting, pagination, and filtered video grid; enhance Home/mobile tag sidebars with top-20 ranking and links to All Tags (1e3ec609)
 - Add a subtitle-only live translation mode that keeps original audio audible, shows translated subtitles, and skips translated speech playback (f1f596a2)
 
+### Chore
+
+- Replace the third-party `sloc.xyz` Lines of Code badge with a self-hosted shields endpoint refreshed by CI on `gh-pages`
+
 ## v1.10.13 (2026-07-11)
 
 ### Feat
