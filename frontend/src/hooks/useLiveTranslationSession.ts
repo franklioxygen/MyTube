@@ -36,6 +36,7 @@ export interface LiveTranslationTranscriptEvent {
 export interface UseLiveTranslationSessionOptions {
   videoElement: HTMLVideoElement | null;
   videoId: string;
+  keepOriginalAudio?: boolean;
   onTranscript?: (event: LiveTranslationTranscriptEvent) => void;
   /** Injectable for tests; default to the real controllers. */
   captureController?: LiveTranslationAudioCaptureController;
@@ -63,7 +64,7 @@ function buildLiveTranslationWsUrl(wsPath: string): string {
 export function useLiveTranslationSession(
   options: UseLiveTranslationSessionOptions,
 ): UseLiveTranslationSessionResult {
-  const { videoElement, videoId, onTranscript } = options;
+  const { videoElement, videoId, onTranscript, keepOriginalAudio = false } = options;
   const defaultCapture = useLiveTranslationAudioCapture();
   const defaultPlayback = useTranslatedAudioPlayback();
   const capture = options.captureController ?? defaultCapture;
@@ -263,6 +264,7 @@ export function useLiveTranslationSession(
     if (!element || wsRef.current) {
       return;
     }
+    const keepOriginalAudioForSession = keepOriginalAudio;
     // MVP supports only normal playback rate (Gemini expects real-time cadence).
     if (element.playbackRate !== 1) {
       fail(
@@ -350,28 +352,32 @@ export function useLiveTranslationSession(
             }
             captureStartedRef.current = true;
             void capture
-              .start(element, (pcm16) => {
-                const socket = wsRef.current;
-                if (!isCurrentStart() || socket !== ws) {
-                  return;
-                }
-                // Only forward audio while the video is actually playing.
-                if (element.paused) {
-                  return;
-                }
-                if (socket && socket.readyState === WS_OPEN) {
-                  socket.send(
-                    encodeClientMessage({
-                      type: 'audio',
-                      seq: audioSeqRef.current++,
-                      mediaTime: element.currentTime,
-                      sampleRate: 16000,
-                      channels: 1,
-                      pcm16Base64: int16ToBase64(pcm16),
-                    }),
-                  );
-                }
-              })
+              .start(
+                element,
+                (pcm16) => {
+                  const socket = wsRef.current;
+                  if (!isCurrentStart() || socket !== ws) {
+                    return;
+                  }
+                  // Only forward audio while the video is actually playing.
+                  if (element.paused) {
+                    return;
+                  }
+                  if (socket && socket.readyState === WS_OPEN) {
+                    socket.send(
+                      encodeClientMessage({
+                        type: 'audio',
+                        seq: audioSeqRef.current++,
+                        mediaTime: element.currentTime,
+                        sampleRate: 16000,
+                        channels: 1,
+                        pcm16Base64: int16ToBase64(pcm16),
+                      }),
+                    );
+                  }
+                },
+                { keepOriginalAudio: keepOriginalAudioForSession },
+              )
               .then(() => {
                 if (!isCurrentStart() || wsRef.current !== ws) {
                   const currentSessionOwnsElement =
@@ -443,6 +449,7 @@ export function useLiveTranslationSession(
     capture,
     playback,
     videoId,
+    keepOriginalAudio,
     sendControl,
     attachMediaListeners,
     handleServerData,

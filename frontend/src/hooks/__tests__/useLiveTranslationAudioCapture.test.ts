@@ -134,7 +134,7 @@ describe('capture graph wiring', () => {
     const { result } = renderHook(() => useLiveTranslationAudioCapture());
     const el = {} as HTMLMediaElement;
     await act(async () => {
-      await result.current.start(el, () => {});
+      await result.current.start(el, () => {}, { keepOriginalAudio: false });
     });
 
     // The worklet must connect to a zero-gain node that reaches the destination.
@@ -150,7 +150,7 @@ describe('capture graph wiring', () => {
     const { result } = renderHook(() => useLiveTranslationAudioCapture());
     const el = {} as HTMLMediaElement;
     await act(async () => {
-      await result.current.start(el, () => {});
+      await result.current.start(el, () => {}, { keepOriginalAudio: false });
     });
 
     expect(audioContextOptions[0]).toBeUndefined();
@@ -161,11 +161,11 @@ describe('capture graph wiring', () => {
     const { result } = renderHook(() => useLiveTranslationAudioCapture());
     const el = {} as HTMLMediaElement;
     await act(async () => {
-      await result.current.start(el, () => {});
+      await result.current.start(el, () => {}, { keepOriginalAudio: false });
     });
     result.current.stop(el);
     await act(async () => {
-      await result.current.start(el, () => {});
+      await result.current.start(el, () => {}, { keepOriginalAudio: false });
     });
     expect(mediaSourceCalls).toBe(1);
     result.current.dispose(el);
@@ -183,11 +183,11 @@ describe('capture graph wiring', () => {
     const { result } = renderHook(() => useLiveTranslationAudioCapture());
     const el = {} as HTMLMediaElement;
 
-    const firstStart = result.current.start(el, onOldChunk);
+    const firstStart = result.current.start(el, onOldChunk, { keepOriginalAudio: false });
     await act(async () => {
       await Promise.resolve();
     });
-    const secondStart = result.current.start(el, onNewChunk);
+    const secondStart = result.current.start(el, onNewChunk, { keepOriginalAudio: true });
     await act(async () => {
       await Promise.resolve();
     });
@@ -207,6 +207,63 @@ describe('capture graph wiring', () => {
 
     expect(onOldChunk).not.toHaveBeenCalled();
     expect(onNewChunk).toHaveBeenCalledTimes(1);
+    result.current.dispose(el);
+  });
+
+  it('mutes the speaker gain by default when keep-original is off', async () => {
+    const { result } = renderHook(() => useLiveTranslationAudioCapture());
+    const el = {} as HTMLMediaElement;
+    await act(async () => {
+      await result.current.start(el, () => {}, { keepOriginalAudio: false });
+    });
+
+    expect(gains[0].gain.value).toBe(0);
+    result.current.dispose(el);
+  });
+
+  it('keeps the speaker gain audible when keep-original is on', async () => {
+    const { result } = renderHook(() => useLiveTranslationAudioCapture());
+    const el = {} as HTMLMediaElement;
+    await act(async () => {
+      await result.current.start(el, () => {}, { keepOriginalAudio: true });
+    });
+
+    expect(gains[0].gain.value).toBe(1);
+    result.current.dispose(el);
+  });
+
+  it('restores the speaker gain after stop in both modes', async () => {
+    const { result } = renderHook(() => useLiveTranslationAudioCapture());
+    const el = {} as HTMLMediaElement;
+
+    await act(async () => {
+      await result.current.start(el, () => {}, { keepOriginalAudio: false });
+    });
+    result.current.stop(el);
+    expect(gains[0].gain.value).toBe(1);
+
+    await act(async () => {
+      await result.current.start(el, () => {}, { keepOriginalAudio: true });
+    });
+    result.current.stop(el);
+    expect(gains[0].gain.value).toBe(1);
+    result.current.dispose(el);
+  });
+
+  it('can switch keep-original across start -> stop -> start on the same element', async () => {
+    const { result } = renderHook(() => useLiveTranslationAudioCapture());
+    const el = {} as HTMLMediaElement;
+
+    await act(async () => {
+      await result.current.start(el, () => {}, { keepOriginalAudio: false });
+    });
+    expect(gains[0].gain.value).toBe(0);
+    result.current.stop(el);
+
+    await act(async () => {
+      await result.current.start(el, () => {}, { keepOriginalAudio: true });
+    });
+    expect(gains[0].gain.value).toBe(1);
     result.current.dispose(el);
   });
 });

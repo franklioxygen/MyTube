@@ -106,17 +106,23 @@ describe('useLiveTranslationSession', () => {
     vi.unstubAllGlobals();
   });
 
-  function setup(onTranscript?: (e: LiveTranslationTranscriptEvent) => void) {
+  function setup(
+    onTranscript?: (e: LiveTranslationTranscriptEvent) => void,
+    keepOriginalAudio = false,
+  ) {
     const videoElement = createFakeVideo();
     const { capture, playback } = makeControllers();
-    const hook = renderHook(() =>
-      useLiveTranslationSession({
-        videoElement,
-        videoId: 'video-1',
-        onTranscript,
-        captureController: capture,
-        playbackController: playback as any,
-      }),
+    const hook = renderHook(
+      ({ keepOriginal }) =>
+        useLiveTranslationSession({
+          videoElement,
+          videoId: 'video-1',
+          keepOriginalAudio: keepOriginal,
+          onTranscript,
+          captureController: capture,
+          playbackController: playback as any,
+        }),
+      { initialProps: { keepOriginal: keepOriginalAudio } },
     );
     return { hook, videoElement, capture, playback };
   }
@@ -203,8 +209,36 @@ describe('useLiveTranslationSession', () => {
 
     // Server signals Gemini is ready -> capture starts, status -> translating.
     await act(async () => ws.serverSend({ type: 'status', status: 'translating' }));
-    expect(s.capture.start).toHaveBeenCalledWith(s.videoElement, expect.any(Function));
+    expect(s.capture.start).toHaveBeenCalledWith(s.videoElement, expect.any(Function), {
+      keepOriginalAudio: false,
+    });
     expect(s.hook.result.current.status).toBe('translating');
+  });
+
+  it('passes keep-original to capture when enabled', async () => {
+    const s = setup(undefined, true);
+    const ws = await startAndOpen(s);
+    expect(ws.typed('start')).toHaveLength(1);
+    expect(s.capture.start).toHaveBeenCalledWith(s.videoElement, expect.any(Function), {
+      keepOriginalAudio: true,
+    });
+  });
+
+  it('snapshots keep-original when start is called and ignores later prop changes', async () => {
+    const s = setup(undefined, true);
+    act(() => s.hook.result.current.start());
+    s.hook.rerender({ keepOriginal: false });
+
+    await waitFor(() => expect(MockWebSocket.instances).toHaveLength(1));
+    const ws = MockWebSocket.instances[0];
+    await act(async () => {
+      ws.serverOpen();
+      ws.serverSend({ type: 'status', status: 'translating' });
+    });
+
+    expect(s.capture.start).toHaveBeenCalledWith(s.videoElement, expect.any(Function), {
+      keepOriginalAudio: true,
+    });
   });
 
   it('drops translated audio that arrives while paused', async () => {

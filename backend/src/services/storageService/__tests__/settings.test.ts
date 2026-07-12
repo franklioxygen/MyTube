@@ -99,6 +99,14 @@ describe('storageService settings', () => {
             // but we expect insert to be called for each key.
         });
 
+        it('should persist liveTranslationKeepOriginalAudio', () => {
+            saveSettings({ liveTranslationKeepOriginalAudio: true });
+
+            expect(db.transaction).toHaveBeenCalled();
+            expect(db.insert).toHaveBeenCalledTimes(1);
+            expect(db.insert).toHaveBeenCalledWith(expect.anything());
+        });
+
         it('should skip undefined values', () => {
             saveSettings({ key1: undefined });
             expect(db.insert).not.toHaveBeenCalled();

@@ -178,6 +178,9 @@ export const en = {
   liveTranslationDescription:
     "Stream the current video's audio to Gemini Live Translation and play translated speech with live subtitles. While active, the video's audio is sent to Google's Gemini API.",
   enableLiveTranslation: "Enable live audio translation",
+  liveTranslationKeepOriginalAudio: "Keep original audio",
+  liveTranslationKeepOriginalAudioDescription:
+    "Play the video's original audio together with translated speech.",
   liveTranslationApiKey: "Gemini API key",
   liveTranslationApiKeyConfigured: "API key is configured",
   liveTranslationApiKeyReplaceHelper:

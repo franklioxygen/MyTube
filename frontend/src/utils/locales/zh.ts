@@ -176,6 +176,9 @@ export const zh = {
   liveTranslation: "实时音频翻译",
   liveTranslationDescription: "将当前视频的音频流式传输到 Gemini 实时翻译，并播放翻译后的语音和实时字幕。启用后，视频音频会发送到 Google Gemini API。",
   enableLiveTranslation: "启用实时音频翻译",
+  liveTranslationKeepOriginalAudio: "保留原始音频",
+  liveTranslationKeepOriginalAudioDescription:
+    "同时播放视频的原始音频和翻译后的语音。",
   liveTranslationApiKey: "Gemini API 密钥",
   liveTranslationApiKeyConfigured: "已配置 API 密钥",
   liveTranslationApiKeyReplaceHelper: "已配置 API 密钥。输入新密钥可替换，留空则保留当前密钥。",

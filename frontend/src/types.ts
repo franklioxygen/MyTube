@@ -228,5 +228,6 @@ export interface Settings {
   liveTranslationApiKey?: string;
   liveTranslationSourceLanguage?: string; // currently "auto" only
   liveTranslationTargetLanguage?: string; // BCP-47
+  liveTranslationKeepOriginalAudio?: boolean;
   liveTranslationApiKeyConfigured?: boolean; // response-only, not persisted
 }

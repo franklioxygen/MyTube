@@ -84,12 +84,13 @@ const Probe: React.FC = () => {
     );
 };
 
-function renderProvider() {
+function renderProvider(keepOriginalAudio = false) {
     return render(
         <LiveTranslationProvider
             videoId="v1"
             videoElement={{ playbackRate: 1 } as unknown as HTMLVideoElement}
             src="/videos/clip.mp4"
+            keepOriginalAudio={keepOriginalAudio}
         >
             <Probe />
         </LiveTranslationProvider>,
@@ -171,5 +172,27 @@ describe('LiveTranslationContext', () => {
         renderProvider();
         expect(screen.getByTestId('errorVisible').textContent).toBe('true');
         expect(screen.getByTestId('errorText').textContent).toBe('liveTranslationErrorSessionTimeout');
+    });
+
+    it('passes keepOriginalAudio through to the session hook', () => {
+        setAvailability();
+        setSession();
+        renderProvider(true);
+        expect(mockSession).toHaveBeenCalledWith(
+            expect.objectContaining({
+                keepOriginalAudio: true,
+            }),
+        );
+    });
+
+    it('defaults keepOriginalAudio to false when omitted', () => {
+        setAvailability();
+        setSession();
+        renderProvider();
+        expect(mockSession).toHaveBeenCalledWith(
+            expect.objectContaining({
+                keepOriginalAudio: false,
+            }),
+        );
     });
 });

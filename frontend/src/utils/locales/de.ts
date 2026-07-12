@@ -186,6 +186,9 @@ export const de = {
   liveTranslation: "Live-Audioübersetzung",
   liveTranslationDescription: "Überträgt den Ton des aktuellen Videos an Gemini Live Translation und gibt die übersetzte Sprache mit Live-Untertiteln wieder. Während der Nutzung wird der Videoton an die Gemini-API von Google gesendet.",
   enableLiveTranslation: "Live-Audioübersetzung aktivieren",
+  liveTranslationKeepOriginalAudio: "Originalton beibehalten",
+  liveTranslationKeepOriginalAudioDescription:
+    "Spiele den Originalton des Videos zusammen mit der übersetzten Sprache ab.",
   liveTranslationApiKey: "Gemini-API-Schlüssel",
   liveTranslationApiKeyConfigured: "API-Schlüssel ist konfiguriert",
   liveTranslationApiKeyReplaceHelper: "Ein API-Schlüssel ist konfiguriert. Geben Sie einen neuen Schlüssel ein, um ihn zu ersetzen, oder lassen Sie das Feld leer, um den aktuellen Schlüssel zu behalten.",

@@ -13,8 +13,33 @@ describe("live translation settings validation", () => {
           liveTranslationModel: "gemini-3.5-live-translate-preview",
           liveTranslationSourceLanguage: "auto",
           liveTranslationTargetLanguage: "es",
+          liveTranslationKeepOriginalAudio: true,
         });
       }).not.toThrow();
+    });
+
+    it("accepts false for keep-original audio", () => {
+      expect(() => {
+        settingsValidationService.validateSettings({
+          liveTranslationKeepOriginalAudio: false,
+        });
+      }).not.toThrow();
+    });
+
+    it("rejects a non-boolean keep-original audio flag", () => {
+      expect(() => {
+        settingsValidationService.validateSettings({
+          liveTranslationKeepOriginalAudio: "yes" as unknown as boolean,
+        });
+      }).toThrow(ValidationError);
+    });
+
+    it("rejects null for keep-original audio", () => {
+      expect(() => {
+        settingsValidationService.validateSettings({
+          liveTranslationKeepOriginalAudio: null as unknown as boolean,
+        });
+      }).toThrow(ValidationError);
     });
 
     it("rejects a non-boolean enabled flag", () => {
@@ -122,6 +147,7 @@ describe("live translation settings validation", () => {
       );
       expect(defaultSettings.liveTranslationSourceLanguage).toBe("auto");
       expect(defaultSettings.liveTranslationTargetLanguage).toBe("en");
+      expect(defaultSettings.liveTranslationKeepOriginalAudio).toBe(false);
       expect(defaultSettings.liveTranslationApiKey).toBe("");
     });
 

@@ -56,6 +56,10 @@ export function isSecureContextForCapture(): boolean {
   return window.isSecureContext !== false;
 }
 
+export interface LiveTranslationCaptureOptions {
+  keepOriginalAudio: boolean;
+}
+
 class MediaCaptureGraph {
   private readonly ctx: AudioContext;
   private readonly source: MediaElementAudioSourceNode;
@@ -93,7 +97,10 @@ class MediaCaptureGraph {
     }
   }
 
-  async start(onChunk: (pcm16: Int16Array) => void): Promise<void> {
+  async start(
+    onChunk: (pcm16: Int16Array) => void,
+    options: LiveTranslationCaptureOptions,
+  ): Promise<void> {
     const generation = (this.startGeneration += 1);
     await this.prime();
     if (generation !== this.startGeneration) {
@@ -118,12 +125,18 @@ class MediaCaptureGraph {
       // Render the tap (silently) so the processor is pulled.
       this.worklet.connect(this.workletSink);
     }
+    if (generation !== this.startGeneration) {
+      return;
+    }
     this.worklet.port.onmessage = (event: MessageEvent) => {
       onChunk(new Int16Array(event.data as ArrayBuffer));
     };
-    // Suppress the original audio while translating (translated speech plays via
-    // the separate playback context).
-    this.gain.gain.value = 0;
+    if (generation !== this.startGeneration) {
+      return;
+    }
+    // Suppress the original audio while translating unless the admin enabled
+    // keep-original-audio (translated speech plays via the separate playback context).
+    this.gain.gain.value = options.keepOriginalAudio ? 1 : 0;
   }
 
   stop(): void {
@@ -178,6 +191,7 @@ export interface LiveTranslationAudioCaptureController {
   start(
     element: HTMLMediaElement,
     onChunk: (pcm16: Int16Array) => void,
+    options: LiveTranslationCaptureOptions,
   ): Promise<void>;
   stop(element: HTMLMediaElement): void;
   /** Fully tear down the per-element graph (only on unmount/replace). */
@@ -190,12 +204,12 @@ const controller: LiveTranslationAudioCaptureController = {
     const graph = ensureGraph(element);
     void graph?.prime();
   },
-  async start(element, onChunk) {
+  async start(element, onChunk, options) {
     const graph = ensureGraph(element);
     if (!graph) {
       throw new Error('Audio capture is not supported in this browser.');
     }
-    await graph.start(onChunk);
+    await graph.start(onChunk, options);
   },
   stop(element) {
     graphs.get(element)?.stop();

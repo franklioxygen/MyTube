@@ -91,6 +91,7 @@ interface LiveTranslationProviderProps {
     videoId: string;
     videoElement: HTMLVideoElement | null;
     src: string | null;
+    keepOriginalAudio?: boolean;
     onTranscript?: (event: LiveTranslationTranscriptEvent) => void;
     onActiveChange?: (active: boolean) => void;
     children: React.ReactNode;
@@ -105,13 +106,19 @@ export const LiveTranslationProvider: React.FC<LiveTranslationProviderProps> = (
     videoId,
     videoElement,
     src,
+    keepOriginalAudio = false,
     onTranscript,
     onActiveChange,
     children,
 }) => {
     const { t } = useLanguage();
     const { data: availability } = useLiveTranslationAvailability();
-    const session = useLiveTranslationSession({ videoElement, videoId, onTranscript });
+    const session = useLiveTranslationSession({
+        videoElement,
+        videoId,
+        keepOriginalAudio,
+        onTranscript,
+    });
 
     // Report active-state transitions so the player can create/clear the dynamic
     // live subtitle track.

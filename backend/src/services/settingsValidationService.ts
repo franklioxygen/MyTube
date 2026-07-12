@@ -278,6 +278,16 @@ function validateLiveTranslationIncomingSettings(
   }
 
   if (
+    newSettings.liveTranslationKeepOriginalAudio !== undefined &&
+    typeof newSettings.liveTranslationKeepOriginalAudio !== "boolean"
+  ) {
+    throw new ValidationError(
+      "Live translation keep-original-audio flag must be a boolean.",
+      "liveTranslationKeepOriginalAudio"
+    );
+  }
+
+  if (
     newSettings.liveTranslationModel !== undefined &&
     !LIVE_TRANSLATION_MODELS.has(newSettings.liveTranslationModel)
   ) {

@@ -180,6 +180,9 @@ export const ko = {
   liveTranslation: "실시간 오디오 번역",
   liveTranslationDescription: "현재 동영상의 오디오를 Gemini 실시간 번역으로 스트리밍하고 번역된 음성과 실시간 자막을 재생합니다. 활성화되어 있는 동안 동영상 오디오가 Google Gemini API로 전송됩니다.",
   enableLiveTranslation: "실시간 오디오 번역 사용",
+  liveTranslationKeepOriginalAudio: "원본 오디오 유지",
+  liveTranslationKeepOriginalAudioDescription:
+    "동영상의 원본 오디오와 번역된 음성을 함께 재생합니다.",
   liveTranslationApiKey: "Gemini API 키",
   liveTranslationApiKeyConfigured: "API 키가 구성됨",
   liveTranslationApiKeyReplaceHelper: "API 키가 구성되어 있습니다. 새 키를 입력하면 교체되며, 비워 두면 현재 키가 유지됩니다.",

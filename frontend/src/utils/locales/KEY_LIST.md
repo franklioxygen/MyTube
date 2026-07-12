@@ -4,21 +4,21 @@ Canonical locale key order derived from `frontend/src/utils/locales/en.ts`.
 
 This list is intentionally unnumbered. When new keys are inserted, only the local section order changes.
 
-Total keys: 1044
+Total keys: 1153
 
 ## Summary
 
 | Section | Keys | First Key | Last Key |
 | --- | ---: | --- | --- |
 | Header | 11 | `myTube` | `instruction` |
-| Home | 23 | `pasteUrl` | `views` |
+| Home | 21 | `pasteUrl` | `views` |
 | Settings | 4 | `general` | `downloadSettings` |
-| Settings Categories | 188 | `basicSettings` | `enterNewTagName` |
+| Settings Categories | 227 | `basicSettings` | `enterNewTagName` |
 | Database | 40 | `database` | `cleanupTempFilesConfirmMessage` |
-| Task Hooks | 69 | `taskHooks` | `cleanupTempFilesFailed` |
+| Task Hooks | 104 | `taskHooks` | `cleanupTempFilesFailed` |
 | Cookie Settings | 12 | `cookieSettings` | `cookiesDeleteFailed` |
 | Cloud Drive | 38 | `cloudDriveSettings` | `clearThumbnailCacheConfirmMessage` |
-| Manage | 33 | `manageContent` | `confirmBulkDelete` |
+| Manage | 36 | `manageContent` | `confirmBulkDelete` |
 | Video Player | 62 | `playing` | `deletingVideos` |
 | Login | 23 | `signIn` | `tooManyAttempts` |
 | Passkeys | 19 | `createPasskey` | `copyUrl` |
@@ -29,23 +29,23 @@ Total keys: 1044
 | Video Card | 9 | `unknownDate` | `weeksAgo` |
 | Upload Modal | 19 | `selectVideoFile` | `thumbnailUploaded` |
 | Bilibili Modal | 22 | `bilibiliCollectionDetected` | `waitingInQueue` |
-| Downloads | 20 | `downloads` | `failed` |
-| Snackbar Messages | 19 | `videoDownloading` | `subtitleDeleted` |
+| Downloads | 24 | `downloads` | `retryAttemptProgress` |
+| Snackbar Messages | 20 | `videoDownloading` | `subtitleDeleted` |
 | Batch Download | 6 | `batchDownload` | `addBatchTasks` |
-| Subscriptions | 62 | `subscribeToAuthor` | `retentionDaysUpdateFailed` |
+| Subscriptions | 63 | `subscribeToAuthor` | `retentionDaysUpdateFailed` |
 | Subscription Pause/Resume | 12 | `pause` | `viaContinuousDownload` |
 | Playlist Subscription | 5 | `subscribeToPlaylist` | `playlistSubscription` |
 | Instruction Page | 39 | `instructionSection1Title` | `instructionSection3Item3Text` |
 | Disclaimer | 3 | `disclaimerTitle` | `history` |
 | Existing Video Detection | 16 | `existingVideoDetected` | `changeSettings` |
 | Sorting | 10 | `sort` | `random` |
-| yt-dlp Configuration | 23 | `ytDlpConfiguration` | `saveAuthorFilesToCollectionDescription` |
+| yt-dlp Configuration | 41 | `ytDlpConfiguration` | `cleanupAuthorCollectionsFailed` |
 | Cloudflare Tunnel | 16 | `cloudflaredTunnel` | `managedInDashboard` |
-| Database Export/Import | 39 | `exportImportDatabase` | `backupDatabasesCleanedUp` |
+| Database Export/Import | 41 | `exportImportDatabase` | `backupDatabasesCleanedUp` |
 | History Filter | 33 | `filterAll` | `browserVideoFormatNotSupported` |
-| RSS Feed Settings | 40 | `rssFeedSettings` | `rssDays` |
+| RSS Feed Settings | 42 | `rssFeedSettings` | `rssDays` |
 | Role-based settings middleware errors | 5 | `settingsApiKeyForbidden` | `settingsAuthRequired` |
-| Filename Template | 30 | `filenameTemplate` | `filenameBatchRenameError` |
+| Filename Template | 35 | `filenameTemplate` | `filenameBatchRenameError` |
 | Statistics | 54 | `statisticsTitle` | `recomputeStatistics` |
 
 ## Details
@@ -206,6 +206,8 @@ Total keys: 1044
 | `liveTranslation` |
 | `liveTranslationDescription` |
 | `enableLiveTranslation` |
+| `liveTranslationKeepOriginalAudio` |
+| `liveTranslationKeepOriginalAudioDescription` |
 | `liveTranslationApiKey` |
 | `liveTranslationApiKeyConfigured` |
 | `liveTranslationApiKeyReplaceHelper` |

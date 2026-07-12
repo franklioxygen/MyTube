@@ -60,16 +60,53 @@ describe('LiveTranslationSettings', () => {
     it('hides model/API/language fields when the feature is disabled', () => {
         renderComponent();
         expect(screen.getByRole('switch', { name: 'enableLiveTranslation' })).toBeInTheDocument();
+        expect(
+            screen.queryByRole('switch', { name: 'liveTranslationKeepOriginalAudio' }),
+        ).not.toBeInTheDocument();
         expect(screen.queryByLabelText('liveTranslationApiKey')).not.toBeInTheDocument();
         expect(screen.queryByText('liveTranslationModel')).not.toBeInTheDocument();
     });
 
     it('shows the fields when enabled', () => {
         renderComponent({ settings: { liveTranslationEnabled: true } });
+        expect(
+            screen.getByRole('switch', { name: 'liveTranslationKeepOriginalAudio' }),
+        ).toBeInTheDocument();
+        expect(screen.getByText('liveTranslationKeepOriginalAudioDescription')).toBeInTheDocument();
         expect(screen.getByLabelText('liveTranslationApiKey')).toBeInTheDocument();
         expect(screen.getAllByText('liveTranslationModel').length).toBeGreaterThan(0);
         expect(screen.queryByText('liveTranslationSourceLanguage')).not.toBeInTheDocument();
         expect(screen.getAllByText('liveTranslationTargetLanguage').length).toBeGreaterThan(0);
+    });
+
+    it('renders keep-original unchecked when the setting is missing', () => {
+        renderComponent({ settings: { liveTranslationEnabled: true } });
+        const keepOriginal = screen.getByRole('switch', {
+            name: 'liveTranslationKeepOriginalAudio',
+        }) as HTMLInputElement;
+        expect(keepOriginal.checked).toBe(false);
+    });
+
+    it('reflects a persisted keep-original value', () => {
+        renderComponent({
+            settings: {
+                liveTranslationEnabled: true,
+                liveTranslationKeepOriginalAudio: true,
+            },
+        });
+        const keepOriginal = screen.getByRole('switch', {
+            name: 'liveTranslationKeepOriginalAudio',
+        }) as HTMLInputElement;
+        expect(keepOriginal.checked).toBe(true);
+    });
+
+    it('toggles keep-original via the switch', async () => {
+        const user = userEvent.setup();
+        const { onChange } = renderComponent({ settings: { liveTranslationEnabled: true } });
+        await user.click(
+            screen.getByRole('switch', { name: 'liveTranslationKeepOriginalAudio' }),
+        );
+        expect(onChange).toHaveBeenCalledWith('liveTranslationKeepOriginalAudio', true);
     });
 
     it('toggles the feature via the switch', async () => {
