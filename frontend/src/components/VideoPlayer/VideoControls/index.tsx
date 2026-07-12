@@ -1,5 +1,6 @@
 import { Box } from '@mui/material';
 import React, { useCallback, useEffect } from 'react';
+import { useLiveTranslationControl } from '../../../contexts/LiveTranslationContext';
 import { neutral } from '../../../theme/colors';
 import { useStatisticsWatchTracker } from '../../../hooks/useStatisticsWatchTracker';
 import ControlsOverlay from './ControlsOverlay';
@@ -110,13 +111,21 @@ const VideoControls: React.FC<VideoControlsProps> = ({
     // Volume control
     const volume = useVolume(videoPlayer.videoRef);
 
+    // In subtitle-only live translation, force-show the live track even when the
+    // user normally has file subtitles disabled — translated speech is suppressed.
+    const { isActive: liveTranslationActive, originalAudioWithSubtitles } =
+        useLiveTranslationControl();
+    const forceLiveSubtitleOnAvailable =
+        originalAudioWithSubtitles && liveTranslationActive;
+
     // Subtitle management
     const subtitlesHook = useSubtitles({
         subtitles,
         initialSubtitlesEnabled,
         videoRef: videoPlayer.videoRef,
         onSubtitlesToggle,
-        liveSubtitle
+        liveSubtitle,
+        forceLiveSubtitleOnAvailable,
     });
 
     // Memoize seek callbacks to prevent unnecessary re-registration of keyboard listeners

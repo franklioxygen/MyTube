@@ -78,6 +78,9 @@ const Probe: React.FC = () => {
             <span data-testid="disabled">{control.disabledReason ?? ''}</span>
             <span data-testid="errorVisible">{String(control.errorVisible)}</span>
             <span data-testid="errorText">{control.errorText}</span>
+            <span data-testid="originalAudioWithSubtitles">
+                {String(control.originalAudioWithSubtitles)}
+            </span>
             <button onClick={control.onToggle}>toggle</button>
             <button onClick={control.retry}>retry</button>
         </div>
@@ -120,6 +123,7 @@ describe('LiveTranslationContext', () => {
         expect(mockSession).toHaveBeenCalledWith(
             expect.objectContaining({ originalAudioWithSubtitles: true }),
         );
+        expect(screen.getByTestId('originalAudioWithSubtitles').textContent).toBe('true');
     });
 
     it('normalizes a missing originalAudioWithSubtitles prop to false', () => {
@@ -129,6 +133,7 @@ describe('LiveTranslationContext', () => {
         expect(mockSession).toHaveBeenCalledWith(
             expect.objectContaining({ originalAudioWithSubtitles: undefined }),
         );
+        expect(screen.getByTestId('originalAudioWithSubtitles').textContent).toBe('false');
     });
 
     it('withholds the control until the subtitle-only setting is ready', () => {

@@ -45,6 +45,8 @@ export interface LiveTranslationControl {
     isActive: boolean;
     isConnecting: boolean;
     isPaused: boolean;
+    /** True when the active session (or pending start) keeps original audio and shows translated subtitles only. */
+    originalAudioWithSubtitles: boolean;
     /** Non-null when the control must be disabled; value is a localized reason. */
     disabledReason: string | null;
     /** Short uppercase badge for the active target language (e.g. "EN", "CN"). */
@@ -66,6 +68,7 @@ const DEFAULT_CONTROL: LiveTranslationControl = {
     isActive: false,
     isConnecting: false,
     isPaused: false,
+    originalAudioWithSubtitles: false,
     disabledReason: null,
     targetAbbreviation: '',
     targetLabel: '',
@@ -175,6 +178,7 @@ export const LiveTranslationProvider: React.FC<LiveTranslationProviderProps> = (
             isActive,
             isConnecting,
             isPaused,
+            originalAudioWithSubtitles: !!originalAudioWithSubtitles,
             disabledReason,
             targetAbbreviation: getLiveTranslationLanguageAbbreviation(availability.targetLanguage),
             targetLabel: getLiveTranslationLanguageLabel(availability.targetLanguage),
@@ -190,7 +194,7 @@ export const LiveTranslationProvider: React.FC<LiveTranslationProviderProps> = (
             retryable: session.retryable,
             retry: () => session.start(),
         };
-    }, [availability, originalAudioWithSubtitlesReady, session, src, videoElement, t]);
+    }, [availability, originalAudioWithSubtitles, originalAudioWithSubtitlesReady, session, src, videoElement, t]);
 
     return (
         <LiveTranslationContext.Provider value={value}>

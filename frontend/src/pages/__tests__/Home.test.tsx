@@ -5,12 +5,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Home from '../Home';
 
 const mockSetSearchParams = vi.fn();
+const mockNavigate = vi.fn();
 const mockHandleViewModeChange = vi.fn();
 let mockViewMode = 'all-videos';
+let mockPathname = '/';
 vi.mock('react-router-dom', () => ({
     useSearchParams: () => [new URLSearchParams(), mockSetSearchParams],
-    useLocation: () => ({ pathname: '/' }),
-    useNavigate: () => vi.fn(),
+    useLocation: () => ({ pathname: mockPathname }),
+    useNavigate: () => mockNavigate,
 }));
 
 vi.mock('../../contexts/LanguageContext', () => ({
@@ -109,9 +111,29 @@ vi.mock('../../components/ConfirmationModal', () => ({
     ),
 }));
 vi.mock('../../components/HomeHeader', () => ({
-    HomeHeader: ({ onDeleteFilteredClick }: { onDeleteFilteredClick: () => void }) => (
-        <button data-testid="delete-filtered-btn" onClick={onDeleteFilteredClick}>Delete Filtered</button>
+    HomeHeader: ({
+        onDeleteFilteredClick,
+        onViewModeChange,
+    }: {
+        onDeleteFilteredClick: () => void;
+        onViewModeChange: (mode: string) => void;
+    }) => (
+        <div>
+            <button data-testid="delete-filtered-btn" onClick={onDeleteFilteredClick}>Delete Filtered</button>
+            <button data-testid="switch-to-favorite" onClick={() => onViewModeChange('favorite')}>
+                Favorite
+            </button>
+            <button data-testid="switch-to-collections" onClick={() => onViewModeChange('collections')}>
+                Collections
+            </button>
+            <button data-testid="switch-to-all-videos" onClick={() => onViewModeChange('all-videos')}>
+                All Videos
+            </button>
+        </div>
     ),
+}));
+vi.mock('../FavoritePage', () => ({
+    default: () => <div data-testid="FavoritePage" />,
 }));
 vi.mock('../../components/HomeSidebar', () => ({
     HomeSidebar: ({ onTagToggle }: { onTagToggle: (tag: string) => void }) => (
@@ -138,10 +160,12 @@ describe('Home Page', () => {
         mockUseVideoReturn.videos = [];
         mockUseVideoReturn.selectedTags = [];
         mockViewMode = 'all-videos';
+        mockPathname = '/';
 
         // Reset specific mocks if needed
         mockUseVideoSort.mockClear();
         mockHandleViewModeChange.mockClear();
+        mockNavigate.mockClear();
         // Since we defined mockUseVideoSort with a specific implementation that returns an object, 
         // mockClear clears the call history but keeps the implementation.
         // mockClear clears the call history but keeps the implementation.
@@ -158,6 +182,42 @@ describe('Home Page', () => {
             </ThemeProvider>
         );
     };
+
+    it('navigates to /favorites when switching to Favorite from /collections', () => {
+        mockPathname = '/collections';
+        mockViewMode = 'collections';
+        mockUseVideoReturn.videos = [{ id: '1' }] as any;
+
+        renderHome();
+        fireEvent.click(screen.getByTestId('switch-to-favorite'));
+
+        expect(mockHandleViewModeChange).toHaveBeenCalledWith('favorite');
+        expect(mockNavigate).toHaveBeenCalledWith('/favorites');
+    });
+
+    it('navigates home when leaving /collections for a non-favorite tab', () => {
+        mockPathname = '/collections';
+        mockViewMode = 'collections';
+        mockUseVideoReturn.videos = [{ id: '1' }] as any;
+
+        renderHome();
+        fireEvent.click(screen.getByTestId('switch-to-all-videos'));
+
+        expect(mockHandleViewModeChange).toHaveBeenCalledWith('all-videos');
+        expect(mockNavigate).toHaveBeenCalledWith('/?page=1');
+    });
+
+    it('navigates to /collections when switching to Collections from /favorites', () => {
+        mockPathname = '/favorites';
+        mockViewMode = 'favorite';
+        mockUseVideoReturn.videos = [{ id: '1' }] as any;
+
+        renderHome();
+        fireEvent.click(screen.getByTestId('switch-to-collections'));
+
+        expect(mockHandleViewModeChange).toHaveBeenCalledWith('collections');
+        expect(mockNavigate).toHaveBeenCalledWith('/collections');
+    });
 
     it('renders loading skeleton when loading and no videos', () => {
         mockUseVideoReturn.loading = true;

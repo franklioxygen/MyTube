@@ -59,8 +59,20 @@ const Home: React.FC<HomeProps> = ({ initialViewMode }) => {
     const { viewMode, handleViewModeChange } = useViewMode(initialViewMode);
     const handleHomeViewModeChange = useCallback((mode: ViewMode) => {
         handleViewModeChange(mode);
-        if ((location.pathname === '/favorites' || location.pathname === '/collections') && mode !== 'favorite') {
-            navigate('/?page=1');
+        // Keep deep-link routes aligned with the active tab so reload/share
+        // opens the same view the user switched to.
+        if (location.pathname === '/favorites') {
+            if (mode === 'collections') {
+                navigate('/collections');
+            } else if (mode !== 'favorite') {
+                navigate('/?page=1');
+            }
+        } else if (location.pathname === '/collections') {
+            if (mode === 'favorite') {
+                navigate('/favorites');
+            } else if (mode !== 'collections') {
+                navigate('/?page=1');
+            }
         }
     }, [handleViewModeChange, location.pathname, navigate]);
     const handleHomeTagToggle = useCallback((tag: string) => {
