@@ -157,6 +157,61 @@ describe('capture graph wiring', () => {
     result.current.dispose(el);
   });
 
+  it('mutes speaker gain by default and keeps it audible in subtitle-only mode', async () => {
+    const { result } = renderHook(() => useLiveTranslationAudioCapture());
+    const el = {} as HTMLMediaElement;
+
+    await act(async () => {
+      await result.current.start(el, () => {});
+    });
+    expect(gains[0].gain.value).toBe(0);
+
+    result.current.stop(el);
+    expect(gains[0].gain.value).toBe(1);
+
+    await act(async () => {
+      await result.current.start(el, () => {}, { keepOriginalAudioAudible: true });
+    });
+    expect(gains[0].gain.value).toBe(1);
+
+    result.current.stop(el);
+    expect(gains[0].gain.value).toBe(1);
+    result.current.dispose(el);
+  });
+
+  it('does not let a superseded async start apply a stale speaker gain', async () => {
+    const firstModule = deferred<void>();
+    const secondModule = deferred<void>();
+    addModuleImpl = vi
+      .fn()
+      .mockReturnValueOnce(firstModule.promise)
+      .mockReturnValueOnce(secondModule.promise);
+    const { result } = renderHook(() => useLiveTranslationAudioCapture());
+    const el = {} as HTMLMediaElement;
+
+    const firstStart = result.current.start(el, () => {}, { keepOriginalAudioAudible: false });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const secondStart = result.current.start(el, () => {}, { keepOriginalAudioAudible: true });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      secondModule.resolve();
+      await secondStart;
+    });
+    expect(gains[0].gain.value).toBe(1);
+
+    await act(async () => {
+      firstModule.resolve();
+      await firstStart;
+    });
+    expect(gains[0].gain.value).toBe(1);
+    result.current.dispose(el);
+  });
+
   it('reuses createMediaElementSource across start -> stop -> start', async () => {
     const { result } = renderHook(() => useLiveTranslationAudioCapture());
     const el = {} as HTMLMediaElement;

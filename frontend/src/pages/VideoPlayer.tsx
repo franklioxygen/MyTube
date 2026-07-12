@@ -474,6 +474,9 @@ const VideoPlayer: React.FC = () => {
                         videoId={video.id}
                         videoElement={videoElement}
                         src={(videoUrl || video?.sourceUrl) || null}
+                        originalAudioWithSubtitles={
+                            settings?.liveTranslationOriginalAudioWithSubtitles === true
+                        }
                         onTranscript={liveSubtitleTrack.addCue}
                         onActiveChange={(active) => {
                             if (active) {

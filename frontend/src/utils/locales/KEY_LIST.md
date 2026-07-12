@@ -206,6 +206,8 @@ Total keys: 1044
 | `liveTranslation` |
 | `liveTranslationDescription` |
 | `enableLiveTranslation` |
+| `liveTranslationOriginalAudioWithSubtitles` |
+| `liveTranslationOriginalAudioWithSubtitlesDescription` |
 | `liveTranslationApiKey` |
 | `liveTranslationApiKeyConfigured` |
 | `liveTranslationApiKeyReplaceHelper` |

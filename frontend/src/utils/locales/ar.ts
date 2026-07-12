@@ -176,6 +176,9 @@ export const ar = {
   liveTranslation: "الترجمة الصوتية المباشرة",
   liveTranslationDescription: "يبث صوت الفيديو الحالي إلى Gemini Live Translation ويشغّل الكلام المترجَم مع ترجمات مباشرة. أثناء التفعيل، يُرسل صوت الفيديو إلى واجهة برمجة تطبيقات Gemini من Google.",
   enableLiveTranslation: "تفعيل الترجمة الصوتية المباشرة",
+  liveTranslationOriginalAudioWithSubtitles: "الصوت الأصلي والترجمة النصية",
+  liveTranslationOriginalAudioWithSubtitlesDescription:
+    "الإبقاء على الصوت الأصلي للفيديو وعرض الترجمات النصية دون تشغيل الكلام المترجَم.",
   liveTranslationApiKey: "مفتاح Gemini API",
   liveTranslationApiKeyConfigured: "تم تكوين مفتاح API",
   liveTranslationApiKeyReplaceHelper: "تم تكوين مفتاح API. أدخل مفتاحًا جديدًا لاستبداله، أو اتركه فارغًا للاحتفاظ بالمفتاح الحالي.",

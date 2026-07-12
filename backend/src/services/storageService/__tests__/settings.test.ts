@@ -2,7 +2,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { db } from '../../../db';
 import { DatabaseError } from '../../../errors/DownloadErrors';
 import { logger } from '../../../utils/logger';
-import { getSettings, invalidateSettingsCache, saveSettings } from '../settings';
+import {
+  WHITELISTED_SETTINGS,
+  getSettings,
+  invalidateSettingsCache,
+  saveSettings,
+} from '../settings';
 
 // Mock DB and Logger
 vi.mock('../../../db', () => ({
@@ -38,6 +43,7 @@ describe('storageService settings', () => {
         const mockOnConflict = vi.fn().mockReturnValue({ run: mockRun });
         const mockValues = vi.fn().mockReturnValue({ onConflictDoUpdate: mockOnConflict });
         vi.mocked(db.insert).mockReturnValue({ values: mockValues } as any);
+        vi.mocked(db.transaction).mockImplementation((cb) => (cb as () => void)());
     });
 
     describe('getSettings', () => {
@@ -111,6 +117,23 @@ describe('storageService settings', () => {
 
             expect(() => saveSettings({ key: 'value' })).toThrow(DatabaseError);
             expect(logger.error).toHaveBeenCalled();
+        });
+
+        it('persists liveTranslationOriginalAudioWithSubtitles when whitelisted', () => {
+            saveSettings({ liveTranslationOriginalAudioWithSubtitles: true });
+            expect(db.transaction).toHaveBeenCalled();
+            expect(db.insert).toHaveBeenCalledTimes(1);
+        });
+
+        it('ignores non-whitelisted keys', () => {
+            saveSettings({ notARealSetting: true });
+            expect(db.insert).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('WHITELISTED_SETTINGS', () => {
+        it('includes liveTranslationOriginalAudioWithSubtitles', () => {
+            expect(WHITELISTED_SETTINGS).toContain('liveTranslationOriginalAudioWithSubtitles');
         });
     });
 });

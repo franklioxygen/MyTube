@@ -183,6 +183,9 @@ export const ja = {
   liveTranslation: "ライブ音声翻訳",
   liveTranslationDescription: "現在の動画の音声を Gemini ライブ翻訳にストリーミングし、翻訳された音声とライブ字幕を再生します。有効にすると、動画の音声が Google の Gemini API に送信されます。",
   enableLiveTranslation: "ライブ音声翻訳を有効にする",
+  liveTranslationOriginalAudioWithSubtitles: "原音声と翻訳字幕",
+  liveTranslationOriginalAudioWithSubtitlesDescription:
+    "動画の原音声を維持し、翻訳された音声を再生せずに翻訳字幕を表示します。",
   liveTranslationApiKey: "Gemini API キー",
   liveTranslationApiKeyConfigured: "API キーが設定されています",
   liveTranslationApiKeyReplaceHelper: "API キーが設定されています。新しいキーを入力すると置き換えられます。空欄のままにすると現在のキーが保持されます。",

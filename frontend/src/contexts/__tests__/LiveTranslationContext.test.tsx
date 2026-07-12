@@ -104,6 +104,33 @@ describe('LiveTranslationContext', () => {
         mockSecureContext.mockReturnValue(true);
     });
 
+    it('passes originalAudioWithSubtitles to the session hook', () => {
+        setAvailability();
+        setSession();
+        render(
+            <LiveTranslationProvider
+                videoId="v1"
+                videoElement={{ playbackRate: 1 } as unknown as HTMLVideoElement}
+                src="/videos/clip.mp4"
+                originalAudioWithSubtitles
+            >
+                <Probe />
+            </LiveTranslationProvider>,
+        );
+        expect(mockSession).toHaveBeenCalledWith(
+            expect.objectContaining({ originalAudioWithSubtitles: true }),
+        );
+    });
+
+    it('normalizes a missing originalAudioWithSubtitles prop to false', () => {
+        setAvailability();
+        setSession();
+        renderProvider();
+        expect(mockSession).toHaveBeenCalledWith(
+            expect.objectContaining({ originalAudioWithSubtitles: undefined }),
+        );
+    });
+
     it('does not render the control when the feature is disabled globally', () => {
         setAvailability({ enabled: false });
         setSession();

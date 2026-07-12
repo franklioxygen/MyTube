@@ -228,5 +228,7 @@ export interface Settings {
   liveTranslationApiKey?: string;
   liveTranslationSourceLanguage?: string; // currently "auto" only
   liveTranslationTargetLanguage?: string; // BCP-47
+  /** When true, live translation shows subtitles and keeps original audio; translated speech is not played. */
+  liveTranslationOriginalAudioWithSubtitles?: boolean;
   liveTranslationApiKeyConfigured?: boolean; // response-only, not persisted
 }

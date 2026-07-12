@@ -196,6 +196,7 @@ export const WHITELISTED_SETTINGS = [
   "liveTranslationApiKey",
   "liveTranslationSourceLanguage",
   "liveTranslationTargetLanguage",
+  "liveTranslationOriginalAudioWithSubtitles",
 ] as const;
 
 export interface SaveSettingsOptions {

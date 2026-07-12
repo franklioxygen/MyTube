@@ -60,8 +60,44 @@ describe('LiveTranslationSettings', () => {
     it('hides model/API/language fields when the feature is disabled', () => {
         renderComponent();
         expect(screen.getByRole('switch', { name: 'enableLiveTranslation' })).toBeInTheDocument();
+        expect(
+            screen.queryByRole('switch', { name: 'liveTranslationOriginalAudioWithSubtitles' }),
+        ).not.toBeInTheDocument();
         expect(screen.queryByLabelText('liveTranslationApiKey')).not.toBeInTheDocument();
         expect(screen.queryByText('liveTranslationModel')).not.toBeInTheDocument();
+    });
+
+    it('shows the original-audio subtitle switch when enabled', () => {
+        renderComponent({ settings: { liveTranslationEnabled: true } });
+        const subtitleSwitch = screen.getByRole('switch', {
+            name: 'liveTranslationOriginalAudioWithSubtitles',
+        });
+        expect(subtitleSwitch).toBeInTheDocument();
+        expect(subtitleSwitch).not.toBeChecked();
+        expect(
+            screen.getByText('liveTranslationOriginalAudioWithSubtitlesDescription'),
+        ).toBeInTheDocument();
+    });
+
+    it('reflects a persisted original-audio subtitle preference', () => {
+        renderComponent({
+            settings: {
+                liveTranslationEnabled: true,
+                liveTranslationOriginalAudioWithSubtitles: true,
+            },
+        });
+        expect(
+            screen.getByRole('switch', { name: 'liveTranslationOriginalAudioWithSubtitles' }),
+        ).toBeChecked();
+    });
+
+    it('toggles the original-audio subtitle switch', async () => {
+        const user = userEvent.setup();
+        const { onChange } = renderComponent({ settings: { liveTranslationEnabled: true } });
+        await user.click(
+            screen.getByRole('switch', { name: 'liveTranslationOriginalAudioWithSubtitles' }),
+        );
+        expect(onChange).toHaveBeenCalledWith('liveTranslationOriginalAudioWithSubtitles', true);
     });
 
     it('shows the fields when enabled', () => {
