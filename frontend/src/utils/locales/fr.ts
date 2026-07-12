@@ -603,6 +603,10 @@ export const fr = {
   all: "Tous",
   showAll: "Tout afficher",
   allAuthors: "Tous les auteurs",
+  allTags: "Tous les tags",
+  showMoreTags: "Afficher plus de tags",
+  showLessTags: "Afficher moins de tags",
+  filteredByTags: "Filtré par {count} tags",
 
   created: "Créé",
   name: "Nom",

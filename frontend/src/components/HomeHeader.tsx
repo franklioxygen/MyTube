@@ -42,6 +42,7 @@ interface HomeHeaderProps {
     onSidebarToggle: () => void;
     selectedTagsCount: number;
     onDeleteFilteredClick: () => void;
+    onClearTagFilter?: () => void;
     sortOption: string;
     sortAnchorEl: HTMLElement | null;
     onSortClick: (event: React.MouseEvent<HTMLButtonElement>) => void;
@@ -54,6 +55,7 @@ export const HomeHeader: React.FC<HomeHeaderProps> = ({
     onSidebarToggle,
     selectedTagsCount,
     onDeleteFilteredClick,
+    onClearTagFilter,
     sortOption,
     sortAnchorEl,
     onSortClick,
@@ -85,16 +87,32 @@ export const HomeHeader: React.FC<HomeHeaderProps> = ({
                     <ViewSidebar sx={{ transform: 'rotate(180deg)' }} />
                 </Button>
                 {selectedTagsCount > 0 && viewMode !== 'favorite' && (
-                    <Tooltip title={t('deleteAllFilteredVideos')}>
-                        <IconButton
-                            color="error"
-                            onClick={onDeleteFilteredClick}
-                            size="small"
-                            sx={{ ml: 1 }}
-                        >
-                            <DeleteIcon />
-                        </IconButton>
-                    </Tooltip>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0 }}>
+                        {onClearTagFilter && (
+                            <Button
+                                size="small"
+                                onClick={onClearTagFilter}
+                                sx={{
+                                    textTransform: 'none',
+                                    fontWeight: 600,
+                                    minWidth: 0,
+                                    px: { xs: 0.5, sm: 1 },
+                                    whiteSpace: 'nowrap',
+                                }}
+                            >
+                                {t('filteredByTags', { count: selectedTagsCount })} — {t('clear')}
+                            </Button>
+                        )}
+                        <Tooltip title={t('deleteAllFilteredVideos')}>
+                            <IconButton
+                                color="error"
+                                onClick={onDeleteFilteredClick}
+                                size="small"
+                            >
+                                <DeleteIcon />
+                            </IconButton>
+                        </Tooltip>
+                    </Box>
                 )}
                 <Box
                     component="span"

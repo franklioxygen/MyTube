@@ -598,6 +598,10 @@ export const ja = {
   all: "すべて",
   showAll: "すべて表示",
   allAuthors: "すべての作成者",
+  allTags: "すべてのタグ",
+  showMoreTags: "タグをもっと表示",
+  showLessTags: "タグを少なく表示",
+  filteredByTags: "{count} 個のタグで絞り込み中",
 
   created: "作成日",
   name: "名前",

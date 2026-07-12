@@ -602,6 +602,10 @@ export const en = {
   all: "All",
   showAll: "Show all",
   allAuthors: "All Authors",
+  allTags: "All Tags",
+  showMoreTags: "Show more tags",
+  showLessTags: "Show fewer tags",
+  filteredByTags: "Filtered by {count} tags",
 
   created: "Created",
   name: "Name",

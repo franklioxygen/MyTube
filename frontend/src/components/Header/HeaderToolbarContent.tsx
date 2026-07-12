@@ -77,6 +77,7 @@ const HeaderToolbarContent: React.FC<HeaderToolbarContentProps> = ({
     onSubmit,
     onAudioOnlySubmit,
     showTagsInMobileMenu,
+    videos,
     effectiveTags
 }) => {
     const { t } = useLanguage();
@@ -191,6 +192,7 @@ const HeaderToolbarContent: React.FC<HeaderToolbarContentProps> = ({
                     availableTags={effectiveTags.availableTags}
                     selectedTags={effectiveTags.selectedTags}
                     onTagToggle={effectiveTags.onTagToggle}
+                    videos={videos}
                 />
             )}
         </>

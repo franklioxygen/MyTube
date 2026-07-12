@@ -37,6 +37,7 @@ interface VideoContextType {
     availableTags: string[];
     selectedTags: string[];
     handleTagToggle: (tag: string) => void;
+    clearSelectedTags: () => void;
     showYoutubeSearch: boolean;
     loadMoreSearchResults: () => Promise<void>;
     loadingMore: boolean;
@@ -46,6 +47,7 @@ interface VideoTagsContextType {
     availableTags: string[];
     selectedTags: string[];
     handleTagToggle: (tag: string) => void;
+    clearSelectedTags: () => void;
 }
 
 interface VideoActionsContextType {
@@ -439,6 +441,10 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         );
     }, []);
 
+    const clearSelectedTags = useCallback(() => {
+        setSelectedTags([]);
+    }, []);
+
     // Cleanup search on unmount
     useEffect(() => {
         return () => {
@@ -644,6 +650,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         availableTags,
         selectedTags,
         handleTagToggle,
+        clearSelectedTags,
         showYoutubeSearch,
         loadMoreSearchResults,
         loadingMore,
@@ -653,14 +660,15 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         incrementView, searchLocalVideos, searchResults, localSearchResults,
         isSearchMode, searchTerm, youtubeLoading, handleSearch, lastSearchEventId,
         resetSearch, setVideos, availableTags, selectedTags, handleTagToggle,
-        showYoutubeSearch, loadMoreSearchResults, loadingMore,
+        clearSelectedTags, showYoutubeSearch, loadMoreSearchResults, loadingMore,
     ]);
 
     const tagsValue = useMemo<VideoTagsContextType>(() => ({
         availableTags,
         selectedTags,
         handleTagToggle,
-    }), [availableTags, selectedTags, handleTagToggle]);
+        clearSelectedTags,
+    }), [availableTags, selectedTags, handleTagToggle, clearSelectedTags]);
 
     const actionsValue = useMemo<VideoActionsContextType>(() => ({
         updateVideo,

@@ -1,24 +1,45 @@
-import { ExpandLess, ExpandMore, LocalOffer } from '@mui/icons-material';
+import { ExpandLess, ExpandMore, GridView, LocalOffer } from '@mui/icons-material';
 import {
     Box,
     Chip,
     Collapse,
+    IconButton,
     ListItemButton,
+    ListItemText,
     Paper,
     Typography,
     useMediaQuery,
     useTheme
 } from '@mui/material';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
+import { sortTagsByUsage } from '../utils/tagUtils';
+
+const TOP_TAGS_LIMIT = 20;
 
 interface TagsListProps {
     availableTags: string[];
     selectedTags: string[];
     onTagToggle: (tag: string) => void;
+    onItemClick?: () => void;
+    /** When provided, sidebar tags are ranked by explicit video.tags usage. */
+    videos?: Array<{ tags?: string[] }>;
+    /**
+     * Home / mobile menu: cap at top N and link to global /tags.
+     * Author / collection sidebars: show every page-local tag, no global link.
+     */
+    linkToAllTags?: boolean;
 }
 
-const TagsList: React.FC<TagsListProps> = ({ availableTags, selectedTags, onTagToggle }) => {
+const TagsList: React.FC<TagsListProps> = ({
+    availableTags,
+    selectedTags,
+    onTagToggle,
+    onItemClick,
+    videos,
+    linkToAllTags = false,
+}) => {
     const { t } = useLanguage();
     const [isOpen, setIsOpen] = useState<boolean>(true);
     const theme = useTheme();
@@ -33,7 +54,33 @@ const TagsList: React.FC<TagsListProps> = ({ availableTags, selectedTags, onTagT
         }
     }, [isMobile]);
 
-    if (!availableTags || availableTags.length === 0) {
+    const { displayTags, hasMore } = useMemo(() => {
+        if (!availableTags || availableTags.length === 0) {
+            return { displayTags: [] as string[], hasMore: false };
+        }
+
+        const ordered = videos
+            ? sortTagsByUsage(availableTags, videos)
+            : [...availableTags];
+
+        if (!linkToAllTags) {
+            return { displayTags: ordered, hasMore: false };
+        }
+
+        const top = ordered.slice(0, TOP_TAGS_LIMIT);
+        const topSet = new Set(top);
+        // Keep selected tags visible even when they fall outside the top N
+        const selectedOutsideTop = selectedTags.filter(
+            (tag) => availableTags.includes(tag) && !topSet.has(tag)
+        );
+
+        return {
+            displayTags: [...top, ...selectedOutsideTop],
+            hasMore: ordered.length > TOP_TAGS_LIMIT,
+        };
+    }, [availableTags, linkToAllTags, videos, selectedTags]);
+
+    if (displayTags.length === 0) {
         return null;
     }
 
@@ -43,11 +90,27 @@ const TagsList: React.FC<TagsListProps> = ({ availableTags, selectedTags, onTagT
                 <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontWeight: 600 }}>
                     {t('tags') || 'Tags'}
                 </Typography>
+                {linkToAllTags && (
+                    <IconButton
+                        component={Link}
+                        to="/tags"
+                        size="small"
+                        aria-label={t('allTags')}
+                        title={t('allTags')}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onItemClick?.();
+                        }}
+                        sx={{ mr: 1 }}
+                    >
+                        <GridView fontSize="small" />
+                    </IconButton>
+                )}
                 {isOpen ? <ExpandLess /> : <ExpandMore />}
             </ListItemButton>
             <Collapse in={isOpen} timeout="auto" unmountOnExit>
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, px: 2, pb: 2 }}>
-                    {availableTags.map(tag => {
+                    {displayTags.map(tag => {
                         const isSelected = selectedTags.includes(tag);
                         return (
                             <Chip
@@ -68,6 +131,23 @@ const TagsList: React.FC<TagsListProps> = ({ availableTags, selectedTags, onTagT
                         );
                     })}
                 </Box>
+                {linkToAllTags && hasMore && (
+                    <ListItemButton
+                        component={Link}
+                        to="/tags"
+                        onClick={onItemClick}
+                        sx={{ pl: 2, borderRadius: 1, mb: 1 }}
+                    >
+                        <ListItemText
+                            primary={t('showAll')}
+                            primaryTypographyProps={{
+                                variant: 'body2',
+                                color: 'primary',
+                                fontWeight: 600,
+                            }}
+                        />
+                    </ListItemButton>
+                )}
             </Collapse>
         </Paper>
     );

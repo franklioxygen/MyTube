@@ -23,7 +23,9 @@ export const useHomePagination = ({
     selectedTags
 }: UseHomePaginationProps): UseHomePaginationReturn => {
     const [searchParams, setSearchParams] = useSearchParams();
-    const page = parseInt(searchParams.get('page') || '1', 10);
+    const pageParam = searchParams.get('page');
+    const parsedPage = pageParam == null ? 1 : Number(pageParam);
+    const page = Number.isInteger(parsedPage) && parsedPage >= 1 ? parsedPage : 1;
 
     // Reset page when switching tags (paginated mode only)
     const prevTagsRef = useRef(selectedTags);
@@ -40,6 +42,24 @@ export const useHomePagination = ({
 
     // Pagination logic
     const totalPages = Math.ceil(sortedVideos.length / itemsPerPage);
+
+    // Normalize invalid or out-of-range page params while preserving other
+    // query params (sort / seed). Fixes Home and /tags together.
+    useEffect(() => {
+        if (infiniteScroll) return;
+        const safeTotal = Math.max(totalPages, 1);
+        const isInvalidPageParam = pageParam != null && (
+            !Number.isInteger(parsedPage) ||
+            parsedPage < 1
+        );
+        if (isInvalidPageParam || page > safeTotal) {
+            setSearchParams((prev: URLSearchParams) => {
+                const newParams = new URLSearchParams(prev);
+                newParams.set('page', '1');
+                return newParams;
+            });
+        }
+    }, [infiniteScroll, page, pageParam, parsedPage, totalPages, setSearchParams]);
 
     // Get displayed videos based on mode (Only used for PAGINATION)
     const displayedVideos = useMemo(() => {

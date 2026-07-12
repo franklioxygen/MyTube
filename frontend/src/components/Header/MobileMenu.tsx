@@ -23,6 +23,7 @@ interface MobileMenuProps {
     availableTags?: string[];
     selectedTags?: string[];
     onTagToggle?: (tag: string) => void;
+    videos?: Array<{ tags?: string[] }>;
 }
 
 const MobileMenu: React.FC<MobileMenuProps> = ({
@@ -40,7 +41,8 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
     showTags = false,
     availableTags = [],
     selectedTags = [],
-    onTagToggle = () => { }
+    onTagToggle = () => { },
+    videos,
 }) => {
     const { t } = useLanguage();
     const { logout } = useAuth();
@@ -132,6 +134,9 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
                                     availableTags={availableTags}
                                     selectedTags={selectedTags}
                                     onTagToggle={onTagToggle}
+                                    onItemClick={onClose}
+                                    videos={videos}
+                                    linkToAllTags
                                 />
                             </Box>
                         )}
