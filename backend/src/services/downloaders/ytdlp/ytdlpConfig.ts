@@ -756,14 +756,21 @@ export function prepareAudioDownloadFlags(
   return { flags, audioExtension: normalizedFormat };
 }
 
-const AUDIO_ONLY_FORMAT_MARKERS = /\bbestaudio\b|\baudioonly\b/i;
-const VIDEO_FORMAT_MARKERS = /\bbestvideo\b|\bvcodec\b|\bheight\b|\bwidth\b/i;
+// yt-dlp audio-only selectors, including the documented aliases
+// (`ba`/`bestaudio`, `wa`/`worstaudio`) and the `vcodec=none` filter.
+// See https://github.com/yt-dlp/yt-dlp#format-selection
+const AUDIO_ONLY_FORMAT_MARKERS =
+  /\bbestaudio\b|\bworstaudio\b|\baudioonly\b|\bba(?:\b|\*)|\bwa(?:\b|\*)|vcodec\s*[=:!^$*~]*\s*none/i;
+// Video selectors, including `bv`/`bestvideo`, `wv`/`worstvideo`, resolution
+// filters, and the `acodec=none` (video-only stream) filter.
+const VIDEO_FORMAT_MARKERS =
+  /\bbestvideo\b|\bworstvideo\b|\bbv(?:\b|\*)|\bwv(?:\b|\*)|\bheight\b|\bwidth\b|acodec\s*[=:!^$*~]*\s*none/i;
 
 /**
  * True when a user/override yt-dlp config targets audio-only output (e.g.
- * `--format bestaudio` or `--extract-audio`). Used so subscription overrides
- * route through the audio download path instead of failing post-download video
- * resolution checks.
+ * `--format bestaudio`, `-f ba`, `-f wa`, `vcodec=none`, or `--extract-audio`).
+ * Used so subscription overrides route through the audio download path instead
+ * of failing post-download video resolution checks.
  */
 export function isAudioOnlyUserConfig(config: UserYtDlpConfig): boolean {
   if (config.extractAudio === true || config.x === true) {
@@ -775,7 +782,9 @@ export function isAudioOnlyUserConfig(config: UserYtDlpConfig): boolean {
     return false;
   }
 
-  if (VIDEO_FORMAT_MARKERS.test(format) || format.includes("+")) {
+  // Combined selectors (e.g. `bestvideo+bestaudio`) or video-preferred
+  // fallbacks mux to a video container, so they are not audio-only.
+  if (format.includes("+") || VIDEO_FORMAT_MARKERS.test(format)) {
     return false;
   }
 

@@ -246,6 +246,7 @@ async function checkTwitchSubscriptionWithYtDlp(
     const response = await getTwitchChannelVideos(normalizedUrl, {
       startIndex: pagesFetched * 100,
       limit: 100,
+      subscriptionYtdlpConfig: sub.ytdlpConfig,
     });
     pagesFetched += 1;
 

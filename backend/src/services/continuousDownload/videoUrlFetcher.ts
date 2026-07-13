@@ -193,7 +193,10 @@ export class VideoUrlFetcher {
           subscriptionYtdlpConfig
         );
       } else if (platform === "Twitch") {
-        return await this.getTwitchVideoUrls(authorUrl);
+        return await this.getTwitchVideoUrls(
+          authorUrl,
+          subscriptionYtdlpConfig
+        );
       } else {
         return await this.getYouTubeVideoUrlsIncremental(
           authorUrl,
@@ -226,7 +229,10 @@ export class VideoUrlFetcher {
           subscriptionYtdlpConfig
         );
       } else if (platform === "Twitch") {
-        return await this.getTwitchVideoUrls(authorUrl);
+        return await this.getTwitchVideoUrls(
+          authorUrl,
+          subscriptionYtdlpConfig
+        );
       } else {
         return await this.getYouTubeVideoUrls(
           authorUrl,
@@ -255,7 +261,10 @@ export class VideoUrlFetcher {
           subscriptionYtdlpConfig
         );
       } else if (platform === "Twitch") {
-        return await this.getTwitchVideoEntries(authorUrl);
+        return await this.getTwitchVideoEntries(
+          authorUrl,
+          subscriptionYtdlpConfig
+        );
       } else {
         return await this.getYouTubeVideoEntries(
           authorUrl,
@@ -543,7 +552,10 @@ export class VideoUrlFetcher {
     return entries;
   }
 
-  private async getTwitchVideoEntries(authorUrl: string): Promise<VideoEntry[]> {
+  private async getTwitchVideoEntries(
+    authorUrl: string,
+    subscriptionYtdlpConfig?: string | null
+  ): Promise<VideoEntry[]> {
     const { extractTwitchChannelLogin, normalizeTwitchChannelUrl } =
       await import("../../utils/helpers");
     const { getTwitchChannelVideos } = await import(
@@ -566,6 +578,7 @@ export class VideoUrlFetcher {
         const result = await getTwitchChannelVideos(normalizedUrl, {
           startIndex: page * 100,
           limit: 100,
+          subscriptionYtdlpConfig,
         });
 
         if (result.videos.length === 0) {
@@ -650,8 +663,14 @@ export class VideoUrlFetcher {
     return entries;
   }
 
-  private async getTwitchVideoUrls(authorUrl: string): Promise<string[]> {
-    const entries = await this.getTwitchVideoEntries(authorUrl);
+  private async getTwitchVideoUrls(
+    authorUrl: string,
+    subscriptionYtdlpConfig?: string | null
+  ): Promise<string[]> {
+    const entries = await this.getTwitchVideoEntries(
+      authorUrl,
+      subscriptionYtdlpConfig
+    );
     return entries.map((entry) => entry.url);
   }
 

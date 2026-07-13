@@ -446,6 +446,26 @@ describe("audio-only user config detection (issue #345)", () => {
     ).toBe(false);
   });
 
+  it("detects yt-dlp audio-only aliases (ba/wa) and vcodec=none", () => {
+    expect(isAudioOnlyUserConfig({ f: "ba" })).toBe(true);
+    expect(isAudioOnlyUserConfig({ f: "wa" })).toBe(true);
+    expect(isAudioOnlyUserConfig({ format: "ba/best" })).toBe(true);
+    expect(isAudioOnlyUserConfig({ format: "ba*" })).toBe(true);
+    expect(isAudioOnlyUserConfig({ format: "worstaudio" })).toBe(true);
+    expect(isAudioOnlyUserConfig({ format: "best[vcodec=none]" })).toBe(true);
+    expect(isAudioOnlyUserConfig({ format: "vcodec=none" })).toBe(true);
+  });
+
+  it("does not treat video-only aliases or unrelated tokens as audio-only", () => {
+    expect(isAudioOnlyUserConfig({ f: "bv" })).toBe(false);
+    expect(isAudioOnlyUserConfig({ f: "bv*+ba" })).toBe(false);
+    expect(isAudioOnlyUserConfig({ format: "worstvideo" })).toBe(false);
+    // Words containing "ba"/"wa" substrings must not match.
+    expect(isAudioOnlyUserConfig({ format: "bar" })).toBe(false);
+    // acodec=none selects a video-only stream.
+    expect(isAudioOnlyUserConfig({ format: "best[acodec=none]" })).toBe(false);
+  });
+
   it("detects extract-audio flags", () => {
     expect(isAudioOnlyUserConfig({ extractAudio: true })).toBe(true);
     expect(isAudioOnlyUserConfig({ x: true })).toBe(true);
