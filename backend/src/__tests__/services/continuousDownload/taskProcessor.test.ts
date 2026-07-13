@@ -77,7 +77,7 @@ describe('TaskProcessor', () => {
 
     await taskProcessor.processTask({ ...mockTask });
 
-    expect(mockVideoUrlFetcher.getAllVideoUrls).toHaveBeenCalledWith(mockTask.authorUrl, mockTask.platform);
+    expect(mockVideoUrlFetcher.getAllVideoUrls).toHaveBeenCalledWith(mockTask.authorUrl, mockTask.platform, null);
     expect(mockTaskRepository.updateTotalVideos).toHaveBeenCalledWith(mockTask.id, 2);
     expect(downloadService.downloadYouTubeVideo).toHaveBeenCalledTimes(2);
     expect(mockTaskRepository.getTaskStatus).toHaveBeenCalledTimes(1);
@@ -139,13 +139,15 @@ describe('TaskProcessor', () => {
 
     expect(downloadService.downloadYouTubeVideo).toHaveBeenCalledWith(
       'http://vid1',
-      expect.any(String),
-      undefined,
       expect.objectContaining({
-        sourceCustomName: 'Test Author',
-        sourceCollectionName: 'Travel Playlist',
-        sourceCollectionType: 'playlist',
-        mediaPlaylistIndex: 1,
+        downloadId: expect.any(String),
+        subscriptionYtdlpConfig: null,
+        filenameTemplateSourceOptions: expect.objectContaining({
+          sourceCustomName: 'Test Author',
+          sourceCollectionName: 'Travel Playlist',
+          sourceCollectionType: 'playlist',
+          mediaPlaylistIndex: 1,
+        }),
       })
     );
   });
@@ -188,14 +190,16 @@ describe('TaskProcessor', () => {
     );
     expect(downloadService.downloadYouTubeVideo).toHaveBeenCalledWith(
       'http://vid1',
-      expect.any(String),
-      undefined,
       expect.objectContaining({
-        sourceCustomName: 'Test Author',
-        sourceCollectionName: 'Travel Playlist',
-        sourceCollectionId: 'PL123',
-        sourceCollectionType: 'playlist',
-        mediaPlaylistIndex: 1,
+        downloadId: expect.any(String),
+        subscriptionYtdlpConfig: null,
+        filenameTemplateSourceOptions: expect.objectContaining({
+          sourceCustomName: 'Test Author',
+          sourceCollectionName: 'Travel Playlist',
+          sourceCollectionId: 'PL123',
+          sourceCollectionType: 'playlist',
+          mediaPlaylistIndex: 1,
+        }),
       })
     );
   });
@@ -238,13 +242,15 @@ describe('TaskProcessor', () => {
     );
     expect(downloadService.downloadYouTubeVideo).toHaveBeenCalledWith(
       'http://short1',
-      expect.any(String),
-      undefined,
       expect.objectContaining({
-        sourceCustomName: 'Test Author',
-        sourceCollectionName: 'Test Author',
-        sourceCollectionType: 'channel',
-        mediaPlaylistIndex: 1,
+        downloadId: expect.any(String),
+        subscriptionYtdlpConfig: null,
+        filenameTemplateSourceOptions: expect.objectContaining({
+          sourceCustomName: 'Test Author',
+          sourceCollectionName: 'Test Author',
+          sourceCollectionType: 'channel',
+          mediaPlaylistIndex: 1,
+        }),
       })
     );
   });

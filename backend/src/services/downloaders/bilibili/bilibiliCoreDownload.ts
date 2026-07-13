@@ -17,8 +17,8 @@ import {
   executeYtDlpJson,
   executeYtDlpSpawn,
   getAxiosProxyConfig,
+  getEffectiveUserYtDlpConfig,
   getNetworkConfigFromUserConfig,
-  getUserYtDlpConfig,
   InvalidProxyError,
 } from "../../../utils/ytDlpUtils";
 import * as storageService from "../../storageService";
@@ -27,6 +27,7 @@ import {
   resolveResolutionPreference,
   resolveResolutionRetryTarget,
 } from "./bilibiliConfig";
+import { resolveDownloadAudioMode } from "../ytdlp/ytdlpConfig";
 import {
   cleanupFilesOnCancellation,
   cleanupTempDir,
@@ -105,8 +106,18 @@ export async function downloadVideo(
   try {
     logger.info("Downloading Bilibili video using yt-dlp to:", tempDir);
 
-    // Get video info first
-    const userConfig = getUserYtDlpConfig(url);
+    // Get video info first. Layer any per-subscription override on top of the
+    // global config (issue #345).
+    const userConfig = getEffectiveUserYtDlpConfig(
+      url,
+      modeOptions?.subscriptionYtdlpConfig
+    );
+    const { audioOnly: effectiveAudioOnly, audioFormat: effectiveAudioFormat } =
+      resolveDownloadAudioMode({
+        explicitAudioOnly: modeOptions?.audioOnly,
+        explicitAudioFormat: modeOptions?.audioFormat,
+        userConfig,
+      });
     const networkConfig = getNetworkConfigFromUserConfig(userConfig);
 
     const info = await executeYtDlpJson(url, {
@@ -209,8 +220,11 @@ export async function downloadVideo(
       outputTemplate,
       {
         ...(retryFloorHeight != null ? { retryFloorHeight } : {}),
-        audioOnly: modeOptions?.audioOnly,
-        audioFormat: modeOptions?.audioFormat,
+        audioOnly: effectiveAudioOnly,
+        audioFormat: effectiveAudioFormat,
+        // Reuse the effective (global + subscription override) config so the
+        // Bilibili resolution picker short-circuits on a sub-supplied format.
+        userConfig,
       }
     );
 
@@ -318,7 +332,7 @@ export async function downloadVideo(
     // as the item for a normal video download.
     const videoFile = findVideoFileInTemp(
       tempDir,
-      Boolean(modeOptions?.audioOnly)
+      effectiveAudioOnly
     );
 
     // If there was a download error and no file was found, throw the error
@@ -402,7 +416,7 @@ export async function downloadVideo(
     if (retryFloorHeight === undefined) {
       let retryTarget: number | null = null;
       try {
-        const preference = modeOptions?.audioOnly
+        const preference = effectiveAudioOnly
           ? { height: null, strict: false }
           : resolveResolutionPreference();
         if (preference.height != null) {

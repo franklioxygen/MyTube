@@ -7,8 +7,8 @@ import { logger } from "../../../utils/logger";
 import { clampLimit } from "../../../utils/paramUtils";
 import {
   executeYtDlpJson,
+  getEffectiveUserYtDlpConfig,
   getNetworkConfigFromUserConfig,
-  getUserYtDlpConfig,
 } from "../../../utils/ytDlpUtils";
 
 export interface TwitchYtDlpVideoEntry {
@@ -26,6 +26,10 @@ type GetTwitchChannelVideosOptions = {
   startIndex?: number;
   limit?: number;
   flatPlaylist?: boolean;
+  // Per-subscription yt-dlp override (issue #345). When set, the proxy/cookies/
+  // rate-limit settings needed to enumerate a channel's VODs are layered on top
+  // of the global config for the listing call, not just the eventual download.
+  subscriptionYtdlpConfig?: string | null;
 };
 
 type TwitchYtDlpChannelResult = {
@@ -120,7 +124,10 @@ export async function getTwitchChannelVideos(
   const startIndex = Math.max(options.startIndex ?? 0, 0);
   const limit = clampLimit(options.limit, 20, 100);
   const targetUrl = buildTwitchVideosUrl(channelUrl);
-  const userConfig = getUserYtDlpConfig(targetUrl);
+  const userConfig = getEffectiveUserYtDlpConfig(
+    targetUrl,
+    options.subscriptionYtdlpConfig
+  );
   const networkConfig = getNetworkConfigFromUserConfig(userConfig);
 
   logger.info("Fetching Twitch channel videos via yt-dlp", {

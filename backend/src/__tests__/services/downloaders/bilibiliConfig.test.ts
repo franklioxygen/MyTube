@@ -460,6 +460,48 @@ describe('prepareBilibiliDownloadFlags', () => {
       expect(result.flags.format).not.toMatch(/\/best$/);
     });
   });
+
+  describe('audio-only mode (issue #345)', () => {
+    it('uses the default best-audio selector when the config has no format', () => {
+      const result = prepareBilibiliDownloadFlags(TEST_URL, TEST_OUTPUT, {
+        audioOnly: true,
+        userConfig: {},
+      });
+
+      expect(result.flags.format).toBe('bestaudio[ext=m4a]/bestaudio/best');
+      expect(result.flags.extractAudio).toBe(true);
+    });
+
+    it('preserves an exact audio-only format override instead of forcing bestaudio', () => {
+      const result = prepareBilibiliDownloadFlags(TEST_URL, TEST_OUTPUT, {
+        audioOnly: true,
+        userConfig: { format: 'worstaudio' },
+      });
+
+      expect(result.flags.format).toBe('worstaudio');
+      expect(result.flags.extractAudio).toBe(true);
+    });
+
+    it('preserves a filtered audio-only selector from the short flag', () => {
+      const result = prepareBilibiliDownloadFlags(TEST_URL, TEST_OUTPUT, {
+        audioOnly: true,
+        userConfig: { f: 'bestaudio[abr<=64]' },
+      });
+
+      expect(result.flags.format).toBe('bestaudio[abr<=64]');
+    });
+
+    it('falls back to best audio when audio mode came from --extract-audio with a video format', () => {
+      // e.g. `-x` plus a video-capable selector: the selector is not audio-only,
+      // so the safe default is used rather than downloading video streams.
+      const result = prepareBilibiliDownloadFlags(TEST_URL, TEST_OUTPUT, {
+        audioOnly: true,
+        userConfig: { x: true, format: 'bestvideo+bestaudio' },
+      });
+
+      expect(result.flags.format).toBe('bestaudio[ext=m4a]/bestaudio/best');
+    });
+  });
 });
 
 describe('resolveResolutionRetryTarget', () => {

@@ -21,6 +21,7 @@ import {
   executeYtDlpSpawn,
   getAxiosProxyConfig,
   getChannelUrlFromVideo,
+  getEffectiveUserYtDlpConfig,
   getNetworkConfigFromUserConfig,
   getUserYtDlpConfig,
   InvalidProxyError,
@@ -41,10 +42,10 @@ import { Video } from "../../storageService";
 import { deleteSmallThumbnailMirrorSync } from "../../thumbnailMirrorService";
 import { twitchApiService } from "../../twitchService";
 import { BaseDownloader, DownloadModeOptions } from "../BaseDownloader";
-import { normalizeAudioFormat } from "../../../types/settings";
 import {
   prepareAudioDownloadFlags,
   prepareDownloadFlags,
+  resolveDownloadAudioMode,
 } from "./ytdlpConfig";
 import { getProviderScript } from "./ytdlpHelpers";
 import { extractVideoMetadata } from "./ytdlpMetadata";
@@ -76,8 +77,16 @@ export async function downloadVideo(
   const downloadId = options.downloadId;
   const onStart = options.onStart;
   const filenameTemplateSourceOptions = options.filenameTemplateSourceOptions;
-  const audioOnly = options.audioOnly === true;
-  const audioFormat = normalizeAudioFormat(options.audioFormat);
+  const subscriptionYtdlpConfig = options.subscriptionYtdlpConfig;
+  const effectiveUserConfig = getEffectiveUserYtDlpConfig(
+    videoUrl,
+    subscriptionYtdlpConfig
+  );
+  const { audioOnly, audioFormat } = resolveDownloadAudioMode({
+    explicitAudioOnly: options.audioOnly,
+    explicitAudioFormat: options.audioFormat,
+    userConfig: effectiveUserConfig,
+  });
   logger.info("Detected URL:", videoUrl);
 
   // Create a safe base filename (without extension)
@@ -114,8 +123,9 @@ export async function downloadVideo(
   try {
     const PROVIDER_SCRIPT = getProviderScript();
 
-    // Get user's yt-dlp configuration for network options (including proxy)
-    const userConfig = getUserYtDlpConfig(videoUrl);
+    // Get user's yt-dlp configuration for network options (including proxy),
+    // layering any per-subscription override on top of the global config (#345).
+    const userConfig = effectiveUserConfig;
     const networkConfig = getNetworkConfigFromUserConfig(userConfig);
 
     // Get video info first

@@ -38,6 +38,7 @@ vi.mock("../../services/subscriptionService", () => ({
     pauseSubscription: vi.fn(),
     resumeSubscription: vi.fn(),
     updateSubscriptionSettings: vi.fn(),
+    getSubscriptionById: vi.fn(),
     subscribePlaylist: vi.fn(),
     subscribeChannelPlaylistsWatcher: vi.fn(),
   },
@@ -130,7 +131,8 @@ describe("SubscriptionController", () => {
         "https://www.youtube.com/@testuser",
         60,
         undefined,
-        true
+        true,
+        null
       );
       expect(status).toHaveBeenCalledWith(201);
       expect(json).toHaveBeenCalledWith(mockSubscription);
@@ -308,6 +310,79 @@ describe("SubscriptionController", () => {
       expect(json).toHaveBeenCalledWith(mockSubscriptions);
     });
 
+    it("should redact ytdlp config overrides for visitor subscription reads", async () => {
+      req.user = { role: "visitor" } as any;
+      (subscriptionService.listSubscriptions as any).mockResolvedValue([
+        {
+          id: "sub-1",
+          author: "private-channel",
+          interval: 60,
+          ytdlpConfig: "--proxy http://user:pass@example.test:8080",
+        },
+      ]);
+
+      await getSubscriptions(req as Request, res as Response);
+
+      expect(json).toHaveBeenCalledWith([
+        {
+          id: "sub-1",
+          author: "private-channel",
+          interval: 60,
+        },
+      ]);
+    });
+
+    it("should return ytdlp config overrides for trusted admin subscription reads", async () => {
+      req.user = { role: "admin" } as any;
+      const mockSubscriptions = [
+        {
+          id: "sub-1",
+          author: "private-channel",
+          interval: 60,
+          ytdlpConfig: "--cookies /config/cookies.txt",
+        },
+      ];
+      (subscriptionService.listSubscriptions as any).mockResolvedValue(
+        mockSubscriptions
+      );
+
+      await getSubscriptions(req as Request, res as Response);
+
+      expect(json).toHaveBeenCalledWith(mockSubscriptions);
+    });
+
+    it("should redact ytdlp config overrides when container trust is disabled", async () => {
+      const originalTrustLevel = process.env.MYTUBE_ADMIN_TRUST_LEVEL;
+      process.env.MYTUBE_ADMIN_TRUST_LEVEL = "application";
+      req.user = { role: "admin" } as any;
+      (subscriptionService.listSubscriptions as any).mockResolvedValue([
+        {
+          id: "sub-1",
+          author: "private-channel",
+          interval: 60,
+          ytdlpConfig: "--username secret-user",
+        },
+      ]);
+
+      try {
+        await getSubscriptions(req as Request, res as Response);
+      } finally {
+        if (originalTrustLevel === undefined) {
+          delete process.env.MYTUBE_ADMIN_TRUST_LEVEL;
+        } else {
+          process.env.MYTUBE_ADMIN_TRUST_LEVEL = originalTrustLevel;
+        }
+      }
+
+      expect(json).toHaveBeenCalledWith([
+        {
+          id: "sub-1",
+          author: "private-channel",
+          interval: 60,
+        },
+      ]);
+    });
+
     it("should delete/pause/resume subscription", async () => {
       req.params = { id: "sub-123" };
 
@@ -376,6 +451,64 @@ describe("SubscriptionController", () => {
         { interval: 45, retentionDays: 14 }
       );
       expect(status).toHaveBeenCalledWith(200);
+    });
+
+    it("should update per-subscription ytdlp config override", async () => {
+      req.params = { id: "sub-123" };
+      req.body = { ytdlpConfig: "-f bestaudio" };
+      (subscriptionService.getSubscriptionById as any).mockResolvedValue({
+        id: "sub-123",
+        ytdlpConfig: null,
+      });
+
+      await updateSubscription(req as Request, res as Response);
+
+      expect(subscriptionService.updateSubscriptionSettings).toHaveBeenCalledWith(
+        "sub-123",
+        { ytdlpConfig: "-f bestaudio" }
+      );
+      expect(status).toHaveBeenCalledWith(200);
+    });
+
+    it("should clear the ytdlp config override when passed an empty string", async () => {
+      req.params = { id: "sub-123" };
+      req.body = { ytdlpConfig: "   " };
+      (subscriptionService.getSubscriptionById as any).mockResolvedValue({
+        id: "sub-123",
+        ytdlpConfig: "-f bestaudio",
+      });
+
+      await updateSubscription(req as Request, res as Response);
+
+      expect(subscriptionService.updateSubscriptionSettings).toHaveBeenCalledWith(
+        "sub-123",
+        { ytdlpConfig: null }
+      );
+      expect(status).toHaveBeenCalledWith(200);
+    });
+
+    it("should no-op an unchanged ytdlp config override without a DB write", async () => {
+      req.params = { id: "sub-123" };
+      req.body = { ytdlpConfig: "-f bestaudio" };
+      (subscriptionService.getSubscriptionById as any).mockResolvedValue({
+        id: "sub-123",
+        ytdlpConfig: "-f bestaudio",
+      });
+
+      await updateSubscription(req as Request, res as Response);
+
+      expect(subscriptionService.updateSubscriptionSettings).not.toHaveBeenCalled();
+      expect(status).toHaveBeenCalledWith(200);
+    });
+
+    it("should reject an over-length ytdlp config override", async () => {
+      req.params = { id: "sub-123" };
+      req.body = { ytdlpConfig: "x".repeat(4097) };
+
+      await expect(
+        updateSubscription(req as Request, res as Response)
+      ).rejects.toThrow(ValidationError);
+      expect(subscriptionService.updateSubscriptionSettings).not.toHaveBeenCalled();
     });
 
     it("should reject invalid subscription interval updates", async () => {

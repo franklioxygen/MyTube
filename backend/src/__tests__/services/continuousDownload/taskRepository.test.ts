@@ -200,20 +200,6 @@ describe('TaskRepository', () => {
   describe('getSubscriptionForTask', () => {
     const subRow = { id: 'sub-1', author: 'Test Author', subscriptionType: 'author' };
 
-    it('resolves playlist tasks by collectionId first', async () => {
-      const byCollection = createMockQueryBuilder([subRow]);
-      (db.select as any).mockReturnValueOnce(byCollection);
-
-      const result = await taskRepository.getSubscriptionForTask({
-        collectionId: 'col-1',
-        subscriptionId: undefined,
-        authorUrl: 'https://youtube.com/playlist?list=PL123',
-      });
-
-      expect(result).toEqual(subRow);
-      expect(db.select).toHaveBeenCalledTimes(1);
-    });
-
     it('resolves channel tasks by subscriptionId when there is no collection (Shorts bulk task)', async () => {
       // The Shorts bulk task appends "/shorts" to the channel URL, so the
       // authorUrl lookup can never match; the subscriptionId lookup must win.
@@ -230,17 +216,35 @@ describe('TaskRepository', () => {
       expect(db.select).toHaveBeenCalledTimes(1);
     });
 
-    it('falls back to authorUrl when collection and subscription lookups miss', async () => {
-      const byCollection = createMockQueryBuilder([]);
-      const bySubscriptionId = createMockQueryBuilder([]);
+    it('resolves playlist tasks by authorUrl before consulting a shared collection', async () => {
+      // Playlist backfill tasks carry only a collectionId, which two playlist
+      // subscriptions can share. Matching the task URL first avoids applying the
+      // wrong subscription's yt-dlp override, so the collection is never queried
+      // when the authorUrl uniquely identifies the subscription (issue #345).
       const byAuthorUrl = createMockQueryBuilder([subRow]);
-      (db.select as any)
-        .mockReturnValueOnce(byCollection)
-        .mockReturnValueOnce(bySubscriptionId)
-        .mockReturnValueOnce(byAuthorUrl);
+      (db.select as any).mockReturnValueOnce(byAuthorUrl);
 
       const result = await taskRepository.getSubscriptionForTask({
-        collectionId: 'col-gone',
+        collectionId: 'shared-col',
+        subscriptionId: undefined,
+        authorUrl: 'https://youtube.com/playlist?list=PL123',
+      });
+
+      expect(result).toEqual(subRow);
+      expect(db.select).toHaveBeenCalledTimes(1);
+    });
+
+    it('falls back to collectionId only when subscription and authorUrl lookups miss', async () => {
+      const bySubscriptionId = createMockQueryBuilder([]);
+      const byAuthorUrl = createMockQueryBuilder([]);
+      const byCollection = createMockQueryBuilder([subRow]);
+      (db.select as any)
+        .mockReturnValueOnce(bySubscriptionId)
+        .mockReturnValueOnce(byAuthorUrl)
+        .mockReturnValueOnce(byCollection);
+
+      const result = await taskRepository.getSubscriptionForTask({
+        collectionId: 'col-1',
         subscriptionId: 'sub-gone',
         authorUrl: 'https://youtube.com/channel/test',
       });

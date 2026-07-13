@@ -51,6 +51,28 @@ export class ContinuousDownloadService {
     return ContinuousDownloadService.instance;
   }
 
+  /**
+   * Resolve the per-subscription yt-dlp override for a task (issue #345).
+   * Returns null when the task has no resolvable subscription, so callers see
+   * identical behaviour to the global-config-only path. Failures are logged and
+   * treated as "no override" so listing still proceeds with the global config.
+   */
+  private async resolveSubscriptionYtdlpConfig(
+    task: ContinuousDownloadTask
+  ): Promise<string | null> {
+    try {
+      const subscription =
+        await this.taskRepository.getSubscriptionForTask(task);
+      return subscription?.ytdlpConfig ?? null;
+    } catch (error) {
+      logger.warn(
+        `Unable to resolve subscription yt-dlp override for task ${task.id}; using global config`,
+        error instanceof Error ? error : new Error(String(error))
+      );
+      return null;
+    }
+  }
+
   private getFrozenListsRoot(): string {
     return resolveSafePath(FROZEN_LISTS_DIR, DATA_DIR);
   }
@@ -243,11 +265,14 @@ export class ContinuousDownloadService {
         const isPlaylist = playlistRegex.test(task.authorUrl);
         if (task.platform === "YouTube" && isPlaylist) {
           try {
+            const subscriptionYtdlpConfig =
+              await this.resolveSubscriptionYtdlpConfig(task);
             taskVideoUrls = await this.videoUrlFetcher.getVideoUrlsIncremental(
               task.authorUrl,
               task.platform,
               0,
-              200
+              200,
+              subscriptionYtdlpConfig
             );
           } catch (err) {
             logger.debug(
@@ -429,9 +454,18 @@ export class ContinuousDownloadService {
         }
 
         if (!cachedVideoUrls) {
-          // Fetch, sort, and freeze
+          // Fetch, sort, and freeze. Resolve the per-subscription yt-dlp
+          // override first so proxy/rate-limit overrides needed to enumerate
+          // the source apply to this listing probe, not just the eventual
+          // per-video download (issue #345).
+          const subscriptionYtdlpConfig =
+            await this.resolveSubscriptionYtdlpConfig(task);
           logger.info(`Fetching video entries for task ${taskId} (order: ${effectiveOrder})`);
-          const entries = await this.videoUrlFetcher.getAllVideoEntries(task.authorUrl, task.platform);
+          const entries = await this.videoUrlFetcher.getAllVideoEntries(
+            task.authorUrl,
+            task.platform,
+            subscriptionYtdlpConfig
+          );
           const sorted = sortVideoEntries(entries, effectiveOrder);
           cachedVideoUrls = sorted.map((e) => e.url);
 

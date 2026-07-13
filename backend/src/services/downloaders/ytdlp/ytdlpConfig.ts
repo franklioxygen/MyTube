@@ -737,11 +737,27 @@ export function prepareAudioDownloadFlags(
   const config = (userConfig || getUserYtDlpConfig(videoUrl) || {}) as UserYtDlpConfig;
   const { safeUserConfig, networkOptions } = extractUserConfigOptions(config);
   const normalizedFormat = normalizeAudioFormat(audioFormat);
+
+  // Honor an explicit audio-only selector (e.g. `wa`, `worstaudio`,
+  // `bestaudio[abr<=64]`) so per-subscription quality/filter overrides are not
+  // silently replaced with the default best-audio selector. Fall back to
+  // `bestaudio/best` only when the audio-only mode came from `--extract-audio`
+  // or the UI audio toggle with no audio format selector (issue #345).
+  const formatSelector =
+    typeof config.f === "string" && config.f.trim()
+      ? config.f.trim()
+      : typeof config.format === "string" && config.format.trim()
+        ? config.format.trim()
+        : "";
+  const format = isAudioOnlyFormatSelector(formatSelector)
+    ? formatSelector
+    : "bestaudio/best";
+
   const flags: YtDlpFlags = {
     ...safeUserConfig,
     ...networkOptions,
     output: outputPath,
-    format: "bestaudio/best",
+    format,
     extractAudio: true,
     audioFormat: normalizedFormat,
     audioQuality: 0,
@@ -754,4 +770,95 @@ export function prepareAudioDownloadFlags(
   logProxyPreservation(flags, config);
 
   return { flags, audioExtension: normalizedFormat };
+}
+
+// Strictly audio-only selectors: the exact aliases `ba`/`bestaudio`,
+// `wa`/`worstaudio`, and the `vcodec=none` equality filter. The `*` variants
+// (`ba*`/`wa*`) and negated filters (`vcodec!=none`) are intentionally excluded
+// because yt-dlp documents them as formats that may still contain video.
+// See https://github.com/yt-dlp/yt-dlp#format-selection
+// The `\s*=\s*none` fragment matches only the `=` equality operator, so
+// negated filters like `vcodec!=none` are excluded (the `!` breaks the match).
+const AUDIO_ONLY_FORMAT_MARKERS =
+  /\bbestaudio\b|\bworstaudio\b|\baudioonly\b|\bba(?![\w*])|\bwa(?![\w*])|vcodec\s*=\s*none/i;
+// Video selectors, including `bv`/`bestvideo`, `wv`/`worstvideo`, resolution
+// filters, and the `acodec=none` (video-only stream) equality filter.
+const VIDEO_FORMAT_MARKERS =
+  /\bbestvideo\b|\bworstvideo\b|\bbv(?![\w])|\bwv(?![\w])|\bheight\b|\bwidth\b|acodec\s*=\s*none/i;
+
+/**
+ * True when a yt-dlp `--format` selector string targets audio-only output.
+ * Combined selectors (`bestvideo+bestaudio`) and video-preferred fallbacks mux
+ * to a video container, so they are not audio-only.
+ */
+export function isAudioOnlyFormatSelector(format: string): boolean {
+  if (typeof format !== "string" || !format.trim()) {
+    return false;
+  }
+
+  if (format.includes("+") || VIDEO_FORMAT_MARKERS.test(format)) {
+    return false;
+  }
+
+  return AUDIO_ONLY_FORMAT_MARKERS.test(format);
+}
+
+/**
+ * True when a user/override yt-dlp config targets audio-only output (e.g.
+ * `--format bestaudio`, `-f ba`, `-f wa`, `[vcodec=none]`, or `--extract-audio`).
+ * Used so subscription overrides route through the audio download path instead
+ * of failing post-download video resolution checks. Selectors that may still
+ * carry video (`ba*`, `wa*`, `vcodec!=none`) are deliberately not treated as
+ * audio-only so the user's requested format is preserved.
+ */
+export function isAudioOnlyUserConfig(config: UserYtDlpConfig): boolean {
+  if (config.extractAudio === true || config.x === true) {
+    return true;
+  }
+
+  const format = config.f || config.format;
+  if (typeof format !== "string") {
+    return false;
+  }
+
+  return isAudioOnlyFormatSelector(format);
+}
+
+export function inferAudioFormatFromUserConfig(
+  config: UserYtDlpConfig,
+): AudioFormat {
+  if (config.audioFormat) {
+    return normalizeAudioFormat(config.audioFormat);
+  }
+
+  const format = String(config.f || config.format || "");
+  const extMatch = format.match(/\[ext=([a-z0-9]+)\]/i);
+  if (extMatch) {
+    return normalizeAudioFormat(extMatch[1]);
+  }
+
+  return "m4a";
+}
+
+export function resolveDownloadAudioMode(args: {
+  explicitAudioOnly?: boolean;
+  explicitAudioFormat?: unknown;
+  userConfig?: UserYtDlpConfig;
+}): { audioOnly: boolean; audioFormat: AudioFormat } {
+  const explicitAudioOnly = args.explicitAudioOnly === true;
+  const explicitAudioFormat = normalizeAudioFormat(args.explicitAudioFormat);
+  const userConfig = args.userConfig ?? {};
+
+  if (explicitAudioOnly) {
+    return { audioOnly: true, audioFormat: explicitAudioFormat };
+  }
+
+  if (isAudioOnlyUserConfig(userConfig)) {
+    return {
+      audioOnly: true,
+      audioFormat: inferAudioFormatFromUserConfig(userConfig),
+    };
+  }
+
+  return { audioOnly: false, audioFormat: explicitAudioFormat };
 }

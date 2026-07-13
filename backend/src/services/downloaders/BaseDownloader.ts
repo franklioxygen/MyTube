@@ -34,6 +34,9 @@ export interface DownloadModeOptions {
   filenameTemplateSourceOptions?: import("../filenameTemplate/types").FilenameTemplateSourceOptions;
   audioOnly?: boolean;
   audioFormat?: AudioFormat;
+  // Per-subscription yt-dlp config override (issue #345). Raw free-text snippet
+  // from subscriptions.ytdlp_config; null/undefined = use the global config.
+  subscriptionYtdlpConfig?: string | null;
 }
 
 export interface DownloadOptions extends DownloadModeOptions {

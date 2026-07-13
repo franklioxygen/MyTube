@@ -994,6 +994,14 @@ export const zh = {
   retentionDaysUpdated: "保留策略已更新",
   retentionDaysUpdateFailed: "保留策略更新失败",
 
+  // Per-subscription yt-dlp config override (issue #345)
+  editYtdlpConfigOverride: "编辑 yt-dlp 配置覆盖",
+  ytdlpConfigOverrideHelp:
+    "仅应用于此订阅的自由文本 yt-dlp 选项（例如，纯音频频道使用 --format bestaudio）。留空则使用全局 yt-dlp 配置。此处设置的选项会覆盖全局配置；未填写的项（代理、限速等）将从全局配置继承。",
+  ytdlpConfigOverridePlaceholder: "--format bestaudio",
+  ytdlpConfigOverrideUpdated: "yt-dlp 覆盖已更新",
+  ytdlpConfigOverrideUpdateFailed: "更新 yt-dlp 覆盖失败",
+
   // Subscription Pause/Resume
   pause: "暂停",
   resume: "恢复",

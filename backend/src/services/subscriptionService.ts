@@ -74,7 +74,8 @@ export class SubscriptionService {
     authorUrl: string,
     interval: number,
     providedAuthorName?: string,
-    downloadShorts: boolean = false
+    downloadShorts: boolean = false,
+    ytdlpConfig?: string | null
   ): Promise<Subscription> {
     // Detect platform and validate URL
     let platform: string;
@@ -151,6 +152,10 @@ export class SubscriptionService {
         const fallbackResult = await getTwitchChannelVideos(authorUrl, {
           startIndex: 0,
           limit: 20,
+          // Apply the (about-to-be-saved) override to the initial probe too, so
+          // subscribing works when the override carries the proxy/cookies needed
+          // to list the channel (issue #345).
+          subscriptionYtdlpConfig: ytdlpConfig ?? null,
         });
         const newestVideo = fallbackResult.videos[0];
 
@@ -199,6 +204,7 @@ export class SubscriptionService {
       twitchBroadcasterId,
       twitchBroadcasterLogin,
       lastTwitchVideoId,
+      ytdlpConfig: ytdlpConfig ?? null,
     };
 
     await db.insert(subscriptions).values(newSubscription);
@@ -381,7 +387,11 @@ export class SubscriptionService {
 
   async updateSubscriptionSettings(
     id: string,
-    updates: { interval?: number; retentionDays?: number | null }
+    updates: {
+      interval?: number;
+      retentionDays?: number | null;
+      ytdlpConfig?: string | null;
+    }
   ): Promise<void> {
     if (Object.keys(updates).length === 0) {
       throw new ValidationError(
@@ -436,6 +446,17 @@ export class SubscriptionService {
     // @ts-ignore - Drizzle type inference might be tricky with raw select sometimes, but this should be fine.
     // Actually, db.select().from(subscriptions) returns the inferred type.
     return await db.select().from(subscriptions);
+  }
+
+  async getSubscriptionById(id: string): Promise<Subscription | null> {
+    const rows = await db
+      .select()
+      .from(subscriptions)
+      .where(eq(subscriptions.id, id))
+      .limit(1);
+    // @ts-ignore - Drizzle infers `string | null` for nullable columns while the
+    // Subscription interface uses `string | undefined`; same shim as listSubscriptions.
+    return rows[0] ?? null;
   }
 
   // Update durable subscription counters in-band with the statistics event so
@@ -568,9 +589,14 @@ export class SubscriptionService {
       const latestVideoUrl = isPlaylistSubscription
         ? await this.getLatestPlaylistVideoUrl(
             sub.authorUrl,
-            sub.platform
+            sub.platform,
+            sub.ytdlpConfig
           )
-        : await this.getLatestVideoUrl(sub.authorUrl, sub.platform);
+        : await this.getLatestVideoUrl(
+            sub.authorUrl,
+            sub.platform,
+            sub.ytdlpConfig
+          );
 
       if (latestVideoUrl && latestVideoUrl !== sub.lastVideoLink) {
         logger.info(
@@ -781,7 +807,8 @@ export class SubscriptionService {
 
         try {
           const latestShortUrl = await YtDlpDownloader.getLatestShortsUrl(
-            sub.authorUrl
+            sub.authorUrl,
+            sub.ytdlpConfig
           );
 
         if (latestShortUrl && latestShortUrl !== sub.lastShortVideoLink) {
@@ -964,14 +991,16 @@ export class SubscriptionService {
               downloadTaskId,
               registerCancel,
               undefined,
-              buildFilenameTemplateSourceOptions(sub)
+              buildFilenameTemplateSourceOptions(sub),
+              { subscriptionYtdlpConfig: sub.ytdlpConfig }
             )
-          : downloadYouTubeVideo(
-              videoUrl,
-              downloadTaskId,
-              registerCancel,
-              buildFilenameTemplateSourceOptions(sub)
-            ),
+          : downloadYouTubeVideo(videoUrl, {
+              downloadId: downloadTaskId,
+              onStart: registerCancel,
+              filenameTemplateSourceOptions:
+                buildFilenameTemplateSourceOptions(sub),
+              subscriptionYtdlpConfig: sub.ytdlpConfig,
+            }),
       downloadTaskId,
       initialTitle,
       videoUrl,
@@ -1026,14 +1055,21 @@ export class SubscriptionService {
   // Helper to get latest video URL based on platform
   private async getLatestVideoUrl(
     channelUrl: string,
-    platform?: string
+    platform?: string,
+    subscriptionYtdlpConfig?: string | null
   ): Promise<string | null> {
     if (platform === "Bilibili" || isBilibiliSpaceUrl(channelUrl)) {
-      return await BilibiliDownloader.getLatestVideoUrl(channelUrl);
+      return await BilibiliDownloader.getLatestVideoUrl(
+        channelUrl,
+        subscriptionYtdlpConfig
+      );
     }
 
     // Default to YouTube/yt-dlp
-    return await YtDlpDownloader.getLatestVideoUrl(channelUrl);
+    return await YtDlpDownloader.getLatestVideoUrl(
+      channelUrl,
+      subscriptionYtdlpConfig
+    );
   }
 
   /**
@@ -1042,15 +1078,22 @@ export class SubscriptionService {
    */
   private async getLatestPlaylistVideoUrl(
     playlistUrl: string,
-    platform?: string
+    platform?: string,
+    subscriptionYtdlpConfig?: string | null
   ): Promise<string | null> {
     try {
       const {
         executeYtDlpJson,
         getNetworkConfigFromUserConfig,
-        getUserYtDlpConfig,
+        getEffectiveUserYtDlpConfig,
       } = await import("../utils/ytDlpUtils");
-      const userConfig = getUserYtDlpConfig(playlistUrl);
+      // Layer any per-subscription override on top of the global config (#345)
+      // so proxy/rate-limit overrides needed to enumerate the playlist apply to
+      // the scheduled probe, not just the eventual download.
+      const userConfig = getEffectiveUserYtDlpConfig(
+        playlistUrl,
+        subscriptionYtdlpConfig
+      );
       const networkConfig = getNetworkConfigFromUserConfig(userConfig);
 
       // Get the first video from the playlist

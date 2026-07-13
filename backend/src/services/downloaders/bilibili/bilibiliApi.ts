@@ -2,6 +2,7 @@ import axios from "axios";
 import { logger } from "../../../utils/logger";
 import {
   executeYtDlpJson,
+  getEffectiveUserYtDlpConfig,
   getNetworkConfigFromUserConfig,
   getUserYtDlpConfig,
 } from "../../../utils/ytDlpUtils";
@@ -107,7 +108,8 @@ export async function getAuthorInfo(mid: string): Promise<{
  * Get the latest video URL from a Bilibili author's space
  */
 export async function getLatestVideoUrl(
-  spaceUrl: string
+  spaceUrl: string,
+  subscriptionYtdlpConfig?: string | null
 ): Promise<string | null> {
   try {
     logger.info("Fetching latest video for Bilibili space:", spaceUrl);
@@ -123,8 +125,13 @@ export async function getLatestVideoUrl(
 
     logger.info("Extracted mid:", mid);
 
-    // Get user config for network options (cookies, proxy, etc.)
-    const userConfig = getUserYtDlpConfig(spaceUrl);
+    // Get user config for network options (cookies, proxy, etc.), layering any
+    // per-subscription override on top of the global config (#345) so the
+    // scheduled space probe can reach the source the download will use.
+    const userConfig = getEffectiveUserYtDlpConfig(
+      spaceUrl,
+      subscriptionYtdlpConfig
+    );
     const networkConfig = getNetworkConfigFromUserConfig(userConfig);
 
     // Use yt-dlp to get the latest video from the user's space

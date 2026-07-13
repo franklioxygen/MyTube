@@ -16,6 +16,8 @@ vi.mock('../../../utils/ytDlpUtils', () => ({
     executeYtDlpSpawn: (...args: any[]) => mockExecuteYtDlpSpawn(...args),
     executeYtDlpJson: (...args: any[]) => mockExecuteYtDlpJson(...args),
     getUserYtDlpConfig: (...args: any[]) => mockGetUserYtDlpConfig(...args),
+    // No subscription override in these tests → effective config == global config.
+    getEffectiveUserYtDlpConfig: (url: any) => mockGetUserYtDlpConfig(url),
     getNetworkConfigFromUserConfig: () => ({}),
     getChannelUrlFromVideo: vi.fn().mockResolvedValue('https://youtube.com/channel/test'),
     downloadChannelAvatar: vi.fn().mockResolvedValue(true),

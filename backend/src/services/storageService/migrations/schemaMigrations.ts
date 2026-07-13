@@ -305,6 +305,18 @@ function migrateCollectionsAndSubscriptionsColumns(): void {
       logger.info("Migration successful: retention_days added.");
     }
 
+    // Per-subscription yt-dlp config override (issue #345). Self-heal in case
+    // drizzle aborted its batch before applying 0024 on an existing install.
+    if (!subscriptionsColumns.includes("ytdlp_config")) {
+      logger.info(
+        "Migrating database: Adding ytdlp_config column to subscriptions table..."
+      );
+      sqlite
+        .prepare("ALTER TABLE subscriptions ADD COLUMN ytdlp_config TEXT")
+        .run();
+      logger.info("Migration successful: ytdlp_config added.");
+    }
+
     sqlite
       .prepare(
         `

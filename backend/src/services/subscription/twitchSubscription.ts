@@ -246,6 +246,7 @@ async function checkTwitchSubscriptionWithYtDlp(
     const response = await getTwitchChannelVideos(normalizedUrl, {
       startIndex: pagesFetched * 100,
       limit: 100,
+      subscriptionYtdlpConfig: sub.ytdlpConfig,
     });
     pagesFetched += 1;
 
@@ -349,12 +350,11 @@ export async function processTwitchSubscriptionVideos(
     let twitchVideoDownloaded = false;
     let downloadedTwitchTitle = video.title || `Video from ${sub.author}`;
     try {
-      const downloadResult = await downloadYouTubeVideo(
-        video.url,
-        undefined,
-        undefined,
-        buildFilenameTemplateSourceOptions(sub)
-      );
+      const downloadResult = await downloadYouTubeVideo(video.url, {
+        filenameTemplateSourceOptions:
+          buildFilenameTemplateSourceOptions(sub),
+        subscriptionYtdlpConfig: sub.ytdlpConfig,
+      });
       const videoData = downloadResult?.videoData || downloadResult || {};
       downloadedTwitchTitle = videoData.title || video.title;
       twitchVideoDownloaded = true;

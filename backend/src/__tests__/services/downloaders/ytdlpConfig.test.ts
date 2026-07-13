@@ -15,8 +15,11 @@ vi.mock("../../../services/downloaders/ytdlp/ytdlpHelpers", () => ({
 }));
 
 import {
+  inferAudioFormatFromUserConfig,
+  isAudioOnlyUserConfig,
   prepareAudioDownloadFlags,
   prepareDownloadFlags,
+  resolveDownloadAudioMode,
 } from "../../../services/downloaders/ytdlp/ytdlpConfig";
 
 describe("prepareDownloadFlags final container preference", () => {
@@ -56,6 +59,52 @@ describe("prepareDownloadFlags final container preference", () => {
     });
     expect(result.flags.mergeOutputFormat).toBeUndefined();
     expect(result.flags.writeSubs).toBeUndefined();
+  });
+
+  it("preserves an explicit audio-only format selector instead of forcing bestaudio/best", () => {
+    const worst = prepareAudioDownloadFlags(
+      "https://www.youtube.com/watch?v=abc123",
+      "/tmp/track.m4a",
+      "m4a",
+      { format: "worstaudio" },
+    );
+    expect(worst.flags.format).toBe("worstaudio");
+
+    const wa = prepareAudioDownloadFlags(
+      "https://www.youtube.com/watch?v=abc123",
+      "/tmp/track.m4a",
+      "m4a",
+      { f: "wa" },
+    );
+    expect(wa.flags.format).toBe("wa");
+
+    const filtered = prepareAudioDownloadFlags(
+      "https://www.youtube.com/watch?v=abc123",
+      "/tmp/track.m4a",
+      "m4a",
+      { format: "bestaudio[abr<=64]" },
+    );
+    expect(filtered.flags.format).toBe("bestaudio[abr<=64]");
+  });
+
+  it("falls back to bestaudio/best when the audio job has no audio-only selector", () => {
+    // Explicit audio toggle with a video-oriented format: the user's selector
+    // must not leak into the audio branch.
+    const result = prepareAudioDownloadFlags(
+      "https://www.youtube.com/watch?v=abc123",
+      "/tmp/track.m4a",
+      "m4a",
+      { format: "bestvideo+bestaudio" },
+    );
+    expect(result.flags.format).toBe("bestaudio/best");
+
+    const noFormat = prepareAudioDownloadFlags(
+      "https://www.youtube.com/watch?v=abc123",
+      "/tmp/track.m4a",
+      "m4a",
+      { extractAudio: true } as any,
+    );
+    expect(noFormat.flags.format).toBe("bestaudio/best");
   });
 
   it("preserves auth-related safe user config for audio jobs while stripping video/subtitle/mux options", () => {
@@ -420,5 +469,88 @@ describe("prepareDownloadFlags final container preference", () => {
     expect(result.flags.mergeOutputFormat).toBe("mp4");
     expect(result.mergeOutputFormat).toBe("mp4");
     expect(result.videoExtension).toBe("mp4");
+  });
+});
+
+describe("audio-only user config detection (issue #345)", () => {
+  it("detects bestaudio format overrides", () => {
+    expect(isAudioOnlyUserConfig({ format: "bestaudio" })).toBe(true);
+    expect(isAudioOnlyUserConfig({ f: "bestaudio/best" })).toBe(true);
+    expect(isAudioOnlyUserConfig({ format: "bestaudio[ext=opus]" })).toBe(
+      true,
+    );
+  });
+
+  it("rejects mixed video+audio format selectors", () => {
+    expect(
+      isAudioOnlyUserConfig({ format: "bestvideo+bestaudio" }),
+    ).toBe(false);
+    expect(
+      isAudioOnlyUserConfig({
+        format: "bestvideo[ext=mp4]+bestaudio[ext=m4a]",
+      }),
+    ).toBe(false);
+  });
+
+  it("detects exact yt-dlp audio-only aliases (ba/wa) and vcodec=none", () => {
+    expect(isAudioOnlyUserConfig({ f: "ba" })).toBe(true);
+    expect(isAudioOnlyUserConfig({ f: "wa" })).toBe(true);
+    expect(isAudioOnlyUserConfig({ format: "ba/best" })).toBe(true);
+    expect(isAudioOnlyUserConfig({ format: "worstaudio" })).toBe(true);
+    expect(isAudioOnlyUserConfig({ format: "best[vcodec=none]" })).toBe(true);
+    expect(isAudioOnlyUserConfig({ format: "vcodec=none" })).toBe(true);
+  });
+
+  it("does not classify possibly-video selectors as audio-only", () => {
+    // ba*/wa* may contain video per yt-dlp docs, so they are not audio-only.
+    expect(isAudioOnlyUserConfig({ format: "ba*" })).toBe(false);
+    expect(isAudioOnlyUserConfig({ format: "wa*" })).toBe(false);
+    // Negated video-codec filter selects video-containing formats.
+    expect(isAudioOnlyUserConfig({ format: "best[vcodec!=none]" })).toBe(false);
+  });
+
+  it("does not treat video-only aliases or unrelated tokens as audio-only", () => {
+    expect(isAudioOnlyUserConfig({ f: "bv" })).toBe(false);
+    expect(isAudioOnlyUserConfig({ f: "bv*+ba" })).toBe(false);
+    expect(isAudioOnlyUserConfig({ format: "worstvideo" })).toBe(false);
+    // Words containing "ba"/"wa" substrings must not match.
+    expect(isAudioOnlyUserConfig({ format: "bar" })).toBe(false);
+    // acodec=none selects a video-only stream.
+    expect(isAudioOnlyUserConfig({ format: "best[acodec=none]" })).toBe(false);
+  });
+
+  it("detects extract-audio flags", () => {
+    expect(isAudioOnlyUserConfig({ extractAudio: true })).toBe(true);
+    expect(isAudioOnlyUserConfig({ x: true })).toBe(true);
+  });
+
+  it("infers audio format from override text", () => {
+    expect(
+      inferAudioFormatFromUserConfig({ format: "bestaudio[ext=opus]" }),
+    ).toBe("opus");
+    expect(inferAudioFormatFromUserConfig({ audioFormat: "mp3" })).toBe(
+      "mp3",
+    );
+    expect(inferAudioFormatFromUserConfig({ format: "bestaudio" })).toBe(
+      "m4a",
+    );
+  });
+
+  it("resolves explicit audio mode over config inference", () => {
+    expect(
+      resolveDownloadAudioMode({
+        explicitAudioOnly: true,
+        explicitAudioFormat: "mp3",
+        userConfig: { format: "bestvideo+bestaudio" },
+      }),
+    ).toEqual({ audioOnly: true, audioFormat: "mp3" });
+  });
+
+  it("infers audio mode from subscription-style bestaudio override", () => {
+    expect(
+      resolveDownloadAudioMode({
+        userConfig: { format: "bestaudio" },
+      }),
+    ).toEqual({ audioOnly: true, audioFormat: "m4a" });
   });
 });

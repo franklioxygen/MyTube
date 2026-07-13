@@ -1020,6 +1020,14 @@ export const en = {
   retentionDaysUpdated: "Retention policy updated",
   retentionDaysUpdateFailed: "Failed to update retention policy",
 
+  // Per-subscription yt-dlp config override (issue #345)
+  editYtdlpConfigOverride: "Edit yt-dlp config override",
+  ytdlpConfigOverrideHelp:
+    "Free-text yt-dlp options applied only to this subscription (e.g. --format bestaudio for an audio-only channel). Leave empty to use the global yt-dlp configuration. Options you set here override the global config; anything you omit (proxy, rate limits) is inherited from it.",
+  ytdlpConfigOverridePlaceholder: "--format bestaudio",
+  ytdlpConfigOverrideUpdated: "yt-dlp override updated",
+  ytdlpConfigOverrideUpdateFailed: "Failed to update yt-dlp override",
+
   // Subscription Pause/Resume
   pause: "Pause",
   resume: "Resume",

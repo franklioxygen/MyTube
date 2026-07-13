@@ -1055,6 +1055,14 @@ export const fr = {
   retentionDaysUpdateFailed:
     "Échec de la mise à jour de la règle de conservation",
 
+  // Per-subscription yt-dlp config override (issue #345)
+  editYtdlpConfigOverride: "Modifier la surcharge de configuration yt-dlp",
+  ytdlpConfigOverrideHelp:
+    "Options yt-dlp en texte libre appliquées uniquement à cet abonnement (p. ex. --format bestaudio pour une chaîne audio uniquement). Laissez vide pour utiliser la configuration yt-dlp globale. Les options définies ici remplacent la configuration globale ; ce que vous omettez (proxy, limites de débit) est hérité de celle-ci.",
+  ytdlpConfigOverridePlaceholder: "--format bestaudio",
+  ytdlpConfigOverrideUpdated: "Surcharge yt-dlp mise à jour",
+  ytdlpConfigOverrideUpdateFailed: "Échec de la mise à jour de la surcharge yt-dlp",
+
   // Subscription Pause/Resume
   pause: "Pause",
   resume: "Reprendre",

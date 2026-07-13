@@ -1038,6 +1038,14 @@ export const ja = {
   retentionDaysUpdated: "保持ポリシーを更新しました",
   retentionDaysUpdateFailed: "保持ポリシーの更新に失敗しました",
 
+  // Per-subscription yt-dlp config override (issue #345)
+  editYtdlpConfigOverride: "yt-dlp 設定の上書きを編集",
+  ytdlpConfigOverrideHelp:
+    "この購読にのみ適用される自由記述の yt-dlp オプション（例：音声のみのチャンネルでは --format bestaudio）。空欄の場合はグローバル yt-dlp 設定を使用します。ここで設定したオプションはグローバル設定を上書きし、省略した項目（プロキシ、レート制限など）はグローバル設定から継承されます。",
+  ytdlpConfigOverridePlaceholder: "--format bestaudio",
+  ytdlpConfigOverrideUpdated: "yt-dlp の上書きを更新しました",
+  ytdlpConfigOverrideUpdateFailed: "yt-dlp の上書きの更新に失敗しました",
+
   // Subscription Pause/Resume
   pause: "一時停止",
   resume: "再開",

@@ -1021,6 +1021,14 @@ export const ko = {
   retentionDaysUpdated: "보존 정책이 업데이트되었습니다",
   retentionDaysUpdateFailed: "보존 정책 업데이트에 실패했습니다",
 
+  // Per-subscription yt-dlp config override (issue #345)
+  editYtdlpConfigOverride: "yt-dlp 설정 재정의 편집",
+  ytdlpConfigOverrideHelp:
+    "이 구독에만 적용되는 자유 형식 yt-dlp 옵션(예: 오디오 전용 채널의 --format bestaudio). 비워 두면 전역 yt-dlp 설정을 사용합니다. 여기서 설정한 옵션은 전역 설정을 덮어쓰며, 생략한 항목(프록시, 속도 제한 등)은 전역 설정에서 상속됩니다.",
+  ytdlpConfigOverridePlaceholder: "--format bestaudio",
+  ytdlpConfigOverrideUpdated: "yt-dlp 재정의가 업데이트되었습니다",
+  ytdlpConfigOverrideUpdateFailed: "yt-dlp 재정의 업데이트에 실패했습니다",
+
   // Subscription Pause/Resume
   pause: "일시 중지",
   resume: "재개",

@@ -62,6 +62,7 @@ vi.mock('../../services/downloaders/ytdlp/ytdlpHelpers', () => ({
 vi.mock('../../utils/ytDlpUtils', () => ({
   executeYtDlpJson: vi.fn(),
   getUserYtDlpConfig: vi.fn().mockReturnValue({}),
+  getEffectiveUserYtDlpConfig: vi.fn().mockReturnValue({}),
   getNetworkConfigFromUserConfig: vi.fn().mockReturnValue({}),
 }));
 vi.mock('node-cron', () => ({
@@ -226,12 +227,15 @@ describe('SubscriptionService', () => {
 
       expect(downloadService.downloadYouTubeVideo).toHaveBeenCalledWith(
         'new-link',
-        'test-uuid',
-        expect.any(Function),
         expect.objectContaining({
-          sourceCustomName: 'User',
-          sourceCollectionName: 'User',
-          sourceCollectionType: 'channel',
+          downloadId: 'test-uuid',
+          onStart: expect.any(Function),
+          filenameTemplateSourceOptions: expect.objectContaining({
+            sourceCustomName: 'User',
+            sourceCollectionName: 'User',
+            sourceCollectionType: 'channel',
+          }),
+          subscriptionYtdlpConfig: undefined,
         })
       );
       expect(storageService.addDownloadHistoryItem).toHaveBeenCalledWith(expect.objectContaining({
@@ -276,12 +280,15 @@ describe('SubscriptionService', () => {
       expect(YtDlpDownloader.getLatestShortsUrl).toHaveBeenCalled();
       expect(downloadService.downloadYouTubeVideo).toHaveBeenCalledWith(
         'new-short',
-        'test-uuid',
-        expect.any(Function),
         expect.objectContaining({
-          sourceCustomName: 'User',
-          sourceCollectionName: 'User',
-          sourceCollectionType: 'channel',
+          downloadId: 'test-uuid',
+          onStart: expect.any(Function),
+          filenameTemplateSourceOptions: expect.objectContaining({
+            sourceCustomName: 'User',
+            sourceCollectionName: 'User',
+            sourceCollectionType: 'channel',
+          }),
+          subscriptionYtdlpConfig: undefined,
         })
       );
       expect(TelegramService.notifyTaskComplete).toHaveBeenCalledWith({
@@ -426,7 +433,8 @@ describe('SubscriptionService', () => {
 
       expect(YtDlpDownloader.getLatestVideoUrl).toHaveBeenCalledTimes(2);
       expect(YtDlpDownloader.getLatestVideoUrl).toHaveBeenCalledWith(
-        'https://youtube.com/@works'
+        'https://youtube.com/@works',
+        undefined
       );
       expect(downloadService.downloadYouTubeVideo).not.toHaveBeenCalled();
     });
@@ -442,7 +450,8 @@ describe('SubscriptionService', () => {
 
       expect(YtDlpDownloader.getLatestVideoUrl).toHaveBeenCalledTimes(1);
       expect(YtDlpDownloader.getLatestVideoUrl).toHaveBeenCalledWith(
-        'https://youtube.com/@due'
+        'https://youtube.com/@due',
+        undefined
       );
     });
   });
@@ -1104,7 +1113,8 @@ describe('SubscriptionService', () => {
           sourceCustomName: 'BiliAuthor',
           sourceCollectionName: 'BiliAuthor',
           sourceCollectionType: 'channel',
-        })
+        }),
+        { subscriptionYtdlpConfig: undefined }
       );
       expect(storageService.addDownloadHistoryItem).toHaveBeenCalledWith(
         expect.objectContaining({ status: 'success', sourceUrl: 'https://www.bilibili.com/video/BV1x' })

@@ -457,6 +457,25 @@ describe("ytDlpUtils", () => {
       });
       expect((cfg as any).format).toBeUndefined();
     });
+
+    it("should pass through auth/cookie/header options for discovery probes", () => {
+      const cfg = getNetworkConfigFromUserConfig({
+        cookies: "/data/cookies.txt",
+        cookiesFromBrowser: "firefox",
+        addHeaders: "X-Custom:1",
+        username: "user",
+        password: "secret",
+        format: "bestvideo",
+      });
+
+      expect(cfg).toEqual({
+        cookies: "/data/cookies.txt",
+        cookiesFromBrowser: "firefox",
+        addHeaders: "X-Custom:1",
+        username: "user",
+        password: "secret",
+      });
+    });
   });
 
   describe("getAxiosProxyConfig", () => {

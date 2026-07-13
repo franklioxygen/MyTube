@@ -6,6 +6,8 @@ import {
   downloadYouTubeVideo,
 } from "../downloadService";
 import { platformFromUrl } from "../statistics";
+import { getEffectiveUserYtDlpConfig } from "../../utils/ytDlpUtils";
+import { resolveDownloadAudioMode } from "../downloaders/ytdlp/ytdlpConfig";
 import { DownloadResult } from "../downloaders/bilibili/types";
 import { stripChannelSuffixFromPlaylistName } from "../filenameTemplate/sourceNaming";
 import { FilenameTemplateSourceOptions } from "../filenameTemplate/types";
@@ -182,13 +184,10 @@ export class TaskProcessor {
     const isPlaylist = playlistRegex.test(task.authorUrl);
     const useIncremental = !cachedVideoUrls && isPlaylist && task.platform === "YouTube";
 
-    // Get total count if not set
-    if (task.totalVideos === 0) {
-      await this.initializeTotalVideos(task, useIncremental, cachedVideoUrls);
-    }
-
-    const totalVideos = task.totalVideos || 0;
-    const fetchBatchSize = 50; // Fetch 50 URLs at a time
+    // Resolve the subscription (and its per-subscription yt-dlp override) up
+    // front so proxy/rate-limit overrides needed to enumerate the source apply
+    // to the count/list probes below, not just the eventual per-video download
+    // (issue #345). Falls back to task metadata when unresolvable.
     let taskSubscription: Subscription | null = null;
     try {
       taskSubscription = await this.taskRepository.getSubscriptionForTask(task);
@@ -198,6 +197,20 @@ export class TaskProcessor {
         error instanceof Error ? error : new Error(String(error))
       );
     }
+    const subscriptionYtdlpConfig = taskSubscription?.ytdlpConfig ?? null;
+
+    // Get total count if not set
+    if (task.totalVideos === 0) {
+      await this.initializeTotalVideos(
+        task,
+        useIncremental,
+        cachedVideoUrls,
+        subscriptionYtdlpConfig
+      );
+    }
+
+    const totalVideos = task.totalVideos || 0;
+    const fetchBatchSize = 50; // Fetch 50 URLs at a time
 
     // For non-incremental tasks, ensure we have the video URLs
     let allVideoUrls: string[] = [];
@@ -207,7 +220,8 @@ export class TaskProcessor {
       } else {
         allVideoUrls = await this.videoUrlFetcher.getAllVideoUrls(
           task.authorUrl,
-          task.platform
+          task.platform,
+          subscriptionYtdlpConfig
         );
       }
     }
@@ -247,7 +261,8 @@ export class TaskProcessor {
             task.authorUrl,
             task.platform,
             i,
-            countToFetch
+            countToFetch,
+            subscriptionYtdlpConfig
           );
 
           if (videoUrlBatch.length === 0) {
@@ -399,13 +414,15 @@ export class TaskProcessor {
   private async initializeTotalVideos(
     task: ContinuousDownloadTask,
     useIncremental: boolean,
-    cachedVideoUrls?: string[]
+    cachedVideoUrls?: string[],
+    subscriptionYtdlpConfig?: string | null
   ): Promise<void> {
     if (useIncremental) {
       // For playlists, get count without loading all URLs
       const count = await this.videoUrlFetcher.getVideoCount(
         task.authorUrl,
-        task.platform
+        task.platform,
+        subscriptionYtdlpConfig
       );
       if (count > 0) {
         await this.taskRepository.updateTotalVideos(task.id, count);
@@ -416,7 +433,8 @@ export class TaskProcessor {
           task.authorUrl,
           task.platform,
           0,
-          100
+          100,
+          subscriptionYtdlpConfig
         );
         const estimatedTotal =
           testBatch.length >= 100 ? 1000 : testBatch.length; // Estimate
@@ -436,7 +454,8 @@ export class TaskProcessor {
         logger.info(`Fetching video list for task ${task.id}...`);
         const videoUrls = await this.videoUrlFetcher.getAllVideoUrls(
           task.authorUrl,
-          task.platform
+          task.platform,
+          subscriptionYtdlpConfig
         );
         await this.taskRepository.updateTotalVideos(task.id, videoUrls.length);
         task.totalVideos = videoUrls.length;
@@ -465,8 +484,27 @@ export class TaskProcessor {
       throw new Error(`Task ${task.id} is not active (interrupted)`);
     }
 
+    // Per-subscription yt-dlp override (issue #345). Null when the task has no
+    // resolvable subscription → identical to today's behaviour (global config).
+    const subscriptionYtdlpConfig = taskSubscription?.ytdlpConfig ?? null;
+
+    // An audio-only override (e.g. --format bestaudio) saves the item under the
+    // "audio" media type. Scope the duplicate check to that media type too so a
+    // later backfill sees the audio rows from previous runs instead of
+    // re-downloading every already-downloaded item (issue #345).
+    const effectiveUserConfig = getEffectiveUserYtDlpConfig(
+      videoUrl,
+      subscriptionYtdlpConfig
+    );
+    const { audioOnly: isAudioOnlyDownload } = resolveDownloadAudioMode({
+      userConfig: effectiveUserConfig,
+    });
+
     // Check if video already exists
-    const existingVideo = storageService.getVideoBySourceUrl(videoUrl);
+    const existingVideo = storageService.getVideoBySourceUrl(
+      videoUrl,
+      isAudioOnlyDownload ? "audio" : "video"
+    );
     if (existingVideo) {
       logger.debug(`Video ${videoUrl} already exists, skipping`);
       progressState.skippedCount += 1;
@@ -507,7 +545,8 @@ export class TaskProcessor {
           downloadId,
           undefined,
           undefined,
-          filenameTemplateSourceOptions
+          filenameTemplateSourceOptions,
+          { subscriptionYtdlpConfig }
         );
 
         // Check for Bilibili download errors
@@ -518,12 +557,11 @@ export class TaskProcessor {
           );
         }
       } else {
-        downloadResult = await downloadYouTubeVideo(
-          videoUrl,
+        downloadResult = await downloadYouTubeVideo(videoUrl, {
           downloadId,
-          undefined,
-          filenameTemplateSourceOptions
-        );
+          filenameTemplateSourceOptions,
+          subscriptionYtdlpConfig,
+        });
       }
 
       // Extract video data from result (handles both DownloadResult and Video formats)

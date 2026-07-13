@@ -7,6 +7,7 @@ vi.mock("../../../utils/ytDlpUtils", () => ({
   executeYtDlpJson: vi.fn(),
   getNetworkConfigFromUserConfig: vi.fn().mockReturnValue({}),
   getUserYtDlpConfig: vi.fn().mockReturnValue({}),
+  getEffectiveUserYtDlpConfig: vi.fn().mockReturnValue({}),
 }));
 vi.mock("../../../services/downloaders/ytdlp/ytdlpHelpers", () => ({
   getProviderScript: vi.fn().mockReturnValue(null),
@@ -82,6 +83,28 @@ describe("subscription channelPlaylists", () => {
       "ChannelName",
       "YouTube",
       expect.any(String),
+    );
+  });
+
+  it("threads the per-subscription yt-dlp override into the playlist listing", async () => {
+    const { executeYtDlpJson, getEffectiveUserYtDlpConfig } = await import(
+      "../../../utils/ytDlpUtils"
+    );
+    vi.mocked(executeYtDlpJson).mockResolvedValueOnce({ entries: [] } as any);
+
+    const deps = {
+      listSubscriptions: vi.fn().mockResolvedValue([]),
+      subscribePlaylist: vi.fn(),
+    };
+
+    await checkChannelPlaylistsForWatcher(
+      makeSub({ ytdlpConfig: "--format bestaudio" } as Partial<Subscription>),
+      deps
+    );
+
+    expect(getEffectiveUserYtDlpConfig).toHaveBeenCalledWith(
+      "https://youtube.com/@channel/playlists",
+      "--format bestaudio"
     );
   });
 
