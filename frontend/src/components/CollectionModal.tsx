@@ -13,7 +13,7 @@ import {
     Typography
 } from '@mui/material';
 import type { FilterOptionsState } from '@mui/material/useAutocomplete';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useId, useMemo, useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { Collection } from '../types';
 
@@ -43,9 +43,10 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
     const [textInput, setTextInput] = useState<string>('');
     const [selectedOption, setSelectedOption] = useState<CollectionOption | null>(null);
     const [pendingAction, setPendingAction] = useState<PendingAction>(null);
+    const nativeAutocompleteId = useId();
     const nativeAutocompleteToken = useMemo(
-        () => `collection-lookup-${Math.random().toString(36).slice(2)}`,
-        []
+        () => `collection-lookup-${nativeAutocompleteId.replace(/[^a-zA-Z0-9_-]/g, '')}`,
+        [nativeAutocompleteId]
     );
 
     const isCurrentCollection = useCallback(
