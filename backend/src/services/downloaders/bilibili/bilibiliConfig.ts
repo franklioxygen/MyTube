@@ -9,6 +9,7 @@ import {
   getNetworkConfigFromUserConfig,
   getUserYtDlpConfig,
 } from "../../../utils/ytDlpUtils";
+import { isAudioOnlyFormatSelector } from "../ytdlp/ytdlpConfig";
 
 export interface BilibiliDownloadFlags {
   [key: string]: string | number | boolean | string[] | undefined | null;
@@ -368,12 +369,20 @@ export function prepareBilibiliDownloadFlags(
       ...safeUserConfig
     } = userConfig;
     const audioFormat = normalizeAudioFormat(options.audioFormat);
+    // Honor an explicit audio-only selector (e.g. `wa`, `worstaudio`,
+    // `bestaudio[abr<=64]`) from the effective config so per-subscription
+    // quality/filter overrides are not silently replaced with best audio.
+    const userFormat = getStringFlag(userConfig, "f", "format");
+    const format =
+      userFormat && isAudioOnlyFormatSelector(userFormat)
+        ? userFormat
+        : "bestaudio[ext=m4a]/bestaudio/best";
     return {
       flags: {
         ...networkConfig,
         ...safeUserConfig,
         output: outputTemplate,
-        format: "bestaudio[ext=m4a]/bestaudio/best",
+        format,
         extractAudio: true,
         audioFormat,
         audioQuality: 0,

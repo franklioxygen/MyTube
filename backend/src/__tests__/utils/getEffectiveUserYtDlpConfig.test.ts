@@ -79,6 +79,62 @@ describe("getEffectiveUserYtDlpConfig (issue #345)", () => {
     expect(effective.format).toBeUndefined();
   });
 
+  it("lets a long-form network override supersede a short-form global alias", () => {
+    mockedGetSettings.mockReturnValue({
+      ytDlpConfig: "-r 1M\n-R 3",
+    } as any);
+    const effective = getEffectiveUserYtDlpConfig(
+      "https://example.com/v",
+      "--limit-rate 50K"
+    );
+    // The override's `--limit-rate` (key `limitRate`) wins and the global `r`
+    // is dropped so getNetworkConfigFromUserConfig cannot prefer the stale
+    // global throttle. Untouched network keys (retries) are inherited.
+    expect(effective.limitRate).toBe("50K");
+    expect(effective.r).toBeUndefined();
+    expect(effective.R).toBe("3");
+  });
+
+  it("lets a short-form retries override supersede a long-form global alias", () => {
+    mockedGetSettings.mockReturnValue({
+      ytDlpConfig: "--retries 10",
+    } as any);
+    const effective = getEffectiveUserYtDlpConfig(
+      "https://example.com/v",
+      "-R 2"
+    );
+    expect(effective.R).toBe("2");
+    expect(effective.retries).toBeUndefined();
+  });
+
+  it("drops an inherited global --extract-audio when the override sets a video format", () => {
+    mockedGetSettings.mockReturnValue({
+      ytDlpConfig: "--extract-audio\n--audio-format mp3",
+    } as any);
+    const effective = getEffectiveUserYtDlpConfig(
+      "https://example.com/v",
+      "--format bestvideo+bestaudio"
+    );
+    // The override's format takes full control of the download mode, so the
+    // global audio-extraction toggle must not leak in and route the
+    // subscription through the audio path.
+    expect(effective.format).toBe("bestvideo+bestaudio");
+    expect(effective.extractAudio).toBeUndefined();
+    expect(effective.x).toBeUndefined();
+  });
+
+  it("keeps audio extraction when the override itself requests it", () => {
+    mockedGetSettings.mockReturnValue({
+      ytDlpConfig: "--proxy http://global-proxy:8080",
+    } as any);
+    const effective = getEffectiveUserYtDlpConfig(
+      "https://example.com/v",
+      "-x\n-f 140"
+    );
+    expect(effective.x).toBe(true);
+    expect(effective.f).toBe("140");
+  });
+
   it("ignores the override entirely below 'container' trust", () => {
     process.env.MYTUBE_ADMIN_TRUST_LEVEL = "application";
     const effective = getEffectiveUserYtDlpConfig(

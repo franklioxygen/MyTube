@@ -121,6 +121,23 @@ export function getUserYtDlpConfig(url?: string): Record<string, any> {
   return {};
 }
 
+// Short/long spellings of the same yt-dlp option produce different keys after
+// parsing (`-f` -> `f`, `--format` -> `format`). When an override uses a
+// different spelling than the global config, both keys would survive a naive
+// merge and downstream readers could pick the stale global value (e.g.
+// `getNetworkConfigFromUserConfig` prefers `r` over `limitRate`), so any key in
+// a group supersedes every alias in that group.
+const OPTION_ALIAS_GROUPS: readonly (readonly string[])[] = [
+  ["f", "format"],
+  ["S", "formatSort"],
+  ["r", "limitRate"],
+  ["R", "retries"],
+  ["4", "forceIpv4"],
+  ["6", "forceIpv6"],
+  ["sleepInterval", "minSleepInterval"],
+  ["x", "extractAudio"],
+];
+
 /**
  * Compute the effective yt-dlp user config for a download, layering an optional
  * per-subscription override on top of the global config (issue #345).
@@ -159,16 +176,29 @@ export function getEffectiveUserYtDlpConfig(
     // (key `format`) and an override `-f Y` (key `f`) would both survive the
     // spread, leaving two competing format keys in the flags object.
     const merged: Record<string, any> = { ...globalConfig };
-    const ALIAS_GROUPS = [
-      ["f", "format"],
-      ["S", "formatSort"],
-    ];
-    for (const group of ALIAS_GROUPS) {
+    for (const group of OPTION_ALIAS_GROUPS) {
       if (group.some((key) => key in overrideConfig)) {
         for (const key of group) {
           delete merged[key];
         }
       }
+    }
+
+    // An override that sets its own format selector takes full control of the
+    // download mode. Without this, a global `--extract-audio`/`-x` would leak
+    // into e.g. a `-f bestvideo+bestaudio` override and route the subscription
+    // through the audio path, ignoring the requested video format. Overrides
+    // that want audio extraction can set `-x` (or an audio-only selector)
+    // themselves.
+    const overrideSetsFormat = ["f", "format"].some(
+      (key) => key in overrideConfig
+    );
+    const overrideSetsExtractAudio = ["x", "extractAudio"].some(
+      (key) => key in overrideConfig
+    );
+    if (overrideSetsFormat && !overrideSetsExtractAudio) {
+      delete merged.x;
+      delete merged.extractAudio;
     }
 
     // Override keys win; everything else inherits from the global config.
@@ -178,6 +208,35 @@ export function getEffectiveUserYtDlpConfig(
   return globalConfig;
 }
 
+// Auth/header options that discovery and metadata probes must carry so a
+// private/age-gated/authenticated source can be listed with the same identity
+// the download will use. Copied through verbatim (camelCase keys as produced
+// by parseYtDlpConfig, plus yt-dlp short aliases).
+const AUTH_PASSTHROUGH_KEYS = [
+  "cookies",
+  "cookiesFromBrowser",
+  "addHeader",
+  "addHeaders",
+  "userAgent",
+  "referer",
+  "username",
+  "u",
+  "password",
+  "p",
+  "twofactor",
+  "2",
+  "netrc",
+  "netrcLocation",
+  "netrcCmd",
+  "videoPassword",
+  "apMso",
+  "apUsername",
+  "apPassword",
+  "clientCertificate",
+  "clientCertificateKey",
+  "clientCertificatePassword",
+] as const;
+
 /**
  * Extract network-related options from user config
  * These are safe to apply to all operations (search, info, download)
@@ -186,6 +245,13 @@ export function getNetworkConfigFromUserConfig(
   userConfig: Record<string, any>
 ): Record<string, any> {
   const networkOptions: Record<string, any> = {};
+
+  // Auth/cookies/headers needed to access private or age-gated sources
+  for (const key of AUTH_PASSTHROUGH_KEYS) {
+    if (userConfig[key] !== undefined) {
+      networkOptions[key] = userConfig[key];
+    }
+  }
 
   // Proxy settings
   if (userConfig.proxy) {

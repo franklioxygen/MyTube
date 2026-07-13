@@ -152,6 +152,10 @@ export class SubscriptionService {
         const fallbackResult = await getTwitchChannelVideos(authorUrl, {
           startIndex: 0,
           limit: 20,
+          // Apply the (about-to-be-saved) override to the initial probe too, so
+          // subscribing works when the override carries the proxy/cookies needed
+          // to list the channel (issue #345).
+          subscriptionYtdlpConfig: ytdlpConfig ?? null,
         });
         const newestVideo = fallbackResult.videos[0];
 

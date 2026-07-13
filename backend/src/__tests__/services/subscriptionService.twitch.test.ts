@@ -216,6 +216,8 @@ describe("SubscriptionService Twitch support", () => {
       {
         startIndex: 0,
         limit: 20,
+        // No override supplied on create → the probe runs on the global config.
+        subscriptionYtdlpConfig: null,
       }
     );
   });
