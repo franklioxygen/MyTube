@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Collection } from '../../types';
@@ -87,6 +87,24 @@ describe('CollectionModal', () => {
         await user.click(screen.getByRole('button', { name: 'add' }));
 
         expect(defaultProps.onAddToCollection).toHaveBeenCalledWith('1');
+        expect(defaultProps.onClose).toHaveBeenCalled();
+    });
+
+    it('should add highlighted existing collection when Enter is pressed in the open listbox', async () => {
+        const user = userEvent.setup();
+        render(<CollectionModal {...defaultProps} />);
+
+        const combobox = screen.getByRole('combobox');
+        await user.click(combobox);
+        await user.type(combobox, 'collection 2');
+        expect(screen.getAllByRole('option')).toHaveLength(1);
+        expect(combobox).toHaveAttribute('aria-expanded', 'true');
+        fireEvent.keyDown(combobox, { key: 'Enter', code: 'Enter' });
+
+        await waitFor(() => {
+            expect(defaultProps.onAddToCollection).toHaveBeenCalledWith('2');
+        });
+        expect(defaultProps.onCreateCollection).not.toHaveBeenCalled();
         expect(defaultProps.onClose).toHaveBeenCalled();
     });
 

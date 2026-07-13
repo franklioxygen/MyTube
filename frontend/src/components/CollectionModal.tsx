@@ -13,7 +13,7 @@ import {
     Typography
 } from '@mui/material';
 import type { FilterOptionsState } from '@mui/material/useAutocomplete';
-import React, { useCallback, useId, useMemo, useState } from 'react';
+import React, { useCallback, useId, useMemo, useRef, useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { Collection } from '../types';
 
@@ -43,6 +43,7 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
     const [textInput, setTextInput] = useState<string>('');
     const [selectedOption, setSelectedOption] = useState<CollectionOption | null>(null);
     const [pendingAction, setPendingAction] = useState<PendingAction>(null);
+    const highlightedOptionRef = useRef<CollectionOption | null>(null);
     const nativeAutocompleteId = useId();
     const nativeAutocompleteToken = useMemo(
         () => `collection-lookup-${nativeAutocompleteId.replace(/[^a-zA-Z0-9_-]/g, '')}`,
@@ -92,6 +93,29 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
         [onCreateCollection]
     );
 
+    const resolveHighlightedOption = useCallback(
+        (input: HTMLInputElement): CollectionOption | null => {
+            if (highlightedOptionRef.current !== null) {
+                return highlightedOptionRef.current;
+            }
+
+            const activeDescendantId = input.getAttribute('aria-activedescendant');
+            if (!activeDescendantId) return null;
+
+            const activeOption = document.getElementById(activeDescendantId);
+            const optionIndex = activeOption?.getAttribute('data-option-index');
+            if (optionIndex == null) return null;
+
+            const filtered = filterCollectionOptions(collectionOptions, {
+                inputValue: textInput,
+                getOptionLabel: (option) => (typeof option === 'string' ? option : option.name),
+            } as FilterOptionsState<CollectionOption>);
+
+            return filtered[Number(optionIndex)] ?? null;
+        },
+        [collectionOptions, filterCollectionOptions, textInput]
+    );
+
     const resolvedCollection = trimmedInput
         ? collectionOptions.find(
               (c) => c.name.trim().toLowerCase() === trimmedInput.toLowerCase()
@@ -128,25 +152,12 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
         onClose();
     };
 
-    const submit = async () => {
+    const submitSelection = async (selection: CollectionOption) => {
         if (pendingAction) return;
 
-        const name = trimmedInput;
-        if (!name) return;
-
-        if (resolvedCollection) {
-            if (isCurrentCollection(resolvedCollection.id) || !onAddToCollection) return;
-            setPendingAction('add');
-            try {
-                await onAddToCollection(resolvedCollection.id);
-                resetAndClose();
-            } catch {
-                // Keep the modal open so the action can be retried.
-            } finally {
-                setPendingAction(null);
-            }
-        } else {
-            if (!onCreateCollection) return;
+        if (typeof selection === 'string') {
+            const name = selection.trim();
+            if (!name || !onCreateCollection) return;
             setPendingAction('create');
             try {
                 await onCreateCollection(name);
@@ -156,6 +167,31 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
             } finally {
                 setPendingAction(null);
             }
+            return;
+        }
+
+        if (isCurrentCollection(selection.id) || !onAddToCollection) return;
+        setPendingAction('add');
+        try {
+            await onAddToCollection(selection.id);
+            resetAndClose();
+        } catch {
+            // Keep the modal open so the action can be retried.
+        } finally {
+            setPendingAction(null);
+        }
+    };
+
+    const submit = async () => {
+        if (pendingAction) return;
+
+        const name = trimmedInput;
+        if (!name) return;
+
+        if (resolvedCollection) {
+            await submitSelection(resolvedCollection);
+        } else {
+            await submitSelection(name);
         }
     };
 
@@ -170,6 +206,28 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
         } finally {
             setPendingAction(null);
         }
+    };
+
+    const handleInputEnterKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+        if (event.key !== 'Enter') return;
+
+        const isExpanded = event.currentTarget.getAttribute('aria-expanded') === 'true';
+        if (isExpanded) {
+            const highlighted = resolveHighlightedOption(event.currentTarget);
+            if (highlighted !== null) {
+                event.preventDefault();
+                (event as React.KeyboardEvent & { defaultMuiPrevented?: boolean }).defaultMuiPrevented = true;
+                setSelectedOption(highlighted);
+                setTextInput(
+                    typeof highlighted === 'string' ? highlighted : highlighted.name
+                );
+                void submitSelection(highlighted);
+                return;
+            }
+        }
+
+        event.preventDefault();
+        void submit();
     };
 
     const renderCollectionOption = (
@@ -250,6 +308,7 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
                         <Stack direction="row" spacing={2}>
                             <Autocomplete<CollectionOption, false, false, true>
                                 freeSolo
+                                autoHighlight
                                 fullWidth
                                 size="small"
                                 options={collectionOptions}
@@ -274,7 +333,13 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
                                             : newValue?.name ?? ''
                                     );
                                 }}
+                                onHighlightChange={(_, option) => {
+                                    highlightedOptionRef.current = option;
+                                }}
                                 filterOptions={filterCollectionOptions}
+                                onClose={() => {
+                                    highlightedOptionRef.current = null;
+                                }}
                                 getOptionDisabled={(option) =>
                                     typeof option !== 'string' && isCurrentCollection(option.id)
                                 }
@@ -285,6 +350,14 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
                                         label={t('selectOrCreateCollection')}
                                         placeholder={t('selectOrCreateCollection')}
                                         autoComplete="off"
+                                        InputProps={{
+                                            ...params.InputProps,
+                                            onKeyDown: (event) => {
+                                                handleInputEnterKeyDown(
+                                                    event as React.KeyboardEvent<HTMLInputElement>
+                                                );
+                                            },
+                                        }}
                                         slotProps={{
                                             htmlInput: {
                                                 ...params.inputProps,
@@ -296,12 +369,6 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
                                                 spellCheck: false,
                                                 type: 'search',
                                             },
-                                        }}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter') {
-                                                e.preventDefault();
-                                                void submit();
-                                            }
                                         }}
                                     />
                                 )}
