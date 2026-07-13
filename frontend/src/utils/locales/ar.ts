@@ -642,6 +642,8 @@ export const ar = {
   add: "إضافة",
   createNewCollection: "إنشاء مجموعة جديدة:",
   collectionName: "اسم المجموعة",
+  selectOrCreateCollection: "اختر مجموعة أو أنشئ واحدة",
+  createNewCollectionLabel: 'إنشاء "{name}"',
   create: "إنشاء",
   removeFromCollection: "إزالة من المجموعة",
   confirmRemoveFromCollection:

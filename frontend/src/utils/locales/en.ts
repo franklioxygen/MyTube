@@ -661,6 +661,8 @@ export const en = {
   add: "Add",
   createNewCollection: "Create new collection:",
   collectionName: "Collection name",
+  selectOrCreateCollection: "Select or create a collection",
+  createNewCollectionLabel: 'Create "{name}"',
   create: "Create",
   removeFromCollection: "Remove from Collection",
   confirmRemoveFromCollection:

@@ -650,6 +650,8 @@ export const ko = {
   add: "추가",
   createNewCollection: "새 컬렉션 만들기:",
   collectionName: "컬렉션 이름",
+  selectOrCreateCollection: "컬렉션 선택 또는 만들기",
+  createNewCollectionLabel: '"{name}" 만들기',
   create: "만들기",
   removeFromCollection: "컬렉션에서 제거",
   confirmRemoveFromCollection: "이 동영상을 컬렉션에서 제거하시겠습니까?",

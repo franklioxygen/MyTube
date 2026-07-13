@@ -636,6 +636,8 @@ export const zh = {
   add: "添加",
   createNewCollection: "创建新合集：",
   collectionName: "合集名称",
+  selectOrCreateCollection: "选择或创建合集",
+  createNewCollectionLabel: '创建"{name}"',
   create: "创建",
   removeFromCollection: "从合集中移除",
   confirmRemoveFromCollection: "确定要从合集中移除此视频吗？",

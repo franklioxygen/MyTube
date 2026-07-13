@@ -658,6 +658,8 @@ export const ja = {
   add: "追加",
   createNewCollection: "新しいコレクションを作成:",
   collectionName: "コレクション名",
+  selectOrCreateCollection: "コレクションを選択または作成",
+  createNewCollectionLabel: "「{name}」を作成",
   create: "作成",
   removeFromCollection: "コレクションから削除",
   confirmRemoveFromCollection:

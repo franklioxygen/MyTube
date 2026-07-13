@@ -109,9 +109,8 @@ describe('useVideoCollections', () => {
         expect(mockCreateCollection).not.toHaveBeenCalled();
     });
 
-    it('should log create collection errors', async () => {
+    it('should propagate create collection errors', async () => {
         const createError = new Error('create failed');
-        const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
         mockCreateCollection.mockRejectedValueOnce(createError);
         const { result } = renderHook(() => useVideoCollections({ videoId: 'v1' }));
 
@@ -119,12 +118,11 @@ describe('useVideoCollections', () => {
             result.current.handleAddToCollection();
         });
 
-        await act(async () => {
-            await result.current.handleCreateCollection('New List');
-        });
-
-        expect(consoleErrorSpy).toHaveBeenCalledWith('Error creating collection:', createError);
-        consoleErrorSpy.mockRestore();
+        await expect(
+            act(async () => {
+                await result.current.handleCreateCollection('New List');
+            })
+        ).rejects.toThrow('create failed');
     });
 
     it('should add the active video to an existing collection', async () => {
@@ -151,9 +149,8 @@ describe('useVideoCollections', () => {
         expect(mockAddToCollection).not.toHaveBeenCalled();
     });
 
-    it('should log add to existing collection errors', async () => {
+    it('should propagate add to existing collection errors', async () => {
         const addError = new Error('add failed');
-        const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
         mockAddToCollection.mockRejectedValueOnce(addError);
         const { result } = renderHook(() => useVideoCollections({ videoId: 'v1' }));
 
@@ -161,12 +158,11 @@ describe('useVideoCollections', () => {
             result.current.handleAddToCollection();
         });
 
-        await act(async () => {
-            await result.current.handleAddToExistingCollection('c1');
-        });
-
-        expect(consoleErrorSpy).toHaveBeenCalledWith('Error adding to collection:', addError);
-        consoleErrorSpy.mockRestore();
+        await expect(
+            act(async () => {
+                await result.current.handleAddToExistingCollection('c1');
+            })
+        ).rejects.toThrow('add failed');
     });
 
     it('should remove from collection', async () => {
@@ -193,9 +189,8 @@ describe('useVideoCollections', () => {
         expect(mockRemoveFromCollection).not.toHaveBeenCalled();
     });
 
-    it('should log remove from collection errors', async () => {
+    it('should propagate remove from collection errors', async () => {
         const removeError = new Error('remove failed');
-        const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
         mockRemoveFromCollection.mockRejectedValueOnce(removeError);
         const { result } = renderHook(() => useVideoCollections({ videoId: 'v1' }));
 
@@ -203,11 +198,10 @@ describe('useVideoCollections', () => {
             result.current.handleAddToCollection();
         });
 
-        await act(async () => {
-            await result.current.handleRemoveFromCollection('c1');
-        });
-
-        expect(consoleErrorSpy).toHaveBeenCalledWith('Error removing from collection:', removeError);
-        consoleErrorSpy.mockRestore();
+        await expect(
+            act(async () => {
+                await result.current.handleRemoveFromCollection('c1');
+            })
+        ).rejects.toThrow('remove failed');
     });
 });

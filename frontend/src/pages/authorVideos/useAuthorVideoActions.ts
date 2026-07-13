@@ -21,8 +21,8 @@ interface UseAuthorVideoActionsParams {
     collections: Collection[];
     deleteVideo: (id: string, options?: { showSnackbar?: boolean }) => Promise<{ success: boolean; error?: string }>;
     updateVideo: (id: string, updates: Partial<Video>) => Promise<{ success: boolean; error?: string }>;
-    createCollection: (name: string, videoId: string) => Promise<Collection | null>;
-    addToCollection: (collectionId: string, videoId: string) => Promise<Collection | null>;
+    createCollection: (name: string, videoId: string) => Promise<Collection>;
+    addToCollection: (collectionId: string, videoId: string) => Promise<Collection>;
     showSnackbar: ShowSnackbarFn;
     t: TranslateFn;
     navigateHome: () => void;

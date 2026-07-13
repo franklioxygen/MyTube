@@ -655,6 +655,8 @@ export const ru = {
   add: "Добавить",
   createNewCollection: "Создать новую коллекцию:",
   collectionName: "Название коллекции",
+  selectOrCreateCollection: "Выберите или создайте коллекцию",
+  createNewCollectionLabel: 'Создать «{name}»',
   create: "Создать",
   removeFromCollection: "Удалить из коллекции",
   confirmRemoveFromCollection:

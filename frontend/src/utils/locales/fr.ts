@@ -663,6 +663,8 @@ export const fr = {
   add: "Ajouter",
   createNewCollection: "Créer une nouvelle collection :",
   collectionName: "Nom de la collection",
+  selectOrCreateCollection: "Sélectionner ou créer une collection",
+  createNewCollectionLabel: 'Créer « {name} »',
   create: "Créer",
   removeFromCollection: "Retirer de la collection",
   confirmRemoveFromCollection:
