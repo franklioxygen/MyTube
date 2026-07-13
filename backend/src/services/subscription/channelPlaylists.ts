@@ -46,13 +46,19 @@ export async function checkChannelPlaylistsForWatcher(
     const {
       executeYtDlpJson,
       getNetworkConfigFromUserConfig,
-      getUserYtDlpConfig,
+      getEffectiveUserYtDlpConfig,
     } = await import("../../utils/ytDlpUtils");
     const { getProviderScript } = await import(
       "../downloaders/ytdlp/ytdlpHelpers"
     );
 
-    const userConfig = getUserYtDlpConfig(sub.authorUrl);
+    // Layer any per-subscription override on top of the global config (#345) so
+    // the proxy/cookies/rate-limit settings needed to enumerate the channel's
+    // playlists apply to this watcher listing, not just eventual downloads.
+    const userConfig = getEffectiveUserYtDlpConfig(
+      sub.authorUrl,
+      sub.ytdlpConfig
+    );
     const networkConfig = getNetworkConfigFromUserConfig(userConfig);
     const PROVIDER_SCRIPT = getProviderScript();
 

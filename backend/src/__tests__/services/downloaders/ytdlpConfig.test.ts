@@ -61,6 +61,52 @@ describe("prepareDownloadFlags final container preference", () => {
     expect(result.flags.writeSubs).toBeUndefined();
   });
 
+  it("preserves an explicit audio-only format selector instead of forcing bestaudio/best", () => {
+    const worst = prepareAudioDownloadFlags(
+      "https://www.youtube.com/watch?v=abc123",
+      "/tmp/track.m4a",
+      "m4a",
+      { format: "worstaudio" },
+    );
+    expect(worst.flags.format).toBe("worstaudio");
+
+    const wa = prepareAudioDownloadFlags(
+      "https://www.youtube.com/watch?v=abc123",
+      "/tmp/track.m4a",
+      "m4a",
+      { f: "wa" },
+    );
+    expect(wa.flags.format).toBe("wa");
+
+    const filtered = prepareAudioDownloadFlags(
+      "https://www.youtube.com/watch?v=abc123",
+      "/tmp/track.m4a",
+      "m4a",
+      { format: "bestaudio[abr<=64]" },
+    );
+    expect(filtered.flags.format).toBe("bestaudio[abr<=64]");
+  });
+
+  it("falls back to bestaudio/best when the audio job has no audio-only selector", () => {
+    // Explicit audio toggle with a video-oriented format: the user's selector
+    // must not leak into the audio branch.
+    const result = prepareAudioDownloadFlags(
+      "https://www.youtube.com/watch?v=abc123",
+      "/tmp/track.m4a",
+      "m4a",
+      { format: "bestvideo+bestaudio" },
+    );
+    expect(result.flags.format).toBe("bestaudio/best");
+
+    const noFormat = prepareAudioDownloadFlags(
+      "https://www.youtube.com/watch?v=abc123",
+      "/tmp/track.m4a",
+      "m4a",
+      { extractAudio: true } as any,
+    );
+    expect(noFormat.flags.format).toBe("bestaudio/best");
+  });
+
   it("preserves auth-related safe user config for audio jobs while stripping video/subtitle/mux options", () => {
     const result = prepareAudioDownloadFlags(
       "https://www.youtube.com/watch?v=abc123",

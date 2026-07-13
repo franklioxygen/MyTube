@@ -737,11 +737,27 @@ export function prepareAudioDownloadFlags(
   const config = (userConfig || getUserYtDlpConfig(videoUrl) || {}) as UserYtDlpConfig;
   const { safeUserConfig, networkOptions } = extractUserConfigOptions(config);
   const normalizedFormat = normalizeAudioFormat(audioFormat);
+
+  // Honor an explicit audio-only selector (e.g. `wa`, `worstaudio`,
+  // `bestaudio[abr<=64]`) so per-subscription quality/filter overrides are not
+  // silently replaced with the default best-audio selector. Fall back to
+  // `bestaudio/best` only when the audio-only mode came from `--extract-audio`
+  // or the UI audio toggle with no audio format selector (issue #345).
+  const formatSelector =
+    typeof config.f === "string" && config.f.trim()
+      ? config.f.trim()
+      : typeof config.format === "string" && config.format.trim()
+        ? config.format.trim()
+        : "";
+  const format = isAudioOnlyFormatSelector(formatSelector)
+    ? formatSelector
+    : "bestaudio/best";
+
   const flags: YtDlpFlags = {
     ...safeUserConfig,
     ...networkOptions,
     output: outputPath,
-    format: "bestaudio/best",
+    format,
     extractAudio: true,
     audioFormat: normalizedFormat,
     audioQuality: 0,
@@ -771,6 +787,23 @@ const VIDEO_FORMAT_MARKERS =
   /\bbestvideo\b|\bworstvideo\b|\bbv(?![\w])|\bwv(?![\w])|\bheight\b|\bwidth\b|acodec\s*=\s*none/i;
 
 /**
+ * True when a yt-dlp `--format` selector string targets audio-only output.
+ * Combined selectors (`bestvideo+bestaudio`) and video-preferred fallbacks mux
+ * to a video container, so they are not audio-only.
+ */
+export function isAudioOnlyFormatSelector(format: string): boolean {
+  if (typeof format !== "string" || !format.trim()) {
+    return false;
+  }
+
+  if (format.includes("+") || VIDEO_FORMAT_MARKERS.test(format)) {
+    return false;
+  }
+
+  return AUDIO_ONLY_FORMAT_MARKERS.test(format);
+}
+
+/**
  * True when a user/override yt-dlp config targets audio-only output (e.g.
  * `--format bestaudio`, `-f ba`, `-f wa`, `[vcodec=none]`, or `--extract-audio`).
  * Used so subscription overrides route through the audio download path instead
@@ -784,17 +817,11 @@ export function isAudioOnlyUserConfig(config: UserYtDlpConfig): boolean {
   }
 
   const format = config.f || config.format;
-  if (typeof format !== "string" || !format.trim()) {
+  if (typeof format !== "string") {
     return false;
   }
 
-  // Combined selectors (e.g. `bestvideo+bestaudio`) or video-preferred
-  // fallbacks mux to a video container, so they are not audio-only.
-  if (format.includes("+") || VIDEO_FORMAT_MARKERS.test(format)) {
-    return false;
-  }
-
-  return AUDIO_ONLY_FORMAT_MARKERS.test(format);
+  return isAudioOnlyFormatSelector(format);
 }
 
 export function inferAudioFormatFromUserConfig(
