@@ -668,6 +668,8 @@ export const de = {
   add: "Hinzufügen",
   createNewCollection: "Neue Sammlung erstellen:",
   collectionName: "Sammlungsname",
+  selectOrCreateCollection: "Sammlung auswählen oder erstellen",
+  createNewCollectionLabel: '„{name}" erstellen',
   create: "Erstellen",
   removeFromCollection: "Aus Sammlung Entfernen",
   confirmRemoveFromCollection:

@@ -10,8 +10,10 @@ import { useSnackbar } from './SnackbarContext';
 interface CollectionContextType {
     collections: Collection[];
     fetchCollections: () => Promise<void>;
-    createCollection: (name: string, videoId: string) => Promise<Collection | null>;
-    addToCollection: (collectionId: string, videoId: string) => Promise<Collection | null>;
+    /** Rejects on failure; callers that need retry/open-modal behavior must handle errors. */
+    createCollection: (name: string, videoId: string) => Promise<Collection>;
+    /** Rejects on failure; callers that need retry/open-modal behavior must handle errors. */
+    addToCollection: (collectionId: string, videoId: string) => Promise<Collection>;
     removeFromCollection: (collectionId: string, videoId: string) => Promise<boolean>;
     deleteCollection: (collectionId: string, deleteVideos?: boolean) => Promise<{ success: boolean; error?: string }>;
     updateCollection: (id: string, name: string) => Promise<{ success: boolean; error?: string }>;
@@ -86,12 +88,8 @@ export const CollectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     });
 
     const createCollection = useCallback(async (name: string, videoId: string) => {
-        try {
-            const response = await createCollectionMutation.mutateAsync({ name, videoId });
-            return response.data as Collection;
-        } catch {
-            return null;
-        }
+        const response = await createCollectionMutation.mutateAsync({ name, videoId });
+        return response.data as Collection;
     }, [createCollectionMutation]);
 
     const addToCollectionMutation = useMutation({
@@ -116,11 +114,8 @@ export const CollectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     });
 
     const addToCollection = useCallback(async (collectionId: string, videoId: string) => {
-        try {
-            return await addToCollectionMutation.mutateAsync({ collectionId, videoId });
-        } catch {
-            return null;
-        }
+        const response = await addToCollectionMutation.mutateAsync({ collectionId, videoId });
+        return response as Collection;
     }, [addToCollectionMutation]);
 
     const removeFromCollection = useCallback(async (collectionId: string, videoId: string) => {

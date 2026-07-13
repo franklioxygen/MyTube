@@ -660,6 +660,8 @@ export const pt = {
   add: "Adicionar",
   createNewCollection: "Criar nova coleção:",
   collectionName: "Nome da coleção",
+  selectOrCreateCollection: "Selecionar ou criar uma coleção",
+  createNewCollectionLabel: 'Criar "{name}"',
   create: "Criar",
   removeFromCollection: "Remover da Coleção",
   confirmRemoveFromCollection:

@@ -1,20 +1,19 @@
+import { Add } from '@mui/icons-material';
 import {
     Alert,
+    Autocomplete,
     Box,
     Button,
     Dialog,
     DialogActions,
     DialogContent,
     DialogTitle,
-    FormControl,
-    InputLabel,
-    MenuItem,
-    Select,
     Stack,
     TextField,
     Typography
 } from '@mui/material';
-import React, { useState } from 'react';
+import type { FilterOptionsState } from '@mui/material/useAutocomplete';
+import React, { useCallback, useId, useMemo, useRef, useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { Collection } from '../types';
 
@@ -29,6 +28,7 @@ interface CollectionModalProps {
 }
 
 type PendingAction = 'add' | 'create' | `remove:${string}` | null;
+type CollectionOption = Collection | string;
 
 const CollectionModal: React.FC<CollectionModalProps> = ({
     open,
@@ -40,25 +40,141 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
     onRemoveFromCollection
 }) => {
     const { t } = useLanguage();
-    const [newCollectionName, setNewCollectionName] = useState<string>('');
-    const [selectedCollection, setSelectedCollection] = useState<string>('');
+    const [textInput, setTextInput] = useState<string>('');
+    const [selectedOption, setSelectedOption] = useState<CollectionOption | null>(null);
     const [pendingAction, setPendingAction] = useState<PendingAction>(null);
+    const highlightedOptionRef = useRef<CollectionOption | null>(null);
+    const nativeAutocompleteId = useId();
+    const nativeAutocompleteToken = useMemo(
+        () => `collection-lookup-${nativeAutocompleteId.replace(/[^a-zA-Z0-9_-]/g, '')}`,
+        [nativeAutocompleteId]
+    );
 
-    const handleClose = () => {
-        if (pendingAction) return;
-        setNewCollectionName('');
-        setSelectedCollection('');
+    const isCurrentCollection = useCallback(
+        (collectionId: string) =>
+            videoCollections?.some((vc) => vc.id === collectionId) ?? false,
+        [videoCollections]
+    );
+
+    const collectionOptions = useMemo(
+        () =>
+            [...(collections ?? [])].sort((a, b) =>
+                a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+            ),
+        [collections]
+    );
+
+    const trimmedInput = textInput.trim();
+
+    const matchedExisting = trimmedInput
+        ? collectionOptions.find(
+              (c) => c.name.trim().toLowerCase() === trimmedInput.toLowerCase()
+          )
+        : undefined;
+
+    const hasExactMatch = Boolean(matchedExisting);
+
+    const filterCollectionOptions = useCallback(
+        (options: CollectionOption[], { inputValue }: FilterOptionsState<CollectionOption>): CollectionOption[] => {
+            const collectionsOnly = options.filter((o): o is Collection => typeof o !== 'string');
+            const q = inputValue.trim().toLowerCase();
+            if (!q) return collectionsOnly;
+
+            const filtered = collectionsOnly.filter((c) => c.name.toLowerCase().includes(q));
+
+            if (!onCreateCollection) return filtered;
+
+            const isExisting = collectionsOnly.some((c) => c.name.trim().toLowerCase() === q);
+            if (inputValue.trim() !== '' && !isExisting) {
+                return [inputValue.trim(), ...filtered];
+            }
+            return filtered;
+        },
+        [onCreateCollection]
+    );
+
+    const resolveHighlightedOption = useCallback(
+        (input: HTMLInputElement): CollectionOption | null => {
+            if (highlightedOptionRef.current !== null) {
+                return highlightedOptionRef.current;
+            }
+
+            const activeDescendantId = input.getAttribute('aria-activedescendant');
+            if (!activeDescendantId) return null;
+
+            const activeOption = document.getElementById(activeDescendantId);
+            const optionIndex = activeOption?.getAttribute('data-option-index');
+            if (optionIndex == null) return null;
+
+            const filtered = filterCollectionOptions(collectionOptions, {
+                inputValue: textInput,
+                getOptionLabel: (option) => (typeof option === 'string' ? option : option.name),
+            } as FilterOptionsState<CollectionOption>);
+
+            return filtered[Number(optionIndex)] ?? null;
+        },
+        [collectionOptions, filterCollectionOptions, textInput]
+    );
+
+    const resolvedCollection = trimmedInput
+        ? collectionOptions.find(
+              (c) => c.name.trim().toLowerCase() === trimmedInput.toLowerCase()
+          )
+        : undefined;
+
+    const canSubmit = Boolean(
+        trimmedInput &&
+            (!resolvedCollection || !isCurrentCollection(resolvedCollection.id)) &&
+            (resolvedCollection ? onAddToCollection : onCreateCollection)
+    );
+
+    const submitLabel = hasExactMatch
+        ? (matchedExisting && isCurrentCollection(matchedExisting.id) ? t('current') : t('add'))
+        : (onCreateCollection ? t('create') : t('add'));
+
+    const showUnifiedInput =
+        Boolean(onAddToCollection || onCreateCollection) &&
+        !(onAddToCollection && !onCreateCollection && collectionOptions.length === 0);
+
+    const resetInputs = () => {
+        setTextInput('');
+        setSelectedOption(null);
+    };
+
+    const resetAndClose = () => {
+        resetInputs();
         onClose();
     };
 
-    const handleCreate = async () => {
-        if (!newCollectionName.trim() || !onCreateCollection) return;
-        setPendingAction('create');
+    const handleClose = () => {
+        if (pendingAction) return;
+        resetInputs();
+        onClose();
+    };
+
+    const submitSelection = async (selection: CollectionOption) => {
+        if (pendingAction) return;
+
+        if (typeof selection === 'string') {
+            const name = selection.trim();
+            if (!name || !onCreateCollection) return;
+            setPendingAction('create');
+            try {
+                await onCreateCollection(name);
+                resetAndClose();
+            } catch {
+                // Keep the modal open so the action can be retried.
+            } finally {
+                setPendingAction(null);
+            }
+            return;
+        }
+
+        if (isCurrentCollection(selection.id) || !onAddToCollection) return;
+        setPendingAction('add');
         try {
-            await onCreateCollection(newCollectionName);
-            setNewCollectionName('');
-            setSelectedCollection('');
-            onClose();
+            await onAddToCollection(selection.id);
+            resetAndClose();
         } catch {
             // Keep the modal open so the action can be retried.
         } finally {
@@ -66,18 +182,16 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
         }
     };
 
-    const handleAdd = async () => {
-        if (!selectedCollection || !onAddToCollection) return;
-        setPendingAction('add');
-        try {
-            await onAddToCollection(selectedCollection);
-            setNewCollectionName('');
-            setSelectedCollection('');
-            onClose();
-        } catch {
-            // Keep the modal open so the action can be retried.
-        } finally {
-            setPendingAction(null);
+    const submit = async () => {
+        if (pendingAction) return;
+
+        const name = trimmedInput;
+        if (!name) return;
+
+        if (resolvedCollection) {
+            await submitSelection(resolvedCollection);
+        } else {
+            await submitSelection(name);
         }
     };
 
@@ -86,9 +200,7 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
         setPendingAction(`remove:${collectionId}`);
         try {
             await onRemoveFromCollection(collectionId);
-            setNewCollectionName('');
-            setSelectedCollection('');
-            onClose();
+            resetAndClose();
         } catch {
             // Keep the modal open so the action can be retried.
         } finally {
@@ -96,8 +208,71 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
         }
     };
 
+    const handleInputEnterKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+        if (event.key !== 'Enter') return;
+
+        const isExpanded = event.currentTarget.getAttribute('aria-expanded') === 'true';
+        if (isExpanded) {
+            const highlighted = resolveHighlightedOption(event.currentTarget);
+            if (highlighted !== null) {
+                event.preventDefault();
+                (event as React.KeyboardEvent & { defaultMuiPrevented?: boolean }).defaultMuiPrevented = true;
+                setSelectedOption(highlighted);
+                setTextInput(
+                    typeof highlighted === 'string' ? highlighted : highlighted.name
+                );
+                void submitSelection(highlighted);
+                return;
+            }
+        }
+
+        event.preventDefault();
+        void submit();
+    };
+
+    const renderCollectionOption = (
+        props: React.HTMLAttributes<HTMLLIElement> & { key: string },
+        option: CollectionOption
+    ) => {
+        const { key, ...otherProps } = props;
+        const isStr = typeof option === 'string';
+        const coll = isStr ? null : option;
+        const current = coll ? isCurrentCollection(coll.id) : false;
+
+        return (
+            <li key={key} {...otherProps}>
+                {isStr ? (
+                    <span>
+                        <Add fontSize="small" sx={{ mr: 1, verticalAlign: 'middle' }} />
+                        {t('createNewCollectionLabel', { name: option })}
+                    </span>
+                ) : (
+                    <span>
+                        {coll!.name}
+                        {current ? (
+                            <>
+                                {' '}
+                                <Typography component="span" variant="caption">
+                                    ({t('current')})
+                                </Typography>
+                            </>
+                        ) : null}
+                    </span>
+                )}
+            </li>
+        );
+    };
+
     return (
-        <Dialog open={open} onClose={handleClose} disableEscapeKeyDown={Boolean(pendingAction)} maxWidth="sm" fullWidth>
+        <Dialog
+            open={open}
+            onClose={() => {
+                if (!pendingAction) handleClose();
+            }}
+            disableEscapeKeyDown={Boolean(pendingAction)}
+            maxWidth="sm"
+            fullWidth
+        >
             <DialogTitle>{t('addToCollection')}</DialogTitle>
             <DialogContent dividers>
                 {videoCollections && videoCollections.length > 0 && onRemoveFromCollection && (
@@ -128,76 +303,95 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
                     </Stack>
                 )}
 
-                {collections && collections.length > 0 && onAddToCollection && (
-                    <Box sx={{ mb: 4 }}>
-                        <Typography variant="subtitle2" gutterBottom>{t('addToExistingCollection')}</Typography>
-                        <Stack direction="row" spacing={2}>
-                            <FormControl fullWidth size="small">
-                                <InputLabel>{t('selectCollection')}</InputLabel>
-                                <Select
-                                    value={selectedCollection}
-                                    label={t('selectCollection')}
-                                    onChange={(e) => setSelectedCollection(e.target.value)}
-                                    disabled={Boolean(pendingAction)}
-                                >
-                                    {collections.map(collection => {
-                                        const isCurrentCollection = videoCollections?.some(
-                                            (videoCollection) => videoCollection.id === collection.id
-                                        ) || false;
-
-                                        return (
-                                        <MenuItem
-                                            key={collection.id}
-                                            value={collection.id}
-                                            disabled={isCurrentCollection}
-                                        >
-                                            {collection.name} {isCurrentCollection ? t('current') : ''}
-                                        </MenuItem>
-                                        );
-                                    })}
-                                </Select>
-                            </FormControl>
-                            <Button
-                                variant="contained"
-                                onClick={() => { void handleAdd(); }}
-                                disabled={!selectedCollection || Boolean(pendingAction)}
-                                loading={pendingAction === 'add'}
-                                loadingPosition="start"
-                            >
-                                {t('add')}
-                            </Button>
-                        </Stack>
-                    </Box>
-                )}
-
-                {onCreateCollection && (
+                {showUnifiedInput && (
                     <Box>
-                        <Typography variant="subtitle2" gutterBottom>{t('createNewCollection')}</Typography>
                         <Stack direction="row" spacing={2}>
-                            <TextField
+                            <Autocomplete<CollectionOption, false, false, true>
+                                freeSolo
+                                autoHighlight
                                 fullWidth
                                 size="small"
-                                label={t('collectionName')}
-                                value={newCollectionName}
-                                onChange={(e) => setNewCollectionName(e.target.value)}
-                                onKeyPress={(e) => e.key === 'Enter' && newCollectionName.trim() && !pendingAction && void handleCreate()}
+                                options={collectionOptions}
+                                getOptionLabel={(option) =>
+                                    typeof option === 'string' ? option : option.name
+                                }
+                                isOptionEqualToValue={(opt, val) =>
+                                    typeof opt === 'string' || typeof val === 'string'
+                                        ? opt === val
+                                        : opt.id === val.id
+                                }
+                                value={selectedOption}
+                                inputValue={textInput}
+                                onInputChange={(_, text, reason) => {
+                                    if (reason !== 'reset') setTextInput(text);
+                                }}
+                                onChange={(_, newValue) => {
+                                    setSelectedOption(newValue);
+                                    setTextInput(
+                                        typeof newValue === 'string'
+                                            ? newValue
+                                            : newValue?.name ?? ''
+                                    );
+                                }}
+                                onHighlightChange={(_, option) => {
+                                    highlightedOptionRef.current = option;
+                                }}
+                                filterOptions={filterCollectionOptions}
+                                onClose={() => {
+                                    highlightedOptionRef.current = null;
+                                }}
+                                getOptionDisabled={(option) =>
+                                    typeof option !== 'string' && isCurrentCollection(option.id)
+                                }
+                                renderOption={renderCollectionOption}
+                                renderInput={(params) => (
+                                    <TextField
+                                        {...params}
+                                        label={t('selectOrCreateCollection')}
+                                        placeholder={t('selectOrCreateCollection')}
+                                        autoComplete="off"
+                                        InputProps={{
+                                            ...params.InputProps,
+                                            onKeyDown: (event) => {
+                                                handleInputEnterKeyDown(
+                                                    event as React.KeyboardEvent<HTMLInputElement>
+                                                );
+                                            },
+                                        }}
+                                        slotProps={{
+                                            htmlInput: {
+                                                ...params.inputProps,
+                                                autoCapitalize: 'none',
+                                                autoComplete: nativeAutocompleteToken,
+                                                autoCorrect: 'off',
+                                                id: nativeAutocompleteToken,
+                                                name: nativeAutocompleteToken,
+                                                spellCheck: false,
+                                                type: 'search',
+                                            },
+                                        }}
+                                    />
+                                )}
                                 disabled={Boolean(pendingAction)}
+                                slotProps={{ listbox: { sx: { maxHeight: 280, overflow: 'auto' } } }}
                             />
                             <Button
                                 variant="contained"
-                                onClick={() => { void handleCreate(); }}
-                                disabled={!newCollectionName.trim() || Boolean(pendingAction)}
-                                loading={pendingAction === 'create'}
+                                onClick={() => { void submit(); }}
+                                disabled={!canSubmit || Boolean(pendingAction)}
+                                loading={pendingAction === 'create' || pendingAction === 'add'}
                                 loadingPosition="start"
                             >
-                                {t('create')}
+                                {submitLabel}
                             </Button>
                         </Stack>
                     </Box>
                 )}
             </DialogContent>
             <DialogActions>
-                <Button onClick={handleClose} color="inherit" disabled={Boolean(pendingAction)}>{t('cancel')}</Button>
+                <Button onClick={handleClose} color="inherit" disabled={Boolean(pendingAction)}>
+                    {t('cancel')}
+                </Button>
             </DialogActions>
         </Dialog>
     );

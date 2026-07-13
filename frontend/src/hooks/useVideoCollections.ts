@@ -55,30 +55,17 @@ export function useVideoCollections({ videoId }: UseVideoCollectionsProps) {
 
     const handleCreateCollection = async (name: string) => {
         if (!activeCollectionVideoId) return;
-        try {
-            await createCollection(name, activeCollectionVideoId);
-        } catch (error) {
-            console.error('Error creating collection:', error);
-        }
+        await createCollection(name, activeCollectionVideoId);
     };
 
     const handleAddToExistingCollection = async (collectionId: string) => {
         if (!activeCollectionVideoId) return;
-        try {
-            await addToCollection(collectionId, activeCollectionVideoId);
-        } catch (error) {
-            console.error('Error adding to collection:', error);
-        }
+        await addToCollection(collectionId, activeCollectionVideoId);
     };
 
     const handleRemoveFromCollection = async (collectionId: string) => {
         if (!activeCollectionVideoId) return;
-
-        try {
-            await removeFromCollection(collectionId, activeCollectionVideoId);
-        } catch (error) {
-            console.error('Error removing from collection:', error);
-        }
+        await removeFromCollection(collectionId, activeCollectionVideoId);
     };
 
     return {

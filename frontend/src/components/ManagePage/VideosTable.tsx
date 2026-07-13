@@ -262,6 +262,7 @@ const VideosTable: React.FC<VideosTableProps> = ({
             setSelectedVideoIds([]);
         } catch (error) {
             console.error('Failed to add videos to collection', error);
+            throw error;
         }
     };
 
@@ -283,6 +284,7 @@ const VideosTable: React.FC<VideosTableProps> = ({
             setSelectedVideoIds([]);
         } catch (error) {
             console.error('Failed to create collection', error);
+            throw error;
         }
     };
 

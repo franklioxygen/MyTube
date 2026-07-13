@@ -620,6 +620,8 @@ Total keys: 1046
 | `add` |
 | `createNewCollection` |
 | `collectionName` |
+| `selectOrCreateCollection` |
+| `createNewCollectionLabel` |
 | `create` |
 | `removeFromCollection` |
 | `confirmRemoveFromCollection` |
