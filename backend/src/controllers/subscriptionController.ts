@@ -88,6 +88,16 @@ function ensureYtdlpConfigTrust(
   return false;
 }
 
+function canReadYtdlpConfigOverride(req: Request): boolean {
+  if (!isAdminTrustLevelAtLeast("container")) {
+    return false;
+  }
+  if (req.apiKeyAuthenticated === true) {
+    return false;
+  }
+  return req.user?.role !== "visitor";
+}
+
 /**
  * Create a new subscription
  * Errors are automatically handled by asyncHandler middleware
@@ -204,6 +214,14 @@ export const getSubscriptions = async (
   res: Response
 ): Promise<void> => {
   const subscriptions = await subscriptionService.listSubscriptions();
+  if (!canReadYtdlpConfigOverride(req)) {
+    const redactedSubscriptions = subscriptions.map(
+      ({ ytdlpConfig, ...subscription }) => subscription
+    );
+    res.json(redactedSubscriptions);
+    return;
+  }
+
   // Return array directly for backward compatibility (frontend expects response.data to be Subscription[])
   res.json(subscriptions);
 };
