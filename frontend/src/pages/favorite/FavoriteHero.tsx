@@ -143,6 +143,27 @@ const FavoriteHero: React.FC<FavoriteHeroProps> = ({ video, collection, variant 
                                 display: 'block',
                             }}
                         />
+                        {/* Featured / Continue Watching badge pinned to the top-right corner */}
+                        <Chip
+                            icon={<Star sx={{ fontSize: 15 }} />}
+                            label={isContinue ? t('continueWatching') : t('featured')}
+                            size="small"
+                            id="favorite-featured-heading"
+                            sx={{
+                                position: 'absolute',
+                                // On mobile, sit level with the carousel indicator
+                                // pill (which anchors to the carousel's top: 12);
+                                // the chip's top: 0 lines their centers up.
+                                top: { xs: 0, md: 8 },
+                                left: 8,
+                                fontWeight: 700,
+                                letterSpacing: 0.6,
+                                textTransform: 'uppercase',
+                                color: neutral.white,
+                                background: `linear-gradient(135deg, ${brand.primaryDark}, ${brand.secondary})`,
+                                '& .MuiChip-icon': { color: neutral.white },
+                            }}
+                        />
                         {video.duration && (
                             <Chip
                                 label={formatDuration(video.duration)}
@@ -169,20 +190,6 @@ const FavoriteHero: React.FC<FavoriteHeroProps> = ({ video, collection, variant 
 
                     <Box sx={{ color: theme.palette.mode === 'dark' ? neutral.white : 'text.primary', maxWidth: 620, width: { xs: '100%', md: 'auto' } }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.25, flexWrap: 'wrap' }}>
-                            <Chip
-                                icon={<Star sx={{ fontSize: 15 }} />}
-                                label={isContinue ? t('continueWatching') : t('featured')}
-                                size="small"
-                                id="favorite-featured-heading"
-                                sx={{
-                                    fontWeight: 700,
-                                    letterSpacing: 0.6,
-                                    textTransform: 'uppercase',
-                                    color: neutral.white,
-                                    background: `linear-gradient(135deg, ${brand.primaryDark}, ${brand.secondary})`,
-                                    '& .MuiChip-icon': { color: neutral.white },
-                                }}
-                            />
                             <Typography
                                 sx={{
                                     color: theme.palette.mode === 'dark' ? overlay.white80 : 'text.secondary',
