@@ -756,21 +756,27 @@ export function prepareAudioDownloadFlags(
   return { flags, audioExtension: normalizedFormat };
 }
 
-// yt-dlp audio-only selectors, including the documented aliases
-// (`ba`/`bestaudio`, `wa`/`worstaudio`) and the `vcodec=none` filter.
+// Strictly audio-only selectors: the exact aliases `ba`/`bestaudio`,
+// `wa`/`worstaudio`, and the `vcodec=none` equality filter. The `*` variants
+// (`ba*`/`wa*`) and negated filters (`vcodec!=none`) are intentionally excluded
+// because yt-dlp documents them as formats that may still contain video.
 // See https://github.com/yt-dlp/yt-dlp#format-selection
+// The `\s*=\s*none` fragment matches only the `=` equality operator, so
+// negated filters like `vcodec!=none` are excluded (the `!` breaks the match).
 const AUDIO_ONLY_FORMAT_MARKERS =
-  /\bbestaudio\b|\bworstaudio\b|\baudioonly\b|\bba(?:\b|\*)|\bwa(?:\b|\*)|vcodec\s*[=:!^$*~]*\s*none/i;
+  /\bbestaudio\b|\bworstaudio\b|\baudioonly\b|\bba(?![\w*])|\bwa(?![\w*])|vcodec\s*=\s*none/i;
 // Video selectors, including `bv`/`bestvideo`, `wv`/`worstvideo`, resolution
-// filters, and the `acodec=none` (video-only stream) filter.
+// filters, and the `acodec=none` (video-only stream) equality filter.
 const VIDEO_FORMAT_MARKERS =
-  /\bbestvideo\b|\bworstvideo\b|\bbv(?:\b|\*)|\bwv(?:\b|\*)|\bheight\b|\bwidth\b|acodec\s*[=:!^$*~]*\s*none/i;
+  /\bbestvideo\b|\bworstvideo\b|\bbv(?![\w])|\bwv(?![\w])|\bheight\b|\bwidth\b|acodec\s*=\s*none/i;
 
 /**
  * True when a user/override yt-dlp config targets audio-only output (e.g.
- * `--format bestaudio`, `-f ba`, `-f wa`, `vcodec=none`, or `--extract-audio`).
+ * `--format bestaudio`, `-f ba`, `-f wa`, `[vcodec=none]`, or `--extract-audio`).
  * Used so subscription overrides route through the audio download path instead
- * of failing post-download video resolution checks.
+ * of failing post-download video resolution checks. Selectors that may still
+ * carry video (`ba*`, `wa*`, `vcodec!=none`) are deliberately not treated as
+ * audio-only so the user's requested format is preserved.
  */
 export function isAudioOnlyUserConfig(config: UserYtDlpConfig): boolean {
   if (config.extractAudio === true || config.x === true) {

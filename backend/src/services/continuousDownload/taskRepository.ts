@@ -287,18 +287,12 @@ export class TaskRepository {
       "collectionId" | "subscriptionId" | "authorUrl"
     >
   ): Promise<Subscription | null> {
-    if (task.collectionId) {
-      const byCollection = await db
-        .select()
-        .from(subscriptions)
-        .where(eq(subscriptions.collectionId, task.collectionId))
-        .limit(1);
-
-      if (byCollection[0]) {
-        return byCollection[0] as Subscription;
-      }
-    }
-
+    // Resolve by the most specific identifier first. A bare collectionId can be
+    // shared by multiple playlist subscriptions, so matching it first could
+    // apply the wrong subscription's yt-dlp override (proxy/format) to another
+    // playlist's URL enumeration and downloads (issue #345). Prefer the exact
+    // subscriptionId, then the task's source URL, and only fall back to the
+    // collection as a last resort.
     if (task.subscriptionId) {
       const bySubscriptionId = await db
         .select()
@@ -311,13 +305,31 @@ export class TaskRepository {
       }
     }
 
-    const byAuthorUrl = await db
-      .select()
-      .from(subscriptions)
-      .where(eq(subscriptions.authorUrl, task.authorUrl))
-      .limit(1);
+    if (task.authorUrl) {
+      const byAuthorUrl = await db
+        .select()
+        .from(subscriptions)
+        .where(eq(subscriptions.authorUrl, task.authorUrl))
+        .limit(1);
 
-    return (byAuthorUrl[0] as Subscription | undefined) || null;
+      if (byAuthorUrl[0]) {
+        return byAuthorUrl[0] as Subscription;
+      }
+    }
+
+    if (task.collectionId) {
+      const byCollection = await db
+        .select()
+        .from(subscriptions)
+        .where(eq(subscriptions.collectionId, task.collectionId))
+        .limit(1);
+
+      if (byCollection[0]) {
+        return byCollection[0] as Subscription;
+      }
+    }
+
+    return null;
   }
 
   /**

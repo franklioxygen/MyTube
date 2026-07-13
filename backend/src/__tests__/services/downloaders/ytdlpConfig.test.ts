@@ -446,14 +446,21 @@ describe("audio-only user config detection (issue #345)", () => {
     ).toBe(false);
   });
 
-  it("detects yt-dlp audio-only aliases (ba/wa) and vcodec=none", () => {
+  it("detects exact yt-dlp audio-only aliases (ba/wa) and vcodec=none", () => {
     expect(isAudioOnlyUserConfig({ f: "ba" })).toBe(true);
     expect(isAudioOnlyUserConfig({ f: "wa" })).toBe(true);
     expect(isAudioOnlyUserConfig({ format: "ba/best" })).toBe(true);
-    expect(isAudioOnlyUserConfig({ format: "ba*" })).toBe(true);
     expect(isAudioOnlyUserConfig({ format: "worstaudio" })).toBe(true);
     expect(isAudioOnlyUserConfig({ format: "best[vcodec=none]" })).toBe(true);
     expect(isAudioOnlyUserConfig({ format: "vcodec=none" })).toBe(true);
+  });
+
+  it("does not classify possibly-video selectors as audio-only", () => {
+    // ba*/wa* may contain video per yt-dlp docs, so they are not audio-only.
+    expect(isAudioOnlyUserConfig({ format: "ba*" })).toBe(false);
+    expect(isAudioOnlyUserConfig({ format: "wa*" })).toBe(false);
+    // Negated video-codec filter selects video-containing formats.
+    expect(isAudioOnlyUserConfig({ format: "best[vcodec!=none]" })).toBe(false);
   });
 
   it("does not treat video-only aliases or unrelated tokens as audio-only", () => {
