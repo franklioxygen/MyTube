@@ -184,13 +184,10 @@ export class TaskProcessor {
     const isPlaylist = playlistRegex.test(task.authorUrl);
     const useIncremental = !cachedVideoUrls && isPlaylist && task.platform === "YouTube";
 
-    // Get total count if not set
-    if (task.totalVideos === 0) {
-      await this.initializeTotalVideos(task, useIncremental, cachedVideoUrls);
-    }
-
-    const totalVideos = task.totalVideos || 0;
-    const fetchBatchSize = 50; // Fetch 50 URLs at a time
+    // Resolve the subscription (and its per-subscription yt-dlp override) up
+    // front so proxy/rate-limit overrides needed to enumerate the source apply
+    // to the count/list probes below, not just the eventual per-video download
+    // (issue #345). Falls back to task metadata when unresolvable.
     let taskSubscription: Subscription | null = null;
     try {
       taskSubscription = await this.taskRepository.getSubscriptionForTask(task);
@@ -200,6 +197,20 @@ export class TaskProcessor {
         error instanceof Error ? error : new Error(String(error))
       );
     }
+    const subscriptionYtdlpConfig = taskSubscription?.ytdlpConfig ?? null;
+
+    // Get total count if not set
+    if (task.totalVideos === 0) {
+      await this.initializeTotalVideos(
+        task,
+        useIncremental,
+        cachedVideoUrls,
+        subscriptionYtdlpConfig
+      );
+    }
+
+    const totalVideos = task.totalVideos || 0;
+    const fetchBatchSize = 50; // Fetch 50 URLs at a time
 
     // For non-incremental tasks, ensure we have the video URLs
     let allVideoUrls: string[] = [];
@@ -209,7 +220,8 @@ export class TaskProcessor {
       } else {
         allVideoUrls = await this.videoUrlFetcher.getAllVideoUrls(
           task.authorUrl,
-          task.platform
+          task.platform,
+          subscriptionYtdlpConfig
         );
       }
     }
@@ -249,7 +261,8 @@ export class TaskProcessor {
             task.authorUrl,
             task.platform,
             i,
-            countToFetch
+            countToFetch,
+            subscriptionYtdlpConfig
           );
 
           if (videoUrlBatch.length === 0) {
@@ -401,13 +414,15 @@ export class TaskProcessor {
   private async initializeTotalVideos(
     task: ContinuousDownloadTask,
     useIncremental: boolean,
-    cachedVideoUrls?: string[]
+    cachedVideoUrls?: string[],
+    subscriptionYtdlpConfig?: string | null
   ): Promise<void> {
     if (useIncremental) {
       // For playlists, get count without loading all URLs
       const count = await this.videoUrlFetcher.getVideoCount(
         task.authorUrl,
-        task.platform
+        task.platform,
+        subscriptionYtdlpConfig
       );
       if (count > 0) {
         await this.taskRepository.updateTotalVideos(task.id, count);
@@ -418,7 +433,8 @@ export class TaskProcessor {
           task.authorUrl,
           task.platform,
           0,
-          100
+          100,
+          subscriptionYtdlpConfig
         );
         const estimatedTotal =
           testBatch.length >= 100 ? 1000 : testBatch.length; // Estimate
@@ -438,7 +454,8 @@ export class TaskProcessor {
         logger.info(`Fetching video list for task ${task.id}...`);
         const videoUrls = await this.videoUrlFetcher.getAllVideoUrls(
           task.authorUrl,
-          task.platform
+          task.platform,
+          subscriptionYtdlpConfig
         );
         await this.taskRepository.updateTotalVideos(task.id, videoUrls.length);
         task.totalVideos = videoUrls.length;

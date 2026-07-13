@@ -39,6 +39,7 @@ vi.mock("../../services/continuousDownload/taskRepository", () => ({
       updateTotalVideos: vi.fn().mockResolvedValue(undefined),
       updateFrozenVideoListPath: vi.fn().mockResolvedValue(undefined),
       clearFrozenVideoListPath: vi.fn().mockResolvedValue(undefined),
+      getSubscriptionForTask: vi.fn().mockResolvedValue(null),
     };
   }),
 }));
@@ -308,7 +309,8 @@ describe("ContinuousDownloadService", () => {
 
       expect(fetcher.getAllVideoEntries).toHaveBeenCalledWith(
         "https://youtube.com/@channel",
-        "YouTube"
+        "YouTube",
+        null
       );
       expect(processor.processTask).toHaveBeenCalledWith(task, ["u1", "u2"]);
       expect((service as any).videoUrlCache.size).toBe(0);
@@ -359,7 +361,8 @@ describe("ContinuousDownloadService", () => {
 
       expect(fetcher.getAllVideoEntries).toHaveBeenCalledWith(
         "https://youtube.com/@freeze",
-        "YouTube"
+        "YouTube",
+        null
       );
       expect(ensureDirSpy).toHaveBeenCalled();
       expect(writeSpy).toHaveBeenCalled();

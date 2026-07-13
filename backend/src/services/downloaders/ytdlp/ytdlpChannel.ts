@@ -2,8 +2,8 @@ import { logger } from "../../../utils/logger";
 import { isYouTubeUrl } from "../../../utils/helpers";
 import {
     executeYtDlpJson,
+    getEffectiveUserYtDlpConfig,
     getNetworkConfigFromUserConfig,
-    getUserYtDlpConfig,
 } from "../../../utils/ytDlpUtils";
 import { getProviderScript } from "./ytdlpHelpers";
 
@@ -48,13 +48,19 @@ function buildYouTubeTabUrl(channelUrl: string, tab: "videos" | "shorts"): strin
  * Get the latest video URL from a channel
  */
 export async function getLatestVideoUrl(
-  channelUrl: string
+  channelUrl: string,
+  subscriptionYtdlpConfig?: string | null
 ): Promise<string | null> {
   try {
     logger.info("Fetching latest video for channel", { channelUrl });
 
-    // Get user config for network options
-    const userConfig = getUserYtDlpConfig(channelUrl);
+    // Get user config for network options, layering any per-subscription
+    // override (proxy/rate limits) on top of the global config (#345) so the
+    // scheduled channel probe can reach the source the download will use.
+    const userConfig = getEffectiveUserYtDlpConfig(
+      channelUrl,
+      subscriptionYtdlpConfig
+    );
     const networkConfig = getNetworkConfigFromUserConfig(userConfig);
     const PROVIDER_SCRIPT = getProviderScript();
 
@@ -113,13 +119,18 @@ export async function getLatestVideoUrl(
  * another strategy.
  */
 export async function getLatestShortsUrl(
-  channelUrl: string
+  channelUrl: string,
+  subscriptionYtdlpConfig?: string | null
 ): Promise<string | null> {
   try {
     logger.info("Fetching latest Shorts for channel", { channelUrl });
 
-    // Get user config for network options
-    const userConfig = getUserYtDlpConfig(channelUrl);
+    // Get user config for network options, layering any per-subscription
+    // override on top of the global config (#345).
+    const userConfig = getEffectiveUserYtDlpConfig(
+      channelUrl,
+      subscriptionYtdlpConfig
+    );
     const networkConfig = getNetworkConfigFromUserConfig(userConfig);
     const PROVIDER_SCRIPT = getProviderScript();
 

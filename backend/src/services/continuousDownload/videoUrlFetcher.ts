@@ -118,7 +118,8 @@ export class VideoUrlFetcher {
    */
   async getVideoCount(
     authorUrl: string,
-    platform: string
+    platform: string,
+    subscriptionYtdlpConfig?: string | null
   ): Promise<number> {
     try {
       if (platform === "Bilibili" || platform === "Twitch") {
@@ -130,12 +131,15 @@ export class VideoUrlFetcher {
         const {
           executeYtDlpJson,
           getNetworkConfigFromUserConfig,
-          getUserYtDlpConfig,
+          getEffectiveUserYtDlpConfig,
         } = await import("../../utils/ytDlpUtils");
         const { getProviderScript } = await import(
           "../downloaders/ytdlp/ytdlpHelpers"
         );
-        const userConfig = getUserYtDlpConfig(authorUrl);
+        const userConfig = getEffectiveUserYtDlpConfig(
+          authorUrl,
+          subscriptionYtdlpConfig
+        );
         const networkConfig = getNetworkConfigFromUserConfig(userConfig);
         const PROVIDER_SCRIPT = getProviderScript();
 
@@ -177,20 +181,25 @@ export class VideoUrlFetcher {
     authorUrl: string,
     platform: string,
     startIndex: number,
-    batchSize: number = 50
+    batchSize: number = 50,
+    subscriptionYtdlpConfig?: string | null
   ): Promise<string[]> {
-    const videoUrls: string[] = [];
-
     try {
       if (platform === "Bilibili") {
-        return await this.getBilibiliVideoUrls(authorUrl, startIndex, batchSize);
+        return await this.getBilibiliVideoUrls(
+          authorUrl,
+          startIndex,
+          batchSize,
+          subscriptionYtdlpConfig
+        );
       } else if (platform === "Twitch") {
         return await this.getTwitchVideoUrls(authorUrl);
       } else {
         return await this.getYouTubeVideoUrlsIncremental(
           authorUrl,
           startIndex,
-          batchSize
+          batchSize,
+          subscriptionYtdlpConfig
         );
       }
     } catch (error) {
@@ -205,15 +214,24 @@ export class VideoUrlFetcher {
    */
   async getAllVideoUrls(
     authorUrl: string,
-    platform: string
+    platform: string,
+    subscriptionYtdlpConfig?: string | null
   ): Promise<string[]> {
     try {
       if (platform === "Bilibili") {
-        return await this.getBilibiliVideoUrls(authorUrl);
+        return await this.getBilibiliVideoUrls(
+          authorUrl,
+          0,
+          undefined,
+          subscriptionYtdlpConfig
+        );
       } else if (platform === "Twitch") {
         return await this.getTwitchVideoUrls(authorUrl);
       } else {
-        return await this.getYouTubeVideoUrls(authorUrl);
+        return await this.getYouTubeVideoUrls(
+          authorUrl,
+          subscriptionYtdlpConfig
+        );
       }
     } catch (error) {
       logger.error("Error getting all video URLs:", error);
@@ -227,15 +245,22 @@ export class VideoUrlFetcher {
    */
   async getAllVideoEntries(
     authorUrl: string,
-    platform: string
+    platform: string,
+    subscriptionYtdlpConfig?: string | null
   ): Promise<VideoEntry[]> {
     try {
       if (platform === "Bilibili") {
-        return await this.getBilibiliVideoEntries(authorUrl);
+        return await this.getBilibiliVideoEntries(
+          authorUrl,
+          subscriptionYtdlpConfig
+        );
       } else if (platform === "Twitch") {
         return await this.getTwitchVideoEntries(authorUrl);
       } else {
-        return await this.getYouTubeVideoEntries(authorUrl);
+        return await this.getYouTubeVideoEntries(
+          authorUrl,
+          subscriptionYtdlpConfig
+        );
       }
     } catch (error) {
       logger.error("Error getting all video entries:", error);
@@ -246,16 +271,22 @@ export class VideoUrlFetcher {
   /**
    * Get YouTube video entries with metadata
    */
-  private async getYouTubeVideoEntries(authorUrl: string): Promise<VideoEntry[]> {
+  private async getYouTubeVideoEntries(
+    authorUrl: string,
+    subscriptionYtdlpConfig?: string | null
+  ): Promise<VideoEntry[]> {
     const {
       executeYtDlpJson,
       getNetworkConfigFromUserConfig,
-      getUserYtDlpConfig,
+      getEffectiveUserYtDlpConfig,
     } = await import("../../utils/ytDlpUtils");
     const { getProviderScript } = await import(
       "../downloaders/ytdlp/ytdlpHelpers"
     );
-    const userConfig = getUserYtDlpConfig(authorUrl);
+    const userConfig = getEffectiveUserYtDlpConfig(
+      authorUrl,
+      subscriptionYtdlpConfig
+    );
     const networkConfig = getNetworkConfigFromUserConfig(userConfig);
     const PROVIDER_SCRIPT = getProviderScript();
 
@@ -326,7 +357,10 @@ export class VideoUrlFetcher {
   /**
    * Get Bilibili video entries with metadata (preserves existing resolution behavior)
    */
-  private async getBilibiliVideoEntries(authorUrl: string): Promise<VideoEntry[]> {
+  private async getBilibiliVideoEntries(
+    authorUrl: string,
+    subscriptionYtdlpConfig?: string | null
+  ): Promise<VideoEntry[]> {
     const entries: VideoEntry[] = [];
     const { extractBilibiliMid, extractBilibiliVideoId } = await import("../../utils/helpers");
     const { checkBilibiliCollectionOrSeries } = await import("../../services/downloadService");
@@ -390,9 +424,12 @@ export class VideoUrlFetcher {
     const {
       executeYtDlpJson,
       getNetworkConfigFromUserConfig,
-      getUserYtDlpConfig,
+      getEffectiveUserYtDlpConfig,
     } = await import("../../utils/ytDlpUtils");
-    const userConfig = getUserYtDlpConfig(authorUrl);
+    const userConfig = getEffectiveUserYtDlpConfig(
+      authorUrl,
+      subscriptionYtdlpConfig
+    );
     const networkConfig = getNetworkConfigFromUserConfig(userConfig);
     const videosUrl = `https://space.bilibili.com/${mid}/video`;
 
@@ -625,7 +662,8 @@ export class VideoUrlFetcher {
   private async getBilibiliVideoUrls(
     authorUrl: string,
     startIndex: number = 0,
-    batchSize?: number
+    batchSize?: number,
+    subscriptionYtdlpConfig?: string | null
   ): Promise<string[]> {
     const videoUrls: string[] = [];
     const { extractBilibiliMid, extractBilibiliVideoId } = await import("../../utils/helpers");
@@ -680,9 +718,12 @@ export class VideoUrlFetcher {
     const {
       executeYtDlpJson,
       getNetworkConfigFromUserConfig,
-      getUserYtDlpConfig,
+      getEffectiveUserYtDlpConfig,
     } = await import("../../utils/ytDlpUtils");
-    const userConfig = getUserYtDlpConfig(authorUrl);
+    const userConfig = getEffectiveUserYtDlpConfig(
+      authorUrl,
+      subscriptionYtdlpConfig
+    );
     const networkConfig = getNetworkConfigFromUserConfig(userConfig);
 
     // Use yt-dlp to get all videos from the space
@@ -799,18 +840,22 @@ export class VideoUrlFetcher {
   private async getYouTubeVideoUrlsIncremental(
     authorUrl: string,
     startIndex: number,
-    batchSize: number
+    batchSize: number,
+    subscriptionYtdlpConfig?: string | null
   ): Promise<string[]> {
     const videoUrls: string[] = [];
     const {
       executeYtDlpJson,
       getNetworkConfigFromUserConfig,
-      getUserYtDlpConfig,
+      getEffectiveUserYtDlpConfig,
     } = await import("../../utils/ytDlpUtils");
     const { getProviderScript } = await import(
       "../downloaders/ytdlp/ytdlpHelpers"
     );
-    const userConfig = getUserYtDlpConfig(authorUrl);
+    const userConfig = getEffectiveUserYtDlpConfig(
+      authorUrl,
+      subscriptionYtdlpConfig
+    );
     const networkConfig = getNetworkConfigFromUserConfig(userConfig);
     const PROVIDER_SCRIPT = getProviderScript();
 
@@ -853,7 +898,10 @@ export class VideoUrlFetcher {
       }
     } else {
       // For channels, we need to fetch all (can't do incremental easily)
-      return await this.getYouTubeVideoUrls(authorUrl);
+      return await this.getYouTubeVideoUrls(
+        authorUrl,
+        subscriptionYtdlpConfig
+      );
     }
 
     return videoUrls;
@@ -862,17 +910,23 @@ export class VideoUrlFetcher {
   /**
    * Get all YouTube video URLs
    */
-  private async getYouTubeVideoUrls(authorUrl: string): Promise<string[]> {
+  private async getYouTubeVideoUrls(
+    authorUrl: string,
+    subscriptionYtdlpConfig?: string | null
+  ): Promise<string[]> {
     const videoUrls: string[] = [];
     const {
       executeYtDlpJson,
       getNetworkConfigFromUserConfig,
-      getUserYtDlpConfig,
+      getEffectiveUserYtDlpConfig,
     } = await import("../../utils/ytDlpUtils");
     const { getProviderScript } = await import(
       "../downloaders/ytdlp/ytdlpHelpers"
     );
-    const userConfig = getUserYtDlpConfig(authorUrl);
+    const userConfig = getEffectiveUserYtDlpConfig(
+      authorUrl,
+      subscriptionYtdlpConfig
+    );
     const networkConfig = getNetworkConfigFromUserConfig(userConfig);
     const PROVIDER_SCRIPT = getProviderScript();
 

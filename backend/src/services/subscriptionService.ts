@@ -585,9 +585,14 @@ export class SubscriptionService {
       const latestVideoUrl = isPlaylistSubscription
         ? await this.getLatestPlaylistVideoUrl(
             sub.authorUrl,
-            sub.platform
+            sub.platform,
+            sub.ytdlpConfig
           )
-        : await this.getLatestVideoUrl(sub.authorUrl, sub.platform);
+        : await this.getLatestVideoUrl(
+            sub.authorUrl,
+            sub.platform,
+            sub.ytdlpConfig
+          );
 
       if (latestVideoUrl && latestVideoUrl !== sub.lastVideoLink) {
         logger.info(
@@ -798,7 +803,8 @@ export class SubscriptionService {
 
         try {
           const latestShortUrl = await YtDlpDownloader.getLatestShortsUrl(
-            sub.authorUrl
+            sub.authorUrl,
+            sub.ytdlpConfig
           );
 
         if (latestShortUrl && latestShortUrl !== sub.lastShortVideoLink) {
@@ -1045,14 +1051,21 @@ export class SubscriptionService {
   // Helper to get latest video URL based on platform
   private async getLatestVideoUrl(
     channelUrl: string,
-    platform?: string
+    platform?: string,
+    subscriptionYtdlpConfig?: string | null
   ): Promise<string | null> {
     if (platform === "Bilibili" || isBilibiliSpaceUrl(channelUrl)) {
-      return await BilibiliDownloader.getLatestVideoUrl(channelUrl);
+      return await BilibiliDownloader.getLatestVideoUrl(
+        channelUrl,
+        subscriptionYtdlpConfig
+      );
     }
 
     // Default to YouTube/yt-dlp
-    return await YtDlpDownloader.getLatestVideoUrl(channelUrl);
+    return await YtDlpDownloader.getLatestVideoUrl(
+      channelUrl,
+      subscriptionYtdlpConfig
+    );
   }
 
   /**
@@ -1061,15 +1074,22 @@ export class SubscriptionService {
    */
   private async getLatestPlaylistVideoUrl(
     playlistUrl: string,
-    platform?: string
+    platform?: string,
+    subscriptionYtdlpConfig?: string | null
   ): Promise<string | null> {
     try {
       const {
         executeYtDlpJson,
         getNetworkConfigFromUserConfig,
-        getUserYtDlpConfig,
+        getEffectiveUserYtDlpConfig,
       } = await import("../utils/ytDlpUtils");
-      const userConfig = getUserYtDlpConfig(playlistUrl);
+      // Layer any per-subscription override on top of the global config (#345)
+      // so proxy/rate-limit overrides needed to enumerate the playlist apply to
+      // the scheduled probe, not just the eventual download.
+      const userConfig = getEffectiveUserYtDlpConfig(
+        playlistUrl,
+        subscriptionYtdlpConfig
+      );
       const networkConfig = getNetworkConfigFromUserConfig(userConfig);
 
       // Get the first video from the playlist

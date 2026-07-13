@@ -77,8 +77,11 @@ export class BilibiliDownloader extends BaseDownloader {
   }
 
   // Get the latest video URL from a Bilibili author's space
-  static async getLatestVideoUrl(spaceUrl: string): Promise<string | null> {
-    return bilibiliApi.getLatestVideoUrl(spaceUrl);
+  static async getLatestVideoUrl(
+    spaceUrl: string,
+    subscriptionYtdlpConfig?: string | null
+  ): Promise<string | null> {
+    return bilibiliApi.getLatestVideoUrl(spaceUrl, subscriptionYtdlpConfig);
   }
 
   // Wrapper for internal download logic, matching existing static method

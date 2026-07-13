@@ -62,6 +62,7 @@ vi.mock('../../services/downloaders/ytdlp/ytdlpHelpers', () => ({
 vi.mock('../../utils/ytDlpUtils', () => ({
   executeYtDlpJson: vi.fn(),
   getUserYtDlpConfig: vi.fn().mockReturnValue({}),
+  getEffectiveUserYtDlpConfig: vi.fn().mockReturnValue({}),
   getNetworkConfigFromUserConfig: vi.fn().mockReturnValue({}),
 }));
 vi.mock('node-cron', () => ({
@@ -432,7 +433,8 @@ describe('SubscriptionService', () => {
 
       expect(YtDlpDownloader.getLatestVideoUrl).toHaveBeenCalledTimes(2);
       expect(YtDlpDownloader.getLatestVideoUrl).toHaveBeenCalledWith(
-        'https://youtube.com/@works'
+        'https://youtube.com/@works',
+        undefined
       );
       expect(downloadService.downloadYouTubeVideo).not.toHaveBeenCalled();
     });
@@ -448,7 +450,8 @@ describe('SubscriptionService', () => {
 
       expect(YtDlpDownloader.getLatestVideoUrl).toHaveBeenCalledTimes(1);
       expect(YtDlpDownloader.getLatestVideoUrl).toHaveBeenCalledWith(
-        'https://youtube.com/@due'
+        'https://youtube.com/@due',
+        undefined
       );
     });
   });
