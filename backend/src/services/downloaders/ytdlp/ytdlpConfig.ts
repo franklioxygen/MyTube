@@ -755,3 +755,68 @@ export function prepareAudioDownloadFlags(
 
   return { flags, audioExtension: normalizedFormat };
 }
+
+const AUDIO_ONLY_FORMAT_MARKERS = /\bbestaudio\b|\baudioonly\b/i;
+const VIDEO_FORMAT_MARKERS = /\bbestvideo\b|\bvcodec\b|\bheight\b|\bwidth\b/i;
+
+/**
+ * True when a user/override yt-dlp config targets audio-only output (e.g.
+ * `--format bestaudio` or `--extract-audio`). Used so subscription overrides
+ * route through the audio download path instead of failing post-download video
+ * resolution checks.
+ */
+export function isAudioOnlyUserConfig(config: UserYtDlpConfig): boolean {
+  if (config.extractAudio === true || config.x === true) {
+    return true;
+  }
+
+  const format = config.f || config.format;
+  if (typeof format !== "string" || !format.trim()) {
+    return false;
+  }
+
+  if (VIDEO_FORMAT_MARKERS.test(format) || format.includes("+")) {
+    return false;
+  }
+
+  return AUDIO_ONLY_FORMAT_MARKERS.test(format);
+}
+
+export function inferAudioFormatFromUserConfig(
+  config: UserYtDlpConfig,
+): AudioFormat {
+  if (config.audioFormat) {
+    return normalizeAudioFormat(config.audioFormat);
+  }
+
+  const format = String(config.f || config.format || "");
+  const extMatch = format.match(/\[ext=([a-z0-9]+)\]/i);
+  if (extMatch) {
+    return normalizeAudioFormat(extMatch[1]);
+  }
+
+  return "m4a";
+}
+
+export function resolveDownloadAudioMode(args: {
+  explicitAudioOnly?: boolean;
+  explicitAudioFormat?: unknown;
+  userConfig?: UserYtDlpConfig;
+}): { audioOnly: boolean; audioFormat: AudioFormat } {
+  const explicitAudioOnly = args.explicitAudioOnly === true;
+  const explicitAudioFormat = normalizeAudioFormat(args.explicitAudioFormat);
+  const userConfig = args.userConfig ?? {};
+
+  if (explicitAudioOnly) {
+    return { audioOnly: true, audioFormat: explicitAudioFormat };
+  }
+
+  if (isAudioOnlyUserConfig(userConfig)) {
+    return {
+      audioOnly: true,
+      audioFormat: inferAudioFormatFromUserConfig(userConfig),
+    };
+  }
+
+  return { audioOnly: false, audioFormat: explicitAudioFormat };
+}

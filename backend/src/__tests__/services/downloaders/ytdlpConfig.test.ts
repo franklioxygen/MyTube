@@ -15,8 +15,11 @@ vi.mock("../../../services/downloaders/ytdlp/ytdlpHelpers", () => ({
 }));
 
 import {
+  inferAudioFormatFromUserConfig,
+  isAudioOnlyUserConfig,
   prepareAudioDownloadFlags,
   prepareDownloadFlags,
+  resolveDownloadAudioMode,
 } from "../../../services/downloaders/ytdlp/ytdlpConfig";
 
 describe("prepareDownloadFlags final container preference", () => {
@@ -420,5 +423,61 @@ describe("prepareDownloadFlags final container preference", () => {
     expect(result.flags.mergeOutputFormat).toBe("mp4");
     expect(result.mergeOutputFormat).toBe("mp4");
     expect(result.videoExtension).toBe("mp4");
+  });
+});
+
+describe("audio-only user config detection (issue #345)", () => {
+  it("detects bestaudio format overrides", () => {
+    expect(isAudioOnlyUserConfig({ format: "bestaudio" })).toBe(true);
+    expect(isAudioOnlyUserConfig({ f: "bestaudio/best" })).toBe(true);
+    expect(isAudioOnlyUserConfig({ format: "bestaudio[ext=opus]" })).toBe(
+      true,
+    );
+  });
+
+  it("rejects mixed video+audio format selectors", () => {
+    expect(
+      isAudioOnlyUserConfig({ format: "bestvideo+bestaudio" }),
+    ).toBe(false);
+    expect(
+      isAudioOnlyUserConfig({
+        format: "bestvideo[ext=mp4]+bestaudio[ext=m4a]",
+      }),
+    ).toBe(false);
+  });
+
+  it("detects extract-audio flags", () => {
+    expect(isAudioOnlyUserConfig({ extractAudio: true })).toBe(true);
+    expect(isAudioOnlyUserConfig({ x: true })).toBe(true);
+  });
+
+  it("infers audio format from override text", () => {
+    expect(
+      inferAudioFormatFromUserConfig({ format: "bestaudio[ext=opus]" }),
+    ).toBe("opus");
+    expect(inferAudioFormatFromUserConfig({ audioFormat: "mp3" })).toBe(
+      "mp3",
+    );
+    expect(inferAudioFormatFromUserConfig({ format: "bestaudio" })).toBe(
+      "m4a",
+    );
+  });
+
+  it("resolves explicit audio mode over config inference", () => {
+    expect(
+      resolveDownloadAudioMode({
+        explicitAudioOnly: true,
+        explicitAudioFormat: "mp3",
+        userConfig: { format: "bestvideo+bestaudio" },
+      }),
+    ).toEqual({ audioOnly: true, audioFormat: "mp3" });
+  });
+
+  it("infers audio mode from subscription-style bestaudio override", () => {
+    expect(
+      resolveDownloadAudioMode({
+        userConfig: { format: "bestaudio" },
+      }),
+    ).toEqual({ audioOnly: true, audioFormat: "m4a" });
   });
 });
