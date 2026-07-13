@@ -1034,6 +1034,14 @@ export const ru = {
   retentionDaysUpdated: "Политика хранения обновлена",
   retentionDaysUpdateFailed: "Не удалось обновить политику хранения",
 
+  // Per-subscription yt-dlp config override (issue #345)
+  editYtdlpConfigOverride: "Изменить переопределение конфигурации yt-dlp",
+  ytdlpConfigOverrideHelp:
+    "Произвольные параметры yt-dlp, применяемые только к этой подписке (например, --format bestaudio для аудиоканала). Оставьте пустым, чтобы использовать глобальную конфигурацию yt-dlp. Указанные здесь параметры переопределяют глобальные; пропущенные (прокси, ограничения скорости) наследуются из неё.",
+  ytdlpConfigOverridePlaceholder: "--format bestaudio",
+  ytdlpConfigOverrideUpdated: "Переопределение yt-dlp обновлено",
+  ytdlpConfigOverrideUpdateFailed: "Не удалось обновить переопределение yt-dlp",
+
   // Subscription Pause/Resume
   pause: "Пауза",
   resume: "Возобновить",

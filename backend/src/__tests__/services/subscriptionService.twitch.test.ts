@@ -351,23 +351,25 @@ describe("SubscriptionService Twitch support", () => {
     expect(downloadYouTubeVideo).toHaveBeenNthCalledWith(
       1,
       "https://www.twitch.tv/videos/1003",
-      undefined,
-      undefined,
       expect.objectContaining({
-        sourceCustomName: "Some Channel",
-        sourceCollectionName: "Some Channel",
-        sourceCollectionType: "channel",
+        filenameTemplateSourceOptions: expect.objectContaining({
+          sourceCustomName: "Some Channel",
+          sourceCollectionName: "Some Channel",
+          sourceCollectionType: "channel",
+        }),
+        subscriptionYtdlpConfig: undefined,
       })
     );
     expect(downloadYouTubeVideo).toHaveBeenNthCalledWith(
       2,
       "https://www.twitch.tv/videos/1004",
-      undefined,
-      undefined,
       expect.objectContaining({
-        sourceCustomName: "Some Channel",
-        sourceCollectionName: "Some Channel",
-        sourceCollectionType: "channel",
+        filenameTemplateSourceOptions: expect.objectContaining({
+          sourceCustomName: "Some Channel",
+          sourceCollectionName: "Some Channel",
+          sourceCollectionType: "channel",
+        }),
+        subscriptionYtdlpConfig: undefined,
       })
     );
     expect(storageService.addDownloadHistoryItem).toHaveBeenCalledTimes(2);
@@ -639,12 +641,13 @@ describe("SubscriptionService Twitch support", () => {
     expect(twitchApiService.listVideosByBroadcaster).not.toHaveBeenCalled();
     expect(downloadYouTubeVideo).toHaveBeenCalledWith(
       "https://www.twitch.tv/videos/2003",
-      undefined,
-      undefined,
       expect.objectContaining({
-        sourceCustomName: "Some Channel",
-        sourceCollectionName: "Some Channel",
-        sourceCollectionType: "channel",
+        filenameTemplateSourceOptions: expect.objectContaining({
+          sourceCustomName: "Some Channel",
+          sourceCollectionName: "Some Channel",
+          sourceCollectionType: "channel",
+        }),
+        subscriptionYtdlpConfig: undefined,
       })
     );
     expect(channelRefreshBuilder.set).toHaveBeenCalledWith({
@@ -775,23 +778,25 @@ describe("SubscriptionService Twitch support", () => {
     expect(downloadYouTubeVideo).toHaveBeenNthCalledWith(
       1,
       "https://www.twitch.tv/videos/2003",
-      undefined,
-      undefined,
       expect.objectContaining({
-        sourceCustomName: "Fallback Channel",
-        sourceCollectionName: "Fallback Channel",
-        sourceCollectionType: "channel",
+        filenameTemplateSourceOptions: expect.objectContaining({
+          sourceCustomName: "Fallback Channel",
+          sourceCollectionName: "Fallback Channel",
+          sourceCollectionType: "channel",
+        }),
+        subscriptionYtdlpConfig: undefined,
       })
     );
     expect(downloadYouTubeVideo).toHaveBeenNthCalledWith(
       2,
       "https://www.twitch.tv/videos/2004",
-      undefined,
-      undefined,
       expect.objectContaining({
-        sourceCustomName: "Fallback Channel",
-        sourceCollectionName: "Fallback Channel",
-        sourceCollectionType: "channel",
+        filenameTemplateSourceOptions: expect.objectContaining({
+          sourceCustomName: "Fallback Channel",
+          sourceCollectionName: "Fallback Channel",
+          sourceCollectionType: "channel",
+        }),
+        subscriptionYtdlpConfig: undefined,
       })
     );
     expect(channelRefreshBuilder.set).toHaveBeenCalledWith({

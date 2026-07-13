@@ -1010,6 +1010,14 @@ export const ar = {
   retentionDaysUpdated: "تم تحديث سياسة الاحتفاظ",
   retentionDaysUpdateFailed: "فشل تحديث سياسة الاحتفاظ",
 
+  // Per-subscription yt-dlp config override (issue #345)
+  editYtdlpConfigOverride: "تعديل تجاوز إعدادات yt-dlp",
+  ytdlpConfigOverrideHelp:
+    "خيارات yt-dlp نصية حرة تُطبَّق على هذا الاشتراك فقط (مثل --format bestaudio لقناة صوتية فقط). اتركها فارغة لاستخدام إعدادات yt-dlp العامة. الخيارات التي تحددها هنا تتجاوز الإعداد العام؛ وما تُهمله (الوكيل، حدود السرعة) يُورَّث منه.",
+  ytdlpConfigOverridePlaceholder: "--format bestaudio",
+  ytdlpConfigOverrideUpdated: "تم تحديث تجاوز yt-dlp",
+  ytdlpConfigOverrideUpdateFailed: "فشل تحديث تجاوز yt-dlp",
+
   // Subscription Pause/Resume
   pause: "إيقاف مؤقت",
   resume: "استئناف",

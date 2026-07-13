@@ -1048,6 +1048,14 @@ export const es = {
   retentionDaysUpdated: "Política de retención actualizada",
   retentionDaysUpdateFailed: "No se pudo actualizar la política de retención",
 
+  // Per-subscription yt-dlp config override (issue #345)
+  editYtdlpConfigOverride: "Editar anulación de configuración de yt-dlp",
+  ytdlpConfigOverrideHelp:
+    "Opciones de yt-dlp en texto libre aplicadas solo a esta suscripción (p. ej. --format bestaudio para un canal solo de audio). Déjelo vacío para usar la configuración global de yt-dlp. Las opciones que establezca aquí anulan la configuración global; lo que omita (proxy, límites de velocidad) se hereda de ella.",
+  ytdlpConfigOverridePlaceholder: "--format bestaudio",
+  ytdlpConfigOverrideUpdated: "Anulación de yt-dlp actualizada",
+  ytdlpConfigOverrideUpdateFailed: "No se pudo actualizar la anulación de yt-dlp",
+
   // Subscription Pause/Resume
   pause: "Pausar",
   resume: "Reanudar",

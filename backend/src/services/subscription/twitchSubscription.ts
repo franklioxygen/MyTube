@@ -349,12 +349,11 @@ export async function processTwitchSubscriptionVideos(
     let twitchVideoDownloaded = false;
     let downloadedTwitchTitle = video.title || `Video from ${sub.author}`;
     try {
-      const downloadResult = await downloadYouTubeVideo(
-        video.url,
-        undefined,
-        undefined,
-        buildFilenameTemplateSourceOptions(sub)
-      );
+      const downloadResult = await downloadYouTubeVideo(video.url, {
+        filenameTemplateSourceOptions:
+          buildFilenameTemplateSourceOptions(sub),
+        subscriptionYtdlpConfig: sub.ytdlpConfig,
+      });
       const videoData = downloadResult?.videoData || downloadResult || {};
       downloadedTwitchTitle = videoData.title || video.title;
       twitchVideoDownloaded = true;

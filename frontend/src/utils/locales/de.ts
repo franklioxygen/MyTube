@@ -1052,6 +1052,15 @@ export const de = {
   retentionDaysUpdateFailed:
     "Aufbewahrungsrichtlinie konnte nicht aktualisiert werden",
 
+  // Per-subscription yt-dlp config override (issue #345)
+  editYtdlpConfigOverride: "yt-dlp-Konfigurationsüberschreibung bearbeiten",
+  ytdlpConfigOverrideHelp:
+    "Freitext-yt-dlp-Optionen, die nur für dieses Abonnement gelten (z. B. --format bestaudio für einen reinen Audiokanal). Leer lassen, um die globale yt-dlp-Konfiguration zu verwenden. Hier gesetzte Optionen überschreiben die globale Konfiguration; ausgelassene Einstellungen (Proxy, Ratenlimits) werden von ihr übernommen.",
+  ytdlpConfigOverridePlaceholder: "--format bestaudio",
+  ytdlpConfigOverrideUpdated: "yt-dlp-Überschreibung aktualisiert",
+  ytdlpConfigOverrideUpdateFailed:
+    "yt-dlp-Überschreibung konnte nicht aktualisiert werden",
+
   // Subscription Pause/Resume
   pause: "Pause",
   resume: "Fortsetzen",
