@@ -8,7 +8,7 @@ import { resolveAuthorOrganizationMode } from "../../../types/settings";
 import { logger } from "../../../utils/logger";
 import {
   getAxiosProxyConfig,
-  getUserYtDlpConfig,
+  getEffectiveUserYtDlpConfig,
   InvalidProxyError,
 } from "../../../utils/ytDlpUtils";
 import {
@@ -21,7 +21,7 @@ import {
 } from "../../mediaServerExport";
 import * as storageService from "../../storageService";
 import { Video } from "../../storageService";
-import { normalizeAudioFormat } from "../../../types/settings";
+import { resolveDownloadAudioMode } from "../ytdlp/ytdlpConfig";
 import type { DownloadModeOptions } from "../BaseDownloader";
 import {
   deleteSmallThumbnailMirrorSync,
@@ -74,10 +74,22 @@ export async function downloadSinglePart(
     );
 
     // Keep destination paths aligned with the Bilibili yt-dlp merge container.
-    const userConfig = getUserYtDlpConfig(url);
-    const audioOnly = modeOptions?.audioOnly === true;
+    // Layer any per-subscription override on top of the global config (#345) and
+    // infer audio-only mode the same way bilibiliCoreDownload does, so an
+    // audio-only override (e.g. --format bestaudio) is reflected in the merge
+    // container, mediaType, and duplicate scoping instead of being saved as a
+    // video row.
+    const userConfig = getEffectiveUserYtDlpConfig(
+      url,
+      modeOptions?.subscriptionYtdlpConfig
+    );
+    const { audioOnly, audioFormat } = resolveDownloadAudioMode({
+      explicitAudioOnly: modeOptions?.audioOnly,
+      explicitAudioFormat: modeOptions?.audioFormat,
+      userConfig,
+    });
     const mergeOutputFormat = audioOnly
-      ? normalizeAudioFormat(modeOptions?.audioFormat)
+      ? audioFormat
       : resolveBilibiliMergeOutputFormat(userConfig);
     const settings = storageService.getSettings();
     const moveThumbnailsToVideoFolder =

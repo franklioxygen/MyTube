@@ -6,6 +6,8 @@ import {
   downloadYouTubeVideo,
 } from "../downloadService";
 import { platformFromUrl } from "../statistics";
+import { getEffectiveUserYtDlpConfig } from "../../utils/ytDlpUtils";
+import { resolveDownloadAudioMode } from "../downloaders/ytdlp/ytdlpConfig";
 import { DownloadResult } from "../downloaders/bilibili/types";
 import { stripChannelSuffixFromPlaylistName } from "../filenameTemplate/sourceNaming";
 import { FilenameTemplateSourceOptions } from "../filenameTemplate/types";
@@ -465,8 +467,27 @@ export class TaskProcessor {
       throw new Error(`Task ${task.id} is not active (interrupted)`);
     }
 
+    // Per-subscription yt-dlp override (issue #345). Null when the task has no
+    // resolvable subscription → identical to today's behaviour (global config).
+    const subscriptionYtdlpConfig = taskSubscription?.ytdlpConfig ?? null;
+
+    // An audio-only override (e.g. --format bestaudio) saves the item under the
+    // "audio" media type. Scope the duplicate check to that media type too so a
+    // later backfill sees the audio rows from previous runs instead of
+    // re-downloading every already-downloaded item (issue #345).
+    const effectiveUserConfig = getEffectiveUserYtDlpConfig(
+      videoUrl,
+      subscriptionYtdlpConfig
+    );
+    const { audioOnly: isAudioOnlyDownload } = resolveDownloadAudioMode({
+      userConfig: effectiveUserConfig,
+    });
+
     // Check if video already exists
-    const existingVideo = storageService.getVideoBySourceUrl(videoUrl);
+    const existingVideo = storageService.getVideoBySourceUrl(
+      videoUrl,
+      isAudioOnlyDownload ? "audio" : "video"
+    );
     if (existingVideo) {
       logger.debug(`Video ${videoUrl} already exists, skipping`);
       progressState.skippedCount += 1;
@@ -494,10 +515,6 @@ export class TaskProcessor {
       taskSubscription
         ? buildFilenameTemplateSourceOptions(taskSubscription, videoIndex + 1)
         : this.buildFallbackFilenameTemplateSourceOptions(task, videoIndex);
-
-    // Per-subscription yt-dlp override (issue #345). Null when the task has no
-    // resolvable subscription → identical to today's behaviour (global config).
-    const subscriptionYtdlpConfig = taskSubscription?.ytdlpConfig ?? null;
 
     try {
       // Download the video
