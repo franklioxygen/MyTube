@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useVideo } from '../contexts/VideoContext';
 import { useCloudStorageUrl } from '../hooks/useCloudStorageUrl';
-import { brand } from '../theme/colors';
+import { brand, modeColors } from '../theme/colors';
 import { Video } from '../types';
 
 interface AuthorSummary {
@@ -43,7 +43,7 @@ const AuthorCard: React.FC<{ summary: AuthorSummary; videosLabel: string }> = ({
                         mx: 'auto',
                         borderRadius: '50%',
                         p: '3px',
-                        background: `linear-gradient(135deg, ${brand.primaryDark}, ${brand.secondary})`,
+                        background: (theme) => `linear-gradient(135deg, ${brand.primaryDark}, ${modeColors(theme.palette.mode).secondary})`,
                         transition: 'transform 0.2s ease',
                     }}
                 >

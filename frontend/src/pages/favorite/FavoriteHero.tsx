@@ -3,7 +3,7 @@ import { Box, Button, Card, CardMedia, Chip, Typography, useMediaQuery, useTheme
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
-import { brand, neutral, overlay } from '../../theme/colors';
+import { brand, modeColors, neutral, overlay } from '../../theme/colors';
 import type { FavoriteCollectionItem, Video } from '../../types';
 import { api } from '../../utils/apiClient';
 import { formatDuration, parseDuration } from '../../utils/formatUtils';
@@ -19,6 +19,7 @@ const FavoriteHero: React.FC<FavoriteHeroProps> = ({ video, collection, variant 
     const { t } = useLanguage();
     const navigate = useNavigate();
     const theme = useTheme();
+    const secondary = modeColors(theme.palette.mode).secondary;
     const isReducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
     const thumbnail = useFavoriteThumbnail(video);
 
@@ -160,7 +161,7 @@ const FavoriteHero: React.FC<FavoriteHeroProps> = ({ video, collection, variant 
                                 letterSpacing: 0.6,
                                 textTransform: 'uppercase',
                                 color: neutral.white,
-                                background: `linear-gradient(135deg, ${brand.primaryDark}, ${brand.secondary})`,
+                                background: `linear-gradient(135deg, ${brand.primaryDark}, ${secondary})`,
                                 '& .MuiChip-icon': { color: neutral.white },
                             }}
                         />
@@ -181,7 +182,7 @@ const FavoriteHero: React.FC<FavoriteHeroProps> = ({ video, collection, variant 
                                     sx={{
                                         height: '100%',
                                         width: `${progressRatio * 100}%`,
-                                        background: `linear-gradient(135deg, ${brand.primaryDark}, ${brand.secondary})`,
+                                        background: `linear-gradient(135deg, ${brand.primaryDark}, ${secondary})`,
                                     }}
                                 />
                             </Box>

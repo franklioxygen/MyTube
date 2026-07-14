@@ -7,13 +7,14 @@ export type ThemeMode = "light" | "dark";
 
 /** Core brand palette (also used in logo.svg / favicon.svg gradients). */
 export const brand = {
-  primaryDark: "#00e5ff",
-  primaryLight: "#00727d",
-  secondary: "#651fff",
-  accentPink: "#FF7eb3",
-  accentBlue: "#00bfff",
-  accentRed: "#ff3333",
-  metaTheme: "#ff3e3e",
+  primaryDark: "#2dd4bf",
+  primaryLight: "#0f766e",
+  secondary: "#7c3aed",
+  secondaryLight: "#8b5cf6",
+  accentPink: "#a855f7",
+  accentBlue: "#2563eb",
+  accentRed: "#dc2626",
+  metaTheme: "#0f766e",
 } as const;
 
 /** Neutral grayscale ramp. */
@@ -45,7 +46,7 @@ export const platform = {
 /** Semantic status colors. */
 export const status = {
   success: "#4caf50",
-  error: "#d32f2f",
+  error: brand.accentRed,
 } as const;
 
 /** Semi-transparent overlays used on thumbnails, video controls, badges, etc. */
@@ -130,6 +131,7 @@ export const scrollbar = {
 /** Mode-aware semantic color resolver for components and MUI theme. */
 export const modeColors = (mode: ThemeMode) => ({
   primary: mode === "dark" ? brand.primaryDark : brand.primaryLight,
+  secondary: mode === "dark" ? brand.secondary : brand.secondaryLight,
   backgroundDefault: mode === "dark" ? neutral.grey950 : neutral.grey200,
   backgroundPaper: mode === "dark" ? neutral.grey800 : neutral.white,
   backgroundElevated: mode === "dark" ? neutral.grey850 : neutral.white,

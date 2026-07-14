@@ -1,6 +1,6 @@
 import { Box, Chip, Typography } from '@mui/material';
 import type { ReactNode } from 'react';
-import { brand } from '../../theme/colors';
+import { brand, modeColors } from '../../theme/colors';
 
 interface FavoriteSectionHeaderProps {
     id: string;
@@ -9,8 +9,6 @@ interface FavoriteSectionHeaderProps {
     count?: number;
     icon?: ReactNode;
 }
-
-const accentGradient = `linear-gradient(180deg, ${brand.primaryDark}, ${brand.secondary})`;
 
 /**
  * Shared rail heading: a gradient accent bar, the section title, an optional
@@ -28,7 +26,13 @@ const FavoriteSectionHeader: React.FC<FavoriteSectionHeaderProps> = ({
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
             <Box
                 aria-hidden
-                sx={{ width: 4, height: 22, borderRadius: 2, background: accentGradient, flexShrink: 0 }}
+                sx={{
+                    width: 4,
+                    height: 22,
+                    borderRadius: 2,
+                    background: (theme) => `linear-gradient(180deg, ${brand.primaryDark}, ${modeColors(theme.palette.mode).secondary})`,
+                    flexShrink: 0,
+                }}
             />
             {icon}
             <Typography id={id} variant="h6" component="h2" fontWeight={700} sx={{ letterSpacing: 0.2 }}>

@@ -2,7 +2,7 @@ import { VideoLibrary } from '@mui/icons-material';
 import { Box, Card, CardActionArea, CardMedia, Chip, Typography } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
-import { neutral, overlay } from '../../theme/colors';
+import { brand, modeColors, neutral, overlay, type ThemeMode } from '../../theme/colors';
 import type { FavoriteCollectionItem, Video } from '../../types';
 import FavoriteRailCarousel from './FavoriteRailCarousel';
 import FavoriteSectionHeader from './FavoriteSectionHeader';
@@ -15,19 +15,24 @@ interface FavoriteCollectionRailProps {
 }
 
 /** Deterministic branded gradient so cover-less collections still look intentional. */
-const COVER_GRADIENTS = [
-    'linear-gradient(140deg, #00e5ff 0%, #651fff 100%)',
-    'linear-gradient(140deg, #FF7eb3 0%, #651fff 100%)',
-    'linear-gradient(140deg, #00bfff 0%, #00727d 100%)',
-    'linear-gradient(140deg, #f857a6 0%, #ff5858 100%)',
-    'linear-gradient(140deg, #7028e4 0%, #00e5ff 100%)',
-    'linear-gradient(140deg, #f7971e 0%, #ff3e3e 100%)',
-] as const;
+const coverGradientsForMode = (mode: ThemeMode) => {
+    const secondary = modeColors(mode).secondary;
 
-const gradientForName = (name: string): string => {
+    return [
+        `linear-gradient(140deg, ${brand.primaryDark} 0%, ${secondary} 100%)`,
+        `linear-gradient(140deg, ${brand.accentPink} 0%, ${secondary} 100%)`,
+        `linear-gradient(140deg, ${brand.accentBlue} 0%, ${brand.primaryLight} 100%)`,
+        `linear-gradient(140deg, ${brand.primaryLight} 0%, ${brand.accentBlue} 100%)`,
+        `linear-gradient(140deg, ${secondary} 0%, ${brand.primaryDark} 100%)`,
+        `linear-gradient(140deg, ${brand.accentRed} 0%, ${secondary} 100%)`,
+    ] as const;
+};
+
+const gradientForName = (name: string, mode: ThemeMode): string => {
+    const gradients = coverGradientsForMode(mode);
     let hash = 0;
-    for (let i = 0; i < name.length; i += 1) hash = (hash + name.charCodeAt(i)) % COVER_GRADIENTS.length;
-    return COVER_GRADIENTS[hash];
+    for (let i = 0; i < name.length; i += 1) hash = (hash + name.charCodeAt(i)) % gradients.length;
+    return gradients[hash];
 };
 
 const FavoriteCollectionCard: React.FC<{
@@ -67,7 +72,7 @@ const FavoriteCollectionCard: React.FC<{
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                background: gradientForName(favorite.name),
+                                background: (theme) => gradientForName(favorite.name, theme.palette.mode),
                             }}
                         >
                             <VideoLibrary sx={{ fontSize: 72, color: overlay.white32 }} />
