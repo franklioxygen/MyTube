@@ -1,6 +1,5 @@
 import { createTheme } from "@mui/material/styles";
 import {
-  brand,
   modeColors,
   shadow,
   type ThemeMode,
@@ -16,7 +15,7 @@ const getTheme = (mode: ThemeMode) => {
         main: colors.primary,
       },
       secondary: {
-        main: brand.secondary,
+        main: colors.secondary,
       },
       background: {
         default: colors.backgroundDefault,

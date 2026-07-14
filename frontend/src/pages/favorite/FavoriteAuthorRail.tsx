@@ -3,7 +3,7 @@ import { Avatar, Box, Card, CardActionArea, Typography } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useCloudStorageUrl } from '../../hooks/useCloudStorageUrl';
-import { brand } from '../../theme/colors';
+import { brand, modeColors } from '../../theme/colors';
 import type { FavoriteAuthorItem } from '../../types';
 import FavoriteToggle from '../../components/FavoriteToggle';
 import FavoriteRailCarousel from './FavoriteRailCarousel';
@@ -62,7 +62,7 @@ const FavoriteAuthorCard: React.FC<{
                         p: '3px',
                         background: isUnavailable
                             ? 'transparent'
-                            : `linear-gradient(135deg, ${brand.primaryDark}, ${brand.secondary})`,
+                            : (theme) => `linear-gradient(135deg, ${brand.primaryDark}, ${modeColors(theme.palette.mode).secondary})`,
                         transition: 'transform 0.2s ease',
                     }}
                 >
