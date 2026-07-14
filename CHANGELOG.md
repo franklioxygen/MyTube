@@ -4,13 +4,47 @@
 
 ### Feat
 
-- Add an All Tags page (`/tags`) with usage-ranked tags, expandable strip, sorting, pagination, and filtered video grid; enhance Home/mobile tag sidebars with top-20 ranking and links to All Tags (1e3ec609)
-- Add a subtitle-only live translation mode that keeps original audio audible, shows translated subtitles, and skips translated speech playback (f1f596a2)
-- Add a per-subscription yt-dlp config override: each subscription can declare its own yt-dlp options (e.g. `--format bestaudio` for an audio-only channel) that apply to all its downloads across every platform; empty inherits the global config, and the override merges over it (subscription wins per-key, network/proxy inherited). Trust-gated to `container`, same as the global config. Closes #345
+- Polish collection cards to read more like video cards (hover treatment, tighter title handling, and favorite-collection indicators), link collection names from the manage table directly to their collection pages, and replace the mobile authors shortcut with the real authors list with a header backdrop (#365)
+
+### Style
+
+- Replace the high-saturation cyan/red UI palette with a calmer teal-led color scheme and a mode-aware secondary purple (softer violet in light mode, stronger contrast in dark), updating favorite-page gradient accents, the browser theme color, and the web manifest without changing logo assets (#366)
+
+## v1.10.16 (2026-07-13)
+
+### Feat
+
+- Add a per-subscription yt-dlp config override: each subscription can declare its own yt-dlp options (e.g. `--format bestaudio` for an audio-only channel) that apply to all its downloads across every platform; empty inherits the global config, and the override merges over it (subscription wins per-key, network/proxy inherited). Trust-gated to `container`, same as the global config. Closes #345 (#362)
+- Unify the collection modal into a single input with autocomplete tokens and Enter-to-submit for the highlighted option, and move the favorite hero badge onto the thumbnail (#364)
+
+### Fix
+
+- Apply per-subscription overrides to discovery probes, recognize yt-dlp audio aliases, tighten audio-only detection, prefer exact subscription matches, thread Twitch overrides into VOD discovery, honor exact audio overrides in the playlist watcher, normalize network aliases, carry auth into discovery, and honor Bilibili audio overrides; treat `bestaudio` overrides as audio-only, propagate inferred audio-only mode to Bilibili and backfill, redact ytdlp overrides from read-only responses, and drop a stray breakpoint from the ytdlp config migration (#362)
+
+## v1.10.15 (2026-07-12)
+
+### Feat
+
+- Implement button loading states across actions (#360)
+
+### Fix
+
+- Enforce unique collection names and invalidate favorite collections on duplicate merge (#361)
+
+## v1.10.14 (2026-07-12)
+
+### Feat
+
+- Add an All Tags page (`/tags`) with usage-ranked tags, expandable strip, sorting, pagination, and filtered video grid; enhance Home/mobile tag sidebars with top-20 ranking and links to All Tags (#356)
+- Add a subtitle-only live translation mode that keeps original audio audible, shows translated subtitles, and skips translated speech playback (#358)
 
 ### Chore
 
-- Replace the third-party `sloc.xyz` Lines of Code badge with a self-hosted shields endpoint refreshed by CI on `gh-pages`
+- Replace the third-party `sloc.xyz` Lines of Code badge with a self-hosted shields endpoint refreshed by CI on `gh-pages` (#359)
+
+### Docs
+
+- Backfill the CHANGELOG for v1.10.8–v1.10.13 and previously unreleased PRs
 
 ## v1.10.13 (2026-07-11)
 
