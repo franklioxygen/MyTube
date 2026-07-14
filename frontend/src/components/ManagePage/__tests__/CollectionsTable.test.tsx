@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import { Collection } from '../../../types';
 import CollectionsTable from '../CollectionsTable'; // Import from local directory
@@ -38,19 +39,26 @@ describe('CollectionsTable', () => {
         onSort: vi.fn(),
     };
 
+    const renderTable = (props: Partial<typeof defaultProps> = {}) =>
+        render(
+            <MemoryRouter>
+                <CollectionsTable {...defaultProps} {...props} />
+            </MemoryRouter>
+        );
+
     it('should render table with collections', () => {
-        render(<CollectionsTable {...defaultProps} />);
+        renderTable();
         expect(screen.getByText('Collection 1')).toBeInTheDocument();
         expect(screen.getByText('10 MB')).toBeInTheDocument();
     });
 
     it('should render empty state if no collections', () => {
-        render(<CollectionsTable {...defaultProps} totalCollectionsCount={0} displayedCollections={[]} />);
+        renderTable({ totalCollectionsCount: 0, displayedCollections: [] });
         expect(screen.getByText('noCollections')).toBeInTheDocument();
     });
 
     it('should call onDelete when delete button is clicked', () => {
-        render(<CollectionsTable {...defaultProps} />);
+        renderTable();
         // Use getAllByRole to find icon buttons, then filter or use label if available
         // The delete button has tooltip title 'deleteCollection' which becomes aria-label or accessible name
         fireEvent.click(screen.getByLabelText('deleteCollection'));
@@ -60,20 +68,20 @@ describe('CollectionsTable', () => {
 
     it('should not show actions column in visitor mode', () => {
         mockUseAuth.mockReturnValue({ userRole: 'visitor' });
-        render(<CollectionsTable {...defaultProps} />);
+        renderTable();
         expect(screen.queryByText('actions')).not.toBeInTheDocument();
         // Reset mock
         mockUseAuth.mockReturnValue({ userRole: 'admin' });
     });
 
     it('should render pagination if totalPages > 1', () => {
-        render(<CollectionsTable {...defaultProps} />);
+        renderTable();
         expect(screen.getByRole('navigation')).toBeInTheDocument();
     });
 
     // Edit tests
     it('should show input field when edit button is clicked', () => {
-        render(<CollectionsTable {...defaultProps} />);
+        renderTable();
 
         const editButton = screen.getByLabelText('edit collection');
         fireEvent.click(editButton);
@@ -83,7 +91,7 @@ describe('CollectionsTable', () => {
     });
 
     it('should call onUpdate when save is clicked', async () => {
-        render(<CollectionsTable {...defaultProps} />);
+        renderTable();
 
         const editButton = screen.getByLabelText('edit collection');
         fireEvent.click(editButton);
@@ -95,5 +103,11 @@ describe('CollectionsTable', () => {
         fireEvent.click(saveButton);
 
         expect(defaultProps.onUpdate).toHaveBeenCalledWith('1', 'New Name');
+    });
+
+    it('should link collection name to its collection page', () => {
+        renderTable();
+        const link = screen.getByRole('link', { name: 'Collection 1' });
+        expect(link).toHaveAttribute('href', '/collection/1');
     });
 });

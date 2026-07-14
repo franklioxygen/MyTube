@@ -1,7 +1,9 @@
 import { fireEvent, render, screen } from '@testing-library/react';
+import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { MemoryRouter } from 'react-router-dom';
 import type { ComponentProps, FormEvent } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Video } from '../../../types';
 import MobileMenu from '../MobileMenu';
 
 const mockNavigate = vi.fn();
@@ -56,6 +58,27 @@ vi.mock('../SearchInput', () => ({
 }));
 
 describe('MobileMenu', () => {
+    const theme = createTheme();
+    const videos: Video[] = [
+        {
+            id: 'video-1',
+            title: 'Alpha video',
+            author: 'Alpha Author',
+            date: '2024-01-01',
+            source: 'youtube',
+            sourceUrl: 'https://example.com/alpha',
+            addedAt: '2024-01-01',
+        },
+        {
+            id: 'video-2',
+            title: 'Beta video',
+            author: 'Beta Author',
+            date: '2024-01-02',
+            source: 'youtube',
+            sourceUrl: 'https://example.com/beta',
+            addedAt: '2024-01-02',
+        },
+    ];
     const baseProps: ComponentProps<typeof MobileMenu> = {
         open: true,
         videoUrl: '',
@@ -71,12 +94,15 @@ describe('MobileMenu', () => {
         availableTags: [],
         selectedTags: [],
         onTagToggle: vi.fn(),
+        videos,
     };
 
     const renderMenu = (props: Partial<typeof baseProps> = {}) =>
         render(
             <MemoryRouter>
-                <MobileMenu {...baseProps} {...props} />
+                <ThemeProvider theme={theme}>
+                    <MobileMenu {...baseProps} {...props} />
+                </ThemeProvider>
             </MemoryRouter>
         );
 
@@ -98,14 +124,15 @@ describe('MobileMenu', () => {
 
         expect(screen.getByRole('link', { name: 'manageVideos' })).toBeInTheDocument();
         expect(screen.getByRole('link', { name: 'settings' })).toBeInTheDocument();
-        expect(screen.getByRole('link', { name: 'authors' })).toHaveAttribute('href', '/authors');
+        expect(screen.getByRole('link', { name: 'all' })).toHaveAttribute('href', '/authors');
+        expect(screen.getByRole('link', { name: /Alpha Author/ })).toHaveAttribute('href', '/author/Alpha%20Author');
         expect(screen.queryByRole('button', { name: 'logout' })).not.toBeInTheDocument();
         expect(screen.queryByText('tags-item')).not.toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('link', { name: 'manageVideos' }));
         fireEvent.click(screen.getByRole('link', { name: 'settings' }));
         fireEvent.click(screen.getByText('collections-item'));
-        fireEvent.click(screen.getByRole('link', { name: 'authors' }));
+        fireEvent.click(screen.getByRole('link', { name: 'all' }));
         expect(onClose).toHaveBeenCalledTimes(4);
 
         fireEvent.click(screen.getByText('search-submit'));
@@ -124,14 +151,14 @@ describe('MobileMenu', () => {
         });
 
         const collectionsItem = screen.getByText('collections-item');
-        const authorsLink = screen.getByRole('link', { name: 'authors' });
+        const authorsHeading = screen.getByText('authors');
         const tagsItem = screen.getByText('tags-item');
 
         expect(
-            collectionsItem.compareDocumentPosition(authorsLink) & Node.DOCUMENT_POSITION_FOLLOWING
+            collectionsItem.compareDocumentPosition(authorsHeading) & Node.DOCUMENT_POSITION_FOLLOWING
         ).toBeTruthy();
         expect(
-            authorsLink.compareDocumentPosition(tagsItem) & Node.DOCUMENT_POSITION_FOLLOWING
+            authorsHeading.compareDocumentPosition(tagsItem) & Node.DOCUMENT_POSITION_FOLLOWING
         ).toBeTruthy();
 
         fireEvent.click(tagsItem);
