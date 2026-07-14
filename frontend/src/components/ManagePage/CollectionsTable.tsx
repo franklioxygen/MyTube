@@ -4,6 +4,7 @@ import {
     Alert,
     Box,
     IconButton,
+    Link,
     Pagination,
     Paper,
     Table,
@@ -19,6 +20,7 @@ import {
     useMediaQuery
 } from '@mui/material';
 import React, { useState } from 'react';
+import { Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useSnackbar } from '../../contexts/SnackbarContext';
@@ -243,7 +245,19 @@ const CollectionsTable: React.FC<CollectionsTableProps> = ({
                                                         <Edit fontSize="small" />
                                                     </IconButton>
                                                 )}
-                                                {collection.name}
+                                                <Link
+                                                    component={RouterLink}
+                                                    to={`/collection/${collection.id}`}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    sx={{
+                                                        color: 'inherit',
+                                                        textDecoration: 'none',
+                                                        cursor: 'pointer',
+                                                        '&:hover': { textDecoration: 'underline' }
+                                                    }}
+                                                >
+                                                    {collection.name}
+                                                </Link>
                                             </Box>
                                         )}
                                     </TableCell>

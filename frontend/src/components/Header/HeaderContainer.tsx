@@ -216,6 +216,22 @@ const HeaderContainer: React.FC<HeaderProps> = ({
                 </AppBar>
             </ClickAwayListener>
 
+            {isMobile && (
+                <Box
+                    onClick={handleCloseMobileMenu}
+                    aria-hidden
+                    sx={{
+                        position: 'fixed',
+                        inset: 0,
+                        bgcolor: alpha(theme.palette.common.black, 0.4),
+                        zIndex: (muiTheme) => muiTheme.zIndex.appBar - 1,
+                        opacity: mobileMenuOpen ? 1 : 0,
+                        pointerEvents: mobileMenuOpen ? 'auto' : 'none',
+                        transition: 'opacity 0.3s ease-in-out',
+                    }}
+                />
+            )}
+
             <Box
                 sx={{
                     height: spacerHeight,

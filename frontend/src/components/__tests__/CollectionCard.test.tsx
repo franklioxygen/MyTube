@@ -27,6 +27,16 @@ vi.mock('../../contexts/LanguageContext', () => ({
     }),
 }));
 
+// Mock useFavoriteCollections — controllable per test via mockIsFavorite
+const mockIsFavorite = vi.fn(() => false);
+vi.mock('../../hooks/useFavoriteCollections', () => ({
+    useFavoriteCollections: () => ({
+        isFavorite: mockIsFavorite,
+        toggle: vi.fn(),
+        isToggling: false,
+    }),
+}));
+
 describe('CollectionCard', () => {
     const mockVideos: Video[] = [
         {
@@ -85,6 +95,7 @@ describe('CollectionCard', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        mockIsFavorite.mockReturnValue(false);
     });
 
     it('renders collection name and video count', () => {
@@ -186,5 +197,29 @@ describe('CollectionCard', () => {
         fireEvent.error(image);
 
         expect(image).toHaveAttribute('src', THUMBNAIL_PLACEHOLDER_SRC);
+    });
+
+    it('does not show favorite star when collection is not favorited', () => {
+        mockIsFavorite.mockReturnValue(false);
+        const theme = createTheme();
+        render(
+            <ThemeProvider theme={theme}>
+                <CollectionCard collection={mockCollection} videos={mockVideos} />
+            </ThemeProvider>
+        );
+
+        expect(screen.queryByLabelText('favorited')).not.toBeInTheDocument();
+    });
+
+    it('shows favorite star when collection is favorited', () => {
+        mockIsFavorite.mockReturnValue(true);
+        const theme = createTheme();
+        render(
+            <ThemeProvider theme={theme}>
+                <CollectionCard collection={mockCollection} videos={mockVideos} />
+            </ThemeProvider>
+        );
+
+        expect(screen.getByLabelText('favorited')).toBeInTheDocument();
     });
 });

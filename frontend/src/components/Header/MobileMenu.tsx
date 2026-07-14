@@ -1,10 +1,11 @@
-import { Group, Logout, Settings, VideoLibrary } from '@mui/icons-material';
+import { Logout, Settings, VideoLibrary } from '@mui/icons-material';
 import { Box, Button, Collapse, Divider, Stack } from '@mui/material';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useSettings } from '../../hooks/useSettings';
-import { Collection } from '../../types';
+import { Collection, Video } from '../../types';
+import AuthorsList from '../AuthorsList';
 import Collections from '../Collections';
 import TagsList from '../TagsList';
 import SearchInput from './SearchInput';
@@ -26,7 +27,7 @@ interface MobileMenuProps {
     availableTags?: string[];
     selectedTags?: string[];
     onTagToggle?: (tag: string) => void;
-    videos?: Array<{ tags?: string[] }>;
+    videos?: Video[];
     /** Home only: cap tags and link to /tags. Author/collection keep full local lists. */
     linkToAllTags?: boolean;
 }
@@ -132,16 +133,10 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
                             onItemClick={onClose}
                         />
                         <Box sx={{ mt: 2 }}>
-                            <Button
-                                component={Link}
-                                to="/authors"
-                                variant="outlined"
-                                fullWidth
-                                onClick={onClose}
-                                startIcon={<Group />}
-                            >
-                                {t('authors')}
-                            </Button>
+                            <AuthorsList
+                                videos={videos ?? []}
+                                onItemClick={onClose}
+                            />
                         </Box>
                         {showTags && (
                             <Box sx={{ mt: 2 }}>
