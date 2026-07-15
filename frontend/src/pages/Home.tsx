@@ -1,5 +1,5 @@
 import { Alert, Box, Container, Pagination, Typography, useMediaQuery, useTheme } from '@mui/material';
-import React, { Suspense, useCallback, useEffect, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { HomeHeader } from '../components/HomeHeader';
 import { HomeLoadingSkeleton } from '../components/HomeLoadingSkeleton';
@@ -53,6 +53,8 @@ const Home: React.FC<HomeProps> = ({ initialViewMode }) => {
     const location = useLocation();
     const navigate = useNavigate();
     const [isDeleteFilteredOpen, setIsDeleteFilteredOpen] = useState(false);
+    const [mainContentHeight, setMainContentHeight] = useState<number | null>(null);
+    const mainContentRef = useRef<HTMLDivElement | null>(null);
     const homeViewModeRequest = useHomeViewModeRequestOptional();
 
     // Custom hooks
@@ -154,6 +156,31 @@ const Home: React.FC<HomeProps> = ({ initialViewMode }) => {
     const loadingSkeletonCount = Math.min(Math.max(itemsPerPage, 6), 12);
     const priorityVideos = infiniteScroll ? sortedVideos : displayedVideos;
 
+    useLayoutEffect(() => {
+        const mainContent = mainContentRef.current;
+        if (!mainContent) {
+            return undefined;
+        }
+
+        const updateMainContentHeight = () => {
+            const nextHeight = Math.ceil(mainContent.getBoundingClientRect().height);
+            setMainContentHeight((currentHeight) => (
+                currentHeight === nextHeight ? currentHeight : nextHeight
+            ));
+        };
+
+        updateMainContentHeight();
+
+        if (typeof ResizeObserver === 'undefined') {
+            window.addEventListener('resize', updateMainContentHeight);
+            return () => window.removeEventListener('resize', updateMainContentHeight);
+        }
+
+        const observer = new ResizeObserver(updateMainContentHeight);
+        observer.observe(mainContent);
+        return () => observer.disconnect();
+    }, [loading, settingsLoaded, videoArray.length, viewMode]);
+
     if (!settingsLoaded || (loading && videoArray.length === 0)) {
         return <HomeLoadingSkeleton gridProps={gridProps} isSidebarOpen={isSidebarOpen} cardsCount={loadingSkeletonCount} />;
     }
@@ -171,7 +198,7 @@ const Home: React.FC<HomeProps> = ({ initialViewMode }) => {
 
     // Regular home view (not in search mode)
     return (
-        <Container maxWidth={false} sx={{ py: 4, px: { xs: 0, sm: 3 } }}>
+        <Container maxWidth={false} sx={{ py: 4, px: { xs: 0, sm: 3 }, overflowX: 'hidden' }}>
             {/* Preload first video thumbnail for better LCP */}
             {priorityVideos.length > 0 && <LCPImagePreloader videos={priorityVideos} />}
 
@@ -204,7 +231,7 @@ const Home: React.FC<HomeProps> = ({ initialViewMode }) => {
                     </Typography>
                 </Box>
             ) : (
-                <Box sx={{ display: 'flex', alignItems: 'stretch' }}>
+                <Box sx={{ display: 'flex', alignItems: 'flex-start', minWidth: 0 }}>
                     <HomeSidebar
                         isSidebarOpen={isSidebarOpen}
                         collections={collections}
@@ -212,10 +239,11 @@ const Home: React.FC<HomeProps> = ({ initialViewMode }) => {
                         selectedTags={selectedTags}
                         onTagToggle={handleHomeTagToggle}
                         videos={videoArray}
+                        maxPanelHeight={mainContentHeight}
                     />
 
                     {/* Videos grid */}
-                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Box ref={mainContentRef} sx={{ flex: 1, minWidth: 0, alignSelf: 'flex-start' }}>
                         <HomeHeader
                             viewMode={viewMode}
                             onViewModeChange={handleHomeViewModeChange}

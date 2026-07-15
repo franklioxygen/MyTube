@@ -13,6 +13,7 @@ interface HomeSidebarProps {
     selectedTags: string[];
     onTagToggle: (tag: string) => void;
     videos: Video[];
+    maxPanelHeight?: number | null;
 }
 
 export const HomeSidebar: React.FC<HomeSidebarProps> = ({
@@ -21,42 +22,46 @@ export const HomeSidebar: React.FC<HomeSidebarProps> = ({
     availableTags,
     selectedTags,
     onTagToggle,
-    videos
+    videos,
+    maxPanelHeight
 }) => {
     return (
-        // The flex item itself is sticky and self-scrolling. Because it stays
-        // in normal flow (no absolute positioning), a long list contributes to
-        // the row height and can never overlap the footer, while its own
-        // overflow caps it to the viewport. `alignSelf: flex-start` keeps it
-        // from stretching to the video column so it retains room to stick while
-        // the grid scrolls.
+        // Keep the flex item itself free of vertical scrollbars. Otherwise the
+        // 6px custom scrollbar can appear after first layout and shrink the
+        // main video column.
         <Box sx={{
             display: { xs: 'none', md: 'block' },
             alignSelf: 'flex-start',
-            position: 'sticky',
-            top: 16,
-            maxHeight: 'calc(100vh - 32px)',
-            overflowY: 'auto',
-            '&::-webkit-scrollbar': {
-                width: '6px',
-            },
-            '&::-webkit-scrollbar-track': {
-                background: 'transparent',
-            },
-            '&::-webkit-scrollbar-thumb': {
-                background: overlay.sidebarTrack,
-                borderRadius: '3px',
-            },
-            '&:hover::-webkit-scrollbar-thumb': {
-                background: overlay.sidebarThumb,
-            },
+            overflowX: 'hidden',
+            flexShrink: 0,
         }}>
             <Collapse
                 in={isSidebarOpen}
                 orientation="horizontal"
                 timeout={300}
             >
-                <Box sx={{ width: 280, mr: 4, flexShrink: 0 }}>
+                <Box sx={{
+                    width: { md: 260, lg: 280 },
+                    mr: { md: 3, lg: 4 },
+                    flexShrink: 0,
+                    minWidth: 0,
+                    maxHeight: maxPanelHeight ? `${maxPanelHeight}px` : undefined,
+                    overflowY: isSidebarOpen ? 'auto' : 'hidden',
+                    overflowX: 'hidden',
+                    '&::-webkit-scrollbar': {
+                        width: '6px',
+                    },
+                    '&::-webkit-scrollbar-track': {
+                        background: 'transparent',
+                    },
+                    '&::-webkit-scrollbar-thumb': {
+                        background: overlay.sidebarTrack,
+                        borderRadius: '3px',
+                    },
+                    '&:hover::-webkit-scrollbar-thumb': {
+                        background: overlay.sidebarThumb,
+                    },
+                }}>
                     <Collections collections={collections} />
                     <Box sx={{ mt: 2 }}>
                         <TagsList
