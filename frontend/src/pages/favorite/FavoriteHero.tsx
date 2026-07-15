@@ -1,5 +1,5 @@
 import { Star } from '@mui/icons-material';
-import { Box, Button, Card, CardMedia, Chip, Typography, useMediaQuery, useTheme } from '@mui/material';
+import { Box, Card, CardMedia, Chip, Typography, useMediaQuery, useTheme } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -17,7 +17,7 @@ interface FavoriteHeroProps {
     carouselControls?: ReactNode;
 }
 
-const FavoriteHero: React.FC<FavoriteHeroProps> = ({ video, collection, variant = 'featured', carouselControls }) => {
+const FavoriteHero: React.FC<FavoriteHeroProps> = ({ video, variant = 'featured', carouselControls }) => {
     const { t } = useLanguage();
     const navigate = useNavigate();
     const theme = useTheme();
@@ -191,17 +191,15 @@ const FavoriteHero: React.FC<FavoriteHeroProps> = ({ video, collection, variant 
                         )}
                     </Box>
 
-                    <Box sx={{ color: theme.palette.mode === 'dark' ? neutral.white : 'text.primary', maxWidth: 620, width: { xs: '100%', md: 'auto' } }}>
-                        <Box
-                            sx={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                gap: 1.5,
-                                mb: 1.25,
-                                flexWrap: 'nowrap',
-                            }}
-                        >
+                    <Box
+                        sx={{
+                            position: 'relative',
+                            color: theme.palette.mode === 'dark' ? neutral.white : 'text.primary',
+                            maxWidth: 620,
+                            width: { xs: '100%', md: 'auto' },
+                        }}
+                    >
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.25, flexWrap: 'wrap', pr: carouselControls ? { xs: 22, md: 0 } : 0 }}>
                             <Typography
                                 sx={{
                                     color: theme.palette.mode === 'dark' ? overlay.white80 : 'text.secondary',
@@ -214,12 +212,19 @@ const FavoriteHero: React.FC<FavoriteHeroProps> = ({ video, collection, variant 
                             >
                                 {video.author || t('unknownAuthor')}
                             </Typography>
-                            {carouselControls && (
-                                <Box sx={{ display: { xs: 'flex', md: 'none' }, flexShrink: 0, ml: 'auto' }}>
-                                    {carouselControls}
-                                </Box>
-                            )}
                         </Box>
+                        {carouselControls && (
+                            <Box
+                                sx={{
+                                    position: 'absolute',
+                                    top: -0.5,
+                                    right: 0,
+                                    display: { xs: 'flex', md: 'none' },
+                                }}
+                            >
+                                {carouselControls}
+                            </Box>
+                        )}
                         <Typography
                             variant="h5"
                             component="h2"
@@ -262,19 +267,6 @@ const FavoriteHero: React.FC<FavoriteHeroProps> = ({ video, collection, variant 
                             >
                                 {description}
                             </Typography>
-                        )}
-                        {collection && (
-                            <Box sx={{ display: 'flex', gap: 1.5, mt: 2.5, flexWrap: 'wrap' }}>
-                                <Button
-                                    variant="outlined"
-                                    sx={theme.palette.mode === 'dark'
-                                        ? { color: neutral.white, borderColor: overlay.white70, '&:hover': { borderColor: neutral.white, bgcolor: overlay.white10 } }
-                                        : undefined}
-                                    onClick={() => navigate(`/collection/${encodeURIComponent(collection.collectionId)}`)}
-                                >
-                                    {t('openCollection')}
-                                </Button>
-                            </Box>
                         )}
                     </Box>
                 </Box>

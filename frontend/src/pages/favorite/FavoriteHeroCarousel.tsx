@@ -1,8 +1,10 @@
-import { ChevronLeft, ChevronRight } from '@mui/icons-material';
+import { ChevronLeft, ChevronRight, CollectionsBookmark } from '@mui/icons-material';
 import { Box, IconButton, useMediaQuery, useTheme } from '@mui/material';
 import type { SxProps, Theme } from '@mui/material/styles';
 import { motion } from 'framer-motion';
+import type { MouseEvent } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { neutral, overlay } from '../../theme/colors';
 import type { FavoriteCollectionItem, Video } from '../../types';
@@ -30,6 +32,7 @@ const AUTO_ADVANCE_MS = 7000;
  */
 const FavoriteHeroCarousel: React.FC<FavoriteHeroCarouselProps> = ({ items }) => {
     const { t } = useLanguage();
+    const navigate = useNavigate();
     const theme = useTheme();
     const isReducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -97,6 +100,11 @@ const FavoriteHeroCarousel: React.FC<FavoriteHeroCarouselProps> = ({ items }) =>
 
     const safeIndex = Math.min(index, count - 1);
     const current = items[safeIndex];
+    const openCollection = (event: MouseEvent<HTMLButtonElement>) => {
+        if (!current.collection) return;
+        event.stopPropagation();
+        navigate(`/collection/${encodeURIComponent(current.collection.collectionId)}`);
+    };
     const renderControls = (sx?: SxProps<Theme>) => (
         <Box
             sx={{
@@ -112,6 +120,21 @@ const FavoriteHeroCarousel: React.FC<FavoriteHeroCarouselProps> = ({ items }) =>
                 ...sx,
             }}
         >
+            {current.collection && (
+                <IconButton
+                    size="small"
+                    aria-label={t('openCollection')}
+                    onClick={openCollection}
+                    sx={{
+                        color: neutral.white,
+                        p: 0.5,
+                        borderRight: `1px solid ${overlay.white32}`,
+                        borderRadius: 0,
+                    }}
+                >
+                    <CollectionsBookmark fontSize="small" />
+                </IconButton>
+            )}
             <IconButton
                 size="small"
                 aria-label={t('previous')}
@@ -190,9 +213,9 @@ const FavoriteHeroCarousel: React.FC<FavoriteHeroCarouselProps> = ({ items }) =>
         >
             <motion.div
                 key={current.video.id}
-                initial={isReducedMotion ? false : { opacity: 0, x: slideDirection * 24 }}
+                initial={isReducedMotion ? false : { opacity: 0, x: slideDirection * 6 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={isReducedMotion ? { duration: 0 } : { duration: 0.3, ease: 'easeOut' }}
+                transition={isReducedMotion ? { duration: 0 } : { duration: 0.22, ease: 'easeOut' }}
             >
                 <FavoriteHero
                     video={current.video}
