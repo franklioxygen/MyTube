@@ -52,6 +52,17 @@ describe('FavoriteHeroCarousel', () => {
         expect(screen.queryByRole('button', { name: 'previous' })).not.toBeInTheDocument();
     });
 
+    it('keeps the collection action for a single collection-backed hero', () => {
+        const items = makeItems(['Only One']);
+        items[0].collection = { collectionId: 'collection-1', name: 'Saved collection' } as never;
+
+        renderCarousel(items);
+
+        expect(screen.getByRole('button', { name: 'openCollection' })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'next' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'previous' })).not.toBeInTheDocument();
+    });
+
     it('renders one dot per slide and arrows when there are multiple', () => {
         renderCarousel(makeItems(['A', 'B', 'C']));
         expect(screen.getByRole('button', { name: 'next' })).toBeInTheDocument();

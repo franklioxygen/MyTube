@@ -105,7 +105,10 @@ const FavoriteHeroCarousel: React.FC<FavoriteHeroCarouselProps> = ({ items }) =>
         event.stopPropagation();
         navigate(`/collection/${encodeURIComponent(current.collection.collectionId)}`);
     };
-    const renderControls = (sx?: SxProps<Theme>) => (
+    const renderControls = (
+        sx?: SxProps<Theme>,
+        { showCarouselNavigation = true }: { showCarouselNavigation?: boolean } = {},
+    ) => (
         <Box
             sx={{
                 zIndex: 2,
@@ -135,47 +138,54 @@ const FavoriteHeroCarousel: React.FC<FavoriteHeroCarouselProps> = ({ items }) =>
                     <CollectionsBookmark fontSize="small" />
                 </IconButton>
             )}
-            <IconButton
-                size="small"
-                aria-label={t('previous')}
-                onClick={() => go(safeIndex - 1, -1)}
-                sx={{ color: neutral.white, p: 0.5 }}
-            >
-                <ChevronLeft fontSize="small" />
-            </IconButton>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, px: 0.25 }}>
-                {items.map((item, dotIndex) => (
-                    <Box
-                        key={item.video.id}
-                        component="button"
-                        type="button"
-                        aria-label={`${t('featured')} ${dotIndex + 1}`}
-                        aria-current={dotIndex === safeIndex}
-                        onClick={() => go(dotIndex, dotIndex >= safeIndex ? 1 : -1)}
-                        sx={{
-                            p: 0,
-                            border: 'none',
-                            cursor: 'pointer',
-                            width: dotIndex === safeIndex ? 18 : 7,
-                            height: 7,
-                            borderRadius: 999,
-                            transition: 'width 0.25s ease, background-color 0.25s ease',
-                            bgcolor: dotIndex === safeIndex ? neutral.white : overlay.white32,
-                        }}
-                    />
-                ))}
-            </Box>
-            <IconButton
-                size="small"
-                aria-label={t('next')}
-                onClick={() => go(safeIndex + 1, 1)}
-                sx={{ color: neutral.white, p: 0.5 }}
-            >
-                <ChevronRight fontSize="small" />
-            </IconButton>
+            {showCarouselNavigation && (
+                <>
+                    <IconButton
+                        size="small"
+                        aria-label={t('previous')}
+                        onClick={() => go(safeIndex - 1, -1)}
+                        sx={{ color: neutral.white, p: 0.5 }}
+                    >
+                        <ChevronLeft fontSize="small" />
+                    </IconButton>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, px: 0.25 }}>
+                        {items.map((item, dotIndex) => (
+                            <Box
+                                key={item.video.id}
+                                component="button"
+                                type="button"
+                                aria-label={`${t('featured')} ${dotIndex + 1}`}
+                                aria-current={dotIndex === safeIndex}
+                                onClick={() => go(dotIndex, dotIndex >= safeIndex ? 1 : -1)}
+                                sx={{
+                                    p: 0,
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    width: dotIndex === safeIndex ? 18 : 7,
+                                    height: 7,
+                                    borderRadius: 999,
+                                    transition: 'width 0.25s ease, background-color 0.25s ease',
+                                    bgcolor: dotIndex === safeIndex ? neutral.white : overlay.white32,
+                                }}
+                            />
+                        ))}
+                    </Box>
+                    <IconButton
+                        size="small"
+                        aria-label={t('next')}
+                        onClick={() => go(safeIndex + 1, 1)}
+                        sx={{ color: neutral.white, p: 0.5 }}
+                    >
+                        <ChevronRight fontSize="small" />
+                    </IconButton>
+                </>
+            )}
         </Box>
     );
-    const carouselControls = count > 1 && isMobile ? renderControls() : undefined;
+    const shouldShowControls = count > 1 || Boolean(current.collection);
+    const carouselControls = shouldShowControls && isMobile
+        ? renderControls(undefined, { showCarouselNavigation: count > 1 })
+        : undefined;
 
     return (
         <Box
@@ -225,11 +235,13 @@ const FavoriteHeroCarousel: React.FC<FavoriteHeroCarouselProps> = ({ items }) =>
                 />
             </motion.div>
 
-            {count > 1 && !isMobile && (
+            {shouldShowControls && !isMobile && (
                 renderControls({
                     position: 'absolute',
                     top: 12,
                     right: 12,
+                }, {
+                    showCarouselNavigation: count > 1,
                 })
             )}
         </Box>

@@ -32,9 +32,12 @@ export const HomeSidebar: React.FC<HomeSidebarProps> = ({
         <Box sx={{
             display: { xs: 'none', md: 'block' },
             alignSelf: 'flex-start',
+            position: 'sticky',
+            top: 16,
+            maxHeight: 'calc(100vh - 32px)',
             overflowX: 'hidden',
             flexShrink: 0,
-        }}>
+        }} data-testid="home-sidebar">
             <Collapse
                 in={isSidebarOpen}
                 orientation="horizontal"
@@ -45,7 +48,7 @@ export const HomeSidebar: React.FC<HomeSidebarProps> = ({
                     mr: { md: 3, lg: 4 },
                     flexShrink: 0,
                     minWidth: 0,
-                    maxHeight: maxPanelHeight ? `${maxPanelHeight}px` : undefined,
+                    maxHeight: maxPanelHeight ? `min(${maxPanelHeight}px, calc(100vh - 32px))` : 'calc(100vh - 32px)',
                     overflowY: isSidebarOpen ? 'auto' : 'hidden',
                     overflowX: 'hidden',
                     '&::-webkit-scrollbar': {
@@ -61,7 +64,7 @@ export const HomeSidebar: React.FC<HomeSidebarProps> = ({
                     '&:hover::-webkit-scrollbar-thumb': {
                         background: overlay.sidebarThumb,
                     },
-                }}>
+                }} data-testid="home-sidebar-panel">
                     <Collections collections={collections} />
                     <Box sx={{ mt: 2 }}>
                         <TagsList
