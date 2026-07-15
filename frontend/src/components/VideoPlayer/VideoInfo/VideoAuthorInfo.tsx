@@ -4,6 +4,7 @@ import React from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import { useCloudStorageUrl } from '../../../hooks/useCloudStorageUrl';
+import { authorAvatarFallbackSx } from '../../../utils/authorAvatarStyles';
 
 interface VideoAuthorInfoProps {
     author: string;
@@ -63,12 +64,11 @@ const VideoAuthorInfo: React.FC<VideoAuthorInfoProps> = ({
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Avatar 
                 src={avatarUrl || undefined}
-                sx={{ 
-                    bgcolor: 'primary.main', 
+                sx={[authorAvatarFallbackSx, {
                     mr: { xs: 1, sm: 2 },
                     cursor: 'pointer',
                     '&:hover': { opacity: 0.8 }
-                }}
+                }]}
                 onClick={onAvatarClick || onAuthorClick}
             >
                 {author ? author.charAt(0).toUpperCase() : 'A'}

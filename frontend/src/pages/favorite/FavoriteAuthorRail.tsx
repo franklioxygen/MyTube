@@ -5,6 +5,7 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { useCloudStorageUrl } from '../../hooks/useCloudStorageUrl';
 import { brand, modeColors } from '../../theme/colors';
 import type { FavoriteAuthorItem } from '../../types';
+import { authorAvatarFallbackSx } from '../../utils/authorAvatarStyles';
 import FavoriteToggle from '../../components/FavoriteToggle';
 import FavoriteRailCarousel from './FavoriteRailCarousel';
 import FavoriteSectionHeader from './FavoriteSectionHeader';
@@ -70,7 +71,7 @@ const FavoriteAuthorCard: React.FC<{
                         className="favorite-author-avatar"
                         src={avatarUrl}
                         alt={favorite.displayName}
-                        sx={{ width: '100%', height: '100%', transition: 'box-shadow 0.2s' }}
+                        sx={[authorAvatarFallbackSx, { width: '100%', height: '100%', transition: 'box-shadow 0.2s' }]}
                     >
                         {isUnavailable ? <WarningAmber /> : <Person />}
                     </Avatar>

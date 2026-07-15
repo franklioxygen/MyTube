@@ -3,7 +3,6 @@ import {
     alpha,
     AppBar,
     Box,
-    ClickAwayListener,
     Fab,
     Slide,
     Toolbar,
@@ -88,6 +87,14 @@ const HeaderContainer: React.FC<HeaderProps> = ({
     const handleCloseMobileMenu = () => {
         setMobileMenuOpen(false);
     };
+    const handleBackdropPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+        event.stopPropagation();
+    };
+    const handleBackdropClick = (event: React.MouseEvent<HTMLDivElement>) => {
+        event.preventDefault();
+        event.stopPropagation();
+        handleCloseMobileMenu();
+    };
     const handleToggleMobileMenu = () => {
         setMobileMenuOpen((open) => !open);
     };
@@ -146,85 +153,85 @@ const HeaderContainer: React.FC<HeaderProps> = ({
 
     return (
         <>
-            <ClickAwayListener onClickAway={handleCloseMobileMenu}>
-                <AppBar
-                    position="fixed"
-                    color="default"
-                    elevation={0}
+            <AppBar
+                position="fixed"
+                color="default"
+                elevation={0}
+                sx={{
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    width: '100%',
+                    maxWidth: '100%',
+                    zIndex: (muiTheme) => muiTheme.zIndex.appBar + 1,
+                    bgcolor: collapsedMobileHeader ? 'transparent' : desktopBackgroundColor,
+                    backgroundImage: collapsedMobileHeader ? gradientBackground : 'none',
+                    borderBottom: collapsedMobileHeader ? 0 : 1,
+                    borderColor: 'divider',
+                    transition: 'background-color 0.3s ease-in-out, background-image 0.3s ease-in-out, border-bottom 0.3s ease-in-out, backdrop-filter 0.3s ease-in-out, height 0.3s ease-in-out',
+                    backdropFilter: collapsedMobileHeader ? 'none' : 'blur(10px)',
+                    boxSizing: 'border-box'
+                }}
+            >
+                <Toolbar
                     sx={{
-                        top: 0,
-                        left: 0,
-                        right: 0,
+                        flexDirection: isMobile ? 'column' : 'row',
+                        alignItems: isMobile ? 'stretch' : 'center',
+                        py: toolbarPaddingY,
+                        minHeight: toolbarMinHeight,
+                        transition: 'min-height 0.3s ease-in-out, padding 0.3s ease-in-out',
                         width: '100%',
                         maxWidth: '100%',
-                        zIndex: (muiTheme) => muiTheme.zIndex.appBar,
-                        bgcolor: collapsedMobileHeader ? 'transparent' : desktopBackgroundColor,
-                        backgroundImage: collapsedMobileHeader ? gradientBackground : 'none',
-                        borderBottom: collapsedMobileHeader ? 0 : 1,
-                        borderColor: 'divider',
-                        transition: 'background-color 0.3s ease-in-out, background-image 0.3s ease-in-out, border-bottom 0.3s ease-in-out, backdrop-filter 0.3s ease-in-out, height 0.3s ease-in-out',
-                        backdropFilter: collapsedMobileHeader ? 'none' : 'blur(10px)',
                         boxSizing: 'border-box'
                     }}
                 >
-                    <Toolbar
-                        sx={{
-                            flexDirection: isMobile ? 'column' : 'row',
-                            alignItems: isMobile ? 'stretch' : 'center',
-                            py: toolbarPaddingY,
-                            minHeight: toolbarMinHeight,
-                            transition: 'min-height 0.3s ease-in-out, padding 0.3s ease-in-out',
-                            width: '100%',
-                            maxWidth: '100%',
-                            boxSizing: 'border-box'
-                        }}
-                    >
-                        <HeaderToolbarContent
-                            isMobile={isMobile}
-                            isScrolled={isScrolled}
-                            isVisitor={isVisitor}
-                            websiteName={websiteName}
-                            onResetSearch={onResetSearch}
-                            activeDownloads={activeDownloads}
-                            queuedDownloads={queuedDownloads}
-                            downloadsAnchorEl={anchorEl}
-                            manageAnchorEl={manageAnchorEl}
-                            onDownloadsClick={handleDownloadsClick}
-                            onDownloadsClose={handleDownloadsClose}
-                            onManageClick={handleManageClick}
-                            onManageClose={handleManageClose}
-                            hasActiveSubscriptions={hasActiveSubscriptions}
-                            showThemeButton={showThemeButton}
-                            showAudioDownloadButton={showAudioDownloadButton}
-                            mobileMenuOpen={mobileMenuOpen}
-                            onToggleMobileMenu={handleToggleMobileMenu}
-                            onCloseMobileMenu={handleCloseMobileMenu}
-                            videoUrl={videoUrl}
-                            setVideoUrl={setVideoUrl}
-                            isSubmitting={isSubmitting}
-                            error={error}
-                            isSearchMode={isSearchMode}
-                            onSubmit={handleToolbarSubmit}
-                            onAudioOnlySubmit={handleAudioSubmit}
-                            collections={collections}
-                            videos={videos}
-                            showTagsInMobileMenu={showTagsInMobileMenu}
-                            linkToAllTagsInMobileMenu={linkToAllTagsInMobileMenu}
-                            effectiveTags={mobileEffectiveTags}
-                        />
-                    </Toolbar>
-                </AppBar>
-            </ClickAwayListener>
+                    <HeaderToolbarContent
+                        isMobile={isMobile}
+                        isScrolled={isScrolled}
+                        isVisitor={isVisitor}
+                        websiteName={websiteName}
+                        onResetSearch={onResetSearch}
+                        activeDownloads={activeDownloads}
+                        queuedDownloads={queuedDownloads}
+                        downloadsAnchorEl={anchorEl}
+                        manageAnchorEl={manageAnchorEl}
+                        onDownloadsClick={handleDownloadsClick}
+                        onDownloadsClose={handleDownloadsClose}
+                        onManageClick={handleManageClick}
+                        onManageClose={handleManageClose}
+                        hasActiveSubscriptions={hasActiveSubscriptions}
+                        showThemeButton={showThemeButton}
+                        showAudioDownloadButton={showAudioDownloadButton}
+                        mobileMenuOpen={mobileMenuOpen}
+                        onToggleMobileMenu={handleToggleMobileMenu}
+                        onCloseMobileMenu={handleCloseMobileMenu}
+                        videoUrl={videoUrl}
+                        setVideoUrl={setVideoUrl}
+                        isSubmitting={isSubmitting}
+                        error={error}
+                        isSearchMode={isSearchMode}
+                        onSubmit={handleToolbarSubmit}
+                        onAudioOnlySubmit={handleAudioSubmit}
+                        collections={collections}
+                        videos={videos}
+                        showTagsInMobileMenu={showTagsInMobileMenu}
+                        linkToAllTagsInMobileMenu={linkToAllTagsInMobileMenu}
+                        effectiveTags={mobileEffectiveTags}
+                    />
+                </Toolbar>
+            </AppBar>
 
             {isMobile && (
                 <Box
-                    onClick={handleCloseMobileMenu}
+                    data-testid="mobile-menu-backdrop"
+                    onPointerDown={handleBackdropPointerDown}
+                    onClick={handleBackdropClick}
                     aria-hidden
                     sx={{
                         position: 'fixed',
                         inset: 0,
                         bgcolor: alpha(theme.palette.common.black, 0.4),
-                        zIndex: (muiTheme) => muiTheme.zIndex.appBar - 1,
+                        zIndex: (muiTheme) => muiTheme.zIndex.appBar,
                         opacity: mobileMenuOpen ? 1 : 0,
                         pointerEvents: mobileMenuOpen ? 'auto' : 'none',
                         transition: 'opacity 0.3s ease-in-out',

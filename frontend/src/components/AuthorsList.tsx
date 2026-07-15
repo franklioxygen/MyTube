@@ -16,6 +16,7 @@ import { Link } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useCloudStorageUrl } from '../hooks/useCloudStorageUrl';
 import { Video } from '../types';
+import { authorAvatarFallbackSx } from '../utils/authorAvatarStyles';
 
 interface AuthorsListProps {
     videos: Video[];
@@ -37,22 +38,23 @@ const AuthorListItem: React.FC<AuthorListItemProps> = React.memo(({ author, avat
             component={Link}
             to={`/author/${encodeURIComponent(author)}`}
             onClick={onItemClick}
-            sx={{ pl: 2, borderRadius: 1 }}
+            sx={{ pl: 2, borderRadius: 1, minWidth: 0 }}
         >
             <Avatar
                 src={avatarUrl || undefined}
-                sx={{
+                sx={[authorAvatarFallbackSx, {
                     width: 24,
                     height: 24,
-                    bgcolor: 'primary.main',
                     mr: 1,
+                    flexShrink: 0,
                     fontSize: '0.75rem'
-                }}
+                }]}
             >
                 {author ? author.charAt(0).toUpperCase() : 'A'}
             </Avatar>
             <ListItemText
                 primary={author}
+                sx={{ minWidth: 0 }}
                 primaryTypographyProps={{
                     variant: 'body2',
                     noWrap: true
@@ -131,8 +133,8 @@ const AuthorsList: React.FC<AuthorsListProps> = ({ videos, onItemClick }) => {
 
     return (
         <Paper elevation={0} sx={{ bgcolor: 'transparent' }}>
-            <ListItemButton onClick={() => setIsOpen(!isOpen)} sx={{ borderRadius: 1 }}>
-                <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontWeight: 600 }}>
+            <ListItemButton onClick={() => setIsOpen(!isOpen)} sx={{ borderRadius: 1, minWidth: 0 }}>
+                <Typography variant="h6" component="div" noWrap sx={{ flexGrow: 1, minWidth: 0, fontWeight: 600 }}>
                     {t('authors')}
                 </Typography>
                 <IconButton

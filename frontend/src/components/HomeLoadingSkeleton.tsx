@@ -28,15 +28,15 @@ export const HomeLoadingSkeleton: FC<HomeLoadingSkeletonProps> = ({
         <Container
             maxWidth={false}
             data-testid="home-loading-skeleton"
-            sx={{ py: 4, px: { xs: 0, sm: 3 } }}
+            sx={{ py: 4, px: { xs: 0, sm: 3 }, overflowX: 'hidden' }}
         >
-            <Box sx={{ display: 'flex', alignItems: 'stretch' }}>
+            <Box sx={{ display: 'flex', alignItems: 'stretch', minWidth: 0 }}>
                 {!isMobile && isSidebarOpen && (
                     <Box
                         sx={{
-                            width: { md: 240, lg: 280 },
+                            width: { md: 260, lg: 280 },
                             flexShrink: 0,
-                            px: 2,
+                            mr: { md: 3, lg: 4 },
                             display: 'flex',
                             flexDirection: 'column',
                             gap: 2

@@ -7,6 +7,7 @@ import { useVideo } from '../contexts/VideoContext';
 import { useCloudStorageUrl } from '../hooks/useCloudStorageUrl';
 import { brand, modeColors } from '../theme/colors';
 import { Video } from '../types';
+import { authorAvatarFallbackSx } from '../utils/authorAvatarStyles';
 
 interface AuthorSummary {
     author: string;
@@ -50,7 +51,7 @@ const AuthorCard: React.FC<{ summary: AuthorSummary; videosLabel: string }> = ({
                     <Avatar
                         src={avatarUrl || undefined}
                         alt={summary.author}
-                        sx={{ width: '100%', height: '100%' }}
+                        sx={[authorAvatarFallbackSx, { width: '100%', height: '100%' }]}
                     >
                         {summary.author ? summary.author.charAt(0).toUpperCase() : <Person />}
                     </Avatar>
