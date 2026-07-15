@@ -1,6 +1,7 @@
 import { Star } from '@mui/icons-material';
 import { Box, Button, Card, CardMedia, Chip, Typography, useMediaQuery, useTheme } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
+import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { brand, modeColors, neutral, overlay } from '../../theme/colors';
@@ -13,9 +14,10 @@ interface FavoriteHeroProps {
     video: Video;
     collection?: FavoriteCollectionItem;
     variant?: 'continue' | 'featured';
+    carouselControls?: ReactNode;
 }
 
-const FavoriteHero: React.FC<FavoriteHeroProps> = ({ video, collection, variant = 'featured' }) => {
+const FavoriteHero: React.FC<FavoriteHeroProps> = ({ video, collection, variant = 'featured', carouselControls }) => {
     const { t } = useLanguage();
     const navigate = useNavigate();
     const theme = useTheme();
@@ -190,15 +192,33 @@ const FavoriteHero: React.FC<FavoriteHeroProps> = ({ video, collection, variant 
                     </Box>
 
                     <Box sx={{ color: theme.palette.mode === 'dark' ? neutral.white : 'text.primary', maxWidth: 620, width: { xs: '100%', md: 'auto' } }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.25, flexWrap: 'wrap' }}>
+                        <Box
+                            sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                gap: 1.5,
+                                mb: 1.25,
+                                flexWrap: 'nowrap',
+                            }}
+                        >
                             <Typography
                                 sx={{
                                     color: theme.palette.mode === 'dark' ? overlay.white80 : 'text.secondary',
                                     fontWeight: 500,
+                                    minWidth: 0,
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
                                 }}
                             >
                                 {video.author || t('unknownAuthor')}
                             </Typography>
+                            {carouselControls && (
+                                <Box sx={{ display: { xs: 'flex', md: 'none' }, flexShrink: 0, ml: 'auto' }}>
+                                    {carouselControls}
+                                </Box>
+                            )}
                         </Box>
                         <Typography
                             variant="h5"

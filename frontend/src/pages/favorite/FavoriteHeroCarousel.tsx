@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight } from '@mui/icons-material';
 import { Box, IconButton, useMediaQuery, useTheme } from '@mui/material';
+import type { SxProps, Theme } from '@mui/material/styles';
 import { motion } from 'framer-motion';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -96,6 +97,62 @@ const FavoriteHeroCarousel: React.FC<FavoriteHeroCarouselProps> = ({ items }) =>
 
     const safeIndex = Math.min(index, count - 1);
     const current = items[safeIndex];
+    const renderControls = (sx?: SxProps<Theme>) => (
+        <Box
+            sx={{
+                zIndex: 2,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 0.5,
+                px: 0.5,
+                py: 0.25,
+                borderRadius: 999,
+                bgcolor: overlay.black55,
+                backdropFilter: 'blur(6px)',
+                ...sx,
+            }}
+        >
+            <IconButton
+                size="small"
+                aria-label={t('previous')}
+                onClick={() => go(safeIndex - 1, -1)}
+                sx={{ color: neutral.white, p: 0.5 }}
+            >
+                <ChevronLeft fontSize="small" />
+            </IconButton>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, px: 0.25 }}>
+                {items.map((item, dotIndex) => (
+                    <Box
+                        key={item.video.id}
+                        component="button"
+                        type="button"
+                        aria-label={`${t('featured')} ${dotIndex + 1}`}
+                        aria-current={dotIndex === safeIndex}
+                        onClick={() => go(dotIndex, dotIndex >= safeIndex ? 1 : -1)}
+                        sx={{
+                            p: 0,
+                            border: 'none',
+                            cursor: 'pointer',
+                            width: dotIndex === safeIndex ? 18 : 7,
+                            height: 7,
+                            borderRadius: 999,
+                            transition: 'width 0.25s ease, background-color 0.25s ease',
+                            bgcolor: dotIndex === safeIndex ? neutral.white : overlay.white32,
+                        }}
+                    />
+                ))}
+            </Box>
+            <IconButton
+                size="small"
+                aria-label={t('next')}
+                onClick={() => go(safeIndex + 1, 1)}
+                sx={{ color: neutral.white, p: 0.5 }}
+            >
+                <ChevronRight fontSize="small" />
+            </IconButton>
+        </Box>
+    );
+    const carouselControls = count > 1 && isMobile ? renderControls() : undefined;
 
     return (
         <Box
@@ -137,65 +194,20 @@ const FavoriteHeroCarousel: React.FC<FavoriteHeroCarouselProps> = ({ items }) =>
                 animate={{ opacity: 1, x: 0 }}
                 transition={isReducedMotion ? { duration: 0 } : { duration: 0.3, ease: 'easeOut' }}
             >
-                <FavoriteHero video={current.video} collection={current.collection} variant={current.variant} />
+                <FavoriteHero
+                    video={current.video}
+                    collection={current.collection}
+                    variant={current.variant}
+                    carouselControls={carouselControls}
+                />
             </motion.div>
 
-            {count > 1 && (
-                <Box
-                    sx={{
-                        position: 'absolute',
-                        top: 12,
-                        right: 12,
-                        zIndex: 2,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 0.5,
-                        px: 0.5,
-                        py: 0.25,
-                        borderRadius: 999,
-                        bgcolor: overlay.black55,
-                        backdropFilter: 'blur(6px)',
-                    }}
-                >
-                    <IconButton
-                        size="small"
-                        aria-label={t('previous')}
-                        onClick={() => go(safeIndex - 1, -1)}
-                        sx={{ color: neutral.white, p: 0.5 }}
-                    >
-                        <ChevronLeft fontSize="small" />
-                    </IconButton>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, px: 0.25 }}>
-                        {items.map((item, dotIndex) => (
-                            <Box
-                                key={item.video.id}
-                                component="button"
-                                type="button"
-                                aria-label={`${t('featured')} ${dotIndex + 1}`}
-                                aria-current={dotIndex === safeIndex}
-                                onClick={() => go(dotIndex, dotIndex >= safeIndex ? 1 : -1)}
-                                sx={{
-                                    p: 0,
-                                    border: 'none',
-                                    cursor: 'pointer',
-                                    width: dotIndex === safeIndex ? 18 : 7,
-                                    height: 7,
-                                    borderRadius: 999,
-                                    transition: 'width 0.25s ease, background-color 0.25s ease',
-                                    bgcolor: dotIndex === safeIndex ? neutral.white : overlay.white32,
-                                }}
-                            />
-                        ))}
-                    </Box>
-                    <IconButton
-                        size="small"
-                        aria-label={t('next')}
-                        onClick={() => go(safeIndex + 1, 1)}
-                        sx={{ color: neutral.white, p: 0.5 }}
-                    >
-                        <ChevronRight fontSize="small" />
-                    </IconButton>
-                </Box>
+            {count > 1 && !isMobile && (
+                renderControls({
+                    position: 'absolute',
+                    top: 12,
+                    right: 12,
+                })
             )}
         </Box>
     );
