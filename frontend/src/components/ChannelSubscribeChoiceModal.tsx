@@ -36,7 +36,9 @@ const ChannelSubscribeChoiceModal: React.FC<ChannelSubscribeChoiceModalProps> = 
         setPendingAction(action);
         try {
             await (action === 'playlists' ? onChoosePlaylists() : onChooseVideos());
-            onClose();
+            // The selected handler owns the modal transition. Calling onClose
+            // here would also run the parent's cancellation cleanup, clearing
+            // the channel URL before the subscription modal can use it.
         } catch {
             // Keep the modal open so the action can be retried.
         } finally {
