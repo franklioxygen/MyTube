@@ -34,8 +34,6 @@ export const HomeSidebar: React.FC<HomeSidebarProps> = ({
             alignSelf: 'flex-start',
             position: 'sticky',
             top: 16,
-            maxHeight: 'calc(100vh - 32px)',
-            overflowX: 'hidden',
             flexShrink: 0,
         }} data-testid="home-sidebar">
             <Collapse
@@ -48,7 +46,7 @@ export const HomeSidebar: React.FC<HomeSidebarProps> = ({
                     mr: { md: 3, lg: 4 },
                     flexShrink: 0,
                     minWidth: 0,
-                    maxHeight: maxPanelHeight ? `min(${maxPanelHeight}px, calc(100vh - 32px))` : 'calc(100vh - 32px)',
+                    maxHeight: maxPanelHeight ? `${maxPanelHeight}px` : undefined,
                     overflowY: isSidebarOpen ? 'auto' : 'hidden',
                     overflowX: 'hidden',
                     '&::-webkit-scrollbar': {

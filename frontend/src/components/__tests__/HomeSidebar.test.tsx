@@ -47,8 +47,11 @@ describe('HomeSidebar', () => {
             position: 'sticky',
             top: '16px',
         });
+        expect(screen.getByTestId('home-sidebar')).not.toHaveStyle({
+            maxHeight: 'calc(100vh - 32px)',
+        });
         expect(screen.getByTestId('home-sidebar-panel')).toHaveStyle({
-            maxHeight: 'min(720px, calc(100vh - 32px))',
+            maxHeight: '720px',
             overflowY: 'auto',
         });
     });

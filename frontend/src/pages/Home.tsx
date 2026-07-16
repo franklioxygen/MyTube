@@ -53,8 +53,8 @@ const Home: React.FC<HomeProps> = ({ initialViewMode }) => {
     const location = useLocation();
     const navigate = useNavigate();
     const [isDeleteFilteredOpen, setIsDeleteFilteredOpen] = useState(false);
-    const [mainContentHeight, setMainContentHeight] = useState<number | null>(null);
-    const mainContentRef = useRef<HTMLDivElement | null>(null);
+    const [videoGridHeight, setVideoGridHeight] = useState<number | null>(null);
+    const videoGridRef = useRef<HTMLDivElement | null>(null);
     const homeViewModeRequest = useHomeViewModeRequestOptional();
 
     // Custom hooks
@@ -157,29 +157,30 @@ const Home: React.FC<HomeProps> = ({ initialViewMode }) => {
     const priorityVideos = infiniteScroll ? sortedVideos : displayedVideos;
 
     useLayoutEffect(() => {
-        const mainContent = mainContentRef.current;
-        if (!mainContent) {
+        const videoGrid = videoGridRef.current;
+        if (!videoGrid) {
+            setVideoGridHeight(null);
             return undefined;
         }
 
-        const updateMainContentHeight = () => {
-            const nextHeight = Math.ceil(mainContent.getBoundingClientRect().height);
-            setMainContentHeight((currentHeight) => (
+        const updateVideoGridHeight = () => {
+            const nextHeight = Math.ceil(videoGrid.getBoundingClientRect().height);
+            setVideoGridHeight((currentHeight) => (
                 currentHeight === nextHeight ? currentHeight : nextHeight
             ));
         };
 
-        updateMainContentHeight();
+        updateVideoGridHeight();
 
         if (typeof ResizeObserver === 'undefined') {
-            window.addEventListener('resize', updateMainContentHeight);
-            return () => window.removeEventListener('resize', updateMainContentHeight);
+            window.addEventListener('resize', updateVideoGridHeight);
+            return () => window.removeEventListener('resize', updateVideoGridHeight);
         }
 
-        const observer = new ResizeObserver(updateMainContentHeight);
-        observer.observe(mainContent);
+        const observer = new ResizeObserver(updateVideoGridHeight);
+        observer.observe(videoGrid);
         return () => observer.disconnect();
-    }, [loading, settingsLoaded, videoArray.length, viewMode]);
+    }, [displayedVideos.length, infiniteScroll, isSidebarOpen, loading, settingsLoaded, sortedVideos.length, videoArray.length, videoColumns, viewMode]);
 
     if (!settingsLoaded || (loading && videoArray.length === 0)) {
         return <HomeLoadingSkeleton gridProps={gridProps} isSidebarOpen={isSidebarOpen} cardsCount={loadingSkeletonCount} />;
@@ -239,11 +240,11 @@ const Home: React.FC<HomeProps> = ({ initialViewMode }) => {
                         selectedTags={selectedTags}
                         onTagToggle={handleHomeTagToggle}
                         videos={videoArray}
-                        maxPanelHeight={mainContentHeight}
+                        maxPanelHeight={videoGridHeight}
                     />
 
                     {/* Videos grid */}
-                    <Box ref={mainContentRef} sx={{ flex: 1, minWidth: 0, alignSelf: 'flex-start' }}>
+                    <Box sx={{ flex: 1, minWidth: 0, alignSelf: 'flex-start' }}>
                         <HomeHeader
                             viewMode={viewMode}
                             onViewModeChange={handleHomeViewModeChange}
@@ -268,18 +269,20 @@ const Home: React.FC<HomeProps> = ({ initialViewMode }) => {
                                 </Typography>
                             </Box>
                         ) : (
-                            <VideoGrid
-                                videos={videoArray}
-                                sortedVideos={sortedVideos}
-                                displayedVideos={displayedVideos}
-                                collections={collections}
-                                viewMode={viewMode}
-                                infiniteScroll={infiniteScroll}
-                                gridProps={gridProps}
-                                onDeleteVideo={deleteVideo}
-                                showTagsOnThumbnail={showTagsOnThumbnail}
-                                onTagToggle={handleHomeTagToggle}
-                            />
+                            <Box ref={videoGridRef}>
+                                <VideoGrid
+                                    videos={videoArray}
+                                    sortedVideos={sortedVideos}
+                                    displayedVideos={displayedVideos}
+                                    collections={collections}
+                                    viewMode={viewMode}
+                                    infiniteScroll={infiniteScroll}
+                                    gridProps={gridProps}
+                                    onDeleteVideo={deleteVideo}
+                                    showTagsOnThumbnail={showTagsOnThumbnail}
+                                    onTagToggle={handleHomeTagToggle}
+                                />
+                            </Box>
                         )}
 
                         {viewMode !== 'favorite' && !infiniteScroll && totalPages > 1 && (
