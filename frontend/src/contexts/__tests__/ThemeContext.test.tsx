@@ -3,6 +3,8 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { api } from '../../utils/apiClient';
+import { authSettingsQueryOptions } from '../../utils/settingsQueries';
+import type { AuthSettingsResponse } from '../../utils/settingsQueries';
 import { ThemeContextProvider, useThemeContext } from '../ThemeContext';
 
 vi.mock('../../utils/apiClient', () => ({
@@ -17,7 +19,7 @@ const mockApiGet = (implementation: (url: string) => Promise<{ data: unknown }>)
     mockedApi.get.mockImplementation(implementation as any);
 };
 
-const createWrapper = () => {
+const createWrapper = (authSettings?: AuthSettingsResponse | null) => {
     const queryClient = new QueryClient({
         defaultOptions: {
             queries: {
@@ -25,6 +27,10 @@ const createWrapper = () => {
             },
         },
     });
+
+    if (authSettings !== undefined) {
+        queryClient.setQueryData(authSettingsQueryOptions.queryKey, authSettings);
+    }
 
     return ({ children }: { children: ReactNode }) => (
         <QueryClientProvider client={queryClient}>
@@ -225,5 +231,37 @@ describe('ThemeContext', () => {
         await waitFor(() => {
             expect(localStorageMock.getItem('themeMode')).toBe('dark');
         }, { timeout: 1000 });
+    });
+
+    it('keeps visitor theme changes local without patching settings', async () => {
+        localStorageMock.setItem('themeMode', 'light');
+
+        const { result } = renderHook(() => useThemeContext(), {
+            wrapper: createWrapper({ loginRequired: true, authenticatedRole: 'visitor' })
+        });
+
+        await act(async () => {
+            result.current.toggleTheme();
+        });
+
+        expect(result.current.mode).toBe('dark');
+        expect(localStorageMock.getItem('themeMode')).toBe('dark');
+        expect(mockedApi.patch).not.toHaveBeenCalled();
+    });
+
+    it('persists admin theme changes to settings', async () => {
+        localStorageMock.setItem('themeMode', 'light');
+
+        const { result } = renderHook(() => useThemeContext(), {
+            wrapper: createWrapper({ loginRequired: true, authenticatedRole: 'admin' })
+        });
+
+        await act(async () => {
+            result.current.toggleTheme();
+        });
+
+        await waitFor(() => {
+            expect(mockedApi.patch).toHaveBeenCalledWith('/settings', { theme: 'dark' });
+        });
     });
 });

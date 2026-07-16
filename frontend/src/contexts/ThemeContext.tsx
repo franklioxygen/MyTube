@@ -1,11 +1,12 @@
-import { hasAxiosStatus, hasAnyAxiosStatus } from '../utils/errors';
+import { hasAnyAxiosStatus } from '../utils/errors';
 import { useQueryClient } from '@tanstack/react-query';
 import { CssBaseline, GlobalStyles, ThemeProvider as MuiThemeProvider, PaletteMode, useMediaQuery } from '@mui/material';
 import React, { createContext, useCallback, useContext, useEffect, useEffectEvent, useMemo, useState } from 'react';
 import getTheme from '../theme';
 import { applyThemeCssVariables } from '../theme/cssVariables';
 import { api } from '../utils/apiClient';
-import { fetchReadableSettings } from '../utils/settingsQueries';
+import { authSettingsQueryOptions, fetchReadableSettings } from '../utils/settingsQueries';
+import type { AuthSettingsResponse } from '../utils/settingsQueries';
 
 export type ThemePreference = 'light' | 'dark' | 'system';
 
@@ -29,6 +30,14 @@ const normalizeThemePreference = (value: unknown): ThemePreference => {
         default:
             return 'system';
     }
+};
+
+const canPersistThemePreference = (authSettings?: AuthSettingsResponse | null) => {
+    if (!authSettings) {
+        return true;
+    }
+
+    return authSettings.loginRequired === false || authSettings.authenticatedRole === 'admin';
 };
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -90,17 +99,22 @@ export const ThemeContextProvider: React.FC<{ children: React.ReactNode }> = ({ 
         setPreferenceState(normalizedPreference);
         localStorage.setItem('themeMode', normalizedPreference);
 
+        const authSettings = queryClient.getQueryData<AuthSettingsResponse | null>(authSettingsQueryOptions.queryKey);
+        if (!canPersistThemePreference(authSettings)) {
+            return;
+        }
+
         // Sync with backend
         try {
             await api.patch('/settings', {
                 theme: normalizedPreference
             });
         } catch (error: unknown) {
-            if (!hasAxiosStatus(error, 401)) {
+            if (!hasAnyAxiosStatus(error, [401, 403])) {
                 console.error('Error saving theme setting:', error);
             }
         }
-    }, []);
+    }, [queryClient]);
 
     const mode: PaletteMode = useMemo(() => {
         if (preference === 'system') {
