@@ -1,7 +1,10 @@
-import { ChevronLeft, ChevronRight } from '@mui/icons-material';
+import { ChevronLeft, ChevronRight, CollectionsBookmark } from '@mui/icons-material';
 import { Box, IconButton, useMediaQuery, useTheme } from '@mui/material';
+import type { SxProps, Theme } from '@mui/material/styles';
 import { motion } from 'framer-motion';
+import type { MouseEvent } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { neutral, overlay } from '../../theme/colors';
 import type { FavoriteCollectionItem, Video } from '../../types';
@@ -29,6 +32,7 @@ const AUTO_ADVANCE_MS = 7000;
  */
 const FavoriteHeroCarousel: React.FC<FavoriteHeroCarouselProps> = ({ items }) => {
     const { t } = useLanguage();
+    const navigate = useNavigate();
     const theme = useTheme();
     const isReducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -96,67 +100,46 @@ const FavoriteHeroCarousel: React.FC<FavoriteHeroCarouselProps> = ({ items }) =>
 
     const safeIndex = Math.min(index, count - 1);
     const current = items[safeIndex];
-
-    return (
+    const openCollection = (event: MouseEvent<HTMLButtonElement>) => {
+        if (!current.collection) return;
+        event.stopPropagation();
+        navigate(`/collection/${encodeURIComponent(current.collection.collectionId)}`);
+    };
+    const renderControls = (
+        sx?: SxProps<Theme>,
+        { showCarouselNavigation = true }: { showCarouselNavigation?: boolean } = {},
+    ) => (
         <Box
-            // On mobile, break out of FavoritePage's `px: 2` so the hero spans
-            // the full screen width edge-to-edge; unchanged on desktop.
-            data-testid="favorite-hero-carousel"
             sx={{
-                position: 'relative',
-                mx: { xs: -2, md: 0 },
-                // Allows vertical page scrolling while keeping horizontal
-                // gestures available for the mobile carousel.
-                touchAction: isMobile && count > 1 ? 'pan-y' : 'auto',
-            }}
-            onMouseEnter={() => setPaused(true)}
-            onMouseLeave={() => setPaused(false)}
-            onFocusCapture={() => setPaused(true)}
-            onBlurCapture={() => setPaused(false)}
-            onTouchStart={(event) => {
-                if (!isMobile || count <= 1) return;
-                const touch = event.touches[0];
-                touchStart.current = { x: touch.clientX, y: touch.clientY };
-            }}
-            onTouchEnd={handleTouchEnd}
-            onTouchCancel={() => { touchStart.current = null; }}
-            onClickCapture={(event) => {
-                if (!suppressClick.current) return;
-                event.preventDefault();
-                event.stopPropagation();
-                suppressClick.current = false;
-                if (suppressClickTimer.current) {
-                    window.clearTimeout(suppressClickTimer.current);
-                    suppressClickTimer.current = null;
-                }
+                zIndex: 2,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 0.5,
+                px: 0.5,
+                py: 0.25,
+                borderRadius: 999,
+                bgcolor: overlay.black55,
+                backdropFilter: 'blur(6px)',
+                ...sx,
             }}
         >
-            <motion.div
-                key={current.video.id}
-                initial={isReducedMotion ? false : { opacity: 0, x: slideDirection * 24 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={isReducedMotion ? { duration: 0 } : { duration: 0.3, ease: 'easeOut' }}
-            >
-                <FavoriteHero video={current.video} collection={current.collection} variant={current.variant} />
-            </motion.div>
-
-            {count > 1 && (
-                <Box
+            {current.collection && (
+                <IconButton
+                    size="small"
+                    aria-label={t('openCollection')}
+                    onClick={openCollection}
                     sx={{
-                        position: 'absolute',
-                        top: 12,
-                        right: 12,
-                        zIndex: 2,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 0.5,
-                        px: 0.5,
-                        py: 0.25,
-                        borderRadius: 999,
-                        bgcolor: overlay.black55,
-                        backdropFilter: 'blur(6px)',
+                        color: neutral.white,
+                        p: 0.5,
+                        borderRight: `1px solid ${overlay.white32}`,
+                        borderRadius: 0,
                     }}
                 >
+                    <CollectionsBookmark fontSize="small" />
+                </IconButton>
+            )}
+            {showCarouselNavigation && (
+                <>
                     <IconButton
                         size="small"
                         aria-label={t('previous')}
@@ -195,7 +178,71 @@ const FavoriteHeroCarousel: React.FC<FavoriteHeroCarouselProps> = ({ items }) =>
                     >
                         <ChevronRight fontSize="small" />
                     </IconButton>
-                </Box>
+                </>
+            )}
+        </Box>
+    );
+    const shouldShowControls = count > 1 || Boolean(current.collection);
+    const carouselControls = shouldShowControls && isMobile
+        ? renderControls(undefined, { showCarouselNavigation: count > 1 })
+        : undefined;
+
+    return (
+        <Box
+            // On mobile, break out of FavoritePage's `px: 2` so the hero spans
+            // the full screen width edge-to-edge; unchanged on desktop.
+            data-testid="favorite-hero-carousel"
+            sx={{
+                position: 'relative',
+                mx: { xs: -2, md: 0 },
+                // Allows vertical page scrolling while keeping horizontal
+                // gestures available for the mobile carousel.
+                touchAction: isMobile && count > 1 ? 'pan-y' : 'auto',
+            }}
+            onMouseEnter={() => setPaused(true)}
+            onMouseLeave={() => setPaused(false)}
+            onFocusCapture={() => setPaused(true)}
+            onBlurCapture={() => setPaused(false)}
+            onTouchStart={(event) => {
+                if (!isMobile || count <= 1) return;
+                const touch = event.touches[0];
+                touchStart.current = { x: touch.clientX, y: touch.clientY };
+            }}
+            onTouchEnd={handleTouchEnd}
+            onTouchCancel={() => { touchStart.current = null; }}
+            onClickCapture={(event) => {
+                if (!suppressClick.current) return;
+                event.preventDefault();
+                event.stopPropagation();
+                suppressClick.current = false;
+                if (suppressClickTimer.current) {
+                    window.clearTimeout(suppressClickTimer.current);
+                    suppressClickTimer.current = null;
+                }
+            }}
+        >
+            <motion.div
+                key={current.video.id}
+                initial={isReducedMotion ? false : { opacity: 0, x: slideDirection * 6 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={isReducedMotion ? { duration: 0 } : { duration: 0.22, ease: 'easeOut' }}
+            >
+                <FavoriteHero
+                    video={current.video}
+                    collection={current.collection}
+                    variant={current.variant}
+                    carouselControls={carouselControls}
+                />
+            </motion.div>
+
+            {shouldShowControls && !isMobile && (
+                renderControls({
+                    position: 'absolute',
+                    top: 12,
+                    right: 12,
+                }, {
+                    showCarouselNavigation: count > 1,
+                })
             )}
         </Box>
     );

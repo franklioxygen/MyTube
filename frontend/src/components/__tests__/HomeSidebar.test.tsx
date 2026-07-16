@@ -39,4 +39,20 @@ describe('HomeSidebar', () => {
         // We can't easily query by style with testing-library, but we can check if it renders without crashing.
         expect(container).toBeInTheDocument();
     });
+
+    it('keeps the outer wrapper sticky while the inner panel scrolls', () => {
+        render(<HomeSidebar {...defaultProps} maxPanelHeight={720} />);
+
+        expect(screen.getByTestId('home-sidebar')).toHaveStyle({
+            position: 'sticky',
+            top: '16px',
+        });
+        expect(screen.getByTestId('home-sidebar')).not.toHaveStyle({
+            maxHeight: 'calc(100vh - 32px)',
+        });
+        expect(screen.getByTestId('home-sidebar-panel')).toHaveStyle({
+            maxHeight: '720px',
+            overflowY: 'auto',
+        });
+    });
 });

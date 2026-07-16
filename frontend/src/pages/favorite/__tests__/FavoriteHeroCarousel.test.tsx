@@ -1,5 +1,6 @@
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { fireEvent, render, screen, act } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import FavoriteHeroCarousel, { type FavoriteHeroItem } from '../FavoriteHeroCarousel';
 
@@ -19,9 +20,11 @@ const makeItems = (titles: string[]): FavoriteHeroItem[] =>
 
 const renderCarousel = (items: FavoriteHeroItem[]) =>
     render(
-        <ThemeProvider theme={createTheme()}>
-            <FavoriteHeroCarousel items={items} />
-        </ThemeProvider>,
+        <MemoryRouter>
+            <ThemeProvider theme={createTheme()}>
+                <FavoriteHeroCarousel items={items} />
+            </ThemeProvider>
+        </MemoryRouter>,
     );
 
 beforeEach(() => {
@@ -49,12 +52,32 @@ describe('FavoriteHeroCarousel', () => {
         expect(screen.queryByRole('button', { name: 'previous' })).not.toBeInTheDocument();
     });
 
+    it('keeps the collection action for a single collection-backed hero', () => {
+        const items = makeItems(['Only One']);
+        items[0].collection = { collectionId: 'collection-1', name: 'Saved collection' } as never;
+
+        renderCarousel(items);
+
+        expect(screen.getByRole('button', { name: 'openCollection' })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'next' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'previous' })).not.toBeInTheDocument();
+    });
+
     it('renders one dot per slide and arrows when there are multiple', () => {
         renderCarousel(makeItems(['A', 'B', 'C']));
         expect(screen.getByRole('button', { name: 'next' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'previous' })).toBeInTheDocument();
         // Three dots (aria-label "featured N").
         expect(screen.getAllByRole('button', { name: /^featured \d$/ })).toHaveLength(3);
+    });
+
+    it('shows a collection action before the carousel controls when the active slide has a collection', () => {
+        const items = makeItems(['A', 'B']);
+        items[0].collection = { collectionId: 'collection-1', name: 'Saved collection' } as never;
+
+        renderCarousel(items);
+
+        expect(screen.getByRole('button', { name: 'openCollection' })).toBeInTheDocument();
     });
 
     it('advances to the next slide when the next arrow is clicked', () => {

@@ -6,6 +6,15 @@ const mockNavigate = vi.fn();
 const mockHandleTagToggle = vi.fn();
 const mockRequestHomeViewMode = vi.fn();
 let mockPathname = '/';
+let mockIsMobile = true;
+
+vi.mock('@mui/material', async () => {
+    const actual = await vi.importActual<typeof import('@mui/material')>('@mui/material');
+    return {
+        ...actual,
+        useMediaQuery: () => mockIsMobile,
+    };
+});
 
 vi.mock('react-router-dom', async () => {
     const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
@@ -88,6 +97,7 @@ vi.mock('../HeaderToolbarContent', () => ({
             <button onClick={props.onToggleMobileMenu}>toggle-mobile-menu</button>
             <button onClick={props.onCloseMobileMenu}>close-mobile-menu</button>
             <button onClick={() => props.effectiveTags.onTagToggle('tag1')}>toggle-tag</button>
+            <span data-testid="mobile-menu-open">{String(props.mobileMenuOpen)}</span>
             <span data-testid="show-tags-in-mobile-menu">{String(props.showTagsInMobileMenu)}</span>
             <span data-testid="link-to-all-tags-in-mobile-menu">{String(props.linkToAllTagsInMobileMenu)}</span>
         </div>
@@ -110,6 +120,7 @@ const renderHeader = () =>
 describe('HeaderContainer', () => {
     afterEach(() => {
         mockPathname = '/';
+        mockIsMobile = true;
         vi.clearAllMocks();
     });
 
@@ -163,6 +174,36 @@ describe('HeaderContainer', () => {
         expect(scrollSpy).toHaveBeenCalled();
 
         scrollSpy.mockRestore();
+    });
+
+    it('uses the mobile backdrop to close the menu without clicking through to page content', () => {
+        const pageClick = vi.fn();
+
+        render(
+            <div onClick={pageClick}>
+                <HeaderContainer
+                    onSubmit={vi.fn()}
+                    onSearch={vi.fn()}
+                    activeDownloads={[]}
+                    queuedDownloads={[]}
+                    isSearchMode={false}
+                    collections={[]}
+                    videos={[]}
+                />
+                <button>underlying-page-action</button>
+            </div>
+        );
+
+        fireEvent.click(screen.getByText('toggle-mobile-menu'));
+        expect(screen.getByTestId('mobile-menu-open')).toHaveTextContent('true');
+
+        const backdrop = screen.getByTestId('mobile-menu-backdrop');
+        pageClick.mockClear();
+        fireEvent.pointerDown(backdrop);
+        fireEvent.click(backdrop);
+
+        expect(screen.getByTestId('mobile-menu-open')).toHaveTextContent('false');
+        expect(pageClick).not.toHaveBeenCalled();
     });
 
     it('requests All Videos when a mobile header tag is toggled on a home route', () => {

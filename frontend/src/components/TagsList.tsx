@@ -101,8 +101,8 @@ const TagsList: React.FC<TagsListProps> = ({
 
     return (
         <Paper elevation={0} sx={{ bgcolor: 'transparent' }}>
-            <ListItemButton onClick={() => setIsOpen(!isOpen)} sx={{ borderRadius: 1, mb: 1 }}>
-                <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontWeight: 600 }}>
+            <ListItemButton onClick={() => setIsOpen(!isOpen)} sx={{ borderRadius: 1, mb: 1, minWidth: 0 }}>
+                <Typography variant="h6" component="div" noWrap sx={{ flexGrow: 1, minWidth: 0, fontWeight: 600 }}>
                     {t('tags') || 'Tags'}
                 </Typography>
                 {linkToAllTags && (
@@ -136,8 +136,13 @@ const TagsList: React.FC<TagsListProps> = ({
                                 variant={isSelected ? "filled" : "outlined"}
                                 icon={isSelected ? <LocalOffer sx={{ fontSize: '1rem !important' }} /> : undefined}
                                 sx={{
+                                    maxWidth: '100%',
                                     cursor: 'pointer',
                                     transition: 'background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s',
+                                    '& .MuiChip-label': {
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis'
+                                    },
                                     '&:hover': {
                                         bgcolor: isSelected ? 'primary.dark' : 'action.hover'
                                     }

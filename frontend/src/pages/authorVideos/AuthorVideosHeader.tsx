@@ -3,6 +3,7 @@ import { Avatar, Box, Button, IconButton, Tooltip, Typography } from '@mui/mater
 
 import FavoriteToggle from '../../components/FavoriteToggle';
 import SortControl from '../../components/SortControl';
+import { authorAvatarFallbackSx } from '../../utils/authorAvatarStyles';
 
 interface AuthorVideosHeaderProps {
     authorDisplayName: string;
@@ -78,15 +79,14 @@ const AuthorVideosHeader: React.FC<AuthorVideosHeaderProps> = ({
 
                 <Avatar
                     src={avatarUrl || undefined}
-                    sx={{
+                    sx={[authorAvatarFallbackSx, {
                         display: { xs: 'none', md: 'flex' },
                         width: 56,
                         height: 56,
-                        bgcolor: 'primary.main',
                         mr: 2,
                         fontSize: '1.5rem',
                         flexShrink: 0,
-                    }}
+                    }]}
                 >
                     {initial}
                 </Avatar>
@@ -108,15 +108,14 @@ const AuthorVideosHeader: React.FC<AuthorVideosHeaderProps> = ({
                                 component="span"
                                 src={avatarUrl || undefined}
                                 aria-hidden
-                                sx={{
+                                sx={[authorAvatarFallbackSx, {
                                     display: { xs: 'inline-flex', md: 'none' },
                                     width: 40,
                                     height: 40,
                                     mr: 1,
                                     verticalAlign: 'middle',
-                                    bgcolor: 'primary.main',
                                     fontSize: '1.1rem',
-                                }}
+                                }]}
                             >
                                 {initial}
                             </Avatar>

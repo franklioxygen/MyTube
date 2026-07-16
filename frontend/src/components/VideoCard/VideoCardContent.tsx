@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useCloudStorageUrl } from '../../hooks/useCloudStorageUrl';
 import { Video } from '../../types';
+import { authorAvatarFallbackSx } from '../../utils/authorAvatarStyles';
 import { formatRelativeDownloadTime } from '../../utils/formatUtils';
 import { VideoCardCollectionInfo } from '../../utils/videoCardUtils';
 
@@ -172,14 +173,13 @@ export const VideoCardContent: React.FC<VideoCardContentProps> = ({
                     <Avatar
                         src={avatarUrl || undefined}
                         onClick={onAuthorClick}
-                        sx={{
+                        sx={[authorAvatarFallbackSx, {
                             width: 24,
                             height: 24,
-                            bgcolor: 'primary.main',
                             mr: 0.75,
                             fontSize: '0.75rem',
                             cursor: 'pointer'
-                        }}
+                        }]}
                     >
                         {video.author ? video.author.charAt(0).toUpperCase() : 'A'}
                     </Avatar>

@@ -78,8 +78,8 @@ const Collections: React.FC<CollectionsProps> = ({ collections, onItemClick }) =
 
     return (
         <Paper elevation={0} sx={{ bgcolor: 'transparent' }}>
-            <ListItemButton onClick={() => setIsOpen(!isOpen)} sx={{ borderRadius: 1 }}>
-                <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontWeight: 600 }}>
+            <ListItemButton onClick={() => setIsOpen(!isOpen)} sx={{ borderRadius: 1, minWidth: 0 }}>
+                <Typography variant="h6" component="div" noWrap sx={{ flexGrow: 1, minWidth: 0, fontWeight: 600 }}>
                     {t('collections')}
                 </Typography>
                 <IconButton
@@ -106,11 +106,12 @@ const Collections: React.FC<CollectionsProps> = ({ collections, onItemClick }) =
                             component={Link}
                             to={`/collection/${collection.id}`}
                             onClick={onItemClick}
-                            sx={{ pl: 2, borderRadius: 1 }}
+                            sx={{ pl: 2, borderRadius: 1, minWidth: 0 }}
                         >
-                            <Folder fontSize="small" sx={{ mr: 1, color: 'secondary.main' }} />
+                            <Folder fontSize="small" sx={{ mr: 1, flexShrink: 0, color: 'secondary.main' }} />
                             <ListItemText
                                 primary={collection.name}
+                                sx={{ minWidth: 0 }}
                                 slotProps={{
                                     primary: {
                                         variant: 'body2',
