@@ -1,8 +1,18 @@
 import { isBilibiliUrl } from "../../utils/helpers";
-import { executeYtDlpJson, getNetworkConfigFromUserConfig, getUserYtDlpConfig } from "../../utils/ytDlpUtils";
+import { v4 as uuidv4 } from "uuid";
 import { logger } from "../../utils/logger";
 import * as storageService from "../storageService";
 import type { Collection } from "../storageService";
+
+/**
+ * A collection resolved for a playlist subscription, including whether this
+ * request created it. Callers use that fact to safely clean up a fresh empty
+ * collection when subscription insertion fails after the collection write.
+ */
+export interface ResolvedPlaylistCollection {
+  collection: Collection;
+  created: boolean;
+}
 
 /**
  * Extract a YouTube playlist id (`list=` param) from a URL, or null if absent.
@@ -24,14 +34,19 @@ export function detectPlaylistPlatform(playlistUrl: string): "Bilibili" | "YouTu
  * sequence used by createPlaylistSubscription. Returns the resolved
  * collection (existing or newly created).
  */
-export function resolvePlaylistCollection(collectionName: string): Collection {
+export function resolvePlaylistCollectionWithStatus(
+  collectionName: string
+): ResolvedPlaylistCollection {
   let collection = storageService.getCollectionByName(collectionName);
 
   if (!collection) {
     const uniqueCollectionName =
       storageService.generateUniqueCollectionName(collectionName);
     collection = {
-      id: Date.now().toString(),
+      // Channel-playlist bulk creation can create several collections inside
+      // the same millisecond. A UUID keeps those sequential storage writes
+      // collision-free instead of relying on Date.now() uniqueness.
+      id: uuidv4(),
       name: uniqueCollectionName,
       videos: [],
       createdAt: new Date().toISOString(),
@@ -41,13 +56,22 @@ export function resolvePlaylistCollection(collectionName: string): Collection {
     logger.info(
       `Created collection "${uniqueCollectionName}" with ID ${collection.id}`
     );
+    return { collection, created: true };
   } else {
     logger.info(
       `Using existing collection "${collection.name}" with ID ${collection.id}`
     );
+    return { collection, created: false };
   }
+}
 
-  return collection;
+/**
+ * Backward-compatible collection resolver for callers that only need the
+ * collection. New subscription flows should use the status-aware variant so
+ * they can avoid orphaning a collection on a later insert failure.
+ */
+export function resolvePlaylistCollection(collectionName: string): Collection {
+  return resolvePlaylistCollectionWithStatus(collectionName).collection;
 }
 
 /**
@@ -55,10 +79,10 @@ export function resolvePlaylistCollection(collectionName: string): Collection {
  * title plus an optional cleaned channel name (the variant used by the
  * channel-playlists loop).
  */
-export function resolveChannelPlaylistCollection(
+export function resolveChannelPlaylistCollectionWithStatus(
   playlistTitle: string,
   channelName: string | null,
-): Collection {
+): ResolvedPlaylistCollection {
   const cleanChannelName =
     channelName && channelName !== "Unknown"
       ? channelName.replace(/[\/\\:*?"<>|]/g, "-").trim()
@@ -76,7 +100,7 @@ export function resolveChannelPlaylistCollection(
     const uniqueCollectionName =
       storageService.generateUniqueCollectionName(collectionName);
     collection = {
-      id: Date.now().toString(),
+      id: uuidv4(),
       name: uniqueCollectionName,
       videos: [],
       createdAt: new Date().toISOString(),
@@ -86,86 +110,50 @@ export function resolveChannelPlaylistCollection(
     logger.info(
       `Created collection "${uniqueCollectionName}" for playlist: ${playlistTitle}`
     );
+    return { collection, created: true };
   }
 
-  return collection;
+  return { collection, created: false };
 }
 
 /**
- * Extract a playlist ID from Bilibili playlist info via yt-dlp, when it
- * wasn't already available from the request. Best-effort: returns null on
- * failure (the caller logs and continues).
+ * Backward-compatible channel-playlist resolver. Prefer the status-aware
+ * variant while creating a subscription so a fresh collection can be cleaned
+ * up if that creation fails.
  */
-export async function extractBilibiliPlaylistId(
-  playlistUrl: string,
-): Promise<string | null> {
-  try {
-    const userConfig = getUserYtDlpConfig(playlistUrl);
-    const networkConfig = getNetworkConfigFromUserConfig(userConfig);
-
-    const info = await executeYtDlpJson(playlistUrl, {
-      ...networkConfig,
-      noWarnings: true,
-      flatPlaylist: true,
-      playlistEnd: 1,
-    });
-
-    if (info.id) {
-      return info.id;
-    } else if (info.extractor_key === "bilibili:playlist") {
-      // For Bilibili playlists, the ID might be in the URL or extractor info
-      return info.playlist_id || info.id || null;
-    }
-  } catch (error) {
-    logger.warn(
-      "Could not extract playlist ID, continuing without it:",
-      error
-    );
-  }
-  return null;
+export function resolveChannelPlaylistCollection(
+  playlistTitle: string,
+  channelName: string | null,
+): Collection {
+  return resolveChannelPlaylistCollectionWithStatus(
+    playlistTitle,
+    channelName
+  ).collection;
 }
 
 /**
- * Best-effort extraction of an author name from a playlist's first entry /
- * uploader / channel metadata via yt-dlp. Returns "Playlist Author" when no
- * author can be determined or the probe fails.
+ * Remove a collection created by the current request only when it is still
+ * provably unused. This is intentionally conservative: an existing
+ * collection, one with videos, or one referenced by any subscription is never
+ * deleted. Call only before a task can be created for the collection.
  */
-export async function extractPlaylistAuthor(
-  playlistUrl: string,
-): Promise<string> {
-  let author = "Playlist Author";
+export async function deleteCreatedCollectionIfUnused(
+  resolution: ResolvedPlaylistCollection,
+  listSubscriptions: () => Promise<Array<{ collectionId?: string | null }>>
+): Promise<void> {
+  if (!resolution.created) return;
 
-  try {
-    const userConfig = getUserYtDlpConfig(playlistUrl);
-    const networkConfig = getNetworkConfigFromUserConfig(userConfig);
+  const current = storageService.getCollectionById(resolution.collection.id);
+  if (!current || (current.videos?.length ?? 0) > 0) return;
 
-    const info = await executeYtDlpJson(playlistUrl, {
-      ...networkConfig,
-      noWarnings: true,
-      flatPlaylist: true,
-      playlistEnd: 1,
-    });
+  const subscriptions = await listSubscriptions();
+  if (subscriptions.some((sub) => sub.collectionId === current.id)) return;
 
-    if (info.entries && info.entries.length > 0) {
-      const firstEntry = info.entries[0];
-      if (firstEntry.uploader) {
-        author = firstEntry.uploader;
-      } else if (firstEntry.channel) {
-        author = firstEntry.channel;
-      }
-    } else if (info.uploader) {
-      author = info.uploader;
-    } else if (info.channel) {
-      author = info.channel;
-    }
-  } catch (error) {
-    logger.warn(
-      "Could not extract author from playlist, using default:",
-      error
+  if (storageService.deleteCollection(current.id)) {
+    logger.info(
+      `Deleted unused collection "${current.name}" after playlist subscription creation failed`
     );
   }
-
-  return author;
 }
 
 /**

@@ -40,6 +40,8 @@ const SubscribeModal = lazyWithRetry(
     () => import('../components/SubscribeModal'),
     'subscribe-modal',
 );
+// Structured modal action type shared with BilibiliPartsModal (design §10.1).
+import type { PlaylistDialogAction } from '../components/BilibiliPartsModal';
 
 // Payload from GET /check-bilibili-collection, forwarded to the download API
 // when the user confirms a collection/series download.
@@ -59,10 +61,6 @@ interface BilibiliPartsInfo {
     collectionInfo: BilibiliCollectionInfo | null;
 }
 
-
-interface SubscribeInfo {
-    interval: number;
-}
 
 interface DownloadContextType {
     activeDownloads: DownloadInfo[];
@@ -84,7 +82,7 @@ interface DownloadContextType {
     setShowBilibiliPartsModal: (show: boolean) => void;
     bilibiliPartsInfo: BilibiliPartsInfo;
     isCheckingParts: boolean;
-    handleDownloadAllBilibiliParts: (collectionName: string, subscribeInfo?: SubscribeInfo) => Promise<{ success: boolean; error?: string }>;
+    handlePlaylistDialogConfirm: (action: PlaylistDialogAction) => Promise<void>;
     handleDownloadCurrentBilibiliPart: () => Promise<any>;
 }
 
@@ -509,43 +507,72 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     ]);
 
 
-    const handleDownloadAllBilibiliParts = useCallback(async (collectionName: string, subscribeInfo?: SubscribeInfo) => {
+    const handlePlaylistDialogConfirm = useCallback(async (action: PlaylistDialogAction) => {
+        const collectionName = action.collectionName || bilibiliPartsInfo.title;
+        const isCollection = bilibiliPartsInfo.type === 'collection' || bilibiliPartsInfo.type === 'series';
+        const isPlaylist = bilibiliPartsInfo.type === 'playlist';
+        const isSubscribable = isPlaylist || isCollection; // Both playlists and collections/series can be subscribed
+
         try {
-            setShowBilibiliPartsModal(false);
-
-            const isCollection = bilibiliPartsInfo.type === 'collection' || bilibiliPartsInfo.type === 'series';
-            const isPlaylist = bilibiliPartsInfo.type === 'playlist';
-            const isSubscribable = isPlaylist || isCollection; // Both playlists and collections/series can be subscribed
-
-            // Handle playlist/collection/subscription - create subscription and/or download task
-            if (isSubscribable && subscribeInfo) {
-                // If subscribing, use the subscription endpoint (works for both playlists and collections)
+            // Handle playlist/collection/subscription - create subscription and/or download task.
+            // Subscribe-only is the default: when subscription is enabled and
+            // history is not, downloadAll is false (design §4.1 / §10.3).
+            if (isSubscribable && action.subscribe) {
                 const response = await api.post('/subscriptions/playlist', {
                     playlistUrl: bilibiliPartsInfo.url,
-                    interval: subscribeInfo.interval,
-                    collectionName: collectionName || bilibiliPartsInfo.title,
-                    downloadAll: true,
+                    interval: action.subscribe.interval,
+                    collectionName,
+                    downloadAll: action.subscribe.downloadAll,
                     // Include collectionInfo for Bilibili collections/series
-                    collectionInfo: isCollection ? bilibiliPartsInfo.collectionInfo : undefined
+                    collectionInfo: isCollection ? bilibiliPartsInfo.collectionInfo : undefined,
+                    filenameTemplate: action.subscribe.filenameTemplate || undefined,
                 });
 
-                // Trigger immediate status check
-                checkBackendDownloadStatus();
+                const backfillStatus = response.data.backfillStatus as
+                    | 'not_requested'
+                    | 'started'
+                    | 'not_needed_empty'
+                    | 'failed'
+                    | undefined;
+                const taskId = response.data.taskId as string | null | undefined;
 
-                // If a collection was created, refresh collections
+                // Subscribe-only still creates/resolves a collection, so refresh
+                // collections regardless of backfill outcome (design §10.3).
                 if (response.data.collectionId) {
                     await fetchCollections();
                 }
+                // Refresh the shared subscriptions list (design §10.5).
+                queryClient.invalidateQueries({ queryKey: SUBSCRIPTIONS_QUERY_KEY });
 
-                showSnackbar(t('playlistSubscribedSuccessfully'));
-                return { success: true };
+                // Only trigger active-download polling when a backfill task was
+                // actually started (design §10.3 / §10.5). A null task must not
+                // imply work is queued.
+                if (backfillStatus === 'started' && taskId) {
+                    checkBackendDownloadStatus();
+                }
+
+                // Accurate snackbar feedback per backfill outcome (design §10.3).
+                if (backfillStatus === 'started' && taskId) {
+                    showSnackbar(t('playlistDownloadAndSubscriptionStarted') || t('playlistSubscribedSuccessfully'));
+                } else if (backfillStatus === 'failed') {
+                    // Subscription was created, but history failed to queue.
+                    showSnackbar(t('playlistBaselineFailed') || t('playlistSubscribedSuccessfully'), 'warning');
+                } else {
+                    // not_requested, not_needed_empty, or absent => subscribe-only success.
+                    showSnackbar(t('playlistSubscribedNewOnly') || t('playlistSubscribedSuccessfully'));
+                }
+                // Close the modal only after a successful response (design §10.7).
+                setShowBilibiliPartsModal(false);
+                return;
             }
+
+            // No subscription: preserve the standalone download paths.
 
             // Handle playlist without subscription - create continuous download task
             if (isPlaylist) {
                 const response = await api.post('/subscriptions/tasks/playlist', {
                     playlistUrl: bilibiliPartsInfo.url,
-                    collectionName: collectionName || bilibiliPartsInfo.title
+                    collectionName,
                 });
 
                 // Trigger immediate status check
@@ -557,7 +584,8 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 }
 
                 showSnackbar(t('playlistDownloadStarted'));
-                return { success: true };
+                setShowBilibiliPartsModal(false);
+                return;
             }
 
             // Handle collection/series without subscription - regular download
@@ -579,16 +607,15 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             }
 
             showSnackbar(t('downloadStartedSuccessfully'));
-            return { success: true };
+            setShowBilibiliPartsModal(false);
         } catch (err: unknown) {
             console.error('Error downloading Bilibili parts/collection:', err);
-
-            return {
-                success: false,
-                error: getApiErrorMessage(err) || t('failedToDownload')
-            };
+            // Re-throw so the modal keeps the dialog open with the user's
+            // selection intact for retry (design §10.7). Surface the message.
+            showSnackbar(getApiErrorMessage(err) || t('failedToDownload'), 'error');
+            throw err;
         }
-    }, [bilibiliPartsInfo, checkBackendDownloadStatus, fetchCollections, showSnackbar, t]);
+    }, [bilibiliPartsInfo, checkBackendDownloadStatus, fetchCollections, showSnackbar, t, queryClient]);
 
     const handleDownloadCurrentBilibiliPart = useCallback(async () => {
         setShowBilibiliPartsModal(false);
@@ -759,11 +786,11 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setShowBilibiliPartsModal,
         bilibiliPartsInfo,
         isCheckingParts,
-        handleDownloadAllBilibiliParts,
+        handlePlaylistDialogConfirm,
         handleDownloadCurrentBilibiliPart,
     }), [
         activeDownloads, queuedDownloads, handleVideoSubmit, handleAudioOnlyDownload, showBilibiliPartsModal,
-        bilibiliPartsInfo, isCheckingParts, handleDownloadAllBilibiliParts,
+        bilibiliPartsInfo, isCheckingParts, handlePlaylistDialogConfirm,
         handleDownloadCurrentBilibiliPart,
     ]);
 
@@ -796,6 +823,8 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                         title={subscribeMode === 'playlist' ? (t('subscribeAllPlaylists') || 'Subscribe All Playlists') : undefined}
                         description={subscribeMode === 'playlist' ? (t('subscribeAllPlaylistsDescription') || 'This will subscribe to all playlists in this channel.') : undefined}
                         enableDownloadOrder={subscribeMode !== 'playlist'}
+                        downloadPreviousLabel={subscribeMode === 'playlist' ? (t('downloadExistingPlaylistVideos') || 'Download existing videos in these playlists') : undefined}
+                        downloadPreviousHelp={subscribeMode === 'playlist' ? (t('downloadAllPlaylistsWarning') || undefined) : undefined}
                     />
                 )}
                 {showDuplicateModal && (

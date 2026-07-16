@@ -1049,6 +1049,19 @@ export const en = {
   playlistSubscribedSuccessfully: "Subscribed to playlist successfully",
   downloadAndSubscribe: "Download All & Subscribe",
   playlistSubscription: "Playlist",
+  // Issue #368.2 — subscribe-only / history choice
+  subscribeOnlyNewPlaylistVideos:
+    "Subscribe only to new videos",
+  subscribeOnlyNewPlaylistVideosHelp:
+    "Existing playlist videos will not be queued. MyTube will download newly detected videos after this subscription is created.",
+  downloadExistingPlaylistVideos:
+    "Download existing videos now",
+  playlistSubscribedNewOnly:
+    "Subscribed to new videos only. Existing videos were not queued.",
+  playlistDownloadAndSubscriptionStarted:
+    "Download started and playlist subscribed.",
+  playlistBaselineFailed:
+    "Playlist subscribed, but downloading existing videos failed to start. New videos will still be downloaded automatically.",
 
   // Instruction Page
   instructionSection1Title: "1. Download & Task Management",

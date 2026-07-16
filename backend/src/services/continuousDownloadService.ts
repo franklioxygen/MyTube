@@ -142,17 +142,24 @@ export class ContinuousDownloadService {
   }
 
   /**
-   * Create a new continuous download task for a playlist
+   * Create a new continuous download task for a playlist.
+   *
+   * `subscriptionId` (design §7.4) is persisted when provided so a historical
+   * backfill task created alongside a subscription is linked to the exact
+   * subscription whose metadata (e.g. filename template / yt-dlp override) it
+   * must use. Existing standalone callers that omit it remain valid.
    */
   async createPlaylistTask(
     playlistUrl: string,
     author: string,
     platform: string,
-    collectionId: string | null | undefined
+    collectionId: string | null | undefined,
+    subscriptionId?: string
   ): Promise<ContinuousDownloadTask> {
     const task: ContinuousDownloadTask = {
       id: uuidv4(),
       collectionId: collectionId || undefined,
+      subscriptionId,
       authorUrl: playlistUrl,
       author,
       platform,
@@ -170,7 +177,7 @@ export class ContinuousDownloadService {
     logger.info(
       `Created playlist download task ${task.id}${
         collectionId ? ` for collection ${collectionId}` : ""
-      } (${platform})`
+      } (${platform})${subscriptionId ? ` linked to subscription ${subscriptionId}` : ""}`
     );
 
     // Start processing the task asynchronously

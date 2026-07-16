@@ -4,7 +4,7 @@ import {
     isAdminTrustLevelAtLeast,
 } from "../config/adminTrust";
 import { getErrorMessage } from "../utils/errors";
-import { ValidationError } from "../errors/DownloadErrors";
+import { DuplicateError, ValidationError } from "../errors/DownloadErrors";
 import { continuousDownloadService } from "../services/continuousDownloadService";
 import { DownloadOrder } from "../services/continuousDownload/types";
 import { checkPlaylist } from "../services/downloadService";
@@ -25,17 +25,22 @@ import {
     getUserYtDlpConfig,
 } from "../utils/ytDlpUtils";
 import { getPositiveIntegerParam, getStringParam } from "../utils/paramUtils";
+import { runWithConcurrencyLimit } from "../utils/concurrency";
 import {
     detectPlaylistPlatform,
     deriveChannelName,
-    extractBilibiliPlaylistId,
-    extractPlaylistAuthor,
+    deleteCreatedCollectionIfUnused,
     extractYouTubePlaylistId,
-    resolveChannelPlaylistCollection,
-    resolvePlaylistCollection,
+    resolveChannelPlaylistCollectionWithStatus,
+    resolvePlaylistCollectionWithStatus,
     sanitizePlaylistTitle,
     toPlaylistsTabUrl,
 } from "../services/subscription/playlistResolution";
+import {
+    getPlaylistHeadSnapshot,
+    inspectPlaylist,
+} from "../services/subscription/playlistFeed";
+import type { SubscribePlaylistOptions } from "../services/subscriptionService";
 
 // Per-subscription yt-dlp config override (issue #345). Same free-text format
 // and trust requirement ("container") as the global ytDlpConfig setting.
@@ -96,6 +101,83 @@ function canReadYtdlpConfigOverride(req: Request): boolean {
     return false;
   }
   return req.user?.role !== "visitor";
+}
+
+/**
+ * Backfill outcome for a playlist subscription response (design §7.1).
+ * `taskId` alone cannot distinguish an intentionally omitted zero-length
+ * backfill from a task-creation failure, so this explicit status lets the UI
+ * report each outcome accurately.
+ */
+export type PlaylistBackfillStatus =
+  | "not_requested"
+  | "started"
+  | "not_needed_empty"
+  | "failed";
+
+/**
+ * Strictly parse the `downloadAll` request value (design §11.1).
+ *
+ * The existing boolean already has the exact required API meaning: whether to
+ * create a historical task. Normalize once here so:
+ * - missing `downloadAll` normalizes to `false` (subscribe-only) for
+ *   compatibility (F10);
+ * - a non-boolean value (string "false", 0, object, null) is rejected rather
+ *   than treated as truthy/falsy.
+ */
+function parseDownloadAll(value: unknown): boolean {
+  if (value === undefined) return false;
+  if (typeof value !== "boolean") {
+    throw new ValidationError("downloadAll must be a boolean", "downloadAll");
+  }
+  return value;
+}
+
+/**
+ * Validate the trusted-looking `collectionInfo` shape for Bilibili
+ * collections/series (design §7.1 / §12.2). Returns a normalized object or
+ * null. The server uses this for title/count/IDs only; baseline capture still
+ * requires a real source probe.
+ */
+function parseBilibiliCollectionInfo(
+  value: unknown
+): {
+  type: "collection" | "series";
+  id: string | number;
+  mid?: string | number;
+  title: string;
+  count: number;
+} | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== "object") {
+    throw new ValidationError(
+      "collectionInfo must be an object",
+      "collectionInfo"
+    );
+  }
+  const info = value as Record<string, unknown>;
+  if (info.type !== "collection" && info.type !== "series") {
+    throw new ValidationError(
+      "collectionInfo.type must be collection or series",
+      "collectionInfo"
+    );
+  }
+  if (info.id === undefined) {
+    throw new ValidationError(
+      "collectionInfo.id is required for collection/series",
+      "collectionInfo"
+    );
+  }
+  return {
+    type: info.type,
+    id: info.id as string | number,
+    mid: info.mid as string | number | undefined,
+    title: typeof info.title === "string" ? info.title : String(info.title ?? ""),
+    count:
+      typeof info.count === "number"
+        ? info.count
+        : parseInt(String(info.count ?? "0"), 10) || 0,
+  };
 }
 
 /**
@@ -435,15 +517,51 @@ export const clearFinishedTasks = async (
 };
 
 /**
- * Create a playlist subscription (and optionally download all videos)
- * Errors are automatically handled by asyncHandler middleware
+ * Create a playlist subscription (and optionally download all videos).
+ *
+ * Baseline-first sequencing (design §7.1 / §7.3 / §7.5):
+ *   1. Parse + validate scalar request values.
+ *   2. Normalize/detect platform and playlist ID.
+ *   3. Reject a duplicate subscription before any persistent side effect.
+ *   4. Inspect playlist metadata and capture the current head as baseline.
+ *   5. Resolve/create the destination collection.
+ *   6. Insert the subscription with the captured head + observation time.
+ *   7. Optionally create a linked historical task.
+ *   8. Return a typed, self-describing response.
+ *
+ * If the baseline probe fails, no subscription/collection/task is created
+ * (fail-closed, design §7.5 / F9).
+ *
+ * Errors are automatically handled by asyncHandler middleware.
  */
 export const createPlaylistSubscription = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { playlistUrl, interval, collectionName, downloadAll, collectionInfo } =
+  const { playlistUrl, collectionName, collectionInfo: rawCollectionInfo } =
     req.body;
+
+  // 1a. Strict interval validation: positive safe integer (design §7.1).
+  const interval = getPositiveIntegerParam(req.body.interval);
+  if (interval === undefined) {
+    throw new ValidationError(
+      "Playlist URL, interval, and collection name are required",
+      "body"
+    );
+  }
+  if (!playlistUrl || !collectionName) {
+    throw new ValidationError(
+      "Playlist URL, interval, and collection name are required",
+      "body"
+    );
+  }
+
+  // 1b. Strict downloadAll parsing (design §11.1). Missing => subscribe-only.
+  const downloadAll = parseDownloadAll(req.body.downloadAll);
+
+  // Validate Bilibili collectionInfo shape when provided (design §7.1 / §12.2).
+  const collectionInfo = parseBilibiliCollectionInfo(rawCollectionInfo);
+
   logger.info("Creating playlist subscription:", {
     playlistUrl,
     interval,
@@ -452,44 +570,19 @@ export const createPlaylistSubscription = async (
     collectionInfo,
   });
 
-  if (!playlistUrl || !interval || !collectionName) {
-    throw new ValidationError(
-      "Playlist URL, interval, and collection name are required",
-      "body"
-    );
-  }
-
-  // Detect platform
+  // 2. Detect platform and playlist ID.
   const isBilibili = isBilibiliUrl(playlistUrl);
   const platform = detectPlaylistPlatform(playlistUrl);
 
-  // Validate playlist URL format based on platform
-  let playlistId: string | null = null;
-  let playlistTitle: string = collectionName;
-  let videoCount: number = 0;
-
-  // For Bilibili collection/series, use collectionInfo if provided
-  if (
+  // For Bilibili collection/series, a trusted collectionInfo may supply the ID.
+  const isBilibiliCollectionOrSeries =
     isBilibili &&
-    collectionInfo &&
-    (collectionInfo.type === "collection" || collectionInfo.type === "series")
-  ) {
-    // Skip checkPlaylist validation for Bilibili collections/series
-    // Use the collectionInfo directly
-    playlistId = collectionInfo.id?.toString() || null;
-    playlistTitle = collectionInfo.title || collectionName;
-    videoCount = collectionInfo.count || 0;
-    logger.info(
-      `Using Bilibili ${collectionInfo.type} info: ${playlistTitle} (${videoCount} videos)`
-    );
-  } else if (isBilibili) {
-    // For Bilibili playlists (not collections), try to validate with checkPlaylist
-    // For Bilibili, yt-dlp handles playlist URLs differently
-    playlistId = null; // Will be extracted from playlist info if available
-  } else {
-    // For YouTube, check for list parameter
-    playlistId = extractYouTubePlaylistId(playlistUrl);
-    if (!playlistId) {
+    !!collectionInfo &&
+    (collectionInfo.type === "collection" || collectionInfo.type === "series");
+
+  if (!isBilibili) {
+    // YouTube requires a list= parameter.
+    if (!extractYouTubePlaylistId(playlistUrl)) {
       throw new ValidationError(
         "YouTube URL must contain a playlist parameter (list=)",
         "playlistUrl"
@@ -497,88 +590,127 @@ export const createPlaylistSubscription = async (
     }
   }
 
-  // Get playlist info (skip if we already have collectionInfo for Bilibili)
-  let playlistInfo: {
-    success: boolean;
-    title?: string;
-    videoCount?: number;
-    error?: string;
-  };
+  // 3. Early duplicate rejection before any persistent side effect (design §7.3).
+  const preExisting = await subscriptionService.listSubscriptions();
+  if (preExisting.some((sub) => sub.authorUrl === playlistUrl)) {
+    throw DuplicateError.subscription();
+  }
 
-  if (
-    isBilibili &&
-    collectionInfo &&
-    (collectionInfo.type === "collection" || collectionInfo.type === "series")
-  ) {
-    // Use collectionInfo instead of calling checkPlaylist
-    playlistInfo = {
-      success: true,
-      title: playlistTitle,
-      videoCount: videoCount,
-    };
+  // 4. Inspect playlist metadata and capture the current head as the baseline
+  //    (design §6 / §7.1). This single shared probe replaces the former
+  //    repeated checkPlaylist / extractBilibiliPlaylistId / extractPlaylistAuthor
+  //    probes (design §6.5 / Step 2). Throws on operational failure => the
+  //    centralized error handler returns 400/502/500 without side effects.
+  const inspection = await inspectPlaylist(playlistUrl);
+
+  let playlistId: string;
+  let playlistTitle: string;
+  let videoCount: number;
+  let author: string;
+
+  if (isBilibiliCollectionOrSeries && collectionInfo) {
+    // Use the validated collectionInfo for title/count/IDs (design §12.2), but
+    // the head baseline still came from the real source probe above.
+    playlistId = collectionInfo.id?.toString() || inspection.playlistId || "";
+    playlistTitle = collectionInfo.title || inspection.title;
+    videoCount = collectionInfo.count;
+    author = inspection.author;
+    logger.info(
+      `Using Bilibili ${collectionInfo.type} info: ${playlistTitle} (${videoCount} videos)`
+    );
   } else {
-    // Get playlist info (this validates the playlist for both platforms)
-    playlistInfo = await checkPlaylist(playlistUrl);
-
-    if (!playlistInfo.success) {
-      throw new ValidationError(
-        playlistInfo.error || "Failed to get playlist information",
-        "playlistUrl"
-      );
-    }
-
-    playlistTitle = playlistInfo.title || collectionName;
-    videoCount = playlistInfo.videoCount || 0;
+    playlistId = inspection.playlistId || "";
+    playlistTitle = inspection.title || collectionName;
+    videoCount = inspection.videoCount;
+    author = inspection.author;
   }
 
-  // Extract playlist ID from yt-dlp info if not already extracted (for Bilibili)
-  if (!playlistId && isBilibili) {
-    playlistId = await extractBilibiliPlaylistId(playlistUrl);
-  }
+  // 5. Resolve/create the destination collection immediately before inserting
+  //    the subscription (design §7.3). Subscribe-only still creates/resolves
+  //    one so later scheduled downloads can be grouped (design §3.6).
+  const collectionResolution = resolvePlaylistCollectionWithStatus(collectionName);
+  const collection = collectionResolution.collection;
 
-  // Create or find collection
-  const collection = resolvePlaylistCollection(collectionName);
-
-  // Extract author from playlist
-  const author = await extractPlaylistAuthor(playlistUrl);
-
-  // Create subscription
-  const subscription = await subscriptionService.subscribePlaylist(
+  // 6. Insert the subscription with the captured baseline (design §7.2).
+  const subscribeOptions: SubscribePlaylistOptions = {
     playlistUrl,
-    parseInt(interval),
+    interval,
     playlistTitle,
-    playlistId || "",
+    playlistId,
     author,
     platform,
-    collection.id
-  );
+    collectionId: collection.id,
+    initialHeadVideoUrl: inspection.headVideoUrl,
+    baselineObservedAt: inspection.observedAt,
+  };
+  let subscription;
+  try {
+    subscription = await subscriptionService.subscribePlaylist(subscribeOptions);
+  } catch (error) {
+    // The collection write is outside the subscription database transaction.
+    // Clean up only a collection that this request created and can still prove
+    // is empty and unreferenced (design §7.3).
+    try {
+      await deleteCreatedCollectionIfUnused(
+        collectionResolution,
+        () => subscriptionService.listSubscriptions()
+      );
+    } catch (cleanupError) {
+      logger.error(
+        "Failed to clean up collection after playlist subscription insertion failed",
+        cleanupError instanceof Error
+          ? cleanupError
+          : new Error(String(cleanupError))
+      );
+    }
+    throw error;
+  }
 
-  // If user wants to download all videos, create a continuous download task
-  let task = null;
-  if (downloadAll) {
+  // 7. Optionally create a linked historical task (design §7.1 / §7.4).
+  //    Capturing the baseline here is intentional: it prevents the scheduler
+  //    from enqueuing the same latest item while the task processes history
+  //    (design §4.4). A verified empty playlist needs no backfill task
+  //    (design §4.5).
+  let task: { id: string } | null = null;
+  let backfillStatus: PlaylistBackfillStatus;
+  if (!downloadAll) {
+    backfillStatus = "not_requested";
+  } else if (videoCount === 0 || inspection.headVideoUrl === null) {
+    // Empty playlist: omit the zero-length task (design §4.5).
+    backfillStatus = "not_needed_empty";
+  } else {
     try {
       task = await continuousDownloadService.createPlaylistTask(
         playlistUrl,
         author,
         platform,
-        collection.id
+        collection.id,
+        subscription.id
       );
+      backfillStatus = "started";
       logger.info(
         `Created continuous download task ${task.id} for playlist subscription ${subscription.id}`
       );
     } catch (error) {
+      // Failure to create the historical task does NOT roll back a
+      // successfully created subscription (design §7.3). Return no task id
+      // with a "failed" status so the UI can warn rather than claim history
+      // was queued.
+      backfillStatus = "failed";
       logger.error(
         "Error creating continuous download task for playlist:",
         error instanceof Error ? error : new Error(String(error))
       );
-      // Don't fail the subscription creation if task creation fails
     }
   }
 
+  // 8. Typed, self-describing response (design §7.1).
   res.status(201).json({
     subscription,
     collectionId: collection.id,
-    taskId: task?.id,
+    taskId: task?.id ?? null,
+    downloadAll,
+    backfillStatus,
   });
 };
 
@@ -641,85 +773,176 @@ export const subscribeChannelPlaylists = async (
   let skippedCount = 0;
   const errors: string[] = [];
 
-  // Process each playlist
-  for (const entry of result.entries) {
-    // Must be a playlist type or have a title and url/id
-    if (!entry.url && !entry.id) continue;
+  // --- Phase 1 (design §8.1): build the candidate list and drop already-
+  // subscribed URLs. A single listSubscriptions call feeds every candidate's
+  // duplicate check rather than one query per playlist.
+  const existingSubs = await subscriptionService.listSubscriptions();
+  const subscribedUrlSet = new Set(existingSubs.map((s) => s.authorUrl));
 
+  type Candidate = {
+    playlistUrl: string;
+    title: string;
+    playlistId: string;
+  };
+  const candidates: Candidate[] = [];
+  for (const entry of result.entries) {
+    if (!entry.url && !entry.id) continue;
     const playlistUrl =
       entry.url || `https://www.youtube.com/playlist?list=${entry.id}`;
     const title = sanitizePlaylistTitle(entry.title);
+    const playlistId = entry.id ?? extractYouTubePlaylistId(playlistUrl) ?? "";
 
-    logger.info(`Processing playlist subscription: ${title} (${playlistUrl})`);
-
-    // Check if already subscribed to this playlist
-    const existing = await subscriptionService.listSubscriptions();
-    const alreadySubscribed = existing.some(
-      (sub) => sub.authorUrl === playlistUrl
-    );
-
-    // Get or create collection for this playlist
-    const collection = resolveChannelPlaylistCollection(title, channelName);
-    const collectionId = collection.id;
-
-    // Extract playlist ID
-    const playlistId = entry.id ?? extractYouTubePlaylistId(playlistUrl);
-
-    // Create subscription if not already subscribed
-    if (!alreadySubscribed) {
-      try {
-        // Create subscription for this playlist
-        await subscriptionService.subscribePlaylist(
-          playlistUrl,
-          parseInt(interval),
-          title,
-          playlistId || "",
-          channelName,
-          platform,
-          collectionId
-        );
-        subscribedCount++;
-      } catch (error: unknown) {
-        logger.error(`Error subscribing to playlist "${title}":`, error);
-        if (error instanceof Error && error.name === "DuplicateError") {
-          skippedCount++;
-        } else {
-          errors.push(`${title}: ${getErrorMessage(error, "Unknown error")}`);
-        }
-        // Continue to check if we should create download task even if subscription failed
-      }
-    } else {
+    if (subscribedUrlSet.has(playlistUrl)) {
       logger.info(`Skipping playlist "${title}": already subscribed`);
       skippedCount++;
+      continue;
+    }
+    candidates.push({ playlistUrl, title, playlistId });
+  }
+
+  // --- Phase 2: resolve head snapshots concurrently with a conservative
+  // limit of 3 (design §8.1). Each worker catches internally and writes an
+  // indexed preflight result so one failed probe does not abort the remaining
+  // candidates. A failed baseline counts as an error, not a skip.
+  type Preflight =
+    | { ok: true; candidate: Candidate; headVideoUrl: string | null; observedAt: number }
+    | { ok: false; candidate: Candidate; error: string };
+  const preflight: Preflight[] = new Array(candidates.length);
+
+  await runWithConcurrencyLimit(candidates, 3, async (candidate) => {
+    const idx = candidates.indexOf(candidate);
+    try {
+      const snapshot = await getPlaylistHeadSnapshot(
+        candidate.playlistUrl,
+        platform
+      );
+      preflight[idx] = {
+        ok: true,
+        candidate,
+        headVideoUrl: snapshot.headVideoUrl,
+        observedAt: snapshot.observedAt,
+      };
+    } catch (error) {
+      const message = getErrorMessage(error, "Unknown error");
+      errors.push(`${candidate.title}: ${message}`);
+      preflight[idx] = { ok: false, candidate, error: message };
+      logger.error(
+        `Baseline probe failed for playlist "${candidate.title}":`,
+        error instanceof Error ? error : new Error(String(error))
+      );
+    }
+  });
+
+  // --- Phase 3: sequentially resolve collections and insert subscriptions
+  // for successful snapshots (design §8.1). Sequential mutation avoids
+  // Date.now() collection-ID collisions and keeps counters deterministic.
+  const wantBackfill = downloadAllPrevious === true;
+
+  for (const result_item of preflight) {
+    if (!result_item || !result_item.ok) continue;
+    const { candidate, headVideoUrl, observedAt } = result_item;
+
+    // Resolve/create collection only after a successful baseline.
+    const collectionResolution = resolveChannelPlaylistCollectionWithStatus(
+      candidate.title,
+      channelName
+    );
+    const collection = collectionResolution.collection;
+    const collectionId = collection.id;
+
+    let createdSubscriptionId: string | undefined;
+    let taskCollectionId: string | null | undefined = collectionId;
+    try {
+      const subscription = await subscriptionService.subscribePlaylist({
+        playlistUrl: candidate.playlistUrl,
+        interval: parseInt(interval),
+        playlistTitle: candidate.title,
+        playlistId: candidate.playlistId,
+        author: channelName,
+        platform,
+        collectionId,
+        initialHeadVideoUrl: headVideoUrl,
+        baselineObservedAt: observedAt,
+      });
+      createdSubscriptionId = subscription.id;
+      subscribedCount++;
+      subscribedUrlSet.add(candidate.playlistUrl);
+    } catch (error: unknown) {
+      logger.error(`Error subscribing to playlist "${candidate.title}":`, error);
+      try {
+        await deleteCreatedCollectionIfUnused(
+          collectionResolution,
+          () => subscriptionService.listSubscriptions()
+        );
+      } catch (cleanupError) {
+        logger.error(
+          `Failed to clean up collection for playlist "${candidate.title}" after subscription insertion failed:`,
+          cleanupError instanceof Error
+            ? cleanupError
+            : new Error(String(cleanupError))
+        );
+      }
+      if (error instanceof Error && error.name === "DuplicateError") {
+        skippedCount++;
+        // A concurrent request may have inserted the subscription after the
+        // phase-one list. Resolve that exact row before creating a requested
+        // backfill task; never attach the task to this request's now-cleaned
+        // collection (design §11.3).
+        const concurrentSub = (await subscriptionService.listSubscriptions()).find(
+          (sub) => sub.authorUrl === candidate.playlistUrl
+        );
+        if (!concurrentSub) {
+          errors.push(
+            `${candidate.title}: concurrent subscription could not be resolved`
+          );
+          continue;
+        }
+        createdSubscriptionId = concurrentSub.id;
+        taskCollectionId = concurrentSub.collectionId;
+      } else {
+        errors.push(
+          `${candidate.title}: ${getErrorMessage(error, "Unknown error")}`
+        );
+        // A real insertion failure must not turn into an unlinked historical
+        // task. The next bulk request can retry the subscription cleanly.
+        continue;
+      }
     }
 
-    // If user wants to download all previous videos, create a continuous download task
-    // This should happen even if the playlist was already subscribed
-    if (downloadAllPrevious) {
+    // Historical task only when requested. For a bulk duplicate (already
+    // subscribed), link the task to the existing subscription id when
+    // available (design §11.3).
+    if (wantBackfill) {
+      // A verified empty playlist needs no backfill task (design §4.5).
+      if (headVideoUrl === null) {
+        continue;
+      }
       try {
-        // Check if task already exists
         const existingTask = await continuousDownloadService.getTaskByAuthorUrl(
-          playlistUrl
+          candidate.playlistUrl
         );
-
         if (existingTask) {
           logger.info(
-            `Skipping download task creation for playlist "${title}": task already exists`
+            `Skipping download task creation for playlist "${candidate.title}": task already exists`
           );
         } else {
-          await continuousDownloadService.createPlaylistTask(
-            playlistUrl,
+          // Link to the subscription created/known by this request. A
+          // pre-existing candidate was removed in phase one, and a raced
+          // duplicate above resolved its exact current row.
+          const task = await continuousDownloadService.createPlaylistTask(
+            candidate.playlistUrl,
             channelName,
             platform,
-            collectionId
+            taskCollectionId,
+            createdSubscriptionId
           );
           logger.info(
-            `Created continuous download task for playlist: ${title}`
+            `Created continuous download task ${task.id} for playlist: ${candidate.title}`
           );
         }
       } catch (error) {
         logger.error(
-          `Error creating continuous download task for playlist "${title}":`,
+          `Error creating continuous download task for playlist "${candidate.title}":`,
           error instanceof Error ? error : new Error(String(error))
         );
         // Don't fail the subscription if task creation fails

@@ -134,6 +134,26 @@ describe("ContinuousDownloadService", () => {
       processSpy.mockRestore();
     });
 
+    it("createPlaylistTask should persist an explicit subscription owner", async () => {
+      const processSpy = vi
+        .spyOn(service as any, "processTask")
+        .mockResolvedValue(undefined);
+
+      const task = await service.createPlaylistTask(
+        "https://youtube.com/playlist?list=PL1",
+        "Author",
+        "YouTube",
+        "col-1",
+        "sub-1"
+      );
+
+      expect(task.subscriptionId).toBe("sub-1");
+      expect(repo.createTask).toHaveBeenCalledWith(
+        expect.objectContaining({ subscriptionId: "sub-1" })
+      );
+      processSpy.mockRestore();
+    });
+
     it("getters should delegate to repository", async () => {
       repo.getAllTasks.mockResolvedValue([{ id: "a" }]);
       repo.getTaskById.mockResolvedValue({ id: "b" });

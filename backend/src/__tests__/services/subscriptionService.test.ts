@@ -498,15 +498,22 @@ describe('SubscriptionService', () => {
       // Execute
       await subscriptionService.checkChannelPlaylists(sub as any);
 
-      // Verify
+      // Verify the watcher passed a captured baseline in an options object
+      // (design §8.2): playlistUrl, interval, title, playlistId, channel name,
+      // platform, collection id, the server-observed head, and an observation
+      // timestamp.
       expect(subscribeSpy).toHaveBeenCalledWith(
-        expect.any(String), // url
-        expect.any(Number), // interval
-        'My Playlist',      // title
-        'pl-1',             // playlistId
-        'User',             // channelName
-        'YouTube',          // platform
-        expect.any(String)  // playlist watchers always create a collection now
+        expect.objectContaining({
+          playlistUrl: 'https://youtube.com/playlist?list=pl-1',
+          interval: 60,
+          playlistTitle: 'My Playlist',
+          playlistId: 'pl-1',
+          author: 'User',
+          platform: 'YouTube',
+          collectionId: expect.any(String),
+          initialHeadVideoUrl: expect.any(String),
+          baselineObservedAt: expect.any(Number),
+        })
       );
 
       expect(storageService.saveCollection).toHaveBeenCalled();
@@ -518,20 +525,24 @@ describe('SubscriptionService', () => {
     it('should create playlist subscription with display name', async () => {
       mockBuilder.then = (cb: any) => Promise.resolve([]).then(cb);
 
-      const result = await subscriptionService.subscribePlaylist(
-        'https://youtube.com/playlist?list=pl1',
-        60,
-        'Playlist 1',
-        'pl1',
-        'Channel A',
-        'YouTube',
-        'col-1'
-      );
+      const result = await subscriptionService.subscribePlaylist({
+        playlistUrl: 'https://youtube.com/playlist?list=pl1',
+        interval: 60,
+        playlistTitle: 'Playlist 1',
+        playlistId: 'pl1',
+        author: 'Channel A',
+        platform: 'YouTube',
+        collectionId: 'col-1',
+        initialHeadVideoUrl: 'https://www.youtube.com/watch?v=headA',
+        baselineObservedAt: 1700000000000,
+      });
 
       expect(result).toMatchObject({
         author: 'Playlist 1 - Channel A',
         subscriptionType: 'playlist',
         collectionId: 'col-1',
+        lastVideoLink: 'https://www.youtube.com/watch?v=headA',
+        lastCheck: 1700000000000,
       });
       expect(db.insert).toHaveBeenCalled();
     });
@@ -691,33 +702,58 @@ describe('SubscriptionService', () => {
       expect(cron.schedule).toHaveBeenCalledWith('0 * * * *', expect.any(Function));
     });
 
+    // Playlist head resolution is now provided by playlistFeed.getPlaylistHeadSnapshot
+    // (design §6.5 / Step 5). The scheduler consumes its typed, fail-closed result;
+    // the resolution + empty-vs-failure rules are covered directly in
+    // playlistFeed.test.ts. The tests below exercise the scheduler's handling of
+    // that snapshot during a real checkSingleSubscription sweep.
+
     it('should resolve latest playlist URL from first entry id', async () => {
+      // The new playlist feed constructs the canonical watch URL from a bare id;
+      // the scheduler no longer owns this logic but the canonicalization contract
+      // still holds (covered in detail by playlistFeed.test.ts).
       (executeYtDlpJson as any).mockResolvedValue({
         entries: [{ id: 'abc123' }],
       });
 
-      const youtubeUrl = await (subscriptionService as any).getLatestPlaylistVideoUrl(
+      const { getPlaylistHeadSnapshot } = await import(
+        '../../services/subscription/playlistFeed'
+      );
+      const youtubeUrl = await getPlaylistHeadSnapshot(
         'https://youtube.com/playlist?list=xyz',
         'YouTube'
       );
-      const bilibiliUrl = await (subscriptionService as any).getLatestPlaylistVideoUrl(
+      const bilibiliUrl = await getPlaylistHeadSnapshot(
         'https://www.bilibili.com/medialist/play/1',
         'Bilibili'
       );
 
-      expect(youtubeUrl).toBe('https://www.youtube.com/watch?v=abc123');
-      expect(bilibiliUrl).toBe('https://www.bilibili.com/video/abc123');
+      expect(youtubeUrl.headVideoUrl).toBe(
+        'https://www.youtube.com/watch?v=abc123'
+      );
+      expect(bilibiliUrl.headVideoUrl).toBe(
+        'https://www.bilibili.com/video/abc123'
+      );
     });
 
-    it('should return null when latest playlist lookup throws', async () => {
-      (executeYtDlpJson as any).mockRejectedValue(new Error('playlist lookup failed'));
-
-      const result = await (subscriptionService as any).getLatestPlaylistVideoUrl(
-        'https://youtube.com/playlist?list=xyz',
-        'YouTube'
+    it('should propagate playlist lookup errors (fail-closed) instead of swallowing them', async () => {
+      // Design §3.4 / §9.1: the old probe swallowed errors and returned null,
+      // which let a failed probe look like an empty playlist. The new typed
+      // snapshot throws so the check is marked failed.
+      (executeYtDlpJson as any).mockRejectedValue(
+        new Error('playlist lookup failed')
       );
 
-      expect(result).toBeNull();
+      const { getPlaylistHeadSnapshot } = await import(
+        '../../services/subscription/playlistFeed'
+      );
+
+      await expect(
+        getPlaylistHeadSnapshot(
+          'https://youtube.com/playlist?list=xyz',
+          'YouTube'
+        )
+      ).rejects.toThrow('playlist lookup failed');
     });
 
     it('should return direct playlist entry URL when available', async () => {
@@ -725,23 +761,31 @@ describe('SubscriptionService', () => {
         entries: [{ url: 'https://www.youtube.com/watch?v=url-first' }],
       });
 
-      const result = await (subscriptionService as any).getLatestPlaylistVideoUrl(
+      const { getPlaylistHeadSnapshot } = await import(
+        '../../services/subscription/playlistFeed'
+      );
+      const result = await getPlaylistHeadSnapshot(
         'https://youtube.com/playlist?list=xyz',
         'YouTube'
       );
 
-      expect(result).toBe('https://www.youtube.com/watch?v=url-first');
+      expect(result.headVideoUrl).toBe(
+        'https://www.youtube.com/watch?v=url-first'
+      );
     });
 
-    it('should return null when playlist has no entries', async () => {
+    it('should return headVideoUrl null for a verified empty playlist', async () => {
       (executeYtDlpJson as any).mockResolvedValue({ entries: [] });
 
-      const result = await (subscriptionService as any).getLatestPlaylistVideoUrl(
+      const { getPlaylistHeadSnapshot } = await import(
+        '../../services/subscription/playlistFeed'
+      );
+      const result = await getPlaylistHeadSnapshot(
         'https://youtube.com/playlist?list=xyz',
         'YouTube'
       );
 
-      expect(result).toBeNull();
+      expect(result.headVideoUrl).toBeNull();
     });
 
     it('should choose latest video resolver based on platform', async () => {
@@ -862,15 +906,17 @@ describe('SubscriptionService', () => {
         Promise.resolve([{ id: 'existing-playlist' }]).then(cb);
 
       await expect(
-        subscriptionService.subscribePlaylist(
-          'https://www.youtube.com/playlist?list=dup',
-          30,
-          'Duplicate',
-          'dup',
-          'Author',
-          'YouTube',
-          null
-        )
+        subscriptionService.subscribePlaylist({
+          playlistUrl: 'https://www.youtube.com/playlist?list=dup',
+          interval: 30,
+          playlistTitle: 'Duplicate',
+          playlistId: 'dup',
+          author: 'Author',
+          platform: 'YouTube',
+          collectionId: null,
+          initialHeadVideoUrl: 'https://www.youtube.com/watch?v=baseline',
+          baselineObservedAt: Date.now(),
+        })
       ).rejects.toThrow(DuplicateError);
     });
   });
@@ -937,14 +983,20 @@ describe('SubscriptionService', () => {
       } as any);
 
       expect(storageService.saveCollection).toHaveBeenCalled();
+      // The watcher now captures a head baseline before subscribing and passes
+      // an options object (design §8.2). The entry has no id but a valid
+      // absolute url, so the baseline equals that url.
       expect(subscribeSpy).toHaveBeenCalledWith(
-        'https://www.youtube.com/playlist?list=PL123',
-        120,
-        'Playlist - One',
-        'PL123',
-        'Watcher Name',
-        'YouTube',
-        expect.any(String)
+        expect.objectContaining({
+          playlistUrl: 'https://www.youtube.com/playlist?list=PL123',
+          interval: 120,
+          playlistTitle: 'Playlist - One',
+          author: 'Watcher Name',
+          platform: 'YouTube',
+          collectionId: expect.any(String),
+          initialHeadVideoUrl: 'https://www.youtube.com/playlist?list=PL123',
+          baselineObservedAt: expect.any(Number),
+        })
       );
       subscribeSpy.mockRestore();
     });
