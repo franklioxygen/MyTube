@@ -142,7 +142,7 @@ async function buildProbeFlags(
     ...(probeEnd !== null ? { playlistEnd: probeEnd } : {}),
     ...(PROVIDER_SCRIPT
       ? {
-          extractorArgs: `youtubepot-bgfuncscript:script_path=${PROVIDER_SCRIPT}`,
+          extractorArgs: `youtubepot-bgutilscript:script_path=${PROVIDER_SCRIPT}`,
         }
       : {}),
   };

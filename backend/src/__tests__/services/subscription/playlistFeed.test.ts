@@ -196,7 +196,7 @@ describe("getPlaylistHeadSnapshot", () => {
       expect.any(String),
       expect.objectContaining({
         extractorArgs:
-          "youtubepot-bgfuncscript:script_path=/path/to/script.js",
+          "youtubepot-bgutilscript:script_path=/path/to/script.js",
       })
     );
   });
