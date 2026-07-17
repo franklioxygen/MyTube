@@ -38,6 +38,7 @@ import {
 } from "../services/subscription/playlistResolution";
 import {
     getPlaylistHeadSnapshot,
+    inspectBilibiliCollectionPlaylist,
     inspectPlaylist,
 } from "../services/subscription/playlistFeed";
 import type { SubscribePlaylistOptions } from "../services/subscriptionService";
@@ -601,7 +602,10 @@ export const createPlaylistSubscription = async (
   //    repeated checkPlaylist / extractBilibiliPlaylistId / extractPlaylistAuthor
   //    probes (design §6.5 / Step 2). Throws on operational failure => the
   //    centralized error handler returns 400/502/500 without side effects.
-  const inspection = await inspectPlaylist(playlistUrl);
+  const inspection =
+    isBilibiliCollectionOrSeries && collectionInfo
+      ? await inspectBilibiliCollectionPlaylist(playlistUrl, collectionInfo)
+      : await inspectPlaylist(playlistUrl);
 
   let playlistId: string;
   let playlistTitle: string;
@@ -609,8 +613,8 @@ export const createPlaylistSubscription = async (
   let author: string;
 
   if (isBilibiliCollectionOrSeries && collectionInfo) {
-    // Use the validated collectionInfo for title/count/IDs (design §12.2), but
-    // the head baseline still came from the real source probe above.
+    // Use the validated collectionInfo for title/count/IDs (design §12.2), with
+    // the head baseline resolved through the Bilibili collection API.
     playlistId = collectionInfo.id?.toString() || inspection.playlistId || "";
     playlistTitle = collectionInfo.title || inspection.title;
     videoCount = collectionInfo.count;
@@ -773,16 +777,21 @@ export const subscribeChannelPlaylists = async (
   let skippedCount = 0;
   const errors: string[] = [];
 
-  // --- Phase 1 (design §8.1): build the candidate list and drop already-
-  // subscribed URLs. A single listSubscriptions call feeds every candidate's
-  // duplicate check rather than one query per playlist.
+  // --- Phase 1 (design §8.1): build the candidate list. Already-subscribed
+  // playlists are skipped for insertion, but remain candidates when the caller
+  // requested historical backfill so subscribe-only rows can be backfilled later.
+  // A single listSubscriptions call feeds every candidate's duplicate check.
   const existingSubs = await subscriptionService.listSubscriptions();
-  const subscribedUrlSet = new Set(existingSubs.map((s) => s.authorUrl));
+  const existingSubByUrl = new Map(existingSubs.map((sub) => [sub.authorUrl, sub]));
 
   type Candidate = {
     playlistUrl: string;
     title: string;
     playlistId: string;
+    existingSubscription?: {
+      id?: string;
+      collectionId?: string | null;
+    };
   };
   const candidates: Candidate[] = [];
   for (const entry of result.entries) {
@@ -792,9 +801,19 @@ export const subscribeChannelPlaylists = async (
     const title = sanitizePlaylistTitle(entry.title);
     const playlistId = entry.id ?? extractYouTubePlaylistId(playlistUrl) ?? "";
 
-    if (subscribedUrlSet.has(playlistUrl)) {
+    const existingSubscription = existingSubByUrl.get(playlistUrl);
+
+    if (existingSubscription) {
       logger.info(`Skipping playlist "${title}": already subscribed`);
       skippedCount++;
+      if (downloadAllPrevious === true) {
+        candidates.push({
+          playlistUrl,
+          title,
+          playlistId,
+          existingSubscription,
+        });
+      }
       continue;
     }
     candidates.push({ playlistUrl, title, playlistId });
@@ -833,79 +852,84 @@ export const subscribeChannelPlaylists = async (
     }
   });
 
-  // --- Phase 3: sequentially resolve collections and insert subscriptions
-  // for successful snapshots (design §8.1). Sequential mutation avoids
-  // Date.now() collection-ID collisions and keeps counters deterministic.
+  // --- Phase 3: sequentially resolve collections, insert new subscriptions,
+  // and create requested backfill tasks for successful snapshots (design §8.1).
+  // Sequential mutation avoids Date.now() collection-ID collisions and keeps
+  // counters deterministic.
   const wantBackfill = downloadAllPrevious === true;
 
   for (const result_item of preflight) {
     if (!result_item || !result_item.ok) continue;
     const { candidate, headVideoUrl, observedAt } = result_item;
 
-    // Resolve/create collection only after a successful baseline.
-    const collectionResolution = resolveChannelPlaylistCollectionWithStatus(
-      candidate.title,
-      channelName
-    );
-    const collection = collectionResolution.collection;
-    const collectionId = collection.id;
+    let createdSubscriptionId = candidate.existingSubscription?.id;
+    let taskCollectionId = candidate.existingSubscription?.collectionId;
 
-    let createdSubscriptionId: string | undefined;
-    let taskCollectionId: string | null | undefined = collectionId;
-    try {
-      const subscription = await subscriptionService.subscribePlaylist({
-        playlistUrl: candidate.playlistUrl,
-        interval: parseInt(interval),
-        playlistTitle: candidate.title,
-        playlistId: candidate.playlistId,
-        author: channelName,
-        platform,
-        collectionId,
-        initialHeadVideoUrl: headVideoUrl,
-        baselineObservedAt: observedAt,
-      });
-      createdSubscriptionId = subscription.id;
-      subscribedCount++;
-      subscribedUrlSet.add(candidate.playlistUrl);
-    } catch (error: unknown) {
-      logger.error(`Error subscribing to playlist "${candidate.title}":`, error);
+    if (!candidate.existingSubscription) {
+      // Resolve/create collection only after a successful baseline.
+      const collectionResolution = resolveChannelPlaylistCollectionWithStatus(
+        candidate.title,
+        channelName
+      );
+      const collection = collectionResolution.collection;
+      const collectionId = collection.id;
+      taskCollectionId = collectionId;
+
       try {
-        await deleteCreatedCollectionIfUnused(
-          collectionResolution,
-          () => subscriptionService.listSubscriptions()
-        );
-      } catch (cleanupError) {
-        logger.error(
-          `Failed to clean up collection for playlist "${candidate.title}" after subscription insertion failed:`,
-          cleanupError instanceof Error
-            ? cleanupError
-            : new Error(String(cleanupError))
-        );
-      }
-      if (error instanceof Error && error.name === "DuplicateError") {
-        skippedCount++;
-        // A concurrent request may have inserted the subscription after the
-        // phase-one list. Resolve that exact row before creating a requested
-        // backfill task; never attach the task to this request's now-cleaned
-        // collection (design §11.3).
-        const concurrentSub = (await subscriptionService.listSubscriptions()).find(
-          (sub) => sub.authorUrl === candidate.playlistUrl
-        );
-        if (!concurrentSub) {
-          errors.push(
-            `${candidate.title}: concurrent subscription could not be resolved`
+        const subscription = await subscriptionService.subscribePlaylist({
+          playlistUrl: candidate.playlistUrl,
+          interval: parseInt(interval),
+          playlistTitle: candidate.title,
+          playlistId: candidate.playlistId,
+          author: channelName,
+          platform,
+          collectionId,
+          initialHeadVideoUrl: headVideoUrl,
+          baselineObservedAt: observedAt,
+        });
+        createdSubscriptionId = subscription.id;
+        subscribedCount++;
+        existingSubByUrl.set(candidate.playlistUrl, subscription);
+      } catch (error: unknown) {
+        logger.error(`Error subscribing to playlist "${candidate.title}":`, error);
+        try {
+          await deleteCreatedCollectionIfUnused(
+            collectionResolution,
+            () => subscriptionService.listSubscriptions()
           );
+        } catch (cleanupError) {
+          logger.error(
+            `Failed to clean up collection for playlist "${candidate.title}" after subscription insertion failed:`,
+            cleanupError instanceof Error
+              ? cleanupError
+              : new Error(String(cleanupError))
+          );
+        }
+        if (error instanceof Error && error.name === "DuplicateError") {
+          skippedCount++;
+          // A concurrent request may have inserted the subscription after the
+          // phase-one list. Resolve that exact row before creating a requested
+          // backfill task; never attach the task to this request's now-cleaned
+          // collection (design §11.3).
+          const concurrentSub = (await subscriptionService.listSubscriptions()).find(
+            (sub) => sub.authorUrl === candidate.playlistUrl
+          );
+          if (!concurrentSub) {
+            errors.push(
+              `${candidate.title}: concurrent subscription could not be resolved`
+            );
+            continue;
+          }
+          createdSubscriptionId = concurrentSub.id;
+          taskCollectionId = concurrentSub.collectionId;
+        } else {
+          errors.push(
+            `${candidate.title}: ${getErrorMessage(error, "Unknown error")}`
+          );
+          // A real insertion failure must not turn into an unlinked historical
+          // task. The next bulk request can retry the subscription cleanly.
           continue;
         }
-        createdSubscriptionId = concurrentSub.id;
-        taskCollectionId = concurrentSub.collectionId;
-      } else {
-        errors.push(
-          `${candidate.title}: ${getErrorMessage(error, "Unknown error")}`
-        );
-        // A real insertion failure must not turn into an unlinked historical
-        // task. The next bulk request can retry the subscription cleanly.
-        continue;
       }
     }
 
@@ -926,9 +950,9 @@ export const subscribeChannelPlaylists = async (
             `Skipping download task creation for playlist "${candidate.title}": task already exists`
           );
         } else {
-          // Link to the subscription created/known by this request. A
-          // pre-existing candidate was removed in phase one, and a raced
-          // duplicate above resolved its exact current row.
+          // Link to the subscription created/known by this request. An existing
+          // candidate came from phase one, and a raced duplicate above resolved
+          // its exact current row.
           const task = await continuousDownloadService.createPlaylistTask(
             candidate.playlistUrl,
             channelName,

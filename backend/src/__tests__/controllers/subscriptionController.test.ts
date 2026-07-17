@@ -20,7 +20,11 @@ import {
 } from "../../controllers/subscriptionController";
 import { ValidationError } from "../../errors/DownloadErrors";
 import { continuousDownloadService } from "../../services/continuousDownloadService";
-import { checkPlaylist } from "../../services/downloadService";
+import {
+  checkPlaylist,
+  getBilibiliCollectionVideos,
+  getBilibiliSeriesVideos,
+} from "../../services/downloadService";
 import * as storageService from "../../services/storageService";
 import { subscriptionService } from "../../services/subscriptionService";
 import { logger } from "../../utils/logger";
@@ -60,6 +64,9 @@ vi.mock("../../services/continuousDownloadService", () => ({
 
 vi.mock("../../services/downloadService", () => ({
   checkPlaylist: vi.fn(),
+  checkBilibiliCollectionOrSeries: vi.fn(),
+  getBilibiliCollectionVideos: vi.fn(),
+  getBilibiliSeriesVideos: vi.fn(),
 }));
 
 vi.mock("../../services/storageService", () => ({
@@ -75,6 +82,10 @@ vi.mock("../../utils/helpers", () => ({
   isBilibiliUrl: vi.fn((url: string) => url.includes("bilibili")),
   isTwitchChannelUrl: vi.fn((url: string) => url.includes("twitch.tv")),
   isYouTubeUrl: vi.fn((url: string) => url.includes("youtube")),
+  extractBilibiliVideoId: vi.fn((url: string) => {
+    const match = url.match(/\/video\/([^/?#]+)/);
+    return match?.[1] ?? null;
+  }),
   normalizeTwitchChannelUrl: vi.fn((url: string) => url.replace(/\/+$/, "").toLowerCase()),
   normalizeYouTubeAuthorUrl: vi.fn((url: string) => url.replace(/\/+$/, "")),
 }));
@@ -112,6 +123,7 @@ describe("SubscriptionController", () => {
       .mockReturnValue({ json } as unknown as Response);
     req = { body: {}, params: {} };
     res = { json, status };
+    (subscriptionService.listSubscriptions as any).mockResolvedValue([]);
   });
 
   describe("createSubscription", () => {
@@ -725,14 +737,15 @@ describe("SubscriptionController", () => {
       );
     });
 
-    it("uses Bilibili collectionInfo for title/count and still probes the head baseline", async () => {
+    it("uses Bilibili collectionInfo and API videos for a video URL baseline", async () => {
       req.body = {
-        playlistUrl: "https://www.bilibili.com/list/ml123",
+        playlistUrl: "https://www.bilibili.com/video/BV1xx",
         interval: 30,
         collectionName: "Bili List",
         collectionInfo: {
           type: "collection",
           id: 9988,
+          mid: 12345,
           title: "合集标题",
           count: 88,
         },
@@ -741,15 +754,9 @@ describe("SubscriptionController", () => {
         id: "existing-col",
         name: "Bili List",
       });
-      (executeYtDlpJson as any).mockResolvedValue({
-        _type: "playlist",
-        entries: [
-          {
-            id: "BV1xx",
-            webpage_url: "https://www.bilibili.com/video/BV1xx",
-            uploader: "UP Name",
-          },
-        ],
+      (getBilibiliCollectionVideos as any).mockResolvedValue({
+        success: true,
+        videos: [{ bvid: "BV1head", title: "Head", aid: 1 }],
       });
       (subscriptionService.subscribePlaylist as any).mockResolvedValue({
         id: "sub-bili-1",
@@ -759,16 +766,18 @@ describe("SubscriptionController", () => {
 
       expect(subscriptionService.subscribePlaylist).toHaveBeenCalledWith(
         expect.objectContaining({
-          playlistUrl: "https://www.bilibili.com/list/ml123",
+          playlistUrl: "https://www.bilibili.com/video/BV1xx",
           interval: 30,
           playlistTitle: "合集标题",
           playlistId: "9988",
-          author: "UP Name",
+          author: "Bilibili 12345",
           platform: "Bilibili",
           collectionId: "existing-col",
-          initialHeadVideoUrl: "https://www.bilibili.com/video/BV1xx",
+          initialHeadVideoUrl: "https://www.bilibili.com/video/BV1head",
         })
       );
+      expect(executeYtDlpJson).not.toHaveBeenCalled();
+      expect(getBilibiliSeriesVideos).not.toHaveBeenCalled();
     });
 
     it("returns backfillStatus not_needed_empty for a verified empty playlist with downloadAll", async () => {
@@ -935,6 +944,10 @@ describe("SubscriptionController", () => {
         .mockResolvedValueOnce({
           _type: "playlist",
           entries: [{ id: "headOne" }],
+        })
+        .mockResolvedValueOnce({
+          _type: "playlist",
+          entries: [{ id: "headTwo" }],
         });
       (storageService.getSettings as any).mockReturnValue({ saveAuthorFilesToCollection: false });
       (storageService.getCollectionByName as any).mockReturnValue({
@@ -943,7 +956,11 @@ describe("SubscriptionController", () => {
       });
       // Single listSubscriptions call; PL_TWO is already in the set.
       (subscriptionService.listSubscriptions as any).mockResolvedValue([
-        { id: "existing-sub-two", authorUrl: "https://www.youtube.com/playlist?list=PL_TWO" },
+        {
+          id: "existing-sub-two",
+          authorUrl: "https://www.youtube.com/playlist?list=PL_TWO",
+          collectionId: "existing-col-two",
+        },
       ]);
       (subscriptionService.subscribePlaylist as any).mockResolvedValue({
         id: "new-sub-one",
@@ -993,6 +1010,54 @@ describe("SubscriptionController", () => {
       expect(status).toHaveBeenCalledWith(201);
       expect(json).toHaveBeenCalledWith(
         expect.objectContaining({ subscribedCount: 1, skippedCount: 1, errorCount: 0 })
+      );
+    });
+
+    it("creates a backfill task for an already subscribed playlist when requested", async () => {
+      req.body = {
+        url: "https://www.youtube.com/@channel",
+        interval: 60,
+        downloadAllPrevious: true,
+      };
+      (executeYtDlpJson as any)
+        .mockResolvedValueOnce({
+          uploader: "My Channel",
+          entries: [
+            {
+              id: "PL_EXISTING",
+              url: "https://www.youtube.com/playlist?list=PL_EXISTING",
+              title: "Existing Playlist",
+            },
+          ],
+        })
+        .mockResolvedValueOnce({
+          _type: "playlist",
+          entries: [{ id: "existingHead" }],
+        });
+      (subscriptionService.listSubscriptions as any).mockResolvedValue([
+        {
+          id: "existing-sub",
+          authorUrl: "https://www.youtube.com/playlist?list=PL_EXISTING",
+          collectionId: "existing-col",
+        },
+      ]);
+      (continuousDownloadService.getTaskByAuthorUrl as any).mockResolvedValue(null);
+      (continuousDownloadService.createPlaylistTask as any).mockResolvedValue({
+        id: "backfill-task",
+      });
+
+      await subscribeChannelPlaylists(req as Request, res as Response);
+
+      expect(subscriptionService.subscribePlaylist).not.toHaveBeenCalled();
+      expect(continuousDownloadService.createPlaylistTask).toHaveBeenCalledWith(
+        "https://www.youtube.com/playlist?list=PL_EXISTING",
+        "My Channel",
+        "YouTube",
+        "existing-col",
+        "existing-sub"
+      );
+      expect(json).toHaveBeenCalledWith(
+        expect.objectContaining({ subscribedCount: 0, skippedCount: 1 })
       );
     });
 

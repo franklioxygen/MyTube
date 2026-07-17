@@ -1,4 +1,4 @@
-import { isBilibiliUrl } from "../../utils/helpers";
+import { extractBilibiliVideoId, isBilibiliUrl } from "../../utils/helpers";
 import {
   executeYtDlpJson,
   getEffectiveUserYtDlpConfig,
@@ -39,6 +39,14 @@ export interface PlaylistInspection extends PlaylistHeadSnapshot {
   playlistId: string | null;
   author: string;
   platform: "YouTube" | "Bilibili";
+}
+
+export interface BilibiliCollectionInspectionInput {
+  type: "collection" | "series";
+  id: string | number;
+  mid?: string | number;
+  title: string;
+  count: number;
 }
 
 export interface PlaylistFeedOptions {
@@ -239,5 +247,93 @@ export async function inspectPlaylist(
     playlistId,
     author,
     platform,
+  };
+}
+
+function toFiniteNumber(value: string | number | undefined): number | null {
+  if (value === undefined) return null;
+  const parsed = typeof value === "number" ? value : Number.parseInt(value, 10);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+/**
+ * Inspect a Bilibili collection/series using Bilibili's collection API when the
+ * frontend already supplied collection metadata for a normal video URL. This
+ * avoids probing the video URL as a generic yt-dlp playlist before the metadata
+ * branch can run.
+ */
+export async function inspectBilibiliCollectionPlaylist(
+  playlistUrl: string,
+  collectionInfo: BilibiliCollectionInspectionInput,
+  options?: PlaylistFeedOptions
+): Promise<PlaylistInspection> {
+  let mid = toFiniteNumber(collectionInfo.mid);
+  let collectionId = toFiniteNumber(collectionInfo.id);
+
+  if (mid === null || collectionId === null) {
+    const videoId = extractBilibiliVideoId(playlistUrl);
+    if (!videoId) {
+      return inspectPlaylist(playlistUrl, options);
+    }
+
+    const { checkBilibiliCollectionOrSeries } = await import(
+      "../downloadService"
+    );
+    const detected = await checkBilibiliCollectionOrSeries(videoId);
+    if (
+      !detected.success ||
+      detected.type !== collectionInfo.type ||
+      detected.mid === undefined ||
+      detected.id === undefined
+    ) {
+      throw new ValidationError(
+        "Could not resolve Bilibili collection metadata",
+        "collectionInfo"
+      );
+    }
+    mid = detected.mid;
+    collectionId = detected.id;
+  }
+  if (mid === null || collectionId === null) {
+    throw new ValidationError(
+      "Could not resolve Bilibili collection metadata",
+      "collectionInfo"
+    );
+  }
+
+  const { getBilibiliCollectionVideos, getBilibiliSeriesVideos } = await import(
+    "../downloadService"
+  );
+  const videosResult =
+    collectionInfo.type === "collection"
+      ? await getBilibiliCollectionVideos(mid, collectionId)
+      : await getBilibiliSeriesVideos(mid, collectionId);
+
+  if (!videosResult.success) {
+    throw new ValidationError(
+      `Failed to get videos from Bilibili ${collectionInfo.type}`,
+      "collectionInfo"
+    );
+  }
+
+  const firstVideo = videosResult.videos[0];
+  const headVideoUrl = firstVideo?.bvid
+    ? `https://www.bilibili.com/video/${firstVideo.bvid}`
+    : null;
+
+  logger.info("Inspected Bilibili collection for subscription baseline", {
+    type: collectionInfo.type,
+    videoCount: collectionInfo.count || videosResult.videos.length,
+    baselineState: headVideoUrl ? "item" : "empty",
+  });
+
+  return {
+    headVideoUrl,
+    observedAt: Date.now(),
+    title: collectionInfo.title || "Bilibili Playlist",
+    videoCount: collectionInfo.count || videosResult.videos.length,
+    playlistId: String(collectionId),
+    author: mid ? `Bilibili ${mid}` : "Bilibili Author",
+    platform: "Bilibili",
   };
 }
