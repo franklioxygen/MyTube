@@ -328,6 +328,68 @@ describe('SubscriptionService', () => {
       expect(db.update).toHaveBeenCalled();
     });
 
+    it('polls Bilibili collection playlist subscriptions through the collection API', async () => {
+      const sub = {
+        id: 'bili-playlist-sub',
+        author: '合集标题 - Bilibili 12345',
+        platform: 'Bilibili',
+        authorUrl: 'https://www.bilibili.com/video/BVseed',
+        lastCheck: 0,
+        interval: 10,
+        lastVideoLink: 'https://www.bilibili.com/video/BVold',
+        subscriptionType: 'playlist',
+        playlistId: '9988',
+        collectionId: 'existing-col',
+      };
+
+      let callCount = 0;
+      mockBuilder.then = (cb: any) => {
+        callCount++;
+        if (callCount === 1) return Promise.resolve([sub]).then(cb);
+        return Promise.resolve([sub]).then(cb);
+      };
+      (storageService.getCollectionById as any).mockReturnValue({
+        id: 'existing-col',
+        sourcePlatform: 'bilibili',
+        sourceType: 'collection',
+        sourceMid: '12345',
+        sourceId: '9988',
+      });
+      (downloadService.getBilibiliCollectionVideos as any).mockResolvedValue({
+        success: true,
+        videos: [{ bvid: 'BVnew', title: 'New', aid: 1 }],
+      });
+      (downloadService.downloadSingleBilibiliPart as any).mockResolvedValue({
+        videoData: { id: 'video-new', title: 'New Bili Video' },
+      });
+
+      await subscriptionService.checkSubscriptions();
+
+      expect(downloadService.getBilibiliCollectionVideos).toHaveBeenCalledWith(
+        12345,
+        9988
+      );
+      expect(executeYtDlpJson).not.toHaveBeenCalled();
+      expect(downloadService.downloadSingleBilibiliPart).toHaveBeenCalledWith(
+        'https://www.bilibili.com/video/BVnew',
+        1,
+        1,
+        '',
+        'test-uuid',
+        expect.any(Function),
+        undefined,
+        expect.objectContaining({
+          sourceCollectionId: '9988',
+          sourceCollectionType: 'playlist',
+        }),
+        { subscriptionYtdlpConfig: undefined }
+      );
+      expect(storageService.addVideoToCollection).toHaveBeenCalledWith(
+        'existing-col',
+        'video-new'
+      );
+    });
+
     it('should skip shorts when subscription is deleted before lastCheck update', async () => {
       const sub = {
         id: 'sub-deleted',

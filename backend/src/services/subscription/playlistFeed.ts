@@ -42,11 +42,27 @@ export interface PlaylistInspection extends PlaylistHeadSnapshot {
 }
 
 export interface BilibiliCollectionInspectionInput {
-  type: "collection" | "series";
-  id: string | number;
+  type?: "collection" | "series";
+  id?: string | number;
   mid?: string | number;
-  title: string;
-  count: number;
+  title?: string;
+  count?: number;
+}
+
+export interface BilibiliCollectionSource {
+  type: "collection" | "series";
+  id: number;
+  mid: number;
+}
+
+export interface BilibiliCollectionHeadSnapshot extends PlaylistHeadSnapshot {
+  videoCount: number;
+  bilibiliSource: BilibiliCollectionSource;
+}
+
+export interface BilibiliCollectionPlaylistInspection
+  extends PlaylistInspection {
+  bilibiliSource: BilibiliCollectionSource;
 }
 
 export interface PlaylistFeedOptions {
@@ -256,45 +272,65 @@ function toFiniteNumber(value: string | number | undefined): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-/**
- * Inspect a Bilibili collection/series using Bilibili's collection API when the
- * frontend already supplied collection metadata for a normal video URL. This
- * avoids probing the video URL as a generic yt-dlp playlist before the metadata
- * branch can run.
- */
-export async function inspectBilibiliCollectionPlaylist(
+async function resolveBilibiliCollectionSource(
   playlistUrl: string,
-  collectionInfo: BilibiliCollectionInspectionInput,
-  options?: PlaylistFeedOptions
-): Promise<PlaylistInspection> {
+  collectionInfo: BilibiliCollectionInspectionInput
+): Promise<BilibiliCollectionSource | null> {
+  const requestedType = collectionInfo.type;
   let mid = toFiniteNumber(collectionInfo.mid);
   let collectionId = toFiniteNumber(collectionInfo.id);
 
-  if (mid === null || collectionId === null) {
-    const videoId = extractBilibiliVideoId(playlistUrl);
-    if (!videoId) {
-      return inspectPlaylist(playlistUrl, options);
-    }
-
-    const { checkBilibiliCollectionOrSeries } = await import(
-      "../downloadService"
-    );
-    const detected = await checkBilibiliCollectionOrSeries(videoId);
-    if (
-      !detected.success ||
-      detected.type !== collectionInfo.type ||
-      detected.mid === undefined ||
-      detected.id === undefined
-    ) {
-      throw new ValidationError(
-        "Could not resolve Bilibili collection metadata",
-        "collectionInfo"
-      );
-    }
-    mid = detected.mid;
-    collectionId = detected.id;
+  if (requestedType && mid !== null && collectionId !== null) {
+    return { type: requestedType, mid, id: collectionId };
   }
-  if (mid === null || collectionId === null) {
+
+  const videoId = extractBilibiliVideoId(playlistUrl);
+  if (!videoId) {
+    return null;
+  }
+
+  const { checkBilibiliCollectionOrSeries } = await import(
+    "../downloadService"
+  );
+  const detected = await checkBilibiliCollectionOrSeries(videoId);
+  if (
+    !detected.success ||
+    detected.type === "none" ||
+    detected.mid === undefined ||
+    detected.id === undefined
+  ) {
+    throw new ValidationError(
+      "Could not resolve Bilibili collection metadata",
+      "collectionInfo"
+    );
+  }
+  if (requestedType && detected.type !== requestedType) {
+    throw new ValidationError(
+      "Could not resolve Bilibili collection metadata",
+      "collectionInfo"
+    );
+  }
+  if (collectionId !== null && collectionId !== detected.id) {
+    throw new ValidationError(
+      "Could not resolve Bilibili collection metadata",
+      "collectionInfo"
+    );
+  }
+
+  mid = detected.mid;
+  collectionId = detected.id;
+  return { type: detected.type, mid, id: collectionId };
+}
+
+export async function getBilibiliCollectionHeadSnapshot(
+  playlistUrl: string,
+  collectionInfo: BilibiliCollectionInspectionInput
+): Promise<BilibiliCollectionHeadSnapshot> {
+  const source = await resolveBilibiliCollectionSource(
+    playlistUrl,
+    collectionInfo
+  );
+  if (!source) {
     throw new ValidationError(
       "Could not resolve Bilibili collection metadata",
       "collectionInfo"
@@ -305,13 +341,13 @@ export async function inspectBilibiliCollectionPlaylist(
     "../downloadService"
   );
   const videosResult =
-    collectionInfo.type === "collection"
-      ? await getBilibiliCollectionVideos(mid, collectionId)
-      : await getBilibiliSeriesVideos(mid, collectionId);
+    source.type === "collection"
+      ? await getBilibiliCollectionVideos(source.mid, source.id)
+      : await getBilibiliSeriesVideos(source.mid, source.id);
 
   if (!videosResult.success) {
     throw new ValidationError(
-      `Failed to get videos from Bilibili ${collectionInfo.type}`,
+      `Failed to get videos from Bilibili ${source.type}`,
       "collectionInfo"
     );
   }
@@ -321,19 +357,56 @@ export async function inspectBilibiliCollectionPlaylist(
     ? `https://www.bilibili.com/video/${firstVideo.bvid}`
     : null;
 
-  logger.info("Inspected Bilibili collection for subscription baseline", {
-    type: collectionInfo.type,
-    videoCount: collectionInfo.count || videosResult.videos.length,
-    baselineState: headVideoUrl ? "item" : "empty",
-  });
-
   return {
     headVideoUrl,
     observedAt: Date.now(),
+    videoCount:
+      collectionInfo.count && collectionInfo.count > 0
+        ? collectionInfo.count
+        : videosResult.videos.length,
+    bilibiliSource: source,
+  };
+}
+
+/**
+ * Inspect a Bilibili collection/series using Bilibili's collection API when the
+ * frontend already supplied collection metadata for a normal video URL. This
+ * avoids probing the video URL as a generic yt-dlp playlist before the metadata
+ * branch can run.
+ */
+export async function inspectBilibiliCollectionPlaylist(
+  playlistUrl: string,
+  collectionInfo: BilibiliCollectionInspectionInput,
+  options?: PlaylistFeedOptions
+): Promise<BilibiliCollectionPlaylistInspection | PlaylistInspection> {
+  const snapshot = await getBilibiliCollectionHeadSnapshot(
+    playlistUrl,
+    collectionInfo
+  ).catch((error) => {
+    if (extractBilibiliVideoId(playlistUrl)) {
+      throw error;
+    }
+    return null;
+  });
+
+  if (!snapshot) {
+    return inspectPlaylist(playlistUrl, options);
+  }
+
+  logger.info("Inspected Bilibili collection for subscription baseline", {
+    type: snapshot.bilibiliSource.type,
+    videoCount: snapshot.videoCount,
+    baselineState: snapshot.headVideoUrl ? "item" : "empty",
+  });
+
+  return {
+    headVideoUrl: snapshot.headVideoUrl,
+    observedAt: snapshot.observedAt,
     title: collectionInfo.title || "Bilibili Playlist",
-    videoCount: collectionInfo.count || videosResult.videos.length,
-    playlistId: String(collectionId),
-    author: mid ? `Bilibili ${mid}` : "Bilibili Author",
+    videoCount: snapshot.videoCount,
+    playlistId: String(snapshot.bilibiliSource.id),
+    author: `Bilibili ${snapshot.bilibiliSource.mid}`,
     platform: "Bilibili",
+    bilibiliSource: snapshot.bilibiliSource,
   };
 }

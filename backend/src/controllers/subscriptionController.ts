@@ -41,6 +41,7 @@ import {
     inspectBilibiliCollectionPlaylist,
     inspectPlaylist,
 } from "../services/subscription/playlistFeed";
+import type { BilibiliCollectionSource } from "../services/subscription/playlistFeed";
 import type { SubscribePlaylistOptions } from "../services/subscriptionService";
 
 // Per-subscription yt-dlp config override (issue #345). Same free-text format
@@ -179,6 +180,46 @@ function parseBilibiliCollectionInfo(
         ? info.count
         : parseInt(String(info.count ?? "0"), 10) || 0,
   };
+}
+
+function saveBilibiliCollectionSourceIfCompatible(
+  collection: storageService.Collection,
+  source: { type: "collection" | "series"; id: number; mid: number }
+): void {
+  const sourceKey = {
+    sourcePlatform: "bilibili",
+    sourceType: source.type,
+    sourceMid: String(source.mid),
+    sourceId: String(source.id),
+  };
+  const hasSourceKey = Boolean(
+    collection.sourcePlatform ||
+      collection.sourceType ||
+      collection.sourceMid ||
+      collection.sourceId
+  );
+  const matchesSourceKey =
+    collection.sourcePlatform === sourceKey.sourcePlatform &&
+    collection.sourceType === sourceKey.sourceType &&
+    collection.sourceMid === sourceKey.sourceMid &&
+    collection.sourceId === sourceKey.sourceId;
+
+  if (!hasSourceKey || matchesSourceKey) {
+    storageService.saveCollection({ ...collection, ...sourceKey });
+  }
+}
+
+function hasBilibiliCollectionSource(
+  inspection: object
+): inspection is { bilibiliSource: BilibiliCollectionSource } {
+  const source = (inspection as { bilibiliSource?: unknown }).bilibiliSource;
+  if (!source || typeof source !== "object") return false;
+  const candidate = source as Partial<BilibiliCollectionSource>;
+  return (
+    (candidate.type === "collection" || candidate.type === "series") &&
+    typeof candidate.id === "number" &&
+    typeof candidate.mid === "number"
+  );
 }
 
 /**
@@ -617,7 +658,7 @@ export const createPlaylistSubscription = async (
     // the head baseline resolved through the Bilibili collection API.
     playlistId = collectionInfo.id?.toString() || inspection.playlistId || "";
     playlistTitle = collectionInfo.title || inspection.title;
-    videoCount = collectionInfo.count;
+    videoCount = inspection.videoCount;
     author = inspection.author;
     logger.info(
       `Using Bilibili ${collectionInfo.type} info: ${playlistTitle} (${videoCount} videos)`
@@ -634,6 +675,15 @@ export const createPlaylistSubscription = async (
   //    one so later scheduled downloads can be grouped (design §3.6).
   const collectionResolution = resolvePlaylistCollectionWithStatus(collectionName);
   const collection = collectionResolution.collection;
+  if (
+    isBilibiliCollectionOrSeries &&
+    hasBilibiliCollectionSource(inspection)
+  ) {
+    saveBilibiliCollectionSourceIfCompatible(
+      collection,
+      inspection.bilibiliSource
+    );
+  }
 
   // 6. Insert the subscription with the captured baseline (design §7.2).
   const subscribeOptions: SubscribePlaylistOptions = {

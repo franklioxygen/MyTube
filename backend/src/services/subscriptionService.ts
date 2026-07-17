@@ -9,6 +9,7 @@ import {
   ValidationError,
 } from "../errors/DownloadErrors";
 import {
+    extractBilibiliVideoId,
     extractBilibiliMid,
     extractTwitchChannelLogin,
     isBilibiliSpaceUrl,
@@ -42,7 +43,10 @@ import {
   stopSubscriptionSchedulerTasks,
 } from "./subscription/scheduler";
 import { checkChannelPlaylistsForWatcher } from "./subscription/channelPlaylists";
-import { getPlaylistHeadSnapshot } from "./subscription/playlistFeed";
+import {
+  getBilibiliCollectionHeadSnapshot,
+  getPlaylistHeadSnapshot,
+} from "./subscription/playlistFeed";
 import { resolveYouTubeAuthorName } from "./subscription/youtubeAuthor";
 import {
   checkTwitchSubscription as checkTwitchSubscriptionImpl,
@@ -640,11 +644,7 @@ export class SubscriptionService {
       let latestVideoUrl: string | null = null;
       if (isPlaylistSubscription) {
         try {
-          const snapshot = await getPlaylistHeadSnapshot(
-            sub.authorUrl,
-            sub.platform,
-            { subscriptionYtdlpConfig: sub.ytdlpConfig }
-          );
+          const snapshot = await this.getPlaylistSubscriptionHeadSnapshot(sub);
           latestVideoUrl = snapshot.headVideoUrl;
         } catch (probeError) {
           logger.error(
@@ -1090,6 +1090,37 @@ export class SubscriptionService {
         disableAutoRetry: true,
       }
     );
+  }
+
+  private async getPlaylistSubscriptionHeadSnapshot(
+    sub: Subscription
+  ): Promise<{ headVideoUrl: string | null }> {
+    if (sub.platform === "Bilibili") {
+      const collection = sub.collectionId
+        ? storageService.getCollectionById(sub.collectionId)
+        : undefined;
+      const sourceType =
+        collection?.sourcePlatform === "bilibili" &&
+        (collection.sourceType === "collection" ||
+          collection.sourceType === "series")
+          ? collection.sourceType
+          : undefined;
+      const hasCollectionSource =
+        Boolean(sourceType && collection?.sourceMid) &&
+        Boolean(collection?.sourceId || sub.playlistId);
+
+      if (hasCollectionSource || extractBilibiliVideoId(sub.authorUrl)) {
+        return getBilibiliCollectionHeadSnapshot(sub.authorUrl, {
+          type: sourceType,
+          mid: collection?.sourceMid,
+          id: collection?.sourceId ?? sub.playlistId,
+        });
+      }
+    }
+
+    return getPlaylistHeadSnapshot(sub.authorUrl, sub.platform, {
+      subscriptionYtdlpConfig: sub.ytdlpConfig,
+    });
   }
 
   /**

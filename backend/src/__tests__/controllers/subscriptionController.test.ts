@@ -780,6 +780,52 @@ describe("SubscriptionController", () => {
       expect(getBilibiliSeriesVideos).not.toHaveBeenCalled();
     });
 
+    it("starts Bilibili collection backfill when API inspection finds videos despite a zero client count", async () => {
+      req.body = {
+        playlistUrl: "https://www.bilibili.com/video/BV1xx",
+        interval: 30,
+        collectionName: "Bili List",
+        downloadAll: true,
+        collectionInfo: {
+          type: "collection",
+          id: 9988,
+          mid: 12345,
+          title: "合集标题",
+          count: 0,
+        },
+      };
+      (storageService.getCollectionByName as any).mockReturnValue({
+        id: "existing-col",
+        name: "Bili List",
+      });
+      (getBilibiliCollectionVideos as any).mockResolvedValue({
+        success: true,
+        videos: [{ bvid: "BV1head", title: "Head", aid: 1 }],
+      });
+      (subscriptionService.subscribePlaylist as any).mockResolvedValue({
+        id: "sub-bili-1",
+      });
+      (continuousDownloadService.createPlaylistTask as any).mockResolvedValue({
+        id: "task-bili",
+      });
+
+      await createPlaylistSubscription(req as Request, res as Response);
+
+      expect(continuousDownloadService.createPlaylistTask).toHaveBeenCalledWith(
+        "https://www.bilibili.com/video/BV1xx",
+        "Bilibili 12345",
+        "Bilibili",
+        "existing-col",
+        "sub-bili-1"
+      );
+      expect(json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          taskId: "task-bili",
+          backfillStatus: "started",
+        })
+      );
+    });
+
     it("returns backfillStatus not_needed_empty for a verified empty playlist with downloadAll", async () => {
       req.body = {
         playlistUrl: "https://www.youtube.com/playlist?list=PL123",
