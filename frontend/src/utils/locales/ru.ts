@@ -1044,6 +1044,23 @@ export const ru = {
   ytdlpConfigOverrideUpdated: "Переопределение yt-dlp обновлено",
   ytdlpConfigOverrideUpdateFailed: "Не удалось обновить переопределение yt-dlp",
 
+  // Per-subscription filename-template override (issue #368)
+  subscriptionFilenameTemplate: "Переопределение шаблона имени файла",
+  subscriptionFilenameTemplateHelp:
+    "Шаблон имени файла, применяемый только к загрузкам из этой подписки. Использует тот же синтаксис и переменные, что и Настройки → Именование файлов. Оставьте пустым, чтобы использовать глобальный параметр именования файлов.",
+  subscriptionFilenameTemplateInherit:
+    "Оставьте пустым, чтобы наследовать глобальный параметр именования файлов.",
+  subscriptionFilenameTemplatePlaceholder:
+    "{{ source_custom_name }}/{{ title }}.{{ ext }}",
+  subscriptionFilenameTemplatePreview: "Предпросмотр",
+  subscriptionFilenameTemplateFutureOnly:
+    "Изменения влияют только на будущие загрузки. Существующие файлы не переименовываются.",
+  editSubscriptionFilenameTemplate: "Изменить переопределение шаблона имени файла",
+  subscriptionFilenameTemplateCustom: "Пользовательский шаблон имени файла",
+  subscriptionFilenameTemplateUpdated: "Переопределение шаблона имени файла обновлено",
+  subscriptionFilenameTemplateUpdateFailed:
+    "Не удалось обновить переопределение шаблона имени файла",
+
   // Subscription Pause/Resume
   pause: "Пауза",
   resume: "Возобновить",

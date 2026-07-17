@@ -11,6 +11,7 @@ import {
   isYouTubeUrl,
 } from "../../../utils/helpers";
 import { resolveManagedWebPath } from "../../filenameTemplate/pathHelpers";
+import { applySubscriptionFilenameTemplateOverride } from "../../filenameTemplate";
 import { FilenameTemplateSourceOptions } from "../../filenameTemplate/types";
 import { planDownloadPaths } from "./downloadPathPlanner";
 import { logger } from "../../../utils/logger";
@@ -78,6 +79,7 @@ export async function downloadVideo(
   const onStart = options.onStart;
   const filenameTemplateSourceOptions = options.filenameTemplateSourceOptions;
   const subscriptionYtdlpConfig = options.subscriptionYtdlpConfig;
+  const subscriptionFilenameTemplate = options.subscriptionFilenameTemplate;
   const effectiveUserConfig = getEffectiveUserYtDlpConfig(
     videoUrl,
     subscriptionYtdlpConfig
@@ -199,8 +201,15 @@ export async function downloadVideo(
       }
     }
 
-    // Update paths
-    const settings = storageService.getSettings();
+    // Update paths. Overlay any per-subscription filename-template override
+    // onto the global naming settings so path planning uses it consistently
+    // (issue #368). When no override is present the original object is returned
+    // unchanged, preserving existing behavior and identity.
+    const globalSettings = storageService.getSettings();
+    const settings = applySubscriptionFilenameTemplateOverride(
+      globalSettings,
+      subscriptionFilenameTemplate
+    );
     const moveThumbnailsToVideoFolder =
       settings.moveThumbnailsToVideoFolder || false;
     const moveSubtitlesToVideoFolder =
@@ -495,8 +504,13 @@ export async function downloadVideo(
     throw error;
   }
 
-  // Create metadata for the video
-  const settings = storageService.getSettings();
+  // Create metadata for the video. Re-apply the per-subscription filename
+  // override so the author-collection movement below sees the same effective
+  // naming settings as path planning did (issue #368).
+  const settings = applySubscriptionFilenameTemplateOverride(
+    storageService.getSettings(),
+    subscriptionFilenameTemplate
+  );
   const moveThumbnailsToVideoFolder =
     settings.moveThumbnailsToVideoFolder || false;
 

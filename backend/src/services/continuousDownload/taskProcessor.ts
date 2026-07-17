@@ -198,6 +198,11 @@ export class TaskProcessor {
       );
     }
     const subscriptionYtdlpConfig = taskSubscription?.ytdlpConfig ?? null;
+    // Per-subscription filename-template override (issue #368). Resolved once at
+    // worker start so a running task keeps its snapshot; pausing/resuming starts
+    // a new worker that picks up the current override.
+    const subscriptionFilenameTemplate =
+      taskSubscription?.filenameTemplate ?? null;
 
     // Get total count if not set
     if (task.totalVideos === 0) {
@@ -487,6 +492,9 @@ export class TaskProcessor {
     // Per-subscription yt-dlp override (issue #345). Null when the task has no
     // resolvable subscription → identical to today's behaviour (global config).
     const subscriptionYtdlpConfig = taskSubscription?.ytdlpConfig ?? null;
+    // Per-subscription filename-template override (issue #368). Null → global.
+    const subscriptionFilenameTemplate =
+      taskSubscription?.filenameTemplate ?? null;
 
     // An audio-only override (e.g. --format bestaudio) saves the item under the
     // "audio" media type. Scope the duplicate check to that media type too so a
@@ -546,7 +554,10 @@ export class TaskProcessor {
           undefined,
           undefined,
           filenameTemplateSourceOptions,
-          { subscriptionYtdlpConfig }
+          {
+            subscriptionYtdlpConfig,
+            subscriptionFilenameTemplate,
+          }
         );
 
         // Check for Bilibili download errors
@@ -561,6 +572,7 @@ export class TaskProcessor {
           downloadId,
           filenameTemplateSourceOptions,
           subscriptionYtdlpConfig,
+          subscriptionFilenameTemplate,
         });
       }
 

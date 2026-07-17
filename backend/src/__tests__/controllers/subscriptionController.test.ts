@@ -18,7 +18,7 @@ import {
     subscribeChannelPlaylists,
     updateSubscription,
 } from "../../controllers/subscriptionController";
-import { ValidationError } from "../../errors/DownloadErrors";
+import { NotFoundError, ValidationError } from "../../errors/DownloadErrors";
 import { continuousDownloadService } from "../../services/continuousDownloadService";
 import { checkPlaylist } from "../../services/downloadService";
 import * as storageService from "../../services/storageService";
@@ -132,6 +132,7 @@ describe("SubscriptionController", () => {
         60,
         undefined,
         true,
+        null,
         null
       );
       expect(status).toHaveBeenCalledWith(201);
@@ -624,7 +625,8 @@ describe("SubscriptionController", () => {
         "PL123",
         "Uploader Name",
         "YouTube",
-        expect.any(String)
+        expect.any(String),
+        null
       );
       expect(continuousDownloadService.createPlaylistTask).toHaveBeenCalled();
       expect(status).toHaveBeenCalledWith(201);
@@ -667,7 +669,8 @@ describe("SubscriptionController", () => {
         "9988",
         "UP Name",
         "Bilibili",
-        "existing-col"
+        "existing-col",
+        null
       );
     });
 
@@ -697,7 +700,8 @@ describe("SubscriptionController", () => {
         "PL123",
         "Playlist Author",
         "YouTube",
-        expect.any(String)
+        expect.any(String),
+        null
       );
     });
 
@@ -770,8 +774,14 @@ describe("SubscriptionController", () => {
       (subscriptionService.listSubscriptions as any)
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([
-          { authorUrl: "https://www.youtube.com/playlist?list=PL_TWO" },
+          {
+            id: "existing-sub-2",
+            authorUrl: "https://www.youtube.com/playlist?list=PL_TWO",
+          },
         ]);
+      (subscriptionService.subscribePlaylist as any).mockResolvedValue({
+        id: "created-sub-1",
+      });
       (continuousDownloadService.getTaskByAuthorUrl as any)
         .mockResolvedValueOnce(null)
         .mockResolvedValueOnce({ id: "existing-task" });
@@ -788,9 +798,17 @@ describe("SubscriptionController", () => {
       expect(subscriptionService.subscribePlaylist).toHaveBeenCalledWith(
         "https://www.youtube.com/playlist?list=PL_ONE",
         60, "Playlist One", "PL_ONE", "My Channel", "YouTube",
-        expect.any(String)
+        expect.any(String),
+        null
       );
       expect(continuousDownloadService.createPlaylistTask).toHaveBeenCalledTimes(1);
+      expect(continuousDownloadService.createPlaylistTask).toHaveBeenCalledWith(
+        "https://www.youtube.com/playlist?list=PL_ONE",
+        "My Channel",
+        "YouTube",
+        expect.any(String),
+        "created-sub-1"
+      );
     });
 
     it("should create watcher and respond with counts", async () => {
@@ -798,11 +816,54 @@ describe("SubscriptionController", () => {
       await subscribeChannelPlaylists(req as Request, res as Response);
 
       expect(subscriptionService.subscribeChannelPlaylistsWatcher).toHaveBeenCalledWith(
-        "https://www.youtube.com/@channel/playlists", 60, "My Channel", "YouTube"
+        "https://www.youtube.com/@channel/playlists", 60, "My Channel", "YouTube",
+        null
       );
       expect(status).toHaveBeenCalledWith(201);
       expect(json).toHaveBeenCalledWith(
         expect.objectContaining({ subscribedCount: 1, skippedCount: 1, errorCount: 0 })
+      );
+    });
+
+    it("links an existing playlist subscription to its historical task", async () => {
+      req.body = {
+        url: "https://www.youtube.com/@channel",
+        interval: 60,
+        downloadAllPrevious: true,
+      };
+      (executeYtDlpJson as any).mockResolvedValue({
+        uploader: "My Channel",
+        entries: [
+          {
+            id: "PL_EXISTING",
+            url: "https://www.youtube.com/playlist?list=PL_EXISTING",
+            title: "Existing Playlist",
+          },
+        ],
+      });
+      (subscriptionService.listSubscriptions as any).mockResolvedValue([
+        {
+          id: "existing-subscription",
+          authorUrl: "https://www.youtube.com/playlist?list=PL_EXISTING",
+        },
+      ]);
+      (continuousDownloadService.getTaskByAuthorUrl as any).mockResolvedValue(null);
+      (continuousDownloadService.createPlaylistTask as any).mockResolvedValue({
+        id: "created-task",
+      });
+      (subscriptionService.subscribeChannelPlaylistsWatcher as any).mockResolvedValue({
+        id: "watcher-1",
+      });
+
+      await subscribeChannelPlaylists(req as Request, res as Response);
+
+      expect(subscriptionService.subscribePlaylist).not.toHaveBeenCalled();
+      expect(continuousDownloadService.createPlaylistTask).toHaveBeenCalledWith(
+        "https://www.youtube.com/playlist?list=PL_EXISTING",
+        "My Channel",
+        "YouTube",
+        expect.any(String),
+        "existing-subscription"
       );
     });
 
@@ -826,7 +887,8 @@ describe("SubscriptionController", () => {
         "PL1",
         "@MyChannel",
         "YouTube",
-        expect.any(String)
+        expect.any(String),
+        null
       );
       expect(storageService.saveCollection).toHaveBeenCalled();
     });
@@ -919,5 +981,126 @@ describe("SubscriptionController", () => {
   it("should keep utility mocks wired for network config helpers", () => {
     expect(getUserYtDlpConfig).toBeDefined();
     expect(getNetworkConfigFromUserConfig).toBeDefined();
+  });
+
+  describe("filename template override", () => {
+    it("createSubscription passes filenameTemplate to subscribe", async () => {
+      req.body = {
+        url: "https://www.youtube.com/@testuser/",
+        interval: 60,
+        filenameTemplate: "{{ source_custom_name }}/{{ title }}.{{ ext }}",
+      };
+      (subscriptionService.subscribe as any).mockResolvedValue({
+        id: "sub-123",
+        author: "@testuser",
+        platform: "YouTube",
+      });
+      await createSubscription(req as Request, res as Response);
+      expect(subscriptionService.subscribe).toHaveBeenCalledWith(
+        "https://www.youtube.com/@testuser",
+        60,
+        undefined,
+        false,
+        null,
+        "{{ source_custom_name }}/{{ title }}.{{ ext }}"
+      );
+    });
+
+    it("createSubscription rejects an invalid filenameTemplate", async () => {
+      req.body = {
+        url: "https://www.youtube.com/@testuser/",
+        interval: 60,
+        filenameTemplate: "../escape.{{ ext }}",
+      };
+      (subscriptionService.subscribe as any).mockResolvedValue({
+        id: "sub-123",
+        author: "@testuser",
+        platform: "YouTube",
+      });
+      await expect(createSubscription(req as Request, res as Response)).rejects.toThrow(
+        ValidationError
+      );
+      expect(subscriptionService.subscribe).not.toHaveBeenCalled();
+    });
+
+    it("createPlaylistSubscription passes filenameTemplate to subscribePlaylist", async () => {
+      req.body = {
+        playlistUrl: "https://www.youtube.com/playlist?list=PL123",
+        interval: 60,
+        collectionName: "My Playlist",
+        filenameTemplate: "{{ title }}.{{ ext }}",
+      };
+      (checkPlaylist as any).mockResolvedValue({ success: true, title: "My Playlist", videoCount: 5 });
+      (subscriptionService.subscribePlaylist as any).mockResolvedValue({
+        id: "sub-playlist-1",
+        author: "My Playlist - author",
+        platform: "YouTube",
+      });
+      await createPlaylistSubscription(req as Request, res as Response);
+      expect(subscriptionService.subscribePlaylist).toHaveBeenCalledWith(
+        "https://www.youtube.com/playlist?list=PL123",
+        60,
+        "My Playlist",
+        "PL123",
+        expect.any(String),
+        "YouTube",
+        expect.any(String),
+        "{{ title }}.{{ ext }}"
+      );
+    });
+
+    it("updateSubscription persists a valid filenameTemplate", async () => {
+      req.params = { id: "sub-123" };
+      req.body = { filenameTemplate: "{{ title }}.{{ ext }}" };
+      (subscriptionService.getSubscriptionById as any).mockResolvedValue({
+        id: "sub-123",
+        subscriptionType: "author",
+        filenameTemplate: null,
+      });
+      await updateSubscription(req as Request, res as Response);
+      expect(subscriptionService.updateSubscriptionSettings).toHaveBeenCalledWith(
+        "sub-123",
+        { filenameTemplate: "{{ title }}.{{ ext }}" }
+      );
+    });
+
+    it("updateSubscription clears filenameTemplate to null", async () => {
+      req.params = { id: "sub-123" };
+      req.body = { filenameTemplate: "   " };
+      (subscriptionService.getSubscriptionById as any).mockResolvedValue({
+        id: "sub-123",
+        subscriptionType: "author",
+        filenameTemplate: "{{ title }}.{{ ext }}",
+      });
+      await updateSubscription(req as Request, res as Response);
+      expect(subscriptionService.updateSubscriptionSettings).toHaveBeenCalledWith(
+        "sub-123",
+        { filenameTemplate: null }
+      );
+    });
+
+    it("updateSubscription rejects an invalid filenameTemplate", async () => {
+      req.params = { id: "sub-123" };
+      req.body = { filenameTemplate: "no-extension-placeholder" };
+      (subscriptionService.getSubscriptionById as any).mockResolvedValue({
+        id: "sub-123",
+        subscriptionType: "author",
+        filenameTemplate: null,
+      });
+      await expect(updateSubscription(req as Request, res as Response)).rejects.toThrow(
+        ValidationError
+      );
+      expect(subscriptionService.updateSubscriptionSettings).not.toHaveBeenCalled();
+    });
+
+    it("updateSubscription keeps the normal not-found error for overrides", async () => {
+      req.params = { id: "missing-subscription" };
+      req.body = { filenameTemplate: "{{ title }}.{{ ext }}" };
+      (subscriptionService.getSubscriptionById as any).mockResolvedValue(null);
+
+      await expect(
+        updateSubscription(req as Request, res as Response)
+      ).rejects.toBeInstanceOf(NotFoundError);
+    });
   });
 });

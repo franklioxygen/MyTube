@@ -176,6 +176,13 @@
       "when": 1783898448220,
       "tag": "0024_subscription_ytdlp_config",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "6",
+      "when": 1784232552045,
+      "tag": "0025_subscription_filename_template",
+      "breakpoints": true
     }
   ]
 }

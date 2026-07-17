@@ -317,6 +317,20 @@ function migrateCollectionsAndSubscriptionsColumns(): void {
       logger.info("Migration successful: ytdlp_config added.");
     }
 
+    // Per-subscription filename-template override (issue #368). Self-heal in
+    // case drizzle aborted its batch before applying 0025 on an existing install.
+    if (!subscriptionsColumns.includes("filename_template")) {
+      logger.info(
+        "Migrating database: Adding filename_template column to subscriptions table..."
+      );
+      sqlite
+        .prepare(
+          "ALTER TABLE subscriptions ADD COLUMN filename_template TEXT"
+        )
+        .run();
+      logger.info("Migration successful: filename_template added.");
+    }
+
     sqlite
       .prepare(
         `

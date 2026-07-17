@@ -1063,6 +1063,23 @@ export const fr = {
   ytdlpConfigOverrideUpdated: "Surcharge yt-dlp mise à jour",
   ytdlpConfigOverrideUpdateFailed: "Échec de la mise à jour de la surcharge yt-dlp",
 
+  // Per-subscription filename-template override (issue #368)
+  subscriptionFilenameTemplate: "Surcharge du modèle de nom de fichier",
+  subscriptionFilenameTemplateHelp:
+    "Modèle de nom de fichier appliqué uniquement aux téléchargements de cet abonnement. Utilise la même syntaxe et les mêmes variables que Paramètres → Nommage des fichiers. Laisser vide pour utiliser le paramètre global de nommage des fichiers.",
+  subscriptionFilenameTemplateInherit:
+    "Laisser vide pour hériter du paramètre global de nommage des fichiers.",
+  subscriptionFilenameTemplatePlaceholder:
+    "{{ source_custom_name }}/{{ title }}.{{ ext }}",
+  subscriptionFilenameTemplatePreview: "Aperçu",
+  subscriptionFilenameTemplateFutureOnly:
+    "Les modifications affectent les téléchargements futurs. Les fichiers existants ne sont pas renommés.",
+  editSubscriptionFilenameTemplate: "Modifier la surcharge du modèle de nom de fichier",
+  subscriptionFilenameTemplateCustom: "Modèle de nom de fichier personnalisé",
+  subscriptionFilenameTemplateUpdated: "Surcharge du modèle de nom de fichier mise à jour",
+  subscriptionFilenameTemplateUpdateFailed:
+    "Échec de la mise à jour de la surcharge du modèle de nom de fichier",
+
   // Subscription Pause/Resume
   pause: "Pause",
   resume: "Reprendre",

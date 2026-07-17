@@ -83,6 +83,7 @@ describe("subscription channelPlaylists", () => {
       "ChannelName",
       "YouTube",
       expect.any(String),
+      null,
     );
   });
 

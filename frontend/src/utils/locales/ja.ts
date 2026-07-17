@@ -1046,6 +1046,23 @@ export const ja = {
   ytdlpConfigOverrideUpdated: "yt-dlp の上書きを更新しました",
   ytdlpConfigOverrideUpdateFailed: "yt-dlp の上書きの更新に失敗しました",
 
+  // Per-subscription filename-template override (issue #368)
+  subscriptionFilenameTemplate: "ファイル名テンプレートの上書き",
+  subscriptionFilenameTemplateHelp:
+    "この購読からのダウンロードにのみ適用されるファイル名テンプレート。設定 → ファイル名付けと同じ構文と変数を使用します。空欄の場合はグローバルのファイル名付け設定を使用します。",
+  subscriptionFilenameTemplateInherit:
+    "空欄の場合はグローバルのファイル名付け設定を継承します。",
+  subscriptionFilenameTemplatePlaceholder:
+    "{{ source_custom_name }}/{{ title }}.{{ ext }}",
+  subscriptionFilenameTemplatePreview: "プレビュー",
+  subscriptionFilenameTemplateFutureOnly:
+    "変更は今後のダウンロードにのみ適用されます。既存のファイルは名前変更されません。",
+  editSubscriptionFilenameTemplate: "ファイル名テンプレートの上書きを編集",
+  subscriptionFilenameTemplateCustom: "カスタムファイル名テンプレート",
+  subscriptionFilenameTemplateUpdated: "ファイル名テンプレートの上書きを更新しました",
+  subscriptionFilenameTemplateUpdateFailed:
+    "ファイル名テンプレートの上書きの更新に失敗しました",
+
   // Subscription Pause/Resume
   pause: "一時停止",
   resume: "再開",

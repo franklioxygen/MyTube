@@ -506,7 +506,8 @@ describe('SubscriptionService', () => {
         'pl-1',             // playlistId
         'User',             // channelName
         'YouTube',          // platform
-        expect.any(String)  // playlist watchers always create a collection now
+        expect.any(String), // playlist watchers always create a collection now
+        null                // watcher filenameTemplate override (issue #368)
       );
 
       expect(storageService.saveCollection).toHaveBeenCalled();
@@ -944,7 +945,8 @@ describe('SubscriptionService', () => {
         'PL123',
         'Watcher Name',
         'YouTube',
-        expect.any(String)
+        expect.any(String),
+        null
       );
       subscribeSpy.mockRestore();
     });

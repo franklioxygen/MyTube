@@ -13,13 +13,25 @@ import {
 import { useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import DialogHeader from './DialogHeader';
+import SubscriptionFilenameTemplateField from './SubscriptionFilenameTemplateField';
+
+/**
+ * Structured subscribe payload shared with DownloadContext. Mirrors the
+ * companion playlist-subscribe-only design's PlaylistSubscribeInfo so both
+ * features can be carried in one object.
+ */
+export interface PlaylistSubscribeInfo {
+    interval: number;
+    downloadAll: boolean;
+    filenameTemplate: string | null;
+}
 
 interface BilibiliPartsModalProps {
     isOpen: boolean;
     onClose: () => void;
     videosNumber: number;
     videoTitle: string;
-    onDownloadAll: (collectionName: string, subscribeInfo?: { interval: number }) => void;
+    onDownloadAll: (collectionName: string, subscribeInfo?: PlaylistSubscribeInfo) => void;
     onDownloadCurrent: () => void;
     isLoading: boolean;
     type?: 'parts' | 'collection' | 'series' | 'playlist';
@@ -39,9 +51,17 @@ const BilibiliPartsModal: React.FC<BilibiliPartsModalProps> = ({
     const [collectionName, setCollectionName] = useState<string>('');
     const [subscribeToPlaylist, setSubscribeToPlaylist] = useState<boolean>(false);
     const [subscriptionInterval, setSubscriptionInterval] = useState<number>(60);
+    const [filenameTemplate, setFilenameTemplate] = useState<string>('');
+    const [isTemplateValid, setIsTemplateValid] = useState<boolean>(true);
 
     const handleDownloadAll = () => {
-        const subscribeInfo = subscribeToPlaylist ? { interval: subscriptionInterval } : undefined;
+        const subscribeInfo: PlaylistSubscribeInfo | undefined = subscribeToPlaylist
+            ? {
+                  interval: subscriptionInterval,
+                  downloadAll: true,
+                  filenameTemplate: filenameTemplate.trim() || null,
+              }
+            : undefined;
         onDownloadAll(collectionName || videoTitle, subscribeInfo);
     };
 
@@ -170,6 +190,15 @@ const BilibiliPartsModal: React.FC<BilibiliPartsModalProps> = ({
                                     helperText={t('subscribePlaylistDescription')}
                                     sx={{ width: 200 }}
                                 />
+                                <Box sx={{ mt: 2 }}>
+                                    <SubscriptionFilenameTemplateField
+                                        value={filenameTemplate}
+                                        onChange={setFilenameTemplate}
+                                        sourceCollectionType="playlist"
+                                        disabled={isLoading}
+                                        onValidityChange={setIsTemplateValid}
+                                    />
+                                </Box>
                             </Box>
                         )}
                     </Box>
@@ -190,13 +219,14 @@ const BilibiliPartsModal: React.FC<BilibiliPartsModalProps> = ({
                 </Button>
                 <Button
                     onClick={handleDownloadAll}
+                    disabled={(subscribeToPlaylist && !isTemplateValid) || isLoading}
                     loading={isLoading}
                     loadingPosition="start"
                     variant="contained"
                     color="primary"
                 >
                     {subscribeToPlaylist && (type === 'playlist' || type === 'collection' || type === 'series')
-                        ? t('downloadAndSubscribe') 
+                        ? t('downloadAndSubscribe')
                         : getDownloadAllButtonText()}
                 </Button>
             </DialogActions>

@@ -75,7 +75,8 @@ export class SubscriptionService {
     interval: number,
     providedAuthorName?: string,
     downloadShorts: boolean = false,
-    ytdlpConfig?: string | null
+    ytdlpConfig?: string | null,
+    filenameTemplate?: string | null
   ): Promise<Subscription> {
     // Detect platform and validate URL
     let platform: string;
@@ -205,6 +206,7 @@ export class SubscriptionService {
       twitchBroadcasterLogin,
       lastTwitchVideoId,
       ytdlpConfig: ytdlpConfig ?? null,
+      filenameTemplate: filenameTemplate ?? null,
     };
 
     await db.insert(subscriptions).values(newSubscription);
@@ -221,7 +223,8 @@ export class SubscriptionService {
     playlistId: string,
     author: string,
     platform: string,
-    collectionId: string | null
+    collectionId: string | null,
+    filenameTemplate?: string | null
   ): Promise<Subscription> {
     // Check if already subscribed to this playlist
     const existing = await db
@@ -251,6 +254,7 @@ export class SubscriptionService {
       channelName: author,
       subscriptionType: "playlist",
       collectionId: collectionId || undefined,
+      filenameTemplate: filenameTemplate ?? null,
     };
 
     await db.insert(subscriptions).values(newSubscription);
@@ -265,7 +269,8 @@ export class SubscriptionService {
     channelUrl: string,
     interval: number,
     channelName: string,
-    platform: string
+    platform: string,
+    filenameTemplate?: string | null
   ): Promise<Subscription> {
     // Check if watcher already exists
     const existing = await db
@@ -290,6 +295,7 @@ export class SubscriptionService {
       platform,
       paused: 0,
       subscriptionType: "channel_playlists",
+      filenameTemplate: filenameTemplate ?? null,
     };
 
     await db.insert(subscriptions).values(newSubscription);
@@ -310,7 +316,7 @@ export class SubscriptionService {
   async checkChannelPlaylists(sub: Subscription): Promise<number> {
     return checkChannelPlaylistsForWatcher(sub, {
       listSubscriptions: () => this.listSubscriptions(),
-      subscribePlaylist: (playlistUrl, interval, title, playlistId, channelName, platform, collectionId) =>
+      subscribePlaylist: (playlistUrl, interval, title, playlistId, channelName, platform, collectionId, filenameTemplate) =>
         this.subscribePlaylist(
           playlistUrl,
           interval,
@@ -318,7 +324,8 @@ export class SubscriptionService {
           playlistId,
           channelName,
           platform,
-          collectionId
+          collectionId,
+          filenameTemplate
         ),
     });
   }
@@ -391,6 +398,7 @@ export class SubscriptionService {
       interval?: number;
       retentionDays?: number | null;
       ytdlpConfig?: string | null;
+      filenameTemplate?: string | null;
     }
   ): Promise<void> {
     if (Object.keys(updates).length === 0) {
@@ -992,7 +1000,10 @@ export class SubscriptionService {
               registerCancel,
               undefined,
               buildFilenameTemplateSourceOptions(sub),
-              { subscriptionYtdlpConfig: sub.ytdlpConfig }
+              {
+                subscriptionYtdlpConfig: sub.ytdlpConfig,
+                subscriptionFilenameTemplate: sub.filenameTemplate,
+              }
             )
           : downloadYouTubeVideo(videoUrl, {
               downloadId: downloadTaskId,
@@ -1000,6 +1011,7 @@ export class SubscriptionService {
               filenameTemplateSourceOptions:
                 buildFilenameTemplateSourceOptions(sub),
               subscriptionYtdlpConfig: sub.ytdlpConfig,
+              subscriptionFilenameTemplate: sub.filenameTemplate,
             }),
       downloadTaskId,
       initialTitle,

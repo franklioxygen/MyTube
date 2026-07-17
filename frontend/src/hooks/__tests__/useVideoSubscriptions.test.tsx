@@ -115,7 +115,7 @@ describe("useVideoSubscriptions", () => {
     });
 
     await act(async () => {
-      await result.current.handleSubscribeConfirm(60, true, false, "viewsDesc");
+      await result.current.handleSubscribeConfirm({ interval: 60, downloadAllPrevious: true, downloadShorts: false, downloadOrder: "viewsDesc", filenameTemplate: null });
     });
 
     expect(mockApiPost).toHaveBeenCalledWith(
@@ -144,7 +144,7 @@ describe("useVideoSubscriptions", () => {
     });
 
     await act(async () => {
-      await result.current.handleSubscribeConfirm(30, false, true, "viewsAsc");
+      await result.current.handleSubscribeConfirm({ interval: 30, downloadAllPrevious: false, downloadShorts: true, downloadOrder: "viewsAsc", filenameTemplate: null });
     });
 
     const payload = mockApiPost.mock.calls[0][1];
@@ -353,7 +353,7 @@ describe("useVideoSubscriptions", () => {
     });
 
     await act(async () => {
-      await result.current.handleSubscribeConfirm(30, false, false, "viewsDesc");
+      await result.current.handleSubscribeConfirm({ interval: 30, downloadAllPrevious: false, downloadShorts: false, downloadOrder: "viewsDesc", filenameTemplate: null });
     });
 
     expect(mockShowSnackbar).toHaveBeenCalledWith(
@@ -376,7 +376,7 @@ describe("useVideoSubscriptions", () => {
     });
 
     await act(async () => {
-      await result.current.handleSubscribeConfirm(30, true, false, "viewsDesc");
+      await result.current.handleSubscribeConfirm({ interval: 30, downloadAllPrevious: true, downloadShorts: false, downloadOrder: "viewsDesc", filenameTemplate: null });
     });
 
     expect(mockShowSnackbar).toHaveBeenCalledWith("error", "error");
@@ -412,7 +412,7 @@ describe("useVideoSubscriptions", () => {
     });
 
     await act(async () => {
-      await result.current.handleSubscribeConfirm(30, false, false, "dateDesc");
+      await result.current.handleSubscribeConfirm({ interval: 30, downloadAllPrevious: false, downloadShorts: false, downloadOrder: "dateDesc", filenameTemplate: null });
     });
 
     expect(mockShowSnackbar).toHaveBeenCalledWith(
@@ -427,7 +427,7 @@ describe("useVideoSubscriptions", () => {
     });
 
     await act(async () => {
-      await result.current.handleSubscribeConfirm(30, true, true, "viewsAsc");
+      await result.current.handleSubscribeConfirm({ interval: 30, downloadAllPrevious: true, downloadShorts: true, downloadOrder: "viewsAsc", filenameTemplate: null });
     });
 
     expect(mockApiPost).not.toHaveBeenCalled();

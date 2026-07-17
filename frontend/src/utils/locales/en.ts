@@ -1028,6 +1028,23 @@ export const en = {
   ytdlpConfigOverrideUpdated: "yt-dlp override updated",
   ytdlpConfigOverrideUpdateFailed: "Failed to update yt-dlp override",
 
+  // Per-subscription filename-template override (issue #368)
+  subscriptionFilenameTemplate: "Filename template override",
+  subscriptionFilenameTemplateHelp:
+    "Filename template applied only to downloads from this subscription. Uses the same syntax and variables as Settings → File Naming. Leave empty to use the global filename naming setting.",
+  subscriptionFilenameTemplateInherit:
+    "Leave empty to inherit the global filename naming setting.",
+  subscriptionFilenameTemplatePlaceholder:
+    "{{ source_custom_name }}/{{ title }}.{{ ext }}",
+  subscriptionFilenameTemplatePreview: "Preview",
+  subscriptionFilenameTemplateFutureOnly:
+    "Changes affect future downloads. Existing files are not renamed.",
+  editSubscriptionFilenameTemplate: "Edit filename template override",
+  subscriptionFilenameTemplateCustom: "Custom filename template",
+  subscriptionFilenameTemplateUpdated: "Filename template override updated",
+  subscriptionFilenameTemplateUpdateFailed:
+    "Failed to update filename template override",
+
   // Subscription Pause/Resume
   pause: "Pause",
   resume: "Resume",

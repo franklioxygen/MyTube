@@ -24,6 +24,7 @@ export interface ChannelPlaylistDeps {
     channelName: string,
     platform: string,
     collectionId: string | null,
+    filenameTemplate?: string | null,
   ) => Promise<unknown>;
 }
 
@@ -117,7 +118,10 @@ export async function checkChannelPlaylistsForWatcher(
       const playlistId = entry.id ?? extractYouTubePlaylistId(playlistUrl);
 
       try {
-        // Subscribe to the new playlist
+        // Subscribe to the new playlist. Copy the watcher's filename-template
+        // override onto the child subscription (issue #368). Editing the watcher
+        // later only affects playlists discovered after the edit; existing child
+        // subscriptions remain independently editable.
         await deps.subscribePlaylist(
           playlistUrl,
           sub.interval, // Use same interval as watcher
@@ -125,7 +129,8 @@ export async function checkChannelPlaylistsForWatcher(
           playlistId || "",
           channelName,
           sub.platform,
-          collectionId
+          collectionId,
+          sub.filenameTemplate ?? null,
         );
         subscribedUrls.add(playlistUrl);
         newSubscriptionsCount++;
