@@ -914,6 +914,13 @@ export const subscribeChannelPlaylists = async (
 
     let createdSubscriptionId = candidate.existingSubscription?.id;
     let taskCollectionId = candidate.existingSubscription?.collectionId;
+    const resolveTaskCollectionId = (): string => {
+      const collectionResolution = resolveChannelPlaylistCollectionWithStatus(
+        candidate.title,
+        channelName
+      );
+      return collectionResolution.collection.id;
+    };
 
     if (!candidate.existingSubscription) {
       // Resolve/create collection only after a successful baseline.
@@ -1000,6 +1007,9 @@ export const subscribeChannelPlaylists = async (
             `Skipping download task creation for playlist "${candidate.title}": task already exists`
           );
         } else {
+          if (!taskCollectionId) {
+            taskCollectionId = resolveTaskCollectionId();
+          }
           // Link to the subscription created/known by this request. An existing
           // candidate came from phase one, and a raced duplicate above resolved
           // its exact current row.

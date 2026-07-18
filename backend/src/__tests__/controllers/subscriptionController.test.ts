@@ -1107,6 +1107,58 @@ describe("SubscriptionController", () => {
       );
     });
 
+    it("resolves a collection for already subscribed playlist backfill when the row has none", async () => {
+      req.body = {
+        url: "https://www.youtube.com/@channel",
+        interval: 60,
+        downloadAllPrevious: true,
+      };
+      (executeYtDlpJson as any)
+        .mockResolvedValueOnce({
+          uploader: "My Channel",
+          entries: [
+            {
+              id: "PL_LEGACY",
+              url: "https://www.youtube.com/playlist?list=PL_LEGACY",
+              title: "Legacy Playlist",
+            },
+          ],
+        })
+        .mockResolvedValueOnce({
+          _type: "playlist",
+          entries: [{ id: "legacyHead" }],
+        });
+      (subscriptionService.listSubscriptions as any).mockResolvedValue([
+        {
+          id: "legacy-sub",
+          authorUrl: "https://www.youtube.com/playlist?list=PL_LEGACY",
+          collectionId: null,
+        },
+      ]);
+      (storageService.getCollectionByName as any).mockReturnValue({
+        id: "resolved-legacy-col",
+        name: "Legacy Playlist - My Channel",
+      });
+      (continuousDownloadService.getTaskByAuthorUrl as any).mockResolvedValue(null);
+      (continuousDownloadService.createPlaylistTask as any).mockResolvedValue({
+        id: "legacy-backfill-task",
+      });
+
+      await subscribeChannelPlaylists(req as Request, res as Response);
+
+      expect(subscriptionService.subscribePlaylist).not.toHaveBeenCalled();
+      expect(storageService.getCollectionByName).toHaveBeenCalledWith(
+        "Legacy Playlist - My Channel"
+      );
+      expect(continuousDownloadService.createPlaylistTask).toHaveBeenCalledWith(
+        "https://www.youtube.com/playlist?list=PL_LEGACY",
+        "My Channel",
+        "YouTube",
+        "resolved-legacy-col",
+        "legacy-sub"
+      );
+    });
+
     it("counts a failed baseline probe as an error, not a skip", async () => {
       req.body = {
         url: "https://www.youtube.com/@channel",
