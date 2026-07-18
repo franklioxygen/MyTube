@@ -279,8 +279,24 @@ export class SubscriptionService {
       .where(eq(subscriptions.authorUrl, channelUrl));
 
     if (existing.length > 0) {
+      const existingSubscription = existing[0] as unknown as Subscription;
+      if (
+        filenameTemplate !== undefined &&
+        (existingSubscription.filenameTemplate ?? null) !== filenameTemplate
+      ) {
+        await db
+          .update(subscriptions)
+          .set({ filenameTemplate })
+          .where(eq(subscriptions.id, existingSubscription.id));
+
+        return {
+          ...existingSubscription,
+          filenameTemplate,
+        };
+      }
+
       // If it exists, just return it (idempotent)
-      return existing[0] as unknown as Subscription;
+      return existingSubscription;
     }
 
     const newSubscription: Subscription = {
