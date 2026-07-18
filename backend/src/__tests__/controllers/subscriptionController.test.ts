@@ -900,6 +900,59 @@ describe("SubscriptionController", () => {
       expect(storageService.saveCollection).not.toHaveBeenCalled();
     });
 
+    it("queues backfill for a direct duplicate when downloadAll is true", async () => {
+      req.body = {
+        playlistUrl: "https://www.youtube.com/playlist?list=PL123",
+        interval: 60,
+        collectionName: "My Playlist",
+        downloadAll: true,
+      };
+      const existingSubscription = {
+        id: "existing-sub",
+        authorUrl: "https://www.youtube.com/playlist?list=PL123",
+        collectionId: "existing-col",
+      };
+      (subscriptionService.listSubscriptions as any).mockResolvedValue([
+        existingSubscription,
+      ]);
+      (executeYtDlpJson as any).mockResolvedValue({
+        _type: "playlist",
+        title: "Playlist Title",
+        id: "PL123",
+        playlist_count: 12,
+        entries: [{ id: "vidA", uploader: "Uploader Name" }],
+      });
+      (storageService.getCollectionById as any).mockReturnValue({
+        id: "existing-col",
+        name: "My Playlist",
+      });
+      (continuousDownloadService.createPlaylistTask as any).mockResolvedValue({
+        id: "task-existing",
+      });
+
+      await createPlaylistSubscription(req as Request, res as Response);
+
+      expect(subscriptionService.subscribePlaylist).not.toHaveBeenCalled();
+      expect(storageService.getCollectionByName).not.toHaveBeenCalled();
+      expect(continuousDownloadService.createPlaylistTask).toHaveBeenCalledWith(
+        "https://www.youtube.com/playlist?list=PL123",
+        "Uploader Name",
+        "YouTube",
+        "existing-col",
+        "existing-sub"
+      );
+      expect(status).toHaveBeenCalledWith(201);
+      expect(json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          subscription: existingSubscription,
+          collectionId: "existing-col",
+          taskId: "task-existing",
+          downloadAll: true,
+          backfillStatus: "started",
+        })
+      );
+    });
+
     it("removes a fresh empty collection when subscription insertion fails", async () => {
       req.body = {
         playlistUrl: "https://www.youtube.com/playlist?list=PL123",

@@ -564,7 +564,7 @@ export const clearFinishedTasks = async (
  * Baseline-first sequencing (design §7.1 / §7.3 / §7.5):
  *   1. Parse + validate scalar request values.
  *   2. Normalize/detect platform and playlist ID.
- *   3. Reject a duplicate subscription before any persistent side effect.
+ *   3. Reject subscribe-only duplicates before any persistent side effect.
  *   4. Inspect playlist metadata and capture the current head as baseline.
  *   5. Resolve/create the destination collection.
  *   6. Insert the subscription with the captured head + observation time.
@@ -632,9 +632,14 @@ export const createPlaylistSubscription = async (
     }
   }
 
-  // 3. Early duplicate rejection before any persistent side effect (design §7.3).
+  // 3. Early subscribe-only duplicate rejection before any persistent side
+  //    effect (design §7.3). With downloadAll=true, a duplicate request is a
+  //    request to queue historical backfill for the existing subscription.
   const preExisting = await subscriptionService.listSubscriptions();
-  if (preExisting.some((sub) => sub.authorUrl === playlistUrl)) {
+  const existingSubscription = preExisting.find(
+    (sub) => sub.authorUrl === playlistUrl
+  );
+  if (existingSubscription && !downloadAll) {
     throw DuplicateError.subscription();
   }
 
@@ -673,7 +678,22 @@ export const createPlaylistSubscription = async (
   // 5. Resolve/create the destination collection immediately before inserting
   //    the subscription (design §7.3). Subscribe-only still creates/resolves
   //    one so later scheduled downloads can be grouped (design §3.6).
-  const collectionResolution = resolvePlaylistCollectionWithStatus(collectionName);
+  let collectionResolution: ReturnType<typeof resolvePlaylistCollectionWithStatus>;
+  if (existingSubscription?.collectionId) {
+    const existingCollection = storageService.getCollectionById(
+      existingSubscription.collectionId
+    );
+    if (existingCollection) {
+      collectionResolution = { collection: existingCollection, created: false };
+    } else {
+      logger.warn(
+        `Playlist subscription ${existingSubscription.id} references missing collection ${existingSubscription.collectionId}; resolving "${collectionName}" for backfill`
+      );
+      collectionResolution = resolvePlaylistCollectionWithStatus(collectionName);
+    }
+  } else {
+    collectionResolution = resolvePlaylistCollectionWithStatus(collectionName);
+  }
   const collection = collectionResolution.collection;
   if (
     isBilibiliCollectionOrSeries &&
@@ -697,27 +717,29 @@ export const createPlaylistSubscription = async (
     initialHeadVideoUrl: inspection.headVideoUrl,
     baselineObservedAt: inspection.observedAt,
   };
-  let subscription;
-  try {
-    subscription = await subscriptionService.subscribePlaylist(subscribeOptions);
-  } catch (error) {
-    // The collection write is outside the subscription database transaction.
-    // Clean up only a collection that this request created and can still prove
-    // is empty and unreferenced (design §7.3).
+  let subscription = existingSubscription;
+  if (!subscription) {
     try {
-      await deleteCreatedCollectionIfUnused(
-        collectionResolution,
-        () => subscriptionService.listSubscriptions()
-      );
-    } catch (cleanupError) {
-      logger.error(
-        "Failed to clean up collection after playlist subscription insertion failed",
-        cleanupError instanceof Error
-          ? cleanupError
-          : new Error(String(cleanupError))
-      );
+      subscription = await subscriptionService.subscribePlaylist(subscribeOptions);
+    } catch (error) {
+      // The collection write is outside the subscription database transaction.
+      // Clean up only a collection that this request created and can still prove
+      // is empty and unreferenced (design §7.3).
+      try {
+        await deleteCreatedCollectionIfUnused(
+          collectionResolution,
+          () => subscriptionService.listSubscriptions()
+        );
+      } catch (cleanupError) {
+        logger.error(
+          "Failed to clean up collection after playlist subscription insertion failed",
+          cleanupError instanceof Error
+            ? cleanupError
+            : new Error(String(cleanupError))
+        );
+      }
+      throw error;
     }
-    throw error;
   }
 
   // 7. Optionally create a linked historical task (design §7.1 / §7.4).
