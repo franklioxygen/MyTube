@@ -14,6 +14,77 @@ export interface ResolvedPlaylistCollection {
   created: boolean;
 }
 
+export type BilibiliPlaylistCollectionSource = {
+  type: "collection" | "series";
+  id: number;
+  mid: number;
+};
+
+type BilibiliSourceKey = {
+  sourcePlatform: "bilibili";
+  sourceType: "collection" | "series";
+  sourceMid: string;
+  sourceId: string;
+};
+
+function toBilibiliSourceKey(
+  source: BilibiliPlaylistCollectionSource
+): BilibiliSourceKey {
+  return {
+    sourcePlatform: "bilibili",
+    sourceType: source.type,
+    sourceMid: String(source.mid),
+    sourceId: String(source.id),
+  };
+}
+
+const collectionHasSourceKey = (collection: Collection): boolean =>
+  Boolean(
+    collection.sourcePlatform ||
+      collection.sourceType ||
+      collection.sourceMid ||
+      collection.sourceId
+  );
+
+const collectionMatchesSourceKey = (
+  collection: Collection,
+  sourceKey: BilibiliSourceKey
+): boolean =>
+  collection.sourcePlatform === sourceKey.sourcePlatform &&
+  collection.sourceType === sourceKey.sourceType &&
+  collection.sourceMid === sourceKey.sourceMid &&
+  collection.sourceId === sourceKey.sourceId;
+
+function createEmptyCollection(
+  collectionName: string,
+  extra: Partial<Collection> = {}
+): Collection {
+  const uniqueCollectionName =
+    storageService.generateUniqueCollectionName(collectionName);
+  const collection = {
+    id: uuidv4(),
+    name: uniqueCollectionName,
+    videos: [],
+    createdAt: new Date().toISOString(),
+    title: uniqueCollectionName,
+    ...extra,
+  };
+  storageService.saveCollection(collection);
+  logger.info(
+    `Created collection "${uniqueCollectionName}" with ID ${collection.id}`
+  );
+  return collection;
+}
+
+function saveCollectionSourceKey(
+  collection: Collection,
+  sourceKey: BilibiliSourceKey
+): Collection {
+  const updatedCollection = { ...collection, ...sourceKey };
+  storageService.saveCollection(updatedCollection);
+  return updatedCollection;
+}
+
 /**
  * Extract a YouTube playlist id (`list=` param) from a URL, or null if absent.
  */
@@ -40,22 +111,7 @@ export function resolvePlaylistCollectionWithStatus(
   let collection = storageService.getCollectionByName(collectionName);
 
   if (!collection) {
-    const uniqueCollectionName =
-      storageService.generateUniqueCollectionName(collectionName);
-    collection = {
-      // Channel-playlist bulk creation can create several collections inside
-      // the same millisecond. A UUID keeps those sequential storage writes
-      // collision-free instead of relying on Date.now() uniqueness.
-      id: uuidv4(),
-      name: uniqueCollectionName,
-      videos: [],
-      createdAt: new Date().toISOString(),
-      title: uniqueCollectionName,
-    };
-    storageService.saveCollection(collection);
-    logger.info(
-      `Created collection "${uniqueCollectionName}" with ID ${collection.id}`
-    );
+    collection = createEmptyCollection(collectionName);
     return { collection, created: true };
   } else {
     logger.info(
@@ -63,6 +119,55 @@ export function resolvePlaylistCollectionWithStatus(
     );
     return { collection, created: false };
   }
+}
+
+/**
+ * Resolve a Bilibili collection/series destination without linking the
+ * subscription to a same-named collection that belongs to another source key.
+ */
+export function resolveBilibiliPlaylistCollectionWithStatus(
+  collectionName: string,
+  source: BilibiliPlaylistCollectionSource
+): ResolvedPlaylistCollection {
+  const sourceKey = toBilibiliSourceKey(source);
+  const sourceMatchedCollection = storageService.getCollectionBySourceKey(
+    sourceKey.sourcePlatform,
+    sourceKey.sourceType,
+    sourceKey.sourceMid,
+    sourceKey.sourceId
+  );
+
+  if (sourceMatchedCollection) {
+    logger.info(
+      `Using existing Bilibili collection "${sourceMatchedCollection.name}" with ID ${sourceMatchedCollection.id}`
+    );
+    return { collection: sourceMatchedCollection, created: false };
+  }
+
+  const namedCollection = storageService.getCollectionByName(collectionName);
+  if (!namedCollection) {
+    const collection = createEmptyCollection(collectionName, sourceKey);
+    return { collection, created: true };
+  }
+
+  if (
+    !collectionHasSourceKey(namedCollection) ||
+    collectionMatchesSourceKey(namedCollection, sourceKey)
+  ) {
+    const collection = collectionMatchesSourceKey(namedCollection, sourceKey)
+      ? namedCollection
+      : saveCollectionSourceKey(namedCollection, sourceKey);
+    logger.info(
+      `Using existing Bilibili collection "${collection.name}" with ID ${collection.id}`
+    );
+    return { collection, created: false };
+  }
+
+  logger.warn(
+    `Collection "${collectionName}" already belongs to another Bilibili source; creating a separate destination`
+  );
+  const collection = createEmptyCollection(collectionName, sourceKey);
+  return { collection, created: true };
 }
 
 /**

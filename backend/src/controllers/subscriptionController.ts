@@ -31,6 +31,7 @@ import {
     deriveChannelName,
     deleteCreatedCollectionIfUnused,
     extractYouTubePlaylistId,
+    resolveBilibiliPlaylistCollectionWithStatus,
     resolveChannelPlaylistCollectionWithStatus,
     resolvePlaylistCollectionWithStatus,
     sanitizePlaylistTitle,
@@ -123,6 +124,16 @@ const BLOCKING_BACKFILL_TASK_STATUSES = new Set(["active", "paused"]);
 const isBlockingBackfillTask = (task: { status?: string }): boolean =>
   BLOCKING_BACKFILL_TASK_STATUSES.has(task.status ?? "");
 
+const isReusableBackfillTask = (
+  task: { status?: string; subscriptionId?: string | null; collectionId?: string | null },
+  subscriptionId: string | undefined,
+  collectionId: string
+): boolean =>
+  isBlockingBackfillTask(task) &&
+  Boolean(subscriptionId) &&
+  task.subscriptionId === subscriptionId &&
+  task.collectionId === collectionId;
+
 /**
  * Strictly parse the `downloadAll` request value (design §11.1).
  *
@@ -191,7 +202,7 @@ function parseBilibiliCollectionInfo(
 function saveBilibiliCollectionSourceIfCompatible(
   collection: storageService.Collection,
   source: { type: "collection" | "series"; id: number; mid: number }
-): void {
+): storageService.Collection | null {
   const sourceKey = {
     sourcePlatform: "bilibili",
     sourceType: source.type,
@@ -210,9 +221,15 @@ function saveBilibiliCollectionSourceIfCompatible(
     collection.sourceMid === sourceKey.sourceMid &&
     collection.sourceId === sourceKey.sourceId;
 
-  if (!hasSourceKey || matchesSourceKey) {
-    storageService.saveCollection({ ...collection, ...sourceKey });
+  if (matchesSourceKey) {
+    return collection;
   }
+  if (!hasSourceKey) {
+    const updatedCollection = { ...collection, ...sourceKey };
+    storageService.saveCollection(updatedCollection);
+    return updatedCollection;
+  }
+  return null;
 }
 
 function hasBilibiliCollectionSource(
@@ -684,32 +701,47 @@ export const createPlaylistSubscription = async (
   // 5. Resolve/create the destination collection immediately before inserting
   //    the subscription (design §7.3). Subscribe-only still creates/resolves
   //    one so later scheduled downloads can be grouped (design §3.6).
+  const bilibiliSource =
+    isBilibiliCollectionOrSeries && hasBilibiliCollectionSource(inspection)
+      ? inspection.bilibiliSource
+      : null;
+  const resolveRequestedCollection = (): ReturnType<
+    typeof resolvePlaylistCollectionWithStatus
+  > =>
+    bilibiliSource
+      ? resolveBilibiliPlaylistCollectionWithStatus(
+          collectionName,
+          bilibiliSource
+        )
+      : resolvePlaylistCollectionWithStatus(collectionName);
+
   let collectionResolution: ReturnType<typeof resolvePlaylistCollectionWithStatus>;
   if (existingSubscription?.collectionId) {
     const existingCollection = storageService.getCollectionById(
       existingSubscription.collectionId
     );
     if (existingCollection) {
-      collectionResolution = { collection: existingCollection, created: false };
+      if (bilibiliSource) {
+        const compatibleCollection = saveBilibiliCollectionSourceIfCompatible(
+          existingCollection,
+          bilibiliSource
+        );
+        collectionResolution = compatibleCollection
+          ? { collection: compatibleCollection, created: false }
+          : resolveRequestedCollection();
+      } else {
+        collectionResolution = { collection: existingCollection, created: false };
+      }
     } else {
       logger.warn(
         `Playlist subscription ${existingSubscription.id} references missing collection ${existingSubscription.collectionId}; resolving "${collectionName}" for backfill`
       );
-      collectionResolution = resolvePlaylistCollectionWithStatus(collectionName);
+      collectionResolution = resolveRequestedCollection();
     }
   } else {
-    collectionResolution = resolvePlaylistCollectionWithStatus(collectionName);
+    collectionResolution = resolveRequestedCollection();
   }
   const collection = collectionResolution.collection;
-  if (
-    isBilibiliCollectionOrSeries &&
-    hasBilibiliCollectionSource(inspection)
-  ) {
-    saveBilibiliCollectionSourceIfCompatible(
-      collection,
-      inspection.bilibiliSource
-    );
-  }
 
   // 6. Insert the subscription with the captured baseline (design §7.2).
   const subscribeOptions: SubscribePlaylistOptions = {
@@ -788,7 +820,10 @@ export const createPlaylistSubscription = async (
     try {
       const existingTask =
         await continuousDownloadService.getTaskByAuthorUrl(playlistUrl);
-      if (existingTask && isBlockingBackfillTask(existingTask)) {
+      if (
+        existingTask &&
+        isReusableBackfillTask(existingTask, subscription.id, collection.id)
+      ) {
         task = { id: existingTask.id };
         backfillStatus = "already_exists";
         logger.info(
@@ -976,12 +1011,52 @@ export const subscribeChannelPlaylists = async (
 
     let createdSubscriptionId = candidate.existingSubscription?.id;
     let taskCollectionId = candidate.existingSubscription?.collectionId;
-    const resolveTaskCollectionId = (): string => {
-      const collectionResolution = resolveChannelPlaylistCollectionWithStatus(
+    let taskCollectionResolution: ReturnType<
+      typeof resolveChannelPlaylistCollectionWithStatus
+    > | null = null;
+    const resolveTaskCollection = (): ReturnType<
+      typeof resolveChannelPlaylistCollectionWithStatus
+    > => {
+      taskCollectionResolution ??= resolveChannelPlaylistCollectionWithStatus(
         candidate.title,
         channelName
       );
-      return collectionResolution.collection.id;
+      return taskCollectionResolution;
+    };
+    const ensureTaskCollectionId = async (): Promise<string> => {
+      if (taskCollectionId) {
+        return taskCollectionId;
+      }
+
+      const collectionResolution = resolveTaskCollection();
+      taskCollectionId = collectionResolution.collection.id;
+
+      if (candidate.existingSubscription?.id) {
+        try {
+          await subscriptionService.updatePlaylistSubscriptionCollection(
+            candidate.existingSubscription.id,
+            taskCollectionId
+          );
+          candidate.existingSubscription.collectionId = taskCollectionId;
+        } catch (error) {
+          try {
+            await deleteCreatedCollectionIfUnused(
+              collectionResolution,
+              () => subscriptionService.listSubscriptions()
+            );
+          } catch (cleanupError) {
+            logger.error(
+              `Failed to clean up collection for playlist "${candidate.title}" after subscription collection update failed:`,
+              cleanupError instanceof Error
+                ? cleanupError
+                : new Error(String(cleanupError))
+            );
+          }
+          throw error;
+        }
+      }
+
+      return taskCollectionId;
     };
 
     if (!candidate.existingSubscription) {
@@ -1061,17 +1136,22 @@ export const subscribeChannelPlaylists = async (
         continue;
       }
       try {
+        const resolvedTaskCollectionId = await ensureTaskCollectionId();
         const existingTask = await continuousDownloadService.getTaskByAuthorUrl(
           candidate.playlistUrl
         );
-        if (existingTask) {
+        if (
+          existingTask &&
+          isReusableBackfillTask(
+            existingTask,
+            createdSubscriptionId,
+            resolvedTaskCollectionId
+          )
+        ) {
           logger.info(
             `Skipping download task creation for playlist "${candidate.title}": task already exists`
           );
         } else {
-          if (!taskCollectionId) {
-            taskCollectionId = resolveTaskCollectionId();
-          }
           // Link to the subscription created/known by this request. An existing
           // candidate came from phase one, and a raced duplicate above resolved
           // its exact current row.
@@ -1079,7 +1159,7 @@ export const subscribeChannelPlaylists = async (
             candidate.playlistUrl,
             channelName,
             platform,
-            taskCollectionId,
+            resolvedTaskCollectionId,
             createdSubscriptionId
           );
           logger.info(

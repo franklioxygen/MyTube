@@ -729,6 +729,48 @@ describe('DownloadContext', () => {
     });
   });
 
+  it('already-existing backfill response triggers status polling for the returned task', async () => {
+    const { wrapper } = createWrapper();
+    const { result } = renderHook(() => useDownload(), { wrapper });
+
+    mockApiGet.mockImplementation((url: string) => {
+      if (url === '/download-status') {
+        return Promise.resolve({ data: { activeDownloads: [], queuedDownloads: [] } });
+      }
+      if (url === '/check-playlist') {
+        return Promise.resolve({ data: { success: true, title: 'PL', videoCount: 8 } });
+      }
+      return Promise.resolve({ data: {} });
+    });
+
+    await act(async () => {
+      await result.current.handleVideoSubmit('https://youtube.com/playlist?list=PL-existing');
+    });
+
+    mockApiPost.mockResolvedValueOnce({
+      data: {
+        subscription: { id: 'sub-3' },
+        collectionId: 'col-3',
+        taskId: 'task-3',
+        downloadAll: true,
+        backfillStatus: 'already_exists',
+      },
+    });
+    mockApiGet.mockClear();
+
+    await act(async () => {
+      await result.current.handlePlaylistDialogConfirm({
+        collectionName: 'My PL',
+        subscribe: { interval: 60, downloadAll: true, filenameTemplate: null },
+      });
+    });
+
+    await waitFor(() => {
+      const getCalls = mockApiGet.mock.calls.map((c: any[]) => c[0]);
+      expect(getCalls).toContain('/download-status');
+    });
+  });
+
   it('opens subscribe modal directly for Bilibili space URLs', async () => {
     const { wrapper } = createWrapper();
     const { result } = renderHook(() => useDownload(), { wrapper });

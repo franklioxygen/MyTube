@@ -531,6 +531,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 const backfillStatus = response.data.backfillStatus as
                     | 'not_requested'
                     | 'started'
+                    | 'already_exists'
                     | 'not_needed_empty'
                     | 'failed'
                     | undefined;
@@ -547,18 +548,20 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 // Only trigger active-download polling when a backfill task was
                 // actually started (design §10.3 / §10.5). A null task must not
                 // imply work is queued.
-                if (backfillStatus === 'started' && taskId) {
+                if ((backfillStatus === 'started' || backfillStatus === 'already_exists') && taskId) {
                     checkBackendDownloadStatus();
                 }
 
                 // Accurate snackbar feedback per backfill outcome (design §10.3).
                 if (backfillStatus === 'started' && taskId) {
                     showSnackbar(t('playlistDownloadAndSubscriptionStarted') || t('playlistSubscribedSuccessfully'));
+                } else if (backfillStatus === 'already_exists' && taskId) {
+                    showSnackbar(t('playlistDownloadAndSubscriptionStarted') || t('playlistSubscribedSuccessfully'));
                 } else if (backfillStatus === 'failed') {
                     // Subscription was created, but history failed to queue.
                     showSnackbar(t('playlistBaselineFailed') || t('playlistSubscribedSuccessfully'), 'warning');
                 } else {
-                    // not_requested, not_needed_empty, or absent => subscribe-only success.
+                    // not_requested, not_needed_empty, already_exists without taskId, or absent => subscribe-only success.
                     showSnackbar(t('playlistSubscribedNewOnly') || t('playlistSubscribedSuccessfully'));
                 }
                 // Close the modal only after a successful response (design §10.7).
