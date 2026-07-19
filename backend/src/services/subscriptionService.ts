@@ -467,6 +467,30 @@ export class SubscriptionService {
     });
   }
 
+  async updatePlaylistSubscriptionCollection(
+    id: string,
+    collectionId: string
+  ): Promise<void> {
+    const updated = await db
+      .update(subscriptions)
+      .set({ collectionId })
+      .where(eq(subscriptions.id, id))
+      .returning({
+        id: subscriptions.id,
+        author: subscriptions.author,
+      });
+
+    if (updated.length === 0) {
+      throw NotFoundError.subscription(id);
+    }
+
+    logger.info("Linked playlist subscription to collection", {
+      subscriptionId: updated[0].id,
+      author: updated[0].author,
+      collectionId,
+    });
+  }
+
   async resumeSubscription(id: string): Promise<void> {
     const existing = await db
       .select()
@@ -1123,11 +1147,15 @@ export class SubscriptionService {
         Boolean(collection?.sourceId || sub.playlistId);
 
       if (hasCollectionSource || extractBilibiliVideoId(sub.authorUrl)) {
-        return getBilibiliCollectionHeadSnapshot(sub.authorUrl, {
-          type: sourceType,
-          mid: collection?.sourceMid,
-          id: collection?.sourceId ?? sub.playlistId,
-        });
+        return getBilibiliCollectionHeadSnapshot(
+          sub.authorUrl,
+          {
+            type: sourceType,
+            mid: collection?.sourceMid,
+            id: collection?.sourceId ?? sub.playlistId,
+          },
+          { headOnly: true }
+        );
       }
     }
 

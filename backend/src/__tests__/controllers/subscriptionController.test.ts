@@ -44,6 +44,7 @@ vi.mock("../../services/subscriptionService", () => ({
     updateSubscriptionSettings: vi.fn(),
     getSubscriptionById: vi.fn(),
     subscribePlaylist: vi.fn(),
+    updatePlaylistSubscriptionCollection: vi.fn(),
     subscribeChannelPlaylistsWatcher: vi.fn(),
   },
 }));
@@ -926,7 +927,9 @@ describe("SubscriptionController", () => {
         id: "existing-col",
         name: "My Playlist",
       });
-      (continuousDownloadService.getTaskByAuthorUrl as any).mockResolvedValue(null);
+      (continuousDownloadService.getTaskByAuthorUrl as any).mockResolvedValue(
+        null
+      );
       (continuousDownloadService.createPlaylistTask as any).mockResolvedValue({
         id: "task-existing",
       });
@@ -952,6 +955,64 @@ describe("SubscriptionController", () => {
           collectionId: "existing-col",
           taskId: "task-existing",
           downloadAll: true,
+          backfillStatus: "started",
+        })
+      );
+    });
+
+    it("links a resolved collection to a legacy direct duplicate before backfill", async () => {
+      req.body = {
+        playlistUrl: "https://www.youtube.com/playlist?list=PL123",
+        interval: 60,
+        collectionName: "My Playlist",
+        downloadAll: true,
+      };
+      const existingSubscription = {
+        id: "legacy-sub",
+        authorUrl: "https://www.youtube.com/playlist?list=PL123",
+        collectionId: null,
+      };
+      (subscriptionService.listSubscriptions as any).mockResolvedValue([
+        existingSubscription,
+      ]);
+      (executeYtDlpJson as any).mockResolvedValue({
+        _type: "playlist",
+        title: "Playlist Title",
+        id: "PL123",
+        playlist_count: 12,
+        entries: [{ id: "vidA", uploader: "Uploader Name" }],
+      });
+      (storageService.getCollectionByName as any).mockReturnValue({
+        id: "resolved-col",
+        name: "My Playlist",
+      });
+      (continuousDownloadService.getTaskByAuthorUrl as any).mockResolvedValue(
+        null
+      );
+      (continuousDownloadService.createPlaylistTask as any).mockResolvedValue({
+        id: "task-legacy",
+      });
+
+      await createPlaylistSubscription(req as Request, res as Response);
+
+      expect(
+        subscriptionService.updatePlaylistSubscriptionCollection
+      ).toHaveBeenCalledWith("legacy-sub", "resolved-col");
+      expect(continuousDownloadService.createPlaylistTask).toHaveBeenCalledWith(
+        "https://www.youtube.com/playlist?list=PL123",
+        "Uploader Name",
+        "YouTube",
+        "resolved-col",
+        "legacy-sub"
+      );
+      expect(json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          subscription: expect.objectContaining({
+            id: "legacy-sub",
+            collectionId: "resolved-col",
+          }),
+          collectionId: "resolved-col",
+          taskId: "task-legacy",
           backfillStatus: "started",
         })
       );
@@ -985,6 +1046,7 @@ describe("SubscriptionController", () => {
       });
       (continuousDownloadService.getTaskByAuthorUrl as any).mockResolvedValue({
         id: "existing-task",
+        status: "active",
       });
 
       await createPlaylistSubscription(req as Request, res as Response);
@@ -998,6 +1060,57 @@ describe("SubscriptionController", () => {
           taskId: "existing-task",
           downloadAll: true,
           backfillStatus: "already_exists",
+        })
+      );
+    });
+
+    it("queues a replacement direct backfill when the previous task is terminal", async () => {
+      req.body = {
+        playlistUrl: "https://www.youtube.com/playlist?list=PL123",
+        interval: 60,
+        collectionName: "My Playlist",
+        downloadAll: true,
+      };
+      const existingSubscription = {
+        id: "existing-sub",
+        authorUrl: "https://www.youtube.com/playlist?list=PL123",
+        collectionId: "existing-col",
+      };
+      (subscriptionService.listSubscriptions as any).mockResolvedValue([
+        existingSubscription,
+      ]);
+      (executeYtDlpJson as any).mockResolvedValue({
+        _type: "playlist",
+        title: "Playlist Title",
+        id: "PL123",
+        playlist_count: 12,
+        entries: [{ id: "vidA", uploader: "Uploader Name" }],
+      });
+      (storageService.getCollectionById as any).mockReturnValue({
+        id: "existing-col",
+        name: "My Playlist",
+      });
+      (continuousDownloadService.getTaskByAuthorUrl as any).mockResolvedValue({
+        id: "completed-task",
+        status: "completed",
+      });
+      (continuousDownloadService.createPlaylistTask as any).mockResolvedValue({
+        id: "replacement-task",
+      });
+
+      await createPlaylistSubscription(req as Request, res as Response);
+
+      expect(continuousDownloadService.createPlaylistTask).toHaveBeenCalledWith(
+        "https://www.youtube.com/playlist?list=PL123",
+        "Uploader Name",
+        "YouTube",
+        "existing-col",
+        "existing-sub"
+      );
+      expect(json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          taskId: "replacement-task",
+          backfillStatus: "started",
         })
       );
     });

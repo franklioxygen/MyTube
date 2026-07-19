@@ -148,6 +148,28 @@ const canReuseCollectionForSource = (
   !hasBilibiliSourceKey(collection) ||
   (sourceKey != null && matchesBilibiliSourceKey(collection, sourceKey));
 
+export interface BilibiliVideoFetchOptions {
+  pageSize?: number;
+  maxPages?: number;
+}
+
+const DEFAULT_BILIBILI_PAGE_SIZE = 30;
+
+function normalizeFetchOptions(
+  options?: BilibiliVideoFetchOptions,
+): { pageSize: number; maxPages: number | null } {
+  const pageSize =
+    Number.isSafeInteger(options?.pageSize) && (options?.pageSize ?? 0) > 0
+      ? options!.pageSize!
+      : DEFAULT_BILIBILI_PAGE_SIZE;
+  const maxPages =
+    Number.isSafeInteger(options?.maxPages) && (options?.maxPages ?? 0) > 0
+      ? options!.maxPages!
+      : null;
+
+  return { pageSize, maxPages };
+}
+
 const getCollectionCleanupNames = (
   collection: Collection,
   fallbackName: string,
@@ -246,19 +268,20 @@ function resolveExistingBilibiliCollection(
  */
 export async function getCollectionVideos(
   mid: number,
-  seasonId: number
+  seasonId: number,
+  options?: BilibiliVideoFetchOptions,
 ): Promise<BilibiliVideosResult> {
   try {
     const allVideos: BilibiliVideoItem[] = [];
     let pageNum = 1;
-    const pageSize = 30;
+    const { pageSize, maxPages } = normalizeFetchOptions(options);
     let hasMore = true;
 
     logger.info(
       `Fetching collection videos for mid=${mid}, season_id=${seasonId}`
     );
 
-    while (hasMore) {
+    while (hasMore && (maxPages === null || pageNum <= maxPages)) {
       const apiUrl = `https://api.bilibili.com/x/polymer/web-space/seasons_archives_list`;
       const params = {
         mid: mid,
@@ -317,17 +340,18 @@ export async function getCollectionVideos(
  */
 export async function getSeriesVideos(
   mid: number,
-  seriesId: number
+  seriesId: number,
+  options?: BilibiliVideoFetchOptions,
 ): Promise<BilibiliVideosResult> {
   try {
     const allVideos: BilibiliVideoItem[] = [];
     let pageNum = 1;
-    const pageSize = 30;
+    const { pageSize, maxPages } = normalizeFetchOptions(options);
     let hasMore = true;
 
     logger.info(`Fetching series videos for mid=${mid}, series_id=${seriesId}`);
 
-    while (hasMore) {
+    while (hasMore && (maxPages === null || pageNum <= maxPages)) {
       const apiUrl = `https://api.bilibili.com/x/series/archives`;
       const params = {
         mid: mid,

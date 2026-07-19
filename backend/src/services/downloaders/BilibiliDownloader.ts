@@ -18,6 +18,7 @@ import {
   CollectionDownloadResult,
   DownloadResult,
 } from "./bilibili/types";
+import type { BilibiliVideoFetchOptions as CollectionFetchOptions } from "./bilibili/bilibiliCollection";
 
 // Re-export all types for backward compatibility
 export type {
@@ -122,17 +123,19 @@ export class BilibiliDownloader extends BaseDownloader {
   // Helper function to get all videos from a Bilibili collection
   static async getCollectionVideos(
     mid: number,
-    seasonId: number
+    seasonId: number,
+    options?: CollectionFetchOptions
   ): Promise<BilibiliVideosResult> {
-    return bilibiliCollection.getCollectionVideos(mid, seasonId);
+    return bilibiliCollection.getCollectionVideos(mid, seasonId, options);
   }
 
   // Helper function to get all videos from a Bilibili series
   static async getSeriesVideos(
     mid: number,
-    seriesId: number
+    seriesId: number,
+    options?: CollectionFetchOptions
   ): Promise<BilibiliVideosResult> {
-    return bilibiliCollection.getSeriesVideos(mid, seriesId);
+    return bilibiliCollection.getSeriesVideos(mid, seriesId, options);
   }
 
   // Helper function to download a single Bilibili part

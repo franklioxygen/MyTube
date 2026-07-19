@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  getBilibiliCollectionHeadSnapshot,
   getPlaylistHeadSnapshot,
   inspectPlaylist,
   resolveEntryVideoUrl,
@@ -17,6 +18,10 @@ vi.mock("../../../utils/helpers", () => ({
 }));
 vi.mock("../../../services/downloaders/ytdlp/ytdlpHelpers", () => ({
   getProviderScript: vi.fn().mockReturnValue(null),
+}));
+vi.mock("../../../services/downloadService", () => ({
+  getBilibiliCollectionVideos: vi.fn(),
+  getBilibiliSeriesVideos: vi.fn(),
 }));
 vi.mock("../../../utils/logger", () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
@@ -198,6 +203,64 @@ describe("getPlaylistHeadSnapshot", () => {
         extractorArgs:
           "youtubepot-bgutilscript:script_path=/path/to/script.js",
       })
+    );
+  });
+});
+
+describe("getBilibiliCollectionHeadSnapshot", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("fetches only one Bilibili collection entry for head-only probes", async () => {
+    const { getBilibiliCollectionVideos } = await import(
+      "../../../services/downloadService"
+    );
+    vi.mocked(getBilibiliCollectionVideos).mockResolvedValueOnce({
+      success: true,
+      videos: [{ bvid: "BVhead", title: "Head", aid: 1 }],
+    });
+
+    const snap = await getBilibiliCollectionHeadSnapshot(
+      "https://www.bilibili.com/video/BVseed",
+      {
+        type: "collection",
+        mid: 12345,
+        id: 9988,
+      },
+      { headOnly: true }
+    );
+
+    expect(getBilibiliCollectionVideos).toHaveBeenCalledWith(
+      12345,
+      9988,
+      { pageSize: 1, maxPages: 1 }
+    );
+    expect(snap.headVideoUrl).toBe("https://www.bilibili.com/video/BVhead");
+  });
+
+  it("keeps full Bilibili collection fetches for baseline inspection", async () => {
+    const { getBilibiliSeriesVideos } = await import(
+      "../../../services/downloadService"
+    );
+    vi.mocked(getBilibiliSeriesVideos).mockResolvedValueOnce({
+      success: true,
+      videos: [{ bvid: "BVhead", title: "Head", aid: 1 }],
+    });
+
+    await getBilibiliCollectionHeadSnapshot(
+      "https://www.bilibili.com/video/BVseed",
+      {
+        type: "series",
+        mid: 12345,
+        id: 9988,
+      }
+    );
+
+    expect(getBilibiliSeriesVideos).toHaveBeenCalledWith(
+      12345,
+      9988,
+      undefined
     );
   });
 });

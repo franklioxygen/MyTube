@@ -60,6 +60,10 @@ export interface BilibiliCollectionHeadSnapshot extends PlaylistHeadSnapshot {
   bilibiliSource: BilibiliCollectionSource;
 }
 
+export interface BilibiliCollectionHeadSnapshotOptions {
+  headOnly?: boolean;
+}
+
 export interface BilibiliCollectionPlaylistInspection
   extends PlaylistInspection {
   bilibiliSource: BilibiliCollectionSource;
@@ -324,7 +328,8 @@ async function resolveBilibiliCollectionSource(
 
 export async function getBilibiliCollectionHeadSnapshot(
   playlistUrl: string,
-  collectionInfo: BilibiliCollectionInspectionInput
+  collectionInfo: BilibiliCollectionInspectionInput,
+  options?: BilibiliCollectionHeadSnapshotOptions
 ): Promise<BilibiliCollectionHeadSnapshot> {
   const source = await resolveBilibiliCollectionSource(
     playlistUrl,
@@ -340,10 +345,13 @@ export async function getBilibiliCollectionHeadSnapshot(
   const { getBilibiliCollectionVideos, getBilibiliSeriesVideos } = await import(
     "../downloadService"
   );
+  const fetchOptions = options?.headOnly
+    ? { pageSize: 1, maxPages: 1 }
+    : undefined;
   const videosResult =
     source.type === "collection"
-      ? await getBilibiliCollectionVideos(source.mid, source.id)
-      : await getBilibiliSeriesVideos(source.mid, source.id);
+      ? await getBilibiliCollectionVideos(source.mid, source.id, fetchOptions)
+      : await getBilibiliSeriesVideos(source.mid, source.id, fetchOptions);
 
   if (!videosResult.success) {
     throw new ValidationError(

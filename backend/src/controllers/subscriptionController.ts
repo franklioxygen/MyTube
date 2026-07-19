@@ -118,6 +118,11 @@ export type PlaylistBackfillStatus =
   | "not_needed_empty"
   | "failed";
 
+const BLOCKING_BACKFILL_TASK_STATUSES = new Set(["active", "paused"]);
+
+const isBlockingBackfillTask = (task: { status?: string }): boolean =>
+  BLOCKING_BACKFILL_TASK_STATUSES.has(task.status ?? "");
+
 /**
  * Strictly parse the `downloadAll` request value (design §11.1).
  *
@@ -719,6 +724,30 @@ export const createPlaylistSubscription = async (
     baselineObservedAt: inspection.observedAt,
   };
   let subscription = existingSubscription;
+  if (subscription && subscription.collectionId !== collection.id) {
+    try {
+      await subscriptionService.updatePlaylistSubscriptionCollection(
+        subscription.id,
+        collection.id
+      );
+      subscription = { ...subscription, collectionId: collection.id };
+    } catch (error) {
+      try {
+        await deleteCreatedCollectionIfUnused(
+          collectionResolution,
+          () => subscriptionService.listSubscriptions()
+        );
+      } catch (cleanupError) {
+        logger.error(
+          "Failed to clean up collection after playlist subscription collection update failed",
+          cleanupError instanceof Error
+            ? cleanupError
+            : new Error(String(cleanupError))
+        );
+      }
+      throw error;
+    }
+  }
   if (!subscription) {
     try {
       subscription = await subscriptionService.subscribePlaylist(subscribeOptions);
@@ -759,7 +788,7 @@ export const createPlaylistSubscription = async (
     try {
       const existingTask =
         await continuousDownloadService.getTaskByAuthorUrl(playlistUrl);
-      if (existingTask) {
+      if (existingTask && isBlockingBackfillTask(existingTask)) {
         task = { id: existingTask.id };
         backfillStatus = "already_exists";
         logger.info(

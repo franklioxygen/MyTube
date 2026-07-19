@@ -135,16 +135,18 @@ export async function checkBilibiliCollectionOrSeries(
 export async function getBilibiliCollectionVideos(
   mid: number,
   seasonId: number,
+  options?: { pageSize?: number; maxPages?: number },
 ): Promise<BilibiliVideosResult> {
-  return BilibiliDownloader.getCollectionVideos(mid, seasonId);
+  return BilibiliDownloader.getCollectionVideos(mid, seasonId, options);
 }
 
 // Helper function to get all videos from a Bilibili series
 export async function getBilibiliSeriesVideos(
   mid: number,
   seriesId: number,
+  options?: { pageSize?: number; maxPages?: number },
 ): Promise<BilibiliVideosResult> {
-  return BilibiliDownloader.getSeriesVideos(mid, seriesId);
+  return BilibiliDownloader.getSeriesVideos(mid, seriesId, options);
 }
 
 // Helper function to download a single Bilibili part

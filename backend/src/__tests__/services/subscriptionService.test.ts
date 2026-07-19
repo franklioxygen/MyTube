@@ -28,6 +28,7 @@ vi.mock('../../db/schema', () => ({
     author: 'author',
     authorUrl: 'authorUrl',
     retentionDays: 'retentionDays',
+    collectionId: 'collectionId',
     // add other fields if needed for referencing columns
   }
 }));
@@ -367,7 +368,8 @@ describe('SubscriptionService', () => {
 
       expect(downloadService.getBilibiliCollectionVideos).toHaveBeenCalledWith(
         12345,
-        9988
+        9988,
+        { pageSize: 1, maxPages: 1 }
       );
       expect(executeYtDlpJson).not.toHaveBeenCalled();
       expect(downloadService.downloadSingleBilibiliPart).toHaveBeenCalledWith(
@@ -744,6 +746,25 @@ describe('SubscriptionService', () => {
       expect(mockBuilder.set).toHaveBeenCalledWith({
         interval: 45,
         retentionDays: 14,
+      });
+    });
+
+    it('should link a playlist subscription to a collection', async () => {
+      mockBuilder.then = (cb: any) =>
+        Promise.resolve([{ id: 'sub1', author: 'A' }]).then(cb);
+
+      await subscriptionService.updatePlaylistSubscriptionCollection(
+        'sub1',
+        'collection-1'
+      );
+
+      expect(db.update).toHaveBeenCalledTimes(1);
+      expect(mockBuilder.set).toHaveBeenCalledWith({
+        collectionId: 'collection-1',
+      });
+      expect(mockBuilder.returning).toHaveBeenCalledWith({
+        id: 'id',
+        author: 'author',
       });
     });
 
