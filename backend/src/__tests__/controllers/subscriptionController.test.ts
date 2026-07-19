@@ -926,6 +926,7 @@ describe("SubscriptionController", () => {
         id: "existing-col",
         name: "My Playlist",
       });
+      (continuousDownloadService.getTaskByAuthorUrl as any).mockResolvedValue(null);
       (continuousDownloadService.createPlaylistTask as any).mockResolvedValue({
         id: "task-existing",
       });
@@ -934,6 +935,9 @@ describe("SubscriptionController", () => {
 
       expect(subscriptionService.subscribePlaylist).not.toHaveBeenCalled();
       expect(storageService.getCollectionByName).not.toHaveBeenCalled();
+      expect(continuousDownloadService.getTaskByAuthorUrl).toHaveBeenCalledWith(
+        "https://www.youtube.com/playlist?list=PL123"
+      );
       expect(continuousDownloadService.createPlaylistTask).toHaveBeenCalledWith(
         "https://www.youtube.com/playlist?list=PL123",
         "Uploader Name",
@@ -949,6 +953,51 @@ describe("SubscriptionController", () => {
           taskId: "task-existing",
           downloadAll: true,
           backfillStatus: "started",
+        })
+      );
+    });
+
+    it("does not queue a duplicate direct backfill task when one already exists", async () => {
+      req.body = {
+        playlistUrl: "https://www.youtube.com/playlist?list=PL123",
+        interval: 60,
+        collectionName: "My Playlist",
+        downloadAll: true,
+      };
+      const existingSubscription = {
+        id: "existing-sub",
+        authorUrl: "https://www.youtube.com/playlist?list=PL123",
+        collectionId: "existing-col",
+      };
+      (subscriptionService.listSubscriptions as any).mockResolvedValue([
+        existingSubscription,
+      ]);
+      (executeYtDlpJson as any).mockResolvedValue({
+        _type: "playlist",
+        title: "Playlist Title",
+        id: "PL123",
+        playlist_count: 12,
+        entries: [{ id: "vidA", uploader: "Uploader Name" }],
+      });
+      (storageService.getCollectionById as any).mockReturnValue({
+        id: "existing-col",
+        name: "My Playlist",
+      });
+      (continuousDownloadService.getTaskByAuthorUrl as any).mockResolvedValue({
+        id: "existing-task",
+      });
+
+      await createPlaylistSubscription(req as Request, res as Response);
+
+      expect(subscriptionService.subscribePlaylist).not.toHaveBeenCalled();
+      expect(continuousDownloadService.createPlaylistTask).not.toHaveBeenCalled();
+      expect(json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          subscription: existingSubscription,
+          collectionId: "existing-col",
+          taskId: "existing-task",
+          downloadAll: true,
+          backfillStatus: "already_exists",
         })
       );
     });

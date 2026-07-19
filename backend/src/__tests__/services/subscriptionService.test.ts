@@ -390,6 +390,48 @@ describe('SubscriptionService', () => {
       );
     });
 
+    it('updates lastCheck when a playlist probe fails to back off retries', async () => {
+      const sub = {
+        id: 'playlist-probe-fail-sub',
+        author: 'Playlist Author',
+        platform: 'YouTube',
+        authorUrl: 'https://www.youtube.com/playlist?list=PLFAIL',
+        interval: 60,
+        lastCheck: 0,
+        lastVideoLink: 'https://www.youtube.com/watch?v=old',
+        subscriptionType: 'playlist',
+        collectionId: 'collection-1',
+      };
+
+      let callCount = 0;
+      mockBuilder.then = (cb: any) => {
+        callCount++;
+        if (callCount === 1) return Promise.resolve([sub]).then(cb);
+        if (callCount === 2) return Promise.resolve([{ id: sub.id }]).then(cb);
+        return Promise.resolve([]).then(cb);
+      };
+      const recordSpy = vi
+        .spyOn(subscriptionService as any, 'recordSubscriptionCheckCompleted')
+        .mockResolvedValue(undefined);
+      (executeYtDlpJson as any).mockRejectedValue(
+        new Error('playlist lookup failed')
+      );
+
+      await subscriptionService.checkSubscriptions();
+
+      expect(mockBuilder.set).toHaveBeenCalledWith(
+        expect.objectContaining({ lastCheck: expect.any(Number) })
+      );
+      expect(downloadService.downloadYouTubeVideo).not.toHaveBeenCalled();
+      expect(recordSpy).toHaveBeenCalledWith(
+        sub,
+        'fail',
+        expect.objectContaining({ failureReason: expect.any(String) })
+      );
+
+      recordSpy.mockRestore();
+    });
+
     it('should skip shorts when subscription is deleted before lastCheck update', async () => {
       const sub = {
         id: 'sub-deleted',

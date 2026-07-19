@@ -114,6 +114,7 @@ function canReadYtdlpConfigOverride(req: Request): boolean {
 export type PlaylistBackfillStatus =
   | "not_requested"
   | "started"
+  | "already_exists"
   | "not_needed_empty"
   | "failed";
 
@@ -756,17 +757,27 @@ export const createPlaylistSubscription = async (
     backfillStatus = "not_needed_empty";
   } else {
     try {
-      task = await continuousDownloadService.createPlaylistTask(
-        playlistUrl,
-        author,
-        platform,
-        collection.id,
-        subscription.id
-      );
-      backfillStatus = "started";
-      logger.info(
-        `Created continuous download task ${task.id} for playlist subscription ${subscription.id}`
-      );
+      const existingTask =
+        await continuousDownloadService.getTaskByAuthorUrl(playlistUrl);
+      if (existingTask) {
+        task = { id: existingTask.id };
+        backfillStatus = "already_exists";
+        logger.info(
+          `Skipping playlist backfill for ${playlistUrl}: task ${existingTask.id} already exists`
+        );
+      } else {
+        task = await continuousDownloadService.createPlaylistTask(
+          playlistUrl,
+          author,
+          platform,
+          collection.id,
+          subscription.id
+        );
+        backfillStatus = "started";
+        logger.info(
+          `Created continuous download task ${task.id} for playlist subscription ${subscription.id}`
+        );
+      }
     } catch (error) {
       // Failure to create the historical task does NOT roll back a
       // successfully created subscription (design §7.3). Return no task id

@@ -660,7 +660,20 @@ export class SubscriptionService {
               ? probeError.message
               : String(probeError)
           );
-          // Leave cursor unchanged; the finally block records the failed check.
+          // Leave the cursor unchanged, but advance lastCheck so persistent
+          // extractor/network failures back off to the configured interval.
+          const updateResult = await db
+            .update(subscriptions)
+            .set({ lastCheck: now })
+            .where(eq(subscriptions.id, sub.id))
+            .returning({ id: subscriptions.id });
+
+          if (updateResult.length === 0) {
+            logger.warn(
+              "Subscription was deleted before failed playlist probe backoff update",
+              getSubscriptionLogContext(sub)
+            );
+          }
           return;
         }
       } else {
