@@ -170,6 +170,65 @@ function normalizeFetchOptions(
   return { pageSize, maxPages };
 }
 
+function formatBilibiliApiError(responseBody: Record<string, unknown>): string {
+  const message =
+    typeof responseBody.message === "string"
+      ? responseBody.message
+      : typeof responseBody.msg === "string"
+        ? responseBody.msg
+        : null;
+
+  if (message && message.trim() !== "") {
+    return message;
+  }
+
+  return `code ${String(responseBody.code)}`;
+}
+
+function readBilibiliArchivePage(
+  responseBody: unknown,
+  label: "collection" | "series",
+  pageNum: number,
+): { archives: any[]; total: number } {
+  if (!responseBody || typeof responseBody !== "object") {
+    throw new Error(
+      `Bilibili ${label} API returned an invalid response on page ${pageNum}`,
+    );
+  }
+
+  const body = responseBody as Record<string, unknown>;
+  if (body.code !== 0) {
+    throw new Error(
+      `Bilibili ${label} API returned ${formatBilibiliApiError(body)} on page ${pageNum}`,
+    );
+  }
+
+  const data = body.data;
+  if (!data || typeof data !== "object") {
+    throw new Error(
+      `Bilibili ${label} API returned missing data on page ${pageNum}`,
+    );
+  }
+
+  const archiveData = data as {
+    archives?: unknown;
+    page?: { total?: unknown };
+  };
+  if (!Array.isArray(archiveData.archives)) {
+    throw new Error(
+      `Bilibili ${label} API returned missing archives on page ${pageNum}`,
+    );
+  }
+
+  const total =
+    typeof archiveData.page?.total === "number" &&
+    Number.isFinite(archiveData.page.total)
+      ? archiveData.page.total
+      : archiveData.archives.length;
+
+  return { archives: archiveData.archives, total };
+}
+
 const getCollectionCleanupNames = (
   collection: Collection,
   fallbackName: string,
@@ -302,29 +361,27 @@ export async function getCollectionVideos(
         },
       });
 
-      if (response.data && response.data.data) {
-        const data = response.data.data;
-        const archives = data.archives || [];
+      const { archives, total } = readBilibiliArchivePage(
+        response.data,
+        "collection",
+        pageNum,
+      );
 
-        logger.info(`Got ${archives.length} videos from page ${pageNum}`);
+      logger.info(`Got ${archives.length} videos from page ${pageNum}`);
 
-        archives.forEach((video: any) => {
-          allVideos.push({
-            bvid: video.bvid,
-            title: video.title,
-            aid: video.aid,
-            uploadDate: normalizeUploadDate(video.pubdate ?? video.ctime ?? video.created),
-            viewCount: normalizeViewCount(video.stat?.view ?? video.play),
-          });
+      archives.forEach((video: any) => {
+        allVideos.push({
+          bvid: video.bvid,
+          title: video.title,
+          aid: video.aid,
+          uploadDate: normalizeUploadDate(video.pubdate ?? video.ctime ?? video.created),
+          viewCount: normalizeViewCount(video.stat?.view ?? video.play),
         });
+      });
 
-        // Check if there are more pages
-        const total = data.page?.total || 0;
-        hasMore = allVideos.length < total;
-        pageNum++;
-      } else {
-        hasMore = false;
-      }
+      // Check if there are more pages
+      hasMore = allVideos.length < total;
+      pageNum++;
     }
 
     logger.info(`Total videos in collection: ${allVideos.length}`);
@@ -371,30 +428,27 @@ export async function getSeriesVideos(
         },
       });
 
-      if (response.data && response.data.data) {
-        const data = response.data.data;
-        const archives = data.archives || [];
+      const { archives, total } = readBilibiliArchivePage(
+        response.data,
+        "series",
+        pageNum,
+      );
 
-        logger.info(`Got ${archives.length} videos from page ${pageNum}`);
+      logger.info(`Got ${archives.length} videos from page ${pageNum}`);
 
-        archives.forEach((video: any) => {
-          allVideos.push({
-            bvid: video.bvid,
-            title: video.title,
-            aid: video.aid,
-            uploadDate: normalizeUploadDate(video.pubdate ?? video.ctime ?? video.created),
-            viewCount: normalizeViewCount(video.stat?.view ?? video.play),
-          });
+      archives.forEach((video: any) => {
+        allVideos.push({
+          bvid: video.bvid,
+          title: video.title,
+          aid: video.aid,
+          uploadDate: normalizeUploadDate(video.pubdate ?? video.ctime ?? video.created),
+          viewCount: normalizeViewCount(video.stat?.view ?? video.play),
         });
+      });
 
-        // Check if there are more pages
-        const page = data.page || {};
-        hasMore =
-          archives.length === pageSize && allVideos.length < (page.total || 0);
-        pageNum++;
-      } else {
-        hasMore = false;
-      }
+      // Check if there are more pages
+      hasMore = archives.length === pageSize && allVideos.length < total;
+      pageNum++;
     }
 
     logger.info(`Total videos in series: ${allVideos.length}`);

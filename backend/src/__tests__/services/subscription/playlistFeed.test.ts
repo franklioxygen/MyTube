@@ -263,6 +263,31 @@ describe("getBilibiliCollectionHeadSnapshot", () => {
       undefined
     );
   });
+
+  it("rejects failed Bilibili collection fetches before seeding a cursor", async () => {
+    const { getBilibiliCollectionVideos } = await import(
+      "../../../services/downloadService"
+    );
+    vi.mocked(getBilibiliCollectionVideos).mockResolvedValueOnce({
+      success: false,
+      videos: [],
+    });
+
+    await expect(
+      getBilibiliCollectionHeadSnapshot(
+        "https://www.bilibili.com/video/BVseed",
+        {
+          type: "collection",
+          mid: 12345,
+          id: 9988,
+        }
+      )
+    ).rejects.toMatchObject({
+      name: "ValidationError",
+      message: "Failed to get videos from Bilibili collection",
+      field: "collectionInfo",
+    });
+  });
 });
 
 describe("inspectPlaylist", () => {
