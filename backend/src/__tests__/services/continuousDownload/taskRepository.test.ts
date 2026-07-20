@@ -17,8 +17,11 @@ vi.mock('../../../db', () => ({
 vi.mock('../../../db/schema', () => ({
   continuousDownloadTasks: {
     id: 'id',
+    authorUrl: 'authorUrl',
+    subscriptionId: 'subscriptionId',
     collectionId: 'collectionId',
     status: 'status',
+    createdAt: 'createdAt',
     // ... other fields for referencing
   },
   collections: {
@@ -52,6 +55,7 @@ describe('TaskRepository', () => {
       values: vi.fn().mockReturnThis(),
       set: vi.fn().mockReturnThis(),
       leftJoin: vi.fn().mockReturnThis(),
+      orderBy: vi.fn().mockReturnThis(),
       then: (resolve: any) => Promise.resolve(result).then(resolve)
     };
     return builder;
@@ -157,6 +161,43 @@ describe('TaskRepository', () => {
     const status = await taskRepository.getTaskStatus('missing');
 
     expect(status).toBeNull();
+  });
+
+  it('getBlockingPlaylistTaskByDestination should return matching active task', async () => {
+    const mockData = [
+      {
+        task: {
+          id: 'active-task',
+          status: 'active',
+          author: 'A',
+          authorUrl: 'https://youtube.com/playlist?list=PL123',
+          subscriptionId: 'sub-1',
+          collectionId: 'col-1',
+          createdAt: 10,
+        },
+        playlistName: 'Playlist',
+      },
+    ];
+    mockBuilder.then = (cb: any) => Promise.resolve(mockData).then(cb);
+
+    const task = await taskRepository.getBlockingPlaylistTaskByDestination(
+      'https://youtube.com/playlist?list=PL123',
+      'sub-1',
+      'col-1'
+    );
+
+    expect(db.select).toHaveBeenCalled();
+    expect(mockBuilder.where).toHaveBeenCalled();
+    expect(mockBuilder.orderBy).toHaveBeenCalled();
+    expect(task).toEqual(
+      expect.objectContaining({
+        id: 'active-task',
+        status: 'active',
+        subscriptionId: 'sub-1',
+        collectionId: 'col-1',
+        playlistName: 'Playlist',
+      })
+    );
   });
 
   it('updateProgress should update stats', async () => {

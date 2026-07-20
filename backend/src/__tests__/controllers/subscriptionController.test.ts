@@ -30,6 +30,7 @@ import { subscriptionService } from "../../services/subscriptionService";
 import { logger } from "../../utils/logger";
 import {
     executeYtDlpJson,
+    getEffectiveUserYtDlpConfig,
     getNetworkConfigFromUserConfig,
     getUserYtDlpConfig,
 } from "../../utils/ytDlpUtils";
@@ -45,6 +46,7 @@ vi.mock("../../services/subscriptionService", () => ({
     getSubscriptionById: vi.fn(),
     subscribePlaylist: vi.fn(),
     updatePlaylistSubscriptionCollection: vi.fn(),
+    updatePlaylistSubscriptionCursor: vi.fn(),
     subscribeChannelPlaylistsWatcher: vi.fn(),
   },
 }));
@@ -60,6 +62,7 @@ vi.mock("../../services/continuousDownloadService", () => ({
     clearFinishedTasks: vi.fn(),
     createPlaylistTask: vi.fn(),
     getTaskByAuthorUrl: vi.fn(),
+    getBlockingPlaylistTaskByDestination: vi.fn(),
   },
 }));
 
@@ -969,6 +972,7 @@ describe("SubscriptionController", () => {
         id: "existing-sub",
         authorUrl: "https://www.youtube.com/playlist?list=PL123",
         collectionId: "existing-col",
+        ytdlpConfig: "--cookies /config/cookies.txt",
       };
       (subscriptionService.listSubscriptions as any).mockResolvedValue([
         existingSubscription,
@@ -984,9 +988,9 @@ describe("SubscriptionController", () => {
         id: "existing-col",
         name: "My Playlist",
       });
-      (continuousDownloadService.getTaskByAuthorUrl as any).mockResolvedValue(
-        null
-      );
+      (
+        continuousDownloadService.getBlockingPlaylistTaskByDestination as any
+      ).mockResolvedValue(null);
       (continuousDownloadService.createPlaylistTask as any).mockResolvedValue({
         id: "task-existing",
       });
@@ -995,8 +999,16 @@ describe("SubscriptionController", () => {
 
       expect(subscriptionService.subscribePlaylist).not.toHaveBeenCalled();
       expect(storageService.getCollectionByName).not.toHaveBeenCalled();
-      expect(continuousDownloadService.getTaskByAuthorUrl).toHaveBeenCalledWith(
-        "https://www.youtube.com/playlist?list=PL123"
+      expect(getEffectiveUserYtDlpConfig).toHaveBeenCalledWith(
+        "https://www.youtube.com/playlist?list=PL123",
+        "--cookies /config/cookies.txt"
+      );
+      expect(
+        continuousDownloadService.getBlockingPlaylistTaskByDestination
+      ).toHaveBeenCalledWith(
+        "https://www.youtube.com/playlist?list=PL123",
+        "existing-sub",
+        "existing-col"
       );
       expect(continuousDownloadService.createPlaylistTask).toHaveBeenCalledWith(
         "https://www.youtube.com/playlist?list=PL123",
@@ -1005,10 +1017,21 @@ describe("SubscriptionController", () => {
         "existing-col",
         "existing-sub"
       );
+      expect(
+        subscriptionService.updatePlaylistSubscriptionCursor
+      ).toHaveBeenCalledWith(
+        "existing-sub",
+        "https://www.youtube.com/watch?v=vidA",
+        expect.any(Number)
+      );
       expect(status).toHaveBeenCalledWith(201);
       expect(json).toHaveBeenCalledWith(
         expect.objectContaining({
-          subscription: existingSubscription,
+          subscription: expect.objectContaining({
+            id: "existing-sub",
+            lastVideoLink: "https://www.youtube.com/watch?v=vidA",
+            lastCheck: expect.any(Number),
+          }),
           collectionId: "existing-col",
           taskId: "task-existing",
           downloadAll: true,
@@ -1043,9 +1066,9 @@ describe("SubscriptionController", () => {
         id: "resolved-col",
         name: "My Playlist",
       });
-      (continuousDownloadService.getTaskByAuthorUrl as any).mockResolvedValue(
-        null
-      );
+      (
+        continuousDownloadService.getBlockingPlaylistTaskByDestination as any
+      ).mockResolvedValue(null);
       (continuousDownloadService.createPlaylistTask as any).mockResolvedValue({
         id: "task-legacy",
       });
@@ -1055,6 +1078,13 @@ describe("SubscriptionController", () => {
       expect(
         subscriptionService.updatePlaylistSubscriptionCollection
       ).toHaveBeenCalledWith("legacy-sub", "resolved-col");
+      expect(
+        subscriptionService.updatePlaylistSubscriptionCursor
+      ).toHaveBeenCalledWith(
+        "legacy-sub",
+        "https://www.youtube.com/watch?v=vidA",
+        expect.any(Number)
+      );
       expect(continuousDownloadService.createPlaylistTask).toHaveBeenCalledWith(
         "https://www.youtube.com/playlist?list=PL123",
         "Uploader Name",
@@ -1067,6 +1097,8 @@ describe("SubscriptionController", () => {
           subscription: expect.objectContaining({
             id: "legacy-sub",
             collectionId: "resolved-col",
+            lastVideoLink: "https://www.youtube.com/watch?v=vidA",
+            lastCheck: expect.any(Number),
           }),
           collectionId: "resolved-col",
           taskId: "task-legacy",
@@ -1101,7 +1133,9 @@ describe("SubscriptionController", () => {
         id: "existing-col",
         name: "My Playlist",
       });
-      (continuousDownloadService.getTaskByAuthorUrl as any).mockResolvedValue({
+      (
+        continuousDownloadService.getBlockingPlaylistTaskByDestination as any
+      ).mockResolvedValue({
         id: "existing-task",
         status: "active",
         subscriptionId: "existing-sub",
@@ -1112,6 +1146,9 @@ describe("SubscriptionController", () => {
 
       expect(subscriptionService.subscribePlaylist).not.toHaveBeenCalled();
       expect(continuousDownloadService.createPlaylistTask).not.toHaveBeenCalled();
+      expect(
+        subscriptionService.updatePlaylistSubscriptionCursor
+      ).not.toHaveBeenCalled();
       expect(json).toHaveBeenCalledWith(
         expect.objectContaining({
           subscription: existingSubscription,
@@ -1123,7 +1160,7 @@ describe("SubscriptionController", () => {
       );
     });
 
-    it("queues a replacement direct backfill when an active task belongs to another destination", async () => {
+    it("queues a replacement direct backfill when no blocking task belongs to the same destination", async () => {
       req.body = {
         playlistUrl: "https://www.youtube.com/playlist?list=PL123",
         interval: 60,
@@ -1149,11 +1186,9 @@ describe("SubscriptionController", () => {
         id: "existing-col",
         name: "My Playlist",
       });
-      (continuousDownloadService.getTaskByAuthorUrl as any).mockResolvedValue({
-        id: "standalone-task",
-        status: "active",
-        collectionId: "other-col",
-      });
+      (
+        continuousDownloadService.getBlockingPlaylistTaskByDestination as any
+      ).mockResolvedValue(null);
       (continuousDownloadService.createPlaylistTask as any).mockResolvedValue({
         id: "replacement-task",
       });
@@ -1201,10 +1236,9 @@ describe("SubscriptionController", () => {
         id: "existing-col",
         name: "My Playlist",
       });
-      (continuousDownloadService.getTaskByAuthorUrl as any).mockResolvedValue({
-        id: "completed-task",
-        status: "completed",
-      });
+      (
+        continuousDownloadService.getBlockingPlaylistTaskByDestination as any
+      ).mockResolvedValue(null);
       (continuousDownloadService.createPlaylistTask as any).mockResolvedValue({
         id: "replacement-task",
       });
@@ -1337,7 +1371,9 @@ describe("SubscriptionController", () => {
       (subscriptionService.subscribePlaylist as any).mockResolvedValue({
         id: "new-sub-one",
       });
-      (continuousDownloadService.getTaskByAuthorUrl as any).mockResolvedValue(null);
+      (
+        continuousDownloadService.getBlockingPlaylistTaskByDestination as any
+      ).mockResolvedValue(null);
       (continuousDownloadService.createPlaylistTask as any).mockResolvedValue({
         id: "created-task-1",
       });
@@ -1411,9 +1447,12 @@ describe("SubscriptionController", () => {
           id: "existing-sub",
           authorUrl: "https://www.youtube.com/playlist?list=PL_EXISTING",
           collectionId: "existing-col",
+          ytdlpConfig: "--cookies /bulk-cookies.txt",
         },
       ]);
-      (continuousDownloadService.getTaskByAuthorUrl as any).mockResolvedValue(null);
+      (
+        continuousDownloadService.getBlockingPlaylistTaskByDestination as any
+      ).mockResolvedValue(null);
       (continuousDownloadService.createPlaylistTask as any).mockResolvedValue({
         id: "backfill-task",
       });
@@ -1421,12 +1460,23 @@ describe("SubscriptionController", () => {
       await subscribeChannelPlaylists(req as Request, res as Response);
 
       expect(subscriptionService.subscribePlaylist).not.toHaveBeenCalled();
+      expect(getEffectiveUserYtDlpConfig).toHaveBeenCalledWith(
+        "https://www.youtube.com/playlist?list=PL_EXISTING",
+        "--cookies /bulk-cookies.txt"
+      );
       expect(continuousDownloadService.createPlaylistTask).toHaveBeenCalledWith(
         "https://www.youtube.com/playlist?list=PL_EXISTING",
         "My Channel",
         "YouTube",
         "existing-col",
         "existing-sub"
+      );
+      expect(
+        subscriptionService.updatePlaylistSubscriptionCursor
+      ).toHaveBeenCalledWith(
+        "existing-sub",
+        "https://www.youtube.com/watch?v=existingHead",
+        expect.any(Number)
       );
       expect(json).toHaveBeenCalledWith(
         expect.objectContaining({ subscribedCount: 0, skippedCount: 1 })
@@ -1465,7 +1515,9 @@ describe("SubscriptionController", () => {
         id: "resolved-legacy-col",
         name: "Legacy Playlist - My Channel",
       });
-      (continuousDownloadService.getTaskByAuthorUrl as any).mockResolvedValue(null);
+      (
+        continuousDownloadService.getBlockingPlaylistTaskByDestination as any
+      ).mockResolvedValue(null);
       (continuousDownloadService.createPlaylistTask as any).mockResolvedValue({
         id: "legacy-backfill-task",
       });
@@ -1479,6 +1531,13 @@ describe("SubscriptionController", () => {
       expect(
         subscriptionService.updatePlaylistSubscriptionCollection
       ).toHaveBeenCalledWith("legacy-sub", "resolved-legacy-col");
+      expect(
+        subscriptionService.updatePlaylistSubscriptionCursor
+      ).toHaveBeenCalledWith(
+        "legacy-sub",
+        "https://www.youtube.com/watch?v=legacyHead",
+        expect.any(Number)
+      );
       expect(continuousDownloadService.createPlaylistTask).toHaveBeenCalledWith(
         "https://www.youtube.com/playlist?list=PL_LEGACY",
         "My Channel",

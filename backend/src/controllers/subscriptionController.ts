@@ -119,21 +119,6 @@ export type PlaylistBackfillStatus =
   | "not_needed_empty"
   | "failed";
 
-const BLOCKING_BACKFILL_TASK_STATUSES = new Set(["active", "paused"]);
-
-const isBlockingBackfillTask = (task: { status?: string }): boolean =>
-  BLOCKING_BACKFILL_TASK_STATUSES.has(task.status ?? "");
-
-const isReusableBackfillTask = (
-  task: { status?: string; subscriptionId?: string | null; collectionId?: string | null },
-  subscriptionId: string | undefined,
-  collectionId: string
-): boolean =>
-  isBlockingBackfillTask(task) &&
-  Boolean(subscriptionId) &&
-  task.subscriptionId === subscriptionId &&
-  task.collectionId === collectionId;
-
 /**
  * Strictly parse the `downloadAll` request value (design §11.1).
  *
@@ -243,6 +228,32 @@ function hasBilibiliCollectionSource(
     typeof candidate.id === "number" &&
     typeof candidate.mid === "number"
   );
+}
+
+async function refreshExistingPlaylistSubscriptionCursor(
+  subscription: Awaited<ReturnType<typeof subscriptionService.listSubscriptions>>[number],
+  headVideoUrl: string,
+  observedAt: number,
+  context: string
+): Promise<typeof subscription> {
+  try {
+    await subscriptionService.updatePlaylistSubscriptionCursor(
+      subscription.id,
+      headVideoUrl,
+      observedAt
+    );
+    return {
+      ...subscription,
+      lastVideoLink: headVideoUrl,
+      lastCheck: observedAt,
+    };
+  } catch (error) {
+    logger.error(
+      `Failed to update playlist subscription cursor after starting ${context}`,
+      error instanceof Error ? error : new Error(String(error))
+    );
+    return subscription;
+  }
 }
 
 /**
@@ -674,7 +685,9 @@ export const createPlaylistSubscription = async (
   const inspection =
     isBilibiliCollectionOrSeries && collectionInfo
       ? await inspectBilibiliCollectionPlaylist(playlistUrl, collectionInfo)
-      : await inspectPlaylist(playlistUrl);
+      : await inspectPlaylist(playlistUrl, {
+          subscriptionYtdlpConfig: existingSubscription?.ytdlpConfig ?? null,
+        });
 
   let playlistId: string;
   let playlistTitle: string;
@@ -819,11 +832,12 @@ export const createPlaylistSubscription = async (
   } else {
     try {
       const existingTask =
-        await continuousDownloadService.getTaskByAuthorUrl(playlistUrl);
-      if (
-        existingTask &&
-        isReusableBackfillTask(existingTask, subscription.id, collection.id)
-      ) {
+        await continuousDownloadService.getBlockingPlaylistTaskByDestination(
+          playlistUrl,
+          subscription.id,
+          collection.id
+        );
+      if (existingTask) {
         task = { id: existingTask.id };
         backfillStatus = "already_exists";
         logger.info(
@@ -838,6 +852,14 @@ export const createPlaylistSubscription = async (
           subscription.id
         );
         backfillStatus = "started";
+        if (existingSubscription) {
+          subscription = await refreshExistingPlaylistSubscriptionCursor(
+            subscription,
+            inspection.headVideoUrl,
+            inspection.observedAt,
+            `playlist backfill ${task.id}`
+          );
+        }
         logger.info(
           `Created continuous download task ${task.id} for playlist subscription ${subscription.id}`
         );
@@ -936,8 +958,9 @@ export const subscribeChannelPlaylists = async (
     title: string;
     playlistId: string;
     existingSubscription?: {
-      id?: string;
+      id: string;
       collectionId?: string | null;
+      ytdlpConfig?: string | null;
     };
   };
   const candidates: Candidate[] = [];
@@ -980,7 +1003,11 @@ export const subscribeChannelPlaylists = async (
     try {
       const snapshot = await getPlaylistHeadSnapshot(
         candidate.playlistUrl,
-        platform
+        platform,
+        {
+          subscriptionYtdlpConfig:
+            candidate.existingSubscription?.ytdlpConfig ?? null,
+        }
       );
       preflight[idx] = {
         ok: true,
@@ -1010,6 +1037,7 @@ export const subscribeChannelPlaylists = async (
     const { candidate, headVideoUrl, observedAt } = result_item;
 
     let createdSubscriptionId = candidate.existingSubscription?.id;
+    let subscriptionWasCreatedByThisRequest = false;
     let taskCollectionId = candidate.existingSubscription?.collectionId;
     let taskCollectionResolution: ReturnType<
       typeof resolveChannelPlaylistCollectionWithStatus
@@ -1082,6 +1110,7 @@ export const subscribeChannelPlaylists = async (
           baselineObservedAt: observedAt,
         });
         createdSubscriptionId = subscription.id;
+        subscriptionWasCreatedByThisRequest = true;
         subscribedCount++;
         existingSubByUrl.set(candidate.playlistUrl, subscription);
       } catch (error: unknown) {
@@ -1137,17 +1166,14 @@ export const subscribeChannelPlaylists = async (
       }
       try {
         const resolvedTaskCollectionId = await ensureTaskCollectionId();
-        const existingTask = await continuousDownloadService.getTaskByAuthorUrl(
-          candidate.playlistUrl
-        );
-        if (
-          existingTask &&
-          isReusableBackfillTask(
-            existingTask,
-            createdSubscriptionId,
-            resolvedTaskCollectionId
-          )
-        ) {
+        const existingTask = createdSubscriptionId
+          ? await continuousDownloadService.getBlockingPlaylistTaskByDestination(
+              candidate.playlistUrl,
+              createdSubscriptionId,
+              resolvedTaskCollectionId
+            )
+          : null;
+        if (existingTask) {
           logger.info(
             `Skipping download task creation for playlist "${candidate.title}": task already exists`
           );
@@ -1165,6 +1191,20 @@ export const subscribeChannelPlaylists = async (
           logger.info(
             `Created continuous download task ${task.id} for playlist: ${candidate.title}`
           );
+          if (!subscriptionWasCreatedByThisRequest && createdSubscriptionId) {
+            try {
+              await subscriptionService.updatePlaylistSubscriptionCursor(
+                createdSubscriptionId,
+                headVideoUrl,
+                observedAt
+              );
+            } catch (error) {
+              logger.error(
+                `Failed to update playlist subscription cursor after starting bulk backfill for "${candidate.title}"`,
+                error instanceof Error ? error : new Error(String(error))
+              );
+            }
+          }
         }
       } catch (error) {
         logger.error(

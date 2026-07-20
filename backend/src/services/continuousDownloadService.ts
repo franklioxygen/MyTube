@@ -211,6 +211,18 @@ export class ContinuousDownloadService {
     return this.taskRepository.getTaskByAuthorUrl(authorUrl);
   }
 
+  async getBlockingPlaylistTaskByDestination(
+    authorUrl: string,
+    subscriptionId: string,
+    collectionId: string
+  ): Promise<ContinuousDownloadTask | null> {
+    return this.taskRepository.getBlockingPlaylistTaskByDestination(
+      authorUrl,
+      subscriptionId,
+      collectionId
+    );
+  }
+
   /**
    * Cancel a task
    */

@@ -1,4 +1,4 @@
-import { eq, type InferSelectModel } from "drizzle-orm";
+import { and, desc, eq, inArray, type InferSelectModel } from "drizzle-orm";
 import { db } from "../../db";
 import { continuousDownloadTasks, subscriptions } from "../../db/schema";
 import { logger } from "../../utils/logger";
@@ -271,6 +271,44 @@ export class TaskRepository {
 
     const { task, playlistName } = result[0];
 
+    return mapTaskRowToEntity(task, playlistName);
+  }
+
+  /**
+   * Find an active/paused playlist task for the exact subscription destination.
+   * This avoids treating an arbitrary terminal or standalone same-URL task as
+   * the linked subscription backfill.
+   */
+  async getBlockingPlaylistTaskByDestination(
+    authorUrl: string,
+    subscriptionId: string,
+    collectionId: string
+  ): Promise<ContinuousDownloadTask | null> {
+    const { collections } = await import("../../db/schema");
+    const result = await db
+      .select({
+        task: continuousDownloadTasks,
+        playlistName: collections.name,
+      })
+      .from(continuousDownloadTasks)
+      .leftJoin(
+        collections,
+        eq(continuousDownloadTasks.collectionId, collections.id)
+      )
+      .where(
+        and(
+          eq(continuousDownloadTasks.authorUrl, authorUrl),
+          eq(continuousDownloadTasks.subscriptionId, subscriptionId),
+          eq(continuousDownloadTasks.collectionId, collectionId),
+          inArray(continuousDownloadTasks.status, ["active", "paused"])
+        )
+      )
+      .orderBy(desc(continuousDownloadTasks.createdAt))
+      .limit(1);
+
+    if (result.length === 0) return null;
+
+    const { task, playlistName } = result[0];
     return mapTaskRowToEntity(task, playlistName);
   }
 

@@ -491,6 +491,32 @@ export class SubscriptionService {
     });
   }
 
+  async updatePlaylistSubscriptionCursor(
+    id: string,
+    lastVideoLink: string,
+    lastCheck: number
+  ): Promise<void> {
+    const updated = await db
+      .update(subscriptions)
+      .set({ lastVideoLink, lastCheck })
+      .where(eq(subscriptions.id, id))
+      .returning({
+        id: subscriptions.id,
+        author: subscriptions.author,
+      });
+
+    if (updated.length === 0) {
+      throw NotFoundError.subscription(id);
+    }
+
+    logger.info("Updated playlist subscription cursor", {
+      subscriptionId: updated[0].id,
+      author: updated[0].author,
+      lastVideoLink,
+      lastCheck,
+    });
+  }
+
   async resumeSubscription(id: string): Promise<void> {
     const existing = await db
       .select()
