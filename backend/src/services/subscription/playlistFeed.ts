@@ -120,6 +120,27 @@ function detectPlatform(playlistUrl: string): "YouTube" | "Bilibili" {
   return isBilibiliUrl(playlistUrl) ? "Bilibili" : "YouTube";
 }
 
+function parseExtractorArgParts(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.flatMap((entry) => parseExtractorArgParts(entry));
+  }
+
+  if (typeof value !== "string") {
+    return [];
+  }
+
+  return value
+    .split(";")
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+function mergeExtractorArgs(...values: unknown[]): string | undefined {
+  const parts = values.flatMap((value) => parseExtractorArgParts(value));
+  const uniqueParts = Array.from(new Set(parts));
+  return uniqueParts.length > 0 ? uniqueParts.join(";") : undefined;
+}
+
 /**
  * Build the yt-dlp flag set for a playlist probe, applying the effective
  * per-subscription yt-dlp override on top of the global network config and the
@@ -139,16 +160,18 @@ async function buildProbeFlags(
   );
   const networkConfig = getNetworkConfigFromUserConfig(userConfig);
   const PROVIDER_SCRIPT = getProviderScript();
+  const extractorArgs = mergeExtractorArgs(
+    userConfig.extractorArgs,
+    PROVIDER_SCRIPT
+      ? `youtubepot-bgutilscript:script_path=${PROVIDER_SCRIPT}`
+      : undefined
+  );
   return {
     ...networkConfig,
     noWarnings: true,
     flatPlaylist: true,
     ...(probeEnd !== null ? { playlistEnd: probeEnd } : {}),
-    ...(PROVIDER_SCRIPT
-      ? {
-          extractorArgs: `youtubepot-bgutilscript:script_path=${PROVIDER_SCRIPT}`,
-        }
-      : {}),
+    ...(extractorArgs ? { extractorArgs } : {}),
   };
 }
 

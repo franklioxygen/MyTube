@@ -181,6 +181,74 @@ describe("getPlaylistHeadSnapshot", () => {
     );
   });
 
+  it("preserves subscription extractor args in playlist probes", async () => {
+    const {
+      executeYtDlpJson,
+      getEffectiveUserYtDlpConfig,
+      getNetworkConfigFromUserConfig,
+    } = await import("../../../utils/ytDlpUtils");
+    const userConfig = {
+      extractorArgs: "youtube:player_client=web",
+      proxy: "socks5://127.0.0.1:1080",
+    };
+    vi.mocked(getEffectiveUserYtDlpConfig).mockReturnValueOnce(userConfig);
+    vi.mocked(getNetworkConfigFromUserConfig).mockReturnValueOnce({
+      proxy: userConfig.proxy,
+    });
+    vi.mocked(executeYtDlpJson).mockResolvedValueOnce({
+      _type: "playlist",
+      entries: [{ id: "vidA" }],
+    } as any);
+
+    await getPlaylistHeadSnapshot(
+      "https://www.youtube.com/playlist?list=PL1",
+      "YouTube",
+      {
+        subscriptionYtdlpConfig:
+          "--extractor-args youtube:player_client=web",
+      }
+    );
+
+    expect(getNetworkConfigFromUserConfig).toHaveBeenCalledWith(userConfig);
+    expect(executeYtDlpJson).toHaveBeenCalledWith(
+      "https://www.youtube.com/playlist?list=PL1",
+      expect.objectContaining({
+        extractorArgs: "youtube:player_client=web",
+        proxy: "socks5://127.0.0.1:1080",
+      })
+    );
+  });
+
+  it("merges subscription extractor args with the provider script option", async () => {
+    const { getProviderScript } = await import(
+      "../../../services/downloaders/ytdlp/ytdlpHelpers"
+    );
+    vi.mocked(getProviderScript).mockReturnValueOnce("/path/to/script.js");
+    const {
+      executeYtDlpJson,
+      getEffectiveUserYtDlpConfig,
+    } = await import("../../../utils/ytDlpUtils");
+    vi.mocked(getEffectiveUserYtDlpConfig).mockReturnValueOnce({
+      extractorArgs: "youtube:max_comments=20",
+    });
+    vi.mocked(executeYtDlpJson).mockResolvedValueOnce({
+      _type: "playlist",
+      entries: [{ id: "vidA" }],
+    } as any);
+
+    await inspectPlaylist("https://www.youtube.com/playlist?list=PL1", {
+      subscriptionYtdlpConfig: "--extractor-args youtube:max_comments=20",
+    });
+
+    expect(executeYtDlpJson).toHaveBeenCalledWith(
+      "https://www.youtube.com/playlist?list=PL1",
+      expect.objectContaining({
+        extractorArgs:
+          "youtube:max_comments=20;youtubepot-bgutilscript:script_path=/path/to/script.js",
+      })
+    );
+  });
+
   it("retains the provider script option when present", async () => {
     const { getProviderScript } = await import(
       "../../../services/downloaders/ytdlp/ytdlpHelpers"
