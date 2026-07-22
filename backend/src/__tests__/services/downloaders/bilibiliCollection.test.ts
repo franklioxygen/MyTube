@@ -54,13 +54,18 @@ vi.mock("../../../utils/logger", () => ({
   logger: mocks.logger,
 }));
 
-import { downloadCollection } from "../../../services/downloaders/bilibili/bilibiliCollection";
+import {
+  downloadCollection,
+  getCollectionVideos,
+  getSeriesVideos,
+} from "../../../services/downloaders/bilibili/bilibiliCollection";
 
 describe("bilibiliCollection.downloadCollection", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.axiosGet.mockResolvedValue({
       data: {
+        code: 0,
         data: {
           archives: [
             { bvid: "BV1", title: "Episode 1", aid: 1 },
@@ -93,6 +98,44 @@ describe("bilibiliCollection.downloadCollection", () => {
       success: true,
       videoData: { id: "video-2" },
     });
+  });
+
+  it("rejects Bilibili collection API error payloads", async () => {
+    mocks.axiosGet.mockResolvedValueOnce({
+      data: { code: -412, message: "rate limited" },
+    });
+
+    const result = await getCollectionVideos(9, 42);
+
+    expect(result).toEqual({ success: false, videos: [] });
+    expect(mocks.logger.error).toHaveBeenCalledWith(
+      "Error fetching collection videos:",
+      expect.any(Error),
+    );
+  });
+
+  it("rejects Bilibili series payloads that are missing archives", async () => {
+    mocks.axiosGet.mockResolvedValueOnce({
+      data: { code: 0, data: { page: { total: 0 } } },
+    });
+
+    const result = await getSeriesVideos(9, 42);
+
+    expect(result).toEqual({ success: false, videos: [] });
+    expect(mocks.logger.error).toHaveBeenCalledWith(
+      "Error fetching series videos:",
+      expect.any(Error),
+    );
+  });
+
+  it("keeps verified empty Bilibili collection pages as successful", async () => {
+    mocks.axiosGet.mockResolvedValueOnce({
+      data: { code: 0, data: { archives: [], page: { total: 0 } } },
+    });
+
+    const result = await getCollectionVideos(9, 42);
+
+    expect(result).toEqual({ success: true, videos: [] });
   });
 
   it("reuses the linked collection and downloads only missing videos", async () => {
@@ -458,6 +501,7 @@ describe("bilibiliCollection.downloadCollection", () => {
     try {
       mocks.axiosGet.mockResolvedValue({
         data: {
+          code: 0,
           data: {
             archives: [{ bvid: "BV1", title: "Episode 1", aid: 1 }],
             page: { total: 1 },
@@ -495,6 +539,7 @@ describe("bilibiliCollection.downloadCollection", () => {
     try {
       mocks.axiosGet.mockResolvedValue({
         data: {
+          code: 0,
           data: {
             archives: [{ bvid: "BV1", title: "Episode 1", aid: 1 }],
             page: { total: 1 },
@@ -530,6 +575,7 @@ describe("bilibiliCollection.downloadCollection", () => {
     try {
       mocks.axiosGet.mockResolvedValue({
         data: {
+          code: 0,
           data: {
             archives: [{ bvid: "BV1", title: "Episode 1", aid: 1 }],
             page: { total: 1 },
@@ -569,6 +615,7 @@ describe("bilibiliCollection.downloadCollection", () => {
     try {
       mocks.axiosGet.mockResolvedValue({
         data: {
+          code: 0,
           data: {
             archives: [{ bvid: "BV1", title: "Episode 1", aid: 1 }],
             page: { total: 1 },
@@ -605,6 +652,7 @@ describe("bilibiliCollection.downloadCollection", () => {
   it("does not retry a generic (non-risk-control) failure", async () => {
     mocks.axiosGet.mockResolvedValue({
       data: {
+        code: 0,
         data: {
           archives: [{ bvid: "BV1", title: "Episode 1", aid: 1 }],
           page: { total: 1 },

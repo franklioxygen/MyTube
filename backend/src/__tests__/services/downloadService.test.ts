@@ -99,8 +99,16 @@ describe("downloadService", () => {
       );
       expect(BilibiliDownloader.checkVideoParts).toHaveBeenCalledWith("bv1");
       expect(BilibiliDownloader.checkCollectionOrSeries).toHaveBeenCalledWith("bv1");
-      expect(BilibiliDownloader.getCollectionVideos).toHaveBeenCalledWith(1, 2);
-      expect(BilibiliDownloader.getSeriesVideos).toHaveBeenCalledWith(3, 4);
+      expect(BilibiliDownloader.getCollectionVideos).toHaveBeenCalledWith(
+        1,
+        2,
+        undefined
+      );
+      expect(BilibiliDownloader.getSeriesVideos).toHaveBeenCalledWith(
+        3,
+        4,
+        undefined
+      );
     });
 
     it("delegates bilibili part and collection downloads", async () => {

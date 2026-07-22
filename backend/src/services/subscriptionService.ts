@@ -9,6 +9,7 @@ import {
   ValidationError,
 } from "../errors/DownloadErrors";
 import {
+    extractBilibiliVideoId,
     extractBilibiliMid,
     extractTwitchChannelLogin,
     isBilibiliSpaceUrl,
@@ -42,6 +43,10 @@ import {
   stopSubscriptionSchedulerTasks,
 } from "./subscription/scheduler";
 import { checkChannelPlaylistsForWatcher } from "./subscription/channelPlaylists";
+import {
+  getBilibiliCollectionHeadSnapshot,
+  getPlaylistHeadSnapshot,
+} from "./subscription/playlistFeed";
 import { resolveYouTubeAuthorName } from "./subscription/youtubeAuthor";
 import {
   checkTwitchSubscription as checkTwitchSubscriptionImpl,
@@ -50,6 +55,26 @@ import {
 } from "./subscription/twitchSubscription";
 
 export type { Subscription } from "./subscription/types";
+
+/**
+ * Options for creating a playlist subscription (design §7.2 / §18).
+ *
+ * `initialHeadVideoUrl` + `baselineObservedAt` form the required server-side
+ * baseline; `filenameTemplate` is a forward-compatible seam shared with the
+ * companion filename-template design and is omitted until that feature lands.
+ */
+export interface SubscribePlaylistOptions {
+  playlistUrl: string;
+  interval: number;
+  playlistTitle: string;
+  playlistId: string;
+  author: string;
+  platform: string;
+  collectionId: string | null;
+  initialHeadVideoUrl: string | null;
+  baselineObservedAt: number;
+  filenameTemplate?: string | null;
+}
 
 export class SubscriptionService {
   private static instance: SubscriptionService;
@@ -212,18 +237,36 @@ export class SubscriptionService {
   }
 
   /**
-   * Subscribe to a playlist to automatically download new videos
+   * Subscribe to a playlist to automatically download new videos.
+   *
+   * Requires an explicit baseline (design §7.2): the server-observed current
+   * playlist head (or null for a verified empty playlist) plus the observation
+   * timestamp. The baseline is captured by the caller via playlistFeed before
+   * any persistent side effect, so the scheduler's first poll has a real
+   * comparison cursor and an item that already existed at subscription time is
+   * not treated as new. Requiring the value at the type boundary prevents
+   * future callers from accidentally reintroducing `lastVideoLink: ""` for a
+   * non-empty playlist.
    */
   async subscribePlaylist(
-    playlistUrl: string,
-    interval: number,
-    playlistTitle: string,
-    playlistId: string,
-    author: string,
-    platform: string,
-    collectionId: string | null
+    options: SubscribePlaylistOptions
   ): Promise<Subscription> {
-    // Check if already subscribed to this playlist
+    const {
+      playlistUrl,
+      interval,
+      playlistTitle,
+      playlistId,
+      author,
+      platform,
+      collectionId,
+      initialHeadVideoUrl,
+      baselineObservedAt,
+      filenameTemplate,
+    } = options;
+
+    // Check if already subscribed to this playlist. Kept in the service as the
+    // final race-safe guard even when the controller performs an early duplicate
+    // check for user experience (design §7.2).
     const existing = await db
       .select()
       .from(subscriptions)
@@ -240,8 +283,11 @@ export class SubscriptionService {
       author: displayName,
       authorUrl: playlistUrl,
       interval,
-      lastVideoLink: "",
-      lastCheck: Date.now(),
+      // Store the captured head (or "" for a verified empty playlist) as the
+      // scheduler cursor. lastCheck is the observation timestamp, not an
+      // unrelated earlier time (design §4.3 / §7.2).
+      lastVideoLink: initialHeadVideoUrl ?? "",
+      lastCheck: baselineObservedAt,
       downloadCount: 0,
       createdAt: Date.now(),
       platform,
@@ -251,10 +297,20 @@ export class SubscriptionService {
       channelName: author,
       subscriptionType: "playlist",
       collectionId: collectionId || undefined,
+      // filenameTemplate is a forward-compatible seam shared with the
+      // companion filename-template design (§18). It is accepted here so the
+      // options contract is stable, but not persisted until that design adds
+      // the column.
     };
 
     await db.insert(subscriptions).values(newSubscription);
-    logger.info("Created playlist subscription", getSubscriptionLogContext(newSubscription));
+    logger.info(
+      "Created playlist subscription",
+      getSubscriptionLogContext(newSubscription, {
+        baselineState: initialHeadVideoUrl ? "item" : "empty",
+        baselineObservedAt,
+      })
+    );
     return newSubscription;
   }
 
@@ -310,16 +366,7 @@ export class SubscriptionService {
   async checkChannelPlaylists(sub: Subscription): Promise<number> {
     return checkChannelPlaylistsForWatcher(sub, {
       listSubscriptions: () => this.listSubscriptions(),
-      subscribePlaylist: (playlistUrl, interval, title, playlistId, channelName, platform, collectionId) =>
-        this.subscribePlaylist(
-          playlistUrl,
-          interval,
-          title,
-          playlistId,
-          channelName,
-          platform,
-          collectionId
-        ),
+      subscribePlaylist: (options) => this.subscribePlaylist(options),
     });
   }
 
@@ -417,6 +464,56 @@ export class SubscriptionService {
       subscriptionId: updated[0].id,
       author: updated[0].author,
       updates,
+    });
+  }
+
+  async updatePlaylistSubscriptionCollection(
+    id: string,
+    collectionId: string
+  ): Promise<void> {
+    const updated = await db
+      .update(subscriptions)
+      .set({ collectionId })
+      .where(eq(subscriptions.id, id))
+      .returning({
+        id: subscriptions.id,
+        author: subscriptions.author,
+      });
+
+    if (updated.length === 0) {
+      throw NotFoundError.subscription(id);
+    }
+
+    logger.info("Linked playlist subscription to collection", {
+      subscriptionId: updated[0].id,
+      author: updated[0].author,
+      collectionId,
+    });
+  }
+
+  async updatePlaylistSubscriptionCursor(
+    id: string,
+    lastVideoLink: string,
+    lastCheck: number
+  ): Promise<void> {
+    const updated = await db
+      .update(subscriptions)
+      .set({ lastVideoLink, lastCheck })
+      .where(eq(subscriptions.id, id))
+      .returning({
+        id: subscriptions.id,
+        author: subscriptions.author,
+      });
+
+    if (updated.length === 0) {
+      throw NotFoundError.subscription(id);
+    }
+
+    logger.info("Updated playlist subscription cursor", {
+      subscriptionId: updated[0].id,
+      author: updated[0].author,
+      lastVideoLink,
+      lastCheck,
     });
   }
 
@@ -586,17 +683,56 @@ export class SubscriptionService {
       }
 
       const isPlaylistSubscription = sub.subscriptionType === "playlist";
-      const latestVideoUrl = isPlaylistSubscription
-        ? await this.getLatestPlaylistVideoUrl(
-            sub.authorUrl,
-            sub.platform,
-            sub.ytdlpConfig
-          )
-        : await this.getLatestVideoUrl(
-            sub.authorUrl,
-            sub.platform,
-            sub.ytdlpConfig
+
+      // Playlist polls use the typed, fail-closed head snapshot (design §9.1).
+      // The old nullable/error-swallowing probe could not distinguish a valid
+      // empty playlist from an extraction/network failure, which let a failed
+      // probe look like an empty playlist and update lastCheck as if it
+      // succeeded. Now a probe throw marks the check failed and leaves the
+      // cursor unchanged; a verified-empty result updates only lastCheck
+      // (design §9.2) and never clears a previously non-empty cursor.
+      let latestVideoUrl: string | null = null;
+      if (isPlaylistSubscription) {
+        try {
+          const snapshot = await this.getPlaylistSubscriptionHeadSnapshot(sub);
+          latestVideoUrl = snapshot.headVideoUrl;
+        } catch (probeError) {
+          logger.error(
+            "Playlist probe failed during subscription check",
+            probeError instanceof Error
+              ? probeError
+              : new Error(String(probeError)),
+            getSubscriptionLogContext(sub)
           );
+          checkStatus = "fail";
+          checkFailureReason = bucketDownloadError(
+            probeError instanceof Error
+              ? probeError.message
+              : String(probeError)
+          );
+          // Leave the cursor unchanged, but advance lastCheck so persistent
+          // extractor/network failures back off to the configured interval.
+          const updateResult = await db
+            .update(subscriptions)
+            .set({ lastCheck: now })
+            .where(eq(subscriptions.id, sub.id))
+            .returning({ id: subscriptions.id });
+
+          if (updateResult.length === 0) {
+            logger.warn(
+              "Subscription was deleted before failed playlist probe backoff update",
+              getSubscriptionLogContext(sub)
+            );
+          }
+          return;
+        }
+      } else {
+        latestVideoUrl = await this.getLatestVideoUrl(
+          sub.authorUrl,
+          sub.platform,
+          sub.ytdlpConfig
+        );
+      }
 
       if (latestVideoUrl && latestVideoUrl !== sub.lastVideoLink) {
         logger.info(
@@ -1019,6 +1155,41 @@ export class SubscriptionService {
     );
   }
 
+  private async getPlaylistSubscriptionHeadSnapshot(
+    sub: Subscription
+  ): Promise<{ headVideoUrl: string | null }> {
+    if (sub.platform === "Bilibili") {
+      const collection = sub.collectionId
+        ? storageService.getCollectionById(sub.collectionId)
+        : undefined;
+      const sourceType =
+        collection?.sourcePlatform === "bilibili" &&
+        (collection.sourceType === "collection" ||
+          collection.sourceType === "series")
+          ? collection.sourceType
+          : undefined;
+      const hasCollectionSource =
+        Boolean(sourceType && collection?.sourceMid) &&
+        Boolean(collection?.sourceId || sub.playlistId);
+
+      if (hasCollectionSource || extractBilibiliVideoId(sub.authorUrl)) {
+        return getBilibiliCollectionHeadSnapshot(
+          sub.authorUrl,
+          {
+            type: sourceType,
+            mid: collection?.sourceMid,
+            id: collection?.sourceId ?? sub.playlistId,
+          },
+          { headOnly: true }
+        );
+      }
+    }
+
+    return getPlaylistHeadSnapshot(sub.authorUrl, sub.platform, {
+      subscriptionYtdlpConfig: sub.ytdlpConfig,
+    });
+  }
+
   /**
    * Thin delegations to the extracted Twitch implementation. Retained as
    * instance methods because tests spy on / exercise them directly.
@@ -1070,61 +1241,6 @@ export class SubscriptionService {
       channelUrl,
       subscriptionYtdlpConfig
     );
-  }
-
-  /**
-   * Get the latest video URL from a playlist
-   * For playlists, we check the first video (newest) in the playlist
-   */
-  private async getLatestPlaylistVideoUrl(
-    playlistUrl: string,
-    platform?: string,
-    subscriptionYtdlpConfig?: string | null
-  ): Promise<string | null> {
-    try {
-      const {
-        executeYtDlpJson,
-        getNetworkConfigFromUserConfig,
-        getEffectiveUserYtDlpConfig,
-      } = await import("../utils/ytDlpUtils");
-      // Layer any per-subscription override on top of the global config (#345)
-      // so proxy/rate-limit overrides needed to enumerate the playlist apply to
-      // the scheduled probe, not just the eventual download.
-      const userConfig = getEffectiveUserYtDlpConfig(
-        playlistUrl,
-        subscriptionYtdlpConfig
-      );
-      const networkConfig = getNetworkConfigFromUserConfig(userConfig);
-
-      // Get the first video from the playlist
-      const info = await executeYtDlpJson(playlistUrl, {
-        ...networkConfig,
-        noWarnings: true,
-        flatPlaylist: true,
-        playlistEnd: 1,
-      });
-
-      if (info.entries && info.entries.length > 0) {
-        const firstVideo = info.entries[0];
-        if (firstVideo.url) {
-          return firstVideo.url;
-        }
-        if (firstVideo.id) {
-          // Construct URL from ID
-          if (platform === "YouTube") {
-            return `https://www.youtube.com/watch?v=${firstVideo.id}`;
-          }
-          if (platform === "Bilibili") {
-            return `https://www.bilibili.com/video/${firstVideo.id}`;
-          }
-        }
-      }
-
-      return null;
-    } catch (error) {
-      logger.error("Error getting latest playlist video:", error);
-      return null;
-    }
   }
 }
 

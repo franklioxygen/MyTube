@@ -70,7 +70,7 @@ function AppContent() {
         setShowBilibiliPartsModal,
         bilibiliPartsInfo,
         isCheckingParts,
-        handleDownloadAllBilibiliParts,
+        handlePlaylistDialogConfirm,
         handleDownloadCurrentBilibiliPart
     } = useDownload();
 
@@ -145,7 +145,7 @@ function AppContent() {
                                             onClose={() => setShowBilibiliPartsModal(false)}
                                             videosNumber={bilibiliPartsInfo.videosNumber}
                                             videoTitle={bilibiliPartsInfo.title}
-                                            onDownloadAll={handleDownloadAllBilibiliParts}
+                                            onConfirm={handlePlaylistDialogConfirm}
                                             onDownloadCurrent={handleDownloadCurrentBilibiliPart}
                                             isLoading={loading || isCheckingParts}
                                             type={bilibiliPartsInfo.type}

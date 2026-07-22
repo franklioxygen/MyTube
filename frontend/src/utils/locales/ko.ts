@@ -1051,6 +1051,19 @@ export const ko = {
   playlistSubscribedSuccessfully: "재생목록 구독 성공",
   downloadAndSubscribe: "모두 다운로드 및 구독",
   playlistSubscription: "재생목록",
+  // Issue #368.2 — 새 콘텐츠만 구독 / 기록 다운로드 선택
+  subscribeOnlyNewPlaylistVideos:
+    "새 동영상만 구독",
+  subscribeOnlyNewPlaylistVideosHelp:
+    "기존 재생목록 동영상은 대기열에 추가되지 않습니다. 이 구독을 생성한 후 MyTube가 새로 감지된 동영상을 다운로드합니다.",
+  downloadExistingPlaylistVideos:
+    "지금 기존 동영상 다운로드",
+  playlistSubscribedNewOnly:
+    "새 동영상만 구독했습니다. 기존 동영상은 대기열에 추가되지 않았습니다.",
+  playlistDownloadAndSubscriptionStarted:
+    "다운로드가 시작되었고 재생목록을 구독했습니다.",
+  playlistBaselineFailed:
+    "재생목록을 구독했지만 기존 동영상 다운로드를 시작하지 못했습니다. 새 동영상은 계속 자동으로 다운로드됩니다.",
 
 
   // Instruction Page
