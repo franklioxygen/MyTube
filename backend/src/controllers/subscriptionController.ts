@@ -665,10 +665,19 @@ export const subscribeChannelPlaylists = async (
   // new playlist subscription created in this request and to the watcher. Uses
   // the "playlist" source-collection type because the watcher copies its
   // template to child playlists.
-  const filenameTemplate = normalizeSubscriptionFilenameTemplate(
-    req.body.filenameTemplate,
-    "playlist"
+  const hasFilenameTemplate = Object.prototype.hasOwnProperty.call(
+    req.body,
+    "filenameTemplate"
   );
+  const filenameTemplate = hasFilenameTemplate
+    ? normalizeSubscriptionFilenameTemplate(
+        req.body.filenameTemplate,
+        "playlist"
+      )
+    : null;
+  const watcherFilenameTemplate = hasFilenameTemplate
+    ? filenameTemplate
+    : undefined;
 
   // Adjust URL to ensure we target playlists tab
   const targetUrl = toPlaylistsTabUrl(url);
@@ -840,7 +849,7 @@ export const subscribeChannelPlaylists = async (
       parseInt(interval),
       channelName,
       platform,
-      filenameTemplate
+      watcherFilenameTemplate
     );
     logger.info("Created channel playlists watcher", {
       subscriptionId: watcher.id,

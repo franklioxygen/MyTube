@@ -817,11 +817,23 @@ describe("SubscriptionController", () => {
 
       expect(subscriptionService.subscribeChannelPlaylistsWatcher).toHaveBeenCalledWith(
         "https://www.youtube.com/@channel/playlists", 60, "My Channel", "YouTube",
-        null
+        undefined
       );
       expect(status).toHaveBeenCalledWith(201);
       expect(json).toHaveBeenCalledWith(
         expect.objectContaining({ subscribedCount: 1, skippedCount: 1, errorCount: 0 })
+      );
+    });
+
+    it("should pass null to the watcher when filenameTemplate is explicitly cleared", async () => {
+      setupChannelPlaylistsMocks();
+      req.body.filenameTemplate = "   ";
+
+      await subscribeChannelPlaylists(req as Request, res as Response);
+
+      expect(subscriptionService.subscribeChannelPlaylistsWatcher).toHaveBeenCalledWith(
+        "https://www.youtube.com/@channel/playlists", 60, "My Channel", "YouTube",
+        null
       );
     });
 
