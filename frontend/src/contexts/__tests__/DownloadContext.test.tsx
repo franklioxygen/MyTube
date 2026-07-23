@@ -536,13 +536,16 @@ describe('DownloadContext', () => {
       expect(result.current.bilibiliPartsInfo.type).toBe('collection');
     });
 
-    const subscribeResult = await result.current.handleDownloadAllBilibiliParts('My B Collection', { interval: 60 });
-    expect(subscribeResult).toEqual({ success: true });
+    const subscribeResult = await result.current.handlePlaylistDialogConfirm({
+      collectionName: 'My B Collection',
+      subscribe: { interval: 60, downloadAll: false, filenameTemplate: null },
+    });
+    expect(subscribeResult).toBeUndefined();
     expect(mockApiPost).toHaveBeenCalledWith('/subscriptions/playlist', {
       playlistUrl: 'https://www.bilibili.com/video/BV1abc',
       interval: 60,
       collectionName: 'My B Collection',
-      downloadAll: true,
+      downloadAll: false,
       collectionInfo: {
         type: 'collection',
         id: 'cid',
@@ -550,6 +553,7 @@ describe('DownloadContext', () => {
         title: 'B Collection',
         count: 12,
       },
+      filenameTemplate: undefined,
     });
     expect(mockFetchCollections).toHaveBeenCalled();
 
@@ -573,8 +577,8 @@ describe('DownloadContext', () => {
     expect(result.current.bilibiliPartsInfo.type).toBe('parts');
 
     mockApiPost.mockResolvedValueOnce({ data: { success: true } });
-    const partsDownloadResult = await result.current.handleDownloadAllBilibiliParts('My parts');
-    expect(partsDownloadResult).toEqual({ success: true });
+    const partsDownloadResult = await result.current.handlePlaylistDialogConfirm({ collectionName: 'My parts' });
+    expect(partsDownloadResult).toBeUndefined();
     expect(mockApiPost).toHaveBeenCalledWith('/download', {
       youtubeUrl: 'https://www.bilibili.com/video/BV2xyz',
       downloadAllParts: true,
@@ -597,7 +601,7 @@ describe('DownloadContext', () => {
     expect(getCalls).not.toContain('/check-bilibili-parts');
   });
 
-  it('returns error object when handleDownloadAllBilibiliParts fails', async () => {
+  it('throws and shows an error snackbar when handlePlaylistDialogConfirm fails', async () => {
     const { wrapper } = createWrapper();
     const { result } = renderHook(() => useDownload(), { wrapper });
 
@@ -616,9 +620,155 @@ describe('DownloadContext', () => {
     });
 
     mockApiPost.mockRejectedValueOnce({ response: { data: { error: 'bilibili flow failed' } } });
-    const errorResult = await result.current.handleDownloadAllBilibiliParts('broken');
+    // On backend failure the handler re-throws so the modal stays retryable,
+    // and surfaces an error snackbar (design §10.6 / §10.7).
+    await expect(
+      result.current.handlePlaylistDialogConfirm({
+        collectionName: 'broken',
+        subscribe: { interval: 60, downloadAll: false, filenameTemplate: null },
+      })
+    ).rejects.toBeDefined();
+    expect(mockShowSnackbar).toHaveBeenCalledWith(
+      expect.any(String),
+      'error'
+    );
+  });
 
-    expect(errorResult).toEqual({ success: false, error: 'bilibili flow failed' });
+  it('direct subscribe-only sends downloadAll:false and does not trigger active-download polling (design §10.3/§10.5)', async () => {
+    const { wrapper } = createWrapper();
+    const { result } = renderHook(() => useDownload(), { wrapper });
+
+    mockApiGet.mockImplementation((url: string) => {
+      if (url === '/download-status') {
+        return Promise.resolve({ data: { activeDownloads: [], queuedDownloads: [] } });
+      }
+      if (url === '/check-playlist') {
+        return Promise.resolve({ data: { success: true, title: 'PL', videoCount: 8 } });
+      }
+      return Promise.resolve({ data: {} });
+    });
+
+    await act(async () => {
+      await result.current.handleVideoSubmit('https://youtube.com/playlist?list=PL-only');
+    });
+    expect(result.current.bilibiliPartsInfo.type).toBe('playlist');
+
+    // Backend reports subscribe-only: no task, backfillStatus not_requested.
+    mockApiPost.mockResolvedValueOnce({
+      data: {
+        subscription: { id: 'sub-1' },
+        collectionId: 'col-1',
+        taskId: null,
+        downloadAll: false,
+        backfillStatus: 'not_requested',
+      },
+    });
+    mockApiGet.mockClear();
+
+    await act(async () => {
+      await result.current.handlePlaylistDialogConfirm({
+        collectionName: 'My PL',
+        subscribe: { interval: 60, downloadAll: false, filenameTemplate: null },
+      });
+    });
+
+    expect(mockApiPost).toHaveBeenCalledWith('/subscriptions/playlist', expect.objectContaining({
+      playlistUrl: 'https://youtube.com/playlist?list=PL-only',
+      downloadAll: false,
+    }));
+    // Collections + subscriptions list refresh (subscribe-only still creates a collection).
+    expect(mockFetchCollections).toHaveBeenCalled();
+    // No active-download status poll triggered when no task was created.
+    const getCalls = mockApiGet.mock.calls.map((c: any[]) => c[0]);
+    expect(getCalls).not.toContain('/download-status');
+  });
+
+  it('history opt-in sends downloadAll:true and triggers status polling only when a task id exists', async () => {
+    const { wrapper } = createWrapper();
+    const { result } = renderHook(() => useDownload(), { wrapper });
+
+    mockApiGet.mockImplementation((url: string) => {
+      if (url === '/download-status') {
+        return Promise.resolve({ data: { activeDownloads: [], queuedDownloads: [] } });
+      }
+      if (url === '/check-playlist') {
+        return Promise.resolve({ data: { success: true, title: 'PL', videoCount: 8 } });
+      }
+      return Promise.resolve({ data: {} });
+    });
+
+    await act(async () => {
+      await result.current.handleVideoSubmit('https://youtube.com/playlist?list=PL-backfill');
+    });
+
+    mockApiPost.mockResolvedValueOnce({
+      data: {
+        subscription: { id: 'sub-2' },
+        collectionId: 'col-2',
+        taskId: 'task-2',
+        downloadAll: true,
+        backfillStatus: 'started',
+      },
+    });
+    mockApiGet.mockClear();
+
+    await act(async () => {
+      await result.current.handlePlaylistDialogConfirm({
+        collectionName: 'My PL',
+        subscribe: { interval: 60, downloadAll: true, filenameTemplate: null },
+      });
+    });
+
+    expect(mockApiPost).toHaveBeenCalledWith('/subscriptions/playlist', expect.objectContaining({
+      downloadAll: true,
+    }));
+    // Backfill started with a task id => status polling triggered.
+    await waitFor(() => {
+      const getCalls = mockApiGet.mock.calls.map((c: any[]) => c[0]);
+      expect(getCalls).toContain('/download-status');
+    });
+  });
+
+  it('already-existing backfill response triggers status polling for the returned task', async () => {
+    const { wrapper } = createWrapper();
+    const { result } = renderHook(() => useDownload(), { wrapper });
+
+    mockApiGet.mockImplementation((url: string) => {
+      if (url === '/download-status') {
+        return Promise.resolve({ data: { activeDownloads: [], queuedDownloads: [] } });
+      }
+      if (url === '/check-playlist') {
+        return Promise.resolve({ data: { success: true, title: 'PL', videoCount: 8 } });
+      }
+      return Promise.resolve({ data: {} });
+    });
+
+    await act(async () => {
+      await result.current.handleVideoSubmit('https://youtube.com/playlist?list=PL-existing');
+    });
+
+    mockApiPost.mockResolvedValueOnce({
+      data: {
+        subscription: { id: 'sub-3' },
+        collectionId: 'col-3',
+        taskId: 'task-3',
+        downloadAll: true,
+        backfillStatus: 'already_exists',
+      },
+    });
+    mockApiGet.mockClear();
+
+    await act(async () => {
+      await result.current.handlePlaylistDialogConfirm({
+        collectionName: 'My PL',
+        subscribe: { interval: 60, downloadAll: true, filenameTemplate: null },
+      });
+    });
+
+    await waitFor(() => {
+      const getCalls = mockApiGet.mock.calls.map((c: any[]) => c[0]);
+      expect(getCalls).toContain('/download-status');
+    });
   });
 
   it('opens subscribe modal directly for Bilibili space URLs', async () => {

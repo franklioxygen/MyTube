@@ -4,11 +4,14 @@ import { subscriptions } from "../../db/schema";
 import { logger } from "../../utils/logger";
 import { getSubscriptionLogContext } from "./helpers";
 import {
+  deleteCreatedCollectionIfUnused,
   extractYouTubePlaylistId,
-  resolveChannelPlaylistCollection,
+  resolveChannelPlaylistCollectionWithStatus,
   sanitizePlaylistTitle,
 } from "./playlistResolution";
 import type { Subscription } from "./types";
+import type { SubscribePlaylistOptions } from "../subscriptionService";
+import { getPlaylistHeadSnapshot } from "./playlistFeed";
 
 /**
  * Dependencies the extracted watcher logic needs from the service. Kept
@@ -16,16 +19,7 @@ import type { Subscription } from "./types";
  */
 export interface ChannelPlaylistDeps {
   listSubscriptions: () => Promise<Subscription[]>;
-  subscribePlaylist: (
-    playlistUrl: string,
-    interval: number,
-    title: string,
-    playlistId: string,
-    channelName: string,
-    platform: string,
-    collectionId: string | null,
-    filenameTemplate?: string | null,
-  ) => Promise<unknown>;
+  subscribePlaylist: (options: SubscribePlaylistOptions) => Promise<unknown>;
 }
 
 /**
@@ -111,31 +105,71 @@ export async function checkChannelPlaylistsForWatcher(
       // For channel_playlists subscriptions, author is already the clean channel name
       const channelName = sub.author;
 
-      // Get or create collection
-      const collectionId = resolveChannelPlaylistCollection(title, channelName).id;
-
       // Extract playlist ID
       const playlistId = entry.id ?? extractYouTubePlaylistId(playlistUrl);
 
       try {
-        // Subscribe to the new playlist. Copy the watcher's filename-template
-        // override onto the child subscription (issue #368). Editing the watcher
-        // later only affects playlists discovered after the edit; existing child
-        // subscriptions remain independently editable.
-        await deps.subscribePlaylist(
+        // Capture the head baseline BEFORE creating any persistent side effect
+        // (design §8.2 / F7). The watcher is always subscribe-only (no
+        // historical task); the baseline ensures existing entries in a newly
+        // discovered playlist are not implicitly downloaded on the first poll.
+        // Capture the head with the watcher's effective yt-dlp config.
+        const snapshot = await getPlaylistHeadSnapshot(
           playlistUrl,
-          sub.interval, // Use same interval as watcher
-          title,
-          playlistId || "",
-          channelName,
           sub.platform,
-          collectionId,
-          sub.filenameTemplate ?? null,
+          { subscriptionYtdlpConfig: sub.ytdlpConfig }
         );
+
+        // Resolve the destination collection only after a successful snapshot
+        // (design §8.2) so a failed probe leaves no orphan collection.
+        const collectionResolution = resolveChannelPlaylistCollectionWithStatus(
+          title,
+          channelName
+        );
+        const collectionId = collectionResolution.collection.id;
+
+        // Create the child subscription with the head and observation timestamp.
+        try {
+          await deps.subscribePlaylist({
+            playlistUrl,
+            interval: sub.interval, // Use same interval as watcher
+            playlistTitle: title,
+            playlistId: playlistId || "",
+            author: channelName,
+            platform: sub.platform,
+            collectionId,
+            initialHeadVideoUrl: snapshot.headVideoUrl,
+            baselineObservedAt: snapshot.observedAt,
+            filenameTemplate: sub.filenameTemplate ?? null,
+          });
+        } catch (error) {
+          // The watcher has no task-creation path, so a freshly-created,
+          // empty, unreferenced collection is safe to remove on an insertion
+          // failure (design §7.3 / §8.2).
+          try {
+            await deleteCreatedCollectionIfUnused(
+              collectionResolution,
+              deps.listSubscriptions
+            );
+          } catch (cleanupError) {
+            logger.error(
+              `Failed to clean up collection for playlist ${title}:`,
+              cleanupError
+            );
+          }
+          throw error;
+        }
+        // Add the URL only after insertion succeeds (design §8.2).
         subscribedUrls.add(playlistUrl);
         newSubscriptionsCount++;
       } catch (error) {
-        logger.error(`Error auto-subscribing to playlist ${title}:`, error);
+        // A failed baseline probe (or insert) does not subscribe and does not
+        // add the URL to the set; the next watcher interval will retry
+        // (design §8.2).
+        logger.error(
+          `Error auto-subscribing to playlist ${title}:`,
+          error
+        );
       }
     }
 

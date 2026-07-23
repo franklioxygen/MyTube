@@ -1102,6 +1102,19 @@ export const de = {
   playlistSubscribedSuccessfully: "Playlist erfolgreich abonniert",
   downloadAndSubscribe: "Alle herunterladen & abonnieren",
   playlistSubscription: "Playlist",
+  // Issue #368.2 — Nur neue Inhalte abonnieren / Verlauf-Download-Option
+  subscribeOnlyNewPlaylistVideos:
+    "Nur neue Videos abonnieren",
+  subscribeOnlyNewPlaylistVideosHelp:
+    "Vorhandene Playlist-Videos werden nicht in die Warteschlange aufgenommen. MyTube lädt neu erkannte Videos herunter, nachdem dieses Abonnement erstellt wurde.",
+  downloadExistingPlaylistVideos:
+    "Vorhandene Videos jetzt herunterladen",
+  playlistSubscribedNewOnly:
+    "Nur neue Videos abonniert. Vorhandene Videos wurden nicht in die Warteschlange aufgenommen.",
+  playlistDownloadAndSubscriptionStarted:
+    "Download gestartet und Playlist abonniert.",
+  playlistBaselineFailed:
+    "Playlist abonniert, aber das Herunterladen vorhandener Videos konnte nicht gestartet werden. Neue Videos werden weiterhin automatisch heruntergeladen.",
 
 
   // Instruction Page

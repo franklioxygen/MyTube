@@ -31,6 +31,7 @@ vi.mock("../../services/continuousDownload/taskRepository", () => ({
       getAllTasks: vi.fn().mockResolvedValue([]),
       getTaskById: vi.fn().mockResolvedValue(null),
       getTaskByAuthorUrl: vi.fn().mockResolvedValue(null),
+      getBlockingPlaylistTaskByDestination: vi.fn().mockResolvedValue(null),
       cancelTask: vi.fn().mockResolvedValue(undefined),
       pauseTask: vi.fn().mockResolvedValue(undefined),
       resumeTask: vi.fn().mockResolvedValue(undefined),
@@ -134,14 +135,38 @@ describe("ContinuousDownloadService", () => {
       processSpy.mockRestore();
     });
 
+    it("createPlaylistTask should persist an explicit subscription owner", async () => {
+      const processSpy = vi
+        .spyOn(service as any, "processTask")
+        .mockResolvedValue(undefined);
+
+      const task = await service.createPlaylistTask(
+        "https://youtube.com/playlist?list=PL1",
+        "Author",
+        "YouTube",
+        "col-1",
+        "sub-1"
+      );
+
+      expect(task.subscriptionId).toBe("sub-1");
+      expect(repo.createTask).toHaveBeenCalledWith(
+        expect.objectContaining({ subscriptionId: "sub-1" })
+      );
+      processSpy.mockRestore();
+    });
+
     it("getters should delegate to repository", async () => {
       repo.getAllTasks.mockResolvedValue([{ id: "a" }]);
       repo.getTaskById.mockResolvedValue({ id: "b" });
       repo.getTaskByAuthorUrl.mockResolvedValue({ id: "c" });
+      repo.getBlockingPlaylistTaskByDestination.mockResolvedValue({ id: "d" });
 
       await expect(service.getAllTasks()).resolves.toEqual([{ id: "a" }]);
       await expect(service.getTaskById("b")).resolves.toEqual({ id: "b" });
       await expect(service.getTaskByAuthorUrl("u")).resolves.toEqual({ id: "c" });
+      await expect(
+        service.getBlockingPlaylistTaskByDestination("u", "sub", "col")
+      ).resolves.toEqual({ id: "d" });
     });
   });
 

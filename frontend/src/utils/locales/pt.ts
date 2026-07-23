@@ -1089,6 +1089,19 @@ export const pt = {
   playlistSubscribedSuccessfully: "Inscrito na playlist com sucesso",
   downloadAndSubscribe: "Baixar tudo e inscrever-se",
   playlistSubscription: "Playlist",
+  // Issue #368.2 — Inscrever-se apenas em novo conteúdo / opção de download do histórico
+  subscribeOnlyNewPlaylistVideos:
+    "Inscrever-se apenas em novos vídeos",
+  subscribeOnlyNewPlaylistVideosHelp:
+    "Os vídeos existentes da playlist não serão adicionados à fila. O MyTube fará o download dos vídeos detectados recentemente após esta inscrição ser criada.",
+  downloadExistingPlaylistVideos:
+    "Baixar vídeos existentes agora",
+  playlistSubscribedNewOnly:
+    "Inscrito apenas em novos vídeos. Os vídeos existentes não foram adicionados à fila.",
+  playlistDownloadAndSubscriptionStarted:
+    "Download iniciado e playlist inscrita.",
+  playlistBaselineFailed:
+    "Playlist inscrita, mas não foi possível iniciar o download dos vídeos existentes. Os novos vídeos continuarão sendo baixados automaticamente.",
 
 
   // Instruction Page

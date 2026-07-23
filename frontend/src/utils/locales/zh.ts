@@ -1040,6 +1040,19 @@ export const zh = {
   playlistSubscribedSuccessfully: "成功订阅播放列表",
   downloadAndSubscribe: "下载全部并订阅",
   playlistSubscription: "播放列表",
+  // Issue #368.2 — 仅订阅新内容 / 历史下载选择
+  subscribeOnlyNewPlaylistVideos:
+    "仅订阅新视频",
+  subscribeOnlyNewPlaylistVideosHelp:
+    "不会加入现有播放列表视频。创建此订阅后，MyTube 将下载新检测到的视频。",
+  downloadExistingPlaylistVideos:
+    "立即下载现有视频",
+  playlistSubscribedNewOnly:
+    "已仅订阅新视频。未加入现有视频。",
+  playlistDownloadAndSubscriptionStarted:
+    "下载已开始并已订阅播放列表。",
+  playlistBaselineFailed:
+    "已订阅播放列表，但下载现有视频未能开始。新视频仍会自动下载。",
 
 
   // Instruction Page

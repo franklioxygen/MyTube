@@ -1059,6 +1059,19 @@ export const ar = {
   playlistSubscribedSuccessfully: "تم الاشتراك في قائمة التشغيل بنجاح",
   downloadAndSubscribe: "تنزيل الكل والاشتراك",
   playlistSubscription: "قائمة التشغيل",
+  // Issue #368.2 — الاشتراك في المحتوى الجديد فقط / خيار التنزيل التاريخي
+  subscribeOnlyNewPlaylistVideos:
+    "اشترك في الفيديوهات الجديدة فقط",
+  subscribeOnlyNewPlaylistVideosHelp:
+    "لن تتم إضافة فيديوهات قائمة التشغيل الحالية إلى قائمة الانتظار. سيقوم MyTube بتنزيل الفيديوهات المكتشفة حديثًا بعد إنشاء هذا الاشتراك.",
+  downloadExistingPlaylistVideos:
+    "تنزيل الفيديوهات الحالية الآن",
+  playlistSubscribedNewOnly:
+    "تم الاشتراك في الفيديوهات الجديدة فقط. لم تتم إضافة الفيديوهات الحالية.",
+  playlistDownloadAndSubscriptionStarted:
+    "بدأ التنزيل وتم الاشتراك في قائمة التشغيل.",
+  playlistBaselineFailed:
+    "تم الاشتراك في قائمة التشغيل، لكن تعذر بدء تنزيل الفيديوهات الحالية. ستظل الفيديوهات الجديدة تُنزَّل تلقائيًا.",
 
 
   // Instruction Page

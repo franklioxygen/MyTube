@@ -1102,6 +1102,19 @@ export const fr = {
   playlistSubscribedSuccessfully: "Abonnement à la playlist réussi",
   downloadAndSubscribe: "Tout télécharger et s'abonner",
   playlistSubscription: "Playlist",
+  // Issue #368.2 — S'abonner uniquement au nouveau contenu / option de téléchargement de l'historique
+  subscribeOnlyNewPlaylistVideos:
+    "S'abonner uniquement aux nouvelles vidéos",
+  subscribeOnlyNewPlaylistVideosHelp:
+    "Les vidéos existantes de la playlist ne seront pas mises en file d'attente. MyTube téléchargera les vidéos nouvellement détectées après la création de cet abonnement.",
+  downloadExistingPlaylistVideos:
+    "Télécharger les vidéos existantes maintenant",
+  playlistSubscribedNewOnly:
+    "Abonné uniquement aux nouvelles vidéos. Les vidéos existantes n'ont pas été mises en file d'attente.",
+  playlistDownloadAndSubscriptionStarted:
+    "Téléchargement démarré et playlist abonnée.",
+  playlistBaselineFailed:
+    "Playlist abonnée, mais le téléchargement des vidéos existantes n'a pas pu démarrer. Les nouvelles vidéos continueront d'être téléchargées automatiquement.",
 
 
   // Instruction Page

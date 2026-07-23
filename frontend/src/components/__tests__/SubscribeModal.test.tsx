@@ -118,4 +118,24 @@ describe('SubscribeModal', () => {
         render(<SubscribeModal {...defaultProps} />);
         expect(screen.getByText('downloadShorts')).toBeInTheDocument();
     });
+
+    it('uses the playlist-specific label and help when provided (design §10.4)', async () => {
+        const user = userEvent.setup();
+        render(
+            <SubscribeModal
+                {...defaultProps}
+                downloadPreviousLabel="Download existing videos in these playlists"
+                downloadPreviousHelp="custom-playlist-help"
+            />
+        );
+
+        // Author-mode default label is replaced.
+        expect(screen.getByText('Download existing videos in these playlists')).toBeInTheDocument();
+        expect(screen.queryByText('downloadAllPreviousVideos')).not.toBeInTheDocument();
+
+        // Help text appears only once the checkbox is checked.
+        expect(screen.queryByText('custom-playlist-help')).not.toBeInTheDocument();
+        await user.click(screen.getByLabelText('Download existing videos in these playlists'));
+        expect(screen.getByText('custom-playlist-help')).toBeInTheDocument();
+    });
 });

@@ -44,6 +44,13 @@ interface SubscribeModalProps {
     /** When true the modal is creating channel-playlists subscriptions; the
      *  template field validates as "playlist". */
     playlistMode?: boolean;
+    /**
+     * Optional playlist-specific overrides for the "download previous" checkbox
+     * (design §10.4). When supplied they replace the author-oriented default
+     * copy so the channel "subscribe to all playlists" dialog reads correctly.
+     */
+    downloadPreviousLabel?: string;
+    downloadPreviousHelp?: string;
 }
 
 const SubscribeModal: React.FC<SubscribeModalProps> = ({
@@ -57,6 +64,8 @@ const SubscribeModal: React.FC<SubscribeModalProps> = ({
     description,
     enableDownloadOrder = true,
     playlistMode = false,
+    downloadPreviousLabel,
+    downloadPreviousHelp,
 }) => {
     const { t } = useLanguage();
     const [interval, setInterval] = useState<number>(60); // Default 60 minutes
@@ -162,8 +171,13 @@ const SubscribeModal: React.FC<SubscribeModalProps> = ({
                             disabled={isSubmitting}
                         />
                     }
-                    label={t('downloadAllPreviousVideos')}
+                    label={downloadPreviousLabel || t('downloadAllPreviousVideos')}
                 />
+                {downloadAllPrevious && downloadPreviousHelp && (
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, ml: 4 }}>
+                        {downloadPreviousHelp}
+                    </Typography>
+                )}
                 {showOrderDropdown && (
                     <FormControl fullWidth sx={{ mt: 2 }}>
                         <InputLabel id="download-order-label">{t('downloadOrder') || 'Download Order'}</InputLabel>

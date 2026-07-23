@@ -1085,6 +1085,19 @@ export const ja = {
   playlistSubscribedSuccessfully: "プレイリストの購読に成功しました",
   downloadAndSubscribe: "すべてダウンロードして購読",
   playlistSubscription: "プレイリスト",
+  // Issue #368.2 — 新着コンテンツのみ購読 / 履歴ダウンロードの選択
+  subscribeOnlyNewPlaylistVideos:
+    "新しい動画のみ購読",
+  subscribeOnlyNewPlaylistVideosHelp:
+    "既存のプレイリストの動画はキューに追加されません。この購読を作成すると、MyTube は新しく検出された動画をダウンロードします。",
+  downloadExistingPlaylistVideos:
+    "今すぐ既存の動画をダウンロード",
+  playlistSubscribedNewOnly:
+    "新しい動画のみ購読しました。既存の動画はキューに追加されませんでした。",
+  playlistDownloadAndSubscriptionStarted:
+    "ダウンロードを開始し、プレイリストを購読しました。",
+  playlistBaselineFailed:
+    "プレイリストを購読しましたが、既存動画のダウンロードを開始できませんでした。新しい動画は引き続き自動的にダウンロードされます。",
 
 
   // Instruction Page

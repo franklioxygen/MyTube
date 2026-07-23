@@ -1083,6 +1083,19 @@ export const ru = {
   playlistSubscribedSuccessfully: "Успешная подписка на плейлист",
   downloadAndSubscribe: "Скачать все и подписаться",
   playlistSubscription: "Плейлист",
+  // Issue #368.2 — Подписка только на новый контент / опция загрузки истории
+  subscribeOnlyNewPlaylistVideos:
+    "Подписаться только на новые видео",
+  subscribeOnlyNewPlaylistVideosHelp:
+    "Существующие видео плейлиста не будут добавлены в очередь. MyTube будет загружать новые обнаруженные видео после создания этой подписки.",
+  downloadExistingPlaylistVideos:
+    "Загрузить существующие видео сейчас",
+  playlistSubscribedNewOnly:
+    "Подписка только на новые видео. Существующие видео не были добавлены в очередь.",
+  playlistDownloadAndSubscriptionStarted:
+    "Загрузка начата, плейлист подписан.",
+  playlistBaselineFailed:
+    "Подписка на плейлист оформлена, но не удалось начать загрузку существующих видео. Новые видео по-прежнему будут загружаться автоматически.",
 
 
   // Instruction Page

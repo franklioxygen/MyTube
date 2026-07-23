@@ -1098,6 +1098,19 @@ export const es = {
     "Suscrito a la lista de reproducción con éxito",
   downloadAndSubscribe: "Descargar todo y suscribirse",
   playlistSubscription: "Lista de reproducción",
+  // Issue #368.2 — Suscribirse solo a contenido nuevo / opción de descarga del historial
+  subscribeOnlyNewPlaylistVideos:
+    "Suscribirse solo a videos nuevos",
+  subscribeOnlyNewPlaylistVideosHelp:
+    "Los videos existentes de la lista de reproducción no se añadirán a la cola. MyTube descargará los videos detectados nuevamente después de crear esta suscripción.",
+  downloadExistingPlaylistVideos:
+    "Descargar videos existentes ahora",
+  playlistSubscribedNewOnly:
+    "Suscrito solo a videos nuevos. Los videos existentes no se añadieron a la cola.",
+  playlistDownloadAndSubscriptionStarted:
+    "Descarga iniciada y lista de reproducción suscrita.",
+  playlistBaselineFailed:
+    "Lista de reproducción suscrita, pero no se pudo iniciar la descarga de los videos existentes. Los videos nuevos se seguirán descargando automáticamente.",
 
 
   // Instruction Page
