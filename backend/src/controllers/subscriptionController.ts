@@ -696,11 +696,16 @@ export const createPlaylistSubscription = async (
   });
 
   // Per-subscription filename-template override (issue #368). Playlists use the
-  // "playlist" source-collection type for validation warnings.
-  const filenameTemplate = normalizeSubscriptionFilenameTemplate(
-    req.body.filenameTemplate,
-    "playlist"
+  // "playlist" source-collection type for validation warnings. Keep omitted
+  // distinct from explicit blank/null so duplicate backfill requests do not
+  // accidentally clear an existing subscription override.
+  const hasFilenameTemplate = Object.prototype.hasOwnProperty.call(
+    req.body,
+    "filenameTemplate"
   );
+  const filenameTemplate = hasFilenameTemplate
+    ? normalizeSubscriptionFilenameTemplate(req.body.filenameTemplate, "playlist")
+    : null;
 
   // 2. Detect platform and playlist ID.
   const isBilibili = isBilibiliUrl(playlistUrl);
@@ -849,6 +854,16 @@ export const createPlaylistSubscription = async (
       }
       throw error;
     }
+  }
+  if (
+    subscription &&
+    hasFilenameTemplate &&
+    (subscription.filenameTemplate ?? null) !== filenameTemplate
+  ) {
+    await subscriptionService.updateSubscriptionSettings(subscription.id, {
+      filenameTemplate,
+    });
+    subscription = { ...subscription, filenameTemplate };
   }
   if (!subscription) {
     try {
