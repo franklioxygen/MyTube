@@ -1043,15 +1043,45 @@ export const subscribeChannelPlaylists = async (
   const existingSubs = await subscriptionService.listSubscriptions();
   const existingSubByUrl = new Map(existingSubs.map((sub) => [sub.authorUrl, sub]));
 
+  type ExistingPlaylistSubscription = {
+    id: string;
+    collectionId?: string | null;
+    ytdlpConfig?: string | null;
+    filenameTemplate?: string | null;
+  };
+  const applyFilenameTemplateToExistingPlaylist = async (
+    subscription: ExistingPlaylistSubscription,
+    title: string
+  ): Promise<boolean> => {
+    if (
+      !hasFilenameTemplate ||
+      (subscription.filenameTemplate ?? null) === filenameTemplate
+    ) {
+      return true;
+    }
+
+    try {
+      await subscriptionService.updateSubscriptionSettings(subscription.id, {
+        filenameTemplate,
+      });
+      subscription.filenameTemplate = filenameTemplate;
+      return true;
+    } catch (error) {
+      const message = getErrorMessage(error, "Unknown error");
+      errors.push(`${title}: ${message}`);
+      logger.error(
+        `Failed to update filename template for playlist "${title}":`,
+        error instanceof Error ? error : new Error(String(error))
+      );
+      return false;
+    }
+  };
+
   type Candidate = {
     playlistUrl: string;
     title: string;
     playlistId: string;
-    existingSubscription?: {
-      id: string;
-      collectionId?: string | null;
-      ytdlpConfig?: string | null;
-    };
+    existingSubscription?: ExistingPlaylistSubscription;
   };
   const candidates: Candidate[] = [];
   for (const entry of result.entries) {
@@ -1066,13 +1096,17 @@ export const subscribeChannelPlaylists = async (
     if (existingSubscription) {
       logger.info(`Skipping playlist "${title}": already subscribed`);
       skippedCount++;
+      const existingTemplateUpdated =
+        await applyFilenameTemplateToExistingPlaylist(existingSubscription, title);
       if (downloadAllPrevious === true) {
-        candidates.push({
-          playlistUrl,
-          title,
-          playlistId,
-          existingSubscription,
-        });
+        if (existingTemplateUpdated) {
+          candidates.push({
+            playlistUrl,
+            title,
+            playlistId,
+            existingSubscription,
+          });
+        }
       }
       continue;
     }
@@ -1234,8 +1268,17 @@ export const subscribeChannelPlaylists = async (
             );
             continue;
           }
+          const concurrentTemplateUpdated =
+            await applyFilenameTemplateToExistingPlaylist(
+              concurrentSub,
+              candidate.title
+            );
+          if (!concurrentTemplateUpdated) {
+            continue;
+          }
           createdSubscriptionId = concurrentSub.id;
           taskCollectionId = concurrentSub.collectionId;
+          existingSubByUrl.set(candidate.playlistUrl, concurrentSub);
         } else {
           errors.push(
             `${candidate.title}: ${getErrorMessage(error, "Unknown error")}`

@@ -1508,6 +1508,52 @@ describe("SubscriptionController", () => {
       );
     });
 
+    it("updates existing bulk playlist filenameTemplate when backfill is not requested", async () => {
+      const filenameTemplate = "{{ source_custom_name }}/{{ title }}.{{ ext }}";
+      req.body = {
+        url: "https://www.youtube.com/@channel",
+        interval: 60,
+        filenameTemplate,
+      };
+      (executeYtDlpJson as any).mockResolvedValueOnce({
+        uploader: "My Channel",
+        entries: [
+          {
+            id: "PL_EXISTING",
+            url: "https://www.youtube.com/playlist?list=PL_EXISTING",
+            title: "Existing Playlist",
+          },
+        ],
+      });
+      (subscriptionService.listSubscriptions as any).mockResolvedValue([
+        {
+          id: "existing-sub",
+          authorUrl: "https://www.youtube.com/playlist?list=PL_EXISTING",
+          collectionId: "existing-col",
+          filenameTemplate: null,
+        },
+      ]);
+
+      await subscribeChannelPlaylists(req as Request, res as Response);
+
+      expect(subscriptionService.updateSubscriptionSettings).toHaveBeenCalledWith(
+        "existing-sub",
+        { filenameTemplate }
+      );
+      expect(subscriptionService.subscribePlaylist).not.toHaveBeenCalled();
+      expect(continuousDownloadService.createPlaylistTask).not.toHaveBeenCalled();
+      expect(subscriptionService.subscribeChannelPlaylistsWatcher).toHaveBeenCalledWith(
+        "https://www.youtube.com/@channel/playlists",
+        60,
+        "My Channel",
+        "YouTube",
+        filenameTemplate
+      );
+      expect(json).toHaveBeenCalledWith(
+        expect.objectContaining({ subscribedCount: 0, skippedCount: 1 })
+      );
+    });
+
     it("creates a backfill task for an already subscribed playlist when requested", async () => {
       req.body = {
         url: "https://www.youtube.com/@channel",
@@ -1565,6 +1611,138 @@ describe("SubscriptionController", () => {
         "https://www.youtube.com/watch?v=existingHead",
         expect.any(Number)
       );
+      expect(json).toHaveBeenCalledWith(
+        expect.objectContaining({ subscribedCount: 0, skippedCount: 1 })
+      );
+    });
+
+    it("updates existing bulk playlist filenameTemplate before linked backfill", async () => {
+      const filenameTemplate = "{{ source_custom_name }}/{{ title }}.{{ ext }}";
+      req.body = {
+        url: "https://www.youtube.com/@channel",
+        interval: 60,
+        downloadAllPrevious: true,
+        filenameTemplate,
+      };
+      (executeYtDlpJson as any)
+        .mockResolvedValueOnce({
+          uploader: "My Channel",
+          entries: [
+            {
+              id: "PL_EXISTING",
+              url: "https://www.youtube.com/playlist?list=PL_EXISTING",
+              title: "Existing Playlist",
+            },
+          ],
+        })
+        .mockResolvedValueOnce({
+          _type: "playlist",
+          entries: [{ id: "existingHead" }],
+        });
+      (subscriptionService.listSubscriptions as any).mockResolvedValue([
+        {
+          id: "existing-sub",
+          authorUrl: "https://www.youtube.com/playlist?list=PL_EXISTING",
+          collectionId: "existing-col",
+          filenameTemplate: null,
+        },
+      ]);
+      (
+        continuousDownloadService.getBlockingPlaylistTaskByDestination as any
+      ).mockResolvedValue(null);
+      (continuousDownloadService.createPlaylistTask as any).mockResolvedValue({
+        id: "backfill-task",
+      });
+
+      await subscribeChannelPlaylists(req as Request, res as Response);
+
+      expect(subscriptionService.updateSubscriptionSettings).toHaveBeenCalledWith(
+        "existing-sub",
+        { filenameTemplate }
+      );
+      expect(continuousDownloadService.createPlaylistTask).toHaveBeenCalledWith(
+        "https://www.youtube.com/playlist?list=PL_EXISTING",
+        "My Channel",
+        "YouTube",
+        "existing-col",
+        "existing-sub"
+      );
+      const updateOrder = (
+        subscriptionService.updateSubscriptionSettings as Mock
+      ).mock.invocationCallOrder[0];
+      const createTaskOrder = (
+        continuousDownloadService.createPlaylistTask as Mock
+      ).mock.invocationCallOrder[0];
+      expect(updateOrder).toBeLessThan(createTaskOrder);
+    });
+
+    it("updates concurrently discovered duplicate playlist filenameTemplate before backfill", async () => {
+      const filenameTemplate = "{{ source_custom_name }}/{{ title }}.{{ ext }}";
+      req.body = {
+        url: "https://www.youtube.com/@channel",
+        interval: 60,
+        downloadAllPrevious: true,
+        filenameTemplate,
+      };
+      (executeYtDlpJson as any)
+        .mockResolvedValueOnce({
+          uploader: "My Channel",
+          entries: [
+            {
+              id: "PL_RACE",
+              url: "https://www.youtube.com/playlist?list=PL_RACE",
+              title: "Raced Playlist",
+            },
+          ],
+        })
+        .mockResolvedValueOnce({
+          _type: "playlist",
+          entries: [{ id: "racedHead" }],
+        });
+      (subscriptionService.listSubscriptions as any)
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([
+          {
+            id: "concurrent-sub",
+            authorUrl: "https://www.youtube.com/playlist?list=PL_RACE",
+            collectionId: "concurrent-col",
+            filenameTemplate: null,
+          },
+        ]);
+      (storageService.getCollectionByName as any).mockReturnValue({
+        id: "request-col",
+        name: "Raced Playlist - My Channel",
+      });
+      const duplicate = new Error("already subscribed");
+      duplicate.name = "DuplicateError";
+      (subscriptionService.subscribePlaylist as any).mockRejectedValue(duplicate);
+      (
+        continuousDownloadService.getBlockingPlaylistTaskByDestination as any
+      ).mockResolvedValue(null);
+      (continuousDownloadService.createPlaylistTask as any).mockResolvedValue({
+        id: "raced-backfill-task",
+      });
+
+      await subscribeChannelPlaylists(req as Request, res as Response);
+
+      expect(subscriptionService.updateSubscriptionSettings).toHaveBeenCalledWith(
+        "concurrent-sub",
+        { filenameTemplate }
+      );
+      expect(continuousDownloadService.createPlaylistTask).toHaveBeenCalledWith(
+        "https://www.youtube.com/playlist?list=PL_RACE",
+        "My Channel",
+        "YouTube",
+        "concurrent-col",
+        "concurrent-sub"
+      );
+      const updateOrder = (
+        subscriptionService.updateSubscriptionSettings as Mock
+      ).mock.invocationCallOrder[0];
+      const createTaskOrder = (
+        continuousDownloadService.createPlaylistTask as Mock
+      ).mock.invocationCallOrder[0];
+      expect(updateOrder).toBeLessThan(createTaskOrder);
       expect(json).toHaveBeenCalledWith(
         expect.objectContaining({ subscribedCount: 0, skippedCount: 1 })
       );
