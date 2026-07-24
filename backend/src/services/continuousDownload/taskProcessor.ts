@@ -93,6 +93,16 @@ export class TaskProcessor {
     private videoUrlFetcher: VideoUrlFetcher
   ) {}
 
+  private getLinkedSubscriptionFilenameTemplate(
+    task: ContinuousDownloadTask,
+    taskSubscription: Subscription | null
+  ): string | null {
+    if (!task.subscriptionId || taskSubscription?.id !== task.subscriptionId) {
+      return null;
+    }
+    return taskSubscription.filenameTemplate ?? null;
+  }
+
   /**
    * Signal that a task has been paused or cancelled. The running loop (if any)
    * observes this via isTaskInterrupted() on its next iteration.
@@ -198,11 +208,6 @@ export class TaskProcessor {
       );
     }
     const subscriptionYtdlpConfig = taskSubscription?.ytdlpConfig ?? null;
-    // Per-subscription filename-template override (issue #368). Resolved once at
-    // worker start so a running task keeps its snapshot; pausing/resuming starts
-    // a new worker that picks up the current override.
-    const subscriptionFilenameTemplate =
-      taskSubscription?.filenameTemplate ?? null;
 
     // Get total count if not set
     if (task.totalVideos === 0) {
@@ -494,7 +499,7 @@ export class TaskProcessor {
     const subscriptionYtdlpConfig = taskSubscription?.ytdlpConfig ?? null;
     // Per-subscription filename-template override (issue #368). Null → global.
     const subscriptionFilenameTemplate =
-      taskSubscription?.filenameTemplate ?? null;
+      this.getLinkedSubscriptionFilenameTemplate(task, taskSubscription);
 
     // An audio-only override (e.g. --format bestaudio) saves the item under the
     // "audio" media type. Scope the duplicate check to that media type too so a

@@ -204,6 +204,102 @@ describe('TaskProcessor', () => {
     );
   });
 
+  it('passes filenameTemplate only for exactly linked subscription tasks', async () => {
+    const filenameTemplate = '{{ source_custom_name }}/{{ title }}.{{ ext }}';
+    const playlistTask: ContinuousDownloadTask = {
+      ...mockTask,
+      authorUrl: 'https://youtube.com/playlist?list=PL123',
+      collectionId: 'col-1',
+      playlistName: 'Travel Playlist - Test Author',
+      subscriptionId: 'sub-1',
+      totalVideos: 1,
+    };
+    mockTaskRepository.getSubscriptionForTask.mockResolvedValue({
+      id: 'sub-1',
+      author: 'Renamed Subscription Label',
+      authorUrl: playlistTask.authorUrl,
+      interval: 60,
+      downloadCount: 0,
+      createdAt: Date.now(),
+      platform: 'YouTube',
+      playlistId: 'PL123',
+      playlistTitle: 'Travel Playlist',
+      channelName: 'Test Author',
+      subscriptionType: 'playlist',
+      collectionId: 'col-1',
+      filenameTemplate,
+    });
+    (storageService.getVideoBySourceUrl as any).mockReturnValue(null);
+    (downloadService.downloadYouTubeVideo as any).mockResolvedValue({
+      videoData: {
+        id: 'v1',
+        title: 'Video 1',
+        videoPath: '/videos/Test Author/Travel Playlist/Video 1.mp4',
+        thumbnailPath: '/videos/Test Author/Travel Playlist/Video 1.jpg',
+      },
+    });
+
+    await taskProcessor.processTask(playlistTask, ['http://vid1']);
+
+    expect(downloadService.downloadYouTubeVideo).toHaveBeenCalledWith(
+      'http://vid1',
+      expect.objectContaining({
+        subscriptionFilenameTemplate: filenameTemplate,
+      })
+    );
+  });
+
+  it('does not apply fallback subscription filenameTemplate to standalone playlist tasks', async () => {
+    const playlistTask: ContinuousDownloadTask = {
+      ...mockTask,
+      authorUrl: 'https://youtube.com/playlist?list=PL123',
+      collectionId: 'col-1',
+      playlistName: 'Travel Playlist - Test Author',
+      totalVideos: 1,
+    };
+    mockTaskRepository.getSubscriptionForTask.mockResolvedValue({
+      id: 'sub-1',
+      author: 'Renamed Subscription Label',
+      authorUrl: playlistTask.authorUrl,
+      interval: 60,
+      downloadCount: 0,
+      createdAt: Date.now(),
+      platform: 'YouTube',
+      playlistId: 'PL123',
+      playlistTitle: 'Travel Playlist',
+      channelName: 'Test Author',
+      subscriptionType: 'playlist',
+      collectionId: 'col-1',
+      ytdlpConfig: '--cookies /tmp/cookies.txt',
+      filenameTemplate: '{{ source_custom_name }}/{{ title }}.{{ ext }}',
+    });
+    (storageService.getVideoBySourceUrl as any).mockReturnValue(null);
+    (downloadService.downloadYouTubeVideo as any).mockResolvedValue({
+      videoData: {
+        id: 'v1',
+        title: 'Video 1',
+        videoPath: '/videos/Test Author/Travel Playlist/Video 1.mp4',
+        thumbnailPath: '/videos/Test Author/Travel Playlist/Video 1.jpg',
+      },
+    });
+
+    await taskProcessor.processTask(playlistTask, ['http://vid1']);
+
+    expect(downloadService.downloadYouTubeVideo).toHaveBeenCalledWith(
+      'http://vid1',
+      expect.objectContaining({
+        subscriptionYtdlpConfig: '--cookies /tmp/cookies.txt',
+        subscriptionFilenameTemplate: null,
+        filenameTemplateSourceOptions: expect.objectContaining({
+          sourceCustomName: 'Test Author',
+          sourceCollectionName: 'Travel Playlist',
+          sourceCollectionId: 'PL123',
+          sourceCollectionType: 'playlist',
+        }),
+      })
+    );
+  });
+
   it('uses the channel subscription source options for Shorts bulk tasks', async () => {
     // Shorts tasks are created with author "<channel> (Shorts)" and a /shorts
     // authorUrl; resolving the owning subscription must give them the same
