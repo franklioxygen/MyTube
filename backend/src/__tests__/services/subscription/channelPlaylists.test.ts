@@ -95,6 +95,7 @@ describe("subscription channelPlaylists", () => {
         collectionId: expect.any(String),
         initialHeadVideoUrl: "https://www.youtube.com/watch?v=vid-new-head",
         baselineObservedAt: expect.any(Number),
+        filenameTemplate: null,
       })
     );
   });

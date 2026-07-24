@@ -55,7 +55,7 @@ describe('SubscribeModal', () => {
 
         // Defaults: 60, false, false
         await user.click(screen.getByText('subscribe'));
-        expect(mockOnConfirm).toHaveBeenCalledWith(60, false, false, 'dateDesc');
+        expect(mockOnConfirm).toHaveBeenCalledWith({ interval: 60, downloadAllPrevious: false, downloadShorts: false, downloadOrder: 'dateDesc', filenameTemplate: null });
         expect(mockOnClose).toHaveBeenCalled();
     });
 
@@ -70,7 +70,7 @@ describe('SubscribeModal', () => {
         await user.click(screen.getByLabelText('downloadShorts'));
 
         await user.click(screen.getByText('subscribe'));
-        expect(mockOnConfirm).toHaveBeenCalledWith(30, true, true, 'dateDesc');
+        expect(mockOnConfirm).toHaveBeenCalledWith({ interval: 30, downloadAllPrevious: true, downloadShorts: true, downloadOrder: 'dateDesc', filenameTemplate: null });
     });
 
     it('should show download order only when download all previous is checked', async () => {

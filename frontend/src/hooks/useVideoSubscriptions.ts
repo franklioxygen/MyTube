@@ -8,6 +8,7 @@ import { api } from "../utils/apiClient";
 import { resolveSubscriptionErrorMessage } from "../utils/subscriptionErrors";
 import { validateUrlForOpen } from "../utils/urlValidation";
 import { SUBSCRIPTIONS_QUERY_KEY, useSubscriptions } from "./useSubscriptions";
+import type { SubscribeFormValues } from "../components/SubscribeModal";
 
 interface UseVideoSubscriptionsProps {
   video: Video | undefined;
@@ -165,13 +166,11 @@ export function useVideoSubscriptions({ video }: UseVideoSubscriptionsProps) {
 
   // Handle subscribe confirmation
   const handleSubscribeConfirm = async (
-    interval: number,
-    downloadAllPrevious: boolean,
-    downloadShorts: boolean,
-    downloadOrder: string
+    values: SubscribeFormValues
   ) => {
     if (!authorChannelUrl || !video) return;
 
+    const { interval, downloadAllPrevious, downloadShorts, downloadOrder, filenameTemplate } = values;
     try {
       await api.post("/subscriptions", {
         url: authorChannelUrl,
@@ -180,6 +179,7 @@ export function useVideoSubscriptions({ video }: UseVideoSubscriptionsProps) {
         downloadAllPrevious,
         downloadShorts,
         ...(downloadAllPrevious ? { downloadOrder } : {}),
+        ...(filenameTemplate ? { filenameTemplate } : {}),
       });
       showSnackbar(t("subscribedSuccessfully"));
       void queryClient.invalidateQueries({ queryKey: SUBSCRIPTIONS_QUERY_KEY });

@@ -1063,6 +1063,23 @@ export const de = {
   ytdlpConfigOverrideUpdateFailed:
     "yt-dlp-Überschreibung konnte nicht aktualisiert werden",
 
+  // Per-subscription filename-template override (issue #368)
+  subscriptionFilenameTemplate: "Dateinamenvorlagen-Überschreibung",
+  subscriptionFilenameTemplateHelp:
+    "Dateinamenvorlage, die nur auf Downloads dieses Abonnements angewendet wird. Verwendet dieselbe Syntax und Variablen wie Einstellungen → Dateibenennung. Leer lassen, um die globale Dateibenennungseinstellung zu verwenden.",
+  subscriptionFilenameTemplateInherit:
+    "Leer lassen, um die globale Dateibenennungseinstellung zu übernehmen.",
+  subscriptionFilenameTemplatePlaceholder:
+    "{{ source_custom_name }}/{{ title }}.{{ ext }}",
+  subscriptionFilenameTemplatePreview: "Vorschau",
+  subscriptionFilenameTemplateFutureOnly:
+    "Änderungen wirken sich nur auf zukünftige Downloads aus. Bestehende Dateien werden nicht umbenannt.",
+  editSubscriptionFilenameTemplate: "Dateinamenvorlagen-Überschreibung bearbeiten",
+  subscriptionFilenameTemplateCustom: "Benutzerdefinierte Dateinamenvorlage",
+  subscriptionFilenameTemplateUpdated: "Dateinamenvorlagen-Überschreibung aktualisiert",
+  subscriptionFilenameTemplateUpdateFailed:
+    "Dateinamenvorlagen-Überschreibung konnte nicht aktualisiert werden",
+
   // Subscription Pause/Resume
   pause: "Pause",
   resume: "Fortsetzen",

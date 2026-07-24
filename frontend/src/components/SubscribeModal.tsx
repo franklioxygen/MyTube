@@ -1,6 +1,7 @@
 import { Warning } from '@mui/icons-material';
 import {
     Alert,
+    Box,
     Button,
     Checkbox,
     Dialog,
@@ -18,19 +19,31 @@ import {
 import React, { useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import DialogHeader from './DialogHeader';
+import SubscriptionFilenameTemplateField from './SubscriptionFilenameTemplateField';
 
 type DownloadOrder = 'dateDesc' | 'dateAsc' | 'viewsDesc' | 'viewsAsc';
+
+export interface SubscribeFormValues {
+    interval: number;
+    downloadAllPrevious: boolean;
+    downloadShorts: boolean;
+    downloadOrder: DownloadOrder;
+    filenameTemplate: string | null;
+}
 
 interface SubscribeModalProps {
     open: boolean;
     onClose: () => void;
-    onConfirm: (interval: number, downloadAllPrevious: boolean, downloadShorts: boolean, downloadOrder: DownloadOrder) => void | Promise<void>;
+    onConfirm: (values: SubscribeFormValues) => void | Promise<void>;
     authorName?: string;
     url: string;
     source?: string;
     title?: string;
     description?: string;
     enableDownloadOrder?: boolean;
+    /** When true the modal is creating channel-playlists subscriptions; the
+     *  template field validates as "playlist". */
+    playlistMode?: boolean;
     /**
      * Optional playlist-specific overrides for the "download previous" checkbox
      * (design §10.4). When supplied they replace the author-oriented default
@@ -50,6 +63,7 @@ const SubscribeModal: React.FC<SubscribeModalProps> = ({
     title,
     description,
     enableDownloadOrder = true,
+    playlistMode = false,
     downloadPreviousLabel,
     downloadPreviousHelp,
 }) => {
@@ -58,6 +72,8 @@ const SubscribeModal: React.FC<SubscribeModalProps> = ({
     const [downloadAllPrevious, setDownloadAllPrevious] = useState<boolean>(false);
     const [downloadShorts, setDownloadShorts] = useState<boolean>(false);
     const [downloadOrder, setDownloadOrder] = useState<DownloadOrder>('dateDesc');
+    const [filenameTemplate, setFilenameTemplate] = useState<string>('');
+    const [isTemplateValid, setIsTemplateValid] = useState<boolean>(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const isTwitch = source === 'twitch';
     const showDownloadShorts = source !== 'bilibili' && source !== 'twitch';
@@ -82,7 +98,13 @@ const SubscribeModal: React.FC<SubscribeModalProps> = ({
     const handleConfirm = async () => {
         setIsSubmitting(true);
         try {
-            await onConfirm(interval, downloadAllPrevious, downloadShorts, downloadOrder);
+            await onConfirm({
+                interval,
+                downloadAllPrevious,
+                downloadShorts,
+                downloadOrder,
+                filenameTemplate: filenameTemplate.trim() || null,
+            });
             onClose();
         } catch {
             // Keep the modal open so the action can be retried.
@@ -92,6 +114,7 @@ const SubscribeModal: React.FC<SubscribeModalProps> = ({
     };
 
     const showOrderDropdown = downloadAllPrevious && enableDownloadOrder;
+    const canSubmit = isTemplateValid;
 
     return (
         <Dialog
@@ -193,6 +216,15 @@ const SubscribeModal: React.FC<SubscribeModalProps> = ({
                         )}
                     </Alert>
                 )}
+                <Box sx={{ mt: 2 }}>
+                    <SubscriptionFilenameTemplateField
+                        value={filenameTemplate}
+                        onChange={setFilenameTemplate}
+                        sourceCollectionType={playlistMode ? 'playlist' : 'channel'}
+                        disabled={isSubmitting}
+                        onValidityChange={setIsTemplateValid}
+                    />
+                </Box>
             </DialogContent>
             <DialogActions sx={{ p: 2 }}>
                 <Button onClick={handleClose} color="inherit" disabled={isSubmitting}>
@@ -202,6 +234,7 @@ const SubscribeModal: React.FC<SubscribeModalProps> = ({
                     onClick={() => { void handleConfirm(); }}
                     variant="contained"
                     color="primary"
+                    disabled={!canSubmit || isSubmitting}
                     loading={isSubmitting}
                     loadingPosition="start"
                 >

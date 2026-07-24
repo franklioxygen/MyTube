@@ -1029,6 +1029,23 @@ export const ko = {
   ytdlpConfigOverrideUpdated: "yt-dlp 재정의가 업데이트되었습니다",
   ytdlpConfigOverrideUpdateFailed: "yt-dlp 재정의 업데이트에 실패했습니다",
 
+  // Per-subscription filename-template override (issue #368)
+  subscriptionFilenameTemplate: "파일명 템플릿 재정의",
+  subscriptionFilenameTemplateHelp:
+    "이 구독의 다운로드에만 적용되는 파일명 템플릿입니다. 설정 → 파일명 지정과 동일한 문법과 변수를 사용합니다. 비워 두면 전역 파일명 지정 설정을 사용합니다.",
+  subscriptionFilenameTemplateInherit:
+    "전역 파일명 지정 설정을 상속하려면 비워 두세요.",
+  subscriptionFilenameTemplatePlaceholder:
+    "{{ source_custom_name }}/{{ title }}.{{ ext }}",
+  subscriptionFilenameTemplatePreview: "미리보기",
+  subscriptionFilenameTemplateFutureOnly:
+    "변경 사항은 향후 다운로드에만 적용됩니다. 기존 파일은 이름이 변경되지 않습니다.",
+  editSubscriptionFilenameTemplate: "파일명 템플릿 재정의 편집",
+  subscriptionFilenameTemplateCustom: "사용자 지정 파일명 템플릿",
+  subscriptionFilenameTemplateUpdated: "파일명 템플릿 재정의가 업데이트되었습니다",
+  subscriptionFilenameTemplateUpdateFailed:
+    "파일명 템플릿 재정의 업데이트에 실패했습니다",
+
   // Subscription Pause/Resume
   pause: "일시 중지",
   resume: "재개",

@@ -1,4 +1,4 @@
-import { AutoDelete, Cancel, Check, Close, Delete, DeleteOutline, Edit, HelpOutline, Pause, PlayArrow, Tune } from '@mui/icons-material';
+import { AutoDelete, Cancel, Check, Close, Delete, DeleteOutline, DriveFileRenameOutline, Edit, HelpOutline, Pause, PlayArrow, Tune } from '@mui/icons-material';
 import {
     Box,
     Button,
@@ -26,6 +26,7 @@ import { useTheme } from '@mui/material/styles';
 import { useQuery } from '@tanstack/react-query';
 import React, { useMemo, useState } from 'react';
 import ConfirmationModal from '../components/ConfirmationModal';
+import SubscriptionFilenameTemplateField from '../components/SubscriptionFilenameTemplateField';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
@@ -53,6 +54,7 @@ interface Subscription {
     collectionId?: string;
     retentionDays?: number | null;
     ytdlpConfig?: string | null;
+    filenameTemplate?: string | null;
 }
 
 interface ContinuousDownloadTask {
@@ -120,6 +122,13 @@ const SubscriptionsPage: React.FC = () => {
     const [ytdlpConfigSub, setYtdlpConfigSub] = useState<Subscription | null>(null);
     const [editedYtdlpConfig, setEditedYtdlpConfig] = useState<string>('');
     const [isSavingYtdlpConfig, setIsSavingYtdlpConfig] = useState(false);
+    // Per-subscription filename-template override (issue #368). Edited in a
+    // dialog. Not secret and not trust-gated, so available to all non-visitor
+    // users. null/blank means inherit the global filename naming setting.
+    const [filenameTemplateSub, setFilenameTemplateSub] = useState<Subscription | null>(null);
+    const [editedFilenameTemplate, setEditedFilenameTemplate] = useState<string>('');
+    const [isFilenameTemplateValid, setIsFilenameTemplateValid] = useState<boolean>(true);
+    const [isSavingFilenameTemplate, setIsSavingFilenameTemplate] = useState(false);
     const [subscriptionsPage, setSubscriptionsPage] = useState(0);
     const [subscriptionsRowsPerPage, setSubscriptionsRowsPerPage] = useState(DEFAULT_SUBSCRIPTIONS_ROWS_PER_PAGE);
     const [subscriptionActionId, setSubscriptionActionId] = useState<string | null>(null);
@@ -391,6 +400,36 @@ const SubscriptionsPage: React.FC = () => {
             console.error('Error updating subscription yt-dlp config:', error);
             showSnackbar(t('ytdlpConfigOverrideUpdateFailed'));
             setIsSavingYtdlpConfig(false);
+        }
+    };
+
+    const handleStartEditingFilenameTemplate = (subscription: Subscription) => {
+        setFilenameTemplateSub(subscription);
+        setEditedFilenameTemplate(subscription.filenameTemplate ?? '');
+        setIsFilenameTemplateValid(true);
+    };
+
+    const handleCancelEditingFilenameTemplate = () => {
+        setFilenameTemplateSub(null);
+        setEditedFilenameTemplate('');
+        setIsFilenameTemplateValid(true);
+        setIsSavingFilenameTemplate(false);
+    };
+
+    const handleSaveFilenameTemplate = async () => {
+        if (!filenameTemplateSub) return;
+        setIsSavingFilenameTemplate(true);
+        try {
+            await api.put(`/subscriptions/${filenameTemplateSub.id}`, {
+                filenameTemplate: editedFilenameTemplate.trim() || null,
+            });
+            showSnackbar(t('subscriptionFilenameTemplateUpdated'));
+            await refetchSubscriptions();
+            handleCancelEditingFilenameTemplate();
+        } catch (error) {
+            console.error('Error updating subscription filename template:', error);
+            showSnackbar(t('subscriptionFilenameTemplateUpdateFailed'));
+            setIsSavingFilenameTemplate(false);
         }
     };
 
@@ -696,6 +735,14 @@ const SubscriptionsPage: React.FC = () => {
                                                 </IconButton>
                                             )}
                                             <IconButton
+                                                color={sub.filenameTemplate ? 'secondary' : 'primary'}
+                                                onClick={() => handleStartEditingFilenameTemplate(sub)}
+                                                title={sub.filenameTemplate ? t('subscriptionFilenameTemplateCustom') : t('editSubscriptionFilenameTemplate')}
+                                                disabled={isEditingInterval || isEditingRetention}
+                                            >
+                                                <DriveFileRenameOutline />
+                                            </IconButton>
+                                            <IconButton
                                                 color="error"
                                                 onClick={createUnsubscribeHandler(sub)}
                                                 title={t('unsubscribe')}
@@ -951,6 +998,49 @@ const SubscriptionsPage: React.FC = () => {
                         variant="contained"
                         color="primary"
                         disabled={isSavingYtdlpConfig}
+                    >
+                        {t('save')}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+            <Dialog
+                open={filenameTemplateSub !== null}
+                onClose={handleCancelEditingFilenameTemplate}
+                maxWidth="sm"
+                fullWidth
+            >
+                <DialogTitle>{t('editSubscriptionFilenameTemplate')}</DialogTitle>
+                <DialogContent>
+                    {filenameTemplateSub && (
+                        <DialogContentText sx={{ mb: 2 }}>
+                            {filenameTemplateSub.author}
+                        </DialogContentText>
+                    )}
+                    <SubscriptionFilenameTemplateField
+                        value={editedFilenameTemplate}
+                        onChange={setEditedFilenameTemplate}
+                        sourceCollectionType={
+                            filenameTemplateSub?.subscriptionType === 'playlist' ||
+                            filenameTemplateSub?.subscriptionType === 'channel_playlists'
+                                ? 'playlist'
+                                : 'channel'
+                        }
+                        disabled={isSavingFilenameTemplate}
+                        onValidityChange={setIsFilenameTemplateValid}
+                    />
+                    <DialogContentText sx={{ mt: 2, color: 'text.secondary' }}>
+                        {t('subscriptionFilenameTemplateFutureOnly')}
+                    </DialogContentText>
+                </DialogContent>
+                <DialogActions sx={{ p: 2 }}>
+                    <Button onClick={handleCancelEditingFilenameTemplate} color="inherit" disabled={isSavingFilenameTemplate}>
+                        {t('cancel')}
+                    </Button>
+                    <Button
+                        onClick={() => void handleSaveFilenameTemplate()}
+                        variant="contained"
+                        color="primary"
+                        disabled={isSavingFilenameTemplate || !isFilenameTemplateValid}
                     >
                         {t('save')}
                     </Button>

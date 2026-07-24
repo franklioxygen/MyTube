@@ -4,7 +4,7 @@ Canonical locale key order derived from `frontend/src/utils/locales/en.ts`.
 
 This list is intentionally unnumbered. When new keys are inserted, only the local section order changes.
 
-Total keys: 1052
+Total keys: 1063
 
 ## Summary
 
@@ -39,7 +39,7 @@ Total keys: 1052
 | Disclaimer | 3 | `disclaimerTitle` | `history` |
 | Existing Video Detection | 16 | `existingVideoDetected` | `changeSettings` |
 | Sorting | 10 | `sort` | `random` |
-| yt-dlp Configuration | 23 | `ytDlpConfiguration` | `saveAuthorFilesToCollectionDescription` |
+| yt-dlp Configuration | 33 | `ytDlpConfiguration` | `subscriptionFilenameTemplateUpdateFailed` |
 | Cloudflare Tunnel | 16 | `cloudflaredTunnel` | `managedInDashboard` |
 | Database Export/Import | 39 | `exportImportDatabase` | `backupDatabasesCleanedUp` |
 | History Filter | 33 | `filterAll` | `browserVideoFormatNotSupported` |
@@ -1136,6 +1136,16 @@ Total keys: 1052
 | `cleanupAuthorCollectionsSuccess` |
 | `cleanupAuthorCollectionsNothingToDo` |
 | `cleanupAuthorCollectionsFailed` |
+| `subscriptionFilenameTemplate` |
+| `subscriptionFilenameTemplateHelp` |
+| `subscriptionFilenameTemplateInherit` |
+| `subscriptionFilenameTemplatePlaceholder` |
+| `subscriptionFilenameTemplatePreview` |
+| `subscriptionFilenameTemplateFutureOnly` |
+| `editSubscriptionFilenameTemplate` |
+| `subscriptionFilenameTemplateCustom` |
+| `subscriptionFilenameTemplateUpdated` |
+| `subscriptionFilenameTemplateUpdateFailed` |
 
 ### Cloudflare Tunnel
 

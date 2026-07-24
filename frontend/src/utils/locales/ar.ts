@@ -1020,6 +1020,23 @@ export const ar = {
   ytdlpConfigOverrideUpdated: "تم تحديث تجاوز yt-dlp",
   ytdlpConfigOverrideUpdateFailed: "فشل تحديث تجاوز yt-dlp",
 
+  // Per-subscription filename-template override (issue #368)
+  subscriptionFilenameTemplate: "تجاوز قالب اسم الملف",
+  subscriptionFilenameTemplateHelp:
+    "قالب اسم الملف يُطبَّق فقط على التنزيلات من هذا الاشتراك. يستخدم نفس الصيغة والمتغيرات الموجودة في الإعدادات ← تسمية الملفات. اتركه فارغًا لاستخدام إعداد تسمية الملفات العام.",
+  subscriptionFilenameTemplateInherit:
+    "اتركه فارغًا لتوريث إعداد تسمية الملفات العام.",
+  subscriptionFilenameTemplatePlaceholder:
+    "{{ source_custom_name }}/{{ title }}.{{ ext }}",
+  subscriptionFilenameTemplatePreview: "معاينة",
+  subscriptionFilenameTemplateFutureOnly:
+    "تؤثر التغييرات على التنزيلات المستقبلية فقط. لا تُعاد تسمية الملفات الموجودة.",
+  editSubscriptionFilenameTemplate: "تعديل تجاوز قالب اسم الملف",
+  subscriptionFilenameTemplateCustom: "قالب اسم ملف مخصص",
+  subscriptionFilenameTemplateUpdated: "تم تحديث تجاوز قالب اسم الملف",
+  subscriptionFilenameTemplateUpdateFailed:
+    "فشل تحديث تجاوز قالب اسم الملف",
+
   // Subscription Pause/Resume
   pause: "إيقاف مؤقت",
   resume: "استئناف",

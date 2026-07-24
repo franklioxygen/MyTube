@@ -1058,6 +1058,23 @@ export const es = {
   ytdlpConfigOverrideUpdated: "Anulación de yt-dlp actualizada",
   ytdlpConfigOverrideUpdateFailed: "No se pudo actualizar la anulación de yt-dlp",
 
+  // Per-subscription filename-template override (issue #368)
+  subscriptionFilenameTemplate: "Anulación de plantilla de nombre de archivo",
+  subscriptionFilenameTemplateHelp:
+    "Plantilla de nombre de archivo aplicada solo a las descargas de esta suscripción. Usa la misma sintaxis y variables que Configuración → Nomenclatura de archivos. Déjelo vacío para usar la configuración global de nomenclatura de archivos.",
+  subscriptionFilenameTemplateInherit:
+    "Déjelo vacío para heredar la configuración global de nomenclatura de archivos.",
+  subscriptionFilenameTemplatePlaceholder:
+    "{{ source_custom_name }}/{{ title }}.{{ ext }}",
+  subscriptionFilenameTemplatePreview: "Vista previa",
+  subscriptionFilenameTemplateFutureOnly:
+    "Los cambios afectan a las descargas futuras. Los archivos existentes no se renombran.",
+  editSubscriptionFilenameTemplate: "Editar anulación de plantilla de nombre de archivo",
+  subscriptionFilenameTemplateCustom: "Plantilla de nombre de archivo personalizada",
+  subscriptionFilenameTemplateUpdated: "Anulación de plantilla de nombre de archivo actualizada",
+  subscriptionFilenameTemplateUpdateFailed:
+    "No se pudo actualizar la anulación de plantilla de nombre de archivo",
+
   // Subscription Pause/Resume
   pause: "Pausar",
   resume: "Reanudar",

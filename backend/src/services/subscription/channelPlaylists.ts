@@ -140,6 +140,7 @@ export async function checkChannelPlaylistsForWatcher(
             collectionId,
             initialHeadVideoUrl: snapshot.headVideoUrl,
             baselineObservedAt: snapshot.observedAt,
+            filenameTemplate: sub.filenameTemplate ?? null,
           });
         } catch (error) {
           // The watcher has no task-creation path, so a freshly-created,

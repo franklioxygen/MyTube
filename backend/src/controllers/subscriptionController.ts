@@ -4,7 +4,7 @@ import {
     isAdminTrustLevelAtLeast,
 } from "../config/adminTrust";
 import { getErrorMessage } from "../utils/errors";
-import { DuplicateError, ValidationError } from "../errors/DownloadErrors";
+import { DuplicateError, NotFoundError, ValidationError } from "../errors/DownloadErrors";
 import { continuousDownloadService } from "../services/continuousDownloadService";
 import { DownloadOrder } from "../services/continuousDownload/types";
 import { checkPlaylist } from "../services/downloadService";
@@ -37,6 +37,7 @@ import {
     sanitizePlaylistTitle,
     toPlaylistsTabUrl,
 } from "../services/subscription/playlistResolution";
+import { normalizeSubscriptionFilenameTemplate } from "../services/subscription/filenameTemplate";
 import {
     getPlaylistHeadSnapshot,
     inspectBilibiliCollectionPlaylist,
@@ -274,6 +275,14 @@ export const createSubscription = async (
     return;
   }
 
+  // Per-subscription filename-template override (issue #368). Not secret, not
+  // trust-gated. Blank/whitespace => null (inherit global naming). Channels and
+  // Twitch subscriptions use the "channel" source-collection type for warnings.
+  const filenameTemplate = normalizeSubscriptionFilenameTemplate(
+    req.body.filenameTemplate,
+    "channel"
+  );
+
   const validDownloadOrders: DownloadOrder[] = ["dateDesc", "dateAsc", "viewsDesc", "viewsAsc"];
   let downloadOrder: DownloadOrder = "dateDesc";
   if (downloadAllPrevious === true) {
@@ -307,7 +316,8 @@ export const createSubscription = async (
     parseInt(interval),
     authorName,
     downloadShorts,
-    ytdlpConfig
+    ytdlpConfig,
+    filenameTemplate
   );
 
   // If user wants to download all previous videos, create a continuous download task
@@ -427,8 +437,17 @@ export const updateSubscription = async (
     req.body,
     "ytdlpConfig"
   );
+  const hasFilenameTemplate = Object.prototype.hasOwnProperty.call(
+    req.body,
+    "filenameTemplate"
+  );
 
-  if (!hasInterval && !hasRetentionDays && !hasYtdlpConfig) {
+  if (
+    !hasInterval &&
+    !hasRetentionDays &&
+    !hasYtdlpConfig &&
+    !hasFilenameTemplate
+  ) {
     throw new ValidationError(
       "At least one subscription setting is required",
       "body"
@@ -468,6 +487,7 @@ export const updateSubscription = async (
     interval?: number;
     retentionDays?: number | null;
     ytdlpConfig?: string | null;
+    filenameTemplate?: string | null;
   } = {};
   if (parsedInterval !== undefined) {
     updates.interval = parsedInterval;
@@ -476,12 +496,24 @@ export const updateSubscription = async (
     updates.retentionDays = retentionDays;
   }
 
+  // Resolve the existing subscription once for the ytdlp_config trust check and
+  // the filename-template validation source type. Both are skipped when not
+  // present in the request body.
+  let existingForOverride: Awaited<
+    ReturnType<typeof subscriptionService.getSubscriptionById>
+  > | undefined;
+  if (hasYtdlpConfig || hasFilenameTemplate) {
+    existingForOverride = await subscriptionService.getSubscriptionById(id);
+    if (!existingForOverride) {
+      // Keep the same not-found behavior as updateSubscriptionSettings. The
+      // preliminary read is needed only to validate override-specific fields.
+      throw NotFoundError.subscription(id);
+    }
+  }
+
   if (hasYtdlpConfig) {
     const nextYtdlpConfig = normalizeYtdlpConfigInput(req.body.ytdlpConfig);
-    const existing = await subscriptionService.getSubscriptionById(id);
-    if (!existing) {
-      throw new ValidationError("Subscription not found", "id");
-    }
+    const existing = existingForOverride!;
     if (!ensureYtdlpConfigTrust(res, nextYtdlpConfig, existing.ytdlpConfig ?? null)) {
       return;
     }
@@ -490,6 +522,23 @@ export const updateSubscription = async (
     // just because an unchanged override was echoed back).
     if (nextYtdlpConfig !== (existing.ytdlpConfig ?? null)) {
       updates.ytdlpConfig = nextYtdlpConfig;
+    }
+  }
+
+  if (hasFilenameTemplate) {
+    // Not secret and not trust-gated. Warnings depend on the subscription type:
+    // playlists and channel-playlists watchers validate as "playlist", others as
+    // "channel".
+    const existing = existingForOverride!;
+    const isPlaylistLike =
+      existing.subscriptionType === "playlist" ||
+      existing.subscriptionType === "channel_playlists";
+    const nextFilenameTemplate = normalizeSubscriptionFilenameTemplate(
+      req.body.filenameTemplate,
+      isPlaylistLike ? "playlist" : "channel"
+    );
+    if (nextFilenameTemplate !== (existing.filenameTemplate ?? null)) {
+      updates.filenameTemplate = nextFilenameTemplate;
     }
   }
 
@@ -646,6 +695,18 @@ export const createPlaylistSubscription = async (
     collectionInfo,
   });
 
+  // Per-subscription filename-template override (issue #368). Playlists use the
+  // "playlist" source-collection type for validation warnings. Keep omitted
+  // distinct from explicit blank/null so duplicate backfill requests do not
+  // accidentally clear an existing subscription override.
+  const hasFilenameTemplate = Object.prototype.hasOwnProperty.call(
+    req.body,
+    "filenameTemplate"
+  );
+  const filenameTemplate = hasFilenameTemplate
+    ? normalizeSubscriptionFilenameTemplate(req.body.filenameTemplate, "playlist")
+    : null;
+
   // 2. Detect platform and playlist ID.
   const isBilibili = isBilibiliUrl(playlistUrl);
   const platform = detectPlaylistPlatform(playlistUrl);
@@ -767,6 +828,7 @@ export const createPlaylistSubscription = async (
     collectionId: collection.id,
     initialHeadVideoUrl: inspection.headVideoUrl,
     baselineObservedAt: inspection.observedAt,
+    filenameTemplate,
   };
   let subscription = existingSubscription;
   if (subscription && subscription.collectionId !== collection.id) {
@@ -792,6 +854,16 @@ export const createPlaylistSubscription = async (
       }
       throw error;
     }
+  }
+  if (
+    subscription &&
+    hasFilenameTemplate &&
+    (subscription.filenameTemplate ?? null) !== filenameTemplate
+  ) {
+    await subscriptionService.updateSubscriptionSettings(subscription.id, {
+      filenameTemplate,
+    });
+    subscription = { ...subscription, filenameTemplate };
   }
   if (!subscription) {
     try {
@@ -906,6 +978,24 @@ export const subscribeChannelPlaylists = async (
     throw new ValidationError("URL and interval are required", "body");
   }
 
+  // Per-subscription filename-template override (issue #368). Copied to every
+  // new playlist subscription created in this request and to the watcher. Uses
+  // the "playlist" source-collection type because the watcher copies its
+  // template to child playlists.
+  const hasFilenameTemplate = Object.prototype.hasOwnProperty.call(
+    req.body,
+    "filenameTemplate"
+  );
+  const filenameTemplate = hasFilenameTemplate
+    ? normalizeSubscriptionFilenameTemplate(
+        req.body.filenameTemplate,
+        "playlist"
+      )
+    : null;
+  const watcherFilenameTemplate = hasFilenameTemplate
+    ? filenameTemplate
+    : undefined;
+
   // Adjust URL to ensure we target playlists tab
   const targetUrl = toPlaylistsTabUrl(url);
 
@@ -953,15 +1043,45 @@ export const subscribeChannelPlaylists = async (
   const existingSubs = await subscriptionService.listSubscriptions();
   const existingSubByUrl = new Map(existingSubs.map((sub) => [sub.authorUrl, sub]));
 
+  type ExistingPlaylistSubscription = {
+    id: string;
+    collectionId?: string | null;
+    ytdlpConfig?: string | null;
+    filenameTemplate?: string | null;
+  };
+  const applyFilenameTemplateToExistingPlaylist = async (
+    subscription: ExistingPlaylistSubscription,
+    title: string
+  ): Promise<boolean> => {
+    if (
+      !hasFilenameTemplate ||
+      (subscription.filenameTemplate ?? null) === filenameTemplate
+    ) {
+      return true;
+    }
+
+    try {
+      await subscriptionService.updateSubscriptionSettings(subscription.id, {
+        filenameTemplate,
+      });
+      subscription.filenameTemplate = filenameTemplate;
+      return true;
+    } catch (error) {
+      const message = getErrorMessage(error, "Unknown error");
+      errors.push(`${title}: ${message}`);
+      logger.error(
+        `Failed to update filename template for playlist "${title}":`,
+        error instanceof Error ? error : new Error(String(error))
+      );
+      return false;
+    }
+  };
+
   type Candidate = {
     playlistUrl: string;
     title: string;
     playlistId: string;
-    existingSubscription?: {
-      id: string;
-      collectionId?: string | null;
-      ytdlpConfig?: string | null;
-    };
+    existingSubscription?: ExistingPlaylistSubscription;
   };
   const candidates: Candidate[] = [];
   for (const entry of result.entries) {
@@ -976,13 +1096,17 @@ export const subscribeChannelPlaylists = async (
     if (existingSubscription) {
       logger.info(`Skipping playlist "${title}": already subscribed`);
       skippedCount++;
+      const existingTemplateUpdated =
+        await applyFilenameTemplateToExistingPlaylist(existingSubscription, title);
       if (downloadAllPrevious === true) {
-        candidates.push({
-          playlistUrl,
-          title,
-          playlistId,
-          existingSubscription,
-        });
+        if (existingTemplateUpdated) {
+          candidates.push({
+            playlistUrl,
+            title,
+            playlistId,
+            existingSubscription,
+          });
+        }
       }
       continue;
     }
@@ -1108,6 +1232,7 @@ export const subscribeChannelPlaylists = async (
           collectionId,
           initialHeadVideoUrl: headVideoUrl,
           baselineObservedAt: observedAt,
+          filenameTemplate,
         });
         createdSubscriptionId = subscription.id;
         subscriptionWasCreatedByThisRequest = true;
@@ -1143,8 +1268,17 @@ export const subscribeChannelPlaylists = async (
             );
             continue;
           }
+          const concurrentTemplateUpdated =
+            await applyFilenameTemplateToExistingPlaylist(
+              concurrentSub,
+              candidate.title
+            );
+          if (!concurrentTemplateUpdated) {
+            continue;
+          }
           createdSubscriptionId = concurrentSub.id;
           taskCollectionId = concurrentSub.collectionId;
+          existingSubByUrl.set(candidate.playlistUrl, concurrentSub);
         } else {
           errors.push(
             `${candidate.title}: ${getErrorMessage(error, "Unknown error")}`
@@ -1251,7 +1385,8 @@ export const subscribeChannelPlaylists = async (
       targetUrl,
       parseInt(interval),
       channelName,
-      platform
+      platform,
+      watcherFilenameTemplate
     );
     logger.info("Created channel playlists watcher", {
       subscriptionId: watcher.id,

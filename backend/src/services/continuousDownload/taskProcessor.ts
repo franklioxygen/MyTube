@@ -93,6 +93,16 @@ export class TaskProcessor {
     private videoUrlFetcher: VideoUrlFetcher
   ) {}
 
+  private getLinkedSubscriptionFilenameTemplate(
+    task: ContinuousDownloadTask,
+    taskSubscription: Subscription | null
+  ): string | null {
+    if (!task.subscriptionId || taskSubscription?.id !== task.subscriptionId) {
+      return null;
+    }
+    return taskSubscription.filenameTemplate ?? null;
+  }
+
   /**
    * Signal that a task has been paused or cancelled. The running loop (if any)
    * observes this via isTaskInterrupted() on its next iteration.
@@ -487,6 +497,9 @@ export class TaskProcessor {
     // Per-subscription yt-dlp override (issue #345). Null when the task has no
     // resolvable subscription → identical to today's behaviour (global config).
     const subscriptionYtdlpConfig = taskSubscription?.ytdlpConfig ?? null;
+    // Per-subscription filename-template override (issue #368). Null → global.
+    const subscriptionFilenameTemplate =
+      this.getLinkedSubscriptionFilenameTemplate(task, taskSubscription);
 
     // An audio-only override (e.g. --format bestaudio) saves the item under the
     // "audio" media type. Scope the duplicate check to that media type too so a
@@ -546,7 +559,10 @@ export class TaskProcessor {
           undefined,
           undefined,
           filenameTemplateSourceOptions,
-          { subscriptionYtdlpConfig }
+          {
+            subscriptionYtdlpConfig,
+            subscriptionFilenameTemplate,
+          }
         );
 
         // Check for Bilibili download errors
@@ -561,6 +577,7 @@ export class TaskProcessor {
           downloadId,
           filenameTemplateSourceOptions,
           subscriptionYtdlpConfig,
+          subscriptionFilenameTemplate,
         });
       }
 

@@ -1050,6 +1050,23 @@ export const pt = {
   ytdlpConfigOverrideUpdated: "Substituição do yt-dlp atualizada",
   ytdlpConfigOverrideUpdateFailed: "Falha ao atualizar a substituição do yt-dlp",
 
+  // Per-subscription filename-template override (issue #368)
+  subscriptionFilenameTemplate: "Substituição do modelo de nome de arquivo",
+  subscriptionFilenameTemplateHelp:
+    "Modelo de nome de arquivo aplicado apenas aos downloads desta assinatura. Usa a mesma sintaxe e variáveis de Configurações → Nomenclatura de arquivos. Deixe vazio para usar a configuração global de nomenclatura de arquivos.",
+  subscriptionFilenameTemplateInherit:
+    "Deixe vazio para herdar a configuração global de nomenclatura de arquivos.",
+  subscriptionFilenameTemplatePlaceholder:
+    "{{ source_custom_name }}/{{ title }}.{{ ext }}",
+  subscriptionFilenameTemplatePreview: "Visualização",
+  subscriptionFilenameTemplateFutureOnly:
+    "As alterações afetam apenas downloads futuros. Arquivos existentes não são renomeados.",
+  editSubscriptionFilenameTemplate: "Editar substituição do modelo de nome de arquivo",
+  subscriptionFilenameTemplateCustom: "Modelo de nome de arquivo personalizado",
+  subscriptionFilenameTemplateUpdated: "Substituição do modelo de nome de arquivo atualizada",
+  subscriptionFilenameTemplateUpdateFailed:
+    "Falha ao atualizar a substituição do modelo de nome de arquivo",
+
   // Subscription Pause/Resume
   pause: "Pausar",
   resume: "Retomar",

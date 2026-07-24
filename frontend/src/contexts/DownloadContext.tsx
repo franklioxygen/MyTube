@@ -40,6 +40,9 @@ const SubscribeModal = lazyWithRetry(
     () => import('../components/SubscribeModal'),
     'subscribe-modal',
 );
+// Type-only import (erased at runtime) so handleSubscribeConfirm is typed
+// against the structured form values exported by SubscribeModal.
+import type { SubscribeFormValues } from '../components/SubscribeModal';
 // Structured modal action type shared with BilibiliPartsModal (design §10.1).
 import type { PlaylistDialogAction } from '../components/BilibiliPartsModal';
 
@@ -60,7 +63,6 @@ interface BilibiliPartsInfo {
     type: 'parts' | 'collection' | 'series' | 'playlist';
     collectionInfo: BilibiliCollectionInfo | null;
 }
-
 
 interface DownloadContextType {
     activeDownloads: DownloadInfo[];
@@ -640,7 +642,13 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const [showChannelPlaylistsModal, setShowChannelPlaylistsModal] = useState(false);
     const [channelPlaylistsUrl, setChannelPlaylistsUrl] = useState('');
 
-    const handleSubscribe = async (interval: number, downloadAllPrevious: boolean, downloadShorts: boolean, downloadOrder: string) => {
+    const handleSubscribe = async (
+        interval: number,
+        downloadAllPrevious: boolean,
+        downloadShorts: boolean,
+        downloadOrder: string,
+        filenameTemplate: string | null
+    ) => {
         try {
             await api.post('/subscriptions', {
                 url: subscribeUrl,
@@ -648,6 +656,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 downloadAllPrevious,
                 downloadShorts,
                 ...(downloadAllPrevious ? { downloadOrder } : {}),
+                ...(filenameTemplate ? { filenameTemplate } : {}),
             });
             showSnackbar(t('subscribedSuccessfully'));
             setShowSubscribeModal(false);
@@ -697,7 +706,11 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setShowSubscribeModal(true);
     };
 
-    const performSubscribePlaylists = async (interval: number, downloadAllPrevious: boolean = false) => {
+    const performSubscribePlaylists = async (
+        interval: number,
+        downloadAllPrevious: boolean = false,
+        filenameTemplate: string | null = null
+    ) => {
         try {
             // Construct the playlists URL
             let playlistsUrl = subscribeUrl;
@@ -711,7 +724,8 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             const response = await api.post('/subscriptions/channel-playlists', {
                 url: playlistsUrl,
                 interval: interval,
-                downloadAllPrevious: downloadAllPrevious
+                downloadAllPrevious: downloadAllPrevious,
+                ...(filenameTemplate ? { filenameTemplate } : {}),
             });
 
             // Construct message from translations
@@ -772,11 +786,21 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         }
     };
 
-    const handleSubscribeConfirm = async (interval: number, downloadAllPrevious: boolean, downloadShorts: boolean, downloadOrder: string) => {
+    const handleSubscribeConfirm = async (values: SubscribeFormValues) => {
         if (subscribeMode === 'video') {
-            await handleSubscribe(interval, downloadAllPrevious, downloadShorts, downloadOrder);
+            await handleSubscribe(
+                values.interval,
+                values.downloadAllPrevious,
+                values.downloadShorts,
+                values.downloadOrder,
+                values.filenameTemplate
+            );
         } else {
-            performSubscribePlaylists(interval, downloadAllPrevious);
+            performSubscribePlaylists(
+                values.interval,
+                values.downloadAllPrevious,
+                values.filenameTemplate
+            );
         }
     };
 
@@ -826,6 +850,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                         title={subscribeMode === 'playlist' ? (t('subscribeAllPlaylists') || 'Subscribe All Playlists') : undefined}
                         description={subscribeMode === 'playlist' ? (t('subscribeAllPlaylistsDescription') || 'This will subscribe to all playlists in this channel.') : undefined}
                         enableDownloadOrder={subscribeMode !== 'playlist'}
+                        playlistMode={subscribeMode === 'playlist'}
                         downloadPreviousLabel={subscribeMode === 'playlist' ? (t('downloadExistingPlaylistVideos') || 'Download existing videos in these playlists') : undefined}
                         downloadPreviousHelp={subscribeMode === 'playlist' ? (t('downloadAllPlaylistsWarning') || undefined) : undefined}
                     />

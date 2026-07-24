@@ -1002,6 +1002,23 @@ export const zh = {
   ytdlpConfigOverrideUpdated: "yt-dlp 覆盖已更新",
   ytdlpConfigOverrideUpdateFailed: "更新 yt-dlp 覆盖失败",
 
+  // Per-subscription filename-template override (issue #368)
+  subscriptionFilenameTemplate: "文件名模板覆盖",
+  subscriptionFilenameTemplateHelp:
+    "仅应用于此订阅下载的文件名模板。使用与 设置 → 文件命名 相同的语法和变量。留空则使用全局文件命名设置。",
+  subscriptionFilenameTemplateInherit:
+    "留空以继承全局文件命名设置。",
+  subscriptionFilenameTemplatePlaceholder:
+    "{{ source_custom_name }}/{{ title }}.{{ ext }}",
+  subscriptionFilenameTemplatePreview: "预览",
+  subscriptionFilenameTemplateFutureOnly:
+    "更改仅影响今后的下载。现有文件不会被重命名。",
+  editSubscriptionFilenameTemplate: "编辑文件名模板覆盖",
+  subscriptionFilenameTemplateCustom: "自定义文件名模板",
+  subscriptionFilenameTemplateUpdated: "文件名模板覆盖已更新",
+  subscriptionFilenameTemplateUpdateFailed:
+    "更新文件名模板覆盖失败",
+
   // Subscription Pause/Resume
   pause: "暂停",
   resume: "恢复",

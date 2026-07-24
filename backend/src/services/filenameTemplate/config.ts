@@ -335,3 +335,56 @@ export function toFilenameNamingRuntimeConfig(
     template: resolved.template,
   };
 }
+
+/**
+ * Settings shape that carries the global filename naming fields. The override
+ * helper only reads/writes the three naming fields, so any settings object with
+ * those fields (plus arbitrary others) is accepted.
+ */
+type FilenameSettingsLike = {
+  downloadFilenameMode?: unknown;
+  downloadFilenamePresetId?: unknown;
+  downloadFilenameTemplate?: unknown;
+  [key: string]: unknown;
+};
+
+/**
+ * Overlay a per-subscription filename-template override onto the global naming
+ * settings, producing one coherent effective settings object for the download
+ * pipeline (issue #368).
+ *
+ * When `subscriptionTemplate` is null/undefined/blank, the original
+ * `globalSettings` object is returned unchanged — preserving object identity
+ * and current behavior for every non-subscription path.
+ *
+ * When set, the helper returns a new object that forces template naming with
+ * the subscription's template. All three runtime naming fields are set together
+ * so the various path-planning branches (legacy-vs-template early branch,
+ * `planVideoOutputPaths`, author-collection movement, and Bilibili subtitle
+ * logic) cannot disagree:
+ *   - `downloadFilenameMode: "template"`
+ *   - `downloadFilenamePresetId`: a derived preset id (or "custom") so existing
+ *     `presetId !== "legacy"` branches still flip to template mode
+ *   - `downloadFilenameTemplate`: the subscription template
+ */
+export function applySubscriptionFilenameTemplateOverride<
+  T extends FilenameSettingsLike
+>(
+  globalSettings: T,
+  subscriptionTemplate?: string | null
+): T {
+  const normalizedTemplate = subscriptionTemplate?.trim();
+  if (!normalizedTemplate) {
+    return globalSettings;
+  }
+
+  return {
+    ...globalSettings,
+    downloadFilenameMode: "template",
+    downloadFilenamePresetId: matchPresetIdFromTemplate(
+      normalizedTemplate,
+      "template"
+    ),
+    downloadFilenameTemplate: normalizedTemplate,
+  } as T;
+}

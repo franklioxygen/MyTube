@@ -84,7 +84,7 @@ vi.mock('../../components/SubscribeModal', () => ({
       <div data-testid="subscribe-modal">
         <div>{enableDownloadOrder ? 'mode-video' : 'mode-playlist'}</div>
         <div>{`source-${source || 'none'}`}</div>
-        <button onClick={() => onConfirm(30, true, false, 'viewsDesc')}>confirm-subscribe</button>
+        <button onClick={() => onConfirm({ interval: 30, downloadAllPrevious: true, downloadShorts: false, downloadOrder: 'viewsDesc', filenameTemplate: null })}>confirm-subscribe</button>
         <button onClick={onClose}>close-subscribe</button>
       </div>
     ) : null,

@@ -60,8 +60,8 @@ export type { Subscription } from "./subscription/types";
  * Options for creating a playlist subscription (design §7.2 / §18).
  *
  * `initialHeadVideoUrl` + `baselineObservedAt` form the required server-side
- * baseline; `filenameTemplate` is a forward-compatible seam shared with the
- * companion filename-template design and is omitted until that feature lands.
+ * baseline; `filenameTemplate` stores an optional per-subscription naming
+ * override for downloads created from the subscription.
  */
 export interface SubscribePlaylistOptions {
   playlistUrl: string;
@@ -100,7 +100,8 @@ export class SubscriptionService {
     interval: number,
     providedAuthorName?: string,
     downloadShorts: boolean = false,
-    ytdlpConfig?: string | null
+    ytdlpConfig?: string | null,
+    filenameTemplate?: string | null
   ): Promise<Subscription> {
     // Detect platform and validate URL
     let platform: string;
@@ -230,6 +231,7 @@ export class SubscriptionService {
       twitchBroadcasterLogin,
       lastTwitchVideoId,
       ytdlpConfig: ytdlpConfig ?? null,
+      filenameTemplate: filenameTemplate ?? null,
     };
 
     await db.insert(subscriptions).values(newSubscription);
@@ -297,10 +299,7 @@ export class SubscriptionService {
       channelName: author,
       subscriptionType: "playlist",
       collectionId: collectionId || undefined,
-      // filenameTemplate is a forward-compatible seam shared with the
-      // companion filename-template design (§18). It is accepted here so the
-      // options contract is stable, but not persisted until that design adds
-      // the column.
+      filenameTemplate: filenameTemplate ?? null,
     };
 
     await db.insert(subscriptions).values(newSubscription);
@@ -321,7 +320,8 @@ export class SubscriptionService {
     channelUrl: string,
     interval: number,
     channelName: string,
-    platform: string
+    platform: string,
+    filenameTemplate?: string | null
   ): Promise<Subscription> {
     // Check if watcher already exists
     const existing = await db
@@ -330,8 +330,24 @@ export class SubscriptionService {
       .where(eq(subscriptions.authorUrl, channelUrl));
 
     if (existing.length > 0) {
+      const existingSubscription = existing[0] as unknown as Subscription;
+      if (
+        filenameTemplate !== undefined &&
+        (existingSubscription.filenameTemplate ?? null) !== filenameTemplate
+      ) {
+        await db
+          .update(subscriptions)
+          .set({ filenameTemplate })
+          .where(eq(subscriptions.id, existingSubscription.id));
+
+        return {
+          ...existingSubscription,
+          filenameTemplate,
+        };
+      }
+
       // If it exists, just return it (idempotent)
-      return existing[0] as unknown as Subscription;
+      return existingSubscription;
     }
 
     const newSubscription: Subscription = {
@@ -346,6 +362,7 @@ export class SubscriptionService {
       platform,
       paused: 0,
       subscriptionType: "channel_playlists",
+      filenameTemplate: filenameTemplate ?? null,
     };
 
     await db.insert(subscriptions).values(newSubscription);
@@ -438,6 +455,7 @@ export class SubscriptionService {
       interval?: number;
       retentionDays?: number | null;
       ytdlpConfig?: string | null;
+      filenameTemplate?: string | null;
     }
   ): Promise<void> {
     if (Object.keys(updates).length === 0) {
@@ -1128,7 +1146,10 @@ export class SubscriptionService {
               registerCancel,
               undefined,
               buildFilenameTemplateSourceOptions(sub),
-              { subscriptionYtdlpConfig: sub.ytdlpConfig }
+              {
+                subscriptionYtdlpConfig: sub.ytdlpConfig,
+                subscriptionFilenameTemplate: sub.filenameTemplate,
+              }
             )
           : downloadYouTubeVideo(videoUrl, {
               downloadId: downloadTaskId,
@@ -1136,6 +1157,7 @@ export class SubscriptionService {
               filenameTemplateSourceOptions:
                 buildFilenameTemplateSourceOptions(sub),
               subscriptionYtdlpConfig: sub.ytdlpConfig,
+              subscriptionFilenameTemplate: sub.filenameTemplate,
             }),
       downloadTaskId,
       initialTitle,

@@ -301,6 +301,9 @@ export const subscriptions = sqliteTable("subscriptions", {
   // Free-text yt-dlp config snippet; null/empty = use the global ytDlpConfig.
   // Same format as the global setting. Trust-gated to "container".
   ytdlpConfig: text("ytdlp_config"),
+  // Per-subscription filename-template override (issue #368).
+  // null = inherit the current global filename naming settings.
+  filenameTemplate: text("filename_template"),
 });
 
 // Track downloaded video IDs to prevent re-downloading

@@ -13,15 +13,13 @@ import {
 import { useEffect, useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import DialogHeader from './DialogHeader';
+import SubscriptionFilenameTemplateField from './SubscriptionFilenameTemplateField';
 
 /**
  * Structured modal action (design §10.1). Replaces the previous
  * `(collectionName, subscribeInfo?)` callback so subscribe-only and the
  * companion filename-template feature can share one callback shape without
  * boolean/positional ambiguity.
- *
- * `filenameTemplate` is a forward-compatible seam for the companion design and
- * is omitted (null) until that feature lands.
  */
 export interface PlaylistSubscribeInfo {
     interval: number;
@@ -72,6 +70,8 @@ const BilibiliPartsModal: React.FC<BilibiliPartsModalProps> = ({
     // playlist subscription request. Keep the dialog locked until its async
     // callback settles so users cannot close it or submit a second action.
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+    const [filenameTemplate, setFilenameTemplate] = useState<string>('');
+    const [isTemplateValid, setIsTemplateValid] = useState<boolean>(true);
 
     // The successful submission path closes this controlled dialog from the
     // parent, bypassing handleClose. Reset the destructive choice whenever
@@ -81,6 +81,8 @@ const BilibiliPartsModal: React.FC<BilibiliPartsModalProps> = ({
             setSubscribeToPlaylist(false);
             setDownloadExistingVideos(false);
             setIntervalInput('60');
+            setFilenameTemplate('');
+            setIsTemplateValid(true);
         }
     }, [isOpen]);
 
@@ -92,7 +94,11 @@ const BilibiliPartsModal: React.FC<BilibiliPartsModalProps> = ({
     const interval = intervalValid ? parsedInterval : 0;
 
     const handleConfirm = async () => {
-        if (subscribable && subscribeToPlaylist && !intervalValid) {
+        if (
+            subscribable &&
+            subscribeToPlaylist &&
+            (!intervalValid || !isTemplateValid)
+        ) {
             return;
         }
         const action: PlaylistDialogAction = {
@@ -102,7 +108,7 @@ const BilibiliPartsModal: React.FC<BilibiliPartsModalProps> = ({
             action.subscribe = {
                 interval,
                 downloadAll: downloadExistingVideos,
-                filenameTemplate: null, // companion design seam; omitted until implemented
+                filenameTemplate: filenameTemplate.trim() || null,
             };
         }
         setIsSubmitting(true);
@@ -124,6 +130,8 @@ const BilibiliPartsModal: React.FC<BilibiliPartsModalProps> = ({
         setSubscribeToPlaylist(false);
         setDownloadExistingVideos(false);
         setIntervalInput('60');
+        setFilenameTemplate('');
+        setIsTemplateValid(true);
         onClose();
     };
 
@@ -199,7 +207,10 @@ const BilibiliPartsModal: React.FC<BilibiliPartsModalProps> = ({
     // invalid interval (design §10.2).
     const busy = isLoading || isSubmitting;
     const submitDisabled =
-        busy || (subscribable && subscribeToPlaylist && !intervalValid);
+        busy ||
+        (subscribable &&
+            subscribeToPlaylist &&
+            (!intervalValid || !isTemplateValid));
 
     return (
         <Dialog
@@ -266,6 +277,15 @@ const BilibiliPartsModal: React.FC<BilibiliPartsModalProps> = ({
                                     error={subscribeToPlaylist && !intervalValid}
                                     sx={{ width: 200 }}
                                 />
+                                <Box sx={{ mt: 2 }}>
+                                    <SubscriptionFilenameTemplateField
+                                        value={filenameTemplate}
+                                        onChange={setFilenameTemplate}
+                                        sourceCollectionType="playlist"
+                                        disabled={busy}
+                                        onValidityChange={setIsTemplateValid}
+                                    />
+                                </Box>
                                 {/* Subscribe-only / history choice (design §4.1 / §10.2).
                                     Download existing is OFF by default. */}
                                 <FormControlLabel

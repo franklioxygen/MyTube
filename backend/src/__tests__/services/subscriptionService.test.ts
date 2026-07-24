@@ -619,6 +619,7 @@ describe('SubscriptionService', () => {
           collectionId: expect.any(String),
           initialHeadVideoUrl: expect.any(String),
           baselineObservedAt: expect.any(Number),
+          filenameTemplate: null,
         })
       );
 
@@ -658,6 +659,7 @@ describe('SubscriptionService', () => {
         id: 'existing-watcher',
         author: 'Channel',
         authorUrl: 'https://youtube.com/@channel/playlists',
+        filenameTemplate: '{{ source_custom_name }}/{{ title }}.{{ ext }}',
       };
       mockBuilder.then = (cb: any) => Promise.resolve([existing]).then(cb);
 
@@ -670,6 +672,60 @@ describe('SubscriptionService', () => {
 
       expect(result).toEqual(existing);
       expect(db.insert).not.toHaveBeenCalled();
+      expect(db.update).not.toHaveBeenCalled();
+    });
+
+    it('should clear an existing channel watcher filename template when null is provided', async () => {
+      const existing = {
+        id: 'existing-watcher',
+        author: 'Channel',
+        authorUrl: 'https://youtube.com/@channel/playlists',
+        filenameTemplate: '{{ source_custom_name }}/{{ title }}.{{ ext }}',
+      };
+      mockBuilder.then = (cb: any) => Promise.resolve([existing]).then(cb);
+
+      const result = await subscriptionService.subscribeChannelPlaylistsWatcher(
+        'https://youtube.com/@channel/playlists',
+        120,
+        'Channel',
+        'YouTube',
+        null
+      );
+
+      expect(result).toEqual({
+        ...existing,
+        filenameTemplate: null,
+      });
+      expect(db.insert).not.toHaveBeenCalled();
+      expect(db.update).toHaveBeenCalled();
+      expect(mockBuilder.set).toHaveBeenCalledWith({ filenameTemplate: null });
+    });
+
+    it('should update an existing channel watcher filename template when provided', async () => {
+      const existing = {
+        id: 'existing-watcher',
+        author: 'Channel',
+        authorUrl: 'https://youtube.com/@channel/playlists',
+        filenameTemplate: null,
+      };
+      const filenameTemplate = '{{ source_custom_name }}/{{ title }}.{{ ext }}';
+      mockBuilder.then = (cb: any) => Promise.resolve([existing]).then(cb);
+
+      const result = await subscriptionService.subscribeChannelPlaylistsWatcher(
+        'https://youtube.com/@channel/playlists',
+        120,
+        'Channel',
+        'YouTube',
+        filenameTemplate
+      );
+
+      expect(result).toEqual({
+        ...existing,
+        filenameTemplate,
+      });
+      expect(db.insert).not.toHaveBeenCalled();
+      expect(db.update).toHaveBeenCalled();
+      expect(mockBuilder.set).toHaveBeenCalledWith({ filenameTemplate });
     });
 
     it('should create channel watcher subscription when missing', async () => {
@@ -1121,6 +1177,7 @@ describe('SubscriptionService', () => {
           collectionId: expect.any(String),
           initialHeadVideoUrl: 'https://www.youtube.com/playlist?list=PL123',
           baselineObservedAt: expect.any(Number),
+          filenameTemplate: null,
         })
       );
       subscribeSpy.mockRestore();

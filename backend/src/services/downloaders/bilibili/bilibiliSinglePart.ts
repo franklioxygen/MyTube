@@ -4,6 +4,7 @@ import { DownloadCancelledError } from "../../../errors/DownloadErrors";
 import { isCancellationError } from "../../../utils/downloadUtils";
 import { formatVideoFilename } from "../../../utils/helpers";
 import { FilenameTemplateSourceOptions } from "../../filenameTemplate/types";
+import { applySubscriptionFilenameTemplateOverride } from "../../filenameTemplate";
 import { resolveAuthorOrganizationMode } from "../../../types/settings";
 import { logger } from "../../../utils/logger";
 import {
@@ -91,7 +92,14 @@ export async function downloadSinglePart(
     const mergeOutputFormat = audioOnly
       ? audioFormat
       : resolveBilibiliMergeOutputFormat(userConfig);
-    const settings = storageService.getSettings();
+    // Overlay any per-subscription filename-template override onto the global
+    // naming settings so renameFilesWithMetadata and the legacy/template branch
+    // below use it consistently (issue #368). When no override is present the
+    // original object is returned unchanged.
+    const settings = applySubscriptionFilenameTemplateOverride(
+      storageService.getSettings(),
+      modeOptions?.subscriptionFilenameTemplate
+    );
     const moveThumbnailsToVideoFolder =
       settings.moveThumbnailsToVideoFolder || false;
     const moveSubtitlesToVideoFolder =

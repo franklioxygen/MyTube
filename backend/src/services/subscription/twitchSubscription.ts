@@ -354,6 +354,7 @@ export async function processTwitchSubscriptionVideos(
         filenameTemplateSourceOptions:
           buildFilenameTemplateSourceOptions(sub),
         subscriptionYtdlpConfig: sub.ytdlpConfig,
+        subscriptionFilenameTemplate: sub.filenameTemplate,
       });
       const videoData = downloadResult?.videoData || downloadResult || {};
       downloadedTwitchTitle = videoData.title || video.title;

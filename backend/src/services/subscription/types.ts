@@ -38,4 +38,7 @@ export interface Subscription {
   // Per-subscription yt-dlp config override (issue #345).
   // Free-text yt-dlp config snippet; empty/undefined = use the global config.
   ytdlpConfig?: string | null;
+
+  /** Per-subscription filename-template override. null/undefined means inherit global filename naming settings. */
+  filenameTemplate?: string | null;
 }
