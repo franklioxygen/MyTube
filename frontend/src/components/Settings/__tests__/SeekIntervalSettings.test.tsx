@@ -55,6 +55,13 @@ describe("SeekIntervalSettings", () => {
   it("renders defaults using exact natural units", () => {
     render(<Harness onValidityChange={onValidityChange} />);
 
+    expect(
+      screen.getByRole("group", { name: "seekControls" })
+    ).toHaveStyle({
+      display: "flex",
+      flexDirection: "column",
+      maxWidth: "420px",
+    });
     expect(screen.getByLabelText("seekShortInterval")).toHaveValue(10);
     expect(screen.getByLabelText("seekMediumInterval")).toHaveValue(1);
     expect(screen.getByLabelText("seekLongInterval")).toHaveValue(10);

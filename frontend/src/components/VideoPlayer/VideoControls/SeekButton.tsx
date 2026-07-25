@@ -6,13 +6,10 @@ import {
   KeyboardDoubleArrowLeft,
   KeyboardDoubleArrowRight,
 } from "@mui/icons-material";
-import { Box, IconButton, Tooltip } from "@mui/material";
+import { IconButton, Tooltip } from "@mui/material";
 import type { ElementType } from "react";
 import { useLanguage } from "../../../contexts/LanguageContext";
-import {
-  formatCompactSeekDuration,
-  formatSeekDuration,
-} from "../../../utils/playerSeekIntervals";
+import { formatSeekDuration } from "../../../utils/playerSeekIntervals";
 
 export type SeekDirection = "backward" | "forward";
 export type SeekTier = "short" | "medium" | "long";
@@ -65,24 +62,10 @@ export default function SeekButton({
         sx={{
           width: 44,
           height: 44,
-          p: 0.5,
-          flexDirection: "column",
-          gap: 0,
+          p: 1,
         }}
       >
-        <Icon aria-hidden="true" sx={{ fontSize: 21 }} />
-        <Box
-          component="span"
-          aria-hidden="true"
-          sx={{
-            fontSize: "0.625rem",
-            fontWeight: 700,
-            lineHeight: 1,
-            whiteSpace: "nowrap",
-          }}
-        >
-          {formatCompactSeekDuration(seconds)}
-        </Box>
+        <Icon aria-hidden="true" />
       </IconButton>
     </Tooltip>
   );

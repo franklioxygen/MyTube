@@ -83,10 +83,14 @@ export default function SeekIntervalSettings({
       </Typography>
 
       <Box
+        role="group"
+        aria-label={t("seekControls")}
         sx={{
-          display: "grid",
-          gridTemplateColumns: { xs: "1fr", md: "repeat(3, minmax(0, 1fr))" },
+          display: "flex",
+          flexDirection: "column",
           gap: 2,
+          width: "100%",
+          maxWidth: 420,
         }}
       >
         <SeekDurationField

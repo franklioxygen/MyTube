@@ -63,12 +63,12 @@ describe('PlaybackControls', () => {
         ]);
     });
 
-    it('renders dynamic duration labels for both directions', () => {
+    it('does not render interval values in the control bar', () => {
         render(<PlaybackControls {...defaultProps} />);
 
-        expect(screen.getAllByText('15s')).toHaveLength(2);
-        expect(screen.getAllByText('2m')).toHaveLength(2);
-        expect(screen.getAllByText('15m')).toHaveLength(2);
+        expect(screen.queryByText('15s')).not.toBeInTheDocument();
+        expect(screen.queryByText('2m')).not.toBeInTheDocument();
+        expect(screen.queryByText('15m')).not.toBeInTheDocument();
     });
 
     it('provides translated direction and duration accessible names', () => {

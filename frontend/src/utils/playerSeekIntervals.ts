@@ -87,22 +87,6 @@ export function resolvePlayerSeekIntervals(
     : { ...DEFAULT_PLAYER_SEEK_INTERVALS };
 }
 
-export function formatCompactSeekDuration(seconds: number): string {
-  if (seconds < 60) {
-    return `${seconds}s`;
-  }
-  if (seconds % 3600 === 0) {
-    return `${seconds / 3600}h`;
-  }
-  if (seconds % 60 === 0) {
-    return `${seconds / 60}m`;
-  }
-
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
-  return `${minutes}:${String(remainingSeconds).padStart(2, "0")}`;
-}
-
 export function formatSeekDuration(seconds: number, t: Translate): string {
   const parts: string[] = [];
   const hours = Math.floor(seconds / 3600);

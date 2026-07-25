@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_PLAYER_SEEK_INTERVALS,
   arePlayerSeekIntervalsOrdered,
-  formatCompactSeekDuration,
   isValidPlayerSeekSeconds,
   resolvePlayerSeekIntervals,
   toSeekDurationEditorValue,
@@ -71,20 +70,6 @@ describe("playerSeekIntervals", () => {
     expect(resolvePlayerSeekIntervals(settings)).toEqual(
       DEFAULT_PLAYER_SEEK_INTERVALS
     );
-  });
-
-  it.each([
-    [1, "1s"],
-    [10, "10s"],
-    [59, "59s"],
-    [60, "1m"],
-    [61, "1:01"],
-    [90, "1:30"],
-    [600, "10m"],
-    [3599, "59:59"],
-    [3600, "1h"],
-  ])("formats %i seconds as %s", (seconds, expected) => {
-    expect(formatCompactSeekDuration(seconds as number)).toBe(expected);
   });
 
   it.each([
