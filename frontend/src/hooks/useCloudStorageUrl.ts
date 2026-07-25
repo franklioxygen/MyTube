@@ -60,15 +60,19 @@ export const useCloudStorageUrl = (
   }, [path, initialUrl]);
 
   // Only use async state for cloud storage and mount paths
-  const [asyncUrl, setAsyncUrl] = useState<string | undefined>(undefined);
+  const asyncKey = `${type}:${path ?? ""}`;
+  const [asyncResult, setAsyncResult] = useState<{
+    key: string;
+    url: string | undefined;
+  } | null>(null);
+  const asyncUrl = asyncResult?.key === asyncKey ? asyncResult.url : undefined;
 
   useEffect(() => {
     // Check if async handling is needed
     const needsAsync =
       path && (isCloudStoragePath(path) || isMountDirectoryPath(path));
 
-    if (!needsAsync) {
-      setAsyncUrl(undefined);
+    if (!needsAsync || initialUrl) {
       return;
     }
 
@@ -82,7 +86,7 @@ export const useCloudStorageUrl = (
       getFileUrl(path, type)
         .then((signedUrl) => {
           if (!cancelled) {
-            setAsyncUrl(signedUrl);
+            setAsyncResult({ key: asyncKey, url: signedUrl });
           }
         })
         .catch((error) => {
@@ -93,7 +97,7 @@ export const useCloudStorageUrl = (
               `Failed to load cloud storage URL for ${path}:`,
               error
             );
-            setAsyncUrl(undefined);
+            setAsyncResult({ key: asyncKey, url: undefined });
           }
         });
 
@@ -101,12 +105,8 @@ export const useCloudStorageUrl = (
       return () => {
         cancelled = true;
       };
-    } else if (path && isMountDirectoryPath(path)) {
-      // Mount directory paths should have signedUrl from the video object
-      // If we get here without signedUrl, it's an error
-      setAsyncUrl(undefined);
     }
-  }, [path, type, initialUrl]);
+  }, [path, type, initialUrl, asyncKey]);
 
   // Return sync URL if available (for regular paths), otherwise return async URL
   return syncUrl !== undefined ? syncUrl : asyncUrl;

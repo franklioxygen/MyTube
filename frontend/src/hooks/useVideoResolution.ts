@@ -69,9 +69,6 @@ const hasWebMExtension = (value: string | null | undefined): boolean => {
 
 export const useVideoResolution = (video: Video) => {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [detectedResolution, setDetectedResolution] = useState<string | null>(
-    null
-  );
   const videoUrl = useCloudStorageUrl(
     video.videoPath,
     video.mediaType === "audio" ? "audio" : "video",
@@ -87,28 +84,36 @@ export const useVideoResolution = (video: Video) => {
   // compete with the main player. Safari's WebM loader is linear, so a hidden
   // probe of a large WebM can interfere with the visible player's resume seek.
   const needsDetection = !resolutionFromObject && !skipSafariWebMDetection;
+  const detectionKey = `${video.id}:${videoUrl || video.sourceUrl || ""}`;
+  const [detectionResult, setDetectionResult] = useState<{
+    key: string;
+    resolution: string | null;
+  } | null>(null);
+  const detectedResolution =
+    detectionResult?.key === detectionKey ? detectionResult.resolution : null;
 
   useEffect(() => {
     // Skip video element creation if resolution is already available
     if (!needsDetection) {
-      setDetectedResolution(null);
       return;
     }
 
     const videoElement = videoRef.current;
     const videoSrc = videoUrl || video.sourceUrl;
     if (!videoElement || !videoSrc) {
-      setDetectedResolution(null);
       return;
     }
 
     const handleLoadedMetadata = () => {
       const height = videoElement.videoHeight;
-      setDetectedResolution(formatHeightAsResolution(height));
+      setDetectionResult({
+        key: detectionKey,
+        resolution: formatHeightAsResolution(height),
+      });
     };
 
     const handleError = () => {
-      setDetectedResolution(null);
+      setDetectionResult({ key: detectionKey, resolution: null });
     };
 
     // Delay resolution detection to avoid blocking video playback
@@ -168,7 +173,7 @@ export const useVideoResolution = (video: Video) => {
     }
 
     return cleanup;
-  }, [needsDetection, videoUrl, video.sourceUrl, video.id]);
+  }, [needsDetection, videoUrl, video.sourceUrl, video.id, detectionKey]);
 
   // Use resolution from object if available, otherwise use detected resolution
   const videoResolution = resolutionFromObject || detectedResolution;

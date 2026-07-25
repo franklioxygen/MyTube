@@ -72,7 +72,11 @@ export function useVideoProgress({ videoId, video, videoElement }: UseVideoProgr
   const { userRole } = useAuth();
   const isVisitor = userRole === "visitor";
   const queryClient = useQueryClient();
-  const [hasViewed, setHasViewed] = useState<boolean>(false);
+  const [viewState, setViewState] = useState({
+    videoId,
+    hasViewed: false,
+  });
+  const hasViewed = viewState.videoId === videoId && viewState.hasViewed;
   const lastProgressSave = useRef<number>(0);
   const currentTimeRef = useRef<number>(0);
   const isDeletingRef = useRef<boolean>(false);
@@ -84,7 +88,6 @@ export function useVideoProgress({ videoId, video, videoElement }: UseVideoProgr
 
   // Reset hasViewed when video changes
   useEffect(() => {
-    setHasViewed(false);
     const storedProgress = readVideoResumeProgress(videoId)?.progress ?? 0;
     currentTimeRef.current = storedProgress;
     resumeGuardTargetRef.current =
@@ -329,7 +332,7 @@ export function useVideoProgress({ videoId, video, videoElement }: UseVideoProgr
     // Increment views and refresh watch history at the same threshold.
     const viewThreshold = getViewThreshold(videoDuration);
     if (trustedCurrentTime >= viewThreshold && !hasViewed && videoId && !isVisitor) {
-      setHasViewed(true);
+      setViewState({ videoId, hasViewed: true });
       const lastPlayedAt = Date.now();
       api
         .post(`/videos/${videoId}/view`)

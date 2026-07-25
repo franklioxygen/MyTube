@@ -77,12 +77,22 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
     const presetId = resolveFilenamePresetSelectValue(
         derivedPresetId,
         namingMode,
-        forceCustomSelection
+        namingMode === 'template' && derivedPresetId !== 'custom' && forceCustomSelection
     );
 
-    const [preview, setPreview] = useState<FilenameTemplatePreviewResponse | null>(null);
-    const [isValidating, setIsValidating] = useState(false);
-
+    // Compute effective template for preview
+    const effectiveTemplate = deriveFilenameEffectiveTemplate(settings, presetDefinitions);
+    const previewKey = JSON.stringify([namingMode, effectiveTemplate, presetId]);
+    const shouldLoadPreview = namingMode !== 'template' || Boolean(effectiveTemplate);
+    const [previewState, setPreviewState] = useState<{
+        key: string;
+        value: FilenameTemplatePreviewResponse;
+    } | null>(null);
+    const preview =
+        shouldLoadPreview && previewState?.key === previewKey
+            ? previewState.value
+            : null;
+    const isValidating = shouldLoadPreview && previewState?.key !== previewKey;
     // Batch rename uses the current form state shown above, not only the last
     // saved defaults used for future downloads.
     const currentTemplateInvalid =
@@ -94,28 +104,12 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
                 scenarioPreview.videoPath.split('/').filter(Boolean).length >= 3
         );
 
-    // Compute effective template for preview
-    const effectiveTemplate = deriveFilenameEffectiveTemplate(settings, presetDefinitions);
-
-    useEffect(() => {
-        if (settings.downloadFilenameMode !== 'template') {
-            setForceCustomSelection(false);
-            return;
-        }
-
-        if (derivedPresetId === 'custom') {
-            setForceCustomSelection(false);
-        }
-    }, [derivedPresetId, settings.downloadFilenameMode]);
-
     // Debounced preview fetch
     useEffect(() => {
         const template = effectiveTemplate;
-        if (namingMode === 'template' && !template) {
-            setPreview(null);
+        if (!shouldLoadPreview) {
             return;
         }
-        setIsValidating(true);
         const timer = setTimeout(async () => {
             try {
                 const res = await api.post<FilenameTemplatePreviewResponse>(
@@ -125,24 +119,25 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
                         template: namingMode === 'template' ? template : undefined,
                     }
                 );
-                setPreview(res.data);
+                setPreviewState({ key: previewKey, value: res.data });
             } catch (e: unknown) {
-                setPreview({
-                    valid: false,
-                    errors: [getApiErrorMessage(e) || String(e)],
-                    resolved: {
-                        mode: namingMode,
-                        matchedPresetId: presetId,
-                        template: namingMode === 'template' ? template : null,
+                setPreviewState({
+                    key: previewKey,
+                    value: {
+                        valid: false,
+                        errors: [getApiErrorMessage(e) || String(e)],
+                        resolved: {
+                            mode: namingMode,
+                            matchedPresetId: presetId,
+                            template: namingMode === 'template' ? template : null,
+                        },
+                        previews: null,
                     },
-                    previews: null,
                 });
-            } finally {
-                setIsValidating(false);
             }
         }, 600);
         return () => clearTimeout(timer);
-    }, [effectiveTemplate, namingMode, presetId]);
+    }, [effectiveTemplate, namingMode, presetId, previewKey, shouldLoadPreview]);
 
     const handlePresetChange = (value: string) => {
         if (value === 'legacy') {

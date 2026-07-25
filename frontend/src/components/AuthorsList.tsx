@@ -11,7 +11,7 @@ import {
     useMediaQuery,
     useTheme
 } from '@mui/material';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useCloudStorageUrl } from '../hooks/useCloudStorageUrl';
@@ -76,9 +76,13 @@ const TOP_AUTHORS_LIMIT = 20;
 
 const AuthorsList: React.FC<AuthorsListProps> = ({ videos, onItemClick }) => {
     const { t } = useLanguage();
-    const [isOpen, setIsOpen] = useState<boolean>(true);
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+    const [openState, setOpenState] = useState(() => ({
+        isMobile,
+        isOpen: !isMobile,
+    }));
+    const isOpen = openState.isMobile === isMobile ? openState.isOpen : !isMobile;
 
     // Count videos per author, then show only the most prolific authors.
     // "Show all" (and the full /authors page) only matters when the list is
@@ -118,22 +122,13 @@ const AuthorsList: React.FC<AuthorsListProps> = ({ videos, onItemClick }) => {
         return map;
     }, [videos]);
 
-    // Auto-collapse on mobile by default
-    useEffect(() => {
-        if (isMobile) {
-            setIsOpen(false);
-        } else {
-            setIsOpen(true);
-        }
-    }, [isMobile]);
-
     if (!topAuthors.length) {
         return null;
     }
 
     return (
         <Paper elevation={0} sx={{ bgcolor: 'transparent' }}>
-            <ListItemButton onClick={() => setIsOpen(!isOpen)} sx={{ borderRadius: 1, minWidth: 0 }}>
+            <ListItemButton onClick={() => setOpenState({ isMobile, isOpen: !isOpen })} sx={{ borderRadius: 1, minWidth: 0 }}>
                 <Typography variant="h6" component="div" noWrap sx={{ flexGrow: 1, minWidth: 0, fontWeight: 600 }}>
                     {t('authors')}
                 </Typography>

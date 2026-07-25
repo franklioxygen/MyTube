@@ -7,7 +7,7 @@ import {
     TextField,
     Typography
 } from '@mui/material';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 
 interface YtDlpSettingsProps {
@@ -241,28 +241,29 @@ const DEFAULT_CONFIG = `# yt-dlp Configuration File
 const YtDlpSettings: React.FC<YtDlpSettingsProps> = ({ config, proxyOnlyYoutube = false, onChange, onProxyOnlyYoutubeChange }) => {
     const { t } = useLanguage();
     const [isExpanded, setIsExpanded] = useState(false);
-    const [localConfig, setLocalConfig] = useState(config || DEFAULT_CONFIG);
-
-    // Sync local config when prop changes
-    useEffect(() => {
-        setLocalConfig(config || DEFAULT_CONFIG);
-    }, [config]);
+    const configValue = config || DEFAULT_CONFIG;
+    const [localConfigState, setLocalConfigState] = useState({
+        source: configValue,
+        value: configValue,
+    });
+    const localConfig =
+        localConfigState.source === configValue ? localConfigState.value : configValue;
 
     const handleCustomize = () => {
         setIsExpanded(!isExpanded);
         if (!isExpanded) {
             // When expanding, sync local config with prop
-            setLocalConfig(config || DEFAULT_CONFIG);
+            setLocalConfigState({ source: configValue, value: configValue });
         }
     };
 
     const handleConfigChange = (value: string) => {
-        setLocalConfig(value);
+        setLocalConfigState({ source: configValue, value });
         onChange(value);
     };
 
     const handleReset = () => {
-        setLocalConfig(DEFAULT_CONFIG);
+        setLocalConfigState({ source: configValue, value: DEFAULT_CONFIG });
         onChange(DEFAULT_CONFIG);
     };
 

@@ -112,7 +112,20 @@ const SettingsPage: React.FC = () => {
     const [liveTranslationApiKeyDraft, setLiveTranslationApiKeyDraft] = useState('');
     const [clearLiveTranslationApiKeyRequested, setClearLiveTranslationApiKeyRequested] =
         useState(false);
-    const [currentTab, setCurrentTab] = useState(0);
+    const tabParam = new URLSearchParams(location.search).get('tab');
+    const tabFromUrl = tabParam === null ? 0 : parseInt(tabParam, 10);
+    const resolvedTabFromUrl = Number.isNaN(tabFromUrl) ? 0 : tabFromUrl;
+    const [tabState, setTabState] = useState({
+        search: location.search,
+        currentTab: resolvedTabFromUrl,
+    });
+    const currentTab =
+        tabState.search === location.search
+            ? tabState.currentTab
+            : resolvedTabFromUrl;
+    const setCurrentTab = (nextTab: number) => {
+        setTabState({ search: location.search, currentTab: nextTab });
+    };
     const [showTrustDetailsModal, setShowTrustDetailsModal] = useState(false);
     const twitchCredentialValidationCode = getTwitchCredentialValidationCode(
         settings.twitchClientId,
@@ -173,15 +186,6 @@ const SettingsPage: React.FC = () => {
 
     // Handle initial tab selection from URL and scrolling
     useEffect(() => {
-        const params = new URLSearchParams(location.search);
-        const tabParam = params.get('tab');
-        if (tabParam) {
-            const tabIndex = parseInt(tabParam, 10);
-            if (!isNaN(tabIndex)) {
-                setCurrentTab(tabIndex);
-            }
-        }
-
         // Handle scrolling to element if hash is present
         if (location.hash) {
             const id = location.hash.replace('#', '');

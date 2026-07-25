@@ -49,11 +49,6 @@ const FavoriteHeroCarousel: React.FC<FavoriteHeroCarouselProps> = ({ items }) =>
         if (suppressClickTimer.current) window.clearTimeout(suppressClickTimer.current);
     }, []);
 
-    // Keep the index valid if the favorites list shrinks under us.
-    useEffect(() => {
-        if (index >= count && count > 0) setIndex(0);
-    }, [count, index]);
-
     const go = useCallback((next: number, direction = 1) => {
         setSlideDirection(direction);
         setIndex(((next % count) + count) % count);
@@ -98,7 +93,7 @@ const FavoriteHeroCarousel: React.FC<FavoriteHeroCarouselProps> = ({ items }) =>
 
     if (count === 0) return null;
 
-    const safeIndex = Math.min(index, count - 1);
+    const safeIndex = index < count ? index : 0;
     const current = items[safeIndex];
     const openCollection = (event: MouseEvent<HTMLButtonElement>) => {
         if (!current.collection) return;

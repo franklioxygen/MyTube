@@ -38,7 +38,6 @@ const LoginPage: React.FC = () => {
     const [alertOpen, setAlertOpen] = useState(false);
     const [alertTitle, setAlertTitle] = useState('');
     const [alertMessage, setAlertMessage] = useState('');
-    const [websiteName, setWebsiteName] = useState('MyTube');
     const { t } = useLanguage();
     const { login } = useAuth();
 
@@ -83,12 +82,7 @@ const LoginPage: React.FC = () => {
     const visitorUserEnabled = passwordEnabledData?.visitorUserEnabled !== false;
     const showVisitorTab = visitorUserEnabled && (!!passwordEnabledData?.hasVisitorUsers || !!passwordEnabledData?.isVisitorPasswordSet);
 
-    // Update website name when settings are loaded
-    useEffect(() => {
-        if (passwordEnabledData && passwordEnabledData.websiteName) {
-            setWebsiteName(passwordEnabledData.websiteName);
-        }
-    }, [passwordEnabledData]);
+    const websiteName = passwordEnabledData?.websiteName || 'MyTube';
 
     // Check if passkeys exist
     const { data: passkeysData } = useQuery({

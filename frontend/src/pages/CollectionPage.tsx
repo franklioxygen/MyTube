@@ -101,7 +101,9 @@ const CollectionPage: React.FC = () => {
 
     // Keep a ref so the context always reads current values (menu gets latest when it opens)
     const filterRef = useRef({ availableTags, selectedTags, onTagToggle: handleTagToggle });
-    filterRef.current = { availableTags, selectedTags, onTagToggle: handleTagToggle };
+    useEffect(() => {
+        filterRef.current = { availableTags, selectedTags, onTagToggle: handleTagToggle };
+    }, [availableTags, selectedTags, handleTagToggle]);
 
     // Register page tag filter; bump filterVersion only in handleTagToggle so Header re-renders on tag click (no effect loop)
     useEffect(() => {

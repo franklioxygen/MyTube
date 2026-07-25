@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Settings } from '../types';
 import { api } from '../utils/apiClient';
@@ -38,47 +38,54 @@ const getErrorStatus = (error: unknown): number | undefined => {
 };
 
 export const useHomeSettings = ({ settings, settingsLoading = false }: UseHomeSettingsParams = {}): UseHomeSettingsReturn => {
-    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-    const [settingsLoaded, setSettingsLoaded] = useState(false);
-    const [infiniteScroll, setInfiniteScroll] = useState(false);
-    const [videoColumns, setVideoColumns] = useState(4);
-    const [itemsPerPage, setItemsPerPage] = useState(12);
-    const [defaultSort, setDefaultSort] = useState('dateDesc');
-    const [showTagsOnThumbnail, setShowTagsOnThumbnail] = useState(true);
     const { isAuthenticated } = useAuth();
-
-    // Sync local home settings state from shared settings query
-    useEffect(() => {
-        if (!isAuthenticated) {
-            setSettingsLoaded(true);
-            return;
-        }
-
-        if (settingsLoading) return;
-
-        if (settings) {
-            if (typeof settings.homeSidebarOpen !== 'undefined') {
-                setIsSidebarOpen(settings.homeSidebarOpen);
-            }
-            if (typeof settings.itemsPerPage !== 'undefined') {
-                setItemsPerPage(settings.itemsPerPage);
-            }
-            if (typeof settings.infiniteScroll !== 'undefined') {
-                setInfiniteScroll(settings.infiniteScroll);
-            }
-            if (typeof settings.videoColumns !== 'undefined') {
-                setVideoColumns(settings.videoColumns);
-            }
-            if (typeof settings.defaultSort !== 'undefined') {
-                setDefaultSort(settings.defaultSort);
-            }
-            if (typeof settings.showTagsOnThumbnail !== 'undefined') {
-                setShowTagsOnThumbnail(settings.showTagsOnThumbnail);
-            }
-        }
-
-        setSettingsLoaded(true);
-    }, [isAuthenticated, settingsLoading, settings]);
+    const settingsKey = JSON.stringify([
+        isAuthenticated,
+        settingsLoading,
+        settings?.homeSidebarOpen,
+        settings?.itemsPerPage,
+        settings?.infiniteScroll,
+        settings?.videoColumns,
+        settings?.defaultSort,
+        settings?.showTagsOnThumbnail,
+    ]);
+    const externalState = {
+        isSidebarOpen: settings?.homeSidebarOpen ?? true,
+        itemsPerPage: settings?.itemsPerPage ?? 12,
+        infiniteScroll: settings?.infiniteScroll ?? false,
+        videoColumns: settings?.videoColumns ?? 4,
+        defaultSort: settings?.defaultSort ?? 'dateDesc',
+        showTagsOnThumbnail: settings?.showTagsOnThumbnail ?? true,
+    };
+    const [localState, setLocalState] = useState(() => ({
+        key: settingsKey,
+        ...externalState,
+    }));
+    const currentState =
+        localState.key === settingsKey
+            ? localState
+            : { key: settingsKey, ...externalState };
+    const {
+        isSidebarOpen,
+        itemsPerPage,
+        infiniteScroll,
+        videoColumns,
+        defaultSort,
+        showTagsOnThumbnail,
+    } = currentState;
+    const settingsLoaded = !isAuthenticated || !settingsLoading;
+    const updateState = <
+        Key extends keyof Omit<typeof currentState, 'key'>
+    >(key: Key, value: Omit<typeof currentState, 'key'>[Key]) => {
+        setLocalState({ ...currentState, [key]: value });
+    };
+    const setIsSidebarOpen = (value: boolean) => updateState('isSidebarOpen', value);
+    const setItemsPerPage = (value: number) => updateState('itemsPerPage', value);
+    const setInfiniteScroll = (value: boolean) => updateState('infiniteScroll', value);
+    const setVideoColumns = (value: number) => updateState('videoColumns', value);
+    const setDefaultSort = (value: string) => updateState('defaultSort', value);
+    const setShowTagsOnThumbnail = (value: boolean) =>
+        updateState('showTagsOnThumbnail', value);
 
     const handleSidebarToggle = async () => {
         const newState = !isSidebarOpen;

@@ -48,8 +48,8 @@ const SearchPage: React.FC = () => {
     const sortOptionP = validateSortOption(searchParams.get('sort'), 'dateDesc');
     const seedP = parseInt(searchParams.get('seed') || '0', 10);
 
-    const [sortOption, setSortOption] = useState<SortOption>(sortOptionP);
-    const [shuffleSeed, setShuffleSeed] = useState<number>(seedP);
+    const sortOption: SortOption = sortOptionP;
+    const shuffleSeed = seedP;
     const [sortAnchorEl, setSortAnchorEl] = useState<null | HTMLElement>(null);
 
     const query = searchParams.get('q');
@@ -59,13 +59,6 @@ const SearchPage: React.FC = () => {
             handleSearch(query);
         }
     }, [query, contextSearchTerm, handleSearch]);
-
-    useEffect(() => {
-        const currentSort = validateSortOption(searchParams.get('sort'), 'dateDesc');
-        const currentSeed = parseInt(searchParams.get('seed') || '0', 10);
-        setSortOption(currentSort);
-        setShuffleSeed(currentSeed);
-    }, [searchParams]);
 
     const handleSortClick = (event: React.MouseEvent<HTMLButtonElement>) => {
         setSortAnchorEl(event.currentTarget);

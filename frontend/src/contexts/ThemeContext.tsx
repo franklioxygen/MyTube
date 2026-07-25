@@ -1,7 +1,7 @@
 import { hasAnyAxiosStatus } from '../utils/errors';
 import { useQueryClient } from '@tanstack/react-query';
 import { CssBaseline, GlobalStyles, ThemeProvider as MuiThemeProvider, PaletteMode, useMediaQuery } from '@mui/material';
-import React, { createContext, useCallback, useContext, useEffect, useEffectEvent, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import getTheme from '../theme';
 import { applyThemeCssVariables } from '../theme/cssVariables';
 import { api } from '../utils/apiClient';
@@ -64,35 +64,34 @@ export const ThemeContextProvider: React.FC<{ children: React.ReactNode }> = ({ 
         return 'system';
     });
 
-    const syncThemePreference = useEffectEvent(async () => {
-        try {
-            const settings = await fetchReadableSettings(queryClient, { forceRefresh: true });
-            if (!settings || settings.theme === undefined) {
-                return;
-            }
-
-            const backendTheme = normalizeThemePreference(settings.theme);
-            setPreferenceState(backendTheme);
-            localStorage.setItem('themeMode', backendTheme);
-        } catch (error: unknown) {
-            // Silently handle auth-related failures when not authenticated
-            if (!hasAnyAxiosStatus(error, [401, 403])) {
-                console.error('Error fetching settings for theme:', error);
-            }
-        }
-    });
+    const syncThemePreference = useCallback(() => {
+        void fetchReadableSettings(queryClient, { forceRefresh: true })
+            .then((settings) => {
+                if (!settings || settings.theme === undefined) {
+                    return;
+                }
+                const backendTheme = normalizeThemePreference(settings.theme);
+                setPreferenceState(backendTheme);
+                localStorage.setItem('themeMode', backendTheme);
+            })
+            .catch((error: unknown) => {
+                if (!hasAnyAxiosStatus(error, [401, 403])) {
+                    console.error('Error fetching settings for theme:', error);
+                }
+            });
+    }, [queryClient]);
 
     // Fetch settings on mount
     useEffect(() => {
         syncThemePreference();
-    }, [queryClient, syncThemePreference]);
+    }, [syncThemePreference]);
 
     // Listen for login events to refetch
     useEffect(() => {
         const onLogin = () => syncThemePreference();
         window.addEventListener('mytube-login', onLogin);
         return () => window.removeEventListener('mytube-login', onLogin);
-    }, [queryClient, syncThemePreference]);
+    }, [syncThemePreference]);
 
     const setPreference = useCallback(async (newPreference: ThemePreference) => {
         const normalizedPreference = normalizeThemePreference(newPreference);

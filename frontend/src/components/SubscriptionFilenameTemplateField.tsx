@@ -61,7 +61,6 @@ const SubscriptionFilenameTemplateField: React.FC<
 > = ({ value, onChange, sourceCollectionType, disabled, autoFocus, onValidityChange }) => {
   const { t } = useLanguage();
   const [validation, setValidation] = useState<ValidationState | null>(null);
-  const [isValidating, setIsValidating] = useState(false);
   const requestId = useRef(0);
   const helperTextId = useId();
   const validationMessageId = useId();
@@ -75,6 +74,7 @@ const SubscriptionFilenameTemplateField: React.FC<
     validation.sourceCollectionType === sourceCollectionType
       ? validation.response
       : null;
+  const isValidating = hasTemplate && validationResponse === null;
   const hasErrors = hasTemplate && validationResponse?.valid === false;
   const isInputValid =
     !hasTemplate ||
@@ -93,12 +93,9 @@ const SubscriptionFilenameTemplateField: React.FC<
       // this, a late response for a value that was cleared (or retyped) could
       // become the current validation state.
       requestId.current += 1;
-      setValidation(null);
-      setIsValidating(false);
       return;
     }
 
-    setIsValidating(true);
     const currentRequestId = requestId.current + 1;
     requestId.current = currentRequestId;
     const timer = setTimeout(async () => {
@@ -126,10 +123,6 @@ const SubscriptionFilenameTemplateField: React.FC<
             rendered: null,
           },
         });
-      } finally {
-        if (requestId.current === currentRequestId) {
-          setIsValidating(false);
-        }
       }
     }, DEBOUNCE_MS);
 

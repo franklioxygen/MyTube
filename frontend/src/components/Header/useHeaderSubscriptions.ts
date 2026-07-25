@@ -12,11 +12,20 @@ const hasActiveTask = (tasks: SubscriptionTask[]): boolean => {
 };
 
 export const useHeaderSubscriptions = (isVisitor: boolean): boolean => {
-    const [hasActiveSubscriptions, setHasActiveSubscriptions] = useState(false);
+    const [subscriptionState, setSubscriptionState] = useState({
+        isVisitor,
+        hasActiveSubscriptions: false,
+    });
+    const hasActiveSubscriptions =
+        subscriptionState.isVisitor === isVisitor
+            ? subscriptionState.hasActiveSubscriptions
+            : false;
+    if (subscriptionState.isVisitor !== isVisitor) {
+        setSubscriptionState({ isVisitor, hasActiveSubscriptions: false });
+    }
 
     useEffect(() => {
         if (isVisitor) {
-            setHasActiveSubscriptions(false);
             return;
         }
 
@@ -33,12 +42,16 @@ export const useHeaderSubscriptions = (isVisitor: boolean): boolean => {
                 const subscriptions = Array.isArray(subscriptionsRes.data) ? subscriptionsRes.data : [];
                 const tasks = Array.isArray(tasksRes.data) ? tasksRes.data : [];
                 if (isActive) {
-                    setHasActiveSubscriptions(subscriptions.length > 0 || hasActiveTask(tasks));
+                    setSubscriptionState({
+                        isVisitor,
+                        hasActiveSubscriptions:
+                            subscriptions.length > 0 || hasActiveTask(tasks),
+                    });
                 }
             } catch (error) {
                 console.error('Error checking subscriptions:', error);
                 if (isActive) {
-                    setHasActiveSubscriptions(false);
+                    setSubscriptionState({ isVisitor, hasActiveSubscriptions: false });
                 }
             }
         };

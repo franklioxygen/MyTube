@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { Video } from "../types";
@@ -41,37 +41,19 @@ export const useVideoSort = ({
     }
   }, [storageKey, validatedDefaultSort]);
 
-  // Initialize sort from URL or default
-  const paramSort = searchParams.get("sort");
-  const initialSort = validateSortOption(
-    paramSort,
+  const sortOption = validateSortOption(
+    searchParams.get("sort"),
     getStoredSort() ?? validatedDefaultSort
   );
-
-  const [sortOption, setSortOption] = useState<SortOption>(initialSort);
-  const [shuffleSeed, setShuffleSeed] = useState<number>(() => {
-    const paramSeed = parseInt(searchParams.get("seed") || "0", 10);
-    if (paramSeed > 0) return paramSeed;
-    return initialSort === "random" ? getRandomSeed() : 0;
-  });
+  const [fallbackRandomSeed] = useState(getRandomSeed);
+  const requestedSeed = parseInt(searchParams.get("seed") || "0", 10);
+  const shuffleSeed =
+    sortOption === "random"
+      ? requestedSeed > 0
+        ? requestedSeed
+        : fallbackRandomSeed
+      : 0;
   const [sortAnchorEl, setSortAnchorEl] = useState<null | HTMLElement>(null);
-
-  // Sync state with URL or validatedDefaultSort
-  useEffect(() => {
-    const currentParam = searchParams.get("sort");
-    const nextSort = currentParam
-      ? validateSortOption(currentParam, validatedDefaultSort)
-      : getStoredSort() ?? validatedDefaultSort;
-
-    setSortOption(nextSort);
-
-    const currentSeed = parseInt(searchParams.get("seed") || "0", 10);
-    if (nextSort === "random") {
-      setShuffleSeed(currentSeed > 0 ? currentSeed : getRandomSeed());
-    } else {
-      setShuffleSeed(0);
-    }
-  }, [searchParams, validatedDefaultSort, getStoredSort]);
 
   const handleSortClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     setSortAnchorEl(event.currentTarget);

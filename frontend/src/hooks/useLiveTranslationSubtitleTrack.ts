@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { LiveTranslationTranscriptEvent } from './useLiveTranslationSession';
 
 /**
@@ -14,6 +14,20 @@ import { LiveTranslationTranscriptEvent } from './useLiveTranslationSession';
 
 const DEFAULT_CUE_DURATION_S = 4;
 
+const disableAndClearTrack = (track: TextTrack) => {
+  try {
+    const cues = track.cues;
+    if (cues) {
+      for (let i = cues.length - 1; i >= 0; i--) {
+        track.removeCue(cues[i]);
+      }
+    }
+    track.mode = 'disabled';
+  } catch {
+    // ignore
+  }
+};
+
 export interface LiveTranslationSubtitleTrackController {
   track: TextTrack | null;
   isActive: boolean;
@@ -28,60 +42,60 @@ export function useLiveTranslationSubtitleTrack(
   targetLanguageCode: string,
   label: string,
 ): LiveTranslationSubtitleTrackController {
-  const [isActive, setIsActive] = useState(false);
-  // Bump to surface a freshly created track to consumers (refs don't re-render).
-  const [, setVersion] = useState(0);
-  const trackRef = useRef<TextTrack | null>(null);
-  const elementRef = useRef<HTMLVideoElement | null>(null);
-
-  // A track belongs to one element; drop the reference if the element changes.
-  useEffect(() => {
-    if (elementRef.current !== videoElement) {
-      trackRef.current = null;
-      elementRef.current = videoElement;
-      setIsActive(false);
-    }
-  }, [videoElement]);
+  const [trackState, setTrackState] = useState<{
+    element: HTMLVideoElement | null;
+    track: TextTrack | null;
+    isActive: boolean;
+  }>({
+    element: null,
+    track: null,
+    isActive: false,
+  });
+  const track = trackState.element === videoElement ? trackState.track : null;
+  const isActive = trackState.element === videoElement && trackState.isActive;
 
   const ensureTrack = useCallback((): TextTrack | null => {
     const el = videoElement;
     if (!el || typeof el.addTextTrack !== 'function') {
       return null;
     }
-    if (trackRef.current) {
-      return trackRef.current;
+    if (track) {
+      return track;
     }
-    const track = el.addTextTrack('subtitles', label, targetLanguageCode || 'und');
+    const createdTrack = el.addTextTrack('subtitles', label, targetLanguageCode || 'und');
     // Keep it non-disabled so cues can be added/read; selection sets showing/hidden.
-    track.mode = 'hidden';
-    trackRef.current = track;
-    setVersion((v) => v + 1);
-    return track;
-  }, [videoElement, label, targetLanguageCode]);
+    createdTrack.mode = 'hidden';
+    setTrackState({
+      element: el,
+      track: createdTrack,
+      isActive: false,
+    });
+    return createdTrack;
+  }, [videoElement, label, targetLanguageCode, track]);
 
   const activate = useCallback(() => {
-    if (ensureTrack()) {
-      setIsActive(true);
+    const activeTrack = ensureTrack();
+    if (activeTrack && videoElement) {
+      setTrackState({
+        element: videoElement,
+        track: activeTrack,
+        isActive: true,
+      });
     }
-  }, [ensureTrack]);
+  }, [ensureTrack, videoElement]);
 
   const deactivate = useCallback(() => {
-    const track = trackRef.current;
     if (track) {
-      try {
-        const cues = track.cues;
-        if (cues) {
-          for (let i = cues.length - 1; i >= 0; i--) {
-            track.removeCue(cues[i]);
-          }
-        }
-        track.mode = 'disabled';
-      } catch {
-        // ignore
-      }
+      disableAndClearTrack(track);
     }
-    setIsActive(false);
-  }, []);
+    if (videoElement) {
+      setTrackState({
+        element: videoElement,
+        track,
+        isActive: false,
+      });
+    }
+  }, [track, videoElement]);
 
   const addCue = useCallback(
     (event: LiveTranslationTranscriptEvent) => {
@@ -97,7 +111,13 @@ export function useLiveTranslationSubtitleTrack(
       if (!track) {
         return;
       }
-      setIsActive(true);
+      if (videoElement) {
+        setTrackState({
+          element: videoElement,
+          track,
+          isActive: true,
+        });
+      }
 
       const baseTime =
         typeof event.mediaTime === 'number'
@@ -129,7 +149,7 @@ export function useLiveTranslationSubtitleTrack(
   );
 
   return {
-    track: trackRef.current,
+    track,
     isActive,
     label,
     activate,

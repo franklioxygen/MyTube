@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { api, ensureCsrfToken } from '../utils/apiClient';
 import { getBackendUrl } from '../utils/apiUrl';
 import { int16ToBase64 } from '../utils/pcmAudio';
@@ -91,12 +91,15 @@ export function useLiveTranslationSession(
   const pausedRef = useRef(false);
   // Keep latest values for callbacks/cleanup without re-creating handlers.
   const videoElementRef = useRef(videoElement);
-  videoElementRef.current = videoElement;
   const onTranscriptRef = useRef(onTranscript);
-  onTranscriptRef.current = onTranscript;
   const latestOriginalAudioWithSubtitlesRef = useRef(false);
-  latestOriginalAudioWithSubtitlesRef.current = !!originalAudioWithSubtitles;
   const sessionOriginalAudioWithSubtitlesRef = useRef(false);
+
+  useLayoutEffect(() => {
+    videoElementRef.current = videoElement;
+    onTranscriptRef.current = onTranscript;
+    latestOriginalAudioWithSubtitlesRef.current = !!originalAudioWithSubtitles;
+  }, [videoElement, onTranscript, originalAudioWithSubtitles]);
 
   const detachMediaListeners = useCallback(() => {
     mediaListenersRef.current?.();

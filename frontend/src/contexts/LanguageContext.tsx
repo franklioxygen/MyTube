@@ -1,6 +1,6 @@
 import { hasAxiosStatus, hasAnyAxiosStatus } from '../utils/errors';
 import { useQueryClient } from '@tanstack/react-query';
-import React, { createContext, ReactNode, useCallback, useContext, useEffect, useEffectEvent, useMemo, useState } from 'react';
+import React, { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { defaultTranslations, Language, loadLocale, TranslationKey } from '../utils/translations';
 import { api } from '../utils/apiClient';
 import { fetchReadableSettings } from '../utils/settingsQueries';
@@ -71,40 +71,37 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     // Always try to fetch settings on mount so language persists across browsers
     // (backend returns language when login is disabled, or when cookies are sent)
-    const syncLanguagePreference = useEffectEvent(async () => {
-        try {
-            const settings = await fetchReadableSettings(queryClient, { forceRefresh: true });
-            if (!settings || settings.language === undefined) {
-                return;
-            }
-
-            const backendLanguage = normalizeLanguage(settings.language);
-            setLanguageState(backendLanguage);
-            // Sync localStorage with backend
-            try {
-                localStorage.setItem(LANGUAGE_STORAGE_SLOT, backendLanguage);
-            } catch (error) {
-                console.error('Error saving language to localStorage:', error);
-            }
-        } catch (error: unknown) {
-            // Silently handle auth-related failures when not authenticated
-            if (!hasAnyAxiosStatus(error, [401, 403])) {
-                console.error('Error fetching settings for language:', error);
-            }
-            // If backend fails, keep using localStorage value
-        }
-    });
+    const syncLanguagePreference = useCallback(() => {
+        void fetchReadableSettings(queryClient, { forceRefresh: true })
+            .then((settings) => {
+                if (!settings || settings.language === undefined) {
+                    return;
+                }
+                const backendLanguage = normalizeLanguage(settings.language);
+                setLanguageState(backendLanguage);
+                try {
+                    localStorage.setItem(LANGUAGE_STORAGE_SLOT, backendLanguage);
+                } catch (error) {
+                    console.error('Error saving language to localStorage:', error);
+                }
+            })
+            .catch((error: unknown) => {
+                if (!hasAnyAxiosStatus(error, [401, 403])) {
+                    console.error('Error fetching settings for language:', error);
+                }
+            });
+    }, [queryClient]);
 
     useEffect(() => {
         syncLanguagePreference();
-    }, [queryClient, syncLanguagePreference]);
+    }, [syncLanguagePreference]);
 
     // Refetch settings when user logs in (e.g. opening app in another browser)
     useEffect(() => {
         const onLogin = () => syncLanguagePreference();
         window.addEventListener('mytube-login', onLogin);
         return () => window.removeEventListener('mytube-login', onLogin);
-    }, [queryClient, syncLanguagePreference]);
+    }, [syncLanguagePreference]);
 
     const setLanguage = useCallback(async (lang: Language) => {
         const normalizedLanguage = normalizeLanguage(lang);

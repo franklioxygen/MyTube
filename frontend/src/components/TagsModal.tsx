@@ -11,7 +11,7 @@ import {
     TextField,
     Typography
 } from '@mui/material';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import { useSettings } from '../hooks/useSettings';
@@ -25,7 +25,7 @@ interface TagsModalProps {
     onSave: (tags: string[]) => Promise<void>;
 }
 
-const TagsModal: React.FC<TagsModalProps> = ({
+const TagsModalContent: React.FC<TagsModalProps> = ({
     open,
     onClose,
     videoTags,
@@ -41,18 +41,9 @@ const TagsModal: React.FC<TagsModalProps> = ({
     });
 
     // State for selected tags (starts with videoTags)
-    const [selectedTags, setSelectedTags] = useState<string[]>([]);
+    const [selectedTags, setSelectedTags] = useState<string[]>(videoTags || []);
     const [newTag, setNewTag] = useState('');
     const [saving, setSaving] = useState(false);
-
-    // Reset state when modal opens
-    useEffect(() => {
-        if (open) {
-            setSelectedTags(videoTags || []);
-            setNewTag('');
-            setSaving(false);
-        }
-    }, [open, videoTags]);
 
     const handleToggleTag = (tag: string) => {
         setSelectedTags(prev =>
@@ -201,5 +192,10 @@ const TagsModal: React.FC<TagsModalProps> = ({
         </Dialog>
     );
 };
+
+const TagsModal: React.FC<TagsModalProps> = (props) =>
+    props.open ? (
+        <TagsModalContent key={props.videoTags.join('\u0000')} {...props} />
+    ) : null;
 
 export default TagsModal;

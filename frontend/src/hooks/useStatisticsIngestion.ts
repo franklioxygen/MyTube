@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useSettings } from './useSettings';
 import { api, sendStatisticsEventsWithKeepalive } from '../utils/apiClient';
@@ -153,10 +153,12 @@ export function useStatisticsIngestion(): {
   const isVisitor = userRole === 'visitor';
   const ingestionAllowed = enabled && (!isVisitor || trackVisitor);
 
-  const sessionIdRef = useRef<string>('');
-  if (!sessionIdRef.current) {
-    sessionIdRef.current = getOrCreateSessionId(userRole ?? null);
-  }
+  const role = userRole ?? null;
+  const [session, setSession] = useState<{ role: string | null; sessionId: string }>({
+    role,
+    sessionId: '',
+  });
+  const sessionId = session.role === role ? session.sessionId : '';
 
   // Flush on visibility/pagehide (best-effort).
   useEffect(() => {
@@ -179,26 +181,35 @@ export function useStatisticsIngestion(): {
 
   // Drop unflushed buffer when role changes; design §7.1.
   useEffect(() => {
-    const stored = loadSessionRecord();
-    if (stored && stored.role !== (userRole ?? null)) {
-      outboundQueue = [];
-      const sessionId = generateUUID();
-      saveSessionRecord({
-        sessionId,
-        createdAt: Date.now(),
-        role: userRole ?? null,
-      });
-      sessionIdRef.current = sessionId;
-    }
-  }, [userRole]);
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      const stored = loadSessionRecord();
+      if (stored && stored.role !== role) {
+        outboundQueue = [];
+      }
+      const nextSessionId = getOrCreateSessionId(role);
+      setSession({ role, sessionId: nextSessionId });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [role]);
 
   const recordEvent = useCallback(
     (input: StatisticsEventInput): string | null => {
       if (!ingestionAllowed) return null;
       const id = generateUUID();
+      if (session.role !== role) {
+        outboundQueue = [];
+      }
+      const currentSessionId = sessionId || getOrCreateSessionId(role);
+      if (!sessionId) {
+        setSession({ role, sessionId: currentSessionId });
+      }
       const event: OutboundEvent = {
         id,
-        sessionId: sessionIdRef.current,
+        sessionId: currentSessionId,
         clientOccurredAt: input.clientOccurredAt ?? Date.now(),
         ...input,
       };
@@ -210,7 +221,7 @@ export function useStatisticsIngestion(): {
       }
       return id;
     },
-    [ingestionAllowed]
+    [ingestionAllowed, role, session, sessionId]
   );
 
   const flushNow = useCallback(() => {
@@ -234,6 +245,6 @@ export function useStatisticsIngestion(): {
     recordEvent,
     flushNow,
     flushKeepalive,
-    sessionId: sessionIdRef.current,
+    sessionId,
   };
 }

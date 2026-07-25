@@ -16,7 +16,7 @@ import {
     TextField,
     Typography
 } from '@mui/material';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import DialogHeader from './DialogHeader';
 import SubscriptionFilenameTemplateField from './SubscriptionFilenameTemplateField';
@@ -53,7 +53,7 @@ interface SubscribeModalProps {
     downloadPreviousHelp?: string;
 }
 
-const SubscribeModal: React.FC<SubscribeModalProps> = ({
+const SubscribeModalContent: React.FC<SubscribeModalProps> = ({
     open,
     onClose,
     onConfirm,
@@ -93,10 +93,6 @@ const SubscribeModal: React.FC<SubscribeModalProps> = ({
         setFilenameTemplate('');
         setIsTemplateValid(true);
     }, []);
-
-    useEffect(() => {
-        resetFilenameTemplate();
-    }, [resetFilenameTemplate, url]);
 
     const handleClose = () => {
         if (!isSubmitting) {
@@ -255,5 +251,8 @@ const SubscribeModal: React.FC<SubscribeModalProps> = ({
         </Dialog>
     );
 };
+
+const SubscribeModal: React.FC<SubscribeModalProps> = (props) =>
+    props.open ? <SubscribeModalContent key={props.url} {...props} /> : null;
 
 export default SubscribeModal;

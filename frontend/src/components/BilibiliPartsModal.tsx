@@ -10,7 +10,7 @@ import {
     TextField,
     Typography
 } from '@mui/material';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import DialogHeader from './DialogHeader';
 import SubscriptionFilenameTemplateField from './SubscriptionFilenameTemplateField';
@@ -47,7 +47,7 @@ interface BilibiliPartsModalProps {
 const isSubscribableType = (type: string) =>
     type === 'playlist' || type === 'collection' || type === 'series';
 
-const BilibiliPartsModal: React.FC<BilibiliPartsModalProps> = ({
+const BilibiliPartsModalContent: React.FC<BilibiliPartsModalProps> = ({
     isOpen,
     onClose,
     videosNumber,
@@ -72,19 +72,6 @@ const BilibiliPartsModal: React.FC<BilibiliPartsModalProps> = ({
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
     const [filenameTemplate, setFilenameTemplate] = useState<string>('');
     const [isTemplateValid, setIsTemplateValid] = useState<boolean>(true);
-
-    // The successful submission path closes this controlled dialog from the
-    // parent, bypassing handleClose. Reset the destructive choice whenever
-    // that happens so it cannot be carried to the next detected playlist.
-    useEffect(() => {
-        if (!isOpen) {
-            setSubscribeToPlaylist(false);
-            setDownloadExistingVideos(false);
-            setIntervalInput('60');
-            setFilenameTemplate('');
-            setIsTemplateValid(true);
-        }
-    }, [isOpen]);
 
     const subscribable = isSubscribableType(type);
 
@@ -341,5 +328,8 @@ const BilibiliPartsModal: React.FC<BilibiliPartsModalProps> = ({
         </Dialog>
     );
 };
+
+const BilibiliPartsModal: React.FC<BilibiliPartsModalProps> = (props) =>
+    props.isOpen ? <BilibiliPartsModalContent {...props} /> : null;
 
 export default BilibiliPartsModal;

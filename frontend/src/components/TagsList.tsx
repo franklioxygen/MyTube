@@ -11,7 +11,7 @@ import {
     useMediaQuery,
     useTheme
 } from '@mui/material';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { normalizeTagKey, sortTagsByUsage } from '../utils/tagUtils';
@@ -41,18 +41,13 @@ const TagsList: React.FC<TagsListProps> = ({
     linkToAllTags = false,
 }) => {
     const { t } = useLanguage();
-    const [isOpen, setIsOpen] = useState<boolean>(true);
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-
-    // Auto-collapse on mobile by default
-    useEffect(() => {
-        if (isMobile) {
-            setIsOpen(false);
-        } else {
-            setIsOpen(true);
-        }
-    }, [isMobile]);
+    const [openState, setOpenState] = useState(() => ({
+        isMobile,
+        isOpen: !isMobile,
+    }));
+    const isOpen = openState.isMobile === isMobile ? openState.isOpen : !isMobile;
 
     const { displayTags, hasMore } = useMemo(() => {
         if (!availableTags || availableTags.length === 0) {
@@ -101,7 +96,7 @@ const TagsList: React.FC<TagsListProps> = ({
 
     return (
         <Paper elevation={0} sx={{ bgcolor: 'transparent' }}>
-            <ListItemButton onClick={() => setIsOpen(!isOpen)} sx={{ borderRadius: 1, mb: 1, minWidth: 0 }}>
+            <ListItemButton onClick={() => setOpenState({ isMobile, isOpen: !isOpen })} sx={{ borderRadius: 1, mb: 1, minWidth: 0 }}>
                 <Typography variant="h6" component="div" noWrap sx={{ flexGrow: 1, minWidth: 0, fontWeight: 600 }}>
                     {t('tags') || 'Tags'}
                 </Typography>

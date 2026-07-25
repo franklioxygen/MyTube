@@ -12,7 +12,7 @@ import {
     Typography,
 } from '@mui/material';
 import type { SelectChangeEvent } from '@mui/material/Select';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import { CreateTokenInput, RssFilters, RssToken, UpdateTokenInput } from '../../../utils/rssApi';
 import RssFilterEditor from './RssFilterEditor';
@@ -37,7 +37,7 @@ interface RssTokenDialogProps {
 
 const DEFAULT_FILTERS: RssFilters = { maxItems: 50 };
 
-const RssTokenDialog: React.FC<RssTokenDialogProps> = ({
+const RssTokenDialogContent: React.FC<RssTokenDialogProps> = ({
     open,
     mode,
     token,
@@ -50,23 +50,13 @@ const RssTokenDialog: React.FC<RssTokenDialogProps> = ({
     isLoading = false,
 }) => {
     const { t } = useLanguage();
-    const [label, setLabel] = useState('');
-    const [role, setRole] = useState<'admin' | 'visitor'>('visitor');
-    const [filters, setFilters] = useState<RssFilters>(DEFAULT_FILTERS);
-
-    useEffect(() => {
-        if (open) {
-            if (mode === 'edit' && token) {
-                setLabel(token.label);
-                setRole(token.role);
-                setFilters({ maxItems: 50, ...token.filters });
-            } else {
-                setLabel('');
-                setRole('visitor');
-                setFilters(DEFAULT_FILTERS);
-            }
-        }
-    }, [open, mode, token]);
+    const [label, setLabel] = useState(mode === 'edit' && token ? token.label : '');
+    const [role, setRole] = useState<'admin' | 'visitor'>(
+        mode === 'edit' && token ? token.role : 'visitor'
+    );
+    const [filters, setFilters] = useState<RssFilters>(
+        mode === 'edit' && token ? { maxItems: 50, ...token.filters } : DEFAULT_FILTERS
+    );
 
     const showAdminWarning = role === 'admin';
 
@@ -178,5 +168,19 @@ const RssTokenDialog: React.FC<RssTokenDialogProps> = ({
         </Dialog>
     );
 };
+
+const RssTokenDialog: React.FC<RssTokenDialogProps> = (props) =>
+    props.open ? (
+        <RssTokenDialogContent
+            key={JSON.stringify([
+                props.mode,
+                props.token?.id ?? 'new',
+                props.token?.label,
+                props.token?.role,
+                props.token?.filters,
+            ])}
+            {...props}
+        />
+    ) : null;
 
 export default RssTokenDialog;
