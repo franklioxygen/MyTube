@@ -146,7 +146,8 @@ const VideoPlayer: React.FC = () => {
         handleSubtitlesToggle,
         handleLoopToggle,
         pauseOnFocusLoss,
-        playFromBeginning
+        playFromBeginning,
+        seekIntervals,
     } = useVideoPlayerSettings();
 
     const autoPlay = autoPlayNext || settingsAutoPlay;
@@ -526,6 +527,7 @@ const VideoPlayer: React.FC = () => {
                             label: liveSubtitleTrack.label,
                             track: liveSubtitleTrack.track,
                         }}
+                        seekIntervals={seekIntervals}
                     /> : <VideoControls
                         src={(videoUrl || video?.sourceUrl) || null}
                         mediaPath={video.videoPath}
@@ -556,6 +558,7 @@ const VideoPlayer: React.FC = () => {
                         }}
                         onVideoElementReady={setVideoElement}
                         liveSubtitle={{ available: liveSubtitleTrack.isActive, label: liveSubtitleTrack.label, track: liveSubtitleTrack.track }}
+                        seekIntervals={seekIntervals}
                     />}
 
                     <LiveTranslationStatusAlert isCinemaMode={effectiveCinemaMode} />

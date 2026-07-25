@@ -125,6 +125,16 @@ describe('storageService settings', () => {
             expect(db.insert).toHaveBeenCalledTimes(1);
         });
 
+        it('persists player seek interval settings when whitelisted', () => {
+            saveSettings({
+                playerSeekShortSeconds: 15,
+                playerSeekMediumSeconds: 120,
+                playerSeekLongSeconds: 900,
+            });
+            expect(db.transaction).toHaveBeenCalled();
+            expect(db.insert).toHaveBeenCalledTimes(3);
+        });
+
         it('ignores non-whitelisted keys', () => {
             saveSettings({ notARealSetting: true });
             expect(db.insert).not.toHaveBeenCalled();
@@ -134,6 +144,14 @@ describe('storageService settings', () => {
     describe('WHITELISTED_SETTINGS', () => {
         it('includes liveTranslationOriginalAudioWithSubtitles', () => {
             expect(WHITELISTED_SETTINGS).toContain('liveTranslationOriginalAudioWithSubtitles');
+        });
+
+        it('includes all player seek interval settings', () => {
+            expect(WHITELISTED_SETTINGS).toEqual(expect.arrayContaining([
+                'playerSeekShortSeconds',
+                'playerSeekMediumSeconds',
+                'playerSeekLongSeconds',
+            ]));
         });
     });
 });

@@ -6,6 +6,8 @@ import {
   defaultSettings,
   isPreferredVideoContainer,
   AUDIO_FORMATS,
+  MAX_PLAYER_SEEK_SECONDS,
+  MIN_PLAYER_SEEK_SECONDS,
 } from "../types/settings";
 import { logger } from "../utils/logger";
 import * as storageService from "./storageService";
@@ -25,6 +27,28 @@ const VALID_MEDIA_SERVER_EXPORT_MODES = new Set([
   "nfo",
   "nfo_and_source_json",
 ]);
+const PLAYER_SEEK_SETTING_KEYS = [
+  "playerSeekShortSeconds",
+  "playerSeekMediumSeconds",
+  "playerSeekLongSeconds",
+] as const;
+
+function assertValidPlayerSeekSeconds(
+  key: (typeof PLAYER_SEEK_SETTING_KEYS)[number],
+  value: unknown
+): asserts value is number {
+  if (
+    typeof value !== "number" ||
+    !Number.isInteger(value) ||
+    value < MIN_PLAYER_SEEK_SECONDS ||
+    value > MAX_PLAYER_SEEK_SECONDS
+  ) {
+    throw new ValidationError(
+      `${key} must be a whole number from ${MIN_PLAYER_SEEK_SECONDS} through ${MAX_PLAYER_SEEK_SECONDS}.`,
+      key
+    );
+  }
+}
 
 /**
  * Check if a tags array has any case-insensitive duplicates.
@@ -176,6 +200,15 @@ export function validateSettings(newSettings: Partial<Settings>): void {
   // Validate itemsPerPage
   if (newSettings.itemsPerPage !== undefined && newSettings.itemsPerPage < 1) {
     newSettings.itemsPerPage = 12; // Default fallback if invalid
+  }
+
+  for (const key of PLAYER_SEEK_SETTING_KEYS) {
+    if (!Object.prototype.hasOwnProperty.call(newSettings, key)) {
+      continue;
+    }
+
+    const value = newSettings[key];
+    assertValidPlayerSeekSeconds(key, value);
   }
 
   // Validate defaultSort
@@ -379,6 +412,29 @@ export function validateLiveTranslationFinalSettings(
     throw new ValidationError(
       "A valid target language is required to enable live translation.",
       "liveTranslationTargetLanguage"
+    );
+  }
+}
+
+/**
+ * Validate the complete seek-button configuration after a partial settings
+ * patch has been merged with persisted values.
+ */
+export function validatePlayerSeekIntervalsFinalSettings(
+  finalSettings: Partial<Settings>
+): void {
+  const shortSeconds = finalSettings.playerSeekShortSeconds;
+  const mediumSeconds = finalSettings.playerSeekMediumSeconds;
+  const longSeconds = finalSettings.playerSeekLongSeconds;
+
+  assertValidPlayerSeekSeconds("playerSeekShortSeconds", shortSeconds);
+  assertValidPlayerSeekSeconds("playerSeekMediumSeconds", mediumSeconds);
+  assertValidPlayerSeekSeconds("playerSeekLongSeconds", longSeconds);
+
+  if (!(shortSeconds < mediumSeconds && mediumSeconds < longSeconds)) {
+    throw new ValidationError(
+      "Player seek intervals must increase from short to medium to long.",
+      "playerSeekShortSeconds"
     );
   }
 }

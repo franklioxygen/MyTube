@@ -2,6 +2,8 @@ import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import VideoControls from '../VideoControls/index';
 
+const mockUseKeyboardShortcuts = vi.hoisted(() => vi.fn());
+
 // Mock child components
 vi.mock('../VideoControls/VideoElement', () => ({
     default: ({ onClick }: any) => <div data-testid="video-element" onClick={onClick}>Video Element</div>
@@ -95,7 +97,7 @@ vi.mock('../VideoControls/hooks/useSubtitles', () => ({
 }));
 
 vi.mock('../VideoControls/hooks/useKeyboardShortcuts', () => ({
-    useKeyboardShortcuts: vi.fn()
+    useKeyboardShortcuts: mockUseKeyboardShortcuts
 }));
 
 vi.mock('../../../hooks/useStatisticsWatchTracker', () => ({
@@ -167,6 +169,41 @@ describe('VideoControls', () => {
 
         unmount();
         expect(onVideoElementReady).toHaveBeenCalledWith(null);
+    });
+
+    it('uses the configured short interval for keyboard seeking', () => {
+        const { rerender } = render(
+            <VideoControls
+                {...defaultProps}
+                seekIntervals={{
+                    shortSeconds: 15,
+                    mediumSeconds: 120,
+                    longSeconds: 900,
+                }}
+            />
+        );
+
+        const firstShortcuts = mockUseKeyboardShortcuts.mock.calls.at(-1)?.[0];
+        firstShortcuts.onSeekLeft();
+        firstShortcuts.onSeekRight();
+
+        expect(mockVideoPlayer.handleSeek).toHaveBeenNthCalledWith(1, -15);
+        expect(mockVideoPlayer.handleSeek).toHaveBeenNthCalledWith(2, 15);
+
+        rerender(
+            <VideoControls
+                {...defaultProps}
+                seekIntervals={{
+                    shortSeconds: 30,
+                    mediumSeconds: 120,
+                    longSeconds: 900,
+                }}
+            />
+        );
+
+        const updatedShortcuts = mockUseKeyboardShortcuts.mock.calls.at(-1)?.[0];
+        updatedShortcuts.onSeekRight();
+        expect(mockVideoPlayer.handleSeek).toHaveBeenLastCalledWith(30);
     });
 });
 

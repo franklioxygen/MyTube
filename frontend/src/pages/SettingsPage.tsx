@@ -79,6 +79,9 @@ const SettingsPage: React.FC = () => {
         theme: 'system',
         showThemeButton: true,
         showAudioDownloadButton: true,
+        playerSeekShortSeconds: 10,
+        playerSeekMediumSeconds: 60,
+        playerSeekLongSeconds: 600,
         tags: [],
         cloudDriveEnabled: false,
         openListApiUrl: '',
@@ -113,6 +116,7 @@ const SettingsPage: React.FC = () => {
     const [clearLiveTranslationApiKeyRequested, setClearLiveTranslationApiKeyRequested] =
         useState(false);
     const [currentTab, setCurrentTab] = useState(0);
+    const [seekIntervalsValid, setSeekIntervalsValid] = useState(true);
     const [showTrustDetailsModal, setShowTrustDetailsModal] = useState(false);
     const twitchCredentialValidationCode = getTwitchCredentialValidationCode(
         settings.twitchClientId,
@@ -270,7 +274,11 @@ const SettingsPage: React.FC = () => {
     };
 
     const handleSave = () => {
-        if (saveMutation.isPending || hasTwitchCredentialValidationError) {
+        if (
+            saveMutation.isPending ||
+            hasTwitchCredentialValidationError ||
+            !seekIntervalsValid
+        ) {
             return;
         }
 
@@ -404,6 +412,7 @@ const SettingsPage: React.FC = () => {
             <VideoDefaultSettings
                 settings={settings}
                 onChange={handleChange}
+                onSeekIntervalsValidityChange={setSeekIntervalsValid}
             />
             <LiveTranslationSettings
                 settings={settings}
@@ -721,7 +730,7 @@ const SettingsPage: React.FC = () => {
                     color="primary"
                     size="large"
                     onClick={handleSave}
-                    disabled={hasTwitchCredentialValidationError}
+                    disabled={hasTwitchCredentialValidationError || !seekIntervalsValid}
                     loading={saveMutation.isPending}
                     loadingPosition="start"
                     sx={{ visibility: isSticky ? 'hidden' : 'visible' }}
@@ -756,7 +765,7 @@ const SettingsPage: React.FC = () => {
                                 color="primary"
                                 size="large"
                                 onClick={handleSave}
-                                disabled={hasTwitchCredentialValidationError}
+                                disabled={hasTwitchCredentialValidationError || !seekIntervalsValid}
                                 loading={saveMutation.isPending}
                                 loadingPosition="start"
                                 className={isGlowing ? 'button-glow-animation' : ''}

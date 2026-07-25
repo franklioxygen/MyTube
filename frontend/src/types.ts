@@ -155,6 +155,9 @@ export interface Settings {
   cloudDriveScanPaths?: string;
   homeSidebarOpen?: boolean;
   subtitlesEnabled?: boolean;
+  playerSeekShortSeconds?: number;
+  playerSeekMediumSeconds?: number;
+  playerSeekLongSeconds?: number;
   websiteName?: string;
   itemsPerPage?: number;
   ytDlpConfig?: string;

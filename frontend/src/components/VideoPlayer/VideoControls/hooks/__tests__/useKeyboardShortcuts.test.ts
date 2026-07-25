@@ -56,6 +56,34 @@ describe('useKeyboardShortcuts', () => {
     document.body.removeChild(input);
   });
 
+  it('should ignore shortcuts when a select element is focused', () => {
+    renderHook(() => useKeyboardShortcuts({ onSeekLeft, onSeekRight, onPlayPause }));
+
+    const select = document.createElement('select');
+    document.body.appendChild(select);
+    select.focus();
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
+
+    expect(onSeekRight).not.toHaveBeenCalled();
+    document.body.removeChild(select);
+  });
+
+  it('should ignore shortcuts when contenteditable is focused', () => {
+    renderHook(() => useKeyboardShortcuts({ onSeekLeft, onSeekRight, onPlayPause }));
+
+    const editor = document.createElement('div');
+    editor.setAttribute('contenteditable', 'true');
+    editor.tabIndex = 0;
+    document.body.appendChild(editor);
+    editor.focus();
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
+
+    expect(onSeekLeft).not.toHaveBeenCalled();
+    document.body.removeChild(editor);
+  });
+
   it('should ignore key repeat events', () => {
     renderHook(() => useKeyboardShortcuts({ onSeekLeft, onSeekRight, onPlayPause }));
 

@@ -226,9 +226,14 @@ vi.mock('../../components/Settings/RssFeedSettings', () => ({
 }));
 
 vi.mock('../../components/Settings/VideoDefaultSettings', () => ({
-  default: ({ onChange }: any) => (
+  default: ({ onChange, onSeekIntervalsValidityChange }: any) => (
     <div data-testid="video-default-settings">
       <button onClick={() => onChange('defaultAutoPlay', true)}>video-default-change</button>
+      <button onClick={() => onChange('playerSeekShortSeconds', 15)}>seek-short-change</button>
+      <button onClick={() => onChange('playerSeekMediumSeconds', 120)}>seek-medium-change</button>
+      <button onClick={() => onChange('playerSeekLongSeconds', 900)}>seek-long-change</button>
+      <button onClick={() => onSeekIntervalsValidityChange(false)}>seek-invalid</button>
+      <button onClick={() => onSeekIntervalsValidityChange(true)}>seek-valid</button>
     </div>
   ),
 }));
@@ -519,6 +524,38 @@ describe('SettingsPage', () => {
     expect(disabledSaveButton).toBeDefined();
     expect(disabledSaveButton).toBeDisabled();
     expect(screen.getByRole('progressbar')).toBeInTheDocument();
+  });
+
+  it('blocks save while seek interval drafts are invalid', () => {
+    renderPage('/settings');
+
+    fireEvent.click(screen.getByText('seek-invalid'));
+    const saveButton = screen.getAllByRole('button', { name: 'save' })[0];
+    expect(saveButton).toBeDisabled();
+
+    fireEvent.click(saveButton);
+    expect(mockSaveMutate).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByText('seek-valid'));
+    expect(saveButton).not.toBeDisabled();
+  });
+
+  it('includes changed seek intervals in the settings save payload', () => {
+    renderPage('/settings');
+
+    fireEvent.click(screen.getByText('seek-short-change'));
+    fireEvent.click(screen.getByText('seek-medium-change'));
+    fireEvent.click(screen.getByText('seek-long-change'));
+    fireEvent.click(screen.getAllByRole('button', { name: 'save' })[0]);
+
+    expect(mockSaveMutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        playerSeekShortSeconds: 15,
+        playerSeekMediumSeconds: 120,
+        playerSeekLongSeconds: 900,
+      }),
+      expect.objectContaining({ onSuccess: expect.any(Function) })
+    );
   });
 
   it('disables live translation when clearing a configured API key before save', async () => {

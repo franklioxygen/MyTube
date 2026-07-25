@@ -22,6 +22,9 @@ describe('settings types', () => {
                 videoColumns: 4,
                 pauseOnFocusLoss: false,
                 showAudioDownloadButton: true,
+                playerSeekShortSeconds: 10,
+                playerSeekMediumSeconds: 60,
+                playerSeekLongSeconds: 600,
             }));
         });
 

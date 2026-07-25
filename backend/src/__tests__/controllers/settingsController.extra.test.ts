@@ -43,6 +43,7 @@ vi.mock("../../services/settingsValidationService", () => ({
   mergeSettings: vi.fn(),
   validateSettings: vi.fn(),
   validateLiveTranslationFinalSettings: vi.fn(),
+  validatePlayerSeekIntervalsFinalSettings: vi.fn(),
   prepareSettingsForSave: vi.fn(),
 }));
 

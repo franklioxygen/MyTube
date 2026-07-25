@@ -32,6 +32,11 @@ export type ExplicitPreferredVideoContainer = Exclude<
 export type LiveTranslationModel = "gemini-3.5-live-translate-preview";
 export const AUDIO_FORMATS = ["m4a", "mp3", "opus"] as const;
 export type AudioFormat = (typeof AUDIO_FORMATS)[number];
+export const DEFAULT_PLAYER_SEEK_SHORT_SECONDS = 10;
+export const DEFAULT_PLAYER_SEEK_MEDIUM_SECONDS = 60;
+export const DEFAULT_PLAYER_SEEK_LONG_SECONDS = 600;
+export const MIN_PLAYER_SEEK_SECONDS = 1;
+export const MAX_PLAYER_SEEK_SECONDS = 3600;
 
 export function normalizeAudioFormat(value: unknown): AudioFormat {
   return typeof value === "string" && AUDIO_FORMATS.includes(value as AudioFormat)
@@ -66,6 +71,9 @@ export interface Settings {
   cloudDriveScanPaths?: string;
   homeSidebarOpen?: boolean;
   subtitlesEnabled?: boolean;
+  playerSeekShortSeconds?: number;
+  playerSeekMediumSeconds?: number;
+  playerSeekLongSeconds?: number;
   websiteName?: string;
   itemsPerPage?: number;
   ytDlpConfig?: string;
@@ -161,6 +169,9 @@ export const defaultSettings: Settings = {
   cloudDriveScanPaths: "",
   homeSidebarOpen: true,
   subtitlesEnabled: true,
+  playerSeekShortSeconds: DEFAULT_PLAYER_SEEK_SHORT_SECONDS,
+  playerSeekMediumSeconds: DEFAULT_PLAYER_SEEK_MEDIUM_SECONDS,
+  playerSeekLongSeconds: DEFAULT_PLAYER_SEEK_LONG_SECONDS,
   websiteName: "MyTube",
   itemsPerPage: 12,
   showYoutubeSearch: true,
