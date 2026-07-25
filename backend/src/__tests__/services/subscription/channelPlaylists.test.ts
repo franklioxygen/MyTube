@@ -95,20 +95,34 @@ describe("subscription channelPlaylists", () => {
         collectionId: expect.any(String),
         initialHeadVideoUrl: "https://www.youtube.com/watch?v=vid-new-head",
         baselineObservedAt: expect.any(Number),
+        ytdlpConfig: null,
         filenameTemplate: null,
       })
     );
   });
 
-  it("threads the per-subscription yt-dlp override into the playlist listing", async () => {
+  it("threads the per-subscription yt-dlp override through discovered playlists", async () => {
     const { executeYtDlpJson, getEffectiveUserYtDlpConfig } = await import(
       "../../../utils/ytDlpUtils"
     );
-    vi.mocked(executeYtDlpJson).mockResolvedValueOnce({ entries: [] } as any);
+    vi.mocked(executeYtDlpJson)
+      .mockResolvedValueOnce({
+        entries: [
+          {
+            id: "PL_override",
+            title: "Override Playlist",
+            url: "https://youtube.com/playlist?list=PL_override",
+          },
+        ],
+      } as any)
+      .mockResolvedValueOnce({
+        _type: "playlist",
+        entries: [{ id: "override-head" }],
+      } as any);
 
     const deps = {
       listSubscriptions: vi.fn().mockResolvedValue([]),
-      subscribePlaylist: vi.fn(),
+      subscribePlaylist: vi.fn().mockResolvedValue(undefined),
     };
 
     await checkChannelPlaylistsForWatcher(
@@ -119,6 +133,12 @@ describe("subscription channelPlaylists", () => {
     expect(getEffectiveUserYtDlpConfig).toHaveBeenCalledWith(
       "https://youtube.com/@channel/playlists",
       "--format bestaudio"
+    );
+    expect(deps.subscribePlaylist).toHaveBeenCalledWith(
+      expect.objectContaining({
+        playlistUrl: "https://youtube.com/playlist?list=PL_override",
+        ytdlpConfig: "--format bestaudio",
+      })
     );
   });
 

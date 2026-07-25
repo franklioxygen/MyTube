@@ -168,7 +168,7 @@ export function getEffectiveUserYtDlpConfig(
     isAdminTrustLevelAtLeast("container")
   ) {
     const overrideConfig = parseYtDlpConfig(subscriptionOverride);
-    logger.info("Applying per-subscription yt-dlp override:", overrideConfig);
+    logger.info("Applying per-subscription yt-dlp override");
 
     // Start from the global config, then drop any global key that the override
     // supersedes via an *alias* (short/long form of the same option) so the

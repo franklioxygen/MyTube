@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as storageService from "../../services/storageService";
+import { logger } from "../../utils/logger";
 import { getEffectiveUserYtDlpConfig } from "../../utils/ytdlp/config";
 
 vi.mock("../../services/storageService", () => ({
@@ -43,15 +44,26 @@ describe("getEffectiveUserYtDlpConfig (issue #345)", () => {
   });
 
   it("merges the override on top of the global config (override wins per-key)", () => {
+    const logSpy = vi.spyOn(logger, "info").mockImplementation(() => {});
     const effective = getEffectiveUserYtDlpConfig(
       "https://example.com/v",
-      "--format bestaudio"
+      "--proxy http://user:secret@override-proxy:8080\n--format bestaudio"
     );
-    // Override supplies format; proxy is inherited from the global config.
+    // The override supplies both values, but its parsed contents must not be
+    // passed to the logger because configs may contain credentials or headers.
     expect(effective).toEqual({
-      proxy: "http://global-proxy:8080",
+      proxy: "http://user:secret@override-proxy:8080",
       format: "bestaudio",
     });
+    expect(logSpy).toHaveBeenCalledWith(
+      "Applying per-subscription yt-dlp override"
+    );
+    expect(logSpy).not.toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        proxy: "http://user:secret@override-proxy:8080",
+      })
+    );
   });
 
   it("lets a long-form override replace the same long-form global key", () => {
