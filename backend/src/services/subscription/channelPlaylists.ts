@@ -140,6 +140,7 @@ export async function checkChannelPlaylistsForWatcher(
             collectionId,
             initialHeadVideoUrl: snapshot.headVideoUrl,
             baselineObservedAt: snapshot.observedAt,
+            ytdlpConfig: sub.ytdlpConfig ?? null,
             filenameTemplate: sub.filenameTemplate ?? null,
           });
         } catch (error) {

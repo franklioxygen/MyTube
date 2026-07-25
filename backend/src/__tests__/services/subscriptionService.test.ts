@@ -642,6 +642,7 @@ describe('SubscriptionService', () => {
         collectionId: 'col-1',
         initialHeadVideoUrl: 'https://www.youtube.com/watch?v=headA',
         baselineObservedAt: 1700000000000,
+        ytdlpConfig: '--proxy http://playlist-proxy:8080',
       });
 
       expect(result).toMatchObject({
@@ -650,6 +651,7 @@ describe('SubscriptionService', () => {
         collectionId: 'col-1',
         lastVideoLink: 'https://www.youtube.com/watch?v=headA',
         lastCheck: 1700000000000,
+        ytdlpConfig: '--proxy http://playlist-proxy:8080',
       });
       expect(db.insert).toHaveBeenCalled();
     });

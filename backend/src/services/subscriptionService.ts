@@ -73,6 +73,7 @@ export interface SubscribePlaylistOptions {
   collectionId: string | null;
   initialHeadVideoUrl: string | null;
   baselineObservedAt: number;
+  ytdlpConfig?: string | null;
   filenameTemplate?: string | null;
 }
 
@@ -263,6 +264,7 @@ export class SubscriptionService {
       collectionId,
       initialHeadVideoUrl,
       baselineObservedAt,
+      ytdlpConfig,
       filenameTemplate,
     } = options;
 
@@ -299,6 +301,7 @@ export class SubscriptionService {
       channelName: author,
       subscriptionType: "playlist",
       collectionId: collectionId || undefined,
+      ytdlpConfig: ytdlpConfig ?? null,
       filenameTemplate: filenameTemplate ?? null,
     };
 
