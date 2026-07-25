@@ -233,6 +233,14 @@ vi.mock('../../components/Settings/VideoDefaultSettings', () => ({
       <button onClick={() => onChange('playerSeekMediumSeconds', 120)}>seek-medium-change</button>
       <button onClick={() => onChange('playerSeekLongSeconds', 900)}>seek-long-change</button>
       <button onClick={() => onSeekIntervalsValidityChange(false)}>seek-invalid</button>
+      <button
+        onClick={() => {
+          onChange('playerSeekShortSeconds', 120);
+          onSeekIntervalsValidityChange(false);
+        }}
+      >
+        seek-order-invalid
+      </button>
       <button onClick={() => onSeekIntervalsValidityChange(true)}>seek-valid</button>
     </div>
   ),
@@ -538,6 +546,28 @@ describe('SettingsPage', () => {
 
     fireEvent.click(screen.getByText('seek-valid'));
     expect(saveButton).not.toBeDisabled();
+  });
+
+  it('clears discarded seek-field invalidity when leaving the desktop basic tab', () => {
+    mockIsDesktop = true;
+    renderPage('/settings');
+
+    fireEvent.click(screen.getByText('seek-invalid'));
+    expect(screen.getAllByRole('button', { name: 'save' })[0]).toBeDisabled();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'securityAccess' }));
+
+    expect(screen.getAllByRole('button', { name: 'save' })[0]).not.toBeDisabled();
+  });
+
+  it('keeps save disabled after leaving the tab when persisted intervals are unordered', () => {
+    mockIsDesktop = true;
+    renderPage('/settings');
+
+    fireEvent.click(screen.getByText('seek-order-invalid'));
+    fireEvent.click(screen.getByRole('tab', { name: 'securityAccess' }));
+
+    expect(screen.getAllByRole('button', { name: 'save' })[0]).toBeDisabled();
   });
 
   it('includes changed seek intervals in the settings save payload', () => {
