@@ -128,6 +128,59 @@ describe("settingsValidationService", () => {
       }).toThrow(ValidationError);
     });
 
+    it.each([
+      ["playerSeekShortSeconds", 1],
+      ["playerSeekMediumSeconds", 60],
+      ["playerSeekLongSeconds", 3600],
+    ] as const)("accepts valid %s values", (key, value) => {
+      expect(() => {
+        settingsValidationService.validateSettings({ [key]: value });
+      }).not.toThrow();
+    });
+
+    it.each([
+      0,
+      -1,
+      3601,
+      10.5,
+      "10",
+      null,
+      true,
+    ])("rejects invalid player seek seconds value %j", (value) => {
+      expect(() => {
+        settingsValidationService.validateSettings({
+          playerSeekShortSeconds: value as any,
+        });
+      }).toThrow(ValidationError);
+    });
+
+    it("accepts strictly increasing final player seek intervals", () => {
+      expect(() => {
+        settingsValidationService.validatePlayerSeekIntervalsFinalSettings({
+          playerSeekShortSeconds: 15,
+          playerSeekMediumSeconds: 120,
+          playerSeekLongSeconds: 900,
+        });
+      }).not.toThrow();
+    });
+
+    it.each([
+      [10, 10, 600],
+      [60, 10, 600],
+      [10, 600, 60],
+    ])(
+      "rejects non-increasing final player seek intervals (%i, %i, %i)",
+      (shortSeconds, mediumSeconds, longSeconds) => {
+        expect(() => {
+          settingsValidationService.validatePlayerSeekIntervalsFinalSettings({
+            playerSeekShortSeconds: shortSeconds,
+            playerSeekMediumSeconds: mediumSeconds,
+            playerSeekLongSeconds: longSeconds,
+          });
+        }).toThrow(ValidationError);
+      }
+    );
+
     it("should accept deprecated custom preset input during the transition", () => {
       expect(() => {
         settingsValidationService.validateSettings({

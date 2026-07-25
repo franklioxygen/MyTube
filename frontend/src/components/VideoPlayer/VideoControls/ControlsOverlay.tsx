@@ -3,6 +3,7 @@ import { Box, IconButton, Stack, Tooltip, useMediaQuery, useTheme } from '@mui/m
 import React from 'react';
 import { brand, gradient, modeColors, overlay } from '../../../theme/colors';
 import { useLanguage } from '../../../contexts/LanguageContext';
+import type { PlayerSeekIntervals } from '../../../utils/playerSeekIntervals';
 import CinemaModeControl from './CinemaModeControl';
 import FullscreenControl from './FullscreenControl';
 import LiveTranslationControlButton from './LiveTranslationControlButton';
@@ -47,6 +48,7 @@ interface ControlsOverlayProps {
     onControlsMouseEnter: () => void;
     playbackRate: number;
     onPlaybackRateChange: (rate: number) => void;
+    seekIntervals: PlayerSeekIntervals;
     isCinemaMode?: boolean;
     onToggleCinemaMode?: () => void;
     onUploadSubtitle?: (file: File) => void;
@@ -92,6 +94,7 @@ const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
     onControlsMouseEnter,
     playbackRate,
     onPlaybackRateChange,
+    seekIntervals,
     isCinemaMode = false,
     onToggleCinemaMode,
     onUploadSubtitle,
@@ -253,6 +256,7 @@ const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
                 playbackRate={playbackRate}
                 onPlaybackRateChange={onPlaybackRateChange}
                 isFullscreen={isFullscreen}
+                seekIntervals={seekIntervals}
             />
 
             {/* Mobile: Live Translate, Fullscreen, Loop, Speed */}

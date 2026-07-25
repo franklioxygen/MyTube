@@ -58,6 +58,11 @@ describe('ControlsOverlay', () => {
         isLooping: false,
         subtitleMenuAnchor: null,
         playbackRate: 1,
+        seekIntervals: {
+            shortSeconds: 10,
+            mediumSeconds: 60,
+            longSeconds: 600,
+        },
         onPlayPause: vi.fn(),
         onSeek: vi.fn(),
         onProgressChange: vi.fn(),

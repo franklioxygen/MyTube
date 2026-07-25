@@ -357,6 +357,7 @@ const persistSettingsUpdate = async (
   // run before saveSettings and before any enable side effects so an invalid
   // enable request rejects without partially persisting.
   settingsValidationService.validateLiveTranslationFinalSettings(finalSettings);
+  settingsValidationService.validatePlayerSeekIntervalsFinalSettings(finalSettings);
 
   ensureApiKeyWhenEnabled(settingsToPersist, finalSettings);
   applyStatisticsToggleSideEffects(existingSettings, finalSettings);

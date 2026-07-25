@@ -17,6 +17,11 @@ export interface CapturedVideoControlsProps extends Record<string, unknown> {
     isCinemaMode: boolean;
     autoPlay: boolean;
     startTime: number;
+    seekIntervals: {
+        shortSeconds: number;
+        mediumSeconds: number;
+        longSeconds: number;
+    };
 }
 
 export interface CapturedVideoInfoProps extends Record<string, unknown> {

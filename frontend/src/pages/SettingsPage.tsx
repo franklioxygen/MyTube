@@ -54,6 +54,31 @@ import { getTwitchCredentialValidationCode } from '../utils/twitch';
 import { createTranslateOrFallback } from '../utils/translateOrFallback';
 import { Language } from '../utils/translations';
 import { runMutationAsync } from '../utils/mutationUtils';
+import {
+    DEFAULT_PLAYER_SEEK_INTERVALS,
+    arePlayerSeekIntervalsOrdered,
+    isValidPlayerSeekSeconds,
+} from '../utils/playerSeekIntervals';
+
+function arePersistedSeekIntervalsValid(settings: Settings): boolean {
+    const shortSeconds =
+        settings.playerSeekShortSeconds ?? DEFAULT_PLAYER_SEEK_INTERVALS.shortSeconds;
+    const mediumSeconds =
+        settings.playerSeekMediumSeconds ?? DEFAULT_PLAYER_SEEK_INTERVALS.mediumSeconds;
+    const longSeconds =
+        settings.playerSeekLongSeconds ?? DEFAULT_PLAYER_SEEK_INTERVALS.longSeconds;
+
+    return (
+        isValidPlayerSeekSeconds(shortSeconds) &&
+        isValidPlayerSeekSeconds(mediumSeconds) &&
+        isValidPlayerSeekSeconds(longSeconds) &&
+        arePlayerSeekIntervalsOrdered({
+            shortSeconds,
+            mediumSeconds,
+            longSeconds,
+        })
+    );
+}
 
 const SettingsPage: React.FC = () => {
     const { t, setLanguage } = useLanguage();
@@ -79,6 +104,9 @@ const SettingsPage: React.FC = () => {
         theme: 'system',
         showThemeButton: true,
         showAudioDownloadButton: true,
+        playerSeekShortSeconds: 10,
+        playerSeekMediumSeconds: 60,
+        playerSeekLongSeconds: 600,
         tags: [],
         cloudDriveEnabled: false,
         openListApiUrl: '',
@@ -113,6 +141,7 @@ const SettingsPage: React.FC = () => {
     const [clearLiveTranslationApiKeyRequested, setClearLiveTranslationApiKeyRequested] =
         useState(false);
     const [currentTab, setCurrentTab] = useState(0);
+    const [seekIntervalsValid, setSeekIntervalsValid] = useState(true);
     const [showTrustDetailsModal, setShowTrustDetailsModal] = useState(false);
     const twitchCredentialValidationCode = getTwitchCredentialValidationCode(
         settings.twitchClientId,
@@ -270,7 +299,11 @@ const SettingsPage: React.FC = () => {
     };
 
     const handleSave = () => {
-        if (saveMutation.isPending || hasTwitchCredentialValidationError) {
+        if (
+            saveMutation.isPending ||
+            hasTwitchCredentialValidationError ||
+            !seekIntervalsValid
+        ) {
             return;
         }
 
@@ -404,6 +437,7 @@ const SettingsPage: React.FC = () => {
             <VideoDefaultSettings
                 settings={settings}
                 onChange={handleChange}
+                onSeekIntervalsValidityChange={setSeekIntervalsValid}
             />
             <LiveTranslationSettings
                 settings={settings}
@@ -658,6 +692,14 @@ const SettingsPage: React.FC = () => {
         }
     };
 
+    const handleDesktopTabChange = (_event: React.SyntheticEvent, newValue: number) => {
+        // Local invalid amount text is discarded when VideoDefaultSettings
+        // unmounts. Reconcile the page-level save guard to the settings draft
+        // that survives the tab switch, while preserving ordering errors.
+        setSeekIntervalsValid(arePersistedSeekIntervalsValid(settings));
+        setCurrentTab(newValue);
+    };
+
     return (
         <Container maxWidth="lg" sx={{ py: 4 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
@@ -672,7 +714,7 @@ const SettingsPage: React.FC = () => {
                     <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3, px: 3 }}>
                         <Tabs
                             value={currentTab}
-                            onChange={(_, newValue) => setCurrentTab(newValue)}
+                            onChange={handleDesktopTabChange}
                             variant="scrollable"
                             scrollButtons="auto"
                             aria-label="settings tabs"
@@ -721,7 +763,7 @@ const SettingsPage: React.FC = () => {
                     color="primary"
                     size="large"
                     onClick={handleSave}
-                    disabled={hasTwitchCredentialValidationError}
+                    disabled={hasTwitchCredentialValidationError || !seekIntervalsValid}
                     loading={saveMutation.isPending}
                     loadingPosition="start"
                     sx={{ visibility: isSticky ? 'hidden' : 'visible' }}
@@ -756,7 +798,7 @@ const SettingsPage: React.FC = () => {
                                 color="primary"
                                 size="large"
                                 onClick={handleSave}
-                                disabled={hasTwitchCredentialValidationError}
+                                disabled={hasTwitchCredentialValidationError || !seekIntervalsValid}
                                 loading={saveMutation.isPending}
                                 loadingPosition="start"
                                 className={isGlowing ? 'button-glow-animation' : ''}

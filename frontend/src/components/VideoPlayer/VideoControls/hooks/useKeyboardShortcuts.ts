@@ -16,10 +16,12 @@ export const useKeyboardShortcuts = ({
 
   useEffect(() => {
     const handleKeyboardEvent = (e: KeyboardEvent) => {
-      // Ignore if typing in an input or textarea
+      // Ignore shortcuts while the user is editing form or rich-text content.
       if (
         document.activeElement instanceof HTMLInputElement ||
-        document.activeElement instanceof HTMLTextAreaElement
+        document.activeElement instanceof HTMLTextAreaElement ||
+        document.activeElement instanceof HTMLSelectElement ||
+        document.activeElement?.getAttribute("contenteditable") === "true"
       ) {
         return;
       }

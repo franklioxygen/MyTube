@@ -73,6 +73,40 @@ describe('SettingsController', () => {
       );
     });
 
+    it('should return default player seek intervals when none are stored', async () => {
+      (storageService.getSettings as any).mockReturnValue({ theme: 'dark' });
+
+      await getSettings(req as Request, res as Response);
+
+      expect(json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          playerSeekShortSeconds: 10,
+          playerSeekMediumSeconds: 60,
+          playerSeekLongSeconds: 600,
+        })
+      );
+    });
+
+    it('should expose configured player seek intervals to visitors', async () => {
+      req.user = { role: 'visitor' } as any;
+      (storageService.getSettings as any).mockReturnValue({
+        loginEnabled: true,
+        playerSeekShortSeconds: 15,
+        playerSeekMediumSeconds: 120,
+        playerSeekLongSeconds: 900,
+      });
+
+      await getSettings(req as Request, res as Response);
+
+      expect(json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          playerSeekShortSeconds: 15,
+          playerSeekMediumSeconds: 120,
+          playerSeekLongSeconds: 900,
+        })
+      );
+    });
+
     it('should hide api key from visitor users', async () => {
       req.user = { role: 'visitor' } as any;
       (storageService.getSettings as any).mockReturnValue({
@@ -466,6 +500,46 @@ describe('SettingsController', () => {
       expect(savedPayload.language).toBeUndefined();
       expect(savedPayload.maxConcurrentDownloads).toBeUndefined();
       expect(json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
+    });
+
+    it('should persist valid custom player seek intervals', async () => {
+      req.body = {
+        playerSeekShortSeconds: 15,
+        playerSeekMediumSeconds: 120,
+        playerSeekLongSeconds: 900,
+      };
+      (storageService.getSettings as any).mockReturnValue({});
+
+      await patchSettings(req as Request, res as Response);
+
+      expect(storageService.saveSettings).toHaveBeenCalledWith(
+        expect.objectContaining(req.body)
+      );
+      expect(json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          settings: expect.objectContaining(req.body),
+        })
+      );
+    });
+
+    it('should reject a partial seek patch that breaks final ordering', async () => {
+      req.body = {
+        theme: 'light',
+        playerSeekShortSeconds: 120,
+      };
+      (storageService.getSettings as any).mockReturnValue({
+        theme: 'dark',
+        playerSeekShortSeconds: 10,
+        playerSeekMediumSeconds: 60,
+        playerSeekLongSeconds: 600,
+      });
+
+      await expect(
+        patchSettings(req as Request, res as Response)
+      ).rejects.toThrow(
+        'Player seek intervals must increase from short to medium to long.'
+      );
+      expect(storageService.saveSettings).not.toHaveBeenCalled();
     });
 
     it('should hash password and never persist plaintext password', async () => {

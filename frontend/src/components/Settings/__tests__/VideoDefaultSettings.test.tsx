@@ -55,4 +55,13 @@ describe('VideoDefaultSettings', () => {
 
         expect(mockOnChange).toHaveBeenCalledWith('pauseOnFocusLoss', true);
     });
+
+    it('should render seek interval settings with defaults', () => {
+        render(<VideoDefaultSettings settings={{} as any} onChange={mockOnChange} />);
+
+        expect(screen.getByText('seekControls')).toBeInTheDocument();
+        expect(screen.getByLabelText('seekShortInterval')).toHaveValue(10);
+        expect(screen.getByLabelText('seekMediumInterval')).toHaveValue(1);
+        expect(screen.getByLabelText('seekLongInterval')).toHaveValue(10);
+    });
 });

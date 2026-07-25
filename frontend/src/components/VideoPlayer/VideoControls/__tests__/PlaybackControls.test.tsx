@@ -4,7 +4,12 @@ import PlaybackControls from '../PlaybackControls';
 
 // Mock dependencies
 vi.mock('../../../../contexts/LanguageContext', () => ({
-    useLanguage: () => ({ t: (key: string) => key }),
+    useLanguage: () => ({
+        t: (key: string, replacements?: Record<string, string | number>) =>
+            replacements
+                ? `${key}:${Object.values(replacements).join(':')}`
+                : key,
+    }),
 }));
 
 // Isolate PlaybackControls from SpeedControl internals
@@ -19,6 +24,11 @@ describe('PlaybackControls', () => {
         onSeek: vi.fn(),
         playbackRate: 1,
         onPlaybackRateChange: vi.fn(),
+        seekIntervals: {
+            shortSeconds: 15,
+            mediumSeconds: 120,
+            longSeconds: 900,
+        },
     };
 
     beforeEach(() => {
@@ -28,7 +38,7 @@ describe('PlaybackControls', () => {
     it('should render all seek buttons', () => {
         render(<PlaybackControls {...defaultProps} />);
 
-        // -10m, -1m, -10s, +10s, +1m, +10m = 6 seek buttons
+        // Three backward and three forward seek buttons.
         const buttons = screen.getAllByRole('button');
         expect(buttons).toHaveLength(6);
     });
@@ -38,31 +48,41 @@ describe('PlaybackControls', () => {
         expect(screen.getByTestId('SpeedControl')).toBeInTheDocument();
     });
 
-    it('should call onSeek with correct values', () => {
+    it('should call onSeek with all configured signed values', () => {
         render(<PlaybackControls {...defaultProps} />);
 
-        // FastRewind (-1m = -60s)
-        const rewindBtn = screen.getByTestId('FastRewindIcon').closest('button');
-        fireEvent.click(rewindBtn!);
-        expect(defaultProps.onSeek).toHaveBeenCalledWith(-60);
+        screen.getAllByRole('button').forEach((button) => fireEvent.click(button));
 
-        // Forward10 (+10s)
-        const fwd10Btn = screen.getByTestId('Forward10Icon').closest('button');
-        fireEvent.click(fwd10Btn!);
-        expect(defaultProps.onSeek).toHaveBeenCalledWith(10);
+        expect(defaultProps.onSeek.mock.calls.map(([seconds]) => seconds)).toEqual([
+            -900,
+            -120,
+            -15,
+            15,
+            120,
+            900,
+        ]);
     });
 
-    it('should call onSeek(-600) when -10m button is clicked', () => {
+    it('does not render interval values in the control bar', () => {
         render(<PlaybackControls {...defaultProps} />);
-        const btn = screen.getByTestId('KeyboardDoubleArrowLeftIcon').closest('button');
-        fireEvent.click(btn!);
-        expect(defaultProps.onSeek).toHaveBeenCalledWith(-600);
+
+        expect(screen.queryByText('15s')).not.toBeInTheDocument();
+        expect(screen.queryByText('2m')).not.toBeInTheDocument();
+        expect(screen.queryByText('15m')).not.toBeInTheDocument();
     });
 
-    it('should call onSeek(600) when +10m button is clicked', () => {
+    it('provides translated direction and duration accessible names', () => {
         render(<PlaybackControls {...defaultProps} />);
-        const btn = screen.getByTestId('KeyboardDoubleArrowRightIcon').closest('button');
-        fireEvent.click(btn!);
-        expect(defaultProps.onSeek).toHaveBeenCalledWith(600);
+
+        expect(
+            screen.getByRole('button', {
+                name: 'seekBackwardBy:seekDurationMinutes:15',
+            })
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', {
+                name: 'seekForwardBy:seekDurationSeconds:15',
+            })
+        ).toBeInTheDocument();
     });
 });

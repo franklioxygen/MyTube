@@ -50,6 +50,11 @@ describe('useVideoPlayerSettings', () => {
         expect(result.current.autoPlay).toBe(false);
         expect(result.current.autoLoop).toBe(false);
         expect(result.current.subtitlesEnabled).toBe(true);
+        expect(result.current.seekIntervals).toEqual({
+            shortSeconds: 10,
+            mediumSeconds: 60,
+            longSeconds: 600,
+        });
     });
 
     it('should return settings from API', async () => {
@@ -59,6 +64,9 @@ describe('useVideoPlayerSettings', () => {
                 defaultAutoLoop: true,
                 subtitlesEnabled: false,
                 tags: ['tag1', 'tag2'],
+                playerSeekShortSeconds: 15,
+                playerSeekMediumSeconds: 120,
+                playerSeekLongSeconds: 900,
             },
         });
 
@@ -68,6 +76,29 @@ describe('useVideoPlayerSettings', () => {
         expect(result.current.autoLoop).toBe(true);
         expect(result.current.subtitlesEnabled).toBe(false);
         expect(result.current.availableTags).toEqual(['tag1', 'tag2']);
+        expect(result.current.seekIntervals).toEqual({
+            shortSeconds: 15,
+            mediumSeconds: 120,
+            longSeconds: 900,
+        });
+    });
+
+    it('falls back to the complete default triplet for invalid seek settings', async () => {
+        (axios.get as any).mockResolvedValue({
+            data: {
+                playerSeekShortSeconds: 120,
+                playerSeekMediumSeconds: 60,
+                playerSeekLongSeconds: 900,
+            },
+        });
+
+        const { result } = renderHook(() => useVideoPlayerSettings(), { wrapper });
+
+        await waitFor(() => expect(result.current.seekIntervals).toEqual({
+            shortSeconds: 10,
+            mediumSeconds: 60,
+            longSeconds: 600,
+        }));
     });
 
     it('should toggle subtitles and update settings', async () => {

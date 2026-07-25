@@ -4,6 +4,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import { Settings } from '../types';
 import { api } from '../utils/apiClient';
+import { resolvePlayerSeekIntervals } from '../utils/playerSeekIntervals';
 import { settingsQueryOptions } from '../utils/settingsQueries';
 
 /**
@@ -28,6 +29,7 @@ export function useVideoPlayerSettings() {
     const pauseOnFocusLoss = settings?.pauseOnFocusLoss || false;
 
     const playFromBeginning = settings?.playFromBeginning || false;
+    const seekIntervals = resolvePlayerSeekIntervals(settings);
 
     // Subtitle preference mutation
     const subtitlePreferenceMutation = useMutation({
@@ -85,6 +87,7 @@ export function useVideoPlayerSettings() {
         subtitlesEnabled,
         pauseOnFocusLoss,
         playFromBeginning,
+        seekIntervals,
         availableTags,
         handleSubtitlesToggle,
         handleLoopToggle

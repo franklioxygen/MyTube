@@ -3,6 +3,10 @@ import React, { useCallback, useEffect } from 'react';
 import { useLiveTranslationControl } from '../../../contexts/LiveTranslationContext';
 import { neutral } from '../../../theme/colors';
 import { useStatisticsWatchTracker } from '../../../hooks/useStatisticsWatchTracker';
+import {
+    DEFAULT_PLAYER_SEEK_INTERVALS,
+    PlayerSeekIntervals,
+} from '../../../utils/playerSeekIntervals';
 import ControlsOverlay from './ControlsOverlay';
 import { useFocusPause } from './hooks/useFocusPause';
 import { useFullscreen } from './hooks/useFullscreen';
@@ -39,6 +43,7 @@ interface VideoControlsProps {
     onVideoElementReady?: (videoElement: HTMLVideoElement | null) => void;
     liveSubtitle?: { available: boolean; label: string; track: TextTrack | null };
     audioMode?: boolean;
+    seekIntervals?: PlayerSeekIntervals;
 }
 
 const VideoControls: React.FC<VideoControlsProps> = ({
@@ -67,6 +72,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
     onVideoElementReady,
     liveSubtitle,
     audioMode = false,
+    seekIntervals = DEFAULT_PLAYER_SEEK_INTERVALS,
 }) => {
     // Core video player logic
     const videoPlayer = useVideoPlayer({
@@ -132,12 +138,12 @@ const VideoControls: React.FC<VideoControlsProps> = ({
     const { handleSeek } = videoPlayer;
 
     const handleSeekLeft = useCallback(() => {
-        handleSeek(-10);
-    }, [handleSeek]);
+        handleSeek(-seekIntervals.shortSeconds);
+    }, [handleSeek, seekIntervals.shortSeconds]);
 
     const handleSeekRight = useCallback(() => {
-        handleSeek(10);
-    }, [handleSeek]);
+        handleSeek(seekIntervals.shortSeconds);
+    }, [handleSeek, seekIntervals.shortSeconds]);
 
     // Keyboard shortcuts
     useKeyboardShortcuts({
@@ -315,6 +321,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                         onControlsMouseEnter={fullscreen.handleControlsMouseEnter}
                         playbackRate={videoPlayer.playbackRate}
                         onPlaybackRateChange={videoPlayer.handlePlaybackRateChange}
+                        seekIntervals={seekIntervals}
                         isCinemaMode={isCinemaMode}
                         onToggleCinemaMode={(() => {
                             const toggle = onToggleCinemaMode;

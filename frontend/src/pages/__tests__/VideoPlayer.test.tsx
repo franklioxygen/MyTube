@@ -292,6 +292,11 @@ function resetDefaults() {
         handleLoopToggle: mockHandleLoopToggle,
         pauseOnFocusLoss: false,
         playFromBeginning: false,
+        seekIntervals: {
+            shortSeconds: 15,
+            mediumSeconds: 120,
+            longSeconds: 900,
+        },
     };
 
     capturedVideoControlsProps = {} as CapturedVideoControlsProps;
@@ -861,6 +866,15 @@ describe('VideoPlayer', () => {
             mockVideoPlayerSettingsReturn = { ...mockVideoPlayerSettingsReturn, playFromBeginning: true };
             render(<VideoPlayer />);
             expect(capturedVideoControlsProps.startTime).toBe(0);
+        });
+
+        it('passes configured seek intervals to the player', () => {
+            render(<VideoPlayer />);
+            expect(capturedVideoControlsProps.seekIntervals).toEqual({
+                shortSeconds: 15,
+                mediumSeconds: 120,
+                longSeconds: 900,
+            });
         });
     });
 
