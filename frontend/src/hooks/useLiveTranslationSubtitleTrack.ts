@@ -74,6 +74,9 @@ export function useLiveTranslationSubtitleTrack(
   }, [videoElement, label, targetLanguageCode, track]);
 
   const activate = useCallback(() => {
+    if (isActive) {
+      return;
+    }
     const activeTrack = ensureTrack();
     if (activeTrack && videoElement) {
       setTrackState({
@@ -82,9 +85,12 @@ export function useLiveTranslationSubtitleTrack(
         isActive: true,
       });
     }
-  }, [ensureTrack, videoElement]);
+  }, [ensureTrack, isActive, videoElement]);
 
   const deactivate = useCallback(() => {
+    if (!isActive) {
+      return;
+    }
     if (track) {
       disableAndClearTrack(track);
     }
@@ -95,7 +101,7 @@ export function useLiveTranslationSubtitleTrack(
         isActive: false,
       });
     }
-  }, [track, videoElement]);
+  }, [isActive, track, videoElement]);
 
   const addCue = useCallback(
     (event: LiveTranslationTranscriptEvent) => {
@@ -111,7 +117,7 @@ export function useLiveTranslationSubtitleTrack(
       if (!track) {
         return;
       }
-      if (videoElement) {
+      if (videoElement && !isActive) {
         setTrackState({
           element: videoElement,
           track,
@@ -145,7 +151,7 @@ export function useLiveTranslationSubtitleTrack(
         // ignore malformed cue
       }
     },
-    [ensureTrack, videoElement],
+    [ensureTrack, isActive, videoElement],
   );
 
   return {

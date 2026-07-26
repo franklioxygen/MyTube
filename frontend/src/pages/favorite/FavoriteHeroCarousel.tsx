@@ -43,6 +43,7 @@ const FavoriteHeroCarousel: React.FC<FavoriteHeroCarouselProps> = ({ items }) =>
     const suppressClick = useRef(false);
     const suppressClickTimer = useRef<number | null>(null);
     const count = items.length;
+    const safeIndex = count > 0 && index < count ? index : 0;
 
     // Clear the pending suppress-click reset on unmount.
     useEffect(() => () => {
@@ -77,23 +78,25 @@ const FavoriteHeroCarousel: React.FC<FavoriteHeroCarouselProps> = ({ items }) =>
             suppressClickTimer.current = null;
         }, 400);
         if (horizontalDistance < 0) {
-            go(index + 1, 1);
+            go(safeIndex + 1, 1);
         } else {
-            go(index - 1, -1);
+            go(safeIndex - 1, -1);
         }
     };
 
     useEffect(() => {
         if (isReducedMotion || paused || count <= 1) return undefined;
         const id = window.setInterval(() => {
-            setIndex((current) => (current + 1) % count);
+            setIndex((current) => {
+                const currentSafeIndex = current < count ? current : 0;
+                return (currentSafeIndex + 1) % count;
+            });
         }, AUTO_ADVANCE_MS);
         return () => window.clearInterval(id);
     }, [isReducedMotion, paused, count]);
 
     if (count === 0) return null;
 
-    const safeIndex = index < count ? index : 0;
     const current = items[safeIndex];
     const openCollection = (event: MouseEvent<HTMLButtonElement>) => {
         if (!current.collection) return;

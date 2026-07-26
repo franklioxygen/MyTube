@@ -112,6 +112,40 @@ describe('FavoriteHeroCarousel', () => {
         expect(screen.getByTestId('hero-slide')).toHaveTextContent('B');
     });
 
+    it('uses the visible slide as the swipe origin after the items shrink', () => {
+        window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+            matches: query.includes('max-width'),
+            media: query,
+            addEventListener: vi.fn(),
+            removeEventListener: vi.fn(),
+            addListener: vi.fn(),
+            removeListener: vi.fn(),
+            dispatchEvent: vi.fn(),
+        })) as never;
+        const { rerender } = renderCarousel(makeItems(['A', 'B', 'C', 'D']));
+        const carousel = screen.getByTestId('favorite-hero-carousel');
+        for (let swipe = 0; swipe < 3; swipe += 1) {
+            fireEvent.touchStart(carousel, { touches: [{ clientX: 240, clientY: 80 }] });
+            fireEvent.touchEnd(carousel, { changedTouches: [{ clientX: 140, clientY: 84 }] });
+        }
+        expect(screen.getByTestId('hero-slide')).toHaveTextContent('D');
+
+        rerender(
+            <MemoryRouter>
+                <ThemeProvider theme={createTheme()}>
+                    <FavoriteHeroCarousel items={makeItems(['A', 'B'])} />
+                </ThemeProvider>
+            </MemoryRouter>,
+        );
+        expect(screen.getByTestId('hero-slide')).toHaveTextContent('A');
+
+        const shrunkCarousel = screen.getByTestId('favorite-hero-carousel');
+        fireEvent.touchStart(shrunkCarousel, { touches: [{ clientX: 240, clientY: 80 }] });
+        fireEvent.touchEnd(shrunkCarousel, { changedTouches: [{ clientX: 140, clientY: 84 }] });
+
+        expect(screen.getByTestId('hero-slide')).toHaveTextContent('B');
+    });
+
     it('jumps to a slide when its dot is clicked', () => {
         renderCarousel(makeItems(['A', 'B', 'C']));
         fireEvent.click(screen.getByRole('button', { name: 'featured 3' }));

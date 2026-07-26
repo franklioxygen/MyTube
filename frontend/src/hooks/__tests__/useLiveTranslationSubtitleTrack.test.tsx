@@ -114,6 +114,24 @@ describe('useLiveTranslationSubtitleTrack', () => {
     expect(result.current.isActive).toBe(false);
   });
 
+  it('does not update state when activation status is already unchanged', () => {
+    const { el } = makeFakeVideo();
+    let renderCount = 0;
+    const { result } = renderHook(() => {
+      renderCount += 1;
+      return useLiveTranslationSubtitleTrack(el, 'en', 'Live');
+    });
+
+    const inactiveRenderCount = renderCount;
+    act(() => result.current.deactivate());
+    expect(renderCount).toBe(inactiveRenderCount);
+
+    act(() => result.current.activate());
+    const activeRenderCount = renderCount;
+    act(() => result.current.activate());
+    expect(renderCount).toBe(activeRenderCount);
+  });
+
   it('no-ops when there is no video element', () => {
     const { result } = renderHook(() =>
       useLiveTranslationSubtitleTrack(null, 'en', 'Live'),
