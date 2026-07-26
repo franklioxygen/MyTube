@@ -120,6 +120,54 @@ describe("useVideoProgress", () => {
     dateNowSpy.mockRestore();
   });
 
+  it("counts a video again after navigating away and back before another view", async () => {
+    const videoA = {
+      id: "video-a",
+      duration: "120",
+      progress: 0,
+      viewCount: 0,
+    } as any;
+    const videoB = {
+      id: "video-b",
+      duration: "120",
+      progress: 0,
+      viewCount: 0,
+    } as any;
+    const { wrapper } = createWrapper();
+
+    const { result, rerender } = renderHook(
+      ({ videoId, video }) => useVideoProgress({ videoId, video }),
+      {
+        initialProps: { videoId: "video-a", video: videoA },
+        wrapper,
+      },
+    );
+
+    act(() => {
+      result.current.handleTimeUpdate(10);
+    });
+
+    await waitFor(() => {
+      expect(mockApiPost).toHaveBeenCalledWith("/videos/video-a/view");
+    });
+
+    rerender({ videoId: "video-b", video: videoB });
+    rerender({ videoId: "video-a", video: videoA });
+
+    act(() => {
+      result.current.handleTimeUpdate(10);
+    });
+
+    await waitFor(() => {
+      expect(mockApiPost).toHaveBeenCalledTimes(2);
+      expect(mockApiPost).toHaveBeenNthCalledWith(2, "/videos/video-a/view");
+    });
+
+    act(() => {
+      result.current.setIsDeleting(true);
+    });
+  });
+
   it("syncs progress writes into the cache before the view threshold is reached", async () => {
     let now = 1000;
     const dateNowSpy = vi.spyOn(Date, "now").mockImplementation(() => now);

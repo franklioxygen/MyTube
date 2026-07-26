@@ -76,7 +76,12 @@ export function useVideoProgress({ videoId, video, videoElement }: UseVideoProgr
     videoId,
     hasViewed: false,
   });
-  const hasViewed = viewState.videoId === videoId && viewState.hasViewed;
+  let currentViewState = viewState;
+  if (viewState.videoId !== videoId) {
+    currentViewState = { videoId, hasViewed: false };
+    setViewState(currentViewState);
+  }
+  const hasViewed = currentViewState.hasViewed;
   const lastProgressSave = useRef<number>(0);
   const currentTimeRef = useRef<number>(0);
   const isDeletingRef = useRef<boolean>(false);
@@ -86,7 +91,7 @@ export function useVideoProgress({ videoId, video, videoElement }: UseVideoProgr
   const resumeGuardObservedRef = useRef<boolean>(true);
   const videoDuration = video?.duration;
 
-  // Reset hasViewed when video changes
+  // Reset playback sampling guards when video changes
   useEffect(() => {
     const storedProgress = readVideoResumeProgress(videoId)?.progress ?? 0;
     currentTimeRef.current = storedProgress;
