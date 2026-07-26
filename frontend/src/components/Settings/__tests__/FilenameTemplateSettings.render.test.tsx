@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render as rtlRender, screen, waitFor } from '@testing-library/react';
+import { act, render as rtlRender, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -223,5 +223,98 @@ describe('FilenameTemplateSettings preview tab grouping', () => {
         ).toBeInTheDocument();
         // ...but no scenario tabs, since all three results are identical.
         expect(screen.queryByRole('tab')).not.toBeInTheDocument();
+    });
+});
+
+describe('FilenameTemplateSettings preview request ordering', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        vi.mocked(api.get).mockResolvedValue({
+            data: {
+                presets: [],
+                deprecatedPresetAliases: [],
+                informationNotes: [],
+                referenceSections: [],
+            },
+        } as any);
+    });
+
+    it('ignores an obsolete preview response after the template changes', async () => {
+        let resolvePreviewA!: (value: any) => void;
+        let resolvePreviewB!: (value: any) => void;
+        const previewA = new Promise<any>((resolve) => {
+            resolvePreviewA = resolve;
+        });
+        const previewB = new Promise<any>((resolve) => {
+            resolvePreviewB = resolve;
+        });
+        vi.mocked(api.post).mockImplementation((_url, body: any) => {
+            return body.template === 'template-a' ? previewA : previewB;
+        });
+
+        const queryClient = createTestQueryClient();
+        const renderSettings = (template: string) => (
+            <QueryClientProvider client={queryClient}>
+                <FilenameTemplateSettings
+                    settings={{
+                        downloadFilenameMode: 'template',
+                        downloadFilenameTemplate: template,
+                        mediaServerExportMode: 'off',
+                    } as any}
+                    onChange={vi.fn()}
+                />
+            </QueryClientProvider>
+        );
+        const createPreviewResponse = (template: string, videoPath: string) => ({
+            data: {
+                valid: true,
+                errors: [],
+                resolved: {
+                    mode: 'template',
+                    matchedPresetId: 'custom',
+                    template,
+                },
+                previews: {
+                    channel: { videoPath, warnings: [] },
+                    playlist: { videoPath, warnings: [] },
+                    single: { videoPath, warnings: [] },
+                },
+            },
+        });
+
+        const { rerender } = rtlRender(renderSettings('template-a'));
+        await waitFor(() => {
+            expect(api.post).toHaveBeenCalledWith(
+                '/settings/filename-template/preview',
+                expect.objectContaining({ template: 'template-a' })
+            );
+        });
+
+        rerender(renderSettings('template-b'));
+        await waitFor(() => {
+            expect(api.post).toHaveBeenCalledWith(
+                '/settings/filename-template/preview',
+                expect.objectContaining({ template: 'template-b' })
+            );
+        });
+
+        await act(async () => {
+            resolvePreviewB(createPreviewResponse('template-b', 'preview-b.mp4'));
+            await previewB;
+        });
+        expect(
+            await screen.findByText(/filenamePreviewVideo:\s*preview-b\.mp4/)
+        ).toBeInTheDocument();
+
+        await act(async () => {
+            resolvePreviewA(createPreviewResponse('template-a', 'preview-a.mp4'));
+            await previewA;
+        });
+        expect(
+            screen.getByText(/filenamePreviewVideo:\s*preview-b\.mp4/)
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByText(/filenamePreviewVideo:\s*preview-a\.mp4/)
+        ).not.toBeInTheDocument();
     });
 });

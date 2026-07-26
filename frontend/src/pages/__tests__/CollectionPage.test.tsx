@@ -445,5 +445,28 @@ describe('CollectionPage', () => {
             unmount();
             expect(mockSetPageTagFilter).toHaveBeenCalledWith(null);
         });
+
+        it('re-publishes available tags when collection video tags change', async () => {
+            const { rerender } = renderCollectionPage();
+            mockSetPageTagFilter.mockClear();
+            mockVideoContext.videos = [
+                { ...mockVideos[0], tags: ['tag1', 'new-tag'] },
+                mockVideos[1],
+            ];
+
+            rerender(
+                <ThemeProvider theme={theme}>
+                    <CollectionPage />
+                </ThemeProvider>
+            );
+
+            await waitFor(() => {
+                expect(mockSetPageTagFilter).toHaveBeenLastCalledWith(
+                    expect.objectContaining({
+                        availableTags: ['new-tag', 'tag1', 'tag2'],
+                    })
+                );
+            });
+        });
     });
 });

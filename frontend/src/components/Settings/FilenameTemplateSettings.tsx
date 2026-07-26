@@ -110,6 +110,7 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
         if (!shouldLoadPreview) {
             return;
         }
+        let isCurrent = true;
         const timer = setTimeout(async () => {
             try {
                 const res = await api.post<FilenameTemplatePreviewResponse>(
@@ -119,8 +120,14 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
                         template: namingMode === 'template' ? template : undefined,
                     }
                 );
+                if (!isCurrent) {
+                    return;
+                }
                 setPreviewState({ key: previewKey, value: res.data });
             } catch (e: unknown) {
+                if (!isCurrent) {
+                    return;
+                }
                 setPreviewState({
                     key: previewKey,
                     value: {
@@ -136,7 +143,10 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
                 });
             }
         }, 600);
-        return () => clearTimeout(timer);
+        return () => {
+            isCurrent = false;
+            clearTimeout(timer);
+        };
     }, [effectiveTemplate, namingMode, presetId, previewKey, shouldLoadPreview]);
 
     const handlePresetChange = (value: string) => {

@@ -11,7 +11,7 @@ import {
     Tooltip,
     Typography
 } from '@mui/material';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import DeleteCollectionModal from '../components/DeleteCollectionModal';
 import FavoriteToggle from '../components/FavoriteToggle';
@@ -82,14 +82,11 @@ const CollectionPage: React.FC = () => {
     }, [collectionVideos]);
     const showTagsOnThumbnail = settings?.showTagsOnThumbnail ?? true;
 
-    const [filterVersion, setFilterVersion] = useState(0);
-
     const handleTagToggle = useCallback((tag: string) => {
         setSelectedTags(prev =>
             prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
         );
         setPage(1);
-        setFilterVersion(v => v + 1);
     }, []);
 
     const videosFilteredByTags = useMemo(() => {
@@ -99,27 +96,16 @@ const CollectionPage: React.FC = () => {
         );
     }, [collectionVideos, selectedTags]);
 
-    // Keep a ref so the context always reads current values (menu gets latest when it opens)
-    const filterRef = useRef({ availableTags, selectedTags, onTagToggle: handleTagToggle });
+    // Re-publish the filter whenever its inputs change so mobile consumers
+    // receive fresh tag arrays after collection videos load or are edited.
     useEffect(() => {
-        filterRef.current = { availableTags, selectedTags, onTagToggle: handleTagToggle };
-    }, [availableTags, selectedTags, handleTagToggle]);
-
-    // Register page tag filter; bump filterVersion only in handleTagToggle so Header re-renders on tag click (no effect loop)
-    useEffect(() => {
-        const stableFilter = {
-            get availableTags() {
-                return filterRef.current.availableTags;
-            },
-            get selectedTags() {
-                return filterRef.current.selectedTags;
-            },
-            onTagToggle: (tag: string) => filterRef.current.onTagToggle(tag),
-            _version: filterVersion
-        };
-        setPageTagFilter(stableFilter);
+        setPageTagFilter({
+            availableTags,
+            selectedTags,
+            onTagToggle: handleTagToggle,
+        });
         return () => setPageTagFilter(null);
-    }, [filterVersion, setPageTagFilter]);
+    }, [availableTags, handleTagToggle, selectedTags, setPageTagFilter]);
 
     // Sort videos (after tag filter)
     const {
