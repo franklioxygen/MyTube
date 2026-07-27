@@ -5,7 +5,7 @@ import { useHomePagination } from '../useHomePagination';
 
 const mockSetSearchParams = vi.fn();
 const mockSearchParams = new URLSearchParams();
-vi.mock('react-router-dom', () => ({
+vi.mock('react-router', () => ({
     useSearchParams: () => [mockSearchParams, mockSetSearchParams],
 }));
 const mockVideos = Array.from({ length: 25 }, (_, i) => ({ id: `v${i}` } as Video));

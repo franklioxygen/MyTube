@@ -16,7 +16,7 @@ const mockVideo = {
 const mockSettingsData = { data: { websiteName: 'TestSite' } };
 
 // Mock hooks
-vi.mock('react-router-dom', () => ({
+vi.mock('react-router', () => ({
     useNavigate: () => vi.fn(),
     useParams: () => ({ id: 'v1' }),
     useLocation: () => ({ state: null }),

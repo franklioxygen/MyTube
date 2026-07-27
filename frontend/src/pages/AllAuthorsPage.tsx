@@ -1,7 +1,7 @@
 import { Person } from '@mui/icons-material';
 import { Avatar, Box, Card, CardActionArea, CircularProgress, Container, Typography } from '@mui/material';
 import { useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useVideo } from '../contexts/VideoContext';
 import { useCloudStorageUrl } from '../hooks/useCloudStorageUrl';

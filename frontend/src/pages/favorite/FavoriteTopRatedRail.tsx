@@ -1,5 +1,5 @@
 import { Box, Card, CardActionArea, CardMedia, Chip, Typography } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { neutral, overlay } from '../../theme/colors';
 import type { Video } from '../../types';

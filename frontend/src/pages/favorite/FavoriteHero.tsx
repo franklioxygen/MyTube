@@ -2,7 +2,7 @@ import { Star } from '@mui/icons-material';
 import { Box, Card, CardMedia, Chip, Typography, useMediaQuery, useTheme } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { brand, modeColors, neutral, overlay } from '../../theme/colors';
 import type { FavoriteCollectionItem, Video } from '../../types';

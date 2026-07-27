@@ -1,6 +1,6 @@
 import { Logout, Settings, VideoLibrary } from '@mui/icons-material';
 import { Box, Button, Collapse, Divider, Stack } from '@mui/material';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useSettings } from '../../hooks/useSettings';

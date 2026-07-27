@@ -13,7 +13,7 @@ import {
     useTheme
 } from '@mui/material';
 import React, { useEffect, useRef, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router';
 import CollapsibleSection from '../components/CollapsibleSection';
 import ConfirmationModal from '../components/ConfirmationModal';
 import AdvancedSettings from '../components/Settings/AdvancedSettings';

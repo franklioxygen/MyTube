@@ -14,9 +14,9 @@ const formatExpectedDate = (value: string) => {
     return `${year}-${month}-${day}`;
 };
 
-// Mock react-router-dom
+// Mock react-router
 const mockNavigate = vi.fn();
-vi.mock('react-router-dom', () => ({
+vi.mock('react-router', () => ({
     useNavigate: () => mockNavigate,
 }));
 

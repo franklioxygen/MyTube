@@ -116,10 +116,10 @@ vi.mock('../contexts/ThemeContext', () => ({
     ThemeContextProvider: ({ children }: { children: React.ReactNode }) => <div>{children}</div>
 }));
 
-// Mock react-router-dom
+// Mock react-router
 const mockNavigate = vi.fn();
-vi.mock('react-router-dom', async () => {
-    const actual = await vi.importActual('react-router-dom');
+vi.mock('react-router', async () => {
+    const actual = await vi.importActual('react-router');
     const { MemoryRouter } = actual as any;
     return {
         ...actual,

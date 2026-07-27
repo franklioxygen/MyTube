@@ -12,7 +12,7 @@ import {
     useTheme
 } from '@mui/material';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useCloudStorageUrl } from '../hooks/useCloudStorageUrl';
 import { Video } from '../types';

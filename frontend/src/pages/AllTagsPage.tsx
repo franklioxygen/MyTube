@@ -13,7 +13,7 @@ import {
     useTheme,
 } from '@mui/material';
 import React, { Suspense, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router';
 import ExpandableTagsStrip from '../components/ExpandableTagsStrip';
 import SortControl from '../components/SortControl';
 import { VideoGrid } from '../components/VideoGrid';

@@ -1,5 +1,5 @@
 import { FormEvent, useState } from 'react';
-import { NavigateFunction } from 'react-router-dom';
+import { NavigateFunction } from 'react-router';
 import { TranslationKey } from '../../utils/translations';
 
 interface HeaderSubmitResult {

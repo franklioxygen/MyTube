@@ -10,7 +10,7 @@ import {
     useTheme
 } from '@mui/material';
 import { FormEvent, useCallback, useMemo, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router';
 
 import { useAuth } from '../../contexts/AuthContext';
 import { useHomeViewModeRequestOptional } from '../../contexts/HomeViewModeRequestContext';

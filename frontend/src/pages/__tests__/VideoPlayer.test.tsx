@@ -59,7 +59,7 @@ let mockStatisticsIngestionReturn: Record<string, unknown>;
 
 // ---- Mock hooks ----
 
-vi.mock('react-router-dom', () => ({
+vi.mock('react-router', () => ({
     useNavigate: () => mockNavigate,
     useParams: () => ({ id: 'v1' }),
     useLocation: () => ({ state: null }),

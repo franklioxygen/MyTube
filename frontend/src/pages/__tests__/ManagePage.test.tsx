@@ -28,7 +28,7 @@ let refreshFileSizesMutationPending = false;
 
 // --- Mocks ---
 
-vi.mock('react-router-dom', () => ({
+vi.mock('react-router', () => ({
     useSearchParams: () => [new URLSearchParams(), vi.fn()],
     useNavigate: () => vi.fn(),
 }));

@@ -7,7 +7,7 @@ import CollectionPage from '../CollectionPage';
 
 const mockNavigate = vi.fn();
 const mockSetSearchParams = vi.fn();
-vi.mock('react-router-dom', () => ({
+vi.mock('react-router', () => ({
     useParams: () => ({ id: 'col-1' }),
     useNavigate: () => mockNavigate,
     useSearchParams: () => [new URLSearchParams(), mockSetSearchParams],

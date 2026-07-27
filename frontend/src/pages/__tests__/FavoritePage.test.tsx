@@ -8,7 +8,7 @@ let mockVideos: any[] = [];
 let mockFavoriteCollections: any[] = [];
 let mockFavoriteAuthors: any[] = [];
 
-vi.mock('react-router-dom', () => ({ useNavigate: () => mockNavigate }));
+vi.mock('react-router', () => ({ useNavigate: () => mockNavigate }));
 vi.mock('../../contexts/LanguageContext', () => ({ useLanguage: () => ({ t: (key: string) => key }) }));
 vi.mock('../../contexts/VideoContext', () => ({ useVideo: () => ({ videos: mockVideos }) }));
 vi.mock('../../contexts/CollectionContext', () => ({ useCollection: () => ({ collections: [] }) }));

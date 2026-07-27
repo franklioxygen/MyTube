@@ -1,6 +1,6 @@
 import { Person, WarningAmber } from '@mui/icons-material';
 import { Avatar, Box, Card, CardActionArea, Typography } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useCloudStorageUrl } from '../../hooks/useCloudStorageUrl';
 import { brand, modeColors } from '../../theme/colors';

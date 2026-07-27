@@ -1,6 +1,6 @@
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
+import { BrowserRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as CollectionContext from '../../contexts/CollectionContext';
 import * as LanguageContext from '../../contexts/LanguageContext';
