@@ -4,7 +4,7 @@ import DownloadsMenu from '../DownloadsMenu';
 
 const mockNavigate = vi.fn();
 
-vi.mock('react-router-dom', () => ({
+vi.mock('react-router', () => ({
     useNavigate: () => mockNavigate,
 }));
 

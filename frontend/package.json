@@ -14,7 +14,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "engines": {
-    "node": ">=20.19.0 <21 || >=22.12.0 <27"
+    "node": ">=22.22.0 <27"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -29,8 +29,7 @@
     "framer-motion": "^12.29.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
-    "react-router": "^7.17.0",
-    "react-router-dom": "^7.17.0",
+    "react-router": "^8.3.0",
     "react-virtuoso": "^4.18.1"
   },
   "devDependencies": {

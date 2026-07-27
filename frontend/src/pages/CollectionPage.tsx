@@ -12,7 +12,7 @@ import {
     Typography
 } from '@mui/material';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router';
 import DeleteCollectionModal from '../components/DeleteCollectionModal';
 import FavoriteToggle from '../components/FavoriteToggle';
 import SortControl from '../components/SortControl';

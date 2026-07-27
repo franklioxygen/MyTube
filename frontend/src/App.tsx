@@ -1,6 +1,6 @@
 import { Box, CircularProgress } from '@mui/material';
 import { Suspense, useEffect } from 'react';
-import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
+import { Route, BrowserRouter as Router, Routes } from 'react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import './App.css';
 import Footer from './components/Footer';

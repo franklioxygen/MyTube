@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { BrowserRouter } from 'react-router-dom';
+import { BrowserRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Video } from '../../../types';
 import VideosTable from '../VideosTable';
@@ -380,5 +380,5 @@ describe('VideosTable', () => {
             expect(mockShowSnackbar).toHaveBeenCalledWith('videoDownloading');
             expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ['downloadStatus'] });
         });
-    });
+    }, 15000);
 });

@@ -25,10 +25,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Use Node.js 20.19
+      - name: Use Node.js 22.22
         uses: actions/setup-node@v4
         with:
-          node-version: 20.19.x
+          node-version: 22.22.x
           cache: npm
           cache-dependency-path: |
             package-lock.json

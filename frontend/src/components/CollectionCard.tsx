@@ -10,7 +10,7 @@ import {
     useMediaQuery,
     useTheme
 } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { overlay } from '../theme/colors';
 import { useCloudStorageUrl } from '../hooks/useCloudStorageUrl';
 import { useFavoriteCollections } from '../hooks/useFavoriteCollections';

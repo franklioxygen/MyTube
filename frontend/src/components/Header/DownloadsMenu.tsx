@@ -12,7 +12,7 @@ import {
     useMediaQuery,
     useTheme
 } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { shadow } from '../../theme/colors';
 import { DownloadInfo } from './types';

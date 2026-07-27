@@ -7,7 +7,7 @@ const mockLogout = vi.fn();
 let mockLoginEnabled = false;
 let mockUserRole = 'admin';
 
-vi.mock('react-router-dom', () => ({
+vi.mock('react-router', () => ({
     useNavigate: () => mockNavigate,
 }));
 

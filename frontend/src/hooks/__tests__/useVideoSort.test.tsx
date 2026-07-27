@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Video } from '../../types';
 import { useVideoSort } from '../useVideoSort';

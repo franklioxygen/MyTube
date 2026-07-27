@@ -18,7 +18,7 @@ import {
     useTheme,
 } from '@mui/material';
 import React from 'react';
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink } from 'react-router';
 import type { StatisticsHealth, StatisticsOverview } from '../../hooks/useStatistics';
 import { gradient, modeColors } from '../../theme/colors';
 

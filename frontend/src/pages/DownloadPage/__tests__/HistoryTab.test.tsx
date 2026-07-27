@@ -1,6 +1,6 @@
 import { useMediaQuery, useTheme } from '@mui/material';
 import { fireEvent, render, screen } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
+import { BrowserRouter } from 'react-router';
 import { beforeEach, describe, expect, it, Mock, vi } from 'vitest';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import { useSettings } from '../../../hooks/useSettings';

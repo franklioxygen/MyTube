@@ -34,7 +34,7 @@ import {
     useMediaQuery
 } from '@mui/material';
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCollection } from '../../contexts/CollectionContext';
 import { useDownload } from '../../contexts/DownloadContext';

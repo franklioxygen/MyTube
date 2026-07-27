@@ -6,7 +6,7 @@ import {
     Typography
 } from '@mui/material';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router';
 import CollectionModal from '../components/CollectionModal';
 import ConfirmationModal from '../components/ConfirmationModal';
 import SubscribeModal from '../components/SubscribeModal';

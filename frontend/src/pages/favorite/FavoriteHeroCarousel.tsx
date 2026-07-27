@@ -4,7 +4,7 @@ import type { SxProps, Theme } from '@mui/material/styles';
 import { motion } from 'framer-motion';
 import type { MouseEvent } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { neutral, overlay } from '../../theme/colors';
 import type { FavoriteCollectionItem, Video } from '../../types';

@@ -20,7 +20,7 @@ import {
     useMediaQuery
 } from '@mui/material';
 import React, { useState } from 'react';
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink } from 'react-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useSnackbar } from '../../contexts/SnackbarContext';

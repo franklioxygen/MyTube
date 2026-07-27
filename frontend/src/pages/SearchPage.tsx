@@ -13,7 +13,7 @@ import {
     Typography
 } from '@mui/material';
 import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router';
 import SortControl from '../components/SortControl';
 import VideoCard from '../components/VideoCard';
 import { useCollection } from '../contexts/CollectionContext';

@@ -1,6 +1,6 @@
 import { Box, CircularProgress, Container } from '@mui/material';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router';
 
 import ConfirmationModal from '../../components/ConfirmationModal';
 import TagsModal from '../../components/TagsModal';

@@ -58,7 +58,7 @@ let mockVideoCountLabel = '2 videos';
 
 // --- vi.mock declarations ---
 
-vi.mock('react-router-dom', () => ({
+vi.mock('react-router', () => ({
     useNavigate: () => mockNavigate,
     useParams: () => ({ authorName: 'TestAuthor' }),
 }));

@@ -26,7 +26,7 @@
     "codacy:report": "node scripts/codacy/generate-issues-report.mjs"
   },
   "engines": {
-    "node": ">=20.19.0 <21 || >=22.12.0 <27"
+    "node": ">=22.22.0 <27"
   },
   "keywords": [
     "youtube",
