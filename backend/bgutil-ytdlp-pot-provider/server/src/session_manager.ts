@@ -311,7 +311,7 @@ export class SessionManager {
                     { cause: eInner },
                 );
             }
-            throw new Error("Could not get Botguard challenge");
+            throw new Error("Could not get Botguard challenge", { cause: e });
         }
     }
 

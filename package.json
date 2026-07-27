@@ -37,7 +37,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "concurrently": "^10.0.3"
+    "concurrently": "^10.0.4"
   },
   "overrides": {
     "@babel/runtime": "^7.26.10"

@@ -15,7 +15,9 @@ function parseJsonOption<T>(value: string | undefined, optionName: string): T | 
         return JSON.parse(value) as T;
     } catch (error) {
         const reason = error instanceof Error ? error.message : String(error);
-        throw new Error(`Failed to parse ${optionName}: ${reason}`);
+        throw new Error(`Failed to parse ${optionName}: ${reason}`, {
+            cause: error,
+        });
     }
 }
 
