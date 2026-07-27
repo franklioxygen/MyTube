@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { LiveTranslationTranscriptEvent } from './useLiveTranslationSession';
 
 /**
@@ -13,6 +13,10 @@ import { LiveTranslationTranscriptEvent } from './useLiveTranslationSession';
  */
 
 const DEFAULT_CUE_DURATION_S = 4;
+
+const setTextTrackMode = (track: TextTrack, mode: TextTrackMode) => {
+  track.mode = mode;
+};
 
 export interface LiveTranslationSubtitleTrackController {
   track: TextTrack | null;
@@ -29,35 +33,27 @@ export function useLiveTranslationSubtitleTrack(
   label: string,
 ): LiveTranslationSubtitleTrackController {
   const [isActive, setIsActive] = useState(false);
-  // Bump to surface a freshly created track to consumers (refs don't re-render).
-  const [, setVersion] = useState(0);
-  const trackRef = useRef<TextTrack | null>(null);
-  const elementRef = useRef<HTMLVideoElement | null>(null);
-
-  // A track belongs to one element; drop the reference if the element changes.
-  useEffect(() => {
-    if (elementRef.current !== videoElement) {
-      trackRef.current = null;
-      elementRef.current = videoElement;
-      setIsActive(false);
-    }
-  }, [videoElement]);
+  const [trackState, setTrackState] = useState<{
+    element: HTMLVideoElement;
+    track: TextTrack;
+  } | null>(null);
+  const track = trackState?.element === videoElement ? trackState.track : null;
+  const active = isActive && trackState?.element === videoElement;
 
   const ensureTrack = useCallback((): TextTrack | null => {
     const el = videoElement;
     if (!el || typeof el.addTextTrack !== 'function') {
       return null;
     }
-    if (trackRef.current) {
-      return trackRef.current;
+    if (track) {
+      return track;
     }
-    const track = el.addTextTrack('subtitles', label, targetLanguageCode || 'und');
+    const newTrack = el.addTextTrack('subtitles', label, targetLanguageCode || 'und');
     // Keep it non-disabled so cues can be added/read; selection sets showing/hidden.
-    track.mode = 'hidden';
-    trackRef.current = track;
-    setVersion((v) => v + 1);
-    return track;
-  }, [videoElement, label, targetLanguageCode]);
+    setTextTrackMode(newTrack, 'hidden');
+    setTrackState({ element: el, track: newTrack });
+    return newTrack;
+  }, [videoElement, label, targetLanguageCode, track]);
 
   const activate = useCallback(() => {
     if (ensureTrack()) {
@@ -66,7 +62,6 @@ export function useLiveTranslationSubtitleTrack(
   }, [ensureTrack]);
 
   const deactivate = useCallback(() => {
-    const track = trackRef.current;
     if (track) {
       try {
         const cues = track.cues;
@@ -75,13 +70,13 @@ export function useLiveTranslationSubtitleTrack(
             track.removeCue(cues[i]);
           }
         }
-        track.mode = 'disabled';
+        setTextTrackMode(track, 'disabled');
       } catch {
         // ignore
       }
     }
     setIsActive(false);
-  }, []);
+  }, [track]);
 
   const addCue = useCallback(
     (event: LiveTranslationTranscriptEvent) => {
@@ -129,8 +124,8 @@ export function useLiveTranslationSubtitleTrack(
   );
 
   return {
-    track: trackRef.current,
-    isActive,
+    track,
+    isActive: active,
     label,
     activate,
     deactivate,

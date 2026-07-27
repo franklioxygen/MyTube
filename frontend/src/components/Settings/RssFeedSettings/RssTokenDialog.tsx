@@ -12,7 +12,7 @@ import {
     Typography,
 } from '@mui/material';
 import type { SelectChangeEvent } from '@mui/material/Select';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import { CreateTokenInput, RssFilters, RssToken, UpdateTokenInput } from '../../../utils/rssApi';
 import RssFilterEditor from './RssFilterEditor';
@@ -37,7 +37,16 @@ interface RssTokenDialogProps {
 
 const DEFAULT_FILTERS: RssFilters = { maxItems: 50 };
 
-const RssTokenDialog: React.FC<RssTokenDialogProps> = ({
+const getInitialLabel = (mode: RssTokenDialogProps['mode'], token?: RssToken): string =>
+    mode === 'edit' && token ? token.label : '';
+
+const getInitialRole = (mode: RssTokenDialogProps['mode'], token?: RssToken): 'admin' | 'visitor' =>
+    mode === 'edit' && token ? token.role : 'visitor';
+
+const getInitialFilters = (mode: RssTokenDialogProps['mode'], token?: RssToken): RssFilters =>
+    mode === 'edit' && token ? { maxItems: 50, ...token.filters } : { ...DEFAULT_FILTERS };
+
+const RssTokenDialogContent: React.FC<RssTokenDialogProps> = ({
     open,
     mode,
     token,
@@ -50,23 +59,9 @@ const RssTokenDialog: React.FC<RssTokenDialogProps> = ({
     isLoading = false,
 }) => {
     const { t } = useLanguage();
-    const [label, setLabel] = useState('');
-    const [role, setRole] = useState<'admin' | 'visitor'>('visitor');
-    const [filters, setFilters] = useState<RssFilters>(DEFAULT_FILTERS);
-
-    useEffect(() => {
-        if (open) {
-            if (mode === 'edit' && token) {
-                setLabel(token.label);
-                setRole(token.role);
-                setFilters({ maxItems: 50, ...token.filters });
-            } else {
-                setLabel('');
-                setRole('visitor');
-                setFilters(DEFAULT_FILTERS);
-            }
-        }
-    }, [open, mode, token]);
+    const [label, setLabel] = useState(() => getInitialLabel(mode, token));
+    const [role, setRole] = useState<'admin' | 'visitor'>(() => getInitialRole(mode, token));
+    const [filters, setFilters] = useState<RssFilters>(() => getInitialFilters(mode, token));
 
     const showAdminWarning = role === 'admin';
 
@@ -176,6 +171,19 @@ const RssTokenDialog: React.FC<RssTokenDialogProps> = ({
                 </Button>
             </DialogActions>
         </Dialog>
+    );
+};
+
+const RssTokenDialog: React.FC<RssTokenDialogProps> = (props) => {
+    if (!props.open) {
+        return null;
+    }
+
+    return (
+        <RssTokenDialogContent
+            key={`${props.mode}:${props.token?.id ?? 'new'}`}
+            {...props}
+        />
     );
 };
 

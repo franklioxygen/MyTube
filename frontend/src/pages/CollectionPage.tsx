@@ -11,7 +11,7 @@ import {
     Tooltip,
     Typography
 } from '@mui/material';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router';
 import DeleteCollectionModal from '../components/DeleteCollectionModal';
 import FavoriteToggle from '../components/FavoriteToggle';
@@ -99,25 +99,18 @@ const CollectionPage: React.FC = () => {
         );
     }, [collectionVideos, selectedTags]);
 
-    // Keep a ref so the context always reads current values (menu gets latest when it opens)
-    const filterRef = useRef({ availableTags, selectedTags, onTagToggle: handleTagToggle });
-    filterRef.current = { availableTags, selectedTags, onTagToggle: handleTagToggle };
+    const pageTagFilter = useMemo(() => ({
+        availableTags,
+        selectedTags,
+        onTagToggle: handleTagToggle,
+        _version: filterVersion,
+    }), [availableTags, filterVersion, handleTagToggle, selectedTags]);
 
-    // Register page tag filter; bump filterVersion only in handleTagToggle so Header re-renders on tag click (no effect loop)
+    // Register page tag filter; bump filterVersion only in handleTagToggle so Header re-renders on tag click.
     useEffect(() => {
-        const stableFilter = {
-            get availableTags() {
-                return filterRef.current.availableTags;
-            },
-            get selectedTags() {
-                return filterRef.current.selectedTags;
-            },
-            onTagToggle: (tag: string) => filterRef.current.onTagToggle(tag),
-            _version: filterVersion
-        };
-        setPageTagFilter(stableFilter);
+        setPageTagFilter(pageTagFilter);
         return () => setPageTagFilter(null);
-    }, [filterVersion, setPageTagFilter]);
+    }, [pageTagFilter, setPageTagFilter]);
 
     // Sort videos (after tag filter)
     const {

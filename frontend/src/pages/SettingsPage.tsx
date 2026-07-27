@@ -80,6 +80,16 @@ function arePersistedSeekIntervalsValid(settings: Settings): boolean {
     );
 }
 
+function getInitialSettingsTab(search: string): number {
+    const tabParam = new URLSearchParams(search).get('tab');
+    if (!tabParam) {
+        return 0;
+    }
+
+    const tabIndex = parseInt(tabParam, 10);
+    return Number.isNaN(tabIndex) ? 0 : tabIndex;
+}
+
 const SettingsPage: React.FC = () => {
     const { t, setLanguage } = useLanguage();
     const { activeDownloads } = useDownload();
@@ -140,7 +150,7 @@ const SettingsPage: React.FC = () => {
     const [liveTranslationApiKeyDraft, setLiveTranslationApiKeyDraft] = useState('');
     const [clearLiveTranslationApiKeyRequested, setClearLiveTranslationApiKeyRequested] =
         useState(false);
-    const [currentTab, setCurrentTab] = useState(0);
+    const [currentTab, setCurrentTab] = useState(() => getInitialSettingsTab(location.search));
     const [seekIntervalsValid, setSeekIntervalsValid] = useState(true);
     const [showTrustDetailsModal, setShowTrustDetailsModal] = useState(false);
     const twitchCredentialValidationCode = getTwitchCredentialValidationCode(
@@ -202,15 +212,6 @@ const SettingsPage: React.FC = () => {
 
     // Handle initial tab selection from URL and scrolling
     useEffect(() => {
-        const params = new URLSearchParams(location.search);
-        const tabParam = params.get('tab');
-        if (tabParam) {
-            const tabIndex = parseInt(tabParam, 10);
-            if (!isNaN(tabIndex)) {
-                setCurrentTab(tabIndex);
-            }
-        }
-
         // Handle scrolling to element if hash is present
         if (location.hash) {
             const id = location.hash.replace('#', '');

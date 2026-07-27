@@ -59,18 +59,16 @@ export function HistoryTab({
         });
     }, [history, filterType]);
 
-    // Reset page when filter changes
-    React.useEffect(() => {
-        setPage(1);
-    }, [filterType]);
-
     return (
         <>
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2, gap: 2, flexWrap: 'wrap' }}>
                 <Select
                     size="small"
                     value={filterType}
-                    onChange={(e) => setFilterType(e.target.value)}
+                    onChange={(e) => {
+                        setFilterType(e.target.value);
+                        setPage(1);
+                    }}
                     sx={{ minWidth: 150 }}
                 >
                     <MenuItem value="all">{t('filterAll') || 'All'}</MenuItem>

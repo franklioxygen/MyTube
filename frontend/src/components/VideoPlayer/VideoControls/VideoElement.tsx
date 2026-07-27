@@ -1,16 +1,12 @@
 import { Box, IconButton, Typography } from '@mui/material';
 import { Pause, PlayArrow } from '@mui/icons-material';
-import React, { useMemo } from 'react';
+import React, { useId, useMemo } from 'react';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import { neutral, overlay } from '../../../theme/colors';
 import { getBackendUrl } from '../../../utils/apiUrl';
 import { getSubtitleLanguageLabel, getSubtitleTrackLanguage } from '../../../utils/formatUtils';
 import { getMediaCrossOriginAttr } from '../../../utils/mediaOrigin';
 import { computePreloadStrategy } from '../../../utils/preloadStrategy';
-
-type GlobalVideoCounterScope = typeof globalThis & {
-    __videoControlCounter?: number;
-};
 
 interface VideoElementProps {
     videoRef: React.RefObject<HTMLVideoElement | null>;
@@ -70,14 +66,8 @@ const VideoElement: React.FC<VideoElementProps> = ({
     isPlaying = false,
 }) => {
     const { t } = useLanguage();
-    // Use useMemo to generate a stable unique ID per component instance
-    // Using Date.now() and a simple counter is safe for non-cryptographic purposes
-    const videoId = useMemo(() => {
-        const globalScope = globalThis as GlobalVideoCounterScope;
-        const counter = (globalScope.__videoControlCounter || 0) + 1;
-        globalScope.__videoControlCounter = counter;
-        return `video-controls-${Date.now()}-${counter}`;
-    }, []);
+    const reactId = useId();
+    const videoId = `video-controls-${reactId.replace(/:/g, '')}`;
 
     // Compute during render so the <video> element never starts loading
     // with a downgraded placeholder, and recalculate when the media changes.
@@ -85,12 +75,12 @@ const VideoElement: React.FC<VideoElementProps> = ({
         () => computePreloadStrategy({ src, mediaPath }),
         [src, mediaPath]
     );
-    const [mobileAspectRatio, setMobileAspectRatio] = React.useState<string>('16/9');
-
-    React.useEffect(() => {
-        // Reset to default ratio while new source metadata is loading
-        setMobileAspectRatio('16/9');
-    }, [src]);
+    const [mobileAspectRatioState, setMobileAspectRatioState] = React.useState<{
+        src: string;
+        ratio: string;
+    } | null>(null);
+    const mobileAspectRatio =
+        mobileAspectRatioState?.src === src ? mobileAspectRatioState.ratio : '16/9';
 
     return (
         <Box
@@ -246,11 +236,14 @@ const VideoElement: React.FC<VideoElementProps> = ({
                 onPause={onPause}
                 onEnded={onEnded}
                 onTimeUpdate={onTimeUpdate}
-                onLoadedMetadata={(e) => {
-                    const { videoWidth, videoHeight } = e.currentTarget;
-                    if (videoWidth > 0 && videoHeight > 0) {
-                        setMobileAspectRatio(`${videoWidth}/${videoHeight}`);
-                    }
+	                onLoadedMetadata={(e) => {
+	                    const { videoWidth, videoHeight } = e.currentTarget;
+	                    if (videoWidth > 0 && videoHeight > 0) {
+	                        setMobileAspectRatioState({
+	                            src,
+	                            ratio: `${videoWidth}/${videoHeight}`,
+	                        });
+	                    }
                     onLoadedMetadata(e);
                     onSubtitleInit(e);
                 }}

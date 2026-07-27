@@ -38,7 +38,6 @@ const LoginPage: React.FC = () => {
     const [alertOpen, setAlertOpen] = useState(false);
     const [alertTitle, setAlertTitle] = useState('');
     const [alertMessage, setAlertMessage] = useState('');
-    const [websiteName, setWebsiteName] = useState('MyTube');
     const { t } = useLanguage();
     const { login } = useAuth();
 
@@ -78,17 +77,11 @@ const LoginPage: React.FC = () => {
     // Get settings from password-enabled endpoint (doesn't require auth)
     // This endpoint now includes visitor password info and other login-related settings
     const passwordEnabledData = statusData;
+    const websiteName = passwordEnabledData?.websiteName || 'MyTube';
 
     const passwordLoginAllowed = passwordEnabledData?.passwordLoginAllowed !== false;
     const visitorUserEnabled = passwordEnabledData?.visitorUserEnabled !== false;
     const showVisitorTab = visitorUserEnabled && (!!passwordEnabledData?.hasVisitorUsers || !!passwordEnabledData?.isVisitorPasswordSet);
-
-    // Update website name when settings are loaded
-    useEffect(() => {
-        if (passwordEnabledData && passwordEnabledData.websiteName) {
-            setWebsiteName(passwordEnabledData.websiteName);
-        }
-    }, [passwordEnabledData]);
 
     // Check if passkeys exist
     const { data: passkeysData } = useQuery({

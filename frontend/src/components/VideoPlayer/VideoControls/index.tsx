@@ -109,7 +109,13 @@ const VideoControls: React.FC<VideoControlsProps> = ({
     });
 
     // Fullscreen management
-    const fullscreen = useFullscreen(videoPlayer.videoRef);
+    const {
+        isFullscreen,
+        controlsVisible,
+        videoContainerRef,
+        handleToggleFullscreen,
+        handleControlsMouseEnter,
+    } = useFullscreen(videoPlayer.videoRef);
 
     // Loading and error states
     const loading = useVideoLoading();
@@ -223,7 +229,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
 
     return (
         <Box
-            ref={fullscreen.videoContainerRef}
+            ref={videoContainerRef}
             sx={{
                 width: '100%',
                 bgcolor: neutral.black,
@@ -231,7 +237,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                 overflow: 'hidden',
                 boxShadow: 4,
                 position: 'relative',
-                ...(fullscreen.isFullscreen && {
+                ...(isFullscreen && {
                     width: '100vw',
                     height: '100vh',
                     display: 'flex',
@@ -240,7 +246,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                 })
             }}
         >
-            <Box sx={{ position: 'relative', flex: fullscreen.isFullscreen ? 1 : undefined, minHeight: fullscreen.isFullscreen ? 0 : undefined }}>
+            <Box sx={{ position: 'relative', flex: isFullscreen ? 1 : undefined, minHeight: isFullscreen ? 0 : undefined }}>
                 <VideoElement
                     videoRef={videoPlayer.videoRef}
                     src={src}
@@ -248,7 +254,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                     poster={poster}
                     isLoading={loading.isLoading}
                     loadError={loading.loadError}
-                    isFullscreen={fullscreen.isFullscreen}
+                    isFullscreen={isFullscreen}
                     subtitles={subtitles}
                     onClick={videoPlayer.handlePlayPause}
                     onPlay={videoPlayer.handlePlay}
@@ -272,7 +278,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
 
                 <Box
                     sx={{
-                        ...(fullscreen.isFullscreen
+                        ...(isFullscreen
                             ? {
                                   position: 'absolute',
                                   left: 0,
@@ -284,8 +290,8 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                     }}
                 >
                     <ControlsOverlay
-                        isFullscreen={fullscreen.isFullscreen}
-                        controlsVisible={fullscreen.controlsVisible}
+                        isFullscreen={isFullscreen}
+                        controlsVisible={controlsVisible}
                         isPlaying={videoPlayer.isPlaying}
                         currentTime={videoPlayer.currentTime}
                         duration={videoPlayer.duration}
@@ -316,9 +322,9 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                         liveSubtitleLabel={subtitlesHook.liveSubtitleLabel}
                         liveSubtitleSelected={subtitlesHook.liveSubtitleSelected}
                         onSelectLiveSubtitle={subtitlesHook.handleSelectLiveSubtitle}
-                        onToggleFullscreen={fullscreen.handleToggleFullscreen}
+                        onToggleFullscreen={handleToggleFullscreen}
                         onToggleLoop={handleToggleLoop}
-                        onControlsMouseEnter={fullscreen.handleControlsMouseEnter}
+                        onControlsMouseEnter={handleControlsMouseEnter}
                         playbackRate={videoPlayer.playbackRate}
                         onPlaybackRateChange={videoPlayer.handlePlaybackRateChange}
                         seekIntervals={seekIntervals}
@@ -328,8 +334,8 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                             if (!toggle) return undefined;
                             return () => {
                                 toggle();
-                                if (fullscreen.isFullscreen) {
-                                    fullscreen.handleToggleFullscreen();
+                                if (isFullscreen) {
+                                    handleToggleFullscreen();
                                 }
                             };
                         })()}

@@ -11,7 +11,7 @@ import {
     useMediaQuery,
     useTheme
 } from '@mui/material';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { useLanguage } from '../contexts/LanguageContext';
 import { normalizeTagKey, sortTagsByUsage } from '../utils/tagUtils';
@@ -41,18 +41,9 @@ const TagsList: React.FC<TagsListProps> = ({
     linkToAllTags = false,
 }) => {
     const { t } = useLanguage();
-    const [isOpen, setIsOpen] = useState<boolean>(true);
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-
-    // Auto-collapse on mobile by default
-    useEffect(() => {
-        if (isMobile) {
-            setIsOpen(false);
-        } else {
-            setIsOpen(true);
-        }
-    }, [isMobile]);
+    const [isOpen, setIsOpen] = useState<boolean>(() => !isMobile);
 
     const { displayTags, hasMore } = useMemo(() => {
         if (!availableTags || availableTags.length === 0) {

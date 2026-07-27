@@ -10,7 +10,7 @@ import {
     TextField,
     Typography
 } from '@mui/material';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import DialogHeader from './DialogHeader';
 import SubscriptionFilenameTemplateField from './SubscriptionFilenameTemplateField';
@@ -47,7 +47,7 @@ interface BilibiliPartsModalProps {
 const isSubscribableType = (type: string) =>
     type === 'playlist' || type === 'collection' || type === 'series';
 
-const BilibiliPartsModal: React.FC<BilibiliPartsModalProps> = ({
+const BilibiliPartsModalContent: React.FC<BilibiliPartsModalProps> = ({
     isOpen,
     onClose,
     videosNumber,
@@ -73,18 +73,13 @@ const BilibiliPartsModal: React.FC<BilibiliPartsModalProps> = ({
     const [filenameTemplate, setFilenameTemplate] = useState<string>('');
     const [isTemplateValid, setIsTemplateValid] = useState<boolean>(true);
 
-    // The successful submission path closes this controlled dialog from the
-    // parent, bypassing handleClose. Reset the destructive choice whenever
-    // that happens so it cannot be carried to the next detected playlist.
-    useEffect(() => {
-        if (!isOpen) {
-            setSubscribeToPlaylist(false);
-            setDownloadExistingVideos(false);
-            setIntervalInput('60');
-            setFilenameTemplate('');
-            setIsTemplateValid(true);
-        }
-    }, [isOpen]);
+    const resetSubscribeForm = () => {
+        setSubscribeToPlaylist(false);
+        setDownloadExistingVideos(false);
+        setIntervalInput('60');
+        setFilenameTemplate('');
+        setIsTemplateValid(true);
+    };
 
     const subscribable = isSubscribableType(type);
 
@@ -114,6 +109,7 @@ const BilibiliPartsModal: React.FC<BilibiliPartsModalProps> = ({
         setIsSubmitting(true);
         try {
             await onConfirm(action);
+            resetSubscribeForm();
         } catch {
             // DownloadContext displays the actionable error. Keep this dialog
             // open with its current selection so the user can retry.
@@ -127,11 +123,7 @@ const BilibiliPartsModal: React.FC<BilibiliPartsModalProps> = ({
     // sources (design §10.2).
     const handleClose = () => {
         if (isLoading || isSubmitting) return;
-        setSubscribeToPlaylist(false);
-        setDownloadExistingVideos(false);
-        setIntervalInput('60');
-        setFilenameTemplate('');
-        setIsTemplateValid(true);
+        resetSubscribeForm();
         onClose();
     };
 
@@ -339,6 +331,19 @@ const BilibiliPartsModal: React.FC<BilibiliPartsModalProps> = ({
                 </Button>
             </DialogActions>
         </Dialog>
+    );
+};
+
+const BilibiliPartsModal: React.FC<BilibiliPartsModalProps> = (props) => {
+    if (!props.isOpen) {
+        return null;
+    }
+
+    return (
+        <BilibiliPartsModalContent
+            key={`${props.type ?? 'parts'}:${props.videoTitle}:${props.videosNumber}`}
+            {...props}
+        />
     );
 };
 

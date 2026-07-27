@@ -16,7 +16,6 @@ export const useHeaderSubscriptions = (isVisitor: boolean): boolean => {
 
     useEffect(() => {
         if (isVisitor) {
-            setHasActiveSubscriptions(false);
             return;
         }
 
@@ -59,5 +58,5 @@ export const useHeaderSubscriptions = (isVisitor: boolean): boolean => {
         };
     }, [isVisitor]);
 
-    return hasActiveSubscriptions;
+    return isVisitor ? false : hasActiveSubscriptions;
 };

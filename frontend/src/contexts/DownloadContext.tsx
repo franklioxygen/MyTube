@@ -198,6 +198,20 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         collectionInfo: null // For collection/series, stores the API response
     });
     const [isCheckingParts, setIsCheckingParts] = useState<boolean>(false);
+    // Subscription logic
+    const [showSubscribeModal, setShowSubscribeModal] = useState(false);
+    const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+    const [subscribeUrl, setSubscribeUrl] = useState('');
+    const [subscribeSource, setSubscribeSource] = useState<'youtube' | 'bilibili' | 'twitch' | undefined>(undefined);
+    const [subscribeMode, setSubscribeMode] = useState<'video' | 'playlist'>('video');
+
+    // Channel subscribe choice modal
+    const [showChannelSubscribeChoiceModal, setShowChannelSubscribeChoiceModal] = useState(false);
+
+    // Channel playlists confirmation modal
+    const [showChannelPlaylistsModal, setShowChannelPlaylistsModal] = useState(false);
+    const [channelPlaylistsUrl, setChannelPlaylistsUrl] = useState('');
+
     // Reference to track current download IDs for detecting completion
     const currentDownloadIdsRef = useRef<Set<string>>(new Set());
     // Tracks the last persisted (active count, queued count) so we only write
@@ -627,20 +641,6 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         // Pass true to skip collection/series check AND parts check since we already know about it
         return await handleVideoSubmit(bilibiliPartsInfo.url, true, true);
     }, [handleVideoSubmit, bilibiliPartsInfo.url]);
-
-    // Subscription logic
-    const [showSubscribeModal, setShowSubscribeModal] = useState(false);
-    const [showDuplicateModal, setShowDuplicateModal] = useState(false);
-    const [subscribeUrl, setSubscribeUrl] = useState('');
-    const [subscribeSource, setSubscribeSource] = useState<'youtube' | 'bilibili' | 'twitch' | undefined>(undefined);
-    const [subscribeMode, setSubscribeMode] = useState<'video' | 'playlist'>('video');
-
-    // Channel subscribe choice modal
-    const [showChannelSubscribeChoiceModal, setShowChannelSubscribeChoiceModal] = useState(false);
-
-    // Channel playlists confirmation modal
-    const [showChannelPlaylistsModal, setShowChannelPlaylistsModal] = useState(false);
-    const [channelPlaylistsUrl, setChannelPlaylistsUrl] = useState('');
 
     const handleSubscribe = async (
         interval: number,

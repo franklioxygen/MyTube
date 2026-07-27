@@ -27,8 +27,8 @@ const constructFullUrl = (initialUrl: string): string => {
  */
 export const useCloudStorageUrl = (
   path: string | null | undefined,
-  type: "video" | "audio" | "thumbnail" = "video",
-  initialUrl?: string
+type: "video" | "audio" | "thumbnail" = "video",
+    initialUrl?: string
 ): string | undefined => {
   // For regular paths (non-cloud, non-mount), compute URL synchronously with useMemo
   // This avoids unnecessary state and effects for common cases like /avatars/xxx.jpg
@@ -60,7 +60,11 @@ export const useCloudStorageUrl = (
   }, [path, initialUrl]);
 
   // Only use async state for cloud storage and mount paths
-  const [asyncUrl, setAsyncUrl] = useState<string | undefined>(undefined);
+  const [asyncUrlState, setAsyncUrlState] = useState<{
+    path: string;
+    type: "video" | "audio" | "thumbnail";
+    url: string | undefined;
+  } | null>(null);
 
   useEffect(() => {
     // Check if async handling is needed
@@ -68,7 +72,6 @@ export const useCloudStorageUrl = (
       path && (isCloudStoragePath(path) || isMountDirectoryPath(path));
 
     if (!needsAsync) {
-      setAsyncUrl(undefined);
       return;
     }
 
@@ -82,7 +85,7 @@ export const useCloudStorageUrl = (
       getFileUrl(path, type)
         .then((signedUrl) => {
           if (!cancelled) {
-            setAsyncUrl(signedUrl);
+            setAsyncUrlState({ path, type, url: signedUrl });
           }
         })
         .catch((error) => {
@@ -93,7 +96,7 @@ export const useCloudStorageUrl = (
               `Failed to load cloud storage URL for ${path}:`,
               error
             );
-            setAsyncUrl(undefined);
+            setAsyncUrlState({ path, type, url: undefined });
           }
         });
 
@@ -104,10 +107,18 @@ export const useCloudStorageUrl = (
     } else if (path && isMountDirectoryPath(path)) {
       // Mount directory paths should have signedUrl from the video object
       // If we get here without signedUrl, it's an error
-      setAsyncUrl(undefined);
+      return;
     }
   }, [path, type, initialUrl]);
 
   // Return sync URL if available (for regular paths), otherwise return async URL
-  return syncUrl !== undefined ? syncUrl : asyncUrl;
+  if (syncUrl !== undefined) {
+    return syncUrl;
+  }
+
+  if (asyncUrlState && asyncUrlState.path === path && asyncUrlState.type === type) {
+    return asyncUrlState.url;
+  }
+
+  return undefined;
 };

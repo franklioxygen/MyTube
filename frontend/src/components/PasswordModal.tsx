@@ -36,14 +36,6 @@ const PasswordModal: React.FC<PasswordModalProps> = ({
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
 
-    // Reset state when modal opens
-    React.useEffect(() => {
-        if (isOpen) {
-            setPassword('');
-            setShowPassword(false);
-        }
-    }, [isOpen]);
-
     const handleConfirm = (e?: React.FormEvent) => {
         e?.preventDefault();
         onConfirm(password);

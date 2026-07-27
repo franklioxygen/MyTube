@@ -84,15 +84,20 @@ export const ThemeContextProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
     // Fetch settings on mount
     useEffect(() => {
-        syncThemePreference();
-    }, [queryClient, syncThemePreference]);
+        const timeoutId = window.setTimeout(() => {
+            void syncThemePreference();
+        }, 0);
+        return () => window.clearTimeout(timeoutId);
+    }, []);
 
     // Listen for login events to refetch
     useEffect(() => {
-        const onLogin = () => syncThemePreference();
+        const onLogin = () => {
+            void syncThemePreference();
+        };
         window.addEventListener('mytube-login', onLogin);
         return () => window.removeEventListener('mytube-login', onLogin);
-    }, [queryClient, syncThemePreference]);
+    }, []);
 
     const setPreference = useCallback(async (newPreference: ThemePreference) => {
         const normalizedPreference = normalizeThemePreference(newPreference);

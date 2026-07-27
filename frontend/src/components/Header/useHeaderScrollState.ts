@@ -1,31 +1,33 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useSyncExternalStore } from 'react';
 
 export const useHeaderScrollState = (
     isMobile: boolean,
     infiniteScroll: boolean,
     isHomePage: boolean
 ): boolean => {
-    const [isScrolled, setIsScrolled] = useState(false);
+    const shouldDetectScroll = isMobile || (infiniteScroll && isHomePage);
 
-    useEffect(() => {
-        const shouldDetectScroll = isMobile || (infiniteScroll && isHomePage);
-        if (!shouldDetectScroll) {
-            setIsScrolled(false);
-            return;
+    const getSnapshot = useCallback(() => {
+        if (!shouldDetectScroll || typeof window === 'undefined') {
+            return false;
         }
 
-        const handleScroll = () => {
-            const scrollTop = window.scrollY || document.documentElement.scrollTop;
-            setIsScrolled(scrollTop > 50);
-        };
+        const scrollTop = window.scrollY || document.documentElement.scrollTop;
+        return scrollTop > 50;
+    }, [shouldDetectScroll]);
 
-        window.addEventListener('scroll', handleScroll, { passive: true });
-        handleScroll();
+    const subscribe = useCallback((onStoreChange: () => void) => {
+        if (!shouldDetectScroll || typeof window === 'undefined') {
+            return () => {};
+        }
 
+        window.addEventListener('scroll', onStoreChange, { passive: true });
+        window.addEventListener('resize', onStoreChange);
         return () => {
-            window.removeEventListener('scroll', handleScroll);
+            window.removeEventListener('scroll', onStoreChange);
+            window.removeEventListener('resize', onStoreChange);
         };
-    }, [isMobile, infiniteScroll, isHomePage]);
+    }, [shouldDetectScroll]);
 
-    return isScrolled;
+    return useSyncExternalStore(subscribe, getSnapshot, () => false);
 };

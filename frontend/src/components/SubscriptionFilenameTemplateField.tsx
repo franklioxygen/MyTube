@@ -61,7 +61,7 @@ const SubscriptionFilenameTemplateField: React.FC<
 > = ({ value, onChange, sourceCollectionType, disabled, autoFocus, onValidityChange }) => {
   const { t } = useLanguage();
   const [validation, setValidation] = useState<ValidationState | null>(null);
-  const [isValidating, setIsValidating] = useState(false);
+  const [validatingKey, setValidatingKey] = useState<string | null>(null);
   const requestId = useRef(0);
   const helperTextId = useId();
   const validationMessageId = useId();
@@ -70,11 +70,13 @@ const SubscriptionFilenameTemplateField: React.FC<
   // to the server for validation.
   const trimmed = value.trim();
   const hasTemplate = trimmed.length > 0;
+  const validationKey = `${sourceCollectionType}\u0000${trimmed}`;
   const validationResponse =
     validation?.template === trimmed &&
     validation.sourceCollectionType === sourceCollectionType
       ? validation.response
       : null;
+  const isValidating = hasTemplate && validatingKey === validationKey;
   const hasErrors = hasTemplate && validationResponse?.valid === false;
   const isInputValid =
     !hasTemplate ||
@@ -93,15 +95,13 @@ const SubscriptionFilenameTemplateField: React.FC<
       // this, a late response for a value that was cleared (or retyped) could
       // become the current validation state.
       requestId.current += 1;
-      setValidation(null);
-      setIsValidating(false);
       return;
     }
 
-    setIsValidating(true);
     const currentRequestId = requestId.current + 1;
     requestId.current = currentRequestId;
     const timer = setTimeout(async () => {
+      setValidatingKey(validationKey);
       try {
         const res = await api.post<ValidateResponse>(
           '/settings/filename-template/validate',
@@ -128,13 +128,15 @@ const SubscriptionFilenameTemplateField: React.FC<
         });
       } finally {
         if (requestId.current === currentRequestId) {
-          setIsValidating(false);
+          setValidatingKey((current) =>
+            current === validationKey ? null : current
+          );
         }
       }
     }, DEBOUNCE_MS);
 
     return () => clearTimeout(timer);
-  }, [trimmed, sourceCollectionType]);
+  }, [trimmed, sourceCollectionType, validationKey]);
 
   return (
     <Box>

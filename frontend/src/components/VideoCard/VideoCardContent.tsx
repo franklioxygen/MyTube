@@ -38,14 +38,17 @@ export const VideoCardContent: React.FC<VideoCardContentProps> = ({
     const marqueeing = isHovered && isTruncated;
     // Whether the date has finished collapsing/expanding, so the author container
     // is at its final width for the marquee to measure against.
-    const [layoutSettled, setLayoutSettled] = useState(false);
+    const [settledAuthor, setSettledAuthor] = useState<string | null>(null);
+    const layoutSettled = marqueeing && settledAuthor === video.author;
 
     // Truncation is only meaningful in the resting layout (date visible). Once we
     // start marqueeing we free the date's space, which changes the container width;
     // measuring then would flip isTruncated off and oscillate the layout. This ref
     // keeps measurement pinned to the non-marqueeing state.
     const isMarqueeingRef = useRef(false);
-    isMarqueeingRef.current = marqueeing;
+    useEffect(() => {
+        isMarqueeingRef.current = marqueeing;
+    }, [marqueeing]);
 
     // Measure whether the author name overflows its (clipped) container.
     const measureTruncation = useCallback(() => {
@@ -83,11 +86,10 @@ export const VideoCardContent: React.FC<VideoCardContentProps> = ({
     // so the marquee measures scroll distance against the final container width.
     useEffect(() => {
         if (marqueeing) {
-            const id = setTimeout(() => setLayoutSettled(true), DATE_COLLAPSE_MS);
+            const id = setTimeout(() => setSettledAuthor(video.author), DATE_COLLAPSE_MS);
             return () => clearTimeout(id);
         }
-        setLayoutSettled(false);
-    }, [marqueeing]);
+    }, [marqueeing, video.author]);
 
     // Scroll the name left then right while hovered, holding ~1s at each end.
     useEffect(() => {
