@@ -29,8 +29,7 @@ const atLeast = (version, major, minor, patch) => {
 };
 
 const isSupported =
-  atLeast(current, 20, 19, 0) ||
-  atLeast(current, 22, 12, 0) ||
+  atLeast(current, 22, 22, 0) ||
   (current.major >= 23 && current.major <= 26);
 
 if (isSupported) {
@@ -38,7 +37,7 @@ if (isSupported) {
 }
 
 console.error(
-  `[install] ${installTarget} supports Node.js 20.19+, 22.12+, 23.x, 24.x, 25.x, and 26.x.`
+  `[install] ${installTarget} supports Node.js 22.22+, 23.x, 24.x, 25.x, and 26.x.`
 );
 console.error(`[install] Current Node.js version: ${currentVersion}`);
 console.error(

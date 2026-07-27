@@ -14,7 +14,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "engines": {
-    "node": ">=20.19.0 <21 || >=22.12.0 <27"
+    "node": ">=22.22.0 <27"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
