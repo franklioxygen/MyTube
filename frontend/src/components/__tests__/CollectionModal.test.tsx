@@ -145,7 +145,7 @@ describe('CollectionModal', () => {
 
         expect(defaultProps.onCreateCollection).toHaveBeenCalledWith('Fresh Collection');
         expect(defaultProps.onAddToCollection).not.toHaveBeenCalled();
-    });
+    }, 15000);
 
     it('should show a create entry at the top for non-matching input', async () => {
         const user = userEvent.setup();

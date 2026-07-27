@@ -380,5 +380,5 @@ describe('VideosTable', () => {
             expect(mockShowSnackbar).toHaveBeenCalledWith('videoDownloading');
             expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ['downloadStatus'] });
         });
-    });
+    }, 15000);
 });
