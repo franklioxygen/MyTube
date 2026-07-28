@@ -24,6 +24,7 @@ COPY backend/package*.json ./
 COPY backend/scripts ./scripts
 COPY backend/vendor ./vendor
 # Skip Puppeteer download during build as we only need to compile TS
+ENV PUPPETEER_SKIP_DOWNLOAD=1
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=1
 ENV SKIP_PROVIDER_BUILD=1
 ENV SKIP_FFMPEG_AUTO_INSTALL=1
@@ -142,6 +143,7 @@ ARG BUILD_DATE=unknown
 # Environment variables
 ENV NODE_ENV=production
 ENV PORT=5551
+ENV PUPPETEER_SKIP_DOWNLOAD=1
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=1
 ENV SKIP_PROVIDER_BUILD=1
 ENV SKIP_FFMPEG_AUTO_INSTALL=1
