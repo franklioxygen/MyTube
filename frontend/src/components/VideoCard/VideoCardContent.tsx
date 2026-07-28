@@ -36,10 +36,6 @@ export const VideoCardContent: React.FC<VideoCardContentProps> = ({
     const [dateWidth, setDateWidth] = useState<number | null>(null);
 
     const marqueeing = isHovered && isTruncated;
-    // Whether the date has finished collapsing/expanding, so the author container
-    // is at its final width for the marquee to measure against.
-    const [settledAuthor, setSettledAuthor] = useState<string | null>(null);
-    const layoutSettled = marqueeing && settledAuthor === video.author;
 
     // Truncation is only meaningful in the resting layout (date visible). Once we
     // start marqueeing we free the date's space, which changes the container width;
@@ -82,15 +78,6 @@ export const VideoCardContent: React.FC<VideoCardContentProps> = ({
         if (el) setDateWidth(el.scrollWidth);
     }, [video.addedAt, video.date, t]);
 
-    // Flip layoutSettled only after the date collapse/expand transition finishes,
-    // so the marquee measures scroll distance against the final container width.
-    useEffect(() => {
-        if (marqueeing) {
-            const id = setTimeout(() => setSettledAuthor(video.author), DATE_COLLAPSE_MS);
-            return () => clearTimeout(id);
-        }
-    }, [marqueeing, video.author]);
-
     // Scroll the name left then right while hovered, holding ~1s at each end.
     useEffect(() => {
         const container = authorContainerRef.current;
@@ -100,41 +87,44 @@ export const VideoCardContent: React.FC<VideoCardContentProps> = ({
         animationRef.current?.cancel();
         animationRef.current = null;
 
-        if (!layoutSettled) {
+        if (!marqueeing) {
             text.style.transform = '';
             return;
         }
 
-        const overflow = text.scrollWidth - container.clientWidth;
-        if (overflow <= 1 || typeof text.animate !== 'function') {
-            text.style.transform = '';
-            return;
-        }
+        const id = window.setTimeout(() => {
+            const overflow = text.scrollWidth - container.clientWidth;
+            if (overflow <= 1 || typeof text.animate !== 'function') {
+                text.style.transform = '';
+                return;
+            }
 
-        const pxPerSecond = 30; // scroll speed
-        const moveMs = Math.max(600, (overflow / pxPerSecond) * 1000);
-        const holdMs = 1000; // dwell at the beginning and ending
-        const totalMs = moveMs * 2 + holdMs * 2;
-        const holdFrac = holdMs / totalMs;
-        const moveFrac = moveMs / totalMs;
-        const endOffset = holdFrac + moveFrac; // start of the ending hold
+            const pxPerSecond = 30; // scroll speed
+            const moveMs = Math.max(600, (overflow / pxPerSecond) * 1000);
+            const holdMs = 1000; // dwell at the beginning and ending
+            const totalMs = moveMs * 2 + holdMs * 2;
+            const holdFrac = holdMs / totalMs;
+            const moveFrac = moveMs / totalMs;
+            const endOffset = holdFrac + moveFrac; // start of the ending hold
 
-        animationRef.current = text.animate(
-            [
-                { transform: 'translateX(0)', offset: 0 },
-                { transform: 'translateX(0)', offset: holdFrac }, // hold at beginning
-                { transform: `translateX(${-overflow}px)`, offset: endOffset },
-                { transform: `translateX(${-overflow}px)`, offset: endOffset + holdFrac }, // hold at ending
-                { transform: 'translateX(0)', offset: 1 } // scroll back to beginning
-            ],
-            { duration: totalMs, iterations: Infinity, easing: 'linear' }
-        );
+            animationRef.current = text.animate(
+                [
+                    { transform: 'translateX(0)', offset: 0 },
+                    { transform: 'translateX(0)', offset: holdFrac }, // hold at beginning
+                    { transform: `translateX(${-overflow}px)`, offset: endOffset },
+                    { transform: `translateX(${-overflow}px)`, offset: endOffset + holdFrac }, // hold at ending
+                    { transform: 'translateX(0)', offset: 1 } // scroll back to beginning
+                ],
+                { duration: totalMs, iterations: Infinity, easing: 'linear' }
+            );
+        }, DATE_COLLAPSE_MS);
 
         return () => {
+            window.clearTimeout(id);
             animationRef.current?.cancel();
             animationRef.current = null;
         };
-    }, [layoutSettled, video.author]);
+    }, [marqueeing, video.author]);
 
     return (
         <CardContent sx={{ flexGrow: 1, px: 1, py: isMobile ? 1.5 : 1, display: 'flex', flexDirection: 'column' }}>
