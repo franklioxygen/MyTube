@@ -91,8 +91,12 @@ function getInitialSettingsTab(search: string): number {
 }
 
 interface SettingsTabState {
-    search: string;
+    urlKey: string;
     tab: number;
+}
+
+function getSettingsTabUrlKey(search: string, hash: string): string {
+    return `${search}\0${hash}`;
 }
 
 const SettingsPage: React.FC = () => {
@@ -155,8 +159,9 @@ const SettingsPage: React.FC = () => {
     const [liveTranslationApiKeyDraft, setLiveTranslationApiKeyDraft] = useState('');
     const [clearLiveTranslationApiKeyRequested, setClearLiveTranslationApiKeyRequested] =
         useState(false);
+    const settingsTabUrlKey = getSettingsTabUrlKey(location.search, location.hash);
     const [currentTabState, setCurrentTabState] = useState<SettingsTabState>(() => ({
-        search: location.search,
+        urlKey: settingsTabUrlKey,
         tab: getInitialSettingsTab(location.search),
     }));
     const [seekIntervalsValid, setSeekIntervalsValid] = useState(true);
@@ -682,7 +687,7 @@ const SettingsPage: React.FC = () => {
     ];
     const locationTab = getInitialSettingsTab(location.search);
     const selectedTab =
-        currentTabState.search === location.search
+        currentTabState.urlKey === settingsTabUrlKey
             ? currentTabState.tab
             : locationTab;
     const currentTab = tabs.some((tabItem) => tabItem.index === selectedTab)
@@ -715,7 +720,7 @@ const SettingsPage: React.FC = () => {
         // that survives the tab switch, while preserving ordering errors.
         setSeekIntervalsValid(arePersistedSeekIntervalsValid(settings));
         setCurrentTabState({
-            search: location.search,
+            urlKey: settingsTabUrlKey,
             tab: newValue,
         });
     };

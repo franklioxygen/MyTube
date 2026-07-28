@@ -199,6 +199,7 @@ vi.mock('../../components/Settings/InterfaceDisplaySettings', () => ({
 vi.mock('../../components/Settings/SecuritySettings', () => ({
   default: ({ onChange }: any) => (
     <div data-testid="security-settings">
+      <div id="security-access-target" />
       <button onClick={() => onChange('loginEnabled', true)}>security-change</button>
     </div>
   ),
@@ -360,6 +361,9 @@ const SettingsPageWithNavigation = () => {
       <button onClick={() => navigate('/settings?tab=4#dontSkipDeletedVideo-setting')}>
         go-data-management-hash
       </button>
+      <button onClick={() => navigate('/settings?tab=1#security-access-target')}>
+        go-security-hash
+      </button>
       <SettingsPage />
     </>
   );
@@ -489,6 +493,37 @@ describe('SettingsPage', () => {
     expect(screen.queryByTestId('security-settings')).not.toBeInTheDocument();
 
     const target = document.getElementById('dontSkipDeletedVideo-setting')!;
+    target.scrollIntoView = vi.fn();
+
+    vi.advanceTimersByTime(500);
+
+    expect(target.scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' });
+    expect(target.style.backgroundColor).toBe(overlay.highlightYellow);
+  });
+
+  it('resynchronizes the selected desktop tab when only the URL hash changes', async () => {
+    mockIsDesktop = true;
+    vi.useFakeTimers();
+
+    render(
+      <MemoryRouter initialEntries={['/settings?tab=1']}>
+        <SettingsPageWithNavigation />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByTestId('security-settings')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'dataManagement' }));
+
+    expect(screen.getByTestId('database-settings')).toBeInTheDocument();
+    expect(screen.queryByTestId('security-settings')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('go-security-hash'));
+
+    expect(screen.getByTestId('security-settings')).toBeInTheDocument();
+    expect(screen.queryByTestId('database-settings')).not.toBeInTheDocument();
+
+    const target = document.getElementById('security-access-target')!;
     target.scrollIntoView = vi.fn();
 
     vi.advanceTimersByTime(500);
