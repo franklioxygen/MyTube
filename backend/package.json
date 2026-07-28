@@ -41,7 +41,7 @@
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.2.0",
     "node-cron": "^4.2.1",
-    "puppeteer": "^24.34.0",
+    "puppeteer": "^25.1.0",
     "sanitize-filename": "^1.6.3",
     "socks-proxy-agent": "^8.0.5",
     "uuid": "^14.0.0",
