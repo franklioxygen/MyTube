@@ -23,7 +23,7 @@ import { useVideo } from '../contexts/VideoContext';
 import { neutral, overlay, platform } from '../theme/colors';
 import { formatDuration } from '../utils/formatUtils';
 import { THUMBNAIL_PLACEHOLDER_SRC, setThumbnailPlaceholder } from '../utils/thumbnailPlaceholder';
-import { getRandomSeed, sortVideos, SortOption, validateSortOption } from '../utils/videoSort';
+import { getRandomSeed, sortVideos, validateSortOption } from '../utils/videoSort';
 
 const SearchPage: React.FC = () => {
     const { t } = useLanguage();
@@ -44,12 +44,11 @@ const SearchPage: React.FC = () => {
     const [searchParams, setSearchParams] = useSearchParams();
     const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
-    // Initialize sort option from URL or default
-    const sortOptionP = validateSortOption(searchParams.get('sort'), 'dateDesc');
-    const seedP = parseInt(searchParams.get('seed') || '0', 10);
-
-    const [sortOption, setSortOption] = useState<SortOption>(sortOptionP);
-    const [shuffleSeed, setShuffleSeed] = useState<number>(seedP);
+    const sortOption = validateSortOption(searchParams.get('sort'), 'dateDesc');
+    const shuffleSeed =
+        sortOption === 'random'
+            ? Math.max(0, parseInt(searchParams.get('seed') || '0', 10) || 0)
+            : 0;
     const [sortAnchorEl, setSortAnchorEl] = useState<null | HTMLElement>(null);
 
     const query = searchParams.get('q');
@@ -59,13 +58,6 @@ const SearchPage: React.FC = () => {
             handleSearch(query);
         }
     }, [query, contextSearchTerm, handleSearch]);
-
-    useEffect(() => {
-        const currentSort = validateSortOption(searchParams.get('sort'), 'dateDesc');
-        const currentSeed = parseInt(searchParams.get('seed') || '0', 10);
-        setSortOption(currentSort);
-        setShuffleSeed(currentSeed);
-    }, [searchParams]);
 
     const handleSortClick = (event: React.MouseEvent<HTMLButtonElement>) => {
         setSortAnchorEl(event.currentTarget);

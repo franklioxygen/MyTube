@@ -23,7 +23,7 @@ interface PasswordModalProps {
     isLoading?: boolean;
 }
 
-const PasswordModal: React.FC<PasswordModalProps> = ({
+const PasswordModalContent: React.FC<PasswordModalProps> = ({
     isOpen,
     onClose,
     onConfirm,
@@ -35,14 +35,6 @@ const PasswordModal: React.FC<PasswordModalProps> = ({
     const { t } = useLanguage();
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
-
-    // Reset state when modal opens
-    React.useEffect(() => {
-        if (isOpen) {
-            setPassword('');
-            setShowPassword(false);
-        }
-    }, [isOpen]);
 
     const handleConfirm = (e?: React.FormEvent) => {
         e?.preventDefault();
@@ -134,6 +126,14 @@ const PasswordModal: React.FC<PasswordModalProps> = ({
             </form>
         </Dialog>
     );
+};
+
+const PasswordModal: React.FC<PasswordModalProps> = (props) => {
+    if (!props.isOpen) {
+        return null;
+    }
+
+    return <PasswordModalContent {...props} />;
 };
 
 export default PasswordModal;

@@ -7,8 +7,9 @@ import CollectionPage from '../CollectionPage';
 
 const mockNavigate = vi.fn();
 const mockSetSearchParams = vi.fn();
+let mockCollectionId = 'col-1';
 vi.mock('react-router', () => ({
-    useParams: () => ({ id: 'col-1' }),
+    useParams: () => ({ id: mockCollectionId }),
     useNavigate: () => mockNavigate,
     useSearchParams: () => [new URLSearchParams(), mockSetSearchParams],
 }));
@@ -150,6 +151,7 @@ describe('CollectionPage', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         capturedDeleteModalProps = {};
+        mockCollectionId = 'col-1';
 
         // Reset context data to defaults
         mockCollectionContext.collections = [...mockCollections];
@@ -363,6 +365,35 @@ describe('CollectionPage', () => {
 
             // customTag should now appear as a chip in the modal
             expect(within(dialog).getByText('customTag')).toBeInTheDocument();
+        });
+
+        it('resets unsaved tags when the collection route changes while the modal is open', async () => {
+            mockCollectionContext.collections = [
+                { id: 'col-1', name: 'Collection One', videos: ['v1'], createdAt: '2024-01-01' },
+                { id: 'col-2', name: 'Collection Two', videos: ['v2'], createdAt: '2024-01-01' },
+            ];
+            mockVideoContext.videos = [
+                { id: 'v1', title: 'Video 1', tags: ['tag1'], author: 'Author' },
+                { id: 'v2', title: 'Video 2', tags: ['tag1'], author: 'Author' },
+            ];
+
+            const rendered = renderCollectionPage();
+            fireEvent.click(screen.getByLabelText('add tags to collection'));
+            fireEvent.click(within(screen.getByRole('dialog')).getByText('tag2'));
+
+            mockCollectionId = 'col-2';
+            rendered.rerender(
+                <ThemeProvider theme={theme}>
+                    <CollectionPage />
+                </ThemeProvider>
+            );
+
+            fireEvent.click(within(screen.getByRole('dialog')).getByText('save'));
+
+            await waitFor(() => {
+                expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+            });
+            expect(mockUpdateVideo).not.toHaveBeenCalled();
         });
     });
 

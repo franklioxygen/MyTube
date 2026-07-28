@@ -39,6 +39,24 @@ describe('PasswordModal', () => {
         expect(defaultProps.onConfirm).toHaveBeenCalledWith('secret');
     });
 
+    it('clears password and visibility after a controlled close and reopen', async () => {
+        const user = userEvent.setup();
+        const { rerender } = render(<PasswordModal {...defaultProps} />);
+
+        const input = screen.getByLabelText('password');
+        await user.type(input, 'secret');
+        await user.click(screen.getByLabelText('togglePasswordVisibility'));
+
+        expect(input).toHaveValue('secret');
+        expect(input).toHaveAttribute('type', 'text');
+
+        rerender(<PasswordModal {...defaultProps} isOpen={false} />);
+        rerender(<PasswordModal {...defaultProps} isOpen />);
+
+        expect(screen.getByLabelText('password')).toHaveValue('');
+        expect(screen.getByLabelText('password')).toHaveAttribute('type', 'password');
+    });
+
     it('should show error message when error prop is provided', () => {
         render(<PasswordModal {...defaultProps} error="Wrong password" />);
         expect(screen.getByText('Wrong password')).toBeInTheDocument();

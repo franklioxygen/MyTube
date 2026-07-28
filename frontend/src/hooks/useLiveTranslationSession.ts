@@ -91,12 +91,21 @@ export function useLiveTranslationSession(
   const pausedRef = useRef(false);
   // Keep latest values for callbacks/cleanup without re-creating handlers.
   const videoElementRef = useRef(videoElement);
-  videoElementRef.current = videoElement;
   const onTranscriptRef = useRef(onTranscript);
-  onTranscriptRef.current = onTranscript;
   const latestOriginalAudioWithSubtitlesRef = useRef(false);
-  latestOriginalAudioWithSubtitlesRef.current = !!originalAudioWithSubtitles;
   const sessionOriginalAudioWithSubtitlesRef = useRef(false);
+
+  useEffect(() => {
+    videoElementRef.current = videoElement;
+  }, [videoElement]);
+
+  useEffect(() => {
+    onTranscriptRef.current = onTranscript;
+  }, [onTranscript]);
+
+  useEffect(() => {
+    latestOriginalAudioWithSubtitlesRef.current = !!originalAudioWithSubtitles;
+  }, [originalAudioWithSubtitles]);
 
   const detachMediaListeners = useCallback(() => {
     mediaListenersRef.current?.();

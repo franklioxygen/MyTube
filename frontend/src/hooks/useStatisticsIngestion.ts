@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useSettings } from './useSettings';
 import { api, sendStatisticsEventsWithKeepalive } from '../utils/apiClient';
@@ -153,10 +153,14 @@ export function useStatisticsIngestion(): {
   const isVisitor = userRole === 'visitor';
   const ingestionAllowed = enabled && (!isVisitor || trackVisitor);
 
-  const sessionIdRef = useRef<string>('');
-  if (!sessionIdRef.current) {
-    sessionIdRef.current = getOrCreateSessionId(userRole ?? null);
-  }
+  const [sessionId, setSessionId] = useState(() =>
+    getOrCreateSessionId(userRole ?? null)
+  );
+  const sessionIdRef = useRef<string>(sessionId);
+
+  useEffect(() => {
+    sessionIdRef.current = sessionId;
+  }, [sessionId]);
 
   // Flush on visibility/pagehide (best-effort).
   useEffect(() => {
@@ -189,6 +193,8 @@ export function useStatisticsIngestion(): {
         role: userRole ?? null,
       });
       sessionIdRef.current = sessionId;
+      const timeoutId = window.setTimeout(() => setSessionId(sessionId), 0);
+      return () => window.clearTimeout(timeoutId);
     }
   }, [userRole]);
 
@@ -234,6 +240,6 @@ export function useStatisticsIngestion(): {
     recordEvent,
     flushNow,
     flushKeepalive,
-    sessionId: sessionIdRef.current,
+    sessionId,
   };
 }

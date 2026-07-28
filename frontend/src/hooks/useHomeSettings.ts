@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Settings } from '../types';
 import { api } from '../utils/apiClient';
@@ -38,47 +38,21 @@ const getErrorStatus = (error: unknown): number | undefined => {
 };
 
 export const useHomeSettings = ({ settings, settingsLoading = false }: UseHomeSettingsParams = {}): UseHomeSettingsReturn => {
-    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-    const [settingsLoaded, setSettingsLoaded] = useState(false);
-    const [infiniteScroll, setInfiniteScroll] = useState(false);
-    const [videoColumns, setVideoColumns] = useState(4);
-    const [itemsPerPage, setItemsPerPage] = useState(12);
-    const [defaultSort, setDefaultSort] = useState('dateDesc');
-    const [showTagsOnThumbnail, setShowTagsOnThumbnail] = useState(true);
+    const [isSidebarOpenOverride, setIsSidebarOpen] = useState<boolean | null>(null);
+    const [infiniteScrollOverride, setInfiniteScroll] = useState<boolean | null>(null);
+    const [videoColumnsOverride, setVideoColumns] = useState<number | null>(null);
+    const [itemsPerPageOverride, setItemsPerPage] = useState<number | null>(null);
+    const [defaultSortOverride, setDefaultSort] = useState<string | null>(null);
+    const [showTagsOnThumbnailOverride, setShowTagsOnThumbnail] = useState<boolean | null>(null);
     const { isAuthenticated } = useAuth();
-
-    // Sync local home settings state from shared settings query
-    useEffect(() => {
-        if (!isAuthenticated) {
-            setSettingsLoaded(true);
-            return;
-        }
-
-        if (settingsLoading) return;
-
-        if (settings) {
-            if (typeof settings.homeSidebarOpen !== 'undefined') {
-                setIsSidebarOpen(settings.homeSidebarOpen);
-            }
-            if (typeof settings.itemsPerPage !== 'undefined') {
-                setItemsPerPage(settings.itemsPerPage);
-            }
-            if (typeof settings.infiniteScroll !== 'undefined') {
-                setInfiniteScroll(settings.infiniteScroll);
-            }
-            if (typeof settings.videoColumns !== 'undefined') {
-                setVideoColumns(settings.videoColumns);
-            }
-            if (typeof settings.defaultSort !== 'undefined') {
-                setDefaultSort(settings.defaultSort);
-            }
-            if (typeof settings.showTagsOnThumbnail !== 'undefined') {
-                setShowTagsOnThumbnail(settings.showTagsOnThumbnail);
-            }
-        }
-
-        setSettingsLoaded(true);
-    }, [isAuthenticated, settingsLoading, settings]);
+    const isSidebarOpen = isSidebarOpenOverride ?? settings?.homeSidebarOpen ?? true;
+    const itemsPerPage = itemsPerPageOverride ?? settings?.itemsPerPage ?? 12;
+    const infiniteScroll = infiniteScrollOverride ?? settings?.infiniteScroll ?? false;
+    const videoColumns = videoColumnsOverride ?? settings?.videoColumns ?? 4;
+    const defaultSort = defaultSortOverride ?? settings?.defaultSort ?? 'dateDesc';
+    const showTagsOnThumbnail =
+        showTagsOnThumbnailOverride ?? settings?.showTagsOnThumbnail ?? true;
+    const settingsLoaded = !isAuthenticated || !settingsLoading;
 
     const handleSidebarToggle = async () => {
         const newState = !isSidebarOpen;

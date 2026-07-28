@@ -11,7 +11,7 @@ import {
     TextField,
     Typography
 } from '@mui/material';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import { useSettings } from '../hooks/useSettings';
@@ -20,12 +20,19 @@ import { useSettingsMutations } from '../hooks/useSettingsMutations';
 interface TagsModalProps {
     open: boolean;
     onClose: () => void;
+    identityKey?: string;
     videoTags: string[];
     availableTags: string[];
     onSave: (tags: string[]) => Promise<void>;
 }
 
-const TagsModal: React.FC<TagsModalProps> = ({
+const getTagsModalKey = (videoTags: string[], identityKey?: string) =>
+    JSON.stringify({
+        identityKey: identityKey ?? null,
+        videoTags: [...videoTags].sort(),
+    });
+
+const TagsModalContent: React.FC<TagsModalProps> = ({
     open,
     onClose,
     videoTags,
@@ -41,18 +48,9 @@ const TagsModal: React.FC<TagsModalProps> = ({
     });
 
     // State for selected tags (starts with videoTags)
-    const [selectedTags, setSelectedTags] = useState<string[]>([]);
+    const [selectedTags, setSelectedTags] = useState<string[]>(() => videoTags || []);
     const [newTag, setNewTag] = useState('');
     const [saving, setSaving] = useState(false);
-
-    // Reset state when modal opens
-    useEffect(() => {
-        if (open) {
-            setSelectedTags(videoTags || []);
-            setNewTag('');
-            setSaving(false);
-        }
-    }, [open, videoTags]);
 
     const handleToggleTag = (tag: string) => {
         setSelectedTags(prev =>
@@ -116,6 +114,9 @@ const TagsModal: React.FC<TagsModalProps> = ({
 
     const handleClose = () => {
         if (!saving) {
+            setSelectedTags(videoTags || []);
+            setNewTag('');
+            setSaving(false);
             onClose();
         }
     };
@@ -199,6 +200,19 @@ const TagsModal: React.FC<TagsModalProps> = ({
                 </Button>
             </DialogActions>
         </Dialog>
+    );
+};
+
+const TagsModal: React.FC<TagsModalProps> = (props) => {
+    if (!props.open) {
+        return null;
+    }
+
+    return (
+        <TagsModalContent
+            key={getTagsModalKey(props.videoTags || [], props.identityKey)}
+            {...props}
+        />
     );
 };
 

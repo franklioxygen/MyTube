@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 interface Subtitle {
     language: string;
@@ -29,6 +29,22 @@ interface UseSubtitlesProps {
 
 const MAX_ACTIVE_TRACKS = 2;
 
+type FileSelectionState = {
+    key: string;
+    indices: number[];
+};
+
+type IndicesUpdate = number[] | ((indices: number[]) => number[]);
+
+const getInitialFileIndices = (
+    initialSubtitlesEnabled: boolean,
+    subtitlesLength: number
+): number[] => (initialSubtitlesEnabled && subtitlesLength > 0 ? [0] : []);
+
+const setTextTrackMode = (track: TextTrack, mode: TextTrackMode) => {
+    track.mode = mode;
+};
+
 export const useSubtitles = ({
     subtitles,
     initialSubtitlesEnabled,
@@ -37,106 +53,75 @@ export const useSubtitles = ({
     liveSubtitle,
     forceLiveSubtitleOnAvailable = false,
 }: UseSubtitlesProps) => {
-    const [subtitlesEnabled, setSubtitlesEnabled] = useState<boolean>(
-        initialSubtitlesEnabled && subtitles.length > 0
+    const subtitleKey = useMemo(
+        () => subtitles.map((subtitle) => subtitle.path).join('\0'),
+        [subtitles]
     );
-    const [selectedSubtitleIndices, setSelectedSubtitleIndices] = useState<number[]>(
-        initialSubtitlesEnabled && subtitles.length > 0 ? [0] : []
+    const initialFileIndices = useMemo(
+        () => getInitialFileIndices(initialSubtitlesEnabled, subtitles.length),
+        [initialSubtitlesEnabled, subtitles.length]
     );
-    const [liveSubtitleSelected, setLiveSubtitleSelected] = useState<boolean>(false);
+    const [fileSelectionState, setFileSelectionState] = useState<FileSelectionState>(() => ({
+        key: subtitleKey,
+        indices: initialFileIndices,
+    }));
+    const [liveSelectionOverride, setLiveSelectionOverride] = useState<{
+        track: TextTrack | null;
+        selected: boolean;
+    } | null>(null);
     const [subtitleMenuAnchor, setSubtitleMenuAnchor] = useState<null | HTMLElement>(null);
 
     const liveAvailable = liveSubtitle?.available === true;
-    const prevLiveAvailableRef = useRef(false);
-    const prevForceLiveSubtitleRef = useRef(false);
+    const liveTrack = liveSubtitle?.track ?? null;
+    const liveSelectionOverrideSelected = liveSelectionOverride?.track === liveTrack
+        ? liveSelectionOverride.selected
+        : initialSubtitlesEnabled;
+    const liveSubtitleSelected =
+        liveAvailable && (forceLiveSubtitleOnAvailable || liveSelectionOverrideSelected);
+    const rawSelectedSubtitleIndices =
+        fileSelectionState.key === subtitleKey ? fileSelectionState.indices : initialFileIndices;
+    const selectedSubtitleIndices = useMemo(
+        () =>
+            liveSubtitleSelected && rawSelectedSubtitleIndices.length >= MAX_ACTIVE_TRACKS
+                ? rawSelectedSubtitleIndices.slice(1)
+                : rawSelectedSubtitleIndices,
+        [liveSubtitleSelected, rawSelectedSubtitleIndices]
+    );
+    const subtitlesEnabled = selectedSubtitleIndices.length > 0 || liveSubtitleSelected;
+
+    const updateSelectedSubtitleIndices = (update: IndicesUpdate) => {
+        setFileSelectionState((previous) => {
+            const current =
+                previous.key === subtitleKey ? previous.indices : initialFileIndices;
+            const next = typeof update === 'function' ? update(current) : update;
+
+            return {
+                key: subtitleKey,
+                indices: next,
+            };
+        });
+    };
 
     // Apply showing/hidden modes by identity: file tracks occupy textTracks
     // [0..subtitles.length-1] (in array order); the dynamic live track — added via
     // addTextTrack — always sorts after them, so we address it by reference and
     // never by index. File-driven effects must not touch it.
-    const applyTrackModes = (fileIndices: number[], liveSelected: boolean) => {
+    const applyTrackModes = useCallback((fileIndices: number[], liveSelected: boolean) => {
         const video = videoRef.current;
         if (video) {
             const tracks = video.textTracks;
             for (let i = 0; i < subtitles.length && i < tracks.length; i++) {
-                tracks[i].mode = fileIndices.includes(i) ? 'showing' : 'hidden';
+                setTextTrackMode(tracks[i], fileIndices.includes(i) ? 'showing' : 'hidden');
             }
         }
-        const liveTrack = liveSubtitle?.track;
         if (liveTrack) {
-            liveTrack.mode = liveSelected ? 'showing' : 'hidden';
+            setTextTrackMode(liveTrack, liveSelected ? 'showing' : 'hidden');
         }
-    };
+    }, [liveTrack, subtitles.length, videoRef]);
 
-    const selectLiveSubtitleTrack = () => {
-        setSelectedSubtitleIndices((fileIndices) => {
-            let nextFile = fileIndices;
-            if (fileIndices.length >= MAX_ACTIVE_TRACKS) {
-                // Replace the oldest selected file subtitle.
-                nextFile = fileIndices.slice(1);
-            }
-            applyTrackModes(nextFile, true);
-            return nextFile;
-        });
-        setLiveSubtitleSelected(true);
-        setSubtitlesEnabled(true);
-    };
-
-    // Re-initialize FILE subtitle tracks only when the subtitles array changes
-    // (upload/delete). Must not include initialSubtitlesEnabled (feedback loop)
-    // and must preserve the live selection/track.
     useEffect(() => {
-        if (!videoRef.current || subtitles.length === 0) return;
-
-        const tracks = videoRef.current.textTracks;
-        const newIndices = initialSubtitlesEnabled && tracks.length > 0 ? [0] : [];
-
-        setSelectedSubtitleIndices(newIndices);
-        setSubtitlesEnabled(initialSubtitlesEnabled || liveSubtitleSelected);
-
-        for (let i = 0; i < subtitles.length && i < tracks.length; i++) {
-            tracks[i].mode = newIndices.includes(i) ? 'showing' : 'hidden';
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [subtitles]); // intentionally omit initialSubtitlesEnabled — see comment above
-
-    // Auto-select the live track when it becomes available if subtitles are
-    // globally enabled, or when subtitle-only live translation requires captions
-    // as its only output. Otherwise keep the live option in the menu without showing it.
-    useEffect(() => {
-        const wasAvailable = prevLiveAvailableRef.current;
-        const wasForceLiveSubtitle = prevForceLiveSubtitleRef.current;
-        prevLiveAvailableRef.current = liveAvailable;
-        prevForceLiveSubtitleRef.current = forceLiveSubtitleOnAvailable;
-
-        const shouldAutoSelectLive =
-            initialSubtitlesEnabled || forceLiveSubtitleOnAvailable;
-
-        if (liveAvailable && !wasAvailable) {
-            if (shouldAutoSelectLive) {
-                selectLiveSubtitleTrack();
-            } else {
-                applyTrackModes(selectedSubtitleIndices, false);
-                setLiveSubtitleSelected(false);
-                setSubtitlesEnabled(selectedSubtitleIndices.length > 0);
-            }
-        } else if (!liveAvailable && wasAvailable) {
-            setLiveSubtitleSelected(false);
-            setSelectedSubtitleIndices((fileIndices) => {
-                applyTrackModes(fileIndices, false);
-                setSubtitlesEnabled(fileIndices.length > 0);
-                return fileIndices;
-            });
-        } else if (
-            liveAvailable &&
-            forceLiveSubtitleOnAvailable &&
-            !wasForceLiveSubtitle
-        ) {
-            // Subtitle-only mode became active after the live track already existed.
-            selectLiveSubtitleTrack();
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [liveAvailable, forceLiveSubtitleOnAvailable]);
+        applyTrackModes(selectedSubtitleIndices, liveSubtitleSelected);
+    }, [applyTrackModes, liveSubtitleSelected, selectedSubtitleIndices]);
 
     const handleSubtitleClick = (event: React.MouseEvent<HTMLElement>) => {
         setSubtitleMenuAnchor(event.currentTarget);
@@ -152,9 +137,8 @@ export const useSubtitles = ({
         if (index < 0) {
             // "Off" — deselect everything (file + live) and close menu.
             applyTrackModes([], false);
-            setSelectedSubtitleIndices([]);
-            setLiveSubtitleSelected(false);
-            setSubtitlesEnabled(false);
+            updateSelectedSubtitleIndices([]);
+            setLiveSelectionOverride({ track: liveTrack, selected: false });
             if (onSubtitlesToggle) onSubtitlesToggle(false);
             handleCloseSubtitleMenu();
             return;
@@ -171,9 +155,7 @@ export const useSubtitles = ({
         }
 
         applyTrackModes(newIndices, liveSubtitleSelected);
-        setSelectedSubtitleIndices(newIndices);
-        const enabled = newIndices.length > 0 || liveSubtitleSelected;
-        setSubtitlesEnabled(enabled);
+        updateSelectedSubtitleIndices(newIndices);
         if (onSubtitlesToggle) onSubtitlesToggle(newIndices.length > 0);
     };
 
@@ -183,8 +165,7 @@ export const useSubtitles = ({
         if (liveSubtitleSelected) {
             // Deselect live.
             applyTrackModes(selectedSubtitleIndices, false);
-            setLiveSubtitleSelected(false);
-            setSubtitlesEnabled(selectedSubtitleIndices.length > 0);
+            setLiveSelectionOverride({ track: liveTrack, selected: false });
             return;
         }
 
@@ -195,9 +176,8 @@ export const useSubtitles = ({
             nextFile = selectedSubtitleIndices.slice(1);
         }
         applyTrackModes(nextFile, true);
-        setSelectedSubtitleIndices(nextFile);
-        setLiveSubtitleSelected(true);
-        setSubtitlesEnabled(true);
+        updateSelectedSubtitleIndices(nextFile);
+        setLiveSelectionOverride({ track: liveTrack, selected: true });
     };
 
     const initializeSubtitles = (e: React.SyntheticEvent<HTMLVideoElement>) => {
@@ -206,9 +186,9 @@ export const useSubtitles = ({
 
         const newIndices = shouldShow && tracks.length > 0 ? [0] : [];
         for (let i = 0; i < subtitles.length && i < tracks.length; i++) {
-            tracks[i].mode = newIndices.includes(i) ? 'showing' : 'hidden';
+            setTextTrackMode(tracks[i], newIndices.includes(i) ? 'showing' : 'hidden');
         }
-        setSelectedSubtitleIndices(newIndices);
+        updateSelectedSubtitleIndices(newIndices);
     };
 
     return {

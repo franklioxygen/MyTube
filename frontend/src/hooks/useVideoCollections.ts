@@ -1,6 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useCollection } from '../contexts/CollectionContext';
-import { Collection } from '../types';
 
 interface UseVideoCollectionsProps {
     videoId: string | undefined;
@@ -19,18 +18,13 @@ export function useVideoCollections({ videoId }: UseVideoCollectionsProps) {
 
     const [showCollectionModal, setShowCollectionModal] = useState<boolean>(false);
     const [activeCollectionVideoId, setActiveCollectionVideoId] = useState<string | null>(null);
-    const [videoCollections, setVideoCollections] = useState<Collection[]>([]);
-
-    // Find collections that contain the current video
-    useEffect(() => {
+    const videoCollections = useMemo(() => {
         if (collections.length > 0 && videoId) {
-            const belongsToCollections = collections.filter(collection =>
+            return collections.filter(collection =>
                 collection.videos.includes(videoId)
             );
-            setVideoCollections(belongsToCollections);
-        } else {
-            setVideoCollections([]);
         }
+        return [];
     }, [collections, videoId]);
 
     // Calculate collections for the modal (can be current video or sidebar video)

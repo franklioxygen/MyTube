@@ -92,6 +92,36 @@ describe('useSubtitles — live translation option', () => {
     expect(result.current.subtitlesEnabled).toBe(true);
   });
 
+  it('forces the live track back on after a prior manual deselection', () => {
+    const liveTrack = { mode: 'hidden' } as unknown as TextTrack;
+    const videoRef = makeVideoRef(2);
+    const { result, rerender } = renderHook(
+      ({ force }: { force: boolean }) =>
+        useSubtitles({
+          subtitles: subtitles2,
+          initialSubtitlesEnabled: true,
+          videoRef,
+          liveSubtitle: { available: true, label: 'Live', track: liveTrack },
+          forceLiveSubtitleOnAvailable: force,
+        }),
+      { initialProps: { force: false } },
+    );
+
+    expect(result.current.liveSubtitleSelected).toBe(true);
+    expect(liveTrack.mode).toBe('showing');
+
+    act(() => result.current.handleSelectLiveSubtitle());
+
+    expect(result.current.liveSubtitleSelected).toBe(false);
+    expect(liveTrack.mode).toBe('hidden');
+
+    rerender({ force: true });
+
+    expect(result.current.liveSubtitleSelected).toBe(true);
+    expect(liveTrack.mode).toBe('showing');
+    expect(result.current.subtitlesEnabled).toBe(true);
+  });
+
   it('toggles the live track on and off', () => {
     const liveTrack = { mode: 'hidden' } as unknown as TextTrack;
     const { result } = renderHook(() =>

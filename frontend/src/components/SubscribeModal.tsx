@@ -16,7 +16,7 @@ import {
     TextField,
     Typography
 } from '@mui/material';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import DialogHeader from './DialogHeader';
 import SubscriptionFilenameTemplateField from './SubscriptionFilenameTemplateField';
@@ -72,8 +72,15 @@ const SubscribeModal: React.FC<SubscribeModalProps> = ({
     const [downloadAllPrevious, setDownloadAllPrevious] = useState<boolean>(false);
     const [downloadShorts, setDownloadShorts] = useState<boolean>(false);
     const [downloadOrder, setDownloadOrder] = useState<DownloadOrder>('dateDesc');
-    const [filenameTemplate, setFilenameTemplate] = useState<string>('');
-    const [isTemplateValid, setIsTemplateValid] = useState<boolean>(true);
+    const [filenameTemplateState, setFilenameTemplateState] = useState<{
+        url: string;
+        value: string;
+        isValid: boolean;
+    }>({ url, value: '', isValid: true });
+    const filenameTemplate =
+        filenameTemplateState.url === url ? filenameTemplateState.value : '';
+    const isTemplateValid =
+        filenameTemplateState.url === url ? filenameTemplateState.isValid : true;
     const [isSubmitting, setIsSubmitting] = useState(false);
     const isTwitch = source === 'twitch';
     const showDownloadShorts = source !== 'bilibili' && source !== 'twitch';
@@ -89,14 +96,25 @@ const SubscribeModal: React.FC<SubscribeModalProps> = ({
         ? t('twitchSubscriptionVodsOnly')
         : t('subscribeDescription');
 
-    const resetFilenameTemplate = useCallback(() => {
-        setFilenameTemplate('');
-        setIsTemplateValid(true);
-    }, []);
+    const setFilenameTemplate = (value: string) => {
+        setFilenameTemplateState((current) => ({
+            url,
+            value,
+            isValid: current.url === url ? current.isValid : true,
+        }));
+    };
 
-    useEffect(() => {
-        resetFilenameTemplate();
-    }, [resetFilenameTemplate, url]);
+    const setIsTemplateValid = useCallback((isValid: boolean) => {
+        setFilenameTemplateState((current) => ({
+            url,
+            value: current.url === url ? current.value : '',
+            isValid,
+        }));
+    }, [url]);
+
+    const resetFilenameTemplate = () => {
+        setFilenameTemplateState({ url, value: '', isValid: true });
+    };
 
     const handleClose = () => {
         if (!isSubmitting) {

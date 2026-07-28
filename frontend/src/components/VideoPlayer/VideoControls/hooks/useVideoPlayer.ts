@@ -23,7 +23,8 @@ export const useVideoPlayer = ({
 }: UseVideoPlayerProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
-  const [isLooping, setIsLooping] = useState<boolean>(autoLoop);
+  const [loopOverride, setLoopOverride] = useState<boolean | null>(null);
+  const isLooping = loopOverride ?? autoLoop;
   const [playbackRate, setPlaybackRate] = useState<number>(1);
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [duration, setDuration] = useState<number>(0);
@@ -217,12 +218,9 @@ export const useVideoPlayer = ({
       if (autoPlay) {
         videoRef.current.autoplay = true;
       }
-      if (autoLoop) {
-        videoRef.current.loop = true;
-        setIsLooping(true);
-      }
+      videoRef.current.loop = isLooping;
     }
-  }, [autoPlay, autoLoop]);
+  }, [autoPlay, isLooping]);
 
   useEffect(() => {
     const videoElement = videoRef.current;
@@ -305,7 +303,7 @@ export const useVideoPlayer = ({
     if (videoRef.current) {
       const newState = !isLooping;
       videoRef.current.loop = newState;
-      setIsLooping(newState);
+      setLoopOverride(newState);
       return newState;
     }
     return isLooping;

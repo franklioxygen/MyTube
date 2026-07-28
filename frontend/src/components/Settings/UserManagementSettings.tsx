@@ -29,7 +29,7 @@ import {
     Typography,
 } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { VisitorUser } from '../../types';
@@ -202,21 +202,6 @@ const UserManagementSettings: React.FC<UserManagementSettingsProps> = ({
         },
     });
 
-    useEffect(() => {
-        if (dialogMode === 'create') {
-            setUsername('');
-            setPassword('');
-            setSetNewPassword(true);
-            setShowPassword(false);
-        }
-        if (dialogMode === 'edit' && selectedUser) {
-            setUsername(selectedUser.username);
-            setPassword('');
-            setSetNewPassword(false);
-            setShowPassword(false);
-        }
-    }, [dialogMode, selectedUser]);
-
     const closeDialog = () => {
         setDialogMode(null);
         setSelectedUser(null);
@@ -228,11 +213,19 @@ const UserManagementSettings: React.FC<UserManagementSettingsProps> = ({
 
     const openCreateDialog = () => {
         setSelectedUser(null);
+        setUsername('');
+        setPassword('');
+        setSetNewPassword(true);
+        setShowPassword(false);
         setDialogMode('create');
     };
 
     const openEditDialog = (user: VisitorUser) => {
         setSelectedUser(user);
+        setUsername(user.username);
+        setPassword('');
+        setSetNewPassword(false);
+        setShowPassword(false);
         setDialogMode('edit');
     };
 

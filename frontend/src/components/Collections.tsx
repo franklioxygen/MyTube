@@ -11,10 +11,11 @@ import {
     useMediaQuery,
     useTheme
 } from '@mui/material';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Link } from 'react-router';
 import { useLanguage } from '../contexts/LanguageContext';
 import { Collection } from '../types';
+import { useBreakpointSynchronizedOpen } from './useBreakpointSynchronizedOpen';
 
 interface CollectionsProps {
     collections: Collection[];
@@ -25,9 +26,9 @@ const TOP_COLLECTIONS_LIMIT = 20;
 
 const Collections: React.FC<CollectionsProps> = ({ collections, onItemClick }) => {
     const { t } = useLanguage();
-    const [isOpen, setIsOpen] = useState<boolean>(true);
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+    const [isOpen, setIsOpen] = useBreakpointSynchronizedOpen(isMobile);
 
     const sidebarCollections = useMemo(() => {
         if (!collections) {
@@ -63,22 +64,13 @@ const Collections: React.FC<CollectionsProps> = ({ collections, onItemClick }) =
         return [...topCollections, ...omittedDirectLinkCollections];
     }, [collections]);
 
-    // Auto-collapse on mobile by default
-    useEffect(() => {
-        if (isMobile) {
-            setIsOpen(false);
-        } else {
-            setIsOpen(true);
-        }
-    }, [isMobile]);
-
     if (!collections || collections.length === 0) {
         return null;
     }
 
     return (
         <Paper elevation={0} sx={{ bgcolor: 'transparent' }}>
-            <ListItemButton onClick={() => setIsOpen(!isOpen)} sx={{ borderRadius: 1, minWidth: 0 }}>
+            <ListItemButton onClick={() => setIsOpen((current) => !current)} sx={{ borderRadius: 1, minWidth: 0 }}>
                 <Typography variant="h6" component="div" noWrap sx={{ flexGrow: 1, minWidth: 0, fontWeight: 600 }}>
                     {t('collections')}
                 </Typography>

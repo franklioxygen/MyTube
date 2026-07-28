@@ -96,15 +96,20 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
     });
 
     useEffect(() => {
-        syncLanguagePreference();
-    }, [queryClient, syncLanguagePreference]);
+        const timeoutId = window.setTimeout(() => {
+            void syncLanguagePreference();
+        }, 0);
+        return () => window.clearTimeout(timeoutId);
+    }, []);
 
     // Refetch settings when user logs in (e.g. opening app in another browser)
     useEffect(() => {
-        const onLogin = () => syncLanguagePreference();
+        const onLogin = () => {
+            void syncLanguagePreference();
+        };
         window.addEventListener('mytube-login', onLogin);
         return () => window.removeEventListener('mytube-login', onLogin);
-    }, [queryClient, syncLanguagePreference]);
+    }, []);
 
     const setLanguage = useCallback(async (lang: Language) => {
         const normalizedLanguage = normalizeLanguage(lang);

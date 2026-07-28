@@ -80,6 +80,25 @@ function arePersistedSeekIntervalsValid(settings: Settings): boolean {
     );
 }
 
+function getInitialSettingsTab(search: string): number {
+    const tabParam = new URLSearchParams(search).get('tab');
+    if (!tabParam) {
+        return 0;
+    }
+
+    const tabIndex = parseInt(tabParam, 10);
+    return Number.isNaN(tabIndex) ? 0 : tabIndex;
+}
+
+interface SettingsTabState {
+    urlKey: string;
+    tab: number;
+}
+
+function getSettingsTabUrlKey(search: string, hash: string): string {
+    return `${search}\0${hash}`;
+}
+
 const SettingsPage: React.FC = () => {
     const { t, setLanguage } = useLanguage();
     const { activeDownloads } = useDownload();
@@ -140,7 +159,11 @@ const SettingsPage: React.FC = () => {
     const [liveTranslationApiKeyDraft, setLiveTranslationApiKeyDraft] = useState('');
     const [clearLiveTranslationApiKeyRequested, setClearLiveTranslationApiKeyRequested] =
         useState(false);
-    const [currentTab, setCurrentTab] = useState(0);
+    const settingsTabUrlKey = getSettingsTabUrlKey(location.search, location.hash);
+    const [currentTabState, setCurrentTabState] = useState<SettingsTabState>(() => ({
+        urlKey: settingsTabUrlKey,
+        tab: getInitialSettingsTab(location.search),
+    }));
     const [seekIntervalsValid, setSeekIntervalsValid] = useState(true);
     const [showTrustDetailsModal, setShowTrustDetailsModal] = useState(false);
     const twitchCredentialValidationCode = getTwitchCredentialValidationCode(
@@ -202,15 +225,6 @@ const SettingsPage: React.FC = () => {
 
     // Handle initial tab selection from URL and scrolling
     useEffect(() => {
-        const params = new URLSearchParams(location.search);
-        const tabParam = params.get('tab');
-        if (tabParam) {
-            const tabIndex = parseInt(tabParam, 10);
-            if (!isNaN(tabIndex)) {
-                setCurrentTab(tabIndex);
-            }
-        }
-
         // Handle scrolling to element if hash is present
         if (location.hash) {
             const id = location.hash.replace('#', '');
@@ -671,6 +685,14 @@ const SettingsPage: React.FC = () => {
             { label: t('advanced'), index: 5 }
         ] : [])
     ];
+    const locationTab = getInitialSettingsTab(location.search);
+    const selectedTab =
+        currentTabState.urlKey === settingsTabUrlKey
+            ? currentTabState.tab
+            : locationTab;
+    const currentTab = tabs.some((tabItem) => tabItem.index === selectedTab)
+        ? selectedTab
+        : 0;
 
     const renderDesktopTabContent = () => {
         if (currentTab === 0) return renderBasicSettingsContent();
@@ -697,7 +719,10 @@ const SettingsPage: React.FC = () => {
         // unmounts. Reconcile the page-level save guard to the settings draft
         // that survives the tab switch, while preserving ordering errors.
         setSeekIntervalsValid(arePersistedSeekIntervalsValid(settings));
-        setCurrentTab(newValue);
+        setCurrentTabState({
+            urlKey: settingsTabUrlKey,
+            tab: newValue,
+        });
     };
 
     return (

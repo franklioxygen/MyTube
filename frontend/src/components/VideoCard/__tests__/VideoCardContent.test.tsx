@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { VideoCardContent } from '../VideoCardContent';
@@ -101,5 +101,81 @@ describe('VideoCardContent', () => {
 
         expect(screen.getByText('My Playlist')).toBeInTheDocument();
         expect(screen.getByText('+1')).toBeInTheDocument();
+    });
+
+    it('delays marquee animation after each repeated hover', () => {
+        vi.useFakeTimers();
+        const cancelAnimation = vi.fn();
+        const animate = vi.fn(() => ({ cancel: cancelAnimation }) as unknown as Animation);
+        const originalAnimate = HTMLElement.prototype.animate;
+        const scrollWidthSpy = vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockReturnValue(240);
+        const clientWidthSpy = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(100);
+        HTMLElement.prototype.animate = animate as typeof HTMLElement.prototype.animate;
+
+        try {
+            const rendered = render(
+                <VideoCardContent
+                    video={defaultVideo}
+                    collectionInfo={defaultCollectionInfo}
+                    onAuthorClick={mockOnAuthorClick}
+                />
+            );
+
+            rendered.rerender(
+                <VideoCardContent
+                    video={defaultVideo}
+                    collectionInfo={defaultCollectionInfo}
+                    onAuthorClick={mockOnAuthorClick}
+                    isHovered
+                />
+            );
+
+            expect(animate).not.toHaveBeenCalled();
+
+            act(() => {
+                vi.advanceTimersByTime(300);
+            });
+
+            expect(animate).toHaveBeenCalledTimes(1);
+
+            rendered.rerender(
+                <VideoCardContent
+                    video={defaultVideo}
+                    collectionInfo={defaultCollectionInfo}
+                    onAuthorClick={mockOnAuthorClick}
+                />
+            );
+            rendered.rerender(
+                <VideoCardContent
+                    video={defaultVideo}
+                    collectionInfo={defaultCollectionInfo}
+                    onAuthorClick={mockOnAuthorClick}
+                    isHovered
+                />
+            );
+
+            expect(animate).toHaveBeenCalledTimes(1);
+
+            act(() => {
+                vi.advanceTimersByTime(299);
+            });
+
+            expect(animate).toHaveBeenCalledTimes(1);
+
+            act(() => {
+                vi.advanceTimersByTime(1);
+            });
+
+            expect(animate).toHaveBeenCalledTimes(2);
+        } finally {
+            scrollWidthSpy.mockRestore();
+            clientWidthSpy.mockRestore();
+            if (originalAnimate) {
+                HTMLElement.prototype.animate = originalAnimate;
+            } else {
+                delete (HTMLElement.prototype as Partial<HTMLElement>).animate;
+            }
+            vi.useRealTimers();
+        }
     });
 });

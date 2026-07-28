@@ -16,6 +16,12 @@ interface UseVideoProgressProps {
   videoElement?: HTMLVideoElement | null;
 }
 
+interface ViewedState {
+  videoId: string | undefined;
+  visitId: number;
+  viewedVisitId: number | null;
+}
+
 const PROGRESS_SAVE_INTERVAL_MS = 5000;
 const LOCAL_PROGRESS_SAMPLE_INTERVAL_MS = 1000;
 const RESTORE_GUARD_MIN_PROGRESS_SECONDS = 30;
@@ -72,7 +78,11 @@ export function useVideoProgress({ videoId, video, videoElement }: UseVideoProgr
   const { userRole } = useAuth();
   const isVisitor = userRole === "visitor";
   const queryClient = useQueryClient();
-  const [hasViewed, setHasViewed] = useState<boolean>(false);
+  const [viewedState, setViewedState] = useState<ViewedState>(() => ({
+    videoId,
+    visitId: 0,
+    viewedVisitId: null,
+  }));
   const lastProgressSave = useRef<number>(0);
   const currentTimeRef = useRef<number>(0);
   const isDeletingRef = useRef<boolean>(false);
@@ -81,10 +91,17 @@ export function useVideoProgress({ videoId, video, videoElement }: UseVideoProgr
   const resumeGuardTargetRef = useRef<number>(0);
   const resumeGuardObservedRef = useRef<boolean>(true);
   const videoDuration = video?.duration;
+  let currentViewedState = viewedState;
+  if (currentViewedState.videoId !== videoId) {
+    currentViewedState = {
+      videoId,
+      visitId: currentViewedState.visitId + 1,
+      viewedVisitId: null,
+    };
+    setViewedState(currentViewedState);
+  }
 
-  // Reset hasViewed when video changes
   useEffect(() => {
-    setHasViewed(false);
     const storedProgress = readVideoResumeProgress(videoId)?.progress ?? 0;
     currentTimeRef.current = storedProgress;
     resumeGuardTargetRef.current =
@@ -328,8 +345,16 @@ export function useVideoProgress({ videoId, video, videoElement }: UseVideoProgr
 
     // Increment views and refresh watch history at the same threshold.
     const viewThreshold = getViewThreshold(videoDuration);
+    const visitId = currentViewedState.visitId;
+    const hasViewed =
+      currentViewedState.videoId === videoId &&
+      currentViewedState.viewedVisitId === visitId;
     if (trustedCurrentTime >= viewThreshold && !hasViewed && videoId && !isVisitor) {
-      setHasViewed(true);
+      setViewedState((state) =>
+        state.videoId === videoId && state.visitId === visitId
+          ? { ...state, viewedVisitId: visitId }
+          : state
+      );
       const lastPlayedAt = Date.now();
       api
         .post(`/videos/${videoId}/view`)

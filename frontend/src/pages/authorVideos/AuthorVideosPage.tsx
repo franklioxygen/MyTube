@@ -186,6 +186,7 @@ const AuthorVideosPage: React.FC = () => {
             <TagsModal
                 open={actions.isTagsModalOpen}
                 onClose={actions.closeTagsModal}
+                identityKey={`author:${authorName ?? authorDisplayName}`}
                 videoTags={commonTags}
                 availableTags={globalAvailableTags}
                 onSave={actions.handleSaveAuthorTags}
