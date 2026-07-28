@@ -22,7 +22,24 @@ interface FavoriteHeroCarouselProps {
     items: FavoriteHeroItem[];
 }
 
+type CarouselIndexState = {
+    count: number;
+    index: number;
+};
+
+type CarouselIndexUpdate = number | ((current: number) => number);
+
 const AUTO_ADVANCE_MS = 7000;
+
+const normalizeIndex = (index: number, count: number): number => {
+    if (count <= 0) return 0;
+    return Math.min(Math.max(index, 0), count - 1);
+};
+
+const wrapIndex = (index: number, count: number): number => {
+    if (count <= 0) return 0;
+    return ((index % count) + count) % count;
+};
 
 /**
  * Rotating Featured hero: cycles through the top 5-star videos. Auto-advances
@@ -36,23 +53,45 @@ const FavoriteHeroCarousel: React.FC<FavoriteHeroCarouselProps> = ({ items }) =>
     const theme = useTheme();
     const isReducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-    const [index, setIndex] = useState(0);
+    const count = items.length;
+    const [indexState, setIndexState] = useState<CarouselIndexState>(() => ({
+        count,
+        index: 0,
+    }));
+    const index =
+        indexState.count === count
+            ? indexState.index
+            : normalizeIndex(indexState.index, count);
     const [paused, setPaused] = useState(false);
     const [slideDirection, setSlideDirection] = useState(1);
     const touchStart = useRef<{ x: number; y: number } | null>(null);
     const suppressClick = useRef(false);
     const suppressClickTimer = useRef<number | null>(null);
-    const count = items.length;
 
     // Clear the pending suppress-click reset on unmount.
     useEffect(() => () => {
         if (suppressClickTimer.current) window.clearTimeout(suppressClickTimer.current);
     }, []);
 
+    const setCarouselIndex = useCallback((next: CarouselIndexUpdate) => {
+        setIndexState((currentState) => {
+            const current =
+                currentState.count === count
+                    ? currentState.index
+                    : normalizeIndex(currentState.index, count);
+            const nextIndex = typeof next === 'function' ? next(current) : next;
+
+            return {
+                count,
+                index: wrapIndex(nextIndex, count),
+            };
+        });
+    }, [count]);
+
     const go = useCallback((next: number, direction = 1) => {
         setSlideDirection(direction);
-        setIndex(((next % count) + count) % count);
-    }, [count]);
+        setCarouselIndex(next);
+    }, [setCarouselIndex]);
 
     const handleTouchEnd = (event: React.TouchEvent<HTMLDivElement>) => {
         const start = touchStart.current;
@@ -86,14 +125,14 @@ const FavoriteHeroCarousel: React.FC<FavoriteHeroCarouselProps> = ({ items }) =>
     useEffect(() => {
         if (isReducedMotion || paused || count <= 1) return undefined;
         const id = window.setInterval(() => {
-            setIndex((current) => (current + 1) % count);
+            setCarouselIndex((current) => current + 1);
         }, AUTO_ADVANCE_MS);
         return () => window.clearInterval(id);
-    }, [isReducedMotion, paused, count]);
+    }, [isReducedMotion, paused, count, setCarouselIndex]);
 
     if (count === 0) return null;
 
-    const safeIndex = index >= 0 && index < count ? index : 0;
+    const safeIndex = normalizeIndex(index, count);
     const current = items[safeIndex];
     const openCollection = (event: MouseEvent<HTMLButtonElement>) => {
         if (!current.collection) return;

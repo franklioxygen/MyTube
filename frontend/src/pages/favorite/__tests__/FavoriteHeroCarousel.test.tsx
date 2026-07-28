@@ -118,6 +118,25 @@ describe('FavoriteHeroCarousel', () => {
         expect(screen.getByTestId('hero-slide')).toHaveTextContent('C');
     });
 
+    it('normalizes the active index when the item list shrinks', () => {
+        const rendered = renderCarousel(makeItems(['A', 'B', 'C', 'D', 'E']));
+
+        fireEvent.click(screen.getByRole('button', { name: 'featured 5' }));
+        expect(screen.getByTestId('hero-slide')).toHaveTextContent('E');
+
+        rendered.rerender(
+            <MemoryRouter>
+                <ThemeProvider theme={createTheme()}>
+                    <FavoriteHeroCarousel items={makeItems(['A', 'B', 'C'])} />
+                </ThemeProvider>
+            </MemoryRouter>,
+        );
+
+        expect(screen.getByTestId('hero-slide')).toHaveTextContent('C');
+        fireEvent.click(screen.getByRole('button', { name: 'next' }));
+        expect(screen.getByTestId('hero-slide')).toHaveTextContent('A');
+    });
+
     it('auto-advances on a timer', () => {
         vi.useFakeTimers();
         renderCarousel(makeItems(['A', 'B']));

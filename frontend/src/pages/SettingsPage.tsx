@@ -90,6 +90,11 @@ function getInitialSettingsTab(search: string): number {
     return Number.isNaN(tabIndex) ? 0 : tabIndex;
 }
 
+interface SettingsTabState {
+    search: string;
+    tab: number;
+}
+
 const SettingsPage: React.FC = () => {
     const { t, setLanguage } = useLanguage();
     const { activeDownloads } = useDownload();
@@ -150,7 +155,10 @@ const SettingsPage: React.FC = () => {
     const [liveTranslationApiKeyDraft, setLiveTranslationApiKeyDraft] = useState('');
     const [clearLiveTranslationApiKeyRequested, setClearLiveTranslationApiKeyRequested] =
         useState(false);
-    const [currentTab, setCurrentTab] = useState(() => getInitialSettingsTab(location.search));
+    const [currentTabState, setCurrentTabState] = useState<SettingsTabState>(() => ({
+        search: location.search,
+        tab: getInitialSettingsTab(location.search),
+    }));
     const [seekIntervalsValid, setSeekIntervalsValid] = useState(true);
     const [showTrustDetailsModal, setShowTrustDetailsModal] = useState(false);
     const twitchCredentialValidationCode = getTwitchCredentialValidationCode(
@@ -672,6 +680,14 @@ const SettingsPage: React.FC = () => {
             { label: t('advanced'), index: 5 }
         ] : [])
     ];
+    const locationTab = getInitialSettingsTab(location.search);
+    const selectedTab =
+        currentTabState.search === location.search
+            ? currentTabState.tab
+            : locationTab;
+    const currentTab = tabs.some((tabItem) => tabItem.index === selectedTab)
+        ? selectedTab
+        : 0;
 
     const renderDesktopTabContent = () => {
         if (currentTab === 0) return renderBasicSettingsContent();
@@ -698,7 +714,10 @@ const SettingsPage: React.FC = () => {
         // unmounts. Reconcile the page-level save guard to the settings draft
         // that survives the tab switch, while preserving ordering errors.
         setSeekIntervalsValid(arePersistedSeekIntervalsValid(settings));
-        setCurrentTab(newValue);
+        setCurrentTabState({
+            search: location.search,
+            tab: newValue,
+        });
     };
 
     return (

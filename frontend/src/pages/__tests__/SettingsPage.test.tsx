@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router';
+import { MemoryRouter, useNavigate } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { overlay } from '../../theme/colors';
 import SettingsPage from '../SettingsPage';
@@ -300,6 +300,7 @@ vi.mock('../../components/Settings/DatabaseSettings', () => ({
     onAuthorOrganizationModeChange,
   }: any) => (
     <div data-testid="database-settings">
+      <div id="dontSkipDeletedVideo-setting" />
       <button onClick={onMigrate}>open-migrate-modal</button>
       <button onClick={onDeleteLegacy}>open-delete-legacy-modal</button>
       <button onClick={onFormatFilenames}>open-format-modal</button>
@@ -350,6 +351,19 @@ const renderPage = (path = '/settings') =>
       <SettingsPage />
     </MemoryRouter>
   );
+
+const SettingsPageWithNavigation = () => {
+  const navigate = useNavigate();
+
+  return (
+    <>
+      <button onClick={() => navigate('/settings?tab=4#dontSkipDeletedVideo-setting')}>
+        go-data-management-hash
+      </button>
+      <SettingsPage />
+    </>
+  );
+};
 
 describe('SettingsPage', () => {
   beforeEach(() => {
@@ -454,6 +468,33 @@ describe('SettingsPage', () => {
 
     vi.advanceTimersByTime(2000);
     expect(target.style.backgroundColor).toBe('');
+  });
+
+  it('resynchronizes the selected desktop tab when the URL query changes on the mounted route', async () => {
+    mockIsDesktop = true;
+    vi.useFakeTimers();
+
+    render(
+      <MemoryRouter initialEntries={['/settings?tab=1']}>
+        <SettingsPageWithNavigation />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByTestId('security-settings')).toBeInTheDocument();
+    expect(screen.queryByTestId('database-settings')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('go-data-management-hash'));
+
+    expect(screen.getByTestId('database-settings')).toBeInTheDocument();
+    expect(screen.queryByTestId('security-settings')).not.toBeInTheDocument();
+
+    const target = document.getElementById('dontSkipDeletedVideo-setting')!;
+    target.scrollIntoView = vi.fn();
+
+    vi.advanceTimersByTime(500);
+
+    expect(target.scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' });
+    expect(target.style.backgroundColor).toBe(overlay.highlightYellow);
   });
 
   it('switches desktop tabs and renders each tab content', () => {
