@@ -170,6 +170,7 @@ export const VideoCardActions: React.FC<VideoCardActionsProps> = ({
                 <TagsModal
                     open={showTagsModal}
                     onClose={() => setShowTagsModal(false)}
+                    identityKey={video.id}
                     videoTags={video.tags || []}
                     availableTags={availableTags}
                     onSave={handleSaveTags}

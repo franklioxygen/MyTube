@@ -102,6 +102,7 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
             />
 
             <VideoTags
+                videoId={video.id}
                 tags={video.tags}
                 availableTags={availableTags}
                 onTagsUpdate={onTagsUpdate}

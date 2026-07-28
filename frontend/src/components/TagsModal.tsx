@@ -20,13 +20,17 @@ import { useSettingsMutations } from '../hooks/useSettingsMutations';
 interface TagsModalProps {
     open: boolean;
     onClose: () => void;
+    identityKey?: string;
     videoTags: string[];
     availableTags: string[];
     onSave: (tags: string[]) => Promise<void>;
 }
 
-const getTagsModalKey = (videoTags: string[]) =>
-    JSON.stringify([...videoTags].sort());
+const getTagsModalKey = (videoTags: string[], identityKey?: string) =>
+    JSON.stringify({
+        identityKey: identityKey ?? null,
+        videoTags: [...videoTags].sort(),
+    });
 
 const TagsModalContent: React.FC<TagsModalProps> = ({
     open,
@@ -204,7 +208,12 @@ const TagsModal: React.FC<TagsModalProps> = (props) => {
         return null;
     }
 
-    return <TagsModalContent key={getTagsModalKey(props.videoTags || [])} {...props} />;
+    return (
+        <TagsModalContent
+            key={getTagsModalKey(props.videoTags || [], props.identityKey)}
+            {...props}
+        />
+    );
 };
 
 export default TagsModal;

@@ -73,11 +73,11 @@ export const useSubtitles = ({
 
     const liveAvailable = liveSubtitle?.available === true;
     const liveTrack = liveSubtitle?.track ?? null;
-    const liveSubtitleSelected = liveAvailable
-        ? liveSelectionOverride?.track === liveTrack
-            ? liveSelectionOverride.selected
-            : initialSubtitlesEnabled || forceLiveSubtitleOnAvailable
-        : false;
+    const liveSelectionOverrideSelected = liveSelectionOverride?.track === liveTrack
+        ? liveSelectionOverride.selected
+        : initialSubtitlesEnabled;
+    const liveSubtitleSelected =
+        liveAvailable && (forceLiveSubtitleOnAvailable || liveSelectionOverrideSelected);
     const rawSelectedSubtitleIndices =
         fileSelectionState.key === subtitleKey ? fileSelectionState.indices : initialFileIndices;
     const selectedSubtitleIndices = useMemo(

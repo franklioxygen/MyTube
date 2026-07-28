@@ -70,10 +70,12 @@ describe('TagsModal', () => {
 
     const renderComponent = ({
         open = true,
+        identityKey,
         videoTags = defaultVideoTags,
         availableTags = defaultAvailableTags,
     }: {
         open?: boolean;
+        identityKey?: string;
         videoTags?: string[];
         availableTags?: string[];
     } = {}) => {
@@ -83,6 +85,7 @@ describe('TagsModal', () => {
                 <TagsModal
                     open={open}
                     onClose={mockOnClose}
+                    identityKey={identityKey}
                     videoTags={videoTags}
                     availableTags={availableTags}
                     onSave={mockOnSave}
@@ -137,6 +140,31 @@ describe('TagsModal', () => {
 
         await waitFor(() => {
             expect(mockOnSave).toHaveBeenCalledWith(['Tag3']);
+        });
+    });
+
+    it('resets unsaved selections when the edited identity changes while open', async () => {
+        const rendered = renderComponent({ identityKey: 'video-1', videoTags: ['Tag1'] });
+
+        fireEvent.click(screen.getByText('Tag2'));
+
+        rendered.rerender(
+            <ThemeProvider theme={createTheme()}>
+                <TagsModal
+                    open
+                    onClose={mockOnClose}
+                    identityKey="video-2"
+                    videoTags={['Tag1']}
+                    availableTags={defaultAvailableTags}
+                    onSave={mockOnSave}
+                />
+            </ThemeProvider>
+        );
+
+        fireEvent.click(screen.getByText('Save'));
+
+        await waitFor(() => {
+            expect(mockOnSave).toHaveBeenCalledWith(['Tag1']);
         });
     });
 

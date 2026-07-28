@@ -5,12 +5,13 @@ import { useLanguage } from '../../../contexts/LanguageContext';
 import TagsModal from '../../TagsModal';
 
 interface VideoTagsProps {
+    videoId: string;
     tags: string[] | undefined;
     availableTags: string[];
     onTagsUpdate: (tags: string[]) => Promise<void>;
 }
 
-const VideoTags: React.FC<VideoTagsProps> = ({ tags, availableTags, onTagsUpdate }) => {
+const VideoTags: React.FC<VideoTagsProps> = ({ videoId, tags, availableTags, onTagsUpdate }) => {
     const { t } = useLanguage();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -49,6 +50,7 @@ const VideoTags: React.FC<VideoTagsProps> = ({ tags, availableTags, onTagsUpdate
                 <TagsModal
                     open={modalOpen}
                     onClose={() => setModalOpen(false)}
+                    identityKey={videoId}
                     videoTags={tagsArray}
                     availableTags={availableTagsArray}
                     onSave={onTagsUpdate}
@@ -162,4 +164,3 @@ const VideoTags: React.FC<VideoTagsProps> = ({ tags, availableTags, onTagsUpdate
 };
 
 export default VideoTags;
-
