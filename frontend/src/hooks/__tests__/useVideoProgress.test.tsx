@@ -201,6 +201,53 @@ describe("useVideoProgress", () => {
     dateNowSpy.mockRestore();
   });
 
+  it("counts a repeat visit after an intermediate video leaves before the view threshold", async () => {
+    const videoA = {
+      id: "video-repeat-a",
+      duration: "120",
+      progress: 0,
+      viewCount: 0,
+    } as any;
+    const videoB = {
+      id: "video-repeat-b",
+      duration: "120",
+      progress: 0,
+      viewCount: 0,
+    } as any;
+    const { wrapper } = createWrapper();
+
+    const { result, rerender } = renderHook(
+      ({ video }) => useVideoProgress({ videoId: video.id, video }),
+      {
+        wrapper,
+        initialProps: { video: videoA },
+      },
+    );
+
+    act(() => {
+      result.current.handleTimeUpdate(10);
+    });
+    await waitFor(() => {
+      expect(mockApiPost).toHaveBeenCalledWith("/videos/video-repeat-a/view");
+    });
+
+    rerender({ video: videoB });
+    act(() => {
+      result.current.handleTimeUpdate(2);
+    });
+    expect(mockApiPost).toHaveBeenCalledTimes(1);
+
+    rerender({ video: videoA });
+    act(() => {
+      result.current.handleTimeUpdate(10);
+    });
+
+    await waitFor(() => {
+      expect(mockApiPost).toHaveBeenCalledTimes(2);
+    });
+    expect(mockApiPost).toHaveBeenLastCalledWith("/videos/video-repeat-a/view");
+  });
+
   it("sends progress on unmount and keeps the cache resume point fresh", () => {
     const dateNowSpy = vi.spyOn(Date, "now").mockReturnValue(1000);
     const video = {
