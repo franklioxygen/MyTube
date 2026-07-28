@@ -25,7 +25,10 @@ interface TagsModalProps {
     onSave: (tags: string[]) => Promise<void>;
 }
 
-const TagsModal: React.FC<TagsModalProps> = ({
+const getTagsModalKey = (videoTags: string[]) =>
+    JSON.stringify([...videoTags].sort());
+
+const TagsModalContent: React.FC<TagsModalProps> = ({
     open,
     onClose,
     videoTags,
@@ -194,6 +197,14 @@ const TagsModal: React.FC<TagsModalProps> = ({
             </DialogActions>
         </Dialog>
     );
+};
+
+const TagsModal: React.FC<TagsModalProps> = (props) => {
+    if (!props.open) {
+        return null;
+    }
+
+    return <TagsModalContent key={getTagsModalKey(props.videoTags || [])} {...props} />;
 };
 
 export default TagsModal;

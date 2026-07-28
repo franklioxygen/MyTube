@@ -23,7 +23,7 @@ interface PasswordModalProps {
     isLoading?: boolean;
 }
 
-const PasswordModal: React.FC<PasswordModalProps> = ({
+const PasswordModalContent: React.FC<PasswordModalProps> = ({
     isOpen,
     onClose,
     onConfirm,
@@ -126,6 +126,14 @@ const PasswordModal: React.FC<PasswordModalProps> = ({
             </form>
         </Dialog>
     );
+};
+
+const PasswordModal: React.FC<PasswordModalProps> = (props) => {
+    if (!props.isOpen) {
+        return null;
+    }
+
+    return <PasswordModalContent {...props} />;
 };
 
 export default PasswordModal;

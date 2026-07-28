@@ -106,6 +106,40 @@ describe('TagsModal', () => {
         expect(screen.queryByText('Select Tags')).not.toBeInTheDocument();
     });
 
+    it('uses current video tags after a controlled close and reopen', async () => {
+        const rendered = renderComponent({ videoTags: ['Tag1'] });
+        fireEvent.click(screen.getByText('Tag2'));
+
+        rendered.rerender(
+            <ThemeProvider theme={createTheme()}>
+                <TagsModal
+                    open={false}
+                    onClose={mockOnClose}
+                    videoTags={['Tag3']}
+                    availableTags={defaultAvailableTags}
+                    onSave={mockOnSave}
+                />
+            </ThemeProvider>
+        );
+        rendered.rerender(
+            <ThemeProvider theme={createTheme()}>
+                <TagsModal
+                    open
+                    onClose={mockOnClose}
+                    videoTags={['Tag3']}
+                    availableTags={defaultAvailableTags}
+                    onSave={mockOnSave}
+                />
+            </ThemeProvider>
+        );
+
+        fireEvent.click(screen.getByText('Save'));
+
+        await waitFor(() => {
+            expect(mockOnSave).toHaveBeenCalledWith(['Tag3']);
+        });
+    });
+
     it('toggles tag selection', async () => {
         renderComponent();
 

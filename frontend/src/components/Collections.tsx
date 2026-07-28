@@ -11,10 +11,11 @@ import {
     useMediaQuery,
     useTheme
 } from '@mui/material';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Link } from 'react-router';
 import { useLanguage } from '../contexts/LanguageContext';
 import { Collection } from '../types';
+import { useBreakpointSynchronizedOpen } from './useBreakpointSynchronizedOpen';
 
 interface CollectionsProps {
     collections: Collection[];
@@ -27,7 +28,7 @@ const Collections: React.FC<CollectionsProps> = ({ collections, onItemClick }) =
     const { t } = useLanguage();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-    const [isOpen, setIsOpen] = useState<boolean>(() => !isMobile);
+    const [isOpen, setIsOpen] = useBreakpointSynchronizedOpen(isMobile);
 
     const sidebarCollections = useMemo(() => {
         if (!collections) {
@@ -69,7 +70,7 @@ const Collections: React.FC<CollectionsProps> = ({ collections, onItemClick }) =
 
     return (
         <Paper elevation={0} sx={{ bgcolor: 'transparent' }}>
-            <ListItemButton onClick={() => setIsOpen(!isOpen)} sx={{ borderRadius: 1, minWidth: 0 }}>
+            <ListItemButton onClick={() => setIsOpen((current) => !current)} sx={{ borderRadius: 1, minWidth: 0 }}>
                 <Typography variant="h6" component="div" noWrap sx={{ flexGrow: 1, minWidth: 0, fontWeight: 600 }}>
                     {t('collections')}
                 </Typography>
