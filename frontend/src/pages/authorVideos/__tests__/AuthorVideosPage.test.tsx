@@ -184,9 +184,10 @@ vi.mock('../../../components/ConfirmationModal', () => ({
 }));
 
 vi.mock('../../../components/TagsModal', () => ({
-    default: ({ open, onClose, videoTags, availableTags, onSave }: { open: unknown; onClose: MouseEventHandler; videoTags: unknown; availableTags: unknown; onSave: (tags: string[]) => void; [key: string]: unknown }) =>
+    default: ({ open, onClose, identityKey, videoTags, availableTags, onSave }: { open: unknown; onClose: MouseEventHandler; identityKey?: string; videoTags: unknown; availableTags: unknown; onSave: (tags: string[]) => void; [key: string]: unknown }) =>
         open ? (
             <div data-testid="tags-modal">
+                <span data-testid="tags-modal-identity-key">{identityKey}</span>
                 <span data-testid="tags-modal-video-tags">{JSON.stringify(videoTags)}</span>
                 <span data-testid="tags-modal-available-tags">{JSON.stringify(availableTags)}</span>
                 <button data-testid="tags-modal-save-btn" onClick={() => { onSave(['newTag']); }}>Save Tags</button>
@@ -542,6 +543,12 @@ describe('AuthorVideosPage', () => {
             expect(screen.getByTestId('tags-modal-video-tags')).toHaveTextContent(
                 JSON.stringify(['sharedTag1', 'sharedTag2'])
             );
+        });
+
+        it('tags modal receives the author route identity key', () => {
+            mockActionsOverrides = { isTagsModalOpen: true };
+            renderPage();
+            expect(screen.getByTestId('tags-modal-identity-key')).toHaveTextContent('author:TestAuthor');
         });
 
         it('tags modal receives globalAvailableTags as availableTags', () => {

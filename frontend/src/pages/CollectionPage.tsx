@@ -386,6 +386,7 @@ const CollectionPage: React.FC = () => {
             <TagsModal
                 open={isTagsModalOpen}
                 onClose={() => setIsTagsModalOpen(false)}
+                identityKey={`collection:${collection.id}`}
                 videoTags={commonTags}
                 availableTags={globalAvailableTags ?? []}
                 onSave={handleSaveCollectionTags}
