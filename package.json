@@ -1,6 +1,6 @@
 {
   "name": "mytube",
-  "version": "1.10.20",
+  "version": "1.10.21",
   "description": "Multiple platform video downloader and player application",
   "main": "index.js",
   "scripts": {
