@@ -68,7 +68,7 @@ jobs:
 
           curl --silent --fail http://127.0.0.1:5551/ >/dev/null
 
-          CHROME_PATH="$(node -e "console.log(require('./backend/node_modules/puppeteer').executablePath())")"
+          CHROME_PATH="$(node -e "(async () => console.log(await require('./backend/node_modules/puppeteer').executablePath()))()")"
 
           for run in 1 2 3; do
             npx --yes lighthouse@12.8.2 http://127.0.0.1:5551/ \

@@ -41,11 +41,13 @@
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.2.0",
     "node-cron": "^4.2.1",
+    "proxy-agent": "^8.0.2",
     "puppeteer": "^25.1.0",
     "sanitize-filename": "^1.6.3",
     "socks-proxy-agent": "^8.0.5",
     "uuid": "^14.0.0",
-    "ws": "^8.21.0"
+    "ws": "^8.21.0",
+    "yauzl": "^3.2.1"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
