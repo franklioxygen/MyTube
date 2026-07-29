@@ -16,47 +16,68 @@ vi.mock("../../utils/security", () => ({
   validateUrl: vi.fn((url: string) => url),
 }));
 
-vi.mock("../../utils/helpers", () => ({
-  extractSourceVideoId: vi.fn((url: string) => {
-    const bilibiliMatch = url.match(/\/video\/([^/?#]+)/);
-    if (bilibiliMatch) {
-      return { id: bilibiliMatch[1], platform: "bilibili" };
+vi.mock("../../utils/helpers", () => {
+  const hostnameMatches = (url: string, domains: string[]): boolean => {
+    try {
+      const hostname = new URL(url).hostname.toLocaleLowerCase();
+      return domains.some(
+        (domain) => hostname === domain || hostname.endsWith(`.${domain}`)
+      );
+    } catch {
+      return false;
     }
+  };
 
-    const youtubeMatch = url.match(/[?&]v=([^&#]+)/);
-    if (youtubeMatch) {
-      return { id: youtubeMatch[1], platform: "youtube" };
-    }
+  return {
+    extractSourceVideoId: vi.fn((url: string) => {
+      const bilibiliMatch = url.match(/\/video\/([^/?#]+)/);
+      if (bilibiliMatch) {
+        return { id: bilibiliMatch[1], platform: "bilibili" };
+      }
 
-    return { id: null, platform: "other" };
-  }),
-  getMissAVPlaceholderTitle: vi.fn(() => "MissAV Video"),
-  isBilibiliUrl: vi.fn((url: string) => url.includes("bilibili.com")),
-  isMissAVUrl: vi.fn((url: string) => url.includes("missav.com")),
-  isTwitchVideoUrl: vi.fn((url: string) => url.includes("twitch.tv")),
-  isYouTubeUrl: vi.fn((url: string) => url.includes("youtube.com")),
-  isValidUrl: vi.fn((url: string) => /^https?:\/\//.test(url)),
-  processVideoUrl: vi.fn(async (url: string) => {
-    const youtubeMatch = url.match(/[?&]v=([^&#]+)/);
-    if (youtubeMatch) {
-      return {
-        videoUrl: url,
-        sourceVideoId: youtubeMatch[1],
-        platform: "youtube",
-      };
-    }
-    const bilibiliMatch = url.match(/\/video\/([^/?#]+)/);
-    if (bilibiliMatch) {
-      return {
-        videoUrl: url,
-        sourceVideoId: bilibiliMatch[1],
-        platform: "bilibili",
-      };
-    }
-    return { videoUrl: url, sourceVideoId: null, platform: "other" };
-  }),
-  trimBilibiliUrl: vi.fn((url: string) => url.split("&")[0]),
-}));
+      const youtubeMatch = url.match(/[?&]v=([^&#]+)/);
+      if (youtubeMatch) {
+        return { id: youtubeMatch[1], platform: "youtube" };
+      }
+
+      return { id: null, platform: "other" };
+    }),
+    getMissAVPlaceholderTitle: vi.fn(() => "MissAV Video"),
+    isBilibiliUrl: vi.fn((url: string) =>
+      hostnameMatches(url, ["bilibili.com", "b23.tv"])
+    ),
+    isMissAVUrl: vi.fn((url: string) =>
+      hostnameMatches(url, ["missav.com"])
+    ),
+    isTwitchVideoUrl: vi.fn((url: string) =>
+      hostnameMatches(url, ["twitch.tv"])
+    ),
+    isYouTubeUrl: vi.fn((url: string) =>
+      hostnameMatches(url, ["youtube.com", "youtu.be"])
+    ),
+    isValidUrl: vi.fn((url: string) => /^https?:\/\//.test(url)),
+    processVideoUrl: vi.fn(async (url: string) => {
+      const youtubeMatch = url.match(/[?&]v=([^&#]+)/);
+      if (youtubeMatch) {
+        return {
+          videoUrl: url,
+          sourceVideoId: youtubeMatch[1],
+          platform: "youtube",
+        };
+      }
+      const bilibiliMatch = url.match(/\/video\/([^/?#]+)/);
+      if (bilibiliMatch) {
+        return {
+          videoUrl: url,
+          sourceVideoId: bilibiliMatch[1],
+          platform: "bilibili",
+        };
+      }
+      return { videoUrl: url, sourceVideoId: null, platform: "other" };
+    }),
+    trimBilibiliUrl: vi.fn((url: string) => url.split("&")[0]),
+  };
+});
 
 vi.mock("../../services/storageService", () => ({
   getSettings: vi.fn(() => ({ audioFormat: "mp3" })),
@@ -83,9 +104,16 @@ vi.mock("../../services/bilibiliDownloadTask", () => ({
 
 vi.mock("../../services/statistics", () => ({
   normalizeSurface: vi.fn((value: string) => value),
-  platformFromUrl: vi.fn((url: string) =>
-    url.includes("bilibili.com") ? "bilibili" : "youtube"
-  ),
+  platformFromUrl: vi.fn((url: string) => {
+    try {
+      const hostname = new URL(url).hostname.toLocaleLowerCase();
+      return hostname === "bilibili.com" || hostname.endsWith(".bilibili.com")
+        ? "bilibili"
+        : "youtube";
+    } catch {
+      return "youtube";
+    }
+  }),
   recordEvent: vi.fn(() => "event-1"),
 }));
 
