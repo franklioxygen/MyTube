@@ -47,6 +47,27 @@ export const FILENAME_TEMPLATE_REFERENCE_SECTIONS: FilenameTemplateReferenceSect
           kind: "liquid",
         },
         {
+          key: "source_video_id",
+          token: "{{ source_video_id }}",
+          descriptionKey: "filenameRefItemSourceVideoIdDesc",
+          example: "BV1AB411c7mD",
+          kind: "liquid",
+        },
+        {
+          key: "local_video_id",
+          token: "{{ local_video_id }}",
+          descriptionKey: "filenameRefItemLocalVideoIdDesc",
+          example: "1785234567890_part2",
+          kind: "liquid",
+        },
+        {
+          key: "download_datetime",
+          token: "{{ download_datetime }}",
+          descriptionKey: "filenameRefItemDownloadDatetimeDesc",
+          example: "2026-07-28_14-03-52",
+          kind: "liquid",
+        },
+        {
           key: "ext",
           token: "{{ ext }}",
           descriptionKey: "filenameRefItemExtDesc",

@@ -17,6 +17,25 @@ import { logger } from "../utils/logger";
 
 const SHARED_THUMBNAIL_ALLOWED_DIRS = [IMAGES_DIR, VIDEOS_DIR] as const;
 
+function resolveAvailableThumbnailTarget(
+    targetDir: string,
+    preferredFilename: string,
+) {
+    const parsed = path.parse(preferredFilename);
+    for (let attempt = 0; attempt < 1000; attempt += 1) {
+        const filename =
+            attempt === 0
+                ? preferredFilename
+                : `${parsed.name} (${attempt + 1})${parsed.ext}`;
+        const targetPath = resolveSafeChildPath(targetDir, filename);
+        if (!pathExistsSafeSync(targetPath, SHARED_THUMBNAIL_ALLOWED_DIRS)) {
+            return { targetPath, filename };
+        }
+    }
+
+    throw new Error(`Could not allocate thumbnail target for ${preferredFilename}`);
+}
+
 const resolveManagedThumbnailAbsolutePath = (
     thumbnailPath: string | null | undefined,
 ) => {
@@ -119,35 +138,45 @@ export const moveAllThumbnails = async (toVideoFolder: boolean) => {
 
             let targetAbsPath = "";
             let newWebPath = "";
+            let targetFilename = safeThumbnailFilename;
+            let targetWebDir = "";
 
             if (toVideoFolder) {
                 // Move TO video folder
+                targetWebDir = relativeVideoDir
+                    ? `/videos/${relativeVideoDir}`
+                    : "/videos";
                 targetAbsPath = resolveSafeChildPath(videoDir, safeThumbnailFilename);
-                if (relativeVideoDir) {
-                    newWebPath = `/videos/${relativeVideoDir}/${safeThumbnailFilename}`;
-                } else {
-                    newWebPath = `/videos/${safeThumbnailFilename}`;
-                }
+                newWebPath = `${targetWebDir}/${safeThumbnailFilename}`;
             } else {
                 // Move TO central images folder
                 if (relativeVideoDir) {
                     const targetDir = resolveSafeChildPath(IMAGES_DIR, relativeVideoDir);
                     ensureDirSafeSync(targetDir, IMAGES_DIR);
                     targetAbsPath = resolveSafeChildPath(targetDir, safeThumbnailFilename);
-                    newWebPath = `/images/${relativeVideoDir}/${safeThumbnailFilename}`;
+                    targetWebDir = `/images/${relativeVideoDir}`;
+                    newWebPath = `${targetWebDir}/${safeThumbnailFilename}`;
                 } else {
                     targetAbsPath = resolveSafeChildPath(IMAGES_DIR, safeThumbnailFilename);
-                    newWebPath = `/images/${safeThumbnailFilename}`;
+                    targetWebDir = "/images";
+                    newWebPath = `${targetWebDir}/${safeThumbnailFilename}`;
                 }
             }
 
             if (currentAbsPath !== targetAbsPath) {
+                const target = resolveAvailableThumbnailTarget(
+                    path.dirname(targetAbsPath),
+                    safeThumbnailFilename,
+                );
+                targetAbsPath = target.targetPath;
+                targetFilename = target.filename;
+                newWebPath = `${targetWebDir}/${targetFilename}`;
                 moveSafeSync(
                     currentAbsPath,
                     SHARED_THUMBNAIL_ALLOWED_DIRS,
                     targetAbsPath,
                     SHARED_THUMBNAIL_ALLOWED_DIRS,
-                    { overwrite: true },
+                    { overwrite: false },
                 );
                 moveSmallThumbnailMirrorSync(
                     currentWebPath,
@@ -156,7 +185,8 @@ export const moveAllThumbnails = async (toVideoFolder: boolean) => {
                 
                 // Update video record
                 storageService.updateVideo(video.id, {
-                    thumbnailPath: newWebPath
+                    thumbnailFilename: targetFilename,
+                    thumbnailPath: newWebPath,
                 });
                 
                 movedCount++;

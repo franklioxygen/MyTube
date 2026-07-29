@@ -696,7 +696,8 @@ describe("SubscriptionController", () => {
         "Uploader Name",
         "YouTube",
         expect.any(String),
-        "sub-playlist-1"
+        "sub-playlist-1",
+        "dateDesc"
       );
       expect(status).toHaveBeenCalledWith(201);
       expect(json).toHaveBeenCalledWith(
@@ -878,7 +879,8 @@ describe("SubscriptionController", () => {
         "Bilibili 12345",
         "Bilibili",
         "existing-col",
-        "sub-bili-1"
+        "sub-bili-1",
+        "dateDesc"
       );
       expect(json).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -1018,7 +1020,8 @@ describe("SubscriptionController", () => {
         "Uploader Name",
         "YouTube",
         "existing-col",
-        "existing-sub"
+        "existing-sub",
+        "dateDesc"
       );
       expect(
         subscriptionService.updatePlaylistSubscriptionCursor
@@ -1090,7 +1093,8 @@ describe("SubscriptionController", () => {
         "Uploader Name",
         "YouTube",
         "existing-col",
-        "existing-sub"
+        "existing-sub",
+        "dateDesc"
       );
       const updateOrder = (
         subscriptionService.updateSubscriptionSettings as Mock
@@ -1163,7 +1167,8 @@ describe("SubscriptionController", () => {
         "Uploader Name",
         "YouTube",
         "resolved-col",
-        "legacy-sub"
+        "legacy-sub",
+        "dateDesc"
       );
       expect(json).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -1273,7 +1278,8 @@ describe("SubscriptionController", () => {
         "Uploader Name",
         "YouTube",
         "existing-col",
-        "existing-sub"
+        "existing-sub",
+        "dateDesc"
       );
       expect(json).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -1323,7 +1329,8 @@ describe("SubscriptionController", () => {
         "Uploader Name",
         "YouTube",
         "existing-col",
-        "existing-sub"
+        "existing-sub",
+        "dateDesc"
       );
       expect(json).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -1478,7 +1485,8 @@ describe("SubscriptionController", () => {
         "My Channel",
         "YouTube",
         "col-one",
-        "new-sub-one"
+        "new-sub-one",
+        "dateDesc"
       );
     });
 
@@ -1602,7 +1610,8 @@ describe("SubscriptionController", () => {
         "My Channel",
         "YouTube",
         "existing-col",
-        "existing-sub"
+        "existing-sub",
+        "dateDesc"
       );
       expect(
         subscriptionService.updatePlaylistSubscriptionCursor
@@ -1665,7 +1674,8 @@ describe("SubscriptionController", () => {
         "My Channel",
         "YouTube",
         "existing-col",
-        "existing-sub"
+        "existing-sub",
+        "dateDesc"
       );
       const updateOrder = (
         subscriptionService.updateSubscriptionSettings as Mock
@@ -1734,7 +1744,8 @@ describe("SubscriptionController", () => {
         "My Channel",
         "YouTube",
         "concurrent-col",
-        "concurrent-sub"
+        "concurrent-sub",
+        "dateDesc"
       );
       const updateOrder = (
         subscriptionService.updateSubscriptionSettings as Mock
@@ -1808,7 +1819,8 @@ describe("SubscriptionController", () => {
         "My Channel",
         "YouTube",
         "resolved-legacy-col",
-        "legacy-sub"
+        "legacy-sub",
+        "dateDesc"
       );
     });
 
@@ -1922,7 +1934,9 @@ describe("SubscriptionController", () => {
         "https://www.youtube.com/playlist?list=abc",
         "Author A",
         "YouTube",
-        expect.any(String)
+        expect.any(String),
+        undefined,
+        "dateDesc"
       );
       expect(status).toHaveBeenCalledWith(201);
       expect(json).toHaveBeenCalledWith(
@@ -1951,7 +1965,9 @@ describe("SubscriptionController", () => {
         "https://www.youtube.com/playlist?list=abc",
         "Playlist Author",
         "YouTube",
-        expect.any(String)
+        expect.any(String),
+        undefined,
+        "dateDesc"
       );
     });
   });

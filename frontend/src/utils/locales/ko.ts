@@ -1004,6 +1004,11 @@ export const ko = {
     "대형 채널은 다운로드 시작 전 메타데이터를 가져오는 데 더 오래 걸릴 수 있습니다.",
   downloadOrderShortsHint:
     "두 개의 다운로드 작업이 생성됩니다: 하나는 일반 동영상용, 다른 하나는 Shorts용입니다.",
+  preparingOrderMetadata: "순서 메타데이터 준비 중...",
+  selectedDownloadOrder: "순서: {order}",
+  retryOrderPreparation: "순서 준비 다시 시도",
+  orderPreparationRetryStarted: "순서 준비 다시 시도를 시작했습니다",
+  orderPreparationRetryFailed: "순서 준비 다시 시도에 실패했습니다",
   downloadAllPreviousWarning:
     "경고: 이것은 이 작가의 모든 이전 동영상을 다운로드합니다. 상당한 저장 공간을 소비할 수 있으며 봇 감지 메커니즘이 트리거되어 플랫폼에서 일시적 또는 영구적 금지 조치를 받을 수 있습니다. 본인의 책임하에 사용하세요.",
   downloadAllPreviousVideosInPlaylists: "재생 목록의 이전 동영상 다운로드",
@@ -1250,7 +1255,7 @@ export const ko = {
   authorOrganizationModeRecommendation:
     "MyTube 안에서 중복된 작성자 컬렉션 없이 작성자별 폴더만 원하면 작성자 폴더만을 사용하세요.",
   authorOrganizationModeTemplateNote:
-    "legacy가 아닌 파일명 프리셋은 실제 폴더 구조를 제어합니다. 이 모드에서는 작성자 정리가 컬렉션 연결에만 영향을 줍니다.",
+    "작성자 폴더는 legacy 및 non-legacy 파일명 프리셋 모두에 적용됩니다. 작성자 폴더 모드가 활성화되면 템플릿 하위 폴더는 작성자 폴더 안에 생성됩니다.",
   cleanupAuthorCollections: "기존 작성자 컬렉션 정리",
   cleanupAuthorCollectionsDescription:
     "작성자 폴더만으로 전환한 뒤 이미 다른 컬렉션에 속한 비디오에서 중복된 작성자 컬렉션 링크를 제거합니다. 디스크의 파일은 이동하지 않습니다.",
@@ -1459,6 +1464,7 @@ export const ko = {
   filenamePresetPlaylistStaticDate:
     "재생목록 – 시즌 1 / 날짜 기준 에피소드",
   filenamePresetSourceDateFlat: "소스 - 날짜 다음 제목",
+  filenamePresetSourceDateId: "소스 - 날짜, 제목, 소스 ID",
   filenamePresetCustom: "사용자 지정 템플릿",
   filenameCustomTemplateLabel: "사용자 지정 템플릿",
   filenameCustomTemplatePlaceholder: "{{ source_collection_name }}/{{ season_by_year__episode_by_date_and_index }} - {{ title }}.{{ ext }}",
@@ -1473,6 +1479,8 @@ export const ko = {
     "재생목록이 아닌 소스에서는 media_playlist_index를 사용할 수 없어 00으로 대체됩니다.",
   filenameWarningSourceCollectionMetadataMayBeEmpty:
     "단일 동영상 다운로드에서는 source_collection_name/id가 비어 있을 수 있습니다.",
+  filenameWarningIdSourceSemanticsV2:
+    "id는 이제 항상 소스 플랫폼의 동영상 ID를 의미합니다. 기존 라이브러리 일괄 이름 변경은 이전에 MyTube 로컬 행 ID를 사용했습니다. 이전 값이 필요하면 local_video_id를 사용하세요.",
   filenameValidating: "검증 중…",
   filenameValidationError: "템플릿 오류",
   filenameBatchRenameButton:
@@ -1511,7 +1519,10 @@ export const ko = {
   filenameRefSectionRawMetadataTitle: '원시 yt-dlp 메타데이터',
   filenameRefSectionRawMetadataDescription: '이 패턴들은 내장 별칭 이상의 yt-dlp 메타데이터를 노출합니다.',
   filenameRefItemTitleDesc: '동영상 제목.',
-  filenameRefItemIdDesc: '플랫폼 동영상 ID 또는 로컬 동영상 ID.',
+  filenameRefItemIdDesc: "안정적인 소스 플랫폼 동영상 ID의 별칭입니다.",
+  filenameRefItemSourceVideoIdDesc: "안정적인 소스 플랫폼 동영상 ID입니다.",
+  filenameRefItemLocalVideoIdDesc: "MyTube 라이브러리의 로컬 행 ID입니다.",
+  filenameRefItemDownloadDatetimeDesc: "UTC 다운로드 시각(YYYY-MM-DD_HH-MM-SS 형식).",
   filenameRefItemExtDesc: '점 없는 최종 파일 확장자.',
   filenameRefItemUploaderDesc: '업로더 또는 작성자 이름.',
   filenameRefItemChannelDesc: '채널 이름, 업로더로 대체됩니다.',

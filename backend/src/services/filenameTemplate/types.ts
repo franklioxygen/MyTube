@@ -3,10 +3,14 @@ export type DownloadFilenamePresetId =
   | "channel_year_date_index"
   | "playlist_static_index"
   | "playlist_static_date"
+  | "source_date_id"
   | "custom";
 
 export interface FilenameTemplateContext {
   title: string;
+  sourceVideoId: string;
+  localVideoId: string;
+  downloadedAtMs: number | null;
   id: string;
   ext: string;
   uploader: string;
@@ -40,6 +44,7 @@ export interface FilenameTemplateSourceOptions {
   // batch rename job (and downloaders that scan local records on the day);
   // defaults to mediaPlaylistIndex when omitted.
   mediaPlaylistIndexWithinDate?: number;
+  downloadedAtMs?: number | string | null;
 }
 
 export interface RenderFilenameTemplateInput {

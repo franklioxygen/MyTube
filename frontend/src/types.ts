@@ -91,6 +91,58 @@ export interface DownloadInfo {
   type?: string;
 }
 
+export type DownloadOrder = 'dateDesc' | 'dateAsc' | 'viewsDesc' | 'viewsAsc';
+
+export interface TaskPlanningError {
+  message: string;
+  retryable: boolean;
+  code: string;
+}
+
+export interface TaskOrderingWarning {
+  code: 'ORDERING_METADATA_PARTIAL' | string;
+  message: string;
+  knownCount: number;
+  unknownCount: number;
+}
+
+export interface TaskPlanningProgress {
+  enumerated: number;
+  hydrated: number;
+  requiredMetadataKnown: number;
+  requiredMetadataUnknown: number;
+}
+
+export interface ContinuousTaskRuntimeState {
+  phase: 'planning' | 'downloading' | 'terminal';
+  planningProgress?: TaskPlanningProgress;
+}
+
+export interface ContinuousDownloadTask {
+  id: string;
+  subscriptionId?: string;
+  collectionId?: string;
+  playlistName?: string;
+  authorUrl: string;
+  author: string;
+  platform: string;
+  status: 'active' | 'paused' | 'completed' | 'cancelled';
+  totalVideos: number;
+  downloadedCount: number;
+  skippedCount: number;
+  failedCount: number;
+  currentVideoIndex: number;
+  createdAt: number;
+  updatedAt?: number;
+  completedAt?: number;
+  error?: string;
+  downloadOrder?: DownloadOrder;
+  frozenVideoListPath?: string;
+  planningError?: TaskPlanningError;
+  orderingWarnings?: TaskOrderingWarning[];
+  runtimeState?: ContinuousTaskRuntimeState;
+}
+
 export interface Comment {
   id: string;
   author: string;
@@ -212,6 +264,7 @@ export interface Settings {
     | 'legacy'
     | 'media_center_date_index'
     | 'source_date_flat'
+    | 'source_date_id'
     | 'channel_year_date_index'
     | 'playlist_static_index'
     | 'playlist_static_date'

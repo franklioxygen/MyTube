@@ -794,6 +794,15 @@ describe('StorageService', () => {
       });
 
       (fs.pathExistsSync as any).mockReturnValue(true);
+      (fs.pathExistsSync as any).mockImplementation((target: string) => {
+        const value = String(target);
+        return value.endsWith('/uploads/videos/vid.mp4') ||
+          value.endsWith('/uploads/images/thumb.jpg') ||
+          value.endsWith('/uploads/videos/Col 1') ||
+          value.endsWith('/uploads/images/Col 1') ||
+          value.endsWith('/uploads/images-small/Col 1') ||
+          value.endsWith('/uploads/subtitles/Col 1');
+      });
       (fs.opendirSync as any).mockReturnValue({
         readSync: vi.fn().mockReturnValue(null),
         closeSync: vi.fn(),
@@ -898,6 +907,11 @@ describe('StorageService', () => {
       }));
 
       (fs.existsSync as any).mockReturnValue(true);
+      (fs.pathExistsSync as any).mockImplementation((target: string) => {
+        const value = String(target);
+        return value.endsWith('/uploads/videos/vid.mp4') ||
+          value.endsWith('/uploads/images/thumb.jpg');
+      });
       (fs.moveSync as any).mockImplementation(() => {});
 
       const result = storageService.addVideoToCollection('1', 'v1');
@@ -940,6 +954,11 @@ describe('StorageService', () => {
       }));
 
       (fs.existsSync as any).mockReturnValue(true);
+      (fs.pathExistsSync as any).mockImplementation((target: string) => {
+        const value = String(target);
+        return value.endsWith('/uploads/videos/vid.mp4') ||
+          value.endsWith('/uploads/images/thumb.jpg');
+      });
       (fs.moveSync as any).mockImplementation(() => {});
 
       const result = storageService.addVideoToCollection('1', 'v1');

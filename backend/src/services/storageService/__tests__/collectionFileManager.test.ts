@@ -3,6 +3,7 @@ import path from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../../config/paths", () => ({
+  DATA_DIR: "/safe/data",
   UPLOADS_DIR: "/safe/uploads",
   VIDEOS_DIR: "/safe/videos",
   IMAGES_DIR: "/safe/images",
@@ -47,7 +48,22 @@ vi.mock("../../thumbnailMirrorService", () => ({
   ),
 }));
 
+vi.mock("../../filenameTemplate/outputPathAllocator", () => ({
+  allocateOutputFamilySync: vi.fn((input: any) => ({
+    videoRelativePath: input.videoRelativePath,
+    thumbnailRelativePath: input.thumbnailRelativePath,
+    subtitleBaseRelativePath: input.subtitleBaseRelativePath,
+    collisionStrategy: "none",
+    release: vi.fn(),
+  })),
+  moveOutputFamilyWithJournalSync: vi.fn(),
+}));
+
 import { logger } from "../../../utils/logger";
+import {
+  allocateOutputFamilySync,
+  moveOutputFamilyWithJournalSync,
+} from "../../filenameTemplate/outputPathAllocator";
 import {
   findImageFile,
   findVideoFile,
@@ -298,8 +314,35 @@ describe("collectionFileManager", () => {
     );
 
     expect(updates.videoPath).toBe("/videos/Bundle/video.mp4");
-    expect(updates.thumbnailPath).toBe("/images/Bundle/thumb.jpg");
-    expect((updates.subtitles || [])[0].path).toBe("/subtitles/Bundle/sub.vtt");
+    expect(updates.thumbnailPath).toBe("/images/Bundle/video.jpg");
+    expect((updates.subtitles || [])[0].path).toBe("/subtitles/Bundle/video.en.vtt");
+    expect(allocateOutputFamilySync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        videoRelativePath: "Bundle/video.mp4",
+        thumbnailRelativePath: "Bundle/video.jpg",
+        subtitleBaseRelativePath: "Bundle/video",
+        existingLocalVideoId: undefined,
+      })
+    );
+    expect(moveOutputFamilyWithJournalSync).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({
+          from: "/safe/videos/video.mp4",
+          to: "/safe/videos/Bundle/video.mp4",
+          kind: "video",
+        }),
+        expect.objectContaining({
+          from: "/safe/images/thumb.jpg",
+          to: "/safe/images/Bundle/video.jpg",
+          kind: "thumbnail",
+        }),
+        expect.objectContaining({
+          from: "/safe/subtitles/sub.vtt",
+          to: "/safe/subtitles/Bundle/video.en.vtt",
+          kind: "subtitle",
+        }),
+      ])
+    );
   });
 
   it("aggregates updates when moving all files from collection", () => {
@@ -323,8 +366,8 @@ describe("collectionFileManager", () => {
     );
 
     expect(updates.videoPath).toBe("/videos/video.mp4");
-    expect(updates.thumbnailPath).toBe("/images/thumb.jpg");
-    expect((updates.subtitles || [])[0].path).toBe("/videos/sub.vtt");
+    expect(updates.thumbnailPath).toBe("/images/video.jpg");
+    expect((updates.subtitles || [])[0].path).toBe("/subtitles/video.en.vtt");
   });
 
   it("cleans empty collection directories", () => {

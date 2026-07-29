@@ -3,7 +3,12 @@ import { db } from "../../db";
 import { continuousDownloadTasks, subscriptions } from "../../db/schema";
 import { logger } from "../../utils/logger";
 import type { Subscription } from "../subscription/types";
-import { ContinuousDownloadTask, type DownloadOrder } from "./types";
+import {
+  ContinuousDownloadTask,
+  ContinuousTaskRuntimeState,
+  parseDownloadOrder,
+} from "./types";
+import { parseOrderingPlanningFailure } from "./planningErrors";
 
 type TaskStatus = "active" | "paused" | "completed" | "cancelled";
 type ContinuousDownloadTaskRow = InferSelectModel<typeof continuousDownloadTasks>;
@@ -16,39 +21,58 @@ const toCount = (value: number | null | undefined): number => value ?? 0;
 const toTaskStatus = (value: unknown): TaskStatus =>
   value as TaskStatus;
 
-const toDownloadOrder = (value: unknown): DownloadOrder | undefined => {
-  if (
-    value === "dateDesc" ||
-    value === "dateAsc" ||
-    value === "viewsDesc" ||
-    value === "viewsAsc"
-  ) {
-    return value;
+const toDownloadOrder = (value: unknown) => parseDownloadOrder(value) ?? undefined;
+
+function deriveRuntimeState(
+  task: ContinuousDownloadTask
+): ContinuousTaskRuntimeState {
+  if (task.status === "completed" || task.status === "cancelled") {
+    return { phase: "terminal" };
   }
 
-  return undefined;
-};
+  const processedCount =
+    task.downloadedCount + task.skippedCount + task.failedCount + task.currentVideoIndex;
+  const hasFrozenPlan = Boolean(task.frozenVideoListPath);
+  if (task.status === "active" && !hasFrozenPlan && processedCount === 0) {
+    return {
+      phase: "planning",
+      planningProgress: {
+        enumerated: task.totalVideos,
+        hydrated: 0,
+        requiredMetadataKnown: 0,
+        requiredMetadataUnknown: task.totalVideos,
+      },
+    };
+  }
+
+  return { phase: "downloading" };
+}
 
 const mapTaskRowToEntity = (
   task: ContinuousDownloadTaskRow,
   playlistName: string | null
-): ContinuousDownloadTask => ({
-  ...task,
-  subscriptionId: toOptional(task.subscriptionId),
-  collectionId: toOptional(task.collectionId),
-  playlistName: toOptional(playlistName),
-  updatedAt: toOptional(task.updatedAt),
-  completedAt: toOptional(task.completedAt),
-  error: toOptional(task.error),
-  status: toTaskStatus(task.status),
-  totalVideos: toCount(task.totalVideos),
-  downloadedCount: toCount(task.downloadedCount),
-  skippedCount: toCount(task.skippedCount),
-  failedCount: toCount(task.failedCount),
-  currentVideoIndex: toCount(task.currentVideoIndex),
-  downloadOrder: toDownloadOrder(task.downloadOrder),
-  frozenVideoListPath: toOptional(task.frozenVideoListPath),
-});
+): ContinuousDownloadTask => {
+  const mapped: ContinuousDownloadTask = {
+    ...task,
+    subscriptionId: toOptional(task.subscriptionId),
+    collectionId: toOptional(task.collectionId),
+    playlistName: toOptional(playlistName),
+    updatedAt: toOptional(task.updatedAt),
+    completedAt: toOptional(task.completedAt),
+    error: toOptional(task.error),
+    status: toTaskStatus(task.status),
+    totalVideos: toCount(task.totalVideos),
+    downloadedCount: toCount(task.downloadedCount),
+    skippedCount: toCount(task.skippedCount),
+    failedCount: toCount(task.failedCount),
+    currentVideoIndex: toCount(task.currentVideoIndex),
+    downloadOrder: toDownloadOrder(task.downloadOrder),
+    frozenVideoListPath: toOptional(task.frozenVideoListPath),
+  };
+  mapped.planningError = parseOrderingPlanningFailure(mapped.error) ?? undefined;
+  mapped.runtimeState = deriveRuntimeState(mapped);
+  return mapped;
+};
 
 /**
  * Repository for managing continuous download tasks in the database
@@ -175,6 +199,24 @@ export class TaskRepository {
       })
       .where(eq(continuousDownloadTasks.id, id));
     logger.info(`Resumed continuous download task ${id}`);
+  }
+
+  async activateTaskForPlanningRetry(id: string): Promise<void> {
+    await db
+      .update(continuousDownloadTasks)
+      .set({
+        status: "active",
+        error: null,
+        frozenVideoListPath: null,
+        totalVideos: 0,
+        downloadedCount: 0,
+        skippedCount: 0,
+        failedCount: 0,
+        currentVideoIndex: 0,
+        updatedAt: Date.now(),
+      })
+      .where(eq(continuousDownloadTasks.id, id));
+    logger.info(`Activated continuous download task ${id} for ordering retry`);
   }
 
   /**

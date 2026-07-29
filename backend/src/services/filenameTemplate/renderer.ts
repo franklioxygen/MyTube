@@ -12,6 +12,7 @@ import {
   FilenameNamingRuntimeConfig,
   toFilenameNamingRuntimeConfig,
 } from "./config";
+import { applyPhysicalOrganization } from "./organizationPath";
 import { computeAliases } from "./aliases";
 import {
   enforcePathLengthLimit,
@@ -33,7 +34,10 @@ function buildLiquidVarMap(
 ): Record<string, string> {
   return {
     title: ctx.title,
-    id: ctx.id,
+    source_video_id: ctx.sourceVideoId,
+    local_video_id: ctx.localVideoId,
+    download_datetime: formatDownloadDatetime(ctx.downloadedAtMs),
+    id: ctx.sourceVideoId,
     ext: ctx.ext,
     uploader: ctx.uploader,
     channel: ctx.channel,
@@ -58,10 +62,31 @@ function buildLiquidVarMap(
   };
 }
 
+function formatDownloadDatetime(downloadedAtMs: number | null): string {
+  if (downloadedAtMs === null || !Number.isFinite(downloadedAtMs)) {
+    return UNKNOWN_FALLBACK;
+  }
+
+  const date = new Date(downloadedAtMs);
+  if (Number.isNaN(date.getTime())) {
+    return UNKNOWN_FALLBACK;
+  }
+
+  const yyyy = String(date.getUTCFullYear()).padStart(4, "0");
+  const mm = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(date.getUTCDate()).padStart(2, "0");
+  const hh = String(date.getUTCHours()).padStart(2, "0");
+  const mi = String(date.getUTCMinutes()).padStart(2, "0");
+  const ss = String(date.getUTCSeconds()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}_${hh}-${mi}-${ss}`;
+}
+
 // Map from yt-dlp variable names to liquid variable names
 const YTDLP_TO_LIQUID: Record<string, string> = {
   title: "title",
   id: "id",
+  source_video_id: "source_video_id",
+  local_video_id: "local_video_id",
   channel: "channel",
   uploader: "uploader",
   upload_date: "upload_date",
@@ -310,6 +335,7 @@ type LegacyFilenameNamingSettings = {
   downloadFilenameMode?: string;
   downloadFilenamePresetId?: string;
   downloadFilenameTemplate?: string;
+  authorOrganizationMode?: string;
 };
 
 function resolvePlannerNamingConfig(input: {
@@ -390,13 +416,23 @@ export function planVideoOutputPaths(input: {
     });
   }
 
-  const videoRelativePath = rendered.relativePath;
+  const organized = applyPhysicalOrganization(rendered.relativePath, {
+    mode: input.settings?.authorOrganizationMode,
+    author: context.uploader || context.channel || context.artistName,
+  });
+  const videoRelativePath = organized.relativePath;
   const videoAbsolutePath = resolveSafeChildPath(VIDEOS_DIR, videoRelativePath);
   const videoWebPath = `/videos/${videoRelativePath}`;
 
   // Thumbnail uses same stem + thumbnail extension
-  const thumbnailFilename = `${rendered.basenameWithoutExt}.${thumbnailExtension}`;
-  const thumbnailDirectory = rendered.directory;
+  const videoBasename = videoRelativePath.split("/").pop() || rendered.basename;
+  const videoBasenameWithoutExt = videoBasename.endsWith(`.${videoExtension}`)
+    ? videoBasename.slice(0, -videoExtension.length - 1)
+    : rendered.basenameWithoutExt;
+  const thumbnailFilename = `${videoBasenameWithoutExt}.${thumbnailExtension}`;
+  const thumbnailDirectory = videoRelativePath.includes("/")
+    ? videoRelativePath.split("/").slice(0, -1).join("/")
+    : "";
   const thumbnailRelativePath = thumbnailDirectory
     ? `${thumbnailDirectory}/${thumbnailFilename}`
     : thumbnailFilename;
@@ -436,8 +472,8 @@ export function planVideoOutputPaths(input: {
       relativePath: videoRelativePath,
       absolutePath: videoAbsolutePath,
       webPath: videoWebPath,
-      filename: rendered.basename,
-      basenameWithoutExt: rendered.basenameWithoutExt,
+      filename: videoBasename,
+      basenameWithoutExt: videoBasenameWithoutExt,
     },
     thumbnail: {
       relativePath: thumbnailRelativePath,
@@ -449,9 +485,9 @@ export function planVideoOutputPaths(input: {
       relativeDirectory: subtitleDirectory,
       absoluteDirectory: subtitleAbsoluteDirectory,
       webDirectory: subtitleWebDirectory,
-      baseNameWithoutLanguageOrExt: rendered.basenameWithoutExt,
+      baseNameWithoutLanguageOrExt: videoBasenameWithoutExt,
     },
-    warnings: rendered.warnings,
+    warnings: [...rendered.warnings, ...organized.warnings],
   };
 }
 

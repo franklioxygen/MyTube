@@ -1036,6 +1036,11 @@ export const fr = {
     "Les grandes chaînes peuvent prendre plus de temps pour récupérer les métadonnées avant le début du téléchargement.",
   downloadOrderShortsHint:
     "Deux tâches de téléchargement seront créées : une pour les vidéos principales et une pour les Shorts.",
+  preparingOrderMetadata: "Preparation des metadonnees d'ordre...",
+  selectedDownloadOrder: "Ordre : {order}",
+  retryOrderPreparation: "Reessayer la preparation de l'ordre",
+  orderPreparationRetryStarted: "Nouvelle tentative de preparation de l'ordre lancee",
+  orderPreparationRetryFailed: "Echec de la nouvelle tentative de preparation de l'ordre",
   downloadAllPreviousWarning:
     "Avertissement : Cela téléchargera toutes les vidéos précédentes de cet auteur. Cela peut consommer un espace de stockage important et pourrait déclencher des mécanismes de détection de bots qui peuvent entraîner des interdictions temporaires ou permanentes de la plateforme. Utilisez à vos propres risques.",
   downloadAllPreviousVideosInPlaylists:
@@ -1290,7 +1295,7 @@ export const fr = {
   authorOrganizationModeRecommendation:
     "Si vous voulez des dossiers par auteur sans collections d'auteur en double dans MyTube, utilisez Dossiers d'auteur uniquement.",
   authorOrganizationModeTemplateNote:
-    "Les préréglages de nom de fichier non legacy contrôlent la structure physique des dossiers. Dans ces modes, l'organisation par auteur n'affecte que le lien de collection.",
+    "Les dossiers d'auteur s'appliquent maintenant aux préréglages legacy et non legacy. Les sous-dossiers du modèle sont créés dans le dossier de l'auteur quand un mode de dossier auteur est activé.",
   cleanupAuthorCollections: "Nettoyer les collections d'auteur existantes",
   cleanupAuthorCollectionsDescription:
     "Après être passé à Dossiers d'auteur uniquement, supprimez les liens redondants de collections d'auteur pour les vidéos déjà présentes dans une autre collection. Les fichiers sur disque ne sont pas déplacés.",
@@ -1506,6 +1511,7 @@ export const fr = {
   filenamePresetPlaylistStaticDate:
     "Playlist – Saison 1 / Épisode par date",
   filenamePresetSourceDateFlat: "Source – date puis titre",
+  filenamePresetSourceDateId: "Source - date, titre et ID source",
   filenamePresetCustom: "Modèle personnalisé",
   filenameCustomTemplateLabel: "Modèle personnalisé",
   filenameCustomTemplatePlaceholder: "{{ source_collection_name }}/{{ season_by_year__episode_by_date_and_index }} - {{ title }}.{{ ext }}",
@@ -1520,6 +1526,8 @@ export const fr = {
     "media_playlist_index n'est pas disponible pour les sources hors playlist et sera remplacé par 00.",
   filenameWarningSourceCollectionMetadataMayBeEmpty:
     "source_collection_name/id peut être vide pour les téléchargements d'une seule vidéo.",
+  filenameWarningIdSourceSemanticsV2:
+    "id designe maintenant toujours l'ID video de la plateforme source. Le renommage par lot de la bibliotheque existante utilisait auparavant l'ID de ligne local MyTube. Utilisez local_video_id si vous avez besoin de cette ancienne valeur.",
   filenameValidating: "Validation…",
   filenameValidationError: "Erreur de modèle",
   filenameBatchRenameButton:
@@ -1560,7 +1568,10 @@ export const fr = {
   filenameRefSectionRawMetadataTitle: 'Métadonnées brutes yt-dlp',
   filenameRefSectionRawMetadataDescription: 'Ces modèles exposent les métadonnées yt-dlp au-delà des alias intégrés.',
   filenameRefItemTitleDesc: 'Titre de la vidéo.',
-  filenameRefItemIdDesc: 'ID vidéo de la plateforme ou ID vidéo local.',
+  filenameRefItemIdDesc: "Alias de l'ID video stable de la plateforme source.",
+  filenameRefItemSourceVideoIdDesc: "ID video stable de la plateforme source.",
+  filenameRefItemLocalVideoIdDesc: "ID de ligne local MyTube dans la bibliotheque.",
+  filenameRefItemDownloadDatetimeDesc: "Instant de telechargement en UTC au format YYYY-MM-DD_HH-MM-SS.",
   filenameRefItemExtDesc: 'Extension de fichier finale sans le point.',
   filenameRefItemUploaderDesc: 'Nom de l\'uploadeur ou de l\'auteur.',
   filenameRefItemChannelDesc: 'Nom de la chaîne, avec repli sur l\'uploadeur.',

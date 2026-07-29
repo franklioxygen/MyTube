@@ -52,7 +52,9 @@ describe('SubtitleService', () => {
       ];
 
       (storageService.getVideos as any).mockReturnValue(mockVideos);
-      (fs.existsSync as any).mockReturnValue(true);
+      (fs.existsSync as any).mockImplementation((p: string) =>
+        p === path.join(SUBTITLES_DIR, 'sub1.vtt')
+      );
       (fs.moveSync as any).mockReturnValue(undefined);
       (storageService.updateVideo as any).mockReturnValue(undefined);
 
@@ -61,7 +63,7 @@ describe('SubtitleService', () => {
       expect(fs.moveSync).toHaveBeenCalledWith(
         path.join(SUBTITLES_DIR, 'sub1.vtt'),
         path.join(VIDEOS_DIR, 'sub1.vtt'),
-        { overwrite: true }
+        { overwrite: false }
       );
       expect(storageService.updateVideo).toHaveBeenCalledWith('video-1', {
         subtitles: [
@@ -93,7 +95,9 @@ describe('SubtitleService', () => {
       ];
 
       (storageService.getVideos as any).mockReturnValue(mockVideos);
-      (fs.existsSync as any).mockReturnValue(true);
+      (fs.existsSync as any).mockImplementation((p: string) =>
+        p === path.join(VIDEOS_DIR, 'sub1.vtt')
+      );
       (fs.ensureDirSync as any).mockReturnValue(undefined);
       (fs.moveSync as any).mockReturnValue(undefined);
       (storageService.updateVideo as any).mockReturnValue(undefined);
@@ -103,7 +107,7 @@ describe('SubtitleService', () => {
       expect(fs.moveSync).toHaveBeenCalledWith(
         path.join(VIDEOS_DIR, 'sub1.vtt'),
         path.join(SUBTITLES_DIR, 'sub1.vtt'),
-        { overwrite: true }
+        { overwrite: false }
       );
       expect(storageService.updateVideo).toHaveBeenCalledWith('video-1', {
         subtitles: [
@@ -135,7 +139,9 @@ describe('SubtitleService', () => {
       ];
 
       (storageService.getVideos as any).mockReturnValue(mockVideos);
-      (fs.existsSync as any).mockReturnValue(true);
+      (fs.existsSync as any).mockImplementation((p: string) =>
+        p === path.join(SUBTITLES_DIR, 'sub1.vtt')
+      );
       (fs.moveSync as any).mockReturnValue(undefined);
       (storageService.updateVideo as any).mockReturnValue(undefined);
 
@@ -144,7 +150,7 @@ describe('SubtitleService', () => {
       expect(fs.moveSync).toHaveBeenCalledWith(
         path.join(SUBTITLES_DIR, 'sub1.vtt'),
         path.join(VIDEOS_DIR, 'MyCollection', 'sub1.vtt'),
-        { overwrite: true }
+        { overwrite: false }
       );
       expect(storageService.updateVideo).toHaveBeenCalledWith('video-1', {
         subtitles: [
@@ -330,6 +336,52 @@ describe('SubtitleService', () => {
       // Actually, looking at the code, if the file isn't found, it continues without updating
       // So this test case might not be fully testable with the current implementation
       // Let's just verify no errors occurred
+      expect(result.errorCount).toBe(0);
+    });
+
+    it('should suffix subtitle targets instead of overwriting an existing file', async () => {
+      const mockVideos = [
+        {
+          id: 'video-1',
+          videoFilename: 'video1.mp4',
+          videoPath: '/videos/video1.mp4',
+          subtitles: [
+            {
+              filename: 'sub1.vtt',
+              path: '/subtitles/sub1.vtt',
+              language: 'en',
+            },
+          ],
+        },
+      ];
+
+      (storageService.getVideos as any).mockReturnValue(mockVideos);
+      (fs.existsSync as any).mockImplementation((p: string) =>
+        [
+          path.join(SUBTITLES_DIR, 'sub1.vtt'),
+          path.join(VIDEOS_DIR, 'sub1.vtt'),
+        ].includes(p)
+      );
+      (fs.moveSync as any).mockReturnValue(undefined);
+      (storageService.updateVideo as any).mockReturnValue(undefined);
+
+      const result = await moveAllSubtitles(true);
+
+      expect(fs.moveSync).toHaveBeenCalledWith(
+        path.join(SUBTITLES_DIR, 'sub1.vtt'),
+        path.join(VIDEOS_DIR, 'sub1 (2).vtt'),
+        { overwrite: false }
+      );
+      expect(storageService.updateVideo).toHaveBeenCalledWith('video-1', {
+        subtitles: [
+          {
+            filename: 'sub1 (2).vtt',
+            path: '/videos/sub1 (2).vtt',
+            language: 'en',
+          },
+        ],
+      });
+      expect(result.movedCount).toBe(1);
       expect(result.errorCount).toBe(0);
     });
   });

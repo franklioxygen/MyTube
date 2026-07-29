@@ -9,9 +9,11 @@ const mocks = vi.hoisted(() => ({
   statSync: vi.fn(),
   unlinkSync: vi.fn(),
   getSettings: vi.fn(),
+  getVideos: vi.fn(),
   getVideoBySourceUrl: vi.fn(),
   updateVideo: vi.fn(),
   saveVideo: vi.fn(),
+  persistDownloadedMediaIdentity: vi.fn(),
   organizeVideoByAuthor: vi.fn(),
   updateActiveDownload: vi.fn(),
   isThumbnailReferencedByOtherVideo: vi.fn(),
@@ -101,9 +103,12 @@ vi.mock("../../../utils/ytDlpUtils", () => {
 
 vi.mock("../../../services/storageService", () => ({
   getSettings: (...args: any[]) => mocks.getSettings(...args),
+  getVideos: (...args: any[]) => mocks.getVideos(...args),
   getVideoBySourceUrl: (...args: any[]) => mocks.getVideoBySourceUrl(...args),
   updateVideo: (...args: any[]) => mocks.updateVideo(...args),
   saveVideo: (...args: any[]) => mocks.saveVideo(...args),
+  persistDownloadedMediaIdentity: (...args: any[]) =>
+    mocks.persistDownloadedMediaIdentity(...args),
   organizeVideoByAuthor: (...args: any[]) =>
     mocks.organizeVideoByAuthor(...args),
   updateActiveDownload: (...args: any[]) =>
@@ -218,8 +223,12 @@ describe("bilibiliVideo.downloadSinglePart", () => {
       authorOrganizationMode: "root",
       saveAuthorFilesToCollection: false,
     });
+    mocks.getVideos.mockReturnValue([]);
     mocks.getVideoBySourceUrl.mockReturnValue(null);
     mocks.updateVideo.mockReturnValue({ id: "existing-video" });
+    mocks.persistDownloadedMediaIdentity.mockImplementation(
+      ({ video }: { video: any }) => video,
+    );
     mocks.organizeVideoByAuthor.mockReturnValue(null);
     mocks.isThumbnailReferencedByOtherVideo.mockReturnValue(false);
     mocks.resolveManagedThumbnailWebPathFromAbsolutePath.mockReturnValue(null);
@@ -514,12 +523,14 @@ describe("bilibiliVideo.downloadSinglePart", () => {
       "/mock/images",
       expect.any(Object),
     );
-    expect(mocks.saveVideo).toHaveBeenCalledWith(
+    expect(mocks.persistDownloadedMediaIdentity).toHaveBeenCalledWith(
       expect.objectContaining({
-        videoFilename: "final-video.mkv",
-        videoPath: "/videos/final-video.mkv",
-        width: 1920,
-        height: 1080,
+        video: expect.objectContaining({
+          videoFilename: "final-video.mkv",
+          videoPath: "/videos/final-video.mkv",
+          width: 1920,
+          height: 1080,
+        }),
       }),
     );
   });
@@ -566,10 +577,12 @@ describe("bilibiliVideo.downloadSinglePart", () => {
       "/mock/images",
       expect.any(Object),
     );
-    expect(mocks.saveVideo).toHaveBeenCalledWith(
+    expect(mocks.persistDownloadedMediaIdentity).toHaveBeenCalledWith(
       expect.objectContaining({
-        videoFilename: "final-video.mp4",
-        videoPath: "/videos/final-video.mp4",
+        video: expect.objectContaining({
+          videoFilename: "final-video.mp4",
+          videoPath: "/videos/final-video.mp4",
+        }),
       }),
     );
   });
@@ -690,11 +703,15 @@ describe("bilibiliVideo.downloadSinglePart", () => {
     expect(mocks.executeYtDlpSpawn).toHaveBeenCalledTimes(2);
     // The saved video must carry the real metadata from the first (successful)
     // download, not the retry's generic fallback (issue #295 2-1 follow-up).
-    expect(mocks.saveVideo).toHaveBeenCalledWith(
-      expect.objectContaining({ author: "Mock Author" }),
+    expect(mocks.persistDownloadedMediaIdentity).toHaveBeenCalledWith(
+      expect.objectContaining({
+        video: expect.objectContaining({ author: "Mock Author" }),
+      }),
     );
-    expect(mocks.saveVideo).not.toHaveBeenCalledWith(
-      expect.objectContaining({ author: "Bilibili User" }),
+    expect(mocks.persistDownloadedMediaIdentity).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        video: expect.objectContaining({ author: "Bilibili User" }),
+      }),
     );
   });
 
@@ -913,11 +930,15 @@ describe("bilibiliVideo.downloadSinglePart", () => {
 
     expect(result.success).toBe(true);
     // Author comes from the entry, not the "Bilibili User" fallback.
-    expect(mocks.saveVideo).toHaveBeenCalledWith(
-      expect.objectContaining({ author: "Real Author" }),
+    expect(mocks.persistDownloadedMediaIdentity).toHaveBeenCalledWith(
+      expect.objectContaining({
+        video: expect.objectContaining({ author: "Real Author" }),
+      }),
     );
-    expect(mocks.saveVideo).not.toHaveBeenCalledWith(
-      expect.objectContaining({ author: "Bilibili User" }),
+    expect(mocks.persistDownloadedMediaIdentity).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        video: expect.objectContaining({ author: "Bilibili User" }),
+      }),
     );
     // The entry thumbnail is downloaded.
     expect(mocks.downloadThumbnail).toHaveBeenCalledWith(

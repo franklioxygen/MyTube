@@ -1,89 +1,179 @@
-import { DownloadOrder } from "./types";
+import { DownloadOrder, VideoEntry } from "./types";
 import { logger } from "../../utils/logger";
 
-export interface VideoEntry {
-  url: string;
-  uploadDate: string;  // YYYYMMDD or "00000000"
-  viewCount: number;   // default 0
-  sourceIndex: number; // stable tie-breaker
+export type { VideoEntry };
+
+export class OrderingMetadataUnavailableError extends Error {
+  constructor(
+    readonly platform: string,
+    readonly downloadOrder: DownloadOrder,
+    readonly entryCount: number
+  ) {
+    super(
+      `Unable to prepare ${downloadOrder} ordering for ${platform}: no usable ${requiredFieldLabel(
+        downloadOrder
+      )} metadata was available for ${entryCount} videos.`
+    );
+    this.name = "OrderingMetadataUnavailableError";
+  }
+}
+
+function requiredFieldLabel(order: DownloadOrder): "publication date" | "view count" {
+  return order === "dateAsc" || order === "dateDesc"
+    ? "publication date"
+    : "view count";
+}
+
+function requiredValue(entry: VideoEntry, order: DownloadOrder): number | null {
+  return order === "dateAsc" || order === "dateDesc"
+    ? entry.publishedAtMs
+    : entry.viewCount;
 }
 
 /**
  * Sort video entries by the requested order with deterministic tie-breaking.
  */
-export function sortVideoEntries(entries: VideoEntry[], order: DownloadOrder): VideoEntry[] {
+export function sortVideoEntries(
+  entries: VideoEntry[],
+  order: DownloadOrder,
+  platform: string = "unknown"
+): VideoEntry[] {
+  if (entries.length > 0 && entries.every((entry) => requiredValue(entry, order) === null)) {
+    throw new OrderingMetadataUnavailableError(platform, order, entries.length);
+  }
+
   return [...entries].sort((a, b) => {
-    let primary = 0;
-    if (order === "dateDesc") {
-      primary = b.uploadDate.localeCompare(a.uploadDate);
-    } else if (order === "dateAsc") {
-      primary = a.uploadDate.localeCompare(b.uploadDate);
-    } else if (order === "viewsDesc") {
-      primary = b.viewCount - a.viewCount;
-      if (primary === 0) primary = b.uploadDate.localeCompare(a.uploadDate);
-    } else {
-      primary = a.viewCount - b.viewCount;
-      if (primary === 0) primary = a.uploadDate.localeCompare(b.uploadDate);
+    const aPrimary = requiredValue(a, order);
+    const bPrimary = requiredValue(b, order);
+
+    if (aPrimary === null && bPrimary !== null) {
+      return 1;
     }
-    return primary !== 0 ? primary : a.sourceIndex - b.sourceIndex;
+    if (aPrimary !== null && bPrimary === null) {
+      return -1;
+    }
+
+    let primary = 0;
+    if (aPrimary !== null && bPrimary !== null) {
+      primary =
+        order === "dateDesc" || order === "viewsDesc"
+          ? bPrimary - aPrimary
+          : aPrimary - bPrimary;
+    }
+
+    if (primary === 0 && (order === "viewsDesc" || order === "viewsAsc")) {
+      if (a.publishedAtMs === null && b.publishedAtMs !== null) {
+        primary = 1;
+      } else if (a.publishedAtMs !== null && b.publishedAtMs === null) {
+        primary = -1;
+      } else if (a.publishedAtMs !== null && b.publishedAtMs !== null) {
+        primary =
+          order === "viewsDesc"
+            ? b.publishedAtMs - a.publishedAtMs
+            : a.publishedAtMs - b.publishedAtMs;
+      }
+    }
+
+    if (primary !== 0) {
+      return primary;
+    }
+
+    const indexTie = a.sourceIndex - b.sourceIndex;
+    return indexTie !== 0
+      ? indexTie
+      : a.sourceVideoId.localeCompare(b.sourceVideoId);
   });
 }
 
-const UNKNOWN_UPLOAD_DATE = "00000000";
 const MAX_TWITCH_VIDEO_ENTRY_PAGES = 100;
+const YOUTUBE_HYDRATE_METADATA_CONCURRENCY = 4;
 
-const toUploadDate = (value: unknown): string => {
+async function runWithBoundedConcurrency<T>(
+  items: T[],
+  limit: number,
+  worker: (item: T) => Promise<void>
+): Promise<void> {
+  if (items.length === 0) {
+    return;
+  }
+
+  let nextIndex = 0;
+  const workerCount = Math.min(limit, items.length);
+  const workers = Array.from({ length: workerCount }, async () => {
+    while (nextIndex < items.length) {
+      const currentIndex = nextIndex;
+      nextIndex += 1;
+      await worker(items[currentIndex]);
+    }
+  });
+
+  await Promise.all(workers);
+}
+
+const parsePublishedAt = (
+  value: unknown
+): { publishedAtMs: number | null; publishedDatePrecision: VideoEntry["publishedDatePrecision"] } => {
   if (typeof value === "string") {
     const trimmed = value.trim();
     if (/^\d{8}$/.test(trimmed)) {
-      return trimmed;
+      const year = Number.parseInt(trimmed.slice(0, 4), 10);
+      const month = Number.parseInt(trimmed.slice(4, 6), 10);
+      const day = Number.parseInt(trimmed.slice(6, 8), 10);
+      if (year === 0 || month < 1 || month > 12 || day < 1 || day > 31) {
+        return { publishedAtMs: null, publishedDatePrecision: "unknown" };
+      }
+      const ms = Date.UTC(year, month - 1, day);
+      const parsedDate = new Date(ms);
+      return Number.isNaN(ms) ||
+        parsedDate.getUTCFullYear() !== year ||
+        parsedDate.getUTCMonth() !== month - 1 ||
+        parsedDate.getUTCDate() !== day
+        ? { publishedAtMs: null, publishedDatePrecision: "unknown" }
+        : { publishedAtMs: ms, publishedDatePrecision: "day" };
     }
     if (/^\d+$/.test(trimmed)) {
       const numeric = Number.parseInt(trimmed, 10);
       if (Number.isFinite(numeric) && numeric > 0) {
         const asTime = numeric > 1e12 ? numeric : numeric * 1000;
-        return toUploadDate(asTime);
+        return parsePublishedAt(asTime);
       }
     }
     const parsed = Date.parse(trimmed);
     if (!Number.isNaN(parsed)) {
-      return toUploadDate(parsed);
+      return { publishedAtMs: parsed, publishedDatePrecision: "second" };
     }
-    return UNKNOWN_UPLOAD_DATE;
+    return { publishedAtMs: null, publishedDatePrecision: "unknown" };
   }
 
   if (typeof value === "number" && Number.isFinite(value) && value > 0) {
     const milliseconds = value > 1e12 ? value : value * 1000;
     const date = new Date(milliseconds);
     if (!Number.isNaN(date.getTime())) {
-      const year = date.getUTCFullYear();
-      const month = `${date.getUTCMonth() + 1}`.padStart(2, "0");
-      const day = `${date.getUTCDate()}`.padStart(2, "0");
-      return `${year}${month}${day}`;
+      return { publishedAtMs: milliseconds, publishedDatePrecision: "second" };
     }
   }
 
-  return UNKNOWN_UPLOAD_DATE;
+  return { publishedAtMs: null, publishedDatePrecision: "unknown" };
 };
 
-const toViewCount = (value: unknown): number => {
+const toViewCount = (value: unknown): number | null => {
   if (typeof value === "number" && Number.isFinite(value) && value >= 0) {
     return Math.floor(value);
   }
   if (typeof value !== "string") {
-    return 0;
+    return null;
   }
 
   const cleaned = value.trim().toLowerCase().replace(/,/g, "");
   if (!cleaned || cleaned === "--") {
-    return 0;
+    return null;
   }
 
   const unitMatch = cleaned.match(/^([\d.]+)\s*([kmb]|万|亿)?$/);
   if (unitMatch) {
     const numeric = Number.parseFloat(unitMatch[1]);
     if (!Number.isFinite(numeric) || numeric < 0) {
-      return 0;
+      return null;
     }
     const unit = unitMatch[2];
     const multiplier =
@@ -103,11 +193,49 @@ const toViewCount = (value: unknown): number => {
 
   const digits = cleaned.replace(/[^\d]/g, "");
   if (!digits) {
-    return 0;
+    return null;
   }
   const parsed = Number.parseInt(digits, 10);
-  return Number.isFinite(parsed) ? parsed : 0;
+  return Number.isFinite(parsed) ? parsed : null;
 };
+
+function createVideoEntry(input: {
+  url: string;
+  sourceVideoId?: string | null;
+  publishedAt?: unknown;
+  viewCount?: unknown;
+  sourceIndex: number;
+}): VideoEntry {
+  const published = parsePublishedAt(input.publishedAt);
+  return {
+    url: input.url,
+    sourceVideoId: input.sourceVideoId || input.url,
+    publishedAtMs: published.publishedAtMs,
+    publishedDatePrecision: published.publishedDatePrecision,
+    viewCount: toViewCount(input.viewCount),
+    sourceIndex: input.sourceIndex,
+  };
+}
+
+function metadataRequired(order: DownloadOrder, entry: VideoEntry): boolean {
+  return requiredValue(entry, order) === null;
+}
+
+function mergeEntryMetadata(base: VideoEntry, richer: VideoEntry): VideoEntry {
+  return {
+    ...base,
+    sourceVideoId:
+      base.sourceVideoId && base.sourceVideoId !== base.url
+        ? base.sourceVideoId
+        : richer.sourceVideoId,
+    publishedAtMs: base.publishedAtMs ?? richer.publishedAtMs,
+    publishedDatePrecision:
+      base.publishedAtMs !== null
+        ? base.publishedDatePrecision
+        : richer.publishedDatePrecision,
+    viewCount: base.viewCount ?? richer.viewCount,
+  };
+}
 
 /**
  * Service for fetching video URLs from different platforms
@@ -246,19 +374,21 @@ export class VideoUrlFetcher {
   }
 
   /**
-   * Get all video entries with metadata (url, uploadDate, viewCount, sourceIndex).
+   * Get all video entries with metadata for deterministic historical ordering.
    * Used by the full-fetch + sort + freeze path for non-incremental tasks.
    */
   async getAllVideoEntries(
     authorUrl: string,
     platform: string,
-    subscriptionYtdlpConfig?: string | null
+    subscriptionYtdlpConfig?: string | null,
+    downloadOrder: DownloadOrder = "dateDesc"
   ): Promise<VideoEntry[]> {
     try {
       if (platform === "Bilibili") {
         return await this.getBilibiliVideoEntries(
           authorUrl,
-          subscriptionYtdlpConfig
+          subscriptionYtdlpConfig,
+          downloadOrder
         );
       } else if (platform === "Twitch") {
         return await this.getTwitchVideoEntries(
@@ -268,7 +398,8 @@ export class VideoUrlFetcher {
       } else {
         return await this.getYouTubeVideoEntries(
           authorUrl,
-          subscriptionYtdlpConfig
+          subscriptionYtdlpConfig,
+          downloadOrder
         );
       }
     } catch (error) {
@@ -282,7 +413,8 @@ export class VideoUrlFetcher {
    */
   private async getYouTubeVideoEntries(
     authorUrl: string,
-    subscriptionYtdlpConfig?: string | null
+    subscriptionYtdlpConfig?: string | null,
+    downloadOrder: DownloadOrder = "dateDesc"
   ): Promise<VideoEntry[]> {
     const {
       executeYtDlpJson,
@@ -337,12 +469,13 @@ export class VideoUrlFetcher {
           for (const entry of result.entries) {
             if (entry.id && !entry.id.startsWith("UC")) {
               const url = entry.url || `https://www.youtube.com/watch?v=${entry.id}`;
-              entries.push({
+              entries.push(createVideoEntry({
                 url,
-                uploadDate: toUploadDate(entry.upload_date),
-                viewCount: toViewCount(entry.view_count),
+                sourceVideoId: entry.id,
+                publishedAt: entry.upload_date ?? entry.timestamp ?? entry.release_timestamp,
+                viewCount: entry.view_count,
                 sourceIndex: entries.length,
-              });
+              }));
             }
           }
           hasMore = result.entries.length === pageSize;
@@ -356,11 +489,74 @@ export class VideoUrlFetcher {
       }
     }
 
+    const hydrated = await this.hydrateYouTubeEntriesForOrder(
+      entries,
+      downloadOrder,
+      networkConfig,
+      PROVIDER_SCRIPT
+    );
+
     logger.info("Found video entries for source", {
-      entryCount: entries.length,
+      entryCount: hydrated.length,
       authorUrl,
     });
-    return entries;
+    return hydrated;
+  }
+
+  private async hydrateYouTubeEntriesForOrder(
+    entries: VideoEntry[],
+    downloadOrder: DownloadOrder,
+    networkConfig: Record<string, unknown>,
+    providerScript?: string | null
+  ): Promise<VideoEntry[]> {
+    if (!entries.some((entry) => metadataRequired(downloadOrder, entry))) {
+      return entries;
+    }
+
+    const { executeYtDlpJson } = await import("../../utils/ytDlpUtils");
+    const hydrated = [...entries];
+    const targets = hydrated
+      .map((entry, index) => ({ entry, index }))
+      .filter(({ entry }) => metadataRequired(downloadOrder, entry));
+
+    await runWithBoundedConcurrency(
+      targets,
+      YOUTUBE_HYDRATE_METADATA_CONCURRENCY,
+      async ({ entry, index }) => {
+        try {
+          const info = await executeYtDlpJson(entry.url, {
+            ...networkConfig,
+            noWarnings: true,
+            ...(providerScript
+              ? {
+                  extractorArgs: `youtubepot-bgutilscript:script_path=${providerScript}`,
+                }
+              : {}),
+          });
+          const richer = createVideoEntry({
+            url:
+              typeof info.webpage_url === "string" && info.webpage_url
+                ? info.webpage_url
+                : entry.url,
+            sourceVideoId:
+              typeof info.id === "string" && info.id ? info.id : entry.sourceVideoId,
+            publishedAt:
+              info.upload_date ?? info.timestamp ?? info.release_timestamp,
+            viewCount: info.view_count,
+            sourceIndex: entry.sourceIndex,
+          });
+          hydrated[index] = mergeEntryMetadata(entry, richer);
+        } catch (error) {
+          logger.warn("Unable to hydrate YouTube ordering metadata", {
+            url: entry.url,
+            order: downloadOrder,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+    );
+
+    return hydrated;
   }
 
   /**
@@ -368,7 +564,8 @@ export class VideoUrlFetcher {
    */
   private async getBilibiliVideoEntries(
     authorUrl: string,
-    subscriptionYtdlpConfig?: string | null
+    subscriptionYtdlpConfig?: string | null,
+    downloadOrder: DownloadOrder = "dateDesc"
   ): Promise<VideoEntry[]> {
     const entries: VideoEntry[] = [];
     const { extractBilibiliMid, extractBilibiliVideoId } = await import("../../utils/helpers");
@@ -410,12 +607,13 @@ export class VideoUrlFetcher {
             if (!video.bvid) {
               continue;
             }
-            entries.push({
+            entries.push(createVideoEntry({
               url: `https://www.bilibili.com/video/${video.bvid}`,
-              uploadDate: toUploadDate(video.uploadDate),
-              viewCount: toViewCount(video.viewCount),
+              sourceVideoId: video.bvid,
+              publishedAt: video.uploadDate,
+              viewCount: video.viewCount,
               sourceIndex: entries.length,
-            });
+            }));
           }
 
           logger.info("Found Bilibili video entries for source", {
@@ -460,14 +658,15 @@ export class VideoUrlFetcher {
           if (result.entries && result.entries.length > 0) {
             for (const entry of result.entries) {
               if (entry.id && entry.id.startsWith("BV")) {
-                entries.push({
+                entries.push(createVideoEntry({
                   url: entry.url || `https://www.bilibili.com/video/${entry.id}`,
-                  uploadDate: toUploadDate(
+                  sourceVideoId: entry.id,
+                  publishedAt:
                     entry.upload_date ?? entry.release_timestamp ?? entry.timestamp
-                  ),
-                  viewCount: toViewCount(entry.view_count),
+                  ,
+                  viewCount: entry.view_count,
                   sourceIndex: entries.length,
-                });
+                }));
               }
             }
             hasMore = result.entries.length === pageSize;
@@ -481,9 +680,14 @@ export class VideoUrlFetcher {
         }
       }
 
-      // If yt-dlp didn't return entries, fall back to the public space API.
-      if (entries.length === 0) {
+      // If yt-dlp didn't return entries or returned URL-only rows, fall back to
+      // the public space API and merge richer metadata by BVID.
+      if (
+        entries.length === 0 ||
+        entries.some((entry) => metadataRequired(downloadOrder, entry))
+      ) {
         logger.info("yt-dlp returned no Bilibili entries, trying API fallback...");
+        const apiEntries: VideoEntry[] = [];
         const axios = await import("axios");
         let pageNum = 1;
         const pageSize = 50;
@@ -516,12 +720,13 @@ export class VideoUrlFetcher {
                 if (!video.bvid) {
                   continue;
                 }
-                entries.push({
+                apiEntries.push(createVideoEntry({
                   url: `https://www.bilibili.com/video/${video.bvid}`,
-                  uploadDate: toUploadDate(video.created ?? video.pubdate),
-                  viewCount: toViewCount(video.play),
-                  sourceIndex: entries.length,
-                });
+                  sourceVideoId: video.bvid,
+                  publishedAt: video.created ?? video.pubdate,
+                  viewCount: video.play,
+                  sourceIndex: apiEntries.length,
+                }));
               }
 
               fetchedCount += videos.length;
@@ -537,6 +742,21 @@ export class VideoUrlFetcher {
               error
             );
             hasMoreApi = false;
+          }
+        }
+
+        if (entries.length === 0) {
+          entries.push(...apiEntries);
+        } else if (apiEntries.length > 0) {
+          const apiById = new Map(
+            apiEntries.map((entry) => [entry.sourceVideoId, entry])
+          );
+          for (let index = 0; index < entries.length; index++) {
+            const entry = entries[index];
+            const richer = apiById.get(entry.sourceVideoId);
+            if (richer) {
+              entries[index] = mergeEntryMetadata(entry, richer);
+            }
           }
         }
       }
@@ -587,12 +807,13 @@ export class VideoUrlFetcher {
         }
 
         for (const video of result.videos) {
-          entries.push({
+          entries.push(createVideoEntry({
             url: video.url,
-            uploadDate: toUploadDate(video.uploadDate),
-            viewCount: toViewCount(video.viewCount),
+            sourceVideoId: video.id,
+            publishedAt: video.uploadDate,
+            viewCount: video.viewCount,
             sourceIndex: entries.length,
-          });
+          }));
         }
 
         hasMore = result.videos.length === 100;
@@ -641,12 +862,13 @@ export class VideoUrlFetcher {
         pageCount += 1;
 
         for (const video of response.videos) {
-          entries.push({
+          entries.push(createVideoEntry({
             url: video.url,
-            uploadDate: toUploadDate(video.publishedAt),
-            viewCount: toViewCount(video.viewCount),
+            sourceVideoId: video.id,
+            publishedAt: video.publishedAt,
+            viewCount: video.viewCount,
             sourceIndex: entries.length,
-          });
+          }));
         }
 
         after = response.cursor;
@@ -840,6 +1062,7 @@ export class VideoUrlFetcher {
             hasMoreApi = false;
           }
         }
+
       }
     } catch (error) {
       logger.error("Error fetching Bilibili videos with yt-dlp:", error);

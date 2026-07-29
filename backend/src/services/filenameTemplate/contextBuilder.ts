@@ -1,3 +1,4 @@
+import { extractSourceVideoId } from "../../utils/helpers";
 import { FilenameTemplateContext, FilenameTemplateSourceOptions } from "./types";
 import { Video } from "../storageService/types";
 
@@ -48,6 +49,34 @@ function resolveSourceCustomName(
   fallbackValue: string | undefined
 ): string {
   return explicitValue || fallbackValue || "";
+}
+
+function parsePersistedInstantMs(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string" && value.trim().length > 0) {
+    const parsed = Date.parse(value);
+    return Number.isNaN(parsed) ? null : parsed;
+  }
+
+  return null;
+}
+
+function resolveSourceVideoId(
+  explicitValue: unknown,
+  sourceUrl: string | undefined
+): string {
+  if (typeof explicitValue === "string" && explicitValue.trim().length > 0) {
+    return explicitValue.trim();
+  }
+
+  if (sourceUrl) {
+    return extractSourceVideoId(sourceUrl).id || "";
+  }
+
+  return "";
 }
 
 // Map of platform -> allowed hostname suffixes. Matched against the parsed
@@ -118,13 +147,16 @@ export function buildContextFromYtDlpInfo(
   const uploader = info.uploader || info.channel || info.creator || UNKNOWN;
   const channel = info.channel || info.uploader || UNKNOWN;
   const title = info.title || UNKNOWN;
-  const id = info.id || "";
+  const sourceVideoId = resolveSourceVideoId(info.id, videoUrl);
 
   const platform = extractPlatform(info.extractor, videoUrl);
 
   return {
     title,
-    id,
+    sourceVideoId,
+    localVideoId: "",
+    downloadedAtMs: parsePersistedInstantMs(options.downloadedAtMs),
+    id: sourceVideoId,
     ext: "",
     uploader,
     channel,
@@ -170,9 +202,17 @@ export function buildContextFromBilibiliMetadata(
   const durationSec = typeof metadata.duration === "number" ? metadata.duration : undefined;
   const owner = metadata.owner?.name || metadata.ownerName || UNKNOWN;
 
+  const sourceVideoId = resolveSourceVideoId(
+    metadata.bvid || metadata.aid,
+    url
+  );
+
   return {
     title: metadata.title || UNKNOWN,
-    id: metadata.bvid || metadata.aid || "",
+    sourceVideoId,
+    localVideoId: "",
+    downloadedAtMs: parsePersistedInstantMs(options.downloadedAtMs),
+    id: sourceVideoId,
     ext: "",
     uploader: owner,
     channel: owner,
@@ -212,10 +252,16 @@ export function buildContextFromVideoRecord(
   const author = video.author || UNKNOWN;
 
   const platform = extractPlatform(video.source, video.sourceUrl);
+  const sourceVideoId = resolveSourceVideoId(video.sourceVideoId, video.sourceUrl);
 
   return {
     title: video.title || UNKNOWN,
-    id: video.id || "",
+    sourceVideoId,
+    localVideoId: video.id || "",
+    downloadedAtMs:
+      parsePersistedInstantMs(video.addedAt) ??
+      parsePersistedInstantMs(video.createdAt),
+    id: sourceVideoId,
     ext: "",
     uploader: author,
     channel: author,

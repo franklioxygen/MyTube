@@ -30,8 +30,10 @@ import {
     PreviewScenario,
     deriveFilenameEffectiveTemplate,
     deriveFilenamePresetId,
+    FILENAME_ID_SOURCE_SEMANTICS_VERSION,
     getFilenameTemplateWarningMessage,
     getPresetLabelFallback,
+    isIdSourceSemanticsWarning,
     previewResultSignature,
     resolveFilenamePresetSelectValue,
 } from './filenameTemplateShared';
@@ -87,6 +89,13 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
         preview: FilenameTemplatePreviewResponse;
     } | null>(null);
     const [validatingKey, setValidatingKey] = useState<string | null>(null);
+    const [dismissedIdSemanticsWarning, setDismissedIdSemanticsWarning] = useState(() => {
+        try {
+            return localStorage.getItem(FILENAME_ID_SOURCE_SEMANTICS_VERSION) === 'dismissed';
+        } catch {
+            return false;
+        }
+    });
 
     // Compute effective template for preview
     const effectiveTemplate = deriveFilenameEffectiveTemplate(settings, presetDefinitions);
@@ -226,6 +235,18 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
         previewGroups.find((group) => group.scenarios.includes(previewScenario)) ||
         previewGroups[0];
     const activePreview = activeGroup?.result;
+    const activeWarnings = (activePreview?.warnings || []).filter(
+        (warning) =>
+            !isIdSourceSemanticsWarning(warning) || !dismissedIdSemanticsWarning
+    );
+    const handleDismissIdSemanticsWarning = () => {
+        setDismissedIdSemanticsWarning(true);
+        try {
+            localStorage.setItem(FILENAME_ID_SOURCE_SEMANTICS_VERSION, 'dismissed');
+        } catch {
+            // Best-effort local dismissal.
+        }
+    };
 
     return (
         <Box sx={{ maxWidth: 960 }}>
@@ -330,9 +351,17 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
                                 )}
                             </>
                         )}
-                        {activePreview?.warnings && activePreview.warnings.length > 0 && (
-                            <Alert severity="warning" sx={{ mt: 1 }}>
-                                {activePreview.warnings
+                        {activeWarnings.length > 0 && (
+                            <Alert
+                                severity="warning"
+                                sx={{ mt: 1, whiteSpace: 'pre-wrap' }}
+                                onClose={
+                                    activeWarnings.some(isIdSourceSemanticsWarning)
+                                        ? handleDismissIdSemanticsWarning
+                                        : undefined
+                                }
+                            >
+                                {activeWarnings
                                     .map((warning) => getFilenameTemplateWarningMessage(warning, t))
                                     .join('\n')}
                             </Alert>

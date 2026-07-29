@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// Mock external collaborators so the planner's branching/dedup logic is
-// exercised in isolation, with the filesystem probes fully controlled.
+// Mock external collaborators so the planner's branching logic is exercised in
+// isolation while the allocator contract is fully controlled.
 vi.mock("../../../../config/paths", () => ({
   VIDEOS_DIR: "/tmp/videos",
   IMAGES_DIR: "/tmp/images",
@@ -13,6 +13,7 @@ vi.mock("../../../../utils/security", () => ({
   resolveSafeChildPath: vi.fn((dir: string, rel: string) => `${dir}/${rel}`),
 }));
 vi.mock("../../../../utils/helpers", () => ({
+  extractSourceVideoId: vi.fn(() => ({ platform: "youtube", id: "abc" })),
   formatVideoFilename: vi.fn(
     (title: string, author: string, date: string) => `${title}-${author}-${date}`
   ),
@@ -26,16 +27,21 @@ vi.mock("../../../../services/filenameTemplate/contextBuilder", () => ({
 vi.mock("../../../../services/filenameTemplate/renderer", () => ({
   planVideoOutputPaths: vi.fn(),
 }));
-vi.mock("../../../../services/filenameTemplate/dedupe", () => ({
-  dedupeRelativePath: vi.fn((rel: string) => rel),
-}));
 vi.mock("../../../../services/filenameTemplate/sourceOptions", () => ({
   enrichSourceOptionsForDownload: vi.fn((opts: unknown) => opts),
+}));
+vi.mock("../../../../services/filenameTemplate/outputPathAllocator", () => ({
+  allocateOutputFamilySync: vi.fn((input: any) => ({
+    videoRelativePath: input.videoRelativePath,
+    thumbnailRelativePath: input.thumbnailRelativePath,
+    subtitleBaseRelativePath: input.subtitleBaseRelativePath,
+    collisionStrategy: "none",
+    release: vi.fn(),
+  })),
 }));
 vi.mock(
   "../../../../services/downloaders/ytdlp/ytdlpVideoHelpers",
   () => ({
-    pathExistsWithAnyKnownMediaExtension: vi.fn().mockReturnValue(false),
     stripTrailingExtension: vi.fn((value: string, ext: string) =>
       ext && value.endsWith(ext) ? value.slice(0, -ext.length) : value
     ),
@@ -43,14 +49,13 @@ vi.mock(
 );
 
 import { planDownloadPaths } from "../../../../services/downloaders/ytdlp/downloadPathPlanner";
-import { dedupeRelativePath } from "../../../../services/filenameTemplate/dedupe";
+import { allocateOutputFamilySync } from "../../../../services/filenameTemplate/outputPathAllocator";
 import { planVideoOutputPaths } from "../../../../services/filenameTemplate/renderer";
 import { pathExistsSafeSync } from "../../../../utils/security";
-import { pathExistsWithAnyKnownMediaExtension } from "../../../../services/downloaders/ytdlp/ytdlpVideoHelpers";
 
 const baseArgs = {
   videoUrl: "https://youtube.com/watch?v=abc",
-  info: { uploader: "Uploader" },
+  info: { id: "abc", uploader: "Uploader", extractor_key: "Youtube" },
   filenameTemplateSourceOptions: undefined,
   videoTitle: "Title",
   videoAuthor: "Author",
@@ -64,8 +69,13 @@ describe("planDownloadPaths", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(pathExistsSafeSync).mockReturnValue(false);
-    vi.mocked(pathExistsWithAnyKnownMediaExtension).mockReturnValue(false);
-    vi.mocked(dedupeRelativePath).mockImplementation((rel: string) => rel);
+    vi.mocked(allocateOutputFamilySync).mockImplementation((input: any) => ({
+      videoRelativePath: input.videoRelativePath,
+      thumbnailRelativePath: input.thumbnailRelativePath,
+      subtitleBaseRelativePath: input.subtitleBaseRelativePath,
+      collisionStrategy: "none",
+      release: vi.fn(),
+    }));
   });
 
   describe("legacy preset", () => {
@@ -77,13 +87,28 @@ describe("planDownloadPaths", () => {
         settings: legacySettings,
       });
 
-      expect(planned).toEqual({
+      expect(planned).toMatchObject({
         videoAbsolutePath: "/tmp/videos/Title-Author-20240101.mp4",
         videoFilename: "Title-Author-20240101.mp4",
         thumbnailAbsolutePath: "/tmp/images/Title-Author-20240101.jpg",
         thumbnailFilename: "Title-Author-20240101.jpg",
         safeBaseFilename: "Title-Author-20240101",
       });
+      expect(planned.releaseOutputReservation).toEqual(expect.any(Function));
+      expect(allocateOutputFamilySync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          videoRelativePath: "Title-Author-20240101.mp4",
+          thumbnailRelativePath: "Title-Author-20240101.jpg",
+          subtitleBaseRelativePath: "Title-Author-20240101",
+          thumbnailBaseDir: "/tmp/images",
+          existingLocalVideoId: undefined,
+          identity: expect.objectContaining({
+            platform: "youtube",
+            sourceVideoId: "abc",
+            mediaType: "video",
+          }),
+        })
+      );
     });
 
     it("places the thumbnail next to the video when the setting is on", () => {
@@ -99,11 +124,13 @@ describe("planDownloadPaths", () => {
     });
 
     it("appends a collision counter when the target already exists", () => {
-      vi.mocked(pathExistsSafeSync).mockReturnValue(true);
-      // _1 is also taken; _2 is free.
-      vi.mocked(pathExistsWithAnyKnownMediaExtension).mockImplementation(
-        (candidate: string) => candidate.endsWith("_1")
-      );
+      vi.mocked(allocateOutputFamilySync).mockImplementation((input: any) => ({
+        videoRelativePath: "Title-Author-20240101_2.mp4",
+        thumbnailRelativePath: "Title-Author-20240101_2.jpg",
+        subtitleBaseRelativePath: "Title-Author-20240101_2",
+        collisionStrategy: "numeric",
+        release: vi.fn(),
+      }));
 
       const planned = planDownloadPaths({
         ...baseArgs,
@@ -115,10 +142,6 @@ describe("planDownloadPaths", () => {
       );
       expect(planned.videoFilename).toBe("Title-Author-20240101_2.mp4");
       expect(planned.thumbnailFilename).toBe("Title-Author-20240101_2.jpg");
-      // The cleanup/subtitle stem carries the collision counter, matching the
-      // template branch. An un-suffixed stem let cancel-time cleanup delete
-      // the pre-existing video (exact-stem artifact match) and let subtitle
-      // processing overwrite the original's subtitle files.
       expect(planned.safeBaseFilename).toBe("Title-Author-20240101_2");
     });
 
@@ -157,7 +180,7 @@ describe("planDownloadPaths", () => {
         settings: templateSettings,
       });
 
-      expect(planned).toEqual({
+      expect(planned).toMatchObject({
         videoAbsolutePath: "/tmp/videos/Show/S01E01.mp4",
         videoFilename: "S01E01.mp4",
         thumbnailAbsolutePath: "/tmp/images/Show/S01E01.jpg",
@@ -171,11 +194,24 @@ describe("planDownloadPaths", () => {
           thumbnailExtension: "jpg",
         })
       );
+      expect(allocateOutputFamilySync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          videoRelativePath: "Show/S01E01.mp4",
+          thumbnailRelativePath: "Show/S01E01.jpg",
+          subtitleBaseRelativePath: "Show/S01E01",
+        })
+      );
     });
 
-    it("carries a dedupe stem suffix into every derived name", () => {
+    it("carries an allocator stem suffix into every derived name", () => {
       primePlanner();
-      vi.mocked(dedupeRelativePath).mockReturnValue("Show/S01E01_1.mp4");
+      vi.mocked(allocateOutputFamilySync).mockImplementation((input: any) => ({
+        videoRelativePath: "Show/S01E01_1.mp4",
+        thumbnailRelativePath: "Show/S01E01_1.jpg",
+        subtitleBaseRelativePath: "Show/S01E01_1",
+        collisionStrategy: "numeric",
+        release: vi.fn(),
+      }));
 
       const planned = planDownloadPaths({
         ...baseArgs,
@@ -193,10 +229,13 @@ describe("planDownloadPaths", () => {
 
     it("appends an on-disk collision counter including the cleanup base", () => {
       primePlanner();
-      // The un-suffixed base exists on disk; _1 is free.
-      vi.mocked(pathExistsWithAnyKnownMediaExtension).mockImplementation(
-        (candidate: string) => candidate === "/tmp/videos/Show/S01E01"
-      );
+      vi.mocked(allocateOutputFamilySync).mockImplementation((input: any) => ({
+        videoRelativePath: "Show/S01E01_1.mp4",
+        thumbnailRelativePath: "Show/S01E01_1.jpg",
+        subtitleBaseRelativePath: "Show/S01E01_1",
+        collisionStrategy: "numeric",
+        release: vi.fn(),
+      }));
 
       const planned = planDownloadPaths({
         ...baseArgs,

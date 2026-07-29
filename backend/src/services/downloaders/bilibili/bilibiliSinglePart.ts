@@ -2,7 +2,7 @@ import { IMAGES_DIR, VIDEOS_DIR } from "../../../config/paths";
 import { getErrorMessage } from "../../../utils/errors";
 import { DownloadCancelledError } from "../../../errors/DownloadErrors";
 import { isCancellationError } from "../../../utils/downloadUtils";
-import { formatVideoFilename } from "../../../utils/helpers";
+import { extractBilibiliVideoId, formatVideoFilename } from "../../../utils/helpers";
 import { FilenameTemplateSourceOptions } from "../../filenameTemplate/types";
 import { applySubscriptionFilenameTemplateOverride } from "../../filenameTemplate";
 import { resolveAuthorOrganizationMode } from "../../../types/settings";
@@ -107,6 +107,15 @@ export async function downloadSinglePart(
 
     // Create a safe base filename (without extension)
     const timestamp = Date.now();
+    const downloadedAtIso = new Date(timestamp).toISOString();
+    const sourceVideoId = extractBilibiliVideoId(url) || undefined;
+    const existingLocalVideoForRedownload =
+      totalParts === 1
+        ? storageService.getVideoBySourceUrl(
+            url,
+            audioOnly ? "audio" : "video"
+          )
+        : null;
 
     // Prepare file paths using the file manager
     const { videoPath, thumbnailPath, videoDir, imageDir } = prepareFilePaths(
@@ -230,6 +239,12 @@ export async function downloadSinglePart(
         settings,
         filenameTemplateSourceOptions,
         legacyTitleOverride: legacyFilenameTitle,
+        sourceUrl: url,
+        sourceVideoId,
+        partNumber,
+        mediaType: audioOnly ? "audio" : "video",
+        downloadedAtMs: timestamp,
+        existingLocalVideoId: existingLocalVideoForRedownload?.id,
       }
     );
     const {
@@ -259,12 +274,17 @@ export async function downloadSinglePart(
       throw error;
     }
 
-    // Download subtitles for video media only.
-    // For non-legacy mode use planned subtitle paths; for legacy use formatVideoFilename
-    const isLegacyMode = (settings.downloadFilenamePresetId || "legacy") === "legacy";
-    const newSafeBaseFilename = isLegacyMode
-      ? formatVideoFilename(legacyFilenameTitle, videoAuthor, videoDate)
-      : (renameResult.subtitleStem || formatVideoFilename(videoTitle, videoAuthor, videoDate));
+    // Download subtitles for video media only. The stem/path comes from the
+    // allocated output family so collisions keep subtitles with the final video.
+    const newSafeBaseFilename =
+      renameResult.subtitleStem ||
+      formatVideoFilename(
+        (settings.downloadFilenamePresetId || "legacy") === "legacy"
+          ? legacyFilenameTitle
+          : videoTitle,
+        videoAuthor,
+        videoDate
+      );
 
     let subtitles: Array<{
       language: string;
@@ -274,14 +294,16 @@ export async function downloadSinglePart(
     if (!audioOnly) {
       try {
         logger.info("Attempting to download subtitles...");
-        const subtitleDir = isLegacyMode
-          ? resolveSubtitleDirectory(collectionName, moveSubtitlesToVideoFolder, videoDir)
-          : (renameResult.subtitleBaseDir || resolveSubtitleDirectory(collectionName, moveSubtitlesToVideoFolder, videoDir));
-        const subtitlePathPrefix = isLegacyMode
-          ? (moveSubtitlesToVideoFolder
-              ? collectionName ? `/videos/${collectionName}` : `/videos`
-              : collectionName ? `/subtitles/${collectionName}` : `/subtitles`)
-          : (renameResult.subtitleWebBaseDir || (moveSubtitlesToVideoFolder ? `/videos` : `/subtitles`));
+        const subtitleDir =
+          renameResult.subtitleBaseDir ||
+          resolveSubtitleDirectory(
+            collectionName,
+            moveSubtitlesToVideoFolder,
+            videoDir
+          );
+        const subtitlePathPrefix =
+          renameResult.subtitleWebBaseDir ||
+          (moveSubtitlesToVideoFolder ? `/videos` : `/subtitles`);
         let axiosConfig = {};
         if (userConfig.proxy) {
           try {
@@ -335,6 +357,7 @@ export async function downloadSinglePart(
       source: "bilibili",
       mediaType: audioOnly ? "audio" : "video",
       sourceUrl: url,
+      sourceVideoId,
       videoFilename: finalVideoFilename,
       thumbnailFilename: thumbnailSaved ? finalThumbnailFilename : undefined,
       subtitles: subtitles.length > 0 ? subtitles : undefined,
@@ -352,11 +375,11 @@ export async function downloadSinglePart(
         ? authorAvatarFilename
         : undefined,
       authorAvatarPath: authorAvatarSaved ? authorAvatarPath : undefined,
-      addedAt: new Date().toISOString(),
+      addedAt: downloadedAtIso,
       partNumber: partNumber,
       totalParts: totalParts,
       seriesTitle: seriesTitle,
-      createdAt: new Date().toISOString(),
+      createdAt: downloadedAtIso,
     };
 
     // Under author_folder_only a collection is a logical grouping only: its
@@ -377,10 +400,7 @@ export async function downloadSinglePart(
     if (totalParts === 1) {
       // Scope by media type so an audio-only download becomes its own library
       // item instead of overwriting the existing video row for the same URL.
-      const existingVideo = storageService.getVideoBySourceUrl(
-        url,
-        audioOnly ? "audio" : "video"
-      );
+      const existingVideo = existingLocalVideoForRedownload;
 
       if (existingVideo) {
         // Update existing video with new subtitle information and file paths
@@ -437,6 +457,7 @@ export async function downloadSinglePart(
           title: videoData.title, // Update title in case it changed
           description: videoData.description, // Update description in case it changed
           mediaType: videoData.mediaType,
+          sourceVideoId: videoData.sourceVideoId,
           authorAvatarFilename: authorAvatarSaved
             ? authorAvatarFilename
             : existingVideo.authorAvatarFilename,
@@ -467,6 +488,22 @@ export async function downloadSinglePart(
           }
 
           removeMediaServerArtifactsForVideo(existingVideo);
+          if (sourceVideoId) {
+            finalVideoData = storageService.persistDownloadedMediaIdentity({
+              video: finalVideoData,
+              identity: {
+                platform: "bilibili",
+                sourceVideoId,
+                mediaType: finalVideoData.mediaType === "audio" ? "audio" : "video",
+                partNumber,
+                localVideoId: finalVideoData.id,
+              },
+              sourceUrl: url,
+              trackingMode: totalParts > 1 ? "multipart_part" : "redownload",
+              downloadedAtMs: timestamp,
+            });
+          }
+
           syncMediaServerArtifactsForRecord(finalVideoData, {
             rawSourceInfo: bilibiliInfo,
           });
@@ -476,7 +513,23 @@ export async function downloadSinglePart(
     }
 
     // Save the video (new video)
-    storageService.saveVideo(videoData);
+    if (sourceVideoId) {
+      storageService.persistDownloadedMediaIdentity({
+        video: videoData,
+        identity: {
+          platform: "bilibili",
+          sourceVideoId,
+          mediaType: videoData.mediaType === "audio" ? "audio" : "video",
+          partNumber,
+          localVideoId: videoData.id,
+        },
+        sourceUrl: url,
+        trackingMode: totalParts > 1 ? "multipart_part" : "new",
+        downloadedAtMs: timestamp,
+      });
+    } else {
+      storageService.saveVideo(videoData);
+    }
 
     logger.info(`Part ${partNumber}/${totalParts} added to database`);
 

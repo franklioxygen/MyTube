@@ -137,6 +137,9 @@ describe('DownloadManager', () => {
     });
     (storageService.recordVideoDownload as any).mockImplementation(() => {});
     (storageService.updateVideoDownloadRecord as any).mockImplementation(() => {});
+    (storageService.persistDownloadedMediaIdentity as any).mockImplementation(
+      ({ video }: { video: any }) => video,
+    );
     (extractSourceVideoId as any).mockReturnValue({
       id: null,
       platform: 'YouTube',
@@ -589,15 +592,25 @@ describe('DownloadManager', () => {
         'task_success',
         expect.objectContaining({ taskId: 'restore-1' }),
       );
-      expect(storageService.recordVideoDownload).toHaveBeenCalledWith(
-        'abc123',
-        'https://www.youtube.com/watch?v=restored',
-        'YouTube',
-        'restored-video',
-        'Restored Task',
-        'Restored Author',
-        'video',
-      );
+      expect(storageService.persistDownloadedMediaIdentity).toHaveBeenCalledWith({
+        video: expect.objectContaining({
+          id: 'restored-video',
+          title: 'Restored Task',
+          sourceUrl: 'https://www.youtube.com/watch?v=restored',
+          sourceVideoId: 'abc123',
+          mediaType: 'video',
+        }),
+        identity: {
+          platform: 'YouTube',
+          sourceVideoId: 'abc123',
+          mediaType: 'video',
+          partNumber: undefined,
+          localVideoId: 'restored-video',
+        },
+        sourceUrl: 'https://www.youtube.com/watch?v=restored',
+        trackingMode: 'redownload',
+        downloadedAtMs: undefined,
+      });
       expect(CloudStorageService.uploadVideo).toHaveBeenCalled();
     });
 
@@ -909,14 +922,25 @@ describe('DownloadManager', () => {
       );
 
       expect(storageService.removeActiveDownload).toHaveBeenCalledWith('multi-1');
-      expect(storageService.updateVideoDownloadRecord).toHaveBeenCalledWith(
-        'source-1',
-        'video-2',
-        'Custom title',
-        'Uploader',
-        'YouTube',
-        'video',
-      );
+      expect(storageService.persistDownloadedMediaIdentity).toHaveBeenCalledWith({
+        video: expect.objectContaining({
+          id: 'video-2',
+          title: 'Custom title',
+          sourceUrl: 'https://www.youtube.com/watch?v=source-1',
+          sourceVideoId: 'source-1',
+          mediaType: 'video',
+        }),
+        identity: {
+          platform: 'YouTube',
+          sourceVideoId: 'source-1',
+          mediaType: 'video',
+          partNumber: undefined,
+          localVideoId: 'video-2',
+        },
+        sourceUrl: 'https://www.youtube.com/watch?v=source-1',
+        trackingMode: 'redownload',
+        downloadedAtMs: undefined,
+      });
     });
 
     it('should record partial aggregate results with partial history status', async () => {

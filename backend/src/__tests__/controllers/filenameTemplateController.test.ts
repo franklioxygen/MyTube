@@ -359,6 +359,57 @@ describe("filenameTemplateController — startBatchRename", () => {
     expect(body.code).toBe("invalid_template");
   });
 
+  it("requires explicit acknowledgement before batch renaming with the id alias", async () => {
+    getDownloadStatusMock.mockReturnValue({
+      activeDownloads: [],
+      queuedDownloads: [],
+    });
+    getSettingsMock.mockReturnValue({
+      downloadFilenamePresetId: "custom",
+      downloadFilenameTemplate: "{{ id }}.{{ ext }}",
+      moveThumbnailsToVideoFolder: false,
+      moveSubtitlesToVideoFolder: false,
+    });
+    getVideosMock.mockReturnValue([]);
+
+    const res = makeRes();
+    await startBatchRename({ body: {} } as Request, res);
+
+    expect(res.status).toHaveBeenCalledWith(409);
+    const body = (res.json as any).mock.calls[0][0];
+    expect(body).toMatchObject({
+      code: "id_source_semantics_ack_required",
+      requiredAcknowledgement: "filename-id-source-semantics-v2",
+    });
+  });
+
+  it("starts batch rename with the id alias after acknowledgement", async () => {
+    getDownloadStatusMock.mockReturnValue({
+      activeDownloads: [],
+      queuedDownloads: [],
+    });
+    getSettingsMock.mockReturnValue({
+      downloadFilenamePresetId: "custom",
+      downloadFilenameTemplate: "{{ id }}.{{ ext }}",
+      moveThumbnailsToVideoFolder: false,
+      moveSubtitlesToVideoFolder: false,
+    });
+    getVideosMock.mockReturnValue([]);
+
+    const res = makeRes();
+    await startBatchRename(
+      {
+        body: {
+          acknowledgeIdSourceSemantics: "filename-id-source-semantics-v2",
+        },
+      } as Request,
+      res,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(202);
+    await waitForJobToFinish();
+  });
+
   it("rejects with 400 when the current custom preset omits its template override", async () => {
     getDownloadStatusMock.mockReturnValue({
       activeDownloads: [],

@@ -3,6 +3,7 @@ import {
   SUBTITLES_DIR,
   VIDEOS_DIR,
 } from "../../config/paths";
+import path from "path";
 import { resolveSafeChildPath } from "../../utils/security";
 
 const MANAGED_PREFIXES = [
@@ -12,6 +13,35 @@ const MANAGED_PREFIXES = [
 ] as const;
 
 type ManagedPrefix = "/videos" | "/images" | "/subtitles";
+
+function normalizedManagedKey(value: string): string {
+  return path
+    .normalize(value)
+    .replace(/\\/g, "/")
+    .normalize("NFKC")
+    .toLocaleLowerCase();
+}
+
+export function canonicalizeManagedPath(webOrAbsolutePath: string): string {
+  let normalized = webOrAbsolutePath.replace(/\\/g, "/");
+  if (normalized.startsWith("/videos/")) {
+    normalized = normalized.slice("/videos/".length);
+  } else if (normalized.startsWith("/images/")) {
+    normalized = normalized.slice("/images/".length);
+  } else if (normalized.startsWith("/subtitles/")) {
+    normalized = normalized.slice("/subtitles/".length);
+  } else if (path.isAbsolute(normalized)) {
+    for (const root of [VIDEOS_DIR, IMAGES_DIR, SUBTITLES_DIR]) {
+      const relative = path.relative(root, normalized).replace(/\\/g, "/");
+      if (relative && !relative.startsWith("..") && !path.isAbsolute(relative)) {
+        normalized = relative;
+        break;
+      }
+    }
+  }
+
+  return normalizedManagedKey(normalized);
+}
 
 /**
  * Given a web path like "/videos/Channel/file.mp4", returns the relative

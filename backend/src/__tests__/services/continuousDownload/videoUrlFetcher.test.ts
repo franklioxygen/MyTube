@@ -1,6 +1,10 @@
 import axios from 'axios';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { sortVideoEntries, VideoUrlFetcher } from '../../../services/continuousDownload/videoUrlFetcher';
+import {
+  OrderingMetadataUnavailableError,
+  sortVideoEntries,
+  VideoUrlFetcher,
+} from '../../../services/continuousDownload/videoUrlFetcher';
 import * as downloadService from '../../../services/downloadService';
 import * as bilibiliCollection from '../../../services/downloaders/bilibili/bilibiliCollection';
 import * as ytdlpTwitch from '../../../services/downloaders/ytdlp/ytdlpTwitch';
@@ -43,6 +47,7 @@ describe('VideoUrlFetcher', () => {
     
     // Default mocks
     (ytDlpUtils.getUserYtDlpConfig as any).mockReturnValue({});
+    (ytDlpUtils.getEffectiveUserYtDlpConfig as any).mockReturnValue({});
     (ytDlpUtils.getNetworkConfigFromUserConfig as any).mockReturnValue(mockConfig);
     (ytdlpHelpers.getProviderScript as any).mockReturnValue(undefined);
     (helpers.extractBilibiliMid as any).mockReturnValue('123');
@@ -66,10 +71,10 @@ describe('VideoUrlFetcher', () => {
 
   describe('sortVideoEntries', () => {
     const baseEntries = [
-      { url: 'u1', uploadDate: '20240201', viewCount: 100, sourceIndex: 0 },
-      { url: 'u2', uploadDate: '20240101', viewCount: 500, sourceIndex: 1 },
-      { url: 'u3', uploadDate: '20240101', viewCount: 500, sourceIndex: 2 },
-      { url: 'u4', uploadDate: '20230101', viewCount: 1, sourceIndex: 3 },
+      { url: 'u1', sourceVideoId: 'u1', publishedAtMs: Date.UTC(2024, 1, 1), publishedDatePrecision: 'day' as const, viewCount: 100, sourceIndex: 0 },
+      { url: 'u2', sourceVideoId: 'u2', publishedAtMs: Date.UTC(2024, 0, 1), publishedDatePrecision: 'day' as const, viewCount: 500, sourceIndex: 1 },
+      { url: 'u3', sourceVideoId: 'u3', publishedAtMs: Date.UTC(2024, 0, 1), publishedDatePrecision: 'day' as const, viewCount: 500, sourceIndex: 2 },
+      { url: 'u4', sourceVideoId: 'u4', publishedAtMs: Date.UTC(2023, 0, 1), publishedDatePrecision: 'day' as const, viewCount: 1, sourceIndex: 3 },
     ];
 
     it('should sort by dateDesc (newest first)', () => {
@@ -94,12 +99,36 @@ describe('VideoUrlFetcher', () => {
 
     it('should keep deterministic order when primary and secondary keys tie', () => {
       const tied = [
-        { url: 't1', uploadDate: '20240101', viewCount: 10, sourceIndex: 8 },
-        { url: 't2', uploadDate: '20240101', viewCount: 10, sourceIndex: 3 },
-        { url: 't3', uploadDate: '20240101', viewCount: 10, sourceIndex: 5 },
+        { url: 't1', sourceVideoId: 't1', publishedAtMs: Date.UTC(2024, 0, 1), publishedDatePrecision: 'day' as const, viewCount: 10, sourceIndex: 8 },
+        { url: 't2', sourceVideoId: 't2', publishedAtMs: Date.UTC(2024, 0, 1), publishedDatePrecision: 'day' as const, viewCount: 10, sourceIndex: 3 },
+        { url: 't3', sourceVideoId: 't3', publishedAtMs: Date.UTC(2024, 0, 1), publishedDatePrecision: 'day' as const, viewCount: 10, sourceIndex: 5 },
       ];
       const sorted = sortVideoEntries(tied, 'viewsDesc');
       expect(sorted.map((x) => x.url)).toEqual(['t2', 't3', 't1']);
+    });
+
+    it('should place unknown required metadata after known values', () => {
+      const sorted = sortVideoEntries(
+        [
+          { url: 'known', sourceVideoId: 'known', publishedAtMs: Date.UTC(2024, 0, 1), publishedDatePrecision: 'day' as const, viewCount: 10, sourceIndex: 1 },
+          { url: 'unknown', sourceVideoId: 'unknown', publishedAtMs: null, publishedDatePrecision: 'unknown' as const, viewCount: 20, sourceIndex: 0 },
+        ],
+        'dateAsc'
+      );
+      expect(sorted.map((x) => x.url)).toEqual(['known', 'unknown']);
+    });
+
+    it('should reject an all-unknown requested ordering field', () => {
+      expect(() =>
+        sortVideoEntries(
+          [
+            { url: 'a', sourceVideoId: 'a', publishedAtMs: null, publishedDatePrecision: 'unknown' as const, viewCount: 10, sourceIndex: 0 },
+            { url: 'b', sourceVideoId: 'b', publishedAtMs: null, publishedDatePrecision: 'unknown' as const, viewCount: 20, sourceIndex: 1 },
+          ],
+          'dateAsc',
+          'YouTube'
+        )
+      ).toThrow(OrderingMetadataUnavailableError);
     });
   });
 
@@ -480,6 +509,70 @@ describe('VideoUrlFetcher', () => {
   });
 
   describe('getAllVideoEntries', () => {
+    it('should hydrate YouTube ordering metadata with bounded concurrency', async () => {
+      const flatEntries = Array.from({ length: 9 }, (_, index) => {
+        const ordinal = index + 1;
+        const id = `yt-${ordinal}`;
+        return {
+          id,
+          url: `https://www.youtube.com/watch?v=${id}`,
+        };
+      });
+      let activeHydrations = 0;
+      let maxActiveHydrations = 0;
+      const hydratedUrls: string[] = [];
+
+      (ytDlpUtils.executeYtDlpJson as any).mockImplementation(
+        async (url: string, options: Record<string, unknown>) => {
+          if (options.flatPlaylist) {
+            return { entries: flatEntries };
+          }
+
+          activeHydrations += 1;
+          maxActiveHydrations = Math.max(maxActiveHydrations, activeHydrations);
+          hydratedUrls.push(url);
+          await new Promise((resolve) => setTimeout(resolve, 5));
+          activeHydrations -= 1;
+
+          const id = new URL(url).searchParams.get('v') || 'unknown';
+          const ordinal = Number.parseInt(id.replace('yt-', ''), 10);
+          return {
+            id,
+            webpage_url: url,
+            upload_date: `202401${String(ordinal).padStart(2, '0')}`,
+            view_count: ordinal * 10,
+          };
+        }
+      );
+
+      const entries = await fetcher.getAllVideoEntries(
+        'https://youtube.com/@channel',
+        'YouTube',
+        null,
+        'dateAsc'
+      );
+
+      expect(hydratedUrls).toHaveLength(9);
+      expect(maxActiveHydrations).toBeLessThanOrEqual(4);
+      expect(entries).toHaveLength(9);
+      expect(entries[0]).toEqual(
+        expect.objectContaining({
+          sourceVideoId: 'yt-1',
+          publishedAtMs: Date.UTC(2024, 0, 1),
+          publishedDatePrecision: 'day',
+          viewCount: 10,
+        })
+      );
+      expect(entries[8]).toEqual(
+        expect.objectContaining({
+          sourceVideoId: 'yt-9',
+          publishedAtMs: Date.UTC(2024, 0, 9),
+          publishedDatePrecision: 'day',
+          viewCount: 90,
+        })
+      );
+    });
+
     it('should include Bilibili metadata from collection API when available', async () => {
       (helpers.extractBilibiliMid as any).mockReturnValue(null);
       (helpers.extractBilibiliVideoId as any).mockReturnValue('BVCOLL');
@@ -505,17 +598,113 @@ describe('VideoUrlFetcher', () => {
       expect(entries).toEqual([
         {
           url: 'https://www.bilibili.com/video/BV111',
-          uploadDate: '20240220',
+          sourceVideoId: 'BV111',
+          publishedAtMs: Date.UTC(2024, 1, 20),
+          publishedDatePrecision: 'day',
           viewCount: 1234,
           sourceIndex: 0,
         },
         {
           url: 'https://www.bilibili.com/video/BV222',
-          uploadDate: '20240219',
+          sourceVideoId: 'BV222',
+          publishedAtMs: Date.UTC(2024, 1, 19),
+          publishedDatePrecision: 'day',
           viewCount: 12,
           sourceIndex: 1,
         },
       ]);
+    });
+
+    it('should treat Bilibili sentinel and invalid calendar dates as unknown', async () => {
+      (helpers.extractBilibiliMid as any).mockReturnValue(null);
+      (helpers.extractBilibiliVideoId as any).mockReturnValue('BVCOLL');
+      (downloadService.checkBilibiliCollectionOrSeries as any).mockResolvedValue({
+        success: true,
+        type: 'collection',
+        mid: 100,
+        id: 200,
+      });
+      (bilibiliCollection.getCollectionVideos as any).mockResolvedValue({
+        success: true,
+        videos: [
+          { bvid: 'BVZERO', uploadDate: '00000000', viewCount: 1234 },
+          { bvid: 'BVINVALID', uploadDate: '20240230', viewCount: 12 },
+        ],
+      });
+
+      const entries = await fetcher.getAllVideoEntries(
+        'https://www.bilibili.com/video/BVCOLL',
+        'Bilibili'
+      );
+
+      expect(entries).toEqual([
+        expect.objectContaining({
+          sourceVideoId: 'BVZERO',
+          publishedAtMs: null,
+          publishedDatePrecision: 'unknown',
+        }),
+        expect.objectContaining({
+          sourceVideoId: 'BVINVALID',
+          publishedAtMs: null,
+          publishedDatePrecision: 'unknown',
+        }),
+      ]);
+    });
+
+    it('should merge API metadata when Bilibili flat entries are non-empty but incomplete', async () => {
+      (helpers.extractBilibiliMid as any).mockReturnValue('123');
+      (ytDlpUtils.executeYtDlpJson as any).mockResolvedValue({
+        entries: [
+          { id: 'BV111', url: 'https://www.bilibili.com/video/BV111' },
+          {
+            id: 'BV222',
+            url: 'https://www.bilibili.com/video/BV222',
+            upload_date: '20240219',
+            view_count: 12,
+          },
+        ],
+      });
+      (axios.get as any).mockResolvedValue({
+        data: {
+          code: 0,
+          data: {
+            list: {
+              vlist: [
+                { bvid: 'BV111', created: 1708387200, play: 1234 },
+                { bvid: 'BV222', created: 1708300800, play: 12 },
+              ],
+            },
+            page: { count: 2 },
+          },
+        },
+      });
+
+      const entries = await fetcher.getAllVideoEntries(
+        'https://space.bilibili.com/123',
+        'Bilibili',
+        null,
+        'dateAsc'
+      );
+
+      expect(entries).toEqual([
+        {
+          url: 'https://www.bilibili.com/video/BV111',
+          sourceVideoId: 'BV111',
+          publishedAtMs: 1708387200 * 1000,
+          publishedDatePrecision: 'second',
+          viewCount: 1234,
+          sourceIndex: 0,
+        },
+        {
+          url: 'https://www.bilibili.com/video/BV222',
+          sourceVideoId: 'BV222',
+          publishedAtMs: Date.UTC(2024, 1, 19),
+          publishedDatePrecision: 'day',
+          viewCount: 12,
+          sourceIndex: 1,
+        },
+      ]);
+      expect(axios.get).toHaveBeenCalled();
     });
 
     it('should collect Twitch archives and uploads with pagination metadata', async () => {
@@ -573,19 +762,25 @@ describe('VideoUrlFetcher', () => {
       expect(entries).toEqual([
         {
           url: 'https://www.twitch.tv/videos/101',
-          uploadDate: '20260304',
+          sourceVideoId: 'archive-1',
+          publishedAtMs: Date.parse('2026-03-04T10:00:00Z'),
+          publishedDatePrecision: 'second',
           viewCount: 550,
           sourceIndex: 0,
         },
         {
           url: 'https://www.twitch.tv/videos/102',
-          uploadDate: '20260303',
+          sourceVideoId: 'archive-2',
+          publishedAtMs: Date.parse('2026-03-03T11:00:00Z'),
+          publishedDatePrecision: 'second',
           viewCount: 120,
           sourceIndex: 1,
         },
         {
           url: 'https://www.twitch.tv/videos/201',
-          uploadDate: '20260302',
+          sourceVideoId: 'upload-1',
+          publishedAtMs: Date.parse('2026-03-02T12:00:00Z'),
+          publishedDatePrecision: 'second',
           viewCount: 9000,
           sourceIndex: 2,
         },
@@ -654,13 +849,17 @@ describe('VideoUrlFetcher', () => {
       expect(entries).toEqual([
         {
           url: 'https://www.twitch.tv/videos/3001',
-          uploadDate: '20260304',
+          sourceVideoId: '3001',
+          publishedAtMs: Date.UTC(2026, 2, 4),
+          publishedDatePrecision: 'day',
           viewCount: 123,
           sourceIndex: 0,
         },
         {
           url: 'https://www.twitch.tv/videos/3000',
-          uploadDate: '20260303',
+          sourceVideoId: '3000',
+          publishedAtMs: Date.UTC(2026, 2, 3),
+          publishedDatePrecision: 'day',
           viewCount: 45,
           sourceIndex: 1,
         },

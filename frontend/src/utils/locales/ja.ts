@@ -1019,6 +1019,11 @@ export const ja = {
     "大規模なチャンネルは、ダウンロード開始前にメタデータを取得するのに時間がかかる場合があります。",
   downloadOrderShortsHint:
     "2つのダウンロードタスクが作成されます：メイン動画用と Shorts 用です。",
+  preparingOrderMetadata: "順序メタデータを準備中...",
+  selectedDownloadOrder: "順序: {order}",
+  retryOrderPreparation: "順序の準備を再試行",
+  orderPreparationRetryStarted: "順序の準備の再試行を開始しました",
+  orderPreparationRetryFailed: "順序の準備の再試行に失敗しました",
   downloadAllPreviousWarning:
     "警告：これにより、この著者の過去のすべての動画がダウンロードされます。これにより、大量のストレージ容量が消費される可能性があり、ボット検出メカニズムがトリガーされて、プラットフォームから一時的または永続的な禁止措置を受ける可能性があります。自己責任で使用してください。",
   downloadAllPreviousVideosInPlaylists:
@@ -1269,7 +1274,7 @@ export const ja = {
   authorOrganizationModeRecommendation:
     "MyTube 内に重複した作者コレクションを作らず、作者ごとのフォルダだけ使いたい場合は「作者フォルダのみ」を使ってください。",
   authorOrganizationModeTemplateNote:
-    "legacy 以外のファイル名プリセットでは、実際のフォルダ構成はプリセット側で決まります。その場合、作者整理はコレクション連携にのみ影響します。",
+    "作者フォルダは legacy と non-legacy の両方のファイル名プリセットに適用されます。作者フォルダモードが有効な場合、テンプレートのサブフォルダは作者フォルダ内に作成されます。",
   cleanupAuthorCollections: "既存の作者コレクションを整理",
   cleanupAuthorCollectionsDescription:
     "「作者フォルダのみ」に切り替えた後、すでに別のコレクションに属している動画から冗長な作者コレクションの関連付けを削除します。ディスク上のファイルは移動しません。",
@@ -1483,6 +1488,7 @@ export const ja = {
   filenamePresetPlaylistStaticDate:
     "プレイリスト – シーズン 1 / 日付ごとのエピソード",
   filenamePresetSourceDateFlat: "ソース - 日付、次にタイトル",
+  filenamePresetSourceDateId: "ソース - 日付、タイトル、ソースID",
   filenamePresetCustom: "カスタムテンプレート",
   filenameCustomTemplateLabel: "カスタムテンプレート",
   filenameCustomTemplatePlaceholder: "{{ source_collection_name }}/{{ season_by_year__episode_by_date_and_index }} - {{ title }}.{{ ext }}",
@@ -1497,6 +1503,8 @@ export const ja = {
     "プレイリスト以外のソースでは media_playlist_index を利用できないため、00 にフォールバックします。",
   filenameWarningSourceCollectionMetadataMayBeEmpty:
     "単一動画のダウンロードでは source_collection_name/id が空になる場合があります。",
+  filenameWarningIdSourceSemanticsV2:
+    "id は常にソースプラットフォームの動画 ID を意味するようになりました。既存ライブラリの一括リネームでは以前、MyTube のローカル行 ID が使われていました。その以前の値が必要な場合は local_video_id を使用してください。",
   filenameValidating: "検証中…",
   filenameValidationError: "テンプレートエラー",
   filenameBatchRenameButton:
@@ -1535,7 +1543,10 @@ export const ja = {
   filenameRefSectionRawMetadataTitle: '生の yt-dlp メタデータ',
   filenameRefSectionRawMetadataDescription: 'これらのパターンは組み込みエイリアスを超えた yt-dlp メタデータにアクセスします。',
   filenameRefItemTitleDesc: '動画タイトル。',
-  filenameRefItemIdDesc: 'プラットフォームの動画 ID またはローカル動画 ID。',
+  filenameRefItemIdDesc: "安定したソースプラットフォーム動画 ID のエイリアス。",
+  filenameRefItemSourceVideoIdDesc: "安定したソースプラットフォーム動画 ID。",
+  filenameRefItemLocalVideoIdDesc: "MyTube ライブラリ内のローカル行 ID。",
+  filenameRefItemDownloadDatetimeDesc: "UTC のダウンロード時刻（YYYY-MM-DD_HH-MM-SS 形式）。",
   filenameRefItemExtDesc: 'ドットを除いた最終ファイル拡張子。',
   filenameRefItemUploaderDesc: '投稿者または作者名。',
   filenameRefItemChannelDesc: 'チャンネル名。投稿者にフォールバックします。',

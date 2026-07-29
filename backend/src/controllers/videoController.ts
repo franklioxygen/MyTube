@@ -25,6 +25,7 @@ import {
   createReadStreamSafe,
   createWriteStreamSafe,
   removeSafe,
+  pathExistsSafeSync,
   resolveSafePath,
   sanitizePathSegment,
   writeFileSafe,
@@ -419,6 +420,26 @@ export const getAuthorChannelUrl = async (
   }
 };
 
+function resolveAvailableSubtitleTarget(
+  targetDir: string,
+  preferredFilename: string
+): { targetPath: string; filename: string } {
+  const parsed = path.parse(preferredFilename);
+  for (let attempt = 0; attempt < 1000; attempt += 1) {
+    const filename =
+      attempt === 0
+        ? preferredFilename
+        : `${parsed.name} (${attempt + 1})${parsed.ext}`;
+    // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
+    const targetPath = resolveSafePath(path.join(targetDir, filename), targetDir);
+    if (!pathExistsSafeSync(targetPath, [VIDEOS_DIR, SUBTITLES_DIR])) {
+      return { targetPath, filename };
+    }
+  }
+
+  throw new ValidationError("Could not allocate subtitle filename", "file");
+}
+
 /**
  * Upload subtitle
  * Errors are automatically handled by asyncHandler middleware
@@ -542,10 +563,12 @@ export const uploadSubtitle = async (
         : VIDEOS_DIR;
 
       fs.ensureDirSync(videoDir);
-      // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
-      const targetPath = resolveSafePath(path.join(videoDir, filename), videoDir);
+      const target = resolveAvailableSubtitleTarget(videoDir, filename);
+      filename = target.filename;
 
-      fs.moveSync(sourcePath, targetPath, { overwrite: true });
+      fs.moveSync(sourcePath, target.targetPath, {
+        overwrite: false,
+      });
 
       const relativeWebDir = relativeVideoDir.split(path.sep).join("/");
       if (relativeVideoDir) {
@@ -563,10 +586,12 @@ export const uploadSubtitle = async (
           SUBTITLES_DIR
         );
         fs.ensureDirSync(targetDir);
-        // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
-        const targetPath = resolveSafePath(path.join(targetDir, filename), targetDir);
+        const target = resolveAvailableSubtitleTarget(targetDir, filename);
+        filename = target.filename;
 
-        fs.moveSync(sourcePath, targetPath, { overwrite: true });
+        fs.moveSync(sourcePath, target.targetPath, {
+          overwrite: false,
+        });
 
         const relativeWebDir = relativeVideoDir.split(path.sep).join("/");
         finalWebPath = `/subtitles/${relativeWebDir}/${filename}`;

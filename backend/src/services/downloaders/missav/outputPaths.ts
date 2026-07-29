@@ -1,26 +1,19 @@
 import path from "path";
 import { IMAGES_DIR, VIDEOS_DIR } from "../../../config/paths";
-import { formatVideoFilename } from "../../../utils/helpers";
+import { extractSourceVideoId, formatVideoFilename } from "../../../utils/helpers";
 import { logger } from "../../../utils/logger";
+import { ensureDirSafeSync, resolveSafeChildPath } from "../../../utils/security";
+import { applyPhysicalOrganization } from "../../filenameTemplate/organizationPath";
 import {
-  ensureDirSafeSync,
-  pathExistsSafeSync,
-  resolveSafeChildPath,
-} from "../../../utils/security";
-import {
-  applyDedupeToRelatedPaths,
-  dedupeRelativePath,
-} from "../../filenameTemplate/dedupe";
+  allocateOutputFamilySync,
+  type OutputFamilyReservation,
+} from "../../filenameTemplate/outputPathAllocator";
 import { planVideoOutputPaths } from "../../filenameTemplate/renderer";
 import { enrichSourceOptionsForDownload } from "../../filenameTemplate/sourceOptions";
 import {
   FilenameTemplateContext,
   FilenameTemplateSourceOptions,
 } from "../../filenameTemplate/types";
-
-function stripTrailingExtension(value: string, extension: string): string {
-  return value.endsWith(extension) ? value.slice(0, -extension.length) : value;
-}
 
 export interface MissAvOutputPaths {
   finalVideoFilename: string;
@@ -29,6 +22,39 @@ export interface MissAvOutputPaths {
   newThumbnailPath: string;
   finalVideoWebPath: string;
   finalThumbnailWebPath: string | null;
+  releaseOutputReservation: () => void;
+}
+
+function subtitleBaseRelativePathFrom(
+  videoRelativePath: string,
+  basenameWithoutExt: string
+): string {
+  const dir = path.dirname(videoRelativePath);
+  return dir && dir !== "." ? `${dir}/${basenameWithoutExt}` : basenameWithoutExt;
+}
+
+function buildPathsFromReservation(
+  reservation: OutputFamilyReservation,
+  thumbnailBaseDir: string
+): Omit<MissAvOutputPaths, "releaseOutputReservation"> {
+  const newVideoPath = resolveSafeChildPath(
+    VIDEOS_DIR,
+    reservation.videoRelativePath
+  );
+  const newThumbnailPath = resolveSafeChildPath(
+    thumbnailBaseDir,
+    reservation.thumbnailRelativePath
+  );
+  const thumbnailWebRoot = thumbnailBaseDir === VIDEOS_DIR ? "/videos" : "/images";
+
+  return {
+    finalVideoFilename: path.basename(reservation.videoRelativePath),
+    finalThumbnailFilename: path.basename(reservation.thumbnailRelativePath),
+    newVideoPath,
+    newThumbnailPath,
+    finalVideoWebPath: `/videos/${reservation.videoRelativePath}`,
+    finalThumbnailWebPath: `${thumbnailWebRoot}/${reservation.thumbnailRelativePath}`,
+  };
 }
 
 /**
@@ -45,6 +71,7 @@ export function planMissAvOutputPaths(
     url: string;
     mergeOutputFormat: string;
     filenameTemplateSourceOptions?: FilenameTemplateSourceOptions;
+    existingLocalVideoId?: string;
   },
 ): MissAvOutputPaths {
   const {
@@ -54,6 +81,7 @@ export function planMissAvOutputPaths(
     url,
     mergeOutputFormat,
     filenameTemplateSourceOptions,
+    existingLocalVideoId,
   } = params;
 
   const moveThumbnailsToVideoFolder =
@@ -66,6 +94,7 @@ export function planMissAvOutputPaths(
   let newThumbnailPath: string;
   let finalVideoWebPath: string;
   let finalThumbnailWebPath: string | null;
+  let reservation: OutputFamilyReservation;
 
   if (presetId !== "legacy") {
     // Non-legacy: use path planner
@@ -81,9 +110,13 @@ export function planMissAvOutputPaths(
         uploadDate: videoDate,
       }
     );
+    const sourceVideoId = extractSourceVideoId(url).id || "";
     const ctx: FilenameTemplateContext = {
       title: videoTitle,
-      id: "",
+      sourceVideoId,
+      localVideoId: "",
+      downloadedAtMs: Date.now(),
+      id: sourceVideoId,
       ext: "",
       uploader: videoAuthor,
       channel: videoAuthor,
@@ -113,25 +146,32 @@ export function planMissAvOutputPaths(
       moveSubtitlesToVideoFolder: settings.moveSubtitlesToVideoFolder || false,
     });
 
-    const reserved = new Set<string>();
-    const deduped = dedupeRelativePath(planned.video.relativePath, VIDEOS_DIR, reserved);
-    const { thumbnail: dedupedThumb } = applyDedupeToRelatedPaths(
-      planned.video.relativePath,
-      deduped,
-      planned.thumbnail.relativePath,
-      planned.subtitle.baseNameWithoutLanguageOrExt,
-    );
-
-    finalVideoFilename = path.basename(deduped);
-    newVideoPath = resolveSafeChildPath(VIDEOS_DIR, deduped);
-    finalThumbnailFilename = path.basename(dedupedThumb);
-    finalVideoWebPath = `/videos/${deduped}`;
-
     const thumbnailDir = moveThumbnailsToVideoFolder ? VIDEOS_DIR : IMAGES_DIR;
-    newThumbnailPath = resolveSafeChildPath(thumbnailDir, dedupedThumb);
-    finalThumbnailWebPath = moveThumbnailsToVideoFolder
-      ? `/videos/${dedupedThumb}`
-      : `/images/${dedupedThumb}`;
+    reservation = allocateOutputFamilySync({
+      videoRelativePath: planned.video.relativePath,
+      thumbnailRelativePath: planned.thumbnail.relativePath,
+      subtitleBaseRelativePath: subtitleBaseRelativePathFrom(
+        planned.video.relativePath,
+        planned.video.basenameWithoutExt
+      ),
+      thumbnailBaseDir: thumbnailDir,
+      identity: {
+        platform: "missav",
+        sourceVideoId,
+        mediaType: "video",
+      },
+      existingLocalVideoId,
+      thumbnailRequired: true,
+      subtitleRequired: settings.moveSubtitlesToVideoFolder || false,
+    });
+    ({
+      finalVideoFilename,
+      finalThumbnailFilename,
+      newVideoPath,
+      newThumbnailPath,
+      finalVideoWebPath,
+      finalThumbnailWebPath,
+    } = buildPathsFromReservation(reservation, thumbnailDir));
 
     ensureDirSafeSync(path.dirname(newVideoPath), VIDEOS_DIR);
     ensureDirSafeSync(path.dirname(newThumbnailPath), [IMAGES_DIR, VIDEOS_DIR]);
@@ -141,32 +181,40 @@ export function planMissAvOutputPaths(
     const newVideoFilename = `${newSafeBaseFilename}.${mergeOutputFormat}`;
     const newThumbnailFilename = `${newSafeBaseFilename}.jpg`;
 
-    finalVideoFilename = newVideoFilename;
-    finalThumbnailFilename = newThumbnailFilename;
-    newVideoPath = resolveSafeChildPath(VIDEOS_DIR, finalVideoFilename);
+    const finalVideoRelativePath = applyPhysicalOrganization(newVideoFilename, {
+      mode: settings.authorOrganizationMode,
+      author: videoAuthor,
+    }).relativePath;
 
     const thumbnailDir = moveThumbnailsToVideoFolder ? VIDEOS_DIR : IMAGES_DIR;
-
-    // If file already exists (e.g. redownload), deduplicate the filename
-    if (pathExistsSafeSync(newVideoPath, VIDEOS_DIR)) {
-      let counter = 1;
-      const ext = `.${mergeOutputFormat}`;
-      const basePath = stripTrailingExtension(newVideoPath, ext);
-      const baseName = newSafeBaseFilename;
-      while (pathExistsSafeSync(`${basePath}_${counter}${ext}`, VIDEOS_DIR)) {
-        counter++;
-      }
-      newVideoPath = `${basePath}_${counter}${ext}`;
-      finalVideoFilename = `${baseName}_${counter}${ext}`;
-      finalThumbnailFilename = `${baseName}_${counter}.jpg`;
-      logger.info(`File exists, using deduplicated filename: ${finalVideoFilename}`);
-    }
-
-    newThumbnailPath = resolveSafeChildPath(thumbnailDir, finalThumbnailFilename);
-    finalVideoWebPath = `/videos/${finalVideoFilename}`;
-    finalThumbnailWebPath = moveThumbnailsToVideoFolder
-      ? `/videos/${finalThumbnailFilename}`
-      : `/images/${finalThumbnailFilename}`;
+    const finalThumbnailRelativePath = finalVideoRelativePath.includes("/")
+      ? `${path.dirname(finalVideoRelativePath)}/${newThumbnailFilename}`
+      : newThumbnailFilename;
+    reservation = allocateOutputFamilySync({
+      videoRelativePath: finalVideoRelativePath,
+      thumbnailRelativePath: finalThumbnailRelativePath,
+      subtitleBaseRelativePath: subtitleBaseRelativePathFrom(
+        finalVideoRelativePath,
+        newSafeBaseFilename
+      ),
+      thumbnailBaseDir: thumbnailDir,
+      identity: {
+        platform: "missav",
+        sourceVideoId: extractSourceVideoId(url).id || null,
+        mediaType: "video",
+      },
+      existingLocalVideoId,
+      thumbnailRequired: true,
+      subtitleRequired: settings.moveSubtitlesToVideoFolder || false,
+    });
+    ({
+      finalVideoFilename,
+      finalThumbnailFilename,
+      newVideoPath,
+      newThumbnailPath,
+      finalVideoWebPath,
+      finalThumbnailWebPath,
+    } = buildPathsFromReservation(reservation, thumbnailDir));
   }
 
   return {
@@ -176,5 +224,6 @@ export function planMissAvOutputPaths(
     newThumbnailPath,
     finalVideoWebPath,
     finalThumbnailWebPath,
+    releaseOutputReservation: reservation.release,
   };
 }

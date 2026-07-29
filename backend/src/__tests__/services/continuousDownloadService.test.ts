@@ -37,6 +37,7 @@ vi.mock("../../services/continuousDownload/taskRepository", () => ({
       resumeTask: vi.fn().mockResolvedValue(undefined),
       deleteTask: vi.fn().mockResolvedValue(undefined),
       cancelTaskWithError: vi.fn().mockResolvedValue(undefined),
+      activateTaskForPlanningRetry: vi.fn().mockResolvedValue(undefined),
       updateTotalVideos: vi.fn().mockResolvedValue(undefined),
       updateFrozenVideoListPath: vi.fn().mockResolvedValue(undefined),
       clearFrozenVideoListPath: vi.fn().mockResolvedValue(undefined),
@@ -46,6 +47,7 @@ vi.mock("../../services/continuousDownload/taskRepository", () => ({
 }));
 
 vi.mock("../../services/continuousDownload/videoUrlFetcher", () => ({
+  OrderingMetadataUnavailableError: class OrderingMetadataUnavailableError extends Error {},
   VideoUrlFetcher: vi.fn().mockImplementation(function () {
     return {
       getAllVideoUrls: vi.fn().mockResolvedValue([]),
@@ -167,6 +169,64 @@ describe("ContinuousDownloadService", () => {
       await expect(
         service.getBlockingPlaylistTaskByDestination("u", "sub", "col")
       ).resolves.toEqual({ id: "d" });
+    });
+
+    it("getAllTasks should attach partial ordering warnings from V2 frozen plans", async () => {
+      const frozenListPath = path.join(frozenListsRoot, "warned.json");
+      repo.getAllTasks.mockResolvedValue([
+        {
+          id: "warned",
+          authorUrl: "https://youtube.com/@warned",
+          platform: "YouTube",
+          downloadOrder: "dateAsc",
+          frozenVideoListPath: frozenListPath,
+        },
+      ]);
+      const readSpy = vi
+        .spyOn(security, "readFileSafeSync")
+        .mockReturnValue(JSON.stringify({
+          version: 2,
+          taskId: "warned",
+          sourceUrl: "https://youtube.com/@warned",
+          platform: "YouTube",
+          downloadOrder: "dateAsc",
+          createdAt: new Date(0).toISOString(),
+          entries: [
+            { url: "u1", sourceVideoId: "u1", publishedAtMs: 1, publishedDatePrecision: "second", viewCount: null, sourceIndex: 0 },
+            { url: "u2", sourceVideoId: "u2", publishedAtMs: null, publishedDatePrecision: "unknown", viewCount: null, sourceIndex: 1 },
+          ],
+          metadataStats: {
+            entryCount: 2,
+            knownDates: 1,
+            unknownDates: 1,
+            knownViewCounts: 0,
+            unknownViewCounts: 2,
+          },
+          warnings: [
+            "1 of 2 videos lacked publication dates and were placed after videos with known metadata.",
+          ],
+        }));
+
+      await expect(service.getAllTasks()).resolves.toEqual([
+        expect.objectContaining({
+          orderingWarnings: [
+            {
+              code: "ORDERING_METADATA_PARTIAL",
+              message:
+                "1 of 2 videos lacked publication dates and were placed after videos with known metadata.",
+              knownCount: 1,
+              unknownCount: 1,
+            },
+          ],
+        }),
+      ]);
+      expect(readSpy).toHaveBeenCalledWith(
+        frozenListPath,
+        frozenListsRoot,
+        "utf8"
+      );
+
+      readSpy.mockRestore();
     });
   });
 
@@ -296,6 +356,76 @@ describe("ContinuousDownloadService", () => {
       expect(deleteSpy).toHaveBeenCalledTimes(2);
       deleteSpy.mockRestore();
     });
+
+    it("retryPlanning should reactivate a cancelled task with a retryable ordering error", async () => {
+      const planningError = JSON.stringify({
+        kind: "ordering_planning_failure",
+        version: 1,
+        code: "ORDERING_METADATA_UNAVAILABLE",
+        message: "Unable to prepare requested order.",
+        retryable: true,
+        platform: "YouTube",
+        downloadOrder: "dateDesc",
+        entryCount: 1,
+        knownCount: 0,
+        unknownCount: 1,
+        suggestedAction: "check_cookies_or_proxy",
+      });
+      const cancelledTask = {
+        id: "retry-plan",
+        status: "cancelled",
+        error: planningError,
+        downloadedCount: 0,
+        skippedCount: 0,
+        failedCount: 0,
+        currentVideoIndex: 0,
+      };
+      const retriedTask = {
+        ...cancelledTask,
+        status: "active",
+        error: null,
+      };
+      repo.getTaskById
+        .mockResolvedValueOnce(cancelledTask)
+        .mockResolvedValueOnce(retriedTask);
+      const processSpy = vi
+        .spyOn(service as any, "processTask")
+        .mockResolvedValue(undefined);
+
+      const result = await service.retryPlanning("retry-plan");
+
+      expect(repo.activateTaskForPlanningRetry).toHaveBeenCalledWith(
+        "retry-plan"
+      );
+      expect(processor.clearInterruption).toHaveBeenCalledWith("retry-plan");
+      expect(processSpy).toHaveBeenCalledWith("retry-plan");
+      expect(result).toBe(retriedTask);
+      processSpy.mockRestore();
+    });
+
+    it("retryPlanning should reject once task progress exists", async () => {
+      repo.getTaskById.mockResolvedValue({
+        id: "retry-plan-progress",
+        status: "cancelled",
+        error: JSON.stringify({
+          kind: "ordering_planning_failure",
+          version: 1,
+          code: "ORDERING_METADATA_UNAVAILABLE",
+          message: "Unable to prepare requested order.",
+          retryable: true,
+          suggestedAction: "check_cookies_or_proxy",
+        }),
+        downloadedCount: 1,
+        skippedCount: 0,
+        failedCount: 0,
+        currentVideoIndex: 1,
+      });
+
+      await expect(service.retryPlanning("retry-plan-progress")).rejects.toThrow(
+        "Order preparation can only be retried before any task progress exists."
+      );
+      expect(repo.activateTaskForPlanningRetry).not.toHaveBeenCalled();
+    });
   });
 
   describe("private processTask flow", () => {
@@ -326,8 +456,8 @@ describe("ContinuousDownloadService", () => {
         .mockResolvedValueOnce(task)
         .mockResolvedValueOnce(task);
       fetcher.getAllVideoEntries.mockResolvedValue([
-        { url: "u1", uploadDate: "20240101", viewCount: 1, sourceIndex: 0 },
-        { url: "u2", uploadDate: "20240102", viewCount: 2, sourceIndex: 1 },
+        { url: "u1", sourceVideoId: "u1", publishedAtMs: Date.UTC(2024, 0, 1), publishedDatePrecision: "day", viewCount: 1, sourceIndex: 0 },
+        { url: "u2", sourceVideoId: "u2", publishedAtMs: Date.UTC(2024, 0, 2), publishedDatePrecision: "day", viewCount: 2, sourceIndex: 1 },
       ]);
 
       await (service as any).processTask("np");
@@ -335,7 +465,8 @@ describe("ContinuousDownloadService", () => {
       expect(fetcher.getAllVideoEntries).toHaveBeenCalledWith(
         "https://youtube.com/@channel",
         "YouTube",
-        null
+        null,
+        "dateDesc"
       );
       expect(processor.processTask).toHaveBeenCalledWith(task, ["u1", "u2"]);
       expect((service as any).videoUrlCache.size).toBe(0);
@@ -371,8 +502,8 @@ describe("ContinuousDownloadService", () => {
         .mockResolvedValueOnce(task)
         .mockResolvedValueOnce(task);
       fetcher.getAllVideoEntries.mockResolvedValue([
-        { url: "u1", uploadDate: "20240101", viewCount: 1, sourceIndex: 0 },
-        { url: "u2", uploadDate: "20240102", viewCount: 2, sourceIndex: 1 },
+        { url: "u1", sourceVideoId: "u1", publishedAtMs: Date.UTC(2024, 0, 1), publishedDatePrecision: "day", viewCount: 1, sourceIndex: 0 },
+        { url: "u2", sourceVideoId: "u2", publishedAtMs: Date.UTC(2024, 0, 2), publishedDatePrecision: "day", viewCount: 2, sourceIndex: 1 },
       ]);
 
       const ensureDirSpy = vi
@@ -387,16 +518,73 @@ describe("ContinuousDownloadService", () => {
       expect(fetcher.getAllVideoEntries).toHaveBeenCalledWith(
         "https://youtube.com/@freeze",
         "YouTube",
-        null
+        null,
+        "viewsDesc"
       );
       expect(ensureDirSpy).toHaveBeenCalled();
       expect(writeSpy).toHaveBeenCalled();
+      const writtenPlan = JSON.parse(String(writeSpy.mock.calls[0][2]));
+      expect(writtenPlan).toMatchObject({
+        version: 2,
+        taskId: "freeze-create",
+        sourceUrl: "https://youtube.com/@freeze",
+        platform: "YouTube",
+        downloadOrder: "viewsDesc",
+      });
+      expect(writtenPlan.entries.map((entry: { url: string }) => entry.url)).toEqual([
+        "u1",
+        "u2",
+      ]);
       expect(repo.updateFrozenVideoListPath).toHaveBeenCalledWith(
         "freeze-create",
         expect.stringContaining("freeze-create.json")
       );
       expect(repo.updateTotalVideos).toHaveBeenCalledWith("freeze-create", 2);
       expect(processor.processTask).toHaveBeenCalledWith(task, ["u1", "u2"]);
+
+      ensureDirSpy.mockRestore();
+      writeSpy.mockRestore();
+    });
+
+    it("should cancel with a structured planning error when frozen plan persistence fails", async () => {
+      const task = {
+        id: "freeze-write-fails",
+        authorUrl: "https://youtube.com/@freeze-write-fails",
+        platform: "YouTube",
+        status: "active",
+        downloadOrder: "dateAsc",
+      };
+      repo.getTaskById.mockResolvedValue(task);
+      fetcher.getAllVideoEntries.mockResolvedValue([
+        { url: "u1", sourceVideoId: "u1", publishedAtMs: Date.UTC(2024, 0, 1), publishedDatePrecision: "day", viewCount: 1, sourceIndex: 0 },
+      ]);
+
+      const ensureDirSpy = vi
+        .spyOn(security, "ensureDirSafeSync")
+        .mockImplementation(() => undefined);
+      const writeSpy = vi
+        .spyOn(security, "writeFileSafeSync")
+        .mockImplementation(() => {
+          throw new Error("disk full");
+        });
+
+      await (service as any).processTask("freeze-write-fails");
+
+      expect(processor.processTask).not.toHaveBeenCalled();
+      expect(repo.cancelTaskWithError).toHaveBeenCalledWith(
+        "freeze-write-fails",
+        expect.stringContaining("ORDERING_PLAN_PERSIST_FAILED")
+      );
+      const serialized = repo.cancelTaskWithError.mock.calls[0][1];
+      const parsed = JSON.parse(serialized);
+      expect(parsed).toMatchObject({
+        kind: "ordering_planning_failure",
+        code: "ORDERING_PLAN_PERSIST_FAILED",
+        retryable: true,
+        platform: "YouTube",
+        downloadOrder: "dateAsc",
+        suggestedAction: "check_storage",
+      });
 
       ensureDirSpy.mockRestore();
       writeSpy.mockRestore();
@@ -449,7 +637,7 @@ describe("ContinuousDownloadService", () => {
         .mockResolvedValueOnce(task)
         .mockResolvedValueOnce(finalTask);
       fetcher.getAllVideoEntries.mockResolvedValue([
-        { url: "d1", uploadDate: "20240101", viewCount: 1, sourceIndex: 0 },
+        { url: "d1", sourceVideoId: "d1", publishedAtMs: Date.UTC(2024, 0, 1), publishedDatePrecision: "day", viewCount: 1, sourceIndex: 0 },
       ]);
 
       const ensureDirSpy = vi

@@ -19,6 +19,7 @@ export const videos = sqliteTable(
     date: text("date"),
     source: text("source"),
     sourceUrl: text("source_url"),
+    sourceVideoId: text("source_video_id"),
     videoFilename: text("video_filename"),
     thumbnailFilename: text("thumbnail_filename"),
     videoPath: text("video_path"),
@@ -53,6 +54,7 @@ export const videos = sqliteTable(
     // source_url is looked up on every download attempt, cloud-scan duplicate
     // check, and bilibili collection iteration (getVideoBySourceUrl).
     sourceUrlIdx: index("idx_videos_source_url").on(table.sourceUrl),
+    sourceVideoIdIdx: index("idx_videos_source_video_id").on(table.sourceVideoId),
     // createdAt backs the default ORDER BY for video listings.
     createdAtIdx: index("idx_videos_created_at").on(table.createdAt),
     // visibility is filtered on every visitor request.

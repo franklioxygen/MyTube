@@ -1003,6 +1003,11 @@ export const en = {
     "Large channels may take longer to fetch metadata before downloading begins.",
   downloadOrderShortsHint:
     "Two download tasks will be created: one for main videos and one for Shorts.",
+  preparingOrderMetadata: "Preparing order metadata...",
+  selectedDownloadOrder: "Order: {order}",
+  retryOrderPreparation: "Retry order preparation",
+  orderPreparationRetryStarted: "Order preparation retry started",
+  orderPreparationRetryFailed: "Failed to retry order preparation",
   downloadAllPreviousWarning:
     "Warning: This will download all previous videos from this author. This may consume significant storage space and could trigger bot detection mechanisms that may result in temporary or permanent bans from the platform. Use at your own risk.",
   downloadAllPreviousVideosInPlaylists: "Download previous videos in playlists",
@@ -1243,7 +1248,7 @@ export const en = {
   authorOrganizationModeRecommendation:
     "If you want author-based folders without duplicate author collections in MyTube, use Author folders only.",
   authorOrganizationModeTemplateNote:
-    "Non-legacy filename presets control the physical folder structure. In those modes, author organization only affects collection linking.",
+    "Author folders apply to legacy and non-legacy filename presets. Template subfolders are created inside the author folder when an author-folder mode is enabled.",
   cleanupAuthorCollections: "Clean Up Existing Author Collections",
   cleanupAuthorCollectionsDescription:
     "After switching to Author folders only, remove redundant author-collection links from videos that already belong to another collection. Files on disk are not moved.",
@@ -1448,6 +1453,7 @@ export const en = {
   filenamePresetPlaylistStaticIndex: "Playlist – Season 1 / Episode by index",
   filenamePresetPlaylistStaticDate: "Playlist – Season 1 / Episode by date",
   filenamePresetSourceDateFlat: "Source - Date then title",
+  filenamePresetSourceDateId: "Source - Date, title, source ID",
   filenamePresetCustom: "Custom template",
   filenameCustomTemplateLabel: "Custom template",
   filenameCustomTemplatePlaceholder: "{{ source_collection_name }}/{{ season_by_year__episode_by_date_and_index }} - {{ title }}.{{ ext }}",
@@ -1462,6 +1468,8 @@ export const en = {
     "media_playlist_index is unavailable for non-playlist sources and will fall back to 00.",
   filenameWarningSourceCollectionMetadataMayBeEmpty:
     "source_collection_name/id may be empty for single-video downloads.",
+  filenameWarningIdSourceSemanticsV2:
+    "id now consistently means the source platform video ID. Existing-library batch rename previously used MyTube's local row ID. Use local_video_id if you need that previous value.",
   filenameValidating: "Validating…",
   filenameValidationError: "Template error",
   filenameBatchRenameButton: "Rename existing files to match current pattern",
@@ -1496,7 +1504,11 @@ export const en = {
   filenameRefSectionRawMetadataDescription:
     "These patterns expose yt-dlp metadata beyond the built-in aliases.",
   filenameRefItemTitleDesc: "Video title.",
-  filenameRefItemIdDesc: "Platform video ID or local video ID.",
+  filenameRefItemIdDesc: "Alias for the stable platform source video ID.",
+  filenameRefItemSourceVideoIdDesc: "Stable platform source video ID.",
+  filenameRefItemLocalVideoIdDesc: "MyTube local library row ID.",
+  filenameRefItemDownloadDatetimeDesc:
+    "Download instant in UTC as YYYY-MM-DD_HH-MM-SS.",
   filenameRefItemExtDesc: "Final file extension without the dot.",
   filenameRefItemUploaderDesc: "Uploader or author name.",
   filenameRefItemChannelDesc: "Channel name, falling back to uploader.",

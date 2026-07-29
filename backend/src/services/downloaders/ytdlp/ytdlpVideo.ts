@@ -4,15 +4,21 @@ import path from "path";
 import { IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../../../config/paths";
 import {
   cleanupSubtitleFiles,
+  cleanupTemporaryFiles,
   cleanupVideoArtifacts,
 } from "../../../utils/downloadUtils";
 import {
+  extractSourceVideoId,
   extractTwitchVideoId,
   isYouTubeUrl,
 } from "../../../utils/helpers";
 import { resolveManagedWebPath } from "../../filenameTemplate/pathHelpers";
 import { applySubscriptionFilenameTemplateOverride } from "../../filenameTemplate";
 import { FilenameTemplateSourceOptions } from "../../filenameTemplate/types";
+import {
+  planOwnedReplacementStagingPathSync,
+  replaceOwnedFileWithBackupSync,
+} from "../../filenameTemplate/outputPathAllocator";
 import { planDownloadPaths } from "./downloadPathPlanner";
 import { logger } from "../../../utils/logger";
 import { ProgressTracker } from "../../../utils/progressTracker";
@@ -40,7 +46,10 @@ import {
 } from "../../mediaServerExport";
 import * as storageService from "../../storageService";
 import { Video } from "../../storageService";
-import { deleteSmallThumbnailMirrorSync } from "../../thumbnailMirrorService";
+import {
+  deleteSmallThumbnailMirrorSync,
+  regenerateSmallThumbnailForThumbnailPath,
+} from "../../thumbnailMirrorService";
 import { twitchApiService } from "../../twitchService";
 import { BaseDownloader, DownloadModeOptions } from "../BaseDownloader";
 import {
@@ -93,6 +102,7 @@ export async function downloadVideo(
 
   // Create a safe base filename (without extension)
   const timestamp = Date.now();
+  const downloadedAtIso = new Date(timestamp).toISOString();
   const safeBaseFilename = `video_${timestamp}`;
 
   // Add extensions for video and thumbnail
@@ -119,6 +129,7 @@ export async function downloadVideo(
   let newVideoPathWithFormat = resolveSafeChildPath(VIDEOS_DIR, videoFilename);
   let newThumbnailPath = resolveSafeChildPath(IMAGES_DIR, thumbnailFilename);
   let newSafeBaseFilename = safeBaseFilename;
+  let releaseOutputReservation: (() => void) | null = null;
 
   const downloader = new YtDlpDownloaderHelper();
 
@@ -259,6 +270,10 @@ export async function downloadVideo(
     const videoExtension = audioOnly
       ? audioFormat
       : (preparedFlags as ReturnType<typeof prepareDownloadFlags>).videoExtension;
+    const existingLocalVideo = storageService.getVideoBySourceUrl(
+      videoUrl,
+      audioOnly ? "audio" : "video"
+    );
 
     if (flags.proxy) {
       logger.info("Proxy included in download flags:", flags.proxy);
@@ -276,21 +291,38 @@ export async function downloadVideo(
       info,
       settings,
       filenameTemplateSourceOptions,
+      downloadedAtMs: timestamp,
       videoTitle,
       videoAuthor,
       videoDate,
       videoExtension,
+      mediaType: audioOnly ? "audio" : "video",
+      existingLocalVideoId: existingLocalVideo?.id,
       moveThumbnailsToVideoFolder,
       moveSubtitlesToVideoFolder,
     });
-    newVideoPathWithFormat = plannedPaths.videoAbsolutePath;
+    const ownedVideoReplacement = planOwnedReplacementStagingPathSync(
+      plannedPaths.videoAbsolutePath,
+      VIDEOS_DIR,
+      existingLocalVideo?.id
+    );
+    const ownedThumbnailReplacement = planOwnedReplacementStagingPathSync(
+      plannedPaths.thumbnailAbsolutePath,
+      [IMAGES_DIR, VIDEOS_DIR],
+      existingLocalVideo?.id
+    );
+    newVideoPathWithFormat =
+      ownedVideoReplacement?.stagingPath ?? plannedPaths.videoAbsolutePath;
     finalVideoFilename = plannedPaths.videoFilename;
-    newThumbnailPath = plannedPaths.thumbnailAbsolutePath;
+    newThumbnailPath =
+      ownedThumbnailReplacement?.stagingPath ?? plannedPaths.thumbnailAbsolutePath;
     finalThumbnailFilename = plannedPaths.thumbnailFilename;
     newSafeBaseFilename = plannedPaths.safeBaseFilename;
+    releaseOutputReservation = plannedPaths.releaseOutputReservation;
 
     // Update output path in flags
     flags.output = createYtDlpOutputTemplate(newVideoPathWithFormat);
+    flags.noOverwrites = true;
 
     logger.info(
       `Using merge output format: ${mergeOutputFormat}, downloading to: ${newVideoPathWithFormat}`
@@ -307,6 +339,9 @@ export async function downloadVideo(
         // Clean up partial files
         logger.info("Cleaning up partial files...");
         await cleanupVideoArtifacts(newSafeBaseFilename);
+        if (ownedVideoReplacement) {
+          await cleanupTemporaryFiles(ownedVideoReplacement.stagingPath);
+        }
 
         // Use fresh cleanup based on settings
         const currentSettings = storageService.getSettings();
@@ -331,6 +366,9 @@ export async function downloadVideo(
     } catch (error: unknown) {
       await downloader.handleCancellationErrorPublic(error, async () => {
         await cleanupVideoArtifacts(newSafeBaseFilename);
+        if (ownedVideoReplacement) {
+          await cleanupTemporaryFiles(ownedVideoReplacement.stagingPath);
+        }
         await cleanupSubtitleFiles(newSafeBaseFilename);
       });
 
@@ -372,6 +410,9 @@ export async function downloadVideo(
       downloader.throwIfCancelledPublic(downloadId);
     } catch (error) {
       await cleanupVideoArtifacts(newSafeBaseFilename);
+      if (ownedVideoReplacement) {
+        await cleanupTemporaryFiles(ownedVideoReplacement.stagingPath);
+      }
       await cleanupSubtitleFiles(newSafeBaseFilename);
       throw error;
     }
@@ -396,6 +437,24 @@ export async function downloadVideo(
       );
       newVideoPathWithFormat = resolvedVideoPath;
       finalVideoFilename = path.basename(resolvedVideoPath);
+    }
+
+    let subtitleArtifactBaseFilename = newSafeBaseFilename;
+    if (ownedVideoReplacement) {
+      subtitleArtifactBaseFilename = path.basename(
+        newVideoPathWithFormat,
+        path.extname(newVideoPathWithFormat)
+      );
+      replaceOwnedFileWithBackupSync(
+        newVideoPathWithFormat,
+        VIDEOS_DIR,
+        ownedVideoReplacement.finalPath,
+        ownedVideoReplacement.destinationRootDir,
+        existingLocalVideo?.id
+      );
+      await cleanupTemporaryFiles(newVideoPathWithFormat);
+      newVideoPathWithFormat = ownedVideoReplacement.finalPath;
+      finalVideoFilename = path.basename(ownedVideoReplacement.finalPath);
     }
 
     logger.info("Video downloaded successfully");
@@ -437,6 +496,19 @@ export async function downloadVideo(
         newThumbnailPath,
         axiosConfig
       );
+      if (thumbnailSaved && ownedThumbnailReplacement) {
+        replaceOwnedFileWithBackupSync(
+          ownedThumbnailReplacement.stagingPath,
+          ownedThumbnailReplacement.stagingRootDir,
+          ownedThumbnailReplacement.finalPath,
+          ownedThumbnailReplacement.destinationRootDir,
+          existingLocalVideo?.id
+        );
+        await regenerateSmallThumbnailForThumbnailPath(
+          ownedThumbnailReplacement.finalPath
+        );
+        newThumbnailPath = ownedThumbnailReplacement.finalPath;
+      }
     }
 
     // Download and process author avatar
@@ -481,7 +553,7 @@ export async function downloadVideo(
       : undefined;
     if (!audioOnly) {
       subtitles = await processSubtitles(
-        newSafeBaseFilename,
+        subtitleArtifactBaseFilename,
         downloadId,
         moveSubtitlesToVideoFolder,
         isVideoInSubDir ? videoSubDir : undefined,
@@ -491,9 +563,13 @@ export async function downloadVideo(
             ? `/videos/${videoSubRelative}`
             : `/subtitles/${videoSubRelative}`
           : undefined,
+        newSafeBaseFilename,
+        existingLocalVideo?.id,
       );
     }
   } catch (error) {
+    releaseOutputReservation?.();
+    releaseOutputReservation = null;
     logger.error(
       "Error in download process:",
       error,
@@ -504,6 +580,7 @@ export async function downloadVideo(
     throw error;
   }
 
+  try {
   // Create metadata for the video. Re-apply the per-subscription filename
   // override so the author-collection movement below sees the same effective
   // naming settings as path planning did (issue #368).
@@ -538,6 +615,10 @@ export async function downloadVideo(
     date: videoDate || new Date().toISOString().slice(0, 10).replace(/-/g, ""),
     source: source, // Use extracted source
     sourceUrl: videoUrl,
+    sourceVideoId:
+      (typeof rawSourceInfo?.id === "string" && rawSourceInfo.id) ||
+      extractSourceVideoId(videoUrl).id ||
+      undefined,
     mediaType: audioOnly ? "audio" : "video",
     videoFilename: path.basename(finalVideoRelative),
     thumbnailFilename: thumbnailSaved ? path.basename(finalThumbnailFilename) : undefined,
@@ -555,8 +636,8 @@ export async function downloadVideo(
       authorAvatarSaved && finalAuthorAvatarFilename
         ? `/avatars/${finalAuthorAvatarFilename}`
         : undefined,
-    addedAt: new Date().toISOString(),
-    createdAt: new Date().toISOString(),
+    addedAt: downloadedAtIso,
+    createdAt: downloadedAtIso,
   };
 
   // If duration is missing from info, try to extract it from file
@@ -682,6 +763,7 @@ export async function downloadVideo(
       title: videoData.title, // Update title in case it changed
       description: videoData.description, // Update description in case it changed
       mediaType: videoData.mediaType,
+      sourceVideoId: videoData.sourceVideoId,
       authorAvatarFilename: authorAvatarSaved
         ? finalAuthorAvatarFilename
         : existingVideo.authorAvatarFilename,
@@ -711,6 +793,22 @@ export async function downloadVideo(
       }
 
       removeMediaServerArtifactsForVideo(existingVideo);
+      const trackedSource = extractSourceVideoId(videoUrl);
+      if (trackedSource.id) {
+        finalVideoData = storageService.persistDownloadedMediaIdentity({
+          video: finalVideoData,
+          identity: {
+            platform: trackedSource.platform,
+            sourceVideoId: trackedSource.id,
+            mediaType: finalVideoData.mediaType === "audio" ? "audio" : "video",
+            partNumber: finalVideoData.partNumber,
+            localVideoId: finalVideoData.id,
+          },
+          sourceUrl: videoUrl,
+          trackingMode: "redownload",
+        });
+      }
+
       syncMediaServerArtifactsForRecord(finalVideoData, {
         rawSourceInfo,
       });
@@ -719,7 +817,23 @@ export async function downloadVideo(
   }
 
   // Save the video (new video)
-  storageService.saveVideo(videoData);
+  const trackedSource = extractSourceVideoId(videoUrl);
+  if (trackedSource.id) {
+    storageService.persistDownloadedMediaIdentity({
+      video: videoData,
+      identity: {
+        platform: trackedSource.platform,
+        sourceVideoId: trackedSource.id,
+        mediaType: videoData.mediaType === "audio" ? "audio" : "video",
+        partNumber: videoData.partNumber,
+        localVideoId: videoData.id,
+      },
+      sourceUrl: videoUrl,
+      trackingMode: "new",
+    });
+  } else {
+    storageService.saveVideo(videoData);
+  }
 
   logger.info("Video added to database");
 
@@ -747,4 +861,7 @@ export async function downloadVideo(
     rawSourceInfo,
   });
   return videoData;
+  } finally {
+    releaseOutputReservation?.();
+  }
 }

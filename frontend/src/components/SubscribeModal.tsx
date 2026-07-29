@@ -18,10 +18,9 @@ import {
 } from '@mui/material';
 import React, { useCallback, useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
+import type { DownloadOrder } from '../types';
 import DialogHeader from './DialogHeader';
 import SubscriptionFilenameTemplateField from './SubscriptionFilenameTemplateField';
-
-type DownloadOrder = 'dateDesc' | 'dateAsc' | 'viewsDesc' | 'viewsAsc';
 
 export interface SubscribeFormValues {
     interval: number;

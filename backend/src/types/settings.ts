@@ -4,6 +4,7 @@ export type DownloadFilenamePresetId =
   | "legacy"
   | "media_center_date_index"
   | "source_date_flat"
+  | "source_date_id"
   | "channel_year_date_index"
   | "playlist_static_index"
   | "playlist_static_date"

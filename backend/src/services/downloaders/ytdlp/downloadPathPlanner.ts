@@ -1,20 +1,17 @@
 import path from "path";
 import { IMAGES_DIR, VIDEOS_DIR } from "../../../config/paths";
-import { formatVideoFilename } from "../../../utils/helpers";
+import { extractSourceVideoId, formatVideoFilename } from "../../../utils/helpers";
 import { logger } from "../../../utils/logger";
-import {
-  pathExistsSafeSync,
-  resolveSafeChildPath,
-} from "../../../utils/security";
+import { resolveSafeChildPath } from "../../../utils/security";
 import { buildContextFromYtDlpInfo } from "../../filenameTemplate/contextBuilder";
-import { dedupeRelativePath } from "../../filenameTemplate/dedupe";
+import { applyPhysicalOrganization } from "../../filenameTemplate/organizationPath";
+import {
+  allocateOutputFamilySync,
+  type OutputFamilyReservation,
+} from "../../filenameTemplate/outputPathAllocator";
 import { planVideoOutputPaths } from "../../filenameTemplate/renderer";
 import { enrichSourceOptionsForDownload } from "../../filenameTemplate/sourceOptions";
 import { FilenameTemplateSourceOptions } from "../../filenameTemplate/types";
-import {
-  pathExistsWithAnyKnownMediaExtension,
-  stripTrailingExtension,
-} from "./ytdlpVideoHelpers";
 
 export interface PlanDownloadPathsArgs {
   videoUrl: string;
@@ -23,13 +20,17 @@ export interface PlanDownloadPathsArgs {
   /** Settings snapshot (downloadFilenamePresetId etc. are read from here). */
   settings: Record<string, unknown> & {
     downloadFilenamePresetId?: string;
+    authorOrganizationMode?: string;
   };
   filenameTemplateSourceOptions?: FilenameTemplateSourceOptions;
+  downloadedAtMs?: number;
   videoTitle: string;
   videoAuthor: string;
   videoDate: string;
   /** Preferred container extension resolved from the download flags. */
   videoExtension: string;
+  mediaType?: "video" | "audio";
+  existingLocalVideoId?: string;
   moveThumbnailsToVideoFolder: boolean;
   moveSubtitlesToVideoFolder: boolean;
 }
@@ -45,6 +46,57 @@ export interface PlannedDownloadPaths {
   thumbnailFilename: string;
   /** Extension-less base used for artifact/subtitle cleanup matching. */
   safeBaseFilename: string;
+  /** Releases the reserved output-family lease after the download is persisted or fails. */
+  releaseOutputReservation: () => void;
+}
+
+function buildMediaIdentity(args: PlanDownloadPathsArgs) {
+  const source = extractSourceVideoId(args.videoUrl);
+  const sourceVideoId =
+    (typeof args.info.id === "string" && args.info.id) || source.id || null;
+  const platform =
+    source.platform ||
+    (typeof args.info.extractor_key === "string" && args.info.extractor_key) ||
+    (typeof args.info.extractor === "string" && args.info.extractor) ||
+    "ytdlp";
+
+  return {
+    platform,
+    sourceVideoId,
+    mediaType: args.mediaType ?? "video",
+    localVideoId: args.existingLocalVideoId,
+  };
+}
+
+function subtitleBaseRelativePathFrom(
+  videoRelativePath: string,
+  basenameWithoutExt: string
+): string {
+  const dir = path.dirname(videoRelativePath);
+  return dir && dir !== "." ? `${dir}/${basenameWithoutExt}` : basenameWithoutExt;
+}
+
+function buildPlannedPathsFromReservation(
+  reservation: OutputFamilyReservation,
+  thumbnailBaseDir: string
+): PlannedDownloadPaths {
+  const videoAbsolutePath = resolveSafeChildPath(
+    VIDEOS_DIR,
+    reservation.videoRelativePath
+  );
+  const thumbnailAbsolutePath = resolveSafeChildPath(
+    thumbnailBaseDir,
+    reservation.thumbnailRelativePath
+  );
+
+  return {
+    videoAbsolutePath,
+    videoFilename: path.basename(reservation.videoRelativePath),
+    thumbnailAbsolutePath,
+    thumbnailFilename: path.basename(reservation.thumbnailRelativePath),
+    safeBaseFilename: path.basename(reservation.subtitleBaseRelativePath),
+    releaseOutputReservation: reservation.release,
+  };
 }
 
 /**
@@ -67,6 +119,7 @@ export function planDownloadPaths(
     videoAuthor,
     videoDate,
     videoExtension,
+    mediaType,
     moveThumbnailsToVideoFolder,
   } = args;
 
@@ -88,6 +141,7 @@ export function planDownloadPaths(
     );
     const context = buildContextFromYtDlpInfo(videoUrl, info, {
       ...sourceOptions,
+      downloadedAtMs: args.downloadedAtMs,
     });
     const planned = planVideoOutputPaths({
       settings,
@@ -98,119 +152,60 @@ export function planDownloadPaths(
       moveSubtitlesToVideoFolder: args.moveSubtitlesToVideoFolder,
     });
 
-    // Deduplicate
-    const dedupedRelative = dedupeRelativePath(
-      planned.video.relativePath,
-      VIDEOS_DIR,
-      new Set()
-    );
-    const stemChanged = dedupedRelative !== planned.video.relativePath;
-    const suffix = stemChanged
-      ? dedupedRelative.slice(
-          planned.video.basenameWithoutExt.length +
-            (planned.video.relativePath.lastIndexOf("/") >= 0
-              ? planned.video.relativePath.lastIndexOf("/") + 1
-              : 0),
-          dedupedRelative.lastIndexOf(".")
-        )
-      : "";
-    const preferredVideoExt = path.extname(dedupedRelative);
-    const videoBaseRelative = stripTrailingExtension(
-      dedupedRelative,
-      preferredVideoExt
-    );
-    let finalVideoRelative = dedupedRelative;
-    let collisionSuffix = "";
-    let counter = 1;
-    while (
-      pathExistsWithAnyKnownMediaExtension(
-        resolveSafeChildPath(VIDEOS_DIR, `${videoBaseRelative}${collisionSuffix}`)
-      )
-    ) {
-      collisionSuffix = `_${counter}`;
-      finalVideoRelative =
-        `${videoBaseRelative}${collisionSuffix}${preferredVideoExt}`;
-      counter++;
-    }
-
-    const videoAbsolutePath = resolveSafeChildPath(
-      VIDEOS_DIR,
-      finalVideoRelative
-    );
-    const videoFilename = path.basename(finalVideoRelative);
-    const safeBaseFilename =
-      `${planned.video.basenameWithoutExt}${suffix}${collisionSuffix}`;
-
-    // Thumbnail
-    const thumbBase = planned.thumbnail.filename.replace(
-      /\.jpg$/,
-      `${suffix}${collisionSuffix}.jpg`
-    );
-    const thumbDir = path.dirname(planned.thumbnail.relativePath);
-    const thumbRelative =
-      thumbDir && thumbDir !== "." ? `${thumbDir}/${thumbBase}` : thumbBase;
-    const thumbnailAbsolutePath = resolveSafeChildPath(
-      moveThumbnailsToVideoFolder ? VIDEOS_DIR : IMAGES_DIR,
-      thumbRelative
+    const thumbnailBaseDir = moveThumbnailsToVideoFolder ? VIDEOS_DIR : IMAGES_DIR;
+    const reservation = allocateOutputFamilySync({
+      videoRelativePath: planned.video.relativePath,
+      thumbnailRelativePath: planned.thumbnail.relativePath,
+      subtitleBaseRelativePath: subtitleBaseRelativePathFrom(
+        planned.video.relativePath,
+        planned.video.basenameWithoutExt
+      ),
+      thumbnailBaseDir,
+      identity: buildMediaIdentity({ ...args, mediaType }),
+      existingLocalVideoId: args.existingLocalVideoId,
+      thumbnailRequired: true,
+      subtitleRequired: args.moveSubtitlesToVideoFolder,
+    });
+    const reservedPaths = buildPlannedPathsFromReservation(
+      reservation,
+      thumbnailBaseDir
     );
 
-    logger.info("Preparing video download path (template):", videoAbsolutePath);
-    return {
-      videoAbsolutePath,
-      videoFilename,
-      thumbnailAbsolutePath,
-      thumbnailFilename: thumbBase,
-      safeBaseFilename,
-    };
+    logger.info("Preparing video download path (template):", reservedPaths.videoAbsolutePath);
+    return reservedPaths;
   }
 
   // Legacy: use formatVideoFilename
-  let safeBaseFilename = formatVideoFilename(videoTitle, videoAuthor, videoDate);
-  let videoFilename = `${safeBaseFilename}.${videoExtension}`;
-  let thumbnailFilename = `${safeBaseFilename}.jpg`;
+  const safeBaseFilename = formatVideoFilename(videoTitle, videoAuthor, videoDate);
+  const videoFilename = `${safeBaseFilename}.${videoExtension}`;
+  const thumbnailFilename = `${safeBaseFilename}.jpg`;
+  const videoRelativePath = applyPhysicalOrganization(videoFilename, {
+    mode: settings.authorOrganizationMode,
+    author: videoAuthor,
+  }).relativePath;
+  const thumbnailRelativePath = videoRelativePath.includes("/")
+    ? `${path.dirname(videoRelativePath)}/${thumbnailFilename}`
+    : thumbnailFilename;
+  const subtitleBaseRelativePath = subtitleBaseRelativePathFrom(
+    videoRelativePath,
+    safeBaseFilename
+  );
+  const thumbnailBaseDir = moveThumbnailsToVideoFolder ? VIDEOS_DIR : IMAGES_DIR;
+  const reservation = allocateOutputFamilySync({
+    videoRelativePath,
+    thumbnailRelativePath,
+    subtitleBaseRelativePath,
+    thumbnailBaseDir,
+    identity: buildMediaIdentity({ ...args, mediaType }),
+    existingLocalVideoId: args.existingLocalVideoId,
+    thumbnailRequired: true,
+    subtitleRequired: args.moveSubtitlesToVideoFolder,
+  });
+  const reservedPaths = buildPlannedPathsFromReservation(
+    reservation,
+    thumbnailBaseDir
+  );
 
-  let videoAbsolutePath = resolveSafeChildPath(VIDEOS_DIR, videoFilename);
-  let thumbnailAbsolutePath = moveThumbnailsToVideoFolder
-    ? resolveSafeChildPath(VIDEOS_DIR, thumbnailFilename)
-    : resolveSafeChildPath(IMAGES_DIR, thumbnailFilename);
-
-  // If file already exists (e.g. redownload), deduplicate the filename
-  if (
-    pathExistsSafeSync(videoAbsolutePath, VIDEOS_DIR) ||
-    pathExistsWithAnyKnownMediaExtension(
-      stripTrailingExtension(videoAbsolutePath, `.${videoExtension}`)
-    )
-  ) {
-    let counter = 1;
-    const ext = `.${videoExtension}`;
-    const basePath = stripTrailingExtension(videoAbsolutePath, ext);
-    const baseName = stripTrailingExtension(videoFilename, ext);
-    while (pathExistsWithAnyKnownMediaExtension(`${basePath}_${counter}`)) {
-      counter++;
-    }
-    videoAbsolutePath = `${basePath}_${counter}${ext}`;
-    videoFilename = `${baseName}_${counter}${ext}`;
-    thumbnailFilename = thumbnailFilename.replace(/\.jpg$/, `_${counter}.jpg`);
-    thumbnailAbsolutePath = moveThumbnailsToVideoFolder
-      ? resolveSafeChildPath(VIDEOS_DIR, thumbnailFilename)
-      : resolveSafeChildPath(IMAGES_DIR, thumbnailFilename);
-    logger.info(`File exists, using deduplicated filename: ${videoFilename}`);
-    // The cleanup/subtitle stem must carry the collision counter, matching
-    // the template branch. Artifact cleanup exact-matches this stem and
-    // subtitle processing renames every `startsWith(stem)` match to
-    // `<stem>.<lang>.<ext>`, so an un-suffixed stem would target the
-    // pre-existing video's files: cancel-time cleanup could delete the
-    // original video/subtitles, and subtitle processing would overwrite the
-    // original's subtitle with the new download's.
-    safeBaseFilename = `${baseName}_${counter}`;
-  }
-
-  logger.info("Preparing video download path:", videoAbsolutePath);
-  return {
-    videoAbsolutePath,
-    videoFilename,
-    thumbnailAbsolutePath,
-    thumbnailFilename,
-    safeBaseFilename,
-  };
+  logger.info("Preparing video download path:", reservedPaths.videoAbsolutePath);
+  return reservedPaths;
 }

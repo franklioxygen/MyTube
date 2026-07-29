@@ -339,14 +339,14 @@ export function findOrCreateAuthorCollection(
 
 /**
  * Adds a video to an author's collection if the setting is enabled.
- * When filename naming is not legacy, the file is NOT moved —
- * only the collection membership record is created, because the template
- * already owns the directory structure.
+ * Template-based downloaders apply physical author-folder layout during output
+ * planning, so this post-save hook only moves files for legacy naming unless
+ * a caller explicitly asks for a move.
  *
  * @param videoId - The ID of the video to add
  * @param authorName - The author name
  * @param saveAuthorFilesToCollection - Whether to save to author collection
- * @param downloadFilenamePresetId - Current naming mode/preset; non-legacy skips file moves
+ * @param downloadFilenamePresetId - Current naming mode/preset; template modes are already physically planned
  * @returns The collection the video was added to, or null
  */
 export function addVideoToAuthorCollection(
@@ -388,8 +388,8 @@ export function addVideoToAuthorCollection(
       return null;
     }
 
-    // For non-legacy naming modes the template already owns the directory structure.
-    // Only add the membership record; do not move files.
+    // Template modes already applied physical organization during path planning.
+    // Only legacy downloads need this post-save file move by default.
     const isLegacy = isLegacyFilenameNamingValue(downloadFilenamePresetId);
     const updatedCollection = linkVideoToCollection(collection.id, videoId, {
       moveFiles: options?.moveFiles ?? isLegacy,

@@ -669,35 +669,28 @@ class DownloadManager {
             // with the video download for the same source.
             const mediaType =
               videoData.mediaType === "audio" ? "audio" : "video";
-            // Check if this is a re-download of previously deleted video
-            const existingRecord =
-              storageService.checkVideoDownloadBySourceId(
-                sourceVideoId,
-                platform,
-                mediaType
-              );
-            if (existingRecord.found && existingRecord.status === "deleted") {
-              // Update existing record
-              storageService.updateVideoDownloadRecord(
-                sourceVideoId,
-                videoData.id,
-                finalTitle || task.title,
-                videoData.author,
-                platform,
-                mediaType
-              );
-            } else if (!existingRecord.found) {
-              // New download, create record
-              storageService.recordVideoDownload(
-                sourceVideoId,
+            storageService.persistDownloadedMediaIdentity({
+              video: {
+                ...videoData,
+                title: finalTitle || videoData.title || task.title,
                 sourceUrl,
+                sourceVideoId,
+                mediaType,
+              },
+              identity: {
                 platform,
-                videoData.id,
-                finalTitle || task.title,
-                videoData.author,
-                mediaType
-              );
-            }
+                sourceVideoId,
+                mediaType,
+                partNumber: videoData.partNumber,
+                localVideoId: videoData.id,
+              },
+              sourceUrl,
+              trackingMode: "redownload",
+              downloadedAtMs:
+                typeof videoData.addedAt === "string"
+                  ? Date.parse(videoData.addedAt)
+                  : undefined,
+            });
           }
         }
       }

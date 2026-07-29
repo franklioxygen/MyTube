@@ -8,6 +8,7 @@ export interface Video {
   id: string;
   title: string;
   sourceUrl: string;
+  sourceVideoId?: string | null;
   videoFilename?: string;
   thumbnailFilename?: string;
   subtitles?: Array<{ language: string; filename: string; path: string }>;

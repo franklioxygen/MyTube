@@ -5,6 +5,9 @@ import { FilenameTemplateContext } from "../../../services/filenameTemplate/type
 function makeCtx(overrides: Partial<FilenameTemplateContext> = {}): FilenameTemplateContext {
   return {
     title: "Test",
+    sourceVideoId: "x",
+    localVideoId: "local-x",
+    downloadedAtMs: Date.UTC(2026, 3, 30, 12, 0, 0),
     id: "x",
     ext: "mp4",
     uploader: "Author",

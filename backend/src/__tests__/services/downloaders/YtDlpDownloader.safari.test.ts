@@ -26,6 +26,8 @@ vi.mock('../../../utils/ytDlpUtils', () => ({
 vi.mock('../../../services/storageService', () => ({
     updateActiveDownload: vi.fn(),
     saveVideo: vi.fn(),
+    persistDownloadedMediaIdentity: vi.fn(({ video }) => video),
+    getVideos: vi.fn().mockReturnValue([]),
     getVideoBySourceUrl: vi.fn(),
     updateVideo: vi.fn(),
     organizeVideoByAuthor: vi.fn(),
@@ -34,6 +36,19 @@ vi.mock('../../../services/storageService', () => ({
         activeDownloads: [{ id: 'download-yt' }],
         queuedDownloads: [],
     }),
+}));
+
+vi.mock('../../../services/filenameTemplate/outputPathAllocator', () => ({
+    allocateOutputFamilySync: vi.fn((input: any) => ({
+        videoRelativePath: input.videoRelativePath,
+        thumbnailRelativePath: input.thumbnailRelativePath,
+        subtitleBaseRelativePath: input.subtitleBaseRelativePath,
+        collisionStrategy: 'none',
+        release: vi.fn(),
+    })),
+    planOwnedReplacementStagingPathSync: vi.fn(() => null),
+    promoteFileNoOverwriteSync: vi.fn(),
+    replaceOwnedFileWithBackupSync: vi.fn(),
 }));
 
 // Mock fs-extra - define mockWriter inside the factory
@@ -63,9 +78,8 @@ vi.mock('fs-extra', () => {
                     return false;
                 }
 
-                const seenCount = videoPathExistsChecks.get(value) ?? 0;
-                videoPathExistsChecks.set(value, seenCount + 1);
-                return seenCount > 0;
+                videoPathExistsChecks.set(value, (videoPathExistsChecks.get(value) ?? 0) + 1);
+                return true;
             }),
             createWriteStream: vi.fn().mockReturnValue(mockWriter),
             readdirSync: vi.fn().mockReturnValue([]),

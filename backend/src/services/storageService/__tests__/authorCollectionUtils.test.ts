@@ -343,7 +343,7 @@ describe("authorCollectionUtils", () => {
       ).not.toHaveBeenCalled();
     });
 
-    it("should skip folder-only organization for template-based naming when file moves are disabled", () => {
+    it("should not post-move template-planned author-folder downloads", () => {
       const result = organizeVideoByAuthor(
         "vid1",
         "TestAuthor",
@@ -353,6 +353,7 @@ describe("authorCollectionUtils", () => {
 
       expect(result).toBeNull();
       expect(collectionFileManager.moveAllFilesToCollection).not.toHaveBeenCalled();
+      expect(videos.getVideoById).not.toHaveBeenCalled();
       expect(videos.updateVideo).not.toHaveBeenCalled();
     });
 
