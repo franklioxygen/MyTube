@@ -240,6 +240,51 @@ describe("outputPathAllocator", () => {
     ).toEqual([]);
   });
 
+  it("plans owned replacement staging beside nested managed destinations", async () => {
+    const root = makeTempRoot();
+    const destPath = path.join(root, "videos", "Series", "Episode.mp4");
+    fs.outputFileSync(destPath, "old-video");
+    const allocator = await loadAllocator(root, [
+      {
+        id: "local-1",
+        videoPath: "/videos/Series/Episode.mp4",
+        thumbnailPath: null,
+        subtitles: [],
+      },
+    ]);
+
+    const staging = allocator.planOwnedReplacementStagingPathSync(
+      destPath,
+      path.join(root, "videos"),
+      "local-1"
+    );
+
+    expect(staging).not.toBeNull();
+    expect(staging?.finalPath).toBe(destPath);
+    expect(path.dirname(staging?.stagingPath || "")).toBe(
+      path.join(root, "videos", "Series")
+    );
+    expect(path.basename(staging?.stagingPath || "")).toMatch(
+      /^\.mytube-redownload-[\w-]+\.mp4$/
+    );
+  });
+
+  it("rejects traversal while planning owned replacement staging", async () => {
+    const root = makeTempRoot();
+    const allocator = await loadAllocator(root);
+    const escapedDestination = `${path.join(root, "videos")}${path.sep}..${
+      path.sep
+    }escape.mp4`;
+
+    expect(() =>
+      allocator.planOwnedReplacementStagingPathSync(
+        escapedDestination,
+        path.join(root, "videos"),
+        "local-1"
+      )
+    ).toThrow("outside");
+  });
+
   it("publishes new files through destination-local staging, claimed placeholder, and journal cleanup", async () => {
     const root = makeTempRoot();
     const scratchRoot = path.join(root, "scratch");

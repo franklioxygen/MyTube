@@ -1,11 +1,14 @@
 import crypto from "crypto";
-import fs from "fs-extra";
+import { constants as fsConstants } from "fs";
 import os from "os";
 import path from "path";
 import { DATA_DIR, IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../../config/paths";
 import {
+  copyFileSafeSync,
   ensureDirSafeSync,
+  fsyncFileSafeSync,
   isPathWithinDirectory,
+  linkSafeSync,
   moveSafeSync,
   normalizeSafeAbsolutePath,
   pathExistsSafeSync,
@@ -515,15 +518,17 @@ export function planOwnedReplacementStagingPathSync(
     throw new Error(`Destination path is outside managed roots: ${destinationPath}`);
   }
 
-  const destinationRelative = path.relative(stagingRootDir, finalPath);
-  const destinationRelativeDir = path.dirname(destinationRelative);
-  const extension = path.extname(destinationRelative);
+  const stagingDir = path.dirname(finalPath);
+  if (!isPathWithinDirectory(stagingDir, stagingRootDir)) {
+    throw new Error(`Destination directory is outside managed roots: ${destinationPath}`);
+  }
+
+  const extension = path.extname(finalPath);
   const stagingFilename = `.mytube-redownload-${crypto.randomUUID()}${extension}`;
-  const stagingRelativePath =
-    destinationRelativeDir && destinationRelativeDir !== "."
-      ? path.join(destinationRelativeDir, stagingFilename)
-      : stagingFilename;
-  const stagingPath = resolveSafeChildPath(stagingRootDir, stagingRelativePath);
+  const stagingPath = resolveSafeChildPath(stagingDir, stagingFilename);
+  if (!isPathWithinDirectory(stagingPath, stagingRootDir)) {
+    throw new Error(`Staging path is outside managed roots: ${stagingPath}`);
+  }
   ensureDirSafeSync(path.dirname(stagingPath), destinationRoots);
 
   return {
@@ -586,7 +591,7 @@ function hardLinkPublishSupportedSync(destinationRootDir: string): boolean {
   let supported = false;
   try {
     writeFileSafeSync(probeSource, stagingRoot, "probe", { flag: "wx" });
-    fs.linkSync(probeSource, probeTarget);
+    linkSafeSync(probeSource, stagingRoot, probeTarget, stagingRoot);
     supported = true;
   } catch {
     supported = false;
@@ -599,22 +604,15 @@ function hardLinkPublishSupportedSync(destinationRootDir: string): boolean {
   return supported;
 }
 
-function fsyncFileBestEffort(filePath: string): void {
-  let fd: number | null = null;
+function fsyncFileBestEffort(
+  filePath: string,
+  allowedDirOrDirs: string | string[]
+): void {
   try {
-    fd = fs.openSync(filePath, "r");
-    fs.fsyncSync(fd);
+    fsyncFileSafeSync(filePath, allowedDirOrDirs);
   } catch {
     // Some filesystems do not support fsync for every path. The no-overwrite
     // claim still prevents replacing foreign data.
-  } finally {
-    if (fd !== null) {
-      try {
-        fs.closeSync(fd);
-      } catch {
-        // Ignore close failures after a best-effort sync attempt.
-      }
-    }
   }
 }
 
@@ -648,12 +646,14 @@ function prepareDestinationStagingFileSync(
   );
   const expectedSize = statSafeSync(safeSourcePath, sourceRootDir).size;
 
-  fs.copyFileSync(
+  copyFileSafeSync(
     safeSourcePath,
+    sourceRootDir,
     stagingPath,
-    fs.constants.COPYFILE_EXCL
+    stagingRoot,
+    fsConstants.COPYFILE_EXCL
   );
-  fsyncFileBestEffort(stagingPath);
+  fsyncFileBestEffort(stagingPath, stagingRoot);
 
   return {
     sourcePath: safeSourcePath,
@@ -797,7 +797,12 @@ export function promoteFileNoOverwriteSync(
     });
 
     try {
-      fs.linkSync(staging.stagingPath, safeDestinationPath);
+      linkSafeSync(
+        staging.stagingPath,
+        staging.stagingRootDir,
+        safeDestinationPath,
+        destinationRootDir
+      );
       const finalSize = statSafeSync(destinationPath, destinationRootDir).size;
       if (finalSize !== staging.expectedSize) {
         throw new Error(

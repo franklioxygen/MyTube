@@ -18,6 +18,7 @@ vi.mock("../../utils/security", () => ({
   ),
   ensureDirSafeSync: vi.fn(),
   copyFileSafeSync: vi.fn(),
+  fsyncFileSafeSync: vi.fn(),
   linkSafeSync: vi.fn(),
   moveSafeSync: vi.fn(),
 }));

@@ -7,10 +7,12 @@ import {
   copySafe,
   buildAllowlistedHttpUrl,
   createWriteStreamSafe,
+  fsyncFileSafeSync,
   getClientIp,
   isHostnameAllowed,
   isPathWithinDirectories,
   isPathWithinDirectory,
+  linkSafeSync,
   pathExistsSafe,
   pathExistsSafeSync,
   resolveSafePath,
@@ -115,6 +117,11 @@ describe("security extra", () => {
       copyFileSafeSync(sourceFile, sourceRoot, "copied.txt", allowedRoot);
       expect(await fs.readFile(copiedFile, "utf8")).toBe("payload");
 
+      const linkedFile = path.join(allowedRoot, "linked.txt");
+      linkSafeSync(sourceFile, sourceRoot, "linked.txt", allowedRoot);
+      expect(await fs.readFile(linkedFile, "utf8")).toBe("payload");
+      expect(() => fsyncFileSafeSync("linked.txt", allowedRoot)).not.toThrow();
+
       const copiedAsyncFile = path.join(allowedRoot, "copied-async.txt");
       await copySafe(sourceFile, sourceRoot, "copied-async.txt", allowedRoot);
       expect(await fs.readFile(copiedAsyncFile, "utf8")).toBe("payload");
@@ -151,6 +158,10 @@ describe("security extra", () => {
       expect(() =>
         copyFileSafeSync(sourceFile, otherRoot, path.join(tempRoot, "escape.txt"), allowedRoot)
       ).toThrow("outside");
+      expect(() =>
+        linkSafeSync(sourceFile, otherRoot, path.join(tempRoot, "escape-link.txt"), allowedRoot)
+      ).toThrow("outside");
+      expect(() => fsyncFileSafeSync(sourceFile, allowedRoot)).toThrow("outside");
       await expect(
         copySafe(sourceFile, otherRoot, path.join(tempRoot, "escape-async.txt"), allowedRoot)
       ).rejects.toThrow("outside");

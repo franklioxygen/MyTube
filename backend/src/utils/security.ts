@@ -439,6 +439,7 @@ export function copyFileSafeSync(
   sourceAllowedDirOrDirs: string | readonly string[],
   destinationPath: string,
   destinationAllowedDirOrDirs: string | readonly string[],
+  mode = 0,
 ): void {
   const safeSourcePath = resolveTrustedPathForOperation(
     sourcePath,
@@ -471,7 +472,10 @@ export function copyFileSafeSync(
         !destinationRelative.startsWith("..") &&
         !path.isAbsolute(destinationRelative)
       ) {
-        fs.copyFileSync(safeSourcePath, safeDestinationPath);
+        // safeSourcePath and safeDestinationPath are constrained by
+        // resolveTrustedPathForOperation before copy.
+        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+        fs.copyFileSync(safeSourcePath, safeDestinationPath, mode);
         return;
       }
     }
@@ -480,6 +484,27 @@ export function copyFileSafeSync(
   throw new Error(
     `Path traversal detected: copy operation is outside allowed directories`,
   );
+}
+
+export function linkSafeSync(
+  sourcePath: string,
+  sourceAllowedDirOrDirs: string | readonly string[],
+  destinationPath: string,
+  destinationAllowedDirOrDirs: string | readonly string[],
+): void {
+  const safeSourcePath = resolveTrustedPathForOperation(
+    sourcePath,
+    sourceAllowedDirOrDirs,
+  );
+  const safeDestinationPath = resolveTrustedPathForOperation(
+    destinationPath,
+    destinationAllowedDirOrDirs,
+  );
+
+  // safeSourcePath and safeDestinationPath are constrained by
+  // resolveTrustedPathForOperation before linking.
+  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+  fs.linkSync(safeSourcePath, safeDestinationPath);
 }
 
 export async function copySafe(
@@ -514,6 +539,25 @@ export function renameSafeSync(
     destinationAllowedDirOrDirs,
   );
   fs.renameSync(safeSourcePath, safeDestinationPath);
+}
+
+export function fsyncFileSafeSync(
+  filePath: string,
+  allowedDirOrDirs: string | readonly string[],
+): void {
+  const safePath = resolveTrustedPathForOperation(filePath, allowedDirOrDirs);
+  let fd: number | null = null;
+
+  try {
+    // safePath is constrained by resolveTrustedPathForOperation before open.
+    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+    fd = fs.openSync(safePath, "r");
+    fs.fsyncSync(fd);
+  } finally {
+    if (fd !== null) {
+      fs.closeSync(fd);
+    }
+  }
 }
 
 export function moveSafeSync(
