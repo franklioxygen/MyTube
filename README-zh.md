@@ -195,11 +195,11 @@ MyTube 使用 **SQLite** 和 **Drizzle ORM** 进行数据持久化。数据库�
 
 ## 星标历史
 
-<a href="https://www.star-history.com/#franklioxygen/MyTube&type=date&legend=bottom-right">
+<a href="https://www.star-history.com/?repos=franklioxygen%2FMyTube&type=date&legend=bottom-right">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=franklioxygen/MyTube&type=date&theme=dark&legend=bottom-right" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=franklioxygen/MyTube&type=date&legend=bottom-right" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=franklioxygen/MyTube&type=date&legend=bottom-right" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=franklioxygen/MyTube&type=date&theme=dark&legend=bottom-right&sealed_token=kHdrUgXQRTUsWrRPS_CU-LE2TewFIv7ZjKfQGG9Iw0sMaRaKsBXf1LUkdg4ZkJzGGGTIHuzZl36nLUnOnNgbhHfgUkQhV6s2FFNbu5r4XBXerJ3U19Wyw7Zf0oEAxmbu106p3KsnQoiwy_h-oI0fa6XutbMiL_Sadm14ECj7K1uL3WbY3davIlgGkF9H" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=franklioxygen/MyTube&type=date&legend=bottom-right&sealed_token=kHdrUgXQRTUsWrRPS_CU-LE2TewFIv7ZjKfQGG9Iw0sMaRaKsBXf1LUkdg4ZkJzGGGTIHuzZl36nLUnOnNgbhHfgUkQhV6s2FFNbu5r4XBXerJ3U19Wyw7Zf0oEAxmbu106p3KsnQoiwy_h-oI0fa6XutbMiL_Sadm14ECj7K1uL3WbY3davIlgGkF9H" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=franklioxygen/MyTube&type=date&legend=bottom-right&sealed_token=kHdrUgXQRTUsWrRPS_CU-LE2TewFIv7ZjKfQGG9Iw0sMaRaKsBXf1LUkdg4ZkJzGGGTIHuzZl36nLUnOnNgbhHfgUkQhV6s2FFNbu5r4XBXerJ3U19Wyw7Zf0oEAxmbu106p3KsnQoiwy_h-oI0fa6XutbMiL_Sadm14ECj7K1uL3WbY3davIlgGkF9H" />
  </picture>
 </a>
 
