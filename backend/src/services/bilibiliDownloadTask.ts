@@ -13,6 +13,7 @@ import type { BilibiliRetryMetadata } from "./downloadRetryMetadata";
 import * as storageService from "./storageService";
 import { resolveAuthorOrganizationMode } from "../types/settings";
 import type { AudioFormat } from "../types/settings";
+import type { DownloadModeOptions } from "./downloaders/BaseDownloader";
 
 function buildAggregateError(result: BilibiliAggregateDownloadResult): string {
   if (result.error) {
@@ -38,6 +39,21 @@ export interface BilibiliDownloadTaskOptions {
   onTitleUpdate?: (downloadId: string, title: string) => void;
   audioOnly?: boolean;
   audioFormat?: AudioFormat;
+  existingLocalVideoId?: string;
+}
+
+function buildDownloadModeOptions(
+  options: BilibiliDownloadTaskOptions
+): DownloadModeOptions | undefined {
+  if (!options.audioOnly && !options.existingLocalVideoId) {
+    return undefined;
+  }
+
+  return {
+    audioOnly: options.audioOnly === true,
+    audioFormat: options.audioFormat,
+    existingLocalVideoId: options.existingLocalVideoId,
+  };
 }
 
 export function buildBilibiliDownloadTask(
@@ -300,11 +316,12 @@ export function buildBilibiliDownloadTask(
           sourceCollectionType: "playlist" as const,
           mediaPlaylistIndex: 1,
         };
-        firstPartResult = options.audioOnly === true
+        const modeOptions = buildDownloadModeOptions(options);
+        firstPartResult = modeOptions
           ? await downloadService.downloadSingleBilibiliPart(
               firstPartUrl, 1, videosNumber, currentTitle, options.downloadId,
               registerCancel, resolvedCollectionName, filenameOptions,
-              { audioOnly: true, audioFormat: options.audioFormat },
+              modeOptions,
             )
           : await downloadService.downloadSingleBilibiliPart(
               firstPartUrl, 1, videosNumber, currentTitle, options.downloadId,
@@ -431,11 +448,12 @@ export function buildBilibiliDownloadTask(
     }
 
     logger.info("Downloading single Bilibili video part");
-    const result = options.audioOnly === true
+    const modeOptions = buildDownloadModeOptions(options);
+    const result = modeOptions
       ? await downloadService.downloadSingleBilibiliPart(
           downloadUrl, 1, 1, "", options.downloadId, registerCancel,
           undefined, undefined,
-          { audioOnly: true, audioFormat: options.audioFormat },
+          modeOptions,
         )
       : await downloadService.downloadSingleBilibiliPart(
           downloadUrl, 1, 1, "", options.downloadId, registerCancel,

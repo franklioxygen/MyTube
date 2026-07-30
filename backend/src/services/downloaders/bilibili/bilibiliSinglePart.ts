@@ -55,6 +55,34 @@ import {
   resolveSubtitleDirectory,
 } from "./bilibiliVideoHelpers";
 
+function resolveExistingVideoForRedownload(
+  url: string,
+  mediaType: "audio" | "video",
+  existingLocalVideoId?: string
+): Video | null {
+  if (!existingLocalVideoId) {
+    return storageService.getVideoBySourceUrl(url, mediaType) ?? null;
+  }
+
+  const selectedVideo = storageService.getVideoById(existingLocalVideoId);
+  if (!selectedVideo) {
+    logger.warn(
+      `Requested Bilibili redownload target ${existingLocalVideoId} was not found`
+    );
+    return null;
+  }
+
+  const selectedMediaType = selectedVideo.mediaType === "audio" ? "audio" : "video";
+  if (selectedMediaType !== mediaType) {
+    logger.warn(
+      `Requested Bilibili redownload target ${existingLocalVideoId} has media type ${selectedMediaType}, expected ${mediaType}`
+    );
+    return null;
+  }
+
+  return selectedVideo;
+}
+
 /**
  * Download a single Bilibili part (video + metadata + subtitles)
  */
@@ -111,9 +139,10 @@ export async function downloadSinglePart(
     const sourceVideoId = extractBilibiliVideoId(url) || undefined;
     const existingLocalVideoForRedownload =
       totalParts === 1
-        ? storageService.getVideoBySourceUrl(
+        ? resolveExistingVideoForRedownload(
             url,
-            audioOnly ? "audio" : "video"
+            audioOnly ? "audio" : "video",
+            modeOptions?.existingLocalVideoId
           )
         : null;
 

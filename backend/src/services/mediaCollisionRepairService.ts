@@ -208,10 +208,11 @@ async function queueRedownload(
     },
   });
 
-  const retryMetadata =
-    effectiveAudioOnly && downloadType !== "missav"
-      ? createDownloadModeRetryMetadata({ audioOnly: true, audioFormat })
-      : undefined;
+  const retryMetadata = createDownloadModeRetryMetadata({
+    audioOnly: effectiveAudioOnly,
+    audioFormat: effectiveAudioOnly ? audioFormat : undefined,
+    existingLocalVideoId: preview.localVideoId,
+  });
 
   const downloadTask = async (registerCancel: (cancel: () => void) => void) => {
     if (downloadType === "bilibili") {
@@ -221,6 +222,7 @@ async function queueRedownload(
         initialTitle,
         audioOnly: effectiveAudioOnly,
         audioFormat,
+        existingLocalVideoId: preview.localVideoId,
         onTitleUpdate: (id, title) => {
           storageService.updateActiveDownloadTitle(id, title);
           downloadManager.updateTaskTitle(id, title);
@@ -233,22 +235,19 @@ async function queueRedownload(
         preview.sourceUrl,
         downloadId,
         registerCancel,
+        undefined,
+        preview.localVideoId,
       );
       return { success: true, video: videoData };
     }
 
-    const videoData = effectiveAudioOnly
-      ? await downloadService.downloadYouTubeVideo(preview.sourceUrl, {
-          downloadId,
-          onStart: registerCancel,
-          audioOnly: true,
-          audioFormat,
-        })
-      : await downloadService.downloadYouTubeVideo(
-          preview.sourceUrl,
-          downloadId,
-          registerCancel,
-        );
+    const videoData = await downloadService.downloadYouTubeVideo(preview.sourceUrl, {
+      downloadId,
+      onStart: registerCancel,
+      audioOnly: effectiveAudioOnly,
+      audioFormat: effectiveAudioOnly ? audioFormat : undefined,
+      existingLocalVideoId: preview.localVideoId,
+    });
     return { success: true, video: videoData };
   };
 

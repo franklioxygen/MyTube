@@ -53,7 +53,8 @@ export interface OrderingPlanningFailure {
   code:
     | "ORDERING_METADATA_UNAVAILABLE"
     | "ORDERING_METADATA_HYDRATION_FAILED"
-    | "ORDERING_PLAN_PERSIST_FAILED";
+    | "ORDERING_PLAN_PERSIST_FAILED"
+    | "ORDERING_PLAN_INVALID";
   message: string;
   retryable: boolean;
   platform: string;

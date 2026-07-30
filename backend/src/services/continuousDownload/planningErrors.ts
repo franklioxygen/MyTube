@@ -15,7 +15,8 @@ function isPlanningFailureCode(
   return (
     value === "ORDERING_METADATA_UNAVAILABLE" ||
     value === "ORDERING_METADATA_HYDRATION_FAILED" ||
-    value === "ORDERING_PLAN_PERSIST_FAILED"
+    value === "ORDERING_PLAN_PERSIST_FAILED" ||
+    value === "ORDERING_PLAN_INVALID"
   );
 }
 
@@ -152,6 +153,24 @@ export function createOrderingHydrationFailure(
   };
 }
 
+export function createOrderingPlanInvalidFailure(
+  task: ContinuousDownloadTask,
+  message: string
+): OrderingPlanningFailure {
+  return {
+    version: 1,
+    code: "ORDERING_PLAN_INVALID",
+    message: `This task was cancelled because its saved download order plan is invalid after progress was recorded. Recreate the task to avoid skipping or duplicating videos. ${message}`,
+    retryable: false,
+    platform: task.platform,
+    downloadOrder: taskOrder(task),
+    entryCount: task.totalVideos,
+    knownCount: task.currentVideoIndex,
+    unknownCount: Math.max(task.totalVideos - task.currentVideoIndex, 0),
+    suggestedAction: "retry_metadata",
+  };
+}
+
 export class OrderingPlanPersistError extends Error {
   constructor(
     readonly task: ContinuousDownloadTask,
@@ -159,6 +178,16 @@ export class OrderingPlanPersistError extends Error {
   ) {
     super(originalMessage);
     this.name = "OrderingPlanPersistError";
+  }
+}
+
+export class OrderingPlanInvalidError extends Error {
+  constructor(
+    readonly task: ContinuousDownloadTask,
+    readonly originalMessage: string
+  ) {
+    super(originalMessage);
+    this.name = "OrderingPlanInvalidError";
   }
 }
 
@@ -172,6 +201,10 @@ export function createPlanningFailureFromError(
 
   if (error instanceof OrderingPlanPersistError) {
     return createOrderingPlanPersistFailure(task, error.originalMessage);
+  }
+
+  if (error instanceof OrderingPlanInvalidError) {
+    return createOrderingPlanInvalidFailure(task, error.originalMessage);
   }
 
   return null;

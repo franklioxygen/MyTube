@@ -26,6 +26,7 @@ import {
   validateFrozenPlanForTask,
 } from "./continuousDownload/frozenDownloadPlan";
 import {
+  OrderingPlanInvalidError,
   OrderingPlanPersistError,
   createPlanningFailureFromError,
   parseOrderingPlanningFailure,
@@ -655,6 +656,16 @@ export class ContinuousDownloadService {
               logger.info(`Loaded frozen list (${cachedVideoUrls.length} URLs) for task ${taskId}`);
             }
           } catch (err) {
+            if (task.currentVideoIndex > 0) {
+              throw err instanceof OrderingPlanInvalidError
+                ? err
+                : new OrderingPlanInvalidError(
+                    task,
+                    `Failed to read frozen download plan for task ${taskId}: ${
+                      err instanceof Error ? err.message : String(err)
+                    }`
+                  );
+            }
             logger.warn(`Failed to read frozen list for task ${taskId}, will re-fetch:`, err);
             cachedVideoUrls = undefined;
           }

@@ -353,33 +353,91 @@ function createCandidate(
   };
 }
 
+function writeReservationLockSync(
+  lockPath: string,
+  canonicalFamilyStem: string,
+  identity: MediaIdentity
+): void {
+  writeFileSafeSync(
+    lockPath,
+    getReservationRoot(),
+    JSON.stringify({
+      version: 1,
+      allocationId: crypto.randomUUID(),
+      canonicalFamilyStem,
+      identityKey: [
+        identity.platform,
+        identity.sourceVideoId,
+        identity.mediaType,
+        identity.partNumber || 0,
+      ].join(":"),
+      hostname: os.hostname(),
+      processId: process.pid,
+      createdAtMs: Date.now(),
+      heartbeatAtMs: Date.now(),
+    }),
+    { flag: "wx" }
+  );
+}
+
+function isProcessLive(processId: number): boolean {
+  try {
+    process.kill(processId, 0);
+    return true;
+  } catch (error) {
+    return fsErrorCode(error) !== "ESRCH";
+  }
+}
+
+function reclaimAbandonedReservationLockSync(lockPath: string): boolean {
+  try {
+    const raw = readFileSafeSync(lockPath, getReservationRoot(), "utf8");
+    const payload = JSON.parse(raw) as {
+      hostname?: unknown;
+      processId?: unknown;
+    };
+
+    if (payload.hostname !== os.hostname()) {
+      return false;
+    }
+
+    const processId = payload.processId;
+    if (
+      typeof processId !== "number" ||
+      !Number.isInteger(processId) ||
+      processId <= 0 ||
+      processId === process.pid ||
+      isProcessLive(processId)
+    ) {
+      return false;
+    }
+
+    unlinkSafeSync(lockPath, getReservationRoot());
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function acquireLock(canonicalFamilyStem: string, identity: MediaIdentity): string | null {
   const lockPath = lockPathForFamily(canonicalFamilyStem);
   ensureDirSafeSync(getReservationRoot(), DATA_DIR);
 
   try {
-    writeFileSafeSync(
-      lockPath,
-      getReservationRoot(),
-      JSON.stringify({
-        version: 1,
-        allocationId: crypto.randomUUID(),
-        canonicalFamilyStem,
-        identityKey: [
-          identity.platform,
-          identity.sourceVideoId,
-          identity.mediaType,
-          identity.partNumber || 0,
-        ].join(":"),
-        hostname: os.hostname(),
-        processId: process.pid,
-        createdAtMs: Date.now(),
-        heartbeatAtMs: Date.now(),
-      }),
-      { flag: "wx" }
-    );
+    writeReservationLockSync(lockPath, canonicalFamilyStem, identity);
     return lockPath;
-  } catch {
+  } catch (error) {
+    if (
+      fsErrorCode(error) === "EEXIST" &&
+      reclaimAbandonedReservationLockSync(lockPath)
+    ) {
+      try {
+        writeReservationLockSync(lockPath, canonicalFamilyStem, identity);
+        return lockPath;
+      } catch {
+        return null;
+      }
+    }
     return null;
   }
 }

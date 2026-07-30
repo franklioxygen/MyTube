@@ -67,6 +67,34 @@ import {
   isExpectedTwitchMetadataError,
 } from "./ytdlpVideoHelpers";
 
+function resolveExistingVideoForRedownload(
+  videoUrl: string,
+  mediaType: "audio" | "video",
+  existingLocalVideoId?: string
+): Video | undefined {
+  if (!existingLocalVideoId) {
+    return storageService.getVideoBySourceUrl(videoUrl, mediaType);
+  }
+
+  const selectedVideo = storageService.getVideoById(existingLocalVideoId);
+  if (!selectedVideo) {
+    logger.warn(
+      `Requested yt-dlp redownload target ${existingLocalVideoId} was not found`
+    );
+    return undefined;
+  }
+
+  const selectedMediaType = selectedVideo.mediaType === "audio" ? "audio" : "video";
+  if (selectedMediaType !== mediaType) {
+    logger.warn(
+      `Requested yt-dlp redownload target ${existingLocalVideoId} has media type ${selectedMediaType}, expected ${mediaType}`
+    );
+    return undefined;
+  }
+
+  return selectedVideo;
+}
+
 /**
  * Core video download function using yt-dlp
  */
@@ -270,9 +298,10 @@ export async function downloadVideo(
     const videoExtension = audioOnly
       ? audioFormat
       : (preparedFlags as ReturnType<typeof prepareDownloadFlags>).videoExtension;
-    const existingLocalVideo = storageService.getVideoBySourceUrl(
+    const existingLocalVideo = resolveExistingVideoForRedownload(
       videoUrl,
-      audioOnly ? "audio" : "video"
+      audioOnly ? "audio" : "video",
+      options.existingLocalVideoId
     );
 
     if (flags.proxy) {

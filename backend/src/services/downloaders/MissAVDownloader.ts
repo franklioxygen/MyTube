@@ -89,6 +89,33 @@ function isPuppeteerTimeoutError(error: unknown): boolean {
   return error instanceof Error && error.name === "TimeoutError";
 }
 
+function resolveExistingVideoForRedownload(
+  url: string,
+  existingLocalVideoId?: string
+): Video | undefined {
+  if (!existingLocalVideoId) {
+    return storageService.getVideoBySourceUrl(url, "video");
+  }
+
+  const selectedVideo = storageService.getVideoById(existingLocalVideoId);
+  if (!selectedVideo) {
+    logger.warn(
+      `Requested MissAV redownload target ${existingLocalVideoId} was not found`
+    );
+    return undefined;
+  }
+
+  const selectedMediaType = selectedVideo.mediaType === "audio" ? "audio" : "video";
+  if (selectedMediaType !== "video") {
+    logger.warn(
+      `Requested MissAV redownload target ${existingLocalVideoId} has media type ${selectedMediaType}, expected video`
+    );
+    return undefined;
+  }
+
+  return selectedVideo;
+}
+
 export class MissAVDownloader extends BaseDownloader {
   // Implementation of IDownloader.getVideoInfo
   async getVideoInfo(url: string): Promise<VideoInfo> {
@@ -157,6 +184,7 @@ export class MissAVDownloader extends BaseDownloader {
       options?.downloadId,
       options?.onStart,
       options?.filenameTemplateSourceOptions,
+      options?.existingLocalVideoId,
     );
   }
 
@@ -166,6 +194,7 @@ export class MissAVDownloader extends BaseDownloader {
     downloadId?: string,
     onStart?: (cancel: () => void) => void,
     filenameTemplateSourceOptions?: FilenameTemplateSourceOptions,
+    existingLocalVideoId?: string,
   ): Promise<Video> {
     logger.info("Detected MissAV-family URL:", url);
 
@@ -396,7 +425,10 @@ export class MissAVDownloader extends BaseDownloader {
         userConfig,
         settings,
       );
-      const existingLocalVideo = storageService.getVideoBySourceUrl(url, "video");
+      const existingLocalVideo = resolveExistingVideoForRedownload(
+        url,
+        existingLocalVideoId,
+      );
 
       // 6. Compute output paths using template or legacy formatter
       const {

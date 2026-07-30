@@ -119,6 +119,8 @@ vi.mock("../../services/statistics", () => ({
 
 import { auditMediaCollisions } from "../../services/mediaCollisionAuditService";
 import { repairMediaCollisionFinding } from "../../services/mediaCollisionRepairService";
+import { buildBilibiliDownloadTask } from "../../services/bilibiliDownloadTask";
+import * as downloadService from "../../services/downloadService";
 import downloadManager from "../../services/downloadManager";
 import * as storageService from "../../services/storageService";
 import { pathExistsSafeSync } from "../../utils/security";
@@ -278,6 +280,115 @@ describe("auditMediaCollisions", () => {
       expect.objectContaining({
         shape: "download_mode",
         audioOnly: true,
+        existingLocalVideoId: "row-a",
+      }),
+    );
+
+    const downloadTask = vi.mocked(downloadManager.addDownload).mock.calls[0][0];
+    vi.mocked(downloadService.downloadYouTubeVideo).mockResolvedValue({
+      id: "row-a",
+    } as any);
+
+    await downloadTask(vi.fn());
+
+    expect(downloadService.downloadYouTubeVideo).toHaveBeenCalledWith(
+      "https://www.youtube.com/watch?v=abcdefghijk",
+      expect.objectContaining({
+        audioOnly: true,
+        existingLocalVideoId: "row-a",
+      })
+    );
+  });
+
+  it("passes the selected row id into Bilibili repair downloads", async () => {
+    const video = {
+      id: "row-a",
+      title: "Missing Bilibili",
+      sourceUrl: "https://www.bilibili.com/video/BV1111111111?from=repair",
+      sourceVideoId: "BV1111111111",
+      videoPath: "/videos/Missing Bilibili.mp4",
+      mediaType: "video",
+      createdAt: "2026-07-28T00:00:00.000Z",
+    };
+    vi.mocked(storageService.getVideos).mockReturnValue([video] as any);
+    vi.mocked(storageService.getVideoById).mockReturnValue(video as any);
+    vi.mocked(pathExistsSafeSync).mockReturnValue(false);
+
+    await repairMediaCollisionFinding({
+      localVideoId: "row-a",
+      action: "redownload",
+      confirm: true,
+    });
+
+    const downloadTask = vi.mocked(downloadManager.addDownload).mock.calls[0][0];
+    await downloadTask(vi.fn());
+
+    expect(buildBilibiliDownloadTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        downloadUrl: "https://www.bilibili.com/video/BV1111111111?from=repair",
+        existingLocalVideoId: "row-a",
+      })
+    );
+    expect(downloadManager.addDownload).toHaveBeenCalledWith(
+      expect.any(Function),
+      expect.stringContaining("-repair-row-a"),
+      "Missing Bilibili",
+      "https://www.bilibili.com/video/BV1111111111?from=repair",
+      "bilibili",
+      expect.any(Object),
+      expect.objectContaining({
+        shape: "download_mode",
+        audioOnly: false,
+        existingLocalVideoId: "row-a",
+      }),
+    );
+  });
+
+  it("passes the selected row id into MissAV repair downloads", async () => {
+    const video = {
+      id: "row-a",
+      title: "Missing MissAV",
+      sourceUrl: "https://missav.com/example-video",
+      sourceVideoId: "example-video",
+      videoPath: "/videos/Missing MissAV.mp4",
+      mediaType: "video",
+      createdAt: "2026-07-28T00:00:00.000Z",
+    };
+    vi.mocked(storageService.getVideos).mockReturnValue([video] as any);
+    vi.mocked(storageService.getVideoById).mockReturnValue(video as any);
+    vi.mocked(pathExistsSafeSync).mockReturnValue(false);
+
+    await repairMediaCollisionFinding({
+      localVideoId: "row-a",
+      action: "redownload",
+      confirm: true,
+    });
+
+    const downloadTask = vi.mocked(downloadManager.addDownload).mock.calls[0][0];
+    vi.mocked(downloadService.downloadMissAVVideo).mockResolvedValue({
+      id: "row-a",
+    } as any);
+
+    await downloadTask(vi.fn());
+
+    expect(downloadService.downloadMissAVVideo).toHaveBeenCalledWith(
+      "https://missav.com/example-video",
+      expect.stringContaining("-repair-row-a"),
+      expect.any(Function),
+      undefined,
+      "row-a"
+    );
+    expect(downloadManager.addDownload).toHaveBeenCalledWith(
+      expect.any(Function),
+      expect.stringContaining("-repair-row-a"),
+      "Missing MissAV",
+      "https://missav.com/example-video",
+      "missav",
+      expect.any(Object),
+      expect.objectContaining({
+        shape: "download_mode",
+        audioOnly: false,
+        existingLocalVideoId: "row-a",
       }),
     );
   });

@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import fs from "fs-extra";
 import os from "os";
 import path from "path";
@@ -139,6 +140,53 @@ describe("outputPathAllocator", () => {
 
     first.release();
     second.release();
+  });
+
+  it("reclaims same-host reservation locks left by dead processes", async () => {
+    const root = makeTempRoot();
+    const reservationDir = path.join(root, "data", "output-path-reservations");
+    fs.ensureDirSync(reservationDir);
+    const digest = crypto.createHash("sha256").update("episode").digest("hex");
+    const staleLockPath = path.join(reservationDir, `${digest}.lock`);
+    fs.writeJsonSync(staleLockPath, {
+      version: 1,
+      allocationId: "stale",
+      canonicalFamilyStem: "episode",
+      identityKey: "youtube:old:video:0",
+      hostname: os.hostname(),
+      processId: 123456789,
+      createdAtMs: Date.now() - 60_000,
+      heartbeatAtMs: Date.now() - 60_000,
+    });
+    const killSpy = vi.spyOn(process, "kill").mockImplementation(((
+      processId: number,
+      signal?: NodeJS.Signals | 0
+    ) => {
+      if (processId === 123456789 && signal === 0) {
+        throw Object.assign(new Error("dead process"), { code: "ESRCH" });
+      }
+      return true;
+    }) as typeof process.kill);
+    const allocator = await loadAllocator(root);
+
+    const reservation = allocator.allocateOutputFamilySync({
+      videoRelativePath: "Episode.mp4",
+      thumbnailRelativePath: "Episode.jpg",
+      subtitleBaseRelativePath: "Episode",
+      thumbnailBaseDir: path.join(root, "images"),
+      identity: {
+        platform: "youtube",
+        sourceVideoId: "new",
+        mediaType: "video",
+      },
+    });
+
+    expect(reservation.videoRelativePath).toBe("Episode.mp4");
+    const lockPayload = fs.readJsonSync(staleLockPath);
+    expect(lockPayload.identityKey).toBe("youtube:new:video:0");
+
+    reservation.release();
+    killSpy.mockRestore();
   });
 
   it("skips an existing preferred file before reserving", async () => {

@@ -620,6 +620,97 @@ describe("ContinuousDownloadService", () => {
       readSpy.mockRestore();
     });
 
+    it("should rebuild an invalid frozen plan before any progress is recorded", async () => {
+      const frozenListPath = path.join(frozenListsRoot, "freeze-rebuild.json");
+      const task = {
+        id: "freeze-rebuild",
+        authorUrl: "https://youtube.com/@rebuild",
+        platform: "YouTube",
+        status: "active",
+        downloadOrder: "viewsDesc",
+        currentVideoIndex: 0,
+        frozenVideoListPath: frozenListPath,
+      };
+      repo.getTaskById
+        .mockResolvedValueOnce(task)
+        .mockResolvedValueOnce(task);
+      fetcher.getAllVideoEntries.mockResolvedValue([
+        { url: "r1", sourceVideoId: "r1", publishedAtMs: Date.UTC(2024, 0, 1), publishedDatePrecision: "day", viewCount: 1, sourceIndex: 0 },
+      ]);
+
+      const readSpy = vi
+        .spyOn(security, "readFileSafeSync")
+        .mockImplementation(() => {
+          throw new Error("invalid json");
+        });
+      const ensureDirSpy = vi
+        .spyOn(security, "ensureDirSafeSync")
+        .mockImplementation(() => undefined);
+      const writeSpy = vi
+        .spyOn(security, "writeFileSafeSync")
+        .mockImplementation(() => undefined);
+
+      await (service as any).processTask("freeze-rebuild");
+
+      expect(fetcher.getAllVideoEntries).toHaveBeenCalledWith(
+        "https://youtube.com/@rebuild",
+        "YouTube",
+        null,
+        "viewsDesc"
+      );
+      expect(repo.cancelTaskWithError).not.toHaveBeenCalled();
+      expect(processor.processTask).toHaveBeenCalledWith(task, ["r1"]);
+
+      readSpy.mockRestore();
+      ensureDirSpy.mockRestore();
+      writeSpy.mockRestore();
+    });
+
+    it("should cancel progressed tasks when their frozen plan is invalid", async () => {
+      const frozenListPath = path.join(frozenListsRoot, "freeze-invalid.json");
+      const task = {
+        id: "freeze-invalid",
+        authorUrl: "https://youtube.com/@invalid",
+        platform: "YouTube",
+        status: "active",
+        downloadOrder: "viewsDesc",
+        currentVideoIndex: 1,
+        totalVideos: 3,
+        frozenVideoListPath: frozenListPath,
+      };
+      repo.getTaskById.mockResolvedValue(task);
+
+      const readSpy = vi
+        .spyOn(security, "readFileSafeSync")
+        .mockImplementation(() => {
+          throw new Error("invalid json");
+        });
+      const unlinkSpy = vi
+        .spyOn(security, "unlinkSafeSync")
+        .mockImplementation(() => undefined);
+
+      await (service as any).processTask("freeze-invalid");
+
+      expect(fetcher.getAllVideoEntries).not.toHaveBeenCalled();
+      expect(processor.processTask).not.toHaveBeenCalled();
+      expect(repo.cancelTaskWithError).toHaveBeenCalledWith(
+        "freeze-invalid",
+        expect.stringContaining("ORDERING_PLAN_INVALID")
+      );
+      const serialized = repo.cancelTaskWithError.mock.calls[0][1];
+      const parsed = JSON.parse(serialized);
+      expect(parsed).toMatchObject({
+        kind: "ordering_planning_failure",
+        code: "ORDERING_PLAN_INVALID",
+        retryable: false,
+        platform: "YouTube",
+        downloadOrder: "viewsDesc",
+      });
+
+      readSpy.mockRestore();
+      unlinkSpy.mockRestore();
+    });
+
     it("should delete frozen list and clear DB path when task reaches completed", async () => {
       const frozenListPath = path.join(frozenListsRoot, "freeze-done.json");
       const task = {
