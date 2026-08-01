@@ -309,9 +309,15 @@ export function renameFilesWithMetadata(
       thumbnailRelativePath: planned.thumbnail.relativePath,
       subtitleBaseRelativePath: subtitleBaseRelativeFromPlan(planned),
       thumbnailBaseDir,
+      subtitleBaseDir: moveSubtitles ? VIDEOS_DIR : SUBTITLES_DIR,
       identity: buildMediaIdentity(options),
       existingLocalVideoId: options?.existingLocalVideoId,
       thumbnailRequired: thumbnailSaved,
+      // downloadSubtitles writes `<stem>.<lang>.vtt` directly, so the stem has
+      // to be reserved here or a family whose video and thumbnail happen not to
+      // collide can still land on another row's subtitles and overwrite them.
+      // Audio-only downloads never fetch subtitles, so they skip the reservation.
+      subtitleRequired: (options?.mediaType || "video") !== "audio",
     });
 
     const dedupedVideoPath = resolveSafeChildPath(
@@ -421,9 +427,13 @@ export function renameFilesWithMetadata(
     thumbnailRelativePath: preferredThumbnailRelativePath,
     subtitleBaseRelativePath: preferredSubtitleBaseRelativePath,
     thumbnailBaseDir,
+    subtitleBaseDir: moveSubtitles ? VIDEOS_DIR : SUBTITLES_DIR,
     identity: buildMediaIdentity(options),
     existingLocalVideoId: options?.existingLocalVideoId,
     thumbnailRequired: thumbnailSaved,
+    // See the template branch above: downloadSubtitles writes the planned stem
+    // directly, so it must be reserved here too. This is the default preset.
+    subtitleRequired: (options?.mediaType || "video") !== "audio",
   });
 
   const newVideoPath = resolveSafeChildPath(

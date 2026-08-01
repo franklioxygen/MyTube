@@ -266,6 +266,43 @@ describe("collectionFileManager allocator-backed family relocation", () => {
     expect(journalEntries()).toEqual([]);
   });
 
+  it("keeps thumbnails in the video folder when that setting is enabled", () => {
+    // Unlinking must respect the active storage configuration rather than
+    // hard-coding the image root, or an enabled moveThumbnailsToVideoFolder
+    // silently pulls the thumbnail back out into /images.
+    settingsState.current.moveThumbnailsToVideoFolder = true;
+    const current = makeVideo({
+      id: "current",
+      sourceVideoId: "yt-current",
+      videoPath: "/videos/Series/Episode.mp4",
+      thumbnailPath: "/videos/Series/Episode.jpg",
+      subtitles: [],
+    });
+    const collections: Collection[] = [
+      { id: "collection", title: "Series", name: "Series", videos: [] },
+    ];
+    videoStore.videos = [current];
+
+    fs.outputFileSync(path.join(testPaths.videos, "Series", "Episode.mp4"), "source-video");
+    fs.outputFileSync(path.join(testPaths.videos, "Series", "Episode.jpg"), "source-thumb");
+
+    const updates = moveAllFilesFromCollection(
+      current,
+      testPaths.videos,
+      testPaths.images,
+      testPaths.subtitles,
+      "/videos",
+      "/images",
+      undefined,
+      collections
+    );
+
+    expect(updates.thumbnailPath).toBe("/videos/Episode.jpg");
+    expect(fs.readFileSync(path.join(testPaths.videos, "Episode.jpg"), "utf8")).toBe("source-thumb");
+    expect(fs.existsSync(path.join(testPaths.images, "Episode.jpg"))).toBe(false);
+    expect(journalEntries()).toEqual([]);
+  });
+
   it("moves subtitles into the video folder when that setting is enabled", () => {
     settingsState.current.moveSubtitlesToVideoFolder = true;
     const current = makeVideo({

@@ -230,6 +230,52 @@ function sameLocalRow(video: Video, existingLocalVideoId?: string): boolean {
   return Boolean(existingLocalVideoId && video.id === existingLocalVideoId);
 }
 
+/**
+ * Mirrors canonicalizeManagedPath's root detection, including its root ordering,
+ * but reports which managed root matched instead of discarding it.
+ */
+function managedRootForPath(webOrAbsolutePath: string): string | null {
+  const normalized = webOrAbsolutePath.replace(/\\/g, "/");
+  if (normalized.startsWith("/videos/")) {
+    return "videos";
+  }
+  if (normalized.startsWith("/images/")) {
+    return "images";
+  }
+  if (normalized.startsWith("/subtitles/")) {
+    return "subtitles";
+  }
+  if (path.isAbsolute(normalized)) {
+    const roots: Array<[string, string]> = [
+      ["videos", VIDEOS_DIR],
+      ["images", IMAGES_DIR],
+      ["subtitles", SUBTITLES_DIR],
+    ];
+    for (const [name, root] of roots) {
+      const relative = path.relative(root, normalized).replace(/\\/g, "/");
+      if (relative && !relative.startsWith("..") && !path.isAbsolute(relative)) {
+        return name;
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Ownership and collision keys must stay root-qualified. canonicalizeManagedPath
+ * strips the managed root, so a thumbnail at /videos/Show/poster.jpg and a
+ * distinct file at /images/Show/poster.jpg reduce to the same key: a redownload
+ * that changes thumbnail storage roots would then see the new-root file as owned
+ * by the selected row and let replaceOwnedFileWithBackupSync overwrite it.
+ * Keeping the root in the key preserves the case and separator normalization
+ * while telling the two destinations apart.
+ */
+function managedOwnershipKey(webOrAbsolutePath: string): string {
+  const canonical = canonicalizeManagedPath(webOrAbsolutePath);
+  const root = managedRootForPath(webOrAbsolutePath);
+  return root ? `${root}:${canonical}` : canonical;
+}
+
 function getStoredVideosForAllocation(): Video[] {
   if (videoProviderForTests) {
     return videoProviderForTests();
@@ -262,14 +308,14 @@ function buildDbPathSets(existingLocalVideoId?: string): {
     const owned = sameLocalRow(video, existingLocalVideoId);
     const targetSet = owned ? ownedPaths : otherPaths;
     if (video.videoPath) {
-      targetSet.add(canonicalizeManagedPath(video.videoPath));
+      targetSet.add(managedOwnershipKey(video.videoPath));
     }
     if (video.thumbnailPath) {
-      targetSet.add(canonicalizeManagedPath(video.thumbnailPath));
+      targetSet.add(managedOwnershipKey(video.thumbnailPath));
     }
     for (const subtitle of video.subtitles || []) {
       if (subtitle.path) {
-        const canonical = canonicalizeManagedPath(subtitle.path);
+        const canonical = managedOwnershipKey(subtitle.path);
         targetSet.add(canonical);
         if (!owned) {
           otherSubtitlePaths.push(canonical);
@@ -299,7 +345,7 @@ function candidateConflicts(input: {
     input.thumbnailRelativePath
   );
 
-  const videoManagedPath = canonicalizeManagedPath(
+  const videoManagedPath = managedOwnershipKey(
     `/videos/${input.videoRelativePath}`
   );
   if (
@@ -309,7 +355,7 @@ function candidateConflicts(input: {
     return true;
   }
   const thumbPrefix = input.thumbnailBaseDir === VIDEOS_DIR ? "/videos" : "/images";
-  const thumbnailManagedPath = canonicalizeManagedPath(
+  const thumbnailManagedPath = managedOwnershipKey(
     `${thumbPrefix}/${input.thumbnailRelativePath}`
   );
   if (
@@ -342,7 +388,7 @@ function candidateConflicts(input: {
     // row already owning a subtitle under this stem lets the allocator reuse
     // it, and the no-overwrite promotion of the newly downloaded subtitle then
     // fails and drops the subtitle silently.
-    const subtitleStem = canonicalizeManagedPath(
+    const subtitleStem = managedOwnershipKey(
       `${subtitlePrefix}/${input.subtitleBaseRelativePath}`
     );
     if (
@@ -364,7 +410,7 @@ function candidateConflicts(input: {
         subtitleBaseDir,
         subtitleRelativePath
       );
-      const subtitleManagedPath = canonicalizeManagedPath(
+      const subtitleManagedPath = managedOwnershipKey(
         `${subtitlePrefix}/${subtitleRelativePath}`
       );
       if (
@@ -714,7 +760,7 @@ export function allocateOutputFamilySync(
     otherSubtitlePaths: dbOtherSubtitlePaths,
   } = buildDbPathSets(input.existingLocalVideoId);
   for (const ownedManagedPath of input.ownedManagedPaths || []) {
-    ownedPaths.add(canonicalizeManagedPath(ownedManagedPath));
+    ownedPaths.add(managedOwnershipKey(ownedManagedPath));
   }
   // Callers may declare subtitles as owned that the row scan attributed to a
   // different row, so honor that ownership before the stem reservation runs.
@@ -803,24 +849,24 @@ export function isManagedPathOwnedByLocalVideoId(
   if (!existingLocalVideoId) {
     return false;
   }
-  const normalizedCandidate = canonicalizeManagedPath(candidatePath);
+  const normalizedCandidate = managedOwnershipKey(candidatePath);
   return getStoredVideosForAllocation().some((video) => {
     if (!sameLocalRow(video, existingLocalVideoId)) {
       return false;
     }
-    if (video.videoPath && canonicalizeManagedPath(video.videoPath) === normalizedCandidate) {
+    if (video.videoPath && managedOwnershipKey(video.videoPath) === normalizedCandidate) {
       return true;
     }
     if (
       video.thumbnailPath &&
-      canonicalizeManagedPath(video.thumbnailPath) === normalizedCandidate
+      managedOwnershipKey(video.thumbnailPath) === normalizedCandidate
     ) {
       return true;
     }
     return (video.subtitles || []).some(
       (subtitle) =>
         subtitle.path &&
-        canonicalizeManagedPath(subtitle.path) === normalizedCandidate
+        managedOwnershipKey(subtitle.path) === normalizedCandidate
     );
   });
 }

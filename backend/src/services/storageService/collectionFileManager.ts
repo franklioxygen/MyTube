@@ -402,17 +402,22 @@ export function moveAllFilesFromCollection(
   const videoRelativeDir = getRelativeDirWithinRoot(targetVideoDir, VIDEOS_DIR);
   const imageRelativeDir = getRelativeDirWithinRoot(targetImageDir, IMAGES_DIR);
   const subtitleRelativeDir = getRelativeDirWithinRoot(targetSubDir, SUBTITLES_DIR);
-  const subtitlesInVideoFolder = Boolean(
-    getSettings().moveSubtitlesToVideoFolder
-  );
+  const settings = getSettings();
+  const subtitlesInVideoFolder = Boolean(settings.moveSubtitlesToVideoFolder);
+  // Same reasoning as subtitles: the active storage configuration decides the
+  // thumbnail root, so unlinking must not pull a thumbnail out of the video
+  // folder while moveThumbnailsToVideoFolder is enabled.
+  const thumbnailsInVideoFolder = Boolean(settings.moveThumbnailsToVideoFolder);
 
   return moveManagedFamilyToRelativeDirs(video, allCollections, {
     videoRelativeDir,
-    thumbnailRelativeDir: imageRelativeDir,
+    thumbnailRelativeDir: thumbnailsInVideoFolder
+      ? videoRelativeDir
+      : imageRelativeDir,
     subtitleRelativeDir: subtitlesInVideoFolder
       ? videoRelativeDir
       : subtitleRelativeDir,
-    thumbnailBaseDir: IMAGES_DIR,
+    thumbnailBaseDir: thumbnailsInVideoFolder ? VIDEOS_DIR : IMAGES_DIR,
     subtitleBaseDir: subtitlesInVideoFolder ? VIDEOS_DIR : SUBTITLES_DIR,
   });
 }

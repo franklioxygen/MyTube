@@ -599,6 +599,56 @@ describe("outputPathAllocator", () => {
     );
   });
 
+  it("does not treat a same-named file under another root as owned", async () => {
+    const root = makeTempRoot();
+    // The row's thumbnail still lives under /videos after a storage-settings
+    // change. A redownload now targets /images/Show/poster.jpg, a distinct file
+    // owned by nobody here — planning an owned replacement for it would let
+    // replaceOwnedFileWithBackupSync overwrite it.
+    const otherRootPath = path.join(root, "images", "Show", "poster.jpg");
+    fs.outputFileSync(otherRootPath, "someone-elses-thumbnail");
+    const allocator = await loadAllocator(root, [
+      {
+        id: "local-1",
+        videoPath: "/videos/Show/Episode.mp4",
+        thumbnailPath: "/videos/Show/poster.jpg",
+        subtitles: [],
+      },
+    ]);
+
+    expect(
+      allocator.planOwnedReplacementStagingPathSync(
+        otherRootPath,
+        path.join(root, "images"),
+        "local-1"
+      )
+    ).toBeNull();
+    expect(fs.readFileSync(otherRootPath, "utf8")).toBe("someone-elses-thumbnail");
+  });
+
+  it("still treats the same-root thumbnail as owned by the selected row", async () => {
+    const root = makeTempRoot();
+    const ownedPath = path.join(root, "images", "Show", "poster.jpg");
+    fs.outputFileSync(ownedPath, "own-thumbnail");
+    const allocator = await loadAllocator(root, [
+      {
+        id: "local-1",
+        videoPath: "/videos/Show/Episode.mp4",
+        thumbnailPath: "/images/Show/poster.jpg",
+        subtitles: [],
+      },
+    ]);
+
+    const staging = allocator.planOwnedReplacementStagingPathSync(
+      ownedPath,
+      path.join(root, "images"),
+      "local-1"
+    );
+
+    expect(staging).not.toBeNull();
+    expect(staging?.finalPath).toBe(ownedPath);
+  });
+
   it("rejects traversal while planning owned replacement staging", async () => {
     const root = makeTempRoot();
     const allocator = await loadAllocator(root);
