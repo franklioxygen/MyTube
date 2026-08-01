@@ -1173,6 +1173,32 @@ export function moveOutputFamilyWithJournalSync(
   }
 }
 
+/**
+ * Records a failure that happened after the destination was already published
+ * and verified. At that point the only remaining work is bookkeeping — removing
+ * the staging link, unlinking the source, writing the journal — none of which
+ * can be rolled back, because the destination is live and the source may be
+ * gone. Reporting failure here would make callers skip persistence and orphan a
+ * complete destination file, so the breadcrumb is written and the publication is
+ * reported as the success it is.
+ */
+function recordPostPublicationBookkeepingFailure(
+  allocationId: string,
+  payload: Record<string, unknown>,
+  error: unknown
+): void {
+  try {
+    writeOutputFamilyJournalSync(allocationId, {
+      step: "publish_bookkeeping_failed",
+      purpose: "publication",
+      ...payload,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  } catch {
+    // The prior journal step already records the published destination.
+  }
+}
+
 export function promoteFileNoOverwriteSync(
   sourcePath: string,
   sourceRootDir: string | string[],
@@ -1220,6 +1246,7 @@ export function promoteFileNoOverwriteSync(
       expectedSize: staging.expectedSize,
     });
 
+    let published = false;
     try {
       linkSafeSync(
         staging.stagingPath,
@@ -1233,6 +1260,9 @@ export function promoteFileNoOverwriteSync(
           `Published file size mismatch for ${destinationPath}: expected ${staging.expectedSize}, got ${finalSize}`
         );
       }
+      // The destination is live and verified from here on. Nothing below can be
+      // undone, so a failure must not be reported as a publication failure.
+      published = true;
       cleanupStagingFileSync(staging.stagingPath, staging.stagingRootDir);
       if (pathExistsSafeSync(staging.sourcePath, sourceRootDir)) {
         unlinkSafeSync(staging.sourcePath, sourceRootDir);
@@ -1249,6 +1279,20 @@ export function promoteFileNoOverwriteSync(
       removeOutputFamilyJournalSync(allocationId);
       return;
     } catch (error) {
+      if (published) {
+        recordPostPublicationBookkeepingFailure(
+          allocationId,
+          {
+            publishMethod: "hard_link",
+            sourcePath: staging.sourcePath,
+            stagingPath: staging.stagingPath,
+            destinationPath,
+            expectedSize: staging.expectedSize,
+          },
+          error
+        );
+        return;
+      }
       if (canFallbackFromHardLinkError(error)) {
         hardLinkPublishSupportByRoot.set(
           normalizeSafeAbsolutePath(staging.destinationRootDir),
@@ -1297,6 +1341,7 @@ export function promoteFileNoOverwriteSync(
     expectedSize: staging.expectedSize,
   });
 
+  let published = false;
   try {
     const current = readFileSafeSync(destinationPath, destinationRoots, "utf8");
     if (current !== marker) {
@@ -1314,6 +1359,9 @@ export function promoteFileNoOverwriteSync(
         `Published file size mismatch for ${destinationPath}: expected ${staging.expectedSize}, got ${finalSize}`
       );
     }
+    // As in the hard-link branch: the destination now holds the real file, so
+    // the rollback below no longer applies to anything that follows.
+    published = true;
     if (pathExistsSafeSync(staging.sourcePath, sourceRootDir)) {
       unlinkSafeSync(staging.sourcePath, sourceRootDir);
     }
@@ -1327,6 +1375,20 @@ export function promoteFileNoOverwriteSync(
     });
     removeOutputFamilyJournalSync(allocationId);
   } catch (error) {
+    if (published) {
+      recordPostPublicationBookkeepingFailure(
+        allocationId,
+        {
+          publishMethod: "rename",
+          sourcePath: staging.sourcePath,
+          stagingPath: staging.stagingPath,
+          destinationPath,
+          expectedSize: staging.expectedSize,
+        },
+        error
+      );
+      return;
+    }
     try {
       const current = readFileSafeSync(destinationPath, destinationRoots, "utf8");
       if (current === marker) {

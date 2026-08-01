@@ -851,6 +851,97 @@ describe("outputPathAllocator", () => {
     ).toEqual([]);
   });
 
+  it("reports success when hard-link publication journaling fails afterwards", async () => {
+    const root = makeTempRoot();
+    const sourcePath = path.join(root, "videos", "incoming.mp4");
+    const destPath = path.join(root, "videos", "Episode.mp4");
+    fs.writeFileSync(sourcePath, "new-video");
+    const allocator = await loadAllocator(root);
+
+    // By this journal step the destination is published and verified and the
+    // source has been unlinked. Throwing here would make callers skip
+    // persistence and orphan a complete file that cannot be rebuilt.
+    const realWriteFileSync = fs.writeFileSync;
+    vi.spyOn(fs, "writeFileSync").mockImplementation(((
+      file: any,
+      data: any,
+      options: any
+    ) => {
+      if (
+        typeof data === "string" &&
+        data.includes('"step": "committed"') &&
+        data.includes('"purpose": "publication"')
+      ) {
+        throw new Error("journal disk full");
+      }
+      return (realWriteFileSync as any)(file, data, options);
+    }) as typeof fs.writeFileSync);
+
+    expect(() =>
+      allocator.promoteFileNoOverwriteSync(
+        sourcePath,
+        path.join(root, "videos"),
+        destPath,
+        path.join(root, "videos")
+      )
+    ).not.toThrow();
+
+    vi.restoreAllMocks();
+    expect(fs.readFileSync(destPath, "utf8")).toBe("new-video");
+    expect(fs.existsSync(sourcePath)).toBe(false);
+  });
+
+  it("reports success when rename-fallback publication journaling fails afterwards", async () => {
+    const root = makeTempRoot();
+    const sourcePath = path.join(root, "videos", "incoming.mp4");
+    const destPath = path.join(root, "videos", "Episode.mp4");
+    fs.writeFileSync(sourcePath, "new-video");
+    const allocator = await loadAllocator(root);
+
+    // Failing linkSync makes the hard-link probe report no support, so the
+    // claim-marker + rename fallback runs instead.
+    vi.spyOn(fs, "linkSync").mockImplementation(() => {
+      throw Object.assign(new Error("EXDEV: cross-device link"), {
+        code: "EXDEV",
+      });
+    });
+    const renameSpy = vi.spyOn(fs, "renameSync");
+    const realWriteFileSync = fs.writeFileSync;
+    vi.spyOn(fs, "writeFileSync").mockImplementation(((
+      file: any,
+      data: any,
+      options: any
+    ) => {
+      if (
+        typeof data === "string" &&
+        data.includes('"step": "committed"') &&
+        data.includes('"purpose": "publication"')
+      ) {
+        throw new Error("journal disk full");
+      }
+      return (realWriteFileSync as any)(file, data, options);
+    }) as typeof fs.writeFileSync);
+
+    expect(() =>
+      allocator.promoteFileNoOverwriteSync(
+        sourcePath,
+        path.join(root, "videos"),
+        destPath,
+        path.join(root, "videos")
+      )
+    ).not.toThrow();
+
+    // Proves the fallback ran: the hard-link branch publishes via linkSync, so
+    // only the rename branch renames the staging file onto the destination.
+    expect(renameSpy).toHaveBeenCalledWith(
+      expect.stringContaining(".mytube-staging"),
+      destPath
+    );
+    vi.restoreAllMocks();
+    expect(fs.readFileSync(destPath, "utf8")).toBe("new-video");
+    expect(fs.existsSync(sourcePath)).toBe(false);
+  });
+
   it("restores the destination when backup journaling fails", async () => {
     const root = makeTempRoot();
     const sourcePath = path.join(root, "videos", "incoming.mp4");
