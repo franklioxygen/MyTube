@@ -1,5 +1,5 @@
 import path from "path";
-import { IMAGES_DIR, VIDEOS_DIR } from "../../../config/paths";
+import { IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../../../config/paths";
 import { extractSourceVideoId, formatVideoFilename } from "../../../utils/helpers";
 import { logger } from "../../../utils/logger";
 import { resolveSafeChildPath } from "../../../utils/security";
@@ -161,10 +161,16 @@ export function planDownloadPaths(
         planned.video.basenameWithoutExt
       ),
       thumbnailBaseDir,
+      subtitleBaseDir: args.moveSubtitlesToVideoFolder
+        ? VIDEOS_DIR
+        : SUBTITLES_DIR,
       identity: buildMediaIdentity({ ...args, mediaType }),
       existingLocalVideoId: args.existingLocalVideoId,
       thumbnailRequired: true,
-      subtitleRequired: args.moveSubtitlesToVideoFolder,
+      // Central subtitles still need a reservation: their destination collides
+      // just as readily as one inside the video folder, and an unreserved stem
+      // makes processSubtitles drop the downloaded subtitle on promotion.
+      subtitleRequired: true,
     });
     const reservedPaths = buildPlannedPathsFromReservation(
       reservation,
@@ -196,10 +202,14 @@ export function planDownloadPaths(
     thumbnailRelativePath,
     subtitleBaseRelativePath,
     thumbnailBaseDir,
+    subtitleBaseDir: args.moveSubtitlesToVideoFolder
+      ? VIDEOS_DIR
+      : SUBTITLES_DIR,
     identity: buildMediaIdentity({ ...args, mediaType }),
     existingLocalVideoId: args.existingLocalVideoId,
     thumbnailRequired: true,
-    subtitleRequired: args.moveSubtitlesToVideoFolder,
+    // See the template branch: central subtitles need reserving too.
+    subtitleRequired: true,
   });
   const reservedPaths = buildPlannedPathsFromReservation(
     reservation,

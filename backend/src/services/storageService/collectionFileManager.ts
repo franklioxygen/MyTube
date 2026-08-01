@@ -393,17 +393,27 @@ export function moveAllFilesFromCollection(
 ): Partial<Video> {
   void videoPathPrefix;
   void imagePathPrefix;
+  // The caller leaves this undefined when unlinking to the storage root. That
+  // absence says nothing about where subtitles belong, so it must not select
+  // video storage: the subtitle root is decided by moveSubtitlesToVideoFolder
+  // alone, exactly as moveAllFilesToCollection does.
+  void subtitlePathPrefix;
 
   const videoRelativeDir = getRelativeDirWithinRoot(targetVideoDir, VIDEOS_DIR);
   const imageRelativeDir = getRelativeDirWithinRoot(targetImageDir, IMAGES_DIR);
   const subtitleRelativeDir = getRelativeDirWithinRoot(targetSubDir, SUBTITLES_DIR);
+  const subtitlesInVideoFolder = Boolean(
+    getSettings().moveSubtitlesToVideoFolder
+  );
 
   return moveManagedFamilyToRelativeDirs(video, allCollections, {
     videoRelativeDir,
     thumbnailRelativeDir: imageRelativeDir,
-    subtitleRelativeDir: subtitlePathPrefix ? subtitleRelativeDir : videoRelativeDir,
+    subtitleRelativeDir: subtitlesInVideoFolder
+      ? videoRelativeDir
+      : subtitleRelativeDir,
     thumbnailBaseDir: IMAGES_DIR,
-    subtitleBaseDir: subtitlePathPrefix ? SUBTITLES_DIR : VIDEOS_DIR,
+    subtitleBaseDir: subtitlesInVideoFolder ? VIDEOS_DIR : SUBTITLES_DIR,
   });
 }
 

@@ -225,6 +225,75 @@ describe("outputPathAllocator", () => {
     reservation.release();
   });
 
+  it("reserves central subtitle stems owned by another row", async () => {
+    const root = makeTempRoot();
+    // The other row owns only a central subtitle. Its video uses a different
+    // container and it has no thumbnail, so the preferred video and thumbnail
+    // paths stay free and the subtitle stem is the only thing in the way.
+    const allocator = await loadAllocator(root, [
+      {
+        id: "other",
+        videoPath: "/videos/Episode.mp4",
+        subtitles: [
+          { language: "en", filename: "Episode.en.vtt", path: "/subtitles/Episode.en.vtt" },
+        ],
+      },
+    ]);
+
+    const reservation = allocator.allocateOutputFamilySync({
+      videoRelativePath: "Episode.mkv",
+      thumbnailRelativePath: "Episode.jpg",
+      subtitleBaseRelativePath: "Episode",
+      thumbnailBaseDir: path.join(root, "images"),
+      subtitleBaseDir: path.join(root, "subtitles"),
+      identity: {
+        platform: "youtube",
+        sourceVideoId: "new",
+        mediaType: "video",
+      },
+      thumbnailRequired: true,
+      subtitleRequired: true,
+    });
+
+    expect(reservation.videoRelativePath).toBe("Episode [new].mkv");
+    expect(reservation.subtitleBaseRelativePath).toBe("Episode [new]");
+    reservation.release();
+  });
+
+  it("keeps the preferred stem when the owning row is the redownload target", async () => {
+    const root = makeTempRoot();
+    const allocator = await loadAllocator(root, [
+      {
+        id: "self",
+        videoPath: "/videos/Episode.mp4",
+        subtitles: [
+          { language: "en", filename: "Episode.en.vtt", path: "/subtitles/Episode.en.vtt" },
+        ],
+      },
+    ]);
+
+    const reservation = allocator.allocateOutputFamilySync({
+      videoRelativePath: "Episode.mkv",
+      thumbnailRelativePath: "Episode.jpg",
+      subtitleBaseRelativePath: "Episode",
+      thumbnailBaseDir: path.join(root, "images"),
+      subtitleBaseDir: path.join(root, "subtitles"),
+      identity: {
+        platform: "youtube",
+        sourceVideoId: "self",
+        mediaType: "video",
+        localVideoId: "self",
+      },
+      existingLocalVideoId: "self",
+      thumbnailRequired: true,
+      subtitleRequired: true,
+    });
+
+    expect(reservation.videoRelativePath).toBe("Episode.mkv");
+    expect(reservation.subtitleBaseRelativePath).toBe("Episode");
+    reservation.release();
+  });
+
   it("reclaims an expired lock left by a restart onto the same pid", async () => {
     const root = makeTempRoot();
     const reservationDir = path.join(root, "data", "output-path-reservations");

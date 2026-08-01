@@ -215,6 +215,104 @@ describe("collectionFileManager allocator-backed family relocation", () => {
     expect(journalEntries()).toEqual([]);
   });
 
+  it("keeps central subtitles in the subtitle root when unlinking to the root", () => {
+    // removeVideoFromCollection passes no subtitlePathPrefix when the unlink
+    // target is the storage root. That must not be read as "store subtitles in
+    // the video folder" while moveSubtitlesToVideoFolder is disabled.
+    settingsState.current.moveSubtitlesToVideoFolder = false;
+    const current = makeVideo({
+      id: "current",
+      sourceVideoId: "yt-current",
+      videoPath: "/videos/Series/Episode.mp4",
+      thumbnailPath: "/images/Series/Episode.jpg",
+      subtitles: [
+        {
+          language: "en",
+          filename: "Episode.en.vtt",
+          path: "/subtitles/Series/Episode.en.vtt",
+        },
+      ],
+    });
+    const collections: Collection[] = [
+      { id: "collection", title: "Series", name: "Series", videos: [] },
+    ];
+    videoStore.videos = [current];
+
+    fs.outputFileSync(path.join(testPaths.videos, "Series", "Episode.mp4"), "source-video");
+    fs.outputFileSync(path.join(testPaths.images, "Series", "Episode.jpg"), "source-thumb");
+    fs.outputFileSync(path.join(testPaths.subtitles, "Series", "Episode.en.vtt"), "source-sub");
+
+    const updates = moveAllFilesFromCollection(
+      current,
+      testPaths.videos,
+      testPaths.images,
+      testPaths.subtitles,
+      "/videos",
+      "/images",
+      undefined,
+      collections
+    );
+
+    expect(updates.subtitles).toEqual([
+      {
+        language: "en",
+        filename: "Episode.en.vtt",
+        path: "/subtitles/Episode.en.vtt",
+      },
+    ]);
+    expect(fs.readFileSync(path.join(testPaths.subtitles, "Episode.en.vtt"), "utf8")).toBe("source-sub");
+    expect(fs.existsSync(path.join(testPaths.videos, "Episode.en.vtt"))).toBe(false);
+    expect(fs.existsSync(path.join(testPaths.subtitles, "Series", "Episode.en.vtt"))).toBe(false);
+    expect(journalEntries()).toEqual([]);
+  });
+
+  it("moves subtitles into the video folder when that setting is enabled", () => {
+    settingsState.current.moveSubtitlesToVideoFolder = true;
+    const current = makeVideo({
+      id: "current",
+      sourceVideoId: "yt-current",
+      videoPath: "/videos/Series/Episode.mp4",
+      thumbnailPath: "/images/Series/Episode.jpg",
+      subtitles: [
+        {
+          language: "en",
+          filename: "Episode.en.vtt",
+          path: "/videos/Series/Episode.en.vtt",
+        },
+      ],
+    });
+    const collections: Collection[] = [
+      { id: "collection", title: "Series", name: "Series", videos: [] },
+    ];
+    videoStore.videos = [current];
+
+    fs.outputFileSync(path.join(testPaths.videos, "Series", "Episode.mp4"), "source-video");
+    fs.outputFileSync(path.join(testPaths.images, "Series", "Episode.jpg"), "source-thumb");
+    fs.outputFileSync(path.join(testPaths.videos, "Series", "Episode.en.vtt"), "source-sub");
+
+    const updates = moveAllFilesFromCollection(
+      current,
+      testPaths.videos,
+      testPaths.images,
+      testPaths.subtitles,
+      "/videos",
+      "/images",
+      undefined,
+      collections
+    );
+
+    expect(updates.subtitles).toEqual([
+      {
+        language: "en",
+        filename: "Episode.en.vtt",
+        path: "/videos/Episode.en.vtt",
+      },
+    ]);
+    expect(fs.readFileSync(path.join(testPaths.videos, "Episode.en.vtt"), "utf8")).toBe("source-sub");
+    expect(fs.existsSync(path.join(testPaths.subtitles, "Episode.en.vtt"))).toBe(false);
+    expect(journalEntries()).toEqual([]);
+  });
+
   it("moves a family out of a collection with a source-id suffix when root files already exist", () => {
     const current = makeVideo({
       id: "current",

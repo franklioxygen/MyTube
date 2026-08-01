@@ -253,13 +253,14 @@ export function setOutputPathAllocatorVideoProviderForTests(
 function buildDbPathSets(existingLocalVideoId?: string): {
   otherPaths: Set<string>;
   ownedPaths: Set<string>;
+  otherSubtitlePaths: string[];
 } {
   const otherPaths = new Set<string>();
   const ownedPaths = new Set<string>();
+  const otherSubtitlePaths: string[] = [];
   for (const video of getStoredVideosForAllocation()) {
-    const targetSet = sameLocalRow(video, existingLocalVideoId)
-      ? ownedPaths
-      : otherPaths;
+    const owned = sameLocalRow(video, existingLocalVideoId);
+    const targetSet = owned ? ownedPaths : otherPaths;
     if (video.videoPath) {
       targetSet.add(canonicalizeManagedPath(video.videoPath));
     }
@@ -268,11 +269,15 @@ function buildDbPathSets(existingLocalVideoId?: string): {
     }
     for (const subtitle of video.subtitles || []) {
       if (subtitle.path) {
-        targetSet.add(canonicalizeManagedPath(subtitle.path));
+        const canonical = canonicalizeManagedPath(subtitle.path);
+        targetSet.add(canonical);
+        if (!owned) {
+          otherSubtitlePaths.push(canonical);
+        }
       }
     }
   }
-  return { otherPaths, ownedPaths };
+  return { otherPaths, ownedPaths, otherSubtitlePaths };
 }
 
 function candidateConflicts(input: {
@@ -284,6 +289,7 @@ function candidateConflicts(input: {
   thumbnailBaseDir: string;
   otherDbPaths: Set<string>;
   ownedDbPaths: Set<string>;
+  otherSubtitlePaths: string[];
   thumbnailRequired?: boolean;
   subtitleRequired?: boolean;
 }): boolean {
@@ -324,17 +330,31 @@ function candidateConflicts(input: {
     return true;
   }
 
-  if (
-    input.subtitleRequired &&
-    input.otherDbPaths.has(canonicalizeManagedPath(input.subtitleBaseRelativePath))
-  ) {
-    return true;
+  const subtitleBaseDir = input.subtitleBaseDir || SUBTITLES_DIR;
+  const subtitlePrefix =
+    subtitleBaseDir === VIDEOS_DIR ? "/videos" : "/subtitles";
+
+  if (input.subtitleRequired) {
+    // Subtitle languages are not known until the download finishes, so the
+    // whole `<stem>.<lang><ext>` family has to be reserved up front. An
+    // equality test on the stem alone never matches, because the stored keys
+    // are full filenames that still carry `.<lang><ext>`. Without this, another
+    // row already owning a subtitle under this stem lets the allocator reuse
+    // it, and the no-overwrite promotion of the newly downloaded subtitle then
+    // fails and drops the subtitle silently.
+    const subtitleStem = canonicalizeManagedPath(
+      `${subtitlePrefix}/${input.subtitleBaseRelativePath}`
+    );
+    if (
+      input.otherSubtitlePaths.some((candidatePath) =>
+        candidatePath.startsWith(`${subtitleStem}.`)
+      )
+    ) {
+      return true;
+    }
   }
 
   if (input.subtitleRequired && input.subtitleFiles?.length) {
-    const subtitleBaseDir = input.subtitleBaseDir || SUBTITLES_DIR;
-    const subtitlePrefix =
-      subtitleBaseDir === VIDEOS_DIR ? "/videos" : "/subtitles";
     for (const subtitle of input.subtitleFiles) {
       const extension = subtitle.extension.startsWith(".")
         ? subtitle.extension
@@ -688,10 +708,19 @@ function acquireLock(
 export function allocateOutputFamilySync(
   input: AllocateOutputFamilyInput
 ): OutputFamilyReservation {
-  const { otherPaths, ownedPaths } = buildDbPathSets(input.existingLocalVideoId);
+  const {
+    otherPaths,
+    ownedPaths,
+    otherSubtitlePaths: dbOtherSubtitlePaths,
+  } = buildDbPathSets(input.existingLocalVideoId);
   for (const ownedManagedPath of input.ownedManagedPaths || []) {
     ownedPaths.add(canonicalizeManagedPath(ownedManagedPath));
   }
+  // Callers may declare subtitles as owned that the row scan attributed to a
+  // different row, so honor that ownership before the stem reservation runs.
+  const otherSubtitlePaths = dbOtherSubtitlePaths.filter(
+    (subtitlePath) => !ownedPaths.has(subtitlePath)
+  );
   const sourceSuffix = buildSourceSuffix(input.identity);
   let attemptedSourceSuffix = false;
 
@@ -737,6 +766,7 @@ export function allocateOutputFamilySync(
           thumbnailBaseDir: input.thumbnailBaseDir,
           otherDbPaths: otherPaths,
           ownedDbPaths: ownedPaths,
+          otherSubtitlePaths,
         thumbnailRequired: input.thumbnailRequired,
         subtitleRequired: input.subtitleRequired,
       })
