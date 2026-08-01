@@ -112,12 +112,22 @@ function partRank(value: number | null): number {
   return typeof value === "number" && value > 0 ? value : 0;
 }
 
-function chooseTrackingRepresentative(
+/**
+ * Picks the library row that should own the source-level tracking record: the
+ * lowest-numbered surviving part, tie-broken by creation time then id. Returns
+ * null when the source has no remaining rows.
+ *
+ * `excludeVideoId` lets deletion ask for the successor while the row being
+ * removed is still present in `videos` — deleteVideo marks tracking before it
+ * deletes the row. Selection lives here so deletion and persistence cannot drift
+ * apart on which part represents a multipart source.
+ */
+export function selectTrackingRepresentative(
   sourceVideoId: string,
   platform: string,
   mediaType: MediaType,
-  fallbackVideoId: string
-): string {
+  excludeVideoId?: string
+): string | null {
   const rows = db
     .select({
       id: videos.id,
@@ -131,6 +141,9 @@ function chooseTrackingRepresentative(
     .all() as RepresentativeCandidate[];
 
   const candidates = rows.filter((row) => {
+    if (excludeVideoId && row.id === excludeVideoId) {
+      return false;
+    }
     const rowMediaType = normalizeMediaType(row.mediaType);
     const rowPlatform = normalizePlatform(row.source);
     return (
@@ -140,7 +153,7 @@ function chooseTrackingRepresentative(
   });
 
   if (candidates.length === 0) {
-    return fallbackVideoId;
+    return null;
   }
 
   return candidates
@@ -152,6 +165,18 @@ function chooseTrackingRepresentative(
       if (createdDelta !== 0) return createdDelta;
       return left.id.localeCompare(right.id);
     })[0].id;
+}
+
+function chooseTrackingRepresentative(
+  sourceVideoId: string,
+  platform: string,
+  mediaType: MediaType,
+  fallbackVideoId: string
+): string {
+  return (
+    selectTrackingRepresentative(sourceVideoId, platform, mediaType) ??
+    fallbackVideoId
+  );
 }
 
 /**

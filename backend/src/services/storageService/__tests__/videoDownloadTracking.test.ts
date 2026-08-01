@@ -26,9 +26,31 @@ vi.mock('../../../utils/logger', () => ({
   }
 }));
 
+const mockSelectTrackingRepresentative = vi.hoisted(() => vi.fn());
+vi.mock('../downloadedMediaIdentity', () => ({
+  selectTrackingRepresentative: (...args: any[]) =>
+    mockSelectTrackingRepresentative(...args),
+}));
+
+/** Stubs the tracking-row lookup markVideoDownloadDeleted performs first. */
+function mockTrackingRowsForDelete(
+  rows: Array<Record<string, unknown>> = [
+    { id: 'dl1', sourceVideoId: 'src1', platform: 'youtube', mediaType: 'video' },
+  ]
+) {
+  const mockAll = vi.fn().mockReturnValue(rows);
+  const mockWhere = vi.fn().mockReturnValue({ all: mockAll });
+  const mockFrom = vi.fn().mockReturnValue({ where: mockWhere });
+  vi.mocked(db.select).mockReturnValue({ from: mockFrom } as any);
+}
+
 describe('videoDownloadTracking', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        // Default: one tracking row, and no surviving sibling part, so deletion
+        // marks the source deleted. Tests opt into a survivor.
+        mockTrackingRowsForDelete();
+        mockSelectTrackingRepresentative.mockReturnValue(null);
     });
 
     describe('checkVideoDownloadBySourceId', () => {
@@ -223,6 +245,44 @@ describe('videoDownloadTracking', () => {
             status: 'deleted',
             videoId: null,
           })
+        );
+      });
+
+      it('reassigns tracking to a surviving part instead of marking deleted', () => {
+        // Deleting part 1 of a multipart source must not report the source as
+        // deleted while part 2 is still in the library, or later duplicate
+        // checks suppress a valid download or force a pointless redownload.
+        mockSelectTrackingRepresentative.mockReturnValue('vid2');
+        const mockRun = vi.fn();
+        const mockWhere = vi.fn().mockReturnValue({ run: mockRun });
+        const mockSet = vi.fn().mockReturnValue({ where: mockWhere });
+        vi.mocked(db.update).mockReturnValue({ set: mockSet } as any);
+
+        markVideoDownloadDeleted('vid1');
+
+        expect(mockSelectTrackingRepresentative).toHaveBeenCalledWith(
+          'src1',
+          'youtube',
+          'video',
+          'vid1'
+        );
+        expect(mockSet).toHaveBeenCalledWith({ videoId: 'vid2' });
+        expect(mockSet).not.toHaveBeenCalledWith(
+          expect.objectContaining({ status: 'deleted' })
+        );
+      });
+
+      it('marks deleted when the removed part was the last one', () => {
+        mockSelectTrackingRepresentative.mockReturnValue(null);
+        const mockRun = vi.fn();
+        const mockWhere = vi.fn().mockReturnValue({ run: mockRun });
+        const mockSet = vi.fn().mockReturnValue({ where: mockWhere });
+        vi.mocked(db.update).mockReturnValue({ set: mockSet } as any);
+
+        markVideoDownloadDeleted('vid1');
+
+        expect(mockSet).toHaveBeenCalledWith(
+          expect.objectContaining({ status: 'deleted', videoId: null })
         );
       });
 

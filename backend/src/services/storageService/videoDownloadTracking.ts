@@ -3,6 +3,8 @@ import { db } from "../../db";
 import { videoDownloads } from "../../db/schema";
 import { logger } from "../../utils/logger";
 import { DownloadHistoryItem, MediaType, Video, VideoDownloadCheckResult } from "./types";
+import { normalizeMediaType } from "./types";
+import { selectTrackingRepresentative } from "./downloadedMediaIdentity";
 
 type DownloadTrackingRow = {
   status: "exists" | "deleted" | string;
@@ -195,15 +197,53 @@ export function recordVideoDownload(
  */
 export function markVideoDownloadDeleted(videoId: string): void {
   try {
-    db.update(videoDownloads)
-      .set({
-        status: "deleted",
-        deletedAt: Date.now(),
-        videoId: null,
+    // A multipart source keeps one tracking row pointing at a representative
+    // part. Marking that row deleted because the representative went away would
+    // report the whole source as deleted while its other parts are still in the
+    // library, which later suppresses a valid download or prompts a pointless
+    // redownload. Hand the row to the next surviving part instead.
+    const trackingRows = db
+      .select({
+        id: videoDownloads.id,
+        sourceVideoId: videoDownloads.sourceVideoId,
+        platform: videoDownloads.platform,
+        mediaType: videoDownloads.mediaType,
       })
+      .from(videoDownloads)
       .where(eq(videoDownloads.videoId, videoId))
-      .run();
-    logger.info(`Marked video download as deleted: ${videoId}`);
+      .all();
+
+    for (const row of trackingRows) {
+      const successor = row.sourceVideoId
+        ? selectTrackingRepresentative(
+            row.sourceVideoId,
+            row.platform || "unknown",
+            normalizeMediaType(row.mediaType),
+            videoId
+          )
+        : null;
+
+      if (successor) {
+        db.update(videoDownloads)
+          .set({ videoId: successor })
+          .where(eq(videoDownloads.id, row.id))
+          .run();
+        logger.info(
+          `Reassigned download tracking for ${row.sourceVideoId} from ${videoId} to surviving part ${successor}`
+        );
+        continue;
+      }
+
+      db.update(videoDownloads)
+        .set({
+          status: "deleted",
+          deletedAt: Date.now(),
+          videoId: null,
+        })
+        .where(eq(videoDownloads.id, row.id))
+        .run();
+      logger.info(`Marked video download as deleted: ${videoId}`);
+    }
   } catch (error) {
     logger.error(
       "Error marking video download as deleted",

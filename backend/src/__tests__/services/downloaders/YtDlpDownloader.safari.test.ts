@@ -1,3 +1,4 @@
+import path from 'path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock dependencies
@@ -56,6 +57,17 @@ vi.mock('../../../services/filenameTemplate/outputPathAllocator', () => ({
     replaceOwnedFileWithBackupSync: vi.fn(),
 }));
 
+const mockCleanupVideoArtifacts = vi.hoisted(() => vi.fn());
+const mockCleanupSubtitleFiles = vi.hoisted(() => vi.fn());
+vi.mock('../../../utils/downloadUtils', async (importOriginal) => {
+    const actual = await importOriginal<any>();
+    return {
+        ...actual,
+        cleanupVideoArtifacts: (...args: any[]) => mockCleanupVideoArtifacts(...args),
+        cleanupSubtitleFiles: (...args: any[]) => mockCleanupSubtitleFiles(...args),
+    };
+});
+
 // Mock fs-extra - define mockWriter inside the factory
 vi.mock('fs-extra', () => {
     const mockWriter = {
@@ -90,6 +102,7 @@ vi.mock('fs-extra', () => {
                 return true;
             }),
             createWriteStream: vi.fn().mockReturnValue(mockWriter),
+            remove: vi.fn().mockResolvedValue(undefined),
             readdirSync: vi.fn().mockReturnValue([]),
             statSync: vi.fn().mockReturnValue({ size: 1000 }),
             unlinkSync: (...args: any[]) => mockUnlinkSync(...args),
@@ -135,6 +148,9 @@ describe('YtDlpDownloader format defaults', () => {
         videoPathExistsChecks.clear();
         additionalExistingPaths.clear();
         mockGetUserYtDlpConfig.mockReturnValue({});
+        // clearAllMocks keeps implementations, so restore the default settings
+        // here rather than letting one test's override leak into the next.
+        vi.mocked(storageService.getSettings).mockReturnValue({} as any);
         vi.mocked(storageService.getVideoById).mockReturnValue(undefined);
         vi.mocked(storageService.getVideoBySourceUrl).mockReturnValue(undefined);
         vi.mocked(storageService.updateVideo).mockReturnValue(null);
@@ -156,6 +172,45 @@ describe('YtDlpDownloader format defaults', () => {
         expect(args.format).not.toContain('av01');
         expect(args.mergeOutputFormat).toBe('webm/mp4');
         expect(args.output).toContain('.%(ext)s');
+    });
+
+    it('cleans up cancelled organized downloads from the author directory', async () => {
+        // Legacy naming plus author_folder_only puts the yt-dlp output under an
+        // author subdirectory. Cleanup that scans only the managed roots leaves
+        // partial media and subtitles behind there, and later allocations then
+        // route around those leftovers with suffixed names.
+        vi.mocked(storageService.getSettings).mockReturnValue({
+            downloadFilenamePresetId: 'legacy',
+            authorOrganizationMode: 'author_folder_only',
+            moveThumbnailsToVideoFolder: false,
+            moveSubtitlesToVideoFolder: false,
+        } as any);
+
+        let cancel: (() => void) | undefined;
+        // onStart runs once the destination is planned, before the download is
+        // awaited. The fs mock only knows about un-organized paths, so the
+        // download itself then fails to find its output — irrelevant here, since
+        // the subject is the directory the cancel callback cleans.
+        await expect(
+            YtDlpDownloader.downloadVideo(
+                'https://www.youtube.com/watch?v=123456',
+                'download-yt',
+                (cancelFn) => {
+                    cancel = cancelFn;
+                },
+            ),
+        ).rejects.toThrow();
+
+        expect(cancel).toBeDefined();
+        await cancel!();
+
+        expect(mockCleanupVideoArtifacts).toHaveBeenCalled();
+        const videoDir = mockCleanupVideoArtifacts.mock.calls[0][1];
+        expect(videoDir).toContain(`${path.sep}Test Author`);
+        expect(mockCleanupSubtitleFiles).toHaveBeenCalled();
+        expect(mockCleanupSubtitleFiles.mock.calls[0][1]).toContain(
+            `${path.sep}Test Author`,
+        );
     });
 
     it('persists a generic extractor row with an identity validateIdentity accepts', async () => {

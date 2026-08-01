@@ -158,6 +158,14 @@ export async function downloadVideo(
   let releaseOutputReservation: (() => void) | null = null;
   let existingLocalVideo: Video | undefined;
 
+  // Legacy naming under author_folder_only / author_collection_linked places the
+  // yt-dlp output in an author subdirectory, so cleanup has to scan the planned
+  // directory rather than the managed root. These read the paths at call time
+  // because both are reassigned as planning and publication progress. In root
+  // organization they resolve to the managed roots, matching the old behavior.
+  const plannedVideoDir = () => path.dirname(newVideoPathWithFormat);
+  const plannedThumbnailDir = () => path.dirname(newThumbnailPath);
+
   const downloader = new YtDlpDownloaderHelper();
 
   try {
@@ -366,7 +374,7 @@ export async function downloadVideo(
 
         // Clean up partial files
         logger.info("Cleaning up partial files...");
-        await cleanupVideoArtifacts(newSafeBaseFilename);
+        await cleanupVideoArtifacts(newSafeBaseFilename, plannedVideoDir());
         if (ownedVideoReplacement) {
           await cleanupTemporaryFiles(ownedVideoReplacement.stagingPath);
         }
@@ -374,11 +382,11 @@ export async function downloadVideo(
         // Use fresh cleanup based on settings
         const currentSettings = storageService.getSettings();
         if (!currentSettings.moveThumbnailsToVideoFolder) {
-          await cleanupVideoArtifacts(newSafeBaseFilename, IMAGES_DIR);
+          await cleanupVideoArtifacts(newSafeBaseFilename, plannedThumbnailDir());
         }
 
         await removeSafe(newThumbnailPath, [VIDEOS_DIR, IMAGES_DIR]);
-        await cleanupSubtitleFiles(newSafeBaseFilename);
+        await cleanupSubtitleFiles(newSafeBaseFilename, plannedVideoDir());
       });
     }
 
@@ -393,11 +401,11 @@ export async function downloadVideo(
       await Promise.resolve(subprocess).finally(() => progressTracker.dispose());
     } catch (error: unknown) {
       await downloader.handleCancellationErrorPublic(error, async () => {
-        await cleanupVideoArtifacts(newSafeBaseFilename);
+        await cleanupVideoArtifacts(newSafeBaseFilename, plannedVideoDir());
         if (ownedVideoReplacement) {
           await cleanupTemporaryFiles(ownedVideoReplacement.stagingPath);
         }
-        await cleanupSubtitleFiles(newSafeBaseFilename);
+        await cleanupSubtitleFiles(newSafeBaseFilename, plannedVideoDir());
       });
 
       // Check if error is subtitle-related and video file exists
@@ -437,11 +445,11 @@ export async function downloadVideo(
     try {
       downloader.throwIfCancelledPublic(downloadId);
     } catch (error) {
-      await cleanupVideoArtifacts(newSafeBaseFilename);
+      await cleanupVideoArtifacts(newSafeBaseFilename, plannedVideoDir());
       if (ownedVideoReplacement) {
         await cleanupTemporaryFiles(ownedVideoReplacement.stagingPath);
       }
-      await cleanupSubtitleFiles(newSafeBaseFilename);
+      await cleanupSubtitleFiles(newSafeBaseFilename, plannedVideoDir());
       throw error;
     }
 
@@ -491,7 +499,7 @@ export async function downloadVideo(
     try {
       downloader.throwIfCancelledPublic(downloadId);
     } catch (error) {
-      await cleanupSubtitleFiles(newSafeBaseFilename);
+      await cleanupSubtitleFiles(newSafeBaseFilename, plannedVideoDir());
       throw error;
     }
 
@@ -561,7 +569,7 @@ export async function downloadVideo(
       downloader.throwIfCancelledPublic(downloadId);
     } catch (error) {
       if (!audioOnly) {
-        await cleanupSubtitleFiles(newSafeBaseFilename);
+        await cleanupSubtitleFiles(newSafeBaseFilename, plannedVideoDir());
       }
       throw error;
     }
