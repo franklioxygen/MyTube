@@ -3,7 +3,10 @@ import {
   DownloadOrder,
   OrderingPlanningFailure,
 } from "./types";
-import { OrderingMetadataUnavailableError } from "./videoUrlFetcher";
+import {
+  OrderingMetadataUnavailableError,
+  SourceEnumerationFailedError,
+} from "./videoUrlFetcher";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -16,7 +19,8 @@ function isPlanningFailureCode(
     value === "ORDERING_METADATA_UNAVAILABLE" ||
     value === "ORDERING_METADATA_HYDRATION_FAILED" ||
     value === "ORDERING_PLAN_PERSIST_FAILED" ||
-    value === "ORDERING_PLAN_INVALID"
+    value === "ORDERING_PLAN_INVALID" ||
+    value === "SOURCE_ENUMERATION_FAILED"
   );
 }
 
@@ -117,6 +121,24 @@ export function createOrderingMetadataUnavailableFailure(
   };
 }
 
+export function createSourceEnumerationFailure(
+  task: ContinuousDownloadTask,
+  error: SourceEnumerationFailedError
+): OrderingPlanningFailure {
+  return {
+    version: 1,
+    code: "SOURCE_ENUMERATION_FAILED",
+    message: `No videos were downloaded because MyTube could not finish listing this source, so the order plan would have been incomplete. Check cookies, proxy, and yt-dlp settings, then retry order preparation.`,
+    retryable: true,
+    platform: error.platform || task.platform,
+    downloadOrder: taskOrder(task),
+    entryCount: error.enumeratedCount,
+    knownCount: error.enumeratedCount,
+    unknownCount: 0,
+    suggestedAction: "check_cookies_or_proxy",
+  };
+}
+
 export function createOrderingPlanPersistFailure(
   task: ContinuousDownloadTask,
   message: string
@@ -197,6 +219,10 @@ export function createPlanningFailureFromError(
 ): OrderingPlanningFailure | null {
   if (error instanceof OrderingMetadataUnavailableError) {
     return createOrderingMetadataUnavailableFailure(error);
+  }
+
+  if (error instanceof SourceEnumerationFailedError) {
+    return createSourceEnumerationFailure(task, error);
   }
 
   if (error instanceof OrderingPlanPersistError) {

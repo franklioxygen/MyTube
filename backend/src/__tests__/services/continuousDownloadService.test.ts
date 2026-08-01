@@ -48,6 +48,16 @@ vi.mock("../../services/continuousDownload/taskRepository", () => ({
 
 vi.mock("../../services/continuousDownload/videoUrlFetcher", () => ({
   OrderingMetadataUnavailableError: class OrderingMetadataUnavailableError extends Error {},
+  SourceEnumerationFailedError: class SourceEnumerationFailedError extends Error {
+    constructor(
+      public platform: string,
+      public page: number,
+      public enumeratedCount: number,
+      public cause: unknown
+    ) {
+      super("enumeration failed");
+    }
+  },
   VideoUrlFetcher: vi.fn().mockImplementation(function () {
     return {
       getAllVideoUrls: vi.fn().mockResolvedValue([]),
@@ -400,6 +410,90 @@ describe("ContinuousDownloadService", () => {
       expect(processor.clearInterruption).toHaveBeenCalledWith("retry-plan");
       expect(processSpy).toHaveBeenCalledWith("retry-plan");
       expect(result).toBe(retriedTask);
+      processSpy.mockRestore();
+    });
+
+    it("retryPlanning should refuse while the failed worker is still draining", async () => {
+      // The worker clears processingTasks in its finally, after the cancelled
+      // state the client reacts to is already visible. Reporting success here
+      // would activate nothing and leave the task cancelled forever.
+      const planningError = JSON.stringify({
+        kind: "ordering_planning_failure",
+        version: 1,
+        code: "SOURCE_ENUMERATION_FAILED",
+        message: "Could not finish listing this source.",
+        retryable: true,
+        platform: "YouTube",
+        downloadOrder: "dateDesc",
+        entryCount: 0,
+        knownCount: 0,
+        unknownCount: 0,
+        suggestedAction: "check_cookies_or_proxy",
+      });
+      const cancelledTask = {
+        id: "retry-plan-busy",
+        status: "cancelled",
+        error: planningError,
+        downloadedCount: 0,
+        skippedCount: 0,
+        failedCount: 0,
+        currentVideoIndex: 0,
+      };
+      repo.getTaskById.mockResolvedValue(cancelledTask);
+      (service as any).processingTasks.add("retry-plan-busy");
+      const processSpy = vi
+        .spyOn(service as any, "processTask")
+        .mockResolvedValue(undefined);
+
+      await expect(
+        (service as any).retryPlanning("retry-plan-busy", 30, 5)
+      ).rejects.toThrow(/still finishing/i);
+
+      expect(repo.activateTaskForPlanningRetry).not.toHaveBeenCalled();
+      expect(processSpy).not.toHaveBeenCalled();
+      (service as any).processingTasks.delete("retry-plan-busy");
+      processSpy.mockRestore();
+    });
+
+    it("retryPlanning should proceed once the worker drains", async () => {
+      const planningError = JSON.stringify({
+        kind: "ordering_planning_failure",
+        version: 1,
+        code: "SOURCE_ENUMERATION_FAILED",
+        message: "Could not finish listing this source.",
+        retryable: true,
+        platform: "YouTube",
+        downloadOrder: "dateDesc",
+        entryCount: 0,
+        knownCount: 0,
+        unknownCount: 0,
+        suggestedAction: "check_cookies_or_proxy",
+      });
+      const cancelledTask = {
+        id: "retry-plan-drains",
+        status: "cancelled",
+        error: planningError,
+        downloadedCount: 0,
+        skippedCount: 0,
+        failedCount: 0,
+        currentVideoIndex: 0,
+      };
+      repo.getTaskById.mockResolvedValue(cancelledTask);
+      (service as any).processingTasks.add("retry-plan-drains");
+      setTimeout(
+        () => (service as any).processingTasks.delete("retry-plan-drains"),
+        20
+      );
+      const processSpy = vi
+        .spyOn(service as any, "processTask")
+        .mockResolvedValue(undefined);
+
+      await (service as any).retryPlanning("retry-plan-drains", 2000, 5);
+
+      expect(repo.activateTaskForPlanningRetry).toHaveBeenCalledWith(
+        "retry-plan-drains"
+      );
+      expect(processSpy).toHaveBeenCalledWith("retry-plan-drains");
       processSpy.mockRestore();
     });
 

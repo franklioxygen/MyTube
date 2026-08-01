@@ -54,7 +54,8 @@ export interface OrderingPlanningFailure {
     | "ORDERING_METADATA_UNAVAILABLE"
     | "ORDERING_METADATA_HYDRATION_FAILED"
     | "ORDERING_PLAN_PERSIST_FAILED"
-    | "ORDERING_PLAN_INVALID";
+    | "ORDERING_PLAN_INVALID"
+    | "SOURCE_ENUMERATION_FAILED";
   message: string;
   retryable: boolean;
   platform: string;

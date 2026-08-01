@@ -509,6 +509,62 @@ describe('VideoUrlFetcher', () => {
   });
 
   describe('getAllVideoEntries', () => {
+    it('propagates a first-page enumeration failure instead of returning empty', async () => {
+      // Returning [] here would let the caller freeze an empty plan and mark the
+      // task completed with zero downloads, and the retry-planning flow would
+      // never be offered.
+      (ytDlpUtils.executeYtDlpJson as any).mockRejectedValue(
+        new Error('cookies expired')
+      );
+
+      await expect(
+        fetcher.getAllVideoEntries(
+          'https://youtube.com/@channel',
+          'YouTube',
+          null,
+          'dateAsc'
+        )
+      ).rejects.toThrow(/Failed to enumerate YouTube source/);
+    });
+
+    it('propagates a later-page enumeration failure instead of truncating', async () => {
+      const firstPage = Array.from({ length: 100 }, (_, index) => ({
+        id: `yt-${index}`,
+        url: `https://www.youtube.com/watch?v=yt-${index}`,
+        upload_date: '20240101',
+      }));
+      (ytDlpUtils.executeYtDlpJson as any).mockImplementation(
+        async (_url: string, options: Record<string, unknown>) => {
+          if (options.playlistStart === 1) {
+            return { entries: firstPage };
+          }
+          throw new Error('rate limited');
+        }
+      );
+
+      await expect(
+        fetcher.getAllVideoEntries(
+          'https://youtube.com/@channel',
+          'YouTube',
+          null,
+          'dateAsc'
+        )
+      ).rejects.toThrow(/Failed to enumerate YouTube source at page 2/);
+    });
+
+    it('still returns an empty list for a genuinely empty source', async () => {
+      (ytDlpUtils.executeYtDlpJson as any).mockResolvedValue({ entries: [] });
+
+      await expect(
+        fetcher.getAllVideoEntries(
+          'https://youtube.com/@channel',
+          'YouTube',
+          null,
+          'dateAsc'
+        )
+      ).resolves.toEqual([]);
+    });
+
     it('should hydrate YouTube ordering metadata with bounded concurrency', async () => {
       const flatEntries = Array.from({ length: 9 }, (_, index) => {
         const ordinal = index + 1;

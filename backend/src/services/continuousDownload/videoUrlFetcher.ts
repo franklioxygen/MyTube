@@ -3,6 +3,30 @@ import { logger } from "../../utils/logger";
 
 export type { VideoEntry };
 
+/**
+ * Raised when enumerating a source fails partway through. Treating a failed
+ * listing page as end-of-list is indistinguishable from a genuinely exhausted
+ * source, so the caller would freeze an empty or truncated plan and mark the
+ * task complete having silently skipped every unenumerated video. Propagating
+ * instead turns it into a retryable planning failure, while a source that really
+ * does return zero entries still completes normally.
+ */
+export class SourceEnumerationFailedError extends Error {
+  constructor(
+    readonly platform: string,
+    readonly page: number,
+    readonly enumeratedCount: number,
+    readonly cause: unknown
+  ) {
+    super(
+      `Failed to enumerate ${platform} source at page ${page} after ${enumeratedCount} videos: ${
+        cause instanceof Error ? cause.message : String(cause)
+      }`
+    );
+    this.name = "SourceEnumerationFailedError";
+  }
+}
+
 export class OrderingMetadataUnavailableError extends Error {
   constructor(
     readonly platform: string,
@@ -485,7 +509,12 @@ export class VideoUrlFetcher {
         }
       } catch (error) {
         logger.error(`Error fetching YouTube video entries page ${page}:`, error);
-        hasMore = false;
+        throw new SourceEnumerationFailedError(
+          "YouTube",
+          page,
+          entries.length,
+          error
+        );
       }
     }
 

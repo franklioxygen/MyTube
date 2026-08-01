@@ -1,7 +1,7 @@
 import path from "path";
 import { v4 as uuidv4 } from "uuid";
 import { DATA_DIR } from "../config/paths";
-import { ValidationError } from "../errors/DownloadErrors";
+import { DuplicateError, ValidationError } from "../errors/DownloadErrors";
 import {
   ensureDirSafeSync,
   readFileSafeSync,
@@ -519,7 +519,32 @@ export class ContinuousDownloadService {
     });
   }
 
-  async retryPlanning(id: string): Promise<ContinuousDownloadTask> {
+  /**
+   * Waits for a task's worker to leave processingTasks. Returns false if it is
+   * still running when the budget expires.
+   */
+  private async waitForTaskToDrain(
+    id: string,
+    timeoutMs = 2000,
+    pollMs = 25
+  ): Promise<boolean> {
+    const deadline = Date.now() + timeoutMs;
+    while (this.processingTasks.has(id)) {
+      if (Date.now() >= deadline) {
+        return false;
+      }
+      await new Promise((resolve) => setTimeout(resolve, pollMs));
+    }
+    return true;
+  }
+
+  async retryPlanning(
+    id: string,
+    // Exposed so tests can exercise the drain race without waiting the full
+    // budget; callers use the defaults.
+    drainTimeoutMs = 2000,
+    drainPollMs = 25
+  ): Promise<ContinuousDownloadTask> {
     const task = await this.getTaskById(id);
     if (!task) {
       throw new Error(`Task ${id} not found`);
@@ -552,11 +577,20 @@ export class ContinuousDownloadService {
       );
     }
 
-    if (this.processingTasks.has(id)) {
-      const currentTask = await this.getTaskById(id);
-      if (currentTask) {
-        return currentTask;
-      }
+    // The worker that failed planning clears processingTasks in its finally,
+    // which runs after the cancelled-with-error state the client reacts to is
+    // already visible. Returning the unchanged cancelled task here would report
+    // a retry that never activated, and the worker would then exit and leave the
+    // task cancelled forever. Give it a moment to drain, then refuse with a
+    // conflict the client can retry rather than claiming success.
+    if (
+      this.processingTasks.has(id) &&
+      !(await this.waitForTaskToDrain(id, drainTimeoutMs, drainPollMs))
+    ) {
+      throw new DuplicateError(
+        "Order preparation retry",
+        `Task ${id} is still finishing its previous order preparation attempt. Retry in a moment.`
+      );
     }
 
     await this.deleteFrozenList(task);
