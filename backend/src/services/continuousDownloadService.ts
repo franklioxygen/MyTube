@@ -696,13 +696,27 @@ export class ContinuousDownloadService {
       // fields in the wrong order.
       const effectiveOrder: DownloadOrder = task.downloadOrder ?? "dateDesc";
       const playlistMatch = task.authorUrl.match(YOUTUBE_PLAYLIST_ID_REGEX);
-      const isUploadsPlaylist = playlistMatch
-        ? isYouTubeUploadsPlaylistId(playlistMatch[1])
-        : false;
-      const useIncremental =
-        isUploadsPlaylist &&
+      const isYouTubePlaylistDateDesc =
+        playlistMatch !== null &&
         task.platform === "YouTube" &&
         effectiveOrder === "dateDesc";
+      const isUploadsPlaylist =
+        playlistMatch !== null && isYouTubeUploadsPlaylistId(playlistMatch[1]);
+      // Migration guard: a non-uploads playlist that is already mid-flight —
+      // numeric progress but no frozen plan — was created before this ordering
+      // change and has been running incrementally in raw playlist order.
+      // Switching it to a freshly date-sorted plan now would leave TaskProcessor
+      // resuming from `currentVideoIndex`, an index into the *old* order, so it
+      // would silently skip some videos and re-download others. Keep such
+      // in-flight tasks on the legacy incremental path; only fresh (unprogressed
+      // or already-frozen) tasks adopt the sorted plan.
+      const isInProgressLegacyIncremental =
+        isYouTubePlaylistDateDesc &&
+        task.currentVideoIndex > 0 &&
+        !task.frozenVideoListPath;
+      const useIncremental =
+        isYouTubePlaylistDateDesc &&
+        (isUploadsPlaylist || isInProgressLegacyIncremental);
 
       let cachedVideoUrls: string[] | undefined;
 

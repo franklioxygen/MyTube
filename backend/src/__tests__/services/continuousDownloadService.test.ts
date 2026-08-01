@@ -631,6 +631,58 @@ describe("ContinuousDownloadService", () => {
       writeSpy.mockRestore();
     });
 
+    it("should keep an in-flight legacy incremental playlist on the incremental path", async () => {
+      // A non-uploads playlist that already has numeric progress and no frozen
+      // plan was created before the ordering change and has been downloading in
+      // raw playlist order. Re-sorting it now would desync TaskProcessor's saved
+      // index, so it must stay on the incremental path until it completes.
+      const task = {
+        id: "legacy-pl",
+        authorUrl: "https://youtube.com/playlist?list=PLX",
+        platform: "YouTube",
+        status: "active",
+        downloadOrder: "dateDesc",
+        currentVideoIndex: 3,
+        frozenVideoListPath: null,
+      };
+      repo.getTaskById
+        .mockResolvedValueOnce(task)
+        .mockResolvedValueOnce(task);
+
+      await (service as any).processTask("legacy-pl");
+
+      expect(fetcher.getAllVideoEntries).not.toHaveBeenCalled();
+      expect(processor.processTask).toHaveBeenCalledWith(task, undefined);
+    });
+
+    it("should route a fresh manually-ordered playlist through the sorted path even with saved progress once frozen", async () => {
+      // Once a manual playlist has a frozen plan, progress is an index into the
+      // sorted order, so it must not fall back to the incremental path.
+      const task = {
+        id: "frozen-pl",
+        authorUrl: "https://youtube.com/playlist?list=PLX",
+        platform: "YouTube",
+        status: "active",
+        downloadOrder: "dateDesc",
+        currentVideoIndex: 3,
+        frozenVideoListPath: path.join(frozenListsRoot, "frozen-pl.json"),
+      };
+      repo.getTaskById
+        .mockResolvedValueOnce(task)
+        .mockResolvedValueOnce(task);
+      const readFrozenSpy = vi
+        .spyOn(service as any, "readFrozenPlanUrls")
+        .mockReturnValue(["a", "b"]);
+
+      await (service as any).processTask("frozen-pl");
+
+      expect(fetcher.getAllVideoEntries).not.toHaveBeenCalled();
+      expect(readFrozenSpy).toHaveBeenCalled();
+      expect(processor.processTask).toHaveBeenCalledWith(task, ["a", "b"]);
+
+      readFrozenSpy.mockRestore();
+    });
+
     it("should create and persist frozen list for full-fetch tasks", async () => {
       const task = {
         id: "freeze-create",
