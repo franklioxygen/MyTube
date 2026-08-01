@@ -36,6 +36,24 @@ import { sortVideoEntries, VideoUrlFetcher } from "./continuousDownload/videoUrl
 
 const FROZEN_LISTS_DIR = path.join(DATA_DIR, "frozen-lists");
 const SAFE_FROZEN_LIST_TASK_ID = /^[A-Za-z0-9_-]+$/;
+const YOUTUBE_PLAYLIST_ID_REGEX = /[?&]list=([a-zA-Z0-9_-]+)/;
+
+/**
+ * YouTube auto-generates an "uploads" playlist for every channel whose items
+ * are always ordered newest-first. Its id starts with `UU` (the channel id with
+ * the leading `UC` replaced by `UU`), including the `UULF`/`UUSH`/... variants
+ * for long-form, shorts, and so on. Those are the only `list=` sources we can
+ * process with the incremental fast path and still honour a dateDesc
+ * (newest-first) request without hydrating publication dates.
+ *
+ * Every other playlist kind can be in an arbitrary order — `PL` user playlists,
+ * `LL` liked, `WL` watch-later, `RD`/`RDCLAK` mixes, `OLAK5uy_` album playlists —
+ * so a dateDesc request against them must go through the sorted frozen-plan path
+ * rather than following raw playlist order.
+ */
+function isYouTubeUploadsPlaylistId(listId: string): boolean {
+  return listId.startsWith("UU");
+}
 
 /**
  * Main service for managing continuous download tasks
@@ -669,11 +687,36 @@ export class ContinuousDownloadService {
         return;
       }
 
-      // Mode decision: incremental fast path only for YouTube playlist + dateDesc
+      // Mode decision: the incremental fast path is only safe for a YouTube
+      // channel-uploads playlist processed newest-first, because that is the one
+      // `list=` source whose raw order is guaranteed to match dateDesc without
+      // hydrating publication dates. A manually-ordered playlist selected as
+      // dateDesc must instead go through the sorted frozen-plan path, otherwise
+      // it would download in playlist order and receive playlist-index filename
+      // fields in the wrong order.
       const effectiveOrder: DownloadOrder = task.downloadOrder ?? "dateDesc";
-      const playlistRegex = /[?&]list=([a-zA-Z0-9_-]+)/;
-      const isPlaylist = playlistRegex.test(task.authorUrl);
-      const useIncremental = isPlaylist && task.platform === "YouTube" && effectiveOrder === "dateDesc";
+      const playlistMatch = task.authorUrl.match(YOUTUBE_PLAYLIST_ID_REGEX);
+      const isYouTubePlaylistDateDesc =
+        playlistMatch !== null &&
+        task.platform === "YouTube" &&
+        effectiveOrder === "dateDesc";
+      const isUploadsPlaylist =
+        playlistMatch !== null && isYouTubeUploadsPlaylistId(playlistMatch[1]);
+      // Migration guard: a non-uploads playlist that is already mid-flight —
+      // numeric progress but no frozen plan — was created before this ordering
+      // change and has been running incrementally in raw playlist order.
+      // Switching it to a freshly date-sorted plan now would leave TaskProcessor
+      // resuming from `currentVideoIndex`, an index into the *old* order, so it
+      // would silently skip some videos and re-download others. Keep such
+      // in-flight tasks on the legacy incremental path; only fresh (unprogressed
+      // or already-frozen) tasks adopt the sorted plan.
+      const isInProgressLegacyIncremental =
+        isYouTubePlaylistDateDesc &&
+        task.currentVideoIndex > 0 &&
+        !task.frozenVideoListPath;
+      const useIncremental =
+        isYouTubePlaylistDateDesc &&
+        (isUploadsPlaylist || isInProgressLegacyIncremental);
 
       let cachedVideoUrls: string[] | undefined;
 

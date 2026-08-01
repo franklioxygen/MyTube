@@ -215,6 +215,77 @@ describe("collectionFileManager allocator-backed family relocation", () => {
     expect(journalEntries()).toEqual([]);
   });
 
+  it("assigns distinct targets to subtitles that share a language and extension", () => {
+    // The subtitle upload endpoint permits two managed subtitles with the same
+    // language and extension. Both would otherwise resolve to the identical
+    // `<stem>.<lang>.vtt` target; the second no-overwrite move would then fail
+    // and the journal would roll the whole relocation back.
+    const current = makeVideo({
+      id: "current",
+      sourceVideoId: "yt-current",
+      videoPath: "/videos/Episode.mp4",
+      thumbnailPath: "/images/Episode.jpg",
+      subtitles: [
+        {
+          language: "en",
+          filename: "Episode.en.vtt",
+          path: "/subtitles/Episode.en.vtt",
+        },
+        {
+          language: "en",
+          filename: "Episode.en.extra.vtt",
+          path: "/subtitles/Episode.en.extra.vtt",
+        },
+      ],
+    });
+    const collections: Collection[] = [
+      { id: "collection", title: "Series", name: "Series", videos: [] },
+    ];
+    videoStore.videos = [current];
+
+    fs.outputFileSync(path.join(testPaths.videos, "Episode.mp4"), "source-video");
+    fs.outputFileSync(path.join(testPaths.images, "Episode.jpg"), "source-thumb");
+    fs.outputFileSync(path.join(testPaths.subtitles, "Episode.en.vtt"), "sub-one");
+    fs.outputFileSync(
+      path.join(testPaths.subtitles, "Episode.en.extra.vtt"),
+      "sub-two"
+    );
+
+    const updates = moveAllFilesToCollection(current, "Series", collections);
+
+    expect(updates.subtitles).toEqual([
+      {
+        language: "en",
+        filename: "Episode.en.vtt",
+        path: "/subtitles/Series/Episode.en.vtt",
+      },
+      {
+        language: "en",
+        filename: "Episode.en.2.vtt",
+        path: "/subtitles/Series/Episode.en.2.vtt",
+      },
+    ]);
+    expect(
+      fs.readFileSync(
+        path.join(testPaths.subtitles, "Series", "Episode.en.vtt"),
+        "utf8"
+      )
+    ).toBe("sub-one");
+    expect(
+      fs.readFileSync(
+        path.join(testPaths.subtitles, "Series", "Episode.en.2.vtt"),
+        "utf8"
+      )
+    ).toBe("sub-two");
+    expect(
+      fs.existsSync(path.join(testPaths.subtitles, "Episode.en.vtt"))
+    ).toBe(false);
+    expect(
+      fs.existsSync(path.join(testPaths.subtitles, "Episode.en.extra.vtt"))
+    ).toBe(false);
+    expect(journalEntries()).toEqual([]);
+  });
+
   it("keeps central subtitles in the subtitle root when unlinking to the root", () => {
     // removeVideoFromCollection passes no subtitlePathPrefix when the unlink
     // target is the storage root. That must not be read as "store subtitles in
