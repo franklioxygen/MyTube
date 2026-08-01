@@ -158,6 +158,33 @@ describe('YtDlpDownloader format defaults', () => {
         expect(args.output).toContain('.%(ext)s');
     });
 
+    it('persists a generic extractor row with an identity validateIdentity accepts', async () => {
+        // For extractors outside the recognized set, extractSourceVideoId falls
+        // back to the full URL while info.id is the extractor's own id. The row
+        // and the identity must agree, or validateIdentity throws and the
+        // downloaded media never reaches the library.
+        const genericUrl = 'https://vimeo.com/987654321';
+        mockExecuteYtDlpJson.mockResolvedValueOnce({
+            id: '987654321',
+            title: 'Test Video',
+            uploader: 'Test Author',
+            upload_date: '20230101',
+            thumbnail: 'http://example.com/thumb.jpg',
+            extractor: 'vimeo',
+        });
+
+        await YtDlpDownloader.downloadVideo(genericUrl);
+
+        expect(storageService.persistDownloadedMediaIdentity).toHaveBeenCalledTimes(1);
+        const persistCall = vi.mocked(
+            storageService.persistDownloadedMediaIdentity
+        ).mock.calls[0][0] as any;
+        expect(persistCall.identity.sourceVideoId).toBe(genericUrl);
+        expect(persistCall.video.sourceVideoId).toBe(
+            persistCall.identity.sourceVideoId
+        );
+    });
+
     it('should relax H.264 preference when formatSort is provided to allow higher resolutions', async () => {
         // Mock user config with formatSort
         mockGetUserYtDlpConfig.mockReturnValue({

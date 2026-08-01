@@ -643,9 +643,16 @@ export async function downloadVideo(
     date: videoDate || new Date().toISOString().slice(0, 10).replace(/-/g, ""),
     source: source, // Use extracted source
     sourceUrl: videoUrl,
+    // Must follow the same convention as the persistence calls below, which
+    // pass extractSourceVideoId(videoUrl).id as the identity. For extractors
+    // outside the recognized set that helper yields the full URL while
+    // rawSourceInfo.id is the extractor's own id; preferring the latter made
+    // validateIdentity reject the mismatch and drop the library row after a
+    // successful download. Fall back to the extractor id only when the URL
+    // yields nothing, which is also the case validateIdentity does not check.
     sourceVideoId:
-      (typeof rawSourceInfo?.id === "string" && rawSourceInfo.id) ||
       extractSourceVideoId(videoUrl).id ||
+      (typeof rawSourceInfo?.id === "string" && rawSourceInfo.id) ||
       undefined,
     mediaType: audioOnly ? "audio" : "video",
     videoFilename: path.basename(finalVideoRelative),

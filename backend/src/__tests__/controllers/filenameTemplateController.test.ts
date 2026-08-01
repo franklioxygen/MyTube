@@ -21,6 +21,17 @@ vi.mock("../../utils/security", () => ({
   fsyncFileSafeSync: vi.fn(),
   linkSafeSync: vi.fn(),
   moveSafeSync: vi.fn(),
+  // Mirrors the real helper; author-folder organization calls this whenever a
+  // non-root authorOrganizationMode is active.
+  sanitizePathSegment: vi.fn((segment: string) =>
+    typeof segment === "string"
+      ? segment
+          .replace(/\0/g, "")
+          .replace(/\.\./g, "")
+          .replace(/[\/\\]/g, "")
+          .trim()
+      : ""
+  ),
 }));
 
 vi.mock("../../utils/logger", () => ({
@@ -246,6 +257,46 @@ describe("filenameTemplateController — preview", () => {
     expect(body.previews.channel.videoPath).toMatch(/\.mp4$/);
     expect(body.previews.playlist.thumbnailPath).toMatch(/\.jpg$/);
     expect(body.previews.single.subtitlePath).toMatch(/\.en\.vtt$/);
+  });
+
+  it("applies the saved author organization mode to previews", async () => {
+    // Downloads and batch rename prepend the author folder under this mode, so
+    // a preview that ignored it would advertise paths the files never use.
+    getSettingsMock.mockReturnValue({
+      authorOrganizationMode: "author_folder_only",
+    });
+    const res = makeRes();
+    await previewFilenameTemplate(
+      {
+        body: {
+          mode: "template",
+          template: "{{ title }}.{{ ext }}",
+        },
+      } as Request,
+      res
+    );
+
+    const body = (res.json as any).mock.calls[0][0];
+    expect(body.valid).toBe(true);
+    expect(body.previews.channel.videoPath).toBe("Sample Channel/Sample Video.mp4");
+    expect(body.previews.single.videoPath).toBe("Sample Channel/Sample Video.mp4");
+  });
+
+  it("keeps previews at the root when author organization is off", async () => {
+    getSettingsMock.mockReturnValue({ authorOrganizationMode: "root" });
+    const res = makeRes();
+    await previewFilenameTemplate(
+      {
+        body: {
+          mode: "template",
+          template: "{{ title }}.{{ ext }}",
+        },
+      } as Request,
+      res
+    );
+
+    const body = (res.json as any).mock.calls[0][0];
+    expect(body.previews.channel.videoPath).toBe("Sample Video.mp4");
   });
 
   it("renders channel and single scenarios honestly", async () => {

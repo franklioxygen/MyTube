@@ -156,11 +156,77 @@ describe("auditMediaCollisions", () => {
     expect(result.summary.duplicatePathGroups).toBe(1);
     expect(result.items).toHaveLength(1);
     expect(result.items[0]).toMatchObject({
-      normalizedPath: "alice/same title.mp4",
+      normalizedPath: "/videos/alice/same title.mp4",
       localVideoIds: ["row-a", "row-b"],
       reasons: ["duplicate_path"],
       recoverability: "ambiguous_overwrite",
       recommendedAction: "redownload",
+    });
+  });
+
+  it("does not group same-named artifacts living under different managed roots", () => {
+    // A thumbnail left in /videos after moveThumbnailsToVideoFolder was turned
+    // off, and another row's thumbnail in /images under the same relative path.
+    // These are distinct files and must not be reported as a duplicate_path.
+    vi.mocked(storageService.getVideos).mockReturnValue([
+      {
+        id: "row-a",
+        title: "Show",
+        sourceUrl: "https://www.bilibili.com/video/BV1111111111",
+        sourceVideoId: "BV1111111111",
+        videoPath: "/videos/Show/a.mp4",
+        thumbnailPath: "/videos/Show/poster.jpg",
+        createdAt: "2026-07-28T00:00:00.000Z",
+      },
+      {
+        id: "row-b",
+        title: "Show",
+        sourceUrl: "https://www.bilibili.com/video/BV2222222222",
+        sourceVideoId: "BV2222222222",
+        videoPath: "/videos/Show/b.mp4",
+        thumbnailPath: "/images/Show/poster.jpg",
+        createdAt: "2026-07-28T00:00:01.000Z",
+      },
+    ] as any);
+
+    const result = auditMediaCollisions();
+
+    expect(result.summary.duplicatePathGroups).toBe(0);
+    expect(
+      result.items.filter((item) => item.reasons.includes("duplicate_path"))
+    ).toEqual([]);
+  });
+
+  it("still groups same-named artifacts sharing one managed root", () => {
+    vi.mocked(storageService.getVideos).mockReturnValue([
+      {
+        id: "row-a",
+        title: "Show",
+        sourceUrl: "https://www.bilibili.com/video/BV1111111111",
+        sourceVideoId: "BV1111111111",
+        videoPath: "/videos/Show/a.mp4",
+        thumbnailPath: "/images/Show/poster.jpg",
+        createdAt: "2026-07-28T00:00:00.000Z",
+      },
+      {
+        id: "row-b",
+        title: "Show",
+        sourceUrl: "https://www.bilibili.com/video/BV2222222222",
+        sourceVideoId: "BV2222222222",
+        videoPath: "/videos/Show/b.mp4",
+        thumbnailPath: "/images/Show/poster.jpg",
+        createdAt: "2026-07-28T00:00:01.000Z",
+      },
+    ] as any);
+
+    const result = auditMediaCollisions();
+
+    expect(result.summary.duplicatePathGroups).toBe(1);
+    expect(
+      result.items.find((item) => item.reasons.includes("duplicate_path"))
+    ).toMatchObject({
+      normalizedPath: "/images/show/poster.jpg",
+      localVideoIds: ["row-a", "row-b"],
     });
   });
 
@@ -181,7 +247,7 @@ describe("auditMediaCollisions", () => {
 
     expect(result.summary.missingArtifacts).toBe(1);
     expect(result.items[0]).toMatchObject({
-      normalizedPath: "missing.mp4",
+      normalizedPath: "/videos/missing.mp4",
       fileExists: false,
       reasons: ["missing_file"],
       recoverability: "missing",

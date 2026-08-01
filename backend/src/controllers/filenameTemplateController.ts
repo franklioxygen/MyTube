@@ -223,10 +223,26 @@ export async function previewFilenameTemplate(
   }
 
   const naming = toFilenameNamingRuntimeConfig(previewSelection);
+  // The preview request carries only the mode/template being edited, so the
+  // active author organization comes from saved settings.
+  const authorOrganizationMode = storageService.getSettings()
+    ?.authorOrganizationMode as string | undefined;
   const previews = {
-    channel: renderPreviewScenario(naming, SAMPLE_CONTEXTS.channel),
-    playlist: renderPreviewScenario(naming, SAMPLE_CONTEXTS.playlist),
-    single: renderPreviewScenario(naming, SAMPLE_CONTEXTS.single),
+    channel: renderPreviewScenario(
+      naming,
+      SAMPLE_CONTEXTS.channel,
+      authorOrganizationMode
+    ),
+    playlist: renderPreviewScenario(
+      naming,
+      SAMPLE_CONTEXTS.playlist,
+      authorOrganizationMode
+    ),
+    single: renderPreviewScenario(
+      naming,
+      SAMPLE_CONTEXTS.single,
+      authorOrganizationMode
+    ),
   };
 
   res.json({
@@ -376,10 +392,16 @@ export async function cancelBatchRename(
 
 function renderPreviewScenario(
   naming: ReturnType<typeof toFilenameNamingRuntimeConfig>,
-  context: FilenameTemplateContext
+  context: FilenameTemplateContext,
+  authorOrganizationMode?: string
 ): FilenameTemplatePreviewResult {
   const planned = planVideoOutputPaths({
     naming,
+    // `naming` still drives the template; `settings` only carries the physical
+    // organization mode. Download and batch-rename callers pass settings and so
+    // prepend the author folder, and without this the preview would default to
+    // root organization and advertise paths the real files never use.
+    settings: authorOrganizationMode ? { authorOrganizationMode } : undefined,
     context,
     videoExtension: "mp4",
     thumbnailExtension: "jpg",

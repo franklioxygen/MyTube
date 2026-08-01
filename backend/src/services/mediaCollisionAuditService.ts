@@ -169,6 +169,33 @@ function isManagedPathCandidate(webPath: string): boolean {
   );
 }
 
+function managedRootPrefix(webPath: string): string | null {
+  if (webPath.startsWith("/videos/")) {
+    return "/videos";
+  }
+  if (webPath.startsWith("/images/")) {
+    return "/images";
+  }
+  if (webPath.startsWith("/subtitles/")) {
+    return "/subtitles";
+  }
+  return null;
+}
+
+/**
+ * canonicalizeManagedPath strips the managed root, so artifacts sharing a
+ * relative path under different roots — a thumbnail left at /videos/Show/poster.jpg
+ * after a storage-settings change and another at /images/Show/poster.jpg — would
+ * collapse into one group and be reported as a duplicate_path needing redownload.
+ * Re-attach the root so grouping stays per-root, keeping the case and separator
+ * normalization that canonicalizeManagedPath provides.
+ */
+function auditGroupingPath(webPath: string): string {
+  const canonical = canonicalizeManagedPath(webPath);
+  const prefix = managedRootPrefix(webPath);
+  return prefix ? `${prefix}/${canonical}` : canonical;
+}
+
 function resolveArtifact(
   video: Video,
   identity: MediaCollisionAuditIdentity | null,
@@ -186,7 +213,7 @@ function resolveArtifact(
       absolutePath: null,
       fileExists: false,
       identity,
-      normalizedPath: canonicalizeManagedPath(candidate.webPath),
+      normalizedPath: auditGroupingPath(candidate.webPath),
     };
   }
 
@@ -203,7 +230,7 @@ function resolveArtifact(
     absolutePath: resolved.absolutePath,
     fileExists,
     identity,
-    normalizedPath: canonicalizeManagedPath(candidate.webPath),
+    normalizedPath: auditGroupingPath(candidate.webPath),
   };
 }
 
