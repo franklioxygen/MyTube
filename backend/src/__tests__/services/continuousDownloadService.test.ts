@@ -566,10 +566,12 @@ describe("ContinuousDownloadService", () => {
       expect((service as any).videoUrlCache.size).toBe(0);
     });
 
-    it("should process YouTube playlists incrementally without prefetch cache", async () => {
+    it("should process YouTube channel-uploads playlists incrementally without prefetch cache", async () => {
       const task = {
         id: "pl",
-        authorUrl: "https://youtube.com/playlist?list=PLX",
+        // `UU...` is the auto-generated uploads playlist (newest-first), so the
+        // dateDesc incremental fast path is safe here.
+        authorUrl: "https://youtube.com/playlist?list=UUabcdef",
         platform: "YouTube",
         status: "active",
       };
@@ -582,6 +584,51 @@ describe("ContinuousDownloadService", () => {
       expect(fetcher.getAllVideoUrls).not.toHaveBeenCalled();
       expect(fetcher.getAllVideoEntries).not.toHaveBeenCalled();
       expect(processor.processTask).toHaveBeenCalledWith(task, undefined);
+    });
+
+    it("should route manually-ordered YouTube playlists through the sorted frozen-plan path", async () => {
+      // A `PL...` playlist can be in any order, so a dateDesc request must not
+      // take the incremental fast path (which would hand playlist order straight
+      // to the processor); it has to fetch, sort, and freeze instead. The sort
+      // itself is a stubbed identity here — sortVideoEntries has its own tests —
+      // so this asserts the branch, not the ordering math.
+      const task = {
+        id: "manual-pl",
+        authorUrl: "https://youtube.com/playlist?list=PLX",
+        platform: "YouTube",
+        status: "active",
+        downloadOrder: "dateDesc",
+      };
+      repo.getTaskById
+        .mockResolvedValueOnce(task)
+        .mockResolvedValueOnce(task);
+      fetcher.getAllVideoEntries.mockResolvedValue([
+        { url: "u1", sourceVideoId: "u1", publishedAtMs: Date.UTC(2024, 0, 1), publishedDatePrecision: "day", viewCount: 1, sourceIndex: 0 },
+        { url: "u2", sourceVideoId: "u2", publishedAtMs: Date.UTC(2024, 0, 2), publishedDatePrecision: "day", viewCount: 2, sourceIndex: 1 },
+      ]);
+
+      const ensureDirSpy = vi
+        .spyOn(security, "ensureDirSafeSync")
+        .mockImplementation(() => undefined);
+      const writeSpy = vi
+        .spyOn(security, "writeFileSafeSync")
+        .mockImplementation(() => undefined);
+
+      await (service as any).processTask("manual-pl");
+
+      // Full-fetch path taken: entries are enumerated and frozen, and the
+      // processor receives the resolved URL list rather than `undefined`.
+      expect(fetcher.getAllVideoEntries).toHaveBeenCalledWith(
+        "https://youtube.com/playlist?list=PLX",
+        "YouTube",
+        null,
+        "dateDesc"
+      );
+      expect(writeSpy).toHaveBeenCalled();
+      expect(processor.processTask).toHaveBeenCalledWith(task, ["u1", "u2"]);
+
+      ensureDirSpy.mockRestore();
+      writeSpy.mockRestore();
     });
 
     it("should create and persist frozen list for full-fetch tasks", async () => {

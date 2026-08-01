@@ -36,6 +36,24 @@ import { sortVideoEntries, VideoUrlFetcher } from "./continuousDownload/videoUrl
 
 const FROZEN_LISTS_DIR = path.join(DATA_DIR, "frozen-lists");
 const SAFE_FROZEN_LIST_TASK_ID = /^[A-Za-z0-9_-]+$/;
+const YOUTUBE_PLAYLIST_ID_REGEX = /[?&]list=([a-zA-Z0-9_-]+)/;
+
+/**
+ * YouTube auto-generates an "uploads" playlist for every channel whose items
+ * are always ordered newest-first. Its id starts with `UU` (the channel id with
+ * the leading `UC` replaced by `UU`), including the `UULF`/`UUSH`/... variants
+ * for long-form, shorts, and so on. Those are the only `list=` sources we can
+ * process with the incremental fast path and still honour a dateDesc
+ * (newest-first) request without hydrating publication dates.
+ *
+ * Every other playlist kind can be in an arbitrary order — `PL` user playlists,
+ * `LL` liked, `WL` watch-later, `RD`/`RDCLAK` mixes, `OLAK5uy_` album playlists —
+ * so a dateDesc request against them must go through the sorted frozen-plan path
+ * rather than following raw playlist order.
+ */
+function isYouTubeUploadsPlaylistId(listId: string): boolean {
+  return listId.startsWith("UU");
+}
 
 /**
  * Main service for managing continuous download tasks
@@ -669,11 +687,22 @@ export class ContinuousDownloadService {
         return;
       }
 
-      // Mode decision: incremental fast path only for YouTube playlist + dateDesc
+      // Mode decision: the incremental fast path is only safe for a YouTube
+      // channel-uploads playlist processed newest-first, because that is the one
+      // `list=` source whose raw order is guaranteed to match dateDesc without
+      // hydrating publication dates. A manually-ordered playlist selected as
+      // dateDesc must instead go through the sorted frozen-plan path, otherwise
+      // it would download in playlist order and receive playlist-index filename
+      // fields in the wrong order.
       const effectiveOrder: DownloadOrder = task.downloadOrder ?? "dateDesc";
-      const playlistRegex = /[?&]list=([a-zA-Z0-9_-]+)/;
-      const isPlaylist = playlistRegex.test(task.authorUrl);
-      const useIncremental = isPlaylist && task.platform === "YouTube" && effectiveOrder === "dateDesc";
+      const playlistMatch = task.authorUrl.match(YOUTUBE_PLAYLIST_ID_REGEX);
+      const isUploadsPlaylist = playlistMatch
+        ? isYouTubeUploadsPlaylistId(playlistMatch[1])
+        : false;
+      const useIncremental =
+        isUploadsPlaylist &&
+        task.platform === "YouTube" &&
+        effectiveOrder === "dateDesc";
 
       let cachedVideoUrls: string[] | undefined;
 
