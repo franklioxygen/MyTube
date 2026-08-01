@@ -189,6 +189,15 @@ function buildSubtitleRelativePath(
     : subtitleFilename;
 }
 
+/**
+ * A batch rename keeps each subtitle in the root it currently lives in rather
+ * than migrating it to whatever moveSubtitlesToVideoFolder now says. Allocation
+ * has to check collisions in that same root, so both sides read it from here.
+ */
+function subtitleTargetRootDir(subtitlePath: string): string {
+  return subtitlePath.startsWith("/videos/") ? VIDEOS_DIR : SUBTITLES_DIR;
+}
+
 function buildManagedSubtitleTargets(
   subtitles: NonNullable<Video["subtitles"]>,
   videoRelative: string,
@@ -207,25 +216,15 @@ function buildManagedSubtitleTargets(
       newSubtitleFilename
     );
 
-    if (subtitle.path.startsWith("/videos/")) {
-      managedTargets.push({
-        currentPath: resolved.absolutePath,
-        currentRootDir: resolved.rootDir,
-        targetPath: resolveSafeChildPath(VIDEOS_DIR, subtitleRelative),
-        targetRootDir: VIDEOS_DIR,
-        newPath: `/videos/${subtitleRelative}`,
-        newFilename: newSubtitleFilename,
-        language: subtitle.language,
-      });
-      continue;
-    }
-
+    const targetRootDir = subtitleTargetRootDir(subtitle.path);
     managedTargets.push({
       currentPath: resolved.absolutePath,
       currentRootDir: resolved.rootDir,
-      targetPath: resolveSafeChildPath(SUBTITLES_DIR, subtitleRelative),
-      targetRootDir: SUBTITLES_DIR,
-      newPath: `/subtitles/${subtitleRelative}`,
+      targetPath: resolveSafeChildPath(targetRootDir, subtitleRelative),
+      targetRootDir,
+      newPath: `${
+        targetRootDir === VIDEOS_DIR ? "/videos" : "/subtitles"
+      }/${subtitleRelative}`,
       newFilename: newSubtitleFilename,
       language: subtitle.language,
     });
@@ -357,6 +356,9 @@ async function processOneVideo(
           language: subtitle.language,
           extension:
             path.extname(subtitle.filename || resolved.relativePath) || ".vtt",
+          // Check each subtitle in the root its target will actually use, not
+          // the one the saved setting points at.
+          baseDir: subtitleTargetRootDir(subtitle.path),
         },
       ];
     });
@@ -373,7 +375,11 @@ async function processOneVideo(
       videoRelativePath: planned.video.relativePath,
       thumbnailRelativePath: planned.thumbnail.relativePath,
       subtitleBaseRelativePath: planned.subtitle.baseNameWithoutLanguageOrExt,
-      subtitleBaseDir: moveSubtitlesToVideoFolder ? VIDEOS_DIR : SUBTITLES_DIR,
+      // Each entry carries its own root; this is only the default for the
+      // stem-family reservation when there are no subtitles to place.
+      subtitleBaseDir:
+        subtitleFiles[0]?.baseDir ??
+        (moveSubtitlesToVideoFolder ? VIDEOS_DIR : SUBTITLES_DIR),
       subtitleFiles,
       thumbnailBaseDir: moveThumbnailsToVideoFolder ? VIDEOS_DIR : IMAGES_DIR,
       identity: {

@@ -294,6 +294,82 @@ describe("renameJobService allocator-backed filesystem collision handling", () =
     expect(journalEntries()).toEqual([]);
   });
 
+  it("suffixes a central subtitle collision even when subtitles are configured for the video folder", async () => {
+    // A batch rename keeps each subtitle in the root it already lives in, so a
+    // /subtitles/ subtitle stays central even with moveSubtitlesToVideoFolder
+    // on. Allocation therefore has to check the central root: checking the
+    // configured /videos root instead finds it free, skips the suffix, and the
+    // no-overwrite move then fails the whole item.
+    const first = makeVideo({
+      id: "first",
+      sourceVideoId: "yt-one",
+      sourceUrl: "https://www.youtube.com/watch?v=yt-one",
+      videoFilename: "original-one.mkv",
+      videoPath: "/videos/original-one.mkv",
+      thumbnailFilename: "original-one.jpg",
+      thumbnailPath: "/images/original-one.jpg",
+      subtitles: [
+        {
+          language: "en",
+          filename: "original-one.en.vtt",
+          path: "/subtitles/original-one.en.vtt",
+        },
+      ],
+    });
+    // Different container and no thumbnail, so the video and thumbnail
+    // destinations stay free and only the subtitle collides.
+    const second = makeVideo({
+      id: "second",
+      sourceVideoId: "yt-two",
+      sourceUrl: "https://www.youtube.com/watch?v=yt-two",
+      videoFilename: "original-two.mp4",
+      videoPath: "/videos/original-two.mp4",
+      thumbnailFilename: undefined,
+      thumbnailPath: undefined,
+      subtitles: [
+        {
+          language: "en",
+          filename: "original-two.en.vtt",
+          path: "/subtitles/original-two.en.vtt",
+        },
+      ],
+    });
+    storageState.videos = [first, second];
+
+    fs.outputFileSync(path.join(testPaths.videos, "original-one.mkv"), "first-video");
+    fs.outputFileSync(path.join(testPaths.images, "original-one.jpg"), "first-thumb");
+    fs.outputFileSync(path.join(testPaths.subtitles, "original-one.en.vtt"), "first-sub");
+    fs.outputFileSync(path.join(testPaths.videos, "original-two.mp4"), "second-video");
+    fs.outputFileSync(path.join(testPaths.subtitles, "original-two.en.vtt"), "second-sub");
+
+    await startRenameJob(
+      {
+        downloadFilenamePresetId: "custom",
+        downloadFilenameTemplate: "{{ title }}.{{ ext }}",
+      },
+      false,
+      // Subtitles configured for the video folder while both rows keep central
+      // subtitles.
+      true
+    );
+    await waitForJobToFinish();
+
+    const job = getActiveRenameJob();
+    expect(job?.status).toBe("completed");
+    expect(job?.failed).toBe(0);
+    expect(job?.succeeded).toBe(2);
+    expect(
+      fs.readFileSync(path.join(testPaths.subtitles, "Same Stem.en.vtt"), "utf8")
+    ).toBe("first-sub");
+    expect(
+      fs.readFileSync(
+        path.join(testPaths.subtitles, "Same Stem [yt-two].en.vtt"),
+        "utf8"
+      )
+    ).toBe("second-sub");
+    expect(journalEntries()).toEqual([]);
+  });
+
   it("keeps template batch-renamed files inside the author folder for linked author mode", async () => {
     const video = makeVideo({
       id: "linked-author",

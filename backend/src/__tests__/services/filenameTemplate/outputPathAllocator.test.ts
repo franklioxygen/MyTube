@@ -851,6 +851,60 @@ describe("outputPathAllocator", () => {
     ).toEqual([]);
   });
 
+  it("restores the destination when backup journaling fails", async () => {
+    const root = makeTempRoot();
+    const sourcePath = path.join(root, "videos", "incoming.mp4");
+    const destPath = path.join(root, "videos", "Episode.mp4");
+    fs.writeFileSync(sourcePath, "new-video");
+    fs.writeFileSync(destPath, "owned-original");
+    const allocator = await loadAllocator(root, [
+      {
+        id: "local-1",
+        videoPath: "/videos/Episode.mp4",
+        thumbnailPath: null,
+        subtitles: [],
+      },
+    ]);
+
+    // Fail the journal write that immediately follows the backup rename. The
+    // destination has been moved aside at that point, so without a rollback the
+    // row would reference a path with no file.
+    const realWriteFileSync = fs.writeFileSync;
+    vi.spyOn(fs, "writeFileSync").mockImplementation(((
+      file: any,
+      data: any,
+      options: any
+    ) => {
+      if (typeof data === "string" && data.includes('"step": "backed_up"')) {
+        throw new Error("journal disk full");
+      }
+      return (realWriteFileSync as any)(file, data, options);
+    }) as typeof fs.writeFileSync);
+
+    expect(() =>
+      allocator.replaceOwnedFileWithBackupSync(
+        sourcePath,
+        path.join(root, "videos"),
+        destPath,
+        path.join(root, "videos"),
+        "local-1"
+      )
+    ).toThrow();
+
+    vi.restoreAllMocks();
+    expect(fs.readFileSync(destPath, "utf8")).toBe("owned-original");
+    expect(
+      fs
+        .readdirSync(path.join(root, "videos"))
+        .filter((entry) => entry.includes("mytube-replace-backup"))
+    ).toEqual([]);
+    expect(
+      fs.readdirSync(path.join(root, "videos", ".mytube-staging")).filter(
+        (entry) => !entry.startsWith(".")
+      )
+    ).toEqual([]);
+  });
+
   it("keeps moved files when only the post-commit journal write fails", async () => {
     const root = makeTempRoot();
     const sourcePath = path.join(root, "videos", "Episode.mp4");

@@ -59,7 +59,12 @@ export type AllocateOutputFamilyInput = {
   thumbnailRelativePath: string;
   subtitleBaseRelativePath: string;
   subtitleBaseDir?: string;
-  subtitleFiles?: Array<{ language: string; extension: string }>;
+  subtitleFiles?: Array<{
+    language: string;
+    extension: string;
+    /** Managed root this subtitle will actually be written to. */
+    baseDir?: string;
+  }>;
   thumbnailBaseDir: string;
   identity: MediaIdentity;
   existingLocalVideoId?: string;
@@ -331,7 +336,12 @@ function candidateConflicts(input: {
   thumbnailRelativePath: string;
   subtitleBaseRelativePath: string;
   subtitleBaseDir?: string;
-  subtitleFiles?: Array<{ language: string; extension: string }>;
+  subtitleFiles?: Array<{
+    language: string;
+    extension: string;
+    /** Managed root this subtitle will actually be written to. */
+    baseDir?: string;
+  }>;
   thumbnailBaseDir: string;
   otherDbPaths: Set<string>;
   ownedDbPaths: Set<string>;
@@ -377,8 +387,8 @@ function candidateConflicts(input: {
   }
 
   const subtitleBaseDir = input.subtitleBaseDir || SUBTITLES_DIR;
-  const subtitlePrefix =
-    subtitleBaseDir === VIDEOS_DIR ? "/videos" : "/subtitles";
+  const subtitleWebPrefix = (baseDir: string) =>
+    baseDir === VIDEOS_DIR ? "/videos" : "/subtitles";
 
   if (input.subtitleRequired) {
     // Subtitle languages are not known until the download finishes, so the
@@ -388,15 +398,24 @@ function candidateConflicts(input: {
     // row already owning a subtitle under this stem lets the allocator reuse
     // it, and the no-overwrite promotion of the newly downloaded subtitle then
     // fails and drops the subtitle silently.
-    const subtitleStem = managedOwnershipKey(
-      `${subtitlePrefix}/${input.subtitleBaseRelativePath}`
-    );
-    if (
-      input.otherSubtitlePaths.some((candidatePath) =>
-        candidatePath.startsWith(`${subtitleStem}.`)
-      )
-    ) {
-      return true;
+    //
+    // A batch rename can place subtitles of one video in different roots, so
+    // reserve the stem in every root this family will actually touch.
+    const stemRoots = new Set<string>([subtitleBaseDir]);
+    for (const subtitle of input.subtitleFiles || []) {
+      stemRoots.add(subtitle.baseDir || subtitleBaseDir);
+    }
+    for (const stemRoot of stemRoots) {
+      const subtitleStem = managedOwnershipKey(
+        `${subtitleWebPrefix(stemRoot)}/${input.subtitleBaseRelativePath}`
+      );
+      if (
+        input.otherSubtitlePaths.some((candidatePath) =>
+          candidatePath.startsWith(`${subtitleStem}.`)
+        )
+      ) {
+        return true;
+      }
     }
   }
 
@@ -406,12 +425,13 @@ function candidateConflicts(input: {
         ? subtitle.extension
         : `.${subtitle.extension}`;
       const subtitleRelativePath = `${input.subtitleBaseRelativePath}.${subtitle.language}${extension}`;
+      const entryBaseDir = subtitle.baseDir || subtitleBaseDir;
       const subtitlePath = resolveSafeChildPath(
-        subtitleBaseDir,
+        entryBaseDir,
         subtitleRelativePath
       );
       const subtitleManagedPath = managedOwnershipKey(
-        `${subtitlePrefix}/${subtitleRelativePath}`
+        `${subtitleWebPrefix(entryBaseDir)}/${subtitleRelativePath}`
       );
       if (
         pathExistsSafeSync(subtitlePath, [SUBTITLES_DIR, VIDEOS_DIR]) &&
@@ -1380,18 +1400,24 @@ export function replaceOwnedFileWithBackupSync(
     expectedSize: staging.expectedSize,
   });
 
-  renameSafeSync(destinationPath, destinationRootDir, backupPath, destinationRootDir);
-  writeOutputFamilyJournalSync(allocationId, {
-    step: "backed_up",
-    purpose: "owned_replacement",
-    sourcePath: staging.sourcePath,
-    stagingPath: staging.stagingPath,
-    destinationPath,
-    backupPath,
-    expectedSize: staging.expectedSize,
-  });
-
   try {
+    // The backup rename and its journal write belong inside the guarded section:
+    // once the destination has been moved aside, a failure here would otherwise
+    // escape with the destination absent while the row still references it, and
+    // with both the backup and the staging file stranded. The rollback below
+    // restores from the backup whenever it exists and the destination does not,
+    // which covers a failure at either of these two steps.
+    renameSafeSync(destinationPath, destinationRootDir, backupPath, destinationRootDir);
+    writeOutputFamilyJournalSync(allocationId, {
+      step: "backed_up",
+      purpose: "owned_replacement",
+      sourcePath: staging.sourcePath,
+      stagingPath: staging.stagingPath,
+      destinationPath,
+      backupPath,
+      expectedSize: staging.expectedSize,
+    });
+
     renameSafeSync(
       staging.stagingPath,
       staging.stagingRootDir,
