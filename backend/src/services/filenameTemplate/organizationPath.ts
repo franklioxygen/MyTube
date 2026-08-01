@@ -2,6 +2,7 @@ import path from "path";
 import {
   AuthorOrganizationMode,
   resolveAuthorOrganizationMode,
+  usesAuthorFolderOrganization,
 } from "../../types/settings";
 import { sanitizePathSegment } from "../../utils/security";
 import { TemplateWarning } from "./types";
@@ -28,7 +29,7 @@ export function applyPhysicalOrganization(
         : undefined,
   });
 
-  if (mode !== "author_folder_only") {
+  if (!usesAuthorFolderOrganization(mode)) {
     return { relativePath: renderedRelativePath, warnings: [] };
   }
 

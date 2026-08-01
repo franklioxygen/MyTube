@@ -293,4 +293,47 @@ describe("renameJobService allocator-backed filesystem collision handling", () =
     expect(fs.existsSync(path.join(testPaths.videos, "original-two.mp4"))).toBe(false);
     expect(journalEntries()).toEqual([]);
   });
+
+  it("keeps template batch-renamed files inside the author folder for linked author mode", async () => {
+    const video = makeVideo({
+      id: "linked-author",
+      author: "Linked Author",
+      sourceVideoId: "yt-linked",
+      sourceUrl: "https://www.youtube.com/watch?v=yt-linked",
+      videoFilename: "original.mp4",
+      videoPath: "/videos/original.mp4",
+      thumbnailFilename: undefined,
+      thumbnailPath: undefined,
+    });
+    storageState.videos = [video];
+    fs.outputFileSync(path.join(testPaths.videos, "original.mp4"), "video");
+
+    await startRenameJob(
+      {
+        downloadFilenamePresetId: "custom",
+        downloadFilenameTemplate: "Season 01/{{ title }}.{{ ext }}",
+        authorOrganizationMode: "author_collection_linked",
+      },
+      false,
+      false
+    );
+    await waitForJobToFinish();
+
+    const job = getActiveRenameJob();
+    expect(job?.status).toBe("completed");
+    expect(job?.items[0]?.newVideoPath).toBe(
+      "/videos/Linked Author/Season 01/Same Stem.mp4"
+    );
+    expect(
+      fs.readFileSync(
+        path.join(
+          testPaths.videos,
+          "Linked Author",
+          "Season 01",
+          "Same Stem.mp4"
+        ),
+        "utf8"
+      )
+    ).toBe("video");
+  });
 });

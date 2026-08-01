@@ -99,18 +99,16 @@ function resolveExistingVideoForRedownload(
 
   const selectedVideo = storageService.getVideoById(existingLocalVideoId);
   if (!selectedVideo) {
-    logger.warn(
+    throw new Error(
       `Requested MissAV redownload target ${existingLocalVideoId} was not found`
     );
-    return undefined;
   }
 
   const selectedMediaType = selectedVideo.mediaType === "audio" ? "audio" : "video";
   if (selectedMediaType !== "video") {
-    logger.warn(
+    throw new Error(
       `Requested MissAV redownload target ${existingLocalVideoId} has media type ${selectedMediaType}, expected video`
     );
-    return undefined;
   }
 
   return selectedVideo;
@@ -217,8 +215,14 @@ export class MissAVDownloader extends BaseDownloader {
     let releaseOutputReservation: (() => void) | null = null;
     let stagedVideoPathForCleanup: string | null = null;
     let stagedThumbnailPathForCleanup: string | null = null;
+    let existingLocalVideo: Video | undefined;
 
     try {
+      existingLocalVideo = resolveExistingVideoForRedownload(
+        url,
+        existingLocalVideoId,
+      );
+
       // 1. Extract m3u8 URL and metadata using Puppeteer
       // (yt-dlp doesn't support MissAV natively, so we extract the m3u8 URL first)
       const { url: safeNavigationUrl } =
@@ -425,11 +429,6 @@ export class MissAVDownloader extends BaseDownloader {
         userConfig,
         settings,
       );
-      const existingLocalVideo = resolveExistingVideoForRedownload(
-        url,
-        existingLocalVideoId,
-      );
-
       // 6. Compute output paths using template or legacy formatter
       const {
         finalVideoFilename,

@@ -78,18 +78,16 @@ function resolveExistingVideoForRedownload(
 
   const selectedVideo = storageService.getVideoById(existingLocalVideoId);
   if (!selectedVideo) {
-    logger.warn(
+    throw new Error(
       `Requested yt-dlp redownload target ${existingLocalVideoId} was not found`
     );
-    return undefined;
   }
 
   const selectedMediaType = selectedVideo.mediaType === "audio" ? "audio" : "video";
   if (selectedMediaType !== mediaType) {
-    logger.warn(
+    throw new Error(
       `Requested yt-dlp redownload target ${existingLocalVideoId} has media type ${selectedMediaType}, expected ${mediaType}`
     );
-    return undefined;
   }
 
   return selectedVideo;
@@ -158,6 +156,7 @@ export async function downloadVideo(
   let newThumbnailPath = resolveSafeChildPath(IMAGES_DIR, thumbnailFilename);
   let newSafeBaseFilename = safeBaseFilename;
   let releaseOutputReservation: (() => void) | null = null;
+  let existingLocalVideo: Video | undefined;
 
   const downloader = new YtDlpDownloaderHelper();
 
@@ -298,7 +297,7 @@ export async function downloadVideo(
     const videoExtension = audioOnly
       ? audioFormat
       : (preparedFlags as ReturnType<typeof prepareDownloadFlags>).videoExtension;
-    const existingLocalVideo = resolveExistingVideoForRedownload(
+    existingLocalVideo = resolveExistingVideoForRedownload(
       videoUrl,
       audioOnly ? "audio" : "video",
       options.existingLocalVideoId
@@ -707,13 +706,18 @@ export async function downloadVideo(
     logger.error("Failed to get file size:", e);
   }
 
-  // Check if a library item with the same sourceUrl AND media type already
-  // exists. Scoping by media type keeps audio-only downloads as their own item
-  // instead of overwriting (and deleting the file of) the existing video row.
-  const existingVideo = storageService.getVideoBySourceUrl(
-    videoUrl,
-    audioOnly ? "audio" : "video"
-  );
+  // Reuse the exact row resolved before output allocation so an explicit repair
+  // target cannot be replaced on disk while a different same-source row is
+  // updated in storage. For ordinary downloads with no pre-existing row, keep
+  // the post-download lookup to handle a row created concurrently.
+  const existingVideo =
+    existingLocalVideo ??
+    (!options.existingLocalVideoId
+      ? storageService.getVideoBySourceUrl(
+          videoUrl,
+          audioOnly ? "audio" : "video"
+        )
+      : undefined);
 
   if (existingVideo) {
     // Update existing video with new subtitle information and file paths
@@ -733,7 +737,13 @@ export async function downloadVideo(
         ? resolved.absolutePath
         : resolveSafeChildPath(VIDEOS_DIR, existingVideo.videoFilename);
       try {
-        if (pathExistsSafeSync(oldVideoPath, VIDEOS_DIR)) {
+        if (
+          pathExistsSafeSync(oldVideoPath, VIDEOS_DIR) &&
+          !storageService.isVideoFileReferencedByOtherVideo(
+            existingVideo,
+            existingVideo.id,
+          )
+        ) {
           unlinkSafeSync(oldVideoPath, VIDEOS_DIR);
           logger.info(`Deleted old video file: ${existingVideo.videoPath || existingVideo.videoFilename}`);
         }

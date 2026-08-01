@@ -65,6 +65,7 @@ export {
     getVideosListETag,
     isCloudFileVisibleToVisitor,
     isThumbnailReferencedByOtherVideo,
+    isVideoFileReferencedByOtherVideo,
     isVideoPublic,
     saveVideo,
     saveVideoIfAbsent,

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock dependencies
 const mockExecuteYtDlpSpawn = vi.fn();
+const mockUnlinkSync = vi.fn();
 const mockExecuteYtDlpJson = vi.fn().mockResolvedValue({
     title: 'Test Video',
     uploader: 'Test Author',
@@ -11,6 +12,7 @@ const mockExecuteYtDlpJson = vi.fn().mockResolvedValue({
 });
 const mockGetUserYtDlpConfig = vi.fn().mockReturnValue({});
 const videoPathExistsChecks = vi.hoisted(() => new Map<string, number>());
+const additionalExistingPaths = vi.hoisted(() => new Set<string>());
 
 vi.mock('../../../utils/ytDlpUtils', () => ({
     executeYtDlpSpawn: (...args: any[]) => mockExecuteYtDlpSpawn(...args),
@@ -28,9 +30,12 @@ vi.mock('../../../services/storageService', () => ({
     saveVideo: vi.fn(),
     persistDownloadedMediaIdentity: vi.fn(({ video }) => video),
     getVideos: vi.fn().mockReturnValue([]),
+    getVideoById: vi.fn(),
     getVideoBySourceUrl: vi.fn(),
     updateVideo: vi.fn(),
     organizeVideoByAuthor: vi.fn(),
+    isThumbnailReferencedByOtherVideo: vi.fn().mockReturnValue(false),
+    isVideoFileReferencedByOtherVideo: vi.fn().mockReturnValue(false),
     getSettings: vi.fn().mockReturnValue({}),
     getDownloadStatus: vi.fn().mockReturnValue({
         activeDownloads: [{ id: 'download-yt' }],
@@ -70,6 +75,9 @@ vi.mock('fs-extra', () => {
             ensureFileSync: vi.fn(),
             existsSync: vi.fn((target: any) => {
                 const value = String(target);
+                if (additionalExistingPaths.has(value)) {
+                    return true;
+                }
                 if (
                     !/[\\/]uploads[\\/]videos[\\/]Test\.Video-Test\.Author-2023(?:_\d+)?\.(mp4|webm)$/.test(
                         value
@@ -84,6 +92,7 @@ vi.mock('fs-extra', () => {
             createWriteStream: vi.fn().mockReturnValue(mockWriter),
             readdirSync: vi.fn().mockReturnValue([]),
             statSync: vi.fn().mockReturnValue({ size: 1000 }),
+            unlinkSync: (...args: any[]) => mockUnlinkSync(...args),
         }
     };
 });
@@ -124,7 +133,12 @@ describe('YtDlpDownloader format defaults', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         videoPathExistsChecks.clear();
+        additionalExistingPaths.clear();
         mockGetUserYtDlpConfig.mockReturnValue({});
+        vi.mocked(storageService.getVideoById).mockReturnValue(undefined);
+        vi.mocked(storageService.getVideoBySourceUrl).mockReturnValue(undefined);
+        vi.mocked(storageService.updateVideo).mockReturnValue(null);
+        vi.mocked(storageService.isVideoFileReferencedByOtherVideo).mockReturnValue(false);
         mockExecuteYtDlpSpawn.mockReturnValue({
             stdout: { on: vi.fn() },
             kill: vi.fn(),
@@ -212,5 +226,122 @@ describe('YtDlpDownloader format defaults', () => {
                 progress: 0,
             }),
         );
+    });
+
+    it('persists an explicit redownload into the selected local row', async () => {
+        const sourceUrl = 'https://www.youtube.com/watch?v=123456';
+        const selectedVideo = {
+            id: 'selected-row',
+            title: 'Selected damaged row',
+            sourceUrl,
+            mediaType: 'video' as const,
+            videoFilename: 'Test.Video-Test.Author-2023.webm',
+            videoPath: '/videos/Test.Video-Test.Author-2023.webm',
+            createdAt: '2026-01-01T00:00:00.000Z',
+        };
+        const unorderedSourceMatch = {
+            ...selectedVideo,
+            id: 'different-row',
+            title: 'Different intact row',
+        };
+
+        vi.mocked(storageService.getVideoById).mockReturnValue(selectedVideo);
+        vi.mocked(storageService.getVideoBySourceUrl).mockReturnValue(
+            unorderedSourceMatch,
+        );
+        vi.mocked(storageService.updateVideo).mockImplementation((id, updates) => ({
+            ...(id === selectedVideo.id ? selectedVideo : unorderedSourceMatch),
+            ...updates,
+            id,
+        }));
+
+        const result = await YtDlpDownloader.downloadVideo(sourceUrl, {
+            existingLocalVideoId: selectedVideo.id,
+        });
+
+        expect(storageService.getVideoById).toHaveBeenCalledWith(selectedVideo.id);
+        expect(storageService.getVideoBySourceUrl).not.toHaveBeenCalled();
+        expect(storageService.updateVideo).toHaveBeenCalledWith(
+            selectedVideo.id,
+            expect.objectContaining({
+                videoPath: '/videos/Test.Video-Test.Author-2023.webm',
+            }),
+        );
+        expect(result.id).toBe(selectedVideo.id);
+    });
+
+    it('does not delete an old video file still referenced by another row', async () => {
+        const sourceUrl = 'https://www.youtube.com/watch?v=123456';
+        const selectedVideo = {
+            id: 'selected-row',
+            title: 'Selected damaged row',
+            sourceUrl,
+            mediaType: 'video' as const,
+            videoFilename: 'shared.mp4',
+            videoPath: '/videos/shared.mp4',
+            createdAt: '2026-01-01T00:00:00.000Z',
+        };
+        additionalExistingPaths.add(
+            `${process.cwd()}/uploads/videos/shared.mp4`,
+        );
+        vi.mocked(storageService.getVideoById).mockReturnValue(selectedVideo);
+        vi.mocked(
+            storageService.isVideoFileReferencedByOtherVideo,
+        ).mockReturnValue(true);
+        vi.mocked(storageService.updateVideo).mockImplementation((id, updates) => ({
+            ...selectedVideo,
+            ...updates,
+            id,
+        }));
+
+        await YtDlpDownloader.downloadVideo(sourceUrl, {
+            existingLocalVideoId: selectedVideo.id,
+        });
+
+        expect(
+            storageService.isVideoFileReferencedByOtherVideo,
+        ).toHaveBeenCalledWith(selectedVideo, selectedVideo.id);
+        expect(mockUnlinkSync).not.toHaveBeenCalled();
+    });
+
+    it('rejects an explicit redownload when the selected row is missing', async () => {
+        const sourceUrl = 'https://www.youtube.com/watch?v=123456';
+
+        await expect(
+            YtDlpDownloader.downloadVideo(sourceUrl, {
+                existingLocalVideoId: 'missing-row',
+            }),
+        ).rejects.toThrow(
+            'Requested yt-dlp redownload target missing-row was not found',
+        );
+
+        expect(mockExecuteYtDlpSpawn).not.toHaveBeenCalled();
+        expect(storageService.getVideoBySourceUrl).not.toHaveBeenCalled();
+        expect(storageService.updateVideo).not.toHaveBeenCalled();
+        expect(storageService.persistDownloadedMediaIdentity).not.toHaveBeenCalled();
+    });
+
+    it('rejects an explicit redownload when the selected row has the wrong media type', async () => {
+        const sourceUrl = 'https://www.youtube.com/watch?v=123456';
+        vi.mocked(storageService.getVideoById).mockReturnValue({
+            id: 'audio-row',
+            title: 'Audio row',
+            sourceUrl,
+            mediaType: 'audio',
+            createdAt: '2026-01-01T00:00:00.000Z',
+        });
+
+        await expect(
+            YtDlpDownloader.downloadVideo(sourceUrl, {
+                existingLocalVideoId: 'audio-row',
+            }),
+        ).rejects.toThrow(
+            'Requested yt-dlp redownload target audio-row has media type audio, expected video',
+        );
+
+        expect(mockExecuteYtDlpSpawn).not.toHaveBeenCalled();
+        expect(storageService.getVideoBySourceUrl).not.toHaveBeenCalled();
+        expect(storageService.updateVideo).not.toHaveBeenCalled();
+        expect(storageService.persistDownloadedMediaIdentity).not.toHaveBeenCalled();
     });
 });

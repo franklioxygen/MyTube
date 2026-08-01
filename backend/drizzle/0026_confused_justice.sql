@@ -10,5 +10,10 @@ WHERE `source_video_id` IS NULL
     SELECT 1
     FROM `video_downloads`
     WHERE `video_downloads`.`video_id` = `videos`.`id`
-  );--> statement-breakpoint
+  )
+  AND (
+    SELECT COUNT(*)
+    FROM `video_downloads`
+    WHERE `video_downloads`.`video_id` = `videos`.`id`
+  ) = 1;--> statement-breakpoint
 CREATE INDEX `idx_videos_source_video_id` ON `videos` (`source_video_id`);

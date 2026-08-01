@@ -22,7 +22,6 @@ import { resolveManagedWebPath } from "./pathHelpers";
 import { planMediaServerExportPaths } from "../mediaServerExport/pathPlanner";
 import {
   resolveFilenameNamingConfig,
-  toFilenameNamingRuntimeConfig,
 } from "./config";
 import { planVideoOutputPaths } from "./renderer";
 import { acquireRenameLock, releaseRenameLock } from "./renameLockService";
@@ -63,6 +62,13 @@ export interface RenameJob {
   cancelRequested: boolean;
 }
 
+type RenameJobSettings = {
+  downloadFilenameMode?: string;
+  downloadFilenamePresetId?: string;
+  downloadFilenameTemplate?: string;
+  authorOrganizationMode?: string;
+};
+
 // The active job snapshot is kept in-process for UI polling. It is cleared by
 // server restarts and is not shared with other app instances.
 let activeJob: RenameJob | null = null;
@@ -87,11 +93,7 @@ export function cancelRenameJob(jobId: string): boolean {
  * Returns the job on success or throws if a job is already running or prerequisites aren't met.
  */
 export async function startRenameJob(
-  settings: {
-    downloadFilenameMode?: string;
-    downloadFilenamePresetId?: string;
-    downloadFilenameTemplate?: string;
-  },
+  settings: RenameJobSettings,
   moveThumbnailsToVideoFolder: boolean,
   moveSubtitlesToVideoFolder: boolean
 ): Promise<RenameJob> {
@@ -235,11 +237,7 @@ function buildManagedSubtitleTargets(
 async function processRenameJob(
   job: RenameJob,
   allVideos: Video[],
-  settings: {
-    downloadFilenameMode?: string;
-    downloadFilenamePresetId?: string;
-    downloadFilenameTemplate?: string;
-  },
+  settings: RenameJobSettings,
   moveThumbnailsToVideoFolder: boolean,
   moveSubtitlesToVideoFolder: boolean
 ): Promise<void> {
@@ -284,11 +282,7 @@ async function processRenameJob(
 async function processOneVideo(
   video: Video,
   job: RenameJob,
-  settings: {
-    downloadFilenameMode?: string;
-    downloadFilenamePresetId?: string;
-    downloadFilenameTemplate?: string;
-  },
+  settings: RenameJobSettings,
   moveThumbnailsToVideoFolder: boolean,
   moveSubtitlesToVideoFolder: boolean,
   sourceOptions: FilenameTemplateSourceOptions
@@ -340,7 +334,7 @@ async function processOneVideo(
 
     // Plan output
     const planned = planVideoOutputPaths({
-      naming: toFilenameNamingRuntimeConfig(settings),
+      settings,
       context,
       videoExtension: videoExt,
       moveThumbnailsToVideoFolder,

@@ -66,18 +66,16 @@ function resolveExistingVideoForRedownload(
 
   const selectedVideo = storageService.getVideoById(existingLocalVideoId);
   if (!selectedVideo) {
-    logger.warn(
+    throw new Error(
       `Requested Bilibili redownload target ${existingLocalVideoId} was not found`
     );
-    return null;
   }
 
   const selectedMediaType = selectedVideo.mediaType === "audio" ? "audio" : "video";
   if (selectedMediaType !== mediaType) {
-    logger.warn(
+    throw new Error(
       `Requested Bilibili redownload target ${existingLocalVideoId} has media type ${selectedMediaType}, expected ${mediaType}`
     );
-    return null;
   }
 
   return selectedVideo;

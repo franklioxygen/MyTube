@@ -30,6 +30,10 @@ export {
   updateVideo,
 } from "./videoMutations";
 
-export { deleteVideo, isThumbnailReferencedByOtherVideo } from "./videoDeletion";
+export {
+  deleteVideo,
+  isThumbnailReferencedByOtherVideo,
+  isVideoFileReferencedByOtherVideo,
+} from "./videoDeletion";
 
 export { formatLegacyFilenames } from "./legacyFilenames";

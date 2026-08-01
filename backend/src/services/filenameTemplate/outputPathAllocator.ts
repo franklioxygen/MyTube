@@ -70,6 +70,8 @@ export type AllocateOutputFamilyInput = {
 
 const activeFamilyReservations = new Set<string>();
 const RESERVATION_DIR = "output-path-reservations";
+const RESERVATION_HEARTBEAT_INTERVAL_MS = 30_000;
+const RESERVATION_STALE_AFTER_MS = 5 * 60_000;
 const OUTPUT_FAMILY_JOURNAL_DIR = "output-family-journals";
 const OUTPUT_STAGING_DIR = ".mytube-staging";
 const CLAIM_MARKER_PREFIX = "MYTUBE_OUTPUT_CLAIM_V1";
@@ -84,6 +86,24 @@ const HARD_LINK_FALLBACK_ERROR_CODES = new Set([
 ]);
 let videoProviderForTests: (() => Video[]) | null = null;
 const hardLinkPublishSupportByRoot = new Map<string, boolean>();
+
+type ReservationLockPayload = {
+  version: number;
+  allocationId: string;
+  canonicalFamilyStem?: string;
+  identityKey?: string;
+  hostname?: unknown;
+  processId?: unknown;
+  createdAtMs?: unknown;
+  heartbeatAtMs?: unknown;
+};
+
+type ReservationLockHandle = {
+  lockPath: string;
+  allocationId: string;
+  heartbeatPath: string;
+  heartbeatTimer: ReturnType<typeof setInterval> | null;
+};
 
 function getReservationRoot(): string {
   return resolveSafeChildPath(DATA_DIR, RESERVATION_DIR);
@@ -163,6 +183,21 @@ function lockPathForFamily(canonicalFamilyStem: string): string {
     .update(canonicalFamilyStem)
     .digest("hex");
   return resolveSafeChildPath(getReservationRoot(), `${digest}.lock`);
+}
+
+function heartbeatPathForLock(
+  lockPath: string,
+  allocationId: string
+): string {
+  const lockName = path.basename(lockPath, ".lock");
+  const ownerDigest = crypto
+    .createHash("sha256")
+    .update(allocationId)
+    .digest("hex");
+  return resolveSafeChildPath(
+    getReservationRoot(),
+    `${lockName}.${ownerDigest}.heartbeat`
+  );
 }
 
 function appendSuffixToRelativePath(relativePath: string, suffix: string): string {
@@ -357,27 +392,85 @@ function writeReservationLockSync(
   lockPath: string,
   canonicalFamilyStem: string,
   identity: MediaIdentity
-): void {
+): ReservationLockHandle {
+  const allocationId = crypto.randomUUID();
+  const now = Date.now();
+  const payload: ReservationLockPayload = {
+    version: 2,
+    allocationId,
+    canonicalFamilyStem,
+    identityKey: [
+      identity.platform,
+      identity.sourceVideoId,
+      identity.mediaType,
+      identity.partNumber || 0,
+    ].join(":"),
+    hostname: os.hostname(),
+    processId: process.pid,
+    createdAtMs: now,
+    heartbeatAtMs: now,
+  };
   writeFileSafeSync(
     lockPath,
     getReservationRoot(),
-    JSON.stringify({
-      version: 1,
-      allocationId: crypto.randomUUID(),
-      canonicalFamilyStem,
-      identityKey: [
-        identity.platform,
-        identity.sourceVideoId,
-        identity.mediaType,
-        identity.partNumber || 0,
-      ].join(":"),
-      hostname: os.hostname(),
-      processId: process.pid,
-      createdAtMs: Date.now(),
-      heartbeatAtMs: Date.now(),
-    }),
+    JSON.stringify(payload),
     { flag: "wx" }
   );
+
+  const heartbeatPath = heartbeatPathForLock(lockPath, allocationId);
+  try {
+    writeFileSafeSync(
+      heartbeatPath,
+      getReservationRoot(),
+      JSON.stringify({
+        version: 1,
+        allocationId,
+        heartbeatAtMs: now,
+      }),
+      { flag: "wx" }
+    );
+  } catch (error) {
+    try {
+      unlinkSafeSync(lockPath, getReservationRoot());
+    } catch {
+      // Preserve the original heartbeat creation failure.
+    }
+    throw error;
+  }
+
+  const handle: ReservationLockHandle = {
+    lockPath,
+    allocationId,
+    heartbeatPath,
+    heartbeatTimer: null,
+  };
+  handle.heartbeatTimer = setInterval(() => {
+    if (!reservationLockIsOwnedBy(handle.lockPath, handle.allocationId)) {
+      if (handle.heartbeatTimer) {
+        clearInterval(handle.heartbeatTimer);
+        handle.heartbeatTimer = null;
+      }
+      return;
+    }
+
+    try {
+      writeFileSafeSync(
+        handle.heartbeatPath,
+        getReservationRoot(),
+        JSON.stringify({
+          version: 1,
+          allocationId: handle.allocationId,
+          heartbeatAtMs: Date.now(),
+        }),
+        { flag: "w" }
+      );
+    } catch {
+      // Retry on the next interval. If the owner cannot renew for the entire
+      // stale window, another instance may safely reclaim the reservation.
+    }
+  }, RESERVATION_HEARTBEAT_INTERVAL_MS);
+  handle.heartbeatTimer.unref?.();
+  return handle;
 }
 
 function isProcessLive(processId: number): boolean {
@@ -389,51 +482,201 @@ function isProcessLive(processId: number): boolean {
   }
 }
 
+function parseReservationLockPayload(
+  raw: string
+): ReservationLockPayload | null {
+  try {
+    const payload = JSON.parse(raw) as ReservationLockPayload;
+    return typeof payload.allocationId === "string" &&
+      payload.allocationId.length > 0
+      ? payload
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function reservationLockIsOwnedBy(
+  lockPath: string,
+  allocationId: string
+): boolean {
+  try {
+    const payload = parseReservationLockPayload(
+      readFileSafeSync(lockPath, getReservationRoot(), "utf8")
+    );
+    return payload?.allocationId === allocationId;
+  } catch {
+    return false;
+  }
+}
+
+function numericTimestamp(value: unknown): number | null {
+  return typeof value === "number" &&
+    Number.isFinite(value) &&
+    value >= 0
+    ? value
+    : null;
+}
+
+function reservationLastHeartbeatMs(
+  lockPath: string,
+  payload: ReservationLockPayload | null
+): number {
+  const timestamps: number[] = [];
+  const createdAtMs = numericTimestamp(payload?.createdAtMs);
+  const heartbeatAtMs = numericTimestamp(payload?.heartbeatAtMs);
+  if (createdAtMs !== null) {
+    timestamps.push(createdAtMs);
+  }
+  if (heartbeatAtMs !== null) {
+    timestamps.push(heartbeatAtMs);
+  }
+
+  if (payload) {
+    const heartbeatPath = heartbeatPathForLock(lockPath, payload.allocationId);
+    try {
+      const heartbeat = JSON.parse(
+        readFileSafeSync(heartbeatPath, getReservationRoot(), "utf8")
+      ) as {
+        allocationId?: unknown;
+        heartbeatAtMs?: unknown;
+      };
+      if (heartbeat.allocationId === payload.allocationId) {
+        const currentHeartbeatAtMs = numericTimestamp(
+          heartbeat.heartbeatAtMs
+        );
+        if (currentHeartbeatAtMs !== null) {
+          timestamps.push(currentHeartbeatAtMs);
+        }
+      }
+    } catch {
+      try {
+        timestamps.push(
+          statSafeSync(heartbeatPath, getReservationRoot()).mtimeMs
+        );
+      } catch {
+        // Legacy locks do not have a heartbeat sidecar.
+      }
+    }
+  }
+
+  if (timestamps.length === 0) {
+    try {
+      timestamps.push(statSafeSync(lockPath, getReservationRoot()).mtimeMs);
+    } catch {
+      return Date.now();
+    }
+  }
+  return Math.max(...timestamps);
+}
+
+function shouldReclaimReservationLock(
+  lockPath: string,
+  payload: ReservationLockPayload | null
+): boolean {
+  if (payload?.hostname === os.hostname()) {
+    const processId = payload.processId;
+    if (
+      typeof processId === "number" &&
+      Number.isInteger(processId) &&
+      processId > 0 &&
+      processId !== process.pid
+    ) {
+      // A live owner on this host stays authoritative even once its heartbeat
+      // lapses, because a long synchronous publish can stall the renewal timer.
+      return !isProcessLive(processId);
+    }
+    // A lock naming this process' own pid is never a reservation we still hold:
+    // allocateOutputFamilySync short-circuits on activeFamilyReservations before
+    // reaching acquireLock for those. It is a leftover from an earlier instance
+    // that restarted onto the same pid, so fall through to the expiry policy
+    // instead of treating "our" pid as a live owner forever.
+  }
+
+  return (
+    Date.now() - reservationLastHeartbeatMs(lockPath, payload) >=
+    RESERVATION_STALE_AFTER_MS
+  );
+}
+
 function reclaimAbandonedReservationLockSync(lockPath: string): boolean {
   try {
     const raw = readFileSafeSync(lockPath, getReservationRoot(), "utf8");
-    const payload = JSON.parse(raw) as {
-      hostname?: unknown;
-      processId?: unknown;
-    };
-
-    if (payload.hostname !== os.hostname()) {
+    const payload = parseReservationLockPayload(raw);
+    if (!shouldReclaimReservationLock(lockPath, payload)) {
       return false;
     }
 
-    const processId = payload.processId;
+    const confirmedRaw = readFileSafeSync(
+      lockPath,
+      getReservationRoot(),
+      "utf8"
+    );
+    const confirmedPayload = parseReservationLockPayload(confirmedRaw);
     if (
-      typeof processId !== "number" ||
-      !Number.isInteger(processId) ||
-      processId <= 0 ||
-      processId === process.pid ||
-      isProcessLive(processId)
+      confirmedRaw !== raw ||
+      !shouldReclaimReservationLock(lockPath, confirmedPayload)
     ) {
       return false;
     }
 
     unlinkSafeSync(lockPath, getReservationRoot());
+    if (confirmedPayload) {
+      try {
+        unlinkSafeSync(
+          heartbeatPathForLock(lockPath, confirmedPayload.allocationId),
+          getReservationRoot()
+        );
+      } catch {
+        // Legacy locks and interrupted owners may not have a sidecar.
+      }
+    }
     return true;
   } catch {
     return false;
   }
 }
 
-function acquireLock(canonicalFamilyStem: string, identity: MediaIdentity): string | null {
+function releaseReservationLockSync(handle: ReservationLockHandle): void {
+  if (handle.heartbeatTimer) {
+    clearInterval(handle.heartbeatTimer);
+    handle.heartbeatTimer = null;
+  }
+
+  if (reservationLockIsOwnedBy(handle.lockPath, handle.allocationId)) {
+    try {
+      unlinkSafeSync(handle.lockPath, getReservationRoot());
+    } catch {
+      // A concurrent stale-lock takeover may already have removed it.
+    }
+  }
+  try {
+    unlinkSafeSync(handle.heartbeatPath, getReservationRoot());
+  } catch {
+    // Heartbeat cleanup is best-effort after releasing the lock.
+  }
+}
+
+function acquireLock(
+  canonicalFamilyStem: string,
+  identity: MediaIdentity
+): ReservationLockHandle | null {
   const lockPath = lockPathForFamily(canonicalFamilyStem);
   ensureDirSafeSync(getReservationRoot(), DATA_DIR);
 
   try {
-    writeReservationLockSync(lockPath, canonicalFamilyStem, identity);
-    return lockPath;
+    return writeReservationLockSync(lockPath, canonicalFamilyStem, identity);
   } catch (error) {
     if (
       fsErrorCode(error) === "EEXIST" &&
       reclaimAbandonedReservationLockSync(lockPath)
     ) {
       try {
-        writeReservationLockSync(lockPath, canonicalFamilyStem, identity);
-        return lockPath;
+        return writeReservationLockSync(
+          lockPath,
+          canonicalFamilyStem,
+          identity
+        );
       } catch {
         return null;
       }
@@ -480,8 +723,8 @@ export function allocateOutputFamilySync(
       continue;
     }
 
-    const lockPath = acquireLock(canonicalFamilyStem, input.identity);
-    if (!lockPath) {
+    const reservationLock = acquireLock(canonicalFamilyStem, input.identity);
+    if (!reservationLock) {
       continue;
     }
 
@@ -499,20 +742,21 @@ export function allocateOutputFamilySync(
       })
     ) {
       activeFamilyReservations.delete(canonicalFamilyStem);
-      unlinkSafeSync(lockPath, getReservationRoot());
+      releaseReservationLockSync(reservationLock);
       continue;
     }
 
+    let released = false;
     return {
       ...candidate,
       collisionStrategy,
       release: () => {
-        activeFamilyReservations.delete(canonicalFamilyStem);
-        try {
-          unlinkSafeSync(lockPath, getReservationRoot());
-        } catch {
-          // Best-effort cleanup; a stale-lock sweep can remove leftovers.
+        if (released) {
+          return;
         }
+        released = true;
+        activeFamilyReservations.delete(canonicalFamilyStem);
+        releaseReservationLockSync(reservationLock);
       },
     };
   }

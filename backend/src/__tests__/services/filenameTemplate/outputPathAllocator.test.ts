@@ -61,6 +61,7 @@ function makeTempRoot(): string {
 describe("outputPathAllocator", () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.useRealTimers();
     vi.resetModules();
     vi.clearAllMocks();
     for (const root of tempRoots.splice(0)) {
@@ -187,6 +188,218 @@ describe("outputPathAllocator", () => {
 
     reservation.release();
     killSpy.mockRestore();
+  });
+
+  it("reclaims an expired reservation left by a previous container", async () => {
+    const root = makeTempRoot();
+    const reservationDir = path.join(root, "data", "output-path-reservations");
+    fs.ensureDirSync(reservationDir);
+    const digest = crypto.createHash("sha256").update("episode").digest("hex");
+    const staleLockPath = path.join(reservationDir, `${digest}.lock`);
+    fs.writeJsonSync(staleLockPath, {
+      version: 1,
+      allocationId: "previous-container",
+      canonicalFamilyStem: "episode",
+      identityKey: "youtube:old:video:0",
+      hostname: "retired-container-hostname",
+      processId: 99,
+      createdAtMs: Date.now() - 10 * 60_000,
+      heartbeatAtMs: Date.now() - 10 * 60_000,
+    });
+    const allocator = await loadAllocator(root);
+
+    const reservation = allocator.allocateOutputFamilySync({
+      videoRelativePath: "Episode.mp4",
+      thumbnailRelativePath: "Episode.jpg",
+      subtitleBaseRelativePath: "Episode",
+      thumbnailBaseDir: path.join(root, "images"),
+      identity: {
+        platform: "youtube",
+        sourceVideoId: "new",
+        mediaType: "video",
+      },
+    });
+
+    expect(reservation.videoRelativePath).toBe("Episode.mp4");
+    expect(fs.readJsonSync(staleLockPath).hostname).toBe(os.hostname());
+    reservation.release();
+  });
+
+  it("reclaims an expired lock left by a restart onto the same pid", async () => {
+    const root = makeTempRoot();
+    const reservationDir = path.join(root, "data", "output-path-reservations");
+    fs.ensureDirSync(reservationDir);
+    const digest = crypto.createHash("sha256").update("episode").digest("hex");
+    const staleLockPath = path.join(reservationDir, `${digest}.lock`);
+    // A stable-hostname container that crashed and restarted onto the same pid:
+    // the owner is gone, but a naive `processId === process.pid` guard would
+    // read it as a live owner and reserve the family forever.
+    fs.writeJsonSync(staleLockPath, {
+      version: 2,
+      allocationId: "previous-instance-same-pid",
+      canonicalFamilyStem: "episode",
+      identityKey: "youtube:old:video:0",
+      hostname: os.hostname(),
+      processId: process.pid,
+      createdAtMs: Date.now() - 10 * 60_000,
+      heartbeatAtMs: Date.now() - 10 * 60_000,
+    });
+    const allocator = await loadAllocator(root);
+
+    const reservation = allocator.allocateOutputFamilySync({
+      videoRelativePath: "Episode.mp4",
+      thumbnailRelativePath: "Episode.jpg",
+      subtitleBaseRelativePath: "Episode",
+      thumbnailBaseDir: path.join(root, "images"),
+      identity: {
+        platform: "youtube",
+        sourceVideoId: "new",
+        mediaType: "video",
+      },
+    });
+
+    expect(reservation.videoRelativePath).toBe("Episode.mp4");
+    expect(fs.readJsonSync(staleLockPath).allocationId).not.toBe(
+      "previous-instance-same-pid"
+    );
+    reservation.release();
+  });
+
+  it("keeps a fresh same-host lock held by this pid", async () => {
+    const root = makeTempRoot();
+    const reservationDir = path.join(root, "data", "output-path-reservations");
+    fs.ensureDirSync(reservationDir);
+    const digest = crypto.createHash("sha256").update("episode").digest("hex");
+    const liveLockPath = path.join(reservationDir, `${digest}.lock`);
+    // Same pid, but the lease is being renewed, so it must not be stolen.
+    fs.writeJsonSync(liveLockPath, {
+      version: 2,
+      allocationId: "self-owned-live",
+      canonicalFamilyStem: "episode",
+      identityKey: "youtube:old:video:0",
+      hostname: os.hostname(),
+      processId: process.pid,
+      createdAtMs: Date.now() - 60_000,
+      heartbeatAtMs: Date.now() - 5_000,
+    });
+    const allocator = await loadAllocator(root);
+
+    const reservation = allocator.allocateOutputFamilySync({
+      videoRelativePath: "Episode.mp4",
+      thumbnailRelativePath: "Episode.jpg",
+      subtitleBaseRelativePath: "Episode",
+      thumbnailBaseDir: path.join(root, "images"),
+      identity: {
+        platform: "youtube",
+        sourceVideoId: "new",
+        mediaType: "video",
+      },
+    });
+
+    expect(reservation.videoRelativePath).toBe("Episode [new].mp4");
+    expect(fs.readJsonSync(liveLockPath).allocationId).toBe("self-owned-live");
+    reservation.release();
+  });
+
+  it("keeps an old same-host lock while its owner process is live", async () => {
+    const root = makeTempRoot();
+    const reservationDir = path.join(root, "data", "output-path-reservations");
+    fs.ensureDirSync(reservationDir);
+    const digest = crypto.createHash("sha256").update("episode").digest("hex");
+    const liveLockPath = path.join(reservationDir, `${digest}.lock`);
+    fs.writeJsonSync(liveLockPath, {
+      version: 1,
+      allocationId: "live-owner",
+      canonicalFamilyStem: "episode",
+      identityKey: "youtube:old:video:0",
+      hostname: os.hostname(),
+      processId: 987654321,
+      createdAtMs: Date.now() - 24 * 60 * 60_000,
+      heartbeatAtMs: Date.now() - 24 * 60 * 60_000,
+    });
+    const killSpy = vi.spyOn(process, "kill").mockImplementation(((
+      processId: number,
+      signal?: NodeJS.Signals | 0
+    ) => {
+      if (processId === 987654321 && signal === 0) {
+        return true;
+      }
+      return true;
+    }) as typeof process.kill);
+    const allocator = await loadAllocator(root);
+
+    const reservation = allocator.allocateOutputFamilySync({
+      videoRelativePath: "Episode.mp4",
+      thumbnailRelativePath: "Episode.jpg",
+      subtitleBaseRelativePath: "Episode",
+      thumbnailBaseDir: path.join(root, "images"),
+      identity: {
+        platform: "youtube",
+        sourceVideoId: "new",
+        mediaType: "video",
+      },
+    });
+
+    expect(reservation.videoRelativePath).toBe("Episode [new].mp4");
+    expect(fs.readJsonSync(liveLockPath).allocationId).toBe("live-owner");
+    expect(killSpy).toHaveBeenCalledWith(987654321, 0);
+    reservation.release();
+  });
+
+  it("renews a cross-host lease throughout a long reservation", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-30T12:00:00.000Z"));
+    const root = makeTempRoot();
+    const firstAllocator = await loadAllocator(root);
+    const first = firstAllocator.allocateOutputFamilySync({
+      videoRelativePath: "Episode.mp4",
+      thumbnailRelativePath: "Episode.jpg",
+      subtitleBaseRelativePath: "Episode",
+      thumbnailBaseDir: path.join(root, "images"),
+      identity: {
+        platform: "youtube",
+        sourceVideoId: "first",
+        mediaType: "video",
+      },
+    });
+    const reservationDir = path.join(root, "data", "output-path-reservations");
+    const lockName = fs
+      .readdirSync(reservationDir)
+      .find((entry) => entry.endsWith(".lock"));
+    expect(lockName).toBeDefined();
+    const lockPath = path.join(reservationDir, lockName!);
+    const lockPayload = fs.readJsonSync(lockPath);
+    lockPayload.hostname = "active-other-container";
+    fs.writeJsonSync(lockPath, lockPayload);
+
+    vi.advanceTimersByTime(10 * 60_000);
+
+    const heartbeatName = fs
+      .readdirSync(reservationDir)
+      .find((entry) => entry.endsWith(".heartbeat"));
+    expect(heartbeatName).toBeDefined();
+    const heartbeat = fs.readJsonSync(
+      path.join(reservationDir, heartbeatName!)
+    );
+    expect(heartbeat.allocationId).toBe(lockPayload.allocationId);
+    expect(heartbeat.heartbeatAtMs).toBe(Date.now());
+
+    const secondAllocator = await loadAllocator(root);
+    const second = secondAllocator.allocateOutputFamilySync({
+      videoRelativePath: "Episode.mp4",
+      thumbnailRelativePath: "Episode.jpg",
+      subtitleBaseRelativePath: "Episode",
+      thumbnailBaseDir: path.join(root, "images"),
+      identity: {
+        platform: "youtube",
+        sourceVideoId: "second",
+        mediaType: "video",
+      },
+    });
+
+    expect(second.videoRelativePath).toBe("Episode [second].mp4");
+    first.release();
+    second.release();
   });
 
   it("skips an existing preferred file before reserving", async () => {
