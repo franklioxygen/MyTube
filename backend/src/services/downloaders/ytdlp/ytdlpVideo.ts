@@ -20,6 +20,7 @@ import {
   replaceOwnedFileWithBackupSync,
 } from "../../filenameTemplate/outputPathAllocator";
 import { planDownloadPaths } from "./downloadPathPlanner";
+import { resolveSupersededManagedPath } from "../supersededOutput";
 import { logger } from "../../../utils/logger";
 import { ProgressTracker } from "../../../utils/progressTracker";
 import { resolvePlayableMediaFilePath } from "../../../utils/videoFileResolver";
@@ -740,17 +741,17 @@ export async function downloadVideo(
       "Video with same sourceUrl exists, updating subtitle information"
     );
 
-    // Delete old video file if filename changed.
-    // Resolve via existingVideo.videoPath so a templated nested path
-    // (e.g. /videos/Channel/Season 2026/file.mp4) is removed correctly;
-    // basename-only resolution would target /videos/file.mp4 and miss it.
-    if (existingVideo.videoFilename && existingVideo.videoFilename !== finalVideoFilename) {
-      const resolved = existingVideo.videoPath
-        ? resolveManagedWebPath(existingVideo.videoPath)
-        : null;
-      const oldVideoPath = resolved
-        ? resolved.absolutePath
-        : resolveSafeChildPath(VIDEOS_DIR, existingVideo.videoFilename);
+    // Delete the old video file when the redownload landed somewhere else.
+    // Comparing resolved absolute paths rather than basenames also catches an
+    // authorOrganizationMode change, which relocates the file while keeping its
+    // name, and never selects the file this download just wrote in place.
+    const oldVideoPath = resolveSupersededManagedPath({
+      previousWebPath: existingVideo.videoPath,
+      previousFilename: existingVideo.videoFilename,
+      fallbackRootDir: VIDEOS_DIR,
+      newAbsolutePath: newVideoPathWithFormat,
+    });
+    if (oldVideoPath) {
       try {
         if (
           pathExistsSafeSync(oldVideoPath, VIDEOS_DIR) &&
@@ -767,19 +768,18 @@ export async function downloadVideo(
       }
     }
 
-    // Delete old thumbnail file if being replaced with a new one
-    if (thumbnailSaved && existingVideo.thumbnailFilename && existingVideo.thumbnailFilename !== finalThumbnailFilename) {
-      const oldThumbnailPath = existingVideo.thumbnailPath?.startsWith("/videos/")
-        ? resolveSafeChildPath(
-            VIDEOS_DIR,
-            existingVideo.thumbnailPath.replace(/^\/videos\//, "")
-          )
-        : existingVideo.thumbnailPath?.startsWith("/images/")
-          ? resolveSafeChildPath(
-              IMAGES_DIR,
-              existingVideo.thumbnailPath.replace(/^\/images\//, "")
-            )
-          : resolveSafeChildPath(IMAGES_DIR, existingVideo.thumbnailFilename);
+    // Same reasoning as the video above: an organization change relocates the
+    // thumbnail while keeping its name, so a basename comparison would leave the
+    // old one orphaned.
+    const oldThumbnailPath = thumbnailSaved
+      ? resolveSupersededManagedPath({
+          previousWebPath: existingVideo.thumbnailPath,
+          previousFilename: existingVideo.thumbnailFilename,
+          fallbackRootDir: IMAGES_DIR,
+          newAbsolutePath: newThumbnailPath,
+        })
+      : null;
+    if (oldThumbnailPath) {
       try {
         if (
           pathExistsSafeSync(oldThumbnailPath, [VIDEOS_DIR, IMAGES_DIR]) &&

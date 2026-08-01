@@ -386,6 +386,48 @@ describe('YtDlpDownloader format defaults', () => {
         expect(mockUnlinkSync).not.toHaveBeenCalled();
     });
 
+    it('deletes the old video when organization moves it but keeps the name', async () => {
+        // authorOrganizationMode changed from root to author_folder_only, so the
+        // redownload lands in an author folder under the same basename. A
+        // filename comparison sees no change and leaves the old file orphaned
+        // while the row repoints to the organized path.
+        const sourceUrl = 'https://www.youtube.com/watch?v=123456';
+        const oldVideoPath = `${process.cwd()}/uploads/videos/Test.Video-Test.Author-2023.webm`;
+        const newVideoPath = `${process.cwd()}/uploads/videos/Test Author/Test.Video-Test.Author-2023.webm`;
+        const selectedVideo = {
+            id: 'selected-row',
+            title: 'Test Video',
+            sourceUrl,
+            mediaType: 'video' as const,
+            videoFilename: 'Test.Video-Test.Author-2023.webm',
+            videoPath: '/videos/Test.Video-Test.Author-2023.webm',
+            createdAt: '2026-01-01T00:00:00.000Z',
+        };
+        vi.mocked(storageService.getSettings).mockReturnValue({
+            downloadFilenamePresetId: 'legacy',
+            authorOrganizationMode: 'author_folder_only',
+            moveThumbnailsToVideoFolder: false,
+            moveSubtitlesToVideoFolder: false,
+        } as any);
+        additionalExistingPaths.add(oldVideoPath);
+        additionalExistingPaths.add(newVideoPath);
+        vi.mocked(storageService.getVideoById).mockReturnValue(selectedVideo);
+        vi.mocked(
+            storageService.isVideoFileReferencedByOtherVideo,
+        ).mockReturnValue(false);
+        vi.mocked(storageService.updateVideo).mockImplementation((id, updates) => ({
+            ...selectedVideo,
+            ...updates,
+            id,
+        }));
+
+        await YtDlpDownloader.downloadVideo(sourceUrl, {
+            existingLocalVideoId: selectedVideo.id,
+        });
+
+        expect(mockUnlinkSync).toHaveBeenCalledWith(oldVideoPath);
+    });
+
     it('rejects an explicit redownload when the selected row is missing', async () => {
         const sourceUrl = 'https://www.youtube.com/watch?v=123456';
 

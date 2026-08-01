@@ -28,7 +28,7 @@ import {
   planOwnedReplacementStagingPathSync,
   replaceOwnedFileWithBackupSync,
 } from "../filenameTemplate/outputPathAllocator";
-import { resolveManagedWebPath } from "../filenameTemplate/pathHelpers";
+import { resolveSupersededManagedPath } from "./supersededOutput";
 import { FilenameTemplateSourceOptions } from "../filenameTemplate/types";
 import {
   flagsToArgs,
@@ -114,38 +114,6 @@ function resolveExistingVideoForRedownload(
   }
 
   return selectedVideo;
-}
-
-/**
- * Resolves the previous video file that a redownload has superseded, or null
- * when nothing should be removed.
- *
- * A filename-template or organization change moves the redownload to a new path,
- * leaving the old file unreferenced by any row and invisible to the collision
- * audit. Absolute paths are compared rather than filenames so a directory-only
- * change is caught too, and so an in-place replacement — where the previous path
- * is the file that was just written — is never selected for deletion.
- */
-export function resolveSupersededMissAvVideoPath(
-  existingVideo: { videoPath?: string; videoFilename?: string },
-  newVideoPath: string
-): string | null {
-  const previousResolved = existingVideo.videoPath
-    ? resolveManagedWebPath(existingVideo.videoPath)
-    : null;
-  const previousVideoPath = previousResolved
-    ? previousResolved.absolutePath
-    : existingVideo.videoFilename
-      ? resolveSafeChildPath(VIDEOS_DIR, existingVideo.videoFilename)
-      : null;
-
-  if (!previousVideoPath) {
-    return null;
-  }
-
-  return path.normalize(previousVideoPath) !== path.normalize(newVideoPath)
-    ? previousVideoPath
-    : null;
 }
 
 export class MissAVDownloader extends BaseDownloader {
@@ -865,10 +833,12 @@ export class MissAVDownloader extends BaseDownloader {
           throw new Error(`Failed to update existing MissAV video ${existingLocalVideo.id}`);
         }
 
-        const previousVideoPath = resolveSupersededMissAvVideoPath(
-          existingLocalVideo,
-          newVideoPath
-        );
+        const previousVideoPath = resolveSupersededManagedPath({
+          previousWebPath: existingLocalVideo.videoPath,
+          previousFilename: existingLocalVideo.videoFilename,
+          fallbackRootDir: VIDEOS_DIR,
+          newAbsolutePath: newVideoPath,
+        });
         if (previousVideoPath) {
           try {
             if (
