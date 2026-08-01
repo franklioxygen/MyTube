@@ -217,6 +217,12 @@ export class MissAVDownloader extends BaseDownloader {
     let releaseOutputReservation: (() => void) | null = null;
     let stagedVideoPathForCleanup: string | null = null;
     let stagedThumbnailPathForCleanup: string | null = null;
+    // Final destinations of any in-place owned replacement. Once we commit to
+    // replacing an owned file, its destination always holds a live library file
+    // (the original before publication, the new download afterwards) with the
+    // backup already removed, so the failure cleanup below must never delete it.
+    let ownedVideoDestinationPath: string | null = null;
+    let ownedThumbnailDestinationPath: string | null = null;
     let existingLocalVideo: Video | undefined;
 
     try {
@@ -460,6 +466,9 @@ export class MissAVDownloader extends BaseDownloader {
         [IMAGES_DIR, VIDEOS_DIR],
         existingLocalVideo?.id
       );
+      ownedVideoDestinationPath = ownedVideoReplacement?.finalPath ?? null;
+      ownedThumbnailDestinationPath =
+        ownedThumbnailReplacement?.finalPath ?? null;
       const videoDownloadPath = ownedVideoReplacement?.stagingPath ?? newVideoPath;
       const thumbnailDownloadPath =
         ownedThumbnailReplacement?.stagingPath ?? newThumbnailPath;
@@ -936,6 +945,25 @@ export class MissAVDownloader extends BaseDownloader {
       }
 
       logger.error("Error in downloadMissAVVideo:", error);
+      // When an in-place owned replacement was planned, its final destination is
+      // a live library file (its backup is already gone once the replacement
+      // commits). In legacy root naming that destination coincides with the
+      // filename recomputed below, so removing it blindly would leave the
+      // existing row pointing at a missing file. Skip those paths during cleanup.
+      const removeUnlessOwnedDestination = async (
+        candidatePath: string,
+      ): Promise<void> => {
+        const normalized = path.normalize(candidatePath);
+        if (
+          (ownedVideoDestinationPath &&
+            path.normalize(ownedVideoDestinationPath) === normalized) ||
+          (ownedThumbnailDestinationPath &&
+            path.normalize(ownedThumbnailDestinationPath) === normalized)
+        ) {
+          return;
+        }
+        await safeRemove(candidatePath);
+      };
       // Cleanup - try to get the correct extension from config, fallback to mp4
       try {
         if (stagedVideoPathForCleanup) {
@@ -962,14 +990,14 @@ export class MissAVDownloader extends BaseDownloader {
           IMAGES_DIR,
           `${cleanupSafeBaseFilename}.jpg`
         );
-        await safeRemove(cleanupVideoPath);
-        await safeRemove(cleanupThumbnailPath);
+        await removeUnlessOwnedDestination(cleanupVideoPath);
+        await removeUnlessOwnedDestination(cleanupThumbnailPath);
         // Also try mp4 in case the file was created with default extension
         const cleanupVideoPathMp4 = resolveSafeChildPath(
           VIDEOS_DIR,
           `${cleanupSafeBaseFilename}.mp4`
         );
-        await safeRemove(cleanupVideoPathMp4);
+        await removeUnlessOwnedDestination(cleanupVideoPathMp4);
       } catch (cleanupError) {
         // If cleanup fails, try with default mp4 extension
         const cleanupSafeBaseFilename = formatVideoFilename(
@@ -985,8 +1013,8 @@ export class MissAVDownloader extends BaseDownloader {
           IMAGES_DIR,
           `${cleanupSafeBaseFilename}.jpg`
         );
-        await safeRemove(cleanupVideoPath);
-        await safeRemove(cleanupThumbnailPath);
+        await removeUnlessOwnedDestination(cleanupVideoPath);
+        await removeUnlessOwnedDestination(cleanupThumbnailPath);
       }
       throw error;
     } finally {

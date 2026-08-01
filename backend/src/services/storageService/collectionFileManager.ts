@@ -707,6 +707,14 @@ function moveManagedFamilyToRelativeDirs(
 
     const newSubtitles: NonNullable<Video["subtitles"]> = [];
     let subtitlesChanged = false;
+    // A video may legitimately carry two managed subtitles that share a
+    // language and extension (the subtitle upload endpoint permits it). Both
+    // would otherwise resolve to the same `<stem>.<lang><ext>` target, queuing
+    // two moves to one path; the second no-overwrite move then fails and the
+    // journal rolls the whole relocation back. Track assigned target filenames
+    // and give each colliding subtitle a distinct numeric suffix.
+    const subtitleStem = path.basename(reservation.subtitleBaseRelativePath);
+    const usedSubtitleFilenames = new Set<string>();
     for (const originalSubtitle of video.subtitles || []) {
       const subtitleSource = subtitleSources.find(
         (candidate) => candidate.original === originalSubtitle
@@ -716,7 +724,15 @@ function moveManagedFamilyToRelativeDirs(
         continue;
       }
 
-      const filename = `${path.basename(reservation.subtitleBaseRelativePath)}.${subtitleSource.language}${subtitleSource.extension}`;
+      let filename = `${subtitleStem}.${subtitleSource.language}${subtitleSource.extension}`;
+      if (usedSubtitleFilenames.has(filename)) {
+        let suffix = 2;
+        do {
+          filename = `${subtitleStem}.${subtitleSource.language}.${suffix}${subtitleSource.extension}`;
+          suffix += 1;
+        } while (usedSubtitleFilenames.has(filename));
+      }
+      usedSubtitleFilenames.add(filename);
       const relativeDir = path.dirname(reservation.subtitleBaseRelativePath);
       const subtitleRelative = joinRelativePath(
         relativeDir === "." ? "" : relativeDir,
