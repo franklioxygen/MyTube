@@ -191,6 +191,7 @@ vi.mock("../../../services/downloaders/bilibili/bilibiliSubtitle", () => ({
 }));
 
 import { downloadSinglePart } from "../../../services/downloaders/bilibili/bilibiliVideo";
+import * as allocator from "../../../services/filenameTemplate/outputPathAllocator";
 
 const buildExistingVideo = (overrides: Record<string, any> = {}) => ({
   id: "existing-video",
@@ -208,6 +209,8 @@ describe("bilibiliVideo.downloadSinglePart", () => {
     vi.clearAllMocks();
     // Default: not cancelled. Individual tests opt into cancellation.
     mocks.throwIfCancelled.mockReset();
+    // Ownership checks default to an empty library; tests opt into rows.
+    allocator.setOutputPathAllocatorVideoProviderForTests(() => []);
 
     const subprocess: any = Promise.resolve(undefined);
     subprocess.stdout = { on: vi.fn() };
@@ -303,6 +306,91 @@ describe("bilibiliVideo.downloadSinglePart", () => {
     mocks.downloadSubtitles.mockResolvedValue([]);
     mocks.downloadAndProcessAvatar.mockResolvedValue(null);
     mocks.downloadThumbnail.mockResolvedValue(true);
+  });
+
+  // Cancellation is checked at several points during a download. These tests
+  // target the last one, which is the only check that cleans up the allocated
+  // destinations. Subtitles are downloaded between the preceding check and that
+  // one, so use them as the signal to start reporting cancellation.
+  const cancelAfterSubtitles = () => {
+    let subtitlesDone = false;
+    mocks.downloadSubtitles.mockImplementation(async () => {
+      subtitlesDone = true;
+      return [];
+    });
+    mocks.throwIfCancelled.mockImplementation(() => {
+      if (subtitlesDone) {
+        throw DownloadCancelledError.create();
+      }
+    });
+  };
+
+  it("keeps the owned video file when a redownload is cancelled in place", async () => {
+    // The redownload resolved to the row's current path, so the file there was
+    // already replaced and its backup dropped. The row still references that
+    // path, so cancellation must not delete it.
+    const ownedVideoPath = "/mock/videos/final-video.mp4";
+    mocks.getVideoById.mockReturnValue(
+      buildExistingVideo({
+        id: "redownload-target",
+        mediaType: "video",
+        videoPath: "/videos/final-video.mp4",
+        videoFilename: "final-video.mp4",
+        thumbnailPath: "/images/final-thumb.jpg",
+        thumbnailFilename: "final-thumb.jpg",
+      }),
+    );
+    allocator.setOutputPathAllocatorVideoProviderForTests(() => [
+      {
+        id: "redownload-target",
+        videoPath: "/videos/final-video.mp4",
+        thumbnailPath: "/images/final-thumb.jpg",
+        subtitles: [],
+      },
+    ] as any);
+    cancelAfterSubtitles();
+
+    await expect(
+      downloadSinglePart(
+        "https://www.bilibili.com/video/BV1cancelowned",
+        1,
+        1,
+        "",
+        "download-cancel-owned",
+        undefined,
+        undefined,
+        undefined,
+        { existingLocalVideoId: "redownload-target" } as any,
+      ),
+    ).rejects.toThrow();
+
+    const cleanupCalls = mocks.cleanupFilesOnCancellation.mock.calls.filter(
+      (call: any[]) => call[0] === ownedVideoPath,
+    );
+    expect(cleanupCalls).toEqual([]);
+  });
+
+  it("does not clean up a thumbnail destination it never created", async () => {
+    // No thumbnail was saved, so thumbnail collision checks were disabled and
+    // the planned path can belong to another row this download never touched.
+    mocks.downloadThumbnail.mockResolvedValue(false);
+    cancelAfterSubtitles();
+
+    await expect(
+      downloadSinglePart(
+        "https://www.bilibili.com/video/BV1cancelnothumb",
+        1,
+        1,
+        "",
+        "download-cancel-nothumb",
+      ),
+    ).rejects.toThrow();
+
+    const finalCleanup = mocks.cleanupFilesOnCancellation.mock.calls.find(
+      (call: any[]) => call[0] === "/mock/videos/final-video.mp4",
+    );
+    expect(finalCleanup).toBeDefined();
+    expect(finalCleanup?.[1]).toBeUndefined();
   });
 
   it("writes /videos thumbnail paths for existing videos when moveThumbnailsToVideoFolder is enabled", async () => {

@@ -39,6 +39,7 @@ import {
   prepareFilePaths,
   renameFilesWithMetadata,
 } from "./bilibiliFileManager";
+import { isManagedPathOwnedByLocalVideoId } from "../../filenameTemplate/outputPathAllocator";
 import {
   extractPartMetadata,
   getFileSize,
@@ -365,8 +366,31 @@ export async function downloadSinglePart(
     try {
       downloader.throwIfCancelledPublic(downloadId);
     } catch (error) {
-      // Clean up any files that were created
-      await cleanupFilesOnCancellation(newVideoPath, newThumbnailPath);
+      // Clean up only files this download actually created. Two destinations
+      // must survive cancellation:
+      //  - A redownload that resolved to the selected row's current path has
+      //    already replaced that file in place and dropped its backup, so the
+      //    row still references this path and the original cannot be restored.
+      //    Deleting it would leave the row pointing at nothing.
+      //  - A planned thumbnail path is returned even when no thumbnail was
+      //    saved, and thumbnail collision checks are disabled in that case, so
+      //    the path can belong to another row that this download never touched.
+      const redownloadTargetId = existingLocalVideoForRedownload?.id;
+      const videoPathToCleanup = isManagedPathOwnedByLocalVideoId(
+        newVideoPath,
+        redownloadTargetId
+      )
+        ? undefined
+        : newVideoPath;
+      const thumbnailPathToCleanup =
+        thumbnailSaved &&
+        !isManagedPathOwnedByLocalVideoId(newThumbnailPath, redownloadTargetId)
+          ? newThumbnailPath
+          : undefined;
+      await cleanupFilesOnCancellation(
+        videoPathToCleanup,
+        thumbnailPathToCleanup
+      );
       throw DownloadCancelledError.create();
     }
 
