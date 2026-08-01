@@ -515,7 +515,9 @@ async function processOneVideo(
       moveOutputFamilyWithJournalSync(moves, () => {
         // Commit DB update in one transaction. If this throws, the journaled
         // move helper rolls the already-moved family back before surfacing the
-        // error to the job item.
+        // error to the job item. Once it returns, that helper stops rolling
+        // back, so a later journal I/O error cannot move these files out from
+        // under the rows committed here.
         db.transaction(() => {
           const now = new Date().toISOString();
           db.update(videos)

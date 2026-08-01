@@ -851,6 +851,79 @@ describe("outputPathAllocator", () => {
     ).toEqual([]);
   });
 
+  it("keeps moved files when only the post-commit journal write fails", async () => {
+    const root = makeTempRoot();
+    const sourcePath = path.join(root, "videos", "Episode.mp4");
+    const movedPath = path.join(root, "videos", "Series", "Episode.mp4");
+    fs.outputFileSync(sourcePath, "video");
+    const allocator = await loadAllocator(root);
+
+    // The callback stands in for the batch-rename SQLite commit. Once it has
+    // returned, the database references the new path, so a journal I/O failure
+    // must not move the file back out from under it.
+    let committed = false;
+    const realWriteFileSync = fs.writeFileSync;
+    vi.spyOn(fs, "writeFileSync").mockImplementation(((
+      file: any,
+      data: any,
+      options: any
+    ) => {
+      if (typeof data === "string" && data.includes('"step": "committed"')) {
+        throw new Error("journal disk full");
+      }
+      return (realWriteFileSync as any)(file, data, options);
+    }) as typeof fs.writeFileSync);
+
+    expect(() =>
+      allocator.moveOutputFamilyWithJournalSync(
+        [
+          {
+            from: sourcePath,
+            fromBase: path.join(root, "videos"),
+            to: movedPath,
+            toBase: path.join(root, "videos"),
+            kind: "video",
+          },
+        ],
+        () => {
+          committed = true;
+        }
+      )
+    ).not.toThrow();
+
+    expect(committed).toBe(true);
+    expect(fs.readFileSync(movedPath, "utf8")).toBe("video");
+    expect(fs.existsSync(sourcePath)).toBe(false);
+  });
+
+  it("still rolls back when the commit callback itself throws", async () => {
+    const root = makeTempRoot();
+    const sourcePath = path.join(root, "videos", "Episode.mp4");
+    const movedPath = path.join(root, "videos", "Series", "Episode.mp4");
+    fs.outputFileSync(sourcePath, "video");
+    const allocator = await loadAllocator(root);
+
+    expect(() =>
+      allocator.moveOutputFamilyWithJournalSync(
+        [
+          {
+            from: sourcePath,
+            fromBase: path.join(root, "videos"),
+            to: movedPath,
+            toBase: path.join(root, "videos"),
+            kind: "video",
+          },
+        ],
+        () => {
+          throw new Error("sqlite commit failed");
+        }
+      )
+    ).toThrow("sqlite commit failed");
+
+    expect(fs.readFileSync(sourcePath, "utf8")).toBe("video");
+    expect(fs.existsSync(movedPath)).toBe(false);
+  });
+
   it("uses media existence when isolated lease directories cannot coordinate", async () => {
     const mediaRoot = makeTempRoot();
     const dataOne = fs.mkdtempSync(path.join(os.tmpdir(), "mytube-allocator-data-"));

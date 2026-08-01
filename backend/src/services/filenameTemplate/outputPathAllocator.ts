@@ -1066,6 +1066,9 @@ export function moveOutputFamilyWithJournalSync(
 
   const allocationId = crypto.randomUUID();
   const completedMoves: OutputFamilyMove[] = [];
+  // Tracks whether a commit callback ran to completion. Once it has, the caller
+  // has durably recorded the new paths and the files must stay where they are.
+  let databaseCommitted = false;
   writeOutputFamilyJournalSync(allocationId, {
     step: "prepared",
     purpose: "relocation",
@@ -1088,7 +1091,10 @@ export function moveOutputFamilyWithJournalSync(
       });
     }
 
-    afterMoves?.();
+    if (afterMoves) {
+      afterMoves();
+      databaseCommitted = true;
+    }
     writeOutputFamilyJournalSync(allocationId, {
       step: "committed",
       purpose: "relocation",
@@ -1097,6 +1103,26 @@ export function moveOutputFamilyWithJournalSync(
     });
     removeOutputFamilyJournalSync(allocationId);
   } catch (error) {
+    if (databaseCommitted) {
+      // Only the journal bookkeeping failed: the moves landed and the callback
+      // already committed the new paths. Rolling the files back here would
+      // strand those rows on destinations that no longer exist, so keep the
+      // files and leave a journal breadcrumb instead of failing an operation
+      // that actually succeeded.
+      try {
+        writeOutputFamilyJournalSync(allocationId, {
+          step: "commit_journal_failed",
+          purpose: "relocation",
+          moves,
+          completedMoves,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      } catch {
+        // The prior "moving" journal already records the completed moves.
+      }
+      return;
+    }
+
     let rollbackFailed = false;
     for (const move of completedMoves.slice().reverse()) {
       try {

@@ -21,12 +21,14 @@ import {
   pathExistsSafeSync,
   resolveSafeChildPath,
   statSafeSync,
+  unlinkSafeSync,
   writeFileSafeSync,
 } from "../../utils/security";
 import {
   planOwnedReplacementStagingPathSync,
   replaceOwnedFileWithBackupSync,
 } from "../filenameTemplate/outputPathAllocator";
+import { resolveManagedWebPath } from "../filenameTemplate/pathHelpers";
 import { FilenameTemplateSourceOptions } from "../filenameTemplate/types";
 import {
   flagsToArgs,
@@ -112,6 +114,38 @@ function resolveExistingVideoForRedownload(
   }
 
   return selectedVideo;
+}
+
+/**
+ * Resolves the previous video file that a redownload has superseded, or null
+ * when nothing should be removed.
+ *
+ * A filename-template or organization change moves the redownload to a new path,
+ * leaving the old file unreferenced by any row and invisible to the collision
+ * audit. Absolute paths are compared rather than filenames so a directory-only
+ * change is caught too, and so an in-place replacement — where the previous path
+ * is the file that was just written — is never selected for deletion.
+ */
+export function resolveSupersededMissAvVideoPath(
+  existingVideo: { videoPath?: string; videoFilename?: string },
+  newVideoPath: string
+): string | null {
+  const previousResolved = existingVideo.videoPath
+    ? resolveManagedWebPath(existingVideo.videoPath)
+    : null;
+  const previousVideoPath = previousResolved
+    ? previousResolved.absolutePath
+    : existingVideo.videoFilename
+      ? resolveSafeChildPath(VIDEOS_DIR, existingVideo.videoFilename)
+      : null;
+
+  if (!previousVideoPath) {
+    return null;
+  }
+
+  return path.normalize(previousVideoPath) !== path.normalize(newVideoPath)
+    ? previousVideoPath
+    : null;
 }
 
 export class MissAVDownloader extends BaseDownloader {
@@ -830,6 +864,30 @@ export class MissAVDownloader extends BaseDownloader {
         if (!updatedVideo) {
           throw new Error(`Failed to update existing MissAV video ${existingLocalVideo.id}`);
         }
+
+        const previousVideoPath = resolveSupersededMissAvVideoPath(
+          existingLocalVideo,
+          newVideoPath
+        );
+        if (previousVideoPath) {
+          try {
+            if (
+              pathExistsSafeSync(previousVideoPath, VIDEOS_DIR) &&
+              !storageService.isVideoFileReferencedByOtherVideo(
+                existingLocalVideo,
+                existingLocalVideo.id,
+              )
+            ) {
+              unlinkSafeSync(previousVideoPath, VIDEOS_DIR);
+              logger.info(
+                `Deleted superseded MissAV video file: ${existingLocalVideo.videoPath || existingLocalVideo.videoFilename}`
+              );
+            }
+          } catch (e) {
+            logger.error("Failed to delete superseded MissAV video file:", e);
+          }
+        }
+
         removeMediaServerArtifactsForVideo(existingLocalVideo);
         persistedVideoData = updatedVideo;
         if (sourceVideoId) {
