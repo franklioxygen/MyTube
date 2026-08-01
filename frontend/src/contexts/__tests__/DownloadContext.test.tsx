@@ -79,10 +79,10 @@ vi.mock('../../components/ChannelSubscribeChoiceModal', () => ({
 }));
 
 vi.mock('../../components/SubscribeModal', () => ({
-  default: ({ open, onClose, onConfirm, enableDownloadOrder, source }: any) =>
+  default: ({ open, onClose, onConfirm, playlistMode, source }: any) =>
     open ? (
       <div data-testid="subscribe-modal">
-        <div>{enableDownloadOrder ? 'mode-video' : 'mode-playlist'}</div>
+        <div>{playlistMode ? 'mode-playlist' : 'mode-video'}</div>
         <div>{`source-${source || 'none'}`}</div>
         <button onClick={() => onConfirm({ interval: 30, downloadAllPrevious: true, downloadShorts: false, downloadOrder: 'viewsDesc', filenameTemplate: null })}>confirm-subscribe</button>
         <button onClick={onClose}>close-subscribe</button>
@@ -423,6 +423,7 @@ describe('DownloadContext', () => {
         url: 'https://www.youtube.com/@playlist-channel/playlists',
         interval: 30,
         downloadAllPrevious: true,
+        downloadOrder: 'viewsDesc',
       });
     });
 

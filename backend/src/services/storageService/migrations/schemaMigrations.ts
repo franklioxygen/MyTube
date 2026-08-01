@@ -1,5 +1,6 @@
 import { sqlite } from "../../../db";
 import { MigrationError } from "../../../errors/DownloadErrors";
+import { extractSourceVideoId } from "../../../utils/helpers";
 import { logger } from "../../../utils/logger";
 import { backfillLegacyCollectionOrigins } from "../authorCollectionUtils";
 import {
@@ -23,6 +24,39 @@ function columnNames(tableInfo: unknown[]): string[] {
   return (tableInfo as TableColumnInfo[]).map((col) => col.name);
 }
 
+function backfillVideoSourceIdsFromSourceUrls(): void {
+  const rows = sqlite
+    .prepare(
+      `SELECT id, source_url AS sourceUrl
+       FROM videos
+       WHERE source_video_id IS NULL
+         AND source_url IS NOT NULL
+         AND TRIM(source_url) <> ''`
+    )
+    .all() as Array<{ id: string; sourceUrl: string }>;
+
+  if (rows.length === 0) {
+    return;
+  }
+
+  const update = sqlite.prepare(
+    "UPDATE videos SET source_video_id = ? WHERE id = ? AND source_video_id IS NULL"
+  );
+  let updated = 0;
+  for (const row of rows) {
+    const sourceVideoId = extractSourceVideoId(row.sourceUrl).id;
+    if (!sourceVideoId) {
+      continue;
+    }
+    const result = update.run(sourceVideoId, row.id);
+    updated += result.changes;
+  }
+
+  if (updated > 0) {
+    logger.info(`Backfilled source_video_id from source_url for ${updated} video rows.`);
+  }
+}
+
 // Create performance indexes on the videos, collection_videos, and collections
 // tables for existing databases. These indexes are declared in the schema but
 // older installs created via runtime self-heal (rather than drizzle-kit) will
@@ -33,6 +67,10 @@ function migratePerformanceIndexes(): void {
     {
       label: "videos.source_url",
       sql: "CREATE INDEX IF NOT EXISTS idx_videos_source_url ON videos (source_url)",
+    },
+    {
+      label: "videos.source_video_id",
+      sql: "CREATE INDEX IF NOT EXISTS idx_videos_source_video_id ON videos (source_video_id)",
     },
     {
       label: "videos.created_at",
@@ -646,6 +684,43 @@ export function migrateColumnsAndTables(): void {
       logger.info("Migration successful: media_type added.");
     }
 
+    if (!columns.includes("source_video_id")) {
+      logger.info(
+        "Migrating database: Adding source_video_id column to videos table..."
+      );
+      sqlite.prepare("ALTER TABLE videos ADD COLUMN source_video_id TEXT").run();
+      logger.info("Migration successful: source_video_id added.");
+    }
+
+    try {
+      sqlite
+        .prepare(
+          `UPDATE videos
+           SET source_video_id = (
+             SELECT vd.source_video_id
+             FROM video_downloads vd
+             WHERE vd.video_id = videos.id
+             LIMIT 1
+           )
+           WHERE source_video_id IS NULL
+             AND EXISTS (
+               SELECT 1 FROM video_downloads vd WHERE vd.video_id = videos.id
+             )
+             AND (
+               SELECT COUNT(*) FROM video_downloads vd WHERE vd.video_id = videos.id
+             ) = 1`
+        )
+        .run();
+    } catch (backfillError) {
+      logger.warn(
+        "Source video id backfill skipped",
+        backfillError instanceof Error
+          ? backfillError
+          : new Error(String(backfillError))
+      );
+    }
+    backfillVideoSourceIdsFromSourceUrls();
+
     // Check downloads table columns
     const downloadsTableInfo = sqlite
       .prepare("PRAGMA table_info(downloads)")
@@ -752,6 +827,35 @@ export function migrateColumnsAndTables(): void {
         indexError instanceof Error ? indexError : new Error(String(indexError))
       );
     }
+
+    try {
+      sqlite
+        .prepare(
+          `UPDATE videos
+           SET source_video_id = (
+             SELECT vd.source_video_id
+             FROM video_downloads vd
+             WHERE vd.video_id = videos.id
+             LIMIT 1
+           )
+           WHERE source_video_id IS NULL
+             AND EXISTS (
+               SELECT 1 FROM video_downloads vd WHERE vd.video_id = videos.id
+             )
+             AND (
+               SELECT COUNT(*) FROM video_downloads vd WHERE vd.video_id = videos.id
+             ) = 1`
+        )
+        .run();
+    } catch (backfillError) {
+      logger.warn(
+        "Source video id backfill skipped after video_downloads self-heal",
+        backfillError instanceof Error
+          ? backfillError
+          : new Error(String(backfillError))
+      );
+    }
+    backfillVideoSourceIdsFromSourceUrls();
 
     // Ensure RSS tokens table exists even if older self-healing migrations stopped
     // Drizzle before the RSS migration was applied.

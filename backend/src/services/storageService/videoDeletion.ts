@@ -10,7 +10,10 @@ import {
 import { db } from "../../db";
 import { videos } from "../../db/schema";
 import { DatabaseError } from "../../errors/DownloadErrors";
-import { resolveManagedWebPath } from "../filenameTemplate/pathHelpers";
+import {
+  canonicalizeManagedPath,
+  resolveManagedWebPath,
+} from "../filenameTemplate/pathHelpers";
 import { removeMediaServerArtifactsForVideo } from "../mediaServerExport";
 import { logger } from "../../utils/logger";
 import { getCollections } from "./collections";
@@ -151,6 +154,37 @@ export function isThumbnailReferencedByOtherVideo(
           candidate.thumbnailPath === video.thumbnailPath)
     );
   });
+}
+
+function canonicalManagedVideoReference(
+  video: import("./types").Video
+): string | null {
+  if (video.videoPath) {
+    const resolved = resolveManagedWebPath(video.videoPath);
+    return resolved?.prefix === "/videos"
+      ? canonicalizeManagedPath(resolved.absolutePath)
+      : null;
+  }
+
+  return video.videoFilename
+    ? canonicalizeManagedPath(`/videos/${video.videoFilename}`)
+    : null;
+}
+
+export function isVideoFileReferencedByOtherVideo(
+  video: import("./types").Video,
+  exceptionId: string
+): boolean {
+  const managedReference = canonicalManagedVideoReference(video);
+  if (!managedReference) {
+    return false;
+  }
+
+  return getVideos().some(
+    (candidate) =>
+      candidate.id !== exceptionId &&
+      canonicalManagedVideoReference(candidate) === managedReference
+  );
 }
 
 function deleteVideoFile(

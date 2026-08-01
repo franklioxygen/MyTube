@@ -65,6 +65,7 @@ export {
     getVideosListETag,
     isCloudFileVisibleToVisitor,
     isThumbnailReferencedByOtherVideo,
+    isVideoFileReferencedByOtherVideo,
     isVideoPublic,
     saveVideo,
     saveVideoIfAbsent,
@@ -72,6 +73,15 @@ export {
     updateVideo
 } from "./videos";
 export type { MediaVisibility, VideoCallerRole } from "./videos";
+
+// Downloaded media identity persistence
+export {
+    persistDownloadedMediaIdentity
+} from "./downloadedMediaIdentity";
+export type {
+    DownloadedMediaTrackingMode,
+    PersistDownloadedMediaInput
+} from "./downloadedMediaIdentity";
 
 // Collections
 export {
@@ -109,4 +119,8 @@ export { findImageFile, findVideoFile, moveFile } from "./fileHelpers";
 export { cleanupCollectionDirectories } from "./collectionFileManager";
 
 // Filename Template path helpers (re-exported for convenience)
-export { getManagedRelativePath, resolveManagedWebPath } from "../filenameTemplate/pathHelpers";
+export {
+    canonicalizeManagedPath,
+    getManagedRelativePath,
+    resolveManagedWebPath
+} from "../filenameTemplate/pathHelpers";

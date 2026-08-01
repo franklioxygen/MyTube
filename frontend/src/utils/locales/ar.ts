@@ -995,6 +995,11 @@ export const ar = {
     "قد تستغرق القنوات الكبيرة وقتاً أطول لجلب البيانات الوصفية قبل بدء التنزيل.",
   downloadOrderShortsHint:
     "سيتم إنشاء مهمتي تنزيل: واحدة للفيديوهات الرئيسية وأخرى للـ Shorts.",
+  preparingOrderMetadata: "جارٍ تحضير بيانات ترتيب التنزيل...",
+  selectedDownloadOrder: "الترتيب: {order}",
+  retryOrderPreparation: "إعادة تحضير الترتيب",
+  orderPreparationRetryStarted: "بدأت إعادة محاولة تحضير الترتيب",
+  orderPreparationRetryFailed: "فشلت إعادة محاولة تحضير الترتيب",
   downloadAllPreviousWarning:
     "تحذير: سيؤدي هذا إلى تنزيل جميع مقاطع الفيديو السابقة لهذا المؤلف. قد يستهلك هذا مساحة تخزين كبيرة وقد يؤدي إلى تفعيل آليات اكتشاف الروبوتات التي قد تؤدي إلى حظر مؤقت أو دائم من المنصة. استخدم على مسؤوليتك الخاصة.",
   downloadAllPreviousVideosInPlaylists:
@@ -1241,7 +1246,7 @@ export const ar = {
   authorOrganizationModeRecommendation:
     "إذا كنت تريد مجلدات حسب المؤلف بدون مجموعات مؤلف مكررة داخل MyTube فاستخدم مجلدات المؤلف فقط.",
   authorOrganizationModeTemplateNote:
-    "إعدادات أسماء الملفات غير legacy تتحكم في بنية المجلدات الفعلية. في هذه الأوضاع يؤثر تنظيم المؤلف فقط على ربط المجموعات.",
+    "تنطبق مجلدات المؤلف على إعدادات أسماء الملفات legacy وغير legacy. يتم إنشاء مجلدات القالب الفرعية داخل مجلد المؤلف عند تفعيل وضع مجلد المؤلف.",
   cleanupAuthorCollections: "تنظيف مجموعات المؤلف الحالية",
   cleanupAuthorCollectionsDescription:
     "بعد التبديل إلى مجلدات المؤلف فقط، أزل روابط مجموعات المؤلف الزائدة من الفيديوهات التي تنتمي بالفعل إلى مجموعة أخرى. لن يتم نقل الملفات على القرص.",
@@ -1451,6 +1456,7 @@ export const ar = {
   filenamePresetPlaylistStaticDate:
     "قائمة التشغيل – الموسم 1 / الحلقة حسب التاريخ",
   filenamePresetSourceDateFlat: "المصدر – التاريخ ثم العنوان",
+  filenamePresetSourceDateId: "المصدر - التاريخ، العنوان، معرّف المصدر",
   filenamePresetCustom: "قالب مخصص",
   filenameCustomTemplateLabel: "قالب مخصص",
   filenameCustomTemplatePlaceholder: "{{ source_collection_name }}/{{ season_by_year__episode_by_date_and_index }} - {{ title }}.{{ ext }}",
@@ -1465,6 +1471,8 @@ export const ar = {
     "المتغير media_playlist_index غير متاح للمصادر غير التابعة لقائمة تشغيل وسيتم الرجوع إلى 00.",
   filenameWarningSourceCollectionMetadataMayBeEmpty:
     "قد يكون source_collection_name/id فارغًا في تنزيلات الفيديو المفردة.",
+  filenameWarningIdSourceSemanticsV2:
+    "أصبح id يعني دائماً معرّف فيديو منصة المصدر. كانت إعادة تسمية المكتبة الحالية دفعةً واحدة تستخدم سابقاً معرّف صف MyTube المحلي. استخدم local_video_id إذا كنت تحتاج إلى القيمة السابقة.",
   filenameValidating: "جارٍ التحقق…",
   filenameValidationError: "خطأ في القالب",
   filenameBatchRenameButton:
@@ -1504,7 +1512,10 @@ export const ar = {
   filenameRefSectionRawMetadataTitle: 'بيانات yt-dlp الوصفية الخام',
   filenameRefSectionRawMetadataDescription: 'تكشف هذه الأنماط بيانات yt-dlp الوصفية بما يتجاوز الأسماء المستعارة المضمنة.',
   filenameRefItemTitleDesc: 'عنوان الفيديو.',
-  filenameRefItemIdDesc: 'معرف الفيديو على المنصة أو المعرف المحلي للفيديو.',
+  filenameRefItemIdDesc: "اسم مستعار لمعرّف فيديو منصة المصدر الثابت.",
+  filenameRefItemSourceVideoIdDesc: "معرّف فيديو منصة المصدر الثابت.",
+  filenameRefItemLocalVideoIdDesc: "معرّف صف مكتبة MyTube المحلي.",
+  filenameRefItemDownloadDatetimeDesc: "وقت التنزيل بالتوقيت العالمي UTC بصيغة YYYY-MM-DD_HH-MM-SS.",
   filenameRefItemExtDesc: 'امتداد الملف النهائي بدون النقطة.',
   filenameRefItemUploaderDesc: 'اسم المُحمِّل أو المؤلف.',
   filenameRefItemChannelDesc: 'اسم القناة، مع الرجوع إلى المُحمِّل.',

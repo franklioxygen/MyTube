@@ -977,6 +977,11 @@ export const zh = {
     "大型频道在开始下载前可能需要较长时间获取元数据。",
   downloadOrderShortsHint:
     "将创建两个下载任务：一个用于主视频，一个用于 Shorts。",
+  preparingOrderMetadata: "正在准备排序元数据...",
+  selectedDownloadOrder: "排序：{order}",
+  retryOrderPreparation: "重试排序准备",
+  orderPreparationRetryStarted: "已开始重试排序准备",
+  orderPreparationRetryFailed: "重试排序准备失败",
   downloadAllPreviousWarning:
     "警告：这将下载此作者的所有历史视频。这可能会消耗大量存储空间，并可能触发机器人检测机制，导致平台临时或永久封禁。使用风险自负。",
   downloadAllPreviousVideosInPlaylists: "下载播放列表中以前的视频",
@@ -1217,7 +1222,7 @@ export const zh = {
   authorOrganizationModeRecommendation:
     "如果你想保留按作者分文件夹、但不想在 MyTube 里出现重复的作者合集，推荐使用“仅作者文件夹”。",
   authorOrganizationModeTemplateNote:
-    "非 legacy 文件名预设会控制实际文件夹结构。在这些模式下，作者整理只影响合集关联。",
+    "作者文件夹现在同时适用于 legacy 和非 legacy 文件名预设。启用作者文件夹模式时，模板子文件夹会创建在作者文件夹内。",
   cleanupAuthorCollections: "清理现有作者合集",
   cleanupAuthorCollectionsDescription:
     "切换到“仅作者文件夹”后，移除已经属于其他合集的视频上的冗余作者合集关联。不会移动磁盘上的文件。",
@@ -1408,6 +1413,7 @@ export const zh = {
   filenamePresetPlaylistStaticIndex: "播放列表 – 第1季 / 按序号分集",
   filenamePresetPlaylistStaticDate: "播放列表 – 第1季 / 按日期分集",
   filenamePresetSourceDateFlat: "来源 – 日期后接标题",
+  filenamePresetSourceDateId: "来源 - 日期、标题、来源 ID",
   filenamePresetCustom: "自定义模板",
   filenameCustomTemplateLabel: "自定义模板",
   filenameCustomTemplatePlaceholder: "{{ source_collection_name }}/{{ season_by_year__episode_by_date_and_index }} - {{ title }}.{{ ext }}",
@@ -1422,6 +1428,8 @@ export const zh = {
     "非播放列表来源不提供 media_playlist_index，将回退为 00。",
   filenameWarningSourceCollectionMetadataMayBeEmpty:
     "对于单视频下载，source_collection_name/id 可能为空。",
+  filenameWarningIdSourceSemanticsV2:
+    "id 现在始终表示来源平台的视频 ID。现有库的批量重命名以前使用 MyTube 的本地行 ID。如果需要以前的值，请使用 local_video_id。",
   filenameValidating: "验证中…",
   filenameValidationError: "模板错误",
   filenameBatchRenameButton: "重命名现有文件以匹配当前命名模式",
@@ -1452,7 +1460,10 @@ export const zh = {
   filenameRefSectionRawMetadataTitle: '原始 yt-dlp 元数据',
   filenameRefSectionRawMetadataDescription: '这些模式可访问内置别名之外的 yt-dlp 元数据。',
   filenameRefItemTitleDesc: '视频标题。',
-  filenameRefItemIdDesc: '平台视频 ID 或本地视频 ID。',
+  filenameRefItemIdDesc: "稳定来源平台视频 ID 的别名。",
+  filenameRefItemSourceVideoIdDesc: "稳定的来源平台视频 ID。",
+  filenameRefItemLocalVideoIdDesc: "MyTube 库中的本地行 ID。",
+  filenameRefItemDownloadDatetimeDesc: "UTC 下载时间，格式为 YYYY-MM-DD_HH-MM-SS。",
   filenameRefItemExtDesc: '不含点号的最终文件扩展名。',
   filenameRefItemUploaderDesc: '上传者或作者名称。',
   filenameRefItemChannelDesc: '频道名称，回退为上传者。',

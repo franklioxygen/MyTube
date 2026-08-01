@@ -4,6 +4,7 @@ import * as cloudStorageController from "../controllers/cloudStorageController";
 import * as collectionController from "../controllers/collectionController";
 import * as downloadController from "../controllers/downloadController";
 import * as favoriteController from "../controllers/favoriteController";
+import * as mediaCollisionAuditController from "../controllers/mediaCollisionAuditController";
 import * as recommendationController from "../controllers/recommendationController";
 import * as rssController from "../controllers/rssController";
 import * as scanController from "../controllers/scanController";
@@ -357,6 +358,14 @@ const apiRouteDefinitions: ApiRouteDefinition[] = [
     handlers: [asyncHandler(subscriptionController.resumeContinuousDownloadTask)],
   },
   {
+    method: "post",
+    path: "/subscriptions/tasks/:id/retry-planning",
+    handlers: [
+      requireAdmin,
+      asyncHandler(subscriptionController.retryContinuousDownloadTaskPlanning),
+    ],
+  },
+  {
     method: "delete",
     path: "/subscriptions/tasks/:id",
     handlers: [asyncHandler(subscriptionController.cancelContinuousDownloadTask)],
@@ -395,6 +404,22 @@ const apiRouteDefinitions: ApiRouteDefinition[] = [
     path: "/system/version",
     allowApiKey: true,
     handlers: [asyncHandler(systemController.getLatestVersion)],
+  },
+  {
+    method: "get",
+    path: "/media-collision-audit",
+    handlers: [
+      requireAdmin,
+      asyncHandler(mediaCollisionAuditController.getMediaCollisionAudit),
+    ],
+  },
+  {
+    method: "post",
+    path: "/media-collision-audit/repair",
+    handlers: [
+      requireAdmin,
+      asyncHandler(mediaCollisionAuditController.repairMediaCollisionAuditFinding),
+    ],
   },
 
   // Statistics

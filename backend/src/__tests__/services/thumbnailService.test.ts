@@ -55,7 +55,9 @@ describe('ThumbnailService', () => {
       ];
 
       (storageService.getVideos as any).mockReturnValue(mockVideos);
-      (fs.existsSync as any).mockReturnValue(true);
+      (fs.existsSync as any).mockImplementation((p: string) =>
+        p === path.join(IMAGES_DIR, 'thumb1.jpg')
+      );
       (fs.moveSync as any).mockReturnValue(undefined);
       (storageService.updateVideo as any).mockReturnValue(undefined);
 
@@ -64,9 +66,10 @@ describe('ThumbnailService', () => {
       expect(fs.moveSync).toHaveBeenCalledWith(
         path.join(IMAGES_DIR, 'thumb1.jpg'),
         path.join(VIDEOS_DIR, 'thumb1.jpg'),
-        { overwrite: true }
+        { overwrite: false }
       );
       expect(storageService.updateVideo).toHaveBeenCalledWith('video-1', {
+        thumbnailFilename: 'thumb1.jpg',
         thumbnailPath: '/videos/thumb1.jpg',
       });
       expect(result.movedCount).toBe(1);
@@ -85,7 +88,9 @@ describe('ThumbnailService', () => {
       ];
 
       (storageService.getVideos as any).mockReturnValue(mockVideos);
-      (fs.existsSync as any).mockReturnValue(true);
+      (fs.existsSync as any).mockImplementation((p: string) =>
+        p === path.join(VIDEOS_DIR, 'thumb1.jpg')
+      );
       (fs.ensureDirSync as any).mockReturnValue(undefined);
       (fs.moveSync as any).mockReturnValue(undefined);
       (storageService.updateVideo as any).mockReturnValue(undefined);
@@ -95,9 +100,10 @@ describe('ThumbnailService', () => {
       expect(fs.moveSync).toHaveBeenCalledWith(
         path.join(VIDEOS_DIR, 'thumb1.jpg'),
         path.join(IMAGES_DIR, 'thumb1.jpg'),
-        { overwrite: true }
+        { overwrite: false }
       );
       expect(storageService.updateVideo).toHaveBeenCalledWith('video-1', {
+        thumbnailFilename: 'thumb1.jpg',
         thumbnailPath: '/images/thumb1.jpg',
       });
       expect(result.movedCount).toBe(1);
@@ -116,7 +122,9 @@ describe('ThumbnailService', () => {
       ];
 
       (storageService.getVideos as any).mockReturnValue(mockVideos);
-      (fs.existsSync as any).mockReturnValue(true);
+      (fs.existsSync as any).mockImplementation((p: string) =>
+        p === path.join(IMAGES_DIR, 'thumb1.jpg')
+      );
       (fs.moveSync as any).mockReturnValue(undefined);
       (storageService.updateVideo as any).mockReturnValue(undefined);
 
@@ -125,9 +133,10 @@ describe('ThumbnailService', () => {
       expect(fs.moveSync).toHaveBeenCalledWith(
         path.join(IMAGES_DIR, 'thumb1.jpg'),
         path.join(VIDEOS_DIR, 'MyCollection', 'thumb1.jpg'),
-        { overwrite: true }
+        { overwrite: false }
       );
       expect(storageService.updateVideo).toHaveBeenCalledWith('video-1', {
+        thumbnailFilename: 'thumb1.jpg',
         thumbnailPath: '/videos/MyCollection/thumb1.jpg',
       });
     });
@@ -266,7 +275,9 @@ describe('ThumbnailService', () => {
 
       (storageService.getVideos as any).mockReturnValue(mockVideos);
       (storageService.getCollections as any).mockReturnValue(mockCollections);
-      (fs.existsSync as any).mockReturnValue(true);
+      (fs.existsSync as any).mockImplementation((p: string) =>
+        p === path.join(IMAGES_DIR, 'thumb1.jpg')
+      );
       (fs.moveSync as any).mockReturnValue(undefined);
       (storageService.updateVideo as any).mockReturnValue(undefined);
 
@@ -275,9 +286,45 @@ describe('ThumbnailService', () => {
       expect(fs.moveSync).toHaveBeenCalledWith(
         path.join(IMAGES_DIR, 'thumb1.jpg'),
         path.join(VIDEOS_DIR, 'MyCollection', 'thumb1.jpg'),
-        { overwrite: true }
+        { overwrite: false }
       );
       expect(result.movedCount).toBe(1);
+    });
+
+    it('should suffix thumbnail targets instead of overwriting an existing file', async () => {
+      const mockVideos = [
+        {
+          id: 'video-1',
+          videoFilename: 'video1.mp4',
+          videoPath: '/videos/video1.mp4',
+          thumbnailFilename: 'thumb1.jpg',
+          thumbnailPath: '/images/thumb1.jpg',
+        },
+      ];
+
+      (storageService.getVideos as any).mockReturnValue(mockVideos);
+      (fs.existsSync as any).mockImplementation((p: string) =>
+        [
+          path.join(IMAGES_DIR, 'thumb1.jpg'),
+          path.join(VIDEOS_DIR, 'thumb1.jpg'),
+        ].includes(p)
+      );
+      (fs.moveSync as any).mockReturnValue(undefined);
+      (storageService.updateVideo as any).mockReturnValue(undefined);
+
+      const result = await moveAllThumbnails(true);
+
+      expect(fs.moveSync).toHaveBeenCalledWith(
+        path.join(IMAGES_DIR, 'thumb1.jpg'),
+        path.join(VIDEOS_DIR, 'thumb1 (2).jpg'),
+        { overwrite: false }
+      );
+      expect(storageService.updateVideo).toHaveBeenCalledWith('video-1', {
+        thumbnailFilename: 'thumb1 (2).jpg',
+        thumbnailPath: '/videos/thumb1 (2).jpg',
+      });
+      expect(result.movedCount).toBe(1);
+      expect(result.errorCount).toBe(0);
     });
   });
 });

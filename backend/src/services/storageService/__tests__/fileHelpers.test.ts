@@ -64,6 +64,7 @@ import {
   moveFile,
   removeDirectoryTreeIfEmpty,
   removeEmptyDirectoryChain,
+  renamePath,
 } from "../fileHelpers";
 
 const pathExistsTrustedSyncMock = vi.mocked(pathExistsTrustedSync);
@@ -336,11 +337,24 @@ describe("fileHelpers", () => {
       sourcePath,
       expectedAllowedStorageDirs,
       destPath,
-      expectedAllowedStorageDirs,
-      { overwrite: true }
+      expectedAllowedStorageDirs
     );
     expect(loggerInfoMock).toHaveBeenCalledWith(
       `Moved file from ${sourcePath} to ${destPath}`
+    );
+  });
+
+  it("renames without enabling overwrite", () => {
+    const sourcePath = "/safe/videos/a.mp4";
+    const destPath = "/safe/videos/b.mp4";
+
+    renamePath(sourcePath, destPath);
+
+    expect(moveSafeSyncMock).toHaveBeenCalledWith(
+      sourcePath,
+      expectedAllowedStorageDirs,
+      destPath,
+      expectedAllowedStorageDirs
     );
   });
 

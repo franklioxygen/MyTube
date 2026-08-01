@@ -18,7 +18,12 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { useSettingsJobPolling } from '../../hooks/useSettingsJobPolling';
 import { Settings } from '../../types';
 import { api } from '../../utils/apiClient';
-import { RenameJob, renameJobUrl } from './filenameTemplateShared';
+import {
+    FILENAME_ID_SOURCE_SEMANTICS_VERSION,
+    RenameJob,
+    renameJobUrl,
+    templateUsesIdAlias,
+} from './filenameTemplateShared';
 
 interface FilenameBatchRenameSectionProps {
     settings: Settings;
@@ -57,6 +62,10 @@ const FilenameBatchRenameSection: React.FC<FilenameBatchRenameSectionProps> = ({
     useSettingsJobPolling(renameJob, renameJobUrl, setRenameJob, handleRenameCompleted);
 
     const handleStartRename = async () => {
+        const acknowledgeIdSourceSemantics =
+            namingMode === 'template' && templateUsesIdAlias(effectiveTemplate)
+                ? FILENAME_ID_SOURCE_SEMANTICS_VERSION
+                : undefined;
         setStartingRename(true);
         setRenameError(null);
         try {
@@ -70,6 +79,7 @@ const FilenameBatchRenameSection: React.FC<FilenameBatchRenameSectionProps> = ({
                         settings.moveThumbnailsToVideoFolder || false,
                     moveSubtitlesToVideoFolder:
                         settings.moveSubtitlesToVideoFolder || false,
+                    acknowledgeIdSourceSemantics,
                 }
             );
             const jobData = res.data;
@@ -177,6 +187,11 @@ const FilenameBatchRenameSection: React.FC<FilenameBatchRenameSectionProps> = ({
                     <DialogContentText>
                         {t('filenameBatchRenameConfirmBody')}
                     </DialogContentText>
+                    {namingMode === 'template' && templateUsesIdAlias(effectiveTemplate) && (
+                        <Alert severity="warning" sx={{ mt: 2 }}>
+                            {t('filenameWarningIdSourceSemanticsV2')}
+                        </Alert>
+                    )}
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setConfirmOpen(false)} disabled={startingRename}>{t('cancel')}</Button>

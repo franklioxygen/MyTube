@@ -1,6 +1,7 @@
 import path from "path";
 import { v4 as uuidv4 } from "uuid";
 import { DATA_DIR } from "../config/paths";
+import { DuplicateError, ValidationError } from "../errors/DownloadErrors";
 import {
   ensureDirSafeSync,
   readFileSafeSync,
@@ -13,7 +14,24 @@ import { logger } from "../utils/logger";
 import { TaskCleanup } from "./continuousDownload/taskCleanup";
 import { TaskProcessor } from "./continuousDownload/taskProcessor";
 import { TaskRepository } from "./continuousDownload/taskRepository";
-import { ContinuousDownloadTask, DownloadOrder } from "./continuousDownload/types";
+import type {
+  ContinuousDownloadTask,
+  DownloadOrder,
+  OrderingMetadataWarning,
+} from "./continuousDownload/types";
+import {
+  createFrozenDownloadPlanV2,
+  getFrozenPlanUrls,
+  parseFrozenDownloadPlan,
+  validateFrozenPlanForTask,
+} from "./continuousDownload/frozenDownloadPlan";
+import {
+  OrderingPlanInvalidError,
+  OrderingPlanPersistError,
+  createPlanningFailureFromError,
+  parseOrderingPlanningFailure,
+  serializeOrderingPlanningFailure,
+} from "./continuousDownload/planningErrors";
 import { sortVideoEntries, VideoUrlFetcher } from "./continuousDownload/videoUrlFetcher";
 
 const FROZEN_LISTS_DIR = path.join(DATA_DIR, "frozen-lists");
@@ -105,6 +123,133 @@ export class ContinuousDownloadService {
     return resolvedPath;
   }
 
+  private readFrozenPlanUrls(
+    task: ContinuousDownloadTask,
+    effectiveOrder?: DownloadOrder
+  ): string[] | undefined {
+    if (!task.frozenVideoListPath) {
+      return undefined;
+    }
+
+    const safeFrozenListPath = this.resolveStoredFrozenListPath(
+      task.frozenVideoListPath
+    );
+    const raw = readFileSafeSync(
+      safeFrozenListPath,
+      this.getFrozenListsRoot(),
+      "utf8"
+    );
+    const plan = parseFrozenDownloadPlan(raw);
+
+    if (!effectiveOrder) {
+      return getFrozenPlanUrls(plan);
+    }
+
+    if (
+      plan.version === 1 &&
+      task.currentVideoIndex === 0 &&
+      effectiveOrder !== "dateDesc"
+    ) {
+      logger.warn(
+        `Ignoring legacy frozen URL list for unstarted task ${task.id}; rebuilding ${effectiveOrder} plan`
+      );
+      return undefined;
+    }
+
+    if (!validateFrozenPlanForTask(plan, task, effectiveOrder)) {
+      if (task.currentVideoIndex === 0) {
+        logger.warn(
+          `Ignoring mismatched frozen plan for unstarted task ${task.id}; rebuilding`
+        );
+        return undefined;
+      }
+      throw new Error(
+        `Frozen download plan for task ${task.id} does not match the task source/order`
+      );
+    }
+
+    return getFrozenPlanUrls(plan);
+  }
+
+  private readFrozenPlanWarnings(
+    task: ContinuousDownloadTask
+  ): OrderingMetadataWarning[] | undefined {
+    if (!task.frozenVideoListPath) {
+      return undefined;
+    }
+
+    try {
+      const safeFrozenListPath = this.resolveStoredFrozenListPath(
+        task.frozenVideoListPath
+      );
+      const raw = readFileSafeSync(
+        safeFrozenListPath,
+        this.getFrozenListsRoot(),
+        "utf8"
+      );
+      const plan = parseFrozenDownloadPlan(raw);
+
+      if (plan.version !== 2 || plan.warnings.length === 0) {
+        return undefined;
+      }
+
+      if (!validateFrozenPlanForTask(plan, task, plan.downloadOrder)) {
+        return undefined;
+      }
+
+      const isDateOrder =
+        plan.downloadOrder === "dateAsc" || plan.downloadOrder === "dateDesc";
+      const knownCount = isDateOrder
+        ? plan.metadataStats.knownDates
+        : plan.metadataStats.knownViewCounts;
+      const unknownCount = isDateOrder
+        ? plan.metadataStats.unknownDates
+        : plan.metadataStats.unknownViewCounts;
+
+      return plan.warnings.map((message) => ({
+        code: "ORDERING_METADATA_PARTIAL",
+        message,
+        knownCount,
+        unknownCount,
+      }));
+    } catch (error) {
+      logger.warn(
+        `Could not read ordering warnings for task ${task.id}:`,
+        error
+      );
+      return undefined;
+    }
+  }
+
+  private attachFrozenPlanWarnings(
+    task: ContinuousDownloadTask
+  ): ContinuousDownloadTask {
+    const orderingWarnings = this.readFrozenPlanWarnings(task);
+    return orderingWarnings ? { ...task, orderingWarnings } : task;
+  }
+
+  private buildOrderingWarnings(
+    entries: Array<{ publishedAtMs: number | null; viewCount: number | null }>,
+    order: DownloadOrder
+  ): string[] {
+    const missingCount =
+      order === "dateAsc" || order === "dateDesc"
+        ? entries.filter((entry) => entry.publishedAtMs === null).length
+        : entries.filter((entry) => entry.viewCount === null).length;
+
+    if (missingCount === 0) {
+      return [];
+    }
+
+    const field =
+      order === "dateAsc" || order === "dateDesc"
+        ? "publication dates"
+        : "view counts";
+    return [
+      `${missingCount} of ${entries.length} videos lacked ${field} and were placed after videos with known metadata.`,
+    ];
+  }
+
   /**
    * Create a new continuous download task
    */
@@ -154,7 +299,8 @@ export class ContinuousDownloadService {
     author: string,
     platform: string,
     collectionId: string | null | undefined,
-    subscriptionId?: string
+    subscriptionId?: string,
+    downloadOrder: DownloadOrder = "dateDesc"
   ): Promise<ContinuousDownloadTask> {
     const task: ContinuousDownloadTask = {
       id: uuidv4(),
@@ -170,7 +316,7 @@ export class ContinuousDownloadService {
       failedCount: 0,
       currentVideoIndex: 0,
       createdAt: Date.now(),
-      downloadOrder: "dateDesc",
+      downloadOrder,
     };
 
     await this.taskRepository.createTask(task);
@@ -192,14 +338,16 @@ export class ContinuousDownloadService {
    * Get all tasks
    */
   async getAllTasks(): Promise<ContinuousDownloadTask[]> {
-    return this.taskRepository.getAllTasks();
+    const tasks = await this.taskRepository.getAllTasks();
+    return tasks.map((task) => this.attachFrozenPlanWarnings(task));
   }
 
   /**
    * Get a task by ID
    */
   async getTaskById(id: string): Promise<ContinuousDownloadTask | null> {
-    return this.taskRepository.getTaskById(id);
+    const task = await this.taskRepository.getTaskById(id);
+    return task ? this.attachFrozenPlanWarnings(task) : null;
   }
 
   /**
@@ -257,15 +405,7 @@ export class ContinuousDownloadService {
       let taskVideoUrls: string[] = [];
       if (task.frozenVideoListPath) {
         try {
-          const safeFrozenListPath = this.resolveStoredFrozenListPath(
-            task.frozenVideoListPath
-          );
-          const raw = readFileSafeSync(
-            safeFrozenListPath,
-            this.getFrozenListsRoot(),
-            "utf8"
-          );
-          taskVideoUrls = JSON.parse(raw) as string[];
+          taskVideoUrls = this.readFrozenPlanUrls(task) ?? [];
         } catch (err) {
           logger.debug(`Could not load frozen list for task ${id} cancellation:`, err);
         }
@@ -380,6 +520,95 @@ export class ContinuousDownloadService {
   }
 
   /**
+   * Waits for a task's worker to leave processingTasks. Returns false if it is
+   * still running when the budget expires.
+   */
+  private async waitForTaskToDrain(
+    id: string,
+    timeoutMs = 2000,
+    pollMs = 25
+  ): Promise<boolean> {
+    const deadline = Date.now() + timeoutMs;
+    while (this.processingTasks.has(id)) {
+      if (Date.now() >= deadline) {
+        return false;
+      }
+      await new Promise((resolve) => setTimeout(resolve, pollMs));
+    }
+    return true;
+  }
+
+  async retryPlanning(
+    id: string,
+    // Exposed so tests can exercise the drain race without waiting the full
+    // budget; callers use the defaults.
+    drainTimeoutMs = 2000,
+    drainPollMs = 25
+  ): Promise<ContinuousDownloadTask> {
+    const task = await this.getTaskById(id);
+    if (!task) {
+      throw new Error(`Task ${id} not found`);
+    }
+
+    const planningError = parseOrderingPlanningFailure(task.error);
+    if (!planningError || !planningError.retryable) {
+      throw new ValidationError(
+        "Task does not have a retryable ordering preparation error.",
+        "id"
+      );
+    }
+
+    if (task.status !== "cancelled") {
+      throw new ValidationError(
+        `Task ${id} must be cancelled before retrying order preparation.`,
+        "id"
+      );
+    }
+
+    if (
+      task.downloadedCount !== 0 ||
+      task.skippedCount !== 0 ||
+      task.failedCount !== 0 ||
+      task.currentVideoIndex !== 0
+    ) {
+      throw new ValidationError(
+        "Order preparation can only be retried before any task progress exists.",
+        "id"
+      );
+    }
+
+    // The worker that failed planning clears processingTasks in its finally,
+    // which runs after the cancelled-with-error state the client reacts to is
+    // already visible. Returning the unchanged cancelled task here would report
+    // a retry that never activated, and the worker would then exit and leave the
+    // task cancelled forever. Give it a moment to drain, then refuse with a
+    // conflict the client can retry rather than claiming success.
+    if (
+      this.processingTasks.has(id) &&
+      !(await this.waitForTaskToDrain(id, drainTimeoutMs, drainPollMs))
+    ) {
+      throw new DuplicateError(
+        "Order preparation retry",
+        `Task ${id} is still finishing its previous order preparation attempt. Retry in a moment.`
+      );
+    }
+
+    await this.deleteFrozenList(task);
+    await this.taskRepository.activateTaskForPlanningRetry(id);
+    this.taskProcessor.clearInterruption(id);
+
+    this.processTask(id).catch((error) => {
+      logger.error(`Error retrying order preparation for task ${id}:`, error);
+    });
+
+    const retriedTask = await this.getTaskById(id);
+    if (!retriedTask) {
+      throw new Error(`Task ${id} not found after retry`);
+    }
+    return retriedTask;
+  }
+
+  /**
    * Delete a task (remove from database)
    */
   async deleteTask(id: string): Promise<void> {
@@ -456,17 +685,21 @@ export class ContinuousDownloadService {
         if (task.frozenVideoListPath) {
           // Resume: load existing frozen list
           try {
-            const safeFrozenListPath = this.resolveStoredFrozenListPath(
-              task.frozenVideoListPath
-            );
-            const raw = readFileSafeSync(
-              safeFrozenListPath,
-              this.getFrozenListsRoot(),
-              "utf8"
-            );
-            cachedVideoUrls = JSON.parse(raw) as string[];
-            logger.info(`Loaded frozen list (${cachedVideoUrls.length} URLs) for task ${taskId}`);
+            cachedVideoUrls = this.readFrozenPlanUrls(task, effectiveOrder);
+            if (cachedVideoUrls) {
+              logger.info(`Loaded frozen list (${cachedVideoUrls.length} URLs) for task ${taskId}`);
+            }
           } catch (err) {
+            if (task.currentVideoIndex > 0) {
+              throw err instanceof OrderingPlanInvalidError
+                ? err
+                : new OrderingPlanInvalidError(
+                    task,
+                    `Failed to read frozen download plan for task ${taskId}: ${
+                      err instanceof Error ? err.message : String(err)
+                    }`
+                  );
+            }
             logger.warn(`Failed to read frozen list for task ${taskId}, will re-fetch:`, err);
             cachedVideoUrls = undefined;
           }
@@ -483,10 +716,17 @@ export class ContinuousDownloadService {
           const entries = await this.videoUrlFetcher.getAllVideoEntries(
             task.authorUrl,
             task.platform,
-            subscriptionYtdlpConfig
+            subscriptionYtdlpConfig,
+            effectiveOrder
           );
-          const sorted = sortVideoEntries(entries, effectiveOrder);
+          const sorted = sortVideoEntries(entries, effectiveOrder, task.platform);
           cachedVideoUrls = sorted.map((e) => e.url);
+          const frozenPlan = createFrozenDownloadPlanV2({
+            task,
+            downloadOrder: effectiveOrder,
+            entries: sorted,
+            warnings: this.buildOrderingWarnings(sorted, effectiveOrder),
+          });
 
           // Persist frozen list
           try {
@@ -495,7 +735,7 @@ export class ContinuousDownloadService {
             writeFileSafeSync(
               frozenPath,
               this.getFrozenListsRoot(),
-              JSON.stringify(cachedVideoUrls),
+              JSON.stringify(frozenPlan),
               "utf8"
             );
             await this.taskRepository.updateFrozenVideoListPath(taskId, frozenPath);
@@ -503,8 +743,12 @@ export class ContinuousDownloadService {
             await this.taskRepository.updateTotalVideos(taskId, cachedVideoUrls.length);
             logger.info(`Wrote frozen list (${cachedVideoUrls.length} URLs) for task ${taskId}`);
           } catch (err) {
-            logger.warn(`Failed to persist frozen list for task ${taskId}:`, err);
-            // Continue without frozen list — will be re-fetched on resume
+            throw new OrderingPlanPersistError(
+              task,
+              `Failed to persist frozen download plan for task ${taskId}: ${
+                err instanceof Error ? err.message : String(err)
+              }`
+            );
           }
         }
       }
@@ -522,13 +766,20 @@ export class ContinuousDownloadService {
       this.videoUrlCache.delete(cacheKey);
     } catch (error) {
       logger.error(`Error processing task ${taskId}:`, error);
+      const task = await this.getTaskById(taskId);
+      const planningFailure = task
+        ? createPlanningFailureFromError(error, task)
+        : null;
       await this.taskRepository.cancelTaskWithError(
         taskId,
-        error instanceof Error ? error.message : String(error)
+        planningFailure
+          ? serializeOrderingPlanningFailure(planningFailure)
+          : error instanceof Error
+            ? error.message
+            : String(error)
       );
 
       // Clean up on error
-      const task = await this.getTaskById(taskId);
       if (task) {
         const cacheKey = `${taskId}:${task.authorUrl}`;
         this.videoUrlCache.delete(cacheKey);

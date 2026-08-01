@@ -1,4 +1,4 @@
-import { AutoDelete, Cancel, Check, Close, Delete, DeleteOutline, DriveFileRenameOutline, Edit, HelpOutline, Pause, PlayArrow, Tune } from '@mui/icons-material';
+import { AutoDelete, Cancel, Check, Close, Delete, DeleteOutline, DriveFileRenameOutline, Edit, HelpOutline, Pause, PlayArrow, Replay, Tune } from '@mui/icons-material';
 import {
     Box,
     Button,
@@ -35,6 +35,7 @@ import { useSubscriptions } from '../hooks/useSubscriptions';
 import { useSettings } from '../hooks/useSettings';
 import { formatDisplayDateTimeMinutes } from '../utils/formatUtils';
 import type { TranslationKey } from '../utils/translations';
+import type { ContinuousDownloadTask } from '../types';
 
 interface Subscription {
     id: string;
@@ -55,25 +56,6 @@ interface Subscription {
     retentionDays?: number | null;
     ytdlpConfig?: string | null;
     filenameTemplate?: string | null;
-}
-
-interface ContinuousDownloadTask {
-    id: string;
-    subscriptionId?: string;
-    authorUrl: string;
-    author: string;
-    platform: string;
-    status: 'active' | 'paused' | 'completed' | 'cancelled';
-    totalVideos: number;
-    downloadedCount: number;
-    skippedCount: number;
-    failedCount: number;
-    currentVideoIndex: number;
-    createdAt: number;
-    updatedAt?: number;
-    completedAt?: number;
-    error?: string;
-    playlistName?: string;
 }
 
 const getNextCheckTimestamp = (subscription: Subscription) => {
@@ -467,9 +449,37 @@ const SubscriptionsPage: React.FC = () => {
         }
     };
 
+    const handleRetryTaskPlanning = async (task: ContinuousDownloadTask) => {
+        setTaskActionId(task.id);
+        try {
+            await api.post(`/subscriptions/tasks/${task.id}/retry-planning`);
+            showSnackbar(t('orderPreparationRetryStarted'));
+            refetchTasks();
+        } catch (error) {
+            console.error('Error retrying task order preparation:', error);
+            showSnackbar(t('orderPreparationRetryFailed'));
+        } finally {
+            setTaskActionId(null);
+        }
+    };
+
     const getTaskProgress = (task: ContinuousDownloadTask) => {
         if (task.totalVideos === 0) return 0;
         return Math.round((task.currentVideoIndex / task.totalVideos) * 100);
+    };
+
+    const isTaskPlanning = (task: ContinuousDownloadTask) =>
+        task.runtimeState?.phase === 'planning';
+
+    const getTaskOrderLabel = (task: ContinuousDownloadTask) => {
+        const order = task.downloadOrder || 'dateDesc';
+        const keyByOrder: Record<NonNullable<ContinuousDownloadTask['downloadOrder']>, TranslationKey> = {
+            dateDesc: 'downloadOrderDateDesc',
+            dateAsc: 'downloadOrderDateAsc',
+            viewsDesc: 'downloadOrderViewsDesc',
+            viewsAsc: 'downloadOrderViewsAsc',
+        };
+        return t(keyByOrder[order]);
     };
 
     const renderIntervalEditor = (subscriptionId: string, compact: boolean = false) => (
@@ -845,17 +855,54 @@ const SubscriptionsPage: React.FC = () => {
                                             >
                                                 {t(`taskStatus${task.status.charAt(0).toUpperCase() + task.status.slice(1)}` as TranslationKey)}
                                             </Typography>
+                                            {isTaskPlanning(task) && (
+                                                <Typography variant="caption" color="text.secondary">
+                                                    {t('preparingOrderMetadata')}
+                                                </Typography>
+                                            )}
                                         </TableCell>
                                         <TableCell>
                                             <Box sx={{ minWidth: 100 }}>
-                                                <LinearProgress
-                                                    variant="determinate"
-                                                    value={getTaskProgress(task)}
-                                                    sx={{ mb: 0.5 }}
-                                                />
-                                                <Typography variant="caption" color="text.secondary">
-                                                    {task.currentVideoIndex} / {task.totalVideos || '?'}
+                                                {isTaskPlanning(task) ? (
+                                                    <>
+                                                        <LinearProgress
+                                                            variant="indeterminate"
+                                                            sx={{ mb: 0.5 }}
+                                                        />
+                                                        <Typography variant="caption" color="text.secondary" display="block">
+                                                            {t('preparingOrderMetadata')}
+                                                        </Typography>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <LinearProgress
+                                                            variant="determinate"
+                                                            value={getTaskProgress(task)}
+                                                            sx={{ mb: 0.5 }}
+                                                        />
+                                                        <Typography variant="caption" color="text.secondary" display="block">
+                                                            {task.currentVideoIndex} / {task.totalVideos || '?'}
+                                                        </Typography>
+                                                    </>
+                                                )}
+                                                <Typography variant="caption" color="text.secondary" display="block">
+                                                    {t('selectedDownloadOrder', { order: getTaskOrderLabel(task) })}
                                                 </Typography>
+                                                {task.planningError && (
+                                                    <Typography variant="caption" color="error" display="block">
+                                                        {task.planningError.message}
+                                                    </Typography>
+                                                )}
+                                                {task.orderingWarnings?.map((warning) => (
+                                                    <Typography
+                                                        key={`${warning.code}-${warning.message}`}
+                                                        variant="caption"
+                                                        color="warning.main"
+                                                        display="block"
+                                                    >
+                                                        {warning.message}
+                                                    </Typography>
+                                                ))}
                                             </Box>
                                         </TableCell>
                                         <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{task.downloadedCount}</TableCell>
@@ -894,6 +941,17 @@ const SubscriptionsPage: React.FC = () => {
                                                             loading={taskActionId === task.id}
                                                         >
                                                             <PlayArrow />
+                                                        </IconButton>
+                                                    )}
+                                                    {task.status === 'cancelled' && task.planningError?.retryable && (
+                                                        <IconButton
+                                                            color="primary"
+                                                            onClick={() => void handleRetryTaskPlanning(task)}
+                                                            title={t('retryOrderPreparation')}
+                                                            size="small"
+                                                            loading={taskActionId === task.id}
+                                                        >
+                                                            <Replay />
                                                         </IconButton>
                                                     )}
                                                     {(task.status === 'completed' || task.status === 'cancelled') && (

@@ -3,6 +3,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   pathExistsSafeSync: vi.fn(),
   readdirSafeSync: vi.fn(),
+  promoteFileNoOverwriteSync: vi.fn(),
+  replaceOwnedFileWithBackupSync: vi.fn(),
+  resolveSafeChildPath: vi.fn((dir: string, child: string) => `${dir}/${child}`),
+  resolveSafePathInDirectories: vi.fn(
+    (targetPath: string, _allowedDirs?: string | string[]) => targetPath
+  ),
 }));
 
 vi.mock("../../../utils/security", async (importOriginal) => {
@@ -11,10 +17,27 @@ vi.mock("../../../utils/security", async (importOriginal) => {
     ...actual,
     pathExistsSafeSync: (...args: any[]) => mocks.pathExistsSafeSync(...args),
     readdirSafeSync: (...args: any[]) => mocks.readdirSafeSync(...args),
+    resolveSafeChildPath: (dir: string, child: string) =>
+      mocks.resolveSafeChildPath(dir, child),
+    resolveSafePathInDirectories: (
+      targetPath: string,
+      allowedDirs: string | string[],
+    ) => mocks.resolveSafePathInDirectories(targetPath, allowedDirs),
   };
 });
 
-import { findVideoFileInTemp } from "../../../services/downloaders/bilibili/bilibiliFileManager";
+vi.mock("../../../services/filenameTemplate/outputPathAllocator", () => ({
+  allocateOutputFamilySync: vi.fn(),
+  promoteFileNoOverwriteSync: (...args: any[]) =>
+    mocks.promoteFileNoOverwriteSync(...args),
+  replaceOwnedFileWithBackupSync: (...args: any[]) =>
+    mocks.replaceOwnedFileWithBackupSync(...args),
+}));
+
+import {
+  findVideoFileInTemp,
+  moveVideoFile,
+} from "../../../services/downloaders/bilibili/bilibiliFileManager";
 
 describe("findVideoFileInTemp", () => {
   beforeEach(() => {
@@ -53,5 +76,16 @@ describe("findVideoFileInTemp", () => {
   it("returns null when no known media extension is present", () => {
     mocks.readdirSafeSync.mockReturnValue(["notes.txt"]);
     expect(findVideoFileInTemp("/tmp/x")).toBeNull();
+  });
+
+  it("promotes temp video files without allowing overwrite", () => {
+    moveVideoFile("/videos/temp", "video.mp4", "/videos/final.mp4");
+
+    expect(mocks.promoteFileNoOverwriteSync).toHaveBeenCalledWith(
+      "/videos/temp/video.mp4",
+      "/videos/temp",
+      "/videos/final.mp4",
+      expect.any(String)
+    );
   });
 });

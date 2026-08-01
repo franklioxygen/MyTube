@@ -8,6 +8,8 @@ const FORBIDDEN_LIQUID_VARS = new Set(["__proto__", "constructor", "prototype"])
 const KNOWN_YTDLP_VARS = new Set([
   "title",
   "id",
+  "source_video_id",
+  "local_video_id",
   "channel",
   "uploader",
   "upload_date",
@@ -21,6 +23,8 @@ const EXT_PLACEHOLDER_RE = /\.({{[ \t]*ext[ \t]*}}|%\(ext\)[sS])$/;
 // Defense in depth: even with a linear-time regex, cap the template length
 // so the validator and renderer cannot be flooded with megabyte-sized input.
 const MAX_TEMPLATE_LENGTH = 2000;
+const ID_SOURCE_SEMANTICS_WARNING_CODE = "id_source_semantics_v2";
+const ID_ALIAS_RE = /{{\s*id\s*}}|%\(id\)[sS]/;
 
 export interface ValidationResult {
   valid: boolean;
@@ -120,6 +124,14 @@ export function validateTemplate(
   }
 
   // Source-type specific warnings
+  if (ID_ALIAS_RE.test(normalized)) {
+    warnings.push({
+      code: ID_SOURCE_SEMANTICS_WARNING_CODE,
+      message:
+        "id now consistently means the source platform video ID. Existing-library batch rename previously rendered MyTube's local row ID. Use local_video_id if you need the previous batch-rename value.",
+    });
+  }
+
   if (
     sourceCollectionType !== "playlist" &&
     (normalized.includes("media_playlist_index") ||

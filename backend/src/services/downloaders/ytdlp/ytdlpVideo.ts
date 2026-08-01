@@ -4,16 +4,23 @@ import path from "path";
 import { IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../../../config/paths";
 import {
   cleanupSubtitleFiles,
+  cleanupTemporaryFiles,
   cleanupVideoArtifacts,
 } from "../../../utils/downloadUtils";
 import {
+  extractSourceVideoId,
   extractTwitchVideoId,
   isYouTubeUrl,
 } from "../../../utils/helpers";
 import { resolveManagedWebPath } from "../../filenameTemplate/pathHelpers";
 import { applySubscriptionFilenameTemplateOverride } from "../../filenameTemplate";
 import { FilenameTemplateSourceOptions } from "../../filenameTemplate/types";
+import {
+  planOwnedReplacementStagingPathSync,
+  replaceOwnedFileWithBackupSync,
+} from "../../filenameTemplate/outputPathAllocator";
 import { planDownloadPaths } from "./downloadPathPlanner";
+import { resolveSupersededManagedPath } from "../supersededOutput";
 import { logger } from "../../../utils/logger";
 import { ProgressTracker } from "../../../utils/progressTracker";
 import { resolvePlayableMediaFilePath } from "../../../utils/videoFileResolver";
@@ -40,7 +47,10 @@ import {
 } from "../../mediaServerExport";
 import * as storageService from "../../storageService";
 import { Video } from "../../storageService";
-import { deleteSmallThumbnailMirrorSync } from "../../thumbnailMirrorService";
+import {
+  deleteSmallThumbnailMirrorSync,
+  regenerateSmallThumbnailForThumbnailPath,
+} from "../../thumbnailMirrorService";
 import { twitchApiService } from "../../twitchService";
 import { BaseDownloader, DownloadModeOptions } from "../BaseDownloader";
 import {
@@ -57,6 +67,32 @@ import {
   createYtDlpOutputTemplate,
   isExpectedTwitchMetadataError,
 } from "./ytdlpVideoHelpers";
+
+function resolveExistingVideoForRedownload(
+  videoUrl: string,
+  mediaType: "audio" | "video",
+  existingLocalVideoId?: string
+): Video | undefined {
+  if (!existingLocalVideoId) {
+    return storageService.getVideoBySourceUrl(videoUrl, mediaType);
+  }
+
+  const selectedVideo = storageService.getVideoById(existingLocalVideoId);
+  if (!selectedVideo) {
+    throw new Error(
+      `Requested yt-dlp redownload target ${existingLocalVideoId} was not found`
+    );
+  }
+
+  const selectedMediaType = selectedVideo.mediaType === "audio" ? "audio" : "video";
+  if (selectedMediaType !== mediaType) {
+    throw new Error(
+      `Requested yt-dlp redownload target ${existingLocalVideoId} has media type ${selectedMediaType}, expected ${mediaType}`
+    );
+  }
+
+  return selectedVideo;
+}
 
 /**
  * Core video download function using yt-dlp
@@ -93,6 +129,7 @@ export async function downloadVideo(
 
   // Create a safe base filename (without extension)
   const timestamp = Date.now();
+  const downloadedAtIso = new Date(timestamp).toISOString();
   const safeBaseFilename = `video_${timestamp}`;
 
   // Add extensions for video and thumbnail
@@ -119,6 +156,16 @@ export async function downloadVideo(
   let newVideoPathWithFormat = resolveSafeChildPath(VIDEOS_DIR, videoFilename);
   let newThumbnailPath = resolveSafeChildPath(IMAGES_DIR, thumbnailFilename);
   let newSafeBaseFilename = safeBaseFilename;
+  let releaseOutputReservation: (() => void) | null = null;
+  let existingLocalVideo: Video | undefined;
+
+  // Legacy naming under author_folder_only / author_collection_linked places the
+  // yt-dlp output in an author subdirectory, so cleanup has to scan the planned
+  // directory rather than the managed root. These read the paths at call time
+  // because both are reassigned as planning and publication progress. In root
+  // organization they resolve to the managed roots, matching the old behavior.
+  const plannedVideoDir = () => path.dirname(newVideoPathWithFormat);
+  const plannedThumbnailDir = () => path.dirname(newThumbnailPath);
 
   const downloader = new YtDlpDownloaderHelper();
 
@@ -259,6 +306,11 @@ export async function downloadVideo(
     const videoExtension = audioOnly
       ? audioFormat
       : (preparedFlags as ReturnType<typeof prepareDownloadFlags>).videoExtension;
+    existingLocalVideo = resolveExistingVideoForRedownload(
+      videoUrl,
+      audioOnly ? "audio" : "video",
+      options.existingLocalVideoId
+    );
 
     if (flags.proxy) {
       logger.info("Proxy included in download flags:", flags.proxy);
@@ -276,21 +328,38 @@ export async function downloadVideo(
       info,
       settings,
       filenameTemplateSourceOptions,
+      downloadedAtMs: timestamp,
       videoTitle,
       videoAuthor,
       videoDate,
       videoExtension,
+      mediaType: audioOnly ? "audio" : "video",
+      existingLocalVideoId: existingLocalVideo?.id,
       moveThumbnailsToVideoFolder,
       moveSubtitlesToVideoFolder,
     });
-    newVideoPathWithFormat = plannedPaths.videoAbsolutePath;
+    const ownedVideoReplacement = planOwnedReplacementStagingPathSync(
+      plannedPaths.videoAbsolutePath,
+      VIDEOS_DIR,
+      existingLocalVideo?.id
+    );
+    const ownedThumbnailReplacement = planOwnedReplacementStagingPathSync(
+      plannedPaths.thumbnailAbsolutePath,
+      [IMAGES_DIR, VIDEOS_DIR],
+      existingLocalVideo?.id
+    );
+    newVideoPathWithFormat =
+      ownedVideoReplacement?.stagingPath ?? plannedPaths.videoAbsolutePath;
     finalVideoFilename = plannedPaths.videoFilename;
-    newThumbnailPath = plannedPaths.thumbnailAbsolutePath;
+    newThumbnailPath =
+      ownedThumbnailReplacement?.stagingPath ?? plannedPaths.thumbnailAbsolutePath;
     finalThumbnailFilename = plannedPaths.thumbnailFilename;
     newSafeBaseFilename = plannedPaths.safeBaseFilename;
+    releaseOutputReservation = plannedPaths.releaseOutputReservation;
 
     // Update output path in flags
     flags.output = createYtDlpOutputTemplate(newVideoPathWithFormat);
+    flags.noOverwrites = true;
 
     logger.info(
       `Using merge output format: ${mergeOutputFormat}, downloading to: ${newVideoPathWithFormat}`
@@ -306,16 +375,19 @@ export async function downloadVideo(
 
         // Clean up partial files
         logger.info("Cleaning up partial files...");
-        await cleanupVideoArtifacts(newSafeBaseFilename);
+        await cleanupVideoArtifacts(newSafeBaseFilename, plannedVideoDir());
+        if (ownedVideoReplacement) {
+          await cleanupTemporaryFiles(ownedVideoReplacement.stagingPath);
+        }
 
         // Use fresh cleanup based on settings
         const currentSettings = storageService.getSettings();
         if (!currentSettings.moveThumbnailsToVideoFolder) {
-          await cleanupVideoArtifacts(newSafeBaseFilename, IMAGES_DIR);
+          await cleanupVideoArtifacts(newSafeBaseFilename, plannedThumbnailDir());
         }
 
         await removeSafe(newThumbnailPath, [VIDEOS_DIR, IMAGES_DIR]);
-        await cleanupSubtitleFiles(newSafeBaseFilename);
+        await cleanupSubtitleFiles(newSafeBaseFilename, plannedVideoDir());
       });
     }
 
@@ -330,8 +402,11 @@ export async function downloadVideo(
       await Promise.resolve(subprocess).finally(() => progressTracker.dispose());
     } catch (error: unknown) {
       await downloader.handleCancellationErrorPublic(error, async () => {
-        await cleanupVideoArtifacts(newSafeBaseFilename);
-        await cleanupSubtitleFiles(newSafeBaseFilename);
+        await cleanupVideoArtifacts(newSafeBaseFilename, plannedVideoDir());
+        if (ownedVideoReplacement) {
+          await cleanupTemporaryFiles(ownedVideoReplacement.stagingPath);
+        }
+        await cleanupSubtitleFiles(newSafeBaseFilename, plannedVideoDir());
       });
 
       // Check if error is subtitle-related and video file exists
@@ -371,8 +446,11 @@ export async function downloadVideo(
     try {
       downloader.throwIfCancelledPublic(downloadId);
     } catch (error) {
-      await cleanupVideoArtifacts(newSafeBaseFilename);
-      await cleanupSubtitleFiles(newSafeBaseFilename);
+      await cleanupVideoArtifacts(newSafeBaseFilename, plannedVideoDir());
+      if (ownedVideoReplacement) {
+        await cleanupTemporaryFiles(ownedVideoReplacement.stagingPath);
+      }
+      await cleanupSubtitleFiles(newSafeBaseFilename, plannedVideoDir());
       throw error;
     }
 
@@ -398,13 +476,31 @@ export async function downloadVideo(
       finalVideoFilename = path.basename(resolvedVideoPath);
     }
 
+    let subtitleArtifactBaseFilename = newSafeBaseFilename;
+    if (ownedVideoReplacement) {
+      subtitleArtifactBaseFilename = path.basename(
+        newVideoPathWithFormat,
+        path.extname(newVideoPathWithFormat)
+      );
+      replaceOwnedFileWithBackupSync(
+        newVideoPathWithFormat,
+        VIDEOS_DIR,
+        ownedVideoReplacement.finalPath,
+        ownedVideoReplacement.destinationRootDir,
+        existingLocalVideo?.id
+      );
+      await cleanupTemporaryFiles(newVideoPathWithFormat);
+      newVideoPathWithFormat = ownedVideoReplacement.finalPath;
+      finalVideoFilename = path.basename(ownedVideoReplacement.finalPath);
+    }
+
     logger.info("Video downloaded successfully");
 
     // Check if download was cancelled before processing thumbnails and subtitles
     try {
       downloader.throwIfCancelledPublic(downloadId);
     } catch (error) {
-      await cleanupSubtitleFiles(newSafeBaseFilename);
+      await cleanupSubtitleFiles(newSafeBaseFilename, plannedVideoDir());
       throw error;
     }
 
@@ -437,6 +533,19 @@ export async function downloadVideo(
         newThumbnailPath,
         axiosConfig
       );
+      if (thumbnailSaved && ownedThumbnailReplacement) {
+        replaceOwnedFileWithBackupSync(
+          ownedThumbnailReplacement.stagingPath,
+          ownedThumbnailReplacement.stagingRootDir,
+          ownedThumbnailReplacement.finalPath,
+          ownedThumbnailReplacement.destinationRootDir,
+          existingLocalVideo?.id
+        );
+        await regenerateSmallThumbnailForThumbnailPath(
+          ownedThumbnailReplacement.finalPath
+        );
+        newThumbnailPath = ownedThumbnailReplacement.finalPath;
+      }
     }
 
     // Download and process author avatar
@@ -461,7 +570,7 @@ export async function downloadVideo(
       downloader.throwIfCancelledPublic(downloadId);
     } catch (error) {
       if (!audioOnly) {
-        await cleanupSubtitleFiles(newSafeBaseFilename);
+        await cleanupSubtitleFiles(newSafeBaseFilename, plannedVideoDir());
       }
       throw error;
     }
@@ -481,7 +590,7 @@ export async function downloadVideo(
       : undefined;
     if (!audioOnly) {
       subtitles = await processSubtitles(
-        newSafeBaseFilename,
+        subtitleArtifactBaseFilename,
         downloadId,
         moveSubtitlesToVideoFolder,
         isVideoInSubDir ? videoSubDir : undefined,
@@ -491,9 +600,13 @@ export async function downloadVideo(
             ? `/videos/${videoSubRelative}`
             : `/subtitles/${videoSubRelative}`
           : undefined,
+        newSafeBaseFilename,
+        existingLocalVideo?.id,
       );
     }
   } catch (error) {
+    releaseOutputReservation?.();
+    releaseOutputReservation = null;
     logger.error(
       "Error in download process:",
       error,
@@ -504,6 +617,7 @@ export async function downloadVideo(
     throw error;
   }
 
+  try {
   // Create metadata for the video. Re-apply the per-subscription filename
   // override so the author-collection movement below sees the same effective
   // naming settings as path planning did (issue #368).
@@ -538,6 +652,17 @@ export async function downloadVideo(
     date: videoDate || new Date().toISOString().slice(0, 10).replace(/-/g, ""),
     source: source, // Use extracted source
     sourceUrl: videoUrl,
+    // Must follow the same convention as the persistence calls below, which
+    // pass extractSourceVideoId(videoUrl).id as the identity. For extractors
+    // outside the recognized set that helper yields the full URL while
+    // rawSourceInfo.id is the extractor's own id; preferring the latter made
+    // validateIdentity reject the mismatch and drop the library row after a
+    // successful download. Fall back to the extractor id only when the URL
+    // yields nothing, which is also the case validateIdentity does not check.
+    sourceVideoId:
+      extractSourceVideoId(videoUrl).id ||
+      (typeof rawSourceInfo?.id === "string" && rawSourceInfo.id) ||
+      undefined,
     mediaType: audioOnly ? "audio" : "video",
     videoFilename: path.basename(finalVideoRelative),
     thumbnailFilename: thumbnailSaved ? path.basename(finalThumbnailFilename) : undefined,
@@ -555,8 +680,8 @@ export async function downloadVideo(
       authorAvatarSaved && finalAuthorAvatarFilename
         ? `/avatars/${finalAuthorAvatarFilename}`
         : undefined,
-    addedAt: new Date().toISOString(),
-    createdAt: new Date().toISOString(),
+    addedAt: downloadedAtIso,
+    createdAt: downloadedAtIso,
   };
 
   // If duration is missing from info, try to extract it from file
@@ -597,13 +722,18 @@ export async function downloadVideo(
     logger.error("Failed to get file size:", e);
   }
 
-  // Check if a library item with the same sourceUrl AND media type already
-  // exists. Scoping by media type keeps audio-only downloads as their own item
-  // instead of overwriting (and deleting the file of) the existing video row.
-  const existingVideo = storageService.getVideoBySourceUrl(
-    videoUrl,
-    audioOnly ? "audio" : "video"
-  );
+  // Reuse the exact row resolved before output allocation so an explicit repair
+  // target cannot be replaced on disk while a different same-source row is
+  // updated in storage. For ordinary downloads with no pre-existing row, keep
+  // the post-download lookup to handle a row created concurrently.
+  const existingVideo =
+    existingLocalVideo ??
+    (!options.existingLocalVideoId
+      ? storageService.getVideoBySourceUrl(
+          videoUrl,
+          audioOnly ? "audio" : "video"
+        )
+      : undefined);
 
   if (existingVideo) {
     // Update existing video with new subtitle information and file paths
@@ -611,19 +741,25 @@ export async function downloadVideo(
       "Video with same sourceUrl exists, updating subtitle information"
     );
 
-    // Delete old video file if filename changed.
-    // Resolve via existingVideo.videoPath so a templated nested path
-    // (e.g. /videos/Channel/Season 2026/file.mp4) is removed correctly;
-    // basename-only resolution would target /videos/file.mp4 and miss it.
-    if (existingVideo.videoFilename && existingVideo.videoFilename !== finalVideoFilename) {
-      const resolved = existingVideo.videoPath
-        ? resolveManagedWebPath(existingVideo.videoPath)
-        : null;
-      const oldVideoPath = resolved
-        ? resolved.absolutePath
-        : resolveSafeChildPath(VIDEOS_DIR, existingVideo.videoFilename);
+    // Delete the old video file when the redownload landed somewhere else.
+    // Comparing resolved absolute paths rather than basenames also catches an
+    // authorOrganizationMode change, which relocates the file while keeping its
+    // name, and never selects the file this download just wrote in place.
+    const oldVideoPath = resolveSupersededManagedPath({
+      previousWebPath: existingVideo.videoPath,
+      previousFilename: existingVideo.videoFilename,
+      fallbackRootDir: VIDEOS_DIR,
+      newAbsolutePath: newVideoPathWithFormat,
+    });
+    if (oldVideoPath) {
       try {
-        if (pathExistsSafeSync(oldVideoPath, VIDEOS_DIR)) {
+        if (
+          pathExistsSafeSync(oldVideoPath, VIDEOS_DIR) &&
+          !storageService.isVideoFileReferencedByOtherVideo(
+            existingVideo,
+            existingVideo.id,
+          )
+        ) {
           unlinkSafeSync(oldVideoPath, VIDEOS_DIR);
           logger.info(`Deleted old video file: ${existingVideo.videoPath || existingVideo.videoFilename}`);
         }
@@ -632,19 +768,18 @@ export async function downloadVideo(
       }
     }
 
-    // Delete old thumbnail file if being replaced with a new one
-    if (thumbnailSaved && existingVideo.thumbnailFilename && existingVideo.thumbnailFilename !== finalThumbnailFilename) {
-      const oldThumbnailPath = existingVideo.thumbnailPath?.startsWith("/videos/")
-        ? resolveSafeChildPath(
-            VIDEOS_DIR,
-            existingVideo.thumbnailPath.replace(/^\/videos\//, "")
-          )
-        : existingVideo.thumbnailPath?.startsWith("/images/")
-          ? resolveSafeChildPath(
-              IMAGES_DIR,
-              existingVideo.thumbnailPath.replace(/^\/images\//, "")
-            )
-          : resolveSafeChildPath(IMAGES_DIR, existingVideo.thumbnailFilename);
+    // Same reasoning as the video above: an organization change relocates the
+    // thumbnail while keeping its name, so a basename comparison would leave the
+    // old one orphaned.
+    const oldThumbnailPath = thumbnailSaved
+      ? resolveSupersededManagedPath({
+          previousWebPath: existingVideo.thumbnailPath,
+          previousFilename: existingVideo.thumbnailFilename,
+          fallbackRootDir: IMAGES_DIR,
+          newAbsolutePath: newThumbnailPath,
+        })
+      : null;
+    if (oldThumbnailPath) {
       try {
         if (
           pathExistsSafeSync(oldThumbnailPath, [VIDEOS_DIR, IMAGES_DIR]) &&
@@ -682,6 +817,7 @@ export async function downloadVideo(
       title: videoData.title, // Update title in case it changed
       description: videoData.description, // Update description in case it changed
       mediaType: videoData.mediaType,
+      sourceVideoId: videoData.sourceVideoId,
       authorAvatarFilename: authorAvatarSaved
         ? finalAuthorAvatarFilename
         : existingVideo.authorAvatarFilename,
@@ -711,6 +847,22 @@ export async function downloadVideo(
       }
 
       removeMediaServerArtifactsForVideo(existingVideo);
+      const trackedSource = extractSourceVideoId(videoUrl);
+      if (trackedSource.id) {
+        finalVideoData = storageService.persistDownloadedMediaIdentity({
+          video: finalVideoData,
+          identity: {
+            platform: trackedSource.platform,
+            sourceVideoId: trackedSource.id,
+            mediaType: finalVideoData.mediaType === "audio" ? "audio" : "video",
+            partNumber: finalVideoData.partNumber,
+            localVideoId: finalVideoData.id,
+          },
+          sourceUrl: videoUrl,
+          trackingMode: "redownload",
+        });
+      }
+
       syncMediaServerArtifactsForRecord(finalVideoData, {
         rawSourceInfo,
       });
@@ -719,7 +871,23 @@ export async function downloadVideo(
   }
 
   // Save the video (new video)
-  storageService.saveVideo(videoData);
+  const trackedSource = extractSourceVideoId(videoUrl);
+  if (trackedSource.id) {
+    storageService.persistDownloadedMediaIdentity({
+      video: videoData,
+      identity: {
+        platform: trackedSource.platform,
+        sourceVideoId: trackedSource.id,
+        mediaType: videoData.mediaType === "audio" ? "audio" : "video",
+        partNumber: videoData.partNumber,
+        localVideoId: videoData.id,
+      },
+      sourceUrl: videoUrl,
+      trackingMode: "new",
+    });
+  } else {
+    storageService.saveVideo(videoData);
+  }
 
   logger.info("Video added to database");
 
@@ -747,4 +915,7 @@ export async function downloadVideo(
     rawSourceInfo,
   });
   return videoData;
+  } finally {
+    releaseOutputReservation?.();
+  }
 }

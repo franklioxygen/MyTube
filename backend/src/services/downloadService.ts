@@ -244,10 +244,17 @@ export async function downloadMissAVVideo(
   url: string,
   downloadId?: string,
   onStart?: (cancel: () => void) => void,
-  filenameTemplateSourceOptions?: import("./filenameTemplate/types").FilenameTemplateSourceOptions
+  filenameTemplateSourceOptions?: import("./filenameTemplate/types").FilenameTemplateSourceOptions,
+  existingLocalVideoId?: string
 ): Promise<Video> {
   assertDownloadsAllowed();
-  return MissAVDownloader.downloadVideo(url, downloadId, onStart, filenameTemplateSourceOptions);
+  return MissAVDownloader.downloadVideo(
+    url,
+    downloadId,
+    onStart,
+    filenameTemplateSourceOptions,
+    existingLocalVideoId,
+  );
 }
 
 // Helper function to get video info without downloading
@@ -280,7 +287,15 @@ export function createDownloadTask(
   return async (registerCancel: (cancel: () => void) => void) => {
     assertDownloadsAllowed();
     if (type === "missav") {
-      return MissAVDownloader.downloadVideo(url, downloadId, registerCancel);
+      return MissAVDownloader.downloadVideo(
+        url,
+        downloadId,
+        registerCancel,
+        undefined,
+        parsedMetadata?.shape === "download_mode"
+          ? parsedMetadata.existingLocalVideoId
+          : undefined,
+      );
     } else if (type === "bilibili") {
       if (
         parsedMetadata &&
@@ -297,7 +312,11 @@ export function createDownloadTask(
       if (parsedMetadata?.shape === "download_mode") {
         return BilibiliDownloader.downloadSinglePart(
           url, 1, 1, "", downloadId, registerCancel, undefined, undefined,
-          { audioOnly: parsedMetadata.audioOnly, audioFormat: parsedMetadata.audioFormat },
+          {
+            audioOnly: parsedMetadata.audioOnly,
+            audioFormat: parsedMetadata.audioFormat,
+            existingLocalVideoId: parsedMetadata.existingLocalVideoId,
+          },
         );
       }
       return BilibiliDownloader.downloadSinglePart(
@@ -311,6 +330,7 @@ export function createDownloadTask(
           onStart: registerCancel,
           audioOnly: parsedMetadata.audioOnly,
           audioFormat: parsedMetadata.audioFormat,
+          existingLocalVideoId: parsedMetadata.existingLocalVideoId,
         });
       }
       return YtDlpDownloader.downloadVideo(url, downloadId, registerCancel);

@@ -30,6 +30,14 @@ describe("validateTemplate", () => {
     expect(result.errors).toEqual([]);
   });
 
+  it("warns that Liquid {{ id }} now resolves to the source video id", () => {
+    const result = validateTemplate("{{ id }}.{{ ext }}");
+    expect(result.valid).toBe(true);
+    expect(
+      result.warnings.some((warning) => warning.code === "id_source_semantics_v2")
+    ).toBe(true);
+  });
+
   it("accepts a yt-dlp-style template ending with %(ext)s", () => {
     const result = validateTemplate("%(title)s-%(channel)s.%(ext)s");
     expect(result.valid).toBe(true);
@@ -38,6 +46,14 @@ describe("validateTemplate", () => {
   it("accepts %(ext)S as well as %(ext)s", () => {
     const result = validateTemplate("%(title)s.%(ext)S");
     expect(result.valid).toBe(true);
+  });
+
+  it("warns that yt-dlp %(id)s now resolves to the source video id", () => {
+    const result = validateTemplate("%(id)s.%(ext)s");
+    expect(result.valid).toBe(true);
+    expect(
+      result.warnings.some((warning) => warning.code === "id_source_semantics_v2")
+    ).toBe(true);
   });
 
   it("accepts unknown single-word Liquid variables as raw yt-dlp field references", () => {

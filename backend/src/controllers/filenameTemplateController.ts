@@ -44,6 +44,9 @@ const SAMPLE_CONTEXT_BASE: Omit<
   | "mediaPlaylistIndexWithinDate"
 > = {
   title: "Sample Video",
+  sourceVideoId: "dQw4w9WgXcQ",
+  localVideoId: "local-sample-video",
+  downloadedAtMs: Date.UTC(2026, 3, 30, 12, 0, 0),
   id: "dQw4w9WgXcQ",
   ext: "mp4",
   uploader: "Sample Channel",
@@ -91,7 +94,10 @@ type BatchRenameRequestOverrides = {
   downloadFilenameTemplate?: string;
   moveThumbnailsToVideoFolder?: boolean;
   moveSubtitlesToVideoFolder?: boolean;
+  acknowledgeIdSourceSemantics?: string;
 };
+
+const ID_SOURCE_SEMANTICS_ACK = "filename-id-source-semantics-v2";
 
 export async function getFilenameTemplatePresets(
   req: Request,
@@ -217,10 +223,26 @@ export async function previewFilenameTemplate(
   }
 
   const naming = toFilenameNamingRuntimeConfig(previewSelection);
+  // The preview request carries only the mode/template being edited, so the
+  // active author organization comes from saved settings.
+  const authorOrganizationMode = storageService.getSettings()
+    ?.authorOrganizationMode as string | undefined;
   const previews = {
-    channel: renderPreviewScenario(naming, SAMPLE_CONTEXTS.channel),
-    playlist: renderPreviewScenario(naming, SAMPLE_CONTEXTS.playlist),
-    single: renderPreviewScenario(naming, SAMPLE_CONTEXTS.single),
+    channel: renderPreviewScenario(
+      naming,
+      SAMPLE_CONTEXTS.channel,
+      authorOrganizationMode
+    ),
+    playlist: renderPreviewScenario(
+      naming,
+      SAMPLE_CONTEXTS.playlist,
+      authorOrganizationMode
+    ),
+    single: renderPreviewScenario(
+      naming,
+      SAMPLE_CONTEXTS.single,
+      authorOrganizationMode
+    ),
   };
 
   res.json({
@@ -289,8 +311,9 @@ export async function startBatchRename(
 
     // Batch rename uses the current UI selection if provided in the request;
     // Save only controls future download defaults.
-    if (settings.downloadFilenameMode === "template") {
-      const tpl = settings.downloadFilenameTemplate || "";
+    const runtimeNaming = toFilenameNamingRuntimeConfig(settings);
+    if (runtimeNaming.mode === "template") {
+      const tpl = runtimeNaming.template || "";
       const validation = validateTemplate(tpl);
       if (!validation.valid) {
         const templateScope = overrides.downloadFilenameTemplate !== undefined
@@ -299,6 +322,20 @@ export async function startBatchRename(
         res.status(400).json({
           error: `${templateScope} template is invalid: ${validation.errors.join("; ")}`,
           code: "invalid_template",
+        });
+        return;
+      }
+      const idWarning = validation.warnings.find(
+        (warning) => warning.code === "id_source_semantics_v2"
+      );
+      if (
+        idWarning &&
+        overrides.acknowledgeIdSourceSemantics !== ID_SOURCE_SEMANTICS_ACK
+      ) {
+        res.status(409).json({
+          error: idWarning.message,
+          code: "id_source_semantics_ack_required",
+          requiredAcknowledgement: ID_SOURCE_SEMANTICS_ACK,
         });
         return;
       }
@@ -355,10 +392,16 @@ export async function cancelBatchRename(
 
 function renderPreviewScenario(
   naming: ReturnType<typeof toFilenameNamingRuntimeConfig>,
-  context: FilenameTemplateContext
+  context: FilenameTemplateContext,
+  authorOrganizationMode?: string
 ): FilenameTemplatePreviewResult {
   const planned = planVideoOutputPaths({
     naming,
+    // `naming` still drives the template; `settings` only carries the physical
+    // organization mode. Download and batch-rename callers pass settings and so
+    // prepend the author folder, and without this the preview would default to
+    // root organization and advertise paths the real files never use.
+    settings: authorOrganizationMode ? { authorOrganizationMode } : undefined,
     context,
     videoExtension: "mp4",
     thumbnailExtension: "jpg",

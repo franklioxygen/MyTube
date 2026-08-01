@@ -11,6 +11,25 @@ import {
 } from "../utils/security";
 import { logger } from "../utils/logger";
 
+function resolveAvailableSubtitleTarget(
+    targetDir: string,
+    preferredFilename: string,
+) {
+    const parsed = path.parse(preferredFilename);
+    for (let attempt = 0; attempt < 1000; attempt += 1) {
+        const filename =
+            attempt === 0
+                ? preferredFilename
+                : `${parsed.name} (${attempt + 1})${parsed.ext}`;
+        const targetPath = resolveSafeChildPath(targetDir, filename);
+        if (!pathExistsSafeSync(targetPath, [SUBTITLES_DIR, VIDEOS_DIR])) {
+            return { targetPath, filename };
+        }
+    }
+
+    throw new Error(`Could not allocate subtitle target for ${preferredFilename}`);
+}
+
 export const moveAllSubtitles = async (toVideoFolder: boolean) => {
     logger.info(`Starting to move all subtitles. Target: ${toVideoFolder ? 'Video Folders' : 'Central Subtitles Folder'}`);
     const allVideos = storageService.getVideos();
@@ -103,39 +122,50 @@ export const moveAllSubtitles = async (toVideoFolder: boolean) => {
 
                 let targetAbsPath = "";
                 let newWebPath = "";
+                let targetFilename = path.basename(sub.filename);
+                let targetWebDir = "";
 
                 if (toVideoFolder) {
                     // Move TO video folder
-                    targetAbsPath = resolveSafeChildPath(videoDir, sub.filename);
-                    if (relativeVideoDir) {
-                        newWebPath = `/videos/${relativeVideoDir}/${sub.filename}`;
-                    } else {
-                        newWebPath = `/videos/${sub.filename}`;
-                    }
+                    targetAbsPath = resolveSafeChildPath(videoDir, targetFilename);
+                    targetWebDir = relativeVideoDir
+                        ? `/videos/${relativeVideoDir}`
+                        : "/videos";
+                    newWebPath = `${targetWebDir}/${targetFilename}`;
                 } else {
                     // Move TO central subtitles folder
                     // Mirror the folder structure
                     if (relativeVideoDir) {
                         const targetDir = resolveSafeChildPath(SUBTITLES_DIR, relativeVideoDir);
                         ensureDirSafeSync(targetDir, SUBTITLES_DIR);
-                        targetAbsPath = resolveSafeChildPath(targetDir, sub.filename);
-                        newWebPath = `/subtitles/${relativeVideoDir}/${sub.filename}`;
+                        targetAbsPath = resolveSafeChildPath(targetDir, targetFilename);
+                        targetWebDir = `/subtitles/${relativeVideoDir}`;
+                        newWebPath = `${targetWebDir}/${targetFilename}`;
                     } else {
-                        targetAbsPath = resolveSafeChildPath(SUBTITLES_DIR, sub.filename);
-                        newWebPath = `/subtitles/${sub.filename}`;
+                        targetAbsPath = resolveSafeChildPath(SUBTITLES_DIR, targetFilename);
+                        targetWebDir = "/subtitles";
+                        newWebPath = `${targetWebDir}/${targetFilename}`;
                     }
                 }
 
                 if (currentAbsPath !== targetAbsPath) {
+                    const target = resolveAvailableSubtitleTarget(
+                        path.dirname(targetAbsPath),
+                        targetFilename,
+                    );
+                    targetAbsPath = target.targetPath;
+                    targetFilename = target.filename;
+                    newWebPath = `${targetWebDir}/${targetFilename}`;
                     moveSafeSync(
                         currentAbsPath,
                         [SUBTITLES_DIR, VIDEOS_DIR],
                         targetAbsPath,
                         toVideoFolder ? VIDEOS_DIR : SUBTITLES_DIR,
-                        { overwrite: true }
+                        { overwrite: false }
                     );
                     newSubtitles.push({
                         ...sub,
+                        filename: targetFilename,
                         path: newWebPath
                     });
                     videoChanged = true;

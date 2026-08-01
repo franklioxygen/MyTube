@@ -25,6 +25,10 @@ import {
 import { getSettings } from "./settings";
 import { Collection, Video } from "./types";
 import { resolveManagedWebPath } from "../filenameTemplate/pathHelpers";
+import {
+  allocateOutputFamilySync,
+  moveOutputFamilyWithJournalSync,
+} from "../filenameTemplate/outputPathAllocator";
 
 /**
  * Sanitizes a collection name to prevent path traversal attacks
@@ -354,35 +358,24 @@ export function moveAllFilesToCollection(
   collectionName: string,
   allCollections: Collection[]
 ): Partial<Video> {
-  const allUpdates: Partial<Video> = {};
-
-  // Move video file
-  const videoResult = moveVideoToCollection(
-    video,
-    collectionName,
-    allCollections
-  );
-  if (videoResult.updated) {
-    Object.assign(allUpdates, videoResult.updates);
+  const sanitizedCollectionName = sanitizeCollectionName(collectionName);
+  if (!sanitizedCollectionName) {
+    logger.warn(`Invalid collection name provided: ${collectionName}`);
+    return {};
   }
 
-  // Move thumbnail
-  const thumbnailResult = moveThumbnailToCollection(
-    video,
-    collectionName,
-    allCollections
-  );
-  if (thumbnailResult.updated) {
-    Object.assign(allUpdates, thumbnailResult.updates);
-  }
-
-  // Move subtitles
-  const subtitlesResult = moveSubtitlesToCollection(video, collectionName);
-  if (subtitlesResult.updated) {
-    Object.assign(allUpdates, subtitlesResult.updates);
-  }
-
-  return allUpdates;
+  const settings = getSettings();
+  return moveManagedFamilyToRelativeDirs(video, allCollections, {
+    videoRelativeDir: sanitizedCollectionName,
+    thumbnailRelativeDir: sanitizedCollectionName,
+    subtitleRelativeDir: sanitizedCollectionName,
+    thumbnailBaseDir: settings.moveThumbnailsToVideoFolder
+      ? VIDEOS_DIR
+      : IMAGES_DIR,
+    subtitleBaseDir: settings.moveSubtitlesToVideoFolder
+      ? VIDEOS_DIR
+      : SUBTITLES_DIR,
+  });
 }
 
 /**
@@ -398,45 +391,35 @@ export function moveAllFilesFromCollection(
   subtitlePathPrefix: string | undefined,
   allCollections: Collection[]
 ): Partial<Video> {
-  const allUpdates: Partial<Video> = {};
+  void videoPathPrefix;
+  void imagePathPrefix;
+  // The caller leaves this undefined when unlinking to the storage root. That
+  // absence says nothing about where subtitles belong, so it must not select
+  // video storage: the subtitle root is decided by moveSubtitlesToVideoFolder
+  // alone, exactly as moveAllFilesToCollection does.
+  void subtitlePathPrefix;
 
-  // Move video file
-  const videoResult = moveVideoFromCollection(
-    video,
-    targetVideoDir,
-    videoPathPrefix,
-    allCollections
-  );
-  if (videoResult.updated) {
-    Object.assign(allUpdates, videoResult.updates);
-  }
+  const videoRelativeDir = getRelativeDirWithinRoot(targetVideoDir, VIDEOS_DIR);
+  const imageRelativeDir = getRelativeDirWithinRoot(targetImageDir, IMAGES_DIR);
+  const subtitleRelativeDir = getRelativeDirWithinRoot(targetSubDir, SUBTITLES_DIR);
+  const settings = getSettings();
+  const subtitlesInVideoFolder = Boolean(settings.moveSubtitlesToVideoFolder);
+  // Same reasoning as subtitles: the active storage configuration decides the
+  // thumbnail root, so unlinking must not pull a thumbnail out of the video
+  // folder while moveThumbnailsToVideoFolder is enabled.
+  const thumbnailsInVideoFolder = Boolean(settings.moveThumbnailsToVideoFolder);
 
-  // Move thumbnail
-  const thumbnailResult = moveThumbnailFromCollection(
-    video,
-    targetVideoDir,
-    targetImageDir,
-    videoPathPrefix,
-    imagePathPrefix,
-    allCollections
-  );
-  if (thumbnailResult.updated) {
-    Object.assign(allUpdates, thumbnailResult.updates);
-  }
-
-  // Move subtitles
-  const subtitlesResult = moveSubtitlesFromCollection(
-    video,
-    targetVideoDir,
-    targetSubDir,
-    videoPathPrefix,
-    subtitlePathPrefix
-  );
-  if (subtitlesResult.updated) {
-    Object.assign(allUpdates, subtitlesResult.updates);
-  }
-
-  return allUpdates;
+  return moveManagedFamilyToRelativeDirs(video, allCollections, {
+    videoRelativeDir,
+    thumbnailRelativeDir: thumbnailsInVideoFolder
+      ? videoRelativeDir
+      : imageRelativeDir,
+    subtitleRelativeDir: subtitlesInVideoFolder
+      ? videoRelativeDir
+      : subtitleRelativeDir,
+    thumbnailBaseDir: thumbnailsInVideoFolder ? VIDEOS_DIR : IMAGES_DIR,
+    subtitleBaseDir: subtitlesInVideoFolder ? VIDEOS_DIR : SUBTITLES_DIR,
+  });
 }
 
 /**
@@ -491,6 +474,301 @@ function resolveCurrentVideoPath(
   }
 
   return findVideoFile(video.videoFilename, allCollections);
+}
+
+type ManagedFileSource = {
+  absolutePath: string;
+  rootDir: string;
+  webPath: string | null;
+  filename: string;
+};
+
+type RelativeFamilyTarget = {
+  videoRelativeDir: string;
+  thumbnailRelativeDir: string;
+  subtitleRelativeDir: string;
+  thumbnailBaseDir: string;
+  subtitleBaseDir: string;
+};
+
+function toPosixPath(value: string): string {
+  return value.replace(/\\/g, "/");
+}
+
+function joinRelativePath(relativeDir: string, filename: string): string {
+  const normalizedDir = toPosixPath(relativeDir).replace(/^\/+|\/+$/g, "");
+  return normalizedDir ? `${normalizedDir}/${filename}` : filename;
+}
+
+function getRelativeDirWithinRoot(targetDir: string, rootDir: string): string {
+  const relative = toPosixPath(path.relative(rootDir, targetDir));
+  if (!relative || relative === ".") {
+    return "";
+  }
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
+    return "";
+  }
+  return relative;
+}
+
+function sourcePlatformForVideo(video: Video): string {
+  const explicitSource = typeof video.source === "string" ? video.source.trim() : "";
+  if (explicitSource) {
+    return explicitSource.toLowerCase();
+  }
+  if (typeof video.sourceUrl === "string" && video.sourceUrl.length > 0) {
+    try {
+      const hostname = new URL(video.sourceUrl).hostname.toLowerCase();
+      if (hostname.includes("bilibili")) return "bilibili";
+      if (hostname.includes("youtube") || hostname === "youtu.be") return "youtube";
+      if (hostname.includes("twitch")) return "twitch";
+      if (hostname.includes("missav")) return "missav";
+    } catch {
+      // Fall through to unknown for legacy malformed source URLs.
+    }
+  }
+  return "unknown";
+}
+
+function resolveThumbnailSource(
+  video: Video,
+  allCollections: Collection[]
+): ManagedFileSource | null {
+  if (!video.thumbnailFilename && !video.thumbnailPath) {
+    return null;
+  }
+
+  if (video.thumbnailPath) {
+    const resolved = resolveManagedWebPath(video.thumbnailPath);
+    if (resolved && pathExists(resolved.absolutePath)) {
+      return {
+        absolutePath: resolved.absolutePath,
+        rootDir: resolved.rootDir,
+        webPath: video.thumbnailPath,
+        filename: video.thumbnailFilename || path.basename(resolved.relativePath),
+      };
+    }
+  }
+
+  if (!video.thumbnailFilename) {
+    return null;
+  }
+
+  const fallbackPath = findImageFile(video.thumbnailFilename, allCollections);
+  if (!fallbackPath) {
+    return null;
+  }
+
+  return {
+    absolutePath: fallbackPath,
+    rootDir: IMAGES_DIR,
+    webPath: resolveManagedThumbnailWebPathFromAbsolutePath(fallbackPath),
+    filename: video.thumbnailFilename,
+  };
+}
+
+function resolveSubtitleSources(
+  video: Video
+): Array<ManagedFileSource & { language: string; extension: string; original: NonNullable<Video["subtitles"]>[number] }> {
+  const sources: Array<ManagedFileSource & { language: string; extension: string; original: NonNullable<Video["subtitles"]>[number] }> = [];
+  for (const subtitle of video.subtitles || []) {
+    const resolved = resolveManagedWebPath(subtitle.path);
+    if (!resolved || !pathExists(resolved.absolutePath)) {
+      continue;
+    }
+    sources.push({
+      absolutePath: resolved.absolutePath,
+      rootDir: resolved.rootDir,
+      webPath: subtitle.path,
+      filename: subtitle.filename || path.basename(resolved.relativePath),
+      language: subtitle.language || "und",
+      extension: path.extname(subtitle.filename || resolved.relativePath) || ".vtt",
+      original: subtitle,
+    });
+  }
+  return sources;
+}
+
+function webPrefixForManagedRoot(rootDir: string): "/videos" | "/images" | "/subtitles" {
+  if (rootDir === VIDEOS_DIR) return "/videos";
+  if (rootDir === IMAGES_DIR) return "/images";
+  return "/subtitles";
+}
+
+function moveManagedFamilyToRelativeDirs(
+  video: Video,
+  allCollections: Collection[],
+  target: RelativeFamilyTarget
+): Partial<Video> {
+  if (!video.videoFilename) {
+    return {};
+  }
+
+  const currentVideoPath = resolveCurrentVideoPath(video, allCollections);
+  if (!currentVideoPath) {
+    return {};
+  }
+
+  const videoExt = path.extname(video.videoFilename) || path.extname(currentVideoPath) || ".mp4";
+  const videoStem = path.basename(video.videoFilename, path.extname(video.videoFilename) || videoExt);
+  const preferredVideoRelative = joinRelativePath(
+    target.videoRelativeDir,
+    `${videoStem}${videoExt}`
+  );
+  const thumbnailSource = resolveThumbnailSource(video, allCollections);
+  const thumbnailExt =
+    thumbnailSource
+      ? path.extname(thumbnailSource.filename) || ".jpg"
+      : ".jpg";
+  const preferredThumbnailRelative = joinRelativePath(
+    target.thumbnailRelativeDir,
+    `${videoStem}${thumbnailExt}`
+  );
+  const preferredSubtitleBase = joinRelativePath(
+    target.subtitleRelativeDir,
+    videoStem
+  );
+  const subtitleSources = resolveSubtitleSources(video);
+
+  const reservation = allocateOutputFamilySync({
+    videoRelativePath: preferredVideoRelative,
+    thumbnailRelativePath: preferredThumbnailRelative,
+    subtitleBaseRelativePath: preferredSubtitleBase,
+    subtitleBaseDir: target.subtitleBaseDir,
+    subtitleFiles: subtitleSources.map((subtitle) => ({
+      language: subtitle.language,
+      extension: subtitle.extension,
+    })),
+    thumbnailBaseDir: target.thumbnailBaseDir,
+    identity: {
+      platform: sourcePlatformForVideo(video),
+      sourceVideoId: video.sourceVideoId || null,
+      mediaType: video.mediaType === "audio" ? "audio" : "video",
+      localVideoId: video.id,
+    },
+    existingLocalVideoId: video.id,
+    ownedManagedPaths: [
+      currentVideoPath,
+      ...(thumbnailSource ? [thumbnailSource.absolutePath] : []),
+      ...subtitleSources.map((subtitle) => subtitle.absolutePath),
+    ],
+    thumbnailRequired: Boolean(thumbnailSource),
+    subtitleRequired: subtitleSources.length > 0,
+  });
+
+  try {
+    const updates: Partial<Video> = {};
+    const moves: Array<{
+      from: string;
+      fromBase: string;
+      to: string;
+      toBase: string;
+      kind?: "video" | "thumbnail" | "subtitle" | "sidecar";
+    }> = [];
+
+    const videoTargetPath = buildStoragePath(
+      VIDEOS_DIR,
+      reservation.videoRelativePath
+    );
+    const newVideoWebPath = `/videos/${reservation.videoRelativePath}`;
+    if (currentVideoPath !== videoTargetPath) {
+      moves.push({
+        from: currentVideoPath,
+        fromBase: VIDEOS_DIR,
+        to: videoTargetPath,
+        toBase: VIDEOS_DIR,
+        kind: "video",
+      });
+      updates.videoPath = newVideoWebPath;
+      updates.videoFilename = path.basename(reservation.videoRelativePath);
+    }
+
+    let oldThumbnailWebPath: string | null = null;
+    let newThumbnailWebPath: string | null = null;
+    if (thumbnailSource) {
+      const thumbTargetPath = buildStoragePath(
+        target.thumbnailBaseDir,
+        reservation.thumbnailRelativePath
+      );
+      newThumbnailWebPath = `${webPrefixForManagedRoot(target.thumbnailBaseDir)}/${reservation.thumbnailRelativePath}`;
+      if (thumbnailSource.absolutePath !== thumbTargetPath) {
+        moves.push({
+          from: thumbnailSource.absolutePath,
+          fromBase: thumbnailSource.rootDir,
+          to: thumbTargetPath,
+          toBase: target.thumbnailBaseDir,
+          kind: "thumbnail",
+        });
+        oldThumbnailWebPath = thumbnailSource.webPath;
+        updates.thumbnailPath = newThumbnailWebPath;
+        updates.thumbnailFilename = path.basename(reservation.thumbnailRelativePath);
+      }
+    }
+
+    const newSubtitles: NonNullable<Video["subtitles"]> = [];
+    let subtitlesChanged = false;
+    for (const originalSubtitle of video.subtitles || []) {
+      const subtitleSource = subtitleSources.find(
+        (candidate) => candidate.original === originalSubtitle
+      );
+      if (!subtitleSource) {
+        newSubtitles.push(originalSubtitle);
+        continue;
+      }
+
+      const filename = `${path.basename(reservation.subtitleBaseRelativePath)}.${subtitleSource.language}${subtitleSource.extension}`;
+      const relativeDir = path.dirname(reservation.subtitleBaseRelativePath);
+      const subtitleRelative = joinRelativePath(
+        relativeDir === "." ? "" : relativeDir,
+        filename
+      );
+      const subtitleTargetPath = buildStoragePath(
+        target.subtitleBaseDir,
+        subtitleRelative
+      );
+      const subtitleWebPath = `${webPrefixForManagedRoot(target.subtitleBaseDir)}/${subtitleRelative}`;
+
+      if (subtitleSource.absolutePath !== subtitleTargetPath) {
+        moves.push({
+          from: subtitleSource.absolutePath,
+          fromBase: subtitleSource.rootDir,
+          to: subtitleTargetPath,
+          toBase: target.subtitleBaseDir,
+          kind: "subtitle",
+        });
+        subtitlesChanged = true;
+        newSubtitles.push({
+          language: subtitleSource.language,
+          filename,
+          path: subtitleWebPath,
+        });
+      } else {
+        newSubtitles.push(originalSubtitle);
+      }
+    }
+
+    if (subtitlesChanged) {
+      updates.subtitles = newSubtitles;
+    }
+
+    if (moves.length === 0) {
+      return {};
+    }
+
+    moveOutputFamilyWithJournalSync(moves);
+
+    if (
+      oldThumbnailWebPath &&
+      newThumbnailWebPath &&
+      oldThumbnailWebPath !== newThumbnailWebPath
+    ) {
+      moveSmallThumbnailMirrorSync(oldThumbnailWebPath, newThumbnailWebPath);
+    }
+
+    return updates;
+  } finally {
+    reservation.release();
+  }
 }
 
 /**

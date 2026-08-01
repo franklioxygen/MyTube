@@ -1025,6 +1025,11 @@ export const pt = {
     "Canais grandes podem demorar mais para buscar metadados antes que o download comece.",
   downloadOrderShortsHint:
     "Duas tarefas de download serão criadas: uma para vídeos principais e outra para Shorts.",
+  preparingOrderMetadata: "Preparando metadados da ordem...",
+  selectedDownloadOrder: "Ordem: {order}",
+  retryOrderPreparation: "Tentar preparar a ordem novamente",
+  orderPreparationRetryStarted: "Nova tentativa de preparacao da ordem iniciada",
+  orderPreparationRetryFailed: "Falha ao tentar preparar a ordem novamente",
   downloadAllPreviousWarning:
     "Aviso: Isso baixará todos os vídeos anteriores deste autor. Isso pode consumir um espaço de armazenamento significativo e pode acionar mecanismos de detecção de bots que podem resultar em proibições temporárias ou permanentes da plataforma. Use por sua conta e risco.",
   downloadAllPreviousVideosInPlaylists: "Baixar vídeos anteriores em playlists",
@@ -1274,7 +1279,7 @@ export const pt = {
   authorOrganizationModeRecommendation:
     "Se voce quer pastas por autor sem colecoes de autor duplicadas no MyTube, use Somente pastas de autor.",
   authorOrganizationModeTemplateNote:
-    "Os presets de nome de arquivo nao legacy controlam a estrutura fisica de pastas. Nesses modos, a organizacao por autor afeta apenas o vinculo com colecoes.",
+    "As pastas de autor agora se aplicam a presets legacy e nao legacy. As subpastas do template sao criadas dentro da pasta do autor quando um modo de pasta de autor esta ativo.",
   cleanupAuthorCollections: "Limpar colecoes de autor existentes",
   cleanupAuthorCollectionsDescription:
     "Depois de mudar para Somente pastas de autor, remova links redundantes de colecoes de autor de videos que ja pertencem a outra colecao. Os arquivos no disco nao serao movidos.",
@@ -1485,6 +1490,7 @@ export const pt = {
   filenamePresetPlaylistStaticDate:
     "Playlist – Temporada 1 / Episódio por data",
   filenamePresetSourceDateFlat: "Fonte – data e depois título",
+  filenamePresetSourceDateId: "Fonte - data, titulo e ID da fonte",
   filenamePresetCustom: "Modelo personalizado",
   filenameCustomTemplateLabel: "Modelo personalizado",
   filenameCustomTemplatePlaceholder: "{{ source_collection_name }}/{{ season_by_year__episode_by_date_and_index }} - {{ title }}.{{ ext }}",
@@ -1499,6 +1505,8 @@ export const pt = {
     "media_playlist_index não está disponível para fontes que não sejam playlists e voltará para 00.",
   filenameWarningSourceCollectionMetadataMayBeEmpty:
     "source_collection_name/id pode ficar vazio em downloads de vídeo único.",
+  filenameWarningIdSourceSemanticsV2:
+    "id agora significa sempre o ID do video na plataforma de origem. Antes, a renomeacao em lote da biblioteca existente usava o ID de linha local do MyTube. Use local_video_id se precisar desse valor anterior.",
   filenameValidating: "Validando…",
   filenameValidationError: "Erro de modelo",
   filenameBatchRenameButton:
@@ -1539,7 +1547,10 @@ export const pt = {
   filenameRefSectionRawMetadataTitle: 'Metadados brutos do yt-dlp',
   filenameRefSectionRawMetadataDescription: 'Esses padrões expõem metadados do yt-dlp além dos aliases integrados.',
   filenameRefItemTitleDesc: 'Título do vídeo.',
-  filenameRefItemIdDesc: 'ID de vídeo da plataforma ou ID de vídeo local.',
+  filenameRefItemIdDesc: "Alias do ID estavel do video na plataforma de origem.",
+  filenameRefItemSourceVideoIdDesc: "ID estavel do video na plataforma de origem.",
+  filenameRefItemLocalVideoIdDesc: "ID de linha local do MyTube na biblioteca.",
+  filenameRefItemDownloadDatetimeDesc: "Instante do download em UTC no formato YYYY-MM-DD_HH-MM-SS.",
   filenameRefItemExtDesc: 'Extensão de arquivo final sem o ponto.',
   filenameRefItemUploaderDesc: 'Nome do carregador ou autor.',
   filenameRefItemChannelDesc: 'Nome do canal, com fallback para o carregador.',

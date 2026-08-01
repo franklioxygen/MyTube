@@ -11,6 +11,7 @@ import {
 } from "../../errors/DownloadErrors";
 import { cleanupTemporaryFiles, safeRemove } from "../../utils/downloadUtils";
 import {
+  extractSourceVideoId,
   formatVideoFilename,
   getMissAVPlaceholderTitle,
 } from "../../utils/helpers";
@@ -20,8 +21,14 @@ import {
   pathExistsSafeSync,
   resolveSafeChildPath,
   statSafeSync,
+  unlinkSafeSync,
   writeFileSafeSync,
 } from "../../utils/security";
+import {
+  planOwnedReplacementStagingPathSync,
+  replaceOwnedFileWithBackupSync,
+} from "../filenameTemplate/outputPathAllocator";
+import { resolveSupersededManagedPath } from "./supersededOutput";
 import { FilenameTemplateSourceOptions } from "../filenameTemplate/types";
 import {
   flagsToArgs,
@@ -31,7 +38,11 @@ import {
   InvalidProxyError,
   isYtDlpImpersonateAvailable,
 } from "../../utils/ytDlpUtils";
-import { syncMediaServerArtifactsForRecord } from "../mediaServerExport";
+import {
+  removeMediaServerArtifactsForVideo,
+  syncMediaServerArtifactsForRecord,
+} from "../mediaServerExport";
+import { regenerateSmallThumbnailForThumbnailPath } from "../thumbnailMirrorService";
 import * as storageService from "../storageService";
 import { Video } from "../storageService";
 import { BaseDownloader, DownloadOptions, VideoInfo } from "./BaseDownloader";
@@ -78,6 +89,31 @@ function resolveMissAvMergeOutputFormat(
 
 function isPuppeteerTimeoutError(error: unknown): boolean {
   return error instanceof Error && error.name === "TimeoutError";
+}
+
+function resolveExistingVideoForRedownload(
+  url: string,
+  existingLocalVideoId?: string
+): Video | undefined {
+  if (!existingLocalVideoId) {
+    return storageService.getVideoBySourceUrl(url, "video");
+  }
+
+  const selectedVideo = storageService.getVideoById(existingLocalVideoId);
+  if (!selectedVideo) {
+    throw new Error(
+      `Requested MissAV redownload target ${existingLocalVideoId} was not found`
+    );
+  }
+
+  const selectedMediaType = selectedVideo.mediaType === "audio" ? "audio" : "video";
+  if (selectedMediaType !== "video") {
+    throw new Error(
+      `Requested MissAV redownload target ${existingLocalVideoId} has media type ${selectedMediaType}, expected video`
+    );
+  }
+
+  return selectedVideo;
 }
 
 export class MissAVDownloader extends BaseDownloader {
@@ -148,6 +184,7 @@ export class MissAVDownloader extends BaseDownloader {
       options?.downloadId,
       options?.onStart,
       options?.filenameTemplateSourceOptions,
+      options?.existingLocalVideoId,
     );
   }
 
@@ -157,10 +194,13 @@ export class MissAVDownloader extends BaseDownloader {
     downloadId?: string,
     onStart?: (cancel: () => void) => void,
     filenameTemplateSourceOptions?: FilenameTemplateSourceOptions,
+    existingLocalVideoId?: string,
   ): Promise<Video> {
     logger.info("Detected MissAV-family URL:", url);
 
     const timestamp = Date.now();
+    const downloadedAtIso = new Date(timestamp).toISOString();
+    const sourceVideoId = extractSourceVideoId(url).id || undefined;
 
     // Ensure directories exist
     fs.ensureDirSync(VIDEOS_DIR);
@@ -174,8 +214,17 @@ export class MissAVDownloader extends BaseDownloader {
     let videoDate = new Date().toISOString().slice(0, 10).replace(/-/g, "");
     let thumbnailUrl: string | null = null;
     let thumbnailSaved = false;
+    let releaseOutputReservation: (() => void) | null = null;
+    let stagedVideoPathForCleanup: string | null = null;
+    let stagedThumbnailPathForCleanup: string | null = null;
+    let existingLocalVideo: Video | undefined;
 
     try {
+      existingLocalVideo = resolveExistingVideoForRedownload(
+        url,
+        existingLocalVideoId,
+      );
+
       // 1. Extract m3u8 URL and metadata using Puppeteer
       // (yt-dlp doesn't support MissAV natively, so we extract the m3u8 URL first)
       const { url: safeNavigationUrl } =
@@ -382,7 +431,6 @@ export class MissAVDownloader extends BaseDownloader {
         userConfig,
         settings,
       );
-
       // 6. Compute output paths using template or legacy formatter
       const {
         finalVideoFilename,
@@ -391,6 +439,7 @@ export class MissAVDownloader extends BaseDownloader {
         newThumbnailPath,
         finalVideoWebPath,
         finalThumbnailWebPath,
+        releaseOutputReservation: releasePlannedOutput,
       } = planMissAvOutputPaths(settings, {
         videoTitle,
         videoAuthor,
@@ -398,11 +447,29 @@ export class MissAVDownloader extends BaseDownloader {
         url,
         mergeOutputFormat,
         filenameTemplateSourceOptions,
+        existingLocalVideoId: existingLocalVideo?.id,
       });
+      releaseOutputReservation = releasePlannedOutput;
+      const ownedVideoReplacement = planOwnedReplacementStagingPathSync(
+        newVideoPath,
+        VIDEOS_DIR,
+        existingLocalVideo?.id
+      );
+      const ownedThumbnailReplacement = planOwnedReplacementStagingPathSync(
+        newThumbnailPath,
+        [IMAGES_DIR, VIDEOS_DIR],
+        existingLocalVideo?.id
+      );
+      const videoDownloadPath = ownedVideoReplacement?.stagingPath ?? newVideoPath;
+      const thumbnailDownloadPath =
+        ownedThumbnailReplacement?.stagingPath ?? newThumbnailPath;
+      stagedVideoPathForCleanup = ownedVideoReplacement?.stagingPath ?? null;
+      stagedThumbnailPathForCleanup =
+        ownedThumbnailReplacement?.stagingPath ?? null;
 
       // 7. Download the video using yt-dlp with the m3u8 URL
       logger.info("Downloading video from m3u8 URL using yt-dlp:", m3u8Url);
-      logger.info("Downloading video to:", newVideoPath);
+      logger.info("Downloading video to:", videoDownloadPath);
       logger.info("Download ID:", downloadId);
 
       if (downloadId) {
@@ -477,9 +544,10 @@ export class MissAVDownloader extends BaseDownloader {
       // Prepare flags object - merge user config with required settings
       const flags: any = {
         ...networkConfig, // Apply network settings (proxy, etc.)
-        output: newVideoPath,
+        output: videoDownloadPath,
         format: downloadFormat,
         mergeOutputFormat: mergeOutputFormat,
+        noOverwrites: true,
         ...(canImpersonate ? { impersonate: "chrome" } : {}),
         addHeader: [`Referer:${referer}`],
       };
@@ -503,7 +571,7 @@ export class MissAVDownloader extends BaseDownloader {
       const cleanupTemporaryFilesOnce = async (): Promise<void> => {
         if (cleanedTemporaryFiles) return;
         cleanedTemporaryFiles = true;
-        await cleanupTemporaryFiles(newVideoPath);
+        await cleanupTemporaryFiles(videoDownloadPath);
       };
       const shouldLogDownloadProgress = (line: string): boolean => {
         const now = Date.now();
@@ -619,8 +687,20 @@ export class MissAVDownloader extends BaseDownloader {
       try {
         downloader.throwIfCancelled(downloadId);
       } catch (error) {
-        await cleanupTemporaryFiles(newVideoPath);
+        await cleanupTemporaryFiles(videoDownloadPath);
         throw error;
+      }
+
+      if (ownedVideoReplacement) {
+        replaceOwnedFileWithBackupSync(
+          ownedVideoReplacement.stagingPath,
+          ownedVideoReplacement.stagingRootDir,
+          ownedVideoReplacement.finalPath,
+          ownedVideoReplacement.destinationRootDir,
+          existingLocalVideo?.id
+        );
+        stagedVideoPathForCleanup = null;
+        await cleanupTemporaryFiles(videoDownloadPath);
       }
 
       // 8. Download and save the thumbnail
@@ -644,9 +724,20 @@ export class MissAVDownloader extends BaseDownloader {
         const downloader = new MissAVDownloader();
         thumbnailSaved = await downloader.downloadThumbnail(
           thumbnailUrl,
-          newThumbnailPath,
+          thumbnailDownloadPath,
           axiosConfig,
         );
+        if (thumbnailSaved && ownedThumbnailReplacement) {
+          replaceOwnedFileWithBackupSync(
+            ownedThumbnailReplacement.stagingPath,
+            ownedThumbnailReplacement.stagingRootDir,
+            ownedThumbnailReplacement.finalPath,
+            ownedThumbnailReplacement.destinationRootDir,
+            existingLocalVideo?.id
+          );
+          stagedThumbnailPathForCleanup = null;
+          await regenerateSmallThumbnailForThumbnailPath(finalThumbnailWebPath);
+        }
       }
 
       // 9. Get video duration
@@ -696,6 +787,7 @@ export class MissAVDownloader extends BaseDownloader {
         source: "missav",
         mediaType: "video",
         sourceUrl: url,
+        sourceVideoId,
         videoFilename: finalVideoFilename,
         thumbnailFilename: thumbnailSaved ? finalThumbnailFilename : undefined,
         thumbnailUrl: thumbnailUrl || undefined,
@@ -705,16 +797,104 @@ export class MissAVDownloader extends BaseDownloader {
         fileSize: fileSize,
         width,
         height,
-        addedAt: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
+        addedAt: downloadedAtIso,
+        createdAt: downloadedAtIso,
       };
 
-      storageService.saveVideo(videoData);
+      let persistedVideoData = videoData;
+      if (existingLocalVideo) {
+        videoData.id = existingLocalVideo.id;
+        videoData.createdAt = existingLocalVideo.createdAt;
+        const updatedVideo = storageService.updateVideo(existingLocalVideo.id, {
+          title: videoData.title,
+          author: videoData.author,
+          date: videoData.date,
+          source: videoData.source,
+          mediaType: videoData.mediaType,
+          sourceUrl: videoData.sourceUrl,
+          sourceVideoId: videoData.sourceVideoId,
+          videoFilename: videoData.videoFilename,
+          videoPath: videoData.videoPath,
+          thumbnailFilename: thumbnailSaved
+            ? videoData.thumbnailFilename
+            : existingLocalVideo.thumbnailFilename,
+          thumbnailUrl: videoData.thumbnailUrl || existingLocalVideo.thumbnailUrl,
+          thumbnailPath: thumbnailSaved
+            ? videoData.thumbnailPath
+            : existingLocalVideo.thumbnailPath,
+          duration: videoData.duration,
+          fileSize: videoData.fileSize,
+          width: videoData.width,
+          height: videoData.height,
+          addedAt: downloadedAtIso,
+        });
+
+        if (!updatedVideo) {
+          throw new Error(`Failed to update existing MissAV video ${existingLocalVideo.id}`);
+        }
+
+        const previousVideoPath = resolveSupersededManagedPath({
+          previousWebPath: existingLocalVideo.videoPath,
+          previousFilename: existingLocalVideo.videoFilename,
+          fallbackRootDir: VIDEOS_DIR,
+          newAbsolutePath: newVideoPath,
+        });
+        if (previousVideoPath) {
+          try {
+            if (
+              pathExistsSafeSync(previousVideoPath, VIDEOS_DIR) &&
+              !storageService.isVideoFileReferencedByOtherVideo(
+                existingLocalVideo,
+                existingLocalVideo.id,
+              )
+            ) {
+              unlinkSafeSync(previousVideoPath, VIDEOS_DIR);
+              logger.info(
+                `Deleted superseded MissAV video file: ${existingLocalVideo.videoPath || existingLocalVideo.videoFilename}`
+              );
+            }
+          } catch (e) {
+            logger.error("Failed to delete superseded MissAV video file:", e);
+          }
+        }
+
+        removeMediaServerArtifactsForVideo(existingLocalVideo);
+        persistedVideoData = updatedVideo;
+        if (sourceVideoId) {
+          persistedVideoData = storageService.persistDownloadedMediaIdentity({
+            video: persistedVideoData,
+            identity: {
+              platform: "missav",
+              sourceVideoId,
+              mediaType: "video",
+              localVideoId: persistedVideoData.id,
+            },
+            sourceUrl: url,
+            trackingMode: "redownload",
+            downloadedAtMs: timestamp,
+          });
+        }
+      } else if (sourceVideoId) {
+        persistedVideoData = storageService.persistDownloadedMediaIdentity({
+          video: videoData,
+          identity: {
+            platform: "missav",
+            sourceVideoId,
+            mediaType: "video",
+            localVideoId: videoData.id,
+          },
+          sourceUrl: url,
+          trackingMode: "new",
+          downloadedAtMs: timestamp,
+        });
+      } else {
+        storageService.saveVideo(videoData);
+      }
       logger.info("MissAV video saved to database");
 
       // Add video to author collection if enabled
       const authorOrganization = storageService.organizeVideoByAuthor(
-        videoData.id,
+        persistedVideoData.id,
         videoAuthor,
         settings.authorOrganizationMode,
         settings.downloadFilenamePresetId,
@@ -722,8 +902,7 @@ export class MissAVDownloader extends BaseDownloader {
 
       if (authorOrganization) {
         // If video was added to a collection, the file paths might have changed
-        // Fetch the updated video from storage (using videoData.id which is timestamp string)
-        const updatedVideo = storageService.getVideoById(videoData.id);
+        const updatedVideo = storageService.getVideoById(persistedVideoData.id);
         if (updatedVideo) {
           syncMediaServerArtifactsForRecord(updatedVideo, {
             rawSourceInfo: {
@@ -739,7 +918,7 @@ export class MissAVDownloader extends BaseDownloader {
         }
       }
 
-      syncMediaServerArtifactsForRecord(videoData, {
+      syncMediaServerArtifactsForRecord(persistedVideoData, {
         rawSourceInfo: {
           title: videoTitle,
           uploader: videoAuthor,
@@ -749,7 +928,7 @@ export class MissAVDownloader extends BaseDownloader {
           extractor: "missav",
         },
       });
-      return videoData;
+      return persistedVideoData;
     } catch (error: unknown) {
       if (isCancelledError(error)) {
         logger.info("MissAV-family download cancelled:", { downloadId });
@@ -759,6 +938,12 @@ export class MissAVDownloader extends BaseDownloader {
       logger.error("Error in downloadMissAVVideo:", error);
       // Cleanup - try to get the correct extension from config, fallback to mp4
       try {
+        if (stagedVideoPathForCleanup) {
+          await cleanupTemporaryFiles(stagedVideoPathForCleanup);
+        }
+        if (stagedThumbnailPathForCleanup) {
+          await safeRemove(stagedThumbnailPathForCleanup);
+        }
         const cleanupConfig = getUserYtDlpConfig(url);
         const cleanupFormat = resolveMissAvMergeOutputFormat(
           cleanupConfig,
@@ -804,6 +989,8 @@ export class MissAVDownloader extends BaseDownloader {
         await safeRemove(cleanupThumbnailPath);
       }
       throw error;
+    } finally {
+      releaseOutputReservation?.();
     }
   }
 

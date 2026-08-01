@@ -68,7 +68,7 @@ export function saveVideoWithInsertFlag(
   }
 }
 
-function emitLibraryVideoAdded(
+export function emitLibraryVideoAdded(
   videoData: import("./types").Video,
   reason: string
 ): void {

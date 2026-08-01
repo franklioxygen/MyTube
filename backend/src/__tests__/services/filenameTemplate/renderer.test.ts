@@ -28,6 +28,9 @@ function utf8ByteLength(value: string): number {
 function makeCtx(overrides: Partial<FilenameTemplateContext> = {}): FilenameTemplateContext {
   return {
     title: "My Video",
+    sourceVideoId: "abc123",
+    localVideoId: "local-abc123",
+    downloadedAtMs: Date.UTC(2026, 3, 30, 12, 0, 0),
     id: "abc123",
     ext: "",
     uploader: "Channel Name",

@@ -61,6 +61,15 @@ export const FILENAME_TEMPLATE_PRESETS: FilenameTemplatePreset[] = [
       "{{ source_custom_name }}/{{ upload_yyyy_mm_dd }} - {{ title }}.{{ ext }}",
     recommendedSourceTypes: ["channel", "playlist", "single"],
   },
+  {
+    id: "source_date_id",
+    kind: "template",
+    labelKey: "filenamePresetSourceDateId",
+    descriptionKey: "filenamePresetSourceDateId",
+    template:
+      "{{ source_custom_name }}/{{ upload_yyyy_mm_dd }} - {{ title }} [{{ source_video_id }}].{{ ext }}",
+    recommendedSourceTypes: ["channel", "playlist", "single"],
+  },
 ];
 
 export const DEPRECATED_TEMPLATE_ALIASES: Record<string, DeprecatedTemplateAlias> =

@@ -12,6 +12,7 @@ export type DownloadModeRetryMetadata = {
   shape: "download_mode";
   audioOnly: boolean;
   audioFormat?: AudioFormat;
+  existingLocalVideoId?: string;
 };
 
 export type DownloadRetryMetadata =
@@ -66,12 +67,17 @@ export function createBilibiliRetryMetadata(options: {
 export function createDownloadModeRetryMetadata(options: {
   audioOnly: boolean;
   audioFormat?: AudioFormat;
+  existingLocalVideoId?: string;
 }): DownloadModeRetryMetadata {
-  return {
+  const metadata: DownloadModeRetryMetadata = {
     shape: "download_mode",
     audioOnly: options.audioOnly,
     audioFormat: options.audioFormat,
   };
+  if (options.existingLocalVideoId) {
+    metadata.existingLocalVideoId = options.existingLocalVideoId;
+  }
+  return metadata;
 }
 
 export function serializeRetryMetadata(

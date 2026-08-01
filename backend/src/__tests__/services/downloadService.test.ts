@@ -147,6 +147,7 @@ describe("downloadService", () => {
         "https://missav.com/v",
         "d6",
         undefined,
+        undefined,
         undefined
       );
     });
@@ -281,7 +282,9 @@ describe("downloadService", () => {
       expect(MissAVDownloader.downloadVideo).toHaveBeenCalledWith(
         "https://missav.com/v",
         "d1",
-        cancel
+        cancel,
+        undefined,
+        undefined
       );
     });
 

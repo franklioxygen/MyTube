@@ -13,10 +13,14 @@ import * as storageService from '../../../services/storageService';
 vi.mock('puppeteer');
 vi.mock('../../../services/storageService', () => ({
   saveVideo: vi.fn(),
+  updateVideo: vi.fn(),
   updateActiveDownload: vi.fn(),
   getSettings: vi.fn().mockReturnValue({}),
+  getVideos: vi.fn().mockReturnValue([]),
+  getVideoBySourceUrl: vi.fn().mockReturnValue(null),
   organizeVideoByAuthor: vi.fn().mockReturnValue(null),
   getVideoById: vi.fn().mockReturnValue(null),
+  persistDownloadedMediaIdentity: vi.fn(({ video }) => video),
 }));
 vi.mock('../../../utils/ytDlpUtils', () => ({
   getUserYtDlpConfig: vi.fn().mockReturnValue({}),

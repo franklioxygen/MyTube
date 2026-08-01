@@ -3,6 +3,10 @@ import { readFileSafeSync } from "../../utils/security";
 import { logger } from "../../utils/logger";
 import * as storageService from "../storageService";
 import { ContinuousDownloadTask } from "./types";
+import {
+  getFrozenPlanUrls,
+  parseFrozenDownloadPlan,
+} from "./frozenDownloadPlan";
 
 /**
  * Service for cleaning up temporary files and resources for tasks
@@ -85,7 +89,7 @@ export class TaskCleanup {
     }
     try {
       const raw = readFileSafeSync(task.frozenVideoListPath, DATA_DIR, "utf8");
-      const videoUrls = JSON.parse(raw) as string[];
+      const videoUrls = getFrozenPlanUrls(parseFrozenDownloadPlan(raw));
       if (task.currentVideoIndex < videoUrls.length) {
         return videoUrls[task.currentVideoIndex] ?? null;
       }

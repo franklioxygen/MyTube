@@ -1,23 +1,24 @@
 import crypto from "crypto";
 import path from "path";
-import { IMAGES_DIR, VIDEOS_DIR } from "../../../config/paths";
+import { IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../../../config/paths";
 import {
   deleteSmallThumbnailMirrorSync,
   moveSmallThumbnailMirrorSync,
 } from "../../thumbnailMirrorService";
+import { extractSourceVideoId, formatVideoFilename } from "../../../utils/helpers";
 import {
-  applyDedupeToRelatedPaths,
-  dedupeRelativePath,
-} from "../../filenameTemplate/dedupe";
+  allocateOutputFamilySync,
+  promoteFileNoOverwriteSync,
+  replaceOwnedFileWithBackupSync,
+  type MediaIdentity,
+} from "../../filenameTemplate/outputPathAllocator";
+import { applyPhysicalOrganization } from "../../filenameTemplate/organizationPath";
 import { safeRemove } from "../../../utils/downloadUtils";
-import { formatVideoFilename } from "../../../utils/helpers";
 import { logger } from "../../../utils/logger";
 import {
   ensureDirSafeSync,
-  moveSafeSync,
   pathExistsSafeSync,
   readdirSafeSync,
-  renameSafeSync,
   resolveSafePathInDirectories,
   resolveSafeChildPath,
   sanitizePathSegment,
@@ -25,6 +26,41 @@ import {
 import { planVideoOutputPaths } from "../../filenameTemplate/renderer";
 import { enrichSourceOptionsForDownload } from "../../filenameTemplate/sourceOptions";
 import { FilenameTemplateContext, FilenameTemplateSourceOptions } from "../../filenameTemplate/types";
+
+function parseDownloadedAtMs(
+  value: number | string | null | undefined
+): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === "string" && value.trim().length > 0) {
+    const parsed = Date.parse(value);
+    return Number.isNaN(parsed) ? null : parsed;
+  }
+  return null;
+}
+
+function buildMediaIdentity(options?: RenameFilesOptions): MediaIdentity {
+  const sourceUrl = options?.sourceUrl || "";
+  const sourceVideoId =
+    options?.sourceVideoId ||
+    (sourceUrl ? extractSourceVideoId(sourceUrl).id : null) ||
+    null;
+  return {
+    platform: "bilibili",
+    sourceVideoId,
+    mediaType: options?.mediaType || "video",
+    partNumber: options?.partNumber ?? null,
+  };
+}
+
+function subtitleBaseRelativeFromPlan(
+  planned: ReturnType<typeof planVideoOutputPaths>
+): string {
+  return planned.subtitle.relativeDirectory
+    ? `${planned.subtitle.relativeDirectory}/${planned.subtitle.baseNameWithoutLanguageOrExt}`
+    : planned.subtitle.baseNameWithoutLanguageOrExt;
+}
 
 export interface FilePaths {
   videoPath: string;
@@ -48,12 +84,20 @@ export interface RenamedPaths {
 export interface RenameFilesOptions {
   settings?: {
     downloadFilenamePresetId?: string;
+    downloadFilenameMode?: string;
     downloadFilenameTemplate?: string;
+    authorOrganizationMode?: string;
     moveThumbnailsToVideoFolder?: boolean;
     moveSubtitlesToVideoFolder?: boolean;
   };
   filenameTemplateSourceOptions?: FilenameTemplateSourceOptions;
   legacyTitleOverride?: string;
+  sourceUrl?: string;
+  sourceVideoId?: string | null;
+  partNumber?: number | null;
+  mediaType?: "video" | "audio";
+  downloadedAtMs?: number | string | null;
+  existingLocalVideoId?: string;
 }
 
 /**
@@ -175,9 +219,7 @@ export function moveVideoFile(
   const safeVideoFilename = path.basename(videoFile);
   const tempVideoPath = resolveSafeChildPath(safeTempDir, safeVideoFilename);
   const safeVideoPath = resolveSafePathInDirectories(videoPath, [VIDEOS_DIR]);
-  moveSafeSync(tempVideoPath, safeTempDir, safeVideoPath, VIDEOS_DIR, {
-    overwrite: true,
-  });
+  promoteFileNoOverwriteSync(tempVideoPath, safeTempDir, safeVideoPath, VIDEOS_DIR);
   logger.info("Moved video file to:", safeVideoPath);
 }
 
@@ -218,9 +260,17 @@ export function renameFilesWithMetadata(
         uploadDate: videoDate,
       }
     );
+    const sourceUrl = options?.sourceUrl || "";
+    const sourceVideoId =
+      options?.sourceVideoId ||
+      (sourceUrl ? extractSourceVideoId(sourceUrl).id : null) ||
+      "";
     const ctx: FilenameTemplateContext = {
       title: videoTitle,
-      id: "",
+      sourceVideoId,
+      localVideoId: "",
+      downloadedAtMs: parseDownloadedAtMs(options?.downloadedAtMs),
+      id: sourceVideoId,
       ext: "",
       uploader: videoAuthor,
       channel: videoAuthor,
@@ -238,7 +288,7 @@ export function renameFilesWithMetadata(
       mediaPlaylistIndex: srcOpts.mediaPlaylistIndex,
       mediaPlaylistIndexWithinDate: srcOpts.mediaPlaylistIndexWithinDate,
       platform: "bilibili",
-      sourceUrl: "",
+      sourceUrl,
     };
 
     const moveThumbnails = options?.settings?.moveThumbnailsToVideoFolder || false;
@@ -253,52 +303,34 @@ export function renameFilesWithMetadata(
       moveSubtitlesToVideoFolder: moveSubtitles,
     });
 
-    const reservedPaths = new Set<string>();
-    let dedupedVideoRelativePath = dedupeRelativePath(
-      planned.video.relativePath,
-      VIDEOS_DIR,
-      reservedPaths
-    );
-    let dedupedRelated = applyDedupeToRelatedPaths(
-      planned.video.relativePath,
-      dedupedVideoRelativePath,
-      planned.thumbnail.relativePath,
-      planned.subtitle.baseNameWithoutLanguageOrExt
-    );
     const thumbnailBaseDir = moveThumbnails ? VIDEOS_DIR : IMAGES_DIR;
-
-    while (
-      thumbnailSaved &&
-      pathExistsSafeSync(
-        resolveSafeChildPath(thumbnailBaseDir, dedupedRelated.thumbnail),
-        [IMAGES_DIR, VIDEOS_DIR]
-      )
-    ) {
-      reservedPaths.add(dedupedVideoRelativePath);
-      dedupedVideoRelativePath = dedupeRelativePath(
-        planned.video.relativePath,
-        VIDEOS_DIR,
-        reservedPaths
-      );
-      dedupedRelated = applyDedupeToRelatedPaths(
-        planned.video.relativePath,
-        dedupedVideoRelativePath,
-        planned.thumbnail.relativePath,
-        planned.subtitle.baseNameWithoutLanguageOrExt
-      );
-    }
+    const reservation = allocateOutputFamilySync({
+      videoRelativePath: planned.video.relativePath,
+      thumbnailRelativePath: planned.thumbnail.relativePath,
+      subtitleBaseRelativePath: subtitleBaseRelativeFromPlan(planned),
+      thumbnailBaseDir,
+      subtitleBaseDir: moveSubtitles ? VIDEOS_DIR : SUBTITLES_DIR,
+      identity: buildMediaIdentity(options),
+      existingLocalVideoId: options?.existingLocalVideoId,
+      thumbnailRequired: thumbnailSaved,
+      // downloadSubtitles writes `<stem>.<lang>.vtt` directly, so the stem has
+      // to be reserved here or a family whose video and thumbnail happen not to
+      // collide can still land on another row's subtitles and overwrite them.
+      // Audio-only downloads never fetch subtitles, so they skip the reservation.
+      subtitleRequired: (options?.mediaType || "video") !== "audio",
+    });
 
     const dedupedVideoPath = resolveSafeChildPath(
       VIDEOS_DIR,
-      dedupedVideoRelativePath
+      reservation.videoRelativePath
     );
     const dedupedThumbnailPath = resolveSafeChildPath(
       thumbnailBaseDir,
-      dedupedRelated.thumbnail
+      reservation.thumbnailRelativePath
     );
-    const finalVideoFilename = path.basename(dedupedVideoRelativePath);
-    let finalThumbnailFilename = path.basename(dedupedRelated.thumbnail);
-    const subtitleBaseRelative = dedupedRelated.subtitleBase;
+    const finalVideoFilename = path.basename(reservation.videoRelativePath);
+    let finalThumbnailFilename = path.basename(reservation.thumbnailRelativePath);
+    const subtitleBaseRelative = reservation.subtitleBaseRelativePath;
     const subtitleDirectory = path.dirname(subtitleBaseRelative);
     const subtitleStem = path.basename(subtitleBaseRelative);
     const subtitleBaseDir = planned.subtitle.absoluteDirectory;
@@ -307,34 +339,36 @@ export function renameFilesWithMetadata(
         ? `${moveSubtitles ? "/videos" : "/subtitles"}/${subtitleDirectory}`
         : planned.subtitle.webDirectory;
 
-    // Ensure target directories exist
-    ensureDirSafeSync(path.dirname(dedupedVideoPath), VIDEOS_DIR);
-    ensureDirSafeSync(path.dirname(dedupedThumbnailPath), [IMAGES_DIR, VIDEOS_DIR]);
+    try {
+      if (pathExistsSafeSync(safeVideoPath, VIDEOS_DIR)) {
+        replaceOwnedFileWithBackupSync(
+          safeVideoPath,
+          VIDEOS_DIR,
+          dedupedVideoPath,
+          VIDEOS_DIR,
+          options?.existingLocalVideoId
+        );
+        logger.info("Renamed video file to:", finalVideoFilename);
+      } else {
+        logger.info("Video file not found at:", safeVideoPath);
+        throw new Error("Video file not found after download");
+      }
 
-    if (pathExistsSafeSync(safeVideoPath, VIDEOS_DIR)) {
-      renameSafeSync(
-        safeVideoPath,
-        VIDEOS_DIR,
-        dedupedVideoPath,
-        VIDEOS_DIR,
-      );
-      logger.info("Renamed video file to:", finalVideoFilename);
-    } else {
-      logger.info("Video file not found at:", safeVideoPath);
-      throw new Error("Video file not found after download");
-    }
-
-    if (thumbnailSaved && pathExistsSafeSync(safeThumbnailPath, [IMAGES_DIR, VIDEOS_DIR])) {
-      renameSafeSync(
-        safeThumbnailPath,
-        [IMAGES_DIR, VIDEOS_DIR],
-        dedupedThumbnailPath,
-        [IMAGES_DIR, VIDEOS_DIR],
-      );
-      moveSmallThumbnailMirrorSync(safeThumbnailPath, dedupedThumbnailPath);
-      logger.info("Renamed thumbnail file to:", finalThumbnailFilename);
-    } else {
-      finalThumbnailFilename = path.basename(safeThumbnailPath);
+      if (thumbnailSaved && pathExistsSafeSync(safeThumbnailPath, [IMAGES_DIR, VIDEOS_DIR])) {
+        replaceOwnedFileWithBackupSync(
+          safeThumbnailPath,
+          [IMAGES_DIR, VIDEOS_DIR],
+          dedupedThumbnailPath,
+          [IMAGES_DIR, VIDEOS_DIR],
+          options?.existingLocalVideoId
+        );
+        moveSmallThumbnailMirrorSync(safeThumbnailPath, dedupedThumbnailPath);
+        logger.info("Renamed thumbnail file to:", finalThumbnailFilename);
+      } else {
+        finalThumbnailFilename = path.basename(safeThumbnailPath);
+      }
+    } finally {
+      reservation.release();
     }
 
     return {
@@ -342,9 +376,9 @@ export function renameFilesWithMetadata(
       newThumbnailPath: dedupedThumbnailPath,
       finalVideoFilename,
       finalThumbnailFilename,
-      videoWebPath: `/videos/${dedupedVideoRelativePath}`,
+      videoWebPath: `/videos/${reservation.videoRelativePath}`,
       thumbnailWebPath: thumbnailSaved
-        ? `${moveThumbnails ? "/videos" : "/images"}/${dedupedRelated.thumbnail}`
+        ? `${moveThumbnails ? "/videos" : "/images"}/${reservation.thumbnailRelativePath}`
         : undefined,
       subtitleBaseDir,
       subtitleStem,
@@ -362,44 +396,116 @@ export function renameFilesWithMetadata(
   const newThumbnailFilename = `${newSafeBaseFilename}.jpg`;
 
   const safeVideoDir = resolveSafePathInDirectories(videoDir, [VIDEOS_DIR]);
-  const safeImageDir = resolveSafePathInDirectories(imageDir, [
-    IMAGES_DIR,
+  const safeVideoRelativeDir = path.relative(VIDEOS_DIR, safeVideoDir);
+  const relativeVideoWithCollection =
+    safeVideoRelativeDir && safeVideoRelativeDir !== "."
+      ? `${safeVideoRelativeDir}/${newVideoFilename}`
+      : newVideoFilename;
+  const shouldIgnoreCollectionDir =
+    options?.settings?.authorOrganizationMode === "author_folder_only";
+  const preferredVideoRelativePath = applyPhysicalOrganization(
+    shouldIgnoreCollectionDir ? newVideoFilename : relativeVideoWithCollection,
+    {
+      mode: options?.settings?.authorOrganizationMode,
+      author: videoAuthor,
+    }
+  ).relativePath;
+  const preferredVideoDir = path.dirname(preferredVideoRelativePath);
+  const preferredThumbnailRelativePath =
+    preferredVideoDir && preferredVideoDir !== "."
+      ? `${preferredVideoDir}/${newThumbnailFilename}`
+      : newThumbnailFilename;
+  const preferredSubtitleBaseRelativePath =
+    preferredVideoDir && preferredVideoDir !== "."
+      ? `${preferredVideoDir}/${newSafeBaseFilename}`
+      : newSafeBaseFilename;
+  const moveThumbnails = options?.settings?.moveThumbnailsToVideoFolder || false;
+  const moveSubtitles = options?.settings?.moveSubtitlesToVideoFolder || false;
+  const thumbnailBaseDir = moveThumbnails ? VIDEOS_DIR : IMAGES_DIR;
+  const reservation = allocateOutputFamilySync({
+    videoRelativePath: preferredVideoRelativePath,
+    thumbnailRelativePath: preferredThumbnailRelativePath,
+    subtitleBaseRelativePath: preferredSubtitleBaseRelativePath,
+    thumbnailBaseDir,
+    subtitleBaseDir: moveSubtitles ? VIDEOS_DIR : SUBTITLES_DIR,
+    identity: buildMediaIdentity(options),
+    existingLocalVideoId: options?.existingLocalVideoId,
+    thumbnailRequired: thumbnailSaved,
+    // See the template branch above: downloadSubtitles writes the planned stem
+    // directly, so it must be reserved here too. This is the default preset.
+    subtitleRequired: (options?.mediaType || "video") !== "audio",
+  });
+
+  const newVideoPath = resolveSafeChildPath(
     VIDEOS_DIR,
-  ]);
-
-  const newVideoPath = resolveSafeChildPath(safeVideoDir, newVideoFilename);
-  const newThumbnailPath = resolveSafeChildPath(
-    safeImageDir,
-    newThumbnailFilename
+    reservation.videoRelativePath
   );
+  const newThumbnailPath = resolveSafeChildPath(
+    thumbnailBaseDir,
+    reservation.thumbnailRelativePath
+  );
+  const finalVideoFilename = path.basename(reservation.videoRelativePath);
+  let finalThumbnailFilename = path.basename(reservation.thumbnailRelativePath);
 
-  if (pathExistsSafeSync(safeVideoPath, VIDEOS_DIR)) {
-    renameSafeSync(safeVideoPath, VIDEOS_DIR, newVideoPath, safeVideoDir);
-    logger.info("Renamed video file to:", newVideoFilename);
-  } else {
-    logger.info("Video file not found at:", safeVideoPath);
-    throw new Error("Video file not found after download");
+  try {
+    if (pathExistsSafeSync(safeVideoPath, VIDEOS_DIR)) {
+      replaceOwnedFileWithBackupSync(
+        safeVideoPath,
+        VIDEOS_DIR,
+        newVideoPath,
+        VIDEOS_DIR,
+        options?.existingLocalVideoId
+      );
+      logger.info("Renamed video file to:", finalVideoFilename);
+    } else {
+      logger.info("Video file not found at:", safeVideoPath);
+      throw new Error("Video file not found after download");
+    }
+
+    if (thumbnailSaved && pathExistsSafeSync(safeThumbnailPath, [IMAGES_DIR, VIDEOS_DIR])) {
+      replaceOwnedFileWithBackupSync(
+        safeThumbnailPath,
+        [IMAGES_DIR, VIDEOS_DIR],
+        newThumbnailPath,
+        [IMAGES_DIR, VIDEOS_DIR],
+        options?.existingLocalVideoId
+      );
+      moveSmallThumbnailMirrorSync(safeThumbnailPath, newThumbnailPath);
+      logger.info("Renamed thumbnail file to:", finalThumbnailFilename);
+    } else {
+      finalThumbnailFilename = path.basename(safeThumbnailPath);
+    }
+  } finally {
+    reservation.release();
   }
 
-  let finalThumbnailFilename = newThumbnailFilename;
-  if (thumbnailSaved && pathExistsSafeSync(safeThumbnailPath, [IMAGES_DIR, VIDEOS_DIR])) {
-    renameSafeSync(
-      safeThumbnailPath,
-      [IMAGES_DIR, VIDEOS_DIR],
-      newThumbnailPath,
-      safeImageDir,
-    );
-    moveSmallThumbnailMirrorSync(safeThumbnailPath, newThumbnailPath);
-    logger.info("Renamed thumbnail file to:", newThumbnailFilename);
-  } else {
-    finalThumbnailFilename = path.basename(safeThumbnailPath);
-  }
+  const subtitleDirectory = path.dirname(reservation.subtitleBaseRelativePath);
+  const subtitleStem = path.basename(reservation.subtitleBaseRelativePath);
+  const subtitleBaseDir =
+    subtitleDirectory && subtitleDirectory !== "."
+      ? resolveSafeChildPath(moveSubtitles ? VIDEOS_DIR : SUBTITLES_DIR, subtitleDirectory)
+      : moveSubtitles
+        ? VIDEOS_DIR
+        : SUBTITLES_DIR;
+  const subtitleWebBaseDir =
+    subtitleDirectory && subtitleDirectory !== "."
+      ? `${moveSubtitles ? "/videos" : "/subtitles"}/${subtitleDirectory}`
+      : moveSubtitles
+        ? "/videos"
+        : "/subtitles";
 
   return {
     newVideoPath,
     newThumbnailPath,
-    finalVideoFilename: newVideoFilename,
+    finalVideoFilename,
     finalThumbnailFilename,
+    videoWebPath: `/videos/${reservation.videoRelativePath}`,
+    thumbnailWebPath: thumbnailSaved
+      ? `${moveThumbnails ? "/videos" : "/images"}/${reservation.thumbnailRelativePath}`
+      : undefined,
+    subtitleBaseDir,
+    subtitleStem,
+    subtitleWebBaseDir,
   };
 }
 

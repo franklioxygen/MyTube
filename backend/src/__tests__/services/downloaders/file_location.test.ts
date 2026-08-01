@@ -49,6 +49,8 @@ vi.mock('../../../utils/ytDlpUtils', () => ({
 vi.mock('../../../services/storageService', () => ({
     updateActiveDownload: vi.fn(),
     saveVideo: vi.fn(),
+    persistDownloadedMediaIdentity: vi.fn(({ video }) => video),
+    getVideos: vi.fn().mockReturnValue([]),
     getVideoBySourceUrl: vi.fn(),
     updateVideo: vi.fn(),
     getSettings: () => mocks.getSettings(),

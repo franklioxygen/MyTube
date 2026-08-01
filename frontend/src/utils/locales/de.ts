@@ -1035,6 +1035,11 @@ export const de = {
     "Große Kanäle benötigen möglicherweise länger, um Metadaten abzurufen, bevor der Download beginnt.",
   downloadOrderShortsHint:
     "Es werden zwei Download-Aufgaben erstellt: eine für Hauptvideos und eine für Shorts.",
+  preparingOrderMetadata: "Metadaten fuer die Reihenfolge werden vorbereitet...",
+  selectedDownloadOrder: "Reihenfolge: {order}",
+  retryOrderPreparation: "Reihenfolge erneut vorbereiten",
+  orderPreparationRetryStarted: "Erneute Vorbereitung der Reihenfolge gestartet",
+  orderPreparationRetryFailed: "Reihenfolge konnte nicht erneut vorbereitet werden",
   downloadAllPreviousWarning:
     "Warnung: Dies lädt alle vorherigen Videos dieses Autors herunter. Dies kann erheblichen Speicherplatz verbrauchen und könnte Bot-Erkennungsmechanismen auslösen, die zu temporären oder dauerhaften Sperren der Plattform führen können. Verwenden Sie auf eigenes Risiko.",
   downloadAllPreviousVideosInPlaylists:
@@ -1285,7 +1290,7 @@ export const de = {
   authorOrganizationModeRecommendation:
     "Wenn du autorbasierte Ordner ohne doppelte Autorensammlungen in MyTube willst, verwende Nur Autorenordner.",
   authorOrganizationModeTemplateNote:
-    "Nicht-Legacy-Dateinamenvorlagen steuern die physische Ordnerstruktur. In diesen Modi beeinflusst die Autorenorganisation nur die Sammlungsverknüpfung.",
+    "Autorenordner gelten fuer Legacy- und Nicht-Legacy-Dateinamenvorlagen. Template-Unterordner werden im Autorenordner erstellt, wenn ein Autorenordner-Modus aktiviert ist.",
   cleanupAuthorCollections: "Vorhandene Autorensammlungen bereinigen",
   cleanupAuthorCollectionsDescription:
     "Nach dem Wechsel zu Nur Autorenordner werden redundante Autorensammlungs-Links von Videos entfernt, die bereits zu einer anderen Sammlung gehören. Dateien auf der Festplatte werden nicht verschoben.",
@@ -1499,6 +1504,7 @@ export const de = {
   filenamePresetPlaylistStaticDate:
     "Playlist – Staffel 1 / Folge nach Datum",
   filenamePresetSourceDateFlat: "Quelle – Datum, dann Titel",
+  filenamePresetSourceDateId: "Quelle - Datum, Titel, Quell-ID",
   filenamePresetCustom: "Benutzerdefinierte Vorlage",
   filenameCustomTemplateLabel: "Benutzerdefinierte Vorlage",
   filenameCustomTemplatePlaceholder: "{{ source_collection_name }}/{{ season_by_year__episode_by_date_and_index }} - {{ title }}.{{ ext }}",
@@ -1513,6 +1519,8 @@ export const de = {
     "media_playlist_index ist für Nicht-Playlist-Quellen nicht verfügbar und fällt auf 00 zurück.",
   filenameWarningSourceCollectionMetadataMayBeEmpty:
     "source_collection_name/id kann bei Einzelvideo-Downloads leer sein.",
+  filenameWarningIdSourceSemanticsV2:
+    "id bedeutet jetzt durchgaengig die Video-ID der Quellplattform. Die Stapelumbenennung bestehender Mediathekseintraege verwendete zuvor die lokale MyTube-Zeilen-ID. Verwende local_video_id, wenn du den bisherigen Wert brauchst.",
   filenameValidating: "Wird geprüft…",
   filenameValidationError: "Vorlagenfehler",
   filenameBatchRenameButton:
@@ -1552,7 +1560,10 @@ export const de = {
   filenameRefSectionRawMetadataTitle: 'Roh-yt-dlp-Metadaten',
   filenameRefSectionRawMetadataDescription: 'Diese Muster erschließen yt-dlp-Metadaten jenseits der eingebauten Aliase.',
   filenameRefItemTitleDesc: 'Videotitel.',
-  filenameRefItemIdDesc: 'Plattform-Video-ID oder lokale Video-ID.',
+  filenameRefItemIdDesc: "Alias fuer die stabile Video-ID der Quellplattform.",
+  filenameRefItemSourceVideoIdDesc: "Stabile Video-ID der Quellplattform.",
+  filenameRefItemLocalVideoIdDesc: "Lokale MyTube-Zeilen-ID in der Mediathek.",
+  filenameRefItemDownloadDatetimeDesc: "Download-Zeitpunkt in UTC als YYYY-MM-DD_HH-MM-SS.",
   filenameRefItemExtDesc: 'Endgültige Dateiendung ohne den Punkt.',
   filenameRefItemUploaderDesc: 'Name des Uploaders oder Autors.',
   filenameRefItemChannelDesc: 'Kanalname, mit Rückfall auf den Uploader.',

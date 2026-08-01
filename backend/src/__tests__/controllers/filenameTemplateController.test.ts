@@ -18,8 +18,20 @@ vi.mock("../../utils/security", () => ({
   ),
   ensureDirSafeSync: vi.fn(),
   copyFileSafeSync: vi.fn(),
+  fsyncFileSafeSync: vi.fn(),
   linkSafeSync: vi.fn(),
   moveSafeSync: vi.fn(),
+  // Mirrors the real helper; author-folder organization calls this whenever a
+  // non-root authorOrganizationMode is active.
+  sanitizePathSegment: vi.fn((segment: string) =>
+    typeof segment === "string"
+      ? segment
+          .replace(/\0/g, "")
+          .replace(/\.\./g, "")
+          .replace(/[\/\\]/g, "")
+          .trim()
+      : ""
+  ),
 }));
 
 vi.mock("../../utils/logger", () => ({
@@ -247,6 +259,46 @@ describe("filenameTemplateController — preview", () => {
     expect(body.previews.single.subtitlePath).toMatch(/\.en\.vtt$/);
   });
 
+  it("applies the saved author organization mode to previews", async () => {
+    // Downloads and batch rename prepend the author folder under this mode, so
+    // a preview that ignored it would advertise paths the files never use.
+    getSettingsMock.mockReturnValue({
+      authorOrganizationMode: "author_folder_only",
+    });
+    const res = makeRes();
+    await previewFilenameTemplate(
+      {
+        body: {
+          mode: "template",
+          template: "{{ title }}.{{ ext }}",
+        },
+      } as Request,
+      res
+    );
+
+    const body = (res.json as any).mock.calls[0][0];
+    expect(body.valid).toBe(true);
+    expect(body.previews.channel.videoPath).toBe("Sample Channel/Sample Video.mp4");
+    expect(body.previews.single.videoPath).toBe("Sample Channel/Sample Video.mp4");
+  });
+
+  it("keeps previews at the root when author organization is off", async () => {
+    getSettingsMock.mockReturnValue({ authorOrganizationMode: "root" });
+    const res = makeRes();
+    await previewFilenameTemplate(
+      {
+        body: {
+          mode: "template",
+          template: "{{ title }}.{{ ext }}",
+        },
+      } as Request,
+      res
+    );
+
+    const body = (res.json as any).mock.calls[0][0];
+    expect(body.previews.channel.videoPath).toBe("Sample Video.mp4");
+  });
+
   it("renders channel and single scenarios honestly", async () => {
     const res = makeRes();
     await previewFilenameTemplate(
@@ -357,6 +409,57 @@ describe("filenameTemplateController — startBatchRename", () => {
     expect(res.status).toHaveBeenCalledWith(400);
     const body = (res.json as any).mock.calls[0][0];
     expect(body.code).toBe("invalid_template");
+  });
+
+  it("requires explicit acknowledgement before batch renaming with the id alias", async () => {
+    getDownloadStatusMock.mockReturnValue({
+      activeDownloads: [],
+      queuedDownloads: [],
+    });
+    getSettingsMock.mockReturnValue({
+      downloadFilenamePresetId: "custom",
+      downloadFilenameTemplate: "{{ id }}.{{ ext }}",
+      moveThumbnailsToVideoFolder: false,
+      moveSubtitlesToVideoFolder: false,
+    });
+    getVideosMock.mockReturnValue([]);
+
+    const res = makeRes();
+    await startBatchRename({ body: {} } as Request, res);
+
+    expect(res.status).toHaveBeenCalledWith(409);
+    const body = (res.json as any).mock.calls[0][0];
+    expect(body).toMatchObject({
+      code: "id_source_semantics_ack_required",
+      requiredAcknowledgement: "filename-id-source-semantics-v2",
+    });
+  });
+
+  it("starts batch rename with the id alias after acknowledgement", async () => {
+    getDownloadStatusMock.mockReturnValue({
+      activeDownloads: [],
+      queuedDownloads: [],
+    });
+    getSettingsMock.mockReturnValue({
+      downloadFilenamePresetId: "custom",
+      downloadFilenameTemplate: "{{ id }}.{{ ext }}",
+      moveThumbnailsToVideoFolder: false,
+      moveSubtitlesToVideoFolder: false,
+    });
+    getVideosMock.mockReturnValue([]);
+
+    const res = makeRes();
+    await startBatchRename(
+      {
+        body: {
+          acknowledgeIdSourceSemantics: "filename-id-source-semantics-v2",
+        },
+      } as Request,
+      res,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(202);
+    await waitForJobToFinish();
   });
 
   it("rejects with 400 when the current custom preset omits its template override", async () => {

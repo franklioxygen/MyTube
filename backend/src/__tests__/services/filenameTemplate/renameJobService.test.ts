@@ -20,14 +20,24 @@ vi.mock("../../../utils/logger", () => ({
 }));
 
 vi.mock("../../../utils/security", () => ({
+  isPathWithinDirectory: vi.fn((candidate: string, root: string) =>
+    String(candidate).startsWith(String(root))
+  ),
+  normalizeSafeAbsolutePath: vi.fn((value: string) => value),
   pathExistsSafeSync: vi.fn().mockReturnValue(true),
   resolveSafeChildPath: vi.fn(
     (base: string, child: string) => `${base}/${child}`
   ),
   ensureDirSafeSync: vi.fn(),
   copyFileSafeSync: vi.fn(),
+  fsyncFileSafeSync: vi.fn(),
   linkSafeSync: vi.fn(),
   moveSafeSync: vi.fn(),
+  readFileSafeSync: vi.fn(() => ""),
+  renameSafeSync: vi.fn(),
+  statSafeSync: vi.fn(() => ({ size: 1 })),
+  unlinkSafeSync: vi.fn(),
+  writeFileSafeSync: vi.fn(),
 }));
 
 // Mocks for the subscriptions query in precomputeSourceOptions. Tests that
@@ -278,10 +288,10 @@ describe("renameJobService — design §23 changes", () => {
     expect(job?.succeeded).toBe(2);
     expect(job?.items.map((item) => item.newVideoPath)).toEqual([
       "/videos/Same Stem.webm",
-      "/videos/Same Stem_1.mp4",
+      "/videos/Same Stem (2).mp4",
     ]);
     expect(existingPaths.has("/mock/images/Same Stem.jpg")).toBe(true);
-    expect(existingPaths.has("/mock/images/Same Stem_1.jpg")).toBe(true);
+    expect(existingPaths.has("/mock/images/Same Stem (2).jpg")).toBe(true);
   });
 });
 

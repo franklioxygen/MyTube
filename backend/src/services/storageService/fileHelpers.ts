@@ -127,8 +127,7 @@ export function renamePath(sourcePath: string, destPath: string): void {
     safeSourcePath,
     ALLOWED_STORAGE_DIRS,
     safeDestPath,
-    ALLOWED_STORAGE_DIRS,
-    { overwrite: true }
+    ALLOWED_STORAGE_DIRS
   );
 }
 
@@ -351,8 +350,7 @@ export function moveFile(sourcePath: string, destPath: string): void {
         sourcePath,
         ALLOWED_STORAGE_DIRS,
         destPath,
-        ALLOWED_STORAGE_DIRS,
-        { overwrite: true }
+        ALLOWED_STORAGE_DIRS
       );
       logger.info(`Moved file from ${sourcePath} to ${destPath}`);
     }

@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import path from "path";
 import { SUBTITLES_DIR, VIDEOS_DIR } from "../../../config/paths";
 import { cleanupSubtitleFiles } from "../../../utils/downloadUtils";
@@ -5,12 +6,18 @@ import { logger } from "../../../utils/logger";
 import {
   copyFileSafeSync,
   ensureDirSafeSync,
+  pathExistsSafeSync,
   readFileSafeSync,
   readdirSafeSync,
   resolveSafeChildPath,
   unlinkSafeSync,
   writeFileSafeSync,
 } from "../../../utils/security";
+import {
+  planOwnedReplacementStagingPathSync,
+  promoteFileNoOverwriteSync,
+  replaceOwnedFileWithBackupSync,
+} from "../../filenameTemplate/outputPathAllocator";
 import { YtDlpDownloaderHelper } from "./ytdlpDownloaderHelper";
 
 /**
@@ -25,6 +32,8 @@ import { YtDlpDownloaderHelper } from "./ytdlpDownloaderHelper";
  * @param subtitleDestDir - Absolute destination directory for subtitle files (default: derived
  *   from moveSubtitlesToVideoFolder).
  * @param subtitleWebDir - Web path prefix for subtitle files (default: derived from flags).
+ * @param destinationBaseFilename - Final subtitle stem when the download used
+ *   a temporary output stem for same-row replacement.
  */
 export async function processSubtitles(
   baseFilename: string,
@@ -33,6 +42,8 @@ export async function processSubtitles(
   videoSourceDir?: string,
   subtitleDestDir?: string,
   subtitleWebDir?: string,
+  destinationBaseFilename: string = baseFilename,
+  existingLocalVideoId?: string,
 ): Promise<Array<{ language: string; filename: string; path: string }>> {
   const subtitles: Array<{ language: string; filename: string; path: string }> =
     [];
@@ -103,13 +114,30 @@ export async function processSubtitles(
 
       // Move subtitle to destination directory
       const sourceSubPath = resolveSafeChildPath(dir, subtitleFile);
-      const destSubFilename = `${baseFilename}.${language}${extension}`;
+      const destSubFilename = `${destinationBaseFilename}.${language}${extension}`;
       const destinationDir = resolvedDestDir;
       const destSubPath = resolveSafeChildPath(destinationDir, destSubFilename);
       const webPath = `${resolvedWebDir}/${destSubFilename}`;
 
       try {
         ensureDirSafeSync(destinationDir, [VIDEOS_DIR, SUBTITLES_DIR]);
+        const ownedReplacement = planOwnedReplacementStagingPathSync(
+          destSubPath,
+          [VIDEOS_DIR, SUBTITLES_DIR],
+          existingLocalVideoId
+        );
+        const shouldUseNoOverwritePromotion =
+          !ownedReplacement &&
+          sourceSubPath !== destSubPath &&
+          pathExistsSafeSync(destSubPath, [VIDEOS_DIR, SUBTITLES_DIR]);
+        const stagedDestSubPath = shouldUseNoOverwritePromotion
+          ? resolveSafeChildPath(
+              destinationDir,
+              `.mytube-subtitle-${crypto.randomUUID()}${extension}`
+            )
+          : null;
+        const writeTargetPath =
+          ownedReplacement?.stagingPath ?? stagedDestSubPath ?? destSubPath;
 
         if (extension.toLowerCase() === ".vtt") {
           // Read VTT file and fix alignment for centering
@@ -120,9 +148,31 @@ export async function processSubtitles(
           vttContent = vttContent.replace(/ position:0%/g, "");
 
           // Write cleaned VTT to destination
-          writeFileSafeSync(destSubPath, [VIDEOS_DIR, SUBTITLES_DIR], vttContent, "utf-8");
-        } else if (sourceSubPath !== destSubPath) {
-          copyFileSafeSync(sourceSubPath, [VIDEOS_DIR, SUBTITLES_DIR], destSubPath, [VIDEOS_DIR, SUBTITLES_DIR]);
+          writeFileSafeSync(writeTargetPath, [VIDEOS_DIR, SUBTITLES_DIR], vttContent, "utf-8");
+        } else if (sourceSubPath !== writeTargetPath) {
+          copyFileSafeSync(
+            sourceSubPath,
+            [VIDEOS_DIR, SUBTITLES_DIR],
+            writeTargetPath,
+            [VIDEOS_DIR, SUBTITLES_DIR]
+          );
+        }
+
+        if (ownedReplacement) {
+          replaceOwnedFileWithBackupSync(
+            ownedReplacement.stagingPath,
+            ownedReplacement.stagingRootDir,
+            ownedReplacement.finalPath,
+            ownedReplacement.destinationRootDir,
+            existingLocalVideoId
+          );
+        } else if (stagedDestSubPath) {
+          promoteFileNoOverwriteSync(
+            stagedDestSubPath,
+            [VIDEOS_DIR, SUBTITLES_DIR],
+            destSubPath,
+            [VIDEOS_DIR, SUBTITLES_DIR]
+          );
         }
 
         // Remove original file if we moved it (if dest is different from source)

@@ -3,6 +3,7 @@ import React, { Suspense, createContext, useCallback, useContext, useEffect, use
 import { useSettings } from '../hooks/useSettings';
 import { SUBSCRIPTIONS_QUERY_KEY } from '../hooks/useSubscriptions';
 import { DownloadInfo } from '../types';
+import type { DownloadOrder } from '../types';
 import { api } from '../utils/apiClient';
 import { getApiErrorMessage, hasAxiosStatus } from '../utils/errors';
 import { lazyWithRetry } from '../utils/lazyWithRetry';
@@ -646,7 +647,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         interval: number,
         downloadAllPrevious: boolean,
         downloadShorts: boolean,
-        downloadOrder: string,
+        downloadOrder: DownloadOrder,
         filenameTemplate: string | null
     ) => {
         try {
@@ -709,6 +710,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const performSubscribePlaylists = async (
         interval: number,
         downloadAllPrevious: boolean = false,
+        downloadOrder: DownloadOrder = 'dateDesc',
         filenameTemplate: string | null = null
     ) => {
         try {
@@ -725,6 +727,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 url: playlistsUrl,
                 interval: interval,
                 downloadAllPrevious: downloadAllPrevious,
+                ...(downloadAllPrevious ? { downloadOrder } : {}),
                 ...(filenameTemplate ? { filenameTemplate } : {}),
             });
 
@@ -799,6 +802,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             performSubscribePlaylists(
                 values.interval,
                 values.downloadAllPrevious,
+                values.downloadOrder,
                 values.filenameTemplate
             );
         }
@@ -849,7 +853,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                         source={subscribeSource}
                         title={subscribeMode === 'playlist' ? (t('subscribeAllPlaylists') || 'Subscribe All Playlists') : undefined}
                         description={subscribeMode === 'playlist' ? (t('subscribeAllPlaylistsDescription') || 'This will subscribe to all playlists in this channel.') : undefined}
-                        enableDownloadOrder={subscribeMode !== 'playlist'}
+                        enableDownloadOrder
                         playlistMode={subscribeMode === 'playlist'}
                         downloadPreviousLabel={subscribeMode === 'playlist' ? (t('downloadExistingPlaylistVideos') || 'Download existing videos in these playlists') : undefined}
                         downloadPreviousHelp={subscribeMode === 'playlist' ? (t('downloadAllPlaylistsWarning') || undefined) : undefined}

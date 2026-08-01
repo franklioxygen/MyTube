@@ -17,9 +17,24 @@ vi.mock("../../../utils/security", () => ({
 }));
 
 import {
+  canonicalizeManagedPath,
   getManagedRelativePath,
   resolveManagedWebPath,
 } from "../../../services/filenameTemplate/pathHelpers";
+
+describe("canonicalizeManagedPath", () => {
+  it("strips managed web prefixes and case-folds paths", () => {
+    expect(canonicalizeManagedPath("/videos/Channel/File.MP4")).toBe(
+      "channel/file.mp4"
+    );
+  });
+
+  it("normalizes equivalent absolute managed paths", () => {
+    expect(canonicalizeManagedPath("/mock/videos/Channel/File.MP4")).toBe(
+      "channel/file.mp4"
+    );
+  });
+});
 
 describe("getManagedRelativePath", () => {
   it("returns the relative segment for a /videos path", () => {

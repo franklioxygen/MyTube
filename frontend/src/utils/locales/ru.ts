@@ -1019,6 +1019,11 @@ export const ru = {
     "Для крупных каналов может потребоваться больше времени на получение метаданных перед началом загрузки.",
   downloadOrderShortsHint:
     "Будут созданы две задачи загрузки: одна для основных видео и одна для Shorts.",
+  preparingOrderMetadata: "Подготовка метаданных порядка...",
+  selectedDownloadOrder: "Порядок: {order}",
+  retryOrderPreparation: "Повторить подготовку порядка",
+  orderPreparationRetryStarted: "Повторная подготовка порядка запущена",
+  orderPreparationRetryFailed: "Не удалось повторить подготовку порядка",
   downloadAllPreviousWarning:
     "Предупреждение: Это скачает все предыдущие видео этого автора. Это может потребовать значительного объема хранилища и может вызвать механизмы обнаружения ботов, что может привести к временным или постоянным запретам на платформе. Используйте на свой риск.",
   downloadAllPreviousVideosInPlaylists: "Скачать предыдущие видео в плейлистах",
@@ -1267,7 +1272,7 @@ export const ru = {
   authorOrganizationModeRecommendation:
     "Если вам нужны папки по авторам без дублирующих коллекций автора в MyTube, используйте Только папки автора.",
   authorOrganizationModeTemplateNote:
-    "Нелегаси-пресеты имен файлов управляют физической структурой папок. В этих режимах организация по автору влияет только на привязку коллекции.",
+    "Папки авторов теперь применяются к legacy- и non-legacy-пресетам имен файлов. Подпапки шаблона создаются внутри папки автора, когда включен режим папок автора.",
   cleanupAuthorCollections: "Очистить существующие коллекции автора",
   cleanupAuthorCollectionsDescription:
     "После переключения на Только папки автора удаляет лишние связи коллекций автора у видео, которые уже входят в другую коллекцию. Файлы на диске не перемещаются.",
@@ -1480,6 +1485,7 @@ export const ru = {
   filenamePresetPlaylistStaticDate:
     "Плейлист – сезон 1 / эпизод по дате",
   filenamePresetSourceDateFlat: "Источник — дата, затем название",
+  filenamePresetSourceDateId: "Источник - дата, название и ID источника",
   filenamePresetCustom: "Пользовательский шаблон",
   filenameCustomTemplateLabel: "Пользовательский шаблон",
   filenameCustomTemplatePlaceholder: "{{ source_collection_name }}/{{ season_by_year__episode_by_date_and_index }} - {{ title }}.{{ ext }}",
@@ -1494,6 +1500,8 @@ export const ru = {
     "media_playlist_index недоступен для источников без плейлиста и будет заменён на 00.",
   filenameWarningSourceCollectionMetadataMayBeEmpty:
     "source_collection_name/id может быть пустым для загрузок одиночного видео.",
+  filenameWarningIdSourceSemanticsV2:
+    "id теперь всегда означает ID видео на исходной платформе. Раньше пакетное переименование существующей библиотеки использовало локальный ID строки MyTube. Используйте local_video_id, если нужно прежнее значение.",
   filenameValidating: "Проверка…",
   filenameValidationError: "Ошибка шаблона",
   filenameBatchRenameButton:
@@ -1535,7 +1543,10 @@ export const ru = {
   filenameRefSectionRawMetadataDescription:
     'Эти шаблоны предоставляют доступ к метаданным yt-dlp помимо встроенных псевдонимов.',
   filenameRefItemTitleDesc: 'Название видео.',
-  filenameRefItemIdDesc: 'ID видео на платформе или локальный ID видео.',
+  filenameRefItemIdDesc: "Псевдоним стабильного ID видео на исходной платформе.",
+  filenameRefItemSourceVideoIdDesc: "Стабильный ID видео на исходной платформе.",
+  filenameRefItemLocalVideoIdDesc: "Локальный ID строки MyTube в библиотеке.",
+  filenameRefItemDownloadDatetimeDesc: "Момент загрузки в UTC в формате YYYY-MM-DD_HH-MM-SS.",
   filenameRefItemExtDesc: 'Конечное расширение файла без точки.',
   filenameRefItemUploaderDesc: 'Имя загрузчика или автора.',
   filenameRefItemChannelDesc: 'Название канала; при отсутствии используется имя загрузчика.',

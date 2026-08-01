@@ -9,9 +9,11 @@ const mocks = vi.hoisted(() => ({
   statSync: vi.fn(),
   unlinkSync: vi.fn(),
   getSettings: vi.fn(),
+  getVideos: vi.fn(),
   getVideoBySourceUrl: vi.fn(),
   updateVideo: vi.fn(),
   saveVideo: vi.fn(),
+  persistDownloadedMediaIdentity: vi.fn(),
   organizeVideoByAuthor: vi.fn(),
   updateActiveDownload: vi.fn(),
   isThumbnailReferencedByOtherVideo: vi.fn(),
@@ -101,9 +103,12 @@ vi.mock("../../../utils/ytDlpUtils", () => {
 
 vi.mock("../../../services/storageService", () => ({
   getSettings: (...args: any[]) => mocks.getSettings(...args),
+  getVideos: (...args: any[]) => mocks.getVideos(...args),
   getVideoBySourceUrl: (...args: any[]) => mocks.getVideoBySourceUrl(...args),
   updateVideo: (...args: any[]) => mocks.updateVideo(...args),
   saveVideo: (...args: any[]) => mocks.saveVideo(...args),
+  persistDownloadedMediaIdentity: (...args: any[]) =>
+    mocks.persistDownloadedMediaIdentity(...args),
   organizeVideoByAuthor: (...args: any[]) =>
     mocks.organizeVideoByAuthor(...args),
   updateActiveDownload: (...args: any[]) =>
@@ -186,6 +191,7 @@ vi.mock("../../../services/downloaders/bilibili/bilibiliSubtitle", () => ({
 }));
 
 import { downloadSinglePart } from "../../../services/downloaders/bilibili/bilibiliVideo";
+import * as allocator from "../../../services/filenameTemplate/outputPathAllocator";
 
 const buildExistingVideo = (overrides: Record<string, any> = {}) => ({
   id: "existing-video",
@@ -203,6 +209,8 @@ describe("bilibiliVideo.downloadSinglePart", () => {
     vi.clearAllMocks();
     // Default: not cancelled. Individual tests opt into cancellation.
     mocks.throwIfCancelled.mockReset();
+    // Ownership checks default to an empty library; tests opt into rows.
+    allocator.setOutputPathAllocatorVideoProviderForTests(() => []);
 
     const subprocess: any = Promise.resolve(undefined);
     subprocess.stdout = { on: vi.fn() };
@@ -218,8 +226,12 @@ describe("bilibiliVideo.downloadSinglePart", () => {
       authorOrganizationMode: "root",
       saveAuthorFilesToCollection: false,
     });
+    mocks.getVideos.mockReturnValue([]);
     mocks.getVideoBySourceUrl.mockReturnValue(null);
     mocks.updateVideo.mockReturnValue({ id: "existing-video" });
+    mocks.persistDownloadedMediaIdentity.mockImplementation(
+      ({ video }: { video: any }) => video,
+    );
     mocks.organizeVideoByAuthor.mockReturnValue(null);
     mocks.isThumbnailReferencedByOtherVideo.mockReturnValue(false);
     mocks.resolveManagedThumbnailWebPathFromAbsolutePath.mockReturnValue(null);
@@ -294,6 +306,91 @@ describe("bilibiliVideo.downloadSinglePart", () => {
     mocks.downloadSubtitles.mockResolvedValue([]);
     mocks.downloadAndProcessAvatar.mockResolvedValue(null);
     mocks.downloadThumbnail.mockResolvedValue(true);
+  });
+
+  // Cancellation is checked at several points during a download. These tests
+  // target the last one, which is the only check that cleans up the allocated
+  // destinations. Subtitles are downloaded between the preceding check and that
+  // one, so use them as the signal to start reporting cancellation.
+  const cancelAfterSubtitles = () => {
+    let subtitlesDone = false;
+    mocks.downloadSubtitles.mockImplementation(async () => {
+      subtitlesDone = true;
+      return [];
+    });
+    mocks.throwIfCancelled.mockImplementation(() => {
+      if (subtitlesDone) {
+        throw DownloadCancelledError.create();
+      }
+    });
+  };
+
+  it("keeps the owned video file when a redownload is cancelled in place", async () => {
+    // The redownload resolved to the row's current path, so the file there was
+    // already replaced and its backup dropped. The row still references that
+    // path, so cancellation must not delete it.
+    const ownedVideoPath = "/mock/videos/final-video.mp4";
+    mocks.getVideoById.mockReturnValue(
+      buildExistingVideo({
+        id: "redownload-target",
+        mediaType: "video",
+        videoPath: "/videos/final-video.mp4",
+        videoFilename: "final-video.mp4",
+        thumbnailPath: "/images/final-thumb.jpg",
+        thumbnailFilename: "final-thumb.jpg",
+      }),
+    );
+    allocator.setOutputPathAllocatorVideoProviderForTests(() => [
+      {
+        id: "redownload-target",
+        videoPath: "/videos/final-video.mp4",
+        thumbnailPath: "/images/final-thumb.jpg",
+        subtitles: [],
+      },
+    ] as any);
+    cancelAfterSubtitles();
+
+    await expect(
+      downloadSinglePart(
+        "https://www.bilibili.com/video/BV1cancelowned",
+        1,
+        1,
+        "",
+        "download-cancel-owned",
+        undefined,
+        undefined,
+        undefined,
+        { existingLocalVideoId: "redownload-target" } as any,
+      ),
+    ).rejects.toThrow();
+
+    const cleanupCalls = mocks.cleanupFilesOnCancellation.mock.calls.filter(
+      (call: any[]) => call[0] === ownedVideoPath,
+    );
+    expect(cleanupCalls).toEqual([]);
+  });
+
+  it("does not clean up a thumbnail destination it never created", async () => {
+    // No thumbnail was saved, so thumbnail collision checks were disabled and
+    // the planned path can belong to another row this download never touched.
+    mocks.downloadThumbnail.mockResolvedValue(false);
+    cancelAfterSubtitles();
+
+    await expect(
+      downloadSinglePart(
+        "https://www.bilibili.com/video/BV1cancelnothumb",
+        1,
+        1,
+        "",
+        "download-cancel-nothumb",
+      ),
+    ).rejects.toThrow();
+
+    const finalCleanup = mocks.cleanupFilesOnCancellation.mock.calls.find(
+      (call: any[]) => call[0] === "/mock/videos/final-video.mp4",
+    );
+    expect(finalCleanup).toBeDefined();
+    expect(finalCleanup?.[1]).toBeUndefined();
   });
 
   it("writes /videos thumbnail paths for existing videos when moveThumbnailsToVideoFolder is enabled", async () => {
@@ -514,12 +611,14 @@ describe("bilibiliVideo.downloadSinglePart", () => {
       "/mock/images",
       expect.any(Object),
     );
-    expect(mocks.saveVideo).toHaveBeenCalledWith(
+    expect(mocks.persistDownloadedMediaIdentity).toHaveBeenCalledWith(
       expect.objectContaining({
-        videoFilename: "final-video.mkv",
-        videoPath: "/videos/final-video.mkv",
-        width: 1920,
-        height: 1080,
+        video: expect.objectContaining({
+          videoFilename: "final-video.mkv",
+          videoPath: "/videos/final-video.mkv",
+          width: 1920,
+          height: 1080,
+        }),
       }),
     );
   });
@@ -566,10 +665,12 @@ describe("bilibiliVideo.downloadSinglePart", () => {
       "/mock/images",
       expect.any(Object),
     );
-    expect(mocks.saveVideo).toHaveBeenCalledWith(
+    expect(mocks.persistDownloadedMediaIdentity).toHaveBeenCalledWith(
       expect.objectContaining({
-        videoFilename: "final-video.mp4",
-        videoPath: "/videos/final-video.mp4",
+        video: expect.objectContaining({
+          videoFilename: "final-video.mp4",
+          videoPath: "/videos/final-video.mp4",
+        }),
       }),
     );
   });
@@ -690,11 +791,15 @@ describe("bilibiliVideo.downloadSinglePart", () => {
     expect(mocks.executeYtDlpSpawn).toHaveBeenCalledTimes(2);
     // The saved video must carry the real metadata from the first (successful)
     // download, not the retry's generic fallback (issue #295 2-1 follow-up).
-    expect(mocks.saveVideo).toHaveBeenCalledWith(
-      expect.objectContaining({ author: "Mock Author" }),
+    expect(mocks.persistDownloadedMediaIdentity).toHaveBeenCalledWith(
+      expect.objectContaining({
+        video: expect.objectContaining({ author: "Mock Author" }),
+      }),
     );
-    expect(mocks.saveVideo).not.toHaveBeenCalledWith(
-      expect.objectContaining({ author: "Bilibili User" }),
+    expect(mocks.persistDownloadedMediaIdentity).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        video: expect.objectContaining({ author: "Bilibili User" }),
+      }),
     );
   });
 
@@ -913,11 +1018,15 @@ describe("bilibiliVideo.downloadSinglePart", () => {
 
     expect(result.success).toBe(true);
     // Author comes from the entry, not the "Bilibili User" fallback.
-    expect(mocks.saveVideo).toHaveBeenCalledWith(
-      expect.objectContaining({ author: "Real Author" }),
+    expect(mocks.persistDownloadedMediaIdentity).toHaveBeenCalledWith(
+      expect.objectContaining({
+        video: expect.objectContaining({ author: "Real Author" }),
+      }),
     );
-    expect(mocks.saveVideo).not.toHaveBeenCalledWith(
-      expect.objectContaining({ author: "Bilibili User" }),
+    expect(mocks.persistDownloadedMediaIdentity).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        video: expect.objectContaining({ author: "Bilibili User" }),
+      }),
     );
     // The entry thumbnail is downloaded.
     expect(mocks.downloadThumbnail).toHaveBeenCalledWith(

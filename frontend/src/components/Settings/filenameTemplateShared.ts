@@ -36,6 +36,8 @@ export function getFilenameTemplateWarningMessage(
             return t('filenameWarningMediaPlaylistIndexUnavailable');
         case 'source_collection_metadata_may_be_empty':
             return t('filenameWarningSourceCollectionMetadataMayBeEmpty');
+        case 'id_source_semantics_v2':
+            return t('filenameWarningIdSourceSemanticsV2');
         default:
             return warning.message;
     }
@@ -185,10 +187,20 @@ export const PRESET_FALLBACK_OPTIONS = [
     { value: 'playlist_static_index', labelKey: 'filenamePresetPlaylistStaticIndex', fallbackLabel: 'Playlist - Season 1 / Episode by index' },
     { value: 'playlist_static_date', labelKey: 'filenamePresetPlaylistStaticDate', fallbackLabel: 'Playlist - Season 1 / Episode by date' },
     { value: 'source_date_flat', labelKey: 'filenamePresetSourceDateFlat', fallbackLabel: 'Source - Date then title' },
+    { value: 'source_date_id', labelKey: 'filenamePresetSourceDateId', fallbackLabel: 'Source - Date, title, source ID' },
     { value: 'custom', labelKey: 'filenamePresetCustom', fallbackLabel: 'Custom template' },
 ] as const;
 
 export const LEGACY_TEMPLATE = '{{ title }}-{{ uploader }}-{{ upload_year }}.{{ ext }}';
+export const FILENAME_ID_SOURCE_SEMANTICS_VERSION = 'filename-id-source-semantics-v2';
+
+export function templateUsesIdAlias(template: string): boolean {
+    return /{{\s*id\s*}}|%\(id\)[sS]/.test(template);
+}
+
+export function isIdSourceSemanticsWarning(warning: { code: string }): boolean {
+    return warning.code === 'id_source_semantics_v2';
+}
 
 export function getPresetLabelFallback(labelKey: TranslationKey): string {
     switch (labelKey) {
@@ -202,6 +214,8 @@ export function getPresetLabelFallback(labelKey: TranslationKey): string {
             return 'Playlist - Season 1 / Episode by date';
         case 'filenamePresetSourceDateFlat':
             return 'Source - Date then title';
+        case 'filenamePresetSourceDateId':
+            return 'Source - Date, title, source ID';
         case 'filenamePresetCustom':
             return 'Custom template';
         default:

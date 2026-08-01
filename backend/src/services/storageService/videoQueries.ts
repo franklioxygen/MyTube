@@ -59,6 +59,7 @@ const videoSummaryColumns = () => ({
   date: videos.date,
   source: videos.source,
   sourceUrl: videos.sourceUrl,
+  sourceVideoId: videos.sourceVideoId,
   videoFilename: videos.videoFilename,
   thumbnailFilename: videos.thumbnailFilename,
   videoPath: videos.videoPath,

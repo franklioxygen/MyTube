@@ -6,7 +6,11 @@ import {
 import { getErrorMessage } from "../utils/errors";
 import { DuplicateError, NotFoundError, ValidationError } from "../errors/DownloadErrors";
 import { continuousDownloadService } from "../services/continuousDownloadService";
-import { DownloadOrder } from "../services/continuousDownload/types";
+import {
+    DOWNLOAD_ORDERS,
+    DownloadOrder,
+    parseDownloadOrder,
+} from "../services/continuousDownload/types";
 import { checkPlaylist } from "../services/downloadService";
 import * as storageService from "../services/storageService";
 import { subscriptionService } from "../services/subscriptionService";
@@ -49,6 +53,25 @@ import type { SubscribePlaylistOptions } from "../services/subscriptionService";
 // Per-subscription yt-dlp config override (issue #345). Same free-text format
 // and trust requirement ("container") as the global ytDlpConfig setting.
 const MAX_YTDLP_CONFIG_LENGTH = 4096;
+
+function normalizeDownloadOrderInput(
+  rawDownloadOrder: unknown,
+  requireValid: boolean
+): DownloadOrder {
+  if (rawDownloadOrder === undefined || rawDownloadOrder === null) {
+    return "dateDesc";
+  }
+
+  const downloadOrder = parseDownloadOrder(rawDownloadOrder);
+  if (!downloadOrder) {
+    throw new ValidationError(
+      `Invalid downloadOrder: must be one of ${DOWNLOAD_ORDERS.join(", ")}`,
+      "downloadOrder"
+    );
+  }
+
+  return requireValid ? downloadOrder : "dateDesc";
+}
 
 /**
  * Validate and normalize a raw ytdlp_config value from the request body.
@@ -283,16 +306,10 @@ export const createSubscription = async (
     "channel"
   );
 
-  const validDownloadOrders: DownloadOrder[] = ["dateDesc", "dateAsc", "viewsDesc", "viewsAsc"];
-  let downloadOrder: DownloadOrder = "dateDesc";
-  if (downloadAllPrevious === true) {
-    if (rawDownloadOrder !== undefined && rawDownloadOrder !== null) {
-      if (!validDownloadOrders.includes(rawDownloadOrder)) {
-        throw new ValidationError(`Invalid downloadOrder: must be one of ${validDownloadOrders.join(", ")}`, "downloadOrder");
-      }
-      downloadOrder = rawDownloadOrder as DownloadOrder;
-    }
-  }
+  const downloadOrder = normalizeDownloadOrderInput(
+    rawDownloadOrder,
+    downloadAllPrevious === true
+  );
 
   logger.info("Creating subscription:", {
     url,
@@ -629,6 +646,18 @@ export const resumeContinuousDownloadTask = async (
   res.status(200).json(successMessage("Task resumed"));
 };
 
+export const retryContinuousDownloadTaskPlanning = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const id = getStringParam(req.params.id) ?? "";
+  const task = await continuousDownloadService.retryPlanning(id);
+  res.status(200).json({
+    ...successMessage("Order preparation retry started"),
+    task,
+  });
+};
+
 /**
  * Clear all finished continuous download tasks
  * Errors are automatically handled by asyncHandler middleware
@@ -683,6 +712,10 @@ export const createPlaylistSubscription = async (
 
   // 1b. Strict downloadAll parsing (design §11.1). Missing => subscribe-only.
   const downloadAll = parseDownloadAll(req.body.downloadAll);
+  const downloadOrder = normalizeDownloadOrderInput(
+    req.body.downloadOrder,
+    downloadAll
+  );
 
   // Validate Bilibili collectionInfo shape when provided (design §7.1 / §12.2).
   const collectionInfo = parseBilibiliCollectionInfo(rawCollectionInfo);
@@ -692,6 +725,7 @@ export const createPlaylistSubscription = async (
     interval,
     collectionName,
     downloadAll,
+    downloadOrder,
     collectionInfo,
   });
 
@@ -921,7 +955,8 @@ export const createPlaylistSubscription = async (
           author,
           platform,
           collection.id,
-          subscription.id
+          subscription.id,
+          downloadOrder
         );
         backfillStatus = "started";
         if (existingSubscription) {
@@ -955,6 +990,7 @@ export const createPlaylistSubscription = async (
     collectionId: collection.id,
     taskId: task?.id ?? null,
     downloadAll,
+    downloadOrder,
     backfillStatus,
   });
 };
@@ -967,11 +1003,16 @@ export const subscribeChannelPlaylists = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { url, interval, downloadAllPrevious } = req.body;
+  const { url, interval, downloadAllPrevious, downloadOrder: rawDownloadOrder } = req.body;
+  const downloadOrder = normalizeDownloadOrderInput(
+    rawDownloadOrder,
+    downloadAllPrevious === true
+  );
   logger.info("Subscribing to channel playlists:", {
     url,
     interval,
     downloadAllPrevious,
+    downloadOrder,
   });
 
   if (!url || !interval) {
@@ -1320,7 +1361,8 @@ export const subscribeChannelPlaylists = async (
             channelName,
             platform,
             resolvedTaskCollectionId,
-            createdSubscriptionId
+            createdSubscriptionId,
+            downloadOrder
           );
           logger.info(
             `Created continuous download task ${task.id} for playlist: ${candidate.title}`
@@ -1404,6 +1446,7 @@ export const subscribeChannelPlaylists = async (
     skippedCount,
     errorCount: errors.length,
     errors: errors.length > 0 ? errors : undefined,
+    downloadOrder,
   });
 };
 
@@ -1415,10 +1458,12 @@ export const createPlaylistTask = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { playlistUrl, collectionName } = req.body;
+  const { playlistUrl, collectionName, downloadOrder: rawDownloadOrder } = req.body;
+  const downloadOrder = normalizeDownloadOrderInput(rawDownloadOrder, true);
   logger.info("Creating playlist task:", {
     playlistUrl,
     collectionName,
+    downloadOrder,
   });
 
   if (!playlistUrl || !collectionName) {
@@ -1514,7 +1559,9 @@ export const createPlaylistTask = async (
     playlistUrl,
     author,
     platform,
-    newCollection.id
+    newCollection.id,
+    undefined,
+    downloadOrder
   );
 
   logger.info(

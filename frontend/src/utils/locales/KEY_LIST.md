@@ -962,6 +962,11 @@ Total keys: 1063
 | `downloadOrderViewsAsc` |
 | `downloadOrderLargeChannelHint` |
 | `downloadOrderShortsHint` |
+| `preparingOrderMetadata` |
+| `selectedDownloadOrder` |
+| `retryOrderPreparation` |
+| `orderPreparationRetryStarted` |
+| `orderPreparationRetryFailed` |
 | `downloadAllPreviousWarning` |
 | `downloadAllPreviousVideosInPlaylists` |
 | `downloadAllPlaylistsWarning` |
@@ -1342,6 +1347,7 @@ Total keys: 1063
 | `filenamePresetPlaylistStaticIndex` |
 | `filenamePresetPlaylistStaticDate` |
 | `filenamePresetSourceDateFlat` |
+| `filenamePresetSourceDateId` |
 | `filenamePresetCustom` |
 | `filenameCustomTemplateLabel` |
 | `filenameCustomTemplatePlaceholder` |
@@ -1354,6 +1360,7 @@ Total keys: 1063
 | `filenamePreviewScenarioSingle` |
 | `filenameWarningMediaPlaylistIndexUnavailable` |
 | `filenameWarningSourceCollectionMetadataMayBeEmpty` |
+| `filenameWarningIdSourceSemanticsV2` |
 | `filenameValidating` |
 | `filenameValidationError` |
 | `filenameBatchRenameButton` |
@@ -1368,6 +1375,15 @@ Total keys: 1063
 | `filenameBatchRenameComplete` |
 | `filenameBatchRenameSummary` |
 | `filenameBatchRenameError` |
+
+### Filename Template Reference
+
+| Key |
+| --- |
+| `filenameRefItemIdDesc` |
+| `filenameRefItemSourceVideoIdDesc` |
+| `filenameRefItemLocalVideoIdDesc` |
+| `filenameRefItemDownloadDatetimeDesc` |
 
 ### Statistics
 
