@@ -10,6 +10,10 @@
 
 - Replace the high-saturation cyan/red UI palette with a calmer teal-led color scheme and a mode-aware secondary purple (softer violet in light mode, stronger contrast in dark), updating favorite-page gradient accents, the browser theme color, and the web manifest without changing logo assets (#366)
 
+### Fix
+
+- Skip members-only YouTube uploads in subscription checks instead of failing and retrying them every cycle: detect yt-dlp's members-only error, record the upload as skipped, log it informationally, and advance the subscription cursor so the same video isn't re-attempted. Closes #393
+
 ## v1.10.16 (2026-07-13)
 
 ### Feat
