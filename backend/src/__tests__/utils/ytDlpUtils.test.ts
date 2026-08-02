@@ -1776,6 +1776,39 @@ describe("ytDlpUtils", () => {
       });
     });
 
+    it("logs members-only stderr as info, not error, on non-zero exit (issue #393)", async () => {
+      const proc = createMockProcess();
+      mockSpawnWithVersionCheck(proc);
+      const errorSpy = vi.spyOn(logger, "error").mockImplementation(() => {});
+      const infoSpy = vi.spyOn(logger, "info").mockImplementation(() => {});
+
+      const membersOnlyStderr =
+        "ERROR: [youtube] v8INHztfIzs: Join this channel to get access to members-only content like this video, and other exclusive perks.\n";
+      const subprocess = executeYtDlpSpawn("https://example.com/video");
+      const promise = Promise.resolve(subprocess);
+      await flushAsyncSpawns();
+      proc.stderr?.emit("data", Buffer.from(membersOnlyStderr));
+      proc.emit("close", 1);
+
+      await expect(promise).rejects.toMatchObject({
+        message: "yt-dlp process exited with code 1",
+        code: 1,
+        stderr: membersOnlyStderr,
+      });
+      // Benign skip: no error-level record for the members-only stderr.
+      expect(errorSpy).not.toHaveBeenCalledWith(
+        "yt-dlp error output:",
+        membersOnlyStderr,
+      );
+      expect(infoSpy).toHaveBeenCalledWith(
+        "yt-dlp skipped members-only content:",
+        membersOnlyStderr,
+      );
+
+      errorSpy.mockRestore();
+      infoSpy.mockRestore();
+    });
+
     it("should classify a killed subprocess as cancellation instead of code null", async () => {
       const proc = createMockProcess();
       mockSpawnWithVersionCheck(proc);
