@@ -742,15 +742,20 @@ class DownloadManager {
       }
 
       // Members-only content can never be downloaded without a channel
-      // membership, so this is a benign skip rather than a failure. Log it
-      // informationally and suppress every failure side effect below (retry,
-      // failed-history row, task_fail hook, fail notification); we still reject
-      // so awaiting callers (e.g. the subscription check) can do their own
-      // skip bookkeeping. Detecting it here — before those side effects fire —
-      // is what makes the skip benign (issue #393).
-      const membersOnly = isMembersOnlyError(error);
+      // membership. For *subscription* downloads this is a benign skip rather
+      // than a failure: log it informationally and suppress every failure side
+      // effect below (retry, failed-history row, task_fail hook, fail
+      // notification); we still reject so the subscription check can advance
+      // its own cursor. Detecting it here — before those side effects fire — is
+      // what makes the skip benign (issue #393). Manually-queued downloads keep
+      // their normal failure automation: an admin who explicitly requested a
+      // members-only URL should still see it fail, fire task_fail, and honor
+      // configured auto-retries (PR #395 review).
+      const isSubscriptionTask =
+        task.statistics?.sourceKind === "subscription";
+      const membersOnlySkip = isSubscriptionTask && isMembersOnlyError(error);
 
-      if (membersOnly) {
+      if (membersOnlySkip) {
         logger.info(
           "Skipping members-only content:",
           sanitizeLogMessage(task.title),
@@ -767,9 +772,9 @@ class DownloadManager {
       storageService.removeActiveDownload(task.id);
 
       // Add to history (unless already added by cancelDownload). Members-only
-      // skips are never retried — retrying can't succeed.
+      // subscription skips are never retried — retrying can't succeed.
       let retryScheduled = false;
-      if (!task.cancelled && !membersOnly) {
+      if (!task.cancelled && !membersOnlySkip) {
         retryScheduled = this.maybeScheduleRetry(task, error);
       }
 
@@ -781,12 +786,12 @@ class DownloadManager {
             id: task.id,
             title: task.title,
             finishedAt: Date.now(),
-            status: membersOnly
+            status: membersOnlySkip
               ? "skipped"
               : structuredResult?.partial === true
                 ? PARTIAL_STATUS
                 : "failed",
-            error: membersOnly
+            error: membersOnlySkip
               ? "Skipped members-only content"
               : getErrorMessage(error),
             sourceUrl: task.sourceUrl,
@@ -803,8 +808,8 @@ class DownloadManager {
 
       if (!retryScheduled) {
         // Failure automation (task_fail hook + fail notification) only fires
-        // for genuine failures, not skips.
-        if (!membersOnly) {
+        // for genuine failures, not benign subscription skips.
+        if (!membersOnlySkip) {
           // Await failure hooks so notifications and other side effects complete
           // before the task rejection propagates to callers.
           await awaitTaskFailHook({
