@@ -329,6 +329,135 @@ describe('SubscriptionService', () => {
       expect(db.update).toHaveBeenCalled();
     });
 
+    it('skips a members-only video and advances the cursor without failing (issue #393)', async () => {
+      const sub = {
+        id: 'sub-members',
+        author: 'Learn Linux TV',
+        platform: 'YouTube',
+        authorUrl: 'url',
+        lastCheck: 0,
+        interval: 10,
+        lastVideoLink: 'old-link',
+      };
+
+      mockBuilder.then = (cb: any) => Promise.resolve([sub]).then(cb);
+
+      (YtDlpDownloader.getLatestVideoUrl as any).mockResolvedValue('members-link');
+      (downloadService.downloadYouTubeVideo as any).mockRejectedValue(
+        Object.assign(new Error('yt-dlp process exited with code 1'), {
+          stderr:
+            "ERROR: [youtube] v8INHztfIzs: Join this channel to get access to members-only content like this video, and other exclusive perks.\n",
+        })
+      );
+
+      await subscriptionService.checkSubscriptions();
+
+      expect(downloadService.downloadYouTubeVideo).toHaveBeenCalled();
+      // Recorded as skipped, never as failed.
+      expect(storageService.addDownloadHistoryItem).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'skipped', subscriptionId: 'sub-members' })
+      );
+      expect(storageService.addDownloadHistoryItem).not.toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'failed' })
+      );
+      // Cursor advanced so the same upload isn't retried next check.
+      expect(mockBuilder.set).toHaveBeenCalledWith(
+        expect.objectContaining({ lastVideoLink: 'members-link' })
+      );
+      // No failure notification is sent for a benign skip.
+      expect(TelegramService.notifyTaskComplete).not.toHaveBeenCalled();
+    });
+
+    it('skips a members-only short and advances the short cursor (issue #393)', async () => {
+      const sub = {
+        id: 'sub-members-short',
+        author: 'Linus Tech Tips',
+        platform: 'YouTube',
+        authorUrl: 'url',
+        lastCheck: 0,
+        interval: 10,
+        lastVideoLink: 'same-link',
+        downloadShorts: 1,
+        lastShortVideoLink: 'old-short',
+      };
+
+      mockBuilder.then = (cb: any) => Promise.resolve([sub]).then(cb);
+
+      (YtDlpDownloader.getLatestVideoUrl as any).mockResolvedValue('same-link');
+      (YtDlpDownloader.getLatestShortsUrl as any).mockResolvedValue('members-short');
+      (downloadService.downloadYouTubeVideo as any).mockRejectedValue(
+        Object.assign(new Error('yt-dlp process exited with code 1'), {
+          stderr:
+            "ERROR: [youtube] xbxWkOmaqfU: This video is available to this channel's members on level: LTT Members Plus (or any higher level). Join this channel to get access to members-only content and other exclusive perks.\n",
+        })
+      );
+
+      await subscriptionService.checkSubscriptions();
+
+      expect(YtDlpDownloader.getLatestShortsUrl).toHaveBeenCalled();
+      expect(storageService.addDownloadHistoryItem).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'skipped', subscriptionId: 'sub-members-short' })
+      );
+      expect(storageService.addDownloadHistoryItem).not.toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'failed' })
+      );
+      expect(mockBuilder.set).toHaveBeenCalledWith(
+        expect.objectContaining({ lastShortVideoLink: 'members-short' })
+      );
+      expect(TelegramService.notifyTaskComplete).not.toHaveBeenCalled();
+    });
+
+    it('still downloads a new Short after skipping a members-only main video (issue #393)', async () => {
+      const sub = {
+        id: 'sub-members-then-short',
+        author: 'Creator',
+        platform: 'YouTube',
+        authorUrl: 'url',
+        lastCheck: 0,
+        interval: 10,
+        lastVideoLink: 'old-link',
+        downloadShorts: 1,
+        lastShortVideoLink: 'old-short',
+      };
+
+      mockBuilder.then = (cb: any) => Promise.resolve([sub]).then(cb);
+
+      (YtDlpDownloader.getLatestVideoUrl as any).mockResolvedValue('members-link');
+      (YtDlpDownloader.getLatestShortsUrl as any).mockResolvedValue('new-short');
+      (downloadService.downloadYouTubeVideo as any)
+        // Main video: members-only -> skipped.
+        .mockRejectedValueOnce(
+          Object.assign(new Error('yt-dlp process exited with code 1'), {
+            stderr:
+              'ERROR: [youtube] abc: Join this channel to get access to members-only content.\n',
+          })
+        )
+        // Short: a normal public upload downloads successfully.
+        .mockResolvedValueOnce({ videoData: { id: 'short-vid', title: 'New Short' } });
+
+      await subscriptionService.checkSubscriptions();
+
+      // Main upload skipped and cursor advanced.
+      expect(mockBuilder.set).toHaveBeenCalledWith(
+        expect.objectContaining({ lastVideoLink: 'members-link' })
+      );
+      expect(storageService.addDownloadHistoryItem).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'skipped' })
+      );
+      // The Short check still ran this cycle and downloaded successfully.
+      expect(YtDlpDownloader.getLatestShortsUrl).toHaveBeenCalled();
+      expect(downloadService.downloadYouTubeVideo).toHaveBeenCalledWith(
+        'new-short',
+        expect.anything()
+      );
+      expect(storageService.addDownloadHistoryItem).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'success', title: 'New Short' })
+      );
+      expect(mockBuilder.set).toHaveBeenCalledWith(
+        expect.objectContaining({ lastShortVideoLink: 'new-short' })
+      );
+    });
+
     it('polls Bilibili collection playlist subscriptions through the collection API', async () => {
       const sub = {
         id: 'bili-playlist-sub',

@@ -34,6 +34,7 @@ import {
   getUserYtDlpConfig,
   InvalidProxyError,
 } from "../../../utils/ytDlpUtils";
+import { isMembersOnlyError } from "../../../utils/ytdlp/errorClassification";
 import {
   pathExistsSafeSync,
   removeSafe,
@@ -607,13 +608,26 @@ export async function downloadVideo(
   } catch (error) {
     releaseOutputReservation?.();
     releaseOutputReservation = null;
-    logger.error(
-      "Error in download process:",
-      error,
-      typeof (error as { stderr?: unknown })?.stderr === "string"
-        ? { stderr: (error as { stderr: string }).stderr }
-        : undefined,
-    );
+    // Members-only content is an expected, benign skip rather than a real
+    // failure (issue #393). Keep it out of the error log so the subscription
+    // path stays informational-only; callers classify the thrown error the
+    // same way and record it as skipped.
+    if (isMembersOnlyError(error)) {
+      logger.info(
+        "Skipping members-only content in download process:",
+        typeof (error as { stderr?: unknown })?.stderr === "string"
+          ? (error as { stderr: string }).stderr
+          : getErrorMessage(error, "members-only content"),
+      );
+    } else {
+      logger.error(
+        "Error in download process:",
+        error,
+        typeof (error as { stderr?: unknown })?.stderr === "string"
+          ? { stderr: (error as { stderr: string }).stderr }
+          : undefined,
+      );
+    }
     throw error;
   }
 

@@ -452,6 +452,128 @@ describe('DownloadManager', () => {
       );
     });
 
+    const membersOnlyError = () =>
+      Object.assign(new Error('yt-dlp process exited with code 1'), {
+        stderr:
+          "ERROR: [youtube] v8INHztfIzs: Join this channel to get access to members-only content like this video, and other exclusive perks.\n",
+      });
+
+    it('treats members-only subscription failures as skips: no failed row, no fail hook, no retry (issue #393)', async () => {
+      const telegram = await import('../../services/telegramService');
+      const mockDownloadFn = vi.fn().mockRejectedValue(membersOnlyError());
+      // Auto-retry is enabled to prove members-only is never retried.
+      (storageService.getSettings as any).mockReturnValue({
+        autoRetryEnabled: true,
+        autoRetryTimes: 3,
+        autoRetryIntervalMinutes: 1,
+      });
+
+      await expect(
+        downloadManager.addDownload(
+          mockDownloadFn,
+          'members-1',
+          'Members Video',
+          'https://youtube.com/watch?v=members',
+          'youtube',
+          { sourceKind: 'subscription' },
+        ),
+      ).rejects.toThrow('yt-dlp process exited with code 1');
+      // Flush the fire-and-forget notify path.
+      await new Promise((resolve) => setImmediate(resolve));
+
+      // Recorded as a skip, never failed or pending_retry.
+      expect(storageService.addDownloadHistoryItem).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'members-1', status: 'skipped' }),
+      );
+      expect(storageService.addDownloadHistoryItem).not.toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'failed' }),
+      );
+      expect(storageService.addDownloadHistoryItem).not.toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'pending_retry' }),
+      );
+      // No failure automation fires for a benign skip.
+      expect(HookService.executeHook).not.toHaveBeenCalledWith(
+        'task_fail',
+        expect.anything(),
+      );
+      expect(telegram.TelegramService.notifyTaskComplete).not.toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'fail' }),
+      );
+    });
+
+    it('keeps normal failure automation for a manually-queued members-only download (PR #395 review)', async () => {
+      vi.useFakeTimers();
+      try {
+        const telegram = await import('../../services/telegramService');
+        const mockDownloadFn = vi.fn().mockRejectedValue(membersOnlyError());
+        (storageService.getSettings as any).mockReturnValue({
+          autoRetryEnabled: true,
+          autoRetryTimes: 3,
+          autoRetryIntervalMinutes: 1,
+        });
+
+        // No subscription attribution -> this is a manual/admin download.
+        void downloadManager.addDownload(
+          mockDownloadFn,
+          'manual-members-1',
+          'Manual Members Video',
+          'https://youtube.com/watch?v=manual-members',
+          'youtube',
+          { sourceKind: 'manual' },
+        );
+
+        await vi.runOnlyPendingTimersAsync();
+        await Promise.resolve();
+
+        // Manual members-only download retains full failure automation:
+        // a configured auto-retry is scheduled, never silently skipped.
+        expect(storageService.addDownloadHistoryItem).toHaveBeenCalledWith(
+          expect.objectContaining({ id: 'manual-members-1', status: 'pending_retry' }),
+        );
+        expect(storageService.addDownloadHistoryItem).not.toHaveBeenCalledWith(
+          expect.objectContaining({ status: 'skipped' }),
+        );
+
+        void telegram;
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('fires task_fail and records a failed row for a manual members-only download with retry disabled (PR #395 review)', async () => {
+      const telegram = await import('../../services/telegramService');
+      const mockDownloadFn = vi.fn().mockRejectedValue(membersOnlyError());
+      (storageService.getSettings as any).mockReturnValue({ autoRetryEnabled: false });
+
+      await expect(
+        downloadManager.addDownload(
+          mockDownloadFn,
+          'manual-members-2',
+          'Manual Members Video',
+          'https://youtube.com/watch?v=manual-members-2',
+          'youtube',
+          { sourceKind: 'manual' },
+        ),
+      ).rejects.toThrow('yt-dlp process exited with code 1');
+      await new Promise((resolve) => setImmediate(resolve));
+
+      // A manual failure keeps its normal automation: failed row, task_fail
+      // hook, and fail notification all fire.
+      expect(storageService.addDownloadHistoryItem).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'manual-members-2', status: 'failed' }),
+      );
+      expect(storageService.addDownloadHistoryItem).not.toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'skipped' }),
+      );
+      expect(HookService.executeHook).toHaveBeenCalledWith(
+        'task_fail',
+        expect.objectContaining({ taskId: 'manual-members-2' }),
+      );
+      expect(telegram.TelegramService.notifyTaskComplete).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'fail' }),
+      );
+    });
+
     it('settles awaited tasks that are cancelled while still queued', async () => {
       downloadManager.setMaxConcurrentDownloads(1);
       let releaseFirst: (value: unknown) => void = () => {};

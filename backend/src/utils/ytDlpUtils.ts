@@ -16,6 +16,7 @@ export {
   downloadChannelAvatar,
   executeYtDlpSpawn,
 } from "./ytdlp/execute";
+export { isMembersOnlyError } from "./ytdlp/errorClassification";
 export {
   parseYtDlpConfig,
   getUserYtDlpConfig,

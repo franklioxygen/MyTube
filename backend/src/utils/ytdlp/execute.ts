@@ -17,6 +17,7 @@ import {
   withDefaultYouTubeExtractorArgs,
 } from "./extractorArgs";
 import { flagsToArgs } from "./flags";
+import { isMembersOnlyError } from "./errorClassification";
 import { logger } from "../logger";
 
 /**
@@ -535,7 +536,14 @@ export function executeYtDlpSpawn(
                 );
               } else {
                 rejected = true;
-                logger.error("yt-dlp error output:", stderr);
+                // Members-only content is an expected, benign skip rather than
+                // a real failure — keep it out of the error log so the
+                // subscription path stays informational-only (issue #393).
+                if (isMembersOnlyError(stderr)) {
+                  logger.info("yt-dlp skipped members-only content:", stderr);
+                } else {
+                  logger.error("yt-dlp error output:", stderr);
+                }
                 reject(
                   new YtDlpExecutionError(
                     signal

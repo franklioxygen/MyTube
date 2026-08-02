@@ -20,6 +20,7 @@ import {
 } from "../utils/helpers";
 import { logger } from "../utils/logger";
 import { runWithConcurrencyLimit } from "../utils/concurrency";
+import { isMembersOnlyError } from "../utils/ytdlp/errorClassification";
 import downloadManager from "./downloadManager";
 import {
     downloadSingleBilibiliPart,
@@ -895,39 +896,53 @@ export class SubscriptionService {
             return;
           }
 
-          logger.error(
-            "Error downloading subscription video",
-            downloadError,
-            getSubscriptionLogContext(sub, { latestVideoUrl })
-          );
-          notifySubscriptionDownloadResult({
-            taskTitle: `Video from ${sub.author}`,
-            status: "fail",
-            sourceUrl: latestVideoUrl,
-            error: errorMessage,
-          });
+          // Members-only uploads can't be fetched without a channel membership,
+          // so retrying every check is pointless. Treat them as skipped and
+          // advance the cursor instead of failing the check (issue #393). Fall
+          // through (no return) so an independent new Short is still checked
+          // this cycle, matching the ordinary-failure path below.
+          if (isMembersOnlyError(downloadError)) {
+            await this.markSubscriptionVideoSkipped(
+              sub,
+              latestVideoUrl,
+              "video",
+              "members-only"
+            );
+          } else {
+            logger.error(
+              "Error downloading subscription video",
+              downloadError,
+              getSubscriptionLogContext(sub, { latestVideoUrl })
+            );
+            notifySubscriptionDownloadResult({
+              taskTitle: `Video from ${sub.author}`,
+              status: "fail",
+              sourceUrl: latestVideoUrl,
+              error: errorMessage,
+            });
 
-          // Add to download history on failure
-          storageService.addDownloadHistoryItem({
-            id: uuidv4(),
-            title: `Video from ${sub.author}`,
-            author: sub.author,
-            sourceUrl: latestVideoUrl,
-            finishedAt: Date.now(),
-            status: "failed",
-            error: errorMessage,
-            subscriptionId: sub.id,
-            platform:
-              typeof sub.platform === "string"
-                ? sub.platform.toLowerCase()
-                : undefined,
-            sourceKind: "subscription",
-          });
-          checkStatus = "fail";
-          checkFailureReason = bucketDownloadError(errorMessage);
+            // Add to download history on failure
+            storageService.addDownloadHistoryItem({
+              id: uuidv4(),
+              title: `Video from ${sub.author}`,
+              author: sub.author,
+              sourceUrl: latestVideoUrl,
+              finishedAt: Date.now(),
+              status: "failed",
+              error: errorMessage,
+              subscriptionId: sub.id,
+              platform:
+                typeof sub.platform === "string"
+                  ? sub.platform.toLowerCase()
+                  : undefined,
+              sourceKind: "subscription",
+            });
+            checkStatus = "fail";
+            checkFailureReason = bucketDownloadError(errorMessage);
 
-          // Note: We already updated lastCheck, so we won't retry until next interval.
-          // This acts as a "backoff" preventing retry loops for broken downloads.
+            // Note: We already updated lastCheck, so we won't retry until next interval.
+            // This acts as a "backoff" preventing retry loops for broken downloads.
+          }
         }
       } else {
         // Just update lastCheck.
@@ -1043,6 +1058,19 @@ export class SubscriptionService {
               getSubscriptionLogContext(sub, { latestShortUrl })
             );
           } catch (downloadError: unknown) {
+            // Members-only shorts can't be fetched without a channel
+            // membership; skip and advance the cursor rather than failing
+            // and retrying every check (issue #393).
+            if (!shortDownloaded && isMembersOnlyError(downloadError)) {
+              await this.markSubscriptionVideoSkipped(
+                sub,
+                latestShortUrl,
+                "short",
+                "members-only"
+              );
+              return;
+            }
+
             logger.error(
               shortDownloaded
                 ? "Error updating subscription after short download"
@@ -1121,6 +1149,64 @@ export class SubscriptionService {
         // statistics is best-effort
       }
     }
+  }
+
+  /**
+   * Record a subscription upload that cannot be downloaded (currently only
+   * members-only YouTube videos) as skipped and advance the subscription's
+   * cursor so the same upload isn't retried on every check (issue #393).
+   *
+   * The download genuinely failed at yt-dlp, but retrying is pointless without
+   * a channel membership, so we treat it as a benign skip rather than a
+   * failure: an informational log, a "skipped" history row, and a cursor bump.
+   * The subscription's downloadCount is intentionally left unchanged since
+   * nothing was downloaded.
+   */
+  private async markSubscriptionVideoSkipped(
+    sub: Subscription,
+    videoUrl: string,
+    kind: "video" | "short",
+    reason: string
+  ): Promise<void> {
+    logger.info(
+      `Skipping members-only ${kind} for subscription; marking as processed`,
+      getSubscriptionLogContext(sub, { videoUrl, reason })
+    );
+
+    const cursorUpdate =
+      kind === "short"
+        ? { lastShortVideoLink: videoUrl }
+        : { lastVideoLink: videoUrl };
+
+    const updateResult = await db
+      .update(subscriptions)
+      .set(cursorUpdate)
+      .where(eq(subscriptions.id, sub.id))
+      .returning({ id: subscriptions.id });
+
+    if (updateResult.length === 0) {
+      logger.warn(
+        "Subscription was deleted before members-only skip could be recorded",
+        getSubscriptionLogContext(sub, { videoUrl })
+      );
+      return;
+    }
+
+    storageService.addDownloadHistoryItem({
+      id: uuidv4(),
+      title: `${kind === "short" ? "Short" : "Video"} from ${sub.author}`,
+      author: sub.author,
+      sourceUrl: videoUrl,
+      finishedAt: Date.now(),
+      status: "skipped",
+      error: `Skipped ${reason} content`,
+      subscriptionId: sub.id,
+      platform:
+        typeof sub.platform === "string"
+          ? sub.platform.toLowerCase()
+          : undefined,
+      sourceKind: "subscription",
+    });
   }
 
   /**
