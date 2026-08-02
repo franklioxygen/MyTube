@@ -452,6 +452,55 @@ describe('DownloadManager', () => {
       );
     });
 
+    it('treats members-only failures as skips: no failed row, no fail hook, no retry (issue #393)', async () => {
+      const telegram = await import('../../services/telegramService');
+      const membersOnlyError = Object.assign(
+        new Error('yt-dlp process exited with code 1'),
+        {
+          stderr:
+            "ERROR: [youtube] v8INHztfIzs: Join this channel to get access to members-only content like this video, and other exclusive perks.\n",
+        },
+      );
+      const mockDownloadFn = vi.fn().mockRejectedValue(membersOnlyError);
+      // Auto-retry is enabled to prove members-only is never retried.
+      (storageService.getSettings as any).mockReturnValue({
+        autoRetryEnabled: true,
+        autoRetryTimes: 3,
+        autoRetryIntervalMinutes: 1,
+      });
+
+      await expect(
+        downloadManager.addDownload(
+          mockDownloadFn,
+          'members-1',
+          'Members Video',
+          'https://youtube.com/watch?v=members',
+          'youtube',
+        ),
+      ).rejects.toThrow('yt-dlp process exited with code 1');
+      // Flush the fire-and-forget notify path.
+      await new Promise((resolve) => setImmediate(resolve));
+
+      // Recorded as a skip, never failed or pending_retry.
+      expect(storageService.addDownloadHistoryItem).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'members-1', status: 'skipped' }),
+      );
+      expect(storageService.addDownloadHistoryItem).not.toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'failed' }),
+      );
+      expect(storageService.addDownloadHistoryItem).not.toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'pending_retry' }),
+      );
+      // No failure automation fires for a benign skip.
+      expect(HookService.executeHook).not.toHaveBeenCalledWith(
+        'task_fail',
+        expect.anything(),
+      );
+      expect(telegram.TelegramService.notifyTaskComplete).not.toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'fail' }),
+      );
+    });
+
     it('settles awaited tasks that are cancelled while still queued', async () => {
       downloadManager.setMaxConcurrentDownloads(1);
       let releaseFirst: (value: unknown) => void = () => {};

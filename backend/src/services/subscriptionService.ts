@@ -898,7 +898,9 @@ export class SubscriptionService {
 
           // Members-only uploads can't be fetched without a channel membership,
           // so retrying every check is pointless. Treat them as skipped and
-          // advance the cursor instead of failing the check (issue #393).
+          // advance the cursor instead of failing the check (issue #393). Fall
+          // through (no return) so an independent new Short is still checked
+          // this cycle, matching the ordinary-failure path below.
           if (isMembersOnlyError(downloadError)) {
             await this.markSubscriptionVideoSkipped(
               sub,
@@ -906,42 +908,41 @@ export class SubscriptionService {
               "video",
               "members-only"
             );
-            return;
+          } else {
+            logger.error(
+              "Error downloading subscription video",
+              downloadError,
+              getSubscriptionLogContext(sub, { latestVideoUrl })
+            );
+            notifySubscriptionDownloadResult({
+              taskTitle: `Video from ${sub.author}`,
+              status: "fail",
+              sourceUrl: latestVideoUrl,
+              error: errorMessage,
+            });
+
+            // Add to download history on failure
+            storageService.addDownloadHistoryItem({
+              id: uuidv4(),
+              title: `Video from ${sub.author}`,
+              author: sub.author,
+              sourceUrl: latestVideoUrl,
+              finishedAt: Date.now(),
+              status: "failed",
+              error: errorMessage,
+              subscriptionId: sub.id,
+              platform:
+                typeof sub.platform === "string"
+                  ? sub.platform.toLowerCase()
+                  : undefined,
+              sourceKind: "subscription",
+            });
+            checkStatus = "fail";
+            checkFailureReason = bucketDownloadError(errorMessage);
+
+            // Note: We already updated lastCheck, so we won't retry until next interval.
+            // This acts as a "backoff" preventing retry loops for broken downloads.
           }
-
-          logger.error(
-            "Error downloading subscription video",
-            downloadError,
-            getSubscriptionLogContext(sub, { latestVideoUrl })
-          );
-          notifySubscriptionDownloadResult({
-            taskTitle: `Video from ${sub.author}`,
-            status: "fail",
-            sourceUrl: latestVideoUrl,
-            error: errorMessage,
-          });
-
-          // Add to download history on failure
-          storageService.addDownloadHistoryItem({
-            id: uuidv4(),
-            title: `Video from ${sub.author}`,
-            author: sub.author,
-            sourceUrl: latestVideoUrl,
-            finishedAt: Date.now(),
-            status: "failed",
-            error: errorMessage,
-            subscriptionId: sub.id,
-            platform:
-              typeof sub.platform === "string"
-                ? sub.platform.toLowerCase()
-                : undefined,
-            sourceKind: "subscription",
-          });
-          checkStatus = "fail";
-          checkFailureReason = bucketDownloadError(errorMessage);
-
-          // Note: We already updated lastCheck, so we won't retry until next interval.
-          // This acts as a "backoff" preventing retry loops for broken downloads.
         }
       } else {
         // Just update lastCheck.

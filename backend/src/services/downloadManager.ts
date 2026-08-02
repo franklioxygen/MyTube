@@ -4,6 +4,7 @@ import {
 } from "../errors/DownloadErrors";
 import { extractSourceVideoId } from "../utils/helpers";
 import { getErrorMessage } from "../utils/errors";
+import { isMembersOnlyError } from "../utils/ytdlp/errorClassification";
 import { sanitizeLogMessage } from "../utils/logger";
 import { CloudStorageService } from "./CloudStorageService";
 import {
@@ -738,6 +739,22 @@ class DownloadManager {
           isCancelledError(error) ? error : DownloadCancelledError.create(),
         );
         return;
+      }
+
+      // Members-only content can never be downloaded without a channel
+      // membership, so this is a benign skip rather than a failure. Log it
+      // informationally and suppress every failure side effect below (retry,
+      // failed-history row, task_fail hook, fail notification); we still reject
+      // so awaiting callers (e.g. the subscription check) can do their own
+      // skip bookkeeping. Detecting it here — before those side effects fire —
+      // is what makes the skip benign (issue #393).
+      const membersOnly = isMembersOnlyError(error);
+
+      if (membersOnly) {
+        logger.info(
+          "Skipping members-only content:",
+          sanitizeLogMessage(task.title),
+        );
       } else {
         logger.error(
           "Error downloading task:",
@@ -749,9 +766,10 @@ class DownloadManager {
       // Download failed
       storageService.removeActiveDownload(task.id);
 
-      // Add to history (unless already added by cancelDownload)
+      // Add to history (unless already added by cancelDownload). Members-only
+      // skips are never retried — retrying can't succeed.
       let retryScheduled = false;
-      if (!task.cancelled) {
+      if (!task.cancelled && !membersOnly) {
         retryScheduled = this.maybeScheduleRetry(task, error);
       }
 
@@ -763,8 +781,14 @@ class DownloadManager {
             id: task.id,
             title: task.title,
             finishedAt: Date.now(),
-            status: structuredResult?.partial === true ? PARTIAL_STATUS : "failed",
-            error: getErrorMessage(error),
+            status: membersOnly
+              ? "skipped"
+              : structuredResult?.partial === true
+                ? PARTIAL_STATUS
+                : "failed",
+            error: membersOnly
+              ? "Skipped members-only content"
+              : getErrorMessage(error),
             sourceUrl: task.sourceUrl,
             platform: platformFromUrl(task.sourceUrl),
             sourceKind: task.statistics?.sourceKind ?? "unknown",
@@ -778,25 +802,29 @@ class DownloadManager {
       }
 
       if (!retryScheduled) {
-        // Await failure hooks so notifications and other side effects complete
-        // before the task rejection propagates to callers.
-        await awaitTaskFailHook({
-          taskId: task.id,
-          taskTitle: task.title,
-          sourceUrl: task.sourceUrl,
-          status: "fail",
-          error: getErrorMessage(error),
-        });
+        // Failure automation (task_fail hook + fail notification) only fires
+        // for genuine failures, not skips.
+        if (!membersOnly) {
+          // Await failure hooks so notifications and other side effects complete
+          // before the task rejection propagates to callers.
+          await awaitTaskFailHook({
+            taskId: task.id,
+            taskTitle: task.title,
+            sourceUrl: task.sourceUrl,
+            status: "fail",
+            error: getErrorMessage(error),
+          });
 
-        if (!task.options?.suppressCompletionNotification) {
-          import("./telegramService").then(({ TelegramService }) =>
-            TelegramService.notifyTaskComplete({
-              taskTitle: task.title,
-              status: "fail",
-              sourceUrl: task.sourceUrl,
-              error: getErrorMessage(error),
-            })
-          ).catch(() => {});
+          if (!task.options?.suppressCompletionNotification) {
+            import("./telegramService").then(({ TelegramService }) =>
+              TelegramService.notifyTaskComplete({
+                taskTitle: task.title,
+                status: "fail",
+                sourceUrl: task.sourceUrl,
+                error: getErrorMessage(error),
+              })
+            ).catch(() => {});
+          }
         }
 
         task.reject(error);

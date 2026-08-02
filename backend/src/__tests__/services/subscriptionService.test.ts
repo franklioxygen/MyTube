@@ -407,6 +407,57 @@ describe('SubscriptionService', () => {
       expect(TelegramService.notifyTaskComplete).not.toHaveBeenCalled();
     });
 
+    it('still downloads a new Short after skipping a members-only main video (issue #393)', async () => {
+      const sub = {
+        id: 'sub-members-then-short',
+        author: 'Creator',
+        platform: 'YouTube',
+        authorUrl: 'url',
+        lastCheck: 0,
+        interval: 10,
+        lastVideoLink: 'old-link',
+        downloadShorts: 1,
+        lastShortVideoLink: 'old-short',
+      };
+
+      mockBuilder.then = (cb: any) => Promise.resolve([sub]).then(cb);
+
+      (YtDlpDownloader.getLatestVideoUrl as any).mockResolvedValue('members-link');
+      (YtDlpDownloader.getLatestShortsUrl as any).mockResolvedValue('new-short');
+      (downloadService.downloadYouTubeVideo as any)
+        // Main video: members-only -> skipped.
+        .mockRejectedValueOnce(
+          Object.assign(new Error('yt-dlp process exited with code 1'), {
+            stderr:
+              'ERROR: [youtube] abc: Join this channel to get access to members-only content.\n',
+          })
+        )
+        // Short: a normal public upload downloads successfully.
+        .mockResolvedValueOnce({ videoData: { id: 'short-vid', title: 'New Short' } });
+
+      await subscriptionService.checkSubscriptions();
+
+      // Main upload skipped and cursor advanced.
+      expect(mockBuilder.set).toHaveBeenCalledWith(
+        expect.objectContaining({ lastVideoLink: 'members-link' })
+      );
+      expect(storageService.addDownloadHistoryItem).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'skipped' })
+      );
+      // The Short check still ran this cycle and downloaded successfully.
+      expect(YtDlpDownloader.getLatestShortsUrl).toHaveBeenCalled();
+      expect(downloadService.downloadYouTubeVideo).toHaveBeenCalledWith(
+        'new-short',
+        expect.anything()
+      );
+      expect(storageService.addDownloadHistoryItem).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'success', title: 'New Short' })
+      );
+      expect(mockBuilder.set).toHaveBeenCalledWith(
+        expect.objectContaining({ lastShortVideoLink: 'new-short' })
+      );
+    });
+
     it('polls Bilibili collection playlist subscriptions through the collection API', async () => {
       const sub = {
         id: 'bili-playlist-sub',
