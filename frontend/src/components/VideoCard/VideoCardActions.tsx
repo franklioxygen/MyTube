@@ -2,6 +2,7 @@ import { Box, Menu, MenuItem } from '@mui/material';
 import React from 'react';
 import { useCollection } from '../../contexts/CollectionContext';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { useSnackbar } from '../../contexts/SnackbarContext';
 import { useVideoActions, useVideoTags } from '../../contexts/VideoContext';
 import { useShareVideo } from '../../hooks/useShareVideo';
 import { Video } from '../../types';
@@ -51,8 +52,26 @@ export const VideoCardActions: React.FC<VideoCardActionsProps> = ({
     const { updateVideo } = useVideoActions();
     const { availableTags } = useVideoTags();
     const { handleShare } = useShareVideo(video);
+    const { showSnackbar } = useSnackbar();
     const [showCollectionModal, setShowCollectionModal] = React.useState(false);
     const [showTagsModal, setShowTagsModal] = React.useState(false);
+    const [isTogglingLock, setIsTogglingLock] = React.useState(false);
+
+    const isLocked = video.autoDeleteLocked === 1;
+
+    const handleToggleLock = async () => {
+        if (!video.id || isTogglingLock) return;
+        const nextLocked = isLocked ? null : 1;
+        setIsTogglingLock(true);
+        try {
+            const result = await updateVideo(video.id, { autoDeleteLocked: nextLocked });
+            if (!result.success) {
+                showSnackbar(result.error || t('error'), 'error');
+            }
+        } finally {
+            setIsTogglingLock(false);
+        }
+    };
 
     // Calculate collections that contain THIS video
     const currentVideoCollections = allCollections.filter(c => c.videos.includes(video.id));
@@ -107,6 +126,9 @@ export const VideoCardActions: React.FC<VideoCardActionsProps> = ({
                     isDeleting={isDeleting}
                     isTogglingVisibility={isTogglingVisibility}
                     onToggleVisibility={handleToggleVisibility}
+                    isTogglingLock={isTogglingLock}
+                    onToggleLock={handleToggleLock}
+                    isLocked={isLocked}
                     onAddTag={() => setShowTagsModal(true)}
                     video={video}
                     sx={{

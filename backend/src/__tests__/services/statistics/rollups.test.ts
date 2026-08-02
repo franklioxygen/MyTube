@@ -293,6 +293,12 @@ describe("statistics rollups", () => {
               recordedAt: 960_000,
             }),
             makeEvent({
+              id: "evt-17b",
+              eventType: "auto_delete_completed",
+              payload: JSON.stringify({ deletedCount: 4, capped: false }),
+              recordedAt: 965_000,
+            }),
+            makeEvent({
               id: "evt-18",
               eventType: "rss_feed_accessed",
               rssTokenId: null,
@@ -464,6 +470,9 @@ describe("statistics rollups", () => {
     );
     expect(findRollupRow(rows, "retention_delete_completed", { reason: "retention" })).toEqual(
       expect.objectContaining({ count: 2, sum: 3, min: 1, max: 2 })
+    );
+    expect(findRollupRow(rows, "auto_delete_completed", { reason: "auto_delete" })).toEqual(
+      expect.objectContaining({ count: 1, sum: 4, min: 4, max: 4 })
     );
     expect(findRollupRow(rows, "rss_feed_accessed", { rss_token_id: "unknown" })).toEqual(
       expect.objectContaining({ count: 1 })

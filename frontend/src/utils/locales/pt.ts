@@ -1,6 +1,28 @@
 export const pt = {
   // Header
   myTube: "MyTube",
+  // Auto Delete (library-wide age-based cleanup)
+  autoDelete: "Exclusão automática",
+  autoDeleteDescription:
+    "Exclui automaticamente os vídeos baixados depois de permanecerem na sua biblioteca por um número definido de dias. Desativado por padrão. Bloqueie vídeos individuais para protegê-los.",
+  autoDeleteInterval: "Excluir após",
+  autoDeleteIntervalHelp: "Vídeos mais antigos que isso são excluídos permanentemente.",
+  autoDeleteIntervalError: "Digite um número inteiro de dias (1–3650).",
+  autoDeleteHowItWorks: "Como funciona a exclusão automática",
+  autoDeleteHowItWorksScan:
+    "Todos os dias às 03:00 (horário do servidor), o MyTube verifica sua biblioteca.",
+  autoDeleteHowItWorksDelete:
+    "Qualquer vídeo adicionado à sua biblioteca há mais tempo do que o intervalo acima é excluído permanentemente — seu arquivo, miniatura e legendas são removidos, enquanto o histórico e o rastreamento de downloads são marcados como excluídos, exatamente como excluir manualmente. (\"Adicionado\" é quando ele entrou no MyTube, não a data de envio original do vídeo.)",
+  autoDeleteHowItWorksLock:
+    "Um vídeo que você bloqueia (o botão de cadeado no player e nos cartões de vídeo) nunca é excluído automaticamente por nenhuma regra, não importa quão antigo seja. Novos downloads começam desbloqueados.",
+  autoDeleteHowItWorksDisable:
+    "Desativar isto interrompe imediatamente esta política de exclusão automática de toda a biblioteca, incluindo uma varredura ativa na próxima verificação de segurança por vídeo. A política de retenção separada de uma assinatura ainda pode excluir vídeos desbloqueados; bloqueie um vídeo para protegê-lo de todas as regras automáticas.",
+  autoDeleteHowItWorksDowntime:
+    "Se o servidor estava desligado às 03:00, a verificação é executada logo após a próxima inicialização.",
+  lockVideo: "Bloquear (proteger da exclusão automática)",
+  unlockVideo: "Desbloquear (permitir exclusão automática)",
+  videoLocked: "Vídeo bloqueado — protegido da exclusão automática",
+  videoUnlocked: "Vídeo desbloqueado",
   manage: "Gerenciar",
   settings: "Configurações",
   logout: "Sair",

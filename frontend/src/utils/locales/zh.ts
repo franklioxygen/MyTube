@@ -1,6 +1,26 @@
 export const zh = {
   // Header
   myTube: "MyTube",
+  // Auto Delete (library-wide age-based cleanup)
+  autoDelete: "自动删除",
+  autoDeleteDescription:
+    "在下载的视频进入媒体库达到设定天数后自动删除。默认关闭。锁定单个视频可保护其不被删除。",
+  autoDeleteInterval: "删除时限",
+  autoDeleteIntervalHelp: "超过此天数的视频将被永久删除。",
+  autoDeleteIntervalError: "请输入整数天数（1–3650）。",
+  autoDeleteHowItWorks: "自动删除的工作方式",
+  autoDeleteHowItWorksScan: "每天 03:00（服务器时间）MyTube 会扫描你的媒体库。",
+  autoDeleteHowItWorksDelete:
+    "任何加入媒体库时间早于上述时限的视频都会被永久删除——其文件、缩略图和字幕都会被移除，下载历史与记录会被标记为已删除，与手动删除完全相同。（“加入”指其进入 MyTube 的时间，而非视频的原始上传日期，因此新导入的旧文件将从你添加它的那天算起。）",
+  autoDeleteHowItWorksLock:
+    "被你锁定的视频（播放器和视频卡片上的锁定按钮）永远不会被任何自动规则删除，无论其存在多久。新下载的视频默认为未锁定。",
+  autoDeleteHowItWorksDisable:
+    "关闭此项会立即停止这项全库自动删除策略，包括正在进行的扫描在其下一次逐个视频的安全检查时停止。订阅各自的保留策略仍可删除未锁定的视频；锁定视频可保护其不受任何自动规则影响。",
+  autoDeleteHowItWorksDowntime: "如果服务器在 03:00 时处于关闭状态，扫描将在下次启动后不久运行。",
+  lockVideo: "锁定（防止自动删除）",
+  unlockVideo: "解锁（允许自动删除）",
+  videoLocked: "视频已锁定——已防止自动删除",
+  videoUnlocked: "视频已解锁",
   manage: "管理",
   settings: "设置",
   logout: "退出",

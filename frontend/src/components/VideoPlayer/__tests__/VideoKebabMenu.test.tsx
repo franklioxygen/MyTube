@@ -22,6 +22,7 @@ describe('VideoKebabMenu', () => {
     const onAddToCollection = vi.fn();
     const onDelete = vi.fn();
     const onToggleVisibility = vi.fn();
+    const onToggleLock = vi.fn();
     const onAddTag = vi.fn();
 
     beforeEach(() => {
@@ -97,6 +98,7 @@ describe('VideoKebabMenu', () => {
                 onAddToCollection={onAddToCollection}
                 onDelete={onDelete}
                 onToggleVisibility={onToggleVisibility}
+                onToggleLock={onToggleLock}
                 onAddTag={onAddTag}
                 video={{ visibility: 1 }}
             />
@@ -108,5 +110,48 @@ describe('VideoKebabMenu', () => {
         expect(screen.queryByRole('button', { name: 'addToCollection' })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'delete' })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'addTag' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'lockVideo' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'unlockVideo' })).not.toBeInTheDocument();
+    });
+
+    it('shows the lock action for unlocked videos and wires the callback', () => {
+        render(
+            <VideoKebabMenu
+                kebabMenuAnchor={anchor}
+                onClose={onClose}
+                onPlayWith={onPlayWith}
+                onShare={onShare}
+                onAddToCollection={onAddToCollection}
+                onToggleLock={onToggleLock}
+                isLocked={false}
+                video={{ visibility: 1 }}
+            />
+        );
+
+        const lockButton = screen.getByRole('button', { name: 'lockVideo' });
+        expect(lockButton).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'unlockVideo' })).not.toBeInTheDocument();
+
+        fireEvent.click(lockButton);
+        expect(onToggleLock).toHaveBeenCalled();
+        expect(onClose).toHaveBeenCalled();
+    });
+
+    it('shows the unlock action for locked videos', () => {
+        render(
+            <VideoKebabMenu
+                kebabMenuAnchor={anchor}
+                onClose={onClose}
+                onPlayWith={onPlayWith}
+                onShare={onShare}
+                onAddToCollection={onAddToCollection}
+                onToggleLock={onToggleLock}
+                isLocked={true}
+                video={{ visibility: 1 }}
+            />
+        );
+
+        expect(screen.getByRole('button', { name: 'unlockVideo' })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'lockVideo' })).not.toBeInTheDocument();
     });
 });

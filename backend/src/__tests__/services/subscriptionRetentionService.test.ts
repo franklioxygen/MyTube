@@ -89,6 +89,27 @@ describe("subscriptionRetentionService", () => {
     expect(summary.deletedVideos).toBe(1);
   });
 
+  it("skips a locked video and counts it in skippedLocked (§6.6)", async () => {
+    vi.mocked(storageService.getVideoById).mockReturnValue({
+      id: "video-1",
+      title: "Locked Video",
+      sourceUrl: "https://example.com/video",
+      createdAt: "2026-01-01",
+      autoDeleteLocked: 1,
+    });
+    queueSelectResults(
+      [{ id: "sub-1", author: "Author", retentionDays: 7 }],
+      [{ id: "history-1", videoId: "video-1", finishedAt: Date.now() - 8 * 24 * 60 * 60 * 1000 }],
+      []
+    );
+
+    const summary = await runSubscriptionRetentionCleanup();
+
+    expect(storageService.deleteVideo).not.toHaveBeenCalled();
+    expect(summary.skippedLocked).toBe(1);
+    expect(summary.deletedVideos).toBe(0);
+  });
+
   it("skips expired videos referenced by another subscription or manual download", async () => {
     queueSelectResults(
       [{ id: "sub-1", author: "Author", retentionDays: 7 }],
@@ -228,6 +249,7 @@ describe("subscriptionRetentionService", () => {
       deletedVideos: 0,
       skippedMissingVideos: 0,
       skippedSharedVideos: 0,
+      skippedLocked: 0,
       errors: 0,
     });
     expect(db.select).toHaveBeenCalledTimes(1);

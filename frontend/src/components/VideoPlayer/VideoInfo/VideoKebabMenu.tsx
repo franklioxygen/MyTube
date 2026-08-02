@@ -1,4 +1,4 @@
-import { Add, Cast, Delete, Label, Share, Visibility, VisibilityOff } from '@mui/icons-material';
+import { Add, Cast, Delete, Label, Lock, LockOpen, Share, Visibility, VisibilityOff } from '@mui/icons-material';
 import { Button, Menu, Stack, Tooltip, useMediaQuery } from '@mui/material';
 import React from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -14,6 +14,9 @@ interface VideoKebabMenuProps {
     isDeleting?: boolean;
     isTogglingVisibility?: boolean;
     onToggleVisibility?: () => void;
+    isTogglingLock?: boolean;
+    onToggleLock?: () => void;
+    isLocked?: boolean;
     onAddTag?: () => void;
     video?: { visibility?: number };
 }
@@ -28,6 +31,9 @@ const VideoKebabMenu: React.FC<VideoKebabMenuProps> = ({
     isDeleting = false,
     isTogglingVisibility = false,
     onToggleVisibility,
+    isTogglingLock = false,
+    onToggleLock,
+    isLocked = false,
     onAddTag,
     video,
 }) => {
@@ -59,6 +65,11 @@ const VideoKebabMenu: React.FC<VideoKebabMenuProps> = ({
     const handleToggleVisibility = () => {
         onClose();
         onToggleVisibility?.();
+    };
+
+    const handleToggleLock = () => {
+        onClose();
+        onToggleLock?.();
     };
 
     return (
@@ -119,6 +130,19 @@ const VideoKebabMenu: React.FC<VideoKebabMenuProps> = ({
                                     sx={{ minWidth: 'auto', p: 1, color: 'text.secondary', borderColor: 'text.secondary', '&:hover': { color: 'primary.main', borderColor: 'primary.main' } }}
                                 >
                                     {video?.visibility === 0 ? <Visibility /> : <VisibilityOff />}
+                                </Button>
+                            </Tooltip>
+                        )}
+                        {onToggleLock && (
+                            <Tooltip title={isLocked ? t('unlockVideo') : t('lockVideo')} disableHoverListener={isTouch}>
+                                <Button
+                                    variant="outlined"
+                                    color="inherit"
+                                    onClick={handleToggleLock}
+                                    loading={isTogglingLock}
+                                    sx={{ minWidth: 'auto', p: 1, color: 'text.secondary', borderColor: 'text.secondary', '&:hover': { color: 'primary.main', borderColor: 'primary.main' } }}
+                                >
+                                    {isLocked ? <Lock /> : <LockOpen />}
                                 </Button>
                             </Tooltip>
                         )}

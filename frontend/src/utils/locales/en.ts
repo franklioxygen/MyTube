@@ -1048,6 +1048,29 @@ export const en = {
   retentionDaysUpdated: "Retention policy updated",
   retentionDaysUpdateFailed: "Failed to update retention policy",
 
+  // Auto Delete (library-wide age-based cleanup)
+  autoDelete: "Auto Delete",
+  autoDeleteDescription:
+    "Automatically delete downloaded videos after they have been in your library for a set number of days. Off by default. Lock individual videos to protect them.",
+  autoDeleteInterval: "Delete after",
+  autoDeleteIntervalHelp: "Videos older than this are permanently deleted.",
+  autoDeleteIntervalError: "Enter a whole number of days (1–3650).",
+  autoDeleteHowItWorks: "How auto delete works",
+  autoDeleteHowItWorksScan:
+    "Every day at 03:00 (server time) MyTube scans your library.",
+  autoDeleteHowItWorksDelete:
+    "Any video added to your library longer ago than the interval above is permanently deleted — its file, thumbnail, and subtitles are removed, while download history and tracking are marked deleted, exactly like deleting it by hand. (\"Added\" means when it entered MyTube, not the video's original upload date, so newly imported old files are judged from the day you added them.)",
+  autoDeleteHowItWorksLock:
+    "A video you lock (the lock button on the player and on video cards) is never auto-deleted by any automatic rule, no matter how old it is. New downloads start unlocked.",
+  autoDeleteHowItWorksDisable:
+    "Turning this off stops this library-wide auto-delete policy immediately, including an active sweep at its next per-video safety check. A subscription's separate retention policy can still delete unlocked videos; lock a video to protect it from every automatic rule.",
+  autoDeleteHowItWorksDowntime:
+    "If the server was off at 03:00, the scan runs shortly after the next start-up.",
+  lockVideo: "Lock (protect from auto-delete)",
+  unlockVideo: "Unlock (allow auto-delete)",
+  videoLocked: "Video locked — protected from auto-delete",
+  videoUnlocked: "Video unlocked",
+
   // Per-subscription yt-dlp config override (issue #345)
   editYtdlpConfigOverride: "Edit yt-dlp config override",
   ytdlpConfigOverrideHelp:

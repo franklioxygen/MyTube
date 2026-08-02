@@ -8,6 +8,8 @@ import {
   AUDIO_FORMATS,
   MAX_PLAYER_SEEK_SECONDS,
   MIN_PLAYER_SEEK_SECONDS,
+  MIN_AUTO_DELETE_INTERVAL_DAYS,
+  MAX_AUTO_DELETE_INTERVAL_DAYS,
 } from "../types/settings";
 import { logger } from "../utils/logger";
 import * as storageService from "./storageService";
@@ -412,6 +414,33 @@ export function validateLiveTranslationFinalSettings(
     throw new ValidationError(
       "A valid target language is required to enable live translation.",
       "liveTranslationTargetLanguage"
+    );
+  }
+}
+
+/**
+ * Enforce "required interval when the toggle is ON" server-side, against the
+ * merged final settings. While disabled the interval is irrelevant and any
+ * stored/incoming value is ignored. autoDeleteLastRunAt is system-managed (not
+ * in the writable WHITELISTED_SETTINGS), so a client patch containing it is
+ * silently dropped by saveSettings; the sweep writes it via extraWhitelistedKeys.
+ */
+export function validateAutoDeleteFinalSettings(
+  finalSettings: Partial<Settings>
+): void {
+  if (finalSettings.autoDeleteEnabled !== true) {
+    return; // interval irrelevant while disabled
+  }
+  const days = finalSettings.autoDeleteIntervalDays;
+  if (
+    typeof days !== "number" ||
+    !Number.isInteger(days) ||
+    days < MIN_AUTO_DELETE_INTERVAL_DAYS ||
+    days > MAX_AUTO_DELETE_INTERVAL_DAYS
+  ) {
+    throw new ValidationError(
+      `autoDeleteIntervalDays must be a whole number from ${MIN_AUTO_DELETE_INTERVAL_DAYS} through ${MAX_AUTO_DELETE_INTERVAL_DAYS} when auto-delete is enabled.`,
+      "autoDeleteIntervalDays"
     );
   }
 }

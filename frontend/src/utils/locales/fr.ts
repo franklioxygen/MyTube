@@ -1,6 +1,28 @@
 export const fr = {
   // Header
   myTube: "MyTube",
+  // Auto Delete (library-wide age-based cleanup)
+  autoDelete: "Suppression automatique",
+  autoDeleteDescription:
+    "Supprime automatiquement les vidéos téléchargées après qu'elles sont restées dans votre bibliothèque pendant un nombre de jours défini. Désactivé par défaut. Verrouillez des vidéos pour les protéger.",
+  autoDeleteInterval: "Supprimer après",
+  autoDeleteIntervalHelp: "Les vidéos plus anciennes que cela sont définitivement supprimées.",
+  autoDeleteIntervalError: "Saisissez un nombre entier de jours (1–3650).",
+  autoDeleteHowItWorks: "Comment fonctionne la suppression automatique",
+  autoDeleteHowItWorksScan:
+    "Chaque jour à 03h00 (heure du serveur), MyTube analyse votre bibliothèque.",
+  autoDeleteHowItWorksDelete:
+    "Toute vidéo ajoutée à votre bibliothèque il y a plus longtemps que l'intervalle ci-dessus est définitivement supprimée — son fichier, sa miniature et ses sous-titres sont supprimés, tandis que l'historique et le suivi des téléchargements sont marqués comme supprimés, exactement comme une suppression manuelle. (« Ajoutée » correspond au moment où elle est entrée dans MyTube, et non à la date de mise en ligne d'origine de la vidéo.)",
+  autoDeleteHowItWorksLock:
+    "Une vidéo que vous verrouillez (le bouton cadenas dans le lecteur et sur les cartes vidéo) n'est jamais supprimée automatiquement par aucune règle, quel que soit son âge. Les nouveaux téléchargements commencent déverrouillés.",
+  autoDeleteHowItWorksDisable:
+    "Désactiver cette option arrête immédiatement cette politique de suppression automatique à l'échelle de la bibliothèque, y compris un balayage en cours lors de sa prochaine vérification de sécurité par vidéo. La politique de rétention distincte d'un abonnement peut encore supprimer des vidéos déverrouillées ; verrouillez une vidéo pour la protéger de toute règle automatique.",
+  autoDeleteHowItWorksDowntime:
+    "Si le serveur était éteint à 03h00, l'analyse s'exécute peu après le prochain démarrage.",
+  lockVideo: "Verrouiller (protéger de la suppression automatique)",
+  unlockVideo: "Déverrouiller (autoriser la suppression automatique)",
+  videoLocked: "Vidéo verrouillée — protégée de la suppression automatique",
+  videoUnlocked: "Vidéo déverrouillée",
   manage: "Gérer",
   settings: "Paramètres",
   logout: "Déconnexion",

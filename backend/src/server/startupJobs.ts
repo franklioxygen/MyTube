@@ -50,6 +50,17 @@ export const startBackgroundJobs = (port: number): void => {
       );
     });
 
+  // Library-wide auto-delete sweep (opt-in via autoDeleteEnabled): a daily
+  // 03:00 cron plus a boot-time catch-up after downtime. No-op while disabled.
+  import("../services/autoDeleteScheduler")
+    .then(({ startAutoDeleteScheduler }) => startAutoDeleteScheduler())
+    .catch((error) =>
+      logger.warn(
+        "Failed to start auto-delete scheduler",
+        error instanceof Error ? error : new Error(String(error))
+      )
+    );
+
   // Statistics rollup + retention workers and the alert dispatch loop.
   import("../services/statistics")
     .then((statistics) => {

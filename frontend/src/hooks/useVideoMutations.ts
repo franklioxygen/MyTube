@@ -118,6 +118,38 @@ export function useVideoMutations({
     },
   });
 
+  // Auto-delete lock mutation. Canonical payload is 1 | null, matching the
+  // stored representation and the declared Video.autoDeleteLocked type.
+  const lockMutation = useMutation({
+    mutationFn: async (autoDeleteLocked: number | null) => {
+      const response = await api.put(`/videos/${videoId}`, {
+        autoDeleteLocked,
+      });
+      return response.data;
+    },
+    onSuccess: (data, autoDeleteLocked) => {
+      if (data.success) {
+        queryClient.setQueryData(["video", videoId], (old: Video | undefined) =>
+          old ? { ...old, autoDeleteLocked } : old
+        );
+        queryClient.setQueryData(["videos"], (old: Video[] | undefined) =>
+          old
+            ? old.map((v) =>
+                v.id === videoId ? { ...v, autoDeleteLocked } : v
+              )
+            : []
+        );
+        showSnackbar(
+          autoDeleteLocked === 1 ? t("videoLocked") : t("videoUnlocked"),
+          "success"
+        );
+      }
+    },
+    onError: () => {
+      showSnackbar(t("error"), "error");
+    },
+  });
+
   // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: async (videoIdToDelete: string) => {
@@ -224,6 +256,7 @@ export function useVideoMutations({
     titleMutation,
     tagsMutation,
     visibilityMutation,
+    lockMutation,
     deleteMutation,
     uploadSubtitleMutation,
     deleteSubtitleMutation,

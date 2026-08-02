@@ -354,6 +354,25 @@ export const updateVideoDetails = async (
     allowedUpdates.visibility = updates.visibility;
   if (updates.subtitles !== undefined)
     allowedUpdates.subtitles = updates.subtitles;
+  if (updates.autoDeleteLocked !== undefined) {
+    // Strict contract: accept boolean, 1/0, or null only. Do NOT use truthiness,
+    // which would map arbitrary values ("false", 2, {}, []) to locked. Store the
+    // "default null (unlocked)" model as 1 | null. See design §6.5.
+    const v = updates.autoDeleteLocked;
+    const isLocked =
+      v === true || v === 1
+        ? true
+        : v === false || v === 0 || v === null
+          ? false
+          : null; // sentinel for "invalid"
+    if (isLocked === null) {
+      throw new ValidationError(
+        "autoDeleteLocked must be a boolean, 1/0, or null",
+        "autoDeleteLocked"
+      );
+    }
+    allowedUpdates.autoDeleteLocked = isLocked ? 1 : null;
+  }
   // Add other allowed fields here if needed in the future
 
   if (Object.keys(allowedUpdates).length === 0) {

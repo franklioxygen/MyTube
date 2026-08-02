@@ -37,6 +37,10 @@ export interface SubscriptionRetentionCleanupSummary {
   deletedVideos: number;
   skippedMissingVideos: number;
   skippedSharedVideos: number;
+  // Videos protected by the per-video auto-delete lock (autoDeleteLocked === 1).
+  // Locking can only ever prevent a deletion, so this never regresses existing
+  // retention behavior for unlocked videos. See design §6.6.
+  skippedLocked: number;
   errors: number;
 }
 
@@ -133,6 +137,7 @@ export async function runSubscriptionRetentionCleanup(): Promise<SubscriptionRet
     deletedVideos: 0,
     skippedMissingVideos: 0,
     skippedSharedVideos: 0,
+    skippedLocked: 0,
     errors: 0,
   };
 
@@ -212,6 +217,17 @@ export async function runSubscriptionRetentionCleanup(): Promise<SubscriptionRet
           if (!videoRecord) {
             storageService.markDownloadHistoryDeletedByVideoId(candidate.videoId);
             summary.skippedMissingVideos += 1;
+            continue;
+          }
+
+          // A locked video is protected from all automatic deletion, including
+          // per-subscription retention, so "a locked video is never auto-deleted"
+          // is literally true. See design §6.6.
+          if (videoRecord.autoDeleteLocked === 1) {
+            summary.skippedLocked += 1;
+            logger.debug(
+              `[RetentionCleanup] Skipping locked video id=${candidate.videoId} for subscription ${subscription.id}`
+            );
             continue;
           }
 

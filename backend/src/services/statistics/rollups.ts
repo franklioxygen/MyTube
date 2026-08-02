@@ -372,6 +372,14 @@ function recomputeDay(day: string): void {
         );
         break;
       }
+      case "auto_delete_completed": {
+        const count = Number(payload.deletedCount ?? 1);
+        aggregator.add(
+          { metricKey: "auto_delete_completed", dimensions: { reason: "auto_delete" } },
+          count
+        );
+        break;
+      }
       case "rss_feed_accessed": {
         aggregator.add({
           metricKey: "rss_feed_accessed",

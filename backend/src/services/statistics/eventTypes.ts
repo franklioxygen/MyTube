@@ -48,6 +48,7 @@ export type StatisticsEventType =
   | "library_video_deleted"
   | "subscription_check_completed"
   | "retention_delete_completed"
+  | "auto_delete_completed"
   | "rss_feed_accessed";
 
 export const FRONTEND_EVENT_TYPES: ReadonlySet<StatisticsEventType> = new Set([
@@ -67,6 +68,7 @@ export const BACKEND_EVENT_TYPES: ReadonlySet<StatisticsEventType> = new Set([
   "library_video_deleted",
   "subscription_check_completed",
   "retention_delete_completed",
+  "auto_delete_completed",
   "rss_feed_accessed",
 ]);
 

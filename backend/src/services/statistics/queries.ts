@@ -648,13 +648,14 @@ export function estimateDiskRunway(rangeDays = 14): DiskRunway {
          day,
          COALESCE(SUM(CASE WHEN metric_key = 'library_bytes_added' THEN sum ELSE 0 END), 0) AS added,
          COALESCE(SUM(CASE WHEN metric_key = 'library_bytes_deleted' THEN sum ELSE 0 END), 0) AS deleted,
-         COALESCE(SUM(CASE WHEN metric_key = 'retention_delete_completed' THEN count ELSE 0 END), 0) AS retentionDeletes
+         COALESCE(SUM(CASE WHEN metric_key IN ('retention_delete_completed', 'auto_delete_completed') THEN sum ELSE 0 END), 0) AS cleanupDeletes
        FROM usage_statistics_daily
        WHERE day >= ? AND day <= ?
          AND metric_key IN (
            'library_bytes_added',
            'library_bytes_deleted',
-           'retention_delete_completed'
+           'retention_delete_completed',
+           'auto_delete_completed'
          )
        GROUP BY day
        ORDER BY day ASC`
@@ -663,10 +664,14 @@ export function estimateDiskRunway(rangeDays = 14): DiskRunway {
     day: string;
     added: number;
     deleted: number;
-    retentionDeletes: number;
+    cleanupDeletes: number;
   }>;
 
-  const qualifyingRows = dailyRows.filter((row) => row.retentionDeletes === 0);
+  // Exclude days where subscription-retention OR library-wide auto-delete
+  // actually removed videos. The rollup sum is deletedCount; using its event
+  // count would also exclude successful no-op sweeps, eventually leaving no
+  // qualifying runway days while the daily policy is enabled. See design §6.7.
+  const qualifyingRows = dailyRows.filter((row) => row.cleanupDeletes === 0);
 
   if (qualifyingRows.length < 7) {
     return { status: "insufficient_activity" };

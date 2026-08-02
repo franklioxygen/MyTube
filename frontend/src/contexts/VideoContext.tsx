@@ -583,7 +583,17 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 queryClient.setQueryData(['video', id], (old: Video | undefined) =>
                     old ? { ...old, ...updates } : old
                 );
-                showSnackbar(t('videoUpdated'));
+                const isAutoDeleteLockUpdate = Object.prototype.hasOwnProperty.call(
+                    updates,
+                    'autoDeleteLocked'
+                );
+                showSnackbar(
+                    isAutoDeleteLockUpdate
+                        ? updates.autoDeleteLocked === 1
+                            ? t('videoLocked')
+                            : t('videoUnlocked')
+                        : t('videoUpdated')
+                );
             }
         },
         onError: (error) => {

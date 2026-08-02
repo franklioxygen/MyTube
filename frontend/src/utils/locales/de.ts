@@ -1,6 +1,28 @@
 export const de = {
   // Header
   myTube: "MyTube",
+  // Auto Delete (library-wide age-based cleanup)
+  autoDelete: "Automatisch löschen",
+  autoDeleteDescription:
+    "Heruntergeladene Videos automatisch löschen, nachdem sie eine festgelegte Anzahl von Tagen in Ihrer Bibliothek waren. Standardmäßig deaktiviert. Sperren Sie einzelne Videos, um sie zu schützen.",
+  autoDeleteInterval: "Löschen nach",
+  autoDeleteIntervalHelp: "Videos, die älter sind, werden dauerhaft gelöscht.",
+  autoDeleteIntervalError: "Geben Sie eine ganze Anzahl von Tagen ein (1–3650).",
+  autoDeleteHowItWorks: "So funktioniert das automatische Löschen",
+  autoDeleteHowItWorksScan:
+    "Jeden Tag um 03:00 Uhr (Serverzeit) durchsucht MyTube Ihre Bibliothek.",
+  autoDeleteHowItWorksDelete:
+    "Jedes Video, das vor längerer Zeit als dem oben angegebenen Intervall zu Ihrer Bibliothek hinzugefügt wurde, wird dauerhaft gelöscht – die Datei, das Vorschaubild und die Untertitel werden entfernt, während Download-Verlauf und -Tracking als gelöscht markiert werden, genau wie beim manuellen Löschen. („Hinzugefügt“ bezeichnet, wann es zu MyTube kam, nicht das ursprüngliche Upload-Datum des Videos.)",
+  autoDeleteHowItWorksLock:
+    "Ein von Ihnen gesperrtes Video (die Sperr-Schaltfläche im Player und auf den Videokarten) wird niemals durch eine automatische Regel gelöscht, egal wie alt es ist. Neue Downloads sind zunächst entsperrt.",
+  autoDeleteHowItWorksDisable:
+    "Das Deaktivieren stoppt diese bibliotheksweite Richtlinie zum automatischen Löschen sofort, einschließlich eines aktiven Durchlaufs bei seiner nächsten Sicherheitsprüfung pro Video. Die separate Aufbewahrungsrichtlinie eines Abonnements kann weiterhin entsperrte Videos löschen; sperren Sie ein Video, um es vor jeder automatischen Regel zu schützen.",
+  autoDeleteHowItWorksDowntime:
+    "War der Server um 03:00 Uhr ausgeschaltet, läuft die Prüfung kurz nach dem nächsten Start.",
+  lockVideo: "Sperren (vor automatischem Löschen schützen)",
+  unlockVideo: "Entsperren (automatisches Löschen erlauben)",
+  videoLocked: "Video gesperrt – vor automatischem Löschen geschützt",
+  videoUnlocked: "Video entsperrt",
   manage: "Verwalten",
   settings: "Einstellungen",
   logout: "Abmelden",

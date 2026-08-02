@@ -60,6 +60,19 @@ import {
     isValidPlayerSeekSeconds,
 } from '../utils/playerSeekIntervals';
 
+function isAutoDeleteSettingValid(settings: Settings): boolean {
+    if (!settings.autoDeleteEnabled) {
+        return true;
+    }
+    const days = settings.autoDeleteIntervalDays;
+    return (
+        typeof days === 'number' &&
+        Number.isInteger(days) &&
+        days >= 1 &&
+        days <= 3650
+    );
+}
+
 function arePersistedSeekIntervalsValid(settings: Settings): boolean {
     const shortSeconds =
         settings.playerSeekShortSeconds ?? DEFAULT_PLAYER_SEEK_INTERVALS.shortSeconds;
@@ -165,6 +178,7 @@ const SettingsPage: React.FC = () => {
         tab: getInitialSettingsTab(location.search),
     }));
     const [seekIntervalsValid, setSeekIntervalsValid] = useState(true);
+    const [autoDeleteValid, setAutoDeleteValid] = useState(true);
     const [showTrustDetailsModal, setShowTrustDetailsModal] = useState(false);
     const twitchCredentialValidationCode = getTwitchCredentialValidationCode(
         settings.twitchClientId,
@@ -316,7 +330,8 @@ const SettingsPage: React.FC = () => {
         if (
             saveMutation.isPending ||
             hasTwitchCredentialValidationError ||
-            !seekIntervalsValid
+            !seekIntervalsValid ||
+            !autoDeleteValid
         ) {
             return;
         }
@@ -486,6 +501,7 @@ const SettingsPage: React.FC = () => {
                     activeDownloadsCount={activeDownloads.length}
                     onCleanup={() => setShowCleanupTempFilesModal(true)}
                     isSaving={isSaving}
+                    onAutoDeleteValidityChange={setAutoDeleteValid}
                 />
             </Box>
             <Box>
@@ -719,6 +735,7 @@ const SettingsPage: React.FC = () => {
         // unmounts. Reconcile the page-level save guard to the settings draft
         // that survives the tab switch, while preserving ordering errors.
         setSeekIntervalsValid(arePersistedSeekIntervalsValid(settings));
+        setAutoDeleteValid(isAutoDeleteSettingValid(settings));
         setCurrentTabState({
             urlKey: settingsTabUrlKey,
             tab: newValue,
@@ -788,7 +805,7 @@ const SettingsPage: React.FC = () => {
                     color="primary"
                     size="large"
                     onClick={handleSave}
-                    disabled={hasTwitchCredentialValidationError || !seekIntervalsValid}
+                    disabled={hasTwitchCredentialValidationError || !seekIntervalsValid || !autoDeleteValid}
                     loading={saveMutation.isPending}
                     loadingPosition="start"
                     sx={{ visibility: isSticky ? 'hidden' : 'visible' }}
@@ -823,7 +840,7 @@ const SettingsPage: React.FC = () => {
                                 color="primary"
                                 size="large"
                                 onClick={handleSave}
-                                disabled={hasTwitchCredentialValidationError || !seekIntervalsValid}
+                                disabled={hasTwitchCredentialValidationError || !seekIntervalsValid || !autoDeleteValid}
                                 loading={saveMutation.isPending}
                                 loadingPosition="start"
                                 className={isGlowing ? 'button-glow-animation' : ''}

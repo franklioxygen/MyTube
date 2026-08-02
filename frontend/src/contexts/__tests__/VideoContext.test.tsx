@@ -389,6 +389,18 @@ describe('VideoContext', () => {
     expect(updateOk).toEqual({ success: true });
     expect(mockShowSnackbar).toHaveBeenCalledWith('videoUpdated');
 
+    mockShowSnackbar.mockClear();
+    const lockOk = await result.current.updateVideo('v1', { autoDeleteLocked: 1 });
+    expect(lockOk).toEqual({ success: true });
+    expect(mockShowSnackbar).toHaveBeenCalledTimes(1);
+    expect(mockShowSnackbar).toHaveBeenCalledWith('videoLocked');
+
+    mockShowSnackbar.mockClear();
+    const unlockOk = await result.current.updateVideo('v1', { autoDeleteLocked: null });
+    expect(unlockOk).toEqual({ success: true });
+    expect(mockShowSnackbar).toHaveBeenCalledTimes(1);
+    expect(mockShowSnackbar).toHaveBeenCalledWith('videoUnlocked');
+
     mockApiPut.mockResolvedValueOnce({ data: { success: false } });
     const updateFail = await result.current.updateVideo('v1', { title: 'nope' });
     expect(updateFail).toEqual({ success: false, error: 'videoUpdateFailed' });

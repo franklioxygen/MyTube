@@ -248,9 +248,26 @@ vi.mock('../../components/Settings/VideoDefaultSettings', () => ({
 }));
 
 vi.mock('../../components/Settings/DownloadSettings', () => ({
-  default: ({ onChange, onCleanup }: any) => (
+  default: ({ onChange, onCleanup, onAutoDeleteValidityChange }: any) => (
     <div data-testid="download-settings">
       <button onClick={() => onChange('maxConcurrentDownloads', 5)}>download-change</button>
+      <button
+        onClick={() => {
+          onChange('autoDeleteEnabled', true);
+          onChange('autoDeleteIntervalDays', 0);
+          onAutoDeleteValidityChange(false);
+        }}
+      >
+        auto-delete-invalid
+      </button>
+      <button
+        onClick={() => {
+          onChange('autoDeleteIntervalDays', 30);
+          onAutoDeleteValidityChange(true);
+        }}
+      >
+        auto-delete-valid
+      </button>
       <button onClick={onCleanup}>download-cleanup</button>
     </div>
   ),
@@ -624,6 +641,20 @@ describe('SettingsPage', () => {
     expect(saveButton).not.toBeDisabled();
   });
 
+  it('blocks save while the auto-delete interval is invalid', () => {
+    renderPage('/settings');
+
+    fireEvent.click(screen.getByText('auto-delete-invalid'));
+    const saveButton = screen.getAllByRole('button', { name: 'save' })[0];
+    expect(saveButton).toBeDisabled();
+
+    fireEvent.click(saveButton);
+    expect(mockSaveMutate).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByText('auto-delete-valid'));
+    expect(saveButton).not.toBeDisabled();
+  });
+
   it('clears discarded seek-field invalidity when leaving the desktop basic tab', () => {
     mockIsDesktop = true;
     renderPage('/settings');
@@ -641,6 +672,17 @@ describe('SettingsPage', () => {
     renderPage('/settings');
 
     fireEvent.click(screen.getByText('seek-order-invalid'));
+    fireEvent.click(screen.getByRole('tab', { name: 'securityAccess' }));
+
+    expect(screen.getAllByRole('button', { name: 'save' })[0]).toBeDisabled();
+  });
+
+  it('keeps save disabled after leaving the tab with an invalid auto-delete draft', () => {
+    mockIsDesktop = true;
+    renderPage('/settings');
+
+    fireEvent.click(screen.getByRole('tab', { name: 'downloadStorage' }));
+    fireEvent.click(screen.getByText('auto-delete-invalid'));
     fireEvent.click(screen.getByRole('tab', { name: 'securityAccess' }));
 
     expect(screen.getAllByRole('button', { name: 'save' })[0]).toBeDisabled();

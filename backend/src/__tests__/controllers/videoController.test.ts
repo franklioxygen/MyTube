@@ -626,6 +626,44 @@ describe("VideoController", () => {
         expect(error.name).toBe("ValidationError");
       }
     });
+
+    it.each([
+      [true, 1],
+      [1, 1],
+      [false, null],
+      [0, null],
+      [null, null],
+    ])(
+      "normalizes autoDeleteLocked %p to %p",
+      (input, stored) => {
+        req.params = { id: "1" };
+        req.body = { autoDeleteLocked: input };
+        (storageService.updateVideo as any).mockReturnValue({ id: "1" });
+
+        updateVideoDetails(req as Request, res as Response);
+
+        expect(storageService.updateVideo).toHaveBeenCalledWith("1", {
+          autoDeleteLocked: stored,
+        });
+        expect(status).toHaveBeenCalledWith(200);
+      }
+    );
+
+    it.each([["false"], [2], [{}], [[]]])(
+      "rejects invalid autoDeleteLocked %p with a ValidationError",
+      async (input) => {
+        req.params = { id: "1" };
+        req.body = { autoDeleteLocked: input };
+
+        try {
+          await updateVideoDetails(req as Request, res as Response);
+          expect.fail("Should have thrown");
+        } catch (error: any) {
+          expect(error.name).toBe("ValidationError");
+        }
+        expect(storageService.updateVideo).not.toHaveBeenCalled();
+      }
+    );
   });
 
   describe("checkBilibiliParts", () => {
