@@ -34,9 +34,16 @@ type CandidateCursor = {
 // COALESCE(NULLIF(TRIM(added_at), ''), NULLIF(TRIM(created_at), '')): "time in
 // library" keyed on addedAt first, falling back to createdAt. Blank legacy
 // values are normalized to null so an undateable row is skipped (never deleted).
-// After normalization the stored values are ISO-8601 strings, so a lexical
-// comparison against the ISO cutoff is valid and runs in SQL. See design §5.3.
+// See design §5.3. NOTE: for a canonical ISO-8601 reference a lexical `< cutoff`
+// comparison equals a chronological one, but a legacy/imported row can hold a
+// non-canonical value (RFC-2822, locale, or epoch string) for which lexical
+// ordering is meaningless — hence the GLOB carve-out below and the authoritative
+// numeric re-check before each deletion (resolveReferenceMs).
 const referenceIsoExpr = sql<string>`COALESCE(NULLIF(TRIM(${videos.addedAt}), ''), NULLIF(TRIM(${videos.createdAt}), ''))`;
+
+// Matches a canonical ISO-8601 date-first reference (YYYY-MM-DD…), the only
+// shape for which the lexical `< cutoffIso` comparison is chronologically valid.
+const CANONICAL_ISO_GLOB = "[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]*";
 
 // Unlocked: auto_delete_locked is null or not 1. Only the literal 1 protects a
 // row; null/0 (and any stray non-1 value from a manual DB edit) stay eligible.
@@ -49,7 +56,16 @@ function buildCandidateFilter(cutoffIso: string, cursor: CandidateCursor | null)
   const baseFilter = and(
     unlockedFilter,
     isNotNull(referenceIsoExpr),
-    lt(referenceIsoExpr, cutoffIso)
+    // Select a canonical reference only when it is lexically (= chronologically)
+    // older than the cutoff, PLUS every non-canonical reference regardless of
+    // lexical position. The latter would otherwise be permanently excluded by a
+    // meaningless string comparison; instead it flows to the numeric age check
+    // (resolveReferenceMs), which decides correctly and never deletes a row it
+    // cannot date. This closes the under-deletion gap for legacy timestamps.
+    or(
+      lt(referenceIsoExpr, cutoffIso),
+      sql`${referenceIsoExpr} NOT GLOB ${CANONICAL_ISO_GLOB}`
+    )
   );
 
   if (!cursor) {
@@ -211,22 +227,13 @@ export async function runAutoDeleteSweep(): Promise<AutoDeleteSweepSummary> {
         }
 
         // Recompute the cutoff from the CURRENT interval so a retention window
-        // widened mid-sweep (e.g. 30 -> 90 days) never irreversibly deletes a
-        // now-protected video under the original, staler cutoff. Candidates are
-        // ordered by ascending (lexical) reference timestamp, so the first one
-        // whose selected reference is no longer strictly older than the current
-        // cutoff means every remaining candidate is at least as new — stop
-        // before deleting any of them. (Fast path for canonical ISO rows; the
-        // authoritative age check below re-validates each row numerically.)
+        // widened mid-sweep (e.g. 30 -> 90 days) is honored immediately. A
+        // now-protected candidate is dropped by the numeric age check below
+        // (not stopped early): the batch may contain non-canonical references
+        // that sort after the cutoff yet still need per-row numeric validation,
+        // so a lexical early-stop could skip genuinely-old legacy rows.
         const currentCutoffMs =
           Date.now() - currentPolicy.intervalDays * MS_PER_DAY;
-        const currentCutoffIso = new Date(currentCutoffMs).toISOString();
-        if (!(candidate.referenceIso < currentCutoffIso)) {
-          logger.info(
-            "[AutoDelete] Interval widened mid-sweep; stopping before deleting now-protected videos"
-          );
-          return summary;
-        }
 
         // Re-fetch the current row: skip if it no longer exists or was locked
         // after selection.

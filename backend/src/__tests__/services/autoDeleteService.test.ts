@@ -277,10 +277,11 @@ describe("autoDeleteService", () => {
     expect(summary.deletedVideos).toBe(0);
   });
 
-  it("stops without deleting when the interval is widened mid-sweep", async () => {
+  it("does not delete when the interval is widened mid-sweep", async () => {
     queueSelectResults(makeCandidates(2));
     // Policy read uses 30 days; the per-candidate re-check widens the window so
-    // far that the candidate (referenceIso in 2020) is no longer past the cutoff.
+    // far that the candidate (added in 2020) is no longer past the cutoff, so
+    // the numeric age check drops it.
     vi.mocked(storageService.getSettings)
       .mockReturnValueOnce(ENABLED_SETTINGS as any)
       .mockReturnValue({
