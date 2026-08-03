@@ -75,6 +75,8 @@ describe("autoDeleteService", () => {
     vi.mocked(storageService.getVideoById).mockReturnValue({
       id: "video-0",
       title: "Old Video",
+      addedAt: "2020-01-01T00:00:00.000Z",
+      createdAt: "2020-01-01T00:00:00.000Z",
       autoDeleteLocked: null,
     } as any);
     vi.mocked(storageService.deleteVideo).mockReturnValue(true);
@@ -195,6 +197,59 @@ describe("autoDeleteService", () => {
     expect(summary.skippedLocked).toBe(0);
   });
 
+  it("does not delete a row whose non-canonical timestamp parses to a recent date", async () => {
+    // referenceIso sorts lexically before the cutoff (so the SQL pre-filter and
+    // fast-stop select it), but the real row date parses to the future.
+    queueSelectResults([{ id: "legacy-1", referenceIso: "01/15/2099" }]);
+    vi.mocked(storageService.getVideoById).mockReturnValue({
+      id: "legacy-1",
+      title: "Locale-formatted future",
+      addedAt: "01/15/2099",
+      createdAt: "01/15/2099",
+      autoDeleteLocked: null,
+    } as any);
+
+    const summary = await runAutoDeleteSweep();
+
+    expect(storageService.deleteVideo).not.toHaveBeenCalled();
+    expect(summary.deletedVideos).toBe(0);
+  });
+
+  it("falls back to created_at when added_at is unparseable", async () => {
+    queueSelectResults([{ id: "legacy-2", referenceIso: "0000-unparseable" }]);
+    vi.mocked(storageService.getVideoById).mockReturnValue({
+      id: "legacy-2",
+      title: "Bad added_at, good created_at",
+      addedAt: "0000-unparseable",
+      createdAt: "2020-01-01T00:00:00.000Z",
+      autoDeleteLocked: null,
+    } as any);
+
+    const summary = await runAutoDeleteSweep();
+
+    expect(storageService.deleteVideo).toHaveBeenCalledWith(
+      "legacy-2",
+      "auto_delete"
+    );
+    expect(summary.deletedVideos).toBe(1);
+  });
+
+  it("skips a row whose timestamps cannot be parsed", async () => {
+    queueSelectResults([{ id: "legacy-3", referenceIso: "0000-unparseable" }]);
+    vi.mocked(storageService.getVideoById).mockReturnValue({
+      id: "legacy-3",
+      title: "Undateable",
+      addedAt: "0000-unparseable",
+      createdAt: "also-unparseable",
+      autoDeleteLocked: null,
+    } as any);
+
+    const summary = await runAutoDeleteSweep();
+
+    expect(storageService.deleteVideo).not.toHaveBeenCalled();
+    expect(summary.deletedVideos).toBe(0);
+  });
+
   it("stops the run when the policy is disabled mid-sweep", async () => {
     queueSelectResults(makeCandidates(2));
     // First getSettings (policy read) is enabled; the per-candidate re-check is disabled.
@@ -252,6 +307,8 @@ describe("autoDeleteService", () => {
     vi.mocked(storageService.getVideoById).mockReturnValue({
       id: "video",
       title: "Old",
+      addedAt: "2020-01-01T00:00:00.000Z",
+      createdAt: "2020-01-01T00:00:00.000Z",
       autoDeleteLocked: null,
     } as any);
 

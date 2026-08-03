@@ -80,6 +80,32 @@ async function getCandidateBatch(
     .limit(CANDIDATE_BATCH_SIZE);
 }
 
+// Strictly parse a stored timestamp to epoch ms, or null when it is blank or
+// unparseable. The SQL pre-filter compares reference strings lexically, which is
+// only valid for canonical ISO-8601; a legacy/imported row can carry a
+// non-canonical added_at (locale- or epoch-formatted) that migrationService
+// copies verbatim, and a lexical comparison could mark a recent video as
+// expired. Re-parsing here and comparing numerically closes that data-loss gap.
+function parseTimestampMs(value: unknown): number | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const trimmed = value.trim();
+  if (trimmed === "") {
+    return null;
+  }
+  const ms = Date.parse(trimmed);
+  return Number.isFinite(ms) ? ms : null;
+}
+
+// Reference age = "time in library": a parseable added_at, else a parseable
+// created_at, else null (undateable → never auto-deleted). Mirrors the SQL
+// COALESCE but falls back to created_at when added_at cannot be parsed rather
+// than trusting a non-canonical added_at value.
+function resolveReferenceMs(addedAt: unknown, createdAt: unknown): number | null {
+  return parseTimestampMs(addedAt) ?? parseTimestampMs(createdAt);
+}
+
 function readAutoDeletePolicy(): {
   enabled: boolean;
   intervalDays: number | null;
@@ -187,12 +213,14 @@ export async function runAutoDeleteSweep(): Promise<AutoDeleteSweepSummary> {
         // Recompute the cutoff from the CURRENT interval so a retention window
         // widened mid-sweep (e.g. 30 -> 90 days) never irreversibly deletes a
         // now-protected video under the original, staler cutoff. Candidates are
-        // ordered by ascending reference timestamp, so the first one that is no
-        // longer strictly older than the current cutoff means every remaining
-        // candidate is at least as new — stop before deleting any of them.
-        const currentCutoffIso = new Date(
-          Date.now() - currentPolicy.intervalDays * MS_PER_DAY
-        ).toISOString();
+        // ordered by ascending (lexical) reference timestamp, so the first one
+        // whose selected reference is no longer strictly older than the current
+        // cutoff means every remaining candidate is at least as new — stop
+        // before deleting any of them. (Fast path for canonical ISO rows; the
+        // authoritative age check below re-validates each row numerically.)
+        const currentCutoffMs =
+          Date.now() - currentPolicy.intervalDays * MS_PER_DAY;
+        const currentCutoffIso = new Date(currentCutoffMs).toISOString();
         if (!(candidate.referenceIso < currentCutoffIso)) {
           logger.info(
             "[AutoDelete] Interval widened mid-sweep; stopping before deleting now-protected videos"
@@ -208,6 +236,22 @@ export async function runAutoDeleteSweep(): Promise<AutoDeleteSweepSummary> {
         }
         if (current.autoDeleteLocked === 1) {
           summary.skippedLocked += 1;
+          continue;
+        }
+
+        // Authoritative age check: re-resolve the reference timestamp from the
+        // current row with strict parsing and compare NUMERICALLY. This corrects
+        // any lexical misclassification by the SQL pre-filter — a non-canonical
+        // added_at can never mark a recent video as expired, and an undateable
+        // row (neither timestamp parses) is skipped and never deleted.
+        const referenceMs = resolveReferenceMs(
+          current.addedAt,
+          current.createdAt
+        );
+        if (referenceMs === null || !(referenceMs < currentCutoffMs)) {
+          logger.debug(
+            `[AutoDelete] Skipping id=${candidate.id}: reference not strictly older than cutoff or unparseable`
+          );
           continue;
         }
 
