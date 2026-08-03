@@ -157,12 +157,29 @@ export async function runAutoDeleteSweep(): Promise<AutoDeleteSweepSummary> {
         // synchronous deleteVideo calls would starve the "immediate" action.
         await new Promise<void>((resolve) => setImmediate(resolve));
 
-        // Re-check the policy: a completed disable request invalidates the
-        // settings cache, so it is visible here. Stop the run without deleting
-        // any further candidates.
-        if (storageService.getSettings().autoDeleteEnabled !== true) {
+        // Re-read the FULL policy: a completed disable OR interval change
+        // invalidates the settings cache, so it is visible here. Stop the run
+        // without deleting further candidates when the feature is turned off.
+        const currentPolicy = readAutoDeletePolicy();
+        if (!currentPolicy.enabled || currentPolicy.intervalDays === null) {
           logger.info(
             "[AutoDelete] Policy disabled mid-sweep; stopping before further deletions"
+          );
+          return summary;
+        }
+
+        // Recompute the cutoff from the CURRENT interval so a retention window
+        // widened mid-sweep (e.g. 30 -> 90 days) never irreversibly deletes a
+        // now-protected video under the original, staler cutoff. Candidates are
+        // ordered by ascending reference timestamp, so the first one that is no
+        // longer strictly older than the current cutoff means every remaining
+        // candidate is at least as new — stop before deleting any of them.
+        const currentCutoffIso = new Date(
+          Date.now() - currentPolicy.intervalDays * MS_PER_DAY
+        ).toISOString();
+        if (!(candidate.referenceIso < currentCutoffIso)) {
+          logger.info(
+            "[AutoDelete] Interval widened mid-sweep; stopping before deleting now-protected videos"
           );
           return summary;
         }

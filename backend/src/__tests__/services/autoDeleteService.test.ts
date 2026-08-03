@@ -206,6 +206,23 @@ describe("autoDeleteService", () => {
     expect(summary.deletedVideos).toBe(0);
   });
 
+  it("stops without deleting when the interval is widened mid-sweep", async () => {
+    queueSelectResults(makeCandidates(2));
+    // Policy read uses 30 days; the per-candidate re-check widens the window so
+    // far that the candidate (referenceIso in 2020) is no longer past the cutoff.
+    vi.mocked(storageService.getSettings)
+      .mockReturnValueOnce(ENABLED_SETTINGS as any)
+      .mockReturnValue({
+        autoDeleteEnabled: true,
+        autoDeleteIntervalDays: 100_000,
+      } as any);
+
+    const summary = await runAutoDeleteSweep();
+
+    expect(storageService.deleteVideo).not.toHaveBeenCalled();
+    expect(summary.deletedVideos).toBe(0);
+  });
+
   it("stops at the per-run cap and marks the summary capped", async () => {
     // Five full batches of 100 = 500 deletions, hitting MAX_DELETIONS_PER_RUN.
     queueSelectResults(
