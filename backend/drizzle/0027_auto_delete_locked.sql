@@ -1,0 +1,1 @@
+ALTER TABLE `videos` ADD `auto_delete_locked` integer;

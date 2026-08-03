@@ -212,6 +212,26 @@ describe("settingsValidationService", () => {
       }).toThrow(ValidationError);
     });
 
+    it.each([["true"], [1], [0], [null]])(
+      "rejects a non-boolean autoDeleteEnabled (%p)",
+      (value) => {
+        expect(() => {
+          settingsValidationService.validateSettings({
+            autoDeleteEnabled: value as any,
+          });
+        }).toThrow(ValidationError);
+      }
+    );
+
+    it("accepts a boolean autoDeleteEnabled", () => {
+      expect(() => {
+        settingsValidationService.validateSettings({ autoDeleteEnabled: true });
+      }).not.toThrow();
+      expect(() => {
+        settingsValidationService.validateSettings({ autoDeleteEnabled: false });
+      }).not.toThrow();
+    });
+
     it("ignores the auto-delete interval while disabled", () => {
       expect(() => {
         settingsValidationService.validateAutoDeleteFinalSettings({

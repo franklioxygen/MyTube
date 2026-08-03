@@ -120,6 +120,21 @@ export function validateSettings(newSettings: Partial<Settings>): void {
     );
   }
 
+  // Reject a non-boolean auto-delete toggle. Without this, a truthy non-boolean
+  // (e.g. "true" or 1) would be persisted by the whitelist writer and pass the
+  // `!== true` disabled-path early return in validateAutoDeleteFinalSettings, so
+  // the UI switch (truthy) would read as enabled while readAutoDeletePolicy()
+  // (requires literal true) never runs the sweep.
+  if (
+    newSettings.autoDeleteEnabled !== undefined &&
+    typeof newSettings.autoDeleteEnabled !== "boolean"
+  ) {
+    throw new ValidationError(
+      "Auto-delete enabled flag must be a boolean.",
+      "autoDeleteEnabled"
+    );
+  }
+
   if (
     newSettings.tmdbApiKey !== undefined &&
     typeof newSettings.tmdbApiKey !== "string"
