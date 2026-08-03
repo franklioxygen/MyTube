@@ -139,6 +139,15 @@ export const db = new Proxy({} as ReturnType<typeof drizzle>, {
   },
 });
 
+// Monotonic counter bumped every time the underlying connection is swapped
+// (database import/restore). Long-running background jobs capture it and abort
+// if it changes mid-run, so they never operate across a database replacement.
+let databaseGeneration = 0;
+
+export function getDatabaseGeneration(): number {
+  return databaseGeneration;
+}
+
 // Function to reinitialize the database connection
 export function reinitializeDatabase(): void {
   if (sqliteInstance.open) {
@@ -146,4 +155,5 @@ export function reinitializeDatabase(): void {
   }
   sqliteInstance = createDatabaseConnection();
   dbInstance = drizzle(sqliteInstance, { schema });
+  databaseGeneration += 1;
 }

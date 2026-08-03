@@ -346,6 +346,23 @@ describe("statistics queries", () => {
     );
   });
 
+  it("excludes no-op sweep days (no byte activity) from the runway estimate", () => {
+    // Seven days that each only carry a no-op auto_delete_completed rollup row
+    // (zero bytes added/deleted, zero cleanup). Without the byte-activity
+    // requirement these would pad the sample count past the guard; with it,
+    // none qualify. Guards §6.7.
+    installPrepareMocks({
+      all: [
+        [
+          /FROM usage_statistics_daily\s+WHERE day >= \? AND day <= \?/,
+          buildDailyRows(7, 0, 0, 0),
+        ],
+      ],
+    });
+
+    expect(estimateDiskRunway(14)).toEqual({ status: "insufficient_activity" });
+  });
+
   it("excludes days containing cleanup (retention or auto-delete) from the runway estimate", () => {
     // 7 days of growth, but 2 carry cleanup deletions, leaving only 5 qualifying
     // days (< 7), so the estimate reports insufficient activity. Guards §6.7:

@@ -667,11 +667,16 @@ export function estimateDiskRunway(rangeDays = 14): DiskRunway {
     cleanupDeletes: number;
   }>;
 
-  // Exclude days where subscription-retention OR library-wide auto-delete
-  // actually removed videos. The rollup sum is deletedCount; using its event
-  // count would also exclude successful no-op sweeps, eventually leaving no
-  // qualifying runway days while the daily policy is enabled. See design §6.7.
-  const qualifyingRows = dailyRows.filter((row) => row.cleanupDeletes === 0);
+  // A day qualifies as an organic disk-activity sample only when it has real
+  // byte activity (a download or deletion moved bytes) AND no cleanup deletions.
+  // cleanupDeletes sums deletedCount (not the event count), so a successful
+  // no-op sweep is not treated as a cleanup — but auto-delete emits a completion
+  // row even on a no-op sweep, which would otherwise inject zero-byte days that
+  // pad the sample count past the insufficient-activity guard and dilute the
+  // net-growth average. Requiring byte activity drops those days. See §6.7.
+  const qualifyingRows = dailyRows.filter(
+    (row) => row.cleanupDeletes === 0 && (row.added !== 0 || row.deleted !== 0)
+  );
 
   if (qualifyingRows.length < 7) {
     return { status: "insufficient_activity" };

@@ -1,5 +1,5 @@
 import { and, asc, eq, gt, isNotNull, lt, ne, or, sql } from "drizzle-orm";
-import { db } from "../db";
+import { db, getDatabaseGeneration } from "../db";
 import { videos } from "../db/schema";
 import { logger } from "../utils/logger";
 import * as storageService from "./storageService";
@@ -136,6 +136,11 @@ export async function runAutoDeleteSweep(): Promise<AutoDeleteSweepSummary> {
   summary.enabled = true;
   summary.intervalDays = policy.intervalDays;
 
+  // Snapshot the database generation. A database import/restore swaps the
+  // connection and bumps this; if it changes mid-sweep, abort so we never run
+  // deletions selected from the old database against the replacement library.
+  const startGeneration = getDatabaseGeneration();
+
   try {
     const cutoffMs = Date.now() - policy.intervalDays * MS_PER_DAY;
     const cutoffIso = new Date(cutoffMs).toISOString();
@@ -156,6 +161,17 @@ export async function runAutoDeleteSweep(): Promise<AutoDeleteSweepSummary> {
         // complete before this synchronous deletion. Without this, a loop of
         // synchronous deleteVideo calls would starve the "immediate" action.
         await new Promise<void>((resolve) => setImmediate(resolve));
+
+        // Abort if the database was replaced (import/restore) mid-sweep. The
+        // remaining candidates were selected from the now-discarded database, so
+        // deleting them against the replacement library could remove restored
+        // videos that were never past the new policy's cutoff.
+        if (getDatabaseGeneration() !== startGeneration) {
+          logger.info(
+            "[AutoDelete] Database replaced mid-sweep; aborting before further deletions"
+          );
+          return summary;
+        }
 
         // Re-read the FULL policy: a completed disable OR interval change
         // invalidates the settings cache, so it is visible here. Stop the run

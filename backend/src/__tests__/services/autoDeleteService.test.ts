@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { db } from "../../db";
+import { db, getDatabaseGeneration } from "../../db";
 import { runAutoDeleteSweep } from "../../services/autoDeleteService";
 import * as storageService from "../../services/storageService";
 import * as statistics from "../../services/statistics";
@@ -8,6 +8,7 @@ vi.mock("../../db", () => ({
   db: {
     select: vi.fn(),
   },
+  getDatabaseGeneration: vi.fn(() => 0),
 }));
 
 vi.mock("../../db/schema", () => ({
@@ -69,6 +70,7 @@ const makeCandidates = (count: number) =>
 describe("autoDeleteService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(getDatabaseGeneration).mockReturnValue(0);
     vi.mocked(storageService.getSettings).mockReturnValue(ENABLED_SETTINGS as any);
     vi.mocked(storageService.getVideoById).mockReturnValue({
       id: "video-0",
@@ -199,6 +201,20 @@ describe("autoDeleteService", () => {
     vi.mocked(storageService.getSettings)
       .mockReturnValueOnce(ENABLED_SETTINGS as any)
       .mockReturnValue({ autoDeleteEnabled: false } as any);
+
+    const summary = await runAutoDeleteSweep();
+
+    expect(storageService.deleteVideo).not.toHaveBeenCalled();
+    expect(summary.deletedVideos).toBe(0);
+  });
+
+  it("aborts without deleting when the database is replaced mid-sweep", async () => {
+    queueSelectResults(makeCandidates(2));
+    // Generation is captured at start (0), then differs on the per-candidate
+    // check (1) — simulating a database import/restore mid-sweep.
+    vi.mocked(getDatabaseGeneration)
+      .mockReturnValueOnce(0)
+      .mockReturnValue(1);
 
     const summary = await runAutoDeleteSweep();
 
