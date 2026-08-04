@@ -228,7 +228,7 @@ export async function runAutoDeleteSweep(): Promise<AutoDeleteSweepSummary> {
     const cutoffIso = new Date(cutoffMs).toISOString();
     let cursor: CandidateCursor | null = null;
 
-    while (summary.deletedVideos < MAX_DELETIONS_PER_RUN) {
+    sweepLoop: while (summary.deletedVideos < MAX_DELETIONS_PER_RUN) {
       const candidates = await getCandidateBatch(cutoffIso, cursor);
       if (candidates.length === 0) {
         break;
@@ -258,12 +258,19 @@ export async function runAutoDeleteSweep(): Promise<AutoDeleteSweepSummary> {
         // Re-read the FULL policy: a completed disable OR interval change
         // invalidates the settings cache, so it is visible here. Stop the run
         // without deleting further candidates when the feature is turned off.
+        // Break (not return) so a partial sweep still records autoDeleteLastRunAt
+        // and emits auto_delete_completed: any videos already deleted this run
+        // recorded library_bytes_deleted against the *current* database, and
+        // estimateDiskRunway relies on that summary event to exclude the day
+        // from organic disk-activity samples. (The database-replaced abort above
+        // returns instead: those deletions' stats live in the now-discarded
+        // database, so there is nothing to reconcile against the replacement.)
         const currentPolicy = readAutoDeletePolicy();
         if (!currentPolicy.enabled || currentPolicy.intervalDays === null) {
           logger.info(
             "[AutoDelete] Policy disabled mid-sweep; stopping before further deletions"
           );
-          return summary;
+          break sweepLoop;
         }
 
         // Recompute the cutoff from the CURRENT interval so a retention window

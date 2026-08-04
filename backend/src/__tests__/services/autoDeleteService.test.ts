@@ -375,6 +375,37 @@ describe("autoDeleteService", () => {
 
     expect(storageService.deleteVideo).not.toHaveBeenCalled();
     expect(summary.deletedVideos).toBe(0);
+    // Unlike the disable path, a replacement returns without touching the new
+    // database: last-run and cleanup stats must not be written to it.
+    expect(storageService.saveSettings).not.toHaveBeenCalled();
+    expect(statistics.recordEvent).not.toHaveBeenCalled();
+  });
+
+  it("records cleanup stats for a partial sweep disabled after a deletion", async () => {
+    queueSelectResults(makeCandidates(2));
+    // #1 policy read (enabled), #2 first candidate re-check (enabled -> delete),
+    // #3 second candidate re-check (disabled -> stop).
+    vi.mocked(storageService.getSettings)
+      .mockReturnValueOnce(ENABLED_SETTINGS as any)
+      .mockReturnValueOnce(ENABLED_SETTINGS as any)
+      .mockReturnValue({ autoDeleteEnabled: false } as any);
+
+    const summary = await runAutoDeleteSweep();
+
+    expect(storageService.deleteVideo).toHaveBeenCalledTimes(1);
+    expect(summary.deletedVideos).toBe(1);
+    // last-run persisted and the cleanup summary emitted despite the early stop,
+    // so estimateDiskRunway excludes the day from organic-activity samples.
+    expect(storageService.saveSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ autoDeleteLastRunAt: expect.any(Number) }),
+      { extraWhitelistedKeys: ["autoDeleteLastRunAt"] }
+    );
+    expect(statistics.recordEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: "auto_delete_completed",
+        payload: expect.objectContaining({ deletedCount: 1 }),
+      })
+    );
   });
 
   it("does not delete when the interval is widened mid-sweep", async () => {
