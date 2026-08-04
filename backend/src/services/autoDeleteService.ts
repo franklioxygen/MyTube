@@ -111,7 +111,28 @@ function parseTimestampMs(value: unknown): number | null {
     return null;
   }
   const ms = Date.parse(trimmed);
-  return Number.isFinite(ms) ? ms : null;
+  if (!Number.isFinite(ms)) {
+    return null;
+  }
+  // Date.parse silently normalizes an out-of-range ISO calendar date
+  // (e.g. 2020-02-31 -> 2020-03-02), which could make a recently added video
+  // look old enough to delete. Reject a date-first ISO value whose literal
+  // Y-M-D is not a real calendar date so the caller falls back to created_at.
+  const isoDate = /^(\d{4})-(\d{2})-(\d{2})/.exec(trimmed);
+  if (isoDate) {
+    const year = Number(isoDate[1]);
+    const month = Number(isoDate[2]);
+    const day = Number(isoDate[3]);
+    // Day 0 of the next month is the last day of `month` (handles leap years).
+    const lastDayOfMonth =
+      month >= 1 && month <= 12
+        ? new Date(Date.UTC(year, month, 0)).getUTCDate()
+        : 0;
+    if (month < 1 || month > 12 || day < 1 || day > lastDayOfMonth) {
+      return null;
+    }
+  }
+  return ms;
 }
 
 // Reference age = "time in library": a parseable added_at, else a parseable

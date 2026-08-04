@@ -234,6 +234,48 @@ describe("autoDeleteService", () => {
     expect(summary.deletedVideos).toBe(1);
   });
 
+  it("does not delete when a calendar-invalid ISO added_at masks a recent created_at", async () => {
+    // Date.parse normalizes 2020-02-31 -> 2020-03-02; without calendar
+    // validation the row would look old and delete a recently added video.
+    const recentIso = new Date().toISOString();
+    queueSelectResults([
+      { id: "legacy-4", referenceIso: "2020-02-31T00:00:00.000Z" },
+    ]);
+    vi.mocked(storageService.getVideoById).mockReturnValue({
+      id: "legacy-4",
+      title: "Feb 31 added_at, recent created_at",
+      addedAt: "2020-02-31T00:00:00.000Z",
+      createdAt: recentIso,
+      autoDeleteLocked: null,
+    } as any);
+
+    const summary = await runAutoDeleteSweep();
+
+    expect(storageService.deleteVideo).not.toHaveBeenCalled();
+    expect(summary.deletedVideos).toBe(0);
+  });
+
+  it("falls back to created_at when the ISO added_at is calendar-invalid but old", async () => {
+    queueSelectResults([
+      { id: "legacy-5", referenceIso: "2020-02-31T00:00:00.000Z" },
+    ]);
+    vi.mocked(storageService.getVideoById).mockReturnValue({
+      id: "legacy-5",
+      title: "Feb 31 added_at, old created_at",
+      addedAt: "2020-02-31T00:00:00.000Z",
+      createdAt: "2019-01-01T00:00:00.000Z",
+      autoDeleteLocked: null,
+    } as any);
+
+    const summary = await runAutoDeleteSweep();
+
+    expect(storageService.deleteVideo).toHaveBeenCalledWith(
+      "legacy-5",
+      "auto_delete"
+    );
+    expect(summary.deletedVideos).toBe(1);
+  });
+
   it("skips a row whose timestamps cannot be parsed", async () => {
     queueSelectResults([{ id: "legacy-3", referenceIso: "0000-unparseable" }]);
     vi.mocked(storageService.getVideoById).mockReturnValue({
