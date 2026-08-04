@@ -292,6 +292,64 @@ describe("autoDeleteService", () => {
     expect(summary.deletedVideos).toBe(0);
   });
 
+  it("deletes a row dated by an old epoch-string added_at", async () => {
+    const oldEpochMs = String(Date.parse("2020-01-01T00:00:00.000Z"));
+    queueSelectResults([{ id: "epoch-1", referenceIso: oldEpochMs }]);
+    vi.mocked(storageService.getVideoById).mockReturnValue({
+      id: "epoch-1",
+      title: "Epoch old",
+      addedAt: oldEpochMs,
+      createdAt: "",
+      autoDeleteLocked: null,
+    } as any);
+
+    const summary = await runAutoDeleteSweep();
+
+    expect(storageService.deleteVideo).toHaveBeenCalledWith(
+      "epoch-1",
+      "auto_delete"
+    );
+    expect(summary.deletedVideos).toBe(1);
+  });
+
+  it("does not delete a row dated by a recent epoch-string added_at", async () => {
+    const recentEpochMs = String(Date.now());
+    queueSelectResults([{ id: "epoch-2", referenceIso: recentEpochMs }]);
+    vi.mocked(storageService.getVideoById).mockReturnValue({
+      id: "epoch-2",
+      title: "Epoch recent",
+      addedAt: recentEpochMs,
+      createdAt: "",
+      autoDeleteLocked: null,
+    } as any);
+
+    const summary = await runAutoDeleteSweep();
+
+    expect(storageService.deleteVideo).not.toHaveBeenCalled();
+    expect(summary.deletedVideos).toBe(0);
+  });
+
+  it("falls back to created_at for an out-of-range date-shaped added_at", async () => {
+    // 9999-99-99 matches the ISO shape but is not a real date; it must not mask
+    // a valid old created_at.
+    queueSelectResults([{ id: "invalid-1", referenceIso: "9999-99-99" }]);
+    vi.mocked(storageService.getVideoById).mockReturnValue({
+      id: "invalid-1",
+      title: "9999-99-99 added_at, old created_at",
+      addedAt: "9999-99-99",
+      createdAt: "2019-01-01T00:00:00.000Z",
+      autoDeleteLocked: null,
+    } as any);
+
+    const summary = await runAutoDeleteSweep();
+
+    expect(storageService.deleteVideo).toHaveBeenCalledWith(
+      "invalid-1",
+      "auto_delete"
+    );
+    expect(summary.deletedVideos).toBe(1);
+  });
+
   it("stops the run when the policy is disabled mid-sweep", async () => {
     queueSelectResults(makeCandidates(2));
     // First getSettings (policy read) is enabled; the per-candidate re-check is disabled.

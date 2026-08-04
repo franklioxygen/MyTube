@@ -41,9 +41,15 @@ type CandidateCursor = {
 // numeric re-check before each deletion (resolveReferenceMs).
 const referenceIsoExpr = sql<string>`COALESCE(NULLIF(TRIM(${videos.addedAt}), ''), NULLIF(TRIM(${videos.createdAt}), ''))`;
 
-// Matches a canonical ISO-8601 date-first reference (YYYY-MM-DD…), the only
-// shape for which the lexical `< cutoffIso` comparison is chronologically valid.
-const CANONICAL_ISO_GLOB = "[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]*";
+// True only for a reference that is a *truly valid* canonical ISO date-first
+// value — the sole shape for which the lexical `< cutoffIso` comparison is
+// chronologically meaningful. SQLite's date() returns NULL for an unparseable
+// value (9999-99-99, RFC/locale/epoch strings) and silently rolls over an
+// out-of-range calendar date (2020-02-31 -> 2020-03-02); requiring the
+// normalized date to equal the input's own YYYY-MM-DD rejects both, so every
+// other value is routed to the numeric JS validation instead of being
+// permanently excluded by a meaningless string comparison.
+const isCanonicalReference = sql`date(${referenceIsoExpr}) IS substr(${referenceIsoExpr}, 1, 10)`;
 
 // Unlocked: auto_delete_locked is null or not 1. Only the literal 1 protects a
 // row; null/0 (and any stray non-1 value from a manual DB edit) stay eligible.
@@ -56,15 +62,16 @@ function buildCandidateFilter(cutoffIso: string, cursor: CandidateCursor | null)
   const baseFilter = and(
     unlockedFilter,
     isNotNull(referenceIsoExpr),
-    // Select a canonical reference only when it is lexically (= chronologically)
-    // older than the cutoff, PLUS every non-canonical reference regardless of
-    // lexical position. The latter would otherwise be permanently excluded by a
-    // meaningless string comparison; instead it flows to the numeric age check
-    // (resolveReferenceMs), which decides correctly and never deletes a row it
-    // cannot date. This closes the under-deletion gap for legacy timestamps.
+    // Select a truly-canonical reference only when it is lexically (=
+    // chronologically) older than the cutoff, PLUS every non-canonical or
+    // invalid reference regardless of lexical position. The latter would
+    // otherwise be permanently excluded by a meaningless string comparison;
+    // instead it flows to the numeric age check (resolveReferenceMs), which
+    // decides correctly and never deletes a row it cannot date. This closes the
+    // under-deletion gap for legacy/imported timestamps.
     or(
-      lt(referenceIsoExpr, cutoffIso),
-      sql`${referenceIsoExpr} NOT GLOB ${CANONICAL_ISO_GLOB}`
+      and(isCanonicalReference, lt(referenceIsoExpr, cutoffIso)),
+      sql`NOT (${isCanonicalReference})`
     )
   );
 
@@ -109,6 +116,18 @@ function parseTimestampMs(value: unknown): number | null {
   const trimmed = value.trim();
   if (trimmed === "") {
     return null;
+  }
+  // Numeric epoch string (legacy JSON stored addedAt as an epoch; Date.parse
+  // does NOT accept these). Only treat a 10+ digit run as an epoch so a bare
+  // year like "2020" still parses as a calendar year below. Values under ~1e11
+  // are Unix seconds, otherwise milliseconds; reject anything outside the range
+  // a JS Date can represent so an absurd value falls back to created_at.
+  if (/^\d{10,}$/.test(trimmed)) {
+    const epoch = Number(trimmed);
+    const epochMs = epoch < 1e11 ? epoch * 1000 : epoch;
+    return Number.isFinite(epochMs) && Math.abs(epochMs) <= 8.64e15
+      ? epochMs
+      : null;
   }
   const ms = Date.parse(trimmed);
   if (!Number.isFinite(ms)) {
