@@ -92,6 +92,8 @@
 | `avatars/` | 应用和媒体服务器导出使用的频道/作者头像。 |
 | `cloud-thumbnail-cache/` | 云端媒体缩略图的内部缓存。 |
 
+有关存储位置与文件名如何决定——稳定媒体身份、legacy 与模板命名、作者文件夹组织、防碰撞的路径分配，以及不覆盖的发布模型——请参阅 [媒体存储与文件命名](documents/zh/media-storage-and-naming.md)。
+
 ## 开始使用
 
 **环境要求：** Node.js **22.22+、23.x、24.x、25.x 或 26.x**，以及 npm v9+。后端依赖 `better-sqlite3`；不受支持的 Node 版本会在 `npm install` 时失败（在 Windows 上可能显示误导性的 `node-gyp` / Visual Studio 错误）。Docker 镜像内置 Node 22。

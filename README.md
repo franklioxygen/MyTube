@@ -93,6 +93,8 @@ By default, media and caches live under `backend/uploads/`:
 | `avatars/` | Channel/avatar artwork used by the app and media-server export. |
 | `cloud-thumbnail-cache/` | Internal cache for thumbnails fetched from cloud-backed media. |
 
+For how storage locations and filenames are decided — stable media identity, legacy vs. template naming, author-folder organization, collision-safe path allocation, and the no-overwrite publication model — please refer to [Media Storage & Filename Naming](documents/en/media-storage-and-naming.md).
+
 ## Getting Started
 
 **Requirements:** Node.js **22.22+, 23.x, 24.x, 25.x, or 26.x** and npm v9+. The backend depends on `better-sqlite3`; unsupported Node versions fail during `npm install` (often with misleading `node-gyp` / Visual Studio errors on Windows). Docker images ship with Node 22.
