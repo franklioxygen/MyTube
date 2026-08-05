@@ -160,7 +160,7 @@ describe("subscriptionRetentionService", () => {
     expect(summary.skippedSharedVideos).toBe(1);
   });
 
-  it("checks external references once for multiple candidates", async () => {
+  it("uses one batch external-reference query plus a per-candidate re-check", async () => {
     queueSelectResults(
       [{ id: "sub-1", author: "Author", retentionDays: 7 }],
       [
@@ -172,9 +172,29 @@ describe("subscriptionRetentionService", () => {
 
     const summary = await runSubscriptionRetentionCleanup();
 
-    expect(db.select).toHaveBeenCalledTimes(3);
+    // subscriptions + candidates + one batch external-reference snapshot, then
+    // one authoritative external-reference re-check per surviving candidate (2).
+    expect(db.select).toHaveBeenCalledTimes(5);
     expect(storageService.deleteVideo).toHaveBeenCalledTimes(2);
     expect(summary.deletedVideos).toBe(2);
+  });
+
+  it("re-checks sharing after the yield and skips a video that became shared", async () => {
+    // Not shared at snapshot time (batch query returns []), but a success
+    // download_history row lands during the yield, so the per-candidate re-check
+    // (4th select) reports it shared and the video is kept.
+    queueSelectResults(
+      [{ id: "sub-1", author: "Author", retentionDays: 7 }],
+      [{ id: "history-1", videoId: "video-1", finishedAt: Date.now() - 8 * 24 * 60 * 60 * 1000 }],
+      [],
+      [{ videoId: "video-1" }]
+    );
+
+    const summary = await runSubscriptionRetentionCleanup();
+
+    expect(storageService.deleteVideo).not.toHaveBeenCalled();
+    expect(summary.skippedSharedVideos).toBe(1);
+    expect(summary.deletedVideos).toBe(0);
   });
 
   it("does not treat skipped history as a shared ownership reference", async () => {

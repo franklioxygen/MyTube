@@ -213,13 +213,24 @@ export async function runSubscriptionRetentionCleanup(): Promise<SubscriptionRet
             continue;
           }
 
+          // Fast-path: a video already shared at snapshot time is skipped without
+          // yielding or re-querying. The authoritative re-check after the yield
+          // catches a video that becomes shared *during* the batch.
+          if (externallyReferencedVideoIds.has(candidate.videoId)) {
+            summary.skippedSharedVideos += 1;
+            logger.debug(
+              `[RetentionCleanup] Skipping shared video id=${candidate.videoId} for subscription ${subscription.id}`
+            );
+            continue;
+          }
+
           // Yield to the event loop before re-fetching each record so an
-          // already-arrived lock request can commit first. Without this, a batch
-          // of up to MAX_DELETIONS_PER_SUBSCRIPTION_PER_RUN synchronous deletions
-          // would run to completion before the "immediate" lock update is
-          // processed, so a video a user is protecting mid-cleanup could still be
-          // deleted — breaking the promise that a locked video is never
-          // auto-deleted (§6.6). The re-fetch below then sees the fresh lock.
+          // already-arrived lock request — or a download/subscription completion
+          // that makes this video shared — can commit first. Without this, a
+          // batch of up to MAX_DELETIONS_PER_SUBSCRIPTION_PER_RUN synchronous
+          // deletions would run to completion before those "immediate" writes are
+          // processed, so a video a user is protecting (or one that just became
+          // shared) mid-cleanup could still be deleted (§6.6).
           await new Promise<void>((resolve) => setImmediate(resolve));
 
           const videoRecord = storageService.getVideoById(candidate.videoId);
@@ -231,7 +242,8 @@ export async function runSubscriptionRetentionCleanup(): Promise<SubscriptionRet
 
           // A locked video is protected from all automatic deletion, including
           // per-subscription retention, so "a locked video is never auto-deleted"
-          // is literally true. See design §6.6.
+          // is literally true. See design §6.6. The re-fetch above sees a lock
+          // applied during the yield.
           if (videoRecord.autoDeleteLocked === 1) {
             summary.skippedLocked += 1;
             logger.debug(
@@ -240,10 +252,19 @@ export async function runSubscriptionRetentionCleanup(): Promise<SubscriptionRet
             continue;
           }
 
-          if (externallyReferencedVideoIds.has(candidate.videoId)) {
+          // Authoritative sharing re-check AFTER the yield: another download or
+          // subscription may have added a success download_history row for this
+          // video during the yield, making it shared. The pre-yield snapshot
+          // would not reflect that, and deleting a now-shared video would flip
+          // its history to 'deleted' while another owner still relies on the file.
+          const nowExternallyReferenced = await getExternallyReferencedVideoIds(
+            [candidate.videoId],
+            subscription.id
+          );
+          if (nowExternallyReferenced.has(candidate.videoId)) {
             summary.skippedSharedVideos += 1;
             logger.debug(
-              `[RetentionCleanup] Skipping shared video id=${candidate.videoId} for subscription ${subscription.id}`
+              `[RetentionCleanup] Skipping now-shared video id=${candidate.videoId} for subscription ${subscription.id}`
             );
             continue;
           }
