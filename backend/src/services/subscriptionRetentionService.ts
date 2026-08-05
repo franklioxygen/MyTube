@@ -213,6 +213,15 @@ export async function runSubscriptionRetentionCleanup(): Promise<SubscriptionRet
             continue;
           }
 
+          // Yield to the event loop before re-fetching each record so an
+          // already-arrived lock request can commit first. Without this, a batch
+          // of up to MAX_DELETIONS_PER_SUBSCRIPTION_PER_RUN synchronous deletions
+          // would run to completion before the "immediate" lock update is
+          // processed, so a video a user is protecting mid-cleanup could still be
+          // deleted — breaking the promise that a locked video is never
+          // auto-deleted (§6.6). The re-fetch below then sees the fresh lock.
+          await new Promise<void>((resolve) => setImmediate(resolve));
+
           const videoRecord = storageService.getVideoById(candidate.videoId);
           if (!videoRecord) {
             storageService.markDownloadHistoryDeletedByVideoId(candidate.videoId);

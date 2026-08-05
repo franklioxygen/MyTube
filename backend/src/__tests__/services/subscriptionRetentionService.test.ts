@@ -110,6 +110,43 @@ describe("subscriptionRetentionService", () => {
     expect(summary.deletedVideos).toBe(0);
   });
 
+  it("re-fetches each candidate so a lock applied mid-cleanup protects the video", async () => {
+    // The per-candidate event-loop yield lets an in-flight lock request commit
+    // before deletion; the re-fetch then sees it. Simulate the second video
+    // becoming locked between selection and its turn in the loop.
+    vi.mocked(storageService.getVideoById).mockImplementation((id: string) =>
+      id === "video-2"
+        ? {
+            id,
+            title: "Locked mid-cleanup",
+            sourceUrl: "https://example.com/v2",
+            createdAt: "2026-01-01",
+            autoDeleteLocked: 1,
+          }
+        : {
+            id,
+            title: "Old Video",
+            sourceUrl: "https://example.com/v1",
+            createdAt: "2026-01-01",
+          }
+    );
+    queueSelectResults(
+      [{ id: "sub-1", author: "Author", retentionDays: 7 }],
+      [
+        { id: "history-1", videoId: "video-1", finishedAt: Date.now() - 8 * 24 * 60 * 60 * 1000 },
+        { id: "history-2", videoId: "video-2", finishedAt: Date.now() - 9 * 24 * 60 * 60 * 1000 },
+      ],
+      []
+    );
+
+    const summary = await runSubscriptionRetentionCleanup();
+
+    expect(storageService.deleteVideo).toHaveBeenCalledWith("video-1", RETENTION_DELETE_REASON);
+    expect(storageService.deleteVideo).not.toHaveBeenCalledWith("video-2", RETENTION_DELETE_REASON);
+    expect(summary.deletedVideos).toBe(1);
+    expect(summary.skippedLocked).toBe(1);
+  });
+
   it("skips expired videos referenced by another subscription or manual download", async () => {
     queueSelectResults(
       [{ id: "sub-1", author: "Author", retentionDays: 7 }],
