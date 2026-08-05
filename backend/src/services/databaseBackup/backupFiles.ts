@@ -5,6 +5,7 @@ import { DATA_DIR } from "../../config/paths";
 import { reinitializeDatabase as reinitDb, sqlite } from "../../db";
 import { ValidationError } from "../../errors/DownloadErrors";
 import { invalidateUserCache } from "../userService";
+import { invalidateSettingsCache } from "../storageService/settings";
 import { generateTimestamp } from "../../utils/helpers";
 import { logger } from "../../utils/logger";
 import {
@@ -152,5 +153,10 @@ export function reinitializeDatabase(): void {
   logger.info("Closed current database connection");
   reinitDb();
   invalidateUserCache();
+  // Drop the 30s settings cache so consumers (e.g. the auto-delete sweep's
+  // policy re-check) read the replacement database's settings instead of the
+  // old database's stale policy. Without this, an old "enabled" policy could
+  // linger and run deletions against the just-restored library.
+  invalidateSettingsCache();
   logger.info("Database connection reinitialized");
 }

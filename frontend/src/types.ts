@@ -28,6 +28,7 @@ export interface Video {
   subtitles?: Array<{ language: string; filename: string; path: string }>;
   description?: string;
   visibility?: number; // 1 = visible, 0 = hidden
+  autoDeleteLocked?: number | null; // 1 = locked (protected from auto-delete); null/0 = unlocked
   signedUrl?: string; // Pre-signed URL for cloud video
   signedThumbnailUrl?: string; // Pre-signed URL for cloud thumbnail
   authorAvatarFilename?: string;
@@ -197,6 +198,11 @@ export interface Settings {
   // Days to keep completed download-history entries; 0 = keep forever.
   downloadHistoryRetentionDays?: number;
   dontSkipDeletedVideo?: boolean;
+  // Auto-delete interval (library-wide age-based cleanup). autoDeleteLastRunAt is
+  // system-managed and read-only if surfaced.
+  autoDeleteEnabled?: boolean;
+  autoDeleteIntervalDays?: number;
+  autoDeleteLastRunAt?: number;
   language: string;
   tags: string[];
   cloudDriveEnabled: boolean;

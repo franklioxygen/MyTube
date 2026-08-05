@@ -13,6 +13,7 @@ vi.mock('../../../contexts/LanguageContext', () => ({
 describe('DownloadSettings', () => {
     const mockOnChange = vi.fn();
     const mockOnCleanup = vi.fn();
+    const mockOnAutoDeleteValidityChange = vi.fn();
 
     const defaultProps = {
         settings: {
@@ -26,6 +27,7 @@ describe('DownloadSettings', () => {
         activeDownloadsCount: 0,
         onCleanup: mockOnCleanup,
         isSaving: false,
+        onAutoDeleteValidityChange: mockOnAutoDeleteValidityChange,
     };
 
     const renderDownloadSettings = (
@@ -258,5 +260,63 @@ describe('DownloadSettings', () => {
 
         expect(getFinalContainerSelect()).toHaveTextContent('ogv');
         consoleWarnSpy.mockRestore();
+    });
+
+    describe('auto delete', () => {
+        it('hides the interval field and instruction panel while disabled', () => {
+            renderDownloadSettings({ settings: { ...defaultProps.settings, autoDeleteEnabled: false } });
+
+            expect(screen.getByRole('switch', { name: 'autoDelete' })).not.toBeChecked();
+            expect(screen.queryByText('autoDeleteInterval')).not.toBeInTheDocument();
+            expect(screen.queryByText('autoDeleteHowItWorks')).not.toBeInTheDocument();
+        });
+
+        it('enables auto delete via the toggle', async () => {
+            const user = userEvent.setup();
+            renderDownloadSettings({ settings: { ...defaultProps.settings, autoDeleteEnabled: false } });
+
+            await user.click(screen.getByRole('switch', { name: 'autoDelete' }));
+
+            expect(mockOnChange).toHaveBeenCalledWith('autoDeleteEnabled', true);
+        });
+
+        it('reveals the required interval and instruction panel when enabled', () => {
+            renderDownloadSettings({
+                settings: { ...defaultProps.settings, autoDeleteEnabled: true, autoDeleteIntervalDays: 30 },
+            });
+
+            expect(screen.getByText('autoDeleteInterval')).toBeInTheDocument();
+            expect(screen.getByText('autoDeleteHowItWorks')).toBeInTheDocument();
+            expect(screen.getByRole('spinbutton', { name: 'autoDeleteInterval' })).toHaveValue(30);
+        });
+
+        it('reports invalid validity to the parent for an out-of-range interval', () => {
+            renderDownloadSettings({
+                settings: { ...defaultProps.settings, autoDeleteEnabled: true, autoDeleteIntervalDays: 0 },
+            });
+
+            // The last validity report reflects the current (invalid) interval.
+            const lastCall = mockOnAutoDeleteValidityChange.mock.calls.at(-1);
+            expect(lastCall?.[0]).toBe(false);
+            expect(screen.getByText('autoDeleteIntervalError')).toBeInTheDocument();
+        });
+
+        it('reports valid validity to the parent for an in-range interval', () => {
+            renderDownloadSettings({
+                settings: { ...defaultProps.settings, autoDeleteEnabled: true, autoDeleteIntervalDays: 30 },
+            });
+
+            const lastCall = mockOnAutoDeleteValidityChange.mock.calls.at(-1);
+            expect(lastCall?.[0]).toBe(true);
+        });
+
+        it('reports valid validity when the feature is off regardless of interval', () => {
+            renderDownloadSettings({
+                settings: { ...defaultProps.settings, autoDeleteEnabled: false, autoDeleteIntervalDays: 0 },
+            });
+
+            const lastCall = mockOnAutoDeleteValidityChange.mock.calls.at(-1);
+            expect(lastCall?.[0]).toBe(true);
+        });
     });
 });

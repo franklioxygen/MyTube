@@ -22,6 +22,9 @@ export interface Video {
   height?: number;
   mediaType?: MediaType;
   description?: string;
+  // null/0 = auto-delete eligible (unlocked), 1 = locked (protected from all
+  // automatic deletion). See db/schema.ts videos.auto_delete_locked.
+  autoDeleteLocked?: number | null;
   [key: string]: any;
 }
 

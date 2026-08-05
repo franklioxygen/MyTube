@@ -1,3 +1,4 @@
+import { InfoOutlined } from '@mui/icons-material';
 import {
     Alert,
     Box,
@@ -5,18 +6,32 @@ import {
     Divider,
     FormControl,
     FormControlLabel,
+    InputAdornment,
     MenuItem,
     Select,
     Slider,
     Switch,
+    TextField,
     Typography
 } from '@mui/material';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { Settings } from '../../types';
 import { PREFERRED_AUDIO_LANGUAGE_OPTIONS } from '../../utils/audioLanguages';
 import { VIDEO_CODEC_OPTIONS, VIDEO_CONTAINER_OPTIONS } from '../../utils/videoCodecs';
 import FilenameTemplateSettings from './FilenameTemplateSettings';
+
+const MIN_AUTO_DELETE_INTERVAL_DAYS = 1;
+const MAX_AUTO_DELETE_INTERVAL_DAYS = 3650;
+
+function isValidAutoDeleteInterval(value: number | undefined): boolean {
+    return (
+        typeof value === 'number' &&
+        Number.isInteger(value) &&
+        value >= MIN_AUTO_DELETE_INTERVAL_DAYS &&
+        value <= MAX_AUTO_DELETE_INTERVAL_DAYS
+    );
+}
 
 interface DownloadSettingsProps {
     settings: Settings;
@@ -24,6 +39,7 @@ interface DownloadSettingsProps {
     activeDownloadsCount: number;
     onCleanup: () => void;
     isSaving: boolean;
+    onAutoDeleteValidityChange: (valid: boolean) => void;
 }
 
 const DownloadSettings: React.FC<DownloadSettingsProps> = ({
@@ -32,9 +48,20 @@ const DownloadSettings: React.FC<DownloadSettingsProps> = ({
     activeDownloadsCount,
     onCleanup,
     isSaving,
+    onAutoDeleteValidityChange,
 }) => {
     const { t } = useLanguage();
     const retryIntervalOptions = [1, 5, 10, 30, 60];
+
+    // Lift validity to SettingsPage so the sticky Save buttons can block on an
+    // invalid interval, mirroring the SeekIntervalSettings precedent. Valid when
+    // the feature is off, or on with a whole-day interval in range.
+    const autoDeleteValid =
+        !settings.autoDeleteEnabled ||
+        isValidAutoDeleteInterval(settings.autoDeleteIntervalDays);
+    useEffect(() => {
+        onAutoDeleteValidityChange(autoDeleteValid);
+    }, [onAutoDeleteValidityChange, autoDeleteValid]);
 
     return (
         <Box>
@@ -148,6 +175,67 @@ const DownloadSettings: React.FC<DownloadSettingsProps> = ({
                     {t('downloadHistoryRetentionDescription') ||
                         'Automatically delete completed download history entries older than this. Entries for deleted videos and scheduled retries are always kept.'}
                 </Typography>
+            </Box>
+
+            <Box sx={{ mt: 3 }} id="autoDelete-setting">
+                <FormControlLabel
+                    control={
+                        <Switch
+                            checked={settings.autoDeleteEnabled || false}
+                            onChange={(e) => onChange('autoDeleteEnabled', e.target.checked)}
+                        />
+                    }
+                    label={t('autoDelete')}
+                />
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 2 }}>
+                    {t('autoDeleteDescription')}
+                </Typography>
+
+                {settings.autoDeleteEnabled && (
+                    <Box sx={{ maxWidth: 400 }}>
+                        <Typography variant="subtitle2" gutterBottom>
+                            {t('autoDeleteInterval')}
+                        </Typography>
+                        <TextField
+                            type="number"
+                            required
+                            value={settings.autoDeleteIntervalDays ?? ''}
+                            onChange={(e) => onChange('autoDeleteIntervalDays', Number(e.target.value))}
+                            error={!isValidAutoDeleteInterval(settings.autoDeleteIntervalDays)}
+                            helperText={
+                                isValidAutoDeleteInterval(settings.autoDeleteIntervalDays)
+                                    ? t('autoDeleteIntervalHelp')
+                                    : t('autoDeleteIntervalError')
+                            }
+                            inputProps={{
+                                min: MIN_AUTO_DELETE_INTERVAL_DAYS,
+                                max: MAX_AUTO_DELETE_INTERVAL_DAYS,
+                                step: 1,
+                                'aria-label': t('autoDeleteInterval'),
+                            }}
+                            InputProps={{
+                                endAdornment: (
+                                    <InputAdornment position="end">
+                                        {t('retentionDaysUnit')}
+                                    </InputAdornment>
+                                ),
+                            }}
+                        />
+
+                        <Alert severity="info" icon={<InfoOutlined />} sx={{ mt: 2 }}>
+                            <Typography variant="subtitle2" gutterBottom>
+                                {t('autoDeleteHowItWorks')}
+                            </Typography>
+                            <Typography variant="body2" component="ul" sx={{ pl: 2, m: 0 }}>
+                                <li>{t('autoDeleteHowItWorksScan')}</li>
+                                <li>{t('autoDeleteHowItWorksDelete')}</li>
+                                <li>{t('autoDeleteHowItWorksLock')}</li>
+                                <li>{t('autoDeleteHowItWorksDisable')}</li>
+                                <li>{t('autoDeleteHowItWorksDowntime')}</li>
+                            </Typography>
+                        </Alert>
+                    </Box>
+                )}
             </Box>
 
             <Box sx={{ mt: 3 }} id="dontSkipDeletedVideo-setting">

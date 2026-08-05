@@ -130,6 +130,12 @@ export const WHITELISTED_SETTINGS = [
   "autoRetryIntervalMinutes",
   "downloadHistoryRetentionDays",
   "dontSkipDeletedVideo",
+  // Auto-delete interval (library-wide age-based cleanup). autoDeleteLastRunAt is
+  // intentionally NOT whitelisted here: it is system-managed and written by the
+  // sweep via SaveSettingsOptions.extraWhitelistedKeys, so a client cannot forge
+  // the last-run time and defeat the boot-time catch-up.
+  "autoDeleteEnabled",
+  "autoDeleteIntervalDays",
   "language",
   "tags",
   "cloudDriveEnabled",

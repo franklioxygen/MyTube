@@ -32,6 +32,11 @@ vi.mock('../../../hooks/useShareVideo', () => ({
     }),
 }));
 
+const mockShowSnackbar = vi.fn();
+vi.mock('../../../contexts/SnackbarContext', () => ({
+    useSnackbar: () => ({ showSnackbar: mockShowSnackbar }),
+}));
+
 const mockUpdateVideo = vi.fn();
 // Mock child components that trigger complex logic or portals
 vi.mock('../../../contexts/VideoContext', () => {
@@ -49,13 +54,14 @@ vi.mock('../../../contexts/VideoContext', () => {
 
 // Mock child components that trigger complex logic or portals
 vi.mock('../../VideoPlayer/VideoInfo/VideoKebabMenuButtons', () => ({
-    default: ({ onPlayWith, onShare, onAddToCollection, onDelete, onToggleVisibility, onAddTag }: any) => (
+    default: ({ onPlayWith, onShare, onAddToCollection, onDelete, onToggleVisibility, onToggleLock, isLocked, onAddTag }: any) => (
         <div data-testid="kebab-menu">
             <button onClick={(e) => onPlayWith(e.currentTarget)}>Play With</button>
             <button onClick={onShare}>Share</button>
             <button onClick={onAddToCollection}>Add to Collection</button>
             {onDelete && <button onClick={onDelete}>Delete</button>}
             <button onClick={onToggleVisibility}>Toggle Visibility</button>
+            {onToggleLock && <button onClick={onToggleLock}>{isLocked ? 'Unlock Video' : 'Lock Video'}</button>}
             {onAddTag && <button onClick={onAddTag}>Add Tag</button>}
         </div>
     )
@@ -113,6 +119,7 @@ describe('VideoCardActions', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        mockUpdateVideo.mockResolvedValue({ success: true });
     });
 
     it('should render actions when hovered', () => {
@@ -150,6 +157,41 @@ describe('VideoCardActions', () => {
         render(<VideoCardActions {...defaultProps} />);
         await user.click(screen.getByText('Toggle Visibility'));
         expect(mockHandleToggleVisibility).toHaveBeenCalled();
+    });
+
+    it('should lock an unlocked video using the canonical payload', async () => {
+        const user = userEvent.setup();
+        render(<VideoCardActions {...defaultProps} />);
+
+        await user.click(screen.getByText('Lock Video'));
+
+        expect(mockUpdateVideo).toHaveBeenCalledWith('vid1', { autoDeleteLocked: 1 });
+        // VideoContext owns the single lock-specific success snackbar.
+        expect(mockShowSnackbar).not.toHaveBeenCalled();
+    });
+
+    it('should unlock a locked video using null', async () => {
+        const user = userEvent.setup();
+        render(
+            <VideoCardActions
+                {...defaultProps}
+                video={{ ...defaultProps.video, autoDeleteLocked: 1 }}
+            />
+        );
+
+        await user.click(screen.getByText('Unlock Video'));
+
+        expect(mockUpdateVideo).toHaveBeenCalledWith('vid1', { autoDeleteLocked: null });
+    });
+
+    it('should show a lock update error returned by VideoContext', async () => {
+        const user = userEvent.setup();
+        mockUpdateVideo.mockResolvedValue({ success: false, error: 'lock failed' });
+        render(<VideoCardActions {...defaultProps} />);
+
+        await user.click(screen.getByText('Lock Video'));
+
+        expect(mockShowSnackbar).toHaveBeenCalledWith('lock failed', 'error');
     });
 
     it('should open delete modal', async () => {

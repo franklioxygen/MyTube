@@ -37,7 +37,7 @@ import { getVideoById, getVideos } from "./videoQueries";
 
 export function deleteVideo(
   id: string,
-  reason: "manual" | "retention" | "maintenance" = "manual"
+  reason: "manual" | "retention" | "maintenance" | "auto_delete" = "manual"
 ): boolean {
   try {
     const videoToDelete = getVideoById(id);

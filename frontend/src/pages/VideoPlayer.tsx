@@ -195,6 +195,7 @@ const VideoPlayer: React.FC = () => {
         titleMutation,
         tagsMutation,
         visibilityMutation,
+        lockMutation,
         deleteMutation,
         uploadSubtitleMutation,
         deleteSubtitleMutation
@@ -354,6 +355,12 @@ const VideoPlayer: React.FC = () => {
         if (!id || !video) return;
         const newVisibility = video.visibility === 0 ? 1 : 0;
         await visibilityMutation.mutateAsync(newVisibility);
+    };
+
+    const handleToggleLock = async () => {
+        if (!id || !video) return;
+        const nextLocked = video.autoDeleteLocked === 1 ? null : 1;
+        await lockMutation.mutateAsync(nextLocked);
     };
 
     const executeRemoveFromCollection = async (collectionId: string) => {
@@ -581,6 +588,7 @@ const VideoPlayer: React.FC = () => {
                             isDeleting={deleteMutation.isPending}
                             isSavingTitle={titleMutation.isPending}
                             isTogglingVisibility={visibilityMutation.isPending}
+                            isTogglingLock={lockMutation.isPending}
                             deleteError={deleteMutation.error ? (deleteMutation.error as any).message || t('deleteFailed') : null}
                             videoCollections={videoCollections}
                             onCollectionClick={handleCollectionClick}
@@ -590,6 +598,7 @@ const VideoPlayer: React.FC = () => {
                             onSubscribe={handleSubscribe}
                             onUnsubscribe={handleUnsubscribe}
                             onToggleVisibility={handleToggleVisibility}
+                            onToggleLock={handleToggleLock}
                         />
 
                         {(video.source === 'youtube' || video.source === 'bilibili') && (

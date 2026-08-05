@@ -39,6 +39,12 @@ export const DEFAULT_PLAYER_SEEK_LONG_SECONDS = 600;
 export const MIN_PLAYER_SEEK_SECONDS = 1;
 export const MAX_PLAYER_SEEK_SECONDS = 3600;
 
+// Auto-delete interval (library-wide age-based cleanup). Whole days, required
+// when the feature is enabled.
+export const MIN_AUTO_DELETE_INTERVAL_DAYS = 1;
+export const MAX_AUTO_DELETE_INTERVAL_DAYS = 3650;
+export const DEFAULT_AUTO_DELETE_INTERVAL_DAYS = 30;
+
 export function normalizeAudioFormat(value: unknown): AudioFormat {
   return typeof value === "string" && AUDIO_FORMATS.includes(value as AudioFormat)
     ? (value as AudioFormat)
@@ -62,6 +68,10 @@ export interface Settings {
   // are always kept — other features read them.
   downloadHistoryRetentionDays?: number;
   dontSkipDeletedVideo?: boolean;
+  // Auto-delete interval (library-wide age-based cleanup)
+  autoDeleteEnabled?: boolean; // master toggle; off by default
+  autoDeleteIntervalDays?: number; // required when enabled; whole days 1..3650
+  autoDeleteLastRunAt?: number; // epoch ms of the last successful sweep (system-managed)
   language: string;
   tags?: string[];
   cloudDriveEnabled?: boolean;
@@ -159,6 +169,9 @@ export const defaultSettings: Settings = {
   autoRetryTimes: 3,
   autoRetryIntervalMinutes: 5,
   downloadHistoryRetentionDays: 0,
+  autoDeleteEnabled: false,
+  autoDeleteIntervalDays: DEFAULT_AUTO_DELETE_INTERVAL_DAYS, // sensible starting value; inert while disabled
+  // autoDeleteLastRunAt is written by the sweep, not seeded
   language: "en",
   theme: "system",
   defaultSort: "dateDesc",

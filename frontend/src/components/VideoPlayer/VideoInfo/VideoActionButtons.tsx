@@ -1,4 +1,4 @@
-import { Add, Cast, Delete, Share, Visibility, VisibilityOff } from '@mui/icons-material';
+import { Add, Cast, Delete, Lock, LockOpen, Share, Visibility, VisibilityOff } from '@mui/icons-material';
 import { Button, Menu, MenuItem, Stack, Tooltip, useMediaQuery, useTheme } from '@mui/material';
 import React, { useState } from 'react';
 import { useLanguage } from '../../../contexts/LanguageContext';
@@ -18,6 +18,8 @@ interface VideoActionButtonsProps {
     isDeleting: boolean;
     isTogglingVisibility?: boolean;
     onToggleVisibility?: () => void;
+    isTogglingLock?: boolean;
+    onToggleLock?: () => void;
 }
 
 const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
@@ -26,7 +28,9 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
     onDelete,
     isDeleting,
     isTogglingVisibility = false,
-    onToggleVisibility
+    onToggleVisibility,
+    isTogglingLock = false,
+    onToggleLock
 }) => {
     const { t } = useLanguage();
     const { handleShare } = useShareVideo(video);
@@ -40,6 +44,7 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
     const [playerMenuAnchor, setPlayerMenuAnchor] = useState<null | HTMLElement>(null);
     const mediaType = video.mediaType === 'audio' ? 'audio' : 'video';
     const videoUrl = useCloudStorageUrl(video.videoPath, mediaType);
+    const isLocked = video.autoDeleteLocked === 1;
 
     const getVideoUrl = async (): Promise<string> => {
         // If we have a cloud storage URL, use it directly
@@ -266,6 +271,19 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
                             </Button>
                         </Tooltip>
                     )}
+                    {onToggleLock && (
+                        <Tooltip title={isLocked ? t('unlockVideo') : t('lockVideo')} disableHoverListener={isTouch}>
+                            <Button
+                                variant="outlined"
+                                color="inherit"
+                                onClick={onToggleLock}
+                                loading={isTogglingLock}
+                                sx={{ minWidth: 'auto', p: 1, color: 'text.secondary', borderColor: 'text.secondary', '&:hover': { color: 'primary.main', borderColor: 'primary.main' } }}
+                            >
+                                {isLocked ? <Lock /> : <LockOpen />}
+                            </Button>
+                        </Tooltip>
+                    )}
                     <Tooltip title={t('addToCollection')} disableHoverListener={isTouch}>
                         <Button
                             variant="outlined"
@@ -303,6 +321,9 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
                     isDeleting={isDeleting}
                     isTogglingVisibility={isTogglingVisibility}
                     onToggleVisibility={onToggleVisibility}
+                    isTogglingLock={isTogglingLock}
+                    onToggleLock={onToggleLock}
+                    isLocked={isLocked}
                     video={video}
                 />
                 <Menu

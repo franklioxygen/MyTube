@@ -1,6 +1,27 @@
 export const ja = {
   // Header
   myTube: "MyTube",
+  // Auto Delete (library-wide age-based cleanup)
+  autoDelete: "自動削除",
+  autoDeleteDescription:
+    "ダウンロードした動画が、ライブラリに追加されてから指定した日数を過ぎると自動的に削除します。既定ではオフです。個別の動画をロックして保護できます。",
+  autoDeleteInterval: "削除するまでの日数",
+  autoDeleteIntervalHelp: "これより古い動画は完全に削除されます。",
+  autoDeleteIntervalError: "整数の日数を入力してください（1–3650）。",
+  autoDeleteHowItWorks: "自動削除の仕組み",
+  autoDeleteHowItWorksScan: "毎日 03:00（サーバー時刻）に MyTube がライブラリをスキャンします。",
+  autoDeleteHowItWorksDelete:
+    "上記の期間より前にライブラリに追加された動画は完全に削除されます。ファイル・サムネイル・字幕が削除され、ダウンロード履歴と追跡は削除済みとしてマークされます。手動で削除した場合とまったく同じです。（「追加」とは動画の元のアップロード日ではなく、MyTube に入った時点を指します。）",
+  autoDeleteHowItWorksLock:
+    "ロックした動画（プレーヤーおよび動画カードのロックボタン）は、どれだけ古くても、いかなる自動ルールでも自動削除されません。新しいダウンロードはロック解除の状態で始まります。",
+  autoDeleteHowItWorksDisable:
+    "これをオフにすると、ライブラリ全体の自動削除ポリシーが直ちに停止し、実行中のスキャンも次の動画ごとの安全チェック時に停止します。サブスクリプション個別の保持ポリシーは、ロックされていない動画を引き続き削除できます。すべての自動ルールから保護するには動画をロックしてください。",
+  autoDeleteHowItWorksDowntime:
+    "サーバーが 03:00 に停止していた場合、スキャンは次回起動後まもなく実行されます。",
+  lockVideo: "ロック（自動削除から保護）",
+  unlockVideo: "ロック解除（自動削除を許可）",
+  videoLocked: "動画をロックしました — 自動削除から保護されます",
+  videoUnlocked: "動画のロックを解除しました",
   manage: "管理",
   settings: "設定",
   logout: "ログアウト",

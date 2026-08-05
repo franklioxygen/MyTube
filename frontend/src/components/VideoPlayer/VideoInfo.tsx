@@ -22,6 +22,7 @@ interface VideoInfoProps {
     isDeleting: boolean;
     isSavingTitle?: boolean;
     isTogglingVisibility?: boolean;
+    isTogglingLock?: boolean;
     deleteError: string | null;
     videoCollections: Collection[];
     onCollectionClick: (id: string) => void;
@@ -31,6 +32,7 @@ interface VideoInfoProps {
     onSubscribe?: () => void;
     onUnsubscribe?: () => void;
     onToggleVisibility?: () => void;
+    onToggleLock?: () => void;
 }
 
 const VideoInfo: React.FC<VideoInfoProps> = ({
@@ -44,6 +46,7 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
     isDeleting,
     isSavingTitle = false,
     isTogglingVisibility = false,
+    isTogglingLock = false,
     deleteError,
     videoCollections,
     onCollectionClick,
@@ -52,7 +55,8 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
     isSubscribed,
     onSubscribe,
     onUnsubscribe,
-    onToggleVisibility
+    onToggleVisibility,
+    onToggleLock
 }) => {
     const { videoRef, videoResolution, needsDetection } = useVideoResolution(video);
     const videoUrl = useCloudStorageUrl(
@@ -134,6 +138,8 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
                     isDeleting={isDeleting}
                     isTogglingVisibility={isTogglingVisibility}
                     onToggleVisibility={onToggleVisibility}
+                    isTogglingLock={isTogglingLock}
+                    onToggleLock={onToggleLock}
                 />
             </Stack>
 

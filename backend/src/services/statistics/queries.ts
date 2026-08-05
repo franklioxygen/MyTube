@@ -648,13 +648,14 @@ export function estimateDiskRunway(rangeDays = 14): DiskRunway {
          day,
          COALESCE(SUM(CASE WHEN metric_key = 'library_bytes_added' THEN sum ELSE 0 END), 0) AS added,
          COALESCE(SUM(CASE WHEN metric_key = 'library_bytes_deleted' THEN sum ELSE 0 END), 0) AS deleted,
-         COALESCE(SUM(CASE WHEN metric_key = 'retention_delete_completed' THEN count ELSE 0 END), 0) AS retentionDeletes
+         COALESCE(SUM(CASE WHEN metric_key IN ('retention_delete_completed', 'auto_delete_completed') THEN sum ELSE 0 END), 0) AS cleanupDeletes
        FROM usage_statistics_daily
        WHERE day >= ? AND day <= ?
          AND metric_key IN (
            'library_bytes_added',
            'library_bytes_deleted',
-           'retention_delete_completed'
+           'retention_delete_completed',
+           'auto_delete_completed'
          )
        GROUP BY day
        ORDER BY day ASC`
@@ -663,10 +664,19 @@ export function estimateDiskRunway(rangeDays = 14): DiskRunway {
     day: string;
     added: number;
     deleted: number;
-    retentionDeletes: number;
+    cleanupDeletes: number;
   }>;
 
-  const qualifyingRows = dailyRows.filter((row) => row.retentionDeletes === 0);
+  // A day qualifies as an organic disk-activity sample only when it has real
+  // byte activity (a download or deletion moved bytes) AND no cleanup deletions.
+  // cleanupDeletes sums deletedCount (not the event count), so a successful
+  // no-op sweep is not treated as a cleanup — but auto-delete emits a completion
+  // row even on a no-op sweep, which would otherwise inject zero-byte days that
+  // pad the sample count past the insufficient-activity guard and dilute the
+  // net-growth average. Requiring byte activity drops those days. See §6.7.
+  const qualifyingRows = dailyRows.filter(
+    (row) => row.cleanupDeletes === 0 && (row.added !== 0 || row.deleted !== 0)
+  );
 
   if (qualifyingRows.length < 7) {
     return { status: "insufficient_activity" };

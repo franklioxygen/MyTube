@@ -402,6 +402,43 @@ describe('StorageService', () => {
       storageService.saveSettings({ language: 'en' });
       expect(mockRun).toHaveBeenCalled();
     });
+
+    it('persists the user-editable auto-delete settings but drops a client last-run value', () => {
+      (db.transaction as any).mockImplementation((cb: Function) => cb());
+      const values = vi.fn().mockReturnValue({
+        onConflictDoUpdate: vi.fn().mockReturnValue({ run: vi.fn() }),
+      });
+      (db.insert as any).mockReturnValue({ values });
+
+      storageService.saveSettings({
+        autoDeleteEnabled: true,
+        autoDeleteIntervalDays: 45,
+        autoDeleteLastRunAt: 123,
+      });
+
+      expect(values.mock.calls.map(([row]) => row)).toEqual([
+        { key: 'autoDeleteEnabled', value: 'true' },
+        { key: 'autoDeleteIntervalDays', value: '45' },
+      ]);
+    });
+
+    it('allows the sweep to persist its system-managed last-run value', () => {
+      (db.transaction as any).mockImplementation((cb: Function) => cb());
+      const values = vi.fn().mockReturnValue({
+        onConflictDoUpdate: vi.fn().mockReturnValue({ run: vi.fn() }),
+      });
+      (db.insert as any).mockReturnValue({ values });
+
+      storageService.saveSettings(
+        { autoDeleteLastRunAt: 123 },
+        { extraWhitelistedKeys: ['autoDeleteLastRunAt'] }
+      );
+
+      expect(values).toHaveBeenCalledWith({
+        key: 'autoDeleteLastRunAt',
+        value: '123',
+      });
+    });
   });
 
   describe('getVideos', () => {
@@ -457,6 +494,26 @@ describe('StorageService', () => {
       storageService.getVideos();
       expect(whereMock).not.toHaveBeenCalled();
       expect(allMock).toHaveBeenCalled();
+    });
+  });
+
+  describe('getVideoSummaries', () => {
+    it('projects the auto-delete lock state for library cards', () => {
+      let selectedColumns: Record<string, unknown> | undefined;
+      (db.select as any).mockImplementation((columns: Record<string, unknown>) => {
+        selectedColumns = columns;
+        return {
+          from: vi.fn().mockReturnValue({
+            orderBy: vi.fn().mockReturnValue({
+              $dynamic: vi.fn().mockReturnValue({ all: vi.fn().mockReturnValue([]) }),
+            }),
+          }),
+        };
+      });
+
+      storageService.getVideoSummaries();
+
+      expect(selectedColumns).toHaveProperty('autoDeleteLocked');
     });
   });
 

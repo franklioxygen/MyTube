@@ -211,6 +211,80 @@ describe("settingsValidationService", () => {
         });
       }).toThrow(ValidationError);
     });
+
+    it.each([["true"], [1], [0], [null]])(
+      "rejects a non-boolean autoDeleteEnabled (%p)",
+      (value) => {
+        expect(() => {
+          settingsValidationService.validateSettings({
+            autoDeleteEnabled: value as any,
+          });
+        }).toThrow(ValidationError);
+      }
+    );
+
+    it("accepts a boolean autoDeleteEnabled", () => {
+      expect(() => {
+        settingsValidationService.validateSettings({ autoDeleteEnabled: true });
+      }).not.toThrow();
+      expect(() => {
+        settingsValidationService.validateSettings({ autoDeleteEnabled: false });
+      }).not.toThrow();
+    });
+
+    it("ignores the auto-delete interval while disabled", () => {
+      expect(() => {
+        settingsValidationService.validateAutoDeleteFinalSettings({
+          autoDeleteEnabled: false,
+          autoDeleteIntervalDays: 0,
+        });
+      }).not.toThrow();
+      expect(() => {
+        settingsValidationService.validateAutoDeleteFinalSettings({
+          autoDeleteEnabled: false,
+        });
+      }).not.toThrow();
+    });
+
+    it("accepts a valid interval when auto-delete is enabled", () => {
+      expect(() => {
+        settingsValidationService.validateAutoDeleteFinalSettings({
+          autoDeleteEnabled: true,
+          autoDeleteIntervalDays: 30,
+        });
+      }).not.toThrow();
+      expect(() => {
+        settingsValidationService.validateAutoDeleteFinalSettings({
+          autoDeleteEnabled: true,
+          autoDeleteIntervalDays: 1,
+        });
+      }).not.toThrow();
+      expect(() => {
+        settingsValidationService.validateAutoDeleteFinalSettings({
+          autoDeleteEnabled: true,
+          autoDeleteIntervalDays: 3650,
+        });
+      }).not.toThrow();
+    });
+
+    it.each([
+      [undefined],
+      [0],
+      [-5],
+      [1.5],
+      [3651],
+      ["30" as any],
+    ])(
+      "rejects an invalid interval (%p) when auto-delete is enabled",
+      (days) => {
+        expect(() => {
+          settingsValidationService.validateAutoDeleteFinalSettings({
+            autoDeleteEnabled: true,
+            autoDeleteIntervalDays: days as any,
+          });
+        }).toThrow(ValidationError);
+      }
+    );
   });
 
   describe("mergeSettings", () => {

@@ -242,6 +242,7 @@ function resetDefaults() {
         titleMutation: { mutateAsync: mockTitleMutateAsync },
         tagsMutation: { mutateAsync: mockTagsMutateAsync },
         visibilityMutation: { mutateAsync: mockVisibilityMutateAsync },
+        lockMutation: { isPending: false, mutateAsync: vi.fn() },
         deleteMutation: { isPending: false, error: null, mutateAsync: mockDeleteMutateAsync },
         uploadSubtitleMutation: { mutateAsync: mockUploadSubtitleMutateAsync },
         deleteSubtitleMutation: { mutateAsync: mockDeleteSubtitleMutateAsync },

@@ -86,6 +86,7 @@ const videoSummaryColumns = () => ({
   authorAvatarFilename: videos.authorAvatarFilename,
   authorAvatarPath: videos.authorAvatarPath,
   mediaType: videos.mediaType,
+  autoDeleteLocked: videos.autoDeleteLocked,
 });
 
 export interface VideoSummaryPage {

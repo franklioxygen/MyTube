@@ -1,6 +1,27 @@
 export const ko = {
   // Header
   myTube: "MyTube",
+  // Auto Delete (library-wide age-based cleanup)
+  autoDelete: "자동 삭제",
+  autoDeleteDescription:
+    "다운로드한 동영상이 라이브러리에 지정된 일수 동안 있으면 자동으로 삭제합니다. 기본적으로 꺼져 있습니다. 개별 동영상을 잠그면 보호할 수 있습니다.",
+  autoDeleteInterval: "삭제 기한",
+  autoDeleteIntervalHelp: "이보다 오래된 동영상은 영구적으로 삭제됩니다.",
+  autoDeleteIntervalError: "정수 일수를 입력하세요(1–3650).",
+  autoDeleteHowItWorks: "자동 삭제 작동 방식",
+  autoDeleteHowItWorksScan: "매일 03:00(서버 시간)에 MyTube가 라이브러리를 검사합니다.",
+  autoDeleteHowItWorksDelete:
+    "위 기간보다 이전에 라이브러리에 추가된 동영상은 영구적으로 삭제됩니다. 파일, 썸네일, 자막이 제거되고 다운로드 기록 및 추적은 삭제됨으로 표시되며, 직접 삭제하는 것과 완전히 동일합니다. (\"추가됨\"은 동영상의 원래 업로드 날짜가 아니라 MyTube에 들어온 시점을 의미합니다.)",
+  autoDeleteHowItWorksLock:
+    "잠근 동영상(플레이어와 동영상 카드의 잠금 버튼)은 아무리 오래되어도 어떤 자동 규칙으로도 삭제되지 않습니다. 새로 다운로드한 동영상은 잠금 해제 상태로 시작합니다.",
+  autoDeleteHowItWorksDisable:
+    "이 기능을 끄면 라이브러리 전체 자동 삭제 정책이 즉시 중지되며, 진행 중인 검사는 다음 동영상별 안전 확인 시점에 멈춥니다. 구독의 별도 보관 정책은 여전히 잠금 해제된 동영상을 삭제할 수 있습니다. 모든 자동 규칙으로부터 보호하려면 동영상을 잠그세요.",
+  autoDeleteHowItWorksDowntime:
+    "서버가 03:00에 꺼져 있었다면 다음 시작 직후에 검사가 실행됩니다.",
+  lockVideo: "잠금(자동 삭제 방지)",
+  unlockVideo: "잠금 해제(자동 삭제 허용)",
+  videoLocked: "동영상 잠금 — 자동 삭제로부터 보호됨",
+  videoUnlocked: "동영상 잠금 해제됨",
   manage: "관리",
   settings: "설정",
   logout: "로그아웃",

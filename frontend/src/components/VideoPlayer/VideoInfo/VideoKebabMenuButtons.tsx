@@ -16,6 +16,9 @@ interface VideoKebabMenuButtonsProps {
     isDeleting?: boolean;
     isTogglingVisibility?: boolean;
     onToggleVisibility?: () => void;
+    isTogglingLock?: boolean;
+    onToggleLock?: () => void;
+    isLocked?: boolean;
     onAddTag?: () => void;
     video?: { visibility?: number };
     sx?: any;
@@ -29,6 +32,9 @@ const VideoKebabMenuButtons: React.FC<VideoKebabMenuButtonsProps> = ({
     isDeleting = false,
     isTogglingVisibility = false,
     onToggleVisibility,
+    isTogglingLock = false,
+    onToggleLock,
+    isLocked = false,
     onAddTag,
     video,
     sx
@@ -84,6 +90,9 @@ const VideoKebabMenuButtons: React.FC<VideoKebabMenuButtonsProps> = ({
                         isDeleting={isDeleting}
                         isTogglingVisibility={isTogglingVisibility}
                         onToggleVisibility={onToggleVisibility}
+                        isTogglingLock={isTogglingLock}
+                        onToggleLock={onToggleLock}
+                        isLocked={isLocked}
                         onAddTag={onAddTag}
                         video={video}
                     />

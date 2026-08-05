@@ -684,6 +684,16 @@ export function migrateColumnsAndTables(): void {
       logger.info("Migration successful: media_type added.");
     }
 
+    if (!columns.includes("auto_delete_locked")) {
+      logger.info(
+        "Migrating database: Adding auto_delete_locked column to videos table..."
+      );
+      sqlite
+        .prepare("ALTER TABLE videos ADD COLUMN auto_delete_locked INTEGER")
+        .run();
+      logger.info("Migration successful: auto_delete_locked added.");
+    }
+
     if (!columns.includes("source_video_id")) {
       logger.info(
         "Migrating database: Adding source_video_id column to videos table..."

@@ -75,13 +75,13 @@ function buildDailyRows(
   count: number,
   added = 1_000,
   deleted = 100,
-  retentionDeletes = 0
-): Array<{ day: string; added: number; deleted: number; retentionDeletes: number }> {
+  cleanupDeletes = 0
+): Array<{ day: string; added: number; deleted: number; cleanupDeletes: number }> {
   return Array.from({ length: count }, (_value, index) => ({
     day: `2026-01-${String(index + 1).padStart(2, "0")}`,
     added,
     deleted,
-    retentionDeletes,
+    cleanupDeletes,
   }));
 }
 
@@ -333,6 +333,48 @@ describe("statistics queries", () => {
         [
           /FROM usage_statistics_daily\s+WHERE day >= \? AND day <= \?/,
           buildDailyRows(6),
+        ],
+      ],
+    });
+
+    expect(estimateDiskRunway(14)).toEqual({ status: "insufficient_activity" });
+    const runwaySql = vi.mocked(sqlite.prepare).mock.calls
+      .map(([sql]) => sql)
+      .find((sql) => sql.includes("AS cleanupDeletes"));
+    expect(runwaySql).toContain(
+      "THEN sum ELSE 0 END"
+    );
+  });
+
+  it("excludes no-op sweep days (no byte activity) from the runway estimate", () => {
+    // Seven days that each only carry a no-op auto_delete_completed rollup row
+    // (zero bytes added/deleted, zero cleanup). Without the byte-activity
+    // requirement these would pad the sample count past the guard; with it,
+    // none qualify. Guards §6.7.
+    installPrepareMocks({
+      all: [
+        [
+          /FROM usage_statistics_daily\s+WHERE day >= \? AND day <= \?/,
+          buildDailyRows(7, 0, 0, 0),
+        ],
+      ],
+    });
+
+    expect(estimateDiskRunway(14)).toEqual({ status: "insufficient_activity" });
+  });
+
+  it("excludes days containing cleanup (retention or auto-delete) from the runway estimate", () => {
+    // 7 days of growth, but 2 carry cleanup deletions, leaving only 5 qualifying
+    // days (< 7), so the estimate reports insufficient activity. Guards §6.7:
+    // a cleanup backlog must not skew the organic net-growth calculation.
+    const rows = buildDailyRows(7, 1_000, 100, 0);
+    rows[0].cleanupDeletes = 3;
+    rows[1].cleanupDeletes = 5;
+    installPrepareMocks({
+      all: [
+        [
+          /FROM usage_statistics_daily\s+WHERE day >= \? AND day <= \?/,
+          rows,
         ],
       ],
     });

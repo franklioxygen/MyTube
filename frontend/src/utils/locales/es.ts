@@ -1,6 +1,28 @@
 export const es = {
   // Header
   myTube: "MyTube",
+  // Auto Delete (library-wide age-based cleanup)
+  autoDelete: "Eliminación automática",
+  autoDeleteDescription:
+    "Elimina automáticamente los vídeos descargados después de que hayan estado en tu biblioteca durante un número determinado de días. Desactivado de forma predeterminada. Bloquea vídeos concretos para protegerlos.",
+  autoDeleteInterval: "Eliminar después de",
+  autoDeleteIntervalHelp: "Los vídeos más antiguos que esto se eliminan permanentemente.",
+  autoDeleteIntervalError: "Introduce un número entero de días (1–3650).",
+  autoDeleteHowItWorks: "Cómo funciona la eliminación automática",
+  autoDeleteHowItWorksScan:
+    "Cada día a las 03:00 (hora del servidor), MyTube analiza tu biblioteca.",
+  autoDeleteHowItWorksDelete:
+    "Cualquier vídeo añadido a tu biblioteca hace más tiempo que el intervalo anterior se elimina permanentemente: se eliminan su archivo, miniatura y subtítulos, mientras que el historial y el seguimiento de descargas se marcan como eliminados, exactamente igual que si lo eliminaras a mano. («Añadido» es cuando entró en MyTube, no la fecha de subida original del vídeo.)",
+  autoDeleteHowItWorksLock:
+    "Un vídeo que bloquees (el botón de candado en el reproductor y en las tarjetas de vídeo) nunca se elimina automáticamente por ninguna regla, sin importar su antigüedad. Las descargas nuevas empiezan desbloqueadas.",
+  autoDeleteHowItWorksDisable:
+    "Desactivar esto detiene de inmediato esta política de eliminación automática de toda la biblioteca, incluida una limpieza activa en su siguiente comprobación de seguridad por vídeo. La política de retención independiente de una suscripción aún puede eliminar vídeos desbloqueados; bloquea un vídeo para protegerlo de cualquier regla automática.",
+  autoDeleteHowItWorksDowntime:
+    "Si el servidor estaba apagado a las 03:00, el análisis se ejecuta poco después del siguiente arranque.",
+  lockVideo: "Bloquear (proteger de la eliminación automática)",
+  unlockVideo: "Desbloquear (permitir la eliminación automática)",
+  videoLocked: "Vídeo bloqueado: protegido de la eliminación automática",
+  videoUnlocked: "Vídeo desbloqueado",
   manage: "Gestionar",
   settings: "Configuración",
   logout: "Cerrar sesión",

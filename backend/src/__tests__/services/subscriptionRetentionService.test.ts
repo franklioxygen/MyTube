@@ -89,6 +89,64 @@ describe("subscriptionRetentionService", () => {
     expect(summary.deletedVideos).toBe(1);
   });
 
+  it("skips a locked video and counts it in skippedLocked (§6.6)", async () => {
+    vi.mocked(storageService.getVideoById).mockReturnValue({
+      id: "video-1",
+      title: "Locked Video",
+      sourceUrl: "https://example.com/video",
+      createdAt: "2026-01-01",
+      autoDeleteLocked: 1,
+    });
+    queueSelectResults(
+      [{ id: "sub-1", author: "Author", retentionDays: 7 }],
+      [{ id: "history-1", videoId: "video-1", finishedAt: Date.now() - 8 * 24 * 60 * 60 * 1000 }],
+      []
+    );
+
+    const summary = await runSubscriptionRetentionCleanup();
+
+    expect(storageService.deleteVideo).not.toHaveBeenCalled();
+    expect(summary.skippedLocked).toBe(1);
+    expect(summary.deletedVideos).toBe(0);
+  });
+
+  it("re-fetches each candidate so a lock applied mid-cleanup protects the video", async () => {
+    // The per-candidate event-loop yield lets an in-flight lock request commit
+    // before deletion; the re-fetch then sees it. Simulate the second video
+    // becoming locked between selection and its turn in the loop.
+    vi.mocked(storageService.getVideoById).mockImplementation((id: string) =>
+      id === "video-2"
+        ? {
+            id,
+            title: "Locked mid-cleanup",
+            sourceUrl: "https://example.com/v2",
+            createdAt: "2026-01-01",
+            autoDeleteLocked: 1,
+          }
+        : {
+            id,
+            title: "Old Video",
+            sourceUrl: "https://example.com/v1",
+            createdAt: "2026-01-01",
+          }
+    );
+    queueSelectResults(
+      [{ id: "sub-1", author: "Author", retentionDays: 7 }],
+      [
+        { id: "history-1", videoId: "video-1", finishedAt: Date.now() - 8 * 24 * 60 * 60 * 1000 },
+        { id: "history-2", videoId: "video-2", finishedAt: Date.now() - 9 * 24 * 60 * 60 * 1000 },
+      ],
+      []
+    );
+
+    const summary = await runSubscriptionRetentionCleanup();
+
+    expect(storageService.deleteVideo).toHaveBeenCalledWith("video-1", RETENTION_DELETE_REASON);
+    expect(storageService.deleteVideo).not.toHaveBeenCalledWith("video-2", RETENTION_DELETE_REASON);
+    expect(summary.deletedVideos).toBe(1);
+    expect(summary.skippedLocked).toBe(1);
+  });
+
   it("skips expired videos referenced by another subscription or manual download", async () => {
     queueSelectResults(
       [{ id: "sub-1", author: "Author", retentionDays: 7 }],
@@ -102,7 +160,7 @@ describe("subscriptionRetentionService", () => {
     expect(summary.skippedSharedVideos).toBe(1);
   });
 
-  it("checks external references once for multiple candidates", async () => {
+  it("uses one batch external-reference query plus a per-candidate re-check", async () => {
     queueSelectResults(
       [{ id: "sub-1", author: "Author", retentionDays: 7 }],
       [
@@ -114,9 +172,29 @@ describe("subscriptionRetentionService", () => {
 
     const summary = await runSubscriptionRetentionCleanup();
 
-    expect(db.select).toHaveBeenCalledTimes(3);
+    // subscriptions + candidates + one batch external-reference snapshot, then
+    // one authoritative external-reference re-check per surviving candidate (2).
+    expect(db.select).toHaveBeenCalledTimes(5);
     expect(storageService.deleteVideo).toHaveBeenCalledTimes(2);
     expect(summary.deletedVideos).toBe(2);
+  });
+
+  it("re-checks sharing after the yield and skips a video that became shared", async () => {
+    // Not shared at snapshot time (batch query returns []), but a success
+    // download_history row lands during the yield, so the per-candidate re-check
+    // (4th select) reports it shared and the video is kept.
+    queueSelectResults(
+      [{ id: "sub-1", author: "Author", retentionDays: 7 }],
+      [{ id: "history-1", videoId: "video-1", finishedAt: Date.now() - 8 * 24 * 60 * 60 * 1000 }],
+      [],
+      [{ videoId: "video-1" }]
+    );
+
+    const summary = await runSubscriptionRetentionCleanup();
+
+    expect(storageService.deleteVideo).not.toHaveBeenCalled();
+    expect(summary.skippedSharedVideos).toBe(1);
+    expect(summary.deletedVideos).toBe(0);
   });
 
   it("does not treat skipped history as a shared ownership reference", async () => {
@@ -228,6 +306,7 @@ describe("subscriptionRetentionService", () => {
       deletedVideos: 0,
       skippedMissingVideos: 0,
       skippedSharedVideos: 0,
+      skippedLocked: 0,
       errors: 0,
     });
     expect(db.select).toHaveBeenCalledTimes(1);

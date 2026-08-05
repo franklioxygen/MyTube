@@ -49,6 +49,10 @@ export const videos = sqliteTable(
     authorAvatarFilename: text("author_avatar_filename"), // Author avatar filename
     authorAvatarPath: text("author_avatar_path"), // Author avatar path
     mediaType: text("media_type").default("video"), // "video" | "audio"
+    // null/0 = auto-delete eligible (unlocked), 1 = locked (protected from all
+    // automatic deletion: the library-wide auto-delete sweep and per-subscription
+    // retention). Manual deletion is unaffected.
+    autoDeleteLocked: integer("auto_delete_locked"),
   },
   (table) => ({
     // source_url is looked up on every download attempt, cloud-scan duplicate
