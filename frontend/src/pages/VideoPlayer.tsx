@@ -598,7 +598,7 @@ const VideoPlayer: React.FC = () => {
                             onSubscribe={handleSubscribe}
                             onUnsubscribe={handleUnsubscribe}
                             onToggleVisibility={handleToggleVisibility}
-                            onToggleLock={handleToggleLock}
+                            onToggleLock={settings?.autoDeleteEnabled ? handleToggleLock : undefined}
                         />
 
                         {(video.source === 'youtube' || video.source === 'bilibili') && (

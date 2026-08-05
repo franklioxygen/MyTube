@@ -37,6 +37,13 @@ vi.mock('../../../contexts/SnackbarContext', () => ({
     useSnackbar: () => ({ showSnackbar: mockShowSnackbar }),
 }));
 
+// Auto-delete master toggle gates the lock/unlock button; default enabled so
+// the existing lock tests exercise the button. Override per test.
+let mockAutoDeleteEnabled = true;
+vi.mock('../../../hooks/useSettings', () => ({
+    useSettings: () => ({ data: { autoDeleteEnabled: mockAutoDeleteEnabled } }),
+}));
+
 const mockUpdateVideo = vi.fn();
 // Mock child components that trigger complex logic or portals
 vi.mock('../../../contexts/VideoContext', () => {
@@ -120,6 +127,7 @@ describe('VideoCardActions', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockUpdateVideo.mockResolvedValue({ success: true });
+        mockAutoDeleteEnabled = true;
     });
 
     it('should render actions when hovered', () => {
@@ -192,6 +200,15 @@ describe('VideoCardActions', () => {
         await user.click(screen.getByText('Lock Video'));
 
         expect(mockShowSnackbar).toHaveBeenCalledWith('lock failed', 'error');
+    });
+
+    it('should hide the lock button when auto-delete is disabled', () => {
+        mockAutoDeleteEnabled = false;
+        render(<VideoCardActions {...defaultProps} />);
+
+        expect(screen.getByTestId('kebab-menu')).toBeInTheDocument();
+        expect(screen.queryByText('Lock Video')).not.toBeInTheDocument();
+        expect(screen.queryByText('Unlock Video')).not.toBeInTheDocument();
     });
 
     it('should open delete modal', async () => {

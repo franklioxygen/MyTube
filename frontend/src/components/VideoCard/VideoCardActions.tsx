@@ -4,6 +4,7 @@ import { useCollection } from '../../contexts/CollectionContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import { useVideoActions, useVideoTags } from '../../contexts/VideoContext';
+import { useSettings } from '../../hooks/useSettings';
 import { useShareVideo } from '../../hooks/useShareVideo';
 import { Video } from '../../types';
 import { neutral, overlay } from '../../theme/colors';
@@ -53,6 +54,7 @@ export const VideoCardActions: React.FC<VideoCardActionsProps> = ({
     const { availableTags } = useVideoTags();
     const { handleShare } = useShareVideo(video);
     const { showSnackbar } = useSnackbar();
+    const { data: settings } = useSettings();
     const [showCollectionModal, setShowCollectionModal] = React.useState(false);
     const [showTagsModal, setShowTagsModal] = React.useState(false);
     const [isTogglingLock, setIsTogglingLock] = React.useState(false);
@@ -127,7 +129,7 @@ export const VideoCardActions: React.FC<VideoCardActionsProps> = ({
                     isTogglingVisibility={isTogglingVisibility}
                     onToggleVisibility={handleToggleVisibility}
                     isTogglingLock={isTogglingLock}
-                    onToggleLock={handleToggleLock}
+                    onToggleLock={settings?.autoDeleteEnabled ? handleToggleLock : undefined}
                     isLocked={isLocked}
                     onAddTag={() => setShowTagsModal(true)}
                     video={video}
