@@ -97,7 +97,12 @@ const VideoKebabMenu: React.FC<VideoKebabMenuProps> = ({
                 }
             }}
         >
-            <Stack direction="row" spacing={2} sx={{ justifyContent: 'flex-end' }}>
+            <Stack
+                direction="row"
+                spacing={2}
+                useFlexGap
+                sx={{ flexWrap: 'wrap', justifyContent: 'center', maxWidth: 240 }}
+            >
                 <Tooltip title={t('playWith')} disableHoverListener={isTouch}>
                     <Button
                         variant="outlined"
