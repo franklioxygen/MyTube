@@ -16,22 +16,19 @@ import { LiveTranslationTranscriptEvent } from './useLiveTranslationSession';
  * delta into its own cue — which stacks a short sentence into two caption boxes
  * and shows fragments replacing one another — the deltas of a single utterance
  * are coalesced into ONE cue that builds up in place. A fresh cue is started only
- * at an utterance boundary, detected by the wall-clock gap between deltas: within
- * a turn Gemini emits deltas in a rapid burst, while a new turn follows a pause.
+ * at an explicit utterance boundary — a Gemini turn boundary or barge-in, both
+ * delivered via `endUtterance`, or a seek — never on delivery latency, so a slow
+ * delta within a turn does not split the sentence.
  */
 
 // How long a completed caption lingers after its last delta.
 const DEFAULT_CUE_DURATION_S = 4;
-// Wall-clock gap (ms) between deltas above which the next delta is treated as a
-// new utterance instead of a continuation of the current caption. Deltas within
-// one turn arrive far faster than this; the pause between turns is longer.
-const NEW_UTTERANCE_GAP_MS = 1500;
 // Largest media-time jump (s) between consecutive deltas still treated as the
 // same caption. Deltas of one turn share nearly the same media time; a seek
-// jumps `currentTime` well beyond what 1x playback advances within the burst
-// window, so a jump past this starts a fresh caption instead of stretching the
-// pre-seek cue across the seek. (Output transcripts carry no `mediaTime`, so the
-// hook falls back to the seeked `currentTime`.)
+// jumps `currentTime` well beyond what 1x playback advances between deltas, so a
+// jump past this starts a fresh caption instead of stretching the pre-seek cue
+// across the seek. (Output transcripts carry no `mediaTime`, so the hook falls
+// back to the seeked `currentTime`; seeks are not otherwise signalled here.)
 const MAX_CONTINUATION_MEDIA_JUMP_S = 2;
 
 const setTextTrackMode = (track: TextTrack, mode: TextTrackMode) => {
@@ -42,11 +39,6 @@ const setTextTrackMode = (track: TextTrack, mode: TextTrackMode) => {
 // trim the ends for display. CJK text has no inter-character spaces, so this is
 // a no-op there; latin deltas carry their own spacing, which is preserved.
 const normalizeCueText = (text: string): string => text.replace(/\s+/g, ' ').trim();
-
-const nowMs = (): number =>
-  typeof performance !== 'undefined' && typeof performance.now === 'function'
-    ? performance.now()
-    : Date.now();
 
 export interface LiveTranslationSubtitleTrackController {
   track: TextTrack | null;
@@ -81,13 +73,11 @@ export function useLiveTranslationSubtitleTrack(
   // In-progress caption being built from the current utterance's deltas.
   const activeCueRef = useRef<VTTCue | null>(null);
   const activeCueTextRef = useRef('');
-  const lastDeltaAtRef = useRef(0);
   const lastDeltaMediaRef = useRef(0);
 
   const resetAccumulation = useCallback(() => {
     activeCueRef.current = null;
     activeCueTextRef.current = '';
-    lastDeltaAtRef.current = 0;
     lastDeltaMediaRef.current = 0;
   }, []);
 
@@ -153,20 +143,16 @@ export function useLiveTranslationSubtitleTrack(
           ? event.mediaTime
           : (videoElement?.currentTime ?? 0);
       const start = Math.max(0, baseTime);
-      const at = nowMs();
       const active = activeCueRef.current;
-      const gap = at - lastDeltaAtRef.current;
       const mediaJump = Math.abs(start - lastDeltaMediaRef.current);
-      lastDeltaAtRef.current = at;
       lastDeltaMediaRef.current = start;
 
-      // Continue the current caption when the delta belongs to the same
-      // utterance: it arrived within the burst window, the timeline did not jump
-      // backwards before the caption, and it did not jump (forward or back) past
-      // what normal playback advances — i.e. the viewer did not seek.
+      // Continue the current caption unless the timeline jumped past what normal
+      // playback advances between deltas — i.e. the viewer seeked. Utterance
+      // boundaries (Gemini turn complete / barge-in) arrive explicitly via
+      // `endUtterance`, so delivery latency is never treated as a boundary.
       const continues =
         !!active &&
-        gap <= NEW_UTTERANCE_GAP_MS &&
         start >= active.startTime &&
         mediaJump <= MAX_CONTINUATION_MEDIA_JUMP_S;
 

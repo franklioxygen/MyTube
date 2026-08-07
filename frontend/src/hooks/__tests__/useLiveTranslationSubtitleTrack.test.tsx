@@ -72,8 +72,6 @@ describe('useLiveTranslationSubtitleTrack', () => {
 
   it('coalesces deltas of one utterance into a single cue', () => {
     const { el, track } = makeFakeVideo();
-    // Deltas of one turn arrive in a burst (same wall-clock instant).
-    vi.spyOn(performance, 'now').mockReturnValue(1000);
     const { result } = renderHook(() =>
       useLiveTranslationSubtitleTrack(el, 'en', 'Live'),
     );
@@ -88,38 +86,35 @@ describe('useLiveTranslationSubtitleTrack', () => {
     expect(cue.endTime).toBe(6);
   });
 
-  it('starts a new cue after an utterance gap and ends the prior caption', () => {
+  it('keeps coalescing across a delivery gap without an explicit boundary', () => {
+    // A slow delta (network hiccup / slow generation) still belongs to the same
+    // turn; only an explicit boundary or a seek splits the caption, never latency.
     const { el, track } = makeFakeVideo();
-    const nowSpy = vi.spyOn(performance, 'now').mockReturnValue(1000);
     const { result } = renderHook(() =>
       useLiveTranslationSubtitleTrack(el, 'en', 'Live'),
     );
     act(() => result.current.addCue({ kind: 'output', text: 'a', mediaTime: 0 }));
-    // Next delta arrives after a pause longer than the burst window: new turn.
-    nowSpy.mockReturnValue(1000 + 2000);
-    act(() => result.current.addCue({ kind: 'output', text: 'b', mediaTime: 2 }));
+    // Arrives late and a little further along the timeline, but within normal
+    // playback drift (no seek) and with no turnComplete/interrupt in between.
+    act(() => result.current.addCue({ kind: 'output', text: 'b', mediaTime: 1 }));
 
-    expect(track.cues).toHaveLength(2);
-    const first = track.cues[0] as FakeVTTCue;
-    const second = track.cues[1] as FakeVTTCue;
-    expect(first.text).toBe('a');
-    expect(first.endTime).toBe(2);
-    expect(second.text).toBe('b');
-    expect(second.startTime).toBe(2);
-    expect(second.endTime).toBe(6);
+    expect(track.cues).toHaveLength(1);
+    const cue = track.cues[0] as FakeVTTCue;
+    expect(cue.text).toBe('ab');
+    expect(cue.startTime).toBe(0);
+    expect(cue.endTime).toBe(5);
   });
 
-  it('starts a new cue when the timeline jumps (seek) within the burst window', () => {
+  it('starts a new cue when the timeline jumps (seek)', () => {
     // Output transcripts carry no mediaTime, so a seek is only observable as a
-    // large jump in currentTime between deltas arriving close together.
+    // large jump in currentTime between deltas.
     const { el, track } = makeFakeVideo(10);
-    vi.spyOn(performance, 'now').mockReturnValue(1000);
     const { result } = renderHook(() =>
       useLiveTranslationSubtitleTrack(el, 'en', 'Live'),
     );
     act(() => result.current.addCue({ kind: 'output', text: 'a' }));
 
-    // Viewer seeks forward; the next delta arrives right away (same instant).
+    // Viewer seeks forward; the next delta lands far down the timeline.
     el.currentTime = 50;
     act(() => result.current.addCue({ kind: 'output', text: 'b' }));
 
@@ -133,15 +128,13 @@ describe('useLiveTranslationSubtitleTrack', () => {
     expect(second.endTime).toBe(54);
   });
 
-  it('starts a new cue after endUtterance() even within the burst window', () => {
+  it('starts a new cue after endUtterance() (turn boundary / barge-in)', () => {
     const { el, track } = makeFakeVideo();
-    vi.spyOn(performance, 'now').mockReturnValue(1000);
     const { result } = renderHook(() =>
       useLiveTranslationSubtitleTrack(el, 'en', 'Live'),
     );
     act(() => result.current.addCue({ kind: 'output', text: '好的，', mediaTime: 2 }));
-    // Utterance boundary (Gemini turn complete or barge-in): the current
-    // response is closed even though no delivery gap occurred.
+    // Explicit utterance boundary (Gemini turn complete or barge-in).
     act(() => result.current.endUtterance());
     // The next translation arrives immediately at the same media time.
     act(() => result.current.addCue({ kind: 'output', text: '你好', mediaTime: 2 }));
@@ -156,7 +149,6 @@ describe('useLiveTranslationSubtitleTrack', () => {
 
   it('coalesces deltas without mediaTime using current playback time', () => {
     const { el, track } = makeFakeVideo(10);
-    vi.spyOn(performance, 'now').mockReturnValue(1000);
     const { result } = renderHook(() =>
       useLiveTranslationSubtitleTrack(el, 'en', 'Live'),
     );
