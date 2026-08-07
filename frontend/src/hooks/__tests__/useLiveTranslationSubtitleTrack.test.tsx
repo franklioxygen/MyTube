@@ -109,6 +109,30 @@ describe('useLiveTranslationSubtitleTrack', () => {
     expect(second.endTime).toBe(6);
   });
 
+  it('starts a new cue when the timeline jumps (seek) within the burst window', () => {
+    // Output transcripts carry no mediaTime, so a seek is only observable as a
+    // large jump in currentTime between deltas arriving close together.
+    const { el, track } = makeFakeVideo(10);
+    vi.spyOn(performance, 'now').mockReturnValue(1000);
+    const { result } = renderHook(() =>
+      useLiveTranslationSubtitleTrack(el, 'en', 'Live'),
+    );
+    act(() => result.current.addCue({ kind: 'output', text: 'a' }));
+
+    // Viewer seeks forward; the next delta arrives right away (same instant).
+    el.currentTime = 50;
+    act(() => result.current.addCue({ kind: 'output', text: 'b' }));
+
+    expect(track.cues).toHaveLength(2);
+    const first = track.cues[0] as FakeVTTCue;
+    const second = track.cues[1] as FakeVTTCue;
+    expect(first.text).toBe('a');
+    expect(first.startTime).toBe(10);
+    expect(second.text).toBe('b');
+    expect(second.startTime).toBe(50);
+    expect(second.endTime).toBe(54);
+  });
+
   it('coalesces deltas without mediaTime using current playback time', () => {
     const { el, track } = makeFakeVideo(10);
     vi.spyOn(performance, 'now').mockReturnValue(1000);

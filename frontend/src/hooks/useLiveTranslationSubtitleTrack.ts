@@ -26,6 +26,13 @@ const DEFAULT_CUE_DURATION_S = 4;
 // new utterance instead of a continuation of the current caption. Deltas within
 // one turn arrive far faster than this; the pause between turns is longer.
 const NEW_UTTERANCE_GAP_MS = 1500;
+// Largest media-time jump (s) between consecutive deltas still treated as the
+// same caption. Deltas of one turn share nearly the same media time; a seek
+// jumps `currentTime` well beyond what 1x playback advances within the burst
+// window, so a jump past this starts a fresh caption instead of stretching the
+// pre-seek cue across the seek. (Output transcripts carry no `mediaTime`, so the
+// hook falls back to the seeked `currentTime`.)
+const MAX_CONTINUATION_MEDIA_JUMP_S = 2;
 
 const setTextTrackMode = (track: TextTrack, mode: TextTrackMode) => {
   track.mode = mode;
@@ -67,11 +74,13 @@ export function useLiveTranslationSubtitleTrack(
   const activeCueRef = useRef<VTTCue | null>(null);
   const activeCueTextRef = useRef('');
   const lastDeltaAtRef = useRef(0);
+  const lastDeltaMediaRef = useRef(0);
 
   const resetAccumulation = useCallback(() => {
     activeCueRef.current = null;
     activeCueTextRef.current = '';
     lastDeltaAtRef.current = 0;
+    lastDeltaMediaRef.current = 0;
   }, []);
 
   const ensureTrack = useCallback((): TextTrack | null => {
@@ -139,13 +148,19 @@ export function useLiveTranslationSubtitleTrack(
       const at = nowMs();
       const active = activeCueRef.current;
       const gap = at - lastDeltaAtRef.current;
+      const mediaJump = Math.abs(start - lastDeltaMediaRef.current);
       lastDeltaAtRef.current = at;
+      lastDeltaMediaRef.current = start;
 
       // Continue the current caption when the delta belongs to the same
-      // utterance: it arrived within the burst window and the timeline did not
-      // jump backwards (a seek starts a fresh caption).
+      // utterance: it arrived within the burst window, the timeline did not jump
+      // backwards before the caption, and it did not jump (forward or back) past
+      // what normal playback advances — i.e. the viewer did not seek.
       const continues =
-        !!active && gap <= NEW_UTTERANCE_GAP_MS && start >= active.startTime;
+        !!active &&
+        gap <= NEW_UTTERANCE_GAP_MS &&
+        start >= active.startTime &&
+        mediaJump <= MAX_CONTINUATION_MEDIA_JUMP_S;
 
       try {
         if (continues && active) {
