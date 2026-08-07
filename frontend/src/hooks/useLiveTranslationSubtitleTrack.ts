@@ -55,6 +55,12 @@ export interface LiveTranslationSubtitleTrackController {
   activate: () => void;
   deactivate: () => void;
   addCue: (event: LiveTranslationTranscriptEvent) => void;
+  /**
+   * Mark an utterance boundary that timing alone cannot detect (Gemini barge-in
+   * / `interrupted`): the in-progress caption is abandoned so the replacement
+   * translation starts a fresh cue instead of being appended to stale text.
+   */
+  interrupt: () => void;
 }
 
 export function useLiveTranslationSubtitleTrack(
@@ -216,6 +222,14 @@ export function useLiveTranslationSubtitleTrack(
     [ensureTrack, videoElement],
   );
 
+  // Gemini cut its in-progress response short (barge-in). Abandon the partial
+  // caption so the replacement translation's first delta opens a fresh cue; the
+  // stale cue is left on screen until then, when the new-utterance path truncates
+  // it — matching how any new utterance supersedes the previous one.
+  const interrupt = useCallback(() => {
+    resetAccumulation();
+  }, [resetAccumulation]);
+
   return {
     track,
     isActive: active,
@@ -223,5 +237,6 @@ export function useLiveTranslationSubtitleTrack(
     activate,
     deactivate,
     addCue,
+    interrupt,
   };
 }

@@ -133,6 +133,25 @@ describe('useLiveTranslationSubtitleTrack', () => {
     expect(second.endTime).toBe(54);
   });
 
+  it('starts a new cue after interrupt() even within the burst window', () => {
+    const { el, track } = makeFakeVideo();
+    vi.spyOn(performance, 'now').mockReturnValue(1000);
+    const { result } = renderHook(() =>
+      useLiveTranslationSubtitleTrack(el, 'en', 'Live'),
+    );
+    act(() => result.current.addCue({ kind: 'output', text: '好的，', mediaTime: 2 }));
+    // Gemini barge-in: the in-progress response is abandoned.
+    act(() => result.current.interrupt());
+    // Replacement translation arrives immediately at the same media time.
+    act(() => result.current.addCue({ kind: 'output', text: '你好', mediaTime: 2 }));
+
+    // The replacement opens a fresh cue instead of appending to the stale one.
+    expect(track.cues).toHaveLength(1);
+    const cue = track.cues[0] as FakeVTTCue;
+    expect(cue.text).toBe('你好');
+    expect(cue.startTime).toBe(2);
+  });
+
   it('coalesces deltas without mediaTime using current playback time', () => {
     const { el, track } = makeFakeVideo(10);
     vi.spyOn(performance, 'now').mockReturnValue(1000);

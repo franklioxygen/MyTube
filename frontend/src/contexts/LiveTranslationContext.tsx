@@ -97,6 +97,7 @@ interface LiveTranslationProviderProps {
     originalAudioWithSubtitles?: boolean;
     originalAudioWithSubtitlesReady?: boolean;
     onTranscript?: (event: LiveTranslationTranscriptEvent) => void;
+    onInterrupted?: () => void;
     onActiveChange?: (active: boolean) => void;
     children: React.ReactNode;
 }
@@ -113,6 +114,7 @@ export const LiveTranslationProvider: React.FC<LiveTranslationProviderProps> = (
     originalAudioWithSubtitles,
     originalAudioWithSubtitlesReady = true,
     onTranscript,
+    onInterrupted,
     onActiveChange,
     children,
 }) => {
@@ -122,6 +124,7 @@ export const LiveTranslationProvider: React.FC<LiveTranslationProviderProps> = (
         videoElement,
         videoId,
         onTranscript,
+        onInterrupted,
         originalAudioWithSubtitles,
     });
 

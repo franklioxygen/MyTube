@@ -39,6 +39,8 @@ export interface UseLiveTranslationSessionOptions {
   /** When true, keep original audio and show subtitles without playing translated speech. */
   originalAudioWithSubtitles?: boolean;
   onTranscript?: (event: LiveTranslationTranscriptEvent) => void;
+  /** Gemini cut its in-progress response short (barge-in); the current caption is stale. */
+  onInterrupted?: () => void;
   /** Injectable for tests; default to the real controllers. */
   captureController?: LiveTranslationAudioCaptureController;
   playbackController?: TranslatedAudioPlaybackController;
@@ -65,7 +67,7 @@ function buildLiveTranslationWsUrl(wsPath: string): string {
 export function useLiveTranslationSession(
   options: UseLiveTranslationSessionOptions,
 ): UseLiveTranslationSessionResult {
-  const { videoElement, videoId, onTranscript, originalAudioWithSubtitles } = options;
+  const { videoElement, videoId, onTranscript, onInterrupted, originalAudioWithSubtitles } = options;
   const defaultCapture = useLiveTranslationAudioCapture();
   const defaultPlayback = useTranslatedAudioPlayback();
   const capture = options.captureController ?? defaultCapture;
@@ -92,6 +94,7 @@ export function useLiveTranslationSession(
   // Keep latest values for callbacks/cleanup without re-creating handlers.
   const videoElementRef = useRef(videoElement);
   const onTranscriptRef = useRef(onTranscript);
+  const onInterruptedRef = useRef(onInterrupted);
   const latestOriginalAudioWithSubtitlesRef = useRef(false);
   const sessionOriginalAudioWithSubtitlesRef = useRef(false);
 
@@ -102,6 +105,10 @@ export function useLiveTranslationSession(
   useEffect(() => {
     onTranscriptRef.current = onTranscript;
   }, [onTranscript]);
+
+  useEffect(() => {
+    onInterruptedRef.current = onInterrupted;
+  }, [onInterrupted]);
 
   useEffect(() => {
     latestOriginalAudioWithSubtitlesRef.current = !!originalAudioWithSubtitles;
@@ -259,8 +266,11 @@ export function useLiveTranslationSession(
           break;
         case 'interrupted':
           // Gemini cut off the in-progress response (barge-in); drop queued
-          // translated audio so it does not play over later video.
+          // translated audio so it does not play over later video, and mark the
+          // caption boundary so the replacement translation is not appended to
+          // the abandoned subtitle.
           playback.flush();
+          onInterruptedRef.current?.();
           break;
         case 'error':
           fail(message.code, message.message, message.retryable);
