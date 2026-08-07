@@ -276,6 +276,10 @@ describe("LiveTranslationGateway", () => {
     gemini.open();
     gemini.message({ setupComplete: {} });
 
+    gemini.message({ serverContent: { turnComplete: true } });
+    expect(browser.typed("turnComplete")).toHaveLength(1);
+
+    // generationComplete alone is not a turn boundary and must not forward.
     gemini.message({ serverContent: { generationComplete: true } });
     expect(browser.typed("turnComplete")).toHaveLength(1);
   });

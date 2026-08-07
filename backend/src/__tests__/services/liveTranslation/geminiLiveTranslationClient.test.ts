@@ -130,7 +130,7 @@ describe("GeminiLiveTranslationClient", () => {
     expect(onInterrupted).toHaveBeenCalledOnce();
   });
 
-  it("emits onTurnComplete on generationComplete/turnComplete, after the output", () => {
+  it("emits onTurnComplete only on turnComplete, after the output", () => {
     const onOutputTranscript = vi.fn();
     const onTurnComplete = vi.fn();
     const { client, fake } = makeClient({ onOutputTranscript, onTurnComplete });
@@ -138,23 +138,31 @@ describe("GeminiLiveTranslationClient", () => {
     fake.open();
     fake.message({ setupComplete: {} });
 
-    // A message carrying both a final delta and the boundary delivers the delta
-    // first, then the boundary, so the caption closes only after its last text.
+    // generationComplete is NOT a boundary: Gemini's final transcription delta
+    // can still arrive after it, so closing here would split one translation.
     fake.message({
       serverContent: {
-        outputTranscription: { text: "world" },
+        outputTranscription: { text: "wor" },
         generationComplete: true,
       },
     });
-    expect(onOutputTranscript).toHaveBeenCalledWith("world", undefined);
-    expect(onTurnComplete).toHaveBeenCalledOnce();
+    expect(onOutputTranscript).toHaveBeenCalledWith("wor", undefined);
+    expect(onTurnComplete).not.toHaveBeenCalled();
 
-    fake.message({ serverContent: { turnComplete: true } });
-    expect(onTurnComplete).toHaveBeenCalledTimes(2);
+    // The late delta arrives, then turnComplete closes the caption — delivered
+    // last, so the boundary follows the final text in the same message.
+    fake.message({
+      serverContent: {
+        outputTranscription: { text: "ld" },
+        turnComplete: true,
+      },
+    });
+    expect(onOutputTranscript).toHaveBeenLastCalledWith("ld", undefined);
+    expect(onTurnComplete).toHaveBeenCalledOnce();
 
     // Ordinary content without a boundary must not trigger it.
     fake.message({ serverContent: { outputTranscription: { text: "again" } } });
-    expect(onTurnComplete).toHaveBeenCalledTimes(2);
+    expect(onTurnComplete).toHaveBeenCalledOnce();
   });
 
   it("reports a setup failure when closed before setupComplete (code 1007)", () => {
