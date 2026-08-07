@@ -56,11 +56,13 @@ export interface LiveTranslationSubtitleTrackController {
   deactivate: () => void;
   addCue: (event: LiveTranslationTranscriptEvent) => void;
   /**
-   * Mark an utterance boundary that timing alone cannot detect (Gemini barge-in
-   * / `interrupted`): the in-progress caption is abandoned so the replacement
-   * translation starts a fresh cue instead of being appended to stale text.
+   * Mark an utterance boundary that inter-delta timing alone cannot detect: a
+   * Gemini turn boundary (`generationComplete`/`turnComplete`) or a barge-in
+   * (`interrupted`). The in-progress caption is closed so the next translation
+   * starts a fresh cue instead of being coalesced onto the finished/abandoned
+   * one. The displayed cue stays until the next delta supersedes it.
    */
-  interrupt: () => void;
+  endUtterance: () => void;
 }
 
 export function useLiveTranslationSubtitleTrack(
@@ -222,11 +224,12 @@ export function useLiveTranslationSubtitleTrack(
     [ensureTrack, videoElement],
   );
 
-  // Gemini cut its in-progress response short (barge-in). Abandon the partial
-  // caption so the replacement translation's first delta opens a fresh cue; the
-  // stale cue is left on screen until then, when the new-utterance path truncates
-  // it — matching how any new utterance supersedes the previous one.
-  const interrupt = useCallback(() => {
+  // A Gemini turn boundary (generationComplete/turnComplete) or barge-in
+  // (interrupted) ends the current utterance. Stop accumulating so the next
+  // delta opens a fresh cue; the finished cue is left on screen until then, when
+  // the new-utterance path truncates it — matching how any new utterance
+  // supersedes the previous one.
+  const endUtterance = useCallback(() => {
     resetAccumulation();
   }, [resetAccumulation]);
 
@@ -237,6 +240,6 @@ export function useLiveTranslationSubtitleTrack(
     activate,
     deactivate,
     addCue,
-    interrupt,
+    endUtterance,
   };
 }

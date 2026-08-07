@@ -130,6 +130,33 @@ describe("GeminiLiveTranslationClient", () => {
     expect(onInterrupted).toHaveBeenCalledOnce();
   });
 
+  it("emits onTurnComplete on generationComplete/turnComplete, after the output", () => {
+    const onOutputTranscript = vi.fn();
+    const onTurnComplete = vi.fn();
+    const { client, fake } = makeClient({ onOutputTranscript, onTurnComplete });
+    client.connect();
+    fake.open();
+    fake.message({ setupComplete: {} });
+
+    // A message carrying both a final delta and the boundary delivers the delta
+    // first, then the boundary, so the caption closes only after its last text.
+    fake.message({
+      serverContent: {
+        outputTranscription: { text: "world" },
+        generationComplete: true,
+      },
+    });
+    expect(onOutputTranscript).toHaveBeenCalledWith("world", undefined);
+    expect(onTurnComplete).toHaveBeenCalledOnce();
+
+    fake.message({ serverContent: { turnComplete: true } });
+    expect(onTurnComplete).toHaveBeenCalledTimes(2);
+
+    // Ordinary content without a boundary must not trigger it.
+    fake.message({ serverContent: { outputTranscription: { text: "again" } } });
+    expect(onTurnComplete).toHaveBeenCalledTimes(2);
+  });
+
   it("reports a setup failure when closed before setupComplete (code 1007)", () => {
     const onError = vi.fn();
     const onClose = vi.fn();

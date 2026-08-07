@@ -28,6 +28,10 @@ export interface GeminiClientHandlers {
   /** Gemini signalled that the in-progress response was interrupted (barge-in);
    * downstream should stop and clear any queued translated audio. */
   onInterrupted?: () => void;
+  /** Gemini finished a response (`generationComplete`/`turnComplete`); marks an
+   * utterance boundary so the next output transcript starts a fresh caption
+   * instead of being coalesced onto the finished one. */
+  onTurnComplete?: () => void;
   onError?: (
     code: LiveTranslationErrorCode,
     message: string,
@@ -246,6 +250,16 @@ export class GeminiLiveTranslationClient {
           this.opts.handlers.onAudio?.(inline.data);
         }
       }
+    }
+
+    // A finished generation/turn marks an utterance boundary. Emit it last so any
+    // output transcript carried in the same message is delivered before the
+    // boundary, letting downstream close the current caption cleanly.
+    if (
+      serverContent.generationComplete === true ||
+      serverContent.turnComplete === true
+    ) {
+      this.opts.handlers.onTurnComplete?.();
     }
   }
 

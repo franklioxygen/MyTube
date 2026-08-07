@@ -133,19 +133,21 @@ describe('useLiveTranslationSubtitleTrack', () => {
     expect(second.endTime).toBe(54);
   });
 
-  it('starts a new cue after interrupt() even within the burst window', () => {
+  it('starts a new cue after endUtterance() even within the burst window', () => {
     const { el, track } = makeFakeVideo();
     vi.spyOn(performance, 'now').mockReturnValue(1000);
     const { result } = renderHook(() =>
       useLiveTranslationSubtitleTrack(el, 'en', 'Live'),
     );
     act(() => result.current.addCue({ kind: 'output', text: '好的，', mediaTime: 2 }));
-    // Gemini barge-in: the in-progress response is abandoned.
-    act(() => result.current.interrupt());
-    // Replacement translation arrives immediately at the same media time.
+    // Utterance boundary (Gemini turn complete or barge-in): the current
+    // response is closed even though no delivery gap occurred.
+    act(() => result.current.endUtterance());
+    // The next translation arrives immediately at the same media time.
     act(() => result.current.addCue({ kind: 'output', text: '你好', mediaTime: 2 }));
 
-    // The replacement opens a fresh cue instead of appending to the stale one.
+    // The next translation opens a fresh cue instead of coalescing onto the
+    // previous one, so back-to-back short utterances do not merge into one line.
     expect(track.cues).toHaveLength(1);
     const cue = track.cues[0] as FakeVTTCue;
     expect(cue.text).toBe('你好');

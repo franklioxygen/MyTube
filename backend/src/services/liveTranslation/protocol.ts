@@ -59,6 +59,10 @@ export type ServerMessage =
   // Gemini interrupted the in-progress response (barge-in); the client should
   // flush any queued translated audio.
   | { type: "interrupted" }
+  // Gemini finished a response (`generationComplete`/`turnComplete`); marks an
+  // utterance boundary so the client ends the current caption and starts the
+  // next translation on a fresh one.
+  | { type: "turnComplete" }
   | { type: "error"; code: LiveTranslationErrorCode; message: string; retryable: boolean }
   | { type: "closed"; reason: string };
 

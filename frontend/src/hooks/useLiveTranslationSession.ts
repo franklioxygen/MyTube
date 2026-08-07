@@ -41,6 +41,10 @@ export interface UseLiveTranslationSessionOptions {
   onTranscript?: (event: LiveTranslationTranscriptEvent) => void;
   /** Gemini cut its in-progress response short (barge-in); the current caption is stale. */
   onInterrupted?: () => void;
+  /** Gemini finished a response (turn boundary); the current caption should end
+   * so the next translation starts fresh. Unlike an interrupt, queued translated
+   * audio is kept — the finished translation still plays. */
+  onTurnComplete?: () => void;
   /** Injectable for tests; default to the real controllers. */
   captureController?: LiveTranslationAudioCaptureController;
   playbackController?: TranslatedAudioPlaybackController;
@@ -67,7 +71,14 @@ function buildLiveTranslationWsUrl(wsPath: string): string {
 export function useLiveTranslationSession(
   options: UseLiveTranslationSessionOptions,
 ): UseLiveTranslationSessionResult {
-  const { videoElement, videoId, onTranscript, onInterrupted, originalAudioWithSubtitles } = options;
+  const {
+    videoElement,
+    videoId,
+    onTranscript,
+    onInterrupted,
+    onTurnComplete,
+    originalAudioWithSubtitles,
+  } = options;
   const defaultCapture = useLiveTranslationAudioCapture();
   const defaultPlayback = useTranslatedAudioPlayback();
   const capture = options.captureController ?? defaultCapture;
@@ -95,6 +106,7 @@ export function useLiveTranslationSession(
   const videoElementRef = useRef(videoElement);
   const onTranscriptRef = useRef(onTranscript);
   const onInterruptedRef = useRef(onInterrupted);
+  const onTurnCompleteRef = useRef(onTurnComplete);
   const latestOriginalAudioWithSubtitlesRef = useRef(false);
   const sessionOriginalAudioWithSubtitlesRef = useRef(false);
 
@@ -109,6 +121,10 @@ export function useLiveTranslationSession(
   useEffect(() => {
     onInterruptedRef.current = onInterrupted;
   }, [onInterrupted]);
+
+  useEffect(() => {
+    onTurnCompleteRef.current = onTurnComplete;
+  }, [onTurnComplete]);
 
   useEffect(() => {
     latestOriginalAudioWithSubtitlesRef.current = !!originalAudioWithSubtitles;
@@ -271,6 +287,12 @@ export function useLiveTranslationSession(
           // the abandoned subtitle.
           playback.flush();
           onInterruptedRef.current?.();
+          break;
+        case 'turnComplete':
+          // Gemini finished a response: end the current caption so the next
+          // translation is not coalesced onto it. Queued translated audio is
+          // kept — unlike an interrupt, the finished translation still plays.
+          onTurnCompleteRef.current?.();
           break;
         case 'error':
           fail(message.code, message.message, message.retryable);
