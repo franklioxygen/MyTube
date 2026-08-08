@@ -26,11 +26,10 @@ import { LiveTranslationTranscriptEvent } from './useLiveTranslationSession';
 
 // How long a completed caption lingers after its last delta.
 const DEFAULT_CUE_DURATION_S = 4;
-// After `turnComplete`, keep the caption open this long so a final transcription
-// delta delivered out of order (the Live API does not order transcription against
-// other messages) still coalesces onto the finishing turn. Comfortably longer
-// than the gap between a turn's own frames, yet far shorter than the pause before
-// the next translated turn, so it neither splits this turn nor merges the next.
+// After `turnComplete`, wait this long for the finishing turn's out-of-order
+// trailing delta (the Live API does not order transcription against other
+// messages). Only that first delta is absorbed — `addCue` then seals — so the
+// window bounds how long to wait for it, not how long the cue accepts new text.
 const TURN_DRAIN_MS = 400;
 
 const setTextTrackMode = (track: TextTrack, mode: TextTrackMode) => {
@@ -82,6 +81,9 @@ export function useLiveTranslationSubtitleTrack(
   // In-progress caption being built from the current utterance's deltas.
   const activeCueRef = useRef<VTTCue | null>(null);
   const activeCueTextRef = useRef('');
+  // True after `turnComplete` until the finishing turn's trailing delta (if any)
+  // is absorbed, or the drain window elapses. Guards the drain window.
+  const turnEndedRef = useRef(false);
   // Pending `finishTurn` drain timer, if a turn boundary is awaiting late deltas.
   const drainTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -94,6 +96,7 @@ export function useLiveTranslationSubtitleTrack(
 
   const resetAccumulation = useCallback(() => {
     clearDrainTimer();
+    turnEndedRef.current = false;
     activeCueRef.current = null;
     activeCueTextRef.current = '';
   }, [clearDrainTimer]);
@@ -178,6 +181,12 @@ export function useLiveTranslationSubtitleTrack(
       const start = Math.max(0, baseTime);
       const active = activeCueRef.current;
 
+      // A delta arriving after `turnComplete` (within the drain window) is the
+      // finishing turn's out-of-order trailing text. Absorb this single delta
+      // into that turn, then hard-seal below so the NEXT turn opens its own cue —
+      // the drain never stays open to a whole subsequent turn.
+      const draining = turnEndedRef.current;
+
       // Continue the current caption. Utterance boundaries arrive explicitly —
       // Gemini turn complete / barge-in via `endUtterance`, and seeks via the
       // `seeking` listener above, both of which clear the accumulator — so
@@ -199,45 +208,53 @@ export function useLiveTranslationSubtitleTrack(
           track.addCue(cue);
           activeCueRef.current = cue;
           activeCueTextRef.current = combined;
-          return;
-        }
-
-        const display = normalizeCueText(delta);
-        if (!display) {
-          // Leading whitespace-only delta of a new utterance: nothing to show
-          // yet, but anchor the accumulation so the next delta continues it.
-          activeCueRef.current = null;
-          activeCueTextRef.current = '';
-          return;
-        }
-
-        // New utterance: end any still-showing prior caption at this start so it
-        // does not linger and stack beneath the new one.
-        const cues = track.cues;
-        if (cues) {
-          for (let i = cues.length - 1; i >= 0; i--) {
-            const cue = cues[i];
-            if (!cue || cue.endTime <= start) {
-              continue;
+        } else {
+          const display = normalizeCueText(delta);
+          if (display) {
+            // New utterance: end any still-showing prior caption at this start so
+            // it does not linger and stack beneath the new one.
+            const cues = track.cues;
+            if (cues) {
+              for (let i = cues.length - 1; i >= 0; i--) {
+                const cue = cues[i];
+                if (!cue || cue.endTime <= start) {
+                  continue;
+                }
+                if (cue.startTime >= start) {
+                  track.removeCue(cue);
+                } else {
+                  cue.endTime = start;
+                }
+              }
             }
-            if (cue.startTime >= start) {
-              track.removeCue(cue);
-            } else {
-              cue.endTime = start;
-            }
+            const cue = new VTTCue(start, start + DEFAULT_CUE_DURATION_S, display);
+            track.addCue(cue);
+            activeCueRef.current = cue;
+            activeCueTextRef.current = delta;
+          } else {
+            // Leading whitespace-only delta of a new utterance: nothing to show
+            // yet, but anchor the accumulation so the next delta continues it.
+            activeCueRef.current = null;
+            activeCueTextRef.current = '';
           }
         }
-        const cue = new VTTCue(start, start + DEFAULT_CUE_DURATION_S, display);
-        track.addCue(cue);
-        activeCueRef.current = cue;
-        activeCueTextRef.current = delta;
+
+        if (draining) {
+          // The finishing turn's trailing delta has been absorbed; seal now so a
+          // following (next-turn) delta starts a fresh cue instead of extending
+          // this one — even if it also lands inside the drain window.
+          turnEndedRef.current = false;
+          clearDrainTimer();
+          activeCueRef.current = null;
+          activeCueTextRef.current = '';
+        }
       } catch {
         // Malformed cue: drop the in-progress caption so the next delta starts clean.
         activeCueRef.current = null;
         activeCueTextRef.current = '';
       }
     },
-    [ensureTrack, videoElement],
+    [ensureTrack, videoElement, clearDrainTimer],
   );
 
   // Barge-in (interrupted): the in-progress response is abandoned, so stop
@@ -248,15 +265,16 @@ export function useLiveTranslationSubtitleTrack(
   }, [resetAccumulation]);
 
   // Gemini `turnComplete`: the turn is done, but its final transcription delta
-  // may still be in flight. Open a drain window so any delta arriving within it
-  // belongs to the finishing turn — coalescing onto the current caption, or
-  // opening the turn's caption if `turnComplete` beat the first delta entirely.
-  // When the window elapses the accumulator resets and the next turn starts a
-  // fresh cue. The timer is armed even with no active cue so the boundary is not
-  // lost before the first transcript. A hard boundary (barge-in / seek, via
-  // resetAccumulation) cancels the pending drain.
+  // may still be in flight (the Live API does not order transcription against
+  // other messages). Open a bounded drain: the FIRST delta within the window is
+  // absorbed into the finishing turn (coalesced onto its cue, or opening it if
+  // `turnComplete` beat the first delta), and `addCue` then seals — so the drain
+  // is never open to a whole subsequent turn, only to that one trailing delta.
+  // If no delta arrives, the window elapses and the accumulator resets. A hard
+  // boundary (barge-in / seek, via resetAccumulation) cancels the pending drain.
   const finishTurn = useCallback(() => {
     clearDrainTimer();
+    turnEndedRef.current = true;
     drainTimerRef.current = setTimeout(() => {
       drainTimerRef.current = null;
       resetAccumulation();

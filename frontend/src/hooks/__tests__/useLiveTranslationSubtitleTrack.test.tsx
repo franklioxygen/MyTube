@@ -211,6 +211,33 @@ describe('useLiveTranslationSubtitleTrack', () => {
     }
   });
 
+  it('does not merge the next turn even when it arrives within the drain window', () => {
+    vi.useFakeTimers();
+    try {
+      const { el, track } = makeFakeVideo();
+      const { result } = renderHook(() =>
+        useLiveTranslationSubtitleTrack(el, 'en', 'Live'),
+      );
+      act(() => result.current.addCue({ kind: 'output', text: '早', mediaTime: 2 }));
+      act(() => result.current.finishTurn());
+      // The finishing turn's trailing delta is absorbed (still within the window).
+      act(() => result.current.addCue({ kind: 'output', text: '。', mediaTime: 2 }));
+      expect(track.cues).toHaveLength(1);
+      expect((track.cues[0] as FakeVTTCue).text).toBe('早。');
+
+      // The NEXT turn produces output while the 400ms window is still open (no
+      // timer fired). It must open its own cue, not extend the finished caption.
+      act(() => result.current.addCue({ kind: 'output', text: '晚', mediaTime: 3 }));
+
+      expect(track.cues).toHaveLength(2);
+      expect((track.cues[0] as FakeVTTCue).text).toBe('早。');
+      expect((track.cues[1] as FakeVTTCue).text).toBe('晚');
+      expect((track.cues[1] as FakeVTTCue).startTime).toBe(3);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('retains the boundary when finishTurn precedes the first transcript', () => {
     vi.useFakeTimers();
     try {
