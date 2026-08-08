@@ -156,6 +156,11 @@ export class LiveTranslationGateway {
         // Barge-in: tell the browser to drop any queued translated audio.
         this.send({ type: "interrupted" });
       },
+      onTurnComplete: () => {
+        // Utterance boundary: tell the browser to end the current caption so the
+        // next translation is not coalesced onto the finished one.
+        this.send({ type: "turnComplete" });
+      },
       onError: (code, message, retryable) => {
         this.sendError(code, message, retryable);
       },

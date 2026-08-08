@@ -270,6 +270,20 @@ describe("LiveTranslationGateway", () => {
     expect(browser.typed("interrupted")).toHaveLength(1);
   });
 
+  it("forwards a Gemini turn boundary to the browser", () => {
+    const { browser, gemini, gateway } = makeGateway();
+    gateway.start();
+    gemini.open();
+    gemini.message({ setupComplete: {} });
+
+    gemini.message({ serverContent: { turnComplete: true } });
+    expect(browser.typed("turnComplete")).toHaveLength(1);
+
+    // generationComplete alone is not a turn boundary and must not forward.
+    gemini.message({ serverContent: { generationComplete: true } });
+    expect(browser.typed("turnComplete")).toHaveLength(1);
+  });
+
   it("does not forward audio while paused", () => {
     const { browser, gemini, gateway } = makeGateway();
     gateway.start();

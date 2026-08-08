@@ -108,7 +108,11 @@ describe('useLiveTranslationSession', () => {
 
   function setup(
     onTranscript?: (e: LiveTranslationTranscriptEvent) => void,
-    options: { originalAudioWithSubtitles?: boolean } = {},
+    options: {
+      originalAudioWithSubtitles?: boolean;
+      onInterrupted?: () => void;
+      onTurnComplete?: () => void;
+    } = {},
   ) {
     const videoElement = createFakeVideo();
     const { capture, playback } = makeControllers();
@@ -118,6 +122,8 @@ describe('useLiveTranslationSession', () => {
           videoElement,
           videoId: 'video-1',
           onTranscript,
+          onInterrupted: options.onInterrupted,
+          onTurnComplete: options.onTurnComplete,
           originalAudioWithSubtitles: props.originalAudioWithSubtitles,
           captureController: capture,
           playbackController: playback as any,
@@ -398,8 +404,9 @@ describe('useLiveTranslationSession', () => {
     );
   });
 
-  it('flushes queued translated audio on a server interruption', async () => {
-    const s = setup();
+  it('flushes queued translated audio and notifies on a server interruption', async () => {
+    const onInterrupted = vi.fn();
+    const s = setup(undefined, { onInterrupted });
     const ws = await startAndOpen(s);
     s.playback.flush.mockClear();
 
@@ -408,6 +415,22 @@ describe('useLiveTranslationSession', () => {
     });
 
     expect(s.playback.flush).toHaveBeenCalled();
+    expect(onInterrupted).toHaveBeenCalledOnce();
+  });
+
+  it('notifies on a turn boundary without flushing queued translated audio', async () => {
+    const onTurnComplete = vi.fn();
+    const s = setup(undefined, { onTurnComplete });
+    const ws = await startAndOpen(s);
+    s.playback.flush.mockClear();
+
+    await act(async () => {
+      ws.serverSend({ type: 'turnComplete' });
+    });
+
+    // The finished translation must still play, so audio is not flushed.
+    expect(onTurnComplete).toHaveBeenCalledOnce();
+    expect(s.playback.flush).not.toHaveBeenCalled();
   });
 
   it('sends pause/resume/seek from media element events', async () => {

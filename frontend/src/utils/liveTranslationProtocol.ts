@@ -80,6 +80,9 @@ export type ServerMessage =
   | { type: 'pong'; ts: number }
   // Gemini interrupted the in-progress response (barge-in); flush queued audio.
   | { type: 'interrupted' }
+  // Gemini finished a response (`generationComplete`/`turnComplete`); end the
+  // current caption so the next translation starts on a fresh one.
+  | { type: 'turnComplete' }
   | {
       type: 'error';
       code: LiveTranslationErrorCode;

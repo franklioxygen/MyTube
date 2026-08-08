@@ -130,6 +130,62 @@ describe("GeminiLiveTranslationClient", () => {
     expect(onInterrupted).toHaveBeenCalledOnce();
   });
 
+  it("dispatches a same-frame output transcript before the interruption boundary", () => {
+    const calls: string[] = [];
+    const onOutputTranscript = vi.fn(() => calls.push("output"));
+    const onInterrupted = vi.fn(() => calls.push("interrupted"));
+    const { client, fake } = makeClient({ onOutputTranscript, onInterrupted });
+    client.connect();
+    fake.open();
+    fake.message({ setupComplete: {} });
+
+    // A frame carrying both a trailing abandoned delta and the barge-in must
+    // deliver the delta first, so it closes the current caption rather than
+    // seeding a new cue the replacement turn would be concatenated onto.
+    fake.message({
+      serverContent: {
+        outputTranscription: { text: "abandoned" },
+        interrupted: true,
+      },
+    });
+    expect(calls).toEqual(["output", "interrupted"]);
+  });
+
+  it("emits onTurnComplete only on turnComplete, after the output", () => {
+    const onOutputTranscript = vi.fn();
+    const onTurnComplete = vi.fn();
+    const { client, fake } = makeClient({ onOutputTranscript, onTurnComplete });
+    client.connect();
+    fake.open();
+    fake.message({ setupComplete: {} });
+
+    // generationComplete is NOT a boundary: Gemini's final transcription delta
+    // can still arrive after it, so closing here would split one translation.
+    fake.message({
+      serverContent: {
+        outputTranscription: { text: "wor" },
+        generationComplete: true,
+      },
+    });
+    expect(onOutputTranscript).toHaveBeenCalledWith("wor", undefined);
+    expect(onTurnComplete).not.toHaveBeenCalled();
+
+    // The late delta arrives, then turnComplete closes the caption — delivered
+    // last, so the boundary follows the final text in the same message.
+    fake.message({
+      serverContent: {
+        outputTranscription: { text: "ld" },
+        turnComplete: true,
+      },
+    });
+    expect(onOutputTranscript).toHaveBeenLastCalledWith("ld", undefined);
+    expect(onTurnComplete).toHaveBeenCalledOnce();
+
+    // Ordinary content without a boundary must not trigger it.
+    fake.message({ serverContent: { outputTranscription: { text: "again" } } });
+    expect(onTurnComplete).toHaveBeenCalledOnce();
+  });
+
   it("reports a setup failure when closed before setupComplete (code 1007)", () => {
     const onError = vi.fn();
     const onClose = vi.fn();
