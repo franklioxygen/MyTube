@@ -248,14 +248,14 @@ export function useLiveTranslationSubtitleTrack(
   }, [resetAccumulation]);
 
   // Gemini `turnComplete`: the turn is done, but its final transcription delta
-  // may still be in flight. Keep the caption open for a short drain window so a
-  // late delta coalesces onto it; when the window elapses the accumulator resets
-  // and the next turn starts a fresh cue. A hard boundary (barge-in / seek, via
+  // may still be in flight. Open a drain window so any delta arriving within it
+  // belongs to the finishing turn — coalescing onto the current caption, or
+  // opening the turn's caption if `turnComplete` beat the first delta entirely.
+  // When the window elapses the accumulator resets and the next turn starts a
+  // fresh cue. The timer is armed even with no active cue so the boundary is not
+  // lost before the first transcript. A hard boundary (barge-in / seek, via
   // resetAccumulation) cancels the pending drain.
   const finishTurn = useCallback(() => {
-    if (!activeCueRef.current) {
-      return;
-    }
     clearDrainTimer();
     drainTimerRef.current = setTimeout(() => {
       drainTimerRef.current = null;

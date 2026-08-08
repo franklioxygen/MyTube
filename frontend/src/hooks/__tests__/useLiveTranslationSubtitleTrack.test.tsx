@@ -211,6 +211,33 @@ describe('useLiveTranslationSubtitleTrack', () => {
     }
   });
 
+  it('retains the boundary when finishTurn precedes the first transcript', () => {
+    vi.useFakeTimers();
+    try {
+      const { el, track } = makeFakeVideo();
+      const { result } = renderHook(() =>
+        useLiveTranslationSubtitleTrack(el, 'en', 'Live'),
+      );
+      // The track is created when the session goes active, before any transcript.
+      act(() => result.current.activate());
+      // turnComplete for a short turn arrives before any output delta.
+      act(() => result.current.finishTurn());
+      // That turn's only (late) delta then opens its caption within the window.
+      act(() => result.current.addCue({ kind: 'output', text: 'a', mediaTime: 2 }));
+      // Drain elapses, so the boundary is preserved across the empty-cue case.
+      act(() => vi.advanceTimersByTime(400));
+      // The next turn must NOT be concatenated onto the finished turn's caption.
+      act(() => result.current.addCue({ kind: 'output', text: 'b', mediaTime: 5 }));
+
+      expect(track.cues).toHaveLength(2);
+      expect((track.cues[0] as FakeVTTCue).text).toBe('a');
+      expect((track.cues[1] as FakeVTTCue).text).toBe('b');
+      expect((track.cues[1] as FakeVTTCue).startTime).toBe(5);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('a barge-in cancels a pending finishTurn drain', () => {
     vi.useFakeTimers();
     try {
