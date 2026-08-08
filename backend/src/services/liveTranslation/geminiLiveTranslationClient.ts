@@ -221,12 +221,6 @@ export class GeminiLiveTranslationClient {
       return;
     }
 
-    // Barge-in / interruption: the in-progress model response was cut off, so
-    // already-queued translated audio is stale and must be flushed downstream.
-    if (serverContent.interrupted === true) {
-      this.opts.handlers.onInterrupted?.();
-    }
-
     const input = serverContent.inputTranscription as
       | { text?: string; languageCode?: string }
       | undefined;
@@ -239,6 +233,16 @@ export class GeminiLiveTranslationClient {
       | undefined;
     if (output && typeof output.text === "string") {
       this.opts.handlers.onOutputTranscript?.(output.text, output.languageCode);
+    }
+
+    // Barge-in / interruption: the in-progress model response was cut off, so
+    // already-queued translated audio is stale and must be flushed downstream.
+    // Emit it after this frame's output transcript (as with `turnComplete`) so a
+    // trailing abandoned delta closes the current caption instead of seeding a
+    // fresh cue that the replacement turn would then be concatenated onto. Kept
+    // before the frame's audio so its own translated chunks survive the flush.
+    if (serverContent.interrupted === true) {
+      this.opts.handlers.onInterrupted?.();
     }
 
     const modelTurn = serverContent.modelTurn as
