@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { LiveTranslationTranscriptEvent } from './useLiveTranslationSession';
 
 /**
@@ -17,19 +17,13 @@ import { LiveTranslationTranscriptEvent } from './useLiveTranslationSession';
  * and shows fragments replacing one another — the deltas of a single utterance
  * are coalesced into ONE cue that builds up in place. A fresh cue is started only
  * at an explicit utterance boundary — a Gemini turn boundary or barge-in, both
- * delivered via `endUtterance`, or a seek — never on delivery latency, so a slow
- * delta within a turn does not split the sentence.
+ * delivered via `endUtterance`, or a seek (the media element's `seeking` event) —
+ * never on elapsed playback time, so a slow delta within a turn does not split
+ * the sentence.
  */
 
 // How long a completed caption lingers after its last delta.
 const DEFAULT_CUE_DURATION_S = 4;
-// Largest media-time jump (s) between consecutive deltas still treated as the
-// same caption. Deltas of one turn share nearly the same media time; a seek
-// jumps `currentTime` well beyond what 1x playback advances between deltas, so a
-// jump past this starts a fresh caption instead of stretching the pre-seek cue
-// across the seek. (Output transcripts carry no `mediaTime`, so the hook falls
-// back to the seeked `currentTime`; seeks are not otherwise signalled here.)
-const MAX_CONTINUATION_MEDIA_JUMP_S = 2;
 
 const setTextTrackMode = (track: TextTrack, mode: TextTrackMode) => {
   track.mode = mode;
@@ -73,13 +67,24 @@ export function useLiveTranslationSubtitleTrack(
   // In-progress caption being built from the current utterance's deltas.
   const activeCueRef = useRef<VTTCue | null>(null);
   const activeCueTextRef = useRef('');
-  const lastDeltaMediaRef = useRef(0);
 
   const resetAccumulation = useCallback(() => {
     activeCueRef.current = null;
     activeCueTextRef.current = '';
-    lastDeltaMediaRef.current = 0;
   }, []);
+
+  // A seek is the only timeline discontinuity that ends an utterance without a
+  // Gemini boundary. Detect it explicitly from the media element rather than
+  // inferring it from elapsed playback time, so a slow delta during continuous
+  // playback is never mistaken for a seek and split off.
+  useEffect(() => {
+    if (!videoElement) {
+      return;
+    }
+    const onSeeking = () => resetAccumulation();
+    videoElement.addEventListener('seeking', onSeeking);
+    return () => videoElement.removeEventListener('seeking', onSeeking);
+  }, [videoElement, resetAccumulation]);
 
   const ensureTrack = useCallback((): TextTrack | null => {
     const el = videoElement;
@@ -144,17 +149,14 @@ export function useLiveTranslationSubtitleTrack(
           : (videoElement?.currentTime ?? 0);
       const start = Math.max(0, baseTime);
       const active = activeCueRef.current;
-      const mediaJump = Math.abs(start - lastDeltaMediaRef.current);
-      lastDeltaMediaRef.current = start;
 
-      // Continue the current caption unless the timeline jumped past what normal
-      // playback advances between deltas — i.e. the viewer seeked. Utterance
-      // boundaries (Gemini turn complete / barge-in) arrive explicitly via
-      // `endUtterance`, so delivery latency is never treated as a boundary.
-      const continues =
-        !!active &&
-        start >= active.startTime &&
-        mediaJump <= MAX_CONTINUATION_MEDIA_JUMP_S;
+      // Continue the current caption. Utterance boundaries arrive explicitly —
+      // Gemini turn complete / barge-in via `endUtterance`, and seeks via the
+      // `seeking` listener above, both of which clear the accumulator — so
+      // neither delivery latency nor elapsed playback time splits the sentence.
+      // `start >= active.startTime` still guards a backward timeline (a cue never
+      // extends to an earlier time than it began).
+      const continues = !!active && start >= active.startTime;
 
       try {
         if (continues && active) {

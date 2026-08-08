@@ -29,8 +29,20 @@ function makeFakeVideo(currentTime = 0) {
     },
   };
   const addTextTrack = vi.fn(() => track);
-  const el = { addTextTrack, currentTime } as unknown as HTMLVideoElement;
-  return { el, track, addTextTrack };
+  const listeners: Record<string, Set<EventListener>> = {};
+  const el = {
+    addTextTrack,
+    currentTime,
+    addEventListener: (type: string, cb: EventListener) => {
+      (listeners[type] ??= new Set()).add(cb);
+    },
+    removeEventListener: (type: string, cb: EventListener) => {
+      listeners[type]?.delete(cb);
+    },
+  } as unknown as HTMLVideoElement;
+  const fire = (type: string) =>
+    listeners[type]?.forEach((cb) => cb(new Event(type)));
+  return { el, track, addTextTrack, fire };
 }
 
 describe('useLiveTranslationSubtitleTrack', () => {
@@ -105,17 +117,19 @@ describe('useLiveTranslationSubtitleTrack', () => {
     expect(cue.endTime).toBe(5);
   });
 
-  it('starts a new cue when the timeline jumps (seek)', () => {
-    // Output transcripts carry no mediaTime, so a seek is only observable as a
-    // large jump in currentTime between deltas.
-    const { el, track } = makeFakeVideo(10);
+  it('starts a new cue on a seek (the media element seeking event)', () => {
+    const { el, track, fire } = makeFakeVideo(10);
     const { result } = renderHook(() =>
       useLiveTranslationSubtitleTrack(el, 'en', 'Live'),
     );
     act(() => result.current.addCue({ kind: 'output', text: 'a' }));
 
-    // Viewer seeks forward; the next delta lands far down the timeline.
-    el.currentTime = 50;
+    // Viewer seeks forward: the element fires `seeking`, then the next delta
+    // lands far down the timeline.
+    act(() => {
+      (el as unknown as { currentTime: number }).currentTime = 50;
+      fire('seeking');
+    });
     act(() => result.current.addCue({ kind: 'output', text: 'b' }));
 
     expect(track.cues).toHaveLength(2);
@@ -126,6 +140,27 @@ describe('useLiveTranslationSubtitleTrack', () => {
     expect(second.text).toBe('b');
     expect(second.startTime).toBe(50);
     expect(second.endTime).toBe(54);
+  });
+
+  it('keeps coalescing across a long playback advance without a seek', () => {
+    // A delta delayed past several seconds of playback (no seeking event) still
+    // belongs to the same turn and must not be split off as a new caption.
+    const { el, track } = makeFakeVideo(10);
+    const { result } = renderHook(() =>
+      useLiveTranslationSubtitleTrack(el, 'en', 'Live'),
+    );
+    act(() => result.current.addCue({ kind: 'output', text: 'a' }));
+
+    // currentTime has advanced well beyond any inter-delta media gap, but no
+    // seek occurred.
+    (el as unknown as { currentTime: number }).currentTime = 20;
+    act(() => result.current.addCue({ kind: 'output', text: 'b' }));
+
+    expect(track.cues).toHaveLength(1);
+    const cue = track.cues[0] as FakeVTTCue;
+    expect(cue.text).toBe('ab');
+    expect(cue.startTime).toBe(10);
+    expect(cue.endTime).toBe(24);
   });
 
   it('starts a new cue after endUtterance() (turn boundary / barge-in)', () => {
