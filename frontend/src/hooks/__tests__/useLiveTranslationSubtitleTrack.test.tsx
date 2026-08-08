@@ -211,28 +211,60 @@ describe('useLiveTranslationSubtitleTrack', () => {
     }
   });
 
-  it('does not merge the next turn even when it arrives within the drain window', () => {
+  it('drains multiple late chunks onto the completed turn, then seals', () => {
     vi.useFakeTimers();
     try {
       const { el, track } = makeFakeVideo();
       const { result } = renderHook(() =>
         useLiveTranslationSubtitleTrack(el, 'en', 'Live'),
       );
-      act(() => result.current.addCue({ kind: 'output', text: '早', mediaTime: 2 }));
+      act(() => result.current.addCue({ kind: 'output', text: '早上', mediaTime: 2 }));
       act(() => result.current.finishTurn());
-      // The finishing turn's trailing delta is absorbed (still within the window).
+      // Several trailing chunks of the SAME turn arrive out of order after
+      // turnComplete; every one must coalesce onto the finishing caption.
+      act(() => result.current.addCue({ kind: 'output', text: '好', mediaTime: 2 }));
       act(() => result.current.addCue({ kind: 'output', text: '。', mediaTime: 2 }));
-      expect(track.cues).toHaveLength(1);
-      expect((track.cues[0] as FakeVTTCue).text).toBe('早。');
 
-      // The NEXT turn produces output while the 400ms window is still open (no
-      // timer fired). It must open its own cue, not extend the finished caption.
-      act(() => result.current.addCue({ kind: 'output', text: '晚', mediaTime: 3 }));
+      expect(track.cues).toHaveLength(1);
+      expect((track.cues[0] as FakeVTTCue).text).toBe('早上好。');
+
+      // After the burst goes quiet for a full window, the next turn is fresh.
+      act(() => vi.advanceTimersByTime(400));
+      act(() => result.current.addCue({ kind: 'output', text: '晚', mediaTime: 6 }));
 
       expect(track.cues).toHaveLength(2);
-      expect((track.cues[0] as FakeVTTCue).text).toBe('早。');
       expect((track.cues[1] as FakeVTTCue).text).toBe('晚');
-      expect((track.cues[1] as FakeVTTCue).startTime).toBe(3);
+      expect((track.cues[1] as FakeVTTCue).startTime).toBe(6);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('re-arms the drain window on each late chunk before sealing', () => {
+    vi.useFakeTimers();
+    try {
+      const { el, track } = makeFakeVideo();
+      const { result } = renderHook(() =>
+        useLiveTranslationSubtitleTrack(el, 'en', 'Live'),
+      );
+      act(() => result.current.addCue({ kind: 'output', text: 'a', mediaTime: 2 }));
+      act(() => result.current.finishTurn());
+      // Chunks arrive spaced apart but each within a window of the previous, so
+      // the drain keeps extending and they all stay on one caption.
+      act(() => vi.advanceTimersByTime(300));
+      act(() => result.current.addCue({ kind: 'output', text: 'b', mediaTime: 2 }));
+      act(() => vi.advanceTimersByTime(300));
+      act(() => result.current.addCue({ kind: 'output', text: 'c', mediaTime: 2 }));
+
+      expect(track.cues).toHaveLength(1);
+      expect((track.cues[0] as FakeVTTCue).text).toBe('abc');
+
+      // Only a full quiet window seals; the next turn then opens its own cue.
+      act(() => vi.advanceTimersByTime(400));
+      act(() => result.current.addCue({ kind: 'output', text: 'd', mediaTime: 6 }));
+
+      expect(track.cues).toHaveLength(2);
+      expect((track.cues[1] as FakeVTTCue).text).toBe('d');
     } finally {
       vi.useRealTimers();
     }
