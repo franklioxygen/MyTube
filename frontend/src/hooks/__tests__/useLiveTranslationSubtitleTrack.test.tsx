@@ -240,7 +240,7 @@ describe('useLiveTranslationSubtitleTrack', () => {
     }
   });
 
-  it('re-arms the drain window on each late chunk before sealing', () => {
+  it('keeps the drain window fixed, not extended by late chunks', () => {
     vi.useFakeTimers();
     try {
       const { el, track } = makeFakeVideo();
@@ -249,22 +249,22 @@ describe('useLiveTranslationSubtitleTrack', () => {
       );
       act(() => result.current.addCue({ kind: 'output', text: 'a', mediaTime: 2 }));
       act(() => result.current.finishTurn());
-      // Chunks arrive spaced apart but each within a window of the previous, so
-      // the drain keeps extending and they all stay on one caption.
+      // A trailing chunk within the window coalesces...
       act(() => vi.advanceTimersByTime(300));
       act(() => result.current.addCue({ kind: 'output', text: 'b', mediaTime: 2 }));
-      act(() => vi.advanceTimersByTime(300));
-      act(() => result.current.addCue({ kind: 'output', text: 'c', mediaTime: 2 }));
-
       expect(track.cues).toHaveLength(1);
-      expect((track.cues[0] as FakeVTTCue).text).toBe('abc');
+      expect((track.cues[0] as FakeVTTCue).text).toBe('ab');
 
-      // Only a full quiet window seals; the next turn then opens its own cue.
-      act(() => vi.advanceTimersByTime(400));
-      act(() => result.current.addCue({ kind: 'output', text: 'd', mediaTime: 6 }));
+      // ...but the window is measured from turnComplete and is NOT extended by
+      // that chunk, so it elapses 400ms after the boundary and content beyond it
+      // (a promptly-started next turn) opens its own cue instead of extending
+      // the completed caption indefinitely.
+      act(() => vi.advanceTimersByTime(300));
+      act(() => result.current.addCue({ kind: 'output', text: 'c', mediaTime: 6 }));
 
       expect(track.cues).toHaveLength(2);
-      expect((track.cues[1] as FakeVTTCue).text).toBe('d');
+      expect((track.cues[0] as FakeVTTCue).text).toBe('ab');
+      expect((track.cues[1] as FakeVTTCue).text).toBe('c');
     } finally {
       vi.useRealTimers();
     }

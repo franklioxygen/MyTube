@@ -26,12 +26,11 @@ import { LiveTranslationTranscriptEvent } from './useLiveTranslationSession';
 
 // How long a completed caption lingers after its last delta.
 const DEFAULT_CUE_DURATION_S = 4;
-// Quiet period after the last delta of a finished turn before its caption is
-// sealed. Late trailing chunks (the Live API does not order transcription against
-// other messages) arrive in a tight burst and each re-arms this window, so all of
-// them coalesce; it elapses only once the burst is quiet — comfortably longer
-// than the gap between a turn's own chunks, far shorter than the pause before the
-// next translated turn.
+// Fixed window after `turnComplete` during which out-of-order trailing chunks of
+// the finished turn (the Live API does not order transcription against other
+// messages) still coalesce onto its caption. Comfortably longer than the spread
+// of a turn's own trailing chunks, yet far shorter than the pause before the next
+// translated turn, so it captures the tail without absorbing the next turn.
 const TURN_DRAIN_MS = 400;
 
 const setTextTrackMode = (track: TextTrack, mode: TextTrackMode) => {
@@ -83,9 +82,6 @@ export function useLiveTranslationSubtitleTrack(
   // In-progress caption being built from the current utterance's deltas.
   const activeCueRef = useRef<VTTCue | null>(null);
   const activeCueTextRef = useRef('');
-  // True after `turnComplete` until the finishing turn's trailing delta (if any)
-  // is absorbed, or the drain window elapses. Guards the drain window.
-  const turnEndedRef = useRef(false);
   // Pending `finishTurn` drain timer, if a turn boundary is awaiting late deltas.
   const drainTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -98,22 +94,9 @@ export function useLiveTranslationSubtitleTrack(
 
   const resetAccumulation = useCallback(() => {
     clearDrainTimer();
-    turnEndedRef.current = false;
     activeCueRef.current = null;
     activeCueTextRef.current = '';
   }, [clearDrainTimer]);
-
-  // (Re)arm the post-`turnComplete` drain window. Each late chunk of the
-  // finishing turn re-arms it, so an out-of-order burst of trailing chunks all
-  // coalesce onto that turn; the accumulator resets only once the burst goes
-  // quiet for a full window, before the next turn (separated by a real gap).
-  const armDrain = useCallback(() => {
-    clearDrainTimer();
-    drainTimerRef.current = setTimeout(() => {
-      drainTimerRef.current = null;
-      resetAccumulation();
-    }, TURN_DRAIN_MS);
-  }, [clearDrainTimer, resetAccumulation]);
 
   // Cancel any pending drain timer if the element/hook goes away.
   useEffect(() => clearDrainTimer, [clearDrainTimer]);
@@ -195,13 +178,6 @@ export function useLiveTranslationSubtitleTrack(
       const start = Math.max(0, baseTime);
       const active = activeCueRef.current;
 
-      // Deltas arriving after `turnComplete` (within the drain window) are the
-      // finishing turn's out-of-order trailing text — there may be several. Each
-      // coalesces onto that turn and re-arms the window below, so the whole
-      // trailing burst stays attached; the accumulator seals once the burst goes
-      // quiet, before the next turn (separated by a real gap) begins.
-      const draining = turnEndedRef.current;
-
       // Continue the current caption. Utterance boundaries arrive explicitly —
       // Gemini turn complete / barge-in via `endUtterance`, and seeks via the
       // `seeking` listener above, both of which clear the accumulator — so
@@ -253,21 +229,13 @@ export function useLiveTranslationSubtitleTrack(
             activeCueTextRef.current = '';
           }
         }
-
-        if (draining) {
-          // A late chunk of the finishing turn was just absorbed; re-arm the
-          // window so any further trailing chunks in the same burst also coalesce.
-          // The accumulator resets only after the burst is quiet for a full
-          // window, so the next turn opens its own cue.
-          armDrain();
-        }
       } catch {
         // Malformed cue: drop the in-progress caption so the next delta starts clean.
         activeCueRef.current = null;
         activeCueTextRef.current = '';
       }
     },
-    [ensureTrack, videoElement, armDrain],
+    [ensureTrack, videoElement],
   );
 
   // Barge-in (interrupted): the in-progress response is abandoned, so stop
@@ -278,17 +246,28 @@ export function useLiveTranslationSubtitleTrack(
   }, [resetAccumulation]);
 
   // Gemini `turnComplete`: the turn is done, but its transcription may still be
-  // in flight (the Live API does not order transcription against other messages),
-  // and may span several deltas. Open the drain window: deltas arriving within it
-  // coalesce onto the finishing turn and re-arm the window (see `addCue`), so all
-  // trailing chunks stay attached; if none arrives, the window elapses and the
-  // accumulator resets so the next turn is fresh. The window is armed even with
-  // no active cue, so a `turnComplete` preceding the first delta is not lost. A
-  // hard boundary (barge-in / seek, via resetAccumulation) cancels the drain.
+  // in flight (the Live API does not order transcription against other messages)
+  // and may span several deltas. Open a single fixed drain window from this
+  // boundary: deltas arriving within it coalesce onto the finishing turn (via the
+  // still-active cue), so a burst of out-of-order trailing chunks all stay
+  // attached; when it elapses the accumulator resets so the next turn is fresh.
+  //
+  // The window is FIXED (not re-armed per delta): it bounds how far past the
+  // boundary trailing text is absorbed. Timing cannot distinguish a genuine
+  // trailing chunk from the first chunk of a promptly-starting next turn — Gemini
+  // provides no per-transcript turn id, and the same reordering defeats a backend
+  // turn index — so this caps the worst case (a next turn beginning within the
+  // window merges only its opening, never unboundedly) instead of chasing an
+  // unachievable exact association. Armed even with no active cue, so a
+  // `turnComplete` preceding the first delta is not lost. A hard boundary
+  // (barge-in / seek, via resetAccumulation) cancels the drain.
   const finishTurn = useCallback(() => {
-    turnEndedRef.current = true;
-    armDrain();
-  }, [armDrain]);
+    clearDrainTimer();
+    drainTimerRef.current = setTimeout(() => {
+      drainTimerRef.current = null;
+      resetAccumulation();
+    }, TURN_DRAIN_MS);
+  }, [clearDrainTimer, resetAccumulation]);
 
   return {
     track,
