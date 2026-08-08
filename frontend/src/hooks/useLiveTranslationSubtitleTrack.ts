@@ -16,14 +16,22 @@ import { LiveTranslationTranscriptEvent } from './useLiveTranslationSession';
  * delta into its own cue — which stacks a short sentence into two caption boxes
  * and shows fragments replacing one another — the deltas of a single utterance
  * are coalesced into ONE cue that builds up in place. A fresh cue is started only
- * at an explicit utterance boundary — a Gemini turn boundary or barge-in, both
- * delivered via `endUtterance`, or a seek (the media element's `seeking` event) —
- * never on elapsed playback time, so a slow delta within a turn does not split
- * the sentence.
+ * at an explicit utterance boundary — never on elapsed playback time, so a slow
+ * delta within a turn does not split the sentence. Boundaries are: a Gemini
+ * `turnComplete` (`finishTurn`, a soft boundary that keeps the caption open for a
+ * brief drain window so a late out-of-order transcription delta still coalesces);
+ * a barge-in (`endUtterance`, a hard boundary that discards at once); and a seek
+ * (the media element's `seeking` event, also a hard boundary).
  */
 
 // How long a completed caption lingers after its last delta.
 const DEFAULT_CUE_DURATION_S = 4;
+// After `turnComplete`, keep the caption open this long so a final transcription
+// delta delivered out of order (the Live API does not order transcription against
+// other messages) still coalesces onto the finishing turn. Comfortably longer
+// than the gap between a turn's own frames, yet far shorter than the pause before
+// the next translated turn, so it neither splits this turn nor merges the next.
+const TURN_DRAIN_MS = 400;
 
 const setTextTrackMode = (track: TextTrack, mode: TextTrackMode) => {
   track.mode = mode;
@@ -42,13 +50,20 @@ export interface LiveTranslationSubtitleTrackController {
   deactivate: () => void;
   addCue: (event: LiveTranslationTranscriptEvent) => void;
   /**
-   * Mark an utterance boundary that inter-delta timing alone cannot detect: a
-   * Gemini turn boundary (`generationComplete`/`turnComplete`) or a barge-in
-   * (`interrupted`). The in-progress caption is closed so the next translation
-   * starts a fresh cue instead of being coalesced onto the finished/abandoned
-   * one. The displayed cue stays until the next delta supersedes it.
+   * Hard utterance boundary — a barge-in (`interrupted`) — that discards the
+   * in-progress caption immediately, so the replacement translation starts a
+   * fresh cue. Seeks are handled the same way via the `seeking` listener.
    */
   endUtterance: () => void;
+  /**
+   * Soft utterance boundary — a Gemini `turnComplete`. The Live API does not
+   * guarantee transcription is ordered against other server messages, so the
+   * turn's final `outputTranscription` delta can arrive *after* `turnComplete`.
+   * The caption is therefore kept open for a brief drain window: late deltas of
+   * the finishing turn still coalesce onto it, and only then does the next turn
+   * start a fresh cue.
+   */
+  finishTurn: () => void;
 }
 
 export function useLiveTranslationSubtitleTrack(
@@ -67,11 +82,24 @@ export function useLiveTranslationSubtitleTrack(
   // In-progress caption being built from the current utterance's deltas.
   const activeCueRef = useRef<VTTCue | null>(null);
   const activeCueTextRef = useRef('');
+  // Pending `finishTurn` drain timer, if a turn boundary is awaiting late deltas.
+  const drainTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearDrainTimer = useCallback(() => {
+    if (drainTimerRef.current != null) {
+      clearTimeout(drainTimerRef.current);
+      drainTimerRef.current = null;
+    }
+  }, []);
 
   const resetAccumulation = useCallback(() => {
+    clearDrainTimer();
     activeCueRef.current = null;
     activeCueTextRef.current = '';
-  }, []);
+  }, [clearDrainTimer]);
+
+  // Cancel any pending drain timer if the element/hook goes away.
+  useEffect(() => clearDrainTimer, [clearDrainTimer]);
 
   // A seek is the only timeline discontinuity that ends an utterance without a
   // Gemini boundary. Detect it explicitly from the media element rather than
@@ -212,14 +240,28 @@ export function useLiveTranslationSubtitleTrack(
     [ensureTrack, videoElement],
   );
 
-  // A Gemini turn boundary (generationComplete/turnComplete) or barge-in
-  // (interrupted) ends the current utterance. Stop accumulating so the next
-  // delta opens a fresh cue; the finished cue is left on screen until then, when
-  // the new-utterance path truncates it — matching how any new utterance
-  // supersedes the previous one.
+  // Barge-in (interrupted): the in-progress response is abandoned, so stop
+  // accumulating immediately and let the next delta open a fresh cue. The
+  // finished cue stays on screen until the new-utterance path truncates it.
   const endUtterance = useCallback(() => {
     resetAccumulation();
   }, [resetAccumulation]);
+
+  // Gemini `turnComplete`: the turn is done, but its final transcription delta
+  // may still be in flight. Keep the caption open for a short drain window so a
+  // late delta coalesces onto it; when the window elapses the accumulator resets
+  // and the next turn starts a fresh cue. A hard boundary (barge-in / seek, via
+  // resetAccumulation) cancels the pending drain.
+  const finishTurn = useCallback(() => {
+    if (!activeCueRef.current) {
+      return;
+    }
+    clearDrainTimer();
+    drainTimerRef.current = setTimeout(() => {
+      drainTimerRef.current = null;
+      resetAccumulation();
+    }, TURN_DRAIN_MS);
+  }, [clearDrainTimer, resetAccumulation]);
 
   return {
     track,
@@ -229,5 +271,6 @@ export function useLiveTranslationSubtitleTrack(
     deactivate,
     addCue,
     endUtterance,
+    finishTurn,
   };
 }

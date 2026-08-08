@@ -163,23 +163,76 @@ describe('useLiveTranslationSubtitleTrack', () => {
     expect(cue.endTime).toBe(24);
   });
 
-  it('starts a new cue after endUtterance() (turn boundary / barge-in)', () => {
+  it('starts a new cue immediately after endUtterance() (barge-in)', () => {
     const { el, track } = makeFakeVideo();
     const { result } = renderHook(() =>
       useLiveTranslationSubtitleTrack(el, 'en', 'Live'),
     );
     act(() => result.current.addCue({ kind: 'output', text: '好的，', mediaTime: 2 }));
-    // Explicit utterance boundary (Gemini turn complete or barge-in).
+    // Hard boundary (barge-in): the in-progress caption is abandoned at once.
     act(() => result.current.endUtterance());
-    // The next translation arrives immediately at the same media time.
+    // The replacement translation arrives at the same media time.
     act(() => result.current.addCue({ kind: 'output', text: '你好', mediaTime: 2 }));
 
-    // The next translation opens a fresh cue instead of coalescing onto the
-    // previous one, so back-to-back short utterances do not merge into one line.
+    // The replacement opens a fresh cue instead of coalescing onto the abandoned
+    // one, so back-to-back utterances do not merge into one line.
     expect(track.cues).toHaveLength(1);
     const cue = track.cues[0] as FakeVTTCue;
     expect(cue.text).toBe('你好');
     expect(cue.startTime).toBe(2);
+  });
+
+  it('coalesces a late transcript delivered after finishTurn (out-of-order)', () => {
+    vi.useFakeTimers();
+    try {
+      const { el, track } = makeFakeVideo();
+      const { result } = renderHook(() =>
+        useLiveTranslationSubtitleTrack(el, 'en', 'Live'),
+      );
+      act(() => result.current.addCue({ kind: 'output', text: '好的，战斗', mediaTime: 2 }));
+      // turnComplete arrives before the turn's final transcription delta.
+      act(() => result.current.finishTurn());
+      // The trailing delta of the SAME turn is delivered late (within the drain
+      // window) and must join the finishing caption, not seed a new cue.
+      act(() => result.current.addCue({ kind: 'output', text: '。', mediaTime: 2 }));
+
+      expect(track.cues).toHaveLength(1);
+      expect((track.cues[0] as FakeVTTCue).text).toBe('好的，战斗。');
+
+      // After the drain window, the next turn starts a fresh cue.
+      act(() => vi.advanceTimersByTime(400));
+      act(() => result.current.addCue({ kind: 'output', text: '你好', mediaTime: 5 }));
+
+      expect(track.cues).toHaveLength(2);
+      expect((track.cues[1] as FakeVTTCue).text).toBe('你好');
+      expect((track.cues[1] as FakeVTTCue).startTime).toBe(5);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('a barge-in cancels a pending finishTurn drain', () => {
+    vi.useFakeTimers();
+    try {
+      const { el, track } = makeFakeVideo();
+      const { result } = renderHook(() =>
+        useLiveTranslationSubtitleTrack(el, 'en', 'Live'),
+      );
+      act(() => result.current.addCue({ kind: 'output', text: 'a', mediaTime: 2 }));
+      act(() => result.current.finishTurn());
+      // Barge-in before the drain elapses: hard reset now, so the next delta is
+      // a new cue even though the drain window had not fired.
+      act(() => result.current.endUtterance());
+      act(() => result.current.addCue({ kind: 'output', text: 'b', mediaTime: 2 }));
+      // Late timer firing must not clobber the new caption.
+      act(() => vi.advanceTimersByTime(400));
+      act(() => result.current.addCue({ kind: 'output', text: 'c', mediaTime: 2 }));
+
+      expect(track.cues).toHaveLength(1);
+      expect((track.cues[0] as FakeVTTCue).text).toBe('bc');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('coalesces deltas without mediaTime using current playback time', () => {
