@@ -14,14 +14,22 @@ import { LiveTranslationTranscriptEvent } from './useLiveTranslationSession';
  * Gemini streams the translation of one spoken utterance as many small
  * `outputTranscript` deltas (e.g. "好的，" then "战斗。"). Rather than turning each
  * delta into its own cue — which stacks a short sentence into two caption boxes
- * and shows fragments replacing one another — the deltas of a single utterance
- * are coalesced into ONE cue that builds up in place. A fresh cue is started only
- * at an explicit utterance boundary — never on elapsed playback time, so a slow
- * delta within a turn does not split the sentence. Boundaries are: a Gemini
- * `turnComplete` (`finishTurn`, a soft boundary that keeps the caption open for a
- * brief drain window so a late out-of-order transcription delta still coalesces);
- * a barge-in (`endUtterance`, a hard boundary that discards at once); and a seek
- * (the media element's `seeking` event, also a hard boundary).
+ * and shows fragments replacing one another — deltas are coalesced into ONE cue
+ * that builds up in place, and a fresh cue starts at a caption boundary:
+ *
+ * - the accumulated text ends a sentence (terminal punctuation) — the natural
+ *   per-sentence captioning viewers expect, and the split that keeps working
+ *   during continuous speech where `turnComplete` may not arrive for a long time;
+ * - the caption would overflow roughly two subtitle lines — a hard cap so a
+ *   run-on translation can never grow into a wall of text;
+ * - a Gemini `turnComplete` (`finishTurn`, a soft boundary that keeps the caption
+ *   open for a brief drain window so late out-of-order trailing deltas coalesce);
+ * - a barge-in (`endUtterance`) or a seek (the `seeking` listener), hard
+ *   boundaries that discard the in-progress caption at once.
+ *
+ * A finished cue is truncated when its successor starts and otherwise expires
+ * `DEFAULT_CUE_DURATION_S` after its last delta, so captions always leave the
+ * screen.
  */
 
 // How long a completed caption lingers after its last delta.
@@ -32,6 +40,12 @@ const DEFAULT_CUE_DURATION_S = 4;
 // of a turn's own trailing chunks, yet far shorter than the pause before the next
 // translated turn, so it captures the tail without absorbing the next turn.
 const TURN_DRAIN_MS = 400;
+// Accumulated text ending in terminal punctuation (optionally followed by
+// closing quotes/brackets) completes a caption; the next delta starts a new cue.
+const SENTENCE_END_RE = /[.。．!！?？…]["'”’」』)）]*\s*$/;
+// Maximum caption size before a new cue is forced, measured in terminal columns
+// (CJK glyphs are double-width): about two 42-column subtitle lines.
+const MAX_CUE_COLUMNS = 84;
 
 const setTextTrackMode = (track: TextTrack, mode: TextTrackMode) => {
   track.mode = mode;
@@ -41,6 +55,17 @@ const setTextTrackMode = (track: TextTrack, mode: TextTrackMode) => {
 // trim the ends for display. CJK text has no inter-character spaces, so this is
 // a no-op there; latin deltas carry their own spacing, which is preserved.
 const normalizeCueText = (text: string): string => text.replace(/\s+/g, ' ').trim();
+
+// Approximate rendered width in columns; CJK and other fullwidth glyphs
+// (codepoints past the CJK Radicals block) occupy two columns.
+const textColumns = (text: string): number => {
+  let columns = 0;
+  for (const ch of text) {
+    const cp = ch.codePointAt(0) ?? 0;
+    columns += cp > 0x2e7f ? 2 : 1;
+  }
+  return columns;
+};
 
 export interface LiveTranslationSubtitleTrackController {
   track: TextTrack | null;
@@ -177,21 +202,30 @@ export function useLiveTranslationSubtitleTrack(
           : (videoElement?.currentTime ?? 0);
       const start = Math.max(0, baseTime);
       const active = activeCueRef.current;
+      const priorText = activeCueTextRef.current;
 
-      // Continue the current caption. Utterance boundaries arrive explicitly —
-      // Gemini turn complete / barge-in via `endUtterance`, and seeks via the
-      // `seeking` listener above, both of which clear the accumulator — so
-      // neither delivery latency nor elapsed playback time splits the sentence.
-      // `start >= active.startTime` still guards a backward timeline (a cue never
-      // extends to an earlier time than it began).
-      const continues = !!active && start >= active.startTime;
+      // Continue the current caption unless a caption boundary is reached.
+      // Explicit boundaries (turn complete / barge-in / seek) clear the
+      // accumulator elsewhere; here the content itself splits the stream:
+      // - the accumulated text already ends a sentence, so the next delta is a
+      //   new caption — the per-sentence display viewers expect, and the split
+      //   that keeps working through continuous speech with no turnComplete;
+      // - appending would overflow ~two subtitle lines, a hard cap so a run-on
+      //   translation cannot grow into a wall of text that never leaves;
+      // - `start >= active.startTime` still guards a backward timeline (a cue
+      //   never extends to an earlier time than it began).
+      const sentenceDone = SENTENCE_END_RE.test(priorText);
+      const wouldOverflow =
+        textColumns(normalizeCueText(priorText + delta)) > MAX_CUE_COLUMNS;
+      const continues =
+        !!active && start >= active.startTime && !sentenceDone && !wouldOverflow;
 
       try {
         if (continues && active) {
           // Rebuild the single cue with the accumulated text. Replacing the cue
           // (rather than mutating `text` in place) guarantees the displayed
           // caption updates across browsers.
-          const combined = activeCueTextRef.current + delta;
+          const combined = priorText + delta;
           const display = normalizeCueText(combined);
           const end = Math.max(active.endTime, start + DEFAULT_CUE_DURATION_S);
           track.removeCue(active);

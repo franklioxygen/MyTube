@@ -98,6 +98,52 @@ describe('useLiveTranslationSubtitleTrack', () => {
     expect(cue.endTime).toBe(6);
   });
 
+  it('starts a new cue after a completed sentence, replacing the old caption', () => {
+    // Continuous speech may never produce a turnComplete, so the sentence itself
+    // is the caption boundary: the finished sentence must not keep growing.
+    const { el, track } = makeFakeVideo();
+    const { result } = renderHook(() =>
+      useLiveTranslationSubtitleTrack(el, 'en', 'Live'),
+    );
+    act(() => result.current.addCue({ kind: 'output', text: '好的，', mediaTime: 2 }));
+    act(() => result.current.addCue({ kind: 'output', text: '战斗。', mediaTime: 2 }));
+    act(() => result.current.addCue({ kind: 'output', text: '继续', mediaTime: 4 }));
+    act(() => result.current.addCue({ kind: 'output', text: '前进。', mediaTime: 4 }));
+
+    expect(track.cues).toHaveLength(2);
+    const first = track.cues[0] as FakeVTTCue;
+    const second = track.cues[1] as FakeVTTCue;
+    expect(first.text).toBe('好的，战斗。');
+    // The finished sentence leaves the screen when its successor starts.
+    expect(first.endTime).toBe(4);
+    expect(second.text).toBe('继续前进。');
+    expect(second.startTime).toBe(4);
+  });
+
+  it('forces a new cue when the caption would overflow two lines', () => {
+    // A run-on translation without punctuation must not grow into a wall of
+    // text; ~84 columns (two 42-column lines) caps a single caption.
+    const { el, track } = makeFakeVideo();
+    const { result } = renderHook(() =>
+      useLiveTranslationSubtitleTrack(el, 'en', 'Live'),
+    );
+    act(() => result.current.addCue({ kind: 'output', text: 'a'.repeat(60), mediaTime: 2 }));
+    act(() => result.current.addCue({ kind: 'output', text: 'b'.repeat(20), mediaTime: 3 }));
+    // 80 columns so far — still one caption.
+    expect(track.cues).toHaveLength(1);
+
+    act(() => result.current.addCue({ kind: 'output', text: 'c'.repeat(10), mediaTime: 4 }));
+
+    // Appending would exceed the cap: the overflow starts a fresh caption.
+    expect(track.cues).toHaveLength(2);
+    const first = track.cues[0] as FakeVTTCue;
+    const second = track.cues[1] as FakeVTTCue;
+    expect(first.text).toBe('a'.repeat(60) + 'b'.repeat(20));
+    expect(first.endTime).toBe(4);
+    expect(second.text).toBe('c'.repeat(10));
+    expect(second.startTime).toBe(4);
+  });
+
   it('keeps coalescing across a delivery gap without an explicit boundary', () => {
     // A slow delta (network hiccup / slow generation) still belongs to the same
     // turn; only an explicit boundary or a seek splits the caption, never latency.
