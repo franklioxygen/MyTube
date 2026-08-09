@@ -198,6 +198,36 @@ describe('useLiveTranslationSubtitleTrack', () => {
     );
   });
 
+  it('keeps split pieces across several follow-up deltas before the queue plays', () => {
+    // The first follow-up is placed at the watermark, i.e. itself ahead of
+    // playback. A second delta still arriving at an earlier media time must be
+    // lifted to that anchor and coalesce, not open a caption behind it and purge
+    // both the follow-up and the queued pieces.
+    const { el, track } = makeFakeVideo();
+    const { result } = renderHook(() =>
+      useLiveTranslationSubtitleTrack(el, 'en', 'Live'),
+    );
+    act(() => result.current.addCue({ kind: 'output', text: 'a'.repeat(200), mediaTime: 0 }));
+    const splitCount = track.cues.length;
+
+    act(() => result.current.addCue({ kind: 'output', text: 'one', mediaTime: 0 }));
+    // Playback has not reached the queued interval yet.
+    act(() => result.current.addCue({ kind: 'output', text: 'two', mediaTime: 0.2 }));
+
+    const cues = track.cues as FakeVTTCue[];
+    // Every split piece survives, with the whole translation still on the track.
+    const pieces = cues.filter((c) => c.text.startsWith('a'));
+    expect(pieces).toHaveLength(splitCount);
+    expect(pieces.map((c) => c.text).join('')).toBe('a'.repeat(200));
+    // The two follow-ups coalesced into the single caption after the queue.
+    expect(cues).toHaveLength(splitCount + 1);
+    const tail = cues[cues.length - 1];
+    expect(tail.text).toBe('onetwo');
+    expect(tail.startTime).toBeGreaterThanOrEqual(
+      Math.max(...pieces.map((c) => c.endTime)),
+    );
+  });
+
   it('breaks an oversized delta at word boundaries for spaced text', () => {
     const { el, track } = makeFakeVideo();
     const { result } = renderHook(() =>

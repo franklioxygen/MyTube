@@ -141,9 +141,12 @@ export function useLiveTranslationSubtitleTrack(
   // In-progress caption being built from the current utterance's deltas.
   const activeCueRef = useRef<VTTCue | null>(null);
   const activeCueTextRef = useRef('');
-  // Media time through which split pieces of an oversized delta are already
-  // scheduled. Later deltas anchor at or after it so they neither purge nor cut
-  // short the queued pieces; 0 when nothing is queued.
+  // Media time through which content is already scheduled ahead of playback,
+  // after splitting an oversized delta. It is a floor for every later anchor, so
+  // deltas queue behind those pieces instead of purging or cutting them short.
+  // It is never cleared on use — only by a hard boundary — because a caption
+  // placed at the watermark is itself in the future; it stops having any effect
+  // once media time passes it.
   const queuedUntilRef = useRef(0);
   // Pending `finishTurn` drain timer, if a turn boundary is awaiting late deltas.
   const drainTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -304,7 +307,12 @@ export function useLiveTranslationSubtitleTrack(
               track.addCue(cue);
               activeCueRef.current = cue;
               activeCueTextRef.current = delta;
-              queuedUntilRef.current = 0;
+              // `queuedUntil` is deliberately left standing: this caption may
+              // itself be anchored ahead of playback (it was pushed past the
+              // queue), so a delta still arriving with an earlier media time must
+              // be lifted to the same anchor and coalesce here, rather than open a
+              // caption behind it and purge the queue. The watermark expires on
+              // its own once media time passes it, since it only acts as a floor.
             } else {
               // Split pieces play in sequence (never stacked) across the window a
               // single caption would have occupied. They are scheduled ahead of
