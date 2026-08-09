@@ -167,6 +167,37 @@ describe('useLiveTranslationSubtitleTrack', () => {
     }
   });
 
+  it('keeps split pieces when a later delta arrives at the same media time', () => {
+    // Split pieces are scheduled ahead of playback. A following delta (likely,
+    // since the pieces span seconds) must not purge them — it queues after.
+    const { el, track } = makeFakeVideo();
+    const { result } = renderHook(() =>
+      useLiveTranslationSubtitleTrack(el, 'en', 'Live'),
+    );
+    act(() => result.current.addCue({ kind: 'output', text: 'a'.repeat(200), mediaTime: 0 }));
+    const splitCount = track.cues.length;
+    expect(splitCount).toBeGreaterThan(1);
+
+    // Same media time as the oversized delta, before the queued pieces play out.
+    act(() => result.current.addCue({ kind: 'output', text: 'next', mediaTime: 0 }));
+
+    const cues = track.cues as FakeVTTCue[];
+    // Every piece survives and the whole translation is still on the track.
+    expect(cues).toHaveLength(splitCount + 1);
+    expect(
+      cues
+        .filter((c) => c.text.startsWith('a'))
+        .map((c) => c.text)
+        .join(''),
+    ).toBe('a'.repeat(200));
+    // The new caption is queued after the pieces rather than on top of them.
+    const added = cues[cues.length - 1];
+    expect(added.text).toBe('next');
+    expect(added.startTime).toBeGreaterThanOrEqual(
+      Math.max(...cues.slice(0, splitCount).map((c) => c.endTime)),
+    );
+  });
+
   it('breaks an oversized delta at word boundaries for spaced text', () => {
     const { el, track } = makeFakeVideo();
     const { result } = renderHook(() =>

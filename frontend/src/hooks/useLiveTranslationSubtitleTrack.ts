@@ -141,6 +141,10 @@ export function useLiveTranslationSubtitleTrack(
   // In-progress caption being built from the current utterance's deltas.
   const activeCueRef = useRef<VTTCue | null>(null);
   const activeCueTextRef = useRef('');
+  // Media time through which split pieces of an oversized delta are already
+  // scheduled. Later deltas anchor at or after it so they neither purge nor cut
+  // short the queued pieces; 0 when nothing is queued.
+  const queuedUntilRef = useRef(0);
   // Pending `finishTurn` drain timer, if a turn boundary is awaiting late deltas.
   const drainTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -155,6 +159,9 @@ export function useLiveTranslationSubtitleTrack(
     clearDrainTimer();
     activeCueRef.current = null;
     activeCueTextRef.current = '';
+    // A hard boundary (barge-in / seek) discards queued pieces too, so later
+    // deltas anchor at their own media time rather than behind a stale queue.
+    queuedUntilRef.current = 0;
   }, [clearDrainTimer]);
 
   // Cancel any pending drain timer if the element/hook goes away.
@@ -234,7 +241,10 @@ export function useLiveTranslationSubtitleTrack(
         typeof event.mediaTime === 'number'
           ? event.mediaTime
           : (videoElement?.currentTime ?? 0);
-      const start = Math.max(0, baseTime);
+      // Never anchor before pieces already scheduled from an oversized delta:
+      // starting inside that queue would truncate or purge those cues and lose
+      // the translation they carry.
+      const start = Math.max(0, baseTime, queuedUntilRef.current);
       const active = activeCueRef.current;
       const priorText = activeCueTextRef.current;
 
@@ -287,25 +297,30 @@ export function useLiveTranslationSubtitleTrack(
               }
             }
             // Gemini may deliver a single large chunk, so apply the cap to the
-            // delta itself rather than trusting it to be short. Any leading
-            // pieces play in sequence (never stacked) and the final piece stays
-            // the open caption that following deltas coalesce onto.
+            // delta itself rather than trusting it to be short.
             const pieces = splitIntoCaptions(display, MAX_CUE_COLUMNS);
-            const slice = DEFAULT_CUE_DURATION_S / pieces.length;
-            pieces.forEach((piece, index) => {
-              const pieceStart = start + index * slice;
-              const isLast = index === pieces.length - 1;
-              const cue = new VTTCue(
-                pieceStart,
-                isLast ? pieceStart + DEFAULT_CUE_DURATION_S : pieceStart + slice,
-                piece,
-              );
+            if (pieces.length === 1) {
+              const cue = new VTTCue(start, start + DEFAULT_CUE_DURATION_S, display);
               track.addCue(cue);
-              if (isLast) {
-                activeCueRef.current = cue;
-                activeCueTextRef.current = piece;
-              }
-            });
+              activeCueRef.current = cue;
+              activeCueTextRef.current = delta;
+              queuedUntilRef.current = 0;
+            } else {
+              // Split pieces play in sequence (never stacked) across the window a
+              // single caption would have occupied. They are scheduled ahead of
+              // playback, so none becomes the active accumulator: a later delta
+              // must not coalesce onto — or, arriving at an earlier media time,
+              // purge — a cue that has not started yet. Accumulation is closed and
+              // `queuedUntil` holds the next delta after the queue instead.
+              const slice = DEFAULT_CUE_DURATION_S / pieces.length;
+              pieces.forEach((piece, index) => {
+                const pieceStart = start + index * slice;
+                track.addCue(new VTTCue(pieceStart, pieceStart + slice, piece));
+              });
+              activeCueRef.current = null;
+              activeCueTextRef.current = '';
+              queuedUntilRef.current = start + DEFAULT_CUE_DURATION_S;
+            }
           } else {
             // Leading whitespace-only delta of a new utterance: nothing to show
             // yet, but anchor the accumulation so the next delta continues it.
