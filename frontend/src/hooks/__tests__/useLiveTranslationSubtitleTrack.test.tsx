@@ -144,6 +144,46 @@ describe('useLiveTranslationSubtitleTrack', () => {
     expect(second.startTime).toBe(4);
   });
 
+  it('splits a single oversized delta instead of one wall-of-text caption', () => {
+    // Gemini is not guaranteed to emit short chunks, so the cap must apply to
+    // the incoming delta itself, not only to accumulated text.
+    const { el, track } = makeFakeVideo();
+    const { result } = renderHook(() =>
+      useLiveTranslationSubtitleTrack(el, 'en', 'Live'),
+    );
+    act(() => result.current.addCue({ kind: 'output', text: 'a'.repeat(200), mediaTime: 0 }));
+
+    expect(track.cues.length).toBeGreaterThan(1);
+    const cues = track.cues as FakeVTTCue[];
+    // No piece exceeds the cap, and nothing is lost.
+    for (const cue of cues) {
+      expect(cue.text.length).toBeLessThanOrEqual(84);
+    }
+    expect(cues.map((c) => c.text).join('')).toBe('a'.repeat(200));
+    // Pieces play in sequence rather than stacking on screen.
+    for (let i = 1; i < cues.length; i++) {
+      expect(cues[i].startTime).toBeGreaterThan(cues[i - 1].startTime);
+      expect(cues[i - 1].endTime).toBeLessThanOrEqual(cues[i].startTime);
+    }
+  });
+
+  it('breaks an oversized delta at word boundaries for spaced text', () => {
+    const { el, track } = makeFakeVideo();
+    const { result } = renderHook(() =>
+      useLiveTranslationSubtitleTrack(el, 'en', 'Live'),
+    );
+    const words = 'lorem ipsum dolor sit amet '.repeat(6).trim();
+    act(() => result.current.addCue({ kind: 'output', text: words, mediaTime: 0 }));
+
+    const cues = track.cues as FakeVTTCue[];
+    expect(cues.length).toBeGreaterThan(1);
+    // Every piece is whole words — no word is cut in half.
+    for (const cue of cues) {
+      expect(words.split(' ')).toEqual(expect.arrayContaining(cue.text.split(' ')));
+    }
+    expect(cues.map((c) => c.text).join(' ')).toBe(words);
+  });
+
   it('keeps coalescing across a delivery gap without an explicit boundary', () => {
     // A slow delta (network hiccup / slow generation) still belongs to the same
     // turn; only an explicit boundary or a seek splits the caption, never latency.

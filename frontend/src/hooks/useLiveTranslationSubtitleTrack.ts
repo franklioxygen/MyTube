@@ -56,15 +56,49 @@ const setTextTrackMode = (track: TextTrack, mode: TextTrackMode) => {
 // a no-op there; latin deltas carry their own spacing, which is preserved.
 const normalizeCueText = (text: string): string => text.replace(/\s+/g, ' ').trim();
 
-// Approximate rendered width in columns; CJK and other fullwidth glyphs
-// (codepoints past the CJK Radicals block) occupy two columns.
+// Approximate rendered width of one glyph in columns; CJK and other fullwidth
+// glyphs (codepoints past the CJK Radicals block) occupy two columns.
+const charColumns = (ch: string): number => ((ch.codePointAt(0) ?? 0) > 0x2e7f ? 2 : 1);
+
 const textColumns = (text: string): number => {
   let columns = 0;
   for (const ch of text) {
-    const cp = ch.codePointAt(0) ?? 0;
-    columns += cp > 0x2e7f ? 2 : 1;
+    columns += charColumns(ch);
   }
   return columns;
+};
+
+// Break text into pieces of at most `maxColumns`, so a single oversized delta
+// cannot become one wall-of-text caption. Space-delimited text breaks at the last
+// space in the piece (kept past the halfway mark so pieces stay substantial),
+// leaving words intact; CJK has no spaces and is cut on the column boundary.
+const splitIntoCaptions = (text: string, maxColumns: number): string[] => {
+  if (textColumns(text) <= maxColumns) {
+    return [text];
+  }
+  const pieces: string[] = [];
+  let current = '';
+  let columns = 0;
+  for (const ch of text) {
+    const width = charColumns(ch);
+    if (columns + width > maxColumns && current) {
+      const lastSpace = current.lastIndexOf(' ');
+      if (lastSpace > 0 && textColumns(current.slice(0, lastSpace)) >= maxColumns / 2) {
+        pieces.push(current.slice(0, lastSpace));
+        current = current.slice(lastSpace + 1);
+      } else {
+        pieces.push(current);
+        current = '';
+      }
+      columns = textColumns(current);
+    }
+    current += ch;
+    columns += width;
+  }
+  if (current) {
+    pieces.push(current);
+  }
+  return pieces;
 };
 
 export interface LiveTranslationSubtitleTrackController {
@@ -252,10 +286,26 @@ export function useLiveTranslationSubtitleTrack(
                 }
               }
             }
-            const cue = new VTTCue(start, start + DEFAULT_CUE_DURATION_S, display);
-            track.addCue(cue);
-            activeCueRef.current = cue;
-            activeCueTextRef.current = delta;
+            // Gemini may deliver a single large chunk, so apply the cap to the
+            // delta itself rather than trusting it to be short. Any leading
+            // pieces play in sequence (never stacked) and the final piece stays
+            // the open caption that following deltas coalesce onto.
+            const pieces = splitIntoCaptions(display, MAX_CUE_COLUMNS);
+            const slice = DEFAULT_CUE_DURATION_S / pieces.length;
+            pieces.forEach((piece, index) => {
+              const pieceStart = start + index * slice;
+              const isLast = index === pieces.length - 1;
+              const cue = new VTTCue(
+                pieceStart,
+                isLast ? pieceStart + DEFAULT_CUE_DURATION_S : pieceStart + slice,
+                piece,
+              );
+              track.addCue(cue);
+              if (isLast) {
+                activeCueRef.current = cue;
+                activeCueTextRef.current = piece;
+              }
+            });
           } else {
             // Leading whitespace-only delta of a new utterance: nothing to show
             // yet, but anchor the accumulation so the next delta continues it.
