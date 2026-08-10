@@ -228,6 +228,64 @@ describe('useLiveTranslationSubtitleTrack', () => {
     );
   });
 
+  it('keeps queued split pieces across a turnComplete drain', () => {
+    // Split cues span seconds — far longer than the 400ms drain — so the soft
+    // turn reset must close accumulation without discarding the queue.
+    vi.useFakeTimers();
+    try {
+      const { el, track } = makeFakeVideo();
+      const { result } = renderHook(() =>
+        useLiveTranslationSubtitleTrack(el, 'en', 'Live'),
+      );
+      act(() => result.current.addCue({ kind: 'output', text: 'a'.repeat(200), mediaTime: 0 }));
+      const splitCount = track.cues.length;
+
+      act(() => result.current.finishTurn());
+      act(() => vi.advanceTimersByTime(400));
+      // The next turn speaks while the queued pieces are still to play.
+      act(() => result.current.addCue({ kind: 'output', text: 'next', mediaTime: 0.5 }));
+
+      const cues = track.cues as FakeVTTCue[];
+      const pieces = cues.filter((c) => c.text.startsWith('a'));
+      expect(pieces).toHaveLength(splitCount);
+      expect(pieces.map((c) => c.text).join('')).toBe('a'.repeat(200));
+      const tail = cues[cues.length - 1];
+      expect(tail.text).toBe('next');
+      expect(tail.startTime).toBeGreaterThanOrEqual(
+        Math.max(...pieces.map((c) => c.endTime)),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('queues a same-anchor successor instead of deleting an unplayed caption', () => {
+    // Follow-ups after a split share one future anchor. When one completes a
+    // sentence, the successor must be scheduled after that unplayed caption
+    // rather than replacing it — its text has not been on screen yet.
+    const { el, track } = makeFakeVideo();
+    const { result } = renderHook(() =>
+      useLiveTranslationSubtitleTrack(el, 'en', 'Live'),
+    );
+    act(() => result.current.addCue({ kind: 'output', text: 'a'.repeat(200), mediaTime: 0 }));
+    const splitCount = track.cues.length;
+
+    act(() => result.current.addCue({ kind: 'output', text: 'first.', mediaTime: 0 }));
+    // Sentence already complete, so this opens a successor at the same anchor.
+    act(() => result.current.addCue({ kind: 'output', text: 'second', mediaTime: 0 }));
+
+    const cues = track.cues as FakeVTTCue[];
+    const texts = cues.map((c) => c.text);
+    // Neither the queued pieces nor the unplayed caption were dropped.
+    expect(texts).toContain('first.');
+    expect(texts).toContain('second');
+    expect(cues.filter((c) => c.text.startsWith('a'))).toHaveLength(splitCount);
+
+    const firstCue = cues.find((c) => c.text === 'first.') as FakeVTTCue;
+    const secondCue = cues.find((c) => c.text === 'second') as FakeVTTCue;
+    expect(secondCue.startTime).toBeGreaterThanOrEqual(firstCue.endTime);
+  });
+
   it('breaks an oversized delta at word boundaries for spaced text', () => {
     const { el, track } = makeFakeVideo();
     const { result } = renderHook(() =>

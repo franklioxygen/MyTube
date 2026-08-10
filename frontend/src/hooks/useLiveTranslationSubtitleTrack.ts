@@ -148,6 +148,9 @@ export function useLiveTranslationSubtitleTrack(
   // placed at the watermark is itself in the future; it stops having any effect
   // once media time passes it.
   const queuedUntilRef = useRef(0);
+  // Whether the active caption was anchored ahead of its delta's media time (it
+  // was pushed past a queue) and so has not played yet.
+  const activeCueAheadRef = useRef(false);
   // Pending `finishTurn` drain timer, if a turn boundary is awaiting late deltas.
   const drainTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -158,14 +161,22 @@ export function useLiveTranslationSubtitleTrack(
     }
   }, []);
 
-  const resetAccumulation = useCallback(() => {
+  // Stop accumulating, so the next delta opens a fresh caption. The queue
+  // watermark is deliberately kept: cues already scheduled ahead of playback are
+  // still going to play, and a later delta must not anchor behind them.
+  const closeAccumulation = useCallback(() => {
     clearDrainTimer();
     activeCueRef.current = null;
     activeCueTextRef.current = '';
-    // A hard boundary (barge-in / seek) discards queued pieces too, so later
-    // deltas anchor at their own media time rather than behind a stale queue.
-    queuedUntilRef.current = 0;
+    activeCueAheadRef.current = false;
   }, [clearDrainTimer]);
+
+  // Hard boundary (barge-in / seek): the scheduled queue is abandoned along with
+  // the accumulation, so later deltas anchor at their own media time again.
+  const resetAccumulation = useCallback(() => {
+    closeAccumulation();
+    queuedUntilRef.current = 0;
+  }, [closeAccumulation]);
 
   // Cancel any pending drain timer if the element/hook goes away.
   useEffect(() => clearDrainTimer, [clearDrainTimer]);
@@ -247,7 +258,7 @@ export function useLiveTranslationSubtitleTrack(
       // Never anchor before pieces already scheduled from an oversized delta:
       // starting inside that queue would truncate or purge those cues and lose
       // the translation they carry.
-      const start = Math.max(0, baseTime, queuedUntilRef.current);
+      let start = Math.max(0, baseTime, queuedUntilRef.current);
       const active = activeCueRef.current;
       const priorText = activeCueTextRef.current;
 
@@ -266,6 +277,15 @@ export function useLiveTranslationSubtitleTrack(
         textColumns(normalizeCueText(priorText + delta)) > MAX_CUE_COLUMNS;
       const continues =
         !!active && start >= active.startTime && !sentenceDone && !wouldOverflow;
+
+      // A caption anchored ahead of playback (pushed past a queue) has not been
+      // shown yet, so a successor sharing its anchor must be scheduled after it —
+      // the cleanup below removes cues starting at or after `start`, which would
+      // otherwise delete text the viewer never saw.
+      if (!continues && active && activeCueAheadRef.current && active.startTime >= start) {
+        start = active.endTime;
+        queuedUntilRef.current = Math.max(queuedUntilRef.current, start);
+      }
 
       try {
         if (continues && active) {
@@ -307,6 +327,9 @@ export function useLiveTranslationSubtitleTrack(
               track.addCue(cue);
               activeCueRef.current = cue;
               activeCueTextRef.current = delta;
+              // Remember whether this caption sits ahead of its own media time,
+              // i.e. it was pushed past a queue and has not been shown yet.
+              activeCueAheadRef.current = start > baseTime;
               // `queuedUntil` is deliberately left standing: this caption may
               // itself be anchored ahead of playback (it was pushed past the
               // queue), so a delta still arriving with an earlier media time must
@@ -327,6 +350,7 @@ export function useLiveTranslationSubtitleTrack(
               });
               activeCueRef.current = null;
               activeCueTextRef.current = '';
+              activeCueAheadRef.current = false;
               queuedUntilRef.current = start + DEFAULT_CUE_DURATION_S;
             }
           } else {
@@ -334,12 +358,14 @@ export function useLiveTranslationSubtitleTrack(
             // yet, but anchor the accumulation so the next delta continues it.
             activeCueRef.current = null;
             activeCueTextRef.current = '';
+            activeCueAheadRef.current = false;
           }
         }
       } catch {
         // Malformed cue: drop the in-progress caption so the next delta starts clean.
         activeCueRef.current = null;
         activeCueTextRef.current = '';
+        activeCueAheadRef.current = false;
       }
     },
     [ensureTrack, videoElement],
@@ -368,13 +394,15 @@ export function useLiveTranslationSubtitleTrack(
   // unachievable exact association. Armed even with no active cue, so a
   // `turnComplete` preceding the first delta is not lost. A hard boundary
   // (barge-in / seek, via resetAccumulation) cancels the drain.
+  // The drain closes accumulation without discarding the queue: split pieces can
+  // span seconds, far longer than this window, and they are still going to play.
   const finishTurn = useCallback(() => {
     clearDrainTimer();
     drainTimerRef.current = setTimeout(() => {
       drainTimerRef.current = null;
-      resetAccumulation();
+      closeAccumulation();
     }, TURN_DRAIN_MS);
-  }, [clearDrainTimer, resetAccumulation]);
+  }, [clearDrainTimer, closeAccumulation]);
 
   return {
     track,
