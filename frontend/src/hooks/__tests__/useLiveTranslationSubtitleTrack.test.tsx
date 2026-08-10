@@ -320,6 +320,44 @@ describe('useLiveTranslationSubtitleTrack', () => {
     expect(secondCue.startTime).toBeGreaterThanOrEqual(firstCue.endTime);
   });
 
+  it('gives each split piece readable screen time and bounds the queue', () => {
+    const { el, track } = makeFakeVideo();
+    const { result } = renderHook(() =>
+      useLiveTranslationSubtitleTrack(el, 'en', 'Live'),
+    );
+    // A very large chunk must not be flashed piece by piece.
+    act(() => result.current.addCue({ kind: 'output', text: 'a'.repeat(1000), mediaTime: 0 }));
+
+    const cues = track.cues as FakeVTTCue[];
+    expect(cues.length).toBeGreaterThan(1);
+    for (const cue of cues) {
+      expect(cue.endTime - cue.startTime).toBeGreaterThanOrEqual(1.2);
+    }
+    // ...and the queue stays close enough to playback to remain useful.
+    const queueEnd = Math.max(...cues.map((c) => c.endTime));
+    expect(queueEnd).toBeLessThanOrEqual(12 + 4);
+  });
+
+  it('removes queued split cues at a hard boundary', () => {
+    // Abandoned translation must not surface later — e.g. on a seek into the
+    // interval those cues were scheduled for.
+    const { el, track, fire } = makeFakeVideo();
+    const { result } = renderHook(() =>
+      useLiveTranslationSubtitleTrack(el, 'en', 'Live'),
+    );
+    act(() => result.current.addCue({ kind: 'output', text: 'a'.repeat(200), mediaTime: 0 }));
+    expect(track.cues.length).toBeGreaterThan(1);
+
+    act(() => fire('seeking'));
+    expect(track.cues).toHaveLength(0);
+
+    // The same holds for a barge-in.
+    act(() => result.current.addCue({ kind: 'output', text: 'b'.repeat(200), mediaTime: 0 }));
+    expect(track.cues.length).toBeGreaterThan(1);
+    act(() => result.current.endUtterance());
+    expect(track.cues).toHaveLength(0);
+  });
+
   it('breaks an oversized delta at word boundaries for spaced text', () => {
     const { el, track } = makeFakeVideo();
     const { result } = renderHook(() =>

@@ -46,6 +46,18 @@ const SENTENCE_END_RE = /[.。．!！?？…]["'”’」』)）]*\s*$/;
 // Maximum caption size before a new cue is forced, measured in terminal columns
 // (CJK glyphs are double-width): about two 42-column subtitle lines.
 const MAX_CUE_COLUMNS = 84;
+// Reading speed used to pace the pieces of an oversized delta, in columns per
+// second — the usual subtitling rate, so each piece is on screen long enough to
+// read rather than being flashed.
+const READING_COLUMNS_PER_S = 18;
+// Floor on a piece's screen time, so a very short trailing piece is not flashed.
+const MIN_PIECE_DURATION_S = 1.2;
+// Ceiling on how far ahead of playback an oversized delta may schedule. Pacing
+// text readably takes longer than the speech it came from, so an extreme chunk
+// would otherwise push captions tens of seconds behind the video — worse than
+// showing less. Pieces beyond this bound are dropped, keeping the earliest text
+// (which matches the speech nearest the current position).
+const MAX_QUEUE_AHEAD_S = 12;
 
 const setTextTrackMode = (track: TextTrack, mode: TextTrackMode) => {
   track.mode = mode;
@@ -151,6 +163,9 @@ export function useLiveTranslationSubtitleTrack(
   // Whether the active caption was anchored ahead of its delta's media time (it
   // was pushed past a queue) and so has not played yet.
   const activeCueAheadRef = useRef(false);
+  // Cues scheduled ahead of playback, kept so a hard boundary can take them back
+  // off the track instead of leaving abandoned translation to play later.
+  const queuedCuesRef = useRef<VTTCue[]>([]);
   // Pending `finishTurn` drain timer, if a turn boundary is awaiting late deltas.
   const drainTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -181,11 +196,29 @@ export function useLiveTranslationSubtitleTrack(
   }, [clearDrainTimer]);
 
   // Hard boundary (barge-in / seek): the scheduled queue is abandoned along with
-  // the accumulation, so later deltas anchor at their own media time again.
+  // the accumulation, so later deltas anchor at their own media time again. Cues
+  // already added for that queue are taken back off the track — forgetting the
+  // watermark alone would leave the abandoned translation to play whenever
+  // playback reached it (e.g. a seek into the queued interval).
   const resetAccumulation = useCallback(() => {
+    const active = activeCueRef.current;
+    if (active && activeCueAheadRef.current) {
+      queuedCuesRef.current.push(active);
+    }
+    const queued = queuedCuesRef.current;
+    queuedCuesRef.current = [];
+    if (track) {
+      for (const cue of queued) {
+        try {
+          track.removeCue(cue);
+        } catch {
+          // Already gone (superseded or cleared): nothing to undo.
+        }
+      }
+    }
     closeAccumulation();
     queuedUntilRef.current = 0;
-  }, [closeAccumulation]);
+  }, [closeAccumulation, track]);
 
   // Cancel any pending drain timer if the element/hook goes away.
   useEffect(() => clearDrainTimer, [clearDrainTimer]);
@@ -268,6 +301,13 @@ export function useLiveTranslationSubtitleTrack(
       // starting inside that queue would truncate or purge those cues and lose
       // the translation they carry.
       let start = Math.max(0, baseTime, queuedUntilRef.current);
+      // Queued cues that have already played need no undoing at a later hard
+      // boundary, so drop them rather than tracking them for the whole session.
+      if (queuedCuesRef.current.length > 0) {
+        queuedCuesRef.current = queuedCuesRef.current.filter(
+          (cue) => cue.endTime > baseTime,
+        );
+      }
       const active = activeCueRef.current;
       const priorText = activeCueTextRef.current;
 
@@ -346,21 +386,36 @@ export function useLiveTranslationSubtitleTrack(
               // caption behind it and purge the queue. The watermark expires on
               // its own once media time passes it, since it only acts as a floor.
             } else {
-              // Split pieces play in sequence (never stacked) across the window a
-              // single caption would have occupied. They are scheduled ahead of
-              // playback, so none becomes the active accumulator: a later delta
-              // must not coalesce onto — or, arriving at an earlier media time,
-              // purge — a cue that has not started yet. Accumulation is closed and
-              // `queuedUntil` holds the next delta after the queue instead.
-              const slice = DEFAULT_CUE_DURATION_S / pieces.length;
-              pieces.forEach((piece, index) => {
-                const pieceStart = start + index * slice;
-                track.addCue(new VTTCue(pieceStart, pieceStart + slice, piece));
-              });
+              // Split pieces play in sequence (never stacked), each on screen long
+              // enough to read rather than sharing one caption's window. They are
+              // scheduled ahead of playback, so none becomes the active
+              // accumulator: a later delta must not coalesce onto — or, arriving at
+              // an earlier media time, purge — a cue that has not started yet.
+              // Accumulation is closed and `queuedUntil` holds the next delta after
+              // the queue instead. The queue is bounded, so pacing an extreme chunk
+              // cannot push captions far behind the video.
+              let offset = 0;
+              for (const piece of pieces) {
+                const duration = Math.min(
+                  DEFAULT_CUE_DURATION_S,
+                  Math.max(
+                    MIN_PIECE_DURATION_S,
+                    textColumns(piece) / READING_COLUMNS_PER_S,
+                  ),
+                );
+                if (offset > 0 && offset + duration > MAX_QUEUE_AHEAD_S) {
+                  break;
+                }
+                const pieceStart = start + offset;
+                const cue = new VTTCue(pieceStart, pieceStart + duration, piece);
+                track.addCue(cue);
+                queuedCuesRef.current.push(cue);
+                offset += duration;
+              }
               activeCueRef.current = null;
               activeCueTextRef.current = '';
               activeCueAheadRef.current = false;
-              queuedUntilRef.current = start + DEFAULT_CUE_DURATION_S;
+              queuedUntilRef.current = start + offset;
             }
           } else {
             // Leading whitespace-only delta of a new utterance: nothing to show

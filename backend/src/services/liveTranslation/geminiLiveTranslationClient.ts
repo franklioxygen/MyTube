@@ -239,16 +239,20 @@ export class GeminiLiveTranslationClient {
     // already-queued translated audio is stale and must be flushed downstream.
     // Emit it after this frame's output transcript (as with `turnComplete`) so a
     // trailing abandoned delta closes the current caption instead of seeding a
-    // fresh cue that the replacement turn would then be concatenated onto. Kept
-    // before the frame's audio so its own translated chunks survive the flush.
-    if (serverContent.interrupted === true) {
+    // fresh cue that the replacement turn would then be concatenated onto.
+    const interrupted = serverContent.interrupted === true;
+    if (interrupted) {
       this.opts.handlers.onInterrupted?.();
     }
 
+    // Audio carried by an interrupted frame belongs to the response that was
+    // just cut off, so it is dropped rather than forwarded: it arrives after the
+    // downstream flush and would otherwise play the abandoned tail over the
+    // replacement response.
     const modelTurn = serverContent.modelTurn as
       | { parts?: Array<{ inlineData?: { data?: string; mimeType?: string } }> }
       | undefined;
-    if (modelTurn?.parts) {
+    if (modelTurn?.parts && !interrupted) {
       for (const part of modelTurn.parts) {
         const inline = part.inlineData;
         if (inline && typeof inline.data === "string" && inline.data.length > 0) {

@@ -130,6 +130,34 @@ describe("GeminiLiveTranslationClient", () => {
     expect(onInterrupted).toHaveBeenCalledOnce();
   });
 
+  it("drops same-frame audio on an interrupted frame", () => {
+    const onInterrupted = vi.fn();
+    const onAudio = vi.fn();
+    const { client, fake } = makeClient({ onInterrupted, onAudio });
+    client.connect();
+    fake.open();
+    fake.message({ setupComplete: {} });
+
+    // Audio in an interrupted frame is the abandoned response's tail: it arrives
+    // after the downstream flush, so forwarding it would play over the replacement.
+    fake.message({
+      serverContent: {
+        interrupted: true,
+        modelTurn: { parts: [{ inlineData: { mimeType: "audio/pcm;rate=24000", data: "QUJD" } }] },
+      },
+    });
+    expect(onInterrupted).toHaveBeenCalledOnce();
+    expect(onAudio).not.toHaveBeenCalled();
+
+    // Audio on an ordinary frame is still forwarded.
+    fake.message({
+      serverContent: {
+        modelTurn: { parts: [{ inlineData: { mimeType: "audio/pcm;rate=24000", data: "REVG" } }] },
+      },
+    });
+    expect(onAudio).toHaveBeenCalledWith("REVG");
+  });
+
   it("dispatches a same-frame output transcript before the interruption boundary", () => {
     const calls: string[] = [];
     const onOutputTranscript = vi.fn(() => calls.push("output"));
