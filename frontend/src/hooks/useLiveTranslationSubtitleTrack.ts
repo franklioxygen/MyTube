@@ -166,6 +166,15 @@ export function useLiveTranslationSubtitleTrack(
   // still going to play, and a later delta must not anchor behind them.
   const closeAccumulation = useCallback(() => {
     clearDrainTimer();
+    const active = activeCueRef.current;
+    if (active && activeCueAheadRef.current) {
+      // This caption is itself scheduled ahead of playback and has not been
+      // shown. Clearing the refs loses the only record of that, so carry its end
+      // into the watermark first — otherwise the watermark still points at the
+      // caption's start and the next delta would anchor on top of it and delete
+      // text the viewer never saw.
+      queuedUntilRef.current = Math.max(queuedUntilRef.current, active.endTime);
+    }
     activeCueRef.current = null;
     activeCueTextRef.current = '';
     activeCueAheadRef.current = false;

@@ -259,6 +259,40 @@ describe('useLiveTranslationSubtitleTrack', () => {
     }
   });
 
+  it('keeps an unplayed follow-up caption across a turnComplete drain', () => {
+    // split -> follow-up (anchored at the watermark, so itself unplayed) ->
+    // turnComplete. Closing accumulation must carry that caption's end into the
+    // watermark, or the next turn anchors on its start and deletes it.
+    vi.useFakeTimers();
+    try {
+      const { el, track } = makeFakeVideo();
+      const { result } = renderHook(() =>
+        useLiveTranslationSubtitleTrack(el, 'en', 'Live'),
+      );
+      act(() => result.current.addCue({ kind: 'output', text: 'a'.repeat(200), mediaTime: 0 }));
+      const splitCount = track.cues.length;
+      act(() => result.current.addCue({ kind: 'output', text: 'pending', mediaTime: 0 }));
+
+      act(() => result.current.finishTurn());
+      act(() => vi.advanceTimersByTime(400));
+      // The next turn speaks while both the pieces and the follow-up are pending.
+      act(() => result.current.addCue({ kind: 'output', text: 'nextturn', mediaTime: 0.5 }));
+
+      const cues = track.cues as FakeVTTCue[];
+      const texts = cues.map((c) => c.text);
+      // Split pieces, the unplayed follow-up, and the new turn all survive.
+      expect(cues.filter((c) => c.text.startsWith('a'))).toHaveLength(splitCount);
+      expect(texts).toContain('pending');
+      expect(texts).toContain('nextturn');
+
+      const pending = cues.find((c) => c.text === 'pending') as FakeVTTCue;
+      const next = cues.find((c) => c.text === 'nextturn') as FakeVTTCue;
+      expect(next.startTime).toBeGreaterThanOrEqual(pending.endTime);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('queues a same-anchor successor instead of deleting an unplayed caption', () => {
     // Follow-ups after a split share one future anchor. When one completes a
     // sentence, the successor must be scheduled after that unplayed caption
