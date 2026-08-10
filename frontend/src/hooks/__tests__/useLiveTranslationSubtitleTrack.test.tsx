@@ -269,7 +269,9 @@ describe('useLiveTranslationSubtitleTrack', () => {
       const { result } = renderHook(() =>
         useLiveTranslationSubtitleTrack(el, 'en', 'Live'),
       );
-      act(() => result.current.addCue({ kind: 'output', text: 'a'.repeat(200), mediaTime: 0 }));
+      // Sized so the queue plus the follow-up stays inside the queue-ahead cap;
+      // beyond it the backlog is deliberately shed instead (covered separately).
+      act(() => result.current.addCue({ kind: 'output', text: 'a'.repeat(120), mediaTime: 0 }));
       const splitCount = track.cues.length;
       act(() => result.current.addCue({ kind: 'output', text: 'pending', mediaTime: 0 }));
 
@@ -355,6 +357,55 @@ describe('useLiveTranslationSubtitleTrack', () => {
     act(() => result.current.addCue({ kind: 'output', text: 'b'.repeat(200), mediaTime: 0 }));
     expect(track.cues.length).toBeGreaterThan(1);
     act(() => result.current.endUtterance());
+    expect(track.cues).toHaveLength(0);
+  });
+
+  it('sheds the backlog so latency cannot grow across later turns', () => {
+    vi.useFakeTimers();
+    try {
+      const { el, track } = makeFakeVideo();
+      const { result } = renderHook(() =>
+        useLiveTranslationSubtitleTrack(el, 'en', 'Live'),
+      );
+      // One oversized delta establishes a queue...
+      act(() => result.current.addCue({ kind: 'output', text: 'a'.repeat(1000), mediaTime: 0 }));
+
+      // ...then turns keep arriving faster than the queue drains. Each is
+      // anchored at the watermark and pushes it on, so without a global cap the
+      // anchor would run away from playback.
+      let mediaTime = 0;
+      for (let turn = 0; turn < 10; turn++) {
+        mediaTime += 1;
+        const at = mediaTime;
+        act(() => result.current.addCue({ kind: 'output', text: `t${turn}`, mediaTime: at }));
+        act(() => result.current.finishTurn());
+        act(() => vi.advanceTimersByTime(400));
+      }
+
+      const cues = track.cues as FakeVTTCue[];
+      const last = cues[cues.length - 1];
+      // The newest caption stays within the bound of the media time it describes.
+      expect(last.startTime - mediaTime).toBeLessThanOrEqual(12);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('removes a stale in-progress caption on a backward seek', () => {
+    // The caption is anchored to the old position: after seeking back it is in
+    // the future again and would replay pre-seek translation.
+    const { el, track, fire } = makeFakeVideo(10);
+    const { result } = renderHook(() =>
+      useLiveTranslationSubtitleTrack(el, 'en', 'Live'),
+    );
+    act(() => result.current.addCue({ kind: 'output', text: 'stale', mediaTime: 10 }));
+    expect(track.cues).toHaveLength(1);
+
+    act(() => {
+      (el as unknown as { currentTime: number }).currentTime = 2;
+      fire('seeking');
+    });
+
     expect(track.cues).toHaveLength(0);
   });
 

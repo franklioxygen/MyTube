@@ -200,9 +200,18 @@ export function useLiveTranslationSubtitleTrack(
   // already added for that queue are taken back off the track — forgetting the
   // watermark alone would leave the abandoned translation to play whenever
   // playback reached it (e.g. a seek into the queued interval).
-  const resetAccumulation = useCallback(() => {
+  //
+  // `staleAfter` additionally discards the in-progress caption when it would
+  // still be displayed at that media time. A seek passes the new position: the
+  // caption is anchored to the old one, so after seeking back it sits in the
+  // future again and would replay stale translation. A barge-in passes nothing,
+  // so a caption the viewer is currently reading stays up until the replacement
+  // supersedes it; an unplayed one is dropped either way.
+  const resetAccumulation = useCallback((staleAfter?: number) => {
     const active = activeCueRef.current;
-    if (active && activeCueAheadRef.current) {
+    const showsAgain =
+      !!active && typeof staleAfter === 'number' && active.endTime > staleAfter;
+    if (active && (showsAgain || activeCueAheadRef.current)) {
       queuedCuesRef.current.push(active);
     }
     const queued = queuedCuesRef.current;
@@ -231,7 +240,9 @@ export function useLiveTranslationSubtitleTrack(
     if (!videoElement) {
       return;
     }
-    const onSeeking = () => resetAccumulation();
+    // Pass the new position so the in-progress caption is dropped when it would
+    // display again there — otherwise a backward seek replays stale translation.
+    const onSeeking = () => resetAccumulation(videoElement.currentTime);
     videoElement.addEventListener('seeking', onSeeking);
     return () => videoElement.removeEventListener('seeking', onSeeking);
   }, [videoElement, resetAccumulation]);
@@ -297,6 +308,15 @@ export function useLiveTranslationSubtitleTrack(
         typeof event.mediaTime === 'number'
           ? event.mediaTime
           : (videoElement?.currentTime ?? 0);
+      // Anchoring behind the queue keeps each caption after the last, but every
+      // turn arriving before the queue drains pushes the watermark on by its own
+      // cue. Left alone that ratchets forward for the rest of the session, so the
+      // cap is enforced here and not only while splitting: once the backlog is
+      // further ahead than the bound, it is shed and captions resync to playback.
+      // Currency matters more than completeness for a live translation.
+      if (queuedUntilRef.current - baseTime > MAX_QUEUE_AHEAD_S) {
+        resetAccumulation();
+      }
       // Never anchor before pieces already scheduled from an oversized delta:
       // starting inside that queue would truncate or purge those cues and lose
       // the translation they carry.
@@ -432,7 +452,7 @@ export function useLiveTranslationSubtitleTrack(
         activeCueAheadRef.current = false;
       }
     },
-    [ensureTrack, videoElement],
+    [ensureTrack, videoElement, resetAccumulation],
   );
 
   // Barge-in (interrupted): the in-progress response is abandoned, so stop
