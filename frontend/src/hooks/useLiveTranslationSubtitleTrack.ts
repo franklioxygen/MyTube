@@ -46,12 +46,12 @@ const SENTENCE_END_RE = /[.。．!！?？…]["'”’」』)）]*\s*$/;
 // Maximum caption size before a new cue is forced, measured in terminal columns
 // (CJK glyphs are double-width): about two 42-column subtitle lines.
 const MAX_CUE_COLUMNS = 84;
-// Reading speed used to pace the pieces of an oversized delta, in columns per
-// second — the usual subtitling rate, so each piece is on screen long enough to
-// read rather than being flashed.
+// Reading speed used to pace captions, in columns per second — the usual
+// subtitling rate, so a caption is on screen long enough to read rather than
+// being flashed by whatever arrives next.
 const READING_COLUMNS_PER_S = 18;
-// Floor on a piece's screen time, so a very short trailing piece is not flashed.
-const MIN_PIECE_DURATION_S = 1.2;
+// Floor on a caption's screen time, so a very short one is not flashed.
+const MIN_CAPTION_DURATION_S = 1.2;
 // Ceiling on how far ahead of playback an oversized delta may schedule. Pacing
 // text readably takes longer than the speech it came from, so an extreme chunk
 // would otherwise push captions tens of seconds behind the video — worse than
@@ -67,6 +67,13 @@ const setTextTrackMode = (track: TextTrack, mode: TextTrackMode) => {
 // trim the ends for display. CJK text has no inter-character spaces, so this is
 // a no-op there; latin deltas carry their own spacing, which is preserved.
 const normalizeCueText = (text: string): string => text.replace(/\s+/g, ' ').trim();
+
+// How long a caption needs on screen to be read, from its length.
+const captionDuration = (text: string): number =>
+  Math.min(
+    DEFAULT_CUE_DURATION_S,
+    Math.max(MIN_CAPTION_DURATION_S, textColumns(text) / READING_COLUMNS_PER_S),
+  );
 
 // Approximate rendered width of one glyph in columns; CJK and other fullwidth
 // glyphs (codepoints past the CJK Radicals block) occupy two columns.
@@ -347,17 +354,28 @@ export function useLiveTranslationSubtitleTrack(
       const continues =
         !!active && start >= active.startTime && !sentenceDone && !wouldOverflow;
 
-      // A caption anchored ahead of playback (pushed past a queue) has not been
-      // shown yet, so a successor sharing its anchor must be scheduled after it —
-      // the cleanup below removes cues starting at or after `start`, which would
-      // otherwise delete text the viewer never saw.
-      if (!continues && active && activeCueAheadRef.current && active.startTime >= start) {
-        start = active.endTime;
-        queuedUntilRef.current = Math.max(queuedUntilRef.current, start);
-        // It stops being the active cue below, so register it as queued now:
-        // otherwise nothing holds a reference to it and a later hard boundary
-        // would leave this abandoned caption on the track to play on its own.
-        queuedCuesRef.current.push(active);
+      // Give the caption being completed its time on screen before the successor
+      // starts. Output transcripts carry no `mediaTime`, so a burst of deltas all
+      // anchor at nearly the same `currentTime`: without this the cleanup below
+      // would delete the finished sentence outright (equal timestamps) or truncate
+      // it to a few milliseconds, making it unreadable.
+      if (!continues && active) {
+        // A caption still scheduled ahead of playback has not been seen at all, so
+        // it keeps its whole window; one already showing needs only enough time to
+        // be read from where it started.
+        const showUntil = activeCueAheadRef.current
+          ? active.endTime
+          : active.startTime + captionDuration(priorText);
+        if (start < showUntil) {
+          start = showUntil;
+          queuedUntilRef.current = Math.max(queuedUntilRef.current, start);
+          if (activeCueAheadRef.current) {
+            // It stops being the active cue below, so register it as queued now:
+            // otherwise nothing holds a reference to it and a later hard boundary
+            // would leave this abandoned caption on the track to play on its own.
+            queuedCuesRef.current.push(active);
+          }
+        }
       }
 
       try {
@@ -418,16 +436,15 @@ export function useLiveTranslationSubtitleTrack(
               // Accumulation is closed and `queuedUntil` holds the next delta after
               // the queue instead. The queue is bounded, so pacing an extreme chunk
               // cannot push captions far behind the video.
+              // The budget is measured from the delta's own media time, not from
+              // `start`: `start` may already sit near the cap behind an existing
+              // queue, and bounding `offset` alone would then allow another full
+              // window on top of it and schedule far past the advertised cap.
+              const budget = baseTime + MAX_QUEUE_AHEAD_S - start;
               let offset = 0;
               for (const piece of pieces) {
-                const duration = Math.min(
-                  DEFAULT_CUE_DURATION_S,
-                  Math.max(
-                    MIN_PIECE_DURATION_S,
-                    textColumns(piece) / READING_COLUMNS_PER_S,
-                  ),
-                );
-                if (offset > 0 && offset + duration > MAX_QUEUE_AHEAD_S) {
+                const duration = captionDuration(piece);
+                if (offset > 0 && offset + duration > budget) {
                   break;
                 }
                 const pieceStart = start + offset;

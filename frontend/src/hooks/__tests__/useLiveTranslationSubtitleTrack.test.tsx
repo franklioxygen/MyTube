@@ -139,9 +139,11 @@ describe('useLiveTranslationSubtitleTrack', () => {
     const first = track.cues[0] as FakeVTTCue;
     const second = track.cues[1] as FakeVTTCue;
     expect(first.text).toBe('a'.repeat(60) + 'b'.repeat(20));
-    expect(first.endTime).toBe(4);
+    // The completed caption keeps enough time to be read (80 columns from its
+    // start at 2), rather than being cut off at the overflowing delta's time.
+    expect(first.endTime).toBe(6);
     expect(second.text).toBe('c'.repeat(10));
-    expect(second.startTime).toBe(4);
+    expect(second.startTime).toBe(6);
   });
 
   it('splits a single oversized delta instead of one wall-of-text caption', () => {
@@ -427,6 +429,42 @@ describe('useLiveTranslationSubtitleTrack', () => {
 
     // Nothing abandoned is left behind to appear later.
     expect(track.cues).toHaveLength(0);
+  });
+
+  it('keeps a completed sentence readable when the next delta follows at once', () => {
+    // Output transcripts carry no mediaTime, so a burst anchors every delta at
+    // nearly the same currentTime. The finished sentence must not be deleted or
+    // truncated to milliseconds by the delta right behind it.
+    const { el, track } = makeFakeVideo(5);
+    const { result } = renderHook(() =>
+      useLiveTranslationSubtitleTrack(el, 'en', 'Live'),
+    );
+    act(() => result.current.addCue({ kind: 'output', text: 'Hello.' }));
+    act(() => result.current.addCue({ kind: 'output', text: 'World' }));
+
+    const cues = track.cues as FakeVTTCue[];
+    expect(cues).toHaveLength(2);
+    const [first, second] = cues;
+    expect(first.text).toBe('Hello.');
+    expect(first.endTime - first.startTime).toBeGreaterThanOrEqual(1.2);
+    expect(second.text).toBe('World');
+    expect(second.startTime).toBeGreaterThanOrEqual(first.endTime);
+  });
+
+  it('caps a second oversized delta against the transcript media time', () => {
+    // A queue already near the cap must not permit another full window on top.
+    const { el, track } = makeFakeVideo();
+    const { result } = renderHook(() =>
+      useLiveTranslationSubtitleTrack(el, 'en', 'Live'),
+    );
+    act(() => result.current.addCue({ kind: 'output', text: 'a'.repeat(1000), mediaTime: 0 }));
+    act(() => result.current.addCue({ kind: 'output', text: 'b'.repeat(1000), mediaTime: 0.1 }));
+
+    const cues = track.cues as FakeVTTCue[];
+    const queueEnd = Math.max(...cues.map((c) => c.endTime));
+    // Bounded by the cap plus a single caption, measured from the media time —
+    // not two stacked windows.
+    expect(queueEnd - 0.1).toBeLessThanOrEqual(12 + 4);
   });
 
   it('breaks an oversized delta at word boundaries for spaced text', () => {
