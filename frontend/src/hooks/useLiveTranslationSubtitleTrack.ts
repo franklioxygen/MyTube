@@ -189,13 +189,18 @@ export function useLiveTranslationSubtitleTrack(
   const closeAccumulation = useCallback(() => {
     clearDrainTimer();
     const active = activeCueRef.current;
-    if (active && activeCueAheadRef.current) {
-      // This caption is itself scheduled ahead of playback and has not been
-      // shown. Clearing the refs loses the only record of that, so carry its end
-      // into the watermark first — otherwise the watermark still points at the
-      // caption's start and the next delta would anchor on top of it and delete
-      // text the viewer never saw.
-      queuedUntilRef.current = Math.max(queuedUntilRef.current, active.endTime);
+    if (active) {
+      // Clearing the refs loses the only record of how long this caption still
+      // needs, so carry that into the watermark first — otherwise the next turn
+      // anchors on top of it, deleting text the viewer never saw or cutting a
+      // completed caption short of being readable. A caption scheduled ahead of
+      // playback keeps its whole window; one already showing needs enough time to
+      // be read from where it started, the same guarantee the sentence and
+      // overflow boundaries make.
+      const showUntil = activeCueAheadRef.current
+        ? active.endTime
+        : active.startTime + captionDuration(activeCueTextRef.current);
+      queuedUntilRef.current = Math.max(queuedUntilRef.current, showUntil);
     }
     activeCueRef.current = null;
     activeCueTextRef.current = '';

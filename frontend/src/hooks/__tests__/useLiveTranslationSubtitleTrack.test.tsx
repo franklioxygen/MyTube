@@ -230,6 +230,33 @@ describe('useLiveTranslationSubtitleTrack', () => {
     );
   });
 
+  it('keeps a completed caption readable when the next turn follows at once', () => {
+    // Same guarantee the sentence/overflow boundaries make, but reached through
+    // the soft turn boundary: an adjacent turn must not flash the finished cue.
+    vi.useFakeTimers();
+    try {
+      const { el, track } = makeFakeVideo();
+      const { result } = renderHook(() =>
+        useLiveTranslationSubtitleTrack(el, 'en', 'Live'),
+      );
+      act(() => result.current.addCue({ kind: 'output', text: 'Hello.', mediaTime: 0 }));
+      act(() => result.current.finishTurn());
+      act(() => vi.advanceTimersByTime(400));
+      // The next turn speaks well before the caption has been readable.
+      act(() => result.current.addCue({ kind: 'output', text: 'World', mediaTime: 0.5 }));
+
+      const cues = track.cues as FakeVTTCue[];
+      expect(cues).toHaveLength(2);
+      const [first, second] = cues;
+      expect(first.text).toBe('Hello.');
+      expect(first.endTime - first.startTime).toBeGreaterThanOrEqual(1.2);
+      expect(second.text).toBe('World');
+      expect(second.startTime).toBeGreaterThanOrEqual(first.endTime);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('keeps queued split pieces across a turnComplete drain', () => {
     // Split cues span seconds — far longer than the 400ms drain — so the soft
     // turn reset must close accumulation without discarding the queue.
