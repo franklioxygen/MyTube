@@ -354,6 +354,10 @@ export function useLiveTranslationSubtitleTrack(
       if (!continues && active && activeCueAheadRef.current && active.startTime >= start) {
         start = active.endTime;
         queuedUntilRef.current = Math.max(queuedUntilRef.current, start);
+        // It stops being the active cue below, so register it as queued now:
+        // otherwise nothing holds a reference to it and a later hard boundary
+        // would leave this abandoned caption on the track to play on its own.
+        queuedCuesRef.current.push(active);
       }
 
       try {

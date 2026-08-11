@@ -409,6 +409,26 @@ describe('useLiveTranslationSubtitleTrack', () => {
     expect(track.cues).toHaveLength(0);
   });
 
+  it('removes a displaced future caption at a hard boundary', () => {
+    // split -> future follow-up -> caption boundary displaces it -> hard reset.
+    // The displaced cue is no longer the active one, so it must have been
+    // registered as queued or it would stay on the track and play by itself.
+    const { el, track } = makeFakeVideo();
+    const { result } = renderHook(() =>
+      useLiveTranslationSubtitleTrack(el, 'en', 'Live'),
+    );
+    act(() => result.current.addCue({ kind: 'output', text: 'a'.repeat(200), mediaTime: 0 }));
+    act(() => result.current.addCue({ kind: 'output', text: 'first.', mediaTime: 0 }));
+    // Sentence already complete, so this displaces 'first.' rather than replacing it.
+    act(() => result.current.addCue({ kind: 'output', text: 'second', mediaTime: 0 }));
+    expect((track.cues as FakeVTTCue[]).map((c) => c.text)).toContain('first.');
+
+    act(() => result.current.endUtterance());
+
+    // Nothing abandoned is left behind to appear later.
+    expect(track.cues).toHaveLength(0);
+  });
+
   it('breaks an oversized delta at word boundaries for spaced text', () => {
     const { el, track } = makeFakeVideo();
     const { result } = renderHook(() =>
