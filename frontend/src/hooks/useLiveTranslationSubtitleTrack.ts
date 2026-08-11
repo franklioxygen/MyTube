@@ -213,27 +213,40 @@ export function useLiveTranslationSubtitleTrack(
   // watermark alone would leave the abandoned translation to play whenever
   // playback reached it (e.g. a seek into the queued interval).
   //
-  // `staleAfter` additionally discards the in-progress caption when it would
-  // still be displayed at that media time. A seek passes the new position: the
-  // caption is anchored to the old one, so after seeking back it sits in the
-  // future again and would replay stale translation. A barge-in passes nothing,
-  // so a caption the viewer is currently reading stays up until the replacement
-  // supersedes it; an unplayed one is dropped either way.
+  // `staleAfter` marks every caption that can still appear at that media time as
+  // invalid. A seek passes the new position: all existing cues describe the old
+  // one, so any of them still able to display would replay stale translation.
+  // That sweeps the whole track rather than trusting the references held here —
+  // a cue displaced by an earlier boundary is no longer referenced by either the
+  // accumulator or the queue, yet is just as stale. A barge-in passes nothing, so
+  // a caption the viewer is currently reading stays up until the replacement
+  // supersedes it, while unplayed queued cues are dropped either way.
   const resetAccumulation = useCallback((staleAfter?: number) => {
     const active = activeCueRef.current;
-    const showsAgain =
-      !!active && typeof staleAfter === 'number' && active.endTime > staleAfter;
-    if (active && (showsAgain || activeCueAheadRef.current)) {
+    if (active && activeCueAheadRef.current) {
       queuedCuesRef.current.push(active);
     }
     const queued = queuedCuesRef.current;
     queuedCuesRef.current = [];
     if (track) {
+      try {
+        const cues = track.cues;
+        if (typeof staleAfter === 'number' && cues) {
+          for (let i = cues.length - 1; i >= 0; i--) {
+            const cue = cues[i];
+            if (cue && cue.endTime > staleAfter) {
+              track.removeCue(cue);
+            }
+          }
+        }
+      } catch {
+        // Track unavailable: nothing to sweep.
+      }
       for (const cue of queued) {
         try {
           track.removeCue(cue);
         } catch {
-          // Already gone (superseded or cleared): nothing to undo.
+          // Already gone (swept, superseded or cleared): nothing to undo.
         }
       }
     }

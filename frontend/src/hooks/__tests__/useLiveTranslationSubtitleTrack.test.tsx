@@ -420,6 +420,27 @@ describe('useLiveTranslationSubtitleTrack', () => {
     }
   });
 
+  it('removes a completed caption displaced by a boundary on a backward seek', () => {
+    // A cue displaced by a sentence boundary is referenced by neither the
+    // accumulator nor the queue, so only sweeping the track catches it.
+    const { el, track, fire } = makeFakeVideo(10);
+    const { result } = renderHook(() =>
+      useLiveTranslationSubtitleTrack(el, 'en', 'Live'),
+    );
+    act(() => result.current.addCue({ kind: 'output', text: 'One.', mediaTime: 10 }));
+    // Sentence already complete: this displaces the first cue and becomes active.
+    act(() => result.current.addCue({ kind: 'output', text: 'Two', mediaTime: 10.1 }));
+    expect(track.cues).toHaveLength(2);
+
+    act(() => {
+      (el as unknown as { currentTime: number }).currentTime = 2;
+      fire('seeking');
+    });
+
+    // Neither the displaced caption nor the active one can replay later.
+    expect(track.cues).toHaveLength(0);
+  });
+
   it('removes a stale in-progress caption on a backward seek', () => {
     // The caption is anchored to the old position: after seeking back it is in
     // the future again and would replay pre-seek translation.
