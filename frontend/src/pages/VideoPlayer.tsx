@@ -487,6 +487,8 @@ const VideoPlayer: React.FC = () => {
                         }
                         originalAudioWithSubtitlesReady={!settingsLoading}
                         onTranscript={liveSubtitleTrack.addCue}
+                        onInterrupted={liveSubtitleTrack.endUtterance}
+                        onTurnComplete={liveSubtitleTrack.finishTurn}
                         onActiveChange={(active) => {
                             if (active) {
                                 liveSubtitleTrack.activate();

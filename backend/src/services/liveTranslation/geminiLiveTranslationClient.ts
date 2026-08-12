@@ -28,6 +28,11 @@ export interface GeminiClientHandlers {
   /** Gemini signalled that the in-progress response was interrupted (barge-in);
    * downstream should stop and clear any queued translated audio. */
   onInterrupted?: () => void;
+  /** Gemini completed a turn (`turnComplete`); marks an utterance boundary so the
+   * next output transcript starts a fresh caption instead of being coalesced onto
+   * the finished one. `generationComplete` is intentionally excluded — the final
+   * transcription delta can arrive after it. */
+  onTurnComplete?: () => void;
   onError?: (
     code: LiveTranslationErrorCode,
     message: string,
@@ -216,12 +221,6 @@ export class GeminiLiveTranslationClient {
       return;
     }
 
-    // Barge-in / interruption: the in-progress model response was cut off, so
-    // already-queued translated audio is stale and must be flushed downstream.
-    if (serverContent.interrupted === true) {
-      this.opts.handlers.onInterrupted?.();
-    }
-
     const input = serverContent.inputTranscription as
       | { text?: string; languageCode?: string }
       | undefined;
@@ -236,16 +235,40 @@ export class GeminiLiveTranslationClient {
       this.opts.handlers.onOutputTranscript?.(output.text, output.languageCode);
     }
 
+    // Barge-in / interruption: the in-progress model response was cut off, so
+    // already-queued translated audio is stale and must be flushed downstream.
+    // Emit it after this frame's output transcript (as with `turnComplete`) so a
+    // trailing abandoned delta closes the current caption instead of seeding a
+    // fresh cue that the replacement turn would then be concatenated onto.
+    const interrupted = serverContent.interrupted === true;
+    if (interrupted) {
+      this.opts.handlers.onInterrupted?.();
+    }
+
+    // Audio carried by an interrupted frame belongs to the response that was
+    // just cut off, so it is dropped rather than forwarded: it arrives after the
+    // downstream flush and would otherwise play the abandoned tail over the
+    // replacement response.
     const modelTurn = serverContent.modelTurn as
       | { parts?: Array<{ inlineData?: { data?: string; mimeType?: string } }> }
       | undefined;
-    if (modelTurn?.parts) {
+    if (modelTurn?.parts && !interrupted) {
       for (const part of modelTurn.parts) {
         const inline = part.inlineData;
         if (inline && typeof inline.data === "string" && inline.data.length > 0) {
           this.opts.handlers.onAudio?.(inline.data);
         }
       }
+    }
+
+    // A completed turn marks an utterance boundary. Emit it last so any output
+    // transcript carried in the same message is delivered before the boundary,
+    // letting downstream close the current caption cleanly. Only `turnComplete`
+    // is used, not `generationComplete`: generation can finish before Gemini's
+    // final asynchronous `outputTranscription` delta, so closing on it would
+    // split a single translation across multiple captions.
+    if (serverContent.turnComplete === true) {
+      this.opts.handlers.onTurnComplete?.();
     }
   }
 
