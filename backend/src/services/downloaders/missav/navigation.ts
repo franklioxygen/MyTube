@@ -1,9 +1,9 @@
 import {
-  ALLOWED_MISSAV_LANGUAGE_SEGMENTS,
-  ALLOWED_ROUTED_VIDEO_LANGUAGE_SEGMENTS,
   MISSAV_CLOUDFLARE_CHALLENGE_PATTERN,
+  MISSAV_MAX_VIDEO_PATH_PREFIX_SEGMENTS,
   MISSAV_NAVIGATION_ORIGINS,
-  MISSAV_ROUTE_PREFIX_PATTERN,
+  MISSAV_PATH_PREFIX_SEGMENT_PATTERN,
+  MISSAV_VIDEO_ID_PATTERN,
 } from "./constants";
 
 export function isCloudflareChallengeHtml(html: string): boolean {
@@ -44,10 +44,6 @@ function getCanonicalMissAvHost(hostname: string): string | null {
   return null;
 }
 
-function usesRoutedVideoPath(canonicalHost: string): boolean {
-  return canonicalHost.startsWith("123av.") || canonicalHost === "javxx.com";
-}
-
 export function buildSafeMissAvNavigationTarget(url: string): {
   origin: string;
   path: string;
@@ -74,85 +70,37 @@ export function buildSafeMissAvNavigationTarget(url: string): {
   }
 
   const videoId = pathSegments[pathSegments.length - 1];
-  if (!videoId || !/^[a-zA-Z0-9_-]{2,120}$/.test(videoId)) {
+  if (!videoId || !MISSAV_VIDEO_ID_PATTERN.test(videoId)) {
     throw new Error(
       `SSRF protection: Invalid MissAV video path in URL: ${parsedUrl.pathname}`,
     );
   }
 
-  if (
-    usesRoutedVideoPath(canonicalHost) &&
-    pathSegments[pathSegments.length - 2]?.toLowerCase() === "v"
-  ) {
-    const prefixSegments = pathSegments.slice(0, -2);
-    if (prefixSegments.length > 1) {
-      throw new Error(
-        `SSRF protection: Invalid routed video path in URL: ${parsedUrl.pathname}`,
-      );
-    }
-
-    const normalizedRouteLanguage =
-      prefixSegments.length === 1 ? prefixSegments[0].toLowerCase() : null;
-    if (
-      normalizedRouteLanguage &&
-      !ALLOWED_ROUTED_VIDEO_LANGUAGE_SEGMENTS.has(normalizedRouteLanguage)
-    ) {
-      throw new Error(
-        `SSRF protection: Invalid routed video language segment in URL: ${parsedUrl.pathname}`,
-      );
-    }
-
-    const encodedVideoId = encodeURIComponent(videoId);
-    const safeOrigin = MISSAV_NAVIGATION_ORIGINS[canonicalHost];
-    if (!safeOrigin) {
-      throw new Error(
-        `SSRF protection: Hostname ${canonicalHost} has no allowed navigation origin.`,
-      );
-    }
-
-    const path = normalizedRouteLanguage
-      ? `/${normalizedRouteLanguage}/v/${encodedVideoId}`
-      : `/v/${encodedVideoId}`;
-    return {
-      origin: safeOrigin,
-      path,
-      url: `${safeOrigin}${path}`,
-    };
-  }
-
-  const maybeLanguage = pathSegments[pathSegments.length - 2]?.toLowerCase();
-  const normalizedLanguage =
-    maybeLanguage && ALLOWED_MISSAV_LANGUAGE_SEGMENTS.has(maybeLanguage)
-      ? maybeLanguage
-      : null;
-  const prefixSegments = normalizedLanguage
-    ? pathSegments.slice(0, -2)
-    : pathSegments.slice(0, -1);
-  if (prefixSegments.length > 1) {
+  // Everything before the video id is a route prefix and/or a language segment
+  // (e.g. /dm9/cn/<id>, /en/v/<id>, /cn/<id>). The exact segments differ per
+  // mirror and per locale, so they are validated by shape rather than against a
+  // fixed list, and the result is always re-pinned to an allow-listed origin.
+  const prefixSegments = pathSegments.slice(0, -1);
+  if (prefixSegments.length > MISSAV_MAX_VIDEO_PATH_PREFIX_SEGMENTS) {
     throw new Error(
       `SSRF protection: Invalid MissAV video path in URL: ${parsedUrl.pathname}`,
     );
   }
 
-  let normalizedRoutePrefix: string | null = null;
-  if (prefixSegments.length === 1) {
-    const candidatePrefix = prefixSegments[0]?.toLowerCase();
-    if (!candidatePrefix || !MISSAV_ROUTE_PREFIX_PATTERN.test(candidatePrefix)) {
-      throw new Error(
-        `SSRF protection: Invalid MissAV route prefix in URL: ${parsedUrl.pathname}`,
-      );
-    }
-    normalizedRoutePrefix = candidatePrefix;
+  const normalizedPrefixSegments = prefixSegments.map((segment) =>
+    segment.toLowerCase(),
+  );
+  const invalidPrefixSegment = normalizedPrefixSegments.find(
+    (segment) => !MISSAV_PATH_PREFIX_SEGMENT_PATTERN.test(segment),
+  );
+  if (invalidPrefixSegment !== undefined) {
+    throw new Error(
+      `SSRF protection: Invalid MissAV route segment "${invalidPrefixSegment}" in URL: ${parsedUrl.pathname}`,
+    );
   }
 
   const encodedVideoId = encodeURIComponent(videoId);
-  const safePath = normalizedRoutePrefix
-    ? normalizedLanguage
-      ? `/${normalizedRoutePrefix}/${normalizedLanguage}/${encodedVideoId}`
-      : `/${normalizedRoutePrefix}/${encodedVideoId}`
-    : normalizedLanguage
-      ? `/${normalizedLanguage}/${encodedVideoId}`
-      : `/${encodedVideoId}`;
+  const safePath = `/${[...normalizedPrefixSegments, encodedVideoId].join("/")}`;
 
   const safeOrigin = MISSAV_NAVIGATION_ORIGINS[canonicalHost];
   if (!safeOrigin) {
