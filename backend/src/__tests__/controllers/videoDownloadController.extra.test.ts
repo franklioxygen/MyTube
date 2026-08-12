@@ -335,6 +335,59 @@ describe("videoDownloadController extra coverage", () => {
     expect(json).toHaveBeenCalledWith({ found: false });
   });
 
+  it("checkVideoDownloadStatus finds a part the tracking row has forgotten", async () => {
+    // The tracking row's sourceUrl is overwritten by whichever part was saved
+    // last, so after parts 1 and 2 it only remembers ?p=2. Part 1 still exists
+    // as its own video row and must not be re-downloaded.
+    arrangeBilibiliPartCheck(
+      "https://www.bilibili.com/video/BV1x?p=1",
+      "https://www.bilibili.com/video/BV1x?p=2"
+    );
+    vi.mocked(storageService.getVideoBySourceUrl).mockReturnValue({
+      id: "part-1-video",
+      title: "Part One",
+      author: "Author",
+      sourceUrl: "https://www.bilibili.com/video/BV1x?p=1",
+      createdAt: "2024-01-01T00:00:00.000Z",
+    } as any);
+    vi.mocked(storageService.verifyVideoExists).mockReturnValue({
+      exists: true,
+      video: { id: "part-1-video", title: "Part One" },
+    } as any);
+    vi.mocked(storageService.getVideoById).mockReturnValue({
+      id: "part-1-video",
+    } as any);
+
+    await checkVideoDownloadStatus(req as Request, res as Response);
+
+    expect(storageService.getVideoBySourceUrl).toHaveBeenCalledWith(
+      "https://www.bilibili.com/video/BV1x?p=1",
+      "video"
+    );
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({ found: true, videoId: "part-1-video" })
+    );
+  });
+
+  it("checkVideoDownloadStatus scopes the per-part fallback to the media type", async () => {
+    arrangeBilibiliPartCheck(
+      "https://www.bilibili.com/video/BV1x?p=1",
+      "https://www.bilibili.com/video/BV1x?p=2"
+    );
+    req.query = {
+      url: "https://www.bilibili.com/video/BV1x?p=1",
+      audioOnly: "true",
+    } as any;
+    vi.mocked(isMissAVUrl).mockReturnValue(false);
+
+    await checkVideoDownloadStatus(req as Request, res as Response);
+
+    expect(storageService.getVideoBySourceUrl).toHaveBeenCalledWith(
+      "https://www.bilibili.com/video/BV1x?p=1",
+      "audio"
+    );
+  });
+
   it("checkVideoDownloadStatus treats a bare URL and ?p=1 as the same part", async () => {
     arrangeBilibiliPartCheck(
       "https://www.bilibili.com/video/BV1x?p=1",

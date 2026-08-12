@@ -7,6 +7,7 @@ import {
   getUserYtDlpConfig,
 } from "../../../utils/ytDlpUtils";
 import { VideoInfo } from "../BaseDownloader";
+import { resolveProxiedAxiosConfigForUrl } from "./bilibiliConfig";
 import {
   BilibiliCollectionCheckResult,
   BilibiliPartsCheckResult,
@@ -213,9 +214,24 @@ export async function getLatestVideoUrl(
  * Check if a Bilibili video has multiple parts
  */
 export async function checkVideoParts(
-  videoId: string
+  videoId: string,
+  subscriptionYtdlpConfig?: string | null
 ): Promise<BilibiliPartsCheckResult> {
   try {
+    // No URL in scope, so the config is keyed off the video URL this lookup is
+    // about — which also applies the "proxy only for YouTube" setting the same
+    // way it applies to the yt-dlp call for that URL.
+    const axiosConfig = resolveProxiedAxiosConfigForUrl(
+      `https://www.bilibili.com/video/${videoId}`,
+      subscriptionYtdlpConfig
+    );
+    if (!axiosConfig) {
+      logger.warn(
+        "Skipping Bilibili parts check: proxy is configured but unusable"
+      );
+      return { success: false, videosNumber: 1 };
+    }
+
     // Try to get video info from Bilibili API
     // Handle both BV and av formats
     const isBvId = videoId.startsWith("BV");
@@ -228,6 +244,7 @@ export async function checkVideoParts(
     logger.info("Fetching video info from API to check parts:", apiUrl);
 
     const response = await axios.get(apiUrl, {
+      ...axiosConfig,
       headers: {
         Referer: "https://www.bilibili.com",
         "User-Agent":

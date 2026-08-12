@@ -101,7 +101,11 @@ vi.mock("../../utils/helpers", () => ({
     platform: url.includes("bilibili") ? "bilibili" : url.includes("missav") ? "missav" : "youtube",
   })),
   resolveShortUrl: vi.fn(async (url: string) => url),
-  targetsNonFirstBilibiliPart: vi.fn((url: string) => /[?&]p=(?!1(?:&|$))\d+/.test(url)),
+  getBilibiliPartNumber: vi.fn((url: string) => {
+    const match = /[?&]p=(\d+)/.exec(url);
+    const part = match ? Number(match[1]) : 0;
+    return part > 0 ? part : null;
+  }),
   trimBilibiliUrl: vi.fn((url: string) => url),
 }));
 vi.mock("fs-extra");
@@ -142,9 +146,8 @@ describe("VideoController", () => {
     (storageService.checkVideoDownloadBySourceId as any) = vi.fn().mockReturnValue({
       found: false,
     });
-    (storageService.checkVideoDownloadByUrl as any) = vi.fn().mockReturnValue({
-      found: false,
-    });
+    // Per-part fallback for Bilibili duplicate detection: no saved part by default.
+    (storageService.getVideoBySourceUrl as any) = vi.fn().mockReturnValue(undefined);
     (storageService.getSettings as any) = vi.fn().mockReturnValue({
       dontSkipDeletedVideo: false,
     });

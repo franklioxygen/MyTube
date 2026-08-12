@@ -483,9 +483,15 @@ export function buildBilibiliDownloadTask(
     // saved metadata has to agree. Hardcoding 1/1 here recorded part N under
     // part 1's number and filename identity, which collides with a later real
     // part-1 download.
-    const selectedPart = getBilibiliPartNumber(downloadUrl) ?? 1;
+    //
+    // An explicit ?p=1 is not the same as no selector: it names a part of what
+    // may well be a multipart video, so it needs the real count too. Saving it
+    // as a standalone 1/1 would drop the multipart title and filename treatment
+    // and leave metadata that disagrees with a later all-parts download of the
+    // same source URL.
+    const selectedPart = getBilibiliPartNumber(downloadUrl);
     const { partNumber, totalParts } =
-      selectedPart > 1
+      selectedPart != null
         ? await resolveSelectedPartCounts(downloadUrl, selectedPart)
         : { partNumber: 1, totalParts: 1 };
 

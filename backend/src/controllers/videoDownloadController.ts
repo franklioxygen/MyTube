@@ -90,24 +90,29 @@ export const searchVideos = async (
  * downloaded when only part 2 exists.
  *
  * So for Bilibili the matched row's own source URL is compared against the
- * requested part, and a different part is treated as no match. Guarding the
- * existing lookup rather than keying on the part URL keeps every match that
- * works today (older rows whose stored URL predates a normalization still match
- * on the id) while dropping only the cross-part false positives.
+ * requested part. Guarding the existing lookup rather than keying on the part
+ * URL keeps every match that works today (older rows whose stored URL predates
+ * a normalization still match on the id).
+ *
+ * When the row is about a different part it is not evidence either way: the
+ * tracking row's sourceUrl is overwritten by whichever part was written last
+ * (persistDownloadedMediaIdentity's onConflictDoUpdate), so it remembers one
+ * part, not the set. The per-video rows do have one entry per part, so they are
+ * what actually answers "does this part exist".
  */
 function checkPreviousDownload(
   videoUrl: string,
   sourceVideoId: string,
   platform: string,
   mediaType: "audio" | "video",
-) {
+): storageService.VideoDownloadCheckResult {
   const downloadCheck = storageService.checkVideoDownloadBySourceId(
     sourceVideoId,
     platform,
     mediaType,
   );
 
-  if (!downloadCheck.found || !isBilibiliUrl(videoUrl)) {
+  if (!isBilibiliUrl(videoUrl)) {
     return downloadCheck;
   }
 
@@ -117,14 +122,37 @@ function checkPreviousDownload(
     ? (getBilibiliPartNumber(downloadCheck.sourceUrl) ?? 1)
     : requestedPart;
 
-  if (matchedPart !== requestedPart) {
-    logger.info(
-      `Bilibili duplicate check matched part ${matchedPart} but part ${requestedPart} was requested; treating as a new download.`,
-    );
-    return { found: false };
+  if (downloadCheck.found && matchedPart === requestedPart) {
+    return downloadCheck;
   }
 
-  return downloadCheck;
+  // Either nothing was tracked, or the tracking row is about another part.
+  // Ask the per-part rows directly before concluding this part is missing.
+  const existingPart = storageService.getVideoBySourceUrl(
+    trimBilibiliUrl(videoUrl),
+    mediaType,
+  );
+
+  if (existingPart) {
+    const downloadedAt = Date.parse(existingPart.createdAt ?? "");
+    return {
+      found: true,
+      status: "exists" as const,
+      videoId: existingPart.id,
+      title: existingPart.title,
+      author: existingPart.author,
+      downloadedAt: Number.isNaN(downloadedAt) ? undefined : downloadedAt,
+      sourceUrl: existingPart.sourceUrl,
+    };
+  }
+
+  if (downloadCheck.found) {
+    logger.info(
+      `Bilibili duplicate check matched part ${matchedPart} but part ${requestedPart} was requested and has no saved item; treating as a new download.`,
+    );
+  }
+
+  return { found: false };
 }
 
 /**

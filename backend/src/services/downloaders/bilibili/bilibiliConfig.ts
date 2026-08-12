@@ -7,6 +7,7 @@ import {
 import { logger } from "../../../utils/logger";
 import {
   getAxiosProxyConfig,
+  getEffectiveUserYtDlpConfig,
   getNetworkConfigFromUserConfig,
   getUserYtDlpConfig,
   InvalidProxyError,
@@ -42,6 +43,23 @@ export function resolveProxiedAxiosConfig(
     }
     throw error;
   }
+}
+
+/**
+ * resolveProxiedAxiosConfig for callers that hold a URL rather than a resolved
+ * config.
+ *
+ * The URL is passed through to the config lookup so the "proxy only for
+ * YouTube" setting is applied the same way it is for the yt-dlp call on the
+ * same URL, instead of the API request quietly taking a different route.
+ */
+export function resolveProxiedAxiosConfigForUrl(
+  url: string,
+  subscriptionYtdlpConfig?: string | null,
+): Record<string, unknown> | null {
+  return resolveProxiedAxiosConfig(
+    getEffectiveUserYtDlpConfig(url, subscriptionYtdlpConfig),
+  );
 }
 
 export interface BilibiliDownloadFlags {
