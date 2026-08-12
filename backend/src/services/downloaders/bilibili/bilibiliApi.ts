@@ -103,11 +103,24 @@ export async function getAuthorInfo(mid: string): Promise<{
   mid: string;
 }> {
   try {
+    // No URL in scope, so the config is keyed off the author's space URL —
+    // the page this lookup is about.
+    const axiosConfig = resolveProxiedAxiosConfigForUrl(
+      `https://space.bilibili.com/${mid}`,
+    );
+    if (!axiosConfig) {
+      logger.warn(
+        "Skipping Bilibili author info lookup: proxy is configured but unusable",
+      );
+      return { name: "Bilibili User", mid };
+    }
+
     // Use the card API which doesn't require WBI signing
     const apiUrl = `https://api.bilibili.com/x/web-interface/card?mid=${mid}`;
     logger.info("Fetching Bilibili author info from:", apiUrl);
 
     const response = await axios.get(apiUrl, {
+      ...axiosConfig,
       headers: {
         Referer: "https://www.bilibili.com",
         "User-Agent":
@@ -192,10 +205,20 @@ export async function getLatestVideoUrl(
     } catch (ytdlpError) {
       logger.error("yt-dlp failed, trying API fallback:", ytdlpError);
 
+      // Reuse the config yt-dlp just used, so the fallback takes the same route.
+      const axiosConfig = resolveProxiedAxiosConfig(userConfig);
+      if (!axiosConfig) {
+        logger.warn(
+          "Skipping Bilibili space API fallback: proxy is configured but unusable",
+        );
+        return null;
+      }
+
       // Fallback: Try the non-WBI API endpoint
       const apiUrl = `https://api.bilibili.com/x/space/arc/search?mid=${mid}&pn=1&ps=1&order=pubdate`;
 
       const response = await axios.get(apiUrl, {
+        ...axiosConfig,
         headers: {
           Referer: "https://www.bilibili.com",
           "User-Agent":
@@ -270,11 +293,7 @@ export async function checkVideoParts(
 
     const response = await axios.get(apiUrl, {
       ...axiosConfig,
-      headers: {
-        Referer: "https://www.bilibili.com",
-        "User-Agent":
-          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
-      },
+      headers: BILIBILI_API_HEADERS,
     });
 
     if (response.data && response.data.data) {
@@ -324,11 +343,7 @@ export async function checkCollectionOrSeries(
 
     const response = await axios.get(apiUrl, {
       ...axiosConfig,
-      headers: {
-        Referer: "https://www.bilibili.com",
-        "User-Agent":
-          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
-      },
+      headers: BILIBILI_API_HEADERS,
     });
 
     if (response.data && response.data.data) {
