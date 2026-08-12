@@ -370,6 +370,38 @@ describe("bilibiliVideo.downloadSinglePart", () => {
     expect(cleanupCalls).toEqual([]);
   });
 
+  it("repairs an explicit target on a multipart video instead of duplicating it", async () => {
+    // A ?p=N URL now resolves a real part count, so totalParts > 1 for a
+    // single-part repair. The explicit target must still be updated in place;
+    // otherwise collision repair adds a row beside the item it was fixing.
+    mocks.getVideoById.mockReturnValue(
+      buildExistingVideo({
+        id: "repair-target",
+        mediaType: "video",
+        sourceUrl: "https://www.bilibili.com/video/BV1x?p=2",
+      }),
+    );
+
+    const result = await downloadSinglePart(
+      "https://www.bilibili.com/video/BV1x?p=2",
+      2,
+      5,
+      "",
+      "download-repair",
+      undefined,
+      undefined,
+      undefined,
+      { existingLocalVideoId: "repair-target" } as any,
+    );
+
+    expect(result.success).toBe(true);
+    expect(mocks.updateVideo).toHaveBeenCalled();
+    expect(mocks.saveVideo).not.toHaveBeenCalled();
+    expect(mocks.persistDownloadedMediaIdentity).toHaveBeenCalledWith(
+      expect.objectContaining({ trackingMode: "multipart_part" }),
+    );
+  });
+
   it("does not clean up a thumbnail destination it never created", async () => {
     // No thumbnail was saved, so thumbnail collision checks were disabled and
     // the planned path can belong to another row this download never touched.

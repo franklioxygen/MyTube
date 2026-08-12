@@ -141,8 +141,12 @@ export async function downloadSinglePart(
     const timestamp = Date.now();
     const downloadedAtIso = new Date(timestamp).toISOString();
     const sourceVideoId = extractBilibiliVideoId(url) || undefined;
+    // An explicit target (collision repair, redownload) names the row to update,
+    // so it is honored whatever the video's aggregate part count is: a URL that
+    // selects one part of a multipart video still repairs that one row. Only the
+    // implicit same-URL reuse stays limited to single-part videos.
     const existingLocalVideoForRedownload =
-      totalParts === 1
+      totalParts === 1 || modeOptions?.existingLocalVideoId
         ? resolveExistingVideoForRedownload(
             url,
             audioOnly ? "audio" : "video",
@@ -444,8 +448,10 @@ export async function downloadSinglePart(
       : undefined;
 
     // For multi-part videos, always create a new video entry (each part is separate)
-    // For single videos, check if video with same sourceUrl already exists
-    if (totalParts === 1) {
+    // For single videos, check if video with same sourceUrl already exists.
+    // An explicit repair/redownload target overrides that: it updates its own
+    // row rather than adding a duplicate alongside the item it was meant to fix.
+    if (totalParts === 1 || existingLocalVideoForRedownload) {
       // Scope by media type so an audio-only download becomes its own library
       // item instead of overwriting the existing video row for the same URL.
       const existingVideo = existingLocalVideoForRedownload;
