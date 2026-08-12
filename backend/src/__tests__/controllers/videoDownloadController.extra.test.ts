@@ -26,7 +26,6 @@ import {
   isValidUrl,
   processVideoUrl,
   resolveShortUrl,
-  targetsNonFirstBilibiliPart,
   trimBilibiliUrl,
 } from "../../utils/helpers";
 import { validateUrl } from "../../utils/security";
@@ -101,9 +100,13 @@ vi.mock("../../utils/helpers", () => ({
   isTwitchVideoUrl: vi.fn(),
   isYouTubeUrl: vi.fn(),
   isValidUrl: vi.fn(),
+  getBilibiliPartNumber: vi.fn((url: string) => {
+    const match = /[?&]p=(\d+)/.exec(url);
+    const part = match ? Number(match[1]) : 0;
+    return part > 0 ? part : null;
+  }),
   processVideoUrl: vi.fn(),
   resolveShortUrl: vi.fn(),
-  targetsNonFirstBilibiliPart: vi.fn(() => false),
   trimBilibiliUrl: vi.fn((url: string) => url),
 }));
 
@@ -288,45 +291,79 @@ describe("videoDownloadController extra coverage", () => {
     expect(json).toHaveBeenCalledWith({ found: false });
   });
 
-  it("checkVideoDownloadStatus keys a multipart part on its part URL, not the BV id", async () => {
-    // Every part of a multipart video shares one source video id, so an
-    // id-keyed lookup would report part 2 as downloaded because part 1 exists.
-    req.query = { url: "https://www.bilibili.com/video/BV1x?p=2" } as any;
+  // Every part of a multipart Bilibili video shares one tracking row, so the
+  // id-keyed lookup alone cannot tell which part it matched.
+  const arrangeBilibiliPartCheck = (
+    requestedUrl: string,
+    matchedSourceUrl: string
+  ) => {
+    req.query = { url: requestedUrl } as any;
     vi.mocked(processVideoUrl).mockResolvedValue({
-      videoUrl: "https://www.bilibili.com/video/BV1x?p=2",
+      videoUrl: requestedUrl,
       sourceVideoId: "BV1x",
       platform: "bilibili",
     } as any);
     vi.mocked(isBilibiliUrl).mockReturnValue(true);
-    vi.mocked(targetsNonFirstBilibiliPart).mockReturnValue(true);
-    vi.mocked(storageService.checkVideoDownloadByUrl).mockReturnValue({
-      found: false,
-    } as any);
     vi.mocked(storageService.checkVideoDownloadBySourceId).mockReturnValue({
       found: true,
       status: "exists",
-      videoId: "part-1-video",
+      videoId: "other-part-video",
+      sourceUrl: matchedSourceUrl,
+    } as any);
+  };
+
+  it("checkVideoDownloadStatus does not report part 2 as downloaded when only part 1 exists", async () => {
+    arrangeBilibiliPartCheck(
+      "https://www.bilibili.com/video/BV1x?p=2",
+      "https://www.bilibili.com/video/BV1x?p=1"
+    );
+
+    await checkVideoDownloadStatus(req as Request, res as Response);
+
+    expect(json).toHaveBeenCalledWith({ found: false });
+  });
+
+  it("checkVideoDownloadStatus does not report part 1 as downloaded when only part 2 exists", async () => {
+    // The reverse direction: a bare URL is part 1, and the row is part 2.
+    arrangeBilibiliPartCheck(
+      "https://www.bilibili.com/video/BV1x",
+      "https://www.bilibili.com/video/BV1x?p=2"
+    );
+
+    await checkVideoDownloadStatus(req as Request, res as Response);
+
+    expect(json).toHaveBeenCalledWith({ found: false });
+  });
+
+  it("checkVideoDownloadStatus treats a bare URL and ?p=1 as the same part", async () => {
+    arrangeBilibiliPartCheck(
+      "https://www.bilibili.com/video/BV1x?p=1",
+      "https://www.bilibili.com/video/BV1x"
+    );
+    vi.mocked(storageService.verifyVideoExists).mockReturnValue({
+      found: true,
+      status: "exists",
+      videoId: "other-part-video",
+    } as any);
+    vi.mocked(storageService.getVideoById).mockReturnValue({
+      id: "other-part-video",
     } as any);
 
     await checkVideoDownloadStatus(req as Request, res as Response);
 
-    expect(storageService.checkVideoDownloadByUrl).toHaveBeenCalledWith(
-      "https://www.bilibili.com/video/BV1x?p=2",
-      "video"
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({ found: true })
     );
-    expect(storageService.checkVideoDownloadBySourceId).not.toHaveBeenCalled();
-    expect(json).toHaveBeenCalledWith({ found: false });
   });
 
-  it("checkVideoDownloadStatus still keys a bare bilibili URL on the source id", async () => {
-    req.query = { url: "https://www.bilibili.com/video/BV1x" } as any;
+  it("checkVideoDownloadStatus leaves non-bilibili lookups untouched", async () => {
+    req.query = { url: "https://youtube.com/watch?v=abc" } as any;
     vi.mocked(processVideoUrl).mockResolvedValue({
-      videoUrl: "https://www.bilibili.com/video/BV1x",
-      sourceVideoId: "BV1x",
-      platform: "bilibili",
+      videoUrl: "https://youtube.com/watch?v=abc",
+      sourceVideoId: "abc",
+      platform: "youtube",
     } as any);
-    vi.mocked(isBilibiliUrl).mockReturnValue(true);
-    vi.mocked(targetsNonFirstBilibiliPart).mockReturnValue(false);
+    vi.mocked(isBilibiliUrl).mockReturnValue(false);
     vi.mocked(storageService.checkVideoDownloadBySourceId).mockReturnValue({
       found: false,
     } as any);
@@ -334,36 +371,11 @@ describe("videoDownloadController extra coverage", () => {
     await checkVideoDownloadStatus(req as Request, res as Response);
 
     expect(storageService.checkVideoDownloadBySourceId).toHaveBeenCalledWith(
-      "BV1x",
-      "bilibili",
+      "abc",
+      "youtube",
       "video"
     );
-    expect(storageService.checkVideoDownloadByUrl).not.toHaveBeenCalled();
-  });
-
-  it("checkVideoDownloadStatus scopes the part lookup to the audio media type", async () => {
-    req.query = {
-      url: "https://www.bilibili.com/video/BV1x?p=2",
-      audioOnly: "true",
-    } as any;
-    vi.mocked(processVideoUrl).mockResolvedValue({
-      videoUrl: "https://www.bilibili.com/video/BV1x?p=2",
-      sourceVideoId: "BV1x",
-      platform: "bilibili",
-    } as any);
-    vi.mocked(isBilibiliUrl).mockReturnValue(true);
-    vi.mocked(isMissAVUrl).mockReturnValue(false);
-    vi.mocked(targetsNonFirstBilibiliPart).mockReturnValue(true);
-    vi.mocked(storageService.checkVideoDownloadByUrl).mockReturnValue({
-      found: false,
-    } as any);
-
-    await checkVideoDownloadStatus(req as Request, res as Response);
-
-    expect(storageService.checkVideoDownloadByUrl).toHaveBeenCalledWith(
-      "https://www.bilibili.com/video/BV1x?p=2",
-      "audio"
-    );
+    expect(json).toHaveBeenCalledWith({ found: false });
   });
 
   it("checkVideoDownloadStatus throws when url is missing", async () => {

@@ -1,5 +1,6 @@
 import {
   extractBilibiliVideoId,
+  getBilibiliPartNumber,
   isBilibiliUrl,
   trimBilibiliUrl,
 } from "../utils/helpers";
@@ -14,6 +15,37 @@ import * as storageService from "./storageService";
 import { resolveAuthorOrganizationMode } from "../types/settings";
 import type { AudioFormat } from "../types/settings";
 import type { DownloadModeOptions } from "./downloaders/BaseDownloader";
+
+/**
+ * Resolve the part number and real part count for a URL that names a specific
+ * part.
+ *
+ * totalParts drives the filename suffix, the title prefix, and whether the row
+ * is tracked as a multipart part, so it has to reflect the actual video. If the
+ * parts lookup fails, fall back to the selected part as the count: an off-by-a
+ * few "N/N" label is far better than recording part N as a standalone 1/1.
+ */
+async function resolveSelectedPartCounts(
+  downloadUrl: string,
+  selectedPart: number,
+): Promise<{ partNumber: number; totalParts: number }> {
+  const videoId = extractBilibiliVideoId(downloadUrl);
+  if (videoId) {
+    try {
+      const partsInfo = await downloadService.checkBilibiliVideoParts(videoId);
+      if (partsInfo.success && (partsInfo.videosNumber ?? 0) >= selectedPart) {
+        return { partNumber: selectedPart, totalParts: partsInfo.videosNumber };
+      }
+    } catch (error) {
+      logger.warn(
+        "Could not resolve Bilibili part count for a part-specific URL:",
+        error,
+      );
+    }
+  }
+
+  return { partNumber: selectedPart, totalParts: selectedPart };
+}
 
 function buildAggregateError(result: BilibiliAggregateDownloadResult): string {
   if (result.error) {
@@ -447,16 +479,28 @@ export function buildBilibiliDownloadTask(
       };
     }
 
-    logger.info("Downloading single Bilibili video part");
+    // A URL that names a part (…?p=N) makes yt-dlp download that part, so the
+    // saved metadata has to agree. Hardcoding 1/1 here recorded part N under
+    // part 1's number and filename identity, which collides with a later real
+    // part-1 download.
+    const selectedPart = getBilibiliPartNumber(downloadUrl) ?? 1;
+    const { partNumber, totalParts } =
+      selectedPart > 1
+        ? await resolveSelectedPartCounts(downloadUrl, selectedPart)
+        : { partNumber: 1, totalParts: 1 };
+
+    logger.info(
+      `Downloading single Bilibili video part ${partNumber}/${totalParts}`,
+    );
     const modeOptions = buildDownloadModeOptions(options);
     const result = modeOptions
       ? await downloadService.downloadSingleBilibiliPart(
-          downloadUrl, 1, 1, "", options.downloadId, registerCancel,
+          downloadUrl, partNumber, totalParts, "", options.downloadId, registerCancel,
           undefined, undefined,
           modeOptions,
         )
       : await downloadService.downloadSingleBilibiliPart(
-          downloadUrl, 1, 1, "", options.downloadId, registerCancel,
+          downloadUrl, partNumber, totalParts, "", options.downloadId, registerCancel,
         );
 
     return {

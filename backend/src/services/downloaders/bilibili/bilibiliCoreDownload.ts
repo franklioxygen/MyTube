@@ -24,6 +24,7 @@ import {
 import * as storageService from "../../storageService";
 import {
   prepareBilibiliDownloadFlags,
+  resolveProxiedAxiosConfig,
   resolveResolutionPreference,
   resolveResolutionRetryTarget,
 } from "./bilibiliConfig";
@@ -52,37 +53,6 @@ function extractBilibiliVideoIdFromYtDlpId(id: unknown): string | null {
   if (typeof id !== "string") return null;
   const match = id.match(/^(BV[0-9A-Za-z]+|av\d+)/i);
   return match ? match[1] : null;
-}
-
-/**
- * Axios config for this download's outbound side requests, honoring the user's
- * proxy.
- *
- * Returns null when a proxy is configured but unusable. getAxiosProxyConfig
- * throws on a malformed proxy specifically so callers do not silently fall back
- * to a direct connection and expose the user's real IP, so a null here means
- * "skip the request", never "send it directly".
- */
-function resolveProxiedAxiosConfig(
-  userConfig: Record<string, any>,
-): Record<string, unknown> | null {
-  const proxy = userConfig?.proxy;
-  if (typeof proxy !== "string" || !proxy) {
-    return {};
-  }
-
-  try {
-    return getAxiosProxyConfig(proxy);
-  } catch (error) {
-    if (error instanceof InvalidProxyError) {
-      logger.warn(
-        "Invalid proxy configuration; skipping Bilibili side requests rather than sending them directly:",
-        error.message,
-      );
-      return null;
-    }
-    throw error;
-  }
 }
 
 function resolveDownloadedVideoDestination(

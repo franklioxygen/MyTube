@@ -36,12 +36,22 @@ export async function extractPartMetadata(
   partNumber: number,
   totalParts: number,
   seriesTitle: string,
-  bilibiliInfo: BilibiliVideoInfo
+  bilibiliInfo: BilibiliVideoInfo,
+  // null means a configured proxy is unusable: skip the lookup rather than
+  // reach api.bilibili.com directly and expose the user's real IP.
+  axiosConfig: Record<string, unknown> | null = {}
 ): Promise<PartMetadata> {
   let channelUrl: string | undefined;
   let partTitle = bilibiliInfo.title || "Bilibili Video";
 
   try {
+    if (!axiosConfig) {
+      logger.warn(
+        "Skipping Bilibili part metadata lookup: proxy is configured but unusable"
+      );
+      return { partTitle, channelUrl };
+    }
+
     const videoId = extractBilibiliVideoId(url);
     if (!videoId) {
       logger.warn("Could not extract video ID from URL, using yt-dlp title");
@@ -57,6 +67,7 @@ export async function extractPartMetadata(
         )}`;
 
     const response = await axios.get<BilibiliViewResponse>(apiUrl, {
+      ...axiosConfig,
       headers: {
         Referer: "https://www.bilibili.com",
         "User-Agent":

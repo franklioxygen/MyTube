@@ -20,6 +20,7 @@ import { isLoginRequired } from "../services/passwordService";
 import * as storageService from "../services/storageService";
 import {
   extractBilibiliVideoId,
+  getBilibiliPartNumber,
   getMissAVPlaceholderTitle,
   isBilibiliShortUrl,
   isBilibiliUrl,
@@ -29,7 +30,6 @@ import {
   isValidUrl,
   processVideoUrl,
   resolveShortUrl,
-  targetsNonFirstBilibiliPart,
   trimBilibiliUrl,
 } from "../utils/helpers";
 import { logger } from "../utils/logger";
@@ -82,12 +82,18 @@ export const searchVideos = async (
 /**
  * Look up a previous download for this request.
  *
- * Normally keyed on the source video id, but every part of a multipart Bilibili
- * video shares one source video id (the videoDownloads unique index is
- * sourceVideoId + platform + mediaType), so an id-keyed lookup reports part 2 as
- * already downloaded whenever any other part exists. When the URL names a part
- * other than the first, key on the trimmed part URL instead — the same `?p=N`
- * form the multipart download flow already records per part.
+ * Keyed on the source video id, but every part of a multipart Bilibili video
+ * shares one source video id (videoDownloads is unique on sourceVideoId +
+ * platform + mediaType), so that lookup answers "some part of this video was
+ * downloaded", not "this part was". Taken at face value it reports part 2 as
+ * already downloaded because part 1 exists — and equally reports part 1 as
+ * downloaded when only part 2 exists.
+ *
+ * So for Bilibili the matched row's own source URL is compared against the
+ * requested part, and a different part is treated as no match. Guarding the
+ * existing lookup rather than keying on the part URL keeps every match that
+ * works today (older rows whose stored URL predates a normalization still match
+ * on the id) while dropping only the cross-part false positives.
  */
 function checkPreviousDownload(
   videoUrl: string,
@@ -95,18 +101,30 @@ function checkPreviousDownload(
   platform: string,
   mediaType: "audio" | "video",
 ) {
-  if (isBilibiliUrl(videoUrl) && targetsNonFirstBilibiliPart(videoUrl)) {
-    return storageService.checkVideoDownloadByUrl(
-      trimBilibiliUrl(videoUrl),
-      mediaType,
-    );
-  }
-
-  return storageService.checkVideoDownloadBySourceId(
+  const downloadCheck = storageService.checkVideoDownloadBySourceId(
     sourceVideoId,
     platform,
     mediaType,
   );
+
+  if (!downloadCheck.found || !isBilibiliUrl(videoUrl)) {
+    return downloadCheck;
+  }
+
+  // A bare URL and ?p=1 are the same part, so both normalize to 1.
+  const requestedPart = getBilibiliPartNumber(videoUrl) ?? 1;
+  const matchedPart = downloadCheck.sourceUrl
+    ? (getBilibiliPartNumber(downloadCheck.sourceUrl) ?? 1)
+    : requestedPart;
+
+  if (matchedPart !== requestedPart) {
+    logger.info(
+      `Bilibili duplicate check matched part ${matchedPart} but part ${requestedPart} was requested; treating as a new download.`,
+    );
+    return { found: false };
+  }
+
+  return downloadCheck;
 }
 
 /**

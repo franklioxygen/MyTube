@@ -33,6 +33,7 @@ import {
   BILIBILI_COOKIE_REFRESH_HINT,
   isLikelyBilibiliAuthFailure,
   resolveBilibiliMergeOutputFormat,
+  resolveProxiedAxiosConfig,
 } from "./bilibiliConfig";
 import {
   cleanupFilesOnCancellation,
@@ -119,6 +120,10 @@ export async function downloadSinglePart(
     const mergeOutputFormat = audioOnly
       ? audioFormat
       : resolveBilibiliMergeOutputFormat(userConfig);
+    // Shared by every outbound side request below (part metadata lookup,
+    // subtitles). null means the configured proxy is unusable, so those
+    // requests are skipped rather than sent directly.
+    const proxiedAxiosConfig = resolveProxiedAxiosConfig(userConfig);
     // Overlay any per-subscription filename-template override onto the global
     // naming settings so renameFilesWithMetadata and the legacy/template branch
     // below use it consistently (issue #368). When no override is present the
@@ -218,7 +223,8 @@ export async function downloadSinglePart(
       partNumber,
       totalParts,
       seriesTitle,
-      bilibiliInfo
+      bilibiliInfo,
+      proxiedAxiosConfig
     );
 
     // For multi-part videos, include the part number in the title
@@ -332,29 +338,20 @@ export async function downloadSinglePart(
         const subtitlePathPrefix =
           renameResult.subtitleWebBaseDir ||
           (moveSubtitlesToVideoFolder ? `/videos` : `/subtitles`);
-        let axiosConfig = {};
-        if (userConfig.proxy) {
-          try {
-            axiosConfig = getAxiosProxyConfig(userConfig.proxy);
-          } catch (error) {
-            if (error instanceof InvalidProxyError) {
-              logger.warn(
-                "Invalid proxy configuration for subtitle download, proceeding without proxy:",
-                error.message
-              );
-            } else {
-              throw error;
-            }
-          }
+        if (proxiedAxiosConfig) {
+          subtitles = await downloadSubtitles(
+            url,
+            newSafeBaseFilename,
+            subtitleDir,
+            subtitlePathPrefix,
+            proxiedAxiosConfig
+          );
+          logger.info(`Downloaded ${subtitles.length} subtitles`);
+        } else {
+          logger.warn(
+            "Skipping subtitle download: proxy is configured but unusable"
+          );
         }
-        subtitles = await downloadSubtitles(
-          url,
-          newSafeBaseFilename,
-          subtitleDir,
-          subtitlePathPrefix,
-          axiosConfig
-        );
-        logger.info(`Downloaded ${subtitles.length} subtitles`);
       } catch (e) {
         // If it's a cancellation error, re-throw it
         downloader.handleCancellationErrorPublic(e);

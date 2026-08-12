@@ -13,6 +13,7 @@ type DownloadTrackingRow = {
   author?: string | null;
   downloadedAt?: number | null;
   deletedAt?: number | null;
+  sourceUrl?: string | null;
 };
 
 function buildSourceVideoQueryCondition(
@@ -57,6 +58,7 @@ function toDownloadCheckResult(record: DownloadTrackingRow): VideoDownloadCheckR
     author: record.author || undefined,
     downloadedAt: record.downloadedAt ?? undefined,
     deletedAt: record.deletedAt ?? undefined,
+    sourceUrl: record.sourceUrl || undefined,
   };
 }
 
@@ -95,22 +97,13 @@ export function checkVideoDownloadBySourceId(
  * Check if a video has been downloaded before by its source URL
  */
 export function checkVideoDownloadByUrl(
-  sourceUrl: string,
-  mediaType: MediaType = "video"
+  sourceUrl: string
 ): VideoDownloadCheckResult {
   try {
-    // Scoped to the media type for the same reason the source-id lookup is: an
-    // audio row and a video row for one URL are distinct library items, so an
-    // audio request must not match the video row.
     const record = db
       .select()
       .from(videoDownloads)
-      .where(
-        and(
-          eq(videoDownloads.sourceUrl, sourceUrl),
-          eq(videoDownloads.mediaType, mediaType)
-        )
-      )
+      .where(eq(videoDownloads.sourceUrl, sourceUrl))
       .get();
 
     if (record) {

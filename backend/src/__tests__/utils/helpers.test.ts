@@ -29,7 +29,7 @@ import {
     resetShortUrlResolutionCacheForTests,
     getShortUrlResolutionCacheSizeForTests,
     sanitizeFilename,
-    targetsNonFirstBilibiliPart,
+    getBilibiliPartNumber,
     trimBilibiliUrl
 } from '../../utils/helpers';
 
@@ -456,22 +456,23 @@ describe('Helpers', () => {
       expect(trimBilibiliUrl(url)).toBe('https://www.bilibili.com/read/cv123456');
     });
 
-    it('should identify URLs that target a part other than the first', () => {
-      // p=1 and a bare URL are the same video, so only p>=2 needs the
-      // part-aware duplicate check.
+    it('should read the part number off a URL', () => {
       expect(
-        targetsNonFirstBilibiliPart('https://www.bilibili.com/video/BV1x?p=2')
-      ).toBe(true);
+        getBilibiliPartNumber('https://www.bilibili.com/video/BV1x?p=2')
+      ).toBe(2);
       expect(
-        targetsNonFirstBilibiliPart('https://www.bilibili.com/video/BV1x?p=1')
-      ).toBe(false);
+        getBilibiliPartNumber('https://www.bilibili.com/video/BV1x?p=1')
+      ).toBe(1);
+      // Absent or malformed selectors are not a part number; callers treat
+      // these as part 1.
+      expect(getBilibiliPartNumber('https://www.bilibili.com/video/BV1x')).toBeNull();
       expect(
-        targetsNonFirstBilibiliPart('https://www.bilibili.com/video/BV1x')
-      ).toBe(false);
+        getBilibiliPartNumber('https://www.bilibili.com/video/BV1x?p=abc')
+      ).toBeNull();
       expect(
-        targetsNonFirstBilibiliPart('https://www.bilibili.com/video/BV1x?p=abc')
-      ).toBe(false);
-      expect(targetsNonFirstBilibiliPart('not-a-url')).toBe(false);
+        getBilibiliPartNumber('https://www.bilibili.com/video/BV1x?p=0')
+      ).toBeNull();
+      expect(getBilibiliPartNumber('not-a-url')).toBeNull();
     });
 
     it('should return original value when URL parsing fails', () => {

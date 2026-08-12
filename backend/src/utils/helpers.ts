@@ -396,19 +396,6 @@ export function getBilibiliPartNumber(url: string): number | null {
   }
 }
 
-/**
- * Whether a Bilibili URL names a part other than the first.
- *
- * The bare video URL and `?p=1` are the same thing, so only `p >= 2` makes the
- * request refer to something the bare BV/av id cannot identify — which matters
- * for duplicate detection, since every part of a multipart video shares one
- * source video id.
- */
-export function targetsNonFirstBilibiliPart(url: string): boolean {
-  const partNumber = getBilibiliPartNumber(url);
-  return partNumber != null && partNumber > 1;
-}
-
 // Helper function to trim Bilibili URL by removing query parameters
 export function trimBilibiliUrl(url: string): string {
   try {

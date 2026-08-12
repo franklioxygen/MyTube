@@ -107,6 +107,12 @@ export interface VideoDownloadCheckResult {
   author?: string;
   downloadedAt?: number;
   deletedAt?: number;
+  /**
+   * Source URL of the matched tracking row. Lets callers tell *which* item the
+   * shared source video id actually matched — needed for multipart Bilibili
+   * videos, where every part collapses onto one tracking row.
+   */
+  sourceUrl?: string;
 }
 
 export interface DownloadStatus {
