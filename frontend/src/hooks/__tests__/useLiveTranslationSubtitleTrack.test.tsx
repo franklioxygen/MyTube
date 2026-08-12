@@ -257,6 +257,30 @@ describe('useLiveTranslationSubtitleTrack', () => {
     }
   });
 
+  it('removes a soft-closed future caption on a later barge-in', () => {
+    // The drain closes an unplayed caption without a replacement arriving, so
+    // the barge-in must still be able to find and remove it.
+    vi.useFakeTimers();
+    try {
+      const { el, track } = makeFakeVideo();
+      const { result } = renderHook(() =>
+        useLiveTranslationSubtitleTrack(el, 'en', 'Live'),
+      );
+      act(() => result.current.addCue({ kind: 'output', text: 'a'.repeat(120), mediaTime: 0 }));
+      act(() => result.current.addCue({ kind: 'output', text: 'pending', mediaTime: 0 }));
+      expect((track.cues as FakeVTTCue[]).map((c) => c.text)).toContain('pending');
+
+      act(() => result.current.finishTurn());
+      act(() => vi.advanceTimersByTime(400));
+      act(() => result.current.endUtterance());
+
+      // Neither the split pieces nor the soft-closed caption are left behind.
+      expect(track.cues).toHaveLength(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('keeps queued split pieces across a turnComplete drain', () => {
     // Split cues span seconds — far longer than the 400ms drain — so the soft
     // turn reset must close accumulation without discarding the queue.

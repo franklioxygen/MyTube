@@ -201,6 +201,12 @@ export function useLiveTranslationSubtitleTrack(
         ? active.endTime
         : active.startTime + captionDuration(activeCueTextRef.current);
       queuedUntilRef.current = Math.max(queuedUntilRef.current, showUntil);
+      if (activeCueAheadRef.current) {
+        // Still unplayed once this reference is dropped, so hand it to the queue:
+        // a later barge-in cleans up by reference (unlike a seek, which sweeps the
+        // track), and would otherwise leave this abandoned caption to appear.
+        queuedCuesRef.current.push(active);
+      }
     }
     activeCueRef.current = null;
     activeCueTextRef.current = '';
@@ -226,6 +232,11 @@ export function useLiveTranslationSubtitleTrack(
     if (active && activeCueAheadRef.current) {
       queuedCuesRef.current.push(active);
     }
+    // Drop the accumulator now that its caption is collected, so closing it below
+    // cannot hand the same cue back to the queue we are about to drain.
+    activeCueRef.current = null;
+    activeCueTextRef.current = '';
+    activeCueAheadRef.current = false;
     const queued = queuedCuesRef.current;
     queuedCuesRef.current = [];
     if (track) {
