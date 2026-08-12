@@ -44,6 +44,16 @@ import {
   formatYtDlpFailureMessage,
 } from "./bilibiliVideoHelpers";
 
+/**
+ * yt-dlp reports the Bilibili id bare (no /video/ prefix) and suffixes the part
+ * for multipart videos, e.g. "BV1xx411c7mD_p2". Pull the bare BV/av id out.
+ */
+function extractBilibiliVideoIdFromYtDlpId(id: unknown): string | null {
+  if (typeof id !== "string") return null;
+  const match = id.match(/^(BV[0-9A-Za-z]+|av\d+)/i);
+  return match ? match[1] : null;
+}
+
 function resolveDownloadedVideoDestination(
   plannedVideoPath: string,
   downloadedVideoFile: string,
@@ -174,7 +184,18 @@ export async function downloadVideo(
         const { extractBilibiliVideoId } = await import(
           "../../../utils/helpers"
         );
-        const videoId = extractBilibiliVideoId(url);
+        // A b23.tv short URL carries no BV/av id. Resolution of the shortener is
+        // best-effort (it can fail behind a proxy or an offline network), but
+        // yt-dlp followed the redirect itself, so its metadata still knows the
+        // canonical URL — fall back to that rather than skipping the avatar.
+        const videoId =
+          extractBilibiliVideoId(url) ??
+          extractBilibiliVideoId(
+            typeof metaSource.webpage_url === "string"
+              ? metaSource.webpage_url
+              : ""
+          ) ??
+          extractBilibiliVideoIdFromYtDlpId(metaSource.id);
         if (videoId) {
           logger.info("Fetching Bilibili avatar from API for video:", videoId);
           const axios = (await import("axios")).default;
