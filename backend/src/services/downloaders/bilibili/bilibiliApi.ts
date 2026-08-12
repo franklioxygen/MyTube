@@ -276,13 +276,29 @@ export async function checkVideoParts(
  * Check if a Bilibili video belongs to a collection or series
  */
 export async function checkCollectionOrSeries(
-  videoId: string
+  videoId: string,
+  subscriptionYtdlpConfig?: string | null
 ): Promise<BilibiliCollectionCheckResult> {
   try {
+    // Same reasoning as checkVideoParts: this is the other preflight the
+    // frontend runs before a Bilibili download, and resolving short links now
+    // lets it reach the API instead of failing ID extraction first.
+    const axiosConfig = resolveProxiedAxiosConfigForUrl(
+      `https://www.bilibili.com/video/${videoId}`,
+      subscriptionYtdlpConfig
+    );
+    if (!axiosConfig) {
+      logger.warn(
+        "Skipping Bilibili collection check: proxy is configured but unusable"
+      );
+      return { success: false, type: "none" };
+    }
+
     const apiUrl = `https://api.bilibili.com/x/web-interface/view?bvid=${videoId}`;
     logger.info("Checking if video belongs to collection/series:", apiUrl);
 
     const response = await axios.get(apiUrl, {
+      ...axiosConfig,
       headers: {
         Referer: "https://www.bilibili.com",
         "User-Agent":

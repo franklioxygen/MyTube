@@ -89,17 +89,25 @@ export const searchVideos = async (
  * already downloaded because part 1 exists — and equally reports part 1 as
  * downloaded when only part 2 exists.
  *
- * So for Bilibili the matched row's own source URL is compared against the
- * requested part. Guarding the existing lookup rather than keying on the part
- * URL keeps every match that works today (older rows whose stored URL predates
- * a normalization still match on the id).
+ * Neither field of that row can stand in for the requested part.
+ * persistDownloadedMediaIdentity overwrites sourceUrl with whichever part was
+ * saved last, while deliberately keeping videoId on the lowest-numbered
+ * surviving part — so the row can say "?p=2" while pointing at part 1's video.
+ * Trusting either would skip a part that is genuinely missing.
  *
- * When the row is about a different part it is not evidence either way: the
- * tracking row's sourceUrl is overwritten by whichever part was written last
- * (persistDownloadedMediaIdentity's onConflictDoUpdate), so it remembers one
- * part, not the set. The per-video rows do have one entry per part, so they are
- * what actually answers "does this part exist".
+ * The per-video rows do have one entry per part, so for Bilibili they decide
+ * existence. The tracking row is consulted only for the deleted state it alone
+ * records, and only when it is about the requested part.
  */
+function bilibiliPartAliases(videoUrl: string, requestedPart: number): string[] {
+  const baseUrl = trimBilibiliUrl(videoUrl).split("?")[0];
+  // Part 1 has two canonical spellings and either may be what was stored: a
+  // single download saves the bare URL, the all-parts flow saves ?p=1.
+  return requestedPart === 1
+    ? [baseUrl, `${baseUrl}?p=1`]
+    : [`${baseUrl}?p=${requestedPart}`];
+}
+
 function checkPreviousDownload(
   videoUrl: string,
   sourceVideoId: string,
@@ -118,37 +126,43 @@ function checkPreviousDownload(
 
   // A bare URL and ?p=1 are the same part, so both normalize to 1.
   const requestedPart = getBilibiliPartNumber(videoUrl) ?? 1;
+
+  for (const candidateUrl of bilibiliPartAliases(videoUrl, requestedPart)) {
+    const existingPart = storageService.getVideoBySourceUrl(
+      candidateUrl,
+      mediaType,
+    );
+    if (existingPart) {
+      const downloadedAt = Date.parse(existingPart.createdAt ?? "");
+      return {
+        found: true,
+        status: "exists" as const,
+        videoId: existingPart.id,
+        title: existingPart.title,
+        author: existingPart.author,
+        downloadedAt: Number.isNaN(downloadedAt) ? undefined : downloadedAt,
+        sourceUrl: existingPart.sourceUrl,
+      };
+    }
+  }
+
+  // No saved item for this part. Only the tracking row knows about a *deleted*
+  // one, and only counts when it is about this part rather than another.
   const matchedPart = downloadCheck.sourceUrl
     ? (getBilibiliPartNumber(downloadCheck.sourceUrl) ?? 1)
     : requestedPart;
 
-  if (downloadCheck.found && matchedPart === requestedPart) {
+  if (
+    downloadCheck.found &&
+    matchedPart === requestedPart &&
+    downloadCheck.status === "deleted"
+  ) {
     return downloadCheck;
-  }
-
-  // Either nothing was tracked, or the tracking row is about another part.
-  // Ask the per-part rows directly before concluding this part is missing.
-  const existingPart = storageService.getVideoBySourceUrl(
-    trimBilibiliUrl(videoUrl),
-    mediaType,
-  );
-
-  if (existingPart) {
-    const downloadedAt = Date.parse(existingPart.createdAt ?? "");
-    return {
-      found: true,
-      status: "exists" as const,
-      videoId: existingPart.id,
-      title: existingPart.title,
-      author: existingPart.author,
-      downloadedAt: Number.isNaN(downloadedAt) ? undefined : downloadedAt,
-      sourceUrl: existingPart.sourceUrl,
-    };
   }
 
   if (downloadCheck.found) {
     logger.info(
-      `Bilibili duplicate check matched part ${matchedPart} but part ${requestedPart} was requested and has no saved item; treating as a new download.`,
+      `Bilibili duplicate check matched part ${matchedPart} but part ${requestedPart} has no saved item; treating as a new download.`,
     );
   }
 

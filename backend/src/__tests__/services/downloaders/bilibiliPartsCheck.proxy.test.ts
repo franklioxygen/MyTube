@@ -38,7 +38,10 @@ vi.mock("../../../utils/ytDlpUtils", async () => {
   };
 });
 
-import { checkVideoParts } from "../../../services/downloaders/bilibili/bilibiliApi";
+import {
+  checkCollectionOrSeries,
+  checkVideoParts,
+} from "../../../services/downloaders/bilibili/bilibiliApi";
 import { InvalidProxyError } from "../../../utils/ytdlp/proxy";
 
 const PROXY_AGENT = { proxy: false, httpsAgent: "agent" };
@@ -78,6 +81,34 @@ describe("checkVideoParts proxy handling", () => {
     await expect(checkVideoParts("BV1x")).resolves.toEqual({
       success: false,
       videosNumber: 1,
+    });
+    expect(mocks.axiosGet).not.toHaveBeenCalled();
+  });
+
+  it("routes the collection preflight through the configured proxy", async () => {
+    mocks.getUserYtDlpConfig.mockReturnValue({ proxy: "socks5://127.0.0.1:1080" });
+    mocks.getAxiosProxyConfig.mockReturnValue(PROXY_AGENT);
+    mocks.axiosGet.mockResolvedValue({
+      data: { data: { owner: { mid: 42 } } },
+    });
+
+    await checkCollectionOrSeries("BV1x");
+
+    expect(mocks.axiosGet).toHaveBeenCalledWith(
+      expect.stringContaining("api.bilibili.com"),
+      expect.objectContaining(PROXY_AGENT),
+    );
+  });
+
+  it("skips the collection preflight when the proxy is unusable", async () => {
+    mocks.getUserYtDlpConfig.mockReturnValue({ proxy: "not-a-proxy" });
+    mocks.getAxiosProxyConfig.mockImplementation(() => {
+      throw new InvalidProxyError("not-a-proxy");
+    });
+
+    await expect(checkCollectionOrSeries("BV1x")).resolves.toEqual({
+      success: false,
+      type: "none",
     });
     expect(mocks.axiosGet).not.toHaveBeenCalled();
   });
