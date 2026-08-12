@@ -27,6 +27,7 @@ import {
     processVideoUrl,
     resolveShortUrl,
     resetShortUrlResolutionCacheForTests,
+    getShortUrlResolutionCacheSizeForTests,
     sanitizeFilename,
     trimBilibiliUrl
 } from '../../utils/helpers';
@@ -39,9 +40,16 @@ vi.mock('axios', () => ({
 }));
 
 // getUserYtDlpConfig pulls in the storage layer; the short-URL resolver only
-// needs the proxy field, so stub it to a proxy-less config.
+// needs the proxy field, so stub it. Defaults to a proxy-less config.
+const userYtDlpConfigMock = vi.fn(() => ({}) as Record<string, unknown>);
 vi.mock('../../utils/ytdlp/config', () => ({
-  getUserYtDlpConfig: () => ({}),
+  getUserYtDlpConfig: (...args: unknown[]) => userYtDlpConfigMock(...(args as [])),
+}));
+
+const axiosProxyConfigMock = vi.fn(() => ({}) as Record<string, unknown>);
+vi.mock('../../utils/ytdlp/proxy', () => ({
+  getAxiosProxyConfig: (...args: unknown[]) =>
+    axiosProxyConfigMock(...(args as [])),
 }));
 
 /** Queue a redirect chain for the mocked axios.head to walk through. */
@@ -207,6 +215,10 @@ describe('Helpers', () => {
     beforeEach(() => {
       vi.clearAllMocks();
       axiosHeadMock.mockReset();
+      userYtDlpConfigMock.mockReset();
+      userYtDlpConfigMock.mockReturnValue({});
+      axiosProxyConfigMock.mockReset();
+      axiosProxyConfigMock.mockReturnValue({});
       resetShortUrlResolutionCacheForTests();
     });
 
@@ -309,12 +321,82 @@ describe('Helpers', () => {
       expect(axiosHeadMock).toHaveBeenCalledTimes(5);
     });
 
+    it('should carry a part selector through resolution and trimming', async () => {
+      // The controller feeds the resolved URL straight into trimBilibiliUrl, so
+      // a short link to part 2 must still name part 2 at the end of that chain.
+      mockRedirectChain(
+        'https://www.bilibili.com/video/BV1xx411c7mD?p=2&share_source=COPY&unique_k=zKTXLw5'
+      );
+      const resolved = await resolveShortUrl('https://b23.tv/zKTXLw5');
+      expect(trimBilibiliUrl(resolved)).toBe(
+        'https://www.bilibili.com/video/BV1xx411c7mD?p=2'
+      );
+    });
+
+    it('should route the request through a configured proxy', async () => {
+      userYtDlpConfigMock.mockReturnValue({ proxy: 'socks5://127.0.0.1:1080' });
+      axiosProxyConfigMock.mockReturnValue({ proxy: false, httpsAgent: 'agent' });
+      mockRedirectChain('https://www.bilibili.com/video/BV1xx411c7mD');
+
+      await resolveShortUrl('https://b23.tv/zKTXLw5');
+
+      expect(axiosProxyConfigMock).toHaveBeenCalledWith('socks5://127.0.0.1:1080');
+      expect(axiosHeadMock).toHaveBeenCalledWith(
+        'https://b23.tv/zKTXLw5',
+        expect.objectContaining({ proxy: false, httpsAgent: 'agent' })
+      );
+    });
+
+    it('should never fall back to a direct request when the proxy is invalid', async () => {
+      // getAxiosProxyConfig throws precisely to stop a silent direct connection
+      // from exposing the user's real IP, so resolution must abort entirely.
+      userYtDlpConfigMock.mockReturnValue({ proxy: 'not-a-proxy' });
+      axiosProxyConfigMock.mockImplementation(() => {
+        throw new Error('Invalid proxy URL: not-a-proxy');
+      });
+
+      await expect(resolveShortUrl('https://b23.tv/zKTXLw5')).resolves.toBe(
+        'https://b23.tv/zKTXLw5'
+      );
+      expect(axiosHeadMock).not.toHaveBeenCalled();
+    });
+
     it('should cache a resolved short URL instead of re-requesting it', async () => {
       mockRedirectChain('https://www.bilibili.com/video/BV1xx411c7mD');
       const first = await resolveShortUrl('https://b23.tv/zKTXLw5');
       const second = await resolveShortUrl('https://b23.tv/zKTXLw5');
       expect(second).toBe(first);
       expect(axiosHeadMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('should evict expired entries instead of growing forever', async () => {
+      vi.useFakeTimers();
+      try {
+        // One-off links are never requested a second time, so expiry-on-read
+        // alone would never reclaim them.
+        for (let i = 0; i < 3; i++) {
+          mockRedirectChain(`https://www.bilibili.com/video/BV100${i}`);
+          await resolveShortUrl(`https://b23.tv/oneoff${i}`);
+        }
+        expect(getShortUrlResolutionCacheSizeForTests()).toBe(3);
+
+        // Past the TTL, the next write sweeps every stale entry.
+        vi.advanceTimersByTime(11 * 60 * 1000);
+        mockRedirectChain('https://www.bilibili.com/video/BV2000');
+        await resolveShortUrl('https://b23.tv/fresh');
+
+        expect(getShortUrlResolutionCacheSizeForTests()).toBe(1);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('should keep the cache bounded when entries have not expired', async () => {
+      for (let i = 0; i < 505; i++) {
+        mockRedirectChain(`https://www.bilibili.com/video/BV${i}`);
+        await resolveShortUrl(`https://b23.tv/bulk${i}`);
+      }
+      expect(getShortUrlResolutionCacheSizeForTests()).toBe(500);
     });
 
     it('should reject non-whitelisted short URL hosts', async () => {
@@ -343,6 +425,29 @@ describe('Helpers', () => {
     it('should trim bilibili URL with av ID', () => {
       const url = 'https://www.bilibili.com/video/av123456?spm_id_from=333.999.0.0';
       expect(trimBilibiliUrl(url)).toBe('https://www.bilibili.com/video/av123456');
+    });
+
+    it('should keep the part selector while dropping tracking params', () => {
+      // Dropping ?p= silently downloads part 1 of a multipart video instead of
+      // the part the link actually points at.
+      expect(
+        trimBilibiliUrl(
+          'https://www.bilibili.com/video/BV1xx411c7mD?p=2&spm_id_from=333.999.0.0&share_source=COPY'
+        )
+      ).toBe('https://www.bilibili.com/video/BV1xx411c7mD?p=2');
+      expect(
+        trimBilibiliUrl('https://www.bilibili.com/video/av123456?p=13')
+      ).toBe('https://www.bilibili.com/video/av123456?p=13');
+    });
+
+    it('should ignore a malformed part selector', () => {
+      for (const part of ['0', '-1', 'abc', '2; DROP TABLE', '']) {
+        expect(
+          trimBilibiliUrl(
+            `https://www.bilibili.com/video/BV1xx411c7mD?p=${encodeURIComponent(part)}`
+          )
+        ).toBe('https://www.bilibili.com/video/BV1xx411c7mD');
+      }
     });
 
     it('should remove query parameters if no video ID found', () => {

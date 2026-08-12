@@ -209,6 +209,7 @@ const shortUrlResolutionCache = new Map<
   { resolvedUrl: string; expiresAt: number }
 >();
 const SHORT_URL_CACHE_TTL_MS = 10 * 60 * 1000;
+const SHORT_URL_CACHE_MAX_ENTRIES = 500;
 
 function getCachedShortUrlResolution(safeShortUrl: string): string | null {
   const cached = shortUrlResolutionCache.get(safeShortUrl);
@@ -221,10 +222,49 @@ function getCachedShortUrlResolution(safeShortUrl: string): string | null {
 }
 
 /**
+ * Store a resolution, keeping the cache bounded.
+ *
+ * A long-running server sees a stream of one-off links that are never requested
+ * a second time, so lazy expiry-on-read alone would let the map grow forever.
+ * Every write sweeps expired entries, and if that is not enough the oldest
+ * entries are dropped — Map preserves insertion order, so those are the ones
+ * closest to expiring anyway.
+ */
+function setCachedShortUrlResolution(
+  safeShortUrl: string,
+  resolvedUrl: string,
+): void {
+  const now = Date.now();
+  for (const [key, entry] of shortUrlResolutionCache) {
+    if (entry.expiresAt <= now) {
+      shortUrlResolutionCache.delete(key);
+    }
+  }
+
+  shortUrlResolutionCache.set(safeShortUrl, {
+    resolvedUrl,
+    expiresAt: now + SHORT_URL_CACHE_TTL_MS,
+  });
+
+  while (shortUrlResolutionCache.size > SHORT_URL_CACHE_MAX_ENTRIES) {
+    const oldestKey = shortUrlResolutionCache.keys().next().value;
+    if (oldestKey === undefined) break;
+    shortUrlResolutionCache.delete(oldestKey);
+  }
+}
+
+/**
  * @internal Test helper to clear the short-URL resolution cache between cases.
  */
 export function resetShortUrlResolutionCacheForTests(): void {
   shortUrlResolutionCache.clear();
+}
+
+/**
+ * @internal Test helper to assert the cache stays bounded.
+ */
+export function getShortUrlResolutionCacheSizeForTests(): number {
+  return shortUrlResolutionCache.size;
 }
 
 /**
@@ -239,21 +279,22 @@ export function resetShortUrlResolutionCacheForTests(): void {
  * reachability, an off-allow-list hop), leaving the caller on the short URL.
  */
 async function followBilibiliShortUrl(safeShortUrl: string): Promise<string | null> {
+  // Dynamic imports: both modules reach back into helpers, so a static import
+  // would close an initialization cycle. getUserYtDlpConfig swallows its own
+  // read errors and returns {}, so a throw here means the module itself is
+  // unavailable — treat that as "proxy state unknown" and give up rather than
+  // guess that a direct connection is acceptable.
+  const { getUserYtDlpConfig } = await import("./ytdlp/config");
+  const proxy = getUserYtDlpConfig(safeShortUrl)?.proxy;
+
   let axiosConfig: Record<string, unknown> = {};
-  try {
-    // Dynamic imports: both modules reach back into helpers, so a static import
-    // would close an initialization cycle.
-    const { getUserYtDlpConfig } = await import("./ytdlp/config");
-    const proxy = getUserYtDlpConfig(safeShortUrl)?.proxy;
-    if (typeof proxy === "string" && proxy) {
-      const { getAxiosProxyConfig } = await import("./ytdlp/proxy");
-      axiosConfig = getAxiosProxyConfig(proxy);
-    }
-  } catch (error: unknown) {
-    logger.warn(
-      `Could not apply proxy config while resolving short URL, continuing direct: ${getErrorMessage(error)}`,
-    );
-    axiosConfig = {};
+  if (typeof proxy === "string" && proxy) {
+    // getAxiosProxyConfig throws on a malformed proxy precisely so callers do
+    // not silently fall back to a direct connection and expose the user's real
+    // IP. Let it propagate: the caller keeps the short URL, and the download
+    // still works because yt-dlp follows the redirect over the same proxy.
+    const { getAxiosProxyConfig } = await import("./ytdlp/proxy");
+    axiosConfig = getAxiosProxyConfig(proxy);
   }
 
   const axios = (await import("axios")).default;
@@ -311,10 +352,7 @@ export async function resolveShortUrl(url: string): Promise<string> {
       const resolvedUrl = await followBilibiliShortUrl(safeShortUrl);
       if (resolvedUrl) {
         logger.info(`Resolved shortened URL to: ${resolvedUrl}`);
-        shortUrlResolutionCache.set(safeShortUrl, {
-          resolvedUrl,
-          expiresAt: Date.now() + SHORT_URL_CACHE_TTL_MS,
-        });
+        setCachedShortUrlResolution(safeShortUrl, resolvedUrl);
         return resolvedUrl;
       }
       logger.warn(
@@ -340,6 +378,22 @@ export async function resolveShortUrl(url: string): Promise<string> {
   }
 }
 
+/**
+ * Read the `p` (part) selector off a Bilibili URL.
+ *
+ * `p` is the one query parameter that changes *which* video is downloaded, so it
+ * has to survive trimming; everything else is share/tracking noise. Only a plain
+ * positive integer is accepted, so a junk value cannot ride along.
+ */
+function getBilibiliPartParam(url: string): string | null {
+  try {
+    const part = new URL(url).searchParams.get("p");
+    return part && /^\d+$/.test(part) && Number(part) > 0 ? part : null;
+  } catch {
+    return null;
+  }
+}
+
 // Helper function to trim Bilibili URL by removing query parameters
 export function trimBilibiliUrl(url: string): string {
   try {
@@ -348,10 +402,13 @@ export function trimBilibiliUrl(url: string): string {
 
     if (videoIdMatch && videoIdMatch[1]) {
       const videoId = videoIdMatch[1];
-      // Construct a clean URL with just the video ID
-      const cleanUrl = videoId.startsWith("BV")
-        ? `https://www.bilibili.com/video/${videoId}`
-        : `https://www.bilibili.com/video/${videoId}`;
+      // Keep the part selector: dropping it silently redirects a shared link
+      // for part N to part 1. Matches the `?p=N` form the multipart download
+      // flow already uses as a part's canonical source URL.
+      const partParam = getBilibiliPartParam(url);
+      const cleanUrl =
+        `https://www.bilibili.com/video/${videoId}` +
+        (partParam ? `?p=${partParam}` : "");
 
       logger.info(`Trimmed Bilibili URL from "${url}" to "${cleanUrl}"`);
       return cleanUrl;
