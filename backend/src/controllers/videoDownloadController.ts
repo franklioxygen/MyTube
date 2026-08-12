@@ -29,6 +29,7 @@ import {
   isValidUrl,
   processVideoUrl,
   resolveShortUrl,
+  targetsNonFirstBilibiliPart,
   trimBilibiliUrl,
 } from "../utils/helpers";
 import { logger } from "../utils/logger";
@@ -79,6 +80,36 @@ export const searchVideos = async (
 };
 
 /**
+ * Look up a previous download for this request.
+ *
+ * Normally keyed on the source video id, but every part of a multipart Bilibili
+ * video shares one source video id (the videoDownloads unique index is
+ * sourceVideoId + platform + mediaType), so an id-keyed lookup reports part 2 as
+ * already downloaded whenever any other part exists. When the URL names a part
+ * other than the first, key on the trimmed part URL instead — the same `?p=N`
+ * form the multipart download flow already records per part.
+ */
+function checkPreviousDownload(
+  videoUrl: string,
+  sourceVideoId: string,
+  platform: string,
+  mediaType: "audio" | "video",
+) {
+  if (isBilibiliUrl(videoUrl) && targetsNonFirstBilibiliPart(videoUrl)) {
+    return storageService.checkVideoDownloadByUrl(
+      trimBilibiliUrl(videoUrl),
+      mediaType,
+    );
+  }
+
+  return storageService.checkVideoDownloadBySourceId(
+    sourceVideoId,
+    platform,
+    mediaType,
+  );
+}
+
+/**
  * Check video download status
  * Errors are automatically handled by asyncHandler middleware
  */
@@ -120,7 +151,8 @@ export const checkVideoDownloadStatus = async (
   const effectiveAudioOnly = audioOnly && !isMissAVUrl(videoUrl);
 
   // Check if video was previously downloaded
-  const downloadCheck = storageService.checkVideoDownloadBySourceId(
+  const downloadCheck = checkPreviousDownload(
+    videoUrl,
     sourceVideoId,
     platform,
     effectiveAudioOnly ? "audio" : "video",
@@ -285,7 +317,8 @@ export const downloadVideo = async (
     // Scope the lookup to the requested media type so an existing video download
     // never masks a new audio-only request (and vice versa).
     if (sourceVideoId && !downloadAllParts && !downloadCollection) {
-      const downloadCheck = storageService.checkVideoDownloadBySourceId(
+      const downloadCheck = checkPreviousDownload(
+        resolvedUrl,
         sourceVideoId,
         platform,
         effectiveMediaType,

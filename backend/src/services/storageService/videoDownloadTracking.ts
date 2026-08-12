@@ -95,13 +95,22 @@ export function checkVideoDownloadBySourceId(
  * Check if a video has been downloaded before by its source URL
  */
 export function checkVideoDownloadByUrl(
-  sourceUrl: string
+  sourceUrl: string,
+  mediaType: MediaType = "video"
 ): VideoDownloadCheckResult {
   try {
+    // Scoped to the media type for the same reason the source-id lookup is: an
+    // audio row and a video row for one URL are distinct library items, so an
+    // audio request must not match the video row.
     const record = db
       .select()
       .from(videoDownloads)
-      .where(eq(videoDownloads.sourceUrl, sourceUrl))
+      .where(
+        and(
+          eq(videoDownloads.sourceUrl, sourceUrl),
+          eq(videoDownloads.mediaType, mediaType)
+        )
+      )
       .get();
 
     if (record) {

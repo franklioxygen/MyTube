@@ -54,6 +54,37 @@ function extractBilibiliVideoIdFromYtDlpId(id: unknown): string | null {
   return match ? match[1] : null;
 }
 
+/**
+ * Axios config for this download's outbound side requests, honoring the user's
+ * proxy.
+ *
+ * Returns null when a proxy is configured but unusable. getAxiosProxyConfig
+ * throws on a malformed proxy specifically so callers do not silently fall back
+ * to a direct connection and expose the user's real IP, so a null here means
+ * "skip the request", never "send it directly".
+ */
+function resolveProxiedAxiosConfig(
+  userConfig: Record<string, any>,
+): Record<string, unknown> | null {
+  const proxy = userConfig?.proxy;
+  if (typeof proxy !== "string" || !proxy) {
+    return {};
+  }
+
+  try {
+    return getAxiosProxyConfig(proxy);
+  } catch (error) {
+    if (error instanceof InvalidProxyError) {
+      logger.warn(
+        "Invalid proxy configuration; skipping Bilibili side requests rather than sending them directly:",
+        error.message,
+      );
+      return null;
+    }
+    throw error;
+  }
+}
+
 function resolveDownloadedVideoDestination(
   plannedVideoPath: string,
   downloadedVideoFile: string,
@@ -174,12 +205,17 @@ export async function downloadVideo(
       });
     }
 
+    // Resolved once for every outbound side request in this download (avatar
+    // API lookup, thumbnail, avatar image). null means the configured proxy is
+    // unusable, so these requests are skipped rather than sent directly.
+    const proxiedAxiosConfig = resolveProxiedAxiosConfig(userConfig);
+
     // Try to get avatar URL from yt-dlp info first
     let authorAvatarUrl =
       metaSource.channel_avatar || metaSource.uploader_avatar || null;
 
     // If not in yt-dlp info, get it from Bilibili API
-    if (!authorAvatarUrl) {
+    if (!authorAvatarUrl && proxiedAxiosConfig) {
       try {
         const { extractBilibiliVideoId } = await import(
           "../../../utils/helpers"
@@ -208,6 +244,7 @@ export async function downloadVideo(
               )}`;
 
           const response = await axios.get(apiUrl, {
+            ...proxiedAxiosConfig,
             headers: {
               Referer: "https://www.bilibili.com",
               "User-Agent":
@@ -510,28 +547,13 @@ export async function downloadVideo(
 
     // Download thumbnail if available
     let thumbnailSaved = false;
-    if (thumbnailUrl) {
+    if (thumbnailUrl && proxiedAxiosConfig) {
       // Use base class method via temporary instance
-      let axiosConfig = {};
-      if (userConfig.proxy) {
-        try {
-          axiosConfig = getAxiosProxyConfig(userConfig.proxy);
-        } catch (error) {
-          if (error instanceof InvalidProxyError) {
-            logger.warn(
-              "Invalid proxy configuration for thumbnail download, proceeding without proxy:",
-              error.message
-            );
-          } else {
-            throw error;
-          }
-        }
-      }
       const downloader = new BilibiliDownloaderHelper();
       thumbnailSaved = await downloader.downloadThumbnailPublic(
         thumbnailUrl,
         thumbnailPath,
-        axiosConfig
+        proxiedAxiosConfig
       );
     }
 
@@ -542,28 +564,12 @@ export async function downloadVideo(
     const platform = "bilibili";
     let authorAvatarPathResult: string | null = null;
 
-    if (authorAvatarUrl) {
+    if (authorAvatarUrl && proxiedAxiosConfig) {
       logger.info("Downloading Bilibili author avatar from URL:", {
         url: authorAvatarUrl,
         author: videoAuthor,
         platform: platform,
       });
-
-      let axiosConfig = {};
-      if (userConfig.proxy) {
-        try {
-          axiosConfig = getAxiosProxyConfig(userConfig.proxy);
-        } catch (error) {
-          if (error instanceof InvalidProxyError) {
-            logger.warn(
-              "Invalid proxy configuration for avatar download, proceeding without proxy:",
-              error.message
-            );
-          } else {
-            throw error;
-          }
-        }
-      }
 
       const downloader = new BilibiliDownloaderHelper();
       authorAvatarPathResult = await downloadAndProcessAvatar(
@@ -571,10 +577,10 @@ export async function downloadVideo(
         platform,
         videoAuthor,
         downloader.downloadThumbnailPublic.bind(downloader),
-        axiosConfig
+        proxiedAxiosConfig
       );
       authorAvatarSaved = authorAvatarPathResult !== null;
-    } else {
+    } else if (!authorAvatarUrl) {
       logger.info(
         "No Bilibili author avatar URL available, skipping avatar download"
       );

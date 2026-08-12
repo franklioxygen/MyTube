@@ -101,6 +101,7 @@ vi.mock("../../utils/helpers", () => ({
     platform: url.includes("bilibili") ? "bilibili" : url.includes("missav") ? "missav" : "youtube",
   })),
   resolveShortUrl: vi.fn(async (url: string) => url),
+  targetsNonFirstBilibiliPart: vi.fn((url: string) => /[?&]p=(?!1(?:&|$))\d+/.test(url)),
   trimBilibiliUrl: vi.fn((url: string) => url),
 }));
 vi.mock("fs-extra");
@@ -139,6 +140,9 @@ describe("VideoController", () => {
       shouldForce: false,
     });
     (storageService.checkVideoDownloadBySourceId as any) = vi.fn().mockReturnValue({
+      found: false,
+    });
+    (storageService.checkVideoDownloadByUrl as any) = vi.fn().mockReturnValue({
       found: false,
     });
     (storageService.getSettings as any) = vi.fn().mockReturnValue({

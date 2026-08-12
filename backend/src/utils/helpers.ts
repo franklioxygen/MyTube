@@ -385,13 +385,28 @@ export async function resolveShortUrl(url: string): Promise<string> {
  * has to survive trimming; everything else is share/tracking noise. Only a plain
  * positive integer is accepted, so a junk value cannot ride along.
  */
-function getBilibiliPartParam(url: string): string | null {
+export function getBilibiliPartNumber(url: string): number | null {
   try {
     const part = new URL(url).searchParams.get("p");
-    return part && /^\d+$/.test(part) && Number(part) > 0 ? part : null;
+    if (!part || !/^\d+$/.test(part)) return null;
+    const partNumber = Number(part);
+    return partNumber > 0 ? partNumber : null;
   } catch {
     return null;
   }
+}
+
+/**
+ * Whether a Bilibili URL names a part other than the first.
+ *
+ * The bare video URL and `?p=1` are the same thing, so only `p >= 2` makes the
+ * request refer to something the bare BV/av id cannot identify — which matters
+ * for duplicate detection, since every part of a multipart video shares one
+ * source video id.
+ */
+export function targetsNonFirstBilibiliPart(url: string): boolean {
+  const partNumber = getBilibiliPartNumber(url);
+  return partNumber != null && partNumber > 1;
 }
 
 // Helper function to trim Bilibili URL by removing query parameters
@@ -405,10 +420,10 @@ export function trimBilibiliUrl(url: string): string {
       // Keep the part selector: dropping it silently redirects a shared link
       // for part N to part 1. Matches the `?p=N` form the multipart download
       // flow already uses as a part's canonical source URL.
-      const partParam = getBilibiliPartParam(url);
+      const partNumber = getBilibiliPartNumber(url);
       const cleanUrl =
         `https://www.bilibili.com/video/${videoId}` +
-        (partParam ? `?p=${partParam}` : "");
+        (partNumber != null ? `?p=${partNumber}` : "");
 
       logger.info(`Trimmed Bilibili URL from "${url}" to "${cleanUrl}"`);
       return cleanUrl;

@@ -29,6 +29,7 @@ import {
     resetShortUrlResolutionCacheForTests,
     getShortUrlResolutionCacheSizeForTests,
     sanitizeFilename,
+    targetsNonFirstBilibiliPart,
     trimBilibiliUrl
 } from '../../utils/helpers';
 
@@ -453,6 +454,24 @@ describe('Helpers', () => {
     it('should remove query parameters if no video ID found', () => {
       const url = 'https://www.bilibili.com/read/cv123456?from=search';
       expect(trimBilibiliUrl(url)).toBe('https://www.bilibili.com/read/cv123456');
+    });
+
+    it('should identify URLs that target a part other than the first', () => {
+      // p=1 and a bare URL are the same video, so only p>=2 needs the
+      // part-aware duplicate check.
+      expect(
+        targetsNonFirstBilibiliPart('https://www.bilibili.com/video/BV1x?p=2')
+      ).toBe(true);
+      expect(
+        targetsNonFirstBilibiliPart('https://www.bilibili.com/video/BV1x?p=1')
+      ).toBe(false);
+      expect(
+        targetsNonFirstBilibiliPart('https://www.bilibili.com/video/BV1x')
+      ).toBe(false);
+      expect(
+        targetsNonFirstBilibiliPart('https://www.bilibili.com/video/BV1x?p=abc')
+      ).toBe(false);
+      expect(targetsNonFirstBilibiliPart('not-a-url')).toBe(false);
     });
 
     it('should return original value when URL parsing fails', () => {

@@ -51,8 +51,10 @@ vi.mock("../../../utils/security", () => ({
   statSafeSync: () => ({ size: 2048 }),
 }));
 
-vi.mock("../../../utils/ytDlpUtils", () => {
-  class InvalidProxyError extends Error {}
+vi.mock("../../../utils/ytDlpUtils", async () => {
+  // The real InvalidProxyError, so the `instanceof` check in the downloader
+  // behaves as it does in production.
+  const { InvalidProxyError } = await import("../../../utils/ytdlp/proxy");
   return {
     executeYtDlpJson: (...args: any[]) => mocks.executeYtDlpJson(...args),
     executeYtDlpSpawn: (...args: any[]) => mocks.executeYtDlpSpawn(...args),
@@ -120,6 +122,7 @@ vi.mock(
 );
 
 import { downloadVideo } from "../../../services/downloaders/bilibili/bilibiliCoreDownload";
+import { InvalidProxyError } from "../../../utils/ytdlp/proxy";
 
 const SHORT_URL = "https://b23.tv/zKTXLw5";
 const AVATAR_URL = "https://i2.hdslb.com/bfs/face/abc.jpg";
@@ -226,6 +229,81 @@ describe("bilibiliCoreDownload avatar lookup for short URLs", () => {
     expect(mocks.axiosGet).not.toHaveBeenCalled();
     expect(mocks.downloadAndProcessAvatar).not.toHaveBeenCalled();
     expect(result.authorAvatarSaved).toBe(false);
+  });
+
+  describe("proxy handling for side requests", () => {
+    it("routes the avatar API lookup through the configured proxy", async () => {
+      mocks.getUserYtDlpConfig.mockReturnValue({
+        proxy: "socks5://127.0.0.1:1080",
+      });
+      mocks.getAxiosProxyConfig.mockReturnValue({
+        proxy: false,
+        httpsAgent: "agent",
+      });
+      mocks.executeYtDlpJson.mockResolvedValue(ytDlpInfo());
+
+      await downloadVideo(SHORT_URL, "/mock/videos/out.mp4", "/mock/images/out.jpg");
+
+      // Previously this request got only headers, so it bypassed the proxy and
+      // hit api.bilibili.com from the host.
+      expect(mocks.axiosGet).toHaveBeenCalledWith(
+        expect.stringContaining("api.bilibili.com"),
+        expect.objectContaining({ proxy: false, httpsAgent: "agent" }),
+      );
+      expect(mocks.downloadAndProcessAvatar).toHaveBeenCalledWith(
+        AVATAR_URL,
+        "bilibili",
+        "Mock Author",
+        expect.any(Function),
+        expect.objectContaining({ proxy: false, httpsAgent: "agent" }),
+      );
+    });
+
+    it("skips side requests entirely when the proxy is unusable", async () => {
+      mocks.getUserYtDlpConfig.mockReturnValue({ proxy: "not-a-proxy" });
+      mocks.getAxiosProxyConfig.mockImplementation(() => {
+        throw new InvalidProxyError("not-a-proxy");
+      });
+      mocks.executeYtDlpJson.mockResolvedValue(
+        ytDlpInfo({ thumbnail: "https://i0.hdslb.com/thumb.jpg" }),
+      );
+
+      const result = await downloadVideo(
+        SHORT_URL,
+        "/mock/videos/out.mp4",
+        "/mock/images/out.jpg",
+      );
+
+      // A direct request here would expose the user's real IP.
+      expect(mocks.axiosGet).not.toHaveBeenCalled();
+      expect(mocks.downloadThumbnail).not.toHaveBeenCalled();
+      expect(mocks.downloadAndProcessAvatar).not.toHaveBeenCalled();
+      // The video itself still downloaded; yt-dlp applies the proxy itself.
+      expect(result.error).toBeUndefined();
+      expect(result.authorAvatarSaved).toBe(false);
+      expect(result.thumbnailSaved).toBe(false);
+    });
+
+    it("still uses a yt-dlp-supplied avatar URL over an unusable proxy path", async () => {
+      mocks.getUserYtDlpConfig.mockReturnValue({ proxy: "not-a-proxy" });
+      mocks.getAxiosProxyConfig.mockImplementation(() => {
+        throw new InvalidProxyError("not-a-proxy");
+      });
+      mocks.executeYtDlpJson.mockResolvedValue(
+        ytDlpInfo({ uploader_avatar: AVATAR_URL }),
+      );
+
+      const result = await downloadVideo(
+        SHORT_URL,
+        "/mock/videos/out.mp4",
+        "/mock/images/out.jpg",
+      );
+
+      // The URL is known, but fetching the image would still leak the IP.
+      expect(mocks.downloadAndProcessAvatar).not.toHaveBeenCalled();
+      expect(result.authorAvatarUrl).toBe(AVATAR_URL);
+      expect(result.authorAvatarSaved).toBe(false);
+    });
   });
 
   it("uses the id in the URL directly when the short link was already resolved", async () => {

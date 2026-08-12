@@ -26,6 +26,7 @@ import {
   isValidUrl,
   processVideoUrl,
   resolveShortUrl,
+  targetsNonFirstBilibiliPart,
   trimBilibiliUrl,
 } from "../../utils/helpers";
 import { validateUrl } from "../../utils/security";
@@ -52,6 +53,7 @@ vi.mock("../../services/downloadService", () => ({
 
 vi.mock("../../services/storageService", () => ({
   checkVideoDownloadBySourceId: vi.fn(),
+  checkVideoDownloadByUrl: vi.fn(),
   verifyVideoExists: vi.fn(),
   getVideoById: vi.fn(),
   getSettings: vi.fn(),
@@ -101,6 +103,7 @@ vi.mock("../../utils/helpers", () => ({
   isValidUrl: vi.fn(),
   processVideoUrl: vi.fn(),
   resolveShortUrl: vi.fn(),
+  targetsNonFirstBilibiliPart: vi.fn(() => false),
   trimBilibiliUrl: vi.fn((url: string) => url),
 }));
 
@@ -283,6 +286,84 @@ describe("videoDownloadController extra coverage", () => {
       "https://youtube.com/watch?v=status123"
     );
     expect(json).toHaveBeenCalledWith({ found: false });
+  });
+
+  it("checkVideoDownloadStatus keys a multipart part on its part URL, not the BV id", async () => {
+    // Every part of a multipart video shares one source video id, so an
+    // id-keyed lookup would report part 2 as downloaded because part 1 exists.
+    req.query = { url: "https://www.bilibili.com/video/BV1x?p=2" } as any;
+    vi.mocked(processVideoUrl).mockResolvedValue({
+      videoUrl: "https://www.bilibili.com/video/BV1x?p=2",
+      sourceVideoId: "BV1x",
+      platform: "bilibili",
+    } as any);
+    vi.mocked(isBilibiliUrl).mockReturnValue(true);
+    vi.mocked(targetsNonFirstBilibiliPart).mockReturnValue(true);
+    vi.mocked(storageService.checkVideoDownloadByUrl).mockReturnValue({
+      found: false,
+    } as any);
+    vi.mocked(storageService.checkVideoDownloadBySourceId).mockReturnValue({
+      found: true,
+      status: "exists",
+      videoId: "part-1-video",
+    } as any);
+
+    await checkVideoDownloadStatus(req as Request, res as Response);
+
+    expect(storageService.checkVideoDownloadByUrl).toHaveBeenCalledWith(
+      "https://www.bilibili.com/video/BV1x?p=2",
+      "video"
+    );
+    expect(storageService.checkVideoDownloadBySourceId).not.toHaveBeenCalled();
+    expect(json).toHaveBeenCalledWith({ found: false });
+  });
+
+  it("checkVideoDownloadStatus still keys a bare bilibili URL on the source id", async () => {
+    req.query = { url: "https://www.bilibili.com/video/BV1x" } as any;
+    vi.mocked(processVideoUrl).mockResolvedValue({
+      videoUrl: "https://www.bilibili.com/video/BV1x",
+      sourceVideoId: "BV1x",
+      platform: "bilibili",
+    } as any);
+    vi.mocked(isBilibiliUrl).mockReturnValue(true);
+    vi.mocked(targetsNonFirstBilibiliPart).mockReturnValue(false);
+    vi.mocked(storageService.checkVideoDownloadBySourceId).mockReturnValue({
+      found: false,
+    } as any);
+
+    await checkVideoDownloadStatus(req as Request, res as Response);
+
+    expect(storageService.checkVideoDownloadBySourceId).toHaveBeenCalledWith(
+      "BV1x",
+      "bilibili",
+      "video"
+    );
+    expect(storageService.checkVideoDownloadByUrl).not.toHaveBeenCalled();
+  });
+
+  it("checkVideoDownloadStatus scopes the part lookup to the audio media type", async () => {
+    req.query = {
+      url: "https://www.bilibili.com/video/BV1x?p=2",
+      audioOnly: "true",
+    } as any;
+    vi.mocked(processVideoUrl).mockResolvedValue({
+      videoUrl: "https://www.bilibili.com/video/BV1x?p=2",
+      sourceVideoId: "BV1x",
+      platform: "bilibili",
+    } as any);
+    vi.mocked(isBilibiliUrl).mockReturnValue(true);
+    vi.mocked(isMissAVUrl).mockReturnValue(false);
+    vi.mocked(targetsNonFirstBilibiliPart).mockReturnValue(true);
+    vi.mocked(storageService.checkVideoDownloadByUrl).mockReturnValue({
+      found: false,
+    } as any);
+
+    await checkVideoDownloadStatus(req as Request, res as Response);
+
+    expect(storageService.checkVideoDownloadByUrl).toHaveBeenCalledWith(
+      "https://www.bilibili.com/video/BV1x?p=2",
+      "audio"
+    );
   });
 
   it("checkVideoDownloadStatus throws when url is missing", async () => {
