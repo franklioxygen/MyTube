@@ -2,7 +2,11 @@ import { IMAGES_DIR, VIDEOS_DIR } from "../../../config/paths";
 import { getErrorMessage } from "../../../utils/errors";
 import { DownloadCancelledError } from "../../../errors/DownloadErrors";
 import { isCancellationError } from "../../../utils/downloadUtils";
-import { extractBilibiliVideoId, formatVideoFilename } from "../../../utils/helpers";
+import {
+  extractBilibiliVideoId,
+  formatVideoFilename,
+  getBilibiliPartNumber,
+} from "../../../utils/helpers";
 import { FilenameTemplateSourceOptions } from "../../filenameTemplate/types";
 import { applySubscriptionFilenameTemplateOverride } from "../../filenameTemplate";
 import { resolveAuthorOrganizationMode } from "../../../types/settings";
@@ -141,12 +145,17 @@ export async function downloadSinglePart(
     const timestamp = Date.now();
     const downloadedAtIso = new Date(timestamp).toISOString();
     const sourceVideoId = extractBilibiliVideoId(url) || undefined;
-    // An explicit target (collision repair, redownload) names the row to update,
-    // so it is honored whatever the video's aggregate part count is: a URL that
-    // selects one part of a multipart video still repairs that one row. Only the
-    // implicit same-URL reuse stays limited to single-part videos.
+    // Reuse an existing row whenever this download refers to exactly one item.
+    // That holds for a single-part video, for an explicit target (collision
+    // repair, redownload), and for a URL naming a part — ?p=N identifies one
+    // row, so same-URL reuse is well defined and a forced redownload replaces
+    // that part instead of adding a duplicate beside it. The aggregate part
+    // count is irrelevant to all three.
+    const selectsSpecificPart = getBilibiliPartNumber(url) != null;
     const existingLocalVideoForRedownload =
-      totalParts === 1 || modeOptions?.existingLocalVideoId
+      totalParts === 1 ||
+      selectsSpecificPart ||
+      modeOptions?.existingLocalVideoId
         ? resolveExistingVideoForRedownload(
             url,
             audioOnly ? "audio" : "video",

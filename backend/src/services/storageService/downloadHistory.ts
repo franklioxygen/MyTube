@@ -143,6 +143,43 @@ export function getLatestRetryHistoryItemBySourceUrl(
   }
 }
 
+/**
+ * Latest deleted-history entry for an exact source URL.
+ *
+ * Acts as the per-item tombstone that the source-level tracking row cannot
+ * provide: videoDownloads keeps one row per (sourceVideoId, platform,
+ * mediaType), so deleting one part of a multipart video reassigns that row to a
+ * surviving part and leaves its status as "exists". History rows, by contrast,
+ * carry the individual item's own source URL, so a deleted part is still
+ * recorded here under its own ?p=N URL.
+ */
+export function getLatestDeletedHistoryItemBySourceUrl(
+  sourceUrl: string,
+): DownloadHistoryItem | undefined {
+  try {
+    const item = db
+      .select()
+      .from(downloadHistory)
+      .where(
+        and(
+          eq(downloadHistory.sourceUrl, sourceUrl),
+          eq(downloadHistory.status, "deleted"),
+        ),
+      )
+      .orderBy(desc(downloadHistory.finishedAt))
+      .limit(1)
+      .get();
+
+    return item ? mapDownloadHistoryRow(item) : undefined;
+  } catch (error) {
+    logger.error(
+      "Error getting latest deleted history item by source URL",
+      error instanceof Error ? error : new Error(String(error))
+    );
+    return undefined;
+  }
+}
+
 export function getPendingRetryHistoryItems(): DownloadHistoryItem[] {
   try {
     const items = db

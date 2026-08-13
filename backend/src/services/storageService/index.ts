@@ -24,6 +24,7 @@ export {
     clearDownloadHistory,
     getDownloadHistory,
     getDownloadHistoryItem,
+    getLatestDeletedHistoryItemBySourceUrl,
     getLatestRetryHistoryItemBySourceUrl,
     pruneDownloadHistory,
     getPendingRetryHistoryItems,

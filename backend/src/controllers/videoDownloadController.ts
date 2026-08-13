@@ -146,8 +146,9 @@ function checkPreviousDownload(
     }
   }
 
-  // No saved item for this part. Only the tracking row knows about a *deleted*
-  // one, and only counts when it is about this part rather than another.
+  // No saved item for this part, so the question becomes whether it was
+  // downloaded and then deleted. The tracking row answers that only when it is
+  // about this part rather than another.
   const matchedPart = downloadCheck.sourceUrl
     ? (getBilibiliPartNumber(downloadCheck.sourceUrl) ?? 1)
     : requestedPart;
@@ -158,6 +159,27 @@ function checkPreviousDownload(
     downloadCheck.status === "deleted"
   ) {
     return downloadCheck;
+  }
+
+  // Deleting one part of a multipart video hands the shared tracking row to a
+  // surviving part and leaves it reading "exists", so that row cannot record a
+  // per-part deletion. History rows can: each carries its own item's source
+  // URL, so the deleted part is still on file under its own ?p=N URL.
+  for (const candidateUrl of bilibiliPartAliases(videoUrl, requestedPart)) {
+    const deletedItem =
+      storageService.getLatestDeletedHistoryItemBySourceUrl(candidateUrl);
+    if (deletedItem) {
+      return {
+        found: true,
+        status: "deleted" as const,
+        videoId: deletedItem.videoId,
+        title: deletedItem.title,
+        author: deletedItem.author,
+        downloadedAt: deletedItem.downloadedAt ?? undefined,
+        deletedAt: deletedItem.deletedAt ?? undefined,
+        sourceUrl: candidateUrl,
+      };
+    }
   }
 
   if (downloadCheck.found) {
