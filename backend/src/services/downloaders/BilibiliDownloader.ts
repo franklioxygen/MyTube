@@ -108,34 +108,48 @@ export class BilibiliDownloader extends BaseDownloader {
 
   // Helper function to check if a Bilibili video has multiple parts
   static async checkVideoParts(
-    videoId: string
+    videoId: string,
+    subscriptionYtdlpConfig?: string | null
   ): Promise<BilibiliPartsCheckResult> {
-    return bilibiliApi.checkVideoParts(videoId);
+    return bilibiliApi.checkVideoParts(videoId, subscriptionYtdlpConfig);
   }
 
   // Helper function to check if a Bilibili video belongs to a collection or series
   static async checkCollectionOrSeries(
-    videoId: string
+    videoId: string,
+    subscriptionYtdlpConfig?: string | null
   ): Promise<BilibiliCollectionCheckResult> {
-    return bilibiliApi.checkCollectionOrSeries(videoId);
+    return bilibiliApi.checkCollectionOrSeries(videoId, subscriptionYtdlpConfig);
   }
 
   // Helper function to get all videos from a Bilibili collection
   static async getCollectionVideos(
     mid: number,
     seasonId: number,
-    options?: CollectionFetchOptions
+    options?: CollectionFetchOptions,
+    subscriptionYtdlpConfig?: string | null
   ): Promise<BilibiliVideosResult> {
-    return bilibiliCollection.getCollectionVideos(mid, seasonId, options);
+    return bilibiliCollection.getCollectionVideos(
+      mid,
+      seasonId,
+      options,
+      subscriptionYtdlpConfig
+    );
   }
 
   // Helper function to get all videos from a Bilibili series
   static async getSeriesVideos(
     mid: number,
     seriesId: number,
-    options?: CollectionFetchOptions
+    options?: CollectionFetchOptions,
+    subscriptionYtdlpConfig?: string | null
   ): Promise<BilibiliVideosResult> {
-    return bilibiliCollection.getSeriesVideos(mid, seriesId, options);
+    return bilibiliCollection.getSeriesVideos(
+      mid,
+      seriesId,
+      options,
+      subscriptionYtdlpConfig
+    );
   }
 
   // Helper function to download a single Bilibili part

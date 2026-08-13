@@ -13,6 +13,7 @@ import { downloadSinglePart } from "./bilibiliVideo";
 import {
   BILIBILI_COOKIE_REFRESH_HINT,
   isLikelyBilibiliAuthFailure,
+  resolveProxiedAxiosConfigForUrl,
 } from "./bilibiliConfig";
 import type { FilenameTemplateSourceOptions } from "../../filenameTemplate/types";
 import {
@@ -329,6 +330,7 @@ export async function getCollectionVideos(
   mid: number,
   seasonId: number,
   options?: BilibiliVideoFetchOptions,
+  subscriptionYtdlpConfig?: string | null,
 ): Promise<BilibiliVideosResult> {
   try {
     const allVideos: BilibiliVideoItem[] = [];
@@ -339,6 +341,19 @@ export async function getCollectionVideos(
     logger.info(
       `Fetching collection videos for mid=${mid}, season_id=${seasonId}`
     );
+
+    // Resolved once for the whole pagination loop; keyed off the owner's space
+    // URL since that is the source these archives belong to.
+    const axiosConfig = resolveProxiedAxiosConfigForUrl(
+      `https://space.bilibili.com/${mid}`,
+      subscriptionYtdlpConfig
+    );
+    if (!axiosConfig) {
+      logger.warn(
+        "Skipping Bilibili collection video fetch: proxy is configured but unusable"
+      );
+      return { success: false, videos: [] };
+    }
 
     while (hasMore && (maxPages === null || pageNum <= maxPages)) {
       const apiUrl = `https://api.bilibili.com/x/polymer/web-space/seasons_archives_list`;
@@ -353,6 +368,7 @@ export async function getCollectionVideos(
       logger.info(`Fetching page ${pageNum} of collection...`);
 
       const response = await axios.get(apiUrl, {
+        ...axiosConfig,
         params,
         headers: {
           Referer: "https://www.bilibili.com",
@@ -399,6 +415,7 @@ export async function getSeriesVideos(
   mid: number,
   seriesId: number,
   options?: BilibiliVideoFetchOptions,
+  subscriptionYtdlpConfig?: string | null,
 ): Promise<BilibiliVideosResult> {
   try {
     const allVideos: BilibiliVideoItem[] = [];
@@ -407,6 +424,19 @@ export async function getSeriesVideos(
     let hasMore = true;
 
     logger.info(`Fetching series videos for mid=${mid}, series_id=${seriesId}`);
+
+    // Resolved once for the whole pagination loop; keyed off the owner's space
+    // URL since that is the source these archives belong to.
+    const axiosConfig = resolveProxiedAxiosConfigForUrl(
+      `https://space.bilibili.com/${mid}`,
+      subscriptionYtdlpConfig
+    );
+    if (!axiosConfig) {
+      logger.warn(
+        "Skipping Bilibili series video fetch: proxy is configured but unusable"
+      );
+      return { success: false, videos: [] };
+    }
 
     while (hasMore && (maxPages === null || pageNum <= maxPages)) {
       const apiUrl = `https://api.bilibili.com/x/series/archives`;
@@ -420,6 +450,7 @@ export async function getSeriesVideos(
       logger.info(`Fetching page ${pageNum} of series...`);
 
       const response = await axios.get(apiUrl, {
+        ...axiosConfig,
         params,
         headers: {
           Referer: "https://www.bilibili.com",

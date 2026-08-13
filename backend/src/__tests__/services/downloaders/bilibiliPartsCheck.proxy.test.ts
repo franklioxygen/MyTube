@@ -33,15 +33,26 @@ vi.mock("../../../utils/ytDlpUtils", async () => {
     getNetworkConfigFromUserConfig: (...args: any[]) =>
       mocks.getNetworkConfigFromUserConfig(...args),
     getUserYtDlpConfig: (...args: any[]) => mocks.getUserYtDlpConfig(...args),
-    getEffectiveUserYtDlpConfig: (url: any) => mocks.getUserYtDlpConfig(url),
+    // Forwards both args so tests can assert a subscription override reached it.
+    getEffectiveUserYtDlpConfig: (...args: any[]) =>
+      mocks.getUserYtDlpConfig(...args),
     InvalidProxyError,
   };
 });
+
+// bilibiliCollection pulls in the whole single-part download chain otherwise.
+vi.mock("../../../services/downloaders/bilibili/bilibiliVideo", () => ({
+  downloadSinglePart: vi.fn(),
+}));
 
 import {
   checkCollectionOrSeries,
   checkVideoParts,
 } from "../../../services/downloaders/bilibili/bilibiliApi";
+import {
+  getCollectionVideos,
+  getSeriesVideos,
+} from "../../../services/downloaders/bilibili/bilibiliCollection";
 import { InvalidProxyError } from "../../../utils/ytdlp/proxy";
 
 const PROXY_AGENT = { proxy: false, httpsAgent: "agent" };
@@ -111,6 +122,67 @@ describe("checkVideoParts proxy handling", () => {
       type: "none",
     });
     expect(mocks.axiosGet).not.toHaveBeenCalled();
+  });
+
+  // Selecting a collection from a resolved short link fetches its member pages,
+  // so those have to be proxied too.
+  describe("collection member page fetches", () => {
+    const archivePage = {
+      data: {
+        code: 0,
+        data: {
+          archives: [{ bvid: "BV1a", title: "One", aid: 1 }],
+          page: { total: 1 },
+        },
+      },
+    };
+
+    it("routes collection and series pages through the configured proxy", async () => {
+      mocks.getUserYtDlpConfig.mockReturnValue({ proxy: "socks5://127.0.0.1:1080" });
+      mocks.getAxiosProxyConfig.mockReturnValue(PROXY_AGENT);
+      mocks.axiosGet.mockResolvedValue(archivePage);
+
+      await expect(getCollectionVideos(42, 7)).resolves.toMatchObject({
+        success: true,
+      });
+      await expect(getSeriesVideos(42, 9)).resolves.toMatchObject({
+        success: true,
+      });
+
+      for (const call of mocks.axiosGet.mock.calls) {
+        expect(call[1]).toMatchObject(PROXY_AGENT);
+      }
+    });
+
+    it("skips the page fetches when the proxy is unusable", async () => {
+      mocks.getUserYtDlpConfig.mockReturnValue({ proxy: "not-a-proxy" });
+      mocks.getAxiosProxyConfig.mockImplementation(() => {
+        throw new InvalidProxyError("not-a-proxy");
+      });
+
+      await expect(getCollectionVideos(42, 7)).resolves.toEqual({
+        success: false,
+        videos: [],
+      });
+      await expect(getSeriesVideos(42, 9)).resolves.toEqual({
+        success: false,
+        videos: [],
+      });
+      expect(mocks.axiosGet).not.toHaveBeenCalled();
+    });
+
+    it("passes a subscription override to the config lookup", async () => {
+      mocks.getUserYtDlpConfig.mockReturnValue({ proxy: "socks5://127.0.0.1:1080" });
+      mocks.getAxiosProxyConfig.mockReturnValue(PROXY_AGENT);
+      mocks.axiosGet.mockResolvedValue(archivePage);
+
+      await getCollectionVideos(42, 7, undefined, "--proxy socks5://sub:1080");
+
+      expect(mocks.getUserYtDlpConfig).toHaveBeenCalledWith(
+        "https://space.bilibili.com/42",
+        "--proxy socks5://sub:1080",
+      );
+    });
   });
 
   it("sends the lookup directly when no proxy is configured", async () => {

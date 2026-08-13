@@ -482,6 +482,37 @@ describe("videoDownloadController extra coverage", () => {
     );
   });
 
+  it("checkVideoDownloadStatus does not let a deleted video suppress a first audio request", async () => {
+    // History rows carry no media type, so a deleted video item would otherwise
+    // match an audio request for the same part. The tracking lookup is media
+    // scoped, and its absence means nothing audio was ever downloaded here.
+    req.query = {
+      url: "https://www.bilibili.com/video/BV1x?p=2",
+      audioOnly: "true",
+    } as any;
+    vi.mocked(processVideoUrl).mockResolvedValue({
+      videoUrl: "https://www.bilibili.com/video/BV1x?p=2",
+      sourceVideoId: "BV1x",
+      platform: "bilibili",
+    } as any);
+    vi.mocked(isBilibiliUrl).mockReturnValue(true);
+    vi.mocked(isMissAVUrl).mockReturnValue(false);
+    vi.mocked(storageService.checkVideoDownloadBySourceId).mockReturnValue({
+      found: false,
+    } as any);
+    vi.mocked(storageService.getVideoBySourceUrl).mockReturnValue(undefined);
+    vi.mocked(
+      storageService.getLatestDeletedHistoryItemBySourceUrl
+    ).mockReturnValue({ title: "Deleted video item" } as any);
+
+    await checkVideoDownloadStatus(req as Request, res as Response);
+
+    expect(
+      storageService.getLatestDeletedHistoryItemBySourceUrl
+    ).not.toHaveBeenCalled();
+    expect(json).toHaveBeenCalledWith({ found: false });
+  });
+
   it("checkVideoDownloadStatus treats a part with no history as new", async () => {
     arrangeBilibiliPartCheck(
       "https://www.bilibili.com/video/BV1x?p=2",

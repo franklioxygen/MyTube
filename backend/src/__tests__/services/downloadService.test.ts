@@ -97,16 +97,25 @@ describe("downloadService", () => {
       expect(BilibiliDownloader.downloadVideo).toHaveBeenCalledWith(
         "u", "vp", "tp", "d1", undefined
       );
-      expect(BilibiliDownloader.checkVideoParts).toHaveBeenCalledWith("bv1");
-      expect(BilibiliDownloader.checkCollectionOrSeries).toHaveBeenCalledWith("bv1");
+      // Both forward an optional per-subscription config override, undefined here.
+      expect(BilibiliDownloader.checkVideoParts).toHaveBeenCalledWith(
+        "bv1",
+        undefined,
+      );
+      expect(BilibiliDownloader.checkCollectionOrSeries).toHaveBeenCalledWith(
+        "bv1",
+        undefined,
+      );
       expect(BilibiliDownloader.getCollectionVideos).toHaveBeenCalledWith(
         1,
         2,
+        undefined,
         undefined
       );
       expect(BilibiliDownloader.getSeriesVideos).toHaveBeenCalledWith(
         3,
         4,
+        undefined,
         undefined
       );
     });
