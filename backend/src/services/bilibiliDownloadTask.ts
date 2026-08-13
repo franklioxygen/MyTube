@@ -176,6 +176,9 @@ export function buildBilibiliDownloadTask(
       );
       let firstPartResult: downloadService.DownloadResult;
       let firstVideo = existingPart1;
+      const downloadedVideos: NonNullable<
+        BilibiliAggregateDownloadResult["downloadedVideos"]
+      > = [];
       let collectionId: string | null = null;
       const multipartCollectionName =
         options.collectionName ?? retryMetadata?.collectionName;
@@ -372,6 +375,7 @@ export function buildBilibiliDownloadTask(
         }
         if (firstPartResult.videoData) {
           firstVideo = firstPartResult.videoData;
+          downloadedVideos.push(firstPartResult.videoData);
         }
         if (retryMetadata?.shape === "bilibili_all_parts") {
           if (firstPartResult.success && firstPartResult.videoData) {
@@ -413,6 +417,7 @@ export function buildBilibiliDownloadTask(
         failedPartNumbers = failedPartNumbers.concat(
           remainingResult.failedPartNumbers,
         );
+        downloadedVideos.push(...(remainingResult.downloadedVideos ?? []));
         if (!firstVideo && remainingResult.firstVideo) {
           firstVideo = remainingResult.firstVideo;
         }
@@ -455,6 +460,7 @@ export function buildBilibiliDownloadTask(
         skippedCount,
         failedPartNumbers,
         firstVideo,
+        downloadedVideos,
         video: firstVideo,
         isMultiPart: true,
         totalParts: videosNumber,
@@ -471,6 +477,7 @@ export function buildBilibiliDownloadTask(
                 skippedCount,
                 failedPartNumbers,
                 firstVideo,
+                downloadedVideos,
                 collectionId: collectionId ?? undefined,
                 isMultiPart: true,
                 totalParts: videosNumber,

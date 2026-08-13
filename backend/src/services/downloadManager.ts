@@ -38,8 +38,81 @@ import {
   normalizeSurface,
 } from "./statistics";
 import type { DownloadHistoryItem } from "./storageService";
+import type { Video } from "./storageService";
 import * as storageService from "./storageService";
 import { logger } from "../utils/logger";
+
+function getAggregateDownloadedVideos(value: unknown): Video[] {
+  if (!value || typeof value !== "object") {
+    return [];
+  }
+
+  const downloadedVideos = (value as { downloadedVideos?: unknown })
+    .downloadedVideos;
+  if (!Array.isArray(downloadedVideos)) {
+    return [];
+  }
+
+  return downloadedVideos.filter(
+    (video): video is Video =>
+      Boolean(video) &&
+      typeof video === "object" &&
+      typeof (video as { id?: unknown }).id === "string" &&
+      (video as { id: string }).id.length > 0,
+  );
+}
+
+function addAggregatePartHistory(
+  task: DownloadTask,
+  value: unknown,
+  representativeVideoId?: string,
+): void {
+  if (task.options?.suppressHistory) {
+    return;
+  }
+
+  const downloadedVideos = getAggregateDownloadedVideos(value);
+  if (downloadedVideos.length === 0) {
+    return;
+  }
+
+  const seenVideoIds = new Set<string>();
+  downloadedVideos.forEach((video, index) => {
+    if (video.id === representativeVideoId || seenVideoIds.has(video.id)) {
+      return;
+    }
+    seenVideoIds.add(video.id);
+
+    const sourceUrl = video.sourceUrl || task.sourceUrl;
+    const partNumber =
+      typeof video.partNumber === "number" &&
+      Number.isInteger(video.partNumber) &&
+      video.partNumber > 0
+        ? video.partNumber
+        : index + 1;
+    const totalSize =
+      typeof video.fileSize === "string" || typeof video.fileSize === "number"
+        ? String(video.fileSize)
+        : undefined;
+
+    storageService.addDownloadHistoryItem({
+      id: `${task.id}:part-${partNumber}`,
+      title: video.title || task.title,
+      finishedAt: Date.now(),
+      status: "success",
+      videoPath: video.videoPath,
+      thumbnailPath: video.thumbnailPath,
+      sourceUrl,
+      author: video.author,
+      videoId: video.id,
+      totalSize,
+      mediaType: video.mediaType === "audio" ? "audio" : "video",
+      platform: platformFromUrl(sourceUrl),
+      sourceKind: task.statistics?.sourceKind ?? "manual",
+      downloadType: task.type,
+    });
+  });
+}
 
 class DownloadManager {
   private queue: DownloadTask[];
@@ -662,6 +735,7 @@ class DownloadManager {
                 ? serializeRetryMetadata(task.retryMetadata)
                 : undefined,
           });
+          addAggregatePartHistory(task, result, videoData.id);
         }
 
         // Record video download for future duplicate detection
@@ -774,6 +848,11 @@ class DownloadManager {
 
       // Download failed
       storageService.removeActiveDownload(task.id);
+      const structuredResult = getStructuredDownloadResult(error);
+      // The task-level history row is partial/failed here, so it cannot later
+      // become a deletion tombstone. Keep a success row for every part that
+      // was actually saved, including the part surfaced as `video`.
+      addAggregatePartHistory(task, structuredResult);
 
       // Add to history (unless already added by cancelDownload). Members-only
       // subscription skips are never retried — retrying can't succeed.
@@ -785,7 +864,6 @@ class DownloadManager {
       if (!task.cancelled && !retryScheduled) {
         this.clearRetryTimer(task.id);
         if (!task.options?.suppressHistory) {
-          const structuredResult = getStructuredDownloadResult(error);
           storageService.addDownloadHistoryItem({
             id: task.id,
             title: task.title,

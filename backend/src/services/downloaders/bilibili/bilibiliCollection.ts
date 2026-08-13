@@ -887,6 +887,10 @@ export async function downloadRemainingParts(
   onStart?: (cancel: () => void) => void,
   retryMetadata?: DownloadRetryMetadata,
 ): Promise<BilibiliAggregateDownloadResult> {
+  let downloadedVideos: NonNullable<
+    BilibiliAggregateDownloadResult["downloadedVideos"]
+  > = [];
+
   try {
     logger.info(
       `Starting download of remaining parts: ${startPart} to ${totalParts} of "${seriesTitle}"`
@@ -985,6 +989,7 @@ export async function downloadRemainingParts(
 
       if (result.success && result.videoData) {
         successCount++;
+        downloadedVideos.push(result.videoData);
         if (retryPartsMetadata) {
           retryPartsMetadata.completedPartNumbers = Array.from(
             new Set([...(retryPartsMetadata.completedPartNumbers ?? []), part]),
@@ -1063,6 +1068,7 @@ export async function downloadRemainingParts(
       skippedCount,
       failedPartNumbers: failedParts,
       firstVideo,
+      downloadedVideos,
       collectionId: collectionId ?? undefined,
       isMultiPart: true,
       totalParts,
@@ -1078,6 +1084,7 @@ export async function downloadRemainingParts(
       downloadedCount: 0,
       skippedCount: 0,
       failedPartNumbers: [],
+      downloadedVideos,
       collectionId: collectionId ?? undefined,
       isMultiPart: true,
       totalParts,

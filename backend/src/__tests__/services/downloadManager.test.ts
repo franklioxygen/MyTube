@@ -305,6 +305,52 @@ describe('DownloadManager', () => {
       );
     });
 
+    it('should record history for every newly downloaded multipart video', async () => {
+      const part1 = {
+        id: 'video-part-1',
+        title: 'Series Episode 1',
+        sourceUrl: 'https://www.bilibili.com/video/BV1zz?p=1',
+        partNumber: 1,
+        totalParts: 2,
+      };
+      const part2 = {
+        id: 'video-part-2',
+        title: 'Series Episode 2',
+        sourceUrl: 'https://www.bilibili.com/video/BV1zz?p=2',
+        partNumber: 2,
+        totalParts: 2,
+      };
+
+      await downloadManager.addDownload(
+        vi.fn().mockResolvedValue({
+          success: true,
+          partial: false,
+          video: part1,
+          downloadedVideos: [part1, part2],
+        }),
+        'multipart-history',
+        'Multipart Bilibili',
+        'https://www.bilibili.com/video/BV1zz',
+        'bilibili',
+      );
+
+      expect(storageService.addDownloadHistoryItem).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'multipart-history',
+          videoId: 'video-part-1',
+          status: 'success',
+        }),
+      );
+      expect(storageService.addDownloadHistoryItem).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'multipart-history:part-2',
+          videoId: 'video-part-2',
+          sourceUrl: 'https://www.bilibili.com/video/BV1zz?p=2',
+          status: 'success',
+        }),
+      );
+    });
+
     it('should queue downloads when at max concurrent limit', async () => {
       // Create 4 downloads (default limit is 3)
       const downloads = Array.from({ length: 4 }, (_, i) => ({
@@ -1077,10 +1123,24 @@ describe('DownloadManager', () => {
             failedPartNumbers: [3],
             error: 'Bilibili multipart incomplete',
             video: {
-              id: 'video-partial',
+              id: 'video-partial-2',
               title: 'Bilibili Video',
-              sourceUrl: 'https://www.bilibili.com/video/BV1xx',
+              sourceUrl: 'https://www.bilibili.com/video/BV1xx?p=2',
             },
+            downloadedVideos: [
+              {
+                id: 'video-partial-1',
+                title: 'Part 1',
+                sourceUrl: 'https://www.bilibili.com/video/BV1xx?p=1',
+                partNumber: 1,
+              },
+              {
+                id: 'video-partial-2',
+                title: 'Part 2',
+                sourceUrl: 'https://www.bilibili.com/video/BV1xx?p=2',
+                partNumber: 2,
+              },
+            ],
           }),
           'partial-1',
           'Partial task',
@@ -1095,6 +1155,13 @@ describe('DownloadManager', () => {
           id: 'partial-1',
           status: 'partial',
           error: 'Bilibili multipart incomplete',
+        }),
+      );
+      expect(storageService.addDownloadHistoryItem).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'partial-1:part-2',
+          videoId: 'video-partial-2',
+          status: 'success',
         }),
       );
       expect(HookService.executeHook).toHaveBeenCalledWith(
