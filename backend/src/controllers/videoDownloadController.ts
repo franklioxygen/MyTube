@@ -158,18 +158,14 @@ function checkPreviousDownload(
   // per-part deletion. History rows can: each carries its own item's source
   // URL, so the deleted part is still on file under its own ?p=N URL.
   //
-  // History rows carry no media type, so the tombstone is only consulted when a
-  // tracking row exists for the requested one. That row is media-type scoped,
-  // so its absence means nothing of this media type was ever downloaded here and
-  // any deleted entry under the same URL belongs to the other one — which would
-  // otherwise make a deleted video suppress a first-time audio request.
-  if (!downloadCheck.found) {
-    return { found: false };
-  }
-
+  // Scoped to the requested media type like every other lookup here: history
+  // rows carry their own, so a deleted video item cannot suppress a first-time
+  // audio request for the same part.
   for (const candidateUrl of bilibiliPartSourceUrlAliases(videoUrl)) {
-    const deletedItem =
-      storageService.getLatestDeletedHistoryItemBySourceUrl(candidateUrl);
+    const deletedItem = storageService.getLatestDeletedHistoryItemBySourceUrl(
+      candidateUrl,
+      mediaType,
+    );
     if (deletedItem) {
       return {
         found: true,

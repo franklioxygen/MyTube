@@ -650,6 +650,10 @@ class DownloadManager {
             author: videoData.author,
             videoId: videoData.id,
             totalSize: historyTotalSize,
+            // Carried so a later deletion leaves a tombstone that says which of
+            // audio/video went away, which the shared source-level tracking row
+            // cannot express for a multipart item.
+            mediaType: videoData.mediaType === "audio" ? "audio" : "video",
             platform: platformFromUrl(historySourceUrl),
             sourceKind: task.statistics?.sourceKind ?? "manual",
             downloadType: task.type,

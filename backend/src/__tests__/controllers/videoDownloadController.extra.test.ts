@@ -482,16 +482,15 @@ describe("videoDownloadController extra coverage", () => {
 
     expect(
       storageService.getLatestDeletedHistoryItemBySourceUrl
-    ).toHaveBeenCalledWith("https://www.bilibili.com/video/BV1x?p=2");
+    ).toHaveBeenCalledWith("https://www.bilibili.com/video/BV1x?p=2", "video");
     expect(json).toHaveBeenCalledWith(
       expect.objectContaining({ found: true, status: "deleted" })
     );
   });
 
-  it("checkVideoDownloadStatus does not let a deleted video suppress a first audio request", async () => {
-    // History rows carry no media type, so a deleted video item would otherwise
-    // match an audio request for the same part. The tracking lookup is media
-    // scoped, and its absence means nothing audio was ever downloaded here.
+  it("checkVideoDownloadStatus scopes the deleted-part tombstone to the requested media type", async () => {
+    // A deleted video item must not suppress a first-time audio request for the
+    // same part, even when an audio tracking row exists via a sibling part.
     req.query = {
       url: "https://www.bilibili.com/video/BV1x?p=2",
       audioOnly: "true",
@@ -503,19 +502,24 @@ describe("videoDownloadController extra coverage", () => {
     } as any);
     vi.mocked(isBilibiliUrl).mockReturnValue(true);
     vi.mocked(isMissAVUrl).mockReturnValue(false);
+    // Audio part 1 survives, so the source-level audio row is found.
     vi.mocked(storageService.checkVideoDownloadBySourceId).mockReturnValue({
-      found: false,
+      found: true,
+      status: "exists",
+      videoId: "audio-part-1",
+      sourceUrl: "https://www.bilibili.com/video/BV1x?p=1",
     } as any);
     vi.mocked(storageService.getVideoBySourceUrl).mockReturnValue(undefined);
+    // Only a video tombstone exists for part 2; the audio-scoped query misses.
     vi.mocked(
       storageService.getLatestDeletedHistoryItemBySourceUrl
-    ).mockReturnValue({ title: "Deleted video item" } as any);
+    ).mockReturnValue(undefined);
 
     await checkVideoDownloadStatus(req as Request, res as Response);
 
     expect(
       storageService.getLatestDeletedHistoryItemBySourceUrl
-    ).not.toHaveBeenCalled();
+    ).toHaveBeenCalledWith("https://www.bilibili.com/video/BV1x?p=2", "audio");
     expect(json).toHaveBeenCalledWith({ found: false });
   });
 

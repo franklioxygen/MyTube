@@ -74,6 +74,10 @@ export interface DownloadHistoryItem {
   videoId?: string; // Reference to the video for skipped items
   downloadedAt?: number; // Original download timestamp for deleted items
   deletedAt?: number; // Deletion timestamp for deleted items
+  // Audio and video of one source are separate items. A deleted-history row is
+  // the only per-item record of a deleted multipart part, so it has to say
+  // which of the two it was. Absent on legacy rows, which read as video.
+  mediaType?: MediaType;
   subscriptionId?: string; // Reference to subscription if downloaded via subscription
   taskId?: string; // Reference to continuous download task if downloaded via task
   platform?: string; // canonical lowercase, statistics-friendly bucket

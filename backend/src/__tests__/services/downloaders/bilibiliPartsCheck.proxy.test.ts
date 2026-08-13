@@ -48,6 +48,7 @@ vi.mock("../../../services/downloaders/bilibili/bilibiliVideo", () => ({
 import {
   checkCollectionOrSeries,
   checkVideoParts,
+  getVideoInfo,
 } from "../../../services/downloaders/bilibili/bilibiliApi";
 import {
   getCollectionVideos,
@@ -122,6 +123,42 @@ describe("checkVideoParts proxy handling", () => {
       type: "none",
     });
     expect(mocks.axiosGet).not.toHaveBeenCalled();
+  });
+
+  // A resolved short link routes the queued title lookup through the Bilibili
+  // id-specific path, whose yt-dlp failure falls back to this API request.
+  describe("getVideoInfo API fallback", () => {
+    beforeEach(() => {
+      mocks.executeYtDlpJson.mockRejectedValue(new Error("yt-dlp unavailable"));
+    });
+
+    it("routes the fallback through the configured proxy", async () => {
+      mocks.getUserYtDlpConfig.mockReturnValue({ proxy: "socks5://127.0.0.1:1080" });
+      mocks.getAxiosProxyConfig.mockReturnValue(PROXY_AGENT);
+      mocks.axiosGet.mockResolvedValue({
+        data: { data: { title: "T", owner: { name: "A" }, pubdate: 0 } },
+      });
+
+      await expect(getVideoInfo("BV1x")).resolves.toMatchObject({ title: "T" });
+      expect(mocks.axiosGet).toHaveBeenCalledWith(
+        expect.stringContaining("api.bilibili.com"),
+        expect.objectContaining(PROXY_AGENT),
+      );
+    });
+
+    it("skips the fallback when the proxy is unusable", async () => {
+      mocks.getUserYtDlpConfig.mockReturnValue({ proxy: "not-a-proxy" });
+      mocks.getAxiosProxyConfig.mockImplementation(() => {
+        throw new InvalidProxyError("not-a-proxy");
+      });
+
+      // Same placeholder a failed lookup produces, without any request.
+      await expect(getVideoInfo("BV1x")).resolves.toMatchObject({
+        title: "Bilibili Video",
+        author: "Bilibili User",
+      });
+      expect(mocks.axiosGet).not.toHaveBeenCalled();
+    });
   });
 
   // Selecting a collection from a resolved short link fetches its member pages,

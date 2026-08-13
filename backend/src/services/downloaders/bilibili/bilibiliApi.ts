@@ -7,21 +7,40 @@ import {
   getUserYtDlpConfig,
 } from "../../../utils/ytDlpUtils";
 import { VideoInfo } from "../BaseDownloader";
-import { resolveProxiedAxiosConfigForUrl } from "./bilibiliConfig";
+import {
+  resolveProxiedAxiosConfig,
+  resolveProxiedAxiosConfigForUrl,
+} from "./bilibiliConfig";
 import {
   BilibiliCollectionCheckResult,
   BilibiliPartsCheckResult,
 } from "./types";
 
+const BILIBILI_API_HEADERS = {
+  Referer: "https://www.bilibili.com",
+  "User-Agent":
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+};
+
+function buildUnknownVideoInfo(): VideoInfo {
+  return {
+    title: "Bilibili Video",
+    author: "Bilibili User",
+    date: new Date().toISOString().slice(0, 10).replace(/-/g, ""),
+    thumbnailUrl: null,
+  };
+}
+
 /**
  * Get video info from Bilibili (tries yt-dlp first, falls back to API)
  */
 export async function getVideoInfo(videoId: string): Promise<VideoInfo> {
-  try {
-    const videoUrl = `https://www.bilibili.com/video/${videoId}`;
+  const videoUrl = `https://www.bilibili.com/video/${videoId}`;
+  // Get user config for network options. Resolved outside the try so the API
+  // fallback in the catch can route through the same proxy yt-dlp used.
+  const userConfig = getUserYtDlpConfig(videoUrl);
 
-    // Get user config for network options
-    const userConfig = getUserYtDlpConfig(videoUrl);
+  try {
     const networkConfig = getNetworkConfigFromUserConfig(userConfig);
     const info = await executeYtDlpJson(videoUrl, {
       ...networkConfig,
@@ -42,8 +61,19 @@ export async function getVideoInfo(videoId: string): Promise<VideoInfo> {
     logger.error("Error fetching Bilibili video info with yt-dlp:", error);
     // Fallback to API
     try {
+      const axiosConfig = resolveProxiedAxiosConfig(userConfig);
+      if (!axiosConfig) {
+        logger.warn(
+          "Skipping Bilibili video info API fallback: proxy is configured but unusable",
+        );
+        return buildUnknownVideoInfo();
+      }
+
       const apiUrl = `https://api.bilibili.com/x/web-interface/view?bvid=${videoId}`;
-      const response = await axios.get(apiUrl);
+      const response = await axios.get(apiUrl, {
+        ...axiosConfig,
+        headers: BILIBILI_API_HEADERS,
+      });
 
       if (response.data && response.data.data) {
         const videoInfo = response.data.data;
@@ -61,12 +91,7 @@ export async function getVideoInfo(videoId: string): Promise<VideoInfo> {
     } catch (apiError) {
       logger.error("Error fetching Bilibili video info from API:", apiError);
     }
-    return {
-      title: "Bilibili Video",
-      author: "Bilibili User",
-      date: new Date().toISOString().slice(0, 10).replace(/-/g, ""),
-      thumbnailUrl: null,
-    };
+    return buildUnknownVideoInfo();
   }
 }
 

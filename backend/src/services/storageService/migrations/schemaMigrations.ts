@@ -951,6 +951,24 @@ export function migrateColumnsAndTables(): void {
       downloadHistoryColumns.push("deleted_at");
     }
 
+    // Media type on history rows: audio and video of the same source are
+    // separate library items, and a deleted-history row is the only per-item
+    // record of a deleted multipart part. Without this the two cannot be told
+    // apart. Left nullable; existing rows read as video, matching how a null
+    // media_type is treated on the videos table.
+    if (!downloadHistoryColumns.includes("media_type")) {
+      logger.info(
+        "Migrating database: Adding media_type column to download_history table..."
+      );
+      sqlite
+        .prepare("ALTER TABLE download_history ADD COLUMN media_type TEXT")
+        .run();
+      logger.info(
+        "Migration successful: media_type added to download_history."
+      );
+      downloadHistoryColumns.push("media_type");
+    }
+
     if (
       downloadHistoryColumns.includes("subscription_id") &&
       downloadHistoryColumns.includes("status") &&
