@@ -665,6 +665,13 @@ class DownloadManager {
         task.cancelFn = cancel;
       });
       if (task.cancelled) {
+        // An aggregate download can have saved parts before the cancel landed,
+        // and this is the only point where that result is in hand — the
+        // cancellation is usually finalized earlier, while the download was
+        // still running. Record those parts before discarding the result:
+        // their success rows are the only ones a later deletion can turn into
+        // a tombstone, since the task-level cancel row is a "failed" one.
+        addAggregatePartHistory(task, result);
         throw DownloadCancelledError.create();
       }
 

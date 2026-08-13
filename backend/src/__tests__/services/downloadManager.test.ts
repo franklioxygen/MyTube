@@ -953,6 +953,69 @@ describe('DownloadManager', () => {
       );
     });
 
+    it('should record history for parts saved before an aggregate task was cancelled', async () => {
+      // The parts already on disk are real library items. Only their success
+      // rows can later become deletion tombstones — the task-level row written
+      // on cancel is a "failed" one and never can.
+      // The cancel is finalized while the download is still running, so the
+      // partial result only arrives afterwards — hold it until then.
+      let finishAggregate: (value: unknown) => void = () => {};
+      const aggregateFn = vi.fn().mockImplementation((registerCancel: any) => {
+        registerCancel(() => {});
+        return new Promise((resolve) => {
+          finishAggregate = resolve;
+        });
+      });
+
+      const running = downloadManager.addDownload(
+        aggregateFn,
+        'cancel-aggregate',
+        'Cancelled collection',
+        'https://www.bilibili.com/video/BV1cc',
+        'bilibili',
+      );
+      await waitForQueue();
+
+      await downloadManager.cancelDownload('cancel-aggregate');
+      await expect(running).rejects.toThrow();
+
+      finishAggregate({
+        success: false,
+        partial: true,
+        error: 'Cancelled mid-collection',
+        downloadedVideos: [
+          {
+            id: 'saved-part-1',
+            title: 'Part 1',
+            sourceUrl: 'https://www.bilibili.com/video/BV1cc?p=1',
+            partNumber: 1,
+          },
+          {
+            id: 'saved-part-2',
+            title: 'Part 2',
+            sourceUrl: 'https://www.bilibili.com/video/BV1cc?p=2',
+            partNumber: 2,
+          },
+        ],
+      });
+      await waitForQueue();
+
+      for (const [id, videoId, sourceUrl] of [
+        ['cancel-aggregate:part-1', 'saved-part-1', 'https://www.bilibili.com/video/BV1cc?p=1'],
+        ['cancel-aggregate:part-2', 'saved-part-2', 'https://www.bilibili.com/video/BV1cc?p=2'],
+      ]) {
+        expect(storageService.addDownloadHistoryItem).toHaveBeenCalledWith(
+          expect.objectContaining({
+            id,
+            videoId,
+            sourceUrl,
+            status: 'success',
+            mediaType: 'video',
+          }),
+        );
+      }
+    });
+
     it('should not record failure handling when a cancelled task later rejects', async () => {
       let rejectDownload: (error: Error) => void = () => {};
       const cancelCleanup = vi.fn().mockResolvedValue(undefined);
