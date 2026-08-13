@@ -33,6 +33,7 @@ describe("download history data backfills", () => {
         id TEXT PRIMARY KEY,
         video_id TEXT,
         media_type TEXT,
+        video_path TEXT,
         status TEXT NOT NULL
       );
     `);
@@ -77,6 +78,44 @@ describe("download history data backfills", () => {
       { id: "audio-history", mediaType: "audio" },
       { id: "unknown-history", mediaType: null },
       { id: "video-history", mediaType: "video" },
+    ]);
+  });
+
+  it("types legacy tombstones from their saved file when the video is gone", () => {
+    // The join above cannot reach a deleted row: its video is already removed.
+    // The path it saved is the remaining evidence of which of the two it was.
+    sqlite.prepare("DELETE FROM download_history").run();
+    sqlite
+      .prepare(
+        "INSERT INTO download_history (id, video_id, media_type, video_path, status) VALUES (?, NULL, NULL, ?, ?), (?, NULL, NULL, ?, ?), (?, NULL, NULL, ?, ?), (?, NULL, NULL, NULL, ?)"
+      )
+      .run(
+        "gone-audio",
+        "/uploads/videos/Song.m4a",
+        "deleted",
+        "gone-audio-upper",
+        "/uploads/videos/Song.MP3",
+        "deleted",
+        "gone-video",
+        "/uploads/videos/Movie.mp4",
+        "deleted",
+        "gone-pathless",
+        "deleted",
+      );
+
+    backfillDownloadHistoryMediaTypes();
+
+    expect(
+      sqlite
+        .prepare(
+          "SELECT id, media_type AS mediaType FROM download_history ORDER BY id"
+        )
+        .all()
+    ).toEqual([
+      { id: "gone-audio", mediaType: "audio" },
+      { id: "gone-audio-upper", mediaType: "audio" },
+      { id: "gone-pathless", mediaType: null },
+      { id: "gone-video", mediaType: "video" },
     ]);
   });
 });

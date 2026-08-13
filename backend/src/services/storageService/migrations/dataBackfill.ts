@@ -3,6 +3,7 @@ import path from "path";
 import { VIDEOS_DIR } from "../../../config/paths";
 import { db, sqlite } from "../../../db";
 import { videos } from "../../../db/schema";
+import { AUDIO_FORMATS } from "../../../types/settings";
 import { logger } from "../../../utils/logger";
 import {
   pathExistsSafeSync,
@@ -117,6 +118,47 @@ export function backfillDownloadHistoryMediaTypes(): void {
     if (result && result.changes > 0) {
       logger.info(
         `Backfilled media_type for ${result.changes} download history items.`
+      );
+    }
+
+    // A deleted row is exactly the case the join above cannot reach: its video
+    // is gone, so it stays NULL and the media-type-scoped tombstone lookup
+    // never returns it. Deletion only flips status and deleted_at, so the row
+    // still carries the path of the file it saved — enough to tell the two
+    // apart without assuming every legacy tombstone was a video.
+    const audioExtensionMatch = AUDIO_FORMATS.map(
+      (format) => `lower(video_path) LIKE '%.${format}'`
+    ).join(" OR ");
+
+    const audioResult = sqlite
+      .prepare(
+        `
+            UPDATE download_history
+            SET media_type = 'audio'
+            WHERE media_type IS NULL
+              AND video_path IS NOT NULL
+              AND (${audioExtensionMatch})
+        `
+      )
+      .run();
+
+    // Whatever is left with a saved file is a video: audio-only is an explicit
+    // opt-in and its containers are enumerated above.
+    const videoResult = sqlite
+      .prepare(
+        `
+            UPDATE download_history
+            SET media_type = 'video'
+            WHERE media_type IS NULL
+              AND video_path IS NOT NULL
+        `
+      )
+      .run();
+
+    const fromPath = (audioResult?.changes ?? 0) + (videoResult?.changes ?? 0);
+    if (fromPath > 0) {
+      logger.info(
+        `Backfilled media_type from the saved file path for ${fromPath} download history items whose video is gone.`
       );
     }
   } catch (error) {

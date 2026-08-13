@@ -362,6 +362,53 @@ describe('Helpers', () => {
       expect(axiosHeadMock).not.toHaveBeenCalled();
     });
 
+    it('should not retry a short URL that just failed to resolve', async () => {
+      // One paste hits /check-bilibili-collection, /check-bilibili-parts and
+      // /download in sequence; without this the same unreachable host burns the
+      // full timeout on each.
+      axiosHeadMock.mockRejectedValue(new Error('ETIMEDOUT'));
+
+      for (let i = 0; i < 3; i++) {
+        await expect(resolveShortUrl('https://b23.tv/slow')).resolves.toBe(
+          'https://b23.tv/slow'
+        );
+      }
+
+      expect(axiosHeadMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('should retry once a remembered failure has expired', async () => {
+      vi.useFakeTimers();
+      try {
+        axiosHeadMock.mockRejectedValueOnce(new Error('ETIMEDOUT'));
+        await resolveShortUrl('https://b23.tv/slow');
+
+        // Failures are remembered far more briefly than successes, so a
+        // shortener that recovers is not written off for the full TTL.
+        vi.advanceTimersByTime(61 * 1000);
+        mockRedirectChain('https://www.bilibili.com/video/BV1xx411c7mD');
+
+        await expect(resolveShortUrl('https://b23.tv/slow')).resolves.toBe(
+          'https://www.bilibili.com/video/BV1xx411c7mD'
+        );
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('should remember a chain that never reaches an allowed host', async () => {
+      mockRedirectChain(undefined);
+
+      await expect(resolveShortUrl('https://b23.tv/dead')).resolves.toBe(
+        'https://b23.tv/dead'
+      );
+      await expect(resolveShortUrl('https://b23.tv/dead')).resolves.toBe(
+        'https://b23.tv/dead'
+      );
+
+      expect(axiosHeadMock).toHaveBeenCalledTimes(1);
+    });
+
     it('should cache a resolved short URL instead of re-requesting it', async () => {
       mockRedirectChain('https://www.bilibili.com/video/BV1xx411c7mD');
       const first = await resolveShortUrl('https://b23.tv/zKTXLw5');

@@ -206,19 +206,32 @@ function buildSafeRedirectUrl(url: string): string {
 // briefly to keep one paste from fanning out into repeated outbound requests.
 const shortUrlResolutionCache = new Map<
   string,
-  { resolvedUrl: string; expiresAt: number }
+  // resolvedUrl null = a remembered failure.
+  { resolvedUrl: string | null; expiresAt: number }
 >();
 const SHORT_URL_CACHE_TTL_MS = 10 * 60 * 1000;
+const SHORT_URL_FAILURE_CACHE_TTL_MS = 60 * 1000;
 const SHORT_URL_CACHE_MAX_ENTRIES = 500;
 
-function getCachedShortUrlResolution(safeShortUrl: string): string | null {
+/**
+ * Cached resolution, or undefined when nothing is cached.
+ *
+ * A cached entry with a null resolvedUrl is a remembered failure, which is not
+ * the same as a cache miss: one paste hits /check-bilibili-collection,
+ * /check-bilibili-parts and /download in sequence, and each resolves the same
+ * URL, so an unreachable shortener would otherwise burn the full timeout three
+ * times before the download is even queued.
+ */
+function getCachedShortUrlResolution(
+  safeShortUrl: string,
+): { resolvedUrl: string | null } | undefined {
   const cached = shortUrlResolutionCache.get(safeShortUrl);
-  if (!cached) return null;
+  if (!cached) return undefined;
   if (cached.expiresAt <= Date.now()) {
     shortUrlResolutionCache.delete(safeShortUrl);
-    return null;
+    return undefined;
   }
-  return cached.resolvedUrl;
+  return cached;
 }
 
 /**
@@ -232,7 +245,7 @@ function getCachedShortUrlResolution(safeShortUrl: string): string | null {
  */
 function setCachedShortUrlResolution(
   safeShortUrl: string,
-  resolvedUrl: string,
+  resolvedUrl: string | null,
 ): void {
   const now = Date.now();
   for (const [key, entry] of shortUrlResolutionCache) {
@@ -243,7 +256,14 @@ function setCachedShortUrlResolution(
 
   shortUrlResolutionCache.set(safeShortUrl, {
     resolvedUrl,
-    expiresAt: now + SHORT_URL_CACHE_TTL_MS,
+    // Failures expire far sooner than successes: they are remembered only to
+    // spare the rest of one paste's request flow, not to keep a shortener
+    // marked unreachable after it recovers.
+    expiresAt:
+      now +
+      (resolvedUrl === null
+        ? SHORT_URL_FAILURE_CACHE_TTL_MS
+        : SHORT_URL_CACHE_TTL_MS),
   });
 
   while (shortUrlResolutionCache.size > SHORT_URL_CACHE_MAX_ENTRIES) {
@@ -339,10 +359,18 @@ export async function resolveShortUrl(url: string): Promise<string> {
       ALLOWED_BILIBILI_SHORTENER_HOSTNAMES,
     );
 
-    const cachedUrl = getCachedShortUrlResolution(safeShortUrl);
-    if (cachedUrl) {
-      logger.info(`Resolved shortened URL from cache to: ${cachedUrl}`);
-      return cachedUrl;
+    const cached = getCachedShortUrlResolution(safeShortUrl);
+    if (cached) {
+      if (cached.resolvedUrl) {
+        logger.info(
+          `Resolved shortened URL from cache to: ${cached.resolvedUrl}`,
+        );
+        return cached.resolvedUrl;
+      }
+      logger.warn(
+        `Short URL ${safeShortUrl} failed to resolve recently; keeping it as-is without retrying.`,
+      );
+      return safeShortUrl;
     }
 
     // The short URL carries no BV/av id, so everything keyed off the source
@@ -358,9 +386,11 @@ export async function resolveShortUrl(url: string): Promise<string> {
       logger.warn(
         `Short URL ${safeShortUrl} did not redirect to an allowed Bilibili host; keeping the short URL.`,
       );
+      setCachedShortUrlResolution(safeShortUrl, null);
     } catch (resolveError: unknown) {
       // Resolution is best-effort: yt-dlp follows the redirect itself, so a
       // failure here degrades metadata rather than breaking the download.
+      setCachedShortUrlResolution(safeShortUrl, null);
       logger.warn(
         `Could not follow shortened URL ${safeShortUrl}, keeping it as-is: ${getErrorMessage(resolveError)}`,
       );
