@@ -91,6 +91,42 @@ export function backfillDownloadHistoryVideoIds(): void {
   }
 }
 
+// Backfill media_type for legacy history rows that point at a local video.
+// The column is nullable because an old row may not have a surviving video
+// reference, but a referenced video gives us an authoritative answer — unlike
+// treating every NULL as video, which misclassifies legacy audio tombstones.
+export function backfillDownloadHistoryMediaTypes(): void {
+  try {
+    const result = sqlite
+      .prepare(
+        `
+            UPDATE download_history
+            SET media_type = (
+              SELECT CASE WHEN v.media_type = 'audio' THEN 'audio' ELSE 'video' END
+              FROM videos v
+              WHERE v.id = download_history.video_id
+            )
+            WHERE media_type IS NULL
+              AND video_id IS NOT NULL
+              AND EXISTS (
+                SELECT 1 FROM videos v WHERE v.id = download_history.video_id
+              )
+        `
+      )
+      .run();
+    if (result && result.changes > 0) {
+      logger.info(
+        `Backfilled media_type for ${result.changes} download history items.`
+      );
+    }
+  } catch (error) {
+    logger.error(
+      "Error backfilling media_type in download history",
+      error instanceof Error ? error : new Error(String(error))
+    );
+  }
+}
+
 export function backfillDownloadHistoryDimensions(): void {
   try {
     // Backfill platform from videos.source where joinable via video_id

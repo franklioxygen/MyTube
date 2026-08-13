@@ -1,10 +1,10 @@
-import { and, asc, desc, eq, inArray, isNotNull, isNull, lt, ne, or } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, lt, ne } from "drizzle-orm";
 import { DatabaseError } from "../../errors/DownloadErrors";
 import { db } from "../../db";
-import { downloadHistory, subscriptions } from "../../db/schema";
+import { downloadHistory, subscriptions, videos } from "../../db/schema";
 import { logger } from "../../utils/logger";
 import { getSettings } from "./settings";
-import { DownloadHistoryItem, MediaType } from "./types";
+import { DownloadHistoryItem, MediaType, normalizeMediaType } from "./types";
 import { PARTIAL_STATUS, PENDING_RETRY_STATUS } from "./downloadHistoryStatus";
 
 function mapDownloadHistoryRow(row: typeof downloadHistory.$inferSelect): DownloadHistoryItem {
@@ -160,17 +160,6 @@ export function getLatestDeletedHistoryItemBySourceUrl(
   mediaType: MediaType = "video",
 ): DownloadHistoryItem | undefined {
   try {
-    // Audio and video of one item are distinct rows, so the tombstone has to be
-    // scoped like every other lookup. Rows written before media_type existed
-    // read as video, matching the convention on the videos table.
-    const mediaTypeCondition =
-      mediaType === "audio"
-        ? eq(downloadHistory.mediaType, "audio")
-        : or(
-            eq(downloadHistory.mediaType, "video"),
-            isNull(downloadHistory.mediaType),
-          )!;
-
     const item = db
       .select()
       .from(downloadHistory)
@@ -178,7 +167,7 @@ export function getLatestDeletedHistoryItemBySourceUrl(
         and(
           eq(downloadHistory.sourceUrl, sourceUrl),
           eq(downloadHistory.status, "deleted"),
-          mediaTypeCondition,
+          eq(downloadHistory.mediaType, mediaType),
         ),
       )
       .orderBy(desc(downloadHistory.finishedAt))
@@ -252,8 +241,23 @@ export function markDownloadHistoryDeletedByVideoId(
   deletedAt: number = Date.now()
 ): void {
   try {
+    // This is the last reliable point at which the referenced video is still
+    // present. It also repairs a legacy success row before it becomes a
+    // per-item tombstone; rows with no surviving reference remain untyped and
+    // are intentionally ignored by media-scoped tombstone lookups.
+    const video = db
+      .select({ mediaType: videos.mediaType })
+      .from(videos)
+      .where(eq(videos.id, videoId))
+      .get();
+    const mediaType = video ? normalizeMediaType(video.mediaType) : undefined;
+
     db.update(downloadHistory)
-      .set({ status: "deleted", deletedAt })
+      .set({
+        status: "deleted",
+        deletedAt,
+        ...(mediaType ? { mediaType } : {}),
+      })
       .where(
         and(
           eq(downloadHistory.videoId, videoId),

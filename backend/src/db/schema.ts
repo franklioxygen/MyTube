@@ -239,7 +239,7 @@ export const downloadHistory = sqliteTable(
     videoId: text("video_id"), // Reference to video for skipped items
     downloadedAt: integer("downloaded_at"), // Original download timestamp for deleted items
     deletedAt: integer("deleted_at"), // Deletion timestamp for deleted items
-    mediaType: text("media_type"), // "video" | "audio"; null on legacy rows = video
+    mediaType: text("media_type"), // "video" | "audio"; null only when no video reference can be recovered
     subscriptionId: text("subscription_id"), // Reference to subscription if downloaded via subscription
     taskId: text("task_id"), // Reference to continuous download task if downloaded via task
     platform: text("platform"), // canonical: youtube/bilibili/twitch/missav/local/cloud/unknown
