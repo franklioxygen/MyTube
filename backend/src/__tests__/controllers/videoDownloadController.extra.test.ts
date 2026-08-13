@@ -101,6 +101,12 @@ vi.mock("../../utils/helpers", () => ({
   isTwitchVideoUrl: vi.fn(),
   isYouTubeUrl: vi.fn(),
   isValidUrl: vi.fn(),
+  bilibiliPartSourceUrlAliases: vi.fn((url: string) => {
+    const base = url.split("?")[0];
+    const m = /[?&]p=(\d+)/.exec(url);
+    const part = m ? Number(m[1]) : 1;
+    return part === 1 ? [base, base + "?p=1"] : [base + "?p=" + part];
+  }),
   getBilibiliPartNumber: vi.fn((url: string) => {
     const match = /[?&]p=(\d+)/.exec(url);
     const part = match ? Number(match[1]) : 0;

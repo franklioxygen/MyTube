@@ -3,6 +3,7 @@ import { getErrorMessage } from "../../../utils/errors";
 import { DownloadCancelledError } from "../../../errors/DownloadErrors";
 import { isCancellationError } from "../../../utils/downloadUtils";
 import {
+  bilibiliPartSourceUrlAliases,
   extractBilibiliVideoId,
   formatVideoFilename,
   getBilibiliPartNumber,
@@ -67,7 +68,19 @@ function resolveExistingVideoForRedownload(
   existingLocalVideoId?: string
 ): Video | null {
   if (!existingLocalVideoId) {
-    return storageService.getVideoBySourceUrl(url, mediaType) ?? null;
+    // Check every spelling of this part, not just the incoming one: part 1 may
+    // have been stored bare or as ?p=1, and matching only the exact URL would
+    // add a duplicate beside the item a forced download meant to replace.
+    for (const candidateUrl of bilibiliPartSourceUrlAliases(url)) {
+      const existing = storageService.getVideoBySourceUrl(
+        candidateUrl,
+        mediaType
+      );
+      if (existing) {
+        return existing;
+      }
+    }
+    return null;
   }
 
   const selectedVideo = storageService.getVideoById(existingLocalVideoId);

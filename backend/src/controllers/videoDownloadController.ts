@@ -19,6 +19,7 @@ import {
 import { isLoginRequired } from "../services/passwordService";
 import * as storageService from "../services/storageService";
 import {
+  bilibiliPartSourceUrlAliases,
   extractBilibiliVideoId,
   getBilibiliPartNumber,
   getMissAVPlaceholderTitle,
@@ -99,15 +100,6 @@ export const searchVideos = async (
  * existence. The tracking row is consulted only for the deleted state it alone
  * records, and only when it is about the requested part.
  */
-function bilibiliPartAliases(videoUrl: string, requestedPart: number): string[] {
-  const baseUrl = trimBilibiliUrl(videoUrl).split("?")[0];
-  // Part 1 has two canonical spellings and either may be what was stored: a
-  // single download saves the bare URL, the all-parts flow saves ?p=1.
-  return requestedPart === 1
-    ? [baseUrl, `${baseUrl}?p=1`]
-    : [`${baseUrl}?p=${requestedPart}`];
-}
-
 function checkPreviousDownload(
   videoUrl: string,
   sourceVideoId: string,
@@ -127,7 +119,7 @@ function checkPreviousDownload(
   // A bare URL and ?p=1 are the same part, so both normalize to 1.
   const requestedPart = getBilibiliPartNumber(videoUrl) ?? 1;
 
-  for (const candidateUrl of bilibiliPartAliases(videoUrl, requestedPart)) {
+  for (const candidateUrl of bilibiliPartSourceUrlAliases(videoUrl)) {
     const existingPart = storageService.getVideoBySourceUrl(
       candidateUrl,
       mediaType,
@@ -175,7 +167,7 @@ function checkPreviousDownload(
     return { found: false };
   }
 
-  for (const candidateUrl of bilibiliPartAliases(videoUrl, requestedPart)) {
+  for (const candidateUrl of bilibiliPartSourceUrlAliases(videoUrl)) {
     const deletedItem =
       storageService.getLatestDeletedHistoryItemBySourceUrl(candidateUrl);
     if (deletedItem) {

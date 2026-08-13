@@ -370,6 +370,29 @@ describe("bilibiliVideo.downloadSinglePart", () => {
     expect(cleanupCalls).toEqual([]);
   });
 
+  it("reuses part 1's row when a forced download uses the other canonical alias", async () => {
+    // Stored bare by a single download, force-downloaded as ?p=1 (the all-parts
+    // spelling). Matching only the exact URL would add a second row for the
+    // same item.
+    mocks.getVideoBySourceUrl.mockImplementation((url: string) =>
+      url === "https://www.bilibili.com/video/BV1x"
+        ? buildExistingVideo({ id: "part-1-video", mediaType: "video" })
+        : undefined,
+    );
+
+    const result = await downloadSinglePart(
+      "https://www.bilibili.com/video/BV1x?p=1",
+      1,
+      4,
+      "",
+      "download-alias",
+    );
+
+    expect(result.success).toBe(true);
+    expect(mocks.updateVideo).toHaveBeenCalled();
+    expect(mocks.saveVideo).not.toHaveBeenCalled();
+  });
+
   it("repairs an explicit target on a multipart video instead of duplicating it", async () => {
     // A ?p=N URL now resolves a real part count, so totalParts > 1 for a
     // single-part repair. The explicit target must still be updated in place;

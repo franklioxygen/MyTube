@@ -396,6 +396,22 @@ export function getBilibiliPartNumber(url: string): number | null {
   }
 }
 
+/**
+ * Every source URL that can denote the part a Bilibili URL selects.
+ *
+ * Part 1 has two canonical spellings and either may be what was stored: a single
+ * download saves the bare URL, the all-parts flow saves `?p=1`. Every other part
+ * has exactly one. Shared so duplicate detection and the downloader's reuse
+ * lookup cannot disagree about what counts as the same item.
+ */
+export function bilibiliPartSourceUrlAliases(url: string): string[] {
+  const baseUrl = trimBilibiliUrl(url).split("?")[0];
+  const partNumber = getBilibiliPartNumber(url) ?? 1;
+  return partNumber === 1
+    ? [baseUrl, `${baseUrl}?p=1`]
+    : [`${baseUrl}?p=${partNumber}`];
+}
+
 // Helper function to trim Bilibili URL by removing query parameters
 export function trimBilibiliUrl(url: string): string {
   try {
