@@ -2,6 +2,7 @@ import axios from 'axios';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   OrderingMetadataUnavailableError,
+  SourceEnumerationFailedError,
   sortVideoEntries,
   VideoUrlFetcher,
 } from '../../../services/continuousDownload/videoUrlFetcher';
@@ -392,6 +393,72 @@ describe('VideoUrlFetcher', () => {
         expect(axios.get).toHaveBeenCalled();
     });
 
+    it('should send the space API fallback through the configured proxy', async () => {
+        // The fallback previously went out bare, so a proxy-only setup leaked
+        // the host IP here even though yt-dlp itself was proxied.
+        (helpers.extractBilibiliMid as any).mockReturnValue('123');
+        (ytDlpUtils.executeYtDlpJson as any).mockResolvedValue({ entries: [] });
+        (ytDlpUtils.getEffectiveUserYtDlpConfig as any).mockReturnValue({
+            proxy: 'socks5://127.0.0.1:1080',
+        });
+        (ytDlpUtils.getAxiosProxyConfig as any).mockReturnValue({
+            proxy: false,
+            httpsAgent: 'agent',
+        });
+        (axios.get as any).mockResolvedValue({
+            data: {
+                code: 0,
+                data: { list: { vlist: [{ bvid: 'BVproxied' }] }, page: { count: 1 } },
+            },
+        });
+
+        const urls = await fetcher.getAllVideoUrls('http://space.bilibili.com/123', 'Bilibili');
+
+        expect(urls).toContain('https://www.bilibili.com/video/BVproxied');
+        expect(axios.get).toHaveBeenCalledWith(
+            expect.stringContaining('api.bilibili.com'),
+            expect.objectContaining({ proxy: false, httpsAgent: 'agent' }),
+        );
+    });
+
+    it('should fail enumeration rather than skip the source when the proxy is unusable', async () => {
+        // An empty return would be frozen as a complete zero-entry plan and the
+        // task marked done, silently skipping the whole source with no retry.
+        (helpers.extractBilibiliMid as any).mockReturnValue('123');
+        (ytDlpUtils.executeYtDlpJson as any).mockResolvedValue({ entries: [] });
+        (ytDlpUtils.getEffectiveUserYtDlpConfig as any).mockReturnValue({
+            proxy: 'not-a-proxy',
+        });
+        (ytDlpUtils.getAxiosProxyConfig as any).mockImplementation(() => {
+            throw new ytDlpUtils.InvalidProxyError('not-a-proxy');
+        });
+
+        await expect(
+            fetcher.getAllVideoUrls('http://space.bilibili.com/123', 'Bilibili')
+        ).rejects.toThrow(SourceEnumerationFailedError);
+        expect(axios.get).not.toHaveBeenCalled();
+    });
+
+    it('should keep partial entries when the proxy blocks only the fallback', async () => {
+        // yt-dlp produced usable rows; the unusable proxy costs the enrichment
+        // pass, not the whole source, so those rows are still returned.
+        (helpers.extractBilibiliMid as any).mockReturnValue('123');
+        (ytDlpUtils.executeYtDlpJson as any).mockResolvedValue({
+            entries: [{ id: 'BVpartial', url: 'https://www.bilibili.com/video/BVpartial' }],
+        });
+        (ytDlpUtils.getEffectiveUserYtDlpConfig as any).mockReturnValue({
+            proxy: 'not-a-proxy',
+        });
+        (ytDlpUtils.getAxiosProxyConfig as any).mockImplementation(() => {
+            throw new ytDlpUtils.InvalidProxyError('not-a-proxy');
+        });
+
+        const urls = await fetcher.getAllVideoUrls('http://space.bilibili.com/123', 'Bilibili');
+
+        expect(urls).toContain('https://www.bilibili.com/video/BVpartial');
+        expect(axios.get).not.toHaveBeenCalled();
+    });
+
     it('should resolve collection videos from a bilibili video URL', async () => {
       (helpers.extractBilibiliMid as any).mockReturnValue(null);
       (helpers.extractBilibiliVideoId as any).mockReturnValue('BVCOLL');
@@ -489,34 +556,85 @@ describe('VideoUrlFetcher', () => {
       ).rejects.toThrow('Failed to get videos from series');
     });
 
-    it('should handle yt-dlp and API fallback failures gracefully', async () => {
+    it('should fail enumeration when yt-dlp and the API fallback both fail', async () => {
+      // Returning [] here reads as "this source has no videos", which the
+      // planner freezes as a completed plan — the source is then skipped for
+      // good. A failure has to stay a failure so the task can be retried.
       (helpers.extractBilibiliMid as any).mockReturnValue('999');
       (ytDlpUtils.executeYtDlpJson as any).mockRejectedValue(
         new Error('yt-dlp page failed')
       );
       (axios.get as any).mockRejectedValue(new Error('api failed'));
 
-      const urls = await fetcher.getAllVideoUrls(
-        'https://space.bilibili.com/999',
-        'Bilibili'
-      );
-
-      expect(urls).toEqual([]);
+      await expect(
+        fetcher.getAllVideoUrls('https://space.bilibili.com/999', 'Bilibili')
+      ).rejects.toThrow(SourceEnumerationFailedError);
       expect(axios.get).toHaveBeenCalled();
     });
 
-    it('should stop API fallback loop on invalid response payload', async () => {
+    it('should fail when the API fallback dies partway through pagination', async () => {
+      // A reachable-then-dropped proxy truncates the list rather than emptying
+      // it, which is the more dangerous shape: the plan looks plausible.
+      (helpers.extractBilibiliMid as any).mockReturnValue('999');
+      (ytDlpUtils.executeYtDlpJson as any).mockResolvedValue({ entries: [] });
+      (axios.get as any)
+        .mockResolvedValueOnce({
+          data: {
+            code: 0,
+            data: {
+              list: { vlist: Array.from({ length: 50 }, (_, i) => ({ bvid: `BV${i}` })) },
+              page: { count: 120 },
+            },
+          },
+        })
+        .mockRejectedValueOnce(new Error('proxy connection reset'));
+
+      await expect(
+        fetcher.getAllVideoUrls('https://space.bilibili.com/999', 'Bilibili')
+      ).rejects.toThrow(SourceEnumerationFailedError);
+    });
+
+    it('should fail on an API error payload rather than report an empty source', async () => {
+      // Bilibili answers risk control with HTTP 200 and a nonzero code, so
+      // axios does not throw. Stopping the loop and returning [] made that
+      // indistinguishable from a space with no videos.
       (helpers.extractBilibiliMid as any).mockReturnValue('1000');
       (ytDlpUtils.executeYtDlpJson as any).mockResolvedValue({ entries: [] });
-      (axios.get as any).mockResolvedValue({ data: { code: 1 } });
+      (axios.get as any).mockResolvedValue({ data: { code: -412 } });
 
-      const urls = await fetcher.getAllVideoUrls(
-        'https://space.bilibili.com/1000',
-        'Bilibili'
-      );
-
-      expect(urls).toEqual([]);
+      await expect(
+        fetcher.getAllVideoUrls('https://space.bilibili.com/1000', 'Bilibili')
+      ).rejects.toThrow(SourceEnumerationFailedError);
       expect(axios.get).toHaveBeenCalledTimes(1);
+    });
+
+    it('should still report a genuinely empty space as no videos', async () => {
+      // An empty vlist is a successful read, not a failure.
+      (helpers.extractBilibiliMid as any).mockReturnValue('1000');
+      (ytDlpUtils.executeYtDlpJson as any).mockResolvedValue({ entries: [] });
+      (axios.get as any).mockResolvedValue({
+        data: { code: 0, data: { list: { vlist: [] }, page: { count: 0 } } },
+      });
+
+      await expect(
+        fetcher.getAllVideoUrls('https://space.bilibili.com/1000', 'Bilibili')
+      ).resolves.toEqual([]);
+    });
+
+    it('should fail when yt-dlp truncates partway through pagination', async () => {
+      // A full first page then a failure leaves a plausible-looking short list
+      // that never reaches the API fallback, since that only runs on an empty
+      // one. Freezing it would drop every remaining video silently.
+      (helpers.extractBilibiliMid as any).mockReturnValue('1000');
+      (ytDlpUtils.executeYtDlpJson as any)
+        .mockResolvedValueOnce({
+          entries: Array.from({ length: 100 }, (_, i) => ({ id: `BV${i}` })),
+        })
+        .mockRejectedValueOnce(new Error('extractor died'));
+
+      await expect(
+        fetcher.getAllVideoUrls('https://space.bilibili.com/1000', 'Bilibili')
+      ).rejects.toThrow(SourceEnumerationFailedError);
     });
   });
 

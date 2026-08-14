@@ -15,6 +15,10 @@ vi.mock("../../../utils/ytDlpUtils", () => ({
 }));
 vi.mock("../../../utils/helpers", () => ({
   isBilibiliUrl: vi.fn((url: string) => url.includes("bilibili")),
+  extractBilibiliVideoId: vi.fn((url: string) => {
+    const match = /\/video\/(BV[\w]+|av\d+)/i.exec(url);
+    return match ? match[1] : null;
+  }),
 }));
 vi.mock("../../../services/downloaders/ytdlp/ytdlpHelpers", () => ({
   getProviderScript: vi.fn().mockReturnValue(null),
@@ -22,6 +26,7 @@ vi.mock("../../../services/downloaders/ytdlp/ytdlpHelpers", () => ({
 vi.mock("../../../services/downloadService", () => ({
   getBilibiliCollectionVideos: vi.fn(),
   getBilibiliSeriesVideos: vi.fn(),
+  checkBilibiliCollectionOrSeries: vi.fn(),
 }));
 vi.mock("../../../utils/logger", () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
@@ -302,9 +307,94 @@ describe("getBilibiliCollectionHeadSnapshot", () => {
     expect(getBilibiliCollectionVideos).toHaveBeenCalledWith(
       12345,
       9988,
-      { pageSize: 1, maxPages: 1 }
+      { pageSize: 1, maxPages: 1 },
+      undefined
     );
     expect(snap.headVideoUrl).toBe("https://www.bilibili.com/video/BVhead");
+  });
+
+  it("forwards an inspection override down to the archive fetch", async () => {
+    // The backfill path (downloadAll on an existing subscription) reaches
+    // Bilibili through inspectBilibiliCollectionPlaylist rather than the
+    // snapshot directly, so its options have to survive the whole way down.
+    const { inspectBilibiliCollectionPlaylist } = await import(
+      "../../../services/subscription/playlistFeed"
+    );
+    const { getBilibiliCollectionVideos } = await import(
+      "../../../services/downloadService"
+    );
+    vi.mocked(getBilibiliCollectionVideos).mockResolvedValue({
+      success: true,
+      videos: [{ bvid: "BVhead", title: "Head", aid: 1 }],
+    });
+
+    await inspectBilibiliCollectionPlaylist(
+      "https://www.bilibili.com/video/BVseed",
+      { type: "collection", mid: 12345, id: 9988 },
+      { subscriptionYtdlpConfig: "--proxy socks5://sub:1080" }
+    );
+
+    expect(getBilibiliCollectionVideos).toHaveBeenCalledWith(
+      12345,
+      9988,
+      undefined,
+      "--proxy socks5://sub:1080"
+    );
+  });
+
+  it("detects the collection source through the subscription's proxy override", async () => {
+    // Detection runs before the archive fetch, so leaving it unproxied means a
+    // proxy-only subscription never gets as far as the archive call at all.
+    const { checkBilibiliCollectionOrSeries, getBilibiliCollectionVideos } =
+      await import("../../../services/downloadService");
+    vi.mocked(checkBilibiliCollectionOrSeries).mockResolvedValueOnce({
+      success: true,
+      type: "collection",
+      mid: 12345,
+      id: 9988,
+    } as any);
+    vi.mocked(getBilibiliCollectionVideos).mockResolvedValueOnce({
+      success: true,
+      videos: [{ bvid: "BVhead", title: "Head", aid: 1 }],
+    });
+
+    // No stored mid/id, so the source has to be resolved from the seed video.
+    await getBilibiliCollectionHeadSnapshot(
+      "https://www.bilibili.com/video/BVseed",
+      { type: "collection" },
+      { headOnly: true, subscriptionYtdlpConfig: "--proxy socks5://sub:1080" }
+    );
+
+    expect(checkBilibiliCollectionOrSeries).toHaveBeenCalledWith(
+      "BVseed",
+      "--proxy socks5://sub:1080"
+    );
+  });
+
+  it("polls a collection through the subscription's own proxy override", async () => {
+    // A collection subscription can supply its own --proxy; without this the
+    // scheduled poll goes out over the global config and can never see new
+    // videos in a proxy-only environment.
+    const { getBilibiliCollectionVideos } = await import(
+      "../../../services/downloadService"
+    );
+    vi.mocked(getBilibiliCollectionVideos).mockResolvedValueOnce({
+      success: true,
+      videos: [{ bvid: "BVhead", title: "Head", aid: 1 }],
+    });
+
+    await getBilibiliCollectionHeadSnapshot(
+      "https://www.bilibili.com/video/BVseed",
+      { type: "collection", mid: 12345, id: 9988 },
+      { headOnly: true, subscriptionYtdlpConfig: "--proxy socks5://sub:1080" }
+    );
+
+    expect(getBilibiliCollectionVideos).toHaveBeenCalledWith(
+      12345,
+      9988,
+      { pageSize: 1, maxPages: 1 },
+      "--proxy socks5://sub:1080"
+    );
   });
 
   it("keeps full Bilibili collection fetches for baseline inspection", async () => {
@@ -328,6 +418,7 @@ describe("getBilibiliCollectionHeadSnapshot", () => {
     expect(getBilibiliSeriesVideos).toHaveBeenCalledWith(
       12345,
       9988,
+      undefined,
       undefined
     );
   });

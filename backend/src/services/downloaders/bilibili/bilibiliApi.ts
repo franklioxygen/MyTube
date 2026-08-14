@@ -98,16 +98,35 @@ export async function getVideoInfo(videoId: string): Promise<VideoInfo> {
 /**
  * Get author info from Bilibili space URL
  */
-export async function getAuthorInfo(mid: string): Promise<{
+export async function getAuthorInfo(
+  mid: string,
+  subscriptionYtdlpConfig?: string | null
+): Promise<{
   name: string;
   mid: string;
 }> {
   try {
+    // No URL in scope, so the config is keyed off the author's space URL —
+    // the page this lookup is about. The subscription's own proxy has to reach
+    // here too: this runs while the subscription is being created, before any
+    // of its settings are persisted anywhere else.
+    const axiosConfig = resolveProxiedAxiosConfigForUrl(
+      `https://space.bilibili.com/${mid}`,
+      subscriptionYtdlpConfig,
+    );
+    if (!axiosConfig) {
+      logger.warn(
+        "Skipping Bilibili author info lookup: proxy is configured but unusable",
+      );
+      return { name: "Bilibili User", mid };
+    }
+
     // Use the card API which doesn't require WBI signing
     const apiUrl = `https://api.bilibili.com/x/web-interface/card?mid=${mid}`;
     logger.info("Fetching Bilibili author info from:", apiUrl);
 
     const response = await axios.get(apiUrl, {
+      ...axiosConfig,
       headers: {
         Referer: "https://www.bilibili.com",
         "User-Agent":
@@ -192,10 +211,22 @@ export async function getLatestVideoUrl(
     } catch (ytdlpError) {
       logger.error("yt-dlp failed, trying API fallback:", ytdlpError);
 
+      // Reuse the config yt-dlp just used, so the fallback takes the same route.
+      const axiosConfig = resolveProxiedAxiosConfig(userConfig);
+      if (!axiosConfig) {
+        // null here would read as "no new video": the caller updates lastCheck
+        // and records a successful check, hiding the broken configuration.
+        // Only a verified-empty space may return null.
+        throw new Error(
+          "Could not probe Bilibili space: proxy is configured but unusable",
+        );
+      }
+
       // Fallback: Try the non-WBI API endpoint
       const apiUrl = `https://api.bilibili.com/x/space/arc/search?mid=${mid}&pn=1&ps=1&order=pubdate`;
 
       const response = await axios.get(apiUrl, {
+        ...axiosConfig,
         headers: {
           Referer: "https://www.bilibili.com",
           "User-Agent":
@@ -203,35 +234,44 @@ export async function getLatestVideoUrl(
         },
       });
 
-      if (
-        response.data &&
-        response.data.data &&
-        response.data.data.list &&
-        response.data.data.list.vlist
-      ) {
-        const videos = response.data.data.list.vlist;
+      // Risk control answers with HTTP 200 and a nonzero code, so axios does
+      // not throw. Falling through to `return null` on those would report the
+      // space as empty and let the subscription record a successful check —
+      // the very thing the rethrow above exists to prevent. Only a valid,
+      // genuinely empty vlist may reach that null.
+      const data = response.data;
+      const vlist = data?.data?.list?.vlist;
+      if (!data || data.code !== 0 || !Array.isArray(vlist)) {
+        throw new Error(
+          `Bilibili space API returned an unusable response (code ${
+            data?.code ?? "unknown"
+          })`,
+        );
+      }
 
-        if (videos.length > 0) {
-          const latestVideo = videos[0];
-          const bvid = latestVideo.bvid;
-
-          if (bvid) {
-            const videoUrl = `https://www.bilibili.com/video/${bvid}`;
-            logger.info(
-              "Found latest Bilibili video (API fallback):",
-              videoUrl
-            );
-            return videoUrl;
-          }
+      if (vlist.length > 0) {
+        const bvid = vlist[0]?.bvid;
+        if (!bvid) {
+          throw new Error(
+            "Bilibili space API returned a video entry without a bvid",
+          );
         }
+
+        const videoUrl = `https://www.bilibili.com/video/${bvid}`;
+        logger.info("Found latest Bilibili video (API fallback):", videoUrl);
+        return videoUrl;
       }
     }
 
     logger.info("No videos found for Bilibili space:", spaceUrl);
     return null;
   } catch (error) {
+    // Same reasoning as the proxy branch: swallowing this made every probe
+    // failure look like an empty space, so the subscription recorded a
+    // successful check and advanced past it. null now means only that the
+    // space was read and has no videos.
     logger.error("Error fetching latest Bilibili video:", error);
-    return null;
+    throw error;
   }
 }
 
@@ -270,11 +310,7 @@ export async function checkVideoParts(
 
     const response = await axios.get(apiUrl, {
       ...axiosConfig,
-      headers: {
-        Referer: "https://www.bilibili.com",
-        "User-Agent":
-          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
-      },
+      headers: BILIBILI_API_HEADERS,
     });
 
     if (response.data && response.data.data) {
@@ -324,11 +360,7 @@ export async function checkCollectionOrSeries(
 
     const response = await axios.get(apiUrl, {
       ...axiosConfig,
-      headers: {
-        Referer: "https://www.bilibili.com",
-        "User-Agent":
-          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
-      },
+      headers: BILIBILI_API_HEADERS,
     });
 
     if (response.data && response.data.data) {

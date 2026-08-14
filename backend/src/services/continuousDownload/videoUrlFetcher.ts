@@ -705,6 +705,19 @@ export class VideoUrlFetcher {
           }
         } catch (error) {
           logger.error(`Error fetching Bilibili video entries page ${page}:`, error);
+          // Failing partway through pagination truncates the list, and the API
+          // fallback below only runs when yt-dlp produced nothing or incomplete
+          // metadata — so a truncated-but-complete-looking page set would be
+          // frozen as the whole source. A first-page failure still falls
+          // through, because that is what the API fallback exists for.
+          if (entries.length > 0) {
+            throw new SourceEnumerationFailedError(
+              "Bilibili",
+              page,
+              entries.length,
+              error
+            );
+          }
           hasMore = false;
         }
       }
@@ -716,6 +729,34 @@ export class VideoUrlFetcher {
         entries.some((entry) => metadataRequired(downloadOrder, entry))
       ) {
         logger.info("yt-dlp returned no Bilibili entries, trying API fallback...");
+        // Reuse the effective config yt-dlp just used so the fallback takes the
+        // same route, including any per-subscription proxy. A null means that
+        // proxy is unusable: skip rather than reach api.bilibili.com directly.
+        const { resolveProxiedAxiosConfig } = await import(
+          "../downloaders/bilibili/bilibiliConfig"
+        );
+        const proxiedAxiosConfig = resolveProxiedAxiosConfig(userConfig);
+        if (!proxiedAxiosConfig) {
+          // Returning nothing here would be indistinguishable from an exhausted
+          // source: the full-fetch path freezes it as a valid zero-entry plan
+          // and the task completes, skipping the whole source with no retry.
+          // Keep whatever yt-dlp did produce, but fail when that is nothing.
+          if (entries.length > 0) {
+            logger.warn(
+              "Proxy is configured but unusable; keeping the partial Bilibili entries yt-dlp returned instead of running the API fallback"
+            );
+            return entries;
+          }
+          throw new SourceEnumerationFailedError(
+            "Bilibili",
+            1,
+            entries.length,
+            new Error(
+              "Proxy is configured but unusable, so the space API fallback was skipped"
+            )
+          );
+        }
+
         const apiEntries: VideoEntry[] = [];
         const axios = await import("axios");
         let pageNum = 1;
@@ -728,6 +769,7 @@ export class VideoUrlFetcher {
             const response = await axios.default.get(
               `https://api.bilibili.com/x/space/arc/search?mid=${mid}&pn=${pageNum}&ps=${pageSize}&order=pubdate`,
               {
+                ...proxiedAxiosConfig,
                 headers: {
                   Referer: "https://www.bilibili.com",
                   "User-Agent":
@@ -763,6 +805,27 @@ export class VideoUrlFetcher {
               hasMoreApi = fetchedCount < total && videos.length === pageSize;
               pageNum++;
             } else {
+              // HTTP 200 carrying an application-level error (risk control
+              // returns code -412) or a malformed payload. Axios does not throw
+              // for these, so without this they read as the end of the list. A
+              // genuinely empty space is not affected: an empty vlist is still
+              // an array and takes the branch above.
+              const apiError = new Error(
+                `Bilibili space API returned an unusable response (code ${
+                  data?.code ?? "unknown"
+                })`
+              );
+              if (entries.length === 0) {
+                throw new SourceEnumerationFailedError(
+                  "Bilibili",
+                  pageNum,
+                  apiEntries.length,
+                  apiError
+                );
+              }
+              logger.warn(
+                `${apiError.message}; keeping the partial Bilibili entries yt-dlp returned`
+              );
               hasMoreApi = false;
             }
           } catch (error) {
@@ -770,6 +833,20 @@ export class VideoUrlFetcher {
               `Error fetching Bilibili API fallback page ${pageNum}:`,
               error
             );
+            // A syntactically valid proxy can still be unreachable, or drop
+            // mid-pagination. With no yt-dlp entries the API is the only
+            // source, so stopping here would hand back an empty or truncated
+            // list that gets frozen as a complete plan. When yt-dlp did produce
+            // entries this pass is only enrichment, and losing it costs
+            // metadata rather than videos.
+            if (entries.length === 0) {
+              throw new SourceEnumerationFailedError(
+                "Bilibili",
+                pageNum,
+                apiEntries.length,
+                error
+              );
+            }
             hasMoreApi = false;
           }
         }
@@ -1034,6 +1111,18 @@ export class VideoUrlFetcher {
             `Error fetching Bilibili videos page ${page}:`,
             error
           );
+          // Same as the entry-based loop: a mid-pagination failure truncates
+          // the list and the API fallback below only runs on an empty one, so
+          // the short list would be frozen as the whole source. A first-page
+          // failure still falls through to that fallback.
+          if (videoUrls.length > 0) {
+            throw new SourceEnumerationFailedError(
+              "Bilibili",
+              page,
+              videoUrls.length,
+              error
+            );
+          }
           hasMore = false;
         }
       }
@@ -1041,6 +1130,27 @@ export class VideoUrlFetcher {
       // If yt-dlp didn't work, try API fallback
       if (videoUrls.length === 0) {
         logger.info("yt-dlp returned no videos, trying API fallback...");
+        // Same reasoning as the entry-based fallback above: reuse the effective
+        // config so the fallback keeps yt-dlp's route, and skip entirely rather
+        // than connect directly when the configured proxy is unusable.
+        const { resolveProxiedAxiosConfig } = await import(
+          "../downloaders/bilibili/bilibiliConfig"
+        );
+        const proxiedAxiosConfig = resolveProxiedAxiosConfig(userConfig);
+        if (!proxiedAxiosConfig) {
+          // This branch is only reached with zero videos so far, and an empty
+          // return would be frozen as a complete plan. Fail instead, so the
+          // source is retried rather than silently skipped.
+          throw new SourceEnumerationFailedError(
+            "Bilibili",
+            1,
+            videoUrls.length,
+            new Error(
+              "Proxy is configured but unusable, so the space API fallback was skipped"
+            )
+          );
+        }
+
         const axios = await import("axios");
         let pageNum = 1;
         const pageSize = 50;
@@ -1051,6 +1161,7 @@ export class VideoUrlFetcher {
             const response = await axios.default.get(
               `https://api.bilibili.com/x/space/arc/search?mid=${mid}&pn=${pageNum}&ps=${pageSize}&order=pubdate`,
               {
+                ...proxiedAxiosConfig,
                 headers: {
                   Referer: "https://www.bilibili.com",
                   "User-Agent":
@@ -1081,14 +1192,34 @@ export class VideoUrlFetcher {
                 videoUrls.length < total && videos.length === pageSize;
               pageNum++;
             } else {
-              hasMoreApi = false;
+              // Same non-throwing error payload as the entry fallback, and this
+              // path is the sole source, so it always fails rather than
+              // reporting a short list as the whole space.
+              throw new SourceEnumerationFailedError(
+                "Bilibili",
+                pageNum,
+                videoUrls.length,
+                new Error(
+                  `Bilibili space API returned an unusable response (code ${
+                    data?.code ?? "unknown"
+                  })`
+                )
+              );
             }
           } catch (error) {
             logger.error(
               `Error fetching Bilibili videos page ${pageNum}:`,
               error
             );
-            hasMoreApi = false;
+            // This fallback is only entered with zero videos so far, so it is
+            // the sole source here: a failed page truncates the real list, and
+            // returning it would freeze a partial plan as complete.
+            throw new SourceEnumerationFailedError(
+              "Bilibili",
+              pageNum,
+              videoUrls.length,
+              error
+            );
           }
         }
 

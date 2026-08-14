@@ -329,6 +329,38 @@ describe('SubscriptionService', () => {
       expect(db.update).toHaveBeenCalled();
     });
 
+    it('records a failed check and backs off when the channel probe throws', async () => {
+      // A throwing probe must not reach the outer catch, which records the
+      // failure but never advances lastCheck — the subscription would then be
+      // retried on every scheduler tick against a source that is still broken.
+      const sub = {
+        id: 'sub-probe-fail',
+        author: 'User',
+        platform: 'Bilibili',
+        authorUrl: 'https://space.bilibili.com/123',
+        lastCheck: 0,
+        interval: 10,
+        lastVideoLink: 'existing-link',
+        ytdlpConfig: '--proxy not-a-proxy',
+      };
+
+      mockBuilder.then = (cb: any) => Promise.resolve([sub]).then(cb);
+      (BilibiliDownloader.getLatestVideoUrl as any).mockRejectedValue(
+        new Error('Could not probe Bilibili space: proxy is configured but unusable')
+      );
+
+      await subscriptionService.checkSubscriptions();
+
+      // The cursor is untouched, but lastCheck advances for backoff.
+      expect(mockBuilder.set).toHaveBeenCalledWith(
+        expect.objectContaining({ lastCheck: expect.any(Number) })
+      );
+      expect(mockBuilder.set).not.toHaveBeenCalledWith(
+        expect.objectContaining({ lastVideoLink: expect.anything() })
+      );
+      expect(downloadService.downloadBilibiliVideo).not.toHaveBeenCalled();
+    });
+
     it('skips a members-only video and advances the cursor without failing (issue #393)', async () => {
       const sub = {
         id: 'sub-members',
@@ -470,6 +502,9 @@ describe('SubscriptionService', () => {
         subscriptionType: 'playlist',
         playlistId: '9988',
         collectionId: 'existing-col',
+        // This subscription supplies its own proxy; polling must use it rather
+        // than the global config.
+        ytdlpConfig: '--proxy socks5://sub:1080',
       };
 
       let callCount = 0;
@@ -498,7 +533,8 @@ describe('SubscriptionService', () => {
       expect(downloadService.getBilibiliCollectionVideos).toHaveBeenCalledWith(
         12345,
         9988,
-        { pageSize: 1, maxPages: 1 }
+        { pageSize: 1, maxPages: 1 },
+        '--proxy socks5://sub:1080'
       );
       expect(executeYtDlpJson).not.toHaveBeenCalled();
       expect(downloadService.downloadSingleBilibiliPart).toHaveBeenCalledWith(
@@ -513,7 +549,10 @@ describe('SubscriptionService', () => {
           sourceCollectionId: '9988',
           sourceCollectionType: 'playlist',
         }),
-        { subscriptionYtdlpConfig: undefined }
+        // The same override the poll used also reaches the download.
+        expect.objectContaining({
+          subscriptionYtdlpConfig: '--proxy socks5://sub:1080',
+        })
       );
       expect(storageService.addVideoToCollection).toHaveBeenCalledWith(
         'existing-col',

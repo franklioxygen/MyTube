@@ -779,7 +779,9 @@ export const createPlaylistSubscription = async (
   //    centralized error handler returns 400/502/500 without side effects.
   const inspection =
     isBilibiliCollectionOrSeries && collectionInfo
-      ? await inspectBilibiliCollectionPlaylist(playlistUrl, collectionInfo)
+      ? await inspectBilibiliCollectionPlaylist(playlistUrl, collectionInfo, {
+          subscriptionYtdlpConfig: existingSubscription?.ytdlpConfig ?? null,
+        })
       : await inspectPlaylist(playlistUrl, {
           subscriptionYtdlpConfig: existingSubscription?.ytdlpConfig ?? null,
         });

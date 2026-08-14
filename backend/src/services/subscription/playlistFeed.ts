@@ -62,6 +62,9 @@ export interface BilibiliCollectionHeadSnapshot extends PlaylistHeadSnapshot {
 
 export interface BilibiliCollectionHeadSnapshotOptions {
   headOnly?: boolean;
+  // A collection subscription can carry its own --proxy. Polling has to use it,
+  // or the archive request goes out over the global config (or none at all).
+  subscriptionYtdlpConfig?: string | null;
 }
 
 export interface BilibiliCollectionPlaylistInspection
@@ -301,7 +304,8 @@ function toFiniteNumber(value: string | number | undefined): number | null {
 
 async function resolveBilibiliCollectionSource(
   playlistUrl: string,
-  collectionInfo: BilibiliCollectionInspectionInput
+  collectionInfo: BilibiliCollectionInspectionInput,
+  subscriptionYtdlpConfig?: string | null
 ): Promise<BilibiliCollectionSource | null> {
   const requestedType = collectionInfo.type;
   let mid = toFiniteNumber(collectionInfo.mid);
@@ -319,7 +323,13 @@ async function resolveBilibiliCollectionSource(
   const { checkBilibiliCollectionOrSeries } = await import(
     "../downloadService"
   );
-  const detected = await checkBilibiliCollectionOrSeries(videoId);
+  // Detection runs before the archive fetch, so if only the subscription's
+  // proxy can reach Bilibili, leaving this one unproxied means the archive
+  // fetch is never reached at all.
+  const detected = await checkBilibiliCollectionOrSeries(
+    videoId,
+    subscriptionYtdlpConfig
+  );
   if (
     !detected.success ||
     detected.type === "none" ||
@@ -356,7 +366,8 @@ export async function getBilibiliCollectionHeadSnapshot(
 ): Promise<BilibiliCollectionHeadSnapshot> {
   const source = await resolveBilibiliCollectionSource(
     playlistUrl,
-    collectionInfo
+    collectionInfo,
+    options?.subscriptionYtdlpConfig
   );
   if (!source) {
     throw new ValidationError(
@@ -373,8 +384,18 @@ export async function getBilibiliCollectionHeadSnapshot(
     : undefined;
   const videosResult =
     source.type === "collection"
-      ? await getBilibiliCollectionVideos(source.mid, source.id, fetchOptions)
-      : await getBilibiliSeriesVideos(source.mid, source.id, fetchOptions);
+      ? await getBilibiliCollectionVideos(
+          source.mid,
+          source.id,
+          fetchOptions,
+          options?.subscriptionYtdlpConfig
+        )
+      : await getBilibiliSeriesVideos(
+          source.mid,
+          source.id,
+          fetchOptions,
+          options?.subscriptionYtdlpConfig
+        );
 
   if (!videosResult.success) {
     throw new ValidationError(
@@ -412,7 +433,8 @@ export async function inspectBilibiliCollectionPlaylist(
 ): Promise<BilibiliCollectionPlaylistInspection | PlaylistInspection> {
   const snapshot = await getBilibiliCollectionHeadSnapshot(
     playlistUrl,
-    collectionInfo
+    collectionInfo,
+    { subscriptionYtdlpConfig: options?.subscriptionYtdlpConfig }
   ).catch((error) => {
     if (extractBilibiliVideoId(playlistUrl)) {
       throw error;
