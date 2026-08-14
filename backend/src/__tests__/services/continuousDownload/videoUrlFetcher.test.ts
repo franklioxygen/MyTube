@@ -392,6 +392,50 @@ describe('VideoUrlFetcher', () => {
         expect(axios.get).toHaveBeenCalled();
     });
 
+    it('should send the space API fallback through the configured proxy', async () => {
+        // The fallback previously went out bare, so a proxy-only setup leaked
+        // the host IP here even though yt-dlp itself was proxied.
+        (helpers.extractBilibiliMid as any).mockReturnValue('123');
+        (ytDlpUtils.executeYtDlpJson as any).mockResolvedValue({ entries: [] });
+        (ytDlpUtils.getEffectiveUserYtDlpConfig as any).mockReturnValue({
+            proxy: 'socks5://127.0.0.1:1080',
+        });
+        (ytDlpUtils.getAxiosProxyConfig as any).mockReturnValue({
+            proxy: false,
+            httpsAgent: 'agent',
+        });
+        (axios.get as any).mockResolvedValue({
+            data: {
+                code: 0,
+                data: { list: { vlist: [{ bvid: 'BVproxied' }] }, page: { count: 1 } },
+            },
+        });
+
+        const urls = await fetcher.getAllVideoUrls('http://space.bilibili.com/123', 'Bilibili');
+
+        expect(urls).toContain('https://www.bilibili.com/video/BVproxied');
+        expect(axios.get).toHaveBeenCalledWith(
+            expect.stringContaining('api.bilibili.com'),
+            expect.objectContaining({ proxy: false, httpsAgent: 'agent' }),
+        );
+    });
+
+    it('should skip the space API fallback when the proxy is unusable', async () => {
+        (helpers.extractBilibiliMid as any).mockReturnValue('123');
+        (ytDlpUtils.executeYtDlpJson as any).mockResolvedValue({ entries: [] });
+        (ytDlpUtils.getEffectiveUserYtDlpConfig as any).mockReturnValue({
+            proxy: 'not-a-proxy',
+        });
+        (ytDlpUtils.getAxiosProxyConfig as any).mockImplementation(() => {
+            throw new ytDlpUtils.InvalidProxyError('not-a-proxy');
+        });
+
+        const urls = await fetcher.getAllVideoUrls('http://space.bilibili.com/123', 'Bilibili');
+
+        expect(urls).toEqual([]);
+        expect(axios.get).not.toHaveBeenCalled();
+    });
+
     it('should resolve collection videos from a bilibili video URL', async () => {
       (helpers.extractBilibiliMid as any).mockReturnValue(null);
       (helpers.extractBilibiliVideoId as any).mockReturnValue('BVCOLL');

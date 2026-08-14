@@ -70,11 +70,14 @@ export class BilibiliDownloader extends BaseDownloader {
   }
 
   // Get author info from Bilibili space URL
-  static async getAuthorInfo(mid: string): Promise<{
+  static async getAuthorInfo(
+    mid: string,
+    subscriptionYtdlpConfig?: string | null
+  ): Promise<{
     name: string;
     mid: string;
   }> {
-    return bilibiliApi.getAuthorInfo(mid);
+    return bilibiliApi.getAuthorInfo(mid, subscriptionYtdlpConfig);
   }
 
   // Get the latest video URL from a Bilibili author's space

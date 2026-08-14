@@ -108,6 +108,23 @@ describe("Bilibili API proxy handling", () => {
       });
       expect(mocks.axiosGet).not.toHaveBeenCalled();
     });
+
+    it("uses the subscription's own proxy while the subscription is being created", async () => {
+      // Runs during subscribe(), before the subscription's settings are
+      // persisted, so the override has to be passed in rather than looked up.
+      withWorkingProxy();
+      mocks.axiosGet.mockResolvedValue({
+        data: { data: { card: { name: "Author" } } },
+      });
+
+      await getAuthorInfo("123", "--proxy socks5://sub:1080");
+
+      expect(mocks.getUserYtDlpConfig).toHaveBeenCalledWith(
+        "https://space.bilibili.com/123",
+        "--proxy socks5://sub:1080",
+      );
+      expectProxiedRequest();
+    });
   });
 
   describe("getLatestVideoUrl API fallback", () => {

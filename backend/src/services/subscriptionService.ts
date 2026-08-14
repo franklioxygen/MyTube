@@ -124,9 +124,14 @@ export class SubscriptionService {
           throw ValidationError.invalidBilibiliSpaceUrl(authorUrl);
         }
 
-        // Try to get author name from Bilibili API
+        // Try to get author name from Bilibili API. The subscription's own
+        // proxy is not persisted yet, so pass the requested config directly —
+        // otherwise this lookup goes out over the global settings alone.
         try {
-          const authorInfo = await BilibiliDownloader.getAuthorInfo(mid);
+          const authorInfo = await BilibiliDownloader.getAuthorInfo(
+            mid,
+            ytdlpConfig
+          );
           authorName = authorInfo.name;
         } catch (error) {
           logger.error("Error fetching Bilibili author info:", error);
@@ -1291,7 +1296,7 @@ export class SubscriptionService {
             mid: collection?.sourceMid,
             id: collection?.sourceId ?? sub.playlistId,
           },
-          { headOnly: true }
+          { headOnly: true, subscriptionYtdlpConfig: sub.ytdlpConfig }
         );
       }
     }

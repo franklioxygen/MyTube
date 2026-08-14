@@ -62,6 +62,9 @@ export interface BilibiliCollectionHeadSnapshot extends PlaylistHeadSnapshot {
 
 export interface BilibiliCollectionHeadSnapshotOptions {
   headOnly?: boolean;
+  // A collection subscription can carry its own --proxy. Polling has to use it,
+  // or the archive request goes out over the global config (or none at all).
+  subscriptionYtdlpConfig?: string | null;
 }
 
 export interface BilibiliCollectionPlaylistInspection
@@ -373,8 +376,18 @@ export async function getBilibiliCollectionHeadSnapshot(
     : undefined;
   const videosResult =
     source.type === "collection"
-      ? await getBilibiliCollectionVideos(source.mid, source.id, fetchOptions)
-      : await getBilibiliSeriesVideos(source.mid, source.id, fetchOptions);
+      ? await getBilibiliCollectionVideos(
+          source.mid,
+          source.id,
+          fetchOptions,
+          options?.subscriptionYtdlpConfig
+        )
+      : await getBilibiliSeriesVideos(
+          source.mid,
+          source.id,
+          fetchOptions,
+          options?.subscriptionYtdlpConfig
+        );
 
   if (!videosResult.success) {
     throw new ValidationError(
@@ -412,7 +425,8 @@ export async function inspectBilibiliCollectionPlaylist(
 ): Promise<BilibiliCollectionPlaylistInspection | PlaylistInspection> {
   const snapshot = await getBilibiliCollectionHeadSnapshot(
     playlistUrl,
-    collectionInfo
+    collectionInfo,
+    { subscriptionYtdlpConfig: options?.subscriptionYtdlpConfig }
   ).catch((error) => {
     if (extractBilibiliVideoId(playlistUrl)) {
       throw error;

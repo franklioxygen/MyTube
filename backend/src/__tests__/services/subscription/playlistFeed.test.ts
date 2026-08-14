@@ -302,9 +302,36 @@ describe("getBilibiliCollectionHeadSnapshot", () => {
     expect(getBilibiliCollectionVideos).toHaveBeenCalledWith(
       12345,
       9988,
-      { pageSize: 1, maxPages: 1 }
+      { pageSize: 1, maxPages: 1 },
+      undefined
     );
     expect(snap.headVideoUrl).toBe("https://www.bilibili.com/video/BVhead");
+  });
+
+  it("polls a collection through the subscription's own proxy override", async () => {
+    // A collection subscription can supply its own --proxy; without this the
+    // scheduled poll goes out over the global config and can never see new
+    // videos in a proxy-only environment.
+    const { getBilibiliCollectionVideos } = await import(
+      "../../../services/downloadService"
+    );
+    vi.mocked(getBilibiliCollectionVideos).mockResolvedValueOnce({
+      success: true,
+      videos: [{ bvid: "BVhead", title: "Head", aid: 1 }],
+    });
+
+    await getBilibiliCollectionHeadSnapshot(
+      "https://www.bilibili.com/video/BVseed",
+      { type: "collection", mid: 12345, id: 9988 },
+      { headOnly: true, subscriptionYtdlpConfig: "--proxy socks5://sub:1080" }
+    );
+
+    expect(getBilibiliCollectionVideos).toHaveBeenCalledWith(
+      12345,
+      9988,
+      { pageSize: 1, maxPages: 1 },
+      "--proxy socks5://sub:1080"
+    );
   });
 
   it("keeps full Bilibili collection fetches for baseline inspection", async () => {
@@ -328,6 +355,7 @@ describe("getBilibiliCollectionHeadSnapshot", () => {
     expect(getBilibiliSeriesVideos).toHaveBeenCalledWith(
       12345,
       9988,
+      undefined,
       undefined
     );
   });

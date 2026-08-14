@@ -470,6 +470,9 @@ describe('SubscriptionService', () => {
         subscriptionType: 'playlist',
         playlistId: '9988',
         collectionId: 'existing-col',
+        // This subscription supplies its own proxy; polling must use it rather
+        // than the global config.
+        ytdlpConfig: '--proxy socks5://sub:1080',
       };
 
       let callCount = 0;
@@ -498,7 +501,8 @@ describe('SubscriptionService', () => {
       expect(downloadService.getBilibiliCollectionVideos).toHaveBeenCalledWith(
         12345,
         9988,
-        { pageSize: 1, maxPages: 1 }
+        { pageSize: 1, maxPages: 1 },
+        '--proxy socks5://sub:1080'
       );
       expect(executeYtDlpJson).not.toHaveBeenCalled();
       expect(downloadService.downloadSingleBilibiliPart).toHaveBeenCalledWith(
@@ -513,7 +517,10 @@ describe('SubscriptionService', () => {
           sourceCollectionId: '9988',
           sourceCollectionType: 'playlist',
         }),
-        { subscriptionYtdlpConfig: undefined }
+        // The same override the poll used also reaches the download.
+        expect.objectContaining({
+          subscriptionYtdlpConfig: '--proxy socks5://sub:1080',
+        })
       );
       expect(storageService.addVideoToCollection).toHaveBeenCalledWith(
         'existing-col',

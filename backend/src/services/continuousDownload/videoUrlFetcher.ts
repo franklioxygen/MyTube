@@ -716,6 +716,20 @@ export class VideoUrlFetcher {
         entries.some((entry) => metadataRequired(downloadOrder, entry))
       ) {
         logger.info("yt-dlp returned no Bilibili entries, trying API fallback...");
+        // Reuse the effective config yt-dlp just used so the fallback takes the
+        // same route, including any per-subscription proxy. A null means that
+        // proxy is unusable: skip rather than reach api.bilibili.com directly.
+        const { resolveProxiedAxiosConfig } = await import(
+          "../downloaders/bilibili/bilibiliConfig"
+        );
+        const proxiedAxiosConfig = resolveProxiedAxiosConfig(userConfig);
+        if (!proxiedAxiosConfig) {
+          logger.warn(
+            "Skipping Bilibili space API fallback: proxy is configured but unusable"
+          );
+          return entries;
+        }
+
         const apiEntries: VideoEntry[] = [];
         const axios = await import("axios");
         let pageNum = 1;
@@ -728,6 +742,7 @@ export class VideoUrlFetcher {
             const response = await axios.default.get(
               `https://api.bilibili.com/x/space/arc/search?mid=${mid}&pn=${pageNum}&ps=${pageSize}&order=pubdate`,
               {
+                ...proxiedAxiosConfig,
                 headers: {
                   Referer: "https://www.bilibili.com",
                   "User-Agent":
@@ -1041,6 +1056,20 @@ export class VideoUrlFetcher {
       // If yt-dlp didn't work, try API fallback
       if (videoUrls.length === 0) {
         logger.info("yt-dlp returned no videos, trying API fallback...");
+        // Same reasoning as the entry-based fallback above: reuse the effective
+        // config so the fallback keeps yt-dlp's route, and skip entirely rather
+        // than connect directly when the configured proxy is unusable.
+        const { resolveProxiedAxiosConfig } = await import(
+          "../downloaders/bilibili/bilibiliConfig"
+        );
+        const proxiedAxiosConfig = resolveProxiedAxiosConfig(userConfig);
+        if (!proxiedAxiosConfig) {
+          logger.warn(
+            "Skipping Bilibili space API fallback: proxy is configured but unusable"
+          );
+          return videoUrls;
+        }
+
         const axios = await import("axios");
         let pageNum = 1;
         const pageSize = 50;
@@ -1051,6 +1080,7 @@ export class VideoUrlFetcher {
             const response = await axios.default.get(
               `https://api.bilibili.com/x/space/arc/search?mid=${mid}&pn=${pageNum}&ps=${pageSize}&order=pubdate`,
               {
+                ...proxiedAxiosConfig,
                 headers: {
                   Referer: "https://www.bilibili.com",
                   "User-Agent":

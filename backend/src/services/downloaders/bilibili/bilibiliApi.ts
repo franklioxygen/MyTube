@@ -98,15 +98,21 @@ export async function getVideoInfo(videoId: string): Promise<VideoInfo> {
 /**
  * Get author info from Bilibili space URL
  */
-export async function getAuthorInfo(mid: string): Promise<{
+export async function getAuthorInfo(
+  mid: string,
+  subscriptionYtdlpConfig?: string | null
+): Promise<{
   name: string;
   mid: string;
 }> {
   try {
     // No URL in scope, so the config is keyed off the author's space URL —
-    // the page this lookup is about.
+    // the page this lookup is about. The subscription's own proxy has to reach
+    // here too: this runs while the subscription is being created, before any
+    // of its settings are persisted anywhere else.
     const axiosConfig = resolveProxiedAxiosConfigForUrl(
       `https://space.bilibili.com/${mid}`,
+      subscriptionYtdlpConfig,
     );
     if (!axiosConfig) {
       logger.warn(
