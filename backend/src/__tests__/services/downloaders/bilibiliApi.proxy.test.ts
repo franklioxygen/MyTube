@@ -131,7 +131,7 @@ describe("Bilibili API proxy handling", () => {
     it("routes through the configured proxy", async () => {
       withWorkingProxy();
       mocks.axiosGet.mockResolvedValue({
-        data: { data: { list: { vlist: [{ bvid: "BV9z" }] } } },
+        data: { code: 0, data: { list: { vlist: [{ bvid: "BV9z" }] } } },
       });
 
       await expect(
@@ -165,12 +165,43 @@ describe("Bilibili API proxy handling", () => {
     it("still reports a genuinely empty space as null", async () => {
       withWorkingProxy();
       mocks.axiosGet.mockResolvedValue({
-        data: { data: { list: { vlist: [] } } },
+        data: { code: 0, data: { list: { vlist: [] } } },
       });
 
       await expect(
         getLatestVideoUrl("https://space.bilibili.com/123"),
       ).resolves.toBeNull();
+    });
+
+    it("fails on an API error payload rather than reporting an empty space", async () => {
+      // Risk control answers HTTP 200 with a nonzero code, so axios resolves
+      // and the rethrow above never sees it.
+      withWorkingProxy();
+      mocks.axiosGet.mockResolvedValue({ data: { code: -412 } });
+
+      await expect(
+        getLatestVideoUrl("https://space.bilibili.com/123"),
+      ).rejects.toThrow(/unusable response \(code -412\)/);
+    });
+
+    it("fails on a malformed payload rather than reporting an empty space", async () => {
+      withWorkingProxy();
+      mocks.axiosGet.mockResolvedValue({ data: { code: 0, data: {} } });
+
+      await expect(
+        getLatestVideoUrl("https://space.bilibili.com/123"),
+      ).rejects.toThrow(/unusable response/);
+    });
+
+    it("fails when the latest entry carries no bvid", async () => {
+      withWorkingProxy();
+      mocks.axiosGet.mockResolvedValue({
+        data: { code: 0, data: { list: { vlist: [{ title: "no id" }] } } },
+      });
+
+      await expect(
+        getLatestVideoUrl("https://space.bilibili.com/123"),
+      ).rejects.toThrow(/without a bvid/);
     });
   });
 

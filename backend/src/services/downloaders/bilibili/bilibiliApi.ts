@@ -234,27 +234,32 @@ export async function getLatestVideoUrl(
         },
       });
 
-      if (
-        response.data &&
-        response.data.data &&
-        response.data.data.list &&
-        response.data.data.list.vlist
-      ) {
-        const videos = response.data.data.list.vlist;
+      // Risk control answers with HTTP 200 and a nonzero code, so axios does
+      // not throw. Falling through to `return null` on those would report the
+      // space as empty and let the subscription record a successful check —
+      // the very thing the rethrow above exists to prevent. Only a valid,
+      // genuinely empty vlist may reach that null.
+      const data = response.data;
+      const vlist = data?.data?.list?.vlist;
+      if (!data || data.code !== 0 || !Array.isArray(vlist)) {
+        throw new Error(
+          `Bilibili space API returned an unusable response (code ${
+            data?.code ?? "unknown"
+          })`,
+        );
+      }
 
-        if (videos.length > 0) {
-          const latestVideo = videos[0];
-          const bvid = latestVideo.bvid;
-
-          if (bvid) {
-            const videoUrl = `https://www.bilibili.com/video/${bvid}`;
-            logger.info(
-              "Found latest Bilibili video (API fallback):",
-              videoUrl
-            );
-            return videoUrl;
-          }
+      if (vlist.length > 0) {
+        const bvid = vlist[0]?.bvid;
+        if (!bvid) {
+          throw new Error(
+            "Bilibili space API returned a video entry without a bvid",
+          );
         }
+
+        const videoUrl = `https://www.bilibili.com/video/${bvid}`;
+        logger.info("Found latest Bilibili video (API fallback):", videoUrl);
+        return videoUrl;
       }
     }
 
