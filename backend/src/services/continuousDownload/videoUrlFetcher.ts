@@ -799,6 +799,20 @@ export class VideoUrlFetcher {
               `Error fetching Bilibili API fallback page ${pageNum}:`,
               error
             );
+            // A syntactically valid proxy can still be unreachable, or drop
+            // mid-pagination. With no yt-dlp entries the API is the only
+            // source, so stopping here would hand back an empty or truncated
+            // list that gets frozen as a complete plan. When yt-dlp did produce
+            // entries this pass is only enrichment, and losing it costs
+            // metadata rather than videos.
+            if (entries.length === 0) {
+              throw new SourceEnumerationFailedError(
+                "Bilibili",
+                pageNum,
+                apiEntries.length,
+                error
+              );
+            }
             hasMoreApi = false;
           }
         }
@@ -1139,7 +1153,15 @@ export class VideoUrlFetcher {
               `Error fetching Bilibili videos page ${pageNum}:`,
               error
             );
-            hasMoreApi = false;
+            // This fallback is only entered with zero videos so far, so it is
+            // the sole source here: a failed page truncates the real list, and
+            // returning it would freeze a partial plan as complete.
+            throw new SourceEnumerationFailedError(
+              "Bilibili",
+              pageNum,
+              videoUrls.length,
+              error
+            );
           }
         }
 

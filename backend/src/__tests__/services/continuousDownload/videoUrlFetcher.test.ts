@@ -556,20 +556,42 @@ describe('VideoUrlFetcher', () => {
       ).rejects.toThrow('Failed to get videos from series');
     });
 
-    it('should handle yt-dlp and API fallback failures gracefully', async () => {
+    it('should fail enumeration when yt-dlp and the API fallback both fail', async () => {
+      // Returning [] here reads as "this source has no videos", which the
+      // planner freezes as a completed plan — the source is then skipped for
+      // good. A failure has to stay a failure so the task can be retried.
       (helpers.extractBilibiliMid as any).mockReturnValue('999');
       (ytDlpUtils.executeYtDlpJson as any).mockRejectedValue(
         new Error('yt-dlp page failed')
       );
       (axios.get as any).mockRejectedValue(new Error('api failed'));
 
-      const urls = await fetcher.getAllVideoUrls(
-        'https://space.bilibili.com/999',
-        'Bilibili'
-      );
-
-      expect(urls).toEqual([]);
+      await expect(
+        fetcher.getAllVideoUrls('https://space.bilibili.com/999', 'Bilibili')
+      ).rejects.toThrow(SourceEnumerationFailedError);
       expect(axios.get).toHaveBeenCalled();
+    });
+
+    it('should fail when the API fallback dies partway through pagination', async () => {
+      // A reachable-then-dropped proxy truncates the list rather than emptying
+      // it, which is the more dangerous shape: the plan looks plausible.
+      (helpers.extractBilibiliMid as any).mockReturnValue('999');
+      (ytDlpUtils.executeYtDlpJson as any).mockResolvedValue({ entries: [] });
+      (axios.get as any)
+        .mockResolvedValueOnce({
+          data: {
+            code: 0,
+            data: {
+              list: { vlist: Array.from({ length: 50 }, (_, i) => ({ bvid: `BV${i}` })) },
+              page: { count: 120 },
+            },
+          },
+        })
+        .mockRejectedValueOnce(new Error('proxy connection reset'));
+
+      await expect(
+        fetcher.getAllVideoUrls('https://space.bilibili.com/999', 'Bilibili')
+      ).rejects.toThrow(SourceEnumerationFailedError);
     });
 
     it('should stop API fallback loop on invalid response payload', async () => {
