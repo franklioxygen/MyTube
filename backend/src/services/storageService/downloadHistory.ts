@@ -1,10 +1,10 @@
 import { and, asc, desc, eq, inArray, isNotNull, lt, ne } from "drizzle-orm";
 import { DatabaseError } from "../../errors/DownloadErrors";
 import { db } from "../../db";
-import { downloadHistory, subscriptions } from "../../db/schema";
+import { downloadHistory, subscriptions, videos } from "../../db/schema";
 import { logger } from "../../utils/logger";
 import { getSettings } from "./settings";
-import { DownloadHistoryItem } from "./types";
+import { DownloadHistoryItem, MediaType, normalizeMediaType } from "./types";
 import { PARTIAL_STATUS, PENDING_RETRY_STATUS } from "./downloadHistoryStatus";
 
 function mapDownloadHistoryRow(row: typeof downloadHistory.$inferSelect): DownloadHistoryItem {
@@ -20,6 +20,7 @@ function mapDownloadHistoryRow(row: typeof downloadHistory.$inferSelect): Downlo
     videoId: row.videoId || undefined,
     downloadedAt: row.downloadedAt || undefined,
     deletedAt: row.deletedAt || undefined,
+    mediaType: (row.mediaType as DownloadHistoryItem["mediaType"]) || undefined,
     subscriptionId: row.subscriptionId || undefined,
     taskId: row.taskId || undefined,
     platform: row.platform || undefined,
@@ -49,6 +50,7 @@ export function addDownloadHistoryItem(item: DownloadHistoryItem): void {
       videoId: item.videoId ?? null,
       downloadedAt: item.downloadedAt ?? null,
       deletedAt: item.deletedAt ?? null,
+      mediaType: item.mediaType ?? null,
       subscriptionId: item.subscriptionId ?? null,
       taskId: item.taskId ?? null,
       platform: item.platform ?? null,
@@ -143,6 +145,45 @@ export function getLatestRetryHistoryItemBySourceUrl(
   }
 }
 
+/**
+ * Latest deleted-history entry for an exact source URL.
+ *
+ * Acts as the per-item tombstone that the source-level tracking row cannot
+ * provide: videoDownloads keeps one row per (sourceVideoId, platform,
+ * mediaType), so deleting one part of a multipart video reassigns that row to a
+ * surviving part and leaves its status as "exists". History rows, by contrast,
+ * carry the individual item's own source URL, so a deleted part is still
+ * recorded here under its own ?p=N URL.
+ */
+export function getLatestDeletedHistoryItemBySourceUrl(
+  sourceUrl: string,
+  mediaType: MediaType = "video",
+): DownloadHistoryItem | undefined {
+  try {
+    const item = db
+      .select()
+      .from(downloadHistory)
+      .where(
+        and(
+          eq(downloadHistory.sourceUrl, sourceUrl),
+          eq(downloadHistory.status, "deleted"),
+          eq(downloadHistory.mediaType, mediaType),
+        ),
+      )
+      .orderBy(desc(downloadHistory.finishedAt))
+      .limit(1)
+      .get();
+
+    return item ? mapDownloadHistoryRow(item) : undefined;
+  } catch (error) {
+    logger.error(
+      "Error getting latest deleted history item by source URL",
+      error instanceof Error ? error : new Error(String(error))
+    );
+    return undefined;
+  }
+}
+
 export function getPendingRetryHistoryItems(): DownloadHistoryItem[] {
   try {
     const items = db
@@ -200,8 +241,23 @@ export function markDownloadHistoryDeletedByVideoId(
   deletedAt: number = Date.now()
 ): void {
   try {
+    // This is the last reliable point at which the referenced video is still
+    // present. It also repairs a legacy success row before it becomes a
+    // per-item tombstone; rows with no surviving reference remain untyped and
+    // are intentionally ignored by media-scoped tombstone lookups.
+    const video = db
+      .select({ mediaType: videos.mediaType })
+      .from(videos)
+      .where(eq(videos.id, videoId))
+      .get();
+    const mediaType = video ? normalizeMediaType(video.mediaType) : undefined;
+
     db.update(downloadHistory)
-      .set({ status: "deleted", deletedAt })
+      .set({
+        status: "deleted",
+        deletedAt,
+        ...(mediaType ? { mediaType } : {}),
+      })
       .where(
         and(
           eq(downloadHistory.videoId, videoId),

@@ -110,6 +110,7 @@ describe("buildBilibiliDownloadTask multipart collection handling", () => {
       skippedCount: 0,
       failedPartNumbers: [],
       firstVideo: { id: "v2" },
+      downloadedVideos: [{ id: "v2" }],
     });
   });
 
@@ -125,6 +126,7 @@ describe("buildBilibiliDownloadTask multipart collection handling", () => {
     const result = await runMultipartTask();
 
     expect(result.success).toBe(true);
+    expect(result.downloadedVideos).toEqual([{ id: "v1" }, { id: "v2" }]);
     expect(mocks.saveCollection).toHaveBeenCalledTimes(1);
     expect(mocks.saveCollection).toHaveBeenCalledWith(
       expect.objectContaining({

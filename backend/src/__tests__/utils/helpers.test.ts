@@ -26,9 +26,40 @@ import {
     normalizeYouTubeAuthorUrl,
     processVideoUrl,
     resolveShortUrl,
+    resetShortUrlResolutionCacheForTests,
+    getShortUrlResolutionCacheSizeForTests,
     sanitizeFilename,
+    getBilibiliPartNumber,
     trimBilibiliUrl
 } from '../../utils/helpers';
+
+const axiosHeadMock = vi.fn();
+vi.mock('axios', () => ({
+  default: {
+    head: (...args: unknown[]) => axiosHeadMock(...args),
+  },
+}));
+
+// getUserYtDlpConfig pulls in the storage layer; the short-URL resolver only
+// needs the proxy field, so stub it. Defaults to a proxy-less config.
+const userYtDlpConfigMock = vi.fn(() => ({}) as Record<string, unknown>);
+vi.mock('../../utils/ytdlp/config', () => ({
+  getUserYtDlpConfig: (...args: unknown[]) => userYtDlpConfigMock(...(args as [])),
+}));
+
+const axiosProxyConfigMock = vi.fn(() => ({}) as Record<string, unknown>);
+vi.mock('../../utils/ytdlp/proxy', () => ({
+  getAxiosProxyConfig: (...args: unknown[]) =>
+    axiosProxyConfigMock(...(args as [])),
+}));
+
+/** Queue a redirect chain for the mocked axios.head to walk through. */
+const mockRedirectChain = (...locations: (string | undefined)[]) => {
+  axiosHeadMock.mockReset();
+  for (const location of locations) {
+    axiosHeadMock.mockResolvedValueOnce({ headers: location ? { location } : {} });
+  }
+};
 
 describe('Helpers', () => {
   describe('isValidUrl', () => {
@@ -184,38 +215,251 @@ describe('Helpers', () => {
   describe('resolveShortUrl', () => {
     beforeEach(() => {
       vi.clearAllMocks();
+      axiosHeadMock.mockReset();
+      userYtDlpConfigMock.mockReset();
+      userYtDlpConfigMock.mockReturnValue({});
+      axiosProxyConfigMock.mockReset();
+      axiosProxyConfigMock.mockReturnValue({});
+      resetShortUrlResolutionCacheForTests();
     });
 
-    it('should normalize and return whitelisted short URL', async () => {
-      const result = await resolveShortUrl('https://b23.tv/example');
-      expect(result).toBe('https://b23.tv/example');
+    it('should follow the redirect to the canonical Bilibili video URL', async () => {
+      mockRedirectChain(
+        'https://www.bilibili.com/video/BV1xx411c7mD?share_source=copy_web'
+      );
+      await expect(resolveShortUrl('https://b23.tv/zKTXLw5')).resolves.toBe(
+        'https://www.bilibili.com/video/BV1xx411c7mD?share_source=copy_web'
+      );
+      expect(extractBilibiliVideoId(await resolveShortUrl('https://b23.tv/zKTXLw5')))
+        .toBe('BV1xx411c7mD');
     });
 
-    it('should return normalized short URL without outbound resolution', async () => {
-      const result = await resolveShortUrl('https://b23.tv/fail');
-      expect(result).toBe('https://b23.tv/fail');
+    it('should follow a multi-hop chain that stays on allowed hosts', async () => {
+      mockRedirectChain(
+        'https://bili2233.cn/hop',
+        'https://m.bilibili.com/video/BV1xx411c7mD'
+      );
+      await expect(resolveShortUrl('https://b23.tv/zKTXLw5')).resolves.toBe(
+        'https://m.bilibili.com/video/BV1xx411c7mD'
+      );
     });
 
-    it('should keep short URL path unchanged', async () => {
-      const result = await resolveShortUrl('https://b23.tv/example');
-      expect(result).toBe('https://b23.tv/example');
+    it('should preserve the subdomain a short link actually points at', async () => {
+      // Collapsing live./space. onto www. would silently point the download at
+      // an unrelated page.
+      mockRedirectChain('https://live.bilibili.com/1234');
+      await expect(resolveShortUrl('https://b23.tv/live')).resolves.toBe(
+        'https://live.bilibili.com/1234'
+      );
+    });
+
+    it('should fill out a bare bilibili.com host to www', async () => {
+      mockRedirectChain('https://bilibili.com/video/BV1xx411c7mD');
+      await expect(resolveShortUrl('https://b23.tv/bare')).resolves.toBe(
+        'https://www.bilibili.com/video/BV1xx411c7mD'
+      );
+    });
+
+    it('should reject a redirect that carries credentials', async () => {
+      mockRedirectChain('https://user:pass@www.bilibili.com/video/BV1xx411c7mD');
+      await expect(resolveShortUrl('https://b23.tv/creds')).resolves.toBe(
+        'https://b23.tv/creds'
+      );
+    });
+
+    it('should resolve a relative Location header against the current hop', async () => {
+      // A relative hop that stays on the shortener is joined against the
+      // current URL and then followed like any other hop.
+      mockRedirectChain(
+        '/s/zKTXLw5',
+        'https://www.bilibili.com/video/BV1xx411c7mD'
+      );
+      await expect(resolveShortUrl('https://b23.tv/zKTXLw5')).resolves.toBe(
+        'https://www.bilibili.com/video/BV1xx411c7mD'
+      );
+      expect(axiosHeadMock).toHaveBeenNthCalledWith(
+        2,
+        'https://b23.tv/s/zKTXLw5',
+        expect.objectContaining({ maxRedirects: 0 })
+      );
+    });
+
+    it('should never follow a redirect off the allow-list', async () => {
+      mockRedirectChain('http://169.254.169.254/latest/meta-data');
+      // The off-list hop is rejected before it is requested, so the caller is
+      // left on the short URL rather than being pointed at the internal host.
+      await expect(resolveShortUrl('https://b23.tv/evil')).resolves.toBe(
+        'https://b23.tv/evil'
+      );
+      expect(axiosHeadMock).toHaveBeenCalledTimes(1);
+      expect(axiosHeadMock).toHaveBeenCalledWith(
+        'https://b23.tv/evil',
+        expect.objectContaining({ maxRedirects: 0 })
+      );
+    });
+
+    it('should fall back to the short URL when resolution fails', async () => {
+      axiosHeadMock.mockRejectedValue(new Error('ENOTFOUND'));
+      await expect(resolveShortUrl('https://b23.tv/fail')).resolves.toBe(
+        'https://b23.tv/fail'
+      );
+    });
+
+    it('should fall back to the short URL when no redirect is returned', async () => {
+      mockRedirectChain(undefined);
+      await expect(resolveShortUrl('https://b23.tv/example')).resolves.toBe(
+        'https://b23.tv/example'
+      );
+    });
+
+    it('should give up on a redirect loop that never leaves the shorteners', async () => {
+      axiosHeadMock.mockResolvedValue({
+        headers: { location: 'https://b23.tv/loop' },
+      });
+      await expect(resolveShortUrl('https://b23.tv/loop')).resolves.toBe(
+        'https://b23.tv/loop'
+      );
+      expect(axiosHeadMock).toHaveBeenCalledTimes(5);
+    });
+
+    it('should carry a part selector through resolution and trimming', async () => {
+      // The controller feeds the resolved URL straight into trimBilibiliUrl, so
+      // a short link to part 2 must still name part 2 at the end of that chain.
+      mockRedirectChain(
+        'https://www.bilibili.com/video/BV1xx411c7mD?p=2&share_source=COPY&unique_k=zKTXLw5'
+      );
+      const resolved = await resolveShortUrl('https://b23.tv/zKTXLw5');
+      expect(trimBilibiliUrl(resolved)).toBe(
+        'https://www.bilibili.com/video/BV1xx411c7mD?p=2'
+      );
+    });
+
+    it('should route the request through a configured proxy', async () => {
+      userYtDlpConfigMock.mockReturnValue({ proxy: 'socks5://127.0.0.1:1080' });
+      axiosProxyConfigMock.mockReturnValue({ proxy: false, httpsAgent: 'agent' });
+      mockRedirectChain('https://www.bilibili.com/video/BV1xx411c7mD');
+
+      await resolveShortUrl('https://b23.tv/zKTXLw5');
+
+      expect(axiosProxyConfigMock).toHaveBeenCalledWith('socks5://127.0.0.1:1080');
+      expect(axiosHeadMock).toHaveBeenCalledWith(
+        'https://b23.tv/zKTXLw5',
+        expect.objectContaining({ proxy: false, httpsAgent: 'agent' })
+      );
+    });
+
+    it('should never fall back to a direct request when the proxy is invalid', async () => {
+      // getAxiosProxyConfig throws precisely to stop a silent direct connection
+      // from exposing the user's real IP, so resolution must abort entirely.
+      userYtDlpConfigMock.mockReturnValue({ proxy: 'not-a-proxy' });
+      axiosProxyConfigMock.mockImplementation(() => {
+        throw new Error('Invalid proxy URL: not-a-proxy');
+      });
+
+      await expect(resolveShortUrl('https://b23.tv/zKTXLw5')).resolves.toBe(
+        'https://b23.tv/zKTXLw5'
+      );
+      expect(axiosHeadMock).not.toHaveBeenCalled();
+    });
+
+    it('should not retry a short URL that just failed to resolve', async () => {
+      // One paste hits /check-bilibili-collection, /check-bilibili-parts and
+      // /download in sequence; without this the same unreachable host burns the
+      // full timeout on each.
+      axiosHeadMock.mockRejectedValue(new Error('ETIMEDOUT'));
+
+      for (let i = 0; i < 3; i++) {
+        await expect(resolveShortUrl('https://b23.tv/slow')).resolves.toBe(
+          'https://b23.tv/slow'
+        );
+      }
+
+      expect(axiosHeadMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('should retry once a remembered failure has expired', async () => {
+      vi.useFakeTimers();
+      try {
+        axiosHeadMock.mockRejectedValueOnce(new Error('ETIMEDOUT'));
+        await resolveShortUrl('https://b23.tv/slow');
+
+        // Failures are remembered far more briefly than successes, so a
+        // shortener that recovers is not written off for the full TTL.
+        vi.advanceTimersByTime(61 * 1000);
+        mockRedirectChain('https://www.bilibili.com/video/BV1xx411c7mD');
+
+        await expect(resolveShortUrl('https://b23.tv/slow')).resolves.toBe(
+          'https://www.bilibili.com/video/BV1xx411c7mD'
+        );
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('should remember a chain that never reaches an allowed host', async () => {
+      mockRedirectChain(undefined);
+
+      await expect(resolveShortUrl('https://b23.tv/dead')).resolves.toBe(
+        'https://b23.tv/dead'
+      );
+      await expect(resolveShortUrl('https://b23.tv/dead')).resolves.toBe(
+        'https://b23.tv/dead'
+      );
+
+      expect(axiosHeadMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('should cache a resolved short URL instead of re-requesting it', async () => {
+      mockRedirectChain('https://www.bilibili.com/video/BV1xx411c7mD');
+      const first = await resolveShortUrl('https://b23.tv/zKTXLw5');
+      const second = await resolveShortUrl('https://b23.tv/zKTXLw5');
+      expect(second).toBe(first);
+      expect(axiosHeadMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('should evict expired entries instead of growing forever', async () => {
+      vi.useFakeTimers();
+      try {
+        // One-off links are never requested a second time, so expiry-on-read
+        // alone would never reclaim them.
+        for (let i = 0; i < 3; i++) {
+          mockRedirectChain(`https://www.bilibili.com/video/BV100${i}`);
+          await resolveShortUrl(`https://b23.tv/oneoff${i}`);
+        }
+        expect(getShortUrlResolutionCacheSizeForTests()).toBe(3);
+
+        // Past the TTL, the next write sweeps every stale entry.
+        vi.advanceTimersByTime(11 * 60 * 1000);
+        mockRedirectChain('https://www.bilibili.com/video/BV2000');
+        await resolveShortUrl('https://b23.tv/fresh');
+
+        expect(getShortUrlResolutionCacheSizeForTests()).toBe(1);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('should keep the cache bounded when entries have not expired', async () => {
+      for (let i = 0; i < 505; i++) {
+        mockRedirectChain(`https://www.bilibili.com/video/BV${i}`);
+        await resolveShortUrl(`https://b23.tv/bulk${i}`);
+      }
+      expect(getShortUrlResolutionCacheSizeForTests()).toBe(500);
     });
 
     it('should reject non-whitelisted short URL hosts', async () => {
       await expect(resolveShortUrl('https://example.com/test')).rejects.toThrow('Invalid URL');
+      expect(axiosHeadMock).not.toHaveBeenCalled();
     });
 
     it('should reject short URL with credentials', async () => {
       await expect(resolveShortUrl('https://user:pass@b23.tv/example')).rejects.toThrow('Invalid URL');
-    });
-
-    it('should return normalized short URL with explicit path', async () => {
-      const result = await resolveShortUrl('https://b23.tv/example');
-      expect(result).toBe('https://b23.tv/example');
+      expect(axiosHeadMock).not.toHaveBeenCalled();
     });
 
     it('should reject invalid protocol and normalize traversal paths', async () => {
       await expect(resolveShortUrl('ftp://b23.tv/test')).rejects.toThrow('Invalid URL');
+      mockRedirectChain(undefined);
       await expect(resolveShortUrl('https://b23.tv/../test')).resolves.toBe('https://b23.tv/test');
     });
   });
@@ -231,9 +475,51 @@ describe('Helpers', () => {
       expect(trimBilibiliUrl(url)).toBe('https://www.bilibili.com/video/av123456');
     });
 
+    it('should keep the part selector while dropping tracking params', () => {
+      // Dropping ?p= silently downloads part 1 of a multipart video instead of
+      // the part the link actually points at.
+      expect(
+        trimBilibiliUrl(
+          'https://www.bilibili.com/video/BV1xx411c7mD?p=2&spm_id_from=333.999.0.0&share_source=COPY'
+        )
+      ).toBe('https://www.bilibili.com/video/BV1xx411c7mD?p=2');
+      expect(
+        trimBilibiliUrl('https://www.bilibili.com/video/av123456?p=13')
+      ).toBe('https://www.bilibili.com/video/av123456?p=13');
+    });
+
+    it('should ignore a malformed part selector', () => {
+      for (const part of ['0', '-1', 'abc', '2; DROP TABLE', '']) {
+        expect(
+          trimBilibiliUrl(
+            `https://www.bilibili.com/video/BV1xx411c7mD?p=${encodeURIComponent(part)}`
+          )
+        ).toBe('https://www.bilibili.com/video/BV1xx411c7mD');
+      }
+    });
+
     it('should remove query parameters if no video ID found', () => {
       const url = 'https://www.bilibili.com/read/cv123456?from=search';
       expect(trimBilibiliUrl(url)).toBe('https://www.bilibili.com/read/cv123456');
+    });
+
+    it('should read the part number off a URL', () => {
+      expect(
+        getBilibiliPartNumber('https://www.bilibili.com/video/BV1x?p=2')
+      ).toBe(2);
+      expect(
+        getBilibiliPartNumber('https://www.bilibili.com/video/BV1x?p=1')
+      ).toBe(1);
+      // Absent or malformed selectors are not a part number; callers treat
+      // these as part 1.
+      expect(getBilibiliPartNumber('https://www.bilibili.com/video/BV1x')).toBeNull();
+      expect(
+        getBilibiliPartNumber('https://www.bilibili.com/video/BV1x?p=abc')
+      ).toBeNull();
+      expect(
+        getBilibiliPartNumber('https://www.bilibili.com/video/BV1x?p=0')
+      ).toBeNull();
+      expect(getBilibiliPartNumber('not-a-url')).toBeNull();
     });
 
     it('should return original value when URL parsing fails', () => {
@@ -331,6 +617,21 @@ describe('Helpers', () => {
     });
 
     it('should process text-wrapped URLs and resolve bilibili short links', async () => {
+      resetShortUrlResolutionCacheForTests();
+      mockRedirectChain('https://www.bilibili.com/video/BV1xx411c7mD');
+      await expect(
+        processVideoUrl('Title https://b23.tv/xyz')
+      ).resolves.toEqual({
+        videoUrl: 'https://www.bilibili.com/video/BV1xx411c7mD',
+        sourceVideoId: 'BV1xx411c7mD',
+        platform: 'bilibili',
+      });
+    });
+
+    it('should still classify a short link that cannot be resolved', async () => {
+      resetShortUrlResolutionCacheForTests();
+      axiosHeadMock.mockReset();
+      axiosHeadMock.mockRejectedValue(new Error('offline'));
       await expect(
         processVideoUrl('Title https://b23.tv/xyz')
       ).resolves.toEqual({

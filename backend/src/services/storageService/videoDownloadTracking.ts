@@ -13,6 +13,7 @@ type DownloadTrackingRow = {
   author?: string | null;
   downloadedAt?: number | null;
   deletedAt?: number | null;
+  sourceUrl?: string | null;
 };
 
 function buildSourceVideoQueryCondition(
@@ -57,6 +58,7 @@ function toDownloadCheckResult(record: DownloadTrackingRow): VideoDownloadCheckR
     author: record.author || undefined,
     downloadedAt: record.downloadedAt ?? undefined,
     deletedAt: record.deletedAt ?? undefined,
+    sourceUrl: record.sourceUrl || undefined,
   };
 }
 

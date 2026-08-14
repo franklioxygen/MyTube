@@ -2,7 +2,12 @@ import { IMAGES_DIR, VIDEOS_DIR } from "../../../config/paths";
 import { getErrorMessage } from "../../../utils/errors";
 import { DownloadCancelledError } from "../../../errors/DownloadErrors";
 import { isCancellationError } from "../../../utils/downloadUtils";
-import { extractBilibiliVideoId, formatVideoFilename } from "../../../utils/helpers";
+import {
+  bilibiliPartSourceUrlAliases,
+  extractBilibiliVideoId,
+  formatVideoFilename,
+  getBilibiliPartNumber,
+} from "../../../utils/helpers";
 import { FilenameTemplateSourceOptions } from "../../filenameTemplate/types";
 import { applySubscriptionFilenameTemplateOverride } from "../../filenameTemplate";
 import { resolveAuthorOrganizationMode } from "../../../types/settings";
@@ -33,6 +38,7 @@ import {
   BILIBILI_COOKIE_REFRESH_HINT,
   isLikelyBilibiliAuthFailure,
   resolveBilibiliMergeOutputFormat,
+  resolveProxiedAxiosConfig,
 } from "./bilibiliConfig";
 import {
   cleanupFilesOnCancellation,
@@ -62,7 +68,19 @@ function resolveExistingVideoForRedownload(
   existingLocalVideoId?: string
 ): Video | null {
   if (!existingLocalVideoId) {
-    return storageService.getVideoBySourceUrl(url, mediaType) ?? null;
+    // Check every spelling of this part, not just the incoming one: part 1 may
+    // have been stored bare or as ?p=1, and matching only the exact URL would
+    // add a duplicate beside the item a forced download meant to replace.
+    for (const candidateUrl of bilibiliPartSourceUrlAliases(url)) {
+      const existing = storageService.getVideoBySourceUrl(
+        candidateUrl,
+        mediaType
+      );
+      if (existing) {
+        return existing;
+      }
+    }
+    return null;
   }
 
   const selectedVideo = storageService.getVideoById(existingLocalVideoId);
@@ -119,6 +137,10 @@ export async function downloadSinglePart(
     const mergeOutputFormat = audioOnly
       ? audioFormat
       : resolveBilibiliMergeOutputFormat(userConfig);
+    // Shared by every outbound side request below (part metadata lookup,
+    // subtitles). null means the configured proxy is unusable, so those
+    // requests are skipped rather than sent directly.
+    const proxiedAxiosConfig = resolveProxiedAxiosConfig(userConfig);
     // Overlay any per-subscription filename-template override onto the global
     // naming settings so renameFilesWithMetadata and the legacy/template branch
     // below use it consistently (issue #368). When no override is present the
@@ -136,8 +158,17 @@ export async function downloadSinglePart(
     const timestamp = Date.now();
     const downloadedAtIso = new Date(timestamp).toISOString();
     const sourceVideoId = extractBilibiliVideoId(url) || undefined;
+    // Reuse an existing row whenever this download refers to exactly one item.
+    // That holds for a single-part video, for an explicit target (collision
+    // repair, redownload), and for a URL naming a part — ?p=N identifies one
+    // row, so same-URL reuse is well defined and a forced redownload replaces
+    // that part instead of adding a duplicate beside it. The aggregate part
+    // count is irrelevant to all three.
+    const selectsSpecificPart = getBilibiliPartNumber(url) != null;
     const existingLocalVideoForRedownload =
-      totalParts === 1
+      totalParts === 1 ||
+      selectsSpecificPart ||
+      modeOptions?.existingLocalVideoId
         ? resolveExistingVideoForRedownload(
             url,
             audioOnly ? "audio" : "video",
@@ -218,7 +249,8 @@ export async function downloadSinglePart(
       partNumber,
       totalParts,
       seriesTitle,
-      bilibiliInfo
+      bilibiliInfo,
+      proxiedAxiosConfig
     );
 
     // For multi-part videos, include the part number in the title
@@ -332,29 +364,20 @@ export async function downloadSinglePart(
         const subtitlePathPrefix =
           renameResult.subtitleWebBaseDir ||
           (moveSubtitlesToVideoFolder ? `/videos` : `/subtitles`);
-        let axiosConfig = {};
-        if (userConfig.proxy) {
-          try {
-            axiosConfig = getAxiosProxyConfig(userConfig.proxy);
-          } catch (error) {
-            if (error instanceof InvalidProxyError) {
-              logger.warn(
-                "Invalid proxy configuration for subtitle download, proceeding without proxy:",
-                error.message
-              );
-            } else {
-              throw error;
-            }
-          }
+        if (proxiedAxiosConfig) {
+          subtitles = await downloadSubtitles(
+            url,
+            newSafeBaseFilename,
+            subtitleDir,
+            subtitlePathPrefix,
+            proxiedAxiosConfig
+          );
+          logger.info(`Downloaded ${subtitles.length} subtitles`);
+        } else {
+          logger.warn(
+            "Skipping subtitle download: proxy is configured but unusable"
+          );
         }
-        subtitles = await downloadSubtitles(
-          url,
-          newSafeBaseFilename,
-          subtitleDir,
-          subtitlePathPrefix,
-          axiosConfig
-        );
-        logger.info(`Downloaded ${subtitles.length} subtitles`);
       } catch (e) {
         // If it's a cancellation error, re-throw it
         downloader.handleCancellationErrorPublic(e);
@@ -447,8 +470,10 @@ export async function downloadSinglePart(
       : undefined;
 
     // For multi-part videos, always create a new video entry (each part is separate)
-    // For single videos, check if video with same sourceUrl already exists
-    if (totalParts === 1) {
+    // For single videos, check if video with same sourceUrl already exists.
+    // An explicit repair/redownload target overrides that: it updates its own
+    // row rather than adding a duplicate alongside the item it was meant to fix.
+    if (totalParts === 1 || existingLocalVideoForRedownload) {
       // Scope by media type so an audio-only download becomes its own library
       // item instead of overwriting the existing video row for the same URL.
       const existingVideo = existingLocalVideoForRedownload;

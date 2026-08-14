@@ -25,6 +25,18 @@ const TWITTER_HOSTNAMES = ["x.com", "twitter.com"] as const;
 const TWITCH_HOSTNAMES = ["twitch.tv"] as const;
 
 const ALLOWED_BILIBILI_SHORTENER_HOSTNAMES = ["b23.tv", "bili2233.cn"] as const;
+// Hosts a shortener hop may legally land on. Kept separate from the shortener
+// list so a redirect can only ever move within the shorteners or onto Bilibili
+// proper — never to an arbitrary host the shortener happens to point at.
+const ALLOWED_BILIBILI_REDIRECT_HOSTNAMES = [
+  "bilibili.com",
+  "b23.tv",
+  "bili2233.cn",
+] as const;
+const MAX_SHORT_URL_REDIRECTS = 5;
+const SHORT_URL_RESOLVE_TIMEOUT_MS = 10000;
+const SHORT_URL_RESOLVE_USER_AGENT =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36";
 const REQUEST_HOST_OUTPUT_MAP: Record<string, string> = {
   "bilibili.com": "www.bilibili.com",
 };
@@ -147,6 +159,196 @@ export function extractUrlFromText(text: string): string {
   return text; // Return original text if no URL found
 }
 
+/**
+ * Validate a shortener redirect target.
+ *
+ * Deliberately not buildSafeRequestUrl: that helper canonicalizes every
+ * `*.bilibili.com` host to `www.bilibili.com`, which is right for a URL the user
+ * typed but wrong for a redirect target — a short link to `live.bilibili.com/123`
+ * would be rewritten into a completely different `www.bilibili.com/123` page.
+ * Here the host is validated and preserved, and only a bare `bilibili.com` is
+ * filled out to `www`.
+ */
+function buildSafeRedirectUrl(url: string): string {
+  const parsedUrl = new URL(url);
+  if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
+    throw new Error(
+      `Invalid redirect protocol: ${parsedUrl.protocol}. Only http and https are allowed.`,
+    );
+  }
+  if (parsedUrl.username || parsedUrl.password || parsedUrl.port) {
+    throw new Error(
+      "SSRF protection: redirects with credentials or explicit ports are not allowed.",
+    );
+  }
+
+  const hostname = parsedUrl.hostname.toLowerCase();
+  const isAllowed = ALLOWED_BILIBILI_REDIRECT_HOSTNAMES.some(
+    (allowedHost) =>
+      hostname === allowedHost || hostname.endsWith(`.${allowedHost}`),
+  );
+  if (!isAllowed) {
+    throw new Error(
+      `SSRF protection: redirect target ${parsedUrl.hostname} is not in the allow-list.`,
+    );
+  }
+
+  if (parsedUrl.pathname.split("/").some((segment) => segment === "..")) {
+    throw new Error("SSRF protection: path traversal is not allowed in a redirect.");
+  }
+
+  const outputHost = hostname === "bilibili.com" ? "www.bilibili.com" : hostname;
+  return `https://${outputHost}${parsedUrl.pathname || "/"}${parsedUrl.search}`;
+}
+
+// A single download resolves the same short URL several times (download-status
+// check, then the download itself, then any retry), so cache the redirect target
+// briefly to keep one paste from fanning out into repeated outbound requests.
+const shortUrlResolutionCache = new Map<
+  string,
+  // resolvedUrl null = a remembered failure.
+  { resolvedUrl: string | null; expiresAt: number }
+>();
+const SHORT_URL_CACHE_TTL_MS = 10 * 60 * 1000;
+const SHORT_URL_FAILURE_CACHE_TTL_MS = 60 * 1000;
+const SHORT_URL_CACHE_MAX_ENTRIES = 500;
+
+/**
+ * Cached resolution, or undefined when nothing is cached.
+ *
+ * A cached entry with a null resolvedUrl is a remembered failure, which is not
+ * the same as a cache miss: one paste hits /check-bilibili-collection,
+ * /check-bilibili-parts and /download in sequence, and each resolves the same
+ * URL, so an unreachable shortener would otherwise burn the full timeout three
+ * times before the download is even queued.
+ */
+function getCachedShortUrlResolution(
+  safeShortUrl: string,
+): { resolvedUrl: string | null } | undefined {
+  const cached = shortUrlResolutionCache.get(safeShortUrl);
+  if (!cached) return undefined;
+  if (cached.expiresAt <= Date.now()) {
+    shortUrlResolutionCache.delete(safeShortUrl);
+    return undefined;
+  }
+  return cached;
+}
+
+/**
+ * Store a resolution, keeping the cache bounded.
+ *
+ * A long-running server sees a stream of one-off links that are never requested
+ * a second time, so lazy expiry-on-read alone would let the map grow forever.
+ * Every write sweeps expired entries, and if that is not enough the oldest
+ * entries are dropped — Map preserves insertion order, so those are the ones
+ * closest to expiring anyway.
+ */
+function setCachedShortUrlResolution(
+  safeShortUrl: string,
+  resolvedUrl: string | null,
+): void {
+  const now = Date.now();
+  for (const [key, entry] of shortUrlResolutionCache) {
+    if (entry.expiresAt <= now) {
+      shortUrlResolutionCache.delete(key);
+    }
+  }
+
+  shortUrlResolutionCache.set(safeShortUrl, {
+    resolvedUrl,
+    // Failures expire far sooner than successes: they are remembered only to
+    // spare the rest of one paste's request flow, not to keep a shortener
+    // marked unreachable after it recovers.
+    expiresAt:
+      now +
+      (resolvedUrl === null
+        ? SHORT_URL_FAILURE_CACHE_TTL_MS
+        : SHORT_URL_CACHE_TTL_MS),
+  });
+
+  while (shortUrlResolutionCache.size > SHORT_URL_CACHE_MAX_ENTRIES) {
+    const oldestKey = shortUrlResolutionCache.keys().next().value;
+    if (oldestKey === undefined) break;
+    shortUrlResolutionCache.delete(oldestKey);
+  }
+}
+
+/**
+ * @internal Test helper to clear the short-URL resolution cache between cases.
+ */
+export function resetShortUrlResolutionCacheForTests(): void {
+  shortUrlResolutionCache.clear();
+}
+
+/**
+ * @internal Test helper to assert the cache stays bounded.
+ */
+export function getShortUrlResolutionCacheSizeForTests(): number {
+  return shortUrlResolutionCache.size;
+}
+
+/**
+ * Follow a Bilibili shortener redirect chain one hop at a time.
+ *
+ * Every hop is validated against the allow-list before it is requested, which is
+ * why redirects are followed manually instead of by axios: axios' own follower
+ * would happily request an intermediate Location pointing at an internal host
+ * before we ever see the final URL.
+ *
+ * Returns null when the chain could not be followed (network failure, proxy-only
+ * reachability, an off-allow-list hop), leaving the caller on the short URL.
+ */
+async function followBilibiliShortUrl(safeShortUrl: string): Promise<string | null> {
+  // Dynamic imports: both modules reach back into helpers, so a static import
+  // would close an initialization cycle. getUserYtDlpConfig swallows its own
+  // read errors and returns {}, so a throw here means the module itself is
+  // unavailable — treat that as "proxy state unknown" and give up rather than
+  // guess that a direct connection is acceptable.
+  const { getUserYtDlpConfig } = await import("./ytdlp/config");
+  const proxy = getUserYtDlpConfig(safeShortUrl)?.proxy;
+
+  let axiosConfig: Record<string, unknown> = {};
+  if (typeof proxy === "string" && proxy) {
+    // getAxiosProxyConfig throws on a malformed proxy precisely so callers do
+    // not silently fall back to a direct connection and expose the user's real
+    // IP. Let it propagate: the caller keeps the short URL, and the download
+    // still works because yt-dlp follows the redirect over the same proxy.
+    const { getAxiosProxyConfig } = await import("./ytdlp/proxy");
+    axiosConfig = getAxiosProxyConfig(proxy);
+  }
+
+  const axios = (await import("axios")).default;
+  let currentUrl = safeShortUrl;
+
+  for (let hop = 0; hop < MAX_SHORT_URL_REDIRECTS; hop++) {
+    const response = await axios.head(currentUrl, {
+      ...axiosConfig,
+      maxRedirects: 0, // every hop is validated here, not by axios
+      validateStatus: null,
+      timeout: SHORT_URL_RESOLVE_TIMEOUT_MS,
+      headers: { "User-Agent": SHORT_URL_RESOLVE_USER_AGENT },
+    });
+
+    const location = response.headers?.location;
+    if (typeof location !== "string" || !location) {
+      // No further redirect: this is as far as the chain goes.
+      return isBilibiliShortUrl(currentUrl) ? null : currentUrl;
+    }
+
+    // Relative Location headers are resolved against the current hop.
+    const nextUrl = new URL(location, currentUrl).toString();
+    currentUrl = buildSafeRedirectUrl(nextUrl);
+
+    if (!isBilibiliShortUrl(currentUrl)) {
+      return currentUrl;
+    }
+  }
+
+  throw new Error(
+    `Short URL exceeded ${MAX_SHORT_URL_REDIRECTS} redirects without reaching bilibili.com`,
+  );
+}
+
 // Helper function to resolve shortened URLs (like b23.tv)
 export async function resolveShortUrl(url: string): Promise<string> {
   try {
@@ -156,9 +358,44 @@ export async function resolveShortUrl(url: string): Promise<string> {
       url,
       ALLOWED_BILIBILI_SHORTENER_HOSTNAMES,
     );
-    logger.info(
-      `Short URL host is allowed. Returning normalized URL without outbound resolution: ${safeShortUrl}`,
-    );
+
+    const cached = getCachedShortUrlResolution(safeShortUrl);
+    if (cached) {
+      if (cached.resolvedUrl) {
+        logger.info(
+          `Resolved shortened URL from cache to: ${cached.resolvedUrl}`,
+        );
+        return cached.resolvedUrl;
+      }
+      logger.warn(
+        `Short URL ${safeShortUrl} failed to resolve recently; keeping it as-is without retrying.`,
+      );
+      return safeShortUrl;
+    }
+
+    // The short URL carries no BV/av id, so everything keyed off the source
+    // video id (avatar lookup, duplicate detection, multipart/collection
+    // detection, filename templates) needs the redirect target.
+    try {
+      const resolvedUrl = await followBilibiliShortUrl(safeShortUrl);
+      if (resolvedUrl) {
+        logger.info(`Resolved shortened URL to: ${resolvedUrl}`);
+        setCachedShortUrlResolution(safeShortUrl, resolvedUrl);
+        return resolvedUrl;
+      }
+      logger.warn(
+        `Short URL ${safeShortUrl} did not redirect to an allowed Bilibili host; keeping the short URL.`,
+      );
+      setCachedShortUrlResolution(safeShortUrl, null);
+    } catch (resolveError: unknown) {
+      // Resolution is best-effort: yt-dlp follows the redirect itself, so a
+      // failure here degrades metadata rather than breaking the download.
+      setCachedShortUrlResolution(safeShortUrl, null);
+      logger.warn(
+        `Could not follow shortened URL ${safeShortUrl}, keeping it as-is: ${getErrorMessage(resolveError)}`,
+      );
+    }
+
     return safeShortUrl;
   } catch (error: unknown) {
     logger.error(`Error resolving shortened URL: ${getErrorMessage(error)}`);
@@ -171,6 +408,40 @@ export async function resolveShortUrl(url: string): Promise<string> {
   }
 }
 
+/**
+ * Read the `p` (part) selector off a Bilibili URL.
+ *
+ * `p` is the one query parameter that changes *which* video is downloaded, so it
+ * has to survive trimming; everything else is share/tracking noise. Only a plain
+ * positive integer is accepted, so a junk value cannot ride along.
+ */
+export function getBilibiliPartNumber(url: string): number | null {
+  try {
+    const part = new URL(url).searchParams.get("p");
+    if (!part || !/^\d+$/.test(part)) return null;
+    const partNumber = Number(part);
+    return partNumber > 0 ? partNumber : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Every source URL that can denote the part a Bilibili URL selects.
+ *
+ * Part 1 has two canonical spellings and either may be what was stored: a single
+ * download saves the bare URL, the all-parts flow saves `?p=1`. Every other part
+ * has exactly one. Shared so duplicate detection and the downloader's reuse
+ * lookup cannot disagree about what counts as the same item.
+ */
+export function bilibiliPartSourceUrlAliases(url: string): string[] {
+  const baseUrl = trimBilibiliUrl(url).split("?")[0];
+  const partNumber = getBilibiliPartNumber(url) ?? 1;
+  return partNumber === 1
+    ? [baseUrl, `${baseUrl}?p=1`]
+    : [`${baseUrl}?p=${partNumber}`];
+}
+
 // Helper function to trim Bilibili URL by removing query parameters
 export function trimBilibiliUrl(url: string): string {
   try {
@@ -179,10 +450,13 @@ export function trimBilibiliUrl(url: string): string {
 
     if (videoIdMatch && videoIdMatch[1]) {
       const videoId = videoIdMatch[1];
-      // Construct a clean URL with just the video ID
-      const cleanUrl = videoId.startsWith("BV")
-        ? `https://www.bilibili.com/video/${videoId}`
-        : `https://www.bilibili.com/video/${videoId}`;
+      // Keep the part selector: dropping it silently redirects a shared link
+      // for part N to part 1. Matches the `?p=N` form the multipart download
+      // flow already uses as a part's canonical source URL.
+      const partNumber = getBilibiliPartNumber(url);
+      const cleanUrl =
+        `https://www.bilibili.com/video/${videoId}` +
+        (partNumber != null ? `?p=${partNumber}` : "");
 
       logger.info(`Trimmed Bilibili URL from "${url}" to "${cleanUrl}"`);
       return cleanUrl;

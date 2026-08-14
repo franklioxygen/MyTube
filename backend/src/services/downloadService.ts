@@ -58,8 +58,9 @@ export async function downloadBilibiliVideo(
 // Helper function to check if a Bilibili video has multiple parts
 export async function checkBilibiliVideoParts(
   videoId: string,
+  subscriptionYtdlpConfig?: string | null,
 ): Promise<BilibiliPartsCheckResult> {
-  return BilibiliDownloader.checkVideoParts(videoId);
+  return BilibiliDownloader.checkVideoParts(videoId, subscriptionYtdlpConfig);
 }
 
 // Helper function to check if a YouTube URL is a playlist
@@ -127,8 +128,12 @@ export async function checkPlaylist(playlistUrl: string): Promise<{
 // Helper function to check if a Bilibili video belongs to a collection or series
 export async function checkBilibiliCollectionOrSeries(
   videoId: string,
+  subscriptionYtdlpConfig?: string | null,
 ): Promise<BilibiliCollectionCheckResult> {
-  return BilibiliDownloader.checkCollectionOrSeries(videoId);
+  return BilibiliDownloader.checkCollectionOrSeries(
+    videoId,
+    subscriptionYtdlpConfig,
+  );
 }
 
 // Helper function to get all videos from a Bilibili collection
@@ -136,8 +141,14 @@ export async function getBilibiliCollectionVideos(
   mid: number,
   seasonId: number,
   options?: { pageSize?: number; maxPages?: number },
+  subscriptionYtdlpConfig?: string | null,
 ): Promise<BilibiliVideosResult> {
-  return BilibiliDownloader.getCollectionVideos(mid, seasonId, options);
+  return BilibiliDownloader.getCollectionVideos(
+    mid,
+    seasonId,
+    options,
+    subscriptionYtdlpConfig,
+  );
 }
 
 // Helper function to get all videos from a Bilibili series
@@ -145,8 +156,14 @@ export async function getBilibiliSeriesVideos(
   mid: number,
   seriesId: number,
   options?: { pageSize?: number; maxPages?: number },
+  subscriptionYtdlpConfig?: string | null,
 ): Promise<BilibiliVideosResult> {
-  return BilibiliDownloader.getSeriesVideos(mid, seriesId, options);
+  return BilibiliDownloader.getSeriesVideos(
+    mid,
+    seriesId,
+    options,
+    subscriptionYtdlpConfig,
+  );
 }
 
 // Helper function to download a single Bilibili part

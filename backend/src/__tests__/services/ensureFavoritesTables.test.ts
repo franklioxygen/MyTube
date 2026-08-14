@@ -21,6 +21,7 @@ vi.mock("../../services/storageService/migrations/legacyTwitchDownloads", () => 
   normalizeLegacyTwitchDownloads: vi.fn(),
 }));
 vi.mock("../../services/storageService/migrations/dataBackfill", () => ({
+  backfillDownloadHistoryMediaTypes: vi.fn(),
   backfillDownloadHistoryVideoIds: vi.fn(),
   populateVideoFileSizes: vi.fn(),
 }));

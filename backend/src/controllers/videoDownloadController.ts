@@ -19,7 +19,9 @@ import {
 import { isLoginRequired } from "../services/passwordService";
 import * as storageService from "../services/storageService";
 import {
+  bilibiliPartSourceUrlAliases,
   extractBilibiliVideoId,
+  getBilibiliPartNumber,
   getMissAVPlaceholderTitle,
   isBilibiliShortUrl,
   isBilibiliUrl,
@@ -79,6 +81,115 @@ export const searchVideos = async (
 };
 
 /**
+ * Look up a previous download for this request.
+ *
+ * Keyed on the source video id, but every part of a multipart Bilibili video
+ * shares one source video id (videoDownloads is unique on sourceVideoId +
+ * platform + mediaType), so that lookup answers "some part of this video was
+ * downloaded", not "this part was". Taken at face value it reports part 2 as
+ * already downloaded because part 1 exists — and equally reports part 1 as
+ * downloaded when only part 2 exists.
+ *
+ * Neither field of that row can stand in for the requested part.
+ * persistDownloadedMediaIdentity overwrites sourceUrl with whichever part was
+ * saved last, while deliberately keeping videoId on the lowest-numbered
+ * surviving part — so the row can say "?p=2" while pointing at part 1's video.
+ * Trusting either would skip a part that is genuinely missing.
+ *
+ * The per-video rows do have one entry per part, so for Bilibili they decide
+ * existence. The tracking row is consulted only for the deleted state it alone
+ * records, and only when it is about the requested part.
+ */
+function checkPreviousDownload(
+  videoUrl: string,
+  sourceVideoId: string,
+  platform: string,
+  mediaType: "audio" | "video",
+): storageService.VideoDownloadCheckResult {
+  const downloadCheck = storageService.checkVideoDownloadBySourceId(
+    sourceVideoId,
+    platform,
+    mediaType,
+  );
+
+  if (!isBilibiliUrl(videoUrl)) {
+    return downloadCheck;
+  }
+
+  // A bare URL and ?p=1 are the same part, so both normalize to 1.
+  const requestedPart = getBilibiliPartNumber(videoUrl) ?? 1;
+
+  for (const candidateUrl of bilibiliPartSourceUrlAliases(videoUrl)) {
+    const existingPart = storageService.getVideoBySourceUrl(
+      candidateUrl,
+      mediaType,
+    );
+    if (existingPart) {
+      const downloadedAt = Date.parse(existingPart.createdAt ?? "");
+      return {
+        found: true,
+        status: "exists" as const,
+        videoId: existingPart.id,
+        title: existingPart.title,
+        author: existingPart.author,
+        downloadedAt: Number.isNaN(downloadedAt) ? undefined : downloadedAt,
+        sourceUrl: existingPart.sourceUrl,
+      };
+    }
+  }
+
+  // No saved item for this part, so the question becomes whether it was
+  // downloaded and then deleted. The tracking row answers that only when it is
+  // about this part rather than another.
+  const matchedPart = downloadCheck.sourceUrl
+    ? (getBilibiliPartNumber(downloadCheck.sourceUrl) ?? 1)
+    : requestedPart;
+
+  if (
+    downloadCheck.found &&
+    matchedPart === requestedPart &&
+    downloadCheck.status === "deleted"
+  ) {
+    return downloadCheck;
+  }
+
+  // Deleting one part of a multipart video hands the shared tracking row to a
+  // surviving part and leaves it reading "exists", so that row cannot record a
+  // per-part deletion. History rows can: each carries its own item's source
+  // URL, so the deleted part is still on file under its own ?p=N URL.
+  //
+  // Scoped to the requested media type like every other lookup here: history
+  // rows carry their own, so a deleted video item cannot suppress a first-time
+  // audio request for the same part.
+  for (const candidateUrl of bilibiliPartSourceUrlAliases(videoUrl)) {
+    const deletedItem = storageService.getLatestDeletedHistoryItemBySourceUrl(
+      candidateUrl,
+      mediaType,
+    );
+    if (deletedItem) {
+      return {
+        found: true,
+        status: "deleted" as const,
+        videoId: deletedItem.videoId,
+        title: deletedItem.title,
+        author: deletedItem.author,
+        downloadedAt: deletedItem.downloadedAt ?? undefined,
+        deletedAt: deletedItem.deletedAt ?? undefined,
+        sourceUrl: candidateUrl,
+      };
+    }
+  }
+
+  if (downloadCheck.found) {
+    logger.info(
+      `Bilibili duplicate check matched part ${matchedPart} but part ${requestedPart} has no saved item; treating as a new download.`,
+    );
+  }
+
+  return { found: false };
+}
+
+/**
  * Check video download status
  * Errors are automatically handled by asyncHandler middleware
  */
@@ -120,7 +231,8 @@ export const checkVideoDownloadStatus = async (
   const effectiveAudioOnly = audioOnly && !isMissAVUrl(videoUrl);
 
   // Check if video was previously downloaded
-  const downloadCheck = storageService.checkVideoDownloadBySourceId(
+  const downloadCheck = checkPreviousDownload(
+    videoUrl,
     sourceVideoId,
     platform,
     effectiveAudioOnly ? "audio" : "video",
@@ -285,7 +397,8 @@ export const downloadVideo = async (
     // Scope the lookup to the requested media type so an existing video download
     // never masks a new audio-only request (and vice versa).
     if (sourceVideoId && !downloadAllParts && !downloadCollection) {
-      const downloadCheck = storageService.checkVideoDownloadBySourceId(
+      const downloadCheck = checkPreviousDownload(
+        resolvedUrl,
         sourceVideoId,
         platform,
         effectiveMediaType,

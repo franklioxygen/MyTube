@@ -8,6 +8,7 @@ import {
   normalizeLegacyTwitchDownloads,
 } from "./legacyTwitchDownloads";
 import {
+  backfillDownloadHistoryMediaTypes,
   backfillDownloadHistoryVideoIds,
   populateVideoFileSizes,
 } from "./dataBackfill";
@@ -951,6 +952,24 @@ export function migrateColumnsAndTables(): void {
       downloadHistoryColumns.push("deleted_at");
     }
 
+    // Media type on history rows: audio and video of the same source are
+    // separate library items, and a deleted-history row is the only per-item
+    // record of a deleted multipart part. Without this the two cannot be told
+    // apart. Keep it nullable for legacy rows that have no surviving video
+    // reference; referenced rows are backfilled below.
+    if (!downloadHistoryColumns.includes("media_type")) {
+      logger.info(
+        "Migrating database: Adding media_type column to download_history table..."
+      );
+      sqlite
+        .prepare("ALTER TABLE download_history ADD COLUMN media_type TEXT")
+        .run();
+      logger.info(
+        "Migration successful: media_type added to download_history."
+      );
+      downloadHistoryColumns.push("media_type");
+    }
+
     if (
       downloadHistoryColumns.includes("subscription_id") &&
       downloadHistoryColumns.includes("status") &&
@@ -982,6 +1001,10 @@ export function migrateColumnsAndTables(): void {
 
     // Backfill video_id in download_history for existing records
     backfillDownloadHistoryVideoIds();
+
+    // Backfill media_type after video_id so legacy audio history remains an
+    // audio tombstone instead of being inferred as video.
+    backfillDownloadHistoryMediaTypes();
 
     // Ensure performance indexes exist on existing databases.
     migratePerformanceIndexes();

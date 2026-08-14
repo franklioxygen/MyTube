@@ -415,7 +415,14 @@ describe('VideoUrlFetcher', () => {
         'https://www.bilibili.com/video/BV111',
         'https://www.bilibili.com/video/BV222',
       ]);
-      expect(bilibiliCollection.getCollectionVideos).toHaveBeenCalledWith(100, 200);
+      // Trailing args are the fetch options and the per-subscription config
+      // override, both absent here.
+      expect(bilibiliCollection.getCollectionVideos).toHaveBeenCalledWith(
+        100,
+        200,
+        undefined,
+        undefined,
+      );
     });
 
     it('should resolve series videos and apply incremental slicing', async () => {
@@ -440,7 +447,12 @@ describe('VideoUrlFetcher', () => {
       );
 
       expect(urls).toEqual(['https://www.bilibili.com/video/BV2']);
-      expect(bilibiliCollection.getSeriesVideos).toHaveBeenCalledWith(300, 400);
+      expect(bilibiliCollection.getSeriesVideos).toHaveBeenCalledWith(
+        300,
+        400,
+        undefined,
+        undefined,
+      );
     });
 
     it('should throw on unsupported collection type from bilibili metadata', async () => {

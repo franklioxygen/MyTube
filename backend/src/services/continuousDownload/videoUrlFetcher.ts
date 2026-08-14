@@ -608,7 +608,7 @@ export class VideoUrlFetcher {
     if (!mid) {
       const videoId = extractBilibiliVideoId(authorUrl);
       if (videoId) {
-        const collectionInfo = await checkBilibiliCollectionOrSeries(videoId);
+        const collectionInfo = await checkBilibiliCollectionOrSeries(videoId, subscriptionYtdlpConfig);
         if (
           collectionInfo.success &&
           collectionInfo.type !== "none" &&
@@ -621,9 +621,9 @@ export class VideoUrlFetcher {
 
           let videosResult;
           if (collectionInfo.type === "collection") {
-            videosResult = await getCollectionVideos(collectionInfo.mid, collectionInfo.id);
+            videosResult = await getCollectionVideos(collectionInfo.mid, collectionInfo.id, undefined, subscriptionYtdlpConfig);
           } else if (collectionInfo.type === "series") {
-            videosResult = await getSeriesVideos(collectionInfo.mid, collectionInfo.id);
+            videosResult = await getSeriesVideos(collectionInfo.mid, collectionInfo.id, undefined, subscriptionYtdlpConfig);
           } else {
             throw new Error(`Unsupported Bilibili type: ${collectionInfo.type}`);
           }
@@ -948,15 +948,15 @@ export class VideoUrlFetcher {
       const videoId = extractBilibiliVideoId(authorUrl);
       if (videoId) {
         // Check if this video belongs to a collection or series
-        const collectionInfo = await checkBilibiliCollectionOrSeries(videoId);
+        const collectionInfo = await checkBilibiliCollectionOrSeries(videoId, subscriptionYtdlpConfig);
         if (collectionInfo.success && collectionInfo.type !== "none" && collectionInfo.mid && collectionInfo.id) {
           // It's a collection or series, use the collection API
           logger.info(`Detected Bilibili ${collectionInfo.type} from video URL, using collection API`);
           let videosResult;
           if (collectionInfo.type === "collection") {
-            videosResult = await getCollectionVideos(collectionInfo.mid, collectionInfo.id);
+            videosResult = await getCollectionVideos(collectionInfo.mid, collectionInfo.id, undefined, subscriptionYtdlpConfig);
           } else if (collectionInfo.type === "series") {
-            videosResult = await getSeriesVideos(collectionInfo.mid, collectionInfo.id);
+            videosResult = await getSeriesVideos(collectionInfo.mid, collectionInfo.id, undefined, subscriptionYtdlpConfig);
           } else {
             throw new Error(`Unsupported Bilibili type: ${collectionInfo.type}`);
           }

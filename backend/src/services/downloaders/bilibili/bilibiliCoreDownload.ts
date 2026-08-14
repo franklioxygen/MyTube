@@ -24,6 +24,7 @@ import {
 import * as storageService from "../../storageService";
 import {
   prepareBilibiliDownloadFlags,
+  resolveProxiedAxiosConfig,
   resolveResolutionPreference,
   resolveResolutionRetryTarget,
 } from "./bilibiliConfig";
@@ -43,6 +44,16 @@ import {
   extractAvailableHeights,
   formatYtDlpFailureMessage,
 } from "./bilibiliVideoHelpers";
+
+/**
+ * yt-dlp reports the Bilibili id bare (no /video/ prefix) and suffixes the part
+ * for multipart videos, e.g. "BV1xx411c7mD_p2". Pull the bare BV/av id out.
+ */
+function extractBilibiliVideoIdFromYtDlpId(id: unknown): string | null {
+  if (typeof id !== "string") return null;
+  const match = id.match(/^(BV[0-9A-Za-z]+|av\d+)/i);
+  return match ? match[1] : null;
+}
 
 function resolveDownloadedVideoDestination(
   plannedVideoPath: string,
@@ -164,17 +175,33 @@ export async function downloadVideo(
       });
     }
 
+    // Resolved once for every outbound side request in this download (avatar
+    // API lookup, thumbnail, avatar image). null means the configured proxy is
+    // unusable, so these requests are skipped rather than sent directly.
+    const proxiedAxiosConfig = resolveProxiedAxiosConfig(userConfig);
+
     // Try to get avatar URL from yt-dlp info first
     let authorAvatarUrl =
       metaSource.channel_avatar || metaSource.uploader_avatar || null;
 
     // If not in yt-dlp info, get it from Bilibili API
-    if (!authorAvatarUrl) {
+    if (!authorAvatarUrl && proxiedAxiosConfig) {
       try {
         const { extractBilibiliVideoId } = await import(
           "../../../utils/helpers"
         );
-        const videoId = extractBilibiliVideoId(url);
+        // A b23.tv short URL carries no BV/av id. Resolution of the shortener is
+        // best-effort (it can fail behind a proxy or an offline network), but
+        // yt-dlp followed the redirect itself, so its metadata still knows the
+        // canonical URL — fall back to that rather than skipping the avatar.
+        const videoId =
+          extractBilibiliVideoId(url) ??
+          extractBilibiliVideoId(
+            typeof metaSource.webpage_url === "string"
+              ? metaSource.webpage_url
+              : ""
+          ) ??
+          extractBilibiliVideoIdFromYtDlpId(metaSource.id);
         if (videoId) {
           logger.info("Fetching Bilibili avatar from API for video:", videoId);
           const axios = (await import("axios")).default;
@@ -187,6 +214,7 @@ export async function downloadVideo(
               )}`;
 
           const response = await axios.get(apiUrl, {
+            ...proxiedAxiosConfig,
             headers: {
               Referer: "https://www.bilibili.com",
               "User-Agent":
@@ -489,28 +517,13 @@ export async function downloadVideo(
 
     // Download thumbnail if available
     let thumbnailSaved = false;
-    if (thumbnailUrl) {
+    if (thumbnailUrl && proxiedAxiosConfig) {
       // Use base class method via temporary instance
-      let axiosConfig = {};
-      if (userConfig.proxy) {
-        try {
-          axiosConfig = getAxiosProxyConfig(userConfig.proxy);
-        } catch (error) {
-          if (error instanceof InvalidProxyError) {
-            logger.warn(
-              "Invalid proxy configuration for thumbnail download, proceeding without proxy:",
-              error.message
-            );
-          } else {
-            throw error;
-          }
-        }
-      }
       const downloader = new BilibiliDownloaderHelper();
       thumbnailSaved = await downloader.downloadThumbnailPublic(
         thumbnailUrl,
         thumbnailPath,
-        axiosConfig
+        proxiedAxiosConfig
       );
     }
 
@@ -521,28 +534,12 @@ export async function downloadVideo(
     const platform = "bilibili";
     let authorAvatarPathResult: string | null = null;
 
-    if (authorAvatarUrl) {
+    if (authorAvatarUrl && proxiedAxiosConfig) {
       logger.info("Downloading Bilibili author avatar from URL:", {
         url: authorAvatarUrl,
         author: videoAuthor,
         platform: platform,
       });
-
-      let axiosConfig = {};
-      if (userConfig.proxy) {
-        try {
-          axiosConfig = getAxiosProxyConfig(userConfig.proxy);
-        } catch (error) {
-          if (error instanceof InvalidProxyError) {
-            logger.warn(
-              "Invalid proxy configuration for avatar download, proceeding without proxy:",
-              error.message
-            );
-          } else {
-            throw error;
-          }
-        }
-      }
 
       const downloader = new BilibiliDownloaderHelper();
       authorAvatarPathResult = await downloadAndProcessAvatar(
@@ -550,10 +547,10 @@ export async function downloadVideo(
         platform,
         videoAuthor,
         downloader.downloadThumbnailPublic.bind(downloader),
-        axiosConfig
+        proxiedAxiosConfig
       );
       authorAvatarSaved = authorAvatarPathResult !== null;
-    } else {
+    } else if (!authorAvatarUrl) {
       logger.info(
         "No Bilibili author avatar URL available, skipping avatar download"
       );

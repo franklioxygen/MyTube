@@ -19,6 +19,11 @@ vi.mock("../../../db/schema", () => ({
     nextRetryAt: "nextRetryAt",
     sourceUrl: "sourceUrl",
     downloadType: "downloadType",
+    mediaType: "mediaType",
+  },
+  videos: {
+    id: "id",
+    mediaType: "mediaType",
   },
 }));
 
@@ -26,6 +31,7 @@ vi.mock("../../../db", () => ({
   db: {
     insert: vi.fn(),
     select: vi.fn(),
+    update: vi.fn(),
     delete: vi.fn(),
   },
 }));
@@ -47,6 +53,7 @@ import {
   getDownloadHistoryItem,
   getLatestRetryHistoryItemBySourceUrl,
   getPendingRetryHistoryItems,
+  markDownloadHistoryDeletedByVideoId,
   removeDownloadHistoryItem,
 } from "../downloadHistory";
 
@@ -349,5 +356,42 @@ describe("downloadHistory", () => {
       "Error clearing download history",
       expect.any(Error)
     );
+  });
+
+  it("stamps a legacy history row with the referenced video's media type when deleted", () => {
+    const get = vi.fn().mockReturnValue({ mediaType: "audio" });
+    const whereSelect = vi.fn(() => ({ get }));
+    const fromSelect = vi.fn(() => ({ where: whereSelect }));
+    vi.mocked(db.select).mockReturnValue({ from: fromSelect } as any);
+
+    const run = vi.fn();
+    const whereUpdate = vi.fn(() => ({ run }));
+    const set = vi.fn(() => ({ where: whereUpdate }));
+    vi.mocked(db.update).mockReturnValue({ set } as any);
+
+    markDownloadHistoryDeletedByVideoId("audio-video", 123);
+
+    expect(set).toHaveBeenCalledWith({
+      status: "deleted",
+      deletedAt: 123,
+      mediaType: "audio",
+    });
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not infer video for a deleted history row whose video reference is gone", () => {
+    const get = vi.fn().mockReturnValue(undefined);
+    const whereSelect = vi.fn(() => ({ get }));
+    const fromSelect = vi.fn(() => ({ where: whereSelect }));
+    vi.mocked(db.select).mockReturnValue({ from: fromSelect } as any);
+
+    const run = vi.fn();
+    const whereUpdate = vi.fn(() => ({ run }));
+    const set = vi.fn(() => ({ where: whereUpdate }));
+    vi.mocked(db.update).mockReturnValue({ set } as any);
+
+    markDownloadHistoryDeletedByVideoId("missing-video", 456);
+
+    expect(set).toHaveBeenCalledWith({ status: "deleted", deletedAt: 456 });
   });
 });

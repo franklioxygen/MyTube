@@ -6,10 +6,61 @@ import {
 } from "../../../types/settings";
 import { logger } from "../../../utils/logger";
 import {
+  getAxiosProxyConfig,
+  getEffectiveUserYtDlpConfig,
   getNetworkConfigFromUserConfig,
   getUserYtDlpConfig,
+  InvalidProxyError,
 } from "../../../utils/ytDlpUtils";
 import { isAudioOnlyFormatSelector } from "../ytdlp/ytdlpConfig";
+
+/**
+ * Axios config for a Bilibili download's outbound side requests (API metadata
+ * lookups, thumbnails, avatars, subtitles), honoring the user's proxy.
+ *
+ * Returns null when a proxy is configured but unusable. getAxiosProxyConfig
+ * throws on a malformed proxy specifically so callers do not silently fall back
+ * to a direct connection and expose the user's real IP, so a null here means
+ * "skip the request", never "send it directly".
+ */
+export function resolveProxiedAxiosConfig(
+  userConfig: Record<string, any>,
+): Record<string, unknown> | null {
+  const proxy = userConfig?.proxy;
+  if (typeof proxy !== "string" || !proxy) {
+    return {};
+  }
+
+  try {
+    return getAxiosProxyConfig(proxy);
+  } catch (error) {
+    if (error instanceof InvalidProxyError) {
+      logger.warn(
+        "Invalid proxy configuration; skipping Bilibili side requests rather than sending them directly:",
+        error.message,
+      );
+      return null;
+    }
+    throw error;
+  }
+}
+
+/**
+ * resolveProxiedAxiosConfig for callers that hold a URL rather than a resolved
+ * config.
+ *
+ * The URL is passed through to the config lookup so the "proxy only for
+ * YouTube" setting is applied the same way it is for the yt-dlp call on the
+ * same URL, instead of the API request quietly taking a different route.
+ */
+export function resolveProxiedAxiosConfigForUrl(
+  url: string,
+  subscriptionYtdlpConfig?: string | null,
+): Record<string, unknown> | null {
+  return resolveProxiedAxiosConfig(
+    getEffectiveUserYtDlpConfig(url, subscriptionYtdlpConfig),
+  );
+}
 
 export interface BilibiliDownloadFlags {
   [key: string]: string | number | boolean | string[] | undefined | null;
