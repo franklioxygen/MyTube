@@ -594,18 +594,47 @@ describe('VideoUrlFetcher', () => {
       ).rejects.toThrow(SourceEnumerationFailedError);
     });
 
-    it('should stop API fallback loop on invalid response payload', async () => {
+    it('should fail on an API error payload rather than report an empty source', async () => {
+      // Bilibili answers risk control with HTTP 200 and a nonzero code, so
+      // axios does not throw. Stopping the loop and returning [] made that
+      // indistinguishable from a space with no videos.
       (helpers.extractBilibiliMid as any).mockReturnValue('1000');
       (ytDlpUtils.executeYtDlpJson as any).mockResolvedValue({ entries: [] });
-      (axios.get as any).mockResolvedValue({ data: { code: 1 } });
+      (axios.get as any).mockResolvedValue({ data: { code: -412 } });
 
-      const urls = await fetcher.getAllVideoUrls(
-        'https://space.bilibili.com/1000',
-        'Bilibili'
-      );
-
-      expect(urls).toEqual([]);
+      await expect(
+        fetcher.getAllVideoUrls('https://space.bilibili.com/1000', 'Bilibili')
+      ).rejects.toThrow(SourceEnumerationFailedError);
       expect(axios.get).toHaveBeenCalledTimes(1);
+    });
+
+    it('should still report a genuinely empty space as no videos', async () => {
+      // An empty vlist is a successful read, not a failure.
+      (helpers.extractBilibiliMid as any).mockReturnValue('1000');
+      (ytDlpUtils.executeYtDlpJson as any).mockResolvedValue({ entries: [] });
+      (axios.get as any).mockResolvedValue({
+        data: { code: 0, data: { list: { vlist: [] }, page: { count: 0 } } },
+      });
+
+      await expect(
+        fetcher.getAllVideoUrls('https://space.bilibili.com/1000', 'Bilibili')
+      ).resolves.toEqual([]);
+    });
+
+    it('should fail when yt-dlp truncates partway through pagination', async () => {
+      // A full first page then a failure leaves a plausible-looking short list
+      // that never reaches the API fallback, since that only runs on an empty
+      // one. Freezing it would drop every remaining video silently.
+      (helpers.extractBilibiliMid as any).mockReturnValue('1000');
+      (ytDlpUtils.executeYtDlpJson as any)
+        .mockResolvedValueOnce({
+          entries: Array.from({ length: 100 }, (_, i) => ({ id: `BV${i}` })),
+        })
+        .mockRejectedValueOnce(new Error('extractor died'));
+
+      await expect(
+        fetcher.getAllVideoUrls('https://space.bilibili.com/1000', 'Bilibili')
+      ).rejects.toThrow(SourceEnumerationFailedError);
     });
   });
 

@@ -705,6 +705,19 @@ export class VideoUrlFetcher {
           }
         } catch (error) {
           logger.error(`Error fetching Bilibili video entries page ${page}:`, error);
+          // Failing partway through pagination truncates the list, and the API
+          // fallback below only runs when yt-dlp produced nothing or incomplete
+          // metadata — so a truncated-but-complete-looking page set would be
+          // frozen as the whole source. A first-page failure still falls
+          // through, because that is what the API fallback exists for.
+          if (entries.length > 0) {
+            throw new SourceEnumerationFailedError(
+              "Bilibili",
+              page,
+              entries.length,
+              error
+            );
+          }
           hasMore = false;
         }
       }
@@ -792,6 +805,27 @@ export class VideoUrlFetcher {
               hasMoreApi = fetchedCount < total && videos.length === pageSize;
               pageNum++;
             } else {
+              // HTTP 200 carrying an application-level error (risk control
+              // returns code -412) or a malformed payload. Axios does not throw
+              // for these, so without this they read as the end of the list. A
+              // genuinely empty space is not affected: an empty vlist is still
+              // an array and takes the branch above.
+              const apiError = new Error(
+                `Bilibili space API returned an unusable response (code ${
+                  data?.code ?? "unknown"
+                })`
+              );
+              if (entries.length === 0) {
+                throw new SourceEnumerationFailedError(
+                  "Bilibili",
+                  pageNum,
+                  apiEntries.length,
+                  apiError
+                );
+              }
+              logger.warn(
+                `${apiError.message}; keeping the partial Bilibili entries yt-dlp returned`
+              );
               hasMoreApi = false;
             }
           } catch (error) {
@@ -1077,6 +1111,18 @@ export class VideoUrlFetcher {
             `Error fetching Bilibili videos page ${page}:`,
             error
           );
+          // Same as the entry-based loop: a mid-pagination failure truncates
+          // the list and the API fallback below only runs on an empty one, so
+          // the short list would be frozen as the whole source. A first-page
+          // failure still falls through to that fallback.
+          if (videoUrls.length > 0) {
+            throw new SourceEnumerationFailedError(
+              "Bilibili",
+              page,
+              videoUrls.length,
+              error
+            );
+          }
           hasMore = false;
         }
       }
@@ -1146,7 +1192,19 @@ export class VideoUrlFetcher {
                 videoUrls.length < total && videos.length === pageSize;
               pageNum++;
             } else {
-              hasMoreApi = false;
+              // Same non-throwing error payload as the entry fallback, and this
+              // path is the sole source, so it always fails rather than
+              // reporting a short list as the whole space.
+              throw new SourceEnumerationFailedError(
+                "Bilibili",
+                pageNum,
+                videoUrls.length,
+                new Error(
+                  `Bilibili space API returned an unusable response (code ${
+                    data?.code ?? "unknown"
+                  })`
+                )
+              );
             }
           } catch (error) {
             logger.error(
