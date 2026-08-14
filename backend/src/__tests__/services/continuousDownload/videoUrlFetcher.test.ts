@@ -2,6 +2,7 @@ import axios from 'axios';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   OrderingMetadataUnavailableError,
+  SourceEnumerationFailedError,
   sortVideoEntries,
   VideoUrlFetcher,
 } from '../../../services/continuousDownload/videoUrlFetcher';
@@ -420,7 +421,9 @@ describe('VideoUrlFetcher', () => {
         );
     });
 
-    it('should skip the space API fallback when the proxy is unusable', async () => {
+    it('should fail enumeration rather than skip the source when the proxy is unusable', async () => {
+        // An empty return would be frozen as a complete zero-entry plan and the
+        // task marked done, silently skipping the whole source with no retry.
         (helpers.extractBilibiliMid as any).mockReturnValue('123');
         (ytDlpUtils.executeYtDlpJson as any).mockResolvedValue({ entries: [] });
         (ytDlpUtils.getEffectiveUserYtDlpConfig as any).mockReturnValue({
@@ -430,9 +433,29 @@ describe('VideoUrlFetcher', () => {
             throw new ytDlpUtils.InvalidProxyError('not-a-proxy');
         });
 
+        await expect(
+            fetcher.getAllVideoUrls('http://space.bilibili.com/123', 'Bilibili')
+        ).rejects.toThrow(SourceEnumerationFailedError);
+        expect(axios.get).not.toHaveBeenCalled();
+    });
+
+    it('should keep partial entries when the proxy blocks only the fallback', async () => {
+        // yt-dlp produced usable rows; the unusable proxy costs the enrichment
+        // pass, not the whole source, so those rows are still returned.
+        (helpers.extractBilibiliMid as any).mockReturnValue('123');
+        (ytDlpUtils.executeYtDlpJson as any).mockResolvedValue({
+            entries: [{ id: 'BVpartial', url: 'https://www.bilibili.com/video/BVpartial' }],
+        });
+        (ytDlpUtils.getEffectiveUserYtDlpConfig as any).mockReturnValue({
+            proxy: 'not-a-proxy',
+        });
+        (ytDlpUtils.getAxiosProxyConfig as any).mockImplementation(() => {
+            throw new ytDlpUtils.InvalidProxyError('not-a-proxy');
+        });
+
         const urls = await fetcher.getAllVideoUrls('http://space.bilibili.com/123', 'Bilibili');
 
-        expect(urls).toEqual([]);
+        expect(urls).toContain('https://www.bilibili.com/video/BVpartial');
         expect(axios.get).not.toHaveBeenCalled();
     });
 

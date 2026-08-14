@@ -724,10 +724,24 @@ export class VideoUrlFetcher {
         );
         const proxiedAxiosConfig = resolveProxiedAxiosConfig(userConfig);
         if (!proxiedAxiosConfig) {
-          logger.warn(
-            "Skipping Bilibili space API fallback: proxy is configured but unusable"
+          // Returning nothing here would be indistinguishable from an exhausted
+          // source: the full-fetch path freezes it as a valid zero-entry plan
+          // and the task completes, skipping the whole source with no retry.
+          // Keep whatever yt-dlp did produce, but fail when that is nothing.
+          if (entries.length > 0) {
+            logger.warn(
+              "Proxy is configured but unusable; keeping the partial Bilibili entries yt-dlp returned instead of running the API fallback"
+            );
+            return entries;
+          }
+          throw new SourceEnumerationFailedError(
+            "Bilibili",
+            1,
+            entries.length,
+            new Error(
+              "Proxy is configured but unusable, so the space API fallback was skipped"
+            )
           );
-          return entries;
         }
 
         const apiEntries: VideoEntry[] = [];
@@ -1064,10 +1078,17 @@ export class VideoUrlFetcher {
         );
         const proxiedAxiosConfig = resolveProxiedAxiosConfig(userConfig);
         if (!proxiedAxiosConfig) {
-          logger.warn(
-            "Skipping Bilibili space API fallback: proxy is configured but unusable"
+          // This branch is only reached with zero videos so far, and an empty
+          // return would be frozen as a complete plan. Fail instead, so the
+          // source is retried rather than silently skipped.
+          throw new SourceEnumerationFailedError(
+            "Bilibili",
+            1,
+            videoUrls.length,
+            new Error(
+              "Proxy is configured but unusable, so the space API fallback was skipped"
+            )
           );
-          return videoUrls;
         }
 
         const axios = await import("axios");
