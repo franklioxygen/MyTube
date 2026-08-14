@@ -26,9 +26,17 @@ else
   echo "Using default backend service name: backend:5551"
 fi
 
-# Runtime values from docker-compose environment variables for JavaScript
-DOCKER_API_URL="${VITE_API_URL-http://backend:5551/api}"
-DOCKER_BACKEND_URL="${VITE_BACKEND_URL-http://backend:5551}"
+# Runtime values from docker-compose environment variables for JavaScript.
+#
+# These end up in the browser, so they default to same-origin paths rather than
+# to the compose service name: nginx already proxies /api, /videos, /images,
+# /images-small, /avatars and /subtitles to $NGINX_BACKEND, and "backend:5551"
+# only resolves inside the container network. A stack that omits VITE_BACKEND_URL
+# used to bake that unreachable origin into the bundle, which broke video covers
+# (the only media addressed through it) while everything else kept working.
+# Set them explicitly to serve media from a different host than the page.
+DOCKER_API_URL="${VITE_API_URL-/api}"
+DOCKER_BACKEND_URL="${VITE_BACKEND_URL-}"
 
 # If API_HOST is provided, override JavaScript URLs
 if [ ! -z "$API_HOST" ]; then
