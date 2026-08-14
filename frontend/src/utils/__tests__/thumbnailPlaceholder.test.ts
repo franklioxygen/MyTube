@@ -57,6 +57,25 @@ describe('handleThumbnailError', () => {
         expect(image.src).toBe(THUMBNAIL_PLACEHOLDER_SRC);
     });
 
+    it('skips past candidates that resolve to the failed url instead of stopping', () => {
+        // VITE_BACKEND_URL pointing at the page's own origin makes the absolute
+        // and relative form of a path collapse to the same URL; the full-size
+        // candidates behind them must still be reached.
+        const candidates = [
+            `${window.location.origin}/images-small/thumb.jpg`,
+            '/images-small/thumb.jpg',
+            `${window.location.origin}/images/thumb.jpg`,
+            '/images/thumb.jpg',
+        ];
+        const image = createImage(candidates[0]);
+
+        handleThumbnailError(image, candidates);
+        expect(image.src).toBe(`${window.location.origin}/images/thumb.jpg`);
+
+        handleThumbnailError(image, candidates);
+        expect(image.src).toBe(THUMBNAIL_PLACEHOLDER_SRC);
+    });
+
     it('clears srcset/sizes so the failed candidate cannot be re-selected', () => {
         const candidates = ['/images-small/thumb.jpg', '/images/thumb.jpg'];
         const image = createImage(candidates[0]);

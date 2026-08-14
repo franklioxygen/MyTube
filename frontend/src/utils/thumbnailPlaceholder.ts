@@ -24,19 +24,32 @@ const resolveAgainstPage = (value: string): string => {
  *
  * The current position is derived from the element's resolved `src` rather than
  * from component state, so a re-render that resets `src` cannot strand the image
- * mid-chain. Advancing to a URL the element already failed on is treated as the
- * end of the chain, which keeps the walk finite.
+ * mid-chain. Candidates that resolve to the URL that just failed are skipped
+ * rather than ending the walk: when the backend origin is the page's own origin,
+ * the absolute and relative form of a path collapse to the same URL, and treating
+ * that duplicate as the end would drop the still-untried full-size candidates.
+ *
+ * Anchoring on the *last* match makes the position strictly increase on every
+ * call, so the walk is finite whatever the candidate list looks like.
  */
 export const handleThumbnailError = (
   image: HTMLImageElement,
   candidates: readonly string[]
 ): void => {
-  const currentIndex = candidates.findIndex(
-    (candidate) => resolveAgainstPage(candidate) === image.src
-  );
-  const nextSrc = candidates[currentIndex + 1];
+  const resolvedCandidates = candidates.map(resolveAgainstPage);
+  let currentIndex = -1;
+  for (let index = 0; index < resolvedCandidates.length; index += 1) {
+    if (resolvedCandidates[index] === image.src) {
+      currentIndex = index;
+    }
+  }
 
-  if (!nextSrc || resolveAgainstPage(nextSrc) === image.src) {
+  const nextIndex = resolvedCandidates.findIndex(
+    (resolvedCandidate, index) =>
+      index > currentIndex && resolvedCandidate !== image.src
+  );
+
+  if (nextIndex === -1) {
     setThumbnailPlaceholder(image);
     return;
   }
@@ -45,5 +58,5 @@ export const handleThumbnailError = (
   image.sizes = "";
   image.removeAttribute("srcset");
   image.removeAttribute("sizes");
-  image.src = nextSrc;
+  image.src = candidates[nextIndex];
 };
