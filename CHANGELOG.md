@@ -12,6 +12,7 @@
 
 ### Fix
 
+- Default the frontend container's browser-facing URLs to same-origin paths instead of the `backend:5551` compose service name. nginx already proxies `/api` and every media route, and the service name only resolves inside the container network, so a stack that omitted `VITE_BACKEND_URL` baked an unreachable origin into the bundle and lost all video covers — the only media addressed through it — while the API, avatars and playback kept working. Refs #405
 - Stop a single unreachable cover URL from emptying the whole library: video covers now walk an ordered candidate list (backend origin, then page origin; `/images-small` mirror, then the original image; finally the remote thumbnail) before falling back to the "No Thumbnail" placeholder. Covers were the only media addressed through the absolute `VITE_BACKEND_URL` origin, so a deployment whose backend origin is not reachable from the browser lost every cover while avatars and playback kept working. Refs #405
 - Skip members-only YouTube uploads in subscription checks instead of failing and retrying them every cycle: detect yt-dlp's members-only error, record the upload as skipped, log it informationally, and advance the subscription cursor so the same video isn't re-attempted. Closes #393
 
