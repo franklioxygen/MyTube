@@ -22,12 +22,10 @@ import React, { useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { neutral, overlay } from '../../theme/colors';
 import { useAuth } from '../../contexts/AuthContext';
-import { useCloudStorageUrl } from '../../hooks/useCloudStorageUrl';
+import { useThumbnailCandidates } from '../../hooks/useThumbnailCandidates';
 import { Video } from '../../types';
-import { getBackendUrl } from '../../utils/apiUrl';
 import { formatDate, formatDuration } from '../../utils/formatUtils';
-import { buildSmallThumbnailAbsoluteUrl } from '../../utils/imageOptimization';
-import { THUMBNAIL_PLACEHOLDER_SRC, setThumbnailPlaceholder } from '../../utils/thumbnailPlaceholder';
+import { handleThumbnailError } from '../../utils/thumbnailPlaceholder';
 
 interface UpNextSidebarProps {
     relatedVideos: Video[];
@@ -39,17 +37,7 @@ interface UpNextSidebarProps {
 
 const SidebarThumbnail: React.FC<{ video: Video }> = ({ video }) => {
     const [isImageLoaded, setIsImageLoaded] = useState(false);
-    // Only load thumbnail from cloud if the video itself is in cloud storage
-    const isVideoInCloud = video.videoPath?.startsWith('cloud:') ?? false;
-    const thumbnailPathForCloud = isVideoInCloud ? video.thumbnailPath : null;
-    const thumbnailUrl = useCloudStorageUrl(thumbnailPathForCloud, 'thumbnail');
-    const localThumbnailUrl = !isVideoInCloud
-        ? buildSmallThumbnailAbsoluteUrl(
-            getBackendUrl(),
-            video.thumbnailPath,
-            video.thumbnailUrl,
-        )
-        : undefined;
+    const { src, candidates } = useThumbnailCandidates(video);
 
     return (
         <Box sx={{ width: 180, minWidth: 180, position: 'relative', borderRadius: 2, overflow: 'hidden' }}>
@@ -80,11 +68,11 @@ const SidebarThumbnail: React.FC<{ video: Video }> = ({ video }) => {
                     // The image is always rendered but hidden until loaded
                 }}
                 onLoad={() => setIsImageLoaded(true)}
-                image={thumbnailUrl || localThumbnailUrl || video.thumbnailUrl || THUMBNAIL_PLACEHOLDER_SRC}
+                image={src}
                 alt={video.title}
                 onError={(e) => {
                     setIsImageLoaded(true);
-                    setThumbnailPlaceholder(e.currentTarget);
+                    handleThumbnailError(e.currentTarget, candidates);
                 }}
             />
             {video.duration && (

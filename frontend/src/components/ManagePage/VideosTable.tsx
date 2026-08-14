@@ -40,7 +40,7 @@ import { useCollection } from '../../contexts/CollectionContext';
 import { useDownload } from '../../contexts/DownloadContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useVideo } from '../../contexts/VideoContext';
-import { useCloudStorageUrl } from '../../hooks/useCloudStorageUrl';
+import { useThumbnailCandidates } from '../../hooks/useThumbnailCandidates';
 import { Video } from '../../types';
 import type { TranslationKey } from '../../utils/translations';
 import { formatDuration, formatSize } from '../../utils/formatUtils';
@@ -48,13 +48,10 @@ import CollectionModal from '../CollectionModal';
 import ConfirmationModal from '../ConfirmationModal';
 import UploadThumbnailModal from '../UploadThumbnailModal';
 
-import { getBackendUrl } from '../../utils/apiUrl';
 import { neutral, overlay } from '../../theme/colors';
-import { buildSmallThumbnailAbsoluteUrl } from '../../utils/imageOptimization';
-import { THUMBNAIL_PLACEHOLDER_SRC, setThumbnailPlaceholder } from '../../utils/thumbnailPlaceholder';
+import { handleThumbnailError } from '../../utils/thumbnailPlaceholder';
 import { useVideoReDownload } from './hooks/useVideoReDownload';
 
-const BACKEND_URL = getBackendUrl();
 const thumbnailActionButtonSx = {
     bgcolor: overlay.black50,
     color: neutral.white,
@@ -69,32 +66,9 @@ const thumbnailActionButtonSx = {
     height: 24
 } as const;
 
-const appendCacheBust = (url: string | undefined, cacheBust?: number): string | undefined => {
-    if (!url || !cacheBust) {
-        return url;
-    }
-
-    const separator = url.includes('?') ? '&' : '?';
-    return `${url}${separator}cb=${cacheBust}`;
-};
-
 // Component for thumbnail with cloud storage support
 const ThumbnailImage: React.FC<{ video: Video; cacheBust?: number }> = ({ video, cacheBust }) => {
-    // Only load thumbnail from cloud if the video itself is in cloud storage
-    const isVideoInCloud = video.videoPath?.startsWith('cloud:') ?? false;
-    const thumbnailPathForCloud = isVideoInCloud ? video.thumbnailPath : null;
-    const thumbnailUrl = useCloudStorageUrl(thumbnailPathForCloud, 'thumbnail');
-    const localThumbnailUrl = !isVideoInCloud
-        ? buildSmallThumbnailAbsoluteUrl(
-            BACKEND_URL,
-            video.thumbnailPath,
-            video.thumbnailUrl,
-        )
-        : undefined;
-    const src = appendCacheBust(
-        thumbnailUrl || localThumbnailUrl || video.thumbnailUrl,
-        cacheBust,
-    ) || THUMBNAIL_PLACEHOLDER_SRC;
+    const { src, candidates } = useThumbnailCandidates(video, cacheBust);
 
     return (
         <Box
@@ -102,7 +76,7 @@ const ThumbnailImage: React.FC<{ video: Video; cacheBust?: number }> = ({ video,
             src={src}
             alt={video.title}
             sx={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 1 }}
-            onError={(e) => setThumbnailPlaceholder(e.currentTarget)}
+            onError={(e) => handleThumbnailError(e.currentTarget, candidates)}
         />
     );
 };

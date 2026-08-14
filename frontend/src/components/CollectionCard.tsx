@@ -12,13 +12,11 @@ import {
 } from '@mui/material';
 import { useNavigate } from 'react-router';
 import { overlay } from '../theme/colors';
-import { useCloudStorageUrl } from '../hooks/useCloudStorageUrl';
+import { useThumbnailCandidates } from '../hooks/useThumbnailCandidates';
 import { useFavoriteCollections } from '../hooks/useFavoriteCollections';
 import { Collection, Video } from '../types';
-import { getBackendUrl } from '../utils/apiUrl';
 import { formatDisplayDate } from '../utils/formatUtils';
-import { buildSmallThumbnailAbsoluteUrl } from '../utils/imageOptimization';
-import { THUMBNAIL_PLACEHOLDER_SRC, setThumbnailPlaceholder } from '../utils/thumbnailPlaceholder';
+import { handleThumbnailError } from '../utils/thumbnailPlaceholder';
 
 interface CollectionCardProps {
     collection: Collection;
@@ -171,18 +169,7 @@ const CollectionCard: React.FC<CollectionCardProps> = ({ collection, videos }) =
 
 // Component for individual thumbnail with cloud storage support
 const CollectionThumbnail: React.FC<{ video: Video; index: number }> = ({ video, index }) => {
-    // Only load thumbnail from cloud if the video itself is in cloud storage
-    const isVideoInCloud = video.videoPath?.startsWith('cloud:') ?? false;
-    const thumbnailPathForCloud = isVideoInCloud ? video.thumbnailPath : null;
-    const thumbnailUrl = useCloudStorageUrl(thumbnailPathForCloud, 'thumbnail');
-    const localThumbnailUrl = !isVideoInCloud
-        ? buildSmallThumbnailAbsoluteUrl(
-            getBackendUrl(),
-            video.thumbnailPath,
-            video.thumbnailUrl,
-        )
-        : undefined;
-    const src = thumbnailUrl || localThumbnailUrl || video.thumbnailUrl || THUMBNAIL_PLACEHOLDER_SRC;
+    const { src, candidates } = useThumbnailCandidates(video);
 
     return (
         <Box
@@ -209,7 +196,7 @@ const CollectionThumbnail: React.FC<{ video: Video; index: number }> = ({ video,
                     objectFit: 'cover'
                 }}
                 onError={(e) => {
-                    setThumbnailPlaceholder(e.currentTarget);
+                    handleThumbnailError(e.currentTarget, candidates);
                 }}
             />
         </Box>

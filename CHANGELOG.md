@@ -12,6 +12,7 @@
 
 ### Fix
 
+- Stop a single unreachable cover URL from emptying the whole library: video covers now walk an ordered candidate list (backend origin, then page origin; `/images-small` mirror, then the original image; finally the remote thumbnail) before falling back to the "No Thumbnail" placeholder. Covers were the only media addressed through the absolute `VITE_BACKEND_URL` origin, so a deployment whose backend origin is not reachable from the browser lost every cover while avatars and playback kept working. Refs #405
 - Skip members-only YouTube uploads in subscription checks instead of failing and retrying them every cycle: detect yt-dlp's members-only error, record the upload as skipped, log it informationally, and advance the subscription cursor so the same video isn't re-attempted. Closes #393
 
 ## v1.10.16 (2026-07-13)

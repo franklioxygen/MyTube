@@ -113,6 +113,24 @@ describe('useVideoCardMetadata', () => {
         await expect(result.current.getVideoUrl()).resolves.toBe(`${window.location.origin}/videos/local.mp4`);
     });
 
+    it('exposes the original image as a fallback candidate behind the small mirror', () => {
+        const mockVideo = {
+            id: '4b',
+            videoPath: 'videos/local.mp4',
+            thumbnailPath: '/images/thumb.jpg'
+        };
+
+        const { result } = renderHook(() => useVideoCardMetadata({ video: mockVideo as any }));
+
+        // A failing /images-small request must not drop the card to the
+        // placeholder while the original cover is still servable (issue #405).
+        expect(
+            result.current.thumbnailCandidates.map((candidate) =>
+                candidate.replace(/^https?:\/\/[^/]+/, ''),
+            ),
+        ).toEqual(['/images-small/thumb.jpg', '/images/thumb.jpg']);
+    });
+
     it('should fallback to sourceUrl and then empty string when videoPath is missing', async () => {
         mockIsNewVideo.mockReturnValue(false);
 
