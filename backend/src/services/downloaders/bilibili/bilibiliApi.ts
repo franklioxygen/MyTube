@@ -214,10 +214,12 @@ export async function getLatestVideoUrl(
       // Reuse the config yt-dlp just used, so the fallback takes the same route.
       const axiosConfig = resolveProxiedAxiosConfig(userConfig);
       if (!axiosConfig) {
-        logger.warn(
-          "Skipping Bilibili space API fallback: proxy is configured but unusable",
+        // null here would read as "no new video": the caller updates lastCheck
+        // and records a successful check, hiding the broken configuration.
+        // Only a verified-empty space may return null.
+        throw new Error(
+          "Could not probe Bilibili space: proxy is configured but unusable",
         );
-        return null;
       }
 
       // Fallback: Try the non-WBI API endpoint
@@ -259,8 +261,12 @@ export async function getLatestVideoUrl(
     logger.info("No videos found for Bilibili space:", spaceUrl);
     return null;
   } catch (error) {
+    // Same reasoning as the proxy branch: swallowing this made every probe
+    // failure look like an empty space, so the subscription recorded a
+    // successful check and advanced past it. null now means only that the
+    // space was read and has no videos.
     logger.error("Error fetching latest Bilibili video:", error);
-    return null;
+    throw error;
   }
 }
 

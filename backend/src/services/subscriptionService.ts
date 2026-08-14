@@ -718,47 +718,66 @@ export class SubscriptionService {
       // succeeded. Now a probe throw marks the check failed and leaves the
       // cursor unchanged; a verified-empty result updates only lastCheck
       // (design §9.2) and never clears a previously non-empty cursor.
+      // Shared by both probe shapes: mark the check failed, leave the cursor
+      // alone, and advance lastCheck so a persistent failure backs off to the
+      // configured interval instead of retrying every tick.
+      const recordProbeFailure = async (
+        probeError: unknown,
+        message: string
+      ): Promise<void> => {
+        logger.error(
+          message,
+          probeError instanceof Error
+            ? probeError
+            : new Error(String(probeError)),
+          getSubscriptionLogContext(sub)
+        );
+        checkStatus = "fail";
+        checkFailureReason = bucketDownloadError(
+          probeError instanceof Error ? probeError.message : String(probeError)
+        );
+        const updateResult = await db
+          .update(subscriptions)
+          .set({ lastCheck: now })
+          .where(eq(subscriptions.id, sub.id))
+          .returning({ id: subscriptions.id });
+
+        if (updateResult.length === 0) {
+          logger.warn(
+            "Subscription was deleted before failed probe backoff update",
+            getSubscriptionLogContext(sub)
+          );
+        }
+      };
+
       let latestVideoUrl: string | null = null;
       if (isPlaylistSubscription) {
         try {
           const snapshot = await this.getPlaylistSubscriptionHeadSnapshot(sub);
           latestVideoUrl = snapshot.headVideoUrl;
         } catch (probeError) {
-          logger.error(
-            "Playlist probe failed during subscription check",
-            probeError instanceof Error
-              ? probeError
-              : new Error(String(probeError)),
-            getSubscriptionLogContext(sub)
+          await recordProbeFailure(
+            probeError,
+            "Playlist probe failed during subscription check"
           );
-          checkStatus = "fail";
-          checkFailureReason = bucketDownloadError(
-            probeError instanceof Error
-              ? probeError.message
-              : String(probeError)
-          );
-          // Leave the cursor unchanged, but advance lastCheck so persistent
-          // extractor/network failures back off to the configured interval.
-          const updateResult = await db
-            .update(subscriptions)
-            .set({ lastCheck: now })
-            .where(eq(subscriptions.id, sub.id))
-            .returning({ id: subscriptions.id });
-
-          if (updateResult.length === 0) {
-            logger.warn(
-              "Subscription was deleted before failed playlist probe backoff update",
-              getSubscriptionLogContext(sub)
-            );
-          }
           return;
         }
       } else {
-        latestVideoUrl = await this.getLatestVideoUrl(
-          sub.authorUrl,
-          sub.platform,
-          sub.ytdlpConfig
-        );
+        // The channel/space probe is fail-closed for the same reason: a failure
+        // that returned null was indistinguishable from "no new video".
+        try {
+          latestVideoUrl = await this.getLatestVideoUrl(
+            sub.authorUrl,
+            sub.platform,
+            sub.ytdlpConfig
+          );
+        } catch (probeError) {
+          await recordProbeFailure(
+            probeError,
+            "Channel probe failed during subscription check"
+          );
+          return;
+        }
       }
 
       if (latestVideoUrl && latestVideoUrl !== sub.lastVideoLink) {

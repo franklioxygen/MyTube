@@ -329,6 +329,38 @@ describe('SubscriptionService', () => {
       expect(db.update).toHaveBeenCalled();
     });
 
+    it('records a failed check and backs off when the channel probe throws', async () => {
+      // A throwing probe must not reach the outer catch, which records the
+      // failure but never advances lastCheck — the subscription would then be
+      // retried on every scheduler tick against a source that is still broken.
+      const sub = {
+        id: 'sub-probe-fail',
+        author: 'User',
+        platform: 'Bilibili',
+        authorUrl: 'https://space.bilibili.com/123',
+        lastCheck: 0,
+        interval: 10,
+        lastVideoLink: 'existing-link',
+        ytdlpConfig: '--proxy not-a-proxy',
+      };
+
+      mockBuilder.then = (cb: any) => Promise.resolve([sub]).then(cb);
+      (BilibiliDownloader.getLatestVideoUrl as any).mockRejectedValue(
+        new Error('Could not probe Bilibili space: proxy is configured but unusable')
+      );
+
+      await subscriptionService.checkSubscriptions();
+
+      // The cursor is untouched, but lastCheck advances for backoff.
+      expect(mockBuilder.set).toHaveBeenCalledWith(
+        expect.objectContaining({ lastCheck: expect.any(Number) })
+      );
+      expect(mockBuilder.set).not.toHaveBeenCalledWith(
+        expect.objectContaining({ lastVideoLink: expect.anything() })
+      );
+      expect(downloadService.downloadBilibiliVideo).not.toHaveBeenCalled();
+    });
+
     it('skips a members-only video and advances the cursor without failing (issue #393)', async () => {
       const sub = {
         id: 'sub-members',

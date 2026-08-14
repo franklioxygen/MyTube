@@ -140,13 +140,37 @@ describe("Bilibili API proxy handling", () => {
       expectProxiedRequest();
     });
 
-    it("skips the request when the proxy is unusable", async () => {
+    it("fails rather than reporting an empty space when the proxy is unusable", async () => {
+      // Resolving null would make the subscription check read this as "no new
+      // video", update lastCheck and record a successful check, leaving the
+      // broken proxy invisible. Only a space that was actually read may be
+      // reported as empty.
       withBrokenProxy();
 
       await expect(
         getLatestVideoUrl("https://space.bilibili.com/123"),
-      ).resolves.toBeNull();
+      ).rejects.toThrow(/proxy is configured but unusable/);
       expect(mocks.axiosGet).not.toHaveBeenCalled();
+    });
+
+    it("propagates a failed API fallback instead of reporting an empty space", async () => {
+      withWorkingProxy();
+      mocks.axiosGet.mockRejectedValue(new Error("proxy connection reset"));
+
+      await expect(
+        getLatestVideoUrl("https://space.bilibili.com/123"),
+      ).rejects.toThrow("proxy connection reset");
+    });
+
+    it("still reports a genuinely empty space as null", async () => {
+      withWorkingProxy();
+      mocks.axiosGet.mockResolvedValue({
+        data: { data: { list: { vlist: [] } } },
+      });
+
+      await expect(
+        getLatestVideoUrl("https://space.bilibili.com/123"),
+      ).resolves.toBeNull();
     });
   });
 
