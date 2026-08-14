@@ -14,13 +14,11 @@ import {
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
-import { useCloudStorageUrl } from '../../hooks/useCloudStorageUrl';
+import { useThumbnailCandidates } from '../../hooks/useThumbnailCandidates';
 import { Video } from '../../types';
-import { getBackendUrl } from '../../utils/apiUrl';
 import { formatDuration } from '../../utils/formatUtils';
-import { buildSmallThumbnailAbsoluteUrl } from '../../utils/imageOptimization';
 import { overlay, neutral, brand } from '../../theme/colors';
-import { THUMBNAIL_PLACEHOLDER_SRC, setThumbnailPlaceholder } from '../../utils/thumbnailPlaceholder';
+import { handleThumbnailError } from '../../utils/thumbnailPlaceholder';
 
 interface AudioUpNextSidebarProps {
   relatedVideos: Video[];
@@ -32,19 +30,15 @@ interface AudioUpNextSidebarProps {
 }
 
 const AudioTrackThumbnail: React.FC<{ video: Video }> = ({ video }) => {
-  const isCloud = video.videoPath?.startsWith('cloud:') ?? false;
-  const cloudUrl = useCloudStorageUrl(isCloud ? video.thumbnailPath : null, 'thumbnail');
-  const localUrl = !isCloud
-    ? buildSmallThumbnailAbsoluteUrl(getBackendUrl(), video.thumbnailPath, video.thumbnailUrl)
-    : undefined;
+  const { src, candidates } = useThumbnailCandidates(video);
 
   return (
     <CardMedia
       component="img"
       loading="lazy"
-      image={cloudUrl || localUrl || video.thumbnailUrl || THUMBNAIL_PLACEHOLDER_SRC}
+      image={src}
       alt=""
-      onError={(event) => setThumbnailPlaceholder(event.currentTarget)}
+      onError={(event) => handleThumbnailError(event.currentTarget, candidates)}
       sx={{ width: 56, height: 56, flexShrink: 0, borderRadius: 1.5, objectFit: 'cover' }}
     />
   );

@@ -9,3 +9,41 @@ export const setThumbnailPlaceholder = (image: HTMLImageElement): void => {
   image.removeAttribute("sizes");
   image.src = THUMBNAIL_PLACEHOLDER_SRC;
 };
+
+const resolveAgainstPage = (value: string): string => {
+  try {
+    return new URL(value, window.location.href).href;
+  } catch {
+    return value;
+  }
+};
+
+/**
+ * Move an <img> to the next cover candidate after a load error, and only fall
+ * back to the placeholder once every candidate has failed.
+ *
+ * The current position is derived from the element's resolved `src` rather than
+ * from component state, so a re-render that resets `src` cannot strand the image
+ * mid-chain. Advancing to a URL the element already failed on is treated as the
+ * end of the chain, which keeps the walk finite.
+ */
+export const handleThumbnailError = (
+  image: HTMLImageElement,
+  candidates: readonly string[]
+): void => {
+  const currentIndex = candidates.findIndex(
+    (candidate) => resolveAgainstPage(candidate) === image.src
+  );
+  const nextSrc = candidates[currentIndex + 1];
+
+  if (!nextSrc || resolveAgainstPage(nextSrc) === image.src) {
+    setThumbnailPlaceholder(image);
+    return;
+  }
+
+  image.srcset = "";
+  image.sizes = "";
+  image.removeAttribute("srcset");
+  image.removeAttribute("sizes");
+  image.src = nextSrc;
+};

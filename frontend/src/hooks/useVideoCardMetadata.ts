@@ -1,9 +1,8 @@
 import { useMemo } from 'react';
 import { Video } from '../types';
-import { getBackendUrl } from '../utils/apiUrl';
-import { buildSmallThumbnailAbsoluteUrl } from '../utils/imageOptimization';
 import { isNewVideo } from '../utils/videoCardUtils';
 import { useCloudStorageUrl } from './useCloudStorageUrl';
+import { useThumbnailCandidates } from './useThumbnailCandidates';
 
 interface UseVideoCardMetadataProps {
     video: Video;
@@ -13,21 +12,10 @@ interface UseVideoCardMetadataProps {
  * Hook to manage video card metadata: thumbnails, URLs, new video detection
  */
 export const useVideoCardMetadata = ({ video }: UseVideoCardMetadataProps) => {
-    // Use cloud storage hook for thumbnail URL only if video is in cloud storage
-    // Only load thumbnail from cloud if the video itself is in cloud storage
-    const isVideoInCloud = video.videoPath?.startsWith('cloud:') ?? false;
-    const thumbnailPathForCloud = isVideoInCloud ? video.thumbnailPath : null;
-    const thumbnailUrl = useCloudStorageUrl(thumbnailPathForCloud, 'thumbnail');
-    const localThumbnailUrl = !isVideoInCloud
-        ? buildSmallThumbnailAbsoluteUrl(
-            getBackendUrl(),
-            video.thumbnailPath,
-            video.thumbnailUrl,
-        )
-        : undefined;
-    const thumbnailSrc = thumbnailUrl
-        || localThumbnailUrl
-        || video.thumbnailUrl;
+    // Cover URLs, best first: cloud signed URL (cloud videos only), then the
+    // local /images-small mirror and its fallbacks.
+    const { src: thumbnailSrc, candidates: thumbnailCandidates } =
+        useThumbnailCandidates(video);
 
     // Use cloud storage hook for video URL
     const isAudioOnly = video.mediaType === 'audio';
@@ -66,6 +54,7 @@ export const useVideoCardMetadata = ({ video }: UseVideoCardMetadataProps) => {
 
     return {
         thumbnailSrc,
+        thumbnailCandidates,
         thumbnailSrcSet: undefined,
         thumbnailSizes: undefined,
         // Audio-only cards have no video frames, so feeding this URL into the

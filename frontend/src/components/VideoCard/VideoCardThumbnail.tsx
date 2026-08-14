@@ -5,12 +5,14 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { mask, neutral, overlay, shadow } from '../../theme/colors';
 import { Video } from '../../types';
 import { formatDuration, parseDuration } from '../../utils/formatUtils';
-import { THUMBNAIL_PLACEHOLDER_SRC, setThumbnailPlaceholder } from '../../utils/thumbnailPlaceholder';
+import { THUMBNAIL_PLACEHOLDER_SRC, handleThumbnailError } from '../../utils/thumbnailPlaceholder';
 import { VideoCardCollectionInfo } from '../../utils/videoCardUtils';
 
 interface VideoCardThumbnailProps {
     video: Video;
     thumbnailSrc?: string;
+    /** Ordered cover URLs to try before giving up on the placeholder. */
+    thumbnailCandidates?: string[];
     thumbnailSrcSet?: string;
     thumbnailSizes?: string;
     videoUrl?: string;
@@ -31,6 +33,7 @@ interface VideoCardThumbnailProps {
 const VideoCardThumbnailView: React.FC<VideoCardThumbnailProps> = ({
     video,
     thumbnailSrc,
+    thumbnailCandidates,
     thumbnailSrcSet,
     thumbnailSizes,
     videoUrl,
@@ -151,7 +154,7 @@ const VideoCardThumbnailView: React.FC<VideoCardThumbnailProps> = ({
                 }}
                 onError={(e) => {
                     setIsImageLoaded(true);
-                    setThumbnailPlaceholder(e.currentTarget);
+                    handleThumbnailError(e.currentTarget, thumbnailCandidates ?? []);
                 }}
             />
 

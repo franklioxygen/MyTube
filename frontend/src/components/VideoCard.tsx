@@ -138,6 +138,7 @@ const VideoCardBase: React.FC<VideoCardProps> = ({
                 <VideoCardThumbnail
                     video={video}
                     thumbnailSrc={metadata.thumbnailSrc}
+                    thumbnailCandidates={metadata.thumbnailCandidates}
                     thumbnailSrcSet={metadata.thumbnailSrcSet}
                     thumbnailSizes={metadata.thumbnailSizes}
                     videoUrl={metadata.videoUrl}
