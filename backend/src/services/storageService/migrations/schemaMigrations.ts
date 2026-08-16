@@ -670,6 +670,37 @@ export function ensureMediaServerCatalogTables(): void {
       )
       .run();
 
+    // Collection-as-show columns on media_server_shows. Same presence-checked
+    // pattern; the partial unique index enforces one show row per collection.
+    const showColumns = columnNames(
+      sqlite.prepare("PRAGMA table_info(media_server_shows)").all()
+    );
+    if (showColumns.length > 0) {
+      for (const [column, type] of [
+        ["source_collection_id", "TEXT"],
+        ["tmdb_id", "INTEGER"],
+        ["tmdb_media_type", "TEXT"],
+        ["premiered", "TEXT"],
+      ] as Array<[string, string]>) {
+        if (!showColumns.includes(column)) {
+          logger.info(
+            `Migrating database: Adding ${column} column to media_server_shows table...`
+          );
+          sqlite
+            .prepare(`ALTER TABLE media_server_shows ADD COLUMN ${column} ${type}`)
+            .run();
+        }
+      }
+
+      sqlite
+        .prepare(
+          `CREATE UNIQUE INDEX IF NOT EXISTS media_server_shows_source_collection_uidx
+             ON media_server_shows (source_collection_id)
+             WHERE source_collection_id IS NOT NULL`
+        )
+        .run();
+    }
+
     // Collection metadata columns. SQLite has no ADD COLUMN IF NOT EXISTS, so
     // each one is presence-checked the same way the older collections columns
     // are handled above.
@@ -685,6 +716,17 @@ export function ensureMediaServerCatalogTables(): void {
         ["source_channel_name", "TEXT"],
         ["media_server_show_id", "TEXT"],
         ["media_server_season_number", "INTEGER"],
+        // Collection-as-show opt-in and resolved metadata.
+        ["export_as_show", "INTEGER NOT NULL DEFAULT 0"],
+        ["media_server_title", "TEXT"],
+        ["media_server_description", "TEXT"],
+        ["media_server_poster_path", "TEXT"],
+        ["media_server_metadata_source", "TEXT"],
+        ["tmdb_id", "INTEGER"],
+        ["tmdb_media_type", "TEXT"],
+        ["tmdb_premiere_date", "TEXT"],
+        ["tmdb_match_strategy", "TEXT"],
+        ["tmdb_match_confirmed_at", "INTEGER"],
       ];
       for (const [column, type] of mediaServerColumns) {
         if (!collectionsColumns.includes(column)) {

@@ -66,6 +66,25 @@ function hydrateCollection(rows: CollectionRow[]): Collection | undefined {
     mediaServerShowId: sortedRows[0].c.mediaServerShowId ?? undefined,
     mediaServerSeasonNumber:
       sortedRows[0].c.mediaServerSeasonNumber ?? undefined,
+    // Collection-as-show configuration.
+    exportAsShow: sortedRows[0].c.exportAsShow ?? 0,
+    mediaServerTitle: sortedRows[0].c.mediaServerTitle ?? undefined,
+    mediaServerDescription: sortedRows[0].c.mediaServerDescription ?? undefined,
+    mediaServerPosterPath: sortedRows[0].c.mediaServerPosterPath ?? undefined,
+    mediaServerMetadataSource:
+      sortedRows[0].c.mediaServerMetadataSource === "manual" ||
+      sortedRows[0].c.mediaServerMetadataSource === "tmdb"
+        ? sortedRows[0].c.mediaServerMetadataSource
+        : undefined,
+    tmdbId: sortedRows[0].c.tmdbId ?? undefined,
+    tmdbMediaType:
+      sortedRows[0].c.tmdbMediaType === "tv" ||
+      sortedRows[0].c.tmdbMediaType === "movie"
+        ? sortedRows[0].c.tmdbMediaType
+        : undefined,
+    tmdbPremiereDate: sortedRows[0].c.tmdbPremiereDate ?? undefined,
+    tmdbMatchStrategy: sortedRows[0].c.tmdbMatchStrategy ?? undefined,
+    tmdbMatchConfirmedAt: sortedRows[0].c.tmdbMatchConfirmedAt ?? undefined,
     videos: [],
   };
 
@@ -261,6 +280,12 @@ export function getCollectionBySourceKey(
  * `mediaServerShowId` / `mediaServerSeasonNumber` are intentionally absent: the
  * season allocation is owned by catalogRepository and must never be moved by an
  * ordinary collection save.
+ *
+ * The collection-as-show fields (`exportAsShow`, `mediaServer*`, `tmdb*`) are
+ * absent for the same reason. They are written only by the activation
+ * transaction, which commits metadata and catalog state together under the
+ * maintenance lock; letting a stray `saveCollection` touch them could allocate a
+ * show directory from a title the user never confirmed.
  */
 function buildMediaServerMetadataPatch(
   collection: Collection
