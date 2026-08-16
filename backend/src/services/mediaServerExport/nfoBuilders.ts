@@ -150,10 +150,24 @@ export interface ShowNfoInput {
    * id from the sanitized show title, which a channel rename may change.
    */
   showUniqueId?: string;
+  /**
+   * Confirmed TMDB identity for a collection-show, so servers that read NFO can
+   * match against TMDB. Emitted only for a TV id — see buildShowNfo.
+   */
+  tmdbId?: number;
+  tmdbMediaType?: "tv" | "movie";
 }
 
 export function buildShowNfo(input: ShowNfoInput): string {
-  const { showTitle, plot, premiered, studio, showUniqueId } = input;
+  const {
+    showTitle,
+    plot,
+    premiered,
+    studio,
+    showUniqueId,
+    tmdbId,
+    tmdbMediaType,
+  } = input;
   const showId =
     showUniqueId || `mytube:show:${normalizeShowIdentifier(showTitle)}`;
   const lines = [GENERATED_XML_COMMENT, "<tvshow>"];
@@ -167,6 +181,20 @@ export function buildShowNfo(input: ShowNfoInput): string {
   lines.push(
     `  <uniqueid type="mytube" default="true">${escapeXml(showId)}</uniqueid>`
   );
+
+  // TV only. Movie and TV ids share a numeric space in TMDB, and a `tvshow.nfo`
+  // id is read as a TV id — emitting a confirmed movie id here would point a
+  // media server at an unrelated series. A matched movie still contributes its
+  // title, overview, date and poster.
+  if (
+    tmdbMediaType === "tv" &&
+    typeof tmdbId === "number" &&
+    Number.isSafeInteger(tmdbId) &&
+    tmdbId > 0
+  ) {
+    lines.push(`  <uniqueid type="tmdb">${escapeXml(String(tmdbId))}</uniqueid>`);
+  }
+
   lines.push("</tvshow>");
 
   return `${lines.join("\n")}\n`;

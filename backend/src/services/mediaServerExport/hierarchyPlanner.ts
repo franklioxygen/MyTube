@@ -160,28 +160,42 @@ function resolveArtworkSource(
 }
 
 /**
- * Show poster precedence: the persisted poster if it still resolves, then any
- * show video's avatar, then any show video's thumbnail. Videos are sorted by id
- * so the choice is deterministic across rebuilds.
+ * Show poster precedence.
+ *
+ * Author shows: persisted poster → any show video's avatar → any thumbnail. The
+ * channel avatar is the natural identity of a channel-as-show.
+ *
+ * Collection shows: persisted poster → episode thumbnail. The avatar is
+ * deliberately skipped — a drama uploaded by a third-party channel would
+ * otherwise be posterised with the uploader's selfie, which is the exact
+ * complaint this feature exists to fix.
+ *
+ * Videos are ordered so the choice is deterministic across rebuilds: episode
+ * order for a collection show (its first episode is the representative frame),
+ * video id for an author show.
  */
 function resolveShowPosterSource(
   persistedPath: string | undefined,
   showVideos: Video[],
-  probe: PlannerFileProbe
+  probe: PlannerFileProbe,
+  isCollectionShow: boolean
 ): string | undefined {
   const persisted = resolveArtworkSource(persistedPath, probe);
   if (persisted) {
     return persisted;
   }
 
-  const ordered = [...showVideos].sort((left, right) =>
-    left.id.localeCompare(right.id)
-  );
+  // `showVideos` already arrives in season/episode order.
+  const ordered = isCollectionShow
+    ? showVideos
+    : [...showVideos].sort((left, right) => left.id.localeCompare(right.id));
 
-  for (const video of ordered) {
-    const avatar = resolveArtworkSource(video.authorAvatarPath, probe);
-    if (avatar) {
-      return avatar;
+  if (!isCollectionShow) {
+    for (const video of ordered) {
+      const avatar = resolveArtworkSource(video.authorAvatarPath, probe);
+      if (avatar) {
+        return avatar;
+      }
     }
   }
 
@@ -531,10 +545,14 @@ export function planMediaServerHierarchy(
       "tvshow.nfo"
     );
     const posterAbsolutePath = resolveMirrorPath(showDirectory, "poster.jpg");
-    const premiered = showVideos
-      .map((video) => normalizeVideoDateToDay(video.date))
-      .filter((value): value is string => Boolean(value))
-      .sort()[0];
+    // A confirmed TMDB premiere date is authoritative for a collection show;
+    // the earliest episode upload date is only a stand-in when none exists.
+    const premiered =
+      normalizeVideoDateToDay(show.premiered) ??
+      showVideos
+        .map((video) => normalizeVideoDateToDay(video.date))
+        .filter((value): value is string => Boolean(value))
+        .sort()[0];
 
     shows.push({
       show,
@@ -547,7 +565,8 @@ export function planMediaServerHierarchy(
       posterSourceAbsolutePath: resolveShowPosterSource(
         show.posterSourcePath,
         showVideos,
-        probe
+        probe,
+        Boolean(show.sourceCollectionId)
       ),
       showUniqueId: buildShowUniqueId(show.identityKey),
       premiered,

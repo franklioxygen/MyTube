@@ -279,6 +279,62 @@ describe("mediaServerExport nfoBuilders (playlist_tv layout)", () => {
     expect(firstNfo).not.toContain("mytube:video:video-1");
   });
 
+  describe("TMDB unique id", () => {
+    it("emits a second uniqueid for a confirmed TV match", () => {
+      const nfo = buildShowNfo({
+        showTitle: "人民的名义",
+        plot: "",
+        showUniqueId: "mytube:show:collection:c1",
+        tmdbId: 72517,
+        tmdbMediaType: "tv",
+      });
+
+      expect(nfo).toContain(
+        '<uniqueid type="mytube" default="true">mytube:show:collection:c1</uniqueid>'
+      );
+      expect(nfo).toContain('<uniqueid type="tmdb">72517</uniqueid>');
+      // The MyTube id stays the default one.
+      expect(nfo).not.toContain('<uniqueid type="tmdb" default');
+    });
+
+    /**
+     * TMDB movie and TV ids share a numeric space, and an id in `tvshow.nfo` is
+     * read as a TV id — emitting a movie id would point the server at an
+     * unrelated series.
+     */
+    it("omits the id for a confirmed movie match", () => {
+      const nfo = buildShowNfo({
+        showTitle: "A Film",
+        plot: "Overview retained.",
+        showUniqueId: "mytube:show:collection:c1",
+        tmdbId: 603,
+        tmdbMediaType: "movie",
+      });
+
+      expect(nfo).not.toContain('type="tmdb"');
+      // The rest of the movie's metadata is still used.
+      expect(nfo).toContain("<plot>Overview retained.</plot>");
+    });
+
+    it("omits the id for absent or unusable values", () => {
+      for (const input of [
+        {},
+        { tmdbId: 0, tmdbMediaType: "tv" as const },
+        { tmdbId: -5, tmdbMediaType: "tv" as const },
+        { tmdbId: 1.5, tmdbMediaType: "tv" as const },
+        { tmdbId: 72517 },
+      ]) {
+        const nfo = buildShowNfo({
+          showTitle: "Show",
+          plot: "",
+          showUniqueId: "mytube:show:collection:c1",
+          ...input,
+        });
+        expect(nfo).not.toContain('type="tmdb"');
+      }
+    });
+  });
+
   it("uses a stable identity-derived show id when one is supplied", () => {
     const nfo = buildShowNfo({
       showTitle: "Kurzgesagt – In a Nutshell",
