@@ -1,4 +1,4 @@
-import fs from "fs-extra";
+import { randomBytes } from "crypto";
 import path from "path";
 import { MEDIA_SERVER_LIBRARY_DIR } from "../../config/paths";
 import { logger } from "../../utils/logger";
@@ -8,6 +8,9 @@ import {
   linkSafeSync,
   lstatSafeSync,
   pathExistsSafeSync,
+  readFileSafeSync,
+  readdirSafeSync,
+  removeEmptyDirSafeSync,
   renameSafeSync,
   resolveSafeChildPath,
   unlinkSafeSync,
@@ -80,11 +83,15 @@ function assertInsideMirror(absolutePath: string): void {
 function makeTempPath(targetPath: string): string {
   // Same directory as the target so the final step is a rename within one
   // filesystem, which is what makes publication atomic.
+  //
+  // The suffix uses a CSPRNG rather than Math.random(): a predictable temp name
+  // inside a directory the user can also write to invites a symlink/TOCTOU race
+  // between our create and our rename.
   return resolveSafeChildPath(
     path.dirname(targetPath),
-    `${TEMP_PREFIX}-${process.pid}-${Date.now()}-${Math.random()
-      .toString(36)
-      .slice(2, 8)}-${path.basename(targetPath)}`
+    `${TEMP_PREFIX}-${process.pid}-${Date.now()}-${randomBytes(6).toString(
+      "hex"
+    )}-${path.basename(targetPath)}`
   );
 }
 
@@ -175,7 +182,11 @@ export function writeMirrorTextArtifact(
       input.assignmentId
     );
     try {
-      const existing = fs.readFileSync(targetAbsolutePath, "utf8");
+      const existing = readFileSafeSync(
+        targetAbsolutePath,
+        MEDIA_SERVER_LIBRARY_DIR,
+        "utf8"
+      );
       if (existing === contents) {
         return { relativePath, changed: false, materialization: "generated_text" };
       }
@@ -543,10 +554,10 @@ export function pruneEmptyMirrorDirectories(startAbsolutePath: string): void {
       if (!stat.isDirectory() || stat.isSymbolicLink()) {
         return;
       }
-      if (fs.readdirSync(current).length > 0) {
+      if (readdirSafeSync(current, MEDIA_SERVER_LIBRARY_DIR).length > 0) {
         return;
       }
-      fs.rmdirSync(current);
+      removeEmptyDirSafeSync(current, MEDIA_SERVER_LIBRARY_DIR);
     } catch {
       return;
     }
