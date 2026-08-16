@@ -186,6 +186,94 @@ describe("getPlaylistHeadSnapshot", () => {
     );
   });
 
+  // Issue #411: the rich inspection also carries media-server export metadata.
+  describe("media server export metadata", () => {
+    it("captures playlist and channel metadata from the envelope", async () => {
+      const { executeYtDlpJson } = await import("../../../utils/ytDlpUtils");
+      vi.mocked(executeYtDlpJson).mockResolvedValueOnce({
+        _type: "playlist",
+        id: "PL1",
+        title: "Space Time",
+        description: "Everything about spacetime.",
+        channel_id: "UC123",
+        channel_url: "https://www.youtube.com/@kurzgesagt",
+        channel: "Kurzgesagt",
+        channel_description: "Optimistic nihilism.",
+        entries: [{ id: "vidA", uploader: "Kurzgesagt" }],
+      } as any);
+
+      const inspection = await inspectPlaylist(
+        "https://www.youtube.com/playlist?list=PL1"
+      );
+
+      expect(inspection).toMatchObject({
+        description: "Everything about spacetime.",
+        sourceChannelId: "UC123",
+        sourceChannelUrl: "https://www.youtube.com/@kurzgesagt",
+        sourceChannelName: "Kurzgesagt",
+        sourceChannelDescription: "Optimistic nihilism.",
+      });
+    });
+
+    it("falls back to uploader keys and the first entry for channel identity", async () => {
+      const { executeYtDlpJson } = await import("../../../utils/ytDlpUtils");
+      vi.mocked(executeYtDlpJson).mockResolvedValueOnce({
+        _type: "playlist",
+        id: "PL1",
+        title: "Playlist",
+        uploader_id: "UC456",
+        uploader_url: "https://www.youtube.com/@u",
+        entries: [{ id: "vidA", channel: "From Entry" }],
+      } as any);
+
+      const inspection = await inspectPlaylist(
+        "https://www.youtube.com/playlist?list=PL1"
+      );
+
+      expect(inspection).toMatchObject({
+        sourceChannelId: "UC456",
+        sourceChannelUrl: "https://www.youtube.com/@u",
+        sourceChannelName: "From Entry",
+      });
+    });
+
+    it("leaves the metadata fields undefined when the extractor omits them", async () => {
+      const { executeYtDlpJson } = await import("../../../utils/ytDlpUtils");
+      vi.mocked(executeYtDlpJson).mockResolvedValueOnce({
+        _type: "playlist",
+        id: "PL1",
+        title: "Playlist",
+        entries: [{ id: "vidA" }],
+      } as any);
+
+      const inspection = await inspectPlaylist(
+        "https://www.youtube.com/playlist?list=PL1"
+      );
+
+      expect(inspection.description).toBeUndefined();
+      expect(inspection.sourceChannelId).toBeUndefined();
+      expect(inspection.sourceChannelUrl).toBeUndefined();
+      expect(inspection.sourceChannelDescription).toBeUndefined();
+    });
+
+    it("bounds an unbounded upstream description", async () => {
+      const { executeYtDlpJson } = await import("../../../utils/ytDlpUtils");
+      vi.mocked(executeYtDlpJson).mockResolvedValueOnce({
+        _type: "playlist",
+        id: "PL1",
+        title: "Playlist",
+        description: "x".repeat(200_000),
+        entries: [{ id: "vidA" }],
+      } as any);
+
+      const inspection = await inspectPlaylist(
+        "https://www.youtube.com/playlist?list=PL1"
+      );
+
+      expect(inspection.description).toHaveLength(100_000);
+    });
+  });
+
   it("preserves subscription extractor args in playlist probes", async () => {
     const {
       executeYtDlpJson,

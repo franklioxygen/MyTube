@@ -31,6 +31,7 @@ import {
 import { getPositiveIntegerParam, getStringParam } from "../utils/paramUtils";
 import { runWithConcurrencyLimit } from "../utils/concurrency";
 import {
+    applyPlaylistCollectionMetadata,
     detectPlaylistPlatform,
     deriveChannelName,
     deleteCreatedCollectionIfUnused,
@@ -851,7 +852,19 @@ export const createPlaylistSubscription = async (
   } else {
     collectionResolution = resolveRequestedCollection();
   }
-  const collection = collectionResolution.collection;
+  // Persist the playlist/channel metadata the inspection carried (issue #411)
+  // so the media-server exporter can build show and season NFOs offline later.
+  // Naming already happened above; this only writes durable source metadata.
+  const collection = applyPlaylistCollectionMetadata(
+    collectionResolution.collection,
+    {
+      description: inspection.description,
+      sourceUrl: playlistUrl,
+      sourceChannelId: inspection.sourceChannelId,
+      sourceChannelUrl: inspection.sourceChannelUrl,
+      sourceChannelName: inspection.sourceChannelName ?? author,
+    }
+  );
 
   // 6. Insert the subscription with the captured baseline (design §7.2).
   const subscribeOptions: SubscribePlaylistOptions = {

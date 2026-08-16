@@ -394,6 +394,9 @@ describe("downloadService", () => {
           sourceCollectionType: "playlist",
           mediaPlaylistIndex: 1,
         },
+        // Issue #411: a multipart collection download links each part
+        // afterwards, so the downloader defers the media-server export.
+        expect.objectContaining({ pendingCollectionLink: true }),
       );
       expect(result).toEqual(
         expect.objectContaining({

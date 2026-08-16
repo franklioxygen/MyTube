@@ -138,6 +138,105 @@ The same allocator + publication model is used by every path that writes media, 
 
 ---
 
+## 9. Managed media-server TV library (optional)
+
+> Opt-in. Nothing in this section happens unless you set **Media server export layout** to
+> `Author → playlist seasons (managed TV library)` in Settings. The default is
+> `Adjacent sidecars`, which keeps the historical behavior exactly as it was.
+
+Media servers want a `Show / Season NN / SxxExxx` tree. Your `uploads/videos/` layout is
+driven by your own filename and author-organization settings and does not have to match
+that. Rather than forcing one onto the other, MyTube can build a **separate, managed
+mirror**:
+
+```text
+uploads/media-library/
+└── Kurzgesagt/
+    ├── tvshow.nfo
+    ├── poster.jpg
+    ├── Season 01/
+    │   ├── season.nfo
+    │   ├── S01E001 - Human Origins.mp4
+    │   ├── S01E001 - Human Origins.nfo
+    │   └── S01E001 - Human Origins-thumb.jpg
+    └── Season 02/
+        ├── season.nfo
+        ├── S02E001 - Ants.mp4
+        └── S02E001 - Ants.nfo
+```
+
+Add **`uploads/media-library/`** to your media server as a *Shows* library. Do not add
+`uploads/videos/` as well, or every episode appears twice.
+
+### 9.1 What maps to what
+
+| Source concept | Media-server concept |
+|---|---|
+| A channel / author | One show directory + `tvshow.nfo` |
+| A source-backed playlist | One numbered season + `season.nfo` |
+| One `(playlist, video)` membership | One episode |
+| A video in no source playlist | `Season 00`, titled *Specials / Unassigned* |
+
+Only playlists with a **durable source identity** become seasons — playlist subscriptions
+and Bilibili collections/series. Collections you created by hand are not turned into
+seasons.
+
+### 9.2 Your original files are never touched
+
+Episodes in the mirror are **hard links** back to the file in `uploads/videos/`. A hard
+link is a second name for the same bytes, so:
+
+- no video is moved, renamed, or duplicated;
+- the mirror normally consumes **no additional disk space**;
+- deleting the mirror never affects your originals.
+
+Hard links only work **within one filesystem**. If `uploads/media-library/` and
+`uploads/videos/` end up on different disks — or on a filesystem that cannot link — MyTube
+falls back to copying, which *does* consume a second full copy of each affected video. The
+rebuild summary always reports how many files were linked versus copied. You can turn the
+fallback off, in which case those episodes are reported as failed instead.
+
+Artwork is always copied rather than linked, so regenerating a thumbnail inside MyTube
+cannot alter what your media server already scanned.
+
+### 9.3 Stable numbering
+
+Season and episode numbers are assigned **once** and then never change:
+
+- A playlist gets the next free season number the first time it is attached to a show.
+  Deleting a playlist does not free its number for reuse.
+- An episode number is taken from the playlist position observed when MyTube first imported
+  that item. If the upstream playlist is later reordered, MyTube records the new position
+  for diagnostics but does **not** renumber existing episodes.
+- An item newly inserted at the top of an upstream playlist gets the next unused episode
+  number, not `E001`.
+
+"Playlist order" here means MyTube's stable first-import order, not a continuously mutable
+upstream sort order. This is deliberate: renumbering would move every file in a season and
+break watch state in your media server.
+
+Renaming a channel or a playlist updates the NFO title only. The directory keeps the name it
+was created with.
+
+### 9.4 The same video in several playlists
+
+A video that belongs to two playlists becomes two episodes — one in each season — each with
+its own NFO and its own unique id. Both point at the same original file via hard links, so
+this costs no extra space.
+
+### 9.5 Cleanup safety
+
+Every file MyTube generates under `uploads/media-library/` is recorded in an ownership
+ledger in the database. Cleanup deletes **only** files listed there. Anything you put in the
+mirror yourself is left alone and reported as a conflict rather than overwritten, and the
+originals in `uploads/videos/` are never touched.
+
+Disabling the layout does not delete the mirror. To remove it, set the export mode to
+**Off** and run the cleanup action. Season and episode numbers are retained, so re-enabling
+later reproduces the same tree.
+
+---
+
 ## Summary
 
 Stable identity → filename (legacy or Liquid template; `{{ id }}` = source id, recommended `[source_video_id]` for collision resistance) → author-folder physical organization → allocator reserves the whole file family and steps aside on collision via `none → source_id → numeric` → no-overwrite publication through staging + hard link (copy fallback), with locks and journals guaranteeing concurrency and crash safety.

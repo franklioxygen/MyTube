@@ -172,6 +172,37 @@ services:
 
 **重要提示：**  如果您移动  `docker-compose.yml`  文件，必须同时移动这些文件夹以保留您的数据。
 
+### 向媒体服务器暴露受管的电视剧媒体库
+
+如果你启用了**作者 → 播放列表季**的媒体服务器导出布局（参见
+[媒体存储与文件命名](./media-storage-and-naming.md)），
+MyTube 会在容器内的 `/app/uploads/media-library` 生成一个电视剧结构的媒体库。
+现有的 `./uploads:/app/uploads` 挂载已经将其暴露出来，无需为 MyTube 额外添加卷。
+在宿主机上它位于 `./uploads/media-library`。
+
+请将**该子目录**以只读方式挂载到媒体服务器：
+
+```yaml
+services:
+  jellyfin:
+    image: jellyfin/jellyfin
+    volumes:
+      # 只指向受管媒体库，不要指向 ./uploads/videos。
+      - ./uploads/media-library:/media/mytube:ro
+```
+
+然后将 `/media/mytube` 添加为 **Shows（剧集）** 媒体库并启用本地 NFO 元数据
+（Jellyfin：*媒体库 → 元数据读取器 → Nfo*，并将其上移至顶部，使本地文件优先于
+在线元数据源）。Plex 用户需要为该媒体库启用 NFO Agent。
+
+有两点需要注意：
+
+- **不要同时把 `./uploads/videos` 添加**到同一个媒体服务器，否则每一集都会被导入两次。
+- **请将 `uploads/` 保留在同一个文件系统上。** `media-library/` 中的媒体文件是指回
+  `videos/` 的硬链接，而硬链接无法跨文件系统。若这两个目录位于不同磁盘，
+  MyTube 会退回为复制，媒体库将为每个导出的视频占用一份完整副本。常见的诱因是把
+  `uploads/videos` 单独挂载到另一个磁盘，而 `uploads/media-library` 留在原处。
+
 对于仓库中 `stacks/` 下提供的单容器 stack，也可以通过 `MYTUBE_UPLOADS_DIR`
 和 `MYTUBE_DATA_DIR` 覆盖宿主机路径，在不破坏现有默认路径兼容性的前提下，
 把数据放到其他位置。

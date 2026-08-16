@@ -91,6 +91,7 @@ By default, media and caches live under `backend/uploads/`:
 | `images-small/` | Internal downscaled preview cache for the UI. It mirrors the full-size thumbnail folder layout and can be ignored or excluded from media-server libraries. |
 | `subtitles/` | Subtitle files when subtitle storage is set to the isolated subtitles folder. |
 | `avatars/` | Channel/avatar artwork used by the app and media-server export. |
+| `media-library/` | Optional MyTube-managed TV library for media servers (author shows, playlist seasons). Empty unless the `Author → playlist seasons` export layout is enabled. Everything in it is generated: the media files are hard links back to `videos/`, so it normally consumes no extra space. Add **this** folder to your media server as a Shows library — not `videos/`. |
 | `cloud-thumbnail-cache/` | Internal cache for thumbnails fetched from cloud-backed media. |
 
 For how storage locations and filenames are decided — stable media identity, legacy vs. template naming, author-folder organization, collision-safe path allocation, and the no-overwrite publication model — please refer to [Media Storage & Filename Naming](documents/en/media-storage-and-naming.md).

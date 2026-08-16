@@ -186,6 +186,7 @@ RUN mkdir -p \
     uploads/subtitles \
     uploads/avatars \
     uploads/cloud-thumbnail-cache \
+    uploads/media-library \
     data \
     && chown -R 1000:1000 uploads data
 

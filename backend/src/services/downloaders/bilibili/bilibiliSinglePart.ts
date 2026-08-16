@@ -582,6 +582,7 @@ export async function downloadSinglePart(
 
           syncMediaServerArtifactsForRecord(finalVideoData, {
             rawSourceInfo: bilibiliInfo,
+            suppressPlaylistTvSync: modeOptions?.pendingCollectionLink,
           });
           return { success: true, videoData: finalVideoData };
         }
@@ -625,6 +626,7 @@ export async function downloadSinglePart(
       if (updatedVideo) {
         syncMediaServerArtifactsForRecord(updatedVideo, {
           rawSourceInfo: bilibiliInfo,
+          suppressPlaylistTvSync: modeOptions?.pendingCollectionLink,
         });
         return { success: true, videoData: updatedVideo };
       }
@@ -632,6 +634,7 @@ export async function downloadSinglePart(
 
     syncMediaServerArtifactsForRecord(videoData, {
       rawSourceInfo: bilibiliInfo,
+      suppressPlaylistTvSync: modeOptions?.pendingCollectionLink,
     });
     return { success: true, videoData };
   } catch (error: unknown) {

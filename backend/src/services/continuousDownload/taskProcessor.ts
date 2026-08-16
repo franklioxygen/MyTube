@@ -562,6 +562,9 @@ export class TaskProcessor {
           {
             subscriptionYtdlpConfig,
             subscriptionFilenameTemplate,
+            // Issue #411: this task links the video to its collection below, so
+            // the downloader must not export it as a Season 00 episode first.
+            pendingCollectionLink: Boolean(task.collectionId),
           }
         );
 
@@ -578,6 +581,8 @@ export class TaskProcessor {
           filenameTemplateSourceOptions,
           subscriptionYtdlpConfig,
           subscriptionFilenameTemplate,
+          // Issue #411: see the Bilibili branch above.
+          pendingCollectionLink: Boolean(task.collectionId),
         });
       }
 
@@ -617,7 +622,12 @@ export class TaskProcessor {
       // If task has a collectionId, add video to collection
       if (task.collectionId && videoData.id) {
         try {
-          storageService.addVideoToCollection(task.collectionId, videoData.id);
+          // Issue #411: pass the known backfill position so the media-server
+          // exporter can seed a stable episode number from the real playlist
+          // order rather than from ingestion order.
+          storageService.addVideoToCollection(task.collectionId, videoData.id, {
+            order: videoIndex + 1,
+          });
           logger.info(
             `Added video ${videoData.id} to collection ${task.collectionId}`
           );

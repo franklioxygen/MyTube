@@ -195,6 +195,8 @@ export const WHITELISTED_SETTINGS = [
   "downloadFilenamePresetId",
   "downloadFilenameTemplate",
   "mediaServerExportMode",
+  "mediaServerExportLayout",
+  "mediaServerCopyFallback",
   "statisticsEnabled",
   "statisticsRetentionDays",
   "statisticsCaptureSearchText",

@@ -15,6 +15,7 @@ import {
   resolveManagedWebPath,
 } from "../filenameTemplate/pathHelpers";
 import { removeMediaServerArtifactsForVideo } from "../mediaServerExport";
+import { onVideoDeletePending } from "../mediaServerExport/mutationHooks";
 import { logger } from "../../utils/logger";
 import { getCollections } from "./collections";
 import {
@@ -63,6 +64,12 @@ export function deleteVideo(
     markVideoDownloadDeleted(id);
     markDownloadHistoryDeletedByVideoId(id, deletedAt);
 
+    // Issue #411: clean every mirror occurrence BEFORE the row is deleted.
+    // Deleting the video cascades its episode assignments away, and the ledger
+    // rows then have nothing tying them to an assignment — the media links would
+    // be left on disk with no authority to remove them.
+    onVideoDeletePending(id);
+
     // Delete from DB
     db.delete(videos).where(eq(videos.id, id)).run();
     bumpVideosListRevision();
@@ -74,8 +81,12 @@ export function deleteVideo(
     } catch {
       // recommendation signals are best-effort
     }
+    // Adjacent sidecars live next to the original media and are still
+    // addressable after the row is gone. The playlist_tv mirror was already
+    // handled by onVideoDeletePending above.
     removeMediaServerArtifactsForVideo(videoToDelete, {
       libraryVideos: getVideos(),
+      layoutOverride: "adjacent",
     });
 
     // Statistics: emit library_video_deleted with the reason bucket and a size

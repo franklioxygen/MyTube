@@ -1,7 +1,7 @@
 // Types, pure helpers, and static catalogs for the filename-template settings
 // UI. Kept outside FilenameTemplateSettings.tsx so the component file only
 // exports a component (react-refresh) and the helpers stay unit-testable.
-import { Settings } from '../../types';
+import { MediaServerExportLayout, Settings } from '../../types';
 import { TranslationKey } from '../../utils/translations';
 
 export type PreviewScenario = 'channel' | 'playlist' | 'single';
@@ -149,12 +149,35 @@ export interface RenameJob {
     }>;
 }
 
+/** Observable phases of a playlist_tv rebuild (issue #411). */
+export type MediaServerExportJobPhase =
+    | 'snapshot'
+    | 'catalog_reconcile'
+    | 'plan'
+    | 'materialize'
+    | 'sweep'
+    | 'completed';
+
+/** Materialization counters. All zero in the adjacent layout. */
+export interface MediaServerExportJobCounts {
+    shows: number;
+    seasons: number;
+    episodes: number;
+    linkedMedia: number;
+    copiedMedia: number;
+    unchangedArtifacts: number;
+    removedArtifacts: number;
+}
+
 export interface MediaServerExportJob {
     id: string;
     status: 'running' | 'completed' | 'failed' | 'cancelled';
     lockedAt: number;
     mode: 'off' | 'nfo' | 'nfo_and_source_json';
+    /** Issue #411. Optional so an older server response still parses. */
+    layout?: MediaServerExportLayout;
     action: 'rebuild' | 'cleanup';
+    phase?: MediaServerExportJobPhase;
     total: number;
     processed: number;
     succeeded: number;
@@ -162,15 +185,25 @@ export interface MediaServerExportJob {
     failed: number;
     sweptFiles?: number;
     sweptList?: string[];
+    counts?: MediaServerExportJobCounts;
     currentTitle?: string;
     items: Array<{
         videoId: string;
         title: string;
         status: string;
         skipReason?: string;
+        errorCode?: string;
         error?: string;
     }>;
 }
+
+export const MEDIA_SERVER_EXPORT_LAYOUT_OPTIONS = [
+    { value: 'adjacent', labelKey: 'mediaServerExportLayoutAdjacent' },
+    { value: 'playlist_tv', labelKey: 'mediaServerExportLayoutPlaylistTv' },
+] as const;
+
+/** How many failed items to render individually before falling back to the count. */
+export const MEDIA_SERVER_EXPORT_FAILURE_DETAIL_LIMIT = 10;
 
 // Stable URL builders for the job-polling hook (module scope = stable identity).
 export function renameJobUrl(jobId: string): string {

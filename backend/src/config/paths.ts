@@ -9,6 +9,19 @@ export const IMAGES_DIR: string = path.join(UPLOADS_DIR, "images");
 export const IMAGES_SMALL_DIR: string = path.join(UPLOADS_DIR, "images-small");
 export const AVATARS_DIR: string = path.join(UPLOADS_DIR, "avatars");
 export const SUBTITLES_DIR: string = path.join(UPLOADS_DIR, "subtitles");
+/**
+ * Managed media-server TV mirror (issue #411).
+ *
+ * A sibling of VIDEOS_DIR, deliberately NOT below it: MyTube's own file scanner
+ * walks VIDEOS_DIR and would re-import the generated hard links as new videos,
+ * and a media server pointed at /videos would see both the originals and the
+ * mirror. Everything under this root is MyTube-generated and tracked in the
+ * media_server_export_artifacts ledger.
+ */
+export const MEDIA_SERVER_LIBRARY_DIR: string = path.join(
+  UPLOADS_DIR,
+  "media-library"
+);
 export const CLOUD_THUMBNAIL_CACHE_DIR: string = path.join(
   UPLOADS_DIR,
   "cloud-thumbnail-cache"

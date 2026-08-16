@@ -114,6 +114,37 @@ describe("settingsValidationService", () => {
       }).not.toThrow();
     });
 
+    // Issue #411: the layout must never be silently coerced to "adjacent".
+    it("should reject invalid media server export layouts", () => {
+      expect(() => {
+        settingsValidationService.validateSettings({
+          mediaServerExportLayout: "bogus" as any,
+        });
+      }).toThrow(ValidationError);
+
+      for (const layout of ["adjacent", "playlist_tv"]) {
+        expect(() => {
+          settingsValidationService.validateSettings({
+            mediaServerExportLayout: layout as any,
+          });
+        }).not.toThrow();
+      }
+    });
+
+    it("should reject a non-boolean media server copy fallback", () => {
+      expect(() => {
+        settingsValidationService.validateSettings({
+          mediaServerCopyFallback: "yes" as any,
+        });
+      }).toThrow(ValidationError);
+
+      expect(() => {
+        settingsValidationService.validateSettings({
+          mediaServerCopyFallback: false,
+        });
+      }).not.toThrow();
+    });
+
     it("should validate preferred video container values", () => {
       expect(() => {
         settingsValidationService.validateSettings({

@@ -29,6 +29,9 @@ const VALID_MEDIA_SERVER_EXPORT_MODES = new Set([
   "nfo",
   "nfo_and_source_json",
 ]);
+// Issue #411. Unknown values are rejected rather than coerced: silently falling
+// back to "adjacent" would hide a client bug behind a layout the user did not ask for.
+const VALID_MEDIA_SERVER_EXPORT_LAYOUTS = new Set(["adjacent", "playlist_tv"]);
 const PLAYER_SEEK_SETTING_KEYS = [
   "playerSeekShortSeconds",
   "playerSeekMediumSeconds",
@@ -259,6 +262,26 @@ export function validateSettings(newSettings: Partial<Settings>): void {
     throw new ValidationError(
       `Invalid mediaServerExportMode: "${newSettings.mediaServerExportMode}".`,
       "mediaServerExportMode"
+    );
+  }
+
+  if (
+    newSettings.mediaServerExportLayout !== undefined &&
+    !VALID_MEDIA_SERVER_EXPORT_LAYOUTS.has(newSettings.mediaServerExportLayout)
+  ) {
+    throw new ValidationError(
+      `Invalid mediaServerExportLayout: "${newSettings.mediaServerExportLayout}".`,
+      "mediaServerExportLayout"
+    );
+  }
+
+  if (
+    newSettings.mediaServerCopyFallback !== undefined &&
+    typeof newSettings.mediaServerCopyFallback !== "boolean"
+  ) {
+    throw new ValidationError(
+      `Invalid mediaServerCopyFallback: "${newSettings.mediaServerCopyFallback}".`,
+      "mediaServerCopyFallback"
     );
   }
 
