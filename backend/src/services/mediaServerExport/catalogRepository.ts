@@ -658,6 +658,21 @@ export interface AllocateEpisodeAssignmentInput {
   videoTitle: string;
   /** Upstream playlist position observed at import, 1-based. */
   sourcePosition?: number;
+  /**
+   * Exact numbering carried over from an assignment being replaced, used when a
+   * collection is promoted from an author season to its own show.
+   *
+   * Reusing the number and stem is what keeps mirror filenames stable across the
+   * move, so a media server does not see every episode disappear and reappear
+   * under a new name. This is not a violation of immutable numbering: that rule
+   * forbids renumbering *within* a season on reorder, not carrying numbers
+   * across an explicit, user-initiated move.
+   */
+  carryOver?: {
+    episodeNumber: number;
+    exportStem: string;
+    sourcePosition?: number;
+  };
 }
 
 function assertValidAssignmentInput(
@@ -774,13 +789,26 @@ export function ensureEpisodeAssignment(
       return toAssignment(existing);
     }
 
+    const carriedNumber =
+      input.carryOver &&
+      Number.isInteger(input.carryOver.episodeNumber) &&
+      input.carryOver.episodeNumber >= 1 &&
+      isEpisodeNumberFree(
+        input.showId,
+        input.seasonNumber,
+        input.carryOver.episodeNumber
+      )
+        ? input.carryOver.episodeNumber
+        : undefined;
+
     const preferred =
-      input.sourcePosition !== undefined &&
+      carriedNumber ??
+      (input.sourcePosition !== undefined &&
       Number.isInteger(input.sourcePosition) &&
       input.sourcePosition >= 1 &&
       isEpisodeNumberFree(input.showId, input.seasonNumber, input.sourcePosition)
         ? input.sourcePosition
-        : nextEpisodeNumber(input.showId, input.seasonNumber);
+        : nextEpisodeNumber(input.showId, input.seasonNumber));
 
     const now = Date.now();
     const row: AssignmentRow = {
@@ -795,12 +823,14 @@ export function ensureEpisodeAssignment(
       videoId: input.videoId,
       seasonNumber: input.seasonNumber,
       episodeNumber: preferred,
-      sourcePosition: input.sourcePosition ?? null,
-      exportStem: buildExportStem(
-        input.seasonNumber,
-        preferred,
-        input.videoTitle
-      ),
+      sourcePosition:
+        input.sourcePosition ?? input.carryOver?.sourcePosition ?? null,
+      // Keep the carried stem only when its number was also honored, so the
+      // SxxExxx token in the filename never disagrees with the episode number.
+      exportStem:
+        carriedNumber !== undefined && input.carryOver
+          ? input.carryOver.exportStem
+          : buildExportStem(input.seasonNumber, preferred, input.videoTitle),
       createdAt: now,
       updatedAt: now,
     };

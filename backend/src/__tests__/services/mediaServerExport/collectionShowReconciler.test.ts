@@ -403,4 +403,78 @@ describe("collection-as-show reconciliation", () => {
       expect(listAssignmentsForVideo("v1")).toHaveLength(1);
     });
   });
+
+  describe("promotion numbering", () => {
+    /**
+     * §6.4: reusing the number and stem keeps mirror filenames identical across
+     * the move, so a media server does not see every episode vanish and reappear
+     * under a new name (and lose its watch state).
+     */
+    it("carries episode numbers and stems across a promotion", () => {
+      const videos = [
+        video({ id: "v1", title: "First" }),
+        video({ id: "v2", title: "Second" }),
+        video({ id: "v3", title: "Third" }),
+      ];
+      const asPlaylist = collection({
+        sourceType: "playlist",
+        sourcePlatform: "youtube",
+        sourceChannelId: "UC1",
+        sourceChannelName: "tl 23",
+        videos: ["v1", "v2", "v3"],
+      });
+
+      reconcile(videos, [asPlaylist]);
+      const authorShow = listMediaServerShows().find((s) => !s.sourceCollectionId);
+      const before = listAssignmentsForShow(authorShow!.id)
+        .map((a) => ({
+          videoId: a.videoId,
+          episodeNumber: a.episodeNumber,
+          exportStem: a.exportStem,
+        }))
+        .sort((l, r) => l.episodeNumber - r.episodeNumber);
+
+      expect(before.map((a) => a.exportStem)).toEqual([
+        "S01E001 - First",
+        "S01E002 - Second",
+        "S01E003 - Third",
+      ]);
+
+      testDb.sqlite
+        .prepare("UPDATE collections SET export_as_show = 1 WHERE id = 'c1'")
+        .run();
+      reconcileMediaServerCatalog({
+        videos,
+        // Reordered upstream at the same time, to prove the carried numbers win
+        // over the new collection order.
+        collections: [{ ...asPlaylist, exportAsShow: 1, videos: ["v3", "v1", "v2"] }],
+        subscriptions: [],
+      });
+
+      const after = listAssignmentsForShow(getCollectionShow("c1")!.id)
+        .map((a) => ({
+          videoId: a.videoId,
+          episodeNumber: a.episodeNumber,
+          exportStem: a.exportStem,
+        }))
+        .sort((l, r) => l.episodeNumber - r.episodeNumber);
+
+      expect(after).toEqual(before);
+    });
+
+    it("allocates fresh numbers for a manual collection with no prior season", () => {
+      reconcile(
+        [video({ id: "v1", title: "First" }), video({ id: "v2", title: "Second" })],
+        [collection({ exportAsShow: 1, videos: ["v1", "v2"] })]
+      );
+
+      const assignments = listAssignmentsForShow(getCollectionShow("c1")!.id).sort(
+        (l, r) => l.episodeNumber - r.episodeNumber
+      );
+      expect(assignments.map((a) => a.exportStem)).toEqual([
+        "S01E001 - First",
+        "S01E002 - Second",
+      ]);
+    });
+  });
 });
