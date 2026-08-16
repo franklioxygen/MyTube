@@ -68,6 +68,13 @@ function toShow(row: ShowRow): MediaServerShow {
     posterSourcePath: row.posterSourcePath ?? undefined,
     directoryName: row.directoryName,
     nextSeasonNumber: row.nextSeasonNumber,
+    sourceCollectionId: row.sourceCollectionId ?? undefined,
+    tmdbId: row.tmdbId ?? undefined,
+    tmdbMediaType:
+      row.tmdbMediaType === "tv" || row.tmdbMediaType === "movie"
+        ? row.tmdbMediaType
+        : undefined,
+    premiered: row.premiered ?? undefined,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -338,6 +345,12 @@ export function ensureMediaServerShow(
       posterSourcePath: input.posterSourcePath ?? null,
       directoryName: allocateDirectoryName(input),
       nextSeasonNumber: 1,
+      // Author shows never carry a collection identity; ensureCollectionShow()
+      // is the only path that sets these.
+      sourceCollectionId: null,
+      tmdbId: null,
+      tmdbMediaType: null,
+      premiered: null,
       createdAt: now,
       updatedAt: now,
     };

@@ -278,6 +278,37 @@ describe("mediaServerExport catalogReconciler", () => {
       expect(shows[0].nextSeasonNumber).toBe(3);
     });
 
+    /**
+     * Frozen for the collection-as-show work. `findCompatibleExistingShow()`
+     * treats "same platform + same normalized title" as the same channel, which
+     * is what makes the author-fallback upgrade work.
+     *
+     * It is also why a collection-show needs an *explicit* exclusion rather than
+     * relying on its `collection:<id>` identity prefix: two dramas that happen to
+     * share a title would otherwise be merged into one show. When that exclusion
+     * lands, this test must keep passing — it covers author shows only.
+     */
+    it("merges two author identities that share a platform and normalized title", () => {
+      reconcile({
+        videos: [
+          video({
+            id: "v1",
+            author: "Same Name",
+            channelUrl: undefined,
+            source: "youtube",
+          }),
+          video({
+            id: "v2",
+            author: "same  name",
+            channelUrl: undefined,
+            source: "youtube",
+          }),
+        ],
+      });
+
+      expect(listMediaServerShows()).toHaveLength(1);
+    });
+
     it("uses the hydrated collection order as the initial episode number", () => {
       reconcile({
         videos: [
