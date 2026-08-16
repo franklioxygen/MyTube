@@ -19,6 +19,19 @@
 export { testTMDBCredential } from "./credentials";
 export { parseFilename } from "./filenameParser";
 export { scrapeMetadataFromTMDB } from "./scrape";
+export {
+  hasTMDBCredential,
+  MAX_COLLECTION_SEARCH_CANDIDATES,
+  resolveCollectionMetadata,
+  searchCollectionCandidates,
+} from "./collectionSearch";
+export { isHighConfidenceTMDBTitleMatch } from "./titleMatch";
+
+export type {
+  CollectionSearchCandidate,
+  CollectionSearchResult,
+  ResolvedCollectionMetadata,
+} from "./collectionSearch";
 
 export type {
   ParsedFilename,
