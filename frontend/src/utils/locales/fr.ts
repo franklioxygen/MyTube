@@ -193,6 +193,56 @@ export const fr = {
   mediaServerExportCleanupComplete: "Media server sidecar cleanup complete",
   mediaServerExportCleanupSummary:
     "{succeeded} cleaned, {skipped} skipped, {failed} failed.",
+  collectionShowExportToggle:
+    "Export as its own show",
+  collectionShowExportToggleDescription:
+    "Export this collection to your media server as a separate show, instead of a season under the uploader's show. Useful for a series or film archived from a third-party channel.",
+  collectionShowDialogTitle:
+    "Export this collection as its own show",
+  collectionShowDialogDescription:
+    "Choose the name and artwork for the show. The folder name is created from your choice and is not moved afterwards, so later renames update the metadata only.",
+  collectionShowPromotionWarning:
+    "This collection is currently a season under another show. Its episodes keep their numbers and filenames, but the season number it leaves behind is retired and will not come back if you turn this off later.",
+  collectionShowSearchHeading:
+    "Look up on TMDB",
+  collectionShowSearchLabel:
+    "Search title",
+  collectionShowSearchAction:
+    "Search",
+  collectionShowSearchFailed:
+    "Could not search TMDB. Please try again.",
+  collectionShowNoCredential:
+    "No TMDB credential is configured, so search is unavailable. You can still use the collection name or enter a title yourself.",
+  collectionShowNoResults:
+    "No matches found. Try a shorter or more exact title.",
+  collectionShowSuggestion:
+    "Suggestion",
+  collectionShowMediaTypeTv:
+    "TV",
+  collectionShowMediaTypeMovie:
+    "Movie",
+  collectionShowManualHeading:
+    "Or enter a title yourself",
+  collectionShowManualLabel:
+    "Show title",
+  collectionShowFolderNotice:
+    "The show folder will be named \"{name}\".",
+  collectionShowUseCollectionMetadata:
+    "Use collection name",
+  collectionShowConfirm:
+    "Use this",
+  collectionShowActivationFailed:
+    "Could not export this collection as a show.",
+  collectionShowLockBusy:
+    "A media server rebuild or batch rename is running. Please try again once it finishes.",
+  collectionShowWrongLayout:
+    "Switch the media server export layout to \"Author \u2192 playlist seasons\" first.",
+  collectionShowPosterWarning:
+    "The show was created, but its poster could not be downloaded. An episode thumbnail is used instead.",
+  collectionShowDisable:
+    "Stop exporting as its own show",
+  collectionShowActive:
+    "Exported as its own show",
   mediaServerExportLayout:
     "Media server export layout",
   mediaServerExportLayoutInactiveWarning:

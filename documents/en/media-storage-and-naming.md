@@ -224,7 +224,62 @@ A video that belongs to two playlists becomes two episodes — one in each seaso
 its own NFO and its own unique id. Both point at the same original file via hard links, so
 this costs no extra space.
 
-### 9.5 Cleanup safety
+### 9.5 Exporting a collection as its own show
+
+By default a collection is a *season* under its author's show. That is wrong for content
+where the collection **is** the title — a drama series posted by an uploader whose channel
+name means nothing to a viewer. In that case Plex shows the uploader's name and avatar,
+because the author show is the only thing MyTube declared.
+
+Open the collection and choose **Export as its own show** to change that. The collection
+then becomes a top-level show with a single `Season 01`, independent of the author:
+
+```text
+uploads/media-library/
+├── Kurzgesagt/                  ← the author show, unchanged
+│   └── Season 01/…
+└── In the Name of the People/    ← the collection, promoted to its own show
+    ├── tvshow.nfo
+    ├── poster.jpg
+    └── Season 01/
+        ├── S01E001 - EP01.mp4
+        └── S01E001 - EP01.nfo
+```
+
+The toggle only appears in the managed-library layout; in `Adjacent sidecars` there is no
+show to promote.
+
+**Choosing the title.** MyTube offers three ways to name the show, and never picks one for
+you:
+
+- **Search TMDB** — enter a title, pick a match. MyTube then stores the TMDB id, the
+  official title, the overview, the first-air date, and downloads the poster. Only matches
+  that pass a strict check are marked as confident; anything weaker is labeled a suggestion
+  and still needs an explicit confirmation. This requires a TMDB API key in Settings.
+- **Enter manually** — type the title yourself. No network call, no poster.
+- **Use collection metadata** — keep the collection's own name and description.
+
+TMDB is used for the *show's* identity only. Episode numbers always come from MyTube's own
+allocator (§9.3) — never from TMDB, which cannot see your files.
+
+**Promotion is not losslessly reversible.** If the collection was already a season under an
+author show, turning this on moves it out: the old season directory is removed and the
+episodes are re-materialized under the new show. Episode *numbers* are carried across, so
+watch state that keys on `SxxExxx` survives, but the season number under the author show is
+retired and is not reused. Turning the toggle back off returns the collection to the author
+show as a **new** season with a new number. If you only want a nicer title on an existing
+season, rename the collection instead — that updates the NFO without moving anything.
+
+Turning the toggle off keeps the resolved TMDB metadata and poster, so re-enabling later
+reuses the same identity without another lookup.
+
+**The folder name is fixed at activation.** It is derived once from the title you accepted,
+sanitized for the filesystem, and never renamed afterwards — the same rule as author shows
+in §9.3. The collection page shows the folder that was actually created once the next
+rebuild has run, which may differ from the title if characters had to be replaced or a
+suffix was needed to avoid a collision.
+
+### 9.6 Cleanup safety
 
 Every file MyTube generates under `uploads/media-library/` is recorded in an ownership
 ledger in the database. Cleanup deletes **only** files listed there. Anything you put in the

@@ -4,6 +4,7 @@ import {
     Avatar,
     Box,
     Button,
+    Chip,
     Container,
     Grid,
     IconButton,
@@ -13,6 +14,7 @@ import {
 } from '@mui/material';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router';
+import ShowExportDialog from '../components/Collections/ShowExportDialog';
 import DeleteCollectionModal from '../components/DeleteCollectionModal';
 import FavoriteToggle from '../components/FavoriteToggle';
 import SortControl from '../components/SortControl';
@@ -27,7 +29,8 @@ import { useVideo } from '../contexts/VideoContext';
 import { useSettings } from '../hooks/useSettings';
 import { useVideoSort } from '../hooks/useVideoSort';
 import { useFavoriteCollections } from '../hooks/useFavoriteCollections';
-import type { Video } from '../types';
+import type { CollectionShowExportResponse, Video } from '../types';
+import { api } from '../utils/apiClient';
 
 
 const CollectionPage: React.FC = () => {
@@ -36,7 +39,7 @@ const CollectionPage: React.FC = () => {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const { showSnackbar } = useSnackbar();
-    const { collections, deleteCollection } = useCollection();
+    const { collections, deleteCollection, fetchCollections } = useCollection();
     const { videos, deleteVideo, availableTags: globalAvailableTags, updateVideo } = useVideo();
     const { setPageTagFilter } = usePageTagFilter();
     const { data: settings } = useSettings();
@@ -51,9 +54,28 @@ const CollectionPage: React.FC = () => {
     const [page, setPage] = useState(1);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
+    const [showExportOpen, setShowExportOpen] = useState(false);
     const ITEMS_PER_PAGE = 12;
 
     const collection = collections.find(c => c.id === id);
+
+    /**
+     * Turning the export off only clears the flag; the resolved title, poster and
+     * TMDB identity are retained so re-enabling later reuses them.
+     */
+    const handleDisableShowExport = useCallback(async () => {
+        if (!collection) return;
+        try {
+            await api.put(`/collections/${collection.id}/show-export`, {
+                enabled: false,
+            });
+            await fetchCollections();
+            showSnackbar(t('collectionShowDisable'), 'success');
+        } catch {
+            showSnackbar(t('collectionShowActivationFailed'), 'error');
+        }
+    }, [collection, fetchCollections, showSnackbar, t]);
+
     const videosById = useMemo(
         () => new Map(videos.map(video => [video.id, video])),
         [videos]
@@ -293,6 +315,48 @@ const CollectionPage: React.FC = () => {
                                             ? `${sortedVideos.length} / ${collectionVideos.length} ${t('videos')}`
                                             : `${collectionVideos.length} ${t('videos')}`}
                                 </Typography>
+
+                                {/* Collection-as-show. Only meaningful in the
+                                    managed-mirror layout, so it stays hidden
+                                    otherwise rather than appearing inert. */}
+                                {settings?.mediaServerExportLayout === 'playlist_tv' && (
+                                    <Box sx={{ mt: 1 }}>
+                                        {collection.exportAsShow ? (
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                                                <Chip
+                                                    size="small"
+                                                    color="primary"
+                                                    label={t('collectionShowActive')}
+                                                />
+                                                {/* The allocated folder, never a
+                                                    name re-derived from the title. */}
+                                                {collection.mediaServerShowDirectoryName && (
+                                                    <Typography
+                                                        variant="caption"
+                                                        color="text.secondary"
+                                                        sx={{ fontFamily: 'monospace' }}
+                                                    >
+                                                        {collection.mediaServerShowDirectoryName}
+                                                    </Typography>
+                                                )}
+                                                <Button
+                                                    size="small"
+                                                    onClick={() => { void handleDisableShowExport(); }}
+                                                >
+                                                    {t('collectionShowDisable')}
+                                                </Button>
+                                            </Box>
+                                        ) : (
+                                            <Button
+                                                size="small"
+                                                variant="outlined"
+                                                onClick={() => setShowExportOpen(true)}
+                                            >
+                                                {t('collectionShowExportToggle')}
+                                            </Button>
+                                        )}
+                                    </Box>
+                                )}
                             </Box>
                         </Box>
 
@@ -373,6 +437,24 @@ const CollectionPage: React.FC = () => {
                     )}
                 </Box>
             </Box>
+
+            {collection && showExportOpen && (
+                <ShowExportDialog
+                    open={showExportOpen}
+                    collection={collection}
+                    onClose={() => setShowExportOpen(false)}
+                    onActivated={(response: CollectionShowExportResponse) => {
+                        setShowExportOpen(false);
+                        void fetchCollections();
+                        showSnackbar(
+                            response.posterWarning
+                                ? t('collectionShowPosterWarning')
+                                : t('collectionShowActive'),
+                            response.posterWarning ? 'warning' : 'success'
+                        );
+                    }}
+                />
+            )}
 
             <DeleteCollectionModal
                 isOpen={showDeleteModal}

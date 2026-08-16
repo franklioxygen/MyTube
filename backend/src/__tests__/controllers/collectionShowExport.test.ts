@@ -5,10 +5,12 @@ const getCollectionByIdMock = vi.hoisted(() => vi.fn());
 const searchCollectionCandidatesMock = vi.hoisted(() => vi.fn());
 const activateCollectionShowMock = vi.hoisted(() => vi.fn());
 const deactivateCollectionShowMock = vi.hoisted(() => vi.fn());
+const getCollectionsMock = vi.hoisted(() => vi.fn());
+const listMediaServerShowsMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../services/storageService", () => ({
   getCollectionById: getCollectionByIdMock,
-  getCollections: vi.fn(),
+  getCollections: getCollectionsMock,
   saveCollection: vi.fn(),
   deleteCollection: vi.fn(),
   atomicUpdateCollection: vi.fn(),
@@ -28,11 +30,16 @@ vi.mock("../../services/mediaServerExport/collectionShowActivation", () => ({
   deactivateCollectionShow: deactivateCollectionShowMock,
 }));
 
+vi.mock("../../services/mediaServerExport/catalogRepository", () => ({
+  listMediaServerShows: listMediaServerShowsMock,
+}));
+
 vi.mock("../../utils/logger", () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() },
 }));
 
 import {
+  getCollections,
   searchCollectionTmdb,
   updateCollectionShowExport,
 } from "../../controllers/collectionController";
@@ -63,6 +70,8 @@ describe("collection show-export API", () => {
       status: "ok",
       collection: { id: "c1" },
     });
+    getCollectionsMock.mockReturnValue([]);
+    listMediaServerShowsMock.mockReturnValue([]);
   });
 
   describe("TMDB search", () => {
@@ -279,6 +288,89 @@ describe("collection show-export API", () => {
 
       expect(deactivateCollectionShowMock).toHaveBeenCalledWith("c1");
       expect(activateCollectionShowMock).not.toHaveBeenCalled();
+    });
+  });
+
+  /**
+   * The show folder is allocated once from the accepted title and never
+   * renamed, so sanitization or a de-duplication suffix can make it differ from
+   * that title. Responses therefore carry the stored name, never a re-derivation.
+   */
+  describe("show directory name", () => {
+    it("attaches the allocated directory to a marked collection", async () => {
+      listMediaServerShowsMock.mockReturnValue([
+        {
+          id: "s1",
+          sourceCollectionId: "c1",
+          directoryName: "人民的名义 (2017)",
+        },
+      ]);
+      activateCollectionShowMock.mockResolvedValue({
+        status: "ok",
+        collection: { id: "c1", exportAsShow: 1, title: "人民的名义/超清" },
+      });
+      const res = mockRes();
+
+      await updateCollectionShowExport(
+        req({ enabled: true, mode: "tmdb", tmdbId: 1, mediaType: "tv" }),
+        res
+      );
+
+      expect(res.json).toHaveBeenCalledWith({
+        collection: expect.objectContaining({
+          mediaServerShowDirectoryName: "人民的名义 (2017)",
+        }),
+        posterWarning: false,
+      });
+    });
+
+    it("omits the field before the reconciler has allocated a folder", async () => {
+      listMediaServerShowsMock.mockReturnValue([]);
+      activateCollectionShowMock.mockResolvedValue({
+        status: "ok",
+        collection: { id: "c1", exportAsShow: 1 },
+      });
+      const res = mockRes();
+
+      await updateCollectionShowExport(
+        req({ enabled: true, mode: "collection" }),
+        res
+      );
+
+      expect(res.json).toHaveBeenCalledWith({
+        collection: { id: "c1", exportAsShow: 1 },
+        posterWarning: false,
+      });
+    });
+
+    it("never reads the catalog when nothing is marked", async () => {
+      getCollectionsMock.mockReturnValue([{ id: "c1" }, { id: "c2" }]);
+      const res = mockRes();
+
+      await getCollections({} as never, res);
+
+      expect(listMediaServerShowsMock).not.toHaveBeenCalled();
+      expect(res.json).toHaveBeenCalledWith([{ id: "c1" }, { id: "c2" }]);
+    });
+
+    it("enriches only the marked collections in the list", async () => {
+      getCollectionsMock.mockReturnValue([
+        { id: "c1", exportAsShow: 1 },
+        { id: "c2" },
+      ]);
+      listMediaServerShowsMock.mockReturnValue([
+        { id: "s1", sourceCollectionId: "c1", directoryName: "Drama" },
+        // An author show: no sourceCollectionId, so it maps to nothing.
+        { id: "s2", directoryName: "Some Channel" },
+      ]);
+      const res = mockRes();
+
+      await getCollections({} as never, res);
+
+      expect(res.json).toHaveBeenCalledWith([
+        { id: "c1", exportAsShow: 1, mediaServerShowDirectoryName: "Drama" },
+        { id: "c2" },
+      ]);
     });
   });
 });

@@ -23,11 +23,11 @@ describe('CollectionController', () => {
   });
 
   describe('getCollections', () => {
-    it('should return collections', () => {
+    it('should return collections', async () => {
       const mockCollections = [{ id: '1', title: 'Col 1', videos: [] }];
       (storageService.getCollections as any).mockReturnValue(mockCollections);
 
-      getCollections(req as Request, res as Response);
+      await getCollections(req as Request, res as Response);
 
       expect(json).toHaveBeenCalledWith(mockCollections);
     });
