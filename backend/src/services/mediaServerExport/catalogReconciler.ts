@@ -8,6 +8,7 @@ import type {
 import {
   attachCollectionToShow,
   deleteEpisodeAssignment,
+  ensureCollectionShow,
   ensureEpisodeAssignment,
   ensureMediaServerShow,
   getEpisodeAssignmentOccurrence,
@@ -35,6 +36,30 @@ import type { MediaServerExportSkipReason } from "./types";
  * only once every allocation has committed, so a retry can never produce two
  * trees for one playlist.
  */
+
+/**
+ * A collection-show holds exactly one season. Season 01 rather than 00 because
+ * these are real, ordered episodes — not the unassigned specials bucket.
+ */
+export const COLLECTION_SHOW_SEASON_NUMBER = 1;
+
+/**
+ * Display title for a marked collection, in the order the design fixes:
+ * the resolved media-server title (TMDB or manual), then the collection's own.
+ */
+export function resolveCollectionShowTitle(collection: Collection): string {
+  const candidates = [
+    collection.mediaServerTitle,
+    collection.title,
+    collection.name,
+  ];
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && candidate.trim()) {
+      return candidate.trim();
+    }
+  }
+  return "Untitled Collection";
+}
 
 /** Collection source types that carry a durable playlist identity. */
 const SOURCE_BACKED_COLLECTION_TYPES = new Set([
@@ -131,6 +156,14 @@ function findCompatibleExistingShow(
   const candidateAuthor = normalizeAuthorIdentity(title);
 
   const matches = listMediaServerShows().filter((show) => {
+    // A collection-show is never a candidate. The `collection:<id>` identity
+    // prefix alone is not enough protection, because this function also matches
+    // on platform and normalized title — two dramas sharing a name would
+    // otherwise be merged into one show, permanently.
+    if (show.sourceCollectionId) {
+      return false;
+    }
+
     if (show.sourcePlatform !== identity.platform) {
       return false;
     }
@@ -287,6 +320,16 @@ export function reconcileMediaServerCatalog(
   /** Videos that received at least one playlist assignment in this run. */
   const playlistAssignedVideoIds = new Set<string>();
 
+  /**
+   * Collections this run actually walked in the season/show pass. The stale
+   * pass may only reason about occurrence keys for these; for any other
+   * collection it falls back to the membership check, so an incremental
+   * reconcile scoped elsewhere never deletes assignments it did not evaluate.
+   */
+  const evaluatedCollectionIds = new Set<string>();
+  const inScopeCollectionEvaluated = (collectionId: string): boolean =>
+    evaluatedCollectionIds.has(collectionId);
+
   // ---------------------------------------------------------------------
   // 1. Seasons: source-backed playlist collections.
   //
@@ -306,8 +349,87 @@ export function reconcileMediaServerCatalog(
     return left.id.localeCompare(right.id);
   });
 
+  // ---------------------------------------------------------------------
+  // 0. Marked collections become shows in their own right.
+  //
+  // Runs before the author pass so a marked collection is never also treated
+  // as a season, and so its assignments already exist when the Season 00 rule
+  // decides whether a video still needs a special.
+  // ---------------------------------------------------------------------
+  for (const collection of orderedCollections) {
+    if (!inScopeCollection(collection.id) || !collection.exportAsShow) {
+      continue;
+    }
+
+    evaluatedCollectionIds.add(collection.id);
+
+    let show: MediaServerShow;
+    try {
+      show = ensureCollectionShow({
+        collectionId: collection.id,
+        title: resolveCollectionShowTitle(collection),
+        description:
+          collection.mediaServerDescription ?? collection.description ?? "",
+        posterSourcePath: collection.mediaServerPosterPath,
+        tmdbId: collection.tmdbId,
+        tmdbMediaType: collection.tmdbMediaType,
+        premiered: collection.tmdbPremiereDate,
+      });
+    } catch (error) {
+      result.issues.push({
+        reason:
+          error instanceof MediaServerCatalogError
+            ? (error.code as MediaServerExportSkipReason)
+            : "invalid_catalog_assignment",
+        detail: error instanceof Error ? error.message : String(error),
+        collectionId: collection.id,
+      });
+      continue;
+    }
+
+    result.affectedShowIds.add(show.id);
+
+    // A collection-show holds exactly one season.
+    let position = 0;
+    for (const videoId of collection.videos ?? []) {
+      position += 1;
+      const video = videosById.get(videoId);
+      if (!video || !isEligibleVideo(video) || !inScopeVideo(videoId)) {
+        continue;
+      }
+
+      try {
+        const assignment = ensureEpisodeAssignment({
+          showId: show.id,
+          collectionId: collection.id,
+          videoId,
+          seasonNumber: COLLECTION_SHOW_SEASON_NUMBER,
+          videoTitle: video.title,
+          sourcePosition: position,
+        });
+        playlistAssignedVideoIds.add(videoId);
+        result.createdAssignments.push(assignment);
+      } catch (error) {
+        result.issues.push({
+          reason:
+            error instanceof MediaServerCatalogError
+              ? (error.code as MediaServerExportSkipReason)
+              : "invalid_catalog_assignment",
+          detail: error instanceof Error ? error.message : String(error),
+          collectionId: collection.id,
+          videoId,
+        });
+      }
+    }
+  }
+
   for (const collection of orderedCollections) {
     if (!inScopeCollection(collection.id)) {
+      continue;
+    }
+
+    // A marked collection is a show, never a season under an author show.
+    if (collection.exportAsShow) {
       continue;
     }
 
@@ -315,6 +437,8 @@ export function reconcileMediaServerCatalog(
     if (!isSourceBackedPlaylistCollection(collection, subscriptionsByCollectionId)) {
       continue;
     }
+
+    evaluatedCollectionIds.add(collection.id);
 
     const memberVideos = (collection.videos ?? [])
       .map((videoId) => videosById.get(videoId))
@@ -407,6 +531,22 @@ export function reconcileMediaServerCatalog(
   // membership just disappeared regains its special occurrence in the same
   // reconcile, rather than being absent from the mirror until the next one.
   // ---------------------------------------------------------------------
+  // Keyed on the full occurrence, not just (collection, video).
+  //
+  // A membership-only key cannot tell an obsolete assignment from the desired
+  // one when a collection moves between shows: after a season→show promotion the
+  // old author-season row and the new collection-show row reference the same
+  // collection and the same video, so the stale row would survive and the mirror
+  // would keep a duplicate under the old show.
+  const desiredOccurrenceKeys = new Set<string>();
+  for (const assignment of result.createdAssignments) {
+    desiredOccurrenceKeys.add(
+      `${assignment.collectionId ?? ""}:${assignment.showId}:${
+        assignment.seasonNumber
+      }:${assignment.videoId}`
+    );
+  }
+
   const membershipKeys = new Set<string>();
   for (const collection of input.collections) {
     for (const videoId of collection.videos ?? []) {
@@ -425,7 +565,19 @@ export function reconcileMediaServerCatalog(
       if (!inScopeCollection(assignment.collectionId)) {
         continue;
       }
-      if (membershipKeys.has(`${assignment.collectionId}:${video.id}`)) {
+
+      const occurrenceKey = `${assignment.collectionId}:${assignment.showId}:${assignment.seasonNumber}:${assignment.videoId}`;
+      if (desiredOccurrenceKeys.has(occurrenceKey)) {
+        continue;
+      }
+
+      // Fall back to the membership check only when this run did not touch the
+      // collection at all, so an incremental reconcile scoped elsewhere never
+      // deletes assignments it did not evaluate.
+      if (
+        !inScopeCollectionEvaluated(assignment.collectionId) &&
+        membershipKeys.has(`${assignment.collectionId}:${video.id}`)
+      ) {
         continue;
       }
 

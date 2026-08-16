@@ -8,7 +8,7 @@ ALTER TABLE `collections` ADD `tmdb_media_type` text;--> statement-breakpoint
 ALTER TABLE `collections` ADD `tmdb_premiere_date` text;--> statement-breakpoint
 ALTER TABLE `collections` ADD `tmdb_match_strategy` text;--> statement-breakpoint
 ALTER TABLE `collections` ADD `tmdb_match_confirmed_at` integer;--> statement-breakpoint
-ALTER TABLE `media_server_shows` ADD `source_collection_id` text REFERENCES collections(id);--> statement-breakpoint
+ALTER TABLE `media_server_shows` ADD `source_collection_id` text;--> statement-breakpoint
 ALTER TABLE `media_server_shows` ADD `tmdb_id` integer;--> statement-breakpoint
 ALTER TABLE `media_server_shows` ADD `tmdb_media_type` text;--> statement-breakpoint
 ALTER TABLE `media_server_shows` ADD `premiered` text;--> statement-breakpoint

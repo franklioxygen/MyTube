@@ -8,6 +8,10 @@ import {
 } from "../../db/schema";
 import { logger } from "../../utils/logger";
 import {
+  buildCollectionShowIdentityKey,
+  COLLECTION_SHOW_PLATFORM,
+} from "./identity";
+import {
   buildExportStem,
   getSeasonZeroTitle,
   padEpisodeNumber,
@@ -364,6 +368,116 @@ export function ensureMediaServerShow(
     });
     return toShow(row);
   });
+}
+
+export interface EnsureCollectionShowInput {
+  collectionId: string;
+  /** Already-resolved display title — TMDB, manual, or the collection's own. */
+  title: string;
+  description?: string;
+  posterSourcePath?: string;
+  tmdbId?: number;
+  tmdbMediaType?: "tv" | "movie";
+  premiered?: string;
+}
+
+/**
+ * Resolves the show for a marked collection, creating it on first activation.
+ *
+ * Kept separate from `ensureMediaServerShow()` on purpose: that path runs the
+ * author compatibility matcher, which would happily merge two collection-shows
+ * that share a title. A collection-show is keyed on its collection id alone.
+ *
+ * Like an author show, the directory name is allocated exactly once. A later
+ * metadata change updates the NFO, never the folder.
+ */
+export function ensureCollectionShow(
+  input: EnsureCollectionShowInput
+): MediaServerShow {
+  const identityKey = buildCollectionShowIdentityKey(input.collectionId);
+  const existing = getMediaServerShowByIdentityKey(identityKey);
+  if (existing) {
+    return (
+      updateMediaServerShowMetadata(existing.id, {
+        title: input.title,
+        description: input.description ?? "",
+        posterSourcePath: input.posterSourcePath ?? null,
+      }) ?? existing
+    );
+  }
+
+  return runAllocation("ensureCollectionShow", () => {
+    const raced = db
+      .select()
+      .from(mediaServerShows)
+      .where(eq(mediaServerShows.identityKey, identityKey))
+      .get();
+    if (raced) {
+      return toShow(raced);
+    }
+
+    const now = Date.now();
+    const row: ShowRow = {
+      id: `msc_${createHash("sha256")
+        .update(identityKey)
+        .digest("hex")
+        .slice(0, 24)}`,
+      identityKey,
+      sourcePlatform: COLLECTION_SHOW_PLATFORM,
+      sourceChannelId: null,
+      sourceChannelUrl: null,
+      title: input.title,
+      description: input.description ?? "",
+      posterSourcePath: input.posterSourcePath ?? null,
+      directoryName: allocateDirectoryName({
+        identityKey,
+        sourcePlatform: COLLECTION_SHOW_PLATFORM,
+        title: input.title,
+      }),
+      // A collection-show holds exactly one season; the counter exists only to
+      // satisfy the shared schema.
+      nextSeasonNumber: 2,
+      sourceCollectionId: input.collectionId,
+      tmdbId: input.tmdbId ?? null,
+      tmdbMediaType: input.tmdbMediaType ?? null,
+      premiered: input.premiered ?? null,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    db.insert(mediaServerShows).values(row).run();
+    logger.info("Created media server show from a collection", {
+      layout: "playlist_tv",
+      action: "reconcile",
+      showId: row.id,
+      collectionId: input.collectionId,
+      directoryName: row.directoryName,
+    });
+    return toShow(row);
+  });
+}
+
+/** Updates the offline TMDB projection on an existing collection-show. */
+export function updateCollectionShowIdentity(
+  showId: string,
+  patch: {
+    tmdbId?: number | null;
+    tmdbMediaType?: "tv" | "movie" | null;
+    premiered?: string | null;
+  }
+): void {
+  db.update(mediaServerShows)
+    .set({ ...patch, updatedAt: Date.now() })
+    .where(eq(mediaServerShows.id, showId))
+    .run();
+}
+
+export function getCollectionShow(
+  collectionId: string
+): MediaServerShow | undefined {
+  return getMediaServerShowByIdentityKey(
+    buildCollectionShowIdentityKey(collectionId)
+  );
 }
 
 export interface MediaServerShowMetadataPatch {
