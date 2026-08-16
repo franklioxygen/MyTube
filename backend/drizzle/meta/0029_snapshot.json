@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "95e32b4b-e17c-418a-8266-bafa70f3d188",
+  "id": "7514acff-e0d6-4b36-9a61-28b19e88e492",
   "prevId": "a90467b3-b357-4775-8654-617a257bb718",
   "tables": {
     "collection_videos": {
@@ -1353,21 +1353,7 @@
           "where": "\"media_server_shows\".\"source_collection_id\" IS NOT NULL"
         }
       },
-      "foreignKeys": {
-        "media_server_shows_source_collection_id_collections_id_fk": {
-          "name": "media_server_shows_source_collection_id_collections_id_fk",
-          "tableFrom": "media_server_shows",
-          "tableTo": "collections",
-          "columnsFrom": [
-            "source_collection_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
