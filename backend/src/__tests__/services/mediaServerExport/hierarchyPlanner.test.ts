@@ -516,6 +516,73 @@ describe("mediaServerExport hierarchyPlanner", () => {
       expect(withThumbnail.shows[0].posterSourceAbsolutePath).toBe(thumbnail);
     });
 
+    /**
+     * A drama uploaded by a third-party channel must not be posterised with the
+     * uploader's avatar — the complaint this whole feature exists to fix.
+     */
+    it("skips the author avatar for a collection show", () => {
+      const avatar = `${testPaths.avatars}/avatar.jpg`;
+      const thumbnail = `${testPaths.images}/thumb.jpg`;
+
+      const plan = planMediaServerHierarchy(
+        snapshot({
+          shows: [show({ sourceCollectionId: "c1" })],
+          videos: [
+            video({
+              authorAvatarPath: "/avatars/avatar.jpg",
+              thumbnailPath: "/images/thumb.jpg",
+            }),
+          ],
+        }),
+        { mode: "nfo" },
+        probeFor([antsMedia, avatar, thumbnail])
+      );
+
+      expect(plan.shows[0].posterSourceAbsolutePath).toBe(thumbnail);
+    });
+
+    it("still prefers a persisted poster for a collection show", () => {
+      const persisted = `${testPaths.images}/persisted.jpg`;
+      const thumbnail = `${testPaths.images}/thumb.jpg`;
+
+      const plan = planMediaServerHierarchy(
+        snapshot({
+          shows: [
+            show({
+              sourceCollectionId: "c1",
+              posterSourcePath: "/images/persisted.jpg",
+            }),
+          ],
+          videos: [video({ thumbnailPath: "/images/thumb.jpg" })],
+        }),
+        { mode: "nfo" },
+        probeFor([antsMedia, persisted, thumbnail])
+      );
+
+      expect(plan.shows[0].posterSourceAbsolutePath).toBe(persisted);
+    });
+
+    it("keeps avatar fallback for author shows", () => {
+      // Regression: the collection-show branch must not remove this globally.
+      const avatar = `${testPaths.avatars}/avatar.jpg`;
+      const thumbnail = `${testPaths.images}/thumb.jpg`;
+
+      const plan = planMediaServerHierarchy(
+        snapshot({
+          videos: [
+            video({
+              authorAvatarPath: "/avatars/avatar.jpg",
+              thumbnailPath: "/images/thumb.jpg",
+            }),
+          ],
+        }),
+        { mode: "nfo" },
+        probeFor([antsMedia, avatar, thumbnail])
+      );
+
+      expect(plan.shows[0].posterSourceAbsolutePath).toBe(avatar);
+    });
+
     it("plans no poster artifact when no artwork resolves", () => {
       const plan = planMediaServerHierarchy(
         snapshot({}),
@@ -667,6 +734,19 @@ describe("mediaServerExport hierarchyPlanner", () => {
     );
 
     expect(plan.shows.map((entry) => entry.show.id)).toEqual(["show-2"]);
+  });
+
+  it("prefers a confirmed TMDB premiere date over the earliest episode date", () => {
+    const plan = planMediaServerHierarchy(
+      snapshot({
+        shows: [show({ sourceCollectionId: "c1", premiered: "2017-03-28" })],
+      }),
+      { mode: "nfo" },
+      probeFor([antsMedia])
+    );
+
+    // The episode uploaded 2026-05-25 must not override the real air date.
+    expect(plan.shows[0].premiered).toBe("2017-03-28");
   });
 
   it("is deterministic across repeated runs", () => {

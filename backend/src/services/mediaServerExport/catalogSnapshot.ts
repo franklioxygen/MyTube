@@ -5,7 +5,10 @@ import {
   listMediaServerShows,
 } from "./catalogRepository";
 import { getSeasonZeroTitle } from "./naming";
-import type { CatalogReconcileSubscription } from "./catalogReconciler";
+import {
+  COLLECTION_SHOW_SEASON_NUMBER,
+  type CatalogReconcileSubscription,
+} from "./catalogReconciler";
 import { resolveSeasonMetadata } from "./metadataResolver";
 import type {
   MediaServerCatalogSnapshot,
@@ -37,6 +40,29 @@ export function buildMediaServerCatalogSnapshot(input: {
   }
 
   const seasons: MediaServerSeason[] = [];
+
+  // A marked collection is its own show holding one season. Its collection row
+  // carries no `mediaServerShowId` (that column tracks author-season
+  // attachment), so the season entry is derived from the show instead. Without
+  // this the planner would fall back to a bare `Season 01` label and a
+  // show-derived season id rather than the collection-scoped one.
+  const collectionShowsByCollectionId = new Map(
+    shows
+      .filter((show) => show.sourceCollectionId)
+      .map((show) => [show.sourceCollectionId as string, show])
+  );
+  for (const [collectionId, show] of collectionShowsByCollectionId) {
+    seasons.push({
+      showId: show.id,
+      seasonNumber: COLLECTION_SHOW_SEASON_NUMBER,
+      collectionId,
+      // The show already carries the drama's title and overview; repeating them
+      // on the season would show the same text twice in most media servers.
+      title: `Season ${String(COLLECTION_SHOW_SEASON_NUMBER).padStart(2, "0")}`,
+      plot: "",
+    });
+  }
+
   for (const collection of input.collections) {
     if (
       !collection.mediaServerShowId ||

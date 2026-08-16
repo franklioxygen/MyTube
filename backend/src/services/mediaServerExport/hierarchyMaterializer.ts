@@ -255,6 +255,8 @@ function materializeShow(
       premiered: showPlan.premiered,
       studio: showPlan.show.title,
       showUniqueId: showPlan.showUniqueId,
+      tmdbId: showPlan.show.tmdbId,
+      tmdbMediaType: showPlan.show.tmdbMediaType,
     }),
     artifactType: "show_nfo",
     showId,
