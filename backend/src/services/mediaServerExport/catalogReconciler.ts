@@ -13,6 +13,7 @@ import {
   ensureMediaServerShow,
   getEpisodeAssignmentOccurrence,
   getMediaServerShowByIdentityKey,
+  listAssignmentsForCollection,
   listAssignmentsForVideo,
   listMediaServerShows,
   MediaServerCatalogError,
@@ -389,6 +390,25 @@ export function reconcileMediaServerCatalog(
 
     result.affectedShowIds.add(show.id);
 
+    // Numbering to carry across a promotion. When this collection was already a
+    // season under an author show, reusing each episode's number and stem keeps
+    // the mirror filenames identical across the move, so a media server does not
+    // see every episode vanish and reappear renamed.
+    const carryOverByVideoId = new Map<
+      string,
+      { episodeNumber: number; exportStem: string; sourcePosition?: number }
+    >();
+    for (const previous of listAssignmentsForCollection(collection.id)) {
+      if (previous.showId === show.id) {
+        continue;
+      }
+      carryOverByVideoId.set(previous.videoId, {
+        episodeNumber: previous.episodeNumber,
+        exportStem: previous.exportStem,
+        sourcePosition: previous.sourcePosition,
+      });
+    }
+
     // A collection-show holds exactly one season.
     let position = 0;
     for (const videoId of collection.videos ?? []) {
@@ -399,13 +419,15 @@ export function reconcileMediaServerCatalog(
       }
 
       try {
+        const carryOver = carryOverByVideoId.get(videoId);
         const assignment = ensureEpisodeAssignment({
           showId: show.id,
           collectionId: collection.id,
           videoId,
           seasonNumber: COLLECTION_SHOW_SEASON_NUMBER,
           videoTitle: video.title,
-          sourcePosition: position,
+          sourcePosition: carryOver ? undefined : position,
+          carryOver,
         });
         playlistAssignedVideoIds.add(videoId);
         result.createdAssignments.push(assignment);
