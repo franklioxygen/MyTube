@@ -183,6 +183,10 @@ export async function downloadVideo(
       ...networkConfig,
       noWarnings: true,
       skipDownload: true,
+      // Without this, a `watch?v=X&list=Y` URL makes yt-dlp extract full
+      // metadata for every video in the playlist — minutes of work for a
+      // single-video request, and a failure if any entry is private.
+      noPlaylist: true,
       ...(PROVIDER_SCRIPT
         ? {
             extractorArgs: `youtubepot-bgutilscript:script_path=${PROVIDER_SCRIPT}`,
