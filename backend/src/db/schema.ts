@@ -176,10 +176,15 @@ export const mediaServerShows = sqliteTable(
     // Set when this show came from a marked collection rather than an author.
     // Its presence is what excludes the row from the author compatibility
     // matcher, which would otherwise merge two same-titled dramas.
-    sourceCollectionId: text("source_collection_id").references(
-      (): any => collections.id,
-      { onDelete: "set null" }
-    ),
+    //
+    // Deliberately NOT a foreign key. SQLite's ALTER TABLE ADD COLUMN cannot
+    // carry an ON DELETE action, so drizzle emits a plain `REFERENCES` that
+    // defaults to NO ACTION — which would make deleting a collection that has a
+    // collection-show fail outright, the opposite of the intended SET NULL. The
+    // design also requires the show row to survive collection deletion so a
+    // later re-enable keeps its identity, and the deletion path clears this
+    // column explicitly.
+    sourceCollectionId: text("source_collection_id"),
     // Offline projection of the resolved external identity, so the pure planner
     // can build tvshow.nfo without touching the collection row or the network.
     tmdbId: integer("tmdb_id"),

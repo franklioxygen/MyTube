@@ -163,6 +163,29 @@ export function resolveShowIdentity(
 }
 
 /**
+ * Platform token for shows that come from a marked collection rather than a
+ * source channel. Deliberately not a real platform: a collection-show is a
+ * MyTube-local concept and must never sit in the same identity namespace as a
+ * YouTube or Bilibili channel.
+ */
+export const COLLECTION_SHOW_PLATFORM = "mytube";
+
+/**
+ * Identity for a collection exported as its own show.
+ *
+ * Keyed on the collection id alone — never on the title — so renaming the
+ * collection, or two unrelated dramas sharing a name, can never collapse two
+ * shows into one.
+ */
+export function buildCollectionShowIdentityKey(collectionId: string): string {
+  return `collection:${collectionId}`;
+}
+
+export function isCollectionShowIdentityKey(identityKey: string): boolean {
+  return identityKey.startsWith("collection:");
+}
+
+/**
  * True when `candidate` is a strictly stronger identity for a show that was
  * created from a weaker one.
  *
