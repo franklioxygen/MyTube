@@ -115,16 +115,39 @@ vi.mock("../../../services/storageService/collectionRepository", () => ({
     libraryCollections.map((collection) => {
       const row = testDb.sqlite
         .prepare(
-          "SELECT media_server_show_id AS showId, media_server_season_number AS seasonNumber FROM collections WHERE id = ?"
+          `SELECT media_server_show_id AS showId,
+                  media_server_season_number AS seasonNumber,
+                  export_as_show AS exportAsShow,
+                  media_server_title AS mediaServerTitle,
+                  tmdb_id AS tmdbId,
+                  tmdb_media_type AS tmdbMediaType,
+                  tmdb_premiere_date AS tmdbPremiereDate
+             FROM collections WHERE id = ?`
         )
         .get(collection.id) as
-        | { showId: string | null; seasonNumber: number | null }
+        | {
+            showId: string | null;
+            seasonNumber: number | null;
+            exportAsShow: number | null;
+            mediaServerTitle: string | null;
+            tmdbId: number | null;
+            tmdbMediaType: string | null;
+            tmdbPremiereDate: string | null;
+          }
         | undefined;
 
       return {
         ...collection,
         mediaServerShowId: row?.showId ?? undefined,
         mediaServerSeasonNumber: row?.seasonNumber ?? undefined,
+        exportAsShow: row?.exportAsShow ?? 0,
+        mediaServerTitle: row?.mediaServerTitle ?? undefined,
+        tmdbId: row?.tmdbId ?? undefined,
+        tmdbMediaType:
+          row?.tmdbMediaType === "tv" || row?.tmdbMediaType === "movie"
+            ? row.tmdbMediaType
+            : undefined,
+        tmdbPremiereDate: row?.tmdbPremiereDate ?? undefined,
       };
     }),
 }));
@@ -178,6 +201,8 @@ function video(overrides: Partial<Video>): Video {
     source: "youtube",
     channelUrl: CHANNEL_URL,
     createdAt: "2026-01-01T00:00:00.000Z",
+    // Every video from one channel carries the same avatar.
+    authorAvatarPath: "/avatars/kurzgesagt.jpg",
     ...overrides,
   } as Video;
 }
@@ -193,8 +218,9 @@ function seedRows(): void {
       .prepare(
         `INSERT OR IGNORE INTO collections
            (id, name, title, created_at, source_type, source_platform, source_channel_id,
-            source_channel_name, description)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+            source_channel_name, description, export_as_show, media_server_title,
+            tmdb_id, tmdb_media_type, tmdb_premiere_date)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         entry.id,
@@ -205,7 +231,12 @@ function seedRows(): void {
         entry.sourcePlatform ?? null,
         entry.sourceChannelId ?? null,
         entry.sourceChannelName ?? null,
-        entry.description ?? null
+        entry.description ?? null,
+        entry.exportAsShow ?? 0,
+        entry.mediaServerTitle ?? null,
+        entry.tmdbId ?? null,
+        entry.tmdbMediaType ?? null,
+        entry.tmdbPremiereDate ?? null
       );
   }
 }
@@ -598,6 +629,200 @@ describe("playlist_tv end-to-end fixture (issue #411)", () => {
     expect(
       fs.readFileSync(path.join(testPaths.videos, "Kurzgesagt/ants.mp4"), "utf8")
     ).toBe("ants-bytes");
+  });
+
+  /**
+   * Collection-as-show, exercised in the same fixture so author-show behavior is
+   * proven unchanged in the same run.
+   */
+  describe("collection-as-show", () => {
+    function markExistentialAsShow(
+      overrides: {
+        mediaServerTitle?: string;
+        tmdbId?: number;
+        tmdbMediaType?: "tv" | "movie";
+        tmdbPremiereDate?: string;
+      } = {}
+    ): void {
+      testDb.sqlite
+        .prepare(
+          `UPDATE collections
+              SET export_as_show = 1,
+                  media_server_title = ?,
+                  tmdb_id = ?,
+                  tmdb_media_type = ?,
+                  tmdb_premiere_date = ?
+            WHERE id = 'c-existential'`
+        )
+        .run(
+          overrides.mediaServerTitle ?? null,
+          overrides.tmdbId ?? null,
+          overrides.tmdbMediaType ?? null,
+          overrides.tmdbPremiereDate ?? null
+        );
+      libraryCollections[0].exportAsShow = 1;
+    }
+
+    it("coexists with the author show in one mirror", () => {
+      rebuild();
+      markExistentialAsShow({ mediaServerTitle: "人民的名义" });
+      const result = rebuild();
+
+      expect(result.failures).toEqual([]);
+
+      const showDirs = fs
+        .readdirSync(testPaths.mediaLibrary, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory())
+        .map((entry) => entry.name)
+        .sort();
+
+      // The author show survives with its remaining playlist; the promoted
+      // collection is now its own show.
+      expect(showDirs).toEqual(["Kurzgesagt – In a Nutshell", "人民的名义"]);
+
+      const tree = listMirror();
+      expect(tree).toContain("人民的名义/tvshow.nfo");
+      expect(tree).toContain("人民的名义/Season 01/season.nfo");
+      // Its episodes left the author show's Season 01.
+      expect(
+        tree.filter((p) =>
+          p.startsWith("Kurzgesagt – In a Nutshell/Season 01/")
+        )
+      ).toEqual([]);
+    });
+
+    it("keeps episode numbers and filenames across the promotion", () => {
+      rebuild();
+      const before = listMirror()
+        .filter((p) => p.startsWith("Kurzgesagt – In a Nutshell/Season 01/"))
+        .map((p) => p.split("/").pop() as string)
+        .filter((name) => name.endsWith(".mp4"))
+        .sort();
+
+      markExistentialAsShow({ mediaServerTitle: "人民的名义" });
+      rebuild();
+
+      const after = listMirror()
+        .filter((p) => p.startsWith("人民的名义/Season 01/"))
+        .map((p) => p.split("/").pop() as string)
+        .filter((name) => name.endsWith(".mp4"))
+        .sort();
+
+      // Same SxxExxx tokens and titles — only the show directory changed.
+      expect(after).toEqual(before);
+    });
+
+    it("writes the TMDB identity and premiere date into tvshow.nfo", () => {
+      rebuild();
+      markExistentialAsShow({
+        mediaServerTitle: "人民的名义",
+        tmdbId: 72517,
+        tmdbMediaType: "tv",
+        tmdbPremiereDate: "2017-03-28",
+      });
+      rebuild();
+
+      const $ = readXml("人民的名义", "tvshow.nfo");
+      expect($("tvshow > title").text()).toBe("人民的名义");
+      expect($('tvshow > uniqueid[type="tmdb"]').text()).toBe("72517");
+      expect($('tvshow > uniqueid[type="mytube"]').attr("default")).toBe("true");
+      // The real air date, not the earliest episode upload.
+      expect($("tvshow > premiered").text()).toBe("2017-03-28");
+    });
+
+    it("posters a collection show from an episode, never the author avatar", () => {
+      rebuild();
+      // The author show uses the avatar.
+      expect(
+        fs.readFileSync(
+          mirror("Kurzgesagt – In a Nutshell", "poster.jpg"),
+          "utf8"
+        )
+      ).toBe("avatar-bytes");
+
+      markExistentialAsShow({ mediaServerTitle: "人民的名义" });
+      rebuild();
+
+      // The collection show uses its first episode's thumbnail instead.
+      expect(fs.readFileSync(mirror("人民的名义", "poster.jpg"), "utf8")).toBe(
+        "origins-thumb"
+      );
+      // The author show keeps its avatar.
+      expect(
+        fs.readFileSync(
+          mirror("Kurzgesagt – In a Nutshell", "poster.jpg"),
+          "utf8"
+        )
+      ).toBe("avatar-bytes");
+    });
+
+    it("keeps the duplicate video in both the collection show and the other playlist", () => {
+      rebuild();
+      markExistentialAsShow({ mediaServerTitle: "人民的名义" });
+      rebuild();
+
+      const inCollectionShow = mirror(
+        "人民的名义",
+        "Season 01",
+        "S01E002 - The Egg.mp4"
+      );
+      const inAuthorSeason = mirror(
+        "Kurzgesagt – In a Nutshell",
+        "Season 02",
+        "S02E001 - The Egg.mp4"
+      );
+
+      expect(fs.readFileSync(inCollectionShow, "utf8")).toBe("egg-bytes");
+      expect(fs.readFileSync(inAuthorSeason, "utf8")).toBe("egg-bytes");
+      // One payload on disk, shared with the original.
+      expect(fs.statSync(inCollectionShow).ino).toBe(
+        fs.statSync(inAuthorSeason).ino
+      );
+      expect(fs.statSync(inCollectionShow).ino).toBe(
+        fs.statSync(path.join(testPaths.videos, "Kurzgesagt/the-egg.mp4")).ino
+      );
+    });
+
+    it("is idempotent after promotion and leaves originals untouched", () => {
+      rebuild();
+      markExistentialAsShow({ mediaServerTitle: "人民的名义" });
+      rebuild();
+
+      const tree = listMirror();
+      const mtimes = new Map(
+        tree.map((p) => [p, fs.statSync(mirror(...p.split("/"))).mtimeMs])
+      );
+
+      const second = rebuild();
+
+      expect(second.failures).toEqual([]);
+      expect(listMirror()).toEqual(tree);
+      expect(second.counts.linkedMedia).toBe(0);
+      expect(second.counts.copiedMedia).toBe(0);
+      expect(second.counts.removedArtifacts).toBe(0);
+      for (const [p, mtime] of mtimes) {
+        expect(fs.statSync(mirror(...p.split("/"))).mtimeMs).toBe(mtime);
+      }
+
+      for (const [name, contents] of [
+        ["human-origins.mp4", "origins-bytes"],
+        ["the-egg.mp4", "egg-bytes"],
+        ["ants.mp4", "ants-bytes"],
+        ["extra.mp4", "extra-bytes"],
+      ] as const) {
+        expect(
+          fs.readFileSync(path.join(testPaths.videos, "Kurzgesagt", name), "utf8")
+        ).toBe(contents);
+      }
+    });
+
+    it("falls back to the collection title when no resolved title exists", () => {
+      rebuild();
+      markExistentialAsShow();
+      rebuild();
+
+      expect(listMirror()).toContain("Existential Crisis/tvshow.nfo");
+    });
   });
 
   it("every generated NFO parses as well-formed XML", () => {
