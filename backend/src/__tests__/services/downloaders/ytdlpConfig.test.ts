@@ -40,6 +40,32 @@ describe("prepareDownloadFlags final container preference", () => {
     expect(result.videoExtension).toBe("webm");
   });
 
+  /**
+   * A single-video download must never expand the playlist the video happens to
+   * sit in. Pasting `watch?v=X&list=Y` used to make yt-dlp extract and download
+   * the entire playlist — minutes of metadata work for one video, and a hard
+   * failure if any entry in that playlist was private.
+   */
+  it("never expands a playlist for a single-video download", () => {
+    const result = prepareDownloadFlags(
+      "https://www.youtube.com/watch?v=abc123&list=PLsomething",
+      "/tmp/video.mp4",
+      {},
+    );
+
+    expect(result.flags.noPlaylist).toBe(true);
+  });
+
+  it("keeps the no-playlist guard for a bare video URL too", () => {
+    const result = prepareDownloadFlags(
+      "https://www.youtube.com/watch?v=abc123",
+      "/tmp/video.mp4",
+      {},
+    );
+
+    expect(result.flags.noPlaylist).toBe(true);
+  });
+
   it("prepares an audio-only flag set without video mux or subtitle flags", () => {
     const result = prepareAudioDownloadFlags(
       "https://www.youtube.com/watch?v=abc123",
