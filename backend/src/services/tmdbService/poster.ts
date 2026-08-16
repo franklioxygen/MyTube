@@ -1,4 +1,5 @@
 import axios from "axios";
+import { createHash } from "crypto";
 import fs from "fs-extra";
 import path from "path";
 import { IMAGES_DIR } from "../../config/paths";
@@ -158,6 +159,46 @@ function sanitizeThumbnailDirectory(relativeDirectory: string): string | null {
   }
 
   return path.join(...sanitizedSegments);
+}
+
+/**
+ * Poster location for a collection exported as its own show.
+ *
+ * Kept separate from `resolvePosterSaveLocation()`, which derives a directory
+ * from a scan-supplied thumbnail filename. Here the directory is a SHA-256
+ * digest of the collection id: a collection id is never used as a raw path
+ * segment, and the digest keeps one collection's posters together so a later
+ * re-resolution can replace them.
+ *
+ * The filename encodes the validated media type and numeric TMDB id, so
+ * switching a collection to a different match writes a new file rather than
+ * overwriting the active one before the transaction commits.
+ */
+export function resolveCollectionPosterSaveLocation(
+  collectionId: string,
+  mediaType: "tv" | "movie",
+  tmdbId: number
+): { absolutePath: string; relativePath: string; webPath: string } | null {
+  if (!collectionId || (mediaType !== "tv" && mediaType !== "movie")) {
+    return null;
+  }
+  if (!Number.isSafeInteger(tmdbId) || tmdbId <= 0) {
+    return null;
+  }
+
+  const digest = createHash("sha256").update(collectionId).digest("hex").slice(0, 32);
+  const relativePath = `tmdb/collections/${digest}/${mediaType}-${tmdbId}.jpg`;
+
+  try {
+    const absolutePath = resolveSafeChildPath(IMAGES_DIR, relativePath);
+    return { absolutePath, relativePath, webPath: `/images/${relativePath}` };
+  } catch (error) {
+    logger.error(
+      `Failed to resolve a collection poster path for ${collectionId}`,
+      error instanceof Error ? error : new Error(String(error))
+    );
+    return null;
+  }
 }
 
 export function resolvePosterSaveLocation(
