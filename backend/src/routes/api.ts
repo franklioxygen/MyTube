@@ -253,6 +253,18 @@ const apiRouteDefinitions: ApiRouteDefinition[] = [
     path: "/collections/:id",
     handlers: [asyncHandler(collectionController.deleteCollection)],
   },
+  // Collection-as-show (media-server export). Same authorization as the other
+  // collection mutations.
+  {
+    method: "post",
+    path: "/collections/:id/tmdb/search",
+    handlers: [asyncHandler(collectionController.searchCollectionTmdb)],
+  },
+  {
+    method: "put",
+    path: "/collections/:id/show-export",
+    handlers: [asyncHandler(collectionController.updateCollectionShowExport)],
+  },
 
   // Favorite routes
   {
