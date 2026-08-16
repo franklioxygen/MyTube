@@ -75,9 +75,14 @@ export interface BilibiliDownloadTaskOptions {
 }
 
 function buildDownloadModeOptions(
-  options: BilibiliDownloadTaskOptions
+  options: BilibiliDownloadTaskOptions,
+  /**
+   * Issue #411. True when this download is followed by a collection link, so
+   * the downloader must not export the part as a Season 00 episode first.
+   */
+  pendingCollectionLink = false
 ): DownloadModeOptions | undefined {
-  if (!options.audioOnly && !options.existingLocalVideoId) {
+  if (!options.audioOnly && !options.existingLocalVideoId && !pendingCollectionLink) {
     return undefined;
   }
 
@@ -85,6 +90,7 @@ function buildDownloadModeOptions(
     audioOnly: options.audioOnly === true,
     audioFormat: options.audioFormat,
     existingLocalVideoId: options.existingLocalVideoId,
+    pendingCollectionLink,
   };
 }
 
@@ -351,7 +357,10 @@ export function buildBilibiliDownloadTask(
           sourceCollectionType: "playlist" as const,
           mediaPlaylistIndex: 1,
         };
-        const modeOptions = buildDownloadModeOptions(options);
+        const modeOptions = buildDownloadModeOptions(
+          options,
+          Boolean(collectionId)
+        );
         firstPartResult = modeOptions
           ? await downloadService.downloadSingleBilibiliPart(
               firstPartUrl, 1, videosNumber, currentTitle, options.downloadId,

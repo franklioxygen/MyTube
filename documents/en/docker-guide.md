@@ -174,6 +174,39 @@ The `docker-compose.yml` above creates two folders in your current directory t
 
 **Important:** If you move the `docker-compose.yml` file, you must move these folders with it to keep your data.
 
+### Exposing the managed TV library to a media server
+
+If you enable the **Author → playlist seasons** media-server export layout (see
+[Media Storage & Filename Naming](./media-storage-and-naming.md#9-managed-media-server-tv-library-optional)),
+MyTube generates a TV-shaped library at `/app/uploads/media-library` inside the container.
+The existing `./uploads:/app/uploads` bind mount already exposes it — no extra MyTube volume
+is needed. On the host it appears at `./uploads/media-library`.
+
+Mount **that subdirectory** into your media server, read-only:
+
+```yaml
+services:
+  jellyfin:
+    image: jellyfin/jellyfin
+    volumes:
+      # Point Jellyfin at the managed library only, not at ./uploads/videos.
+      - ./uploads/media-library:/media/mytube:ro
+```
+
+Then add `/media/mytube` as a **Shows** library and enable local NFO metadata (in Jellyfin:
+*Library → Metadata readers → Nfo*, moved to the top so local files win over online
+providers). Plex users should enable the NFO Agent for the library.
+
+Two things to get right:
+
+- **Do not also add `./uploads/videos`** to the same media server, or every episode is
+  imported twice.
+- **Keep `uploads/` on one filesystem.** The media files in `media-library/` are hard links
+  back into `videos/`, and hard links cannot cross filesystems. If those two directories end
+  up on different disks, MyTube falls back to copying and the library consumes a second full
+  copy of every exported video. Splitting `uploads/videos` onto a separate mount while
+  leaving `uploads/media-library` on another is the usual way this happens.
+
 For the repo-provided single-container stack under `stacks/`, you can override the
 host-side paths with `MYTUBE_UPLOADS_DIR` and `MYTUBE_DATA_DIR` without breaking
 existing users who still rely on the default repo-root directories.

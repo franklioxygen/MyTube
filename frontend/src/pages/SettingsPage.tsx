@@ -164,6 +164,10 @@ const SettingsPage: React.FC = () => {
         twitchClientSecret: '',
         telegramDownloadEnabled: false,
         mediaServerExportMode: 'off',
+        // Issue #411: adjacent stays the default so existing installations see
+        // no change until the user opts in.
+        mediaServerExportLayout: 'adjacent',
+        mediaServerCopyFallback: true,
     });
     const { setPreference } = useThemeContext();
     const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null);

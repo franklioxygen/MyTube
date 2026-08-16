@@ -178,9 +178,11 @@ describe("buildBilibiliDownloadTask multipart collection handling", () => {
     if (!part1Call) {
       throw new Error("expected part 1 to be downloaded");
     }
-    expect(part1Call[part1Call.length - 1]).toEqual({
+    expect(part1Call[part1Call.length - 1]).toMatchObject({
       audioOnly: true,
       audioFormat: "m4a",
+      // Issue #411: a multipart collection download links each part afterwards.
+      pendingCollectionLink: true,
     });
   });
 

@@ -57,6 +57,15 @@ function hydrateCollection(rows: CollectionRow[]): Collection | undefined {
     sourceType: sortedRows[0].c.sourceType ?? undefined,
     sourceMid: sortedRows[0].c.sourceMid ?? undefined,
     sourceId: sortedRows[0].c.sourceId ?? undefined,
+    // Media-server TV export metadata (issue #411).
+    description: sortedRows[0].c.description ?? undefined,
+    sourceUrl: sortedRows[0].c.sourceUrl ?? undefined,
+    sourceChannelId: sortedRows[0].c.sourceChannelId ?? undefined,
+    sourceChannelUrl: sortedRows[0].c.sourceChannelUrl ?? undefined,
+    sourceChannelName: sortedRows[0].c.sourceChannelName ?? undefined,
+    mediaServerShowId: sortedRows[0].c.mediaServerShowId ?? undefined,
+    mediaServerSeasonNumber:
+      sortedRows[0].c.mediaServerSeasonNumber ?? undefined,
     videos: [],
   };
 
@@ -243,8 +252,41 @@ export function getCollectionBySourceKey(
   }
 }
 
+/**
+ * Media-server metadata columns (issue #411) are written only when the caller
+ * actually carries a value. Most callers build a partial Collection object from
+ * scratch, so blanket `?? null` writes would erase playlist descriptions and
+ * channel identity that a previous inspection captured.
+ *
+ * `mediaServerShowId` / `mediaServerSeasonNumber` are intentionally absent: the
+ * season allocation is owned by catalogRepository and must never be moved by an
+ * ordinary collection save.
+ */
+function buildMediaServerMetadataPatch(
+  collection: Collection
+): Record<string, unknown> {
+  const patch: Record<string, unknown> = {};
+  const optionalFields = [
+    "description",
+    "sourceUrl",
+    "sourceChannelId",
+    "sourceChannelUrl",
+    "sourceChannelName",
+  ] as const;
+
+  for (const field of optionalFields) {
+    if (collection[field] !== undefined) {
+      patch[field] = collection[field];
+    }
+  }
+
+  return patch;
+}
+
 export function saveCollection(collection: Collection): Collection {
   try {
+    const mediaServerMetadata = buildMediaServerMetadataPatch(collection);
+
     db.transaction(() => {
       // Insert collection
       db.insert(collections)
@@ -259,6 +301,7 @@ export function saveCollection(collection: Collection): Collection {
           sourceType: collection.sourceType ?? null,
           sourceMid: collection.sourceMid ?? null,
           sourceId: collection.sourceId ?? null,
+          ...mediaServerMetadata,
         })
         .onConflictDoUpdate({
           target: collections.id,
@@ -271,6 +314,7 @@ export function saveCollection(collection: Collection): Collection {
             sourceType: collection.sourceType ?? null,
             sourceMid: collection.sourceMid ?? null,
             sourceId: collection.sourceId ?? null,
+            ...mediaServerMetadata,
           },
         })
         .run();

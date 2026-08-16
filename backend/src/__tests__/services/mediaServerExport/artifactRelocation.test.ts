@@ -25,6 +25,8 @@ const getVideoByIdMock = vi.fn();
 const removeMediaServerArtifactsForVideoMock = vi.fn();
 const syncMediaServerArtifactsForRecordMock = vi.fn();
 const syncMediaServerShowArtifactsForShowRootMock = vi.fn();
+const getMediaServerExportLayoutMock = vi.fn(() => "adjacent");
+const syncPlaylistTvForVideoMock = vi.fn();
 
 vi.mock("../../../config/paths", () => ({
   AVATARS_DIR: testPaths.avatars,
@@ -50,6 +52,14 @@ vi.mock("../../../services/mediaServerExport/syncService", () => ({
     syncMediaServerArtifactsForRecordMock(...args),
   syncMediaServerShowArtifactsForShowRoot: (...args: unknown[]) =>
     syncMediaServerShowArtifactsForShowRootMock(...args),
+  getMediaServerExportLayout: () => getMediaServerExportLayoutMock(),
+}));
+
+// Issue #411: relocation now dispatches by layout. These tests cover the
+// adjacent branch; the playlist_tv branch is mocked so no database is opened.
+vi.mock("../../../services/mediaServerExport/playlistTvSync", () => ({
+  syncPlaylistTvForVideo: (...args: unknown[]) =>
+    syncPlaylistTvForVideoMock(...args),
 }));
 
 import { relocateMediaServerArtifactsAroundMove } from "../../../services/mediaServerExport/artifactRelocation";

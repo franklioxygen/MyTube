@@ -34,6 +34,11 @@ vi.mock("../../../services/storageService/settings", () => ({
   getSettings: getSettingsMock,
 }));
 
+// syncService dispatches to the playlist_tv pipeline, which reaches the catalog
+// database. These tests only exercise the adjacent branch, so the database is
+// stubbed rather than opened.
+vi.mock("../../../db", () => ({ db: {} }));
+
 vi.mock("../../../utils/logger", () => ({
   logger: {
     error: vi.fn(),
@@ -262,6 +267,61 @@ describe("mediaServerExport syncService", () => {
     expect(fs.existsSync(path.join(testPaths.videos, "Kurzgesagt/tvshow.nfo"))).toBe(
       false
     );
+  });
+
+  // Issue #411 regression boundary: adjacent sidecars stay the default whenever
+  // no explicit mediaServerExportLayout is saved.
+  it("writes adjacent sidecars when no export layout setting is present", () => {
+    getSettingsMock.mockReturnValue({ mediaServerExportMode: "nfo" });
+
+    const video = createVideoRecord();
+    writeFile(
+      path.join(
+        testPaths.videos,
+        "Kurzgesagt/Season 2026/s2026e052501 - How Many Ants Live On Earth.mp4"
+      ),
+      "video"
+    );
+
+    syncMediaServerArtifactsForRecord(video, { libraryVideos: [video] });
+
+    expect(
+      fs.existsSync(
+        path.join(
+          testPaths.videos,
+          "Kurzgesagt/Season 2026/s2026e052501 - How Many Ants Live On Earth.nfo"
+        )
+      )
+    ).toBe(true);
+    expect(fs.existsSync(path.join(testPaths.root, "media-library"))).toBe(false);
+  });
+
+  it("writes adjacent sidecars when the export layout is explicitly adjacent", () => {
+    getSettingsMock.mockReturnValue({
+      mediaServerExportMode: "nfo",
+      mediaServerExportLayout: "adjacent",
+    });
+
+    const video = createVideoRecord();
+    writeFile(
+      path.join(
+        testPaths.videos,
+        "Kurzgesagt/Season 2026/s2026e052501 - How Many Ants Live On Earth.mp4"
+      ),
+      "video"
+    );
+
+    syncMediaServerArtifactsForRecord(video, { libraryVideos: [video] });
+
+    expect(
+      fs.existsSync(
+        path.join(
+          testPaths.videos,
+          "Kurzgesagt/Season 2026/s2026e052501 - How Many Ants Live On Earth.nfo"
+        )
+      )
+    ).toBe(true);
+    expect(fs.existsSync(path.join(testPaths.root, "media-library"))).toBe(false);
   });
 
   it("rebuilds a show root from remaining library videos after a move", () => {

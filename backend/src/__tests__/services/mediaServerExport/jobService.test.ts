@@ -10,6 +10,9 @@ const removeMediaServerArtifactsForVideoMock = vi.hoisted(() => vi.fn());
 const sweepOrphanMediaServerArtifactsMock = vi.hoisted(() => vi.fn());
 const acquireRenameLockMock = vi.hoisted(() => vi.fn());
 const releaseRenameLockMock = vi.hoisted(() => vi.fn());
+const getMediaServerExportLayoutMock = vi.hoisted(() => vi.fn());
+const syncPlaylistTvLibraryMock = vi.hoisted(() => vi.fn());
+const cleanupMediaServerMirrorMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../../services/storageService", () => ({
   getSettings: getSettingsMock,
@@ -27,11 +30,24 @@ vi.mock("../../../services/filenameTemplate/pathHelpers", () => ({
 vi.mock("../../../services/mediaServerExport/syncService", () => ({
   syncMediaServerArtifactsForRecord: syncMediaServerArtifactsForRecordMock,
   removeMediaServerArtifactsForVideo: removeMediaServerArtifactsForVideoMock,
+  getMediaServerExportLayout: getMediaServerExportLayoutMock,
+}));
+
+vi.mock("../../../services/mediaServerExport/playlistTvSync", () => ({
+  syncPlaylistTvLibrary: syncPlaylistTvLibraryMock,
+}));
+
+vi.mock("../../../services/mediaServerExport/hierarchyMaterializer", () => ({
+  cleanupMediaServerMirror: cleanupMediaServerMirrorMock,
 }));
 
 vi.mock("../../../services/mediaServerExport/orphanSweep", () => ({
   sweepOrphanMediaServerArtifacts: sweepOrphanMediaServerArtifactsMock,
 }));
+
+// The playlist_tv modules are mocked above; this keeps anything they pull in
+// from opening a real database.
+vi.mock("../../../db", () => ({ db: {} }));
 
 vi.mock("../../../services/filenameTemplate/renameLockService", () => ({
   acquireRenameLock: acquireRenameLockMock,
@@ -99,7 +115,11 @@ describe("mediaServerExport jobService", () => {
     sweepOrphanMediaServerArtifactsMock.mockReset();
     acquireRenameLockMock.mockReset();
     releaseRenameLockMock.mockReset();
+    getMediaServerExportLayoutMock.mockReset();
+    syncPlaylistTvLibraryMock.mockReset();
+    cleanupMediaServerMirrorMock.mockReset();
 
+    getMediaServerExportLayoutMock.mockReturnValue("adjacent");
     acquireRenameLockMock.mockReturnValue(true);
     sweepOrphanMediaServerArtifactsMock.mockReturnValue({
       sweptFiles: 0,
@@ -134,6 +154,37 @@ describe("mediaServerExport jobService", () => {
     expect(removeMediaServerArtifactsForVideoMock).not.toHaveBeenCalled();
   });
 
+  // Issue #411 regression boundary: the frontend reads these fields off the job
+  // payload. New playlist_tv phase/count fields may only be added alongside them.
+  it("keeps the job payload shape the frontend depends on", async () => {
+    getVideosMock.mockReturnValue([createVideo("video-1")]);
+
+    const job = await startMediaServerExportJob("nfo");
+    await waitForJobCompletion(job.id);
+
+    const completedJob = getMediaServerExportJobById(job.id);
+    expect(completedJob).toMatchObject({
+      id: expect.any(String),
+      status: "completed",
+      mode: "nfo",
+      action: "rebuild",
+      total: expect.any(Number),
+      processed: expect.any(Number),
+      succeeded: expect.any(Number),
+      skipped: expect.any(Number),
+      failed: expect.any(Number),
+      sweptFiles: expect.any(Number),
+      cancelRequested: false,
+    });
+    expect(Array.isArray(completedJob?.items)).toBe(true);
+    expect(Array.isArray(completedJob?.sweptList)).toBe(true);
+    expect(completedJob?.items[0]).toMatchObject({
+      videoId: "video-1",
+      title: "Video video-1",
+      status: "success",
+    });
+  });
+
   it("records orphan sweep counters before processing videos", async () => {
     getVideosMock.mockReturnValue([createVideo("video-1")]);
     sweepOrphanMediaServerArtifactsMock.mockReturnValue({
@@ -165,6 +216,139 @@ describe("mediaServerExport jobService", () => {
 
     expect(sweepOrphanMediaServerArtifactsMock).not.toHaveBeenCalled();
     expect(releaseRenameLockMock).toHaveBeenCalled();
+  });
+
+  // Issue #411: the layout selects a completely different pipeline, and cleanup
+  // in the wrong layout would delete the wrong set of files.
+  describe("playlist_tv layout", () => {
+    beforeEach(() => {
+      getMediaServerExportLayoutMock.mockReturnValue("playlist_tv");
+      syncPlaylistTvLibraryMock.mockReturnValue({
+        counts: {
+          shows: 2,
+          seasons: 3,
+          episodes: 10,
+          linkedMedia: 8,
+          copiedMedia: 2,
+          unchangedArtifacts: 4,
+          removedArtifacts: 1,
+        },
+        failures: [],
+        affectedShowIds: new Set(["show-1", "show-2"]),
+        reconcileIssues: [],
+      });
+      cleanupMediaServerMirrorMock.mockReturnValue({
+        counts: {
+          shows: 0,
+          seasons: 0,
+          episodes: 0,
+          linkedMedia: 0,
+          copiedMedia: 0,
+          unchangedArtifacts: 0,
+          removedArtifacts: 6,
+        },
+        failures: [],
+      });
+    });
+
+    it("rebuilds through the mirror pipeline and reports counts", async () => {
+      getVideosMock.mockReturnValue([createVideo("video-1")]);
+
+      const job = await startMediaServerExportJob("nfo");
+      await waitForJobCompletion(job.id);
+
+      const completed = getMediaServerExportJobById(job.id);
+      expect(completed?.layout).toBe("playlist_tv");
+      expect(completed?.phase).toBe("completed");
+      expect(completed?.counts).toMatchObject({
+        shows: 2,
+        seasons: 3,
+        episodes: 10,
+        linkedMedia: 8,
+        copiedMedia: 2,
+      });
+      expect(completed?.succeeded).toBe(10);
+
+      // The adjacent pipeline must not run at all.
+      expect(syncMediaServerArtifactsForRecordMock).not.toHaveBeenCalled();
+      expect(sweepOrphanMediaServerArtifactsMock).not.toHaveBeenCalled();
+    });
+
+    it("reports reconcile issues as skips and materialization errors as failures", async () => {
+      getVideosMock.mockReturnValue([createVideo("video-1")]);
+      syncPlaylistTvLibraryMock.mockReturnValue({
+        counts: {
+          shows: 1,
+          seasons: 1,
+          episodes: 1,
+          linkedMedia: 1,
+          copiedMedia: 0,
+          unchangedArtifacts: 0,
+          removedArtifacts: 0,
+        },
+        failures: [
+          {
+            reason: "hard_link_failed_copy_disabled",
+            detail: "no link",
+            videoId: "video-2",
+            title: "Second",
+          },
+        ],
+        affectedShowIds: new Set(["show-1"]),
+        reconcileIssues: [
+          {
+            reason: "ambiguous_collection_show",
+            detail: "two identities",
+            collectionId: "c1",
+          },
+        ],
+      });
+
+      const job = await startMediaServerExportJob("nfo");
+      await waitForJobCompletion(job.id);
+
+      const completed = getMediaServerExportJobById(job.id);
+      expect(completed?.status).toBe("completed");
+      expect(completed?.skipped).toBe(1);
+      expect(completed?.failed).toBe(1);
+      expect(completed?.items).toEqual([
+        expect.objectContaining({
+          status: "skipped",
+          skipReason: "ambiguous_collection_show",
+        }),
+        expect.objectContaining({
+          status: "failed",
+          errorCode: "hard_link_failed_copy_disabled",
+        }),
+      ]);
+    });
+
+    it("cleans the mirror without touching the adjacent sweep", async () => {
+      getVideosMock.mockReturnValue([createVideo("video-1")]);
+
+      const job = await startMediaServerExportJob("off");
+      expect(job.action).toBe("cleanup");
+
+      await waitForJobCompletion(job.id);
+
+      const completed = getMediaServerExportJobById(job.id);
+      expect(cleanupMediaServerMirrorMock).toHaveBeenCalledTimes(1);
+      expect(completed?.counts.removedArtifacts).toBe(6);
+      expect(completed?.sweptFiles).toBe(6);
+      expect(sweepOrphanMediaServerArtifactsMock).not.toHaveBeenCalled();
+      expect(removeMediaServerArtifactsForVideoMock).not.toHaveBeenCalled();
+    });
+
+    it("honors an explicitly requested layout over the saved one", async () => {
+      getVideosMock.mockReturnValue([createVideo("video-1")]);
+
+      const job = await startMediaServerExportJob("nfo", "adjacent");
+      await waitForJobCompletion(job.id);
+
+      expect(getMediaServerExportJobById(job.id)?.layout).toBe("adjacent");
+      expect(syncPlaylistTvLibraryMock).not.toHaveBeenCalled();
+      expect(syncMediaServerArtifactsForRecordMock).toHaveBeenCalledTimes(1);
+    });
   });
 
   it("treats off mode as cleanup and removes generated artifacts", async () => {

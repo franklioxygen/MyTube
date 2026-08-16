@@ -6,6 +6,7 @@ import {
 } from "../../utils/ytDlpUtils";
 import { logger } from "../../utils/logger";
 import { ValidationError } from "../../errors/DownloadErrors";
+import { normalizeDescription } from "../mediaServerExport/metadataResolver";
 
 /**
  * Playlist source inspection boundary (design §6).
@@ -39,6 +40,16 @@ export interface PlaylistInspection extends PlaylistHeadSnapshot {
   playlistId: string | null;
   author: string;
   platform: "YouTube" | "Bilibili";
+  /**
+   * Media-server export metadata (issue #411). All optional: a head-only poll
+   * and several extractors do not return these, and an absent field must never
+   * clear a value a previous inspection already persisted.
+   */
+  description?: string;
+  sourceChannelId?: string;
+  sourceChannelUrl?: string;
+  sourceChannelName?: string;
+  sourceChannelDescription?: string;
 }
 
 export interface BilibiliCollectionInspectionInput {
@@ -293,6 +304,59 @@ export async function inspectPlaylist(
     playlistId,
     author,
     platform,
+    ...extractPlaylistExportMetadata(info, entries),
+  };
+}
+
+/**
+ * Media-server export metadata (issue #411).
+ *
+ * Only the yt-dlp keys named in the design are read, and only from the playlist
+ * envelope plus the first entry as a fallback for channel identity. Values are
+ * bounded so an unbounded upstream description cannot become an unbounded NFO
+ * plot or database payload.
+ */
+function extractPlaylistExportMetadata(
+  info: Record<string, any> | undefined,
+  entries: Array<Record<string, any>>
+): {
+  description?: string;
+  sourceChannelId?: string;
+  sourceChannelUrl?: string;
+  sourceChannelName?: string;
+  sourceChannelDescription?: string;
+} {
+  const first = entries.length > 0 ? entries[0] : undefined;
+  const pick = (...values: Array<unknown>): string | undefined => {
+    for (const value of values) {
+      if (typeof value === "string" && value.trim()) {
+        return value.trim();
+      }
+    }
+    return undefined;
+  };
+
+  return {
+    description: normalizeDescription(info?.description),
+    sourceChannelId: pick(
+      info?.channel_id,
+      info?.uploader_id,
+      first?.channel_id,
+      first?.uploader_id
+    ),
+    sourceChannelUrl: pick(
+      info?.channel_url,
+      info?.uploader_url,
+      first?.channel_url,
+      first?.uploader_url
+    ),
+    sourceChannelName: pick(
+      info?.channel,
+      info?.uploader,
+      first?.channel,
+      first?.uploader
+    ),
+    sourceChannelDescription: normalizeDescription(info?.channel_description),
   };
 }
 

@@ -9,15 +9,23 @@ import { resolveManagedWebPath } from "../filenameTemplate/pathHelpers";
 import * as storageService from "../storageService";
 import type { Video } from "../storageService";
 import {
+  getMediaServerExportLayout,
   removeMediaServerArtifactsForVideo,
   syncMediaServerArtifactsForRecord,
 } from "./syncService";
+import { cleanupMediaServerMirror } from "./hierarchyMaterializer";
+import { syncPlaylistTvLibrary } from "./playlistTvSync";
 import { sweepOrphanMediaServerArtifacts } from "./orphanSweep";
 import type {
   MediaServerExportJob,
+  MediaServerExportJobCounts,
   MediaServerExportJobItem,
+  MediaServerExportLayout,
   MediaServerExportMode,
 } from "./types";
+
+/** Bounded so a large library cannot produce an unbounded API payload. */
+const MAX_REPORTED_ITEMS = 500;
 
 let activeJob: MediaServerExportJob | null = null;
 
@@ -42,8 +50,36 @@ export function cancelMediaServerExportJob(jobId: string): boolean {
   return true;
 }
 
+function emptyCounts(): MediaServerExportJobCounts {
+  return {
+    shows: 0,
+    seasons: 0,
+    episodes: 0,
+    linkedMedia: 0,
+    copiedMedia: 0,
+    unchangedArtifacts: 0,
+    removedArtifacts: 0,
+  };
+}
+
+function pushItem(job: MediaServerExportJob, item: MediaServerExportJobItem): void {
+  if (job.items.length < MAX_REPORTED_ITEMS) {
+    job.items.push(item);
+  }
+
+  job.processed += 1;
+  if (item.status === "success") {
+    job.succeeded += 1;
+  } else if (item.status === "skipped") {
+    job.skipped += 1;
+  } else if (item.status === "failed") {
+    job.failed += 1;
+  }
+}
+
 export async function startMediaServerExportJob(
-  requestedMode?: MediaServerExportMode
+  requestedMode?: MediaServerExportMode,
+  requestedLayout?: MediaServerExportLayout
 ): Promise<MediaServerExportJob> {
   if (activeJob && activeJob.status === "running") {
     throw new Error("A media server export rebuild job is already running.");
@@ -51,6 +87,10 @@ export async function startMediaServerExportJob(
 
   const savedMode = storageService.getSettings().mediaServerExportMode || "off";
   const mode = requestedMode || savedMode;
+  // The layout comes from the request so the action cannot change between the
+  // user's confirmation and execution — cleanup in the wrong layout would
+  // delete the wrong set of files.
+  const layout = requestedLayout ?? getMediaServerExportLayout();
   const action = mode === "off" ? "cleanup" : "rebuild";
 
   const jobId = `media_export_${Date.now()}`;
@@ -64,7 +104,9 @@ export async function startMediaServerExportJob(
     status: "running",
     lockedAt: Date.now(),
     mode,
+    layout,
     action,
+    phase: "snapshot",
     total: allVideos.length,
     processed: 0,
     succeeded: 0,
@@ -72,6 +114,7 @@ export async function startMediaServerExportJob(
     failed: 0,
     sweptFiles: 0,
     sweptList: [],
+    counts: emptyCounts(),
     items: [],
     cancelRequested: false,
   };
@@ -101,37 +144,121 @@ async function processMediaServerExportJob(
     return;
   }
 
+  try {
+    if (job.layout === "playlist_tv") {
+      processPlaylistTvJob(job);
+    } else {
+      processAdjacentJob(job, allVideos);
+    }
+  } finally {
+    job.currentVideoId = undefined;
+    job.currentTitle = undefined;
+    releaseRenameLock();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// playlist_tv (issue #411)
+// ---------------------------------------------------------------------------
+
+function processPlaylistTvJob(job: MediaServerExportJob): void {
+  if (job.action === "cleanup") {
+    job.phase = "sweep";
+    // Catalog assignments are deliberately retained so a later re-enable reuses
+    // the same season and episode numbers.
+    const cleanup = cleanupMediaServerMirror();
+    job.counts = { ...job.counts, ...cleanup.counts };
+    job.sweptFiles = cleanup.counts.removedArtifacts;
+    job.total = cleanup.counts.removedArtifacts;
+    job.processed = cleanup.counts.removedArtifacts;
+    job.succeeded = cleanup.counts.removedArtifacts;
+
+    for (const failure of cleanup.failures) {
+      pushItem(job, {
+        videoId: failure.videoId ?? "",
+        title: failure.title ?? "",
+        status: "failed",
+        errorCode: failure.reason,
+        error: failure.detail,
+      });
+    }
+
+    job.phase = "completed";
+    job.status = job.cancelRequested ? "cancelled" : "completed";
+    return;
+  }
+
+  job.phase = "catalog_reconcile";
+  const summary = syncPlaylistTvLibrary({
+    mode: job.mode === "off" ? "nfo" : job.mode,
+    copyFallbackEnabled:
+      (storageService.getSettings() as { mediaServerCopyFallback?: boolean })
+        .mediaServerCopyFallback !== false,
+    isCancelled: () => job.cancelRequested,
+  });
+
+  job.phase = "materialize";
+  job.counts = summary.counts;
+  job.sweptFiles = summary.counts.removedArtifacts;
+  // In playlist_tv the meaningful unit is the episode assignment, not the raw
+  // video row, so `total` is restated once the plan is known.
+  job.total = summary.counts.episodes + summary.failures.length;
+  job.succeeded = summary.counts.episodes;
+  job.processed = summary.counts.episodes;
+
+  for (const issue of summary.reconcileIssues) {
+    pushItem(job, {
+      videoId: issue.videoId ?? "",
+      title: "",
+      status: "skipped",
+      skipReason: issue.reason,
+      error: issue.detail,
+    });
+  }
+
+  for (const failure of summary.failures) {
+    pushItem(job, {
+      videoId: failure.videoId ?? "",
+      title: failure.title ?? "",
+      status: "failed",
+      errorCode: failure.reason,
+      error: failure.detail,
+    });
+  }
+
+  job.phase = job.cancelRequested ? "materialize" : "completed";
+  // Per-item failures do not fail the job; only a global catalog/database
+  // failure does, and that arrives as a thrown error.
+  job.status = job.cancelRequested ? "cancelled" : "completed";
+}
+
+// ---------------------------------------------------------------------------
+// adjacent (unchanged behavior)
+// ---------------------------------------------------------------------------
+
+function processAdjacentJob(
+  job: MediaServerExportJob,
+  allVideos: Video[]
+): void {
+  job.phase = "sweep";
   const sweepResult = sweepOrphanMediaServerArtifacts(allVideos);
   job.sweptFiles = sweepResult.sweptFiles;
   job.sweptList = sweepResult.sweptList;
 
+  job.phase = "materialize";
   for (const video of allVideos) {
     if (job.cancelRequested) {
       job.status = "cancelled";
-      releaseRenameLock();
       return;
     }
 
     job.currentVideoId = video.id;
     job.currentTitle = video.title;
-
-    const item = processOneVideo(job, video, allVideos);
-    job.items.push(item);
-    job.processed++;
-
-    if (item.status === "success") {
-      job.succeeded++;
-    } else if (item.status === "skipped") {
-      job.skipped++;
-    } else {
-      job.failed++;
-    }
+    pushItem(job, processOneVideo(job, video, allVideos));
   }
 
+  job.phase = "completed";
   job.status = "completed";
-  job.currentVideoId = undefined;
-  job.currentTitle = undefined;
-  releaseRenameLock();
 }
 
 function processOneVideo(
@@ -173,11 +300,13 @@ function processOneVideo(
     if (job.action === "cleanup") {
       removeMediaServerArtifactsForVideo(video, {
         libraryVideos: allVideos,
+        layoutOverride: "adjacent",
       });
     } else {
       syncMediaServerArtifactsForRecord(video, {
         modeOverride: job.mode === "off" ? undefined : job.mode,
         libraryVideos: allVideos,
+        layoutOverride: "adjacent",
       });
     }
     item.status = "success";
