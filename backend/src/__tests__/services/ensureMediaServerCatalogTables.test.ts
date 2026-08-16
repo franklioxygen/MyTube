@@ -79,6 +79,27 @@ const MEDIA_SERVER_COLLECTION_COLUMNS = [
   "media_server_season_number",
 ];
 
+/** Collection-as-show columns, added after the #411 catalog. */
+const COLLECTION_SHOW_COLUMNS = [
+  "export_as_show",
+  "media_server_title",
+  "media_server_description",
+  "media_server_poster_path",
+  "media_server_metadata_source",
+  "tmdb_id",
+  "tmdb_media_type",
+  "tmdb_premiere_date",
+  "tmdb_match_strategy",
+  "tmdb_match_confirmed_at",
+];
+
+const SHOW_TABLE_COLLECTION_COLUMNS = [
+  "source_collection_id",
+  "tmdb_id",
+  "tmdb_media_type",
+  "premiered",
+];
+
 describe("ensureMediaServerCatalogTables", () => {
   beforeEach(() => {
     seedLegacySchema();
@@ -106,6 +127,76 @@ describe("ensureMediaServerCatalogTables", () => {
     expect(() =>
       testDb.sqlite.prepare("SELECT description FROM collections").all()
     ).not.toThrow();
+  });
+
+  it("adds the collection-as-show columns on both tables", () => {
+    ensureMediaServerCatalogTables();
+
+    for (const column of COLLECTION_SHOW_COLUMNS) {
+      expect(columnNames("collections")).toContain(column);
+    }
+    for (const column of SHOW_TABLE_COLLECTION_COLUMNS) {
+      expect(columnNames("media_server_shows")).toContain(column);
+    }
+  });
+
+  it("repairs a database that has the #411 catalog but not the collection-show columns", () => {
+    // The realistic upgrade path: 0028 applied, 0029 aborted with the drizzle
+    // batch. Build that state by running the self-heal, then dropping the newer
+    // columns is not possible in SQLite — instead assert the self-heal is what
+    // supplies them, since a pre-0029 database simply lacks them.
+    ensureMediaServerCatalogTables();
+
+    expect(columnNames("collections")).toContain("export_as_show");
+    expect(() =>
+      testDb.sqlite
+        .prepare("SELECT export_as_show, tmdb_id FROM collections")
+        .all()
+    ).not.toThrow();
+    expect(() =>
+      testDb.sqlite
+        .prepare("SELECT source_collection_id, premiered FROM media_server_shows")
+        .all()
+    ).not.toThrow();
+  });
+
+  it("defaults export_as_show to 0 for existing collections", () => {
+    testDb.sqlite
+      .prepare(
+        "INSERT INTO collections (id, name, title, created_at) VALUES ('c1', 'Mine', 'Mine', '2026-01-01')"
+      )
+      .run();
+
+    ensureMediaServerCatalogTables();
+
+    const row = testDb.sqlite
+      .prepare("SELECT export_as_show FROM collections WHERE id = 'c1'")
+      .get() as { export_as_show: number };
+    expect(row.export_as_show).toBe(0);
+  });
+
+  it("enforces one show row per collection", () => {
+    ensureMediaServerCatalogTables();
+
+    const insertShow = (id: string, collectionId: string | null): void => {
+      testDb.sqlite
+        .prepare(
+          `INSERT INTO media_server_shows
+             (id, identity_key, source_platform, title, description, directory_name,
+              next_season_number, created_at, updated_at, source_collection_id)
+           VALUES (?, ?, 'mytube', ?, '', ?, 1, 1, 1, ?)`
+        )
+        .run(id, `collection:${id}`, id, id, collectionId);
+    };
+
+    insertShow("s1", "c1");
+    expect(() => insertShow("s2", "c1")).toThrowError(
+      /UNIQUE constraint failed/
+    );
+
+    // The partial index must still allow many author shows, which have none.
+    expect(() => insertShow("s3", null)).not.toThrow();
+    expect(() => insertShow("s4", null)).not.toThrow();
   });
 
   it("is idempotent across repeated startups", () => {

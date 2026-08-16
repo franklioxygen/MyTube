@@ -101,6 +101,27 @@ export const collections = sqliteTable(
       { onDelete: "set null" }
     ),
     mediaServerSeasonNumber: integer("media_server_season_number"),
+    // Collection-as-show opt-in. A marked collection exports as its own
+    // media-server show instead of a season under an author show. Always an
+    // explicit user action — never inferred — because the show directory name is
+    // allocated once and a wrong identity is permanent.
+    exportAsShow: integer("export_as_show").notNull().default(0),
+    // Resolved show metadata. Null means "fall back to the collection's own
+    // title/description", which keeps a later rename updating tvshow.nfo without
+    // moving the already-allocated directory.
+    mediaServerTitle: text("media_server_title"),
+    mediaServerDescription: text("media_server_description"),
+    /** Managed web path, e.g. /images/tmdb/collections/<hash>/tv-123.jpg */
+    mediaServerPosterPath: text("media_server_poster_path"),
+    /** null (collection fallback) | "manual" | "tmdb" */
+    mediaServerMetadataSource: text("media_server_metadata_source"),
+    // Confirmed external identity, only when a TMDB result was selected.
+    tmdbId: integer("tmdb_id"),
+    tmdbMediaType: text("tmdb_media_type"), // "tv" | "movie"
+    tmdbPremiereDate: text("tmdb_premiere_date"),
+    tmdbMatchStrategy: text("tmdb_match_strategy"),
+    // Audit trail: a confirmed match is never silently replaced.
+    tmdbMatchConfirmedAt: integer("tmdb_match_confirmed_at"),
   },
   (table) => ({
     // name/title lookups (getCollectionByName) used in playlist subscription checks.
@@ -152,6 +173,18 @@ export const mediaServerShows = sqliteTable(
     // Monotonic season allocator. Never decremented, so a deleted season number
     // is never reused.
     nextSeasonNumber: integer("next_season_number").notNull().default(1),
+    // Set when this show came from a marked collection rather than an author.
+    // Its presence is what excludes the row from the author compatibility
+    // matcher, which would otherwise merge two same-titled dramas.
+    sourceCollectionId: text("source_collection_id").references(
+      (): any => collections.id,
+      { onDelete: "set null" }
+    ),
+    // Offline projection of the resolved external identity, so the pure planner
+    // can build tvshow.nfo without touching the collection row or the network.
+    tmdbId: integer("tmdb_id"),
+    tmdbMediaType: text("tmdb_media_type"), // "tv" | "movie"
+    premiered: text("premiered"), // YYYY-MM-DD
     createdAt: integer("created_at").notNull(),
     updatedAt: integer("updated_at").notNull(),
   },
@@ -162,6 +195,11 @@ export const mediaServerShows = sqliteTable(
     directoryNameUnique: uniqueIndex("media_server_shows_directory_name_uidx").on(
       table.directoryName
     ),
+    // One durable show row per collection, enforced by the database rather than
+    // only by application code.
+    sourceCollectionUnique: uniqueIndex("media_server_shows_source_collection_uidx")
+      .on(table.sourceCollectionId)
+      .where(sql`${table.sourceCollectionId} IS NOT NULL`),
   })
 );
 

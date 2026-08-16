@@ -51,8 +51,30 @@ export interface Collection {
   sourceChannelName?: string;
   mediaServerShowId?: string;
   mediaServerSeasonNumber?: number;
+  /**
+   * Collection-as-show opt-in. When set, this collection exports as its own
+   * media-server show instead of a season under an author show. Always an
+   * explicit user action — the show directory is allocated once and a wrong
+   * identity is permanent.
+   */
+  exportAsShow?: number;
+  /** Null/undefined = fall back to the collection's own title/description. */
+  mediaServerTitle?: string;
+  mediaServerDescription?: string;
+  mediaServerPosterPath?: string;
+  mediaServerMetadataSource?: MediaServerMetadataSource;
+  tmdbId?: number;
+  tmdbMediaType?: TmdbMediaType;
+  tmdbPremiereDate?: string;
+  tmdbMatchStrategy?: string;
+  tmdbMatchConfirmedAt?: number;
   [key: string]: any;
 }
+
+export type TmdbMediaType = "tv" | "movie";
+
+/** How a collection-show's display metadata was chosen. */
+export type MediaServerMetadataSource = "manual" | "tmdb";
 
 /**
  * A source channel/author exported as exactly one media-server show (issue #411).
@@ -68,6 +90,16 @@ export interface MediaServerShow {
   posterSourcePath?: string;
   directoryName: string;
   nextSeasonNumber: number;
+  /**
+   * Present only for a show created from a marked collection. Its presence is
+   * what excludes the row from the author compatibility matcher, which would
+   * otherwise merge two shows that merely share a title.
+   */
+  sourceCollectionId?: string;
+  /** Offline projection of the confirmed external identity, for the planner. */
+  tmdbId?: number;
+  tmdbMediaType?: TmdbMediaType;
+  premiered?: string;
   createdAt: number;
   updatedAt: number;
 }
