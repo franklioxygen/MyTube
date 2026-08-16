@@ -57,7 +57,51 @@ export interface Collection {
   videos: string[];
   createdAt: string;
   updatedAt?: string;
+  /**
+   * Collection-as-show opt-in. When set, this collection exports as its own
+   * media-server show rather than a season under an author show.
+   */
+  exportAsShow?: number;
+  mediaServerTitle?: string;
+  mediaServerDescription?: string;
+  mediaServerPosterPath?: string;
+  mediaServerMetadataSource?: 'manual' | 'tmdb';
+  tmdbId?: number;
+  tmdbMediaType?: TmdbMediaType;
+  tmdbPremiereDate?: string;
+  /**
+   * The show folder the reconciler allocated. Absent until the first sync after
+   * activation. Display this rather than re-deriving a name from the title:
+   * the folder is allocated once and never renamed.
+   */
+  mediaServerShowDirectoryName?: string;
   [key: string]: any;
+}
+
+export type TmdbMediaType = 'tv' | 'movie';
+
+/** One TMDB candidate offered while marking a collection as a show. */
+export interface CollectionShowCandidate {
+  tmdbId: number;
+  mediaType: TmdbMediaType;
+  title: string;
+  originalTitle?: string;
+  overview?: string;
+  premiereDate?: string;
+  posterPath?: string;
+  /** Passed the strict gate. Ranking and labeling only — never auto-applied. */
+  highConfidence: boolean;
+}
+
+export interface CollectionShowSearchResponse {
+  status: 'ok' | 'no_credential' | 'no_results';
+  candidates: CollectionShowCandidate[];
+}
+
+export interface CollectionShowExportResponse {
+  collection: Collection;
+  /** Metadata committed, but the poster could not be stored. */
+  posterWarning?: boolean;
 }
 
 export interface FavoriteCollectionItem {

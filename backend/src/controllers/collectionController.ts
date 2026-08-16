@@ -56,6 +56,49 @@ export const searchCollectionTmdb = async (
   res.json({ status: "ok", candidates: result.candidates });
 };
 
+/** A collection plus the show folder the reconciler actually allocated for it. */
+type CollectionWithShowDirectory = Collection & {
+  mediaServerShowDirectoryName?: string;
+};
+
+/**
+ * Attaches the persisted show directory name to collections exported as their
+ * own show.
+ *
+ * A show's directory is allocated once from the accepted title and is never
+ * renamed afterwards, so sanitization or a de-duplication suffix can make it
+ * differ from the title. The UI must therefore show this stored name rather
+ * than re-deriving a preview.
+ */
+async function withShowDirectoryNames(
+  list: Collection[]
+): Promise<CollectionWithShowDirectory[]> {
+  // Keeps the catalog module out of the collection list path entirely for
+  // deployments that never opted in.
+  if (!list.some((collection) => collection.exportAsShow)) {
+    return list;
+  }
+
+  const { listMediaServerShows } = await import(
+    "../services/mediaServerExport/catalogRepository"
+  );
+  const directoryByCollection = new Map<string, string>();
+  for (const show of listMediaServerShows()) {
+    if (show.sourceCollectionId) {
+      directoryByCollection.set(show.sourceCollectionId, show.directoryName);
+    }
+  }
+
+  return list.map((collection) => {
+    const directoryName = collection.exportAsShow
+      ? directoryByCollection.get(collection.id)
+      : undefined;
+    return directoryName
+      ? { ...collection, mediaServerShowDirectoryName: directoryName }
+      : collection;
+  });
+}
+
 type ShowExportRequest = {
   enabled?: unknown;
   mode?: unknown;
@@ -118,7 +161,8 @@ export const updateCollectionShowExport = async (
         .json({ error: result.reason, code: result.reason });
       return;
     }
-    res.json({ collection: result.collection });
+    const [collection] = await withShowDirectoryNames([result.collection]);
+    res.json({ collection });
     return;
   }
 
@@ -177,8 +221,9 @@ export const updateCollectionShowExport = async (
     return;
   }
 
+  const [collection] = await withShowDirectoryNames([result.collection]);
   res.json({
-    collection: result.collection,
+    collection,
     posterWarning: result.posterWarning ?? false,
   });
 };
@@ -194,7 +239,7 @@ export const getCollections = async (
 ): Promise<void> => {
   const collections = storageService.getCollections();
   // Return array directly for backward compatibility (frontend expects response.data to be Collection[])
-  res.json(collections);
+  res.json(await withShowDirectoryNames(collections));
 };
 
 /**

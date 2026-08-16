@@ -183,6 +183,56 @@ export const zh = {
   mediaServerExportCleanupComplete: "媒体服务器附属文件清理完成",
   mediaServerExportCleanupSummary:
     "已清理 {succeeded} 个，已跳过 {skipped} 个，失败 {failed} 个。",
+  collectionShowExportToggle:
+    "导出为独立剧集",
+  collectionShowExportToggleDescription:
+    "将该收藏集作为独立剧集导出到媒体服务器，而不是作为上传者剧集下的一季。适用于从第三方频道归档的剧集或影片。",
+  collectionShowDialogTitle:
+    "将此收藏集导出为独立剧集",
+  collectionShowDialogDescription:
+    "选择剧集的名称与封面。文件夹名根据你的选择创建，之后不会移动；后续重命名只更新元数据。",
+  collectionShowPromotionWarning:
+    "该收藏集目前是另一部剧集下的一季。剧集编号与文件名会保留，但它腾出的季号会被永久保留不再使用，日后关闭此选项也不会恢复。",
+  collectionShowSearchHeading:
+    "在 TMDB 上查找",
+  collectionShowSearchLabel:
+    "搜索标题",
+  collectionShowSearchAction:
+    "搜索",
+  collectionShowSearchFailed:
+    "TMDB 搜索失败，请重试。",
+  collectionShowNoCredential:
+    "未配置 TMDB 凭据，无法搜索。你仍可以使用收藏集名称或自行输入标题。",
+  collectionShowNoResults:
+    "未找到匹配项。请尝试更短或更准确的标题。",
+  collectionShowSuggestion:
+    "建议",
+  collectionShowMediaTypeTv:
+    "剧集",
+  collectionShowMediaTypeMovie:
+    "电影",
+  collectionShowManualHeading:
+    "或自行输入标题",
+  collectionShowManualLabel:
+    "剧集标题",
+  collectionShowFolderNotice:
+    "剧集文件夹将命名为“{name}”。",
+  collectionShowUseCollectionMetadata:
+    "使用收藏集名称",
+  collectionShowConfirm:
+    "使用此项",
+  collectionShowActivationFailed:
+    "无法将此收藏集导出为剧集。",
+  collectionShowLockBusy:
+    "媒体服务器重建或批量重命名正在进行，请等完成后重试。",
+  collectionShowWrongLayout:
+    "请先将媒体服务器导出布局切换为“作者 → 播放列表季”。",
+  collectionShowPosterWarning:
+    "剧集已创建，但封面下载失败，将使用剧集缩略图代替。",
+  collectionShowDisable:
+    "停止作为独立剧集导出",
+  collectionShowActive:
+    "已作为独立剧集导出",
   mediaServerExportLayout:
     "媒体服务器导出布局",
   mediaServerExportLayoutInactiveWarning:
