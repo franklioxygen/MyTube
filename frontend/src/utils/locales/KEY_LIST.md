@@ -4,7 +4,7 @@ Canonical locale key order derived from `frontend/src/utils/locales/en.ts`.
 
 This list is intentionally unnumbered. When new keys are inserted, only the local section order changes.
 
-Total keys: 1089
+Total keys: 1114
 
 ## Summary
 
@@ -198,6 +198,31 @@ Total keys: 1089
 | `mediaServerExportCleanupRunning` |
 | `mediaServerExportCleanupComplete` |
 | `mediaServerExportCleanupSummary` |
+| `collectionShowExportToggle` |
+| `collectionShowExportToggleDescription` |
+| `collectionShowDialogTitle` |
+| `collectionShowDialogDescription` |
+| `collectionShowPromotionWarning` |
+| `collectionShowSearchHeading` |
+| `collectionShowSearchLabel` |
+| `collectionShowSearchAction` |
+| `collectionShowSearchFailed` |
+| `collectionShowNoCredential` |
+| `collectionShowNoResults` |
+| `collectionShowSuggestion` |
+| `collectionShowMediaTypeTv` |
+| `collectionShowMediaTypeMovie` |
+| `collectionShowManualHeading` |
+| `collectionShowManualLabel` |
+| `collectionShowFolderNotice` |
+| `collectionShowUseCollectionMetadata` |
+| `collectionShowConfirm` |
+| `collectionShowActivationFailed` |
+| `collectionShowLockBusy` |
+| `collectionShowWrongLayout` |
+| `collectionShowPosterWarning` |
+| `collectionShowDisable` |
+| `collectionShowActive` |
 | `mediaServerExportLayout` |
 | `mediaServerExportLayoutInactiveWarning` |
 | `mediaServerExportLayoutAdjacent` |
