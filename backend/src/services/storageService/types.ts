@@ -43,7 +43,87 @@ export interface Collection {
   sourceType?: string;
   sourceMid?: string;
   sourceId?: string;
+  // Media-server TV export metadata (issue #411). See db/schema.ts collections.
+  description?: string;
+  sourceUrl?: string;
+  sourceChannelId?: string;
+  sourceChannelUrl?: string;
+  sourceChannelName?: string;
+  mediaServerShowId?: string;
+  mediaServerSeasonNumber?: number;
   [key: string]: any;
+}
+
+/**
+ * A source channel/author exported as exactly one media-server show (issue #411).
+ */
+export interface MediaServerShow {
+  id: string;
+  identityKey: string;
+  sourcePlatform: string;
+  sourceChannelId?: string;
+  sourceChannelUrl?: string;
+  title: string;
+  description: string;
+  posterSourcePath?: string;
+  directoryName: string;
+  nextSeasonNumber: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/**
+ * One (playlist, video) occurrence exported as one episode (issue #411).
+ * `collectionId` is null for Season 00 (unassigned) occurrences.
+ */
+export interface MediaServerEpisodeAssignment {
+  id: string;
+  showId: string;
+  collectionId?: string;
+  videoId: string;
+  seasonNumber: number;
+  episodeNumber: number;
+  /** Latest observed upstream playlist position. Diagnostic only — never renumbers. */
+  sourcePosition?: number;
+  exportStem: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export type MediaServerArtifactType =
+  | "show_nfo"
+  | "show_poster"
+  | "season_nfo"
+  | "episode_media"
+  | "episode_nfo"
+  | "episode_thumb"
+  | "episode_subtitle"
+  | "source_json";
+
+export type MediaServerMaterialization =
+  | "generated_text"
+  | "copied_image"
+  | "hard_link"
+  | "copied_media"
+  | "copied_subtitle";
+
+/**
+ * Durable ownership record for one generated mirror path (issue #411).
+ * Nothing under the mirror root may be deleted without a matching row.
+ */
+export interface MediaServerExportArtifact {
+  /** Relative to MEDIA_SERVER_LIBRARY_DIR, POSIX separators. */
+  relativePath: string;
+  artifactType: MediaServerArtifactType;
+  showId?: string;
+  assignmentId?: string;
+  sourceAbsolutePath?: string;
+  sourceSize?: number;
+  sourceMtimeMs?: number;
+  materialization: MediaServerMaterialization;
+  contentDigest?: string;
+  createdAt: number;
+  updatedAt: number;
 }
 
 export interface DownloadInfo {

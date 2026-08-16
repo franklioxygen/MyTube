@@ -3,6 +3,7 @@ import crypto from "crypto";
 import path from "path";
 import {
   COLLECTIONS_DATA_PATH,
+  MEDIA_SERVER_LIBRARY_DIR,
   STATUS_DATA_PATH,
   VIDEOS_DATA_PATH,
 } from "../config/paths";
@@ -74,6 +75,10 @@ export const getSettings = async (
     isVisitorPasswordSet: userService.hasEnabledLegacySharedUser(),
     authenticatedRole: req.user?.role ?? null,
     authenticatedUsername: req.user?.username ?? null,
+    // Issue #411: read-only deployment information so the Settings UI can tell
+    // the user which directory to add as a Shows library. It is never accepted
+    // back on save — the mirror root is fixed deployment configuration.
+    mediaServerLibraryPath: MEDIA_SERVER_LIBRARY_DIR,
   });
 };
 

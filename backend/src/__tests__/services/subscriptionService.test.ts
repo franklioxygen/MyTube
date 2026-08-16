@@ -1518,7 +1518,12 @@ describe('SubscriptionService', () => {
           sourceCollectionName: 'BiliAuthor',
           sourceCollectionType: 'channel',
         }),
-        { subscriptionYtdlpConfig: undefined }
+        // Issue #411: a channel subscription has no collection to link into, so
+        // the downloader is free to export the video immediately.
+        expect.objectContaining({
+          subscriptionYtdlpConfig: undefined,
+          pendingCollectionLink: false,
+        })
       );
       expect(storageService.addDownloadHistoryItem).toHaveBeenCalledWith(
         expect.objectContaining({ status: 'success', sourceUrl: 'https://www.bilibili.com/video/BV1x' })

@@ -1387,6 +1387,9 @@ describe("videoDownloadController extra coverage", () => {
         sourceCollectionType: "playlist",
         mediaPlaylistIndex: 1,
       },
+      // Issue #411: the part is linked to the collection just below, so the
+      // downloader defers the media-server export until the season is known.
+      expect.objectContaining({ pendingCollectionLink: true }),
     );
     expect(storageService.linkVideoToCollection).toHaveBeenCalledWith(
       "col-download",

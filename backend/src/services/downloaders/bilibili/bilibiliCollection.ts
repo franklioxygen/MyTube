@@ -713,6 +713,10 @@ export async function downloadCollection(
             onStart,
             collectionName, // collectionName
             sourceOptions, // filenameTemplateSourceOptions
+            // Issue #411: this part is linked to the collection immediately
+            // below, so the downloader must not export it as a Season 00
+            // episode first.
+            { pendingCollectionLink: true },
           );
 
         let result = await downloadPart();
@@ -984,7 +988,9 @@ export async function downloadRemainingParts(
           sourceCollectionName: collectionName || seriesTitle,
           sourceCollectionType: "playlist",
           mediaPlaylistIndex: part,
-        } // filenameTemplateSourceOptions
+        }, // filenameTemplateSourceOptions
+        // Issue #411: see the collection loop above.
+        { pendingCollectionLink: Boolean(collectionId) },
       );
 
       if (result.success && result.videoData) {

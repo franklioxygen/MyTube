@@ -184,6 +184,58 @@ export const ar = {
   mediaServerExportCleanupComplete: "Media server sidecar cleanup complete",
   mediaServerExportCleanupSummary:
     "{succeeded} cleaned, {skipped} skipped, {failed} failed.",
+  mediaServerExportLayout:
+    "Media server export layout",
+  mediaServerExportLayoutInactiveWarning:
+    "The export mode is currently Off, so this layout is not active yet. Choose an export mode above (for example \"Write NFO sidecars\") to start building the managed library.",
+  mediaServerExportLayoutAdjacent:
+    "Adjacent sidecars (existing behavior)",
+  mediaServerExportLayoutPlaylistTv:
+    "Author → playlist seasons (managed TV library)",
+  mediaServerExportLayoutPlaylistTvDescription:
+    "MyTube builds a separate, managed TV library: one show per author, one season per source playlist. Your original video files are never moved, renamed, or duplicated — the library uses hard links back to them.",
+  mediaServerExportLayoutPlaylistTvNamingNote:
+    "Your filename and folder naming settings do not affect this managed library. They still control where your original files are stored.",
+  mediaServerCopyFallback:
+    "Copy media when hard links are unavailable",
+  mediaServerCopyFallbackDescription:
+    "Some filesystems and cross-disk setups cannot create hard links. When this is off, those episodes are reported as failed instead of being copied.",
+  mediaServerLibraryPath:
+    "Managed library folder",
+  mediaServerStableOrderHint:
+    "Episode numbers follow the order in which MyTube first imported each item. Reordering a playlist upstream does not renumber existing episodes.",
+  mediaServerSeasonZeroHint:
+    "Videos that do not belong to a source playlist go into Season 00, shown as “Specials / Unassigned”.",
+  mediaServerHardLinkHint:
+    "Hard links only work within one filesystem and normally consume no additional disk space.",
+  mediaServerCopiedMediaWarning:
+    "{count} media files had to be copied instead of hard linked, which uses additional disk space.",
+  mediaServerExportMirrorSummary:
+    "{shows} shows, {seasons} seasons, {episodes} episodes. {linked} linked, {copied} copied, {removed} removed.",
+  mediaServerExportFailedItems:
+    "Failed ({count})",
+  mediaServerExportSkippedItems:
+    "Skipped ({count})",
+  mediaServerExportMoreItems:
+    "and {count} more",
+  mediaServerExportPlaylistTvRebuildConfirmBody:
+    "Your original videos are not moved or renamed. Media is hard linked where possible, which normally uses no additional disk space; where hard links are unavailable, files may be copied.",
+  mediaServerExportPlaylistTvCleanupConfirmBody:
+    "This only deletes files inside the managed library folder that MyTube generated. Your original videos and any files you added yourself are left untouched.",
+  mediaServerExportPhase_snapshot:
+    "reading library",
+  mediaServerExportPhase_catalog_reconcile:
+    "updating catalog",
+  mediaServerExportPhase_plan:
+    "planning",
+  mediaServerExportPhase_materialize:
+    "writing files",
+  mediaServerExportPhase_sweep:
+    "cleaning up",
+  mediaServerExportPhase_completed:
+    "finishing",
+  mediaServerExportUnsupportedLayoutError:
+    "The selected media server export layout is not supported.",
   mediaServerExportSweptSummary:
     "كما تمت إزالة {count} من الملفات الجانبية اليتيمة.",
   mediaServerExportActiveDownloadsError:

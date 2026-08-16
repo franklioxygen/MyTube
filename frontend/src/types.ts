@@ -159,6 +159,9 @@ export type AuthorOrganizationMode =
 
 export type AdminTrustLevel = 'application' | 'container' | 'host';
 
+/** Where media-server artifacts are written (issue #411). */
+export type MediaServerExportLayout = 'adjacent' | 'playlist_tv';
+
 export type LiveTranslationModel = 'gemini-3.5-live-translate-preview';
 
 export interface VisitorUser {
@@ -277,6 +280,16 @@ export interface Settings {
     | 'custom';
   downloadFilenameTemplate?: string;
   mediaServerExportMode?: 'off' | 'nfo' | 'nfo_and_source_json';
+  /**
+   * Issue #411. `adjacent` writes sidecars next to the original media (the
+   * historical behavior and the default). `playlist_tv` builds a MyTube-managed
+   * TV mirror of author shows and playlist seasons; originals are never moved.
+   */
+  mediaServerExportLayout?: MediaServerExportLayout;
+  /** Copy media when a hard link into the mirror is not possible. */
+  mediaServerCopyFallback?: boolean;
+  /** Read-only deployment path of the managed mirror. Never sent back on save. */
+  mediaServerLibraryPath?: string;
   // Statistics
   statisticsEnabled?: boolean;
   statisticsRetentionDays?: number | null;

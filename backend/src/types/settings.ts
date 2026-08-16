@@ -14,6 +14,17 @@ export const LEGACY_DOWNLOAD_FILENAME_TEMPLATE =
   "{{ title }}-{{ uploader }}-{{ upload_year }}.{{ ext }}";
 
 export type MediaServerExportMode = "off" | "nfo" | "nfo_and_source_json";
+
+/**
+ * Where media-server artifacts are written (issue #411).
+ *
+ * - `adjacent` (default): sidecars next to the original media, exactly as
+ *   MyTube has always behaved.
+ * - `playlist_tv`: a MyTube-managed TV mirror under MEDIA_SERVER_LIBRARY_DIR
+ *   built from author shows and source-playlist seasons. Originals are never
+ *   moved or renamed.
+ */
+export type MediaServerExportLayout = "adjacent" | "playlist_tv";
 export type AuthorOrganizationMode =
   | "root"
   | "author_folder_only"
@@ -136,6 +147,15 @@ export interface Settings {
   downloadFilenamePresetId?: DownloadFilenamePresetId;
   downloadFilenameTemplate?: string;
   mediaServerExportMode?: MediaServerExportMode;
+  mediaServerExportLayout?: MediaServerExportLayout;
+  /**
+   * When a hard link into the managed mirror is not possible (cross-filesystem,
+   * unsupported filesystem, permissions), copy the media instead. Copies consume
+   * a second full media payload; disabling this reports a typed failure instead.
+   */
+  mediaServerCopyFallback?: boolean;
+  /** Response-only: the deployment path of the managed mirror. Never persisted. */
+  mediaServerLibraryPath?: string;
   // Statistics
   statisticsEnabled?: boolean;
   statisticsRetentionDays?: number | null;
@@ -214,6 +234,8 @@ export const defaultSettings: Settings = {
   downloadFilenameMode: "legacy",
   downloadFilenameTemplate: LEGACY_DOWNLOAD_FILENAME_TEMPLATE,
   mediaServerExportMode: "off",
+  mediaServerExportLayout: "adjacent",
+  mediaServerCopyFallback: true,
   statisticsEnabled: false,
   statisticsRetentionDays: 365,
   statisticsCaptureSearchText: false,

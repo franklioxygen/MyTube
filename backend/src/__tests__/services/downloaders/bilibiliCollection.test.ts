@@ -193,6 +193,9 @@ describe("bilibiliCollection.downloadCollection", () => {
         sourceCollectionType: "playlist",
         mediaPlaylistIndex: 2,
       },
+      // Issue #411: a collection download links each part right afterwards, so
+      // the downloader must not export it as a Season 00 episode first.
+      { pendingCollectionLink: true },
     );
     expect(result).toEqual(
       expect.objectContaining({
@@ -352,6 +355,8 @@ describe("bilibiliCollection.downloadCollection", () => {
       expect.objectContaining({
         sourceCollectionName: "Renamed Series",
       }),
+      // Issue #411: see the collection-reuse case above.
+      { pendingCollectionLink: true },
     );
     expect(mocks.linkVideoToCollection).toHaveBeenNthCalledWith(
       1,
