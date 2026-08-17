@@ -32,29 +32,16 @@ import {
   parseOrderingPlanningFailure,
   serializeOrderingPlanningFailure,
 } from "./continuousDownload/planningErrors";
-import { sortVideoEntries, VideoUrlFetcher } from "./continuousDownload/videoUrlFetcher";
+import {
+  isYouTubeUploadsPlaylistId,
+  requiredMetadataMissingForAll,
+  sortVideoEntries,
+  VideoUrlFetcher,
+  YOUTUBE_PLAYLIST_ID_REGEX,
+} from "./continuousDownload/videoUrlFetcher";
 
 const FROZEN_LISTS_DIR = path.join(DATA_DIR, "frozen-lists");
 const SAFE_FROZEN_LIST_TASK_ID = /^[A-Za-z0-9_-]+$/;
-const YOUTUBE_PLAYLIST_ID_REGEX = /[?&]list=([a-zA-Z0-9_-]+)/;
-
-/**
- * YouTube auto-generates an "uploads" playlist for every channel whose items
- * are always ordered newest-first. Its id starts with `UU` (the channel id with
- * the leading `UC` replaced by `UU`), including the `UULF`/`UUSH`/... variants
- * for long-form, shorts, and so on. Those are the only `list=` sources we can
- * process with the incremental fast path and still honour a dateDesc
- * (newest-first) request without hydrating publication dates.
- *
- * Every other playlist kind can be in an arbitrary order — `PL` user playlists,
- * `LL` liked, `WL` watch-later, `RD`/`RDCLAK` mixes, `OLAK5uy_` album playlists —
- * so a dateDesc request against them must go through the sorted frozen-plan path
- * rather than following raw playlist order.
- */
-function isYouTubeUploadsPlaylistId(listId: string): boolean {
-  return listId.startsWith("UU");
-}
-
 /**
  * Main service for managing continuous download tasks
  * Orchestrates task creation, management, and processing
@@ -756,19 +743,35 @@ export class ContinuousDownloadService {
           const subscriptionYtdlpConfig =
             await this.resolveSubscriptionYtdlpConfig(task);
           logger.info(`Fetching video entries for task ${taskId} (order: ${effectiveOrder})`);
-          const entries = await this.videoUrlFetcher.getAllVideoEntries(
-            task.authorUrl,
-            task.platform,
-            subscriptionYtdlpConfig,
+          const { entries, listingOrder } =
+            await this.videoUrlFetcher.getAllVideoEntries(
+              task.authorUrl,
+              task.platform,
+              subscriptionYtdlpConfig,
+              effectiveOrder
+            );
+          // Captured before sorting: the sort consumes this to decide whether
+          // it can fall back to listing order instead of failing.
+          const usedListingOrderFallback = requiredMetadataMissingForAll(
+            entries,
             effectiveOrder
           );
-          const sorted = sortVideoEntries(entries, effectiveOrder, task.platform);
+          const sorted = sortVideoEntries(
+            entries,
+            effectiveOrder,
+            task.platform,
+            listingOrder
+          );
           cachedVideoUrls = sorted.map((e) => e.url);
           const frozenPlan = createFrozenDownloadPlanV2({
             task,
             downloadOrder: effectiveOrder,
             entries: sorted,
-            warnings: this.buildOrderingWarnings(sorted, effectiveOrder),
+            warnings: usedListingOrderFallback
+              ? [
+                  `No publication dates could be recovered for any of the ${sorted.length} videos, so they were ordered by the source's own newest-first listing instead.`,
+                ]
+              : this.buildOrderingWarnings(sorted, effectiveOrder),
           });
 
           // Persist frozen list

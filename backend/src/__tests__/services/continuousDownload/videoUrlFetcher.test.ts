@@ -605,7 +605,12 @@ describe('VideoUrlFetcher', () => {
       await expect(
         fetcher.getAllVideoUrls('https://space.bilibili.com/1000', 'Bilibili')
       ).rejects.toThrow(SourceEnumerationFailedError);
-      expect(axios.get).toHaveBeenCalledTimes(1);
+      // The WBI nav lookup also goes through axios, so count only the calls to
+      // the space endpoint: the point is that pagination stopped after one.
+      const spaceCalls = (axios.get as any).mock.calls.filter(
+        ([url]: [string]) => url.includes('/x/space/arc/search')
+      );
+      expect(spaceCalls).toHaveLength(1);
     });
 
     it('should still report a genuinely empty space as no videos', async () => {
@@ -692,7 +697,7 @@ describe('VideoUrlFetcher', () => {
           null,
           'dateAsc'
         )
-      ).resolves.toEqual([]);
+      ).resolves.toEqual({ entries: [], listingOrder: 'chronologicalDesc' });
     });
 
     it('should hydrate YouTube ordering metadata with bounded concurrency', async () => {
@@ -731,7 +736,7 @@ describe('VideoUrlFetcher', () => {
         }
       );
 
-      const entries = await fetcher.getAllVideoEntries(
+      const { entries } = await fetcher.getAllVideoEntries(
         'https://youtube.com/@channel',
         'YouTube',
         null,
@@ -776,7 +781,7 @@ describe('VideoUrlFetcher', () => {
         ],
       });
 
-      const entries = await fetcher.getAllVideoEntries(
+      const { entries } = await fetcher.getAllVideoEntries(
         'https://www.bilibili.com/video/BVCOLL',
         'Bilibili'
       );
@@ -818,7 +823,7 @@ describe('VideoUrlFetcher', () => {
         ],
       });
 
-      const entries = await fetcher.getAllVideoEntries(
+      const { entries } = await fetcher.getAllVideoEntries(
         'https://www.bilibili.com/video/BVCOLL',
         'Bilibili'
       );
@@ -865,7 +870,7 @@ describe('VideoUrlFetcher', () => {
         },
       });
 
-      const entries = await fetcher.getAllVideoEntries(
+      const { entries } = await fetcher.getAllVideoEntries(
         'https://space.bilibili.com/123',
         'Bilibili',
         null,
@@ -940,7 +945,7 @@ describe('VideoUrlFetcher', () => {
           cursor: undefined,
         });
 
-      const entries = await fetcher.getAllVideoEntries(
+      const { entries } = await fetcher.getAllVideoEntries(
         'https://www.twitch.tv/streamer/videos',
         'Twitch'
       );
@@ -1027,7 +1032,7 @@ describe('VideoUrlFetcher', () => {
           videos: [],
         });
 
-      const entries = await fetcher.getAllVideoEntries(
+      const { entries } = await fetcher.getAllVideoEntries(
         'https://www.twitch.tv/streamer/videos',
         'Twitch'
       );
@@ -1088,6 +1093,199 @@ describe('VideoUrlFetcher', () => {
       );
 
       expect(urls).toEqual(['https://www.twitch.tv/videos/101']);
+    });
+  });
+  describe('ordering metadata recovery', () => {
+    // Real shape from yt-dlp 2025.10.14: a flat listing carries no dates and no
+    // view counts on either platform. Every ordering signal has to be recovered.
+    const flatEntry = (id: string) => ({
+      id,
+      url: `https://www.youtube.com/watch?v=${id}`,
+      upload_date: null,
+      timestamp: null,
+      release_timestamp: null,
+      view_count: null,
+    });
+
+    it('asks yt-dlp for approximate dates so a channel listing needs no hydration', async () => {
+      const listing = Array.from({ length: 55 }, (_, index) => ({
+        ...flatEntry(`yt-${index}`),
+        // What --extractor-args youtubetab:approximate_date adds.
+        timestamp: 1_780_000_000 - index * 86_400,
+      }));
+      let hydrationCalls = 0;
+
+      (ytDlpUtils.executeYtDlpJson as any).mockImplementation(
+        async (_url: string, options: Record<string, unknown>) => {
+          if (options.flatPlaylist) {
+            return { entries: listing };
+          }
+          hydrationCalls += 1;
+          return {};
+        }
+      );
+
+      const { entries, listingOrder } = await fetcher.getAllVideoEntries(
+        'https://youtube.com/@channel',
+        'YouTube',
+        null,
+        'dateDesc'
+      );
+
+      expect(hydrationCalls).toBe(0);
+      expect(entries).toHaveLength(55);
+      expect(entries.every((entry) => entry.publishedAtMs !== null)).toBe(true);
+      // Listing dates are only good to the day, and must say so.
+      expect(entries[0].publishedDatePrecision).toBe('day');
+      expect(listingOrder).toBe('chronologicalDesc');
+
+      const flatCall = (ytDlpUtils.executeYtDlpJson as any).mock.calls.find(
+        ([, options]: [string, Record<string, unknown>]) => options.flatPlaylist
+      );
+      expect(flatCall[1].extractorArgs).toContain('youtubetab:approximate_date');
+    });
+
+    it('orders by the source listing instead of failing when no dates survive', async () => {
+      // The reported regression: 55 videos, every date lost, task cancelled with
+      // zero downloads. A channel lists newest-first, so that sequence already
+      // is dateDesc and downloading it is strictly better than refusing to.
+      const entries = Array.from({ length: 55 }, (_, index) => ({
+        url: `u${index}`,
+        sourceVideoId: `u${index}`,
+        publishedAtMs: null,
+        publishedDatePrecision: 'unknown' as const,
+        viewCount: null,
+        sourceIndex: index,
+      }));
+
+      const sorted = sortVideoEntries(
+        entries,
+        'dateDesc',
+        'YouTube',
+        'chronologicalDesc'
+      );
+
+      expect(sorted.map((entry) => entry.url)).toEqual(
+        entries.map((entry) => entry.url)
+      );
+    });
+
+    it('reverses the listing for an oldest-first request', async () => {
+      const entries = [0, 1, 2].map((index) => ({
+        url: `u${index}`,
+        sourceVideoId: `u${index}`,
+        publishedAtMs: null,
+        publishedDatePrecision: 'unknown' as const,
+        viewCount: null,
+        sourceIndex: index,
+      }));
+
+      const sorted = sortVideoEntries(
+        entries,
+        'dateAsc',
+        'YouTube',
+        'chronologicalDesc'
+      );
+
+      expect(sorted.map((entry) => entry.url)).toEqual(['u2', 'u1', 'u0']);
+    });
+
+    it('still fails when the listing order proves nothing', async () => {
+      const entries = [0, 1].map((index) => ({
+        url: `u${index}`,
+        sourceVideoId: `u${index}`,
+        publishedAtMs: null,
+        publishedDatePrecision: 'unknown' as const,
+        viewCount: null,
+        sourceIndex: index,
+      }));
+
+      // A hand-ordered playlist or a concatenated listing.
+      expect(() =>
+        sortVideoEntries(entries, 'dateDesc', 'YouTube', 'unknown')
+      ).toThrow(OrderingMetadataUnavailableError);
+
+      // A listing sequence says nothing about view counts, even when it is
+      // known to be chronological.
+      expect(() =>
+        sortVideoEntries(entries, 'viewsDesc', 'YouTube', 'chronologicalDesc')
+      ).toThrow(OrderingMetadataUnavailableError);
+    });
+
+    it('marks a hand-ordered playlist as an unusable ordering signal', async () => {
+      (ytDlpUtils.executeYtDlpJson as any).mockResolvedValue({
+        entries: [flatEntry('yt-1')],
+      });
+
+      const { listingOrder } = await fetcher.getAllVideoEntries(
+        'https://youtube.com/playlist?list=PLsomething',
+        'YouTube',
+        null,
+        'dateDesc'
+      );
+
+      expect(listingOrder).toBe('unknown');
+    });
+
+    it('treats an uploads playlist as chronological', async () => {
+      (ytDlpUtils.executeYtDlpJson as any).mockResolvedValue({
+        entries: [flatEntry('yt-1')],
+      });
+
+      const { listingOrder } = await fetcher.getAllVideoEntries(
+        'https://youtube.com/playlist?list=UULFsomething',
+        'YouTube',
+        null,
+        'dateDesc'
+      );
+
+      expect(listingOrder).toBe('chronologicalDesc');
+    });
+
+    it('WBI-signs the Bilibili space API request', async () => {
+      (helpers.extractBilibiliMid as any).mockReturnValue('946974');
+      (ytDlpUtils.executeYtDlpJson as any).mockResolvedValue({ entries: [] });
+      (axios.get as any).mockImplementation(async (url: string) => {
+        if (url.includes('/x/web-interface/nav')) {
+          return {
+            data: {
+              data: {
+                wbi_img: {
+                  img_url:
+                    'https://i0.hdslb.com/bfs/wbi/7cd084941338484aae1ad9425b84077c.png',
+                  sub_url:
+                    'https://i0.hdslb.com/bfs/wbi/4932caff0ff746eab6f01bf08b70ac45.png',
+                },
+              },
+            },
+          };
+        }
+        return {
+          data: {
+            code: 0,
+            data: {
+              list: { vlist: [{ bvid: 'BV1', created: 1_700_000_000, play: 5 }] },
+              page: { count: 1 },
+            },
+          },
+        };
+      });
+
+      const { entries, listingOrder } = await fetcher.getAllVideoEntries(
+        'https://space.bilibili.com/946974',
+        'Bilibili',
+        null,
+        'dateDesc'
+      );
+
+      const spaceCall = (axios.get as any).mock.calls.find(([url]: [string]) =>
+        url.includes('/x/space/arc/search')
+      );
+      expect(spaceCall[0]).toMatch(/w_rid=[0-9a-f]{32}/);
+      expect(spaceCall[0]).toMatch(/wts=\d+/);
+      expect(entries).toHaveLength(1);
+      expect(entries[0].publishedAtMs).toBe(1_700_000_000_000);
+      expect(listingOrder).toBe('chronologicalDesc');
     });
   });
 });

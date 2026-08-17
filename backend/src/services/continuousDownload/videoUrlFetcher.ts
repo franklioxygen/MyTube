@@ -4,6 +4,41 @@ import { logger } from "../../utils/logger";
 export type { VideoEntry };
 
 /**
+ * Whether a source enumerated its videos newest-first.
+ *
+ * Flat-playlist listings carry no publication dates at all, so when every
+ * recovery path for those dates fails the enumeration order is the only
+ * ordering signal left. It is a sound one for a channel/space listing, whose
+ * natural order *is* reverse-chronological, and unsound for a hand-ordered
+ * playlist or a concatenation of several listings — hence the distinction.
+ */
+export type SourceListingOrder = "chronologicalDesc" | "unknown";
+
+export interface VideoEntrySet {
+  entries: VideoEntry[];
+  listingOrder: SourceListingOrder;
+}
+
+export const YOUTUBE_PLAYLIST_ID_REGEX = /[?&]list=([a-zA-Z0-9_-]+)/;
+
+/**
+ * YouTube auto-generates an "uploads" playlist for every channel whose items
+ * are always ordered newest-first. Its id starts with `UU` (the channel id with
+ * the leading `UC` replaced by `UU`), including the `UULF`/`UUSH`/... variants
+ * for long-form, shorts, and so on. Those are the only `list=` sources we can
+ * process with the incremental fast path and still honour a dateDesc
+ * (newest-first) request without hydrating publication dates.
+ *
+ * Every other playlist kind can be in an arbitrary order — `PL` user playlists,
+ * `LL` liked, `WL` watch-later, `RD`/`RDCLAK` mixes, `OLAK5uy_` album playlists —
+ * so a dateDesc request against them must go through the sorted frozen-plan path
+ * rather than following raw playlist order.
+ */
+export function isYouTubeUploadsPlaylistId(listId: string): boolean {
+  return listId.startsWith("UU");
+}
+
+/**
  * Raised when enumerating a source fails partway through. Treating a failed
  * listing page as end-of-list is indistinguishable from a genuinely exhausted
  * source, so the caller would freeze an empty or truncated plan and mark the
@@ -54,16 +89,62 @@ function requiredValue(entry: VideoEntry, order: DownloadOrder): number | null {
     : entry.viewCount;
 }
 
+function isDateOrder(order: DownloadOrder): boolean {
+  return order === "dateAsc" || order === "dateDesc";
+}
+
+/**
+ * True when not one entry carries the field the requested order sorts on.
+ */
+export function requiredMetadataMissingForAll(
+  entries: VideoEntry[],
+  order: DownloadOrder
+): boolean {
+  return (
+    entries.length > 0 &&
+    entries.every((entry) => requiredValue(entry, order) === null)
+  );
+}
+
+/**
+ * True when the requested order can be satisfied by enumeration order alone.
+ * Only date orders qualify: a listing's sequence says nothing about view counts.
+ */
+function canFallBackToListingOrder(
+  order: DownloadOrder,
+  listingOrder: SourceListingOrder
+): boolean {
+  return isDateOrder(order) && listingOrder === "chronologicalDesc";
+}
+
 /**
  * Sort video entries by the requested order with deterministic tie-breaking.
+ *
+ * When no entry carries the required field, ordering cannot be proven from
+ * metadata. If the source enumerated newest-first, that sequence already *is*
+ * the requested date order and is used directly; otherwise the caller is told,
+ * because guessing an order would freeze a wrong plan that progress indices are
+ * then bound to.
  */
 export function sortVideoEntries(
   entries: VideoEntry[],
   order: DownloadOrder,
-  platform: string = "unknown"
+  platform: string = "unknown",
+  listingOrder: SourceListingOrder = "unknown"
 ): VideoEntry[] {
-  if (entries.length > 0 && entries.every((entry) => requiredValue(entry, order) === null)) {
-    throw new OrderingMetadataUnavailableError(platform, order, entries.length);
+  if (requiredMetadataMissingForAll(entries, order)) {
+    if (!canFallBackToListingOrder(order, listingOrder)) {
+      throw new OrderingMetadataUnavailableError(platform, order, entries.length);
+    }
+
+    logger.warn(
+      "No ordering metadata was recovered; falling back to source listing order",
+      { platform, order, entryCount: entries.length }
+    );
+    const bySourceIndex = [...entries].sort(
+      (a, b) => a.sourceIndex - b.sourceIndex
+    );
+    return order === "dateAsc" ? bySourceIndex.reverse() : bySourceIndex;
   }
 
   return [...entries].sort((a, b) => {
@@ -110,6 +191,11 @@ export function sortVideoEntries(
 }
 
 const MAX_TWITCH_VIDEO_ENTRY_PAGES = 100;
+/**
+ * A Bilibili space lists newest-first on both routes used here: yt-dlp's space
+ * extractor and the `order=pubdate` API fallback.
+ */
+const SPACE_LISTING_ORDER: SourceListingOrder = "chronologicalDesc";
 const YOUTUBE_HYDRATE_METADATA_CONCURRENCY = 4;
 
 async function runWithBoundedConcurrency<T>(
@@ -229,13 +315,22 @@ function createVideoEntry(input: {
   publishedAt?: unknown;
   viewCount?: unknown;
   sourceIndex: number;
+  /**
+   * Set for dates yt-dlp derives from a listing's relative labels ("3 weeks
+   * ago"). They arrive as exact-looking epoch seconds but are only good to the
+   * day, so the precision is recorded as such rather than "second".
+   */
+  approximatePublishedAt?: boolean;
 }): VideoEntry {
   const published = parsePublishedAt(input.publishedAt);
   return {
     url: input.url,
     sourceVideoId: input.sourceVideoId || input.url,
     publishedAtMs: published.publishedAtMs,
-    publishedDatePrecision: published.publishedDatePrecision,
+    publishedDatePrecision:
+      input.approximatePublishedAt && published.publishedAtMs !== null
+        ? "day"
+        : published.publishedDatePrecision,
     viewCount: toViewCount(input.viewCount),
     sourceIndex: input.sourceIndex,
   };
@@ -406,7 +501,7 @@ export class VideoUrlFetcher {
     platform: string,
     subscriptionYtdlpConfig?: string | null,
     downloadOrder: DownloadOrder = "dateDesc"
-  ): Promise<VideoEntry[]> {
+  ): Promise<VideoEntrySet> {
     try {
       if (platform === "Bilibili") {
         return await this.getBilibiliVideoEntries(
@@ -415,10 +510,15 @@ export class VideoUrlFetcher {
           downloadOrder
         );
       } else if (platform === "Twitch") {
-        return await this.getTwitchVideoEntries(
-          authorUrl,
-          subscriptionYtdlpConfig
-        );
+        // Archives and uploads are fetched as two separate newest-first runs
+        // and concatenated, so the combined sequence is not chronological.
+        return {
+          entries: await this.getTwitchVideoEntries(
+            authorUrl,
+            subscriptionYtdlpConfig
+          ),
+          listingOrder: "unknown",
+        };
       } else {
         return await this.getYouTubeVideoEntries(
           authorUrl,
@@ -439,7 +539,7 @@ export class VideoUrlFetcher {
     authorUrl: string,
     subscriptionYtdlpConfig?: string | null,
     downloadOrder: DownloadOrder = "dateDesc"
-  ): Promise<VideoEntry[]> {
+  ): Promise<VideoEntrySet> {
     const {
       executeYtDlpJson,
       getNetworkConfigFromUserConfig,
@@ -455,8 +555,8 @@ export class VideoUrlFetcher {
     const networkConfig = getNetworkConfigFromUserConfig(userConfig);
     const PROVIDER_SCRIPT = getProviderScript();
 
-    const playlistRegex = /[?&]list=([a-zA-Z0-9_-]+)/;
-    const isPlaylist = playlistRegex.test(authorUrl);
+    const playlistMatch = authorUrl.match(YOUTUBE_PLAYLIST_ID_REGEX);
+    const isPlaylist = playlistMatch !== null;
 
     let targetUrl = authorUrl;
     if (!isPlaylist) {
@@ -471,6 +571,25 @@ export class VideoUrlFetcher {
       }
     }
 
+    // A channel tab and an uploads playlist are both listed newest-first; a
+    // hand-ordered playlist is not.
+    const listingOrder: SourceListingOrder =
+      !isPlaylist || isYouTubeUploadsPlaylistId(playlistMatch[1])
+        ? "chronologicalDesc"
+        : "unknown";
+
+    // Without this, a flat listing carries no upload_date, timestamp, or
+    // view_count at all, and every entry has to be hydrated with a separate
+    // full extraction. `approximate_date` makes yt-dlp turn the relative labels
+    // the listing already renders ("3 weeks ago") into timestamps, which is
+    // enough to order by and costs nothing extra.
+    const extractorArgs = [
+      "youtubetab:approximate_date",
+      ...(PROVIDER_SCRIPT
+        ? [`youtubepot-bgutilscript:script_path=${PROVIDER_SCRIPT}`]
+        : []),
+    ];
+
     const entries: VideoEntry[] = [];
     let page = 1;
     const pageSize = 100;
@@ -484,21 +603,24 @@ export class VideoUrlFetcher {
           flatPlaylist: true,
           playlistStart: (page - 1) * pageSize + 1,
           playlistEnd: page * pageSize,
-          ...(PROVIDER_SCRIPT
-            ? { extractorArgs: `youtubepot-bgutilscript:script_path=${PROVIDER_SCRIPT}` }
-            : {}),
+          extractorArgs,
         });
 
         if (result.entries && result.entries.length > 0) {
           for (const entry of result.entries) {
             if (entry.id && !entry.id.startsWith("UC")) {
               const url = entry.url || `https://www.youtube.com/watch?v=${entry.id}`;
+              const publishedAt =
+                entry.upload_date ?? entry.timestamp ?? entry.release_timestamp;
               entries.push(createVideoEntry({
                 url,
                 sourceVideoId: entry.id,
-                publishedAt: entry.upload_date ?? entry.timestamp ?? entry.release_timestamp,
+                publishedAt,
                 viewCount: entry.view_count,
                 sourceIndex: entries.length,
+                // Only upload_date is exact in a listing; the timestamps come
+                // from approximate_date.
+                approximatePublishedAt: !entry.upload_date,
               }));
             }
           }
@@ -529,7 +651,7 @@ export class VideoUrlFetcher {
       entryCount: hydrated.length,
       authorUrl,
     });
-    return hydrated;
+    return { entries: hydrated, listingOrder };
   }
 
   private async hydrateYouTubeEntriesForOrder(
@@ -595,7 +717,7 @@ export class VideoUrlFetcher {
     authorUrl: string,
     subscriptionYtdlpConfig?: string | null,
     downloadOrder: DownloadOrder = "dateDesc"
-  ): Promise<VideoEntry[]> {
+  ): Promise<VideoEntrySet> {
     const entries: VideoEntry[] = [];
     const { extractBilibiliMid, extractBilibiliVideoId } = await import("../../utils/helpers");
     const { checkBilibiliCollectionOrSeries } = await import("../../services/downloadService");
@@ -649,7 +771,8 @@ export class VideoUrlFetcher {
             entryCount: entries.length,
             authorUrl,
           });
-          return entries;
+          // A collection/series is ordered by its curator, not by date.
+          return { entries, listingOrder: "unknown" };
         }
       }
 
@@ -745,7 +868,7 @@ export class VideoUrlFetcher {
             logger.warn(
               "Proxy is configured but unusable; keeping the partial Bilibili entries yt-dlp returned instead of running the API fallback"
             );
-            return entries;
+            return { entries, listingOrder: SPACE_LISTING_ORDER };
           }
           throw new SourceEnumerationFailedError(
             "Bilibili",
@@ -764,19 +887,33 @@ export class VideoUrlFetcher {
         let hasMoreApi = true;
         let fetchedCount = 0;
 
+        const { buildSignedBilibiliUrl } = await import(
+          "../downloaders/bilibili/bilibiliWbi"
+        );
+
         while (hasMoreApi) {
           try {
-            const response = await axios.default.get(
-              `https://api.bilibili.com/x/space/arc/search?mid=${mid}&pn=${pageNum}&ps=${pageSize}&order=pubdate`,
+            // This endpoint is WBI-gated. Unsigned requests still succeed from
+            // un-challenged IPs but come back `code: -352` from datacenter
+            // ranges, which is where most self-hosted instances run.
+            const requestUrl = await buildSignedBilibiliUrl(
+              "https://api.bilibili.com/x/space/arc/search",
               {
-                ...proxiedAxiosConfig,
-                headers: {
-                  Referer: "https://www.bilibili.com",
-                  "User-Agent":
-                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
-                },
-              }
+                mid: String(mid),
+                pn: pageNum,
+                ps: pageSize,
+                order: "pubdate",
+              },
+              proxiedAxiosConfig
             );
+            const response = await axios.default.get(requestUrl, {
+              ...proxiedAxiosConfig,
+              headers: {
+                Referer: "https://www.bilibili.com",
+                "User-Agent":
+                  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+              },
+            });
 
             const data = response.data;
             if (
@@ -875,7 +1012,7 @@ export class VideoUrlFetcher {
       entryCount: entries.length,
       authorUrl,
     });
-    return entries;
+    return { entries, listingOrder: SPACE_LISTING_ORDER };
   }
 
   private async getTwitchVideoEntries(
@@ -1156,19 +1293,33 @@ export class VideoUrlFetcher {
         const pageSize = 50;
         let hasMoreApi = true;
 
+        const { buildSignedBilibiliUrl } = await import(
+          "../downloaders/bilibili/bilibiliWbi"
+        );
+
         while (hasMoreApi) {
           try {
-            const response = await axios.default.get(
-              `https://api.bilibili.com/x/space/arc/search?mid=${mid}&pn=${pageNum}&ps=${pageSize}&order=pubdate`,
+            // This endpoint is WBI-gated. Unsigned requests still succeed from
+            // un-challenged IPs but come back `code: -352` from datacenter
+            // ranges, which is where most self-hosted instances run.
+            const requestUrl = await buildSignedBilibiliUrl(
+              "https://api.bilibili.com/x/space/arc/search",
               {
-                ...proxiedAxiosConfig,
-                headers: {
-                  Referer: "https://www.bilibili.com",
-                  "User-Agent":
-                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
-                },
-              }
+                mid: String(mid),
+                pn: pageNum,
+                ps: pageSize,
+                order: "pubdate",
+              },
+              proxiedAxiosConfig
             );
+            const response = await axios.default.get(requestUrl, {
+              ...proxiedAxiosConfig,
+              headers: {
+                Referer: "https://www.bilibili.com",
+                "User-Agent":
+                  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+              },
+            });
 
             const data = response.data;
             if (
