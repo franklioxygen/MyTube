@@ -352,7 +352,19 @@ export function ensureDirSafeSync(
   allowedDirOrDirs: string | readonly string[],
 ): void {
   const safePath = resolveTrustedPathForOperation(dirPath, allowedDirOrDirs);
-  fs.ensureDirSync(safePath);
+
+  // Guarded inline for the same reason as writeFileSafe.
+  for (const allowedDir of normalizeAllowedDirectories(allowedDirOrDirs)) {
+    const relative = path.relative(path.resolve(allowedDir), safePath);
+    if (!relative.startsWith("..") && !path.isAbsolute(relative)) {
+      fs.ensureDirSync(safePath);
+      return;
+    }
+  }
+
+  throw new Error(
+    `Path traversal detected: ${dirPath} is outside allowed directories`,
+  );
 }
 
 export function readFileSafeSync(
@@ -397,7 +409,23 @@ export async function writeFileSafe(
   options?: WriteFileOptions,
 ): Promise<void> {
   const safePath = resolveTrustedPathForOperation(filePath, allowedDirOrDirs);
-  await fs.writeFile(safePath, data, options);
+
+  // Containment is re-checked inline, immediately around the write, rather than
+  // relying only on the resolver above. Static analysis cannot see through the
+  // resolver, so a caller reachable from request data reads as a path-injection
+  // sink; the guard here is the barrier it does recognise. Same shape as
+  // pathExistsSafeSync and copyFileSafeSync.
+  for (const allowedDir of normalizeAllowedDirectories(allowedDirOrDirs)) {
+    const relative = path.relative(path.resolve(allowedDir), safePath);
+    if (!relative.startsWith("..") && !path.isAbsolute(relative)) {
+      await fs.writeFile(safePath, data, options);
+      return;
+    }
+  }
+
+  throw new Error(
+    `Path traversal detected: ${filePath} is outside allowed directories`,
+  );
 }
 
 export function unlinkSafeSync(
