@@ -1,14 +1,52 @@
+import crypto from "crypto";
 import { Response } from "express";
 import jwt from "jsonwebtoken";
 import { v4 as uuidv4 } from "uuid";
 import { logger } from "../utils/logger";
 
-// Warn if JWT_SECRET is not set in production
-if (!process.env.JWT_SECRET && process.env.NODE_ENV === "production") {
-  logger.error("WARNING: JWT_SECRET is not set in production environment. This is a security risk!");
+/**
+ * The signing key that shipped as a fallback before this was fixed. It is public
+ * (it lived in the repository), so any token signed with it must be treated as
+ * attacker-controlled. Kept here only so we can refuse to use it.
+ */
+export const COMPROMISED_LEGACY_JWT_SECRET =
+  "default_development_secret_do_not_use_in_production";
+
+/**
+ * Resolve the JWT signing key, failing safe when none is configured.
+ *
+ * JWTs never leave this process: login mints one, `setAuthCookie` immediately
+ * exchanges it for an opaque server-side session id, and no response body
+ * returns a token. Sessions live in an in-memory Map, so nothing has to survive
+ * a restart either. That means an unconfigured deployment can safely get a
+ * random per-process key rather than a shared constant — no shipped compose file
+ * sets JWT_SECRET, so refusing to boot would break every default install while
+ * a random key breaks nothing.
+ */
+function resolveJwtSecret(): string {
+  const configured = process.env.JWT_SECRET?.trim();
+
+  if (configured === COMPROMISED_LEGACY_JWT_SECRET) {
+    const message =
+      "JWT_SECRET is set to the publicly known default that shipped with older " +
+      "MyTube versions. Anyone can forge admin tokens with it. Unset JWT_SECRET " +
+      "or replace it with a unique random value before starting.";
+    logger.error(message);
+    throw new Error(message);
+  }
+
+  if (configured) {
+    return configured;
+  }
+
+  logger.warn(
+    "JWT_SECRET is not set; generating a random per-process signing key. " +
+      "Auth sessions are in-memory and do not survive a restart either way."
+  );
+  return crypto.randomBytes(64).toString("hex");
 }
 
-const JWT_SECRET = process.env.JWT_SECRET || "default_development_secret_do_not_use_in_production";
+const JWT_SECRET = resolveJwtSecret();
 const JWT_EXPIRES_IN = "24h";
 const SESSION_COOKIE_NAME = "mytube_auth_session";
 const SESSION_MAX_AGE_MS = 24 * 60 * 60 * 1000;
