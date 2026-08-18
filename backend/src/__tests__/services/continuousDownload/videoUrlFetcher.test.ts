@@ -553,7 +553,7 @@ describe('VideoUrlFetcher', () => {
 
       await expect(
         fetcher.getAllVideoUrls('https://www.bilibili.com/video/BVEMPTY', 'Bilibili')
-      ).rejects.toThrow('Failed to get videos from series');
+      ).rejects.toThrow(SourceEnumerationFailedError);
     });
 
     it('should fail enumeration when yt-dlp and the API fallback both fail', async () => {
@@ -594,6 +594,112 @@ describe('VideoUrlFetcher', () => {
       ).rejects.toThrow(SourceEnumerationFailedError);
     });
 
+    it('should bound Bilibili API pagination when every page is abnormally short', async () => {
+      (helpers.extractBilibiliMid as any).mockReturnValue('999');
+      (ytDlpUtils.executeYtDlpJson as any).mockResolvedValue({ entries: [] });
+      (axios.get as any).mockImplementation(async (url: string) => {
+        if (url.includes('/x/web-interface/nav')) {
+          return { data: {} };
+        }
+        const page = Number(new URL(url).searchParams.get('pn'));
+        return {
+          data: {
+            code: 0,
+            data: {
+              list: { vlist: [{ bvid: `BV${page}` }] },
+              page: { count: 500 },
+            },
+          },
+        };
+      });
+
+      await expect(
+        fetcher.getAllVideoUrls('https://space.bilibili.com/999', 'Bilibili')
+      ).rejects.toThrow(SourceEnumerationFailedError);
+      const spaceCalls = (axios.get as any).mock.calls.filter(
+        ([url]: [string]) => url.includes('/x/space/arc/search')
+      );
+      // A short non-final page is already proof that the response is not a
+      // trustworthy pagination sequence. Stop immediately instead of turning
+      // one row per page into hundreds of requests.
+      expect(spaceCalls).toHaveLength(1);
+    });
+
+    it('should enforce the absolute Bilibili API page cap', async () => {
+      (helpers.extractBilibiliMid as any).mockReturnValue('999');
+      (ytDlpUtils.executeYtDlpJson as any).mockResolvedValue({ entries: [] });
+      (axios.get as any).mockImplementation(async (url: string) => {
+        if (url.includes('/x/web-interface/nav')) {
+          return {
+            data: {
+              data: {
+                wbi_img: {
+                  img_url:
+                    'https://i0.hdslb.com/bfs/wbi/7cd084941338484aae1ad9425b84077c.png',
+                  sub_url:
+                    'https://i0.hdslb.com/bfs/wbi/4932caff0ff746eab6f01bf08b70ac45.png',
+                },
+              },
+            },
+          };
+        }
+        const page = Number(new URL(url).searchParams.get('pn'));
+        return {
+          data: {
+            code: 0,
+            data: {
+              list: {
+                vlist: Array.from({ length: 50 }, (_, index) => ({
+                  bvid: `BV${page}-${index}`,
+                })),
+              },
+              page: { count: 10_000 },
+            },
+          },
+        };
+      });
+
+      await expect(
+        fetcher.getAllVideoUrls('https://space.bilibili.com/999', 'Bilibili')
+      ).rejects.toThrow(SourceEnumerationFailedError);
+      const spaceCalls = (axios.get as any).mock.calls.filter(
+        ([url]: [string]) => url.includes('/x/space/arc/search')
+      );
+      expect(spaceCalls).toHaveLength(100);
+    });
+
+    it('should fail when the Bilibili API ends before its advertised count', async () => {
+      (helpers.extractBilibiliMid as any).mockReturnValue('999');
+      (ytDlpUtils.executeYtDlpJson as any).mockResolvedValue({ entries: [] });
+      let spacePage = 0;
+      (axios.get as any).mockImplementation(async (url: string) => {
+        if (url.includes('/x/web-interface/nav')) {
+          return { data: {} };
+        }
+        spacePage += 1;
+        return {
+          data: {
+            code: 0,
+            data: {
+              list: {
+                vlist:
+                  spacePage === 1
+                    ? Array.from({ length: 50 }, (_, index) => ({
+                        bvid: `BV${index}`,
+                      }))
+                    : [],
+              },
+              page: { count: 100 },
+            },
+          },
+        };
+      });
+
+      await expect(
+        fetcher.getAllVideoUrls('https://space.bilibili.com/999', 'Bilibili')
+      ).rejects.toThrow(SourceEnumerationFailedError);
+    });
+
     it('should fail on an API error payload rather than report an empty source', async () => {
       // Bilibili answers risk control with HTTP 200 and a nonzero code, so
       // axios does not throw. Stopping the loop and returning [] made that
@@ -602,9 +708,20 @@ describe('VideoUrlFetcher', () => {
       (ytDlpUtils.executeYtDlpJson as any).mockResolvedValue({ entries: [] });
       (axios.get as any).mockResolvedValue({ data: { code: -412 } });
 
-      await expect(
-        fetcher.getAllVideoUrls('https://space.bilibili.com/1000', 'Bilibili')
-      ).rejects.toThrow(SourceEnumerationFailedError);
+      let caughtError: unknown;
+      try {
+        await fetcher.getAllVideoUrls(
+          'https://space.bilibili.com/1000',
+          'Bilibili'
+        );
+      } catch (error) {
+        caughtError = error;
+      }
+      expect(caughtError).toBeInstanceOf(SourceEnumerationFailedError);
+      const message = (caughtError as Error).message;
+      expect(
+        message.match(/Failed to enumerate Bilibili source/g)
+      ).toHaveLength(1);
       // The WBI nav lookup also goes through axios, so count only the calls to
       // the space endpoint: the point is that pagination stopped after one.
       const spaceCalls = (axios.get as any).mock.calls.filter(
@@ -764,6 +881,82 @@ describe('VideoUrlFetcher', () => {
       );
     });
 
+    it('types a failed Bilibili collection read as an enumeration failure', async () => {
+      // getCollectionVideos swallows its own failures into success:false, so
+      // without typing this the planner cancelled the task with a bare message
+      // and no retry affordance.
+      (helpers.extractBilibiliMid as any).mockReturnValue(null);
+      (helpers.extractBilibiliVideoId as any).mockReturnValue('BVCOLL');
+      (downloadService.checkBilibiliCollectionOrSeries as any).mockResolvedValue({
+        success: true,
+        type: 'collection',
+        mid: 100,
+        id: 200,
+      });
+      (bilibiliCollection.getCollectionVideos as any).mockResolvedValue({
+        success: false,
+        videos: [],
+      });
+
+      await expect(
+        fetcher.getAllVideoEntries(
+          'https://www.bilibili.com/video/BVCOLL',
+          'Bilibili',
+          null,
+          'dateDesc'
+        )
+      ).rejects.toThrow(SourceEnumerationFailedError);
+    });
+
+    it('types an empty Bilibili series read as an enumeration failure', async () => {
+      // Unlike a genuinely empty space, this path is only reached for a
+      // collection found from one of its own videos, so zero videos means the
+      // API under-reported rather than that the source is empty.
+      (helpers.extractBilibiliMid as any).mockReturnValue(null);
+      (helpers.extractBilibiliVideoId as any).mockReturnValue('BVSER');
+      (downloadService.checkBilibiliCollectionOrSeries as any).mockResolvedValue({
+        success: true,
+        type: 'series',
+        mid: 100,
+        id: 200,
+      });
+      (bilibiliCollection.getSeriesVideos as any).mockResolvedValue({
+        success: true,
+        videos: [],
+      });
+
+      await expect(
+        fetcher.getAllVideoEntries(
+          'https://www.bilibili.com/video/BVSER',
+          'Bilibili',
+          null,
+          'dateDesc'
+        )
+      ).rejects.toThrow(SourceEnumerationFailedError);
+    });
+
+    it('types a failed Bilibili collection read on the URL path too', async () => {
+      (helpers.extractBilibiliMid as any).mockReturnValue(null);
+      (helpers.extractBilibiliVideoId as any).mockReturnValue('BVCOLL');
+      (downloadService.checkBilibiliCollectionOrSeries as any).mockResolvedValue({
+        success: true,
+        type: 'collection',
+        mid: 100,
+        id: 200,
+      });
+      (bilibiliCollection.getCollectionVideos as any).mockResolvedValue({
+        success: false,
+        videos: [],
+      });
+
+      await expect(
+        fetcher.getAllVideoUrls(
+          'https://www.bilibili.com/video/BVCOLL',
+          'Bilibili'
+        )
+      ).rejects.toThrow(SourceEnumerationFailedError);
+    });
+
     it('should include Bilibili metadata from collection API when available', async () => {
       (helpers.extractBilibiliMid as any).mockReturnValue(null);
       (helpers.extractBilibiliVideoId as any).mockReturnValue('BVCOLL');
@@ -896,6 +1089,116 @@ describe('VideoUrlFetcher', () => {
         },
       ]);
       expect(axios.get).toHaveBeenCalled();
+    });
+
+    it('should add API-only videos when the Bilibili API completed enumeration', async () => {
+      (helpers.extractBilibiliMid as any).mockReturnValue('123');
+      // A non-empty short page looks complete to the yt-dlp pagination loop,
+      // even when risk control silently omitted newer rows.
+      (ytDlpUtils.executeYtDlpJson as any).mockResolvedValue({
+        entries: [
+          { id: 'BV222', url: 'https://www.bilibili.com/video/BV222' },
+        ],
+      });
+      (axios.get as any).mockResolvedValue({
+        data: {
+          code: 0,
+          data: {
+            list: {
+              vlist: [
+                { bvid: 'BV111', created: 1708387200, play: 1234 },
+                { bvid: 'BV222', created: 1708300800, play: 12 },
+              ],
+            },
+            page: { count: 2 },
+          },
+        },
+      });
+
+      const { entries, listingOrder } = await fetcher.getAllVideoEntries(
+        'https://space.bilibili.com/123',
+        'Bilibili',
+        null,
+        'dateDesc'
+      );
+
+      expect(entries.map((entry) => entry.sourceVideoId)).toEqual([
+        'BV111',
+        'BV222',
+      ]);
+      expect(entries.map((entry) => entry.sourceIndex)).toEqual([0, 1]);
+      expect(entries.every((entry) => entry.publishedAtMs !== null)).toBe(true);
+      expect(listingOrder).toBe('chronologicalDesc');
+    });
+
+    it('should not claim chronological listing order after appending yt-dlp-only entries', async () => {
+      (helpers.extractBilibiliMid as any).mockReturnValue('123');
+      (ytDlpUtils.executeYtDlpJson as any).mockResolvedValue({
+        entries: [
+          { id: 'BVapi1', url: 'https://www.bilibili.com/video/BVapi1' },
+          { id: 'BVextra', url: 'https://www.bilibili.com/video/BVextra' },
+        ],
+      });
+      (axios.get as any).mockResolvedValue({
+        data: {
+          code: 0,
+          data: {
+            list: {
+              vlist: [
+                { bvid: 'BVapi1', created: 1708387200, play: 1234 },
+              ],
+            },
+            page: { count: 1 },
+          },
+        },
+      });
+
+      const { entries, listingOrder } = await fetcher.getAllVideoEntries(
+        'https://space.bilibili.com/123',
+        'Bilibili',
+        null,
+        'dateDesc'
+      );
+
+      expect(entries.map((entry) => entry.sourceVideoId)).toEqual([
+        'BVapi1',
+        'BVextra',
+      ]);
+      expect(listingOrder).toBe('unknown');
+    });
+
+    it('should not promote a Bilibili API page with no count to source of truth', async () => {
+      (helpers.extractBilibiliMid as any).mockReturnValue('123');
+      (ytDlpUtils.executeYtDlpJson as any).mockResolvedValue({
+        entries: [
+          { id: 'BVyt1', url: 'https://www.bilibili.com/video/BVyt1' },
+          { id: 'BVyt2', url: 'https://www.bilibili.com/video/BVyt2' },
+        ],
+      });
+      (axios.get as any).mockResolvedValue({
+        data: {
+          code: 0,
+          data: {
+            list: {
+              vlist: [
+                { bvid: 'BVapi1', created: 1708387200, play: 1234 },
+              ],
+            },
+          },
+        },
+      });
+
+      const { entries } = await fetcher.getAllVideoEntries(
+        'https://space.bilibili.com/123',
+        'Bilibili',
+        null,
+        'dateDesc'
+      );
+
+      expect(entries.map((entry) => entry.sourceVideoId)).toEqual([
+        'BVyt1',
+        'BVyt2',
+      ]);
     });
 
     it('should collect Twitch archives and uploads with pagination metadata', async () => {

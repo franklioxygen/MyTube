@@ -191,12 +191,67 @@ export function sortVideoEntries(
 }
 
 const MAX_TWITCH_VIDEO_ENTRY_PAGES = 100;
+const MAX_BILIBILI_SPACE_API_PAGES = 100;
 /**
  * A Bilibili space lists newest-first on both routes used here: yt-dlp's space
  * extractor and the `order=pubdate` API fallback.
  */
 const SPACE_LISTING_ORDER: SourceListingOrder = "chronologicalDesc";
 const YOUTUBE_HYDRATE_METADATA_CONCURRENCY = 4;
+
+function nonNegativeInteger(value: unknown): number | null {
+  return typeof value === "number" &&
+    Number.isFinite(value) &&
+    value >= 0 &&
+    Number.isInteger(value)
+    ? value
+    : null;
+}
+
+function asSourceEnumerationFailedError(
+  platform: string,
+  page: number,
+  enumeratedCount: number,
+  error: unknown
+): SourceEnumerationFailedError {
+  return error instanceof SourceEnumerationFailedError
+    ? error
+    : new SourceEnumerationFailedError(
+        platform,
+        page,
+        enumeratedCount,
+        error
+      );
+}
+
+/**
+ * Type a failed Bilibili collection/series enumeration.
+ *
+ * getCollectionVideos/getSeriesVideos swallow their own failures into
+ * `{ success: false, videos: [] }`, so a truncated or risk-controlled read
+ * arrives here as an ordinary falsy result. Throwing a plain Error made the
+ * planner fall through to `cancelTaskWithError` with a bare message, losing the
+ * structured, retryable planning failure the space path produces for the same
+ * class of failure.
+ *
+ * An empty list counts as a failure too, unlike a genuinely empty space: this
+ * path is only reached for a collection discovered *from one of its own
+ * videos*, so it necessarily contains at least that video and a zero-length
+ * result means the API under-reported.
+ */
+function bilibiliCollectionEnumerationError(
+  collectionType: string,
+  enumeratedCount: number
+): SourceEnumerationFailedError {
+  return new SourceEnumerationFailedError(
+    "Bilibili",
+    1,
+    enumeratedCount,
+    new Error(
+      `Bilibili ${collectionType} enumeration returned no usable video list`
+    )
+  );
+}
 
 async function runWithBoundedConcurrency<T>(
   items: T[],
@@ -719,6 +774,7 @@ export class VideoUrlFetcher {
     downloadOrder: DownloadOrder = "dateDesc"
   ): Promise<VideoEntrySet> {
     const entries: VideoEntry[] = [];
+    let spaceListingOrder: SourceListingOrder = SPACE_LISTING_ORDER;
     const { extractBilibiliMid, extractBilibiliVideoId } = await import("../../utils/helpers");
     const { checkBilibiliCollectionOrSeries } = await import("../../services/downloadService");
     const { getCollectionVideos, getSeriesVideos } = await import("../../services/downloaders/bilibili/bilibiliCollection");
@@ -751,7 +807,10 @@ export class VideoUrlFetcher {
           }
 
           if (!videosResult.success || videosResult.videos.length === 0) {
-            throw new Error(`Failed to get videos from ${collectionInfo.type}`);
+            throw bilibiliCollectionEnumerationError(
+              collectionInfo.type,
+              videosResult.videos.length
+            );
           }
 
           for (const video of videosResult.videos) {
@@ -886,6 +945,7 @@ export class VideoUrlFetcher {
         const pageSize = 50;
         let hasMoreApi = true;
         let fetchedCount = 0;
+        let apiEnumerationComplete = false;
 
         const { buildSignedBilibiliUrl } = await import(
           "../downloaders/bilibili/bilibiliWbi"
@@ -938,8 +998,68 @@ export class VideoUrlFetcher {
               }
 
               fetchedCount += videos.length;
-              const total = data.data.page?.count || 0;
-              hasMoreApi = fetchedCount < total && videos.length === pageSize;
+              const total = nonNegativeInteger(data.data.page?.count);
+              if (total === null) {
+                const missingCountError = new Error(
+                  "Bilibili space API response did not include a usable total count"
+                );
+                if (entries.length === 0) {
+                  throw new SourceEnumerationFailedError(
+                    "Bilibili",
+                    pageNum,
+                    apiEntries.length,
+                    missingCountError
+                  );
+                }
+                logger.warn(
+                  `${missingCountError.message}; keeping the Bilibili entries yt-dlp returned`
+                );
+                hasMoreApi = false;
+                continue;
+              }
+
+              const hasUnfetchedEntries = fetchedCount < total;
+              const advertisedPageCount = Math.max(
+                1,
+                Math.ceil(total / pageSize)
+              );
+              const pageLimit = Math.min(
+                advertisedPageCount,
+                MAX_BILIBILI_SPACE_API_PAGES
+              );
+              if (
+                hasUnfetchedEntries &&
+                (videos.length < pageSize || pageNum >= pageLimit)
+              ) {
+                const reason =
+                  videos.length < pageSize
+                    ? `returned a short page (${videos.length}/${pageSize})`
+                    : `reached the ${pageLimit}-page safety limit`;
+                const incompleteError = new Error(
+                  `Bilibili space API ${reason} after ${fetchedCount} of ${total} videos`
+                );
+                if (entries.length === 0) {
+                  throw new SourceEnumerationFailedError(
+                    "Bilibili",
+                    pageNum,
+                    apiEntries.length,
+                    incompleteError
+                  );
+                }
+                logger.warn(
+                  `${incompleteError.message}; keeping the Bilibili entries yt-dlp returned`
+                );
+                hasMoreApi = false;
+              } else {
+                // Never make more requests than the advertised page count, and
+                // retain an absolute ceiling for unexpectedly large spaces.
+                // This prevents a risk-controlled one-row response from turning
+                // a count of 500 into 500 back-to-back API calls.
+                hasMoreApi = hasUnfetchedEntries;
+              }
+              if (!hasMoreApi) {
+                apiEnumerationComplete = !hasUnfetchedEntries;
+              }
               pageNum++;
             } else {
               // HTTP 200 carrying an application-level error (risk control
@@ -977,7 +1097,7 @@ export class VideoUrlFetcher {
             // entries this pass is only enrichment, and losing it costs
             // metadata rather than videos.
             if (entries.length === 0) {
-              throw new SourceEnumerationFailedError(
+              throw asSourceEnumerationFailedError(
                 "Bilibili",
                 pageNum,
                 apiEntries.length,
@@ -989,16 +1109,64 @@ export class VideoUrlFetcher {
         }
 
         if (entries.length === 0) {
-          entries.push(...apiEntries);
+          for (const entry of apiEntries) {
+            entries.push(entry);
+          }
         } else if (apiEntries.length > 0) {
-          const apiById = new Map(
-            apiEntries.map((entry) => [entry.sourceVideoId, entry])
-          );
-          for (let index = 0; index < entries.length; index++) {
-            const entry = entries[index];
-            const richer = apiById.get(entry.sourceVideoId);
-            if (richer) {
-              entries[index] = mergeEntryMetadata(entry, richer);
+          if (apiEnumerationComplete) {
+            // A short yt-dlp result can look successful (for example, risk
+            // control may return fewer than one full page). Once the API has
+            // proved that its own enumeration completed, use that complete
+            // sequence as the source of truth instead of merely enriching the
+            // truncated yt-dlp rows and silently omitting API-only videos.
+            const ytDlpById = new Map(
+              entries.map((entry) => [entry.sourceVideoId, entry])
+            );
+            const reconciled = apiEntries.map((apiEntry, sourceIndex) => {
+              const ytDlpEntry = ytDlpById.get(apiEntry.sourceVideoId);
+              return {
+                ...(ytDlpEntry
+                  ? mergeEntryMetadata(ytDlpEntry, apiEntry)
+                  : apiEntry),
+                sourceIndex,
+              };
+            });
+            const apiIds = new Set(
+              apiEntries.map((entry) => entry.sourceVideoId)
+            );
+            let appendedYtDlpOnlyEntry = false;
+            for (const entry of entries) {
+              if (!apiIds.has(entry.sourceVideoId)) {
+                appendedYtDlpOnlyEntry = true;
+                reconciled.push({
+                  ...entry,
+                  sourceIndex: reconciled.length,
+                });
+              }
+            }
+            // API-only order is newest-first, but an yt-dlp-only tail cannot be
+            // positioned relative to it without metadata. Do not overclaim that
+            // the combined sequence itself proves chronological order.
+            if (appendedYtDlpOnlyEntry) {
+              spaceListingOrder = "unknown";
+            }
+            entries.length = 0;
+            for (const entry of reconciled) {
+              entries.push(entry);
+            }
+          } else {
+            // The enrichment pass failed partway through. Its list is not
+            // authoritative in that case, so only merge metadata for IDs that
+            // yt-dlp had already enumerated.
+            const apiById = new Map(
+              apiEntries.map((entry) => [entry.sourceVideoId, entry])
+            );
+            for (let index = 0; index < entries.length; index++) {
+              const entry = entries[index];
+              const richer = apiById.get(entry.sourceVideoId);
+              if (richer) {
+                entries[index] = mergeEntryMetadata(entry, richer);
+              }
             }
           }
         }
@@ -1012,7 +1180,7 @@ export class VideoUrlFetcher {
       entryCount: entries.length,
       authorUrl,
     });
-    return { entries, listingOrder: SPACE_LISTING_ORDER };
+    return { entries, listingOrder: spaceListingOrder };
   }
 
   private async getTwitchVideoEntries(
@@ -1190,7 +1358,10 @@ export class VideoUrlFetcher {
             }
             return videoUrls;
           } else {
-            throw new Error(`Failed to get videos from ${collectionInfo.type}`);
+            throw bilibiliCollectionEnumerationError(
+              collectionInfo.type,
+              videosResult.videos.length
+            );
           }
         }
       }
@@ -1292,6 +1463,7 @@ export class VideoUrlFetcher {
         let pageNum = 1;
         const pageSize = 50;
         let hasMoreApi = true;
+        let fetchedCount = 0;
 
         const { buildSignedBilibiliUrl } = await import(
           "../downloaders/bilibili/bilibiliWbi"
@@ -1338,9 +1510,46 @@ export class VideoUrlFetcher {
                 }
               }
 
-              const total = data.data.page?.count || 0;
-              hasMoreApi =
-                videoUrls.length < total && videos.length === pageSize;
+              fetchedCount += videos.length;
+              const total = nonNegativeInteger(data.data.page?.count);
+              if (total === null) {
+                throw new SourceEnumerationFailedError(
+                  "Bilibili",
+                  pageNum,
+                  videoUrls.length,
+                  new Error(
+                    "Bilibili space API response did not include a usable total count"
+                  )
+                );
+              }
+
+              const hasUnfetchedEntries = fetchedCount < total;
+              const advertisedPageCount = Math.max(
+                1,
+                Math.ceil(total / pageSize)
+              );
+              const pageLimit = Math.min(
+                advertisedPageCount,
+                MAX_BILIBILI_SPACE_API_PAGES
+              );
+              if (
+                hasUnfetchedEntries &&
+                (videos.length < pageSize || pageNum >= pageLimit)
+              ) {
+                const reason =
+                  videos.length < pageSize
+                    ? `returned a short page (${videos.length}/${pageSize})`
+                    : `reached the ${pageLimit}-page safety limit`;
+                throw new SourceEnumerationFailedError(
+                  "Bilibili",
+                  pageNum,
+                  videoUrls.length,
+                  new Error(
+                    `Bilibili space API ${reason} after ${fetchedCount} of ${total} videos`
+                  )
+                );
+              }
+              hasMoreApi = hasUnfetchedEntries;
               pageNum++;
             } else {
               // Same non-throwing error payload as the entry fallback, and this
@@ -1365,7 +1574,7 @@ export class VideoUrlFetcher {
             // This fallback is only entered with zero videos so far, so it is
             // the sole source here: a failed page truncates the real list, and
             // returning it would freeze a partial plan as complete.
-            throw new SourceEnumerationFailedError(
+            throw asSourceEnumerationFailedError(
               "Bilibili",
               pageNum,
               videoUrls.length,

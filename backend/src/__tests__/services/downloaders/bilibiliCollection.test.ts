@@ -138,6 +138,103 @@ describe("bilibiliCollection.downloadCollection", () => {
     expect(result).toEqual({ success: true, videos: [] });
   });
 
+  it("rejects collection pages whose total is missing", async () => {
+    mocks.axiosGet.mockResolvedValueOnce({
+      data: {
+        code: 0,
+        data: { archives: [{ bvid: "BV1", title: "One", aid: 1 }] },
+      },
+    });
+
+    const result = await getCollectionVideos(9, 42);
+
+    expect(result).toEqual({ success: false, videos: [] });
+    expect(mocks.axiosGet).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects a short collection page before the advertised total", async () => {
+    mocks.axiosGet.mockResolvedValueOnce({
+      data: {
+        code: 0,
+        data: {
+          archives: [{ bvid: "BV1", title: "One", aid: 1 }],
+          page: { total: 500 },
+        },
+      },
+    });
+
+    const result = await getCollectionVideos(9, 42);
+
+    expect(result).toEqual({ success: false, videos: [] });
+    expect(mocks.axiosGet).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects a short series page instead of reporting a truncated success", async () => {
+    mocks.axiosGet.mockResolvedValueOnce({
+      data: {
+        code: 0,
+        data: {
+          archives: [{ bvid: "BV1", title: "One", aid: 1 }],
+          page: { total: 500 },
+        },
+      },
+    });
+
+    const result = await getSeriesVideos(9, 42);
+
+    expect(result).toEqual({ success: false, videos: [] });
+    expect(mocks.axiosGet).toHaveBeenCalledTimes(1);
+  });
+
+  it("caps full collection enumeration at 100 pages", async () => {
+    mocks.axiosGet.mockImplementation(async (_url: string, config: any) => {
+      const page = config.params.page_num;
+      return {
+        data: {
+          code: 0,
+          data: {
+            archives: Array.from({ length: 30 }, (_, index) => ({
+              bvid: `BV${page}-${index}`,
+              title: `Video ${page}-${index}`,
+              aid: page * 100 + index,
+            })),
+            page: { total: 10_000 },
+          },
+        },
+      };
+    });
+
+    const result = await getCollectionVideos(9, 42);
+
+    expect(result).toEqual({ success: false, videos: [] });
+    expect(mocks.axiosGet).toHaveBeenCalledTimes(100);
+  });
+
+  it("allows an explicitly bounded head probe to return a prefix", async () => {
+    mocks.axiosGet.mockResolvedValueOnce({
+      data: {
+        code: 0,
+        data: {
+          archives: [{ bvid: "BVHEAD", title: "Head", aid: 1 }],
+          page: { total: 500 },
+        },
+      },
+    });
+
+    const result = await getCollectionVideos(9, 42, {
+      pageSize: 1,
+      maxPages: 1,
+    });
+
+    expect(result).toEqual({
+      success: true,
+      videos: [
+        expect.objectContaining({ bvid: "BVHEAD", title: "Head", aid: 1 }),
+      ],
+    });
+    expect(mocks.axiosGet).toHaveBeenCalledTimes(1);
+  });
+
   it("reuses the linked collection and downloads only missing videos", async () => {
     mocks.getVideoBySourceUrl.mockImplementation((sourceUrl: string) => {
       if (sourceUrl.endsWith("/BV1")) {
