@@ -43,7 +43,7 @@ import {
   unlinkSafeSync,
 } from "../../../utils/security";
 import {
-  removeMediaServerArtifactsForVideo,
+  removeMediaServerArtifactsForSupersededFile,
   syncMediaServerArtifactsForRecord,
 } from "../../mediaServerExport";
 import * as storageService from "../../storageService";
@@ -864,7 +864,7 @@ export async function downloadVideo(
         }
       }
 
-      removeMediaServerArtifactsForVideo(existingVideo);
+      removeMediaServerArtifactsForSupersededFile(existingVideo);
       const trackedSource = extractSourceVideoId(videoUrl);
       if (trackedSource.id) {
         finalVideoData = storageService.persistDownloadedMediaIdentity({

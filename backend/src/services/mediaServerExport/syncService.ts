@@ -580,3 +580,70 @@ function removeAdjacentArtifactsForVideo(
     });
   }
 }
+
+/**
+ * The original media file moved on disk (a batch rename after an author-folder
+ * or filename-template change), but it is the same library row.
+ *
+ * The two layouts need opposite handling, which is why this is not just a
+ * remove-then-sync at the call site:
+ *
+ * - `adjacent` names its sidecars after the original file, so the artifacts at
+ *   the old path really are stale and must be removed before new ones are
+ *   written next to the new path.
+ * - `playlist_tv` derives mirror paths from the show/season/episode allocation,
+ *   never from the original filename. The mirror path does not move at all —
+ *   only the hard link's source does — and the ledger already treats a changed
+ *   `sourceAbsolutePath` as a relink. Removing artifacts here would delete the
+ *   episode assignment along with them, and the reallocation that follows can
+ *   hand the video a different episode number whenever its `sourcePosition` was
+ *   taken by another episode after an upstream playlist reorder. That renames
+ *   the file a media server has already scanned and destroys watch state, which
+ *   is exactly what immutable numbering exists to prevent.
+ */
+export function syncMediaServerArtifactsForRelocatedRecord(
+  previousVideo: Video,
+  updatedVideo: Video,
+  options: SyncMediaServerArtifactsOptions = {}
+): void {
+  if (getEffectiveMediaServerExportMode(options) === "off") {
+    return;
+  }
+
+  if (getEffectiveMediaServerExportLayout(options) === "playlist_tv") {
+    // Relink in place: assignments, episode numbers and export stems all stand.
+    syncMediaServerArtifactsForRecord(updatedVideo, options);
+    return;
+  }
+
+  const previousPlan = planMediaServerExportPaths(previousVideo);
+  removeMediaServerArtifactsForVideo(previousVideo, options);
+  if (previousPlan?.tvLayout.showRootRelativeDir) {
+    syncMediaServerShowArtifactsForShowRoot(
+      previousPlan.tvLayout.showRootRelativeDir,
+      options
+    );
+  }
+  syncMediaServerArtifactsForRecord(updatedVideo, options);
+}
+
+/**
+ * The file behind a library row was replaced by a redownload. The row survives,
+ * so this is a superseded *file*, never a deleted video.
+ *
+ * `adjacent` must drop the sidecars that were named after the old file. In
+ * `playlist_tv` there is nothing to drop — mirror paths come from the catalog,
+ * not the filename — and dropping would take the episode assignment with it,
+ * risking the renumber described on syncMediaServerArtifactsForRelocatedRecord.
+ * The re-sync that every caller runs afterwards relinks the mirror in place.
+ */
+export function removeMediaServerArtifactsForSupersededFile(
+  video: Video,
+  options: RemoveMediaServerArtifactsOptions = {}
+): void {
+  if ((options.layoutOverride ?? getMediaServerExportLayout()) === "playlist_tv") {
+    return;
+  }
+
+  removeMediaServerArtifactsForVideo(video, options);
+}

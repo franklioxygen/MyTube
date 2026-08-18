@@ -157,6 +157,7 @@ vi.mock("../../../utils/logger", () => ({
 }));
 
 import { syncPlaylistTvLibrary } from "../../../services/mediaServerExport/playlistTvSync";
+import { syncMediaServerArtifactsForRelocatedRecord } from "../../../services/mediaServerExport/syncService";
 
 const CHANNEL_ID = "UCsXVk37bltHxD1rDPwtNM8Q";
 const CHANNEL_URL = "https://www.youtube.com/@kurzgesagt";
@@ -859,5 +860,116 @@ describe("playlist_tv end-to-end fixture (issue #411)", () => {
         expect(rootTags[0]).toBe("episodedetails");
       }
     }
+  });
+});
+
+/**
+ * Regression: a batch rename (author-folder or filename-template change) moves
+ * the ORIGINAL file. The mirror derives its paths from the show/season/episode
+ * allocation, never from the original filename, so nothing in the mirror may
+ * move — only the hard link's source changes.
+ *
+ * The dangerous combination is a rename AFTER an upstream playlist reorder.
+ * The reorder legitimately updates sourcePosition while leaving the episode
+ * number alone; if the rename then dropped and reallocated the assignment, the
+ * now-taken sourcePosition would push the video onto a fresh number, renaming a
+ * file the media server already scanned and destroying its watch state.
+ */
+describe("playlist_tv survives a batch rename (issue #411)", () => {
+  beforeEach(() => {
+    fs.emptyDirSync(testPaths.root);
+    for (const dir of [
+      testPaths.videos,
+      testPaths.images,
+      testPaths.imagesSmall,
+      testPaths.avatars,
+      testPaths.subtitles,
+      testPaths.mediaLibrary,
+    ]) {
+      fs.ensureDirSync(dir);
+    }
+    testDb.sqlite.exec(`
+      DELETE FROM media_server_export_artifacts;
+      DELETE FROM media_server_episode_assignments;
+      DELETE FROM collections;
+      DELETE FROM videos;
+      DELETE FROM media_server_shows;
+    `);
+    buildFixture();
+  });
+
+  afterAll(() => {
+    fs.removeSync(testPaths.root);
+  });
+
+  /** Moves the original file and updates the row, as the rename job does. */
+  function renameOriginal(videoId: string, newRelativePath: string): void {
+    const target = libraryVideos.find((entry) => entry.id === videoId);
+    if (!target) throw new Error(`No fixture video ${videoId}`);
+    const previous = { ...target } as Video;
+
+    fs.moveSync(
+      path.join(testPaths.videos, (target.videoPath as string).replace("/videos/", "")),
+      path.join(testPaths.videos, newRelativePath),
+      { overwrite: false }
+    );
+    target.videoPath = `/videos/${newRelativePath}`;
+
+    syncMediaServerArtifactsForRelocatedRecord(previous, target, {
+      modeOverride: "nfo",
+      layoutOverride: "playlist_tv",
+    });
+  }
+
+  it("leaves the mirror byte-identical when an original is renamed", () => {
+    rebuild();
+    const before = listMirror();
+    const originsStat = fs.statSync(
+      mirror("Kurzgesagt – In a Nutshell/Season 01/S01E001 - Human Origins.mp4")
+    );
+
+    renameOriginal("v-origins", "Kurzgesagt/2026-01-03 - Human Origins [xyz].mp4");
+
+    expect(listMirror()).toEqual(before);
+
+    // Still one inode shared with the original at its NEW path.
+    const after = fs.statSync(
+      mirror("Kurzgesagt – In a Nutshell/Season 01/S01E001 - Human Origins.mp4")
+    );
+    expect(after.nlink).toBeGreaterThan(1);
+    expect(after.ino).not.toBe(0);
+    expect(originsStat.size).toBe(after.size);
+  });
+
+  it("keeps episode numbers when a rename follows an upstream reorder", () => {
+    rebuild();
+
+    // Upstream flips the playlist. Numbering must not move.
+    const playlist = libraryCollections.find((c) => c.id === "c-existential");
+    if (!playlist) throw new Error("fixture playlist missing");
+    playlist.videos = ["v-shared", "v-origins"];
+    rebuild();
+
+    const afterReorder = listMirror();
+    expect(afterReorder).toContain(
+      "Kurzgesagt – In a Nutshell/Season 01/S01E001 - Human Origins.mp4"
+    );
+
+    renameOriginal("v-origins", "Kurzgesagt/renamed-origins.mp4");
+
+    // The whole point: no renumber, no new file, no lost file.
+    expect(listMirror()).toEqual(afterReorder);
+  });
+
+  it("does not renumber when every video is renamed, as a batch rename does", () => {
+    rebuild();
+    const before = listMirror();
+
+    renameOriginal("v-origins", "Kurzgesagt/a-origins.mp4");
+    renameOriginal("v-shared", "Kurzgesagt/b-egg.mp4");
+    renameOriginal("v-ants", "Kurzgesagt/c-ants.mp4");
+    renameOriginal("v-loose", "Kurzgesagt/d-extra.mp4");
+
+    expect(listMirror()).toEqual(before);
   });
 });

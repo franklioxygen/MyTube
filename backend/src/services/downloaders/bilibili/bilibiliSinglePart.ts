@@ -22,7 +22,7 @@ import {
   unlinkSafeSync,
 } from "../../../utils/security";
 import {
-  removeMediaServerArtifactsForVideo,
+  removeMediaServerArtifactsForSupersededFile,
   syncMediaServerArtifactsForRecord,
 } from "../../mediaServerExport";
 import * as storageService from "../../storageService";
@@ -563,7 +563,7 @@ export async function downloadSinglePart(
             }
           }
 
-          removeMediaServerArtifactsForVideo(existingVideo);
+          removeMediaServerArtifactsForSupersededFile(existingVideo);
           if (sourceVideoId) {
             finalVideoData = storageService.persistDownloadedMediaIdentity({
               video: finalVideoData,
