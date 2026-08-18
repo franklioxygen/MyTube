@@ -61,11 +61,16 @@ vi.mock("../../services/continuousDownload/videoUrlFetcher", () => ({
   VideoUrlFetcher: vi.fn().mockImplementation(function () {
     return {
       getAllVideoUrls: vi.fn().mockResolvedValue([]),
-      getAllVideoEntries: vi.fn().mockResolvedValue([]),
+      getAllVideoEntries: vi
+        .fn()
+        .mockResolvedValue({ entries: [], listingOrder: "unknown" }),
       getVideoUrlsIncremental: vi.fn().mockResolvedValue([]),
     };
   }),
   sortVideoEntries: vi.fn((entries: unknown[]) => entries),
+  requiredMetadataMissingForAll: vi.fn(() => false),
+  YOUTUBE_PLAYLIST_ID_REGEX: /[?&]list=([a-zA-Z0-9_-]+)/,
+  isYouTubeUploadsPlaylistId: vi.fn((listId: string) => listId.startsWith("UU")),
 }));
 
 vi.mock("../../services/continuousDownload/taskCleanup", () => ({
@@ -549,10 +554,13 @@ describe("ContinuousDownloadService", () => {
       repo.getTaskById
         .mockResolvedValueOnce(task)
         .mockResolvedValueOnce(task);
-      fetcher.getAllVideoEntries.mockResolvedValue([
-        { url: "u1", sourceVideoId: "u1", publishedAtMs: Date.UTC(2024, 0, 1), publishedDatePrecision: "day", viewCount: 1, sourceIndex: 0 },
-        { url: "u2", sourceVideoId: "u2", publishedAtMs: Date.UTC(2024, 0, 2), publishedDatePrecision: "day", viewCount: 2, sourceIndex: 1 },
-      ]);
+      fetcher.getAllVideoEntries.mockResolvedValue({
+        entries: [
+          { url: "u1", sourceVideoId: "u1", publishedAtMs: Date.UTC(2024, 0, 1), publishedDatePrecision: "day", viewCount: 1, sourceIndex: 0 },
+          { url: "u2", sourceVideoId: "u2", publishedAtMs: Date.UTC(2024, 0, 2), publishedDatePrecision: "day", viewCount: 2, sourceIndex: 1 },
+        ],
+        listingOrder: "chronologicalDesc",
+      });
 
       await (service as any).processTask("np");
 
@@ -602,10 +610,13 @@ describe("ContinuousDownloadService", () => {
       repo.getTaskById
         .mockResolvedValueOnce(task)
         .mockResolvedValueOnce(task);
-      fetcher.getAllVideoEntries.mockResolvedValue([
-        { url: "u1", sourceVideoId: "u1", publishedAtMs: Date.UTC(2024, 0, 1), publishedDatePrecision: "day", viewCount: 1, sourceIndex: 0 },
-        { url: "u2", sourceVideoId: "u2", publishedAtMs: Date.UTC(2024, 0, 2), publishedDatePrecision: "day", viewCount: 2, sourceIndex: 1 },
-      ]);
+      fetcher.getAllVideoEntries.mockResolvedValue({
+        entries: [
+          { url: "u1", sourceVideoId: "u1", publishedAtMs: Date.UTC(2024, 0, 1), publishedDatePrecision: "day", viewCount: 1, sourceIndex: 0 },
+          { url: "u2", sourceVideoId: "u2", publishedAtMs: Date.UTC(2024, 0, 2), publishedDatePrecision: "day", viewCount: 2, sourceIndex: 1 },
+        ],
+        listingOrder: "chronologicalDesc",
+      });
 
       const ensureDirSpy = vi
         .spyOn(security, "ensureDirSafeSync")
@@ -694,10 +705,13 @@ describe("ContinuousDownloadService", () => {
       repo.getTaskById
         .mockResolvedValueOnce(task)
         .mockResolvedValueOnce(task);
-      fetcher.getAllVideoEntries.mockResolvedValue([
-        { url: "u1", sourceVideoId: "u1", publishedAtMs: Date.UTC(2024, 0, 1), publishedDatePrecision: "day", viewCount: 1, sourceIndex: 0 },
-        { url: "u2", sourceVideoId: "u2", publishedAtMs: Date.UTC(2024, 0, 2), publishedDatePrecision: "day", viewCount: 2, sourceIndex: 1 },
-      ]);
+      fetcher.getAllVideoEntries.mockResolvedValue({
+        entries: [
+          { url: "u1", sourceVideoId: "u1", publishedAtMs: Date.UTC(2024, 0, 1), publishedDatePrecision: "day", viewCount: 1, sourceIndex: 0 },
+          { url: "u2", sourceVideoId: "u2", publishedAtMs: Date.UTC(2024, 0, 2), publishedDatePrecision: "day", viewCount: 2, sourceIndex: 1 },
+        ],
+        listingOrder: "chronologicalDesc",
+      });
 
       const ensureDirSpy = vi
         .spyOn(security, "ensureDirSafeSync")
@@ -748,9 +762,12 @@ describe("ContinuousDownloadService", () => {
         downloadOrder: "dateAsc",
       };
       repo.getTaskById.mockResolvedValue(task);
-      fetcher.getAllVideoEntries.mockResolvedValue([
-        { url: "u1", sourceVideoId: "u1", publishedAtMs: Date.UTC(2024, 0, 1), publishedDatePrecision: "day", viewCount: 1, sourceIndex: 0 },
-      ]);
+      fetcher.getAllVideoEntries.mockResolvedValue({
+        entries: [
+          { url: "u1", sourceVideoId: "u1", publishedAtMs: Date.UTC(2024, 0, 1), publishedDatePrecision: "day", viewCount: 1, sourceIndex: 0 },
+        ],
+        listingOrder: "chronologicalDesc",
+      });
 
       const ensureDirSpy = vi
         .spyOn(security, "ensureDirSafeSync")
@@ -827,9 +844,12 @@ describe("ContinuousDownloadService", () => {
       repo.getTaskById
         .mockResolvedValueOnce(task)
         .mockResolvedValueOnce(task);
-      fetcher.getAllVideoEntries.mockResolvedValue([
-        { url: "r1", sourceVideoId: "r1", publishedAtMs: Date.UTC(2024, 0, 1), publishedDatePrecision: "day", viewCount: 1, sourceIndex: 0 },
-      ]);
+      fetcher.getAllVideoEntries.mockResolvedValue({
+        entries: [
+          { url: "r1", sourceVideoId: "r1", publishedAtMs: Date.UTC(2024, 0, 1), publishedDatePrecision: "day", viewCount: 1, sourceIndex: 0 },
+        ],
+        listingOrder: "chronologicalDesc",
+      });
 
       const readSpy = vi
         .spyOn(security, "readFileSafeSync")
@@ -920,9 +940,12 @@ describe("ContinuousDownloadService", () => {
       repo.getTaskById
         .mockResolvedValueOnce(task)
         .mockResolvedValueOnce(finalTask);
-      fetcher.getAllVideoEntries.mockResolvedValue([
-        { url: "d1", sourceVideoId: "d1", publishedAtMs: Date.UTC(2024, 0, 1), publishedDatePrecision: "day", viewCount: 1, sourceIndex: 0 },
-      ]);
+      fetcher.getAllVideoEntries.mockResolvedValue({
+        entries: [
+          { url: "d1", sourceVideoId: "d1", publishedAtMs: Date.UTC(2024, 0, 1), publishedDatePrecision: "day", viewCount: 1, sourceIndex: 0 },
+        ],
+        listingOrder: "chronologicalDesc",
+      });
 
       const ensureDirSpy = vi
         .spyOn(security, "ensureDirSafeSync")

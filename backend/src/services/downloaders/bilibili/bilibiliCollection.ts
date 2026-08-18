@@ -155,6 +155,7 @@ export interface BilibiliVideoFetchOptions {
 }
 
 const DEFAULT_BILIBILI_PAGE_SIZE = 30;
+const MAX_BILIBILI_ARCHIVE_PAGES = 100;
 
 function normalizeFetchOptions(
   options?: BilibiliVideoFetchOptions,
@@ -169,6 +170,44 @@ function normalizeFetchOptions(
       : null;
 
   return { pageSize, maxPages };
+}
+
+function shouldFetchNextArchivePage(input: {
+  label: "collection" | "series";
+  pageNum: number;
+  pageSize: number;
+  returnedCount: number;
+  fetchedCount: number;
+  total: number;
+  requestedMaxPages: number | null;
+}): boolean {
+  if (input.fetchedCount >= input.total) {
+    return false;
+  }
+
+  if (
+    input.requestedMaxPages !== null &&
+    input.pageNum >= input.requestedMaxPages
+  ) {
+    // Callers use maxPages for intentional lightweight probes (for example,
+    // pageSize=1/maxPages=1 to read the head item). Returning that requested
+    // prefix is not an incomplete full enumeration.
+    return false;
+  }
+
+  if (input.returnedCount < input.pageSize) {
+    throw new Error(
+      `Bilibili ${input.label} API returned a short page (${input.returnedCount}/${input.pageSize}) on page ${input.pageNum} after ${input.fetchedCount} of ${input.total} videos`,
+    );
+  }
+
+  if (input.pageNum >= MAX_BILIBILI_ARCHIVE_PAGES) {
+    throw new Error(
+      `Bilibili ${input.label} API reached the ${MAX_BILIBILI_ARCHIVE_PAGES}-page safety limit after ${input.fetchedCount} of ${input.total} videos`,
+    );
+  }
+
+  return true;
 }
 
 function formatBilibiliApiError(responseBody: Record<string, unknown>): string {
@@ -221,11 +260,16 @@ function readBilibiliArchivePage(
     );
   }
 
-  const total =
-    typeof archiveData.page?.total === "number" &&
-    Number.isFinite(archiveData.page.total)
-      ? archiveData.page.total
-      : archiveData.archives.length;
+  const total = archiveData.page?.total;
+  if (
+    typeof total !== "number" ||
+    !Number.isSafeInteger(total) ||
+    total < 0
+  ) {
+    throw new Error(
+      `Bilibili ${label} API returned a missing or invalid total on page ${pageNum}`,
+    );
+  }
 
   return { archives: archiveData.archives, total };
 }
@@ -395,8 +439,15 @@ export async function getCollectionVideos(
         });
       });
 
-      // Check if there are more pages
-      hasMore = allVideos.length < total;
+      hasMore = shouldFetchNextArchivePage({
+        label: "collection",
+        pageNum,
+        pageSize,
+        returnedCount: archives.length,
+        fetchedCount: allVideos.length,
+        total,
+        requestedMaxPages: maxPages,
+      });
       pageNum++;
     }
 
@@ -477,8 +528,15 @@ export async function getSeriesVideos(
         });
       });
 
-      // Check if there are more pages
-      hasMore = archives.length === pageSize && allVideos.length < total;
+      hasMore = shouldFetchNextArchivePage({
+        label: "series",
+        pageNum,
+        pageSize,
+        returnedCount: archives.length,
+        fetchedCount: allVideos.length,
+        total,
+        requestedMaxPages: maxPages,
+      });
       pageNum++;
     }
 
