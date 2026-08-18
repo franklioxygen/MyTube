@@ -10,6 +10,14 @@
 
 - Replace the high-saturation cyan/red UI palette with a calmer teal-led color scheme and a mode-aware secondary purple (softer violet in light mode, stronger contrast in dark), updating favorite-page gradient accents, the browser theme color, and the web manifest without changing logo assets (#366)
 
+### Security
+
+- Remove the publicly known fallback JWT signing secret that allowed forged tokens in default deployments (GHSA-rm8x-hmvr-qgp3). An unset or empty `JWT_SECRET` now produces a random per-process key, and explicitly configuring the compromised historical default prevents the backend from starting.
+
+### Changed
+
+- **Breaking for legacy API clients:** `Authorization: Bearer <jwt>` is no longer accepted for authentication. Browser users continue to authenticate with the HTTP-only session cookie and are unaffected; external clients must use `X-API-Key` or `Authorization: ApiKey <key>` instead.
+
 ### Fix
 
 - Harden Bilibili source enumeration so a truncated listing fails loudly and retryably instead of being frozen as a complete plan. The space, collection, and series readers previously treated a short page as end-of-list, so a risk-controlled response that returned fewer rows than requested was silently accepted as the whole source; the collection reader could also loop forever when the API returned empty pages while still advertising more. All three now require a valid advertised total, reject a short page before that total is reached, and stop at a 100-page ceiling. Failed collection and series reads are also reported as structured, retryable planning failures rather than a bare error message, matching what the space path already produced.
