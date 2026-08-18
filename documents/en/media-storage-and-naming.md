@@ -218,6 +218,12 @@ break watch state in your media server.
 Renaming a channel or a playlist updates the NFO title only. The directory keeps the name it
 was created with.
 
+**Changing your filename template or author-folder setting does not disturb the library.**
+Those settings control where the *original* file lives under `uploads/videos/`; mirror paths
+come from the show/season/episode allocation above and never from the original filename. A
+batch rename moves the original and relinks the mirror in place — same season, same episode
+number, same filename, same shared inode. The same is true when a video is redownloaded.
+
 ### 9.4 The same video in several playlists
 
 A video that belongs to two playlists becomes two episodes — one in each season — each with

@@ -9,17 +9,12 @@ import {
   pathExistsSafeSync,
   resolveSafeChildPath,
 } from "../../utils/security";
-import {
-  removeMediaServerArtifactsForVideo,
-  syncMediaServerArtifactsForRecord,
-  syncMediaServerShowArtifactsForShowRoot,
-} from "../mediaServerExport";
+import { syncMediaServerArtifactsForRelocatedRecord } from "../mediaServerExport";
 import { moveSmallThumbnailMirrorSync } from "../thumbnailMirrorService";
 import * as storageService from "../storageService";
 import { bumpVideosListRevision } from "../storageService/videoListRevision";
 import { buildContextFromVideoRecord } from "./contextBuilder";
 import { resolveManagedWebPath } from "./pathHelpers";
-import { planMediaServerExportPaths } from "../mediaServerExport/pathPlanner";
 import {
   resolveFilenameNamingConfig,
 } from "./config";
@@ -569,16 +564,12 @@ async function processOneVideo(
 
       bumpVideosListRevision();
 
-      const oldMediaServerPlan = planMediaServerExportPaths(video);
       const updatedVideo = storageService.getVideoById(video.id);
       if (updatedVideo) {
-        removeMediaServerArtifactsForVideo(video);
-        if (oldMediaServerPlan?.tvLayout.showRootRelativeDir) {
-          syncMediaServerShowArtifactsForShowRoot(
-            oldMediaServerPlan.tvLayout.showRootRelativeDir
-          );
-        }
-        syncMediaServerArtifactsForRecord(updatedVideo);
+        // Layout-aware: adjacent rewrites sidecars at the new path, while
+        // playlist_tv relinks the mirror in place and keeps its episode
+        // numbering. See syncMediaServerArtifactsForRelocatedRecord.
+        syncMediaServerArtifactsForRelocatedRecord(video, updatedVideo);
       }
 
       item.status = "success";

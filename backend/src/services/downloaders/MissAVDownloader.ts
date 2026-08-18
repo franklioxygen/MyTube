@@ -39,7 +39,7 @@ import {
 } from "../../utils/ytDlpUtils";
 import { spawnYtDlp, withYtDlpRelease } from "../../utils/ytdlp/release";
 import {
-  removeMediaServerArtifactsForVideo,
+  removeMediaServerArtifactsForSupersededFile,
   syncMediaServerArtifactsForRecord,
 } from "../mediaServerExport";
 import { regenerateSmallThumbnailForThumbnailPath } from "../thumbnailMirrorService";
@@ -871,7 +871,7 @@ export class MissAVDownloader extends BaseDownloader {
           }
         }
 
-        removeMediaServerArtifactsForVideo(existingLocalVideo);
+        removeMediaServerArtifactsForSupersededFile(existingLocalVideo);
         persistedVideoData = updatedVideo;
         if (sourceVideoId) {
           persistedVideoData = storageService.persistDownloadedMediaIdentity({
