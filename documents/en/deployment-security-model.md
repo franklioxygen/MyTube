@@ -172,3 +172,18 @@ Use:
 - `host` only if admin should be treated as a host-scoped deployment operator
 
 If you are unsure, start with `container` only when you need hooks or raw yt-dlp passthrough. Otherwise prefer `application`.
+
+## Session Signing Key (`JWT_SECRET`)
+
+`JWT_SECRET` is optional. When it is unset or empty, the backend generates a
+random signing key at startup rather than falling back to a shared constant.
+
+This is safe because signed tokens never leave the process: login mints one, the
+server immediately exchanges it for an opaque session id stored in memory, and
+no response body returns a token. Auth sessions do not survive a restart in
+either configuration, so a per-process key costs nothing.
+
+Do not set `JWT_SECRET` to
+`default_development_secret_do_not_use_in_production`. That value was published
+in earlier releases, so anyone can forge tokens with it. The backend refuses to
+start if it is configured.

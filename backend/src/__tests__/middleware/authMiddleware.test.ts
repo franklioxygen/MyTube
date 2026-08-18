@@ -1,12 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextFunction, Request, Response } from "express";
+import jwt from "jsonwebtoken";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { authMiddleware } from "../../middleware/authMiddleware";
 import {
   deleteSession,
   getAuthCookieName,
   getUserPayloadFromSession,
-  verifyToken,
 } from "../../services/authService";
 import { getSettings } from "../../services/storageService";
 import { isUserSessionPayloadValid } from "../../services/userService";
@@ -15,7 +15,6 @@ vi.mock("../../services/authService", () => ({
   deleteSession: vi.fn(),
   getAuthCookieName: vi.fn(),
   getUserPayloadFromSession: vi.fn(),
-  verifyToken: vi.fn(),
 }));
 
 vi.mock("../../services/userService", () => ({
@@ -52,7 +51,6 @@ describe("authMiddleware", () => {
     authMiddleware(req as Request, res as Response, next);
 
     expect(getUserPayloadFromSession).toHaveBeenCalledWith("sid-1");
-    expect(verifyToken).not.toHaveBeenCalled();
     expect((req as Request).user).toEqual(payload);
     expect(next).toHaveBeenCalledTimes(1);
   });
@@ -75,46 +73,32 @@ describe("authMiddleware", () => {
     expect(next).toHaveBeenCalledTimes(1);
   });
 
-  it("falls back to bearer token when session cookie is missing", () => {
-    const payload = { role: "visitor", id: "u2" } as const;
-    req.headers = { authorization: "Bearer token-123" };
+  it("rejects a forged admin bearer token (GHSA-rm8x-hmvr-qgp3)", () => {
+    // A JWT signed with a leaked or default key must not authenticate anything:
+    // bearer tokens are no longer an auth path at all.
+    req.headers = {
+      authorization: `Bearer ${jwt.sign({ role: "admin" }, "default_development_secret_do_not_use_in_production")}`,
+    };
     vi.mocked(getUserPayloadFromSession).mockReturnValue(null);
-    vi.mocked(verifyToken).mockReturnValue(payload as any);
-
-    authMiddleware(req as Request, res as Response, next);
-
-    expect(verifyToken).toHaveBeenCalledWith("token-123");
-    expect((req as Request).user).toEqual(payload);
-    expect(next).toHaveBeenCalledTimes(1);
-  });
-
-  it("ignores stale user-backed bearer tokens", () => {
-    const payload = {
-      role: "visitor",
-      id: "login-1",
-      userId: "user-1",
-      sessionVersion: 1,
-    } as const;
-    req.headers = { authorization: "Bearer token-123" };
-    vi.mocked(getUserPayloadFromSession).mockReturnValue(null);
-    vi.mocked(verifyToken).mockReturnValue(payload as any);
-    vi.mocked(isUserSessionPayloadValid).mockReturnValue(false);
 
     authMiddleware(req as Request, res as Response, next);
 
     expect((req as Request).user).toBeUndefined();
-    expect(deleteSession).not.toHaveBeenCalled();
     expect(next).toHaveBeenCalledTimes(1);
   });
 
-  it("continues when bearer token is invalid", () => {
-    req.headers = { authorization: "Bearer invalid" };
+  it("ignores a bearer token even when the session cookie is unresolvable", () => {
+    req.cookies = { mytube_auth_session: "expired-or-missing" };
+    req.headers = {
+      authorization: `Bearer ${jwt.sign({ role: "admin" }, "any-key")}`,
+    };
     vi.mocked(getUserPayloadFromSession).mockReturnValue(null);
-    vi.mocked(verifyToken).mockReturnValue(null);
 
     authMiddleware(req as Request, res as Response, next);
 
-    expect(verifyToken).toHaveBeenCalledWith("invalid");
+    expect(getUserPayloadFromSession).toHaveBeenCalledWith(
+      "expired-or-missing"
+    );
     expect((req as Request).user).toBeUndefined();
     expect(next).toHaveBeenCalledTimes(1);
   });
@@ -124,25 +108,7 @@ describe("authMiddleware", () => {
 
     authMiddleware(req as Request, res as Response, next);
 
-    expect(verifyToken).not.toHaveBeenCalled();
     expect((req as Request).user).toBeUndefined();
-    expect(next).toHaveBeenCalledTimes(1);
-  });
-
-  it("tries bearer token if session exists but is not resolvable", () => {
-    const payload = { role: "admin", id: "u3" } as const;
-    req.cookies = { mytube_auth_session: "expired-or-missing" };
-    req.headers = { authorization: "Bearer t2" };
-    vi.mocked(getUserPayloadFromSession).mockReturnValue(null);
-    vi.mocked(verifyToken).mockReturnValue(payload as any);
-
-    authMiddleware(req as Request, res as Response, next);
-
-    expect(getUserPayloadFromSession).toHaveBeenCalledWith(
-      "expired-or-missing"
-    );
-    expect(verifyToken).toHaveBeenCalledWith("t2");
-    expect((req as Request).user).toEqual(payload);
     expect(next).toHaveBeenCalledTimes(1);
   });
 
@@ -158,7 +124,6 @@ describe("authMiddleware", () => {
     expect((req as Request).user).toBeUndefined();
     expect((req as Request).apiKeyAuthenticated).toBe(true);
     expect(getUserPayloadFromSession).not.toHaveBeenCalled();
-    expect(verifyToken).not.toHaveBeenCalled();
     expect(next).toHaveBeenCalledTimes(1);
   });
 

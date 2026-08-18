@@ -4,7 +4,7 @@
 
 ## 认证与访问说明
 
-- 认证基于 Cookie (HTTP-only JWT Cookie)。同时也接受 Authorization 标头以保证向后兼容性。
+- 浏览器认证使用 HTTP-only Cookie，其中保存不透明的服务端会话 ID。不支持 Bearer JWT。
 - 启用密码登录后，未认证用户只能访问与登录相关的公开端点。
 - 访客角色对大多数资源仅有只读权限。
 - 当 `apiKeyEnabled` 为 true 时，支持通过 `X-API-Key` 或 `Authorization: ApiKey <key>` 进行 API Key 认证。
@@ -22,7 +22,7 @@
   - 查询参数: `query` (必需), `limit` (可选, 默认: `8`), `offset` (可选, 默认: `1`)
 - `POST /api/download` - 添加视频下载任务
   - 请求体: `{ youtubeUrl: string, downloadAllParts?: boolean, collectionName?: string, downloadCollection?: boolean, collectionInfo?: object, forceDownload?: boolean }`
-  - 认证: 支持会话 Cookie/Bearer JWT，或 API Key (`X-API-Key` / `Authorization: ApiKey <key>`)
+  - 认证: 支持会话 Cookie，或 API Key (`X-API-Key` / `Authorization: ApiKey <key>`)
   - 支持: YouTube、Bilibili、Twitch VOD、MissAV 以及其他 yt-dlp 支持的网站
 - `GET /api/check-video-download` - 检查源 URL 是否已被下载过
   - 查询参数: `url` (必需)
@@ -49,11 +49,11 @@
     - 文件夹上传只导入受支持的视频文件，不保留子目录结构。
     - 重复内容会按内容哈希跳过。
 - `GET /api/videos` - 获取所有视频 (当前实现无服务器端分页/过滤)
-  - 认证: 支持会话 Cookie/Bearer JWT，或 API Key (`X-API-Key` / `Authorization: ApiKey <key>`)
+  - 认证: 支持会话 Cookie，或 API Key (`X-API-Key` / `Authorization: ApiKey <key>`)
 - `GET /api/videos/:id` -通过 ID 获取单个视频
-  - 认证: 支持会话 Cookie/Bearer JWT，或 API Key (`X-API-Key` / `Authorization: ApiKey <key>`)
+  - 认证: 支持会话 Cookie，或 API Key (`X-API-Key` / `Authorization: ApiKey <key>`)
 - `GET /api/mount-video/:id` - 通过视频 ID 流式传输挂载目录视频 (支持 Range)
-  - 认证: 支持会话 Cookie/Bearer JWT，或 API Key (`X-API-Key` / `Authorization: ApiKey <key>`)
+  - 认证: 支持会话 Cookie，或 API Key (`X-API-Key` / `Authorization: ApiKey <key>`)
 - `PUT /api/videos/:id` - 更新视频元数据
   - 请求体允许: `{ title?, tags?, visibility?, subtitles? }`
 - `POST /api/videos/:id/subtitles` - 为视频上传字幕文件
@@ -88,7 +88,7 @@
 ## 收藏夹
 
 - `GET /api/collections` - 获取所有收藏夹
-  - 认证: 支持会话 Cookie/Bearer JWT，或 API Key (`X-API-Key` / `Authorization: ApiKey <key>`)
+  - 认证: 支持会话 Cookie，或 API Key (`X-API-Key` / `Authorization: ApiKey <key>`)
 - `POST /api/collections` - 创建收藏夹
   - 请求体: `{ name: string, videoId?: string }`
 - `PUT /api/collections/:id` - 更新收藏夹
@@ -291,7 +291,7 @@ WebSocket 流（挂载在 `/api` 下，通过升级建立——非 JSON 路由�
 
 - `GET /api/system/version` - 获取版本/更新信息
   - 返回: `{ currentVersion, latestVersion, releaseUrl, hasUpdate, ... }`
-  - 认证: 支持会话 Cookie/Bearer JWT，或 API Key (`X-API-Key` / `Authorization: ApiKey <key>`)
+  - 认证: 支持会话 Cookie，或 API Key (`X-API-Key` / `Authorization: ApiKey <key>`)
 
 ## 非 API 路由 (不在 `/api` 下)
 
