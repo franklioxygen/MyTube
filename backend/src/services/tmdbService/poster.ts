@@ -1,11 +1,11 @@
 import axios from "axios";
 import { createHash } from "crypto";
-import fs from "fs-extra";
 import path from "path";
 import { IMAGES_DIR } from "../../config/paths";
 import { logger } from "../../utils/logger";
 import {
   buildAllowlistedHttpUrl,
+  ensureDirSafeSync,
   resolveSafeChildPath,
   resolveSafePath,
   writeFileSafe,
@@ -103,8 +103,9 @@ export async function downloadPoster(
       return false;
     }
 
-    // Ensure directory exists
-    await fs.ensureDir(path.dirname(normalizedSavePath));
+    // Ensure directory exists. Routed through the safe wrapper rather than a
+    // raw fs call, matching writeFileSafe on the line below.
+    ensureDirSafeSync(path.dirname(normalizedSavePath), IMAGES_DIR);
 
     // Save image
     // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
