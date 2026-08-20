@@ -3,6 +3,7 @@ import { getVideos } from "../storageService/videos";
 import type { Collection, Video } from "../storageService/types";
 import {
   buildCollectionShowIdentityKey,
+  collapseCompatibleIdentities,
   normalizeAuthorIdentity,
 } from "./identity";
 import { resolveShowMetadata } from "./metadataResolver";
@@ -58,7 +59,10 @@ export function previewMediaServerExportScope(options?: {
   // lets a weaker author-fallback identity join a show that already has a
   // channel URL or id when their titles agree, so counting raw keys reports
   // more folders than actually get created.
-  const identityTitles = new Map<string, { title: string; strong: boolean }>();
+  const identityTitles = new Map<
+    string,
+    { title: string; strong: boolean; platform: string }
+  >();
   const identityKeys = new Set<string>();
 
   // A marked collection is a show in its own right, never a season, so it
@@ -97,6 +101,7 @@ export function previewMediaServerExportScope(options?: {
         identityTitles.set(metadata.identity.identityKey, {
           title: normalizeAuthorIdentity(metadata.title) ?? "",
           strong: metadata.identity.quality !== "author_fallback",
+          platform: metadata.identity.platform,
         });
       }
     }
@@ -110,34 +115,24 @@ export function previewMediaServerExportScope(options?: {
 }
 
 /**
- * Collapses author-fallback identities into a stronger identity of the same
- * title, mirroring findCompatibleExistingShow.
- *
- * Only the single-candidate case merges, exactly as the reconciler requires -
- * an ambiguous title there produces a new show rather than an arbitrary match,
- * so the preview must not merge it either.
+ * Author-show count after the reconciler's compatibility merging, plus the
+ * marked collections, which are shows in their own right and never merge.
  */
 function countAfterCompatibilityMerge(
   identityKeys: Set<string>,
-  identityTitles: Map<string, { title: string; strong: boolean }>
+  identityTitles: Map<string, { title: string; strong: boolean; platform: string }>
 ): number {
-  const strongTitles = new Map<string, number>();
-  for (const [key, entry] of identityTitles) {
-    if (!entry.strong || !entry.title) continue;
-    // Collection shows carry no entry here, so this counts author shows only.
-    const platform = key.slice(0, key.indexOf(":"));
-    const titleKey = `${platform}:${entry.title}`;
-    strongTitles.set(titleKey, (strongTitles.get(titleKey) ?? 0) + 1);
-  }
+  const merged = collapseCompatibleIdentities(
+    [...identityTitles.entries()].map(([identityKey, entry]) => ({
+      identityKey,
+      platform: entry.platform,
+      title: entry.title,
+      strong: entry.strong,
+      value: identityKey,
+    }))
+  );
 
-  let merged = 0;
-  for (const [key, entry] of identityTitles) {
-    if (entry.strong || !entry.title) continue;
-    const platform = key.slice(0, key.indexOf(":"));
-    if (strongTitles.get(`${platform}:${entry.title}`) === 1) {
-      merged += 1;
-    }
-  }
-
-  return identityKeys.size - merged;
+  // identityKeys also holds the collection shows, which contribute no entry to
+  // identityTitles and therefore survive the merge untouched.
+  return identityKeys.size - (identityTitles.size - merged.length);
 }

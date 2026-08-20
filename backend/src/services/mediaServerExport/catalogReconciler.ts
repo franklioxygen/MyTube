@@ -22,6 +22,7 @@ import {
 } from "./catalogRepository";
 import {
   canUpgradeShowIdentity,
+  collapseCompatibleIdentities,
   normalizeAuthorIdentity,
   normalizeChannelUrl,
   type ResolvedShowIdentity,
@@ -295,11 +296,26 @@ export function resolveCollectionShowCandidate(
     }
   }
 
-  if (identities.size === 1) {
-    return { metadata: [...identities.values()][0], ambiguous: false };
+  // Members of one channel can resolve at different strengths - one video
+  // carrying a channel URL, another only the same author name. Their identity
+  // keys differ, but show allocation would merge them, so counting raw keys
+  // here declares a false ambiguity and blocks the collection from ever
+  // becoming a season (removing an existing season assignment as it goes).
+  const distinct = collapseCompatibleIdentities(
+    [...identities.values()].map((candidate) => ({
+      identityKey: candidate.identity!.identityKey,
+      platform: candidate.identity!.platform,
+      title: normalizeAuthorIdentity(candidate.title) ?? "",
+      strong: candidate.identity!.quality !== "author_fallback",
+      value: candidate,
+    }))
+  );
+
+  if (distinct.length === 1) {
+    return { metadata: distinct[0], ambiguous: false };
   }
 
-  return { metadata: fromCollection, ambiguous: identities.size > 1 };
+  return { metadata: fromCollection, ambiguous: distinct.length > 1 };
 }
 
 function isEligibleVideo(video: Video): boolean {
