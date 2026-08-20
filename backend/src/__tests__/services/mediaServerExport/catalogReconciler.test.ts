@@ -145,6 +145,7 @@ function reconcile(input: {
   subscriptions?: CatalogReconcileSubscription[];
   affectedVideoIds?: Set<string>;
   affectedCollectionIds?: Set<string>;
+  rawMetadataByVideoId?: Map<string, unknown>;
 }) {
   for (const entry of input.videos ?? []) {
     seedVideoRow(entry);
@@ -159,6 +160,7 @@ function reconcile(input: {
     subscriptions: input.subscriptions ?? [],
     affectedVideoIds: input.affectedVideoIds,
     affectedCollectionIds: input.affectedCollectionIds,
+    rawMetadataByVideoId: input.rawMetadataByVideoId,
   });
 }
 
@@ -620,6 +622,58 @@ describe("compatible show matching rejects conflicting evidence", () => {
       DELETE FROM videos;
       DELETE FROM media_server_shows;
     `);
+  });
+
+  /**
+   * A show created from an author fallback keeps its author-based identity key
+   * even after being enriched with a channel id. The exact key lookup therefore
+   * misses when a later candidate arrives with that same id, so the compatible
+   * matcher is the only thing standing between a renamed channel and a split
+   * durable library.
+   */
+  it("matches an enriched author-fallback show by channel id after a rename", () => {
+    reconcile({
+      videos: [
+        // No channel id or URL: creates an author-fallback show.
+        video({ id: "v1", author: "Old Name", channelUrl: undefined }),
+      ],
+    });
+    const [show] = listMediaServerShows();
+    // Enrichment: the id arrives later, the identity key stays author-based.
+    testDb.sqlite
+      .prepare("UPDATE media_server_shows SET source_channel_id=? WHERE id=?")
+      .run("UC-durable", show.id);
+
+    reconcile({
+      videos: [
+        video({
+          id: "v2",
+          author: "Brand New Name",
+          channelUrl: "https://www.youtube.com/@brand-new",
+        }),
+      ],
+      // The durable id reaches reconciliation through the downloader envelope.
+      rawMetadataByVideoId: new Map([["v2", { channel_id: "UC-durable" }]]),
+    });
+
+    expect(listMediaServerShows()).toHaveLength(1);
+  });
+
+  it("still splits when the channel ids disagree", () => {
+    reconcile({
+      videos: [video({ id: "v1", author: "News", channelUrl: undefined })],
+    });
+    const [show] = listMediaServerShows();
+    testDb.sqlite
+      .prepare("UPDATE media_server_shows SET source_channel_id=? WHERE id=?")
+      .run("UC-one", show.id);
+
+    reconcile({
+      videos: [video({ id: "v2", author: "News", channelUrl: undefined })],
+      rawMetadataByVideoId: new Map([["v2", { channel_id: "UC-two" }]]),
+    });
+
+    expect(listMediaServerShows()).toHaveLength(2);
   });
 
   it("keeps two channels apart when their durable URLs differ", () => {

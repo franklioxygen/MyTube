@@ -1,5 +1,7 @@
 import { logger } from "../../utils/logger";
 import { getSettings } from "../storageService/settings";
+import { listAssignmentsForShow } from "./catalogRepository";
+import { cleanupMediaServerMirror } from "./hierarchyMaterializer";
 import {
   removePlaylistTvArtifactsForVideo,
   syncPlaylistTvForCollection,
@@ -113,9 +115,12 @@ export function onCollectionUnlinkCommitted(
 }
 
 /**
- * Collection metadata changed (rename, description, reorder).
+ * Collection metadata or source identity changed (rename, description, reorder,
+ * or the collection becoming subscription-backed).
  *
- * Rewrites `season.nfo` only. The season number and directory are stable, and an
+ * Reconciles the whole collection, so a collection that has just gained a
+ * durable source identity attaches as a season and its existing members leave
+ * Season 00. Season numbers and directories are stable throughout, and an
  * upstream reorder updates `sourcePosition` without renumbering episodes.
  */
 export function onCollectionMetadataCommitted(collectionId: string): void {
@@ -148,16 +153,50 @@ export function onVideoDeleteCommitted(showIds: Set<string>): void {
   if (showIds.size === 0) {
     return;
   }
-  withPlaylistTv(
-    "cleanup",
-    (config) => {
-      syncPlaylistTvForShows(showIds, {
-        mode: config.mode,
-        copyFallbackEnabled: config.copyFallbackEnabled,
-      });
-    },
-    { showIds: [...showIds] }
-  );
+
+  // Deliberately not routed through withPlaylistTv. Its config is null when the
+  // export mode is "off", but onVideoDeletePending still ran and still removed
+  // the episode artifacts - skipping this would leave tvshow.nfo, season.nfo
+  // and the poster stranded for a show that just lost its last episode, which
+  // is a worse state than not having cleaned at all. The layout is read
+  // directly, exactly as the pending half does.
+  const settings = getSettings() as {
+    mediaServerExportLayout?: MediaServerExportLayout;
+    mediaServerCopyFallback?: boolean;
+    mediaServerExportMode?: MediaServerExportMode;
+  };
+  if (settings.mediaServerExportLayout !== "playlist_tv") {
+    return;
+  }
+
+  const mode = settings.mediaServerExportMode ?? "off";
+
+  try {
+    if (mode === "off") {
+      // Nothing may be written while the export is off, and re-planning under a
+      // substituted mode would sweep artifacts the real mode had produced (a
+      // source JSON, say) as a side effect of an unrelated deletion. So only the
+      // genuinely emptied shows are swept, and shows that still hold episodes
+      // are left exactly as they are.
+      for (const showId of showIds) {
+        if (listAssignmentsForShow(showId).length === 0) {
+          cleanupMediaServerMirror(new Set([showId]));
+        }
+      }
+      return;
+    }
+
+    syncPlaylistTvForShows(showIds, {
+      mode,
+      copyFallbackEnabled: settings.mediaServerCopyFallback !== false,
+    });
+  } catch (error) {
+    logger.error("Failed to reconcile shows after a video deletion", error, {
+      layout: "playlist_tv",
+      action: "cleanup",
+      showIds: [...showIds],
+    });
+  }
 }
 
 export function onVideoDeletePending(videoId: string): Set<string> {
