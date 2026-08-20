@@ -27,6 +27,8 @@ import {
   removeOwnedMirrorArtifact,
 } from "./mediaMaterializer";
 import { deleteArtifactRecord } from "./artifactLedger";
+import { takePendingSourceInfo } from "./pendingSourceInfo";
+import { buildSourceInfoEnvelope } from "./sourceInfoEnvelope";
 import path from "path";
 import { MEDIA_SERVER_LIBRARY_DIR } from "../../config/paths";
 import { resolveSafeChildPath } from "../../utils/security";
@@ -184,12 +186,33 @@ export function syncPlaylistTvForVideo(
       .map((collection) => collection.id)
   );
 
+  // Collections the video has *left* must stay in scope. This hook runs after
+  // the unlink has committed, so a departed collection no longer lists the
+  // video and would drop out of the set above - and the reconciler only sweeps
+  // stale assignments whose collection is in scope. Without this the old mirror
+  // episode and its assignment survive, and because the assignment survives the
+  // video never falls back to Season 00 either, until a full rebuild.
+  for (const assignment of listAssignmentsForVideo(videoId)) {
+    if (assignment.collectionId) {
+      affectedCollectionIds.add(assignment.collectionId);
+    }
+  }
+
+  // Recover the envelope a suppressed download parked for this deferred run.
+  // It feeds both show-identity resolution and the episode's source JSON, so it
+  // is read once here and threaded into both.
+  const parkedSourceInfo = takePendingSourceInfo(videoId);
+  const rawMetadataByVideoId = parkedSourceInfo
+    ? new Map<string, unknown>([[videoId, parkedSourceInfo]])
+    : undefined;
+
   const reconcile = reconcileMediaServerCatalog({
     videos,
     collections,
     subscriptions: subscriptionRows,
     affectedVideoIds: new Set([videoId]),
     affectedCollectionIds,
+    rawMetadataByVideoId,
   });
 
   // The video's own shows, plus any show the reconciler touched. Both are
@@ -230,7 +253,9 @@ export function syncPlaylistTvForVideo(
   });
   const summary = materializeMediaServerHierarchy(plan, {
     copyFallbackEnabled: options.copyFallbackEnabled,
-    sourceJsonByVideoId: options.sourceJsonByVideoId,
+    sourceJsonByVideoId:
+      options.sourceJsonByVideoId ??
+      buildParkedSourceJsonMap(videoId, parkedSourceInfo, options.mode, target),
     sweepScopeShowIds: showIds,
   });
 
@@ -239,6 +264,24 @@ export function syncPlaylistTvForVideo(
     affectedShowIds: showIds,
     reconcileIssues: reconcile.issues,
   };
+}
+
+/**
+ * Rebuilds the source-JSON entry a suppressed download would have written, so
+ * the deferred sync does not fall back to the synthesized envelope.
+ */
+function buildParkedSourceJsonMap(
+  videoId: string,
+  parkedSourceInfo: unknown,
+  mode: MediaServerExportMode,
+  video: Video
+): Map<string, string> | undefined {
+  if (mode !== "nfo_and_source_json" || parkedSourceInfo === undefined) {
+    return undefined;
+  }
+  return new Map([
+    [videoId, `${JSON.stringify(buildSourceInfoEnvelope(video, parkedSourceInfo), null, 2)}\n`],
+  ]);
 }
 
 /**

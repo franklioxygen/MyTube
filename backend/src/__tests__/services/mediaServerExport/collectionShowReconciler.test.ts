@@ -66,6 +66,7 @@ vi.mock("../../../utils/logger", () => ({
 
 import { reconcileMediaServerCatalog } from "../../../services/mediaServerExport/catalogReconciler";
 import {
+  ensureCollectionShow,
   getCollectionShow,
   listAssignmentsForShow,
   listAssignmentsForVideo,
@@ -476,5 +477,71 @@ describe("collection-as-show reconciliation", () => {
         "S01E002 - Second",
       ]);
     });
+  });
+});
+
+/**
+ * A collection can be re-pointed at a different TMDB entry, or dropped back to a
+ * manual title. If the show row keeps the old external identity it emits the new
+ * title with the old uniqueid, and the media server keeps matching the old
+ * series - the exact failure the feature exists to prevent.
+ */
+describe("collection show external identity refresh", () => {
+  beforeEach(() => {
+    testDb.sqlite.exec(`
+      DELETE FROM media_server_export_artifacts;
+      DELETE FROM media_server_episode_assignments;
+      DELETE FROM collections;
+      DELETE FROM videos;
+      DELETE FROM media_server_shows;
+    `);
+  });
+
+  it("replaces the TMDB identity when the collection is re-pointed", () => {
+    const first = ensureCollectionShow({
+      collectionId: "c1",
+      title: "Three Kingdoms",
+      description: "",
+      tmdbId: 72645,
+      tmdbMediaType: "tv",
+      premiered: "1994-02-10",
+    });
+    expect(first.tmdbId).toBe(72645);
+
+    const second = ensureCollectionShow({
+      collectionId: "c1",
+      title: "Three Kingdoms 2010",
+      description: "",
+      tmdbId: 46298,
+      tmdbMediaType: "tv",
+      premiered: "2010-05-02",
+    });
+
+    expect(second.id).toBe(first.id);
+    expect(second.tmdbId).toBe(46298);
+    expect(second.premiered).toBe("2010-05-02");
+    // The directory is allocated once and must survive the re-point.
+    expect(second.directoryName).toBe(first.directoryName);
+  });
+
+  it("clears the TMDB identity when the collection falls back to a manual title", () => {
+    ensureCollectionShow({
+      collectionId: "c1",
+      title: "Three Kingdoms",
+      description: "",
+      tmdbId: 72645,
+      tmdbMediaType: "tv",
+      premiered: "1994-02-10",
+    });
+
+    const manual = ensureCollectionShow({
+      collectionId: "c1",
+      title: "My Own Title",
+      description: "",
+    });
+
+    expect(manual.tmdbId).toBeUndefined();
+    expect(manual.tmdbMediaType).toBeUndefined();
+    expect(manual.premiered).toBeUndefined();
   });
 });

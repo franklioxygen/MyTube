@@ -156,7 +156,10 @@ vi.mock("../../../utils/logger", () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() },
 }));
 
-import { syncPlaylistTvLibrary } from "../../../services/mediaServerExport/playlistTvSync";
+import {
+  syncPlaylistTvForVideo,
+  syncPlaylistTvLibrary,
+} from "../../../services/mediaServerExport/playlistTvSync";
 import { syncMediaServerArtifactsForRelocatedRecord } from "../../../services/mediaServerExport/syncService";
 
 const CHANNEL_ID = "UCsXVk37bltHxD1rDPwtNM8Q";
@@ -971,5 +974,132 @@ describe("playlist_tv survives a batch rename (issue #411)", () => {
     renameOriginal("v-loose", "Kurzgesagt/d-extra.mp4");
 
     expect(listMirror()).toEqual(before);
+  });
+});
+
+/**
+ * Regression coverage for the review findings on PR #412. Each of these
+ * describes a state the incremental paths could previously reach and not
+ * recover from without a full rebuild.
+ */
+describe("incremental reconcile edge cases (PR #412 review)", () => {
+  beforeEach(() => {
+    fs.emptyDirSync(testPaths.root);
+    for (const dir of [
+      testPaths.videos,
+      testPaths.images,
+      testPaths.imagesSmall,
+      testPaths.avatars,
+      testPaths.subtitles,
+      testPaths.mediaLibrary,
+    ]) {
+      fs.ensureDirSync(dir);
+    }
+    testDb.sqlite.exec(`
+      DELETE FROM media_server_export_artifacts;
+      DELETE FROM media_server_episode_assignments;
+      DELETE FROM collections;
+      DELETE FROM videos;
+      DELETE FROM media_server_shows;
+    `);
+    buildFixture();
+  });
+
+  afterAll(() => {
+    fs.removeSync(testPaths.root);
+  });
+
+  /**
+   * The unlink hook runs after the membership row is gone, so the departed
+   * collection is exactly the one missing from any scope derived from current
+   * memberships - and the stale sweep only looks at in-scope collections.
+   */
+  it("removes the episode a video was unlinked from", () => {
+    rebuild();
+    expect(listMirror()).toContain(
+      "Kurzgesagt – In a Nutshell/Season 01/S01E001 - Human Origins.mp4"
+    );
+
+    // Commit the unlink, then reconcile through the incremental video path.
+    const playlist = libraryCollections.find((c) => c.id === "c-existential");
+    if (!playlist) throw new Error("fixture playlist missing");
+    playlist.videos = playlist.videos.filter((id) => id !== "v-origins");
+    testDb.sqlite
+      .prepare("DELETE FROM collection_videos WHERE collection_id=? AND video_id=?")
+      .run("c-existential", "v-origins");
+
+    syncPlaylistTvForVideo("v-origins", { mode: "nfo", copyFallbackEnabled: true });
+
+    const after = listMirror();
+    expect(after).not.toContain(
+      "Kurzgesagt – In a Nutshell/Season 01/S01E001 - Human Origins.mp4"
+    );
+    // Its last playlist membership is gone, so it belongs in Season 00 now.
+    expect(after.some((p) => p.includes("Season 00") && p.includes("Human Origins"))).toBe(
+      true
+    );
+  });
+
+  it("keeps other seasons intact when one membership is removed", () => {
+    rebuild();
+    const playlist = libraryCollections.find((c) => c.id === "c-existential");
+    if (!playlist) throw new Error("fixture playlist missing");
+    playlist.videos = playlist.videos.filter((id) => id !== "v-shared");
+    testDb.sqlite
+      .prepare("DELETE FROM collection_videos WHERE collection_id=? AND video_id=?")
+      .run("c-existential", "v-shared");
+
+    syncPlaylistTvForVideo("v-shared", { mode: "nfo", copyFallbackEnabled: true });
+
+    const after = listMirror();
+    // Season 02 membership survives, so no Season 00 special appears.
+    expect(after).toContain(
+      "Kurzgesagt – In a Nutshell/Season 02/S02E001 - The Egg.mp4"
+    );
+    expect(after).not.toContain(
+      "Kurzgesagt – In a Nutshell/Season 01/S01E002 - The Egg.mp4"
+    );
+    expect(after.some((p) => p.includes("Season 00") && p.includes("The Egg"))).toBe(false);
+  });
+
+  /**
+   * Promotion must release the author-season attachment, or a later toggle-off
+   * reuses the retired season number instead of allocating a new one.
+   */
+  it("releases the author season attachment on promotion", () => {
+    rebuild();
+
+    const before = testDb.sqlite
+      .prepare("SELECT media_server_show_id AS showId, media_server_season_number AS season FROM collections WHERE id=?")
+      .get("c-existential") as { showId: string | null; season: number | null };
+    expect(before.showId).toBeTruthy();
+    expect(before.season).toBe(1);
+
+    testDb.sqlite
+      .prepare("UPDATE collections SET export_as_show=1 WHERE id=?")
+      .run("c-existential");
+    rebuild();
+
+    const after = testDb.sqlite
+      .prepare("SELECT media_server_show_id AS showId, media_server_season_number AS season FROM collections WHERE id=?")
+      .get("c-existential") as { showId: string | null; season: number | null };
+    expect(after.showId).toBeNull();
+    expect(after.season).toBeNull();
+  });
+
+  it("gives a demoted collection a new season number, never the retired one", () => {
+    rebuild();
+    testDb.sqlite.prepare("UPDATE collections SET export_as_show=1 WHERE id=?").run("c-existential");
+    rebuild();
+
+    // Toggle back off: it returns to the author show as a NEW season.
+    testDb.sqlite.prepare("UPDATE collections SET export_as_show=0 WHERE id=?").run("c-existential");
+    rebuild();
+
+    const after = testDb.sqlite
+      .prepare("SELECT media_server_season_number AS season FROM collections WHERE id=?")
+      .get("c-existential") as { season: number | null };
+    expect(after.season).not.toBe(1);
+    expect(after.season).toBeGreaterThan(2);
   });
 });
