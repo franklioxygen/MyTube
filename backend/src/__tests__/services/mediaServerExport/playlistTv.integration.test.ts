@@ -1174,3 +1174,82 @@ describe("deletion leaves no empty show (PR #412 review round 2)", () => {
     expect(after.some((p) => p.includes("Season 00"))).toBe(false);
   });
 });
+
+/**
+ * The ledger row is the only proof MyTube owns a mirror path. If an unlink fails
+ * and the row is dropped anyway, the file survives untracked: cleanup can never
+ * retry it, and the next rebuild treats the path as an unmanaged collision and
+ * refuses to write there.
+ */
+describe("failed artifact removal keeps its ledger row (PR #412 review round 5)", () => {
+  beforeEach(() => {
+    fs.emptyDirSync(testPaths.root);
+    for (const dir of [
+      testPaths.videos,
+      testPaths.images,
+      testPaths.imagesSmall,
+      testPaths.avatars,
+      testPaths.subtitles,
+      testPaths.mediaLibrary,
+    ]) {
+      fs.ensureDirSync(dir);
+    }
+    testDb.sqlite.exec(`
+      DELETE FROM media_server_export_artifacts;
+      DELETE FROM media_server_episode_assignments;
+      DELETE FROM collections;
+      DELETE FROM videos;
+      DELETE FROM media_server_shows;
+    `);
+    buildFixture();
+  });
+
+  afterAll(() => {
+    fs.removeSync(testPaths.root);
+  });
+
+  it("retains the row when the path is no longer the file the ledger recorded", () => {
+    rebuild();
+
+    const episode =
+      "Kurzgesagt – In a Nutshell/Season 01/S01E001 - Human Origins.mp4";
+    const absolute = mirror(episode);
+
+    // Ownership mismatch: removal throws rather than deleting something it does
+    // not recognise. A permission error would take the same path.
+    fs.removeSync(absolute);
+    fs.mkdirSync(absolute);
+
+    const result = removePlaylistTvArtifactsForVideo("v-origins");
+    expect(result.failures.length).toBeGreaterThan(0);
+
+    // The row survives with its show reference intact, so a later sweep can retry.
+    const row = testDb.sqlite
+      .prepare(
+        "SELECT relative_path AS relativePath, show_id AS showId, assignment_id AS assignmentId FROM media_server_export_artifacts WHERE relative_path = ?"
+      )
+      .get(episode) as
+      | { relativePath: string; showId: string | null; assignmentId: string | null }
+      | undefined;
+
+    expect(row).toBeTruthy();
+    expect(row?.showId).toBeTruthy();
+    // The assignment is gone, so the FK cleared only that reference.
+    expect(row?.assignmentId).toBeNull();
+  });
+
+  it("still drops rows for artifacts it did remove", () => {
+    rebuild();
+
+    const result = removePlaylistTvArtifactsForVideo("v-loose");
+    expect(result.failures).toEqual([]);
+
+    const remaining = testDb.sqlite
+      .prepare(
+        "SELECT count(*) AS c FROM media_server_export_artifacts WHERE relative_path LIKE ?"
+      )
+      .get("%Unlisted Extra%") as { c: number };
+
+    expect(remaining.c).toBe(0);
+  });
+});

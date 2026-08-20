@@ -5,7 +5,6 @@ import { getCollections } from "../storageService/collectionRepository";
 import { getVideos } from "../storageService/videos";
 import type { Collection, Video } from "../storageService/types";
 import {
-  deleteArtifactRecordsForAssignment,
   listArtifactsForAssignment,
 } from "./artifactLedger";
 import {
@@ -379,10 +378,15 @@ export function removePlaylistTvArtifactsForVideo(videoId: string): {
           directoriesToPrune.add(path.dirname(absolutePath));
         }
       } catch (error) {
+        // The ledger row is deliberately kept. It is the only record that MyTube
+        // owns this path, so dropping it would leave the file on disk untracked:
+        // cleanup could never retry it, and the next rebuild would treat it as
+        // an unmanaged collision. The assignment delete below sets the row's
+        // assignment_id to null (ON DELETE set null), leaving it attached to its
+        // show for a later sweep.
         failures.push(error instanceof Error ? error.message : String(error));
       }
     }
-    deleteArtifactRecordsForAssignment(assignment.id);
   }
 
   deleteEpisodeAssignmentsForVideo(videoId);
