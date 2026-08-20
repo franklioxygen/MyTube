@@ -5,9 +5,19 @@ import MediaServerExportSettings from '../MediaServerExportSettings';
 import { Settings } from '../../../types';
 import { api } from '../../../utils/apiClient';
 
-vi.mock('../../../contexts/LanguageContext', () => ({
-    useLanguage: () => ({ t: (key: string) => key }),
-}));
+// Echoes the key, except for templated strings: those return the real English
+// text so placeholder substitution is actually exercised rather than skipped.
+vi.mock('../../../contexts/LanguageContext', async () => {
+    const { en } = await import('../../../utils/locales/en');
+    return {
+        useLanguage: () => ({
+            t: (key: string) => {
+                const value = (en as Record<string, string>)[key];
+                return typeof value === 'string' && value.includes('{') ? value : key;
+            },
+        }),
+    };
+});
 
 vi.mock('../../../utils/apiClient', () => ({
     api: { get: vi.fn(), post: vi.fn() },
@@ -207,9 +217,9 @@ describe('MediaServerExportSettings rebuild', () => {
         const user = userEvent.setup();
         renderSettings({ mediaServerExportLayout: 'playlist_tv' });
 
-        await user.click(screen.getByRole('button', { name: 'mediaServerExportRebuild' }));
+        await user.click(screen.getByRole('button', { name: 'mediaServerExportRebuildManagedLibrary' }));
         const dialog = await screen.findByRole('dialog');
-        await user.click(within(dialog).getByRole('button', { name: 'mediaServerExportRebuild' }));
+        await user.click(within(dialog).getByRole('button', { name: 'mediaServerExportRebuildManagedLibrary' }));
 
         await waitFor(() => {
             expect(api.post).toHaveBeenCalledWith(
@@ -226,7 +236,7 @@ describe('MediaServerExportSettings rebuild', () => {
         const user = userEvent.setup();
         renderSettings({ mediaServerExportLayout: 'playlist_tv' });
 
-        await user.click(screen.getByRole('button', { name: 'mediaServerExportRebuild' }));
+        await user.click(screen.getByRole('button', { name: 'mediaServerExportRebuildManagedLibrary' }));
         const dialog = await screen.findByRole('dialog');
 
         expect(
@@ -241,7 +251,7 @@ describe('MediaServerExportSettings rebuild', () => {
             mediaServerExportLayout: 'playlist_tv',
         });
 
-        await user.click(screen.getByRole('button', { name: 'mediaServerExportCleanup' }));
+        await user.click(screen.getByRole('button', { name: 'mediaServerExportCleanupManagedLibrary' }));
         const dialog = await screen.findByRole('dialog');
 
         expect(
@@ -259,5 +269,117 @@ describe('MediaServerExportSettings rebuild', () => {
         expect(
             within(dialog).queryByText('mediaServerExportPlaylistTvRebuildConfirmBody')
         ).toBeNull();
+    });
+});
+
+/**
+ * The rebuild button used to be called "sidecars" in both layouts. In the
+ * managed layout it materializes the entire library and creates a show folder
+ * per author, which a user cannot infer from that wording — so the label and a
+ * concrete scope line are the guard against triggering it unawares.
+ */
+describe('MediaServerExportSettings managed-library scope', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        vi.mocked(api.get).mockResolvedValue({
+            data: { videoCount: 81, showCount: 39, collectionShowCount: 1 },
+        } as never);
+    });
+
+    it('does not call the managed library "sidecars"', () => {
+        renderSettings({ mediaServerExportLayout: 'playlist_tv' });
+
+        expect(
+            screen.getByRole('button', { name: 'mediaServerExportRebuildManagedLibrary' })
+        ).toBeTruthy();
+        expect(
+            screen.queryByRole('button', { name: 'mediaServerExportRebuild' })
+        ).toBeNull();
+    });
+
+    it('keeps the sidecar wording in the adjacent layout', () => {
+        renderSettings({ mediaServerExportLayout: 'adjacent' });
+
+        expect(screen.getByRole('button', { name: 'mediaServerExportRebuild' })).toBeTruthy();
+        expect(
+            screen.queryByRole('button', { name: 'mediaServerExportRebuildManagedLibrary' })
+        ).toBeNull();
+    });
+
+    it('states the video and show counts before confirmation', async () => {
+        const user = userEvent.setup();
+        renderSettings({ mediaServerExportLayout: 'playlist_tv' });
+
+        await user.click(
+            screen.getByRole('button', { name: 'mediaServerExportRebuildManagedLibrary' })
+        );
+
+        await waitFor(() => {
+            expect(api.get).toHaveBeenCalledWith('/settings/media-server-export/scope');
+        });
+        const dialog = await screen.findByRole('dialog');
+        // The template keys are echoed by the stub `t`, so assert the substituted numbers.
+        expect(await within(dialog).findByText(/81/)).toBeTruthy();
+        expect(within(dialog).getByText(/39/)).toBeTruthy();
+    });
+
+    it('warns that the whole library is rebuilt, not just recent downloads', async () => {
+        const user = userEvent.setup();
+        renderSettings({ mediaServerExportLayout: 'playlist_tv' });
+
+        await user.click(
+            screen.getByRole('button', { name: 'mediaServerExportRebuildManagedLibrary' })
+        );
+        const dialog = await screen.findByRole('dialog');
+
+        expect(
+            within(dialog).getByText('mediaServerExportRebuildManagedLibraryConfirmBody')
+        ).toBeTruthy();
+        expect(
+            within(dialog).queryByText('mediaServerExportRebuildConfirmBody')
+        ).toBeNull();
+    });
+
+    it('still allows the run when the projection fails', async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.get).mockRejectedValue(new Error('offline'));
+        renderSettings({ mediaServerExportLayout: 'playlist_tv' });
+
+        await user.click(
+            screen.getByRole('button', { name: 'mediaServerExportRebuildManagedLibrary' })
+        );
+        const dialog = await screen.findByRole('dialog');
+
+        expect(
+            await within(dialog).findByText('mediaServerExportScopeUnavailable')
+        ).toBeTruthy();
+        expect(
+            within(dialog).getByRole('button', { name: 'mediaServerExportRebuildManagedLibrary' })
+        ).toBeEnabled();
+    });
+
+    it('does not project scope for a cleanup run', async () => {
+        const user = userEvent.setup();
+        renderSettings({
+            mediaServerExportMode: 'off',
+            mediaServerExportLayout: 'playlist_tv',
+        });
+
+        await user.click(
+            screen.getByRole('button', { name: 'mediaServerExportCleanupManagedLibrary' })
+        );
+        await screen.findByRole('dialog');
+
+        expect(api.get).not.toHaveBeenCalledWith('/settings/media-server-export/scope');
+    });
+
+    it('does not project scope in the adjacent layout', async () => {
+        const user = userEvent.setup();
+        renderSettings({ mediaServerExportLayout: 'adjacent' });
+
+        await user.click(screen.getByRole('button', { name: 'mediaServerExportRebuild' }));
+        await screen.findByRole('dialog');
+
+        expect(api.get).not.toHaveBeenCalledWith('/settings/media-server-export/scope');
     });
 });

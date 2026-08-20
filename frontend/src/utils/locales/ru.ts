@@ -280,6 +280,24 @@ export const ru = {
     "Your original videos are not moved or renamed. Media is hard linked where possible, which normally uses no additional disk space; where hard links are unavailable, files may be copied.",
   mediaServerExportPlaylistTvCleanupConfirmBody:
     "This only deletes files inside the managed library folder that MyTube generated. Your original videos and any files you added yourself are left untouched.",
+  mediaServerExportRebuildManagedLibrary:
+    "Перестроить управляемую ТВ-библиотеку",
+  mediaServerExportCleanupManagedLibrary:
+    "Удалить управляемую ТВ-библиотеку",
+  mediaServerExportRebuildManagedLibraryConfirmTitle:
+    "Перестроить управляемую ТВ-библиотеку?",
+  mediaServerExportCleanupManagedLibraryConfirmTitle:
+    "Удалить управляемую ТВ-библиотеку?",
+  mediaServerExportRebuildManagedLibraryConfirmBody:
+    "Будет перестроена вся управляемая библиотека, а не только недавние загрузки. В неё попадёт каждое локальное видео, и для каждого автора будет создана папка сериала, поэтому медиасервер, указывающий на эту папку, после следующего сканирования может показать множество новых сериалов.",
+  mediaServerExportCleanupManagedLibraryConfirmBody:
+    "Из папки управляемой библиотеки будет удалено всё, что создал MyTube, включая все папки сериалов и ссылки на эпизоды.",
+  mediaServerExportScope:
+    "Будет обработано видео: {videos}; создано примерно папок сериалов: {shows}.",
+  mediaServerExportScopeLoading:
+    "Вычисляется объём операции…",
+  mediaServerExportScopeUnavailable:
+    "Не удалось вычислить объём операции. Она всё равно обработает всю библиотеку.",
   mediaServerExportPhase_snapshot:
     "reading library",
   mediaServerExportPhase_catalog_reconcile:

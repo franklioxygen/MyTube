@@ -281,6 +281,24 @@ export const fr = {
     "Your original videos are not moved or renamed. Media is hard linked where possible, which normally uses no additional disk space; where hard links are unavailable, files may be copied.",
   mediaServerExportPlaylistTvCleanupConfirmBody:
     "This only deletes files inside the managed library folder that MyTube generated. Your original videos and any files you added yourself are left untouched.",
+  mediaServerExportRebuildManagedLibrary:
+    "Reconstruire la bibliothèque TV gérée",
+  mediaServerExportCleanupManagedLibrary:
+    "Supprimer la bibliothèque TV gérée",
+  mediaServerExportRebuildManagedLibraryConfirmTitle:
+    "Reconstruire la bibliothèque TV gérée ?",
+  mediaServerExportCleanupManagedLibraryConfirmTitle:
+    "Supprimer la bibliothèque TV gérée ?",
+  mediaServerExportRebuildManagedLibraryConfirmBody:
+    "Cela reconstruit toute la bibliothèque gérée, pas seulement les téléchargements récents. Chaque vidéo locale y est placée et un dossier de série est créé par auteur ; un serveur multimédia pointant vers ce dossier peut donc afficher de nombreuses nouvelles séries après la prochaine analyse.",
+  mediaServerExportCleanupManagedLibraryConfirmBody:
+    "Cela vide le dossier de la bibliothèque gérée de tout ce que MyTube a généré, y compris tous les dossiers de séries et les liens d’épisodes.",
+  mediaServerExportScope:
+    "Cette exécution traitera {videos} vidéos et créera environ {shows} dossiers de séries.",
+  mediaServerExportScopeLoading:
+    "Calcul de l’ampleur de cette exécution…",
+  mediaServerExportScopeUnavailable:
+    "Impossible de calculer l’ampleur de cette exécution. Toute la bibliothèque est tout de même traitée.",
   mediaServerExportPhase_snapshot:
     "reading library",
   mediaServerExportPhase_catalog_reconcile:

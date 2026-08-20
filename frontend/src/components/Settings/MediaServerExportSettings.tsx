@@ -65,6 +65,12 @@ const MediaServerExportSettings: React.FC<MediaServerExportSettingsProps> = ({
     const [exportError, setExportError] = useState<string | null>(null);
     const [startingExport, setStartingExport] = useState(false);
     const [pathCopied, setPathCopied] = useState(false);
+    const [scope, setScope] = useState<{
+        videoCount: number;
+        showCount: number;
+        collectionShowCount: number;
+    } | null>(null);
+    const [scopeLoading, setScopeLoading] = useState(false);
 
     useSettingsJobPolling(exportJob, mediaServerExportJobUrl, setExportJob);
 
@@ -74,6 +80,32 @@ const MediaServerExportSettings: React.FC<MediaServerExportSettingsProps> = ({
     const isPlaylistTv = exportLayout === 'playlist_tv';
     const copyFallbackEnabled = settings.mediaServerCopyFallback !== false;
     const libraryPath = settings.mediaServerLibraryPath || '';
+
+    /**
+     * The managed layout materializes the whole library, so the confirmation
+     * has to state that size. Fetched on open rather than kept live: it is only
+     * ever read to answer "what am I about to trigger?".
+     */
+    const openExportConfirm = async () => {
+        setExportConfirmOpen(true);
+        if (!isPlaylistTv || exportAction === 'cleanup') return;
+        setScope(null);
+        setScopeLoading(true);
+        try {
+            const res = await api.get<{
+                videoCount: number;
+                showCount: number;
+                collectionShowCount: number;
+            }>('/settings/media-server-export/scope');
+            setScope(res.data);
+        } catch {
+            // A failed projection must not block the action; the dialog simply
+            // falls back to the qualitative warning.
+            setScope(null);
+        } finally {
+            setScopeLoading(false);
+        }
+    };
 
     const handleStartMediaServerExportRebuild = async () => {
         setStartingExport(true);
@@ -382,13 +414,19 @@ const MediaServerExportSettings: React.FC<MediaServerExportSettingsProps> = ({
                 <span>
                     <Button
                         variant="outlined"
-                        onClick={() => setExportConfirmOpen(true)}
+                        onClick={() => { void openExportConfirm(); }}
                         disabled={isExportRunning}
                         sx={{ mt: 2 }}
                     >
+                        {/* "Sidecars" describes the adjacent layout only; the
+                            managed layout builds a whole mirror tree. */}
                         {t(exportAction === 'cleanup'
-                            ? 'mediaServerExportCleanup'
-                            : 'mediaServerExportRebuild')}
+                            ? (isPlaylistTv
+                                ? 'mediaServerExportCleanupManagedLibrary'
+                                : 'mediaServerExportCleanup')
+                            : (isPlaylistTv
+                                ? 'mediaServerExportRebuildManagedLibrary'
+                                : 'mediaServerExportRebuild'))}
                     </Button>
                 </span>
             </Tooltip>
@@ -403,14 +441,38 @@ const MediaServerExportSettings: React.FC<MediaServerExportSettingsProps> = ({
                 disableEscapeKeyDown={startingExport}
             >
                 <DialogTitle>{t(exportAction === 'cleanup'
-                    ? 'mediaServerExportCleanupConfirmTitle'
-                    : 'mediaServerExportRebuildConfirmTitle')}</DialogTitle>
+                    ? (isPlaylistTv
+                        ? 'mediaServerExportCleanupManagedLibraryConfirmTitle'
+                        : 'mediaServerExportCleanupConfirmTitle')
+                    : (isPlaylistTv
+                        ? 'mediaServerExportRebuildManagedLibraryConfirmTitle'
+                        : 'mediaServerExportRebuildConfirmTitle'))}</DialogTitle>
                 <DialogContent>
                     <DialogContentText>
                         {t(exportAction === 'cleanup'
-                            ? 'mediaServerExportCleanupConfirmBody'
-                            : 'mediaServerExportRebuildConfirmBody')}
+                            ? (isPlaylistTv
+                                ? 'mediaServerExportCleanupManagedLibraryConfirmBody'
+                                : 'mediaServerExportCleanupConfirmBody')
+                            : (isPlaylistTv
+                                ? 'mediaServerExportRebuildManagedLibraryConfirmBody'
+                                : 'mediaServerExportRebuildConfirmBody'))}
                     </DialogContentText>
+
+                    {/* The concrete size of the run. Stated before confirmation
+                        because the managed layout can add dozens of shows to a
+                        media server in one click. */}
+                    {isPlaylistTv && exportAction !== 'cleanup' && (
+                        <Alert severity="info" sx={{ mt: 2 }}>
+                            {scopeLoading
+                                ? t('mediaServerExportScopeLoading')
+                                : scope
+                                    ? t('mediaServerExportScope')
+                                        .replace('{videos}', String(scope.videoCount))
+                                        .replace('{shows}', String(scope.showCount))
+                                    : t('mediaServerExportScopeUnavailable')}
+                        </Alert>
+                    )}
+
                     {isPlaylistTv && (
                         <DialogContentText sx={{ mt: 2 }}>
                             {t(exportAction === 'cleanup'
@@ -428,8 +490,12 @@ const MediaServerExportSettings: React.FC<MediaServerExportSettingsProps> = ({
                         loadingPosition="start"
                     >
                         {t(exportAction === 'cleanup'
-                            ? 'mediaServerExportCleanup'
-                            : 'mediaServerExportRebuild')}
+                            ? (isPlaylistTv
+                                ? 'mediaServerExportCleanupManagedLibrary'
+                                : 'mediaServerExportCleanup')
+                            : (isPlaylistTv
+                                ? 'mediaServerExportRebuildManagedLibrary'
+                                : 'mediaServerExportRebuild'))}
                     </Button>
                 </DialogActions>
             </Dialog>

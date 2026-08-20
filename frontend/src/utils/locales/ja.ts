@@ -279,6 +279,24 @@ export const ja = {
     "Your original videos are not moved or renamed. Media is hard linked where possible, which normally uses no additional disk space; where hard links are unavailable, files may be copied.",
   mediaServerExportPlaylistTvCleanupConfirmBody:
     "This only deletes files inside the managed library folder that MyTube generated. Your original videos and any files you added yourself are left untouched.",
+  mediaServerExportRebuildManagedLibrary:
+    "管理対象テレビライブラリを再構築",
+  mediaServerExportCleanupManagedLibrary:
+    "管理対象テレビライブラリを削除",
+  mediaServerExportRebuildManagedLibraryConfirmTitle:
+    "管理対象テレビライブラリを再構築しますか？",
+  mediaServerExportCleanupManagedLibraryConfirmTitle:
+    "管理対象テレビライブラリを削除しますか？",
+  mediaServerExportRebuildManagedLibraryConfirmBody:
+    "最近のダウンロードだけでなく、管理対象ライブラリ全体を再構築します。すべてのローカル動画が配置され、作者ごとに1つの番組フォルダーが作成されるため、このフォルダーを参照するメディアサーバーでは次回のスキャン後に多数の新しい番組が表示される場合があります。",
+  mediaServerExportCleanupManagedLibraryConfirmBody:
+    "MyTube が生成したすべての番組フォルダーとエピソードリンクを含め、管理対象ライブラリフォルダーの内容をすべて削除します。",
+  mediaServerExportScope:
+    "今回は {videos} 件の動画を処理し、約 {shows} 個の番組フォルダーを作成します。",
+  mediaServerExportScopeLoading:
+    "この処理の規模を計算しています…",
+  mediaServerExportScopeUnavailable:
+    "この処理の規模を計算できませんでした。ライブラリ全体が処理されます。",
   mediaServerExportPhase_snapshot:
     "reading library",
   mediaServerExportPhase_catalog_reconcile:
