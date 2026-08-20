@@ -116,6 +116,51 @@ describe("previewMediaServerExportScope", () => {
     expect(scope.collectionShowCount).toBe(0);
   });
 
+  /**
+   * The reconciler does not stop at identity keys: a weaker author-fallback
+   * identity joins a stronger show of the same title. Counting raw keys
+   * therefore promised more folders than a rebuild actually creates.
+   */
+  it("merges an author-only video into the channel show of the same name", () => {
+    const scope = previewMediaServerExportScope({
+      videos: [
+        video({ id: "v1", author: "News", channelUrl: "https://youtube.com/@news" }),
+        video({ id: "v2", author: "News", channelUrl: undefined }),
+      ],
+      collections: [],
+    });
+
+    expect(scope.videoCount).toBe(2);
+    expect(scope.showCount).toBe(1);
+  });
+
+  it("does not merge when the stronger title is ambiguous", () => {
+    const scope = previewMediaServerExportScope({
+      videos: [
+        video({ id: "v1", author: "News", channelUrl: "https://youtube.com/@news-one" }),
+        video({ id: "v2", author: "News", channelUrl: "https://youtube.com/@news-two" }),
+        // Two strong candidates share this title, so the reconciler refuses to
+        // pick one and allocates a third show. The preview must agree.
+        video({ id: "v3", author: "News", channelUrl: undefined }),
+      ],
+      collections: [],
+    });
+
+    expect(scope.showCount).toBe(3);
+  });
+
+  it("keeps distinct author names apart", () => {
+    const scope = previewMediaServerExportScope({
+      videos: [
+        video({ id: "v1", author: "News", channelUrl: "https://youtube.com/@news" }),
+        video({ id: "v2", author: "Sports", channelUrl: undefined }),
+      ],
+      collections: [],
+    });
+
+    expect(scope.showCount).toBe(2);
+  });
+
   it("reports an empty library as zero rather than throwing", () => {
     const scope = previewMediaServerExportScope({ videos: [], collections: [] });
 

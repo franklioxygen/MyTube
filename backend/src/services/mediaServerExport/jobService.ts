@@ -153,35 +153,20 @@ async function processMediaServerExportJob(
       // runs first because job progress is denominated in videos.
       processAdjacentJob(job, allVideos);
       const sidecarsSwept = job.sweptFiles ?? 0;
-
-      let mirrorSwept = 0;
-      try {
-        mirrorSwept = sweepManagedMirror(job);
-      } catch (error) {
-        // Best effort. The mirror may not even exist for a deployment that only
-        // ever used sidecars, and a problem there must not fail the sweep the
-        // user actually asked for.
-        logger.error("Managed mirror sweep failed during cleanup", error, {
-          layout: job.layout,
-          action: "cleanup",
-        });
-        pushItem(job, {
-          videoId: "",
-          title: "",
-          status: "failed",
-          error: `Managed mirror cleanup failed: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
-        });
-      }
+      const mirrorSwept = sweepMirrorBestEffort(job);
 
       job.sweptFiles = sidecarsSwept + mirrorSwept;
       job.phase = "completed";
       job.status = job.cancelRequested ? "cancelled" : "completed";
     } else if (job.layout === "playlist_tv") {
       processPlaylistTvJob(job);
+      // The layout the user just switched away from keeps its artifacts
+      // otherwise: sidecars next to every original, with no route to remove
+      // them while the export stays enabled.
+      sweepInactiveAdjacentBestEffort(job, allVideos);
     } else {
       processAdjacentJob(job, allVideos);
+      job.sweptFiles = (job.sweptFiles ?? 0) + sweepMirrorBestEffort(job);
     }
   } finally {
     job.currentVideoId = undefined;
@@ -195,6 +180,77 @@ async function processMediaServerExportJob(
 // ---------------------------------------------------------------------------
 
 /**
+ * Removes the managed mirror without letting its failure end the run.
+ *
+ * Skipped outright once a cancel is pending: this is the *secondary* phase, and
+ * continuing into a full-library delete after the user pressed cancel would
+ * destroy the mirror they were trying to save.
+ */
+function sweepMirrorBestEffort(job: MediaServerExportJob): number {
+  if (job.cancelRequested) {
+    return 0;
+  }
+
+  try {
+    return sweepManagedMirror(job);
+  } catch (error) {
+    // The mirror may not even exist for a deployment that only ever used
+    // sidecars, and a problem there must not fail the phase the user asked for.
+    logger.error("Managed mirror sweep failed", error, {
+      layout: job.layout,
+      action: job.action,
+    });
+    pushItem(job, {
+      videoId: "",
+      title: "",
+      status: "failed",
+      error: `Managed mirror cleanup failed: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    });
+    return 0;
+  }
+}
+
+/**
+ * Removes adjacent sidecars while the managed layout is the active one, for the
+ * mirror-image reason: they belong to the layout the user switched away from.
+ */
+function sweepInactiveAdjacentBestEffort(
+  job: MediaServerExportJob,
+  allVideos: Video[]
+): void {
+  if (job.cancelRequested) {
+    return;
+  }
+
+  let removed = 0;
+  for (const video of allVideos) {
+    if (job.cancelRequested) {
+      break;
+    }
+    try {
+      removeMediaServerArtifactsForVideo(video, {
+        libraryVideos: allVideos,
+        layoutOverride: "adjacent",
+      });
+      removed += 1;
+    } catch (error) {
+      logger.warn("Could not remove adjacent sidecars for a video", {
+        videoId: video.id,
+        detail: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  logger.info("Swept sidecars belonging to the inactive layout", {
+    layout: job.layout,
+    action: job.action,
+    videosVisited: removed,
+  });
+}
+
+/**
  * Ledger-driven removal of the managed mirror. Reports failures onto the job but
  * leaves progress counters to the caller, which owns how the run is denominated.
  *
@@ -203,7 +259,7 @@ async function processMediaServerExportJob(
  */
 function sweepManagedMirror(job: MediaServerExportJob): number {
   job.phase = "sweep";
-  const cleanup = cleanupMediaServerMirror();
+  const cleanup = cleanupMediaServerMirror(undefined, () => job.cancelRequested);
   job.counts = { ...job.counts, ...cleanup.counts };
 
   for (const failure of cleanup.failures) {

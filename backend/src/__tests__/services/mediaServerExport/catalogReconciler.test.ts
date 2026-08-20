@@ -80,6 +80,7 @@ import {
   listAssignmentsForVideo,
   listMediaServerShows,
 } from "../../../services/mediaServerExport/catalogRepository";
+import { previewMediaServerExportScope } from "../../../services/mediaServerExport/scopePreview";
 
 function video(overrides: Partial<Video> = {}): Video {
   return {
@@ -698,5 +699,69 @@ describe("compatible show matching rejects conflicting evidence", () => {
     });
 
     expect(listMediaServerShows()).toHaveLength(1);
+  });
+});
+
+/**
+ * The rebuild confirmation quotes a folder count from previewMediaServerExportScope.
+ * If that number and the allocator ever disagree, the dialog misinforms the user
+ * about an action that can add dozens of shows to their media server - so the
+ * two are compared directly here, on the same input, rather than trusting that
+ * they share a helper.
+ */
+describe("scope preview agrees with the allocator", () => {
+  beforeEach(() => {
+    testDb.sqlite.exec(`
+      DELETE FROM media_server_export_artifacts;
+      DELETE FROM media_server_episode_assignments;
+      DELETE FROM collections;
+      DELETE FROM videos;
+      DELETE FROM media_server_shows;
+    `);
+  });
+
+  function assertAgreement(videos: Video[], collections: Collection[] = []): void {
+    const predicted = previewMediaServerExportScope({ videos, collections });
+    reconcile({ videos, collections });
+    const actual = listMediaServerShows().length;
+
+    expect(predicted.showCount).toBe(actual);
+  }
+
+  it("agrees for one channel with several videos", () => {
+    assertAgreement([
+      video({ id: "v1", channelUrl: "https://www.youtube.com/@a" }),
+      video({ id: "v2", channelUrl: "https://www.youtube.com/@a" }),
+    ]);
+  });
+
+  it("agrees when an author-only video joins a channel show", () => {
+    assertAgreement([
+      video({ id: "v1", author: "News", channelUrl: "https://www.youtube.com/@news" }),
+      video({ id: "v2", author: "News", channelUrl: undefined }),
+    ]);
+  });
+
+  it("agrees when two channels share a display name", () => {
+    assertAgreement([
+      video({ id: "v1", author: "News", channelUrl: "https://www.youtube.com/@news-one" }),
+      video({ id: "v2", author: "News", channelUrl: "https://www.youtube.com/@news-two" }),
+    ]);
+  });
+
+  it("agrees when an ambiguous title blocks the merge", () => {
+    assertAgreement([
+      video({ id: "v1", author: "News", channelUrl: "https://www.youtube.com/@news-one" }),
+      video({ id: "v2", author: "News", channelUrl: "https://www.youtube.com/@news-two" }),
+      video({ id: "v3", author: "News", channelUrl: undefined }),
+    ]);
+  });
+
+  it("agrees for unrelated channels", () => {
+    assertAgreement([
+      video({ id: "v1", author: "A", channelUrl: "https://www.youtube.com/@a" }),
+      video({ id: "v2", author: "B", channelUrl: "https://www.youtube.com/@b" }),
+      video({ id: "v3", author: "C", channelUrl: undefined }),
+    ]);
   });
 });
