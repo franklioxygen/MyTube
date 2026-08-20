@@ -205,3 +205,45 @@ export function canUpgradeShowIdentity(
   }
   return existing.identityKey.includes(":author:");
 }
+
+/** One candidate identity plus whatever the caller wants back for it. */
+export interface CompatibleIdentityCandidate<T> {
+  identityKey: string;
+  platform: string;
+  /** Normalized author identity of the show title this candidate would carry. */
+  title: string;
+  /** True when the identity came from a channel id or URL, not an author name. */
+  strong: boolean;
+  value: T;
+}
+
+/**
+ * Collapses author-fallback identities into a stronger identity of the same
+ * platform and title, the way findCompatibleExistingShow does when it decides
+ * whether a new candidate joins an existing show.
+ *
+ * Shared so that show allocation, the ambiguity test, and the rebuild scope
+ * preview cannot disagree about how many shows a set of videos produces - they
+ * did, and the preview overstated its folder count as a result.
+ *
+ * A weak candidate merges only when exactly one strong candidate matches its
+ * title. Two matching strong candidates is genuine ambiguity: the allocator
+ * refuses to pick, so neither may the callers.
+ */
+export function collapseCompatibleIdentities<T>(
+  candidates: CompatibleIdentityCandidate<T>[]
+): T[] {
+  const strongByTitle = new Map<string, number>();
+  for (const candidate of candidates) {
+    if (!candidate.strong || !candidate.title) continue;
+    const key = `${candidate.platform}:${candidate.title}`;
+    strongByTitle.set(key, (strongByTitle.get(key) ?? 0) + 1);
+  }
+
+  return candidates
+    .filter((candidate) => {
+      if (candidate.strong || !candidate.title) return true;
+      return strongByTitle.get(`${candidate.platform}:${candidate.title}`) !== 1;
+    })
+    .map((candidate) => candidate.value);
+}

@@ -7,6 +7,7 @@ const releaseRenameLockMock = vi.hoisted(() => vi.fn());
 const resolveCollectionMetadataMock = vi.hoisted(() => vi.fn());
 const downloadPosterMock = vi.hoisted(() => vi.fn());
 const dbUpdateSetMock = vi.hoisted(() => vi.fn());
+const syncPlaylistTvForCollectionMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../../db", () => ({
   db: {
@@ -47,6 +48,10 @@ vi.mock("../../../services/tmdbService/poster", () => ({
     relativePath: `tmdb/collections/hash/${mediaType}-${tmdbId}.jpg`,
     webPath: `/images/tmdb/collections/hash/${mediaType}-${tmdbId}.jpg`,
   }),
+}));
+
+vi.mock("../../../services/mediaServerExport/playlistTvSync", () => ({
+  syncPlaylistTvForCollection: syncPlaylistTvForCollectionMock,
 }));
 
 vi.mock("../../../utils/logger", () => ({
@@ -287,5 +292,67 @@ describe("collection-show activation", () => {
         reason: "lock_unavailable",
       });
     });
+  });
+});
+
+/**
+ * The toggle is not just a database flag. Until the catalog is reconciled the
+ * episodes stay under the author season and no collection-show folder exists,
+ * so the UI would report the collection as exported while the media server
+ * showed nothing at all until an unrelated mutation or a full rebuild.
+ */
+describe("collection show toggle reconciles the mirror", () => {
+  beforeEach(() => {
+    syncPlaylistTvForCollectionMock.mockReset();
+    getSettingsMock.mockReturnValue({
+      mediaServerExportLayout: "playlist_tv",
+      mediaServerExportMode: "nfo",
+    });
+    getCollectionByIdMock.mockReturnValue({ id: "c1", name: "Drama" });
+    acquireRenameLockMock.mockReturnValue(true);
+  });
+
+  it("reconciles after activation, before returning to the caller", async () => {
+    const result = await activateCollectionShow("c1", { kind: "collection" });
+
+    expect(result.status).toBe("ok");
+    expect(syncPlaylistTvForCollectionMock).toHaveBeenCalledWith(
+      "c1",
+      expect.objectContaining({ mode: "nfo" })
+    );
+    // Still inside the lock when it ran.
+    expect(releaseRenameLockMock).toHaveBeenCalled();
+  });
+
+  it("reconciles after deactivation too", async () => {
+    const result = await deactivateCollectionShow("c1");
+
+    expect(result.status).toBe("ok");
+    expect(syncPlaylistTvForCollectionMock).toHaveBeenCalledWith(
+      "c1",
+      expect.objectContaining({ mode: "nfo" })
+    );
+  });
+
+  it("does not touch the mirror when the export mode is off", async () => {
+    getSettingsMock.mockReturnValue({
+      mediaServerExportLayout: "playlist_tv",
+      mediaServerExportMode: "off",
+    });
+
+    await deactivateCollectionShow("c1");
+
+    expect(syncPlaylistTvForCollectionMock).not.toHaveBeenCalled();
+  });
+
+  it("still reports success when the reconcile fails", async () => {
+    syncPlaylistTvForCollectionMock.mockImplementation(() => {
+      throw new Error("materialize exploded");
+    });
+
+    const result = await activateCollectionShow("c1", { kind: "collection" });
+
+    // The flag is committed; the next rebuild converges.
+    expect(result.status).toBe("ok");
   });
 });

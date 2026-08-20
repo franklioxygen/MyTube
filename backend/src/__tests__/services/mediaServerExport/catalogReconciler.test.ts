@@ -765,3 +765,73 @@ describe("scope preview agrees with the allocator", () => {
     ]);
   });
 });
+
+/**
+ * A collection whose members resolve at different identity strengths is not
+ * ambiguous - show allocation would merge them. Declaring ambiguity there stops
+ * the collection ever becoming a season, and removes the season assignment it
+ * already had.
+ */
+describe("collection member identities are merged before declaring ambiguity", () => {
+  beforeEach(() => {
+    testDb.sqlite.exec(`
+      DELETE FROM media_server_export_artifacts;
+      DELETE FROM media_server_episode_assignments;
+      DELETE FROM collections;
+      DELETE FROM videos;
+      DELETE FROM media_server_shows;
+    `);
+  });
+
+  it("becomes a season when members differ only in identity strength", () => {
+    const result = reconcile({
+      videos: [
+        video({ id: "v1", author: "News", channelUrl: "https://www.youtube.com/@news" }),
+        // Same channel, weaker evidence: no URL, same display name.
+        video({ id: "v2", author: "News", channelUrl: undefined }),
+      ],
+      collections: [
+        collection({
+          id: "c1",
+          // Source-backed, but carrying no channel metadata of its own, so the
+          // decision falls through to the member videos.
+          sourceType: "playlist",
+          sourceChannelId: undefined,
+          sourceChannelUrl: undefined,
+          sourceChannelName: undefined,
+          videos: ["v1", "v2"],
+        }),
+      ],
+    });
+
+    expect(
+      result.issues.some((issue) => issue.reason === "ambiguous_collection_show")
+    ).toBe(false);
+    // One show, and the collection attached to it as a season.
+    expect(listMediaServerShows()).toHaveLength(1);
+    expect(listAssignmentsForVideo("v1")[0].seasonNumber).toBe(1);
+  });
+
+  it("still reports ambiguity when two channels genuinely disagree", () => {
+    const result = reconcile({
+      videos: [
+        video({ id: "v1", author: "A", channelUrl: "https://www.youtube.com/@a" }),
+        video({ id: "v2", author: "B", channelUrl: "https://www.youtube.com/@b" }),
+      ],
+      collections: [
+        collection({
+          id: "c1",
+          sourceType: "playlist",
+          sourceChannelId: undefined,
+          sourceChannelUrl: undefined,
+          sourceChannelName: undefined,
+          videos: ["v1", "v2"],
+        }),
+      ],
+    });
+
+    expect(
+      result.issues.some((issue) => issue.reason === "ambiguous_collection_show")
+    ).toBe(true);
+  });
+});

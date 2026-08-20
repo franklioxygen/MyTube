@@ -13,8 +13,9 @@ import {
   resolveCollectionPosterSaveLocation,
 } from "../tmdbService/poster";
 import { resolveCollectionMetadata } from "../tmdbService/collectionSearch";
+import { syncPlaylistTvForCollection } from "./playlistTvSync";
 import type { Collection } from "../storageService/types";
-import type { MediaServerExportLayout } from "./types";
+import type { MediaServerExportLayout, MediaServerExportMode } from "./types";
 
 /**
  * Activation and deactivation for collection-as-show (design §6.1, §6.5).
@@ -52,6 +53,11 @@ export type ActivationResult =
 
 const MAX_MANUAL_TITLE_LENGTH = 200;
 const MAX_MANUAL_DESCRIPTION_LENGTH = 10_000;
+
+function getExportMode(): MediaServerExportMode {
+  const settings = getSettings() as { mediaServerExportMode?: MediaServerExportMode };
+  return settings.mediaServerExportMode ?? "off";
+}
 
 function getLayout(): MediaServerExportLayout {
   const settings = getSettings() as {
@@ -169,6 +175,42 @@ async function resolveActivationMetadata(
 }
 
 /**
+ * Rebuilds the mirror for one collection, inside the maintenance lock.
+ *
+ * The toggle is not just a flag: until the catalog is reconciled the episodes
+ * stay under the author season and no collection-show folder exists, so the UI
+ * would report the collection as exported while the media server showed nothing
+ * until an unrelated mutation or a full rebuild happened along. Deactivation is
+ * symmetric - without this the retired collection show stays materialized.
+ *
+ * Deliberately inside the lock: this is local filesystem work that must not race
+ * a rename job. The rule the lock exists for is that no network round trip
+ * happens while holding it, and the TMDB fetch already completed above.
+ */
+function reconcileAfterToggle(collectionId: string, action: string): void {
+  try {
+    const settings = getSettings() as { mediaServerCopyFallback?: boolean };
+    const mode = getExportMode();
+    if (mode === "off") {
+      return;
+    }
+    syncPlaylistTvForCollection(collectionId, {
+      mode,
+      copyFallbackEnabled: settings.mediaServerCopyFallback !== false,
+    });
+  } catch (error) {
+    // Best effort, like every other mirror hook: the flag is already committed
+    // and the next rebuild converges. Failing here would leave the user with an
+    // error for work that did succeed.
+    logger.error("Failed to reconcile the mirror after a show-export toggle", error, {
+      layout: "playlist_tv",
+      action,
+      collectionId,
+    });
+  }
+}
+
+/**
  * Marks a collection as its own show, committing the accepted metadata and the
  * flag together.
  */
@@ -229,6 +271,10 @@ export async function activateCollectionShow(
       reasonCode: resolved.mediaServerMetadataSource ?? "collection",
     });
 
+    // Reconciled before returning, so the response already carries the show
+    // directory the caller is about to display.
+    reconcileAfterToggle(collectionId, "reconcile");
+
     const updated = getCollectionById(collectionId);
     return {
       status: "ok",
@@ -268,6 +314,10 @@ export async function deactivateCollectionShow(
       action: "cleanup",
       collectionId,
     });
+
+    // Symmetric with activation: without this the retired collection show stays
+    // materialized and the videos never return to their author season.
+    reconcileAfterToggle(collectionId, "cleanup");
 
     return { status: "ok", collection: getCollectionById(collectionId) as Collection };
   } finally {
