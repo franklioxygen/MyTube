@@ -604,3 +604,45 @@ describe("mediaServerExport catalogReconciler", () => {
     expect(listAssignmentsForVideo("v2")).toHaveLength(0);
   });
 });
+
+/**
+ * findCompatibleExistingShow lets an author-fallback identity join a show that
+ * already has a stronger identity. That is right when the evidence agrees, and
+ * dangerous when it does not: display names are not unique, and a merge is
+ * permanent because show identity is allocated once and never revised.
+ */
+describe("compatible show matching rejects conflicting evidence", () => {
+  beforeEach(() => {
+    testDb.sqlite.exec(`
+      DELETE FROM media_server_export_artifacts;
+      DELETE FROM media_server_episode_assignments;
+      DELETE FROM collections;
+      DELETE FROM videos;
+      DELETE FROM media_server_shows;
+    `);
+  });
+
+  it("keeps two channels apart when their durable URLs differ", () => {
+    reconcile({
+      videos: [
+        video({ id: "v1", author: "News", channelUrl: "https://www.youtube.com/@news-one" }),
+        video({ id: "v2", author: "News", channelUrl: "https://www.youtube.com/@news-two" }),
+      ],
+    });
+
+    // Same platform, same display name, different durable URLs: two shows.
+    expect(listMediaServerShows()).toHaveLength(2);
+  });
+
+  it("still merges an author-only video into the channel show of the same name", () => {
+    reconcile({
+      videos: [
+        video({ id: "v1", author: "News", channelUrl: "https://www.youtube.com/@news-one" }),
+        // No channel URL at all: the author fallback should find the show above.
+        video({ id: "v2", author: "News", channelUrl: undefined }),
+      ],
+    });
+
+    expect(listMediaServerShows()).toHaveLength(1);
+  });
+});

@@ -32,7 +32,7 @@ import { buildSourceInfoEnvelope } from "./sourceInfoEnvelope";
 import path from "path";
 import { MEDIA_SERVER_LIBRARY_DIR } from "../../config/paths";
 import { resolveSafeChildPath } from "../../utils/security";
-import type { MediaServerExportMode } from "./types";
+import type { HierarchyPlanSkip, MediaServerExportMode } from "./types";
 
 /**
  * Incremental playlist-TV synchronization (issue #411).
@@ -93,6 +93,13 @@ export interface PlaylistTvSyncOptions {
 export interface PlaylistTvSyncResult extends MaterializeResultSummary {
   affectedShowIds: Set<string>;
   reconcileIssues: ReturnType<typeof reconcileMediaServerCatalog>["issues"];
+  /**
+   * Episodes the planner could not place - missing source file, cloud-backed or
+   * mounted path, and so on. Surfaced rather than only logged: a rebuild that
+   * silently omits episodes while reporting success is worse than one that says
+   * what it left out.
+   */
+  plannerSkips: HierarchyPlanSkip[];
 }
 
 /**
@@ -124,6 +131,7 @@ export function syncPlaylistTvLibrary(
       failures: [],
       affectedShowIds: reconcile.affectedShowIds,
       reconcileIssues: reconcile.issues,
+      plannerSkips: [],
     };
   }
 
@@ -159,6 +167,7 @@ export function syncPlaylistTvLibrary(
     ...summary,
     affectedShowIds: reconcile.affectedShowIds,
     reconcileIssues: reconcile.issues,
+    plannerSkips: plan.skipped,
   };
 }
 
@@ -236,6 +245,7 @@ export function syncPlaylistTvForVideo(
       failures: [],
       affectedShowIds: showIds,
       reconcileIssues: reconcile.issues,
+      plannerSkips: [],
     };
   }
 
@@ -263,6 +273,7 @@ export function syncPlaylistTvForVideo(
     ...summary,
     affectedShowIds: showIds,
     reconcileIssues: reconcile.issues,
+    plannerSkips: plan.skipped,
   };
 }
 
@@ -332,6 +343,7 @@ export function syncPlaylistTvForCollection(
     ...summary,
     affectedShowIds: showIds,
     reconcileIssues: reconcile.issues,
+    plannerSkips: plan.skipped,
   };
 }
 
@@ -345,12 +357,16 @@ export function syncPlaylistTvForCollection(
 export function removePlaylistTvArtifactsForVideo(videoId: string): {
   removedArtifacts: number;
   failures: string[];
+  /** Shows that lost an episode, for the caller's post-delete reconcile. */
+  affectedShowIds: Set<string>;
 } {
   const failures: string[] = [];
   let removedArtifacts = 0;
   const directoriesToPrune = new Set<string>();
+  const affectedShowIds = new Set<string>();
 
   for (const assignment of listAssignmentsForVideo(videoId)) {
+    affectedShowIds.add(assignment.showId);
     for (const artifact of listArtifactsForAssignment(assignment.id)) {
       try {
         const absolutePath = resolveSafeChildPath(
@@ -375,5 +391,50 @@ export function removePlaylistTvArtifactsForVideo(videoId: string): {
     pruneEmptyMirrorDirectories(directory);
   }
 
-  return { removedArtifacts, failures };
+  return { removedArtifacts, failures, affectedShowIds };
+}
+
+/**
+ * Re-materializes specific shows and sweeps whatever the plan no longer expects.
+ *
+ * Needed after a deletion: per-assignment cleanup cannot touch `tvshow.nfo`,
+ * `season.nfo` or the poster, because those artifacts belong to the show rather
+ * than to any episode - and a directory still holding them is not empty, so it
+ * survives pruning too. Removing the last video would otherwise leave an empty
+ * show sitting in the media server until a full rebuild.
+ *
+ * Runs no reconciliation, so it can never resurrect an assignment that was just
+ * deleted.
+ */
+export function syncPlaylistTvForShows(
+  showIds: Set<string>,
+  options: PlaylistTvSyncOptions
+): PlaylistTvSyncResult | null {
+  if (showIds.size === 0) {
+    return null;
+  }
+
+  const { videos } = loadLibrary(options);
+  const subscriptionRows = listSubscriptionRowsForExport();
+
+  const snapshot = buildMediaServerCatalogSnapshot({
+    videos,
+    collections: reloadCollections(options),
+    subscriptions: subscriptionRows,
+  });
+  const plan = planMediaServerHierarchy(snapshot, {
+    mode: options.mode,
+    showIds,
+  });
+  const summary = materializeMediaServerHierarchy(plan, {
+    copyFallbackEnabled: options.copyFallbackEnabled,
+    sweepScopeShowIds: showIds,
+  });
+
+  return {
+    ...summary,
+    affectedShowIds: showIds,
+    reconcileIssues: [],
+    plannerSkips: plan.skipped,
+  };
 }

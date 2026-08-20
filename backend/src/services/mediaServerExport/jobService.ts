@@ -246,7 +246,11 @@ function processPlaylistTvJob(job: MediaServerExportJob): void {
   job.sweptFiles = summary.counts.removedArtifacts;
   // In playlist_tv the meaningful unit is the episode assignment, not the raw
   // video row, so `total` is restated once the plan is known.
-  job.total = summary.counts.episodes + summary.failures.length;
+  job.total =
+    summary.counts.episodes +
+    summary.failures.length +
+    summary.reconcileIssues.length +
+    summary.plannerSkips.length;
   job.succeeded = summary.counts.episodes;
   job.processed = summary.counts.episodes;
 
@@ -257,6 +261,18 @@ function processPlaylistTvJob(job: MediaServerExportJob): void {
       status: "skipped",
       skipReason: issue.reason,
       error: issue.detail,
+    });
+  }
+
+  // Episodes the planner could not place. Without these the job can report a
+  // clean run while quietly omitting videos from the mirror.
+  for (const skip of summary.plannerSkips) {
+    pushItem(job, {
+      videoId: skip.videoId ?? "",
+      title: "",
+      status: "skipped",
+      skipReason: skip.reason,
+      error: skip.detail,
     });
   }
 

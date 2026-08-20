@@ -3,6 +3,7 @@ import { getSettings } from "../storageService/settings";
 import {
   removePlaylistTvArtifactsForVideo,
   syncPlaylistTvForCollection,
+  syncPlaylistTvForShows,
   syncPlaylistTvForVideo,
 } from "./playlistTvSync";
 import type { MediaServerExportLayout, MediaServerExportMode } from "./types";
@@ -143,7 +144,23 @@ export function onCollectionMetadataCommitted(collectionId: string): void {
  * to tie it to. Cleaning here keeps filesystem removal and catalog removal in
  * one logical operation.
  */
-export function onVideoDeletePending(videoId: string): void {
+export function onVideoDeleteCommitted(showIds: Set<string>): void {
+  if (showIds.size === 0) {
+    return;
+  }
+  withPlaylistTv(
+    "cleanup",
+    (config) => {
+      syncPlaylistTvForShows(showIds, {
+        mode: config.mode,
+        copyFallbackEnabled: config.copyFallbackEnabled,
+      });
+    },
+    { showIds: [...showIds] }
+  );
+}
+
+export function onVideoDeletePending(videoId: string): Set<string> {
   // Unlike the other hooks this runs even when the export mode is "off": mirror
   // artifacts may have been generated while it was on, and this is the last
   // moment at which they can still be identified. The layout is therefore read
@@ -153,7 +170,7 @@ export function onVideoDeletePending(videoId: string): void {
     mediaServerExportLayout?: MediaServerExportLayout;
   };
   if (settings.mediaServerExportLayout !== "playlist_tv") {
-    return;
+    return new Set();
   }
 
   try {
@@ -166,11 +183,15 @@ export function onVideoDeletePending(videoId: string): void {
         reasonCode: "artifact_ownership_mismatch",
       });
     }
+    // Handed to onVideoDeleteCommitted once the row is gone, so a show that
+    // just lost its last episode also loses its tvshow.nfo, poster and seasons.
+    return removed.affectedShowIds;
   } catch (error) {
     logger.error("Failed to clean media server mirror before video deletion", error, {
       layout: "playlist_tv",
       action: "cleanup",
       videoId,
     });
+    return new Set();
   }
 }
