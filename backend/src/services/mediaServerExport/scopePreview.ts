@@ -1,7 +1,10 @@
 import { getCollections } from "../storageService/collectionRepository";
 import { getVideos } from "../storageService/videos";
 import type { Collection, Video } from "../storageService/types";
-import { buildCollectionShowIdentityKey } from "./identity";
+import {
+  buildCollectionShowIdentityKey,
+  normalizeAuthorIdentity,
+} from "./identity";
 import { resolveShowMetadata } from "./metadataResolver";
 
 /**
@@ -13,9 +16,11 @@ import { resolveShowMetadata } from "./metadataResolver";
  * creates a show directory per author. Users need the size of that before they
  * confirm it, not after their media server has picked up dozens of new shows.
  *
- * This deliberately reuses the same identity resolution the reconciler uses, so
- * the number shown is the number that will actually appear rather than a
- * separate estimate that can drift away from the real allocator.
+ * This reuses the reconciler's own identity resolution and mirrors its
+ * compatibility merging, rather than maintaining a second estimate that could
+ * drift from the real allocator. It stays an estimate all the same - a rebuild
+ * can skip a video whose source file has gone missing - which is why the copy
+ * says "about".
  */
 
 export interface MediaServerExportScope {
@@ -48,6 +53,12 @@ export function previewMediaServerExportScope(options?: {
     }
   }
 
+  // Identity key -> the show title that identity would carry. Needed because
+  // the reconciler does not stop at identity keys: findCompatibleExistingShow
+  // lets a weaker author-fallback identity join a show that already has a
+  // channel URL or id when their titles agree, so counting raw keys reports
+  // more folders than actually get created.
+  const identityTitles = new Map<string, { title: string; strong: boolean }>();
   const identityKeys = new Set<string>();
 
   // A marked collection is a show in its own right, never a season, so it
@@ -82,12 +93,51 @@ export function previewMediaServerExportScope(options?: {
     });
     if (metadata.identity) {
       identityKeys.add(metadata.identity.identityKey);
+      if (!identityTitles.has(metadata.identity.identityKey)) {
+        identityTitles.set(metadata.identity.identityKey, {
+          title: normalizeAuthorIdentity(metadata.title) ?? "",
+          strong: metadata.identity.quality !== "author_fallback",
+        });
+      }
     }
   }
 
   return {
     videoCount: videos.length,
-    showCount: identityKeys.size,
+    showCount: countAfterCompatibilityMerge(identityKeys, identityTitles),
     collectionShowCount: markedCollectionIds.size,
   };
+}
+
+/**
+ * Collapses author-fallback identities into a stronger identity of the same
+ * title, mirroring findCompatibleExistingShow.
+ *
+ * Only the single-candidate case merges, exactly as the reconciler requires -
+ * an ambiguous title there produces a new show rather than an arbitrary match,
+ * so the preview must not merge it either.
+ */
+function countAfterCompatibilityMerge(
+  identityKeys: Set<string>,
+  identityTitles: Map<string, { title: string; strong: boolean }>
+): number {
+  const strongTitles = new Map<string, number>();
+  for (const [key, entry] of identityTitles) {
+    if (!entry.strong || !entry.title) continue;
+    // Collection shows carry no entry here, so this counts author shows only.
+    const platform = key.slice(0, key.indexOf(":"));
+    const titleKey = `${platform}:${entry.title}`;
+    strongTitles.set(titleKey, (strongTitles.get(titleKey) ?? 0) + 1);
+  }
+
+  let merged = 0;
+  for (const [key, entry] of identityTitles) {
+    if (entry.strong || !entry.title) continue;
+    const platform = key.slice(0, key.indexOf(":"));
+    if (strongTitles.get(`${platform}:${entry.title}`) === 1) {
+      merged += 1;
+    }
+  }
+
+  return identityKeys.size - merged;
 }

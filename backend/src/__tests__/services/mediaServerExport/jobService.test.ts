@@ -64,6 +64,7 @@ vi.mock("../../../utils/logger", () => ({
 
 import {
   cancelMediaServerExportJob,
+  getActiveMediaServerExportJob,
   getMediaServerExportJobById,
   startMediaServerExportJob,
 } from "../../../services/mediaServerExport/jobService";
@@ -395,4 +396,66 @@ describe("mediaServerExport jobService", () => {
     expect(removeMediaServerArtifactsForVideoMock).toHaveBeenCalledTimes(1);
     expect(syncMediaServerArtifactsForRecordMock).not.toHaveBeenCalled();
   });
+
+  /**
+   * Cancellation and the inactive layout, PR #412 review round 4.
+   */
+  describe("cross-layout sweeps and cancellation", () => {
+    it("does not sweep the mirror after a cancelled cleanup", async () => {
+      getVideosMock.mockReturnValue([createVideo("video-1")]);
+      // Cancel lands while the adjacent pass is still walking videos.
+      removeMediaServerArtifactsForVideoMock.mockImplementation(() => {
+        const running = getActiveMediaServerExportJob();
+        if (running) cancelMediaServerExportJob(running.id);
+      });
+
+      const job = await startMediaServerExportJob("off");
+      await waitForJobStatus(job.id, "cancelled");
+
+      // The whole point: a cancelled cleanup must not delete the library.
+      expect(cleanupMediaServerMirrorMock).not.toHaveBeenCalled();
+    });
+
+    it("sweeps the adjacent sidecars when rebuilding into the managed layout", async () => {
+      getVideosMock.mockReturnValue([createVideo("video-1")]);
+      getMediaServerExportLayoutMock.mockReturnValue("playlist_tv");
+      syncPlaylistTvLibraryMock.mockReturnValue({
+        counts: {
+          shows: 1,
+          seasons: 1,
+          episodes: 1,
+          linkedMedia: 1,
+          copiedMedia: 0,
+          unchangedArtifacts: 0,
+          removedArtifacts: 0,
+        },
+        failures: [],
+        plannerSkips: [],
+        reconcileIssues: [],
+        affectedShowIds: new Set<string>(),
+      });
+
+      const job = await startMediaServerExportJob("nfo");
+      await waitForJobCompletion(job.id);
+
+      expect(syncPlaylistTvLibraryMock).toHaveBeenCalled();
+      // The layout the user switched away from is cleaned too.
+      expect(removeMediaServerArtifactsForVideoMock).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "video-1" }),
+        expect.objectContaining({ layoutOverride: "adjacent" })
+      );
+    });
+
+    it("sweeps the mirror when rebuilding into the adjacent layout", async () => {
+      getVideosMock.mockReturnValue([createVideo("video-1")]);
+      getMediaServerExportLayoutMock.mockReturnValue("adjacent");
+
+      const job = await startMediaServerExportJob("nfo");
+      await waitForJobCompletion(job.id);
+
+      expect(syncMediaServerArtifactsForRecordMock).toHaveBeenCalled();
+      expect(cleanupMediaServerMirrorMock).toHaveBeenCalled();
+    });
+  });
+
 });

@@ -342,7 +342,8 @@ function sweepStaleArtifacts(
   plan: MediaServerHierarchyPlan,
   scopeShowIds: Set<string> | undefined,
   counts: MaterializeCounts,
-  failures: MaterializeFailure[]
+  failures: MaterializeFailure[],
+  isCancelled?: () => boolean
 ): void {
   const candidates = scopeShowIds
     ? [...scopeShowIds].flatMap((showId) => listArtifactsForShow(showId))
@@ -351,6 +352,11 @@ function sweepStaleArtifacts(
   const directoriesToPrune = new Set<string>();
 
   for (const artifact of candidates) {
+    // Checked per artifact: a full-library sweep can run for a while, and a
+    // cancel that only takes effect at the end is not a cancel.
+    if (isCancelled?.()) {
+      break;
+    }
     if (plan.expectedRelativePaths.has(artifact.relativePath)) {
       continue;
     }
@@ -432,7 +438,8 @@ export function materializeMediaServerHierarchy(
  * reuses the same season and episode numbers.
  */
 export function cleanupMediaServerMirror(
-  scopeShowIds?: Set<string>
+  scopeShowIds?: Set<string>,
+  isCancelled?: () => boolean
 ): MaterializeResultSummary {
   const counts = emptyCounts();
   const failures: MaterializeFailure[] = [];
@@ -446,7 +453,8 @@ export function cleanupMediaServerMirror(
     },
     scopeShowIds,
     counts,
-    failures
+    failures,
+    isCancelled
   );
 
   return { counts, failures };
