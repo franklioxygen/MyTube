@@ -8,6 +8,7 @@ import type {
 import {
   attachCollectionToShow,
   deleteEpisodeAssignment,
+  detachCollectionFromShow,
   ensureCollectionShow,
   ensureEpisodeAssignment,
   ensureMediaServerShow,
@@ -25,7 +26,10 @@ import {
   normalizeChannelUrl,
   type ResolvedShowIdentity,
 } from "./identity";
-import { resolveShowMetadata } from "./metadataResolver";
+import {
+  normalizeRawSourceMetadata,
+  resolveShowMetadata,
+} from "./metadataResolver";
 import type { MediaServerExportSkipReason } from "./types";
 
 /**
@@ -390,6 +394,22 @@ export function reconcileMediaServerCatalog(
 
     result.affectedShowIds.add(show.id);
 
+    // Release the author-season attachment this collection is being promoted
+    // out of. The season number itself is never reused - the author show's
+    // counter only moves forward - but leaving the attachment behind would make
+    // a later attachCollectionToShow hand back the retired number instead of
+    // allocating a fresh one, contradicting both the monotonic retirement rule
+    // and the warning the UI shows before promotion.
+    if (
+      collection.mediaServerShowId &&
+      collection.mediaServerShowId !== show.id
+    ) {
+      const retiredShowId = collection.mediaServerShowId;
+      detachCollectionFromShow(collection.id);
+      // The vacated season still needs its season.nfo and directory reconciled.
+      result.affectedShowIds.add(retiredShowId);
+    }
+
     // Numbering to carry across a promotion. When this collection was already a
     // season under an author show, reusing each episode's number and stem keeps
     // the mirror filenames identical across the move, so a media server does not
@@ -626,9 +646,15 @@ export function reconcileMediaServerCatalog(
       playlistAssignedVideoIds.has(video.id) ||
       existingAssignments.some((assignment) => assignment.collectionId);
 
+    // Use the downloader's envelope when this run carries one. An extractor
+    // often supplies a durable channel id that never reaches the video row, and
+    // without it identity falls back to the author name - which merges
+    // unrelated channels that happen to share a label. Show identity is
+    // allocated once and never revised, so that merge would be permanent.
+    const rawForVideo = input.rawMetadataByVideoId?.get(video.id);
     const metadata = resolveShowMetadata({
       video,
-      raw: undefined,
+      raw: rawForVideo ? normalizeRawSourceMetadata(rawForVideo) : undefined,
     });
 
     if (hasPlaylistAssignment) {

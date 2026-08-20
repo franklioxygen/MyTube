@@ -118,6 +118,11 @@ describe("mediaServerExport jobService", () => {
     getMediaServerExportLayoutMock.mockReset();
     syncPlaylistTvLibraryMock.mockReset();
     cleanupMediaServerMirrorMock.mockReset();
+    // Cleanup now sweeps both layouts, so every cleanup test reaches this.
+    cleanupMediaServerMirrorMock.mockReturnValue({
+      counts: { removedArtifacts: 0 },
+      failures: [],
+    });
 
     getMediaServerExportLayoutMock.mockReturnValue("adjacent");
     acquireRenameLockMock.mockReturnValue(true);
@@ -323,7 +328,13 @@ describe("mediaServerExport jobService", () => {
       ]);
     });
 
-    it("cleans the mirror without touching the adjacent sweep", async () => {
+    /**
+     * Cleanup deliberately crosses layouts. "Off" means stop exporting, and
+     * sweeping only the selected layout strands the other one's artifacts with
+     * no route to remove them - after a switch away from the mirror that can be
+     * a second full copy of every video that could not be hard linked.
+     */
+    it("sweeps the mirror and the adjacent sidecars together", async () => {
       getVideosMock.mockReturnValue([createVideo("video-1")]);
 
       const job = await startMediaServerExportJob("off");
@@ -334,9 +345,25 @@ describe("mediaServerExport jobService", () => {
       const completed = getMediaServerExportJobById(job.id);
       expect(cleanupMediaServerMirrorMock).toHaveBeenCalledTimes(1);
       expect(completed?.counts.removedArtifacts).toBe(6);
+      // Both sweeps contribute to the reported file count.
       expect(completed?.sweptFiles).toBe(6);
-      expect(sweepOrphanMediaServerArtifactsMock).not.toHaveBeenCalled();
-      expect(removeMediaServerArtifactsForVideoMock).not.toHaveBeenCalled();
+      expect(removeMediaServerArtifactsForVideoMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("still completes when the mirror sweep throws", async () => {
+      getVideosMock.mockReturnValue([createVideo("video-1")]);
+      cleanupMediaServerMirrorMock.mockImplementation(() => {
+        throw new Error("mirror unreadable");
+      });
+
+      const job = await startMediaServerExportJob("off");
+      await waitForJobCompletion(job.id);
+
+      const completed = getMediaServerExportJobById(job.id);
+      expect(completed?.status).toBe("completed");
+      expect(
+        completed?.items.some((item) => item.error?.includes("mirror unreadable"))
+      ).toBe(true);
     });
 
     it("honors an explicitly requested layout over the saved one", async () => {

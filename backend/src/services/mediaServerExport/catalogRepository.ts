@@ -397,12 +397,23 @@ export function ensureCollectionShow(
   const identityKey = buildCollectionShowIdentityKey(input.collectionId);
   const existing = getMediaServerShowByIdentityKey(identityKey);
   if (existing) {
+    // The external identity is refreshed, not just the display metadata. A user
+    // can re-point a collection at a different TMDB entry, or drop back to a
+    // manual title; leaving the old tmdbId behind would emit the new title with
+    // the old uniqueid and let the media server keep matching the wrong series.
+    // Nulls are written through deliberately, so clearing is possible.
+    updateCollectionShowIdentity(existing.id, {
+      tmdbId: input.tmdbId ?? null,
+      tmdbMediaType: input.tmdbMediaType ?? null,
+      premiered: input.premiered ?? null,
+    });
+
     return (
       updateMediaServerShowMetadata(existing.id, {
         title: input.title,
         description: input.description ?? "",
         posterSourcePath: input.posterSourcePath ?? null,
-      }) ?? existing
+      }) ?? { ...existing }
     );
   }
 

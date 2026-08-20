@@ -145,7 +145,40 @@ async function processMediaServerExportJob(
   }
 
   try {
-    if (job.layout === "playlist_tv") {
+    if (job.action === "cleanup") {
+      // Turning the export off means stop exporting, full stop. Sweeping only
+      // the currently selected layout strands the other one's artifacts - and
+      // after a switch away from the managed mirror that can be a second full
+      // copy of every video that could not be hard linked. The adjacent pass
+      // runs first because job progress is denominated in videos.
+      processAdjacentJob(job, allVideos);
+      const sidecarsSwept = job.sweptFiles ?? 0;
+
+      let mirrorSwept = 0;
+      try {
+        mirrorSwept = sweepManagedMirror(job);
+      } catch (error) {
+        // Best effort. The mirror may not even exist for a deployment that only
+        // ever used sidecars, and a problem there must not fail the sweep the
+        // user actually asked for.
+        logger.error("Managed mirror sweep failed during cleanup", error, {
+          layout: job.layout,
+          action: "cleanup",
+        });
+        pushItem(job, {
+          videoId: "",
+          title: "",
+          status: "failed",
+          error: `Managed mirror cleanup failed: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        });
+      }
+
+      job.sweptFiles = sidecarsSwept + mirrorSwept;
+      job.phase = "completed";
+      job.status = job.cancelRequested ? "cancelled" : "completed";
+    } else if (job.layout === "playlist_tv") {
       processPlaylistTvJob(job);
     } else {
       processAdjacentJob(job, allVideos);
@@ -161,27 +194,38 @@ async function processMediaServerExportJob(
 // playlist_tv (issue #411)
 // ---------------------------------------------------------------------------
 
+/**
+ * Ledger-driven removal of the managed mirror. Reports failures onto the job but
+ * leaves progress counters to the caller, which owns how the run is denominated.
+ *
+ * Catalog assignments are deliberately retained so a later re-enable reuses the
+ * same season and episode numbers.
+ */
+function sweepManagedMirror(job: MediaServerExportJob): number {
+  job.phase = "sweep";
+  const cleanup = cleanupMediaServerMirror();
+  job.counts = { ...job.counts, ...cleanup.counts };
+
+  for (const failure of cleanup.failures) {
+    pushItem(job, {
+      videoId: failure.videoId ?? "",
+      title: failure.title ?? "",
+      status: "failed",
+      errorCode: failure.reason,
+      error: failure.detail,
+    });
+  }
+
+  return cleanup.counts.removedArtifacts;
+}
+
 function processPlaylistTvJob(job: MediaServerExportJob): void {
   if (job.action === "cleanup") {
-    job.phase = "sweep";
-    // Catalog assignments are deliberately retained so a later re-enable reuses
-    // the same season and episode numbers.
-    const cleanup = cleanupMediaServerMirror();
-    job.counts = { ...job.counts, ...cleanup.counts };
-    job.sweptFiles = cleanup.counts.removedArtifacts;
-    job.total = cleanup.counts.removedArtifacts;
-    job.processed = cleanup.counts.removedArtifacts;
-    job.succeeded = cleanup.counts.removedArtifacts;
-
-    for (const failure of cleanup.failures) {
-      pushItem(job, {
-        videoId: failure.videoId ?? "",
-        title: failure.title ?? "",
-        status: "failed",
-        errorCode: failure.reason,
-        error: failure.detail,
-      });
-    }
+    const removed = sweepManagedMirror(job);
+    job.sweptFiles = removed;
+    job.total = removed;
+    job.processed = removed;
+    job.succeeded = removed;
 
     job.phase = "completed";
     job.status = job.cancelRequested ? "cancelled" : "completed";

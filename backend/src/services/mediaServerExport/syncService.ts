@@ -2,6 +2,7 @@ import fs from "fs-extra";
 import path from "path";
 import { AVATARS_DIR, IMAGES_DIR, VIDEOS_DIR } from "../../config/paths";
 import { logger } from "../../utils/logger";
+import { storePendingSourceInfo } from "./pendingSourceInfo";
 import {
   copyFileSafeSync,
   ensureDirSafeSync,
@@ -434,8 +435,12 @@ function syncPlaylistTvArtifactsForRecord(
   try {
     // Playlist-origin downloads suppress this call and let the collection-link
     // caller reconcile instead, so a playlist item is never briefly classified
-    // as an unassigned Season 00 episode.
+    // as an unassigned Season 00 episode. The downloader's raw envelope is
+    // parked rather than dropped: the deferred sync has no other route to it,
+    // and without it the episode loses its extractor source JSON and can
+    // resolve a weaker, permanent show identity.
     if (options.suppressPlaylistTvSync) {
+      storePendingSourceInfo(video.id, options.rawSourceInfo);
       return;
     }
 
