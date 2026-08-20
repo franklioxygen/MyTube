@@ -15,7 +15,10 @@ import {
   resolveManagedWebPath,
 } from "../filenameTemplate/pathHelpers";
 import { removeMediaServerArtifactsForVideo } from "../mediaServerExport";
-import { onVideoDeletePending } from "../mediaServerExport/mutationHooks";
+import {
+  onVideoDeleteCommitted,
+  onVideoDeletePending,
+} from "../mediaServerExport/mutationHooks";
 import { logger } from "../../utils/logger";
 import { getCollections } from "./collections";
 import {
@@ -68,10 +71,17 @@ export function deleteVideo(
     // Deleting the video cascades its episode assignments away, and the ledger
     // rows then have nothing tying them to an assignment — the media links would
     // be left on disk with no authority to remove them.
-    onVideoDeletePending(id);
+    const showsLosingAnEpisode = onVideoDeletePending(id);
 
     // Delete from DB
     db.delete(videos).where(eq(videos.id, id)).run();
+
+    // Now that the row is gone, re-plan the shows it left. Show-level artifacts
+    // (tvshow.nfo, season.nfo, poster) belong to no assignment, so the cleanup
+    // above cannot reach them and an emptied show would otherwise linger in the
+    // media server until a full rebuild. Runs after the delete so the planner
+    // sees the library without this video.
+    onVideoDeleteCommitted(showsLosingAnEpisode);
     bumpVideosListRevision();
     try {
       const { invalidateRecommendationSignalsCache } = require("../recommendationSignalsService") as {

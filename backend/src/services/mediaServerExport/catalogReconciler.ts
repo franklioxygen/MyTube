@@ -183,8 +183,18 @@ function findCompatibleExistingShow(
       return false;
     }
 
-    if (candidateUrl && normalizeChannelUrl(show.sourceChannelUrl) === candidateUrl) {
+    const showUrl = normalizeChannelUrl(show.sourceChannelUrl);
+
+    if (candidateUrl && showUrl === candidateUrl) {
       return true;
+    }
+
+    // Two different durable channel URLs are as conclusive as two different
+    // channel ids: same platform, both self-identified, and they disagree. The
+    // author fallback must not get a second opinion here - display names are
+    // not unique, and a merge is permanent because identity is allocated once.
+    if (candidateUrl && showUrl && showUrl !== candidateUrl) {
+      return false;
     }
 
     return Boolean(

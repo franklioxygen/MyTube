@@ -240,6 +240,7 @@ describe("mediaServerExport jobService", () => {
         },
         failures: [],
         affectedShowIds: new Set(["show-1", "show-2"]),
+        plannerSkips: [],
         reconcileIssues: [],
       });
       cleanupMediaServerMirrorMock.mockReturnValue({
@@ -300,6 +301,7 @@ describe("mediaServerExport jobService", () => {
           },
         ],
         affectedShowIds: new Set(["show-1"]),
+        plannerSkips: [],
         reconcileIssues: [
           {
             reason: "ambiguous_collection_show",

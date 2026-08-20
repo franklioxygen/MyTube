@@ -157,6 +157,8 @@ vi.mock("../../../utils/logger", () => ({
 }));
 
 import {
+  removePlaylistTvArtifactsForVideo,
+  syncPlaylistTvForShows,
   syncPlaylistTvForVideo,
   syncPlaylistTvLibrary,
 } from "../../../services/mediaServerExport/playlistTvSync";
@@ -1101,5 +1103,74 @@ describe("incremental reconcile edge cases (PR #412 review)", () => {
       .get("c-existential") as { season: number | null };
     expect(after.season).not.toBe(1);
     expect(after.season).toBeGreaterThan(2);
+  });
+});
+
+/**
+ * Second review round on PR #412.
+ *
+ * tvshow.nfo, season.nfo and poster.jpg belong to the show, not to any episode,
+ * so per-assignment cleanup cannot reach them - and a directory still holding
+ * them is not empty, so pruning leaves it behind too.
+ */
+describe("deletion leaves no empty show (PR #412 review round 2)", () => {
+  beforeEach(() => {
+    fs.emptyDirSync(testPaths.root);
+    for (const dir of [
+      testPaths.videos,
+      testPaths.images,
+      testPaths.imagesSmall,
+      testPaths.avatars,
+      testPaths.subtitles,
+      testPaths.mediaLibrary,
+    ]) {
+      fs.ensureDirSync(dir);
+    }
+    testDb.sqlite.exec(`
+      DELETE FROM media_server_export_artifacts;
+      DELETE FROM media_server_episode_assignments;
+      DELETE FROM collections;
+      DELETE FROM videos;
+      DELETE FROM media_server_shows;
+    `);
+    buildFixture();
+  });
+
+  afterAll(() => {
+    fs.removeSync(testPaths.root);
+  });
+
+  /** Mirrors videoDeletion: clean, drop the row, then reconcile the shows. */
+  function deleteVideo(videoId: string): void {
+    const showIds = removePlaylistTvArtifactsForVideo(videoId).affectedShowIds;
+    const index = libraryVideos.findIndex((v) => v.id === videoId);
+    if (index >= 0) libraryVideos.splice(index, 1);
+    testDb.sqlite.prepare("DELETE FROM videos WHERE id=?").run(videoId);
+    syncPlaylistTvForShows(showIds, { mode: "nfo", copyFallbackEnabled: true });
+  }
+
+  it("removes the whole show when its last video is deleted", () => {
+    rebuild();
+    expect(listMirror().some((p) => p.endsWith("tvshow.nfo"))).toBe(true);
+
+    for (const id of libraryVideos.map((v) => v.id)) {
+      deleteVideo(id);
+    }
+
+    expect(listMirror()).toEqual([]);
+  });
+
+  it("keeps the show when only one of its videos is deleted", () => {
+    rebuild();
+
+    deleteVideo("v-loose");
+
+    const after = listMirror();
+    expect(after).toContain("Kurzgesagt – In a Nutshell/tvshow.nfo");
+    expect(after).toContain(
+      "Kurzgesagt – In a Nutshell/Season 01/S01E001 - Human Origins.mp4"
+    );
+    // Season 00 held only that video, so the season goes with it.
+    expect(after.some((p) => p.includes("Season 00"))).toBe(false);
   });
 });
