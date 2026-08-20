@@ -276,6 +276,24 @@ export const ko = {
     "Your original videos are not moved or renamed. Media is hard linked where possible, which normally uses no additional disk space; where hard links are unavailable, files may be copied.",
   mediaServerExportPlaylistTvCleanupConfirmBody:
     "This only deletes files inside the managed library folder that MyTube generated. Your original videos and any files you added yourself are left untouched.",
+  mediaServerExportRebuildManagedLibrary:
+    "관리형 TV 라이브러리 다시 만들기",
+  mediaServerExportCleanupManagedLibrary:
+    "관리형 TV 라이브러리 제거",
+  mediaServerExportRebuildManagedLibraryConfirmTitle:
+    "관리형 TV 라이브러리를 다시 만들까요?",
+  mediaServerExportCleanupManagedLibraryConfirmTitle:
+    "관리형 TV 라이브러리를 제거할까요?",
+  mediaServerExportRebuildManagedLibraryConfirmBody:
+    "최근 다운로드뿐 아니라 관리형 라이브러리 전체를 다시 만듭니다. 모든 로컬 동영상이 배치되고 작성자별로 프로그램 폴더가 하나씩 생성되므로, 이 폴더를 가리키는 미디어 서버는 다음 검색 후 많은 새 프로그램을 표시할 수 있습니다.",
+  mediaServerExportCleanupManagedLibraryConfirmBody:
+    "모든 프로그램 폴더와 에피소드 링크를 포함해 MyTube가 생성한 모든 항목을 관리형 라이브러리 폴더에서 삭제합니다.",
+  mediaServerExportScope:
+    "이번 실행은 동영상 {videos}개를 처리하고 약 {shows}개의 프로그램 폴더를 만듭니다.",
+  mediaServerExportScopeLoading:
+    "이번 실행의 규모를 계산하는 중…",
+  mediaServerExportScopeUnavailable:
+    "이번 실행의 규모를 계산할 수 없습니다. 전체 라이브러리가 처리됩니다.",
   mediaServerExportPhase_snapshot:
     "reading library",
   mediaServerExportPhase_catalog_reconcile:

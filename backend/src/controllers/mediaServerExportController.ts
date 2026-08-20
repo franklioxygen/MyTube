@@ -124,3 +124,17 @@ export async function cancelMediaServerExportRebuild(
   }
   res.json({ success: true });
 }
+
+/**
+ * Read-only scope of a managed-library rebuild, so the confirmation dialog can
+ * state how many videos and shows the run will produce before it is started.
+ */
+export const getMediaServerExportScope = async (
+  _req: Request,
+  res: Response
+): Promise<void> => {
+  const { previewMediaServerExportScope } = await import(
+    "../services/mediaServerExport/scopePreview"
+  );
+  res.json(previewMediaServerExportScope());
+};

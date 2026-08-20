@@ -271,6 +271,24 @@ export const zh = {
     "原始视频不会被移动或重命名。尽可能使用硬链接，通常不占用额外空间；无法硬链接时可能会复制文件。",
   mediaServerExportPlaylistTvCleanupConfirmBody:
     "仅删除托管媒体库文件夹内由 MyTube 生成的文件。原始视频以及您自己添加的文件不会受影响。",
+  mediaServerExportRebuildManagedLibrary:
+    "重建托管电视剧媒体库",
+  mediaServerExportCleanupManagedLibrary:
+    "移除托管电视剧媒体库",
+  mediaServerExportRebuildManagedLibraryConfirmTitle:
+    "要重建托管电视剧媒体库吗？",
+  mediaServerExportCleanupManagedLibraryConfirmTitle:
+    "要移除托管电视剧媒体库吗？",
+  mediaServerExportRebuildManagedLibraryConfirmBody:
+    "这会重建整个托管媒体库，而不只是最近下载的内容。你的每一个本地视频都会被放进去，并按作者各建一个剧集目录；因此指向该目录的媒体服务器在下次扫描后可能会出现大量新剧集。",
+  mediaServerExportCleanupManagedLibraryConfirmBody:
+    "这会清空托管媒体库目录中由 MyTube 生成的全部内容，包括所有剧集目录和剧集链接。",
+  mediaServerExportScope:
+    "本次将处理 {videos} 个视频，预计生成约 {shows} 个剧集目录。",
+  mediaServerExportScopeLoading:
+    "正在计算本次操作的范围…",
+  mediaServerExportScopeUnavailable:
+    "无法计算本次操作的范围。它仍然会处理你的整个媒体库。",
   mediaServerExportPhase_snapshot:
     "读取媒体库",
   mediaServerExportPhase_catalog_reconcile:
