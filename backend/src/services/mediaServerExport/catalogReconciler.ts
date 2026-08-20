@@ -480,17 +480,26 @@ export function reconcileMediaServerCatalog(
       continue;
     }
 
-    // A marked collection is a show, never a season under an author show.
+    // A marked collection is a show, never a season under an author show. It is
+    // evaluated by the pass above instead.
     if (collection.exportAsShow) {
       continue;
     }
+
+    // Marked evaluated before the eligibility test, not after. A collection that
+    // has *stopped* qualifying - the show flag switched off, or a subscription
+    // removed - still has assignments from when it did, and its videos are still
+    // members. The stale pass preserves assignments for collections this run did
+    // not evaluate, so skipping ahead here would keep the retired occurrences
+    // alive through every future rebuild and never return the videos to
+    // Season 00. Evaluating it produces no desired occurrences, which is exactly
+    // the signal the stale pass needs.
+    evaluatedCollectionIds.add(collection.id);
 
     const subscription = subscriptionsByCollectionId.get(collection.id);
     if (!isSourceBackedPlaylistCollection(collection, subscriptionsByCollectionId)) {
       continue;
     }
-
-    evaluatedCollectionIds.add(collection.id);
 
     const memberVideos = (collection.videos ?? [])
       .map((videoId) => videosById.get(videoId))

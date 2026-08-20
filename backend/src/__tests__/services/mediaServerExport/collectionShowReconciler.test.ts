@@ -545,3 +545,48 @@ describe("collection show external identity refresh", () => {
     expect(manual.premiered).toBeUndefined();
   });
 });
+
+/**
+ * A manual collection reaches neither the marked-collection pass (flag now off)
+ * nor the season pass (never source-backed), so before this fix it was never
+ * evaluated - and the stale pass preserves assignments for collections a run did
+ * not evaluate. Its retired collection-show therefore survived every rebuild.
+ */
+describe("un-marking a collection that was never a season", () => {
+  beforeEach(() => {
+    testDb.sqlite.exec(`
+      DELETE FROM media_server_export_artifacts;
+      DELETE FROM media_server_episode_assignments;
+      DELETE FROM collections;
+      DELETE FROM videos;
+      DELETE FROM media_server_shows;
+    `);
+  });
+
+  it("returns the video to Season 00 when the show flag is turned off", () => {
+    const manual = collection({
+      id: "c-manual",
+      name: "Drama",
+      title: "Drama",
+      // Deliberately not source-backed: a hand-made collection.
+      sourceType: undefined,
+      videos: ["v1"],
+      exportAsShow: 1,
+    });
+    const videos = [video({ id: "v1", author: "Uploader" })];
+
+    reconcile(videos, [manual]);
+    expect(
+      listMediaServerShows().filter((s) => s.sourceCollectionId).length
+    ).toBe(1);
+
+    // The user switches the toggle off.
+    reconcile(videos, [{ ...manual, exportAsShow: 0 } as typeof manual]);
+
+    const assignments = listAssignmentsForVideo("v1");
+    expect(assignments).toHaveLength(1);
+    // No longer a collection occurrence: it is an unassigned special again.
+    expect(assignments[0].collectionId).toBeFalsy();
+    expect(assignments[0].seasonNumber).toBe(0);
+  });
+});
