@@ -22,6 +22,7 @@ import {
     normalizeYouTubeAuthorUrl,
 } from "../utils/helpers";
 import { logger } from "../utils/logger";
+import { onCollectionMetadataCommitted } from "../services/mediaServerExport/mutationHooks";
 import { successMessage } from "../utils/response";
 import {
     executeYtDlpJson,
@@ -937,6 +938,14 @@ export const createPlaylistSubscription = async (
       throw error;
     }
   }
+
+  // The collection is now subscription-backed, which is what makes it a season
+  // in the managed TV library. Reconcile it here rather than waiting for a newly
+  // downloaded member: when an existing collection is reused, its current videos
+  // are already downloaded, so the historical task skips them and no link hook
+  // ever fires - they would sit in Season 00 until a full rebuild. Best effort,
+  // like every other mirror hook: it must never fail the subscription.
+  onCollectionMetadataCommitted(collection.id);
 
   // 7. Optionally create a linked historical task (design §7.1 / §7.4).
   //    Capturing the baseline here is intentional: it prevents the scheduler

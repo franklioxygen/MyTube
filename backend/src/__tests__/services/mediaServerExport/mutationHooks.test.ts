@@ -4,6 +4,9 @@ const getSettingsMock = vi.hoisted(() => vi.fn());
 const syncPlaylistTvForVideoMock = vi.hoisted(() => vi.fn());
 const syncPlaylistTvForCollectionMock = vi.hoisted(() => vi.fn());
 const removePlaylistTvArtifactsForVideoMock = vi.hoisted(() => vi.fn());
+const syncPlaylistTvForShowsMock = vi.hoisted(() => vi.fn());
+const listAssignmentsForShowMock = vi.hoisted(() => vi.fn());
+const cleanupMediaServerMirrorMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../../services/storageService/settings", () => ({
   getSettings: getSettingsMock,
@@ -13,6 +16,15 @@ vi.mock("../../../services/mediaServerExport/playlistTvSync", () => ({
   syncPlaylistTvForVideo: syncPlaylistTvForVideoMock,
   syncPlaylistTvForCollection: syncPlaylistTvForCollectionMock,
   removePlaylistTvArtifactsForVideo: removePlaylistTvArtifactsForVideoMock,
+  syncPlaylistTvForShows: syncPlaylistTvForShowsMock,
+}));
+
+vi.mock("../../../services/mediaServerExport/catalogRepository", () => ({
+  listAssignmentsForShow: listAssignmentsForShowMock,
+}));
+
+vi.mock("../../../services/mediaServerExport/hierarchyMaterializer", () => ({
+  cleanupMediaServerMirror: cleanupMediaServerMirrorMock,
 }));
 
 vi.mock("../../../utils/logger", () => ({
@@ -23,6 +35,7 @@ import {
   onCollectionLinkCommitted,
   onCollectionMetadataCommitted,
   onCollectionUnlinkCommitted,
+  onVideoDeleteCommitted,
   onVideoDeletePending,
 } from "../../../services/mediaServerExport/mutationHooks";
 
@@ -33,6 +46,15 @@ import {
 describe("mediaServerExport mutationHooks", () => {
   beforeEach(() => {
     getSettingsMock.mockReset();
+    syncPlaylistTvForShowsMock.mockReset();
+    listAssignmentsForShowMock.mockReset();
+    listAssignmentsForShowMock.mockReturnValue([]);
+    cleanupMediaServerMirrorMock.mockReset();
+    removePlaylistTvArtifactsForVideoMock.mockReturnValue({
+      removedArtifacts: 0,
+      failures: [],
+      affectedShowIds: new Set<string>(),
+    });
     syncPlaylistTvForVideoMock.mockReset();
     syncPlaylistTvForCollectionMock.mockReset();
     removePlaylistTvArtifactsForVideoMock.mockReset();
@@ -136,6 +158,84 @@ describe("mediaServerExport mutationHooks", () => {
       });
 
       expect(() => onCollectionLinkCommitted("c1", "v1")).not.toThrow();
+    });
+  });
+
+  /**
+   * The two halves of a deletion must agree about when they run. The pending
+   * half deliberately runs with the export off, because that is the last moment
+   * the artifacts can be identified; if the committed half skipped that case it
+   * would strip the episodes and strand tvshow.nfo, season.nfo and the poster -
+   * a worse state than never having cleaned.
+   */
+  describe("post-delete show reconcile", () => {
+    it("returns the shows that lost an episode", () => {
+      usePlaylistTv();
+      removePlaylistTvArtifactsForVideoMock.mockReturnValue({
+        removedArtifacts: 3,
+        failures: [],
+        affectedShowIds: new Set(["show-1"]),
+      });
+
+      expect(onVideoDeletePending("v1")).toEqual(new Set(["show-1"]));
+    });
+
+    it("re-plans the affected shows while the export is on", () => {
+      usePlaylistTv();
+
+      onVideoDeleteCommitted(new Set(["show-1"]));
+
+      expect(syncPlaylistTvForShowsMock).toHaveBeenCalledWith(
+        new Set(["show-1"]),
+        expect.objectContaining({ mode: "nfo" })
+      );
+    });
+
+    it("sweeps an emptied show even when the export mode is off", () => {
+      getSettingsMock.mockReturnValue({
+        mediaServerExportMode: "off",
+        mediaServerExportLayout: "playlist_tv",
+      });
+      listAssignmentsForShowMock.mockReturnValue([]);
+
+      onVideoDeleteCommitted(new Set(["show-1"]));
+
+      expect(cleanupMediaServerMirrorMock).toHaveBeenCalledWith(new Set(["show-1"]));
+      // Nothing may be written while the export is off.
+      expect(syncPlaylistTvForShowsMock).not.toHaveBeenCalled();
+    });
+
+    it("leaves a show that still has episodes alone when the mode is off", () => {
+      getSettingsMock.mockReturnValue({
+        mediaServerExportMode: "off",
+        mediaServerExportLayout: "playlist_tv",
+      });
+      listAssignmentsForShowMock.mockReturnValue([{ id: "a1" }]);
+
+      onVideoDeleteCommitted(new Set(["show-1"]));
+
+      expect(cleanupMediaServerMirrorMock).not.toHaveBeenCalled();
+    });
+
+    it("does nothing in the adjacent layout", () => {
+      getSettingsMock.mockReturnValue({
+        mediaServerExportMode: "nfo",
+        mediaServerExportLayout: "adjacent",
+      });
+
+      onVideoDeleteCommitted(new Set(["show-1"]));
+
+      expect(syncPlaylistTvForShowsMock).not.toHaveBeenCalled();
+      expect(cleanupMediaServerMirrorMock).not.toHaveBeenCalled();
+    });
+
+    it("never lets a reconcile failure escape", () => {
+      usePlaylistTv();
+      syncPlaylistTvForShowsMock.mockImplementation(() => {
+        throw new Error("plan exploded");
+      });
+
+      expect(() => onVideoDeleteCommitted(new Set(["show-1"]))).not.toThrow();
     });
   });
 

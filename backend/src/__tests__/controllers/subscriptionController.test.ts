@@ -106,6 +106,11 @@ vi.mock("../../services/downloaders/ytdlp/ytdlpHelpers", () => ({
   getProviderScript: vi.fn(() => "/tmp/provider.js"),
 }));
 
+const onCollectionMetadataCommittedMock = vi.hoisted(() => vi.fn());
+vi.mock("../../services/mediaServerExport/mutationHooks", () => ({
+  onCollectionMetadataCommitted: onCollectionMetadataCommittedMock,
+}));
+
 vi.mock("../../utils/logger", () => ({
   logger: {
     info: vi.fn(),
@@ -589,6 +594,38 @@ describe("SubscriptionController", () => {
   });
 
   describe("createPlaylistSubscription", () => {
+
+    /**
+     * Reusing an existing collection is the case that breaks without this: its
+     * videos are already downloaded, so the historical task skips them and no
+     * per-video link hook ever fires. They would sit in Season 00 until a full
+     * rebuild even though the collection is now a season.
+     */
+    it("reconciles the collection once it is subscription-backed", async () => {
+      req.body = {
+        playlistUrl: "https://www.youtube.com/playlist?list=PL123",
+        interval: 60,
+        collectionName: "My Playlist",
+        downloadAll: false,
+      };
+      (executeYtDlpJson as any).mockResolvedValue({
+        _type: "playlist",
+        title: "Playlist Title",
+        id: "PL123",
+        playlist_count: 12,
+        entries: [{ id: "vidA", uploader: "Uploader Name" }],
+      });
+      (storageService.getCollectionByName as any).mockReturnValue(null);
+      (subscriptionService.subscribePlaylist as any).mockResolvedValue({
+        id: "sub-playlist-1",
+      });
+
+      await createPlaylistSubscription(req as Request, res as Response);
+
+      expect(onCollectionMetadataCommittedMock).toHaveBeenCalledTimes(1);
+      expect(status).toHaveBeenCalledWith(201);
+    });
+
     it("should throw when required fields are missing", async () => {
       req.body = {
         playlistUrl: "https://www.youtube.com/playlist?list=abc",

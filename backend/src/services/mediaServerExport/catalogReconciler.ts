@@ -173,14 +173,14 @@ function findCompatibleExistingShow(
       return false;
     }
 
-    // Same channel id is already an exact identity-key match; anything else
-    // with a *different* channel id is definitively a different channel.
-    if (
-      identity.sourceChannelId &&
-      show.sourceChannelId &&
-      show.sourceChannelId !== identity.sourceChannelId
-    ) {
-      return false;
+    if (identity.sourceChannelId && show.sourceChannelId) {
+      // Equal ids settle it, in both directions. This is not redundant with the
+      // exact identity-key lookup: a show created from an author fallback keeps
+      // its author-based key even after being enriched with a channel id, so
+      // the key misses while the ids agree. Without this, a channel that renames
+      // itself splits into a second show - and the URL rule below would even
+      // reject the match outright once the rename changed the channel URL.
+      return show.sourceChannelId === identity.sourceChannelId;
     }
 
     const showUrl = normalizeChannelUrl(show.sourceChannelUrl);
