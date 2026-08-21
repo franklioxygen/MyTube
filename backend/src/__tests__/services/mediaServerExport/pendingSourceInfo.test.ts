@@ -75,3 +75,41 @@ describe("pendingSourceInfo", () => {
     expect(peekPendingSourceInfo("v599")).toEqual({ channel_id: "UC599" });
   });
 });
+
+/**
+ * A playlist download can pass through more than one sync before its final
+ * collection-link hook: legacy filename naming relocates the file in between.
+ * Whoever is not last must peek rather than consume, or the last sync writes the
+ * synthesized envelope over the extractor's own.
+ */
+describe("pendingSourceInfo across an intermediate sync", () => {
+  beforeEach(() => {
+    clearPendingSourceInfo();
+  });
+
+  it("survives a peek so the final sync still finds it", () => {
+    storePendingSourceInfo("v1", { channel_id: "UC123", extractor: "youtube" });
+
+    // Intermediate: the relocation sync.
+    expect(peekPendingSourceInfo("v1")).toEqual({
+      channel_id: "UC123",
+      extractor: "youtube",
+    });
+
+    // Final: the collection-link hook.
+    expect(takePendingSourceInfo("v1")).toEqual({
+      channel_id: "UC123",
+      extractor: "youtube",
+    });
+    expect(peekPendingSourceInfo("v1")).toBeUndefined();
+  });
+
+  it("tolerates repeated peeks", () => {
+    storePendingSourceInfo("v1", { channel_id: "UC123" });
+
+    peekPendingSourceInfo("v1");
+    peekPendingSourceInfo("v1");
+
+    expect(takePendingSourceInfo("v1")).toEqual({ channel_id: "UC123" });
+  });
+});

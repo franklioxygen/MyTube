@@ -706,6 +706,23 @@ export function reconcileMediaServerCatalog(
       continue;
     }
 
+    // Reuse the Season 00 occurrence this video already has, whichever show it
+    // sits under. Resolved identity can drift - a channel renames, or a
+    // same-titled channel turns the author fallback ambiguous - and looking only
+    // under the newly resolved show would allocate a second special while the
+    // first survives, because the stale pass deliberately ignores assignments
+    // with no collection. The video would then materialize twice, under two
+    // shows, on every rebuild. Placement is allocated once, exactly like the
+    // season and episode numbers it sits beside.
+    const existingSpecial = existingAssignments.find(
+      (assignment) => assignment.seasonNumber === 0 && !assignment.collectionId
+    );
+    if (existingSpecial) {
+      result.affectedShowIds.add(existingSpecial.showId);
+      result.createdAssignments.push(existingSpecial);
+      continue;
+    }
+
     if (!metadata.identity) {
       result.issues.push({
         reason: "unresolved_show_identity",

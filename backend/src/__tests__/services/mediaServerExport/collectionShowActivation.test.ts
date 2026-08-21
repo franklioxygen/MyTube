@@ -345,6 +345,22 @@ describe("collection show toggle reconciles the mirror", () => {
     expect(syncPlaylistTvForCollectionMock).not.toHaveBeenCalled();
   });
 
+  /**
+   * Deactivation, unlike activation, does not reject a non-managed layout - so
+   * the guard has to live here, or an adjacent-layout deployment would have a
+   * managed mirror built for it by a toggle it never opted into.
+   */
+  it("does not run the managed reconciler in the adjacent layout", async () => {
+    getSettingsMock.mockReturnValue({
+      mediaServerExportLayout: "adjacent",
+      mediaServerExportMode: "nfo",
+    });
+
+    await deactivateCollectionShow("c1");
+
+    expect(syncPlaylistTvForCollectionMock).not.toHaveBeenCalled();
+  });
+
   it("still reports success when the reconcile fails", async () => {
     syncPlaylistTvForCollectionMock.mockImplementation(() => {
       throw new Error("materialize exploded");

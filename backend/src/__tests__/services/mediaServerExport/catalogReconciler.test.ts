@@ -136,7 +136,9 @@ function seedCollectionRow(entry: Collection): void {
 
 function seedVideoRow(entry: Video): void {
   testDb.sqlite
-    .prepare("INSERT INTO videos (id, title, created_at) VALUES (?, ?, ?)")
+    // OR IGNORE so a test can reconcile the same library twice, which is what
+    // any "state survives a later run" assertion needs.
+    .prepare("INSERT OR IGNORE INTO videos (id, title, created_at) VALUES (?, ?, ?)")
     .run(entry.id, entry.title, entry.createdAt);
 }
 
@@ -833,5 +835,63 @@ describe("collection member identities are merged before declaring ambiguity", (
     expect(
       result.issues.some((issue) => issue.reason === "ambiguous_collection_show")
     ).toBe(true);
+  });
+});
+
+/**
+ * A Season 00 placement is allocated once, like the numbers beside it. Resolved
+ * identity can drift afterwards - a channel renames, or a same-titled channel
+ * turns the author fallback ambiguous - and the stale pass deliberately ignores
+ * assignments with no collection, so a fresh allocation would sit alongside the
+ * old one and materialize the video under two shows on every rebuild.
+ */
+describe("Season 00 placement survives an identity change", () => {
+  beforeEach(() => {
+    testDb.sqlite.exec(`
+      DELETE FROM media_server_export_artifacts;
+      DELETE FROM media_server_episode_assignments;
+      DELETE FROM collections;
+      DELETE FROM videos;
+      DELETE FROM media_server_shows;
+    `);
+  });
+
+  it("keeps one occurrence when the channel is renamed", () => {
+    reconcile({
+      videos: [video({ id: "v1", author: "Old Name", channelUrl: undefined })],
+    });
+    const [before] = listAssignmentsForVideo("v1");
+    expect(before.seasonNumber).toBe(0);
+
+    // The uploader renames; nothing else about the video changes.
+    reconcile({
+      videos: [video({ id: "v1", author: "Brand New Name", channelUrl: undefined })],
+    });
+
+    const after = listAssignmentsForVideo("v1");
+    expect(after).toHaveLength(1);
+    expect(after[0].id).toBe(before.id);
+    expect(after[0].showId).toBe(before.showId);
+  });
+
+  it("keeps one occurrence when a same-titled channel appears", () => {
+    reconcile({
+      videos: [video({ id: "v1", author: "News", channelUrl: undefined })],
+    });
+    const [before] = listAssignmentsForVideo("v1");
+
+    // Two strong candidates now share the title, so the fallback turns
+    // ambiguous and resolves to a different show than v1 originally got.
+    reconcile({
+      videos: [
+        video({ id: "v1", author: "News", channelUrl: undefined }),
+        video({ id: "v2", author: "News", channelUrl: "https://www.youtube.com/@news-one" }),
+        video({ id: "v3", author: "News", channelUrl: "https://www.youtube.com/@news-two" }),
+      ],
+    });
+
+    const after = listAssignmentsForVideo("v1");
+    expect(after).toHaveLength(1);
+    expect(after[0].id).toBe(before.id);
   });
 });

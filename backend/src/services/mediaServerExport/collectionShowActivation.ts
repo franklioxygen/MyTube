@@ -190,6 +190,13 @@ async function resolveActivationMetadata(
 function reconcileAfterToggle(collectionId: string, action: string): void {
   try {
     const settings = getSettings() as { mediaServerCopyFallback?: boolean };
+    // Layout as well as mode. Deactivation does not reject a non-managed layout
+    // the way activation does, so without this check an adjacent-layout
+    // deployment would run the playlist_tv reconciler here and materialize a
+    // managed mirror the user never asked for.
+    if (getLayout() !== "playlist_tv") {
+      return;
+    }
     const mode = getExportMode();
     if (mode === "off") {
       return;

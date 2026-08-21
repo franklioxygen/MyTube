@@ -61,6 +61,12 @@ function relocatePlaylistTvArtifactsAroundMove(
     syncPlaylistTvForVideo(videoBefore.id, {
       mode,
       copyFallbackEnabled: settings.mediaServerCopyFallback !== false,
+      // A playlist download relocated by legacy naming passes through here
+      // between the membership insert and the collection-link hook. That hook
+      // is the last sync for this video, so the downloader's envelope must
+      // still be waiting for it; consuming it here would leave it to write the
+      // synthesized source JSON over the extractor's own.
+      preservePendingSourceInfo: true,
     });
   } catch (error) {
     logger.error("Failed to relink media server mirror after a file move", error, {
