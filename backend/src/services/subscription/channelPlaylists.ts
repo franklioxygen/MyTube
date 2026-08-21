@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { db } from "../../db";
 import { subscriptions } from "../../db/schema";
 import { logger } from "../../utils/logger";
+import { onCollectionMetadataCommitted } from "../mediaServerExport/mutationHooks";
 import { getSubscriptionLogContext } from "./helpers";
 import {
   applyPlaylistCollectionMetadata,
@@ -171,6 +172,13 @@ export async function checkChannelPlaylistsForWatcher(
           }
           throw error;
         }
+        // The collection is now subscription-backed, which is what makes it a
+        // season. This watcher can adopt an existing same-named collection that
+        // already holds videos; those are already downloaded, so no link hook
+        // will ever fire for them and they would sit in Season 00 until a full
+        // rebuild. Best effort, like every other mirror hook.
+        onCollectionMetadataCommitted(collectionId);
+
         // Add the URL only after insertion succeeds (design §8.2).
         subscribedUrls.add(playlistUrl);
         newSubscriptionsCount++;

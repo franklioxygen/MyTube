@@ -32,6 +32,7 @@ import {
   onCollectionLinkCommitted,
   onCollectionMetadataCommitted,
   onCollectionUnlinkCommitted,
+  onCollectionDeletePending,
 } from "../mediaServerExport/mutationHooks";
 
 type CollectionLinkOptions = {
@@ -155,6 +156,9 @@ export function atomicUpdateCollection(
 }
 
 export function deleteCollection(id: string): boolean {
+  // Before the row goes: the catalog still connects this collection to its
+  // show, and afterwards nothing would. See onCollectionDeletePending.
+  onCollectionDeletePending(id);
   return deleteCollectionRepo(id);
 }
 

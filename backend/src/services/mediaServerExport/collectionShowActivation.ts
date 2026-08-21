@@ -197,13 +197,18 @@ function reconcileAfterToggle(collectionId: string, action: string): void {
     if (getLayout() !== "playlist_tv") {
       return;
     }
+    // With the export off there is nothing to write, but the catalog must still
+    // be reconciled: activation promises the show's directory name is fixed from
+    // the title accepted right now, and that name is allocated by the catalog.
+    // Skipping this entirely would let a later rename change the folder the
+    // confirmation said was already settled.
     const mode = getExportMode();
-    if (mode === "off") {
-      return;
-    }
+    const catalogOnly = mode === "off";
+
     syncPlaylistTvForCollection(collectionId, {
-      mode,
+      mode: catalogOnly ? "nfo" : mode,
       copyFallbackEnabled: settings.mediaServerCopyFallback !== false,
+      catalogOnly,
     });
   } catch (error) {
     // Best effort, like every other mirror hook: the flag is already committed

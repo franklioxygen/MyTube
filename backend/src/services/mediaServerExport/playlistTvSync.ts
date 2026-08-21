@@ -95,6 +95,13 @@ export interface PlaylistTvSyncOptions {
    * is not the last one for this video. See syncPlaylistTvForVideo.
    */
   preservePendingSourceInfo?: boolean;
+  /**
+   * Reconcile the catalog but write nothing. Used when the export mode is off:
+   * identity, directory name, season and episode numbers are all allocated once
+   * and must be reserved at the moment the user is told they are fixed, even
+   * though no file may be produced yet.
+   */
+  catalogOnly?: boolean;
 }
 
 export interface PlaylistTvSyncResult extends MaterializeResultSummary {
@@ -332,6 +339,24 @@ export function syncPlaylistTvForCollection(
   const showIds = new Set(reconcile.affectedShowIds);
   if (collection?.mediaServerShowId) {
     showIds.add(collection.mediaServerShowId);
+  }
+
+  if (options.catalogOnly) {
+    return {
+      counts: {
+        shows: 0,
+        seasons: 0,
+        episodes: 0,
+        linkedMedia: 0,
+        copiedMedia: 0,
+        unchangedArtifacts: 0,
+        removedArtifacts: 0,
+      },
+      failures: [],
+      affectedShowIds: showIds,
+      reconcileIssues: reconcile.issues,
+      plannerSkips: [],
+    };
   }
 
   // Reload collections: reconciliation is what writes the season attachment
