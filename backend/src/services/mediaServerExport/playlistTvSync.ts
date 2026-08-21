@@ -26,7 +26,10 @@ import {
   removeOwnedMirrorArtifact,
 } from "./mediaMaterializer";
 import { deleteArtifactRecord } from "./artifactLedger";
-import { takePendingSourceInfo } from "./pendingSourceInfo";
+import {
+  peekPendingSourceInfo,
+  takePendingSourceInfo,
+} from "./pendingSourceInfo";
 import { buildSourceInfoEnvelope } from "./sourceInfoEnvelope";
 import path from "path";
 import { MEDIA_SERVER_LIBRARY_DIR } from "../../config/paths";
@@ -87,6 +90,11 @@ export interface PlaylistTvSyncOptions {
   /** Serialized `.info.json` bodies keyed by video id, for source-json mode. */
   sourceJsonByVideoId?: Map<string, string>;
   isCancelled?: () => boolean;
+  /**
+   * Read the parked downloader envelope without consuming it, for a sync that
+   * is not the last one for this video. See syncPlaylistTvForVideo.
+   */
+  preservePendingSourceInfo?: boolean;
 }
 
 export interface PlaylistTvSyncResult extends MaterializeResultSummary {
@@ -209,7 +217,13 @@ export function syncPlaylistTvForVideo(
   // Recover the envelope a suppressed download parked for this deferred run.
   // It feeds both show-identity resolution and the episode's source JSON, so it
   // is read once here and threaded into both.
-  const parkedSourceInfo = takePendingSourceInfo(videoId);
+  // Peeked, not consumed, when this is an intermediate sync: a legacy-naming
+  // file relocation runs between the membership insert and the collection-link
+  // hook, and consuming here would leave that final hook to overwrite the rich
+  // source JSON with the synthesized fallback.
+  const parkedSourceInfo = options.preservePendingSourceInfo
+    ? peekPendingSourceInfo(videoId)
+    : takePendingSourceInfo(videoId);
   const rawMetadataByVideoId = parkedSourceInfo
     ? new Map<string, unknown>([[videoId, parkedSourceInfo]])
     : undefined;
