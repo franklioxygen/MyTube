@@ -67,6 +67,7 @@ vi.mock("../../../utils/logger", () => ({
 import { reconcileMediaServerCatalog } from "../../../services/mediaServerExport/catalogReconciler";
 import {
   ensureCollectionShow,
+  releaseCollectionShowOwnership,
   getCollectionShow,
   listAssignmentsForShow,
   listAssignmentsForVideo,
@@ -588,5 +589,54 @@ describe("un-marking a collection that was never a season", () => {
     // No longer a collection occurrence: it is an unassigned special again.
     expect(assignments[0].collectionId).toBeFalsy();
     expect(assignments[0].seasonNumber).toBe(0);
+  });
+});
+
+/**
+ * `sourceCollectionId` is deliberately not a foreign key, so nothing clears it
+ * when a collection is deleted. Left set, the show row keeps reserving its
+ * directory name and stays excluded from author matching on behalf of a
+ * collection that no longer exists.
+ */
+describe("deleting a collection releases its show ownership", () => {
+  beforeEach(() => {
+    testDb.sqlite.exec(`
+      DELETE FROM media_server_export_artifacts;
+      DELETE FROM media_server_episode_assignments;
+      DELETE FROM collections;
+      DELETE FROM videos;
+      DELETE FROM media_server_shows;
+    `);
+  });
+
+  it("clears the claim while keeping the row and its directory", () => {
+    const show = ensureCollectionShow({
+      collectionId: "c-gone",
+      title: "Drama",
+      description: "",
+    });
+    expect(show.sourceCollectionId).toBe("c-gone");
+
+    releaseCollectionShowOwnership(show.id);
+
+    const after = listMediaServerShows().find((entry) => entry.id === show.id);
+    expect(after).toBeTruthy();
+    // Identity and directory are allocated once: re-creating the collection
+    // later must reuse them rather than collide with its own leftovers.
+    expect(after?.directoryName).toBe(show.directoryName);
+    expect(after?.sourceCollectionId).toBeFalsy();
+  });
+
+  it("stops the released row from answering as that collection's show", () => {
+    const show = ensureCollectionShow({
+      collectionId: "c-gone",
+      title: "Drama",
+      description: "",
+    });
+
+    releaseCollectionShowOwnership(show.id);
+
+    // Still addressable by identity key, which is what a re-enable uses.
+    expect(getCollectionShow("c-gone")).toBeTruthy();
   });
 });

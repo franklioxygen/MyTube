@@ -890,3 +890,18 @@ export function deleteEpisodeAssignmentsForCollection(
     .run();
   return result.changes;
 }
+
+/**
+ * Detaches a collection-show row from a collection that is being deleted.
+ *
+ * The row itself survives: identity and directory names are allocated once, and
+ * keeping it means re-creating the same collection later reuses them instead of
+ * colliding with its own leftovers. Only the ownership claim is dropped, so the
+ * name stops being reserved on behalf of something that no longer exists.
+ */
+export function releaseCollectionShowOwnership(showId: string): void {
+  db.update(mediaServerShows)
+    .set({ sourceCollectionId: null, updatedAt: Date.now() })
+    .where(eq(mediaServerShows.id, showId))
+    .run();
+}

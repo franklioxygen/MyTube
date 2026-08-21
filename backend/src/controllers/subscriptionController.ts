@@ -422,7 +422,22 @@ export const deleteSubscription = async (
   res: Response
 ): Promise<void> => {
   const id = getStringParam(req.params.id) ?? "";
+
+  // Captured before the delete: a generic playlist collection qualifies as a
+  // season purely because a playlist subscription points at it, so once the
+  // subscription is gone nothing connects the two. Without the reconcile its
+  // season assignments and mirror files outlive the subscription and the videos
+  // do not return to Season 00 until a full rebuild.
+  const formerCollectionId = (await subscriptionService.listSubscriptions()).find(
+    (subscription) => subscription.id === id
+  )?.collectionId;
+
   await subscriptionService.unsubscribe(id);
+
+  if (formerCollectionId) {
+    onCollectionMetadataCommitted(formerCollectionId);
+  }
+
   res.status(200).json(successMessage("Subscription deleted"));
 };
 

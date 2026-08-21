@@ -7,6 +7,8 @@ const removePlaylistTvArtifactsForVideoMock = vi.hoisted(() => vi.fn());
 const syncPlaylistTvForShowsMock = vi.hoisted(() => vi.fn());
 const listAssignmentsForShowMock = vi.hoisted(() => vi.fn());
 const cleanupMediaServerMirrorMock = vi.hoisted(() => vi.fn());
+const getCollectionShowMock = vi.hoisted(() => vi.fn());
+const releaseCollectionShowOwnershipMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../../services/storageService/settings", () => ({
   getSettings: getSettingsMock,
@@ -21,6 +23,8 @@ vi.mock("../../../services/mediaServerExport/playlistTvSync", () => ({
 
 vi.mock("../../../services/mediaServerExport/catalogRepository", () => ({
   listAssignmentsForShow: listAssignmentsForShowMock,
+  getCollectionShow: getCollectionShowMock,
+  releaseCollectionShowOwnership: releaseCollectionShowOwnershipMock,
 }));
 
 vi.mock("../../../services/mediaServerExport/hierarchyMaterializer", () => ({
@@ -35,6 +39,7 @@ import {
   onCollectionLinkCommitted,
   onCollectionMetadataCommitted,
   onCollectionUnlinkCommitted,
+  onCollectionDeletePending,
   onVideoDeleteCommitted,
   onVideoDeletePending,
 } from "../../../services/mediaServerExport/mutationHooks";
@@ -50,6 +55,9 @@ describe("mediaServerExport mutationHooks", () => {
     listAssignmentsForShowMock.mockReset();
     listAssignmentsForShowMock.mockReturnValue([]);
     cleanupMediaServerMirrorMock.mockReset();
+    getCollectionShowMock.mockReset();
+    getCollectionShowMock.mockReturnValue(undefined);
+    releaseCollectionShowOwnershipMock.mockReset();
     removePlaylistTvArtifactsForVideoMock.mockReturnValue({
       removedArtifacts: 0,
       failures: [],
@@ -236,6 +244,63 @@ describe("mediaServerExport mutationHooks", () => {
       });
 
       expect(() => onVideoDeleteCommitted(new Set(["show-1"]))).not.toThrow();
+    });
+  });
+
+  describe("collection deletion", () => {
+    it("sweeps the show and releases its claim on the collection", () => {
+      usePlaylistTv();
+      getCollectionShowMock.mockReturnValue({ id: "show-1" });
+
+      onCollectionDeletePending("c1");
+
+      expect(cleanupMediaServerMirrorMock).toHaveBeenCalledWith(new Set(["show-1"]));
+      expect(releaseCollectionShowOwnershipMock).toHaveBeenCalledWith("show-1");
+    });
+
+    it("does nothing for a collection that was never a show", () => {
+      usePlaylistTv();
+      getCollectionShowMock.mockReturnValue(undefined);
+
+      onCollectionDeletePending("c1");
+
+      expect(cleanupMediaServerMirrorMock).not.toHaveBeenCalled();
+      expect(releaseCollectionShowOwnershipMock).not.toHaveBeenCalled();
+    });
+
+    it("still releases when the export mode is off", () => {
+      // The artifacts were written while it was on; this is the last moment the
+      // catalog still connects them to this collection.
+      getSettingsMock.mockReturnValue({
+        mediaServerExportMode: "off",
+        mediaServerExportLayout: "playlist_tv",
+      });
+      getCollectionShowMock.mockReturnValue({ id: "show-1" });
+
+      onCollectionDeletePending("c1");
+
+      expect(releaseCollectionShowOwnershipMock).toHaveBeenCalledWith("show-1");
+    });
+
+    it("does nothing in the adjacent layout", () => {
+      getSettingsMock.mockReturnValue({
+        mediaServerExportMode: "nfo",
+        mediaServerExportLayout: "adjacent",
+      });
+      getCollectionShowMock.mockReturnValue({ id: "show-1" });
+
+      onCollectionDeletePending("c1");
+
+      expect(releaseCollectionShowOwnershipMock).not.toHaveBeenCalled();
+    });
+
+    it("never lets a failure block the deletion", () => {
+      usePlaylistTv();
+      getCollectionShowMock.mockImplementation(() => {
+        throw new Error("catalog exploded");
+      });
+
+      expect(() => onCollectionDeletePending("c1")).not.toThrow();
     });
   });
 

@@ -1,6 +1,10 @@
 import { logger } from "../../utils/logger";
 import { getSettings } from "../storageService/settings";
-import { listAssignmentsForShow } from "./catalogRepository";
+import {
+  getCollectionShow,
+  listAssignmentsForShow,
+  releaseCollectionShowOwnership,
+} from "./catalogRepository";
 import { cleanupMediaServerMirror } from "./hierarchyMaterializer";
 import {
   removePlaylistTvArtifactsForVideo,
@@ -149,6 +153,47 @@ export function onCollectionMetadataCommitted(collectionId: string): void {
  * to tie it to. Cleaning here keeps filesystem removal and catalog removal in
  * one logical operation.
  */
+/**
+ * A collection is about to be deleted.
+ *
+ * A collection-show row deliberately outlives its collection so a later
+ * re-enable keeps the same identity and directory, but it must stop *claiming*
+ * a collection that no longer exists: `sourceCollectionId` is not a foreign key
+ * (SQLite cannot add one with an ON DELETE action), so nothing clears it
+ * automatically. Left set, the row keeps reserving its directory name and is
+ * excluded from author matching forever, and repeated create/delete cycles pile
+ * up rows that push unrelated shows onto de-duplication suffixes.
+ *
+ * The mirror artifacts go too - the collection that justified them is gone.
+ */
+export function onCollectionDeletePending(collectionId: string): void {
+  // Runs regardless of export mode, like onVideoDeletePending: artifacts may
+  // have been written while it was on, and this is the last moment the catalog
+  // still connects them to this collection.
+  const settings = getSettings() as {
+    mediaServerExportLayout?: MediaServerExportLayout;
+  };
+  if (settings.mediaServerExportLayout !== "playlist_tv") {
+    return;
+  }
+
+  try {
+    const show = getCollectionShow(collectionId);
+    if (!show) {
+      return;
+    }
+
+    cleanupMediaServerMirror(new Set([show.id]));
+    releaseCollectionShowOwnership(show.id);
+  } catch (error) {
+    logger.error("Failed to release a collection show before deletion", error, {
+      layout: "playlist_tv",
+      action: "cleanup",
+      collectionId,
+    });
+  }
+}
+
 export function onVideoDeleteCommitted(showIds: Set<string>): void {
   if (showIds.size === 0) {
     return;

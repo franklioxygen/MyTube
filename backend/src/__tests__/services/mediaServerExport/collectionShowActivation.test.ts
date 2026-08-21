@@ -334,15 +334,33 @@ describe("collection show toggle reconciles the mirror", () => {
     );
   });
 
-  it("does not touch the mirror when the export mode is off", async () => {
+  /**
+   * With the export off no file may be written, but the catalog still has to be
+   * reconciled: activation promises the directory name is fixed from the title
+   * accepted now, and that name is allocated by the catalog. Skipping entirely
+   * would let a later rename move a folder the confirmation called settled.
+   */
+  it("reconciles the catalog without writing when the export mode is off", async () => {
     getSettingsMock.mockReturnValue({
       mediaServerExportLayout: "playlist_tv",
       mediaServerExportMode: "off",
     });
 
-    await deactivateCollectionShow("c1");
+    await activateCollectionShow("c1", { kind: "collection" });
 
-    expect(syncPlaylistTvForCollectionMock).not.toHaveBeenCalled();
+    expect(syncPlaylistTvForCollectionMock).toHaveBeenCalledWith(
+      "c1",
+      expect.objectContaining({ catalogOnly: true })
+    );
+  });
+
+  it("materializes normally when the export mode is on", async () => {
+    await activateCollectionShow("c1", { kind: "collection" });
+
+    expect(syncPlaylistTvForCollectionMock).toHaveBeenCalledWith(
+      "c1",
+      expect.objectContaining({ catalogOnly: false, mode: "nfo" })
+    );
   });
 
   /**
