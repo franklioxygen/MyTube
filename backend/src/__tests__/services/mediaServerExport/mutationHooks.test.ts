@@ -282,7 +282,12 @@ describe("mediaServerExport mutationHooks", () => {
       expect(releaseCollectionShowOwnershipMock).toHaveBeenCalledWith("show-1");
     });
 
-    it("does nothing in the adjacent layout", () => {
+    /**
+     * The claim is layout-independent: a collection exported as a show, then
+     * switched to adjacent, then deleted, would otherwise stay claimed forever.
+     * Only the filesystem half depends on the layout.
+     */
+    it("releases the claim in the adjacent layout but touches no files", () => {
       getSettingsMock.mockReturnValue({
         mediaServerExportMode: "nfo",
         mediaServerExportLayout: "adjacent",
@@ -291,7 +296,8 @@ describe("mediaServerExport mutationHooks", () => {
 
       onCollectionDeletePending("c1");
 
-      expect(releaseCollectionShowOwnershipMock).not.toHaveBeenCalled();
+      expect(releaseCollectionShowOwnershipMock).toHaveBeenCalledWith("show-1");
+      expect(cleanupMediaServerMirrorMock).not.toHaveBeenCalled();
     });
 
     it("never lets a failure block the deletion", () => {

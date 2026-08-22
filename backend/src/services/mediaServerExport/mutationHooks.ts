@@ -173,9 +173,6 @@ export function onCollectionDeletePending(collectionId: string): void {
   const settings = getSettings() as {
     mediaServerExportLayout?: MediaServerExportLayout;
   };
-  if (settings.mediaServerExportLayout !== "playlist_tv") {
-    return;
-  }
 
   try {
     const show = getCollectionShow(collectionId);
@@ -183,11 +180,19 @@ export function onCollectionDeletePending(collectionId: string): void {
       return;
     }
 
-    cleanupMediaServerMirror(new Set([show.id]));
+    // Only the filesystem half is layout-sensitive. A user who exported this
+    // collection as a show, switched to adjacent sidecars, and then deleted it
+    // would otherwise leave the row claiming a collection that no longer
+    // exists - reserving its directory name and staying out of author matching
+    // forever - because the claim itself has nothing to do with the layout.
+    if (settings.mediaServerExportLayout === "playlist_tv") {
+      cleanupMediaServerMirror(new Set([show.id]));
+    }
+
     releaseCollectionShowOwnership(show.id);
   } catch (error) {
     logger.error("Failed to release a collection show before deletion", error, {
-      layout: "playlist_tv",
+      layout: settings.mediaServerExportLayout ?? "adjacent",
       action: "cleanup",
       collectionId,
     });

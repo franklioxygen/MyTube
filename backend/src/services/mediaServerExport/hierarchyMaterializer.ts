@@ -394,13 +394,10 @@ function sweepStaleArtifacts(
   }
 }
 
-export function materializeMediaServerHierarchy(
+function collectCollisionFailures(
   plan: MediaServerHierarchyPlan,
-  options: MaterializeOptions
-): MaterializeResultSummary {
-  const counts = emptyCounts();
-  const failures: MaterializeFailure[] = [];
-
+  failures: MaterializeFailure[]
+): void {
   for (const collision of plan.collisions) {
     failures.push({
       reason: "artifact_path_collision",
@@ -408,17 +405,36 @@ export function materializeMediaServerHierarchy(
       assignmentId: collision.assignmentIds[collision.assignmentIds.length - 1],
     });
   }
+}
+
+function materializeShowIsolated(
+  showPlan: MediaServerHierarchyPlan["shows"][number],
+  options: MaterializeOptions,
+  counts: MaterializeCounts,
+  failures: MaterializeFailure[]
+): void {
+  try {
+    materializeShow(showPlan, options, counts, failures);
+  } catch (error) {
+    // Per-show isolation: one broken show must not stop the rest.
+    failures.push(toFailure(error, { showId: showPlan.show.id }));
+  }
+}
+
+export function materializeMediaServerHierarchy(
+  plan: MediaServerHierarchyPlan,
+  options: MaterializeOptions
+): MaterializeResultSummary {
+  const counts = emptyCounts();
+  const failures: MaterializeFailure[] = [];
+
+  collectCollisionFailures(plan, failures);
 
   for (const showPlan of plan.shows) {
     if (options.isCancelled?.()) {
       return { counts, failures };
     }
-    try {
-      materializeShow(showPlan, options, counts, failures);
-    } catch (error) {
-      // Per-show isolation: one broken show must not stop the rest.
-      failures.push(toFailure(error, { showId: showPlan.show.id }));
-    }
+    materializeShowIsolated(showPlan, options, counts, failures);
   }
 
   if (options.isCancelled?.()) {
@@ -426,6 +442,51 @@ export function materializeMediaServerHierarchy(
   }
 
   sweepStaleArtifacts(plan, options.sweepScopeShowIds, counts, failures);
+
+  return { counts, failures };
+}
+
+/**
+ * Same work, yielding to the event loop between shows.
+ *
+ * The synchronous version is right for the incremental hooks, which touch one
+ * video and run inside a database mutation. It is wrong for a full rebuild: a
+ * large library, or a copy fallback moving whole video files, occupies the
+ * process for as long as it takes, and nothing else is served meanwhile - not
+ * the job's own status endpoint, and not the cancel request, which means
+ * `cancelRequested` cannot even become true while the run it would stop is in
+ * progress.
+ *
+ * The yield sits between shows rather than between files: a single artifact is
+ * published through a temp file and a rename that must not be interleaved, and
+ * per-show granularity is enough to keep the server answering.
+ */
+export async function materializeMediaServerHierarchyAsync(
+  plan: MediaServerHierarchyPlan,
+  options: MaterializeOptions
+): Promise<MaterializeResultSummary> {
+  const counts = emptyCounts();
+  const failures: MaterializeFailure[] = [];
+
+  collectCollisionFailures(plan, failures);
+
+  for (const showPlan of plan.shows) {
+    if (options.isCancelled?.()) {
+      return { counts, failures };
+    }
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    if (options.isCancelled?.()) {
+      return { counts, failures };
+    }
+    materializeShowIsolated(showPlan, options, counts, failures);
+  }
+
+  if (options.isCancelled?.()) {
+    return { counts, failures };
+  }
+
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  sweepStaleArtifacts(plan, options.sweepScopeShowIds, counts, failures, options.isCancelled);
 
   return { counts, failures };
 }

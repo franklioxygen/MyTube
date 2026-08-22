@@ -168,6 +168,53 @@ export interface WriteMirrorTextInput {
  * Identical content is detected and skipped so a rebuild of an unchanged
  * library performs no writes and leaves file timestamps alone.
  */
+/**
+ * Moves a staged file onto its final path, keeping whatever is already there
+ * until the move actually succeeds.
+ *
+ * The plain rename is tried first because POSIX `rename(2)` replaces an
+ * existing destination atomically - at no point is the path missing. Unlinking
+ * first, as this used to, meant a rename that then failed (a transient
+ * permission or filesystem error) left the episode gone entirely: the previous
+ * file had been removed and the staged replacement is dropped by the caller's
+ * `finally`. A reported failure that keeps the old version is strictly better
+ * than a silent hole in the library.
+ *
+ * The unlink survives only as a fallback for platforms whose rename refuses an
+ * existing destination.
+ */
+function publishOverExisting(tempPath: string, targetAbsolutePath: string): void {
+  try {
+    renameSafeSync(
+      tempPath,
+      MEDIA_SERVER_LIBRARY_DIR,
+      targetAbsolutePath,
+      MEDIA_SERVER_LIBRARY_DIR
+    );
+    return;
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException)?.code;
+    // Windows and some network filesystems refuse to rename onto a file that
+    // exists. Only then is removing it first justified.
+    const replaceRefused =
+      code === "EEXIST" || code === "EPERM" || code === "EACCES" || code === "ENOTEMPTY";
+    if (
+      !replaceRefused ||
+      !pathExistsSafeSync(targetAbsolutePath, MEDIA_SERVER_LIBRARY_DIR)
+    ) {
+      throw error;
+    }
+  }
+
+  unlinkSafeSync(targetAbsolutePath, MEDIA_SERVER_LIBRARY_DIR);
+  renameSafeSync(
+    tempPath,
+    MEDIA_SERVER_LIBRARY_DIR,
+    targetAbsolutePath,
+    MEDIA_SERVER_LIBRARY_DIR
+  );
+}
+
 export function writeMirrorTextArtifact(
   input: WriteMirrorTextInput
 ): MaterializeResult {
@@ -204,15 +251,7 @@ export function writeMirrorTextArtifact(
     writeFileSafeSync(tempPath, MEDIA_SERVER_LIBRARY_DIR, contents, {
       encoding: "utf8",
     });
-    if (pathExistsSafeSync(targetAbsolutePath, MEDIA_SERVER_LIBRARY_DIR)) {
-      unlinkSafeSync(targetAbsolutePath, MEDIA_SERVER_LIBRARY_DIR);
-    }
-    renameSafeSync(
-      tempPath,
-      MEDIA_SERVER_LIBRARY_DIR,
-      targetAbsolutePath,
-      MEDIA_SERVER_LIBRARY_DIR
-    );
+    publishOverExisting(tempPath, targetAbsolutePath);
   } finally {
     removeTempQuietly(tempPath);
   }
@@ -297,15 +336,7 @@ export function copyMirrorImageArtifact(
       tempPath,
       MEDIA_SERVER_LIBRARY_DIR
     );
-    if (pathExistsSafeSync(targetAbsolutePath, MEDIA_SERVER_LIBRARY_DIR)) {
-      unlinkSafeSync(targetAbsolutePath, MEDIA_SERVER_LIBRARY_DIR);
-    }
-    renameSafeSync(
-      tempPath,
-      MEDIA_SERVER_LIBRARY_DIR,
-      targetAbsolutePath,
-      MEDIA_SERVER_LIBRARY_DIR
-    );
+    publishOverExisting(tempPath, targetAbsolutePath);
   } finally {
     removeTempQuietly(tempPath);
   }
@@ -472,15 +503,7 @@ export function linkMirrorMediaArtifact(
       );
     }
 
-    if (pathExistsSafeSync(targetAbsolutePath, MEDIA_SERVER_LIBRARY_DIR)) {
-      unlinkSafeSync(targetAbsolutePath, MEDIA_SERVER_LIBRARY_DIR);
-    }
-    renameSafeSync(
-      tempPath,
-      MEDIA_SERVER_LIBRARY_DIR,
-      targetAbsolutePath,
-      MEDIA_SERVER_LIBRARY_DIR
-    );
+    publishOverExisting(tempPath, targetAbsolutePath);
   } finally {
     removeTempQuietly(tempPath);
   }
