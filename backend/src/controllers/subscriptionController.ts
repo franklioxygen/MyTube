@@ -22,6 +22,7 @@ import {
     normalizeYouTubeAuthorUrl,
 } from "../utils/helpers";
 import { logger } from "../utils/logger";
+import { onCollectionMetadataCommitted } from "../services/mediaServerExport/mutationHooks";
 import { successMessage } from "../utils/response";
 import {
     executeYtDlpJson,
@@ -31,6 +32,7 @@ import {
 import { getPositiveIntegerParam, getStringParam } from "../utils/paramUtils";
 import { runWithConcurrencyLimit } from "../utils/concurrency";
 import {
+    applyPlaylistCollectionMetadata,
     detectPlaylistPlatform,
     deriveChannelName,
     deleteCreatedCollectionIfUnused,
@@ -420,7 +422,22 @@ export const deleteSubscription = async (
   res: Response
 ): Promise<void> => {
   const id = getStringParam(req.params.id) ?? "";
+
+  // Captured before the delete: a generic playlist collection qualifies as a
+  // season purely because a playlist subscription points at it, so once the
+  // subscription is gone nothing connects the two. Without the reconcile its
+  // season assignments and mirror files outlive the subscription and the videos
+  // do not return to Season 00 until a full rebuild.
+  const formerCollectionId = (await subscriptionService.listSubscriptions()).find(
+    (subscription) => subscription.id === id
+  )?.collectionId;
+
   await subscriptionService.unsubscribe(id);
+
+  if (formerCollectionId) {
+    onCollectionMetadataCommitted(formerCollectionId);
+  }
+
   res.status(200).json(successMessage("Subscription deleted"));
 };
 
@@ -851,7 +868,19 @@ export const createPlaylistSubscription = async (
   } else {
     collectionResolution = resolveRequestedCollection();
   }
-  const collection = collectionResolution.collection;
+  // Persist the playlist/channel metadata the inspection carried (issue #411)
+  // so the media-server exporter can build show and season NFOs offline later.
+  // Naming already happened above; this only writes durable source metadata.
+  const collection = applyPlaylistCollectionMetadata(
+    collectionResolution.collection,
+    {
+      description: inspection.description,
+      sourceUrl: playlistUrl,
+      sourceChannelId: inspection.sourceChannelId,
+      sourceChannelUrl: inspection.sourceChannelUrl,
+      sourceChannelName: inspection.sourceChannelName ?? author,
+    }
+  );
 
   // 6. Insert the subscription with the captured baseline (design §7.2).
   const subscribeOptions: SubscribePlaylistOptions = {
@@ -924,6 +953,14 @@ export const createPlaylistSubscription = async (
       throw error;
     }
   }
+
+  // The collection is now subscription-backed, which is what makes it a season
+  // in the managed TV library. Reconcile it here rather than waiting for a newly
+  // downloaded member: when an existing collection is reused, its current videos
+  // are already downloaded, so the historical task skips them and no link hook
+  // ever fires - they would sit in Season 00 until a full rebuild. Best effort,
+  // like every other mirror hook: it must never fail the subscription.
+  onCollectionMetadataCommitted(collection.id);
 
   // 7. Optionally create a linked historical task (design §7.1 / §7.4).
   //    Capturing the baseline here is intentional: it prevents the scheduler

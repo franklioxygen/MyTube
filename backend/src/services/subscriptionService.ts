@@ -1262,6 +1262,12 @@ export class SubscriptionService {
               {
                 subscriptionYtdlpConfig: sub.ytdlpConfig,
                 subscriptionFilenameTemplate: sub.filenameTemplate,
+                // Issue #411: a playlist subscription links the video to its
+                // collection right after the download, so the downloader must
+                // not export it as a Season 00 episode first.
+                pendingCollectionLink:
+                  sub.subscriptionType === "playlist" &&
+                  Boolean(sub.collectionId),
               }
             )
           : downloadYouTubeVideo(videoUrl, {
@@ -1271,6 +1277,10 @@ export class SubscriptionService {
                 buildFilenameTemplateSourceOptions(sub),
               subscriptionYtdlpConfig: sub.ytdlpConfig,
               subscriptionFilenameTemplate: sub.filenameTemplate,
+              // Issue #411: see the Bilibili branch above.
+              pendingCollectionLink:
+                sub.subscriptionType === "playlist" &&
+                Boolean(sub.collectionId),
             }),
       downloadTaskId,
       initialTitle,

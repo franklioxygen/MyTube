@@ -183,6 +183,126 @@ export const zh = {
   mediaServerExportCleanupComplete: "媒体服务器附属文件清理完成",
   mediaServerExportCleanupSummary:
     "已清理 {succeeded} 个，已跳过 {skipped} 个，失败 {failed} 个。",
+  collectionShowExportToggle:
+    "导出为独立剧集",
+  collectionShowExportToggleDescription:
+    "将该收藏集作为独立剧集导出到媒体服务器，而不是作为上传者剧集下的一季。适用于从第三方频道归档的剧集或影片。",
+  collectionShowDialogTitle:
+    "将此收藏集导出为独立剧集",
+  collectionShowDialogDescription:
+    "选择剧集的名称与封面。文件夹名根据你的选择创建，之后不会移动；后续重命名只更新元数据。",
+  collectionShowPromotionWarning:
+    "该收藏集目前是另一部剧集下的一季。剧集编号与文件名会保留，但它腾出的季号会被永久保留不再使用，日后关闭此选项也不会恢复。",
+  collectionShowSearchHeading:
+    "在 TMDB 上查找",
+  collectionShowSearchLabel:
+    "搜索标题",
+  collectionShowSearchAction:
+    "搜索",
+  collectionShowSearchFailed:
+    "TMDB 搜索失败，请重试。",
+  collectionShowNoCredential:
+    "未配置 TMDB 凭据，无法搜索。你仍可以使用收藏集名称或自行输入标题。",
+  collectionShowNoResults:
+    "未找到匹配项。请尝试更短或更准确的标题。",
+  collectionShowSuggestion:
+    "建议",
+  collectionShowMediaTypeTv:
+    "剧集",
+  collectionShowMediaTypeMovie:
+    "电影",
+  collectionShowManualHeading:
+    "或自行输入标题",
+  collectionShowManualLabel:
+    "剧集标题",
+  collectionShowFolderNotice:
+    "剧集文件夹将命名为“{name}”。",
+  collectionShowUseCollectionMetadata:
+    "使用收藏集名称",
+  collectionShowConfirm:
+    "使用此项",
+  collectionShowActivationFailed:
+    "无法将此收藏集导出为剧集。",
+  collectionShowLockBusy:
+    "媒体服务器重建或批量重命名正在进行，请等完成后重试。",
+  collectionShowWrongLayout:
+    "请先将媒体服务器导出布局切换为“作者 → 播放列表季”。",
+  collectionShowPosterWarning:
+    "剧集已创建，但封面下载失败，将使用剧集缩略图代替。",
+  collectionShowDisable:
+    "停止作为独立剧集导出",
+  collectionShowActive:
+    "已作为独立剧集导出",
+  mediaServerExportLayout:
+    "媒体服务器导出布局",
+  mediaServerExportLayoutInactiveWarning:
+    "导出模式当前为「关闭」，因此该布局尚未生效。请先在上方选择一个导出模式（例如「写入 NFO 边档」），才会开始生成托管媒体库。",
+  mediaServerExportLayoutAdjacent:
+    "同目录边档（现有行为）",
+  mediaServerExportLayoutPlaylistTv:
+    "作者 → 播放列表季（托管电视剧媒体库）",
+  mediaServerExportLayoutPlaylistTvDescription:
+    "MyTube 会生成一个独立的托管电视剧媒体库：每个作者一部剧集，每个来源播放列表一季。原始视频文件不会被移动、重命名或复制 —— 媒体库使用硬链接指向它们。",
+  mediaServerExportLayoutPlaylistTvNamingNote:
+    "文件名与文件夹命名设置不影响该托管媒体库，它们仍然决定原始文件的存放位置。",
+  mediaServerCopyFallback:
+    "无法创建硬链接时复制媒体文件",
+  mediaServerCopyFallbackDescription:
+    "部分文件系统和跨磁盘环境无法创建硬链接。关闭时，这些剧集将被报告为失败而不会被复制。",
+  mediaServerLibraryPath:
+    "托管媒体库文件夹",
+  mediaServerStableOrderHint:
+    "剧集编号按 MyTube 首次导入每个项目的顺序确定。上游播放列表重新排序不会重新编号已有剧集。",
+  mediaServerSeasonZeroHint:
+    "不属于任何来源播放列表的视频会放入第 00 季，显示为“Specials / Unassigned”。",
+  mediaServerHardLinkHint:
+    "硬链接仅在同一文件系统内有效，通常不占用额外磁盘空间。",
+  mediaServerCopiedMediaWarning:
+    "有 {count} 个媒体文件无法硬链接而被复制，这会占用额外磁盘空间。",
+  mediaServerExportMirrorSummary:
+    "{shows} 部剧集、{seasons} 季、{episodes} 集。硬链接 {linked}，复制 {copied}，移除 {removed}。",
+  mediaServerExportFailedItems:
+    "失败（{count}）",
+  mediaServerExportSkippedItems:
+    "已跳过（{count}）",
+  mediaServerExportMoreItems:
+    "另有 {count} 项",
+  mediaServerExportPlaylistTvRebuildConfirmBody:
+    "原始视频不会被移动或重命名。尽可能使用硬链接，通常不占用额外空间；无法硬链接时可能会复制文件。",
+  mediaServerExportPlaylistTvCleanupConfirmBody:
+    "仅删除托管媒体库文件夹内由 MyTube 生成的文件。原始视频以及您自己添加的文件不会受影响。",
+  mediaServerExportRebuildManagedLibrary:
+    "重建托管电视剧媒体库",
+  mediaServerExportCleanupManagedLibrary:
+    "移除托管电视剧媒体库",
+  mediaServerExportRebuildManagedLibraryConfirmTitle:
+    "要重建托管电视剧媒体库吗？",
+  mediaServerExportCleanupManagedLibraryConfirmTitle:
+    "要移除托管电视剧媒体库吗？",
+  mediaServerExportRebuildManagedLibraryConfirmBody:
+    "这会重建整个托管媒体库，而不只是最近下载的内容。你的每一个本地视频都会被放进去，并按作者各建一个剧集目录；因此指向该目录的媒体服务器在下次扫描后可能会出现大量新剧集。",
+  mediaServerExportCleanupManagedLibraryConfirmBody:
+    "这会清空托管媒体库目录中由 MyTube 生成的全部内容，包括所有剧集目录和剧集链接。",
+  mediaServerExportScope:
+    "本次将处理 {videos} 个视频，预计生成约 {shows} 个剧集目录。",
+  mediaServerExportScopeLoading:
+    "正在计算本次操作的范围…",
+  mediaServerExportScopeUnavailable:
+    "无法计算本次操作的范围。它仍然会处理你的整个媒体库。",
+  mediaServerExportPhase_snapshot:
+    "读取媒体库",
+  mediaServerExportPhase_catalog_reconcile:
+    "更新目录",
+  mediaServerExportPhase_plan:
+    "规划中",
+  mediaServerExportPhase_materialize:
+    "写入文件",
+  mediaServerExportPhase_sweep:
+    "清理中",
+  mediaServerExportPhase_completed:
+    "收尾中",
+  mediaServerExportUnsupportedLayoutError:
+    "不支持所选的媒体服务器导出布局。",
   mediaServerExportSweptSummary:
     "另外清理了 {count} 个残留附属文件。",
   mediaServerExportActiveDownloadsError:

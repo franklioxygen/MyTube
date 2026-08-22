@@ -1,10 +1,13 @@
 import { VIDEOS_DIR } from "../../config/paths";
+import { logger } from "../../utils/logger";
 import { pathExistsSafeSync, readFileSafeSync } from "../../utils/security";
 import { getSettings } from "../storageService/settings";
 import { getVideoById } from "../storageService/videos";
 import type { Video } from "../storageService/types";
 import { planMediaServerExportPaths } from "./pathPlanner";
+import { syncPlaylistTvForVideo } from "./playlistTvSync";
 import {
+  getMediaServerExportLayout,
   removeMediaServerArtifactsForVideo,
   syncMediaServerArtifactsForRecord,
   syncMediaServerShowArtifactsForShowRoot,
@@ -36,11 +39,56 @@ function readExistingSourceInfoForRelocation(
   }
 }
 
+/**
+ * Issue #411. In `playlist_tv` an original file move does NOT change any mirror
+ * path — the mirror is derived from the catalog, not from the original layout.
+ * What must happen is a relink of every occurrence from the new source path, and
+ * the show/season tree must survive: removing it because an original moved would
+ * destroy a correct mirror.
+ */
+function relocatePlaylistTvArtifactsAroundMove(
+  videoBefore: Video,
+  performMove: () => boolean,
+  mode: Exclude<MediaServerExportMode, "off">
+): boolean {
+  const moved = performMove();
+  if (!moved) {
+    return moved;
+  }
+
+  try {
+    const settings = getSettings() as { mediaServerCopyFallback?: boolean };
+    syncPlaylistTvForVideo(videoBefore.id, {
+      mode,
+      copyFallbackEnabled: settings.mediaServerCopyFallback !== false,
+      // A playlist download relocated by legacy naming passes through here
+      // between the membership insert and the collection-link hook. That hook
+      // is the last sync for this video, so the downloader's envelope must
+      // still be waiting for it; consuming it here would leave it to write the
+      // synthesized source JSON over the extractor's own.
+      preservePendingSourceInfo: true,
+    });
+  } catch (error) {
+    logger.error("Failed to relink media server mirror after a file move", error, {
+      layout: "playlist_tv",
+      action: "materialize",
+      videoId: videoBefore.id,
+    });
+  }
+
+  return moved;
+}
+
 export function relocateMediaServerArtifactsAroundMove(
   videoBefore: Video,
   performMove: () => boolean
 ): boolean {
   const mode = getMediaServerExportMode();
+
+  if (mode !== "off" && getMediaServerExportLayout() === "playlist_tv") {
+    return relocatePlaylistTvArtifactsAroundMove(videoBefore, performMove, mode);
+  }
+
   const oldPlan = mode === "off" ? null : planMediaServerExportPaths(videoBefore);
 
   const moved = performMove();

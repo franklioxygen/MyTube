@@ -329,7 +329,9 @@ describe("tmdbService", () => {
       });
       expect(result?.thumbnailPath).toContain("/images/nested/folder/");
       expect(result?.thumbnailUrl).toContain("/images/nested/folder/");
-      expect(fs.ensureDir).toHaveBeenCalled();
+      // The directory is created through ensureDirSafeSync now, so the sync
+      // primitive is the one that runs; the write stays async.
+      expect(fs.ensureDirSync).toHaveBeenCalled();
       expect(fs.writeFile).toHaveBeenCalled();
     });
 

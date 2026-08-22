@@ -22,7 +22,7 @@ import {
   unlinkSafeSync,
 } from "../../../utils/security";
 import {
-  removeMediaServerArtifactsForVideo,
+  removeMediaServerArtifactsForSupersededFile,
   syncMediaServerArtifactsForRecord,
 } from "../../mediaServerExport";
 import * as storageService from "../../storageService";
@@ -563,7 +563,7 @@ export async function downloadSinglePart(
             }
           }
 
-          removeMediaServerArtifactsForVideo(existingVideo);
+          removeMediaServerArtifactsForSupersededFile(existingVideo);
           if (sourceVideoId) {
             finalVideoData = storageService.persistDownloadedMediaIdentity({
               video: finalVideoData,
@@ -582,6 +582,7 @@ export async function downloadSinglePart(
 
           syncMediaServerArtifactsForRecord(finalVideoData, {
             rawSourceInfo: bilibiliInfo,
+            suppressPlaylistTvSync: modeOptions?.pendingCollectionLink,
           });
           return { success: true, videoData: finalVideoData };
         }
@@ -625,6 +626,7 @@ export async function downloadSinglePart(
       if (updatedVideo) {
         syncMediaServerArtifactsForRecord(updatedVideo, {
           rawSourceInfo: bilibiliInfo,
+          suppressPlaylistTvSync: modeOptions?.pendingCollectionLink,
         });
         return { success: true, videoData: updatedVideo };
       }
@@ -632,6 +634,7 @@ export async function downloadSinglePart(
 
     syncMediaServerArtifactsForRecord(videoData, {
       rawSourceInfo: bilibiliInfo,
+      suppressPlaylistTvSync: modeOptions?.pendingCollectionLink,
     });
     return { success: true, videoData };
   } catch (error: unknown) {

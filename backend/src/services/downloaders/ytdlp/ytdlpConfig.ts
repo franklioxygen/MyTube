@@ -253,6 +253,14 @@ function buildBaseFlags(args: {
     subLangs: userSubLangs !== undefined ? userSubLangs : "all",
     convertSubs: userConvertSubs !== undefined ? userConvertSubs : "vtt",
     ignoreErrors: true,
+    // Download exactly the requested video, never the playlist it happens to
+    // sit in. A URL like `watch?v=X&list=Y` otherwise makes yt-dlp expand the
+    // whole playlist, so a single-video request could pull down hundreds of
+    // videos — and one private entry in that playlist fails the whole job.
+    // Every caller of this path has already resolved a single video URL;
+    // playlists go through the playlist/subscription flows instead. Matches
+    // prepareAudioDownloadFlags, which has always set this.
+    noPlaylist: true,
   };
 }
 

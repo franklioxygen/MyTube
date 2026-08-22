@@ -138,6 +138,166 @@ The same allocator + publication model is used by every path that writes media, 
 
 ---
 
+## 9. Managed media-server TV library (optional)
+
+> Opt-in. Nothing in this section happens unless you set **Media server export layout** to
+> `Author → playlist seasons (managed TV library)` in Settings. The default is
+> `Adjacent sidecars`, which keeps the historical behavior exactly as it was.
+
+Media servers want a `Show / Season NN / SxxExxx` tree. Your `uploads/videos/` layout is
+driven by your own filename and author-organization settings and does not have to match
+that. Rather than forcing one onto the other, MyTube can build a **separate, managed
+mirror**:
+
+```text
+uploads/media-library/
+└── Kurzgesagt/
+    ├── tvshow.nfo
+    ├── poster.jpg
+    ├── Season 01/
+    │   ├── season.nfo
+    │   ├── S01E001 - Human Origins.mp4
+    │   ├── S01E001 - Human Origins.nfo
+    │   └── S01E001 - Human Origins-thumb.jpg
+    └── Season 02/
+        ├── season.nfo
+        ├── S02E001 - Ants.mp4
+        └── S02E001 - Ants.nfo
+```
+
+Add **`uploads/media-library/`** to your media server as a *Shows* library. Do not add
+`uploads/videos/` as well, or every episode appears twice.
+
+### 9.1 What maps to what
+
+| Source concept | Media-server concept |
+|---|---|
+| A channel / author | One show directory + `tvshow.nfo` |
+| A source-backed playlist | One numbered season + `season.nfo` |
+| One `(playlist, video)` membership | One episode |
+| A video in no source playlist | `Season 00`, titled *Specials / Unassigned* |
+
+Only playlists with a **durable source identity** become seasons — playlist subscriptions
+and Bilibili collections/series. Collections you created by hand are not turned into
+seasons.
+
+### 9.2 Your original files are never touched
+
+Episodes in the mirror are **hard links** back to the file in `uploads/videos/`. A hard
+link is a second name for the same bytes, so:
+
+- no video is moved, renamed, or duplicated;
+- the mirror normally consumes **no additional disk space**;
+- deleting the mirror never affects your originals.
+
+Hard links only work **within one filesystem**. If `uploads/media-library/` and
+`uploads/videos/` end up on different disks — or on a filesystem that cannot link — MyTube
+falls back to copying, which *does* consume a second full copy of each affected video. The
+rebuild summary always reports how many files were linked versus copied. You can turn the
+fallback off, in which case those episodes are reported as failed instead.
+
+Artwork is always copied rather than linked, so regenerating a thumbnail inside MyTube
+cannot alter what your media server already scanned.
+
+### 9.3 Stable numbering
+
+Season and episode numbers are assigned **once** and then never change:
+
+- A playlist gets the next free season number the first time it is attached to a show.
+  Deleting a playlist does not free its number for reuse.
+- An episode number is taken from the playlist position observed when MyTube first imported
+  that item. If the upstream playlist is later reordered, MyTube records the new position
+  for diagnostics but does **not** renumber existing episodes.
+- An item newly inserted at the top of an upstream playlist gets the next unused episode
+  number, not `E001`.
+
+"Playlist order" here means MyTube's stable first-import order, not a continuously mutable
+upstream sort order. This is deliberate: renumbering would move every file in a season and
+break watch state in your media server.
+
+Renaming a channel or a playlist updates the NFO title only. The directory keeps the name it
+was created with.
+
+**Changing your filename template or author-folder setting does not disturb the library.**
+Those settings control where the *original* file lives under `uploads/videos/`; mirror paths
+come from the show/season/episode allocation above and never from the original filename. A
+batch rename moves the original and relinks the mirror in place — same season, same episode
+number, same filename, same shared inode. The same is true when a video is redownloaded.
+
+### 9.4 The same video in several playlists
+
+A video that belongs to two playlists becomes two episodes — one in each season — each with
+its own NFO and its own unique id. Both point at the same original file via hard links, so
+this costs no extra space.
+
+### 9.5 Exporting a collection as its own show
+
+By default a collection is a *season* under its author's show. That is wrong for content
+where the collection **is** the title — a drama series posted by an uploader whose channel
+name means nothing to a viewer. In that case Plex shows the uploader's name and avatar,
+because the author show is the only thing MyTube declared.
+
+Open the collection and choose **Export as its own show** to change that. The collection
+then becomes a top-level show with a single `Season 01`, independent of the author:
+
+```text
+uploads/media-library/
+├── Kurzgesagt/                  ← the author show, unchanged
+│   └── Season 01/…
+└── In the Name of the People/    ← the collection, promoted to its own show
+    ├── tvshow.nfo
+    ├── poster.jpg
+    └── Season 01/
+        ├── S01E001 - EP01.mp4
+        └── S01E001 - EP01.nfo
+```
+
+The toggle only appears in the managed-library layout; in `Adjacent sidecars` there is no
+show to promote.
+
+**Choosing the title.** MyTube offers three ways to name the show, and never picks one for
+you:
+
+- **Search TMDB** — enter a title, pick a match. MyTube then stores the TMDB id, the
+  official title, the overview, the first-air date, and downloads the poster. Only matches
+  that pass a strict check are marked as confident; anything weaker is labeled a suggestion
+  and still needs an explicit confirmation. This requires a TMDB API key in Settings.
+- **Enter manually** — type the title yourself. No network call, no poster.
+- **Use collection metadata** — keep the collection's own name and description.
+
+TMDB is used for the *show's* identity only. Episode numbers always come from MyTube's own
+allocator (§9.3) — never from TMDB, which cannot see your files.
+
+**Promotion is not losslessly reversible.** If the collection was already a season under an
+author show, turning this on moves it out: the old season directory is removed and the
+episodes are re-materialized under the new show. Episode *numbers* are carried across, so
+watch state that keys on `SxxExxx` survives, but the season number under the author show is
+retired and is not reused. Turning the toggle back off returns the collection to the author
+show as a **new** season with a new number. If you only want a nicer title on an existing
+season, rename the collection instead — that updates the NFO without moving anything.
+
+Turning the toggle off keeps the resolved TMDB metadata and poster, so re-enabling later
+reuses the same identity without another lookup.
+
+**The folder name is fixed at activation.** It is derived once from the title you accepted,
+sanitized for the filesystem, and never renamed afterwards — the same rule as author shows
+in §9.3. The collection page shows the folder that was actually created once the next
+rebuild has run, which may differ from the title if characters had to be replaced or a
+suffix was needed to avoid a collision.
+
+### 9.6 Cleanup safety
+
+Every file MyTube generates under `uploads/media-library/` is recorded in an ownership
+ledger in the database. Cleanup deletes **only** files listed there. Anything you put in the
+mirror yourself is left alone and reported as a conflict rather than overwritten, and the
+originals in `uploads/videos/` are never touched.
+
+Disabling the layout does not delete the mirror. To remove it, set the export mode to
+**Off** and run the cleanup action. Season and episode numbers are retained, so re-enabling
+later reproduces the same tree.
+
+---
+
 ## Summary
 
 Stable identity → filename (legacy or Liquid template; `{{ id }}` = source id, recommended `[source_video_id]` for collision resistance) → author-folder physical organization → allocator reserves the whole file family and steps aside on collision via `none → source_id → numeric` → no-overwrite publication through staging + hard link (copy fallback), with locks and journals guaranteeing concurrency and crash safety.

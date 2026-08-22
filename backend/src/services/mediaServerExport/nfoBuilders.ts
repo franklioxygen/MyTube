@@ -74,10 +74,39 @@ export interface EpisodeNfoInput {
   seasonNumber?: number;
   episodeNumber?: number;
   thumbFilename?: string;
+  /**
+   * Occurrence identity for the playlist_tv layout (issue #411).
+   *
+   * The same video exported into two seasons must receive two distinct unique
+   * ids, or a media server collapses the duplicate playlist memberships into
+   * one episode. Adjacent mode leaves this undefined and keeps the historical
+   * `mytube:video:<id>` identity for compatibility.
+   */
+  occurrenceId?: string;
+}
+
+/**
+ * `mytube:episode:<show-id>:<season>:<episode>:<video-id>` — unique per
+ * (playlist, video) occurrence rather than per video.
+ */
+export function buildEpisodeOccurrenceId(input: {
+  showId: string;
+  seasonNumber: number;
+  episodeNumber: number;
+  videoId: string;
+}): string {
+  return `mytube:episode:${input.showId}:${input.seasonNumber}:${input.episodeNumber}:${input.videoId}`;
 }
 
 export function buildEpisodeNfo(input: EpisodeNfoInput): string {
-  const { video, showTitle, seasonNumber, episodeNumber, thumbFilename } = input;
+  const {
+    video,
+    showTitle,
+    seasonNumber,
+    episodeNumber,
+    thumbFilename,
+    occurrenceId,
+  } = input;
   const airedDate = normalizeDateToDay(video.date);
   const runtime = normalizeRuntimeMinutes(video.duration);
   const lines = [GENERATED_XML_COMMENT, "<episodedetails>"];
@@ -99,10 +128,10 @@ export function buildEpisodeNfo(input: EpisodeNfoInput): string {
     }
   }
 
-  const videoId = `mytube:video:${video.id}`;
-  appendTag(lines, "id", videoId);
+  const uniqueId = occurrenceId || `mytube:video:${video.id}`;
+  appendTag(lines, "id", uniqueId);
   lines.push(
-    `  <uniqueid type="mytube" default="true">${escapeXml(videoId)}</uniqueid>`
+    `  <uniqueid type="mytube" default="true">${escapeXml(uniqueId)}</uniqueid>`
   );
   appendTag(lines, "thumb", thumbFilename);
   lines.push("</episodedetails>");
@@ -115,11 +144,32 @@ export interface ShowNfoInput {
   plot: string;
   premiered?: string;
   studio?: string;
+  /**
+   * Stable show identity for the playlist_tv layout (issue #411), e.g.
+   * `mytube:show:youtube:UC...`. Adjacent mode omits it and keeps deriving the
+   * id from the sanitized show title, which a channel rename may change.
+   */
+  showUniqueId?: string;
+  /**
+   * Confirmed TMDB identity for a collection-show, so servers that read NFO can
+   * match against TMDB. Emitted only for a TV id — see buildShowNfo.
+   */
+  tmdbId?: number;
+  tmdbMediaType?: "tv" | "movie";
 }
 
 export function buildShowNfo(input: ShowNfoInput): string {
-  const { showTitle, plot, premiered, studio } = input;
-  const showId = `mytube:show:${normalizeShowIdentifier(showTitle)}`;
+  const {
+    showTitle,
+    plot,
+    premiered,
+    studio,
+    showUniqueId,
+    tmdbId,
+    tmdbMediaType,
+  } = input;
+  const showId =
+    showUniqueId || `mytube:show:${normalizeShowIdentifier(showTitle)}`;
   const lines = [GENERATED_XML_COMMENT, "<tvshow>"];
 
   appendTag(lines, "title", showTitle);
@@ -131,9 +181,73 @@ export function buildShowNfo(input: ShowNfoInput): string {
   lines.push(
     `  <uniqueid type="mytube" default="true">${escapeXml(showId)}</uniqueid>`
   );
+
+  // TV only. Movie and TV ids share a numeric space in TMDB, and a `tvshow.nfo`
+  // id is read as a TV id — emitting a confirmed movie id here would point a
+  // media server at an unrelated series. A matched movie still contributes its
+  // title, overview, date and poster.
+  if (
+    tmdbMediaType === "tv" &&
+    typeof tmdbId === "number" &&
+    Number.isSafeInteger(tmdbId) &&
+    tmdbId > 0
+  ) {
+    lines.push(`  <uniqueid type="tmdb">${escapeXml(String(tmdbId))}</uniqueid>`);
+  }
+
   lines.push("</tvshow>");
 
   return `${lines.join("\n")}\n`;
+}
+
+export interface SeasonNfoInput {
+  seasonNumber: number;
+  title: string;
+  plot: string;
+  /** `mytube:season:<collection-id>`, or a show-derived id for Season 00. */
+  seasonUniqueId: string;
+}
+
+/**
+ * `season.nfo` for the playlist_tv layout (issue #411).
+ *
+ * The root element is `<season>` with a `<seasonnumber>` child — not
+ * `<episodedetails>`, and the number is never written into an `<episode>` tag.
+ * Plex mostly ignores this file, so the `Season NN` directory and the `SxxExxx`
+ * filename token remain the authoritative carriers of the season number; this
+ * file only enriches title and plot where a server does read it.
+ */
+export function buildSeasonNfo(input: SeasonNfoInput): string {
+  const { seasonNumber, title, plot, seasonUniqueId } = input;
+  const lines = [GENERATED_XML_COMMENT, "<season>"];
+
+  appendTag(lines, "title", title);
+  appendTag(lines, "sorttitle", title);
+  appendTag(lines, "seasonnumber", seasonNumber);
+  appendTag(lines, "plot", plot);
+  appendTag(lines, "id", seasonUniqueId);
+  lines.push(
+    `  <uniqueid type="mytube" default="true">${escapeXml(
+      seasonUniqueId
+    )}</uniqueid>`
+  );
+  lines.push("</season>");
+
+  return `${lines.join("\n")}\n`;
+}
+
+export function buildSeasonUniqueId(input: {
+  collectionId?: string;
+  showId: string;
+  seasonNumber: number;
+}): string {
+  return input.collectionId
+    ? `mytube:season:${input.collectionId}`
+    : `mytube:season:${input.showId}:${input.seasonNumber}`;
+}
+
+export function buildShowUniqueId(identityKey: string): string {
+  return `mytube:show:${identityKey}`;
 }
 
 export function normalizeVideoDateToDay(

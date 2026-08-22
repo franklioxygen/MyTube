@@ -34,6 +34,11 @@ vi.mock("../../../services/storageService/settings", () => ({
   getSettings: getSettingsMock,
 }));
 
+// syncService dispatches to the playlist_tv pipeline, which reaches the catalog
+// database. These tests only exercise the adjacent branch, so the database is
+// stubbed rather than opened.
+vi.mock("../../../db", () => ({ db: {} }));
+
 vi.mock("../../../utils/logger", () => ({
   logger: {
     error: vi.fn(),
@@ -42,7 +47,9 @@ vi.mock("../../../utils/logger", () => ({
   },
 }));
 
+import { logger } from "../../../utils/logger";
 import {
+  removeMediaServerArtifactsForSupersededFile,
   removeMediaServerArtifactsForVideo,
   syncMediaServerShowArtifactsForShowRoot,
   syncMediaServerArtifactsForRecord,
@@ -264,6 +271,61 @@ describe("mediaServerExport syncService", () => {
     );
   });
 
+  // Issue #411 regression boundary: adjacent sidecars stay the default whenever
+  // no explicit mediaServerExportLayout is saved.
+  it("writes adjacent sidecars when no export layout setting is present", () => {
+    getSettingsMock.mockReturnValue({ mediaServerExportMode: "nfo" });
+
+    const video = createVideoRecord();
+    writeFile(
+      path.join(
+        testPaths.videos,
+        "Kurzgesagt/Season 2026/s2026e052501 - How Many Ants Live On Earth.mp4"
+      ),
+      "video"
+    );
+
+    syncMediaServerArtifactsForRecord(video, { libraryVideos: [video] });
+
+    expect(
+      fs.existsSync(
+        path.join(
+          testPaths.videos,
+          "Kurzgesagt/Season 2026/s2026e052501 - How Many Ants Live On Earth.nfo"
+        )
+      )
+    ).toBe(true);
+    expect(fs.existsSync(path.join(testPaths.root, "media-library"))).toBe(false);
+  });
+
+  it("writes adjacent sidecars when the export layout is explicitly adjacent", () => {
+    getSettingsMock.mockReturnValue({
+      mediaServerExportMode: "nfo",
+      mediaServerExportLayout: "adjacent",
+    });
+
+    const video = createVideoRecord();
+    writeFile(
+      path.join(
+        testPaths.videos,
+        "Kurzgesagt/Season 2026/s2026e052501 - How Many Ants Live On Earth.mp4"
+      ),
+      "video"
+    );
+
+    syncMediaServerArtifactsForRecord(video, { libraryVideos: [video] });
+
+    expect(
+      fs.existsSync(
+        path.join(
+          testPaths.videos,
+          "Kurzgesagt/Season 2026/s2026e052501 - How Many Ants Live On Earth.nfo"
+        )
+      )
+    ).toBe(true);
+    expect(fs.existsSync(path.join(testPaths.root, "media-library"))).toBe(false);
+  });
+
   it("rebuilds a show root from remaining library videos after a move", () => {
     getSettingsMock.mockReturnValue({
       mediaServerExportMode: "nfo",
@@ -298,5 +360,80 @@ describe("mediaServerExport syncService", () => {
       "utf8"
     );
     expect(showNfo).toContain("<premiered>2026-06-01</premiered>");
+  });
+});
+
+/**
+ * A redownload replaces the file behind a surviving library row.
+ *
+ * Under playlist_tv the mirror is keyed by the catalog, not the filename, so
+ * there is nothing here to remove — and removing would drop the episode
+ * assignment, which is how an episode silently gets renumbered. Under adjacent
+ * the sidecars really are named after the old file and must go.
+ */
+describe("removeMediaServerArtifactsForSupersededFile", () => {
+  beforeEach(() => {
+    fs.emptyDirSync(testPaths.root);
+    for (const dir of [
+      testPaths.videos,
+      testPaths.images,
+      testPaths.imagesSmall,
+      testPaths.avatars,
+      testPaths.subtitles,
+    ]) {
+      fs.ensureDirSync(dir);
+    }
+    getSettingsMock.mockReset();
+  });
+
+  afterAll(() => {
+    fs.removeSync(testPaths.root);
+  });
+
+  it("removes the old sidecars in the adjacent layout", () => {
+    getSettingsMock.mockReturnValue({ mediaServerExportMode: "nfo" });
+
+    const video = createVideoRecord();
+    writeFile(
+      path.join(testPaths.videos, "Kurzgesagt/Season 2026/s2026e052501 - How Many Ants Live On Earth.mp4"),
+      "bytes"
+    );
+    syncMediaServerArtifactsForRecord(video);
+
+    const episodeNfo = path.join(
+      testPaths.videos,
+      "Kurzgesagt/Season 2026/s2026e052501 - How Many Ants Live On Earth.nfo"
+    );
+    expect(fs.existsSync(episodeNfo)).toBe(true);
+
+    removeMediaServerArtifactsForSupersededFile(video);
+
+    expect(fs.existsSync(episodeNfo)).toBe(false);
+  });
+
+  it("is a no-op in playlist_tv, leaving the catalog untouched", () => {
+    getSettingsMock.mockReturnValue({
+      mediaServerExportMode: "nfo",
+      mediaServerExportLayout: "playlist_tv",
+    });
+
+    // The db is stubbed as {} in this file, so any catalog access would throw.
+    // Not throwing IS the assertion: nothing reached the catalog.
+    expect(() =>
+      removeMediaServerArtifactsForSupersededFile(createVideoRecord())
+    ).not.toThrow();
+  });
+
+  it("still deletes a genuinely removed video in playlist_tv", () => {
+    getSettingsMock.mockReturnValue({
+      mediaServerExportMode: "nfo",
+      mediaServerExportLayout: "playlist_tv",
+    });
+
+    // The real deletion entry point must NOT share the no-op: it reaches the
+    // catalog, which the stubbed db turns into a swallowed error rather than a
+    // silent success. Proving they take different paths is the point.
+    removeMediaServerArtifactsForVideo(createVideoRecord());
+    expect(vi.mocked(logger.error)).toHaveBeenCalled();
   });
 });

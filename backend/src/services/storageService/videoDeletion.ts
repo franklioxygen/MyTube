@@ -15,6 +15,10 @@ import {
   resolveManagedWebPath,
 } from "../filenameTemplate/pathHelpers";
 import { removeMediaServerArtifactsForVideo } from "../mediaServerExport";
+import {
+  onVideoDeleteCommitted,
+  onVideoDeletePending,
+} from "../mediaServerExport/mutationHooks";
 import { logger } from "../../utils/logger";
 import { getCollections } from "./collections";
 import {
@@ -63,8 +67,21 @@ export function deleteVideo(
     markVideoDownloadDeleted(id);
     markDownloadHistoryDeletedByVideoId(id, deletedAt);
 
+    // Issue #411: clean every mirror occurrence BEFORE the row is deleted.
+    // Deleting the video cascades its episode assignments away, and the ledger
+    // rows then have nothing tying them to an assignment — the media links would
+    // be left on disk with no authority to remove them.
+    const showsLosingAnEpisode = onVideoDeletePending(id);
+
     // Delete from DB
     db.delete(videos).where(eq(videos.id, id)).run();
+
+    // Now that the row is gone, re-plan the shows it left. Show-level artifacts
+    // (tvshow.nfo, season.nfo, poster) belong to no assignment, so the cleanup
+    // above cannot reach them and an emptied show would otherwise linger in the
+    // media server until a full rebuild. Runs after the delete so the planner
+    // sees the library without this video.
+    onVideoDeleteCommitted(showsLosingAnEpisode);
     bumpVideosListRevision();
     try {
       const { invalidateRecommendationSignalsCache } = require("../recommendationSignalsService") as {
@@ -74,8 +91,12 @@ export function deleteVideo(
     } catch {
       // recommendation signals are best-effort
     }
+    // Adjacent sidecars live next to the original media and are still
+    // addressable after the row is gone. The playlist_tv mirror was already
+    // handled by onVideoDeletePending above.
     removeMediaServerArtifactsForVideo(videoToDelete, {
       libraryVideos: getVideos(),
+      layoutOverride: "adjacent",
     });
 
     // Statistics: emit library_video_deleted with the reason bucket and a size

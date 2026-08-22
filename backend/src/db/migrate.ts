@@ -256,7 +256,11 @@ export async function runMigrations(options: RunMigrationsOptions = {}) {
     // reaching the 0019 CREATE TABLE users; this idempotent self-heal covers
     // that case so migrateLegacySharedVisitorPassword succeeds on first boot
     // instead of failing with "no such table: users".
-    const { ensureVisitorUsersTable, ensureFavoritesTables } = await import(
+    const {
+      ensureVisitorUsersTable,
+      ensureFavoritesTables,
+      ensureMediaServerCatalogTables,
+    } = await import(
       "../services/storageService/migrations/schemaMigrations"
     );
     ensureVisitorUsersTable();
@@ -266,6 +270,12 @@ export async function runMigrations(options: RunMigrationsOptions = {}) {
     // never created, and every /favorites request would 500 with
     // "no such table". Idempotent CREATE TABLE IF NOT EXISTS covers that.
     ensureFavoritesTables();
+
+    // Same self-heal for the media-server catalog (issue #411, migration 0028).
+    // On a long-lived database an earlier migration can still abort the drizzle
+    // batch with a duplicate column, in which case 0028 never runs and every
+    // collections read fails with "no such column: collections.description".
+    ensureMediaServerCatalogTables();
 
     const { migrateLegacySharedVisitorPassword } = await import(
       "../services/userService"
