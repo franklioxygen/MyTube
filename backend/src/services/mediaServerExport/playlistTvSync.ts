@@ -18,6 +18,7 @@ import {
 import { buildMediaServerCatalogSnapshot } from "./catalogSnapshot";
 import {
   materializeMediaServerHierarchy,
+  materializeMediaServerHierarchyAsync,
   type MaterializeResultSummary,
 } from "./hierarchyMaterializer";
 import { planMediaServerHierarchy } from "./hierarchyPlanner";

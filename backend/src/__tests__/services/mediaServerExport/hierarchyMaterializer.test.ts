@@ -84,6 +84,7 @@ import { planMediaServerHierarchy } from "../../../services/mediaServerExport/hi
 import {
   cleanupMediaServerMirror,
   materializeMediaServerHierarchy,
+  materializeMediaServerHierarchyAsync,
 } from "../../../services/mediaServerExport/hierarchyMaterializer";
 import {
   getArtifact,
@@ -876,4 +877,73 @@ describe("mediaServerExport hierarchyMaterializer", () => {
       fs.existsSync(mirrorPath("Beta", "Season 01", "S01E001 - Beta.mp4"))
     ).toBe(true);
   });
+
+  /**
+   * A full rebuild used to occupy the process from start to finish, so nothing
+   * else was served while it ran - not the job's status endpoint, and not the
+   * cancel request, which meant cancelRequested could not become true during
+   * the very run it was meant to stop. The async variant yields between shows.
+   */
+  describe("async materialization yields between shows", () => {
+    it("lets queued work run before it finishes", async () => {
+      seedCatalog({});
+      const plan = planMediaServerHierarchy(snapshot({}), { mode: "nfo" });
+
+      let ranDuringMaterialization = false;
+      const queued = new Promise<void>((resolve) => {
+        setImmediate(() => {
+          ranDuringMaterialization = true;
+          resolve();
+        });
+      });
+
+      await materializeMediaServerHierarchyAsync(plan, {
+        copyFallbackEnabled: true,
+        sweepScopeShowIds: new Set(["show-1"]),
+      });
+      await queued;
+
+      expect(ranDuringMaterialization).toBe(true);
+    });
+
+    it("produces the same counts as the synchronous version", async () => {
+      // Sync pass on fresh state.
+      const sync = buildAndMaterialize({});
+
+      // Reset and repeat through the async path.
+      fs.emptyDirSync(testPaths.root);
+      for (const dir of [testPaths.videos, testPaths.images, testPaths.mediaLibrary]) {
+        fs.ensureDirSync(dir);
+      }
+      testDb.sqlite.exec(`
+        DELETE FROM media_server_export_artifacts;
+        DELETE FROM media_server_episode_assignments;
+        DELETE FROM media_server_shows;
+      `);
+      seedCatalog({});
+      const plan = planMediaServerHierarchy(snapshot({}), { mode: "nfo" });
+      const async = await materializeMediaServerHierarchyAsync(plan, {
+        copyFallbackEnabled: true,
+        sweepScopeShowIds: new Set(["show-1"]),
+      });
+
+      expect(async.failures).toEqual(sync.result.failures);
+      expect(async.counts).toEqual(sync.result.counts);
+    });
+
+    it("stops at the next show once cancelled", async () => {
+      seedCatalog({});
+      const plan = planMediaServerHierarchy(snapshot({}), { mode: "nfo" });
+
+      const result = await materializeMediaServerHierarchyAsync(plan, {
+        copyFallbackEnabled: true,
+        sweepScopeShowIds: new Set(["show-1"]),
+        isCancelled: () => true,
+      });
+
+      expect(result.counts.episodes).toBe(0);
+      expect(result.counts.removedArtifacts).toBe(0);
+    });
+  });
+
 });

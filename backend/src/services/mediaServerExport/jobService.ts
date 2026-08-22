@@ -159,7 +159,7 @@ async function processMediaServerExportJob(
       job.phase = "completed";
       job.status = job.cancelRequested ? "cancelled" : "completed";
     } else if (job.layout === "playlist_tv") {
-      processPlaylistTvJob(job);
+      await processPlaylistTvJob(job);
       // The layout the user just switched away from keeps its artifacts
       // otherwise: sidecars next to every original, with no route to remove
       // them while the export stays enabled.
@@ -275,7 +275,7 @@ function sweepManagedMirror(job: MediaServerExportJob): number {
   return cleanup.counts.removedArtifacts;
 }
 
-function processPlaylistTvJob(job: MediaServerExportJob): void {
+async function processPlaylistTvJob(job: MediaServerExportJob): Promise<void> {
   if (job.action === "cleanup") {
     const removed = sweepManagedMirror(job);
     job.sweptFiles = removed;
@@ -289,7 +289,7 @@ function processPlaylistTvJob(job: MediaServerExportJob): void {
   }
 
   job.phase = "catalog_reconcile";
-  const summary = syncPlaylistTvLibrary({
+  const summary = await syncPlaylistTvLibrary({
     mode: job.mode === "off" ? "nfo" : job.mode,
     copyFallbackEnabled:
       (storageService.getSettings() as { mediaServerCopyFallback?: boolean })

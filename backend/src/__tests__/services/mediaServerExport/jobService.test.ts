@@ -458,4 +458,80 @@ describe("mediaServerExport jobService", () => {
     });
   });
 
+
+  /**
+   * A rebuild used to hold the event loop for its entire duration, so the
+   * server answered nothing while it ran - including the cancel request, which
+   * meant cancelRequested could not even become true during the run it was
+   * meant to stop.
+   */
+  describe("rebuild yields to the event loop", () => {
+    it("lets other work run while the library rebuild is in progress", async () => {
+      getVideosMock.mockReturnValue([createVideo("video-1")]);
+      getMediaServerExportLayoutMock.mockReturnValue("playlist_tv");
+
+      let ranDuringRebuild = false;
+      syncPlaylistTvLibraryMock.mockImplementation(async () => {
+        // Stands in for the materializer's per-show yield.
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        return {
+          counts: {
+            shows: 1,
+            seasons: 1,
+            episodes: 1,
+            linkedMedia: 1,
+            copiedMedia: 0,
+            unchangedArtifacts: 0,
+            removedArtifacts: 0,
+          },
+          failures: [],
+          plannerSkips: [],
+          reconcileIssues: [],
+          affectedShowIds: new Set<string>(),
+        };
+      });
+
+      const job = await startMediaServerExportJob("nfo");
+      // Queued behind the rebuild: it only runs if the rebuild yields.
+      setImmediate(() => {
+        ranDuringRebuild = true;
+      });
+
+      await waitForJobCompletion(job.id);
+
+      expect(ranDuringRebuild).toBe(true);
+    });
+
+    it("observes a cancel that arrives mid-rebuild", async () => {
+      getVideosMock.mockReturnValue([createVideo("video-1")]);
+      getMediaServerExportLayoutMock.mockReturnValue("playlist_tv");
+
+      syncPlaylistTvLibraryMock.mockImplementation(async (options: any) => {
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        // The cancel below could only have landed if the rebuild yielded.
+        expect(options.isCancelled?.()).toBe(true);
+        return {
+          counts: {
+            shows: 0,
+            seasons: 0,
+            episodes: 0,
+            linkedMedia: 0,
+            copiedMedia: 0,
+            unchangedArtifacts: 0,
+            removedArtifacts: 0,
+          },
+          failures: [],
+          plannerSkips: [],
+          reconcileIssues: [],
+          affectedShowIds: new Set<string>(),
+        };
+      });
+
+      const job = await startMediaServerExportJob("nfo");
+      cancelMediaServerExportJob(job.id);
+
+      await waitForJobStatus(job.id, "cancelled");
+    });
+  });
+
 });
