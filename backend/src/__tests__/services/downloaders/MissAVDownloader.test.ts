@@ -47,6 +47,7 @@ vi.mock('../../../utils/downloadUtils', () => ({
   cleanupTemporaryFiles: vi.fn().mockResolvedValue(undefined),
   safeRemove: vi.fn().mockResolvedValue(undefined),
   isCancellationError: vi.fn().mockReturnValue(false),
+  isDownloadActive: vi.fn().mockReturnValue(true),
 }));
 vi.mock('../../../utils/security', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../utils/security')>();
@@ -577,12 +578,58 @@ describe('MissAVDownloader', () => {
         },
       );
 
-      await new Promise((resolve) => setImmediate(resolve));
+      // Cancel only once the child exists, so this covers the post-spawn path.
+      for (let i = 0; i < 20 && (spawn as ReturnType<typeof vi.fn>).mock.calls.length === 0; i += 1) {
+        await new Promise((resolve) => setImmediate(resolve));
+      }
+      expect(spawn).toHaveBeenCalled();
       await cancelDownload?.();
 
       await expect(downloadPromise).rejects.toThrow('Download cancelled by user');
       expect(mockChild.kill).toHaveBeenCalled();
       expect(cleanupTemporaryFiles).toHaveBeenCalledTimes(1);
+    });
+
+    it('aborts without spawning when cancelled while waiting for the execution gate', async () => {
+      // Waiting for the gate can take as long as a pip install. Before the
+      // cancel hook was registered ahead of that wait, cancelDownload() had
+      // nothing to call: the task was finalized, and this coroutine woke up
+      // afterwards and ran a download nobody was tracking.
+      const mockPage = buildPageMock('success');
+      const mockBrowser = { newPage: vi.fn().mockResolvedValue(mockPage), close: vi.fn().mockResolvedValue(undefined) };
+      (puppeteer.launch as ReturnType<typeof vi.fn>).mockResolvedValue(mockBrowser);
+      (isCancellationError as ReturnType<typeof vi.fn>).mockReturnValueOnce(true);
+
+      // Park the job at the gate.
+      let releaseGate!: () => void;
+      (acquireYtDlpExecutionSlot as ReturnType<typeof vi.fn>).mockReturnValueOnce(
+        new Promise((resolve) => {
+          releaseGate = () => resolve({ bindTo: vi.fn(), release: vi.fn() });
+        }),
+      );
+
+      let cancelDownload: (() => void | Promise<void>) | undefined;
+      const downloadPromise = MissAVDownloader.downloadVideo(
+        'https://missav.com/test-video',
+        'cancel-gate',
+        (cancel) => {
+          cancelDownload = cancel;
+        },
+      );
+
+      for (let i = 0; i < 20 && !cancelDownload; i += 1) {
+        await new Promise((resolve) => setImmediate(resolve));
+      }
+      // The hook exists even though nothing has been spawned yet.
+      expect(cancelDownload).toBeDefined();
+      expect(spawn).not.toHaveBeenCalled();
+
+      await cancelDownload?.();
+      releaseGate();
+
+      await expect(downloadPromise).rejects.toThrow('Download cancelled by user');
+      // The whole point: the update finished, and no download was started.
+      expect(spawn).not.toHaveBeenCalled();
     });
 
     it('skips waitForResponse when m3u8 is captured during navigation', async () => {

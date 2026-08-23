@@ -10,7 +10,11 @@ import {
   DownloadCancelledError,
   isCancelledError,
 } from "../../errors/DownloadErrors";
-import { cleanupTemporaryFiles, safeRemove } from "../../utils/downloadUtils";
+import {
+  cleanupTemporaryFiles,
+  isDownloadActive,
+  safeRemove,
+} from "../../utils/downloadUtils";
 import {
   extractSourceVideoId,
   formatVideoFilename,
@@ -552,6 +556,35 @@ export class MissAVDownloader extends BaseDownloader {
       // first download to a Cloudflare 403.
       await ensureYtDlpAvailable();
 
+      let cleanedTemporaryFiles = false;
+      const cleanupTemporaryFilesOnce = async (): Promise<void> => {
+        if (cleanedTemporaryFiles) return;
+        cleanedTemporaryFiles = true;
+        await cleanupTemporaryFiles(videoDownloadPath);
+      };
+
+      let cancellationRequested = false;
+      let spawnedChild: ChildProcessWithoutNullStreams | null = null;
+
+      // Register the cancellation hook before anything below can wait. Waiting
+      // for the execution gate can take as long as a pip install, and until
+      // this point the task had no cancel function at all: cancelDownload()
+      // would finalize it with nothing to call, and this coroutine would then
+      // wake up and run a download nobody was tracking, consuming bandwidth
+      // until it finished.
+      if (onStart) {
+        onStart(async () => {
+          cancellationRequested = true;
+          if (spawnedChild) {
+            logger.info("Killing subprocess for download:", downloadId);
+            spawnedChild.kill();
+          }
+          // Clean up temporary files created by yt-dlp (*.part, *.ytdl, etc.)
+          logger.info("Cleaning up temporary files...");
+          await cleanupTemporaryFilesOnce();
+        });
+      }
+
       // Reserve before probing. The capability answer decides whether
       // --impersonate goes into the flags, and an update can change that
       // answer: it installs the curl-cffi extra and clears the probe cache.
@@ -562,6 +595,11 @@ export class MissAVDownloader extends BaseDownloader {
       // outside the slot on purpose: it can trigger the auto-upgrade, which
       // takes the gate itself.
       const executionSlot = await acquireYtDlpExecutionSlot();
+
+      if (cancellationRequested || !isDownloadActive(downloadId)) {
+        executionSlot.release();
+        throw DownloadCancelledError.create();
+      }
 
       let canImpersonate: boolean;
       try {
@@ -605,12 +643,6 @@ export class MissAVDownloader extends BaseDownloader {
       const STDERR_MAX_BYTES = 4 * 1024;
       let stderrBuffer = "";
       let lastProgressLogAt = 0;
-      let cleanedTemporaryFiles = false;
-      const cleanupTemporaryFilesOnce = async (): Promise<void> => {
-        if (cleanedTemporaryFiles) return;
-        cleanedTemporaryFiles = true;
-        await cleanupTemporaryFiles(videoDownloadPath);
-      };
       const shouldLogDownloadProgress = (line: string): boolean => {
         const now = Date.now();
         const percentMatch = line.match(/\[download\]\s+(\d+(?:\.\d+)?)%/);
@@ -674,6 +706,13 @@ export class MissAVDownloader extends BaseDownloader {
 
       try {
         await new Promise<void>((resolve, reject) => {
+          // Cancellation can land between the check above and here.
+          if (cancellationRequested || !isDownloadActive(downloadId)) {
+            executionSlot.release();
+            reject(DownloadCancelledError.create());
+            return;
+          }
+
           let child: ChildProcessWithoutNullStreams;
           try {
             child = spawn(ytDlpPath, args, { env: getYtDlpSpawnEnv() });
@@ -683,7 +722,13 @@ export class MissAVDownloader extends BaseDownloader {
             return;
           }
           executionSlot.bindTo(child);
-          let cancellationRequested = false;
+          spawnedChild = child;
+
+          // The hook registered before the gate wait can only kill the child
+          // once it exists; cancellation requested in the gap kills it here.
+          if (cancellationRequested) {
+            child.kill();
+          }
 
           child.stdout.on("data", (data) => {
             parseProgress(data.toString(), "stdout");
@@ -715,17 +760,6 @@ export class MissAVDownloader extends BaseDownloader {
             reject(err);
           });
 
-          if (onStart) {
-            onStart(async () => {
-              cancellationRequested = true;
-              logger.info("Killing subprocess for download:", downloadId);
-              child.kill();
-
-              // Clean up temporary files created by yt-dlp (*.part, *.ytdl, etc.)
-              logger.info("Cleaning up temporary files...");
-              await cleanupTemporaryFilesOnce();
-            });
-          }
         });
 
         logger.info("Video downloaded successfully");
