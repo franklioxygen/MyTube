@@ -14,6 +14,13 @@ import { logger } from "../logger";
  * This gate is the reader side: while an update holds it, new executions wait,
  * and the update first gives the ones already running a bounded chance to
  * finish.
+ *
+ * Every spawn of the yt-dlp binary belongs here, wherever it lives — a
+ * downloader that reaches for `spawn` on its own is exactly the case this
+ * cannot protect. The one deliberate exception is the version and capability
+ * probes: the update itself probes the binary before and after installing, so
+ * gating those would deadlock. `ytDlpExecutionGate.test.ts` pins the inventory
+ * of spawn sites so a new one has to be a deliberate decision.
  */
 
 // Non-null while an update holds the gate; resolves when the update releases.

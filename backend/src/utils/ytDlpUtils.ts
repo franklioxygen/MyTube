@@ -9,6 +9,13 @@ import { resetRuntimeCaches } from "./ytdlp/runtime";
 import { resetCookiesFileCache } from "./ytdlp/cookies";
 
 export { ensureYtDlpAvailable } from "./ytdlp/install";
+export {
+  awaitYtDlpExecutionSlot,
+  registerYtDlpExecution,
+  withYtDlpExecutionsSuspended,
+} from "./ytdlp/executionGate";
+export { getConfiguredYtDlpPath } from "./ytdlp/pathResolver";
+export { getYtDlpSpawnEnv } from "./ytdlp/spawnEnv";
 export { isYtDlpImpersonateAvailable } from "./ytdlp/runtime";
 export { convertFlagToArg, flagsToArgs } from "./ytdlp/flags";
 export {

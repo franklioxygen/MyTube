@@ -1,4 +1,3 @@
-export const YT_DLP_PATH = process.env.YT_DLP_PATH || "yt-dlp";
 export const MISSAV_PROGRESS_LOG_INTERVAL_MS = 10_000;
 
 export const MISSAV_NAVIGATION_ORIGINS: Record<string, string> = {

@@ -31,12 +31,17 @@ import {
 import { resolveSupersededManagedPath } from "./supersededOutput";
 import { FilenameTemplateSourceOptions } from "../filenameTemplate/types";
 import {
+  awaitYtDlpExecutionSlot,
+  ensureYtDlpAvailable,
   flagsToArgs,
   getAxiosProxyConfig,
+  getConfiguredYtDlpPath,
   getNetworkConfigFromUserConfig,
   getUserYtDlpConfig,
+  getYtDlpSpawnEnv,
   InvalidProxyError,
   isYtDlpImpersonateAvailable,
+  registerYtDlpExecution,
 } from "../../utils/ytDlpUtils";
 import {
   removeMediaServerArtifactsForVideo,
@@ -46,7 +51,7 @@ import { regenerateSmallThumbnailForThumbnailPath } from "../thumbnailMirrorServ
 import * as storageService from "../storageService";
 import { Video } from "../storageService";
 import { BaseDownloader, DownloadOptions, VideoInfo } from "./BaseDownloader";
-import { MISSAV_PROGRESS_LOG_INTERVAL_MS, YT_DLP_PATH } from "./missav/constants";
+import { MISSAV_PROGRESS_LOG_INTERVAL_MS } from "./missav/constants";
 import {
   buildSafeMissAvNavigationTarget,
   isCloudflareChallengeHtml,
@@ -629,12 +634,22 @@ export class MissAVDownloader extends BaseDownloader {
       // Convert flags object to array of args using the utility function
       const args = [m3u8Url, ...flagsToArgs(flags)];
 
+      // Resolve the binary the same way every other yt-dlp call does, so this
+      // path also benefits from auto-install and from the resolver picking the
+      // newest usable binary rather than whatever "yt-dlp" hits first on PATH.
+      await ensureYtDlpAvailable();
+      const ytDlpPath = getConfiguredYtDlpPath();
+
       // Log the full command for debugging
-      logger.info("Executing yt-dlp command:", YT_DLP_PATH, args.join(" "));
+      logger.info("Executing yt-dlp command:", ytDlpPath, args.join(" "));
+
+      // Hold off until no in-place update is replacing the installation.
+      await awaitYtDlpExecutionSlot();
 
       try {
         await new Promise<void>((resolve, reject) => {
-          const child = spawn(YT_DLP_PATH, args);
+          const child = spawn(ytDlpPath, args, { env: getYtDlpSpawnEnv() });
+          registerYtDlpExecution(child);
           let cancellationRequested = false;
 
           child.stdout.on("data", (data) => {

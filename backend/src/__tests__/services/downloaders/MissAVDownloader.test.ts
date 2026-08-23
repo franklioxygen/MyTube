@@ -5,7 +5,13 @@ import puppeteer from 'puppeteer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MissAVDownloader } from '../../../services/downloaders/MissAVDownloader';
 import { cleanupTemporaryFiles, isCancellationError } from '../../../utils/downloadUtils';
-import { flagsToArgs, getUserYtDlpConfig, isYtDlpImpersonateAvailable } from '../../../utils/ytDlpUtils';
+import {
+  awaitYtDlpExecutionSlot,
+  flagsToArgs,
+  getUserYtDlpConfig,
+  isYtDlpImpersonateAvailable,
+  registerYtDlpExecution,
+} from '../../../utils/ytDlpUtils';
 import * as security from '../../../utils/security';
 import { logger } from '../../../utils/logger';
 import * as storageService from '../../../services/storageService';
@@ -29,6 +35,11 @@ vi.mock('../../../utils/ytDlpUtils', () => ({
   getAxiosProxyConfig: vi.fn().mockReturnValue({}),
   InvalidProxyError: class InvalidProxyError extends Error {},
   isYtDlpImpersonateAvailable: vi.fn().mockResolvedValue(true),
+  ensureYtDlpAvailable: vi.fn().mockResolvedValue(undefined),
+  getConfiguredYtDlpPath: vi.fn().mockReturnValue('yt-dlp'),
+  getYtDlpSpawnEnv: vi.fn().mockReturnValue({}),
+  awaitYtDlpExecutionSlot: vi.fn().mockResolvedValue(undefined),
+  registerYtDlpExecution: vi.fn(),
 }));
 vi.mock('../../../utils/downloadUtils', () => ({
   cleanupTemporaryFiles: vi.fn().mockResolvedValue(undefined),
@@ -417,6 +428,7 @@ describe('MissAVDownloader', () => {
       expect(spawn).toHaveBeenCalledWith(
         expect.any(String),
         expect.arrayContaining(['https://surrit.com/playlist.m3u8']),
+        expect.objectContaining({ env: expect.anything() }),
       );
     });
 
@@ -590,6 +602,29 @@ describe('MissAVDownloader', () => {
       expect(mockPage.waitForResponse).not.toHaveBeenCalled();
     });
 
+    it('waits on the yt-dlp execution gate and registers the spawned process', async () => {
+      // An in-place yt-dlp update replaces the installation this spawn runs
+      // from, so this path has to participate in the gate like every other
+      // yt-dlp execution rather than slipping past it.
+      let capturedCb: ((req: { url(): string }) => void) | null = null;
+      const requestHook = { capture: (cb: (req: { url(): string }) => void) => { capturedCb = cb; } };
+
+      const mockPage = buildPageMock('timeout', requestHook);
+      mockPage.goto.mockImplementation(async () => {
+        capturedCb?.({ url: () => 'https://surrit.com/playlist.m3u8' });
+      });
+
+      const mockBrowser = { newPage: vi.fn().mockResolvedValue(mockPage), close: vi.fn().mockResolvedValue(undefined) };
+      (puppeteer.launch as ReturnType<typeof vi.fn>).mockResolvedValue(mockBrowser);
+
+      await MissAVDownloader.downloadVideo('https://missav.com/test-video').catch(() => {});
+
+      expect(awaitYtDlpExecutionSlot).toHaveBeenCalled();
+      expect(registerYtDlpExecution).toHaveBeenCalledWith(
+        (spawn as ReturnType<typeof vi.fn>).mock.results[0].value,
+      );
+    });
+
     it('continues with captured m3u8 URLs when navigation times out after capture', async () => {
       let capturedCb: ((req: { url(): string }) => void) | null = null;
       const requestHook = { capture: (cb: (req: { url(): string }) => void) => { capturedCb = cb; } };
@@ -609,6 +644,7 @@ describe('MissAVDownloader', () => {
       expect(spawn).toHaveBeenCalledWith(
         expect.any(String),
         expect.arrayContaining(['https://surrit.com/playlist.m3u8']),
+        expect.objectContaining({ env: expect.anything() }),
       );
       expect(mockBrowser.close).toHaveBeenCalled();
     });

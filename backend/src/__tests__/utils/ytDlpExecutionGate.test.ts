@@ -1,4 +1,6 @@
 import { EventEmitter } from "events";
+import fs from "fs";
+import path from "path";
 import type { ChildProcess } from "child_process";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
@@ -120,5 +122,43 @@ describe("yt-dlp execution gate", () => {
     releaseFirst();
     await Promise.all([first, second]);
     expect(order).toEqual(["first:start", "first:end", "second:start"]);
+  });
+});
+
+// Every yt-dlp process must go through the gate, or an update replaces the
+// installation underneath it. MissAVDownloader spawned yt-dlp directly and was
+// missed when the gate was first wired, so pin the inventory: adding a spawn
+// anywhere new forces a deliberate decision about the gate.
+describe("yt-dlp spawn inventory", () => {
+  const SPAWN_ALLOWLIST = [
+    // Gated yt-dlp executions.
+    "services/downloaders/MissAVDownloader.ts",
+    "utils/ytdlp/execute.ts",
+    // Deliberately ungated: the update itself probes the binary before and
+    // after installing, so gating these would deadlock.
+    "utils/ytdlp/runtime.ts",
+    "utils/ytdlp/versionProbe.ts",
+    // pip itself, serialized by its own queue, and an unrelated binary.
+    "utils/ytdlp/install.ts",
+    "services/cloudflaredService.ts",
+  ].sort();
+
+  const listSourceFiles = (dir: string): string[] =>
+    fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        return entry.name === "__tests__" ? [] : listSourceFiles(full);
+      }
+      return entry.isFile() && full.endsWith(".ts") ? [full] : [];
+    });
+
+  it("has no spawn call outside the reviewed set", () => {
+    const srcRoot = path.resolve(__dirname, "../..");
+    const spawners = listSourceFiles(srcRoot)
+      .filter((file) => /(?<![A-Za-z])spawn\(/.test(fs.readFileSync(file, "utf8")))
+      .map((file) => path.relative(srcRoot, file).split(path.sep).join("/"))
+      .sort();
+
+    expect(spawners).toEqual(SPAWN_ALLOWLIST);
   });
 });
