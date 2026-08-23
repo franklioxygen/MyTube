@@ -1,7 +1,7 @@
 // Barrel for the yt-dlp utilities, split into focused modules under ./ytdlp.
 // Re-exports the public surface so existing `../utils/ytDlpUtils` imports keep working.
 
-import { resetYtDlpAvailablePromise } from "./ytdlp/install";
+import { resetPipQueue, resetYtDlpAvailablePromise } from "./ytdlp/install";
 import { resetProviderPluginCache } from "./ytdlp/spawnEnv";
 import { resetResolvedYtDlpPath } from "./ytdlp/pathResolver";
 import { resetRuntimeCaches } from "./ytdlp/runtime";
@@ -36,6 +36,7 @@ export { InvalidProxyError, getAxiosProxyConfig } from "./ytdlp/proxy";
  */
 export function resetYtDlpAvailabilityCacheForTests(): void {
   resetYtDlpAvailablePromise();
+  resetPipQueue();
   resetProviderPluginCache();
   resetResolvedYtDlpPath();
   resetRuntimeCaches();

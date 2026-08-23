@@ -46,10 +46,37 @@ function getPipPackages(): string[] {
   return [YT_DLP_PIP_PACKAGE, "bgutil-ytdlp-pot-provider"];
 }
 
+// Every pip run in this process queues here. Two callers reach this module
+// under independent locks — ensureYtDlpAvailable() through its cached
+// availability promise, updateYtDlp() through its own in-flight promise — so
+// an operator pressing "Update yt-dlp" while the first download of the process
+// triggers the missing-binary or stale-version install would otherwise put two
+// pip processes on the same user-site directory at once. pip is not safe to run
+// concurrently against one environment: the two runs rewrite the same package
+// files and either can fail or leave the install half-written. Serializing here
+// rather than in the callers keeps future call sites covered by default.
+let pipQueue: Promise<unknown> = Promise.resolve();
+
+function withPipLock<T>(task: () => Promise<T>): Promise<T> {
+  // Run the task whether or not the previous one settled cleanly, and keep a
+  // swallowed copy as the tail so one failure cannot poison the queue.
+  const run = pipQueue.then(task, task);
+  pipQueue = run.catch(() => undefined);
+  return run;
+}
+
 /**
  * Try to install yt-dlp via pip, trying multiple pip variants.
+ *
+ * Serialized process-wide: concurrent callers queue instead of overlapping.
  */
-export async function installYtDlp(options: { upgrade?: boolean } = {}): Promise<void> {
+export async function installYtDlp(
+  options: { upgrade?: boolean } = {}
+): Promise<void> {
+  return withPipLock(() => runPipInstall(options));
+}
+
+async function runPipInstall(options: { upgrade?: boolean } = {}): Promise<void> {
   const { upgrade = false } = options;
   const packages = getPipPackages();
   const installArgs = ["install"];
@@ -235,4 +262,11 @@ export async function ensureYtDlpAvailable(): Promise<void> {
 
 export function resetYtDlpAvailablePromise(): void {
   ytDlpAvailablePromise = null;
+}
+
+/**
+ * @internal Test helper: drop a queue tail left pending by a mocked pip run.
+ */
+export function resetPipQueue(): void {
+  pipQueue = Promise.resolve();
 }

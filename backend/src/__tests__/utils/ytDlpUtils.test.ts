@@ -25,6 +25,7 @@ import {
   parseYtDlpConfig,
   resetYtDlpAvailabilityCacheForTests,
 } from "../../utils/ytDlpUtils";
+import { installYtDlp } from "../../utils/ytdlp/install";
 import { logger } from "../../utils/logger";
 
 vi.mock("child_process", () => ({
@@ -566,6 +567,52 @@ describe("ytDlpUtils", () => {
         "yt-dlp[default,curl-cffi]",
         "bgutil-ytdlp-pot-provider",
       ]);
+    });
+
+    it("should serialize concurrent pip runs so two installs never overlap", async () => {
+      // ensureYtDlpAvailable() and the operator-triggered update hold separate
+      // locks, so without a shared mutex both can put pip on the same
+      // user-site directory at once.
+      const pipProcs: MockProcess[] = [];
+      vi.mocked(spawn).mockImplementation(() => {
+        const proc = createMockProcess();
+        pipProcs.push(proc);
+        return proc as any;
+      });
+
+      const first = installYtDlp();
+      const second = installYtDlp({ upgrade: true });
+      await flushAsyncSpawns();
+
+      // The second caller is queued: only one pip process exists so far.
+      expect(pipProcs).toHaveLength(1);
+
+      pipProcs[0].emit("close", 0);
+      await flushAsyncSpawns();
+
+      expect(pipProcs).toHaveLength(2);
+      expect(vi.mocked(spawn).mock.calls[1][1]).toContain("-U");
+
+      pipProcs[1].emit("close", 0);
+      await expect(Promise.all([first, second])).resolves.toBeDefined();
+    });
+
+    it("should keep serializing after a failed pip run", async () => {
+      // Fail every plain install candidate, succeed the upgrade, so the two
+      // queued calls are told apart by their args rather than by call count.
+      vi.mocked(spawn).mockImplementation((_cmd: any, args: any) => {
+        const isUpgrade = Array.isArray(args) && args.includes("-U");
+        const proc = createMockProcess();
+        queueMicrotask(() => proc.emit("close", isUpgrade ? 0 : 1));
+        return proc as any;
+      });
+
+      const failing = installYtDlp();
+      const queued = installYtDlp({ upgrade: true });
+
+      await expect(failing).rejects.toThrow(/could not be automatically/);
+      // A rejected run must not poison the queue for the caller behind it.
+      await expect(queued).resolves.toBeUndefined();
     });
 
     it("should skip the pip bgutil provider when a bundled provider is present", async () => {
