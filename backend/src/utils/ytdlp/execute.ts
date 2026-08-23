@@ -7,6 +7,10 @@ import {
   pathExistsSafeSync,
   resolveSafeChildPath,
 } from "../security";
+import {
+  awaitYtDlpExecutionSlot,
+  registerYtDlpExecution,
+} from "./executionGate";
 import { ensureYtDlpAvailable } from "./install";
 import { getConfiguredYtDlpPath } from "./pathResolver";
 import { getYtDlpSpawnEnv } from "./spawnEnv";
@@ -91,11 +95,14 @@ export async function executeYtDlpJson(
   const ytDlpPath = getConfiguredYtDlpPath();
   logger.info(`Executing: ${ytDlpPath} ${args.join(" ")}`);
 
+  await awaitYtDlpExecutionSlot();
+
   return new Promise<any>((resolve, reject) => {
     const subprocess = spawn(ytDlpPath, args, {
       env: getYtDlpSpawnEnv(),
       stdio: ["ignore", "pipe", "pipe"],
     });
+    registerYtDlpExecution(subprocess);
 
     let stdout = "";
     let stderr = "";
@@ -249,11 +256,14 @@ export async function getChannelUrlFromVideo(
   args.push(videoUrl);
   const ytDlpPath = getConfiguredYtDlpPath();
 
+  await awaitYtDlpExecutionSlot();
+
   return new Promise<string | null>((resolve, reject) => {
     const subprocess = spawn(ytDlpPath, args, {
       env: getYtDlpSpawnEnv(),
       stdio: ["ignore", "pipe", "pipe"],
     });
+    registerYtDlpExecution(subprocess);
 
     let stdout = "";
     let stderr = "";
@@ -332,11 +342,14 @@ export async function downloadChannelAvatar(
   args.push(channelUrl);
   const ytDlpPath = getConfiguredYtDlpPath();
 
+  await awaitYtDlpExecutionSlot();
+
   return new Promise<boolean>((resolve, reject) => {
     const subprocess = spawn(ytDlpPath, args, {
       env: getYtDlpSpawnEnv(),
       stdio: ["ignore", "pipe", "pipe"],
     });
+    registerYtDlpExecution(subprocess);
 
     let stderr = "";
 
@@ -494,6 +507,8 @@ export function executeYtDlpSpawn(
 
         logger.info(`Spawning: ${ytDlpPath} ${args.join(" ")}`);
 
+        await awaitYtDlpExecutionSlot();
+
         return await new Promise<void>((resolve, reject) => {
           if (killRequested) {
             rejected = true;
@@ -510,6 +525,7 @@ export function executeYtDlpSpawn(
             env: getYtDlpSpawnEnv(),
             stdio: ["ignore", "pipe", "pipe"],
           });
+          registerYtDlpExecution(activeSubprocess);
 
           pipeOrForward(activeSubprocess.stdout, stdoutPass);
           pipeOrForward(activeSubprocess.stderr, stderrPass);

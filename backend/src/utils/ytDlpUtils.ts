@@ -2,6 +2,7 @@
 // Re-exports the public surface so existing `../utils/ytDlpUtils` imports keep working.
 
 import { resetPipQueue, resetYtDlpAvailablePromise } from "./ytdlp/install";
+import { resetYtDlpExecutionGate } from "./ytdlp/executionGate";
 import { resetProviderPluginCache } from "./ytdlp/spawnEnv";
 import { resetResolvedYtDlpPath } from "./ytdlp/pathResolver";
 import { resetRuntimeCaches } from "./ytdlp/runtime";
@@ -37,6 +38,7 @@ export { InvalidProxyError, getAxiosProxyConfig } from "./ytdlp/proxy";
 export function resetYtDlpAvailabilityCacheForTests(): void {
   resetYtDlpAvailablePromise();
   resetPipQueue();
+  resetYtDlpExecutionGate();
   resetProviderPluginCache();
   resetResolvedYtDlpPath();
   resetRuntimeCaches();

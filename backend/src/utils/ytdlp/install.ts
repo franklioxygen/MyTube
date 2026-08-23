@@ -1,5 +1,6 @@
 import { spawn } from "child_process";
 import { getProviderPluginPath } from "../../services/downloaders/ytdlp/ytdlpHelpers";
+import { withYtDlpExecutionsSuspended } from "./executionGate";
 import { getErrorMessage } from "../errors";
 import { YT_DLP_STALE_AFTER_DAYS } from "./constants";
 import {
@@ -185,10 +186,14 @@ export async function ensureYtDlpAvailable(): Promise<void> {
             `[yt-dlp] ${versionInfo.version || ytDlpPath} is older than ${YT_DLP_STALE_AFTER_DAYS} days. Updating yt-dlp to avoid known YouTube 360p regressions.`
           );
           try {
-            await installYtDlp({ upgrade: true });
-            resetResolvedYtDlpPath();
-            resetJsRuntimeFlag();
-            resetRemoteComponentsSupport();
+            // Same hazard as the operator-triggered update: pip rewrites the
+            // installation other downloads are already running from.
+            await withYtDlpExecutionsSuspended(async () => {
+              await installYtDlp({ upgrade: true });
+              resetResolvedYtDlpPath();
+              resetJsRuntimeFlag();
+              resetRemoteComponentsSupport();
+            });
             continue;
           } catch (upgradeError: unknown) {
             logger.warn(

@@ -182,6 +182,7 @@
   - 当 `YT_DLP_PATH` 指定了固定可执行文件时返回 `409`（`errorKey: ytDlpUpdateCustomPath`）
   - 响应 `data`: `{ previousVersion, changed, status }`，其中 `status` 与上一个接口结构相同
   - 并发请求共用同一次 pip 执行
+  - 更新期间会暂停新的 yt-dlp 执行，因为 pip 会改写它们所依赖的安装文件。已在运行的进程有 30 秒时间自行结束；超时后仍在运行的进程不会被终止，更新照常进行，以免长时间下载无限期地阻塞修复
   - 安装 `yt-dlp[default,curl-cffi]`，使与发行版本绑定的依赖（yt-dlp-ejs 解算器、curl-cffi 模拟范围）由目标版本自行解析，避免版本脱节
   - 不会升级内置的 bgutil POT provider：它会优先于任何 pip 副本从镜像加载，且其 Node 服务端不在 PyPI 上
   - 在 Docker 中该安装会持久化在 `/app/data` 卷内并在容器重建后继续生效；回退到镜像固定版本的方法见 Docker 指南

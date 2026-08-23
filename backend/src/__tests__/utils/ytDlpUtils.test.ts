@@ -26,6 +26,7 @@ import {
   resetYtDlpAvailabilityCacheForTests,
 } from "../../utils/ytDlpUtils";
 import { installYtDlp } from "../../utils/ytdlp/install";
+import { withYtDlpExecutionsSuspended } from "../../utils/ytdlp/executionGate";
 import { logger } from "../../utils/logger";
 
 vi.mock("child_process", () => ({
@@ -567,6 +568,45 @@ describe("ytDlpUtils", () => {
         "yt-dlp[default,curl-cffi]",
         "bgutil-ytdlp-pot-provider",
       ]);
+    });
+
+    it("should hold a download's spawn while an update replaces the install", async () => {
+      const url = "https://www.youtube.com/watch?v=gated";
+      const jobProc = createMockProcess();
+      // Route by args so the test does not depend on how many capability
+      // probes the execution path happens to make.
+      vi.mocked(spawn).mockImplementation((_cmd: any, args: any) => {
+        const argv: string[] = Array.isArray(args) ? args : [];
+        if (argv.includes(url)) return jobProc as any;
+        if (argv.includes("--version")) return createVersionCheckProcess() as any;
+        if (argv.includes("--help")) return createHelpCheckProcess("plural") as any;
+        return createDenoCheckProcess() as any;
+      });
+      const spawnedForUrl = () =>
+        vi.mocked(spawn).mock.calls.some(
+          ([, args]) => Array.isArray(args) && args.includes(url)
+        );
+
+      let releaseUpdate!: () => void;
+      const update = withYtDlpExecutionsSuspended(
+        () => new Promise<void>((resolve) => { releaseUpdate = resolve; })
+      );
+      await flushAsyncSpawns();
+
+      const promise = executeYtDlpJson(url);
+      await flushAsyncSpawns();
+      // Capability probes may run, but the download itself must not start
+      // against an installation pip is rewriting.
+      expect(spawnedForUrl()).toBe(false);
+
+      releaseUpdate();
+      await update;
+      await flushAsyncSpawns();
+      expect(spawnedForUrl()).toBe(true);
+
+      jobProc.stdout?.emit("data", Buffer.from('{"ok":true}'));
+      jobProc.emit("close", 0);
+      await expect(promise).resolves.toEqual({ ok: true });
     });
 
     it("should serialize concurrent pip runs so two installs never overlap", async () => {

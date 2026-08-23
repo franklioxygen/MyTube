@@ -1,5 +1,6 @@
 import axios from "axios";
 import { YT_DLP_STALE_AFTER_DAYS } from "./constants";
+import { withYtDlpExecutionsSuspended } from "./executionGate";
 import { installYtDlp } from "./install";
 import {
   hasCustomConfiguredYtDlpPath,
@@ -155,13 +156,18 @@ async function runYtDlpUpdate(): Promise<YtDlpUpdateResult> {
   logger.info(
     `[yt-dlp] Updating yt-dlp (currently ${previousVersion || "unknown"}) on operator request.`
   );
-  await installYtDlp({ upgrade: true });
 
-  // The upgrade may have landed a different binary on PATH, so drop every
-  // cached capability probe before re-reading the version.
-  resetResolvedYtDlpPath();
-  resetJsRuntimeFlag();
-  resetRemoteComponentsSupport();
+  // pip replaces the files of the installation downloads are launched from, so
+  // hold off new yt-dlp processes until the swap and the cache resets are done.
+  await withYtDlpExecutionsSuspended(async () => {
+    await installYtDlp({ upgrade: true });
+
+    // The upgrade may have landed a different binary on PATH, so drop every
+    // cached capability probe before re-reading the version.
+    resetResolvedYtDlpPath();
+    resetJsRuntimeFlag();
+    resetRemoteComponentsSupport();
+  });
 
   // pip has already performed the requested network operation. Re-probe only
   // the installed binary here; the UI can explicitly check PyPI afterward.

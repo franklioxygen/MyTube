@@ -197,6 +197,7 @@ Favorites are scoped to the authenticated owner. When login protection is disabl
   - Returns `409` (`errorKey: ytDlpUpdateCustomPath`) when `YT_DLP_PATH` pins a specific binary
   - Response `data`: `{ previousVersion, changed, status }` with `status` shaped like the endpoint above
   - Concurrent requests share a single pip run
+  - New yt-dlp executions are held for the duration of the update, since pip rewrites the installation they launch from. Processes already running get 30s to finish first; anything still running after that is left alone and the update proceeds, so a long download cannot postpone the fix indefinitely
   - Installs `yt-dlp[default,curl-cffi]` so the release-coupled pins (yt-dlp-ejs solver, curl-cffi impersonation range) are resolved from the target release instead of drifting
   - The bundled bgutil POT provider is not upgraded: it is loaded from the image ahead of any pip copy and its Node server is not on PyPI
   - In Docker the install persists in the `/app/data` volume and outlives container recreation; see the docker guide for how to roll back to the image-pinned version
