@@ -70,29 +70,45 @@ export async function executeYtDlpJson(
 ): Promise<any> {
   await ensureYtDlpAvailable();
   const url = preprocessUrl(rawUrl);
-  const partialFlags = withDefaultYouTubeExtractorArgs(url, flags);
-  const effectiveFlags = await resolveYouTubeRemoteComponents(url, partialFlags);
-  const { noWarnings: _noWarnings, ...jsonFlags } = effectiveFlags;
-  const args = [
-    "--dump-single-json",
-    "--no-warnings",
-    ...flagsToArgs(jsonFlags),
-  ];
 
-  // Add cookies after ensuring the file is in a yt-dlp-compatible format.
-  const cookiesPath = ensureCookiesFileIsNormalized();
-  if (cookiesPath) {
-    args.push("--cookies", cookiesPath);
+  // Reserve the slot before reading anything an update can invalidate. A
+  // completed update swaps the resolved binary and drops the cached capability
+  // probes, so a path or flag set computed while waiting at the gate would
+  // target the very release the operator just replaced.
+  const executionSlot = await acquireYtDlpExecutionSlot();
+
+  let args: string[];
+  let ytDlpPath: string;
+  // Retained beyond the preparation block: the close handler rebuilds retry
+  // flags from it.
+  let effectiveFlags: Record<string, any>;
+  try {
+    const partialFlags = withDefaultYouTubeExtractorArgs(url, flags);
+    effectiveFlags = await resolveYouTubeRemoteComponents(url, partialFlags);
+    const { noWarnings: _noWarnings, ...jsonFlags } = effectiveFlags;
+    args = [
+      "--dump-single-json",
+      "--no-warnings",
+      ...flagsToArgs(jsonFlags),
+    ];
+
+    // Add cookies after ensuring the file is in a yt-dlp-compatible format.
+    const cookiesPath = ensureCookiesFileIsNormalized();
+    if (cookiesPath) {
+      args.push("--cookies", cookiesPath);
+    }
+
+    await appendYouTubeJsRuntimeArg(args, url);
+
+    args.push(url);
+
+    ytDlpPath = getConfiguredYtDlpPath();
+  } catch (prepareError) {
+    executionSlot.release();
+    throw prepareError;
   }
 
-  await appendYouTubeJsRuntimeArg(args, url);
-
-  args.push(url);
-
-  const ytDlpPath = getConfiguredYtDlpPath();
   logger.info(`Executing: ${ytDlpPath} ${args.join(" ")}`);
-
-  const executionSlot = await acquireYtDlpExecutionSlot();
 
   return new Promise<any>((resolve, reject) => {
     let subprocess: ReturnType<typeof spawn>;
@@ -241,26 +257,38 @@ export async function getChannelUrlFromVideo(
   }
 
   const videoUrl = preprocessUrl(videoUrlRaw);
-  const args = [
-    "--print",
-    "channel_url",
-    "--skip-download",
-    "--no-warnings",
-    ...flagsToArgs(networkConfig),
-  ];
 
-  // Add cookies after ensuring the file is in a yt-dlp-compatible format.
-  const cookiesPath = ensureCookiesFileIsNormalized();
-  if (cookiesPath) {
-    args.push("--cookies", cookiesPath);
-  }
-
-  await appendYouTubeJsRuntimeArg(args, videoUrl);
-
-  args.push(videoUrl);
-  const ytDlpPath = getConfiguredYtDlpPath();
-
+  // Reserve the slot before reading anything an update can invalidate. A
+  // completed update swaps the resolved binary and drops the cached capability
+  // probes, so a path or flag set computed while waiting at the gate would
+  // target the very release the operator just replaced.
   const executionSlot = await acquireYtDlpExecutionSlot();
+
+  let args: string[];
+  let ytDlpPath: string;
+  try {
+    args = [
+      "--print",
+      "channel_url",
+      "--skip-download",
+      "--no-warnings",
+      ...flagsToArgs(networkConfig),
+    ];
+
+    // Add cookies after ensuring the file is in a yt-dlp-compatible format.
+    const cookiesPath = ensureCookiesFileIsNormalized();
+    if (cookiesPath) {
+      args.push("--cookies", cookiesPath);
+    }
+
+    await appendYouTubeJsRuntimeArg(args, videoUrl);
+
+    args.push(videoUrl);
+    ytDlpPath = getConfiguredYtDlpPath();
+  } catch (prepareError) {
+    executionSlot.release();
+    throw prepareError;
+  }
 
   return new Promise<string | null>((resolve, reject) => {
     let subprocess: ReturnType<typeof spawn>;
@@ -331,29 +359,40 @@ export async function downloadChannelAvatar(
     `${outputFilename}.%(ext)s`
   );
 
-  const args = [
-    "--write-thumbnail",
-    "--playlist-items",
-    "0",
-    "--skip-download",
-    "--no-warnings",
-    "--output",
-    outputTemplate,
-    ...flagsToArgs(networkConfig),
-  ];
-
-  // Add cookies after ensuring the file is in a yt-dlp-compatible format.
-  const cookiesPath = ensureCookiesFileIsNormalized();
-  if (cookiesPath) {
-    args.push("--cookies", cookiesPath);
-  }
-
-  await appendYouTubeJsRuntimeArg(args, channelUrl);
-
-  args.push(channelUrl);
-  const ytDlpPath = getConfiguredYtDlpPath();
-
+  // Reserve the slot before reading anything an update can invalidate. A
+  // completed update swaps the resolved binary and drops the cached capability
+  // probes, so a path or flag set computed while waiting at the gate would
+  // target the very release the operator just replaced.
   const executionSlot = await acquireYtDlpExecutionSlot();
+
+  let args: string[];
+  let ytDlpPath: string;
+  try {
+    args = [
+      "--write-thumbnail",
+      "--playlist-items",
+      "0",
+      "--skip-download",
+      "--no-warnings",
+      "--output",
+      outputTemplate,
+      ...flagsToArgs(networkConfig),
+    ];
+
+    // Add cookies after ensuring the file is in a yt-dlp-compatible format.
+    const cookiesPath = ensureCookiesFileIsNormalized();
+    if (cookiesPath) {
+      args.push("--cookies", cookiesPath);
+    }
+
+    await appendYouTubeJsRuntimeArg(args, channelUrl);
+
+    args.push(channelUrl);
+    ytDlpPath = getConfiguredYtDlpPath();
+  } catch (prepareError) {
+    executionSlot.release();
+    throw prepareError;
+  }
 
   return new Promise<boolean>((resolve, reject) => {
     let subprocess: ReturnType<typeof spawn>;
@@ -506,26 +545,35 @@ export function executeYtDlpSpawn(
   const promise = ensureYtDlpAvailable()
     .then(
       async () => {
-        const effectiveFlags = await resolveYouTubeRemoteComponents(
-          url,
-          partialFlags
-        );
-        const baseArgs = [...flagsToArgs(effectiveFlags)];
+        // Reserve before reading anything an update can invalidate; see the
+        // note in executeYtDlpJson.
+        const executionSlot = await acquireYtDlpExecutionSlot();
 
-        // Add cookies after ensuring the file is in a yt-dlp-compatible format.
-        const cookiesPath = ensureCookiesFileIsNormalized();
-        if (cookiesPath) {
-          baseArgs.push("--cookies", cookiesPath);
+        let args: string[];
+        let ytDlpPath: string;
+        try {
+          const effectiveFlags = await resolveYouTubeRemoteComponents(
+            url,
+            partialFlags
+          );
+          const baseArgs = [...flagsToArgs(effectiveFlags)];
+
+          // Add cookies after ensuring the file is in a yt-dlp-compatible format.
+          const cookiesPath = ensureCookiesFileIsNormalized();
+          if (cookiesPath) {
+            baseArgs.push("--cookies", cookiesPath);
+          }
+
+          ytDlpPath = getConfiguredYtDlpPath();
+          args = [...baseArgs];
+          await appendYouTubeJsRuntimeArg(args, url);
+          args.push(url);
+        } catch (prepareError) {
+          executionSlot.release();
+          throw prepareError;
         }
 
-        const ytDlpPath = getConfiguredYtDlpPath();
-        const args = [...baseArgs];
-        await appendYouTubeJsRuntimeArg(args, url);
-        args.push(url);
-
         logger.info(`Spawning: ${ytDlpPath} ${args.join(" ")}`);
-
-        const executionSlot = await acquireYtDlpExecutionSlot();
 
         return await new Promise<void>((resolve, reject) => {
           if (killRequested) {

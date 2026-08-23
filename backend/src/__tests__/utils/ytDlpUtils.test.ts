@@ -609,6 +609,46 @@ describe("ytDlpUtils", () => {
       await expect(promise).resolves.toEqual({ ok: true });
     });
 
+    it("should resolve the yt-dlp path after the gate opens, not before waiting", async () => {
+      // An update swaps which binary resolution points at. A caller that read
+      // the path before waiting would run the release the operator just
+      // replaced — the broken extractor they updated to escape.
+      process.env.YT_DLP_PATH = "/old/bin/yt-dlp";
+      const url = "https://www.youtube.com/watch?v=swapped";
+      const jobProc = createMockProcess();
+      vi.mocked(spawn).mockImplementation((_cmd: any, args: any) => {
+        const argv: string[] = Array.isArray(args) ? args : [];
+        if (argv.includes(url)) return jobProc as any;
+        if (argv.includes("--version")) return createVersionCheckProcess() as any;
+        if (argv.includes("--help")) return createHelpCheckProcess("plural") as any;
+        return createDenoCheckProcess() as any;
+      });
+
+      let releaseUpdate!: () => void;
+      const update = withYtDlpExecutionsSuspended(
+        () => new Promise<void>((resolve) => { releaseUpdate = resolve; })
+      );
+      await flushAsyncSpawns();
+
+      const promise = executeYtDlpJson(url);
+      await flushAsyncSpawns();
+
+      // The update lands while the caller is queued at the gate.
+      process.env.YT_DLP_PATH = "/new/bin/yt-dlp";
+      releaseUpdate();
+      await update;
+      await flushAsyncSpawns();
+
+      const jobCall = vi
+        .mocked(spawn)
+        .mock.calls.find(([, args]) => Array.isArray(args) && args.includes(url));
+      expect(jobCall?.[0]).toBe("/new/bin/yt-dlp");
+
+      jobProc.stdout?.emit("data", Buffer.from('{"ok":true}'));
+      jobProc.emit("close", 0);
+      await expect(promise).resolves.toEqual({ ok: true });
+    });
+
     it("should serialize concurrent pip runs so two installs never overlap", async () => {
       // ensureYtDlpAvailable() and the operator-triggered update hold separate
       // locks, so without a shared mutex both can put pip on the same

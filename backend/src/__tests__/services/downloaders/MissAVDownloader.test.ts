@@ -7,6 +7,7 @@ import { MissAVDownloader } from '../../../services/downloaders/MissAVDownloader
 import { cleanupTemporaryFiles, isCancellationError } from '../../../utils/downloadUtils';
 import {
   acquireYtDlpExecutionSlot,
+  ensureYtDlpAvailable,
   flagsToArgs,
   getUserYtDlpConfig,
   isYtDlpImpersonateAvailable,
@@ -601,6 +602,32 @@ describe('MissAVDownloader', () => {
       await MissAVDownloader.downloadVideo('https://missav.com/test-video').catch(() => {});
 
       expect(mockPage.waitForResponse).not.toHaveBeenCalled();
+    });
+
+    it('resolves yt-dlp before probing impersonation support', async () => {
+      // On a host without yt-dlp, probing first decides "no impersonation"
+      // from the absent binary, and the very first download then runs
+      // unimpersonated into a Cloudflare 403.
+      let capturedCb: ((req: { url(): string }) => void) | null = null;
+      const requestHook = { capture: (cb: (req: { url(): string }) => void) => { capturedCb = cb; } };
+
+      const mockPage = buildPageMock('timeout', requestHook);
+      mockPage.goto.mockImplementation(async () => {
+        capturedCb?.({ url: () => 'https://surrit.com/playlist.m3u8' });
+      });
+
+      const mockBrowser = { newPage: vi.fn().mockResolvedValue(mockPage), close: vi.fn().mockResolvedValue(undefined) };
+      (puppeteer.launch as ReturnType<typeof vi.fn>).mockResolvedValue(mockBrowser);
+
+      await MissAVDownloader.downloadVideo('https://missav.com/test-video').catch(() => {});
+
+      const ensureOrder = (ensureYtDlpAvailable as ReturnType<typeof vi.fn>).mock
+        .invocationCallOrder[0];
+      const probeOrder = (isYtDlpImpersonateAvailable as ReturnType<typeof vi.fn>).mock
+        .invocationCallOrder[0];
+      expect(ensureOrder).toBeDefined();
+      expect(probeOrder).toBeDefined();
+      expect(ensureOrder).toBeLessThan(probeOrder);
     });
 
     it('waits on the yt-dlp execution gate and registers the spawned process', async () => {

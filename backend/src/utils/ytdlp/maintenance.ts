@@ -7,10 +7,7 @@ import {
   resetResolvedYtDlpPath,
   resolveYtDlpPath,
 } from "./pathResolver";
-import {
-  resetJsRuntimeFlag,
-  resetRemoteComponentsSupport,
-} from "./runtime";
+import { resetRuntimeCaches } from "./runtime";
 import { getYtDlpVersionInfo } from "./versionProbe";
 import { getErrorMessage } from "../errors";
 import { logger } from "../logger";
@@ -165,8 +162,10 @@ async function runYtDlpUpdate(): Promise<YtDlpUpdateResult> {
     // The upgrade may have landed a different binary on PATH, so drop every
     // cached capability probe before re-reading the version.
     resetResolvedYtDlpPath();
-    resetJsRuntimeFlag();
-    resetRemoteComponentsSupport();
+    // Every capability probe is bound to the binary that was just replaced —
+    // including impersonation support, which this install can newly provide
+    // through the curl-cffi extra.
+    resetRuntimeCaches();
   });
 
   // pip has already performed the requested network operation. Re-probe only

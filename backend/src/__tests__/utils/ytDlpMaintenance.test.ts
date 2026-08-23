@@ -12,8 +12,7 @@ vi.mock("../../utils/ytdlp/pathResolver", () => ({
   resolveYtDlpPath: vi.fn(async () => "/usr/local/bin/yt-dlp"),
 }));
 vi.mock("../../utils/ytdlp/runtime", () => ({
-  resetJsRuntimeFlag: vi.fn(),
-  resetRemoteComponentsSupport: vi.fn(),
+  resetRuntimeCaches: vi.fn(),
 }));
 vi.mock("../../utils/ytdlp/versionProbe", () => ({
   getYtDlpVersionInfo: vi.fn(),

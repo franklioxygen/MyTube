@@ -546,6 +546,11 @@ export class MissAVDownloader extends BaseDownloader {
       // when curl_cffi is missing, which can happen on non-Docker installs. When
       // unavailable, omit it and warn — the download proceeds unimpersonated
       // (works for non-blocked hosts) instead of erroring outright.
+      // Resolve yt-dlp before probing its capabilities: on a host where it is
+      // missing, this installs it (with curl-cffi), and probing first would
+      // decide "no impersonation" from the absent binary and hand the very
+      // first download to a Cloudflare 403.
+      await ensureYtDlpAvailable();
       const canImpersonate = await isYtDlpImpersonateAvailable();
       if (!canImpersonate) {
         logger.warn(
@@ -634,19 +639,25 @@ export class MissAVDownloader extends BaseDownloader {
       // Convert flags object to array of args using the utility function
       const args = [m3u8Url, ...flagsToArgs(flags)];
 
+      // Hold off until no in-place update is replacing the installation. The
+      // slot is counted from here, so an update cannot start between this and
+      // the spawn below — and the binary is resolved afterwards, so a swap that
+      // completed while waiting is picked up instead of the replaced release.
+      const executionSlot = await acquireYtDlpExecutionSlot();
+
       // Resolve the binary the same way every other yt-dlp call does, so this
-      // path also benefits from auto-install and from the resolver picking the
-      // newest usable binary rather than whatever "yt-dlp" hits first on PATH.
-      await ensureYtDlpAvailable();
-      const ytDlpPath = getConfiguredYtDlpPath();
+      // path also benefits from the resolver picking the newest usable binary
+      // rather than whatever "yt-dlp" hits first on PATH.
+      let ytDlpPath: string;
+      try {
+        ytDlpPath = getConfiguredYtDlpPath();
+      } catch (resolveError) {
+        executionSlot.release();
+        throw resolveError;
+      }
 
       // Log the full command for debugging
       logger.info("Executing yt-dlp command:", ytDlpPath, args.join(" "));
-
-      // Hold off until no in-place update is replacing the installation. The
-      // slot is counted from here, so an update cannot start between this and
-      // the spawn below.
-      const executionSlot = await acquireYtDlpExecutionSlot();
 
       try {
         await new Promise<void>((resolve, reject) => {

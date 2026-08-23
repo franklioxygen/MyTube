@@ -10,10 +10,7 @@ import {
   updatePathAfterAutoInstall,
 } from "./pathResolver";
 import { getYtDlpVersionInfo } from "./versionProbe";
-import {
-  resetJsRuntimeFlag,
-  resetRemoteComponentsSupport,
-} from "./runtime";
+import { resetRuntimeCaches } from "./runtime";
 import { logger } from "../logger";
 
 // Cached promise so we only check/install once per process
@@ -191,8 +188,7 @@ export async function ensureYtDlpAvailable(): Promise<void> {
             await withYtDlpExecutionsSuspended(async () => {
               await installYtDlp({ upgrade: true });
               resetResolvedYtDlpPath();
-              resetJsRuntimeFlag();
-              resetRemoteComponentsSupport();
+              resetRuntimeCaches();
             });
             continue;
           } catch (upgradeError: unknown) {
@@ -240,8 +236,7 @@ export async function ensureYtDlpAvailable(): Promise<void> {
           attemptedAutoInstall = true;
           await installYtDlp();
           resetResolvedYtDlpPath();
-          resetJsRuntimeFlag();
-          resetRemoteComponentsSupport();
+          resetRuntimeCaches();
           continue;
         }
 
