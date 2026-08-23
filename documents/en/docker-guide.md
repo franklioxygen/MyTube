@@ -188,6 +188,32 @@ Example backend volume section:
       - mytube-data:/app/data
 ```
 
+### Updating yt-dlp without rebuilding
+
+Settings -> yt-dlp Configuration shows the yt-dlp version the backend actually
+runs and, on `container` admin trust, offers an **Update yt-dlp** button. This
+runs `pip install -U` inside the running container, so a broken extractor can be
+fixed without waiting for a new image.
+
+**The update persists.** It is a `pip --user` install into `$HOME`, which the
+entrypoint points at `/app/data/.home` — part of the `/app/data` volume above.
+The runtime install therefore survives `docker compose down && up`, container
+recreation, and image upgrades, and the backend keeps preferring it over the
+version pinned in the image because it is the newer release.
+
+That also means **recreating from an older image is not a rollback.** To go back
+to the version pinned in the image, delete the runtime install and restart:
+
+```bash
+docker compose exec backend rm -rf /app/data/.home/.local/bin/yt-dlp /app/data/.home/.local/lib/python*/site-packages/yt_dlp
+```
+
+Then restart the backend and re-check the version in Settings.
+
+The bundled bgutil POT provider is not part of this update. Its Python plugin is
+loaded from the image ahead of any pip copy, and its Node server ships with the
+image, so bumping the provider requires a new image.
+
 ### Environment Variables
 
 You can customize the deployment by adding a `.env` file or modifying the `environment` section in `docker-compose.yml`.

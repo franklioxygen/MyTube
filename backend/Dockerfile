@@ -131,8 +131,13 @@ RUN set -eux; \
 # Note: bgutil-ytdlp-pot-provider is coupled to the Node server under
 # backend/bgutil-ytdlp-pot-provider/server — bump both in lockstep, not just here.
 # The operator can also update yt-dlp at runtime from Settings -> yt-dlp
-# Configuration without rebuilding this image; that install lands on top of
-# these pins and is lost when the container is recreated.
+# Configuration without rebuilding this image. That install is a `pip --user`
+# into $HOME, which entrypoint.sh points at /app/data/.home — persistent in the
+# supplied Compose stacks — so it OUTLIVES container recreation and keeps
+# shadowing the version pinned here (the path resolver prefers the newer
+# release). Recreating from an older image is therefore not a rollback; see
+# "Updating yt-dlp without rebuilding" in documents/en/docker-guide.md for how
+# to drop the runtime install and fall back to the pinned one.
 # Using --break-system-packages because we are in a container and want to install globally
 RUN pip3 install --no-cache-dir \
     "yt-dlp==2026.8.19" \

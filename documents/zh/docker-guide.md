@@ -186,6 +186,29 @@ services:
       - mytube-data:/app/data
 ```
 
+### 不重建镜像更新 yt-dlp
+
+设置 -> yt-dlp 配置中会显示后端实际使用的 yt-dlp 版本；在 `container` 管理员信任级别下，
+还会提供 **更新 yt-dlp** 按钮。该操作在运行中的容器内执行 `pip install -U`，因此遇到
+提取器失效时无需等待新镜像即可修复。
+
+**该更新会被持久化。** 它是一次 `pip --user` 安装，装到 `$HOME`，而入口脚本把 `$HOME`
+指向 `/app/data/.home` —— 属于上面的 `/app/data` 卷。因此运行时安装的版本会在
+`docker compose down && up`、容器重建、镜像升级之后继续存在；由于它是更新的发行版本，
+后端也会继续优先使用它，而不是镜像中固定的版本。
+
+这同时意味着**回退到旧镜像并不能回退 yt-dlp**。要恢复为镜像中固定的版本，请删除运行时
+安装的副本并重启：
+
+```bash
+docker compose exec backend rm -rf /app/data/.home/.local/bin/yt-dlp /app/data/.home/.local/lib/python*/site-packages/yt_dlp
+```
+
+然后重启后端，并在设置中重新查看版本。
+
+内置的 bgutil POT provider 不在此次更新范围内：它的 Python 插件会优先于任何 pip 副本从
+镜像中加载，其 Node 服务端也随镜像一起发布，因此升级 provider 需要新的镜像。
+
 ### 环境变量
 
 您可以通过添加  `.env`  文件或修改  `docker-compose.yml`  中的  `environment`  部分来自定义部署。

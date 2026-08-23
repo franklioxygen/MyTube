@@ -4,7 +4,7 @@
 
 ### Feat
 
-- Show the installed yt-dlp version in Settings -> yt-dlp Configuration, compare it against the latest release on PyPI, and offer an in-place update so a broken extractor can be fixed without rebuilding the image or editing a config file. The update is `container`-trust gated, refuses when `YT_DLP_PATH` pins a specific binary, and shares a single pip run between concurrent requests. Closes #417
+- Show the installed yt-dlp version in Settings -> yt-dlp Configuration, compare it against the latest release on PyPI, and offer an in-place update so a broken extractor can be fixed without rebuilding the image or editing a config file. The update is `container`-trust gated, refuses when `YT_DLP_PATH` pins a specific binary, and shares a single pip run between concurrent requests. It installs `yt-dlp[default,curl-cffi]` so the release-coupled pins (the yt-dlp-ejs solver, the curl-cffi impersonation range) come from the target release rather than a hand-maintained list that drifts, and leaves the bundled bgutil POT provider alone because the image copy is loaded ahead of any pip copy. In Docker the runtime install lands in the persistent `/app/data` volume and outlives container recreation, so rolling back the image does not roll back yt-dlp; the docker guide documents how to remove it. Closes #417
 - Polish collection cards to read more like video cards (hover treatment, tighter title handling, and favorite-collection indicators), link collection names from the manage table directly to their collection pages, and replace the mobile authors shortcut with the real authors list with a header backdrop (#365)
 
 ### Style

@@ -558,12 +558,38 @@ describe("ytDlpUtils", () => {
       installProc.emit("close", 0);
 
       await expect(promise).resolves.toBeUndefined();
+      // No bundled provider is present in this suite (getProviderPluginPath is
+      // mocked to ""), so the pip provider is installed as the fallback.
       expect(vi.mocked(spawn).mock.calls[1][1]).toEqual([
         "install",
         "--user",
-        "yt-dlp",
+        "yt-dlp[default,curl-cffi]",
         "bgutil-ytdlp-pot-provider",
-        "curl-cffi",
+      ]);
+    });
+
+    it("should skip the pip bgutil provider when a bundled provider is present", async () => {
+      // The bundled plugin is injected at the front of PYTHONPATH, so a pip copy
+      // would never be loaded and installing it would report a phantom upgrade.
+      vi.mocked(getProviderPluginPath).mockReturnValue("/app/bgutil-ytdlp-pot-provider");
+      const versionProc = createMockProcess();
+      const installProc = createMockProcess();
+      vi.mocked(spawn)
+        .mockImplementationOnce(() => versionProc as any)
+        .mockImplementationOnce(() => installProc as any)
+        .mockImplementationOnce(() => createVersionCheckProcess() as any);
+
+      const promise = ensureYtDlpAvailable();
+      await flushAsyncSpawns();
+      versionProc.emit("error", Object.assign(new Error("not found"), { code: "ENOENT" }));
+      await flushAsyncSpawns();
+      installProc.emit("close", 0);
+
+      await expect(promise).resolves.toBeUndefined();
+      expect(vi.mocked(spawn).mock.calls[1][1]).toEqual([
+        "install",
+        "--user",
+        "yt-dlp[default,curl-cffi]",
       ]);
     });
 
