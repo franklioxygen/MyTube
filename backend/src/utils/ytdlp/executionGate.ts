@@ -79,8 +79,23 @@ export async function acquireYtDlpExecutionSlot(): Promise<YtDlpExecutionSlot> {
   return {
     release,
     bindTo(subprocess: ChildProcess) {
+      // "close" is the terminal event in both outcomes: it fires after a normal
+      // exit, and also after a spawn failure (verified on Node 22 — ENOENT
+      // emits "error" then "close"). Binding it alone therefore never leaks.
       subprocess.once("close", release);
-      subprocess.once("error", release);
+
+      // "error" is not terminal. Node also emits it for a process that is
+      // already running — a kill that fails, or a failed IPC send. Releasing on
+      // those would show an update a drained gate while yt-dlp is still alive
+      // and let pip rewrite the installation underneath it. Treat "error" as
+      // terminal only when the child never started, which is exactly when it
+      // has no pid; that case is belt-and-braces for a platform that might not
+      // follow the failure with "close".
+      subprocess.once("error", () => {
+        if (subprocess.pid === undefined) {
+          release();
+        }
+      });
     },
   };
 }

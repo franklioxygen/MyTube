@@ -551,7 +551,26 @@ export class MissAVDownloader extends BaseDownloader {
       // decide "no impersonation" from the absent binary and hand the very
       // first download to a Cloudflare 403.
       await ensureYtDlpAvailable();
-      const canImpersonate = await isYtDlpImpersonateAvailable();
+
+      // Reserve before probing. The capability answer decides whether
+      // --impersonate goes into the flags, and an update can change that
+      // answer: it installs the curl-cffi extra and clears the probe cache.
+      // Probing outside the slot would let a download queued behind an update
+      // spawn the new binary with flags derived from the old one — the first
+      // post-update MissAV download would stay unimpersonated and take the very
+      // Cloudflare 403 the update was meant to fix. ensureYtDlpAvailable() runs
+      // outside the slot on purpose: it can trigger the auto-upgrade, which
+      // takes the gate itself.
+      const executionSlot = await acquireYtDlpExecutionSlot();
+
+      let canImpersonate: boolean;
+      try {
+        canImpersonate = await isYtDlpImpersonateAvailable();
+      } catch (probeError) {
+        executionSlot.release();
+        throw probeError;
+      }
+
       if (!canImpersonate) {
         logger.warn(
           "[MissAV] yt-dlp browser impersonation is unavailable (curl_cffi not installed); " +
@@ -637,23 +656,17 @@ export class MissAVDownloader extends BaseDownloader {
       logger.info("Starting yt-dlp process with spawn...");
 
       // Convert flags object to array of args using the utility function
-      const args = [m3u8Url, ...flagsToArgs(flags)];
-
-      // Hold off until no in-place update is replacing the installation. The
-      // slot is counted from here, so an update cannot start between this and
-      // the spawn below — and the binary is resolved afterwards, so a swap that
-      // completed while waiting is picked up instead of the replaced release.
-      const executionSlot = await acquireYtDlpExecutionSlot();
-
-      // Resolve the binary the same way every other yt-dlp call does, so this
-      // path also benefits from the resolver picking the newest usable binary
+      // Both are read inside the slot: the binary the same way every other
+      // yt-dlp call resolves it, so this path picks up the newest usable one
       // rather than whatever "yt-dlp" hits first on PATH.
+      let args: string[];
       let ytDlpPath: string;
       try {
+        args = [m3u8Url, ...flagsToArgs(flags)];
         ytDlpPath = getConfiguredYtDlpPath();
-      } catch (resolveError) {
+      } catch (prepareError) {
         executionSlot.release();
-        throw resolveError;
+        throw prepareError;
       }
 
       // Log the full command for debugging

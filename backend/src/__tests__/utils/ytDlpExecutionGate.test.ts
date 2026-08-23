@@ -10,7 +10,16 @@ import {
   withYtDlpExecutionsSuspended,
 } from "../../utils/ytdlp/executionGate";
 
-const createProcess = () => new EventEmitter() as unknown as ChildProcess;
+// pid distinguishes a child that started from one that never did, which is how
+// the gate decides whether "error" is terminal.
+const createProcess = (pid: number | null = 1234) => {
+  const proc = new EventEmitter() as unknown as ChildProcess;
+  Object.defineProperty(proc, "pid", {
+    value: pid ?? undefined,
+    configurable: true,
+  });
+  return proc;
+};
 const flush = async () => {
   await new Promise((resolve) => setImmediate(resolve));
 };
@@ -109,16 +118,48 @@ describe("yt-dlp execution gate", () => {
     slot.release();
   });
 
-  it("stops counting an execution that errors instead of closing", async () => {
-    const subprocess = createProcess();
+  it("releases the slot for a child that never started", async () => {
+    const subprocess = createProcess(null);
     (await acquireYtDlpExecutionSlot()).bindTo(subprocess);
 
     subprocess.emit("error", new Error("spawn ENOENT"));
     expect(getActiveYtDlpExecutionCount()).toBe(0);
 
-    // A later close on the same process must not double-decrement.
-    subprocess.emit("close", 1);
+    // Node follows a spawn failure with close; that must not double-decrement.
+    subprocess.emit("close", null);
     expect(getActiveYtDlpExecutionCount()).toBe(0);
+  });
+
+  it("keeps the slot when a running child errors, until it actually closes", async () => {
+    // Node emits "error" on a live process too — a kill that fails, a failed
+    // IPC send. Releasing then would show an update a drained gate while
+    // yt-dlp is still running against the installation pip is replacing.
+    const subprocess = createProcess(4321);
+    (await acquireYtDlpExecutionSlot()).bindTo(subprocess);
+
+    subprocess.emit("error", Object.assign(new Error("kill EPERM"), { code: "EPERM" }));
+    expect(getActiveYtDlpExecutionCount()).toBe(1);
+
+    subprocess.emit("close", 0);
+    expect(getActiveYtDlpExecutionCount()).toBe(0);
+  });
+
+  it("does not let an update see a drained gate while a child is still alive", async () => {
+    const subprocess = createProcess(4321);
+    (await acquireYtDlpExecutionSlot()).bindTo(subprocess);
+    subprocess.emit("error", new Error("kill EPERM"));
+
+    let taskStarted = false;
+    const update = withYtDlpExecutionsSuspended(async () => {
+      taskStarted = true;
+    });
+
+    await flush();
+    expect(taskStarted).toBe(false);
+
+    subprocess.emit("close", 0);
+    await update;
+    expect(taskStarted).toBe(true);
   });
 
   it("serializes two updates instead of overlapping them", async () => {

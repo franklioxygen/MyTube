@@ -604,7 +604,7 @@ describe('MissAVDownloader', () => {
       expect(mockPage.waitForResponse).not.toHaveBeenCalled();
     });
 
-    it('resolves yt-dlp before probing impersonation support', async () => {
+    it('reserves the execution slot before probing impersonation support', async () => {
       // On a host without yt-dlp, probing first decides "no impersonation"
       // from the absent binary, and the very first download then runs
       // unimpersonated into a Cloudflare 403.
@@ -623,11 +623,19 @@ describe('MissAVDownloader', () => {
 
       const ensureOrder = (ensureYtDlpAvailable as ReturnType<typeof vi.fn>).mock
         .invocationCallOrder[0];
+      const acquireOrder = (acquireYtDlpExecutionSlot as ReturnType<typeof vi.fn>).mock
+        .invocationCallOrder[0];
       const probeOrder = (isYtDlpImpersonateAvailable as ReturnType<typeof vi.fn>).mock
         .invocationCallOrder[0];
       expect(ensureOrder).toBeDefined();
+      expect(acquireOrder).toBeDefined();
       expect(probeOrder).toBeDefined();
-      expect(ensureOrder).toBeLessThan(probeOrder);
+
+      // Availability first (it can take the gate itself), then the slot, and
+      // only then the capability probe — so the flags describe the release this
+      // download will actually spawn.
+      expect(ensureOrder).toBeLessThan(acquireOrder);
+      expect(acquireOrder).toBeLessThan(probeOrder);
     });
 
     it('waits on the yt-dlp execution gate and registers the spawned process', async () => {
