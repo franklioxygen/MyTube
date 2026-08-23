@@ -7,10 +7,7 @@ import {
   pathExistsSafeSync,
   resolveSafeChildPath,
 } from "../security";
-import {
-  awaitYtDlpExecutionSlot,
-  registerYtDlpExecution,
-} from "./executionGate";
+import { acquireYtDlpExecutionSlot } from "./executionGate";
 import { ensureYtDlpAvailable } from "./install";
 import { getConfiguredYtDlpPath } from "./pathResolver";
 import { getYtDlpSpawnEnv } from "./spawnEnv";
@@ -95,14 +92,21 @@ export async function executeYtDlpJson(
   const ytDlpPath = getConfiguredYtDlpPath();
   logger.info(`Executing: ${ytDlpPath} ${args.join(" ")}`);
 
-  await awaitYtDlpExecutionSlot();
+  const executionSlot = await acquireYtDlpExecutionSlot();
 
   return new Promise<any>((resolve, reject) => {
-    const subprocess = spawn(ytDlpPath, args, {
-      env: getYtDlpSpawnEnv(),
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    registerYtDlpExecution(subprocess);
+    let subprocess: ReturnType<typeof spawn>;
+    try {
+      subprocess = spawn(ytDlpPath, args, {
+        env: getYtDlpSpawnEnv(),
+        stdio: ["ignore", "pipe", "pipe"],
+      });
+    } catch (spawnError) {
+      executionSlot.release();
+      reject(spawnError);
+      return;
+    }
+    executionSlot.bindTo(subprocess);
 
     let stdout = "";
     let stderr = "";
@@ -256,14 +260,21 @@ export async function getChannelUrlFromVideo(
   args.push(videoUrl);
   const ytDlpPath = getConfiguredYtDlpPath();
 
-  await awaitYtDlpExecutionSlot();
+  const executionSlot = await acquireYtDlpExecutionSlot();
 
   return new Promise<string | null>((resolve, reject) => {
-    const subprocess = spawn(ytDlpPath, args, {
-      env: getYtDlpSpawnEnv(),
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    registerYtDlpExecution(subprocess);
+    let subprocess: ReturnType<typeof spawn>;
+    try {
+      subprocess = spawn(ytDlpPath, args, {
+        env: getYtDlpSpawnEnv(),
+        stdio: ["ignore", "pipe", "pipe"],
+      });
+    } catch (spawnError) {
+      executionSlot.release();
+      reject(spawnError);
+      return;
+    }
+    executionSlot.bindTo(subprocess);
 
     let stdout = "";
     let stderr = "";
@@ -342,14 +353,21 @@ export async function downloadChannelAvatar(
   args.push(channelUrl);
   const ytDlpPath = getConfiguredYtDlpPath();
 
-  await awaitYtDlpExecutionSlot();
+  const executionSlot = await acquireYtDlpExecutionSlot();
 
   return new Promise<boolean>((resolve, reject) => {
-    const subprocess = spawn(ytDlpPath, args, {
-      env: getYtDlpSpawnEnv(),
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    registerYtDlpExecution(subprocess);
+    let subprocess: ReturnType<typeof spawn>;
+    try {
+      subprocess = spawn(ytDlpPath, args, {
+        env: getYtDlpSpawnEnv(),
+        stdio: ["ignore", "pipe", "pipe"],
+      });
+    } catch (spawnError) {
+      executionSlot.release();
+      reject(spawnError);
+      return;
+    }
+    executionSlot.bindTo(subprocess);
 
     let stderr = "";
 
@@ -507,11 +525,12 @@ export function executeYtDlpSpawn(
 
         logger.info(`Spawning: ${ytDlpPath} ${args.join(" ")}`);
 
-        await awaitYtDlpExecutionSlot();
+        const executionSlot = await acquireYtDlpExecutionSlot();
 
         return await new Promise<void>((resolve, reject) => {
           if (killRequested) {
             rejected = true;
+            executionSlot.release();
             endPassThroughStreams();
             reject(
               new YtDlpExecutionError("yt-dlp process cancelled before start", {
@@ -521,11 +540,19 @@ export function executeYtDlpSpawn(
             return;
           }
 
-          activeSubprocess = spawn(ytDlpPath, args, {
-            env: getYtDlpSpawnEnv(),
-            stdio: ["ignore", "pipe", "pipe"],
-          });
-          registerYtDlpExecution(activeSubprocess);
+          try {
+            activeSubprocess = spawn(ytDlpPath, args, {
+              env: getYtDlpSpawnEnv(),
+              stdio: ["ignore", "pipe", "pipe"],
+            });
+          } catch (spawnError) {
+            executionSlot.release();
+            rejected = true;
+            endPassThroughStreams();
+            reject(spawnError);
+            return;
+          }
+          executionSlot.bindTo(activeSubprocess);
 
           pipeOrForward(activeSubprocess.stdout, stdoutPass);
           pipeOrForward(activeSubprocess.stderr, stderrPass);

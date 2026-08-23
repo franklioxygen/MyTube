@@ -1,5 +1,6 @@
 import * as cheerio from "cheerio";
 import { spawn } from "child_process";
+import type { ChildProcessWithoutNullStreams } from "child_process";
 import fs from "fs-extra";
 import path from "path";
 import puppeteer from "puppeteer";
@@ -31,7 +32,7 @@ import {
 import { resolveSupersededManagedPath } from "./supersededOutput";
 import { FilenameTemplateSourceOptions } from "../filenameTemplate/types";
 import {
-  awaitYtDlpExecutionSlot,
+  acquireYtDlpExecutionSlot,
   ensureYtDlpAvailable,
   flagsToArgs,
   getAxiosProxyConfig,
@@ -41,7 +42,6 @@ import {
   getYtDlpSpawnEnv,
   InvalidProxyError,
   isYtDlpImpersonateAvailable,
-  registerYtDlpExecution,
 } from "../../utils/ytDlpUtils";
 import {
   removeMediaServerArtifactsForVideo,
@@ -643,13 +643,22 @@ export class MissAVDownloader extends BaseDownloader {
       // Log the full command for debugging
       logger.info("Executing yt-dlp command:", ytDlpPath, args.join(" "));
 
-      // Hold off until no in-place update is replacing the installation.
-      await awaitYtDlpExecutionSlot();
+      // Hold off until no in-place update is replacing the installation. The
+      // slot is counted from here, so an update cannot start between this and
+      // the spawn below.
+      const executionSlot = await acquireYtDlpExecutionSlot();
 
       try {
         await new Promise<void>((resolve, reject) => {
-          const child = spawn(ytDlpPath, args, { env: getYtDlpSpawnEnv() });
-          registerYtDlpExecution(child);
+          let child: ChildProcessWithoutNullStreams;
+          try {
+            child = spawn(ytDlpPath, args, { env: getYtDlpSpawnEnv() });
+          } catch (spawnError) {
+            executionSlot.release();
+            reject(spawnError);
+            return;
+          }
+          executionSlot.bindTo(child);
           let cancellationRequested = false;
 
           child.stdout.on("data", (data) => {

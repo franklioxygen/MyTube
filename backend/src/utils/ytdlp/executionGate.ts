@@ -38,22 +38,32 @@ function notifyIdleWaiters(): void {
   waiters.forEach((resolve) => resolve());
 }
 
-/**
- * Wait until no update is replacing the installation. Call immediately before
- * spawning yt-dlp — a check any earlier can go stale while the caller is still
- * assembling arguments.
- */
-export async function awaitYtDlpExecutionSlot(): Promise<void> {
-  while (updateHold) {
-    await updateHold;
-  }
+export interface YtDlpExecutionSlot {
+  /** Hold the slot until this process closes or fails to start. */
+  bindTo(subprocess: ChildProcess): void;
+  /** Give the slot back without a process — for a caller that bails out. */
+  release(): void;
 }
 
 /**
- * Count a spawned process as in flight until it closes, so an update can tell
- * whether anything is still running against the installation.
+ * Reserve the right to run yt-dlp, waiting out any update in progress.
+ *
+ * Waiting and counting are one step on purpose. If a caller could observe a
+ * free gate and only count itself later, an update claiming the gate in that
+ * window would see zero active executions, skip the drain, and start pip while
+ * the caller was about to spawn — the exact overlap this module exists to
+ * prevent. The counter is therefore incremented in the same synchronous step
+ * as the check that found the gate free, before this function yields.
+ *
+ * Call it immediately before spawning: the returned slot is already counted, so
+ * anything between here and the spawn holds an update off.
  */
-export function registerYtDlpExecution(subprocess: ChildProcess): void {
+export async function acquireYtDlpExecutionSlot(): Promise<YtDlpExecutionSlot> {
+  while (updateHold) {
+    await updateHold;
+  }
+
+  // No await between the check above and this increment.
   activeExecutions += 1;
 
   let released = false;
@@ -66,8 +76,13 @@ export function registerYtDlpExecution(subprocess: ChildProcess): void {
     notifyIdleWaiters();
   };
 
-  subprocess.once("close", release);
-  subprocess.once("error", release);
+  return {
+    release,
+    bindTo(subprocess: ChildProcess) {
+      subprocess.once("close", release);
+      subprocess.once("error", release);
+    },
+  };
 }
 
 export function getActiveYtDlpExecutionCount(): number {

@@ -6,11 +6,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MissAVDownloader } from '../../../services/downloaders/MissAVDownloader';
 import { cleanupTemporaryFiles, isCancellationError } from '../../../utils/downloadUtils';
 import {
-  awaitYtDlpExecutionSlot,
+  acquireYtDlpExecutionSlot,
   flagsToArgs,
   getUserYtDlpConfig,
   isYtDlpImpersonateAvailable,
-  registerYtDlpExecution,
 } from '../../../utils/ytDlpUtils';
 import * as security from '../../../utils/security';
 import { logger } from '../../../utils/logger';
@@ -38,8 +37,10 @@ vi.mock('../../../utils/ytDlpUtils', () => ({
   ensureYtDlpAvailable: vi.fn().mockResolvedValue(undefined),
   getConfiguredYtDlpPath: vi.fn().mockReturnValue('yt-dlp'),
   getYtDlpSpawnEnv: vi.fn().mockReturnValue({}),
-  awaitYtDlpExecutionSlot: vi.fn().mockResolvedValue(undefined),
-  registerYtDlpExecution: vi.fn(),
+  acquireYtDlpExecutionSlot: vi.fn().mockResolvedValue({
+    bindTo: vi.fn(),
+    release: vi.fn(),
+  }),
 }));
 vi.mock('../../../utils/downloadUtils', () => ({
   cleanupTemporaryFiles: vi.fn().mockResolvedValue(undefined),
@@ -619,8 +620,10 @@ describe('MissAVDownloader', () => {
 
       await MissAVDownloader.downloadVideo('https://missav.com/test-video').catch(() => {});
 
-      expect(awaitYtDlpExecutionSlot).toHaveBeenCalled();
-      expect(registerYtDlpExecution).toHaveBeenCalledWith(
+      expect(acquireYtDlpExecutionSlot).toHaveBeenCalled();
+      const slot = await (acquireYtDlpExecutionSlot as ReturnType<typeof vi.fn>).mock
+        .results[0].value;
+      expect(slot.bindTo).toHaveBeenCalledWith(
         (spawn as ReturnType<typeof vi.fn>).mock.results[0].value,
       );
     });

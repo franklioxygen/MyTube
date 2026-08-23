@@ -4,9 +4,8 @@ import path from "path";
 import type { ChildProcess } from "child_process";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
-  awaitYtDlpExecutionSlot,
+  acquireYtDlpExecutionSlot,
   getActiveYtDlpExecutionCount,
-  registerYtDlpExecution,
   resetYtDlpExecutionGate,
   withYtDlpExecutionsSuspended,
 } from "../../utils/ytdlp/executionGate";
@@ -29,8 +28,9 @@ describe("yt-dlp execution gate", () => {
 
     const update = withYtDlpExecutionsSuspended(() => taskRunning);
     let slotAcquired = false;
-    const waiting = awaitYtDlpExecutionSlot().then(() => {
+    const waiting = acquireYtDlpExecutionSlot().then((slot) => {
       slotAcquired = true;
+      slot.release();
     });
 
     await flush();
@@ -42,9 +42,29 @@ describe("yt-dlp execution gate", () => {
     expect(slotAcquired).toBe(true);
   });
 
+  it("counts the reader before yielding, so an update cannot slip in behind it", async () => {
+    // The window this closes: a caller that observed a free gate but had not
+    // yet registered would let an update see zero active executions, skip the
+    // drain, and start pip just as the caller spawned.
+    const slotPromise = acquireYtDlpExecutionSlot();
+    expect(getActiveYtDlpExecutionCount()).toBe(1);
+
+    let taskStarted = false;
+    const update = withYtDlpExecutionsSuspended(async () => {
+      taskStarted = true;
+    });
+
+    await flush();
+    expect(taskStarted).toBe(false);
+
+    (await slotPromise).release();
+    await update;
+    expect(taskStarted).toBe(true);
+  });
+
   it("waits for running executions to finish before replacing the install", async () => {
     const subprocess = createProcess();
-    registerYtDlpExecution(subprocess);
+    (await acquireYtDlpExecutionSlot()).bindTo(subprocess);
     expect(getActiveYtDlpExecutionCount()).toBe(1);
 
     let taskStarted = false;
@@ -62,7 +82,7 @@ describe("yt-dlp execution gate", () => {
   });
 
   it("proceeds once the drain timeout expires so a long download cannot block the fix", async () => {
-    registerYtDlpExecution(createProcess());
+    (await acquireYtDlpExecutionSlot()).bindTo(createProcess());
 
     let taskStarted = false;
     await withYtDlpExecutionsSuspended(
@@ -85,12 +105,13 @@ describe("yt-dlp execution gate", () => {
     ).rejects.toThrow("pip failed");
 
     // A failed update must not leave executions blocked forever.
-    await expect(awaitYtDlpExecutionSlot()).resolves.toBeUndefined();
+    const slot = await acquireYtDlpExecutionSlot();
+    slot.release();
   });
 
   it("stops counting an execution that errors instead of closing", async () => {
     const subprocess = createProcess();
-    registerYtDlpExecution(subprocess);
+    (await acquireYtDlpExecutionSlot()).bindTo(subprocess);
 
     subprocess.emit("error", new Error("spawn ENOENT"));
     expect(getActiveYtDlpExecutionCount()).toBe(0);
