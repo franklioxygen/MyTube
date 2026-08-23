@@ -1,6 +1,9 @@
 import { spawn } from "child_process";
 import { getProviderPluginPath } from "../../services/downloaders/ytdlp/ytdlpHelpers";
-import { withYtDlpExecutionsSuspended } from "./executionGate";
+import {
+  awaitYtDlpUpdateWindow,
+  withYtDlpExecutionsSuspended,
+} from "./executionGate";
 import { getErrorMessage } from "../errors";
 import { YT_DLP_STALE_AFTER_DAYS } from "./constants";
 import {
@@ -160,6 +163,12 @@ export async function ensureYtDlpAvailable(): Promise<void> {
     let attemptedAutoInstall = false;
 
     while (true) {
+      // Let an in-progress update finish before probing. Mid-swap the console
+      // script can be briefly absent, and a probe that reads that as ENOENT
+      // would kick off a reinstall of a perfectly good binary. This waits
+      // without reserving, since the branches below may claim the gate.
+      await awaitYtDlpUpdateWindow();
+
       const ytDlpPath = await resolveYtDlpPath();
       try {
         const versionInfo = await getYtDlpVersionInfo(ytDlpPath);
@@ -234,9 +243,16 @@ export async function ensureYtDlpAvailable(): Promise<void> {
             "[yt-dlp] yt-dlp not found in PATH. Attempting automatic installation..."
           );
           attemptedAutoInstall = true;
-          await installYtDlp();
-          resetResolvedYtDlpPath();
-          resetRuntimeCaches();
+          // Gated for the same reason as the upgrade branch above: this pip run
+          // writes the installation other downloads launch from. Leaving it
+          // ungated let a queued install start right after an operator update
+          // released the gate, rewriting files under downloads that had just
+          // been allowed to spawn.
+          await withYtDlpExecutionsSuspended(async () => {
+            await installYtDlp();
+            resetResolvedYtDlpPath();
+            resetRuntimeCaches();
+          });
           continue;
         }
 

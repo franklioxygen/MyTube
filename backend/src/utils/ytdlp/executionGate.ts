@@ -38,6 +38,27 @@ function notifyIdleWaiters(): void {
   waiters.forEach((resolve) => resolve());
 }
 
+/**
+ * Wait until no update is replacing the installation, **without reserving
+ * anything**.
+ *
+ * This is not a substitute for `acquireYtDlpExecutionSlot()` and must never be
+ * used to guard a spawn: it leaves a window in which an update can claim the
+ * gate before the caller acts, which is the exact defect that made the earlier
+ * split wait/register API unsafe.
+ *
+ * Its one legitimate use is the availability check, which cannot hold a slot —
+ * it may itself trigger an install or upgrade that claims the gate, and holding
+ * a slot across that would stall every such run against its own caller. Probing
+ * the binary mid-swap would otherwise report a transient ENOENT and trigger a
+ * pointless reinstall.
+ */
+export async function awaitYtDlpUpdateWindow(): Promise<void> {
+  while (updateHold) {
+    await updateHold;
+  }
+}
+
 export interface YtDlpExecutionSlot {
   /** Hold the slot until this process closes or fails to start. */
   bindTo(subprocess: ChildProcess): void;

@@ -26,7 +26,10 @@ import {
   resetYtDlpAvailabilityCacheForTests,
 } from "../../utils/ytDlpUtils";
 import { installYtDlp } from "../../utils/ytdlp/install";
-import { withYtDlpExecutionsSuspended } from "../../utils/ytdlp/executionGate";
+import {
+  acquireYtDlpExecutionSlot,
+  withYtDlpExecutionsSuspended,
+} from "../../utils/ytdlp/executionGate";
 import { logger } from "../../utils/logger";
 
 vi.mock("child_process", () => ({
@@ -693,6 +696,57 @@ describe("ytDlpUtils", () => {
       await expect(failing).rejects.toThrow(/could not be automatically/);
       // A rejected run must not poison the queue for the caller behind it.
       await expect(queued).resolves.toBeUndefined();
+    });
+
+    it("should hold the execution gate while auto-installing a missing yt-dlp", async () => {
+      // This pip run rewrites the installation downloads launch from, exactly
+      // like the upgrade path, so it must not run with the gate open.
+      const versionProc = createMockProcess();
+      const installProc = createMockProcess();
+      vi.mocked(spawn)
+        .mockImplementationOnce(() => versionProc as any)
+        .mockImplementationOnce(() => installProc as any)
+        .mockImplementationOnce(() => createVersionCheckProcess() as any);
+
+      const promise = ensureYtDlpAvailable();
+      await flushAsyncSpawns();
+      versionProc.emit("error", Object.assign(new Error("not found"), { code: "ENOENT" }));
+      await flushAsyncSpawns();
+
+      let slotAcquired = false;
+      const waiting = acquireYtDlpExecutionSlot().then((slot) => {
+        slotAcquired = true;
+        slot.release();
+      });
+      await flushAsyncSpawns();
+      expect(slotAcquired).toBe(false);
+
+      installProc.emit("close", 0);
+      await expect(promise).resolves.toBeUndefined();
+      await waiting;
+      expect(slotAcquired).toBe(true);
+    });
+
+    it("should not probe the binary while an update is replacing it", async () => {
+      // Mid-swap the console script can be briefly absent; a probe that read
+      // that as ENOENT would reinstall a perfectly good binary.
+      vi.mocked(spawn).mockImplementation(() => createVersionCheckProcess() as any);
+
+      let releaseUpdate!: () => void;
+      const update = withYtDlpExecutionsSuspended(
+        () => new Promise<void>((resolve) => { releaseUpdate = resolve; })
+      );
+      await flushAsyncSpawns();
+
+      const spawnsBeforeCheck = vi.mocked(spawn).mock.calls.length;
+      const promise = ensureYtDlpAvailable();
+      await flushAsyncSpawns();
+      expect(vi.mocked(spawn).mock.calls.length).toBe(spawnsBeforeCheck);
+
+      releaseUpdate();
+      await update;
+      await expect(promise).resolves.toBeUndefined();
+      expect(vi.mocked(spawn).mock.calls.length).toBeGreaterThan(spawnsBeforeCheck);
     });
 
     it("should skip the pip bgutil provider when a bundled provider is present", async () => {
