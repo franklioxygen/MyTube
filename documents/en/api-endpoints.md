@@ -187,6 +187,15 @@ Favorites are scoped to the authenticated owner. When login protection is disabl
   - Body: `{ oldTag: string, newTag: string }`
 - `POST /api/settings/telegram/test` - Send a test Telegram notification
   - Body: `{ botToken: string, chatId: string }`
+- `GET /api/settings/ytdlp/version` - Report the yt-dlp the backend runs and the latest release on PyPI
+  - Query: `checkLatest=false` skips the PyPI lookup
+  - Response `data`: `{ version, path, available, isStale, staleAfterDays, latestVersion, updateAvailable, updateSupported, customPathConfigured, errorMessage? }`
+  - `latestVersion` is `null` when PyPI is unreachable; `updateAvailable` is then `false`
+- `POST /api/settings/ytdlp/update` - Update yt-dlp in place via pip (no image rebuild required)
+  - Requires `container` admin trust; returns `403` in `application` trust mode
+  - Returns `409` (`errorKey: ytDlpUpdateCustomPath`) when `YT_DLP_PATH` pins a specific binary
+  - Response `data`: `{ previousVersion, changed, status }` with `status` shaped like the endpoint above
+  - Concurrent requests share a single pip run
 
 ## Password & Session
 

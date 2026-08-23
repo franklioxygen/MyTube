@@ -1205,6 +1205,23 @@ export const zh = {
   ytDlpConfigurationDescriptionEnd: "了解更多信息。",
   ytDlpConfigurationPolicyNotice:
     "在 application 信任模式下，原始 yt-dlp 配置会被部署安全策略禁用。",
+  ytDlpVersion: "yt-dlp 版本：",
+  ytDlpVersionUnknown: "未知",
+  ytDlpVersionUnavailable: "yt-dlp 不可用",
+  ytDlpVersionCheckFailed: "读取 yt-dlp 版本失败。",
+  ytDlpBinaryPath: "可执行文件：{path}",
+  ytDlpCheckUpdate: "检查更新",
+  ytDlpUpdate: "更新 yt-dlp",
+  ytDlpUpdateAvailable: "有可用更新：{version}",
+  ytDlpUpToDate: "已是最新",
+  ytDlpUpdateInProgress: "正在更新 yt-dlp，可能需要几分钟。",
+  ytDlpUpdateSuccess: "yt-dlp 已更新到 {version}。",
+  ytDlpUpdateNoChange: "yt-dlp 已经是最新版本。",
+  ytDlpUpdateFailed: "更新 yt-dlp 失败。",
+  ytDlpUpdateCustomPathNotice:
+    "YT_DLP_PATH 指定了固定的可执行文件，MyTube 无法更新它。请自行更新该文件或取消设置 YT_DLP_PATH。",
+  ytDlpUpdatePolicyNotice:
+    "在 application 信任模式下，更新 yt-dlp 会被部署安全策略禁用。",
   mountDirectoriesPolicyNotice:
     "挂载目录功能需要 host 级管理员信任。",
   customize: "自定义",

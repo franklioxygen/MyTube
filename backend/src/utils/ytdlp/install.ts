@@ -20,7 +20,7 @@ let ytDlpAvailablePromise: Promise<void> | null = null;
 /**
  * Try to install yt-dlp via pip, trying multiple pip variants.
  */
-async function installYtDlp(options: { upgrade?: boolean } = {}): Promise<void> {
+export async function installYtDlp(options: { upgrade?: boolean } = {}): Promise<void> {
   const { upgrade = false } = options;
   // curl-cffi powers yt-dlp's browser impersonation (--impersonate), which the
   // MissAV downloader needs to get past Cloudflare on the m3u8 CDN. The Docker

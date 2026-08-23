@@ -1238,6 +1238,23 @@ export const ko = {
   ytDlpConfigurationDescriptionEnd: "에서 자세한 정보를 확인하세요.",
   ytDlpConfigurationPolicyNotice:
     "application 신뢰 모드에서는 배포 보안 정책에 따라 원시 yt-dlp 설정이 비활성화됩니다.",
+  ytDlpVersion: "yt-dlp 버전:",
+  ytDlpVersionUnknown: "알 수 없음",
+  ytDlpVersionUnavailable: "yt-dlp를 사용할 수 없습니다",
+  ytDlpVersionCheckFailed: "yt-dlp 버전을 읽지 못했습니다.",
+  ytDlpBinaryPath: "실행 파일: {path}",
+  ytDlpCheckUpdate: "업데이트 확인",
+  ytDlpUpdate: "yt-dlp 업데이트",
+  ytDlpUpdateAvailable: "업데이트 가능: {version}",
+  ytDlpUpToDate: "최신 상태",
+  ytDlpUpdateInProgress: "yt-dlp를 업데이트하는 중입니다. 몇 분 정도 걸릴 수 있습니다.",
+  ytDlpUpdateSuccess: "yt-dlp를 {version}(으)로 업데이트했습니다.",
+  ytDlpUpdateNoChange: "yt-dlp는 이미 최신 버전입니다.",
+  ytDlpUpdateFailed: "yt-dlp 업데이트에 실패했습니다.",
+  ytDlpUpdateCustomPathNotice:
+    "YT_DLP_PATH가 특정 실행 파일을 지정하고 있어 MyTube가 업데이트할 수 없습니다. 직접 업데이트하거나 YT_DLP_PATH를 해제하세요.",
+  ytDlpUpdatePolicyNotice:
+    "application 신뢰 모드에서는 배포 보안 정책에 따라 yt-dlp 업데이트가 비활성화됩니다.",
   mountDirectoriesPolicyNotice:
     "마운트 디렉토리는 호스트 수준의 관리자 신뢰가 필요합니다.",
   customize: "사용자 지정",

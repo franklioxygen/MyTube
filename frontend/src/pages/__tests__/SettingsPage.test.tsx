@@ -290,6 +290,12 @@ vi.mock('../../components/Settings/YtDlpSettings', () => ({
   ),
 }));
 
+vi.mock('../../components/Settings/YtDlpVersionSettings', () => ({
+  default: ({ canUpdate }: any) => (
+    <div data-testid="ytdlp-version-settings" data-can-update={String(canUpdate)} />
+  ),
+}));
+
 vi.mock('../../components/Settings/TagsSettings', () => ({
   default: ({ onTagsChange, onRenameTag, onTagConflict }: any) => (
     <div data-testid="tags-settings">

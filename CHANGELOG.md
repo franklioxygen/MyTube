@@ -4,6 +4,7 @@
 
 ### Feat
 
+- Show the installed yt-dlp version in Settings -> yt-dlp Configuration, compare it against the latest release on PyPI, and offer an in-place update so a broken extractor can be fixed without rebuilding the image or editing a config file. The update is `container`-trust gated, refuses when `YT_DLP_PATH` pins a specific binary, and shares a single pip run between concurrent requests. Closes #417
 - Polish collection cards to read more like video cards (hover treatment, tighter title handling, and favorite-collection indicators), link collection names from the manage table directly to their collection pages, and replace the mobile authors shortcut with the real authors list with a header backdrop (#365)
 
 ### Style
@@ -20,6 +21,7 @@
 
 ### Fix
 
+- Bump the pinned yt-dlp from 2026.6.9 to 2026.8.19 (and curl-cffi from 0.15.0 to 0.16.0, the version yt-dlp now pins), fixing the "The page needs to be reloaded" failure that broke YouTube downloads. Closes #416
 - Harden Bilibili source enumeration so a truncated listing fails loudly and retryably instead of being frozen as a complete plan. The space, collection, and series readers previously treated a short page as end-of-list, so a risk-controlled response that returned fewer rows than requested was silently accepted as the whole source; the collection reader could also loop forever when the API returned empty pages while still advertising more. All three now require a valid advertised total, reject a short page before that total is reached, and stop at a 100-page ceiling. Failed collection and series reads are also reported as structured, retryable planning failures rather than a bare error message, matching what the space path already produced.
 - Restore subscription backfill, which since v1.10.22 cancelled itself with "MyTube could not prove the requested order" and downloaded nothing. A flat listing carries no publication dates on any platform, so the requested order depended entirely on a recovery step that regularly fails. Three changes: ask yt-dlp for `youtubetab:approximate_date` so a YouTube listing supplies dates directly (removing one full extraction per video, and with it the failure mode where a rate-limited channel loses every date); WBI-sign the Bilibili space API, which answers `code: -352` to unsigned requests from datacenter IPs where most self-hosted instances run; and, when no dates can be recovered at all, order by the source's own newest-first listing with a recorded warning instead of cancelling the task, for the channel and space listings whose natural order already is the requested one. A hand-ordered playlist, a Bilibili collection, and any view-count order still fail rather than guess.
 - Default the frontend container's browser-facing URLs to same-origin paths instead of the `backend:5551` compose service name. nginx already proxies `/api` and every media route, and the service name only resolves inside the container network, so a stack that omitted `VITE_BACKEND_URL` baked an unreachable origin into the bundle and lost all video covers — the only media addressed through it — while the API, avatars and playback kept working. Refs #405

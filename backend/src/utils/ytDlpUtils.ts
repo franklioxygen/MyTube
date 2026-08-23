@@ -18,6 +18,12 @@ export {
 } from "./ytdlp/execute";
 export { isMembersOnlyError } from "./ytdlp/errorClassification";
 export {
+  getYtDlpStatus,
+  isYtDlpUpdateInProgress,
+  updateYtDlp,
+} from "./ytdlp/maintenance";
+export type { YtDlpStatus, YtDlpUpdateResult } from "./ytdlp/maintenance";
+export {
   parseYtDlpConfig,
   getUserYtDlpConfig,
   getEffectiveUserYtDlpConfig,

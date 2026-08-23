@@ -172,6 +172,15 @@
   - 请求体: `{ oldTag: string, newTag: string }`
 - `POST /api/settings/telegram/test` - 发送 Telegram 测试通知
   - 请求体: `{ botToken: string, chatId: string }`
+- `GET /api/settings/ytdlp/version` - 返回后端实际使用的 yt-dlp 版本以及 PyPI 上的最新版本
+  - 查询参数: `checkLatest=false` 可跳过 PyPI 查询
+  - 响应 `data`: `{ version, path, available, isStale, staleAfterDays, latestVersion, updateAvailable, updateSupported, customPathConfigured, errorMessage? }`
+  - PyPI 不可达时 `latestVersion` 为 `null`，此时 `updateAvailable` 为 `false`
+- `POST /api/settings/ytdlp/update` - 通过 pip 就地更新 yt-dlp（无需重建镜像）
+  - 需要 `container` 级管理员信任；在 `application` 信任模式下返回 `403`
+  - 当 `YT_DLP_PATH` 指定了固定可执行文件时返回 `409`（`errorKey: ytDlpUpdateCustomPath`）
+  - 响应 `data`: `{ previousVersion, changed, status }`，其中 `status` 与上一个接口结构相同
+  - 并发请求共用同一次 pip 执行
 
 ## 密码与会话
 

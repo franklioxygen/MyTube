@@ -1257,6 +1257,23 @@ export const ja = {
   ytDlpConfigurationDescriptionEnd: "をご覧ください。",
   ytDlpConfigurationPolicyNotice:
     "application 信頼モードでは、生の yt-dlp 設定はデプロイのセキュリティポリシーにより無効化されます。",
+  ytDlpVersion: "yt-dlp バージョン:",
+  ytDlpVersionUnknown: "不明",
+  ytDlpVersionUnavailable: "yt-dlp を利用できません",
+  ytDlpVersionCheckFailed: "yt-dlp のバージョンを取得できませんでした。",
+  ytDlpBinaryPath: "実行ファイル: {path}",
+  ytDlpCheckUpdate: "更新を確認",
+  ytDlpUpdate: "yt-dlp を更新",
+  ytDlpUpdateAvailable: "更新があります: {version}",
+  ytDlpUpToDate: "最新です",
+  ytDlpUpdateInProgress: "yt-dlp を更新しています。数分かかる場合があります。",
+  ytDlpUpdateSuccess: "yt-dlp を {version} に更新しました。",
+  ytDlpUpdateNoChange: "yt-dlp はすでに最新バージョンです。",
+  ytDlpUpdateFailed: "yt-dlp の更新に失敗しました。",
+  ytDlpUpdateCustomPathNotice:
+    "YT_DLP_PATH で実行ファイルが固定されているため、MyTube は更新できません。手動で更新するか YT_DLP_PATH を解除してください。",
+  ytDlpUpdatePolicyNotice:
+    "application 信頼モードでは、yt-dlp の更新はデプロイのセキュリティポリシーにより無効化されます。",
   mountDirectoriesPolicyNotice:
     "マウントディレクトリにはホストレベルの管理者信頼が必要です。",
   customize: "カスタマイズ",

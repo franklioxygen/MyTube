@@ -37,6 +37,7 @@ import TwitchSettings from '../components/Settings/TwitchSettings';
 import VideoDefaultSettings from '../components/Settings/VideoDefaultSettings';
 import LiveTranslationSettings from '../components/Settings/LiveTranslationSettings';
 import YtDlpSettings from '../components/Settings/YtDlpSettings';
+import YtDlpVersionSettings from '../components/Settings/YtDlpVersionSettings';
 import { useAuth } from '../contexts/AuthContext';
 import { useDownload } from '../contexts/DownloadContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -513,6 +514,7 @@ const SettingsPage: React.FC = () => {
             </Box>
             <Box>
                 <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>{t('ytDlpConfiguration') || 'yt-dlp Configuration'}</Typography>
+                <YtDlpVersionSettings canUpdate={canUseContainerAdminFeatures} />
                 {canUseContainerAdminFeatures ? (
                     <YtDlpSettings
                         config={settings.ytDlpConfig || ''}
