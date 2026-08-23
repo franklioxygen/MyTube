@@ -1230,6 +1230,23 @@ export const ar = {
   ytDlpConfigurationDescriptionEnd: "لمزيد من المعلومات.",
   ytDlpConfigurationPolicyNotice:
     "يتم تعطيل إعدادات yt-dlp الخام بواسطة سياسة أمان النشر في وضع الثقة application.",
+  ytDlpVersion: "إصدار yt-dlp:",
+  ytDlpVersionUnknown: "غير معروف",
+  ytDlpVersionUnavailable: "yt-dlp غير متاح",
+  ytDlpVersionCheckFailed: "تعذّرت قراءة إصدار yt-dlp.",
+  ytDlpBinaryPath: "الملف التنفيذي: {path}",
+  ytDlpCheckUpdate: "التحقق من التحديثات",
+  ytDlpUpdate: "تحديث yt-dlp",
+  ytDlpUpdateAvailable: "يتوفر تحديث: {version}",
+  ytDlpUpToDate: "محدَّث",
+  ytDlpUpdateInProgress: "جارٍ تحديث yt-dlp. قد يستغرق ذلك بضع دقائق.",
+  ytDlpUpdateSuccess: "تم تحديث yt-dlp إلى {version}.",
+  ytDlpUpdateNoChange: "yt-dlp محدَّث بالفعل إلى أحدث إصدار متاح.",
+  ytDlpUpdateFailed: "فشل تحديث yt-dlp.",
+  ytDlpUpdateCustomPathNotice:
+    "يحدد YT_DLP_PATH ملفًا تنفيذيًا بعينه، لذا لا يستطيع MyTube تحديثه. حدّثه بنفسك أو أزل YT_DLP_PATH.",
+  ytDlpUpdatePolicyNotice:
+    "يتم تعطيل تحديث yt-dlp بواسطة سياسة أمان النشر في وضع الثقة application.",
   mountDirectoriesPolicyNotice:
     "تتطلب أدلة الربط ثقة مدير على مستوى المضيف.",
   customize: "تخصيص",

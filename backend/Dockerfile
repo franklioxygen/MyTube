@@ -122,21 +122,35 @@ RUN set -eux; \
 
 # Install yt-dlp and related packages. Versions are pinned for reproducible builds.
 # To upgrade: check https://pypi.org/project/yt-dlp/ and update versions below.
-# yt-dlp-ejs and curl-cffi must track the yt-dlp release:
-#  - yt-dlp 2026.6.9 expects EJS 0.8.0 for the YouTube JS challenge solver.
-#  - it also pins the curl-cffi extra to 0.15.0, which adds the newer Chrome
-#    impersonation targets (chrome145/146). Staying on 0.14.0 would cap
-#    --impersonate at the older chrome142 fingerprint.
+# yt-dlp-ejs and curl-cffi must track the yt-dlp release (see the "pin" and
+# "pin-curl-cffi" extras in the yt-dlp release metadata):
+#  - yt-dlp 2026.8.19 expects EJS 0.8.0 for the YouTube JS challenge solver.
+#  - it pins the curl-cffi extra to 0.16.0. Staying on an older curl-cffi caps
+#    --impersonate at an older Chrome fingerprint.
 # Keep all three bumped in lockstep with yt-dlp.
 # Note: bgutil-ytdlp-pot-provider is coupled to the Node server under
 # backend/bgutil-ytdlp-pot-provider/server — bump both in lockstep, not just here.
+# The operator can also update yt-dlp at runtime from Settings -> yt-dlp
+# Configuration without rebuilding this image. That install is a `pip --user`
+# into $HOME, which entrypoint.sh points at /app/data/.home — persistent in the
+# supplied Compose stacks — so it OUTLIVES container recreation and keeps
+# shadowing the version pinned here (the path resolver prefers the newer
+# release). Recreating from an older image is therefore not a rollback; see
+# "Updating yt-dlp without rebuilding" in documents/en/docker-guide.md for how
+# to drop the runtime install and fall back to the pinned one.
 # Using --break-system-packages because we are in a container and want to install globally
+# The install is followed by an assertion on the console script location: the
+# YT_DLP_PATH example in documents/*/docker-guide.md hardcodes this path, so a
+# change in where pip lands it should break the build rather than let the
+# operator-facing docs go quietly stale.
 RUN pip3 install --no-cache-dir \
-    "yt-dlp==2026.6.9" \
+    "yt-dlp==2026.8.19" \
     "bgutil-ytdlp-pot-provider==1.2.2" \
     "yt-dlp-ejs==0.8.0" \
-    "curl-cffi==0.15.0" \
-    --break-system-packages
+    "curl-cffi==0.16.0" \
+    --break-system-packages \
+    && { test "$(command -v yt-dlp)" = "/usr/local/bin/yt-dlp" \
+      || { echo "ERROR: yt-dlp resolved to '$(command -v yt-dlp)', not /usr/local/bin/yt-dlp. Update the YT_DLP_PATH example in documents/en/docker-guide.md and documents/zh/docker-guide.md to match." >&2; exit 1; }; }
 
 ARG BUILD_DATE=unknown
 

@@ -1234,6 +1234,23 @@ export const en = {
   ytDlpConfigurationDescriptionEnd: "for more information.",
   ytDlpConfigurationPolicyNotice:
     "Raw yt-dlp configuration is disabled by deployment security policy in application trust mode.",
+  ytDlpVersion: "yt-dlp version:",
+  ytDlpVersionUnknown: "unknown",
+  ytDlpVersionUnavailable: "yt-dlp is not available",
+  ytDlpVersionCheckFailed: "Failed to read the yt-dlp version.",
+  ytDlpBinaryPath: "Binary: {path}",
+  ytDlpCheckUpdate: "Check for updates",
+  ytDlpUpdate: "Update yt-dlp",
+  ytDlpUpdateAvailable: "Update available: {version}",
+  ytDlpUpToDate: "Up to date",
+  ytDlpUpdateInProgress: "Updating yt-dlp. This can take a couple of minutes.",
+  ytDlpUpdateSuccess: "yt-dlp updated to {version}.",
+  ytDlpUpdateNoChange: "yt-dlp is already at the newest available version.",
+  ytDlpUpdateFailed: "Failed to update yt-dlp.",
+  ytDlpUpdateCustomPathNotice:
+    "YT_DLP_PATH pins a specific binary, so MyTube cannot update it. Update that binary yourself or unset YT_DLP_PATH.",
+  ytDlpUpdatePolicyNotice:
+    "Updating yt-dlp is disabled by deployment security policy in application trust mode.",
   mountDirectoriesPolicyNotice:
     "Mount directories require host-level admin trust.",
   customize: "Customize",

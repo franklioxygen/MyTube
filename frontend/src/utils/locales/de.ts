@@ -1275,6 +1275,23 @@ export const de = {
   ytDlpConfigurationDescriptionEnd: "für weitere Informationen.",
   ytDlpConfigurationPolicyNotice:
     "Die rohe yt-dlp-Konfiguration ist im Vertrauensmodus application durch die Sicherheitsrichtlinie der Bereitstellung deaktiviert.",
+  ytDlpVersion: "yt-dlp-Version:",
+  ytDlpVersionUnknown: "unbekannt",
+  ytDlpVersionUnavailable: "yt-dlp ist nicht verfügbar",
+  ytDlpVersionCheckFailed: "Die yt-dlp-Version konnte nicht gelesen werden.",
+  ytDlpBinaryPath: "Binärdatei: {path}",
+  ytDlpCheckUpdate: "Nach Updates suchen",
+  ytDlpUpdate: "yt-dlp aktualisieren",
+  ytDlpUpdateAvailable: "Update verfügbar: {version}",
+  ytDlpUpToDate: "Aktuell",
+  ytDlpUpdateInProgress: "yt-dlp wird aktualisiert. Das kann einige Minuten dauern.",
+  ytDlpUpdateSuccess: "yt-dlp wurde auf {version} aktualisiert.",
+  ytDlpUpdateNoChange: "yt-dlp ist bereits auf der neuesten verfügbaren Version.",
+  ytDlpUpdateFailed: "yt-dlp konnte nicht aktualisiert werden.",
+  ytDlpUpdateCustomPathNotice:
+    "YT_DLP_PATH legt eine bestimmte Binärdatei fest, daher kann MyTube sie nicht aktualisieren. Aktualisiere sie selbst oder entferne YT_DLP_PATH.",
+  ytDlpUpdatePolicyNotice:
+    "Das Aktualisieren von yt-dlp ist im Vertrauensmodus application durch die Sicherheitsrichtlinie der Bereitstellung deaktiviert.",
   mountDirectoriesPolicyNotice:
     "Mount-Verzeichnisse erfordern Admin-Vertrauen auf Host-Ebene.",
   customize: "Anpassen",

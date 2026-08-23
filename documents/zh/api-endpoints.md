@@ -172,6 +172,19 @@
   - 请求体: `{ oldTag: string, newTag: string }`
 - `POST /api/settings/telegram/test` - 发送 Telegram 测试通知
   - 请求体: `{ botToken: string, chatId: string }`
+- `GET /api/settings/ytdlp/version` - 返回后端实际使用的 yt-dlp 版本以及 PyPI 上的最新版本
+  - 默认只探测本地可执行文件，不会连接 PyPI
+  - 查询参数: `checkLatest=true` 时才会显式查询 PyPI 最新版本
+  - 响应 `data`: `{ version, path, available, isStale, staleAfterDays, latestVersion, updateAvailable, updateSupported, customPathConfigured, errorMessage? }`
+  - 未请求查询或 PyPI 不可达时，`latestVersion` 为 `null`，此时 `updateAvailable` 为 `false`
+- `POST /api/settings/ytdlp/update` - 通过 pip 就地更新 yt-dlp（无需重建镜像）
+  - 需要 `container` 级管理员信任；在 `application` 信任模式下返回 `403`
+  - 当 `YT_DLP_PATH` 指定了固定可执行文件时返回 `409`（`errorKey: ytDlpUpdateCustomPath`）
+  - 响应 `data`: `{ previousVersion, changed, status }`，其中 `status` 与上一个接口结构相同
+  - 并发请求共用同一次 pip 执行
+  - 安装 `yt-dlp[default,curl-cffi]`，使与发行版本绑定的依赖（yt-dlp-ejs 解算器、curl-cffi 模拟范围）由目标版本自行解析，避免版本脱节
+  - 不会升级内置的 bgutil POT provider：它会优先于任何 pip 副本从镜像加载，且其 Node 服务端不在 PyPI 上
+  - 在 Docker 中该安装会持久化在 `/app/data` 卷内并在容器重建后继续生效；回退到镜像固定版本的方法见 Docker 指南
 
 ## 密码与会话
 

@@ -1256,6 +1256,23 @@ export const ru = {
   ytDlpConfigurationDescriptionEnd: "для получения дополнительной информации.",
   ytDlpConfigurationPolicyNotice:
     "Сырая конфигурация yt-dlp отключена политикой безопасности развертывания в режиме доверия application.",
+  ytDlpVersion: "Версия yt-dlp:",
+  ytDlpVersionUnknown: "неизвестно",
+  ytDlpVersionUnavailable: "yt-dlp недоступен",
+  ytDlpVersionCheckFailed: "Не удалось получить версию yt-dlp.",
+  ytDlpBinaryPath: "Исполняемый файл: {path}",
+  ytDlpCheckUpdate: "Проверить обновления",
+  ytDlpUpdate: "Обновить yt-dlp",
+  ytDlpUpdateAvailable: "Доступно обновление: {version}",
+  ytDlpUpToDate: "Актуальная версия",
+  ytDlpUpdateInProgress: "Идет обновление yt-dlp. Это может занять несколько минут.",
+  ytDlpUpdateSuccess: "yt-dlp обновлен до {version}.",
+  ytDlpUpdateNoChange: "yt-dlp уже обновлен до последней доступной версии.",
+  ytDlpUpdateFailed: "Не удалось обновить yt-dlp.",
+  ytDlpUpdateCustomPathNotice:
+    "YT_DLP_PATH закрепляет конкретный исполняемый файл, поэтому MyTube не может его обновить. Обновите его самостоятельно или уберите YT_DLP_PATH.",
+  ytDlpUpdatePolicyNotice:
+    "В режиме доверия application обновление yt-dlp отключено политикой безопасности развертывания.",
   mountDirectoriesPolicyNotice:
     "Подключенные директории требуют доверия администратора на уровне хоста.",
   customize: "Настроить",

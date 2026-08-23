@@ -1,4 +1,5 @@
 import { spawn } from "child_process";
+import { getProviderPluginPath } from "../../services/downloaders/ytdlp/ytdlpHelpers";
 import { getErrorMessage } from "../errors";
 import { YT_DLP_STALE_AFTER_DAYS } from "./constants";
 import {
@@ -17,16 +18,67 @@ import { logger } from "../logger";
 // Cached promise so we only check/install once per process
 let ytDlpAvailablePromise: Promise<void> | null = null;
 
+// Request yt-dlp through its extras rather than naming its companions here.
+// A yt-dlp release pins the dependencies that are coupled to it — "default"
+// carries the yt-dlp-ejs pin for the YouTube JS challenge solver, "curl-cffi"
+// the browser-impersonation range that --impersonate (and with it the MissAV
+// downloader) depends on. Letting pip read those pins off the release being
+// installed keeps them in lockstep automatically; a hand-written list here
+// would silently keep an old solver next to a freshly upgraded yt-dlp.
+const YT_DLP_PIP_PACKAGE = "yt-dlp[default,curl-cffi]";
+
+/**
+ * Decide which packages pip should install.
+ *
+ * The bgutil POT provider is only added when no bundled copy is present.
+ * getYtDlpSpawnEnv() puts the bundled plugin at the front of PYTHONPATH, ahead
+ * of site-packages, and its Node counterpart (generate_once.js) ships with the
+ * image and is not on PyPI at all — so where a bundle exists, a pip copy of the
+ * plugin is loaded by nothing and "upgrading" it would report progress that
+ * never reaches the yt-dlp process. Bumping the bundled provider is a rebuild,
+ * not a runtime install.
+ */
+function getPipPackages(): string[] {
+  if (getProviderPluginPath()) {
+    return [YT_DLP_PIP_PACKAGE];
+  }
+
+  return [YT_DLP_PIP_PACKAGE, "bgutil-ytdlp-pot-provider"];
+}
+
+// Every pip run in this process queues here. Two callers reach this module
+// under independent locks — ensureYtDlpAvailable() through its cached
+// availability promise, updateYtDlp() through its own in-flight promise — so
+// an operator pressing "Update yt-dlp" while the first download of the process
+// triggers the missing-binary or stale-version install would otherwise put two
+// pip processes on the same user-site directory at once. pip is not safe to run
+// concurrently against one environment: the two runs rewrite the same package
+// files and either can fail or leave the install half-written. Serializing here
+// rather than in the callers keeps future call sites covered by default.
+let pipQueue: Promise<unknown> = Promise.resolve();
+
+function withPipLock<T>(task: () => Promise<T>): Promise<T> {
+  // Run the task whether or not the previous one settled cleanly, and keep a
+  // swallowed copy as the tail so one failure cannot poison the queue.
+  const run = pipQueue.then(task, task);
+  pipQueue = run.catch(() => undefined);
+  return run;
+}
+
 /**
  * Try to install yt-dlp via pip, trying multiple pip variants.
+ *
+ * Serialized process-wide: concurrent callers queue instead of overlapping.
  */
-async function installYtDlp(options: { upgrade?: boolean } = {}): Promise<void> {
+export async function installYtDlp(
+  options: { upgrade?: boolean } = {}
+): Promise<void> {
+  return withPipLock(() => runPipInstall(options));
+}
+
+async function runPipInstall(options: { upgrade?: boolean } = {}): Promise<void> {
   const { upgrade = false } = options;
-  // curl-cffi powers yt-dlp's browser impersonation (--impersonate), which the
-  // MissAV downloader needs to get past Cloudflare on the m3u8 CDN. The Docker
-  // image installs it explicitly; install it here too so non-Docker setups
-  // gain the capability instead of hard-failing on --impersonate.
-  const packages = ["yt-dlp", "bgutil-ytdlp-pot-provider", "curl-cffi"];
+  const packages = getPipPackages();
   const installArgs = ["install"];
   if (upgrade) {
     installArgs.push("-U");
@@ -77,9 +129,7 @@ async function installYtDlp(options: { upgrade?: boolean } = {}): Promise<void> 
         proc.on("error", reject);
       });
       logger.info(
-        upgrade
-          ? "[yt-dlp] Successfully updated yt-dlp and bgutil provider."
-          : "[yt-dlp] Successfully installed yt-dlp and bgutil provider."
+        `[yt-dlp] Successfully ${upgrade ? "updated" : "installed"} ${packages.join(", ")}.`
       );
       updatePathAfterAutoInstall();
       return;
@@ -132,7 +182,7 @@ export async function ensureYtDlpAvailable(): Promise<void> {
         ) {
           attemptedAutoUpgrade = true;
           logger.warn(
-            `[yt-dlp] ${versionInfo.version || ytDlpPath} is older than ${YT_DLP_STALE_AFTER_DAYS} days. Updating yt-dlp and the bgutil provider to avoid known YouTube 360p regressions.`
+            `[yt-dlp] ${versionInfo.version || ytDlpPath} is older than ${YT_DLP_STALE_AFTER_DAYS} days. Updating yt-dlp to avoid known YouTube 360p regressions.`
           );
           try {
             await installYtDlp({ upgrade: true });
@@ -212,4 +262,11 @@ export async function ensureYtDlpAvailable(): Promise<void> {
 
 export function resetYtDlpAvailablePromise(): void {
   ytDlpAvailablePromise = null;
+}
+
+/**
+ * @internal Test helper: drop a queue tail left pending by a mocked pip run.
+ */
+export function resetPipQueue(): void {
+  pipQueue = Promise.resolve();
 }

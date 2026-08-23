@@ -186,6 +186,76 @@ services:
       - mytube-data:/app/data
 ```
 
+### 不重建镜像更新 yt-dlp
+
+设置 -> yt-dlp 配置中会显示后端实际使用的 yt-dlp 版本；在 `container` 管理员信任级别下，
+还会提供 **更新 yt-dlp** 按钮。该操作在运行中的容器内执行 `pip install -U`，因此遇到
+提取器失效时无需等待新镜像即可修复。
+
+**该更新会被持久化。** 它是一次 `pip --user` 安装，装到 `$HOME`，而入口脚本把 `$HOME`
+指向 `/app/data/.home` —— 属于上面的 `/app/data` 卷。因此运行时安装的版本会在
+`docker compose down && up`、容器重建、镜像升级之后继续存在；由于它是更新的发行版本，
+后端也会继续优先使用它，而不是镜像中固定的版本。
+
+这同时意味着**回退到旧镜像并不能回退 yt-dlp**。要恢复为镜像中固定的版本，需要删除完整的
+运行时 Python 用户安装，然后按照下文说明重启或重建服务。只删除 `yt-dlp` 可执行文件并不够：
+更新操作还会安装 `yt-dlp-ejs`、`curl-cffi` 等与发行版耦合的包；如果保留这些用户级包，
+它们仍会覆盖镜像中的固定版本。
+
+对于默认的双容器 stack（服务名为 `backend`）：
+
+```bash
+docker compose exec backend sh -c 'rm -rf /app/data/.home/.local'
+```
+
+对于仓库提供的单容器 stack（服务名为 `mytube`）：
+
+```bash
+docker compose -f stacks/docker-compose.single-container.yml exec mytube sh -c 'rm -rf /app/data/.home/.local'
+```
+
+专用的 `.local` 目录保存运行时更新器安装的包和脚本；删除它不会删除 `/app/data` 中的数据库，
+也不会删除 `/app/uploads` 中的媒体。如果你曾主动在该容器的 Python 用户环境中安装其他包，
+这些包也会一并删除。完成下文的重启或重建步骤后，请在设置中重新查看版本。
+
+如果镜像固定的 yt-dlp 已超过 90 天，仅删除 `.local` 只能暂时回退：重启后首次使用 yt-dlp
+时，MyTube 的旧版本检查会再次把当前发行版自动安装到 `.local`。若要持续固定旧镜像中的
+版本，请在执行上面的清理命令**之前**，把镜像内可执行文件的绝对路径加入服务环境变量：
+
+```yaml
+environment:
+  - YT_DLP_PATH=/usr/local/bin/yt-dlp
+```
+
+如果运行时更新前设置页面显示的镜像路径与上述 Docker 默认值不同，请使用页面原先显示的
+路径。绝对路径形式的 `YT_DLP_PATH` 会把该可执行文件标记为由部署者管理，同时禁用旧版本
+自动升级和 **更新 yt-dlp** 按钮。`YT_DLP_PATH=yt-dlp` 不能实现硬固定，因为代码会把这个
+字面值视为默认的 PATH 查找配置。
+
+添加环境变量并使用上面的对应命令删除 `.local` 后，需要重新创建服务，让 Compose 应用新的
+环境变量（仅执行 `restart` 不会应用 Compose 配置变更）：
+
+```bash
+# 默认双容器 stack
+docker compose up -d --force-recreate backend
+
+# 仓库提供的单容器 stack
+docker compose -f stacks/docker-compose.single-container.yml up -d --force-recreate mytube
+```
+
+如果镜像版本足够新，不需要硬固定，请在删除 `.local` 后重启对应服务：
+
+```bash
+# 默认双容器 stack
+docker compose restart backend
+
+# 仓库提供的单容器 stack
+docker compose -f stacks/docker-compose.single-container.yml restart mytube
+```
+
+内置的 bgutil POT provider 不在此次更新范围内：它的 Python 插件会优先于任何 pip 副本从
+镜像中加载，其 Node 服务端也随镜像一起发布，因此升级 provider 需要新的镜像。
+
 ### 环境变量
 
 您可以通过添加  `.env`  文件或修改  `docker-compose.yml`  中的  `environment`  部分来自定义部署。

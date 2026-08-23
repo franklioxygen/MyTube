@@ -188,6 +188,89 @@ Example backend volume section:
       - mytube-data:/app/data
 ```
 
+### Updating yt-dlp without rebuilding
+
+Settings -> yt-dlp Configuration shows the yt-dlp version the backend actually
+runs and, on `container` admin trust, offers an **Update yt-dlp** button. This
+runs `pip install -U` inside the running container, so a broken extractor can be
+fixed without waiting for a new image.
+
+**The update persists.** It is a `pip --user` install into `$HOME`, which the
+entrypoint points at `/app/data/.home` — part of the `/app/data` volume above.
+The runtime install therefore survives `docker compose down && up`, container
+recreation, and image upgrades, and the backend keeps preferring it over the
+version pinned in the image because it is the newer release.
+
+That also means **recreating from an older image is not a rollback.** To go back
+to the version pinned in the image, delete the complete runtime Python user
+installation, then restart or recreate the service as described below. Removing
+only the `yt-dlp` executable is not enough: the update also installs
+release-coupled packages such as `yt-dlp-ejs` and
+`curl-cffi`, and those user-site packages would continue to shadow the versions
+from the image.
+
+For the default two-container stack (`backend` service):
+
+```bash
+docker compose exec backend sh -c 'rm -rf /app/data/.home/.local'
+```
+
+For the supplied single-container stack (`mytube` service):
+
+```bash
+docker compose -f stacks/docker-compose.single-container.yml exec mytube sh -c 'rm -rf /app/data/.home/.local'
+```
+
+The dedicated `.local` tree contains packages and scripts installed by the
+runtime updater; removing it does not remove the database or media under
+`/app/data` and `/app/uploads`. If you deliberately installed other Python user
+packages into this container, they are removed as well. After completing the
+restart or recreation step below, re-check the version in Settings.
+
+If the image-pinned yt-dlp is more than 90 days old, removing `.local` alone is
+only temporary: on the first yt-dlp use after restart, MyTube's stale-version
+check automatically installs a current release into `.local` again. To keep an
+older image version pinned, add the image binary's absolute path to the service
+environment **before running the cleanup command above**:
+
+```yaml
+environment:
+  - YT_DLP_PATH=/usr/local/bin/yt-dlp
+```
+
+Use the image-binary path that Settings showed before the runtime update if it
+differs from the Docker default above. An absolute `YT_DLP_PATH` marks the binary
+as operator-managed: it disables both stale-version auto-upgrades and the
+**Update yt-dlp** button. Setting `YT_DLP_PATH=yt-dlp` is not a hard pin because
+that literal value is treated as the default PATH-based configuration.
+
+After adding the variable and deleting `.local` with the appropriate command
+above, recreate the service so Compose applies the changed environment (a plain
+`restart` does not apply Compose configuration changes):
+
+```bash
+# Default two-container stack
+docker compose up -d --force-recreate backend
+
+# Supplied single-container stack
+docker compose -f stacks/docker-compose.single-container.yml up -d --force-recreate mytube
+```
+
+If the image version is recent enough that no hard pin is needed, restart the
+corresponding service after deleting `.local`:
+
+```bash
+# Default two-container stack
+docker compose restart backend
+
+# Supplied single-container stack
+docker compose -f stacks/docker-compose.single-container.yml restart mytube
+```
+
+The bundled bgutil POT provider is not part of this update. Its Python plugin is
+loaded from the image ahead of any pip copy, and its Node server ships with the
+image, so bumping the provider requires a new image.
+
 ### Environment Variables
 
 You can customize the deployment by adding a `.env` file or modifying the `environment` section in `docker-compose.yml`.

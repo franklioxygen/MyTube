@@ -63,6 +63,10 @@ import {
     getMediaServerExportRebuildStatus,
     startMediaServerExportRebuild,
 } from "../controllers/mediaServerExportController";
+import {
+    getYtDlpVersion,
+    updateYtDlpVersion,
+} from "../controllers/ytDlpController";
 import { asyncHandler } from "../middleware/errorHandler";
 
 const router = express.Router();
@@ -79,6 +83,10 @@ router.post("/format-filenames", asyncHandler(formatFilenames));
 router.post("/cleanup-author-collections", asyncHandler(cleanupAuthorCollections));
 router.get("/cloudflared/status", asyncHandler(getCloudflaredStatus));
 router.post("/tags/rename", asyncHandler(renameTag));
+
+// yt-dlp version / self-update routes
+router.get("/ytdlp/version", asyncHandler(getYtDlpVersion));
+router.post("/ytdlp/update", asyncHandler(updateYtDlpVersion));
 
 // Password routes
 router.get("/password-enabled", asyncHandler(getPasswordEnabled));

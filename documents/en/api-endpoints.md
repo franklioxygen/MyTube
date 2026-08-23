@@ -187,6 +187,19 @@ Favorites are scoped to the authenticated owner. When login protection is disabl
   - Body: `{ oldTag: string, newTag: string }`
 - `POST /api/settings/telegram/test` - Send a test Telegram notification
   - Body: `{ botToken: string, chatId: string }`
+- `GET /api/settings/ytdlp/version` - Report the yt-dlp the backend runs and the latest release on PyPI
+  - By default this probes only the local binary and does not contact PyPI
+  - Query: `checkLatest=true` explicitly looks up the latest release on PyPI
+  - Response `data`: `{ version, path, available, isStale, staleAfterDays, latestVersion, updateAvailable, updateSupported, customPathConfigured, errorMessage? }`
+  - `latestVersion` is `null` when the lookup was not requested or PyPI is unreachable; `updateAvailable` is then `false`
+- `POST /api/settings/ytdlp/update` - Update yt-dlp in place via pip (no image rebuild required)
+  - Requires `container` admin trust; returns `403` in `application` trust mode
+  - Returns `409` (`errorKey: ytDlpUpdateCustomPath`) when `YT_DLP_PATH` pins a specific binary
+  - Response `data`: `{ previousVersion, changed, status }` with `status` shaped like the endpoint above
+  - Concurrent requests share a single pip run
+  - Installs `yt-dlp[default,curl-cffi]` so the release-coupled pins (yt-dlp-ejs solver, curl-cffi impersonation range) are resolved from the target release instead of drifting
+  - The bundled bgutil POT provider is not upgraded: it is loaded from the image ahead of any pip copy and its Node server is not on PyPI
+  - In Docker the install persists in the `/app/data` volume and outlives container recreation; see the docker guide for how to roll back to the image-pinned version
 
 ## Password & Session
 
