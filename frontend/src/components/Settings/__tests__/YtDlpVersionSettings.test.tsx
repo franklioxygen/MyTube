@@ -33,7 +33,7 @@ const buildStatus = (overrides: Record<string, unknown> = {}) => ({
     available: true,
     isStale: false,
     staleAfterDays: 90,
-    latestVersion: '2026.8.19',
+    latestVersion: null,
     updateAvailable: false,
     updateSupported: true,
     customPathConfigured: false,
@@ -58,37 +58,66 @@ describe('YtDlpVersionSettings', () => {
         apiPostMock.mockReset();
     });
 
-    it('shows the installed version and an up-to-date chip', async () => {
+    it('loads the installed version without checking PyPI', async () => {
         apiGetMock.mockResolvedValue({ data: { data: buildStatus() } });
 
         renderPanel();
 
         expect(await screen.findByText('2026.08.19')).toBeInTheDocument();
-        expect(screen.getByText('ytDlpUpToDate')).toBeInTheDocument();
+        expect(screen.queryByText('ytDlpUpToDate')).not.toBeInTheDocument();
         expect(apiGetMock).toHaveBeenCalledWith('/settings/ytdlp/version');
     });
 
-    it('flags an available update with the latest version', async () => {
-        apiGetMock.mockResolvedValue({
-            data: {
-                data: buildStatus({
-                    version: '2026.06.09',
-                    latestVersion: '2026.8.19',
-                    updateAvailable: true,
-                }),
-            },
-        });
+    it('checks PyPI only when the user requests it', async () => {
+        apiGetMock
+            .mockResolvedValueOnce({
+                data: { data: buildStatus({ version: '2026.06.09' }) },
+            })
+            .mockResolvedValueOnce({
+                data: {
+                    data: buildStatus({
+                        version: '2026.06.09',
+                        latestVersion: '2026.8.19',
+                        updateAvailable: true,
+                    }),
+                },
+            });
+        const user = userEvent.setup();
 
         renderPanel();
+        await screen.findByText('2026.06.09');
+        expect(apiGetMock).toHaveBeenCalledTimes(1);
+
+        await user.click(screen.getByRole('button', { name: /ytDlpCheckUpdate$/ }));
 
         expect(
             await screen.findByText('ytDlpUpdateAvailable')
+        ).toBeInTheDocument();
+        expect(apiGetMock).toHaveBeenLastCalledWith(
+            '/settings/ytdlp/version?checkLatest=true'
+        );
+    });
+
+    it('surfaces the backend error when the update check fails', async () => {
+        apiGetMock
+            .mockResolvedValueOnce({ data: { data: buildStatus() } })
+            .mockRejectedValueOnce({
+                response: { data: { error: 'PyPI lookup is blocked by policy' } },
+            });
+        const user = userEvent.setup();
+
+        renderPanel();
+        await screen.findByText('2026.08.19');
+        await user.click(screen.getByRole('button', { name: /ytDlpCheckUpdate$/ }));
+
+        expect(
+            await screen.findByText('PyPI lookup is blocked by policy')
         ).toBeInTheDocument();
     });
 
     it('reports the new version after a successful update', async () => {
         apiGetMock.mockResolvedValue({
-            data: { data: buildStatus({ version: '2026.06.09', updateAvailable: true }) },
+            data: { data: buildStatus({ version: '2026.06.09' }) },
         });
         apiPostMock.mockResolvedValue({
             data: {
@@ -113,6 +142,7 @@ describe('YtDlpVersionSettings', () => {
             {},
             expect.objectContaining({ timeout: expect.any(Number) })
         );
+        expect(apiGetMock).toHaveBeenCalledTimes(1);
     });
 
     it('surfaces the backend error when the update fails', async () => {

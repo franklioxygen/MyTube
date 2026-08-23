@@ -118,7 +118,7 @@ export async function getLatestYtDlpVersion(): Promise<string | null> {
 export async function getYtDlpStatus(
   options: { checkLatest?: boolean } = {}
 ): Promise<YtDlpStatus> {
-  const { checkLatest = true } = options;
+  const { checkLatest = false } = options;
   const ytDlpPath = await resolveYtDlpPath();
   const [versionInfo, latestVersion] = await Promise.all([
     getYtDlpVersionInfo(ytDlpPath),
@@ -163,7 +163,9 @@ async function runYtDlpUpdate(): Promise<YtDlpUpdateResult> {
   resetJsRuntimeFlag();
   resetRemoteComponentsSupport();
 
-  const status = await getYtDlpStatus();
+  // pip has already performed the requested network operation. Re-probe only
+  // the installed binary here; the UI can explicitly check PyPI afterward.
+  const status = await getYtDlpStatus({ checkLatest: false });
   logger.info(
     `[yt-dlp] Update finished: ${previousVersion || "unknown"} -> ${status.version || "unknown"}.`
   );

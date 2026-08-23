@@ -90,7 +90,7 @@ describe("yt-dlp maintenance", () => {
     it("reports the installed version alongside the latest release", async () => {
       versionProbeMock.mockResolvedValue(versionInfo("2026.06.09"));
 
-      const status = await getYtDlpStatus();
+      const status = await getYtDlpStatus({ checkLatest: true });
 
       expect(status.version).toBe("2026.06.09");
       expect(status.latestVersion).toBe("2026.8.19");
@@ -110,7 +110,7 @@ describe("yt-dlp maintenance", () => {
     it("degrades gracefully when PyPI is unreachable", async () => {
       axiosGet.mockRejectedValue(new Error("offline"));
 
-      const status = await getYtDlpStatus();
+      const status = await getYtDlpStatus({ checkLatest: true });
 
       expect(status.version).toBe("2026.08.19");
       expect(status.latestVersion).toBeNull();
@@ -151,6 +151,7 @@ describe("yt-dlp maintenance", () => {
       expect(result.previousVersion).toBe("2026.06.09");
       expect(result.status.version).toBe("2026.08.19");
       expect(result.changed).toBe(true);
+      expect(axiosGet).not.toHaveBeenCalled();
     });
 
     it("reports no change when the version stays the same", async () => {

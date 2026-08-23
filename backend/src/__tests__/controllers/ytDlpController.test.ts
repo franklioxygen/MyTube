@@ -57,7 +57,7 @@ describe("ytDlpController", () => {
     it("returns the yt-dlp status", async () => {
       await getYtDlpVersion(req as Request, res as Response);
 
-      expect(statusMock).toHaveBeenCalledWith({ checkLatest: true });
+      expect(statusMock).toHaveBeenCalledWith({ checkLatest: false });
       expect(json).toHaveBeenCalledWith(
         expect.objectContaining({
           success: true,
@@ -66,12 +66,12 @@ describe("ytDlpController", () => {
       );
     });
 
-    it("honours checkLatest=false to skip the PyPI lookup", async () => {
-      req.query = { checkLatest: "false" };
+    it("honours checkLatest=true to request the PyPI lookup", async () => {
+      req.query = { checkLatest: "true" };
 
       await getYtDlpVersion(req as Request, res as Response);
 
-      expect(statusMock).toHaveBeenCalledWith({ checkLatest: false });
+      expect(statusMock).toHaveBeenCalledWith({ checkLatest: true });
     });
   });
 

@@ -139,12 +139,18 @@ RUN set -eux; \
 # "Updating yt-dlp without rebuilding" in documents/en/docker-guide.md for how
 # to drop the runtime install and fall back to the pinned one.
 # Using --break-system-packages because we are in a container and want to install globally
+# The install is followed by an assertion on the console script location: the
+# YT_DLP_PATH example in documents/*/docker-guide.md hardcodes this path, so a
+# change in where pip lands it should break the build rather than let the
+# operator-facing docs go quietly stale.
 RUN pip3 install --no-cache-dir \
     "yt-dlp==2026.8.19" \
     "bgutil-ytdlp-pot-provider==1.2.2" \
     "yt-dlp-ejs==0.8.0" \
     "curl-cffi==0.16.0" \
-    --break-system-packages
+    --break-system-packages \
+    && { test "$(command -v yt-dlp)" = "/usr/local/bin/yt-dlp" \
+      || { echo "ERROR: yt-dlp resolved to '$(command -v yt-dlp)', not /usr/local/bin/yt-dlp. Update the YT_DLP_PATH example in documents/en/docker-guide.md and documents/zh/docker-guide.md to match." >&2; exit 1; }; }
 
 ARG BUILD_DATE=unknown
 

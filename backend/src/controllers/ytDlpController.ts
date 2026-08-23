@@ -29,7 +29,9 @@ export const getYtDlpVersion = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const checkLatest = req.query.checkLatest !== "false";
+  // Reading local status must not create an implicit outbound request. PyPI is
+  // queried only when the caller explicitly asks to check for an update.
+  const checkLatest = req.query.checkLatest === "true";
   const status = await getYtDlpStatus({ checkLatest });
   res.json(successResponse(status));
 };

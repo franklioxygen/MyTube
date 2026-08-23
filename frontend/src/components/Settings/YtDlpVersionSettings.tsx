@@ -1,6 +1,6 @@
 import { Refresh, SystemUpdateAlt } from '@mui/icons-material';
 import { Alert, Box, Button, Chip, Skeleton, Typography } from '@mui/material';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import React, { useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { api } from '../../utils/apiClient';
@@ -44,6 +44,7 @@ const getErrorText = (error: unknown, fallback: string): string => {
 
 const YtDlpVersionSettings: React.FC<YtDlpVersionSettingsProps> = ({ canUpdate = true }) => {
     const { t } = useLanguage();
+    const queryClient = useQueryClient();
     const [feedback, setFeedback] = useState<FeedbackMessage | null>(null);
 
     const {
@@ -60,6 +61,27 @@ const YtDlpVersionSettings: React.FC<YtDlpVersionSettingsProps> = ({ canUpdate =
         // The version only changes when someone updates it, so do not re-probe
         // the binary every time the Settings tab regains focus.
         refetchOnWindowFocus: false,
+    });
+
+    const checkMutation = useMutation({
+        mutationFn: async () => {
+            const response = await api.get('/settings/ytdlp/version?checkLatest=true');
+            return (response.data?.data ?? null) as YtDlpStatus | null;
+        },
+        onSuccess: (loaded) => {
+            if (loaded) {
+                queryClient.setQueryData(['ytDlpVersion'], loaded);
+            }
+            if (loaded?.latestVersion && !loaded.updateAvailable) {
+                setFeedback({ type: 'info', text: t('ytDlpUpToDate') });
+            }
+        },
+        onError: (error: unknown) => {
+            setFeedback({
+                type: 'error',
+                text: getErrorText(error, t('ytDlpVersionCheckFailed')),
+            });
+        },
     });
 
     const updateMutation = useMutation({
@@ -82,7 +104,11 @@ const YtDlpVersionSettings: React.FC<YtDlpVersionSettingsProps> = ({ canUpdate =
                     }
                     : { type: 'info', text: t('ytDlpUpdateNoChange') }
             );
-            void refetch();
+            if (result?.status) {
+                queryClient.setQueryData(['ytDlpVersion'], result.status);
+            } else {
+                void refetch();
+            }
         },
         onError: (error: unknown) => {
             setFeedback({
@@ -93,17 +119,19 @@ const YtDlpVersionSettings: React.FC<YtDlpVersionSettingsProps> = ({ canUpdate =
     });
 
     const isUpdating = updateMutation.isPending;
+    const isCheckingLatest = checkMutation.isPending;
 
-    const handleCheck = async () => {
+    const handleCheck = () => {
         setFeedback(null);
-        const { data: loaded } = await refetch();
-        if (loaded?.latestVersion && !loaded.updateAvailable) {
-            setFeedback({ type: 'info', text: t('ytDlpUpToDate') });
-        }
+        checkMutation.mutate();
     };
 
     const updateDisabled =
-        isUpdating || isFetching || !canUpdate || status?.updateSupported === false;
+        isUpdating ||
+        isFetching ||
+        isCheckingLatest ||
+        !canUpdate ||
+        status?.updateSupported === false;
 
     const renderVersion = () => {
         if (isFetching && !status) {
@@ -161,7 +189,7 @@ const YtDlpVersionSettings: React.FC<YtDlpVersionSettingsProps> = ({ canUpdate =
                     size="small"
                     startIcon={<Refresh />}
                     onClick={handleCheck}
-                    loading={isFetching}
+                    loading={isFetching || isCheckingLatest}
                     loadingPosition="start"
                     disabled={isUpdating}
                 >
