@@ -191,61 +191,65 @@ Example backend volume section:
 ### Updating yt-dlp without rebuilding
 
 Settings -> yt-dlp Configuration shows the yt-dlp version the backend actually
-runs and, on `container` admin trust, offers an **Update yt-dlp** button. This
-runs `pip install -U` inside the running container, so a broken extractor can be
-fixed without waiting for a new image.
+runs and, on `container` admin trust, offers an **Update yt-dlp** button.
 
-**The update persists.** It is a `pip --user` install into `$HOME`, which the
-entrypoint points at `/app/data/.home` — part of the `/app/data` volume above.
-The runtime install therefore survives `docker compose down && up`, container
-recreation, and image upgrades, and the backend keeps preferring it over the
-version pinned in the image because it is the newer release.
+Runtime updates no longer run `pip install -U` against the image Python
+environment or a `--user` site. MyTube installs each update into a new
+immutable directory under `/app/data/ytdlp/releases/` and only then atomically
+replaces `/app/data/ytdlp/current.json`. Downloads that already started keep
+using their original release; new jobs pick up the published one.
 
-That also means **recreating from an older image is not a rollback.** To go back
-to the version pinned in the image, delete the complete runtime Python user
-installation, then restart or recreate the service as described below. Removing
-only the `yt-dlp` executable is not enough: the update also installs
-release-coupled packages such as `yt-dlp-ejs` and
-`curl-cffi`, and those user-site packages would continue to shadow the versions
-from the image.
+The managed store lives on the `/app/data` volume, so it survives
+`docker compose down && up`, container recreation, and image upgrades.
 
-For the default two-container stack (`backend` service):
+Each release is a self-contained package directory of roughly 50-100 MB. MyTube
+keeps the current release plus the two before it so a rollback is always
+possible, and deletes older ones automatically once no download is still using
+them. Budget a few hundred MB under `/app/data/ytdlp` on a long-lived install.
 
-```bash
-docker compose exec backend sh -c 'rm -rf /app/data/.home/.local'
-```
+For a managed release, the path shown in Settings is the Python interpreter
+MyTube runs (`<python> -m yt_dlp`), not a `yt-dlp` executable. That is expected:
+the release is a package directory, not a standalone binary. When `YT_DLP_PATH`
+is set, or when no managed release exists yet, Settings shows that executable
+instead.
 
-For the supplied single-container stack (`mytube` service):
+**Recreating from an older image is not a rollback.** `current.json` still
+points at the last published managed release. To return to the image-pinned
+binary:
 
-```bash
-docker compose -f stacks/docker-compose.single-container.yml exec mytube sh -c 'rm -rf /app/data/.home/.local'
-```
-
-The dedicated `.local` tree contains packages and scripts installed by the
-runtime updater; removing it does not remove the database or media under
-`/app/data` and `/app/uploads`. If you deliberately installed other Python user
-packages into this container, they are removed as well. After completing the
-restart or recreation step below, re-check the version in Settings.
-
-If the image-pinned yt-dlp is more than 90 days old, removing `.local` alone is
-only temporary: on the first yt-dlp use after restart, MyTube's stale-version
-check automatically installs a current release into `.local` again. To keep an
-older image version pinned, add the image binary's absolute path to the service
-environment **before running the cleanup command above**:
+1. Pin the image binary **before** deleting the store:
 
 ```yaml
 environment:
   - YT_DLP_PATH=/usr/local/bin/yt-dlp
 ```
 
-Use the image-binary path that Settings showed before the runtime update if it
-differs from the Docker default above. An absolute `YT_DLP_PATH` marks the binary
-as operator-managed: it disables both stale-version auto-upgrades and the
-**Update yt-dlp** button. Setting `YT_DLP_PATH=yt-dlp` is not a hard pin because
-that literal value is treated as the default PATH-based configuration.
+An absolute `YT_DLP_PATH` is treated as operator-managed: MyTube will not
+auto-upgrade it and the **Update yt-dlp** button stays disabled.
+`YT_DLP_PATH=yt-dlp` is not a hard pin.
 
-After adding the variable and deleting `.local` with the appropriate command
-above, recreate the service so Compose applies the changed environment (a plain
+2. Stop the service, then delete the managed store (this does not delete the
+database or media):
+
+Deleting the store from inside a *running* backend removes yt-dlp modules that
+a download in progress may still be using, and a request arriving in the gap can
+recreate the store before the pinned `YT_DLP_PATH` takes effect. Stop first:
+
+For the default two-container stack (`backend` service):
+
+```bash
+docker compose stop backend
+docker compose run --rm --no-deps --entrypoint sh backend -c 'rm -rf /app/data/ytdlp'
+```
+
+For the supplied single-container stack (`mytube` service):
+
+```bash
+docker compose -f stacks/docker-compose.single-container.yml stop mytube
+docker compose -f stacks/docker-compose.single-container.yml run --rm --no-deps --entrypoint sh mytube -c 'rm -rf /app/data/ytdlp'
+```
+
+3. Recreate the service so Compose applies the new environment (a plain
 `restart` does not apply Compose configuration changes):
 
 ```bash
@@ -256,15 +260,18 @@ docker compose up -d --force-recreate backend
 docker compose -f stacks/docker-compose.single-container.yml up -d --force-recreate mytube
 ```
 
-If the image version is recent enough that no hard pin is needed, restart the
-corresponding service after deleting `.local`:
+If you only want to drop a managed update and let MyTube rebuild a store from
+PATH/image discovery (including stale auto-install), omit `YT_DLP_PATH` and
+restart after deleting `/app/data/ytdlp`.
+
+A leftover `/app/data/.home/.local` tree from older MyTube versions is unused
+once a managed release is published (`PYTHONNOUSERSITE=1`). You may delete it
+to reclaim disk, with the service stopped for the same reason as above:
 
 ```bash
-# Default two-container stack
-docker compose restart backend
-
-# Supplied single-container stack
-docker compose -f stacks/docker-compose.single-container.yml restart mytube
+docker compose stop backend
+docker compose run --rm --no-deps --entrypoint sh backend -c 'rm -rf /app/data/.home/.local'
+docker compose up -d backend
 ```
 
 The bundled bgutil POT provider is not part of this update. Its Python plugin is

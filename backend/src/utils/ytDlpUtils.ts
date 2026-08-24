@@ -6,6 +6,7 @@ import { resetProviderPluginCache } from "./ytdlp/spawnEnv";
 import { resetResolvedYtDlpPath } from "./ytdlp/pathResolver";
 import { resetRuntimeCaches } from "./ytdlp/runtime";
 import { resetCookiesFileCache } from "./ytdlp/cookies";
+import { resetManagedReleaseStateForTests } from "./ytdlp/release";
 
 export { ensureYtDlpAvailable } from "./ytdlp/install";
 export { isYtDlpImpersonateAvailable } from "./ytdlp/runtime";
@@ -41,4 +42,5 @@ export function resetYtDlpAvailabilityCacheForTests(): void {
   resetResolvedYtDlpPath();
   resetRuntimeCaches();
   resetCookiesFileCache();
+  resetManagedReleaseStateForTests();
 }

@@ -1,5 +1,4 @@
 import * as cheerio from "cheerio";
-import { spawn } from "child_process";
 import fs from "fs-extra";
 import path from "path";
 import puppeteer from "puppeteer";
@@ -38,6 +37,7 @@ import {
   InvalidProxyError,
   isYtDlpImpersonateAvailable,
 } from "../../utils/ytDlpUtils";
+import { spawnYtDlp, withYtDlpRelease } from "../../utils/ytdlp/release";
 import {
   removeMediaServerArtifactsForVideo,
   syncMediaServerArtifactsForRecord,
@@ -46,7 +46,7 @@ import { regenerateSmallThumbnailForThumbnailPath } from "../thumbnailMirrorServ
 import * as storageService from "../storageService";
 import { Video } from "../storageService";
 import { BaseDownloader, DownloadOptions, VideoInfo } from "./BaseDownloader";
-import { MISSAV_PROGRESS_LOG_INTERVAL_MS, YT_DLP_PATH } from "./missav/constants";
+import { MISSAV_PROGRESS_LOG_INTERVAL_MS } from "./missav/constants";
 import {
   buildSafeMissAvNavigationTarget,
   isCloudflareChallengeHtml,
@@ -541,155 +541,159 @@ export class MissAVDownloader extends BaseDownloader {
       // when curl_cffi is missing, which can happen on non-Docker installs. When
       // unavailable, omit it and warn — the download proceeds unimpersonated
       // (works for non-blocked hosts) instead of erroring outright.
-      const canImpersonate = await isYtDlpImpersonateAvailable();
-      if (!canImpersonate) {
-        logger.warn(
-          "[MissAV] yt-dlp browser impersonation is unavailable (curl_cffi not installed); " +
-            "proceeding without --impersonate. Cloudflare-protected hosts may return 403. " +
-            "Install it with: pip install curl-cffi",
+      await withYtDlpRelease(async (release) => {
+        const canImpersonate = await isYtDlpImpersonateAvailable(release);
+        if (!canImpersonate) {
+          logger.warn(
+            "[MissAV] yt-dlp browser impersonation is unavailable (curl_cffi not installed); " +
+              "proceeding without --impersonate. Cloudflare-protected hosts may return 403. " +
+              "Install it with: pip install curl-cffi",
+          );
+        }
+
+        // Prepare flags object - merge user config with required settings
+        const flags: any = {
+          ...networkConfig, // Apply network settings (proxy, etc.)
+          output: videoDownloadPath,
+          format: downloadFormat,
+          mergeOutputFormat: mergeOutputFormat,
+          noOverwrites: true,
+          ...(canImpersonate ? { impersonate: "chrome" } : {}),
+          addHeader: [`Referer:${referer}`],
+        };
+
+        // Apply format sort if user specified it
+        if (formatSortValue) {
+          flags.formatSort = formatSortValue;
+          logger.info("Using format sort for MissAV:", formatSortValue);
+        }
+
+        logger.info("Final MissAV yt-dlp flags:", flags);
+
+        // Use ProgressTracker for centralized progress parsing
+        const progressTracker = new ProgressTracker(downloadId);
+        // Capped ring-buffer for stderr: retain only the last 4 KB so that
+        // long downloads with chatty ffmpeg/yt-dlp output don't grow memory unboundedly.
+        const STDERR_MAX_BYTES = 4 * 1024;
+        let stderrBuffer = "";
+        let lastProgressLogAt = 0;
+        let cleanedTemporaryFiles = false;
+        const cleanupTemporaryFilesOnce = async (): Promise<void> => {
+          if (cleanedTemporaryFiles) return;
+          cleanedTemporaryFiles = true;
+          await cleanupTemporaryFiles(videoDownloadPath);
+        };
+        const shouldLogDownloadProgress = (line: string): boolean => {
+          const now = Date.now();
+          const percentMatch = line.match(/\[download\]\s+(\d+(?:\.\d+)?)%/);
+          const percent = percentMatch ? Number(percentMatch[1]) : null;
+          const isComplete = percent !== null && percent >= 100;
+
+          if (
+            lastProgressLogAt === 0 ||
+            now - lastProgressLogAt >= MISSAV_PROGRESS_LOG_INTERVAL_MS ||
+            isComplete
+          ) {
+            lastProgressLogAt = now;
+            return true;
+          }
+
+          return false;
+        };
+        const parseProgress = (output: string, source: "stdout" | "stderr") => {
+          const lines = output
+            .split(/[\r\n]+/)
+            .filter((line) => line.trim());
+          for (const line of lines) {
+            if (line.includes("[download]")) {
+              if (shouldLogDownloadProgress(line)) {
+                logger.info(`[MissAV Progress ${source}]:`, line.substring(0, 120));
+              }
+            } else if (source === "stderr" && line.trim()) {
+              // Only log actual errors/warnings, not generic informational lines.
+              // yt-dlp/ffmpeg stderr is very chatty during HLS segment downloads.
+              if (line.startsWith("ERROR") || line.startsWith("WARNING")) {
+                logger.warn(`[MissAV stderr]:`, line);
+              }
+              // Append to ring-buffer, trimming the oldest content when over the cap.
+              stderrBuffer += line + "\n";
+              if (stderrBuffer.length > STDERR_MAX_BYTES) {
+                stderrBuffer = stderrBuffer.slice(stderrBuffer.length - STDERR_MAX_BYTES);
+              }
+            }
+          }
+          progressTracker.parseAndUpdate(output);
+        };
+
+        logger.info("Starting yt-dlp process with spawn...");
+
+        // Convert flags object to array of args using the utility function
+        const args = [m3u8Url, ...flagsToArgs(flags)];
+
+        // Log the full command for debugging
+        logger.info(
+          `[yt-dlp] executing release=${release.releaseId} version=${release.version ?? "unknown"}`
         );
-      }
 
-      // Prepare flags object - merge user config with required settings
-      const flags: any = {
-        ...networkConfig, // Apply network settings (proxy, etc.)
-        output: videoDownloadPath,
-        format: downloadFormat,
-        mergeOutputFormat: mergeOutputFormat,
-        noOverwrites: true,
-        ...(canImpersonate ? { impersonate: "chrome" } : {}),
-        addHeader: [`Referer:${referer}`],
-      };
+        try {
+          await new Promise<void>((resolve, reject) => {
+            const child = spawnYtDlp(release, args);
+            let cancellationRequested = false;
 
-      // Apply format sort if user specified it
-      if (formatSortValue) {
-        flags.formatSort = formatSortValue;
-        logger.info("Using format sort for MissAV:", formatSortValue);
-      }
-
-      logger.info("Final MissAV yt-dlp flags:", flags);
-
-      // Use ProgressTracker for centralized progress parsing
-      const progressTracker = new ProgressTracker(downloadId);
-      // Capped ring-buffer for stderr: retain only the last 4 KB so that
-      // long downloads with chatty ffmpeg/yt-dlp output don't grow memory unboundedly.
-      const STDERR_MAX_BYTES = 4 * 1024;
-      let stderrBuffer = "";
-      let lastProgressLogAt = 0;
-      let cleanedTemporaryFiles = false;
-      const cleanupTemporaryFilesOnce = async (): Promise<void> => {
-        if (cleanedTemporaryFiles) return;
-        cleanedTemporaryFiles = true;
-        await cleanupTemporaryFiles(videoDownloadPath);
-      };
-      const shouldLogDownloadProgress = (line: string): boolean => {
-        const now = Date.now();
-        const percentMatch = line.match(/\[download\]\s+(\d+(?:\.\d+)?)%/);
-        const percent = percentMatch ? Number(percentMatch[1]) : null;
-        const isComplete = percent !== null && percent >= 100;
-
-        if (
-          lastProgressLogAt === 0 ||
-          now - lastProgressLogAt >= MISSAV_PROGRESS_LOG_INTERVAL_MS ||
-          isComplete
-        ) {
-          lastProgressLogAt = now;
-          return true;
-        }
-
-        return false;
-      };
-      const parseProgress = (output: string, source: "stdout" | "stderr") => {
-        const lines = output
-          .split(/[\r\n]+/)
-          .filter((line) => line.trim());
-        for (const line of lines) {
-          if (line.includes("[download]")) {
-            if (shouldLogDownloadProgress(line)) {
-              logger.info(`[MissAV Progress ${source}]:`, line.substring(0, 120));
-            }
-          } else if (source === "stderr" && line.trim()) {
-            // Only log actual errors/warnings, not generic informational lines.
-            // yt-dlp/ffmpeg stderr is very chatty during HLS segment downloads.
-            if (line.startsWith("ERROR") || line.startsWith("WARNING")) {
-              logger.warn(`[MissAV stderr]:`, line);
-            }
-            // Append to ring-buffer, trimming the oldest content when over the cap.
-            stderrBuffer += line + "\n";
-            if (stderrBuffer.length > STDERR_MAX_BYTES) {
-              stderrBuffer = stderrBuffer.slice(stderrBuffer.length - STDERR_MAX_BYTES);
-            }
-          }
-        }
-        progressTracker.parseAndUpdate(output);
-      };
-
-      logger.info("Starting yt-dlp process with spawn...");
-
-      // Convert flags object to array of args using the utility function
-      const args = [m3u8Url, ...flagsToArgs(flags)];
-
-      // Log the full command for debugging
-      logger.info("Executing yt-dlp command:", YT_DLP_PATH, args.join(" "));
-
-      try {
-        await new Promise<void>((resolve, reject) => {
-          const child = spawn(YT_DLP_PATH, args);
-          let cancellationRequested = false;
-
-          child.stdout.on("data", (data) => {
-            parseProgress(data.toString(), "stdout");
-          });
-
-          child.stderr.on("data", (data) => {
-            parseProgress(data.toString(), "stderr");
-          });
-
-          child.on("close", (code, signal) => {
-            // Flush any throttled progress and clear the tracker's timer.
-            progressTracker.dispose();
-            if (code === 0) {
-              resolve();
-            } else if (
-              cancellationRequested ||
-              signal === "SIGTERM" ||
-              signal === "SIGINT"
-            ) {
-              reject(DownloadCancelledError.create());
-            } else {
-              const err = new Error(`yt-dlp process exited with code ${code}`);
-              (err as any).stderr = stderrBuffer;
-              reject(err);
-            }
-          });
-
-          child.on("error", (err) => {
-            reject(err);
-          });
-
-          if (onStart) {
-            onStart(async () => {
-              cancellationRequested = true;
-              logger.info("Killing subprocess for download:", downloadId);
-              child.kill();
-
-              // Clean up temporary files created by yt-dlp (*.part, *.ytdl, etc.)
-              logger.info("Cleaning up temporary files...");
-              await cleanupTemporaryFilesOnce();
+            child.stdout?.on("data", (data) => {
+              parseProgress(data.toString(), "stdout");
             });
-          }
-        });
 
-        logger.info("Video downloaded successfully");
-      } catch (err: unknown) {
-        // Use base class helper for cancellation handling
-        const downloader = new MissAVDownloader();
-        await downloader.handleCancellationError(err, async () => {
-          await cleanupTemporaryFilesOnce();
-        });
-        logger.error("yt-dlp execution failed:", err);
-        throw err;
-      }
+            child.stderr?.on("data", (data) => {
+              parseProgress(data.toString(), "stderr");
+            });
+
+            child.on("close", (code, signal) => {
+              // Flush any throttled progress and clear the tracker's timer.
+              progressTracker.dispose();
+              if (code === 0) {
+                resolve();
+              } else if (
+                cancellationRequested ||
+                signal === "SIGTERM" ||
+                signal === "SIGINT"
+              ) {
+                reject(DownloadCancelledError.create());
+              } else {
+                const err = new Error(`yt-dlp process exited with code ${code}`);
+                (err as any).stderr = stderrBuffer;
+                reject(err);
+              }
+            });
+
+            child.on("error", (err) => {
+              reject(err);
+            });
+
+            if (onStart) {
+              onStart(async () => {
+                cancellationRequested = true;
+                logger.info("Killing subprocess for download:", downloadId);
+                child.kill();
+
+                // Clean up temporary files created by yt-dlp (*.part, *.ytdl, etc.)
+                logger.info("Cleaning up temporary files...");
+                await cleanupTemporaryFilesOnce();
+              });
+            }
+          });
+
+          logger.info("Video downloaded successfully");
+        } catch (err: unknown) {
+          // Use base class helper for cancellation handling
+          const downloader = new MissAVDownloader();
+          await downloader.handleCancellationError(err, async () => {
+            await cleanupTemporaryFilesOnce();
+          });
+          logger.error("yt-dlp execution failed:", err);
+          throw err;
+        }
+      });
 
       // Check if download was cancelled (it might have been removed from active downloads)
       const downloader = new MissAVDownloader();

@@ -103,3 +103,48 @@ jobs:
           -r frontend/coverage/lcov.info
 
         bash <(curl -Ls https://coverage.codacy.com/get.sh) final
+
+  # The managed yt-dlp release store publishes by atomic rename and builds an
+  # explicit `<python> -m yt_dlp` command line. Both behave differently on
+  # Windows (MoveFileEx replace semantics, sharing violations from an open
+  # reader, `;` as the PYTHONPATH delimiter), so this subset runs on all three
+  # platforms. The full backend suite stays on Linux only.
+  ytdlp-release-store:
+    name: yt-dlp release store (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    env:
+      # This subset never touches media tooling, Chromium, or the POT provider.
+      SKIP_FFMPEG_AUTO_INSTALL: '1'
+      SKIP_PROVIDER_BUILD: '1'
+      PUPPETEER_SKIP_DOWNLOAD: '1'
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Use Node.js 22.22.x
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22.22.x
+        cache: 'npm'
+        cache-dependency-path: backend/package-lock.json
+
+    - name: Install Backend Dependencies
+      working-directory: backend
+      run: npm ci
+
+    - name: Test yt-dlp Release Store
+      working-directory: backend
+      run: >-
+        npx vitest run
+        src/__tests__/utils/ytdlpManagedRelease.test.ts
+        src/__tests__/utils/ytdlpReleaseConcurrency.test.ts
+        src/__tests__/utils/ytdlpReleaseFailureInjection.test.ts
+        src/__tests__/utils/ytdlpReleaseIntegration.test.ts
+        src/__tests__/utils/ytdlpReleaseValidation.test.ts
+        src/__tests__/utils/ytdlpSpawnBoundary.test.ts

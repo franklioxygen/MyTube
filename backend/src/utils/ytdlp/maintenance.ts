@@ -10,12 +10,28 @@ import {
   resetJsRuntimeFlag,
   resetRemoteComponentsSupport,
 } from "./runtime";
+import {
+  parseYtDlpReleaseTimestamp,
+  isYtDlpUpdateAvailable,
+} from "./versionStamp";
+import { recoverUsableManagedRelease } from "./release";
+import {
+  isManagedReleaseUnusable,
+  managedReleaseRunsCached,
+} from "./release/recover";
+import {
+  loadManagedRelease,
+  readCurrentManifest,
+} from "./release/manifests";
+import { isReleaseStale } from "./release/acquire";
 import { getYtDlpVersionInfo } from "./versionProbe";
 import { getErrorMessage } from "../errors";
 import { logger } from "../logger";
 
 const PYPI_YT_DLP_URL = "https://pypi.org/pypi/yt-dlp/json";
 const PYPI_TIMEOUT_MS = 5000;
+
+export { parseYtDlpReleaseTimestamp, isYtDlpUpdateAvailable };
 
 export type YtDlpStatus = {
   /** Version string reported by `yt-dlp --version`, or null when it cannot run. */
@@ -44,48 +60,6 @@ export type YtDlpUpdateResult = {
   /** True when the reported version actually changed. */
   changed: boolean;
 };
-
-/**
- * Parse a yt-dlp release date out of a version string. Accepts both the
- * zero-padded form the binary prints ("2026.08.19") and the PyPI form
- * ("2026.8.19"). Returns null for nightly/unknown formats.
- */
-export function parseYtDlpReleaseTimestamp(
-  version: string | null | undefined
-): number | null {
-  if (!version) {
-    return null;
-  }
-
-  const match = version.trim().match(/^(\d{4})\.(\d{1,2})\.(\d{1,2})/);
-  if (!match) {
-    return null;
-  }
-
-  const timestamp = Date.UTC(
-    Number(match[1]),
-    Number(match[2]) - 1,
-    Number(match[3])
-  );
-  return Number.isFinite(timestamp) ? timestamp : null;
-}
-
-/**
- * Compare an installed version against the latest published one. Unknown or
- * unparsable versions never claim an update is available, so the UI stays quiet
- * instead of nagging about a version it cannot reason about.
- */
-export function isYtDlpUpdateAvailable(
-  installedVersion: string | null,
-  latestVersion: string | null
-): boolean {
-  const installed = parseYtDlpReleaseTimestamp(installedVersion);
-  const latest = parseYtDlpReleaseTimestamp(latestVersion);
-  if (installed === null || latest === null) {
-    return false;
-  }
-  return latest > installed;
-}
 
 /**
  * Look up the newest yt-dlp release on PyPI. Network failures are not fatal:
@@ -119,13 +93,34 @@ export async function getYtDlpStatus(
   options: { checkLatest?: boolean } = {}
 ): Promise<YtDlpStatus> {
   const { checkLatest = false } = options;
-  const ytDlpPath = await resolveYtDlpPath();
-  const [versionInfo, latestVersion] = await Promise.all([
-    getYtDlpVersionInfo(ytDlpPath),
-    checkLatest ? getLatestYtDlpVersion() : Promise.resolve(null),
-  ]);
-
   const customPathConfigured = hasCustomConfiguredYtDlpPath();
+  const latestVersion = checkLatest
+    ? await getLatestYtDlpVersion()
+    : null;
+
+  if (!customPathConfigured) {
+    const managed = recoverUsableManagedRelease();
+    // Existence is not usability. Without this the endpoint would report a
+    // release that cannot run as available, and an operator update would then
+    // treat a same-version repair as a redundant no-op.
+    if (managed && (await managedReleaseRunsCached(managed))) {
+      const version = managed.release.version;
+      return {
+        version,
+        path: managed.release.pythonExecutable,
+        available: true,
+        isStale: isReleaseStale(version),
+        staleAfterDays: YT_DLP_STALE_AFTER_DAYS,
+        latestVersion,
+        updateAvailable: isYtDlpUpdateAvailable(version, latestVersion),
+        updateSupported: true,
+        customPathConfigured,
+      };
+    }
+  }
+
+  const ytDlpPath = await resolveYtDlpPath();
+  const versionInfo = await getYtDlpVersionInfo(ytDlpPath);
 
   return {
     version: versionInfo.version,
@@ -139,6 +134,34 @@ export async function getYtDlpStatus(
     customPathConfigured,
     ...(versionInfo.canRun ? {} : { errorMessage: versionInfo.errorMessage }),
   };
+}
+
+/**
+ * Whether the release current.json names cannot run.
+ *
+ * Deliberately reads the pointer rather than going through
+ * recoverUsableManagedRelease: that helper hides releases already known to be
+ * unusable, which is exactly the case this needs to detect.
+ */
+async function currentManagedReleaseIsBroken(): Promise<boolean> {
+  if (hasCustomConfiguredYtDlpPath()) {
+    return false;
+  }
+  const current = readCurrentManifest();
+  if (!current) {
+    return false;
+  }
+  if (isManagedReleaseUnusable(current.releaseId)) {
+    return true;
+  }
+  const loaded = loadManagedRelease(current.releaseId, current);
+  if (!loaded) {
+    // The pointer names a release whose directory or site-packages is gone.
+    // That is as broken as one that fails to run, and a same-version repair
+    // must be allowed to replace it.
+    return true;
+  }
+  return !(await managedReleaseRunsCached(loaded));
 }
 
 // Shared across concurrent callers so a double-click cannot start two pip runs.
@@ -155,7 +178,16 @@ async function runYtDlpUpdate(): Promise<YtDlpUpdateResult> {
   logger.info(
     `[yt-dlp] Updating yt-dlp (currently ${previousVersion || "unknown"}) on operator request.`
   );
-  await installYtDlp({ upgrade: true });
+  // A current release that failed validation must be replaceable even by the
+  // same version, which is what pip usually produces.
+  const brokenCurrent = await currentManagedReleaseIsBroken();
+  const { published } = await installYtDlp({
+    upgrade: true,
+    currentIsUsable: !brokenCurrent,
+  });
+  if (!published) {
+    logger.info("[yt-dlp] Already on the newest available release.");
+  }
 
   // The upgrade may have landed a different binary on PATH, so drop every
   // cached capability probe before re-reading the version.

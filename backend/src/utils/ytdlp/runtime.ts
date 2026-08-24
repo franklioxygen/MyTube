@@ -1,18 +1,14 @@
 import { spawn } from "child_process";
 import {
-  YT_DLP_HELP_PROBE_TIMEOUT_MS,
   YT_DLP_JS_RUNTIME_ENV,
-  YouTubeJsRuntimeFlag,
+  type YouTubeJsRuntimeFlag,
 } from "./constants";
-import { getYtDlpSpawnEnv } from "./spawnEnv";
-import { resolveYtDlpPath } from "./pathResolver";
 import { isYouTubeUrl } from "../helpers";
 import { logger } from "../logger";
+import { resetCapabilityCacheForTests } from "./release/capabilities";
+import type { YtDlpRelease } from "./release/types";
 
 let denoAvailablePromise: Promise<boolean> | null = null;
-let jsRuntimeFlagPromise: Promise<YouTubeJsRuntimeFlag | null> | null = null;
-let remoteComponentsSupportPromise: Promise<boolean> | null = null;
-let impersonateSupportPromise: Promise<boolean> | null = null;
 const runtimeWarningCache = new Set<string>();
 
 async function isDenoAvailable(): Promise<boolean> {
@@ -38,71 +34,18 @@ async function isDenoAvailable(): Promise<boolean> {
 }
 
 /**
- * Whether the resolved yt-dlp binary can impersonate a Chrome browser via
- * curl_cffi. Probes `--list-impersonate-targets`: when curl_cffi is missing,
- * yt-dlp still lists targets but tags every one "(unavailable)", and passing
- * `--impersonate` would then hard-fail the download. Callers use this to gate
- * the flag and degrade gracefully instead of erroring. Cached per process.
+ * Whether this release can impersonate Chrome via curl_cffi. Callers use this
+ * to gate `--impersonate` and degrade gracefully instead of erroring.
  */
-export async function isYtDlpImpersonateAvailable(): Promise<boolean> {
-  if (impersonateSupportPromise) {
-    return impersonateSupportPromise;
+export async function isYtDlpImpersonateAvailable(
+  release: YtDlpRelease
+): Promise<boolean> {
+  try {
+    const capabilities = await release.capabilities;
+    return capabilities.impersonateAvailable;
+  } catch {
+    return false;
   }
-
-  impersonateSupportPromise = (async () => {
-    try {
-      const ytDlpPath = await resolveYtDlpPath();
-      return await new Promise<boolean>((resolve) => {
-        let output = "";
-        let settled = false;
-        const finish = (value: boolean) => {
-          if (settled) return;
-          settled = true;
-          clearTimeout(timeout);
-          // A usable target row names a client and ends with the curl_cffi
-          // source without the "(unavailable)" marker.
-          const available = output
-            .split("\n")
-            .some(
-              (line) =>
-                /chrome/i.test(line) &&
-                /curl_cffi/.test(line) &&
-                !/unavailable/i.test(line),
-            );
-          if (!available) {
-            impersonateSupportPromise = null;
-          }
-          resolve(available && value);
-        };
-        const timeout = setTimeout(() => {
-          proc.kill("SIGTERM");
-          finish(true);
-        }, YT_DLP_HELP_PROBE_TIMEOUT_MS);
-        timeout.unref?.();
-
-        // ytDlpPath is either explicitly configured by the operator or selected
-        // from enumerated PATH entries and fixed executable names above.
-        // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process
-        const proc = spawn(ytDlpPath, ["--list-impersonate-targets"], {
-          env: getYtDlpSpawnEnv(),
-          stdio: ["ignore", "pipe", "pipe"],
-        });
-        proc.stdout?.on("data", (data: Buffer) => {
-          output += data.toString();
-        });
-        proc.on("close", () => finish(true));
-        proc.on("error", () => {
-          impersonateSupportPromise = null;
-          finish(false);
-        });
-      });
-    } catch {
-      impersonateSupportPromise = null;
-      return false;
-    }
-  })();
-
-  return impersonateSupportPromise;
 }
 
 function warnRuntimeOnce(key: string, message: string): void {
@@ -113,164 +56,46 @@ function warnRuntimeOnce(key: string, message: string): void {
   logger.warn(message);
 }
 
-export async function getYouTubeJsRuntimeFlag(): Promise<YouTubeJsRuntimeFlag | null> {
-  if (jsRuntimeFlagPromise) {
-    return jsRuntimeFlagPromise;
-  }
-
-  jsRuntimeFlagPromise = (async () => {
-    let helpText = "";
-    const resolveFromHelp = (): YouTubeJsRuntimeFlag | null => {
-      if (helpText.includes("--js-runtimes")) {
-        return "--js-runtimes";
-      }
-
-      if (helpText.includes("--js-runtime")) {
-        return "--js-runtime";
-      }
-
+export async function getYouTubeJsRuntimeFlag(
+  release: YtDlpRelease
+): Promise<YouTubeJsRuntimeFlag | null> {
+  try {
+    const capabilities = await release.capabilities;
+    if (!capabilities.jsRuntimeFlag) {
       warnRuntimeOnce(
         "js-runtime-flag-unsupported",
         "[yt-dlp] Current yt-dlp binary does not support --js-runtimes. Continuing without it. Upgrade yt-dlp or set YT_DLP_PATH to a newer binary if YouTube extraction becomes unreliable."
       );
-      return null;
-    };
-
-    try {
-      const ytDlpPath = await resolveYtDlpPath();
-      const resolvedFlag = await new Promise<YouTubeJsRuntimeFlag | null>((resolve) => {
-        let settled = false;
-        const timeout = setTimeout(() => {
-          if (settled) return;
-          proc.kill("SIGTERM");
-          settled = true;
-          resolve(resolveFromHelp());
-        }, YT_DLP_HELP_PROBE_TIMEOUT_MS);
-        timeout.unref?.();
-        const settle = () => {
-          if (settled) return;
-          settled = true;
-          clearTimeout(timeout);
-          resolve(resolveFromHelp());
-        };
-
-        // ytDlpPath is either explicitly configured by the operator or selected
-        // from enumerated PATH entries and fixed executable names above.
-        // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process
-        const proc = spawn(ytDlpPath, ["--help"], {
-          env: getYtDlpSpawnEnv(),
-          stdio: ["ignore", "pipe", "pipe"],
-        });
-
-        proc.stdout?.on("data", (data: Buffer) => {
-          helpText += data.toString();
-        });
-
-        proc.stderr?.on("data", (data: Buffer) => {
-          helpText += data.toString();
-        });
-
-        proc.on("close", () => {
-          settle();
-        });
-
-        proc.on("error", () => {
-          settle();
-        });
-      });
-      if (!resolvedFlag) {
-        jsRuntimeFlagPromise = null;
-      }
-      return resolvedFlag;
-    } catch {
-      jsRuntimeFlagPromise = null;
-      warnRuntimeOnce(
-        "js-runtime-flag-unsupported",
-        "[yt-dlp] Current yt-dlp binary does not support --js-runtimes. Continuing without it. Upgrade yt-dlp or set YT_DLP_PATH to a newer binary if YouTube extraction becomes unreliable."
-      );
-      return null;
     }
-  })();
-
-  return jsRuntimeFlagPromise;
+    return capabilities.jsRuntimeFlag;
+  } catch {
+    warnRuntimeOnce(
+      "js-runtime-flag-unsupported",
+      "[yt-dlp] Current yt-dlp binary does not support --js-runtimes. Continuing without it. Upgrade yt-dlp or set YT_DLP_PATH to a newer binary if YouTube extraction becomes unreliable."
+    );
+    return null;
+  }
 }
 
-export async function ytDlpSupportsRemoteComponents(): Promise<boolean> {
-  if (remoteComponentsSupportPromise) {
-    return remoteComponentsSupportPromise;
-  }
-
-  remoteComponentsSupportPromise = (async () => {
-    let helpText = "";
-    const resolveFromHelp = (): boolean => {
-      if (helpText.includes("--remote-components")) {
-        return true;
-      }
-
+export async function ytDlpSupportsRemoteComponents(
+  release: YtDlpRelease
+): Promise<boolean> {
+  try {
+    const capabilities = await release.capabilities;
+    if (!capabilities.supportsRemoteComponents) {
       warnRuntimeOnce(
         "remote-components-unsupported",
         "[yt-dlp] Current yt-dlp binary does not support --remote-components. Continuing without it. Upgrade yt-dlp or set YT_DLP_PATH to a newer binary if YouTube extraction becomes unreliable."
       );
-      return false;
-    };
-
-    try {
-      const ytDlpPath = await resolveYtDlpPath();
-      const supported = await new Promise<boolean>((resolve) => {
-        let settled = false;
-        const timeout = setTimeout(() => {
-          if (settled) return;
-          proc.kill("SIGTERM");
-          settled = true;
-          resolve(resolveFromHelp());
-        }, YT_DLP_HELP_PROBE_TIMEOUT_MS);
-        timeout.unref?.();
-        const settle = () => {
-          if (settled) return;
-          settled = true;
-          clearTimeout(timeout);
-          resolve(resolveFromHelp());
-        };
-
-        // ytDlpPath is either explicitly configured by the operator or selected
-        // from enumerated PATH entries and fixed executable names above.
-        // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process
-        const proc = spawn(ytDlpPath, ["--help"], {
-          env: getYtDlpSpawnEnv(),
-          stdio: ["ignore", "pipe", "pipe"],
-        });
-
-        proc.stdout?.on("data", (data: Buffer) => {
-          helpText += data.toString();
-        });
-
-        proc.stderr?.on("data", (data: Buffer) => {
-          helpText += data.toString();
-        });
-
-        proc.on("close", () => {
-          settle();
-        });
-
-        proc.on("error", () => {
-          settle();
-        });
-      });
-      if (!supported) {
-        remoteComponentsSupportPromise = null;
-      }
-      return supported;
-    } catch {
-      remoteComponentsSupportPromise = null;
-      warnRuntimeOnce(
-        "remote-components-unsupported",
-        "[yt-dlp] Current yt-dlp binary does not support --remote-components. Continuing without it. Upgrade yt-dlp or set YT_DLP_PATH to a newer binary if YouTube extraction becomes unreliable."
-      );
-      return false;
     }
-  })();
-
-  return remoteComponentsSupportPromise;
+    return capabilities.supportsRemoteComponents;
+  } catch {
+    warnRuntimeOnce(
+      "remote-components-unsupported",
+      "[yt-dlp] Current yt-dlp binary does not support --remote-components. Continuing without it. Upgrade yt-dlp or set YT_DLP_PATH to a newer binary if YouTube extraction becomes unreliable."
+    );
+    return false;
+  }
 }
 
 async function getYouTubeJsRuntime(): Promise<"node" | "deno"> {
@@ -323,12 +148,13 @@ async function getYouTubeJsRuntime(): Promise<"node" | "deno"> {
 
 export async function appendYouTubeJsRuntimeArg(
   args: string[],
-  url: string
+  url: string,
+  release: YtDlpRelease
 ): Promise<void> {
   if (!isYouTubeUrl(url)) {
     return;
   }
-  const runtimeFlag = await getYouTubeJsRuntimeFlag();
+  const runtimeFlag = await getYouTubeJsRuntimeFlag(release);
   if (!runtimeFlag) {
     return;
   }
@@ -336,17 +162,15 @@ export async function appendYouTubeJsRuntimeArg(
 }
 
 export function resetJsRuntimeFlag(): void {
-  jsRuntimeFlagPromise = null;
+  resetCapabilityCacheForTests();
 }
 
 export function resetRemoteComponentsSupport(): void {
-  remoteComponentsSupportPromise = null;
+  resetCapabilityCacheForTests();
 }
 
 export function resetRuntimeCaches(): void {
   denoAvailablePromise = null;
-  jsRuntimeFlagPromise = null;
-  remoteComponentsSupportPromise = null;
-  impersonateSupportPromise = null;
   runtimeWarningCache.clear();
+  resetCapabilityCacheForTests();
 }

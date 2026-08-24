@@ -49,6 +49,38 @@ function isYtDlpReleaseStale(releaseTimestamp: number | null): boolean {
   return Date.now() - releaseTimestamp > staleAfterMs;
 }
 
+/**
+ * Release acquisition happens once per logical operation, so an uncached
+ * `--version` probe would add a child process to every download, metadata
+ * lookup and avatar fetch on the external-fallback path. Only successful
+ * probes are memoized, and only for the fallback fingerprint: the status
+ * endpoint keeps probing directly so operators never read a stale version.
+ */
+const externalVersionInfoCache = new Map<string, Promise<YtDlpVersionInfo>>();
+
+export function resetYtDlpVersionInfoCache(): void {
+  externalVersionInfoCache.clear();
+}
+
+export function getCachedYtDlpVersionInfo(
+  ytDlpPath: string
+): Promise<YtDlpVersionInfo> {
+  const cached = externalVersionInfoCache.get(ytDlpPath);
+  if (cached) {
+    return cached;
+  }
+  const pending = getYtDlpVersionInfo(ytDlpPath).then((info) => {
+    // A failed probe describes a transient condition (missing binary, bad
+    // permissions) that an install or a fix should clear immediately.
+    if (!info.canRun) {
+      externalVersionInfoCache.delete(ytDlpPath);
+    }
+    return info;
+  });
+  externalVersionInfoCache.set(ytDlpPath, pending);
+  return pending;
+}
+
 export async function getYtDlpVersionInfo(
   ytDlpPath: string
 ): Promise<YtDlpVersionInfo> {
