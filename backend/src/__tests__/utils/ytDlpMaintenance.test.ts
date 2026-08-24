@@ -47,7 +47,7 @@ describe("yt-dlp maintenance", () => {
     vi.clearAllMocks();
     // mockImplementation set by a previous test survives clearAllMocks.
     installMock.mockReset();
-    installMock.mockResolvedValue(undefined);
+    installMock.mockResolvedValue({ published: true });
     customPathMock.mockReturnValue(false);
     axiosGet.mockResolvedValue({ data: { info: { version: "2026.8.19" } } });
     versionProbeMock.mockResolvedValue(versionInfo("2026.08.19"));
@@ -147,7 +147,7 @@ describe("yt-dlp maintenance", () => {
 
       const result = await updateYtDlp();
 
-      expect(installMock).toHaveBeenCalledWith({ upgrade: true });
+      expect(installMock).toHaveBeenCalledWith({ upgrade: true, currentIsUsable: true });
       expect(result.previousVersion).toBe("2026.06.09");
       expect(result.status.version).toBe("2026.08.19");
       expect(result.changed).toBe(true);
@@ -163,8 +163,8 @@ describe("yt-dlp maintenance", () => {
 
     it("shares one pip run between concurrent callers", async () => {
       let releaseInstall: () => void = () => {};
-      const installGate = new Promise<void>((resolve) => {
-        releaseInstall = resolve;
+      const installGate = new Promise<{ published: boolean }>((resolve) => {
+        releaseInstall = () => resolve({ published: true });
       });
       installMock.mockReturnValue(installGate);
 
@@ -182,7 +182,7 @@ describe("yt-dlp maintenance", () => {
 
       await expect(updateYtDlp()).rejects.toThrow("pip missing");
 
-      installMock.mockResolvedValueOnce(undefined);
+      installMock.mockResolvedValueOnce({ published: true });
       await expect(updateYtDlp()).resolves.toMatchObject({ changed: false });
     });
   });

@@ -189,51 +189,59 @@ services:
 ### 不重建镜像更新 yt-dlp
 
 设置 -> yt-dlp 配置中会显示后端实际使用的 yt-dlp 版本；在 `container` 管理员信任级别下，
-还会提供 **更新 yt-dlp** 按钮。该操作在运行中的容器内执行 `pip install -U`，因此遇到
-提取器失效时无需等待新镜像即可修复。
+还会提供 **更新 yt-dlp** 按钮。
 
-**该更新会被持久化。** 它是一次 `pip --user` 安装，装到 `$HOME`，而入口脚本把 `$HOME`
-指向 `/app/data/.home` —— 属于上面的 `/app/data` 卷。因此运行时安装的版本会在
-`docker compose down && up`、容器重建、镜像升级之后继续存在；由于它是更新的发行版本，
-后端也会继续优先使用它，而不是镜像中固定的版本。
+运行时更新不再对镜像内的 Python 环境或 `--user` 用户目录执行 `pip install -U`。
+MyTube 会把每一次更新安装到 `/app/data/ytdlp/releases/` 下的新不可变目录，
+校验成功后再原子替换 `/app/data/ytdlp/current.json`。已经开始的下载继续使用
+原来的 release；新任务才会用上刚发布的版本。
 
-这同时意味着**回退到旧镜像并不能回退 yt-dlp**。要恢复为镜像中固定的版本，需要删除完整的
-运行时 Python 用户安装，然后按照下文说明重启或重建服务。只删除 `yt-dlp` 可执行文件并不够：
-更新操作还会安装 `yt-dlp-ejs`、`curl-cffi` 等与发行版耦合的包；如果保留这些用户级包，
-它们仍会覆盖镜像中的固定版本。
+该托管目录位于 `/app/data` 卷上，因此会在 `docker compose down && up`、容器重建
+和镜像升级后继续存在。
 
-对于默认的双容器 stack（服务名为 `backend`）：
+每个 release 都是一个自包含的软件包目录，约占 50-100 MB。MyTube 会保留当前
+release 以及之前的两个版本以便随时回退，并在确认没有下载仍在使用后自动删除更旧
+的版本。长期运行的部署请为 `/app/data/ytdlp` 预留数百 MB 空间。
 
-```bash
-docker compose exec backend sh -c 'rm -rf /app/data/.home/.local'
-```
+对于托管 release，设置页显示的路径是 MyTube 实际调用的 Python 解释器
+（`<python> -m yt_dlp`），而不是 `yt-dlp` 可执行文件——因为 release 是一个软件包
+目录而非独立二进制。当设置了 `YT_DLP_PATH`，或尚未创建任何托管 release 时，
+设置页显示的仍是对应的可执行文件路径。
 
-对于仓库提供的单容器 stack（服务名为 `mytube`）：
+**回退到旧镜像并不能回退 yt-dlp。** `current.json` 仍指向最后一次发布的托管
+release。若要恢复为镜像中固定的二进制：
 
-```bash
-docker compose -f stacks/docker-compose.single-container.yml exec mytube sh -c 'rm -rf /app/data/.home/.local'
-```
-
-专用的 `.local` 目录保存运行时更新器安装的包和脚本；删除它不会删除 `/app/data` 中的数据库，
-也不会删除 `/app/uploads` 中的媒体。如果你曾主动在该容器的 Python 用户环境中安装其他包，
-这些包也会一并删除。完成下文的重启或重建步骤后，请在设置中重新查看版本。
-
-如果镜像固定的 yt-dlp 已超过 90 天，仅删除 `.local` 只能暂时回退：重启后首次使用 yt-dlp
-时，MyTube 的旧版本检查会再次把当前发行版自动安装到 `.local`。若要持续固定旧镜像中的
-版本，请在执行上面的清理命令**之前**，把镜像内可执行文件的绝对路径加入服务环境变量：
+1. 在删除托管目录**之前**固定镜像内路径：
 
 ```yaml
 environment:
   - YT_DLP_PATH=/usr/local/bin/yt-dlp
 ```
 
-如果运行时更新前设置页面显示的镜像路径与上述 Docker 默认值不同，请使用页面原先显示的
-路径。绝对路径形式的 `YT_DLP_PATH` 会把该可执行文件标记为由部署者管理，同时禁用旧版本
-自动升级和 **更新 yt-dlp** 按钮。`YT_DLP_PATH=yt-dlp` 不能实现硬固定，因为代码会把这个
-字面值视为默认的 PATH 查找配置。
+绝对路径形式的 `YT_DLP_PATH` 会把该可执行文件标记为由部署者管理，同时禁用自动
+升级和 **更新 yt-dlp** 按钮。`YT_DLP_PATH=yt-dlp` 不能实现硬固定。
 
-添加环境变量并使用上面的对应命令删除 `.local` 后，需要重新创建服务，让 Compose 应用新的
-环境变量（仅执行 `restart` 不会应用 Compose 配置变更）：
+2. 先停止服务，再删除托管目录（不会删除数据库或媒体）：
+
+在**运行中**的后端里删除托管目录，会把正在进行的下载仍在使用的 yt-dlp 模块直接删掉；
+而且在停机窗口内到达的请求可能会在新的 `YT_DLP_PATH` 生效前重新创建该目录。请先停止服务：
+
+对于默认的双容器 stack（服务名为 `backend`）：
+
+```bash
+docker compose stop backend
+docker compose run --rm --no-deps --entrypoint sh backend -c 'rm -rf /app/data/ytdlp'
+```
+
+对于仓库提供的单容器 stack（服务名为 `mytube`）：
+
+```bash
+docker compose -f stacks/docker-compose.single-container.yml stop mytube
+docker compose -f stacks/docker-compose.single-container.yml run --rm --no-deps --entrypoint sh mytube -c 'rm -rf /app/data/ytdlp'
+```
+
+3. 重新创建服务，让 Compose 应用新的环境变量（仅执行 `restart` 不会应用
+Compose 配置变更）：
 
 ```bash
 # 默认双容器 stack
@@ -243,14 +251,16 @@ docker compose up -d --force-recreate backend
 docker compose -f stacks/docker-compose.single-container.yml up -d --force-recreate mytube
 ```
 
-如果镜像版本足够新，不需要硬固定，请在删除 `.local` 后重启对应服务：
+如果只想丢掉托管更新、让 MyTube 重新从 PATH/镜像发现（含过期自动安装），不要设置
+`YT_DLP_PATH`，删除 `/app/data/ytdlp` 后重启即可。
+
+旧版留下的 `/app/data/.home/.local` 在托管 release 发布后不会再被使用
+（`PYTHONNOUSERSITE=1`）。如需回收磁盘可以删除：
 
 ```bash
-# 默认双容器 stack
-docker compose restart backend
-
-# 仓库提供的单容器 stack
-docker compose -f stacks/docker-compose.single-container.yml restart mytube
+docker compose stop backend
+docker compose run --rm --no-deps --entrypoint sh backend -c 'rm -rf /app/data/.home/.local'
+docker compose up -d backend
 ```
 
 内置的 bgutil POT provider 不在此次更新范围内：它的 Python 插件会优先于任何 pip 副本从

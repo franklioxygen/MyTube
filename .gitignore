@@ -78,3 +78,7 @@ codeql-reports/
 # Reports
 reports/*
 .lighthouseci/
+
+# Codacy CLI local snapshots (auto-generated; the shared config is .codacy/codacy.yaml)
+.codacy/codacy.config.json
+.codacy/codacy.config.baseline.json

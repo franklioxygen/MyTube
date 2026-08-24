@@ -1,5 +1,6 @@
 
 import { spawn } from 'child_process';
+import { EventEmitter } from 'events';
 import fs from 'fs-extra';
 import puppeteer from 'puppeteer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -43,14 +44,7 @@ vi.mock('../../../utils/security', async (importOriginal) => {
   };
 });
 vi.mock('child_process', () => ({
-  spawn: vi.fn().mockReturnValue({
-    stdout: { on: vi.fn() },
-    stderr: { on: vi.fn() },
-    on: vi.fn((event: string, cb: (code: number) => void) => {
-      if (event === 'close') cb(1); // immediate non-zero exit; caught by .catch(() => {})
-    }),
-    kill: vi.fn(),
-  }),
+  spawn: vi.fn(),
 }));
 vi.mock('fs-extra', () => ({
   default: {
@@ -71,6 +65,36 @@ vi.mock('fs-extra', () => ({
   },
 }));
 
+
+function createAutoClosingSpawnProc(code = 1): any {
+  const proc: {
+    stdout: { on: ReturnType<typeof vi.fn> };
+    stderr: { on: ReturnType<typeof vi.fn> };
+    killed: boolean;
+    exitCode: number;
+    kill: ReturnType<typeof vi.fn>;
+    on: ReturnType<typeof vi.fn>;
+    once: ReturnType<typeof vi.fn>;
+  } = {
+    stdout: { on: vi.fn() },
+    stderr: { on: vi.fn() },
+    killed: false,
+    exitCode: code,
+    kill: vi.fn(),
+    on: vi.fn(),
+    once: vi.fn(),
+  };
+  proc.on.mockImplementation((event: string, cb: (code: number) => void) => {
+    if (event === 'close') queueMicrotask(() => cb(code));
+    return proc;
+  });
+  proc.once.mockImplementation((event: string, cb: (code: number) => void) => {
+    if (event === 'close') queueMicrotask(() => cb(code));
+    return proc;
+  });
+  return proc;
+}
+
 describe('MissAVDownloader', () => {
   const expectedChromeFallbackPath =
     process.platform === 'darwin'
@@ -80,6 +104,7 @@ describe('MissAVDownloader', () => {
         : '/usr/bin/google-chrome-stable';
 
   beforeEach(() => {
+    vi.mocked(spawn).mockImplementation(() => createAutoClosingSpawnProc(1));
     vi.mocked(fs.existsSync).mockReturnValue(false);
     vi.mocked(security.pathExistsTrustedSync).mockReturnValue(false);
     vi.mocked(storageService.getSettings).mockReturnValue({} as any);
@@ -88,6 +113,7 @@ describe('MissAVDownloader', () => {
 
   afterEach(() => {
     vi.clearAllMocks();
+    vi.mocked(spawn).mockImplementation(() => createAutoClosingSpawnProc(1));
     delete process.env.PUPPETEER_EXECUTABLE_PATH;
     delete process.env.PUPPETEER_HEADLESS;
   });
@@ -414,10 +440,11 @@ describe('MissAVDownloader', () => {
       await MissAVDownloader.downloadVideo('https://missav.com/test-video').catch(() => {});
 
       // The URL resolved by waitForResponse must have been selected and forwarded to yt-dlp
-      expect(spawn).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.arrayContaining(['https://surrit.com/playlist.m3u8']),
-      );
+      expect(
+        vi.mocked(spawn).mock.calls.some(
+          ([, args]) => Array.isArray(args) && args.includes('https://surrit.com/playlist.m3u8'),
+        ),
+      ).toBe(true);
     });
 
     it('uses the global --impersonate flag (not the generic extractor-arg) to bypass the Cloudflare CDN block', async () => {
@@ -540,19 +567,53 @@ describe('MissAVDownloader', () => {
       (puppeteer.launch as ReturnType<typeof vi.fn>).mockResolvedValue(mockBrowser);
       (isCancellationError as ReturnType<typeof vi.fn>).mockReturnValueOnce(true);
 
-      let closeHandler: ((code: number | null, signal: NodeJS.Signals | null) => void) | null = null;
-      const mockChild: any = {
-        stdout: { on: vi.fn() },
-        stderr: { on: vi.fn() },
-        on: vi.fn((event: string, cb: (code: number | null, signal: NodeJS.Signals | null) => void) => {
-          if (event === 'close') closeHandler = cb;
-        }),
-        kill: vi.fn(() => {
-          closeHandler?.(null, 'SIGTERM');
-          return true;
-        }),
+      const mockChild = new EventEmitter() as EventEmitter & {
+        stdout: EventEmitter;
+        stderr: EventEmitter;
+        killed: boolean;
+        exitCode: number | null;
+        pid: number;
+        kill: ReturnType<typeof vi.fn>;
       };
-      (spawn as ReturnType<typeof vi.fn>).mockReturnValueOnce(mockChild);
+      mockChild.stdout = new EventEmitter();
+      mockChild.stderr = new EventEmitter();
+      mockChild.killed = false;
+      mockChild.exitCode = null;
+      mockChild.pid = 4242;
+      mockChild.kill = vi.fn((signal?: NodeJS.Signals) => {
+        mockChild.killed = true;
+        mockChild.emit('close', null, signal ?? 'SIGTERM');
+        return true;
+      });
+      (spawn as ReturnType<typeof vi.fn>).mockImplementation((command: string, args?: string[]) => {
+        const list = Array.isArray(args) ? args : [];
+        if (
+          list.includes('--version') ||
+          list.includes('--help') ||
+          list.includes('--list-impersonate-targets')
+        ) {
+          const probe: any = {
+            stdout: { on: vi.fn() },
+            stderr: { on: vi.fn() },
+            killed: false,
+            exitCode: 0,
+            kill: vi.fn(),
+            on: vi.fn(),
+            once: vi.fn(),
+          };
+          const finish = (cb: (code: number) => void) => queueMicrotask(() => cb(0));
+          probe.on.mockImplementation((event: string, cb: (code: number) => void) => {
+            if (event === 'close') finish(cb);
+            return probe;
+          });
+          probe.once.mockImplementation((event: string, cb: (code: number) => void) => {
+            if (event === 'close') finish(cb);
+            return probe;
+          });
+          return probe;
+        }
+        return mockChild;
+      });
 
       let cancelDownload: (() => void | Promise<void>) | undefined;
       const downloadPromise = MissAVDownloader.downloadVideo(
@@ -563,7 +624,11 @@ describe('MissAVDownloader', () => {
         },
       );
 
-      await new Promise((resolve) => setImmediate(resolve));
+      await vi.waitFor(() => {
+        if (!cancelDownload) {
+          throw new Error('cancel callback not registered yet');
+        }
+      });
       await cancelDownload?.();
 
       await expect(downloadPromise).rejects.toThrow('Download cancelled by user');
@@ -606,10 +671,11 @@ describe('MissAVDownloader', () => {
       await MissAVDownloader.downloadVideo('https://missav.com/test-video').catch(() => {});
 
       expect(mockPage.waitForResponse).not.toHaveBeenCalled();
-      expect(spawn).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.arrayContaining(['https://surrit.com/playlist.m3u8']),
-      );
+      expect(
+        vi.mocked(spawn).mock.calls.some(
+          ([, args]) => Array.isArray(args) && args.includes('https://surrit.com/playlist.m3u8'),
+        ),
+      ).toBe(true);
       expect(mockBrowser.close).toHaveBeenCalled();
     });
 

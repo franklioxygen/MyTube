@@ -6,6 +6,7 @@ import {
 } from "./constants";
 import { getProviderScript } from "../../services/downloaders/ytdlp/ytdlpHelpers";
 import { isYouTubeUrl } from "../helpers";
+import type { YtDlpRelease } from "./release/types";
 import { ytDlpSupportsRemoteComponents } from "./runtime";
 
 function parseExtractorArgParts(value: unknown): string[] {
@@ -65,7 +66,8 @@ export function withDefaultYouTubeExtractorArgs(
 
 export async function resolveYouTubeRemoteComponents(
   url: string,
-  flags: Record<string, any>
+  flags: Record<string, any>,
+  release: YtDlpRelease
 ): Promise<Record<string, any>> {
   if (!isYouTubeUrl(url) || !getProviderScript()) {
     return flags;
@@ -83,7 +85,7 @@ export async function resolveYouTubeRemoteComponents(
     return flags;
   }
 
-  if (!(await ytDlpSupportsRemoteComponents())) {
+  if (!(await ytDlpSupportsRemoteComponents(release))) {
     const {
       remoteComponents: _remoteComponents,
       remote_components: _remote_components,

@@ -1,159 +1,50 @@
-import { spawn } from "child_process";
-import { getProviderPluginPath } from "../../services/downloaders/ytdlp/ytdlpHelpers";
 import { getErrorMessage } from "../errors";
+import { logger } from "../logger";
 import { YT_DLP_STALE_AFTER_DAYS } from "./constants";
 import {
   hasCustomConfiguredYtDlpPath,
   resetResolvedYtDlpPath,
   resolveYtDlpPath,
-  updatePathAfterAutoInstall,
 } from "./pathResolver";
-import { getYtDlpVersionInfo } from "./versionProbe";
+import { resetPipQueue } from "./pipLock";
+import { collectGarbage, installManagedRelease } from "./release";
+import { isReleaseStale } from "./release/acquire";
+import {
+  managedReleaseRunsCached,
+  recoverUsableManagedRelease,
+} from "./release/recover";
 import {
   resetJsRuntimeFlag,
   resetRemoteComponentsSupport,
 } from "./runtime";
-import { logger } from "../logger";
+import {
+  getYtDlpVersionInfo,
+  resetYtDlpVersionInfoCache,
+} from "./versionProbe";
 
-// Cached promise so we only check/install once per process
 let ytDlpAvailablePromise: Promise<void> | null = null;
 
-// Request yt-dlp through its extras rather than naming its companions here.
-// A yt-dlp release pins the dependencies that are coupled to it — "default"
-// carries the yt-dlp-ejs pin for the YouTube JS challenge solver, "curl-cffi"
-// the browser-impersonation range that --impersonate (and with it the MissAV
-// downloader) depends on. Letting pip read those pins off the release being
-// installed keeps them in lockstep automatically; a hand-written list here
-// would silently keep an old solver next to a freshly upgraded yt-dlp.
-const YT_DLP_PIP_PACKAGE = "yt-dlp[default,curl-cffi]";
-
 /**
- * Decide which packages pip should install.
- *
- * The bgutil POT provider is only added when no bundled copy is present.
- * getYtDlpSpawnEnv() puts the bundled plugin at the front of PYTHONPATH, ahead
- * of site-packages, and its Node counterpart (generate_once.js) ships with the
- * image and is not on PyPI at all — so where a bundle exists, a pip copy of the
- * plugin is loaded by nothing and "upgrading" it would report progress that
- * never reaches the yt-dlp process. Bumping the bundled provider is a rebuild,
- * not a runtime install.
- */
-function getPipPackages(): string[] {
-  if (getProviderPluginPath()) {
-    return [YT_DLP_PIP_PACKAGE];
-  }
-
-  return [YT_DLP_PIP_PACKAGE, "bgutil-ytdlp-pot-provider"];
-}
-
-// Every pip run in this process queues here. Two callers reach this module
-// under independent locks — ensureYtDlpAvailable() through its cached
-// availability promise, updateYtDlp() through its own in-flight promise — so
-// an operator pressing "Update yt-dlp" while the first download of the process
-// triggers the missing-binary or stale-version install would otherwise put two
-// pip processes on the same user-site directory at once. pip is not safe to run
-// concurrently against one environment: the two runs rewrite the same package
-// files and either can fail or leave the install half-written. Serializing here
-// rather than in the callers keeps future call sites covered by default.
-let pipQueue: Promise<unknown> = Promise.resolve();
-
-function withPipLock<T>(task: () => Promise<T>): Promise<T> {
-  // Run the task whether or not the previous one settled cleanly, and keep a
-  // swallowed copy as the tail so one failure cannot poison the queue.
-  const run = pipQueue.then(task, task);
-  pipQueue = run.catch(() => undefined);
-  return run;
-}
-
-/**
- * Try to install yt-dlp via pip, trying multiple pip variants.
- *
- * Serialized process-wide: concurrent callers queue instead of overlapping.
+ * Install a new managed release and, when it beats the current one, publish it.
+ * A candidate that turns out to match what is already current is not an error:
+ * the operator asked for the newest yt-dlp and that is what they have.
  */
 export async function installYtDlp(
-  options: { upgrade?: boolean } = {}
-): Promise<void> {
-  return withPipLock(() => runPipInstall(options));
+  options: { upgrade?: boolean; currentIsUsable?: boolean } = {}
+): Promise<{ published: boolean }> {
+  const outcome = await installManagedRelease({
+    currentIsUsable: options.currentIsUsable,
+  });
+  resetResolvedYtDlpPath();
+  resetYtDlpVersionInfoCache();
+  resetJsRuntimeFlag();
+  resetRemoteComponentsSupport();
+  // Collection never blocks the update path; a failure to collect is logged
+  // and retried by the next maintenance run.
+  void collectGarbage().catch(() => undefined);
+  return { published: outcome.published };
 }
 
-async function runPipInstall(options: { upgrade?: boolean } = {}): Promise<void> {
-  const { upgrade = false } = options;
-  const packages = getPipPackages();
-  const installArgs = ["install"];
-  if (upgrade) {
-    installArgs.push("-U");
-  }
-
-  // pip candidates to try in order
-  const candidates =
-    process.platform === "win32"
-      ? [
-          ["py", "-m", "pip", ...installArgs, ...packages],
-          ["python", "-m", "pip", ...installArgs, ...packages],
-          ["python3", "-m", "pip", ...installArgs, ...packages],
-          ["pip", ...installArgs, ...packages],
-          ["pip3", ...installArgs, ...packages],
-        ]
-      : [
-          ["pip3", ...installArgs, "--user", ...packages],
-          ["pip3", ...installArgs, ...packages],
-          ["pip3", ...installArgs, "--break-system-packages", ...packages],
-          ["pip", ...installArgs, "--user", ...packages],
-          ["pip", ...installArgs, ...packages],
-          ["pip", ...installArgs, "--break-system-packages", ...packages],
-          ["python3", "-m", "pip", ...installArgs, "--user", ...packages],
-          ["python3", "-m", "pip", ...installArgs, ...packages],
-        ];
-
-  for (const [cmd, ...args] of candidates) {
-    try {
-      logger.info(`[yt-dlp] Attempting: ${cmd} ${args.join(" ")}`);
-      await new Promise<void>((resolve, reject) => {
-        let stderr = "";
-        const proc = spawn(cmd, args, {
-          stdio: ["ignore", "ignore", "pipe"],
-        });
-        proc.stderr?.on("data", (data: Buffer) => {
-          stderr += data.toString();
-        });
-        proc.on("close", (code) =>
-          code === 0
-            ? resolve()
-            : reject(
-                Object.assign(new Error(`${cmd} exited with code ${code}`), {
-                  code,
-                  stderr,
-                })
-              )
-        );
-        proc.on("error", reject);
-      });
-      logger.info(
-        `[yt-dlp] Successfully ${upgrade ? "updated" : "installed"} ${packages.join(", ")}.`
-      );
-      updatePathAfterAutoInstall();
-      return;
-    } catch (error: unknown) {
-      const stderr = String(
-        (error as { stderr?: unknown })?.stderr || ""
-      ).trim();
-      if (stderr) {
-        logger.warn(`[yt-dlp] ${cmd} failed: ${stderr.split("\n").pop()}`);
-      }
-      // Try next candidate
-    }
-  }
-
-  throw new Error(
-    `yt-dlp could not be automatically ${upgrade ? "updated" : "installed"}. ` +
-      "Please install it manually: https://github.com/yt-dlp/yt-dlp#installation"
-  );
-}
-
-/**
- * Ensure yt-dlp is available, auto-installing via pip if not found.
- * Result is cached so the check only runs once per process.
- */
 export async function ensureYtDlpAvailable(): Promise<void> {
   if (ytDlpAvailablePromise) return ytDlpAvailablePromise;
 
@@ -162,6 +53,57 @@ export async function ensureYtDlpAvailable(): Promise<void> {
     let attemptedAutoInstall = false;
 
     while (true) {
+      if (hasCustomConfiguredYtDlpPath()) {
+        await ensureCustomPathAvailable();
+        return;
+      }
+
+      const managed = recoverUsableManagedRelease();
+      if (managed && !(await managedReleaseRunsCached(managed))) {
+        logger.warn(
+          `[yt-dlp] Managed release ${managed.release.releaseId} no longer runs ` +
+            "(the interpreter or its dependencies may have changed). Installing a new managed release."
+        );
+        if (!attemptedAutoInstall) {
+          attemptedAutoInstall = true;
+          try {
+            // pip usually produces the same latest version, so the repair has
+            // to be allowed to replace a same-version current release.
+            await installYtDlp({ upgrade: true, currentIsUsable: false });
+          } catch (installError: unknown) {
+            logger.warn(
+              `[yt-dlp] Reinstall failed (${getErrorMessage(installError, "unknown error")}). Trying the next release.`
+            );
+          }
+        }
+        // Re-evaluate. The probe marked this release unusable, so the next
+        // candidate - the rollback release, or another finalized one - is
+        // picked up and validated in turn rather than trusted structurally.
+        // The marked set only grows, so this terminates at external discovery.
+        continue;
+      }
+      if (managed) {
+        if (
+          !attemptedAutoUpgrade &&
+          isReleaseStale(managed.release.version)
+        ) {
+          attemptedAutoUpgrade = true;
+          logger.warn(
+            `[yt-dlp] Managed release ${managed.release.version} is older than ${YT_DLP_STALE_AFTER_DAYS} days. Installing a new managed release.`
+          );
+          try {
+            await installYtDlp({ upgrade: true });
+            continue;
+          } catch (upgradeError: unknown) {
+            logger.warn(
+              `[yt-dlp] Automatic update failed (${getErrorMessage(upgradeError, "unknown error")}). Continuing with the existing managed release.`
+            );
+            return;
+          }
+        }
+        return;
+      }
+
       const ytDlpPath = await resolveYtDlpPath();
       try {
         const versionInfo = await getYtDlpVersionInfo(ytDlpPath);
@@ -175,20 +117,13 @@ export async function ensureYtDlpAvailable(): Promise<void> {
           );
         }
 
-        if (
-          !hasCustomConfiguredYtDlpPath() &&
-          !attemptedAutoUpgrade &&
-          versionInfo.isStale
-        ) {
+        if (!attemptedAutoUpgrade && versionInfo.isStale) {
           attemptedAutoUpgrade = true;
           logger.warn(
-            `[yt-dlp] ${versionInfo.version || ytDlpPath} is older than ${YT_DLP_STALE_AFTER_DAYS} days. Updating yt-dlp to avoid known YouTube 360p regressions.`
+            `[yt-dlp] ${versionInfo.version || ytDlpPath} is older than ${YT_DLP_STALE_AFTER_DAYS} days. Installing a managed yt-dlp release.`
           );
           try {
             await installYtDlp({ upgrade: true });
-            resetResolvedYtDlpPath();
-            resetJsRuntimeFlag();
-            resetRemoteComponentsSupport();
             continue;
           } catch (upgradeError: unknown) {
             logger.warn(
@@ -201,7 +136,6 @@ export async function ensureYtDlpAvailable(): Promise<void> {
         return;
       } catch (err: unknown) {
         const e = err as NodeJS.ErrnoException & { kind?: string };
-        // Non-zero exit from --version means binary executed; continue.
         if (e.kind === "close") {
           return;
         }
@@ -214,45 +148,27 @@ export async function ensureYtDlpAvailable(): Promise<void> {
         }
 
         if (e.code === "ENOENT") {
-          // Only auto-install when using the default path (not a user-configured path).
-          if (hasCustomConfiguredYtDlpPath()) {
-            throw new Error(
-              `yt-dlp not found at configured path: ${ytDlpPath}. ` +
-                "Please check your YT_DLP_PATH environment variable."
-            );
-          }
-
           if (attemptedAutoInstall) {
             throw new Error(
-              "yt-dlp was installed automatically but is still not available on PATH. " +
-                "Please add it to PATH or set YT_DLP_PATH to the installed binary."
+              "yt-dlp was installed automatically but is still not usable. " +
+                "Please install Python 3 and pip, or set YT_DLP_PATH to a working binary."
             );
           }
 
           logger.warn(
-            "[yt-dlp] yt-dlp not found in PATH. Attempting automatic installation..."
+            "[yt-dlp] yt-dlp not found in PATH. Attempting managed installation..."
           );
           attemptedAutoInstall = true;
           await installYtDlp();
-          resetResolvedYtDlpPath();
-          resetJsRuntimeFlag();
-          resetRemoteComponentsSupport();
           continue;
         }
 
-        if (hasCustomConfiguredYtDlpPath()) {
-          throw new Error(
-            `Failed to execute configured yt-dlp at ${ytDlpPath} ` +
-              `(${e.code || "unknown"}): ${e.message}`
-          );
-        }
         throw new Error(
           `Failed to execute yt-dlp (${e.code || "unknown"}): ${e.message}`
         );
       }
     }
   })().catch((err) => {
-    // Reset cache so the next call retries instead of getting the same error.
     ytDlpAvailablePromise = null;
     throw err;
   });
@@ -260,13 +176,32 @@ export async function ensureYtDlpAvailable(): Promise<void> {
   return ytDlpAvailablePromise;
 }
 
+async function ensureCustomPathAvailable(): Promise<void> {
+  const ytDlpPath = await resolveYtDlpPath();
+  const versionInfo = await getYtDlpVersionInfo(ytDlpPath);
+  if (versionInfo.canRun || versionInfo.errorKind === "close") {
+    return;
+  }
+  if (versionInfo.errorCode === "EACCES" || versionInfo.errorCode === "EPERM") {
+    throw new Error(
+      `yt-dlp exists but is not executable at: ${ytDlpPath}. ` +
+        "Please fix file permissions or install yt-dlp manually."
+    );
+  }
+  if (versionInfo.errorCode === "ENOENT") {
+    throw new Error(
+      `yt-dlp not found at configured path: ${ytDlpPath}. ` +
+        "Please check your YT_DLP_PATH environment variable."
+    );
+  }
+  throw new Error(
+    `Failed to execute configured yt-dlp at ${ytDlpPath} ` +
+      `(${versionInfo.errorCode || "unknown"}): ${versionInfo.errorMessage || "unknown error"}`
+  );
+}
+
 export function resetYtDlpAvailablePromise(): void {
   ytDlpAvailablePromise = null;
 }
 
-/**
- * @internal Test helper: drop a queue tail left pending by a mocked pip run.
- */
-export function resetPipQueue(): void {
-  pipQueue = Promise.resolve();
-}
+export { resetPipQueue };
