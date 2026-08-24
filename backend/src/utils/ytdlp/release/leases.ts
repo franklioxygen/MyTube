@@ -219,27 +219,26 @@ export function hasLiveGcMarker(releaseId: string): boolean {
   return liveMarkerTokens(layout, releaseId).length > 0;
 }
 
-/**
- * True while this specific collector's marker physically exists.
- *
- * Reader blocking expires so a killed collector cannot make a release
- * unusable forever. Trash ownership cannot expire the same way: a collector
- * may be suspended after renaming the release and still need to restore it for
- * a lease observed when it resumes.
- */
-export function hasGcMarkerToken(releaseId: string, token: string): boolean {
+export type GcMarkerTokenState = "missing" | "live" | "stale";
+
+/** Report both physical ownership and reader-blocking freshness. */
+export function getGcMarkerTokenState(
+  releaseId: string,
+  token: string
+): GcMarkerTokenState {
   if (!isValidReleaseId(releaseId) || !isValidLeaseId(token)) {
-    return false;
+    return "missing";
   }
   const layout = getManagedStoreLayout();
-  try {
-    return pathExistsInRoot(
-      path.join(getGcMarkerPath(layout, releaseId), `${token}.json`),
-      layout.root
-    );
-  } catch {
-    return false;
+  const markedAt = statMtimeMs(
+    path.join(getGcMarkerPath(layout, releaseId), `${token}.json`)
+  );
+  if (markedAt === null) {
+    return "missing";
   }
+  return Date.now() - markedAt >= YT_DLP_PUBLISH_LOCK_STALE_MS
+    ? "stale"
+    : "live";
 }
 
 function liveMarkerTokens(

@@ -13,8 +13,8 @@ import { isValidOperationId, isValidReleaseId } from "./ids";
 import {
   abortGcMarker,
   beginGcMarker,
+  getGcMarkerTokenState,
   getInstanceId,
-  hasGcMarkerToken,
   hasLeases,
   readLeaseRecords,
 } from "./leases";
@@ -269,18 +269,22 @@ function reportStaleLeases(releaseId: string): void {
   }
 }
 
+type RetirementEntry = { releaseId: string; token: string };
+
 /** Trash entries are named `<releaseId>.<collector token>`. */
-function isRetirementInFlight(trashEntryName: string): boolean {
+function parseRetirementEntry(
+  trashEntryName: string
+): RetirementEntry | null {
   const separator = trashEntryName.lastIndexOf(".");
   if (separator <= 0) {
-    return false;
+    return null;
   }
   const releaseId = trashEntryName.slice(0, separator);
   const token = trashEntryName.slice(separator + 1);
   if (!isValidReleaseId(releaseId)) {
-    return false;
+    return null;
   }
-  return hasGcMarkerToken(releaseId, token);
+  return { releaseId, token };
 }
 
 /**
@@ -293,16 +297,53 @@ async function emptyTrash(layout: ManagedStoreLayout): Promise<void> {
     return;
   }
   for (const name of listSafeDirNames(layout.trashDir, layout.root)) {
+    const trashPath = path.join(layout.trashDir, name);
+    const retirement = parseRetirementEntry(name);
     // A retirement in flight has its release sitting here between the rename
     // and the lease re-check that may put it back. Deleting it then would make
     // that restoration impossible and leave a reader that legitimately leased
-    // the release running against removed modules. The owning collector still
-    // holds its marker until the retirement is settled, so that is the signal.
-    if (isRetirementInFlight(name)) {
-      continue;
+    // the release running against removed modules.
+    if (retirement) {
+      const markerState = getGcMarkerTokenState(
+        retirement.releaseId,
+        retirement.token
+      );
+      if (markerState === "live") {
+        continue;
+      }
+      if (markerState === "stale") {
+        // Settle a collector that died or was suspended past the stale window.
+        // A lease could only have been written before the rename, so restore
+        // for that reader; without one the unreachable release is safe to
+        // delete. Keep the marker until either operation succeeds so another
+        // sweep cannot race a failed restoration.
+        if (hasLeases(retirement.releaseId)) {
+          try {
+            renameInRoot(
+              trashPath,
+              getReleaseDir(layout, retirement.releaseId),
+              layout.root
+            );
+            abortGcMarker(retirement.releaseId, retirement.token);
+            logger.info(
+              `[yt-dlp] Restored stale retirement ${retirement.releaseId} for an existing lease`
+            );
+          } catch {
+            // Retried by the next collection while the marker still protects it.
+          }
+          continue;
+        }
+        try {
+          await removeSafe(trashPath, layout.root);
+          abortGcMarker(retirement.releaseId, retirement.token);
+        } catch {
+          // Retried by the next collection while the marker still protects it.
+        }
+        continue;
+      }
     }
     try {
-      await removeSafe(path.join(layout.trashDir, name), layout.root);
+      await removeSafe(trashPath, layout.root);
     } catch {
       // Retried by the next collection.
     }

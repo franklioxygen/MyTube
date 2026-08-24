@@ -971,7 +971,7 @@ describe("managed yt-dlp release store", () => {
   });
 
   describe("in-flight retirement", () => {
-    it("does not sweep a retirement that still holds its marker", async () => {
+    it("restores a stale retirement for a reader that leased before the rename", async () => {
       // Between the retirement rename and the lease re-check that may put the
       // release back, it sits in the trash. A concurrent sweep would make that
       // restoration impossible and leave a leaseholder on removed modules.
@@ -984,7 +984,20 @@ describe("managed yt-dlp release store", () => {
         layout.trashDir,
         `${release.releaseId}.${token}`
       );
-      fs.mkdirSync(inFlight, { recursive: true });
+      fs.renameSync(getReleaseDir(layout, release.releaseId), inFlight);
+      const leaseDir = path.join(layout.leasesDir, release.releaseId);
+      fs.mkdirSync(leaseDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(leaseDir, "4242-aabbccddeeff-0123456789abcdef.json"),
+        JSON.stringify({
+          schemaVersion: 1,
+          releaseId: release.releaseId,
+          instanceId: "4242-aabbccddeeff",
+          pid: 4242,
+          operationId: "op-0123456789abcdef",
+          createdAt: new Date().toISOString(),
+        })
+      );
       // Reader blocking may expire, but a collector can be suspended beyond
       // that window and still resume to restore this retirement.
       const longAgo = new Date(Date.now() - 10 * 60 * 1000);
@@ -997,22 +1010,45 @@ describe("managed yt-dlp release store", () => {
         longAgo,
         longAgo
       );
-      // A retirement whose collector is gone: no live marker for this token.
-      const abandoned = path.join(
-        layout.trashDir,
-        `${release.releaseId}.0123456789abcdef`
-      );
-      fs.mkdirSync(abandoned, { recursive: true });
 
       await collectGarbage();
 
-      expect(fs.existsSync(inFlight)).toBe(true);
-      expect(fs.existsSync(abandoned)).toBe(false);
-
-      // Once the collector is done, its entry is swept like any other.
-      abortGcMarker(release.releaseId, token as string);
-      await collectGarbage();
       expect(fs.existsSync(inFlight)).toBe(false);
+      expect(fs.existsSync(getReleaseDir(layout, release.releaseId))).toBe(true);
+      expect(
+        fs.existsSync(
+          path.join(
+            layout.gcMarkersDir,
+            `${release.releaseId}.deleting`,
+            `${token}.json`
+          )
+        )
+      ).toBe(false);
+    });
+
+    it("reclaims a stale retirement left by a dead collector", async () => {
+      const layout = ensureManagedStoreLayout(getManagedStoreLayout(storeRoot));
+      const release = seedRelease(storeRoot, { version: "2026.08.19" });
+      const token = beginGcMarker(release.releaseId);
+      expect(token).not.toBeNull();
+
+      const inFlight = path.join(
+        layout.trashDir,
+        `${release.releaseId}.${token}`
+      );
+      fs.renameSync(getReleaseDir(layout, release.releaseId), inFlight);
+      const markerPath = path.join(
+        layout.gcMarkersDir,
+        `${release.releaseId}.deleting`,
+        `${token}.json`
+      );
+      const longAgo = new Date(Date.now() - 10 * 60 * 1000);
+      fs.utimesSync(markerPath, longAgo, longAgo);
+
+      await collectGarbage();
+
+      expect(fs.existsSync(inFlight)).toBe(false);
+      expect(fs.existsSync(markerPath)).toBe(false);
     });
   });
 
