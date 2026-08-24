@@ -89,6 +89,25 @@ function retireAbandonedClaim(
 ): boolean {
   const claimPath = getGenerationClaimPath(layout, generation);
   const retiredPath = `${claimPath}.${token}.abandoned`;
+
+  // Remove a dead publisher's recovery record while its original claim still
+  // occupies the canonical path. If removal fails, no contender can reserve
+  // this generation during a rename-back window and later free its temporary
+  // claim, leaving the surviving record unfenced.
+  const observed = readClaim(claimPath);
+  if (observed.token !== observedToken) {
+    return false;
+  }
+  if (
+    observed.releaseId &&
+    !removePublishedManifest(layout.root, observed.releaseId)
+  ) {
+    logger.warn(
+      `[yt-dlp] Left generation ${generation} claimed: the abandoned publication record for ${observed.releaseId} could not be removed`
+    );
+    return false;
+  }
+
   try {
     fs.renameSync(claimPath, retiredPath);
   } catch {
@@ -110,15 +129,6 @@ function retireAbandonedClaim(
       // Best effort; a lost claim is reclaimed by age on the next attempt.
     }
     return false;
-  }
-
-  // A publisher that died between recording its publication and moving the
-  // pointer left a published.json behind. Freeing its generation without
-  // removing that record would leave two releases claiming the same
-  // generation, and both recovery and the rollback window order by generation.
-  // The claim names the release, so this is exactly the record to drop.
-  if (retired.releaseId) {
-    removePublishedManifest(layout.root, retired.releaseId);
   }
 
   try {

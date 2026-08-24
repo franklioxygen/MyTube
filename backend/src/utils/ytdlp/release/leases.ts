@@ -219,6 +219,28 @@ export function hasLiveGcMarker(releaseId: string): boolean {
   return liveMarkerTokens(layout, releaseId).length > 0;
 }
 
+export type GcMarkerTokenState = "missing" | "live" | "stale";
+
+/** Report both physical ownership and reader-blocking freshness. */
+export function getGcMarkerTokenState(
+  releaseId: string,
+  token: string
+): GcMarkerTokenState {
+  if (!isValidReleaseId(releaseId) || !isValidLeaseId(token)) {
+    return "missing";
+  }
+  const layout = getManagedStoreLayout();
+  const markedAt = statMtimeMs(
+    path.join(getGcMarkerPath(layout, releaseId), `${token}.json`)
+  );
+  if (markedAt === null) {
+    return "missing";
+  }
+  return Date.now() - markedAt >= YT_DLP_PUBLISH_LOCK_STALE_MS
+    ? "stale"
+    : "live";
+}
+
 function liveMarkerTokens(
   layout: ReturnType<typeof getManagedStoreLayout>,
   releaseId: string,

@@ -970,6 +970,165 @@ describe("managed yt-dlp release store", () => {
     });
   });
 
+  describe("in-flight retirement", () => {
+    it("restores a stale retirement for a reader that leased before the rename", async () => {
+      // Between the retirement rename and the lease re-check that may put the
+      // release back, it sits in the trash. A concurrent sweep would make that
+      // restoration impossible and leave a leaseholder on removed modules.
+      const layout = ensureManagedStoreLayout(getManagedStoreLayout(storeRoot));
+      const release = seedRelease(storeRoot, { version: "2026.08.19" });
+      const token = beginGcMarker(release.releaseId);
+      expect(token).not.toBeNull();
+
+      const inFlight = path.join(
+        layout.trashDir,
+        `${release.releaseId}.${token}`
+      );
+      fs.renameSync(getReleaseDir(layout, release.releaseId), inFlight);
+      const leaseDir = path.join(layout.leasesDir, release.releaseId);
+      fs.mkdirSync(leaseDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(leaseDir, "4242-aabbccddeeff-0123456789abcdef.json"),
+        JSON.stringify({
+          schemaVersion: 1,
+          releaseId: release.releaseId,
+          instanceId: "4242-aabbccddeeff",
+          pid: 4242,
+          operationId: "op-0123456789abcdef",
+          createdAt: new Date().toISOString(),
+        })
+      );
+      // Reader blocking may expire, but a collector can be suspended beyond
+      // that window and still resume to restore this retirement.
+      const longAgo = new Date(Date.now() - 10 * 60 * 1000);
+      fs.utimesSync(
+        path.join(
+          layout.gcMarkersDir,
+          `${release.releaseId}.deleting`,
+          `${token}.json`
+        ),
+        longAgo,
+        longAgo
+      );
+
+      await collectGarbage();
+
+      expect(fs.existsSync(inFlight)).toBe(false);
+      expect(fs.existsSync(getReleaseDir(layout, release.releaseId))).toBe(true);
+      expect(
+        fs.existsSync(
+          path.join(
+            layout.gcMarkersDir,
+            `${release.releaseId}.deleting`,
+            `${token}.json`
+          )
+        )
+      ).toBe(false);
+    });
+
+    it("reclaims a stale retirement left by a dead collector", async () => {
+      const layout = ensureManagedStoreLayout(getManagedStoreLayout(storeRoot));
+      const release = seedRelease(storeRoot, { version: "2026.08.19" });
+      const token = beginGcMarker(release.releaseId);
+      expect(token).not.toBeNull();
+
+      const inFlight = path.join(
+        layout.trashDir,
+        `${release.releaseId}.${token}`
+      );
+      fs.renameSync(getReleaseDir(layout, release.releaseId), inFlight);
+      const markerPath = path.join(
+        layout.gcMarkersDir,
+        `${release.releaseId}.deleting`,
+        `${token}.json`
+      );
+      const longAgo = new Date(Date.now() - 10 * 60 * 1000);
+      fs.utimesSync(markerPath, longAgo, longAgo);
+
+      await collectGarbage();
+
+      expect(fs.existsSync(inFlight)).toBe(false);
+      expect(fs.existsSync(markerPath)).toBe(false);
+    });
+  });
+
+  describe("reclaiming an abandoned generation", () => {
+    it("keeps the generation claimed when the abandoned record survives", async () => {
+      // Same rule as the immediate-failure path: never free a generation while
+      // a release still records it.
+      const base = seedRelease(storeRoot, { version: "2026.07.01" });
+      const abandoned = seedRelease(storeRoot, { version: "2026.08.19" });
+      const next = seedRelease(storeRoot, { version: "2026.08.20" });
+      writeCurrentManifest(storeRoot, {
+        schemaVersion: 1,
+        generation: 1,
+        releaseId: base.releaseId,
+        previousReleaseId: null,
+        publishedAt: new Date().toISOString(),
+      });
+      const layout = ensureManagedStoreLayout(getManagedStoreLayout(storeRoot));
+      writePublishedManifest(storeRoot, {
+        schemaVersion: 1,
+        releaseId: abandoned.releaseId,
+        generation: 2,
+        previousReleaseId: base.releaseId,
+        publishedAt: new Date().toISOString(),
+      });
+      const claimPath = path.join(layout.generationsDir, "2.json");
+      writeJsonExclusive(claimPath, {
+        releaseId: abandoned.releaseId,
+        claimedAt: new Date().toISOString(),
+        token: "d".repeat(32),
+      });
+      const longAgo = new Date(Date.now() - 10 * 60 * 1000);
+      fs.utimesSync(claimPath, longAgo, longAgo);
+
+      let claimOccupiedDuringRemoval = false;
+      let contenderBlockedDuringRemoval = false;
+      const unlinkSpy = vi
+        .spyOn(fsExtra, "unlinkSync")
+        .mockImplementation((target: fsExtra.PathLike) => {
+          if (String(target).endsWith("published.json")) {
+            // Rollback must never vacate the canonical claim while it is still
+            // possible for the publication record removal to fail.
+            claimOccupiedDuringRemoval = fs.existsSync(claimPath);
+            try {
+              writeJsonExclusive(claimPath, {
+                releaseId: next.releaseId,
+                claimedAt: new Date().toISOString(),
+                token: "e".repeat(32),
+              });
+              fs.rmSync(claimPath, { force: true });
+            } catch (error: unknown) {
+              contenderBlockedDuringRemoval =
+                (error as NodeJS.ErrnoException).code === "EEXIST";
+            }
+            throw Object.assign(new Error("sharing violation"), {
+              code: "EPERM",
+            });
+          }
+          return undefined as never;
+        });
+      try {
+        await expect(
+          publishValidatedRelease({
+            releaseId: next.releaseId,
+            version: "2026.08.20",
+            generationAtInstallStart: 1,
+          })
+        ).rejects.toThrow(/claimed by another publisher/);
+      } finally {
+        unlinkSpy.mockRestore();
+      }
+
+      // The generation is still claimed, so nothing else can reuse it while a
+      // release still records it.
+      expect(claimOccupiedDuringRemoval).toBe(true);
+      expect(contenderBlockedDuringRemoval).toBe(true);
+      expect(fs.existsSync(claimPath)).toBe(true);
+    });
+  });
+
   describe("repairing a broken release", () => {
     it("publishes a same-version candidate when the current release is unusable", () => {
       // pip keeps producing the same latest version, so a repair would be
