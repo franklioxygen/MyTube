@@ -219,6 +219,15 @@ export function hasLiveGcMarker(releaseId: string): boolean {
   return liveMarkerTokens(layout, releaseId).length > 0;
 }
 
+/**
+ * True while this specific collector still holds its marker, which is what
+ * distinguishes a retirement still in flight from one whose owner is gone.
+ */
+export function isLiveGcMarkerToken(releaseId: string, token: string): boolean {
+  const layout = getManagedStoreLayout();
+  return liveMarkerTokens(layout, releaseId).includes(token);
+}
+
 function liveMarkerTokens(
   layout: ReturnType<typeof getManagedStoreLayout>,
   releaseId: string,

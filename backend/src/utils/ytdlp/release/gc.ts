@@ -15,6 +15,7 @@ import {
   beginGcMarker,
   getInstanceId,
   hasLeases,
+  isLiveGcMarkerToken,
   readLeaseRecords,
 } from "./leases";
 import {
@@ -268,6 +269,20 @@ function reportStaleLeases(releaseId: string): void {
   }
 }
 
+/** Trash entries are named `<releaseId>.<collector token>`. */
+function isRetirementInFlight(trashEntryName: string): boolean {
+  const separator = trashEntryName.lastIndexOf(".");
+  if (separator <= 0) {
+    return false;
+  }
+  const releaseId = trashEntryName.slice(0, separator);
+  const token = trashEntryName.slice(separator + 1);
+  if (!isValidReleaseId(releaseId)) {
+    return false;
+  }
+  return isLiveGcMarkerToken(releaseId, token);
+}
+
 /**
  * Delete anything left in the trash. Entries here are unreachable by
  * construction - they were renamed out of releases/ - so a collector that died
@@ -278,6 +293,14 @@ async function emptyTrash(layout: ManagedStoreLayout): Promise<void> {
     return;
   }
   for (const name of listSafeDirNames(layout.trashDir, layout.root)) {
+    // A retirement in flight has its release sitting here between the rename
+    // and the lease re-check that may put it back. Deleting it then would make
+    // that restoration impossible and leave a reader that legitimately leased
+    // the release running against removed modules. The owning collector still
+    // holds its marker until the retirement is settled, so that is the signal.
+    if (isRetirementInFlight(name)) {
+      continue;
+    }
     try {
       await removeSafe(path.join(layout.trashDir, name), layout.root);
     } catch {

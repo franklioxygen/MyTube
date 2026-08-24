@@ -116,9 +116,23 @@ function retireAbandonedClaim(
   // pointer left a published.json behind. Freeing its generation without
   // removing that record would leave two releases claiming the same
   // generation, and both recovery and the rollback window order by generation.
-  // The claim names the release, so this is exactly the record to drop.
-  if (retired.releaseId) {
-    removePublishedManifest(layout.root, retired.releaseId);
+  // The claim names the release, so this is exactly the record to drop -- and
+  // as on the immediate-failure path, the generation stays claimed until the
+  // record is actually gone. Putting the claim back leaves it expired, so the
+  // next attempt reclaims it and retries the removal.
+  if (
+    retired.releaseId &&
+    !removePublishedManifest(layout.root, retired.releaseId)
+  ) {
+    logger.warn(
+      `[yt-dlp] Left generation ${generation} claimed: the abandoned publication record for ${retired.releaseId} could not be removed`
+    );
+    try {
+      fs.renameSync(retiredPath, claimPath);
+    } catch {
+      // Best effort; an orphaned claim is reclaimed by age.
+    }
+    return false;
   }
 
   try {
