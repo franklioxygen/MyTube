@@ -985,6 +985,18 @@ describe("managed yt-dlp release store", () => {
         `${release.releaseId}.${token}`
       );
       fs.mkdirSync(inFlight, { recursive: true });
+      // Reader blocking may expire, but a collector can be suspended beyond
+      // that window and still resume to restore this retirement.
+      const longAgo = new Date(Date.now() - 10 * 60 * 1000);
+      fs.utimesSync(
+        path.join(
+          layout.gcMarkersDir,
+          `${release.releaseId}.deleting`,
+          `${token}.json`
+        ),
+        longAgo,
+        longAgo
+      );
       // A retirement whose collector is gone: no live marker for this token.
       const abandoned = path.join(
         layout.trashDir,
@@ -1035,10 +1047,26 @@ describe("managed yt-dlp release store", () => {
       const longAgo = new Date(Date.now() - 10 * 60 * 1000);
       fs.utimesSync(claimPath, longAgo, longAgo);
 
+      let claimOccupiedDuringRemoval = false;
+      let contenderBlockedDuringRemoval = false;
       const unlinkSpy = vi
         .spyOn(fsExtra, "unlinkSync")
         .mockImplementation((target: fsExtra.PathLike) => {
           if (String(target).endsWith("published.json")) {
+            // Rollback must never vacate the canonical claim while it is still
+            // possible for the publication record removal to fail.
+            claimOccupiedDuringRemoval = fs.existsSync(claimPath);
+            try {
+              writeJsonExclusive(claimPath, {
+                releaseId: next.releaseId,
+                claimedAt: new Date().toISOString(),
+                token: "e".repeat(32),
+              });
+              fs.rmSync(claimPath, { force: true });
+            } catch (error: unknown) {
+              contenderBlockedDuringRemoval =
+                (error as NodeJS.ErrnoException).code === "EEXIST";
+            }
             throw Object.assign(new Error("sharing violation"), {
               code: "EPERM",
             });
@@ -1059,6 +1087,8 @@ describe("managed yt-dlp release store", () => {
 
       // The generation is still claimed, so nothing else can reuse it while a
       // release still records it.
+      expect(claimOccupiedDuringRemoval).toBe(true);
+      expect(contenderBlockedDuringRemoval).toBe(true);
       expect(fs.existsSync(claimPath)).toBe(true);
     });
   });

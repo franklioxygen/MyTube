@@ -220,12 +220,26 @@ export function hasLiveGcMarker(releaseId: string): boolean {
 }
 
 /**
- * True while this specific collector still holds its marker, which is what
- * distinguishes a retirement still in flight from one whose owner is gone.
+ * True while this specific collector's marker physically exists.
+ *
+ * Reader blocking expires so a killed collector cannot make a release
+ * unusable forever. Trash ownership cannot expire the same way: a collector
+ * may be suspended after renaming the release and still need to restore it for
+ * a lease observed when it resumes.
  */
-export function isLiveGcMarkerToken(releaseId: string, token: string): boolean {
+export function hasGcMarkerToken(releaseId: string, token: string): boolean {
+  if (!isValidReleaseId(releaseId) || !isValidLeaseId(token)) {
+    return false;
+  }
   const layout = getManagedStoreLayout();
-  return liveMarkerTokens(layout, releaseId).includes(token);
+  try {
+    return pathExistsInRoot(
+      path.join(getGcMarkerPath(layout, releaseId), `${token}.json`),
+      layout.root
+    );
+  } catch {
+    return false;
+  }
 }
 
 function liveMarkerTokens(

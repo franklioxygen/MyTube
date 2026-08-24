@@ -14,8 +14,8 @@ import {
   abortGcMarker,
   beginGcMarker,
   getInstanceId,
+  hasGcMarkerToken,
   hasLeases,
-  isLiveGcMarkerToken,
   readLeaseRecords,
 } from "./leases";
 import {
@@ -280,7 +280,7 @@ function isRetirementInFlight(trashEntryName: string): boolean {
   if (!isValidReleaseId(releaseId)) {
     return false;
   }
-  return isLiveGcMarkerToken(releaseId, token);
+  return hasGcMarkerToken(releaseId, token);
 }
 
 /**
