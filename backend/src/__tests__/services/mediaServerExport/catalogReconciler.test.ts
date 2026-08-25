@@ -702,6 +702,46 @@ describe("compatible show matching rejects conflicting evidence", () => {
 
     expect(listMediaServerShows()).toHaveLength(1);
   });
+
+  it("persists a channel id observed after a URL-backed show was allocated", () => {
+    reconcile({
+      videos: [
+        video({
+          id: "v1",
+          author: "Old Name",
+          channelUrl: "https://www.youtube.com/@old-handle",
+        }),
+      ],
+    });
+
+    reconcile({
+      videos: [
+        video({
+          id: "v2",
+          author: "Old Name",
+          channelUrl: "https://www.youtube.com/@old-handle",
+        }),
+      ],
+      rawMetadataByVideoId: new Map([["v2", { channel_id: "UC-durable" }]]),
+    });
+
+    const [enriched] = listMediaServerShows();
+    expect(listMediaServerShows()).toHaveLength(1);
+    expect(enriched.sourceChannelId).toBe("UC-durable");
+
+    reconcile({
+      videos: [
+        video({
+          id: "v3",
+          author: "Brand New Name",
+          channelUrl: "https://www.youtube.com/@brand-new-handle",
+        }),
+      ],
+      rawMetadataByVideoId: new Map([["v3", { channel_id: "UC-durable" }]]),
+    });
+
+    expect(listMediaServerShows()).toHaveLength(1);
+  });
 });
 
 /**

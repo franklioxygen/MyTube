@@ -189,9 +189,9 @@ export function isCollectionShowIdentityKey(identityKey: string): boolean {
  * True when `candidate` is a strictly stronger identity for a show that was
  * created from a weaker one.
  *
- * Only an author-fallback show may be upgraded, and only when it still has no
- * channel id. Two existing shows are never merged automatically: that would
- * silently collapse two media-server libraries, which is not recoverable.
+ * An author-fallback or URL-backed show may be upgraded, and only when it still
+ * has no channel id. The caller has already required one unambiguous compatible
+ * show, so persisting the newly observed id cannot merge two existing shows.
  */
 export function canUpgradeShowIdentity(
   existing: { identityKey: string; sourceChannelId?: string },
@@ -203,7 +203,10 @@ export function canUpgradeShowIdentity(
   if (existing.sourceChannelId) {
     return false;
   }
-  return existing.identityKey.includes(":author:");
+  return (
+    existing.identityKey.includes(":author:") ||
+    existing.identityKey.includes(":channel-url:")
+  );
 }
 
 /** One candidate identity plus whatever the caller wants back for it. */

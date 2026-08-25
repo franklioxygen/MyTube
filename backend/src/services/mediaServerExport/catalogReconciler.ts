@@ -237,15 +237,16 @@ function resolveShowForCandidate(
     sourceChannelUrl: metadata.sourceChannelUrl,
   };
 
-  // A stronger identity may only enrich one unambiguous author-fallback show.
-  // Two existing shows are never merged: that is unrecoverable data loss.
+  // A stronger identity may only enrich one unambiguous author-fallback or
+  // URL-backed show. Two existing shows are never merged: that is
+  // unrecoverable data loss.
   if (
     metadata.identity &&
     canUpgradeShowIdentity(show, metadata.identity) &&
     metadata.identity.sourceChannelId
   ) {
     patch.sourceChannelId = metadata.identity.sourceChannelId;
-    logger.info("Upgraded an author-fallback show with a source channel id", {
+    logger.info("Upgraded a compatible show with a source channel id", {
       layout: "playlist_tv",
       action: "reconcile",
       showId: show.id,

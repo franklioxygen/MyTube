@@ -171,10 +171,19 @@ describe("mediaServerExport identity", () => {
       ).toBe(false);
     });
 
-    it("never upgrades a show that already has a stronger identity", () => {
+    it("upgrades a URL-backed show when a stable channel id arrives", () => {
       expect(
         canUpgradeShowIdentity(
           { identityKey: "youtube:channel-url:youtube.com/@x" },
+          channelIdCandidate
+        )
+      ).toBe(true);
+    });
+
+    it("does not rewrite a channel-id identity", () => {
+      expect(
+        canUpgradeShowIdentity(
+          { identityKey: "youtube:channel-id:UC-old" },
           channelIdCandidate
         )
       ).toBe(false);

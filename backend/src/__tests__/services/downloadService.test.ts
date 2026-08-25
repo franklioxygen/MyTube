@@ -490,12 +490,31 @@ describe("downloadService", () => {
         message: "Started downloading 2 playlists. Collections created.",
       });
 
-      expect(storageService.saveCollection).toHaveBeenCalledTimes(1);
+      expect(storageService.saveCollection).toHaveBeenCalledTimes(2);
       expect(storageService.saveCollection).toHaveBeenCalledWith(
         expect.objectContaining({
           id: "uuid-fixed",
           name: "Fresh-Playlist-- - @channel-name",
           title: "Fresh-Playlist-- - @channel-name",
+          sourceType: "playlist",
+          sourcePlatform: "youtube",
+          sourceId: "pl-new",
+          sourceUrl: "https://www.youtube.com/playlist?list=pl-new",
+          sourceChannelId: "channel-id",
+          sourceChannelUrl: "https://www.youtube.com/@channel-name",
+          sourceChannelName: "@channel-name",
+        })
+      );
+      expect(storageService.saveCollection).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: "col-title",
+          sourceType: "playlist",
+          sourcePlatform: "youtube",
+          sourceId: "pl-title-match",
+          sourceUrl: "https://www.youtube.com/playlist?list=pl-title-match",
+          sourceChannelId: "channel-id",
+          sourceChannelUrl: "https://www.youtube.com/@channel-name",
+          sourceChannelName: "@channel-name",
         })
       );
 
