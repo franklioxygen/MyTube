@@ -54,6 +54,57 @@ describe("previewMediaServerExportScope", () => {
     expect(scope.videoCount).toBe(1);
   });
 
+  /**
+   * planEpisode deterministically skips anything that is not a managed
+   * /videos path, and the reconciler never assigns audio-only media, so
+   * counting these inflated the confirmation with entries the rebuild cannot
+   * materialize.
+   */
+  it("excludes nonlocal path kinds the planner would skip", () => {
+    const scope = previewMediaServerExportScope({
+      videos: [
+        video({ id: "v1", videoPath: "/videos/a.mp4" }),
+        video({ id: "v2", videoPath: "cloud:abc123" }),
+        video({ id: "v3", videoPath: "mount:/nas/b.mp4" }),
+        video({ id: "v4", videoPath: "https://example.com/c.mp4" }),
+        video({ id: "v5", videoPath: "http://example.com/d.mp4" }),
+      ],
+      collections: [],
+    });
+
+    expect(scope.videoCount).toBe(1);
+  });
+
+  it("excludes audio-only media, which never receives an assignment", () => {
+    const scope = previewMediaServerExportScope({
+      videos: [
+        video({ id: "v1" }),
+        video({ id: "v2", mediaType: "audio" } as Partial<Video>),
+      ],
+      collections: [],
+    });
+
+    expect(scope.videoCount).toBe(1);
+  });
+
+  it("does not count a show for a channel whose only video is nonlocal", () => {
+    const scope = previewMediaServerExportScope({
+      videos: [
+        video({ id: "v1", channelUrl: "https://youtube.com/@kurzgesagt" }),
+        video({
+          id: "v2",
+          author: "Cloud Only",
+          channelUrl: "https://youtube.com/@cloudonly",
+          videoPath: "cloud:abc123",
+        }),
+      ],
+      collections: [],
+    });
+
+    expect(scope.videoCount).toBe(1);
+    expect(scope.showCount).toBe(1);
+  });
+
   it("collapses one channel's videos into a single show", () => {
     const scope = previewMediaServerExportScope({
       videos: [

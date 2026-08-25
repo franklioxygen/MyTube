@@ -13,7 +13,7 @@ import {
   removeMediaServerArtifactsForVideo,
   syncMediaServerArtifactsForRecord,
 } from "./syncService";
-import { cleanupMediaServerMirror } from "./hierarchyMaterializer";
+import { cleanupMediaServerMirrorAsync } from "./hierarchyMaterializer";
 import { syncPlaylistTvLibrary } from "./playlistTvSync";
 import { sweepOrphanMediaServerArtifacts } from "./orphanSweep";
 import type {
@@ -153,7 +153,7 @@ async function processMediaServerExportJob(
       // runs first because job progress is denominated in videos.
       processAdjacentJob(job, allVideos);
       const sidecarsSwept = job.sweptFiles ?? 0;
-      const mirrorSwept = sweepMirrorBestEffort(job);
+      const mirrorSwept = await sweepMirrorBestEffort(job);
 
       job.sweptFiles = sidecarsSwept + mirrorSwept;
       job.phase = "completed";
@@ -166,7 +166,7 @@ async function processMediaServerExportJob(
       sweepInactiveAdjacentBestEffort(job, allVideos);
     } else {
       processAdjacentJob(job, allVideos);
-      job.sweptFiles = (job.sweptFiles ?? 0) + sweepMirrorBestEffort(job);
+      job.sweptFiles = (job.sweptFiles ?? 0) + (await sweepMirrorBestEffort(job));
     }
   } finally {
     job.currentVideoId = undefined;
@@ -186,13 +186,15 @@ async function processMediaServerExportJob(
  * continuing into a full-library delete after the user pressed cancel would
  * destroy the mirror they were trying to save.
  */
-function sweepMirrorBestEffort(job: MediaServerExportJob): number {
+async function sweepMirrorBestEffort(
+  job: MediaServerExportJob
+): Promise<number> {
   if (job.cancelRequested) {
     return 0;
   }
 
   try {
-    return sweepManagedMirror(job);
+    return await sweepManagedMirror(job);
   } catch (error) {
     // The mirror may not even exist for a deployment that only ever used
     // sidecars, and a problem there must not fail the phase the user asked for.
@@ -257,9 +259,18 @@ function sweepInactiveAdjacentBestEffort(
  * Catalog assignments are deliberately retained so a later re-enable reuses the
  * same season and episode numbers.
  */
-function sweepManagedMirror(job: MediaServerExportJob): number {
+async function sweepManagedMirror(
+  job: MediaServerExportJob
+): Promise<number> {
   job.phase = "sweep";
-  const cleanup = cleanupMediaServerMirror(undefined, () => job.cancelRequested);
+  // Yielding per artifact: this unlinks the entire managed library, and a
+  // synchronous drain would keep the event loop from ever serving the cancel
+  // request that sets the flag below - or the status poll that would show the
+  // user it is running.
+  const cleanup = await cleanupMediaServerMirrorAsync(
+    undefined,
+    () => job.cancelRequested
+  );
   job.counts = { ...job.counts, ...cleanup.counts };
 
   for (const failure of cleanup.failures) {
@@ -277,7 +288,7 @@ function sweepManagedMirror(job: MediaServerExportJob): number {
 
 async function processPlaylistTvJob(job: MediaServerExportJob): Promise<void> {
   if (job.action === "cleanup") {
-    const removed = sweepManagedMirror(job);
+    const removed = await sweepManagedMirror(job);
     job.sweptFiles = removed;
     job.total = removed;
     job.processed = removed;

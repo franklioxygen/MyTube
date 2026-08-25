@@ -468,6 +468,16 @@ function buildSourceJsonMap(
     return undefined;
   }
 
+  // Only a caller that actually has fresh extractor output supplies an
+  // envelope. An ordinary refresh - a title edit, new tags, replaced artwork -
+  // carries no `rawSourceInfo`, and synthesizing one here would hand the
+  // materializer a weaker envelope that overwrites the rich `.info.json` the
+  // download wrote. Left undefined, the materializer keeps whatever it already
+  // published and still synthesizes for an episode that has none yet.
+  if (options.rawSourceInfo === undefined) {
+    return undefined;
+  }
+
   return new Map([
     [
       video.id,

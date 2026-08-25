@@ -12,7 +12,7 @@ const acquireRenameLockMock = vi.hoisted(() => vi.fn());
 const releaseRenameLockMock = vi.hoisted(() => vi.fn());
 const getMediaServerExportLayoutMock = vi.hoisted(() => vi.fn());
 const syncPlaylistTvLibraryMock = vi.hoisted(() => vi.fn());
-const cleanupMediaServerMirrorMock = vi.hoisted(() => vi.fn());
+const cleanupMediaServerMirrorAsyncMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../../services/storageService", () => ({
   getSettings: getSettingsMock,
@@ -38,7 +38,7 @@ vi.mock("../../../services/mediaServerExport/playlistTvSync", () => ({
 }));
 
 vi.mock("../../../services/mediaServerExport/hierarchyMaterializer", () => ({
-  cleanupMediaServerMirror: cleanupMediaServerMirrorMock,
+  cleanupMediaServerMirrorAsync: cleanupMediaServerMirrorAsyncMock,
 }));
 
 vi.mock("../../../services/mediaServerExport/orphanSweep", () => ({
@@ -118,9 +118,9 @@ describe("mediaServerExport jobService", () => {
     releaseRenameLockMock.mockReset();
     getMediaServerExportLayoutMock.mockReset();
     syncPlaylistTvLibraryMock.mockReset();
-    cleanupMediaServerMirrorMock.mockReset();
+    cleanupMediaServerMirrorAsyncMock.mockReset();
     // Cleanup now sweeps both layouts, so every cleanup test reaches this.
-    cleanupMediaServerMirrorMock.mockReturnValue({
+    cleanupMediaServerMirrorAsyncMock.mockResolvedValue({
       counts: { removedArtifacts: 0 },
       failures: [],
     });
@@ -244,7 +244,7 @@ describe("mediaServerExport jobService", () => {
         plannerSkips: [],
         reconcileIssues: [],
       });
-      cleanupMediaServerMirrorMock.mockReturnValue({
+      cleanupMediaServerMirrorAsyncMock.mockResolvedValue({
         counts: {
           shows: 0,
           seasons: 0,
@@ -346,7 +346,7 @@ describe("mediaServerExport jobService", () => {
       await waitForJobCompletion(job.id);
 
       const completed = getMediaServerExportJobById(job.id);
-      expect(cleanupMediaServerMirrorMock).toHaveBeenCalledTimes(1);
+      expect(cleanupMediaServerMirrorAsyncMock).toHaveBeenCalledTimes(1);
       expect(completed?.counts.removedArtifacts).toBe(6);
       // Both sweeps contribute to the reported file count.
       expect(completed?.sweptFiles).toBe(6);
@@ -355,7 +355,7 @@ describe("mediaServerExport jobService", () => {
 
     it("still completes when the mirror sweep throws", async () => {
       getVideosMock.mockReturnValue([createVideo("video-1")]);
-      cleanupMediaServerMirrorMock.mockImplementation(() => {
+      cleanupMediaServerMirrorAsyncMock.mockImplementation(async () => {
         throw new Error("mirror unreadable");
       });
 
@@ -413,7 +413,7 @@ describe("mediaServerExport jobService", () => {
       await waitForJobStatus(job.id, "cancelled");
 
       // The whole point: a cancelled cleanup must not delete the library.
-      expect(cleanupMediaServerMirrorMock).not.toHaveBeenCalled();
+      expect(cleanupMediaServerMirrorAsyncMock).not.toHaveBeenCalled();
     });
 
     it("sweeps the adjacent sidecars when rebuilding into the managed layout", async () => {
@@ -454,7 +454,7 @@ describe("mediaServerExport jobService", () => {
       await waitForJobCompletion(job.id);
 
       expect(syncMediaServerArtifactsForRecordMock).toHaveBeenCalled();
-      expect(cleanupMediaServerMirrorMock).toHaveBeenCalled();
+      expect(cleanupMediaServerMirrorAsyncMock).toHaveBeenCalled();
     });
   });
 

@@ -83,6 +83,7 @@ vi.mock("../../../utils/logger", () => ({
 import { planMediaServerHierarchy } from "../../../services/mediaServerExport/hierarchyPlanner";
 import {
   cleanupMediaServerMirror,
+  cleanupMediaServerMirrorAsync,
   materializeMediaServerHierarchy,
   materializeMediaServerHierarchyAsync,
 } from "../../../services/mediaServerExport/hierarchyMaterializer";
@@ -846,6 +847,74 @@ describe("mediaServerExport hierarchyMaterializer", () => {
     ).toBe('{"from":"downloader"}\n');
   });
 
+  /**
+   * An ordinary refresh - a title edit, new tags, replaced artwork - and an
+   * offline rebuild both carry no extractor output. Rewriting the published
+   * `.info.json` from the stored video record would drop every extractor-only
+   * field the download captured, permanently: nothing ever re-fetches them.
+   */
+  it("keeps a published rich source JSON when the run carries no raw envelope", () => {
+    writeFile(path.join(testPaths.videos, "ants.mp4"), "video-bytes");
+    seedCatalog({});
+
+    const richPlan = planMediaServerHierarchy(snapshot({}), {
+      mode: "nfo_and_source_json",
+    });
+    materializeMediaServerHierarchy(richPlan, {
+      copyFallbackEnabled: true,
+      sweepScopeShowIds: new Set(["show-1"]),
+      sourceJsonByVideoId: new Map([
+        ["v1", JSON.stringify({ id: "v1", extractor_only: "kept" })],
+      ]),
+    });
+
+    const sourceJsonPath = mirrorPath(
+      "Kurzgesagt",
+      "Season 01",
+      "S01E001 - Ants.info.json"
+    );
+    expect(JSON.parse(fs.readFileSync(sourceJsonPath, "utf8")).extractor_only).toBe(
+      "kept"
+    );
+
+    // A later run with no envelope at all - a rebuild, or a metadata edit.
+    const refreshPlan = planMediaServerHierarchy(
+      snapshot({ videos: [video({ title: "Renamed Episode" })] }),
+      { mode: "nfo_and_source_json" }
+    );
+    const result = materializeMediaServerHierarchy(refreshPlan, {
+      copyFallbackEnabled: true,
+      sweepScopeShowIds: new Set(["show-1"]),
+    });
+
+    expect(result.failures).toEqual([]);
+    expect(JSON.parse(fs.readFileSync(sourceJsonPath, "utf8")).extractor_only).toBe(
+      "kept"
+    );
+    // The NFO, which IS derived from the video record, still follows the edit.
+    expect(
+      fs.readFileSync(
+        mirrorPath("Kurzgesagt", "Season 01", "S01E001 - Ants.nfo"),
+        "utf8"
+      )
+    ).toContain("<title>Renamed Episode</title>");
+  });
+
+  it("still synthesizes a source JSON for an episode that has none yet", () => {
+    writeFile(path.join(testPaths.videos, "ants.mp4"), "video-bytes");
+
+    const { result } = buildAndMaterialize({}, { mode: "nfo_and_source_json" });
+
+    expect(result.failures).toEqual([]);
+    const parsed = JSON.parse(
+      fs.readFileSync(
+        mirrorPath("Kurzgesagt", "Season 01", "S01E001 - Ants.info.json"),
+        "utf8"
+      )
+    );
+    expect(parsed._mytube.rawSourcePreserved).toBe(false);
+  });
+
   it("writes no source JSON in plain nfo mode", () => {
     writeFile(path.join(testPaths.videos, "ants.mp4"), "video-bytes");
 
@@ -1166,6 +1235,59 @@ describe("mediaServerExport hierarchyMaterializer", () => {
       });
 
       expect(result.counts.removedArtifacts).toBeLessThan(8);
+    });
+
+    /**
+     * The cleanup action unlinks the whole managed library. Draining it
+     * synchronously meant the event loop never ran, so the `isCancelled`
+     * callback it was handed could not change and a user trying to stop a
+     * destructive sweep was only heard once it had already finished.
+     */
+    it("observes a cancel queued while the cleanup action sweeps", async () => {
+      writeFile(path.join(testPaths.videos, "ants.mp4"), "video-bytes");
+      writeFile(path.join(testPaths.videos, "second.mp4"), "second-bytes");
+      writeFile(path.join(testPaths.videos, "third.mp4"), "third-bytes");
+
+      const { result: seeded } = buildAndMaterialize({
+        assignments: [
+          assignment({ id: "a1", episodeNumber: 1 }),
+          assignment({
+            id: "a2",
+            videoId: "v2",
+            episodeNumber: 2,
+            exportStem: "S01E002 - Second",
+          }),
+          assignment({
+            id: "a3",
+            videoId: "v3",
+            episodeNumber: 3,
+            exportStem: "S01E003 - Third",
+          }),
+        ],
+        videos: [
+          video(),
+          video({ id: "v2", title: "Second", videoPath: "/videos/second.mp4" }),
+          video({ id: "v3", title: "Third", videoPath: "/videos/third.mp4" }),
+        ],
+      });
+      expect(seeded.counts.episodes).toBe(3);
+      const before = listArtifacts().length;
+
+      let cancelRequested = false;
+      setImmediate(() => {
+        setImmediate(() => {
+          cancelRequested = true;
+        });
+      });
+
+      const result = await cleanupMediaServerMirrorAsync(
+        undefined,
+        () => cancelRequested
+      );
+
+      expect(result.counts.removedArtifacts).toBeLessThan(before);
+      // The cancel actually stopped it, so artifacts survive.
+      expect(listArtifacts().length).toBeGreaterThan(0);
     });
   });
 

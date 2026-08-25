@@ -254,6 +254,25 @@ function publishOverExisting(tempPath: string, targetAbsolutePath: string): void
   removeTempQuietly(backupPath);
 }
 
+/**
+ * True when MyTube already published this exact path and the file is still on
+ * disk.
+ *
+ * Used to decide whether an artifact that cannot be regenerated at full
+ * fidelity should be left alone rather than overwritten with a weaker version.
+ */
+export function isArtifactPublished(targetAbsolutePath: string): boolean {
+  assertInsideMirror(targetAbsolutePath);
+  if (!getArtifact(toRelative(targetAbsolutePath))) {
+    return false;
+  }
+  try {
+    return pathExistsSafeSync(targetAbsolutePath, MEDIA_SERVER_LIBRARY_DIR);
+  } catch {
+    return false;
+  }
+}
+
 export function writeMirrorTextArtifact(
   input: WriteMirrorTextInput
 ): MaterializeResult {

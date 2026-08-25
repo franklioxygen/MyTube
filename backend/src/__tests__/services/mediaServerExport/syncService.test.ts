@@ -35,9 +35,17 @@ vi.mock("../../../services/storageService/settings", () => ({
 }));
 
 // syncService dispatches to the playlist_tv pipeline, which reaches the catalog
-// database. These tests only exercise the adjacent branch, so the database is
-// stubbed rather than opened.
+// database. Most of these tests only exercise the adjacent branch, so the
+// database is stubbed rather than opened, and the pipeline itself is mocked so
+// the dispatch can be asserted on its own.
 vi.mock("../../../db", () => ({ db: {} }));
+
+const syncPlaylistTvForVideoMock = vi.hoisted(() => vi.fn());
+
+vi.mock("../../../services/mediaServerExport/playlistTvSync", () => ({
+  syncPlaylistTvForVideo: syncPlaylistTvForVideoMock,
+  removePlaylistTvArtifactsForVideo: vi.fn(),
+}));
 
 vi.mock("../../../utils/logger", () => ({
   logger: {
@@ -94,6 +102,7 @@ describe("mediaServerExport syncService", () => {
     fs.ensureDirSync(testPaths.avatars);
     fs.ensureDirSync(testPaths.subtitles);
     getSettingsMock.mockReset();
+    syncPlaylistTvForVideoMock.mockReset();
   });
 
   afterAll(() => {
@@ -435,5 +444,46 @@ describe("removeMediaServerArtifactsForSupersededFile", () => {
     // silent success. Proving they take different paths is the point.
     removeMediaServerArtifactsForVideo(createVideoRecord());
     expect(vi.mocked(logger.error)).toHaveBeenCalled();
+  });
+});
+
+/**
+ * An ordinary refresh - a title edit, new tags, replaced artwork - carries no
+ * extractor output. Synthesizing an envelope for it would hand the materializer
+ * a weaker `.info.json` that overwrites the rich one the download wrote, and
+ * nothing ever re-fetches those extractor-only fields.
+ */
+describe("playlist_tv source JSON dispatch", () => {
+  function record(): Video {
+    return createVideoRecord();
+  }
+
+  beforeEach(() => {
+    syncPlaylistTvForVideoMock.mockReset();
+    getSettingsMock.mockReturnValue({
+      mediaServerExportMode: "nfo_and_source_json",
+      mediaServerExportLayout: "playlist_tv",
+    });
+  });
+
+  it("supplies an envelope when the caller has fresh extractor output", () => {
+    syncMediaServerArtifactsForRecord(record(), {
+      rawSourceInfo: { id: "ants-raw", extractor_only: "kept" },
+    });
+
+    expect(syncPlaylistTvForVideoMock).toHaveBeenCalledTimes(1);
+    const options = syncPlaylistTvForVideoMock.mock.calls[0][1];
+    expect(options.sourceJsonByVideoId?.get("video-1")).toContain(
+      "extractor_only"
+    );
+  });
+
+  it("supplies none for an ordinary refresh, so the published one survives", () => {
+    syncMediaServerArtifactsForRecord(record(), {});
+
+    expect(syncPlaylistTvForVideoMock).toHaveBeenCalledTimes(1);
+    expect(
+      syncPlaylistTvForVideoMock.mock.calls[0][1].sourceJsonByVideoId
+    ).toBeUndefined();
   });
 });

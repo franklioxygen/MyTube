@@ -1,5 +1,6 @@
 import { getCollections } from "../storageService/collectionRepository";
 import { getVideos } from "../storageService/videos";
+import { resolveManagedWebPath } from "../filenameTemplate/pathHelpers";
 import type { Collection, Video } from "../storageService/types";
 import {
   buildCollectionShowIdentityKey,
@@ -33,15 +34,37 @@ export interface MediaServerExportScope {
   collectionShowCount: number;
 }
 
-function isLocalVideo(video: Video): boolean {
-  return Boolean(video.videoPath);
+/**
+ * The planner's own eligibility test, minus the filesystem probe.
+ *
+ * `planEpisode` deterministically skips anything that does not resolve to a
+ * managed `/videos` path - `cloud:`, `mount:` and `http(s)://` records all do -
+ * and the reconciler never assigns audio-only media at all. Counting those here
+ * inflated the video and author-show numbers in the confirmation with entries
+ * the rebuild cannot materialize.
+ *
+ * The missing-file probe stays out on purpose: it is not deterministic, and the
+ * copy already says "about" for exactly that reason.
+ */
+function isEligibleLocalVideo(video: Video): boolean {
+  if (video.mediaType === "audio") {
+    return false;
+  }
+
+  const videoPath = typeof video.videoPath === "string" ? video.videoPath : "";
+  if (!videoPath) {
+    return false;
+  }
+
+  const resolved = resolveManagedWebPath(videoPath);
+  return Boolean(resolved && resolved.prefix === "/videos");
 }
 
 export function previewMediaServerExportScope(options?: {
   videos?: Video[];
   collections?: Collection[];
 }): MediaServerExportScope {
-  const videos = (options?.videos ?? getVideos()).filter(isLocalVideo);
+  const videos = (options?.videos ?? getVideos()).filter(isEligibleLocalVideo);
   const collections = options?.collections ?? getCollections();
 
   const collectionsById = new Map(collections.map((c) => [c.id, c]));

@@ -21,6 +21,7 @@ import {
 import { buildSourceInfoEnvelope } from "./sourceInfoEnvelope";
 import {
   copyMirrorImageArtifact,
+  isArtifactPublished,
   linkMirrorMediaArtifact,
   MediaMaterializationError,
   pruneEmptyMirrorDirectories,
@@ -196,22 +197,39 @@ function materializeEpisode(
   }
 
   if (episode.targetSourceJsonAbsolutePath) {
-    // A rebuild is offline and has no raw yt-dlp info, so fall back to the same
-    // synthesized envelope the adjacent exporter writes. Without this, planning
-    // would reserve a .info.json path that is never actually written.
-    const contents =
-      options.sourceJsonByVideoId?.get(episode.video.id) ??
-      `${JSON.stringify(buildSourceInfoEnvelope(episode.video), null, 2)}\n`;
+    const suppliedSourceJson = options.sourceJsonByVideoId?.get(
+      episode.video.id
+    );
 
-    const sourceJson = writeMirrorTextArtifact({
-      targetAbsolutePath: episode.targetSourceJsonAbsolutePath,
-      contents,
-      artifactType: "source_json",
-      showId,
-      assignmentId,
-    });
-    if (!sourceJson.changed) {
+    // Only a run that actually carries fresh extractor output may replace a
+    // published source JSON. An ordinary refresh - a title edit, new artwork -
+    // and an offline rebuild both have nothing but the stored video record, and
+    // the synthesized envelope they would write drops every extractor-only
+    // field the downloader captured. Nothing ever re-fetches those, so
+    // overwriting is permanent loss; keeping what is there is free.
+    if (
+      suppliedSourceJson === undefined &&
+      isArtifactPublished(episode.targetSourceJsonAbsolutePath)
+    ) {
       counts.unchangedArtifacts += 1;
+    } else {
+      // Nothing published yet, so synthesize from the video record - the same
+      // envelope the adjacent exporter writes. Without this, planning would
+      // reserve a .info.json path that is never actually written.
+      const contents =
+        suppliedSourceJson ??
+        `${JSON.stringify(buildSourceInfoEnvelope(episode.video), null, 2)}\n`;
+
+      const sourceJson = writeMirrorTextArtifact({
+        targetAbsolutePath: episode.targetSourceJsonAbsolutePath,
+        contents,
+        artifactType: "source_json",
+        showId,
+        assignmentId,
+      });
+      if (!sourceJson.changed) {
+        counts.unchangedArtifacts += 1;
+      }
     }
   }
 
@@ -572,12 +590,7 @@ export function cleanupMediaServerMirror(
   const failures: MaterializeFailure[] = [];
 
   sweepStaleArtifacts(
-    {
-      shows: [],
-      skipped: [],
-      collisions: [],
-      expectedRelativePaths: new Set<string>(),
-    },
+    emptySweepPlan(),
     scopeShowIds,
     counts,
     failures,
@@ -585,4 +598,45 @@ export function cleanupMediaServerMirror(
   );
 
   return { counts, failures };
+}
+
+/**
+ * Same removal, yielding to the event loop between artifacts.
+ *
+ * The synchronous version is right for the mutation hooks, which sweep one
+ * show. It is wrong for the cleanup *action*: that unlinks the whole managed
+ * library, and draining it synchronously means nothing else is served while
+ * thousands of files go - not the job's status endpoint, and not the cancel
+ * request. The `isCancelled` callback it is handed could not change during the
+ * call, so a user trying to stop a destructive sweep was only heard once the
+ * sweep had already finished.
+ */
+export async function cleanupMediaServerMirrorAsync(
+  scopeShowIds?: Set<string>,
+  isCancelled?: () => boolean
+): Promise<MaterializeResultSummary> {
+  const counts = emptyCounts();
+  const failures: MaterializeFailure[] = [];
+
+  for (const _ of sweepStaleArtifactSteps(
+    emptySweepPlan(),
+    scopeShowIds,
+    counts,
+    failures,
+    isCancelled
+  )) {
+    await new Promise<void>((resolve) => setImmediate(resolve));
+  }
+
+  return { counts, failures };
+}
+
+/** A plan that expects nothing, so every ledger-owned path is swept. */
+function emptySweepPlan(): MediaServerHierarchyPlan {
+  return {
+    shows: [],
+    skipped: [],
+    collisions: [],
+    expectedRelativePaths: new Set<string>(),
+  };
 }
