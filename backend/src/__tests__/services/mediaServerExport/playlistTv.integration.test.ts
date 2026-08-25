@@ -333,7 +333,7 @@ function buildFixture(): void {
   seedRows();
 }
 
-function rebuild() {
+async function rebuild() {
   return syncPlaylistTvLibrary({ mode: "nfo", copyFallbackEnabled: true });
 }
 
@@ -364,8 +364,8 @@ describe("playlist_tv end-to-end fixture (issue #411)", () => {
     fs.removeSync(testPaths.root);
   });
 
-  it("produces exactly the documented tree", () => {
-    const result = rebuild();
+  it("produces exactly the documented tree", async () => {
+    const result = await rebuild();
 
     expect(result.failures).toEqual([]);
     expect(result.reconcileIssues).toEqual([]);
@@ -401,8 +401,8 @@ describe("playlist_tv end-to-end fixture (issue #411)", () => {
     });
   });
 
-  it("writes a valid tvshow.nfo with a stable identity-derived id", () => {
-    rebuild();
+  it("writes a valid tvshow.nfo with a stable identity-derived id", async () => {
+    await rebuild();
     const $ = readXml("Kurzgesagt – In a Nutshell", "tvshow.nfo");
 
     expect($("tvshow").length).toBe(1);
@@ -421,8 +421,8 @@ describe("playlist_tv end-to-end fixture (issue #411)", () => {
     }
   });
 
-  it("writes one valid season.nfo per season, including Season 00", () => {
-    rebuild();
+  it("writes one valid season.nfo per season, including Season 00", async () => {
+    await rebuild();
 
     const seasonOne = readXml("Kurzgesagt – In a Nutshell", "Season 01", "season.nfo");
     expect(seasonOne("season").length).toBe(1);
@@ -446,8 +446,8 @@ describe("playlist_tv end-to-end fixture (issue #411)", () => {
     expect(seasonZero("season > id").text()).toMatch(/^mytube:season:mss_[0-9a-f]+:0$/);
   });
 
-  it("writes episode NFOs whose numbers agree with the filename token", () => {
-    rebuild();
+  it("writes episode NFOs whose numbers agree with the filename token", async () => {
+    await rebuild();
 
     const $ = readXml(
       "Kurzgesagt – In a Nutshell",
@@ -467,8 +467,8 @@ describe("playlist_tv end-to-end fixture (issue #411)", () => {
     );
   });
 
-  it("exports the duplicate video into both seasons with distinct unique ids", () => {
-    rebuild();
+  it("exports the duplicate video into both seasons with distinct unique ids", async () => {
+    await rebuild();
 
     const inSeasonOne = readXml(
       "Kurzgesagt – In a Nutshell",
@@ -503,8 +503,8 @@ describe("playlist_tv end-to-end fixture (issue #411)", () => {
     );
   });
 
-  it("places the unassigned video in Season 00, not in its own show", () => {
-    rebuild();
+  it("places the unassigned video in Season 00, not in its own show", async () => {
+    await rebuild();
 
     const $ = readXml(
       "Kurzgesagt – In a Nutshell",
@@ -525,16 +525,16 @@ describe("playlist_tv end-to-end fixture (issue #411)", () => {
     ).toEqual(["Kurzgesagt – In a Nutshell"]);
   });
 
-  it("uses the author avatar as the show poster", () => {
-    rebuild();
+  it("uses the author avatar as the show poster", async () => {
+    await rebuild();
 
     expect(
       fs.readFileSync(mirror("Kurzgesagt – In a Nutshell", "poster.jpg"), "utf8")
     ).toBe("avatar-bytes");
   });
 
-  it("is idempotent and leaves originals untouched", () => {
-    rebuild();
+  it("is idempotent and leaves originals untouched", async () => {
+    await rebuild();
     const firstTree = listMirror();
     const stats = new Map(
       firstTree.map((relativePath) => [
@@ -543,7 +543,7 @@ describe("playlist_tv end-to-end fixture (issue #411)", () => {
       ])
     );
 
-    const second = rebuild();
+    const second = await rebuild();
 
     expect(second.failures).toEqual([]);
     expect(listMirror()).toEqual(firstTree);
@@ -566,12 +566,12 @@ describe("playlist_tv end-to-end fixture (issue #411)", () => {
     }
   });
 
-  it("keeps numbering stable when an upstream playlist is reordered", () => {
-    rebuild();
+  it("keeps numbering stable when an upstream playlist is reordered", async () => {
+    await rebuild();
 
     // The upstream playlist flips order; MyTube re-imports it.
     libraryCollections[0].videos = ["v-shared", "v-origins"];
-    const result = rebuild();
+    const result = await rebuild();
 
     expect(result.failures).toEqual([]);
     // Same paths as before: no season-wide renumbering.
@@ -583,8 +583,8 @@ describe("playlist_tv end-to-end fixture (issue #411)", () => {
     );
   });
 
-  it("gives a newly discovered playlist the next season number", () => {
-    rebuild();
+  it("gives a newly discovered playlist the next season number", async () => {
+    await rebuild();
 
     libraryVideos.push(
       video({
@@ -609,19 +609,19 @@ describe("playlist_tv end-to-end fixture (issue #411)", () => {
     writeFile(path.join(testPaths.videos, "Kurzgesagt/new.mp4"), "new-bytes");
     seedRows();
 
-    rebuild();
+    await rebuild();
 
     expect(listMirror()).toContain(
       "Kurzgesagt – In a Nutshell/Season 03/S03E001 - Brand New.mp4"
     );
   });
 
-  it("moves a video to Season 00 and sweeps its old season file when it leaves every playlist", () => {
-    rebuild();
+  it("moves a video to Season 00 and sweeps its old season file when it leaves every playlist", async () => {
+    await rebuild();
 
     // v-ants leaves Space Time and belongs to nothing.
     libraryCollections[1].videos = ["v-shared"];
-    const result = rebuild();
+    const result = await rebuild();
 
     expect(result.failures).toEqual([]);
     const tree = listMirror();
@@ -669,10 +669,10 @@ describe("playlist_tv end-to-end fixture (issue #411)", () => {
       libraryCollections[0].exportAsShow = 1;
     }
 
-    it("coexists with the author show in one mirror", () => {
-      rebuild();
+    it("coexists with the author show in one mirror", async () => {
+      await rebuild();
       markExistentialAsShow({ mediaServerTitle: "人民的名义" });
-      const result = rebuild();
+      const result = await rebuild();
 
       expect(result.failures).toEqual([]);
 
@@ -697,8 +697,8 @@ describe("playlist_tv end-to-end fixture (issue #411)", () => {
       ).toEqual([]);
     });
 
-    it("keeps episode numbers and filenames across the promotion", () => {
-      rebuild();
+    it("keeps episode numbers and filenames across the promotion", async () => {
+      await rebuild();
       const before = listMirror()
         .filter((p) => p.startsWith("Kurzgesagt – In a Nutshell/Season 01/"))
         .map((p) => p.split("/").pop() as string)
@@ -706,7 +706,7 @@ describe("playlist_tv end-to-end fixture (issue #411)", () => {
         .sort();
 
       markExistentialAsShow({ mediaServerTitle: "人民的名义" });
-      rebuild();
+      await rebuild();
 
       const after = listMirror()
         .filter((p) => p.startsWith("人民的名义/Season 01/"))
@@ -718,15 +718,15 @@ describe("playlist_tv end-to-end fixture (issue #411)", () => {
       expect(after).toEqual(before);
     });
 
-    it("writes the TMDB identity and premiere date into tvshow.nfo", () => {
-      rebuild();
+    it("writes the TMDB identity and premiere date into tvshow.nfo", async () => {
+      await rebuild();
       markExistentialAsShow({
         mediaServerTitle: "人民的名义",
         tmdbId: 72517,
         tmdbMediaType: "tv",
         tmdbPremiereDate: "2017-03-28",
       });
-      rebuild();
+      await rebuild();
 
       const $ = readXml("人民的名义", "tvshow.nfo");
       expect($("tvshow > title").text()).toBe("人民的名义");
@@ -736,8 +736,8 @@ describe("playlist_tv end-to-end fixture (issue #411)", () => {
       expect($("tvshow > premiered").text()).toBe("2017-03-28");
     });
 
-    it("posters a collection show from an episode, never the author avatar", () => {
-      rebuild();
+    it("posters a collection show from an episode, never the author avatar", async () => {
+      await rebuild();
       // The author show uses the avatar.
       expect(
         fs.readFileSync(
@@ -747,7 +747,7 @@ describe("playlist_tv end-to-end fixture (issue #411)", () => {
       ).toBe("avatar-bytes");
 
       markExistentialAsShow({ mediaServerTitle: "人民的名义" });
-      rebuild();
+      await rebuild();
 
       // The collection show uses its first episode's thumbnail instead.
       expect(fs.readFileSync(mirror("人民的名义", "poster.jpg"), "utf8")).toBe(
@@ -762,10 +762,10 @@ describe("playlist_tv end-to-end fixture (issue #411)", () => {
       ).toBe("avatar-bytes");
     });
 
-    it("keeps the duplicate video in both the collection show and the other playlist", () => {
-      rebuild();
+    it("keeps the duplicate video in both the collection show and the other playlist", async () => {
+      await rebuild();
       markExistentialAsShow({ mediaServerTitle: "人民的名义" });
-      rebuild();
+      await rebuild();
 
       const inCollectionShow = mirror(
         "人民的名义",
@@ -789,17 +789,17 @@ describe("playlist_tv end-to-end fixture (issue #411)", () => {
       );
     });
 
-    it("is idempotent after promotion and leaves originals untouched", () => {
-      rebuild();
+    it("is idempotent after promotion and leaves originals untouched", async () => {
+      await rebuild();
       markExistentialAsShow({ mediaServerTitle: "人民的名义" });
-      rebuild();
+      await rebuild();
 
       const tree = listMirror();
       const mtimes = new Map(
         tree.map((p) => [p, fs.statSync(mirror(...p.split("/"))).mtimeMs])
       );
 
-      const second = rebuild();
+      const second = await rebuild();
 
       expect(second.failures).toEqual([]);
       expect(listMirror()).toEqual(tree);
@@ -822,17 +822,17 @@ describe("playlist_tv end-to-end fixture (issue #411)", () => {
       }
     });
 
-    it("falls back to the collection title when no resolved title exists", () => {
-      rebuild();
+    it("falls back to the collection title when no resolved title exists", async () => {
+      await rebuild();
       markExistentialAsShow();
-      rebuild();
+      await rebuild();
 
       expect(listMirror()).toContain("Existential Crisis/tvshow.nfo");
     });
   });
 
-  it("every generated NFO parses as well-formed XML", () => {
-    rebuild();
+  it("every generated NFO parses as well-formed XML", async () => {
+    await rebuild();
 
     const nfoFiles = listMirror().filter((entry) => entry.endsWith(".nfo"));
     expect(nfoFiles.length).toBe(9);
@@ -865,6 +865,58 @@ describe("playlist_tv end-to-end fixture (issue #411)", () => {
         expect(rootTags[0]).toBe("episodedetails");
       }
     }
+  });
+
+  /**
+   * The yielding materializer exists so a large rebuild does not hold the event
+   * loop, but the whole point is lost unless the rebuild actually calls it: the
+   * regression this pins is a full library sync that materializes synchronously
+   * and only looks asynchronous to its caller, leaving the job's status and
+   * cancel endpoints unanswerable for the length of the run.
+   */
+  it("yields to the event loop while rebuilding the whole library", async () => {
+    let rebuildSettled = false;
+    let queuedWorkRanWhileRebuilding = false;
+
+    const rebuilding = rebuild().then((value) => {
+      rebuildSettled = true;
+      return value;
+    });
+    const queued = new Promise<void>((resolve) => {
+      setImmediate(() => {
+        queuedWorkRanWhileRebuilding = !rebuildSettled;
+        resolve();
+      });
+    });
+
+    await queued;
+    const result = await rebuilding;
+
+    // The queued callback got its turn while the rebuild was still in flight. A
+    // synchronous materialization behind an async signature settles the promise
+    // before ever returning to the loop, so the callback would find the rebuild
+    // already finished.
+    expect(queuedWorkRanWhileRebuilding).toBe(true);
+    expect(result.failures).toEqual([]);
+    expect(result.counts.episodes).toBeGreaterThan(0);
+  });
+
+  it("stops the rebuild when cancellation arrives while it runs", async () => {
+    let cancelled = false;
+    setImmediate(() => {
+      cancelled = true;
+    });
+
+    const result = await syncPlaylistTvLibrary({
+      mode: "nfo",
+      copyFallbackEnabled: true,
+      isCancelled: () => cancelled,
+    });
+
+    // The cancel flag can only flip if the rebuild gives the event loop a turn,
+    // so a mirror short of the full fixture is the proof that it did.
+    expect(listMirror().filter((entry) => entry.endsWith(".nfo")).length).toBeLessThan(9);
+    expect(result.failures).toEqual([]);
   });
 });
 
@@ -926,8 +978,8 @@ describe("playlist_tv survives a batch rename (issue #411)", () => {
     });
   }
 
-  it("leaves the mirror byte-identical when an original is renamed", () => {
-    rebuild();
+  it("leaves the mirror byte-identical when an original is renamed", async () => {
+    await rebuild();
     const before = listMirror();
     const originsStat = fs.statSync(
       mirror("Kurzgesagt – In a Nutshell/Season 01/S01E001 - Human Origins.mp4")
@@ -946,14 +998,14 @@ describe("playlist_tv survives a batch rename (issue #411)", () => {
     expect(originsStat.size).toBe(after.size);
   });
 
-  it("keeps episode numbers when a rename follows an upstream reorder", () => {
-    rebuild();
+  it("keeps episode numbers when a rename follows an upstream reorder", async () => {
+    await rebuild();
 
     // Upstream flips the playlist. Numbering must not move.
     const playlist = libraryCollections.find((c) => c.id === "c-existential");
     if (!playlist) throw new Error("fixture playlist missing");
     playlist.videos = ["v-shared", "v-origins"];
-    rebuild();
+    await rebuild();
 
     const afterReorder = listMirror();
     expect(afterReorder).toContain(
@@ -966,8 +1018,8 @@ describe("playlist_tv survives a batch rename (issue #411)", () => {
     expect(listMirror()).toEqual(afterReorder);
   });
 
-  it("does not renumber when every video is renamed, as a batch rename does", () => {
-    rebuild();
+  it("does not renumber when every video is renamed, as a batch rename does", async () => {
+    await rebuild();
     const before = listMirror();
 
     renameOriginal("v-origins", "Kurzgesagt/a-origins.mp4");
@@ -1016,8 +1068,8 @@ describe("incremental reconcile edge cases (PR #412 review)", () => {
    * collection is exactly the one missing from any scope derived from current
    * memberships - and the stale sweep only looks at in-scope collections.
    */
-  it("removes the episode a video was unlinked from", () => {
-    rebuild();
+  it("removes the episode a video was unlinked from", async () => {
+    await rebuild();
     expect(listMirror()).toContain(
       "Kurzgesagt – In a Nutshell/Season 01/S01E001 - Human Origins.mp4"
     );
@@ -1042,8 +1094,8 @@ describe("incremental reconcile edge cases (PR #412 review)", () => {
     );
   });
 
-  it("keeps other seasons intact when one membership is removed", () => {
-    rebuild();
+  it("keeps other seasons intact when one membership is removed", async () => {
+    await rebuild();
     const playlist = libraryCollections.find((c) => c.id === "c-existential");
     if (!playlist) throw new Error("fixture playlist missing");
     playlist.videos = playlist.videos.filter((id) => id !== "v-shared");
@@ -1068,8 +1120,8 @@ describe("incremental reconcile edge cases (PR #412 review)", () => {
    * Promotion must release the author-season attachment, or a later toggle-off
    * reuses the retired season number instead of allocating a new one.
    */
-  it("releases the author season attachment on promotion", () => {
-    rebuild();
+  it("releases the author season attachment on promotion", async () => {
+    await rebuild();
 
     const before = testDb.sqlite
       .prepare("SELECT media_server_show_id AS showId, media_server_season_number AS season FROM collections WHERE id=?")
@@ -1080,7 +1132,7 @@ describe("incremental reconcile edge cases (PR #412 review)", () => {
     testDb.sqlite
       .prepare("UPDATE collections SET export_as_show=1 WHERE id=?")
       .run("c-existential");
-    rebuild();
+    await rebuild();
 
     const after = testDb.sqlite
       .prepare("SELECT media_server_show_id AS showId, media_server_season_number AS season FROM collections WHERE id=?")
@@ -1089,14 +1141,14 @@ describe("incremental reconcile edge cases (PR #412 review)", () => {
     expect(after.season).toBeNull();
   });
 
-  it("gives a demoted collection a new season number, never the retired one", () => {
-    rebuild();
+  it("gives a demoted collection a new season number, never the retired one", async () => {
+    await rebuild();
     testDb.sqlite.prepare("UPDATE collections SET export_as_show=1 WHERE id=?").run("c-existential");
-    rebuild();
+    await rebuild();
 
     // Toggle back off: it returns to the author show as a NEW season.
     testDb.sqlite.prepare("UPDATE collections SET export_as_show=0 WHERE id=?").run("c-existential");
-    rebuild();
+    await rebuild();
 
     const after = testDb.sqlite
       .prepare("SELECT media_server_season_number AS season FROM collections WHERE id=?")
@@ -1149,8 +1201,8 @@ describe("deletion leaves no empty show (PR #412 review round 2)", () => {
     syncPlaylistTvForShows(showIds, { mode: "nfo", copyFallbackEnabled: true });
   }
 
-  it("removes the whole show when its last video is deleted", () => {
-    rebuild();
+  it("removes the whole show when its last video is deleted", async () => {
+    await rebuild();
     expect(listMirror().some((p) => p.endsWith("tvshow.nfo"))).toBe(true);
 
     for (const id of libraryVideos.map((v) => v.id)) {
@@ -1160,8 +1212,8 @@ describe("deletion leaves no empty show (PR #412 review round 2)", () => {
     expect(listMirror()).toEqual([]);
   });
 
-  it("keeps the show when only one of its videos is deleted", () => {
-    rebuild();
+  it("keeps the show when only one of its videos is deleted", async () => {
+    await rebuild();
 
     deleteVideo("v-loose");
 
@@ -1208,8 +1260,8 @@ describe("failed artifact removal keeps its ledger row (PR #412 review round 5)"
     fs.removeSync(testPaths.root);
   });
 
-  it("retains the row when the path is no longer the file the ledger recorded", () => {
-    rebuild();
+  it("retains the row when the path is no longer the file the ledger recorded", async () => {
+    await rebuild();
 
     const episode =
       "Kurzgesagt – In a Nutshell/Season 01/S01E001 - Human Origins.mp4";
@@ -1238,8 +1290,8 @@ describe("failed artifact removal keeps its ledger row (PR #412 review round 5)"
     expect(row?.assignmentId).toBeNull();
   });
 
-  it("still drops rows for artifacts it did remove", () => {
-    rebuild();
+  it("still drops rows for artifacts it did remove", async () => {
+    await rebuild();
 
     const result = removePlaylistTvArtifactsForVideo("v-loose");
     expect(result.failures).toEqual([]);

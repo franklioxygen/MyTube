@@ -119,10 +119,15 @@ export interface PlaylistTvSyncResult extends MaterializeResultSummary {
 
 /**
  * Reconciles and materializes the whole library. Used by the rebuild job.
+ *
+ * Async because a whole-library rebuild is the one caller that must not hold the
+ * event loop: it materializes through the yielding path, so the job's status and
+ * cancel endpoints stay answerable while it runs. The incremental entry points
+ * below run inside a database mutation and stay synchronous.
  */
-export function syncPlaylistTvLibrary(
+export async function syncPlaylistTvLibrary(
   options: PlaylistTvSyncOptions
-): PlaylistTvSyncResult {
+): Promise<PlaylistTvSyncResult> {
   const { videos, collections } = loadLibrary(options);
   const subscriptionRows = listSubscriptionRowsForExport();
 
@@ -159,7 +164,7 @@ export function syncPlaylistTvLibrary(
     subscriptions: subscriptionRows,
   });
   const plan = planMediaServerHierarchy(snapshot, { mode: options.mode });
-  const summary = materializeMediaServerHierarchy(plan, {
+  const summary = await materializeMediaServerHierarchyAsync(plan, {
     copyFallbackEnabled: options.copyFallbackEnabled,
     isCancelled: options.isCancelled,
     sourceJsonByVideoId: options.sourceJsonByVideoId,
