@@ -655,6 +655,136 @@ describe("mediaServerExport catalogReconciler", () => {
  * dangerous when it does not: display names are not unique, and a merge is
  * permanent because show identity is allocated once and never revised.
  */
+/**
+ * `subscriptions.authorUrl` holds the PLAYLIST url for a playlist subscription,
+ * and channel-URL normalization drops the query string - so every YouTube
+ * playlist reduces to `youtube.com/playlist`. Feeding that into show identity
+ * attached every legacy playlist collection as a season of one shared show, and
+ * season numbering is allocated once, so the merge was permanent.
+ */
+describe("a playlist subscription URL is not a channel identity", () => {
+  beforeEach(() => {
+    testDb.sqlite.exec(`
+      DELETE FROM media_server_export_artifacts;
+      DELETE FROM media_server_episode_assignments;
+      DELETE FROM collections;
+      DELETE FROM videos;
+      DELETE FROM media_server_shows;
+    `);
+  });
+
+  /** A legacy collection: no persisted channel id, URL or name of its own. */
+  function legacyCollection(overrides: Partial<Collection>): Collection {
+    return collection({
+      sourceChannelId: undefined,
+      sourceChannelName: undefined,
+      sourceChannelUrl: undefined,
+      ...overrides,
+    });
+  }
+
+  it("keeps two playlists from different channels in separate shows", () => {
+    reconcile({
+      videos: [
+        video({
+          id: "v1",
+          author: "Kurzgesagt",
+          channelUrl: "https://www.youtube.com/@kurzgesagt",
+        }),
+        video({
+          id: "v2",
+          author: "Veritasium",
+          channelUrl: "https://www.youtube.com/@veritasium",
+        }),
+      ],
+      collections: [
+        legacyCollection({ id: "c1", name: "One", title: "One", videos: ["v1"] }),
+        legacyCollection({
+          id: "c2",
+          name: "Two",
+          title: "Two",
+          createdAt: "2026-02-01T00:00:00.000Z",
+          videos: ["v2"],
+        }),
+      ],
+      subscriptions: [
+        {
+          id: "s1",
+          collectionId: "c1",
+          subscriptionType: "playlist",
+          platform: "YouTube",
+          authorUrl: "https://www.youtube.com/playlist?list=PLaaa",
+        },
+        {
+          id: "s2",
+          collectionId: "c2",
+          subscriptionType: "playlist",
+          platform: "YouTube",
+          authorUrl: "https://www.youtube.com/playlist?list=PLbbb",
+        },
+      ],
+    });
+
+    const shows = listMediaServerShows();
+    expect(shows).toHaveLength(2);
+    expect(listAssignmentsForVideo("v1")[0].showId).not.toBe(
+      listAssignmentsForVideo("v2")[0].showId
+    );
+    // Neither show may carry the collapsed playlist URL as its identity.
+    for (const show of shows) {
+      expect(show.identityKey).not.toContain("youtube.com/playlist");
+    }
+  });
+
+  it("falls back to a playlist subscription's channel NAME, which is trustworthy", () => {
+    reconcile({
+      videos: [video({ id: "v1", author: "Kurzgesagt", channelUrl: undefined })],
+      collections: [
+        legacyCollection({ id: "c1", name: "One", title: "One", videos: ["v1"] }),
+      ],
+      subscriptions: [
+        {
+          id: "s1",
+          collectionId: "c1",
+          subscriptionType: "playlist",
+          platform: "YouTube",
+          channelName: "Kurzgesagt",
+          authorUrl: "https://www.youtube.com/playlist?list=PLaaa",
+        },
+      ],
+    });
+
+    // The channel NAME on a playlist subscription is still trustworthy, so the
+    // collection resolves by author fallback rather than the playlist URL.
+    const [show] = listMediaServerShows();
+    expect(show.identityKey).toBe("youtube:author:kurzgesagt");
+  });
+
+  // The guard must not over-correct: for a CHANNEL subscription that same
+  // column really does hold the channel URL, and it is the stronger identity.
+  it("still trusts authorUrl on a non-playlist subscription", () => {
+    reconcile({
+      videos: [video({ id: "v1", author: "Kurzgesagt", channelUrl: undefined })],
+      collections: [
+        legacyCollection({ id: "c1", name: "One", title: "One", videos: ["v1"] }),
+      ],
+      subscriptions: [
+        {
+          id: "s1",
+          collectionId: "c1",
+          subscriptionType: "channel",
+          platform: "YouTube",
+          channelName: "Kurzgesagt",
+          authorUrl: "https://www.youtube.com/@kurzgesagt",
+        },
+      ],
+    });
+
+    const [show] = listMediaServerShows();
+    expect(show.identityKey).toBe("youtube:channel-url:youtube.com/@kurzgesagt");
+  });
+});
+
 describe("compatible show matching rejects conflicting evidence", () => {
   beforeEach(() => {
     testDb.sqlite.exec(`

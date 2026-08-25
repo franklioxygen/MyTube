@@ -403,13 +403,30 @@ export function resolveCollectionShowCandidate(
     return { metadata: fromCollection, ambiguous: false };
   }
 
-  if (subscription?.channelName || subscription?.authorUrl) {
+  // `authorUrl` is only a channel URL for a CHANNEL subscription. subscribePlaylist
+  // stores the playlist URL in that same column, and normalization drops the query
+  // string - so every YouTube playlist would reduce to the identity
+  // `youtube:channel-url:youtube.com/playlist`, and every legacy playlist
+  // collection (the ones with no persisted channel metadata, which is exactly the
+  // set that reaches this fallback) would be attached as a season of one shared
+  // show. Season numbering is allocated once, so that merge would be permanent.
+  //
+  // The channel name is still usable: subscribePlaylist records the real uploader
+  // there. When neither is available this falls through to the member videos,
+  // which carry the channel metadata directly.
+  const subscriptionChannelUrl =
+    subscription && subscription.subscriptionType !== "playlist"
+      ? subscription.authorUrl ?? undefined
+      : undefined;
+  const subscriptionChannelName = subscription?.channelName ?? undefined;
+
+  if (subscriptionChannelName || subscriptionChannelUrl) {
     const fromSubscription = resolveShowMetadata({
       collection: {
         ...collection,
-        sourceChannelName: subscription.channelName ?? undefined,
-        sourceChannelUrl: subscription.authorUrl ?? undefined,
-        sourcePlatform: subscription.platform ?? collection.sourcePlatform,
+        sourceChannelName: subscriptionChannelName,
+        sourceChannelUrl: subscriptionChannelUrl,
+        sourcePlatform: subscription?.platform ?? collection.sourcePlatform,
       } as Collection,
     });
     if (fromSubscription.identity) {

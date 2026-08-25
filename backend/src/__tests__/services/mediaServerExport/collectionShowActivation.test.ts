@@ -354,6 +354,77 @@ describe("collection-show activation", () => {
       expect(removeCollectionPosterMock).not.toHaveBeenCalled();
     });
 
+    /**
+     * A transient download failure is reported as a non-fatal warning with a
+     * null path. Committing that null for an unchanged TMDB entry would drop
+     * the show to its thumbnail fallback and delete a still-valid image.
+     */
+    it("keeps the existing poster when refreshing the same entry fails", async () => {
+      downloadPosterMock.mockResolvedValue(false);
+      getCollectionByIdMock.mockReturnValue({
+        id: "c1",
+        title: "A Collection",
+        tmdbId: 42,
+        tmdbMediaType: "tv",
+        mediaServerPosterPath: "/images/tmdb/collections/hash/tv-42.jpg",
+      });
+
+      await expect(
+        activateCollectionShow("c1", tmdbMode)
+      ).resolves.toMatchObject({ status: "ok", posterWarning: true });
+
+      expect(dbUpdateSetMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          mediaServerPosterPath: "/images/tmdb/collections/hash/tv-42.jpg",
+        })
+      );
+      expect(removeCollectionPosterMock).not.toHaveBeenCalled();
+    });
+
+    it("does not keep the previous poster when the match actually changed", async () => {
+      downloadPosterMock.mockResolvedValue(false);
+      // Previously matched a different TMDB entry.
+      getCollectionByIdMock.mockReturnValue({
+        id: "c1",
+        title: "A Collection",
+        tmdbId: 7,
+        tmdbMediaType: "tv",
+        mediaServerPosterPath: "/images/tmdb/collections/hash/tv-7.jpg",
+      });
+
+      await expect(
+        activateCollectionShow("c1", tmdbMode)
+      ).resolves.toMatchObject({ status: "ok" });
+
+      expect(dbUpdateSetMock).toHaveBeenCalledWith(
+        expect.objectContaining({ mediaServerPosterPath: null })
+      );
+      expect(removeCollectionPosterMock).toHaveBeenCalledWith(
+        "/images/tmdb/collections/hash/tv-7.jpg"
+      );
+    });
+
+    it("does not resurrect a poster for a manual title", async () => {
+      getCollectionByIdMock.mockReturnValue({
+        id: "c1",
+        title: "A Collection",
+        tmdbId: 42,
+        tmdbMediaType: "tv",
+        mediaServerPosterPath: "/images/tmdb/collections/hash/tv-42.jpg",
+      });
+
+      await expect(
+        activateCollectionShow("c1", { kind: "manual", title: "My Title" })
+      ).resolves.toMatchObject({ status: "ok" });
+
+      expect(dbUpdateSetMock).toHaveBeenCalledWith(
+        expect.objectContaining({ mediaServerPosterPath: null })
+      );
+      expect(removeCollectionPosterMock).toHaveBeenCalledWith(
+        "/images/tmdb/collections/hash/tv-42.jpg"
+      );
+    });
+
     it("retires the previous poster after a successful replacement", async () => {
       getCollectionByIdMock.mockReturnValue({
         id: "c1",

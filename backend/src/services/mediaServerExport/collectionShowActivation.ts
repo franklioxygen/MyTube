@@ -289,13 +289,35 @@ export async function activateCollectionShow(
     }
     const previousPosterPath = current.mediaServerPosterPath ?? null;
 
+    // A poster refresh that failed must not cost the user the poster they
+    // already have. `resolveActivationMetadata` reports a download failure as a
+    // non-fatal warning with a null path, so re-confirming the SAME TMDB entry
+    // during a network blip would otherwise commit null, drop the show to its
+    // thumbnail fallback, and delete the still-valid image below. The identity
+    // has not changed, so the poster on disk is still that entry's poster.
+    //
+    // Only for an unchanged TMDB identity: the manual and collection modes null
+    // the poster on purpose, and a genuinely different match must not keep the
+    // previous one.
+    const keepsPreviousPoster =
+      resolved.mediaServerPosterPath === null &&
+      previousPosterPath !== null &&
+      resolved.mediaServerMetadataSource === "tmdb" &&
+      resolved.tmdbId !== null &&
+      current.tmdbId === resolved.tmdbId &&
+      current.tmdbMediaType === resolved.tmdbMediaType;
+
+    const posterPathToCommit = keepsPreviousPoster
+      ? previousPosterPath
+      : resolved.mediaServerPosterPath;
+
     db.update(collections)
       .set({
         exportAsShow: 1,
         mediaServerTitle: resolved.mediaServerTitle,
         mediaServerDescription: resolved.mediaServerDescription,
         mediaServerMetadataSource: resolved.mediaServerMetadataSource,
-        mediaServerPosterPath: resolved.mediaServerPosterPath,
+        mediaServerPosterPath: posterPathToCommit,
         tmdbId: resolved.tmdbId,
         tmdbMediaType: resolved.tmdbMediaType,
         tmdbPremiereDate: resolved.tmdbPremiereDate,
@@ -309,10 +331,7 @@ export async function activateCollectionShow(
     // The new path is committed, so the one it replaced can go. Posters are
     // named per TMDB id, so switching a collection to a different match would
     // otherwise leave the previous id's image behind on every re-resolution.
-    if (
-      previousPosterPath &&
-      previousPosterPath !== resolved.mediaServerPosterPath
-    ) {
+    if (previousPosterPath && previousPosterPath !== posterPathToCommit) {
       removeCollectionPoster(previousPosterPath);
     }
 
