@@ -16,6 +16,7 @@ import {
   getSeasonZeroTitle,
   padEpisodeNumber,
   padSeasonNumber,
+  retokenizeExportStem,
   sanitizeMirrorSegment,
 } from "./naming";
 import type {
@@ -44,6 +45,7 @@ export {
   getSeasonZeroTitle,
   padEpisodeNumber,
   padSeasonNumber,
+  retokenizeExportStem,
   sanitizeMirrorSegment,
 };
 
@@ -497,6 +499,14 @@ export interface MediaServerShowMetadataPatch {
   posterSourcePath?: string | null;
   sourceChannelId?: string;
   sourceChannelUrl?: string;
+  /**
+   * Allows `sourceChannelUrl` to REPLACE a stored one rather than only fill an
+   * empty column. Off by default, because a URL is durable evidence of which
+   * channel a show is and an ordinary candidate must not overwrite it. The
+   * caller sets it only when a matching durable channel id has already proven
+   * the two are the same channel, which is what a handle rename looks like.
+   */
+  allowChannelUrlRefresh?: boolean;
 }
 
 /**
@@ -530,7 +540,10 @@ export function updateMediaServerShowMetadata(
   if (patch.sourceChannelId !== undefined && !current.sourceChannelId) {
     next.sourceChannelId = patch.sourceChannelId;
   }
-  if (patch.sourceChannelUrl !== undefined && !current.sourceChannelUrl) {
+  if (
+    patch.sourceChannelUrl !== undefined &&
+    (!current.sourceChannelUrl || patch.allowChannelUrlRefresh)
+  ) {
     next.sourceChannelUrl = patch.sourceChannelUrl;
   }
 
@@ -836,11 +849,20 @@ export function ensureEpisodeAssignment(
       episodeNumber: preferred,
       sourcePosition:
         input.sourcePosition ?? input.carryOver?.sourcePosition ?? null,
-      // Keep the carried stem only when its number was also honored, so the
-      // SxxExxx token in the filename never disagrees with the episode number.
+      // Keep the carried stem only when its number was also honored, and
+      // rewrite its season token for the season being written, so the SxxExxx
+      // token in the filename never disagrees with the episode number or with
+      // the season the assignment and the NFO both name. The title portion is
+      // reused verbatim, which is the whole point of carrying a stem: the
+      // mirror filename survives the move unchanged whenever the season does.
       exportStem:
         carriedNumber !== undefined && input.carryOver
-          ? input.carryOver.exportStem
+          ? retokenizeExportStem(
+              input.carryOver.exportStem,
+              input.seasonNumber,
+              carriedNumber
+            ) ??
+            buildExportStem(input.seasonNumber, carriedNumber, input.videoTitle)
           : buildExportStem(input.seasonNumber, preferred, input.videoTitle),
       createdAt: now,
       updatedAt: now,

@@ -464,6 +464,65 @@ describe("collection-as-show reconciliation", () => {
       expect(after).toEqual(before);
     });
 
+    /**
+     * The episode number and the title portion carry across, but the season
+     * token has to follow the season actually being written. A collection
+     * promoted out of Season 02 would otherwise write
+     * `Season 01/S02E001 - EP01.mp4`, and a media server that reads placement
+     * from the SxxExxx token (most of them do) imports the episode into a
+     * season that neither the NFO nor the directory agrees with.
+     */
+    it("rewrites the season token when promoting a non-first season", () => {
+      const videos = [
+        video({ id: "v1", title: "First" }),
+        video({ id: "v2", title: "Second" }),
+      ];
+      const shared = {
+        sourceType: "playlist",
+        sourcePlatform: "youtube",
+        sourceChannelId: "UC1",
+        sourceChannelName: "tl 23",
+      };
+      // Two playlists under one author show: c1 takes Season 01, c2 Season 02.
+      const first = collection({
+        ...shared,
+        id: "c1",
+        title: "First Playlist",
+        name: "First Playlist",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        videos: ["v1"],
+      });
+      const second = collection({
+        ...shared,
+        id: "c2",
+        title: "Second Playlist",
+        name: "Second Playlist",
+        createdAt: "2026-02-01T00:00:00.000Z",
+        videos: ["v2"],
+      });
+
+      reconcile(videos, [first, second]);
+      const [secondBefore] = listAssignmentsForVideo("v2");
+      expect(secondBefore.seasonNumber).toBe(2);
+      expect(secondBefore.exportStem).toBe("S02E001 - Second");
+
+      testDb.sqlite
+        .prepare("UPDATE collections SET export_as_show = 1 WHERE id = 'c2'")
+        .run();
+      reconcileMediaServerCatalog({
+        videos,
+        collections: [first, { ...second, exportAsShow: 1 }],
+        subscriptions: [],
+      });
+
+      const [promoted] = listAssignmentsForShow(getCollectionShow("c2")!.id);
+      expect(promoted.seasonNumber).toBe(1);
+      // The episode number and the title portion are carried; only the season
+      // token moves.
+      expect(promoted.episodeNumber).toBe(secondBefore.episodeNumber);
+      expect(promoted.exportStem).toBe("S01E001 - Second");
+    });
+
     it("allocates fresh numbers for a manual collection with no prior season", () => {
       reconcile(
         [video({ id: "v1", title: "First" }), video({ id: "v2", title: "Second" })],

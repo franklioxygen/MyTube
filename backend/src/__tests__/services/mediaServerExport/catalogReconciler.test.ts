@@ -221,6 +221,45 @@ describe("mediaServerExport catalogReconciler", () => {
         )
       ).toBe(true);
     });
+
+    // downloadChannelPlaylists adopts a same-named existing collection and
+    // stamps a real playlist onto it, keeping whatever origin it was born with.
+    // Its continuous task has no subscription row, so the subscription test
+    // never sees it: without honoring the stamp, every member of that
+    // collection stays in Season 00 forever.
+    it("accepts a manual collection carrying an explicitly stamped playlist source", () => {
+      for (const origin of ["manual", "author_auto"] as const) {
+        expect(
+          isSourceBackedPlaylistCollection(
+            collection({
+              origin,
+              sourceType: "playlist",
+              sourceId: "pl-123",
+              sourceUrl: "https://www.youtube.com/playlist?list=pl-123",
+            }),
+            subscriptions
+          )
+        ).toBe(true);
+      }
+    });
+
+    // The stamp is only trustworthy with a durable identifier behind it. A bare
+    // source type must not be enough to turn a user's own collection into a
+    // media-server season.
+    it("still rejects a manual collection whose stamped source has no identifier", () => {
+      expect(
+        isSourceBackedPlaylistCollection(
+          collection({
+            origin: "manual",
+            sourceType: "playlist",
+            sourceId: undefined,
+            sourceUrl: undefined,
+            sourceMid: undefined,
+          }),
+          subscriptions
+        )
+      ).toBe(false);
+    });
   });
 
   describe("backfill", () => {
@@ -1013,26 +1052,117 @@ describe("Season 00 placement survives an identity change", () => {
     expect(v2Assignment.showId).toBe(before.showId);
   });
 
-  it("leaves the owning show untouched when the new identity is not unambiguously the same channel", () => {
+  it("enriches the owning show when the name and the handle change at once", () => {
+    // The show is allocated from a channel URL and carries no durable id.
+    reconcile({
+      videos: [
+        video({
+          id: "v1",
+          author: "Old Name",
+          channelUrl: "https://www.youtube.com/@oldhandle",
+        }),
+      ],
+    });
+    const [before] = listAssignmentsForVideo("v1");
+    const [showBefore] = listMediaServerShows();
+
+    // A rename changes the display name AND the handle, and the redownload
+    // supplies the channel's first durable id. Neither the old title nor the
+    // old URL matches any more, so the ordinary matching rules reject the show
+    // outright - but this is the very video whose durable assignment says it
+    // lives there, and a video has exactly one channel.
+    reconcile({
+      videos: [
+        video({
+          id: "v1",
+          author: "New Name",
+          channelUrl: "https://www.youtube.com/@newhandle",
+        }),
+      ],
+      rawMetadataByVideoId: new Map<string, unknown>([
+        [
+          "v1",
+          {
+            channel_id: "UCX",
+            channel: "New Name",
+            channel_url: "https://www.youtube.com/@newhandle",
+          },
+        ],
+      ]),
+    });
+
+    const showAfter = listMediaServerShows();
+    expect(showAfter).toHaveLength(1);
+    expect(showAfter[0].id).toBe(showBefore.id);
+    expect(showAfter[0].sourceChannelId).toBe("UCX");
+    expect(showAfter[0].title).toBe("New Name");
+    // The stale handle must go too, or a later offline candidate carrying only
+    // the new URL is rejected by the conflicting-URL rule.
+    expect(showAfter[0].sourceChannelUrl).toBe(
+      "https://www.youtube.com/@newhandle"
+    );
+    expect(listAssignmentsForVideo("v1")[0].id).toBe(before.id);
+  });
+
+  it("refuses the enrichment when another show already claims the channel id", () => {
+    // An unrelated show already owns UCX.
+    reconcile({
+      videos: [
+        video({
+          id: "other",
+          author: "Owner",
+          channelUrl: "https://www.youtube.com/@owner",
+        }),
+      ],
+      rawMetadataByVideoId: new Map<string, unknown>([
+        ["other", { channel_id: "UCX", channel: "Owner" }],
+      ]),
+    });
+
     reconcile({
       videos: [video({ id: "v1", author: "News", channelUrl: undefined })],
     });
-    const [showBefore] = listMediaServerShows();
+    const newsShowId = listAssignmentsForVideo("v1")[0].showId;
 
-    // The video's metadata now claims a channel id and a different display
-    // name, but nothing ties them to the author-fallback show — rewriting it
-    // on a guess could corrupt a show that hosts another channel's videos.
+    // Stamping UCX onto the News show as well would make every later lookup
+    // ambiguous, and the allocator answers ambiguity by creating yet another
+    // show. Leaving the special exactly where it is is the safe outcome.
     reconcile({
       videos: [video({ id: "v1", author: "News", channelUrl: undefined })],
       rawMetadataByVideoId: new Map<string, unknown>([
-        ["v1", { channel_id: "UCX", channel: "Completely Different" }],
+        ["v1", { channel_id: "UCX", channel: "News Renamed" }],
+      ]),
+    });
+
+    const newsShow = listMediaServerShows().find(
+      (entry) => entry.id === newsShowId
+    );
+    expect(newsShow?.sourceChannelId).toBeUndefined();
+    expect(newsShow?.title).toBe("News");
+  });
+
+  it("refuses the enrichment when the owning show already carries a different channel id", () => {
+    reconcile({
+      videos: [video({ id: "v1", author: "News", channelUrl: undefined })],
+      rawMetadataByVideoId: new Map<string, unknown>([
+        ["v1", { channel_id: "UC-ORIGINAL", channel: "News" }],
+      ]),
+    });
+    const showBeforeId = listAssignmentsForVideo("v1")[0].showId;
+
+    // Two durable ids that disagree are conclusive: this is not the same
+    // channel, and the show's own id must win over a later contradiction.
+    reconcile({
+      videos: [video({ id: "v1", author: "News", channelUrl: undefined })],
+      rawMetadataByVideoId: new Map<string, unknown>([
+        ["v1", { channel_id: "UC-DIFFERENT", channel: "Impostor" }],
       ]),
     });
 
     const showAfter = listMediaServerShows().find(
-      (entry) => entry.id === showBefore.id
+      (entry) => entry.id === showBeforeId
     );
+    expect(showAfter?.sourceChannelId).toBe("UC-ORIGINAL");
     expect(showAfter?.title).toBe("News");
-    expect(showAfter?.sourceChannelId).toBeUndefined();
   });
 });

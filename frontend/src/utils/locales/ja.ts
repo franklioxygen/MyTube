@@ -278,7 +278,7 @@ export const ja = {
   mediaServerExportPlaylistTvRebuildConfirmBody:
     "Your original videos are not moved or renamed. Media is hard linked where possible, which normally uses no additional disk space; where hard links are unavailable, files may be copied.",
   mediaServerExportPlaylistTvCleanupConfirmBody:
-    "This only deletes files inside the managed library folder that MyTube generated. Your original videos and any files you added yourself are left untouched.",
+    "This deletes the files MyTube generated inside the managed library folder, and the NFO, info JSON and image sidecars MyTube wrote next to your original videos. Your original videos and any files you added yourself are left untouched.",
   mediaServerExportRebuildManagedLibrary:
     "管理対象テレビライブラリを再構築",
   mediaServerExportCleanupManagedLibrary:

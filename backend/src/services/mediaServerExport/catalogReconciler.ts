@@ -114,16 +114,48 @@ export interface CatalogReconcileResult {
 }
 
 /**
+ * True when a collection carries an explicitly stamped upstream source.
+ *
+ * MyTube writes these fields only when it has bound the collection to a real
+ * upstream playlist (or Bilibili collection/series): a source type from the
+ * durable set AND a stable identifier for it. A user creating a collection by
+ * hand never gets them, which is what makes a stamped source trustworthy
+ * enough to outrank the origin the collection was born with.
+ */
+function hasStampedPlaylistSource(collection: Collection): boolean {
+  if (
+    !collection.sourceType ||
+    !SOURCE_BACKED_COLLECTION_TYPES.has(collection.sourceType)
+  ) {
+    return false;
+  }
+  return Boolean(
+    collection.sourceId || collection.sourceUrl || collection.sourceMid
+  );
+}
+
+/**
  * True when a collection has durable source-playlist identity.
  *
- * A manual or `author_auto` collection deliberately does NOT qualify: arbitrary
- * user collections must not silently become media-server seasons.
+ * A manual or `author_auto` collection deliberately does NOT qualify on its
+ * own: arbitrary user collections must not silently become media-server
+ * seasons.
  */
 export function isSourceBackedPlaylistCollection(
   collection: Collection,
   subscriptionsByCollectionId: Map<string, CatalogReconcileSubscription>
 ): boolean {
   if (collection.origin === "manual" || collection.origin === "author_auto") {
+    // An explicitly stamped upstream source wins over the origin the collection
+    // was born with. `downloadChannelPlaylists` adopts a same-named existing
+    // collection and stamps a real playlist onto it, and its continuous task
+    // has no subscription row at all - so without this the collection is
+    // rejected here and every member stays in Season 00 forever, including the
+    // ones the task processor skips because they are already downloaded.
+    if (hasStampedPlaylistSource(collection)) {
+      return true;
+    }
+
     // A linked playlist subscription still wins: MyTube may have stamped an
     // origin on a collection that a playlist subscription owns.
     const subscription = subscriptionsByCollectionId.get(collection.id);
@@ -273,7 +305,45 @@ function applyResolvedShowMetadata(
     });
   }
 
+  // A stored channel URL may be replaced only once a durable channel id has
+  // proven this is the same channel - either the show already carried that id,
+  // or it was just enriched with it above. That is exactly what a handle rename
+  // looks like, and leaving the old URL behind is not harmless: a later
+  // offline candidate carrying only the new URL is then rejected by the
+  // conflicting-URL rule and permanently allocates a second show, even though
+  // the stable id had already settled the question.
+  const candidateChannelId = metadata.identity?.sourceChannelId;
+  patch.allowChannelUrlRefresh = Boolean(
+    candidateChannelId &&
+      (show.sourceChannelId === candidateChannelId ||
+        patch.sourceChannelId === candidateChannelId)
+  );
+
   return updateMediaServerShowMetadata(show.id, patch) ?? show;
+}
+
+/**
+ * True when this show may adopt the candidate's durable channel id.
+ *
+ * `canUpgradeShowIdentity` already limits the upgrade to a show that has no id
+ * of its own, so no two id-bearing shows can be merged. The remaining hazard is
+ * a *third* show that already claims the id: stamping a duplicate would make
+ * every later lookup ambiguous, and the allocator would answer that by creating
+ * yet another show. Refusing the enrichment leaves the special exactly where it
+ * is, which is the safe outcome.
+ */
+function canAdoptChannelIdWithoutConflict(
+  show: MediaServerShow,
+  identity: ResolvedShowIdentity
+): boolean {
+  if (!canUpgradeShowIdentity(show, identity) || !identity.sourceChannelId) {
+    return false;
+  }
+  return !listMediaServerShows().some(
+    (other) =>
+      other.id !== show.id &&
+      other.sourceChannelId === identity.sourceChannelId
+  );
 }
 
 /**
@@ -285,9 +355,14 @@ function applyResolvedShowMetadata(
  * on its old title with no id, and the next video from that channel would fail
  * the author/title match and allocate a second show for the same channel.
  *
- * Only a show that is unambiguously the same channel is touched: identity may
- * have drifted since the special was allocated, and rewriting a different
- * channel's title would corrupt it.
+ * Two things justify touching the show. Either it is unambiguously the same
+ * channel by the ordinary matching rules, or the candidate is strictly stronger
+ * than anything the show holds — it brings the first durable channel id, and no
+ * other show claims that id. The second case matters because this candidate is
+ * not some other video that merely resembles the show: it is the video whose
+ * own durable assignment says it lives there, and one video has exactly one
+ * channel. A simultaneous display-name and handle change would otherwise fail
+ * both the title and the URL test and strand the show unenriched forever.
  */
 function refreshShowForPreservedSpecial(
   showId: string,
@@ -297,7 +372,13 @@ function refreshShowForPreservedSpecial(
     return;
   }
   const show = getMediaServerShowById(showId);
-  if (!show || !isShowCompatibleWithIdentity(show, metadata.identity, metadata.title)) {
+  if (!show) {
+    return;
+  }
+  if (
+    !isShowCompatibleWithIdentity(show, metadata.identity, metadata.title) &&
+    !canAdoptChannelIdWithoutConflict(show, metadata.identity)
+  ) {
     return;
   }
   applyResolvedShowMetadata(show, metadata);

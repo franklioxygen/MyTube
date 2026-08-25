@@ -270,7 +270,7 @@ export const zh = {
   mediaServerExportPlaylistTvRebuildConfirmBody:
     "原始视频不会被移动或重命名。尽可能使用硬链接，通常不占用额外空间；无法硬链接时可能会复制文件。",
   mediaServerExportPlaylistTvCleanupConfirmBody:
-    "仅删除托管媒体库文件夹内由 MyTube 生成的文件。原始视频以及您自己添加的文件不会受影响。",
+    "此操作会删除托管媒体库文件夹内由 MyTube 生成的文件，以及 MyTube 写入原始视频旁边的 NFO、info JSON 和图片附属文件。原始视频以及您自己添加的文件不会受影响。",
   mediaServerExportRebuildManagedLibrary:
     "重建托管电视剧媒体库",
   mediaServerExportCleanupManagedLibrary:
