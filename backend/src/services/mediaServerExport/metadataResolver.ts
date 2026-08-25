@@ -301,6 +301,26 @@ export function buildCollectionMetadataPatch(
     patch.description = description;
   }
 
+  const channelId = candidate.sourceChannelId?.trim();
+
+  // An equal durable channel id proves this is the same channel, which is
+  // exactly what a rename looks like: the handle and the display name change
+  // while the id does not. Those two may then replace the persisted values
+  // instead of only filling empty ones. Leaving them stale is not harmless -
+  // collection metadata outranks a video's during show resolution, so the next
+  // collection reconcile would write the old URL back over a show that had
+  // already been refreshed, and a later URL-only video would be rejected by the
+  // conflicting-URL matcher and allocate a duplicate show.
+  //
+  // `sourceUrl` is deliberately excluded: it identifies the playlist, not the
+  // channel, so a channel id says nothing about whether it may be replaced.
+  const channelIdProvenRename = Boolean(
+    channelId && existing?.sourceChannelId === channelId
+  );
+  const refreshableFields = new Set<string>(
+    channelIdProvenRename ? ["sourceChannelUrl", "sourceChannelName"] : []
+  );
+
   const simpleFields = [
     "sourceUrl",
     "sourceChannelUrl",
@@ -308,12 +328,16 @@ export function buildCollectionMetadataPatch(
   ] as const;
   for (const field of simpleFields) {
     const value = candidate[field]?.trim();
-    if (value && !existing?.[field]) {
-      patch[field] = value;
+    if (!value) {
+      continue;
+    }
+    if (!existing?.[field] || refreshableFields.has(field)) {
+      if (value !== existing?.[field]) {
+        patch[field] = value;
+      }
     }
   }
 
-  const channelId = candidate.sourceChannelId?.trim();
   if (channelId) {
     if (!existing?.sourceChannelId) {
       patch.sourceChannelId = channelId;

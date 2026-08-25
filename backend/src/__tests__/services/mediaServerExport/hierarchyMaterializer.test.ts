@@ -169,7 +169,12 @@ function snapshot(input: {
     ],
     assignments: input.assignments ?? [assignment()],
     videosById: new Map((input.videos ?? [video()]).map((v) => [v.id, v])),
-    artifactsByPath: new Map(),
+    // Read back from the ledger exactly as buildMediaServerCatalogSnapshot
+    // does: the planner uses it to protect what a skipped episode already has
+    // on disk, so an empty map here would hide that behavior entirely.
+    artifactsByPath: new Map(
+      listArtifacts().map((entry) => [entry.relativePath, entry])
+    ),
   };
 }
 
@@ -480,6 +485,65 @@ describe("mediaServerExport hierarchyMaterializer", () => {
     expect(fs.readFileSync(userFile, "utf8")).toBe("user content");
   });
 
+  /**
+   * A source that is merely unreachable right now - an unmounted drive, a NAS
+   * blip, a file mid-move - must not cost the user the mirror they still have.
+   * The episode drops out of the plan, and the sweep treats every path outside
+   * the plan as stale, so without protection a transient outage deletes a
+   * still-playable episode. In a copy-fallback deployment that is a second full
+   * copy of the video.
+   */
+  it("preserves the artifacts of an episode whose source is temporarily missing", () => {
+    const source = path.join(testPaths.videos, "ants.mp4");
+    writeFile(source, "video-bytes");
+    buildAndMaterialize();
+
+    const mediaPath = mirrorPath("Kurzgesagt", "Season 01", "S01E001 - Ants.mp4");
+    const nfoPath = mirrorPath("Kurzgesagt", "Season 01", "S01E001 - Ants.nfo");
+    expect(fs.existsSync(mediaPath)).toBe(true);
+
+    // The original goes away, but the assignment stays valid.
+    fs.unlinkSync(source);
+    const { plan, result } = buildAndMaterialize();
+
+    expect(plan.skipped).toEqual([
+      expect.objectContaining({ reason: "video_file_missing" }),
+    ]);
+    expect(result.counts.removedArtifacts).toBe(0);
+    expect(fs.existsSync(mediaPath)).toBe(true);
+    expect(fs.existsSync(nfoPath)).toBe(true);
+    // The show-level artifacts go with the show when it is dropped from the
+    // plan, so they need protecting too.
+    expect(fs.existsSync(mirrorPath("Kurzgesagt", "tvshow.nfo"))).toBe(true);
+    expect(fs.existsSync(mirrorPath("Kurzgesagt", "Season 01", "season.nfo"))).toBe(
+      true
+    );
+    expect(listArtifacts()).toHaveLength(4);
+  });
+
+  it("still sweeps an episode once its assignment is actually gone", () => {
+    writeFile(path.join(testPaths.videos, "ants.mp4"), "video-bytes");
+    buildAndMaterialize();
+
+    // Deleting the assignment nulls the ledger's assignment_id, which is what
+    // severs the protection above - a retired episode is still reclaimed.
+    testDb.sqlite.exec("DELETE FROM media_server_episode_assignments");
+
+    const plan = planMediaServerHierarchy(
+      snapshot({ assignments: [], videos: [] }),
+      { mode: "nfo" }
+    );
+    const result = materializeMediaServerHierarchy(plan, {
+      copyFallbackEnabled: true,
+      sweepScopeShowIds: new Set(["show-1"]),
+    });
+
+    expect(result.counts.removedArtifacts).toBe(4);
+    expect(
+      fs.existsSync(mirrorPath("Kurzgesagt", "Season 01", "S01E001 - Ants.mp4"))
+    ).toBe(false);
+  });
+
   it("never overwrites an untracked file sitting on a planned path", () => {
     writeFile(path.join(testPaths.videos, "ants.mp4"), "video-bytes");
     const target = mirrorPath("Kurzgesagt", "Season 01", "S01E001 - Ants.mp4");
@@ -560,6 +624,59 @@ describe("mediaServerExport hierarchyMaterializer", () => {
     } finally {
       renameSpy.mockRestore();
     }
+
+    const leftovers = fs
+      .readdirSync(testPaths.mediaLibrary, { recursive: true } as never)
+      .filter((entry) => String(entry).includes(".mytube-mirror-tmp"));
+    expect(leftovers).toEqual([]);
+  });
+
+  /**
+   * On Windows and some network filesystems the first rename refuses an
+   * existing destination, so publication falls back to moving the old file out
+   * of the way first. If that second rename then fails, the old version has to
+   * come back: the caller's `finally` drops the staged replacement, so deleting
+   * the destination up front would leave the artifact missing altogether.
+   */
+  it("restores the previous artifact when the fallback publication fails", () => {
+    writeFile(path.join(testPaths.videos, "ants.mp4"), "video-bytes");
+    buildAndMaterialize();
+
+    const nfoPath = mirrorPath("Kurzgesagt", "Season 01", "S01E001 - Ants.nfo");
+    const before = fs.readFileSync(nfoPath, "utf8");
+
+    // Refuse both renames onto the NFO path - the first to force the fallback,
+    // the second to fail it - while letting the move-aside and the restore
+    // through to the real implementation.
+    const realRename = fs.renameSync.bind(fs);
+    let refusalsLeft = 2;
+    const renameSpy = vi
+      .spyOn(fs, "renameSync")
+      .mockImplementation((from, to) => {
+        if (String(to) === nfoPath && refusalsLeft > 0) {
+          refusalsLeft -= 1;
+          const error = new Error("replace refused") as NodeJS.ErrnoException;
+          error.code = "EEXIST";
+          throw error;
+        }
+        return realRename(from as never, to as never);
+      });
+
+    let result;
+    try {
+      // A title edit changes the NFO body, so publication is actually attempted.
+      ({ result } = buildAndMaterialize({
+        videos: [video({ title: "Renamed Episode" })],
+      }));
+    } finally {
+      renameSpy.mockRestore();
+    }
+
+    // The failure is reported rather than swallowed...
+    expect(result.failures).toHaveLength(1);
+    // ...and the previous version is still there, unchanged.
+    expect(fs.existsSync(nfoPath)).toBe(true);
+    expect(fs.readFileSync(nfoPath, "utf8")).toBe(before);
 
     const leftovers = fs
       .readdirSync(testPaths.mediaLibrary, { recursive: true } as never)

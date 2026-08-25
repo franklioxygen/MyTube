@@ -420,6 +420,63 @@ function collectExpectedPaths(
   }
 }
 
+/**
+ * Protects what a skipped-but-still-assigned episode already has on disk.
+ *
+ * A planner skip means "this run could not place the episode", never "delete
+ * what is already published for it". The two are easy to confuse because the
+ * ledger sweep treats every path outside `expectedRelativePaths` as stale, so
+ * without this a source that is merely unreachable right now - an unmounted
+ * drive, a NAS blip, a file being moved - costs the user the mirror they still
+ * had. In a copy-fallback deployment that is a second full copy of the video,
+ * deleted during an outage that fixes itself.
+ *
+ * Authority to delete stays exactly where it was: with the reconciler removing
+ * the assignment (the ledger's `assignment_id` goes null with it, so nothing
+ * below matches any more and the next sweep reclaims the paths) and with the
+ * explicit cleanup action, which plans nothing and therefore protects nothing.
+ *
+ * Show-level artifacts have no assignment of their own, so they are protected
+ * for any show that still holds a skipped assignment: a show whose only episode
+ * was skipped is dropped from the plan entirely, and its `tvshow.nfo`, poster
+ * and `season.nfo` would go with it. A show that is genuinely empty has no
+ * skips and is still swept.
+ */
+function collectSkippedAssignmentPaths(
+  snapshot: MediaServerCatalogSnapshot,
+  skipped: HierarchyPlanSkip[],
+  expected: Set<string>
+): void {
+  const skippedAssignmentIds = new Set<string>();
+  for (const skip of skipped) {
+    if (skip.assignmentId) {
+      skippedAssignmentIds.add(skip.assignmentId);
+    }
+  }
+  if (skippedAssignmentIds.size === 0) {
+    return;
+  }
+
+  const showIdsWithSkips = new Set<string>();
+  for (const assignment of snapshot.assignments) {
+    if (skippedAssignmentIds.has(assignment.id)) {
+      showIdsWithSkips.add(assignment.showId);
+    }
+  }
+
+  for (const artifact of snapshot.artifactsByPath.values()) {
+    const protectedByAssignment =
+      artifact.assignmentId && skippedAssignmentIds.has(artifact.assignmentId);
+    const protectedByShow =
+      !artifact.assignmentId &&
+      artifact.showId &&
+      showIdsWithSkips.has(artifact.showId);
+    if (protectedByAssignment || protectedByShow) {
+      expected.add(artifact.relativePath);
+    }
+  }
+}
+
 export function planMediaServerHierarchy(
   snapshot: MediaServerCatalogSnapshot,
   options: PlanMediaServerHierarchyOptions,
@@ -592,6 +649,11 @@ export function planMediaServerHierarchy(
   for (const plan of shows) {
     collectExpectedPaths(plan, expectedRelativePaths);
   }
+  collectSkippedAssignmentPaths(
+    snapshot,
+    context.skipped,
+    expectedRelativePaths
+  );
 
   return {
     shows,

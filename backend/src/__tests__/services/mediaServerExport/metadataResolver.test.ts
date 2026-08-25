@@ -278,5 +278,65 @@ describe("mediaServerExport metadataResolver", () => {
         })
       ).toEqual({ patch: {} });
     });
+
+    /**
+     * An equal durable channel id is exactly what a rename looks like: the
+     * handle and the display name move, the id does not. Keeping the stale
+     * values is not harmless - collection metadata outranks a video's during
+     * show resolution, so the next reconcile writes the old URL back over a
+     * show that was already refreshed, and a later URL-only video is then
+     * rejected by the conflicting-URL matcher and allocates a duplicate show.
+     */
+    it("refreshes the channel URL and name after an id-proven rename", () => {
+      const { patch, conflict } = buildCollectionMetadataPatch(
+        collection({
+          sourceChannelId: "UC1",
+          sourceChannelUrl: "https://youtube.com/@oldhandle",
+          sourceChannelName: "Old Name",
+        }),
+        {
+          sourceChannelId: "UC1",
+          sourceChannelUrl: "https://youtube.com/@newhandle",
+          sourceChannelName: "New Name",
+        }
+      );
+
+      expect(conflict).toBeUndefined();
+      expect(patch.sourceChannelUrl).toBe("https://youtube.com/@newhandle");
+      expect(patch.sourceChannelName).toBe("New Name");
+    });
+
+    it("leaves the playlist URL alone across a channel rename", () => {
+      // sourceUrl identifies the playlist, not the channel, so a matching
+      // channel id says nothing about whether it may be replaced.
+      const { patch } = buildCollectionMetadataPatch(
+        collection({
+          sourceChannelId: "UC1",
+          sourceUrl: "https://youtube.com/playlist?list=PL-original",
+        }),
+        {
+          sourceChannelId: "UC1",
+          sourceUrl: "https://youtube.com/playlist?list=PL-other",
+        }
+      );
+
+      expect(patch.sourceUrl).toBeUndefined();
+    });
+
+    it("does not refresh the channel URL without a matching durable id", () => {
+      const { patch } = buildCollectionMetadataPatch(
+        collection({
+          sourceChannelUrl: "https://youtube.com/@oldhandle",
+          sourceChannelName: "Old Name",
+        }),
+        {
+          sourceChannelUrl: "https://youtube.com/@newhandle",
+          sourceChannelName: "New Name",
+        }
+      );
+
+      expect(patch.sourceChannelUrl).toBeUndefined();
+      expect(patch.sourceChannelName).toBeUndefined();
+    });
   });
 });

@@ -180,8 +180,11 @@ export interface WriteMirrorTextInput {
  * `finally`. A reported failure that keeps the old version is strictly better
  * than a silent hole in the library.
  *
- * The unlink survives only as a fallback for platforms whose rename refuses an
- * existing destination.
+ * The two-step fallback survives only for platforms whose rename refuses an
+ * existing destination. It moves the old file aside instead of deleting it, so
+ * that a failure of the second rename can still put it back: deleting first
+ * would reintroduce the very hole the primary path exists to avoid, because the
+ * caller's `finally` then drops the staged replacement too.
  */
 function publishOverExisting(tempPath: string, targetAbsolutePath: string): void {
   try {
@@ -195,7 +198,7 @@ function publishOverExisting(tempPath: string, targetAbsolutePath: string): void
   } catch (error) {
     const code = (error as NodeJS.ErrnoException)?.code;
     // Windows and some network filesystems refuse to rename onto a file that
-    // exists. Only then is removing it first justified.
+    // exists. Only then is moving it out of the way justified.
     const replaceRefused =
       code === "EEXIST" || code === "EPERM" || code === "EACCES" || code === "ENOTEMPTY";
     if (
@@ -206,13 +209,49 @@ function publishOverExisting(tempPath: string, targetAbsolutePath: string): void
     }
   }
 
-  unlinkSafeSync(targetAbsolutePath, MEDIA_SERVER_LIBRARY_DIR);
+  const backupPath = makeTempPath(targetAbsolutePath);
   renameSafeSync(
-    tempPath,
-    MEDIA_SERVER_LIBRARY_DIR,
     targetAbsolutePath,
+    MEDIA_SERVER_LIBRARY_DIR,
+    backupPath,
     MEDIA_SERVER_LIBRARY_DIR
   );
+
+  try {
+    renameSafeSync(
+      tempPath,
+      MEDIA_SERVER_LIBRARY_DIR,
+      targetAbsolutePath,
+      MEDIA_SERVER_LIBRARY_DIR
+    );
+  } catch (error) {
+    try {
+      renameSafeSync(
+        backupPath,
+        MEDIA_SERVER_LIBRARY_DIR,
+        targetAbsolutePath,
+        MEDIA_SERVER_LIBRARY_DIR
+      );
+    } catch (restoreError) {
+      // The old version could not be put back. It is still on disk under the
+      // temp name, so report where, rather than letting it look like a plain
+      // publication failure: the ledger still points at the target path and
+      // the next run republishes there anyway.
+      logger.error(
+        "Could not restore a media server mirror artifact after a failed publication",
+        restoreError,
+        {
+          layout: "playlist_tv",
+          action: "materialize",
+          relativePath: toRelative(targetAbsolutePath),
+          backupPath: toRelative(backupPath),
+        }
+      );
+    }
+    throw error;
+  }
+
+  removeTempQuietly(backupPath);
 }
 
 export function writeMirrorTextArtifact(
