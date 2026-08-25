@@ -545,6 +545,64 @@ describe("mediaServerExport hierarchyMaterializer", () => {
     ).toBe(false);
   });
 
+  /**
+   * The unchanged fast path compares a fingerprint of the SOURCE only, so a
+   * destination swapped for a symlink still matches it. Skipping the ownership
+   * check there reported the artifact as unchanged and left the mirror serving
+   * a symlink - which this module promises never to create, and which can point
+   * anywhere at all.
+   */
+  it("rejects a mirror media path swapped for a symlink even when the source is unchanged", () => {
+    const source = path.join(testPaths.videos, "ants.mp4");
+    writeFile(source, "video-bytes");
+    buildAndMaterialize();
+
+    const mediaPath = mirrorPath("Kurzgesagt", "Season 01", "S01E001 - Ants.mp4");
+    const elsewhere = path.join(testPaths.videos, "elsewhere.mp4");
+    writeFile(elsewhere, "someone-elses-bytes");
+    fs.unlinkSync(mediaPath);
+    fs.symlinkSync(elsewhere, mediaPath);
+
+    // The source is untouched, so the ledger fingerprint still matches exactly.
+    const { result } = buildAndMaterialize();
+
+    expect(result.failures).toEqual([
+      expect.objectContaining({ reason: "artifact_ownership_mismatch" }),
+    ]);
+    // Reported, never silently accepted, and the link target is left alone.
+    expect(fs.readFileSync(elsewhere, "utf8")).toBe("someone-elses-bytes");
+  });
+
+  it("rejects a mirror artwork path swapped for a symlink even when the source is unchanged", () => {
+    writeFile(path.join(testPaths.videos, "ants.mp4"), "video-bytes");
+    const thumbSource = path.join(testPaths.images, "ants.jpg");
+    writeFile(thumbSource, "thumb-bytes");
+    buildAndMaterialize({
+      videos: [video({ thumbnailPath: "/images/ants.jpg" })],
+    });
+
+    const thumbPath = mirrorPath(
+      "Kurzgesagt",
+      "Season 01",
+      "S01E001 - Ants-thumb.jpg"
+    );
+    expect(fs.existsSync(thumbPath)).toBe(true);
+
+    const elsewhere = path.join(testPaths.images, "elsewhere.jpg");
+    writeFile(elsewhere, "someone-elses-image");
+    fs.unlinkSync(thumbPath);
+    fs.symlinkSync(elsewhere, thumbPath);
+
+    const { result } = buildAndMaterialize({
+      videos: [video({ thumbnailPath: "/images/ants.jpg" })],
+    });
+
+    expect(result.failures).toEqual([
+      expect.objectContaining({ reason: "artifact_ownership_mismatch" }),
+    ]);
+    expect(fs.readFileSync(elsewhere, "utf8")).toBe("someone-elses-image");
+  });
+
   it("never overwrites an untracked file sitting on a planned path", () => {
     writeFile(path.join(testPaths.videos, "ants.mp4"), "video-bytes");
     const target = mirrorPath("Kurzgesagt", "Season 01", "S01E001 - Ants.mp4");

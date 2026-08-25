@@ -10,6 +10,7 @@ import { getSettings } from "../storageService/settings";
 import { getCollectionById } from "../storageService/collectionRepository";
 import {
   downloadPoster,
+  removeCollectionPoster,
   resolveCollectionPosterSaveLocation,
 } from "../tmdbService/poster";
 import { resolveCollectionMetadata } from "../tmdbService/collectionSearch";
@@ -223,6 +224,31 @@ function reconcileAfterToggle(collectionId: string, action: string): void {
 }
 
 /**
+ * Drops a poster that was downloaded for an activation which then failed.
+ *
+ * The download happens before the lock, so every later bail-out - the lock is
+ * held by a rebuild, the layout changed, the collection was deleted - leaves a
+ * full-size image and its small mirror on disk that nothing will ever reference
+ * or clean up.
+ *
+ * The one path that must NOT be removed is a poster the collection is already
+ * using: re-resolving the same TMDB match rewrites that exact file, so deleting
+ * it here would break a row that is still live and still correct.
+ */
+function discardStagedPoster(
+  collectionId: string,
+  stagedWebPath: string | null
+): void {
+  if (!stagedWebPath) {
+    return;
+  }
+  if (getCollectionById(collectionId)?.mediaServerPosterPath === stagedWebPath) {
+    return;
+  }
+  removeCollectionPoster(stagedWebPath);
+}
+
+/**
  * Marks a collection as its own show, committing the accepted metadata and the
  * flag together.
  */
@@ -245,6 +271,7 @@ export async function activateCollectionShow(
   const lockId = `collection_show_${collectionId}_${Date.now()}`;
   if (!acquireRenameLock(lockId)) {
     // A rebuild or batch rename is running; the mirror must not change under it.
+    discardStagedPoster(collectionId, resolved.mediaServerPosterPath);
     return { status: "error", reason: "lock_unavailable" };
   }
 
@@ -252,12 +279,15 @@ export async function activateCollectionShow(
     // Re-read under the lock: layout and collection may have changed while the
     // network work was in flight.
     if (getLayout() !== "playlist_tv") {
+      discardStagedPoster(collectionId, resolved.mediaServerPosterPath);
       return { status: "error", reason: "layout_not_playlist_tv" };
     }
     const current = getCollectionById(collectionId);
     if (!current) {
+      discardStagedPoster(collectionId, resolved.mediaServerPosterPath);
       return { status: "error", reason: "collection_not_found" };
     }
+    const previousPosterPath = current.mediaServerPosterPath ?? null;
 
     db.update(collections)
       .set({
@@ -275,6 +305,16 @@ export async function activateCollectionShow(
       })
       .where(eq(collections.id, collectionId))
       .run();
+
+    // The new path is committed, so the one it replaced can go. Posters are
+    // named per TMDB id, so switching a collection to a different match would
+    // otherwise leave the previous id's image behind on every re-resolution.
+    if (
+      previousPosterPath &&
+      previousPosterPath !== resolved.mediaServerPosterPath
+    ) {
+      removeCollectionPoster(previousPosterPath);
+    }
 
     logger.info("Activated a collection as its own media server show", {
       layout: "playlist_tv",

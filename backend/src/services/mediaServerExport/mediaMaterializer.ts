@@ -364,6 +364,18 @@ export function copyMirrorImageArtifact(
   }
 
   const existing = getArtifact(relativePath);
+
+  // Validated BEFORE the unchanged fast path, not after. The fingerprint below
+  // describes the SOURCE only, so a destination that was swapped for a symlink
+  // - or a directory, or another assignment's artifact - still matches it, and
+  // the fast path would report the artifact as unchanged and leave the mirror
+  // serving something this module promises never to create.
+  assertDestinationIsReplaceable(
+    targetAbsolutePath,
+    relativePath,
+    input.assignmentId
+  );
+
   if (
     pathExistsSafeSync(targetAbsolutePath, MEDIA_SERVER_LIBRARY_DIR) &&
     isArtifactSourceUnchanged(
@@ -375,12 +387,6 @@ export function copyMirrorImageArtifact(
   ) {
     return { relativePath, changed: false, materialization: "copied_image" };
   }
-
-  assertDestinationIsReplaceable(
-    targetAbsolutePath,
-    relativePath,
-    input.assignmentId
-  );
 
   const tempPath = makeTempPath(targetAbsolutePath);
   try {
@@ -479,6 +485,17 @@ export function linkMirrorMediaArtifact(
   const sourceMtimeMs = Math.trunc(sourceStat.mtimeMs);
   const existing = getArtifact(relativePath);
 
+  // Validated BEFORE the unchanged fast path, not after. The fingerprint below
+  // describes the SOURCE only, so a destination that was swapped for a symlink
+  // - or a directory, or another assignment's artifact - still matches it, and
+  // the fast path would report the artifact as unchanged and leave the mirror
+  // serving something this module promises never to create.
+  assertDestinationIsReplaceable(
+    targetAbsolutePath,
+    relativePath,
+    input.assignmentId
+  );
+
   if (
     pathExistsSafeSync(targetAbsolutePath, MEDIA_SERVER_LIBRARY_DIR) &&
     isArtifactSourceUnchanged(
@@ -494,12 +511,6 @@ export function linkMirrorMediaArtifact(
       materialization: existing?.materialization ?? "hard_link",
     };
   }
-
-  assertDestinationIsReplaceable(
-    targetAbsolutePath,
-    relativePath,
-    input.assignmentId
-  );
 
   const tempPath = makeTempPath(targetAbsolutePath);
   let materialization: MediaServerMaterialization;

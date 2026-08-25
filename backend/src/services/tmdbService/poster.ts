@@ -6,11 +6,16 @@ import { logger } from "../../utils/logger";
 import {
   buildAllowlistedHttpUrl,
   ensureDirSafeSync,
+  pathExistsSafeSync,
   resolveSafeChildPath,
   resolveSafePath,
+  unlinkSafeSync,
   writeFileSafe,
 } from "../../utils/security";
-import { regenerateSmallThumbnailForThumbnailPath } from "../thumbnailMirrorService";
+import {
+  deleteSmallThumbnailMirrorSync,
+  regenerateSmallThumbnailForThumbnailPath,
+} from "../thumbnailMirrorService";
 import { ALLOWED_IMAGE_HOSTS, TMDB_IMAGE_BASE } from "./constants";
 
 /**
@@ -199,6 +204,42 @@ export function resolveCollectionPosterSaveLocation(
       error instanceof Error ? error : new Error(String(error))
     );
     return null;
+  }
+}
+
+/** Namespace `resolveCollectionPosterSaveLocation` writes into. */
+const COLLECTION_POSTER_PREFIX = "tmdb/collections/";
+
+/**
+ * Retires a collection poster this module wrote, and its small mirror.
+ *
+ * Deliberately scoped to the `tmdb/collections/` namespace: the column that
+ * holds the path is free-form, so an image the user pointed at themselves must
+ * never be deleted by an activation that did not create it. Best effort - a
+ * leftover image is inert, and failing the caller over one would turn a
+ * successful activation into an error.
+ */
+export function removeCollectionPoster(
+  webPath: string | null | undefined
+): void {
+  if (typeof webPath !== "string" || !webPath.startsWith("/images/")) {
+    return;
+  }
+  const relativePath = webPath.slice("/images/".length);
+  if (!relativePath.startsWith(COLLECTION_POSTER_PREFIX)) {
+    return;
+  }
+
+  try {
+    const absolutePath = resolveSafeChildPath(IMAGES_DIR, relativePath);
+    if (pathExistsSafeSync(absolutePath, IMAGES_DIR)) {
+      unlinkSafeSync(absolutePath, IMAGES_DIR);
+    }
+    deleteSmallThumbnailMirrorSync(webPath);
+  } catch (error) {
+    logger.warn(`Could not remove a collection poster at ${webPath}`, {
+      detail: error instanceof Error ? error.message : String(error),
+    });
   }
 }
 
