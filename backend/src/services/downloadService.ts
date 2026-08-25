@@ -523,6 +523,8 @@ export async function downloadChannelPlaylists(
         collection = getCollectionByName(title);
       }
 
+      const reusedExistingCollection = Boolean(collection);
+
       if (!collection) {
         // Only create a new collection if one doesn't exist
         logger.info(`Creating new collection: ${collectionName}`);
@@ -578,6 +580,20 @@ export async function downloadChannelPlaylists(
         "YouTube",
         collection.id,
       );
+
+      // The save above may have just made a reused collection source-backed,
+      // which is what turns it into a playlist season. Its existing members
+      // were downloaded long ago, so the task processor will skip their URLs
+      // and no link hook will ever fire for them - without a reconcile here
+      // they would sit in Season 00 until a full rebuild. After task creation,
+      // so a failed task leaves nothing half-attached; best effort, like every
+      // other mirror hook.
+      if (reusedExistingCollection) {
+        const { onCollectionMetadataCommitted } = await import(
+          "./mediaServerExport/mutationHooks"
+        );
+        onCollectionMetadataCommitted(collection.id);
+      }
 
       startedCount++;
     }

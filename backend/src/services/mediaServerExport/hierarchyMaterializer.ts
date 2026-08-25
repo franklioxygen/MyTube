@@ -237,12 +237,23 @@ function materializeEpisode(
   counts.episodes += 1;
 }
 
-function materializeShow(
+/**
+ * Materializes one show as a generator that yields before each episode.
+ *
+ * The yield points are where a driver may pause: the synchronous drivers drain
+ * without stopping, while the async driver awaits the event loop at each one so
+ * status and cancellation stay observable even inside the longest show — a
+ * single show with many episodes, or a copy fallback moving whole video files,
+ * would otherwise hold the process for its full duration. Yields sit between
+ * episodes rather than between files: one artifact is published through a temp
+ * file and a rename that must not be interleaved.
+ */
+function* materializeShowSteps(
   showPlan: HierarchyShowPlan,
   options: MaterializeOptions,
   counts: MaterializeCounts,
   failures: MaterializeFailure[]
-): void {
+): Generator<void, void, void> {
   const showId = showPlan.show.id;
 
   const showNfo = writeMirrorTextArtifact({
@@ -304,6 +315,7 @@ function materializeShow(
     counts.seasons += 1;
 
     for (const episode of season.episodes) {
+      yield;
       if (options.isCancelled?.()) {
         return;
       }
@@ -338,13 +350,13 @@ function materializeShow(
  * incremental run never deletes another show's artifacts on the strength of a
  * partial plan.
  */
-function sweepStaleArtifacts(
+function* sweepStaleArtifactSteps(
   plan: MediaServerHierarchyPlan,
   scopeShowIds: Set<string> | undefined,
   counts: MaterializeCounts,
   failures: MaterializeFailure[],
   isCancelled?: () => boolean
-): void {
+): Generator<void, void, void> {
   const candidates = scopeShowIds
     ? [...scopeShowIds].flatMap((showId) => listArtifactsForShow(showId))
     : listArtifacts();
@@ -352,8 +364,11 @@ function sweepStaleArtifacts(
   const directoriesToPrune = new Set<string>();
 
   for (const artifact of candidates) {
-    // Checked per artifact: a full-library sweep can run for a while, and a
-    // cancel that only takes effect at the end is not a cancel.
+    // A yield and a check per artifact: a full-library sweep can run for a
+    // while, and a cancel that only takes effect at the end is not a cancel.
+    // Without the yield the async driver could never let the cancel request be
+    // served in the first place.
+    yield;
     if (isCancelled?.()) {
       break;
     }
@@ -394,6 +409,25 @@ function sweepStaleArtifacts(
   }
 }
 
+function sweepStaleArtifacts(
+  plan: MediaServerHierarchyPlan,
+  scopeShowIds: Set<string> | undefined,
+  counts: MaterializeCounts,
+  failures: MaterializeFailure[],
+  isCancelled?: () => boolean
+): void {
+  for (const _ of sweepStaleArtifactSteps(
+    plan,
+    scopeShowIds,
+    counts,
+    failures,
+    isCancelled
+  )) {
+    // Drained without pausing: the synchronous callers run inside a database
+    // mutation and must not yield.
+  }
+}
+
 function collectCollisionFailures(
   plan: MediaServerHierarchyPlan,
   failures: MaterializeFailure[]
@@ -414,7 +448,28 @@ function materializeShowIsolated(
   failures: MaterializeFailure[]
 ): void {
   try {
-    materializeShow(showPlan, options, counts, failures);
+    for (const _ of materializeShowSteps(showPlan, options, counts, failures)) {
+      // Drained without pausing: the incremental hooks run inside a database
+      // mutation and must stay synchronous.
+    }
+  } catch (error) {
+    // Per-show isolation: one broken show must not stop the rest.
+    failures.push(toFailure(error, { showId: showPlan.show.id }));
+  }
+}
+
+async function materializeShowIsolatedAsync(
+  showPlan: MediaServerHierarchyPlan["shows"][number],
+  options: MaterializeOptions,
+  counts: MaterializeCounts,
+  failures: MaterializeFailure[]
+): Promise<void> {
+  try {
+    for (const _ of materializeShowSteps(showPlan, options, counts, failures)) {
+      // One event-loop turn per episode, so a cancellation requested while the
+      // longest show materializes is observed before its next episode.
+      await new Promise<void>((resolve) => setImmediate(resolve));
+    }
   } catch (error) {
     // Per-show isolation: one broken show must not stop the rest.
     failures.push(toFailure(error, { showId: showPlan.show.id }));
@@ -447,7 +502,7 @@ export function materializeMediaServerHierarchy(
 }
 
 /**
- * Same work, yielding to the event loop between shows.
+ * Same work, yielding to the event loop between episodes.
  *
  * The synchronous version is right for the incremental hooks, which touch one
  * video and run inside a database mutation. It is wrong for a full rebuild: a
@@ -455,11 +510,12 @@ export function materializeMediaServerHierarchy(
  * process for as long as it takes, and nothing else is served meanwhile - not
  * the job's own status endpoint, and not the cancel request, which means
  * `cancelRequested` cannot even become true while the run it would stop is in
- * progress.
+ * progress. Per-show yielding is not enough either: one show with many
+ * episodes still blocks everything for its full duration.
  *
- * The yield sits between shows rather than between files: a single artifact is
- * published through a temp file and a rename that must not be interleaved, and
- * per-show granularity is enough to keep the server answering.
+ * The yields sit between episodes and swept artifacts rather than between
+ * files: a single artifact is published through a temp file and a rename that
+ * must not be interleaved.
  */
 export async function materializeMediaServerHierarchyAsync(
   plan: MediaServerHierarchyPlan,
@@ -478,15 +534,25 @@ export async function materializeMediaServerHierarchyAsync(
     if (options.isCancelled?.()) {
       return { counts, failures };
     }
-    materializeShowIsolated(showPlan, options, counts, failures);
+    await materializeShowIsolatedAsync(showPlan, options, counts, failures);
   }
 
   if (options.isCancelled?.()) {
     return { counts, failures };
   }
 
-  await new Promise<void>((resolve) => setImmediate(resolve));
-  sweepStaleArtifacts(plan, options.sweepScopeShowIds, counts, failures, options.isCancelled);
+  for (const _ of sweepStaleArtifactSteps(
+    plan,
+    options.sweepScopeShowIds,
+    counts,
+    failures,
+    options.isCancelled
+  )) {
+    // One event-loop turn per swept artifact, for the same reason as above: a
+    // full-library sweep whose per-artifact cancel check never lets the cancel
+    // request be served checks a flag that cannot change.
+    await new Promise<void>((resolve) => setImmediate(resolve));
+  }
 
   return { counts, failures };
 }

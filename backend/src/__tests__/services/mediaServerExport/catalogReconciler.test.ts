@@ -934,4 +934,105 @@ describe("Season 00 placement survives an identity change", () => {
     expect(after).toHaveLength(1);
     expect(after[0].id).toBe(before.id);
   });
+
+  it("refreshes the owning show's metadata without reallocating the special", () => {
+    // v1 resolves by channel URL; the show carries the old title and no id.
+    reconcile({
+      videos: [
+        video({
+          id: "v1",
+          author: "Old Name",
+          channelUrl: "https://www.youtube.com/@thechannel",
+        }),
+      ],
+    });
+    const [before] = listAssignmentsForVideo("v1");
+    expect(before.seasonNumber).toBe(0);
+
+    // The channel renames, and a redownload now supplies its durable id. The
+    // preserved placement must not freeze the show's metadata: the title and
+    // the newly observed channel id still have to land on the owning show.
+    reconcile({
+      videos: [
+        video({
+          id: "v1",
+          author: "New Name",
+          channelUrl: "https://www.youtube.com/@thechannel",
+        }),
+      ],
+      rawMetadataByVideoId: new Map<string, unknown>([
+        [
+          "v1",
+          {
+            channel_id: "UCX",
+            channel: "New Name",
+            channel_url: "https://www.youtube.com/@thechannel",
+          },
+        ],
+      ]),
+    });
+
+    const shows = listMediaServerShows();
+    expect(shows).toHaveLength(1);
+    expect(shows[0].title).toBe("New Name");
+    expect(shows[0].sourceChannelId).toBe("UCX");
+    const [after] = listAssignmentsForVideo("v1");
+    expect(after.id).toBe(before.id);
+    expect(after.showId).toBe(before.showId);
+
+    // The rename later changes the channel URL too. A second video carrying
+    // the durable id must join the same show instead of allocating a second
+    // one — which is exactly what happened while the show still lacked the id.
+    reconcile({
+      videos: [
+        video({
+          id: "v1",
+          author: "New Name",
+          channelUrl: "https://www.youtube.com/@thechannel",
+        }),
+        video({
+          id: "v2",
+          author: "New Name",
+          channelUrl: "https://www.youtube.com/@newhandle",
+        }),
+      ],
+      rawMetadataByVideoId: new Map<string, unknown>([
+        [
+          "v2",
+          {
+            channel_id: "UCX",
+            channel: "New Name",
+            channel_url: "https://www.youtube.com/@newhandle",
+          },
+        ],
+      ]),
+    });
+
+    expect(listMediaServerShows()).toHaveLength(1);
+    const [v2Assignment] = listAssignmentsForVideo("v2");
+    expect(v2Assignment.showId).toBe(before.showId);
+  });
+
+  it("leaves the owning show untouched when the new identity is not unambiguously the same channel", () => {
+    reconcile({
+      videos: [video({ id: "v1", author: "News", channelUrl: undefined })],
+    });
+    const [showBefore] = listMediaServerShows();
+
+    // The video's metadata now claims a channel id and a different display
+    // name, but nothing ties them to the author-fallback show — rewriting it
+    // on a guess could corrupt a show that hosts another channel's videos.
+    reconcile({
+      videos: [video({ id: "v1", author: "News", channelUrl: undefined })],
+      rawMetadataByVideoId: new Map<string, unknown>([
+        ["v1", { channel_id: "UCX", channel: "Completely Different" }],
+      ]),
+    });
+
+    const showAfter = listMediaServerShows().find(
+      (entry) => entry.id === showBefore.id
+    );
+    expect(showAfter?.title).toBe("News");
+    expect(showAfter?.sourceChannelId).toBeUndefined();
+  });
 });

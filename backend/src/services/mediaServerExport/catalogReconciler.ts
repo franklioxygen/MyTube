@@ -13,6 +13,7 @@ import {
   ensureEpisodeAssignment,
   ensureMediaServerShow,
   getEpisodeAssignmentOccurrence,
+  getMediaServerShowById,
   getMediaServerShowByIdentityKey,
   listAssignmentsForCollection,
   listAssignmentsForVideo,
@@ -154,54 +155,61 @@ export function isSourceBackedPlaylistCollection(
  * immutable a wrong guess is permanent, so the weaker identity gets its own show
  * instead.
  */
+function isShowCompatibleWithIdentity(
+  show: MediaServerShow,
+  identity: ResolvedShowIdentity,
+  title: string
+): boolean {
+  // A collection-show is never a candidate. The `collection:<id>` identity
+  // prefix alone is not enough protection, because this predicate also matches
+  // on platform and normalized title — two dramas sharing a name would
+  // otherwise be merged into one show, permanently.
+  if (show.sourceCollectionId) {
+    return false;
+  }
+
+  if (show.sourcePlatform !== identity.platform) {
+    return false;
+  }
+
+  if (identity.sourceChannelId && show.sourceChannelId) {
+    // Equal ids settle it, in both directions. This is not redundant with the
+    // exact identity-key lookup: a show created from an author fallback keeps
+    // its author-based key even after being enriched with a channel id, so
+    // the key misses while the ids agree. Without this, a channel that renames
+    // itself splits into a second show - and the URL rule below would even
+    // reject the match outright once the rename changed the channel URL.
+    return show.sourceChannelId === identity.sourceChannelId;
+  }
+
+  const candidateUrl = normalizeChannelUrl(identity.sourceChannelUrl);
+  const showUrl = normalizeChannelUrl(show.sourceChannelUrl);
+
+  if (candidateUrl && showUrl === candidateUrl) {
+    return true;
+  }
+
+  // Two different durable channel URLs are as conclusive as two different
+  // channel ids: same platform, both self-identified, and they disagree. The
+  // author fallback must not get a second opinion here - display names are
+  // not unique, and a merge is permanent because identity is allocated once.
+  if (candidateUrl && showUrl && showUrl !== candidateUrl) {
+    return false;
+  }
+
+  const candidateAuthor = normalizeAuthorIdentity(title);
+  return Boolean(
+    candidateAuthor && normalizeAuthorIdentity(show.title) === candidateAuthor
+  );
+}
+
 function findCompatibleExistingShow(
   identity: ResolvedShowIdentity,
   title: string
 ): MediaServerShow | undefined {
-  const candidateUrl = normalizeChannelUrl(identity.sourceChannelUrl);
-  const candidateAuthor = normalizeAuthorIdentity(title);
-
-  const matches = listMediaServerShows().filter((show) => {
-    // A collection-show is never a candidate. The `collection:<id>` identity
-    // prefix alone is not enough protection, because this function also matches
-    // on platform and normalized title — two dramas sharing a name would
-    // otherwise be merged into one show, permanently.
-    if (show.sourceCollectionId) {
-      return false;
-    }
-
-    if (show.sourcePlatform !== identity.platform) {
-      return false;
-    }
-
-    if (identity.sourceChannelId && show.sourceChannelId) {
-      // Equal ids settle it, in both directions. This is not redundant with the
-      // exact identity-key lookup: a show created from an author fallback keeps
-      // its author-based key even after being enriched with a channel id, so
-      // the key misses while the ids agree. Without this, a channel that renames
-      // itself splits into a second show - and the URL rule below would even
-      // reject the match outright once the rename changed the channel URL.
-      return show.sourceChannelId === identity.sourceChannelId;
-    }
-
-    const showUrl = normalizeChannelUrl(show.sourceChannelUrl);
-
-    if (candidateUrl && showUrl === candidateUrl) {
-      return true;
-    }
-
-    // Two different durable channel URLs are as conclusive as two different
-    // channel ids: same platform, both self-identified, and they disagree. The
-    // author fallback must not get a second opinion here - display names are
-    // not unique, and a merge is permanent because identity is allocated once.
-    if (candidateUrl && showUrl && showUrl !== candidateUrl) {
-      return false;
-    }
-
-    return Boolean(
-      candidateAuthor && normalizeAuthorIdentity(show.title) === candidateAuthor
-    );
-  });
+  const matches = listMediaServerShows().filter((show) =>
+    isShowCompatibleWithIdentity(show, identity, title)
+  );
 
   return matches.length === 1 ? matches[0] : undefined;
 }
@@ -231,6 +239,18 @@ function resolveShowForCandidate(
     });
   }
 
+  return applyResolvedShowMetadata(show, metadata);
+}
+
+/**
+ * Applies a candidate's resolved metadata to a show that is already known to be
+ * the right one: refreshed title, description and channel URL, plus a channel
+ * id when the candidate is strictly stronger.
+ */
+function applyResolvedShowMetadata(
+  show: MediaServerShow,
+  metadata: ReturnType<typeof resolveShowMetadata>
+): MediaServerShow {
   const patch: Parameters<typeof updateMediaServerShowMetadata>[1] = {
     title: metadata.title,
     description: metadata.description || undefined,
@@ -254,6 +274,33 @@ function resolveShowForCandidate(
   }
 
   return updateMediaServerShowMetadata(show.id, patch) ?? show;
+}
+
+/**
+ * Refreshes the show that owns a preserved Season 00 assignment.
+ *
+ * The assignment itself is never reallocated — placement is immutable — but the
+ * newly observed metadata must still land on the owning show. A renamed channel
+ * whose video now carries a durable channel id would otherwise leave the show
+ * on its old title with no id, and the next video from that channel would fail
+ * the author/title match and allocate a second show for the same channel.
+ *
+ * Only a show that is unambiguously the same channel is touched: identity may
+ * have drifted since the special was allocated, and rewriting a different
+ * channel's title would corrupt it.
+ */
+function refreshShowForPreservedSpecial(
+  showId: string,
+  metadata: ReturnType<typeof resolveShowMetadata>
+): void {
+  if (!metadata.identity) {
+    return;
+  }
+  const show = getMediaServerShowById(showId);
+  if (!show || !isShowCompatibleWithIdentity(show, metadata.identity, metadata.title)) {
+    return;
+  }
+  applyResolvedShowMetadata(show, metadata);
 }
 
 /**
@@ -720,6 +767,10 @@ export function reconcileMediaServerCatalog(
     );
     if (existingSpecial) {
       result.affectedShowIds.add(existingSpecial.showId);
+      // Preserving the placement must not also freeze the show's metadata: a
+      // rename or a newly observed channel id still has to reach the owning
+      // show, or the next video from the same channel splits into a second one.
+      refreshShowForPreservedSpecial(existingSpecial.showId, metadata);
       result.createdAssignments.push(existingSpecial);
       continue;
     }

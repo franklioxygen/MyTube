@@ -5,6 +5,7 @@ import { BilibiliDownloader } from "../../services/downloaders/BilibiliDownloade
 import { MissAVDownloader } from "../../services/downloaders/MissAVDownloader";
 import { YtDlpDownloader } from "../../services/downloaders/YtDlpDownloader";
 import { getProviderScript } from "../../services/downloaders/ytdlp/ytdlpHelpers";
+import { onCollectionMetadataCommitted } from "../../services/mediaServerExport/mutationHooks";
 import { acquireRenameLock, releaseRenameLock } from "../../services/filenameTemplate/renameLockService";
 import * as storageService from "../../services/storageService";
 import {
@@ -40,6 +41,9 @@ vi.mock("../../services/storageService", () => ({
   getVideoBySourceUrl: vi.fn(),
   atomicUpdateCollection: vi.fn(),
   linkVideoToCollection: vi.fn(),
+}));
+vi.mock("../../services/mediaServerExport/mutationHooks", () => ({
+  onCollectionMetadataCommitted: vi.fn(),
 }));
 vi.mock("../../utils/ytDlpUtils", () => ({
   executeYtDlpJson: vi.fn(),
@@ -531,6 +535,32 @@ describe("downloadService", () => {
         "YouTube",
         "col-title"
       );
+    });
+
+    it("reconciles a reused collection after its task is created", async () => {
+      mockPlaylistFeedForCollectionCreation();
+      mockExistingPlaylistTaskLookups();
+      mockCollectionLookupsForPlaylistCreation();
+
+      await downloadService.downloadChannelPlaylists(
+        "https://www.youtube.com/@channel-name"
+      );
+
+      // The reused "Title Match" collection may already hold videos that were
+      // downloaded long ago. The task processor skips their URLs, so no link
+      // hook will ever fire for them; only this reconcile moves them out of
+      // Season 00 now that the collection is source-backed.
+      expect(onCollectionMetadataCommitted).toHaveBeenCalledTimes(1);
+      expect(onCollectionMetadataCommitted).toHaveBeenCalledWith("col-title");
+
+      // After task creation, not before: a failed task must leave the
+      // collection unreconciled for the next attempt.
+      const reconcileOrder = vi.mocked(onCollectionMetadataCommitted).mock
+        .invocationCallOrder[0];
+      const taskOrders = vi.mocked(
+        continuousDownloadService.createPlaylistTask
+      ).mock.invocationCallOrder;
+      expect(reconcileOrder).toBeGreaterThan(Math.max(...taskOrders));
     });
 
     it("adds provider extractor args and supports trailing slash channel URLs", async () => {

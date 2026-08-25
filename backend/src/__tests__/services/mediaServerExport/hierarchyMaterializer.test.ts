@@ -882,9 +882,11 @@ describe("mediaServerExport hierarchyMaterializer", () => {
    * A full rebuild used to occupy the process from start to finish, so nothing
    * else was served while it ran - not the job's status endpoint, and not the
    * cancel request, which meant cancelRequested could not become true during
-   * the very run it was meant to stop. The async variant yields between shows.
+   * the very run it was meant to stop. The async variant yields between
+   * episodes and between swept artifacts, so even the longest single show
+   * cannot block the cancel request from being served.
    */
-  describe("async materialization yields between shows", () => {
+  describe("async materialization yields between episodes", () => {
     it("lets queued work run before it finishes", async () => {
       seedCatalog({});
       const plan = planMediaServerHierarchy(snapshot({}), { mode: "nfo" });
@@ -943,6 +945,110 @@ describe("mediaServerExport hierarchyMaterializer", () => {
 
       expect(result.counts.episodes).toBe(0);
       expect(result.counts.removedArtifacts).toBe(0);
+    });
+
+    it("observes a cancel queued while a single show materializes", async () => {
+      writeFile(path.join(testPaths.videos, "ants.mp4"), "video-bytes");
+      writeFile(path.join(testPaths.videos, "second.mp4"), "second-bytes");
+      writeFile(path.join(testPaths.videos, "third.mp4"), "third-bytes");
+
+      const input = {
+        assignments: [
+          assignment({ id: "a1", episodeNumber: 1 }),
+          assignment({
+            id: "a2",
+            videoId: "v2",
+            episodeNumber: 2,
+            exportStem: "S01E002 - Second",
+          }),
+          assignment({
+            id: "a3",
+            videoId: "v3",
+            episodeNumber: 3,
+            exportStem: "S01E003 - Third",
+          }),
+        ],
+        videos: [
+          video(),
+          video({ id: "v2", title: "Second", videoPath: "/videos/second.mp4" }),
+          video({ id: "v3", title: "Third", videoPath: "/videos/third.mp4" }),
+        ],
+      };
+      seedCatalog(input);
+      const plan = planMediaServerHierarchy(snapshot(input), { mode: "nfo" });
+
+      // The cancel arrives through the event loop after the show has begun,
+      // exactly like a real HTTP cancel request. It can only become true if
+      // materialization yields while this one show is still in progress -
+      // per-show yielding alone would materialize all three episodes first.
+      let cancelRequested = false;
+      setImmediate(() => {
+        setImmediate(() => {
+          cancelRequested = true;
+        });
+      });
+
+      const result = await materializeMediaServerHierarchyAsync(plan, {
+        copyFallbackEnabled: true,
+        sweepScopeShowIds: new Set(["show-1"]),
+        isCancelled: () => cancelRequested,
+      });
+
+      expect(result.counts.episodes).toBeLessThan(3);
+    });
+
+    it("observes a cancel queued while the stale sweep runs", async () => {
+      writeFile(path.join(testPaths.videos, "ants.mp4"), "video-bytes");
+      writeFile(path.join(testPaths.videos, "second.mp4"), "second-bytes");
+      writeFile(path.join(testPaths.videos, "third.mp4"), "third-bytes");
+
+      const input = {
+        assignments: [
+          assignment({ id: "a1", episodeNumber: 1 }),
+          assignment({
+            id: "a2",
+            videoId: "v2",
+            episodeNumber: 2,
+            exportStem: "S01E002 - Second",
+          }),
+          assignment({
+            id: "a3",
+            videoId: "v3",
+            episodeNumber: 3,
+            exportStem: "S01E003 - Third",
+          }),
+        ],
+        videos: [
+          video(),
+          video({ id: "v2", title: "Second", videoPath: "/videos/second.mp4" }),
+          video({ id: "v3", title: "Third", videoPath: "/videos/third.mp4" }),
+        ],
+      };
+      const { result: seeded } = buildAndMaterialize(input);
+      expect(seeded.counts.episodes).toBe(3);
+
+      // A plan with no shows at all, so the run goes straight to the sweep and
+      // every seeded artifact (three media files, three episode NFOs, the show
+      // NFO and the season NFO) is a sweep candidate.
+      const emptyPlan = planMediaServerHierarchy(
+        snapshot({ shows: [], seasons: [], assignments: [], videos: [] }),
+        { mode: "nfo" }
+      );
+
+      let cancelRequested = false;
+      setImmediate(() => {
+        setImmediate(() => {
+          cancelRequested = true;
+        });
+      });
+
+      const result = await materializeMediaServerHierarchyAsync(emptyPlan, {
+        copyFallbackEnabled: true,
+        sweepScopeShowIds: new Set(["show-1"]),
+        isCancelled: () => cancelRequested,
+      });
+
+      expect(result.counts.removedArtifacts).toBeLessThan(8);
     });
   });
 
