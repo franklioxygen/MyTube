@@ -477,6 +477,31 @@ describe("mediaServerExport jobService", () => {
       expect(completed?.sweptFiles).toBe(3);
     });
 
+    /**
+     * The adjacent sidecar passes delete one file set per video. Draining them
+     * synchronously meant the per-video cancel check read a flag that could not
+     * change, because the cancel request itself was never served.
+     */
+    it("observes a cancel queued while adjacent sidecars are swept", async () => {
+      getVideosMock.mockReturnValue([
+        createVideo("video-1"),
+        createVideo("video-2"),
+        createVideo("video-3"),
+      ]);
+      getMediaServerExportLayoutMock.mockReturnValue("adjacent");
+
+      const job = await startMediaServerExportJob("nfo");
+      // Arrives through the event loop, exactly like a real cancel request.
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      cancelMediaServerExportJob(job.id);
+      await waitForJobStatus(job.id, "cancelled");
+
+      const cancelled = getMediaServerExportJobById(job.id);
+      expect(cancelled?.status).toBe("cancelled");
+      // It stopped partway rather than processing every video first.
+      expect(syncMediaServerArtifactsForRecordMock.mock.calls.length).toBeLessThan(3);
+    });
+
     it("sweeps the mirror when rebuilding into the adjacent layout", async () => {
       getVideosMock.mockReturnValue([createVideo("video-1")]);
       getMediaServerExportLayoutMock.mockReturnValue("adjacent");

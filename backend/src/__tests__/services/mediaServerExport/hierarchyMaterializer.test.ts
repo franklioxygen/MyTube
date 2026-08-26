@@ -522,6 +522,80 @@ describe("mediaServerExport hierarchyMaterializer", () => {
     expect(listArtifacts()).toHaveLength(4);
   });
 
+  /**
+   * Protecting a skipped episode must not protect a whole show's worth of
+   * assignment-less artifacts: a season the reconciler just emptied still has
+   * to lose its season.nfo, or the empty directory lingers in the media server
+   * until every unrelated skipped source happens to recover.
+   */
+  it("does not protect an unrelated season's NFO because another season was skipped", () => {
+    writeFile(path.join(testPaths.videos, "ants.mp4"), "video-bytes");
+    writeFile(path.join(testPaths.videos, "second.mp4"), "second-bytes");
+
+    const input = {
+      seasons: [
+        {
+          showId: "show-1",
+          seasonNumber: 1,
+          collectionId: "c1",
+          title: "Season One",
+          plot: "",
+        },
+        {
+          showId: "show-1",
+          seasonNumber: 2,
+          collectionId: "c2",
+          title: "Season Two",
+          plot: "",
+        },
+      ],
+      assignments: [
+        assignment({ id: "a1", seasonNumber: 1, episodeNumber: 1 }),
+        assignment({
+          id: "a2",
+          seasonNumber: 2,
+          videoId: "v2",
+          episodeNumber: 1,
+          exportStem: "S02E001 - Second",
+        }),
+      ],
+      videos: [
+        video(),
+        video({ id: "v2", title: "Second", videoPath: "/videos/second.mp4" }),
+      ],
+    };
+    buildAndMaterialize(input);
+    expect(fs.existsSync(mirrorPath("Kurzgesagt", "Season 02", "season.nfo"))).toBe(
+      true
+    );
+
+    // Season 01's source goes missing (skipped), and Season 02 is retired by
+    // the reconciler in the same pass.
+    fs.unlinkSync(path.join(testPaths.videos, "ants.mp4"));
+    testDb.sqlite
+      .prepare("DELETE FROM media_server_episode_assignments WHERE id='a2'")
+      .run();
+
+    const plan = planMediaServerHierarchy(
+      snapshot({ ...input, seasons: [input.seasons[0]], assignments: [input.assignments[0]] }),
+      { mode: "nfo" }
+    );
+    materializeMediaServerHierarchy(plan, {
+      copyFallbackEnabled: true,
+      sweepScopeShowIds: new Set(["show-1"]),
+    });
+
+    // Season 01 keeps everything: its episode is only temporarily unavailable.
+    expect(fs.existsSync(mirrorPath("Kurzgesagt", "Season 01", "season.nfo"))).toBe(
+      true
+    );
+    expect(fs.existsSync(mirrorPath("Kurzgesagt", "tvshow.nfo"))).toBe(true);
+    // Season 02 is genuinely retired and must go.
+    expect(fs.existsSync(mirrorPath("Kurzgesagt", "Season 02", "season.nfo"))).toBe(
+      false
+    );
+  });
+
   it("still sweeps an episode once its assignment is actually gone", () => {
     writeFile(path.join(testPaths.videos, "ants.mp4"), "video-bytes");
     buildAndMaterialize();
@@ -1346,6 +1420,68 @@ describe("mediaServerExport hierarchyMaterializer", () => {
      * callback it was handed could not change and a user trying to stop a
      * destructive sweep was only heard once it had already finished.
      */
+    /**
+     * The plan is captured before the run starts, so a collection mutation
+     * committed during a yield can delete an assignment the plan still lists.
+     * Publishing it anyway wrote the file and then failed to record it - the
+     * ledger's assignment FK is gone - stranding an untracked artifact that no
+     * sweep may ever remove, because untracked is how a user's own file is
+     * recognized.
+     */
+    it("skips an episode whose assignment was deleted mid-rebuild", async () => {
+      writeFile(path.join(testPaths.videos, "ants.mp4"), "video-bytes");
+      writeFile(path.join(testPaths.videos, "second.mp4"), "second-bytes");
+
+      const input = {
+        assignments: [
+          assignment({ id: "a1", episodeNumber: 1 }),
+          assignment({
+            id: "a2",
+            videoId: "v2",
+            episodeNumber: 2,
+            exportStem: "S01E002 - Second",
+          }),
+        ],
+        videos: [
+          video(),
+          video({ id: "v2", title: "Second", videoPath: "/videos/second.mp4" }),
+        ],
+      };
+      seedCatalog(input);
+      const plan = planMediaServerHierarchy(snapshot(input), { mode: "nfo" });
+
+      // Commit the unlink while the rebuild is mid-flight, exactly as an
+      // incremental hook would.
+      setImmediate(() => {
+        setImmediate(() => {
+          testDb.sqlite
+            .prepare("DELETE FROM media_server_episode_assignments WHERE id='a2'")
+            .run();
+        });
+      });
+
+      const result = await materializeMediaServerHierarchyAsync(plan, {
+        copyFallbackEnabled: true,
+        sweepScopeShowIds: new Set(["show-1"]),
+      });
+
+      expect(result.failures).toEqual([]);
+      // The departed episode is neither published nor half-published.
+      const orphan = mirrorPath("Kurzgesagt", "Season 01", "S01E002 - Second.mp4");
+      if (fs.existsSync(orphan)) {
+        // If it was published it MUST be tracked, never untracked.
+        expect(getArtifact("Kurzgesagt/Season 01/S01E002 - Second.mp4")).toBeDefined();
+      }
+      // Every file on disk is accounted for in the ledger.
+      for (const entry of fs.readdirSync(
+        mirrorPath("Kurzgesagt", "Season 01"),
+        { recursive: true } as never
+      )) {
+        const relative = `Kurzgesagt/Season 01/${String(entry)}`;
+        expect(getArtifact(relative)).toBeDefined();
+      }
+    });
+
     it("observes a cancel queued while the cleanup action sweeps", async () => {
       writeFile(path.join(testPaths.videos, "ants.mp4"), "video-bytes");
       writeFile(path.join(testPaths.videos, "second.mp4"), "second-bytes");

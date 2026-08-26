@@ -300,11 +300,25 @@ export function syncPlaylistTvForVideo(
     sweepScopeShowIds: showIds,
   });
 
-  // Consumed only now, and only when this run both owned the envelope and
-  // finished without failures. A failed run keeps it so the next attempt still
-  // has the extractor output; the store bounds itself by age and size, so an
-  // entry that is never claimed cannot accumulate.
-  if (!options.preservePendingSourceInfo && summary.failures.length === 0) {
+  // Consumed only now, and only when this run owned the envelope AND actually
+  // published the video's episodes. `failures` alone is not enough: an episode
+  // the planner skipped - a source that is temporarily missing, or has moved to
+  // cloud or mount storage - is never written at all, so it reports no failure
+  // while its `.info.json` was never produced. Dropping the envelope there
+  // would leave a later retry able to synthesize only the reduced version.
+  //
+  // The store bounds itself by age and size, so an entry nobody claims cannot
+  // accumulate.
+  const publishedThisVideo =
+    summary.failures.length === 0 &&
+    !plan.skipped.some((skip) => skip.videoId === videoId) &&
+    plan.shows.some((showPlan) =>
+      showPlan.seasons.some((season) =>
+        season.episodes.some((episode) => episode.video.id === videoId)
+      )
+    );
+
+  if (!options.preservePendingSourceInfo && publishedThisVideo) {
     takePendingSourceInfo(videoId);
   }
 

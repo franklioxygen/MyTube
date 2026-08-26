@@ -209,6 +209,26 @@ export function listAssignmentsForCollection(
     .map(toAssignment);
 }
 
+/**
+ * True when this assignment row still exists.
+ *
+ * The yielding rebuild materializes from a plan captured before it started, so
+ * a collection mutation committed during one of its yields can delete an
+ * assignment the plan still lists. Publishing that episode anyway writes the
+ * file and then fails to record it - the ledger's assignment FK is gone - which
+ * leaves an untracked file that no future sweep may remove, because untracked
+ * is exactly how a user's own file is recognized.
+ */
+export function episodeAssignmentExists(assignmentId: string): boolean {
+  return Boolean(
+    db
+      .select({ id: mediaServerEpisodeAssignments.id })
+      .from(mediaServerEpisodeAssignments)
+      .where(eq(mediaServerEpisodeAssignments.id, assignmentId))
+      .get()
+  );
+}
+
 export function getEpisodeAssignmentOccurrence(
   showId: string,
   seasonNumber: number,

@@ -13,6 +13,7 @@ import {
   listArtifacts,
   listArtifactsForShow,
 } from "./artifactLedger";
+import { episodeAssignmentExists } from "./catalogRepository";
 import {
   buildEpisodeNfo,
   buildSeasonNfo,
@@ -337,6 +338,18 @@ function* materializeShowSteps(
       if (options.isCancelled?.()) {
         return;
       }
+
+      // Re-checked after the yield, never before it. The plan was captured
+      // before this run started, and an async driver hands the event loop back
+      // here - long enough for a collection mutation to commit and delete this
+      // assignment. Publishing it now would write the file and then fail to
+      // record it, stranding an untracked artifact the sweep must never touch.
+      // Nothing runs between this check and the ledger write below, so the
+      // check and the publication are effectively atomic.
+      if (!episodeAssignmentExists(episode.assignment.id)) {
+        continue;
+      }
+
       try {
         materializeEpisode(
           showPlan,

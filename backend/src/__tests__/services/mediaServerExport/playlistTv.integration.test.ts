@@ -1385,6 +1385,32 @@ describe("parked source metadata survives a failed sync (PR #412 review)", () =>
     expect(peekPendingSourceInfo("v-origins")).toBeUndefined();
   });
 
+  /**
+   * A planner skip writes nothing at all, so it reports no failure. Treating
+   * "no failures" as success consumed the envelope even though the
+   * `.info.json` was never published, leaving a later retry able to synthesize
+   * only the reduced version.
+   */
+  it("keeps the envelope when the planner skips the episode entirely", () => {
+    storePendingSourceInfo("v-origins", envelope);
+    // The just-downloaded source is temporarily unavailable.
+    fs.removeSync(path.join(testPaths.videos, "Kurzgesagt/human-origins.mp4"));
+
+    const result = syncPlaylistTvForVideo("v-origins", {
+      mode: "nfo_and_source_json",
+      copyFallbackEnabled: true,
+    });
+
+    // No write was attempted, so nothing failed - and nothing was published.
+    expect(result?.failures).toEqual([]);
+    expect(
+      result?.plannerSkips.some(
+        (skip) => skip.videoId === "v-origins" && skip.reason === "video_file_missing"
+      )
+    ).toBe(true);
+    expect(peekPendingSourceInfo("v-origins")).toEqual(envelope);
+  });
+
   it("leaves the envelope for the final hook on an intermediate sync", () => {
     storePendingSourceInfo("v-origins", envelope);
 

@@ -457,23 +457,57 @@ function collectSkippedAssignmentPaths(
     return;
   }
 
+  const showsById = new Map(snapshot.shows.map((show) => [show.id, show]));
   const showIdsWithSkips = new Set<string>();
+  // Season directories that still hold a skipped episode. Only these seasons
+  // keep their season.nfo: a season the reconciler just emptied must still lose
+  // its NFO, or the directory lingers in the media server until every unrelated
+  // skipped source happens to recover.
+  const protectedSeasonDirectories = new Set<string>();
+
   for (const assignment of snapshot.assignments) {
-    if (skippedAssignmentIds.has(assignment.id)) {
-      showIdsWithSkips.add(assignment.showId);
+    if (!skippedAssignmentIds.has(assignment.id)) {
+      continue;
     }
+    showIdsWithSkips.add(assignment.showId);
+
+    const show = showsById.get(assignment.showId);
+    if (!show) {
+      continue;
+    }
+    const showDirectory = sanitizeMirrorSegment(show.directoryName);
+    if (!showDirectory) {
+      continue;
+    }
+    protectedSeasonDirectories.add(
+      `${showDirectory}/Season ${padSeasonNumber(assignment.seasonNumber)}`
+    );
   }
 
   for (const artifact of snapshot.artifactsByPath.values()) {
-    const protectedByAssignment =
-      artifact.assignmentId && skippedAssignmentIds.has(artifact.assignmentId);
-    const protectedByShow =
-      !artifact.assignmentId &&
-      artifact.showId &&
-      showIdsWithSkips.has(artifact.showId);
-    if (protectedByAssignment || protectedByShow) {
-      expected.add(artifact.relativePath);
+    if (artifact.assignmentId) {
+      if (skippedAssignmentIds.has(artifact.assignmentId)) {
+        expected.add(artifact.relativePath);
+      }
+      continue;
     }
+
+    if (!artifact.showId || !showIdsWithSkips.has(artifact.showId)) {
+      continue;
+    }
+
+    // A season NFO is scoped to its own season; the show NFO and poster belong
+    // to the show as a whole and would vanish with it when the show drops out
+    // of the plan entirely.
+    if (artifact.artifactType === "season_nfo") {
+      const directory = artifact.relativePath.split("/").slice(0, -1).join("/");
+      if (protectedSeasonDirectories.has(directory)) {
+        expected.add(artifact.relativePath);
+      }
+      continue;
+    }
+
+    expected.add(artifact.relativePath);
   }
 }
 

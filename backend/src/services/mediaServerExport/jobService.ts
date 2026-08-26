@@ -134,6 +134,37 @@ export async function startMediaServerExportJob(
   return job;
 }
 
+/**
+ * Runs a secondary phase without the job looking finished while it happens.
+ *
+ * Both primary passes declare the job completed before returning, and every
+ * secondary phase now yields between items. A status poll landing in one of
+ * those yields would otherwise observe "completed" before the phase's counts
+ * and failures were recorded - and, worse, a new run admitted by the
+ * `status === "running"` guard would collide with the maintenance lock this one
+ * still holds, since it is released only in the outer `finally`.
+ *
+ * A run that is already cancelled or failed is left alone: that is its final
+ * state, and the phase itself bails out on `cancelRequested`.
+ */
+async function withJobReopenedForSecondaryPhase(
+  job: MediaServerExportJob,
+  phase: () => Promise<void>
+): Promise<void> {
+  const reopened = job.status === "completed";
+  if (reopened) {
+    job.phase = "sweep";
+    job.status = "running";
+  }
+
+  await phase();
+
+  if (reopened && job.status === "running") {
+    job.phase = "completed";
+    job.status = job.cancelRequested ? "cancelled" : "completed";
+  }
+}
+
 async function processMediaServerExportJob(
   job: MediaServerExportJob,
   allVideos: Video[]
@@ -151,7 +182,7 @@ async function processMediaServerExportJob(
       // after a switch away from the managed mirror that can be a second full
       // copy of every video that could not be hard linked. The adjacent pass
       // runs first because job progress is denominated in videos.
-      processAdjacentJob(job, allVideos);
+      await processAdjacentJob(job, allVideos);
       const sidecarsSwept = job.sweptFiles ?? 0;
       const mirrorSwept = await sweepMirrorBestEffort(job);
 
@@ -163,26 +194,15 @@ async function processMediaServerExportJob(
       // The layout the user just switched away from keeps its artifacts
       // otherwise: sidecars next to every original, with no route to remove
       // them while the export stays enabled.
-      sweepInactiveAdjacentBestEffort(job, allVideos);
+      await withJobReopenedForSecondaryPhase(job, () =>
+        sweepInactiveAdjacentBestEffort(job, allVideos)
+      );
     } else {
-      processAdjacentJob(job, allVideos);
-      // processAdjacentJob declares the job completed, but the managed-mirror
-      // sweep below yields between artifacts, so a status poll could observe
-      // that completion while the sweep is still running - before its count and
-      // failures are recorded, and while this run still holds the maintenance
-      // lock that is only released in the `finally`. A rebuild admitted on the
-      // strength of that premature "completed" would then collide with it. So
-      // the job is re-opened for the secondary phase and completed once, at the
-      // end. A cancelled run is left alone: it is already in its final state.
-      if (job.status === "completed") {
-        job.phase = "sweep";
-        job.status = "running";
-      }
-      job.sweptFiles = (job.sweptFiles ?? 0) + (await sweepMirrorBestEffort(job));
-      if (job.status === "running") {
-        job.phase = "completed";
-        job.status = job.cancelRequested ? "cancelled" : "completed";
-      }
+      await processAdjacentJob(job, allVideos);
+      await withJobReopenedForSecondaryPhase(job, async () => {
+        job.sweptFiles =
+          (job.sweptFiles ?? 0) + (await sweepMirrorBestEffort(job));
+      });
     }
   } finally {
     job.currentVideoId = undefined;
@@ -234,16 +254,20 @@ async function sweepMirrorBestEffort(
  * Removes adjacent sidecars while the managed layout is the active one, for the
  * mirror-image reason: they belong to the layout the user switched away from.
  */
-function sweepInactiveAdjacentBestEffort(
+async function sweepInactiveAdjacentBestEffort(
   job: MediaServerExportJob,
   allVideos: Video[]
-): void {
+): Promise<void> {
   if (job.cancelRequested) {
     return;
   }
 
   let removed = 0;
   for (const video of allVideos) {
+    // One event-loop turn per video. Without it the cancel check below reads a
+    // flag that cannot change: nothing is served while a whole library's
+    // sidecars are unlinked, including the cancel request itself.
+    await new Promise<void>((resolve) => setImmediate(resolve));
     if (job.cancelRequested) {
       break;
     }
@@ -379,10 +403,10 @@ async function processPlaylistTvJob(job: MediaServerExportJob): Promise<void> {
 // adjacent (unchanged behavior)
 // ---------------------------------------------------------------------------
 
-function processAdjacentJob(
+async function processAdjacentJob(
   job: MediaServerExportJob,
   allVideos: Video[]
-): void {
+): Promise<void> {
   job.phase = "sweep";
   const sweepResult = sweepOrphanMediaServerArtifacts(allVideos);
   job.sweptFiles = sweepResult.sweptFiles;
@@ -390,6 +414,11 @@ function processAdjacentJob(
 
   job.phase = "materialize";
   for (const video of allVideos) {
+    // Same reason as every other per-item yield in this file: a synchronous
+    // drain means the job's own status endpoint and its cancel request are
+    // unanswerable for the whole run, so `cancelRequested` could never become
+    // true during the run it is meant to stop.
+    await new Promise<void>((resolve) => setImmediate(resolve));
     if (job.cancelRequested) {
       job.status = "cancelled";
       return;
