@@ -406,6 +406,17 @@ function* sweepStaleArtifactSteps(
     if (plan.expectedRelativePaths.has(artifact.relativePath)) {
       continue;
     }
+    // Never reclaim a path this plan never saw. A rebuild yields, and an
+    // incremental hook committing in one of those gaps publishes a brand-new
+    // episode - assignment, files and ledger rows all valid - that the captured
+    // plan cannot list. Deleting it here would strip a link that had just
+    // succeeded, leaving its assignment behind with no hook to republish it.
+    if (
+      plan.sweepCandidatePaths &&
+      !plan.sweepCandidatePaths.has(artifact.relativePath)
+    ) {
+      continue;
+    }
 
     try {
       const absolutePath = resolveSafeChildPath(

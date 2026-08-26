@@ -5,6 +5,7 @@ import { logger } from "../../utils/logger";
 import {
   copyFileSafeSync,
   ensureDirSafeSync,
+  isRealPathInsideDir,
   linkSafeSync,
   lstatSafeSync,
   pathExistsSafeSync,
@@ -76,6 +77,18 @@ function assertInsideMirror(absolutePath: string): void {
     throw new MediaMaterializationError(
       "artifact_path_collision",
       `Destination is outside the media library root: ${absolutePath}`
+    );
+  }
+
+  // Lexical containment is not enough. A show or season directory replaced by a
+  // symlink is followed by every `fs` call, while an `lstat` of the final
+  // component still reports an ordinary file - so a publication would overwrite,
+  // and a cleanup would delete, a file that is not in the mirror at all. Only a
+  // real-path resolution of the existing ancestor chain can see that.
+  if (!isRealPathInsideDir(absolutePath, MEDIA_SERVER_LIBRARY_DIR)) {
+    throw new MediaMaterializationError(
+      "artifact_ownership_mismatch",
+      `Refusing to touch ${absolutePath}: it resolves outside the media library root through a symlinked parent.`
     );
   }
 }
@@ -658,6 +671,13 @@ export function pruneEmptyMirrorDirectories(startAbsolutePath: string): void {
     current.startsWith(MEDIA_SERVER_LIBRARY_DIR + path.sep) &&
     current !== MEDIA_SERVER_LIBRARY_DIR
   ) {
+    // Checked per level: walking upward, the first level examined can still sit
+    // beyond a symlinked ancestor, and removing an empty directory there would
+    // remove one outside the mirror before the per-level lstat below notices
+    // the link.
+    if (!isRealPathInsideDir(current, MEDIA_SERVER_LIBRARY_DIR)) {
+      return;
+    }
     try {
       if (!pathExistsSafeSync(current, MEDIA_SERVER_LIBRARY_DIR)) {
         current = path.dirname(current);

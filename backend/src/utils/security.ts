@@ -684,6 +684,61 @@ export async function removeImagePath(filePath: string): Promise<void> {
 /**
  * Resolves a child path inside an allowed directory.
  */
+/**
+ * True when `filePath`, resolved through any symlinks in its existing ancestor
+ * chain, really lives inside `allowedDir`.
+ *
+ * Every other containment check in this module is lexical: it validates the
+ * string form of a path. That stops `..` traversal, but it cannot see a
+ * directory INSIDE the allowed root that has been replaced by a symlink
+ * pointing elsewhere. Once one exists, `fs` follows it on every call - an
+ * `lstat` of the final component reports an ordinary file, and reads, writes
+ * and unlinks all land outside the root.
+ *
+ * The deepest ancestor that currently exists is the one resolved: components
+ * that do not exist yet will be created beneath it, so confining the ancestor
+ * confines them too.
+ */
+export function isRealPathInsideDir(
+  filePath: string,
+  allowedDir: string,
+): boolean {
+  if (
+    !filePath ||
+    typeof filePath !== "string" ||
+    !allowedDir ||
+    typeof allowedDir !== "string"
+  ) {
+    return false;
+  }
+
+  const resolveReal = (candidate: string): string => {
+    try {
+      return fs.realpathSync(candidate);
+    } catch {
+      return path.resolve(candidate);
+    }
+  };
+
+  const allowedReal = resolveReal(allowedDir);
+
+  let existing = path.resolve(filePath);
+  while (!fs.existsSync(existing)) {
+    const parent = path.dirname(existing);
+    if (parent === existing) {
+      return false;
+    }
+    existing = parent;
+  }
+
+  const real = resolveReal(existing);
+  if (real === allowedReal) {
+    return true;
+  }
+  const relative = path.relative(allowedReal, real);
+  return Boolean(relative) && !relative.startsWith("..") && !path.isAbsolute(relative);
+}
+
 export function resolveSafeChildPath(
   allowedDir: string,
   childPath: string,

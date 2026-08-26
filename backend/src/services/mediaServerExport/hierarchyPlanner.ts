@@ -694,5 +694,9 @@ export function planMediaServerHierarchy(
     skipped: context.skipped,
     collisions: context.collisions,
     expectedRelativePaths,
+    // The ledger as it stood when this plan was built. Anything published after
+    // this point - by an incremental hook running while a rebuild yields - is
+    // outside what this plan can speak to, and its sweep must leave it alone.
+    sweepCandidatePaths: new Set(snapshot.artifactsByPath.keys()),
   };
 }

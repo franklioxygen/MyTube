@@ -91,6 +91,7 @@ import {
   getArtifact,
   listArtifacts,
 } from "../../../services/mediaServerExport/artifactLedger";
+import { writeMirrorTextArtifact } from "../../../services/mediaServerExport/mediaMaterializer";
 import type {
   MediaServerCatalogSnapshot,
   MediaServerSeason,
@@ -675,6 +676,58 @@ describe("mediaServerExport hierarchyMaterializer", () => {
       expect.objectContaining({ reason: "artifact_ownership_mismatch" }),
     ]);
     expect(fs.readFileSync(elsewhere, "utf8")).toBe("someone-elses-image");
+  });
+
+  /**
+   * Containment was checked lexically, and only the FINAL component was
+   * lstat'd. A show or season directory replaced by a symlink is followed by
+   * every fs call, so the final component looks like an ordinary file while it
+   * actually lives outside the mirror - and publication overwrites it, or
+   * cleanup deletes it.
+   */
+  it("refuses to publish through a symlinked show directory", () => {
+    const source = path.join(testPaths.videos, "ants.mp4");
+    writeFile(source, "video-bytes");
+    buildAndMaterialize();
+
+    const outside = path.join(testPaths.root, "outside");
+    fs.ensureDirSync(path.join(outside, "Season 01"));
+    const victim = path.join(outside, "Season 01", "S01E001 - Ants.nfo");
+    fs.writeFileSync(victim, "USER DATA", "utf8");
+
+    // The whole show directory becomes a link to somewhere else entirely.
+    fs.removeSync(mirrorPath("Kurzgesagt"));
+    fs.symlinkSync(outside, mirrorPath("Kurzgesagt"));
+
+    const { result } = buildAndMaterialize();
+
+    expect(result.failures.length).toBeGreaterThan(0);
+    expect(
+      result.failures.every((f) => f.reason === "artifact_ownership_mismatch")
+    ).toBe(true);
+    // Nothing outside the mirror was written to.
+    expect(fs.readFileSync(victim, "utf8")).toBe("USER DATA");
+  });
+
+  it("refuses to delete through a symlinked show directory", () => {
+    writeFile(path.join(testPaths.videos, "ants.mp4"), "video-bytes");
+    writeFile(path.join(testPaths.videos, "gone.mp4"), "gone-bytes");
+    buildAndMaterialize();
+
+    const outside = path.join(testPaths.root, "outside");
+    fs.ensureDirSync(path.join(outside, "Season 01"));
+    const victim = path.join(outside, "Season 01", "S01E001 - Ants.mp4");
+    fs.writeFileSync(victim, "USER DATA", "utf8");
+
+    fs.removeSync(mirrorPath("Kurzgesagt"));
+    fs.symlinkSync(outside, mirrorPath("Kurzgesagt"));
+
+    // A sweep that expects nothing: every ledger path becomes a delete target.
+    const result = cleanupMediaServerMirror(new Set(["show-1"]));
+
+    expect(fs.existsSync(victim)).toBe(true);
+    expect(fs.readFileSync(victim, "utf8")).toBe("USER DATA");
+    expect(result.failures.length).toBeGreaterThan(0);
   });
 
   it("never overwrites an untracked file sitting on a planned path", () => {
@@ -1480,6 +1533,62 @@ describe("mediaServerExport hierarchyMaterializer", () => {
         const relative = `Kurzgesagt/Season 01/${String(entry)}`;
         expect(getArtifact(relative)).toBeDefined();
       }
+    });
+
+    /**
+     * The mirror image of the assignment-existence check: membership ADDED
+     * while the rebuild yields produces a valid assignment and valid published
+     * artifacts that the captured plan cannot list. Sweeping on the plan alone
+     * deleted the files of a link that had just succeeded, leaving its
+     * assignment behind with no hook left to republish them.
+     */
+    it("preserves artifacts published by a hook while the rebuild yields", async () => {
+      writeFile(path.join(testPaths.videos, "ants.mp4"), "video-bytes");
+      writeFile(path.join(testPaths.videos, "second.mp4"), "second-bytes");
+      seedCatalog({});
+      const plan = planMediaServerHierarchy(snapshot({}), { mode: "nfo" });
+
+      const newPath = "Kurzgesagt/Season 02/S02E001 - Second.nfo";
+      setImmediate(() => {
+        setImmediate(() => {
+          // Exactly what onCollectionLinkCommitted does: create the assignment,
+          // then publish its artifacts through the real writer.
+          testDb.sqlite
+            .prepare("INSERT OR IGNORE INTO videos (id, title, created_at) VALUES ('v2','Second','x')")
+            .run();
+          testDb.sqlite
+            .prepare(
+              `INSERT INTO media_server_episode_assignments
+                 (id, show_id, collection_id, video_id, season_number,
+                  episode_number, export_stem, created_at, updated_at)
+               VALUES ('a-new','show-1',NULL,'v2',2,1,'S02E001 - Second',1,1)`
+            )
+            .run();
+          writeMirrorTextArtifact({
+            targetAbsolutePath: mirrorPath(
+              "Kurzgesagt",
+              "Season 02",
+              "S02E001 - Second.nfo"
+            ),
+            contents: "<episodedetails></episodedetails>",
+            artifactType: "episode_nfo",
+            showId: "show-1",
+            assignmentId: "a-new",
+          });
+        });
+      });
+
+      const result = await materializeMediaServerHierarchyAsync(plan, {
+        copyFallbackEnabled: true,
+        sweepScopeShowIds: undefined,
+      });
+
+      expect(result.failures).toEqual([]);
+      // The freshly linked episode survives the rebuild's sweep.
+      expect(fs.existsSync(mirrorPath("Kurzgesagt", "Season 02", "S02E001 - Second.nfo"))).toBe(
+        true
+      );
+      expect(getArtifact(newPath)).toBeDefined();
     });
 
     it("observes a cancel queued while the cleanup action sweeps", async () => {

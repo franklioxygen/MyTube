@@ -186,6 +186,17 @@ export interface MediaServerHierarchyPlan {
   collisions: HierarchyPlanCollision[];
   /** Every relative path the plan expects to exist, for ledger-driven sweeping. */
   expectedRelativePaths: Set<string>;
+  /**
+   * Ledger paths that already existed when this plan was captured, and the only
+   * ones its sweep may reclaim.
+   *
+   * A rebuild yields, and an incremental hook running in one of those gaps
+   * publishes artifacts the captured plan cannot possibly list. Sweeping on the
+   * strength of `expectedRelativePaths` alone would delete them the moment they
+   * appeared. Undefined means "no restriction", which is what the explicit
+   * cleanup action wants: it removes everything the ledger owns.
+   */
+  sweepCandidatePaths?: Set<string>;
 }
 
 export interface PlanMediaServerHierarchyOptions {
