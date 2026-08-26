@@ -958,6 +958,51 @@ describe("mediaServerExport hierarchyMaterializer", () => {
     ).toContain("<title>Renamed Episode</title>");
   });
 
+  /**
+   * The preservation branch skips the write path entirely, so it must do its
+   * own type check: `existsSync` follows symlinks and accepts directories, and
+   * a managed `.info.json` swapped for either would otherwise be reported as
+   * published and silently kept, bypassing the ownership and type checks the
+   * media and image paths perform.
+   */
+  it("rejects a preserved source JSON path swapped for a symlink", () => {
+    writeFile(path.join(testPaths.videos, "ants.mp4"), "video-bytes");
+    seedCatalog({});
+
+    const richPlan = planMediaServerHierarchy(snapshot({}), {
+      mode: "nfo_and_source_json",
+    });
+    materializeMediaServerHierarchy(richPlan, {
+      copyFallbackEnabled: true,
+      sweepScopeShowIds: new Set(["show-1"]),
+      sourceJsonByVideoId: new Map([["v1", JSON.stringify({ id: "v1" })]]),
+    });
+
+    const sourceJsonPath = mirrorPath(
+      "Kurzgesagt",
+      "Season 01",
+      "S01E001 - Ants.info.json"
+    );
+    const elsewhere = path.join(testPaths.videos, "elsewhere.json");
+    writeFile(elsewhere, "someone-elses-json");
+    fs.unlinkSync(sourceJsonPath);
+    fs.symlinkSync(elsewhere, sourceJsonPath);
+
+    // A refresh carrying no envelope: the preservation branch would take it.
+    const refreshPlan = planMediaServerHierarchy(snapshot({}), {
+      mode: "nfo_and_source_json",
+    });
+    const result = materializeMediaServerHierarchy(refreshPlan, {
+      copyFallbackEnabled: true,
+      sweepScopeShowIds: new Set(["show-1"]),
+    });
+
+    expect(result.failures).toEqual([
+      expect.objectContaining({ reason: "artifact_ownership_mismatch" }),
+    ]);
+    expect(fs.readFileSync(elsewhere, "utf8")).toBe("someone-elses-json");
+  });
+
   it("still synthesizes a source JSON for an episode that has none yet", () => {
     writeFile(path.join(testPaths.videos, "ants.mp4"), "video-bytes");
 

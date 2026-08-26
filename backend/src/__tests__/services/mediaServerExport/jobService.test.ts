@@ -446,6 +446,37 @@ describe("mediaServerExport jobService", () => {
       );
     });
 
+    /**
+     * processAdjacentJob declares the job completed before the managed-mirror
+     * sweep runs, and that sweep now yields between artifacts. A poll landing
+     * in a yield would see "completed" before the sweep count and failures were
+     * recorded - and, worse, a new rebuild admitted on the strength of it would
+     * collide with the maintenance lock this run still holds.
+     */
+    it("stays running until the secondary mirror sweep finishes", async () => {
+      getVideosMock.mockReturnValue([createVideo("video-1")]);
+      getMediaServerExportLayoutMock.mockReturnValue("adjacent");
+
+      let statusDuringSweep: string | undefined;
+      let jobId = "";
+      cleanupMediaServerMirrorAsyncMock.mockImplementation(async () => {
+        // Exactly what a status poll landing mid-sweep would observe.
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        statusDuringSweep = getMediaServerExportJobById(jobId)?.status;
+        return { counts: { removedArtifacts: 3 }, failures: [] };
+      });
+
+      const job = await startMediaServerExportJob("nfo");
+      jobId = job.id;
+      await waitForJobCompletion(jobId);
+
+      expect(statusDuringSweep).toBe("running");
+
+      const completed = getMediaServerExportJobById(jobId);
+      expect(completed?.status).toBe("completed");
+      expect(completed?.sweptFiles).toBe(3);
+    });
+
     it("sweeps the mirror when rebuilding into the adjacent layout", async () => {
       getVideosMock.mockReturnValue([createVideo("video-1")]);
       getMediaServerExportLayoutMock.mockReturnValue("adjacent");

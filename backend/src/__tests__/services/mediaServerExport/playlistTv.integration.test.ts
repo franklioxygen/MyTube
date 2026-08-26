@@ -162,6 +162,11 @@ import {
   syncPlaylistTvForVideo,
   syncPlaylistTvLibrary,
 } from "../../../services/mediaServerExport/playlistTvSync";
+import {
+  clearPendingSourceInfo,
+  peekPendingSourceInfo,
+  storePendingSourceInfo,
+} from "../../../services/mediaServerExport/pendingSourceInfo";
 import { syncMediaServerArtifactsForRelocatedRecord } from "../../../services/mediaServerExport/syncService";
 
 const CHANNEL_ID = "UCsXVk37bltHxD1rDPwtNM8Q";
@@ -1303,5 +1308,92 @@ describe("failed artifact removal keeps its ledger row (PR #412 review round 5)"
       .get("%Unlisted Extra%") as { c: number };
 
     expect(remaining.c).toBe(0);
+  });
+});
+
+
+/**
+ * The parked envelope is the ONLY copy of the downloader's extractor output:
+ * nothing ever re-fetches it, and a later rebuild can only synthesize a reduced
+ * `.info.json`. Consuming it before the sync has actually published means one
+ * materialization failure loses those fields permanently.
+ */
+describe("parked source metadata survives a failed sync (PR #412 review)", () => {
+  beforeEach(() => {
+    fs.emptyDirSync(testPaths.root);
+    for (const dir of [
+      testPaths.videos,
+      testPaths.images,
+      testPaths.imagesSmall,
+      testPaths.avatars,
+      testPaths.subtitles,
+      testPaths.mediaLibrary,
+    ]) {
+      fs.ensureDirSync(dir);
+    }
+    testDb.sqlite.exec(`
+      DELETE FROM media_server_export_artifacts;
+      DELETE FROM media_server_episode_assignments;
+      DELETE FROM collections;
+      DELETE FROM videos;
+      DELETE FROM media_server_shows;
+    `);
+    buildFixture();
+    clearPendingSourceInfo();
+  });
+
+  afterAll(() => {
+    fs.removeSync(testPaths.root);
+    clearPendingSourceInfo();
+  });
+
+  const envelope = { channel_id: "UC-parked", extractor_only: "kept" };
+
+  /** An untracked file on a planned path is the materializer's failure case. */
+  function blockPlannedEpisodePath(): void {
+    const blocked = path.join(
+      testPaths.mediaLibrary,
+      "Kurzgesagt – In a Nutshell/Season 01/S01E001 - Human Origins.mp4"
+    );
+    fs.ensureDirSync(path.dirname(blocked));
+    fs.writeFileSync(blocked, "a user file", "utf8");
+  }
+
+  it("keeps the envelope when materialization reports a failure", () => {
+    storePendingSourceInfo("v-origins", envelope);
+    blockPlannedEpisodePath();
+
+    const result = syncPlaylistTvForVideo("v-origins", {
+      mode: "nfo_and_source_json",
+      copyFallbackEnabled: true,
+    });
+
+    expect(result?.failures.length).toBeGreaterThan(0);
+    // Still available, so the next attempt can publish the rich source JSON.
+    expect(peekPendingSourceInfo("v-origins")).toEqual(envelope);
+  });
+
+  it("consumes the envelope once the sync publishes cleanly", () => {
+    storePendingSourceInfo("v-origins", envelope);
+
+    const result = syncPlaylistTvForVideo("v-origins", {
+      mode: "nfo_and_source_json",
+      copyFallbackEnabled: true,
+    });
+
+    expect(result?.failures).toEqual([]);
+    expect(peekPendingSourceInfo("v-origins")).toBeUndefined();
+  });
+
+  it("leaves the envelope for the final hook on an intermediate sync", () => {
+    storePendingSourceInfo("v-origins", envelope);
+
+    syncPlaylistTvForVideo("v-origins", {
+      mode: "nfo_and_source_json",
+      copyFallbackEnabled: true,
+      preservePendingSourceInfo: true,
+    });
+
+    expect(peekPendingSourceInfo("v-origins")).toEqual(envelope);
   });
 });

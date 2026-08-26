@@ -230,13 +230,18 @@ export function syncPlaylistTvForVideo(
   // Recover the envelope a suppressed download parked for this deferred run.
   // It feeds both show-identity resolution and the episode's source JSON, so it
   // is read once here and threaded into both.
-  // Peeked, not consumed, when this is an intermediate sync: a legacy-naming
-  // file relocation runs between the membership insert and the collection-link
-  // hook, and consuming here would leave that final hook to overwrite the rich
-  // source JSON with the synthesized fallback.
-  const parkedSourceInfo = options.preservePendingSourceInfo
-    ? peekPendingSourceInfo(videoId)
-    : takePendingSourceInfo(videoId);
+  //
+  // Always peeked, never consumed here. Two reasons. An intermediate sync must
+  // leave it for the final hook: a legacy-naming file relocation runs between
+  // the membership insert and the collection-link hook, and consuming early
+  // would leave that hook to overwrite the rich source JSON with the
+  // synthesized fallback. And even for the final sync, this is the only copy of
+  // the extractor output - taking it before the work succeeds means a
+  // materialization failure (a hard link that fails with the copy fallback
+  // disabled, say) loses the extractor-only fields permanently, because nothing
+  // ever re-fetches them and a later rebuild can only synthesize. It is dropped
+  // below, once the run is known to have published cleanly.
+  const parkedSourceInfo = peekPendingSourceInfo(videoId);
   const rawMetadataByVideoId = parkedSourceInfo
     ? new Map<string, unknown>([[videoId, parkedSourceInfo]])
     : undefined;
@@ -294,6 +299,14 @@ export function syncPlaylistTvForVideo(
       buildParkedSourceJsonMap(videoId, parkedSourceInfo, options.mode, target),
     sweepScopeShowIds: showIds,
   });
+
+  // Consumed only now, and only when this run both owned the envelope and
+  // finished without failures. A failed run keeps it so the next attempt still
+  // has the extractor output; the store bounds itself by age and size, so an
+  // entry that is never claimed cannot accumulate.
+  if (!options.preservePendingSourceInfo && summary.failures.length === 0) {
+    takePendingSourceInfo(videoId);
+  }
 
   return {
     ...summary,

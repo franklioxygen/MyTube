@@ -166,7 +166,23 @@ async function processMediaServerExportJob(
       sweepInactiveAdjacentBestEffort(job, allVideos);
     } else {
       processAdjacentJob(job, allVideos);
+      // processAdjacentJob declares the job completed, but the managed-mirror
+      // sweep below yields between artifacts, so a status poll could observe
+      // that completion while the sweep is still running - before its count and
+      // failures are recorded, and while this run still holds the maintenance
+      // lock that is only released in the `finally`. A rebuild admitted on the
+      // strength of that premature "completed" would then collide with it. So
+      // the job is re-opened for the secondary phase and completed once, at the
+      // end. A cancelled run is left alone: it is already in its final state.
+      if (job.status === "completed") {
+        job.phase = "sweep";
+        job.status = "running";
+      }
       job.sweptFiles = (job.sweptFiles ?? 0) + (await sweepMirrorBestEffort(job));
+      if (job.status === "running") {
+        job.phase = "completed";
+        job.status = job.cancelRequested ? "cancelled" : "completed";
+      }
     }
   } finally {
     job.currentVideoId = undefined;

@@ -209,7 +209,7 @@ function materializeEpisode(
     // overwriting is permanent loss; keeping what is there is free.
     if (
       suppliedSourceJson === undefined &&
-      isArtifactPublished(episode.targetSourceJsonAbsolutePath)
+      isArtifactPublished(episode.targetSourceJsonAbsolutePath, assignmentId)
     ) {
       counts.unchangedArtifacts += 1;
     } else {

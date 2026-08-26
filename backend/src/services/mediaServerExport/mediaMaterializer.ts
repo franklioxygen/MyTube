@@ -261,13 +261,34 @@ function publishOverExisting(tempPath: string, targetAbsolutePath: string): void
  * Used to decide whether an artifact that cannot be regenerated at full
  * fidelity should be left alone rather than overwritten with a weaker version.
  */
-export function isArtifactPublished(targetAbsolutePath: string): boolean {
+export function isArtifactPublished(
+  targetAbsolutePath: string,
+  assignmentId?: string
+): boolean {
   assertInsideMirror(targetAbsolutePath);
-  if (!getArtifact(toRelative(targetAbsolutePath))) {
+  const owned = getArtifact(toRelative(targetAbsolutePath));
+  if (!owned) {
     return false;
   }
+  // A row owned by another assignment is not this episode's artifact to keep.
+  if (assignmentId && owned.assignmentId && owned.assignmentId !== assignmentId) {
+    return false;
+  }
+
   try {
-    return pathExistsSafeSync(targetAbsolutePath, MEDIA_SERVER_LIBRARY_DIR);
+    if (!pathExistsSafeSync(targetAbsolutePath, MEDIA_SERVER_LIBRARY_DIR)) {
+      return false;
+    }
+    // lstat, not `existsSync` alone: that follows symlinks and accepts
+    // directories, so an artifact swapped for either would be reported as
+    // published and silently preserved - skipping the very type and ownership
+    // checks the write path performs. Returning false here sends it down the
+    // write path instead, where assertDestinationIsReplaceable rejects it with
+    // the same typed failure the media and image paths produce.
+    return lstatSafeSync(
+      targetAbsolutePath,
+      MEDIA_SERVER_LIBRARY_DIR
+    ).isFile();
   } catch {
     return false;
   }
