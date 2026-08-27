@@ -1591,6 +1591,71 @@ describe("mediaServerExport hierarchyMaterializer", () => {
       expect(getArtifact(newPath)).toBeDefined();
     });
 
+    /**
+     * The assignment-existence check only guards episode publication. A rename
+     * or TMDB re-match committed while the rebuild yields publishes an updated
+     * tvshow.nfo through its own hook, and writing the captured plan's older
+     * copy over it left the stale title on display until some later reconcile.
+     */
+    it("publishes show metadata as it stands now, not as the plan captured it", async () => {
+      writeFile(path.join(testPaths.videos, "ants.mp4"), "video-bytes");
+      seedCatalog({});
+      const plan = planMediaServerHierarchy(snapshot({}), { mode: "nfo" });
+
+      setImmediate(() => {
+        testDb.sqlite
+          .prepare(
+            "UPDATE media_server_shows SET title='Renamed Channel', description='New blurb' WHERE id='show-1'"
+          )
+          .run();
+      });
+
+      const result = await materializeMediaServerHierarchyAsync(plan, {
+        copyFallbackEnabled: true,
+        sweepScopeShowIds: new Set(["show-1"]),
+      });
+
+      expect(result.failures).toEqual([]);
+      const showNfo = fs.readFileSync(
+        mirrorPath("Kurzgesagt", "tvshow.nfo"),
+        "utf8"
+      );
+      expect(showNfo).toContain("<title>Renamed Channel</title>");
+      expect(showNfo).toContain("New blurb");
+      // Episode NFOs embed the show title too.
+      expect(
+        fs.readFileSync(
+          mirrorPath("Kurzgesagt", "Season 01", "S01E001 - Ants.nfo"),
+          "utf8"
+        )
+      ).toContain("Renamed Channel");
+      // The directory name is allocated once and must NOT follow the rename.
+      expect(fs.existsSync(mirrorPath("Kurzgesagt"))).toBe(true);
+    });
+
+    it("skips a show whose row disappeared mid-rebuild", async () => {
+      writeFile(path.join(testPaths.videos, "ants.mp4"), "video-bytes");
+      seedCatalog({});
+      const plan = planMediaServerHierarchy(snapshot({}), { mode: "nfo" });
+
+      setImmediate(() => {
+        testDb.sqlite.exec(`
+          DELETE FROM media_server_export_artifacts;
+          DELETE FROM media_server_episode_assignments;
+          DELETE FROM media_server_shows;
+        `);
+      });
+
+      const result = await materializeMediaServerHierarchyAsync(plan, {
+        copyFallbackEnabled: true,
+        sweepScopeShowIds: new Set(["show-1"]),
+      });
+
+      // Recording against a dangling show id would fail the ledger FK after the
+      // file had already been written, stranding it untracked.
+      expect(result.failures).toEqual([]);
+    });
+
     it("observes a cancel queued while the cleanup action sweeps", async () => {
       writeFile(path.join(testPaths.videos, "ants.mp4"), "video-bytes");
       writeFile(path.join(testPaths.videos, "second.mp4"), "second-bytes");

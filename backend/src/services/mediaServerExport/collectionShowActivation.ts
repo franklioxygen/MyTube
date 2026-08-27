@@ -9,9 +9,11 @@ import {
 import { getSettings } from "../storageService/settings";
 import { getCollectionById } from "../storageService/collectionRepository";
 import {
-  downloadPoster,
+  discardStagedCollectionPoster,
+  publishStagedCollectionPoster,
   removeCollectionPoster,
   resolveCollectionPosterSaveLocation,
+  stageCollectionPoster,
 } from "../tmdbService/poster";
 import { resolveCollectionMetadata } from "../tmdbService/collectionSearch";
 import { syncPlaylistTvForCollection } from "./playlistTvSync";
@@ -74,6 +76,10 @@ interface ResolvedActivationMetadata {
   mediaServerDescription: string | null;
   mediaServerMetadataSource: "manual" | "tmdb" | null;
   mediaServerPosterPath: string | null;
+  /** Downloaded but not yet moved onto `mediaServerPosterPath`. */
+  posterStagedPath: string | null;
+  /** Absolute destination for `posterStagedPath`. */
+  posterFinalPath: string | null;
   tmdbId: number | null;
   tmdbMediaType: "tv" | "movie" | null;
   tmdbPremiereDate: string | null;
@@ -97,6 +103,8 @@ async function resolveActivationMetadata(
       mediaServerDescription: null,
       mediaServerMetadataSource: null,
       mediaServerPosterPath: null,
+      posterStagedPath: null,
+      posterFinalPath: null,
       tmdbId: null,
       tmdbMediaType: null,
       tmdbPremiereDate: null,
@@ -118,6 +126,8 @@ async function resolveActivationMetadata(
       mediaServerDescription: description || null,
       mediaServerMetadataSource: "manual",
       mediaServerPosterPath: null,
+      posterStagedPath: null,
+      posterFinalPath: null,
       // A manual override clears every TMDB field rather than leaving a stale
       // identity attached to a title the user typed.
       tmdbId: null,
@@ -136,6 +146,8 @@ async function resolveActivationMetadata(
   }
 
   let posterWebPath: string | null = null;
+  let posterStagedPath: string | null = null;
+  let posterFinalPath: string | null = null;
   let posterWarning = false;
 
   if (resolved.posterPath) {
@@ -145,12 +157,19 @@ async function resolveActivationMetadata(
       resolved.tmdbId
     );
     if (location) {
-      const downloaded = await downloadPoster(
+      // Staged, never written straight to the destination: for an unchanged
+      // TMDB match that destination is the collection's LIVE poster, and this
+      // runs before the lock is taken. A direct write would mutate a file the
+      // request may still decline to commit, and would leave it briefly
+      // truncated for anything reading it - a rebuild copying it into the
+      // mirror, for instance.
+      posterStagedPath = await stageCollectionPoster(
         resolved.posterPath,
         location.absolutePath
       );
-      if (downloaded) {
+      if (posterStagedPath) {
         posterWebPath = location.webPath;
+        posterFinalPath = location.absolutePath;
       } else {
         // Non-fatal by design: metadata is still worth committing, and the
         // planner falls back to an episode thumbnail.
@@ -166,6 +185,8 @@ async function resolveActivationMetadata(
     mediaServerDescription: resolved.overview ?? null,
     mediaServerMetadataSource: "tmdb",
     mediaServerPosterPath: posterWebPath,
+    posterStagedPath,
+    posterFinalPath,
     tmdbId: resolved.tmdbId,
     tmdbMediaType: resolved.mediaType,
     tmdbPremiereDate: resolved.premiereDate ?? null,
@@ -224,31 +245,6 @@ function reconcileAfterToggle(collectionId: string, action: string): void {
 }
 
 /**
- * Drops a poster that was downloaded for an activation which then failed.
- *
- * The download happens before the lock, so every later bail-out - the lock is
- * held by a rebuild, the layout changed, the collection was deleted - leaves a
- * full-size image and its small mirror on disk that nothing will ever reference
- * or clean up.
- *
- * The one path that must NOT be removed is a poster the collection is already
- * using: re-resolving the same TMDB match rewrites that exact file, so deleting
- * it here would break a row that is still live and still correct.
- */
-function discardStagedPoster(
-  collectionId: string,
-  stagedWebPath: string | null
-): void {
-  if (!stagedWebPath) {
-    return;
-  }
-  if (getCollectionById(collectionId)?.mediaServerPosterPath === stagedWebPath) {
-    return;
-  }
-  removeCollectionPoster(stagedWebPath);
-}
-
-/**
  * Marks a collection as its own show, committing the accepted metadata and the
  * flag together.
  */
@@ -271,7 +267,7 @@ export async function activateCollectionShow(
   const lockId = `collection_show_${collectionId}_${Date.now()}`;
   if (!acquireRenameLock(lockId)) {
     // A rebuild or batch rename is running; the mirror must not change under it.
-    discardStagedPoster(collectionId, resolved.mediaServerPosterPath);
+    discardStagedCollectionPoster(resolved.posterStagedPath);
     return { status: "error", reason: "lock_unavailable" };
   }
 
@@ -279,15 +275,29 @@ export async function activateCollectionShow(
     // Re-read under the lock: layout and collection may have changed while the
     // network work was in flight.
     if (getLayout() !== "playlist_tv") {
-      discardStagedPoster(collectionId, resolved.mediaServerPosterPath);
+      discardStagedCollectionPoster(resolved.posterStagedPath);
       return { status: "error", reason: "layout_not_playlist_tv" };
     }
     const current = getCollectionById(collectionId);
     if (!current) {
-      discardStagedPoster(collectionId, resolved.mediaServerPosterPath);
+      discardStagedCollectionPoster(resolved.posterStagedPath);
       return { status: "error", reason: "collection_not_found" };
     }
     const previousPosterPath = current.mediaServerPosterPath ?? null;
+
+    // Published only now: the lock is held and the collection has been
+    // revalidated, so this is the first moment the live path may change.
+    let committedPosterWebPath = resolved.mediaServerPosterPath;
+    if (resolved.posterStagedPath && resolved.posterFinalPath) {
+      const published = await publishStagedCollectionPoster(
+        resolved.posterStagedPath,
+        resolved.posterFinalPath,
+        resolved.mediaServerPosterPath as string
+      );
+      if (!published) {
+        committedPosterWebPath = null;
+      }
+    }
 
     // A poster refresh that failed must not cost the user the poster they
     // already have. `resolveActivationMetadata` reports a download failure as a
@@ -300,7 +310,7 @@ export async function activateCollectionShow(
     // the poster on purpose, and a genuinely different match must not keep the
     // previous one.
     const keepsPreviousPoster =
-      resolved.mediaServerPosterPath === null &&
+      committedPosterWebPath === null &&
       previousPosterPath !== null &&
       resolved.mediaServerMetadataSource === "tmdb" &&
       resolved.tmdbId !== null &&
@@ -309,7 +319,7 @@ export async function activateCollectionShow(
 
     const posterPathToCommit = keepsPreviousPoster
       ? previousPosterPath
-      : resolved.mediaServerPosterPath;
+      : committedPosterWebPath;
 
     db.update(collections)
       .set({

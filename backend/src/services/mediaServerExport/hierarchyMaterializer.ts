@@ -13,11 +13,15 @@ import {
   listArtifacts,
   listArtifactsForShow,
 } from "./artifactLedger";
-import { episodeAssignmentExists } from "./catalogRepository";
+import {
+  episodeAssignmentExists,
+  getMediaServerShowById,
+} from "./catalogRepository";
 import {
   buildEpisodeNfo,
   buildSeasonNfo,
   buildShowNfo,
+  normalizeVideoDateToDay,
 } from "./nfoBuilders";
 import { buildSourceInfoEnvelope } from "./sourceInfoEnvelope";
 import {
@@ -132,6 +136,7 @@ function subtitleRootFor(absolutePath: string): string | null {
 
 function materializeEpisode(
   showPlan: HierarchyShowPlan,
+  showTitle: string,
   seasonNumber: number,
   episode: HierarchyEpisodePlan,
   options: MaterializeOptions,
@@ -181,7 +186,7 @@ function materializeEpisode(
     targetAbsolutePath: episode.targetNfoAbsolutePath,
     contents: buildEpisodeNfo({
       video: episode.video,
-      showTitle: showPlan.show.title,
+      showTitle,
       seasonNumber,
       episodeNumber: episode.assignment.episodeNumber,
       thumbFilename: episode.thumbSourceAbsolutePath
@@ -275,18 +280,32 @@ function* materializeShowSteps(
 ): Generator<void, void, void> {
   const showId = showPlan.show.id;
 
+  // Re-read rather than trusting the captured plan. A rename or a TMDB
+  // re-match committed while the rebuild yields publishes an updated
+  // tvshow.nfo through its own hook, and writing the plan's older copy over it
+  // would leave the stale title, description or external id on display until
+  // some later reconcile happened along. Identity and the directory name are
+  // allocated once and never move, so only the display metadata can differ.
+  const show = getMediaServerShowById(showId);
+  if (!show) {
+    // Gone entirely: its assignments went with it, and recording an artifact
+    // against a dangling show id would fail the ledger's foreign key after the
+    // file had already been written.
+    return;
+  }
+
   const showNfo = writeMirrorTextArtifact({
     targetAbsolutePath: showPlan.tvshowNfoAbsolutePath,
     contents: buildShowNfo({
-      showTitle: showPlan.show.title,
+      showTitle: show.title,
       // Never a video description: an empty show plot is more accurate than a
       // misleading episode plot.
-      plot: showPlan.show.description,
-      premiered: showPlan.premiered,
-      studio: showPlan.show.title,
+      plot: show.description,
+      premiered: normalizeVideoDateToDay(show.premiered) ?? showPlan.premiered,
+      studio: show.title,
       showUniqueId: showPlan.showUniqueId,
-      tmdbId: showPlan.show.tmdbId,
-      tmdbMediaType: showPlan.show.tmdbMediaType,
+      tmdbId: show.tmdbId,
+      tmdbMediaType: show.tmdbMediaType,
     }),
     artifactType: "show_nfo",
     showId,
@@ -353,6 +372,7 @@ function* materializeShowSteps(
       try {
         materializeEpisode(
           showPlan,
+          show.title,
           season.seasonNumber,
           episode,
           options,

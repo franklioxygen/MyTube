@@ -5,7 +5,9 @@ const getCollectionByIdMock = vi.hoisted(() => vi.fn());
 const acquireRenameLockMock = vi.hoisted(() => vi.fn());
 const releaseRenameLockMock = vi.hoisted(() => vi.fn());
 const resolveCollectionMetadataMock = vi.hoisted(() => vi.fn());
-const downloadPosterMock = vi.hoisted(() => vi.fn());
+const stageCollectionPosterMock = vi.hoisted(() => vi.fn());
+const publishStagedCollectionPosterMock = vi.hoisted(() => vi.fn());
+const discardStagedCollectionPosterMock = vi.hoisted(() => vi.fn());
 const removeCollectionPosterMock = vi.hoisted(() => vi.fn());
 const dbUpdateSetMock = vi.hoisted(() => vi.fn());
 const syncPlaylistTvForCollectionMock = vi.hoisted(() => vi.fn());
@@ -39,7 +41,9 @@ vi.mock("../../../services/tmdbService/collectionSearch", () => ({
 }));
 
 vi.mock("../../../services/tmdbService/poster", () => ({
-  downloadPoster: downloadPosterMock,
+  stageCollectionPoster: stageCollectionPosterMock,
+  publishStagedCollectionPoster: publishStagedCollectionPosterMock,
+  discardStagedCollectionPoster: discardStagedCollectionPosterMock,
   removeCollectionPoster: removeCollectionPosterMock,
   resolveCollectionPosterSaveLocation: (
     collectionId: string,
@@ -72,14 +76,17 @@ describe("collection-show activation", () => {
     acquireRenameLockMock.mockReset();
     releaseRenameLockMock.mockReset();
     resolveCollectionMetadataMock.mockReset();
-    downloadPosterMock.mockReset();
+    stageCollectionPosterMock.mockReset();
+    publishStagedCollectionPosterMock.mockReset();
+    discardStagedCollectionPosterMock.mockReset();
     removeCollectionPosterMock.mockReset();
     dbUpdateSetMock.mockReset();
 
     getSettingsMock.mockReturnValue({ mediaServerExportLayout: "playlist_tv" });
     getCollectionByIdMock.mockReturnValue({ id: "c1", title: "A Collection" });
     acquireRenameLockMock.mockReturnValue(true);
-    downloadPosterMock.mockResolvedValue(true);
+    stageCollectionPosterMock.mockResolvedValue("/images/tmdb/collections/hash/.staging-tv-42.jpg");
+    publishStagedCollectionPosterMock.mockResolvedValue(true);
   });
 
   describe("guards", () => {
@@ -144,7 +151,7 @@ describe("collection-show activation", () => {
         order.push("tmdb");
         return { tmdbId: 42, mediaType: "tv", title: "人民的名义" };
       });
-      downloadPosterMock.mockImplementation(async () => {
+      stageCollectionPosterMock.mockImplementation(async () => {
         order.push("poster");
         return true;
       });
@@ -206,7 +213,7 @@ describe("collection-show activation", () => {
         title: "人民的名义",
         posterPath: "/poster.jpg",
       });
-      downloadPosterMock.mockResolvedValue(false);
+      stageCollectionPosterMock.mockResolvedValue(null);
 
       const result = await activateCollectionShow("c1", {
         kind: "tmdb",
@@ -301,9 +308,9 @@ describe("collection-show activation", () => {
         status: "error",
         reason: "lock_unavailable",
       });
-      expect(removeCollectionPosterMock).toHaveBeenCalledWith(
-        "/images/tmdb/collections/hash/tv-42.jpg"
-      );
+      expect(discardStagedCollectionPosterMock).toHaveBeenCalledWith("/images/tmdb/collections/hash/.staging-tv-42.jpg");
+      // The live poster is never written before the lock, so nothing to undo.
+      expect(removeCollectionPosterMock).not.toHaveBeenCalled();
     });
 
     it("discards the staged poster when the layout changed mid-request", async () => {
@@ -315,9 +322,9 @@ describe("collection-show activation", () => {
         status: "error",
         reason: "layout_not_playlist_tv",
       });
-      expect(removeCollectionPosterMock).toHaveBeenCalledWith(
-        "/images/tmdb/collections/hash/tv-42.jpg"
-      );
+      expect(discardStagedCollectionPosterMock).toHaveBeenCalledWith("/images/tmdb/collections/hash/.staging-tv-42.jpg");
+      // The live poster is never written before the lock, so nothing to undo.
+      expect(removeCollectionPosterMock).not.toHaveBeenCalled();
     });
 
     it("discards the staged poster when the collection was deleted mid-request", async () => {
@@ -329,17 +336,19 @@ describe("collection-show activation", () => {
         status: "error",
         reason: "collection_not_found",
       });
-      expect(removeCollectionPosterMock).toHaveBeenCalledWith(
-        "/images/tmdb/collections/hash/tv-42.jpg"
-      );
+      expect(discardStagedCollectionPosterMock).toHaveBeenCalledWith("/images/tmdb/collections/hash/.staging-tv-42.jpg");
+      // The live poster is never written before the lock, so nothing to undo.
+      expect(removeCollectionPosterMock).not.toHaveBeenCalled();
     });
 
     /**
-     * Re-resolving the SAME match rewrites the very file the live row points
-     * at, so deleting it on a failed retry would break a row that is still
-     * correct.
+     * Re-resolving the SAME match used to write straight over the live file
+     * before the lock was even taken, so a request that then failed had still
+     * changed the collection's poster - and a rebuild copying it meanwhile
+     * could pick up a half-written image. Staging removes the hazard: the live
+     * path is only ever replaced by a rename, after the lock is held.
      */
-    it("keeps a staged poster the collection is already using", async () => {
+    it("never touches the live poster when the lock is unavailable", async () => {
       acquireRenameLockMock.mockReturnValue(false);
       getCollectionByIdMock.mockReturnValue({
         id: "c1",
@@ -351,16 +360,52 @@ describe("collection-show activation", () => {
         status: "error",
         reason: "lock_unavailable",
       });
+
+      expect(publishStagedCollectionPosterMock).not.toHaveBeenCalled();
+      expect(discardStagedCollectionPosterMock).toHaveBeenCalledWith(
+        "/images/tmdb/collections/hash/.staging-tv-42.jpg"
+      );
       expect(removeCollectionPosterMock).not.toHaveBeenCalled();
     });
 
+    it("publishes the staged poster only after the lock is held", async () => {
+      const order: string[] = [];
+      acquireRenameLockMock.mockImplementation(() => {
+        order.push("lock");
+        return true;
+      });
+      publishStagedCollectionPosterMock.mockImplementation(async () => {
+        order.push("publish");
+        return true;
+      });
+
+      await expect(
+        activateCollectionShow("c1", tmdbMode)
+      ).resolves.toMatchObject({ status: "ok" });
+
+      expect(order).toEqual(["lock", "publish"]);
+    });
+
+    it("commits no poster when publishing the staged file fails", async () => {
+      publishStagedCollectionPosterMock.mockResolvedValue(false);
+      getCollectionByIdMock.mockReturnValue({ id: "c1", title: "A Collection" });
+
+      await expect(
+        activateCollectionShow("c1", tmdbMode)
+      ).resolves.toMatchObject({ status: "ok" });
+
+      expect(dbUpdateSetMock).toHaveBeenCalledWith(
+        expect.objectContaining({ mediaServerPosterPath: null })
+      );
+    });
+
     /**
-     * A transient download failure is reported as a non-fatal warning with a
-     * null path. Committing that null for an unchanged TMDB entry would drop
-     * the show to its thumbnail fallback and delete a still-valid image.
+     * A staging failure is reported as a non-fatal warning with a null path.
+     * Committing that null for an unchanged TMDB entry would drop the show to
+     * its thumbnail fallback and delete a still-valid image.
      */
     it("keeps the existing poster when refreshing the same entry fails", async () => {
-      downloadPosterMock.mockResolvedValue(false);
+      stageCollectionPosterMock.mockResolvedValue(null);
       getCollectionByIdMock.mockReturnValue({
         id: "c1",
         title: "A Collection",
@@ -382,7 +427,7 @@ describe("collection-show activation", () => {
     });
 
     it("does not keep the previous poster when the match actually changed", async () => {
-      downloadPosterMock.mockResolvedValue(false);
+      stageCollectionPosterMock.mockResolvedValue(null);
       // Previously matched a different TMDB entry.
       getCollectionByIdMock.mockReturnValue({
         id: "c1",
