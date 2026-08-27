@@ -406,6 +406,21 @@ function* materializeShowSteps(
   }
 
   for (const season of showPlan.seasons) {
+    // A season that has lost every assignment since the plan was captured gets
+    // no scaffolding at all. Its own hook has already removed the season
+    // artifacts, and writing this NFO would put an empty, obsolete season
+    // straight back - the stale sweep cannot reclaim it either, because the
+    // path is still in the plan's expected set. The per-episode check below is
+    // kept as well: it guards each publication against a deletion landing
+    // later in the run, which this one-time check cannot see.
+    if (
+      !season.episodes.some((episode) =>
+        episodeAssignmentExists(episode.assignment.id)
+      )
+    ) {
+      continue;
+    }
+
     const seasonMetadata = currentSeasonMetadata(season);
     const seasonNfo = writeMirrorTextArtifact({
       targetAbsolutePath: season.seasonNfoAbsolutePath,

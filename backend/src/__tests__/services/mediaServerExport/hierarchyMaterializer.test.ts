@@ -1633,6 +1633,59 @@ describe("mediaServerExport hierarchyMaterializer", () => {
       expect(fs.existsSync(mirrorPath("Kurzgesagt"))).toBe(true);
     });
 
+    /**
+     * The per-episode assignment check skips the episodes but leaves the season
+     * scaffolding: `season.nfo` was written unconditionally at the top of the
+     * loop, putting back what the collection's own hook had just removed. The
+     * stale sweep cannot reclaim it either, because the path is still in the
+     * plan's expected set - so an empty, obsolete season stayed visible.
+     */
+    it("writes no season NFO once the season has lost every assignment", async () => {
+      writeFile(path.join(testPaths.videos, "ants.mp4"), "video-bytes");
+      seedCatalog({});
+      const plan = planMediaServerHierarchy(snapshot({}), { mode: "nfo" });
+
+      // The hook's half: artifacts gone, assignment gone, mid-rebuild.
+      setImmediate(() => {
+        testDb.sqlite.exec(`
+          DELETE FROM media_server_export_artifacts;
+          DELETE FROM media_server_episode_assignments;
+        `);
+        fs.removeSync(mirrorPath("Kurzgesagt", "Season 01"));
+      });
+
+      const result = await materializeMediaServerHierarchyAsync(plan, {
+        copyFallbackEnabled: true,
+        sweepScopeShowIds: new Set(["show-1"]),
+      });
+
+      expect(result.failures).toEqual([]);
+      expect(result.counts.seasons).toBe(0);
+      expect(
+        fs.existsSync(mirrorPath("Kurzgesagt", "Season 01", "season.nfo"))
+      ).toBe(false);
+      expect(getArtifact("Kurzgesagt/Season 01/season.nfo")).toBeUndefined();
+    });
+
+    it("still writes the season NFO when its episodes are only unavailable", async () => {
+      const source = path.join(testPaths.videos, "ants.mp4");
+      writeFile(source, "video-bytes");
+      buildAndMaterialize();
+
+      // The assignment survives; only the source file is missing.
+      fs.unlinkSync(source);
+      const plan = planMediaServerHierarchy(snapshot({}), { mode: "nfo" });
+      const result = await materializeMediaServerHierarchyAsync(plan, {
+        copyFallbackEnabled: true,
+        sweepScopeShowIds: new Set(["show-1"]),
+      });
+
+      expect(result.failures).toEqual([]);
+      expect(
+        fs.existsSync(mirrorPath("Kurzgesagt", "Season 01", "season.nfo"))
+      ).toBe(true);
+    });
+
     it("skips a show whose row disappeared mid-rebuild", async () => {
       writeFile(path.join(testPaths.videos, "ants.mp4"), "video-bytes");
       seedCatalog({});
