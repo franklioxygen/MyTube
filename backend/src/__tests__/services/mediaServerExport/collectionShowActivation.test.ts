@@ -386,6 +386,35 @@ describe("collection-show activation", () => {
       expect(order).toEqual(["lock", "publish"]);
     });
 
+    /**
+     * The rename IS the publication. Reporting a small-thumbnail failure as a
+     * failed publication made the caller commit a null path for a poster that
+     * is on disk - and, for a newly selected identity, delete the previous one
+     * on the way out.
+     */
+    it("commits the poster even when its small mirror could not be generated", async () => {
+      // publishStagedCollectionPoster resolves true: the rename succeeded and
+      // only the derived mirror failed, which it now reports as success.
+      publishStagedCollectionPosterMock.mockResolvedValue(true);
+      getCollectionByIdMock.mockReturnValue({
+        id: "c1",
+        title: "A Collection",
+        tmdbId: 7,
+        tmdbMediaType: "tv",
+        mediaServerPosterPath: "/images/tmdb/collections/hash/tv-7.jpg",
+      });
+
+      await expect(
+        activateCollectionShow("c1", tmdbMode)
+      ).resolves.toMatchObject({ status: "ok" });
+
+      expect(dbUpdateSetMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          mediaServerPosterPath: "/images/tmdb/collections/hash/tv-42.jpg",
+        })
+      );
+    });
+
     it("commits no poster when publishing the staged file fails", async () => {
       publishStagedCollectionPosterMock.mockResolvedValue(false);
       getCollectionByIdMock.mockReturnValue({ id: "c1", title: "A Collection" });

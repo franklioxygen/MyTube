@@ -1640,6 +1640,36 @@ describe("mediaServerExport hierarchyMaterializer", () => {
      * stale sweep cannot reclaim it either, because the path is still in the
      * plan's expected set - so an empty, obsolete season stayed visible.
      */
+    /**
+     * The show ROW outlives its assignments, so the season-level guard alone
+     * left tvshow.nfo and the poster recreated and every season skipped - an
+     * empty show directory, which is the very thing that guard prevents one
+     * level down.
+     */
+    it("writes no show scaffolding once the show has lost every assignment", async () => {
+      writeFile(path.join(testPaths.videos, "ants.mp4"), "video-bytes");
+      seedCatalog({});
+      const plan = planMediaServerHierarchy(snapshot({}), { mode: "nfo" });
+
+      setImmediate(() => {
+        testDb.sqlite.exec(`
+          DELETE FROM media_server_export_artifacts;
+          DELETE FROM media_server_episode_assignments;
+        `);
+        fs.removeSync(mirrorPath("Kurzgesagt"));
+      });
+
+      const result = await materializeMediaServerHierarchyAsync(plan, {
+        copyFallbackEnabled: true,
+        sweepScopeShowIds: new Set(["show-1"]),
+      });
+
+      expect(result.failures).toEqual([]);
+      expect(result.counts.shows).toBe(0);
+      expect(fs.existsSync(mirrorPath("Kurzgesagt", "tvshow.nfo"))).toBe(false);
+      expect(fs.existsSync(mirrorPath("Kurzgesagt"))).toBe(false);
+    });
+
     it("writes no season NFO once the season has lost every assignment", async () => {
       writeFile(path.join(testPaths.videos, "ants.mp4"), "video-bytes");
       seedCatalog({});

@@ -105,6 +105,37 @@ describe("previewMediaServerExportScope", () => {
     expect(scope.showCount).toBe(1);
   });
 
+  /**
+   * A marked collection only becomes a directory if it holds something the
+   * rebuild can materialize, so counting an empty or wholly-nonlocal one
+   * overstated the confirmation by a show the user would never see.
+   */
+  it("does not count a marked collection with no materializable videos", () => {
+    const scope = previewMediaServerExportScope({
+      videos: [
+        video({ id: "v1" }),
+        video({ id: "v2", videoPath: "cloud:abc" }),
+      ],
+      collections: [
+        collection({ id: "c-empty", exportAsShow: 1, videos: [] }),
+        collection({ id: "c-cloud", exportAsShow: 1, videos: ["v2"] }),
+      ],
+    });
+
+    expect(scope.collectionShowCount).toBe(0);
+  });
+
+  it("still counts a marked collection that holds a local video", () => {
+    const scope = previewMediaServerExportScope({
+      videos: [video({ id: "v1" })],
+      collections: [
+        collection({ id: "c-real", exportAsShow: 1, videos: ["v1"] }),
+      ],
+    });
+
+    expect(scope.collectionShowCount).toBe(1);
+  });
+
   it("collapses one channel's videos into a single show", () => {
     const scope = previewMediaServerExportScope({
       videos: [

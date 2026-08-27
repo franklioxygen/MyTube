@@ -89,13 +89,25 @@ export function previewMediaServerExportScope(options?: {
   const identityKeys = new Set<string>();
 
   // A marked collection is a show in its own right, never a season, so it
-  // contributes its own identity regardless of who uploaded its videos.
+  // contributes its own identity regardless of who uploaded its videos - but
+  // only when it actually holds something the rebuild can materialize. `videos`
+  // has already dropped audio and non-local records, so a collection whose
+  // every member was dropped produces no directory and must not be counted as
+  // one.
+  const eligibleVideoIds = new Set(videos.map((video) => video.id));
   const markedCollectionIds = new Set<string>();
   for (const collection of collections) {
-    if (collection.exportAsShow) {
-      markedCollectionIds.add(collection.id);
-      identityKeys.add(buildCollectionShowIdentityKey(collection.id));
+    if (!collection.exportAsShow) {
+      continue;
     }
+    const hasMaterializableVideo = (collection.videos ?? []).some((videoId) =>
+      eligibleVideoIds.has(videoId)
+    );
+    if (!hasMaterializableVideo) {
+      continue;
+    }
+    markedCollectionIds.add(collection.id);
+    identityKeys.add(buildCollectionShowIdentityKey(collection.id));
   }
 
   for (const video of videos) {

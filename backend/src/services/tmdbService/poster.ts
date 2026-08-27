@@ -275,14 +275,27 @@ export async function publishStagedCollectionPoster(
       finalAbsolutePath,
       IMAGES_DIR
     );
-    await regenerateSmallThumbnailForThumbnailPath(finalWebPath);
-    logger.info(`Published collection poster to ${finalAbsolutePath}`);
-    return true;
   } catch (error) {
     logger.error(`Failed to publish a staged poster to ${finalAbsolutePath}:`, error);
     discardStagedCollectionPoster(stagedAbsolutePath);
     return false;
   }
+
+  // The rename IS the publication, so nothing below may report failure. The
+  // small-thumbnail mirror is a derived convenience that any later artwork
+  // refresh regenerates; reporting its failure as a failed publication made the
+  // caller commit a null poster path for a poster that is on disk - and, for a
+  // newly selected TMDB identity, delete the previous one on the way.
+  try {
+    await regenerateSmallThumbnailForThumbnailPath(finalWebPath);
+  } catch (error) {
+    logger.warn(`Published poster ${finalAbsolutePath} without its small mirror`, {
+      detail: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  logger.info(`Published collection poster to ${finalAbsolutePath}`);
+  return true;
 }
 
 /** Removes a staged poster an activation never committed. Best effort. */

@@ -16,6 +16,7 @@ import {
 import {
   episodeAssignmentExists,
   getMediaServerShowById,
+  listAssignmentsForShow,
 } from "./catalogRepository";
 import { getCollectionById } from "../storageService/collectionRepository";
 import { getVideoById } from "../storageService/videos";
@@ -361,6 +362,17 @@ function* materializeShowSteps(
     // Gone entirely: its assignments went with it, and recording an artifact
     // against a dangling show id would fail the ledger's foreign key after the
     // file had already been written.
+    return;
+  }
+
+  // The show ROW outlives its assignments, so it being present is not evidence
+  // that the show still has content. Without this, a collection deleted while
+  // the rebuild yields leaves tvshow.nfo and the poster recreated here and then
+  // every season skipped below - an empty show directory, which is exactly what
+  // the season-level guard exists to prevent, one level up. Asked of the
+  // catalog rather than the captured plan so an assignment added concurrently
+  // still counts.
+  if (listAssignmentsForShow(showId).length === 0) {
     return;
   }
 

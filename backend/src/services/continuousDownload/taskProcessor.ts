@@ -20,6 +20,32 @@ import { ContinuousDownloadTask } from "./types";
 import { VideoUrlFetcher } from "./videoUrlFetcher";
 
 /**
+ * Runs the media-server export for a video whose deferred collection link
+ * never happened.
+ *
+ * Imported lazily so the continuous-download path does not pull the export
+ * pipeline in on every task, and best effort throughout: a mirror problem must
+ * never fail a download that has already succeeded.
+ */
+async function exportUnlinkedVideo(videoId: string): Promise<void> {
+  try {
+    const saved = storageService.getVideoById(videoId);
+    if (!saved) {
+      return;
+    }
+    const { syncMediaServerArtifactsForRecord } = await import(
+      "../mediaServerExport"
+    );
+    syncMediaServerArtifactsForRecord(saved);
+  } catch (error) {
+    logger.error(
+      `Failed to export video ${videoId} after its collection link failed:`,
+      error
+    );
+  }
+}
+
+/**
  * Union type for download results from different platforms
  * - Bilibili returns DownloadResult (wrapped with success/error)
  * - YouTube returns Video (direct video object)
@@ -625,12 +651,28 @@ export class TaskProcessor {
           // Issue #411: pass the known backfill position so the media-server
           // exporter can seed a stable episode number from the real playlist
           // order rather than from ingestion order.
-          storageService.addVideoToCollection(task.collectionId, videoData.id, {
-            order: videoIndex + 1,
-          });
-          logger.info(
-            `Added video ${videoData.id} to collection ${task.collectionId}`
+          const linked = storageService.addVideoToCollection(
+            task.collectionId,
+            videoData.id,
+            { order: videoIndex + 1 }
           );
+
+          if (linked) {
+            logger.info(
+              `Added video ${videoData.id} to collection ${task.collectionId}`
+            );
+          } else {
+            // Null, not a throw: the collection was deleted while this download
+            // was in flight. The downloader suppressed its own media-server
+            // sync because the task carried a collection id, expecting the link
+            // hook to reconcile - so without exporting here the video is never
+            // exported at all, and the parked downloader envelope simply
+            // expires.
+            logger.warn(
+              `Collection ${task.collectionId} was gone when video ${videoData.id} finished; exporting it unlinked`,
+            );
+            await exportUnlinkedVideo(videoData.id);
+          }
         } catch (error) {
           logger.error(
             `Error adding video to collection ${task.collectionId}:`,
