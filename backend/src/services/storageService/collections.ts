@@ -28,6 +28,12 @@ import { getSettings } from "./settings";
 import { resolveAuthorOrganizationMode } from "../../types/settings";
 import { isLegacyFilenameNaming } from "../filenameTemplate/config";
 import { relocateMediaServerArtifactsAroundMove } from "../mediaServerExport/artifactRelocation";
+import {
+  onCollectionLinkCommitted,
+  onCollectionMetadataCommitted,
+  onCollectionUnlinkCommitted,
+  onCollectionDeletePending,
+} from "../mediaServerExport/mutationHooks";
 
 type CollectionLinkOptions = {
   moveFiles?: boolean;
@@ -150,6 +156,9 @@ export function atomicUpdateCollection(
 }
 
 export function deleteCollection(id: string): boolean {
+  // Before the row goes: the catalog still connects this collection to its
+  // show, and afterwards nothing would. See onCollectionDeletePending.
+  onCollectionDeletePending(id);
   return deleteCollectionRepo(id);
 }
 
@@ -215,6 +224,11 @@ export function linkVideoToCollection(
         });
       }
     }
+
+    // Issue #411: reconcile only after the link (and any file move) has
+    // committed. Reconciling earlier would classify a playlist item as an
+    // unassigned Season 00 episode, and episode numbers never change once set.
+    onCollectionLinkCommitted(collectionId, videoId);
   }
 
   return collection;
@@ -265,6 +279,9 @@ export function removeVideoFromCollection(
     const shouldMoveFiles =
       options?.moveFiles ?? isLegacyFilenameNaming(getSettings());
     if (!shouldMoveFiles) {
+      // Issue #411: the unlink still has to reach the mirror, whether or not
+      // any original file moved.
+      onCollectionUnlinkCommitted(collectionId, videoId);
       return collection;
     }
 
@@ -346,6 +363,8 @@ export function removeVideoFromCollection(
         return true;
       });
     }
+
+    onCollectionUnlinkCommitted(collectionId, videoId);
   }
 
   return collection;
@@ -435,6 +454,10 @@ export function renameCollection(id: string, newName: string): Collection | null
       }
     });
   }
+
+  // Issue #411: a rename updates season.nfo only. The season number and the
+  // mirror directory stay exactly where they are.
+  onCollectionMetadataCommitted(id);
 
   return updatedCollection;
 }

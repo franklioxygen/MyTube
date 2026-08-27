@@ -5,6 +5,7 @@ import { BilibiliDownloader } from "../../services/downloaders/BilibiliDownloade
 import { MissAVDownloader } from "../../services/downloaders/MissAVDownloader";
 import { YtDlpDownloader } from "../../services/downloaders/YtDlpDownloader";
 import { getProviderScript } from "../../services/downloaders/ytdlp/ytdlpHelpers";
+import { onCollectionMetadataCommitted } from "../../services/mediaServerExport/mutationHooks";
 import { acquireRenameLock, releaseRenameLock } from "../../services/filenameTemplate/renameLockService";
 import * as storageService from "../../services/storageService";
 import {
@@ -40,6 +41,9 @@ vi.mock("../../services/storageService", () => ({
   getVideoBySourceUrl: vi.fn(),
   atomicUpdateCollection: vi.fn(),
   linkVideoToCollection: vi.fn(),
+}));
+vi.mock("../../services/mediaServerExport/mutationHooks", () => ({
+  onCollectionMetadataCommitted: vi.fn(),
 }));
 vi.mock("../../utils/ytDlpUtils", () => ({
   executeYtDlpJson: vi.fn(),
@@ -394,6 +398,9 @@ describe("downloadService", () => {
           sourceCollectionType: "playlist",
           mediaPlaylistIndex: 1,
         },
+        // Issue #411: a multipart collection download links each part
+        // afterwards, so the downloader defers the media-server export.
+        expect.objectContaining({ pendingCollectionLink: true }),
       );
       expect(result).toEqual(
         expect.objectContaining({
@@ -487,12 +494,31 @@ describe("downloadService", () => {
         message: "Started downloading 2 playlists. Collections created.",
       });
 
-      expect(storageService.saveCollection).toHaveBeenCalledTimes(1);
+      expect(storageService.saveCollection).toHaveBeenCalledTimes(2);
       expect(storageService.saveCollection).toHaveBeenCalledWith(
         expect.objectContaining({
           id: "uuid-fixed",
           name: "Fresh-Playlist-- - @channel-name",
           title: "Fresh-Playlist-- - @channel-name",
+          sourceType: "playlist",
+          sourcePlatform: "youtube",
+          sourceId: "pl-new",
+          sourceUrl: "https://www.youtube.com/playlist?list=pl-new",
+          sourceChannelId: "channel-id",
+          sourceChannelUrl: "https://www.youtube.com/@channel-name",
+          sourceChannelName: "@channel-name",
+        })
+      );
+      expect(storageService.saveCollection).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: "col-title",
+          sourceType: "playlist",
+          sourcePlatform: "youtube",
+          sourceId: "pl-title-match",
+          sourceUrl: "https://www.youtube.com/playlist?list=pl-title-match",
+          sourceChannelId: "channel-id",
+          sourceChannelUrl: "https://www.youtube.com/@channel-name",
+          sourceChannelName: "@channel-name",
         })
       );
 
@@ -509,6 +535,32 @@ describe("downloadService", () => {
         "YouTube",
         "col-title"
       );
+    });
+
+    it("reconciles a reused collection after its task is created", async () => {
+      mockPlaylistFeedForCollectionCreation();
+      mockExistingPlaylistTaskLookups();
+      mockCollectionLookupsForPlaylistCreation();
+
+      await downloadService.downloadChannelPlaylists(
+        "https://www.youtube.com/@channel-name"
+      );
+
+      // The reused "Title Match" collection may already hold videos that were
+      // downloaded long ago. The task processor skips their URLs, so no link
+      // hook will ever fire for them; only this reconcile moves them out of
+      // Season 00 now that the collection is source-backed.
+      expect(onCollectionMetadataCommitted).toHaveBeenCalledTimes(1);
+      expect(onCollectionMetadataCommitted).toHaveBeenCalledWith("col-title");
+
+      // After task creation, not before: a failed task must leave the
+      // collection unreconciled for the next attempt.
+      const reconcileOrder = vi.mocked(onCollectionMetadataCommitted).mock
+        .invocationCallOrder[0];
+      const taskOrders = vi.mocked(
+        continuousDownloadService.createPlaylistTask
+      ).mock.invocationCallOrder;
+      expect(reconcileOrder).toBeGreaterThan(Math.max(...taskOrders));
     });
 
     it("adds provider extractor args and supports trailing slash channel URLs", async () => {

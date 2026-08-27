@@ -41,6 +41,16 @@ export interface DownloadModeOptions {
   // Validated template from subscriptions.filename_template (issue #368).
   // null/undefined = use the global filename naming settings.
   subscriptionFilenameTemplate?: string | null;
+  /**
+   * Issue #411. Set by callers that will link this video to a source-backed
+   * playlist collection immediately after the download returns.
+   *
+   * It suppresses the downloader's own playlist-TV media-server sync so the
+   * video is never first exported as an unassigned Season 00 episode and then
+   * moved. The collection-link hook performs the export instead, once the real
+   * season is known.
+   */
+  pendingCollectionLink?: boolean;
 }
 
 export interface DownloadOptions extends DownloadModeOptions {

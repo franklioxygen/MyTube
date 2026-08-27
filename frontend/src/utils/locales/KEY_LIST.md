@@ -4,7 +4,7 @@ Canonical locale key order derived from `frontend/src/utils/locales/en.ts`.
 
 This list is intentionally unnumbered. When new keys are inserted, only the local section order changes.
 
-Total keys: 1078
+Total keys: 1129
 
 ## Summary
 
@@ -198,6 +198,57 @@ Total keys: 1078
 | `mediaServerExportCleanupRunning` |
 | `mediaServerExportCleanupComplete` |
 | `mediaServerExportCleanupSummary` |
+| `collectionShowExportToggle` |
+| `collectionShowExportToggleDescription` |
+| `collectionShowDialogTitle` |
+| `collectionShowDialogDescription` |
+| `collectionShowPromotionWarning` |
+| `collectionShowSearchHeading` |
+| `collectionShowSearchLabel` |
+| `collectionShowSearchAction` |
+| `collectionShowSearchFailed` |
+| `collectionShowNoCredential` |
+| `collectionShowNoResults` |
+| `collectionShowSuggestion` |
+| `collectionShowMediaTypeTv` |
+| `collectionShowMediaTypeMovie` |
+| `collectionShowManualHeading` |
+| `collectionShowManualLabel` |
+| `collectionShowFolderNotice` |
+| `collectionShowUseCollectionMetadata` |
+| `collectionShowConfirm` |
+| `collectionShowActivationFailed` |
+| `collectionShowLockBusy` |
+| `collectionShowWrongLayout` |
+| `collectionShowPosterWarning` |
+| `collectionShowDisable` |
+| `collectionShowActive` |
+| `mediaServerExportLayout` |
+| `mediaServerExportLayoutInactiveWarning` |
+| `mediaServerExportLayoutAdjacent` |
+| `mediaServerExportLayoutPlaylistTv` |
+| `mediaServerExportLayoutPlaylistTvDescription` |
+| `mediaServerExportLayoutPlaylistTvNamingNote` |
+| `mediaServerCopyFallback` |
+| `mediaServerCopyFallbackDescription` |
+| `mediaServerLibraryPath` |
+| `mediaServerStableOrderHint` |
+| `mediaServerSeasonZeroHint` |
+| `mediaServerHardLinkHint` |
+| `mediaServerCopiedMediaWarning` |
+| `mediaServerExportMirrorSummary` |
+| `mediaServerExportFailedItems` |
+| `mediaServerExportSkippedItems` |
+| `mediaServerExportMoreItems` |
+| `mediaServerExportPlaylistTvRebuildConfirmBody` |
+| `mediaServerExportPlaylistTvCleanupConfirmBody` |
+| `mediaServerExportPhase_snapshot` |
+| `mediaServerExportPhase_catalog_reconcile` |
+| `mediaServerExportPhase_plan` |
+| `mediaServerExportPhase_materialize` |
+| `mediaServerExportPhase_sweep` |
+| `mediaServerExportPhase_completed` |
+| `mediaServerExportUnsupportedLayoutError` |
 | `mediaServerExportSweptSummary` |
 | `mediaServerExportActiveDownloadsError` |
 | `mediaServerExportQueuedDownloadsError` |

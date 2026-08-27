@@ -43,7 +43,7 @@ import {
   unlinkSafeSync,
 } from "../../../utils/security";
 import {
-  removeMediaServerArtifactsForVideo,
+  removeMediaServerArtifactsForSupersededFile,
   syncMediaServerArtifactsForRecord,
 } from "../../mediaServerExport";
 import * as storageService from "../../storageService";
@@ -183,6 +183,10 @@ export async function downloadVideo(
       ...networkConfig,
       noWarnings: true,
       skipDownload: true,
+      // Without this, a `watch?v=X&list=Y` URL makes yt-dlp extract full
+      // metadata for every video in the playlist — minutes of work for a
+      // single-video request, and a failure if any entry is private.
+      noPlaylist: true,
       ...(PROVIDER_SCRIPT
         ? {
             extractorArgs: `youtubepot-bgutilscript:script_path=${PROVIDER_SCRIPT}`,
@@ -860,7 +864,7 @@ export async function downloadVideo(
         }
       }
 
-      removeMediaServerArtifactsForVideo(existingVideo);
+      removeMediaServerArtifactsForSupersededFile(existingVideo);
       const trackedSource = extractSourceVideoId(videoUrl);
       if (trackedSource.id) {
         finalVideoData = storageService.persistDownloadedMediaIdentity({
@@ -879,6 +883,7 @@ export async function downloadVideo(
 
       syncMediaServerArtifactsForRecord(finalVideoData, {
         rawSourceInfo,
+        suppressPlaylistTvSync: options?.pendingCollectionLink,
       });
       return finalVideoData;
     }
@@ -920,6 +925,7 @@ export async function downloadVideo(
     if (updatedVideo) {
       syncMediaServerArtifactsForRecord(updatedVideo, {
         rawSourceInfo,
+        suppressPlaylistTvSync: options?.pendingCollectionLink,
       });
       return updatedVideo;
     }
@@ -927,6 +933,7 @@ export async function downloadVideo(
 
   syncMediaServerArtifactsForRecord(videoData, {
     rawSourceInfo,
+    suppressPlaylistTvSync: options?.pendingCollectionLink,
   });
   return videoData;
   } finally {

@@ -5,11 +5,21 @@ import {
   getMediaServerExportJobById,
   startMediaServerExportJob,
 } from "../services/mediaServerExport/jobService";
-import type { MediaServerExportMode } from "../types/settings";
+import { MEDIA_SERVER_LIBRARY_DIR } from "../config/paths";
+import type {
+  MediaServerExportLayout,
+  MediaServerExportMode,
+} from "../types/settings";
 import { getStringParam } from "../utils/paramUtils";
 
 type RebuildRequest = {
   mediaServerExportMode?: MediaServerExportMode;
+  /**
+   * Issue #411. Sent by the client so the action cannot change between the
+   * user's confirmation and execution — cleaning the wrong layout would delete
+   * the wrong set of files.
+   */
+  mediaServerExportLayout?: MediaServerExportLayout;
 };
 
 export async function startMediaServerExportRebuild(
@@ -48,17 +58,34 @@ export async function startMediaServerExportRebuild(
       return;
     }
 
-    const job = await startMediaServerExportJob(requestedMode);
+    const requestedLayout = body.mediaServerExportLayout;
+    if (
+      requestedLayout !== undefined &&
+      requestedLayout !== "adjacent" &&
+      requestedLayout !== "playlist_tv"
+    ) {
+      res.status(400).json({
+        error: "Invalid media server export layout.",
+        code: "unsupported_export_layout",
+      });
+      return;
+    }
+
+    const job = await startMediaServerExportJob(requestedMode, requestedLayout);
     res.status(202).json({
       jobId: job.id,
       status: job.status,
       action: job.action,
       mode: job.mode,
+      layout: job.layout,
+      phase: job.phase,
       total: job.total,
       processed: job.processed,
       succeeded: job.succeeded,
       skipped: job.skipped,
       failed: job.failed,
+      counts: job.counts,
+      mediaServerLibraryPath: MEDIA_SERVER_LIBRARY_DIR,
     });
   } catch (error) {
     const code =
@@ -97,3 +124,17 @@ export async function cancelMediaServerExportRebuild(
   }
   res.json({ success: true });
 }
+
+/**
+ * Read-only scope of a managed-library rebuild, so the confirmation dialog can
+ * state how many videos and shows the run will produce before it is started.
+ */
+export const getMediaServerExportScope = async (
+  _req: Request,
+  res: Response
+): Promise<void> => {
+  const { previewMediaServerExportScope } = await import(
+    "../services/mediaServerExport/scopePreview"
+  );
+  res.json(previewMediaServerExportScope());
+};

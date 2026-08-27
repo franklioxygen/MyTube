@@ -11,6 +11,10 @@ vi.mock('../../../services/continuousDownload/taskRepository');
 vi.mock('../../../services/continuousDownload/videoUrlFetcher');
 vi.mock('../../../services/downloadService');
 vi.mock('../../../services/storageService');
+const syncMediaServerArtifactsForRecordMock = vi.hoisted(() => vi.fn());
+vi.mock('../../../services/mediaServerExport', () => ({
+  syncMediaServerArtifactsForRecord: syncMediaServerArtifactsForRecordMock,
+}));
 vi.mock('../../../utils/logger', () => ({
   logger: {
     info: vi.fn(),
@@ -82,6 +86,48 @@ describe('TaskProcessor', () => {
     expect(downloadService.downloadYouTubeVideo).toHaveBeenCalledTimes(2);
     expect(mockTaskRepository.getTaskStatus).toHaveBeenCalledTimes(1);
     expect(mockTaskRepository.completeTask).toHaveBeenCalledWith(mockTask.id);
+  });
+
+  /**
+   * addVideoToCollection returns null rather than throwing when the collection
+   * is gone, so the surrounding try/catch never saw it. The downloader had
+   * already suppressed its own media-server sync because the task carried a
+   * collection id, expecting the link hook to reconcile - so the video ended up
+   * never exported at all.
+   */
+  it('exports the video when its deferred collection link fails', async () => {
+    syncMediaServerArtifactsForRecordMock.mockReset();
+    mockVideoUrlFetcher.getAllVideoUrls.mockResolvedValue(['http://vid1']);
+    (downloadService.downloadYouTubeVideo as any).mockResolvedValue({
+      videoData: { id: 'v1', title: 'Video 1', videoPath: '/tmp/1' },
+    });
+    (storageService.getVideoBySourceUrl as any).mockReturnValue(null);
+    // The collection was deleted while the download was in flight.
+    (storageService.addVideoToCollection as any).mockReturnValue(null);
+    (storageService.getVideoById as any).mockReturnValue({
+      id: 'v1',
+      title: 'Video 1',
+    });
+
+    await taskProcessor.processTask({ ...mockTask, collectionId: 'gone' });
+
+    expect(syncMediaServerArtifactsForRecordMock).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'v1' })
+    );
+  });
+
+  it('leaves the export to the link hook when the collection link succeeds', async () => {
+    syncMediaServerArtifactsForRecordMock.mockReset();
+    mockVideoUrlFetcher.getAllVideoUrls.mockResolvedValue(['http://vid1']);
+    (downloadService.downloadYouTubeVideo as any).mockResolvedValue({
+      videoData: { id: 'v1', title: 'Video 1', videoPath: '/tmp/1' },
+    });
+    (storageService.getVideoBySourceUrl as any).mockReturnValue(null);
+    (storageService.addVideoToCollection as any).mockReturnValue({ id: 'c1' });
+
+    await taskProcessor.processTask({ ...mockTask, collectionId: 'c1' });
+
+    expect(syncMediaServerArtifactsForRecordMock).not.toHaveBeenCalled();
   });
 
   it('should skip videos that already exist', async () => {

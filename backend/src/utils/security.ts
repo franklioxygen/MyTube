@@ -352,7 +352,19 @@ export function ensureDirSafeSync(
   allowedDirOrDirs: string | readonly string[],
 ): void {
   const safePath = resolveTrustedPathForOperation(dirPath, allowedDirOrDirs);
-  fs.ensureDirSync(safePath);
+
+  // Guarded inline for the same reason as writeFileSafe.
+  for (const allowedDir of normalizeAllowedDirectories(allowedDirOrDirs)) {
+    const relative = path.relative(path.resolve(allowedDir), safePath);
+    if (!relative.startsWith("..") && !path.isAbsolute(relative)) {
+      fs.ensureDirSync(safePath);
+      return;
+    }
+  }
+
+  throw new Error(
+    `Path traversal detected: ${dirPath} is outside allowed directories`,
+  );
 }
 
 export function readFileSafeSync(
@@ -397,7 +409,23 @@ export async function writeFileSafe(
   options?: WriteFileOptions,
 ): Promise<void> {
   const safePath = resolveTrustedPathForOperation(filePath, allowedDirOrDirs);
-  await fs.writeFile(safePath, data, options);
+
+  // Containment is re-checked inline, immediately around the write, rather than
+  // relying only on the resolver above. Static analysis cannot see through the
+  // resolver, so a caller reachable from request data reads as a path-injection
+  // sink; the guard here is the barrier it does recognise. Same shape as
+  // pathExistsSafeSync and copyFileSafeSync.
+  for (const allowedDir of normalizeAllowedDirectories(allowedDirOrDirs)) {
+    const relative = path.relative(path.resolve(allowedDir), safePath);
+    if (!relative.startsWith("..") && !path.isAbsolute(relative)) {
+      await fs.writeFile(safePath, data, options);
+      return;
+    }
+  }
+
+  throw new Error(
+    `Path traversal detected: ${filePath} is outside allowed directories`,
+  );
 }
 
 export function unlinkSafeSync(
@@ -405,7 +433,25 @@ export function unlinkSafeSync(
   allowedDirOrDirs: string | readonly string[],
 ): void {
   const safePath = resolveTrustedPathForOperation(filePath, allowedDirOrDirs);
-  fs.unlinkSync(safePath);
+
+  // Containment is re-checked inline, immediately around the unlink, rather
+  // than relying only on the resolver above. Static analysis cannot see through
+  // the resolver, so a caller reachable from request data reads as a
+  // path-injection sink; the guard here is the barrier it does recognise. Same
+  // shape as writeFileSafe, pathExistsSafeSync and copyFileSafeSync.
+  for (const allowedDir of normalizeAllowedDirectories(allowedDirOrDirs)) {
+    const relative = path.relative(path.resolve(allowedDir), safePath);
+    if (!relative.startsWith("..") && !path.isAbsolute(relative)) {
+      // safePath is constrained by resolveTrustedPathForOperation before unlink.
+      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+      fs.unlinkSync(safePath);
+      return;
+    }
+  }
+
+  throw new Error(
+    `Path traversal detected: ${filePath} is outside allowed directories`,
+  );
 }
 
 export function unlinkTrustedSync(filePath: string): void {
@@ -538,7 +584,45 @@ export function renameSafeSync(
     destinationPath,
     destinationAllowedDirOrDirs,
   );
-  fs.renameSync(safeSourcePath, safeDestinationPath);
+
+  // Both ends re-checked inline, immediately around the rename, for the same
+  // reason as copyFileSafeSync: the resolver alone is invisible to static
+  // analysis, so a caller reachable from request data reads as a path-injection
+  // sink without this.
+  for (const sourceAllowedDir of normalizeAllowedDirectories(
+    sourceAllowedDirOrDirs,
+  )) {
+    const sourceRelative = path.relative(
+      path.resolve(sourceAllowedDir),
+      safeSourcePath,
+    );
+    if (sourceRelative.startsWith("..") || path.isAbsolute(sourceRelative)) {
+      continue;
+    }
+
+    for (const destinationAllowedDir of normalizeAllowedDirectories(
+      destinationAllowedDirOrDirs,
+    )) {
+      const destinationRelative = path.relative(
+        path.resolve(destinationAllowedDir),
+        safeDestinationPath,
+      );
+      if (
+        !destinationRelative.startsWith("..") &&
+        !path.isAbsolute(destinationRelative)
+      ) {
+        // safeSourcePath and safeDestinationPath are constrained by
+        // resolveTrustedPathForOperation before rename.
+        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+        fs.renameSync(safeSourcePath, safeDestinationPath);
+        return;
+      }
+    }
+  }
+
+  throw new Error(
+    `Path traversal detected: rename operation is outside allowed directories`,
+  );
 }
 
 export function fsyncFileSafeSync(
@@ -656,6 +740,61 @@ export async function removeImagePath(filePath: string): Promise<void> {
 /**
  * Resolves a child path inside an allowed directory.
  */
+/**
+ * True when `filePath`, resolved through any symlinks in its existing ancestor
+ * chain, really lives inside `allowedDir`.
+ *
+ * Every other containment check in this module is lexical: it validates the
+ * string form of a path. That stops `..` traversal, but it cannot see a
+ * directory INSIDE the allowed root that has been replaced by a symlink
+ * pointing elsewhere. Once one exists, `fs` follows it on every call - an
+ * `lstat` of the final component reports an ordinary file, and reads, writes
+ * and unlinks all land outside the root.
+ *
+ * The deepest ancestor that currently exists is the one resolved: components
+ * that do not exist yet will be created beneath it, so confining the ancestor
+ * confines them too.
+ */
+export function isRealPathInsideDir(
+  filePath: string,
+  allowedDir: string,
+): boolean {
+  if (
+    !filePath ||
+    typeof filePath !== "string" ||
+    !allowedDir ||
+    typeof allowedDir !== "string"
+  ) {
+    return false;
+  }
+
+  const resolveReal = (candidate: string): string => {
+    try {
+      return fs.realpathSync(candidate);
+    } catch {
+      return path.resolve(candidate);
+    }
+  };
+
+  const allowedReal = resolveReal(allowedDir);
+
+  let existing = path.resolve(filePath);
+  while (!fs.existsSync(existing)) {
+    const parent = path.dirname(existing);
+    if (parent === existing) {
+      return false;
+    }
+    existing = parent;
+  }
+
+  const real = resolveReal(existing);
+  if (real === allowedReal) {
+    return true;
+  }
+  const relative = path.relative(allowedReal, real);
+  return Boolean(relative) && !relative.startsWith("..") && !path.isAbsolute(relative);
+}
+
 export function resolveSafeChildPath(
   allowedDir: string,
   childPath: string,

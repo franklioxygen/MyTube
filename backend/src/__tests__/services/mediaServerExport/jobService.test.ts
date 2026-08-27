@@ -10,6 +10,9 @@ const removeMediaServerArtifactsForVideoMock = vi.hoisted(() => vi.fn());
 const sweepOrphanMediaServerArtifactsMock = vi.hoisted(() => vi.fn());
 const acquireRenameLockMock = vi.hoisted(() => vi.fn());
 const releaseRenameLockMock = vi.hoisted(() => vi.fn());
+const getMediaServerExportLayoutMock = vi.hoisted(() => vi.fn());
+const syncPlaylistTvLibraryMock = vi.hoisted(() => vi.fn());
+const cleanupMediaServerMirrorAsyncMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../../services/storageService", () => ({
   getSettings: getSettingsMock,
@@ -27,11 +30,24 @@ vi.mock("../../../services/filenameTemplate/pathHelpers", () => ({
 vi.mock("../../../services/mediaServerExport/syncService", () => ({
   syncMediaServerArtifactsForRecord: syncMediaServerArtifactsForRecordMock,
   removeMediaServerArtifactsForVideo: removeMediaServerArtifactsForVideoMock,
+  getMediaServerExportLayout: getMediaServerExportLayoutMock,
+}));
+
+vi.mock("../../../services/mediaServerExport/playlistTvSync", () => ({
+  syncPlaylistTvLibrary: syncPlaylistTvLibraryMock,
+}));
+
+vi.mock("../../../services/mediaServerExport/hierarchyMaterializer", () => ({
+  cleanupMediaServerMirrorAsync: cleanupMediaServerMirrorAsyncMock,
 }));
 
 vi.mock("../../../services/mediaServerExport/orphanSweep", () => ({
-  sweepOrphanMediaServerArtifacts: sweepOrphanMediaServerArtifactsMock,
+  sweepOrphanMediaServerArtifactsAsync: sweepOrphanMediaServerArtifactsMock,
 }));
+
+// The playlist_tv modules are mocked above; this keeps anything they pull in
+// from opening a real database.
+vi.mock("../../../db", () => ({ db: {} }));
 
 vi.mock("../../../services/filenameTemplate/renameLockService", () => ({
   acquireRenameLock: acquireRenameLockMock,
@@ -48,6 +64,7 @@ vi.mock("../../../utils/logger", () => ({
 
 import {
   cancelMediaServerExportJob,
+  getActiveMediaServerExportJob,
   getMediaServerExportJobById,
   startMediaServerExportJob,
 } from "../../../services/mediaServerExport/jobService";
@@ -99,9 +116,18 @@ describe("mediaServerExport jobService", () => {
     sweepOrphanMediaServerArtifactsMock.mockReset();
     acquireRenameLockMock.mockReset();
     releaseRenameLockMock.mockReset();
+    getMediaServerExportLayoutMock.mockReset();
+    syncPlaylistTvLibraryMock.mockReset();
+    cleanupMediaServerMirrorAsyncMock.mockReset();
+    // Cleanup now sweeps both layouts, so every cleanup test reaches this.
+    cleanupMediaServerMirrorAsyncMock.mockResolvedValue({
+      counts: { removedArtifacts: 0 },
+      failures: [],
+    });
 
+    getMediaServerExportLayoutMock.mockReturnValue("adjacent");
     acquireRenameLockMock.mockReturnValue(true);
-    sweepOrphanMediaServerArtifactsMock.mockReturnValue({
+    sweepOrphanMediaServerArtifactsMock.mockResolvedValue({
       sweptFiles: 0,
       sweptList: [],
     });
@@ -134,9 +160,40 @@ describe("mediaServerExport jobService", () => {
     expect(removeMediaServerArtifactsForVideoMock).not.toHaveBeenCalled();
   });
 
+  // Issue #411 regression boundary: the frontend reads these fields off the job
+  // payload. New playlist_tv phase/count fields may only be added alongside them.
+  it("keeps the job payload shape the frontend depends on", async () => {
+    getVideosMock.mockReturnValue([createVideo("video-1")]);
+
+    const job = await startMediaServerExportJob("nfo");
+    await waitForJobCompletion(job.id);
+
+    const completedJob = getMediaServerExportJobById(job.id);
+    expect(completedJob).toMatchObject({
+      id: expect.any(String),
+      status: "completed",
+      mode: "nfo",
+      action: "rebuild",
+      total: expect.any(Number),
+      processed: expect.any(Number),
+      succeeded: expect.any(Number),
+      skipped: expect.any(Number),
+      failed: expect.any(Number),
+      sweptFiles: expect.any(Number),
+      cancelRequested: false,
+    });
+    expect(Array.isArray(completedJob?.items)).toBe(true);
+    expect(Array.isArray(completedJob?.sweptList)).toBe(true);
+    expect(completedJob?.items[0]).toMatchObject({
+      videoId: "video-1",
+      title: "Video video-1",
+      status: "success",
+    });
+  });
+
   it("records orphan sweep counters before processing videos", async () => {
     getVideosMock.mockReturnValue([createVideo("video-1")]);
-    sweepOrphanMediaServerArtifactsMock.mockReturnValue({
+    sweepOrphanMediaServerArtifactsMock.mockResolvedValue({
       sweptFiles: 2,
       sweptList: ["Old/video.nfo", "Old/video-thumb.jpg"],
     });
@@ -145,7 +202,7 @@ describe("mediaServerExport jobService", () => {
     await waitForJobCompletion(job.id);
 
     const completedJob = getMediaServerExportJobById(job.id);
-    expect(sweepOrphanMediaServerArtifactsMock).toHaveBeenCalledWith([
+    expect(sweepOrphanMediaServerArtifactsMock.mock.calls[0][0]).toEqual([
       expect.objectContaining({ id: "video-1" }),
     ]);
     expect(completedJob?.sweptFiles).toBe(2);
@@ -167,6 +224,221 @@ describe("mediaServerExport jobService", () => {
     expect(releaseRenameLockMock).toHaveBeenCalled();
   });
 
+  // Issue #411: the layout selects a completely different pipeline, and cleanup
+  // in the wrong layout would delete the wrong set of files.
+  describe("playlist_tv layout", () => {
+    beforeEach(() => {
+      getMediaServerExportLayoutMock.mockReturnValue("playlist_tv");
+      syncPlaylistTvLibraryMock.mockReturnValue({
+        counts: {
+          shows: 2,
+          seasons: 3,
+          episodes: 10,
+          linkedMedia: 8,
+          copiedMedia: 2,
+          unchangedArtifacts: 4,
+          removedArtifacts: 1,
+        },
+        failures: [],
+        affectedShowIds: new Set(["show-1", "show-2"]),
+        plannerSkips: [],
+        reconcileIssues: [],
+      });
+      cleanupMediaServerMirrorAsyncMock.mockResolvedValue({
+        counts: {
+          shows: 0,
+          seasons: 0,
+          episodes: 0,
+          linkedMedia: 0,
+          copiedMedia: 0,
+          unchangedArtifacts: 0,
+          removedArtifacts: 6,
+        },
+        failures: [],
+      });
+    });
+
+    it("rebuilds through the mirror pipeline and reports counts", async () => {
+      getVideosMock.mockReturnValue([createVideo("video-1")]);
+
+      const job = await startMediaServerExportJob("nfo");
+      await waitForJobCompletion(job.id);
+
+      const completed = getMediaServerExportJobById(job.id);
+      expect(completed?.layout).toBe("playlist_tv");
+      expect(completed?.phase).toBe("completed");
+      expect(completed?.counts).toMatchObject({
+        shows: 2,
+        seasons: 3,
+        episodes: 10,
+        linkedMedia: 8,
+        copiedMedia: 2,
+      });
+      expect(completed?.succeeded).toBe(10);
+
+      // The adjacent pipeline must not run at all.
+      expect(syncMediaServerArtifactsForRecordMock).not.toHaveBeenCalled();
+      expect(sweepOrphanMediaServerArtifactsMock).not.toHaveBeenCalled();
+    });
+
+    it("reports reconcile issues as skips and materialization errors as failures", async () => {
+      getVideosMock.mockReturnValue([createVideo("video-1")]);
+      syncPlaylistTvLibraryMock.mockReturnValue({
+        counts: {
+          shows: 1,
+          seasons: 1,
+          episodes: 1,
+          linkedMedia: 1,
+          copiedMedia: 0,
+          unchangedArtifacts: 0,
+          removedArtifacts: 0,
+        },
+        failures: [
+          {
+            reason: "hard_link_failed_copy_disabled",
+            detail: "no link",
+            videoId: "video-2",
+            title: "Second",
+          },
+        ],
+        affectedShowIds: new Set(["show-1"]),
+        plannerSkips: [],
+        reconcileIssues: [
+          {
+            reason: "ambiguous_collection_show",
+            detail: "two identities",
+            collectionId: "c1",
+          },
+        ],
+      });
+
+      const job = await startMediaServerExportJob("nfo");
+      await waitForJobCompletion(job.id);
+
+      const completed = getMediaServerExportJobById(job.id);
+      expect(completed?.status).toBe("completed");
+      expect(completed?.skipped).toBe(1);
+      expect(completed?.failed).toBe(1);
+      expect(completed?.items).toEqual([
+        expect.objectContaining({
+          status: "skipped",
+          skipReason: "ambiguous_collection_show",
+        }),
+        expect.objectContaining({
+          status: "failed",
+          errorCode: "hard_link_failed_copy_disabled",
+        }),
+      ]);
+    });
+
+    /**
+     * Cleanup deliberately crosses layouts. "Off" means stop exporting, and
+     * sweeping only the selected layout strands the other one's artifacts with
+     * no route to remove them - after a switch away from the mirror that can be
+     * a second full copy of every video that could not be hard linked.
+     */
+    it("sweeps the mirror and the adjacent sidecars together", async () => {
+      getVideosMock.mockReturnValue([createVideo("video-1")]);
+
+      const job = await startMediaServerExportJob("off");
+      expect(job.action).toBe("cleanup");
+
+      await waitForJobCompletion(job.id);
+
+      const completed = getMediaServerExportJobById(job.id);
+      expect(cleanupMediaServerMirrorAsyncMock).toHaveBeenCalledTimes(1);
+      expect(completed?.counts.removedArtifacts).toBe(6);
+      // Both sweeps contribute to the reported file count.
+      expect(completed?.sweptFiles).toBe(6);
+      expect(removeMediaServerArtifactsForVideoMock).toHaveBeenCalledTimes(1);
+    });
+
+    /**
+     * The cleanup branch was the one caller still awaiting the mirror sweep
+     * outside withJobReopenedForSecondaryPhase, so a poll landing in one of its
+     * yields saw "completed" while a destructive full-library delete was still
+     * running - and a new run would be admitted straight into the held lock.
+     */
+    it("stays running until the cleanup mirror sweep finishes", async () => {
+      getVideosMock.mockReturnValue([createVideo("video-1")]);
+
+      let statusDuringSweep: string | undefined;
+      let jobId = "";
+      cleanupMediaServerMirrorAsyncMock.mockImplementation(async () => {
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        statusDuringSweep = getMediaServerExportJobById(jobId)?.status;
+        return { counts: { removedArtifacts: 2 }, failures: [] };
+      });
+
+      const job = await startMediaServerExportJob("off");
+      jobId = job.id;
+      await waitForJobCompletion(jobId);
+
+      expect(statusDuringSweep).toBe("running");
+      expect(getMediaServerExportJobById(jobId)?.status).toBe("completed");
+    });
+
+    /**
+     * The orphan scan walks and stats the whole of VIDEOS_DIR and then deletes
+     * in one burst, all before the first per-video yield - so a cancel arriving
+     * during it could not be served and every orphan sidecar went anyway.
+     */
+    it("passes a cancellation probe into the orphan sweep", async () => {
+      getVideosMock.mockReturnValue([createVideo("video-1")]);
+      getMediaServerExportLayoutMock.mockReturnValue("adjacent");
+
+      const job = await startMediaServerExportJob("nfo");
+      await waitForJobCompletion(job.id);
+
+      const probe = sweepOrphanMediaServerArtifactsMock.mock.calls[0][1];
+      expect(typeof probe).toBe("function");
+      expect(probe()).toBe(false);
+    });
+
+    it("abandons the rebuild when the orphan sweep reports a cancel", async () => {
+      getVideosMock.mockReturnValue([createVideo("video-1")]);
+      getMediaServerExportLayoutMock.mockReturnValue("adjacent");
+      sweepOrphanMediaServerArtifactsMock.mockImplementation(async () => {
+        const running = getActiveMediaServerExportJob();
+        if (running) cancelMediaServerExportJob(running.id);
+        return { sweptFiles: 0, sweptList: [] };
+      });
+
+      const job = await startMediaServerExportJob("nfo");
+      await waitForJobStatus(job.id, "cancelled");
+
+      // Nothing was materialized after the cancel was observed.
+      expect(syncMediaServerArtifactsForRecordMock).not.toHaveBeenCalled();
+    });
+
+    it("still completes when the mirror sweep throws", async () => {
+      getVideosMock.mockReturnValue([createVideo("video-1")]);
+      cleanupMediaServerMirrorAsyncMock.mockImplementation(async () => {
+        throw new Error("mirror unreadable");
+      });
+
+      const job = await startMediaServerExportJob("off");
+      await waitForJobCompletion(job.id);
+
+      const completed = getMediaServerExportJobById(job.id);
+      expect(completed?.status).toBe("completed");
+      expect(
+        completed?.items.some((item) => item.error?.includes("mirror unreadable"))
+      ).toBe(true);
+    });
+
+    it("honors an explicitly requested layout over the saved one", async () => {
+      getVideosMock.mockReturnValue([createVideo("video-1")]);
+
+      const job = await startMediaServerExportJob("nfo", "adjacent");
+      await waitForJobCompletion(job.id);
+
+      expect(getMediaServerExportJobById(job.id)?.layout).toBe("adjacent");
+      expect(syncPlaylistTvLibraryMock).not.toHaveBeenCalled();
+      expect(syncMediaServerArtifactsForRecordMock).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it("treats off mode as cleanup and removes generated artifacts", async () => {
     getVideosMock.mockReturnValue([createVideo("video-2")]);
 
@@ -182,4 +454,198 @@ describe("mediaServerExport jobService", () => {
     expect(removeMediaServerArtifactsForVideoMock).toHaveBeenCalledTimes(1);
     expect(syncMediaServerArtifactsForRecordMock).not.toHaveBeenCalled();
   });
+
+  /**
+   * Cancellation and the inactive layout, PR #412 review round 4.
+   */
+  describe("cross-layout sweeps and cancellation", () => {
+    it("does not sweep the mirror after a cancelled cleanup", async () => {
+      getVideosMock.mockReturnValue([createVideo("video-1")]);
+      // Cancel lands while the adjacent pass is still walking videos.
+      removeMediaServerArtifactsForVideoMock.mockImplementation(() => {
+        const running = getActiveMediaServerExportJob();
+        if (running) cancelMediaServerExportJob(running.id);
+      });
+
+      const job = await startMediaServerExportJob("off");
+      await waitForJobStatus(job.id, "cancelled");
+
+      // The whole point: a cancelled cleanup must not delete the library.
+      expect(cleanupMediaServerMirrorAsyncMock).not.toHaveBeenCalled();
+    });
+
+    it("sweeps the adjacent sidecars when rebuilding into the managed layout", async () => {
+      getVideosMock.mockReturnValue([createVideo("video-1")]);
+      getMediaServerExportLayoutMock.mockReturnValue("playlist_tv");
+      syncPlaylistTvLibraryMock.mockReturnValue({
+        counts: {
+          shows: 1,
+          seasons: 1,
+          episodes: 1,
+          linkedMedia: 1,
+          copiedMedia: 0,
+          unchangedArtifacts: 0,
+          removedArtifacts: 0,
+        },
+        failures: [],
+        plannerSkips: [],
+        reconcileIssues: [],
+        affectedShowIds: new Set<string>(),
+      });
+
+      const job = await startMediaServerExportJob("nfo");
+      await waitForJobCompletion(job.id);
+
+      expect(syncPlaylistTvLibraryMock).toHaveBeenCalled();
+      // The layout the user switched away from is cleaned too.
+      expect(removeMediaServerArtifactsForVideoMock).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "video-1" }),
+        expect.objectContaining({ layoutOverride: "adjacent" })
+      );
+    });
+
+    /**
+     * processAdjacentJob declares the job completed before the managed-mirror
+     * sweep runs, and that sweep now yields between artifacts. A poll landing
+     * in a yield would see "completed" before the sweep count and failures were
+     * recorded - and, worse, a new rebuild admitted on the strength of it would
+     * collide with the maintenance lock this run still holds.
+     */
+    it("stays running until the secondary mirror sweep finishes", async () => {
+      getVideosMock.mockReturnValue([createVideo("video-1")]);
+      getMediaServerExportLayoutMock.mockReturnValue("adjacent");
+
+      let statusDuringSweep: string | undefined;
+      let jobId = "";
+      cleanupMediaServerMirrorAsyncMock.mockImplementation(async () => {
+        // Exactly what a status poll landing mid-sweep would observe.
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        statusDuringSweep = getMediaServerExportJobById(jobId)?.status;
+        return { counts: { removedArtifacts: 3 }, failures: [] };
+      });
+
+      const job = await startMediaServerExportJob("nfo");
+      jobId = job.id;
+      await waitForJobCompletion(jobId);
+
+      expect(statusDuringSweep).toBe("running");
+
+      const completed = getMediaServerExportJobById(jobId);
+      expect(completed?.status).toBe("completed");
+      expect(completed?.sweptFiles).toBe(3);
+    });
+
+    /**
+     * The adjacent sidecar passes delete one file set per video. Draining them
+     * synchronously meant the per-video cancel check read a flag that could not
+     * change, because the cancel request itself was never served.
+     */
+    it("observes a cancel queued while adjacent sidecars are swept", async () => {
+      getVideosMock.mockReturnValue([
+        createVideo("video-1"),
+        createVideo("video-2"),
+        createVideo("video-3"),
+      ]);
+      getMediaServerExportLayoutMock.mockReturnValue("adjacent");
+
+      const job = await startMediaServerExportJob("nfo");
+      // Arrives through the event loop, exactly like a real cancel request.
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      cancelMediaServerExportJob(job.id);
+      await waitForJobStatus(job.id, "cancelled");
+
+      const cancelled = getMediaServerExportJobById(job.id);
+      expect(cancelled?.status).toBe("cancelled");
+      // It stopped partway rather than processing every video first.
+      expect(syncMediaServerArtifactsForRecordMock.mock.calls.length).toBeLessThan(3);
+    });
+
+    it("sweeps the mirror when rebuilding into the adjacent layout", async () => {
+      getVideosMock.mockReturnValue([createVideo("video-1")]);
+      getMediaServerExportLayoutMock.mockReturnValue("adjacent");
+
+      const job = await startMediaServerExportJob("nfo");
+      await waitForJobCompletion(job.id);
+
+      expect(syncMediaServerArtifactsForRecordMock).toHaveBeenCalled();
+      expect(cleanupMediaServerMirrorAsyncMock).toHaveBeenCalled();
+    });
+  });
+
+
+  /**
+   * A rebuild used to hold the event loop for its entire duration, so the
+   * server answered nothing while it ran - including the cancel request, which
+   * meant cancelRequested could not even become true during the run it was
+   * meant to stop.
+   */
+  describe("rebuild yields to the event loop", () => {
+    it("lets other work run while the library rebuild is in progress", async () => {
+      getVideosMock.mockReturnValue([createVideo("video-1")]);
+      getMediaServerExportLayoutMock.mockReturnValue("playlist_tv");
+
+      let ranDuringRebuild = false;
+      syncPlaylistTvLibraryMock.mockImplementation(async () => {
+        // Stands in for the materializer's per-show yield.
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        return {
+          counts: {
+            shows: 1,
+            seasons: 1,
+            episodes: 1,
+            linkedMedia: 1,
+            copiedMedia: 0,
+            unchangedArtifacts: 0,
+            removedArtifacts: 0,
+          },
+          failures: [],
+          plannerSkips: [],
+          reconcileIssues: [],
+          affectedShowIds: new Set<string>(),
+        };
+      });
+
+      const job = await startMediaServerExportJob("nfo");
+      // Queued behind the rebuild: it only runs if the rebuild yields.
+      setImmediate(() => {
+        ranDuringRebuild = true;
+      });
+
+      await waitForJobCompletion(job.id);
+
+      expect(ranDuringRebuild).toBe(true);
+    });
+
+    it("observes a cancel that arrives mid-rebuild", async () => {
+      getVideosMock.mockReturnValue([createVideo("video-1")]);
+      getMediaServerExportLayoutMock.mockReturnValue("playlist_tv");
+
+      syncPlaylistTvLibraryMock.mockImplementation(async (options: any) => {
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        // The cancel below could only have landed if the rebuild yielded.
+        expect(options.isCancelled?.()).toBe(true);
+        return {
+          counts: {
+            shows: 0,
+            seasons: 0,
+            episodes: 0,
+            linkedMedia: 0,
+            copiedMedia: 0,
+            unchangedArtifacts: 0,
+            removedArtifacts: 0,
+          },
+          failures: [],
+          plannerSkips: [],
+          reconcileIssues: [],
+          affectedShowIds: new Set<string>(),
+        };
+      });
+
+      const job = await startMediaServerExportJob("nfo");
+      cancelMediaServerExportJob(job.id);
+
+      await waitForJobStatus(job.id, "cancelled");
+    });
+  });
+
 });

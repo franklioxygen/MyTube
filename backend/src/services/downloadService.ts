@@ -25,6 +25,7 @@ import {
   parseRetryMetadata,
   type DownloadRetryMetadata,
 } from "./downloadRetryMetadata";
+import { extractYouTubePlaylistId } from "./subscription/playlistResolution";
 
 // Re-export types for compatibility
 export type {
@@ -522,22 +523,54 @@ export async function downloadChannelPlaylists(
         collection = getCollectionByName(title);
       }
 
+      const reusedExistingCollection = Boolean(collection);
+
       if (!collection) {
         // Only create a new collection if one doesn't exist
         logger.info(`Creating new collection: ${collectionName}`);
-        collection = saveCollection({
+        collection = {
           id: uuidv4(),
           name: collectionName,
           title: collectionName,
           videos: [],
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
-        });
+        };
       } else {
         logger.info(
           `Reusing existing collection "${collection.name}" for playlist: ${title}`,
         );
       }
+
+      // These tasks have no subscription row, so the collection itself is the
+      // durable evidence that its members belong to a playlist season in the
+      // managed TV layout. Stamp both new and reused collections before the
+      // task can begin linking downloads into them. Preserve stronger metadata
+      // already carried by a reused collection rather than replacing it with
+      // the channel-level feed's weaker values.
+      collection = saveCollection({
+        ...collection,
+        sourceType: collection.sourceType ?? "playlist",
+        sourcePlatform: collection.sourcePlatform ?? "youtube",
+        sourceId:
+          collection.sourceId ??
+          entry.id ??
+          extractYouTubePlaylistId(playlistUrl) ??
+          undefined,
+        sourceUrl: collection.sourceUrl ?? playlistUrl,
+        sourceChannelId:
+          collection.sourceChannelId ?? entry.channel_id ?? result.channel_id,
+        sourceChannelUrl:
+          collection.sourceChannelUrl ??
+          entry.channel_url ??
+          entry.uploader_url ??
+          result.channel_url ??
+          result.uploader_url ??
+          channelUrl,
+        sourceChannelName:
+          collection.sourceChannelName ??
+          (channelName !== "Unknown" ? channelName : undefined),
+      });
 
       // Create a playlist download task
       // Use helper to create continuous download task
@@ -547,6 +580,20 @@ export async function downloadChannelPlaylists(
         "YouTube",
         collection.id,
       );
+
+      // The save above may have just made a reused collection source-backed,
+      // which is what turns it into a playlist season. Its existing members
+      // were downloaded long ago, so the task processor will skip their URLs
+      // and no link hook will ever fire for them - without a reconcile here
+      // they would sit in Season 00 until a full rebuild. After task creation,
+      // so a failed task leaves nothing half-attached; best effort, like every
+      // other mirror hook.
+      if (reusedExistingCollection) {
+        const { onCollectionMetadataCommitted } = await import(
+          "./mediaServerExport/mutationHooks"
+        );
+        onCollectionMetadataCommitted(collection.id);
+      }
 
       startedCount++;
     }

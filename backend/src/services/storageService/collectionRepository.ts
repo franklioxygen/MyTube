@@ -57,6 +57,34 @@ function hydrateCollection(rows: CollectionRow[]): Collection | undefined {
     sourceType: sortedRows[0].c.sourceType ?? undefined,
     sourceMid: sortedRows[0].c.sourceMid ?? undefined,
     sourceId: sortedRows[0].c.sourceId ?? undefined,
+    // Media-server TV export metadata (issue #411).
+    description: sortedRows[0].c.description ?? undefined,
+    sourceUrl: sortedRows[0].c.sourceUrl ?? undefined,
+    sourceChannelId: sortedRows[0].c.sourceChannelId ?? undefined,
+    sourceChannelUrl: sortedRows[0].c.sourceChannelUrl ?? undefined,
+    sourceChannelName: sortedRows[0].c.sourceChannelName ?? undefined,
+    mediaServerShowId: sortedRows[0].c.mediaServerShowId ?? undefined,
+    mediaServerSeasonNumber:
+      sortedRows[0].c.mediaServerSeasonNumber ?? undefined,
+    // Collection-as-show configuration.
+    exportAsShow: sortedRows[0].c.exportAsShow ?? 0,
+    mediaServerTitle: sortedRows[0].c.mediaServerTitle ?? undefined,
+    mediaServerDescription: sortedRows[0].c.mediaServerDescription ?? undefined,
+    mediaServerPosterPath: sortedRows[0].c.mediaServerPosterPath ?? undefined,
+    mediaServerMetadataSource:
+      sortedRows[0].c.mediaServerMetadataSource === "manual" ||
+      sortedRows[0].c.mediaServerMetadataSource === "tmdb"
+        ? sortedRows[0].c.mediaServerMetadataSource
+        : undefined,
+    tmdbId: sortedRows[0].c.tmdbId ?? undefined,
+    tmdbMediaType:
+      sortedRows[0].c.tmdbMediaType === "tv" ||
+      sortedRows[0].c.tmdbMediaType === "movie"
+        ? sortedRows[0].c.tmdbMediaType
+        : undefined,
+    tmdbPremiereDate: sortedRows[0].c.tmdbPremiereDate ?? undefined,
+    tmdbMatchStrategy: sortedRows[0].c.tmdbMatchStrategy ?? undefined,
+    tmdbMatchConfirmedAt: sortedRows[0].c.tmdbMatchConfirmedAt ?? undefined,
     videos: [],
   };
 
@@ -243,8 +271,47 @@ export function getCollectionBySourceKey(
   }
 }
 
+/**
+ * Media-server metadata columns (issue #411) are written only when the caller
+ * actually carries a value. Most callers build a partial Collection object from
+ * scratch, so blanket `?? null` writes would erase playlist descriptions and
+ * channel identity that a previous inspection captured.
+ *
+ * `mediaServerShowId` / `mediaServerSeasonNumber` are intentionally absent: the
+ * season allocation is owned by catalogRepository and must never be moved by an
+ * ordinary collection save.
+ *
+ * The collection-as-show fields (`exportAsShow`, `mediaServer*`, `tmdb*`) are
+ * absent for the same reason. They are written only by the activation
+ * transaction, which commits metadata and catalog state together under the
+ * maintenance lock; letting a stray `saveCollection` touch them could allocate a
+ * show directory from a title the user never confirmed.
+ */
+function buildMediaServerMetadataPatch(
+  collection: Collection
+): Record<string, unknown> {
+  const patch: Record<string, unknown> = {};
+  const optionalFields = [
+    "description",
+    "sourceUrl",
+    "sourceChannelId",
+    "sourceChannelUrl",
+    "sourceChannelName",
+  ] as const;
+
+  for (const field of optionalFields) {
+    if (collection[field] !== undefined) {
+      patch[field] = collection[field];
+    }
+  }
+
+  return patch;
+}
+
 export function saveCollection(collection: Collection): Collection {
   try {
+    const mediaServerMetadata = buildMediaServerMetadataPatch(collection);
+
     db.transaction(() => {
       // Insert collection
       db.insert(collections)
@@ -259,6 +326,7 @@ export function saveCollection(collection: Collection): Collection {
           sourceType: collection.sourceType ?? null,
           sourceMid: collection.sourceMid ?? null,
           sourceId: collection.sourceId ?? null,
+          ...mediaServerMetadata,
         })
         .onConflictDoUpdate({
           target: collections.id,
@@ -271,6 +339,7 @@ export function saveCollection(collection: Collection): Collection {
             sourceType: collection.sourceType ?? null,
             sourceMid: collection.sourceMid ?? null,
             sourceId: collection.sourceId ?? null,
+            ...mediaServerMetadata,
           },
         })
         .run();

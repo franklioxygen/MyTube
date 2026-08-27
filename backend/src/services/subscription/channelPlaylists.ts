@@ -2,8 +2,10 @@ import { eq } from "drizzle-orm";
 import { db } from "../../db";
 import { subscriptions } from "../../db/schema";
 import { logger } from "../../utils/logger";
+import { onCollectionMetadataCommitted } from "../mediaServerExport/mutationHooks";
 import { getSubscriptionLogContext } from "./helpers";
 import {
+  applyPlaylistCollectionMetadata,
   deleteCreatedCollectionIfUnused,
   extractYouTubePlaylistId,
   resolveChannelPlaylistCollectionWithStatus,
@@ -126,6 +128,16 @@ export async function checkChannelPlaylistsForWatcher(
           title,
           channelName
         );
+        // Persist whatever media-server metadata the channel-playlists entry
+        // already carries (issue #411). This is a flat head-only probe, so a
+        // playlist description is usually absent; leave it empty rather than
+        // firing a second full network probe just to enrich an NFO.
+        applyPlaylistCollectionMetadata(collectionResolution.collection, {
+          sourceUrl: playlistUrl,
+          sourceChannelId: result.channel_id ?? entry.channel_id,
+          sourceChannelUrl: result.channel_url ?? result.uploader_url,
+          sourceChannelName: channelName,
+        });
         const collectionId = collectionResolution.collection.id;
 
         // Create the child subscription with the head and observation timestamp.
@@ -160,6 +172,13 @@ export async function checkChannelPlaylistsForWatcher(
           }
           throw error;
         }
+        // The collection is now subscription-backed, which is what makes it a
+        // season. This watcher can adopt an existing same-named collection that
+        // already holds videos; those are already downloaded, so no link hook
+        // will ever fire for them and they would sit in Season 00 until a full
+        // rebuild. Best effort, like every other mirror hook.
+        onCollectionMetadataCommitted(collectionId);
+
         // Add the URL only after insertion succeeds (design §8.2).
         subscribedUrls.add(playlistUrl);
         newSubscriptionsCount++;

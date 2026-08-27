@@ -192,6 +192,126 @@ export const pt = {
   mediaServerExportCleanupComplete: "Media server sidecar cleanup complete",
   mediaServerExportCleanupSummary:
     "{succeeded} cleaned, {skipped} skipped, {failed} failed.",
+  collectionShowExportToggle:
+    "Export as its own show",
+  collectionShowExportToggleDescription:
+    "Export this collection to your media server as a separate show, instead of a season under the uploader's show. Useful for a series or film archived from a third-party channel.",
+  collectionShowDialogTitle:
+    "Export this collection as its own show",
+  collectionShowDialogDescription:
+    "Choose the name and artwork for the show. The folder name is created from your choice and is not moved afterwards, so later renames update the metadata only.",
+  collectionShowPromotionWarning:
+    "This collection is currently a season under another show. Its episodes keep their numbers and filenames, but the season number it leaves behind is retired and will not come back if you turn this off later.",
+  collectionShowSearchHeading:
+    "Look up on TMDB",
+  collectionShowSearchLabel:
+    "Search title",
+  collectionShowSearchAction:
+    "Search",
+  collectionShowSearchFailed:
+    "Could not search TMDB. Please try again.",
+  collectionShowNoCredential:
+    "No TMDB credential is configured, so search is unavailable. You can still use the collection name or enter a title yourself.",
+  collectionShowNoResults:
+    "No matches found. Try a shorter or more exact title.",
+  collectionShowSuggestion:
+    "Suggestion",
+  collectionShowMediaTypeTv:
+    "TV",
+  collectionShowMediaTypeMovie:
+    "Movie",
+  collectionShowManualHeading:
+    "Or enter a title yourself",
+  collectionShowManualLabel:
+    "Show title",
+  collectionShowFolderNotice:
+    "The show folder will be named \"{name}\".",
+  collectionShowUseCollectionMetadata:
+    "Use collection name",
+  collectionShowConfirm:
+    "Use this",
+  collectionShowActivationFailed:
+    "Could not export this collection as a show.",
+  collectionShowLockBusy:
+    "A media server rebuild or batch rename is running. Please try again once it finishes.",
+  collectionShowWrongLayout:
+    "Switch the media server export layout to \"Author \u2192 playlist seasons\" first.",
+  collectionShowPosterWarning:
+    "The show was created, but its poster could not be downloaded. An episode thumbnail is used instead.",
+  collectionShowDisable:
+    "Stop exporting as its own show",
+  collectionShowActive:
+    "Exported as its own show",
+  mediaServerExportLayout:
+    "Media server export layout",
+  mediaServerExportLayoutInactiveWarning:
+    "The export mode is currently Off, so this layout is not active yet. Choose an export mode above (for example \"Write NFO sidecars\") to start building the managed library.",
+  mediaServerExportLayoutAdjacent:
+    "Adjacent sidecars (existing behavior)",
+  mediaServerExportLayoutPlaylistTv:
+    "Author → playlist seasons (managed TV library)",
+  mediaServerExportLayoutPlaylistTvDescription:
+    "MyTube builds a separate, managed TV library: one show per author, one season per source playlist. Your original video files are never moved, renamed, or duplicated — the library uses hard links back to them.",
+  mediaServerExportLayoutPlaylistTvNamingNote:
+    "Your filename and folder naming settings do not affect this managed library. They still control where your original files are stored.",
+  mediaServerCopyFallback:
+    "Copy media when hard links are unavailable",
+  mediaServerCopyFallbackDescription:
+    "Some filesystems and cross-disk setups cannot create hard links. When this is off, those episodes are reported as failed instead of being copied.",
+  mediaServerLibraryPath:
+    "Managed library folder",
+  mediaServerStableOrderHint:
+    "Episode numbers follow the order in which MyTube first imported each item. Reordering a playlist upstream does not renumber existing episodes.",
+  mediaServerSeasonZeroHint:
+    "Videos that do not belong to a source playlist go into Season 00, shown as “Specials / Unassigned”.",
+  mediaServerHardLinkHint:
+    "Hard links only work within one filesystem and normally consume no additional disk space.",
+  mediaServerCopiedMediaWarning:
+    "{count} media files had to be copied instead of hard linked, which uses additional disk space.",
+  mediaServerExportMirrorSummary:
+    "{shows} shows, {seasons} seasons, {episodes} episodes. {linked} linked, {copied} copied, {removed} removed.",
+  mediaServerExportFailedItems:
+    "Failed ({count})",
+  mediaServerExportSkippedItems:
+    "Skipped ({count})",
+  mediaServerExportMoreItems:
+    "and {count} more",
+  mediaServerExportPlaylistTvRebuildConfirmBody:
+    "Your original videos are not moved or renamed. Media is hard linked where possible, which normally uses no additional disk space; where hard links are unavailable, files may be copied.",
+  mediaServerExportPlaylistTvCleanupConfirmBody:
+    "This deletes the files MyTube generated inside the managed library folder, and the NFO, info JSON and image sidecars MyTube wrote next to your original videos. Your original videos and any files you added yourself are left untouched.",
+  mediaServerExportRebuildManagedLibrary:
+    "Reconstruir a biblioteca de TV gerida",
+  mediaServerExportCleanupManagedLibrary:
+    "Remover a biblioteca de TV gerida",
+  mediaServerExportRebuildManagedLibraryConfirmTitle:
+    "Reconstruir a biblioteca de TV gerida?",
+  mediaServerExportCleanupManagedLibraryConfirmTitle:
+    "Remover a biblioteca de TV gerida?",
+  mediaServerExportRebuildManagedLibraryConfirmBody:
+    "Isto reconstrói toda a biblioteca gerida, não apenas as transferências recentes. Cada vídeo local é colocado nela e é criada uma pasta de série por autor, pelo que um servidor de multimédia apontado para esta pasta pode mostrar muitas séries novas após a próxima análise.",
+  mediaServerExportCleanupManagedLibraryConfirmBody:
+    "Isto esvazia a pasta da biblioteca gerida de tudo o que o MyTube gerou, incluindo todas as pastas de séries e ligações de episódios.",
+  mediaServerExportScope:
+    "Esta execução vai processar {videos} vídeos e produzir cerca de {shows} pastas de séries.",
+  mediaServerExportScopeLoading:
+    "A calcular a dimensão desta execução…",
+  mediaServerExportScopeUnavailable:
+    "Não foi possível calcular a dimensão desta execução. Ainda assim processa toda a biblioteca.",
+  mediaServerExportPhase_snapshot:
+    "reading library",
+  mediaServerExportPhase_catalog_reconcile:
+    "updating catalog",
+  mediaServerExportPhase_plan:
+    "planning",
+  mediaServerExportPhase_materialize:
+    "writing files",
+  mediaServerExportPhase_sweep:
+    "cleaning up",
+  mediaServerExportPhase_completed:
+    "finishing",
+  mediaServerExportUnsupportedLayoutError:
+    "The selected media server export layout is not supported.",
   mediaServerExportSweptSummary:
     "Também foram removidos {count} arquivos complementares órfãos.",
   mediaServerExportActiveDownloadsError:

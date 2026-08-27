@@ -1,15 +1,22 @@
 import axios from "axios";
-import fs from "fs-extra";
+import { createHash, randomBytes } from "crypto";
 import path from "path";
 import { IMAGES_DIR } from "../../config/paths";
 import { logger } from "../../utils/logger";
 import {
   buildAllowlistedHttpUrl,
+  ensureDirSafeSync,
+  pathExistsSafeSync,
+  renameSafeSync,
   resolveSafeChildPath,
   resolveSafePath,
+  unlinkSafeSync,
   writeFileSafe,
 } from "../../utils/security";
-import { regenerateSmallThumbnailForThumbnailPath } from "../thumbnailMirrorService";
+import {
+  deleteSmallThumbnailMirrorSync,
+  regenerateSmallThumbnailForThumbnailPath,
+} from "../thumbnailMirrorService";
 import { ALLOWED_IMAGE_HOSTS, TMDB_IMAGE_BASE } from "./constants";
 
 /**
@@ -65,31 +72,41 @@ function validateUrlAgainstWhitelist(posterPath: string): string | null {
  * Download poster image from TMDB
  * Note: TMDB images are public and don't require authentication
  */
+/** Fetches the image bytes through the SSRF allowlist. Null on any rejection. */
+async function fetchPosterBytes(posterPath: string): Promise<Buffer | null> {
+  // Validate URL against whitelist to prevent SSRF
+  // Following OWASP SSRF prevention pattern: check whitelist before request
+  const validatedUrl = validateUrlAgainstWhitelist(posterPath);
+
+  if (!validatedUrl) {
+    logger.error(`URL validation failed for poster path: ${posterPath}`);
+    return null;
+  }
+
+  // Final whitelist check: verify hostname is in whitelist (double-check SSRF protection)
+  const urlObj = new URL(validatedUrl);
+  if (!ALLOWED_IMAGE_HOSTS.includes(urlObj.hostname)) {
+    logger.error(`Hostname not in whitelist: ${urlObj.hostname}`);
+    return null;
+  }
+
+  const response = await axios.get(validatedUrl, { // nosemgrep
+    responseType: "arraybuffer",
+    timeout: 10000,
+  });
+  return response.data as Buffer;
+}
+
 export async function downloadPoster(
   posterPath: string,
   savePath: string
 ): Promise<boolean> {
   try {
-    // Validate URL against whitelist to prevent SSRF
-    // Following OWASP SSRF prevention pattern: check whitelist before request
-    const validatedUrl = validateUrlAgainstWhitelist(posterPath);
-
-    if (!validatedUrl) {
-      logger.error(`URL validation failed for poster path: ${posterPath}`);
+    const data = await fetchPosterBytes(posterPath);
+    if (!data) {
       return false;
     }
-
-    // Final whitelist check: verify hostname is in whitelist (double-check SSRF protection)
-    const urlObj = new URL(validatedUrl);
-    if (!ALLOWED_IMAGE_HOSTS.includes(urlObj.hostname)) {
-      logger.error(`Hostname not in whitelist: ${urlObj.hostname}`);
-      return false;
-    }
-
-    const response = await axios.get(validatedUrl, { // nosemgrep
-      responseType: "arraybuffer",
-      timeout: 10000,
-    });
+    const response = { data };
 
     let normalizedSavePath: string;
     try {
@@ -102,8 +119,9 @@ export async function downloadPoster(
       return false;
     }
 
-    // Ensure directory exists
-    await fs.ensureDir(path.dirname(normalizedSavePath));
+    // Ensure directory exists. Routed through the safe wrapper rather than a
+    // raw fs call, matching writeFileSafe on the line below.
+    ensureDirSafeSync(path.dirname(normalizedSavePath), IMAGES_DIR);
 
     // Save image
     // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
@@ -158,6 +176,180 @@ function sanitizeThumbnailDirectory(relativeDirectory: string): string | null {
   }
 
   return path.join(...sanitizedSegments);
+}
+
+/**
+ * Poster location for a collection exported as its own show.
+ *
+ * Kept separate from `resolvePosterSaveLocation()`, which derives a directory
+ * from a scan-supplied thumbnail filename. Here the directory is a SHA-256
+ * digest of the collection id: a collection id is never used as a raw path
+ * segment, and the digest keeps one collection's posters together so a later
+ * re-resolution can replace them.
+ *
+ * The filename encodes the validated media type and numeric TMDB id, so
+ * switching a collection to a different match writes a new file rather than
+ * overwriting the active one before the transaction commits.
+ */
+export function resolveCollectionPosterSaveLocation(
+  collectionId: string,
+  mediaType: "tv" | "movie",
+  tmdbId: number
+): { absolutePath: string; relativePath: string; webPath: string } | null {
+  if (!collectionId || (mediaType !== "tv" && mediaType !== "movie")) {
+    return null;
+  }
+  if (!Number.isSafeInteger(tmdbId) || tmdbId <= 0) {
+    return null;
+  }
+
+  const digest = createHash("sha256").update(collectionId).digest("hex").slice(0, 32);
+  const relativePath = `tmdb/collections/${digest}/${mediaType}-${tmdbId}.jpg`;
+
+  try {
+    const absolutePath = resolveSafeChildPath(IMAGES_DIR, relativePath);
+    return { absolutePath, relativePath, webPath: `/images/${relativePath}` };
+  } catch (error) {
+    logger.error(
+      `Failed to resolve a collection poster path for ${collectionId}`,
+      error instanceof Error ? error : new Error(String(error))
+    );
+    return null;
+  }
+}
+
+/**
+ * Downloads a collection poster to a temporary sibling of its final path.
+ *
+ * Never written straight to the destination. Activation downloads before it
+ * takes the maintenance lock (no network round trip may happen while holding
+ * it), and the destination for an unchanged TMDB match IS the collection's live
+ * poster - so a direct write mutates a file the request may then decline to
+ * commit, and leaves it briefly truncated for anything reading it meanwhile,
+ * such as a rebuild copying it into the mirror.
+ *
+ * Returns the staged path, or null when nothing could be fetched.
+ */
+export async function stageCollectionPoster(
+  posterPath: string,
+  finalAbsolutePath: string
+): Promise<string | null> {
+  try {
+    const data = await fetchPosterBytes(posterPath);
+    if (!data) {
+      return null;
+    }
+
+    const stagedPath = resolveSafeChildPath(
+      path.dirname(finalAbsolutePath),
+      `.staging-${randomBytes(8).toString("hex")}-${path.basename(
+        finalAbsolutePath
+      )}`
+    );
+
+    ensureDirSafeSync(path.dirname(stagedPath), IMAGES_DIR);
+    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+    await writeFileSafe(stagedPath, IMAGES_DIR, data);
+    return stagedPath;
+  } catch (error) {
+    logger.error(`Error staging poster from ${posterPath}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Moves a staged poster onto its final path and refreshes its small mirror.
+ *
+ * A same-directory rename, so the destination is never observed half-written.
+ */
+export async function publishStagedCollectionPoster(
+  stagedAbsolutePath: string,
+  finalAbsolutePath: string,
+  finalWebPath: string
+): Promise<boolean> {
+  try {
+    ensureDirSafeSync(path.dirname(finalAbsolutePath), IMAGES_DIR);
+    renameSafeSync(
+      stagedAbsolutePath,
+      IMAGES_DIR,
+      finalAbsolutePath,
+      IMAGES_DIR
+    );
+  } catch (error) {
+    logger.error(`Failed to publish a staged poster to ${finalAbsolutePath}:`, error);
+    discardStagedCollectionPoster(stagedAbsolutePath);
+    return false;
+  }
+
+  // The rename IS the publication, so nothing below may report failure. The
+  // small-thumbnail mirror is a derived convenience that any later artwork
+  // refresh regenerates; reporting its failure as a failed publication made the
+  // caller commit a null poster path for a poster that is on disk - and, for a
+  // newly selected TMDB identity, delete the previous one on the way.
+  try {
+    await regenerateSmallThumbnailForThumbnailPath(finalWebPath);
+  } catch (error) {
+    logger.warn(`Published poster ${finalAbsolutePath} without its small mirror`, {
+      detail: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  logger.info(`Published collection poster to ${finalAbsolutePath}`);
+  return true;
+}
+
+/** Removes a staged poster an activation never committed. Best effort. */
+export function discardStagedCollectionPoster(
+  stagedAbsolutePath: string | null | undefined
+): void {
+  if (!stagedAbsolutePath) {
+    return;
+  }
+  try {
+    if (pathExistsSafeSync(stagedAbsolutePath, IMAGES_DIR)) {
+      unlinkSafeSync(stagedAbsolutePath, IMAGES_DIR);
+    }
+  } catch (error) {
+    logger.warn(`Could not remove a staged poster at ${stagedAbsolutePath}`, {
+      detail: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
+/** Namespace `resolveCollectionPosterSaveLocation` writes into. */
+const COLLECTION_POSTER_PREFIX = "tmdb/collections/";
+
+/**
+ * Retires a collection poster this module wrote, and its small mirror.
+ *
+ * Deliberately scoped to the `tmdb/collections/` namespace: the column that
+ * holds the path is free-form, so an image the user pointed at themselves must
+ * never be deleted by an activation that did not create it. Best effort - a
+ * leftover image is inert, and failing the caller over one would turn a
+ * successful activation into an error.
+ */
+export function removeCollectionPoster(
+  webPath: string | null | undefined
+): void {
+  if (typeof webPath !== "string" || !webPath.startsWith("/images/")) {
+    return;
+  }
+  const relativePath = webPath.slice("/images/".length);
+  if (!relativePath.startsWith(COLLECTION_POSTER_PREFIX)) {
+    return;
+  }
+
+  try {
+    const absolutePath = resolveSafeChildPath(IMAGES_DIR, relativePath);
+    if (pathExistsSafeSync(absolutePath, IMAGES_DIR)) {
+      unlinkSafeSync(absolutePath, IMAGES_DIR);
+    }
+    deleteSmallThumbnailMirrorSync(webPath);
+  } catch (error) {
+    logger.warn(`Could not remove a collection poster at ${webPath}`, {
+      detail: error instanceof Error ? error.message : String(error),
+    });
+  }
 }
 
 export function resolvePosterSaveLocation(

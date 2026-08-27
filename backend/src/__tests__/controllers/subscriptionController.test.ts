@@ -106,6 +106,11 @@ vi.mock("../../services/downloaders/ytdlp/ytdlpHelpers", () => ({
   getProviderScript: vi.fn(() => "/tmp/provider.js"),
 }));
 
+const onCollectionMetadataCommittedMock = vi.hoisted(() => vi.fn());
+vi.mock("../../services/mediaServerExport/mutationHooks", () => ({
+  onCollectionMetadataCommitted: onCollectionMetadataCommittedMock,
+}));
+
 vi.mock("../../utils/logger", () => ({
   logger: {
     info: vi.fn(),
@@ -588,7 +593,70 @@ describe("SubscriptionController", () => {
     });
   });
 
+  /**
+   * A generic playlist collection qualifies as a season purely because a
+   * playlist subscription points at it. Once the subscription is gone nothing
+   * connects the two, so without a reconcile its season assignments and mirror
+   * files outlive it and the videos never return to Season 00.
+   */
+  it("reconciles the former collection after unsubscribing", async () => {
+    req.params = { id: "sub-1" };
+    (subscriptionService.listSubscriptions as any).mockResolvedValue([
+      { id: "sub-1", collectionId: "col-9" },
+    ]);
+    (subscriptionService.unsubscribe as any).mockResolvedValue(undefined);
+
+    await deleteSubscription(req as Request, res as Response);
+
+    expect(subscriptionService.unsubscribe).toHaveBeenCalledWith("sub-1");
+    expect(onCollectionMetadataCommittedMock).toHaveBeenCalledWith("col-9");
+  });
+
+  it("does not reconcile when the subscription had no collection", async () => {
+    req.params = { id: "sub-1" };
+    (subscriptionService.listSubscriptions as any).mockResolvedValue([
+      { id: "sub-1" },
+    ]);
+    (subscriptionService.unsubscribe as any).mockResolvedValue(undefined);
+
+    await deleteSubscription(req as Request, res as Response);
+
+    expect(onCollectionMetadataCommittedMock).not.toHaveBeenCalled();
+  });
+
   describe("createPlaylistSubscription", () => {
+
+    /**
+     * Reusing an existing collection is the case that breaks without this: its
+     * videos are already downloaded, so the historical task skips them and no
+     * per-video link hook ever fires. They would sit in Season 00 until a full
+     * rebuild even though the collection is now a season.
+     */
+    it("reconciles the collection once it is subscription-backed", async () => {
+      req.body = {
+        playlistUrl: "https://www.youtube.com/playlist?list=PL123",
+        interval: 60,
+        collectionName: "My Playlist",
+        downloadAll: false,
+      };
+      (executeYtDlpJson as any).mockResolvedValue({
+        _type: "playlist",
+        title: "Playlist Title",
+        id: "PL123",
+        playlist_count: 12,
+        entries: [{ id: "vidA", uploader: "Uploader Name" }],
+      });
+      (storageService.getCollectionByName as any).mockReturnValue(null);
+      (subscriptionService.subscribePlaylist as any).mockResolvedValue({
+        id: "sub-playlist-1",
+      });
+
+      await createPlaylistSubscription(req as Request, res as Response);
+
+      expect(onCollectionMetadataCommittedMock).toHaveBeenCalledTimes(1);
+      expect(status).toHaveBeenCalledWith(201);
+    });
+
     it("should throw when required fields are missing", async () => {
       req.body = {
         playlistUrl: "https://www.youtube.com/playlist?list=abc",

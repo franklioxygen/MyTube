@@ -57,7 +57,51 @@ export interface Collection {
   videos: string[];
   createdAt: string;
   updatedAt?: string;
+  /**
+   * Collection-as-show opt-in. When set, this collection exports as its own
+   * media-server show rather than a season under an author show.
+   */
+  exportAsShow?: number;
+  mediaServerTitle?: string;
+  mediaServerDescription?: string;
+  mediaServerPosterPath?: string;
+  mediaServerMetadataSource?: 'manual' | 'tmdb';
+  tmdbId?: number;
+  tmdbMediaType?: TmdbMediaType;
+  tmdbPremiereDate?: string;
+  /**
+   * The show folder the reconciler allocated. Absent until the first sync after
+   * activation. Display this rather than re-deriving a name from the title:
+   * the folder is allocated once and never renamed.
+   */
+  mediaServerShowDirectoryName?: string;
   [key: string]: any;
+}
+
+export type TmdbMediaType = 'tv' | 'movie';
+
+/** One TMDB candidate offered while marking a collection as a show. */
+export interface CollectionShowCandidate {
+  tmdbId: number;
+  mediaType: TmdbMediaType;
+  title: string;
+  originalTitle?: string;
+  overview?: string;
+  premiereDate?: string;
+  posterPath?: string;
+  /** Passed the strict gate. Ranking and labeling only — never auto-applied. */
+  highConfidence: boolean;
+}
+
+export interface CollectionShowSearchResponse {
+  status: 'ok' | 'no_credential' | 'no_results';
+  candidates: CollectionShowCandidate[];
+}
+
+export interface CollectionShowExportResponse {
+  collection: Collection;
+  /** Metadata committed, but the poster could not be stored. */
+  posterWarning?: boolean;
 }
 
 export interface FavoriteCollectionItem {
@@ -158,6 +202,9 @@ export type AuthorOrganizationMode =
   | 'author_collection_linked';
 
 export type AdminTrustLevel = 'application' | 'container' | 'host';
+
+/** Where media-server artifacts are written (issue #411). */
+export type MediaServerExportLayout = 'adjacent' | 'playlist_tv';
 
 export type LiveTranslationModel = 'gemini-3.5-live-translate-preview';
 
@@ -277,6 +324,16 @@ export interface Settings {
     | 'custom';
   downloadFilenameTemplate?: string;
   mediaServerExportMode?: 'off' | 'nfo' | 'nfo_and_source_json';
+  /**
+   * Issue #411. `adjacent` writes sidecars next to the original media (the
+   * historical behavior and the default). `playlist_tv` builds a MyTube-managed
+   * TV mirror of author shows and playlist seasons; originals are never moved.
+   */
+  mediaServerExportLayout?: MediaServerExportLayout;
+  /** Copy media when a hard link into the mirror is not possible. */
+  mediaServerCopyFallback?: boolean;
+  /** Read-only deployment path of the managed mirror. Never sent back on save. */
+  mediaServerLibraryPath?: string;
   // Statistics
   statisticsEnabled?: boolean;
   statisticsRetentionDays?: number | null;

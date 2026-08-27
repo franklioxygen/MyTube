@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import { logger } from "../../utils/logger";
 import * as storageService from "../storageService";
 import type { Collection } from "../storageService";
+import { buildCollectionMetadataPatch } from "../mediaServerExport/metadataResolver";
 
 /**
  * A collection resolved for a playlist subscription, including whether this
@@ -83,6 +84,58 @@ function saveCollectionSourceKey(
   const updatedCollection = { ...collection, ...sourceKey };
   storageService.saveCollection(updatedCollection);
   return updatedCollection;
+}
+
+/**
+ * Media-server export metadata for a playlist collection (issue #411).
+ *
+ * Deliberately separate from display naming: the collection name is a user-
+ * facing label that MyTube may uniquify, while this is durable source metadata
+ * used to build show and season NFOs offline.
+ */
+export interface PlaylistCollectionMetadata {
+  description?: string;
+  sourceUrl?: string;
+  sourceChannelId?: string;
+  sourceChannelUrl?: string;
+  sourceChannelName?: string;
+}
+
+/**
+ * Persists newly observed playlist/channel metadata onto a resolved collection.
+ *
+ * Fills in what is missing, refreshes a non-empty description, and never clears
+ * a persisted value because a lightweight probe omitted the field. A conflicting
+ * durable channel identity is logged and skipped rather than overwritten — the
+ * media-server catalog treats channel identity as immutable once resolved.
+ *
+ * Returns the collection as it should now be read (unchanged when there was
+ * nothing to write).
+ */
+export function applyPlaylistCollectionMetadata(
+  collection: Collection,
+  metadata: PlaylistCollectionMetadata | undefined
+): Collection {
+  if (!metadata) {
+    return collection;
+  }
+
+  const { patch, conflict } = buildCollectionMetadataPatch(collection, metadata);
+
+  if (conflict) {
+    logger.warn("Refusing to replace a durable playlist channel identity", {
+      collectionId: collection.id,
+      reasonCode: "ambiguous_collection_show",
+    });
+  }
+
+  if (Object.keys(patch).length === 0) {
+    return collection;
+  }
+
+  const updated = { ...collection, ...patch };
+  storageService.saveCollection(updated);
+  return updated;
 }
 
 /**

@@ -2,6 +2,7 @@ import fs from "fs-extra";
 import path from "path";
 import { AVATARS_DIR, IMAGES_DIR, VIDEOS_DIR } from "../../config/paths";
 import { logger } from "../../utils/logger";
+import { storePendingSourceInfo } from "./pendingSourceInfo";
 import {
   copyFileSafeSync,
   ensureDirSafeSync,
@@ -19,7 +20,13 @@ import {
   normalizeVideoDateToDay,
 } from "./nfoBuilders";
 import { planMediaServerExportPaths } from "./pathPlanner";
+import { buildSourceInfoEnvelope } from "./sourceInfoEnvelope";
+import {
+  removePlaylistTvArtifactsForVideo,
+  syncPlaylistTvForVideo,
+} from "./playlistTvSync";
 import type {
+  MediaServerExportLayout,
   MediaServerExportMode,
   RemoveMediaServerArtifactsOptions,
   SyncMediaServerArtifactsOptions,
@@ -50,6 +57,30 @@ function getEffectiveMediaServerExportMode(
   options: SyncMediaServerArtifactsOptions
 ): MediaServerExportMode {
   return options.modeOverride || getMediaServerExportMode();
+}
+
+/**
+ * Issue #411. Absent or unrecognized settings resolve to `adjacent`, so an
+ * existing installation sees no behavior change until the user opts in.
+ */
+export function getMediaServerExportLayout(): MediaServerExportLayout {
+  const settings = getSettings() as {
+    mediaServerExportLayout?: MediaServerExportLayout;
+  };
+  return settings.mediaServerExportLayout === "playlist_tv"
+    ? "playlist_tv"
+    : "adjacent";
+}
+
+function getMediaServerCopyFallbackEnabled(): boolean {
+  const settings = getSettings() as { mediaServerCopyFallback?: boolean };
+  return settings.mediaServerCopyFallback !== false;
+}
+
+function getEffectiveMediaServerExportLayout(
+  options: SyncMediaServerArtifactsOptions
+): MediaServerExportLayout {
+  return options.layoutOverride ?? getMediaServerExportLayout();
 }
 
 function getAllowedRootForPath(targetPath: string): string {
@@ -160,78 +191,6 @@ function resolveLocalArtworkPath(
   return null;
 }
 
-function buildSourceInfoEnvelope(
-  video: Video,
-  rawSourceInfo?: unknown
-): Record<string, unknown> {
-  const subtitles = Array.isArray(video.subtitles)
-    ? video.subtitles.reduce<Record<string, Array<Record<string, unknown>>>>(
-        (acc, subtitle) => {
-          const ext = path.extname(subtitle.filename).replace(/^\./, "") || "vtt";
-          const key = subtitle.language || "unknown";
-          if (!acc[key]) {
-            acc[key] = [];
-          }
-          acc[key].push({
-            ext,
-            filename: subtitle.filename,
-            path: subtitle.path,
-          });
-          return acc;
-        },
-        {}
-      )
-    : {};
-
-  const synthesized: Record<string, unknown> = {
-    id: video.id,
-    title: video.title,
-    uploader: video.author || undefined,
-    upload_date: typeof video.date === "string" ? video.date.replace(/-/g, "") : undefined,
-    description: video.description || undefined,
-    webpage_url: video.sourceUrl || undefined,
-    duration:
-      video.duration !== undefined && video.duration !== null
-        ? Number(video.duration)
-        : undefined,
-    thumbnail: video.thumbnailPath || video.thumbnailUrl || undefined,
-    extractor: video.source || "unknown",
-    channel_url: video.channelUrl || undefined,
-    tags: Array.isArray(video.tags) ? video.tags : [],
-    subtitles,
-  };
-
-  const rawSourcePreserved =
-    typeof rawSourceInfo === "object" &&
-    rawSourceInfo !== null &&
-    !Array.isArray(rawSourceInfo);
-  const mytubeMetadata = {
-    generatedBy: "mytube",
-    schemaVersion: 1,
-    rawSourcePreserved,
-  };
-
-  if (rawSourcePreserved) {
-    const rawSourceObject = rawSourceInfo as Record<string, unknown>;
-    return {
-      ...synthesized,
-      ...rawSourceObject,
-      _mytube: {
-        ...(typeof rawSourceObject._mytube === "object" &&
-        rawSourceObject._mytube !== null
-          ? rawSourceObject._mytube
-          : {}),
-        ...mytubeMetadata,
-      },
-    };
-  }
-
-  return {
-    ...synthesized,
-    _mytube: mytubeMetadata,
-  };
-}
-
 function matchesShowRoot(video: Video, showRootRelativeDir: string): boolean {
   const plan = planMediaServerExportPaths(video);
   return (
@@ -323,6 +282,10 @@ function syncShowArtifacts(video: Video, libraryVideos: Video[]): void {
   }
 }
 
+/**
+ * Adjacent-only: show artifacts live next to the original media there. In
+ * `playlist_tv` the mirror owns every show artifact, so this is a no-op.
+ */
 export function syncMediaServerShowArtifactsForRecord(
   video: Video,
   options: SyncMediaServerArtifactsOptions = {}
@@ -330,6 +293,9 @@ export function syncMediaServerShowArtifactsForRecord(
   try {
     const mode = getEffectiveMediaServerExportMode(options);
     if (mode === "off") {
+      return;
+    }
+    if (getEffectiveMediaServerExportLayout(options) === "playlist_tv") {
       return;
     }
 
@@ -351,6 +317,7 @@ export function syncMediaServerShowArtifactsForRecord(
   }
 }
 
+/** Adjacent-only, for the same reason as syncMediaServerShowArtifactsForRecord. */
 export function syncMediaServerShowArtifactsForShowRoot(
   showRootRelativeDir: string,
   options: SyncMediaServerArtifactsOptions = {}
@@ -358,6 +325,9 @@ export function syncMediaServerShowArtifactsForShowRoot(
   try {
     const mode = getEffectiveMediaServerExportMode(options);
     if (mode === "off") {
+      return;
+    }
+    if (getEffectiveMediaServerExportLayout(options) === "playlist_tv") {
       return;
     }
 
@@ -433,16 +403,99 @@ export function syncMediaServerArtifactsForVideo(
   }
 }
 
+/**
+ * Layout dispatcher (issue #411, design §9.1).
+ *
+ * `adjacent` keeps the historical behavior byte-for-byte. `playlist_tv`
+ * reconciles the durable catalog and materializes the managed mirror instead;
+ * it never writes sidecars next to the original media.
+ */
 export function syncMediaServerArtifactsForRecord(
   video: Video,
   options: SyncMediaServerArtifactsOptions = {}
 ): void {
+  const mode = getEffectiveMediaServerExportMode(options);
+  if (mode === "off") {
+    return;
+  }
+
+  if (getEffectiveMediaServerExportLayout(options) === "playlist_tv") {
+    syncPlaylistTvArtifactsForRecord(video, mode, options);
+    return;
+  }
+
+  syncAdjacentArtifactsForRecord(video, mode, options);
+}
+
+function syncPlaylistTvArtifactsForRecord(
+  video: Video,
+  mode: Exclude<MediaServerExportMode, "off">,
+  options: SyncMediaServerArtifactsOptions
+): void {
   try {
-    const mode = getEffectiveMediaServerExportMode(options);
-    if (mode === "off") {
+    // Playlist-origin downloads suppress this call and let the collection-link
+    // caller reconcile instead, so a playlist item is never briefly classified
+    // as an unassigned Season 00 episode. The downloader's raw envelope is
+    // parked rather than dropped: the deferred sync has no other route to it,
+    // and without it the episode loses its extractor source JSON and can
+    // resolve a weaker, permanent show identity.
+    if (options.suppressPlaylistTvSync) {
+      storePendingSourceInfo(video.id, options.rawSourceInfo);
       return;
     }
 
+    syncPlaylistTvForVideo(video.id, {
+      mode,
+      copyFallbackEnabled: getMediaServerCopyFallbackEnabled(),
+      libraryVideos: options.libraryVideos,
+      sourceJsonByVideoId: buildSourceJsonMap(video, mode, options),
+    });
+  } catch (error) {
+    logger.error("Failed to sync playlist TV media server artifacts", error, {
+      layout: "playlist_tv",
+      action: "materialize",
+      videoId: video.id,
+    });
+  }
+}
+
+function buildSourceJsonMap(
+  video: Video,
+  mode: Exclude<MediaServerExportMode, "off">,
+  options: SyncMediaServerArtifactsOptions
+): Map<string, string> | undefined {
+  if (mode !== "nfo_and_source_json") {
+    return undefined;
+  }
+
+  // Only a caller that actually has fresh extractor output supplies an
+  // envelope. An ordinary refresh - a title edit, new tags, replaced artwork -
+  // carries no `rawSourceInfo`, and synthesizing one here would hand the
+  // materializer a weaker envelope that overwrites the rich `.info.json` the
+  // download wrote. Left undefined, the materializer keeps whatever it already
+  // published and still synthesizes for an episode that has none yet.
+  if (options.rawSourceInfo === undefined) {
+    return undefined;
+  }
+
+  return new Map([
+    [
+      video.id,
+      `${JSON.stringify(
+        buildSourceInfoEnvelope(video, options.rawSourceInfo),
+        null,
+        2
+      )}\n`,
+    ],
+  ]);
+}
+
+function syncAdjacentArtifactsForRecord(
+  video: Video,
+  mode: Exclude<MediaServerExportMode, "off">,
+  options: SyncMediaServerArtifactsOptions
+): void {
+  try {
     const plan = planMediaServerExportPaths(video);
     if (!plan || !pathExistsSafeSync(plan.videoAbsolutePath, VIDEOS_DIR)) {
       return;
@@ -474,6 +527,26 @@ export function syncMediaServerArtifactsForRecord(
 }
 
 export function removeMediaServerArtifactsForVideo(
+  video: Video,
+  options: RemoveMediaServerArtifactsOptions = {}
+): void {
+  if ((options.layoutOverride ?? getMediaServerExportLayout()) === "playlist_tv") {
+    try {
+      removePlaylistTvArtifactsForVideo(video.id);
+    } catch (error) {
+      logger.error("Failed to remove playlist TV media server artifacts", error, {
+        layout: "playlist_tv",
+        action: "cleanup",
+        videoId: video.id,
+      });
+    }
+    return;
+  }
+
+  removeAdjacentArtifactsForVideo(video, options);
+}
+
+function removeAdjacentArtifactsForVideo(
   video: Video,
   options: RemoveMediaServerArtifactsOptions = {}
 ): void {
@@ -521,4 +594,71 @@ export function removeMediaServerArtifactsForVideo(
       videoPath: video.videoPath,
     });
   }
+}
+
+/**
+ * The original media file moved on disk (a batch rename after an author-folder
+ * or filename-template change), but it is the same library row.
+ *
+ * The two layouts need opposite handling, which is why this is not just a
+ * remove-then-sync at the call site:
+ *
+ * - `adjacent` names its sidecars after the original file, so the artifacts at
+ *   the old path really are stale and must be removed before new ones are
+ *   written next to the new path.
+ * - `playlist_tv` derives mirror paths from the show/season/episode allocation,
+ *   never from the original filename. The mirror path does not move at all —
+ *   only the hard link's source does — and the ledger already treats a changed
+ *   `sourceAbsolutePath` as a relink. Removing artifacts here would delete the
+ *   episode assignment along with them, and the reallocation that follows can
+ *   hand the video a different episode number whenever its `sourcePosition` was
+ *   taken by another episode after an upstream playlist reorder. That renames
+ *   the file a media server has already scanned and destroys watch state, which
+ *   is exactly what immutable numbering exists to prevent.
+ */
+export function syncMediaServerArtifactsForRelocatedRecord(
+  previousVideo: Video,
+  updatedVideo: Video,
+  options: SyncMediaServerArtifactsOptions = {}
+): void {
+  if (getEffectiveMediaServerExportMode(options) === "off") {
+    return;
+  }
+
+  if (getEffectiveMediaServerExportLayout(options) === "playlist_tv") {
+    // Relink in place: assignments, episode numbers and export stems all stand.
+    syncMediaServerArtifactsForRecord(updatedVideo, options);
+    return;
+  }
+
+  const previousPlan = planMediaServerExportPaths(previousVideo);
+  removeMediaServerArtifactsForVideo(previousVideo, options);
+  if (previousPlan?.tvLayout.showRootRelativeDir) {
+    syncMediaServerShowArtifactsForShowRoot(
+      previousPlan.tvLayout.showRootRelativeDir,
+      options
+    );
+  }
+  syncMediaServerArtifactsForRecord(updatedVideo, options);
+}
+
+/**
+ * The file behind a library row was replaced by a redownload. The row survives,
+ * so this is a superseded *file*, never a deleted video.
+ *
+ * `adjacent` must drop the sidecars that were named after the old file. In
+ * `playlist_tv` there is nothing to drop — mirror paths come from the catalog,
+ * not the filename — and dropping would take the episode assignment with it,
+ * risking the renumber described on syncMediaServerArtifactsForRelocatedRecord.
+ * The re-sync that every caller runs afterwards relinks the mirror in place.
+ */
+export function removeMediaServerArtifactsForSupersededFile(
+  video: Video,
+  options: RemoveMediaServerArtifactsOptions = {}
+): void {
+  if ((options.layoutOverride ?? getMediaServerExportLayout()) === "playlist_tv") {
+    return;
+  }
+
+  removeMediaServerArtifactsForVideo(video, options);
 }

@@ -62,6 +62,7 @@ import {
     cancelMediaServerExportRebuild,
     getMediaServerExportRebuildStatus,
     startMediaServerExportRebuild,
+  getMediaServerExportScope,
 } from "../controllers/mediaServerExportController";
 import {
     getYtDlpVersion,
@@ -157,6 +158,7 @@ router.get("/filename-template/rename-jobs/:jobId", asyncHandler(getRenameJobSta
 router.post("/filename-template/rename-jobs/:jobId/cancel", asyncHandler(cancelBatchRename));
 
 // Media server sidecar export routes
+router.get("/media-server-export/scope", asyncHandler(getMediaServerExportScope));
 router.post("/media-server-export/rebuild", asyncHandler(startMediaServerExportRebuild));
 router.get("/media-server-export/jobs/:jobId", asyncHandler(getMediaServerExportRebuildStatus));
 router.post("/media-server-export/jobs/:jobId/cancel", asyncHandler(cancelMediaServerExportRebuild));

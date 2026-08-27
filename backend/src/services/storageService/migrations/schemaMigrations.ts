@@ -559,6 +559,212 @@ export function ensureFavoritesTables(): void {
   }
 }
 
+/**
+ * Media-server TV catalog self-heal (issue #411).
+ *
+ * Mirrors ensureVisitorUsersTable/ensureFavoritesTables and exists for the same
+ * reason: drizzle runs each migration file in ONE transaction, and on a
+ * long-lived database an earlier migration can still fail with a duplicate
+ * column that the runtime self-heal had already added. `migrate.ts` swallows
+ * that error, which means every *later* migration — including the one that
+ * creates these tables — silently never runs.
+ *
+ * Fully idempotent: safe on a fresh database where the drizzle migration
+ * already did the work, and on an old database where it never got the chance.
+ */
+export function ensureMediaServerCatalogTables(): void {
+  try {
+    sqlite
+      .prepare(
+        `
+      CREATE TABLE IF NOT EXISTS media_server_shows (
+        id TEXT PRIMARY KEY NOT NULL,
+        identity_key TEXT NOT NULL,
+        source_platform TEXT NOT NULL,
+        source_channel_id TEXT,
+        source_channel_url TEXT,
+        title TEXT NOT NULL,
+        description TEXT DEFAULT '' NOT NULL,
+        poster_source_path TEXT,
+        directory_name TEXT NOT NULL,
+        next_season_number INTEGER DEFAULT 1 NOT NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      )
+    `
+      )
+      .run();
+    sqlite
+      .prepare(
+        "CREATE UNIQUE INDEX IF NOT EXISTS media_server_shows_identity_key_uidx ON media_server_shows (identity_key)"
+      )
+      .run();
+    sqlite
+      .prepare(
+        "CREATE UNIQUE INDEX IF NOT EXISTS media_server_shows_directory_name_uidx ON media_server_shows (directory_name)"
+      )
+      .run();
+
+    sqlite
+      .prepare(
+        `
+      CREATE TABLE IF NOT EXISTS media_server_episode_assignments (
+        id TEXT PRIMARY KEY NOT NULL,
+        show_id TEXT NOT NULL,
+        collection_id TEXT,
+        video_id TEXT NOT NULL,
+        season_number INTEGER NOT NULL,
+        episode_number INTEGER NOT NULL,
+        source_position INTEGER,
+        export_stem TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        FOREIGN KEY (show_id) REFERENCES media_server_shows(id) ON UPDATE no action ON DELETE cascade,
+        FOREIGN KEY (collection_id) REFERENCES collections(id) ON UPDATE no action ON DELETE cascade,
+        FOREIGN KEY (video_id) REFERENCES videos(id) ON UPDATE no action ON DELETE cascade
+      )
+    `
+      )
+      .run();
+    for (const statement of [
+      "CREATE UNIQUE INDEX IF NOT EXISTS media_server_episode_occurrence_uidx ON media_server_episode_assignments (show_id,season_number,video_id)",
+      "CREATE UNIQUE INDEX IF NOT EXISTS media_server_episode_number_uidx ON media_server_episode_assignments (show_id,season_number,episode_number)",
+      "CREATE INDEX IF NOT EXISTS idx_media_server_episode_collection ON media_server_episode_assignments (collection_id)",
+      "CREATE INDEX IF NOT EXISTS idx_media_server_episode_video ON media_server_episode_assignments (video_id)",
+    ]) {
+      sqlite.prepare(statement).run();
+    }
+
+    // ON DELETE SET NULL, not cascade: the ledger row is the only proof MyTube
+    // owns a generated media file, and it must outlive the catalog rows so
+    // filesystem cleanup can still remove it.
+    sqlite
+      .prepare(
+        `
+      CREATE TABLE IF NOT EXISTS media_server_export_artifacts (
+        relative_path TEXT PRIMARY KEY NOT NULL,
+        artifact_type TEXT NOT NULL,
+        show_id TEXT,
+        assignment_id TEXT,
+        source_absolute_path TEXT,
+        source_size INTEGER,
+        source_mtime_ms INTEGER,
+        materialization TEXT NOT NULL,
+        content_digest TEXT,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        FOREIGN KEY (show_id) REFERENCES media_server_shows(id) ON UPDATE no action ON DELETE set null,
+        FOREIGN KEY (assignment_id) REFERENCES media_server_episode_assignments(id) ON UPDATE no action ON DELETE set null
+      )
+    `
+      )
+      .run();
+    sqlite
+      .prepare(
+        "CREATE INDEX IF NOT EXISTS idx_media_server_artifact_show ON media_server_export_artifacts (show_id)"
+      )
+      .run();
+    sqlite
+      .prepare(
+        "CREATE INDEX IF NOT EXISTS idx_media_server_artifact_assignment ON media_server_export_artifacts (assignment_id)"
+      )
+      .run();
+
+    // Collection-as-show columns on media_server_shows. Same presence-checked
+    // pattern; the partial unique index enforces one show row per collection.
+    const showColumns = columnNames(
+      sqlite.prepare("PRAGMA table_info(media_server_shows)").all()
+    );
+    if (showColumns.length > 0) {
+      for (const [column, type] of [
+        ["source_collection_id", "TEXT"],
+        ["tmdb_id", "INTEGER"],
+        ["tmdb_media_type", "TEXT"],
+        ["premiered", "TEXT"],
+      ] as Array<[string, string]>) {
+        if (!showColumns.includes(column)) {
+          logger.info(
+            `Migrating database: Adding ${column} column to media_server_shows table...`
+          );
+          sqlite
+            .prepare(`ALTER TABLE media_server_shows ADD COLUMN ${column} ${type}`)
+            .run();
+        }
+      }
+
+      sqlite
+        .prepare(
+          `CREATE UNIQUE INDEX IF NOT EXISTS media_server_shows_source_collection_uidx
+             ON media_server_shows (source_collection_id)
+             WHERE source_collection_id IS NOT NULL`
+        )
+        .run();
+    }
+
+    // Collection metadata columns. SQLite has no ADD COLUMN IF NOT EXISTS, so
+    // each one is presence-checked the same way the older collections columns
+    // are handled above.
+    const collectionsColumns = columnNames(
+      sqlite.prepare("PRAGMA table_info(collections)").all()
+    );
+    if (collectionsColumns.length > 0) {
+      const mediaServerColumns: Array<[string, string]> = [
+        ["description", "TEXT"],
+        ["source_url", "TEXT"],
+        ["source_channel_id", "TEXT"],
+        ["source_channel_url", "TEXT"],
+        ["source_channel_name", "TEXT"],
+        ["media_server_show_id", "TEXT"],
+        ["media_server_season_number", "INTEGER"],
+        // Collection-as-show opt-in and resolved metadata.
+        ["export_as_show", "INTEGER NOT NULL DEFAULT 0"],
+        ["media_server_title", "TEXT"],
+        ["media_server_description", "TEXT"],
+        ["media_server_poster_path", "TEXT"],
+        ["media_server_metadata_source", "TEXT"],
+        ["tmdb_id", "INTEGER"],
+        ["tmdb_media_type", "TEXT"],
+        ["tmdb_premiere_date", "TEXT"],
+        ["tmdb_match_strategy", "TEXT"],
+        ["tmdb_match_confirmed_at", "INTEGER"],
+      ];
+      for (const [column, type] of mediaServerColumns) {
+        if (!collectionsColumns.includes(column)) {
+          logger.info(
+            `Migrating database: Adding ${column} column to collections table...`
+          );
+          sqlite
+            .prepare(`ALTER TABLE collections ADD COLUMN ${column} ${type}`)
+            .run();
+        }
+      }
+
+      sqlite
+        .prepare(
+          "CREATE INDEX IF NOT EXISTS idx_collections_media_server_show ON collections (media_server_show_id)"
+        )
+        .run();
+      sqlite
+        .prepare(
+          `CREATE UNIQUE INDEX IF NOT EXISTS collections_media_server_season_uidx
+             ON collections (media_server_show_id, media_server_season_number)
+             WHERE media_server_show_id IS NOT NULL AND media_server_season_number IS NOT NULL`
+        )
+        .run();
+    }
+  } catch (error) {
+    logger.error(
+      "Error ensuring media server catalog tables exist",
+      error instanceof Error ? error : new Error(String(error))
+    );
+    throw new MigrationError(
+      "Failed to ensure media server catalog tables",
+      "media_server_catalog_tables",
+      error instanceof Error ? error : new Error(String(error))
+    );
+  }
+}
+
 // Additive column/table self-heal for videos, downloads, collections,
 // subscriptions, continuous tasks, video_downloads, rss_tokens, users,
 // favorites and download_history, plus the file-size/video_id data backfills.

@@ -87,6 +87,41 @@ export const collections = sqliteTable(
     sourceType: text("source_type"),
     sourceMid: text("source_mid"),
     sourceId: text("source_id"),
+    // Media-server TV export metadata (issue #411). All nullable; populated
+    // opportunistically from playlist inspection and download metadata. A
+    // source-backed playlist collection becomes one numbered season under one
+    // show; the season number is allocated once and never renumbered.
+    description: text("description"),
+    sourceUrl: text("source_url"),
+    sourceChannelId: text("source_channel_id"),
+    sourceChannelUrl: text("source_channel_url"),
+    sourceChannelName: text("source_channel_name"),
+    mediaServerShowId: text("media_server_show_id").references(
+      (): any => mediaServerShows.id,
+      { onDelete: "set null" }
+    ),
+    mediaServerSeasonNumber: integer("media_server_season_number"),
+    // Collection-as-show opt-in. A marked collection exports as its own
+    // media-server show instead of a season under an author show. Always an
+    // explicit user action — never inferred — because the show directory name is
+    // allocated once and a wrong identity is permanent.
+    exportAsShow: integer("export_as_show").notNull().default(0),
+    // Resolved show metadata. Null means "fall back to the collection's own
+    // title/description", which keeps a later rename updating tvshow.nfo without
+    // moving the already-allocated directory.
+    mediaServerTitle: text("media_server_title"),
+    mediaServerDescription: text("media_server_description"),
+    /** Managed web path, e.g. /images/tmdb/collections/<hash>/tv-123.jpg */
+    mediaServerPosterPath: text("media_server_poster_path"),
+    /** null (collection fallback) | "manual" | "tmdb" */
+    mediaServerMetadataSource: text("media_server_metadata_source"),
+    // Confirmed external identity, only when a TMDB result was selected.
+    tmdbId: integer("tmdb_id"),
+    tmdbMediaType: text("tmdb_media_type"), // "tv" | "movie"
+    tmdbPremiereDate: text("tmdb_premiere_date"),
+    tmdbMatchStrategy: text("tmdb_match_strategy"),
+    // Audit trail: a confirmed match is never silently replaced.
+    tmdbMatchConfirmedAt: integer("tmdb_match_confirmed_at"),
   },
   (table) => ({
     // name/title lookups (getCollectionByName) used in playlist subscription checks.
@@ -98,6 +133,162 @@ export const collections = sqliteTable(
       table.sourceType,
       table.sourceMid,
       table.sourceId
+    ),
+    mediaServerShowIdx: index("idx_collections_media_server_show").on(
+      table.mediaServerShowId
+    ),
+    // Partial unique index: one season number per show, only for attached
+    // collections. Unattached collections keep both columns null.
+    mediaServerSeasonUnique: uniqueIndex(
+      "collections_media_server_season_uidx"
+    )
+      .on(table.mediaServerShowId, table.mediaServerSeasonNumber)
+      .where(
+        sql`${table.mediaServerShowId} IS NOT NULL AND ${table.mediaServerSeasonNumber} IS NOT NULL`
+      ),
+  })
+);
+
+/**
+ * Media-server show catalog (issue #411).
+ *
+ * One source channel/author maps to exactly one exported show directory. The
+ * identity key is resolved once, in precedence order (channel id, normalized
+ * channel URL, normalized author name) and is never recomputed from a changed
+ * display title. `directoryName` is allocated once for the same reason: a
+ * channel rename updates tvshow.nfo, it does not move the directory.
+ */
+export const mediaServerShows = sqliteTable(
+  "media_server_shows",
+  {
+    id: text("id").primaryKey(),
+    identityKey: text("identity_key").notNull(),
+    sourcePlatform: text("source_platform").notNull(),
+    sourceChannelId: text("source_channel_id"),
+    sourceChannelUrl: text("source_channel_url"),
+    title: text("title").notNull(),
+    description: text("description").notNull().default(""),
+    posterSourcePath: text("poster_source_path"),
+    directoryName: text("directory_name").notNull(),
+    // Monotonic season allocator. Never decremented, so a deleted season number
+    // is never reused.
+    nextSeasonNumber: integer("next_season_number").notNull().default(1),
+    // Set when this show came from a marked collection rather than an author.
+    // Its presence is what excludes the row from the author compatibility
+    // matcher, which would otherwise merge two same-titled dramas.
+    //
+    // Deliberately NOT a foreign key. SQLite's ALTER TABLE ADD COLUMN cannot
+    // carry an ON DELETE action, so drizzle emits a plain `REFERENCES` that
+    // defaults to NO ACTION — which would make deleting a collection that has a
+    // collection-show fail outright, the opposite of the intended SET NULL. The
+    // design also requires the show row to survive collection deletion so a
+    // later re-enable keeps its identity, and the deletion path clears this
+    // column explicitly.
+    sourceCollectionId: text("source_collection_id"),
+    // Offline projection of the resolved external identity, so the pure planner
+    // can build tvshow.nfo without touching the collection row or the network.
+    tmdbId: integer("tmdb_id"),
+    tmdbMediaType: text("tmdb_media_type"), // "tv" | "movie"
+    premiered: text("premiered"), // YYYY-MM-DD
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => ({
+    identityKeyUnique: uniqueIndex("media_server_shows_identity_key_uidx").on(
+      table.identityKey
+    ),
+    directoryNameUnique: uniqueIndex("media_server_shows_directory_name_uidx").on(
+      table.directoryName
+    ),
+    // One durable show row per collection, enforced by the database rather than
+    // only by application code.
+    sourceCollectionUnique: uniqueIndex("media_server_shows_source_collection_uidx")
+      .on(table.sourceCollectionId)
+      .where(sql`${table.sourceCollectionId} IS NOT NULL`),
+  })
+);
+
+/**
+ * One (playlist, video) membership occurrence (issue #411).
+ *
+ * The same video may appear in several seasons, so occurrence identity is
+ * (show, season, video) — not video id alone. Season 00 assignments have a null
+ * collectionId. Episode numbers are immutable once allocated; upstream playlist
+ * reordering only updates `sourcePosition`.
+ */
+export const mediaServerEpisodeAssignments = sqliteTable(
+  "media_server_episode_assignments",
+  {
+    id: text("id").primaryKey(),
+    showId: text("show_id")
+      .notNull()
+      .references(() => mediaServerShows.id, { onDelete: "cascade" }),
+    collectionId: text("collection_id").references(() => collections.id, {
+      onDelete: "cascade",
+    }),
+    videoId: text("video_id")
+      .notNull()
+      .references(() => videos.id, { onDelete: "cascade" }),
+    seasonNumber: integer("season_number").notNull(),
+    episodeNumber: integer("episode_number").notNull(),
+    sourcePosition: integer("source_position"),
+    exportStem: text("export_stem").notNull(),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => ({
+    occurrenceUnique: uniqueIndex("media_server_episode_occurrence_uidx").on(
+      table.showId,
+      table.seasonNumber,
+      table.videoId
+    ),
+    numberUnique: uniqueIndex("media_server_episode_number_uidx").on(
+      table.showId,
+      table.seasonNumber,
+      table.episodeNumber
+    ),
+    collectionIdx: index("idx_media_server_episode_collection").on(
+      table.collectionId
+    ),
+    videoIdx: index("idx_media_server_episode_video").on(table.videoId),
+  })
+);
+
+/**
+ * Ownership ledger for every generated mirror path (issue #411).
+ *
+ * A generated media hard link/copy carries no in-band MyTube marker, so this
+ * table is the only proof of ownership before cleanup may delete a file. The
+ * foreign keys deliberately use ON DELETE SET NULL rather than cascade:
+ * deleting a video/collection/assignment must not erase that proof before the
+ * filesystem cleanup has run. Orphaned rows stay sweepable.
+ */
+export const mediaServerExportArtifacts = sqliteTable(
+  "media_server_export_artifacts",
+  {
+    // Relative to MEDIA_SERVER_LIBRARY_DIR, POSIX separators.
+    relativePath: text("relative_path").primaryKey(),
+    artifactType: text("artifact_type").notNull(),
+    showId: text("show_id").references(() => mediaServerShows.id, {
+      onDelete: "set null",
+    }),
+    assignmentId: text("assignment_id").references(
+      () => mediaServerEpisodeAssignments.id,
+      { onDelete: "set null" }
+    ),
+    // Diagnostic/fingerprint input only. Never deletion authority.
+    sourceAbsolutePath: text("source_absolute_path"),
+    sourceSize: integer("source_size"),
+    sourceMtimeMs: integer("source_mtime_ms"),
+    materialization: text("materialization").notNull(),
+    contentDigest: text("content_digest"),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => ({
+    showIdx: index("idx_media_server_artifact_show").on(table.showId),
+    assignmentIdx: index("idx_media_server_artifact_assignment").on(
+      table.assignmentId
     ),
   })
 );
@@ -178,6 +369,32 @@ export const collectionVideosRelations = relations(
     }),
     video: one(videos, {
       fields: [collectionVideos.videoId],
+      references: [videos.id],
+    }),
+  })
+);
+
+export const mediaServerShowsRelations = relations(
+  mediaServerShows,
+  ({ many }) => ({
+    collections: many(collections),
+    assignments: many(mediaServerEpisodeAssignments),
+  })
+);
+
+export const mediaServerEpisodeAssignmentsRelations = relations(
+  mediaServerEpisodeAssignments,
+  ({ one }) => ({
+    show: one(mediaServerShows, {
+      fields: [mediaServerEpisodeAssignments.showId],
+      references: [mediaServerShows.id],
+    }),
+    collection: one(collections, {
+      fields: [mediaServerEpisodeAssignments.collectionId],
+      references: [collections.id],
+    }),
+    video: one(videos, {
+      fields: [mediaServerEpisodeAssignments.videoId],
       references: [videos.id],
     }),
   })

@@ -7,6 +7,7 @@ import {
   copySafe,
   buildAllowlistedHttpUrl,
   createWriteStreamSafe,
+  ensureDirSafeSync,
   fsyncFileSafeSync,
   getClientIp,
   isHostnameAllowed,
@@ -25,6 +26,7 @@ import {
   validateUrl,
   validateUrlWithAllowlist,
   validateVideoPath,
+  writeFileSafe,
 } from "../../utils/security";
 import {
   CLOUD_THUMBNAIL_CACHE_DIR,
@@ -282,5 +284,84 @@ describe("security extra", () => {
       });
       expect(unknown).toBe("unknown");
     });
+  });
+});
+
+/**
+ * writeFileSafe and ensureDirSafeSync re-check containment inline, right at the
+ * filesystem call, on top of the shared resolver. The risk of a second, stricter
+ * check is that it rejects paths the resolver legitimately accepts, so the
+ * accept cases matter as much as the reject ones here.
+ */
+describe("inline containment guards", () => {
+  function tempRoot(): string {
+    return fs.mkdtempSync(path.join(os.tmpdir(), "mytube-guard-"));
+  }
+
+  it("writes a plain file inside the allowed directory", async () => {
+    const root = tempRoot();
+    try {
+      await writeFileSafe(path.join(root, "poster.jpg"), root, "bytes");
+      expect(fs.readFileSync(path.join(root, "poster.jpg"), "utf8")).toBe("bytes");
+    } finally {
+      fs.removeSync(root);
+    }
+  });
+
+  it("writes into a nested subdirectory of the allowed directory", async () => {
+    const root = tempRoot();
+    try {
+      const target = path.join(root, "tmdb", "collections", "abc123", "tv-42.jpg");
+      fs.ensureDirSync(path.dirname(target));
+      await writeFileSafe(target, root, "bytes");
+      expect(fs.existsSync(target)).toBe(true);
+    } finally {
+      fs.removeSync(root);
+    }
+  });
+
+  it("accepts any of several allowed directories", async () => {
+    const first = tempRoot();
+    const second = tempRoot();
+    try {
+      await writeFileSafe(path.join(second, "in-second.txt"), [first, second], "ok");
+      expect(fs.readFileSync(path.join(second, "in-second.txt"), "utf8")).toBe("ok");
+    } finally {
+      fs.removeSync(first);
+      fs.removeSync(second);
+    }
+  });
+
+  it("refuses to write outside the allowed directory", async () => {
+    const root = tempRoot();
+    try {
+      await expect(
+        writeFileSafe(path.join(root, "..", "escaped.txt"), root, "nope")
+      ).rejects.toThrow();
+      expect(fs.existsSync(path.join(root, "..", "escaped.txt"))).toBe(false);
+    } finally {
+      fs.removeSync(root);
+    }
+  });
+
+  it("creates a nested directory inside the allowed root", () => {
+    const root = tempRoot();
+    try {
+      const target = path.join(root, "tmdb", "collections", "deadbeef");
+      ensureDirSafeSync(target, root);
+      expect(fs.statSync(target).isDirectory()).toBe(true);
+    } finally {
+      fs.removeSync(root);
+    }
+  });
+
+  it("refuses to create a directory outside the allowed root", () => {
+    const root = tempRoot();
+    try {
+      expect(() => ensureDirSafeSync(path.join(root, "..", "escaped"), root)).toThrow();
+      expect(fs.existsSync(path.join(root, "..", "escaped"))).toBe(false);
+    } finally {
+      fs.removeSync(root);
+    }
   });
 });

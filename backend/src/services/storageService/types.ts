@@ -43,7 +43,119 @@ export interface Collection {
   sourceType?: string;
   sourceMid?: string;
   sourceId?: string;
+  // Media-server TV export metadata (issue #411). See db/schema.ts collections.
+  description?: string;
+  sourceUrl?: string;
+  sourceChannelId?: string;
+  sourceChannelUrl?: string;
+  sourceChannelName?: string;
+  mediaServerShowId?: string;
+  mediaServerSeasonNumber?: number;
+  /**
+   * Collection-as-show opt-in. When set, this collection exports as its own
+   * media-server show instead of a season under an author show. Always an
+   * explicit user action — the show directory is allocated once and a wrong
+   * identity is permanent.
+   */
+  exportAsShow?: number;
+  /** Null/undefined = fall back to the collection's own title/description. */
+  mediaServerTitle?: string;
+  mediaServerDescription?: string;
+  mediaServerPosterPath?: string;
+  mediaServerMetadataSource?: MediaServerMetadataSource;
+  tmdbId?: number;
+  tmdbMediaType?: TmdbMediaType;
+  tmdbPremiereDate?: string;
+  tmdbMatchStrategy?: string;
+  tmdbMatchConfirmedAt?: number;
   [key: string]: any;
+}
+
+export type TmdbMediaType = "tv" | "movie";
+
+/** How a collection-show's display metadata was chosen. */
+export type MediaServerMetadataSource = "manual" | "tmdb";
+
+/**
+ * A source channel/author exported as exactly one media-server show (issue #411).
+ */
+export interface MediaServerShow {
+  id: string;
+  identityKey: string;
+  sourcePlatform: string;
+  sourceChannelId?: string;
+  sourceChannelUrl?: string;
+  title: string;
+  description: string;
+  posterSourcePath?: string;
+  directoryName: string;
+  nextSeasonNumber: number;
+  /**
+   * Present only for a show created from a marked collection. Its presence is
+   * what excludes the row from the author compatibility matcher, which would
+   * otherwise merge two shows that merely share a title.
+   */
+  sourceCollectionId?: string;
+  /** Offline projection of the confirmed external identity, for the planner. */
+  tmdbId?: number;
+  tmdbMediaType?: TmdbMediaType;
+  premiered?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/**
+ * One (playlist, video) occurrence exported as one episode (issue #411).
+ * `collectionId` is null for Season 00 (unassigned) occurrences.
+ */
+export interface MediaServerEpisodeAssignment {
+  id: string;
+  showId: string;
+  collectionId?: string;
+  videoId: string;
+  seasonNumber: number;
+  episodeNumber: number;
+  /** Latest observed upstream playlist position. Diagnostic only — never renumbers. */
+  sourcePosition?: number;
+  exportStem: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export type MediaServerArtifactType =
+  | "show_nfo"
+  | "show_poster"
+  | "season_nfo"
+  | "episode_media"
+  | "episode_nfo"
+  | "episode_thumb"
+  | "episode_subtitle"
+  | "source_json";
+
+export type MediaServerMaterialization =
+  | "generated_text"
+  | "copied_image"
+  | "hard_link"
+  | "copied_media"
+  | "copied_subtitle";
+
+/**
+ * Durable ownership record for one generated mirror path (issue #411).
+ * Nothing under the mirror root may be deleted without a matching row.
+ */
+export interface MediaServerExportArtifact {
+  /** Relative to MEDIA_SERVER_LIBRARY_DIR, POSIX separators. */
+  relativePath: string;
+  artifactType: MediaServerArtifactType;
+  showId?: string;
+  assignmentId?: string;
+  sourceAbsolutePath?: string;
+  sourceSize?: number;
+  sourceMtimeMs?: number;
+  materialization: MediaServerMaterialization;
+  contentDigest?: string;
+  createdAt: number;
+  updatedAt: number;
 }
 
 export interface DownloadInfo {
