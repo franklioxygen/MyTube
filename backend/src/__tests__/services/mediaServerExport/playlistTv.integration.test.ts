@@ -162,6 +162,7 @@ vi.mock("../../../utils/logger", () => ({
 
 import {
   removePlaylistTvArtifactsForVideo,
+  syncPlaylistTvForCollection,
   syncPlaylistTvForShows,
   syncPlaylistTvForVideo,
   syncPlaylistTvLibrary,
@@ -1542,5 +1543,100 @@ describe("captured plan metadata is refreshed at publish time (PR #412 review)",
     );
     expect(seasonNfo).toContain("Existential Questions (Renamed)");
     expect(seasonNfo).toContain("A fresh blurb.");
+  });
+});
+
+
+/**
+ * The collection entry point backs two promises worth pinning: a metadata
+ * mutation reaches the mirror without waiting for a rebuild, and - with the
+ * export mode off - the catalog is still reconciled so the show's directory
+ * name is allocated from the title the user just confirmed. Skipping that
+ * would let a later rename claim a folder the confirmation said was settled.
+ */
+describe("syncPlaylistTvForCollection", () => {
+  beforeEach(() => {
+    fs.emptyDirSync(testPaths.root);
+    for (const dir of [
+      testPaths.videos,
+      testPaths.images,
+      testPaths.imagesSmall,
+      testPaths.avatars,
+      testPaths.subtitles,
+      testPaths.mediaLibrary,
+    ]) {
+      fs.ensureDirSync(dir);
+    }
+    testDb.sqlite.exec(`
+      DELETE FROM media_server_export_artifacts;
+      DELETE FROM media_server_episode_assignments;
+      DELETE FROM collections;
+      DELETE FROM videos;
+      DELETE FROM media_server_shows;
+    `);
+    buildFixture();
+  });
+
+  afterAll(() => {
+    fs.removeSync(testPaths.root);
+  });
+
+  it("materializes the collection's show without a full rebuild", () => {
+    const result = syncPlaylistTvForCollection("c-existential", {
+      mode: "nfo",
+      copyFallbackEnabled: true,
+    });
+
+    expect(result.failures).toEqual([]);
+    expect(result.affectedShowIds.size).toBeGreaterThan(0);
+    expect(listMirror()).toContain(
+      "Kurzgesagt – In a Nutshell/Season 01/S01E001 - Human Origins.mp4"
+    );
+  });
+
+  it("reserves the catalog but writes nothing when the export is off", () => {
+    const result = syncPlaylistTvForCollection("c-existential", {
+      mode: "nfo",
+      copyFallbackEnabled: true,
+      catalogOnly: true,
+    });
+
+    // The season attachment is allocated...
+    expect(result.affectedShowIds.size).toBeGreaterThan(0);
+    const row = testDb.sqlite
+      .prepare(
+        "SELECT media_server_show_id AS showId, media_server_season_number AS season FROM collections WHERE id=?"
+      )
+      .get("c-existential") as { showId: string | null; season: number | null };
+    expect(row.showId).toBeTruthy();
+    expect(row.season).toBe(1);
+
+    // ...while the mirror stays untouched.
+    expect(listMirror()).toEqual([]);
+    expect(result.counts.episodes).toBe(0);
+    expect(result.plannerSkips).toEqual([]);
+  });
+
+  /**
+   * A collection id with no collection behind it - the hook firing just after a
+   * delete - carries no member list, so the reconcile is left unscoped and
+   * every video is re-placed. That is the recovery path, not a no-op: the
+   * departed members need to fall back to Season 00, and they do.
+   */
+  it("falls the library back to Season 00 for a collection that is gone", () => {
+    const result = syncPlaylistTvForCollection("no-such-collection", {
+      mode: "nfo",
+      copyFallbackEnabled: true,
+    });
+
+    expect(result.failures).toEqual([]);
+    const tree = listMirror();
+    expect(tree.some((p) => p.includes("Season 00"))).toBe(true);
+    // No season was attached for an id that resolves to nothing.
+    expect(
+      testDb.sqlite
+        .prepare("SELECT COUNT(*) AS n FROM collections WHERE id=?")
+        .get("no-such-collection")
+    ).toEqual({ n: 0 });
   });
 });

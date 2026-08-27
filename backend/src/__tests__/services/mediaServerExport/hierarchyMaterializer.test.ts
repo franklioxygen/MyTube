@@ -91,7 +91,12 @@ import {
   getArtifact,
   listArtifacts,
 } from "../../../services/mediaServerExport/artifactLedger";
-import { writeMirrorTextArtifact } from "../../../services/mediaServerExport/mediaMaterializer";
+import {
+  isArtifactPublished,
+  pruneEmptyMirrorDirectories,
+  removeOwnedMirrorArtifact,
+  writeMirrorTextArtifact,
+} from "../../../services/mediaServerExport/mediaMaterializer";
 import type {
   MediaServerCatalogSnapshot,
   MediaServerSeason,
@@ -728,6 +733,88 @@ describe("mediaServerExport hierarchyMaterializer", () => {
     expect(fs.existsSync(victim)).toBe(true);
     expect(fs.readFileSync(victim, "utf8")).toBe("USER DATA");
     expect(result.failures.length).toBeGreaterThan(0);
+  });
+
+  /**
+   * The ownership and existence guards around removal and preservation decide
+   * whether MyTube may touch a path at all, so their negative answers matter as
+   * much as their positive ones.
+   */
+  describe("ownership guards", () => {
+    it("refuses to remove a path the ledger does not own", () => {
+      const untracked = mirrorPath("Kurzgesagt", "Season 01", "user-file.mp4");
+      writeFile(untracked, "USER DATA");
+
+      expect(removeOwnedMirrorArtifact("Kurzgesagt/Season 01/user-file.mp4")).toBe(
+        false
+      );
+      expect(fs.readFileSync(untracked, "utf8")).toBe("USER DATA");
+    });
+
+    it("reports a tracked artifact already gone from disk as removed", () => {
+      writeFile(path.join(testPaths.videos, "ants.mp4"), "video-bytes");
+      buildAndMaterialize();
+
+      // Something outside MyTube deleted it; the ledger row must still clear.
+      fs.unlinkSync(mirrorPath("Kurzgesagt", "Season 01", "S01E001 - Ants.mp4"));
+
+      expect(
+        removeOwnedMirrorArtifact("Kurzgesagt/Season 01/S01E001 - Ants.mp4")
+      ).toBe(true);
+    });
+
+    it("does not treat another assignment's artifact as published for this one", () => {
+      writeFile(path.join(testPaths.videos, "ants.mp4"), "video-bytes");
+      buildAndMaterialize({}, { mode: "nfo_and_source_json" });
+
+      const sourceJson = mirrorPath(
+        "Kurzgesagt",
+        "Season 01",
+        "S01E001 - Ants.info.json"
+      );
+      expect(isArtifactPublished(sourceJson, "assign-1")).toBe(true);
+      // A different assignment has no claim on it.
+      expect(isArtifactPublished(sourceJson, "someone-else")).toBe(false);
+    });
+
+    it("reports an unpublished path as not published", () => {
+      expect(
+        isArtifactPublished(mirrorPath("Kurzgesagt", "Season 01", "nothing.nfo"))
+      ).toBe(false);
+    });
+  });
+
+  describe("directory pruning", () => {
+    it("stops at the mirror root and never removes it", () => {
+      const season = mirrorPath("Kurzgesagt", "Season 01");
+      fs.ensureDirSync(season);
+
+      pruneEmptyMirrorDirectories(season);
+
+      expect(fs.existsSync(season)).toBe(false);
+      expect(fs.existsSync(mirrorPath("Kurzgesagt"))).toBe(false);
+      expect(fs.existsSync(testPaths.mediaLibrary)).toBe(true);
+    });
+
+    it("leaves a directory that still holds something", () => {
+      const season = mirrorPath("Kurzgesagt", "Season 01");
+      writeFile(path.join(season, "keep.nfo"), "keep");
+
+      pruneEmptyMirrorDirectories(season);
+
+      expect(fs.existsSync(season)).toBe(true);
+    });
+
+    it("refuses to prune through a symlinked ancestor", () => {
+      const outside = path.join(testPaths.root, "outside");
+      fs.ensureDirSync(path.join(outside, "Season 01"));
+      fs.symlinkSync(outside, mirrorPath("Kurzgesagt"));
+
+      pruneEmptyMirrorDirectories(mirrorPath("Kurzgesagt", "Season 01"));
+
+      // The empty directory outside the mirror is untouched.
+      expect(fs.existsSync(path.join(outside, "Season 01"))).toBe(true);
+    });
   });
 
   it("never overwrites an untracked file sitting on a planned path", () => {

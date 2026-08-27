@@ -5,6 +5,8 @@ import {
   normalizeChannelUrl,
   normalizePlatform,
   resolveShowIdentity,
+  buildCollectionShowIdentityKey,
+  isCollectionShowIdentityKey,
 } from "../../../services/mediaServerExport/identity";
 
 describe("mediaServerExport identity", () => {
@@ -201,5 +203,21 @@ describe("mediaServerExport identity", () => {
         )
       ).toBe(false);
     });
+  });
+});
+
+/**
+ * A collection show lives in its own identity namespace so it can never be
+ * matched against - or merged with - a real channel.
+ */
+describe("isCollectionShowIdentityKey", () => {
+  it("recognizes only the collection namespace", () => {
+    expect(isCollectionShowIdentityKey(buildCollectionShowIdentityKey("c1"))).toBe(
+      true
+    );
+    expect(isCollectionShowIdentityKey("collection:anything")).toBe(true);
+    expect(isCollectionShowIdentityKey("youtube:channel-id:UC1")).toBe(false);
+    expect(isCollectionShowIdentityKey("youtube:author:someone")).toBe(false);
+    expect(isCollectionShowIdentityKey("")).toBe(false);
   });
 });
