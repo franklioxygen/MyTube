@@ -17,6 +17,9 @@ import {
   episodeAssignmentExists,
   getMediaServerShowById,
 } from "./catalogRepository";
+import { getCollectionById } from "../storageService/collectionRepository";
+import { getVideoById } from "../storageService/videos";
+import { resolveSeasonMetadata } from "./metadataResolver";
 import {
   buildEpisodeNfo,
   buildSeasonNfo,
@@ -134,6 +137,72 @@ function subtitleRootFor(absolutePath: string): string | null {
   return null;
 }
 
+/**
+ * The video as it stands now, over the copy the plan captured.
+ *
+ * A metadata edit committed while the rebuild yields publishes an updated
+ * episode NFO through its own hook; writing the plan's pre-edit snapshot back
+ * over it would undo the edit until some later reconcile. Merged rather than
+ * replaced so a field the current row does not carry falls back to what the
+ * plan knew, and the resolved source/artwork paths - probed at plan time - are
+ * never disturbed.
+ */
+function currentVideoFor(
+  episode: HierarchyEpisodePlan
+): HierarchyEpisodePlan["video"] {
+  try {
+    const fresh = getVideoById(episode.video.id);
+    return fresh ? { ...episode.video, ...fresh } : episode.video;
+  } catch {
+    // Best effort. Slightly stale metadata is a far better outcome than
+    // failing an episode that would otherwise publish correctly.
+    return episode.video;
+  }
+}
+
+/**
+ * Season title and plot as they stand now, for a collection-backed season.
+ *
+ * Same staleness as the show and episode metadata: a collection renamed while
+ * the rebuild yields has already had its season NFO rewritten by its own hook,
+ * and the plan's captured copy would put the old text straight back.
+ *
+ * The title falls back to the plan's value because that one may have come from
+ * a linked subscription's playlist title, which is not re-read here. The plot
+ * mirrors the snapshot builder exactly: the collection's description, or empty.
+ */
+function currentSeasonMetadata(season: {
+  collectionId?: string;
+  seasonNumber: number;
+  title: string;
+  plot: string;
+}): { title: string; plot: string } {
+  if (!season.collectionId) {
+    return { title: season.title, plot: season.plot };
+  }
+
+  try {
+    const collection = getCollectionById(season.collectionId);
+    if (!collection) {
+      return { title: season.title, plot: season.plot };
+    }
+
+    const resolved = resolveSeasonMetadata({
+      collection,
+      seasonNumber: season.seasonNumber,
+    });
+    const placeholder = `Season ${String(season.seasonNumber).padStart(2, "0")}`;
+
+    return {
+      title: resolved.title === placeholder ? season.title : resolved.title,
+      plot: resolved.plot,
+    };
+  } catch {
+    // Best effort, as above.
+    return { title: season.title, plot: season.plot };
+  }
+}
+
 function materializeEpisode(
   showPlan: HierarchyShowPlan,
   showTitle: string,
@@ -144,6 +213,7 @@ function materializeEpisode(
 ): void {
   const showId = showPlan.show.id;
   const assignmentId = episode.assignment.id;
+  const video = currentVideoFor(episode);
 
   // Media first: an NFO without its media is a broken episode in every server,
   // while media without an NFO still plays.
@@ -185,7 +255,7 @@ function materializeEpisode(
   const nfo = writeMirrorTextArtifact({
     targetAbsolutePath: episode.targetNfoAbsolutePath,
     contents: buildEpisodeNfo({
-      video: episode.video,
+      video,
       showTitle,
       seasonNumber,
       episodeNumber: episode.assignment.episodeNumber,
@@ -224,7 +294,7 @@ function materializeEpisode(
       // reserve a .info.json path that is never actually written.
       const contents =
         suppliedSourceJson ??
-        `${JSON.stringify(buildSourceInfoEnvelope(episode.video), null, 2)}\n`;
+        `${JSON.stringify(buildSourceInfoEnvelope(video), null, 2)}\n`;
 
       const sourceJson = writeMirrorTextArtifact({
         targetAbsolutePath: episode.targetSourceJsonAbsolutePath,
@@ -336,12 +406,13 @@ function* materializeShowSteps(
   }
 
   for (const season of showPlan.seasons) {
+    const seasonMetadata = currentSeasonMetadata(season);
     const seasonNfo = writeMirrorTextArtifact({
       targetAbsolutePath: season.seasonNfoAbsolutePath,
       contents: buildSeasonNfo({
         seasonNumber: season.seasonNumber,
-        title: season.title,
-        plot: season.plot,
+        title: seasonMetadata.title,
+        plot: seasonMetadata.plot,
         seasonUniqueId: season.seasonUniqueId,
       }),
       artifactType: "season_nfo",

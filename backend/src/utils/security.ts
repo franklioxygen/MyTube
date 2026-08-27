@@ -433,7 +433,25 @@ export function unlinkSafeSync(
   allowedDirOrDirs: string | readonly string[],
 ): void {
   const safePath = resolveTrustedPathForOperation(filePath, allowedDirOrDirs);
-  fs.unlinkSync(safePath);
+
+  // Containment is re-checked inline, immediately around the unlink, rather
+  // than relying only on the resolver above. Static analysis cannot see through
+  // the resolver, so a caller reachable from request data reads as a
+  // path-injection sink; the guard here is the barrier it does recognise. Same
+  // shape as writeFileSafe, pathExistsSafeSync and copyFileSafeSync.
+  for (const allowedDir of normalizeAllowedDirectories(allowedDirOrDirs)) {
+    const relative = path.relative(path.resolve(allowedDir), safePath);
+    if (!relative.startsWith("..") && !path.isAbsolute(relative)) {
+      // safePath is constrained by resolveTrustedPathForOperation before unlink.
+      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+      fs.unlinkSync(safePath);
+      return;
+    }
+  }
+
+  throw new Error(
+    `Path traversal detected: ${filePath} is outside allowed directories`,
+  );
 }
 
 export function unlinkTrustedSync(filePath: string): void {
@@ -566,7 +584,45 @@ export function renameSafeSync(
     destinationPath,
     destinationAllowedDirOrDirs,
   );
-  fs.renameSync(safeSourcePath, safeDestinationPath);
+
+  // Both ends re-checked inline, immediately around the rename, for the same
+  // reason as copyFileSafeSync: the resolver alone is invisible to static
+  // analysis, so a caller reachable from request data reads as a path-injection
+  // sink without this.
+  for (const sourceAllowedDir of normalizeAllowedDirectories(
+    sourceAllowedDirOrDirs,
+  )) {
+    const sourceRelative = path.relative(
+      path.resolve(sourceAllowedDir),
+      safeSourcePath,
+    );
+    if (sourceRelative.startsWith("..") || path.isAbsolute(sourceRelative)) {
+      continue;
+    }
+
+    for (const destinationAllowedDir of normalizeAllowedDirectories(
+      destinationAllowedDirOrDirs,
+    )) {
+      const destinationRelative = path.relative(
+        path.resolve(destinationAllowedDir),
+        safeDestinationPath,
+      );
+      if (
+        !destinationRelative.startsWith("..") &&
+        !path.isAbsolute(destinationRelative)
+      ) {
+        // safeSourcePath and safeDestinationPath are constrained by
+        // resolveTrustedPathForOperation before rename.
+        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+        fs.renameSync(safeSourcePath, safeDestinationPath);
+        return;
+      }
+    }
+  }
+
+  throw new Error(
+    `Path traversal detected: rename operation is outside allowed directories`,
+  );
 }
 
 export function fsyncFileSafeSync(

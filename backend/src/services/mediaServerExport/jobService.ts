@@ -15,7 +15,7 @@ import {
 } from "./syncService";
 import { cleanupMediaServerMirrorAsync } from "./hierarchyMaterializer";
 import { syncPlaylistTvLibrary } from "./playlistTvSync";
-import { sweepOrphanMediaServerArtifacts } from "./orphanSweep";
+import { sweepOrphanMediaServerArtifactsAsync } from "./orphanSweep";
 import type {
   MediaServerExportJob,
   MediaServerExportJobCounts,
@@ -184,11 +184,15 @@ async function processMediaServerExportJob(
       // runs first because job progress is denominated in videos.
       await processAdjacentJob(job, allVideos);
       const sidecarsSwept = job.sweptFiles ?? 0;
-      const mirrorSwept = await sweepMirrorBestEffort(job);
-
-      job.sweptFiles = sidecarsSwept + mirrorSwept;
-      job.phase = "completed";
-      job.status = job.cancelRequested ? "cancelled" : "completed";
+      // Through the same helper as the other two branches. processAdjacentJob
+      // has already declared the job completed, and the mirror sweep below
+      // yields per artifact - so without this a poll sees "completed" while a
+      // destructive full-library delete is still running, and a new run is
+      // admitted straight into the lock this one still holds.
+      await withJobReopenedForSecondaryPhase(job, async () => {
+        const mirrorSwept = await sweepMirrorBestEffort(job);
+        job.sweptFiles = sidecarsSwept + mirrorSwept;
+      });
     } else if (job.layout === "playlist_tv") {
       await processPlaylistTvJob(job);
       // The layout the user just switched away from keeps its artifacts
@@ -408,9 +412,16 @@ async function processAdjacentJob(
   allVideos: Video[]
 ): Promise<void> {
   job.phase = "sweep";
-  const sweepResult = sweepOrphanMediaServerArtifacts(allVideos);
+  const sweepResult = await sweepOrphanMediaServerArtifactsAsync(
+    allVideos,
+    () => job.cancelRequested
+  );
   job.sweptFiles = sweepResult.sweptFiles;
   job.sweptList = sweepResult.sweptList;
+  if (job.cancelRequested) {
+    job.status = "cancelled";
+    return;
+  }
 
   job.phase = "materialize";
   for (const video of allVideos) {

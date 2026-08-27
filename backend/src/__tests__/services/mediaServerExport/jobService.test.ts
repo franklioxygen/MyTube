@@ -42,7 +42,7 @@ vi.mock("../../../services/mediaServerExport/hierarchyMaterializer", () => ({
 }));
 
 vi.mock("../../../services/mediaServerExport/orphanSweep", () => ({
-  sweepOrphanMediaServerArtifacts: sweepOrphanMediaServerArtifactsMock,
+  sweepOrphanMediaServerArtifactsAsync: sweepOrphanMediaServerArtifactsMock,
 }));
 
 // The playlist_tv modules are mocked above; this keeps anything they pull in
@@ -127,7 +127,7 @@ describe("mediaServerExport jobService", () => {
 
     getMediaServerExportLayoutMock.mockReturnValue("adjacent");
     acquireRenameLockMock.mockReturnValue(true);
-    sweepOrphanMediaServerArtifactsMock.mockReturnValue({
+    sweepOrphanMediaServerArtifactsMock.mockResolvedValue({
       sweptFiles: 0,
       sweptList: [],
     });
@@ -193,7 +193,7 @@ describe("mediaServerExport jobService", () => {
 
   it("records orphan sweep counters before processing videos", async () => {
     getVideosMock.mockReturnValue([createVideo("video-1")]);
-    sweepOrphanMediaServerArtifactsMock.mockReturnValue({
+    sweepOrphanMediaServerArtifactsMock.mockResolvedValue({
       sweptFiles: 2,
       sweptList: ["Old/video.nfo", "Old/video-thumb.jpg"],
     });
@@ -202,7 +202,7 @@ describe("mediaServerExport jobService", () => {
     await waitForJobCompletion(job.id);
 
     const completedJob = getMediaServerExportJobById(job.id);
-    expect(sweepOrphanMediaServerArtifactsMock).toHaveBeenCalledWith([
+    expect(sweepOrphanMediaServerArtifactsMock.mock.calls[0][0]).toEqual([
       expect.objectContaining({ id: "video-1" }),
     ]);
     expect(completedJob?.sweptFiles).toBe(2);
@@ -351,6 +351,64 @@ describe("mediaServerExport jobService", () => {
       // Both sweeps contribute to the reported file count.
       expect(completed?.sweptFiles).toBe(6);
       expect(removeMediaServerArtifactsForVideoMock).toHaveBeenCalledTimes(1);
+    });
+
+    /**
+     * The cleanup branch was the one caller still awaiting the mirror sweep
+     * outside withJobReopenedForSecondaryPhase, so a poll landing in one of its
+     * yields saw "completed" while a destructive full-library delete was still
+     * running - and a new run would be admitted straight into the held lock.
+     */
+    it("stays running until the cleanup mirror sweep finishes", async () => {
+      getVideosMock.mockReturnValue([createVideo("video-1")]);
+
+      let statusDuringSweep: string | undefined;
+      let jobId = "";
+      cleanupMediaServerMirrorAsyncMock.mockImplementation(async () => {
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        statusDuringSweep = getMediaServerExportJobById(jobId)?.status;
+        return { counts: { removedArtifacts: 2 }, failures: [] };
+      });
+
+      const job = await startMediaServerExportJob("off");
+      jobId = job.id;
+      await waitForJobCompletion(jobId);
+
+      expect(statusDuringSweep).toBe("running");
+      expect(getMediaServerExportJobById(jobId)?.status).toBe("completed");
+    });
+
+    /**
+     * The orphan scan walks and stats the whole of VIDEOS_DIR and then deletes
+     * in one burst, all before the first per-video yield - so a cancel arriving
+     * during it could not be served and every orphan sidecar went anyway.
+     */
+    it("passes a cancellation probe into the orphan sweep", async () => {
+      getVideosMock.mockReturnValue([createVideo("video-1")]);
+      getMediaServerExportLayoutMock.mockReturnValue("adjacent");
+
+      const job = await startMediaServerExportJob("nfo");
+      await waitForJobCompletion(job.id);
+
+      const probe = sweepOrphanMediaServerArtifactsMock.mock.calls[0][1];
+      expect(typeof probe).toBe("function");
+      expect(probe()).toBe(false);
+    });
+
+    it("abandons the rebuild when the orphan sweep reports a cancel", async () => {
+      getVideosMock.mockReturnValue([createVideo("video-1")]);
+      getMediaServerExportLayoutMock.mockReturnValue("adjacent");
+      sweepOrphanMediaServerArtifactsMock.mockImplementation(async () => {
+        const running = getActiveMediaServerExportJob();
+        if (running) cancelMediaServerExportJob(running.id);
+        return { sweptFiles: 0, sweptList: [] };
+      });
+
+      const job = await startMediaServerExportJob("nfo");
+      await waitForJobStatus(job.id, "cancelled");
+
+      // Nothing was materialized after the cancel was observed.
+      expect(syncMediaServerArtifactsForRecordMock).not.toHaveBeenCalled();
     });
 
     it("still completes when the mirror sweep throws", async () => {

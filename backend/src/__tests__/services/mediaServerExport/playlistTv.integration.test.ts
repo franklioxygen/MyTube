@@ -150,6 +150,10 @@ vi.mock("../../../services/storageService/collectionRepository", () => ({
         tmdbPremiereDate: row?.tmdbPremiereDate ?? undefined,
       };
     }),
+  // The materializer re-reads a season's collection before writing its NFO, so
+  // the fixture has to serve single-collection lookups as well.
+  getCollectionById: (id: string) =>
+    libraryCollections.find((collection) => collection.id === id),
 }));
 
 vi.mock("../../../utils/logger", () => ({
@@ -162,6 +166,12 @@ import {
   syncPlaylistTvForVideo,
   syncPlaylistTvLibrary,
 } from "../../../services/mediaServerExport/playlistTvSync";
+import { buildMediaServerCatalogSnapshot } from "../../../services/mediaServerExport/catalogSnapshot";
+// The mocked repository: it enriches each collection with the season attachment
+// columns the snapshot builder needs, exactly as syncPlaylistTvLibrary does.
+import { getCollections } from "../../../services/storageService/collectionRepository";
+import { planMediaServerHierarchy } from "../../../services/mediaServerExport/hierarchyPlanner";
+import { materializeMediaServerHierarchy } from "../../../services/mediaServerExport/hierarchyMaterializer";
 import {
   clearPendingSourceInfo,
   peekPendingSourceInfo,
@@ -1421,5 +1431,116 @@ describe("parked source metadata survives a failed sync (PR #412 review)", () =>
     });
 
     expect(peekPendingSourceInfo("v-origins")).toEqual(envelope);
+  });
+});
+
+
+/**
+ * The rebuild materializes from a plan captured before it started, so every
+ * field that plan holds is a candidate for going stale while it yields. The
+ * show row was covered in 8e2161d2; these pin the other two projections.
+ */
+describe("captured plan metadata is refreshed at publish time (PR #412 review)", () => {
+  beforeEach(() => {
+    fs.emptyDirSync(testPaths.root);
+    for (const dir of [
+      testPaths.videos,
+      testPaths.images,
+      testPaths.imagesSmall,
+      testPaths.avatars,
+      testPaths.subtitles,
+      testPaths.mediaLibrary,
+    ]) {
+      fs.ensureDirSync(dir);
+    }
+    testDb.sqlite.exec(`
+      DELETE FROM media_server_export_artifacts;
+      DELETE FROM media_server_episode_assignments;
+      DELETE FROM collections;
+      DELETE FROM videos;
+      DELETE FROM media_server_shows;
+    `);
+    buildFixture();
+  });
+
+  afterAll(() => {
+    fs.removeSync(testPaths.root);
+  });
+
+  it("writes the episode title as edited, not as the plan captured it", async () => {
+    await rebuild();
+
+    // A metadata edit lands after the plan was built.
+    const video = libraryVideos.find((v) => v.id === "v-origins");
+    if (!video) throw new Error("fixture video missing");
+    video.title = "Human Origins (Remastered)";
+    video.description = "An edited description.";
+
+    const snapshotForPlan = buildMediaServerCatalogSnapshot({
+      videos: libraryVideos,
+      collections: getCollections(),
+      subscriptions: [],
+    });
+    const plan = planMediaServerHierarchy(snapshotForPlan, { mode: "nfo" });
+
+    // Now revert the captured copy so only a re-read can produce the new text.
+    const captured = plan.shows
+      .flatMap((s) => s.seasons)
+      .flatMap((s) => s.episodes)
+      .find((e) => e.video.id === "v-origins");
+    if (!captured) throw new Error("planned episode missing");
+    captured.video = { ...captured.video, title: "STALE", description: "STALE" };
+
+    materializeMediaServerHierarchy(plan, {
+      copyFallbackEnabled: true,
+      sweepScopeShowIds: undefined,
+    });
+
+    const nfo = fs.readFileSync(
+      path.join(
+        testPaths.mediaLibrary,
+        "Kurzgesagt – In a Nutshell/Season 01/S01E001 - Human Origins.nfo"
+      ),
+      "utf8"
+    );
+    expect(nfo).toContain("Human Origins (Remastered)");
+    expect(nfo).not.toContain("STALE");
+  });
+
+  it("writes the season title as renamed, not as the plan captured it", async () => {
+    await rebuild();
+
+    const plan = planMediaServerHierarchy(
+      buildMediaServerCatalogSnapshot({
+        videos: libraryVideos,
+        collections: getCollections(),
+        subscriptions: [],
+      }),
+      { mode: "nfo" }
+    );
+
+    // The collection is renamed after the plan was captured.
+    const collection = libraryCollections.find((c) => c.id === "c-existential");
+    if (!collection) throw new Error("fixture collection missing");
+    collection.title = "Existential Questions (Renamed)";
+    collection.description = "A fresh blurb.";
+    testDb.sqlite
+      .prepare("UPDATE collections SET title=?, description=? WHERE id=?")
+      .run("Existential Questions (Renamed)", "A fresh blurb.", "c-existential");
+
+    materializeMediaServerHierarchy(plan, {
+      copyFallbackEnabled: true,
+      sweepScopeShowIds: undefined,
+    });
+
+    const seasonNfo = fs.readFileSync(
+      path.join(
+        testPaths.mediaLibrary,
+        "Kurzgesagt – In a Nutshell/Season 01/season.nfo"
+      ),
+      "utf8"
+    );
+    expect(seasonNfo).toContain("Existential Questions (Renamed)");
+    expect(seasonNfo).toContain("A fresh blurb.");
   });
 });

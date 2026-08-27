@@ -158,6 +158,53 @@ function deleteSweptFile(
   });
 }
 
+/** Decides which MyTube-generated sidecars no longer belong to any video. */
+function collectOrphanArtifactPaths(allVideos: Video[]): Set<string> {
+  const expected = buildExpectedArtifactPaths(allVideos);
+  const candidates = walkFiles(VIDEOS_DIR)
+    .filter(isCandidateFile)
+    .filter((targetPath) => !expected.has(path.normalize(targetPath)));
+  const nfoToDelete = new Set<string>();
+  const filesToDelete = new Set<string>();
+
+  for (const targetPath of candidates) {
+    const filename = path.basename(targetPath).toLowerCase();
+    if (filename.endsWith(".nfo") && isMytubeGeneratedNfo(targetPath)) {
+      nfoToDelete.add(path.normalize(targetPath));
+      filesToDelete.add(path.normalize(targetPath));
+    } else if (
+      filename.endsWith(".info.json") &&
+      isMytubeGeneratedSourceJson(targetPath)
+    ) {
+      filesToDelete.add(path.normalize(targetPath));
+    }
+  }
+
+  for (const targetPath of candidates) {
+    const filename = path.basename(targetPath).toLowerCase();
+    if (
+      filename.endsWith("-thumb.jpg") &&
+      nfoToDelete.has(path.normalize(getPairedEpisodeNfoPath(targetPath)))
+    ) {
+      filesToDelete.add(path.normalize(targetPath));
+    } else if (
+      (filename === "show.jpg" ||
+        filename === "poster.jpg" ||
+        filename === "folder.jpg") &&
+      nfoToDelete.has(
+        path.normalize(
+          resolveSafeChildPath(path.dirname(targetPath), "tvshow.nfo")
+        )
+      )
+    ) {
+      filesToDelete.add(path.normalize(targetPath));
+    }
+  }
+
+
+  return filesToDelete;
+}
+
 export function sweepOrphanMediaServerArtifacts(
   allVideos: Video[]
 ): OrphanArtifactSweepResult {
@@ -171,48 +218,57 @@ export function sweepOrphanMediaServerArtifacts(
       return result;
     }
 
-    const expected = buildExpectedArtifactPaths(allVideos);
-    const candidates = walkFiles(VIDEOS_DIR)
-      .filter(isCandidateFile)
-      .filter((targetPath) => !expected.has(path.normalize(targetPath)));
-    const nfoToDelete = new Set<string>();
-    const filesToDelete = new Set<string>();
-
-    for (const targetPath of candidates) {
-      const filename = path.basename(targetPath).toLowerCase();
-      if (filename.endsWith(".nfo") && isMytubeGeneratedNfo(targetPath)) {
-        nfoToDelete.add(path.normalize(targetPath));
-        filesToDelete.add(path.normalize(targetPath));
-      } else if (
-        filename.endsWith(".info.json") &&
-        isMytubeGeneratedSourceJson(targetPath)
-      ) {
-        filesToDelete.add(path.normalize(targetPath));
-      }
-    }
-
-    for (const targetPath of candidates) {
-      const filename = path.basename(targetPath).toLowerCase();
-      if (
-        filename.endsWith("-thumb.jpg") &&
-        nfoToDelete.has(path.normalize(getPairedEpisodeNfoPath(targetPath)))
-      ) {
-        filesToDelete.add(path.normalize(targetPath));
-      } else if (
-        (filename === "show.jpg" ||
-          filename === "poster.jpg" ||
-          filename === "folder.jpg") &&
-        nfoToDelete.has(
-          path.normalize(
-            resolveSafeChildPath(path.dirname(targetPath), "tvshow.nfo")
-          )
-        )
-      ) {
-        filesToDelete.add(path.normalize(targetPath));
-      }
-    }
+    const filesToDelete = collectOrphanArtifactPaths(allVideos);
 
     for (const targetPath of Array.from(filesToDelete).sort()) {
+      deleteSweptFile(targetPath, result);
+    }
+  } catch (error) {
+    logger.error("Failed to sweep orphan media server artifacts", error);
+  }
+
+  return result;
+}
+
+/**
+ * Same sweep, yielding to the event loop while it deletes.
+ *
+ * The scan itself walks and stats the whole of VIDEOS_DIR before anything is
+ * removed, and the deletions then run in one uninterrupted burst. Draining that
+ * synchronously means the job's status endpoint and its cancel request go
+ * unanswered throughout, so `cancelRequested` cannot become true and a user who
+ * asks to stop still loses every orphan sidecar.
+ *
+ * The scan is left whole - it decides *what* is stale and reads nothing the
+ * user can change mid-run - and the yields sit around the destructive half,
+ * which is the part a cancel needs to be able to stop.
+ */
+export async function sweepOrphanMediaServerArtifactsAsync(
+  allVideos: Video[],
+  isCancelled?: () => boolean
+): Promise<OrphanArtifactSweepResult> {
+  const result: OrphanArtifactSweepResult = {
+    sweptFiles: 0,
+    sweptList: [],
+  };
+
+  try {
+    if (!pathExistsSafeSync(VIDEOS_DIR, VIDEOS_DIR)) {
+      return result;
+    }
+
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    if (isCancelled?.()) {
+      return result;
+    }
+
+    const filesToDelete = collectOrphanArtifactPaths(allVideos);
+
+    for (const targetPath of Array.from(filesToDelete).sort()) {
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      if (isCancelled?.()) {
+        return result;
+      }
       deleteSweptFile(targetPath, result);
     }
   } catch (error) {
