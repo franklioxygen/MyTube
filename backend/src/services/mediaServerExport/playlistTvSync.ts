@@ -90,7 +90,8 @@ function loadPlaylistSubscriptionRefs(): PlaylistSubscriptionRef[] {
  * plots that reconciliation just attached to their collections.
  */
 function loadMediaServerCatalogSnapshot(
-  videos: Video[]
+  videos: Video[],
+  rawInfoByVideoId?: Map<string, unknown>
 ): MediaServerCatalogSnapshot {
   const shows = getMediaServerShows();
   const assignments = getMediaServerEpisodeAssignments();
@@ -136,6 +137,7 @@ function loadMediaServerCatalogSnapshot(
     seasons,
     assignments,
     videosById: new Map(videos.map((video) => [video.id, video])),
+    rawInfoByVideoId,
   };
 }
 
@@ -157,7 +159,7 @@ function planAndMaterialize(
 ): { plan: HierarchyPlan; result: MaterializeHierarchyResult } {
   options.onPhase?.("plan");
   const plan = planMediaServerHierarchy({
-    snapshot: loadMediaServerCatalogSnapshot(videos),
+    snapshot: loadMediaServerCatalogSnapshot(videos, options.rawInfoByVideoId),
     mode: options.mode,
     showIds: options.showIds,
   });
@@ -219,7 +221,7 @@ export function syncPlaylistTvForVideo(
   if (showIds.length === 0) {
     return;
   }
-  planAndMaterialize(videos, { ...options, showIds });
+  planAndMaterialize(videos, { ...options, showIds, rawInfoByVideoId });
 }
 
 /**

@@ -193,6 +193,8 @@ reports how many files were linked versus copied.
   Reordering the upstream playlist does not renumber anything; MyTube only records the new
   source position.
 - A video added at the head of a playlist receives the next unused episode number, not `1`.
+- An episode number a removed video gives up is never handed to another video, even after
+  the occurrence itself is gone.
 - Editing a video title rewrites its `.nfo` but never moves its file.
 
 ### One video in several playlists

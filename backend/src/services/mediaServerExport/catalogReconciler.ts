@@ -9,9 +9,11 @@ import {
   deleteEpisodeAssignment,
   getMediaServerEpisodeAssignments,
   getMediaServerShows,
+  getRetiredEpisodeNumbers,
   updateEpisodeSourcePosition,
   updateMediaServerShow,
   type MediaServerShowPatch,
+  type RetiredEpisodeNumber,
 } from "./catalogRepository";
 import {
   buildExportStem,
@@ -307,10 +309,32 @@ class EpisodeAllocator {
   private readonly byOccurrence = new Map<string, MediaServerEpisodeAssignment>();
   private readonly bySeason = new Map<string, SeasonEpisodeState>();
 
-  constructor(assignments: MediaServerEpisodeAssignment[]) {
+  constructor(
+    assignments: MediaServerEpisodeAssignment[],
+    retiredEpisodeNumbers: RetiredEpisodeNumber[]
+  ) {
+    // Tombstones first: the numbers of occurrences an earlier pass deleted are
+    // gone from `assignments`, and rebuilding the season state from the live
+    // rows alone would hand them out again.
+    for (const retired of retiredEpisodeNumbers) {
+      this.markUsed(
+        EpisodeAllocator.seasonKey(retired.showId, retired.seasonNumber),
+        retired.episodeNumber
+      );
+    }
     for (const assignment of assignments) {
       this.track(assignment);
     }
+  }
+
+  private markUsed(seasonKey: string, episodeNumber: number): void {
+    const state = this.bySeason.get(seasonKey) ?? {
+      used: new Set<number>(),
+      max: 0,
+    };
+    state.used.add(episodeNumber);
+    state.max = Math.max(state.max, episodeNumber);
+    this.bySeason.set(seasonKey, state);
   }
 
   private static seasonKey(showId: string, seasonNumber: number): string {
@@ -326,14 +350,10 @@ class EpisodeAllocator {
       ),
       assignment
     );
-    const key = EpisodeAllocator.seasonKey(
-      assignment.showId,
-      assignment.seasonNumber
+    this.markUsed(
+      EpisodeAllocator.seasonKey(assignment.showId, assignment.seasonNumber),
+      assignment.episodeNumber
     );
-    const state = this.bySeason.get(key) ?? { used: new Set<number>(), max: 0 };
-    state.used.add(assignment.episodeNumber);
-    state.max = Math.max(state.max, assignment.episodeNumber);
-    this.bySeason.set(key, state);
   }
 
   get(
@@ -354,7 +374,8 @@ class EpisodeAllocator {
       )
     );
     // The season's used-number set is deliberately not shrunk: a freed episode
-    // number must not be handed to a different video later.
+    // number must not be handed to a different video later. The delete writes a
+    // tombstone, so the next reconciliation starts from the same set.
   }
 
   /**
@@ -441,7 +462,10 @@ function reconcileInTransaction(
   }
 
   const showResolver = new ShowResolver(getMediaServerShows());
-  const allocator = new EpisodeAllocator(getMediaServerEpisodeAssignments());
+  const allocator = new EpisodeAllocator(
+    getMediaServerEpisodeAssignments(),
+    getRetiredEpisodeNumbers()
+  );
   const collectionsById = new Map(input.collections.map((c) => [c.id, c]));
 
   // 1. Drop occurrences whose video or playlist membership is gone. Season 00

@@ -257,6 +257,23 @@ describe("mediaServerExport/hierarchyPlanner", () => {
     ).toContain("Kurzgesagt/Season 01/S01E001 - Human Origins.info.json");
   });
 
+  it("layers a fresh download's raw info into the planned source JSON", () => {
+    const snapshot = buildSnapshot({
+      rawInfoByVideoId: new Map([
+        ["video-1", { format_id: "248+251", _mytube: { ignored: true } }],
+      ]),
+    });
+    const sourceJson = plan(snapshot, { mode: "nfo_and_source_json" })
+      .shows[0].seasons[0].episodes[0].artifacts.find((artifact) =>
+        artifact.relativePath.endsWith(".info.json")
+      );
+    const payload = JSON.parse(sourceJson?.content ?? "{}");
+
+    expect(payload.format_id).toBe("248+251");
+    expect(payload._mytube.rawSourcePreserved).toBe(true);
+    expect(payload.title).toBe("Human Origins");
+  });
+
   it("plans allowlisted subtitles and skips unusable ones", () => {
     const snapshot = buildSnapshot({
       videosById: new Map([
