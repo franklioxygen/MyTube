@@ -41,6 +41,10 @@ export interface DownloadModeOptions {
   // Validated template from subscriptions.filename_template (issue #368).
   // null/undefined = use the global filename naming settings.
   subscriptionFilenameTemplate?: string | null;
+  // The caller links this download to a source-backed collection as soon as
+  // it returns (issue #411). The managed playlist-TV mirror then waits for
+  // that link instead of briefly publishing the video into Season 00.
+  pendingCollectionLink?: boolean;
 }
 
 export interface DownloadOptions extends DownloadModeOptions {

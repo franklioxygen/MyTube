@@ -771,6 +771,7 @@ export async function downloadCollection(
             onStart,
             collectionName, // collectionName
             sourceOptions, // filenameTemplateSourceOptions
+            { pendingCollectionLink: Boolean(mytubeCollectionId) },
           );
 
         let result = await downloadPart();
@@ -1042,7 +1043,8 @@ export async function downloadRemainingParts(
           sourceCollectionName: collectionName || seriesTitle,
           sourceCollectionType: "playlist",
           mediaPlaylistIndex: part,
-        } // filenameTemplateSourceOptions
+        }, // filenameTemplateSourceOptions
+        { pendingCollectionLink: Boolean(collectionId) },
       );
 
       if (result.success && result.videoData) {

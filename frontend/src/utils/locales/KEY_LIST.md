@@ -4,7 +4,7 @@ Canonical locale key order derived from `frontend/src/utils/locales/en.ts`.
 
 This list is intentionally unnumbered. When new keys are inserted, only the local section order changes.
 
-Total keys: 1078
+Total keys: 1102
 
 ## Summary
 
@@ -13,7 +13,7 @@ Total keys: 1078
 | Header | 11 | `myTube` | `instruction` |
 | Home | 23 | `pasteUrl` | `views` |
 | Settings | 4 | `general` | `downloadSettings` |
-| Settings Categories | 188 | `basicSettings` | `enterNewTagName` |
+| Settings Categories | 212 | `basicSettings` | `enterNewTagName` |
 | Database | 40 | `database` | `cleanupTempFilesConfirmMessage` |
 | Task Hooks | 69 | `taskHooks` | `cleanupTempFilesFailed` |
 | Cookie Settings | 12 | `cookieSettings` | `cookiesDeleteFailed` |
@@ -199,6 +199,30 @@ Total keys: 1078
 | `mediaServerExportCleanupComplete` |
 | `mediaServerExportCleanupSummary` |
 | `mediaServerExportSweptSummary` |
+| `mediaServerExportLayout` |
+| `mediaServerExportLayoutAdjacent` |
+| `mediaServerExportLayoutPlaylistTv` |
+| `mediaServerExportLayoutPlaylistTvDescription` |
+| `mediaServerExportLayoutPlaylistTvNamingNote` |
+| `mediaServerLibraryPath` |
+| `mediaServerLibraryPathCopy` |
+| `mediaServerSeasonZeroHint` |
+| `mediaServerStableOrderHint` |
+| `mediaServerHardLinkHint` |
+| `mediaServerCopyFallback` |
+| `mediaServerCopyFallbackDescription` |
+| `mediaServerCopiedMediaWarning` |
+| `mediaServerExportMirrorSummary` |
+| `mediaServerExportFailedDetails` |
+| `mediaServerExportSkippedDetails` |
+| `mediaServerExportPhaseSnapshot` |
+| `mediaServerExportPhaseCatalogReconcile` |
+| `mediaServerExportPhasePlan` |
+| `mediaServerExportPhaseMaterialize` |
+| `mediaServerExportPhaseSweep` |
+| `mediaServerExportPhaseCompleted` |
+| `mediaServerExportPlaylistTvRebuildConfirmBody` |
+| `mediaServerExportPlaylistTvCleanupConfirmBody` |
 | `mediaServerExportActiveDownloadsError` |
 | `mediaServerExportQueuedDownloadsError` |
 | `mediaServerExportUnsupportedModeError` |

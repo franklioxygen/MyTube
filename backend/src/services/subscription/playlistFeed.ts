@@ -39,6 +39,13 @@ export interface PlaylistInspection extends PlaylistHeadSnapshot {
   playlistId: string | null;
   author: string;
   platform: "YouTube" | "Bilibili";
+  // Optional source metadata for the media-server export catalog (issue #411).
+  // Absent whenever the extractor did not report it; never fabricated.
+  description?: string;
+  sourceChannelId?: string;
+  sourceChannelUrl?: string;
+  sourceChannelName?: string;
+  sourceChannelDescription?: string;
 }
 
 export interface BilibiliCollectionInspectionInput {
@@ -233,6 +240,57 @@ export async function getPlaylistHeadSnapshot(
  * author and id are also needed (design §6.1). Throws on failure; returns
  * `headVideoUrl: null` for a verified empty playlist.
  */
+/**
+ * Pull the documented yt-dlp playlist/channel metadata keys out of an
+ * inspection result (issue #411). The playlist envelope wins; a flat playlist
+ * often omits channel identity there, so the first entry is the fallback.
+ * Values that are missing stay missing — an empty string would later look like
+ * a deliberate "cleared" value to the export catalog.
+ */
+function extractPlaylistSourceMetadata(
+  info: Record<string, any> | null | undefined,
+  firstEntry: Record<string, any> | null | undefined
+): Pick<
+  PlaylistInspection,
+  | "description"
+  | "sourceChannelId"
+  | "sourceChannelUrl"
+  | "sourceChannelName"
+  | "sourceChannelDescription"
+> {
+  const pick = (...values: unknown[]): string | undefined => {
+    for (const value of values) {
+      if (typeof value === "string" && value.trim().length > 0) {
+        return value.trim();
+      }
+    }
+    return undefined;
+  };
+
+  return {
+    description: pick(info?.description),
+    sourceChannelId: pick(
+      info?.channel_id,
+      info?.uploader_id,
+      firstEntry?.channel_id,
+      firstEntry?.uploader_id
+    ),
+    sourceChannelUrl: pick(
+      info?.channel_url,
+      info?.uploader_url,
+      firstEntry?.channel_url,
+      firstEntry?.uploader_url
+    ),
+    sourceChannelName: pick(
+      info?.channel,
+      info?.uploader,
+      firstEntry?.channel,
+      firstEntry?.uploader
+    ),
+    sourceChannelDescription: pick(info?.channel_description),
+  };
+}
+
 export async function inspectPlaylist(
   playlistUrl: string,
   options?: PlaylistFeedOptions
@@ -293,6 +351,7 @@ export async function inspectPlaylist(
     playlistId,
     author,
     platform,
+    ...extractPlaylistSourceMetadata(info, entries[0]),
   };
 }
 

@@ -19,7 +19,14 @@ import {
   normalizeVideoDateToDay,
 } from "./nfoBuilders";
 import { planMediaServerExportPaths } from "./pathPlanner";
+import {
+  removePlaylistTvArtifactsForVideo,
+  syncPlaylistTvForCollection,
+  syncPlaylistTvForVideo,
+} from "./playlistTvSync";
+import { buildSourceInfoEnvelope } from "./sourceInfoEnvelope";
 import type {
+  MediaServerExportLayout,
   MediaServerExportMode,
   RemoveMediaServerArtifactsOptions,
   SyncMediaServerArtifactsOptions,
@@ -50,6 +57,30 @@ function getEffectiveMediaServerExportMode(
   options: SyncMediaServerArtifactsOptions
 ): MediaServerExportMode {
   return options.modeOverride || getMediaServerExportMode();
+}
+
+/**
+ * Resolve the export layout. An absent or unrecognized value resolves to the
+ * historical `adjacent` behavior, so an unknown setting can never silently
+ * enable the managed mirror.
+ */
+export function getMediaServerExportLayout(
+  override?: MediaServerExportLayout
+): MediaServerExportLayout {
+  if (override) {
+    return override;
+  }
+  const settings = getSettings() as {
+    mediaServerExportLayout?: MediaServerExportLayout;
+  };
+  return settings.mediaServerExportLayout === "playlist_tv"
+    ? "playlist_tv"
+    : "adjacent";
+}
+
+export function getMediaServerCopyFallback(): boolean {
+  const settings = getSettings() as { mediaServerCopyFallback?: boolean };
+  return settings.mediaServerCopyFallback !== false;
 }
 
 function getAllowedRootForPath(targetPath: string): string {
@@ -160,78 +191,6 @@ function resolveLocalArtworkPath(
   return null;
 }
 
-function buildSourceInfoEnvelope(
-  video: Video,
-  rawSourceInfo?: unknown
-): Record<string, unknown> {
-  const subtitles = Array.isArray(video.subtitles)
-    ? video.subtitles.reduce<Record<string, Array<Record<string, unknown>>>>(
-        (acc, subtitle) => {
-          const ext = path.extname(subtitle.filename).replace(/^\./, "") || "vtt";
-          const key = subtitle.language || "unknown";
-          if (!acc[key]) {
-            acc[key] = [];
-          }
-          acc[key].push({
-            ext,
-            filename: subtitle.filename,
-            path: subtitle.path,
-          });
-          return acc;
-        },
-        {}
-      )
-    : {};
-
-  const synthesized: Record<string, unknown> = {
-    id: video.id,
-    title: video.title,
-    uploader: video.author || undefined,
-    upload_date: typeof video.date === "string" ? video.date.replace(/-/g, "") : undefined,
-    description: video.description || undefined,
-    webpage_url: video.sourceUrl || undefined,
-    duration:
-      video.duration !== undefined && video.duration !== null
-        ? Number(video.duration)
-        : undefined,
-    thumbnail: video.thumbnailPath || video.thumbnailUrl || undefined,
-    extractor: video.source || "unknown",
-    channel_url: video.channelUrl || undefined,
-    tags: Array.isArray(video.tags) ? video.tags : [],
-    subtitles,
-  };
-
-  const rawSourcePreserved =
-    typeof rawSourceInfo === "object" &&
-    rawSourceInfo !== null &&
-    !Array.isArray(rawSourceInfo);
-  const mytubeMetadata = {
-    generatedBy: "mytube",
-    schemaVersion: 1,
-    rawSourcePreserved,
-  };
-
-  if (rawSourcePreserved) {
-    const rawSourceObject = rawSourceInfo as Record<string, unknown>;
-    return {
-      ...synthesized,
-      ...rawSourceObject,
-      _mytube: {
-        ...(typeof rawSourceObject._mytube === "object" &&
-        rawSourceObject._mytube !== null
-          ? rawSourceObject._mytube
-          : {}),
-        ...mytubeMetadata,
-      },
-    };
-  }
-
-  return {
-    ...synthesized,
-    _mytube: mytubeMetadata,
-  };
-}
-
 function matchesShowRoot(video: Video, showRootRelativeDir: string): boolean {
   const plan = planMediaServerExportPaths(video);
   return (
@@ -329,7 +288,10 @@ export function syncMediaServerShowArtifactsForRecord(
 ): void {
   try {
     const mode = getEffectiveMediaServerExportMode(options);
-    if (mode === "off") {
+    if (
+      mode === "off" ||
+      getMediaServerExportLayout(options.layoutOverride) === "playlist_tv"
+    ) {
       return;
     }
 
@@ -357,7 +319,10 @@ export function syncMediaServerShowArtifactsForShowRoot(
 ): void {
   try {
     const mode = getEffectiveMediaServerExportMode(options);
-    if (mode === "off") {
+    if (
+      mode === "off" ||
+      getMediaServerExportLayout(options.layoutOverride) === "playlist_tv"
+    ) {
       return;
     }
 
@@ -443,6 +408,19 @@ export function syncMediaServerArtifactsForRecord(
       return;
     }
 
+    if (getMediaServerExportLayout(options.layoutOverride) === "playlist_tv") {
+      // The caller links this video to a source-backed collection next, so the
+      // export waits for the collection hook and its real season.
+      if (!options.pendingCollectionLink) {
+        syncPlaylistTvForVideo(video, {
+          mode,
+          copyFallback: getMediaServerCopyFallback(),
+          rawSourceInfo: options.rawSourceInfo,
+        });
+      }
+      return;
+    }
+
     const plan = planMediaServerExportPaths(video);
     if (!plan || !pathExistsSafeSync(plan.videoAbsolutePath, VIDEOS_DIR)) {
       return;
@@ -478,6 +456,11 @@ export function removeMediaServerArtifactsForVideo(
   options: RemoveMediaServerArtifactsOptions = {}
 ): void {
   try {
+    if (getMediaServerExportLayout(options.layoutOverride) === "playlist_tv") {
+      removePlaylistTvArtifactsForVideo(video.id);
+      return;
+    }
+
     const plan = planMediaServerExportPaths(video);
     if (!plan) {
       return;
@@ -519,6 +502,32 @@ export function removeMediaServerArtifactsForVideo(
     logger.error("Failed to remove media server artifacts", error, {
       videoId: video.id,
       videoPath: video.videoPath,
+    });
+  }
+}
+
+/**
+ * Converge media-server artifacts after a collection mutation committed. Only
+ * the managed mirror models collections, so this is a no-op in adjacent layout.
+ */
+export function syncMediaServerArtifactsForCollection(
+  collectionId: string,
+  videoId?: string
+): void {
+  try {
+    const mode = getMediaServerExportMode();
+    if (mode === "off" || getMediaServerExportLayout() !== "playlist_tv") {
+      return;
+    }
+    syncPlaylistTvForCollection(collectionId, {
+      mode,
+      copyFallback: getMediaServerCopyFallback(),
+      videoId,
+    });
+  } catch (error) {
+    logger.error("Failed to sync media server artifacts for collection", error, {
+      collectionId,
+      videoId,
     });
   }
 }

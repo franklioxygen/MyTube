@@ -194,6 +194,40 @@ export const ru = {
     "{succeeded} cleaned, {skipped} skipped, {failed} failed.",
   mediaServerExportSweptSummary:
     "Также удалено осиротевших вспомогательных файлов: {count}.",
+  mediaServerExportLayout: "Media server export layout",
+  mediaServerExportLayoutAdjacent: "Adjacent sidecars (existing behavior)",
+  mediaServerExportLayoutPlaylistTv: "Author \u2192 playlist seasons (managed TV library)",
+  mediaServerExportLayoutPlaylistTvDescription:
+    "MyTube builds a separate TV library where each author is a show and each source playlist is a numbered season. Your original videos are never renamed or moved.",
+  mediaServerExportLayoutPlaylistTvNamingNote:
+    "Filename naming settings do not control the managed TV library. Add the directory below to your media server as a Shows library \u2014 not the videos folder, or every video would be imported twice.",
+  mediaServerLibraryPath: "Managed TV library directory",
+  mediaServerLibraryPathCopy: "Copy path",
+  mediaServerSeasonZeroHint:
+    "Videos that belong to no source playlist are placed in Season 00, shown as Specials.",
+  mediaServerStableOrderHint:
+    "Episode numbers follow the order videos were first imported and stay fixed afterwards, even if the upstream playlist is reordered.",
+  mediaServerHardLinkHint:
+    "Episodes are hard links to your original files, so they normally use no extra disk space. Hard links require the library and the videos folder to be on the same filesystem.",
+  mediaServerCopyFallback: "Copy files when hard links are unavailable",
+  mediaServerCopyFallbackDescription:
+    "Keeps the TV library working on filesystems without hard-link support. Copies consume additional disk space.",
+  mediaServerCopiedMediaWarning:
+    "{count} media files had to be copied instead of hard linked, which uses extra disk space.",
+  mediaServerExportMirrorSummary:
+    "{shows} shows, {seasons} seasons, {episodes} episodes; {linked} linked, {copied} copied, {removed} removed.",
+  mediaServerExportFailedDetails: "Failed items",
+  mediaServerExportSkippedDetails: "Skipped items",
+  mediaServerExportPhaseSnapshot: "Reading library",
+  mediaServerExportPhaseCatalogReconcile: "Updating catalog",
+  mediaServerExportPhasePlan: "Planning",
+  mediaServerExportPhaseMaterialize: "Writing files",
+  mediaServerExportPhaseSweep: "Removing stale files",
+  mediaServerExportPhaseCompleted: "Finishing",
+  mediaServerExportPlaylistTvRebuildConfirmBody:
+    "This builds the managed TV library from your existing videos. Originals are never moved or renamed, and episodes are hard linked so they normally use no extra disk space; where hard links are unavailable, enabling the copy fallback consumes storage.",
+  mediaServerExportPlaylistTvCleanupConfirmBody:
+    "This deletes only the files MyTube generated inside the managed TV library. Your original videos, thumbnails, and subtitles are untouched, and season and episode numbers are preserved for a later rebuild.",
   mediaServerExportActiveDownloadsError:
     "Cannot run media server sidecar maintenance while downloads are active.",
   mediaServerExportQueuedDownloadsError:

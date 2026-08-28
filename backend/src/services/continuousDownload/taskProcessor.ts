@@ -562,6 +562,7 @@ export class TaskProcessor {
           {
             subscriptionYtdlpConfig,
             subscriptionFilenameTemplate,
+            pendingCollectionLink: Boolean(task.collectionId),
           }
         );
 
@@ -578,6 +579,7 @@ export class TaskProcessor {
           filenameTemplateSourceOptions,
           subscriptionYtdlpConfig,
           subscriptionFilenameTemplate,
+          pendingCollectionLink: Boolean(task.collectionId),
         });
       }
 
@@ -617,7 +619,9 @@ export class TaskProcessor {
       // If task has a collectionId, add video to collection
       if (task.collectionId && videoData.id) {
         try {
-          storageService.addVideoToCollection(task.collectionId, videoData.id);
+          storageService.addVideoToCollection(task.collectionId, videoData.id, {
+            order: videoIndex + 1,
+          });
           logger.info(
             `Added video ${videoData.id} to collection ${task.collectionId}`
           );

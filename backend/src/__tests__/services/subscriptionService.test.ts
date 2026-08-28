@@ -1518,7 +1518,10 @@ describe('SubscriptionService', () => {
           sourceCollectionName: 'BiliAuthor',
           sourceCollectionType: 'channel',
         }),
-        { subscriptionYtdlpConfig: undefined }
+        expect.objectContaining({
+          subscriptionYtdlpConfig: undefined,
+          pendingCollectionLink: false,
+        })
       );
       expect(storageService.addDownloadHistoryItem).toHaveBeenCalledWith(
         expect.objectContaining({ status: 'success', sourceUrl: 'https://www.bilibili.com/video/BV1x' })

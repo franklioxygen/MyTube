@@ -318,3 +318,65 @@ export function sanitizePlaylistTitle(title: string): string {
     .replace(/[\/\\:*?"<>|]/g, "-")
     .trim();
 }
+
+/**
+ * Source metadata captured for a playlist collection (issue #411). Used to
+ * build `season.nfo` and to resolve the collection's owning media-server show
+ * offline, so a rebuild never has to re-probe the network.
+ */
+export interface PlaylistCollectionMetadata {
+  sourceUrl?: string;
+  description?: string;
+  sourceChannelId?: string;
+  sourceChannelUrl?: string;
+  sourceChannelName?: string;
+  sourceChannelDescription?: string;
+}
+
+const PLAYLIST_METADATA_KEYS = [
+  "sourceUrl",
+  "description",
+  "sourceChannelId",
+  "sourceChannelUrl",
+  "sourceChannelName",
+  "sourceChannelDescription",
+] as const;
+
+/**
+ * Persist playlist/channel metadata on a collection, separately from its
+ * display naming. Fills gaps and refreshes values the source still reports, but
+ * never clears a captured value because a lighter probe omitted it, and never
+ * silently replaces a conflicting durable channel identity.
+ */
+export function applyPlaylistCollectionMetadata(
+  collection: Collection,
+  metadata: PlaylistCollectionMetadata
+): Collection {
+  if (
+    metadata.sourceChannelId &&
+    collection.sourceChannelId &&
+    collection.sourceChannelId !== metadata.sourceChannelId
+  ) {
+    logger.warn("Playlist collection reports a conflicting source channel", {
+      collectionId: collection.id,
+      reasonCode: "ambiguous_collection_show",
+    });
+    return collection;
+  }
+
+  const patch: PlaylistCollectionMetadata = {};
+  for (const key of PLAYLIST_METADATA_KEYS) {
+    const value = metadata[key]?.trim();
+    if (value && value !== collection[key]) {
+      patch[key] = value;
+    }
+  }
+
+  if (Object.keys(patch).length === 0) {
+    return collection;
+  }
+
+  const updated = { ...collection, ...patch };
+  storageService.saveCollection(updated);
+  return updated;
+}

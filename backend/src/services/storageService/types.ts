@@ -43,6 +43,16 @@ export interface Collection {
   sourceType?: string;
   sourceMid?: string;
   sourceId?: string;
+  // Playlist/channel metadata and the immutable media-server season attachment
+  // (issue #411). See db/schema.ts collections table.
+  description?: string;
+  sourceUrl?: string;
+  sourceChannelId?: string;
+  sourceChannelUrl?: string;
+  sourceChannelName?: string;
+  sourceChannelDescription?: string;
+  mediaServerShowId?: string;
+  mediaServerSeasonNumber?: number;
   [key: string]: any;
 }
 

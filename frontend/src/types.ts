@@ -277,6 +277,10 @@ export interface Settings {
     | 'custom';
   downloadFilenameTemplate?: string;
   mediaServerExportMode?: 'off' | 'nfo' | 'nfo_and_source_json';
+  mediaServerExportLayout?: 'adjacent' | 'playlist_tv';
+  mediaServerCopyFallback?: boolean;
+  // Read-only deployment information returned by the settings API.
+  mediaServerLibraryPath?: string;
   // Statistics
   statisticsEnabled?: boolean;
   statisticsRetentionDays?: number | null;

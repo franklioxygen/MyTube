@@ -42,6 +42,14 @@ vi.mock("../../../utils/logger", () => ({
   },
 }));
 
+// Adjacent layout never calls into the managed mirror; stubbing it keeps this
+// suite free of the database the mirror modules open at import time.
+vi.mock("../../../services/mediaServerExport/playlistTvSync", () => ({
+  syncPlaylistTvForVideo: vi.fn(),
+  syncPlaylistTvForCollection: vi.fn(),
+  removePlaylistTvArtifactsForVideo: vi.fn(),
+}));
+
 import {
   removeMediaServerArtifactsForVideo,
   syncMediaServerShowArtifactsForShowRoot,

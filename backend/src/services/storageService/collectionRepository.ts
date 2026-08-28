@@ -57,6 +57,16 @@ function hydrateCollection(rows: CollectionRow[]): Collection | undefined {
     sourceType: sortedRows[0].c.sourceType ?? undefined,
     sourceMid: sortedRows[0].c.sourceMid ?? undefined,
     sourceId: sortedRows[0].c.sourceId ?? undefined,
+    description: sortedRows[0].c.description ?? undefined,
+    sourceUrl: sortedRows[0].c.sourceUrl ?? undefined,
+    sourceChannelId: sortedRows[0].c.sourceChannelId ?? undefined,
+    sourceChannelUrl: sortedRows[0].c.sourceChannelUrl ?? undefined,
+    sourceChannelName: sortedRows[0].c.sourceChannelName ?? undefined,
+    sourceChannelDescription:
+      sortedRows[0].c.sourceChannelDescription ?? undefined,
+    mediaServerShowId: sortedRows[0].c.mediaServerShowId ?? undefined,
+    mediaServerSeasonNumber:
+      sortedRows[0].c.mediaServerSeasonNumber ?? undefined,
     videos: [],
   };
 
@@ -243,8 +253,38 @@ export function getCollectionBySourceKey(
   }
 }
 
+/**
+ * Media-server metadata columns (issue #411) that a caller only overwrites when
+ * it actually carries a value. Most callers pass a spread of a hydrated
+ * collection, but some build a fresh partial object; writing `?? null` for these
+ * would silently erase a captured playlist description or channel identity.
+ * The season-allocation columns are never written here — they belong to the
+ * export catalog repository.
+ */
+const MEDIA_SERVER_METADATA_KEYS = [
+  "description",
+  "sourceUrl",
+  "sourceChannelId",
+  "sourceChannelUrl",
+  "sourceChannelName",
+  "sourceChannelDescription",
+] as const;
+
+function pickPresentMediaServerMetadata(
+  collection: Collection
+): Partial<Record<(typeof MEDIA_SERVER_METADATA_KEYS)[number], string | null>> {
+  const values: Record<string, string | null> = {};
+  for (const key of MEDIA_SERVER_METADATA_KEYS) {
+    if (collection[key] !== undefined) {
+      values[key] = collection[key] ?? null;
+    }
+  }
+  return values;
+}
+
 export function saveCollection(collection: Collection): Collection {
   try {
+    const mediaServerMetadata = pickPresentMediaServerMetadata(collection);
     db.transaction(() => {
       // Insert collection
       db.insert(collections)
@@ -259,6 +299,7 @@ export function saveCollection(collection: Collection): Collection {
           sourceType: collection.sourceType ?? null,
           sourceMid: collection.sourceMid ?? null,
           sourceId: collection.sourceId ?? null,
+          ...mediaServerMetadata,
         })
         .onConflictDoUpdate({
           target: collections.id,
@@ -271,6 +312,7 @@ export function saveCollection(collection: Collection): Collection {
             sourceType: collection.sourceType ?? null,
             sourceMid: collection.sourceMid ?? null,
             sourceId: collection.sourceId ?? null,
+            ...mediaServerMetadata,
           },
         })
         .run();

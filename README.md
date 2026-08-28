@@ -92,6 +92,7 @@ By default, media and caches live under `backend/uploads/`:
 | `subtitles/` | Subtitle files when subtitle storage is set to the isolated subtitles folder. |
 | `avatars/` | Channel/avatar artwork used by the app and media-server export. |
 | `cloud-thumbnail-cache/` | Internal cache for thumbnails fetched from cloud-backed media. |
+| `media-library/` | Optional managed TV library (author → playlist seasons) built by the media-server export. Add **this** folder to your media server as a Shows library, never `videos/`, or every video is imported twice. |
 
 For how storage locations and filenames are decided — stable media identity, legacy vs. template naming, author-folder organization, collision-safe path allocation, and the no-overwrite publication model — please refer to [Media Storage & Filename Naming](documents/en/media-storage-and-naming.md).
 

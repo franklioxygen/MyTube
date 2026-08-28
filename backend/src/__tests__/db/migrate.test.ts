@@ -8,6 +8,7 @@ const runDataMigrationMock = vi.hoisted(() => vi.fn());
 const migrateLegacySharedVisitorPasswordMock = vi.hoisted(() => vi.fn());
 const ensureVisitorUsersTableMock = vi.hoisted(() => vi.fn());
 const ensureFavoritesTablesMock = vi.hoisted(() => vi.fn());
+const ensureMediaServerExportTablesMock = vi.hoisted(() => vi.fn());
 const securityMocks = vi.hoisted(() => ({
   accessTrustedSync: vi.fn(),
   pathExistsSafeSync: vi.fn(),
@@ -60,6 +61,7 @@ vi.mock("../../services/userService", () => ({
 vi.mock("../../services/storageService/migrations/schemaMigrations", () => ({
   ensureVisitorUsersTable: ensureVisitorUsersTableMock,
   ensureFavoritesTables: ensureFavoritesTablesMock,
+  ensureMediaServerExportTables: ensureMediaServerExportTablesMock,
 }));
 
 describe("runMigrations", () => {
@@ -81,6 +83,7 @@ describe("runMigrations", () => {
     migrateLegacySharedVisitorPasswordMock.mockResolvedValue(undefined);
     ensureVisitorUsersTableMock.mockImplementation(() => undefined);
     ensureFavoritesTablesMock.mockImplementation(() => undefined);
+    ensureMediaServerExportTablesMock.mockImplementation(() => undefined);
   });
 
   it("runs drizzle, legacy data import, and visitor password migration in order", async () => {
@@ -91,6 +94,7 @@ describe("runMigrations", () => {
     expect(runDataMigrationMock).toHaveBeenCalledTimes(1);
     expect(ensureVisitorUsersTableMock).toHaveBeenCalledTimes(1);
     expect(ensureFavoritesTablesMock).toHaveBeenCalledTimes(1);
+    expect(ensureMediaServerExportTablesMock).toHaveBeenCalledTimes(1);
     expect(migrateLegacySharedVisitorPasswordMock).toHaveBeenCalledTimes(1);
     expect(
       migrateMock.mock.invocationCallOrder[0]
@@ -119,6 +123,7 @@ describe("runMigrations", () => {
     expect(configureDatabaseMock).toHaveBeenCalledTimes(1);
     expect(ensureVisitorUsersTableMock).toHaveBeenCalledTimes(1);
     expect(ensureFavoritesTablesMock).toHaveBeenCalledTimes(1);
+    expect(ensureMediaServerExportTablesMock).toHaveBeenCalledTimes(1);
     expect(migrateLegacySharedVisitorPasswordMock).toHaveBeenCalledTimes(1);
     expect(runDataMigrationMock).not.toHaveBeenCalled();
   });

@@ -478,6 +478,58 @@ describe("inspectPlaylist", () => {
     expect(inspection.platform).toBe("YouTube");
   });
 
+  it("captures playlist and channel metadata for the export catalog", async () => {
+    const { executeYtDlpJson } = await import("../../../utils/ytDlpUtils");
+    vi.mocked(executeYtDlpJson).mockResolvedValueOnce({
+      _type: "playlist",
+      title: "My Playlist",
+      description: "  Everything about space.  ",
+      channel_description: "Kurzgesagt channel",
+      entries: [
+        {
+          id: "vidA",
+          uploader: "Uploader",
+          channel_id: "UC1",
+          uploader_url: "https://www.youtube.com/channel/UC1",
+        },
+      ],
+    } as any);
+
+    const inspection = await inspectPlaylist(
+      "https://www.youtube.com/playlist?list=PL1"
+    );
+
+    expect(inspection.description).toBe("Everything about space.");
+    expect(inspection.sourceChannelDescription).toBe("Kurzgesagt channel");
+    // The playlist envelope has no channel identity here, so the first entry
+    // supplies it rather than leaving the show unresolvable.
+    expect(inspection.sourceChannelId).toBe("UC1");
+    expect(inspection.sourceChannelUrl).toBe(
+      "https://www.youtube.com/channel/UC1"
+    );
+    expect(inspection.sourceChannelName).toBe("Uploader");
+  });
+
+  it("leaves absent metadata undefined instead of inventing empty values", async () => {
+    const { executeYtDlpJson } = await import("../../../utils/ytDlpUtils");
+    vi.mocked(executeYtDlpJson).mockResolvedValueOnce({
+      _type: "playlist",
+      title: "My Playlist",
+      description: "   ",
+      entries: [{ id: "vidA" }],
+    } as any);
+
+    const inspection = await inspectPlaylist(
+      "https://www.youtube.com/playlist?list=PL1"
+    );
+
+    expect(inspection.description).toBeUndefined();
+    expect(inspection.sourceChannelId).toBeUndefined();
+    expect(inspection.sourceChannelUrl).toBeUndefined();
+    expect(inspection.sourceChannelName).toBeUndefined();
+    expect(inspection.sourceChannelDescription).toBeUndefined();
+  });
+
   it("returns headVideoUrl null and count 0 for a verified empty playlist", async () => {
     const { executeYtDlpJson } = await import("../../../utils/ytDlpUtils");
     vi.mocked(executeYtDlpJson).mockResolvedValueOnce({
