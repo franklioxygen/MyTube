@@ -138,6 +138,77 @@ The same allocator + publication model is used by every path that writes media, 
 
 ---
 
+---
+
+## 9. Managed media-server TV library (issue #411)
+
+An **opt-in** second layout for the media-server export. Set **Media server export layout**
+to *Author → playlist seasons* in Settings. The default stays *Adjacent sidecars*, so an
+existing library is unaffected until you switch.
+
+### Concept mapping
+
+| MyTube | Media server |
+|---|---|
+| Source channel / author | one show |
+| Source-backed playlist collection | one numbered season |
+| `(playlist, video)` membership | one episode occurrence |
+| Video in no source playlist | Season 00, shown as *Specials* |
+
+### Layout
+
+```text
+backend/uploads/media-library/
+└── Kurzgesagt/
+    ├── tvshow.nfo
+    ├── poster.jpg
+    ├── Season 01/
+    │   ├── season.nfo
+    │   ├── S01E001 - Human Origins.mp4
+    │   ├── S01E001 - Human Origins.nfo
+    │   └── S01E001 - Human Origins-thumb.jpg
+    └── Season 02/
+        ├── season.nfo
+        └── S02E001 - Ants.mp4
+```
+
+Add `media-library/` to your media server as a **Shows** library. Do **not** add `videos/`
+as well, or the same video is imported twice.
+
+### Originals are never touched
+
+The mirror is derived. Original files keep the path and filename your naming settings gave
+them; filename settings do not control the mirror. Episodes are **hard links** to the
+originals, so they normally consume no second copy of the media. Hard links require the
+mirror and `videos/` to sit on the same filesystem — with `uploads/` bind-mounted as one
+volume they always do. Where hard links are unavailable, the *copy files when hard links are
+unavailable* option keeps the feature working at the cost of disk space; the rebuild summary
+reports how many files were linked versus copied.
+
+### Stable numbering
+
+- A playlist is assigned the next free season number the first time it is exported, and
+  keeps it forever. Deleting a playlist never frees its number for another one.
+- An episode number comes from the position the membership had when it was first imported.
+  Reordering the upstream playlist does not renumber anything; MyTube only records the new
+  source position.
+- A video added at the head of a playlist receives the next unused episode number, not `1`.
+- Editing a video title rewrites its `.nfo` but never moves its file.
+
+### One video in several playlists
+
+Each membership is its own episode occurrence with its own season/episode numbers, its own
+`.nfo`, and its own hard link. A media server sees them as distinct episodes because each
+carries a distinct `uniqueid`.
+
+### Cleanup safety
+
+Every generated file is recorded in an ownership ledger. Cleanup — and stale-file sweeping
+during a rebuild — deletes only ledger-owned paths, so an original video can never be
+reached, and a file you placed in the mirror yourself is preserved and reported as a
+collision instead of being overwritten. Cleanup keeps the season and episode numbers, so
+re-enabling the layout later reproduces the same tree.
+
 ## Summary
 
 Stable identity → filename (legacy or Liquid template; `{{ id }}` = source id, recommended `[source_video_id]` for collision resistance) → author-folder physical organization → allocator reserves the whole file family and steps aside on collision via `none → source_id → numeric` → no-overwrite publication through staging + hard link (copy fallback), with locks and journals guaranteeing concurrency and crash safety.

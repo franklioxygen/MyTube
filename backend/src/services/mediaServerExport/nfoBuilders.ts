@@ -74,6 +74,13 @@ export interface EpisodeNfoInput {
   seasonNumber?: number;
   episodeNumber?: number;
   thumbFilename?: string;
+  /**
+   * Occurrence identity. The managed mirror can export one video into several
+   * seasons, and a media server would collapse those into a single episode if
+   * they shared `mytube:video:<id>`. Omitted in adjacent mode, which keeps its
+   * historical per-video id.
+   */
+  uniqueId?: string;
 }
 
 export function buildEpisodeNfo(input: EpisodeNfoInput): string {
@@ -99,7 +106,7 @@ export function buildEpisodeNfo(input: EpisodeNfoInput): string {
     }
   }
 
-  const videoId = `mytube:video:${video.id}`;
+  const videoId = input.uniqueId || `mytube:video:${video.id}`;
   appendTag(lines, "id", videoId);
   lines.push(
     `  <uniqueid type="mytube" default="true">${escapeXml(videoId)}</uniqueid>`
@@ -115,11 +122,14 @@ export interface ShowNfoInput {
   plot: string;
   premiered?: string;
   studio?: string;
+  /** Durable show identity. Adjacent mode keeps deriving it from the title. */
+  uniqueId?: string;
 }
 
 export function buildShowNfo(input: ShowNfoInput): string {
   const { showTitle, plot, premiered, studio } = input;
-  const showId = `mytube:show:${normalizeShowIdentifier(showTitle)}`;
+  const showId =
+    input.uniqueId || `mytube:show:${normalizeShowIdentifier(showTitle)}`;
   const lines = [GENERATED_XML_COMMENT, "<tvshow>"];
 
   appendTag(lines, "title", showTitle);
@@ -134,6 +144,55 @@ export function buildShowNfo(input: ShowNfoInput): string {
   lines.push("</tvshow>");
 
   return `${lines.join("\n")}\n`;
+}
+
+export interface SeasonNfoInput {
+  title: string;
+  plot: string;
+  seasonNumber: number;
+  uniqueId: string;
+}
+
+/**
+ * `season.nfo` for the managed mirror. Jellyfin and Kodi read it; Plex mostly
+ * ignores it, which is why the season number is also carried by the directory
+ * name and the `SxxExxx` filename token.
+ */
+export function buildSeasonNfo(input: SeasonNfoInput): string {
+  const { title, plot, seasonNumber, uniqueId } = input;
+  const lines = [GENERATED_XML_COMMENT, "<season>"];
+
+  appendTag(lines, "title", title);
+  appendTag(lines, "sorttitle", title);
+  appendTag(lines, "seasonnumber", seasonNumber);
+  appendTag(lines, "plot", plot);
+  appendTag(lines, "id", uniqueId);
+  lines.push(
+    `  <uniqueid type="mytube" default="true">${escapeXml(uniqueId)}</uniqueid>`
+  );
+  lines.push("</season>");
+
+  return `${lines.join("\n")}\n`;
+}
+
+export function buildShowUniqueId(showId: string): string {
+  return `mytube:show:${showId}`;
+}
+
+export function buildSeasonUniqueId(
+  showId: string,
+  seasonNumber: number
+): string {
+  return `mytube:season:${showId}:${seasonNumber}`;
+}
+
+export function buildEpisodeOccurrenceId(
+  showId: string,
+  seasonNumber: number,
+  episodeNumber: number,
+  videoId: string
+): string {
+  return `mytube:episode:${showId}:${seasonNumber}:${episodeNumber}:${videoId}`;
 }
 
 export function normalizeVideoDateToDay(

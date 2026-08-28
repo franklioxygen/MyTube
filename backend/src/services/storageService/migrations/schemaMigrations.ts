@@ -1020,3 +1020,124 @@ export function migrateColumnsAndTables(): void {
     );
   }
 }
+
+// Ensure the media-server export catalog (issue #411) exists even if drizzle
+// never applied migration 0028. Same failure mode as ensureFavoritesTables
+// above: on installs whose __drizzle_migrations journal is out of sync with the
+// migration files, drizzle aborts the whole batch on the first duplicate-column
+// ALTER and every later migration silently never runs. Without the artifact
+// ledger the mirror cannot prove which generated files it owns, so the export
+// must never start with these tables missing.
+export function ensureMediaServerExportTables(): void {
+  try {
+    // The collection columns come first: the season-attachment index below is
+    // built on them, and this function may run before the additive column
+    // self-heal in migrateColumnsAndTables().
+    const collectionsColumns = columnNames(
+      sqlite.prepare("PRAGMA table_info(collections)").all()
+    );
+    const collectionColumnTypes: Array<[string, "TEXT" | "INTEGER"]> = [
+      ["description", "TEXT"],
+      ["source_url", "TEXT"],
+      ["source_channel_id", "TEXT"],
+      ["source_channel_url", "TEXT"],
+      ["source_channel_name", "TEXT"],
+      ["source_channel_description", "TEXT"],
+      ["media_server_show_id", "TEXT"],
+      ["media_server_season_number", "INTEGER"],
+    ];
+    for (const [column, type] of collectionColumnTypes) {
+      if (collectionsColumns.length > 0 && !collectionsColumns.includes(column)) {
+        sqlite
+          .prepare(`ALTER TABLE collections ADD COLUMN ${column} ${type}`)
+          .run();
+      }
+    }
+
+    sqlite
+      .prepare(
+        `
+      CREATE TABLE IF NOT EXISTS media_server_shows (
+        id TEXT PRIMARY KEY NOT NULL,
+        identity_key TEXT NOT NULL,
+        source_platform TEXT NOT NULL,
+        source_channel_id TEXT,
+        source_channel_url TEXT,
+        title TEXT NOT NULL,
+        description TEXT DEFAULT '' NOT NULL,
+        directory_name TEXT NOT NULL,
+        next_season_number INTEGER DEFAULT 1 NOT NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      )
+    `
+      )
+      .run();
+    sqlite
+      .prepare(
+        `
+      CREATE TABLE IF NOT EXISTS media_server_episode_assignments (
+        id TEXT PRIMARY KEY NOT NULL,
+        show_id TEXT NOT NULL,
+        collection_id TEXT,
+        video_id TEXT NOT NULL,
+        season_number INTEGER NOT NULL,
+        episode_number INTEGER NOT NULL,
+        source_position INTEGER,
+        export_stem TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        FOREIGN KEY (show_id) REFERENCES media_server_shows(id) ON UPDATE no action ON DELETE cascade,
+        FOREIGN KEY (collection_id) REFERENCES collections(id) ON UPDATE no action ON DELETE cascade,
+        FOREIGN KEY (video_id) REFERENCES videos(id) ON UPDATE no action ON DELETE cascade
+      )
+    `
+      )
+      .run();
+    sqlite
+      .prepare(
+        `
+      CREATE TABLE IF NOT EXISTS media_server_export_artifacts (
+        relative_path TEXT PRIMARY KEY NOT NULL,
+        artifact_type TEXT NOT NULL,
+        show_id TEXT,
+        assignment_id TEXT,
+        source_absolute_path TEXT,
+        source_size INTEGER,
+        source_mtime_ms INTEGER,
+        materialization TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        FOREIGN KEY (show_id) REFERENCES media_server_shows(id) ON UPDATE no action ON DELETE set null,
+        FOREIGN KEY (assignment_id) REFERENCES media_server_episode_assignments(id) ON UPDATE no action ON DELETE set null
+      )
+    `
+      )
+      .run();
+
+    for (const statement of [
+      "CREATE UNIQUE INDEX IF NOT EXISTS media_server_shows_identity_key_uidx ON media_server_shows (identity_key)",
+      "CREATE UNIQUE INDEX IF NOT EXISTS media_server_shows_directory_name_uidx ON media_server_shows (directory_name)",
+      "CREATE UNIQUE INDEX IF NOT EXISTS media_server_episode_occurrence_uidx ON media_server_episode_assignments (show_id, season_number, video_id)",
+      "CREATE UNIQUE INDEX IF NOT EXISTS media_server_episode_number_uidx ON media_server_episode_assignments (show_id, season_number, episode_number)",
+      "CREATE INDEX IF NOT EXISTS idx_media_server_episode_collection ON media_server_episode_assignments (collection_id)",
+      "CREATE INDEX IF NOT EXISTS idx_media_server_episode_video ON media_server_episode_assignments (video_id)",
+      "CREATE INDEX IF NOT EXISTS idx_media_server_artifact_show ON media_server_export_artifacts (show_id)",
+      "CREATE INDEX IF NOT EXISTS idx_media_server_artifact_assignment ON media_server_export_artifacts (assignment_id)",
+      "CREATE INDEX IF NOT EXISTS idx_collections_media_server_show ON collections (media_server_show_id)",
+      "CREATE UNIQUE INDEX IF NOT EXISTS collections_media_server_season_uidx ON collections (media_server_show_id, media_server_season_number)",
+    ]) {
+      sqlite.prepare(statement).run();
+    }
+  } catch (error) {
+    logger.error(
+      "Error ensuring media server export tables exist",
+      error instanceof Error ? error : new Error(String(error))
+    );
+    throw new MigrationError(
+      "Failed to ensure media server export tables",
+      "media_server_export_tables",
+      error instanceof Error ? error : new Error(String(error))
+    );
+  }
+}

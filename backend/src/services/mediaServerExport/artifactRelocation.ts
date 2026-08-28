@@ -5,6 +5,7 @@ import { getVideoById } from "../storageService/videos";
 import type { Video } from "../storageService/types";
 import { planMediaServerExportPaths } from "./pathPlanner";
 import {
+  getMediaServerExportLayout,
   removeMediaServerArtifactsForVideo,
   syncMediaServerArtifactsForRecord,
   syncMediaServerShowArtifactsForShowRoot,
@@ -41,6 +42,21 @@ export function relocateMediaServerArtifactsAroundMove(
   performMove: () => boolean
 ): boolean {
   const mode = getMediaServerExportMode();
+
+  if (getMediaServerExportLayout() === "playlist_tv") {
+    // The mirror derives its paths from the catalog, so moving the original
+    // never moves a mirror file. Only the hard links have to be re-pointed at
+    // the new source, which the per-video sync does from its fingerprints.
+    const moved = performMove();
+    if (moved && mode !== "off") {
+      const videoAfter = getVideoById(videoBefore.id);
+      if (videoAfter) {
+        syncMediaServerArtifactsForRecord(videoAfter, { modeOverride: mode });
+      }
+    }
+    return moved;
+  }
+
   const oldPlan = mode === "off" ? null : planMediaServerExportPaths(videoBefore);
 
   const moved = performMove();

@@ -2,12 +2,14 @@ import {
     Alert,
     Box,
     Button,
+    Checkbox,
     Dialog,
     DialogActions,
     DialogContent,
     DialogContentText,
     DialogTitle,
     FormControl,
+    FormControlLabel,
     LinearProgress,
     MenuItem,
     Select,
@@ -20,8 +22,12 @@ import { useSettingsJobPolling } from '../../hooks/useSettingsJobPolling';
 import { Settings } from '../../types';
 import { api } from '../../utils/apiClient';
 import {
+    MEDIA_SERVER_EXPORT_DETAIL_LIMIT,
+    MEDIA_SERVER_EXPORT_PHASE_LABEL_KEYS,
+    MEDIA_SERVER_EXPORT_LAYOUT_OPTIONS,
     MEDIA_SERVER_EXPORT_OPTIONS,
     MediaServerExportJob,
+    MediaServerExportLayout,
     getMediaServerExportErrorMessage,
     mediaServerExportJobUrl,
 } from './filenameTemplateShared';
@@ -37,9 +43,9 @@ interface MediaServerExportSettingsProps {
 const SELECT_MAX_WIDTH = 400;
 
 /**
- * Media-server export mode selector plus the rebuild/cleanup job runner.
- * Owns the export job state and its polling; the parent only supplies the
- * saved settings and whether the active template yields a TV-style layout.
+ * Media-server export selectors plus the rebuild/cleanup job runner. Owns the
+ * export job state and its polling; the parent only supplies the saved settings
+ * and whether the active filename template yields a TV-style layout.
  */
 const MediaServerExportSettings: React.FC<MediaServerExportSettingsProps> = ({
     settings,
@@ -51,55 +57,57 @@ const MediaServerExportSettings: React.FC<MediaServerExportSettingsProps> = ({
     const [exportJob, setExportJob] = useState<MediaServerExportJob | null>(null);
     const [exportError, setExportError] = useState<string | null>(null);
     const [startingExport, setStartingExport] = useState(false);
+    const [pathCopied, setPathCopied] = useState(false);
 
     useSettingsJobPolling(exportJob, mediaServerExportJobUrl, setExportJob);
+
+    const exportMode = settings.mediaServerExportMode || 'off';
+    const exportLayout: MediaServerExportLayout = settings.mediaServerExportLayout || 'adjacent';
+    const isPlaylistTv = exportLayout === 'playlist_tv';
+    const exportAction = exportMode === 'off' ? 'cleanup' : 'rebuild';
+    const libraryPath = settings.mediaServerLibraryPath;
 
     const handleStartMediaServerExportRebuild = async () => {
         setStartingExport(true);
         setExportError(null);
-        const mode = settings.mediaServerExportMode || 'off';
         try {
-            const res = await api.post<{
-                jobId: string;
-                status: string;
-                total: number;
-                processed: number;
-                succeeded: number;
-                skipped: number;
-                failed: number;
-                action: 'rebuild' | 'cleanup';
-                mode: 'off' | 'nfo' | 'nfo_and_source_json';
-            }>(
-                '/settings/media-server-export/rebuild',
-                { mediaServerExportMode: mode }
-            );
-            const jobData = res.data;
-            setExportJob({
-                id: jobData.jobId,
-                status: jobData.status as any,
-                lockedAt: Date.now(),
-                mode: jobData.mode,
-                action: jobData.action,
-                total: jobData.total,
-                processed: jobData.processed,
-                succeeded: jobData.succeeded,
-                skipped: jobData.skipped,
-                failed: jobData.failed,
-                items: [],
+            const res = await api.post<
+                Omit<MediaServerExportJob, 'id' | 'lockedAt' | 'items'> & { jobId: string }
+            >('/settings/media-server-export/rebuild', {
+                mediaServerExportMode: exportMode,
+                mediaServerExportLayout: exportLayout,
             });
+            const jobData = res.data;
+            setExportJob({ ...jobData, id: jobData.jobId, lockedAt: Date.now(), items: [] });
             setExportConfirmOpen(false);
         } catch (e: unknown) {
-            setExportError(getMediaServerExportErrorMessage(e, mode, t));
+            setExportError(getMediaServerExportErrorMessage(e, exportMode, t));
         } finally {
             setStartingExport(false);
         }
     };
 
+    const handleCopyLibraryPath = async () => {
+        if (!libraryPath) return;
+        try {
+            await navigator.clipboard.writeText(libraryPath);
+            setPathCopied(true);
+        } catch {
+            // Clipboard access can be denied; the path stays selectable on screen.
+        }
+    };
+
     const isExportRunning = exportJob?.status === 'running';
     const isExportComplete = exportJob?.status === 'completed';
-    const exportMode = settings.mediaServerExportMode || 'off';
-    const exportAction = exportMode === 'off' ? 'cleanup' : 'rebuild';
     const activeExportAction = exportJob?.action || exportAction;
+    const counts = exportJob?.counts;
+    const reportedItems = exportJob?.items ?? [];
+    const failedItems = reportedItems
+        .filter((item) => item.status === 'failed')
+        .slice(0, MEDIA_SERVER_EXPORT_DETAIL_LIMIT);
+    const skippedItems = reportedItems
+        .filter((item) => item.status === 'skipped')
+        .slice(0, MEDIA_SERVER_EXPORT_DETAIL_LIMIT);
 
     return (
         <Box sx={{ mt: 3 }}>
@@ -114,7 +122,7 @@ const MediaServerExportSettings: React.FC<MediaServerExportSettingsProps> = ({
 
             <FormControl fullWidth sx={{ maxWidth: SELECT_MAX_WIDTH }}>
                 <Select
-                    value={settings.mediaServerExportMode || 'off'}
+                    value={exportMode}
                     onChange={(e) => onChange('mediaServerExportMode', e.target.value)}
                 >
                     {MEDIA_SERVER_EXPORT_OPTIONS.map((opt) => (
@@ -125,9 +133,79 @@ const MediaServerExportSettings: React.FC<MediaServerExportSettingsProps> = ({
                 </Select>
             </FormControl>
 
-            {(settings.mediaServerExportMode || 'off') !== 'off' && !recommendedTvLayout && (
+            <Typography variant="subtitle1" sx={{ mt: 3 }}>
+                {t('mediaServerExportLayout')}
+            </Typography>
+            <FormControl fullWidth sx={{ maxWidth: SELECT_MAX_WIDTH, mt: 1 }}>
+                <Select
+                    value={exportLayout}
+                    onChange={(e) => onChange('mediaServerExportLayout', e.target.value)}
+                    inputProps={{ 'aria-label': t('mediaServerExportLayout') }}
+                >
+                    {MEDIA_SERVER_EXPORT_LAYOUT_OPTIONS.map((opt) => (
+                        <MenuItem key={opt.value} value={opt.value}>
+                            {t(opt.labelKey)}
+                        </MenuItem>
+                    ))}
+                </Select>
+            </FormControl>
+
+            {isPlaylistTv && (
+                <Box sx={{ mt: 2, maxWidth: 920 }}>
+                    <Typography variant="body2" color="text.secondary">
+                        {t('mediaServerExportLayoutPlaylistTvDescription')}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                        {t('mediaServerSeasonZeroHint')}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                        {t('mediaServerStableOrderHint')}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                        {t('mediaServerHardLinkHint')}
+                    </Typography>
+
+                    {libraryPath && (
+                        <Box sx={{ mt: 2 }}>
+                            <Typography variant="body2">{t('mediaServerLibraryPath')}</Typography>
+                            <Typography
+                                variant="body2"
+                                component="code"
+                                sx={{ wordBreak: 'break-all', display: 'block', mt: 0.5 }}
+                            >
+                                {libraryPath}
+                            </Typography>
+                            <Button size="small" onClick={() => { void handleCopyLibraryPath(); }} sx={{ mt: 0.5 }}>
+                                {t(pathCopied ? 'copied' : 'mediaServerLibraryPathCopy')}
+                            </Button>
+                        </Box>
+                    )}
+
+                    <FormControlLabel
+                        sx={{ mt: 1 }}
+                        control={
+                            <Checkbox
+                                checked={settings.mediaServerCopyFallback !== false}
+                                onChange={(e) => onChange('mediaServerCopyFallback', e.target.checked)}
+                            />
+                        }
+                        label={t('mediaServerCopyFallback')}
+                    />
+                    <Typography variant="body2" color="text.secondary">
+                        {t('mediaServerCopyFallbackDescription')}
+                    </Typography>
+                </Box>
+            )}
+
+            {exportMode !== 'off' && !isPlaylistTv && !recommendedTvLayout && (
                 <Alert severity="warning" sx={{ mt: 2, maxWidth: 920 }}>
                     {t('mediaServerExportRecommendedLayoutWarning')}
+                </Alert>
+            )}
+
+            {exportMode !== 'off' && isPlaylistTv && (
+                <Alert severity="info" sx={{ mt: 2, maxWidth: 920 }}>
+                    {t('mediaServerExportLayoutPlaylistTvNamingNote')}
                 </Alert>
             )}
 
@@ -149,6 +227,7 @@ const MediaServerExportSettings: React.FC<MediaServerExportSettingsProps> = ({
                         {t(activeExportAction === 'cleanup'
                             ? 'mediaServerExportCleanupRunning'
                             : 'mediaServerExportRebuildRunning')} {exportJob.processed}/{exportJob.total}
+                        {exportJob.phase && ` – ${t(MEDIA_SERVER_EXPORT_PHASE_LABEL_KEYS[exportJob.phase])}`}
                         {exportJob.currentTitle && ` – ${exportJob.currentTitle}`}
                     </Typography>
                     <LinearProgress
@@ -159,28 +238,63 @@ const MediaServerExportSettings: React.FC<MediaServerExportSettingsProps> = ({
             )}
 
             {isExportComplete && exportJob && (
-                <Alert severity="success" sx={{ mt: 2, maxWidth: 920 }}>
-                    {t(activeExportAction === 'cleanup'
-                        ? 'mediaServerExportCleanupComplete'
-                        : 'mediaServerExportRebuildComplete')} –{' '}
-                    {t(activeExportAction === 'cleanup'
-                        ? 'mediaServerExportCleanupSummary'
-                        : 'mediaServerExportRebuildSummary')
-                        .replace('{succeeded}', String(exportJob.succeeded))
-                        .replace('{skipped}', String(exportJob.skipped))
-                        .replace('{failed}', String(exportJob.failed))}
-                    {exportJob.sweptFiles && exportJob.sweptFiles > 0
-                        ? ` ${t('mediaServerExportSweptSummary').replace('{count}', String(exportJob.sweptFiles))}`
-                        : ''}
-                </Alert>
+                <Box sx={{ mt: 2, maxWidth: 920 }}>
+                    <Alert severity="success">
+                        {t(activeExportAction === 'cleanup'
+                            ? 'mediaServerExportCleanupComplete'
+                            : 'mediaServerExportRebuildComplete')} –{' '}
+                        {t(activeExportAction === 'cleanup'
+                            ? 'mediaServerExportCleanupSummary'
+                            : 'mediaServerExportRebuildSummary')
+                            .replace('{succeeded}', String(exportJob.succeeded))
+                            .replace('{skipped}', String(exportJob.skipped))
+                            .replace('{failed}', String(exportJob.failed))}
+                        {exportJob.sweptFiles && exportJob.sweptFiles > 0
+                            ? ` ${t('mediaServerExportSweptSummary').replace('{count}', String(exportJob.sweptFiles))}`
+                            : ''}
+                        {counts && (
+                            <Typography variant="body2" sx={{ mt: 1 }}>
+                                {t('mediaServerExportMirrorSummary')
+                                    .replace('{shows}', String(counts.shows))
+                                    .replace('{seasons}', String(counts.seasons))
+                                    .replace('{episodes}', String(counts.episodes))
+                                    .replace('{linked}', String(counts.linkedMedia))
+                                    .replace('{copied}', String(counts.copiedMedia))
+                                    .replace('{removed}', String(counts.removedArtifacts))}
+                            </Typography>
+                        )}
+                    </Alert>
+
+                    {counts && counts.copiedMedia > 0 && (
+                        <Alert severity="warning" sx={{ mt: 1 }}>
+                            {t('mediaServerCopiedMediaWarning').replace('{count}', String(counts.copiedMedia))}
+                        </Alert>
+                    )}
+
+                    {failedItems.length > 0 && (
+                        <Box sx={{ mt: 1 }} component="ul" aria-label={t('mediaServerExportFailedDetails')}>
+                            {failedItems.map((item, index) => (
+                                <Typography key={`${item.videoId}-${index}`} component="li" variant="body2">
+                                    {item.title} – {item.errorCode || item.error}
+                                </Typography>
+                            ))}
+                        </Box>
+                    )}
+
+                    {skippedItems.length > 0 && (
+                        <Box sx={{ mt: 1 }} component="ul" aria-label={t('mediaServerExportSkippedDetails')}>
+                            {skippedItems.map((item, index) => (
+                                <Typography key={`${item.videoId}-${index}`} component="li" variant="body2">
+                                    {item.title} – {item.skipReason}
+                                </Typography>
+                            ))}
+                        </Box>
+                    )}
+                </Box>
             )}
 
             <Tooltip
-                title={
-                    isExportRunning
-                            ? t('mediaServerExportRebuildDisabledRunning')
-                            : ''
-                }
+                title={isExportRunning ? t('mediaServerExportRebuildDisabledRunning') : ''}
                 disableHoverListener={!isExportRunning}
             >
                 <span>
@@ -211,9 +325,13 @@ const MediaServerExportSettings: React.FC<MediaServerExportSettingsProps> = ({
                     : 'mediaServerExportRebuildConfirmTitle')}</DialogTitle>
                 <DialogContent>
                     <DialogContentText>
-                        {t(exportAction === 'cleanup'
-                            ? 'mediaServerExportCleanupConfirmBody'
-                            : 'mediaServerExportRebuildConfirmBody')}
+                        {isPlaylistTv
+                            ? t(exportAction === 'cleanup'
+                                ? 'mediaServerExportPlaylistTvCleanupConfirmBody'
+                                : 'mediaServerExportPlaylistTvRebuildConfirmBody')
+                            : t(exportAction === 'cleanup'
+                                ? 'mediaServerExportCleanupConfirmBody'
+                                : 'mediaServerExportRebuildConfirmBody')}
                     </DialogContentText>
                 </DialogContent>
                 <DialogActions>

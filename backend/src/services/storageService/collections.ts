@@ -28,6 +28,7 @@ import { getSettings } from "./settings";
 import { resolveAuthorOrganizationMode } from "../../types/settings";
 import { isLegacyFilenameNaming } from "../filenameTemplate/config";
 import { relocateMediaServerArtifactsAroundMove } from "../mediaServerExport/artifactRelocation";
+import { syncMediaServerArtifactsForCollection } from "../mediaServerExport/syncService";
 
 type CollectionLinkOptions = {
   moveFiles?: boolean;
@@ -215,6 +216,11 @@ export function linkVideoToCollection(
         });
       }
     }
+
+    // The managed mirror learns a video's real season only once the membership
+    // is committed, so the export runs here rather than at download time — and
+    // after any file move, so it never links a source that is about to relocate.
+    syncMediaServerArtifactsForCollection(collectionId, videoId);
   }
 
   return collection;
@@ -265,6 +271,7 @@ export function removeVideoFromCollection(
     const shouldMoveFiles =
       options?.moveFiles ?? isLegacyFilenameNaming(getSettings());
     if (!shouldMoveFiles) {
+      syncMediaServerArtifactsForCollection(collectionId, videoId);
       return collection;
     }
 
@@ -346,6 +353,9 @@ export function removeVideoFromCollection(
         return true;
       });
     }
+
+    // After any file move, so the mirror never links a source about to relocate.
+    syncMediaServerArtifactsForCollection(collectionId, videoId);
   }
 
   return collection;
@@ -435,6 +445,10 @@ export function renameCollection(id: string, newName: string): Collection | null
       }
     });
   }
+
+  // Last, once the moved files and the stored paths agree again: the season
+  // keeps its number and directory, and only season.nfo changes.
+  syncMediaServerArtifactsForCollection(id);
 
   return updatedCollection;
 }
