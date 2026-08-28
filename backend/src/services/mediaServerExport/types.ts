@@ -228,4 +228,10 @@ export interface MediaServerCatalogSnapshot {
   seasons: MediaServerSeasonMetadata[];
   assignments: MediaServerEpisodeAssignment[];
   videosById: Map<string, Video>;
+  /**
+   * Raw yt-dlp info per video, available only right after a download. Layered
+   * into `.info.json` so the managed mirror preserves exactly what the adjacent
+   * layout preserves.
+   */
+  rawInfoByVideoId?: Map<string, unknown>;
 }

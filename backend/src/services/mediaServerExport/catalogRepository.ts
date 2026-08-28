@@ -4,6 +4,7 @@ import { db } from "../../db";
 import {
   collections,
   mediaServerEpisodeAssignments,
+  mediaServerRetiredEpisodes,
   mediaServerShows,
 } from "../../db/schema";
 import type {
@@ -208,7 +209,49 @@ export function updateEpisodeSourcePosition(
     .run();
 }
 
+export interface RetiredEpisodeNumber {
+  showId: string;
+  seasonNumber: number;
+  episodeNumber: number;
+}
+
+/** Episode numbers their seasons have spent and can never hand out again. */
+export function getRetiredEpisodeNumbers(): RetiredEpisodeNumber[] {
+  return db
+    .select()
+    .from(mediaServerRetiredEpisodes)
+    .all()
+    .map((row) => ({
+      showId: row.showId,
+      seasonNumber: row.seasonNumber,
+      episodeNumber: row.episodeNumber,
+    }));
+}
+
+/**
+ * Delete an assignment and tombstone the episode number it gives up. The number
+ * stays spent forever: handing it to different content later would make a media
+ * server graft the new episode onto the removed one's metadata.
+ */
 export function deleteEpisodeAssignment(assignmentId: string): void {
+  const row = db
+    .select()
+    .from(mediaServerEpisodeAssignments)
+    .where(eq(mediaServerEpisodeAssignments.id, assignmentId))
+    .get();
+  if (!row) {
+    return;
+  }
+
+  db.insert(mediaServerRetiredEpisodes)
+    .values({
+      showId: row.showId,
+      seasonNumber: row.seasonNumber,
+      episodeNumber: row.episodeNumber,
+      retiredAt: Date.now(),
+    })
+    .onConflictDoNothing()
+    .run();
   db.delete(mediaServerEpisodeAssignments)
     .where(eq(mediaServerEpisodeAssignments.id, assignmentId))
     .run();

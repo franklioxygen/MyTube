@@ -146,7 +146,7 @@ function assignmentFor(
 describe("mediaServerExport/catalogReconciler", () => {
   beforeEach(() => {
     sqlite.exec(
-      "DELETE FROM media_server_export_artifacts; DELETE FROM media_server_episode_assignments; DELETE FROM media_server_shows; DELETE FROM collection_videos; DELETE FROM collections; DELETE FROM videos; DELETE FROM subscriptions;"
+      "DELETE FROM media_server_export_artifacts; DELETE FROM media_server_episode_assignments; DELETE FROM media_server_retired_episodes; DELETE FROM media_server_shows; DELETE FROM collection_videos; DELETE FROM collections; DELETE FROM videos; DELETE FROM subscriptions;"
     );
   });
 
@@ -235,6 +235,36 @@ describe("mediaServerExport/catalogReconciler", () => {
 
     expect(assignmentFor("v2", 3)).toBeDefined();
     expect(assignmentFor("v2", 2)).toBeUndefined();
+  });
+
+  it("never reuses the episode number of an occurrence that left the season", () => {
+    const videos = [video("v1"), video("v2"), video("v3")];
+    const collections = [collection("col-a", ["v1", "v2"])];
+    seed(videos, collections);
+    reconcile(videos, collections);
+    expect(assignmentFor("v2", 1)?.episodeNumber).toBe(2);
+
+    // v2 leaves in one pass, v3 takes over its playlist position in the next:
+    // episode 2 stays spent even though no live row carries it any more.
+    reconcile(videos, [collection("col-a", ["v1"])]);
+    reconcile(videos, [collection("col-a", ["v1", "v3"])]);
+
+    expect(assignmentFor("v3", 1)?.episodeNumber).toBe(3);
+    expect(assignmentFor("v2", 1)).toBeUndefined();
+  });
+
+  it("never reuses a Specials number freed by an earlier reconciliation", () => {
+    const videos = [video("v1"), video("v2"), video("v3")];
+    seed(videos, []);
+    reconcile([videos[0], videos[1]], []);
+    expect(assignmentSummary()).toEqual({ v1: ["S0E1"], v2: ["S0E2"] });
+
+    // The number is given up in one pass and the newcomer arrives in the next,
+    // so only the persisted tombstone can keep them apart.
+    reconcile([videos[0]], []);
+    reconcile([videos[0], videos[2]], []);
+
+    expect(assignmentSummary()).toEqual({ v1: ["S0E1"], v3: ["S0E3"] });
   });
 
   it("removes only the departed occurrence and restores Specials for the last one", () => {

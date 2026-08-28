@@ -1022,7 +1022,7 @@ export function migrateColumnsAndTables(): void {
 }
 
 // Ensure the media-server export catalog (issue #411) exists even if drizzle
-// never applied migration 0028. Same failure mode as ensureFavoritesTables
+// never applied migrations 0028/0029. Same failure mode as ensureFavoritesTables
 // above: on installs whose __drizzle_migrations journal is out of sync with the
 // migration files, drizzle aborts the whole batch on the first duplicate-column
 // ALTER and every later migration silently never runs. Without the artifact
@@ -1110,6 +1110,21 @@ export function ensureMediaServerExportTables(): void {
         updated_at INTEGER NOT NULL,
         FOREIGN KEY (show_id) REFERENCES media_server_shows(id) ON UPDATE no action ON DELETE set null,
         FOREIGN KEY (assignment_id) REFERENCES media_server_episode_assignments(id) ON UPDATE no action ON DELETE set null
+      )
+    `
+      )
+      .run();
+
+    sqlite
+      .prepare(
+        `
+      CREATE TABLE IF NOT EXISTS media_server_retired_episodes (
+        show_id TEXT NOT NULL,
+        season_number INTEGER NOT NULL,
+        episode_number INTEGER NOT NULL,
+        retired_at INTEGER NOT NULL,
+        PRIMARY KEY (show_id, season_number, episode_number),
+        FOREIGN KEY (show_id) REFERENCES media_server_shows(id) ON UPDATE no action ON DELETE cascade
       )
     `
       )

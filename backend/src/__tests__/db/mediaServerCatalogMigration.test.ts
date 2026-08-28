@@ -84,6 +84,9 @@ describe("media server export catalog migration", () => {
     expect(columnNames("media_server_export_artifacts")).toContain(
       "materialization"
     );
+    expect(columnNames("media_server_retired_episodes")).toContain(
+      "episode_number"
+    );
     expect(columnNames("collections")).toEqual(
       expect.arrayContaining([
         "description",

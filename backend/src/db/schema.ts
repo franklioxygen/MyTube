@@ -198,6 +198,31 @@ export const mediaServerEpisodeAssignments = sqliteTable(
 );
 
 /**
+ * Episode numbers a season has already handed out and can never hand out again
+ * (issue #411). Deleting an occurrence deletes its assignment row, so the active
+ * rows alone cannot prove what a season once used; without these tombstones a
+ * later append would recycle a freed number onto different content. Same
+ * never-moves-backwards guarantee `mediaServerShows.nextSeasonNumber` gives
+ * seasons.
+ */
+export const mediaServerRetiredEpisodes = sqliteTable(
+  "media_server_retired_episodes",
+  {
+    showId: text("show_id")
+      .notNull()
+      .references(() => mediaServerShows.id, { onDelete: "cascade" }),
+    seasonNumber: integer("season_number").notNull(),
+    episodeNumber: integer("episode_number").notNull(),
+    retiredAt: integer("retired_at").notNull(),
+  },
+  (table) => ({
+    pk: primaryKey({
+      columns: [table.showId, table.seasonNumber, table.episodeNumber],
+    }),
+  })
+);
+
+/**
  * Ownership ledger for every file MyTube generates inside the mirror. A media
  * hard link carries no in-band marker, so this table is the only proof that a
  * mirror file may be deleted. The foreign keys deliberately SET NULL rather than

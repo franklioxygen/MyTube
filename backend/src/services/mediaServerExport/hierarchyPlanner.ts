@@ -194,7 +194,8 @@ function planEpisode(
   video: Video,
   seasonDirectory: string,
   mode: Exclude<MediaServerExportMode, "off">,
-  fileExists: (absolutePath: string, allowedRoot: string) => boolean
+  fileExists: (absolutePath: string, allowedRoot: string) => boolean,
+  rawSourceInfo?: unknown
 ): HierarchyEpisodePlan | MediaServerExportSkip {
   const skip = (
     reason: MediaServerExportSkip["reason"]
@@ -271,7 +272,11 @@ function planEpisode(
       relativePath: `${seasonDirectory}/${stem}.info.json`,
       artifactType: "source_json",
       materialization: "generated_text",
-      content: `${JSON.stringify(buildSourceInfoEnvelope(video), null, 2)}\n`,
+      content: `${JSON.stringify(
+        buildSourceInfoEnvelope(video, rawSourceInfo),
+        null,
+        2
+      )}\n`,
       assignmentId: assignment.id,
     });
   }
@@ -385,7 +390,8 @@ export function planMediaServerHierarchy(
           video,
           seasonDirectory,
           mode,
-          fileExists
+          fileExists,
+          snapshot.rawInfoByVideoId?.get(video.id)
         );
         if ("reason" in planned) {
           skips.push(planned);
