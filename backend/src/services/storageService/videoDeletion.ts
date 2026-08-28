@@ -66,6 +66,14 @@ export function deleteVideo(
     markVideoDownloadDeleted(id);
     markDownloadHistoryDeletedByVideoId(id, deletedAt);
 
+    // Must run before the row is deleted: the managed mirror's episode
+    // assignments cascade away with the video, and the artifact ledger would
+    // then have nothing tying its generated media files to this video.
+    removeMediaServerArtifactsForVideo(videoToDelete, {
+      libraryVideos: remainingVideos,
+      preserveSharedArtifacts: true,
+    });
+
     // Delete from DB
     db.delete(videos).where(eq(videos.id, id)).run();
     bumpVideosListRevision();
@@ -77,10 +85,6 @@ export function deleteVideo(
     } catch {
       // recommendation signals are best-effort
     }
-    removeMediaServerArtifactsForVideo(videoToDelete, {
-      libraryVideos: remainingVideos,
-      preserveSharedArtifacts: true,
-    });
 
     // Statistics: emit library_video_deleted with the reason bucket and a size
     // snapshot if known. Best-effort; never blocks the delete.

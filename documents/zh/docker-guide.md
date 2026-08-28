@@ -186,6 +186,29 @@ services:
       - mytube-data:/app/data
 ```
 
+### 把托管式剧集库共享给媒体服务器
+
+启用**媒体服务器导出布局 → 作者 → 播放列表季**后，MyTube 会在 `/app/uploads/media-library`
+生成剧集形态的镜像。现有的 `./uploads` 绑定挂载已经把它暴露在宿主机的
+`./uploads/media-library`，因此不需要为 MyTube 增加额外的卷。
+
+把这一个目录以只读方式挂载进 Jellyfin/Plex/Emby，并作为**剧集（Shows）**媒体库添加，同时
+启用本地 NFO 元数据（Jellyfin：媒体库 → *Nfo* 元数据读取器/保存器）：
+
+```yaml
+  jellyfin:
+    volumes:
+      - ./uploads/media-library:/media/mytube:ro
+```
+
+有两个常见问题需要避免：
+
+- **不要同时添加 `./uploads/videos`**。镜像通过硬链接指向同一批文件，同时添加会让媒体库把
+  每个视频导入两次。
+- **不要把 `uploads/` 拆分到不同文件系统**。每一集都是原始文件的硬链接，只能在同一文件系统
+  内建立。若 `media-library/` 落在其他设备上，MyTube 会退回复制（在启用该选项时），媒体库
+  将占用每个导出视频的完整第二份副本。
+
 ### 不重建镜像更新 yt-dlp
 
 设置 -> yt-dlp 配置中会显示后端实际使用的 yt-dlp 版本；在 `container` 管理员信任级别下，

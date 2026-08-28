@@ -188,6 +188,30 @@ Example backend volume section:
       - mytube-data:/app/data
 ```
 
+### Sharing the managed TV library with a media server
+
+Enabling **Media server export layout → Author → playlist seasons** makes MyTube build a
+TV-shaped mirror at `/app/uploads/media-library`. The existing `./uploads` bind mount already
+exposes it on the host at `./uploads/media-library`, so no extra MyTube volume is needed.
+
+Mount that one folder into Jellyfin/Plex/Emby read-only and add it as a **Shows** library
+with local NFO metadata enabled (in Jellyfin: library → *Nfo* metadata reader/saver):
+
+```yaml
+  jellyfin:
+    volumes:
+      - ./uploads/media-library:/media/mytube:ro
+```
+
+Two failure modes are worth avoiding:
+
+- **Do not also add `./uploads/videos`** to the media server. The mirror hard-links the same
+  files, so the library would import every video twice.
+- **Do not split `uploads/` across filesystems.** Episodes are hard links to the originals,
+  which only works inside one filesystem. If `media-library/` lands on a different device,
+  MyTube falls back to copying (when that option is enabled) and the library consumes a full
+  second copy of every exported video.
+
 ### Updating yt-dlp without rebuilding
 
 Settings -> yt-dlp Configuration shows the yt-dlp version the backend actually

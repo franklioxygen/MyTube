@@ -44,6 +44,7 @@ vi.mock("../../../services/storageService/videos", () => ({
 }));
 
 vi.mock("../../../services/mediaServerExport/syncService", () => ({
+  getMediaServerExportLayout: () => "adjacent",
   removeMediaServerArtifactsForVideo: (...args: unknown[]) =>
     removeMediaServerArtifactsForVideoMock(...args),
   syncMediaServerArtifactsForRecord: (...args: unknown[]) =>

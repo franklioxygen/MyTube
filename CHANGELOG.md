@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Feat
+
+- Add an opt-in media-server export layout that builds a managed TV library at `backend/uploads/media-library`, where each author is a show and each source-backed playlist is a numbered season (`Show/Season NN/SxxExxx - Title`), complete with `tvshow.nfo`, `season.nfo`, per-episode NFOs, artwork and subtitles. Episodes are hard links to the originals, so the library normally costs no extra disk space; a copy fallback keeps it working on filesystems without hard links and the rebuild summary reports how many files were copied. Originals are never renamed or moved, filename settings do not affect the mirror, season and episode numbers are allocated once and never renumbered by an upstream reorder, a video in several playlists appears once per season, and videos in no playlist land in Season 00 as Specials. Every generated file is tracked in an ownership ledger, so cleanup and stale-file sweeping can never touch an original or a file you put there yourself. The default stays the existing adjacent-sidecar layout. Closes #411
+
 ## v1.11.9 (2026-09-13)
 
 ### Fix

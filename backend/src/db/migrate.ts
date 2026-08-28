@@ -393,6 +393,16 @@ export async function runMigrations(options: RunMigrationsOptions = {}) {
     configureDatabase(sqlite);
     logger.info("Database configuration applied (NTFS/FUSE compatible mode).");
 
+    // Media-server export catalog (migration 0029). Its collection columns are
+    // deliberately not in the 0029 SQL — SQLite cannot add a column
+    // idempotently, and one failure would roll the whole migration back — so
+    // they are healed here, before the legacy data migration below can write a
+    // collection row.
+    const { ensureMediaServerExportTables } = await import(
+      "../services/storageService/migrations/schemaMigrations"
+    );
+    ensureMediaServerExportTables();
+
     // Check for legacy data files and run data migration if found. Skipped for
     // database import/restore: re-inserting on-disk JSON there would overwrite
     // the just-uploaded backup with stale data.

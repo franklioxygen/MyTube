@@ -11,7 +11,7 @@ UPDATE_KEY_LIST=1 npx vitest run src/utils/locales/__tests__/localeParity.test.t
 
 This list is intentionally unnumbered. When new keys are inserted, only the local section order changes.
 
-Total keys: 1371
+Total keys: 1395
 
 ## Summary
 
@@ -20,7 +20,7 @@ Total keys: 1371
 | Header | 11 | `myTube` | `instruction` |
 | Home | 25 | `pasteUrl` | `views` |
 | Settings | 4 | `general` | `downloadSettings` |
-| Settings Categories | 247 | `interfaceDisplay` | `enterNewTagName` |
+| Settings Categories | 271 | `interfaceDisplay` | `enterNewTagName` |
 | Database | 38 | `database` | `cleanupTempFilesConfirmMessage` |
 | Task Hooks | 100 | `taskHooks` | `cleanupTempFilesFailed` |
 | Cookie Settings | 12 | `cookieSettings` | `cookiesDeleteFailed` |
@@ -215,6 +215,30 @@ Total keys: 1371
 | `mediaServerExportCleanupComplete` |
 | `mediaServerExportCleanupSummary` |
 | `mediaServerExportSweptSummary` |
+| `mediaServerExportLayout` |
+| `mediaServerExportLayoutAdjacent` |
+| `mediaServerExportLayoutPlaylistTv` |
+| `mediaServerExportLayoutPlaylistTvDescription` |
+| `mediaServerExportLayoutPlaylistTvNamingNote` |
+| `mediaServerLibraryPath` |
+| `mediaServerLibraryPathCopy` |
+| `mediaServerSeasonZeroHint` |
+| `mediaServerStableOrderHint` |
+| `mediaServerHardLinkHint` |
+| `mediaServerCopyFallback` |
+| `mediaServerCopyFallbackDescription` |
+| `mediaServerCopiedMediaWarning` |
+| `mediaServerExportMirrorSummary` |
+| `mediaServerExportFailedDetails` |
+| `mediaServerExportSkippedDetails` |
+| `mediaServerExportPhaseSnapshot` |
+| `mediaServerExportPhaseCatalogReconcile` |
+| `mediaServerExportPhasePlan` |
+| `mediaServerExportPhaseMaterialize` |
+| `mediaServerExportPhaseSweep` |
+| `mediaServerExportPhaseCompleted` |
+| `mediaServerExportPlaylistTvRebuildConfirmBody` |
+| `mediaServerExportPlaylistTvCleanupConfirmBody` |
 | `mediaServerExportActiveDownloadsError` |
 | `mediaServerExportQueuedDownloadsError` |
 | `mediaServerExportUnsupportedModeError` |
