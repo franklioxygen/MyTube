@@ -384,6 +384,14 @@ export class CompatibilityPlaybackEngine {
         }
     }
 
+    /**
+     * Seek relative to where playback actually is, read from the live clock
+     * rather than from a snapshot the caller may be holding.
+     */
+    async seekBy(deltaSeconds: number): Promise<void> {
+        await this.seek(this.mediaTime + deltaSeconds);
+    }
+
     /** Drop decoder state so playback can restart at a keyframe. */
     private resetDecoders(): void {
         if (this.videoDecoder && this.videoDecoder.state !== 'closed') {

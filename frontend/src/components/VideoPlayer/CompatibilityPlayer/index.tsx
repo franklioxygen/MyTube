@@ -1,7 +1,9 @@
 import {
     Box,
     CircularProgress,
+    Fade,
     IconButton,
+    Stack,
     Tooltip,
     Typography,
 } from '@mui/material';
@@ -10,6 +12,11 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLanguage } from '../../../contexts/LanguageContext';
 import { neutral, overlay } from '../../../theme/colors';
 import { formatDuration } from '../../../utils/formatUtils';
+import {
+    DEFAULT_PLAYER_SEEK_INTERVALS,
+    PlayerSeekIntervals,
+} from '../../../utils/playerSeekIntervals';
+import SeekButton from '../VideoControls/SeekButton';
 import {
     getMissingCompatibilityModeApis,
     isCompatibilityModeSupported,
@@ -37,9 +44,12 @@ interface CompatibilityPlayerProps {
     canFallBackToStandardPlayer?: boolean;
     /** Leaves D Mode for the standard player. */
     onExit?: () => void;
+    seekIntervals?: PlayerSeekIntervals;
 }
 
 const DEFAULT_ASPECT_RATIO = 16 / 9;
+/** How long the transport controls stay up after the last interaction. */
+const CONTROLS_HIDE_DELAY_MS = 3000;
 
 const INITIAL_SNAPSHOT: PlaybackSnapshot = {
     status: 'idle',
@@ -71,6 +81,7 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
     onEnded,
     canFallBackToStandardPlayer = true,
     onExit,
+    seekIntervals = DEFAULT_PLAYER_SEEK_INTERVALS,
 }) => {
     const { t } = useLanguage();
     // Forced deployments render this player even where WebCodecs is missing,
@@ -85,6 +96,7 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
     // playback back to it mid-watch.
     const startTimeRef = useRef(startTime);
     const [snapshot, setSnapshot] = useState<PlaybackSnapshot>(INITIAL_SNAPSHOT);
+    const [controlsVisible, setControlsVisible] = useState(true);
 
     // Keep the engine's callbacks current without restarting playback when the
     // parent re-renders with fresh closures.
@@ -150,9 +162,46 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [src, supported]);
 
-    const handleToggle = useCallback(() => {
-        void engineRef.current?.toggle();
+    // The transport controls sit over the picture and retire themselves, so a
+    // parked car screen is not left with a permanent overlay on the video.
+    const hideTimerRef = useRef<number | null>(null);
+    const revealControls = useCallback(() => {
+        setControlsVisible(true);
+        if (hideTimerRef.current !== null) {
+            window.clearTimeout(hideTimerRef.current);
+        }
+        hideTimerRef.current = window.setTimeout(
+            () => setControlsVisible(false),
+            CONTROLS_HIDE_DELAY_MS
+        );
     }, []);
+
+    // The controls start visible so there is something to press; this only arms
+    // their retirement, and does not touch state synchronously.
+    useEffect(() => {
+        hideTimerRef.current = window.setTimeout(
+            () => setControlsVisible(false),
+            CONTROLS_HIDE_DELAY_MS
+        );
+        return () => {
+            if (hideTimerRef.current !== null) {
+                window.clearTimeout(hideTimerRef.current);
+            }
+        };
+    }, []);
+
+    const handleToggle = useCallback(() => {
+        revealControls();
+        void engineRef.current?.toggle();
+    }, [revealControls]);
+
+    const handleSeekBy = useCallback(
+        (deltaSeconds: number) => {
+            revealControls();
+            void engineRef.current?.seekBy(deltaSeconds);
+        },
+        [revealControls]
+    );
 
     const isPlaying =
         snapshot.status === 'playing' || snapshot.status === 'buffering';
@@ -216,7 +265,7 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
             >
                 <canvas
                     ref={canvasRef}
-                    onClick={handleToggle}
+                    onClick={revealControls}
                     style={{
                         width: '100%',
                         height: '100%',
@@ -247,29 +296,70 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                     </Box>
                 )}
 
-                {!isPlaying && !hasFailed && !isBusy && (
-                    <Box
-                        onClick={handleToggle}
-                        sx={{
-                            position: 'absolute',
-                            inset: 0,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            cursor: 'pointer',
-                        }}
-                    >
-                        <IconButton
-                            aria-label={t('playing')}
+                {!hasFailed && (
+                    <Fade in={controlsVisible} timeout={{ enter: 200, exit: 500 }}>
+                        <Stack
+                            direction="row"
+                            spacing={{ xs: 1, sm: 2 }}
+                            alignItems="center"
+                            justifyContent="center"
                             sx={{
-                                bgcolor: overlay.black70,
+                                position: 'absolute',
+                                inset: 0,
                                 color: neutral.white,
-                                '&:hover': { bgcolor: overlay.black80 },
+                                // Hidden controls must not swallow the tap that
+                                // is meant to bring them back.
+                                pointerEvents: controlsVisible ? 'auto' : 'none',
+                                '& .MuiIconButton-root': {
+                                    color: neutral.white,
+                                    bgcolor: overlay.black70,
+                                    '&:hover': { bgcolor: overlay.black80 },
+                                    '&.Mui-disabled': { color: overlay.white32 },
+                                },
                             }}
                         >
-                            <PlayArrow fontSize="large" />
-                        </IconButton>
-                    </Box>
+                            <SeekButton
+                                direction="backward"
+                                tier="medium"
+                                seconds={seekIntervals.mediumSeconds}
+                                onSeek={handleSeekBy}
+                                disableTooltip
+                            />
+                            <SeekButton
+                                direction="backward"
+                                tier="short"
+                                seconds={seekIntervals.shortSeconds}
+                                onSeek={handleSeekBy}
+                                disableTooltip
+                            />
+                            <IconButton
+                                onClick={handleToggle}
+                                disabled={isBusy}
+                                aria-label={isPlaying ? t('paused') : t('playing')}
+                                sx={{ width: 64, height: 64 }}
+                            >
+                                {isPlaying ? (
+                                    <Pause fontSize="large" />
+                                ) : (
+                                    <PlayArrow fontSize="large" />
+                                )}
+                            </IconButton>
+                            <SeekButton
+                                direction="forward"
+                                tier="short"
+                                seconds={seekIntervals.shortSeconds}
+                                onSeek={handleSeekBy}
+                                disableTooltip
+                            />
+                            <SeekButton
+                                direction="forward"
+                                tier="medium"
+                                seconds={seekIntervals.mediumSeconds}
+                                onSeek={handleSeekBy}
+                                disableTooltip
+                            />
+                        </Stack>
+                    </Fade>
                 )}
             </Box>
 
