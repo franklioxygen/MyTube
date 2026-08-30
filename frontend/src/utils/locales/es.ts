@@ -729,6 +729,7 @@ export const es = {
     "Desactiva el modo de compatibilidad para usar el reproductor estándar.",
   compatibilityModeUnplayable:
     "Este video no se puede reproducir en esta pantalla.",
+  compatibilityModeVolume: "Volumen",
   compatibilityModeMediaElements:
     "{count} elementos multimedia en el reproductor",
   compatibilityModeUnavailable:

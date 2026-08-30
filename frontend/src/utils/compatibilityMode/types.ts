@@ -26,6 +26,13 @@ export interface MediaDemuxer {
   /** Media duration in microseconds, when the container states one. */
   durationUs: number | null;
   /**
+   * Presentation timestamp of the first frame meant to be shown, in
+   * microseconds. The engine uses this as its time origin instead of guessing
+   * from the first packet it happens to see, which is wrong whenever B-frames
+   * put a later composition time first.
+   */
+  startTimeUs: number;
+  /**
    * Video/audio tracks the container carries that could not be mapped to a
    * decoder configuration, described by their codec identifier.
    *

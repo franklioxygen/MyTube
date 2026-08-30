@@ -708,6 +708,7 @@ export const ko = {
   compatibilityModeFailed: "호환 모드 재생에 실패했습니다",
   compatibilityModeFallbackHint: "표준 플레이어를 사용하려면 호환 모드를 끄세요.",
   compatibilityModeUnplayable: "이 동영상은 이 화면에서 재생할 수 없습니다.",
+  compatibilityModeVolume: "볼륨",
   compatibilityModeMediaElements: "플레이어의 미디어 요소 {count}개",
   compatibilityModeUnavailable: "이 브라우저는 WebCodecs를 지원하지 않아 호환 모드를 사용할 수 없습니다.",
   current: "(현재)",

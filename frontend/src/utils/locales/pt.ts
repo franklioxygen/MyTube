@@ -725,6 +725,7 @@ export const pt = {
     "Desative o modo de compatibilidade para usar o player padrão.",
   compatibilityModeUnplayable:
     "Este vídeo não pode ser reproduzido nesta tela.",
+  compatibilityModeVolume: "Volume",
   compatibilityModeMediaElements: "{count} elementos de mídia no player",
   compatibilityModeUnavailable:
     "Este navegador não oferece suporte a WebCodecs, então o modo de compatibilidade está indisponível.",

@@ -15,6 +15,12 @@ import {
   hevcCodecString,
   vp9CodecStringFromVpcC,
 } from "./codecStrings";
+import {
+  MAX_ENCODED_PAYLOAD_BYTES,
+  MAX_MOOV_BYTES,
+  MAX_SAMPLE_TABLE_ENTRIES,
+  recordsThatFit,
+} from "./limits";
 import { DemuxedPacket, MediaDemuxer, UnsupportedMediaError } from "./types";
 
 interface Box {
@@ -51,8 +57,6 @@ type ParsedTrackResult =
   | { status: "ok"; track: ParsedTrack }
   | { status: "unsupported"; label: string }
   | { status: "ignored" };
-
-const MAX_MOOV_BYTES = 64 * 1024 * 1024;
 
 const readType = (bytes: Uint8Array, offset: number): string =>
   String.fromCharCode(
@@ -216,6 +220,39 @@ const parseEsdsDecoderSpecificInfo = (
   return null;
 };
 
+/**
+ * Media-timescale offset from a track's edit list.
+ *
+ * The common single-entry case ffmpeg writes carries the codec's priming delay
+ * (`media_time` is the first sample meant to be presented). Subtracting it puts
+ * audio and video on the same presentation timeline instead of leaving a
+ * constant offset between them. Multi-entry edit lists are rare in downloaded
+ * media and are ignored rather than half-applied.
+ */
+const readEditListOffset = (bytes: Uint8Array, trakChildren: Box[]): number => {
+  const elst = descend(bytes, trakChildren, ["edts", "elst"]);
+  if (!elst) {
+    return 0;
+  }
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const version = parseFullBoxVersion(view, elst.contentStart);
+  if (view.getUint32(elst.contentStart + 4) !== 1) {
+    return 0;
+  }
+  const at = elst.contentStart + 8;
+  const mediaTime =
+    version === 1
+      ? Number(
+          new DataView(
+            bytes.buffer,
+            bytes.byteOffset,
+            bytes.byteLength
+          ).getBigInt64(at + 8)
+        )
+      : view.getInt32(at + 4);
+  return mediaTime > 0 ? mediaTime : 0;
+};
+
 const buildVideoConfig = (
   bytes: Uint8Array,
   entry: Box,
@@ -317,7 +354,11 @@ const buildSamples = (
   bytes: Uint8Array,
   stbl: Box,
   timescale: number,
-  kind: "video" | "audio"
+  kind: "video" | "audio",
+  /** Media-timescale offset from the track's edit list, if any. */
+  mediaTimeOffset: number,
+  /** Total file size when the server reported one, for bounding offsets. */
+  fileSize: number | null
 ): Sample[] => {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const boxes = childBoxes(bytes, stbl);
@@ -331,21 +372,45 @@ const buildSamples = (
   }
 
   const uniformSize = view.getUint32(stsz.contentStart + 4);
-  const sampleCount = view.getUint32(stsz.contentStart + 8);
+  // A declared sample count must be backed by real bytes: either an entry table
+  // inside `stsz`, or — for uniform sizes — enough file to hold the samples.
+  const declaredSampleCount = view.getUint32(stsz.contentStart + 8);
+  const sampleCountCeiling =
+    uniformSize !== 0
+      ? fileSize !== null
+        ? Math.floor(fileSize / Math.max(1, uniformSize))
+        : MAX_SAMPLE_TABLE_ENTRIES
+      : recordsThatFit(stsz.contentStart, stsz.contentEnd, 12, 4);
+  const sampleCount = Math.min(
+    declaredSampleCount,
+    sampleCountCeiling,
+    MAX_SAMPLE_TABLE_ENTRIES
+  );
   const sizeAt = (index: number): number =>
     uniformSize !== 0
       ? uniformSize
       : view.getUint32(stsz.contentStart + 12 + index * 4);
 
-  const chunkCount = view.getUint32(chunkOffsetBox.contentStart + 4);
   const is64 = chunkOffsetBox.type === "co64";
+  const chunkCount = Math.min(
+    view.getUint32(chunkOffsetBox.contentStart + 4),
+    recordsThatFit(
+      chunkOffsetBox.contentStart,
+      chunkOffsetBox.contentEnd,
+      8,
+      is64 ? 8 : 4
+    )
+  );
   const chunkOffsetAt = (index: number): number =>
     is64
       ? view.getUint32(chunkOffsetBox.contentStart + 8 + index * 8) * 2 ** 32 +
         view.getUint32(chunkOffsetBox.contentStart + 12 + index * 8)
       : view.getUint32(chunkOffsetBox.contentStart + 8 + index * 4);
 
-  const stscCount = view.getUint32(stsc.contentStart + 4);
+  const stscCount = Math.min(
+    view.getUint32(stsc.contentStart + 4),
+    recordsThatFit(stsc.contentStart, stsc.contentEnd, 8, 12)
+  );
   const stscEntry = (index: number) => {
     const at = stsc.contentStart + 8 + index * 12;
     return {
@@ -355,7 +420,10 @@ const buildSamples = (
   };
 
   // Decode-time deltas.
-  const sttsCount = view.getUint32(stts.contentStart + 4);
+  const sttsCount = Math.min(
+    view.getUint32(stts.contentStart + 4),
+    recordsThatFit(stts.contentStart, stts.contentEnd, 8, 8)
+  );
   const decodeTimes = new Float64Array(sampleCount);
   const durations = new Float64Array(sampleCount);
   let sampleIndex = 0;
@@ -377,7 +445,10 @@ const buildSamples = (
   const compositionOffsets = new Float64Array(sampleCount);
   if (ctts) {
     const signed = parseFullBoxVersion(view, ctts.contentStart) === 1;
-    const cttsCount = view.getUint32(ctts.contentStart + 4);
+    const cttsCount = Math.min(
+      view.getUint32(ctts.contentStart + 4),
+      recordsThatFit(ctts.contentStart, ctts.contentEnd, 8, 8)
+    );
     let index = 0;
     for (let i = 0; i < cttsCount && index < sampleCount; i += 1) {
       const at = ctts.contentStart + 8 + i * 8;
@@ -395,7 +466,10 @@ const buildSamples = (
   let syncSamples: Set<number> | null = null;
   if (stss) {
     syncSamples = new Set<number>();
-    const count = view.getUint32(stss.contentStart + 4);
+    const count = Math.min(
+      view.getUint32(stss.contentStart + 4),
+      recordsThatFit(stss.contentStart, stss.contentEnd, 8, 4)
+    );
     for (let i = 0; i < count; i += 1) {
       syncSamples.add(view.getUint32(stss.contentStart + 8 + i * 4) - 1);
     }
@@ -413,12 +487,24 @@ const buildSamples = (
 
     for (let i = 0; i < samplesPerChunk && currentSample < sampleCount; i += 1) {
       const size = sizeAt(currentSample);
+      if (size > MAX_ENCODED_PAYLOAD_BYTES) {
+        throw new UnsupportedMediaError(
+          `Sample size ${size} exceeds the supported limit`
+        );
+      }
+      if (fileSize !== null && offset + size > fileSize) {
+        throw new UnsupportedMediaError(
+          "Sample table points past the end of the file"
+        );
+      }
       samples.push({
         kind,
         offset,
         size,
         timestamp:
-          ((decodeTimes[currentSample] + compositionOffsets[currentSample]) /
+          ((decodeTimes[currentSample] +
+            compositionOffsets[currentSample] -
+            mediaTimeOffset) /
             timescale) *
           1e6,
         duration: (durations[currentSample] / timescale) * 1e6,
@@ -433,7 +519,11 @@ const buildSamples = (
   return samples;
 };
 
-const parseTrack = (bytes: Uint8Array, trak: Box): ParsedTrackResult => {
+const parseTrack = (
+  bytes: Uint8Array,
+  trak: Box,
+  fileSize: number | null
+): ParsedTrackResult => {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const trakChildren = childBoxes(bytes, trak);
 
@@ -490,7 +580,14 @@ const parseTrack = (bytes: Uint8Array, trak: Box): ParsedTrackResult => {
     status: "ok",
     track: {
       kind,
-      samples: buildSamples(bytes, stbl, timescale, kind),
+      samples: buildSamples(
+        bytes,
+        stbl,
+        timescale,
+        kind,
+        readEditListOffset(bytes, trakChildren),
+        fileSize
+      ),
       videoConfig,
       audioConfig,
     },
@@ -519,9 +616,10 @@ export async function createMp4Demuxer(
   const moov = await readMoov(stream);
   const moovBoxes = parseBoxes(moov, 0, moov.length);
 
+  const fileSize = stream.totalSize;
   const results = moovBoxes
     .filter((box) => box.type === "trak")
-    .map((trak) => parseTrack(moov, trak));
+    .map((trak) => parseTrack(moov, trak, fileSize));
 
   const tracks = results
     .filter(
@@ -552,6 +650,18 @@ export async function createMp4Demuxer(
     ...(audioTrack?.samples ?? []),
   ].sort((a, b) => a.offset - b.offset);
 
+  // The exact earliest presentation time, which the sample table knows and the
+  // first packet in file order does not: with B-frames the opening sample's
+  // composition time is not the minimum. Clamped at zero so an edit list that
+  // pushes priming samples negative keeps presentation starting at zero.
+  const startTimeUs = Math.max(
+    0,
+    samples.reduce(
+      (earliest, sample) => Math.min(earliest, sample.timestamp),
+      Number.POSITIVE_INFINITY
+    )
+  );
+
   let cursor = 0;
 
   return {
@@ -559,6 +669,7 @@ export async function createMp4Demuxer(
     video: videoTrack?.videoConfig ?? null,
     audio: audioTrack?.audioConfig ?? null,
     durationUs: readMovieDurationUs(moov, moovBoxes),
+    startTimeUs: Number.isFinite(startTimeUs) ? startTimeUs : 0,
     unsupportedTracks,
 
     async next(): Promise<DemuxedPacket | null> {

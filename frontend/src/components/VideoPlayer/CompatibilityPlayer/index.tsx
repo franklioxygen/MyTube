@@ -1,10 +1,19 @@
-import { Box, Chip, CircularProgress, IconButton, Typography } from '@mui/material';
-import { Pause, PlayArrow } from '@mui/icons-material';
+import {
+    Box,
+    CircularProgress,
+    IconButton,
+    Slider,
+    Typography,
+} from '@mui/material';
+import { Pause, PlayArrow, VolumeOff, VolumeUp } from '@mui/icons-material';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import { neutral, overlay } from '../../../theme/colors';
 import { formatDuration } from '../../../utils/formatUtils';
-import { isCompatibilityModeSupported } from '../../../utils/compatibilityMode/support';
+import {
+    getMissingCompatibilityModeApis,
+    isCompatibilityModeSupported,
+} from '../../../utils/compatibilityMode/support';
 import {
     drawFailureNotice,
     INITIAL_CANVAS_HEIGHT,
@@ -25,6 +34,20 @@ interface CompatibilityPlayerProps {
     canFallBackToStandardPlayer?: boolean;
 }
 
+const VOLUME_STORAGE_ID = 'mytube:player-volume';
+const DEFAULT_ASPECT_RATIO = 16 / 9;
+
+const readStoredVolume = (): number => {
+    try {
+        const stored = Number.parseFloat(
+            localStorage.getItem(VOLUME_STORAGE_ID) ?? ''
+        );
+        return Number.isFinite(stored) ? Math.min(1, Math.max(0, stored)) : 1;
+    } catch {
+        return 1;
+    }
+};
+
 const INITIAL_SNAPSHOT: PlaybackSnapshot = {
     status: 'idle',
     currentTime: 0,
@@ -32,6 +55,10 @@ const INITIAL_SNAPSHOT: PlaybackSnapshot = {
     error: null,
     pipeline: null,
     unsupported: false,
+    aspectRatio: null,
+    volume: 1,
+    muted: false,
+    buffering: false,
 };
 
 /**
@@ -61,7 +88,6 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
     const onTimeUpdateRef = useRef(onTimeUpdate);
     const onEndedRef = useRef(onEnded);
     const [snapshot, setSnapshot] = useState<PlaybackSnapshot>(INITIAL_SNAPSHOT);
-    const [mediaElementCount, setMediaElementCount] = useState(0);
 
     // Keep the engine's callbacks current without restarting playback when the
     // parent re-renders with fresh closures.
@@ -98,12 +124,18 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
             onEnded: () => onEndedRef.current?.(),
         });
         engineRef.current = engine;
+        engine.setVolume(readStoredVolume());
 
-        void engine.load(src).then(() => {
-            if (autoPlay && engineRef.current === engine) {
-                void engine.play();
-            }
-        });
+        void engine
+            .load(src)
+            .then(() => {
+                if (autoPlay && engineRef.current === engine) {
+                    // A refused autoplay leaves the engine ready rather than
+                    // playing; the play control then works from a real gesture.
+                    void engine.play();
+                }
+            })
+            .catch(() => undefined);
 
         return () => {
             engineRef.current = null;
@@ -113,26 +145,38 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [src, supported]);
 
-    // The whole point of the mode: prove nothing media-element-shaped is mounted.
-    useEffect(() => {
-        setMediaElementCount(
-            containerRef.current?.querySelectorAll('video, audio, source, track')
-                .length ?? 0
-        );
-    }, [snapshot.status]);
-
     const handleToggle = useCallback(() => {
         void engineRef.current?.toggle();
     }, []);
 
-    const isPlaying = snapshot.status === 'playing';
+    const handleToggleMuted = useCallback(() => {
+        engineRef.current?.toggleMuted();
+    }, []);
+
+    const handleVolumeChange = useCallback((_: Event, value: number | number[]) => {
+        const volume = (Array.isArray(value) ? value[0] : value) / 100;
+        engineRef.current?.setVolume(volume);
+        try {
+            localStorage.setItem(VOLUME_STORAGE_ID, String(volume));
+        } catch {
+            // A storage failure only costs the remembered level.
+        }
+    }, []);
+
+    const isPlaying =
+        snapshot.status === 'playing' || snapshot.status === 'buffering';
     const isBusy =
-        supported && (snapshot.status === 'loading' || snapshot.status === 'idle');
+        supported &&
+        (snapshot.status === 'loading' ||
+            snapshot.status === 'idle' ||
+            snapshot.buffering);
     const hasFailed = !supported || snapshot.status === 'error';
     const failureTitle = supported
         ? t('compatibilityModeFailed')
         : t('compatibilityModeUnavailable');
-    const failureDetail = supported ? snapshot.error : null;
+    const failureDetail = supported
+        ? snapshot.error
+        : `Missing: ${getMissingCompatibilityModeApis().join(', ')}`;
     const failureHint = canFallBackToStandardPlayer
         ? t('compatibilityModeFallbackHint')
         : t('compatibilityModeUnplayable');
@@ -171,7 +215,7 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                 sx={{
                     position: 'relative',
                     width: '100%',
-                    aspectRatio: '16/9',
+                    aspectRatio: snapshot.aspectRatio ?? DEFAULT_ASPECT_RATIO,
                     maxHeight: 'calc(100vh - 180px)',
                     backgroundImage: poster ? `url(${poster})` : undefined,
                     backgroundSize: 'contain',
@@ -189,18 +233,6 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                         display: 'block',
                         cursor: 'pointer',
                         position: 'relative',
-                    }}
-                />
-
-                <Chip
-                    size="small"
-                    label={`${t('compatibilityMode')} · POC`}
-                    sx={{
-                        position: 'absolute',
-                        top: 8,
-                        left: 8,
-                        bgcolor: overlay.black70,
-                        color: neutral.white,
                     }}
                 />
 
@@ -272,6 +304,28 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                     {isPlaying ? <Pause /> : <PlayArrow />}
                 </IconButton>
 
+                <IconButton
+                    size="small"
+                    onClick={handleToggleMuted}
+                    disabled={hasFailed}
+                    aria-label={t('compatibilityModeVolume')}
+                    sx={{ color: neutral.white }}
+                >
+                    {snapshot.muted || snapshot.volume === 0 ? (
+                        <VolumeOff />
+                    ) : (
+                        <VolumeUp />
+                    )}
+                </IconButton>
+                <Slider
+                    size="small"
+                    aria-label={t('compatibilityModeVolume')}
+                    value={snapshot.muted ? 0 : Math.round(snapshot.volume * 100)}
+                    onChange={handleVolumeChange}
+                    disabled={hasFailed}
+                    sx={{ width: 96, color: neutral.white, flexShrink: 0 }}
+                />
+
                 <Typography variant="caption" sx={{ fontVariantNumeric: 'tabular-nums' }}>
                     {formatDuration(snapshot.currentTime)}
                     {snapshot.duration ? ` / ${formatDuration(snapshot.duration)}` : ''}
@@ -302,11 +356,6 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                         {snapshot.pipeline}
                     </Typography>
                 )}
-                <Typography variant="caption" sx={{ opacity: 0.7 }}>
-                    {t('compatibilityModeMediaElements', {
-                        count: mediaElementCount,
-                    })}
-                </Typography>
             </Box>
         </Box>
     );

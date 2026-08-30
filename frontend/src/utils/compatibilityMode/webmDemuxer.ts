@@ -14,6 +14,10 @@ import {
   avcCodecString,
   hevcCodecString,
 } from "./codecStrings";
+import {
+  MAX_ENCODED_PAYLOAD_BYTES,
+  MAX_HEADER_ELEMENT_BYTES,
+} from "./limits";
 import { DemuxedPacket, MediaDemuxer, UnsupportedMediaError } from "./types";
 
 const ID = {
@@ -39,10 +43,13 @@ const ID = {
   simpleBlock: 0xa3,
   blockGroup: 0xa0,
   block: 0xa1,
+  blockDuration: 0x9b,
+  referenceBlock: 0xfb,
+  defaultDuration: 0x23e383,
+  codecDelay: 0x56aa,
 } as const;
 
 const DEFAULT_TIMESTAMP_SCALE_NS = 1_000_000;
-const MAX_HEADER_ELEMENT_BYTES = 8 * 1024 * 1024;
 
 interface Element {
   id: number;
@@ -59,6 +66,10 @@ interface WebmTrack {
   height: number;
   sampleRate: number;
   channels: number;
+  /** Nominal frame duration in nanoseconds, used to space laced frames. */
+  defaultDurationNs: number;
+  /** Codec priming delay in nanoseconds (Opus, mainly). */
+  codecDelayNs: number;
 }
 
 const vintLength = (firstByte: number): number => {
@@ -136,6 +147,8 @@ const parseTrackEntry = (bytes: Uint8Array, entry: Element): WebmTrack => {
     height: 0,
     sampleRate: 48000,
     channels: 2,
+    defaultDurationNs: 0,
+    codecDelayNs: 0,
   };
 
   for (const field of parseElements(bytes, entry.contentStart, entry.contentEnd)) {
@@ -151,6 +164,12 @@ const parseTrackEntry = (bytes: Uint8Array, entry: Element): WebmTrack => {
         break;
       case ID.codecPrivate:
         track.codecPrivate = bytes.slice(field.contentStart, field.contentEnd);
+        break;
+      case ID.defaultDuration:
+        track.defaultDurationNs = readUint(bytes, field);
+        break;
+      case ID.codecDelay:
+        track.codecDelayNs = readUint(bytes, field);
         break;
       case ID.videoSettings:
         for (const setting of parseElements(
@@ -381,8 +400,14 @@ export async function createWebmDemuxer(
 
   const emitBlock = (
     payload: Uint8Array,
-    fromSimpleBlock: boolean,
-    durationOverrideUs?: number
+    options: {
+      /** SimpleBlock carries a keyframe flag; a Block inside a BlockGroup does not. */
+      fromSimpleBlock: boolean;
+      /** For a BlockGroup: whether the group contained a ReferenceBlock. */
+      hasReference?: boolean;
+      /** BlockDuration for the whole block, in microseconds. */
+      blockDurationUs?: number;
+    }
   ): void => {
     const trackNumberLength = vintLength(payload[0]);
     if (trackNumberLength === 0) return;
@@ -402,31 +427,52 @@ export async function createWebmDemuxer(
     const flags = payload[offset];
     offset += 1;
 
-    const kind =
+    const track =
       selected.videoTrack && trackNumber === selected.videoTrack.number
-        ? "video"
+        ? selected.videoTrack
         : selected.audioTrack && trackNumber === selected.audioTrack.number
-        ? "audio"
+        ? selected.audioTrack
         : null;
-    if (!kind) return;
+    if (!track) return;
+    const kind = track.type === 1 ? "video" : "audio";
 
-    // BlockGroup blocks carry no keyframe flag; audio is always intra-coded and
-    // video keyframes in WebM are written as SimpleBlocks in practice.
-    const key = fromSimpleBlock ? (flags & 0x80) !== 0 : kind === "audio";
-    const timestamp =
-      ((clusterTimestamp + relativeTimestamp) * timestampScaleNs) / 1000;
+    // A SimpleBlock states its own keyframe status. Inside a BlockGroup,
+    // Matroska instead marks a frame as *not* a random-access point by giving
+    // the group a ReferenceBlock — so a group without one is a keyframe.
+    // Treating every grouped block as a delta frame left such files black,
+    // because the engine drops input until it sees a keyframe.
+    const key = options.fromSimpleBlock
+      ? (flags & 0x80) !== 0
+      : options.hasReference !== true;
 
-    for (const frame of splitLacedFrames(payload.subarray(offset), (flags >> 1) & 0x03)) {
+    const frames = splitLacedFrames(
+      payload.subarray(offset),
+      (flags >> 1) & 0x03
+    );
+
+    // A block timestamp applies to the *first* frame of a lace; the rest follow
+    // contiguously. Giving them all the same timestamp stacks separately
+    // decoded packets on top of each other at playback time.
+    const frameDurationUs =
+      track.defaultDurationNs > 0
+        ? track.defaultDurationNs / 1000
+        : options.blockDurationUs !== undefined && frames.length > 0
+        ? options.blockDurationUs / frames.length
+        : 0;
+
+    const blockTimestampUs =
+      ((clusterTimestamp + relativeTimestamp) * timestampScaleNs) / 1000 -
+      track.codecDelayNs / 1000;
+
+    frames.forEach((frame, index) => {
       pending.push({
         kind,
         data: frame.slice(),
-        timestamp,
-        ...(durationOverrideUs !== undefined
-          ? { duration: durationOverrideUs }
-          : {}),
+        timestamp: blockTimestampUs + index * frameDurationUs,
+        ...(frameDurationUs > 0 ? { duration: frameDurationUs } : {}),
         key,
       });
-    }
+    });
   };
 
   const readHeaderElement = async (size: number): Promise<Uint8Array> => {
@@ -449,11 +495,43 @@ export async function createWebmDemuxer(
       switch (id) {
         case ID.segment:
         case ID.cluster:
-        case ID.blockGroup:
           // Master elements we walk into rather than skip.
           if (id === ID.cluster) clusterTimestamp = 0;
           break;
+        case ID.blockGroup: {
+          // Read as a unit: the keyframe status of the Block inside depends on
+          // whether the group also carries a ReferenceBlock, which we can only
+          // know by looking at its siblings.
+          if (size === null || size > MAX_HEADER_ELEMENT_BYTES) {
+            finished = true;
+            return;
+          }
+          const group = await stream.require(size);
+          const children = parseElements(group, 0, group.length);
+          const block = children.find((child) => child.id === ID.block);
+          if (!block) break;
+          const duration = children.find(
+            (child) => child.id === ID.blockDuration
+          );
+          emitBlock(group.slice(block.contentStart, block.contentEnd), {
+            fromSimpleBlock: false,
+            hasReference: children.some(
+              (child) => child.id === ID.referenceBlock
+            ),
+            ...(duration
+              ? {
+                  blockDurationUs:
+                    (readUint(group, duration) * timestampScaleNs) / 1000,
+                }
+              : {}),
+          });
+          break;
+        }
         case ID.clusterTimestamp:
+          if (size === null || size > 8) {
+            finished = true;
+            return;
+          }
           clusterTimestamp = size
             ? Array.from(await stream.require(size)).reduce(
                 (total, byte) => total * 256 + byte,
@@ -463,11 +541,13 @@ export async function createWebmDemuxer(
           break;
         case ID.simpleBlock:
         case ID.block:
-          if (size === null) {
+          if (size === null || size > MAX_ENCODED_PAYLOAD_BYTES) {
             finished = true;
             return;
           }
-          emitBlock(await stream.require(size), id === ID.simpleBlock);
+          emitBlock(await stream.require(size), {
+            fromSimpleBlock: id === ID.simpleBlock,
+          });
           break;
         case ID.info: {
           if (size === null) break;
@@ -541,6 +621,9 @@ export async function createWebmDemuxer(
     audio: selected.audioConfig,
     videoCodecFallbacks: selected.videoConfig?.fallbacks ?? [],
     durationUs,
+    // Matroska cluster timestamps are relative to the segment, which starts at
+    // zero; there is no equivalent of MP4's composition-time reordering here.
+    startTimeUs: 0,
     // Only a kind with no usable track at all counts as unsupported; a file
     // with two audio tracks is fine as long as one of them decodes.
     unsupportedTracks: [

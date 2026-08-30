@@ -703,6 +703,7 @@ export const ar = {
   compatibilityModeFailed: "فشل التشغيل في وضع التوافق",
   compatibilityModeFallbackHint: "أوقف وضع التوافق لاستخدام المشغّل القياسي.",
   compatibilityModeUnplayable: "لا يمكن تشغيل هذا الفيديو على هذه الشاشة.",
+  compatibilityModeVolume: "مستوى الصوت",
   compatibilityModeMediaElements: "{count} من عناصر الوسائط في المشغّل",
   compatibilityModeUnavailable:
     "هذا المتصفح لا يدعم WebCodecs، لذا وضع التوافق غير متاح.",
