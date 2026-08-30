@@ -1,11 +1,5 @@
-import {
-    Box,
-    CircularProgress,
-    IconButton,
-    Slider,
-    Typography,
-} from '@mui/material';
-import { Pause, PlayArrow, VolumeOff, VolumeUp } from '@mui/icons-material';
+import { Box, CircularProgress, IconButton, Typography } from '@mui/material';
+import { Pause, PlayArrow } from '@mui/icons-material';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import { neutral, overlay } from '../../../theme/colors';
@@ -34,19 +28,7 @@ interface CompatibilityPlayerProps {
     canFallBackToStandardPlayer?: boolean;
 }
 
-const VOLUME_STORAGE_ID = 'mytube:player-volume';
 const DEFAULT_ASPECT_RATIO = 16 / 9;
-
-const readStoredVolume = (): number => {
-    try {
-        const stored = Number.parseFloat(
-            localStorage.getItem(VOLUME_STORAGE_ID) ?? ''
-        );
-        return Number.isFinite(stored) ? Math.min(1, Math.max(0, stored)) : 1;
-    } catch {
-        return 1;
-    }
-};
 
 const INITIAL_SNAPSHOT: PlaybackSnapshot = {
     status: 'idle',
@@ -56,8 +38,6 @@ const INITIAL_SNAPSHOT: PlaybackSnapshot = {
     pipeline: null,
     unsupported: false,
     aspectRatio: null,
-    volume: 1,
-    muted: false,
     buffering: false,
 };
 
@@ -124,7 +104,6 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
             onEnded: () => onEndedRef.current?.(),
         });
         engineRef.current = engine;
-        engine.setVolume(readStoredVolume());
 
         void engine
             .load(src)
@@ -147,20 +126,6 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
 
     const handleToggle = useCallback(() => {
         void engineRef.current?.toggle();
-    }, []);
-
-    const handleToggleMuted = useCallback(() => {
-        engineRef.current?.toggleMuted();
-    }, []);
-
-    const handleVolumeChange = useCallback((_: Event, value: number | number[]) => {
-        const volume = (Array.isArray(value) ? value[0] : value) / 100;
-        engineRef.current?.setVolume(volume);
-        try {
-            localStorage.setItem(VOLUME_STORAGE_ID, String(volume));
-        } catch {
-            // A storage failure only costs the remembered level.
-        }
     }, []);
 
     const isPlaying =
@@ -304,28 +269,6 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                     {isPlaying ? <Pause /> : <PlayArrow />}
                 </IconButton>
 
-                <IconButton
-                    size="small"
-                    onClick={handleToggleMuted}
-                    disabled={hasFailed}
-                    aria-label={t('compatibilityModeVolume')}
-                    sx={{ color: neutral.white }}
-                >
-                    {snapshot.muted || snapshot.volume === 0 ? (
-                        <VolumeOff />
-                    ) : (
-                        <VolumeUp />
-                    )}
-                </IconButton>
-                <Slider
-                    size="small"
-                    aria-label={t('compatibilityModeVolume')}
-                    value={snapshot.muted ? 0 : Math.round(snapshot.volume * 100)}
-                    onChange={handleVolumeChange}
-                    disabled={hasFailed}
-                    sx={{ width: 96, color: neutral.white, flexShrink: 0 }}
-                />
-
                 <Typography variant="caption" sx={{ fontVariantNumeric: 'tabular-nums' }}>
                     {formatDuration(snapshot.currentTime)}
                     {snapshot.duration ? ` / ${formatDuration(snapshot.duration)}` : ''}
@@ -350,12 +293,6 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                         }}
                     />
                 </Box>
-
-                {snapshot.pipeline && (
-                    <Typography variant="caption" sx={{ opacity: 0.7 }}>
-                        {snapshot.pipeline}
-                    </Typography>
-                )}
             </Box>
         </Box>
     );

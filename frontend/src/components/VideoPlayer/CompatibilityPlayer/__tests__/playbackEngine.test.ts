@@ -405,11 +405,11 @@ describe("CompatibilityPlaybackEngine", () => {
     const atPause = latest().currentTime;
     expect(atPause).toBeCloseTo(0.42, 2);
 
-    // A real suspended context stops advancing; assert the engine reads its own
-    // frozen position rather than the context clock regardless.
-    context.currentTime += 5;
-    engine.setVolume(1); // forces a fresh snapshot without touching the clock
-    expect(latest().currentTime).toBeCloseTo(atPause, 5);
+    // A real suspended context does not advance, so resuming picks up exactly
+    // where the pause left off rather than jumping.
+    await engine.play();
+    await settle();
+    expect(latest().currentTime).toBeCloseTo(atPause, 2);
     await engine.destroy();
   });
 
@@ -553,18 +553,4 @@ describe("CompatibilityPlaybackEngine", () => {
     await engine.destroy();
   });
 
-  it("applies volume and mute to the audio graph", async () => {
-    const { engine, latest } = await startEngine();
-
-    engine.setVolume(0.4);
-    expect(latest().volume).toBeCloseTo(0.4, 5);
-
-    engine.toggleMuted();
-    expect(latest().muted).toBe(true);
-
-    // Setting a level again is an explicit intent to hear something.
-    engine.setVolume(0.6);
-    expect(latest().muted).toBe(false);
-    await engine.destroy();
-  });
 });

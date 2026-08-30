@@ -719,21 +719,17 @@ export const es = {
   loadingVideo: "Cargando video...",
 
   // Compatibility mode (canvas + WebCodecs playback, no media element)
-  compatibilityMode: "Modo de compatibilidad",
+  compatibilityMode: "D Mode",
   compatibilityModeHint:
     "Reproduce el video en un lienzo con WebCodecs, sin ningún elemento multimedia en la página.",
-  compatibilityModeLoading:
-    "Preparando la reproducción en modo de compatibilidad...",
-  compatibilityModeFailed: "Falló la reproducción en modo de compatibilidad",
+  compatibilityModeLoading: "Preparando la reproducción de D Mode...",
+  compatibilityModeFailed: "Error de reproducción de D Mode",
   compatibilityModeFallbackHint:
-    "Desactiva el modo de compatibilidad para usar el reproductor estándar.",
+    "Desactiva D Mode para usar el reproductor estándar.",
   compatibilityModeUnplayable:
     "Este video no se puede reproducir en esta pantalla.",
-  compatibilityModeVolume: "Volumen",
-  compatibilityModeMediaElements:
-    "{count} elementos multimedia en el reproductor",
   compatibilityModeUnavailable:
-    "Este navegador no admite WebCodecs, por lo que el modo de compatibilidad no está disponible.",
+    "Este navegador no admite WebCodecs, por lo que D Mode no está disponible.",
   current: "(Actual)",
   rateThisVideo: "Calificar este video",
   enterFullscreen: "Pantalla Completa",

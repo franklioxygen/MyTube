@@ -693,19 +693,16 @@ export const en = {
   remove: "Remove",
   loadingVideo: "Loading video...",
 
-  // Compatibility mode (canvas + WebCodecs playback, no media element)
-  compatibilityMode: "Compatibility mode",
+  // D Mode (canvas + WebCodecs playback, no media element)
+  compatibilityMode: "D Mode",
   compatibilityModeHint:
     "Plays the video on a canvas with WebCodecs, without any media element in the page.",
-  compatibilityModeLoading: "Preparing compatibility playback...",
-  compatibilityModeFailed: "Compatibility playback failed",
-  compatibilityModeFallbackHint:
-    "Turn compatibility mode off to use the standard player.",
+  compatibilityModeLoading: "Preparing D Mode playback...",
+  compatibilityModeFailed: "D Mode playback failed",
+  compatibilityModeFallbackHint: "Turn D Mode off to use the standard player.",
   compatibilityModeUnplayable: "This video cannot be played on this screen.",
-  compatibilityModeVolume: "Volume",
-  compatibilityModeMediaElements: "{count} media elements in player",
   compatibilityModeUnavailable:
-    "This browser has no WebCodecs support, so compatibility mode is unavailable.",
+    "This browser has no WebCodecs support, so D Mode is unavailable.",
   current: "(Current)",
   rateThisVideo: "Rate this video",
   enterFullscreen: "Enter Fullscreen",

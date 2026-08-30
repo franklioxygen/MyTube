@@ -41,8 +41,6 @@ export interface PlaybackSnapshot {
     unsupported: boolean;
     /** Decoded frame aspect ratio, once a frame has arrived. */
     aspectRatio: number | null;
-    volume: number;
-    muted: boolean;
     /** True when playback stalled waiting for data rather than for the user. */
     buffering: boolean;
 }
@@ -152,8 +150,6 @@ export class CompatibilityPlaybackEngine {
     private videoRecoveries = 0;
     private audioRecoveries = 0;
     private aspectRatio: number | null = null;
-    private volume = 1;
-    private muted = false;
 
     private originUs = 0;
     private lastPacketTime = 0;
@@ -312,30 +308,6 @@ export class CompatibilityPlaybackEngine {
         }
     }
 
-    setVolume(volume: number): void {
-        this.volume = Math.min(1, Math.max(0, volume));
-        if (this.volume > 0) {
-            this.muted = false;
-        }
-        this.applyGain();
-        this.emit();
-    }
-
-    setMuted(muted: boolean): void {
-        this.muted = muted;
-        this.applyGain();
-        this.emit();
-    }
-
-    toggleMuted(): void {
-        this.setMuted(!this.muted);
-    }
-
-    private applyGain(): void {
-        if (this.gain) {
-            this.gain.gain.value = this.muted ? 0 : this.volume;
-        }
-    }
 
     async destroy(): Promise<void> {
         this.destroyed = true;
@@ -425,9 +397,11 @@ export class CompatibilityPlaybackEngine {
         this.audioContext = new AudioContext();
         // Keep the clock frozen until the first play() so scheduling stays aligned.
         void this.audioContext.suspend();
+        // Output is fixed at unity: the car provides its own volume control, so
+        // the player does not offer a second one to get out of sync with.
         this.gain = this.audioContext.createGain();
+        this.gain.gain.value = 1;
         this.gain.connect(this.audioContext.destination);
-        this.applyGain();
 
         this.audioConfig = demuxer.audio;
         this.audioDecoder = this.createAudioDecoder();
@@ -964,8 +938,6 @@ export class CompatibilityPlaybackEngine {
             pipeline: this.pipeline,
             unsupported: this.unsupported,
             aspectRatio: this.aspectRatio,
-            volume: this.volume,
-            muted: this.muted,
             buffering: this.status === 'buffering',
         });
     }

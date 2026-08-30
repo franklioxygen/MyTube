@@ -710,19 +710,16 @@ export const ru = {
   loadingVideo: "Загрузка видео...",
 
   // Compatibility mode (canvas + WebCodecs playback, no media element)
-  compatibilityMode: "Режим совместимости",
+  compatibilityMode: "D Mode",
   compatibilityModeHint:
     "Воспроизводит видео на canvas через WebCodecs, без медиаэлементов на странице.",
-  compatibilityModeLoading:
-    "Подготовка воспроизведения в режиме совместимости...",
-  compatibilityModeFailed: "Не удалось воспроизвести в режиме совместимости",
+  compatibilityModeLoading: "Подготовка воспроизведения D Mode...",
+  compatibilityModeFailed: "Не удалось воспроизвести в D Mode",
   compatibilityModeFallbackHint:
-    "Отключите режим совместимости, чтобы использовать стандартный плеер.",
+    "Отключите D Mode, чтобы использовать стандартный плеер.",
   compatibilityModeUnplayable: "Это видео нельзя воспроизвести на этом экране.",
-  compatibilityModeVolume: "Громкость",
-  compatibilityModeMediaElements: "Медиаэлементов в плеере: {count}",
   compatibilityModeUnavailable:
-    "Этот браузер не поддерживает WebCodecs, поэтому режим совместимости недоступен.",
+    "Этот браузер не поддерживает WebCodecs, поэтому D Mode недоступен.",
   current: "(Текущее)",
   rateThisVideo: "Оценить это видео",
   enterFullscreen: "На весь экран",
