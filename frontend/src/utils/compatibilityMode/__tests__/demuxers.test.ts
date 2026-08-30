@@ -77,6 +77,27 @@ describe("MP4 demuxing", () => {
     await demuxer.close();
   });
 
+  it("maps samples to chunks through a multi-entry stsc table", async () => {
+    // Remuxed and concatenated files carry one stsc entry per chunk — 94k of
+    // them in a one-hour file. Rescanning the table for every chunk made table
+    // building O(chunks x entries), so the applicable entry is now tracked with
+    // a forward pointer; this checks the pointer lands on the right entry when
+    // samples-per-chunk varies.
+    const sampleSizes = [3, 4, 5, 6, 7, 8];
+    const { bytes } = buildSyntheticMp4({
+      sampleSizes,
+      chunkLayout: [2, 1, 3], // chunk 0: 2 samples, chunk 1: 1, chunk 2: 3
+    });
+    const { demuxer, packets } = await drain(bytes);
+
+    expect(packets.map((packet) => packet.data.length)).toEqual(sampleSizes);
+    // Each synthetic sample is filled with its own 1-based index, so a
+    // mis-assigned chunk offset shows up as the wrong payload.
+    expect(packets.map((packet) => packet.data[0])).toEqual([1, 2, 3, 4, 5, 6]);
+
+    await demuxer.close();
+  });
+
   it("finds moov when it is written after mdat", async () => {
     const { bytes } = buildSyntheticMp4({ moovLast: true });
     const { demuxer, packets } = await drain(bytes);

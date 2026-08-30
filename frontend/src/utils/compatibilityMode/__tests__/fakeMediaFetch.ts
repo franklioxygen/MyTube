@@ -108,6 +108,11 @@ export interface SyntheticMp4Options {
   /** Place `moov` after `mdat`, the way ffmpeg writes without +faststart. */
   moovLast?: boolean;
   sampleSizes?: number[];
+  /**
+   * Samples per chunk, one entry per chunk. A varying layout produces a
+   * multi-entry `stsc` table, which is what remuxed/concatenated files carry.
+   */
+  chunkLayout?: number[];
 }
 
 /**
@@ -117,7 +122,28 @@ export interface SyntheticMp4Options {
 export const buildSyntheticMp4 = (
   options: SyntheticMp4Options = {}
 ): { bytes: Uint8Array; sampleSizes: number[] } => {
-  const { moovLast = false, sampleSizes = [4, 5, 6] } = options;
+  const {
+    moovLast = false,
+    sampleSizes = [4, 5, 6],
+    chunkLayout = [sampleSizes.length],
+  } = options;
+
+  // Chunk boundaries over the contiguous sample data.
+  const chunkSampleStarts: number[] = [];
+  let seen = 0;
+  for (const perChunk of chunkLayout) {
+    chunkSampleStarts.push(seen);
+    seen += perChunk;
+  }
+
+  // stsc is run-length encoded: a new entry only where samples-per-chunk changes.
+  const stscEntries: Array<{ firstChunk: number; samplesPerChunk: number }> = [];
+  chunkLayout.forEach((perChunk, index) => {
+    const previous = stscEntries[stscEntries.length - 1];
+    if (!previous || previous.samplesPerChunk !== perChunk) {
+      stscEntries.push({ firstChunk: index + 1, samplesPerChunk: perChunk });
+    }
+  });
   const timescale = 1000;
   const sampleDelta = 100;
 
@@ -154,7 +180,16 @@ export const buildSyntheticMp4 = (
       "stbl",
       mp4Box("stsd", u32(0), u32(1), avc1),
       mp4Box("stts", u32(0), u32(1), u32(sampleSizes.length), u32(sampleDelta)),
-      mp4Box("stsc", u32(0), u32(1), u32(1), u32(sampleSizes.length), u32(1)),
+      mp4Box(
+        "stsc",
+        u32(0),
+        u32(stscEntries.length),
+        ...stscEntries.flatMap((entry) => [
+          u32(entry.firstChunk),
+          u32(entry.samplesPerChunk),
+          u32(1),
+        ])
+      ),
       mp4Box(
         "stsz",
         u32(0),
@@ -162,7 +197,19 @@ export const buildSyntheticMp4 = (
         u32(sampleSizes.length),
         ...sampleSizes.map((size) => u32(size))
       ),
-      mp4Box("stco", u32(0), u32(1), u32(chunkOffset)),
+      mp4Box(
+        "stco",
+        u32(0),
+        u32(chunkSampleStarts.length),
+        ...chunkSampleStarts.map((firstSample) =>
+          u32(
+            chunkOffset +
+              sampleSizes
+                .slice(0, firstSample)
+                .reduce((total, size) => total + size, 0)
+          )
+        )
+      ),
       mp4Box("stss", u32(0), u32(1), u32(1))
     );
 

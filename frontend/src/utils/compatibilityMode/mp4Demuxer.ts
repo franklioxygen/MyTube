@@ -411,13 +411,16 @@ const buildSamples = (
     view.getUint32(stsc.contentStart + 4),
     recordsThatFit(stsc.contentStart, stsc.contentEnd, 8, 12)
   );
-  const stscEntry = (index: number) => {
-    const at = stsc.contentStart + 8 + index * 12;
-    return {
-      firstChunk: view.getUint32(at),
-      samplesPerChunk: view.getUint32(at + 4),
-    };
-  };
+  // Read the sample-to-chunk table into flat arrays once. Files remuxed by
+  // concatenation can carry one entry per chunk — 94k of them in a one-hour
+  // file — so this is read hot and must not go back to the DataView per chunk.
+  const stscFirstChunk = new Uint32Array(stscCount);
+  const stscSamplesPerChunk = new Uint32Array(stscCount);
+  for (let i = 0; i < stscCount; i += 1) {
+    const at = stsc.contentStart + 8 + i * 12;
+    stscFirstChunk[i] = view.getUint32(at);
+    stscSamplesPerChunk[i] = view.getUint32(at + 4);
+  }
 
   // Decode-time deltas.
   const sttsCount = Math.min(
@@ -477,12 +480,19 @@ const buildSamples = (
 
   const samples: Sample[] = [];
   let currentSample = 0;
+  // `stsc` entries are ordered by firstChunk, so the applicable entry only ever
+  // moves forwards. Rescanning the table for every chunk made this O(chunks x
+  // entries): ten billion iterations on a one-hour file, which showed up as a
+  // fifteen-second wait before playback could start.
+  let stscIndex = 0;
   for (let chunk = 0; chunk < chunkCount && currentSample < sampleCount; ) {
-    let entryIndex = 0;
-    for (let i = 1; i < stscCount; i += 1) {
-      if (stscEntry(i).firstChunk - 1 <= chunk) entryIndex = i;
+    while (
+      stscIndex + 1 < stscCount &&
+      stscFirstChunk[stscIndex + 1] - 1 <= chunk
+    ) {
+      stscIndex += 1;
     }
-    const { samplesPerChunk } = stscEntry(entryIndex);
+    const samplesPerChunk = stscSamplesPerChunk[stscIndex] ?? 0;
     let offset = chunkOffsetAt(chunk);
 
     for (let i = 0; i < samplesPerChunk && currentSample < sampleCount; i += 1) {
