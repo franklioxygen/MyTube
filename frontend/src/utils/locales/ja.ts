@@ -709,6 +709,15 @@ export const ja = {
     "この動画をコレクションから削除してもよろしいですか？",
   remove: "削除",
   loadingVideo: "動画を読み込み中...",
+
+  // Compatibility mode (canvas + WebCodecs playback, no media element)
+  compatibilityMode: "互換モード",
+  compatibilityModeHint: "WebCodecs を使ってキャンバス上で再生します。ページ内にメディア要素はありません。",
+  compatibilityModeLoading: "互換モードの再生を準備しています...",
+  compatibilityModeFailed: "互換モードの再生に失敗しました",
+  compatibilityModeFallbackHint: "互換モードをオフにすると標準プレーヤーを使用できます。",
+  compatibilityModeMediaElements: "プレーヤー内のメディア要素: {count}",
+  compatibilityModeUnavailable: "このブラウザは WebCodecs に対応していないため、互換モードは利用できません。",
   current: "（現在）",
   rateThisVideo: "この動画を評価",
   enterFullscreen: "全画面表示",

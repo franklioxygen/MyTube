@@ -15,6 +15,8 @@ import UpNextSidebar from '../components/VideoPlayer/UpNextSidebar';
 import AudioModePlayer from '../components/VideoPlayer/AudioModePlayer';
 import AudioUpNextSidebar from '../components/VideoPlayer/AudioUpNextSidebar';
 import VideoControls from '../components/VideoPlayer/VideoControls';
+import CompatibilityPlayer from '../components/VideoPlayer/CompatibilityPlayer';
+import CompatibilityModeToggle from '../components/VideoPlayer/CompatibilityPlayer/CompatibilityModeToggle';
 import LiveTranslationStatusAlert from '../components/VideoPlayer/LiveTranslationStatusAlert';
 import VideoInfo from '../components/VideoPlayer/VideoInfo';
 import { LiveTranslationProvider } from '../contexts/LiveTranslationContext';
@@ -35,6 +37,7 @@ import { useVideoQueries } from '../hooks/useVideoQueries';
 import { useVideoRecommendations } from '../hooks/useVideoRecommendations';
 import { useVideoSubscriptions } from '../hooks/useVideoSubscriptions';
 import { getBackendUrl } from '../utils/apiUrl';
+import { isCompatibilityModeSupported } from '../utils/compatibilityMode/support';
 import { getBestVideoResumeProgress } from '../utils/videoResumeProgress';
 
 const VideoPlayer: React.FC = () => {
@@ -66,6 +69,16 @@ const VideoPlayer: React.FC = () => {
         return saved !== null ? JSON.parse(saved) : false;
     });
     const [isCinemaMode, setIsCinemaMode] = useState<boolean>(false);
+    // Compatibility mode: play through canvas + WebCodecs so the page holds no
+    // media element at all. Proof of concept — the standard controls are hidden.
+    const compatibilityModeSupported = useMemo(
+        () => isCompatibilityModeSupported(),
+        []
+    );
+    const [compatibilityMode, setCompatibilityMode] = useState<boolean>(() => {
+        const saved = localStorage.getItem('compatibilityMode');
+        return saved !== null ? JSON.parse(saved) : false;
+    });
     // Underlying <video> element, exposed by VideoControls for live translation capture.
     const [videoElement, setVideoElement] = useState<HTMLVideoElement | null>(null);
     const { data: liveTranslationAvailability } = useLiveTranslationAvailability();
@@ -83,6 +96,10 @@ const VideoPlayer: React.FC = () => {
     useEffect(() => {
         localStorage.setItem('autoPlayNext', JSON.stringify(autoPlayNext));
     }, [autoPlayNext]);
+
+    useEffect(() => {
+        localStorage.setItem('compatibilityMode', JSON.stringify(compatibilityMode));
+    }, [compatibilityMode]);
 
     // Confirmation Modal State
     const [confirmationModal, setConfirmationModal] = useState({
@@ -102,6 +119,8 @@ const VideoPlayer: React.FC = () => {
         showComments
     });
     const isAudio = (video?.mediaType ?? 'video') === 'audio';
+    const showCompatibilityPlayer =
+        compatibilityMode && compatibilityModeSupported && !isAudio;
 
     // Handle error redirect and invisible videos in visitor mode
     useEffect(() => {
@@ -497,7 +516,13 @@ const VideoPlayer: React.FC = () => {
                             }
                         }}
                     >
-                    {isAudio ? <AudioModePlayer
+                    {showCompatibilityPlayer ? <CompatibilityPlayer
+                        src={(videoUrl || video?.sourceUrl) || null}
+                        poster={posterUrl || localPosterUrl || video?.thumbnailUrl}
+                        autoPlay={autoPlay}
+                        onTimeUpdate={handleTimeUpdate}
+                        onEnded={handleVideoEnded}
+                    /> : isAudio ? <AudioModePlayer
                         src={(videoUrl || video?.sourceUrl) || null}
                         mediaPath={video.videoPath}
                         poster={posterUrl || localPosterUrl || video?.thumbnailUrl}
@@ -572,6 +597,16 @@ const VideoPlayer: React.FC = () => {
 
                     <LiveTranslationStatusAlert isCinemaMode={effectiveCinemaMode} />
                     </LiveTranslationProvider>
+
+                    {!isAudio && (
+                        <Box sx={{ px: { xs: 2, md: 0 } }}>
+                            <CompatibilityModeToggle
+                                enabled={compatibilityMode}
+                                supported={compatibilityModeSupported}
+                                onChange={setCompatibilityMode}
+                            />
+                        </Box>
+                    )}
 
                     <Box sx={{
                         px: { xs: 2, md: 0 },

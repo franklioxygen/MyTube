@@ -694,6 +694,17 @@ export const ar = {
     "هل أنت متأكد أنك تريد إزالة هذا الفيديو من المجموعة؟",
   remove: "إزالة",
   loadingVideo: "جاري تحميل الفيديو...",
+
+  // Compatibility mode (canvas + WebCodecs playback, no media element)
+  compatibilityMode: "وضع التوافق",
+  compatibilityModeHint:
+    "يشغّل الفيديو على لوحة رسم عبر WebCodecs دون أي عنصر وسائط في الصفحة.",
+  compatibilityModeLoading: "جاري تحضير التشغيل في وضع التوافق...",
+  compatibilityModeFailed: "فشل التشغيل في وضع التوافق",
+  compatibilityModeFallbackHint: "أوقف وضع التوافق لاستخدام المشغّل القياسي.",
+  compatibilityModeMediaElements: "{count} من عناصر الوسائط في المشغّل",
+  compatibilityModeUnavailable:
+    "هذا المتصفح لا يدعم WebCodecs، لذا وضع التوافق غير متاح.",
   current: "(الحالي)",
   rateThisVideo: "قيم هذا الفيديو",
   enterFullscreen: "ملء الشاشة",

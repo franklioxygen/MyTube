@@ -684,6 +684,15 @@ export const zh = {
   confirmRemoveFromCollection: "确定要从合集中移除此视频吗？",
   remove: "移除",
   loadingVideo: "加载视频中...",
+
+  // Compatibility mode (canvas + WebCodecs playback, no media element)
+  compatibilityMode: "兼容模式",
+  compatibilityModeHint: "使用 WebCodecs 在画布上播放视频，页面中不包含任何媒体元素。",
+  compatibilityModeLoading: "正在准备兼容模式播放...",
+  compatibilityModeFailed: "兼容模式播放失败",
+  compatibilityModeFallbackHint: "关闭兼容模式即可使用标准播放器。",
+  compatibilityModeMediaElements: "播放器中的媒体元素：{count}",
+  compatibilityModeUnavailable: "此浏览器不支持 WebCodecs，无法使用兼容模式。",
   current: "（当前）",
   rateThisVideo: "给视频评分",
   enterFullscreen: "全屏",

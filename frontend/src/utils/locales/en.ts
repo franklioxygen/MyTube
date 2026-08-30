@@ -692,6 +692,18 @@ export const en = {
     "Are you sure you want to remove this video from the collection?",
   remove: "Remove",
   loadingVideo: "Loading video...",
+
+  // Compatibility mode (canvas + WebCodecs playback, no media element)
+  compatibilityMode: "Compatibility mode",
+  compatibilityModeHint:
+    "Plays the video on a canvas with WebCodecs, without any media element in the page.",
+  compatibilityModeLoading: "Preparing compatibility playback...",
+  compatibilityModeFailed: "Compatibility playback failed",
+  compatibilityModeFallbackHint:
+    "Turn compatibility mode off to use the standard player.",
+  compatibilityModeMediaElements: "{count} media elements in player",
+  compatibilityModeUnavailable:
+    "This browser has no WebCodecs support, so compatibility mode is unavailable.",
   current: "(Current)",
   rateThisVideo: "Rate this video",
   enterFullscreen: "Enter Fullscreen",

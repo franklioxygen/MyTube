@@ -708,6 +708,19 @@ export const ru = {
     "Вы уверены, что хотите удалить это видео из коллекции?",
   remove: "Удалить",
   loadingVideo: "Загрузка видео...",
+
+  // Compatibility mode (canvas + WebCodecs playback, no media element)
+  compatibilityMode: "Режим совместимости",
+  compatibilityModeHint:
+    "Воспроизводит видео на canvas через WebCodecs, без медиаэлементов на странице.",
+  compatibilityModeLoading:
+    "Подготовка воспроизведения в режиме совместимости...",
+  compatibilityModeFailed: "Не удалось воспроизвести в режиме совместимости",
+  compatibilityModeFallbackHint:
+    "Отключите режим совместимости, чтобы использовать стандартный плеер.",
+  compatibilityModeMediaElements: "Медиаэлементов в плеере: {count}",
+  compatibilityModeUnavailable:
+    "Этот браузер не поддерживает WebCodecs, поэтому режим совместимости недоступен.",
   current: "(Текущее)",
   rateThisVideo: "Оценить это видео",
   enterFullscreen: "На весь экран",

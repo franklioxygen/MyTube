@@ -716,6 +716,19 @@ export const fr = {
     "Êtes-vous sûr de vouloir retirer cette vidéo de la collection ?",
   remove: "Retirer",
   loadingVideo: "Chargement de la vidéo...",
+
+  // Compatibility mode (canvas + WebCodecs playback, no media element)
+  compatibilityMode: "Mode de compatibilité",
+  compatibilityModeHint:
+    "Lit la vidéo sur un canvas via WebCodecs, sans aucun élément média dans la page.",
+  compatibilityModeLoading:
+    "Préparation de la lecture en mode de compatibilité...",
+  compatibilityModeFailed: "Échec de la lecture en mode de compatibilité",
+  compatibilityModeFallbackHint:
+    "Désactivez le mode de compatibilité pour utiliser le lecteur standard.",
+  compatibilityModeMediaElements: "{count} éléments média dans le lecteur",
+  compatibilityModeUnavailable:
+    "Ce navigateur ne prend pas en charge WebCodecs, le mode de compatibilité est donc indisponible.",
   current: "(Actuel)",
   rateThisVideo: "Noter cette vidéo",
   enterFullscreen: "Plein écran",
