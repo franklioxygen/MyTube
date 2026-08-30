@@ -69,8 +69,12 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({
                     isFullscreen={isFullscreen}
                 />
             </Box>
+            {/* Hidden on small screens, where the speed control moves to the
+                bottom row and the car button follows it there. */}
             {onEnterCompatibilityMode && (
-                <CompatibilityModeControl onEnter={onEnterCompatibilityMode} />
+                <Box sx={{ display: { xs: 'none', sm: 'inline-flex' } }}>
+                    <CompatibilityModeControl onEnter={onEnterCompatibilityMode} />
+                </Box>
             )}
         </Stack>
     );

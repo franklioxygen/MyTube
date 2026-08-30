@@ -5,6 +5,7 @@ import { brand, gradient, modeColors, overlay } from '../../../theme/colors';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import type { PlayerSeekIntervals } from '../../../utils/playerSeekIntervals';
 import CinemaModeControl from './CinemaModeControl';
+import CompatibilityModeControl from './CompatibilityModeControl';
 import FullscreenControl from './FullscreenControl';
 import LiveTranslationControlButton from './LiveTranslationControlButton';
 import LoopControl from './LoopControl';
@@ -281,6 +282,10 @@ const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
                     onPlaybackRateChange={onPlaybackRateChange}
                     isFullscreen={isFullscreen}
                 />
+
+                {onEnterCompatibilityMode && (
+                    <CompatibilityModeControl onEnter={onEnterCompatibilityMode} />
+                )}
             </Stack>
         </Box>
     );
