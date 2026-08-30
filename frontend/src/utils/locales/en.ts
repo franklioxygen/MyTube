@@ -695,8 +695,8 @@ export const en = {
 
   // D Mode (canvas + WebCodecs playback, no media element)
   compatibilityMode: "D Mode",
-  compatibilityModeHint:
-    "Plays the video on a canvas with WebCodecs, without any media element in the page.",
+  compatibilityModeEnter: "D Mode (in-car display)",
+  compatibilityModeExit: "Back to the standard player",
   compatibilityModeLoading: "Preparing D Mode playback...",
   compatibilityModeFailed: "D Mode playback failed",
   compatibilityModeFallbackHint: "Turn D Mode off to use the standard player.",

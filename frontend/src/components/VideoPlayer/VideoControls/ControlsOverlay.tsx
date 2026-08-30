@@ -58,6 +58,7 @@ interface ControlsOverlayProps {
     liveSubtitleSelected?: boolean;
     onSelectLiveSubtitle?: () => void;
     isAudio?: boolean;
+    onEnterCompatibilityMode?: () => void;
 }
 
 const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
@@ -104,6 +105,7 @@ const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
     liveSubtitleSelected = false,
     onSelectLiveSubtitle,
     isAudio = false,
+    onEnterCompatibilityMode,
 }) => {
     const theme = useTheme();
     const { t } = useLanguage();
@@ -257,6 +259,7 @@ const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
                 onPlaybackRateChange={onPlaybackRateChange}
                 isFullscreen={isFullscreen}
                 seekIntervals={seekIntervals}
+                onEnterCompatibilityMode={onEnterCompatibilityMode}
             />
 
             {/* Mobile: Live Translate, Fullscreen, Loop, Speed */}

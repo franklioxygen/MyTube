@@ -719,8 +719,8 @@ export const fr = {
 
   // Compatibility mode (canvas + WebCodecs playback, no media element)
   compatibilityMode: "D Mode",
-  compatibilityModeHint:
-    "Lit la vidéo sur un canvas via WebCodecs, sans aucun élément média dans la page.",
+  compatibilityModeEnter: "D Mode (écran embarqué)",
+  compatibilityModeExit: "Revenir au lecteur standard",
   compatibilityModeLoading: "Préparation de la lecture D Mode...",
   compatibilityModeFailed: "Échec de la lecture D Mode",
   compatibilityModeFallbackHint:

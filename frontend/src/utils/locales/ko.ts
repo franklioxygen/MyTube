@@ -703,7 +703,8 @@ export const ko = {
 
   // Compatibility mode (canvas + WebCodecs playback, no media element)
   compatibilityMode: "D Mode",
-  compatibilityModeHint: "WebCodecs로 캔버스에서 재생하며 페이지에 미디어 요소가 없습니다.",
+  compatibilityModeEnter: "D Mode(차량 디스플레이)",
+  compatibilityModeExit: "표준 플레이어로 돌아가기",
   compatibilityModeLoading: "D Mode 재생을 준비하는 중...",
   compatibilityModeFailed: "D Mode 재생에 실패했습니다",
   compatibilityModeFallbackHint: "표준 플레이어를 사용하려면 D Mode를 끄세요.",

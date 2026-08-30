@@ -44,6 +44,8 @@ interface VideoControlsProps {
     liveSubtitle?: { available: boolean; label: string; track: TextTrack | null };
     audioMode?: boolean;
     seekIntervals?: PlayerSeekIntervals;
+    /** Provided only when D Mode can run here; omitted otherwise. */
+    onEnterCompatibilityMode?: () => void;
 }
 
 const VideoControls: React.FC<VideoControlsProps> = ({
@@ -73,6 +75,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
     liveSubtitle,
     audioMode = false,
     seekIntervals = DEFAULT_PLAYER_SEEK_INTERVALS,
+    onEnterCompatibilityMode,
 }) => {
     // Core video player logic
     const videoPlayer = useVideoPlayer({
@@ -342,6 +345,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                         onUploadSubtitle={onUploadSubtitle}
                         onDeleteSubtitle={onDeleteSubtitle}
                         isAudio={audioMode}
+                        onEnterCompatibilityMode={onEnterCompatibilityMode}
                     />
                 </Box>
             </Box>

@@ -1,5 +1,11 @@
-import { Box, CircularProgress, IconButton, Typography } from '@mui/material';
-import { Pause, PlayArrow } from '@mui/icons-material';
+import {
+    Box,
+    CircularProgress,
+    IconButton,
+    Tooltip,
+    Typography,
+} from '@mui/material';
+import { Computer, Pause, PlayArrow } from '@mui/icons-material';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import { neutral, overlay } from '../../../theme/colors';
@@ -23,9 +29,12 @@ interface CompatibilityPlayerProps {
     onEnded?: () => void;
     /**
      * False on the in-car display, where no `<video>` player exists to return
-     * to. Failure is then terminal and must be reported as such.
+     * to. Failure is then terminal and must be reported as such, and the exit
+     * control is withheld because there is nowhere to exit to.
      */
     canFallBackToStandardPlayer?: boolean;
+    /** Leaves D Mode for the standard player. */
+    onExit?: () => void;
 }
 
 const DEFAULT_ASPECT_RATIO = 16 / 9;
@@ -57,6 +66,7 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
     onTimeUpdate,
     onEnded,
     canFallBackToStandardPlayer = true,
+    onExit,
 }) => {
     const { t } = useLanguage();
     // Forced deployments render this player even where WebCodecs is missing,
@@ -293,6 +303,19 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                         }}
                     />
                 </Box>
+
+                {onExit && canFallBackToStandardPlayer && (
+                    <Tooltip title={t('compatibilityModeExit')}>
+                        <IconButton
+                            size="small"
+                            onClick={onExit}
+                            aria-label={t('compatibilityModeExit')}
+                            sx={{ color: neutral.white }}
+                        >
+                            <Computer />
+                        </IconButton>
+                    </Tooltip>
+                )}
             </Box>
         </Box>
     );

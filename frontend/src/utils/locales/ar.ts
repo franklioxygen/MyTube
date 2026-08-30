@@ -697,8 +697,8 @@ export const ar = {
 
   // Compatibility mode (canvas + WebCodecs playback, no media element)
   compatibilityMode: "D Mode",
-  compatibilityModeHint:
-    "يشغّل الفيديو على لوحة رسم عبر WebCodecs دون أي عنصر وسائط في الصفحة.",
+  compatibilityModeEnter: "‏D Mode (شاشة السيارة)",
+  compatibilityModeExit: "العودة إلى المشغّل القياسي",
   compatibilityModeLoading: "جاري تحضير تشغيل D Mode...",
   compatibilityModeFailed: "فشل تشغيل D Mode",
   compatibilityModeFallbackHint: "أوقف D Mode لاستخدام المشغّل القياسي.",

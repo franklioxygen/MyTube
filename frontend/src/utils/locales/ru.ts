@@ -711,8 +711,8 @@ export const ru = {
 
   // Compatibility mode (canvas + WebCodecs playback, no media element)
   compatibilityMode: "D Mode",
-  compatibilityModeHint:
-    "Воспроизводит видео на canvas через WebCodecs, без медиаэлементов на странице.",
+  compatibilityModeEnter: "D Mode (экран автомобиля)",
+  compatibilityModeExit: "Вернуться к стандартному плееру",
   compatibilityModeLoading: "Подготовка воспроизведения D Mode...",
   compatibilityModeFailed: "Не удалось воспроизвести в D Mode",
   compatibilityModeFallbackHint:

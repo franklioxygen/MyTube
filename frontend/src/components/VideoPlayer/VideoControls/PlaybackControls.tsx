@@ -1,6 +1,7 @@
 import { Box, Stack, useMediaQuery } from '@mui/material';
 import React from 'react';
 import type { PlayerSeekIntervals } from '../../../utils/playerSeekIntervals';
+import CompatibilityModeControl from './CompatibilityModeControl';
 import LiveTranslationControlButton from './LiveTranslationControlButton';
 import SeekButton, { SeekDirection, SeekTier } from './SeekButton';
 import SpeedControl from './SpeedControl';
@@ -13,6 +14,8 @@ interface PlaybackControlsProps {
     onPlaybackRateChange: (rate: number) => void;
     isFullscreen?: boolean;
     seekIntervals: PlayerSeekIntervals;
+    /** Provided only when D Mode can run here; omitted otherwise. */
+    onEnterCompatibilityMode?: () => void;
 }
 
 const PlaybackControls: React.FC<PlaybackControlsProps> = ({
@@ -21,6 +24,7 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({
     onPlaybackRateChange,
     isFullscreen = false,
     seekIntervals,
+    onEnterCompatibilityMode,
 }) => {
     const isTouch = useMediaQuery('(hover: none), (pointer: coarse)');
     const seekButtons: Array<{
@@ -65,6 +69,9 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({
                     isFullscreen={isFullscreen}
                 />
             </Box>
+            {onEnterCompatibilityMode && (
+                <CompatibilityModeControl onEnter={onEnterCompatibilityMode} />
+            )}
         </Stack>
     );
 };

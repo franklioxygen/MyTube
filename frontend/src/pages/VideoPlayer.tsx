@@ -16,7 +16,6 @@ import AudioModePlayer from '../components/VideoPlayer/AudioModePlayer';
 import AudioUpNextSidebar from '../components/VideoPlayer/AudioUpNextSidebar';
 import VideoControls from '../components/VideoPlayer/VideoControls';
 import CompatibilityPlayer from '../components/VideoPlayer/CompatibilityPlayer';
-import CompatibilityModeToggle from '../components/VideoPlayer/CompatibilityPlayer/CompatibilityModeToggle';
 import LiveTranslationStatusAlert from '../components/VideoPlayer/LiveTranslationStatusAlert';
 import VideoInfo from '../components/VideoPlayer/VideoInfo';
 import { LiveTranslationProvider } from '../contexts/LiveTranslationContext';
@@ -529,6 +528,7 @@ const VideoPlayer: React.FC = () => {
                         onTimeUpdate={handleTimeUpdate}
                         onEnded={handleVideoEnded}
                         canFallBackToStandardPlayer={!compatibilityModeForced}
+                        onExit={() => setCompatibilityMode(false)}
                     /> : isAudio ? <AudioModePlayer
                         src={(videoUrl || video?.sourceUrl) || null}
                         mediaPath={video.videoPath}
@@ -600,20 +600,15 @@ const VideoPlayer: React.FC = () => {
                         onVideoElementReady={setVideoElement}
                         liveSubtitle={{ available: liveSubtitleTrack.isActive, label: liveSubtitleTrack.label, track: liveSubtitleTrack.track }}
                         seekIntervals={seekIntervals}
+                        onEnterCompatibilityMode={
+                            compatibilityModeSupported
+                                ? () => setCompatibilityMode(true)
+                                : undefined
+                        }
                     />}
 
                     <LiveTranslationStatusAlert isCinemaMode={effectiveCinemaMode} />
                     </LiveTranslationProvider>
-
-                    {!isAudio && !compatibilityModeForced && (
-                        <Box sx={{ px: { xs: 2, md: 0 } }}>
-                            <CompatibilityModeToggle
-                                enabled={compatibilityMode}
-                                supported={compatibilityModeSupported}
-                                onChange={setCompatibilityMode}
-                            />
-                        </Box>
-                    )}
 
                     <Box sx={{
                         px: { xs: 2, md: 0 },

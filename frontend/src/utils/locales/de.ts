@@ -724,8 +724,8 @@ export const de = {
 
   // Compatibility mode (canvas + WebCodecs playback, no media element)
   compatibilityMode: "D Mode",
-  compatibilityModeHint:
-    "Gibt das Video per WebCodecs auf einem Canvas wieder – ohne Medienelement auf der Seite.",
+  compatibilityModeEnter: "D Mode (Fahrzeugdisplay)",
+  compatibilityModeExit: "Zurück zum Standardplayer",
   compatibilityModeLoading: "D-Mode-Wiedergabe wird vorbereitet ...",
   compatibilityModeFailed: "D-Mode-Wiedergabe fehlgeschlagen",
   compatibilityModeFallbackHint:

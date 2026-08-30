@@ -687,7 +687,8 @@ export const zh = {
 
   // Compatibility mode (canvas + WebCodecs playback, no media element)
   compatibilityMode: "D Mode",
-  compatibilityModeHint: "使用 WebCodecs 在画布上播放视频，页面中不包含任何媒体元素。",
+  compatibilityModeEnter: "D Mode（车机屏幕）",
+  compatibilityModeExit: "返回标准播放器",
   compatibilityModeLoading: "正在准备 D Mode 播放...",
   compatibilityModeFailed: "D Mode 播放失败",
   compatibilityModeFallbackHint: "关闭 D Mode 即可使用标准播放器。",

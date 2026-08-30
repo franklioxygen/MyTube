@@ -712,7 +712,8 @@ export const ja = {
 
   // Compatibility mode (canvas + WebCodecs playback, no media element)
   compatibilityMode: "D Mode",
-  compatibilityModeHint: "WebCodecs を使ってキャンバス上で再生します。ページ内にメディア要素はありません。",
+  compatibilityModeEnter: "D Mode（車載ディスプレイ）",
+  compatibilityModeExit: "標準プレーヤーに戻る",
   compatibilityModeLoading: "D Mode の再生を準備しています...",
   compatibilityModeFailed: "D Mode の再生に失敗しました",
   compatibilityModeFallbackHint: "D Mode をオフにすると標準プレーヤーを使用できます。",
