@@ -5,6 +5,11 @@ import { useLanguage } from '../../../contexts/LanguageContext';
 import { neutral, overlay } from '../../../theme/colors';
 import { formatDuration } from '../../../utils/formatUtils';
 import { isCompatibilityModeSupported } from '../../../utils/compatibilityMode/support';
+import {
+    drawFailureNotice,
+    INITIAL_CANVAS_HEIGHT,
+    INITIAL_CANVAS_WIDTH,
+} from './failureNotice';
 import { CompatibilityPlaybackEngine, PlaybackSnapshot } from './playbackEngine';
 
 interface CompatibilityPlayerProps {
@@ -65,6 +70,17 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
         onEndedRef.current = onEnded;
     }, [onTimeUpdate, onEnded]);
 
+    // Sized once on mount so a failure before the first frame still renders
+    // crisp text. Playback replaces this with the decoded frame size; failure
+    // never changes it.
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (canvas) {
+            canvas.width = INITIAL_CANVAS_WIDTH;
+            canvas.height = INITIAL_CANVAS_HEIGHT;
+        }
+    }, []);
+
     useEffect(() => {
         const canvas = canvasRef.current;
         if (!canvas || !src || !supported) {
@@ -120,6 +136,20 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
     const failureHint = canFallBackToStandardPlayer
         ? t('compatibilityModeFallbackHint')
         : t('compatibilityModeUnplayable');
+
+    // Terminal failure is reported inside the picture, at the size the canvas
+    // already has, so the frame does not resize or jump when playback stops.
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!hasFailed || !canvas) {
+            return;
+        }
+        drawFailureNotice(canvas, {
+            title: failureTitle,
+            detail: failureDetail,
+            hint: failureHint,
+        });
+    }, [hasFailed, failureTitle, failureDetail, failureHint]);
     const progress =
         snapshot.duration && snapshot.duration > 0
             ? Math.min(100, (snapshot.currentTime / snapshot.duration) * 100)
@@ -190,34 +220,6 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                         <CircularProgress size={28} color="inherit" />
                         <Typography variant="body2">
                             {t('compatibilityModeLoading')}
-                        </Typography>
-                    </Box>
-                )}
-
-                {hasFailed && (
-                    <Box
-                        sx={{
-                            position: 'absolute',
-                            inset: 0,
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: 1,
-                            p: 3,
-                            textAlign: 'center',
-                            bgcolor: overlay.black70,
-                            color: neutral.white,
-                        }}
-                    >
-                        <Typography variant="body1">{failureTitle}</Typography>
-                        {failureDetail && (
-                            <Typography variant="body2" sx={{ opacity: 0.8 }}>
-                                {failureDetail}
-                            </Typography>
-                        )}
-                        <Typography variant="caption" sx={{ opacity: 0.7 }}>
-                            {failureHint}
                         </Typography>
                     </Box>
                 )}
