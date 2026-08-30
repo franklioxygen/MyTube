@@ -65,9 +65,14 @@ const AUDIO_START_LEAD = 0.08;
 /** Audio older than this relative to the clock is dropped rather than crammed in. */
 const AUDIO_LATE_TOLERANCE = 0.05;
 const SNAPSHOT_INTERVAL_MS = 200;
+/**
+ * Fallback pacing for the render loop when animation frames stop arriving.
+ * A hidden, occluded or throttled page gets no `requestAnimationFrame`
+ * callbacks, and the loop must not depend on one to schedule the next.
+ */
+const TICK_FALLBACK_MS = 100;
 const MAX_AUDIO_DECODE_QUEUE = 48;
-/** Demuxed less than this far past the playhead counts as a stall. */
-const STARVE_MARGIN_SECONDS = 0.1;
+
 /**
  * How much decoded output must be queued before playback resumes after a stall.
  * Expressed in queued items rather than seconds so the target stays reachable
@@ -156,8 +161,12 @@ export class CompatibilityPlaybackEngine {
     private wallBaseMs = 0;
     private pausedMediaTime = 0;
     private lastDrawnTime = 0;
+    /** Media time up to which audio has already been handed to Web Audio. */
+    private scheduledAudioUntil = 0;
 
     private rafHandle: number | null = null;
+    private tickFallbackTimer: number | null = null;
+    private loopRunning = false;
     private snapshotTimer: number | null = null;
     private pumping = false;
     private demuxEnded = false;
@@ -648,9 +657,8 @@ export class CompatibilityPlaybackEngine {
     // ------------------------------------------------------------------ render
 
     private startLoops(): void {
-        if (this.rafHandle === null) {
-            this.rafHandle = requestAnimationFrame(() => this.tick());
-        }
+        this.loopRunning = true;
+        this.scheduleTick();
         if (this.snapshotTimer === null) {
             this.snapshotTimer = window.setInterval(
                 () => this.emit(),
@@ -659,11 +667,47 @@ export class CompatibilityPlaybackEngine {
         }
     }
 
-    private stopLoops(): void {
+    /**
+     * Ask for the next tick from an animation frame *and* a timer, whichever
+     * arrives first.
+     *
+     * The loop used to be a bare `requestAnimationFrame` chain in which `tick()`
+     * scheduled its own successor. That has a single point of failure: a page
+     * that is hidden, occluded or throttled never delivers the pending callback,
+     * so the chain stops for good — audio keeps playing from the Web Audio clock
+     * while the canvas freezes on whatever frame was last drawn. The timer is
+     * the floor that keeps the loop alive; it also keeps a hidden page decoding
+     * at a reduced rate instead of stalling.
+     */
+    private scheduleTick(): void {
+        if (!this.loopRunning || this.destroyed) {
+            return;
+        }
+        this.cancelPendingTick();
+        this.rafHandle = requestAnimationFrame(this.runTick);
+        this.tickFallbackTimer = window.setTimeout(this.runTick, TICK_FALLBACK_MS);
+    }
+
+    private cancelPendingTick(): void {
         if (this.rafHandle !== null) {
             cancelAnimationFrame(this.rafHandle);
             this.rafHandle = null;
         }
+        if (this.tickFallbackTimer !== null) {
+            window.clearTimeout(this.tickFallbackTimer);
+            this.tickFallbackTimer = null;
+        }
+    }
+
+    /** Whichever of the two schedulers fires first wins; the other is dropped. */
+    private readonly runTick = (): void => {
+        this.cancelPendingTick();
+        this.tick();
+    };
+
+    private stopLoops(): void {
+        this.loopRunning = false;
+        this.cancelPendingTick();
         if (this.snapshotTimer !== null) {
             window.clearInterval(this.snapshotTimer);
             this.snapshotTimer = null;
@@ -671,7 +715,6 @@ export class CompatibilityPlaybackEngine {
     }
 
     private tick(): void {
-        this.rafHandle = null;
         if (this.destroyed) {
             return;
         }
@@ -696,23 +739,30 @@ export class CompatibilityPlaybackEngine {
         }
 
         if (this.status === 'playing' || this.status === 'buffering') {
-            this.rafHandle = requestAnimationFrame(() => this.tick());
+            this.scheduleTick();
         }
     }
 
     /**
-     * True when the demuxer has not produced data past the playhead.
+     * True when there is nothing left to present on a track that should have
+     * something.
      *
-     * One signal covers both tracks: whatever the cause — a stalled fetch, a
-     * decoder that cannot keep up — the symptom is the same, and continuing to
-     * advance the clock would silently drop frames and punch gaps in the audio
-     * instead of admitting the stall.
+     * Measured against decoded output, not against how far the demuxer has read.
+     * Demux position is not a usable signal here: `pump()` deliberately stops
+     * once any queue reaches its cap, which looks identical to a stall while
+     * there is in fact a second of video sitting decoded and ready.
      */
     private isStarved(): boolean {
         if (this.demuxEnded) {
             return false;
         }
-        return this.lastPacketTime - this.mediaTime < STARVE_MARGIN_SECONDS;
+        const videoStarved =
+            this.videoDecoder !== null && this.frameQueue.length === 0;
+        const audioStarved =
+            this.audioDecoder !== null &&
+            this.audioQueue.length === 0 &&
+            this.scheduledAudioUntil <= this.mediaTime;
+        return videoStarved || audioStarved;
     }
 
     private hasRebuffered(): boolean {
@@ -722,7 +772,14 @@ export class CompatibilityPlaybackEngine {
         const videoReady =
             !this.videoDecoder || this.frameQueue.length >= REBUFFER_FRAMES;
         const audioReady =
-            !this.audioDecoder || this.audioQueue.length >= REBUFFER_AUDIO_CHUNKS;
+            !this.audioDecoder ||
+            this.audioQueue.length >= REBUFFER_AUDIO_CHUNKS ||
+            // The pump stops as soon as *any* queue hits its cap, so waiting for
+            // more audio while the frame queue is full deadlocks: no further
+            // packets can be read until frames are drawn, and frames are only
+            // drawn once playback resumes. A full frame queue therefore counts
+            // as "as ready as this stream is going to get".
+            this.frameQueue.length >= MAX_QUEUED_FRAMES;
         return videoReady && audioReady;
     }
 
@@ -830,6 +887,10 @@ export class CompatibilityPlaybackEngine {
             this.audioQueue[0].time <= now + AUDIO_SCHEDULE_AHEAD
         ) {
             const chunk = this.audioQueue.shift()!;
+            this.scheduledAudioUntil = Math.max(
+                this.scheduledAudioUntil,
+                chunk.time + chunk.buffer.length / chunk.buffer.sampleRate
+            );
             const when = this.audioBaseTime + chunk.time;
             if (when < context.currentTime - AUDIO_LATE_TOLERANCE) {
                 continue;

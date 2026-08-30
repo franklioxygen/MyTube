@@ -150,12 +150,29 @@ class FakeChunk {
 /* ------------------------------------------------------------------ harness */
 
 let rafQueue: FrameRequestCallback[] = [];
+let timerQueue: Array<() => void> = [];
+/** When false, requested animation frames are dropped, as a hidden page does. */
+let deliverFrames = true;
 
 const runFrames = async (count = 1) => {
   for (let i = 0; i < count; i += 1) {
     const queue = rafQueue;
     rafQueue = [];
-    for (const callback of queue) callback(0);
+    if (deliverFrames) {
+      for (const callback of queue) callback(0);
+    }
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+  }
+};
+
+/** Fire the fallback timers the render loop schedules alongside each frame. */
+const runFallbackTimers = async (count = 1) => {
+  for (let i = 0; i < count; i += 1) {
+    const queue = timerQueue;
+    timerQueue = [];
+    for (const callback of queue) callback();
     await Promise.resolve();
     await Promise.resolve();
     await Promise.resolve();
@@ -270,6 +287,8 @@ beforeEach(() => {
   audioContexts = [];
   audioSources.length = 0;
   rafQueue = [];
+  timerQueue = [];
+  deliverFrames = true;
   FakeAudioContext.allowStart = true;
   FakeVideoDecoder.supported = true;
   FakeAudioDecoder.supported = true;
@@ -283,6 +302,24 @@ beforeEach(() => {
     rafQueue.push(cb)
   );
   vi.stubGlobal("cancelAnimationFrame", () => undefined);
+
+  // Capture only the render loop's own fallback timer; leave every other
+  // setTimeout (the autoplay race, for one) on real timers.
+  const realSetTimeout = globalThis.setTimeout;
+  vi.stubGlobal(
+    "setTimeout",
+    ((fn: () => void, delay?: number, ...rest: unknown[]) => {
+      if (delay === 100) {
+        timerQueue.push(fn);
+        return timerQueue.length;
+      }
+      return (realSetTimeout as typeof globalThis.setTimeout)(
+        fn,
+        delay,
+        ...(rest as [])
+      );
+    }) as typeof globalThis.setTimeout
+  );
 });
 
 afterEach(() => {
@@ -395,7 +432,8 @@ describe("CompatibilityPlaybackEngine", () => {
 
     release();                            // data arrives again
     await settle();
-    await runFrames(3);
+    await runFrames(6);
+    await settle();
     expect(snapshots[snapshots.length - 1].status).toBe("playing");
     await engine.destroy();
   });
@@ -459,6 +497,59 @@ describe("CompatibilityPlaybackEngine", () => {
     await runFrames(2);
 
     expect(latest().aspectRatio).toBeCloseTo(640 / 480, 5);
+    await engine.destroy();
+  });
+
+  it("keeps rendering when animation frames stop being delivered", async () => {
+    // Regression: the loop used to be a bare requestAnimationFrame chain in
+    // which tick() scheduled its own successor, so a single dropped callback —
+    // which a hidden or occluded page causes — stopped playback for good while
+    // audio carried on from the Web Audio clock.
+    const { engine, latest } = await startEngine();
+    const context = audioContexts[0];
+    await engine.play();
+    await settle();
+
+    deliverFrames = false;
+    context.currentTime += 0.2;
+    await runFallbackTimers(3);
+
+    expect(latest().status).toBe("playing");
+    // Frames were drawn from the timer alone, so the canvas took a real size.
+    expect(videoDecoders[0].decoded.length).toBeGreaterThan(0);
+    await engine.destroy();
+  });
+
+  it("leaves buffering even when only the frame queue can refill", async () => {
+    // Regression: rebuffering waited for a minimum audio queue, but pump()
+    // stops as soon as *any* queue reaches its cap. A full frame queue with an
+    // empty audio queue therefore deadlocked — no further packets could be read
+    // until frames were drawn, and frames were only drawn once playback resumed.
+    const { release } = buildDemuxer({
+      packets: [
+        ...packetsUpTo(0.2),
+        // Video only from here, so the audio queue can never refill.
+        ...packetsUpTo(6).filter((packet) => packet.kind === "video"),
+      ],
+      stallAfter: 10,
+    });
+    const snapshots: PlaybackSnapshot[] = [];
+    const engine = new CompatibilityPlaybackEngine(fakeCanvas(), {
+      onChange: (snapshot) => snapshots.push(snapshot),
+    });
+    await engine.load("https://example.test/media");
+    await settle();
+    await engine.play();
+    await settle();
+
+    audioContexts[0].currentTime += 3;
+    await runFrames(2);
+    expect(snapshots[snapshots.length - 1].status).toBe("buffering");
+
+    release();
+    await settle();
+    await runFrames(4);
+    expect(snapshots[snapshots.length - 1].status).toBe("playing");
     await engine.destroy();
   });
 
