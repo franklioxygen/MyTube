@@ -730,6 +730,8 @@ export const de = {
   compatibilityModeFailed: "Kompatibilitätswiedergabe fehlgeschlagen",
   compatibilityModeFallbackHint:
     "Schalte den Kompatibilitätsmodus aus, um den Standardplayer zu nutzen.",
+  compatibilityModeUnplayable:
+    "Dieses Video kann auf diesem Bildschirm nicht wiedergegeben werden.",
   compatibilityModeMediaElements: "{count} Medienelemente im Player",
   compatibilityModeUnavailable:
     "Dieser Browser unterstützt WebCodecs nicht, daher ist der Kompatibilitätsmodus nicht verfügbar.",

@@ -1,9 +1,10 @@
 import { Box, Chip, CircularProgress, IconButton, Typography } from '@mui/material';
 import { Pause, PlayArrow } from '@mui/icons-material';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import { neutral, overlay } from '../../../theme/colors';
 import { formatDuration } from '../../../utils/formatUtils';
+import { isCompatibilityModeSupported } from '../../../utils/compatibilityMode/support';
 import { CompatibilityPlaybackEngine, PlaybackSnapshot } from './playbackEngine';
 
 interface CompatibilityPlayerProps {
@@ -12,6 +13,11 @@ interface CompatibilityPlayerProps {
     autoPlay?: boolean;
     onTimeUpdate?: (currentTime: number) => void;
     onEnded?: () => void;
+    /**
+     * False on the in-car display, where no `<video>` player exists to return
+     * to. Failure is then terminal and must be reported as such.
+     */
+    canFallBackToStandardPlayer?: boolean;
 }
 
 const INITIAL_SNAPSHOT: PlaybackSnapshot = {
@@ -38,8 +44,12 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
     autoPlay = false,
     onTimeUpdate,
     onEnded,
+    canFallBackToStandardPlayer = true,
 }) => {
     const { t } = useLanguage();
+    // Forced deployments render this player even where WebCodecs is missing,
+    // so the guard cannot live only in the parent.
+    const supported = useMemo(() => isCompatibilityModeSupported(), []);
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const containerRef = useRef<HTMLDivElement | null>(null);
     const engineRef = useRef<CompatibilityPlaybackEngine | null>(null);
@@ -57,7 +67,7 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
 
     useEffect(() => {
         const canvas = canvasRef.current;
-        if (!canvas || !src) {
+        if (!canvas || !src || !supported) {
             return;
         }
 
@@ -85,7 +95,7 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
         };
         // autoPlay is read once per source; re-running on toggle would restart playback.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [src]);
+    }, [src, supported]);
 
     // The whole point of the mode: prove nothing media-element-shaped is mounted.
     useEffect(() => {
@@ -100,7 +110,16 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
     }, []);
 
     const isPlaying = snapshot.status === 'playing';
-    const isBusy = snapshot.status === 'loading' || snapshot.status === 'idle';
+    const isBusy =
+        supported && (snapshot.status === 'loading' || snapshot.status === 'idle');
+    const hasFailed = !supported || snapshot.status === 'error';
+    const failureTitle = supported
+        ? t('compatibilityModeFailed')
+        : t('compatibilityModeUnavailable');
+    const failureDetail = supported ? snapshot.error : null;
+    const failureHint = canFallBackToStandardPlayer
+        ? t('compatibilityModeFallbackHint')
+        : t('compatibilityModeUnplayable');
     const progress =
         snapshot.duration && snapshot.duration > 0
             ? Math.min(100, (snapshot.currentTime / snapshot.duration) * 100)
@@ -175,7 +194,7 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                     </Box>
                 )}
 
-                {snapshot.status === 'error' && (
+                {hasFailed && (
                     <Box
                         sx={{
                             position: 'absolute',
@@ -191,19 +210,19 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                             color: neutral.white,
                         }}
                     >
-                        <Typography variant="body1">
-                            {t('compatibilityModeFailed')}
-                        </Typography>
-                        <Typography variant="body2" sx={{ opacity: 0.8 }}>
-                            {snapshot.error}
-                        </Typography>
+                        <Typography variant="body1">{failureTitle}</Typography>
+                        {failureDetail && (
+                            <Typography variant="body2" sx={{ opacity: 0.8 }}>
+                                {failureDetail}
+                            </Typography>
+                        )}
                         <Typography variant="caption" sx={{ opacity: 0.7 }}>
-                            {t('compatibilityModeFallbackHint')}
+                            {failureHint}
                         </Typography>
                     </Box>
                 )}
 
-                {!isPlaying && snapshot.status !== 'error' && !isBusy && (
+                {!isPlaying && !hasFailed && !isBusy && (
                     <Box
                         onClick={handleToggle}
                         sx={{
@@ -244,7 +263,7 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                 <IconButton
                     size="small"
                     onClick={handleToggle}
-                    disabled={snapshot.status === 'error' || isBusy}
+                    disabled={hasFailed || isBusy}
                     aria-label={isPlaying ? t('paused') : t('playing')}
                     sx={{ color: neutral.white }}
                 >

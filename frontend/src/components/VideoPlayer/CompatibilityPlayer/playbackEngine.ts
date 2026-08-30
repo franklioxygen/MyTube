@@ -153,13 +153,22 @@ export class CompatibilityPlaybackEngine {
                 ? demuxer.durationUs / 1e6
                 : null;
 
+            // Every track the container offers must be decodable. Degraded
+            // playback (audio over a black canvas, or silent video) is not an
+            // acceptable outcome on a display that has no other player.
+            if (demuxer.unsupportedTracks.length > 0) {
+                throw new UnsupportedMediaError(
+                    `Unsupported track in this file: ${demuxer.unsupportedTracks.join(', ')}`
+                );
+            }
+
             const labels: string[] = [demuxer.container.toUpperCase()];
             await this.setUpVideo(demuxer, labels);
             await this.setUpAudio(demuxer, labels);
 
             if (!this.videoDecoder && !this.audioDecoder) {
                 throw new UnsupportedMediaError(
-                    'None of this file’s codecs can be decoded by WebCodecs here'
+                    'This file contains no decodable video or audio track'
                 );
             }
 
@@ -222,13 +231,27 @@ export class CompatibilityPlaybackEngine {
     async destroy(): Promise<void> {
         this.destroyed = true;
         this.stopLoops();
+        await this.teardownPipeline();
+    }
+
+    /**
+     * Release everything that produces output or holds resources: scheduled
+     * audio, queued frames, the decoders, the audio graph and the in-flight
+     * media request.
+     *
+     * Failure runs this too. There is no other player to hand off to, so an
+     * error must not leave audio playing or a fetch running behind the error
+     * state — the pipeline stops, and the status the caller set is preserved.
+     */
+    private async teardownPipeline(): Promise<void> {
         this.abortController.abort();
 
         for (const source of this.liveSources) {
             try {
                 source.stop();
+                source.disconnect();
             } catch {
-                // Already finished.
+                // Already finished or already disconnected.
             }
         }
         this.liveSources.clear();
@@ -244,6 +267,8 @@ export class CompatibilityPlaybackEngine {
         this.videoDecoder = null;
         this.audioDecoder = null;
 
+        this.gain?.disconnect();
+        this.gain = null;
         await this.audioContext?.close().catch(() => undefined);
         this.audioContext = null;
 
@@ -265,8 +290,9 @@ export class CompatibilityPlaybackEngine {
             demuxer.videoCodecFallbacks ?? []
         );
         if (!config) {
-            labels.push(`${demuxer.video.codec} (unsupported)`);
-            return;
+            throw new UnsupportedMediaError(
+                `Video codec ${demuxer.video.codec} cannot be decoded here`
+            );
         }
 
         this.videoDecoder = new VideoDecoder({
@@ -281,11 +307,13 @@ export class CompatibilityPlaybackEngine {
         demuxer: MediaDemuxer,
         labels: string[]
     ): Promise<void> {
-        if (!demuxer.audio || !(await isAudioConfigSupported(demuxer.audio))) {
-            if (demuxer.audio) {
-                labels.push(`${demuxer.audio.codec} (unsupported)`);
-            }
+        if (!demuxer.audio) {
             return;
+        }
+        if (!(await isAudioConfigSupported(demuxer.audio))) {
+            throw new UnsupportedMediaError(
+                `Audio codec ${demuxer.audio.codec} cannot be decoded here`
+            );
         }
 
         this.audioContext = new AudioContext();
@@ -571,8 +599,15 @@ export class CompatibilityPlaybackEngine {
         this.unsupported = error instanceof UnsupportedMediaError;
         this.errorMessage =
             error instanceof Error ? error.message : 'Compatibility playback failed';
+        // Latch the status before tearing down: aborting the fetch makes the
+        // in-flight pump throw straight back into fail(), and the guard above
+        // is what stops that recursing.
+        this.status = 'error';
         this.stopLoops();
-        this.setStatus('error');
+        // Stop producing before reporting: an error overlay with audio still
+        // coming out of the speakers is the worst end state on a car display.
+        void this.teardownPipeline();
+        this.emit();
     }
 
     private setStatus(status: PlaybackStatus): void {

@@ -120,6 +120,24 @@ describe("WebM demuxing", () => {
     ]);
     expect(packets.map((packet) => packet.key)).toEqual([true, true, false]);
     expect(Array.from(packets[1].data)).toEqual([0x21, 0x22]);
+    expect(demuxer.unsupportedTracks).toEqual([]);
+
+    await demuxer.close();
+  });
+
+  it("reports a track it cannot configure instead of dropping it", async () => {
+    // Vorbis has no WebCodecs mapping. Silently returning `audio: null` would be
+    // indistinguishable from a file that genuinely has no audio track, and the
+    // engine would then play video in silence.
+    const bytes = buildSyntheticWebm(
+      [{ track: 1, relativeTime: 0, key: true, payload: [0x11] }],
+      { audioCodecId: "A_VORBIS" }
+    );
+    const { demuxer } = await drain(bytes);
+
+    expect(demuxer.video?.codec).toBe("vp09.00.10.08");
+    expect(demuxer.audio).toBeNull();
+    expect(demuxer.unsupportedTracks).toEqual(["A_VORBIS"]);
 
     await demuxer.close();
   });

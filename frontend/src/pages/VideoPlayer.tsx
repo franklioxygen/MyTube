@@ -37,6 +37,7 @@ import { useVideoQueries } from '../hooks/useVideoQueries';
 import { useVideoRecommendations } from '../hooks/useVideoRecommendations';
 import { useVideoSubscriptions } from '../hooks/useVideoSubscriptions';
 import { getBackendUrl } from '../utils/apiUrl';
+import { isCompatibilityModeForced } from '../utils/compatibilityMode/deployment';
 import { isCompatibilityModeSupported } from '../utils/compatibilityMode/support';
 import { getBestVideoResumeProgress } from '../utils/videoResumeProgress';
 
@@ -75,6 +76,9 @@ const VideoPlayer: React.FC = () => {
         () => isCompatibilityModeSupported(),
         []
     );
+    // The car display cannot render a media element at all, so that build
+    // forces the mode on: no toggle, and no standard player to fall back to.
+    const compatibilityModeForced = useMemo(() => isCompatibilityModeForced(), []);
     const [compatibilityMode, setCompatibilityMode] = useState<boolean>(() => {
         const saved = localStorage.getItem('compatibilityMode');
         return saved !== null ? JSON.parse(saved) : false;
@@ -120,7 +124,9 @@ const VideoPlayer: React.FC = () => {
     });
     const isAudio = (video?.mediaType ?? 'video') === 'audio';
     const showCompatibilityPlayer =
-        compatibilityMode && compatibilityModeSupported && !isAudio;
+        !isAudio &&
+        (compatibilityModeForced ||
+            (compatibilityMode && compatibilityModeSupported));
 
     // Handle error redirect and invisible videos in visitor mode
     useEffect(() => {
@@ -522,6 +528,7 @@ const VideoPlayer: React.FC = () => {
                         autoPlay={autoPlay}
                         onTimeUpdate={handleTimeUpdate}
                         onEnded={handleVideoEnded}
+                        canFallBackToStandardPlayer={!compatibilityModeForced}
                     /> : isAudio ? <AudioModePlayer
                         src={(videoUrl || video?.sourceUrl) || null}
                         mediaPath={video.videoPath}
@@ -598,7 +605,7 @@ const VideoPlayer: React.FC = () => {
                     <LiveTranslationStatusAlert isCinemaMode={effectiveCinemaMode} />
                     </LiveTranslationProvider>
 
-                    {!isAudio && (
+                    {!isAudio && !compatibilityModeForced && (
                         <Box sx={{ px: { xs: 2, md: 0 } }}>
                             <CompatibilityModeToggle
                                 enabled={compatibilityMode}

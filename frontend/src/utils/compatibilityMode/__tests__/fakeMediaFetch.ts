@@ -243,8 +243,17 @@ export interface SyntheticBlock {
   payload: number[];
 }
 
+export interface SyntheticWebmOptions {
+  /** Override the audio CodecID, e.g. `A_VORBIS`, which WebCodecs cannot decode. */
+  audioCodecId?: string;
+}
+
 /** A two-track (VP9 + Opus) WebM with a single cluster. */
-export const buildSyntheticWebm = (blocks: SyntheticBlock[]): Uint8Array => {
+export const buildSyntheticWebm = (
+  blocks: SyntheticBlock[],
+  options: SyntheticWebmOptions = {}
+): Uint8Array => {
+  const { audioCodecId = "A_OPUS" } = options;
   const simpleBlock = (block: SyntheticBlock): Uint8Array =>
     ebml(
       [0xa3],
@@ -276,7 +285,7 @@ export const buildSyntheticWebm = (blocks: SyntheticBlock[]): Uint8Array => {
           [0xae],
           ebml([0xd7], ebmlUint(2)),
           ebml([0x83], ebmlUint(2)),
-          ebml([0x86], ascii("A_OPUS")),
+          ebml([0x86], ascii(audioCodecId)),
           ebml([0x63, 0xa2], ascii("OpusHead")),
           ebml(
             [0xe1],

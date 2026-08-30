@@ -335,11 +335,15 @@ export async function createWebmDemuxer(
     audioTrack: WebmTrack | null;
     videoConfig: VideoTrackConfig | null;
     audioConfig: AudioDecoderConfig | null;
+    rejectedVideo: string[];
+    rejectedAudio: string[];
   } = {
     videoTrack: null,
     audioTrack: null,
     videoConfig: null,
     audioConfig: null,
+    rejectedVideo: [],
+    rejectedAudio: [],
   };
 
   let clusterTimestamp = 0;
@@ -489,6 +493,8 @@ export async function createWebmDemuxer(
               if (config) {
                 selected.videoTrack = track;
                 selected.videoConfig = config;
+              } else {
+                selected.rejectedVideo.push(track.codecId);
               }
             }
             if (track.type === 2 && !selected.audioTrack) {
@@ -496,6 +502,8 @@ export async function createWebmDemuxer(
               if (config) {
                 selected.audioTrack = track;
                 selected.audioConfig = config;
+              } else {
+                selected.rejectedAudio.push(track.codecId);
               }
             }
           }
@@ -533,6 +541,12 @@ export async function createWebmDemuxer(
     audio: selected.audioConfig,
     videoCodecFallbacks: selected.videoConfig?.fallbacks ?? [],
     durationUs,
+    // Only a kind with no usable track at all counts as unsupported; a file
+    // with two audio tracks is fine as long as one of them decodes.
+    unsupportedTracks: [
+      ...(selected.videoTrack ? [] : selected.rejectedVideo),
+      ...(selected.audioTrack ? [] : selected.rejectedAudio),
+    ],
 
     async next(): Promise<DemuxedPacket | null> {
       if (pending.length === 0) {

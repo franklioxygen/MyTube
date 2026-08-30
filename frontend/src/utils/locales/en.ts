@@ -701,6 +701,7 @@ export const en = {
   compatibilityModeFailed: "Compatibility playback failed",
   compatibilityModeFallbackHint:
     "Turn compatibility mode off to use the standard player.",
+  compatibilityModeUnplayable: "This video cannot be played on this screen.",
   compatibilityModeMediaElements: "{count} media elements in player",
   compatibilityModeUnavailable:
     "This browser has no WebCodecs support, so compatibility mode is unavailable.",

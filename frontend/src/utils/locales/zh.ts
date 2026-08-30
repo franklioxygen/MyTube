@@ -691,6 +691,7 @@ export const zh = {
   compatibilityModeLoading: "正在准备兼容模式播放...",
   compatibilityModeFailed: "兼容模式播放失败",
   compatibilityModeFallbackHint: "关闭兼容模式即可使用标准播放器。",
+  compatibilityModeUnplayable: "此视频无法在本屏幕上播放。",
   compatibilityModeMediaElements: "播放器中的媒体元素：{count}",
   compatibilityModeUnavailable: "此浏览器不支持 WebCodecs，无法使用兼容模式。",
   current: "（当前）",

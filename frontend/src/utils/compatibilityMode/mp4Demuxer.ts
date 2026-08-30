@@ -42,6 +42,16 @@ interface ParsedTrack {
   audioConfig: AudioDecoderConfig | null;
 }
 
+/**
+ * A `trak` is either usable, a media track whose sample entry we cannot map to
+ * a decoder configuration, or something we do not care about (subtitles, timed
+ * metadata). The middle case has to stay distinguishable from the last.
+ */
+type ParsedTrackResult =
+  | { status: "ok"; track: ParsedTrack }
+  | { status: "unsupported"; label: string }
+  | { status: "ignored" };
+
 const MAX_MOOV_BYTES = 64 * 1024 * 1024;
 
 const readType = (bytes: Uint8Array, offset: number): string =>
@@ -423,7 +433,7 @@ const buildSamples = (
   return samples;
 };
 
-const parseTrack = (bytes: Uint8Array, trak: Box): ParsedTrack | null => {
+const parseTrack = (bytes: Uint8Array, trak: Box): ParsedTrackResult => {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const trakChildren = childBoxes(bytes, trak);
 
@@ -432,14 +442,14 @@ const parseTrack = (bytes: Uint8Array, trak: Box): ParsedTrack | null => {
   const stbl = descend(bytes, trakChildren, ["mdia", "minf", "stbl"]);
   const stsd = stbl ? findBox(childBoxes(bytes, stbl), "stsd") : undefined;
   if (!hdlr || !mdhd || !stbl || !stsd) {
-    return null;
+    return { status: "ignored" };
   }
 
   const handler = readType(bytes, hdlr.contentStart + 8);
   const kind =
     handler === "vide" ? "video" : handler === "soun" ? "audio" : null;
   if (!kind) {
-    return null;
+    return { status: "ignored" };
   }
 
   const mdhdVersion = parseFullBoxVersion(view, mdhd.contentStart);
@@ -448,12 +458,12 @@ const parseTrack = (bytes: Uint8Array, trak: Box): ParsedTrack | null => {
       ? view.getUint32(mdhd.contentStart + 20)
       : view.getUint32(mdhd.contentStart + 12);
   if (!timescale) {
-    return null;
+    return { status: "ignored" };
   }
 
   const entry = parseBoxes(bytes, stsd.contentStart + 8, stsd.contentEnd)[0];
   if (!entry) {
-    return null;
+    return { status: "ignored" };
   }
 
   let videoConfig: VideoDecoderConfig | null = null;
@@ -466,17 +476,24 @@ const parseTrack = (bytes: Uint8Array, trak: Box): ParsedTrack | null => {
       view.getUint16(entry.contentStart + 24),
       view.getUint16(entry.contentStart + 26)
     );
-    if (!videoConfig) return null;
+    if (!videoConfig) {
+      return { status: "unsupported", label: entry.type };
+    }
   } else {
     audioConfig = buildAudioConfig(bytes, entry, entry.type);
-    if (!audioConfig) return null;
+    if (!audioConfig) {
+      return { status: "unsupported", label: entry.type };
+    }
   }
 
   return {
-    kind,
-    samples: buildSamples(bytes, stbl, timescale, kind),
-    videoConfig,
-    audioConfig,
+    status: "ok",
+    track: {
+      kind,
+      samples: buildSamples(bytes, stbl, timescale, kind),
+      videoConfig,
+      audioConfig,
+    },
   };
 };
 
@@ -502,10 +519,16 @@ export async function createMp4Demuxer(
   const moov = await readMoov(stream);
   const moovBoxes = parseBoxes(moov, 0, moov.length);
 
-  const tracks = moovBoxes
+  const results = moovBoxes
     .filter((box) => box.type === "trak")
-    .map((trak) => parseTrack(moov, trak))
-    .filter((track): track is ParsedTrack => track !== null);
+    .map((trak) => parseTrack(moov, trak));
+
+  const tracks = results
+    .filter(
+      (result): result is { status: "ok"; track: ParsedTrack } =>
+        result.status === "ok"
+    )
+    .map((result) => result.track);
 
   const videoTrack = tracks.find((track) => track.kind === "video") ?? null;
   const audioTrack = tracks.find((track) => track.kind === "audio") ?? null;
@@ -514,6 +537,13 @@ export async function createMp4Demuxer(
       "No decodable video or audio track found in this MP4 file"
     );
   }
+
+  const unsupportedTracks = results
+    .filter(
+      (result): result is { status: "unsupported"; label: string } =>
+        result.status === "unsupported"
+    )
+    .map((result) => result.label);
 
   // File order keeps the interleaved tracks in step and turns playback into a
   // single forward pass over the byte stream.
@@ -529,6 +559,7 @@ export async function createMp4Demuxer(
     video: videoTrack?.videoConfig ?? null,
     audio: audioTrack?.audioConfig ?? null,
     durationUs: readMovieDurationUs(moov, moovBoxes),
+    unsupportedTracks,
 
     async next(): Promise<DemuxedPacket | null> {
       if (cursor >= samples.length) {

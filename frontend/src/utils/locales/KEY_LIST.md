@@ -4,7 +4,7 @@ Canonical locale key order derived from `frontend/src/utils/locales/en.ts`.
 
 This list is intentionally unnumbered. When new keys are inserted, only the local section order changes.
 
-Total keys: 1085
+Total keys: 1086
 
 ## Summary
 
@@ -19,7 +19,7 @@ Total keys: 1085
 | Cookie Settings | 12 | `cookieSettings` | `cookiesDeleteFailed` |
 | Cloud Drive | 38 | `cloudDriveSettings` | `clearThumbnailCacheConfirmMessage` |
 | Manage | 33 | `manageContent` | `confirmBulkDelete` |
-| Video Player | 69 | `playing` | `deletingVideos` |
+| Video Player | 70 | `playing` | `deletingVideos` |
 | Login | 23 | `signIn` | `tooManyAttempts` |
 | Passkeys | 19 | `createPasskey` | `copyUrl` |
 | Collection Page | 4 | `loadingCollection` | `back` |
@@ -652,6 +652,7 @@ Total keys: 1085
 | `compatibilityModeLoading` |
 | `compatibilityModeFailed` |
 | `compatibilityModeFallbackHint` |
+| `compatibilityModeUnplayable` |
 | `compatibilityModeMediaElements` |
 | `compatibilityModeUnavailable` |
 | `current` |

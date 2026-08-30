@@ -718,6 +718,7 @@ export const ru = {
   compatibilityModeFailed: "Не удалось воспроизвести в режиме совместимости",
   compatibilityModeFallbackHint:
     "Отключите режим совместимости, чтобы использовать стандартный плеер.",
+  compatibilityModeUnplayable: "Это видео нельзя воспроизвести на этом экране.",
   compatibilityModeMediaElements: "Медиаэлементов в плеере: {count}",
   compatibilityModeUnavailable:
     "Этот браузер не поддерживает WebCodecs, поэтому режим совместимости недоступен.",

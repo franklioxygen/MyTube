@@ -716,6 +716,7 @@ export const ja = {
   compatibilityModeLoading: "互換モードの再生を準備しています...",
   compatibilityModeFailed: "互換モードの再生に失敗しました",
   compatibilityModeFallbackHint: "互換モードをオフにすると標準プレーヤーを使用できます。",
+  compatibilityModeUnplayable: "この動画はこの画面では再生できません。",
   compatibilityModeMediaElements: "プレーヤー内のメディア要素: {count}",
   compatibilityModeUnavailable: "このブラウザは WebCodecs に対応していないため、互換モードは利用できません。",
   current: "（現在）",

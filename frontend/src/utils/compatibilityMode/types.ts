@@ -25,6 +25,16 @@ export interface MediaDemuxer {
   videoCodecFallbacks?: string[];
   /** Media duration in microseconds, when the container states one. */
   durationUs: number | null;
+  /**
+   * Video/audio tracks the container carries that could not be mapped to a
+   * decoder configuration, described by their codec identifier.
+   *
+   * Reported rather than silently dropped: on a display with no other player,
+   * "plays with no sound" or "plays as a black canvas" is a worse outcome than
+   * a clear failure, and a null `video`/`audio` alone cannot distinguish an
+   * unsupported track from an absent one.
+   */
+  unsupportedTracks: string[];
   /** Next packet in decode order; null once the stream is exhausted. */
   next(): Promise<DemuxedPacket | null>;
   close(): Promise<void>;
