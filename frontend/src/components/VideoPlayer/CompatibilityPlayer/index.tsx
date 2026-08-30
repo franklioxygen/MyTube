@@ -25,6 +25,8 @@ interface CompatibilityPlayerProps {
     src: string | null;
     poster?: string;
     autoPlay?: boolean;
+    /** Saved playback position to resume from, in seconds. */
+    startTime?: number;
     onTimeUpdate?: (currentTime: number) => void;
     onEnded?: () => void;
     /**
@@ -48,6 +50,7 @@ const INITIAL_SNAPSHOT: PlaybackSnapshot = {
     unsupported: false,
     aspectRatio: null,
     buffering: false,
+    canSeek: false,
 };
 
 /**
@@ -63,6 +66,7 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
     src,
     poster,
     autoPlay = false,
+    startTime = 0,
     onTimeUpdate,
     onEnded,
     canFallBackToStandardPlayer = true,
@@ -77,6 +81,9 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
     const engineRef = useRef<CompatibilityPlaybackEngine | null>(null);
     const onTimeUpdateRef = useRef(onTimeUpdate);
     const onEndedRef = useRef(onEnded);
+    // Read once per source: a later change to the saved position must not yank
+    // playback back to it mid-watch.
+    const startTimeRef = useRef(startTime);
     const [snapshot, setSnapshot] = useState<PlaybackSnapshot>(INITIAL_SNAPSHOT);
 
     // Keep the engine's callbacks current without restarting playback when the
@@ -117,7 +124,16 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
 
         void engine
             .load(src)
-            .then(() => {
+            .then(async () => {
+                if (engineRef.current !== engine) {
+                    return;
+                }
+                // Resume where the viewer left off. A seek lands on the
+                // keyframe at or before the saved position, so playback can
+                // start slightly earlier than the exact second recorded.
+                if (startTimeRef.current > 0) {
+                    await engine.seek(startTimeRef.current);
+                }
                 if (autoPlay && engineRef.current === engine) {
                     // A refused autoplay leaves the engine ready rather than
                     // playing; the play control then works from a real gesture.

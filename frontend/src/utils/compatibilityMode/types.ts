@@ -42,6 +42,18 @@ export interface MediaDemuxer {
    * unsupported track from an absent one.
    */
   unsupportedTracks: string[];
+  /**
+   * Whether `seek` can reposition this file. MP4 always can, from its sync
+   * sample table; WebM needs a `Cues` index, which most muxers write but none
+   * are obliged to.
+   */
+  canSeek: boolean;
+  /**
+   * Reposition to the last random-access point at or before `timeUs`, and
+   * return the presentation time actually landed on. Decoding cannot start
+   * mid-GOP, so the caller gets the keyframe's time, not the time it asked for.
+   */
+  seek(timeUs: number): Promise<number>;
   /** Next packet in decode order; null once the stream is exhausted. */
   next(): Promise<DemuxedPacket | null>;
   close(): Promise<void>;

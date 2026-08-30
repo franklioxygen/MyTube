@@ -179,8 +179,12 @@ const runFallbackTimers = async (count = 1) => {
   }
 };
 
+/**
+ * Drain the microtask queue. Generous on purpose: each simulated read yields
+ * more than once, so a pump filling a queue costs many turns.
+ */
 const settle = async () => {
-  for (let i = 0; i < 12; i += 1) await Promise.resolve();
+  for (let i = 0; i < 400; i += 1) await Promise.resolve();
 };
 
 const fakeCanvas = () =>
@@ -197,6 +201,11 @@ interface DemuxerOptions {
   withAudio?: boolean;
   /** Withhold packets after this many, simulating a stalled network. */
   stallAfter?: number;
+  /**
+   * Fired once the demuxer has begun repositioning, i.e. after the engine has
+   * cleared its queues. Used to reproduce a decoder draining mid-seek.
+   */
+  onSeekStart?: () => void;
 }
 
 /** Interleaved video and audio, the shape both demuxers actually produce. */
@@ -220,6 +229,13 @@ const packetsUpTo = (seconds: number, stepMs = 40): DemuxedPacket[] => {
   return packets;
 };
 
+/** Mark a keyframe every 400 ms, roughly what an encoder emits. */
+const withKeyframes = (packets: DemuxedPacket[]): DemuxedPacket[] =>
+  packets.map((packet, position) => ({
+    ...packet,
+    key: packet.kind === "audio" || position % 20 === 0,
+  }));
+
 const buildDemuxer = (options: DemuxerOptions = {}) => {
   const {
     packets = packetsUpTo(2),
@@ -227,11 +243,19 @@ const buildDemuxer = (options: DemuxerOptions = {}) => {
     startTimeUs = 0,
     withAudio = true,
     stallAfter,
+    onSeekStart,
   } = options;
 
   let index = 0;
   let releaseStall: (() => void) | null = null;
   let stallReleased = false;
+  const seeks: number[] = [];
+  // A demuxer reads one byte stream, so next() and seek() must never overlap.
+  // Checked from both directions: a read starting during a seek, and a seek
+  // starting while a read is outstanding.
+  let seekInFlight = false;
+  let readsInFlight = 0;
+  let overlappingReads = 0;
 
   const demuxer: MediaDemuxer = {
     container: "mp4",
@@ -242,13 +266,45 @@ const buildDemuxer = (options: DemuxerOptions = {}) => {
     durationUs: 60_000_000,
     startTimeUs,
     unsupportedTracks,
+    canSeek: true,
+    // Land on the last keyframe at or before the target, the way a sync-sample
+    // table or a cue index does.
+    seek: async (timeUs: number) => {
+      if (readsInFlight > 0) overlappingReads += 1;
+      seekInFlight = true;
+      onSeekStart?.();
+      // Repositioning is not instantaneous in a real demuxer; yield so a
+      // concurrent read would actually interleave here.
+      await Promise.resolve();
+      if (readsInFlight > 0) overlappingReads += 1;
+      let landed = 0;
+      let target = 0;
+      packets.forEach((packet, position) => {
+        if (packet.kind === "video" && packet.key && packet.timestamp <= timeUs) {
+          landed = packet.timestamp;
+          target = position;
+        }
+      });
+      index = target;
+      seeks.push(timeUs);
+      seekInFlight = false;
+      return landed;
+    },
     next: async () => {
-      if (stallAfter !== undefined && !stallReleased && index >= stallAfter) {
-        await new Promise<void>((resolve) => {
-          releaseStall = resolve;
-        });
+      readsInFlight += 1;
+      try {
+        if (seekInFlight) overlappingReads += 1;
+        await Promise.resolve();
+        if (seekInFlight) overlappingReads += 1;
+        if (stallAfter !== undefined && !stallReleased && index >= stallAfter) {
+          await new Promise<void>((resolve) => {
+            releaseStall = resolve;
+          });
+        }
+        return index < packets.length ? packets[index++] : null;
+      } finally {
+        readsInFlight -= 1;
       }
-      return index < packets.length ? packets[index++] : null;
     },
     close: vi.fn(async () => undefined),
   };
@@ -256,6 +312,8 @@ const buildDemuxer = (options: DemuxerOptions = {}) => {
   vi.mocked(createDemuxer).mockResolvedValue(demuxer);
   return {
     demuxer,
+    seeks,
+    overlappingReads: () => overlappingReads,
     release: () => {
       stallReleased = true;
       releaseStall?.();
@@ -497,6 +555,99 @@ describe("CompatibilityPlaybackEngine", () => {
     await runFrames(2);
 
     expect(latest().aspectRatio).toBeCloseTo(640 / 480, 5);
+    await engine.destroy();
+  });
+
+  it("seeks to the keyframe at or before the requested position", async () => {
+    buildDemuxer({ packets: withKeyframes(packetsUpTo(4)) });
+    const snapshots: PlaybackSnapshot[] = [];
+    const engine = new CompatibilityPlaybackEngine(fakeCanvas(), {
+      onChange: (snapshot) => snapshots.push(snapshot),
+    });
+    await engine.load("https://example.test/media");
+    await settle();
+
+    await engine.seek(2.5);
+    await settle();
+
+    const latest = snapshots[snapshots.length - 1];
+    expect(latest.canSeek).toBe(true);
+    // Landed at or before the request, never past it.
+    expect(latest.currentTime).toBeLessThanOrEqual(2.5);
+    expect(latest.currentTime).toBeGreaterThan(2.0);
+    await engine.destroy();
+  });
+
+  it("resumes from a seek position rather than snapping back to zero", async () => {
+    // The saved-progress path: seek while still `ready`, then play. The audio
+    // clock only starts on play(), so its origin has to account for the
+    // position already set or the playhead jumps back to the beginning.
+    buildDemuxer({ packets: withKeyframes(packetsUpTo(6)) });
+    const snapshots: PlaybackSnapshot[] = [];
+    const engine = new CompatibilityPlaybackEngine(fakeCanvas(), {
+      onChange: (snapshot) => snapshots.push(snapshot),
+    });
+    await engine.load("https://example.test/media");
+    await settle();
+
+    await engine.seek(3);
+    await settle();
+    await engine.play();
+    await settle();
+
+    expect(snapshots[snapshots.length - 1].currentTime).toBeGreaterThan(2.5);
+    await engine.destroy();
+  });
+
+  it("discards packets already in flight when a seek lands", async () => {
+    // A read started before the seek must not be decoded into the new
+    // position, or the first frames after a jump come from the old one.
+    const { release } = buildDemuxer({
+      packets: withKeyframes(packetsUpTo(6)),
+      stallAfter: 8,
+    });
+    const engine = new CompatibilityPlaybackEngine(fakeCanvas(), {
+      onChange: () => undefined,
+    });
+    await engine.load("https://example.test/media");
+    await settle();
+
+    const seeking = engine.seek(3);
+    release();
+    await seeking;
+    await settle();
+
+    expect(videoDecoders[0].decoded.length).toBeGreaterThan(0);
+    await engine.destroy();
+  });
+
+  it("does not read from the demuxer while a seek is repositioning it", async () => {
+    // The decoders' dequeue events fire independently of the render loop, so a
+    // pump could start mid-seek and read from a byte stream the demuxer was
+    // still moving. That left the container parser at the wrong offset and
+    // playback produced no packets at all.
+    const { overlappingReads } = buildDemuxer({
+      packets: withKeyframes(packetsUpTo(6)),
+      // Exactly what a draining decoder does: fire once the engine has cleared
+      // its queues and handed control to the demuxer, so a pump starting here
+      // would find room to read and would collide with the reposition.
+      onSeekStart: () => {
+        videoDecoders[0]?.ondequeue?.();
+        audioDecoders[0]?.ondequeue?.();
+      },
+    });
+    const engine = new CompatibilityPlaybackEngine(fakeCanvas(), {
+      onChange: () => undefined,
+    });
+    await engine.load("https://example.test/media");
+    await settle();
+    await engine.play();
+    await settle();
+
+    await engine.seek(3);
+    await settle();
+
+    expect(overlappingReads()).toBe(0);
     await engine.destroy();
   });
 

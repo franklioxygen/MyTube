@@ -525,6 +525,7 @@ const VideoPlayer: React.FC = () => {
                         src={(videoUrl || video?.sourceUrl) || null}
                         poster={posterUrl || localPosterUrl || video?.thumbnailUrl}
                         autoPlay={autoPlay}
+                        startTime={startTimeResult}
                         onTimeUpdate={handleTimeUpdate}
                         onEnded={handleVideoEnded}
                         canFallBackToStandardPlayer={!compatibilityModeForced}

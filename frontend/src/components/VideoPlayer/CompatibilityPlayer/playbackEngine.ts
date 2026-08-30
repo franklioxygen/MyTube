@@ -43,6 +43,8 @@ export interface PlaybackSnapshot {
     aspectRatio: number | null;
     /** True when playback stalled waiting for data rather than for the user. */
     buffering: boolean;
+    /** Whether this file can be repositioned. */
+    canSeek: boolean;
 }
 
 interface QueuedAudio {
@@ -164,7 +166,19 @@ export class CompatibilityPlaybackEngine {
     private tickFallbackTimer: number | null = null;
     private loopRunning = false;
     private snapshotTimer: number | null = null;
-    private pumping = false;
+    private pumpTask: Promise<void> | null = null;
+    /**
+     * Set while a seek is repositioning the demuxer. The decoders' `dequeue`
+     * events fire independently of the render loop, so without this a pump
+     * could call `next()` while `seek()` is still moving the byte stream and
+     * leave the container parser reading from the wrong offset.
+     */
+    private seeking = false;
+    /**
+     * Bumped by every seek. The pump checks it after each await so a packet
+     * read for the old position cannot be decoded into the new one.
+     */
+    private seekGeneration = 0;
     private demuxEnded = false;
     private flushed = false;
     private awaitingKeyframe = true;
@@ -279,7 +293,10 @@ export class CompatibilityPlaybackEngine {
             return false;
         }
         if (this.audioBaseTime === null) {
-            this.audioBaseTime = context.currentTime + AUDIO_START_LEAD;
+            // Offset by the current position so a resume-from-saved-progress
+            // seek before the first play does not snap the clock back to zero.
+            this.audioBaseTime =
+                context.currentTime + AUDIO_START_LEAD - this.pausedMediaTime;
         }
         return true;
     }
@@ -298,6 +315,85 @@ export class CompatibilityPlaybackEngine {
         this.suspendClock();
         this.stopLoops();
         this.setStatus('paused');
+    }
+
+    /**
+     * Reposition playback.
+     *
+     * Everything downstream of the demuxer has to be discarded: frames and
+     * audio already decoded belong to the old position, scheduled audio is
+     * already committed to the Web Audio timeline, and a decoder cannot be
+     * handed a mid-GOP frame after a jump. The clock is then rebased so the
+     * playhead reads the new position rather than resuming its old count.
+     */
+    async seek(seconds: number): Promise<void> {
+        const demuxer = this.demuxer;
+        if (!demuxer?.canSeek || this.destroyed || this.status === 'error') {
+            return;
+        }
+
+        const limit = this.durationSeconds ?? Number.POSITIVE_INFINITY;
+        const target = Math.min(Math.max(0, seconds), Math.max(0, limit - 0.25));
+        const wasPlaying =
+            this.status === 'playing' || this.status === 'buffering';
+
+        this.stopLoops();
+        this.suspendClock();
+
+        let landedUs: number;
+        this.seeking = true;
+        try {
+            // Retire any read already in flight before touching the demuxer, so
+            // it cannot reposition the byte stream under a pending request.
+            this.seekGeneration += 1;
+            await this.pumpTask?.catch(() => undefined);
+
+            this.stopScheduledAudio();
+            for (const frame of this.frameQueue) {
+                frame.close();
+            }
+            this.frameQueue.length = 0;
+            this.audioQueue.length = 0;
+            this.scheduledAudioUntil = 0;
+            this.lastPacketTime = 0;
+            this.demuxEnded = false;
+            this.flushed = false;
+            this.awaitingKeyframe = true;
+            this.resetDecoders();
+
+            landedUs = await demuxer.seek(target * 1e6);
+        } catch (error) {
+            this.fail(error);
+            return;
+        } finally {
+            this.seeking = false;
+        }
+
+        if (this.destroyed) {
+            return;
+        }
+
+        this.rebaseClock(Math.max(0, (landedUs - this.originUs) / 1e6));
+        this.lastPacketTime = this.pausedMediaTime;
+        await this.pump();
+
+        if (wasPlaying) {
+            await this.play();
+        } else {
+            this.setStatus(this.pausedMediaTime > 0 ? 'paused' : 'ready');
+        }
+    }
+
+    /** Drop decoder state so playback can restart at a keyframe. */
+    private resetDecoders(): void {
+        if (this.videoDecoder && this.videoDecoder.state !== 'closed') {
+            this.videoDecoder.reset();
+            this.videoDecoder.configure(this.videoConfig!);
+        }
+        if (this.audioDecoder && this.audioDecoder.state !== 'closed') {
+            this.audioDecoder.reset();
+            this.audioDecoder.configure(this.audioConfig!);
+        }
     }
 
     async toggle(): Promise<void> {
@@ -324,9 +420,7 @@ export class CompatibilityPlaybackEngine {
      * error must not leave audio playing or a fetch running behind the error
      * state — the pipeline stops, and the status the caller set is preserved.
      */
-    private async teardownPipeline(): Promise<void> {
-        this.abortController.abort();
-
+    private stopScheduledAudio(): void {
         for (const source of this.liveSources) {
             try {
                 source.stop();
@@ -336,6 +430,11 @@ export class CompatibilityPlaybackEngine {
             }
         }
         this.liveSources.clear();
+    }
+
+    private async teardownPipeline(): Promise<void> {
+        this.abortController.abort();
+        this.stopScheduledAudio();
 
         for (const frame of this.frameQueue) {
             frame.close();
@@ -489,14 +588,23 @@ export class CompatibilityPlaybackEngine {
 
     // -------------------------------------------------------------------- pump
 
-    private async pump(): Promise<void> {
-        if (this.pumping || this.destroyed || !this.demuxer) {
-            return;
+    private pump(): Promise<void> {
+        if (this.pumpTask) {
+            return this.pumpTask;
         }
-        this.pumping = true;
+        if (this.destroyed || !this.demuxer || this.seeking) {
+            return Promise.resolve();
+        }
+        this.pumpTask = this.runPump().finally(() => {
+            this.pumpTask = null;
+        });
+        return this.pumpTask;
+    }
 
+    private async runPump(): Promise<void> {
+        const generation = this.seekGeneration;
         try {
-            while (!this.destroyed && !this.demuxEnded) {
+            while (!this.destroyed && !this.demuxEnded && this.demuxer) {
                 if (this.frameQueue.length >= MAX_QUEUED_FRAMES) break;
                 if (this.audioQueue.length >= MAX_QUEUED_AUDIO) break;
                 if (
@@ -521,7 +629,12 @@ export class CompatibilityPlaybackEngine {
                     break;
                 }
 
-                const packet = await this.demuxer.next();
+                const packet = await this.demuxer!.next();
+                if (generation !== this.seekGeneration) {
+                    // A seek landed while this read was in flight; the packet
+                    // belongs to the old position and must not be decoded.
+                    return;
+                }
                 if (!packet) {
                     this.demuxEnded = true;
                     break;
@@ -536,8 +649,6 @@ export class CompatibilityPlaybackEngine {
             }
         } catch (error) {
             this.fail(error);
-        } finally {
-            this.pumping = false;
         }
     }
 
@@ -939,6 +1050,7 @@ export class CompatibilityPlaybackEngine {
             unsupported: this.unsupported,
             aspectRatio: this.aspectRatio,
             buffering: this.status === 'buffering',
+            canSeek: this.demuxer?.canSeek ?? false,
         });
     }
 }

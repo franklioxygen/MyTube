@@ -672,6 +672,30 @@ export async function createMp4Demuxer(
     )
   );
 
+  // Random-access points, in presentation order. Video can only be decoded
+  // from a sync sample; an audio-only file can start anywhere.
+  const seekTrack = videoTrack ?? audioTrack;
+  const syncSamples = (seekTrack?.samples ?? [])
+    .filter((sample) => sample.key)
+    .sort((a, b) => a.timestamp - b.timestamp);
+
+  /** Index of the first merged sample at or after `offset`. */
+  const indexOfOffset = (offset: number): number => {
+    let low = 0;
+    let high = samples.length - 1;
+    let found = samples.length;
+    while (low <= high) {
+      const mid = (low + high) >> 1;
+      if (samples[mid].offset >= offset) {
+        found = mid;
+        high = mid - 1;
+      } else {
+        low = mid + 1;
+      }
+    }
+    return found;
+  };
+
   let cursor = 0;
 
   return {
@@ -681,6 +705,23 @@ export async function createMp4Demuxer(
     durationUs: readMovieDurationUs(moov, moovBoxes),
     startTimeUs: Number.isFinite(startTimeUs) ? startTimeUs : 0,
     unsupportedTracks,
+
+    canSeek: syncSamples.length > 0,
+
+    async seek(timeUs: number): Promise<number> {
+      if (syncSamples.length === 0) {
+        return 0;
+      }
+      // Last sync sample at or before the target; never past it, or the seek
+      // would skip content the viewer asked to see.
+      let chosen = syncSamples[0];
+      for (const sample of syncSamples) {
+        if (sample.timestamp > timeUs) break;
+        chosen = sample;
+      }
+      cursor = indexOfOffset(chosen.offset);
+      return chosen.timestamp;
+    },
 
     async next(): Promise<DemuxedPacket | null> {
       if (cursor >= samples.length) {

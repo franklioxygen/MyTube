@@ -47,6 +47,15 @@ const ID = {
   referenceBlock: 0xfb,
   defaultDuration: 0x23e383,
   codecDelay: 0x56aa,
+  seekHead: 0x114d9b74,
+  seekEntry: 0x4dbb,
+  seekId: 0x53ab,
+  seekPosition: 0x53ac,
+  cues: 0x1c53bb6b,
+  cuePoint: 0xbb,
+  cueTime: 0xb3,
+  cueTrackPositions: 0xb7,
+  cueClusterPosition: 0xf1,
 } as const;
 
 const DEFAULT_TIMESTAMP_SCALE_NS = 1_000_000;
@@ -55,6 +64,13 @@ interface Element {
   id: number;
   contentStart: number;
   contentEnd: number;
+}
+
+interface CuePoint {
+  /** Presentation time in microseconds. */
+  timeUs: number;
+  /** Absolute byte offset of the cluster holding it. */
+  clusterOffset: number;
 }
 
 interface WebmTrack {
@@ -339,6 +355,33 @@ const splitLacedFrames = (
   return frames.filter((frame) => frame.length > 0);
 };
 
+/** Flatten a `Cues` element into time -> cluster offset pairs. */
+const parseCuesWith = (
+  bytes: Uint8Array,
+  segmentDataStart: number,
+  timestampScaleNs: number
+): CuePoint[] => {
+  const points: CuePoint[] = [];
+  for (const point of parseElements(bytes, 0, bytes.length)) {
+    if (point.id !== ID.cuePoint) continue;
+    const fields = parseElements(bytes, point.contentStart, point.contentEnd);
+    const time = fields.find((field) => field.id === ID.cueTime);
+    const positions = fields.find((field) => field.id === ID.cueTrackPositions);
+    if (!time || !positions) continue;
+    const cluster = parseElements(
+      bytes,
+      positions.contentStart,
+      positions.contentEnd
+    ).find((field) => field.id === ID.cueClusterPosition);
+    if (!cluster) continue;
+    points.push({
+      timeUs: (readUint(bytes, time) * timestampScaleNs) / 1000,
+      clusterOffset: segmentDataStart + readUint(bytes, cluster),
+    });
+  }
+  return points.sort((a, b) => a.timeUs - b.timeUs);
+};
+
 export async function createWebmDemuxer(
   stream: ByteStream
 ): Promise<MediaDemuxer> {
@@ -346,6 +389,15 @@ export async function createWebmDemuxer(
 
   let timestampScaleNs = DEFAULT_TIMESTAMP_SCALE_NS;
   let rawDuration = 0;
+
+  // Seeking needs the byte offset the Segment's payload starts at, because
+  // every position in SeekHead and Cues is stated relative to it. Held in an
+  // object so the assignments made inside the async parser survive narrowing.
+  const index: {
+    segmentDataStart: number | null;
+    cuesOffset: number | null;
+    cuePoints: CuePoint[] | null;
+  } = { segmentDataStart: null, cuesOffset: null, cuePoints: null };
 
   // Held in one object so the selections survive control-flow narrowing across
   // the async parser calls that fill them in.
@@ -482,6 +534,30 @@ export async function createWebmDemuxer(
     return stream.require(size);
   };
 
+  /**
+   * Load the Cues index on first use. It normally sits at the end of the file,
+   * so this is deliberately deferred: startup should not pay for a seek the
+   * viewer may never make.
+   */
+  const ensureCues = async (): Promise<CuePoint[] | null> => {
+    if (index.cuePoints !== null) return index.cuePoints;
+    if (index.cuesOffset === null || index.segmentDataStart === null) return null;
+
+    await stream.seek(index.cuesOffset);
+    const id = await readId();
+    const size = await readSize();
+    if (id !== ID.cues || size === null || size > MAX_HEADER_ELEMENT_BYTES) {
+      index.cuePoints = [];
+      return index.cuePoints;
+    }
+    index.cuePoints = parseCuesWith(
+      await stream.require(size),
+      index.segmentDataStart,
+      timestampScaleNs
+    );
+    return index.cuePoints;
+  };
+
   /** Advance the parser until at least one packet is queued, or EOF. */
   const advance = async (): Promise<void> => {
     while (pending.length === 0 && !finished) {
@@ -496,7 +572,49 @@ export async function createWebmDemuxer(
         case ID.segment:
         case ID.cluster:
           // Master elements we walk into rather than skip.
+          if (id === ID.segment && index.segmentDataStart === null) {
+            index.segmentDataStart = stream.position;
+          }
           if (id === ID.cluster) clusterTimestamp = 0;
+          break;
+        case ID.seekHead: {
+          // Points at the other top-level elements. Cues normally sits at the
+          // end of the file, so this is how it is found without reading through
+          // every cluster to get there.
+          if (size === null || size > MAX_HEADER_ELEMENT_BYTES) break;
+          const bytes = await stream.require(size);
+          for (const entry of parseElements(bytes, 0, bytes.length)) {
+            if (entry.id !== ID.seekEntry) continue;
+            const fields = parseElements(bytes, entry.contentStart, entry.contentEnd);
+            const seekId = fields.find((field) => field.id === ID.seekId);
+            const position = fields.find((field) => field.id === ID.seekPosition);
+            if (!seekId || !position) continue;
+            let target = 0;
+            for (let i = seekId.contentStart; i < seekId.contentEnd; i += 1) {
+              target = target * 256 + bytes[i];
+            }
+            if (target === ID.cues && index.segmentDataStart !== null) {
+              index.cuesOffset =
+                index.segmentDataStart + readUint(bytes, position);
+            }
+          }
+          break;
+        }
+        case ID.cues:
+          // Some muxers place Cues before the clusters; take it in passing.
+          if (
+            size !== null &&
+            size <= MAX_HEADER_ELEMENT_BYTES &&
+            index.segmentDataStart !== null
+          ) {
+            index.cuePoints = parseCuesWith(
+              await stream.require(size),
+              index.segmentDataStart,
+              timestampScaleNs
+            );
+          } else if (size !== null) {
+            await stream.seek(stream.position + size);
+          }
           break;
         case ID.blockGroup: {
           // Read as a unit: the keyframe status of the Block inside depends on
@@ -630,6 +748,28 @@ export async function createWebmDemuxer(
       ...(selected.videoTrack ? [] : selected.rejectedVideo),
       ...(selected.audioTrack ? [] : selected.rejectedAudio),
     ],
+
+    canSeek: index.cuesOffset !== null || (index.cuePoints?.length ?? 0) > 0,
+
+    async seek(timeUs: number): Promise<number> {
+      const points = await ensureCues();
+      if (!points || points.length === 0) {
+        return 0;
+      }
+      // Last cue at or before the target: cues mark cluster starts, which is
+      // where decoding can actually resume.
+      let chosen = points[0];
+      for (const point of points) {
+        if (point.timeUs > timeUs) break;
+        chosen = point;
+      }
+
+      await stream.seek(chosen.clusterOffset);
+      pending.length = 0;
+      clusterTimestamp = 0;
+      finished = false;
+      return chosen.timeUs;
+    },
 
     async next(): Promise<DemuxedPacket | null> {
       if (pending.length === 0) {
