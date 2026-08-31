@@ -93,38 +93,46 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
     const engineRef = useRef<CompatibilityPlaybackEngine | null>(null);
     const onTimeUpdateRef = useRef(onTimeUpdate);
     const onEndedRef = useRef(onEnded);
-    // Read once per source: a later change to the saved position must not yank
-    // playback back to it mid-watch.
+    // Held in a ref, not a dependency: the source effect is the only reader, so
+    // the parent recomputing the saved position mid-watch must not restart
+    // playback. The ref is refreshed below so each source load sees its own.
     const startTimeRef = useRef(startTime);
     const [snapshot, setSnapshot] = useState<PlaybackSnapshot>(INITIAL_SNAPSHOT);
     const [controlsVisible, setControlsVisible] = useState(true);
     const [isFullscreen, setIsFullscreen] = useState(false);
 
-    // Keep the engine's callbacks current without restarting playback when the
-    // parent re-renders with fresh closures.
+    // Keep the engine's inputs current without restarting playback when the
+    // parent re-renders with fresh closures. Declared before the source effect
+    // so a navigation that swaps `src` refreshes these first: capturing
+    // `startTime` only at mount made every later video resume at the previous
+    // one's position, which the clamp in seek() could land near its end.
     useEffect(() => {
         onTimeUpdateRef.current = onTimeUpdate;
         onEndedRef.current = onEnded;
-    }, [onTimeUpdate, onEnded]);
-
-    // Sized once on mount so a failure before the first frame still renders
-    // crisp text. Playback replaces this with the decoded frame size; failure
-    // never changes it.
-    useEffect(() => {
-        const canvas = canvasRef.current;
-        if (canvas) {
-            canvas.width = INITIAL_CANVAS_WIDTH;
-            canvas.height = INITIAL_CANVAS_HEIGHT;
-        }
-    }, []);
+        startTimeRef.current = startTime;
+    }, [onTimeUpdate, onEnded, startTime]);
 
     useEffect(() => {
         const canvas = canvasRef.current;
-        if (!canvas || !src || !supported) {
+        if (!canvas) {
             return;
         }
 
-        setSnapshot(INITIAL_SNAPSHOT);
+        // Reset the picture for the incoming source. Assigning the backing size
+        // also clears it, so the previous video's last frame cannot sit under
+        // the new one's loading state, or under a failure notice belonging to a
+        // different video. Playback replaces this with the decoded frame size;
+        // failure never changes it.
+        canvas.width = INITIAL_CANVAS_WIDTH;
+        canvas.height = INITIAL_CANVAS_HEIGHT;
+
+        if (!src || !supported) {
+            return;
+        }
+
+        // No explicit snapshot reset: load() below sets `loading` synchronously
+        // before its first await, and that emit carries the new engine's own
+        // empty state, so nothing from the previous source survives.
         const engine = new CompatibilityPlaybackEngine(canvas, {
             onChange: (next) => {
                 setSnapshot(next);
@@ -387,6 +395,7 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                                     seconds={seekIntervals.mediumSeconds}
                                     onSeek={handleSeekBy}
                                     disableTooltip
+                                    disabled={!snapshot.canSeek}
                                 />
                                 <SeekButton
                                     direction="backward"
@@ -394,6 +403,7 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                                     seconds={seekIntervals.shortSeconds}
                                     onSeek={handleSeekBy}
                                     disableTooltip
+                                    disabled={!snapshot.canSeek}
                                 />
                                 <IconButton
                                     className="compat-primary"
@@ -409,6 +419,7 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                                     seconds={seekIntervals.shortSeconds}
                                     onSeek={handleSeekBy}
                                     disableTooltip
+                                    disabled={!snapshot.canSeek}
                                 />
                                 <SeekButton
                                     direction="forward"
@@ -416,6 +427,7 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                                     seconds={seekIntervals.mediumSeconds}
                                     onSeek={handleSeekBy}
                                     disableTooltip
+                                    disabled={!snapshot.canSeek}
                                 />
                             </Stack>
 

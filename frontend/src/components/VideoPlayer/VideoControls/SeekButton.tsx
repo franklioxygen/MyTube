@@ -20,6 +20,8 @@ interface SeekButtonProps {
   seconds: number;
   onSeek: (deltaSeconds: number) => void;
   disableTooltip: boolean;
+  /** For sources that cannot be repositioned, so the control is not inert. */
+  disabled?: boolean;
 }
 
 const SEEK_ICONS: Record<SeekTier, Record<SeekDirection, ElementType>> = {
@@ -43,6 +45,7 @@ export default function SeekButton({
   seconds,
   onSeek,
   disableTooltip,
+  disabled = false,
 }: SeekButtonProps) {
   const { t } = useLanguage();
   const Icon = SEEK_ICONS[tier][direction];
@@ -54,10 +57,14 @@ export default function SeekButton({
   const deltaSeconds = direction === "backward" ? -seconds : seconds;
 
   return (
-    <Tooltip title={accessibleLabel} disableHoverListener={disableTooltip}>
+    <Tooltip
+      title={accessibleLabel}
+      disableHoverListener={disableTooltip || disabled}
+    >
       <IconButton
         onClick={() => onSeek(deltaSeconds)}
         aria-label={accessibleLabel}
+        disabled={disabled}
         size="small"
         sx={{
           width: 44,

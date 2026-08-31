@@ -201,6 +201,8 @@ interface DemuxerOptions {
   withAudio?: boolean;
   /** Withhold packets after this many, simulating a stalled network. */
   stallAfter?: number;
+  /** WebM muxed without a `Cues` index cannot be repositioned. */
+  canSeek?: boolean;
   /**
    * Fired once the demuxer has begun repositioning, i.e. after the engine has
    * cleared its queues. Used to reproduce a decoder draining mid-seek.
@@ -244,6 +246,7 @@ const buildDemuxer = (options: DemuxerOptions = {}) => {
     withAudio = true,
     stallAfter,
     onSeekStart,
+    canSeek = true,
   } = options;
 
   let index = 0;
@@ -266,7 +269,7 @@ const buildDemuxer = (options: DemuxerOptions = {}) => {
     durationUs: 60_000_000,
     startTimeUs,
     unsupportedTracks,
-    canSeek: true,
+    canSeek,
     // Land on the last keyframe at or before the target, the way a sync-sample
     // table or a cue index does.
     seek: async (timeUs: number) => {
@@ -575,6 +578,26 @@ describe("CompatibilityPlaybackEngine", () => {
     // Landed at or before the request, never past it.
     expect(latest.currentTime).toBeLessThanOrEqual(2.5);
     expect(latest.currentTime).toBeGreaterThan(2.0);
+    await engine.destroy();
+  });
+
+  it("reports an unseekable container so the controls can be disabled", async () => {
+    // A WebM without a Cues index cannot be repositioned. seek() must be inert
+    // rather than pretending, and the snapshot has to say so, or the transport
+    // buttons advertise an action that silently does nothing.
+    buildDemuxer({ packets: withKeyframes(packetsUpTo(4)), canSeek: false });
+    const snapshots: PlaybackSnapshot[] = [];
+    const engine = new CompatibilityPlaybackEngine(fakeCanvas(), {
+      onChange: (snapshot) => snapshots.push(snapshot),
+    });
+    await engine.load("https://example.test/media");
+    await settle();
+
+    expect(snapshots[snapshots.length - 1].canSeek).toBe(false);
+
+    await engine.seek(2);
+    await settle();
+    expect(snapshots[snapshots.length - 1].currentTime).toBe(0);
     await engine.destroy();
   });
 
