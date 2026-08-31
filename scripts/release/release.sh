@@ -66,9 +66,13 @@ echo "✅ New version: $NEW_VERSION"
 cd frontend && npm version $NEW_VERSION --no-git-tag-version --allow-same-version && cd ..
 cd backend && npm version $NEW_VERSION --no-git-tag-version --allow-same-version && cd ..
 
+# Cut the CHANGELOG's Unreleased section into this version
+echo "📝 Cutting the CHANGELOG..."
+node scripts/release/cut-changelog.mjs "$NEW_VERSION"
+
 # Commit and Tag
 echo "📦 Committing and tagging..."
-git add package.json frontend/package.json backend/package.json package-lock.json frontend/package-lock.json backend/package-lock.json
+git add CHANGELOG.md package.json frontend/package.json backend/package.json package-lock.json frontend/package-lock.json backend/package-lock.json
 git commit -m "chore(release): v$NEW_VERSION"
 git tag "v$NEW_VERSION"
 git push origin master
