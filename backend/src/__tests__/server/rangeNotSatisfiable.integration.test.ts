@@ -13,6 +13,7 @@ import { errorHandler } from "../../middleware/errorHandler";
 describe("unsatisfiable range integration", () => {
   const tempDirs: string[] = [];
   const CONTENT_LENGTH = 4096;
+  const FIXTURE_NAME = "clip.bin";
 
   afterEach(async () => {
     await Promise.all(tempDirs.splice(0).map((dir) => fs.remove(dir)));
@@ -21,14 +22,19 @@ describe("unsatisfiable range integration", () => {
   const buildApp = async () => {
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "range-"));
     tempDirs.push(tempDir);
-    await fs.writeFile(path.join(tempDir, "clip.bin"), Buffer.alloc(CONTENT_LENGTH, 7));
+    await fs.writeFile(
+      path.join(tempDir, FIXTURE_NAME),
+      Buffer.alloc(CONTENT_LENGTH, 7)
+    );
 
     const app = express();
     // Mirrors registerStaticRoutes' media mounts.
     app.use("/videos", express.static(tempDir, { fallthrough: false }));
-    // Mirrors videoController's res.sendFile() download path.
-    app.get("/download/:name", (req, res, next) => {
-      res.sendFile(req.params.name, { root: tempDir }, (err) => {
+    // Mirrors videoController's res.sendFile() download path. The filename is
+    // fixed rather than taken from the request: production never routes request
+    // input into sendFile, it always derives the path server-side.
+    app.get("/download", (_req, res, next) => {
+      res.sendFile(FIXTURE_NAME, { root: tempDir }, (err) => {
         if (err) {
           next(err);
         }
@@ -40,7 +46,7 @@ describe("unsatisfiable range integration", () => {
 
   it.each([
     ["static mount", "/videos/clip.bin"],
-    ["res.sendFile", "/download/clip.bin"],
+    ["res.sendFile", "/download"],
   ])(
     "answers an unsatisfiable range on the %s with 416 and a Content-Range",
     async (_label, url) => {
