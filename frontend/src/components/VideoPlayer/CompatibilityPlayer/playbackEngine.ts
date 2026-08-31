@@ -328,7 +328,12 @@ export class CompatibilityPlaybackEngine {
      */
     async seek(seconds: number): Promise<void> {
         const demuxer = this.demuxer;
-        if (!demuxer?.canSeek || this.destroyed || this.status === 'error') {
+        if (
+            !demuxer?.canSeek ||
+            this.destroyed ||
+            this.status === 'error' ||
+            this.seeking
+        ) {
             return;
         }
 
@@ -361,7 +366,7 @@ export class CompatibilityPlaybackEngine {
             this.awaitingKeyframe = true;
             this.resetDecoders();
 
-            landedUs = await demuxer.seek(target * 1e6);
+            landedUs = await demuxer.seek(this.originUs + target * 1e6);
         } catch (error) {
             this.fail(error);
             return;
@@ -714,8 +719,11 @@ export class CompatibilityPlaybackEngine {
             return;
         }
         this.frameQueue.push(frame);
-        if (this.status === 'ready' && this.frameQueue.length === 1) {
-            // Show the opening frame instead of an empty canvas while paused.
+        if (
+            (this.status === 'ready' || this.status === 'paused') &&
+            this.frameQueue.length === 1
+        ) {
+            // Show the opening or newly sought frame while playback is paused.
             this.paint(this.frameQueue[0]);
         }
     }

@@ -193,6 +193,25 @@ describe("WebM demuxing", () => {
     await demuxer.close();
   });
 
+  it("discards VP9 pre-roll while searching for the first keyframe", async () => {
+    const bytes = buildSyntheticWebm([
+      { track: 2, relativeTime: 0, key: true, payload: [0x21] },
+      { track: 1, relativeTime: 20, key: false, payload: [0x11] },
+      {
+        track: 1,
+        relativeTime: 40,
+        key: true,
+        payload: [0x82, 0x49, 0x83, 0x42, 0x00],
+      },
+      { track: 2, relativeTime: 40, key: true, payload: [0x22] },
+    ]);
+    const { demuxer, packets } = await drain(bytes);
+
+    expect(packets.map((packet) => packet.kind)).toEqual(["video", "audio"]);
+    expect(packets[0].timestamp).toBe(1_040_000);
+    await demuxer.close();
+  });
+
   it("reports a track it cannot configure instead of dropping it", async () => {
     // Vorbis has no WebCodecs mapping. Silently returning `audio: null` would be
     // indistinguishable from a file that genuinely has no audio track, and the

@@ -730,18 +730,25 @@ export async function createWebmDemuxer(
   // Unlike MP4, WebM has no VP9 decoder-configuration record. Inspect the
   // actual first random-access frame before returning the config; choosing the
   // first profile supported by the platform can configure the decoder for a
-  // different profile than the file contains. Audio blocks encountered while
-  // looking for the video frame stay queued in their original order.
+  // different profile than the file contains. Discard pre-roll as it is read:
+  // it cannot be decoded without the keyframe, and retaining it lets a missing
+  // or delayed keyframe grow `pending` to the size of the media.
   if (selected.videoTrack?.codecId === "V_VP9") {
-    await advance(() =>
-      pending.some((packet) => packet.kind === "video" && packet.key)
-    );
-    const firstKeyframe = pending.find(
+    let keyframeIndex = pending.findIndex(
       (packet) => packet.kind === "video" && packet.key
     );
-    const codec = firstKeyframe
-      ? vp9CodecStringFromFrameHeader(firstKeyframe.data)
-      : null;
+    while (keyframeIndex < 0 && !finished) {
+      pending.length = 0;
+      await advance();
+      keyframeIndex = pending.findIndex(
+        (packet) => packet.kind === "video" && packet.key
+      );
+    }
+    if (keyframeIndex < 0) {
+      throw new UnsupportedMediaError("VP9 stream contains no keyframe");
+    }
+    pending.splice(0, keyframeIndex);
+    const codec = vp9CodecStringFromFrameHeader(pending[0].data);
     if (codec && selected.videoConfig) {
       const [prefix, profile, , bitDepth] = codec.split(".");
       selected.videoConfig = {

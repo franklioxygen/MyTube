@@ -603,6 +603,72 @@ describe("CompatibilityPlaybackEngine", () => {
     await engine.destroy();
   });
 
+  it("seeks in the demuxer's absolute timestamp space", async () => {
+    const { seeks } = buildDemuxer({
+      startTimeUs: 10_000_000,
+      withAudio: false,
+      packets: [10, 20, 30].map((seconds) => ({
+        kind: "video" as const,
+        data: new Uint8Array([1]),
+        timestamp: seconds * 1_000_000,
+        key: true,
+      })),
+    });
+    const snapshots: PlaybackSnapshot[] = [];
+    const engine = new CompatibilityPlaybackEngine(fakeCanvas(), {
+      onChange: (snapshot) => snapshots.push(snapshot),
+    });
+    await engine.load("https://example.test/media");
+    await settle();
+
+    await engine.seek(20);
+    await settle();
+
+    expect(seeks).toEqual([30_000_000]);
+    expect(snapshots[snapshots.length - 1].currentTime).toBe(20);
+    await engine.destroy();
+  });
+
+  it("ignores a second seek while the first is still in progress", async () => {
+    const { seeks } = buildDemuxer({ packets: withKeyframes(packetsUpTo(4)) });
+    const engine = new CompatibilityPlaybackEngine(fakeCanvas(), {
+      onChange: () => undefined,
+    });
+    await engine.load("https://example.test/media");
+    await settle();
+
+    const first = engine.seek(1);
+    const second = engine.seek(2);
+    await Promise.all([first, second]);
+
+    expect(seeks).toEqual([1_000_000]);
+    await engine.destroy();
+  });
+
+  it("paints the first decoded frame after a paused seek", async () => {
+    buildDemuxer({
+      withAudio: false,
+      packets: withKeyframes(packetsUpTo(2)).filter(
+        (packet) => packet.kind === "video"
+      ),
+    });
+    const canvas = fakeCanvas();
+    const engine = new CompatibilityPlaybackEngine(canvas, {
+      onChange: () => undefined,
+    });
+    await engine.load("https://example.test/media");
+    await settle();
+    await engine.play();
+    engine.pause();
+
+    canvas.width = 1280;
+    await engine.seek(0.8);
+    await settle();
+
+    expect(canvas.width).toBe(640);
+    await engine.destroy();
+  });
+
   it("reports an unseekable container so the controls can be disabled", async () => {
     // A WebM without a Cues index cannot be repositioned. seek() must be inert
     // rather than pretending, and the snapshot has to say so, or the transport
