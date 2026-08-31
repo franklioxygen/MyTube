@@ -123,6 +123,7 @@ const isAudioConfigSupported = async (
 export interface PlaybackEngineOptions {
     onChange: (snapshot: PlaybackSnapshot) => void;
     onEnded?: () => void;
+    onSeeked?: (currentTime: number) => void;
 }
 
 export class CompatibilityPlaybackEngine {
@@ -242,7 +243,17 @@ export class CompatibilityPlaybackEngine {
             return;
         }
         if (this.status === 'ended') {
-            return;
+            if (!this.demuxer.canSeek) {
+                return;
+            }
+            await this.seek(0);
+            if (
+                this.destroyed ||
+                !this.demuxer ||
+                ['error', 'ended'].includes(this.status)
+            ) {
+                return;
+            }
         }
 
         if (!(await this.resumeClock())) {
@@ -380,6 +391,7 @@ export class CompatibilityPlaybackEngine {
 
         this.rebaseClock(Math.max(0, (landedUs - this.originUs) / 1e6));
         this.lastPacketTime = this.pausedMediaTime;
+        this.options.onSeeked?.(this.pausedMediaTime);
         await this.pump();
 
         if (wasPlaying) {
@@ -680,7 +692,10 @@ export class CompatibilityPlaybackEngine {
         // before the presentation origin, and the decoder needs them even though
         // they are never heard (see onAudioData).
         const timestamp = packet.timestamp - this.originUs;
-        this.lastPacketTime = timestamp / 1e6;
+        this.lastPacketTime = Math.max(
+            this.lastPacketTime,
+            (timestamp + (packet.duration ?? 0)) / 1e6
+        );
 
         if (packet.kind === 'video') {
             if (!this.videoDecoder) return;
@@ -954,7 +969,8 @@ export class CompatibilityPlaybackEngine {
         }
         if (due) {
             this.paint(due);
-            this.lastDrawnTime = due.timestamp / 1e6;
+            this.lastDrawnTime =
+                (due.timestamp + (due.duration ?? 0)) / 1e6;
             due.close();
         }
     }
@@ -1020,7 +1036,11 @@ export class CompatibilityPlaybackEngine {
         }
         const end =
             this.durationSeconds ??
-            Math.max(this.lastDrawnTime, this.lastPacketTime);
+            Math.max(
+                this.lastDrawnTime,
+                this.lastPacketTime,
+                this.scheduledAudioUntil
+            );
         if (now >= end - 0.1) {
             this.pausedMediaTime = end;
             this.stopLoops();

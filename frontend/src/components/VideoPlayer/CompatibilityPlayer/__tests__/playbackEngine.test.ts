@@ -202,6 +202,7 @@ const fakeCanvas = () =>
 
 interface DemuxerOptions {
   packets?: DemuxedPacket[];
+  durationUs?: number | null;
   unsupportedTracks?: string[];
   startTimeUs?: number;
   withAudio?: boolean;
@@ -247,6 +248,7 @@ const withKeyframes = (packets: DemuxedPacket[]): DemuxedPacket[] =>
 const buildDemuxer = (options: DemuxerOptions = {}) => {
   const {
     packets = packetsUpTo(2),
+    durationUs = 60_000_000,
     unsupportedTracks = [],
     startTimeUs = 0,
     withAudio = true,
@@ -272,7 +274,7 @@ const buildDemuxer = (options: DemuxerOptions = {}) => {
     audio: withAudio
       ? { codec: "mp4a.40.2", sampleRate: 48000, numberOfChannels: 2 }
       : null,
-    durationUs: 60_000_000,
+    durationUs,
     startTimeUs,
     unsupportedTracks,
     canSeek,
@@ -458,6 +460,60 @@ describe("CompatibilityPlaybackEngine", () => {
     await engine.destroy();
   });
 
+  it("restarts seekable media when play is pressed after it ends", async () => {
+    const { seeks } = buildDemuxer({
+      packets: packetsUpTo(0.2),
+      durationUs: 200_000,
+    });
+    const snapshots: PlaybackSnapshot[] = [];
+    const engine = new CompatibilityPlaybackEngine(fakeCanvas(), {
+      onChange: (snapshot) => snapshots.push(snapshot),
+    });
+    await engine.load("https://example.test/media");
+    await settle();
+    await engine.play();
+    audioContexts[0].currentTime += 1;
+    await runFrames(2);
+    expect(snapshots[snapshots.length - 1].status).toBe("ended");
+
+    await engine.toggle();
+    await settle();
+
+    expect(seeks[seeks.length - 1]).toBe(0);
+    expect(snapshots[snapshots.length - 1].status).toBe("playing");
+    await engine.destroy();
+  });
+
+  it("waits for the final sample duration when container duration is unknown", async () => {
+    const packets: DemuxedPacket[] = [
+      {
+        kind: "video",
+        data: new Uint8Array([1]),
+        timestamp: 0,
+        duration: 1_000_000,
+        key: true,
+      },
+      {
+        kind: "audio",
+        data: new Uint8Array([2]),
+        timestamp: 0,
+        duration: 1_000_000,
+        key: true,
+      },
+    ];
+    const { engine, latest } = await startEngine({ packets, durationUs: null });
+    await engine.play();
+
+    audioContexts[0].currentTime += 0.5;
+    await runFrames(2);
+    expect(latest().status).toBe("playing");
+
+    audioContexts[0].currentTime += 0.7;
+    await runFrames(2);
+    expect(latest().status).toBe("ended");
+    await engine.destroy();
+  });
+
   it("freezes the clock on pause", async () => {
     const { engine, latest } = await startEngine();
     const context = audioContexts[0];
@@ -600,6 +656,23 @@ describe("CompatibilityPlaybackEngine", () => {
     // Landed at or before the request, never past it.
     expect(latest.currentTime).toBeLessThanOrEqual(2.5);
     expect(latest.currentTime).toBeGreaterThan(2.0);
+    await engine.destroy();
+  });
+
+  it("reports the authoritative position after a seek", async () => {
+    buildDemuxer({ packets: withKeyframes(packetsUpTo(4)) });
+    const onSeeked = vi.fn();
+    const engine = new CompatibilityPlaybackEngine(fakeCanvas(), {
+      onChange: () => undefined,
+      onSeeked,
+    });
+    await engine.load("https://example.test/media");
+    await settle();
+
+    await engine.seek(1);
+
+    expect(onSeeked).toHaveBeenCalledOnce();
+    expect(onSeeked.mock.calls[0][0]).toBeGreaterThan(0);
     await engine.destroy();
   });
 
