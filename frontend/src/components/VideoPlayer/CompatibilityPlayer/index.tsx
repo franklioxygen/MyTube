@@ -152,11 +152,19 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
         // No explicit snapshot reset: load() below sets `loading` synchronously
         // before its first await, and that emit carries the new engine's own
         // empty state, so nothing from the previous source survives.
+        let restoringInitialPosition = false;
         const engine = new CompatibilityPlaybackEngine(canvas, {
             onChange: (next) => {
                 setSnapshot(next);
                 if (next.status === 'playing') {
                     onTimeUpdateRef.current?.(next.currentTime);
+                }
+            },
+            // Unlike the initial `ready` snapshot, a completed seek is an
+            // authoritative position even while paused or back at zero.
+            onSeeked: (currentTime) => {
+                if (!restoringInitialPosition) {
+                    onTimeUpdateRef.current?.(currentTime);
                 }
             },
             onEnded: () => {
@@ -178,7 +186,12 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                 // keyframe at or before the saved position, so playback can
                 // start slightly earlier than the exact second recorded.
                 if (startTimeRef.current > 0) {
-                    await engine.seek(startTimeRef.current);
+                    restoringInitialPosition = true;
+                    try {
+                        await engine.seek(startTimeRef.current);
+                    } finally {
+                        restoringInitialPosition = false;
+                    }
                 }
                 if (autoPlay && engineRef.current === engine) {
                     // A refused autoplay leaves the engine ready rather than
@@ -260,6 +273,7 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
 
     const isPlaying =
         snapshot.status === 'playing' || snapshot.status === 'buffering';
+    const cannotReplay = snapshot.status === 'ended' && !snapshot.canSeek;
     const isBusy =
         supported &&
         (snapshot.status === 'loading' ||
@@ -432,7 +446,7 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                                 <IconButton
                                     className="compat-primary"
                                     onClick={handleToggle}
-                                    disabled={isBusy}
+                                    disabled={isBusy || cannotReplay}
                                     aria-label={isPlaying ? t('paused') : t('playing')}
                                 >
                                     {isPlaying ? <Pause /> : <PlayArrow />}
@@ -479,7 +493,7 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                 <IconButton
                     size="small"
                     onClick={handleToggle}
-                    disabled={hasFailed || isBusy}
+                    disabled={hasFailed || isBusy || cannotReplay}
                     aria-label={isPlaying ? t('paused') : t('playing')}
                     sx={{ color: neutral.white }}
                 >
