@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v1.11.2 (2026-08-31)
+
 ### Security
 
 - Update multer from 2.2.0 to 2.3.0, fixing three high-severity advisories in the upload path: an uncaught exception (SNYK-JS-MULTER-19432021), a race condition (SNYK-JS-MULTER-19432134), and a denial of service (SNYK-JS-MULTER-19432136). (#427)
