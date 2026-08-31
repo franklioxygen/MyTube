@@ -255,6 +255,12 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                 sx={{
                     position: 'relative',
                     width: '100%',
+                    // The transport controls size themselves against the picture
+                    // rather than the viewport, so they stay in proportion in a
+                    // sidebar, in cinema mode and on a full-width car display
+                    // alike. Any browser that can run WebCodecs also supports
+                    // container queries — they shipped earlier in both engines.
+                    containerType: 'inline-size',
                     aspectRatio: snapshot.aspectRatio ?? DEFAULT_ASPECT_RATIO,
                     maxHeight: 'calc(100vh - 180px)',
                     backgroundImage: poster ? `url(${poster})` : undefined,
@@ -300,21 +306,38 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                     <Fade in={controlsVisible} timeout={{ enter: 200, exit: 500 }}>
                         <Stack
                             direction="row"
-                            spacing={{ xs: 1, sm: 2 }}
                             alignItems="center"
                             justifyContent="center"
                             sx={{
                                 position: 'absolute',
                                 inset: 0,
                                 color: neutral.white,
+                                gap: 'clamp(8px, 2.5cqw, 32px)',
                                 // Hidden controls must not swallow the tap that
                                 // is meant to bring them back.
                                 pointerEvents: controlsVisible ? 'auto' : 'none',
+                                // Overridden here rather than in SeekButton,
+                                // which the standard player shares and which
+                                // must keep its own sizing.
                                 '& .MuiIconButton-root': {
                                     color: neutral.white,
                                     bgcolor: overlay.black70,
+                                    width: 'clamp(40px, 9cqw, 96px)',
+                                    height: 'clamp(40px, 9cqw, 96px)',
                                     '&:hover': { bgcolor: overlay.black80 },
                                     '&.Mui-disabled': { color: overlay.white32 },
+                                    '& .MuiSvgIcon-root': {
+                                        fontSize: 'clamp(20px, 4.8cqw, 52px)',
+                                    },
+                                },
+                                // Higher specificity so the primary control
+                                // wins over the shared sizing above.
+                                '& .MuiIconButton-root.compat-primary': {
+                                    width: 'clamp(56px, 13cqw, 136px)',
+                                    height: 'clamp(56px, 13cqw, 136px)',
+                                    '& .MuiSvgIcon-root': {
+                                        fontSize: 'clamp(30px, 7cqw, 76px)',
+                                    },
                                 },
                             }}
                         >
@@ -333,16 +356,12 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                                 disableTooltip
                             />
                             <IconButton
+                                className="compat-primary"
                                 onClick={handleToggle}
                                 disabled={isBusy}
                                 aria-label={isPlaying ? t('paused') : t('playing')}
-                                sx={{ width: 64, height: 64 }}
                             >
-                                {isPlaying ? (
-                                    <Pause fontSize="large" />
-                                ) : (
-                                    <PlayArrow fontSize="large" />
-                                )}
+                                {isPlaying ? <Pause /> : <PlayArrow />}
                             </IconButton>
                             <SeekButton
                                 direction="forward"
