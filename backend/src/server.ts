@@ -10,6 +10,7 @@ import path from "path";
 import { DATA_DIR } from "./config/paths";
 import { runMigrations } from "./db/migrate";
 import { errorHandler } from "./middleware/errorHandler";
+import { normalizeRequestBody } from "./middleware/normalizeRequestBody";
 import { rssManagementNoStoreHeaders } from "./middleware/rssManagementNoStoreHeaders";
 import { statisticsEventsJsonParser } from "./controllers/statisticsController";
 import downloadManager from "./services/downloadManager";
@@ -46,6 +47,7 @@ app.use(rssManagementNoStoreHeaders);
 app.use("/api/statistics/events", statisticsEventsJsonParser);
 app.use(express.json({ limit: JSON_BODY_LIMIT }));
 app.use(express.urlencoded({ extended: true, limit: JSON_BODY_LIMIT }));
+app.use(normalizeRequestBody);
 app.use(csrfProtection);
 app.use(csrfTokenProvider);
 

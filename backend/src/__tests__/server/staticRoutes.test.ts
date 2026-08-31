@@ -68,10 +68,10 @@ describe("server/staticRoutes", () => {
     registerStaticRoutes(app, "/frontend-dist");
 
     expect(use).toHaveBeenCalledTimes(8);
-    // /images-small/* now carries the media auth stack + visibility guard
-    // before its handler.
+    // /images-small/{*splat} now carries the media auth stack + visibility
+    // guard before its handler.
     expect(get).toHaveBeenCalledWith(
-      "/images-small/*",
+      "/images-small/{*splat}",
       expect.any(Function),
       expect.any(Function),
       expect.any(Function),
@@ -200,7 +200,7 @@ describe("server/staticRoutes", () => {
     const app = { use, get } as any;
     registerStaticRoutes(app, "/frontend-dist");
 
-    // The /images-small/* GET carries [authMiddleware, requireMedia, handler];
+    // The /images-small/{*splat} GET carries [authMiddleware, requireMedia, handler];
     // the handler is the 4th argument (index 3).
     const smallImageHandler = get.mock.calls[0][get.mock.calls[0].length - 1];
     const res = {
@@ -213,7 +213,7 @@ describe("server/staticRoutes", () => {
     smallImageHandler(
       {
         path: "/images-small/folder/poster.jpg",
-        params: { 0: "folder/poster.jpg" },
+        params: { splat: ["folder", "poster.jpg"] },
       } as any,
       res,
       next,
@@ -248,7 +248,7 @@ describe("server/staticRoutes", () => {
     smallImageHandler(
       {
         path: "/images-small/../secret.jpg",
-        params: { 0: "../secret.jpg" },
+        params: { splat: ["..", "secret.jpg"] },
       } as any,
       res,
       next,
@@ -291,7 +291,7 @@ describe("server/staticRoutes", () => {
     smallImageHandler(
       {
         path: "/images-small/folder/poster.jpg",
-        params: { 0: "folder/poster.jpg" },
+        params: { splat: ["folder", "poster.jpg"] },
       } as any,
       res,
       next,
@@ -314,7 +314,7 @@ describe("server/staticRoutes", () => {
     const app = { get } as any;
     registerSpaFallback(app, "/frontend-dist");
 
-    expect(get).toHaveBeenCalledWith("*", expect.any(Function));
+    expect(get).toHaveBeenCalledWith("/{*splat}", expect.any(Function));
     const handler = get.mock.calls[0][1];
 
     const apiRes = {

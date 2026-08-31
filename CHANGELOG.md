@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changed
+
+- Upgrade the backend from Express 4 to Express 5. **Behaviour change for API clients using bracket query syntax:** Express 5 defaults the `query parser` setting to `simple` (Node's `querystring`) instead of `extended` (`qs`), so `?a[b]=1` now arrives as the literal key `a[b]` rather than a nested `{a: {b: "1"}}`, and `?t[]=x&t[]=y` as `t[]` rather than `t`. Flat keys, repeated keys and percent-encoded values are unaffected, as is urlencoded body parsing, which sets `extended: true` explicitly. No endpoint accepts an array or nested query parameter, so nothing in MyTube's own API surface changes; the project follows the Express 5 default rather than restoring the old one. Route patterns also move to path-to-regexp v8 (`/images-small/{*splat}`, `/{*splat}` for the SPA fallback), and a request-body normalizer restores the `req.body = {}` default that body-parser 2 dropped, so a bodyless or mistyped request still gets its route's 400 validation response instead of a 500.
+
 ### Fix
 
 - Answer an unsatisfiable byte range with 416 instead of 500. `send` rejects a Range the file cannot satisfy (`bytes=99999999999-` against a shorter file, typically a client resuming against a stale length) with a 416 error, after already setting the `Content-Range: bytes */<size>` header that tells the client the real length. The error handler recognised only 413 and 404, so the request fell through to the unknown-error branch, was logged as an unhandled failure, and returned 500 — discarding the one status a range-requesting player can actually recover from. Malformed and empty Range headers take the same path on Express 4 and are now answered the same way.

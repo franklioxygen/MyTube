@@ -69,6 +69,26 @@ export function getStringParam(
 }
 
 /**
+ * Extract the value a wildcard route segment matched.
+ *
+ * Express 5 (path-to-regexp v8) names wildcards and hands them back as an array
+ * of path segments, so `req.params["0"]` from the Express 4 syntax is gone and
+ * `getStringParam()` on the array would silently keep only its first segment.
+ * Returns undefined for a use()-mounted route, which carries no params at all
+ * and whose `req.path` is already stripped of the mount path.
+ */
+export function getWildcardParam(
+  params: Record<string, unknown>,
+  name = "splat"
+): string | undefined {
+  const value = params[name];
+  if (Array.isArray(value)) {
+    return value.length > 0 ? value.map(String).join("/") : undefined;
+  }
+  return getStringParam(value as ExpressQueryValue);
+}
+
+/**
  * Safely extract a required string parameter from request query/body/params
  * Throws error if missing or empty
  */

@@ -351,13 +351,33 @@ describe("middleware/requireVisibleMediaForVisitors", () => {
       createReq({
         user: { role: "visitor" } as any,
         path: "/images-small/poster.jpg",
-        params: { 0: "poster.jpg" },
+        params: { splat: ["poster.jpg"] },
       } as any),
       createRes(),
       vi.fn()
     );
     expect(classifyMediaVisibilityMock).toHaveBeenCalledWith({
       exactPaths: ["/images/poster.jpg", "/videos/poster.jpg"],
+    });
+  });
+
+  it("joins every wildcard segment for nested images-small paths", () => {
+    isLoginRequiredMock.mockReturnValue(true);
+    classifyMediaVisibilityMock.mockReturnValue("public");
+    requireVisibleMediaForVisitors("images-small")(
+      createReq({
+        user: { role: "visitor" } as any,
+        path: "/images-small/nested/dir/poster.jpg",
+        params: { splat: ["nested", "dir", "poster.jpg"] },
+      } as any),
+      createRes(),
+      vi.fn()
+    );
+    expect(classifyMediaVisibilityMock).toHaveBeenCalledWith({
+      exactPaths: [
+        "/images/nested/dir/poster.jpg",
+        "/videos/nested/dir/poster.jpg",
+      ],
     });
   });
 
