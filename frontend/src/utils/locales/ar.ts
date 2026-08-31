@@ -694,6 +694,17 @@ export const ar = {
     "هل أنت متأكد أنك تريد إزالة هذا الفيديو من المجموعة؟",
   remove: "إزالة",
   loadingVideo: "جاري تحميل الفيديو...",
+
+  // Compatibility mode (canvas + WebCodecs playback, no media element)
+  compatibilityMode: "D Mode",
+  compatibilityModeEnter: "‏D Mode (شاشة السيارة)",
+  compatibilityModeExit: "العودة إلى المشغّل القياسي",
+  compatibilityModeLoading: "جاري تحضير تشغيل D Mode...",
+  compatibilityModeFailed: "فشل تشغيل D Mode",
+  compatibilityModeFallbackHint: "أوقف D Mode لاستخدام المشغّل القياسي.",
+  compatibilityModeUnplayable: "لا يمكن تشغيل هذا الفيديو على هذه الشاشة.",
+  compatibilityModeUnavailable:
+    "هذا المتصفح لا يدعم WebCodecs، لذا D Mode غير متاح.",
   current: "(الحالي)",
   rateThisVideo: "قيم هذا الفيديو",
   enterFullscreen: "ملء الشاشة",

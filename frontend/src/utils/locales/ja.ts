@@ -709,6 +709,16 @@ export const ja = {
     "この動画をコレクションから削除してもよろしいですか？",
   remove: "削除",
   loadingVideo: "動画を読み込み中...",
+
+  // Compatibility mode (canvas + WebCodecs playback, no media element)
+  compatibilityMode: "D Mode",
+  compatibilityModeEnter: "D Mode（車載ディスプレイ）",
+  compatibilityModeExit: "標準プレーヤーに戻る",
+  compatibilityModeLoading: "D Mode の再生を準備しています...",
+  compatibilityModeFailed: "D Mode の再生に失敗しました",
+  compatibilityModeFallbackHint: "D Mode をオフにすると標準プレーヤーを使用できます。",
+  compatibilityModeUnplayable: "この動画はこの画面では再生できません。",
+  compatibilityModeUnavailable: "このブラウザは WebCodecs に対応していないため、D Mode は利用できません。",
   current: "（現在）",
   rateThisVideo: "この動画を評価",
   enterFullscreen: "全画面表示",

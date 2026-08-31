@@ -1,0 +1,231 @@
+import { describe, expect, it } from "vitest";
+import { createDemuxer, sniffContainer } from "../createDemuxer";
+import { DemuxedPacket } from "../types";
+import {
+  AVC_C,
+  buildSyntheticMp4,
+  buildSyntheticWebm,
+  createFakeMediaFetch,
+} from "./fakeMediaFetch";
+
+const drain = async (
+  bytes: Uint8Array
+): Promise<{
+  demuxer: Awaited<ReturnType<typeof createDemuxer>>;
+  packets: DemuxedPacket[];
+}> => {
+  const { fetchImpl } = createFakeMediaFetch(bytes);
+  const demuxer = await createDemuxer("https://example.test/media", {
+    fetchImpl,
+  });
+
+  const packets: DemuxedPacket[] = [];
+  for (;;) {
+    const packet = await demuxer.next();
+    if (!packet) break;
+    packets.push(packet);
+  }
+  return { demuxer, packets };
+};
+
+describe("sniffContainer", () => {
+  it("recognises the EBML and ISO-BMFF signatures", () => {
+    expect(sniffContainer(Uint8Array.from([0x1a, 0x45, 0xdf, 0xa3]))).toBe(
+      "webm"
+    );
+    expect(
+      sniffContainer(
+        Uint8Array.from([0, 0, 0, 24, 0x66, 0x74, 0x79, 0x70])
+      )
+    ).toBe("mp4");
+    expect(sniffContainer(Uint8Array.from([1, 2, 3, 4, 5, 6, 7, 8]))).toBeNull();
+  });
+});
+
+describe("createDemuxer", () => {
+  it("rejects containers it cannot parse", async () => {
+    const { fetchImpl } = createFakeMediaFetch(new Uint8Array(32));
+    await expect(
+      createDemuxer("https://example.test/media", { fetchImpl })
+    ).rejects.toThrow(/MP4 and WebM/);
+  });
+});
+
+describe("MP4 demuxing", () => {
+  it("reads the sample table and returns samples in file order", async () => {
+    const { bytes, sampleSizes } = buildSyntheticMp4();
+    const { demuxer, packets } = await drain(bytes);
+
+    expect(demuxer.container).toBe("mp4");
+    expect(demuxer.video?.codec).toBe("avc1.42C01E");
+    expect(demuxer.video?.codedWidth).toBe(320);
+    expect(demuxer.video?.codedHeight).toBe(180);
+    expect(demuxer.video?.description).toEqual(AVC_C);
+    expect(demuxer.durationUs).toBe(300_000);
+
+    expect(packets).toHaveLength(sampleSizes.length);
+    expect(packets.map((packet) => packet.data.length)).toEqual(sampleSizes);
+    // stss lists sample 1 only, so the rest must be flagged as delta samples.
+    expect(packets.map((packet) => packet.key)).toEqual([true, false, false]);
+    // stts delta is 100 ticks at a 1000 timescale, i.e. 100 ms per sample.
+    expect(packets.map((packet) => packet.timestamp)).toEqual([
+      0, 100_000, 200_000,
+    ]);
+    // Each synthetic sample is filled with its own 1-based index.
+    expect(packets.map((packet) => packet.data[0])).toEqual([1, 2, 3]);
+
+    await demuxer.close();
+  });
+
+  it("maps samples to chunks through a multi-entry stsc table", async () => {
+    // Remuxed and concatenated files carry one stsc entry per chunk — 94k of
+    // them in a one-hour file. Rescanning the table for every chunk made table
+    // building O(chunks x entries), so the applicable entry is now tracked with
+    // a forward pointer; this checks the pointer lands on the right entry when
+    // samples-per-chunk varies.
+    const sampleSizes = [3, 4, 5, 6, 7, 8];
+    const { bytes } = buildSyntheticMp4({
+      sampleSizes,
+      chunkLayout: [2, 1, 3], // chunk 0: 2 samples, chunk 1: 1, chunk 2: 3
+    });
+    const { demuxer, packets } = await drain(bytes);
+
+    expect(packets.map((packet) => packet.data.length)).toEqual(sampleSizes);
+    // Each synthetic sample is filled with its own 1-based index, so a
+    // mis-assigned chunk offset shows up as the wrong payload.
+    expect(packets.map((packet) => packet.data[0])).toEqual([1, 2, 3, 4, 5, 6]);
+
+    await demuxer.close();
+  });
+
+  it("finds moov when it is written after mdat", async () => {
+    const { bytes } = buildSyntheticMp4({ moovLast: true });
+    const { demuxer, packets } = await drain(bytes);
+
+    expect(demuxer.video?.codec).toBe("avc1.42C01E");
+    expect(packets.map((packet) => packet.data[0])).toEqual([1, 2, 3]);
+
+    await demuxer.close();
+  });
+
+  it("keeps both tracks reachable when their bytes are non-interleaved", async () => {
+    const { bytes } = buildSyntheticMp4({
+      sampleSizes: Array(20).fill(2),
+      audioSampleSizes: Array(20).fill(3),
+    });
+    const { demuxer, packets } = await drain(bytes);
+
+    expect(demuxer.video).not.toBeNull();
+    expect(demuxer.audio?.codec).toBe("opus");
+    expect(packets.slice(0, 8).map((packet) => packet.kind)).toEqual([
+      "video",
+      "audio",
+      "video",
+      "audio",
+      "video",
+      "audio",
+      "video",
+      "audio",
+    ]);
+    expect(packets.filter((packet) => packet.kind === "video")).toHaveLength(20);
+    expect(packets.filter((packet) => packet.kind === "audio")).toHaveLength(20);
+    await demuxer.close();
+  });
+});
+
+describe("WebM demuxing", () => {
+  it("reads track configs and cluster-relative timestamps", async () => {
+    const bytes = buildSyntheticWebm([
+      { track: 1, relativeTime: 0, key: true, payload: [0x11] },
+      { track: 2, relativeTime: 0, key: true, payload: [0x21, 0x22] },
+      { track: 1, relativeTime: 40, key: false, payload: [0x12] },
+    ]);
+    const { demuxer, packets } = await drain(bytes);
+
+    expect(demuxer.container).toBe("webm");
+    expect(demuxer.video?.codec).toBe("vp09.00.10.08");
+    expect(demuxer.videoCodecFallbacks?.length).toBeGreaterThan(0);
+    expect(demuxer.video?.codedWidth).toBe(320);
+    expect(demuxer.audio?.codec).toBe("opus");
+    expect(demuxer.audio?.numberOfChannels).toBe(2);
+    expect(demuxer.audio?.sampleRate).toBe(48000);
+    expect(new TextDecoder().decode(demuxer.audio?.description as Uint8Array)).toBe(
+      "OpusHead"
+    );
+    expect(demuxer.durationUs).toBe(2_500_000);
+
+    expect(packets.map((packet) => packet.kind)).toEqual([
+      "video",
+      "audio",
+      "video",
+    ]);
+    // Cluster timestamp 1000 ms plus the block's own relative offset.
+    expect(packets.map((packet) => packet.timestamp)).toEqual([
+      1_000_000, 1_000_000, 1_040_000,
+    ]);
+    expect(packets.map((packet) => packet.key)).toEqual([true, true, false]);
+    expect(Array.from(packets[1].data)).toEqual([0x21, 0x22]);
+    expect(demuxer.unsupportedTracks).toEqual([]);
+
+    await demuxer.close();
+  });
+
+  it("configures VP9 from the encoded keyframe profile", async () => {
+    const bytes = buildSyntheticWebm([
+      {
+        track: 2,
+        relativeTime: 0,
+        key: true,
+        payload: [0x21],
+      },
+      {
+        track: 1,
+        relativeTime: 0,
+        key: true,
+        // Profile 2, 10-bit keyframe with the VP9 sync code.
+        payload: [0x92, 0x49, 0x83, 0x42, 0x00],
+      },
+    ]);
+    const { demuxer } = await drain(bytes);
+
+    expect(demuxer.video?.codec).toBe("vp09.02.10.10");
+    expect(demuxer.videoCodecFallbacks).toEqual(["vp09.02.41.10"]);
+    await demuxer.close();
+  });
+
+  it("discards VP9 pre-roll while searching for the first keyframe", async () => {
+    const bytes = buildSyntheticWebm([
+      { track: 2, relativeTime: 0, key: true, payload: [0x21] },
+      { track: 1, relativeTime: 20, key: false, payload: [0x11] },
+      {
+        track: 1,
+        relativeTime: 40,
+        key: true,
+        payload: [0x82, 0x49, 0x83, 0x42, 0x00],
+      },
+      { track: 2, relativeTime: 40, key: true, payload: [0x22] },
+    ]);
+    const { demuxer, packets } = await drain(bytes);
+
+    expect(packets.map((packet) => packet.kind)).toEqual(["video", "audio"]);
+    expect(packets[0].timestamp).toBe(1_040_000);
+    await demuxer.close();
+  });
+
+  it("reports a track it cannot configure instead of dropping it", async () => {
+    // Vorbis has no WebCodecs mapping. Silently returning `audio: null` would be
+    // indistinguishable from a file that genuinely has no audio track, and the
+    // engine would then play video in silence.
+    const bytes = buildSyntheticWebm(
+      [{ track: 1, relativeTime: 0, key: true, payload: [0x11] }],
+      { audioCodecId: "A_VORBIS" }
+    );
+    const { demuxer } = await drain(bytes);
+
+    expect(demuxer.video?.codec).toBe("vp09.00.10.08");
+    expect(demuxer.audio).toBeNull();
+    expect(demuxer.unsupportedTracks).toEqual(["A_VORBIS"]);
+
+    await demuxer.close();
+  });
+});

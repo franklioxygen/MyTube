@@ -15,6 +15,7 @@ import UpNextSidebar from '../components/VideoPlayer/UpNextSidebar';
 import AudioModePlayer from '../components/VideoPlayer/AudioModePlayer';
 import AudioUpNextSidebar from '../components/VideoPlayer/AudioUpNextSidebar';
 import VideoControls from '../components/VideoPlayer/VideoControls';
+import CompatibilityPlayer from '../components/VideoPlayer/CompatibilityPlayer';
 import LiveTranslationStatusAlert from '../components/VideoPlayer/LiveTranslationStatusAlert';
 import VideoInfo from '../components/VideoPlayer/VideoInfo';
 import { LiveTranslationProvider } from '../contexts/LiveTranslationContext';
@@ -35,6 +36,8 @@ import { useVideoQueries } from '../hooks/useVideoQueries';
 import { useVideoRecommendations } from '../hooks/useVideoRecommendations';
 import { useVideoSubscriptions } from '../hooks/useVideoSubscriptions';
 import { getBackendUrl } from '../utils/apiUrl';
+import { isCompatibilityModeForced } from '../utils/compatibilityMode/deployment';
+import { isCompatibilityModeSupported } from '../utils/compatibilityMode/support';
 import { getBestVideoResumeProgress } from '../utils/videoResumeProgress';
 
 const VideoPlayer: React.FC = () => {
@@ -66,6 +69,19 @@ const VideoPlayer: React.FC = () => {
         return saved !== null ? JSON.parse(saved) : false;
     });
     const [isCinemaMode, setIsCinemaMode] = useState<boolean>(false);
+    // Compatibility mode: play through canvas + WebCodecs so the page holds no
+    // media element at all. Proof of concept — the standard controls are hidden.
+    const compatibilityModeSupported = useMemo(
+        () => isCompatibilityModeSupported(),
+        []
+    );
+    // The car display cannot render a media element at all, so that build
+    // forces the mode on: no toggle, and no standard player to fall back to.
+    const compatibilityModeForced = useMemo(() => isCompatibilityModeForced(), []);
+    const [compatibilityMode, setCompatibilityMode] = useState<boolean>(() => {
+        const saved = localStorage.getItem('compatibilityMode');
+        return saved !== null ? JSON.parse(saved) : false;
+    });
     // Underlying <video> element, exposed by VideoControls for live translation capture.
     const [videoElement, setVideoElement] = useState<HTMLVideoElement | null>(null);
     const { data: liveTranslationAvailability } = useLiveTranslationAvailability();
@@ -83,6 +99,10 @@ const VideoPlayer: React.FC = () => {
     useEffect(() => {
         localStorage.setItem('autoPlayNext', JSON.stringify(autoPlayNext));
     }, [autoPlayNext]);
+
+    useEffect(() => {
+        localStorage.setItem('compatibilityMode', JSON.stringify(compatibilityMode));
+    }, [compatibilityMode]);
 
     // Confirmation Modal State
     const [confirmationModal, setConfirmationModal] = useState({
@@ -102,6 +122,10 @@ const VideoPlayer: React.FC = () => {
         showComments
     });
     const isAudio = (video?.mediaType ?? 'video') === 'audio';
+    const showCompatibilityPlayer =
+        !isAudio &&
+        (compatibilityModeForced ||
+            (compatibilityMode && compatibilityModeSupported));
 
     // Handle error redirect and invisible videos in visitor mode
     useEffect(() => {
@@ -497,7 +521,23 @@ const VideoPlayer: React.FC = () => {
                             }
                         }}
                     >
-                    {isAudio ? <AudioModePlayer
+                    {showCompatibilityPlayer ? <CompatibilityPlayer
+                        src={(videoUrl || video?.sourceUrl) || null}
+                        poster={posterUrl || localPosterUrl || video?.thumbnailUrl}
+                        autoPlay={autoPlay}
+                        startTime={startTimeResult}
+                        onTimeUpdate={handleTimeUpdate}
+                        onEnded={handleVideoEnded}
+                        canFallBackToStandardPlayer={!compatibilityModeForced}
+                        onExit={() => setCompatibilityMode(false)}
+                        seekIntervals={seekIntervals}
+                        statisticsVideoId={video.id}
+                        statisticsPlatform={
+                            typeof video.source === 'string' ? video.source.toLowerCase() : null
+                        }
+                        statisticsRelatedEventId={statisticsRelatedEventId}
+                        statisticsAutoplayFromVideoId={autoplayFromVideoId}
+                    /> : isAudio ? <AudioModePlayer
                         src={(videoUrl || video?.sourceUrl) || null}
                         mediaPath={video.videoPath}
                         poster={posterUrl || localPosterUrl || video?.thumbnailUrl}
@@ -568,6 +608,11 @@ const VideoPlayer: React.FC = () => {
                         onVideoElementReady={setVideoElement}
                         liveSubtitle={{ available: liveSubtitleTrack.isActive, label: liveSubtitleTrack.label, track: liveSubtitleTrack.track }}
                         seekIntervals={seekIntervals}
+                        onEnterCompatibilityMode={
+                            compatibilityModeSupported
+                                ? () => setCompatibilityMode(true)
+                                : undefined
+                        }
                     />}
 
                     <LiveTranslationStatusAlert isCinemaMode={effectiveCinemaMode} />

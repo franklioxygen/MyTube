@@ -717,6 +717,19 @@ export const es = {
     "¿Está seguro de que desea eliminar este video de la colección?",
   remove: "Eliminar",
   loadingVideo: "Cargando video...",
+
+  // Compatibility mode (canvas + WebCodecs playback, no media element)
+  compatibilityMode: "D Mode",
+  compatibilityModeEnter: "D Mode (pantalla del coche)",
+  compatibilityModeExit: "Volver al reproductor estándar",
+  compatibilityModeLoading: "Preparando la reproducción de D Mode...",
+  compatibilityModeFailed: "Error de reproducción de D Mode",
+  compatibilityModeFallbackHint:
+    "Desactiva D Mode para usar el reproductor estándar.",
+  compatibilityModeUnplayable:
+    "Este video no se puede reproducir en esta pantalla.",
+  compatibilityModeUnavailable:
+    "Este navegador no admite WebCodecs, por lo que D Mode no está disponible.",
   current: "(Actual)",
   rateThisVideo: "Calificar este video",
   enterFullscreen: "Pantalla Completa",

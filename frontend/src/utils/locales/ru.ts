@@ -708,6 +708,18 @@ export const ru = {
     "Вы уверены, что хотите удалить это видео из коллекции?",
   remove: "Удалить",
   loadingVideo: "Загрузка видео...",
+
+  // Compatibility mode (canvas + WebCodecs playback, no media element)
+  compatibilityMode: "D Mode",
+  compatibilityModeEnter: "D Mode (экран автомобиля)",
+  compatibilityModeExit: "Вернуться к стандартному плееру",
+  compatibilityModeLoading: "Подготовка воспроизведения D Mode...",
+  compatibilityModeFailed: "Не удалось воспроизвести в D Mode",
+  compatibilityModeFallbackHint:
+    "Отключите D Mode, чтобы использовать стандартный плеер.",
+  compatibilityModeUnplayable: "Это видео нельзя воспроизвести на этом экране.",
+  compatibilityModeUnavailable:
+    "Этот браузер не поддерживает WebCodecs, поэтому D Mode недоступен.",
   current: "(Текущее)",
   rateThisVideo: "Оценить это видео",
   enterFullscreen: "На весь экран",

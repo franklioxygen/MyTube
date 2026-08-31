@@ -5,6 +5,7 @@ import { brand, gradient, modeColors, overlay } from '../../../theme/colors';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import type { PlayerSeekIntervals } from '../../../utils/playerSeekIntervals';
 import CinemaModeControl from './CinemaModeControl';
+import CompatibilityModeControl from './CompatibilityModeControl';
 import FullscreenControl from './FullscreenControl';
 import LiveTranslationControlButton from './LiveTranslationControlButton';
 import LoopControl from './LoopControl';
@@ -58,6 +59,7 @@ interface ControlsOverlayProps {
     liveSubtitleSelected?: boolean;
     onSelectLiveSubtitle?: () => void;
     isAudio?: boolean;
+    onEnterCompatibilityMode?: () => void;
 }
 
 const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
@@ -104,6 +106,7 @@ const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
     liveSubtitleSelected = false,
     onSelectLiveSubtitle,
     isAudio = false,
+    onEnterCompatibilityMode,
 }) => {
     const theme = useTheme();
     const { t } = useLanguage();
@@ -257,6 +260,7 @@ const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
                 onPlaybackRateChange={onPlaybackRateChange}
                 isFullscreen={isFullscreen}
                 seekIntervals={seekIntervals}
+                onEnterCompatibilityMode={onEnterCompatibilityMode}
             />
 
             {/* Mobile: Live Translate, Fullscreen, Loop, Speed */}
@@ -278,6 +282,10 @@ const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
                     onPlaybackRateChange={onPlaybackRateChange}
                     isFullscreen={isFullscreen}
                 />
+
+                {onEnterCompatibilityMode && (
+                    <CompatibilityModeControl onEnter={onEnterCompatibilityMode} />
+                )}
             </Stack>
         </Box>
     );
