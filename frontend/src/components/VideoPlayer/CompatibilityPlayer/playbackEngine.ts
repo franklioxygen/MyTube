@@ -156,6 +156,7 @@ export class CompatibilityPlaybackEngine {
 
     private originUs = 0;
     private lastPacketTime = 0;
+    private lastPacketEndTime = 0;
     private audioBaseTime: number | null = null;
     private wallBaseMs = 0;
     private pausedMediaTime = 0;
@@ -372,6 +373,7 @@ export class CompatibilityPlaybackEngine {
             this.audioQueue.length = 0;
             this.scheduledAudioUntil = 0;
             this.lastPacketTime = 0;
+            this.lastPacketEndTime = 0;
             this.demuxEnded = false;
             this.flushed = false;
             this.awaitingKeyframe = true;
@@ -391,6 +393,7 @@ export class CompatibilityPlaybackEngine {
 
         this.rebaseClock(Math.max(0, (landedUs - this.originUs) / 1e6));
         this.lastPacketTime = this.pausedMediaTime;
+        this.lastPacketEndTime = this.pausedMediaTime;
         this.options.onSeeked?.(this.pausedMediaTime);
         await this.pump();
 
@@ -692,8 +695,9 @@ export class CompatibilityPlaybackEngine {
         // before the presentation origin, and the decoder needs them even though
         // they are never heard (see onAudioData).
         const timestamp = packet.timestamp - this.originUs;
-        this.lastPacketTime = Math.max(
-            this.lastPacketTime,
+        this.lastPacketTime = timestamp / 1e6;
+        this.lastPacketEndTime = Math.max(
+            this.lastPacketEndTime,
             (timestamp + (packet.duration ?? 0)) / 1e6
         );
 
@@ -1038,7 +1042,7 @@ export class CompatibilityPlaybackEngine {
             this.durationSeconds ??
             Math.max(
                 this.lastDrawnTime,
-                this.lastPacketTime,
+                this.lastPacketEndTime,
                 this.scheduledAudioUntil
             );
         if (now >= end - 0.1) {

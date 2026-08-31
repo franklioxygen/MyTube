@@ -514,6 +514,31 @@ describe("CompatibilityPlaybackEngine", () => {
     await engine.destroy();
   });
 
+  it("uses packet start time rather than duration for pump lookahead", async () => {
+    const now = vi.spyOn(performance, "now").mockReturnValue(0);
+    const packets: DemuxedPacket[] = Array.from({ length: 17 }, (_, index) => ({
+      kind: "video",
+      data: new Uint8Array([1]),
+      timestamp: index * 10_000_000,
+      duration: 10_000_000,
+      key: true,
+    }));
+    const { engine } = await startEngine({
+      packets,
+      durationUs: null,
+      withAudio: false,
+    });
+
+    expect(videoDecoders[0].decoded).toHaveLength(16);
+    await engine.play();
+    now.mockReturnValue(150_000);
+    await runFrames();
+    await settle();
+
+    expect(videoDecoders[0].decoded).toHaveLength(17);
+    await engine.destroy();
+  });
+
   it("freezes the clock on pause", async () => {
     const { engine, latest } = await startEngine();
     const context = audioContexts[0];

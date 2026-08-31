@@ -152,6 +152,7 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
         // No explicit snapshot reset: load() below sets `loading` synchronously
         // before its first await, and that emit carries the new engine's own
         // empty state, so nothing from the previous source survives.
+        let restoringInitialPosition = false;
         const engine = new CompatibilityPlaybackEngine(canvas, {
             onChange: (next) => {
                 setSnapshot(next);
@@ -161,8 +162,11 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
             },
             // Unlike the initial `ready` snapshot, a completed seek is an
             // authoritative position even while paused or back at zero.
-            onSeeked: (currentTime) =>
-                onTimeUpdateRef.current?.(currentTime),
+            onSeeked: (currentTime) => {
+                if (!restoringInitialPosition) {
+                    onTimeUpdateRef.current?.(currentTime);
+                }
+            },
             onEnded: () => {
                 // Record natural completion before the parent's callback can
                 // synchronously navigate and unmount this player.
@@ -182,7 +186,12 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                 // keyframe at or before the saved position, so playback can
                 // start slightly earlier than the exact second recorded.
                 if (startTimeRef.current > 0) {
-                    await engine.seek(startTimeRef.current);
+                    restoringInitialPosition = true;
+                    try {
+                        await engine.seek(startTimeRef.current);
+                    } finally {
+                        restoringInitialPosition = false;
+                    }
                 }
                 if (autoPlay && engineRef.current === engine) {
                     // A refused autoplay leaves the engine ready rather than
