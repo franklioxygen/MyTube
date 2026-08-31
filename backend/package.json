@@ -39,7 +39,7 @@
     "file-type": "file:vendor/file-type",
     "fs-extra": "^11.3.3",
     "jsonwebtoken": "^9.0.3",
-    "multer": "^2.2.0",
+    "multer": "^2.3.0",
     "node-cron": "^4.2.1",
     "proxy-agent": "^8.0.2",
     "puppeteer": "^25.1.0",
