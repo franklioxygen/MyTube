@@ -38,20 +38,17 @@ Built using the [franklioxygen/agent-workflows](https://github.com/franklioxygen
 
 - **Video Downloading**: Download YouTube, Bilibili, Twitch, MissAV and other yt-dlp-supported videos with a simple URL input.
 - **Video Upload**: Upload local video files directly to your library with automatic thumbnail generation.
+- **D Mode (In-Car Playback)**: Uses Canvas and WebCodecs instead of a standard media element, enabling video playback on compatible in-car entertainment screens that otherwise block ordinary players while the vehicle is moving. Intended for passengers—always follow local laws, and never watch or operate the screen while driving.
 - **TMDB Metadata Scraping**: Automatically scrape movie and TV show metadata (title, description, poster, director, year, rating) from TMDB based on filename. Supports localized content matching your site language.
 - **Parallel Downloads**: Queue multiple downloads and track their progress simultaneously.
 - **Batch Download**: Add multiple video URLs at once to the download queue.
-- **Concurrent Download Limit**: Set a limit on the number of simultaneous downloads to manage bandwidth.
 - **Cloud Storage Integration**: Automatically upload videos and thumbnails to cloud storage (OpenList/Alist) after download.
 - **Auto Subtitles**: Automatically download YouTube / Bilibili default language subtitles.
 - **Live Audio Translation** (admin, optional): Stream the playing video's audio to Google Gemini Live Translation and play translated speech with live subtitles in the player's subtitle menu. Configure it under **Settings → Basic → Video Playback** (enable, Gemini API key, model, source/target language). The key is stored server-side and never sent to the browser. **Privacy:** while live translation is active, the video's audio is streamed to Google's Gemini API; transcripts are not persisted or logged. Requires an admin account when login is enabled and a same-origin (non-cross-origin) audio source.
-- **Collections**: Organize videos into custom collections for easy access.
 - **Subscriptions**: Manage YouTube, Bilibili and Twitch channel subscriptions to automatically download new content.
 - **RSS Feeds**: Create private RSS links for external feed readers with per-link filters for channels, authors, tags, sources, recent videos, and item limits.
-- **Login Protection**: Secure your application with password login and optional passkeys (WebAuthn).
-- **Visitor Users**: Create named read-only visitor accounts for safe sharing without modification capabilities.
+- **Login Protection & Visitor Access**: Secure your application with password login and optional passkeys (WebAuthn), and create named read-only visitor accounts for safe sharing without modification capabilities.
 - **Internationalization**: Support for multiple languages including English, Chinese, Spanish, French, German, Japanese, Korean, Arabic, Portuguese, and Russian.
-- **Mobile Optimizations**: Mobile-friendly tags menu and optimized layout for smaller screens.
 - **Cookie Management**: Support for uploading `cookies.txt` to enable downloading of age-restricted or premium content.
 - **yt-dlp Configuration**: Customize global `yt-dlp` arguments, network proxy, and other advanced settings via settings page.
 - **TMDB Integration**: Configure your TMDB API key in settings to enable automatic metadata scraping for local video files. The scraper intelligently parses filenames to extract titles and matches them with TMDB database.
