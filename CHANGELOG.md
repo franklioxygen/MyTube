@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fix
+
+- Answer an unsatisfiable byte range with 416 instead of 500. `send` rejects a Range the file cannot satisfy (`bytes=99999999999-` against a shorter file, typically a client resuming against a stale length) with a 416 error, after already setting the `Content-Range: bytes */<size>` header that tells the client the real length. The error handler recognised only 413 and 404, so the request fell through to the unknown-error branch, was logged as an unhandled failure, and returned 500 — discarding the one status a range-requesting player can actually recover from. Malformed and empty Range headers take the same path on Express 4 and are now answered the same way.
+
 ## v1.11.2 (2026-08-31)
 
 ### Security

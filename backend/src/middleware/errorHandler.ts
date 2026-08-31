@@ -129,6 +129,17 @@ export function errorHandler(
     return;
   }
 
+  // send/serve-static reject an unsatisfiable Range with a 416 error, having
+  // already set the Content-Range header that tells the client the real length.
+  // Without this the error falls through to the unknown branch below and the
+  // response becomes a 500, hiding the status a range-requesting player needs
+  // to recover from a stale length. A malformed or empty Range reaches here too
+  // on Express 4; Express 5's send ignores those and serves the full body.
+  if (errorStatus === 416) {
+    res.status(416).send("Range Not Satisfiable");
+    return;
+  }
+
   const isStaticAssetNotFound =
     isStaticAssetRequest(req) &&
     (errorStatus === 404 || errorWithHttpMetadata.code === "ENOENT");

@@ -158,6 +158,38 @@ describe('ErrorHandler Middleware', () => {
       });
     });
 
+    it('should return 416 for an unsatisfiable range instead of 500', () => {
+      const error = Object.assign(new Error('Range Not Satisfiable'), {
+        name: 'RangeNotSatisfiableError',
+        status: 416,
+        statusCode: 416,
+      });
+      req = {
+        path: '/videos/clip.webm',
+      };
+
+      errorHandler(error, req as Request, res as Response, next);
+
+      expect(logger.error).not.toHaveBeenCalled();
+      expect(status).toHaveBeenCalledWith(416);
+      expect((res.send as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith('Range Not Satisfiable');
+      expect(json).not.toHaveBeenCalled();
+    });
+
+    it('should read 416 from statusCode when status is absent', () => {
+      const error = Object.assign(new Error('Range Not Satisfiable'), {
+        statusCode: 416,
+      });
+      req = {
+        path: '/images/poster.jpg',
+      };
+
+      errorHandler(error, req as Request, res as Response, next);
+
+      expect(status).toHaveBeenCalledWith(416);
+      expect(logger.error).not.toHaveBeenCalled();
+    });
+
     it('should return plain 404 for missing static assets', () => {
       const error = Object.assign(
         new Error("ENOENT: no such file or directory, stat '/app/frontend/dist/assets/js/LoginPage.js'"),
