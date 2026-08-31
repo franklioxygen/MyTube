@@ -16,6 +16,7 @@ import {
     DEFAULT_PLAYER_SEEK_INTERVALS,
     PlayerSeekIntervals,
 } from '../../../utils/playerSeekIntervals';
+import FullscreenControl from '../VideoControls/FullscreenControl';
 import SeekButton from '../VideoControls/SeekButton';
 import {
     getMissingCompatibilityModeApis,
@@ -49,7 +50,7 @@ interface CompatibilityPlayerProps {
 
 const DEFAULT_ASPECT_RATIO = 16 / 9;
 /** How long the transport controls stay up after the last interaction. */
-const CONTROLS_HIDE_DELAY_MS = 3000;
+const CONTROLS_HIDE_DELAY_MS = 5000;
 
 const INITIAL_SNAPSHOT: PlaybackSnapshot = {
     status: 'idle',
@@ -97,6 +98,7 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
     const startTimeRef = useRef(startTime);
     const [snapshot, setSnapshot] = useState<PlaybackSnapshot>(INITIAL_SNAPSHOT);
     const [controlsVisible, setControlsVisible] = useState(true);
+    const [isFullscreen, setIsFullscreen] = useState(false);
 
     // Keep the engine's callbacks current without restarting playback when the
     // parent re-renders with fresh closures.
@@ -195,6 +197,27 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
         void engineRef.current?.toggle();
     }, [revealControls]);
 
+    useEffect(() => {
+        const syncFullscreen = () =>
+            setIsFullscreen(document.fullscreenElement === containerRef.current);
+        document.addEventListener('fullscreenchange', syncFullscreen);
+        return () =>
+            document.removeEventListener('fullscreenchange', syncFullscreen);
+    }, []);
+
+    const handleToggleFullscreen = useCallback(() => {
+        revealControls();
+        const container = containerRef.current;
+        if (!container) {
+            return;
+        }
+        if (document.fullscreenElement === container) {
+            void document.exitFullscreen().catch(() => undefined);
+        } else {
+            void container.requestFullscreen?.().catch(() => undefined);
+        }
+    }, [revealControls]);
+
     const handleSeekBy = useCallback(
         (deltaSeconds: number) => {
             revealControls();
@@ -249,6 +272,13 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                 overflow: 'hidden',
                 boxShadow: 4,
                 position: 'relative',
+                ...(isFullscreen && {
+                    width: '100vw',
+                    height: '100vh',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    borderRadius: 0,
+                }),
             }}
         >
             <Box
@@ -261,8 +291,12 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                     // alike. Any browser that can run WebCodecs also supports
                     // container queries — they shipped earlier in both engines.
                     containerType: 'inline-size',
-                    aspectRatio: snapshot.aspectRatio ?? DEFAULT_ASPECT_RATIO,
-                    maxHeight: 'calc(100vh - 180px)',
+                    ...(isFullscreen
+                        ? { flex: 1, minHeight: 0 }
+                        : {
+                              aspectRatio: snapshot.aspectRatio ?? DEFAULT_ASPECT_RATIO,
+                              maxHeight: 'calc(100vh - 180px)',
+                          }),
                     backgroundImage: poster ? `url(${poster})` : undefined,
                     backgroundSize: 'contain',
                     backgroundPosition: 'center',
@@ -305,14 +339,14 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                 {!hasFailed && (
                     <Fade in={controlsVisible} timeout={{ enter: 200, exit: 500 }}>
                         <Stack
-                            direction="row"
+                            direction="column"
                             alignItems="center"
                             justifyContent="center"
                             sx={{
                                 position: 'absolute',
                                 inset: 0,
                                 color: neutral.white,
-                                gap: 'clamp(8px, 2.5cqw, 32px)',
+                                gap: 'clamp(8px, 2cqw, 24px)',
                                 // Hidden controls must not swallow the tap that
                                 // is meant to bring them back.
                                 pointerEvents: controlsVisible ? 'auto' : 'none',
@@ -341,41 +375,53 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                                 },
                             }}
                         >
-                            <SeekButton
-                                direction="backward"
-                                tier="medium"
-                                seconds={seekIntervals.mediumSeconds}
-                                onSeek={handleSeekBy}
-                                disableTooltip
-                            />
-                            <SeekButton
-                                direction="backward"
-                                tier="short"
-                                seconds={seekIntervals.shortSeconds}
-                                onSeek={handleSeekBy}
-                                disableTooltip
-                            />
-                            <IconButton
-                                className="compat-primary"
-                                onClick={handleToggle}
-                                disabled={isBusy}
-                                aria-label={isPlaying ? t('paused') : t('playing')}
+                            <Stack
+                                direction="row"
+                                alignItems="center"
+                                justifyContent="center"
+                                sx={{ gap: 'clamp(8px, 2.5cqw, 32px)' }}
                             >
-                                {isPlaying ? <Pause /> : <PlayArrow />}
-                            </IconButton>
-                            <SeekButton
-                                direction="forward"
-                                tier="short"
-                                seconds={seekIntervals.shortSeconds}
-                                onSeek={handleSeekBy}
-                                disableTooltip
-                            />
-                            <SeekButton
-                                direction="forward"
-                                tier="medium"
-                                seconds={seekIntervals.mediumSeconds}
-                                onSeek={handleSeekBy}
-                                disableTooltip
+                                <SeekButton
+                                    direction="backward"
+                                    tier="medium"
+                                    seconds={seekIntervals.mediumSeconds}
+                                    onSeek={handleSeekBy}
+                                    disableTooltip
+                                />
+                                <SeekButton
+                                    direction="backward"
+                                    tier="short"
+                                    seconds={seekIntervals.shortSeconds}
+                                    onSeek={handleSeekBy}
+                                    disableTooltip
+                                />
+                                <IconButton
+                                    className="compat-primary"
+                                    onClick={handleToggle}
+                                    disabled={isBusy}
+                                    aria-label={isPlaying ? t('paused') : t('playing')}
+                                >
+                                    {isPlaying ? <Pause /> : <PlayArrow />}
+                                </IconButton>
+                                <SeekButton
+                                    direction="forward"
+                                    tier="short"
+                                    seconds={seekIntervals.shortSeconds}
+                                    onSeek={handleSeekBy}
+                                    disableTooltip
+                                />
+                                <SeekButton
+                                    direction="forward"
+                                    tier="medium"
+                                    seconds={seekIntervals.mediumSeconds}
+                                    onSeek={handleSeekBy}
+                                    disableTooltip
+                                />
+                            </Stack>
+
+                            <FullscreenControl
+                                isFullscreen={isFullscreen}
+                                onToggle={handleToggleFullscreen}
                             />
                         </Stack>
                     </Fade>
