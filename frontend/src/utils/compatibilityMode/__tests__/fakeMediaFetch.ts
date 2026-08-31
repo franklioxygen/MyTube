@@ -113,11 +113,15 @@ export interface SyntheticMp4Options {
    * multi-entry `stsc` table, which is what remuxed/concatenated files carry.
    */
   chunkLayout?: number[];
+  /** Add a physically contiguous audio track after all video samples. */
+  audioSampleSizes?: number[];
 }
 
 /**
- * A single-video-track MP4 whose samples are filled with their own index, so a
- * demuxer's byte offsets can be checked against the payload it returns.
+ * An MP4 whose video samples are filled with their own index, so a demuxer's
+ * byte offsets can be checked against the payload it returns. An optional audio
+ * track is laid out after the complete video track to exercise non-interleaved
+ * files.
  */
 export const buildSyntheticMp4 = (
   options: SyntheticMp4Options = {}
@@ -126,6 +130,7 @@ export const buildSyntheticMp4 = (
     moovLast = false,
     sampleSizes = [4, 5, 6],
     chunkLayout = [sampleSizes.length],
+    audioSampleSizes = [],
   } = options;
 
   // Chunk boundaries over the contiguous sample data.
@@ -150,15 +155,23 @@ export const buildSyntheticMp4 = (
   const sampleData = concat(
     sampleSizes.map((size, index) => new Uint8Array(size).fill(index + 1))
   );
+  const audioData = concat(
+    audioSampleSizes.map((size, index) =>
+      new Uint8Array(size).fill(0xa1 + index)
+    )
+  );
   const ftyp = mp4Box("ftyp", ascii("isom"), u32(512), ascii("isomiso2"));
-  const mdat = mp4Box("mdat", sampleData);
+  const mdat = mp4Box("mdat", sampleData, audioData);
 
   // The chunk offset is only known once the layout is fixed.
   const mdatDataOffset = moovLast
     ? ftyp.length + 8
     : 0; // patched below for the moov-first layout
 
-  const buildMoov = (chunkOffset: number): Uint8Array => {
+  const buildMoov = (
+    chunkOffset: number,
+    audioChunkOffset: number
+  ): Uint8Array => {
     const avc1 = mp4Box(
       "avc1",
       zeros(6),
@@ -213,6 +226,58 @@ export const buildSyntheticMp4 = (
       mp4Box("stss", u32(0), u32(1), u32(1))
     );
 
+    const opus = mp4Box(
+      "Opus",
+      zeros(6),
+      u16(1), // data_reference_index
+      zeros(8),
+      u16(2), // channelcount
+      u16(16), // samplesize
+      zeros(4),
+      u32(48_000 << 16)
+    );
+    const audioStbl = mp4Box(
+      "stbl",
+      mp4Box("stsd", u32(0), u32(1), opus),
+      mp4Box(
+        "stts",
+        u32(0),
+        u32(1),
+        u32(audioSampleSizes.length),
+        u32(sampleDelta)
+      ),
+      mp4Box("stsc", u32(0), u32(1), u32(1), u32(audioSampleSizes.length), u32(1)),
+      mp4Box(
+        "stsz",
+        u32(0),
+        u32(0),
+        u32(audioSampleSizes.length),
+        ...audioSampleSizes.map((size) => u32(size))
+      ),
+      mp4Box("stco", u32(0), u32(1), u32(audioChunkOffset))
+    );
+
+    const audioTrak = audioSampleSizes.length > 0
+      ? mp4Box(
+          "trak",
+          mp4Box("tkhd", u32(0), zeros(80)),
+          mp4Box(
+            "mdia",
+            mp4Box(
+              "mdhd",
+              u32(0),
+              u32(0),
+              u32(0),
+              u32(timescale),
+              u32(sampleDelta * audioSampleSizes.length),
+              u32(0)
+            ),
+            mp4Box("hdlr", u32(0), u32(0), ascii("soun"), zeros(12), u8(0)),
+            mp4Box("minf", audioStbl)
+          )
+        )
+      : new Uint8Array();
+
     return mp4Box(
       "moov",
       mp4Box(
@@ -221,7 +286,7 @@ export const buildSyntheticMp4 = (
         u32(0),
         u32(0),
         u32(timescale),
-        u32(sampleDelta * sampleSizes.length),
+        u32(sampleDelta * Math.max(sampleSizes.length, audioSampleSizes.length)),
         zeros(80)
       ),
       mp4Box(
@@ -233,22 +298,31 @@ export const buildSyntheticMp4 = (
           mp4Box("hdlr", u32(0), u32(0), ascii("vide"), zeros(12), u8(0)),
           mp4Box("minf", stbl)
         )
-      )
+      ),
+      audioTrak
     );
   };
 
   if (moovLast) {
     return {
-      bytes: concat([ftyp, mdat, buildMoov(mdatDataOffset)]),
+      bytes: concat([
+        ftyp,
+        mdat,
+        buildMoov(mdatDataOffset, mdatDataOffset + sampleData.length),
+      ]),
       sampleSizes,
     };
   }
 
   // Two passes: the moov size determines where mdat lands.
-  const provisional = buildMoov(0);
+  const provisional = buildMoov(0, sampleData.length);
   const chunkOffset = ftyp.length + provisional.length + 8;
   return {
-    bytes: concat([ftyp, buildMoov(chunkOffset), mdat]),
+    bytes: concat([
+      ftyp,
+      buildMoov(chunkOffset, chunkOffset + sampleData.length),
+      mdat,
+    ]),
     sampleSizes,
   };
 };

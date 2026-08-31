@@ -71,6 +71,7 @@ const makeFrame = (timestamp: number) => ({
 
 class FakeVideoDecoder {
   static supported = true;
+  static flushError: Error | null = null;
   static isConfigSupported = vi.fn(async (config: VideoDecoderConfig) => ({
     supported: FakeVideoDecoder.supported,
     config,
@@ -96,7 +97,9 @@ class FakeVideoDecoder {
     this.state = "closed";
     this.init.error(error);
   }
-  async flush() {}
+  async flush() {
+    if (FakeVideoDecoder.flushError) throw FakeVideoDecoder.flushError;
+  }
   reset() {}
   close() {
     this.state = "closed";
@@ -105,6 +108,7 @@ class FakeVideoDecoder {
 
 class FakeAudioDecoder {
   static supported = true;
+  static flushError: Error | null = null;
   static isConfigSupported = vi.fn(async (config: AudioDecoderConfig) => ({
     supported: FakeAudioDecoder.supported,
     config,
@@ -131,7 +135,9 @@ class FakeAudioDecoder {
       close: vi.fn(),
     });
   }
-  async flush() {}
+  async flush() {
+    if (FakeAudioDecoder.flushError) throw FakeAudioDecoder.flushError;
+  }
   reset() {}
   close() {
     this.state = "closed";
@@ -353,6 +359,8 @@ beforeEach(() => {
   FakeAudioContext.allowStart = true;
   FakeVideoDecoder.supported = true;
   FakeAudioDecoder.supported = true;
+  FakeVideoDecoder.flushError = null;
+  FakeAudioDecoder.flushError = null;
 
   vi.stubGlobal("VideoDecoder", FakeVideoDecoder);
   vi.stubGlobal("AudioDecoder", FakeAudioDecoder);
@@ -524,6 +532,20 @@ describe("CompatibilityPlaybackEngine", () => {
     }
 
     expect(latest().status).toBe("error");
+    await engine.destroy();
+  });
+
+  it("fails instead of reporting a decoder flush rejection as ended", async () => {
+    FakeVideoDecoder.flushError = new Error("corrupt stream tail");
+    const { engine, latest } = await startEngine({
+      withAudio: false,
+      packets: [
+        { kind: "video", data: new Uint8Array([1]), timestamp: 0, key: true },
+      ],
+    });
+
+    expect(latest().status).toBe("error");
+    expect(latest().error).toContain("corrupt stream tail");
     await engine.destroy();
   });
 

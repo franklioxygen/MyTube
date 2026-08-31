@@ -4,6 +4,7 @@ import {
   av1CodecString,
   avcCodecString,
   hevcCodecString,
+  vp9CodecStringFromFrameHeader,
   vp9CodecStringFromVpcC,
 } from "../codecStrings";
 
@@ -44,6 +45,23 @@ describe("codecStrings", () => {
     const vpcC = Uint8Array.from([0x01, 0, 0, 0, 0x02, 0x1f, 0xa0]);
     expect(vp9CodecStringFromVpcC(vpcC)).toBe("vp09.02.31.10");
     expect(vp9CodecStringFromVpcC(Uint8Array.from([0x01]))).toBeNull();
+  });
+
+  it("reads the VP9 profile and bit depth from a WebM keyframe", () => {
+    // Profile 1: frame marker 2, profile bits 1/0, keyframe, show frame,
+    // followed by the VP9 sync code. Profiles below 2 are always 8-bit.
+    expect(
+      vp9CodecStringFromFrameHeader(
+        Uint8Array.from([0xa2, 0x49, 0x83, 0x42, 0x00])
+      )
+    ).toBe("vp09.01.10.08");
+
+    // Profile 2 with the high-bit-depth flag clear is 10-bit.
+    expect(
+      vp9CodecStringFromFrameHeader(
+        Uint8Array.from([0x92, 0x49, 0x83, 0x42, 0x00])
+      )
+    ).toBe("vp09.02.10.10");
   });
 
   it("reads the AAC object type, defaulting to LC", () => {

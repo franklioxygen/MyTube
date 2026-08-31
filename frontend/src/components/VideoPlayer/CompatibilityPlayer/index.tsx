@@ -10,6 +10,7 @@ import {
 import { Computer, Pause, PlayArrow } from '@mui/icons-material';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLanguage } from '../../../contexts/LanguageContext';
+import { useCompatibilityStatisticsWatchTracker } from '../../../hooks/useCompatibilityStatisticsWatchTracker';
 import { neutral, overlay } from '../../../theme/colors';
 import { formatDuration } from '../../../utils/formatUtils';
 import {
@@ -46,6 +47,10 @@ interface CompatibilityPlayerProps {
     /** Leaves D Mode for the standard player. */
     onExit?: () => void;
     seekIntervals?: PlayerSeekIntervals;
+    statisticsVideoId?: string | null;
+    statisticsPlatform?: string | null;
+    statisticsRelatedEventId?: string | null;
+    statisticsAutoplayFromVideoId?: string | null;
 }
 
 const DEFAULT_ASPECT_RATIO = 16 / 9;
@@ -83,6 +88,10 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
     canFallBackToStandardPlayer = true,
     onExit,
     seekIntervals = DEFAULT_PLAYER_SEEK_INTERVALS,
+    statisticsVideoId = null,
+    statisticsPlatform = null,
+    statisticsRelatedEventId = null,
+    statisticsAutoplayFromVideoId = null,
 }) => {
     const { t } = useLanguage();
     // Forced deployments render this player even where WebCodecs is missing,
@@ -101,6 +110,15 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
     const [controlsVisible, setControlsVisible] = useState(true);
     const [isFullscreen, setIsFullscreen] = useState(false);
 
+    const statisticsTracker = useCompatibilityStatisticsWatchTracker({
+        status: snapshot.status,
+        videoId: statisticsVideoId,
+        platform: statisticsPlatform,
+        relatedEventId: statisticsRelatedEventId,
+        autoplayFromVideoId: statisticsAutoplayFromVideoId,
+    });
+    const statisticsEndedRef = useRef(statisticsTracker.onEnded);
+
     // Keep the engine's inputs current without restarting playback when the
     // parent re-renders with fresh closures. Declared before the source effect
     // so a navigation that swaps `src` refreshes these first: capturing
@@ -110,7 +128,8 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
         onTimeUpdateRef.current = onTimeUpdate;
         onEndedRef.current = onEnded;
         startTimeRef.current = startTime;
-    }, [onTimeUpdate, onEnded, startTime]);
+        statisticsEndedRef.current = statisticsTracker.onEnded;
+    }, [onTimeUpdate, onEnded, startTime, statisticsTracker.onEnded]);
 
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -140,7 +159,12 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                     onTimeUpdateRef.current?.(next.currentTime);
                 }
             },
-            onEnded: () => onEndedRef.current?.(),
+            onEnded: () => {
+                // Record natural completion before the parent's callback can
+                // synchronously navigate and unmount this player.
+                statisticsEndedRef.current();
+                onEndedRef.current?.();
+            },
         });
         engineRef.current = engine;
 

@@ -107,6 +107,30 @@ describe("MP4 demuxing", () => {
 
     await demuxer.close();
   });
+
+  it("keeps both tracks reachable when their bytes are non-interleaved", async () => {
+    const { bytes } = buildSyntheticMp4({
+      sampleSizes: Array(20).fill(2),
+      audioSampleSizes: Array(20).fill(3),
+    });
+    const { demuxer, packets } = await drain(bytes);
+
+    expect(demuxer.video).not.toBeNull();
+    expect(demuxer.audio?.codec).toBe("opus");
+    expect(packets.slice(0, 8).map((packet) => packet.kind)).toEqual([
+      "video",
+      "audio",
+      "video",
+      "audio",
+      "video",
+      "audio",
+      "video",
+      "audio",
+    ]);
+    expect(packets.filter((packet) => packet.kind === "video")).toHaveLength(20);
+    expect(packets.filter((packet) => packet.kind === "audio")).toHaveLength(20);
+    await demuxer.close();
+  });
 });
 
 describe("WebM demuxing", () => {
@@ -143,6 +167,29 @@ describe("WebM demuxing", () => {
     expect(Array.from(packets[1].data)).toEqual([0x21, 0x22]);
     expect(demuxer.unsupportedTracks).toEqual([]);
 
+    await demuxer.close();
+  });
+
+  it("configures VP9 from the encoded keyframe profile", async () => {
+    const bytes = buildSyntheticWebm([
+      {
+        track: 2,
+        relativeTime: 0,
+        key: true,
+        payload: [0x21],
+      },
+      {
+        track: 1,
+        relativeTime: 0,
+        key: true,
+        // Profile 2, 10-bit keyframe with the VP9 sync code.
+        payload: [0x92, 0x49, 0x83, 0x42, 0x00],
+      },
+    ]);
+    const { demuxer } = await drain(bytes);
+
+    expect(demuxer.video?.codec).toBe("vp09.02.10.10");
+    expect(demuxer.videoCodecFallbacks).toEqual(["vp09.02.41.10"]);
     await demuxer.close();
   });
 

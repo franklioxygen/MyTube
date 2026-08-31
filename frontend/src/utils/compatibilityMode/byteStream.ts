@@ -64,6 +64,19 @@ export class ByteStream {
     return this.windowEnd - this.cursor;
   }
 
+  /**
+   * Open an independent cursor over the same resource and request options.
+   * MP4 uses one cursor per selected track so a physically non-interleaved file
+   * can feed audio and video without repeatedly reopening the same connection.
+   */
+  fork(): ByteStream {
+    return new ByteStream(this.url, {
+      signal: this.signal,
+      credentials: this.credentials,
+      fetchImpl: this.fetchImpl,
+    });
+  }
+
   private get windowEnd(): number {
     return this.windowStart + (this.dataEnd - this.dataStart);
   }

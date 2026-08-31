@@ -2,9 +2,9 @@
  * Minimal ISO-BMFF (MP4) demuxer for compatibility mode.
  *
  * Parses `moov` into flat sample tables for one video and one audio track,
- * then hands the encoded samples out in file order so the caller can push them
- * straight into a `VideoDecoder` / `AudioDecoder`. Only non-fragmented files
- * are handled — that is what the downloader produces.
+ * then hands the encoded samples out in timeline order while preserving each
+ * track's decode order. Only non-fragmented files are handled — that is what
+ * the downloader produces.
  */
 
 import { ByteStream } from "./byteStream";
@@ -653,12 +653,32 @@ export async function createMp4Demuxer(
     )
     .map((result) => result.label);
 
-  // File order keeps the interleaved tracks in step and turns playback into a
-  // single forward pass over the byte stream.
-  const samples = [
-    ...(videoTrack?.samples ?? []),
-    ...(audioTrack?.samples ?? []),
-  ].sort((a, b) => a.offset - b.offset);
+  // Merge by media time, not file offset. Some valid MP4s store one complete
+  // track before the other; file order lets that first track fill its decoder
+  // queue and prevents the engine from ever reaching the starved track. The
+  // per-track cursors preserve decode order (including video B-frames), while
+  // the merged stream keeps both decoders reachable. ByteStream seeks when the
+  // physical layout is non-interleaved.
+  const sampleTracks = [
+    videoTrack?.samples ?? [],
+    audioTrack?.samples ?? [],
+  ];
+  const trackCursors = sampleTracks.map(() => 0);
+  const samples: Sample[] = [];
+  for (;;) {
+    let chosenTrack = -1;
+    let chosenTimestamp = Number.POSITIVE_INFINITY;
+    sampleTracks.forEach((trackSamples, trackIndex) => {
+      const sample = trackSamples[trackCursors[trackIndex]];
+      if (sample && sample.timestamp < chosenTimestamp) {
+        chosenTrack = trackIndex;
+        chosenTimestamp = sample.timestamp;
+      }
+    });
+    if (chosenTrack < 0) break;
+    samples.push(sampleTracks[chosenTrack][trackCursors[chosenTrack]]);
+    trackCursors[chosenTrack] += 1;
+  }
 
   // The exact earliest presentation time, which the sample table knows and the
   // first packet in file order does not: with B-frames the opening sample's
@@ -679,22 +699,12 @@ export async function createMp4Demuxer(
     .filter((sample) => sample.key)
     .sort((a, b) => a.timestamp - b.timestamp);
 
-  /** Index of the first merged sample at or after `offset`. */
-  const indexOfOffset = (offset: number): number => {
-    let low = 0;
-    let high = samples.length - 1;
-    let found = samples.length;
-    while (low <= high) {
-      const mid = (low + high) >> 1;
-      if (samples[mid].offset >= offset) {
-        found = mid;
-        high = mid - 1;
-      } else {
-        low = mid + 1;
-      }
-    }
-    return found;
-  };
+  // Separate cursors let time-interleaved reads stay sequential within each
+  // physical track even when the file stores all video bytes before all audio
+  // bytes. Sharing one ByteStream here would turn every packet into a backward
+  // range request for that layout.
+  const videoStream = stream;
+  const audioStream = videoTrack && audioTrack ? stream.fork() : stream;
 
   let cursor = 0;
 
@@ -719,7 +729,7 @@ export async function createMp4Demuxer(
         if (sample.timestamp > timeUs) break;
         chosen = sample;
       }
-      cursor = indexOfOffset(chosen.offset);
+      cursor = samples.indexOf(chosen);
       return chosen.timestamp;
     },
 
@@ -730,10 +740,11 @@ export async function createMp4Demuxer(
       const sample = samples[cursor];
       cursor += 1;
 
-      if (stream.position !== sample.offset) {
-        await stream.seek(sample.offset);
+      const sampleStream = sample.kind === "video" ? videoStream : audioStream;
+      if (sampleStream.position !== sample.offset) {
+        await sampleStream.seek(sample.offset);
       }
-      const data = await stream.require(sample.size);
+      const data = await sampleStream.require(sample.size);
       return {
         kind: sample.kind,
         data,
@@ -745,7 +756,11 @@ export async function createMp4Demuxer(
 
     async close(): Promise<void> {
       cursor = samples.length;
-      await stream.close();
+      await Promise.all(
+        Array.from(new Set([videoStream, audioStream]), (trackStream) =>
+          trackStream.close()
+        )
+      );
     },
   };
 }

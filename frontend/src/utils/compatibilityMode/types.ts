@@ -19,8 +19,8 @@ export interface MediaDemuxer {
   audio: AudioDecoderConfig | null;
   /**
    * Alternate codec strings to try when `video.codec` is rejected. WebM carries
-   * no VP9 decoder-configuration record, so the exact profile/level string has
-   * to be guessed and verified against `VideoDecoder.isConfigSupported`.
+   * no VP9 decoder-configuration record, so its profile and bit depth come from
+   * the frame header while plausible level strings are support-probed here.
    */
   videoCodecFallbacks?: string[];
   /** Media duration in microseconds, when the container states one. */

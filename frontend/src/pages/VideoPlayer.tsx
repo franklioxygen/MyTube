@@ -531,6 +531,12 @@ const VideoPlayer: React.FC = () => {
                         canFallBackToStandardPlayer={!compatibilityModeForced}
                         onExit={() => setCompatibilityMode(false)}
                         seekIntervals={seekIntervals}
+                        statisticsVideoId={video.id}
+                        statisticsPlatform={
+                            typeof video.source === 'string' ? video.source.toLowerCase() : null
+                        }
+                        statisticsRelatedEventId={statisticsRelatedEventId}
+                        statisticsAutoplayFromVideoId={autoplayFromVideoId}
                     /> : isAudio ? <AudioModePlayer
                         src={(videoUrl || video?.sourceUrl) || null}
                         mediaPath={video.videoPath}

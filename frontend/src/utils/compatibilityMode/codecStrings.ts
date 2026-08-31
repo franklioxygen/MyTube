@@ -90,6 +90,49 @@ export function vp9CodecStringFromVpcC(vpcC: Uint8Array): string | null {
 }
 
 /**
+ * Read the VP9 profile and bit depth from an uncompressed frame header.
+ *
+ * WebM does not carry the `vpcC` decoder configuration record used by MP4,
+ * but every VP9 frame starts with this small clear-text header. Platform
+ * support probing alone cannot choose a profile: a browser may support several
+ * profiles while the encoded chunks are valid for exactly one of them.
+ */
+export function vp9CodecStringFromFrameHeader(
+  frame: Uint8Array
+): string | null {
+  let bitOffset = 0;
+  const readBits = (count: number): number | null => {
+    if (bitOffset + count > frame.length * 8) return null;
+    let value = 0;
+    for (let i = 0; i < count; i += 1) {
+      const byte = frame[bitOffset >> 3];
+      value = value * 2 + ((byte >> (7 - (bitOffset & 7))) & 1);
+      bitOffset += 1;
+    }
+    return value;
+  };
+
+  if (readBits(2) !== 0b10) return null;
+  const profileLow = readBits(1);
+  const profileHigh = readBits(1);
+  if (profileLow === null || profileHigh === null) return null;
+  const profile = profileLow + profileHigh * 2;
+  if (profile === 3 && readBits(1) !== 0) return null;
+
+  // A show-existing-frame header has no color configuration. It cannot be the
+  // random-access frame used to configure a new decoder, so decline to guess.
+  if (readBits(1) !== 0) return null;
+  const frameType = readBits(1);
+  readBits(1); // show_frame
+  readBits(1); // error_resilient_mode
+  if (frameType !== 0) return null;
+
+  if (readBits(24) !== 0x498342) return null;
+  const bitDepth = profile >= 2 ? (readBits(1) === 1 ? 12 : 10) : 8;
+  return `vp09.${dec2(profile)}.10.${dec2(bitDepth)}`;
+}
+
+/**
  * AAC object type from an `esds`/CodecPrivate DecoderSpecificInfo.
  * Defaults to AAC-LC (`mp4a.40.2`) when the record is missing or truncated.
  */

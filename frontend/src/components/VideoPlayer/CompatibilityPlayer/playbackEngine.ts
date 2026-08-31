@@ -652,8 +652,12 @@ export class CompatibilityPlaybackEngine {
 
             if (this.demuxEnded && !this.flushed) {
                 this.flushed = true;
-                await this.videoDecoder?.flush().catch(() => undefined);
-                await this.audioDecoder?.flush().catch(() => undefined);
+                // A rejected terminal flush means the decoder could not accept
+                // the tail of the stream. Let the outer catch fail playback;
+                // swallowing it would drain the queues, report `ended`, and
+                // autoplay onward after silently dropping corrupt media.
+                await this.videoDecoder?.flush();
+                await this.audioDecoder?.flush();
             }
         } catch (error) {
             this.fail(error);

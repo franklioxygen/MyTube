@@ -13,6 +13,7 @@ import {
   av1CodecString,
   avcCodecString,
   hevcCodecString,
+  vp9CodecStringFromFrameHeader,
 } from "./codecStrings";
 import {
   MAX_ENCODED_PAYLOAD_BYTES,
@@ -235,11 +236,11 @@ const buildVideoConfig = (track: WebmTrack): VideoTrackConfig | null => {
     case "V_VP8":
       return { config: { ...base, codec: "vp8" }, fallbacks: [] };
     case "V_VP9":
-      // WebM carries no vpcC, so start at the common profile-0 8-bit string and
-      // let the engine fall back through the higher-bit-depth profiles.
+      // WebM carries no vpcC. This provisional value is replaced from the
+      // first keyframe's uncompressed header before the config is exposed.
       return {
         config: { ...base, codec: "vp09.00.10.08" },
-        fallbacks: ["vp09.00.41.08", "vp09.02.10.10", "vp09.01.10.08"],
+        fallbacks: ["vp09.00.41.08"],
       };
     case "V_AV1":
       return {
@@ -559,8 +560,10 @@ export async function createWebmDemuxer(
   };
 
   /** Advance the parser until at least one packet is queued, or EOF. */
-  const advance = async (): Promise<void> => {
-    while (pending.length === 0 && !finished) {
+  const advance = async (
+    ready: () => boolean = () => pending.length > 0
+  ): Promise<void> => {
+    while (!ready() && !finished) {
       const id = await readId();
       if (id === null) {
         finished = true;
@@ -723,6 +726,32 @@ export async function createWebmDemuxer(
     throw new UnsupportedMediaError("Empty WebM stream");
   }
   await advance();
+
+  // Unlike MP4, WebM has no VP9 decoder-configuration record. Inspect the
+  // actual first random-access frame before returning the config; choosing the
+  // first profile supported by the platform can configure the decoder for a
+  // different profile than the file contains. Audio blocks encountered while
+  // looking for the video frame stay queued in their original order.
+  if (selected.videoTrack?.codecId === "V_VP9") {
+    await advance(() =>
+      pending.some((packet) => packet.kind === "video" && packet.key)
+    );
+    const firstKeyframe = pending.find(
+      (packet) => packet.kind === "video" && packet.key
+    );
+    const codec = firstKeyframe
+      ? vp9CodecStringFromFrameHeader(firstKeyframe.data)
+      : null;
+    if (codec && selected.videoConfig) {
+      const [prefix, profile, , bitDepth] = codec.split(".");
+      selected.videoConfig = {
+        config: { ...selected.videoConfig.config, codec },
+        // Level is not encoded in the frame header. Keep the fallback on the
+        // same profile/bit depth so support probing cannot select another one.
+        fallbacks: [`${prefix}.${profile}.41.${bitDepth}`],
+      };
+    }
+  }
 
   if (!selected.videoConfig && !selected.audioConfig) {
     throw new UnsupportedMediaError(
