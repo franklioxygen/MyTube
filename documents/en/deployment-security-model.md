@@ -247,3 +247,16 @@ that lock, and one taken while enrolled restores that gesture. This is an
 admin-only action, and an admin who can restore a backup can already delete the
 credential outright, but it is worth knowing that it is the one exception to
 "only a password login unlocks it".
+
+## Data Directory (`MYTUBE_DATA_DIR`)
+
+`MYTUBE_DATA_DIR` is optional and defaults to `<backend cwd>/data`. It holds
+`mytube.db`, the generated Gesture Login pepper, uploaded hooks, and the legacy
+JSON files. Set it to keep that state on a different volume from the code; a
+relative value is resolved against the backend's working directory.
+
+It relocates the data directory only. Media stays under `uploads/`, which
+continues to follow the backend's working directory.
+
+The backend test suite sets this to a scratch directory per test file, so
+running `npm test` never touches a real deployment's database.
