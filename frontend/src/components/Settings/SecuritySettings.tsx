@@ -4,7 +4,7 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import { Box, Button, FormControlLabel, Switch, TextField, Typography } from '@mui/material';
 import { startRegistration } from '@simplewebauthn/browser';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import React, { useEffect, useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { Settings } from '../../types';
@@ -12,6 +12,12 @@ import { api } from '../../utils/apiClient';
 import { copyTextToClipboard } from '../../utils/clipboard';
 import { runMutationAsync } from '../../utils/mutationUtils';
 import { getWebAuthnErrorTranslationKey } from '../../utils/translations';
+import {
+    GESTURE_LOGIN_STATUS_QUERY_KEY,
+    fetchGestureLoginStatus,
+    removeGestureLogin,
+} from '../../utils/gestureLogin';
+import GestureLoginSetupDialog from '../Auth/GestureLoginSetupDialog';
 import AlertModal from '../AlertModal';
 import ConfirmationModal from '../ConfirmationModal';
 import UserManagementSettings from './UserManagementSettings';
@@ -62,6 +68,55 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ settings, onChange 
     });
 
     const passkeysExist = passkeysData?.exists || false;
+
+    const queryClient = useQueryClient();
+    const [gestureDialogOpen, setGestureDialogOpen] = useState(false);
+    const [gestureDialogMode, setGestureDialogMode] = useState<'create' | 'change'>('create');
+    const [showRemoveGestureModal, setShowRemoveGestureModal] = useState(false);
+
+    const {
+        data: gestureStatus,
+        isLoading: gestureStatusLoading,
+        isError: gestureStatusError,
+        refetch: refetchGestureStatus,
+    } = useQuery({
+        queryKey: GESTURE_LOGIN_STATUS_QUERY_KEY,
+        queryFn: fetchGestureLoginStatus,
+    });
+
+    const removeGestureMutation = useMutation({
+        mutationFn: () => removeGestureLogin(),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: GESTURE_LOGIN_STATUS_QUERY_KEY });
+            setShowRemoveGestureModal(false);
+        },
+        onError: () => {
+            setShowRemoveGestureModal(false);
+            showAlert(
+                t('error'),
+                t('gestureLoginRemoveFailed') || 'Gesture Login could not be removed. Please try again.'
+            );
+        },
+    });
+
+    // Enrolment needs the prerequisite to be true in BOTH the persisted status
+    // and the unsaved draft. Persisted-only would let the admin enrol against a
+    // draft they are about to turn off; draft-only would enrol against a
+    // prerequisite the server has not accepted yet and would reject.
+    const gestureDraftPrerequisites =
+        settings.loginEnabled === true && settings.passwordLoginAllowed !== false;
+    const gestureConfigured = gestureStatus?.configured === true;
+    const gestureLocked = gestureStatus?.locked === true;
+    const gestureResetRequired = gestureStatus?.resetRequired === true;
+    // Never act on an unknown state: a failed or pending status request must
+    // not render a switch that looks like a deliberate OFF.
+    const gestureStatusKnown = !gestureStatusLoading && !gestureStatusError && !!gestureStatus;
+    const canStartGestureEnrollment =
+        gestureStatusKnown &&
+        gestureDraftPrerequisites &&
+        gestureStatus.canConfigure &&
+        !gestureConfigured;
+
     const isSecureOriginForPasskeys =
         window.isSecureContext || isLocalhostHostname(window.location.hostname);
     const canChangePasswordLoginSetting =
@@ -236,7 +291,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ settings, onChange 
                                 <Switch
                                     checked={!passkeysExist ? true : (settings.passwordLoginAllowed !== false)}
                                     onChange={(e) => onChange('passwordLoginAllowed', e.target.checked)}
-                                    disabled={!settings.loginEnabled || !passkeysExist || !canChangePasswordLoginSetting}
+                                    disabled={!settings.loginEnabled || !passkeysExist || !canChangePasswordLoginSetting || gestureConfigured}
                                 />
                             }
                             label={t('allowPasswordLogin') || 'Allow Password Login'}
@@ -250,6 +305,113 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ settings, onChange 
                             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                                 {t('allowPasswordLoginHttpsOnlyHelper') || 'To disable password login, open this page over HTTPS or localhost. Passkey-only login requires a secure origin.'}
                             </Typography>
+                        )}
+                        {gestureConfigured && (
+                            <Typography
+                                variant="body2"
+                                color="text.secondary"
+                                sx={{ mt: 0.5 }}
+                                data-testid="gesture-blocks-password-login"
+                            >
+                                {t('gestureLoginDisablePasswordBlocked') || 'Turn off Gesture Login before disabling password login.'}
+                            </Typography>
+                        )}
+                    </Box>
+
+                    <Box data-testid="gesture-login-section">
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    checked={gestureConfigured}
+                                    onChange={(e) => {
+                                        if (e.target.checked) {
+                                            setGestureDialogMode('create');
+                                            setGestureDialogOpen(true);
+                                        } else {
+                                            setShowRemoveGestureModal(true);
+                                        }
+                                    }}
+                                    disabled={
+                                        removeGestureMutation.isPending ||
+                                        (gestureConfigured
+                                            ? false
+                                            : !canStartGestureEnrollment)
+                                    }
+                                    inputProps={{ 'aria-label': t('gestureLogin') || 'Gesture Login' }}
+                                />
+                            }
+                            label={t('gestureLogin') || 'Gesture Login'}
+                        />
+                    </Box>
+                    <Box sx={{ mt: 1, mb: 2 }}>
+                        <Typography variant="body2" color="text.secondary">
+                            {t('gestureLoginHelper') || 'Draw a 3x3 pattern to sign in as admin. Password login stays available as recovery after three incorrect gestures.'}
+                        </Typography>
+
+                        {gestureStatusLoading && (
+                            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }} data-testid="gesture-status-loading">
+                                {t('loading') || 'Loading...'}
+                            </Typography>
+                        )}
+
+                        {gestureStatusError && (
+                            <Box sx={{ mt: 0.5 }} data-testid="gesture-status-error">
+                                <Typography variant="body2" color="error">
+                                    {t('gestureLoginStatusFailed') || 'Gesture Login status could not be loaded.'}
+                                </Typography>
+                                <Button size="small" onClick={() => refetchGestureStatus()}>
+                                    {t('gestureLoginRetryStatus') || 'Retry'}
+                                </Button>
+                            </Box>
+                        )}
+
+                        {gestureStatusKnown && !gestureConfigured && !gestureResetRequired && !gestureDraftPrerequisites && (
+                            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }} data-testid="gesture-prerequisite-hint">
+                                {t('gestureLoginPasswordRequired') || 'Enable and save password login first.'}
+                            </Typography>
+                        )}
+
+                        {gestureStatusKnown && !gestureConfigured && !gestureResetRequired && gestureDraftPrerequisites && !gestureStatus.canConfigure && (
+                            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }} data-testid="gesture-save-first-hint">
+                                {t('gestureLoginSavePrerequisitesFirst') || 'Save login and password settings before enabling Gesture Login.'}
+                            </Typography>
+                        )}
+
+                        {gestureStatusKnown && gestureResetRequired && (
+                            <Box sx={{ mt: 0.5 }} data-testid="gesture-reset-required">
+                                <Typography variant="body2" color="error">
+                                    {t('gestureLoginResetRequired') || 'Your saved gesture can no longer be verified on this server. Set a new one.'}
+                                </Typography>
+                                <Button
+                                    size="small"
+                                    onClick={() => {
+                                        setGestureDialogMode('change');
+                                        setGestureDialogOpen(true);
+                                    }}
+                                >
+                                    {t('gestureLoginSetNew') || 'Set New Gesture'}
+                                </Button>
+                            </Box>
+                        )}
+
+                        {gestureStatusKnown && gestureConfigured && gestureLocked && (
+                            <Typography variant="body2" color="error" sx={{ mt: 0.5 }} data-testid="gesture-locked-hint">
+                                {t('gestureLoginLockedSettings') || 'Temporarily locked. Sign out and complete one admin password login to restore it.'}
+                            </Typography>
+                        )}
+
+                        {gestureStatusKnown && gestureConfigured && !gestureLocked && (
+                            <Button
+                                size="small"
+                                sx={{ mt: 0.5 }}
+                                data-testid="gesture-change-button"
+                                onClick={() => {
+                                    setGestureDialogMode('change');
+                                    setGestureDialogOpen(true);
+                                }}
+                            >
+                                {t('gestureLoginChange') || 'Change Gesture'}
+                            </Button>
                         )}
                     </Box>
 
@@ -381,6 +543,23 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ settings, onChange 
                 confirmText={t('remove') || 'Remove'}
                 cancelText={t('cancel') || 'Cancel'}
                 isDanger={true}
+            />
+
+            <ConfirmationModal
+                isOpen={showRemoveGestureModal}
+                onClose={() => setShowRemoveGestureModal(false)}
+                onConfirm={() => removeGestureMutation.mutate()}
+                title={t('gestureLoginRemoveTitle') || 'Turn Off Gesture Login'}
+                message={t('gestureLoginRemoveMessage') || 'This deletes the saved gesture immediately. This action cannot be undone.'}
+                confirmText={t('remove') || 'Remove'}
+                cancelText={t('cancel') || 'Cancel'}
+                isDanger={true}
+            />
+
+            <GestureLoginSetupDialog
+                open={gestureDialogOpen}
+                mode={gestureDialogMode}
+                onClose={() => setGestureDialogOpen(false)}
             />
 
             <AlertModal
