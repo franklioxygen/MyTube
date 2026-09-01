@@ -170,15 +170,42 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
         const engine = engineRef.current;
         if (!engine) {
             seekQueueRef.current = null;
+            pendingPlaybackRef.current = null;
             return;
         }
         seekRunningRef.current = true;
         try {
-            while (seekQueueRef.current !== null && engineRef.current === engine) {
+            // One engine call at a time until nothing is left. seek() captures
+            // the playback state as it starts, and play() can sit in
+            // resumeClock() for over a second, so letting either overlap the
+            // other loses one of the two. Repositions go first: a transport
+            // change belongs on top of the position the viewer chose.
+            for (;;) {
+                if (engineRef.current !== engine) {
+                    break;
+                }
                 const target = seekQueueRef.current;
-                seekQueueRef.current = null;
-                pendingTargetRef.current = target;
-                await engine.seek(target);
+                if (target !== null) {
+                    seekQueueRef.current = null;
+                    pendingTargetRef.current = target;
+                    await engine.seek(target);
+                    continue;
+                }
+                const intent = pendingPlaybackRef.current;
+                if (intent === null) {
+                    break;
+                }
+                pendingPlaybackRef.current = null;
+                // Applied only when it differs from where the engine actually
+                // ended up, because play() has no guard against being called
+                // on an engine that is already playing.
+                if (intent !== isEnginePlaying()) {
+                    if (intent) {
+                        await engine.play();
+                    } else {
+                        engine.pause();
+                    }
+                }
             }
         } finally {
             finishSeek(engine);
@@ -190,20 +217,6 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
             setScrubTime((current) =>
                 current === committedSeekRef.current ? null : current
             );
-
-            // Whatever the viewer asked of the transport meanwhile goes on top
-            // of the state the reposition restored on its way out. Applied only
-            // when it actually differs, because play() has no guard against
-            // being called on an engine that is already playing.
-            const intent = pendingPlaybackRef.current;
-            pendingPlaybackRef.current = null;
-            if (intent !== null && intent !== isEnginePlaying()) {
-                if (intent) {
-                    void engine.play();
-                } else {
-                    engine.pause();
-                }
-            }
         }
     }, [finishSeek]);
 
@@ -301,19 +314,18 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                     } finally {
                         restoringInitialPosition = false;
                         finishSeek(engine);
-                        // Awaited: anything the viewer queued during the
-                        // restore captures the paused state, and would put it
-                        // back on the way out if autoplay went first.
-                        await drainSeekQueue();
                     }
                 }
-                // isEnginePlaying guards the case where the drain above
-                // already started playback from a queued play press.
-                if (autoPlay && engineRef.current === engine && !isEnginePlaying()) {
-                    // A refused autoplay leaves the engine ready rather than
-                    // playing; the play control then works from a real gesture.
-                    void engine.play();
+                if (autoPlay && engineRef.current === engine) {
+                    // Autoplay is one more transport change, so it goes through
+                    // the queue rather than racing it: anything asked for during
+                    // the restore is performed first, and no seek can start
+                    // while play() is still resuming the clock. A refused
+                    // autoplay leaves the engine ready rather than playing; the
+                    // play control then works from a real gesture.
+                    pendingPlaybackRef.current = true;
                 }
+                await drainSeekQueue();
             })
             .catch(() => undefined);
 
@@ -370,6 +382,11 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
         // play() rewinds an ended source with a seek of its own, which would
         // refuse anything the bar sent meanwhile. Hold the queue across the
         // toggle so a release waits for it, exactly as a skip does.
+        if (statusRef.current === 'ended') {
+            // That rewind lands at zero, so a skip pressed meanwhile has a
+            // target to count from instead of being dropped.
+            pendingTargetRef.current = 0;
+        }
         seekRunningRef.current = true;
         void engine.toggle().finally(() => {
             finishSeek(engine);

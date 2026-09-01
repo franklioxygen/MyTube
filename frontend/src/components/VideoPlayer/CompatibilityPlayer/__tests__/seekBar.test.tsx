@@ -10,6 +10,7 @@ const harness = vi.hoisted(() => ({
     pendingSeeks: [] as Array<{ target: number; resolve: () => void }>,
     pendingSeekBys: [] as Array<{ delta: number; resolve: () => void }>,
     pendingToggles: [] as Array<{ resolve: () => void }>,
+    pendingPlays: [] as Array<{ resolve: () => void }>,
 }));
 
 interface FakeEngine {
@@ -29,7 +30,12 @@ vi.mock('../playbackEngine', () => ({
     CompatibilityPlaybackEngine: class {
         options: FakeEngine['options'];
         load = vi.fn(async () => undefined);
-        play = vi.fn(async () => undefined);
+        play = vi.fn(
+            () =>
+                new Promise<void>((resolve) => {
+                    harness.pendingPlays.push({ resolve });
+                })
+        );
         toggle = vi.fn(
             () =>
                 new Promise<void>((resolve) => {
@@ -147,6 +153,7 @@ describe('D Mode progress bar seeking', () => {
         harness.pendingSeeks.length = 0;
         harness.pendingSeekBys.length = 0;
         harness.pendingToggles.length = 0;
+        harness.pendingPlays.length = 0;
     });
 
     it('follows the drag without seeking until the thumb is released', async () => {
@@ -396,6 +403,70 @@ describe('D Mode progress bar seeking', () => {
         });
 
         expect(engine.play).toHaveBeenCalledTimes(1);
+    });
+
+    it('holds the queue until a deferred play has started', async () => {
+        const { engine } = await renderPlayer();
+
+        drag(60);
+        release();
+        fireEvent.click(screen.getAllByLabelText('playing')[1]);
+
+        await act(async () => {
+            harness.pendingSeeks[0].resolve();
+            engine.options.onChange(snapshotOf({ status: 'paused', currentTime: 60 }));
+        });
+
+        expect(harness.pendingPlays).toHaveLength(1);
+
+        // play() can sit in resumeClock() for over a second. A seek started in
+        // that window would capture the pre-play state and put it back.
+        drag(90);
+        release();
+        expect(engine.seek).toHaveBeenCalledTimes(1);
+
+        await act(async () => {
+            harness.pendingPlays[0].resolve();
+        });
+
+        expect(engine.seek).toHaveBeenLastCalledWith(90);
+    });
+
+    it('holds the queue until autoplay has started', async () => {
+        render(<CompatibilityPlayer src="clip.webm" autoPlay />);
+        const engine = harness.engines[0];
+        await act(async () => {
+            engine.options.onChange(snapshotOf());
+        });
+
+        expect(harness.pendingPlays).toHaveLength(1);
+
+        drag(60);
+        release();
+        expect(engine.seek).not.toHaveBeenCalled();
+
+        await act(async () => {
+            harness.pendingPlays[0].resolve();
+        });
+
+        expect(engine.seek).toHaveBeenCalledWith(60);
+    });
+
+    it('stacks a skip onto the rewind when replaying an ended video', async () => {
+        const { engine } = await renderPlayer({ status: 'ended' });
+
+        fireEvent.click(screen.getAllByLabelText('playing')[1]);
+        expect(harness.pendingToggles).toHaveLength(1);
+
+        fireEvent.click(screen.getAllByLabelText('seekForwardBy')[0]);
+        expect(engine.seekBy).not.toHaveBeenCalled();
+
+        await act(async () => {
+            harness.pendingToggles[0].resolve();
+        });
+
+        // The rewind lands at zero, so the skip counts from there.
+        expect(engine.seek).toHaveBeenCalledWith(SHORT_SECONDS);
     });
 
     it('locks the bar for a source that cannot be repositioned', async () => {
