@@ -19,6 +19,9 @@ interface FakeEngine {
     };
     seek: ReturnType<typeof vi.fn>;
     seekBy: ReturnType<typeof vi.fn>;
+    toggle: ReturnType<typeof vi.fn>;
+    play: ReturnType<typeof vi.fn>;
+    pause: ReturnType<typeof vi.fn>;
 }
 
 vi.mock('../playbackEngine', () => ({
@@ -27,6 +30,7 @@ vi.mock('../playbackEngine', () => ({
         load = vi.fn(async () => undefined);
         play = vi.fn(async () => undefined);
         toggle = vi.fn(async () => undefined);
+        pause = vi.fn(() => undefined);
         seekBy = vi.fn(
             (delta: number) =>
                 new Promise<void>((resolve) => {
@@ -108,11 +112,14 @@ const snapshotOf = (overrides: Partial<PlaybackSnapshot> = {}): PlaybackSnapshot
     ...overrides,
 });
 
-const renderPlayer = async (props: { startTime?: number } = {}) => {
+const renderPlayer = async ({
+    status,
+    ...props
+}: { startTime?: number; status?: PlaybackStatus } = {}) => {
     const view = render(<CompatibilityPlayer src="clip.webm" {...props} />);
     const engine = harness.engines[0];
     await act(async () => {
-        engine.options.onChange(snapshotOf());
+        engine.options.onChange(snapshotOf(status ? { status } : {}));
     });
     return { engine, view };
 };
@@ -278,6 +285,65 @@ describe('D Mode progress bar seeking', () => {
         // The bar opens on the new video, not on the abandoned scrub position.
         expect(screen.getByText('0:00')).toBeInTheDocument();
         expect(screen.queryByText('1:30')).not.toBeInTheDocument();
+    });
+
+    it('applies a pause pressed during a seek once the playhead lands', async () => {
+        const { engine } = await renderPlayer({ status: 'playing' });
+
+        drag(60);
+        release();
+
+        fireEvent.click(screen.getAllByLabelText('paused')[1]);
+        // seek() restores the state it captured, so pausing now would be undone
+        // on the way out; the press has to wait for the reposition.
+        expect(engine.toggle).not.toHaveBeenCalled();
+        expect(engine.pause).not.toHaveBeenCalled();
+
+        await act(async () => {
+            harness.pendingSeeks[0].resolve();
+            engine.options.onChange(snapshotOf({ status: 'playing', currentTime: 60 }));
+        });
+
+        expect(engine.pause).toHaveBeenCalledTimes(1);
+        expect(engine.play).not.toHaveBeenCalled();
+    });
+
+    it('applies a play pressed during a seek once the playhead lands', async () => {
+        const { engine } = await renderPlayer();
+
+        drag(60);
+        release();
+
+        fireEvent.click(screen.getAllByLabelText('playing')[1]);
+        expect(engine.toggle).not.toHaveBeenCalled();
+
+        await act(async () => {
+            harness.pendingSeeks[0].resolve();
+            engine.options.onChange(snapshotOf({ status: 'paused', currentTime: 60 }));
+        });
+
+        expect(engine.play).toHaveBeenCalledTimes(1);
+        expect(engine.pause).not.toHaveBeenCalled();
+    });
+
+    it('leaves playback alone when two presses during one seek cancel out', async () => {
+        const { engine } = await renderPlayer({ status: 'playing' });
+
+        drag(60);
+        release();
+
+        fireEvent.click(screen.getAllByLabelText('paused')[1]);
+        fireEvent.click(screen.getAllByLabelText('paused')[1]);
+
+        await act(async () => {
+            harness.pendingSeeks[0].resolve();
+            engine.options.onChange(snapshotOf({ status: 'playing', currentTime: 60 }));
+        });
+
+        // Back to the state the reposition restored, so nothing to apply —
+        // play() would restart the loops on an already-playing engine.
+        expect(engine.play).not.toHaveBeenCalled();
+        expect(engine.pause).not.toHaveBeenCalled();
     });
 
     it('locks the bar for a source that cannot be repositioned', async () => {

@@ -29,7 +29,11 @@ import {
     INITIAL_CANVAS_HEIGHT,
     INITIAL_CANVAS_WIDTH,
 } from './failureNotice';
-import { CompatibilityPlaybackEngine, PlaybackSnapshot } from './playbackEngine';
+import {
+    CompatibilityPlaybackEngine,
+    PlaybackSnapshot,
+    PlaybackStatus,
+} from './playbackEngine';
 
 interface CompatibilityPlayerProps {
     src: string | null;
@@ -134,6 +138,19 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
     const pendingTargetRef = useRef<number | null>(null);
     /** The last target a progress-bar release asked for. */
     const committedSeekRef = useRef<number | null>(null);
+    /** Mirrors the engine's status for callbacks that must not re-subscribe. */
+    const statusRef = useRef<PlaybackStatus>(INITIAL_SNAPSHOT.status);
+    /**
+     * Play or pause pressed while a reposition was running. `seek()` restores
+     * the playback state it captured when it started, so a transport change
+     * made in the meantime is either overwritten on the way out or left
+     * fighting the clock the reposition is rebasing. The intent waits here and
+     * is applied once the playhead has landed.
+     */
+    const pendingPlaybackRef = useRef<boolean | null>(null);
+
+    const isEnginePlaying = () =>
+        statusRef.current === 'playing' || statusRef.current === 'buffering';
 
     // Refs outlive a source change, because the parent keeps this player
     // mounted across navigation. Anything still settling then belongs to the
@@ -173,6 +190,20 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
             setScrubTime((current) =>
                 current === committedSeekRef.current ? null : current
             );
+
+            // Whatever the viewer asked of the transport meanwhile goes on top
+            // of the state the reposition restored on its way out. Applied only
+            // when it actually differs, because play() has no guard against
+            // being called on an engine that is already playing.
+            const intent = pendingPlaybackRef.current;
+            pendingPlaybackRef.current = null;
+            if (intent !== null && intent !== isEnginePlaying()) {
+                if (intent) {
+                    void engine.play();
+                } else {
+                    engine.pause();
+                }
+            }
         }
     }, [finishSeek]);
 
@@ -216,6 +247,8 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
         pendingTargetRef.current = null;
         seekRunningRef.current = false;
         committedSeekRef.current = null;
+        pendingPlaybackRef.current = null;
+        statusRef.current = INITIAL_SNAPSHOT.status;
         setScrubTime(null);
 
         if (!src || !supported) {
@@ -228,6 +261,7 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
         let restoringInitialPosition = false;
         const engine = new CompatibilityPlaybackEngine(canvas, {
             onChange: (next) => {
+                statusRef.current = next.status;
                 setSnapshot(next);
                 if (next.status === 'playing') {
                     onTimeUpdateRef.current?.(next.currentTime);
@@ -316,7 +350,19 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
 
     const handleToggle = useCallback(() => {
         revealControls();
-        void engineRef.current?.toggle();
+        const engine = engineRef.current;
+        if (!engine) {
+            return;
+        }
+        if (seekRunningRef.current || seekQueueRef.current !== null) {
+            // Reading the pending intent first, so two presses during one
+            // reposition cancel out rather than both counting as a change.
+            pendingPlaybackRef.current = !(
+                pendingPlaybackRef.current ?? isEnginePlaying()
+            );
+            return;
+        }
+        void engine.toggle();
     }, [revealControls]);
 
     useEffect(() => {
