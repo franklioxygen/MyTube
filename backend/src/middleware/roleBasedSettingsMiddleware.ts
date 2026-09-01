@@ -13,6 +13,8 @@ const PUBLIC_EXACT_PATHS = [
   "/logout",
   "/password-enabled",
   "/passkeys/exists",
+  "/gesture-login/status",
+  "/gesture-login/authenticate",
 ] as const;
 
 const PUBLIC_PREFIX_PATHS = [
@@ -28,6 +30,10 @@ const VISITOR_ALLOWED_GET_PATHS = [
   "/check-cookies",
   "/hooks/status",
   "/last-backup-info",
+  // Exact path, never a bare "/gesture-login": this list is matched with
+  // matchesPathOrSubpath, so a prefix entry would expose the admin-only
+  // collection route and anything added under it later.
+  "/gesture-login/status",
 ] as const;
 
 const VISITOR_ALLOWED_WRITE_EXACT_PATHS = [
@@ -36,6 +42,7 @@ const VISITOR_ALLOWED_WRITE_EXACT_PATHS = [
   "/verify-user-login",
   "/verify-visitor-password",
   "/logout",
+  "/gesture-login/authenticate",
 ] as const;
 
 const VISITOR_ALLOWED_WRITE_PREFIX_PATHS = ["/passkeys/authenticate"] as const;

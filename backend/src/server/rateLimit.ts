@@ -10,6 +10,7 @@ export interface AuthLimiters {
   adminReauthLimiter: RequestHandler;
   passkeyAuthLimiter: RequestHandler;
   passkeyRegistrationLimiter: RequestHandler;
+  gestureAuthLimiter: RequestHandler;
   feedLimiter: RequestHandler;
   statisticsIngestionLimiter: RequestHandler;
   liveTranslationSessionLimiter: RequestHandler;
@@ -172,6 +173,9 @@ export const configureRateLimiting = (app: Express): AuthLimiters => {
     adminReauthLimiter: createScopedAuthLimiter("admin-reauth"),
     passkeyAuthLimiter: createScopedAuthLimiter("passkey-auth"),
     passkeyRegistrationLimiter: createScopedAuthLimiter("passkey-registration"),
+    // Its own bucket on purpose: drawing gestures must not be able to consume
+    // the password attempts that are the documented recovery path.
+    gestureAuthLimiter: createScopedAuthLimiter("gesture-auth"),
     feedLimiter: createFeedLimiter(),
     statisticsIngestionLimiter: createStatisticsIngestionLimiter(),
     // Ticket minting has per-use Gemini cost; rate limit it per client.
@@ -197,6 +201,7 @@ export const configureRateLimiting = (app: Express): AuthLimiters => {
       req.path === "/api/statistics/events" ||
       req.path === "/api/settings/password-enabled" ||
       req.path === "/api/settings/passkeys/exists" ||
+      req.path === "/api/settings/gesture-login/status" ||
       req.path === "/api/settings";
 
     if (shouldBypassLimiter) {

@@ -6,6 +6,7 @@ import { cleanupAuthorCollections, deleteLegacyData, getSettings, migrateData, p
 import { verifyPassword } from '../../controllers/passwordController';
 import downloadManager from '../../services/downloadManager';
 import * as storageService from '../../services/storageService';
+import * as gestureLoginService from '../../services/gestureLoginService';
 
 vi.mock('../../services/storageService', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../services/storageService')>();
@@ -27,6 +28,9 @@ vi.mock('bcryptjs');
 vi.mock('fs-extra');
 vi.mock('../../services/migrationService', () => ({
   runMigration: vi.fn(),
+}));
+vi.mock('../../services/gestureLoginService', () => ({
+  hasGestureCredential: vi.fn(() => false),
 }));
 
 describe('SettingsController', () => {
@@ -317,6 +321,51 @@ describe('SettingsController', () => {
       req.body = { itemsPerPage: 20 };
       await updateSettings(req as Request, res as Response);
       expect(storageService.saveSettings).toHaveBeenCalledWith(expect.objectContaining({ itemsPerPage: 20 }));
+    });
+
+    it('should reject disabling password login while a gesture credential exists', async () => {
+      req.body = { passwordLoginAllowed: false, itemsPerPage: 20 };
+      req.cookies = { mytube_csrf: 'csrf-token' } as any;
+      req.headers = {
+        origin: 'https://mytube.example',
+        host: 'mytube.example',
+        'x-csrf-token': 'csrf-token',
+      } as any;
+      req.get = ((key: string) => req.headers?.[key.toLowerCase()] as string | undefined) as Request['get'];
+      req.socket = { remoteAddress: '203.0.113.10' } as any;
+      (storageService.getSettings as any).mockReturnValue({ passwordLoginAllowed: true });
+      (gestureLoginService.hasGestureCredential as any).mockReturnValue(true);
+
+      await updateSettings(req as Request, res as Response);
+
+      expect(status).toHaveBeenCalledWith(409);
+      expect(json).toHaveBeenCalledWith(
+        expect.objectContaining({ code: 'gesture_requires_password_login' })
+      );
+      // Password login is the only recovery path out of a gesture lock, and a
+      // mixed PATCH must be rejected whole rather than half-applied.
+      expect(storageService.saveSettings).not.toHaveBeenCalled();
+    });
+
+    it('should allow disabling password login once the gesture credential is gone', async () => {
+      req.body = { passwordLoginAllowed: false };
+      req.cookies = { mytube_csrf: 'csrf-token' } as any;
+      req.headers = {
+        origin: 'https://mytube.example',
+        host: 'mytube.example',
+        'x-csrf-token': 'csrf-token',
+      } as any;
+      req.get = ((key: string) => req.headers?.[key.toLowerCase()] as string | undefined) as Request['get'];
+      req.socket = { remoteAddress: '203.0.113.10' } as any;
+      (storageService.getSettings as any).mockReturnValue({ passwordLoginAllowed: true });
+      (gestureLoginService.hasGestureCredential as any).mockReturnValue(false);
+
+      await updateSettings(req as Request, res as Response);
+
+      expect(status).not.toHaveBeenCalledWith(409);
+      expect(storageService.saveSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ passwordLoginAllowed: false })
+      );
     });
 
     it('should reject disabling password login from non-https origins', async () => {

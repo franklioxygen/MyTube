@@ -39,9 +39,13 @@ vi.mock("../../services/gestureLoginPepper", () => ({
 // the verifier is a switch, so these tests stay about the state machine,
 // expiry, and the compare-and-swap races - and run in milliseconds.
 const encodeGestureVerifier = vi.fn(
-  async (material: string) => `scrypt-v1$32768$8$1$salt$${material}`
+  async (material: string, _pepper: Buffer) =>
+    `scrypt-v1$32768$8$1$salt$${material}`
 );
-const verifyGestureVerifier = vi.fn(async () => mocks.verifyOutcome);
+const verifyGestureVerifier = vi.fn(
+  async (_stored: string, _material: string, _pepper: Buffer) =>
+    mocks.verifyOutcome
+);
 vi.mock("../../services/gestureLoginVerifier", () => ({
   encodeGestureVerifier: (material: string, pepper: Buffer) =>
     encodeGestureVerifier(material, pepper),
