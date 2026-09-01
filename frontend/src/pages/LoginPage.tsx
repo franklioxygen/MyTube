@@ -334,10 +334,7 @@ const LoginPage: React.FC = () => {
                 setGestureMessage(
                     (t('gestureLoginIncorrectAttemptsRemaining') ||
                         'Incorrect gesture. {count} attempts remaining.'
-                    ).replace('{count}', String(body.attemptsRemaining)) +
-                        ' ' +
-                        (t('gestureLoginPartialResetHint') ||
-                            'The failure count resets 12 hours after the most recent incorrect gesture.')
+                    ).replace('{count}', String(body.attemptsRemaining))
                 );
                 return;
             }

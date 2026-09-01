@@ -1781,7 +1781,6 @@ export const fr = {
   gestureLoginLockedSettings: "Temporairement verrouillé. Déconnectez-vous et connectez-vous une fois avec le mot de passe administrateur pour la rétablir.",
   gestureLoginLockedPasswordRecovery: "La connexion par geste est verrouillée après 3 tentatives incorrectes. Connectez-vous une fois avec votre mot de passe administrateur pour la rétablir.",
   gestureLoginIncorrectAttemptsRemaining: "Geste incorrect. {count} tentatives restantes.",
-  gestureLoginPartialResetHint: "Le compteur d'échecs est réinitialisé 12 heures après le dernier geste incorrect.",
   gestureLoginUnavailable: "La connexion par geste n'est pas disponible.",
   gestureLoginResetRequired: "Votre geste enregistré ne peut plus être vérifié sur ce serveur. Définissez-en un nouveau.",
   gestureLoginStatusFailed: "Le statut de la connexion par geste n'a pas pu être chargé.",

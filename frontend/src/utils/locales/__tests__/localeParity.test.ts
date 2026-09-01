@@ -130,7 +130,6 @@ describe("English catalogue", () => {
       "gestureLoginMismatch",
       "gestureLoginLockedPasswordRecovery",
       "gestureLoginIncorrectAttemptsRemaining",
-      "gestureLoginPartialResetHint",
       "gestureLoginUnavailable",
       "gestureLoginResetRequired",
       "gestureLoginStatusFailed",

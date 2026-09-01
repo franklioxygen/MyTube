@@ -1720,7 +1720,6 @@ export const en = {
   gestureLoginLockedSettings: "Temporarily locked. Sign out and complete one admin password login to restore it.",
   gestureLoginLockedPasswordRecovery: "Gesture Login is locked after 3 incorrect attempts. Sign in once with your admin password to restore it.",
   gestureLoginIncorrectAttemptsRemaining: "Incorrect gesture. {count} attempts remaining.",
-  gestureLoginPartialResetHint: "The failure count resets 12 hours after the most recent incorrect gesture.",
   gestureLoginUnavailable: "Gesture Login is not available.",
   gestureLoginResetRequired: "Your saved gesture can no longer be verified on this server. Set a new one.",
   gestureLoginStatusFailed: "Gesture Login status could not be loaded.",

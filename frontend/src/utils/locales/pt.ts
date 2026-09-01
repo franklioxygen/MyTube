@@ -1757,7 +1757,6 @@ export const pt = {
   gestureLoginLockedSettings: "Bloqueado temporariamente. Saia e faça um login com a senha de administrador para restaurá-lo.",
   gestureLoginLockedPasswordRecovery: "O login por gesto está bloqueado após 3 tentativas incorretas. Entre uma vez com sua senha de administrador para restaurá-lo.",
   gestureLoginIncorrectAttemptsRemaining: "Gesto incorreto. Restam {count} tentativas.",
-  gestureLoginPartialResetHint: "A contagem de falhas é reiniciada 12 horas após o gesto incorreto mais recente.",
   gestureLoginUnavailable: "O login por gesto não está disponível.",
   gestureLoginResetRequired: "Seu gesto salvo não pode mais ser verificado neste servidor. Defina um novo.",
   gestureLoginStatusFailed: "Não foi possível carregar o status do login por gesto.",
