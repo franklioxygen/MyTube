@@ -1,0 +1,50 @@
+name: "CodeQL"
+
+# Replaces the repository's CodeQL default setup, which cannot exclude paths.
+# Keeps the same languages, query suite and weekly cadence, and keeps the job
+# named "Analyze" so the checks stay "Analyze (<language>)" as before.
+#
+# The default setup must be turned off for this workflow to publish results:
+# Settings -> Code security -> Code scanning -> CodeQL analysis -> Disable.
+# Until then every run here fails with "CodeQL analyses from advanced
+# configurations cannot be processed when the default setup is enabled".
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  schedule:
+    # Weekly, matching the cadence the default setup ran on.
+    - cron: '25 4 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyze
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ actions, javascript-typescript, python ]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          config-file: ./.github/codeql/codeql-config.yml
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
