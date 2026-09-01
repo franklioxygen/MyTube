@@ -25,6 +25,7 @@ import { configureRateLimiting } from "./server/rateLimit";
 import { registerSpaFallback, registerStaticRoutes } from "./server/staticRoutes";
 import { startBackgroundJobs } from "./server/startupJobs";
 import { registerLiveTranslationSocket } from "./server/liveTranslationSocket";
+import { createListenHandler } from "./server/listenHandler";
 
 VERSION.displayVersion();
 
@@ -92,10 +93,11 @@ const startServer = async (): Promise<void> => {
     app.use(errorHandler);
 
     const HOST = process.env.HOST || "0.0.0.0";
-    const server = app.listen(PORT, HOST, () => {
-      logger.info(`Server running on ${HOST}:${PORT}`);
-      startBackgroundJobs(PORT);
-    });
+    const server = app.listen(
+      PORT,
+      HOST,
+      createListenHandler(HOST, PORT, () => startBackgroundJobs(PORT))
+    );
     // Register the live translation WebSocket on the same HTTP server (noServer
     // mode handles only the live translation upgrade path).
     registerLiveTranslationSocket(server);
