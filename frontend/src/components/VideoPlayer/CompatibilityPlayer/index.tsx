@@ -6,18 +6,19 @@ import {
     Stack,
     Tooltip,
     Typography,
+    useTheme,
 } from '@mui/material';
 import { Computer, Pause, PlayArrow } from '@mui/icons-material';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import { useCompatibilityStatisticsWatchTracker } from '../../../hooks/useCompatibilityStatisticsWatchTracker';
-import { neutral, overlay } from '../../../theme/colors';
-import { formatDuration } from '../../../utils/formatUtils';
+import { modeColors, neutral, overlay } from '../../../theme/colors';
 import {
     DEFAULT_PLAYER_SEEK_INTERVALS,
     PlayerSeekIntervals,
 } from '../../../utils/playerSeekIntervals';
 import FullscreenControl from '../VideoControls/FullscreenControl';
+import ProgressBar from '../VideoControls/ProgressBar';
 import SeekButton from '../VideoControls/SeekButton';
 import {
     getMissingCompatibilityModeApis,
@@ -109,6 +110,12 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
     const [snapshot, setSnapshot] = useState<PlaybackSnapshot>(INITIAL_SNAPSHOT);
     const [controlsVisible, setControlsVisible] = useState(true);
     const [isFullscreen, setIsFullscreen] = useState(false);
+    // Where the viewer is dragging the progress bar, which the engine's clock
+    // only catches up to once the seek lands. Null when not scrubbing.
+    const [scrubTime, setScrubTime] = useState<number | null>(null);
+    const seekTargetRef = useRef<number | null>(null);
+    const seekRunningRef = useRef(false);
+    const committedSeekRef = useRef<number | null>(null);
 
     const statisticsTracker = useCompatibilityStatisticsWatchTracker({
         status: snapshot.status,
@@ -271,6 +278,54 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
         [revealControls]
     );
 
+    /**
+     * The engine ignores a seek issued while one is still running, so the
+     * targets a drag produces are queued here instead of being dropped: the
+     * newest one always wins, and only it is actually performed.
+     */
+    const drainSeekQueue = useCallback(async () => {
+        if (seekRunningRef.current) {
+            return;
+        }
+        seekRunningRef.current = true;
+        try {
+            while (seekTargetRef.current !== null) {
+                const target = seekTargetRef.current;
+                seekTargetRef.current = null;
+                await engineRef.current?.seek(target);
+            }
+        } finally {
+            seekRunningRef.current = false;
+        }
+        // Hand the bar back to the engine's own clock only once nothing else
+        // is waiting and the thumb still sits where this seek was aimed —
+        // a drag that started while the seek ran must keep the lead.
+        if (seekTargetRef.current === null) {
+            setScrubTime((current) =>
+                current === committedSeekRef.current ? null : current
+            );
+        }
+    }, []);
+
+    const handleScrub = useCallback(
+        (seconds: number) => {
+            revealControls();
+            setScrubTime(seconds);
+        },
+        [revealControls]
+    );
+
+    const handleScrubCommitted = useCallback(
+        (seconds: number) => {
+            revealControls();
+            setScrubTime(seconds);
+            committedSeekRef.current = seconds;
+            seekTargetRef.current = seconds;
+            void drainSeekQueue();
+        },
+        [drainSeekQueue, revealControls]
+    );
+
     const isPlaying =
         snapshot.status === 'playing' || snapshot.status === 'buffering';
     const cannotReplay = snapshot.status === 'ended' && !snapshot.canSeek;
@@ -303,10 +358,16 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
             hint: failureHint,
         });
     }, [hasFailed, failureTitle, failureDetail, failureHint]);
-    const progress =
-        snapshot.duration && snapshot.duration > 0
-            ? Math.min(100, (snapshot.currentTime / snapshot.duration) * 100)
-            : 0;
+
+    const theme = useTheme();
+    const modePalette = modeColors(theme.palette.mode);
+    // In fullscreen the strip sits on the player's own black frame, so it stays
+    // light-on-dark. Docked in the page it is a panel like the standard
+    // player's control bar, and follows the app theme instead.
+    const stripBackground = isFullscreen ? 'transparent' : modePalette.backgroundElevated;
+    const stripColor = isFullscreen ? neutral.white : modePalette.textPrimary;
+
+    const displayTime = scrubTime ?? snapshot.currentTime;
 
     return (
         <Box
@@ -478,7 +539,8 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                 )}
             </Box>
 
-            {/* Deliberately not the real control panel — just enough to drive the POC. */}
+            {/* A trimmed transport strip: the shared progress bar, play and the
+                way back to the standard player. */}
             <Box
                 sx={{
                     display: 'flex',
@@ -486,7 +548,9 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                     gap: 1.5,
                     px: 1.5,
                     py: 1,
-                    color: neutral.white,
+                    bgcolor: stripBackground,
+                    color: stripColor,
+                    transition: 'background-color 0.3s, color 0.3s',
                     flexWrap: 'wrap',
                 }}
             >
@@ -495,35 +559,20 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                     onClick={handleToggle}
                     disabled={hasFailed || isBusy || cannotReplay}
                     aria-label={isPlaying ? t('paused') : t('playing')}
-                    sx={{ color: neutral.white }}
+                    sx={{ color: 'inherit' }}
                 >
                     {isPlaying ? <Pause /> : <PlayArrow />}
                 </IconButton>
 
-                <Typography variant="caption" sx={{ fontVariantNumeric: 'tabular-nums' }}>
-                    {formatDuration(snapshot.currentTime)}
-                    {snapshot.duration ? ` / ${formatDuration(snapshot.duration)}` : ''}
-                </Typography>
-
-                <Box
-                    sx={{
-                        flex: 1,
-                        minWidth: 80,
-                        height: 3,
-                        borderRadius: 2,
-                        bgcolor: overlay.white32,
-                    }}
-                >
-                    <Box
-                        sx={{
-                            width: `${progress}%`,
-                            height: '100%',
-                            borderRadius: 2,
-                            bgcolor: 'primary.main',
-                            transition: 'width 120ms linear',
-                        }}
-                    />
-                </Box>
+                <ProgressBar
+                    currentTime={displayTime}
+                    duration={snapshot.duration ?? 0}
+                    isFullscreen={isFullscreen}
+                    disabled={hasFailed || !snapshot.canSeek}
+                    onProgressChange={handleScrub}
+                    onProgressChangeCommitted={handleScrubCommitted}
+                    onProgressMouseDown={revealControls}
+                />
 
                 {onExit && canFallBackToStandardPlayer && (
                     <Tooltip title={t('compatibilityModeExit')}>
@@ -531,7 +580,7 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                             size="small"
                             onClick={onExit}
                             aria-label={t('compatibilityModeExit')}
-                            sx={{ color: neutral.white }}
+                            sx={{ color: 'inherit' }}
                         >
                             <Computer />
                         </IconButton>

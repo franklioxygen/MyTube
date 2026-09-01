@@ -6,6 +6,8 @@ interface ProgressBarProps {
     currentTime: number;
     duration: number;
     isFullscreen?: boolean;
+    /** Locks the bar for sources that cannot be repositioned at all. */
+    disabled?: boolean;
     onProgressChange: (value: number) => void;
     onProgressChangeCommitted: (value: number) => void;
     onProgressMouseDown: () => void;
@@ -15,6 +17,7 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
     currentTime,
     duration,
     isFullscreen = false,
+    disabled = false,
     onProgressChange,
     onProgressChangeCommitted,
     onProgressMouseDown
@@ -59,7 +62,7 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
                     onProgressChangeCommitted(value);
                 }}
                 onMouseDown={onProgressMouseDown}
-                disabled={!hasDuration}
+                disabled={disabled || !hasDuration}
                 size="small"
                 sx={{
                     flex: 1,
