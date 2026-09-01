@@ -301,10 +301,15 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                     } finally {
                         restoringInitialPosition = false;
                         finishSeek(engine);
-                        void drainSeekQueue();
+                        // Awaited: anything the viewer queued during the
+                        // restore captures the paused state, and would put it
+                        // back on the way out if autoplay went first.
+                        await drainSeekQueue();
                     }
                 }
-                if (autoPlay && engineRef.current === engine) {
+                // isEnginePlaying guards the case where the drain above
+                // already started playback from a queued play press.
+                if (autoPlay && engineRef.current === engine && !isEnginePlaying()) {
                     // A refused autoplay leaves the engine ready rather than
                     // playing; the play control then works from a real gesture.
                     void engine.play();

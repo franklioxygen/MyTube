@@ -372,6 +372,32 @@ describe('D Mode progress bar seeking', () => {
         expect(engine.seek).toHaveBeenCalledWith(60);
     });
 
+    it('lets a queued restore follow-up finish before autoplay starts', async () => {
+        render(<CompatibilityPlayer src="clip.webm" startTime={30} autoPlay />);
+        const engine = harness.engines[0];
+        await act(async () => {
+            engine.options.onChange(snapshotOf());
+        });
+
+        drag(60);
+        release();
+
+        await act(async () => {
+            harness.pendingSeeks[0].resolve();
+        });
+
+        // The queued seek captured the paused state, so autoplay starting now
+        // would be put back to paused when that seek lands.
+        expect(engine.seek).toHaveBeenLastCalledWith(60);
+        expect(engine.play).not.toHaveBeenCalled();
+
+        await act(async () => {
+            harness.pendingSeeks[1].resolve();
+        });
+
+        expect(engine.play).toHaveBeenCalledTimes(1);
+    });
+
     it('locks the bar for a source that cannot be repositioned', async () => {
         render(<CompatibilityPlayer src="clip.webm" />);
         await act(async () => {
