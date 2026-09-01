@@ -362,8 +362,15 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
             );
             return;
         }
-        void engine.toggle();
-    }, [revealControls]);
+        // play() rewinds an ended source with a seek of its own, which would
+        // refuse anything the bar sent meanwhile. Hold the queue across the
+        // toggle so a release waits for it, exactly as a skip does.
+        seekRunningRef.current = true;
+        void engine.toggle().finally(() => {
+            finishSeek(engine);
+            void drainSeekQueue();
+        });
+    }, [drainSeekQueue, finishSeek, revealControls]);
 
     useEffect(() => {
         const syncFullscreen = () =>

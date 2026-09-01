@@ -9,6 +9,7 @@ const harness = vi.hoisted(() => ({
     engines: [] as FakeEngine[],
     pendingSeeks: [] as Array<{ target: number; resolve: () => void }>,
     pendingSeekBys: [] as Array<{ delta: number; resolve: () => void }>,
+    pendingToggles: [] as Array<{ resolve: () => void }>,
 }));
 
 interface FakeEngine {
@@ -29,7 +30,12 @@ vi.mock('../playbackEngine', () => ({
         options: FakeEngine['options'];
         load = vi.fn(async () => undefined);
         play = vi.fn(async () => undefined);
-        toggle = vi.fn(async () => undefined);
+        toggle = vi.fn(
+            () =>
+                new Promise<void>((resolve) => {
+                    harness.pendingToggles.push({ resolve });
+                })
+        );
         pause = vi.fn(() => undefined);
         seekBy = vi.fn(
             (delta: number) =>
@@ -140,6 +146,7 @@ describe('D Mode progress bar seeking', () => {
         harness.engines.length = 0;
         harness.pendingSeeks.length = 0;
         harness.pendingSeekBys.length = 0;
+        harness.pendingToggles.length = 0;
     });
 
     it('follows the drag without seeking until the thumb is released', async () => {
@@ -344,6 +351,25 @@ describe('D Mode progress bar seeking', () => {
         // play() would restart the loops on an already-playing engine.
         expect(engine.play).not.toHaveBeenCalled();
         expect(engine.pause).not.toHaveBeenCalled();
+    });
+
+    it('performs a release made while replay rewinds an ended video', async () => {
+        const { engine } = await renderPlayer({ status: 'ended' });
+
+        fireEvent.click(screen.getAllByLabelText('playing')[1]);
+        expect(harness.pendingToggles).toHaveLength(1);
+
+        drag(60);
+        release();
+        // play() rewinds an ended source with a seek of its own, which would
+        // refuse this one outright.
+        expect(engine.seek).not.toHaveBeenCalled();
+
+        await act(async () => {
+            harness.pendingToggles[0].resolve();
+        });
+
+        expect(engine.seek).toHaveBeenCalledWith(60);
     });
 
     it('locks the bar for a source that cannot be repositioned', async () => {
