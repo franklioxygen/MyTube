@@ -46,6 +46,12 @@ export const fr = {
   downloadStarted: "Téléchargement commencé",
   downloadFailed: "Échec du téléchargement",
   downloadSuccess: "Le téléchargement a commencé avec succès",
+  downloadAudioOnly: "Télécharger uniquement l'audio",
+  downloadAudioOnlyHint: "N'enregistre que la piste audio (sans vidéo).",
+  audioFormat: "Format audio",
+  audioFormatM4a: "M4A",
+  audioFormatMp3: "MP3",
+  audioFormatOpus: "Opus",
   confirmDownloadAllPlaylists:
     "Télécharger toutes les listes de lecture de cette chaîne ? Cela créera une collection pour chaque liste de lecture.",
   downloadAll: "Tout télécharger",
@@ -84,6 +90,7 @@ export const fr = {
   themeDark: "Toujours sombre",
   themeSystem: "Thème du système",
   showThemeButtonInHeader: "Afficher le bouton de thème dans l'en-tête",
+  showAudioDownloadButton: "Afficher le bouton de téléchargement audio",
   tmdbApiKey: "Clé API TMDB",
   tmdbApiKeyHelper:
     "Clé API TheMovieDB pour récupérer les métadonnées et affiches de films/séries. Obtenez votre clé sur https://www.themoviedb.org/settings/api",
@@ -261,6 +268,11 @@ export const fr = {
   preferredAudioLanguage_pl: "Polonais",
   preferredAudioLanguage_tr: "Turc",
   preferredAudioLanguage_vi: "Vietnamien",
+  preferredVideoResolution: "Résolution vidéo préférée",
+  preferredVideoResolutionDescription: "Privilégie une résolution maximale au téléchargement. yt-dlp choisit le meilleur flux à cette hauteur ou en dessous, ce qui évite que les épisodes d'une collection retombent de façon irrégulière sur une résolution basse. Une configuration yt-dlp personnalisée est prioritaire.",
+  preferredVideoResolutionAuto: "Automatique (meilleure disponible)",
+  preferredVideoResolutionStrict: "Appliquer strictement la limite de résolution",
+  preferredVideoResolutionStrictDescription: "Si activé, un épisode sans flux respectant la limite échoue au lieu d'être téléchargé dans une résolution supérieure. Laissez désactivé pour traiter la résolution comme une simple préférence.",
   defaultVideoCodec: "Préréglage du format de téléchargement",
   defaultVideoCodecDescription:
     "Choisissez le comportement de format par défaut pour les nouveaux téléchargements. Auto utilise les réglages haute qualité de MyTube. Compatibilité maximale privilégie la vidéo H.264 avec sortie MP4/M4A. Qualité maximale privilégie VP9/WebM. C'est une préférence avec replis, remplacée par les réglages de format yt-dlp personnalisés.",

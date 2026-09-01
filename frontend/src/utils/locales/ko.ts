@@ -44,6 +44,12 @@ export const ko = {
   downloadStarted: "다운로드 시작됨",
   downloadFailed: "다운로드 실패",
   downloadSuccess: "다운로드가 성공적으로 시작되었습니다",
+  downloadAudioOnly: "오디오만 다운로드",
+  downloadAudioOnlyHint: "오디오 트랙만 저장합니다(영상 제외).",
+  audioFormat: "오디오 형식",
+  audioFormatM4a: "M4A",
+  audioFormatMp3: "MP3",
+  audioFormatOpus: "Opus",
   confirmDownloadAllPlaylists:
     "이 채널의 모든 재생 목록을 다운로드하시겠습니까? 각 재생 목록에 대한 컬렉션이 생성됩니다.",
   downloadAll: "모두 다운로드",
@@ -82,6 +88,7 @@ export const ko = {
   themeDark: "항상 다크",
   themeSystem: "시스템 설정 따름",
   showThemeButtonInHeader: "헤더에 테마 버튼 표시",
+  showAudioDownloadButton: "오디오 다운로드 버튼 표시",
   tmdbApiKey: "TMDB API 키",
   tmdbApiKeyHelper:
     "영화/TV 프로그램 메타데이터 및 포스터를 가져오기 위한 TheMovieDB API 키. https://www.themoviedb.org/settings/api 에서 키를 받으세요",
@@ -256,6 +263,11 @@ export const ko = {
   preferredAudioLanguage_pl: "폴란드어",
   preferredAudioLanguage_tr: "터키어",
   preferredAudioLanguage_vi: "베트남어",
+  preferredVideoResolution: "선호하는 동영상 해상도",
+  preferredVideoResolutionDescription: "다운로드 시 상한으로 삼을 해상도입니다. yt-dlp가 이 높이 이하에서 가장 좋은 스트림을 고르므로, 컬렉션의 에피소드마다 해상도가 제각각 낮아지는 일을 막을 수 있습니다. 사용자 지정 yt-dlp 설정이 우선합니다.",
+  preferredVideoResolutionAuto: "자동(사용 가능한 최상)",
+  preferredVideoResolutionStrict: "해상도 상한을 엄격하게 적용",
+  preferredVideoResolutionStrictDescription: "켜면 상한 이하의 스트림이 없는 에피소드는 더 높은 해상도로 받지 않고 실패합니다. 끄면 해상도를 느슨한 선호 값으로 취급합니다.",
   defaultVideoCodec: "다운로드 형식 프리셋",
   defaultVideoCodecDescription:
     "새 다운로드의 기본 형식 동작을 선택합니다. 자동은 MyTube의 고화질 기본값을 사용합니다. 최고 호환성은 H.264 비디오와 MP4/M4A 출력을 우선합니다. 최고 화질은 VP9/WebM을 우선합니다. 이 설정은 대체 선택이 있는 선호값이며 사용자 지정 yt-dlp 형식 설정이 있으면 재정의됩니다.",

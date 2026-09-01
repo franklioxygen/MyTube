@@ -32,44 +32,12 @@ const LOCALES: Record<string, Record<string, unknown>> = {
 
 const englishKeys = Object.keys(en);
 
-/**
- * Pre-existing backlog, unrelated to Gesture Login: these twelve keys from the
- * audio-only download and preferred-resolution features were only ever added to
- * `en` and `zh`, and are missing from the other eight locales. They are listed
- * here rather than silently tolerated so this suite still fails the moment any
- * OTHER key goes missing. Shrink this list as the strings are translated; never
- * grow it.
- */
-const KNOWN_UNTRANSLATED = new Set([
-  "downloadAudioOnly",
-  "downloadAudioOnlyHint",
-  "audioFormat",
-  "audioFormatM4a",
-  "audioFormatMp3",
-  "audioFormatOpus",
-  "showAudioDownloadButton",
-  "preferredVideoResolution",
-  "preferredVideoResolutionDescription",
-  "preferredVideoResolutionAuto",
-  "preferredVideoResolutionStrict",
-  "preferredVideoResolutionStrictDescription",
-]);
-
 describe.each(Object.keys(LOCALES))("locale %s", (name) => {
   const locale = LOCALES[name];
 
-  it("defines every English key, apart from the recorded backlog", () => {
-    const missing = englishKeys.filter(
-      (key) => !(key in locale) && !KNOWN_UNTRANSLATED.has(key)
-    );
+  it("defines every English key", () => {
+    const missing = englishKeys.filter((key) => !(key in locale));
     expect(missing).toEqual([]);
-  });
-
-  it("does not add to the untranslated backlog", () => {
-    // The backlog is a fixed list. If a locale is missing something outside
-    // it, a feature shipped without its translations.
-    const stale = [...KNOWN_UNTRANSLATED].filter((key) => key in locale);
-    expect(stale.length).toBeLessThanOrEqual(KNOWN_UNTRANSLATED.size);
   });
 
   it("defines no key English does not have", () => {

@@ -46,6 +46,12 @@ export const de = {
   downloadStarted: "Download gestartet",
   downloadFailed: "Download fehlgeschlagen",
   downloadSuccess: "Download erfolgreich gestartet",
+  downloadAudioOnly: "Nur Audio herunterladen",
+  downloadAudioOnlyHint: "Speichert nur die Tonspur (ohne Video).",
+  audioFormat: "Audioformat",
+  audioFormatM4a: "M4A",
+  audioFormatMp3: "MP3",
+  audioFormatOpus: "Opus",
   confirmDownloadAllPlaylists:
     "Alle Wiedergabelisten von diesem Kanal herunterladen? Dadurch wird für jede Wiedergabeliste eine Sammlung erstellt.",
   downloadAll: "Alles herunterladen",
@@ -84,6 +90,7 @@ export const de = {
   themeDark: "Immer Dunkel",
   themeSystem: "Systemstandard",
   showThemeButtonInHeader: "Design-Button in der Kopfzeile anzeigen",
+  showAudioDownloadButton: "Schaltfläche für Audio-Download anzeigen",
   tmdbApiKey: "TMDB API-Schlüssel",
   tmdbApiKeyHelper:
     "TheMovieDB API-Schlüssel zum Abrufen von Film-/Serien-Metadaten und Postern. Holen Sie sich Ihren Schlüssel unter https://www.themoviedb.org/settings/api",
@@ -263,6 +270,11 @@ export const de = {
   preferredAudioLanguage_pl: "Polnisch",
   preferredAudioLanguage_tr: "Türkisch",
   preferredAudioLanguage_vi: "Vietnamesisch",
+  preferredVideoResolution: "Bevorzugte Videoauflösung",
+  preferredVideoResolutionDescription: "Bevorzugt beim Herunterladen eine maximale Auflösung. yt-dlp wählt den besten Stream mit dieser Höhe oder darunter, damit Episoden einer Sammlung nicht uneinheitlich auf eine niedrige Auflösung zurückfallen. Eine eigene yt-dlp-Konfiguration hat Vorrang.",
+  preferredVideoResolutionAuto: "Automatisch (beste verfügbare)",
+  preferredVideoResolutionStrict: "Auflösungsgrenze strikt erzwingen",
+  preferredVideoResolutionStrictDescription: "Wenn aktiviert, schlägt eine Episode ohne Stream innerhalb der Grenze fehl, statt in höherer Auflösung geladen zu werden. Deaktiviert lassen, um die Auflösung als weiche Präferenz zu behandeln.",
   defaultVideoCodec: "Download-Formatvorgabe",
   defaultVideoCodecDescription:
     "Wähle das Standardformatverhalten für neue Downloads. Auto nutzt die hochwertigen MyTube-Standardeinstellungen. Beste Kompatibilität bevorzugt H.264-Video mit MP4/M4A-Ausgabe. Beste Qualität bevorzugt VP9/WebM. Dies ist eine Präferenz mit Fallbacks; eigene yt-dlp-Formateinstellungen überschreiben sie.",

@@ -46,6 +46,12 @@ export const ru = {
   downloadStarted: "Загрузка началась",
   downloadFailed: "Ошибка загрузки",
   downloadSuccess: "Загрузка успешно началась",
+  downloadAudioOnly: "Скачивать только звук",
+  downloadAudioOnlyHint: "Сохраняет только звуковую дорожку (без видео).",
+  audioFormat: "Формат звука",
+  audioFormatM4a: "M4A",
+  audioFormatMp3: "MP3",
+  audioFormatOpus: "Opus",
   confirmDownloadAllPlaylists:
     "Скачать все плейлисты с этого канала? Для каждого плейлиста будет создана коллекция.",
   downloadAll: "Скачать все",
@@ -83,6 +89,7 @@ export const ru = {
   themeDark: "Всегда темная",
   themeSystem: "Как в системе",
   showThemeButtonInHeader: "Показывать кнопку темы в заголовке",
+  showAudioDownloadButton: "Показывать кнопку скачивания звука",
   tmdbApiKey: "Ключ API TMDB",
   tmdbApiKeyHelper:
     "Ключ API TheMovieDB для получения метаданных и постеров фильмов/сериалов. Получите свой ключ на https://www.themoviedb.org/settings/api",
@@ -260,6 +267,11 @@ export const ru = {
   preferredAudioLanguage_pl: "Польский",
   preferredAudioLanguage_tr: "Турецкий",
   preferredAudioLanguage_vi: "Вьетнамский",
+  preferredVideoResolution: "Предпочитаемое разрешение видео",
+  preferredVideoResolutionDescription: "Задаёт верхнюю границу разрешения при скачивании. yt-dlp выбирает лучший поток с этой высотой или ниже, благодаря чему серии в коллекции не скатываются вразнобой к низкому разрешению. Собственная конфигурация yt-dlp имеет приоритет.",
+  preferredVideoResolutionAuto: "Автоматически (лучшее доступное)",
+  preferredVideoResolutionStrict: "Строго соблюдать предел разрешения",
+  preferredVideoResolutionStrictDescription: "Если включено, серия, для которой нет потока в пределах ограничения, завершается с ошибкой вместо скачивания в более высоком разрешении. Оставьте выключенным, чтобы считать разрешение мягким предпочтением.",
   defaultVideoCodec: "Предустановка формата загрузки",
   defaultVideoCodecDescription:
     "Выберите поведение формата по умолчанию для новых загрузок. Авто использует качественные настройки MyTube. Лучшая совместимость предпочитает видео H.264 с выводом MP4/M4A. Лучшее качество предпочитает VP9/WebM. Это предпочтение с резервными вариантами; пользовательские настройки формата yt-dlp его переопределяют.",

@@ -46,6 +46,12 @@ export const es = {
   downloadStarted: "Descarga iniciada",
   downloadFailed: "Descarga fallida",
   downloadSuccess: "La descarga comenzó exitosamente",
+  downloadAudioOnly: "Descargar solo el audio",
+  downloadAudioOnlyHint: "Guarda únicamente la pista de audio (sin vídeo).",
+  audioFormat: "Formato de audio",
+  audioFormatM4a: "M4A",
+  audioFormatMp3: "MP3",
+  audioFormatOpus: "Opus",
   confirmDownloadAllPlaylists:
     "¿Descargar todas las listas de reproducción de este canal? Esto creará una colección para cada lista de reproducción.",
   downloadAll: "Descargar todo",
@@ -84,6 +90,7 @@ export const es = {
   themeDark: "Siempre Oscuro",
   themeSystem: "Sistema",
   showThemeButtonInHeader: "Mostrar botón de tema en el encabezado",
+  showAudioDownloadButton: "Mostrar el botón de descarga de audio",
   tmdbApiKey: "Clave API de TMDB",
   tmdbApiKeyHelper:
     "Clave API de TheMovieDB para obtener metadatos y pósters de películas/series. Obtenga su clave en https://www.themoviedb.org/settings/api",
@@ -260,6 +267,11 @@ export const es = {
   preferredAudioLanguage_pl: "Polaco",
   preferredAudioLanguage_tr: "Turco",
   preferredAudioLanguage_vi: "Vietnamita",
+  preferredVideoResolution: "Resolución de vídeo preferida",
+  preferredVideoResolutionDescription: "Prefiere una resolución máxima al descargar. yt-dlp elige el mejor flujo con esa altura o menor, lo que evita que los episodios de una colección recurran de forma inconsistente a una resolución baja. La configuración personalizada de yt-dlp tiene prioridad.",
+  preferredVideoResolutionAuto: "Automática (la mejor disponible)",
+  preferredVideoResolutionStrict: "Aplicar estrictamente el límite de resolución",
+  preferredVideoResolutionStrictDescription: "Si está activado, un episodio sin ningún flujo dentro del límite falla en lugar de descargarse con una resolución superior. Déjalo desactivado para tratar la resolución como una preferencia flexible.",
   defaultVideoCodec: "Preajuste de formato de descarga",
   defaultVideoCodecDescription:
     "Elige el comportamiento de formato predeterminado para nuevas descargas. Auto usa los valores predeterminados de alta calidad de MyTube. Mejor compatibilidad prefiere vídeo H.264 con salida MP4/M4A. Mejor calidad prefiere VP9/WebM. Es una preferencia con alternativas; la configuración de formato personalizada de yt-dlp la anula.",

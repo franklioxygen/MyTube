@@ -43,6 +43,12 @@ export const ar = {
   downloadStarted: "بدأ التحميل",
   downloadFailed: "فشل التحميل",
   downloadSuccess: "بدأ التنزيل بنجاح",
+  downloadAudioOnly: "تنزيل الصوت فقط",
+  downloadAudioOnlyHint: "يحفظ المسار الصوتي فقط (بدون فيديو).",
+  audioFormat: "صيغة الصوت",
+  audioFormatM4a: "M4A",
+  audioFormatMp3: "MP3",
+  audioFormatOpus: "Opus",
   confirmDownloadAllPlaylists:
     "هل تريد تنزيل جميع قوائم التشغيل من هذه القناة؟ سيؤدي هذا إلى إنشاء مجموعة لكل قائمة تشغيل.",
   downloadAll: "تنزيل الكل",
@@ -80,6 +86,7 @@ export const ar = {
   themeDark: "داكن دائماً",
   themeSystem: "محاذاة النظام",
   showThemeButtonInHeader: "إظهار زر السمة في الترويسة",
+  showAudioDownloadButton: "إظهار زر تنزيل الصوت",
   tmdbApiKey: "مفتاح API الخاص بـ TMDB",
   tmdbApiKeyHelper:
     "مفتاح API الخاص بـ TheMovieDB لجلب بيانات وأ posters للفيلم/المسلسل. احصل على مفتاحك من https://www.themoviedb.org/settings/api",
@@ -252,6 +259,11 @@ export const ar = {
   preferredAudioLanguage_pl: "البولندية",
   preferredAudioLanguage_tr: "التركية",
   preferredAudioLanguage_vi: "الفيتنامية",
+  preferredVideoResolution: "دقة الفيديو المفضّلة",
+  preferredVideoResolutionDescription: "يفضّل حدًا أقصى للدقة عند التنزيل. يختار yt-dlp أفضل تدفق بهذا الارتفاع أو أقل، ما يمنع حلقات المجموعة من التراجع بشكل غير متسق إلى دقة منخفضة. يتجاوز ذلك إعداد yt-dlp المخصص.",
+  preferredVideoResolutionAuto: "تلقائي (أفضل دقة متاحة)",
+  preferredVideoResolutionStrict: "فرض حد الدقة بصرامة",
+  preferredVideoResolutionStrictDescription: "عند التفعيل، تفشل الحلقة التي لا يتوفر لها تدفق ضمن الحد بدلًا من تنزيلها بدقة أعلى. اتركه معطلًا لمعاملة الدقة كتفضيل مرن.",
   defaultVideoCodec: "إعداد مسبق لتنسيق التنزيل",
   defaultVideoCodecDescription:
     "اختر سلوك التنسيق الافتراضي للتنزيلات الجديدة. يستخدم الوضع التلقائي إعدادات MyTube عالية الجودة. يفضل أفضل توافق H.264 مع إخراج MP4/M4A. تفضل أفضل جودة VP9/WebM. هذا تفضيل مع بدائل، وتتجاوزه إعدادات تنسيق yt-dlp المخصصة.",

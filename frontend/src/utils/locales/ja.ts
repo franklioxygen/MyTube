@@ -44,6 +44,12 @@ export const ja = {
   downloadStarted: "ダウンロードを開始しました",
   downloadFailed: "ダウンロードに失敗しました",
   downloadSuccess: "ダウンロードが正常に開始されました",
+  downloadAudioOnly: "音声のみをダウンロード",
+  downloadAudioOnlyHint: "音声トラックのみを保存します（映像なし）。",
+  audioFormat: "音声フォーマット",
+  audioFormatM4a: "M4A",
+  audioFormatMp3: "MP3",
+  audioFormatOpus: "Opus",
   confirmDownloadAllPlaylists:
     "このチャンネルのすべての再生リストをダウンロードしますか？これにより、再生リストごとにコレクションが作成されます。",
   downloadAll: "すべてダウンロード",
@@ -82,6 +88,7 @@ export const ja = {
   themeDark: "常にダーク",
   themeSystem: "システムに合わせる",
   showThemeButtonInHeader: "ヘッダーにテーマボタンを表示",
+  showAudioDownloadButton: "音声ダウンロードボタンを表示",
   tmdbApiKey: "TMDB APIキー",
   tmdbApiKeyHelper:
     "映画/TV番組のメタデータとポスターを取得するためのTheMovieDB APIキー。https://www.themoviedb.org/settings/api でキーを取得してください",
@@ -259,6 +266,11 @@ export const ja = {
   preferredAudioLanguage_pl: "ポーランド語",
   preferredAudioLanguage_tr: "トルコ語",
   preferredAudioLanguage_vi: "ベトナム語",
+  preferredVideoResolution: "優先する動画解像度",
+  preferredVideoResolutionDescription: "ダウンロード時に上限とする解像度を指定します。yt-dlp はこの高さ以下で最良のストリームを選ぶため、コレクション内のエピソードが不揃いに低解像度へ落ちるのを防げます。カスタム yt-dlp 設定が優先されます。",
+  preferredVideoResolutionAuto: "自動（利用可能な最高画質）",
+  preferredVideoResolutionStrict: "解像度の上限を厳密に適用",
+  preferredVideoResolutionStrictDescription: "オンにすると、上限以下のストリームがないエピソードは、より高い解像度でダウンロードせずに失敗します。オフのままにすると、解像度は緩やかな優先指定として扱われます。",
   defaultVideoCodec: "ダウンロード形式プリセット",
   defaultVideoCodecDescription:
     "新しいダウンロードの既定の形式動作を選びます。自動は MyTube の高画質既定値を使います。互換性重視は H.264 動画と MP4/M4A 出力を優先します。画質重視は VP9/WebM を優先します。これはフォールバック付きの優先設定で、カスタム yt-dlp 形式設定がある場合は上書きされます。",
