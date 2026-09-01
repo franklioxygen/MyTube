@@ -6,18 +6,19 @@ import {
     Stack,
     Tooltip,
     Typography,
+    useTheme,
 } from '@mui/material';
 import { Computer, Pause, PlayArrow } from '@mui/icons-material';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import { useCompatibilityStatisticsWatchTracker } from '../../../hooks/useCompatibilityStatisticsWatchTracker';
-import { neutral, overlay } from '../../../theme/colors';
-import { formatDuration } from '../../../utils/formatUtils';
+import { modeColors, neutral, overlay } from '../../../theme/colors';
 import {
     DEFAULT_PLAYER_SEEK_INTERVALS,
     PlayerSeekIntervals,
 } from '../../../utils/playerSeekIntervals';
 import FullscreenControl from '../VideoControls/FullscreenControl';
+import ProgressBar from '../VideoControls/ProgressBar';
 import SeekButton from '../VideoControls/SeekButton';
 import {
     getMissingCompatibilityModeApis,
@@ -28,7 +29,11 @@ import {
     INITIAL_CANVAS_HEIGHT,
     INITIAL_CANVAS_WIDTH,
 } from './failureNotice';
-import { CompatibilityPlaybackEngine, PlaybackSnapshot } from './playbackEngine';
+import {
+    CompatibilityPlaybackEngine,
+    PlaybackSnapshot,
+    PlaybackStatus,
+} from './playbackEngine';
 
 interface CompatibilityPlayerProps {
     src: string | null;
@@ -109,6 +114,9 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
     const [snapshot, setSnapshot] = useState<PlaybackSnapshot>(INITIAL_SNAPSHOT);
     const [controlsVisible, setControlsVisible] = useState(true);
     const [isFullscreen, setIsFullscreen] = useState(false);
+    // Where the viewer is dragging the progress bar, which the engine's clock
+    // only catches up to once the seek lands. Null when not scrubbing.
+    const [scrubTime, setScrubTime] = useState<number | null>(null);
 
     const statisticsTracker = useCompatibilityStatisticsWatchTracker({
         status: snapshot.status,
@@ -118,6 +126,94 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
         autoplayFromVideoId: statisticsAutoplayFromVideoId,
     });
     const statisticsEndedRef = useRef(statisticsTracker.onEnded);
+
+    // One reposition at a time. The engine refuses a seek issued while another
+    // is still running and reports nothing back, so every path that moves the
+    // playhead — the saved-position restore, the skip buttons and a
+    // progress-bar release — is funnelled through this queue rather than
+    // racing into it and being dropped. The newest target wins.
+    const seekQueueRef = useRef<number | null>(null);
+    const seekRunningRef = useRef(false);
+    /** Where the reposition in flight is heading, when this player chose it. */
+    const pendingTargetRef = useRef<number | null>(null);
+    /** The last target a progress-bar release asked for. */
+    const committedSeekRef = useRef<number | null>(null);
+    /** Mirrors the engine's status for callbacks that must not re-subscribe. */
+    const statusRef = useRef<PlaybackStatus>(INITIAL_SNAPSHOT.status);
+    /**
+     * Play or pause pressed while a reposition was running. `seek()` restores
+     * the playback state it captured when it started, so a transport change
+     * made in the meantime is either overwritten on the way out or left
+     * fighting the clock the reposition is rebasing. The intent waits here and
+     * is applied once the playhead has landed.
+     */
+    const pendingPlaybackRef = useRef<boolean | null>(null);
+
+    const isEnginePlaying = () =>
+        statusRef.current === 'playing' || statusRef.current === 'buffering';
+
+    // Refs outlive a source change, because the parent keeps this player
+    // mounted across navigation. Anything still settling then belongs to the
+    // engine that is going away, and must not touch the one taking its place.
+    const finishSeek = useCallback((engine: CompatibilityPlaybackEngine) => {
+        if (engineRef.current !== engine) {
+            return;
+        }
+        pendingTargetRef.current = null;
+        seekRunningRef.current = false;
+    }, []);
+
+    const drainSeekQueue = useCallback(async () => {
+        if (seekRunningRef.current) {
+            return;
+        }
+        const engine = engineRef.current;
+        if (!engine) {
+            seekQueueRef.current = null;
+            return;
+        }
+        seekRunningRef.current = true;
+        try {
+            while (seekQueueRef.current !== null && engineRef.current === engine) {
+                const target = seekQueueRef.current;
+                seekQueueRef.current = null;
+                pendingTargetRef.current = target;
+                await engine.seek(target);
+            }
+        } finally {
+            finishSeek(engine);
+        }
+        // Hand the bar back to the engine's own clock only once nothing else
+        // is waiting and the thumb still sits where this seek was aimed —
+        // a drag that started while the seek ran must keep the lead.
+        if (seekQueueRef.current === null && engineRef.current === engine) {
+            setScrubTime((current) =>
+                current === committedSeekRef.current ? null : current
+            );
+
+            // Whatever the viewer asked of the transport meanwhile goes on top
+            // of the state the reposition restored on its way out. Applied only
+            // when it actually differs, because play() has no guard against
+            // being called on an engine that is already playing.
+            const intent = pendingPlaybackRef.current;
+            pendingPlaybackRef.current = null;
+            if (intent !== null && intent !== isEnginePlaying()) {
+                if (intent) {
+                    void engine.play();
+                } else {
+                    engine.pause();
+                }
+            }
+        }
+    }, [finishSeek]);
+
+    const queueSeek = useCallback(
+        (target: number) => {
+            seekQueueRef.current = target;
+            void drainSeekQueue();
+        },
+        [drainSeekQueue]
+    );
 
     // Keep the engine's inputs current without restarting playback when the
     // parent re-renders with fresh closures. Declared before the source effect
@@ -145,6 +241,16 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
         canvas.width = INITIAL_CANVAS_WIDTH;
         canvas.height = INITIAL_CANVAS_HEIGHT;
 
+        // Nothing aimed at the outgoing video may reach the incoming one, and
+        // the bar must not open on the position of the video just left.
+        seekQueueRef.current = null;
+        pendingTargetRef.current = null;
+        seekRunningRef.current = false;
+        committedSeekRef.current = null;
+        pendingPlaybackRef.current = null;
+        statusRef.current = INITIAL_SNAPSHOT.status;
+        setScrubTime(null);
+
         if (!src || !supported) {
             return;
         }
@@ -155,6 +261,7 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
         let restoringInitialPosition = false;
         const engine = new CompatibilityPlaybackEngine(canvas, {
             onChange: (next) => {
+                statusRef.current = next.status;
                 setSnapshot(next);
                 if (next.status === 'playing') {
                     onTimeUpdateRef.current?.(next.currentTime);
@@ -187,13 +294,22 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                 // start slightly earlier than the exact second recorded.
                 if (startTimeRef.current > 0) {
                     restoringInitialPosition = true;
+                    seekRunningRef.current = true;
+                    pendingTargetRef.current = startTimeRef.current;
                     try {
                         await engine.seek(startTimeRef.current);
                     } finally {
                         restoringInitialPosition = false;
+                        finishSeek(engine);
+                        // Awaited: anything the viewer queued during the
+                        // restore captures the paused state, and would put it
+                        // back on the way out if autoplay went first.
+                        await drainSeekQueue();
                     }
                 }
-                if (autoPlay && engineRef.current === engine) {
+                // isEnginePlaying guards the case where the drain above
+                // already started playback from a queued play press.
+                if (autoPlay && engineRef.current === engine && !isEnginePlaying()) {
                     // A refused autoplay leaves the engine ready rather than
                     // playing; the play control then works from a real gesture.
                     void engine.play();
@@ -239,8 +355,27 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
 
     const handleToggle = useCallback(() => {
         revealControls();
-        void engineRef.current?.toggle();
-    }, [revealControls]);
+        const engine = engineRef.current;
+        if (!engine) {
+            return;
+        }
+        if (seekRunningRef.current || seekQueueRef.current !== null) {
+            // Reading the pending intent first, so two presses during one
+            // reposition cancel out rather than both counting as a change.
+            pendingPlaybackRef.current = !(
+                pendingPlaybackRef.current ?? isEnginePlaying()
+            );
+            return;
+        }
+        // play() rewinds an ended source with a seek of its own, which would
+        // refuse anything the bar sent meanwhile. Hold the queue across the
+        // toggle so a release waits for it, exactly as a skip does.
+        seekRunningRef.current = true;
+        void engine.toggle().finally(() => {
+            finishSeek(engine);
+            void drainSeekQueue();
+        });
+    }, [drainSeekQueue, finishSeek, revealControls]);
 
     useEffect(() => {
         const syncFullscreen = () =>
@@ -266,9 +401,51 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
     const handleSeekBy = useCallback(
         (deltaSeconds: number) => {
             revealControls();
-            void engineRef.current?.seekBy(deltaSeconds);
+            const engine = engineRef.current;
+            if (!engine) {
+                return;
+            }
+            const pending = seekQueueRef.current ?? pendingTargetRef.current;
+            if (pending !== null) {
+                // Something is already on its way somewhere, and until it lands
+                // the engine's clock still reads the position being left, so
+                // stack the skip on that target instead of on the clock.
+                queueSeek(pending + deltaSeconds);
+                return;
+            }
+            if (seekRunningRef.current) {
+                // A skip whose target the engine worked out for itself is still
+                // running; there is nothing here to stack this one on, so it is
+                // dropped exactly as the engine would have dropped it.
+                return;
+            }
+            // Nothing pending: let the engine apply the delta to its own live
+            // clock, which is closer to the truth than any position held here.
+            seekRunningRef.current = true;
+            void engine.seekBy(deltaSeconds).finally(() => {
+                finishSeek(engine);
+                void drainSeekQueue();
+            });
+        },
+        [drainSeekQueue, finishSeek, queueSeek, revealControls]
+    );
+
+    const handleScrub = useCallback(
+        (seconds: number) => {
+            revealControls();
+            setScrubTime(seconds);
         },
         [revealControls]
+    );
+
+    const handleScrubCommitted = useCallback(
+        (seconds: number) => {
+            revealControls();
+            setScrubTime(seconds);
+            committedSeekRef.current = seconds;
+            queueSeek(seconds);
+        },
+        [queueSeek, revealControls]
     );
 
     const isPlaying =
@@ -303,10 +480,16 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
             hint: failureHint,
         });
     }, [hasFailed, failureTitle, failureDetail, failureHint]);
-    const progress =
-        snapshot.duration && snapshot.duration > 0
-            ? Math.min(100, (snapshot.currentTime / snapshot.duration) * 100)
-            : 0;
+
+    const theme = useTheme();
+    const modePalette = modeColors(theme.palette.mode);
+    // In fullscreen the strip sits on the player's own black frame, so it stays
+    // light-on-dark. Docked in the page it is a panel like the standard
+    // player's control bar, and follows the app theme instead.
+    const stripBackground = isFullscreen ? 'transparent' : modePalette.backgroundElevated;
+    const stripColor = isFullscreen ? neutral.white : modePalette.textPrimary;
+
+    const displayTime = scrubTime ?? snapshot.currentTime;
 
     return (
         <Box
@@ -478,7 +661,8 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                 )}
             </Box>
 
-            {/* Deliberately not the real control panel — just enough to drive the POC. */}
+            {/* A trimmed transport strip: the shared progress bar, play and the
+                way back to the standard player. */}
             <Box
                 sx={{
                     display: 'flex',
@@ -486,7 +670,9 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                     gap: 1.5,
                     px: 1.5,
                     py: 1,
-                    color: neutral.white,
+                    bgcolor: stripBackground,
+                    color: stripColor,
+                    transition: 'background-color 0.3s, color 0.3s',
                     flexWrap: 'wrap',
                 }}
             >
@@ -495,35 +681,20 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                     onClick={handleToggle}
                     disabled={hasFailed || isBusy || cannotReplay}
                     aria-label={isPlaying ? t('paused') : t('playing')}
-                    sx={{ color: neutral.white }}
+                    sx={{ color: 'inherit' }}
                 >
                     {isPlaying ? <Pause /> : <PlayArrow />}
                 </IconButton>
 
-                <Typography variant="caption" sx={{ fontVariantNumeric: 'tabular-nums' }}>
-                    {formatDuration(snapshot.currentTime)}
-                    {snapshot.duration ? ` / ${formatDuration(snapshot.duration)}` : ''}
-                </Typography>
-
-                <Box
-                    sx={{
-                        flex: 1,
-                        minWidth: 80,
-                        height: 3,
-                        borderRadius: 2,
-                        bgcolor: overlay.white32,
-                    }}
-                >
-                    <Box
-                        sx={{
-                            width: `${progress}%`,
-                            height: '100%',
-                            borderRadius: 2,
-                            bgcolor: 'primary.main',
-                            transition: 'width 120ms linear',
-                        }}
-                    />
-                </Box>
+                <ProgressBar
+                    currentTime={displayTime}
+                    duration={snapshot.duration ?? 0}
+                    isFullscreen={isFullscreen}
+                    disabled={hasFailed || !snapshot.canSeek}
+                    onProgressChange={handleScrub}
+                    onProgressChangeCommitted={handleScrubCommitted}
+                    onProgressMouseDown={revealControls}
+                />
 
                 {onExit && canFallBackToStandardPlayer && (
                     <Tooltip title={t('compatibilityModeExit')}>
@@ -531,7 +702,7 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                             size="small"
                             onClick={onExit}
                             aria-label={t('compatibilityModeExit')}
-                            sx={{ color: neutral.white }}
+                            sx={{ color: 'inherit' }}
                         >
                             <Computer />
                         </IconButton>
