@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v1.11.3 (2026-09-01)
+
 ### Changed
 
 - Upgrade the backend from Express 4 to Express 5. **Behaviour change for API clients using bracket query syntax:** Express 5 defaults the `query parser` setting to `simple` (Node's `querystring`) instead of `extended` (`qs`), so `?a[b]=1` now arrives as the literal key `a[b]` rather than a nested `{a: {b: "1"}}`, and `?t[]=x&t[]=y` as `t[]` rather than `t`. Flat keys, repeated keys and percent-encoded values are unaffected, as is urlencoded body parsing, which sets `extended: true` explicitly. No endpoint accepts an array or nested query parameter, so nothing in MyTube's own API surface changes; the project follows the Express 5 default rather than restoring the old one. Route patterns also move to path-to-regexp v8 (`/images-small/{*splat}`, `/{*splat}` for the SPA fallback), and a request-body normalizer restores the `req.body = {}` default that body-parser 2 dropped, so a bodyless or mistyped request still gets its route's 400 validation response instead of a 500.
