@@ -138,8 +138,9 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
     const pendingTargetRef = useRef<number | null>(null);
     /** The last target a progress-bar release asked for. */
     const committedSeekRef = useRef<number | null>(null);
-    /** Mirrors the engine's status for callbacks that must not re-subscribe. */
+    /** Mirror the engine's own reporting for callbacks that must stay stable. */
     const statusRef = useRef<PlaybackStatus>(INITIAL_SNAPSHOT.status);
+    const positionRef = useRef(INITIAL_SNAPSHOT.currentTime);
     /**
      * Play or pause pressed while a reposition was running. `seek()` restores
      * the playback state it captured when it started, so a transport change
@@ -195,16 +196,21 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                 if (intent === null) {
                     break;
                 }
-                pendingPlaybackRef.current = null;
-                // Applied only when it differs from where the engine actually
-                // ended up, because play() has no guard against being called
-                // on an engine that is already playing.
+                // Left in place for the duration: play() can take a second to
+                // resume the clock, and a press made meanwhile has to compose
+                // against the state being reached, not the one the engine is
+                // still reporting. Applied only when it differs from where the
+                // engine actually ended up, because play() has no guard
+                // against being called on an already-playing engine.
                 if (intent !== isEnginePlaying()) {
                     if (intent) {
                         await engine.play();
                     } else {
                         engine.pause();
                     }
+                }
+                if (pendingPlaybackRef.current === intent) {
+                    pendingPlaybackRef.current = null;
                 }
             }
         } finally {
@@ -262,6 +268,7 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
         committedSeekRef.current = null;
         pendingPlaybackRef.current = null;
         statusRef.current = INITIAL_SNAPSHOT.status;
+        positionRef.current = INITIAL_SNAPSHOT.currentTime;
         setScrubTime(null);
 
         if (!src || !supported) {
@@ -275,6 +282,7 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
         const engine = new CompatibilityPlaybackEngine(canvas, {
             onChange: (next) => {
                 statusRef.current = next.status;
+                positionRef.current = next.currentTime;
                 setSnapshot(next);
                 if (next.status === 'playing') {
                     onTimeUpdateRef.current?.(next.currentTime);
@@ -422,23 +430,23 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
             if (!engine) {
                 return;
             }
-            const pending = seekQueueRef.current ?? pendingTargetRef.current;
-            if (pending !== null) {
-                // Something is already on its way somewhere, and until it lands
-                // the engine's clock still reads the position being left, so
-                // stack the skip on that target instead of on the clock.
-                queueSeek(pending + deltaSeconds);
+            if (seekRunningRef.current || seekQueueRef.current !== null) {
+                // Something is already under way, and until it lands the
+                // engine's clock still reads the position being left, so count
+                // from where the player is heading: the queued target, the one
+                // in flight, or failing both the last position reported.
+                const base =
+                    seekQueueRef.current ??
+                    pendingTargetRef.current ??
+                    positionRef.current;
+                queueSeek(base + deltaSeconds);
                 return;
             }
-            if (seekRunningRef.current) {
-                // A skip whose target the engine worked out for itself is still
-                // running; there is nothing here to stack this one on, so it is
-                // dropped exactly as the engine would have dropped it.
-                return;
-            }
-            // Nothing pending: let the engine apply the delta to its own live
-            // clock, which is closer to the truth than any position held here.
+            // Idle: let the engine apply the delta to its own live clock, which
+            // is closer to the truth than the last position it reported. The
+            // intent is recorded so a further skip can count from it.
             seekRunningRef.current = true;
+            pendingTargetRef.current = positionRef.current + deltaSeconds;
             void engine.seekBy(deltaSeconds).finally(() => {
                 finishSeek(engine);
                 void drainSeekQueue();

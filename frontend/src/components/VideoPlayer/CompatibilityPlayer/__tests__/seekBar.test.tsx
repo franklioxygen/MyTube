@@ -469,6 +469,65 @@ describe('D Mode progress bar seeking', () => {
         expect(engine.seek).toHaveBeenCalledWith(SHORT_SECONDS);
     });
 
+    it('lets a second press cancel a play that is still starting', async () => {
+        const { engine } = await renderPlayer();
+
+        drag(60);
+        release();
+        fireEvent.click(screen.getAllByLabelText('playing')[1]);
+
+        await act(async () => {
+            harness.pendingSeeks[0].resolve();
+            engine.options.onChange(snapshotOf({ status: 'paused', currentTime: 60 }));
+        });
+        expect(harness.pendingPlays).toHaveLength(1);
+
+        // Pressing again while play() is still resuming the clock means stop,
+        // and has to compose against the play being started rather than the
+        // paused status the engine is still reporting.
+        fireEvent.click(screen.getAllByLabelText('playing')[1]);
+
+        await act(async () => {
+            harness.pendingPlays[0].resolve();
+            engine.options.onChange(snapshotOf({ status: 'playing', currentTime: 60 }));
+        });
+
+        expect(engine.pause).toHaveBeenCalledTimes(1);
+    });
+
+    it('performs a skip pressed while autoplay is still starting', async () => {
+        render(<CompatibilityPlayer src="clip.webm" autoPlay />);
+        const engine = harness.engines[0];
+        await act(async () => {
+            engine.options.onChange(snapshotOf());
+        });
+        expect(harness.pendingPlays).toHaveLength(1);
+
+        fireEvent.click(screen.getAllByLabelText('seekForwardBy')[0]);
+        expect(engine.seekBy).not.toHaveBeenCalled();
+
+        await act(async () => {
+            harness.pendingPlays[0].resolve();
+        });
+
+        // Counted from the position the engine last reported.
+        expect(engine.seek).toHaveBeenCalledWith(10 + SHORT_SECONDS);
+    });
+
+    it('stacks a skip onto the one already running', async () => {
+        const { engine } = await renderPlayer();
+
+        fireEvent.click(screen.getAllByLabelText('seekForwardBy')[0]);
+        expect(engine.seekBy).toHaveBeenCalledTimes(1);
+
+        fireEvent.click(screen.getAllByLabelText('seekForwardBy')[0]);
+        await act(async () => {
+            harness.pendingSeekBys[0].resolve();
+        });
+
+        expect(engine.seek).toHaveBeenCalledWith(10 + SHORT_SECONDS * 2);
+    });
+
     it('locks the bar for a source that cannot be repositioned', async () => {
         render(<CompatibilityPlayer src="clip.webm" />);
         await act(async () => {
