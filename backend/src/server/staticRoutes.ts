@@ -18,6 +18,7 @@ import {
   ensureSmallThumbnailForRelativePath,
   getThumbnailRelativePath,
 } from "../services/thumbnailMirrorService";
+import { getWildcardParam } from "../utils/paramUtils";
 import {
   normalizeSafeAbsolutePath,
   resolveSafeChildPath,
@@ -85,7 +86,7 @@ const ensureSmallThumbnail = async (
   res: Response,
   next: express.NextFunction,
 ): Promise<void> => {
-  const wildcardPath = req.params["0"];
+  const wildcardPath = getWildcardParam(req.params);
   const relativePath = getThumbnailRelativePath(
     typeof wildcardPath === "string" ? wildcardPath : req.path,
   );
@@ -186,7 +187,7 @@ export const registerStaticRoutes = (
   );
 
   app.get(
-    "/images-small/*",
+    "/images-small/{*splat}",
     ...mediaAuthStack,
     requireVisibleMediaForVisitors("images-small"),
     (req, res, next) => {
@@ -260,7 +261,7 @@ export const registerSpaFallback = (
 ): void => {
   const safeFrontendDist = normalizeSafeAbsolutePath(frontendDist);
 
-  app.get("*", (req, res) => {
+  app.get("/{*splat}", (req, res) => {
     if (isReservedBackendPath(req.path)) {
       res.status(404).json({ error: "Not Found" });
       return;

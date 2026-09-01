@@ -2,7 +2,7 @@ import { NextFunction, Request, Response } from "express";
 import { isLoginRequired } from "../services/passwordService";
 import { getRssToken } from "../services/rssService";
 import * as storageService from "../services/storageService";
-import { getStringParam } from "../utils/paramUtils";
+import { getStringParam, getWildcardParam } from "../utils/paramUtils";
 import { logger } from "../utils/logger";
 
 declare global {
@@ -154,7 +154,7 @@ const classifyMediaRequest = (
     case "images-small": {
       // Small thumbnails mirror the original thumbnail, which may live under
       // either /images or /videos. Check both candidate originals.
-      const wildcardPath = getStringParam(req.params["0"]);
+      const wildcardPath = getWildcardParam(req.params);
       const sub = safeDecode(wildcardPath ? `/${wildcardPath}` : req.path);
       return storageService.classifyMediaVisibility({
         exactPaths: [`/images${sub}`, `/videos${sub}`],

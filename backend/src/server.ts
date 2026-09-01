@@ -10,6 +10,7 @@ import path from "path";
 import { DATA_DIR } from "./config/paths";
 import { runMigrations } from "./db/migrate";
 import { errorHandler } from "./middleware/errorHandler";
+import { normalizeRequestBody } from "./middleware/normalizeRequestBody";
 import { rssManagementNoStoreHeaders } from "./middleware/rssManagementNoStoreHeaders";
 import { statisticsEventsJsonParser } from "./controllers/statisticsController";
 import downloadManager from "./services/downloadManager";
@@ -24,6 +25,7 @@ import { configureRateLimiting } from "./server/rateLimit";
 import { registerSpaFallback, registerStaticRoutes } from "./server/staticRoutes";
 import { startBackgroundJobs } from "./server/startupJobs";
 import { registerLiveTranslationSocket } from "./server/liveTranslationSocket";
+import { createListenHandler } from "./server/listenHandler";
 
 VERSION.displayVersion();
 
@@ -46,6 +48,7 @@ app.use(rssManagementNoStoreHeaders);
 app.use("/api/statistics/events", statisticsEventsJsonParser);
 app.use(express.json({ limit: JSON_BODY_LIMIT }));
 app.use(express.urlencoded({ extended: true, limit: JSON_BODY_LIMIT }));
+app.use(normalizeRequestBody);
 app.use(csrfProtection);
 app.use(csrfTokenProvider);
 
@@ -90,10 +93,11 @@ const startServer = async (): Promise<void> => {
     app.use(errorHandler);
 
     const HOST = process.env.HOST || "0.0.0.0";
-    const server = app.listen(PORT, HOST, () => {
-      logger.info(`Server running on ${HOST}:${PORT}`);
-      startBackgroundJobs(PORT);
-    });
+    const server = app.listen(
+      PORT,
+      HOST,
+      createListenHandler(HOST, PORT, () => startBackgroundJobs(PORT))
+    );
     // Register the live translation WebSocket on the same HTTP server (noServer
     // mode handles only the live translation upgrade path).
     registerLiveTranslationSocket(server);
