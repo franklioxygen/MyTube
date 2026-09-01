@@ -113,9 +113,6 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
     // Where the viewer is dragging the progress bar, which the engine's clock
     // only catches up to once the seek lands. Null when not scrubbing.
     const [scrubTime, setScrubTime] = useState<number | null>(null);
-    const seekTargetRef = useRef<number | null>(null);
-    const seekRunningRef = useRef(false);
-    const committedSeekRef = useRef<number | null>(null);
 
     const statisticsTracker = useCompatibilityStatisticsWatchTracker({
         status: snapshot.status,
@@ -125,6 +122,67 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
         autoplayFromVideoId: statisticsAutoplayFromVideoId,
     });
     const statisticsEndedRef = useRef(statisticsTracker.onEnded);
+
+    // One reposition at a time. The engine refuses a seek issued while another
+    // is still running and reports nothing back, so every path that moves the
+    // playhead — the saved-position restore, the skip buttons and a
+    // progress-bar release — is funnelled through this queue rather than
+    // racing into it and being dropped. The newest target wins.
+    const seekQueueRef = useRef<number | null>(null);
+    const seekRunningRef = useRef(false);
+    /** Where the reposition in flight is heading, when this player chose it. */
+    const pendingTargetRef = useRef<number | null>(null);
+    /** The last target a progress-bar release asked for. */
+    const committedSeekRef = useRef<number | null>(null);
+
+    // Refs outlive a source change, because the parent keeps this player
+    // mounted across navigation. Anything still settling then belongs to the
+    // engine that is going away, and must not touch the one taking its place.
+    const finishSeek = useCallback((engine: CompatibilityPlaybackEngine) => {
+        if (engineRef.current !== engine) {
+            return;
+        }
+        pendingTargetRef.current = null;
+        seekRunningRef.current = false;
+    }, []);
+
+    const drainSeekQueue = useCallback(async () => {
+        if (seekRunningRef.current) {
+            return;
+        }
+        const engine = engineRef.current;
+        if (!engine) {
+            seekQueueRef.current = null;
+            return;
+        }
+        seekRunningRef.current = true;
+        try {
+            while (seekQueueRef.current !== null && engineRef.current === engine) {
+                const target = seekQueueRef.current;
+                seekQueueRef.current = null;
+                pendingTargetRef.current = target;
+                await engine.seek(target);
+            }
+        } finally {
+            finishSeek(engine);
+        }
+        // Hand the bar back to the engine's own clock only once nothing else
+        // is waiting and the thumb still sits where this seek was aimed —
+        // a drag that started while the seek ran must keep the lead.
+        if (seekQueueRef.current === null && engineRef.current === engine) {
+            setScrubTime((current) =>
+                current === committedSeekRef.current ? null : current
+            );
+        }
+    }, [finishSeek]);
+
+    const queueSeek = useCallback(
+        (target: number) => {
+            seekQueueRef.current = target;
+            void drainSeekQueue();
+        },
+        [drainSeekQueue]
+    );
 
     // Keep the engine's inputs current without restarting playback when the
     // parent re-renders with fresh closures. Declared before the source effect
@@ -151,6 +209,14 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
         // failure never changes it.
         canvas.width = INITIAL_CANVAS_WIDTH;
         canvas.height = INITIAL_CANVAS_HEIGHT;
+
+        // Nothing aimed at the outgoing video may reach the incoming one, and
+        // the bar must not open on the position of the video just left.
+        seekQueueRef.current = null;
+        pendingTargetRef.current = null;
+        seekRunningRef.current = false;
+        committedSeekRef.current = null;
+        setScrubTime(null);
 
         if (!src || !supported) {
             return;
@@ -194,10 +260,14 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                 // start slightly earlier than the exact second recorded.
                 if (startTimeRef.current > 0) {
                     restoringInitialPosition = true;
+                    seekRunningRef.current = true;
+                    pendingTargetRef.current = startTimeRef.current;
                     try {
                         await engine.seek(startTimeRef.current);
                     } finally {
                         restoringInitialPosition = false;
+                        finishSeek(engine);
+                        void drainSeekQueue();
                     }
                 }
                 if (autoPlay && engineRef.current === engine) {
@@ -273,39 +343,34 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
     const handleSeekBy = useCallback(
         (deltaSeconds: number) => {
             revealControls();
-            void engineRef.current?.seekBy(deltaSeconds);
-        },
-        [revealControls]
-    );
-
-    /**
-     * The engine ignores a seek issued while one is still running, so the
-     * targets a drag produces are queued here instead of being dropped: the
-     * newest one always wins, and only it is actually performed.
-     */
-    const drainSeekQueue = useCallback(async () => {
-        if (seekRunningRef.current) {
-            return;
-        }
-        seekRunningRef.current = true;
-        try {
-            while (seekTargetRef.current !== null) {
-                const target = seekTargetRef.current;
-                seekTargetRef.current = null;
-                await engineRef.current?.seek(target);
+            const engine = engineRef.current;
+            if (!engine) {
+                return;
             }
-        } finally {
-            seekRunningRef.current = false;
-        }
-        // Hand the bar back to the engine's own clock only once nothing else
-        // is waiting and the thumb still sits where this seek was aimed —
-        // a drag that started while the seek ran must keep the lead.
-        if (seekTargetRef.current === null) {
-            setScrubTime((current) =>
-                current === committedSeekRef.current ? null : current
-            );
-        }
-    }, []);
+            const pending = seekQueueRef.current ?? pendingTargetRef.current;
+            if (pending !== null) {
+                // Something is already on its way somewhere, and until it lands
+                // the engine's clock still reads the position being left, so
+                // stack the skip on that target instead of on the clock.
+                queueSeek(pending + deltaSeconds);
+                return;
+            }
+            if (seekRunningRef.current) {
+                // A skip whose target the engine worked out for itself is still
+                // running; there is nothing here to stack this one on, so it is
+                // dropped exactly as the engine would have dropped it.
+                return;
+            }
+            // Nothing pending: let the engine apply the delta to its own live
+            // clock, which is closer to the truth than any position held here.
+            seekRunningRef.current = true;
+            void engine.seekBy(deltaSeconds).finally(() => {
+                finishSeek(engine);
+                void drainSeekQueue();
+            });
+        },
+        [drainSeekQueue, finishSeek, queueSeek, revealControls]
+    );
 
     const handleScrub = useCallback(
         (seconds: number) => {
@@ -320,10 +385,9 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
             revealControls();
             setScrubTime(seconds);
             committedSeekRef.current = seconds;
-            seekTargetRef.current = seconds;
-            void drainSeekQueue();
+            queueSeek(seconds);
         },
-        [drainSeekQueue, revealControls]
+        [queueSeek, revealControls]
     );
 
     const isPlaying =
