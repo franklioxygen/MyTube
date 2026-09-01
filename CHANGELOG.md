@@ -6,6 +6,10 @@
 
 - Answer an unsatisfiable byte range with 416 instead of 500. `send` rejects a Range the file cannot satisfy (`bytes=99999999999-` against a shorter file, typically a client resuming against a stale length) with a 416 error, after already setting the `Content-Range: bytes */<size>` header that tells the client the real length. The error handler recognised only 413 and 404, so the request fell through to the unknown-error branch, was logged as an unhandled failure, and returned 500 — discarding the one status a range-requesting player can actually recover from. Malformed and empty Range headers take the same path on Express 4 and are now answered the same way.
 
+### Chore
+
+- Move code scanning from CodeQL's default setup to an advanced setup so it can exclude `**/__tests__/**`. The default setup supports no path filters, and the queries that reason about production request handling do not apply to test files: an integration test that builds a throwaway express app with supertest reads to `js/missing-rate-limiting` as an unprotected route handler, and three such alerts had to be dismissed by hand as "used in tests". Same languages, query suite and weekly cadence as before, and the job stays named `Analyze` so the checks remain `Analyze (<language>)`. **Requires turning the default setup off** under Settings -> Code security -> Code scanning; until then every run of the new workflow fails.
+
 ## v1.11.2 (2026-08-31)
 
 ### Security

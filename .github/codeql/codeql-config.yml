@@ -1,0 +1,11 @@
+name: "MyTube CodeQL config"
+
+# Test files are not deployed and have no network surface, so queries that
+# reason about production request handling do not apply to them. Integration
+# tests in particular build throwaway express apps with supertest, which
+# js/missing-rate-limiting reports as unprotected route handlers -- three such
+# alerts had to be dismissed by hand as "used in tests" before this config
+# existed. Path filters are why this repo uses an advanced setup at all: the
+# default setup does not support them.
+paths-ignore:
+  - "**/__tests__/**"
