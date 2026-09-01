@@ -595,6 +595,24 @@ describe('LoginPage', () => {
             expect(container.querySelector('#password')).not.toBeDisabled();
         });
 
+        it('shows a wrong gesture warning exactly once', () => {
+            setNormalState({ gestureStatus: GESTURE_AVAILABLE });
+            render(<LoginPage />);
+
+            act(() => {
+                mutationCallbacks['gestureLogin']?.onError?.({
+                    response: { status: 401, data: { code: 'gesture_incorrect', attemptsRemaining: 2 } },
+                });
+            });
+
+            // The grid's live region announces it; only the page's alert draws
+            // it. Both drawing it put two identical warnings under the grid.
+            const alert = screen.getByTestId('gesture-login-message');
+            const live = screen.getByTestId('gesture-live-region');
+            expect(live.getAttribute('data-rendered')).toBe('false');
+            expect(alert.textContent).toBe(live.textContent);
+        });
+
         it('caches the locked state and stops rendering the grid', () => {
             setNormalState({ gestureStatus: GESTURE_AVAILABLE });
             render(<LoginPage />);

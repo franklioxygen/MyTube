@@ -173,9 +173,9 @@ describe('completing a stroke', () => {
         expect(onComplete).not.toHaveBeenCalled();
         expect(screen.getByTestId('gesture-pattern').getAttribute('data-outcome')).toBe('error');
         // Not colour alone: the reason is rendered and announced.
-        expect(screen.getByTestId('gesture-live-region').textContent).toBe(
-            'Draw a gesture connecting at least 3 dots.'
-        );
+        const live = screen.getByTestId('gesture-live-region');
+        expect(live.getAttribute('data-rendered')).toBe('true');
+        expect(live.textContent).toBe('Draw a gesture connecting at least 3 dots.');
     });
 
     it('treats a two-dot draw that crosses a midpoint as valid', () => {
@@ -310,5 +310,26 @@ describe('accessibility', () => {
 
         expect(screen.getByTestId('gesture-pattern').getAttribute('data-outcome')).toBe('error');
         expect(screen.getByTestId('gesture-live-region').textContent).toBe('Incorrect gesture.');
+    });
+
+    it('announces a parent message without drawing it a second time', () => {
+        renderGrid({ outcome: 'error', liveMessage: 'Incorrect gesture. 2 attempts remaining.' });
+
+        // The parent already shows this in its own alert. Drawing it here too
+        // put two identical warnings under the grid.
+        const live = screen.getByTestId('gesture-live-region');
+        expect(live.getAttribute('data-rendered')).toBe('false');
+        expect(live.textContent).toBe('Incorrect gesture. 2 attempts remaining.');
+    });
+
+    it('draws its own validation message, which the parent never sees', () => {
+        renderGrid();
+        draw(getSvg(), [0, 4]);
+
+        // onComplete is not called for a too-short draw, so nothing else can
+        // render this for us.
+        const live = screen.getByTestId('gesture-live-region');
+        expect(live.getAttribute('data-rendered')).toBe('true');
+        expect(live.textContent).toBe('Draw a gesture connecting at least 3 dots.');
     });
 });

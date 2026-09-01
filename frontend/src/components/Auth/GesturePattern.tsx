@@ -213,6 +213,8 @@ const GesturePattern: React.FC<GesturePatternProps> = ({
               : theme.palette.primary.main;
 
     const liveText = invalidLength ? minimumDotsMessage ?? '' : liveMessage ?? '';
+    // The parent renders its own messages; only our validation error is ours to draw.
+    const showOwnMessage = invalidLength && liveText.length > 0;
 
     return (
         <Box
@@ -318,15 +320,23 @@ const GesturePattern: React.FC<GesturePatternProps> = ({
             )}
 
             {/*
-              Error state is never carried by colour alone: the same message
-              that is announced is also rendered.
+              One announcer, but only one renderer.
+
+              This region always announces, so an error is never carried by
+              colour alone. It is only DRAWN for the component's own validation
+              (a draw with too few dots), which the parent never hears about
+              because onComplete is not called for it. A message that came from
+              the parent via liveMessage is already on screen in the parent's
+              own alert, so drawing it here too would show the same warning
+              twice under the grid.
             */}
             <Box
                 aria-live="polite"
                 role="status"
                 data-testid="gesture-live-region"
+                data-rendered={showOwnMessage ? 'true' : 'false'}
                 sx={
-                    effectiveOutcome === 'error'
+                    showOwnMessage
                         ? { mt: 1, textAlign: 'center', color: 'error.main', fontSize: '0.875rem' }
                         : {
                               position: 'absolute',
