@@ -59,6 +59,9 @@ vi.mock('../../contexts/LanguageContext', () => ({
         t: (key: string) => {
             // Return template with placeholder so .replace('{time}', ...) works
             if (key === 'waitTimeMessage') return 'waitTimeMessage {time}';
+            if (key === 'gestureLoginIncorrectAttemptsRemaining') {
+                return 'gestureLoginIncorrectAttemptsRemaining {count}';
+            }
             return key;
         },
         setLanguage: vi.fn(),
@@ -93,12 +96,18 @@ const getOrCreateMutationMock = (key: string, callbacks: { onSuccess?: (...args:
     return mutationMocks[key];
 };
 
+const mockQueryClient = {
+    invalidateQueries: vi.fn(),
+    setQueryData: vi.fn(),
+};
+
 // Track mutation call order so we can assign keys
 let mutationCallIndex = 0;
 const mutationKeyOrder = [
     'adminLogin',      // 1st useMutation call in component
-    'visitorLogin',    // 2nd
-    'passkeyLogin',    // 3rd
+    'gestureLogin',    // 2nd
+    'visitorLogin',    // 3rd
+    'passkeyLogin',    // 4th
 ];
 
 vi.mock('@tanstack/react-query', () => ({
@@ -119,9 +128,7 @@ vi.mock('@tanstack/react-query', () => ({
         }
         return getOrCreateMutationMock(key, { onSuccess, onError });
     }),
-    useQueryClient: vi.fn(() => ({
-        invalidateQueries: vi.fn(),
-    })),
+    useQueryClient: vi.fn(() => mockQueryClient),
 }));
 
 // --- Helpers ---
@@ -152,7 +159,50 @@ const setNormalState = (overrides: Record<string, unknown> = {}) => {
             isError: false,
             refetch: vi.fn(),
         },
+        'gesture-login-status': {
+            data: overrides.gestureStatus,
+            isLoading: false,
+            isError: false,
+            refetch: vi.fn(),
+        },
     };
+};
+
+const GESTURE_AVAILABLE = {
+    configured: true,
+    canConfigure: true,
+    locked: false,
+    available: true,
+    attemptsRemaining: 3,
+    resetRequired: false,
+};
+
+const GESTURE_LOCKED = {
+    configured: true,
+    canConfigure: true,
+    locked: true,
+    available: false,
+    attemptsRemaining: 0,
+    resetRequired: false,
+};
+
+const gesturePanel = () => screen.queryByTestId('gesture-login-panel');
+
+const drawGesture = (dots: number[]) => {
+    const svg = screen.getByTestId('gesture-pattern').querySelector('svg')!;
+    svg.getBoundingClientRect = () =>
+        ({ left: 0, top: 0, width: 300, height: 300, right: 300, bottom: 300, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
+    const centre = (dot: number) => ({
+        clientX: (dot % 3) * 100 + 50,
+        clientY: Math.floor(dot / 3) * 100 + 50,
+    });
+    const primary = { pointerId: 1, isPrimary: true, button: 0, pointerType: 'mouse' };
+
+    fireEvent.pointerDown(svg, { ...primary, ...centre(dots[0]) });
+    for (const dot of dots.slice(1)) {
+        fireEvent.pointerMove(svg, { ...primary, ...centre(dot) });
+    }
+    fireEvent.pointerUp(svg, { ...primary, ...centre(dots[dots.length - 1]) });
 };
 
 /** Set query results that produce the "checking connection" (loading) state */
@@ -438,7 +488,7 @@ describe('LoginPage', () => {
             const passkeyButton = screen.getByText('loginWithPasskey');
             expect(passkeyButton).toBeInTheDocument();
             // Should also see the OR divider
-            expect(screen.getByText('OR')).toBeInTheDocument();
+            expect(screen.getByText('or')).toBeInTheDocument();
         });
     });
 
@@ -454,9 +504,156 @@ describe('LoginPage', () => {
             const passkeyButton = screen.getByText('loginWithPasskey');
             expect(passkeyButton).toBeInTheDocument();
             // OR divider should NOT be shown
-            expect(screen.queryByText('OR')).not.toBeInTheDocument();
+            expect(screen.queryByText('or')).not.toBeInTheDocument();
             // Password field should NOT be shown
             expect(screen.queryByLabelText('password')).not.toBeInTheDocument();
+        });
+    });
+
+    describe('gesture login', () => {
+        it('renders the grid above the admin password field when available', () => {
+            setNormalState({ gestureStatus: GESTURE_AVAILABLE });
+            const { container } = render(<LoginPage />);
+
+            const panel = gesturePanel();
+            expect(panel).toBeTruthy();
+            const passwordInput = container.querySelector('#password')!;
+            // Node.compareDocumentPosition: 4 means "follows".
+            expect(panel!.compareDocumentPosition(passwordInput) & 4).toBeTruthy();
+        });
+
+        it('does not render the grid when the status is unknown', () => {
+            setNormalState();
+            render(<LoginPage />);
+
+            // A failed or pending status must not be treated as "configured".
+            expect(gesturePanel()).toBeNull();
+        });
+
+        it('does not render the grid when the credential is locked', () => {
+            setNormalState({ gestureStatus: GESTURE_LOCKED });
+            render(<LoginPage />);
+
+            expect(gesturePanel()).toBeNull();
+            expect(screen.getByTestId('gesture-locked-notice')).toBeTruthy();
+        });
+
+        it('never renders the grid on the visitor tab', () => {
+            setNormalState({
+                gestureStatus: GESTURE_AVAILABLE,
+                visitorUserEnabled: true,
+                isVisitorPasswordSet: true,
+            });
+            render(<LoginPage />);
+
+            fireEvent.click(screen.getByText('visitorUser'));
+
+            expect(gesturePanel()).toBeNull();
+        });
+
+        it('submits the canonical pattern on release', () => {
+            setNormalState({ gestureStatus: GESTURE_AVAILABLE });
+            render(<LoginPage />);
+
+            drawGesture([0, 2]);
+
+            // The midpoint is filled in before the request leaves the page.
+            expect(mutationMocks['gestureLogin'].mutate).toHaveBeenCalledWith([0, 1, 2]);
+        });
+
+        it('does not submit a draw that is too short', () => {
+            setNormalState({ gestureStatus: GESTURE_AVAILABLE });
+            render(<LoginPage />);
+
+            drawGesture([0, 4]);
+
+            expect(mutationMocks['gestureLogin'].mutate).not.toHaveBeenCalled();
+        });
+
+        it('logs in as admin on success', () => {
+            setNormalState({ gestureStatus: GESTURE_AVAILABLE });
+            render(<LoginPage />);
+
+            act(() => {
+                mutationCallbacks['gestureLogin']?.onSuccess?.({ role: 'admin' });
+            });
+
+            expect(mockLogin).toHaveBeenCalledWith('admin');
+        });
+
+        it('shows the remaining count for a wrong gesture and keeps the password usable', () => {
+            setNormalState({ gestureStatus: GESTURE_AVAILABLE });
+            const { container } = render(<LoginPage />);
+
+            act(() => {
+                mutationCallbacks['gestureLogin']?.onError?.({
+                    response: { status: 401, data: { code: 'gesture_incorrect', attemptsRemaining: 2 } },
+                });
+            });
+
+            expect(screen.getByTestId('gesture-login-message').textContent).toContain('2');
+            expect(container.querySelector('#password')).not.toBeDisabled();
+        });
+
+        it('caches the locked state and stops rendering the grid', () => {
+            setNormalState({ gestureStatus: GESTURE_AVAILABLE });
+            render(<LoginPage />);
+
+            act(() => {
+                mutationCallbacks['gestureLogin']?.onError?.({
+                    response: { status: 423, data: { code: 'gesture_locked', attemptsRemaining: 0 } },
+                });
+            });
+
+            expect(mockQueryClient.setQueryData).toHaveBeenCalledWith(
+                ['gesture-login-status'],
+                expect.any(Function)
+            );
+        });
+
+        it('does not disable password recovery when only the gesture is throttled', () => {
+            setNormalState({ gestureStatus: GESTURE_AVAILABLE });
+            const { container } = render(<LoginPage />);
+
+            act(() => {
+                mutationCallbacks['gestureLogin']?.onError?.({
+                    response: { status: 429, data: { waitTime: 60000 } },
+                });
+            });
+
+            // The server buckets are independent; the UI must not turn a
+            // gesture throttle into a password lockout.
+            expect(container.querySelector('#password')).not.toBeDisabled();
+            expect(screen.getByTestId('gesture-login-message')).toBeTruthy();
+        });
+
+        it('does not decrement the remaining count on a network failure', () => {
+            setNormalState({ gestureStatus: GESTURE_AVAILABLE });
+            render(<LoginPage />);
+
+            act(() => {
+                mutationCallbacks['gestureLogin']?.onError?.({ message: 'Network Error' });
+            });
+
+            // Server state is unknown: refetch rather than guess.
+            expect(mockQueryClient.setQueryData).not.toHaveBeenCalled();
+            expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
+                queryKey: ['gesture-login-status'],
+            });
+        });
+
+        it('invalidates the gesture status after a successful admin password login', () => {
+            setNormalState({ gestureStatus: GESTURE_LOCKED });
+            render(<LoginPage />);
+
+            act(() => {
+                mutationCallbacks['adminLogin']?.onSuccess?.({ role: 'admin' });
+            });
+
+            // That login just cleared the lock on the server.
+            expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
+                queryKey: ['gesture-login-status'],
+            });
         });
     });
 

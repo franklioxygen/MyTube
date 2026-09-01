@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import React from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import GesturePattern from '../GesturePattern';
 import { GESTURE_DOT_CENTERS } from '../../../utils/gestureGeometry';
 
@@ -42,7 +42,7 @@ const selectedDots = (): number[] =>
             screen.getByTestId(`gesture-dot-${index}`).getAttribute('data-selected') === 'true'
     );
 
-let onComplete: ReturnType<typeof vi.fn>;
+let onComplete: Mock<(pattern: number[]) => void>;
 
 const renderGrid = (props: Partial<React.ComponentProps<typeof GesturePattern>> = {}) =>
     render(
@@ -56,7 +56,7 @@ const renderGrid = (props: Partial<React.ComponentProps<typeof GesturePattern>> 
     );
 
 beforeEach(() => {
-    onComplete = vi.fn();
+    onComplete = vi.fn<(pattern: number[]) => void>();
 });
 
 describe('starting a stroke', () => {

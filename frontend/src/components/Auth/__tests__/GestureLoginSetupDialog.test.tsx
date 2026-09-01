@@ -1,7 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import React from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import GestureLoginSetupDialog from '../GestureLoginSetupDialog';
 import { GESTURE_DOT_CENTERS } from '../../../utils/gestureGeometry';
 
@@ -33,8 +32,8 @@ const drawOnGrid = (dots: number[]) => {
     fireEvent.pointerUp(svg, { ...PRIMARY, ...at(dots[dots.length - 1]) });
 };
 
-let onClose: ReturnType<typeof vi.fn>;
-let onSuccess: ReturnType<typeof vi.fn>;
+let onClose: Mock<() => void>;
+let onSuccess: Mock<() => void>;
 let queryClient: QueryClient;
 
 const renderDialog = (mode: 'create' | 'change' = 'create') =>
@@ -48,8 +47,8 @@ const stepText = () => screen.getByTestId('gesture-setup-step').textContent;
 
 beforeEach(() => {
     vi.clearAllMocks();
-    onClose = vi.fn();
-    onSuccess = vi.fn();
+    onClose = vi.fn<() => void>();
+    onSuccess = vi.fn<() => void>();
     queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     configureGestureLogin.mockResolvedValue({ status: { configured: true } });
 });

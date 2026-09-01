@@ -16,7 +16,7 @@ import {
     Typography
 } from '@mui/material';
 import { startAuthentication } from '@simplewebauthn/browser';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import React, { useEffect, useState } from 'react';
 import logo from '../assets/logo.svg';
 import AlertModal from '../components/AlertModal';
@@ -26,6 +26,14 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { api, ensureCsrfToken, getErrorMessage, getWaitTime, isAuthError, isRateLimitError } from '../utils/apiClient';
 import { createTranslateOrFallback } from '../utils/translateOrFallback';
 import { getWebAuthnErrorTranslationKey } from '../utils/translations';
+import GesturePattern from '../components/Auth/GesturePattern';
+import {
+    GESTURE_LOGIN_STATUS_QUERY_KEY,
+    authenticateGestureLogin,
+    fetchGestureLoginStatus,
+    getGestureErrorBody,
+    type GestureLoginStatus,
+} from '../utils/gestureLogin';
 
 const LoginPage: React.FC = () => {
     const [visitorUsername, setVisitorUsername] = useState('');
@@ -38,8 +46,16 @@ const LoginPage: React.FC = () => {
     const [alertOpen, setAlertOpen] = useState(false);
     const [alertTitle, setAlertTitle] = useState('');
     const [alertMessage, setAlertMessage] = useState('');
+    // Gesture throttling is tracked separately from `waitTime`: the server
+    // buckets are independent, and a gesture throttle must never disable the
+    // password field that is the documented recovery path.
+    const [gestureWaitTime, setGestureWaitTime] = useState(0);
+    const [gestureMessage, setGestureMessage] = useState('');
+    const [gestureOutcome, setGestureOutcome] = useState<'idle' | 'error' | 'success'>('idle');
+    const passwordFieldRef = React.useRef<HTMLInputElement | null>(null);
     const { t } = useLanguage();
     const { login } = useAuth();
+    const queryClient = useQueryClient();
 
     // Check backend connection and password status
     // This endpoint now includes visitor password info and other login-related settings
@@ -114,6 +130,21 @@ const LoginPage: React.FC = () => {
 
     const passkeysExist = passkeysData?.exists || false;
 
+    const { data: gestureStatus } = useQuery<GestureLoginStatus>({
+        queryKey: GESTURE_LOGIN_STATUS_QUERY_KEY,
+        queryFn: fetchGestureLoginStatus,
+        // A failed status request leaves the state unknown. It is never turned
+        // into "not configured": rendering a grid on a guess is worse than
+        // rendering nothing, and the password form is always there.
+        retry: false,
+        staleTime: 0,
+        enabled: !isCheckingConnection && !isConnectionError,
+    });
+
+    const gestureAvailable = gestureStatus?.available === true;
+    const gestureLocked = gestureStatus?.locked === true;
+
+
     // Auto-login only if login is not required
     useEffect(() => {
         if (statusData && statusData.loginRequired === false) {
@@ -133,6 +164,23 @@ const LoginPage: React.FC = () => {
             return () => clearInterval(interval);
         }
     }, [waitTime]);
+
+    useEffect(() => {
+        if (gestureWaitTime > 0) {
+            const interval = setInterval(() => {
+                setGestureWaitTime((prev) => (prev - 1000 > 0 ? prev - 1000 : 0));
+            }, 1000);
+            return () => clearInterval(interval);
+        }
+    }, [gestureWaitTime]);
+
+    // Leaving the Admin tab abandons any stroke in progress along with it.
+    useEffect(() => {
+        if (activeTab !== 0) {
+            setGestureMessage('');
+            setGestureOutcome('idle');
+        }
+    }, [activeTab]);
 
     const formatWaitTime = (ms: number): string => {
         if (ms < 1000) return 'a moment';
@@ -227,12 +275,98 @@ const LoginPage: React.FC = () => {
         },
         onSuccess: (data) => {
             setWaitTime(0);
+            // A successful admin password login clears a gesture lock on the
+            // server, so the cached status must not outlive it.
+            queryClient.invalidateQueries({ queryKey: GESTURE_LOGIN_STATUS_QUERY_KEY });
             login(data.role);
         },
         onError: (error: unknown) => {
             handlePasswordLoginError(error, t('incorrectPassword'));
         }
     });
+
+    const setGestureStatusCache = (patch: Partial<GestureLoginStatus>) => {
+        queryClient.setQueryData<GestureLoginStatus>(
+            GESTURE_LOGIN_STATUS_QUERY_KEY,
+            (previous) => (previous ? { ...previous, ...patch } : previous)
+        );
+    };
+
+    const gestureLoginMutation = useMutation({
+        mutationFn: async (pattern: number[]) => {
+            await ensureCsrfToken({ refresh: true });
+            return authenticateGestureLogin(pattern);
+        },
+        onSuccess: (data) => {
+            setGestureOutcome('success');
+            setGestureMessage('');
+            login(data.role);
+        },
+        onError: (error: unknown) => {
+            const body = getGestureErrorBody(error);
+            setGestureOutcome('error');
+
+            if (isRateLimitError(error) && body.code !== 'gesture_locked') {
+                // Throttled, not locked. Only the gesture is paused; the
+                // password form below stays usable.
+                const waitMs = getWaitTime(error);
+                setGestureWaitTime(waitMs);
+                setGestureMessage(
+                    `${t('tooManyAttempts')} ${t('waitTimeMessage').replace('{time}', formatWaitTime(waitMs))}`
+                );
+                return;
+            }
+
+            if (body.code === 'gesture_locked') {
+                setGestureStatusCache({ locked: true, available: false, attemptsRemaining: 0 });
+                setGestureMessage(
+                    t('gestureLoginLockedPasswordRecovery') ||
+                        'Gesture Login is locked after 3 incorrect attempts. Sign in once with your admin password to restore it.'
+                );
+                // The grid is about to disappear; put the caret where the user
+                // now has to act.
+                window.setTimeout(() => passwordFieldRef.current?.focus(), 0);
+                return;
+            }
+
+            if (body.code === 'gesture_incorrect' && typeof body.attemptsRemaining === 'number') {
+                setGestureStatusCache({ attemptsRemaining: body.attemptsRemaining });
+                setGestureMessage(
+                    (t('gestureLoginIncorrectAttemptsRemaining') ||
+                        'Incorrect gesture. {count} attempts remaining.'
+                    ).replace('{count}', String(body.attemptsRemaining)) +
+                        ' ' +
+                        (t('gestureLoginPartialResetHint') ||
+                            'The failure count resets 12 hours after the most recent incorrect gesture.')
+                );
+                return;
+            }
+
+            if (body.code === 'gesture_unavailable') {
+                setGestureStatusCache({ available: false });
+                setGestureMessage(t('gestureLoginUnavailable') || 'Gesture Login is not available.');
+                return;
+            }
+
+            // Network or 5xx: the server state is unknown. Never decrement the
+            // remaining count locally from a request that may not have landed.
+            setGestureMessage(t('loginFailed') || 'Login failed. Please try again.');
+            queryClient.invalidateQueries({ queryKey: GESTURE_LOGIN_STATUS_QUERY_KEY });
+        },
+    });
+
+    const handleGestureComplete = (pattern: number[]) => {
+        if (
+            gestureLoginMutation.isPending ||
+            gestureWaitTime > 0 ||
+            !gestureAvailable
+        ) {
+            return;
+        }
+        setGestureOutcome('idle');
+        setGestureMessage('');
+        gestureLoginMutation.mutate(pattern);
+    };
 
     const visitorLoginMutation = useMutation({
         mutationFn: async (credentials: { username: string; password: string }) => {
@@ -440,6 +574,52 @@ const LoginPage: React.FC = () => {
                                 >
                                     {(showVisitorTab ? activeTab === 0 : true) && (
                                         <>
+                                            {gestureAvailable && (
+                                                <Box sx={{ mb: 2 }} data-testid="gesture-login-panel">
+                                                    <Typography variant="subtitle2">
+                                                        {t('gestureLoginUse') || 'Use Gesture Login'}
+                                                    </Typography>
+                                                    <GesturePattern
+                                                        mode="verify"
+                                                        disabled={
+                                                            gestureLoginMutation.isPending || gestureWaitTime > 0
+                                                        }
+                                                        outcome={gestureOutcome}
+                                                        onComplete={handleGestureComplete}
+                                                        ariaLabel={t('gestureLogin') || 'Gesture Login'}
+                                                        instructions={
+                                                            t('gestureLoginSignInInstruction') ||
+                                                            'Press and hold to draw; release to sign in.'
+                                                        }
+                                                        liveMessage={gestureMessage}
+                                                        minimumDotsMessage={
+                                                            t('gestureLoginMinimumDots') ||
+                                                            'Draw a gesture connecting at least 3 dots.'
+                                                        }
+                                                    />
+                                                    {gestureLoginMutation.isPending && (
+                                                        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
+                                                            <CircularProgress size={20} />
+                                                        </Box>
+                                                    )}
+                                                    {gestureMessage && (
+                                                        <Alert severity="warning" sx={{ mt: 1 }} data-testid="gesture-login-message">
+                                                            {gestureMessage}
+                                                        </Alert>
+                                                    )}
+                                                    {passwordLoginAllowed && (
+                                                        <Divider sx={{ my: 2 }}>{t('or') || 'OR'}</Divider>
+                                                    )}
+                                                </Box>
+                                            )}
+
+                                            {!gestureAvailable && gestureLocked && (
+                                                <Alert severity="warning" sx={{ mb: 2 }} data-testid="gesture-locked-notice">
+                                                    {t('gestureLoginLockedPasswordRecovery') ||
+                                                        'Gesture Login is locked after 3 incorrect attempts. Sign in once with your admin password to restore it.'}
+                                                </Alert>
+                                            )}
+
                                             {passwordLoginAllowed && (
                                                 <Box component="form" onSubmit={handleSubmit} noValidate>
                                                     <TextField
@@ -451,6 +631,7 @@ const LoginPage: React.FC = () => {
                                                         type={showPassword ? 'text' : 'password'}
                                                         id="password"
                                                         autoComplete="current-password"
+                                                        inputRef={passwordFieldRef}
                                                         value={password}
                                                         onChange={(e) => setPassword(e.target.value)}
                                                         autoFocus={!showVisitorTab || activeTab === 0}
@@ -488,7 +669,7 @@ const LoginPage: React.FC = () => {
 
                                             {passwordLoginAllowed && passkeysExist && (
                                                 <>
-                                                    <Divider sx={{ my: 2 }}>OR</Divider>
+                                                    <Divider sx={{ my: 2 }}>{t('or') || 'OR'}</Divider>
                                                     <Button
                                                         fullWidth
                                                         variant="outlined"
