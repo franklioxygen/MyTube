@@ -187,3 +187,63 @@ Do not set `JWT_SECRET` to
 `default_development_secret_do_not_use_in_production`. That value was published
 in earlier releases, so anyone can forge tokens with it. The backend refuses to
 start if it is configured.
+
+## Gesture Login (`GESTURE_LOGIN_PEPPER`)
+
+Gesture Login lets the single admin sign in by drawing a pattern on a 3x3 grid
+instead of typing the admin password. It is off until an admin enrolls one, and
+it changes nothing about visitor accounts, passkeys, or API keys.
+
+**Treat it as a convenience, not as a second password.** A three-dot pattern has
+roughly 320 possibilities and even the full nine-dot space is far smaller than a
+real password. Do not present it to users as equivalent security. The design
+compensates in three ways, none of which turn a gesture into a strong
+credential:
+
+- The stored verifier is HMAC'd under a server-side pepper and then run through
+  memory-hard scrypt with a per-credential salt, so a database-only leak is not
+  enough to attack it offline.
+- Three incorrect gestures lock the method permanently. Only a successful admin
+  password login clears the lock; waiting, restarting, passkey login, and
+  visitor login do not. A streak of one or two clears itself twelve hours after
+  the most recent wrong attempt.
+- Password login cannot be disabled while a gesture is configured, because a
+  password login is the only way out of that lock. The API rejects the attempt
+  even if a stale browser tab tries it.
+
+The drawn pattern travels in the request body exactly as a password does, so
+**use HTTPS**. On a plain-HTTP LAN deployment, anyone who can see the traffic can
+replay the gesture.
+
+### The pepper file
+
+The pepper is resolved in this order:
+
+1. `GESTURE_LOGIN_PEPPER`, if set and at least 32 bytes.
+2. Otherwise a file generated on first enrollment at
+   `backend/data/gesture-login.pepper`, beside `mytube.db`, created with
+   owner-only permissions.
+
+`JWT_SECRET` and `CSRF_SECRET` are deliberately not reused: both fall back to a
+fresh random value per process, so either would silently invalidate an enrolled
+gesture on every restart.
+
+**The pepper is not inside the database.** A database export alone does not carry
+it. Restoring `mytube.db` onto a new installation therefore produces a
+credential the new server cannot verify: Gesture Login reports that it needs to
+be set up again, the login grid disappears, and the admin signs in with their
+password and redraws. Nothing else is affected.
+
+To avoid that, either back up the whole data directory rather than just the
+database, or set `GESTURE_LOGIN_PEPPER` explicitly so the secret travels with
+your configuration instead of a generated file. Changing or losing the pepper
+never locks anyone out — password login is always the recovery path.
+
+### Restoring a backup
+
+Importing a database or restoring from a backup replaces the credential row
+along with everything else. A backup taken before a lock will therefore clear
+that lock, and one taken while enrolled restores that gesture. This is an
+admin-only action, and an admin who can restore a backup can already delete the
+credential outright, but it is worth knowing that it is the one exception to
+"only a password login unlocks it".
