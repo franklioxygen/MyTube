@@ -277,6 +277,62 @@ describe('ScanController', () => {
       );
     });
 
+    it('skips hidden and NAS system directories', async () => {
+      process.env.MYTUBE_ADMIN_TRUST_LEVEL = 'host';
+      (storageService.getVideos as any).mockReturnValue([]);
+      (fs.pathExists as any).mockResolvedValue(true);
+      // QNAP/Synology drop generated previews beside the media; entering one
+      // would import its clips as real videos.
+      (fs.readdir as any).mockImplementation((dir: string) =>
+        dir === '/mnt/media'
+          ? Promise.resolve([
+              { name: '.@__thumb', isDirectory: () => true, isSymbolicLink: () => false },
+              { name: '@Recycle', isDirectory: () => true, isSymbolicLink: () => false },
+              { name: 'real.mp4', isDirectory: () => false, isSymbolicLink: () => false },
+            ])
+          : Promise.resolve([
+              { name: 'preview.mp4', isDirectory: () => false, isSymbolicLink: () => false },
+            ]),
+      );
+      (fs.stat as any).mockResolvedValue({
+        isDirectory: () => false,
+        birthtime: new Date(),
+        size: 1024,
+      });
+      const security = await import('../../utils/security');
+      (security.execFileSafe as any).mockResolvedValue({ stdout: '120', stderr: '' });
+
+      req = { body: { directories: ['/mnt/media'] } };
+
+      await scanMountDirectories(req as Request, res as Response);
+
+      expect(status).toHaveBeenCalledWith(200);
+      expect(storageService.saveVideo).toHaveBeenCalledTimes(1);
+      expect(storageService.saveVideo).toHaveBeenCalledWith(
+        expect.objectContaining({ videoPath: 'mount:/mnt/media/real.mp4' }),
+        expect.anything(),
+      );
+    });
+
+    it('drops mount records that are no longer under a configured directory', async () => {
+      process.env.MYTUBE_ADMIN_TRUST_LEVEL = 'host';
+      (storageService.getVideos as any).mockReturnValue([
+        { id: 'gone', title: 'Removed library', videoPath: 'mount:/mnt/removed/movie.mkv' },
+      ]);
+      (storageService.deleteVideo as any).mockReturnValue(true);
+      (fs.pathExists as any).mockResolvedValue(true);
+      (fs.readdir as any).mockResolvedValue([]);
+
+      req = { body: { directories: ['/mnt/media'] } };
+
+      await scanMountDirectories(req as Request, res as Response);
+
+      expect(storageService.deleteVideo).toHaveBeenCalledWith('gone');
+      expect(json).toHaveBeenCalledWith(
+        expect.objectContaining({ deletedCount: 1 }),
+      );
+    });
+
     it('should accept directory names that merely contain ".."', async () => {
       process.env.MYTUBE_ADMIN_TRUST_LEVEL = 'host';
       (storageService.getVideos as any).mockReturnValue([]);

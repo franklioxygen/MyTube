@@ -95,6 +95,14 @@ const resolveDirectoryForCollection = (
   return mode === "mount" ? validateMountDirectory(dir) : resolveSafePath(dir, VIDEOS_DIR);
 };
 
+// NAS appliances drop generated files next to the media: QNAP writes preview
+// clips into ".@__thumb" and trashes into "@Recycle", Synology uses "@eaDir".
+// Those scan as real videos, so skip them along with any other dot-entry.
+const SYSTEM_ENTRY_NAMES = new Set(["@Recycle", "@eaDir", "#recycle"]);
+
+const isSkippableEntryName = (name: string): boolean =>
+  name.startsWith(".") || SYSTEM_ENTRY_NAMES.has(name);
+
 const collectFilesRecursively = async (
   dir: string,
   mode: RecursiveCollectionMode,
@@ -123,6 +131,10 @@ const collectFilesRecursively = async (
 
   const nestedResults = await Promise.all(
     entries.map(async (entry) => {
+      if (isSkippableEntryName(entry.name)) {
+        return [] as string[];
+      }
+
       let filePath: string;
       try {
         filePath = resolveSafeChildPath(resolvedDir, entry.name);
@@ -860,8 +872,10 @@ const runMountScan = async (req: Request, res: Response): Promise<void> => {
   let deletedCount = 0;
   const videosToDelete: string[] = [];
 
-  const normalizedDirectories = validDirectories;
-
+  // Every mount record that the scan did not find on disk is dropped, including
+  // records under a directory the operator has since removed from the setting.
+  // Only the database row goes: deleteVideo() never touches a "mount:" file,
+  // so the media itself stays where the media server expects it.
   for (const video of existingVideos) {
     if (!video.videoPath?.startsWith("mount:")) {
       continue;
@@ -876,19 +890,8 @@ const runMountScan = async (req: Request, res: Response): Promise<void> => {
       continue;
     }
 
-    const isInScannedDirectory = normalizedDirectories.some((dir: string) => {
-      return (
-        normalizedVideoPath === dir ||
-        normalizedVideoPath.startsWith(`${dir}${path.sep}`)
-      );
-    });
-
-    if (!isInScannedDirectory) {
-      continue;
-    }
-
     if (!actualMountPathsOnDisk.has(normalizedVideoPath)) {
-      logger.info(`Mount video missing: ${video.title} (${video.videoPath})`);
+      logger.info(`Mount video no longer scanned: ${video.title} (${video.videoPath})`);
       videosToDelete.push(video.id);
     }
   }
