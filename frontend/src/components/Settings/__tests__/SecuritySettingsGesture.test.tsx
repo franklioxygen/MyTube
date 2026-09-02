@@ -174,6 +174,20 @@ describe('prerequisites come from settings, not the status payload', () => {
         expect(screen.queryByTestId('gesture-save-first-hint')).toBeNull();
     });
 
+    it('refuses enrolment when the server disagrees with a stale cache', async () => {
+        // Another tab disabled login; the settings refetch has not landed (or
+        // failed), so the cache still says the prerequisites hold.
+        gestureResponse = { status: STATUS.prerequisiteOff };
+        renderSettings({}, { loginEnabled: true, passwordLoginAllowed: true });
+
+        await waitFor(() =>
+            expect(screen.getByTestId('gesture-save-first-hint')).toBeTruthy()
+        );
+        // Trusting the cache alone would let the admin draw twice and then eat
+        // a 409 from the PUT.
+        expect(gestureSwitch()).toBeDisabled();
+    });
+
     it('does not blame the prerequisites when the status request fails', async () => {
         gestureResponse = { reject: true };
         renderSettings({}, { loginEnabled: true, passwordLoginAllowed: true });

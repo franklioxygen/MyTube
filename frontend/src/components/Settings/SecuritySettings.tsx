@@ -116,10 +116,17 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ settings, onChange 
     // draft they are about to turn off; draft-only would enrol against a
     // prerequisite the server has not accepted yet and would reject.
     const gestureDraftPrerequisites = meetsPrerequisites(settings);
-    // Fall back to the server's view only when the cache has not loaded yet.
-    const gesturePersistedPrerequisites = persistedSettings
-        ? meetsPrerequisites(persistedSettings)
-        : gestureStatus?.canConfigure === true;
+    // Both sources must agree, and neither substitutes for the other. The
+    // cache can be stale - another tab disabling login leaves a cached `true`
+    // until its refetch lands, or that refetch fails - and trusting it alone
+    // would keep enrolment enabled while the server already says no, letting
+    // the admin complete both drawings only to eat a 409. The server answer
+    // alone is not enough either: it knows nothing about the unsaved draft.
+    // When the status is unknown the switch is disabled regardless, so this
+    // never turns a failed status request into a claim about prerequisites.
+    const gesturePersistedPrerequisites =
+        gestureStatus?.canConfigure === true &&
+        (persistedSettings ? meetsPrerequisites(persistedSettings) : true);
     const gestureConfigured = gestureStatus?.configured === true;
     const gestureLocked = gestureStatus?.locked === true;
     const gestureResetRequired = gestureStatus?.resetRequired === true;
