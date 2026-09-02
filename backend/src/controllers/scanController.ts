@@ -228,6 +228,37 @@ const buildVideoWebPath = (
   return `/videos/${relativePath.split(path.sep).join("/")}`;
 };
 
+// A media-server layout carries the work's identity on the folder, not the file:
+// "Heat (1995) [2160p]/Heat.1995.2160p.x265-YTS.mkv". Season and extras folders
+// carry none, so walk past them to reach the folder that names the work.
+const NON_IDENTIFYING_FOLDER =
+  /^(?:season\s*\d+|s\d{1,3}|specials?|extras?|featurettes?|bonus|\d*\s*第[\d一二三四五六七八九十]+季)$/i;
+
+const IDENTITY_FOLDER_MAX_DEPTH = 3;
+
+const resolveIdentityFolderName = (
+  filePath: string,
+  rootDir: string
+): string | null => {
+  let dir = path.dirname(filePath);
+
+  for (let depth = 0; depth < IDENTITY_FOLDER_MAX_DEPTH; depth += 1) {
+    // Stop at the scan root: its name is the library ("TV Shows"), not a work.
+    if (dir === rootDir || !isPathWithinDirectory(dir, rootDir)) {
+      return null;
+    }
+
+    const name = path.basename(dir).trim();
+    if (name && !NON_IDENTIFYING_FOLDER.test(name)) {
+      return name;
+    }
+
+    dir = path.dirname(dir);
+  }
+
+  return null;
+};
+
 const getSafeFilePathForProcessing = (
   filePath: string,
   isMountDirectory: boolean
@@ -429,6 +460,28 @@ const processSingleVideoFile = async (
     logger.error(`Error scraping TMDB metadata for "${filename}":`, error);
   }
 
+  // Release names ("Heat.1995.2160p.4K.WEB.x265.10bit.AAC5.1-[YTS.MX].mkv")
+  // rarely match, while the folder they sit in usually does. Only mount scans
+  // retry: under the managed videos folder the parent is an author/collection
+  // folder, which would invite a wrong match.
+  if (!tmdbMetadata && isMountDirectory) {
+    const identityFolder = resolveIdentityFolderName(filePath, normalizedDirectory);
+
+    if (identityFolder) {
+      try {
+        tmdbMetadata = await scrapeMetadataFromTMDB(
+          `${identityFolder}${path.extname(filename)}`,
+          tempThumbnailFilename
+        );
+      } catch (error) {
+        logger.error(
+          `Error scraping TMDB metadata for folder "${identityFolder}":`,
+          error
+        );
+      }
+    }
+  }
+
   logger.info(`Found new video file: ${relativePath}`);
 
   const displayTitle = originalTitle || "Untitled Video";
@@ -515,7 +568,15 @@ const processSingleVideoFile = async (
     const collectionId = await resolveCollectionId(collectionName);
 
     if (collectionId) {
-      storageService.addVideoToCollection(collectionId, newVideo.id);
+      // Mount media belongs to the media server, so it must never be relocated
+      // into a collection folder. Saying so up front also skips the legacy
+      // move path, which reloads every collection and its members per video -
+      // synchronous SQLite work that stalls the whole server mid-scan.
+      storageService.addVideoToCollection(
+        collectionId,
+        newVideo.id,
+        isMountDirectory ? { moveFiles: false } : undefined
+      );
       logger.info(`Added video ${newVideo.title} to collection ${collectionName}`);
     }
   }

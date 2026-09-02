@@ -314,6 +314,84 @@ describe('ScanController', () => {
       );
     });
 
+    it('retries TMDB with the identifying folder when the filename does not match', async () => {
+      process.env.MYTUBE_ADMIN_TRUST_LEVEL = 'host';
+      (storageService.getVideos as any).mockReturnValue([]);
+      (fs.pathExists as any).mockResolvedValue(true);
+      (fs.readdir as any).mockImplementation((dir: string) => {
+        if (dir === '/mnt/tv') {
+          return Promise.resolve([
+            { name: 'Breaking Bad (2008)', isDirectory: () => true, isSymbolicLink: () => false },
+          ]);
+        }
+        if (dir === '/mnt/tv/Breaking Bad (2008)') {
+          return Promise.resolve([
+            { name: 'Season 1', isDirectory: () => true, isSymbolicLink: () => false },
+          ]);
+        }
+        return Promise.resolve([
+          {
+            name: 'BrBa.S01E02.1080p.BluRay.x265-Silence.mkv',
+            isDirectory: () => false,
+            isSymbolicLink: () => false,
+          },
+        ]);
+      });
+      (fs.stat as any).mockResolvedValue({
+        isDirectory: () => false,
+        birthtime: new Date(),
+        size: 1024,
+      });
+      const { scrapeMetadataFromTMDB } = await import('../../services/tmdbService');
+      (scrapeMetadataFromTMDB as any).mockResolvedValue(null);
+
+      req = { body: { directories: ['/mnt/tv'] } };
+
+      await scanMountDirectories(req as Request, res as Response);
+
+      // First on the release-name file, then on the show folder - "Season 1"
+      // identifies nothing, so it is walked past.
+      expect(scrapeMetadataFromTMDB).toHaveBeenCalledWith(
+        'BrBa.S01E02.1080p.BluRay.x265-Silence.mkv',
+        expect.any(String),
+      );
+      expect(scrapeMetadataFromTMDB).toHaveBeenCalledWith(
+        'Breaking Bad (2008).mkv',
+        expect.any(String),
+      );
+    });
+
+    it('never relocates mount media when linking it to a collection', async () => {
+      process.env.MYTUBE_ADMIN_TRUST_LEVEL = 'host';
+      (storageService.getVideos as any).mockReturnValue([]);
+      (storageService.getCollections as any).mockReturnValue([]);
+      (fs.pathExists as any).mockResolvedValue(true);
+      (fs.readdir as any).mockImplementation((dir: string) =>
+        dir === '/mnt/media'
+          ? Promise.resolve([
+              { name: 'Heat (1995)', isDirectory: () => true, isSymbolicLink: () => false },
+            ])
+          : Promise.resolve([
+              { name: 'Heat.mkv', isDirectory: () => false, isSymbolicLink: () => false },
+            ]),
+      );
+      (fs.stat as any).mockResolvedValue({
+        isDirectory: () => false,
+        birthtime: new Date(),
+        size: 1024,
+      });
+
+      req = { body: { directories: ['/mnt/media'] } };
+
+      await scanMountDirectories(req as Request, res as Response);
+
+      expect(storageService.addVideoToCollection).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(String),
+        { moveFiles: false },
+      );
+    });
+
     it('drops mount records that are no longer under a configured directory', async () => {
       process.env.MYTUBE_ADMIN_TRUST_LEVEL = 'host';
       (storageService.getVideos as any).mockReturnValue([

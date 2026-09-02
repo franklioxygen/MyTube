@@ -578,7 +578,9 @@ describe("scanController extra coverage", () => {
     const savedCollection = vi.mocked(storageService.saveCollection).mock.calls[0][0] as any;
     expect(storageService.addVideoToCollection).toHaveBeenCalledWith(
       savedCollection.id,
-      expect.any(String)
+      expect.any(String),
+      // Local scans keep the legacy relocation behaviour; only mount scans opt out.
+      undefined
     );
     expect(status).toHaveBeenCalledWith(200);
   });
