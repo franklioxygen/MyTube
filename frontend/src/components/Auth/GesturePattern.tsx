@@ -181,6 +181,19 @@ const GesturePatternSurface: React.FC<GesturePatternProps> = ({
             // Already released, or never captured.
         }
 
+        if (submit) {
+            // Walk the last segment out to where the pointer actually lifted.
+            // pointerup carries its own coordinates and is not guaranteed to be
+            // preceded by a pointermove at the same position - on touch and pen
+            // a fast swipe can lift a dot's width past the final sample. Without
+            // this the closing dot is silently dropped, which at enrolment
+            // stores a gesture the user did not draw, and at login rejects a
+            // correct one and spends one of only three attempts before the
+            // credential locks for good.
+            const releasePoint = pointFromEvent(event.clientX, event.clientY);
+            if (releasePoint) extendTo(releasePoint);
+        }
+
         const drawn = patternRef.current;
         clearStroke();
 

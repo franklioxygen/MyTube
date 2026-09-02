@@ -42,6 +42,15 @@ const selectedDots = (): number[] =>
             screen.getByTestId(`gesture-dot-${index}`).getAttribute('data-selected') === 'true'
     );
 
+/** Press, move through `via`, then lift at `releaseAt` with no move there. */
+const drawReleasingAt = (svg: Element, start: number, via: number[], releaseAt: number) => {
+    fireEvent.pointerDown(svg, { ...PRIMARY, ...at(start) });
+    for (const dot of via) {
+        fireEvent.pointerMove(svg, { ...PRIMARY, ...at(dot) });
+    }
+    fireEvent.pointerUp(svg, { ...PRIMARY, ...at(releaseAt) });
+};
+
 let onComplete: Mock<(pattern: number[]) => void>;
 
 const renderGrid = (props: Partial<React.ComponentProps<typeof GesturePattern>> = {}) =>
@@ -183,6 +192,81 @@ describe('completing a stroke', () => {
         draw(getSvg(), [0, 2]);
 
         expect(onComplete).toHaveBeenCalledWith([0, 1, 2]);
+    });
+});
+
+describe('the release point', () => {
+    it('includes a dot that only pointerup landed on', () => {
+        renderGrid();
+        // pointerup is not guaranteed to be preceded by a pointermove at the
+        // same spot; on touch and pen a fast swipe can lift past the last
+        // sample.
+        drawReleasingAt(getSvg(), 0, [3], 6);
+
+        expect(onComplete).toHaveBeenCalledWith([0, 3, 6]);
+    });
+
+    it('crosses midpoints on the closing segment', () => {
+        renderGrid();
+        drawReleasingAt(getSvg(), 6, [7], 2);
+
+        // 7 -> 2 is not collinear, so only the release dot is added.
+        expect(onComplete).toHaveBeenCalledWith([6, 7, 2]);
+    });
+
+    it('completes a draw that would otherwise be one dot short', () => {
+        renderGrid();
+        // Two sampled dots plus the release makes three. Dropping the release
+        // would reject a correct login draw and spend one of three attempts.
+        drawReleasingAt(getSvg(), 0, [4], 8);
+
+        expect(onComplete).toHaveBeenCalledWith([0, 4, 8]);
+    });
+
+    it('picks up a dot skipped between the last sample and the release', () => {
+        renderGrid();
+        // 6 -> 0 sweeps the left column through 3, then lifting at 2 sweeps
+        // the top row through 1. Both closing dots come from segments, not
+        // from a sample that landed on them.
+        drawReleasingAt(getSvg(), 6, [0], 2);
+
+        expect(onComplete).toHaveBeenCalledWith([6, 3, 0, 1, 2]);
+    });
+
+    it('adds nothing when the release lands in empty space', () => {
+        renderGrid();
+        const svg = getSvg();
+        fireEvent.pointerDown(svg, { ...PRIMARY, ...at(0) });
+        fireEvent.pointerMove(svg, { ...PRIMARY, ...at(1) });
+        fireEvent.pointerMove(svg, { ...PRIMARY, ...at(2) });
+        // Straight out past the top-right corner, clear of every dot.
+        fireEvent.pointerUp(svg, { ...PRIMARY, clientX: 299, clientY: 50 });
+
+        expect(onComplete).toHaveBeenCalledWith([0, 1, 2]);
+    });
+
+    it('still counts a dot the closing segment sweeps on its way off the grid', () => {
+        renderGrid();
+        const svg = getSvg();
+        fireEvent.pointerDown(svg, { ...PRIMARY, ...at(0) });
+        fireEvent.pointerMove(svg, { ...PRIMARY, ...at(1) });
+        fireEvent.pointerMove(svg, { ...PRIMARY, ...at(2) });
+        fireEvent.pointerUp(svg, { ...PRIMARY, clientX: 299, clientY: 299 });
+
+        // The release itself is outside every dot, but the path from 2 to the
+        // corner passes within 5's hit radius, so the finger did cross it.
+        expect(onComplete).toHaveBeenCalledWith([0, 1, 2, 5]);
+    });
+
+    it('does not apply the release point when the stroke is cancelled', () => {
+        renderGrid();
+        const svg = getSvg();
+        fireEvent.pointerDown(svg, { ...PRIMARY, ...at(0) });
+        fireEvent.pointerMove(svg, { ...PRIMARY, ...at(3) });
+        fireEvent.pointerCancel(svg, { ...PRIMARY, ...at(6) });
+
+        expect(onComplete).not.toHaveBeenCalled();
+        expect(selectedDots()).toEqual([]);
     });
 });
 
