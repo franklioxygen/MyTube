@@ -1,7 +1,11 @@
 import crypto from "crypto";
-import fs from "fs";
 import path from "path";
 import { DATA_DIR } from "../config/paths";
+import {
+  ensureDirSafeSync,
+  readFileSafeSync,
+  writeFileSafeSync,
+} from "../utils/security";
 import { logger } from "../utils/logger";
 
 /**
@@ -74,7 +78,7 @@ const readPepperFile = (): Buffer | null => {
 
   let encoded: string;
   try {
-    encoded = fs.readFileSync(filePath, "utf8").trim();
+    encoded = readFileSafeSync(filePath, DATA_DIR, "utf8").trim();
   } catch (error) {
     if ((error as NodeJS.ErrnoException)?.code === "ENOENT") {
       return null;
@@ -104,10 +108,10 @@ const createPepperFile = (): Buffer => {
   const secret = crypto.randomBytes(GESTURE_PEPPER_MIN_BYTES);
 
   try {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+    ensureDirSafeSync(DATA_DIR, DATA_DIR);
     // "wx" is the point of this function: two concurrent first-time
     // configurations must not each generate a pepper and overwrite the other.
-    fs.writeFileSync(filePath, secret.toString("base64url"), {
+    writeFileSafeSync(filePath, DATA_DIR, secret.toString("base64url"), {
       encoding: "utf8",
       flag: "wx",
       mode: 0o600,
