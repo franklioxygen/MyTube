@@ -22,6 +22,57 @@ import type {
 /**
  * Search for a movie on TMDB with language support
  */
+const ENGLISH_TMDB_LANGUAGE = "en-US";
+
+/**
+ * Fetch the same search again in English and index the titles by TMDB id.
+ *
+ * TMDB's `language` only changes the strings it returns, never which results
+ * come back, so the film is already in the localized response - it is the
+ * title comparison that fails. Under zh-CN "Anatomy of a Fall" comes back as
+ * 坠落的审判 with the original title "Anatomie d'une chute", and a filename
+ * naming the film in English matches neither.
+ */
+async function fetchEnglishTitlesById(
+  searchPath: string,
+  params: Record<string, string>,
+  credential: string
+): Promise<Map<number, string[]>> {
+  const titlesById = new Map<number, string[]>();
+
+  try {
+    const response = await tmdbHttpClient.get(buildTMDBEndpointPath(searchPath), {
+      ...buildTMDBRequestConfig(credential, {
+        ...params,
+        language: ENGLISH_TMDB_LANGUAGE,
+      }),
+    });
+
+    const results: Array<Record<string, unknown>> = response.data.results || [];
+    for (const item of results) {
+      if (typeof item.id !== "number") {
+        continue;
+      }
+
+      const titles = [item.title, item.name, item.original_title, item.original_name]
+        .filter(
+          (value): value is string =>
+            typeof value === "string" && value.trim().length > 0
+        );
+      if (titles.length > 0) {
+        titlesById.set(item.id, titles);
+      }
+    }
+  } catch (error) {
+    // A failed English pass just means no extra candidates; the localized
+    // result stands on its own.
+    logger.info(`[TMDB] English title pass failed for ${searchPath}`);
+    void error;
+  }
+
+  return titlesById;
+}
+
 export async function searchMovie(
   title: string,
   credential: string,
@@ -45,9 +96,21 @@ export async function searchMovie(
 
     const results: TMDBMovieResult[] = response.data.results || [];
     if (results.length > 0) {
-      const matchedResults = results.filter((movie) =>
+      let matchedResults = results.filter((movie) =>
         isConfidentTMDBTitleMatch(title, movie)
       );
+
+      if (matchedResults.length === 0 && tmdbLanguage !== ENGLISH_TMDB_LANGUAGE) {
+        const englishTitles = await fetchEnglishTitlesById(
+          "/search/movie",
+          params,
+          credential
+        );
+        matchedResults = results.filter((movie) =>
+          isConfidentTMDBTitleMatch(title, movie, englishTitles.get(movie.id))
+        );
+      }
+
       if (matchedResults.length === 0) {
         return null;
       }
@@ -145,18 +208,31 @@ export async function searchTVShow(
 ): Promise<TMDBTVResult | null> {
   try {
     const tmdbLanguage = mapLanguageToTMDB(language);
+    const params: Record<string, string> = {
+      query: title,
+      language: tmdbLanguage,
+    };
     const response = await tmdbHttpClient.get(buildTMDBEndpointPath("/search/tv"), {
-      ...buildTMDBRequestConfig(credential, {
-        query: title,
-        language: tmdbLanguage,
-      }),
+      ...buildTMDBRequestConfig(credential, params),
     });
 
     const results: TMDBTVResult[] = response.data.results || [];
     if (results.length > 0) {
-      const matchedResults = results.filter((tvShow) =>
+      let matchedResults = results.filter((tvShow) =>
         isConfidentTMDBTitleMatch(title, tvShow)
       );
+
+      if (matchedResults.length === 0 && tmdbLanguage !== ENGLISH_TMDB_LANGUAGE) {
+        const englishTitles = await fetchEnglishTitlesById(
+          "/search/tv",
+          params,
+          credential
+        );
+        matchedResults = results.filter((tvShow) =>
+          isConfidentTMDBTitleMatch(title, tvShow, englishTitles.get(tvShow.id))
+        );
+      }
+
       if (matchedResults.length === 0) {
         return null;
       }
@@ -295,7 +371,8 @@ function scoreMultiSearchResult(item: TMDBMediaSearchResult, year?: number): num
 function pickBestMultiSearchResult(
   results: TMDBSearchResult[],
   queryTitle: string,
-  year?: number
+  year?: number,
+  englishTitles?: Map<number, string[]>
 ): TMDBMediaSearchResult | null {
   let bestMatch: TMDBMediaSearchResult | null = null;
   let bestScore = -1;
@@ -306,7 +383,13 @@ function pickBestMultiSearchResult(
     }
 
     const mediaItem = item as TMDBMediaSearchResult;
-    if (!isConfidentTMDBTitleMatch(queryTitle, mediaItem)) {
+    if (
+      !isConfidentTMDBTitleMatch(
+        queryTitle,
+        mediaItem,
+        englishTitles?.get(mediaItem.id)
+      )
+    ) {
       continue;
     }
 
@@ -402,7 +485,17 @@ export async function searchTMDBSingle(
     });
 
     const results: TMDBSearchResult[] = response.data.results || [];
-    const bestMatch = pickBestMultiSearchResult(results, title, year);
+    let bestMatch = pickBestMultiSearchResult(results, title, year);
+
+    if (!bestMatch && results.length > 0 && tmdbLanguage !== ENGLISH_TMDB_LANGUAGE) {
+      const englishTitles = await fetchEnglishTitlesById(
+        "/search/multi",
+        params,
+        credential
+      );
+      bestMatch = pickBestMultiSearchResult(results, title, year, englishTitles);
+    }
+
     if (!bestMatch) {
       return { result: null, mediaType: null };
     }

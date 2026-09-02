@@ -400,10 +400,14 @@ describe('ScanController', () => {
       );
     });
 
-    it('does not create a collection for a folder holding a single video', async () => {
+    it('leaves a single-video folder out of collections entirely', async () => {
       process.env.MYTUBE_ADMIN_TRUST_LEVEL = 'host';
       (storageService.getVideos as any).mockReturnValue([]);
-      (storageService.getCollections as any).mockReturnValue([]);
+      // A collection of that name already exists - left behind by an earlier
+      // scan - and the lone film must not be swept back into it.
+      (storageService.getCollections as any).mockReturnValue([
+        { id: 'stale', title: 'Heat (1995)', name: 'Heat (1995)', videos: [] },
+      ]);
       (fs.pathExists as any).mockResolvedValue(true);
       (fs.readdir as any).mockImplementation((dir: string) => {
         if (dir === '/mnt/media') {
@@ -432,11 +436,16 @@ describe('ScanController', () => {
 
       await scanMountDirectories(req as Request, res as Response);
 
-      // The single film gets no collection; the two-episode folder does.
+      // The single film gets no collection at all; the two-episode folder does.
       const created = (storageService.saveCollection as any).mock.calls.map(
         (call: any[]) => call[0].title,
       );
       expect(created).toEqual(['Breaking Bad']);
+      expect(storageService.addVideoToCollection).not.toHaveBeenCalledWith(
+        'stale',
+        expect.anything(),
+        expect.anything(),
+      );
       expect(storageService.saveVideo).toHaveBeenCalledTimes(3);
     });
 

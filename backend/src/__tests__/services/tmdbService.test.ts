@@ -10,6 +10,7 @@ import {
   testTMDBCredential,
 } from "../../services/tmdbService";
 import * as settingsService from "../../services/storageService/settings";
+import { isConfidentTMDBTitleMatch } from "../../services/tmdbService/titleMatch";
 
 const axiosMocks = vi.hoisted(() => {
   const get = vi.fn();
@@ -162,6 +163,38 @@ describe("tmdbService", () => {
 
       expect(parsed.titles[0]).toBe("IMG 0999");
       expect(parsed.year).toBeUndefined();
+    });
+  });
+
+  describe("isConfidentTMDBTitleMatch", () => {
+    // Searched under zh-CN, TMDB answers with the localized title and the
+    // original-language one. For a French film named in English by the release
+    // name, neither is what the filename says.
+    const anatomyOfAFall = {
+      title: "坠落的审判",
+      original_title: "Anatomie d'une chute",
+    };
+
+    it("rejects a result whose returned titles are in other languages", () => {
+      expect(isConfidentTMDBTitleMatch("Anatomy Of A Fall", anatomyOfAFall)).toBe(
+        false
+      );
+    });
+
+    it("accepts it once the English title is supplied as an extra candidate", () => {
+      expect(
+        isConfidentTMDBTitleMatch("Anatomy Of A Fall", anatomyOfAFall, [
+          "Anatomy of a Fall",
+        ])
+      ).toBe(true);
+    });
+
+    it("still rejects a genuinely different film", () => {
+      expect(
+        isConfidentTMDBTitleMatch("Anatomy Of A Fall", anatomyOfAFall, [
+          "Barbie",
+        ])
+      ).toBe(false);
     });
   });
 

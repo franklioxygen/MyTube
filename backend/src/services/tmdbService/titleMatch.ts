@@ -26,7 +26,8 @@ function collapseComparableTitle(value: string): string {
 }
 
 function getResultTitleCandidates(
-  item: Partial<TMDBMovieResult & TMDBTVResult & TMDBSearchResult>
+  item: Partial<TMDBMovieResult & TMDBTVResult & TMDBSearchResult>,
+  extraTitles: readonly string[] = []
 ): string[] {
   return [
     ...new Set(
@@ -35,14 +36,23 @@ function getResultTitleCandidates(
         item.original_title,
         item.name,
         item.original_name,
+        ...extraTitles,
       ].filter((value): value is string => Boolean(value && value.trim()))
     ),
   ];
 }
 
+/**
+ * `extraTitles` carries titles the response itself does not hold - notably the
+ * English ones when results were fetched in another language. TMDB returns the
+ * localized title plus the original-language title, so a release filename
+ * naming a film in English matches neither when the film was shot in a third
+ * language.
+ */
 export function isConfidentTMDBTitleMatch(
   searchTitle: string,
-  item: Partial<TMDBMovieResult & TMDBTVResult & TMDBSearchResult>
+  item: Partial<TMDBMovieResult & TMDBTVResult & TMDBSearchResult>,
+  extraTitles: readonly string[] = []
 ): boolean {
   const normalizedSearchTitle = normalizeComparableTitle(searchTitle);
   if (normalizedSearchTitle.length < 2) {
@@ -51,7 +61,7 @@ export function isConfidentTMDBTitleMatch(
 
   const searchTokens = extractComparableTokens(searchTitle);
 
-  for (const candidateTitle of getResultTitleCandidates(item)) {
+  for (const candidateTitle of getResultTitleCandidates(item, extraTitles)) {
     const normalizedCandidateTitle = normalizeComparableTitle(candidateTitle);
     if (!normalizedCandidateTitle) {
       continue;

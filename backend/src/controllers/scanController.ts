@@ -672,13 +672,20 @@ const processDirectoryFiles = async (
     );
   }
 
-  const canCreateCollection = (collectionName: string): boolean =>
+  const shouldGroupIntoCollection = (collectionName: string): boolean =>
     !isMountDirectory || (videoCountByCollectionName.get(collectionName) ?? 0) > 1;
 
   const resolveCollectionId = async (
     collectionName: string,
     displayTitle?: string
   ): Promise<string | undefined> => {
+    // Decided before any lookup: a lone film must not join a same-named
+    // collection either, or one left behind by an earlier scan quietly takes
+    // it back in.
+    if (!shouldGroupIntoCollection(collectionName)) {
+      return undefined;
+    }
+
     const cached = collectionIdCache.get(collectionName);
     if (cached) {
       return cached;
@@ -699,13 +706,6 @@ const processDirectoryFiles = async (
       if (existingCollection) {
         collectionIdCache.set(collectionName, existingCollection.id);
         return existingCollection.id;
-      }
-
-      if (!canCreateCollection(collectionName)) {
-        logger.info(
-          `Skipping collection for single-video folder: ${collectionName}`
-        );
-        return undefined;
       }
 
       const collectionId = crypto.randomUUID();
