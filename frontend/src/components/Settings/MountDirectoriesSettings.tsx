@@ -7,7 +7,7 @@ import {
     Typography,
 } from '@mui/material';
 import { useMutation } from '@tanstack/react-query';
-import React from 'react';
+import React, { useRef } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useScanStatus } from '../../hooks/useScanStatus';
 import { Settings } from '../../types';
@@ -59,55 +59,63 @@ const MountDirectoriesSettings: React.FC<MountDirectoriesSettingsProps> = ({
 
     // Scan mount directories mutation. Lives here (not in useSettingsMutations)
     // because it composes with the page-local `settings` + `saveMutation`.
+    const buildScanMessage = (addedCount: number, deletedCount: number) =>
+        t('scanMountDirectoriesSuccess', { addedCount, deletedCount }) ||
+        `Mount directories scan complete. Added ${addedCount} new videos. Deleted ${deletedCount} missing videos.`;
+
+    // A failed save must still surface once the scan finishes, since the scan
+    // result would otherwise overwrite the warning.
+    const saveWarningRef = useRef<string | null>(null);
+
     const scanMountDirectoriesMutation = useMutation({
-        mutationFn: async ({ directories, mountDirectoriesText }: { directories: string[]; mountDirectoriesText: string }) => {
+        mutationFn: async ({ directories }: { directories: string[] }) => {
             // Mount scans can take much longer than the global API default timeout.
             const res = await api.post('/scan-mount-directories', { directories }, { timeout: 0 });
-            // Return scan results along with mountDirectoriesText for saving
-            return { addedCount: res.data.addedCount, deletedCount: res.data.deletedCount, mountDirectoriesText };
+            return { addedCount: res.data.addedCount, deletedCount: res.data.deletedCount };
         },
         onSuccess: (data) => {
-            // Save settings after successful scan to persist mountDirectories
-            // Use the mountDirectoriesText passed to the mutation to ensure we save the latest value
-            const settingsToSave = {
-                ...settings,
-                mountDirectories: data.mountDirectoriesText
-            };
+            const scanMsg = buildScanMessage(data.addedCount, data.deletedCount);
+            const saveWarning = saveWarningRef.current;
 
-            if (!saveMutation.isPending) {
-                saveMutation.mutate(settingsToSave, {
-                    onSuccess: () => {
-                        const scanMsg = t('scanMountDirectoriesSuccess', {
-                            addedCount: data.addedCount,
-                            deletedCount: data.deletedCount
-                        }) || `Mount directories scan complete. Added ${data.addedCount} new videos. Deleted ${data.deletedCount} missing videos.`;
-                        const saveMsg = t('settingsSaved') || 'Settings saved.';
-                        setMessage({ text: `${scanMsg} ${saveMsg}`, type: 'success' });
-                        // Update local settings state to reflect saved mountDirectories
-                        setSettings(prev => ({ ...prev, mountDirectories: data.mountDirectoriesText }));
-                    },
-                    onError: async (saveError: any) => {
-                        const scanMsg = t('scanMountDirectoriesSuccess', {
-                            addedCount: data.addedCount,
-                            deletedCount: data.deletedCount
-                        }) || `Mount directories scan complete. Added ${data.addedCount} new videos. Deleted ${data.deletedCount} missing videos.`;
-                        const saveErrorMsg = await getApiErrorMessage(saveError, t) || t('settingsFailed') || 'Failed to save settings.';
-                        setMessage({ text: `${scanMsg} Warning: ${saveErrorMsg}`, type: 'warning' });
-                    }
-                });
-            } else {
-                const scanMsg = t('scanMountDirectoriesSuccess', {
-                    addedCount: data.addedCount,
-                    deletedCount: data.deletedCount
-                }) || `Mount directories scan complete. Added ${data.addedCount} new videos. Deleted ${data.deletedCount} missing videos.`;
-                setMessage({ text: scanMsg, type: 'success' });
-            }
+            setMessage(
+                saveWarning
+                    ? { text: `${scanMsg} Warning: ${saveWarning}`, type: 'warning' }
+                    : { text: scanMsg, type: 'success' }
+            );
         },
         onError: async (error: any) => {
             const detail = await getApiErrorMessage(error, t);
             setMessage({ text: `${t('scanFilesFailed') || 'Scan failed'}: ${detail}`, type: 'error' });
         }
     });
+
+    // Persist what was typed as soon as the scan starts. Saving only on success
+    // meant a scan that failed, timed out, or was navigated away from threw the
+    // paths away and the operator had to retype them to try again.
+    const persistMountDirectories = (mountDirectoriesText: string) => {
+        saveWarningRef.current = null;
+
+        if (saveMutation.isPending) {
+            return;
+        }
+
+        saveMutation.mutate(
+            { ...settings, mountDirectories: mountDirectoriesText },
+            {
+                onSuccess: () => {
+                    setSettings(prev => ({ ...prev, mountDirectories: mountDirectoriesText }));
+                },
+                onError: async (saveError: any) => {
+                    const saveErrorMsg =
+                        await getApiErrorMessage(saveError, t) ||
+                        t('settingsFailed') ||
+                        'Failed to save settings.';
+                    saveWarningRef.current = saveErrorMsg;
+                    setMessage({ text: saveErrorMsg, type: 'warning' });
+                }
+            }
+        );
+    };
 
     const handleScanMountDirectories = () => {
         const mountDirectoriesText = mountDirectories || '';
@@ -119,7 +127,9 @@ const MountDirectoriesSettings: React.FC<MountDirectoriesSettingsProps> = ({
             setMessage({ text: t('mountDirectoriesEmptyError'), type: 'error' });
             return;
         }
-        scanMountDirectoriesMutation.mutate({ directories, mountDirectoriesText });
+
+        persistMountDirectories(mountDirectoriesText);
+        scanMountDirectoriesMutation.mutate({ directories });
     };
 
     const renderDetailsButton = () => (
