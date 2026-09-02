@@ -127,7 +127,7 @@ const GestureLoginSetupDialogContent: React.FC<GestureLoginSetupDialogProps> = (
             : t('gestureLoginSetUpTitle') || 'Set Up Gesture Login';
 
     return (
-        <Dialog open={open} onClose={handleClose} maxWidth="xs" fullWidth>
+        <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
             <DialogHeader
                 title={title}
                 onClose={handleClose}
@@ -140,7 +140,7 @@ const GestureLoginSetupDialogContent: React.FC<GestureLoginSetupDialogProps> = (
                         .replace('{current}', String(step))
                         .replace('{total}', '2')}
                 </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                     {step === 1
                         ? t('gestureLoginDrawInstruction') ||
                           'Draw a gesture connecting at least 3 dots.'
@@ -187,7 +187,7 @@ const GestureLoginSetupDialogContent: React.FC<GestureLoginSetupDialogProps> = (
                     )}
                 </Box>
 
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2 }}>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2, lineHeight: 1.4 }}>
                     {t('gestureLoginConvenienceWarning') ||
                         'A gesture is a convenience, not a replacement for your password. Use HTTPS where possible.'}
                 </Typography>
