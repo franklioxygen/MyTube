@@ -1676,6 +1676,18 @@ describe("videoDownloadController extra coverage", () => {
     );
   });
 
+  it("checkPlaylist rejects option-like input before calling yt-dlp", async () => {
+    req.query = { url: "--config-locations=/tmp/attacker.conf" } as any;
+    vi.mocked(validateUrl).mockImplementationOnce(() => {
+      throw new Error("Invalid URL format");
+    });
+
+    await expect(checkPlaylist(req as Request, res as Response)).rejects.toBeInstanceOf(
+      ValidationError
+    );
+    expect(downloadService.checkPlaylist).not.toHaveBeenCalled();
+  });
+
   it("checkPlaylist returns service result on success", async () => {
     req.query = { url: "https://youtube.com/playlist?list=PLok" } as any;
     vi.mocked(isYouTubeUrl).mockReturnValue(true);

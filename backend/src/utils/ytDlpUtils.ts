@@ -10,7 +10,11 @@ import { resetManagedReleaseStateForTests } from "./ytdlp/release";
 
 export { ensureYtDlpAvailable } from "./ytdlp/install";
 export { isYtDlpImpersonateAvailable } from "./ytdlp/runtime";
-export { convertFlagToArg, flagsToArgs } from "./ytdlp/flags";
+export {
+  appendYtDlpInputOperand,
+  convertFlagToArg,
+  flagsToArgs,
+} from "./ytdlp/flags";
 export {
   executeYtDlpJson,
   getChannelUrlFromVideo,

@@ -5,13 +5,17 @@ import {
   clearDownloadHistory,
   clearQueue,
   getDownloadHistory,
+  processChannelPlaylists,
   removeDownloadHistory,
   removeFromQueue,
 } from '../../controllers/downloadController';
+import { ValidationError } from '../../errors/DownloadErrors';
 import downloadManager from '../../services/downloadManager';
+import * as downloadService from '../../services/downloadService';
 import * as storageService from '../../services/storageService';
 
 vi.mock('../../services/downloadManager');
+vi.mock('../../services/downloadService');
 vi.mock('../../services/storageService');
 
 describe('DownloadController', () => {
@@ -119,5 +123,42 @@ describe('DownloadController', () => {
       expect(json).toHaveBeenCalledWith({ success: true, message: 'History cleared' });
     });
   });
-});
 
+  describe('processChannelPlaylists', () => {
+    it('rejects a missing channel URL', async () => {
+      req.body = {};
+
+      await expect(
+        processChannelPlaylists(req as Request, res as Response),
+      ).rejects.toBeInstanceOf(ValidationError);
+      expect(downloadService.downloadChannelPlaylists).not.toHaveBeenCalled();
+    });
+
+    it('rejects option-like input before calling yt-dlp services', async () => {
+      req.body = { url: '--config-locations=/tmp/attacker.conf' };
+
+      await expect(
+        processChannelPlaylists(req as Request, res as Response),
+      ).rejects.toBeInstanceOf(ValidationError);
+      expect(downloadService.downloadChannelPlaylists).not.toHaveBeenCalled();
+    });
+
+    it('passes a validated HTTP URL to the download service', async () => {
+      req.body = { url: 'https://www.youtube.com/@channel' };
+      vi.mocked(downloadService.downloadChannelPlaylists).mockResolvedValue({
+        success: true,
+        message: 'Playlists processed',
+      });
+
+      await processChannelPlaylists(req as Request, res as Response);
+
+      expect(downloadService.downloadChannelPlaylists).toHaveBeenCalledWith(
+        'https://www.youtube.com/@channel',
+      );
+      expect(json).toHaveBeenCalledWith({
+        success: true,
+        message: 'Playlists processed',
+      });
+    });
+  });
+});

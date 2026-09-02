@@ -5,6 +5,20 @@ export function convertFlagToArg(flag: string): string {
   return `--${flag.replace(/([A-Z])/g, "-$1").toLowerCase()}`;
 }
 
+/**
+ * Append an input operand after yt-dlp's end-of-options marker.
+ *
+ * Callers must finish adding options before calling this helper. Without the
+ * marker, an untrusted input beginning with "-" would be parsed as another
+ * yt-dlp option even though the child process is spawned with `shell: false`.
+ */
+export function appendYtDlpInputOperand(
+  args: string[],
+  input: string
+): void {
+  args.push("--", input);
+}
+
 // Map of short options to their long equivalents
 const SHORT_TO_LONG: Record<string, string> = {
   f: "format",

@@ -777,7 +777,15 @@ export const checkPlaylist = async (
     throw new ValidationError("URL is required", "url");
   }
 
-  const playlistUrl = url;
+  let playlistUrl: string;
+  try {
+    playlistUrl = validateUrl(url);
+  } catch (error) {
+    throw new ValidationError(
+      error instanceof Error ? error.message : "Invalid URL format",
+      "url",
+    );
+  }
 
   // For YouTube, validate that it has a playlist parameter
   if (isYouTubeUrl(playlistUrl)) {

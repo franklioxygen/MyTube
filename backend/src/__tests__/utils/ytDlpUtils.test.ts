@@ -11,6 +11,7 @@ import {
 } from "../../services/downloaders/ytdlp/ytdlpHelpers";
 import { SocksProxyAgent } from "socks-proxy-agent";
 import {
+  appendYtDlpInputOperand,
   InvalidProxyError,
   convertFlagToArg,
   downloadChannelAvatar,
@@ -287,6 +288,10 @@ const getSpawnOptionsForUrl = (
   return (call[2] as Record<string, any>) ?? {};
 };
 
+const expectProtectedInputOperand = (args: string[], input: string): void => {
+  expect(args.slice(-2)).toEqual(["--", input]);
+};
+
 const createMissingFileError = (): NodeJS.ErrnoException =>
   Object.assign(new Error("File not found"), { code: "ENOENT" });
 
@@ -427,6 +432,20 @@ describe("ytDlpUtils", () => {
         socketTimeout: undefined,
       });
       expect(args).toEqual([]);
+    });
+  });
+
+  describe("appendYtDlpInputOperand", () => {
+    it("places untrusted input after the end-of-options marker", () => {
+      const args = ["--dump-single-json"];
+
+      appendYtDlpInputOperand(args, "--exec=touch /tmp/marker");
+
+      expect(args).toEqual([
+        "--dump-single-json",
+        "--",
+        "--exec=touch /tmp/marker",
+      ]);
     });
   });
 
@@ -1128,6 +1147,24 @@ describe("ytDlpUtils", () => {
       expect(args).toContain("deno");
       expect(args).toContain("--cookies");
       expect(args.filter((arg) => arg === "--no-warnings")).toHaveLength(1);
+      expectProtectedInputOperand(
+        args,
+        "https://www.youtube.com/watch?v=abc",
+      );
+    });
+
+    it("protects an option-like input from yt-dlp argument parsing", async () => {
+      const input = "--exec=touch /tmp/marker";
+      const proc = createMockProcess();
+      mockSpawnWithVersionCheck(proc);
+
+      const promise = executeYtDlpJson(input);
+      await flushAsyncSpawns();
+      proc.stdout?.emit("data", Buffer.from('{"ok":true}'));
+      proc.emit("close", 0);
+
+      await expect(promise).resolves.toEqual({ ok: true });
+      expectProtectedInputOperand(getSpawnArgsForUrl(input), input);
     });
 
     it("should convert an existing Cookie header file before passing cookies", async () => {
@@ -1447,6 +1484,10 @@ describe("ytDlpUtils", () => {
       const args = getSpawnArgsForUrl("https://www.youtube.com/watch?v=abc");
       expect(args).toContain("--js-runtimes");
       expect(args).toContain("deno");
+      expectProtectedInputOperand(
+        args,
+        "https://www.youtube.com/watch?v=abc",
+      );
       expect(args).not.toContain("node");
     });
 
@@ -1658,6 +1699,10 @@ describe("ytDlpUtils", () => {
       expect(args).toContain("channel_url");
       expect(args).toContain("--js-runtimes");
       expect(args).toContain("deno");
+      expectProtectedInputOperand(
+        args,
+        "https://www.youtube.com/watch?v=abc",
+      );
     });
 
     it("should return null on close with non-zero code", async () => {
@@ -1711,6 +1756,10 @@ describe("ytDlpUtils", () => {
       proc.emit("close", 1);
 
       await expect(promise).resolves.toBe(false);
+      expectProtectedInputOperand(
+        getSpawnArgsForUrl("https://www.youtube.com/@channel"),
+        "https://www.youtube.com/@channel",
+      );
     });
 
     it("should rename non-jpg avatar to jpg when needed", async () => {
@@ -1810,6 +1859,10 @@ describe("ytDlpUtils", () => {
       proc.emit("close", 0);
 
       await expect(promise).resolves.toBeUndefined();
+      expectProtectedInputOperand(
+        getSpawnArgsForUrl("https://www.youtube.com/watch?v=abc"),
+        "https://www.youtube.com/watch?v=abc",
+      );
       expect(subprocess.kill("SIGTERM")).toBe(true);
       expect(proc.kill).toHaveBeenCalledWith("SIGTERM");
     });

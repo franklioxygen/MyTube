@@ -676,6 +676,13 @@ describe('MissAVDownloader', () => {
           ([, args]) => Array.isArray(args) && args.includes('https://surrit.com/playlist.m3u8'),
         ),
       ).toBe(true);
+      const downloadArgs = vi.mocked(spawn).mock.calls.find(
+        ([, args]) => Array.isArray(args) && args.includes('https://surrit.com/playlist.m3u8'),
+      )?.[1] as string[] | undefined;
+      expect(downloadArgs?.slice(-2)).toEqual([
+        '--',
+        'https://surrit.com/playlist.m3u8',
+      ]);
       expect(mockBrowser.close).toHaveBeenCalled();
     });
 

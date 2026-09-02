@@ -3,6 +3,8 @@ import downloadManager from "../services/downloadManager";
 import * as storageService from "../services/storageService";
 import { getStringParam } from "../utils/paramUtils";
 import { sendData, sendSuccessMessage } from "../utils/response";
+import { validateUrl } from "../utils/security";
+import { ValidationError } from "../errors/DownloadErrors";
 
 /**
  * Cancel a download
@@ -89,17 +91,26 @@ export const processChannelPlaylists = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { url } = req.body;
+  const url = getStringParam(req.body?.url);
   
   if (!url) {
-    res.status(400);
-    throw new Error("Channel URL is required");
+    throw new ValidationError("Channel URL is required", "url");
+  }
+
+  let validatedUrl: string;
+  try {
+    validatedUrl = validateUrl(url);
+  } catch (error) {
+    throw new ValidationError(
+      error instanceof Error ? error.message : "Invalid URL format",
+      "url",
+    );
   }
 
   // Import dynamically to avoid circular dependencies if any, or just consistent with service usage
   const downloadService = await import("../services/downloadService");
   
-  const result = await downloadService.downloadChannelPlaylists(url);
+  const result = await downloadService.downloadChannelPlaylists(validatedUrl);
   
   if (result.success) {
     sendSuccessMessage(res, result.message);

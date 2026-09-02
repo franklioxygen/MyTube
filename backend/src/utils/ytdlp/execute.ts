@@ -14,7 +14,7 @@ import {
   resolveYouTubeRemoteComponents,
   withDefaultYouTubeExtractorArgs,
 } from "./extractorArgs";
-import { flagsToArgs } from "./flags";
+import { appendYtDlpInputOperand, flagsToArgs } from "./flags";
 import { spawnYtDlp, withYtDlpRelease } from "./release";
 import type { YtDlpRelease } from "./release/types";
 import { appendYouTubeJsRuntimeArg } from "./runtime";
@@ -102,7 +102,7 @@ async function executeYtDlpJsonWithRelease(
   }
 
   await appendYouTubeJsRuntimeArg(args, url, release);
-  args.push(url);
+  appendYtDlpInputOperand(args, url);
 
   logger.info(
     `[yt-dlp] executing release=${release.releaseId} version=${release.version ?? "unknown"}`
@@ -254,7 +254,7 @@ export async function getChannelUrlFromVideo(
       }
 
       await appendYouTubeJsRuntimeArg(args, videoUrl, release);
-      args.push(videoUrl);
+      appendYtDlpInputOperand(args, videoUrl);
 
       return await new Promise<string | null>((resolve) => {
         const subprocess = spawnYtDlp(release, args);
@@ -323,7 +323,7 @@ export async function downloadChannelAvatar(
       }
 
       await appendYouTubeJsRuntimeArg(args, channelUrl, release);
-      args.push(channelUrl);
+      appendYtDlpInputOperand(args, channelUrl);
 
       return await new Promise<boolean>((resolve) => {
         const subprocess = spawnYtDlp(release, args);
@@ -482,7 +482,7 @@ export function executeYtDlpSpawn(
 
         const args = [...baseArgs];
         await appendYouTubeJsRuntimeArg(args, url, release);
-        args.push(url);
+        appendYtDlpInputOperand(args, url);
 
         logger.info(
           `[yt-dlp] spawning release=${release.releaseId} version=${release.version ?? "unknown"}`
