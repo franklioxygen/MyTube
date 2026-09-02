@@ -160,7 +160,12 @@ export async function runMigrations(options: RunMigrationsOptions = {}) {
     // For network filesystems (NFS/SMB), add a small delay to ensure
     // the database file is fully accessible before attempting migration
     // This helps prevent "database is locked" errors on first deployment
-    const dbPath = path.join(ROOT_DIR, "data", DB_FILENAME);
+    // Must come from DATA_DIR, not a second guess at it. Every check below
+    // validates against DATA_DIR, so rebuilding the path from ROOT_DIR made
+    // the two disagree the moment MYTUBE_DATA_DIR moved the data directory -
+    // the traversal guard then aborted migrations and left a database with no
+    // tables at all.
+    const dbPath = path.join(DATA_DIR, DB_FILENAME);
     if (!pathExistsSafeSync(dbPath, DATA_DIR)) {
       logger.info(
         "Database file does not exist yet, waiting for file system sync..."
@@ -256,7 +261,11 @@ export async function runMigrations(options: RunMigrationsOptions = {}) {
     // reaching the 0019 CREATE TABLE users; this idempotent self-heal covers
     // that case so migrateLegacySharedVisitorPassword succeeds on first boot
     // instead of failing with "no such table: users".
-    const { ensureVisitorUsersTable, ensureFavoritesTables } = await import(
+    const {
+      ensureVisitorUsersTable,
+      ensureFavoritesTables,
+      ensureGestureCredentialTable,
+    } = await import(
       "../services/storageService/migrations/schemaMigrations"
     );
     ensureVisitorUsersTable();
@@ -266,6 +275,12 @@ export async function runMigrations(options: RunMigrationsOptions = {}) {
     // never created, and every /favorites request would 500 with
     // "no such table". Idempotent CREATE TABLE IF NOT EXISTS covers that.
     ensureFavoritesTables();
+
+    // Same self-heal for migration 0028's admin_gesture_credential: a new
+    // table cannot be recovered by the column checks above, so without this a
+    // skipped batch leaves every Gesture Login endpoint failing with
+    // "no such table" on a server that reported a clean start.
+    ensureGestureCredentialTable();
 
     const { migrateLegacySharedVisitorPassword } = await import(
       "../services/userService"

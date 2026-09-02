@@ -3,6 +3,7 @@ import { useLanguage } from "../contexts/LanguageContext";
 import { Settings } from "../types";
 import { api, getApiErrorData, getApiErrorMessage } from "../utils/apiClient";
 import { generateTimestamp } from "../utils/formatUtils";
+import { GESTURE_LOGIN_STATUS_QUERY_KEY } from "../utils/gestureLogin";
 import { InfoModalState } from "./useSettingsModals";
 import { SUBSCRIPTIONS_QUERY_KEY } from "./useSubscriptions";
 
@@ -214,6 +215,19 @@ export function useSettingsMutations({
       }
       if (changedSettings.tags !== undefined) {
         void queryClient.invalidateQueries({ queryKey: ["videos"] });
+      }
+      // Gesture Login availability is derived server-side from the persisted
+      // loginEnabled and passwordLoginAllowed. Saving either changes the
+      // answer, and without this the Security page keeps showing the status it
+      // fetched on mount - so the toggle stays disabled telling the admin to
+      // save settings they just saved, until a reload or window refocus.
+      if (
+        changedSettings.loginEnabled !== undefined ||
+        changedSettings.passwordLoginAllowed !== undefined
+      ) {
+        void queryClient.invalidateQueries({
+          queryKey: GESTURE_LOGIN_STATUS_QUERY_KEY,
+        });
       }
     },
     onError: async (error: unknown) => {

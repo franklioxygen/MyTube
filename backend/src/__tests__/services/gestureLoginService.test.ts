@@ -68,6 +68,7 @@ import {
   authenticateGesture,
   configureGesture,
   getGestureLoginStatus,
+  getGestureCredentialPresence,
   hasGestureCredential,
   removeGesture,
   unlockAfterSuccessfulAdminPasswordLogin,
@@ -225,6 +226,37 @@ describe("status derivation", () => {
     expect(getGestureLoginStatus()).toMatchObject({
       configured: false,
       resetRequired: true,
+    });
+  });
+});
+
+describe("an unreadable credential table", () => {
+  const dropTable = () =>
+    mocks.sqlite.exec("DROP TABLE admin_gesture_credential");
+
+  it("reports status as unavailable instead of inventing an answer", async () => {
+    dropTable();
+
+    // Returning every flag false here reads to the UI exactly like a healthy
+    // install with unmet prerequisites, which is what made the Security page
+    // tell an admin to save settings they had already saved.
+    expect(() => getGestureLoginStatus()).toThrow();
+  });
+
+  it("reports credential presence as unknown, not absent", () => {
+    dropTable();
+
+    // "absent" would let password login be disabled with a gesture possibly
+    // enrolled; "present" would blame a gesture that may not exist.
+    expect(getGestureCredentialPresence()).toBe("unknown");
+    expect(hasGestureCredential()).toBe(true);
+  });
+
+  it("still refuses to authenticate", async () => {
+    dropTable();
+
+    await expect(authenticateGesture(GOOD)).resolves.toMatchObject({
+      ok: false,
     });
   });
 });

@@ -70,7 +70,20 @@ export const getGestureLoginStatus = async (
   res: Response
 ): Promise<void> => {
   setNoStore(res);
-  res.json(gestureLoginService.getGestureLoginStatus());
+
+  try {
+    res.json(gestureLoginService.getGestureLoginStatus());
+  } catch {
+    // Say "I cannot tell" rather than returning all-false, which the UI cannot
+    // distinguish from a healthy install with unmet prerequisites. The client
+    // shows its status-unavailable message and a retry instead of advising an
+    // action that would not help.
+    res.status(503).json({
+      success: false,
+      code: "gesture_status_unavailable",
+      message: "Gesture Login status could not be loaded.",
+    });
+  }
 };
 
 /** Create or replace the credential. Admin session only. */

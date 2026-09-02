@@ -340,6 +340,54 @@ describe('useSettingsMutations', () => {
         expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['liveTranslationConfig'] });
     });
 
+    it('invalidates gesture login status when login protection is saved', async () => {
+        const queryClient = createTestQueryClient();
+        const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+        queryClient.setQueryData(['settings'], makeSettings({ loginEnabled: false }));
+        const { result } = renderSettingsHook({ queryClient });
+
+        await act(async () => {
+            await result.current.saveMutation.mutateAsync(
+                makeSettings({ loginEnabled: true })
+            );
+        });
+
+        // Gesture availability is derived server-side from the persisted
+        // login settings. Without this the Security page keeps the status it
+        // fetched on mount and tells the admin to save what they just saved.
+        expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['gesture-login-status'] });
+    });
+
+    it('invalidates gesture login status when password login is toggled', async () => {
+        const queryClient = createTestQueryClient();
+        const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+        queryClient.setQueryData(['settings'], makeSettings({ passwordLoginAllowed: false }));
+        const { result } = renderSettingsHook({ queryClient });
+
+        await act(async () => {
+            await result.current.saveMutation.mutateAsync(
+                makeSettings({ passwordLoginAllowed: true })
+            );
+        });
+
+        expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['gesture-login-status'] });
+    });
+
+    it('leaves gesture login status alone for unrelated settings saves', async () => {
+        const queryClient = createTestQueryClient();
+        const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+        queryClient.setQueryData(['settings'], makeSettings({ itemsPerPage: 10 }));
+        const { result } = renderSettingsHook({ queryClient });
+
+        await act(async () => {
+            await result.current.saveMutation.mutateAsync(
+                makeSettings({ itemsPerPage: 20 })
+            );
+        });
+
+        expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: ['gesture-login-status'] });
+    });
+
     it('invalidates live translation availability when only the API key changes', async () => {
         const testApiKey = 'test-key';
         const queryClient = createTestQueryClient();

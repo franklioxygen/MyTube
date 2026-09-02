@@ -1,4 +1,5 @@
 import { Box, useTheme } from '@mui/material';
+import { visuallyHidden } from '@mui/utils';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     GESTURE_DOT_CENTERS,
@@ -181,6 +182,19 @@ const GesturePatternSurface: React.FC<GesturePatternProps> = ({
             // Already released, or never captured.
         }
 
+        if (submit) {
+            // Walk the last segment out to where the pointer actually lifted.
+            // pointerup carries its own coordinates and is not guaranteed to be
+            // preceded by a pointermove at the same position - on touch and pen
+            // a fast swipe can lift a dot's width past the final sample. Without
+            // this the closing dot is silently dropped, which at enrolment
+            // stores a gesture the user did not draw, and at login rejects a
+            // correct one and spends one of only three attempts before the
+            // credential locks for good.
+            const releasePoint = pointFromEvent(event.clientX, event.clientY);
+            if (releasePoint) extendTo(releasePoint);
+        }
+
         const drawn = patternRef.current;
         clearStroke();
 
@@ -220,7 +234,7 @@ const GesturePatternSurface: React.FC<GesturePatternProps> = ({
             data-testid="gesture-pattern"
             data-mode={mode}
             data-outcome={effectiveOutcome}
-            sx={{ width: '100%', maxWidth: 320, mx: 'auto' }}
+            sx={{ width: '100%' }}
         >
             <Box
                 component="svg"
@@ -234,6 +248,8 @@ const GesturePatternSurface: React.FC<GesturePatternProps> = ({
                 onLostPointerCapture={(event) => finishStroke(event, false)}
                 sx={{
                     width: '100%',
+                    maxWidth: 280,
+                    mx: 'auto',
                     aspectRatio: '1 / 1',
                     display: 'block',
                     borderRadius: 2,
@@ -305,10 +321,11 @@ const GesturePatternSurface: React.FC<GesturePatternProps> = ({
                 <Box
                     id={instructionsId}
                     sx={{
-                        mt: 1,
+                        mt: 1.5,
                         textAlign: 'center',
                         color: 'text.secondary',
-                        fontSize: '0.875rem',
+                        fontSize: '0.8125rem',
+                        lineHeight: 1.4,
                     }}
                 >
                     {instructions}
@@ -334,14 +351,11 @@ const GesturePatternSurface: React.FC<GesturePatternProps> = ({
                 sx={
                     showOwnMessage
                         ? { mt: 1, textAlign: 'center', color: 'error.main', fontSize: '0.875rem' }
-                        : {
-                              position: 'absolute',
-                              width: 1,
-                              height: 1,
-                              overflow: 'hidden',
-                              clip: 'rect(0 0 0 0)',
-                              whiteSpace: 'nowrap',
-                          }
+                        // MUI's own helper. Hand-rolling this is a trap: in the
+                        // sx prop a bare `width: 1` means 100%, not one pixel,
+                        // so the "hidden" region was a full-size absolutely
+                        // positioned box overlaying the dialog.
+                        : visuallyHidden
                 }
             >
                 {liveText}

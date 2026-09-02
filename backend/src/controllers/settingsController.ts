@@ -327,16 +327,32 @@ const persistSettingsUpdate = async (
   // before anything is hashed or persisted, so a mixed PATCH is rejected whole
   // rather than half-applied. Disabling the control in React is not enough:
   // a stale tab or a direct call must hit the same rule.
-  if (
-    passwordLoginDisableRequested &&
-    gestureLoginService.hasGestureCredential()
-  ) {
-    res.status(409).json({
-      success: false,
-      code: "gesture_requires_password_login",
-      message: "Turn off Gesture Login before disabling password login.",
-    });
-    return;
+  if (passwordLoginDisableRequested) {
+    const presence = gestureLoginService.getGestureCredentialPresence();
+
+    if (presence === "present") {
+      res.status(409).json({
+        success: false,
+        code: "gesture_requires_password_login",
+        errorKey: "gestureLoginDisablePasswordBlocked",
+        message: "Turn off Gesture Login before disabling password login.",
+      });
+      return;
+    }
+
+    // Still blocked, because the recovery invariant has to hold - but do not
+    // claim a gesture exists. Telling an admin to switch off something they
+    // never created sends them looking for a control that is already off.
+    if (presence === "unknown") {
+      res.status(503).json({
+        success: false,
+        code: "gesture_state_unavailable",
+        errorKey: "gestureLoginStateUnavailable",
+        message:
+          "Gesture Login state could not be verified, so password login cannot be disabled right now.",
+      });
+      return;
+    }
   }
 
   const normalizedIncomingSettings =
@@ -359,16 +375,29 @@ const persistSettingsUpdate = async (
   // factor to this now-stale settings update. No further await occurs before
   // saveSettings, while gesture enrollment also re-checks settings immediately
   // before its synchronous credential write.
-  if (
-    passwordLoginDisableRequested &&
-    gestureLoginService.hasGestureCredential()
-  ) {
-    res.status(409).json({
-      success: false,
-      code: "gesture_requires_password_login",
-      message: "Turn off Gesture Login before disabling password login.",
-    });
-    return;
+  if (passwordLoginDisableRequested) {
+    const presence = gestureLoginService.getGestureCredentialPresence();
+
+    if (presence === "present") {
+      res.status(409).json({
+        success: false,
+        code: "gesture_requires_password_login",
+        errorKey: "gestureLoginDisablePasswordBlocked",
+        message: "Turn off Gesture Login before disabling password login.",
+      });
+      return;
+    }
+
+    if (presence === "unknown") {
+      res.status(503).json({
+        success: false,
+        code: "gesture_state_unavailable",
+        errorKey: "gestureLoginStateUnavailable",
+        message:
+          "Gesture Login state could not be verified, so password login cannot be disabled right now.",
+      });
+      return;
+    }
   }
 
   const sanitizedIncoming = sanitizeIncomingSettings(normalizedIncomingSettings);

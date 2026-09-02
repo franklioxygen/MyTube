@@ -576,9 +576,6 @@ const LoginPage: React.FC = () => {
                                         <>
                                             {gestureAvailable && (
                                                 <Box sx={{ mb: 2 }} data-testid="gesture-login-panel">
-                                                    <Typography variant="subtitle2">
-                                                        {t('gestureLoginUse') || 'Use Gesture Login'}
-                                                    </Typography>
                                                     <GesturePattern
                                                         mode="verify"
                                                         disabled={

@@ -79,8 +79,14 @@ const BASE_SETTINGS: any = {
 let gestureResponse: { status?: GestureLoginStatus; reject?: boolean; pending?: boolean };
 let passkeysExist = false;
 
-const renderSettings = (settings: Partial<typeof BASE_SETTINGS> = {}) => {
+const renderSettings = (
+    settings: Partial<typeof BASE_SETTINGS> = {},
+    persisted?: Partial<typeof BASE_SETTINGS>
+) => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    if (persisted) {
+        queryClient.setQueryData(['settings'], { ...BASE_SETTINGS, ...persisted });
+    }
     const onChange = vi.fn();
     const result = rtlRender(
         <QueryClientProvider client={queryClient}>
@@ -146,6 +152,51 @@ describe('toggle state', () => {
 
         await waitFor(() => expect(gestureSwitch()).toBeChecked());
         expect(screen.getByTestId('gesture-change-button')).toBeTruthy();
+    });
+});
+
+describe('prerequisites come from settings, not the status payload', () => {
+    it('asks the admin to save when the persisted settings do not agree yet', async () => {
+        // The server would say canConfigure here; the cache is the authority
+        // for a question the client can already answer.
+        renderSettings({}, { loginEnabled: false });
+
+        await waitFor(() =>
+            expect(screen.getByTestId('gesture-save-first-hint')).toBeTruthy()
+        );
+        expect(gestureSwitch()).toBeDisabled();
+    });
+
+    it('enables enrolment once the persisted settings agree', async () => {
+        renderSettings({}, { loginEnabled: true, passwordLoginAllowed: true });
+
+        await waitFor(() => expect(gestureSwitch()).not.toBeDisabled());
+        expect(screen.queryByTestId('gesture-save-first-hint')).toBeNull();
+    });
+
+    it('refuses enrolment when the server disagrees with a stale cache', async () => {
+        // Another tab disabled login; the settings refetch has not landed (or
+        // failed), so the cache still says the prerequisites hold.
+        gestureResponse = { status: STATUS.prerequisiteOff };
+        renderSettings({}, { loginEnabled: true, passwordLoginAllowed: true });
+
+        await waitFor(() =>
+            expect(screen.getByTestId('gesture-save-first-hint')).toBeTruthy()
+        );
+        // Trusting the cache alone would let the admin draw twice and then eat
+        // a 409 from the PUT.
+        expect(gestureSwitch()).toBeDisabled();
+    });
+
+    it('does not blame the prerequisites when the status request fails', async () => {
+        gestureResponse = { reject: true };
+        renderSettings({}, { loginEnabled: true, passwordLoginAllowed: true });
+
+        await waitFor(() => expect(screen.getByTestId('gesture-status-error')).toBeTruthy());
+        // The old build reported "save your settings first" here, which the
+        // client could see was untrue from the settings it already held.
+        expect(screen.queryByTestId('gesture-save-first-hint')).toBeNull();
+        expect(screen.queryByTestId('gesture-prerequisite-hint')).toBeNull();
     });
 });
 

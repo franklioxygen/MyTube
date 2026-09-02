@@ -62,6 +62,23 @@ describe("GET status", () => {
     expect(setHeader).toHaveBeenCalledWith("Cache-Control", "no-store");
     expect(json).toHaveBeenCalledWith(CLEAN_STATUS);
   });
+
+  it("returns 503 rather than a healthy-looking all-false status", async () => {
+    service.getGestureLoginStatus.mockImplementation(() => {
+      throw new Error("no such table: admin_gesture_credential");
+    });
+
+    await getGestureLoginStatus(req as Request, res as Response);
+
+    // All-false is indistinguishable from a working install whose
+    // prerequisites are unmet, which made the UI advise saving settings that
+    // were already saved. Saying "I cannot tell" lets the client show its
+    // status-unavailable message and a retry.
+    expect(status).toHaveBeenCalledWith(503);
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({ code: "gesture_status_unavailable" })
+    );
+  });
 });
 
 describe("PUT configure", () => {
