@@ -36,7 +36,7 @@ export interface GesturePatternProps {
 
 const ERROR_FLASH_MS = { enroll: 600, verify: 200 } as const;
 
-const GesturePattern: React.FC<GesturePatternProps> = ({
+const GesturePatternSurface: React.FC<GesturePatternProps> = ({
     mode,
     disabled = false,
     outcome = 'idle',
@@ -98,10 +98,6 @@ const GesturePattern: React.FC<GesturePatternProps> = ({
             window.removeEventListener('blur', abandon);
         };
     }, [clearStroke]);
-
-    useEffect(() => {
-        if (disabled) clearStroke();
-    }, [disabled, clearStroke]);
 
     const pointFromEvent = (clientX: number, clientY: number): Point | null => {
         const svg = svgRef.current;
@@ -353,5 +349,12 @@ const GesturePattern: React.FC<GesturePatternProps> = ({
         </Box>
     );
 };
+
+const GesturePattern: React.FC<GesturePatternProps> = (props) => (
+    // Changing disabled state remounts the drawing surface. That immediately
+    // discards refs and render state, so an in-flight stroke can never resume
+    // after a request finishes.
+    <GesturePatternSurface key={props.disabled ? 'disabled' : 'enabled'} {...props} />
+);
 
 export default GesturePattern;

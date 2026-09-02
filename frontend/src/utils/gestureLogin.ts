@@ -28,6 +28,7 @@ export type GestureErrorCode =
   | "gesture_unavailable"
   | "gesture_password_login_required"
   | "gesture_configuration_failed"
+  | "gesture_removal_failed"
   | "gesture_authentication_failed"
   | "gesture_requires_password_login";
 
@@ -82,6 +83,7 @@ const ERROR_TRANSLATION_KEYS: Record<GestureErrorCode, string> = {
   gesture_unavailable: "gestureLoginUnavailable",
   gesture_password_login_required: "gestureLoginPasswordRequired",
   gesture_configuration_failed: "gestureLoginSaveFailed",
+  gesture_removal_failed: "gestureLoginRemoveFailed",
   gesture_authentication_failed: "gestureLoginUnavailable",
   gesture_requires_password_login: "gestureLoginDisablePasswordBlocked",
 };

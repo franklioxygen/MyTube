@@ -136,15 +136,31 @@ describe("PUT configure", () => {
 
 describe("DELETE remove", () => {
   it("reports whether a row was deleted, and stays idempotent", async () => {
-    service.removeGesture.mockReturnValue({ removed: true });
+    service.removeGesture.mockReturnValue({ ok: true, removed: true });
     await removeGestureLogin(req as Request, res as Response);
     expect(json).toHaveBeenCalledWith({ success: true, removed: true });
 
     json.mockClear();
-    service.removeGesture.mockReturnValue({ removed: false });
+    service.removeGesture.mockReturnValue({ ok: true, removed: false });
     await removeGestureLogin(req as Request, res as Response);
     expect(json).toHaveBeenCalledWith({ success: true, removed: false });
     expect(status).not.toHaveBeenCalled();
+  });
+
+  it("returns a generic 500 when removal could not be persisted", async () => {
+    service.removeGesture.mockReturnValue({
+      ok: false,
+      code: "gesture_removal_failed",
+    });
+
+    await removeGestureLogin(req as Request, res as Response);
+
+    expect(status).toHaveBeenCalledWith(500);
+    expect(json).toHaveBeenCalledWith({
+      success: false,
+      code: "gesture_removal_failed",
+      message: "Gesture Login could not be removed.",
+    });
   });
 });
 

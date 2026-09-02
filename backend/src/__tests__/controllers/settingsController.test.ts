@@ -368,6 +368,30 @@ describe('SettingsController', () => {
       );
     });
 
+    it('should reject if a gesture appears while the settings request is preparing', async () => {
+      req.body = { passwordLoginAllowed: false };
+      req.cookies = { mytube_csrf: 'csrf-token' } as any;
+      req.headers = {
+        origin: 'https://mytube.example',
+        host: 'mytube.example',
+        'x-csrf-token': 'csrf-token',
+      } as any;
+      req.get = ((key: string) => req.headers?.[key.toLowerCase()] as string | undefined) as Request['get'];
+      req.socket = { remoteAddress: '203.0.113.10' } as any;
+      (storageService.getSettings as any).mockReturnValue({ passwordLoginAllowed: true });
+      (gestureLoginService.hasGestureCredential as any)
+        .mockReturnValueOnce(false)
+        .mockReturnValueOnce(true);
+
+      await updateSettings(req as Request, res as Response);
+
+      expect(status).toHaveBeenCalledWith(409);
+      expect(json).toHaveBeenCalledWith(
+        expect.objectContaining({ code: 'gesture_requires_password_login' })
+      );
+      expect(storageService.saveSettings).not.toHaveBeenCalled();
+    });
+
     it('should reject disabling password login from non-https origins', async () => {
       req.body = { passwordLoginAllowed: false };
       req.headers = {

@@ -551,6 +551,27 @@ describe('LoginPage', () => {
             expect(gesturePanel()).toBeNull();
         });
 
+        it('clears gesture feedback when leaving and returning to the admin tab', () => {
+            setNormalState({
+                gestureStatus: GESTURE_AVAILABLE,
+                visitorUserEnabled: true,
+                isVisitorPasswordSet: true,
+            });
+            render(<LoginPage />);
+
+            act(() => {
+                mutationCallbacks['gestureLogin']?.onError?.({
+                    response: { status: 401, data: { code: 'gesture_incorrect', attemptsRemaining: 2 } },
+                });
+            });
+            expect(screen.getByTestId('gesture-login-message')).toBeTruthy();
+
+            fireEvent.click(screen.getByText('visitorUser'));
+            fireEvent.click(screen.getByText('admin'));
+
+            expect(screen.queryByTestId('gesture-login-message')).toBeNull();
+        });
+
         it('submits the canonical pattern on release', () => {
             setNormalState({ gestureStatus: GESTURE_AVAILABLE });
             render(<LoginPage />);

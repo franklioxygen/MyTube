@@ -306,8 +306,13 @@ const persistSettingsUpdate = async (
     return;
   }
 
+  const passwordLoginDisableRequested = isPasswordLoginDisableRequested(
+    existingSettings,
+    trustedIncomingSettings
+  );
+
   if (
-    isPasswordLoginDisableRequested(existingSettings, trustedIncomingSettings) &&
+    passwordLoginDisableRequested &&
     !isSecurePasskeySettingsRequest(req)
   ) {
     sendBadRequest(
@@ -323,7 +328,7 @@ const persistSettingsUpdate = async (
   // rather than half-applied. Disabling the control in React is not enough:
   // a stale tab or a direct call must hit the same rule.
   if (
-    isPasswordLoginDisableRequested(existingSettings, trustedIncomingSettings) &&
+    passwordLoginDisableRequested &&
     gestureLoginService.hasGestureCredential()
   ) {
     res.status(409).json({
@@ -348,6 +353,23 @@ const persistSettingsUpdate = async (
     passwordService.hashPassword,
     { preserveUnsetFields: mode === "replace" }
   );
+
+  // Password preparation may hash and yield. Re-check after that async gap so
+  // a gesture enrolled by a concurrent request cannot lose its only recovery
+  // factor to this now-stale settings update. No further await occurs before
+  // saveSettings, while gesture enrollment also re-checks settings immediately
+  // before its synchronous credential write.
+  if (
+    passwordLoginDisableRequested &&
+    gestureLoginService.hasGestureCredential()
+  ) {
+    res.status(409).json({
+      success: false,
+      code: "gesture_requires_password_login",
+      message: "Turn off Gesture Login before disabling password login.",
+    });
+    return;
+  }
 
   const sanitizedIncoming = sanitizeIncomingSettings(normalizedIncomingSettings);
 

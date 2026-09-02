@@ -146,6 +146,18 @@ describe("status derivation", () => {
     expect(hasGestureCredential()).toBe(false);
   });
 
+  it("fails closed when the credential table cannot be read", () => {
+    const database = mocks.sqlite;
+    mocks.sqlite = {
+      prepare: () => {
+        throw new Error("database unavailable");
+      },
+    };
+
+    expect(hasGestureCredential()).toBe(true);
+    mocks.sqlite = database;
+  });
+
   it("re-reads settings on every call rather than caching prerequisites", async () => {
     await enrol();
     expect(getGestureLoginStatus().available).toBe(true);
@@ -312,14 +324,51 @@ describe("configureGesture", () => {
     });
     expect(readRow()?.pepper_key_id).toBe("0000111122223333");
   });
+
+  it("does not clear a lock committed while a replacement is hashing", async () => {
+    await enrol();
+    await failOnce(T0 + 1);
+    await failOnce(T0 + 2);
+    const originalVersion = readRow()!.credential_version;
+
+    at(T0 + 3);
+    encodeGestureVerifier.mockImplementationOnce(async (material: string) => {
+      mocks.verifyOutcome = "mismatch";
+      await authenticateGesture(OTHER);
+      return `scrypt-v1$32768$8$1$salt$${material}`;
+    });
+
+    await expect(configureGesture([3, 4, 5])).resolves.toEqual({
+      ok: false,
+      code: "gesture_locked",
+    });
+    expect(readRow()).toMatchObject({
+      credential_version: originalVersion,
+      failed_attempts: 3,
+    });
+    expect(readRow()?.locked_at).not.toBeNull();
+  });
+
+  it("re-checks password recovery after hashing", async () => {
+    encodeGestureVerifier.mockImplementationOnce(async (material: string) => {
+      mocks.settings = { loginEnabled: true, passwordLoginAllowed: false };
+      return `scrypt-v1$32768$8$1$salt$${material}`;
+    });
+
+    await expect(configureGesture(GOOD)).resolves.toEqual({
+      ok: false,
+      code: "gesture_password_login_required",
+    });
+    expect(hasGestureCredential()).toBe(false);
+  });
 });
 
 describe("removeGesture", () => {
   it("deletes the credential and is idempotent", async () => {
     await enrol();
 
-    expect(removeGesture()).toEqual({ removed: true });
-    expect(removeGesture()).toEqual({ removed: false });
+    expect(removeGesture()).toEqual({ ok: true, removed: true });
+    expect(removeGesture()).toEqual({ ok: true, removed: false });
     expect(hasGestureCredential()).toBe(false);
   });
 
@@ -329,9 +378,26 @@ describe("removeGesture", () => {
     await failOnce(T0 + 2);
     await failOnce(T0 + 3);
 
-    expect(removeGesture()).toEqual({ removed: true });
+    expect(removeGesture()).toEqual({ ok: true, removed: true });
     expect(getGestureLoginStatus().locked).toBe(false);
     expect(getGestureLoginStatus().configured).toBe(false);
+  });
+
+  it("reports a database failure instead of claiming an idempotent success", async () => {
+    await enrol();
+    const database = mocks.sqlite;
+    mocks.sqlite = {
+      prepare: () => {
+        throw new Error("database unavailable");
+      },
+    };
+
+    expect(removeGesture()).toEqual({
+      ok: false,
+      code: "gesture_removal_failed",
+    });
+    mocks.sqlite = database;
+    expect(hasGestureCredential()).toBe(true);
   });
 });
 

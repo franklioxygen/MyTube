@@ -174,13 +174,16 @@ const LoginPage: React.FC = () => {
         }
     }, [gestureWaitTime]);
 
-    // Leaving the Admin tab abandons any stroke in progress along with it.
-    useEffect(() => {
-        if (activeTab !== 0) {
+    const handleLoginTabChange = (_event: React.SyntheticEvent, newValue: number) => {
+        // The grid unmounts when leaving Admin, which abandons its active
+        // stroke. Clear page-owned feedback in the same user event so it does
+        // not reappear when the user returns.
+        if (newValue !== 0) {
             setGestureMessage('');
             setGestureOutcome('idle');
         }
-    }, [activeTab]);
+        setActiveTab(newValue);
+    };
 
     const formatWaitTime = (ms: number): string => {
         if (ms < 1000) return 'a moment';
@@ -555,7 +558,7 @@ const LoginPage: React.FC = () => {
                             <Box sx={{ mt: 1, width: '100%' }}>
                                 {showVisitorTab && (
                                     <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
-                                        <Tabs value={activeTab} onChange={(_: React.SyntheticEvent, newValue: number) => setActiveTab(newValue)} aria-label="login tabs" variant="fullWidth">
+                                        <Tabs value={activeTab} onChange={handleLoginTabChange} aria-label="login tabs" variant="fullWidth">
                                             <Tab label={t('admin') || 'Admin'} id="login-tab-0" aria-controls="login-tabpanel-0" />
                                             <Tab label={t('visitorUser') || 'Visitor'} id="login-tab-1" aria-controls="login-tabpanel-1" />
                                         </Tabs>

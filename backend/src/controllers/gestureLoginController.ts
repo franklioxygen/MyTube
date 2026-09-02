@@ -102,8 +102,17 @@ export const removeGestureLogin = async (
   res: Response
 ): Promise<void> => {
   setNoStore(res);
-  const { removed } = gestureLoginService.removeGesture();
-  res.json({ success: true, removed });
+  const result = gestureLoginService.removeGesture();
+  if (!result.ok) {
+    res.status(500).json({
+      success: false,
+      code: result.code,
+      message: "Gesture Login could not be removed.",
+    });
+    return;
+  }
+
+  res.json({ success: true, removed: result.removed });
 };
 
 /**

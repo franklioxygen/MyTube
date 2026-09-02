@@ -9,7 +9,7 @@ import {
     Typography,
 } from '@mui/material';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import {
     GESTURE_LOGIN_STATUS_QUERY_KEY,
@@ -28,7 +28,7 @@ interface GestureLoginSetupDialogProps {
     onSuccess?: () => void;
 }
 
-const GestureLoginSetupDialog: React.FC<GestureLoginSetupDialogProps> = ({
+const GestureLoginSetupDialogContent: React.FC<GestureLoginSetupDialogProps> = ({
     open,
     mode,
     onClose,
@@ -50,10 +50,6 @@ const GestureLoginSetupDialog: React.FC<GestureLoginSetupDialogProps> = ({
         setErrorText('');
         setOutcome('idle');
     };
-
-    useEffect(() => {
-        if (open) reset();
-    }, [open]);
 
     const saveMutation = useMutation({
         // Wrapped rather than passed by reference: React Query calls mutationFn
@@ -203,6 +199,14 @@ const GestureLoginSetupDialog: React.FC<GestureLoginSetupDialogProps> = ({
             </DialogActions>
         </Dialog>
     );
+};
+
+const GestureLoginSetupDialog: React.FC<GestureLoginSetupDialogProps> = (props) => {
+    // Unmounting the stateful flow on close guarantees that no first draw or
+    // error can survive into the next opening, without synchronously resetting
+    // several state values from an effect.
+    if (!props.open) return null;
+    return <GestureLoginSetupDialogContent key={props.mode} {...props} />;
 };
 
 export default GestureLoginSetupDialog;

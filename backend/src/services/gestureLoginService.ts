@@ -60,6 +60,10 @@ export type GestureConfigureResult =
   | { ok: true; created: boolean; status: GestureLoginStatus }
   | { ok: false; code: GestureConfigureErrorCode };
 
+export type GestureRemoveResult =
+  | { ok: true; removed: boolean }
+  | { ok: false; code: "gesture_removal_failed" };
+
 export type GestureAuthResult =
   | { ok: true; token: string; role: "admin" }
   | { ok: false; code: GestureAuthErrorCode; attemptsRemaining?: number };
@@ -232,7 +236,10 @@ export function hasGestureCredential(): boolean {
       "Failed to read Gesture Login credential",
       error instanceof Error ? error : new Error(String(error))
     );
-    return false;
+    // Fail closed. This helper guards the password-recovery invariant, so an
+    // unknown database state must block password-login disablement rather than
+    // assume that no gesture exists.
+    return true;
   }
 }
 
@@ -291,34 +298,73 @@ export async function configureGesture(
   }
 
   try {
+    // Hashing yields to the event loop. Re-check the recovery prerequisite
+    // after it completes so a concurrent settings update cannot leave a newly
+    // saved gesture without password recovery.
+    canConfigure = readPrerequisites();
+    if (!canConfigure) {
+      return { ok: false, code: "gesture_password_login_required" };
+    }
+
     const created = existing === undefined;
-    sqlite
-      .prepare(
-        `INSERT INTO admin_gesture_credential
+    const persistedAt = Date.now();
+    const version = crypto.randomUUID();
+    const writeResult = created
+      ? sqlite
+          .prepare(
+            `INSERT INTO admin_gesture_credential
            (id, pattern_hash, pepper_key_id, credential_version,
             failed_attempts, last_failed_at, locked_at, created_at, updated_at)
          VALUES (1, @hash, @keyId, @version, 0, NULL, NULL, @now, @now)
-         ON CONFLICT(id) DO UPDATE SET
-           pattern_hash = @hash,
-           pepper_key_id = @keyId,
-           credential_version = @version,
-           failed_attempts = 0,
-           last_failed_at = NULL,
-           locked_at = NULL,
-           updated_at = @now`
-      )
-      .run({
-        hash: patternHash,
-        keyId: pepperKeyId,
-        version: crypto.randomUUID(),
-        now,
-      });
+         ON CONFLICT(id) DO NOTHING`
+          )
+          .run({
+            hash: patternHash,
+            keyId: pepperKeyId,
+            version,
+            now: persistedAt,
+          })
+      : sqlite
+          .prepare(
+            `UPDATE admin_gesture_credential
+                SET pattern_hash = @hash,
+                    pepper_key_id = @keyId,
+                    credential_version = @version,
+                    failed_attempts = 0,
+                    last_failed_at = NULL,
+                    locked_at = NULL,
+                    updated_at = @now
+              WHERE id = 1
+                AND credential_version = @expectedVersion
+                AND (@allowLockedReplacement = 1 OR locked_at IS NULL)`
+          )
+          .run({
+            hash: patternHash,
+            keyId: pepperKeyId,
+            version,
+            expectedVersion: existing!.credential_version,
+            allowLockedReplacement: existingStatus.resetRequired ? 1 : 0,
+            now: persistedAt,
+          });
+
+    if (writeResult.changes === 0) {
+      // Another setup changed/created/removed the row, or a third failure
+      // locked it while scrypt was running. Never overwrite the winner or
+      // clear its lock with this stale request.
+      const current = deriveStatus(
+        readNormalizedRow(Date.now()),
+        readPrerequisites()
+      );
+      return current.locked
+        ? { ok: false, code: "gesture_locked" }
+        : { ok: false, code: "gesture_configuration_failed" };
+    }
 
     logger.info(created ? "Gesture Login configured" : "Gesture Login changed");
     return {
       ok: true,
       created,
-      status: deriveStatus(selectRow(), canConfigure),
+      status: deriveStatus(selectRow(), readPrerequisites()),
     };
   } catch (error) {
     logger.error(
@@ -330,7 +376,7 @@ export async function configureGesture(
 }
 
 /** Delete the credential. Idempotent, and permitted even while locked. */
-export function removeGesture(): { removed: boolean } {
+export function removeGesture(): GestureRemoveResult {
   try {
     const result = sqlite
       .prepare("DELETE FROM admin_gesture_credential WHERE id = 1")
@@ -340,13 +386,13 @@ export function removeGesture(): { removed: boolean } {
       logger.info("Gesture Login removed");
     }
 
-    return { removed: result.changes > 0 };
+    return { ok: true, removed: result.changes > 0 };
   } catch (error) {
     logger.error(
       "Failed to remove Gesture Login credential",
       error instanceof Error ? error : new Error(String(error))
     );
-    return { removed: false };
+    return { ok: false, code: "gesture_removal_failed" };
   }
 }
 

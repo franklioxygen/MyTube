@@ -384,6 +384,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ settings, onChange 
                                 </Typography>
                                 <Button
                                     size="small"
+                                    disabled={!gestureStatus.canConfigure}
                                     onClick={() => {
                                         setGestureDialogMode('change');
                                         setGestureDialogOpen(true);
