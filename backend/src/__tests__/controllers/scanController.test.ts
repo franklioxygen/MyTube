@@ -276,5 +276,23 @@ describe('ScanController', () => {
         }),
       );
     });
+
+    it('should accept directory names that merely contain ".."', async () => {
+      process.env.MYTUBE_ADMIN_TRUST_LEVEL = 'host';
+      (storageService.getVideos as any).mockReturnValue([]);
+      (fs.pathExists as any).mockResolvedValue(false);
+      req = {
+        body: {
+          directories: ['/mnt/media/03..intro', '/mnt/media/Cat\'s in the Bag...'],
+        },
+      };
+
+      await scanMountDirectories(req as Request, res as Response);
+
+      expect(status).toHaveBeenCalledWith(200);
+      expect(json).toHaveBeenCalledWith(
+        expect.objectContaining({ scannedDirectories: 2 }),
+      );
+    });
   });
 });

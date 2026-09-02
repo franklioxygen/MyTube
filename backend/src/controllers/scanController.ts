@@ -20,6 +20,7 @@ import {
 } from "../utils/response";
 import {
   execFileSafe,
+  hasPathTraversalSegment,
   isPathWithinDirectory,
   imagePathExists,
   normalizeSafeAbsolutePath,
@@ -169,7 +170,7 @@ const validateMountDirectory = (dir: string): string => {
     throw new Error(`Mount directory must be an absolute path: ${dir}`);
   }
 
-  if (dir.includes("..") || dir.includes("\0")) {
+  if (hasPathTraversalSegment(dir) || dir.includes("\0")) {
     throw new Error(`Path traversal detected in mount directory: ${dir}`);
   }
 
@@ -222,7 +223,7 @@ const getSafeFilePathForProcessing = (
   if (isMountDirectory) {
     if (
       !path.isAbsolute(filePath) ||
-      filePath.includes("..") ||
+      hasPathTraversalSegment(filePath) ||
       filePath.includes("\0")
     ) {
       logger.warn(`Skipping unsafe mount path: ${filePath}`);

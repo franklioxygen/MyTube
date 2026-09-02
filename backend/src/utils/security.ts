@@ -23,6 +23,15 @@ export {
 export { getClientIp, sanitizeHtml, validateRedirectUrl } from "./securityHtml";
 
 /**
+ * True only when a path contains an actual ".." component. A filename or
+ * directory name that merely contains ".." (e.g. "Cat's in the Bag... .mkv" or
+ * "03..intro") is legitimate and must not be treated as traversal.
+ */
+export function hasPathTraversalSegment(pathValue: string): boolean {
+  return pathValue.split(/[\\/]/).some((part) => part === "..");
+}
+
+/**
  * Safely rebuild a path from validated components while preserving absolute roots
  * (e.g. "/" on POSIX, "D:\\" on Windows).
  */

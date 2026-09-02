@@ -6,6 +6,7 @@ import { videos } from "../../../db/schema";
 import { AUDIO_FORMATS } from "../../../types/settings";
 import { logger } from "../../../utils/logger";
 import {
+  hasPathTraversalSegment,
   pathExistsSafeSync,
   pathExistsTrustedSync,
   resolveSafeChildPath,
@@ -27,7 +28,11 @@ export function populateVideoFileSizes(): void {
         const rawFilePath = video.videoPath.substring(6); // Remove "mount:" prefix
 
         // Validate path is absolute and doesn't contain traversal
-        if (path.isAbsolute(rawFilePath) && !rawFilePath.includes("..") && !rawFilePath.includes("\0")) {
+        if (
+          path.isAbsolute(rawFilePath) &&
+          !hasPathTraversalSegment(rawFilePath) &&
+          !rawFilePath.includes("\0")
+        ) {
           const resolvedPath = path.resolve(rawFilePath);
           if (pathExistsTrustedSync(resolvedPath)) {
             videoPath = resolvedPath;

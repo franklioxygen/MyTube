@@ -20,6 +20,7 @@ import { logger } from "../utils/logger";
 import { successResponse } from "../utils/response";
 import {
   execFileSafe,
+  hasPathTraversalSegment,
   isPathWithinDirectory,
   normalizeSafeAbsolutePath,
   pathExistsSafe,
@@ -432,7 +433,7 @@ const resolveMountVideoPathForFileSize = (
   if (
     !rawPath ||
     !path.isAbsolute(rawPath) ||
-    rawPath.includes("..") ||
+    hasPathTraversalSegment(rawPath) ||
     rawPath.includes("\0")
   ) {
     return null;
