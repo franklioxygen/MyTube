@@ -1780,6 +1780,7 @@ export const de = {
   gestureLoginLockedSettings: "Vorübergehend gesperrt. Melde dich ab und einmal mit dem Administratorpasswort an, um sie wiederherzustellen.",
   gestureLoginLockedPasswordRecovery: "Die Gesten-Anmeldung ist nach 3 falschen Versuchen gesperrt. Melde dich einmal mit deinem Administratorpasswort an, um sie wiederherzustellen.",
   gestureLoginIncorrectAttemptsRemaining: "Falsche Geste. Noch {count} Versuche.",
+  gestureLoginStateUnavailable: "Der Status der Gesten-Anmeldung konnte nicht überprüft werden, daher lässt sich die Passwortanmeldung gerade nicht deaktivieren.",
   gestureLoginUnavailable: "Die Gesten-Anmeldung ist nicht verfügbar.",
   gestureLoginResetRequired: "Deine gespeicherte Geste kann auf diesem Server nicht mehr überprüft werden. Lege eine neue fest.",
   gestureLoginStatusFailed: "Der Status der Gesten-Anmeldung konnte nicht geladen werden.",

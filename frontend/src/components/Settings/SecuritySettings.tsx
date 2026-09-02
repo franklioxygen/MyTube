@@ -17,6 +17,7 @@ import {
     fetchGestureLoginStatus,
     removeGestureLogin,
 } from '../../utils/gestureLogin';
+import { settingsQueryOptions } from '../../utils/settingsQueries';
 import GestureLoginSetupDialog from '../Auth/GestureLoginSetupDialog';
 import AlertModal from '../AlertModal';
 import ConfirmationModal from '../ConfirmationModal';
@@ -99,12 +100,26 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ settings, onChange 
         },
     });
 
-    // Enrolment needs the prerequisite to be true in BOTH the persisted status
+    // The prerequisite is a settings question, and the client already has both
+    // halves of it: `settings` is the unsaved draft, and the persisted values
+    // sit in the shared settings cache. Asking the gesture endpoint instead
+    // meant a failed status request reported "prerequisites unmet" - advice the
+    // client could see was untrue from data already in hand.
+    const persistedSettings = queryClient.getQueryData<Settings>(
+        settingsQueryOptions.queryKey
+    );
+    const meetsPrerequisites = (candidate: Partial<Settings> | undefined) =>
+        candidate?.loginEnabled === true && candidate.passwordLoginAllowed !== false;
+
+    // Enrolment needs the prerequisite to be true in BOTH the persisted state
     // and the unsaved draft. Persisted-only would let the admin enrol against a
     // draft they are about to turn off; draft-only would enrol against a
     // prerequisite the server has not accepted yet and would reject.
-    const gestureDraftPrerequisites =
-        settings.loginEnabled === true && settings.passwordLoginAllowed !== false;
+    const gestureDraftPrerequisites = meetsPrerequisites(settings);
+    // Fall back to the server's view only when the cache has not loaded yet.
+    const gesturePersistedPrerequisites = persistedSettings
+        ? meetsPrerequisites(persistedSettings)
+        : gestureStatus?.canConfigure === true;
     const gestureConfigured = gestureStatus?.configured === true;
     const gestureLocked = gestureStatus?.locked === true;
     const gestureResetRequired = gestureStatus?.resetRequired === true;
@@ -114,7 +129,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ settings, onChange 
     const canStartGestureEnrollment =
         gestureStatusKnown &&
         gestureDraftPrerequisites &&
-        gestureStatus.canConfigure &&
+        gesturePersistedPrerequisites &&
         !gestureConfigured;
 
     const isSecureOriginForPasskeys =
@@ -371,7 +386,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ settings, onChange 
                             </Typography>
                         )}
 
-                        {gestureStatusKnown && !gestureConfigured && !gestureResetRequired && gestureDraftPrerequisites && !gestureStatus.canConfigure && (
+                        {gestureStatusKnown && !gestureConfigured && !gestureResetRequired && gestureDraftPrerequisites && !gesturePersistedPrerequisites && (
                             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }} data-testid="gesture-save-first-hint">
                                 {t('gestureLoginSavePrerequisitesFirst') || 'Save login and password settings before enabling Gesture Login.'}
                             </Typography>

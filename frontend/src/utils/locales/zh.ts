@@ -1658,6 +1658,7 @@ export const zh = {
   gestureLoginLockedSettings: "已暂时锁定。请退出登录并用管理员密码登录一次以恢复。",
   gestureLoginLockedPasswordRecovery: "手势错误 3 次，手势登录已锁定。请用管理员密码登录一次以恢复。",
   gestureLoginIncorrectAttemptsRemaining: "手势错误，还可尝试 {count} 次。",
+  gestureLoginStateUnavailable: "无法确认手势登录的状态，因此暂时无法关闭密码登录。",
   gestureLoginUnavailable: "手势登录不可用。",
   gestureLoginResetRequired: "此服务器已无法验证已保存的手势，请重新设置。",
   gestureLoginStatusFailed: "无法加载手势登录状态。",

@@ -334,6 +334,7 @@ const persistSettingsUpdate = async (
       res.status(409).json({
         success: false,
         code: "gesture_requires_password_login",
+        errorKey: "gestureLoginDisablePasswordBlocked",
         message: "Turn off Gesture Login before disabling password login.",
       });
       return;
@@ -346,6 +347,7 @@ const persistSettingsUpdate = async (
       res.status(503).json({
         success: false,
         code: "gesture_state_unavailable",
+        errorKey: "gestureLoginStateUnavailable",
         message:
           "Gesture Login state could not be verified, so password login cannot be disabled right now.",
       });
@@ -380,6 +382,7 @@ const persistSettingsUpdate = async (
       res.status(409).json({
         success: false,
         code: "gesture_requires_password_login",
+        errorKey: "gestureLoginDisablePasswordBlocked",
         message: "Turn off Gesture Login before disabling password login.",
       });
       return;
@@ -389,6 +392,7 @@ const persistSettingsUpdate = async (
       res.status(503).json({
         success: false,
         code: "gesture_state_unavailable",
+        errorKey: "gestureLoginStateUnavailable",
         message:
           "Gesture Login state could not be verified, so password login cannot be disabled right now.",
       });

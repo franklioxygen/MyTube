@@ -1782,6 +1782,7 @@ export const es = {
   gestureLoginLockedSettings: "Bloqueado temporalmente. Cierra sesión y entra una vez con la contraseña de administrador para restaurarlo.",
   gestureLoginLockedPasswordRecovery: "El inicio con gesto está bloqueado tras 3 intentos incorrectos. Entra una vez con tu contraseña de administrador para restaurarlo.",
   gestureLoginIncorrectAttemptsRemaining: "Gesto incorrecto. Quedan {count} intentos.",
+  gestureLoginStateUnavailable: "No se pudo verificar el estado del inicio con gesto, así que ahora mismo no se puede desactivar el inicio con contraseña.",
   gestureLoginUnavailable: "El inicio con gesto no está disponible.",
   gestureLoginResetRequired: "Tu gesto guardado ya no puede verificarse en este servidor. Define uno nuevo.",
   gestureLoginStatusFailed: "No se pudo cargar el estado del inicio con gesto.",

@@ -1728,6 +1728,7 @@ export const ar = {
   gestureLoginLockedSettings: "مقفل مؤقتًا. سجّل الخروج ثم سجّل الدخول مرة واحدة بكلمة مرور المسؤول لاستعادته.",
   gestureLoginLockedPasswordRecovery: "تم قفل تسجيل الدخول بالنمط بعد 3 محاولات خاطئة. سجّل الدخول مرة واحدة بكلمة مرور المسؤول لاستعادته.",
   gestureLoginIncorrectAttemptsRemaining: "نمط غير صحيح. تبقّى {count} محاولات.",
+  gestureLoginStateUnavailable: "تعذّر التحقق من حالة تسجيل الدخول بالنمط، لذا لا يمكن تعطيل تسجيل الدخول بكلمة المرور الآن.",
   gestureLoginUnavailable: "تسجيل الدخول بالنمط غير متاح.",
   gestureLoginResetRequired: "لم يعد بالإمكان التحقق من النمط المحفوظ على هذا الخادم. عيّن نمطًا جديدًا.",
   gestureLoginStatusFailed: "تعذّر تحميل حالة تسجيل الدخول بالنمط.",

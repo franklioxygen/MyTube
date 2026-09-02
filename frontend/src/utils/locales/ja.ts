@@ -1755,6 +1755,7 @@ export const ja = {
   gestureLoginLockedSettings: "一時的にロックされています。サインアウトし、管理者パスワードで1回ログインすると復旧します。",
   gestureLoginLockedPasswordRecovery: "3回間違えたためジェスチャーログインはロックされています。管理者パスワードで1回サインインすると復旧します。",
   gestureLoginIncorrectAttemptsRemaining: "ジェスチャーが違います。残り {count} 回です。",
+  gestureLoginStateUnavailable: "ジェスチャーログインの状態を確認できなかったため、現在パスワードログインを無効にできません。",
   gestureLoginUnavailable: "ジェスチャーログインは利用できません。",
   gestureLoginResetRequired: "保存されたジェスチャーはこのサーバーでは検証できなくなりました。新しく設定してください。",
   gestureLoginStatusFailed: "ジェスチャーログインの状態を読み込めませんでした。",

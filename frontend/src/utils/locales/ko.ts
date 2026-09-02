@@ -1732,6 +1732,7 @@ export const ko = {
   gestureLoginLockedSettings: "일시적으로 잠겼습니다. 로그아웃한 뒤 관리자 비밀번호로 한 번 로그인하면 복구됩니다.",
   gestureLoginLockedPasswordRecovery: "3회 틀려 제스처 로그인이 잠겼습니다. 관리자 비밀번호로 한 번 로그인하면 복구됩니다.",
   gestureLoginIncorrectAttemptsRemaining: "제스처가 올바르지 않습니다. {count}회 남았습니다.",
+  gestureLoginStateUnavailable: "제스처 로그인 상태를 확인할 수 없어 지금은 비밀번호 로그인을 끌 수 없습니다.",
   gestureLoginUnavailable: "제스처 로그인을 사용할 수 없습니다.",
   gestureLoginResetRequired: "저장된 제스처를 이 서버에서 더 이상 확인할 수 없습니다. 새로 설정하세요.",
   gestureLoginStatusFailed: "제스처 로그인 상태를 불러오지 못했습니다.",
