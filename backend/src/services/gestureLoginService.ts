@@ -205,6 +205,25 @@ const deriveStatus = (
  * only booleans and the remaining attempt count, never the verifier, the pepper
  * id, or any timestamp.
  */
+export class GestureStatusUnavailableError extends Error {
+  public readonly reason: unknown;
+
+  constructor(reason: unknown) {
+    super("Gesture Login status could not be determined.");
+    this.name = "GestureStatusUnavailableError";
+    this.reason = reason;
+  }
+}
+
+/**
+ * Derived status, or a thrown error when it cannot be read at all.
+ *
+ * This used to swallow the failure and return every flag false, which reads to
+ * the UI as "configured: false, canConfigure: false" - indistinguishable from a
+ * healthy install whose prerequisites are not met. The Security page then told
+ * the admin to save login settings they had already saved, which is advice that
+ * cannot possibly help. A caller that cannot read the credential must say so.
+ */
 export function getGestureLoginStatus(): GestureLoginStatus {
   const now = Date.now();
 
@@ -215,7 +234,18 @@ export function getGestureLoginStatus(): GestureLoginStatus {
       "Failed to derive Gesture Login status",
       error instanceof Error ? error : new Error(String(error))
     );
-    // Fail closed: an unknown state must not present an interactive grid.
+    throw new GestureStatusUnavailableError(error);
+  }
+}
+
+/**
+ * Status for internal decisions that must stay total. Fails closed: an unknown
+ * state never presents a usable credential.
+ */
+const safeStatus = (): GestureLoginStatus => {
+  try {
+    return getGestureLoginStatus();
+  } catch {
     return {
       configured: false,
       canConfigure: false,
@@ -225,22 +255,34 @@ export function getGestureLoginStatus(): GestureLoginStatus {
       resetRequired: false,
     };
   }
-}
+};
 
-/** Whether any credential row exists, however unusable. */
-export function hasGestureCredential(): boolean {
+export type GestureCredentialPresence = "present" | "absent" | "unknown";
+
+/**
+ * Whether any credential row exists, however unusable.
+ *
+ * Tri-state on purpose. This guards the password-recovery invariant, so an
+ * unreadable database still has to block disabling password login - but the
+ * caller must be able to tell "a gesture exists" from "I could not look",
+ * because telling an admin to turn off a gesture they never created sends them
+ * hunting for a switch that is already off.
+ */
+export function getGestureCredentialPresence(): GestureCredentialPresence {
   try {
-    return selectRow() !== undefined;
+    return selectRow() !== undefined ? "present" : "absent";
   } catch (error) {
     logger.error(
       "Failed to read Gesture Login credential",
       error instanceof Error ? error : new Error(String(error))
     );
-    // Fail closed. This helper guards the password-recovery invariant, so an
-    // unknown database state must block password-login disablement rather than
-    // assume that no gesture exists.
-    return true;
+    return "unknown";
   }
+}
+
+/** Convenience for callers that only care whether a gesture may exist. */
+export function hasGestureCredential(): boolean {
+  return getGestureCredentialPresence() !== "absent";
 }
 
 /** Enrol a new gesture, or replace the existing one. Admin-only. */
@@ -529,7 +571,7 @@ export async function authenticateGesture(
     if (!recorded) {
       // Changed, removed, or locked while we were hashing. Do not overwrite
       // whatever won; report the current state instead.
-      const current = getGestureLoginStatus();
+      const current = safeStatus();
       return current.locked
         ? { ok: false, code: "gesture_locked", attemptsRemaining: 0 }
         : { ok: false, code: "gesture_unavailable" };
@@ -553,7 +595,7 @@ export async function authenticateGesture(
   if (!clearFailuresOnSuccess(row.credential_version, Date.now())) {
     // The credential moved under us, or a concurrent third failure locked it
     // first. Never mint a session from a stale snapshot.
-    const current = getGestureLoginStatus();
+    const current = safeStatus();
     return current.locked
       ? { ok: false, code: "gesture_locked", attemptsRemaining: 0 }
       : { ok: false, code: "gesture_unavailable" };

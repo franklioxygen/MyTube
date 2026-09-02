@@ -30,7 +30,7 @@ vi.mock('../../services/migrationService', () => ({
   runMigration: vi.fn(),
 }));
 vi.mock('../../services/gestureLoginService', () => ({
-  hasGestureCredential: vi.fn(() => false),
+  getGestureCredentialPresence: vi.fn(() => 'absent'),
 }));
 
 describe('SettingsController', () => {
@@ -334,7 +334,7 @@ describe('SettingsController', () => {
       req.get = ((key: string) => req.headers?.[key.toLowerCase()] as string | undefined) as Request['get'];
       req.socket = { remoteAddress: '203.0.113.10' } as any;
       (storageService.getSettings as any).mockReturnValue({ passwordLoginAllowed: true });
-      (gestureLoginService.hasGestureCredential as any).mockReturnValue(true);
+      (gestureLoginService.getGestureCredentialPresence as any).mockReturnValue('present');
 
       await updateSettings(req as Request, res as Response);
 
@@ -344,6 +344,31 @@ describe('SettingsController', () => {
       );
       // Password login is the only recovery path out of a gesture lock, and a
       // mixed PATCH must be rejected whole rather than half-applied.
+      expect(storageService.saveSettings).not.toHaveBeenCalled();
+    });
+
+    it('should not claim a gesture exists when its state cannot be read', async () => {
+      req.body = { passwordLoginAllowed: false };
+      req.cookies = { mytube_csrf: 'csrf-token' } as any;
+      req.headers = {
+        origin: 'https://mytube.example',
+        host: 'mytube.example',
+        'x-csrf-token': 'csrf-token',
+      } as any;
+      req.get = ((key: string) => req.headers?.[key.toLowerCase()] as string | undefined) as Request['get'];
+      req.socket = { remoteAddress: '203.0.113.10' } as any;
+      (storageService.getSettings as any).mockReturnValue({ passwordLoginAllowed: true });
+      (gestureLoginService.getGestureCredentialPresence as any).mockReturnValue('unknown');
+
+      await updateSettings(req as Request, res as Response);
+
+      // Still blocked - the recovery invariant holds either way - but telling
+      // the admin to switch off a gesture they never created sends them
+      // looking for a control that is already off.
+      expect(status).toHaveBeenCalledWith(503);
+      expect(json).toHaveBeenCalledWith(
+        expect.objectContaining({ code: 'gesture_state_unavailable' })
+      );
       expect(storageService.saveSettings).not.toHaveBeenCalled();
     });
 
@@ -358,7 +383,7 @@ describe('SettingsController', () => {
       req.get = ((key: string) => req.headers?.[key.toLowerCase()] as string | undefined) as Request['get'];
       req.socket = { remoteAddress: '203.0.113.10' } as any;
       (storageService.getSettings as any).mockReturnValue({ passwordLoginAllowed: true });
-      (gestureLoginService.hasGestureCredential as any).mockReturnValue(false);
+      (gestureLoginService.getGestureCredentialPresence as any).mockReturnValue('absent');
 
       await updateSettings(req as Request, res as Response);
 
@@ -379,9 +404,9 @@ describe('SettingsController', () => {
       req.get = ((key: string) => req.headers?.[key.toLowerCase()] as string | undefined) as Request['get'];
       req.socket = { remoteAddress: '203.0.113.10' } as any;
       (storageService.getSettings as any).mockReturnValue({ passwordLoginAllowed: true });
-      (gestureLoginService.hasGestureCredential as any)
-        .mockReturnValueOnce(false)
-        .mockReturnValueOnce(true);
+      (gestureLoginService.getGestureCredentialPresence as any)
+        .mockReturnValueOnce('absent')
+        .mockReturnValueOnce('present');
 
       await updateSettings(req as Request, res as Response);
 
