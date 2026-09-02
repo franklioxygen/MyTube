@@ -1776,7 +1776,6 @@ export const de = {
   gestureLoginMinimumDots: "Zeichne eine Geste, die mindestens 3 Punkte verbindet.",
   gestureLoginMismatch: "Die Gesten stimmen nicht überein. Bitte neu beginnen.",
   gestureLoginSaveFailed: "Die Gesten-Anmeldung konnte nicht gespeichert werden. Bitte erneut versuchen.",
-  gestureLoginUse: "Gesten-Anmeldung verwenden",
   gestureLoginLockedSettings: "Vorübergehend gesperrt. Melde dich ab und einmal mit dem Administratorpasswort an, um sie wiederherzustellen.",
   gestureLoginLockedPasswordRecovery: "Die Gesten-Anmeldung ist nach 3 falschen Versuchen gesperrt. Melde dich einmal mit deinem Administratorpasswort an, um sie wiederherzustellen.",
   gestureLoginIncorrectAttemptsRemaining: "Falsche Geste. Noch {count} Versuche.",

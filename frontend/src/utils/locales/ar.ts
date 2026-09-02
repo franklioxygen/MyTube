@@ -1724,7 +1724,6 @@ export const ar = {
   gestureLoginMinimumDots: "ارسم نمطًا يصل بين 3 نقاط على الأقل.",
   gestureLoginMismatch: "النمطان غير متطابقين. ابدأ من جديد.",
   gestureLoginSaveFailed: "تعذّر حفظ تسجيل الدخول بالنمط. حاول مرة أخرى.",
-  gestureLoginUse: "استخدام تسجيل الدخول بالنمط",
   gestureLoginLockedSettings: "مقفل مؤقتًا. سجّل الخروج ثم سجّل الدخول مرة واحدة بكلمة مرور المسؤول لاستعادته.",
   gestureLoginLockedPasswordRecovery: "تم قفل تسجيل الدخول بالنمط بعد 3 محاولات خاطئة. سجّل الدخول مرة واحدة بكلمة مرور المسؤول لاستعادته.",
   gestureLoginIncorrectAttemptsRemaining: "نمط غير صحيح. تبقّى {count} محاولات.",

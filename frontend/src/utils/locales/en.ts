@@ -1716,7 +1716,6 @@ export const en = {
   gestureLoginMinimumDots: "Draw a gesture connecting at least 3 dots.",
   gestureLoginMismatch: "Gestures do not match. Start again.",
   gestureLoginSaveFailed: "Gesture Login could not be saved. Please try again.",
-  gestureLoginUse: "Use Gesture Login",
   gestureLoginLockedSettings: "Temporarily locked. Sign out and complete one admin password login to restore it.",
   gestureLoginLockedPasswordRecovery: "Gesture Login is locked after 3 incorrect attempts. Sign in once with your admin password to restore it.",
   gestureLoginIncorrectAttemptsRemaining: "Incorrect gesture. {count} attempts remaining.",

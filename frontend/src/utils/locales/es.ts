@@ -1778,7 +1778,6 @@ export const es = {
   gestureLoginMinimumDots: "Dibuja un gesto que conecte al menos 3 puntos.",
   gestureLoginMismatch: "Los gestos no coinciden. Empieza de nuevo.",
   gestureLoginSaveFailed: "No se pudo guardar el inicio con gesto. Inténtalo de nuevo.",
-  gestureLoginUse: "Usar inicio con gesto",
   gestureLoginLockedSettings: "Bloqueado temporalmente. Cierra sesión y entra una vez con la contraseña de administrador para restaurarlo.",
   gestureLoginLockedPasswordRecovery: "El inicio con gesto está bloqueado tras 3 intentos incorrectos. Entra una vez con tu contraseña de administrador para restaurarlo.",
   gestureLoginIncorrectAttemptsRemaining: "Gesto incorrecto. Quedan {count} intentos.",

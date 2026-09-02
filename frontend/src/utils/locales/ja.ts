@@ -1751,7 +1751,6 @@ export const ja = {
   gestureLoginMinimumDots: "3つ以上の点をつなぐジェスチャーを描いてください。",
   gestureLoginMismatch: "ジェスチャーが一致しません。最初からやり直してください。",
   gestureLoginSaveFailed: "ジェスチャーログインを保存できませんでした。もう一度お試しください。",
-  gestureLoginUse: "ジェスチャーログインを使う",
   gestureLoginLockedSettings: "一時的にロックされています。サインアウトし、管理者パスワードで1回ログインすると復旧します。",
   gestureLoginLockedPasswordRecovery: "3回間違えたためジェスチャーログインはロックされています。管理者パスワードで1回サインインすると復旧します。",
   gestureLoginIncorrectAttemptsRemaining: "ジェスチャーが違います。残り {count} 回です。",

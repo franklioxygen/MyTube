@@ -1654,7 +1654,6 @@ export const zh = {
   gestureLoginMinimumDots: "绘制一个至少连接 3 个点的手势。",
   gestureLoginMismatch: "两次手势不一致，请重新开始。",
   gestureLoginSaveFailed: "无法保存手势登录，请重试。",
-  gestureLoginUse: "使用手势登录",
   gestureLoginLockedSettings: "已暂时锁定。请退出登录并用管理员密码登录一次以恢复。",
   gestureLoginLockedPasswordRecovery: "手势错误 3 次，手势登录已锁定。请用管理员密码登录一次以恢复。",
   gestureLoginIncorrectAttemptsRemaining: "手势错误，还可尝试 {count} 次。",

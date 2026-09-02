@@ -1728,7 +1728,6 @@ export const ko = {
   gestureLoginMinimumDots: "점을 3개 이상 잇는 제스처를 그리세요.",
   gestureLoginMismatch: "제스처가 일치하지 않습니다. 처음부터 다시 시작하세요.",
   gestureLoginSaveFailed: "제스처 로그인을 저장하지 못했습니다. 다시 시도해 주세요.",
-  gestureLoginUse: "제스처 로그인 사용",
   gestureLoginLockedSettings: "일시적으로 잠겼습니다. 로그아웃한 뒤 관리자 비밀번호로 한 번 로그인하면 복구됩니다.",
   gestureLoginLockedPasswordRecovery: "3회 틀려 제스처 로그인이 잠겼습니다. 관리자 비밀번호로 한 번 로그인하면 복구됩니다.",
   gestureLoginIncorrectAttemptsRemaining: "제스처가 올바르지 않습니다. {count}회 남았습니다.",

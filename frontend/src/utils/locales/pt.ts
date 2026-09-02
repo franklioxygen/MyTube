@@ -1765,7 +1765,6 @@ export const pt = {
   gestureLoginMinimumDots: "Desenhe um gesto conectando pelo menos 3 pontos.",
   gestureLoginMismatch: "Os gestos não coincidem. Comece de novo.",
   gestureLoginSaveFailed: "Não foi possível salvar o login por gesto. Tente novamente.",
-  gestureLoginUse: "Usar login por gesto",
   gestureLoginLockedSettings: "Bloqueado temporariamente. Saia e faça um login com a senha de administrador para restaurá-lo.",
   gestureLoginLockedPasswordRecovery: "O login por gesto está bloqueado após 3 tentativas incorretas. Entre uma vez com sua senha de administrador para restaurá-lo.",
   gestureLoginIncorrectAttemptsRemaining: "Gesto incorreto. Restam {count} tentativas.",

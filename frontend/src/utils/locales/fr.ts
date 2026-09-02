@@ -1789,7 +1789,6 @@ export const fr = {
   gestureLoginMinimumDots: "Dessinez un geste reliant au moins 3 points.",
   gestureLoginMismatch: "Les gestes ne correspondent pas. Recommencez.",
   gestureLoginSaveFailed: "La connexion par geste n'a pas pu être enregistrée. Veuillez réessayer.",
-  gestureLoginUse: "Utiliser la connexion par geste",
   gestureLoginLockedSettings: "Temporairement verrouillé. Déconnectez-vous et connectez-vous une fois avec le mot de passe administrateur pour la rétablir.",
   gestureLoginLockedPasswordRecovery: "La connexion par geste est verrouillée après 3 tentatives incorrectes. Connectez-vous une fois avec votre mot de passe administrateur pour la rétablir.",
   gestureLoginIncorrectAttemptsRemaining: "Geste incorrect. {count} tentatives restantes.",
