@@ -50,6 +50,7 @@ describe("registerApiRoutes", () => {
       adminReauthLimiter: vi.fn(),
       passkeyAuthLimiter: vi.fn(),
       passkeyRegistrationLimiter: vi.fn(),
+      gestureAuthLimiter: vi.fn(),
       statisticsIngestionLimiter: vi.fn(),
       feedLimiter: vi.fn(),
       liveTranslationSessionLimiter: vi.fn(),
@@ -105,6 +106,10 @@ describe("registerApiRoutes", () => {
       authLimiters.passkeyRegistrationLimiter
     );
     expect(app.post).toHaveBeenCalledWith(
+      "/api/settings/gesture-login/authenticate",
+      authLimiters.gestureAuthLimiter
+    );
+    expect(app.post).toHaveBeenCalledWith(
       "/api/statistics/events",
       authLimiters.statisticsIngestionLimiter
     );
@@ -134,7 +139,7 @@ describe("registerApiRoutes", () => {
       settingsRoutes
     );
 
-    expect(app.post).toHaveBeenCalledTimes(11);
+    expect(app.post).toHaveBeenCalledTimes(12);
     expect(app.get).toHaveBeenCalledTimes(2);
     expect(app.use).toHaveBeenCalledTimes(5);
   });
@@ -147,6 +152,7 @@ describe("registerApiRoutes", () => {
       adminReauthLimiter: vi.fn(),
       passkeyAuthLimiter: vi.fn(),
       passkeyRegistrationLimiter: vi.fn(),
+      gestureAuthLimiter: vi.fn(),
       statisticsIngestionLimiter: vi.fn(),
       feedLimiter: vi.fn(),
       liveTranslationSessionLimiter: vi.fn(),
@@ -155,7 +161,7 @@ describe("registerApiRoutes", () => {
     registerApiRoutes(app, authLimiters as any, { includeFeedRoute: false });
 
     expect(app.get).not.toHaveBeenCalled();
-    expect(app.post).toHaveBeenCalledTimes(11);
+    expect(app.post).toHaveBeenCalledTimes(12);
     expect(app.use).toHaveBeenCalledTimes(5);
   });
 

@@ -246,6 +246,28 @@ Visitor user management requires an admin session. Visitor sessions, unauthentic
   - Body: `{ body: object, challenge: string }`
 - `DELETE /api/settings/passkeys` - Remove all passkeys
 
+## Gesture Login (Admin Only)
+
+Gesture Login is an optional convenience credential for the single admin. Password login and login protection must remain enabled while it is configured. The management endpoints require an admin session; status and authentication are public login endpoints. API-key authentication cannot use these routes.
+
+- `GET /api/settings/gesture-login/status` - Get safe Gesture Login state
+  - Response: `{ configured, canConfigure, locked, available, attemptsRemaining, resetRequired }`
+  - No verifier, pepper identifier, pattern, or timestamp is returned.
+- `PUT /api/settings/gesture-login` - Create or replace the admin gesture
+  - Admin session required
+  - Body: `{ pattern: number[] }`; the server canonicalizes Android-style skipped midpoints and requires at least 3 distinct dots
+  - Returns `201` on first setup and `200` on replacement
+  - Relevant errors: `409 gesture_password_login_required`, `423 gesture_locked`, `422 gesture_invalid`
+- `DELETE /api/settings/gesture-login` - Remove the gesture immediately
+  - Admin session required; allowed while the gesture is locked; idempotent
+  - Response: `{ success: true, removed: boolean }`
+- `POST /api/settings/gesture-login/authenticate` - Authenticate a gesture and issue an admin auth cookie
+  - Body: `{ pattern: number[] }`
+  - A wrong valid gesture returns `401 gesture_incorrect` with `attemptsRemaining`.
+  - Failures are shared across devices. One or two failures expire 12 hours after the most recent wrong gesture. The third failure before expiry returns `423 gesture_locked` and never expires; only one successful admin password login clears it.
+
+While a gesture credential exists, a settings update that disables password login returns `409 gesture_requires_password_login`.
+
 ## Cookies
 
 - `POST /api/settings/upload-cookies` - Upload cookie file for yt-dlp

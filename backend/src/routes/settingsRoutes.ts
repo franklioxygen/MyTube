@@ -20,6 +20,12 @@ import {
     uploadHook,
 } from "../controllers/hookController";
 import {
+    authenticateGestureLogin,
+    configureGestureLogin,
+    getGestureLoginStatus,
+    removeGestureLogin,
+} from "../controllers/gestureLoginController";
+import {
     checkPasskeysExist,
     generateAuthenticationOptions,
     generateRegistrationOptions,
@@ -105,6 +111,13 @@ router.post("/passkeys/register/verify", asyncHandler(verifyRegistration));
 router.post("/passkeys/authenticate", asyncHandler(generateAuthenticationOptions));
 router.post("/passkeys/authenticate/verify", asyncHandler(verifyAuthentication));
 router.delete("/passkeys", asyncHandler(removeAllPasskeys));
+
+// Gesture Login routes. Status and authenticate are public (allowlisted in both
+// role middlewares); the collection route is admin-only.
+router.get("/gesture-login/status", asyncHandler(getGestureLoginStatus));
+router.post("/gesture-login/authenticate", asyncHandler(authenticateGestureLogin));
+router.put("/gesture-login", asyncHandler(configureGestureLogin));
+router.delete("/gesture-login", asyncHandler(removeGestureLogin));
 
 // ... existing imports ...
 

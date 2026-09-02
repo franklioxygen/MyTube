@@ -68,6 +68,10 @@ export const registerApiRoutes = (
     authLimiters.passkeyRegistrationLimiter
   );
   app.post(
+    "/api/settings/gesture-login/authenticate",
+    authLimiters.gestureAuthLimiter
+  );
+  app.post(
     "/api/settings/passkeys/register/verify",
     authLimiters.passkeyRegistrationLimiter
   );

@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import crypto from "crypto";
 import fs from "fs-extra";
+import path from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { reinitializeDatabase as reinitDb, sqlite } from "../../db";
 import * as databaseBackupService from "../../services/databaseBackupService";
@@ -1020,7 +1021,10 @@ describe("databaseBackupService", () => {
         "mytube-backup-new.db.backup",
       ]);
       vi.mocked(fs.statSync as any).mockImplementation((targetPath: string) => {
-        if (targetPath.includes("old")) {
+        // Match the filename, not the whole path: a bare includes("old") also
+        // matches any temp directory under /var/folders, which made this
+        // depend on where the data directory happened to live.
+        if (path.basename(String(targetPath)).includes("-old.")) {
           return { mtimeMs: 100 };
         }
         return { mtimeMs: 900 };

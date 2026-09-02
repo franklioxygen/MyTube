@@ -3,6 +3,7 @@ import { DEFAULT_ADMIN_PASSWORD, defaultSettings } from "../types/settings";
 import { logger } from "../utils/logger";
 import * as storageService from "./storageService";
 import { generateToken } from "./authService";
+import { unlockAfterSuccessfulAdminPasswordLogin } from "./gestureLoginService";
 import * as userService from "./userService";
 
 const BCRYPT_HASH_PATTERN = /^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$/;
@@ -109,6 +110,23 @@ async function persistHashForCompatibleMatch(
 /**
  * Check if login is required (loginEnabled is true)
  */
+/**
+ * Every successful admin password login funnels through here so the Gesture
+ * Login recovery hook cannot be forgotten at one of the four success sites.
+ *
+ * Deliberately not called from confirmAdminPassword: re-authenticating for a
+ * sensitive action is not a login, and must not restore a locked gesture.
+ * Visitor logins and passkey logins are likewise excluded.
+ */
+function adminLoginSuccess(): {
+  success: true;
+  role: "admin";
+  token: string;
+} {
+  unlockAfterSuccessfulAdminPasswordLogin();
+  return { success: true, role: "admin", token: generateToken({ role: "admin" }) };
+}
+
 export function isLoginRequired(): boolean {
   const settings = storageService.getSettings();
   const mergedSettings = { ...defaultSettings, ...settings };
@@ -191,8 +209,7 @@ export async function verifyPassword(
         password,
         adminMatchResult,
       );
-      const token = generateToken({ role: "admin" });
-      return { success: true, role: "admin", token };
+      return adminLoginSuccess();
     }
   } else {
     const defaultAdminMatchResult = compareDefaultAdminPassword(
@@ -205,8 +222,7 @@ export async function verifyPassword(
         DEFAULT_ADMIN_PASSWORD,
         defaultAdminMatchResult,
       );
-      const token = generateToken({ role: "admin" });
-      return { success: true, role: "admin", token };
+      return adminLoginSuccess();
     }
   }
 
@@ -268,8 +284,7 @@ export async function verifyAdminPassword(
         password,
         adminMatchResult,
       );
-      const token = generateToken({ role: "admin" });
-      return { success: true, role: "admin", token };
+      return adminLoginSuccess();
     }
   } else {
     const defaultAdminMatchResult = compareDefaultAdminPassword(
@@ -282,8 +297,7 @@ export async function verifyAdminPassword(
         DEFAULT_ADMIN_PASSWORD,
         defaultAdminMatchResult,
       );
-      const token = generateToken({ role: "admin" });
-      return { success: true, role: "admin", token };
+      return adminLoginSuccess();
     }
 
     return {

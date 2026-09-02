@@ -490,3 +490,51 @@ export const usageStatisticsIngestionMinutes = sqliteTable(
     updatedAt: integer("updated_at").notNull(),
   }
 );
+
+/**
+ * Admin Gesture Login credential. Deliberately a dedicated singleton table
+ * rather than rows in `settings`: the verifier must never be serializable
+ * through settings responses, failure counting needs atomic updates, and the
+ * 30-second settings cache would make lock state stale.
+ *
+ * Exactly one row ever exists, with id = 1. The three failure columns move
+ * together and the check constraint pins their only legal combinations:
+ * 0/null/null when clean, 1-2/timestamp/null while a partial streak is
+ * running, and 3/timestamp/timestamp once locked.
+ */
+export const adminGestureCredential = sqliteTable(
+  "admin_gesture_credential",
+  {
+    id: integer("id").primaryKey(),
+    // Encoded scrypt-v1 verifier. Never returned by any endpoint.
+    patternHash: text("pattern_hash").notNull(),
+    // Non-secret fingerprint of the pepper the verifier was derived under.
+    pepperKeyId: text("pepper_key_id").notNull(),
+    // Random UUID rotated on every credential write; the compare-and-swap
+    // token that makes an in-flight attempt fail closed against a gesture
+    // that was just changed or removed.
+    credentialVersion: text("credential_version").notNull(),
+    failedAttempts: integer("failed_attempts").notNull().default(0),
+    // Epoch ms of the most recent wrong gesture; null at zero failures.
+    lastFailedAt: integer("last_failed_at"),
+    // Epoch ms the permanent lock was taken; null while unlocked.
+    lockedAt: integer("locked_at"),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => [
+    check("admin_gesture_singleton_check", sql`${table.id} = 1`),
+    check(
+      "admin_gesture_attempts_check",
+      sql`${table.failedAttempts} >= 0 AND ${table.failedAttempts} <= 3`
+    ),
+    check(
+      "admin_gesture_failure_state_check",
+      sql`(
+        (${table.failedAttempts} = 0 AND ${table.lastFailedAt} IS NULL AND ${table.lockedAt} IS NULL)
+        OR (${table.failedAttempts} IN (1, 2) AND ${table.lastFailedAt} IS NOT NULL AND ${table.lockedAt} IS NULL)
+        OR (${table.failedAttempts} = 3 AND ${table.lastFailedAt} IS NOT NULL AND ${table.lockedAt} IS NOT NULL)
+      )`
+    ),
+  ]
+);

@@ -47,7 +47,7 @@ Built using the [franklioxygen/agent-workflows](https://github.com/franklioxygen
 - **Live Audio Translation** (admin, optional): Stream the playing video's audio to Google Gemini Live Translation and play translated speech with live subtitles in the player's subtitle menu. Configure it under **Settings → Basic → Video Playback** (enable, Gemini API key, model, source/target language). The key is stored server-side and never sent to the browser. **Privacy:** while live translation is active, the video's audio is streamed to Google's Gemini API; transcripts are not persisted or logged. Requires an admin account when login is enabled and a same-origin (non-cross-origin) audio source.
 - **Subscriptions**: Manage YouTube, Bilibili and Twitch channel subscriptions to automatically download new content.
 - **RSS Feeds**: Create private RSS links for external feed readers with per-link filters for channels, authors, tags, sources, recent videos, and item limits.
-- **Login Protection & Visitor Access**: Secure your application with password login and optional passkeys (WebAuthn), and create named read-only visitor accounts for safe sharing without modification capabilities.
+- **Login Protection & Visitor Access**: Secure your application with password login, optional passkeys (WebAuthn), and an admin-only 3×3 Gesture Login, while named read-only visitor accounts allow safe sharing. Gesture failures are shared across devices; one or two expire 12 hours after the latest failure, while three lock gesture access until one successful admin password login.
 - **Internationalization**: Support for multiple languages including English, Chinese, Spanish, French, German, Japanese, Korean, Arabic, Portuguese, and Russian.
 - **Cookie Management**: Support for uploading `cookies.txt` to enable downloading of age-restricted or premium content.
 - **yt-dlp Configuration**: Customize global `yt-dlp` arguments, network proxy, and other advanced settings via settings page.
@@ -154,6 +154,9 @@ VITE_BACKEND_URL=
 
 ```env
 PORT=5551
+# Optional stable secret for Gesture Login (minimum 32 bytes).
+# When omitted, MyTube creates backend/data/gesture-login.pepper on first setup.
+# GESTURE_LOGIN_PEPPER=replace-with-at-least-32-random-bytes
 # Optional: declare the admin trust boundary for this deployment.
 # Valid values: application | container | host
 # Default: container

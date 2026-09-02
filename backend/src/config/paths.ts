@@ -13,7 +13,13 @@ export const CLOUD_THUMBNAIL_CACHE_DIR: string = path.join(
   UPLOADS_DIR,
   "cloud-thumbnail-cache"
 );
-export const DATA_DIR: string = path.join(ROOT_DIR, "data");
+// Where the database, generated secrets, hooks, and legacy JSON live. Defaults
+// to <cwd>/data; MYTUBE_DATA_DIR relocates it, which lets a deployment keep
+// state on a different volume from the code and lets the test suite run
+// against a scratch directory instead of the developer's real database.
+export const DATA_DIR: string = process.env.MYTUBE_DATA_DIR
+  ? path.resolve(process.env.MYTUBE_DATA_DIR)
+  : path.join(ROOT_DIR, "data");
 export const COOKIES_FILENAME = "cookies.txt";
 
 export const VIDEOS_DATA_PATH: string = path.join(DATA_DIR, "videos.json");

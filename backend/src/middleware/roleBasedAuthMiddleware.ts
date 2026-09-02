@@ -15,6 +15,8 @@ const PUBLIC_EXACT_PATHS = [
   "/settings/password-enabled",
   "/settings/passkeys/exists",
   "/settings/logout",
+  "/settings/gesture-login/status",
+  "/settings/gesture-login/authenticate",
 ] as const;
 
 const PUBLIC_PREFIX_PATHS = [
@@ -27,6 +29,11 @@ const VISITOR_ALLOWED_POST_EXACT_PATHS = [
   "/settings/verify-user-login",
   "/settings/verify-visitor-password",
   "/settings/logout",
+  // A visitor may submit an admin gesture just as they may submit an admin
+  // password: knowing the credential is what upgrades the session. The visitor
+  // branch below runs before the public-endpoint check, so the public list
+  // alone would not reach this handler.
+  "/settings/gesture-login/authenticate",
 ] as const;
 
 const VISITOR_ALLOWED_POST_PREFIX_PATHS = [

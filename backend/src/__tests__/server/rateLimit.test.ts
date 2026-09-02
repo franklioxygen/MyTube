@@ -51,22 +51,29 @@ describe("configureRateLimiting", () => {
 
     const authLimiters = configureRateLimiting(app);
 
-    expect(mocked.rateLimitFactory).toHaveBeenCalledTimes(9);
+    expect(mocked.rateLimitFactory).toHaveBeenCalledTimes(10);
     expect(mocked.createdLimiters[1]).toBe(authLimiters.adminPasswordLimiter);
     expect(mocked.createdLimiters[2]).toBe(authLimiters.visitorPasswordLimiter);
     expect(mocked.createdLimiters[3]).toBe(authLimiters.adminReauthLimiter);
     expect(mocked.createdLimiters[4]).toBe(authLimiters.passkeyAuthLimiter);
     expect(mocked.createdLimiters[5]).toBe(authLimiters.passkeyRegistrationLimiter);
-    expect(mocked.createdLimiters[6]).toBe(authLimiters.feedLimiter);
-    expect(mocked.createdLimiters[7]).toBe(authLimiters.statisticsIngestionLimiter);
-    expect(mocked.createdLimiters[8]).toBe(
+    expect(mocked.createdLimiters[6]).toBe(authLimiters.gestureAuthLimiter);
+    expect(mocked.createdLimiters[7]).toBe(authLimiters.feedLimiter);
+    expect(mocked.createdLimiters[8]).toBe(authLimiters.statisticsIngestionLimiter);
+    expect(mocked.createdLimiters[9]).toBe(
       authLimiters.liveTranslationSessionLimiter
+    );
+
+    // The gesture bucket must stay separate from the password bucket, or an
+    // attacker could burn the password recovery allowance by drawing gestures.
+    expect(authLimiters.gestureAuthLimiter).not.toBe(
+      authLimiters.adminPasswordLimiter
     );
     expect(app.use).toHaveBeenCalledTimes(1);
 
     const generalOptions = (mocked.createdLimiters[0] as any).__options;
     const authOptions = (mocked.createdLimiters[1] as any).__options;
-    const liveTranslationOptions = (mocked.createdLimiters[8] as any).__options;
+    const liveTranslationOptions = (mocked.createdLimiters[9] as any).__options;
 
     expect(generalOptions.max).toBe(1000);
     expect(authOptions.max).toBe(5);

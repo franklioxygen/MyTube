@@ -231,6 +231,28 @@
   - 请求体: `{ body: object, challenge: string }`
 - `DELETE /api/settings/passkeys` - 移除所有通行密钥
 
+## 手势登录（仅管理员）
+
+手势登录是唯一管理员的可选便捷凭据。配置后，登录保护和密码登录必须保持启用。管理接口需要管理员会话；状态和认证接口属于公开登录接口。API Key 认证不能使用这些接口。
+
+- `GET /api/settings/gesture-login/status` - 获取安全的手势登录状态
+  - 响应: `{ configured, canConfigure, locked, available, attemptsRemaining, resetRequired }`
+  - 不会返回校验值、pepper 标识、手势图案或时间戳。
+- `PUT /api/settings/gesture-login` - 创建或替换管理员手势
+  - 需要管理员会话
+  - 请求体: `{ pattern: number[] }`；服务端会按 Android 规则补入跨过的中间点，并要求至少 3 个不同的点
+  - 首次设置返回 `201`，替换返回 `200`
+  - 相关错误: `409 gesture_password_login_required`、`423 gesture_locked`、`422 gesture_invalid`
+- `DELETE /api/settings/gesture-login` - 立即移除手势
+  - 需要管理员会话；锁定时仍可移除；接口幂等
+  - 响应: `{ success: true, removed: boolean }`
+- `POST /api/settings/gesture-login/authenticate` - 验证手势并签发管理员认证 Cookie
+  - 请求体: `{ pattern: number[] }`
+  - 有效但错误的手势返回 `401 gesture_incorrect`，并包含 `attemptsRemaining`。
+  - 错误次数在所有设备之间共享。一次或两次错误会在最近一次错误的 12 小时后清零；在到期前达到第三次会返回 `423 gesture_locked`，且永不按时间自动解锁，只能通过一次成功的管理员密码登录清除。
+
+存在手势凭据时，关闭密码登录的设置更新会返回 `409 gesture_requires_password_login`。
+
 ## Cookies
 
 - `POST /api/settings/upload-cookies` - 上传 yt-dlp 使用的 cookie 文件

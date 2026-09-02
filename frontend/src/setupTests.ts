@@ -1,5 +1,14 @@
 import '@testing-library/jest-dom';
+import { configure } from '@testing-library/react';
 import { vi } from 'vitest';
+
+// Testing Library defaults waitFor to 1s. That is enough locally but not on a
+// loaded CI runner with coverage instrumentation, where the first render in a
+// file pays the one-off transform and mount cost and can overshoot it. The
+// symptom is a single test failing on a query that has simply not resolved
+// yet, which then passes on re-run. Raising the ceiling does not hide real
+// failures - a broken assertion still fails, just later.
+configure({ asyncUtilTimeout: 5000 });
 
 const createMemoryStorage = (): Storage => {
   let store: Record<string, string> = {};

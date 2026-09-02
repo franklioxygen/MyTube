@@ -4,6 +4,7 @@ import downloadManager from "../../services/downloadManager";
 import { ContinuousDownloadService } from "../../services/continuousDownloadService";
 import * as storageService from "../../services/storageService";
 import * as security from "../../utils/security";
+import { DATA_DIR } from "../../config/paths";
 
 vi.mock("../../utils/logger", () => ({
   logger: {
@@ -108,7 +109,7 @@ describe("ContinuousDownloadService", () => {
     fetcher = (service as any).videoUrlFetcher;
     cleanup = (service as any).taskCleanup;
     processor = (service as any).taskProcessor;
-    frozenListsRoot = path.resolve(path.join(process.cwd(), "data", "frozen-lists"));
+    frozenListsRoot = path.resolve(path.join(DATA_DIR, "frozen-lists"));
     vi.mocked(storageService.getDownloadStatus).mockReturnValue({
       activeDownloads: [],
     } as any);

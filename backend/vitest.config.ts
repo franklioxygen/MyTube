@@ -6,6 +6,7 @@ export default defineConfig({
     exclude: ['**/node_modules/**', '**/dist/**'],
     globals: true,
     environment: 'node',
+    setupFiles: ['src/__tests__/setupDataDir.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

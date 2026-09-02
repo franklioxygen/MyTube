@@ -447,7 +447,13 @@ describe('SecuritySettings', () => {
                 body: { id: 'cred-1' },
                 challenge: 'challenge-1',
             });
-            expect(api.get).toHaveBeenCalledTimes(2);
+            // Scoped to the passkey endpoint rather than counting every GET,
+            // so an unrelated query added to this component cannot break it.
+            expect(
+                vi.mocked(api.get).mock.calls.filter(
+                    ([url]) => url === '/settings/passkeys/exists'
+                )
+            ).toHaveLength(2);
         });
 
         expect(await screen.findByText('passkeyCreated')).toBeInTheDocument();
@@ -497,7 +503,13 @@ describe('SecuritySettings', () => {
 
         await waitFor(() => {
             expect(api.delete).toHaveBeenCalledWith('/settings/passkeys');
-            expect(api.get).toHaveBeenCalledTimes(2);
+            // Scoped to the passkey endpoint rather than counting every GET,
+            // so an unrelated query added to this component cannot break it.
+            expect(
+                vi.mocked(api.get).mock.calls.filter(
+                    ([url]) => url === '/settings/passkeys/exists'
+                )
+            ).toHaveLength(2);
         });
 
         expect(await screen.findByText('passkeysRemoved')).toBeInTheDocument();
