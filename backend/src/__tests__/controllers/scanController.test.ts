@@ -5,9 +5,15 @@ import { getScanStatus, scanFiles, scanMountDirectories } from '../../controller
 import * as storageService from '../../services/storageService';
 
 vi.mock('../../services/storageService');
-vi.mock('../../services/tmdbService', () => ({
-  scrapeMetadataFromTMDB: vi.fn().mockResolvedValue(null), // Default to null (no metadata found)
-}));
+vi.mock('../../services/tmdbService', async () => {
+  // Keep the real filename parser - it is pure (path + types only) and the
+  // episode designator the scan builds is exactly what needs exercising.
+  const { parseFilename } = await import('../../services/tmdbService/filenameParser');
+  return {
+    parseFilename,
+    scrapeMetadataFromTMDB: vi.fn().mockResolvedValue(null), // Default to null (no metadata found)
+  };
+});
 vi.mock('fs-extra', () => ({
   default: {
     existsSync: vi.fn(),
@@ -432,6 +438,57 @@ describe('ScanController', () => {
       );
       expect(created).toEqual(['Breaking Bad']);
       expect(storageService.saveVideo).toHaveBeenCalledTimes(3);
+    });
+
+    it('keeps the episode number and names the collection after the matched show', async () => {
+      process.env.MYTUBE_ADMIN_TRUST_LEVEL = 'host';
+      (storageService.getVideos as any).mockReturnValue([]);
+      (storageService.getCollections as any).mockReturnValue([]);
+      (fs.pathExists as any).mockResolvedValue(true);
+      const releaseFolder =
+        'Five Days at Memorial (2022) Season 1 S01 (1080p ATVP WEB-DL x265 t3nzin)';
+      (fs.readdir as any).mockImplementation((dir: string) =>
+        dir === '/mnt/tv'
+          ? Promise.resolve([
+              { name: releaseFolder, isDirectory: () => true, isSymbolicLink: () => false },
+            ])
+          : Promise.resolve([
+              {
+                name: 'Five Days at Memorial (2022) - S01E01 - Day One (1080p).mkv',
+                isDirectory: () => false,
+                isSymbolicLink: () => false,
+              },
+              {
+                name: 'Five Days at Memorial (2022) - S01E02 - Day Two (1080p).mkv',
+                isDirectory: () => false,
+                isSymbolicLink: () => false,
+              },
+            ]),
+      );
+      (fs.stat as any).mockResolvedValue({
+        isDirectory: () => false,
+        birthtime: new Date(),
+        size: 1024,
+      });
+      const { scrapeMetadataFromTMDB } = await import('../../services/tmdbService');
+      (scrapeMetadataFromTMDB as any).mockResolvedValue({ title: '医院五日' });
+
+      req = { body: { directories: ['/mnt/tv'] } };
+
+      await scanMountDirectories(req as Request, res as Response);
+
+      // TMDB matches the series, so the episode designator has to come from
+      // the filename or every episode reads identically.
+      const titles = (storageService.saveVideo as any).mock.calls
+        .map((call: any[]) => call[0].title)
+        .sort();
+      expect(titles).toEqual(['医院五日 - S01E01', '医院五日 - S01E02']);
+
+      // The collection shows the recognized work, but keeps the folder as its
+      // lookup key.
+      const collection = (storageService.saveCollection as any).mock.calls[0][0];
+      expect(collection.title).toBe('医院五日');
+      expect(collection.name).toBe(releaseFolder);
     });
 
     it('drops mount records that are no longer under a configured directory', async () => {

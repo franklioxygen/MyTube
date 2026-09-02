@@ -8,7 +8,7 @@ import {
 } from "../config/adminTrust";
 import { IMAGES_DIR, VIDEOS_DIR } from "../config/paths";
 import * as storageService from "../services/storageService";
-import { scrapeMetadataFromTMDB } from "../services/tmdbService";
+import { parseFilename, scrapeMetadataFromTMDB } from "../services/tmdbService";
 import { formatVideoFilename } from "../utils/helpers";
 import { logger } from "../utils/logger";
 import { AUDIO_CONTAINER_EXTENSIONS, MEDIA_FILE_EXTENSIONS } from "../utils/videoExtensions";
@@ -259,6 +259,21 @@ const resolveIdentityFolderName = (
   return null;
 };
 
+// TMDB matches a series, never a single episode, so every file in a season
+// folder comes back carrying the same show title. Keep the episode designator
+// from the filename so the episodes stay tellable apart in the library.
+const buildEpisodeLabel = (filename: string): string | null => {
+  const parsed = parseFilename(filename);
+  if (!parsed.isTVShow || typeof parsed.episode !== "number") {
+    return null;
+  }
+
+  const episode = `E${String(parsed.episode).padStart(2, "0")}`;
+  return typeof parsed.season === "number"
+    ? `S${String(parsed.season).padStart(2, "0")}${episode}`
+    : episode;
+};
+
 const getSafeFilePathForProcessing = (
   filePath: string,
   isMountDirectory: boolean
@@ -420,7 +435,10 @@ const processSingleVideoFile = async (
   normalizedDirectory: string,
   existingVideosByPath: Map<string, ExistingVideoSnapshot>,
   isMountDirectory: boolean,
-  resolveCollectionId: (collectionName: string) => Promise<string | undefined>
+  resolveCollectionId: (
+    collectionName: string,
+    displayTitle?: string
+  ) => Promise<string | undefined>
 ): Promise<ProcessFileResult> => {
   const filename = path.basename(filePath);
   const relativePath = path.relative(normalizedDirectory, filePath);
@@ -485,7 +503,12 @@ const processSingleVideoFile = async (
   logger.info(`Found new video file: ${relativePath}`);
 
   const displayTitle = originalTitle || "Untitled Video";
-  const finalDisplayTitle = tmdbMetadata?.title || displayTitle;
+  const episodeLabel = tmdbMetadata?.title ? buildEpisodeLabel(filename) : null;
+  const finalDisplayTitle = tmdbMetadata?.title
+    ? episodeLabel
+      ? `${tmdbMetadata.title} - ${episodeLabel}`
+      : tmdbMetadata.title
+    : displayTitle;
   const finalDescription = tmdbMetadata?.description;
   const author = tmdbMetadata?.director || "Admin";
 
@@ -565,7 +588,20 @@ const processSingleVideoFile = async (
   const dirName = path.dirname(relativePath);
   if (!replacingVideoId && dirName !== ".") {
     const collectionName = dirName.split(path.sep)[0];
-    const collectionId = await resolveCollectionId(collectionName);
+    // Name the collection after the work TMDB recognized rather than the raw
+    // release folder - but only when that folder *is* the collection folder.
+    // With a library root as the scan root the first segment is the library
+    // name ("TV Shows"), which one show's title must not overwrite.
+    const collectionDisplayTitle =
+      isMountDirectory &&
+      tmdbMetadata?.title &&
+      resolveIdentityFolderName(filePath, normalizedDirectory) === collectionName
+        ? tmdbMetadata.title
+        : undefined;
+    const collectionId = await resolveCollectionId(
+      collectionName,
+      collectionDisplayTitle
+    );
 
     if (collectionId) {
       // Mount media belongs to the media server, so it must never be relocated
@@ -640,7 +676,8 @@ const processDirectoryFiles = async (
     !isMountDirectory || (videoCountByCollectionName.get(collectionName) ?? 0) > 1;
 
   const resolveCollectionId = async (
-    collectionName: string
+    collectionName: string,
+    displayTitle?: string
   ): Promise<string | undefined> => {
     const cached = collectionIdCache.get(collectionName);
     if (cached) {
@@ -675,7 +712,8 @@ const processDirectoryFiles = async (
 
       storageService.saveCollection({
         id: collectionId,
-        title: collectionName,
+        // `name` stays the folder, so lookups by folder name keep matching.
+        title: displayTitle || collectionName,
         name: collectionName,
         videos: [],
         createdAt: new Date().toISOString(),
