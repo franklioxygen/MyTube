@@ -56,6 +56,8 @@ vi.mock('@mui/material', async () => {
 });
 
 vi.mock('@tanstack/react-query', () => ({
+  // Scan status poll: idle unless a test says otherwise.
+  useQuery: () => ({ data: { scanning: false, scanType: null, startedAt: null } }),
   useMutation: (options: any) => ({
     isPending: scanIsPending,
     mutate: (variables: any) => {

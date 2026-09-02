@@ -381,6 +381,7 @@ export const ar = {
   scanFilesSuccess: "اكتمل المسح. تمت إضافة {count} مقاطع فيديو جديدة.",
   scanFilesDeleted: " تمت إزالة {count} ملفات مفقودة.",
   scanFilesFailed: "فشل المسح",
+  scanAlreadyRunning: "هناك عملية مسح قيد التشغيل بالفعل. يرجى انتظار انتهائها.",
   scanMountDirectoriesSuccess:
     "اكتمل فحص الدلائل المثبتة. تمت إضافة {addedCount} مقاطع فيديو جديدة. تم حذف {deletedCount} مقاطع فيديو مفقودة.",
   subscribePlaylistsSuccess:

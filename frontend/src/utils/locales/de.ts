@@ -393,6 +393,8 @@ export const de = {
   scanFilesSuccess: "Scan abgeschlossen. {count} neue Videos hinzugefügt.",
   scanFilesDeleted: " {count} fehlende Dateien entfernt.",
   scanFilesFailed: "Scan fehlgeschlagen",
+  scanAlreadyRunning:
+    "Ein Scan läuft bereits. Bitte warte, bis er abgeschlossen ist.",
   scanMountDirectoriesSuccess:
     "Mount-Verzeichnisse-Scan abgeschlossen. {addedCount} neue Videos hinzugefügt. {deletedCount} fehlende Videos gelöscht.",
   subscribePlaylistsSuccess:

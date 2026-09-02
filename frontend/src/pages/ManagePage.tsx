@@ -15,7 +15,7 @@ import ConfirmationModal from '../components/ConfirmationModal';
 import DeleteCollectionModal from '../components/DeleteCollectionModal';
 import CollectionsTable from '../components/ManagePage/CollectionsTable';
 import VideosTable from '../components/ManagePage/VideosTable';
-import { api } from '../utils/apiClient';
+import { api, getApiErrorMessage } from '../utils/apiClient';
 
 import { useAuth } from '../contexts/AuthContext';
 import { useCollection } from '../contexts/CollectionContext';
@@ -25,6 +25,7 @@ import { useVideo } from '../contexts/VideoContext';
 import { Collection, Video } from '../types';
 import { formatSize } from '../utils/formatUtils';
 import { runMutationAsync } from '../utils/mutationUtils';
+import { useScanStatus } from '../hooks/useScanStatus';
 
 const ManagePage: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState<string>('');
@@ -71,6 +72,12 @@ const ManagePage: React.FC = () => {
         setCollectionOrderBy(property);
     };
 
+    // Server-side scan state: a scan keeps running when this page unmounts, so
+    // the button state has to come from the server rather than the mutation.
+    const { data: scanStatus } = useScanStatus(!isVisitor);
+    const isFileScanRunning = scanStatus?.scanType === 'files';
+    const isOtherScanRunning = !!scanStatus?.scanning && !isFileScanRunning;
+
     // Scan files mutation
     const scanMutation = useMutation({
         mutationFn: async () => {
@@ -82,8 +89,9 @@ const ManagePage: React.FC = () => {
             const deletedMsg = data.deletedCount > 0 ? (t('scanFilesDeleted').replace('{count}', data.deletedCount.toString()) || ` ${data.deletedCount} missing files removed.`) : '';
             showSnackbar(addedMsg + deletedMsg);
         },
-        onError: (error: any) => {
-            showSnackbar(`${t('scanFilesFailed') || 'Scan failed'}: ${error.response?.data?.details || error.message}`);
+        onError: async (error: any) => {
+            const detail = await getApiErrorMessage(error, t) || error.message;
+            showSnackbar(`${t('scanFilesFailed') || 'Scan failed'}: ${detail}`);
         }
     });
 
@@ -312,7 +320,8 @@ const ManagePage: React.FC = () => {
                             variant="outlined"
                             startIcon={<FindInPage />}
                             onClick={() => setShowScanConfirmModal(true)}
-                            loading={scanMutation.isPending}
+                            loading={scanMutation.isPending || isFileScanRunning}
+                            disabled={isOtherScanRunning}
                             loadingPosition="start"
                         >
                             {t('scanFiles') || 'Scan Files'}

@@ -390,6 +390,8 @@ export const es = {
   scanFilesSuccess: "Escaneo completo. Se añadieron {count} videos nuevos.",
   scanFilesDeleted: " Se eliminaron {count} archivos faltantes.",
   scanFilesFailed: "Escaneo fallido",
+  scanAlreadyRunning:
+    "Ya hay un escaneo en curso. Espera a que termine.",
   scanMountDirectoriesSuccess:
     "Escaneo de directorios montados completado. Se añadieron {addedCount} videos nuevos. Se eliminaron {deletedCount} videos faltantes.",
   subscribePlaylistsSuccess:

@@ -367,6 +367,7 @@ export const zh = {
   scanFilesSuccess: "扫描完成。添加了 {count} 个新视频。",
   scanFilesDeleted: " 移除了 {count} 个缺失文件。",
   scanFilesFailed: "扫描失败",
+  scanAlreadyRunning: "已有扫描正在进行，请等待其完成。",
   scanMountDirectoriesSuccess:
     "挂载目录扫描完成。添加了 {addedCount} 个新视频。删除了 {deletedCount} 个缺失视频。",
   subscribePlaylistsSuccess: "成功订阅了 {count} 个播放列表{plural}。",

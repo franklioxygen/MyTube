@@ -388,6 +388,7 @@ export const ja = {
   scanFilesSuccess: "スキャン完了。{count} 個の新しい動画が追加されました。",
   scanFilesDeleted: " {count} 個の不足ファイルが削除されました。",
   scanFilesFailed: "スキャンに失敗しました",
+  scanAlreadyRunning: "スキャンが既に実行中です。完了までお待ちください。",
   scanMountDirectoriesSuccess:
     "マウントディレクトリのスキャンが完了しました。{addedCount} 個の新しい動画が追加されました。{deletedCount} 個の不足動画が削除されました。",
   subscribePlaylistsSuccess:

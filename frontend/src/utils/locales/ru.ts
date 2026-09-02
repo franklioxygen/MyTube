@@ -390,6 +390,8 @@ export const ru = {
   scanFilesSuccess: "Сканирование завершено. Добавлено {count} новых видео.",
   scanFilesDeleted: " Удалено {count} отсутствующих файлов.",
   scanFilesFailed: "Сканирование не удалось",
+  scanAlreadyRunning:
+    "Сканирование уже выполняется. Дождитесь его завершения.",
   scanMountDirectoriesSuccess:
     "Сканирование смонтированных директорий завершено. Добавлено {addedCount} новых видео. Удалено {deletedCount} отсутствующих видео.",
   subscribePlaylistsSuccess: "Успешно подписано на {count} плейлист{plural}.",

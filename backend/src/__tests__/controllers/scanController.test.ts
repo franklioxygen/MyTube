@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import fs from 'fs-extra';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { scanFiles, scanMountDirectories } from '../../controllers/scanController';
+import { getScanStatus, scanFiles, scanMountDirectories } from '../../controllers/scanController';
 import * as storageService from '../../services/storageService';
 
 vi.mock('../../services/storageService');
@@ -180,6 +180,66 @@ describe('ScanController', () => {
           fileSize: '1024',
         }),
         { statisticsReason: 'scan' },
+      );
+    });
+  });
+
+  describe('scan status', () => {
+    it('reports an idle scanner', async () => {
+      await getScanStatus(req as Request, res as Response);
+
+      expect(status).toHaveBeenCalledWith(200);
+      expect(json).toHaveBeenCalledWith({
+        scanning: false,
+        scanType: null,
+        startedAt: null,
+      });
+    });
+
+    it('reports the running scan and rejects a concurrent one', async () => {
+      (storageService.getVideos as any).mockReturnValue([]);
+
+      // Hold the first scan open at its first await so a second request
+      // arrives while it is still running.
+      let releaseFirstScan: () => void = () => undefined;
+      (fs.pathExists as any).mockImplementation(
+        () =>
+          new Promise<boolean>((resolve) => {
+            releaseFirstScan = () => resolve(false);
+          }),
+      );
+
+      const firstScan = scanFiles(req as Request, res as Response);
+
+      await getScanStatus(req as Request, res as Response);
+      expect(json).toHaveBeenCalledWith(
+        expect.objectContaining({ scanning: true, scanType: 'files' }),
+      );
+
+      const secondJson = vi.fn();
+      const secondStatus = vi.fn().mockReturnValue({ json: secondJson });
+      await scanFiles(req as Request, {
+        json: secondJson,
+        status: secondStatus,
+      } as unknown as Response);
+
+      expect(secondStatus).toHaveBeenCalledWith(409);
+      expect(secondJson).toHaveBeenCalledWith(
+        expect.objectContaining({ errorKey: 'scanAlreadyRunning' }),
+      );
+
+      releaseFirstScan();
+      await firstScan;
+
+      // The lock is released once the scan finishes.
+      const thirdJson = vi.fn();
+      const thirdStatus = vi.fn().mockReturnValue({ json: thirdJson });
+      await getScanStatus(req as Request, {
+        json: thirdJson,
+        status: thirdStatus,
+      } as unknown as Response);
+      expect(thirdJson).toHaveBeenCalledWith(
+        expect.objectContaining({ scanning: false }),
       );
     });
   });
