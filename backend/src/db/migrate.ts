@@ -261,7 +261,11 @@ export async function runMigrations(options: RunMigrationsOptions = {}) {
     // reaching the 0019 CREATE TABLE users; this idempotent self-heal covers
     // that case so migrateLegacySharedVisitorPassword succeeds on first boot
     // instead of failing with "no such table: users".
-    const { ensureVisitorUsersTable, ensureFavoritesTables } = await import(
+    const {
+      ensureVisitorUsersTable,
+      ensureFavoritesTables,
+      ensureGestureCredentialTable,
+    } = await import(
       "../services/storageService/migrations/schemaMigrations"
     );
     ensureVisitorUsersTable();
@@ -271,6 +275,12 @@ export async function runMigrations(options: RunMigrationsOptions = {}) {
     // never created, and every /favorites request would 500 with
     // "no such table". Idempotent CREATE TABLE IF NOT EXISTS covers that.
     ensureFavoritesTables();
+
+    // Same self-heal for migration 0028's admin_gesture_credential: a new
+    // table cannot be recovered by the column checks above, so without this a
+    // skipped batch leaves every Gesture Login endpoint failing with
+    // "no such table" on a server that reported a clean start.
+    ensureGestureCredentialTable();
 
     const { migrateLegacySharedVisitorPassword } = await import(
       "../services/userService"
