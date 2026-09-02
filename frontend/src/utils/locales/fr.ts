@@ -391,6 +391,8 @@ export const fr = {
   scanFilesSuccess: "Analyse terminée. {count} nouvelles vidéos ajoutées.",
   scanFilesDeleted: " {count} fichiers manquants supprimés.",
   scanFilesFailed: "L'analyse a échoué",
+  scanAlreadyRunning:
+    "Une analyse est déjà en cours. Veuillez attendre qu'elle se termine.",
   scanMountDirectoriesSuccess:
     "Analyse des répertoires de montage terminée. {addedCount} nouvelles vidéos ajoutées. {deletedCount} vidéos manquantes supprimées.",
   subscribePlaylistsSuccess:

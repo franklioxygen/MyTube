@@ -390,6 +390,8 @@ export const pt = {
   scanFilesSuccess: "Verificação concluída. {count} novos vídeos adicionados.",
   scanFilesDeleted: " {count} arquivos ausentes removidos.",
   scanFilesFailed: "Falha na verificação",
+  scanAlreadyRunning:
+    "Já há uma verificação em andamento. Aguarde a conclusão.",
   scanMountDirectoriesSuccess:
     "Verificação de diretórios montados concluída. {addedCount} novos vídeos adicionados. {deletedCount} vídeos ausentes removidos.",
   subscribePlaylistsSuccess:

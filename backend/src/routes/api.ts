@@ -154,6 +154,11 @@ const apiRouteDefinitions: ApiRouteDefinition[] = [
     handlers: [asyncHandler(videoMetadataController.updateProgress)],
   },
   {
+    method: "get",
+    path: "/scan-status",
+    handlers: [asyncHandler(scanController.getScanStatus)],
+  },
+  {
     method: "post",
     path: "/scan-files",
     handlers: [asyncHandler(scanController.scanFiles)],

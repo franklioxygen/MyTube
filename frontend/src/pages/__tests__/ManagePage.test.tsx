@@ -77,6 +77,8 @@ vi.mock('../../contexts/CollectionContext', () => ({
 // Track useMutation calls per render cycle using a counter that resets
 let mutationCallIndex = 0;
 vi.mock('@tanstack/react-query', () => ({
+    // Scan status poll: idle unless a test says otherwise.
+    useQuery: () => ({ data: { scanning: false, scanType: null, startedAt: null } }),
     useMutation: ({ mutationFn, onSuccess, onError }: { mutationFn?: () => Promise<any>; onSuccess?: (data: any) => unknown; onError?: (error: any) => unknown }) => {
         const index = mutationCallIndex++;
         if (index % 2 === 0) {
@@ -102,6 +104,8 @@ vi.mock('../../utils/apiClient', () => ({
     api: {
         post: (...args: any[]) => mockApiPost(...args),
     },
+    getApiErrorMessage: (error: any) =>
+        Promise.resolve(error?.response?.data?.details ?? error?.message),
 }));
 
 vi.mock('../../utils/formatUtils', () => ({
@@ -678,13 +682,14 @@ describe('ManagePage', () => {
             expect(capturedVideosTableProps!.isRefreshingFileSizes).toBe(true);
         });
 
-        it('shows snackbar messages for scan mutation success and error callbacks', () => {
+        it('shows snackbar messages for scan mutation success and error callbacks', async () => {
             renderManagePage();
 
             scanMutationCallbacks.onSuccess?.({ addedCount: 2, deletedCount: 1 });
             expect(mockShowSnackbar).toHaveBeenCalledWith('scanFilesSuccess 2scanFilesDeleted 1');
 
-            scanMutationCallbacks.onError?.({ response: { data: { details: 'scan exploded' } } });
+            // onError resolves the (possibly localized) detail before showing it.
+            await scanMutationCallbacks.onError?.({ response: { data: { details: 'scan exploded' } } });
             expect(mockShowSnackbar).toHaveBeenLastCalledWith('scanFilesFailed: scan exploded');
         });
 

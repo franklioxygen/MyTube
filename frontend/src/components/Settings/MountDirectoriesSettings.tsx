@@ -9,6 +9,7 @@ import {
 import { useMutation } from '@tanstack/react-query';
 import React from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { useScanStatus } from '../../hooks/useScanStatus';
 import { Settings } from '../../types';
 import { api, getApiErrorMessage } from '../../utils/apiClient';
 import { createTranslateOrFallback } from '../../utils/translateOrFallback';
@@ -49,6 +50,12 @@ const MountDirectoriesSettings: React.FC<MountDirectoriesSettingsProps> = ({
 }) => {
     const { t } = useLanguage();
     const translateOrFallback = createTranslateOrFallback(t);
+
+    // Server-side scan state: the scan outlives this component, so a remount
+    // (navigating away and back) must not reset the button to idle.
+    const { data: scanStatus } = useScanStatus(canUseHostAdminFeatures);
+    const isMountScanRunning = scanStatus?.scanType === 'mount';
+    const isOtherScanRunning = !!scanStatus?.scanning && !isMountScanRunning;
 
     // Scan mount directories mutation. Lives here (not in useSettingsMutations)
     // because it composes with the page-local `settings` + `saveMutation`.
@@ -148,7 +155,8 @@ const MountDirectoriesSettings: React.FC<MountDirectoriesSettingsProps> = ({
                             variant="outlined"
                             startIcon={<FindInPage />}
                             onClick={handleScanMountDirectories}
-                            loading={scanMountDirectoriesMutation.isPending}
+                            loading={scanMountDirectoriesMutation.isPending || isMountScanRunning}
+                            disabled={isOtherScanRunning}
                             loadingPosition="start"
                         >
                             {t('scanFiles') || 'Scan Files'}

@@ -384,6 +384,7 @@ export const ko = {
   scanFilesSuccess: "스캔 완료. {count}개의 새 동영상이 추가되었습니다.",
   scanFilesDeleted: " {count}개의 누락된 파일이 제거되었습니다.",
   scanFilesFailed: "스캔 실패",
+  scanAlreadyRunning: "이미 스캔이 실행 중입니다. 완료될 때까지 기다려 주세요.",
   scanMountDirectoriesSuccess:
     "마운트 디렉토리 스캔 완료. {addedCount}개의 새 동영상이 추가되었습니다. {deletedCount}개의 누락된 동영상이 삭제되었습니다.",
   subscribePlaylistsSuccess:

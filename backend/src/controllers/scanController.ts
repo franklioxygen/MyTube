@@ -12,7 +12,12 @@ import { scrapeMetadataFromTMDB } from "../services/tmdbService";
 import { formatVideoFilename } from "../utils/helpers";
 import { logger } from "../utils/logger";
 import { AUDIO_CONTAINER_EXTENSIONS, MEDIA_FILE_EXTENSIONS } from "../utils/videoExtensions";
-import { errorResponse, sendBadRequest, successResponse } from "../utils/response";
+import {
+  errorResponse,
+  sendBadRequest,
+  sendData,
+  successResponse,
+} from "../utils/response";
 import {
   execFileSafe,
   isPathWithinDirectory,
@@ -623,10 +628,51 @@ const processDirectoryFiles = async (
  * only operates on the app-managed local /videos tree, not arbitrary host paths.
  * Errors are automatically handled by asyncHandler middleware
  */
-export const scanFiles = async (
+type ScanType = "files" | "mount";
+
+type ActiveScan = {
+  scanType: ScanType;
+  startedAt: string;
+};
+
+// A scan rewrites library records, so only one may run at a time. The state is
+// held here rather than in the client so a scan still reports as running after
+// the page that started it navigated away and remounted.
+let activeScan: ActiveScan | null = null;
+
+const beginScan = (scanType: ScanType, res: Response): boolean => {
+  if (activeScan) {
+    res.status(409).json(
+      errorResponse("A scan is already running.", {
+        errorKey: "scanAlreadyRunning",
+      })
+    );
+    return false;
+  }
+
+  activeScan = { scanType, startedAt: new Date().toISOString() };
+  return true;
+};
+
+const endScan = (): void => {
+  activeScan = null;
+};
+
+/**
+ * Report whether a scan is currently running
+ */
+export const getScanStatus = async (
   _req: Request,
   res: Response
 ): Promise<void> => {
+  sendData(res, {
+    scanning: activeScan !== null,
+    scanType: activeScan?.scanType ?? null,
+    startedAt: activeScan?.startedAt ?? null,
+  });
+};
+
+const runFileScan = async (res: Response): Promise<void> => {
   logger.info("Starting file scan...");
 
   const existingVideos = storageService.getVideos();
@@ -706,19 +752,26 @@ export const scanFiles = async (
   res.status(200).json({ addedCount, deletedCount });
 };
 
+export const scanFiles = async (
+  _req: Request,
+  res: Response
+): Promise<void> => {
+  if (!beginScan("files", res)) {
+    return;
+  }
+
+  try {
+    await runFileScan(res);
+  } finally {
+    endScan();
+  }
+};
+
 /**
  * Scan mount directories for video files
  * Accepts array of directory paths in request body: { directories: string[] }
  */
-export const scanMountDirectories = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  if (!isAdminTrustLevelAtLeast("host")) {
-    res.status(403).json(createAdminTrustLevelError("host"));
-    return;
-  }
-
+const runMountScan = async (req: Request, res: Response): Promise<void> => {
   logger.info("Starting mount directories scan...");
 
   const { directories } = req.body;
@@ -854,4 +907,24 @@ export const scanMountDirectories = async (
     deletedCount,
     scannedDirectories: validDirectories.length,
   });
+};
+
+export const scanMountDirectories = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  if (!isAdminTrustLevelAtLeast("host")) {
+    res.status(403).json(createAdminTrustLevelError("host"));
+    return;
+  }
+
+  if (!beginScan("mount", res)) {
+    return;
+  }
+
+  try {
+    await runMountScan(req, res);
+  } finally {
+    endScan();
+  }
 };
