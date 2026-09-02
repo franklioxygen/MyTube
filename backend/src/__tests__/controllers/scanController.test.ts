@@ -366,13 +366,15 @@ describe('ScanController', () => {
       (storageService.getVideos as any).mockReturnValue([]);
       (storageService.getCollections as any).mockReturnValue([]);
       (fs.pathExists as any).mockResolvedValue(true);
+      // Two videos, so the folder earns a collection and the link is exercised.
       (fs.readdir as any).mockImplementation((dir: string) =>
         dir === '/mnt/media'
           ? Promise.resolve([
-              { name: 'Heat (1995)', isDirectory: () => true, isSymbolicLink: () => false },
+              { name: 'Breaking Bad', isDirectory: () => true, isSymbolicLink: () => false },
             ])
           : Promise.resolve([
-              { name: 'Heat.mkv', isDirectory: () => false, isSymbolicLink: () => false },
+              { name: 'S01E01.mkv', isDirectory: () => false, isSymbolicLink: () => false },
+              { name: 'S01E02.mkv', isDirectory: () => false, isSymbolicLink: () => false },
             ]),
       );
       (fs.stat as any).mockResolvedValue({
@@ -390,6 +392,46 @@ describe('ScanController', () => {
         expect.any(String),
         { moveFiles: false },
       );
+    });
+
+    it('does not create a collection for a folder holding a single video', async () => {
+      process.env.MYTUBE_ADMIN_TRUST_LEVEL = 'host';
+      (storageService.getVideos as any).mockReturnValue([]);
+      (storageService.getCollections as any).mockReturnValue([]);
+      (fs.pathExists as any).mockResolvedValue(true);
+      (fs.readdir as any).mockImplementation((dir: string) => {
+        if (dir === '/mnt/media') {
+          return Promise.resolve([
+            { name: 'Heat (1995)', isDirectory: () => true, isSymbolicLink: () => false },
+            { name: 'Breaking Bad', isDirectory: () => true, isSymbolicLink: () => false },
+          ]);
+        }
+        if (dir === '/mnt/media/Heat (1995)') {
+          return Promise.resolve([
+            { name: 'Heat.mkv', isDirectory: () => false, isSymbolicLink: () => false },
+          ]);
+        }
+        return Promise.resolve([
+          { name: 'S01E01.mkv', isDirectory: () => false, isSymbolicLink: () => false },
+          { name: 'S01E02.mkv', isDirectory: () => false, isSymbolicLink: () => false },
+        ]);
+      });
+      (fs.stat as any).mockResolvedValue({
+        isDirectory: () => false,
+        birthtime: new Date(),
+        size: 1024,
+      });
+
+      req = { body: { directories: ['/mnt/media'] } };
+
+      await scanMountDirectories(req as Request, res as Response);
+
+      // The single film gets no collection; the two-episode folder does.
+      const created = (storageService.saveCollection as any).mock.calls.map(
+        (call: any[]) => call[0].title,
+      );
+      expect(created).toEqual(['Breaking Bad']);
+      expect(storageService.saveVideo).toHaveBeenCalledTimes(3);
     });
 
     it('drops mount records that are no longer under a configured directory', async () => {

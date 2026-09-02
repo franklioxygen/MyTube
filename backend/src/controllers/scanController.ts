@@ -617,6 +617,28 @@ const processDirectoryFiles = async (
   const collectionIdCache = new Map<string, string>();
   const collectionCreationLocks = new Map<string, Promise<string | undefined>>();
 
+  // A folder holding one video is a single film, not a series, and turning it
+  // into a one-video collection just clutters the library. Count the whole
+  // batch up front so the decision does not depend on scan order. An existing
+  // collection of that name is still joined - only creating a new one is
+  // withheld.
+  const videoCountByCollectionName = new Map<string, number>();
+  for (const filePath of videoFiles) {
+    const dirName = path.dirname(path.relative(normalizedDirectory, filePath));
+    if (dirName === ".") {
+      continue;
+    }
+
+    const name = dirName.split(path.sep)[0];
+    videoCountByCollectionName.set(
+      name,
+      (videoCountByCollectionName.get(name) ?? 0) + 1
+    );
+  }
+
+  const canCreateCollection = (collectionName: string): boolean =>
+    !isMountDirectory || (videoCountByCollectionName.get(collectionName) ?? 0) > 1;
+
   const resolveCollectionId = async (
     collectionName: string
   ): Promise<string | undefined> => {
@@ -640,6 +662,13 @@ const processDirectoryFiles = async (
       if (existingCollection) {
         collectionIdCache.set(collectionName, existingCollection.id);
         return existingCollection.id;
+      }
+
+      if (!canCreateCollection(collectionName)) {
+        logger.info(
+          `Skipping collection for single-video folder: ${collectionName}`
+        );
+        return undefined;
       }
 
       const collectionId = crypto.randomUUID();
