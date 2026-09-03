@@ -1,8 +1,14 @@
 #!/bin/bash
 set -Eeuo pipefail
 
-DATA_DIR="${MYTUBE_DATA_DIR:-/app/data}"
-UPLOADS_DIR="${MYTUBE_UPLOADS_DIR:-/app/uploads}"
+# Container-side paths, and they must be the ones the backend actually uses.
+# Deliberately NOT MYTUBE_DATA_DIR / MYTUBE_UPLOADS_DIR: the shipped Compose
+# stack and the Docker guide document those names as the HOST side of the bind
+# mounts, so where they reach the container's environment their values are host
+# paths. Reading them here prepared and chowned a directory nobody serves from,
+# and left the real /app/data and /app/uploads untouched.
+DATA_DIR="${MYTUBE_BACKEND_DATA_DIR:-/app/data}"
+UPLOADS_DIR="/app/uploads"
 HOME_DIR="${DATA_DIR}/.home"
 TARGET_UID="${PUID:-1000}"
 TARGET_GID="${PGID:-1000}"

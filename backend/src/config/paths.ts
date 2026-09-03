@@ -14,11 +14,21 @@ export const CLOUD_THUMBNAIL_CACHE_DIR: string = path.join(
   "cloud-thumbnail-cache"
 );
 // Where the database, generated secrets, hooks, and legacy JSON live. Defaults
-// to <cwd>/data; MYTUBE_DATA_DIR relocates it, which lets a deployment keep
-// state on a different volume from the code and lets the test suite run
+// to <cwd>/data; MYTUBE_BACKEND_DATA_DIR relocates it, which lets a deployment
+// keep state on a different volume from the code and lets the test suite run
 // against a scratch directory instead of the developer's real database.
-export const DATA_DIR: string = process.env.MYTUBE_DATA_DIR
-  ? path.resolve(process.env.MYTUBE_DATA_DIR)
+//
+// Deliberately NOT MYTUBE_DATA_DIR: the shipped Compose stack and the Docker
+// guide document that name as the HOST side of the `<host>:/app/data` bind
+// mount, so its value is a host path such as "../data". Reading it here as a
+// container path pointed the backend at a directory that does not hold the
+// mounted database, and entrypoint.sh (which has read it the same way since
+// v1.9) had already created it, so the backend opened a brand new database
+// instead of failing. A fresh database defaults to loginEnabled: false, and
+// isLoginRequired() then reports that no login is needed - an upgrade turned a
+// password-protected instance into a public one.
+export const DATA_DIR: string = process.env.MYTUBE_BACKEND_DATA_DIR
+  ? path.resolve(process.env.MYTUBE_BACKEND_DATA_DIR)
   : path.join(ROOT_DIR, "data");
 export const COOKIES_FILENAME = "cookies.txt";
 

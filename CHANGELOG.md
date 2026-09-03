@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fix
+
+- Stop an upgrade to v1.11.4 switching off login protection. v1.11.4 taught the backend to read `MYTUBE_DATA_DIR` as the directory holding `mytube.db`, but that name already belongs to the *host* side of the `<host>:/app/data` bind mount in `stacks/docker-compose.single-container.yml` and the Docker guide, and `entrypoint.sh` has read it as a container path since v1.9. Where that variable reached the container's environment - an `env_file`, or a NAS or Portainer stack that passes its variables through - the backend resolved a host path such as `../data` or `/volume1/docker/mytube/data` inside the container, found no database there, and opened a brand new one; nothing failed, because the entrypoint had already created the directory. A fresh database carries default settings, `loginEnabled` defaults to false, and `isLoginRequired()` then reports that no login is needed, which is the single condition every route guard checks first - so a password-protected instance came back up open to anyone, with an empty library. The backend override is now `MYTUBE_BACKEND_DATA_DIR` and `MYTUBE_DATA_DIR` is ignored again, so the data directory resolves to `<backend cwd>/data` exactly as it did in v1.11.3. `entrypoint.sh` reads the same variable, so the directory it prepares and chowns is the one the backend opens; it no longer reads `MYTUBE_UPLOADS_DIR` either, which is the host side of the uploads mount in exactly the same way and, when it leaked in, sent the startup permission pass at a directory nothing serves from while leaving the real `/app/uploads` alone.
+
 ## v1.11.4 (2026-09-03)
 
 ### Added

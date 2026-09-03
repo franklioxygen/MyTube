@@ -161,9 +161,9 @@ export async function runMigrations(options: RunMigrationsOptions = {}) {
     // the database file is fully accessible before attempting migration
     // This helps prevent "database is locked" errors on first deployment
     // Must come from DATA_DIR, not a second guess at it. Every check below
-    // validates against DATA_DIR, so rebuilding the path from ROOT_DIR made
-    // the two disagree the moment MYTUBE_DATA_DIR moved the data directory -
-    // the traversal guard then aborted migrations and left a database with no
+    // validates against DATA_DIR, so rebuilding the path from ROOT_DIR made the
+    // two disagree the moment MYTUBE_BACKEND_DATA_DIR moved the data directory
+    // - the traversal guard then aborted migrations and left a database with no
     // tables at all.
     const dbPath = path.join(DATA_DIR, DB_FILENAME);
     if (!pathExistsSafeSync(dbPath, DATA_DIR)) {
