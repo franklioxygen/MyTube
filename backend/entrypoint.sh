@@ -5,8 +5,8 @@ set -Eeuo pipefail
 # Deliberately NOT MYTUBE_DATA_DIR / MYTUBE_UPLOADS_DIR: the shipped Compose
 # stack and the Docker guide document those names as the HOST side of the bind
 # mounts, so where they reach the container's environment their values are host
-# paths. Reading them here prepared and chowned a directory nobody serves from,
-# and left the real /app/data and /app/uploads untouched.
+# paths. Reading them here prepares and chowns a directory nobody serves from,
+# and leaves the real /app/data and /app/uploads untouched.
 DATA_DIR="${MYTUBE_BACKEND_DATA_DIR:-/app/data}"
 UPLOADS_DIR="/app/uploads"
 HOME_DIR="${DATA_DIR}/.home"

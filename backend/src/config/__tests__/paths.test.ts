@@ -65,8 +65,8 @@ describe('paths config', () => {
 
   // MYTUBE_DATA_DIR is the HOST side of the `<host>:/app/data` bind mount in the
   // shipped Compose stack, so inside the container it names a path that holds no
-  // database. Honouring it here opened a brand new one: an upgraded instance came
-  // up with default settings, and loginEnabled defaults to false.
+  // database. Honouring it here opens a brand new one, so an upgraded instance
+  // comes up on default settings - and loginEnabled defaults to false.
   it('should ignore MYTUBE_DATA_DIR, which is a host path, not a container path', async () => {
     process.env.MYTUBE_DATA_DIR = path.join(path.sep, 'volume1', 'docker', 'mytube', 'data');
     const paths = await loadPaths();
