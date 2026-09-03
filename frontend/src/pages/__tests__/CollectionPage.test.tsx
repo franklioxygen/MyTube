@@ -480,6 +480,27 @@ describe('CollectionPage', () => {
             expect(screen.getByTestId('VideoCard-v1')).toBeInTheDocument();
         });
 
+        it('leaves the arrow keys to an open dialog', () => {
+            withThirteenVideos();
+            renderCollectionPage();
+            fireEvent.click(screen.getByLabelText('add tags to collection'));
+
+            const dialog = screen.getByRole('dialog');
+            act(() => {
+                within(dialog)
+                    .getByText('tag1')
+                    .dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+            });
+            // Also covers a keypress that lands outside the dialog, as one does
+            // after a click on the backdrop.
+            act(() => {
+                window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
+            });
+
+            expect(screen.getByTestId('VideoCard-v1')).toBeInTheDocument();
+            expect(screen.queryByTestId('VideoCard-v13')).not.toBeInTheDocument();
+        });
+
         it('leaves the arrow keys alone while typing in a field', () => {
             withThirteenVideos();
             renderCollectionPage();
