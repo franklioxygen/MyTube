@@ -9,7 +9,12 @@ import {
   tmdbHttpClient,
   validateTMDBNumericId,
 } from "./httpClient";
-import { isConfidentTMDBTitleMatch } from "./titleMatch";
+import {
+  getTMDBTitleMatchStrength,
+  isConfidentTMDBTitleMatch,
+  TMDB_TITLE_MATCH_EXACT,
+  TMDB_TITLE_MATCH_NONE,
+} from "./titleMatch";
 import type {
   TMDBCrewMember,
   TMDBMediaSearchResult,
@@ -73,6 +78,50 @@ async function fetchEnglishTitlesById(
   return titlesById;
 }
 
+/**
+ * Keep the results that answer `title` best, rather than every result that
+ * merely clears the bar. When nothing matches exactly and the search ran in
+ * another language, the English titles are fetched and scoring is redone -
+ * that is usually where the exact match lives for a film named in English.
+ */
+async function selectBestTitleMatches<T extends { id: number }>(
+  results: T[],
+  title: string,
+  searchPath: string,
+  params: Record<string, string>,
+  credential: string,
+  tmdbLanguage: string
+): Promise<T[]> {
+  const scoreAll = (englishTitles?: Map<number, string[]>) =>
+    results.map((item) => ({
+      item,
+      strength: getTMDBTitleMatchStrength(
+        title,
+        item,
+        englishTitles?.get(item.id)
+      ),
+    }));
+
+  let scored = scoreAll();
+  let best = Math.max(TMDB_TITLE_MATCH_NONE, ...scored.map((s) => s.strength));
+
+  if (best < TMDB_TITLE_MATCH_EXACT && tmdbLanguage !== ENGLISH_TMDB_LANGUAGE) {
+    const englishTitles = await fetchEnglishTitlesById(
+      searchPath,
+      params,
+      credential
+    );
+    scored = scoreAll(englishTitles);
+    best = Math.max(TMDB_TITLE_MATCH_NONE, ...scored.map((s) => s.strength));
+  }
+
+  if (best === TMDB_TITLE_MATCH_NONE) {
+    return [];
+  }
+
+  return scored.filter((s) => s.strength === best).map((s) => s.item);
+}
+
 export async function searchMovie(
   title: string,
   credential: string,
@@ -96,20 +145,14 @@ export async function searchMovie(
 
     const results: TMDBMovieResult[] = response.data.results || [];
     if (results.length > 0) {
-      let matchedResults = results.filter((movie) =>
-        isConfidentTMDBTitleMatch(title, movie)
+      const matchedResults = await selectBestTitleMatches(
+        results,
+        title,
+        "/search/movie",
+        params,
+        credential,
+        tmdbLanguage
       );
-
-      if (matchedResults.length === 0 && tmdbLanguage !== ENGLISH_TMDB_LANGUAGE) {
-        const englishTitles = await fetchEnglishTitlesById(
-          "/search/movie",
-          params,
-          credential
-        );
-        matchedResults = results.filter((movie) =>
-          isConfidentTMDBTitleMatch(title, movie, englishTitles.get(movie.id))
-        );
-      }
 
       if (matchedResults.length === 0) {
         return null;
@@ -218,20 +261,14 @@ export async function searchTVShow(
 
     const results: TMDBTVResult[] = response.data.results || [];
     if (results.length > 0) {
-      let matchedResults = results.filter((tvShow) =>
-        isConfidentTMDBTitleMatch(title, tvShow)
+      const matchedResults = await selectBestTitleMatches(
+        results,
+        title,
+        "/search/tv",
+        params,
+        credential,
+        tmdbLanguage
       );
-
-      if (matchedResults.length === 0 && tmdbLanguage !== ENGLISH_TMDB_LANGUAGE) {
-        const englishTitles = await fetchEnglishTitlesById(
-          "/search/tv",
-          params,
-          credential
-        );
-        matchedResults = results.filter((tvShow) =>
-          isConfidentTMDBTitleMatch(title, tvShow, englishTitles.get(tvShow.id))
-        );
-      }
 
       if (matchedResults.length === 0) {
         return null;
@@ -368,13 +405,17 @@ function scoreMultiSearchResult(item: TMDBMediaSearchResult, year?: number): num
   return score;
 }
 
+// Title-match strength outranks the year/popularity score: a companion
+// making-of shares the film's year and can outscore it, but only the film
+// itself carries the exact title.
 function pickBestMultiSearchResult(
   results: TMDBSearchResult[],
   queryTitle: string,
   year?: number,
   englishTitles?: Map<number, string[]>
-): TMDBMediaSearchResult | null {
+): { match: TMDBMediaSearchResult | null; strength: number } {
   let bestMatch: TMDBMediaSearchResult | null = null;
+  let bestStrength = TMDB_TITLE_MATCH_NONE;
   let bestScore = -1;
 
   for (const item of results) {
@@ -383,24 +424,27 @@ function pickBestMultiSearchResult(
     }
 
     const mediaItem = item as TMDBMediaSearchResult;
-    if (
-      !isConfidentTMDBTitleMatch(
-        queryTitle,
-        mediaItem,
-        englishTitles?.get(mediaItem.id)
-      )
-    ) {
+    const strength = getTMDBTitleMatchStrength(
+      queryTitle,
+      mediaItem,
+      englishTitles?.get(mediaItem.id)
+    );
+    if (strength === TMDB_TITLE_MATCH_NONE) {
       continue;
     }
 
     const score = scoreMultiSearchResult(mediaItem, year);
-    if (score > bestScore) {
+    if (
+      strength > bestStrength ||
+      (strength === bestStrength && score > bestScore)
+    ) {
+      bestStrength = strength;
       bestScore = score;
       bestMatch = mediaItem;
     }
   }
 
-  return bestMatch;
+  return { match: bestMatch, strength: bestStrength };
 }
 
 async function fetchTMDBSearchDetails(
@@ -485,17 +529,32 @@ export async function searchTMDBSingle(
     });
 
     const results: TMDBSearchResult[] = response.data.results || [];
-    let bestMatch = pickBestMultiSearchResult(results, title, year);
+    let picked = pickBestMultiSearchResult(results, title, year);
 
-    if (!bestMatch && results.length > 0 && tmdbLanguage !== ENGLISH_TMDB_LANGUAGE) {
+    // Not just when nothing matched: a loose match here is often a companion
+    // release, while the film's own English title matches exactly.
+    if (
+      picked.strength < TMDB_TITLE_MATCH_EXACT &&
+      results.length > 0 &&
+      tmdbLanguage !== ENGLISH_TMDB_LANGUAGE
+    ) {
       const englishTitles = await fetchEnglishTitlesById(
         "/search/multi",
         params,
         credential
       );
-      bestMatch = pickBestMultiSearchResult(results, title, year, englishTitles);
+      const withEnglish = pickBestMultiSearchResult(
+        results,
+        title,
+        year,
+        englishTitles
+      );
+      if (withEnglish.strength > picked.strength) {
+        picked = withEnglish;
+      }
     }
 
+    const bestMatch = picked.match;
     if (!bestMatch) {
       return { result: null, mediaType: null };
     }

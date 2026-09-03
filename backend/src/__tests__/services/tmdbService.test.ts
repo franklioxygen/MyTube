@@ -10,7 +10,13 @@ import {
   testTMDBCredential,
 } from "../../services/tmdbService";
 import * as settingsService from "../../services/storageService/settings";
-import { isConfidentTMDBTitleMatch } from "../../services/tmdbService/titleMatch";
+import {
+  getTMDBTitleMatchStrength,
+  isConfidentTMDBTitleMatch,
+  TMDB_TITLE_MATCH_EXACT,
+  TMDB_TITLE_MATCH_LOOSE,
+  TMDB_TITLE_MATCH_NONE,
+} from "../../services/tmdbService/titleMatch";
 
 const axiosMocks = vi.hoisted(() => {
   const get = vi.fn();
@@ -166,6 +172,39 @@ describe("tmdbService", () => {
     });
   });
 
+  describe("parseFilename release-name cleanup", () => {
+    // Real names from a media library; each previously left junk in the title
+    // that sank the TMDB lookup.
+    const cases: Array<[string, string]> = [
+      ["A.Foggy.Tale.2025.1080p.NF.WEB-DL.DDP5.1.H.264-MWeb", "A Foggy Tale"],
+      [
+        "All.Quiet.on.the.Western.Front.2022.1080p.NF.WEBRip.1600MB.DD5.1.x264-GalaxyRG",
+        "All Quiet on the Western Front",
+      ],
+      [
+        "Avatar.The.Way.of.Water.2022.2160p.WEB-DL.DDP5.1.Atmos.DV.HDR10.HEVC-CMRG",
+        "Avatar The Way of Water",
+      ],
+      [
+        "An.Unfinished.Film.2024.1080p.CATCHPLAY+.WEB-DL.AAC2.0.H.264-CHDWEB",
+        "An Unfinished Film",
+      ],
+    ];
+
+    it.each(cases)("cleans %s", (filename, expected) => {
+      expect(parseFilename(`${filename}.mkv`).titles[0]).toBe(expected);
+    });
+
+    it("offers a candidate without the trailing release group", () => {
+      // Groups are endlessly varied, so rather than enumerate them the search
+      // gets a shortened candidate to try as well.
+      const parsed = parseFilename(
+        "A.Simple.Life.2011.2160p.WEB-DL.H265.AAC.2.0-Zaxyzit.mkv"
+      );
+      expect(parsed.titles).toContain("A Simple Life");
+    });
+  });
+
   describe("isConfidentTMDBTitleMatch", () => {
     // Searched under zh-CN, TMDB answers with the localized title and the
     // original-language one. For a French film named in English by the release
@@ -195,6 +234,41 @@ describe("tmdbService", () => {
           "Barbie",
         ])
       ).toBe(false);
+    });
+  });
+
+  describe("getTMDBTitleMatchStrength", () => {
+    // Real TMDB responses for query "All Quiet on the Western Front", year
+    // 2022. Under zh-CN the film answers with its Chinese and German titles,
+    // while a companion making-of carries the query inside its own title.
+    const film = {
+      id: 49046,
+      title: "西线无战事",
+      original_title: "Im Westen nichts Neues",
+    };
+    const makingOf = {
+      id: 1086967,
+      title: "Making All Quiet on the Western Front",
+      original_title: "Making All Quiet on the Western Front",
+    };
+    const query = "All Quiet on the Western Front";
+
+    it("ranks the companion release above nothing but below the film", () => {
+      expect(getTMDBTitleMatchStrength(query, film)).toBe(TMDB_TITLE_MATCH_NONE);
+      expect(getTMDBTitleMatchStrength(query, makingOf)).toBe(
+        TMDB_TITLE_MATCH_LOOSE
+      );
+    });
+
+    it("puts the film first once its English title is available", () => {
+      // This is the pairing that matters: without the English pass the only
+      // match is the making-of, and it wins by default.
+      expect(getTMDBTitleMatchStrength(query, film, [query])).toBe(
+        TMDB_TITLE_MATCH_EXACT
+      );
+      expect(
+        getTMDBTitleMatchStrength(query, makingOf, [makingOf.title])
+      ).toBe(TMDB_TITLE_MATCH_LOOSE);
     });
   });
 

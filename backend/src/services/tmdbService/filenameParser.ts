@@ -182,7 +182,28 @@ function stripTechnicalMetadata(name: string): string {
   return stripTrailingReleaseGroup(
     name
     .replace(/\b(H26[45]|HEVC|x26[45]|VP9|AV1|H\.26[45])\b/gi, "")
+    // A codec glued to its channel count: DDP5.1, DD5.1, AAC2.0, DTS5.1. The
+    // bare-word pass below cannot see these - there is no word boundary
+    // between "AAC" and "2".
+    .replace(
+      /\b(?:DDP|DD|AAC|AC3|EAC3|DTS|TrueHD|Atmos|Opus|FLAC|MP3|LPCM)\d(?:\.\d)?\b/gi,
+      ""
+    )
     .replace(/\b(AAC|AC3|DTS|FLAC|MP3|Vorbis|EAC3|TrueHD|Atmos)\b/gi, "")
+    // A channel layout left standing on its own once its codec is gone.
+    .replace(/\b\d\.\d\b/g, "")
+    // Bit depth, frame rate, channel count and file size.
+    .replace(/\b(\d{1,2}bit|\d{2,3}fps|\dch|\d+(?:\.\d+)?(?:MB|GB))\b/gi, "")
+    // The streaming service the rip came from. Short tokens that are also real
+    // titles ("IT", "MAX") are deliberately left out.
+    .replace(
+      /\b(NF|AMZN|ATVP|DSNP|HMAX|PCOK|HULU|VIU|CATCHPLAY\+?|CRAV|STAN)\b/g,
+      ""
+    )
+    // Dynamic-range and edition markers TMDB titles never carry.
+    .replace(/\b(HDR10\+?|HDR|DoVi|SDR|Upscaled|REMASTERED)\b/gi, "")
+    // A "+" stranded by a service tag like CATCHPLAY+.
+    .replace(/(^|[\s._-])\+(?=[\s._-]|$)/g, "$1")
     .replace(/\[[A-Z][a-zA-Z0-9]+\]\s*$/, "")
     .replace(/\b(Rip|Remux|Mux|Enc|Dec)\b/gi, "")
     .replace(/\[([^\]]+)\]/g, (_match, content: string) => {
@@ -647,6 +668,11 @@ export function parseFilename(filename: string): ParsedFilename {
   const readableEnglishCandidate = buildReadableEnglishCandidate(nameWithoutExt);
   if (readableEnglishCandidate) {
     addCandidate(titleCandidates, seen, readableEnglishCandidate);
+
+    const readableWords = readableEnglishCandidate.split(" ");
+    if (readableWords.length >= 3) {
+      addCandidate(titleCandidates, seen, readableWords.slice(0, -1).join(" "));
+    }
   }
 
   const englishWords = extractEnglishWords(segments);
