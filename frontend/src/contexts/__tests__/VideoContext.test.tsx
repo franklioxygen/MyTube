@@ -300,6 +300,9 @@ describe('VideoContext', () => {
     // Deleting a video can change favorite author/collection counts and covers.
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['favorite-authors'] });
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['favorite-collections'] });
+    // The database cascades membership away with the video, so a cached
+    // collection would keep listing an id that no longer exists.
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['collections'] });
 
     mockApiDelete.mockRejectedValueOnce(new Error('delete fail'));
     const failed = await result.current.deleteVideo('v2', { showSnackbar: false });

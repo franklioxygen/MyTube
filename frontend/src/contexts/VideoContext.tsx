@@ -196,6 +196,10 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             // empty author/collection pages.
             queryClient.invalidateQueries({ queryKey: ['favorite-authors'] });
             queryClient.invalidateQueries({ queryKey: ['favorite-collections'] });
+            // Membership is cascaded away with the video in the database, so a
+            // collection cached here would go on listing an id that is gone -
+            // and a collection left with nothing would not read as empty.
+            queryClient.invalidateQueries({ queryKey: ['collections'] });
             if (variables.options?.showSnackbar !== false) {
                 showSnackbar(t('videoRemovedSuccessfully'));
             }
