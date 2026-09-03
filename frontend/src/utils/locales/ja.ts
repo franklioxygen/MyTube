@@ -727,7 +727,6 @@ export const ja = {
   compatibilityMode: "D Mode",
   compatibilityModeEnter: "D Mode（車載ディスプレイ）",
   compatibilityModeExit: "標準プレーヤーに戻る",
-  compatibilityModeLoading: "D Mode の再生を準備しています...",
   compatibilityModeFailed: "D Mode の再生に失敗しました",
   compatibilityModeFallbackHint: "D Mode をオフにすると標準プレーヤーを使用できます。",
   compatibilityModeUnplayable: "この動画はこの画面では再生できません。",

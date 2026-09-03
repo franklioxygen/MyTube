@@ -712,7 +712,6 @@ export const ar = {
   compatibilityMode: "D Mode",
   compatibilityModeEnter: "‏D Mode (شاشة السيارة)",
   compatibilityModeExit: "العودة إلى المشغّل القياسي",
-  compatibilityModeLoading: "جاري تحضير تشغيل D Mode...",
   compatibilityModeFailed: "فشل تشغيل D Mode",
   compatibilityModeFallbackHint: "أوقف D Mode لاستخدام المشغّل القياسي.",
   compatibilityModeUnplayable: "لا يمكن تشغيل هذا الفيديو على هذه الشاشة.",

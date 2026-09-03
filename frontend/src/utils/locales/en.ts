@@ -698,7 +698,6 @@ export const en = {
   compatibilityMode: "D Mode",
   compatibilityModeEnter: "D Mode (in-car display)",
   compatibilityModeExit: "Back to the standard player",
-  compatibilityModeLoading: "Preparing D Mode playback...",
   compatibilityModeFailed: "D Mode playback failed",
   compatibilityModeFallbackHint: "Turn D Mode off to use the standard player.",
   compatibilityModeUnplayable: "This video cannot be played on this screen.",

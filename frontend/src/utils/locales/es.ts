@@ -736,7 +736,6 @@ export const es = {
   compatibilityMode: "D Mode",
   compatibilityModeEnter: "D Mode (pantalla del coche)",
   compatibilityModeExit: "Volver al reproductor estándar",
-  compatibilityModeLoading: "Preparando la reproducción de D Mode...",
   compatibilityModeFailed: "Error de reproducción de D Mode",
   compatibilityModeFallbackHint:
     "Desactiva D Mode para usar el reproductor estándar.",

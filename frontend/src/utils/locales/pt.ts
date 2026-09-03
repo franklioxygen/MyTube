@@ -732,7 +732,6 @@ export const pt = {
   compatibilityMode: "D Mode",
   compatibilityModeEnter: "D Mode (tela do carro)",
   compatibilityModeExit: "Voltar ao player padrão",
-  compatibilityModeLoading: "Preparando a reprodução do D Mode...",
   compatibilityModeFailed: "Falha na reprodução do D Mode",
   compatibilityModeFallbackHint: "Desative o D Mode para usar o player padrão.",
   compatibilityModeUnplayable:

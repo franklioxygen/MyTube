@@ -690,7 +690,6 @@ export const zh = {
   compatibilityMode: "D Mode",
   compatibilityModeEnter: "D Mode（车机屏幕）",
   compatibilityModeExit: "返回标准播放器",
-  compatibilityModeLoading: "正在准备 D Mode 播放...",
   compatibilityModeFailed: "D Mode 播放失败",
   compatibilityModeFallbackHint: "关闭 D Mode 即可使用标准播放器。",
   compatibilityModeUnplayable: "此视频无法在本屏幕上播放。",

@@ -740,7 +740,6 @@ export const de = {
   compatibilityMode: "D Mode",
   compatibilityModeEnter: "D Mode (Fahrzeugdisplay)",
   compatibilityModeExit: "Zurück zum Standardplayer",
-  compatibilityModeLoading: "D-Mode-Wiedergabe wird vorbereitet ...",
   compatibilityModeFailed: "D-Mode-Wiedergabe fehlgeschlagen",
   compatibilityModeFallbackHint:
     "Schalte D Mode aus, um den Standardplayer zu nutzen.",

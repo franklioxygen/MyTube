@@ -727,7 +727,6 @@ export const ru = {
   compatibilityMode: "D Mode",
   compatibilityModeEnter: "D Mode (экран автомобиля)",
   compatibilityModeExit: "Вернуться к стандартному плееру",
-  compatibilityModeLoading: "Подготовка воспроизведения D Mode...",
   compatibilityModeFailed: "Не удалось воспроизвести в D Mode",
   compatibilityModeFallbackHint:
     "Отключите D Mode, чтобы использовать стандартный плеер.",
