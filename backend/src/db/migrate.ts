@@ -174,6 +174,31 @@ function findDatabase(directory: string): string | null {
   }
 }
 
+function pathsReferToSameDatabase(
+  selectedDatabase: string,
+  candidateDatabase: string
+): boolean {
+  try {
+    const selectedStats = statTrustedSync(selectedDatabase);
+    const candidateStats = statTrustedSync(candidateDatabase);
+    const hasUsableIdentity =
+      typeof selectedStats.dev === "number" &&
+      typeof selectedStats.ino === "number" &&
+      typeof candidateStats.dev === "number" &&
+      typeof candidateStats.ino === "number" &&
+      (selectedStats.dev !== 0 || selectedStats.ino !== 0) &&
+      (candidateStats.dev !== 0 || candidateStats.ino !== 0);
+
+    return (
+      hasUsableIdentity &&
+      selectedStats.dev === candidateStats.dev &&
+      selectedStats.ino === candidateStats.ino
+    );
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Refuse to start on an empty data directory when a populated database sits at
  * a directory this deployment plausibly meant instead.
@@ -193,6 +218,7 @@ function ensureDataDirIsNotMisdirected(): void {
   }
 
   const selectedDatabaseIsEmpty = selectedDatabaseState === "empty";
+  const selectedDatabase = resolveSafePath(DB_FILENAME, DATA_DIR);
   const legacyValue = process.env[LEGACY_DATA_DIR_ENV_VAR];
   const candidates: Array<{ directory: string; explanation: string }> = [];
 
@@ -217,6 +243,13 @@ function ensureDataDirIsNotMisdirected(): void {
   for (const candidate of candidates) {
     const existingDatabase = findDatabase(candidate.directory);
     if (candidate.directory === DATA_DIR || existingDatabase === null) {
+      continue;
+    }
+
+    // Symlinks and bind mounts can expose one file under different lexical
+    // paths. Device/inode identity follows those aliases and prevents a false
+    // ambiguous-configuration failure.
+    if (pathsReferToSameDatabase(selectedDatabase, existingDatabase)) {
       continue;
     }
 

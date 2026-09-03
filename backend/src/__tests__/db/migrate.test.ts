@@ -271,6 +271,22 @@ describe("runMigrations", () => {
       expect(migrateMock).toHaveBeenCalledTimes(1);
     });
 
+    it("recognizes an alias of the selected database by device and inode", async () => {
+      process.env.MYTUBE_DATA_DIR = "/srv/data-alias";
+      securityMocks.pathExistsTrustedSync.mockImplementation(
+        (candidate: string) => candidate === "/srv/data-alias/mytube.db"
+      );
+      securityMocks.statTrustedSync.mockReturnValue({
+        dev: 42,
+        ino: 99,
+        size: 4096,
+      } as any);
+
+      await runMigrations();
+
+      expect(migrateMock).toHaveBeenCalledTimes(1);
+    });
+
     it("does not block startup when the database cannot be inspected", async () => {
       sqlitePrepareMock.mockImplementation(() => {
         throw new Error("no such table: sqlite_master");
