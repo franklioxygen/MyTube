@@ -660,6 +660,12 @@ export const ko = {
   size: "크기",
   actions: "작업",
   deleteCollection: "컬렉션 삭제",
+  cleanup: "정리",
+  cleanupEmptyCollectionsTitle: "빈 컬렉션을 정리할까요?",
+  cleanupEmptyCollectionsMessage:
+    "동영상이 없는 컬렉션 {count}개가 삭제됩니다. 다른 컬렉션의 동영상에는 영향을 주지 않습니다.",
+  cleanupEmptyCollectionsSuccess: "빈 컬렉션 {count}개를 삭제했습니다.",
+  cleanupEmptyCollectionsFailed: "빈 컬렉션 정리에 실패했습니다",
   deleteVideo: "동영상 삭제",
   redownloadVideo: "동영상 다시 다운로드",
   redownloadThumbnail: "썸네일 다시 다운로드",

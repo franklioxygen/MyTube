@@ -93,6 +93,10 @@ All API routes are mounted under `/api` unless noted otherwise.
   - Body: `{ name: string, videoId?: string }`
 - `PUT /api/collections/:id` - Update collection
   - Body: `{ name?: string, videoId?: string, action?: "add" | "remove" }`
+- `DELETE /api/collections/empty` - Delete every collection that holds no videos
+  - Emptiness is decided by the server, not the caller; no request body or query params
+  - Response: `{ success: true, deletedCount: number, deletedCollections: [{ id, name }] }`
+  - Registered ahead of `DELETE /api/collections/:id`, so `empty` is never read as a collection id
 - `DELETE /api/collections/:id` - Delete collection
   - Query params: `deleteVideos=true` (optional, also delete videos in the collection)
 

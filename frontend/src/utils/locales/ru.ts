@@ -668,6 +668,12 @@ export const ru = {
   size: "Размер",
   actions: "Действия",
   deleteCollection: "Удалить коллекцию",
+  cleanup: "Очистить",
+  cleanupEmptyCollectionsTitle: "Очистить пустые коллекции?",
+  cleanupEmptyCollectionsMessage:
+    "Коллекций без видео: {count}. Они будут удалены. Видео в других коллекциях не затрагиваются.",
+  cleanupEmptyCollectionsSuccess: "Удалено пустых коллекций: {count}.",
+  cleanupEmptyCollectionsFailed: "Не удалось очистить пустые коллекции",
   deleteVideo: "Удалить видео",
   redownloadVideo: "Скачать видео заново",
   redownloadThumbnail: "Скачать миниатюру заново",

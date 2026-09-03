@@ -23,6 +23,8 @@ vi.mock("../../services/storageService", () => ({
   saveVideo: vi.fn(),
   addVideoToCollection: vi.fn(),
   getCollections: vi.fn(),
+  getCollectionById: vi.fn(),
+  atomicUpdateCollection: vi.fn(),
   saveCollection: vi.fn(),
 }));
 

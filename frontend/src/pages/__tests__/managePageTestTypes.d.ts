@@ -45,8 +45,11 @@ export interface CollectionsTableProps {
     totalCollectionsCount: number;
     page: number;
     getCollectionSize: (videoIds: string[]) => string;
+    emptyCollectionsCount: number;
+    isCleaningUpEmpty: boolean;
     onDelete?: (col: Collection) => void;
     onUpdate: (id: string, name: string) => Promise<void>;
     onPageChange?: (event: unknown, page: number) => void;
     onSort?: (field: string) => void;
+    onCleanupEmpty?: () => void;
 }

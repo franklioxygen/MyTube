@@ -88,6 +88,34 @@ describe('ScanController', () => {
   let res: Partial<Response>;
   let json: any;
   let status: any;
+  // A small stateful stand-in for the collection store, so the ordering tests
+  // can assert what a collection ends up holding rather than which calls it
+  // took to get there.
+  let collectionStore: Map<string, { id: string; videos: string[] }>;
+  let collectionWrites: number;
+
+  const seedCollection = (id: string, videoIds: string[]) => {
+    collectionStore.set(id, { id, videos: [...videoIds] });
+  };
+
+  const storedCollectionVideos = (collectionName: string): string[] => {
+    const created = (storageService.saveCollection as any).mock.calls
+      .map((call: any[]) => call[0])
+      .find(
+        (collection: any) =>
+          collection.name === collectionName || collection.title === collectionName,
+      );
+    const id = created?.id ?? collectionName;
+    return collectionStore.get(id)?.videos ?? [];
+  };
+
+  const videoIdsByFilename = (): Map<string, string> =>
+    new Map(
+      (storageService.saveVideo as any).mock.calls.map((call: any[]) => [
+        call[0].videoFilename,
+        call[0].id,
+      ]),
+    );
 
   afterEach(() => {
     if (originalTrustLevel === undefined) {
@@ -107,6 +135,42 @@ describe('ScanController', () => {
       json,
       status,
     };
+
+    collectionStore = new Map();
+    collectionWrites = 0;
+    (storageService.saveCollection as any).mockImplementation((collection: any) => {
+      collectionStore.set(collection.id, {
+        id: collection.id,
+        videos: [...(collection.videos ?? [])],
+      });
+      return collection;
+    });
+    (storageService.getCollectionById as any).mockImplementation((id: string) =>
+      collectionStore.get(id),
+    );
+    (storageService.addVideoToCollection as any).mockImplementation(
+      (id: string, videoId: string) => {
+        const entry = collectionStore.get(id) ?? { id, videos: [] };
+        if (!entry.videos.includes(videoId)) {
+          entry.videos.push(videoId);
+        }
+        collectionStore.set(id, entry);
+        return entry;
+      },
+    );
+    (storageService.atomicUpdateCollection as any).mockImplementation(
+      (id: string, updateFn: (collection: any) => any) => {
+        const entry = collectionStore.get(id) ?? { id, videos: [] };
+        const updated = updateFn(JSON.parse(JSON.stringify(entry)));
+        if (!updated) {
+          return null;
+        }
+
+        collectionWrites += 1;
+        collectionStore.set(id, { id, videos: [...updated.videos] });
+        return updated;
+      },
+    );
   });
 
   describe('scanFiles', () => {
@@ -401,6 +465,57 @@ describe('ScanController', () => {
       );
     });
 
+    it('numbers collection members by the folder listing, not by finish order', async () => {
+      process.env.MYTUBE_ADMIN_TRUST_LEVEL = 'host';
+      (storageService.getVideos as any).mockReturnValue([]);
+      (storageService.getCollections as any).mockReturnValue([]);
+      (fs.pathExists as any).mockResolvedValue(true);
+      const { scrapeMetadataFromTMDB } = await import('../../services/tmdbService');
+      (scrapeMetadataFromTMDB as any).mockResolvedValue(null);
+      (fs.readdir as any).mockImplementation((dir: string) =>
+        dir === '/mnt/tv'
+          ? Promise.resolve([
+              { name: 'Show', isDirectory: () => true, isSymbolicLink: () => false },
+            ])
+          : Promise.resolve([
+              { name: 'S01E01.mkv', isDirectory: () => false, isSymbolicLink: () => false },
+              { name: 'S01E02.mkv', isDirectory: () => false, isSymbolicLink: () => false },
+              { name: 'S01E03.mkv', isDirectory: () => false, isSymbolicLink: () => false },
+            ]),
+      );
+      // Files are read concurrently, and here they finish in reverse: episode
+      // three lands first and episode one last. Their places in the collection
+      // must still come from the folder listing - otherwise the player follows
+      // the finish order and offers episode three after episode one.
+      const readDelays: Record<string, number> = {
+        S01E01: 40,
+        S01E02: 20,
+        S01E03: 0,
+      };
+      (fs.stat as any).mockImplementation(async (target: string) => {
+        const delay = Object.entries(readDelays).find(([episode]) =>
+          target.includes(episode),
+        )?.[1];
+        if (delay) {
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        }
+
+        return { isDirectory: () => false, birthtime: new Date(), size: 1024 };
+      });
+
+      req = { body: { directories: ['/mnt/tv'] } };
+
+      await scanMountDirectories(req as Request, res as Response);
+
+      const idByFilename = videoIdsByFilename();
+
+      expect(storedCollectionVideos('Show')).toEqual([
+        idByFilename.get('S01E01.mkv'),
+        idByFilename.get('S01E02.mkv'),
+        idByFilename.get('S01E03.mkv'),
+      ]);
+    });
+
     it('leaves a single-video folder out of collections entirely', async () => {
       process.env.MYTUBE_ADMIN_TRUST_LEVEL = 'host';
       (storageService.getVideos as any).mockReturnValue([]);
@@ -652,11 +767,7 @@ describe('ScanController', () => {
       await scanMountDirectories(req as Request, res as Response);
 
       // Without reconciliation the collection would hold only the new episode.
-      expect(storageService.addVideoToCollection).toHaveBeenCalledWith(
-        expect.any(String),
-        'ep1',
-        { moveFiles: false },
-      );
+      expect(storedCollectionVideos('Show')).toContain('ep1');
     });
 
     it('does not read an ordinary title word as an extras marker', async () => {
@@ -730,11 +841,56 @@ describe('ScanController', () => {
 
       await scanMountDirectories(req as Request, res as Response);
 
-      expect(storageService.addVideoToCollection).toHaveBeenCalledWith(
-        expect.any(String),
-        'ep1',
-        { moveFiles: false },
+      expect(storedCollectionVideos('Show')).toContain('ep1');
+    });
+
+    it('leaves a collection alone when it already holds the folder in order', async () => {
+      process.env.MYTUBE_ADMIN_TRUST_LEVEL = 'host';
+      // Both files are unchanged and the collection already lists them the way
+      // the folder does, so a re-scan must not rewrite a single link.
+      (storageService.getVideos as any).mockReturnValue([
+        {
+          id: 'ep1',
+          title: 'S01E01',
+          videoPath: 'mount:/mnt/tv/Show/S01E01.mkv',
+          fileSize: '1024',
+        },
+        {
+          id: 'ep2',
+          title: 'S01E02',
+          videoPath: 'mount:/mnt/tv/Show/S01E02.mkv',
+          fileSize: '1024',
+        },
+      ]);
+      (storageService.getCollections as any).mockReturnValue([
+        { id: 'show-col', title: 'Show', name: 'Show', videos: ['ep1', 'ep2'] },
+      ]);
+      seedCollection('show-col', ['ep1', 'ep2']);
+      (fs.pathExists as any).mockResolvedValue(true);
+      const { scrapeMetadataFromTMDB } = await import('../../services/tmdbService');
+      (scrapeMetadataFromTMDB as any).mockResolvedValue(null);
+      (fs.readdir as any).mockImplementation((dir: string) =>
+        dir === '/mnt/tv'
+          ? Promise.resolve([
+              { name: 'Show', isDirectory: () => true, isSymbolicLink: () => false },
+            ])
+          : Promise.resolve([
+              { name: 'S01E01.mkv', isDirectory: () => false, isSymbolicLink: () => false },
+              { name: 'S01E02.mkv', isDirectory: () => false, isSymbolicLink: () => false },
+            ]),
       );
+      (fs.stat as any).mockResolvedValue({
+        isDirectory: () => false,
+        birthtime: new Date(),
+        size: 1024,
+      });
+
+      req = { body: { directories: ['/mnt/tv'] } };
+
+      await scanMountDirectories(req as Request, res as Response);
+
+      expect(collectionWrites).toBe(0);
+      expect(collectionStore.get('show-col')?.videos).toEqual(['ep1', 'ep2']);
     });
 
     it('keeps the episode number when the designator opens the filename', async () => {

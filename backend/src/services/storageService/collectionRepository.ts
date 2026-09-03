@@ -69,30 +69,34 @@ function hydrateCollection(rows: CollectionRow[]): Collection | undefined {
   return collection;
 }
 
+function selectCollections(): Collection[] {
+  const rows = db
+    .select({
+      c: collections,
+      cv: collectionVideos,
+    })
+    .from(collections)
+    .leftJoin(
+      collectionVideos,
+      eq(collections.id, collectionVideos.collectionId)
+    )
+    .all();
+
+  const map = new Map<string, CollectionRow[]>();
+  for (const row of rows) {
+    const existingRows = map.get(row.c.id) ?? [];
+    existingRows.push(row);
+    map.set(row.c.id, existingRows);
+  }
+
+  return Array.from(map.values())
+    .map((collectionRows) => hydrateCollection(collectionRows))
+    .filter((collection): collection is Collection => Boolean(collection));
+}
+
 export function getCollections(): Collection[] {
   try {
-    const rows = db
-      .select({
-        c: collections,
-        cv: collectionVideos,
-      })
-      .from(collections)
-      .leftJoin(
-        collectionVideos,
-        eq(collections.id, collectionVideos.collectionId)
-      )
-      .all();
-
-    const map = new Map<string, CollectionRow[]>();
-    for (const row of rows) {
-      const existingRows = map.get(row.c.id) ?? [];
-      existingRows.push(row);
-      map.set(row.c.id, existingRows);
-    }
-
-    return Array.from(map.values())
-      .map((collectionRows) => hydrateCollection(collectionRows))
-      .filter((collection): collection is Collection => Boolean(collection));
+    return selectCollections();
   } catch (error) {
     logger.error(
       "Error getting collections",
@@ -100,6 +104,29 @@ export function getCollections(): Collection[] {
     );
     // Return empty array for backward compatibility with frontend
     return [];
+  }
+}
+
+/**
+ * The same read, but a failure is raised rather than answered with an empty
+ * list. Callers that decide something from the absence of collections need
+ * that: "no collections came back" and "the collections could not be read"
+ * are the same value to `getCollections`, and acting on the second as if it
+ * were the first reports work that never happened.
+ */
+export function getCollectionsStrict(): Collection[] {
+  try {
+    return selectCollections();
+  } catch (error) {
+    logger.error(
+      "Error getting collections",
+      error instanceof Error ? error : new Error(String(error))
+    );
+    throw new DatabaseError(
+      "Failed to get collections",
+      error instanceof Error ? error : new Error(String(error)),
+      "getCollectionsStrict"
+    );
   }
 }
 

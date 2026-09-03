@@ -516,7 +516,14 @@ const processSingleVideoFile = async (
     collectionName: string,
     displayTitle?: string
   ) => Promise<string | undefined>,
-  noteExistingVideo: (videoId: string, collectionName: string) => void
+  // Every video the pass sees in a collection folder, inserted or not: the
+  // folder's order is settled in one write once the whole pass is done.
+  noteCollectionMember: (
+    videoId: string,
+    collectionName: string,
+    collectionOrder?: number
+  ) => void,
+  collectionOrder?: number
 ): Promise<ProcessFileResult> => {
   const filename = path.basename(filePath);
   const relativePath = path.relative(normalizedDirectory, filePath);
@@ -538,7 +545,11 @@ const processSingleVideoFile = async (
     // new collection would permanently omit the file that did not change.
     const unchangedDirName = path.dirname(relativePath);
     if (unchangedDirName !== ".") {
-      noteExistingVideo(existingVideo.id, unchangedDirName.split(path.sep)[0]);
+      noteCollectionMember(
+        existingVideo.id,
+        unchangedDirName.split(path.sep)[0],
+        collectionOrder
+      );
     }
 
     return "skipped";
@@ -552,7 +563,11 @@ const processSingleVideoFile = async (
     // up with a collection missing that original.
     const replacingDirName = path.dirname(relativePath);
     if (replacingDirName !== ".") {
-      noteExistingVideo(replacingVideoId, replacingDirName.split(path.sep)[0]);
+      noteCollectionMember(
+        replacingVideoId,
+        replacingDirName.split(path.sep)[0],
+        collectionOrder
+      );
     }
 
     logger.info(`Detected file change at ${webPath}, refreshing metadata`);
@@ -709,6 +724,9 @@ const processSingleVideoFile = async (
         newVideo.id,
         isMountDirectory ? { moveFiles: false } : undefined
       );
+      // Appended wherever this file happened to finish; the pass puts the
+      // folder in order once every file has landed.
+      noteCollectionMember(newVideo.id, collectionName, collectionOrder);
       logger.info(`Added video ${newVideo.title} to collection ${collectionName}`);
     }
   }
@@ -760,11 +778,11 @@ const processDirectoryFiles = async (
   const collectionCreationLocks = new Map<string, Promise<string | undefined>>();
 
   // A folder holding one video is a single film, not a series, and turning it
-  // into a one-video collection just clutters the library. Count the whole
+  // into a one-video collection just clutters the library. Group the whole
   // batch up front so the decision does not depend on scan order. An existing
   // collection of that name is still joined - only creating a new one is
   // withheld.
-  const videoCountByCollectionName = new Map<string, number>();
+  const videoFilesByCollectionName = new Map<string, string[]>();
   for (const filePath of videoFiles) {
     const dirName = path.dirname(path.relative(normalizedDirectory, filePath));
     if (dirName === ".") {
@@ -772,14 +790,36 @@ const processDirectoryFiles = async (
     }
 
     const name = dirName.split(path.sep)[0];
-    videoCountByCollectionName.set(
-      name,
-      (videoCountByCollectionName.get(name) ?? 0) + 1
-    );
+    videoFilesByCollectionName.set(name, [
+      ...(videoFilesByCollectionName.get(name) ?? []),
+      filePath,
+    ]);
+  }
+
+  // Files are processed concurrently, so they finish in whatever order ffprobe
+  // and TMDB happen to return them - not in episode order. Appending on
+  // completion stored the folder shuffled, and the player follows that stored
+  // order when it picks what to play next. Number each file by its place in the
+  // naturally sorted folder listing and let the insert honour it instead.
+  const collectionOrderByFilePath = new Map<string, number>();
+  for (const collectionFiles of videoFilesByCollectionName.values()) {
+    [...collectionFiles]
+      .sort((a, b) =>
+        path
+          .relative(normalizedDirectory, a)
+          .localeCompare(path.relative(normalizedDirectory, b), undefined, {
+            numeric: true,
+            sensitivity: "base",
+          })
+      )
+      .forEach((filePath, index) => {
+        collectionOrderByFilePath.set(filePath, index + 1);
+      });
   }
 
   const shouldGroupIntoCollection = (collectionName: string): boolean =>
-    !isMountDirectory || (videoCountByCollectionName.get(collectionName) ?? 0) > 1;
+    !isMountDirectory ||
+    (videoFilesByCollectionName.get(collectionName)?.length ?? 0) > 1;
 
   const resolveCollectionId = async (
     collectionName: string,
@@ -841,7 +881,10 @@ const processDirectoryFiles = async (
 
   let addedCount = 0;
   let updatedCount = 0;
-  const existingVideosByCollectionName = new Map<string, string[]>();
+  const collectionMembersByName = new Map<
+    string,
+    Array<{ videoId: string; order?: number }>
+  >();
 
   await runWithConcurrencyLimit(
     videoFiles,
@@ -854,12 +897,13 @@ const processDirectoryFiles = async (
           existingVideosByPath,
           isMountDirectory,
           resolveCollectionId,
-          (videoId, collectionName) => {
-            existingVideosByCollectionName.set(
-              collectionName,
-              [...(existingVideosByCollectionName.get(collectionName) ?? []), videoId]
-            );
-          }
+          (videoId, collectionName, order) => {
+            collectionMembersByName.set(collectionName, [
+              ...(collectionMembersByName.get(collectionName) ?? []),
+              { videoId, order },
+            ]);
+          },
+          collectionOrderByFilePath.get(filePath)
         );
 
         if (result === "added") {
@@ -874,8 +918,13 @@ const processDirectoryFiles = async (
   );
 
   // Reconcile after the pass, so a collection created from a newly added file
-  // already carries the title TMDB recognised before the existing files join.
-  for (const [collectionName, videoIds] of existingVideosByCollectionName) {
+  // already carries the title TMDB recognised before the existing files join -
+  // and so the folder's order is settled once every file has landed. It cannot
+  // be settled at insert time: files finish in any order, and an insert can
+  // only aim at a position the list has already grown to, so a folder
+  // finishing 3, 2, 1 would land as [1, 3, 2]. One write per collection also
+  // keeps a large library off the per-video rebuild path.
+  for (const [collectionName, members] of collectionMembersByName) {
     if (!shouldGroupIntoCollection(collectionName)) {
       continue;
     }
@@ -885,13 +934,39 @@ const processDirectoryFiles = async (
       continue;
     }
 
-    for (const videoId of videoIds) {
-      storageService.addVideoToCollection(
-        collectionId,
-        videoId,
-        isMountDirectory ? { moveFiles: false } : undefined
+    const orderedMemberIds = [...members]
+      .sort(
+        (a, b) =>
+          (a.order ?? Number.MAX_SAFE_INTEGER) -
+          (b.order ?? Number.MAX_SAFE_INTEGER)
+      )
+      .map((member) => member.videoId);
+    const memberIds = new Set(orderedMemberIds);
+
+    storageService.atomicUpdateCollection(collectionId, (collection) => {
+      // Videos this scan did not see - added by hand, or living outside the
+      // folder - keep the slots they hold; the folder's own files fill the
+      // rest in listing order.
+      const remaining = [...orderedMemberIds];
+      const reordered = collection.videos.map((videoId) =>
+        memberIds.has(videoId) ? remaining.shift() ?? videoId : videoId
       );
-    }
+      reordered.push(...remaining);
+
+      const isAlreadyOrdered =
+        reordered.length === collection.videos.length &&
+        reordered.every(
+          (videoId, index) => videoId === collection.videos[index]
+        );
+      // Nothing to do for a settled library: skipping the write here is what
+      // keeps a re-scan from rebuilding every collection it walks past.
+      if (isAlreadyOrdered) {
+        return null;
+      }
+
+      collection.videos = reordered;
+      return collection;
+    });
   }
 
   return { addedCount, updatedCount, allFiles };

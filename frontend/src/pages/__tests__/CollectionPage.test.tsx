@@ -1,5 +1,5 @@
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import CollectionPage from '../CollectionPage';
 
@@ -437,20 +437,22 @@ describe('CollectionPage', () => {
 
     // --- Pagination ---
     describe('pagination', () => {
-        it('renders Pagination when there are more than 12 videos', () => {
+        // One more than the page size, so page two holds exactly v13.
+        const withThirteenVideos = () => {
             const videoIds = Array.from({ length: 13 }, (_, i) => `v${i + 1}`);
-            const manyVideos = videoIds.map(id => ({
+            mockCollectionContext.collections = [
+                { id: 'col-1', name: 'Big Collection', videos: videoIds, createdAt: '2024-01-01' },
+            ];
+            mockVideoContext.videos = videoIds.map(id => ({
                 id,
                 title: `Video ${id}`,
                 tags: ['tag1'],
                 author: 'Author',
             }));
+        };
 
-            mockCollectionContext.collections = [
-                { id: 'col-1', name: 'Big Collection', videos: videoIds, createdAt: '2024-01-01' },
-            ];
-            mockVideoContext.videos = manyVideos;
-
+        it('renders Pagination when there are more than 12 videos', () => {
+            withThirteenVideos();
             renderCollectionPage();
             expect(screen.getByRole('navigation')).toBeInTheDocument();
         });
@@ -458,6 +460,60 @@ describe('CollectionPage', () => {
         it('does not render Pagination when there are 12 or fewer videos', () => {
             renderCollectionPage();
             expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
+        });
+
+        it('pages forward and back with the arrow keys, as Home does', () => {
+            withThirteenVideos();
+            renderCollectionPage();
+            expect(screen.getByTestId('VideoCard-v1')).toBeInTheDocument();
+            expect(screen.queryByTestId('VideoCard-v13')).not.toBeInTheDocument();
+
+            act(() => {
+                window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
+            });
+            expect(screen.getByTestId('VideoCard-v13')).toBeInTheDocument();
+            expect(screen.queryByTestId('VideoCard-v1')).not.toBeInTheDocument();
+
+            act(() => {
+                window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
+            });
+            expect(screen.getByTestId('VideoCard-v1')).toBeInTheDocument();
+        });
+
+        it('leaves the arrow keys to an open dialog', () => {
+            withThirteenVideos();
+            renderCollectionPage();
+            fireEvent.click(screen.getByLabelText('add tags to collection'));
+
+            const dialog = screen.getByRole('dialog');
+            act(() => {
+                within(dialog)
+                    .getByText('tag1')
+                    .dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+            });
+            // Also covers a keypress that lands outside the dialog, as one does
+            // after a click on the backdrop.
+            act(() => {
+                window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
+            });
+
+            expect(screen.getByTestId('VideoCard-v1')).toBeInTheDocument();
+            expect(screen.queryByTestId('VideoCard-v13')).not.toBeInTheDocument();
+        });
+
+        it('leaves the arrow keys alone while typing in a field', () => {
+            withThirteenVideos();
+            renderCollectionPage();
+
+            const input = document.createElement('input');
+            document.body.appendChild(input);
+            act(() => {
+                input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+            });
+
+            expect(screen.getByTestId('VideoCard-v1')).toBeInTheDocument();
+            expect(screen.queryByTestId('VideoCard-v13')).not.toBeInTheDocument();
+            input.remove();
         });
     });
 

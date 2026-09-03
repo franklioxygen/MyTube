@@ -633,6 +633,12 @@ export const zh = {
   size: "大小",
   actions: "操作",
   deleteCollection: "删除合集",
+  cleanup: "清理",
+  cleanupEmptyCollectionsTitle: "清理空合集？",
+  cleanupEmptyCollectionsMessage:
+    "有 {count} 个合集不包含任何视频，将被删除。其他合集中的视频不受影响。",
+  cleanupEmptyCollectionsSuccess: "已删除 {count} 个空合集。",
+  cleanupEmptyCollectionsFailed: "清理空合集失败",
   deleteVideo: "删除视频",
   redownloadVideo: "重新下载视频",
   redownloadThumbnail: "重新下载缩略图",

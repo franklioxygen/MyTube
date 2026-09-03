@@ -675,6 +675,12 @@ export const fr = {
   size: "Taille",
   actions: "Actions",
   deleteCollection: "Supprimer la collection",
+  cleanup: "Nettoyer",
+  cleanupEmptyCollectionsTitle: "Nettoyer les collections vides ?",
+  cleanupEmptyCollectionsMessage:
+    "{count} collection(s) ne contiennent aucune vidéo et seront supprimées. Les vidéos des autres collections ne sont pas affectées.",
+  cleanupEmptyCollectionsSuccess: "{count} collection(s) vide(s) supprimée(s).",
+  cleanupEmptyCollectionsFailed: "Échec du nettoyage des collections vides",
   deleteVideo: "Supprimer la vidéo",
   redownloadVideo: "Re-télécharger la vidéo",
   redownloadThumbnail: "Retélécharger la miniature",

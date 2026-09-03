@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createCollection, deleteCollection, getCollections, updateCollection } from '../../controllers/collectionController';
+import { createCollection, deleteCollection, deleteEmptyCollections, getCollections, updateCollection } from '../../controllers/collectionController';
 import * as storageService from '../../services/storageService';
 
 vi.mock('../../services/storageService');
@@ -222,6 +222,38 @@ describe('CollectionController', () => {
       } catch (error: any) {
         expect(error.name).toBe('NotFoundError');
       }
+    });
+  });
+
+  describe('deleteEmptyCollections', () => {
+    it('reports what was deleted', () => {
+      (storageService.deleteEmptyCollections as any).mockReturnValue([
+        { id: '1', name: 'Empty One', videos: [] },
+        { id: '2', name: '', title: 'Empty Two', videos: [] },
+      ]);
+
+      deleteEmptyCollections(req as Request, res as Response);
+
+      expect(json).toHaveBeenCalledWith({
+        success: true,
+        deletedCount: 2,
+        deletedCollections: [
+          { id: '1', name: 'Empty One' },
+          { id: '2', name: 'Empty Two' },
+        ],
+      });
+    });
+
+    it('succeeds with a count of zero when nothing is empty', () => {
+      (storageService.deleteEmptyCollections as any).mockReturnValue([]);
+
+      deleteEmptyCollections(req as Request, res as Response);
+
+      expect(json).toHaveBeenCalledWith({
+        success: true,
+        deletedCount: 0,
+        deletedCollections: [],
+      });
     });
   });
 });

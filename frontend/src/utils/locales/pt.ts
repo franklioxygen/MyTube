@@ -672,6 +672,12 @@ export const pt = {
   size: "Tamanho",
   actions: "Ações",
   deleteCollection: "Excluir Coleção",
+  cleanup: "Limpar",
+  cleanupEmptyCollectionsTitle: "Limpar coleções vazias?",
+  cleanupEmptyCollectionsMessage:
+    "{count} coleção(ões) não contêm vídeos e serão excluídas. Os vídeos em outras coleções não são afetados.",
+  cleanupEmptyCollectionsSuccess: "{count} coleção(ões) vazia(s) excluída(s).",
+  cleanupEmptyCollectionsFailed: "Falha ao limpar as coleções vazias",
   deleteVideo: "Excluir Vídeo",
   redownloadVideo: "Baixar vídeo novamente",
   redownloadThumbnail: "Baixar miniatura novamente",

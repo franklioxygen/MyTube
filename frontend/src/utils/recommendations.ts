@@ -338,9 +338,32 @@ const hasSameSeries = (currentVideo: Video, candidate: Video): boolean =>
         normalizeText(currentVideo.seriesTitle) === normalizeText(candidate.seriesTitle)
     );
 
+// The episode designator is exactly what tells one episode from the next, so it
+// is the one part of the name that must not survive into the stem that groups
+// them. Everything else does, non-Latin script included: `tokenize` drops CJK
+// outright, which left a Chinese show with an empty stem and so no
+// filename-adjacent episode at all.
+const EPISODE_DESIGNATOR_PATTERNS = [
+    /\bs\d{1,3}\s*e\d{1,4}\b/g,
+    /\b\d{1,3}\s*x\s*\d{1,4}\b/g,
+    /\b(?:episode|ep|e)\d{1,4}\b/g,
+    /\b\d+\b/g,
+];
+
 const getSeriesStem = (video: Video): string =>
-    tokenize(getName(video))
-        .filter(token => !/^\d+$/.test(token))
+    EPISODE_DESIGNATOR_PATTERNS
+        .reduce(
+            (name, pattern) => name.replace(pattern, ' '),
+            normalizeText(getName(video))
+                .replace(/\.[a-z0-9]{2,5}$/i, ' ')
+                // Separators are flattened before the designator is looked for,
+                // never after: an underscore is a word character, so `Show_S01E01`
+                // offers `\b` nothing to match on and the episode number would
+                // survive into the stem - one stem per episode, and no series.
+                .replace(/[^\p{L}\p{N}]+/gu, ' ')
+        )
+        .split(' ')
+        .filter(word => word && !STOP_WORDS.has(word))
         .join(' ');
 
 const findNextEpisode = (currentVideo: Video, candidates: Video[]): Video | undefined => {

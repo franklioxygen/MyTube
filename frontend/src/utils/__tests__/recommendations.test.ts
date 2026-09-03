@@ -566,6 +566,45 @@ describe("recommendations", () => {
       expect(recommendations.length).toBe(3);
       expect(recommendations.every((v) => v.id !== "1")).toBe(true);
     });
+
+    // A scanned show carries no seriesTitle/partNumber - only the episode
+    // designator in its filename - and a non-Latin title is dropped by the
+    // tokenizer, so the filename-adjacent episode is the only sequence signal
+    // left. Lose it and a well-rated video from the same author leads instead.
+    it.each([
+      ["spaced", (episode: number) => `死亡笔记 - S01E0${episode}`],
+      // An underscore is a word character, so the designator has no boundary
+      // for `\b` to find unless separators are flattened first.
+      ["underscored", (episode: number) => `死亡笔记_S01E0${episode}`],
+      ["dotted", (episode: number) => `Death.Note.S01E0${episode}.1080p`],
+    ])("plays the next episode of a %s scanned series", (_style, name) => {
+      const episodes = [1, 2, 3].map(episode =>
+        createMockVideo(`episode-${episode}`, {
+          title: name(episode),
+          videoFilename: `${name(episode)}.mkv`,
+          author: "Admin",
+          tags: ["anime"],
+          viewCount: 0,
+          rating: undefined,
+        })
+      );
+      const favourite = createMockVideo("favourite", {
+        title: "钢之炼金术师 - S01E20",
+        videoFilename: "钢之炼金术师 - S01E20.mkv",
+        author: "Admin",
+        tags: ["anime"],
+        viewCount: 0,
+        rating: 5,
+      });
+
+      const recommendations = getRecommendations({
+        currentVideo: episodes[0],
+        allVideos: [...episodes, favourite],
+        collections: [],
+      });
+
+      expect(recommendations[0].id).toBe("episode-2");
+    });
   });
 
   describe("DEFAULT_WEIGHTS", () => {

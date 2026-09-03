@@ -24,6 +24,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { usePageTagFilter } from '../contexts/PageTagFilterContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import { useVideo } from '../contexts/VideoContext';
+import { usePaginationKeyboardNavigation } from '../hooks/usePaginationKeyboardNavigation';
 import { useSettings } from '../hooks/useSettings';
 import { useVideoSort } from '../hooks/useVideoSort';
 import { useFavoriteCollections } from '../hooks/useFavoriteCollections';
@@ -137,10 +138,17 @@ const CollectionPage: React.FC = () => {
         [sortedVideos]
     );
 
-    const handlePageChange = (_: React.ChangeEvent<unknown>, value: number) => {
+    const goToPage = useCallback((value: number) => {
         setPage(value);
         window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, []);
+
+    const handlePageChange = (_: React.ChangeEvent<unknown>, value: number) => {
+        goToPage(value);
     };
+
+    // Arrow keys page through the grid here exactly as they do on Home.
+    usePaginationKeyboardNavigation({ page, totalPages, onPageChange: goToPage });
 
     const handleCloseDeleteModal = () => {
         setShowDeleteModal(false);

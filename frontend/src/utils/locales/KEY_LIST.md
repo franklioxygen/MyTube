@@ -4,7 +4,7 @@ Canonical locale key order derived from `frontend/src/utils/locales/en.ts`.
 
 This list is intentionally unnumbered. When new keys are inserted, only the local section order changes.
 
-Total keys: 1085
+Total keys: 1090
 
 ## Summary
 
@@ -18,7 +18,7 @@ Total keys: 1085
 | Task Hooks | 69 | `taskHooks` | `cleanupTempFilesFailed` |
 | Cookie Settings | 12 | `cookieSettings` | `cookiesDeleteFailed` |
 | Cloud Drive | 38 | `cloudDriveSettings` | `clearThumbnailCacheConfirmMessage` |
-| Manage | 33 | `manageContent` | `confirmBulkDelete` |
+| Manage | 38 | `manageContent` | `confirmBulkDelete` |
 | Video Player | 69 | `playing` | `deletingVideos` |
 | Login | 23 | `signIn` | `tooManyAttempts` |
 | Passkeys | 19 | `createPasskey` | `copyUrl` |
@@ -593,6 +593,11 @@ Total keys: 1085
 | `size` |
 | `actions` |
 | `deleteCollection` |
+| `cleanup` |
+| `cleanupEmptyCollectionsTitle` |
+| `cleanupEmptyCollectionsMessage` |
+| `cleanupEmptyCollectionsSuccess` |
+| `cleanupEmptyCollectionsFailed` |
 | `deleteVideo` |
 | `redownloadVideo` |
 | `redownloadThumbnail` |
