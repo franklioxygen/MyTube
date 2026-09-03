@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import fs from 'fs-extra';
+import path from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getScanStatus, scanFiles, scanMountDirectories } from '../../controllers/scanController';
 import * as storageService from '../../services/storageService';
@@ -500,7 +501,7 @@ describe('ScanController', () => {
       expect(collection.name).toBe(releaseFolder);
     });
 
-    it('ignores trailers, samples and featurettes when deciding on a collection', async () => {
+    it('skips trailers, samples and featurettes instead of importing them', async () => {
       process.env.MYTUBE_ADMIN_TRUST_LEVEL = 'host';
       (storageService.getVideos as any).mockReturnValue([]);
       (storageService.getCollections as any).mockReturnValue([]);
@@ -560,13 +561,24 @@ describe('ScanController', () => {
 
       await scanMountDirectories(req as Request, res as Response);
 
+      // Only the genuine set gets a collection: the two lone films had their
+      // extras discounted.
       const created = (storageService.saveCollection as any).mock.calls.map(
         (call: any[]) => call[0].title,
       );
       expect(created).toEqual(['The.Godfather.Trilogy.1972-1990']);
-      // All 8 still land in the library (film + 2 featurettes, film + sample,
-      // 3 films); only the grouping changes.
-      expect(storageService.saveVideo).toHaveBeenCalledTimes(8);
+
+      // 5 of the 8 files are imported: the extras never enter the library.
+      const imported = (storageService.saveVideo as any).mock.calls
+        .map((call: any[]) => path.basename(call[0].videoPath))
+        .sort();
+      expect(imported).toEqual([
+        'Blade.Runner.2049.2017.1080p.x265.mkv',
+        'Django Unchained (2012).mkv',
+        'The.Godfather.1972.mkv',
+        'The.Godfather.Part.II.1974.mkv',
+        'The.Godfather.Part.III.1990.mkv',
+      ]);
     });
 
     it('drops mount records that are no longer under a configured directory', async () => {

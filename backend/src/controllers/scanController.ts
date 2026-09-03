@@ -694,11 +694,21 @@ const processDirectoryFiles = async (
     return { addedCount: 0, updatedCount: 0, allFiles: [] };
   }
 
-  const allFiles =
+  const collectedFiles =
     options.scannedFiles ||
     (isMountDirectory
       ? await getFilesRecursivelyFromMount(normalizedDirectory)
       : await getFilesRecursively(normalizedDirectory));
+
+  // Bonus material is not library content: a media server keeps it beside the
+  // film precisely so a player can ignore it. Dropping it here also keeps it
+  // out of the caller's on-disk set, so extras imported by an earlier scan are
+  // cleaned up on the next one.
+  const allFiles = isMountDirectory
+    ? collectedFiles.filter(
+        (filePath) => !isExtraVideoPath(filePath, normalizedDirectory)
+      )
+    : collectedFiles;
 
   const videoFiles = allFiles.filter((filePath) =>
     videoExtensions.includes(path.extname(filePath).toLowerCase())
@@ -716,11 +726,6 @@ const processDirectoryFiles = async (
   for (const filePath of videoFiles) {
     const dirName = path.dirname(path.relative(normalizedDirectory, filePath));
     if (dirName === ".") {
-      continue;
-    }
-
-    // Trailers, samples and featurettes are not what makes a folder a set.
-    if (isExtraVideoPath(filePath, normalizedDirectory)) {
       continue;
     }
 
