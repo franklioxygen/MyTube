@@ -9,7 +9,7 @@ const SOURCE_PATTERNS = [
   /\bWEB-DL\b/i,
   /\bWEBRip\b/i,
   /\bWEB\b(?![^\s.])/i,
-  /\bBluRay\b/i,
+  /\bBlu-?ray\b/i,
   /\bBDRip\b/i,
   /\bBD\b(?![^\s.])/i,
   /\bDVD\b/i,
@@ -197,11 +197,22 @@ function stripTechnicalMetadata(name: string): string {
     // The streaming service the rip came from. Short tokens that are also real
     // titles ("IT", "MAX") are deliberately left out.
     .replace(
-      /\b(NF|AMZN|ATVP|DSNP|HMAX|PCOK|HULU|VIU|CATCHPLAY\+?|CRAV|STAN)\b/g,
+      /\b(NF|AMZN|ATVP|DSNP|HMAX|PCOK|HULU|VIU|CATCHPLAY\+?|CRAV|STAN|MUBI)\b/g,
       ""
     )
     // Dynamic-range and edition markers TMDB titles never carry.
-    .replace(/\b(HDR10\+?|HDR|DoVi|SDR|Upscaled|REMASTERED)\b/gi, "")
+    .replace(
+      /\b(HDR10\+?|HDR|DoVi|SDR|Upscaled|REMASTERED|EXTENDED|REMUX|AVC|MiniSD|Criterion(\s+Collection)?|DIRECTOR'?S\s+CUT)\b/gi,
+      ""
+    )
+    // Audio-track counts ("5Audio", "Multi-Audio") and bit-depth plurals.
+    .replace(/\b(\d+Audio|Multi-Audio|\d{1,2}bits)\b/gi, "")
+    // Subtitle and dub markers. Language names sit beside them in release
+    // names and are never part of a TMDB title.
+    .replace(
+      /\b(HC|Chinese|Japanese|Korean|Cantonese|Mandarin|Ita|Eng|Fra|Ger|Spa|Jpn|Kor|Chs|Cht|Sub|Dubbed)\b/g,
+      ""
+    )
     // A "+" stranded by a service tag like CATCHPLAY+.
     .replace(/(^|[\s._-])\+(?=[\s._-]|$)/g, "$1")
     .replace(/\[[A-Z][a-zA-Z0-9]+\]\s*$/, "")
@@ -641,6 +652,8 @@ export function isLikelyGenericCaptureFilename(filename: string): boolean {
  * - "The.Matrix.1999.1080p.BluRay.x264-DTS.mkv"
  * - "Game.of.Thrones.S01E01.720p.HDTV.mkv"
  */
+const MAX_TRAILING_WORDS_DROPPED = 3;
+
 export function parseFilename(filename: string): ParsedFilename {
   const tvMetadata = extractTVMetadata(path.parse(filename).name);
 
@@ -669,9 +682,21 @@ export function parseFilename(filename: string): ParsedFilename {
   if (readableEnglishCandidate) {
     addCandidate(titleCandidates, seen, readableEnglishCandidate);
 
+    // Release groups and stray tags pile up at the end - "The Godfather UHD
+    // 5Audio beAst" needs three words removed, "Hamilton EVO" one. Offer each
+    // shortening in turn; the search tries them longest-first and every one
+    // still has to match a result confidently.
     const readableWords = readableEnglishCandidate.split(" ");
-    if (readableWords.length >= 3) {
-      addCandidate(titleCandidates, seen, readableWords.slice(0, -1).join(" "));
+    for (
+      let dropped = 1;
+      dropped <= MAX_TRAILING_WORDS_DROPPED && readableWords.length - dropped >= 1;
+      dropped += 1
+    ) {
+      addCandidate(
+        titleCandidates,
+        seen,
+        readableWords.slice(0, -dropped).join(" ")
+      );
     }
   }
 

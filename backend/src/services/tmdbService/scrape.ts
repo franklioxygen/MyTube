@@ -12,6 +12,28 @@ import { downloadPoster, resolvePosterSaveLocation } from "./poster";
  * Scrape metadata from TMDB based on filename using intelligent multi-strategy search
  * Returns metadata if found, null otherwise
  */
+const MAX_RELEASE_YEAR_DRIFT = 1;
+
+function isReleaseYearConsistent(
+  result: { release_date?: string; first_air_date?: string },
+  parsedYear: number
+): boolean {
+  const releaseDate = result.release_date || result.first_air_date;
+  if (!releaseDate) {
+    // Nothing to contradict the filename.
+    return true;
+  }
+
+  const releaseYear = Number.parseInt(releaseDate.substring(0, 4), 10);
+  if (Number.isNaN(releaseYear)) {
+    return true;
+  }
+
+  // A year of slack: festival, limited and regional releases legitimately
+  // straddle a new year.
+  return Math.abs(releaseYear - parsedYear) <= MAX_RELEASE_YEAR_DRIFT;
+}
+
 export async function scrapeMetadataFromTMDB(
   filename: string,
   thumbnailFilename?: string
@@ -78,6 +100,18 @@ export async function scrapeMetadataFromTMDB(
 
     const result = searchResult.result;
     const mediaType = searchResult.mediaType;
+
+    // A filename that states its year is stating it about this film. When the
+    // match is from a different decade the title matched something else -
+    // "Blade.Runner.2049.2017" answering with the 1982 Blade Runner, a 2023
+    // Kaibutsu answering with a 2013 one. Later strategies search without the
+    // year, so nothing else rules these out.
+    if (parsed.year && !isReleaseYearConsistent(result, parsed.year)) {
+      logger.info(
+        `[TMDB Scrape] Rejecting match for "${filename}": release year does not match ${parsed.year}`
+      );
+      return null;
+    }
 
     // Build metadata from result
     let metadata: {

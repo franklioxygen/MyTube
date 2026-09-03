@@ -173,6 +173,30 @@ describe("tmdbService", () => {
   });
 
   describe("parseFilename release-name cleanup", () => {
+    it("strips language, edition and disc tags", () => {
+      // Hyphenated "Blu-ray" never matched the BluRay word pattern, and
+      // nothing removed hardcoded-subtitle or language markers.
+      expect(
+        parseFilename(
+          "Hibiscus.Town.1986.Blu-ray.1080p.REMUX.AVC.FLAC.2.0-HDH.mkv"
+        ).titles
+      ).toContain("Hibiscus Town");
+      expect(
+        parseFilename(
+          "No More Bets 2023 1080p Chinese WEB-DL HC HEVC x265-BONE.mkv"
+        ).titles
+      ).toContain("No More Bets");
+    });
+
+    it("keeps shortening the title while trailing junk remains", () => {
+      // "The Godfather UHD 5Audio beAst" needs three words removed.
+      expect(
+        parseFilename(
+          "The.Godfather.1972.UHD.BluRay.2160p.10bit.HDR.5Audio.TrueHD.5.1.x265-beAst.mkv"
+        ).titles
+      ).toContain("The Godfather");
+    });
+
     // Real names from a media library; each previously left junk in the title
     // that sank the TMDB lookup.
     const cases: Array<[string, string]> = [
