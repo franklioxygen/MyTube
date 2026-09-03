@@ -6,7 +6,6 @@ import { MigrationError } from "../errors/DownloadErrors";
 import {
   accessTrustedSync,
   pathExistsSafeSync,
-  pathExistsTrustedSync,
   resolveSafePath,
   statTrustedSync,
   unlinkTrustedSync,
@@ -161,16 +160,30 @@ function getSelectedDatabaseState(): SelectedDatabaseState {
   }
 }
 
-function findDatabase(directory: string): string | null {
+type DatabaseCandidateInspection =
+  | { status: "absent" }
+  | { status: "present"; path: string }
+  | { status: "unavailable"; path: string; error: Error };
+
+function inspectDatabase(directory: string): DatabaseCandidateInspection {
+  const candidate = resolveSafePath(DB_FILENAME, directory);
+
   try {
-    const candidate = resolveSafePath(DB_FILENAME, directory);
     // Size, not mere existence: db/index.ts touches the file before opening it,
     // so an abandoned data directory keeps a zero-byte mytube.db forever.
-    return pathExistsTrustedSync(candidate) && statTrustedSync(candidate).size > 0
-      ? candidate
-      : null;
-  } catch {
-    return null;
+    return statTrustedSync(candidate).size > 0
+      ? { status: "present", path: candidate }
+      : { status: "absent" };
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException | undefined)?.code === "ENOENT") {
+      return { status: "absent" };
+    }
+
+    return {
+      status: "unavailable",
+      path: candidate,
+      error: normalizeError(error),
+    };
   }
 }
 
@@ -241,10 +254,24 @@ function ensureDataDirIsNotMisdirected(): void {
   }
 
   for (const candidate of candidates) {
-    const existingDatabase = findDatabase(candidate.directory);
-    if (candidate.directory === DATA_DIR || existingDatabase === null) {
+    if (candidate.directory === DATA_DIR) {
       continue;
     }
+
+    const inspection = inspectDatabase(candidate.directory);
+    if (inspection.status === "absent") {
+      continue;
+    }
+
+    if (inspection.status === "unavailable") {
+      throw new MigrationError(
+        `Refusing to start: unable to inspect possible existing database ${inspection.path}. ${candidate.explanation} Treating an inaccessible database as absent could create a fresh database with login protection off. Fix access to that location, then point ${DATA_DIR_ENV_VAR} at the database this instance should use or unset ${LEGACY_DATA_DIR_ENV_VAR} if it is obsolete.`,
+        "data_dir_candidate_unavailable",
+        inspection.error
+      );
+    }
+
+    const existingDatabase = inspection.path;
 
     // Symlinks and bind mounts can expose one file under different lexical
     // paths. Device/inode identity follows those aliases and prevents a false

@@ -236,7 +236,12 @@ describe("runMigrations", () => {
     it("starts normally on a first install, where no other database exists", async () => {
       sqliteGetMock.mockReturnValue({ count: 0 });
       process.env.MYTUBE_DATA_DIR = "/srv/host-data";
-      securityMocks.pathExistsTrustedSync.mockReturnValue(false);
+      securityMocks.statTrustedSync.mockImplementation((candidate: string) => {
+        if (candidate === "/srv/host-data/mytube.db") {
+          throw Object.assign(new Error("not found"), { code: "ENOENT" });
+        }
+        return { size: 4096 } as any;
+      });
 
       await runMigrations();
 
@@ -264,11 +269,32 @@ describe("runMigrations", () => {
 
     it("leaves a populated database alone when the legacy path has no database", async () => {
       process.env.MYTUBE_DATA_DIR = "/srv/host-data";
-      securityMocks.pathExistsTrustedSync.mockReturnValue(false);
+      securityMocks.statTrustedSync.mockImplementation((candidate: string) => {
+        if (candidate === "/srv/host-data/mytube.db") {
+          throw Object.assign(new Error("not found"), { code: "ENOENT" });
+        }
+        return { size: 4096 } as any;
+      });
 
       await runMigrations();
 
       expect(migrateMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("fails closed when the legacy database cannot be inspected", async () => {
+      sqliteGetMock.mockReturnValue({ count: 0 });
+      process.env.MYTUBE_DATA_DIR = "/srv/host-data";
+      securityMocks.statTrustedSync.mockImplementation((candidate: string) => {
+        if (candidate === "/srv/host-data/mytube.db") {
+          throw Object.assign(new Error("permission denied"), { code: "EACCES" });
+        }
+        return { size: 4096 } as any;
+      });
+
+      await expect(runMigrations()).rejects.toThrow(
+        /unable to inspect[\s\S]*\/srv\/host-data\/mytube\.db/
+      );
+      expect(migrateMock).not.toHaveBeenCalled();
     });
 
     it("recognizes an alias of the selected database by device and inode", async () => {
