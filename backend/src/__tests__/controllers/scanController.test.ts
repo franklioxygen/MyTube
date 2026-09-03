@@ -659,6 +659,118 @@ describe('ScanController', () => {
       );
     });
 
+    it('does not read an ordinary title word as an extras marker', async () => {
+      process.env.MYTUBE_ADMIN_TRUST_LEVEL = 'host';
+      (storageService.getVideos as any).mockReturnValue([]);
+      (storageService.getCollections as any).mockReturnValue([]);
+      (fs.pathExists as any).mockResolvedValue(true);
+      const { scrapeMetadataFromTMDB } = await import('../../services/tmdbService');
+      (scrapeMetadataFromTMDB as any).mockResolvedValue(null);
+      (fs.readdir as any).mockImplementation((dir: string) =>
+        dir === '/mnt/movies'
+          ? Promise.resolve([
+              { name: 'The Interview', isDirectory: () => true, isSymbolicLink: () => false },
+            ])
+          : Promise.resolve([
+              // Films, not bonus material - only the hyphen form marks an extra.
+              { name: 'The.Interview.mkv', isDirectory: () => false, isSymbolicLink: () => false },
+              { name: 'One.Short.mkv', isDirectory: () => false, isSymbolicLink: () => false },
+              { name: 'The.Interview-trailer.mkv', isDirectory: () => false, isSymbolicLink: () => false },
+            ]),
+      );
+      (fs.stat as any).mockResolvedValue({
+        isDirectory: () => false,
+        birthtime: new Date(),
+        size: 1024,
+      });
+
+      req = { body: { directories: ['/mnt/movies'] } };
+
+      await scanMountDirectories(req as Request, res as Response);
+
+      const imported = (storageService.saveVideo as any).mock.calls
+        .map((call: any[]) => path.basename(call[0].videoPath))
+        .sort();
+      expect(imported).toEqual(['One.Short.mkv', 'The.Interview.mkv']);
+    });
+
+    it('links a refreshed video when its folder first earns a collection', async () => {
+      process.env.MYTUBE_ADMIN_TRUST_LEVEL = 'host';
+      // The original file changed size, so it is refreshed rather than
+      // inserted - and the collection guard only fires on insert.
+      (storageService.getVideos as any).mockReturnValue([
+        {
+          id: 'ep1',
+          title: 'S01E01',
+          videoPath: 'mount:/mnt/tv/Show/S01E01.mkv',
+          fileSize: '512',
+        },
+      ]);
+      (storageService.getCollections as any).mockReturnValue([]);
+      (fs.pathExists as any).mockResolvedValue(true);
+      const { scrapeMetadataFromTMDB } = await import('../../services/tmdbService');
+      (scrapeMetadataFromTMDB as any).mockResolvedValue(null);
+      (fs.readdir as any).mockImplementation((dir: string) =>
+        dir === '/mnt/tv'
+          ? Promise.resolve([
+              { name: 'Show', isDirectory: () => true, isSymbolicLink: () => false },
+            ])
+          : Promise.resolve([
+              { name: 'S01E01.mkv', isDirectory: () => false, isSymbolicLink: () => false },
+              { name: 'S01E02.mkv', isDirectory: () => false, isSymbolicLink: () => false },
+            ]),
+      );
+      (fs.stat as any).mockResolvedValue({
+        isDirectory: () => false,
+        birthtime: new Date(),
+        size: 1024,
+      });
+
+      req = { body: { directories: ['/mnt/tv'] } };
+
+      await scanMountDirectories(req as Request, res as Response);
+
+      expect(storageService.addVideoToCollection).toHaveBeenCalledWith(
+        expect.any(String),
+        'ep1',
+        { moveFiles: false },
+      );
+    });
+
+    it('keeps the episode number when the designator opens the filename', async () => {
+      process.env.MYTUBE_ADMIN_TRUST_LEVEL = 'host';
+      (storageService.getVideos as any).mockReturnValue([]);
+      (storageService.getCollections as any).mockReturnValue([]);
+      (fs.pathExists as any).mockResolvedValue(true);
+      const { scrapeMetadataFromTMDB } = await import('../../services/tmdbService');
+      (scrapeMetadataFromTMDB as any).mockResolvedValue({ title: '医院五日' });
+      (fs.readdir as any).mockImplementation((dir: string) =>
+        dir === '/mnt/tv'
+          ? Promise.resolve([
+              { name: 'Show', isDirectory: () => true, isSymbolicLink: () => false },
+            ])
+          : Promise.resolve([
+              { name: 'S01E01.mkv', isDirectory: () => false, isSymbolicLink: () => false },
+              { name: 'S01E02.mkv', isDirectory: () => false, isSymbolicLink: () => false },
+            ]),
+      );
+      (fs.stat as any).mockResolvedValue({
+        isDirectory: () => false,
+        birthtime: new Date(),
+        size: 1024,
+      });
+
+      req = { body: { directories: ['/mnt/tv'] } };
+
+      await scanMountDirectories(req as Request, res as Response);
+
+      // Without a designator both files would be saved as plain "医院五日".
+      const titles = (storageService.saveVideo as any).mock.calls
+        .map((call: any[]) => call[0].title)
+        .sort();
+      expect(titles).toEqual(['医院五日 - S01E01', '医院五日 - S01E02']);
+    });
+
     it('drops mount records that are no longer under a configured directory', async () => {
       process.env.MYTUBE_ADMIN_TRUST_LEVEL = 'host';
       (storageService.getVideos as any).mockReturnValue([

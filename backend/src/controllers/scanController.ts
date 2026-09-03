@@ -262,7 +262,20 @@ const resolveIdentityFolderName = (
 // TMDB matches a series, never a single episode, so every file in a season
 // folder comes back carrying the same show title. Keep the episode designator
 // from the filename so the episodes stay tellable apart in the library.
+// Read straight off the filename rather than through the title parser, whose
+// patterns require title text before the token - episodes named plainly
+// "S01E01.mkv" would otherwise carry no designator at all, leaving every file
+// in the folder sharing the show's title.
+const EPISODE_DESIGNATOR_PATTERN = /(?:^|[^A-Za-z0-9])[Ss](\d{1,3})[Ee](\d{1,3})(?![0-9])/;
+
 const buildEpisodeLabel = (filename: string): string | null => {
+  const designator = EPISODE_DESIGNATOR_PATTERN.exec(path.parse(filename).name);
+  if (designator) {
+    const season = designator[1].padStart(2, "0");
+    const episode = designator[2].padStart(2, "0");
+    return `S${season}E${episode}`;
+  }
+
   const parsed = parseFilename(filename);
   if (!parsed.isTVShow || typeof parsed.episode !== "number") {
     return null;
@@ -293,10 +306,12 @@ const EXTRAS_FOLDER_NAMES = new Set([
   "trailers",
 ]);
 
-// Matched as a suffix or as the whole name only. A bare "trailer" or "sample"
-// anywhere in the name would swallow real titles - "Trailer.Park.Boys.S01E01".
+// Media servers mark an extra with a hyphen suffix: "Film-trailer.mkv". The
+// hyphen is required, not any separator: several of these words end ordinary
+// titles - "The.Interview", "The.Other", "One.Short" - and treating those as
+// bonus material would skip the film and delete the record it already had.
 const EXTRA_FILENAME_SUFFIX_PATTERN =
-  /[.\s_-](?:sample|trailer|teaser|featurette|behindthescenes|bloopers?|deleted|interview|scene|short|other)$/i;
+  /-(?:sample|trailer|teaser|featurette|behindthescenes|bloopers?|deleted|interview|scene|short|other)$/i;
 const EXTRA_FILENAME_WHOLE_PATTERN = /^(?:sample|trailer)$/i;
 const RELEASE_SAMPLE_PATTERN = /\.sample\./i;
 
@@ -501,7 +516,7 @@ const processSingleVideoFile = async (
     collectionName: string,
     displayTitle?: string
   ) => Promise<string | undefined>,
-  noteUnchangedVideo: (videoId: string, collectionName: string) => void
+  noteExistingVideo: (videoId: string, collectionName: string) => void
 ): Promise<ProcessFileResult> => {
   const filename = path.basename(filePath);
   const relativePath = path.relative(normalizedDirectory, filePath);
@@ -523,7 +538,7 @@ const processSingleVideoFile = async (
     // new collection would permanently omit the file that did not change.
     const unchangedDirName = path.dirname(relativePath);
     if (unchangedDirName !== ".") {
-      noteUnchangedVideo(existingVideo.id, unchangedDirName.split(path.sep)[0]);
+      noteExistingVideo(existingVideo.id, unchangedDirName.split(path.sep)[0]);
     }
 
     return "skipped";
@@ -531,6 +546,15 @@ const processSingleVideoFile = async (
 
   const replacingVideoId = existingVideo?.id;
   if (replacingVideoId) {
+    // Refreshed, not inserted - so the collection guard below skips it. Hand it
+    // to the same reconciliation the unchanged files use, or a folder that
+    // crosses the grouping threshold while its original file also changed ends
+    // up with a collection missing that original.
+    const replacingDirName = path.dirname(relativePath);
+    if (replacingDirName !== ".") {
+      noteExistingVideo(replacingVideoId, replacingDirName.split(path.sep)[0]);
+    }
+
     logger.info(`Detected file change at ${webPath}, refreshing metadata`);
   }
 
@@ -817,7 +841,7 @@ const processDirectoryFiles = async (
 
   let addedCount = 0;
   let updatedCount = 0;
-  const unchangedVideosByCollectionName = new Map<string, string[]>();
+  const existingVideosByCollectionName = new Map<string, string[]>();
 
   await runWithConcurrencyLimit(
     videoFiles,
@@ -831,9 +855,9 @@ const processDirectoryFiles = async (
           isMountDirectory,
           resolveCollectionId,
           (videoId, collectionName) => {
-            unchangedVideosByCollectionName.set(
+            existingVideosByCollectionName.set(
               collectionName,
-              [...(unchangedVideosByCollectionName.get(collectionName) ?? []), videoId]
+              [...(existingVideosByCollectionName.get(collectionName) ?? []), videoId]
             );
           }
         );
@@ -850,8 +874,8 @@ const processDirectoryFiles = async (
   );
 
   // Reconcile after the pass, so a collection created from a newly added file
-  // already carries the title TMDB recognised before the unchanged files join.
-  for (const [collectionName, videoIds] of unchangedVideosByCollectionName) {
+  // already carries the title TMDB recognised before the existing files join.
+  for (const [collectionName, videoIds] of existingVideosByCollectionName) {
     if (!shouldGroupIntoCollection(collectionName)) {
       continue;
     }
