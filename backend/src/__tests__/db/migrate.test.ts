@@ -253,8 +253,18 @@ describe("runMigrations", () => {
       expect(migrateMock).toHaveBeenCalledTimes(1);
     });
 
-    it("leaves a populated database alone even when the legacy variable is set", async () => {
+    it("refuses an ambiguous legacy relocation when the selected database also has tables", async () => {
       pointLegacyVarAtAPopulatedDatabase();
+
+      await expect(runMigrations()).rejects.toThrow(
+        /\/test\/data[\s\S]*\/srv\/host-data\/mytube\.db[\s\S]*MYTUBE_BACKEND_DATA_DIR/
+      );
+      expect(migrateMock).not.toHaveBeenCalled();
+    });
+
+    it("leaves a populated database alone when the legacy path has no database", async () => {
+      process.env.MYTUBE_DATA_DIR = "/srv/host-data";
+      securityMocks.pathExistsTrustedSync.mockReturnValue(false);
 
       await runMigrations();
 

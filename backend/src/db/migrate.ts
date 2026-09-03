@@ -132,15 +132,17 @@ const DATA_DIR_ENV_VAR = "MYTUBE_BACKEND_DATA_DIR";
 const LEGACY_DATA_DIR_ENV_VAR = "MYTUBE_DATA_DIR";
 
 /**
- * True when the database this process opened has no tables of its own, which
- * is what an install looks like the instant before its first migration - and
- * also what a database opened at the wrong path looks like, because
- * db/index.ts creates the file as soon as it is imported.
+ * Classify whether the database this process opened has tables of its own. An
+ * empty database is what an install looks like immediately before its first
+ * migration - and also what a database opened at the wrong path looks like,
+ * because db/index.ts creates the file as soon as it is imported.
  *
- * An unreadable answer is not an empty one: say "not empty" so a database that
- * cannot be inspected is never mistaken for a misdirected one and blocked.
+ * An unreadable answer is neither empty nor populated: keep it unknown so a
+ * database that cannot be inspected is never mistaken for either condition.
  */
-function databaseHasNoTables(): boolean {
+type SelectedDatabaseState = "empty" | "populated" | "unknown";
+
+function getSelectedDatabaseState(): SelectedDatabaseState {
   try {
     const row = sqlite
       .prepare(
@@ -149,9 +151,13 @@ function databaseHasNoTables(): boolean {
       )
       .get() as { count?: number } | undefined;
 
-    return row?.count === 0;
+    if (typeof row?.count !== "number") {
+      return "unknown";
+    }
+
+    return row.count === 0 ? "empty" : "populated";
   } catch {
-    return false;
+    return "unknown";
   }
 }
 
@@ -181,10 +187,12 @@ function findDatabase(directory: string): string | null {
  * name the directory that does hold a database and stop.
  */
 function ensureDataDirIsNotMisdirected(): void {
-  if (!databaseHasNoTables()) {
+  const selectedDatabaseState = getSelectedDatabaseState();
+  if (selectedDatabaseState === "unknown") {
     return;
   }
 
+  const selectedDatabaseIsEmpty = selectedDatabaseState === "empty";
   const legacyValue = process.env[LEGACY_DATA_DIR_ENV_VAR];
   const candidates: Array<{ directory: string; explanation: string }> = [];
 
@@ -195,15 +203,28 @@ function ensureDataDirIsNotMisdirected(): void {
     });
   }
 
-  candidates.push({
-    directory: DEFAULT_DATA_DIR,
-    explanation: `${DATA_DIR_ENV_VAR} moved the data directory away from the default.`,
-  });
+  // A populated explicitly selected directory wins over a stale default. The
+  // legacy variable is different: it is no longer honored, so two populated
+  // databases are ambiguous and must fail closed instead of silently choosing
+  // whichever one happens to be the default.
+  if (selectedDatabaseIsEmpty) {
+    candidates.push({
+      directory: DEFAULT_DATA_DIR,
+      explanation: `${DATA_DIR_ENV_VAR} moved the data directory away from the default.`,
+    });
+  }
 
   for (const candidate of candidates) {
     const existingDatabase = findDatabase(candidate.directory);
     if (candidate.directory === DATA_DIR || existingDatabase === null) {
       continue;
+    }
+
+    if (!selectedDatabaseIsEmpty) {
+      throw new MigrationError(
+        `Refusing to start: ${DATA_DIR} and ${existingDatabase} are distinct populated database locations. ${candidate.explanation} Choosing the default silently could use stale settings and disable login protection. Point ${DATA_DIR_ENV_VAR} at the database this instance should use, and unset ${LEGACY_DATA_DIR_ENV_VAR}.`,
+        "data_dir_ambiguous"
+      );
     }
 
     throw new MigrationError(
