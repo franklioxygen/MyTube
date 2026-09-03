@@ -354,9 +354,14 @@ const getSeriesStem = (video: Video): string =>
     EPISODE_DESIGNATOR_PATTERNS
         .reduce(
             (name, pattern) => name.replace(pattern, ' '),
-            normalizeText(getName(video)).replace(/\.[a-z0-9]{2,5}$/i, ' ')
+            normalizeText(getName(video))
+                .replace(/\.[a-z0-9]{2,5}$/i, ' ')
+                // Separators are flattened before the designator is looked for,
+                // never after: an underscore is a word character, so `Show_S01E01`
+                // offers `\b` nothing to match on and the episode number would
+                // survive into the stem - one stem per episode, and no series.
+                .replace(/[^\p{L}\p{N}]+/gu, ' ')
         )
-        .replace(/[^\p{L}\p{N}]+/gu, ' ')
         .split(' ')
         .filter(word => word && !STOP_WORDS.has(word))
         .join(' ');
