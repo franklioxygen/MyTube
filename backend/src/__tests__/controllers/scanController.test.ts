@@ -500,6 +500,75 @@ describe('ScanController', () => {
       expect(collection.name).toBe(releaseFolder);
     });
 
+    it('ignores trailers, samples and featurettes when deciding on a collection', async () => {
+      process.env.MYTUBE_ADMIN_TRUST_LEVEL = 'host';
+      (storageService.getVideos as any).mockReturnValue([]);
+      (storageService.getCollections as any).mockReturnValue([]);
+      (fs.pathExists as any).mockResolvedValue(true);
+      // clearAllMocks keeps implementations, so pin this one: an earlier test
+      // leaves a show title behind that would rename the collection.
+      const { scrapeMetadataFromTMDB } = await import('../../services/tmdbService');
+      (scrapeMetadataFromTMDB as any).mockResolvedValue(null);
+
+      const dir = (name: string) => ({
+        name,
+        isDirectory: () => true,
+        isSymbolicLink: () => false,
+      });
+      const file = (name: string) => ({
+        name,
+        isDirectory: () => false,
+        isSymbolicLink: () => false,
+      });
+
+      // Shapes taken from a real library: bonus material in a Featurettes
+      // folder, a release-group sample beside the film, and a genuine trilogy.
+      const tree: Record<string, any[]> = {
+        '/mnt/movies': [
+          dir('Django Unchained (2012)'),
+          dir('Blade.Runner.2049.2017.1080p'),
+          dir('The.Godfather.Trilogy.1972-1990'),
+        ],
+        '/mnt/movies/Django Unchained (2012)': [
+          file('Django Unchained (2012).mkv'),
+          dir('Featurettes'),
+        ],
+        '/mnt/movies/Django Unchained (2012)/Featurettes': [
+          file('The Costume Designs of Sharen Davis.mkv'),
+          file('The Production Design of Django Unchained.mkv'),
+        ],
+        '/mnt/movies/Blade.Runner.2049.2017.1080p': [
+          file('Blade.Runner.2049.2017.1080p.x265.mkv'),
+          file('Blade.Runner.2049.2017.1080p.8CH.sample.mkv'),
+        ],
+        '/mnt/movies/The.Godfather.Trilogy.1972-1990': [
+          file('The.Godfather.1972.mkv'),
+          file('The.Godfather.Part.II.1974.mkv'),
+          file('The.Godfather.Part.III.1990.mkv'),
+        ],
+      };
+      (fs.readdir as any).mockImplementation((path: string) =>
+        Promise.resolve(tree[path] ?? []),
+      );
+      (fs.stat as any).mockResolvedValue({
+        isDirectory: () => false,
+        birthtime: new Date(),
+        size: 1024,
+      });
+
+      req = { body: { directories: ['/mnt/movies'] } };
+
+      await scanMountDirectories(req as Request, res as Response);
+
+      const created = (storageService.saveCollection as any).mock.calls.map(
+        (call: any[]) => call[0].title,
+      );
+      expect(created).toEqual(['The.Godfather.Trilogy.1972-1990']);
+      // All 8 still land in the library (film + 2 featurettes, film + sample,
+      // 3 films); only the grouping changes.
+      expect(storageService.saveVideo).toHaveBeenCalledTimes(8);
+    });
+
     it('drops mount records that are no longer under a configured directory', async () => {
       process.env.MYTUBE_ADMIN_TRUST_LEVEL = 'host';
       (storageService.getVideos as any).mockReturnValue([

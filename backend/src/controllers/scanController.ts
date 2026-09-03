@@ -274,6 +274,60 @@ const buildEpisodeLabel = (filename: string): string | null => {
     : episode;
 };
 
+// Media servers keep bonus material in a fixed set of sibling folders, and
+// release groups drop a short "sample" beside the film. Counting either makes a
+// lone film look like a set and earns it a collection it should not have.
+const EXTRAS_FOLDER_NAMES = new Set([
+  "behind the scenes",
+  "behindthescenes",
+  "bonus",
+  "deleted scenes",
+  "extras",
+  "featurettes",
+  "interviews",
+  "other",
+  "sample",
+  "samples",
+  "scenes",
+  "shorts",
+  "trailers",
+]);
+
+// Matched as a suffix or as the whole name only. A bare "trailer" or "sample"
+// anywhere in the name would swallow real titles - "Trailer.Park.Boys.S01E01".
+const EXTRA_FILENAME_SUFFIX_PATTERN =
+  /[.\s_-](?:sample|trailer|teaser|featurette|behindthescenes|bloopers?|deleted|interview|scene|short|other)$/i;
+const EXTRA_FILENAME_WHOLE_PATTERN = /^(?:sample|trailer)$/i;
+const RELEASE_SAMPLE_PATTERN = /\.sample\./i;
+
+const isExtraVideoPath = (filePath: string, rootDir: string): boolean => {
+  const filename = path.basename(filePath);
+  const stem = path.parse(filename).name;
+
+  if (
+    EXTRA_FILENAME_WHOLE_PATTERN.test(stem) ||
+    EXTRA_FILENAME_SUFFIX_PATTERN.test(stem) ||
+    RELEASE_SAMPLE_PATTERN.test(filename)
+  ) {
+    return true;
+  }
+
+  let dir = path.dirname(filePath);
+  while (dir !== rootDir && isPathWithinDirectory(dir, rootDir)) {
+    if (EXTRAS_FOLDER_NAMES.has(path.basename(dir).toLowerCase())) {
+      return true;
+    }
+
+    const parent = path.dirname(dir);
+    if (parent === dir) {
+      break;
+    }
+    dir = parent;
+  }
+
+  return false;
+};
+
 const getSafeFilePathForProcessing = (
   filePath: string,
   isMountDirectory: boolean
@@ -662,6 +716,11 @@ const processDirectoryFiles = async (
   for (const filePath of videoFiles) {
     const dirName = path.dirname(path.relative(normalizedDirectory, filePath));
     if (dirName === ".") {
+      continue;
+    }
+
+    // Trailers, samples and featurettes are not what makes a folder a set.
+    if (isExtraVideoPath(filePath, normalizedDirectory)) {
       continue;
     }
 
