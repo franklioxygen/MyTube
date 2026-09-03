@@ -23,6 +23,7 @@ vi.mock("../../services/storageService", () => ({
   saveVideo: vi.fn(),
   addVideoToCollection: vi.fn(),
   getCollections: vi.fn(),
+  getCollectionById: vi.fn(),
   saveCollection: vi.fn(),
 }));
 
@@ -579,8 +580,9 @@ describe("scanController extra coverage", () => {
     expect(storageService.addVideoToCollection).toHaveBeenCalledWith(
       savedCollection.id,
       expect.any(String),
-      // Local scans keep the legacy relocation behaviour; only mount scans opt out.
-      undefined
+      // Local scans keep the legacy relocation behaviour; only mount scans opt
+      // out. The order is the file's place in the sorted folder listing.
+      { order: 1 }
     );
     expect(status).toHaveBeenCalledWith(200);
   });

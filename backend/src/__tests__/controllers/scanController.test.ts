@@ -397,8 +397,60 @@ describe('ScanController', () => {
       expect(storageService.addVideoToCollection).toHaveBeenCalledWith(
         expect.any(String),
         expect.any(String),
-        { moveFiles: false },
+        expect.objectContaining({ moveFiles: false }),
       );
+    });
+
+    it('numbers collection members by the folder listing, not by finish order', async () => {
+      process.env.MYTUBE_ADMIN_TRUST_LEVEL = 'host';
+      (storageService.getVideos as any).mockReturnValue([]);
+      (storageService.getCollections as any).mockReturnValue([]);
+      (fs.pathExists as any).mockResolvedValue(true);
+      const { scrapeMetadataFromTMDB } = await import('../../services/tmdbService');
+      (scrapeMetadataFromTMDB as any).mockResolvedValue(null);
+      (fs.readdir as any).mockImplementation((dir: string) =>
+        dir === '/mnt/tv'
+          ? Promise.resolve([
+              { name: 'Show', isDirectory: () => true, isSymbolicLink: () => false },
+            ])
+          : Promise.resolve([
+              { name: 'S01E01.mkv', isDirectory: () => false, isSymbolicLink: () => false },
+              { name: 'S01E02.mkv', isDirectory: () => false, isSymbolicLink: () => false },
+              { name: 'S01E03.mkv', isDirectory: () => false, isSymbolicLink: () => false },
+            ]),
+      );
+      // Files are read concurrently, and the first episode is the slowest here,
+      // so it is linked last. Its place in the collection must still come from
+      // the folder listing - otherwise the player follows the finish order and
+      // offers episode three after episode one.
+      (fs.stat as any).mockImplementation(async (target: string) => {
+        if (target.includes('S01E01')) {
+          await new Promise((resolve) => setTimeout(resolve, 20));
+        }
+
+        return { isDirectory: () => false, birthtime: new Date(), size: 1024 };
+      });
+
+      req = { body: { directories: ['/mnt/tv'] } };
+
+      await scanMountDirectories(req as Request, res as Response);
+
+      const idByFilename = new Map(
+        (storageService.saveVideo as any).mock.calls.map((call: any[]) => [
+          call[0].videoFilename,
+          call[0].id,
+        ]),
+      );
+      const orderByVideoId = new Map(
+        (storageService.addVideoToCollection as any).mock.calls.map((call: any[]) => [
+          call[1],
+          call[2].order,
+        ]),
+      );
+
+      expect(orderByVideoId.get(idByFilename.get('S01E01.mkv'))).toBe(1);
+      expect(orderByVideoId.get(idByFilename.get('S01E02.mkv'))).toBe(2);
+      expect(orderByVideoId.get(idByFilename.get('S01E03.mkv'))).toBe(3);
     });
 
     it('leaves a single-video folder out of collections entirely', async () => {
@@ -655,7 +707,7 @@ describe('ScanController', () => {
       expect(storageService.addVideoToCollection).toHaveBeenCalledWith(
         expect.any(String),
         'ep1',
-        { moveFiles: false },
+        { moveFiles: false, order: 1 },
       );
     });
 
@@ -733,7 +785,7 @@ describe('ScanController', () => {
       expect(storageService.addVideoToCollection).toHaveBeenCalledWith(
         expect.any(String),
         'ep1',
-        { moveFiles: false },
+        { moveFiles: false, order: 1 },
       );
     });
 
