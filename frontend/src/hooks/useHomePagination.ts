@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router';
 import { Video } from '../types';
+import { usePaginationKeyboardNavigation } from './usePaginationKeyboardNavigation';
 
 interface UseHomePaginationProps {
     sortedVideos: Video[];
@@ -78,57 +79,26 @@ export const useHomePagination = ({
         }
     }, [infiniteScroll, sortedVideos, page, itemsPerPage]);
 
-    const handlePageChange = (_: React.ChangeEvent<unknown>, value: number) => {
+    const goToPage = useCallback((value: number) => {
         setSearchParams((prev: URLSearchParams) => {
             const newParams = new URLSearchParams(prev);
             newParams.set('page', value.toString());
             return newParams;
         });
         window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, [setSearchParams]);
+
+    const handlePageChange = (_: React.ChangeEvent<unknown>, value: number) => {
+        goToPage(value);
     };
 
     // Keyboard navigation for pagination (only when infinite scroll is disabled)
-    useEffect(() => {
-        if (infiniteScroll) {
-            return; // Disable keyboard navigation when infinite scroll is enabled
-        }
-
-        const handleKeyDown = (event: KeyboardEvent) => {
-            // Don't handle keyboard navigation if user is typing in an input field
-            const eventTarget = event.target as HTMLElement;
-            if (eventTarget.tagName === 'INPUT' || eventTarget.tagName === 'TEXTAREA' || eventTarget.isContentEditable) {
-                return;
-            }
-
-            // Only handle if there are multiple pages
-            if (totalPages <= 1) {
-                return;
-            }
-
-            if (event.key === 'ArrowLeft' && page > 1) {
-                event.preventDefault();
-                setSearchParams((prev: URLSearchParams) => {
-                    const newParams = new URLSearchParams(prev);
-                    newParams.set('page', (page - 1).toString());
-                    return newParams;
-                });
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            } else if (event.key === 'ArrowRight' && page < totalPages) {
-                event.preventDefault();
-                setSearchParams((prev: URLSearchParams) => {
-                    const newParams = new URLSearchParams(prev);
-                    newParams.set('page', (page + 1).toString());
-                    return newParams;
-                });
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            }
-        };
-
-        window.addEventListener('keydown', handleKeyDown);
-        return () => {
-            window.removeEventListener('keydown', handleKeyDown);
-        };
-    }, [page, totalPages, setSearchParams, infiniteScroll]);
+    usePaginationKeyboardNavigation({
+        page,
+        totalPages,
+        onPageChange: goToPage,
+        enabled: !infiniteScroll
+    });
 
     return {
         page,
