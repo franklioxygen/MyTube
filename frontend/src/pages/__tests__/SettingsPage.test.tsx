@@ -807,7 +807,7 @@ describe('SettingsPage', () => {
     expect(mockApiPost).not.toHaveBeenCalled();
   });
 
-  it('scans mount directories and saves settings on successful scan', async () => {
+  it('saves the mount directories as the scan starts', async () => {
     mockSettingsData = {
       mountDirectories: '/a\n/b',
       deploymentSecurity: {
@@ -829,8 +829,13 @@ describe('SettingsPage', () => {
       );
     });
 
-    expect(mockSaveMutate).toHaveBeenCalled();
-    expect(await screen.findByText('scanMountDirectoriesSuccess settingsSaved')).toBeInTheDocument();
+    // The save no longer waits on the scan, so the success message reports the
+    // scan alone; a failed save is appended to it instead (covered below).
+    expect(mockSaveMutate).toHaveBeenCalledWith(
+      expect.objectContaining({ mountDirectories: '/a\n/b' }),
+      expect.anything()
+    );
+    expect(await screen.findByText('scanMountDirectoriesSuccess')).toBeInTheDocument();
   });
 
   it('shows warning snackbar when scan succeeds but saving settings fails', async () => {

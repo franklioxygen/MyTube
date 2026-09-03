@@ -2,6 +2,7 @@ import { Response } from "express";
 import path from "path";
 import { NotFoundError, ValidationError } from "../../errors/DownloadErrors";
 import {
+  hasPathTraversalSegment,
   normalizeSafeAbsolutePath,
   statTrusted,
 } from "../../utils/security";
@@ -24,7 +25,7 @@ const validateRawMountFilePath = (rawFilePath: string): void => {
   if (!rawFilePath) {
     throw new ValidationError("Invalid file path: empty or invalid", "videoPath");
   }
-  if (rawFilePath.includes("..") || rawFilePath.includes("\0")) {
+  if (hasPathTraversalSegment(rawFilePath) || rawFilePath.includes("\0")) {
     throw new ValidationError(
       "Invalid file path: path traversal detected",
       "videoPath"

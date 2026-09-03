@@ -26,7 +26,8 @@ function collapseComparableTitle(value: string): string {
 }
 
 function getResultTitleCandidates(
-  item: Partial<TMDBMovieResult & TMDBTVResult & TMDBSearchResult>
+  item: Partial<TMDBMovieResult & TMDBTVResult & TMDBSearchResult>,
+  extraTitles: readonly string[] = []
 ): string[] {
   return [
     ...new Set(
@@ -35,23 +36,47 @@ function getResultTitleCandidates(
         item.original_title,
         item.name,
         item.original_name,
+        ...extraTitles,
       ].filter((value): value is string => Boolean(value && value.trim()))
     ),
   ];
 }
 
-export function isConfidentTMDBTitleMatch(
+/**
+ * `extraTitles` carries titles the response itself does not hold - notably the
+ * English ones when results were fetched in another language. TMDB returns the
+ * localized title plus the original-language title, so a release filename
+ * naming a film in English matches neither when the film was shot in a third
+ * language.
+ */
+/** No title on the result is close enough to the search title. */
+export const TMDB_TITLE_MATCH_NONE = 0;
+/** One title contains the other, or they share enough words. */
+export const TMDB_TITLE_MATCH_LOOSE = 1;
+/** A title is the search title. */
+export const TMDB_TITLE_MATCH_EXACT = 2;
+
+/**
+ * How well a result answers the search title, so callers can prefer the best
+ * rather than settle for the first that clears the bar. The distinction
+ * matters: searching "All Quiet on the Western Front" also returns "Making All
+ * Quiet on the Western Front", which contains the query and would otherwise be
+ * just as acceptable as the film itself.
+ */
+export function getTMDBTitleMatchStrength(
   searchTitle: string,
-  item: Partial<TMDBMovieResult & TMDBTVResult & TMDBSearchResult>
-): boolean {
+  item: Partial<TMDBMovieResult & TMDBTVResult & TMDBSearchResult>,
+  extraTitles: readonly string[] = []
+): number {
   const normalizedSearchTitle = normalizeComparableTitle(searchTitle);
   if (normalizedSearchTitle.length < 2) {
-    return false;
+    return TMDB_TITLE_MATCH_NONE;
   }
 
   const searchTokens = extractComparableTokens(searchTitle);
+  let bestStrength = TMDB_TITLE_MATCH_NONE;
 
-  for (const candidateTitle of getResultTitleCandidates(item)) {
+  for (const candidateTitle of getResultTitleCandidates(item, extraTitles)) {
     const normalizedCandidateTitle = normalizeComparableTitle(candidateTitle);
     if (!normalizedCandidateTitle) {
       continue;
@@ -61,14 +86,14 @@ export function isConfidentTMDBTitleMatch(
     const collapsedCandidateTitle = collapseComparableTitle(candidateTitle);
 
     if (normalizedCandidateTitle === normalizedSearchTitle) {
-      return true;
+      return TMDB_TITLE_MATCH_EXACT;
     }
 
     if (
       collapsedSearchTitle.length >= 4 &&
       collapsedCandidateTitle === collapsedSearchTitle
     ) {
-      return true;
+      return TMDB_TITLE_MATCH_EXACT;
     }
 
     const shorterComparableLength = Math.min(
@@ -82,7 +107,8 @@ export function isConfidentTMDBTitleMatch(
         normalizedSearchTitle.includes(normalizedCandidateTitle)
       )
     ) {
-      return true;
+      bestStrength = TMDB_TITLE_MATCH_LOOSE;
+      continue;
     }
 
     if (searchTokens.length === 0) {
@@ -94,14 +120,24 @@ export function isConfidentTMDBTitleMatch(
       candidateTokens.has(token)
     );
 
-    if (matchedTokens.length === searchTokens.length) {
-      return true;
-    }
-
-    if (searchTokens.length >= 2 && matchedTokens.length >= 2) {
-      return true;
+    if (
+      matchedTokens.length === searchTokens.length ||
+      (searchTokens.length >= 2 && matchedTokens.length >= 2)
+    ) {
+      bestStrength = TMDB_TITLE_MATCH_LOOSE;
     }
   }
 
-  return false;
+  return bestStrength;
+}
+
+export function isConfidentTMDBTitleMatch(
+  searchTitle: string,
+  item: Partial<TMDBMovieResult & TMDBTVResult & TMDBSearchResult>,
+  extraTitles: readonly string[] = []
+): boolean {
+  return (
+    getTMDBTitleMatchStrength(searchTitle, item, extraTitles) >
+    TMDB_TITLE_MATCH_NONE
+  );
 }

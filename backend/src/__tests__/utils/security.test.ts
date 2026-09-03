@@ -33,6 +33,20 @@ describe('security', () => {
         });
     });
 
+    describe('hasPathTraversalSegment', () => {
+        it('should detect real traversal components', () => {
+            expect(security.hasPathTraversalSegment('/base/../etc/passwd')).toBe(true);
+            expect(security.hasPathTraversalSegment('..')).toBe(true);
+            expect(security.hasPathTraversalSegment('..\\windows')).toBe(true);
+        });
+
+        it('should allow names that merely contain ".."', () => {
+            expect(security.hasPathTraversalSegment('/media/03..intro')).toBe(false);
+            expect(security.hasPathTraversalSegment("/media/Cat's in the Bag....mkv")).toBe(false);
+            expect(security.hasPathTraversalSegment('/media/Team S.C.I.E.N.C.E..mkv')).toBe(false);
+        });
+    });
+
     describe('validateUrl', () => {
         it('should allow valid http/https urls', () => {
             expect(security.validateUrl('https://google.com')).toBe('https://google.com');

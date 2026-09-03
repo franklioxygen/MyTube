@@ -8,7 +8,7 @@ import {
 } from "../config/adminTrust";
 import { IMAGES_DIR, VIDEOS_DIR } from "../config/paths";
 import * as storageService from "../services/storageService";
-import { scrapeMetadataFromTMDB } from "../services/tmdbService";
+import { parseFilename, scrapeMetadataFromTMDB } from "../services/tmdbService";
 import { formatVideoFilename } from "../utils/helpers";
 import { logger } from "../utils/logger";
 import { AUDIO_CONTAINER_EXTENSIONS, MEDIA_FILE_EXTENSIONS } from "../utils/videoExtensions";
@@ -20,6 +20,7 @@ import {
 } from "../utils/response";
 import {
   execFileSafe,
+  hasPathTraversalSegment,
   isPathWithinDirectory,
   imagePathExists,
   normalizeSafeAbsolutePath,
@@ -94,6 +95,14 @@ const resolveDirectoryForCollection = (
   return mode === "mount" ? validateMountDirectory(dir) : resolveSafePath(dir, VIDEOS_DIR);
 };
 
+// NAS appliances drop generated files next to the media: QNAP writes preview
+// clips into ".@__thumb" and trashes into "@Recycle", Synology uses "@eaDir".
+// Those scan as real videos, so skip them along with any other dot-entry.
+const SYSTEM_ENTRY_NAMES = new Set(["@Recycle", "@eaDir", "#recycle"]);
+
+const isSkippableEntryName = (name: string): boolean =>
+  name.startsWith(".") || SYSTEM_ENTRY_NAMES.has(name);
+
 const collectFilesRecursively = async (
   dir: string,
   mode: RecursiveCollectionMode,
@@ -122,6 +131,10 @@ const collectFilesRecursively = async (
 
   const nestedResults = await Promise.all(
     entries.map(async (entry) => {
+      if (isSkippableEntryName(entry.name)) {
+        return [] as string[];
+      }
+
       let filePath: string;
       try {
         filePath = resolveSafeChildPath(resolvedDir, entry.name);
@@ -169,7 +182,7 @@ const validateMountDirectory = (dir: string): string => {
     throw new Error(`Mount directory must be an absolute path: ${dir}`);
   }
 
-  if (dir.includes("..") || dir.includes("\0")) {
+  if (hasPathTraversalSegment(dir) || dir.includes("\0")) {
     throw new Error(`Path traversal detected in mount directory: ${dir}`);
   }
 
@@ -215,6 +228,114 @@ const buildVideoWebPath = (
   return `/videos/${relativePath.split(path.sep).join("/")}`;
 };
 
+// A media-server layout carries the work's identity on the folder, not the file:
+// "Heat (1995) [2160p]/Heat.1995.2160p.x265-YTS.mkv". Season and extras folders
+// carry none, so walk past them to reach the folder that names the work.
+const NON_IDENTIFYING_FOLDER =
+  /^(?:season\s*\d+|s\d{1,3}|specials?|extras?|featurettes?|bonus|\d*\s*第[\d一二三四五六七八九十]+季)$/i;
+
+const IDENTITY_FOLDER_MAX_DEPTH = 3;
+
+const resolveIdentityFolderName = (
+  filePath: string,
+  rootDir: string
+): string | null => {
+  let dir = path.dirname(filePath);
+
+  for (let depth = 0; depth < IDENTITY_FOLDER_MAX_DEPTH; depth += 1) {
+    // Stop at the scan root: its name is the library ("TV Shows"), not a work.
+    if (dir === rootDir || !isPathWithinDirectory(dir, rootDir)) {
+      return null;
+    }
+
+    const name = path.basename(dir).trim();
+    if (name && !NON_IDENTIFYING_FOLDER.test(name)) {
+      return name;
+    }
+
+    dir = path.dirname(dir);
+  }
+
+  return null;
+};
+
+// TMDB matches a series, never a single episode, so every file in a season
+// folder comes back carrying the same show title. Keep the episode designator
+// from the filename so the episodes stay tellable apart in the library.
+const buildEpisodeLabel = (filename: string): string | null => {
+  const parsed = parseFilename(filename);
+  if (!parsed.isTVShow || typeof parsed.episode !== "number") {
+    return null;
+  }
+
+  const episode = `E${String(parsed.episode).padStart(2, "0")}`;
+  return typeof parsed.season === "number"
+    ? `S${String(parsed.season).padStart(2, "0")}${episode}`
+    : episode;
+};
+
+// Media servers keep bonus material in a fixed set of sibling folders, and
+// release groups drop a short "sample" beside the film. Counting either makes a
+// lone film look like a set and earns it a collection it should not have.
+const EXTRAS_FOLDER_NAMES = new Set([
+  "behind the scenes",
+  "behindthescenes",
+  "bonus",
+  "deleted scenes",
+  "extras",
+  "featurettes",
+  "interviews",
+  "other",
+  "sample",
+  "samples",
+  "scenes",
+  "shorts",
+  "trailers",
+]);
+
+// Matched as a suffix or as the whole name only. A bare "trailer" or "sample"
+// anywhere in the name would swallow real titles - "Trailer.Park.Boys.S01E01".
+const EXTRA_FILENAME_SUFFIX_PATTERN =
+  /[.\s_-](?:sample|trailer|teaser|featurette|behindthescenes|bloopers?|deleted|interview|scene|short|other)$/i;
+const EXTRA_FILENAME_WHOLE_PATTERN = /^(?:sample|trailer)$/i;
+const RELEASE_SAMPLE_PATTERN = /\.sample\./i;
+
+const isExtraVideoPath = (filePath: string, rootDir: string): boolean => {
+  const filename = path.basename(filePath);
+  const stem = path.parse(filename).name;
+
+  if (
+    EXTRA_FILENAME_WHOLE_PATTERN.test(stem) ||
+    EXTRA_FILENAME_SUFFIX_PATTERN.test(stem) ||
+    RELEASE_SAMPLE_PATTERN.test(filename)
+  ) {
+    return true;
+  }
+
+  // Bonus folders sit *under* a work, so stop before the scan root's own
+  // children: a library named "Shorts" or "Trailers" is a category of content,
+  // not bonus material, and treating it as such would skip everything in it -
+  // and drop the records of anything already imported from it.
+  let dir = path.dirname(filePath);
+  while (isPathWithinDirectory(dir, rootDir) && path.dirname(dir) !== rootDir) {
+    if (dir === rootDir) {
+      break;
+    }
+
+    if (EXTRAS_FOLDER_NAMES.has(path.basename(dir).toLowerCase())) {
+      return true;
+    }
+
+    const parent = path.dirname(dir);
+    if (parent === dir) {
+      break;
+    }
+    dir = parent;
+  }
+
+  return false;
+};
+
 const getSafeFilePathForProcessing = (
   filePath: string,
   isMountDirectory: boolean
@@ -222,7 +343,7 @@ const getSafeFilePathForProcessing = (
   if (isMountDirectory) {
     if (
       !path.isAbsolute(filePath) ||
-      filePath.includes("..") ||
+      hasPathTraversalSegment(filePath) ||
       filePath.includes("\0")
     ) {
       logger.warn(`Skipping unsafe mount path: ${filePath}`);
@@ -376,7 +497,11 @@ const processSingleVideoFile = async (
   normalizedDirectory: string,
   existingVideosByPath: Map<string, ExistingVideoSnapshot>,
   isMountDirectory: boolean,
-  resolveCollectionId: (collectionName: string) => Promise<string | undefined>
+  resolveCollectionId: (
+    collectionName: string,
+    displayTitle?: string
+  ) => Promise<string | undefined>,
+  noteUnchangedVideo: (videoId: string, collectionName: string) => void
 ): Promise<ProcessFileResult> => {
   const filename = path.basename(filePath);
   const relativePath = path.relative(normalizedDirectory, filePath);
@@ -392,6 +517,15 @@ const processSingleVideoFile = async (
   const fileSize = stats.size.toString();
   const existingVideo = existingVideosByPath.get(webPath);
   if (existingVideo && existingVideo.fileSize === fileSize) {
+    // Nothing to re-read, but the folder may have crossed the grouping
+    // threshold since this file was imported - a second episode arriving beside
+    // a lone one. Collections are only assigned on insert, so without this the
+    // new collection would permanently omit the file that did not change.
+    const unchangedDirName = path.dirname(relativePath);
+    if (unchangedDirName !== ".") {
+      noteUnchangedVideo(existingVideo.id, unchangedDirName.split(path.sep)[0]);
+    }
+
     return "skipped";
   }
 
@@ -416,10 +550,37 @@ const processSingleVideoFile = async (
     logger.error(`Error scraping TMDB metadata for "${filename}":`, error);
   }
 
+  // Release names ("Heat.1995.2160p.4K.WEB.x265.10bit.AAC5.1-[YTS.MX].mkv")
+  // rarely match, while the folder they sit in usually does. Only mount scans
+  // retry: under the managed videos folder the parent is an author/collection
+  // folder, which would invite a wrong match.
+  if (!tmdbMetadata && isMountDirectory) {
+    const identityFolder = resolveIdentityFolderName(filePath, normalizedDirectory);
+
+    if (identityFolder) {
+      try {
+        tmdbMetadata = await scrapeMetadataFromTMDB(
+          `${identityFolder}${path.extname(filename)}`,
+          tempThumbnailFilename
+        );
+      } catch (error) {
+        logger.error(
+          `Error scraping TMDB metadata for folder "${identityFolder}":`,
+          error
+        );
+      }
+    }
+  }
+
   logger.info(`Found new video file: ${relativePath}`);
 
   const displayTitle = originalTitle || "Untitled Video";
-  const finalDisplayTitle = tmdbMetadata?.title || displayTitle;
+  const episodeLabel = tmdbMetadata?.title ? buildEpisodeLabel(filename) : null;
+  const finalDisplayTitle = tmdbMetadata?.title
+    ? episodeLabel
+      ? `${tmdbMetadata.title} - ${episodeLabel}`
+      : tmdbMetadata.title
+    : displayTitle;
   const finalDescription = tmdbMetadata?.description;
   const author = tmdbMetadata?.director || "Admin";
 
@@ -499,10 +660,31 @@ const processSingleVideoFile = async (
   const dirName = path.dirname(relativePath);
   if (!replacingVideoId && dirName !== ".") {
     const collectionName = dirName.split(path.sep)[0];
-    const collectionId = await resolveCollectionId(collectionName);
+    // Name the collection after the work TMDB recognized rather than the raw
+    // release folder - but only when that folder *is* the collection folder.
+    // With a library root as the scan root the first segment is the library
+    // name ("TV Shows"), which one show's title must not overwrite.
+    const collectionDisplayTitle =
+      isMountDirectory &&
+      tmdbMetadata?.title &&
+      resolveIdentityFolderName(filePath, normalizedDirectory) === collectionName
+        ? tmdbMetadata.title
+        : undefined;
+    const collectionId = await resolveCollectionId(
+      collectionName,
+      collectionDisplayTitle
+    );
 
     if (collectionId) {
-      storageService.addVideoToCollection(collectionId, newVideo.id);
+      // Mount media belongs to the media server, so it must never be relocated
+      // into a collection folder. Saying so up front also skips the legacy
+      // move path, which reloads every collection and its members per video -
+      // synchronous SQLite work that stalls the whole server mid-scan.
+      storageService.addVideoToCollection(
+        collectionId,
+        newVideo.id,
+        isMountDirectory ? { moveFiles: false } : undefined
+      );
       logger.info(`Added video ${newVideo.title} to collection ${collectionName}`);
     }
   }
@@ -530,11 +712,21 @@ const processDirectoryFiles = async (
     return { addedCount: 0, updatedCount: 0, allFiles: [] };
   }
 
-  const allFiles =
+  const collectedFiles =
     options.scannedFiles ||
     (isMountDirectory
       ? await getFilesRecursivelyFromMount(normalizedDirectory)
       : await getFilesRecursively(normalizedDirectory));
+
+  // Bonus material is not library content: a media server keeps it beside the
+  // film precisely so a player can ignore it. Dropping it here also keeps it
+  // out of the caller's on-disk set, so extras imported by an earlier scan are
+  // cleaned up on the next one.
+  const allFiles = isMountDirectory
+    ? collectedFiles.filter(
+        (filePath) => !isExtraVideoPath(filePath, normalizedDirectory)
+      )
+    : collectedFiles;
 
   const videoFiles = allFiles.filter((filePath) =>
     videoExtensions.includes(path.extname(filePath).toLowerCase())
@@ -543,9 +735,39 @@ const processDirectoryFiles = async (
   const collectionIdCache = new Map<string, string>();
   const collectionCreationLocks = new Map<string, Promise<string | undefined>>();
 
+  // A folder holding one video is a single film, not a series, and turning it
+  // into a one-video collection just clutters the library. Count the whole
+  // batch up front so the decision does not depend on scan order. An existing
+  // collection of that name is still joined - only creating a new one is
+  // withheld.
+  const videoCountByCollectionName = new Map<string, number>();
+  for (const filePath of videoFiles) {
+    const dirName = path.dirname(path.relative(normalizedDirectory, filePath));
+    if (dirName === ".") {
+      continue;
+    }
+
+    const name = dirName.split(path.sep)[0];
+    videoCountByCollectionName.set(
+      name,
+      (videoCountByCollectionName.get(name) ?? 0) + 1
+    );
+  }
+
+  const shouldGroupIntoCollection = (collectionName: string): boolean =>
+    !isMountDirectory || (videoCountByCollectionName.get(collectionName) ?? 0) > 1;
+
   const resolveCollectionId = async (
-    collectionName: string
+    collectionName: string,
+    displayTitle?: string
   ): Promise<string | undefined> => {
+    // Decided before any lookup: a lone film must not join a same-named
+    // collection either, or one left behind by an earlier scan quietly takes
+    // it back in.
+    if (!shouldGroupIntoCollection(collectionName)) {
+      return undefined;
+    }
+
     const cached = collectionIdCache.get(collectionName);
     if (cached) {
       return cached;
@@ -572,7 +794,8 @@ const processDirectoryFiles = async (
 
       storageService.saveCollection({
         id: collectionId,
-        title: collectionName,
+        // `name` stays the folder, so lookups by folder name keep matching.
+        title: displayTitle || collectionName,
         name: collectionName,
         videos: [],
         createdAt: new Date().toISOString(),
@@ -594,6 +817,7 @@ const processDirectoryFiles = async (
 
   let addedCount = 0;
   let updatedCount = 0;
+  const unchangedVideosByCollectionName = new Map<string, string[]>();
 
   await runWithConcurrencyLimit(
     videoFiles,
@@ -605,7 +829,13 @@ const processDirectoryFiles = async (
           normalizedDirectory,
           existingVideosByPath,
           isMountDirectory,
-          resolveCollectionId
+          resolveCollectionId,
+          (videoId, collectionName) => {
+            unchangedVideosByCollectionName.set(
+              collectionName,
+              [...(unchangedVideosByCollectionName.get(collectionName) ?? []), videoId]
+            );
+          }
         );
 
         if (result === "added") {
@@ -618,6 +848,27 @@ const processDirectoryFiles = async (
       }
     }
   );
+
+  // Reconcile after the pass, so a collection created from a newly added file
+  // already carries the title TMDB recognised before the unchanged files join.
+  for (const [collectionName, videoIds] of unchangedVideosByCollectionName) {
+    if (!shouldGroupIntoCollection(collectionName)) {
+      continue;
+    }
+
+    const collectionId = await resolveCollectionId(collectionName);
+    if (!collectionId) {
+      continue;
+    }
+
+    for (const videoId of videoIds) {
+      storageService.addVideoToCollection(
+        collectionId,
+        videoId,
+        isMountDirectory ? { moveFiles: false } : undefined
+      );
+    }
+  }
 
   return { addedCount, updatedCount, allFiles };
 };
@@ -859,8 +1110,10 @@ const runMountScan = async (req: Request, res: Response): Promise<void> => {
   let deletedCount = 0;
   const videosToDelete: string[] = [];
 
-  const normalizedDirectories = validDirectories;
-
+  // Every mount record that the scan did not find on disk is dropped, including
+  // records under a directory the operator has since removed from the setting.
+  // Only the database row goes: deleteVideo() never touches a "mount:" file,
+  // so the media itself stays where the media server expects it.
   for (const video of existingVideos) {
     if (!video.videoPath?.startsWith("mount:")) {
       continue;
@@ -875,19 +1128,8 @@ const runMountScan = async (req: Request, res: Response): Promise<void> => {
       continue;
     }
 
-    const isInScannedDirectory = normalizedDirectories.some((dir: string) => {
-      return (
-        normalizedVideoPath === dir ||
-        normalizedVideoPath.startsWith(`${dir}${path.sep}`)
-      );
-    });
-
-    if (!isInScannedDirectory) {
-      continue;
-    }
-
     if (!actualMountPathsOnDisk.has(normalizedVideoPath)) {
-      logger.info(`Mount video missing: ${video.title} (${video.videoPath})`);
+      logger.info(`Mount video no longer scanned: ${video.title} (${video.videoPath})`);
       videosToDelete.push(video.id);
     }
   }

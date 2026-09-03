@@ -10,6 +10,13 @@ import {
   testTMDBCredential,
 } from "../../services/tmdbService";
 import * as settingsService from "../../services/storageService/settings";
+import {
+  getTMDBTitleMatchStrength,
+  isConfidentTMDBTitleMatch,
+  TMDB_TITLE_MATCH_EXACT,
+  TMDB_TITLE_MATCH_LOOSE,
+  TMDB_TITLE_MATCH_NONE,
+} from "../../services/tmdbService/titleMatch";
 
 const axiosMocks = vi.hoisted(() => {
   const get = vi.fn();
@@ -162,6 +169,147 @@ describe("tmdbService", () => {
 
       expect(parsed.titles[0]).toBe("IMG 0999");
       expect(parsed.year).toBeUndefined();
+    });
+  });
+
+  describe("parseFilename release-name cleanup", () => {
+    it("strips language, edition and disc tags", () => {
+      // Hyphenated "Blu-ray" never matched the BluRay word pattern, and
+      // nothing removed hardcoded-subtitle or language markers.
+      expect(
+        parseFilename(
+          "Hibiscus.Town.1986.Blu-ray.1080p.REMUX.AVC.FLAC.2.0-HDH.mkv"
+        ).titles
+      ).toContain("Hibiscus Town");
+      expect(
+        parseFilename(
+          "No More Bets 2023 1080p Chinese WEB-DL HC HEVC x265-BONE.mkv"
+        ).titles
+      ).toContain("No More Bets");
+    });
+
+    it("keeps shortening the title while trailing junk remains", () => {
+      // "The Godfather UHD 5Audio beAst" needs three words removed.
+      expect(
+        parseFilename(
+          "The.Godfather.1972.UHD.BluRay.2160p.10bit.HDR.5Audio.TrueHD.5.1.x265-beAst.mkv"
+        ).titles
+      ).toContain("The Godfather");
+    });
+
+    // Real names from a media library; each previously left junk in the title
+    // that sank the TMDB lookup.
+    const cases: Array<[string, string]> = [
+      ["A.Foggy.Tale.2025.1080p.NF.WEB-DL.DDP5.1.H.264-MWeb", "A Foggy Tale"],
+      [
+        "All.Quiet.on.the.Western.Front.2022.1080p.NF.WEBRip.1600MB.DD5.1.x264-GalaxyRG",
+        "All Quiet on the Western Front",
+      ],
+      [
+        "Avatar.The.Way.of.Water.2022.2160p.WEB-DL.DDP5.1.Atmos.DV.HDR10.HEVC-CMRG",
+        "Avatar The Way of Water",
+      ],
+      [
+        "An.Unfinished.Film.2024.1080p.CATCHPLAY+.WEB-DL.AAC2.0.H.264-CHDWEB",
+        "An Unfinished Film",
+      ],
+    ];
+
+    it.each(cases)("cleans %s", (filename, expected) => {
+      expect(parseFilename(`${filename}.mkv`).titles[0]).toBe(expected);
+    });
+
+    it("offers a candidate without the trailing release group", () => {
+      // Groups are endlessly varied, so rather than enumerate them the search
+      // gets a shortened candidate to try as well.
+      const parsed = parseFilename(
+        "A.Simple.Life.2011.2160p.WEB-DL.H265.AAC.2.0-Zaxyzit.mkv"
+      );
+      expect(parsed.titles).toContain("A Simple Life");
+    });
+  });
+
+  describe("isConfidentTMDBTitleMatch", () => {
+    // Searched under zh-CN, TMDB answers with the localized title and the
+    // original-language one. For a French film named in English by the release
+    // name, neither is what the filename says.
+    const anatomyOfAFall = {
+      title: "坠落的审判",
+      original_title: "Anatomie d'une chute",
+    };
+
+    it("rejects a result whose returned titles are in other languages", () => {
+      expect(isConfidentTMDBTitleMatch("Anatomy Of A Fall", anatomyOfAFall)).toBe(
+        false
+      );
+    });
+
+    it("accepts it once the English title is supplied as an extra candidate", () => {
+      expect(
+        isConfidentTMDBTitleMatch("Anatomy Of A Fall", anatomyOfAFall, [
+          "Anatomy of a Fall",
+        ])
+      ).toBe(true);
+    });
+
+    it("still rejects a genuinely different film", () => {
+      expect(
+        isConfidentTMDBTitleMatch("Anatomy Of A Fall", anatomyOfAFall, [
+          "Barbie",
+        ])
+      ).toBe(false);
+    });
+  });
+
+  describe("release year guard", () => {
+    it("keeps a match when the year opens the title", () => {
+      // "2001.A.Space.Odyssey" parses 2001 as the year, but the film is from
+      // 1968; a leading four-digit number is the title, not release metadata.
+      const parsed = parseFilename("2001.A.Space.Odyssey.mkv");
+      expect(parsed.year).toBe(2001);
+      expect(parsed.titles).toContain("A Space Odyssey");
+    });
+
+    it("still reads a trailing year as release metadata", () => {
+      const parsed = parseFilename(
+        "Blade.Runner.2049.2017.1080p.10bit.BluRay.8CH.x265.HEVC-PSA.mkv"
+      );
+      expect(parsed.year).toBe(2017);
+    });
+  });
+
+  describe("getTMDBTitleMatchStrength", () => {
+    // Real TMDB responses for query "All Quiet on the Western Front", year
+    // 2022. Under zh-CN the film answers with its Chinese and German titles,
+    // while a companion making-of carries the query inside its own title.
+    const film = {
+      id: 49046,
+      title: "西线无战事",
+      original_title: "Im Westen nichts Neues",
+    };
+    const makingOf = {
+      id: 1086967,
+      title: "Making All Quiet on the Western Front",
+      original_title: "Making All Quiet on the Western Front",
+    };
+    const query = "All Quiet on the Western Front";
+
+    it("ranks the companion release above nothing but below the film", () => {
+      expect(getTMDBTitleMatchStrength(query, film)).toBe(TMDB_TITLE_MATCH_NONE);
+      expect(getTMDBTitleMatchStrength(query, makingOf)).toBe(
+        TMDB_TITLE_MATCH_LOOSE
+      );
+    });
+
+    it("puts the film first once its English title is available", () => {
+      // This is the pairing that matters: without the English pass the only
+      // match is the making-of, and it wins by default.
+      expect(getTMDBTitleMatchStrength(query, film, [query])).toBe(
+        TMDB_TITLE_MATCH_EXACT
+      );
+      expect(
+        getTMDBTitleMatchStrength(query, makingOf, [makingOf.title])
+      ).toBe(TMDB_TITLE_MATCH_LOOSE);
     });
   });
 

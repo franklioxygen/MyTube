@@ -578,7 +578,9 @@ describe("scanController extra coverage", () => {
     const savedCollection = vi.mocked(storageService.saveCollection).mock.calls[0][0] as any;
     expect(storageService.addVideoToCollection).toHaveBeenCalledWith(
       savedCollection.id,
-      expect.any(String)
+      expect.any(String),
+      // Local scans keep the legacy relocation behaviour; only mount scans opt out.
+      undefined
     );
     expect(status).toHaveBeenCalledWith(200);
   });
@@ -638,11 +640,17 @@ describe("scanController extra coverage", () => {
 
     await scanMountDirectories(req as Request, res as Response);
 
-    expect(storageService.deleteVideo).not.toHaveBeenCalled();
+    // A mount record the scan did not reach is dropped even though it sits
+    // outside every configured directory - that is how removing a directory
+    // from the setting cleans up its videos. Non-mount records are untouched.
+    expect(storageService.deleteVideo).toHaveBeenCalledWith("outside");
+    expect(storageService.deleteVideo).not.toHaveBeenCalledWith("no-path");
     expect(status).toHaveBeenCalledWith(200);
+    // Both unreachable mount records go: the one outside every configured
+    // directory, and the one whose stored path can never resolve on disk.
     expect(json).toHaveBeenCalledWith({
       addedCount: 0,
-      deletedCount: 0,
+      deletedCount: 2,
       scannedDirectories: 1,
     });
   });

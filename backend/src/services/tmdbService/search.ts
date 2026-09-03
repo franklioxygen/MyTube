@@ -9,7 +9,12 @@ import {
   tmdbHttpClient,
   validateTMDBNumericId,
 } from "./httpClient";
-import { isConfidentTMDBTitleMatch } from "./titleMatch";
+import {
+  getTMDBTitleMatchStrength,
+  isConfidentTMDBTitleMatch,
+  TMDB_TITLE_MATCH_EXACT,
+  TMDB_TITLE_MATCH_NONE,
+} from "./titleMatch";
 import type {
   TMDBCrewMember,
   TMDBMediaSearchResult,
@@ -22,6 +27,101 @@ import type {
 /**
  * Search for a movie on TMDB with language support
  */
+const ENGLISH_TMDB_LANGUAGE = "en-US";
+
+/**
+ * Fetch the same search again in English and index the titles by TMDB id.
+ *
+ * TMDB's `language` only changes the strings it returns, never which results
+ * come back, so the film is already in the localized response - it is the
+ * title comparison that fails. Under zh-CN "Anatomy of a Fall" comes back as
+ * 坠落的审判 with the original title "Anatomie d'une chute", and a filename
+ * naming the film in English matches neither.
+ */
+async function fetchEnglishTitlesById(
+  searchPath: string,
+  params: Record<string, string>,
+  credential: string
+): Promise<Map<number, string[]>> {
+  const titlesById = new Map<number, string[]>();
+
+  try {
+    const response = await tmdbHttpClient.get(buildTMDBEndpointPath(searchPath), {
+      ...buildTMDBRequestConfig(credential, {
+        ...params,
+        language: ENGLISH_TMDB_LANGUAGE,
+      }),
+    });
+
+    const results: Array<Record<string, unknown>> = response.data.results || [];
+    for (const item of results) {
+      if (typeof item.id !== "number") {
+        continue;
+      }
+
+      const titles = [item.title, item.name, item.original_title, item.original_name]
+        .filter(
+          (value): value is string =>
+            typeof value === "string" && value.trim().length > 0
+        );
+      if (titles.length > 0) {
+        titlesById.set(item.id, titles);
+      }
+    }
+  } catch (error) {
+    // A failed English pass just means no extra candidates; the localized
+    // result stands on its own.
+    logger.info(`[TMDB] English title pass failed for ${searchPath}`);
+    void error;
+  }
+
+  return titlesById;
+}
+
+/**
+ * Keep the results that answer `title` best, rather than every result that
+ * merely clears the bar. When nothing matches exactly and the search ran in
+ * another language, the English titles are fetched and scoring is redone -
+ * that is usually where the exact match lives for a film named in English.
+ */
+async function selectBestTitleMatches<T extends { id: number }>(
+  results: T[],
+  title: string,
+  searchPath: string,
+  params: Record<string, string>,
+  credential: string,
+  tmdbLanguage: string
+): Promise<T[]> {
+  const scoreAll = (englishTitles?: Map<number, string[]>) =>
+    results.map((item) => ({
+      item,
+      strength: getTMDBTitleMatchStrength(
+        title,
+        item,
+        englishTitles?.get(item.id)
+      ),
+    }));
+
+  let scored = scoreAll();
+  let best = Math.max(TMDB_TITLE_MATCH_NONE, ...scored.map((s) => s.strength));
+
+  if (best < TMDB_TITLE_MATCH_EXACT && tmdbLanguage !== ENGLISH_TMDB_LANGUAGE) {
+    const englishTitles = await fetchEnglishTitlesById(
+      searchPath,
+      params,
+      credential
+    );
+    scored = scoreAll(englishTitles);
+    best = Math.max(TMDB_TITLE_MATCH_NONE, ...scored.map((s) => s.strength));
+  }
+
+  if (best === TMDB_TITLE_MATCH_NONE) {
+    return [];
+  }
+
+  return scored.filter((s) => s.strength === best).map((s) => s.item);
+}
+
 export async function searchMovie(
   title: string,
   credential: string,
@@ -45,9 +145,15 @@ export async function searchMovie(
 
     const results: TMDBMovieResult[] = response.data.results || [];
     if (results.length > 0) {
-      const matchedResults = results.filter((movie) =>
-        isConfidentTMDBTitleMatch(title, movie)
+      const matchedResults = await selectBestTitleMatches(
+        results,
+        title,
+        "/search/movie",
+        params,
+        credential,
+        tmdbLanguage
       );
+
       if (matchedResults.length === 0) {
         return null;
       }
@@ -145,18 +251,25 @@ export async function searchTVShow(
 ): Promise<TMDBTVResult | null> {
   try {
     const tmdbLanguage = mapLanguageToTMDB(language);
+    const params: Record<string, string> = {
+      query: title,
+      language: tmdbLanguage,
+    };
     const response = await tmdbHttpClient.get(buildTMDBEndpointPath("/search/tv"), {
-      ...buildTMDBRequestConfig(credential, {
-        query: title,
-        language: tmdbLanguage,
-      }),
+      ...buildTMDBRequestConfig(credential, params),
     });
 
     const results: TMDBTVResult[] = response.data.results || [];
     if (results.length > 0) {
-      const matchedResults = results.filter((tvShow) =>
-        isConfidentTMDBTitleMatch(title, tvShow)
+      const matchedResults = await selectBestTitleMatches(
+        results,
+        title,
+        "/search/tv",
+        params,
+        credential,
+        tmdbLanguage
       );
+
       if (matchedResults.length === 0) {
         return null;
       }
@@ -292,12 +405,17 @@ function scoreMultiSearchResult(item: TMDBMediaSearchResult, year?: number): num
   return score;
 }
 
+// Title-match strength outranks the year/popularity score: a companion
+// making-of shares the film's year and can outscore it, but only the film
+// itself carries the exact title.
 function pickBestMultiSearchResult(
   results: TMDBSearchResult[],
   queryTitle: string,
-  year?: number
-): TMDBMediaSearchResult | null {
+  year?: number,
+  englishTitles?: Map<number, string[]>
+): { match: TMDBMediaSearchResult | null; strength: number } {
   let bestMatch: TMDBMediaSearchResult | null = null;
+  let bestStrength = TMDB_TITLE_MATCH_NONE;
   let bestScore = -1;
 
   for (const item of results) {
@@ -306,18 +424,27 @@ function pickBestMultiSearchResult(
     }
 
     const mediaItem = item as TMDBMediaSearchResult;
-    if (!isConfidentTMDBTitleMatch(queryTitle, mediaItem)) {
+    const strength = getTMDBTitleMatchStrength(
+      queryTitle,
+      mediaItem,
+      englishTitles?.get(mediaItem.id)
+    );
+    if (strength === TMDB_TITLE_MATCH_NONE) {
       continue;
     }
 
     const score = scoreMultiSearchResult(mediaItem, year);
-    if (score > bestScore) {
+    if (
+      strength > bestStrength ||
+      (strength === bestStrength && score > bestScore)
+    ) {
+      bestStrength = strength;
       bestScore = score;
       bestMatch = mediaItem;
     }
   }
 
-  return bestMatch;
+  return { match: bestMatch, strength: bestStrength };
 }
 
 async function fetchTMDBSearchDetails(
@@ -402,7 +529,32 @@ export async function searchTMDBSingle(
     });
 
     const results: TMDBSearchResult[] = response.data.results || [];
-    const bestMatch = pickBestMultiSearchResult(results, title, year);
+    let picked = pickBestMultiSearchResult(results, title, year);
+
+    // Not just when nothing matched: a loose match here is often a companion
+    // release, while the film's own English title matches exactly.
+    if (
+      picked.strength < TMDB_TITLE_MATCH_EXACT &&
+      results.length > 0 &&
+      tmdbLanguage !== ENGLISH_TMDB_LANGUAGE
+    ) {
+      const englishTitles = await fetchEnglishTitlesById(
+        "/search/multi",
+        params,
+        credential
+      );
+      const withEnglish = pickBestMultiSearchResult(
+        results,
+        title,
+        year,
+        englishTitles
+      );
+      if (withEnglish.strength > picked.strength) {
+        picked = withEnglish;
+      }
+    }
+
+    const bestMatch = picked.match;
     if (!bestMatch) {
       return { result: null, mediaType: null };
     }

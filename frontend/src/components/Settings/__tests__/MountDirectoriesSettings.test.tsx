@@ -79,6 +79,29 @@ describe('MountDirectoriesSettings', () => {
         expect(baseProps.setMessage).toHaveBeenCalledWith({ text: 'mountDirectoriesEmptyError', type: 'error' });
     });
 
+    it('saves the directories when the scan starts, not only when it succeeds', async () => {
+        const user = userEvent.setup();
+        // The scan fails: the typed paths still have to survive, or the
+        // operator has to retype them before every retry.
+        (api.post as any).mockRejectedValueOnce(new Error('scan exploded'));
+        const mutate = vi.fn();
+
+        renderWithClient(
+            <MountDirectoriesSettings
+                {...baseProps}
+                mountDirectories={'/mnt/media\n/mnt/other'}
+                saveMutation={{ isPending: false, mutate }}
+            />,
+        );
+
+        await user.click(screen.getByRole('button', { name: /scanFiles/ }));
+
+        expect(mutate).toHaveBeenCalledWith(
+            expect.objectContaining({ mountDirectories: '/mnt/media\n/mnt/other' }),
+            expect.anything(),
+        );
+    });
+
     it('keeps the scan button busy when the server reports a mount scan in progress', async () => {
         // Simulates a remount after navigating away mid-scan: the mutation
         // state is gone, so only the server-side status can keep the button
