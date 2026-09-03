@@ -126,6 +126,89 @@ function ensureDatabaseWritable(dbPath: string): void {
   }
 }
 
+const DEFAULT_DATA_DIR = path.join(ROOT_DIR, "data");
+const DATA_DIR_ENV_VAR = "MYTUBE_BACKEND_DATA_DIR";
+const LEGACY_DATA_DIR_ENV_VAR = "MYTUBE_DATA_DIR";
+
+/**
+ * True when the database this process opened has no tables of its own, which
+ * is what an install looks like the instant before its first migration - and
+ * also what a database opened at the wrong path looks like, because
+ * db/index.ts creates the file as soon as it is imported.
+ *
+ * An unreadable answer is not an empty one: say "not empty" so a database that
+ * cannot be inspected is never mistaken for a misdirected one and blocked.
+ */
+function databaseHasNoTables(): boolean {
+  try {
+    const row = sqlite
+      .prepare(
+        `SELECT COUNT(*) AS count FROM sqlite_master
+          WHERE type = 'table' AND name NOT LIKE 'sqlite_%'`
+      )
+      .get() as { count?: number } | undefined;
+
+    return row?.count === 0;
+  } catch {
+    return false;
+  }
+}
+
+function holdsADatabase(directory: string): boolean {
+  try {
+    const candidate = path.join(directory, DB_FILENAME);
+    // Size, not mere existence: db/index.ts touches the file before opening it,
+    // so an abandoned data directory keeps a zero-byte mytube.db forever.
+    return pathExistsTrustedSync(candidate) && statTrustedSync(candidate).size > 0;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Refuse to start on an empty data directory when a populated database sits at
+ * a directory this deployment plausibly meant instead.
+ *
+ * Opening a new database is right for a first install and looks right
+ * everywhere else: the migrations run cleanly and the server reports a healthy
+ * start. But a fresh database carries default settings, `loginEnabled` defaults
+ * to false, and isLoginRequired() is the first thing every route guard asks -
+ * so the instance comes up unauthenticated on an empty library while the real
+ * database sits untouched one directory away. Silence is the whole danger, so
+ * name the directory that does hold a database and stop.
+ */
+function ensureDataDirIsNotMisdirected(): void {
+  if (!databaseHasNoTables()) {
+    return;
+  }
+
+  const legacyValue = process.env[LEGACY_DATA_DIR_ENV_VAR];
+  const candidates: Array<{ directory: string; explanation: string }> = [];
+
+  if (typeof legacyValue === "string" && legacyValue.length > 0) {
+    candidates.push({
+      directory: path.resolve(legacyValue),
+      explanation: `${LEGACY_DATA_DIR_ENV_VAR} is set to "${legacyValue}". That name is the host side of the Docker bind mount and is no longer read here; the backend override is ${DATA_DIR_ENV_VAR}.`,
+    });
+  }
+
+  candidates.push({
+    directory: DEFAULT_DATA_DIR,
+    explanation: `${DATA_DIR_ENV_VAR} moved the data directory away from the default.`,
+  });
+
+  for (const candidate of candidates) {
+    if (candidate.directory === DATA_DIR || !holdsADatabase(candidate.directory)) {
+      continue;
+    }
+
+    throw new MigrationError(
+      `Refusing to start: ${DATA_DIR} holds no database, but ${path.join(candidate.directory, DB_FILENAME)} does. ${candidate.explanation} Starting here would create an empty database, and a new database has login protection off - this instance would come up unauthenticated with an empty library. Point ${DATA_DIR_ENV_VAR} at the directory holding your database, or move that database aside if starting empty here is what you intended.`,
+      "data_dir_misdirected"
+    );
+  }
+}
+
 function isReadonlySqliteError(error: unknown): boolean {
   const candidate = error as
     | {
@@ -174,6 +257,10 @@ export async function runMigrations(options: RunMigrationsOptions = {}) {
     }
 
     ensureDatabaseWritable(dbPath);
+
+    // Before migrate(), which would fill the database in and make an empty one
+    // indistinguishable from a healthy one.
+    ensureDataDirIsNotMisdirected();
 
     // In production/docker, the drizzle folder is copied to the root or src/drizzle
     // We need to find where it is.

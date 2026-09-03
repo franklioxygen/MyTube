@@ -269,3 +269,9 @@ database. It opened a new one instead, and a fresh database defaults to
 `loginEnabled: false` — an upgrade turned a password-protected instance into a
 public one. In a container, set `MYTUBE_BACKEND_DATA_DIR` only if you have also
 mounted your data at that path.
+
+If the resolved data directory holds no database while a populated `mytube.db`
+sits at the default location — or at the path `MYTUBE_DATA_DIR` names — the
+backend refuses to start and names both. Starting there would create an empty
+database, and an empty database has login protection off. A first install, where
+no other database exists, starts normally.
