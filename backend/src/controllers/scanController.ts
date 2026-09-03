@@ -312,8 +312,16 @@ const isExtraVideoPath = (filePath: string, rootDir: string): boolean => {
     return true;
   }
 
+  // Bonus folders sit *under* a work, so stop before the scan root's own
+  // children: a library named "Shorts" or "Trailers" is a category of content,
+  // not bonus material, and treating it as such would skip everything in it -
+  // and drop the records of anything already imported from it.
   let dir = path.dirname(filePath);
-  while (dir !== rootDir && isPathWithinDirectory(dir, rootDir)) {
+  while (isPathWithinDirectory(dir, rootDir) && path.dirname(dir) !== rootDir) {
+    if (dir === rootDir) {
+      break;
+    }
+
     if (EXTRAS_FOLDER_NAMES.has(path.basename(dir).toLowerCase())) {
       return true;
     }
@@ -492,7 +500,8 @@ const processSingleVideoFile = async (
   resolveCollectionId: (
     collectionName: string,
     displayTitle?: string
-  ) => Promise<string | undefined>
+  ) => Promise<string | undefined>,
+  noteUnchangedVideo: (videoId: string, collectionName: string) => void
 ): Promise<ProcessFileResult> => {
   const filename = path.basename(filePath);
   const relativePath = path.relative(normalizedDirectory, filePath);
@@ -508,6 +517,15 @@ const processSingleVideoFile = async (
   const fileSize = stats.size.toString();
   const existingVideo = existingVideosByPath.get(webPath);
   if (existingVideo && existingVideo.fileSize === fileSize) {
+    // Nothing to re-read, but the folder may have crossed the grouping
+    // threshold since this file was imported - a second episode arriving beside
+    // a lone one. Collections are only assigned on insert, so without this the
+    // new collection would permanently omit the file that did not change.
+    const unchangedDirName = path.dirname(relativePath);
+    if (unchangedDirName !== ".") {
+      noteUnchangedVideo(existingVideo.id, unchangedDirName.split(path.sep)[0]);
+    }
+
     return "skipped";
   }
 
@@ -799,6 +817,7 @@ const processDirectoryFiles = async (
 
   let addedCount = 0;
   let updatedCount = 0;
+  const unchangedVideosByCollectionName = new Map<string, string[]>();
 
   await runWithConcurrencyLimit(
     videoFiles,
@@ -810,7 +829,13 @@ const processDirectoryFiles = async (
           normalizedDirectory,
           existingVideosByPath,
           isMountDirectory,
-          resolveCollectionId
+          resolveCollectionId,
+          (videoId, collectionName) => {
+            unchangedVideosByCollectionName.set(
+              collectionName,
+              [...(unchangedVideosByCollectionName.get(collectionName) ?? []), videoId]
+            );
+          }
         );
 
         if (result === "added") {
@@ -823,6 +848,27 @@ const processDirectoryFiles = async (
       }
     }
   );
+
+  // Reconcile after the pass, so a collection created from a newly added file
+  // already carries the title TMDB recognised before the unchanged files join.
+  for (const [collectionName, videoIds] of unchangedVideosByCollectionName) {
+    if (!shouldGroupIntoCollection(collectionName)) {
+      continue;
+    }
+
+    const collectionId = await resolveCollectionId(collectionName);
+    if (!collectionId) {
+      continue;
+    }
+
+    for (const videoId of videoIds) {
+      storageService.addVideoToCollection(
+        collectionId,
+        videoId,
+        isMountDirectory ? { moveFiles: false } : undefined
+      );
+    }
+  }
 
   return { addedCount, updatedCount, allFiles };
 };

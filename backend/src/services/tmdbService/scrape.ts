@@ -14,6 +14,17 @@ import { downloadPoster, resolvePosterSaveLocation } from "./poster";
  */
 const MAX_RELEASE_YEAR_DRIFT = 1;
 
+// A leading four-digit number is usually the title itself, not release
+// metadata: "2001.A.Space.Odyssey" is a 1968 film, "1917" a 2019 one. The
+// parser cannot tell the difference, so where the number opens the name its
+// year is not trusted enough to reject a match on.
+const LEADING_YEAR_PATTERN = /^[\s[({]*(\d{4})\b/;
+
+function yearMayBelongToTitle(filename: string, parsedYear: number): boolean {
+  const match = LEADING_YEAR_PATTERN.exec(filename);
+  return match !== null && Number.parseInt(match[1], 10) === parsedYear;
+}
+
 function isReleaseYearConsistent(
   result: { release_date?: string; first_air_date?: string },
   parsedYear: number
@@ -106,7 +117,11 @@ export async function scrapeMetadataFromTMDB(
     // "Blade.Runner.2049.2017" answering with the 1982 Blade Runner, a 2023
     // Kaibutsu answering with a 2013 one. Later strategies search without the
     // year, so nothing else rules these out.
-    if (parsed.year && !isReleaseYearConsistent(result, parsed.year)) {
+    if (
+      parsed.year &&
+      !yearMayBelongToTitle(filename, parsed.year) &&
+      !isReleaseYearConsistent(result, parsed.year)
+    ) {
       logger.info(
         `[TMDB Scrape] Rejecting match for "${filename}": release year does not match ${parsed.year}`
       );

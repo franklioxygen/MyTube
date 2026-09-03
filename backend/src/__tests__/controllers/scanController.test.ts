@@ -581,6 +581,84 @@ describe('ScanController', () => {
       ]);
     });
 
+    it('treats a top-level library named like a bonus folder as content', async () => {
+      process.env.MYTUBE_ADMIN_TRUST_LEVEL = 'host';
+      (storageService.getVideos as any).mockReturnValue([]);
+      (storageService.getCollections as any).mockReturnValue([]);
+      (fs.pathExists as any).mockResolvedValue(true);
+      const { scrapeMetadataFromTMDB } = await import('../../services/tmdbService');
+      (scrapeMetadataFromTMDB as any).mockResolvedValue(null);
+
+      // "Shorts" here is a library, not bonus material beside a film.
+      (fs.readdir as any).mockImplementation((dir: string) =>
+        dir === '/mnt/media'
+          ? Promise.resolve([
+              { name: 'Shorts', isDirectory: () => true, isSymbolicLink: () => false },
+            ])
+          : Promise.resolve([
+              { name: 'A Short Film.mkv', isDirectory: () => false, isSymbolicLink: () => false },
+            ]),
+      );
+      (fs.stat as any).mockResolvedValue({
+        isDirectory: () => false,
+        birthtime: new Date(),
+        size: 1024,
+      });
+
+      req = { body: { directories: ['/mnt/media'] } };
+
+      await scanMountDirectories(req as Request, res as Response);
+
+      expect(storageService.saveVideo).toHaveBeenCalledWith(
+        expect.objectContaining({ videoPath: 'mount:/mnt/media/Shorts/A Short Film.mkv' }),
+        expect.anything(),
+      );
+    });
+
+    it('links an unchanged video once its folder earns a collection', async () => {
+      process.env.MYTUBE_ADMIN_TRUST_LEVEL = 'host';
+      // The first episode is already imported and unchanged; the second is new,
+      // so the folder crosses the grouping threshold on this scan.
+      (storageService.getVideos as any).mockReturnValue([
+        {
+          id: 'ep1',
+          title: 'S01E01',
+          videoPath: 'mount:/mnt/tv/Show/S01E01.mkv',
+          fileSize: '1024',
+        },
+      ]);
+      (storageService.getCollections as any).mockReturnValue([]);
+      (fs.pathExists as any).mockResolvedValue(true);
+      const { scrapeMetadataFromTMDB } = await import('../../services/tmdbService');
+      (scrapeMetadataFromTMDB as any).mockResolvedValue(null);
+      (fs.readdir as any).mockImplementation((dir: string) =>
+        dir === '/mnt/tv'
+          ? Promise.resolve([
+              { name: 'Show', isDirectory: () => true, isSymbolicLink: () => false },
+            ])
+          : Promise.resolve([
+              { name: 'S01E01.mkv', isDirectory: () => false, isSymbolicLink: () => false },
+              { name: 'S01E02.mkv', isDirectory: () => false, isSymbolicLink: () => false },
+            ]),
+      );
+      (fs.stat as any).mockResolvedValue({
+        isDirectory: () => false,
+        birthtime: new Date(),
+        size: 1024,
+      });
+
+      req = { body: { directories: ['/mnt/tv'] } };
+
+      await scanMountDirectories(req as Request, res as Response);
+
+      // Without reconciliation the collection would hold only the new episode.
+      expect(storageService.addVideoToCollection).toHaveBeenCalledWith(
+        expect.any(String),
+        'ep1',
+        { moveFiles: false },
+      );
+    });
+
     it('drops mount records that are no longer under a configured directory', async () => {
       process.env.MYTUBE_ADMIN_TRUST_LEVEL = 'host';
       (storageService.getVideos as any).mockReturnValue([

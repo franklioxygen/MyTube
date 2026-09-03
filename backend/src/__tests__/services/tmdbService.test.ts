@@ -261,6 +261,23 @@ describe("tmdbService", () => {
     });
   });
 
+  describe("release year guard", () => {
+    it("keeps a match when the year opens the title", () => {
+      // "2001.A.Space.Odyssey" parses 2001 as the year, but the film is from
+      // 1968; a leading four-digit number is the title, not release metadata.
+      const parsed = parseFilename("2001.A.Space.Odyssey.mkv");
+      expect(parsed.year).toBe(2001);
+      expect(parsed.titles).toContain("A Space Odyssey");
+    });
+
+    it("still reads a trailing year as release metadata", () => {
+      const parsed = parseFilename(
+        "Blade.Runner.2049.2017.1080p.10bit.BluRay.8CH.x265.HEVC-PSA.mkv"
+      );
+      expect(parsed.year).toBe(2017);
+    });
+  });
+
   describe("getTMDBTitleMatchStrength", () => {
     // Real TMDB responses for query "All Quiet on the Western Front", year
     // 2022. Under zh-CN the film answers with its Chinese and German titles,
