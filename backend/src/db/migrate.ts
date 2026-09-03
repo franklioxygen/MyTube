@@ -7,6 +7,7 @@ import {
   accessTrustedSync,
   pathExistsSafeSync,
   pathExistsTrustedSync,
+  resolveSafePath,
   statTrustedSync,
   unlinkTrustedSync,
   writeFileSafeSync,
@@ -154,14 +155,16 @@ function databaseHasNoTables(): boolean {
   }
 }
 
-function holdsADatabase(directory: string): boolean {
+function findDatabase(directory: string): string | null {
   try {
-    const candidate = path.join(directory, DB_FILENAME);
+    const candidate = resolveSafePath(DB_FILENAME, directory);
     // Size, not mere existence: db/index.ts touches the file before opening it,
     // so an abandoned data directory keeps a zero-byte mytube.db forever.
-    return pathExistsTrustedSync(candidate) && statTrustedSync(candidate).size > 0;
+    return pathExistsTrustedSync(candidate) && statTrustedSync(candidate).size > 0
+      ? candidate
+      : null;
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -198,12 +201,13 @@ function ensureDataDirIsNotMisdirected(): void {
   });
 
   for (const candidate of candidates) {
-    if (candidate.directory === DATA_DIR || !holdsADatabase(candidate.directory)) {
+    const existingDatabase = findDatabase(candidate.directory);
+    if (candidate.directory === DATA_DIR || existingDatabase === null) {
       continue;
     }
 
     throw new MigrationError(
-      `Refusing to start: ${DATA_DIR} holds no database, but ${path.join(candidate.directory, DB_FILENAME)} does. ${candidate.explanation} Starting here would create an empty database, and a new database has login protection off - this instance would come up unauthenticated with an empty library. Point ${DATA_DIR_ENV_VAR} at the directory holding your database, or move that database aside if starting empty here is what you intended.`,
+      `Refusing to start: ${DATA_DIR} holds no database, but ${existingDatabase} does. ${candidate.explanation} Starting here would create an empty database, and a new database has login protection off - this instance would come up unauthenticated with an empty library. Point ${DATA_DIR_ENV_VAR} at the directory holding your database, or move that database aside if starting empty here is what you intended.`,
       "data_dir_misdirected"
     );
   }

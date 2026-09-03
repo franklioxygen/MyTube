@@ -15,6 +15,9 @@ const securityMocks = vi.hoisted(() => ({
   accessTrustedSync: vi.fn(),
   pathExistsSafeSync: vi.fn(),
   pathExistsTrustedSync: vi.fn(),
+  resolveSafePath: vi.fn(
+    (filePath: string, allowedDir: string) => `${allowedDir}/${filePath}`
+  ),
   statTrustedSync: vi.fn(),
   unlinkTrustedSync: vi.fn(),
   writeFileSafeSync: vi.fn(),
@@ -41,6 +44,7 @@ vi.mock("../../utils/security", () => ({
   accessTrustedSync: securityMocks.accessTrustedSync,
   pathExistsSafeSync: securityMocks.pathExistsSafeSync,
   pathExistsTrustedSync: securityMocks.pathExistsTrustedSync,
+  resolveSafePath: securityMocks.resolveSafePath,
   statTrustedSync: securityMocks.statTrustedSync,
   unlinkTrustedSync: securityMocks.unlinkTrustedSync,
   writeFileSafeSync: securityMocks.writeFileSafeSync,
