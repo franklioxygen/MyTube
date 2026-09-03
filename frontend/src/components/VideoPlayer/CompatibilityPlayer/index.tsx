@@ -558,9 +558,12 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                     // in fullscreen, and a rounding-wide sliver even docked,
                     // where the box takes the decoded ratio but the two are
                     // fitted to it separately. `aspectRatio` is set as the
-                    // first frame is painted, so it doubles as the signal that
-                    // the poster has done its job.
-                    ...(poster && !isFullscreen && snapshot.aspectRatio === null
+                    // first frame is painted, and returns to null with the
+                    // fresh engine each source gets, so it is both the signal
+                    // that the poster has done its job and the signal that the
+                    // next video needs it again — including a source change
+                    // made while fullscreen, where the canvas is cleared.
+                    ...(poster && snapshot.aspectRatio === null
                         ? {
                               backgroundImage: `url(${poster})`,
                               backgroundSize: 'contain',
