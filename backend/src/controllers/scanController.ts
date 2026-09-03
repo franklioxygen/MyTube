@@ -516,7 +516,9 @@ const processSingleVideoFile = async (
     collectionName: string,
     displayTitle?: string
   ) => Promise<string | undefined>,
-  noteExistingVideo: (
+  // Every video the pass sees in a collection folder, inserted or not: the
+  // folder's order is settled in one write once the whole pass is done.
+  noteCollectionMember: (
     videoId: string,
     collectionName: string,
     collectionOrder?: number
@@ -543,7 +545,7 @@ const processSingleVideoFile = async (
     // new collection would permanently omit the file that did not change.
     const unchangedDirName = path.dirname(relativePath);
     if (unchangedDirName !== ".") {
-      noteExistingVideo(
+      noteCollectionMember(
         existingVideo.id,
         unchangedDirName.split(path.sep)[0],
         collectionOrder
@@ -561,7 +563,7 @@ const processSingleVideoFile = async (
     // up with a collection missing that original.
     const replacingDirName = path.dirname(relativePath);
     if (replacingDirName !== ".") {
-      noteExistingVideo(
+      noteCollectionMember(
         replacingVideoId,
         replacingDirName.split(path.sep)[0],
         collectionOrder
@@ -717,10 +719,14 @@ const processSingleVideoFile = async (
       // into a collection folder. Saying so up front also skips the legacy
       // move path, which reloads every collection and its members per video -
       // synchronous SQLite work that stalls the whole server mid-scan.
-      storageService.addVideoToCollection(collectionId, newVideo.id, {
-        order: collectionOrder,
-        ...(isMountDirectory ? { moveFiles: false } : {}),
-      });
+      storageService.addVideoToCollection(
+        collectionId,
+        newVideo.id,
+        isMountDirectory ? { moveFiles: false } : undefined
+      );
+      // Appended wherever this file happened to finish; the pass puts the
+      // folder in order once every file has landed.
+      noteCollectionMember(newVideo.id, collectionName, collectionOrder);
       logger.info(`Added video ${newVideo.title} to collection ${collectionName}`);
     }
   }
@@ -875,7 +881,7 @@ const processDirectoryFiles = async (
 
   let addedCount = 0;
   let updatedCount = 0;
-  const existingVideosByCollectionName = new Map<
+  const collectionMembersByName = new Map<
     string,
     Array<{ videoId: string; order?: number }>
   >();
@@ -892,8 +898,8 @@ const processDirectoryFiles = async (
           isMountDirectory,
           resolveCollectionId,
           (videoId, collectionName, order) => {
-            existingVideosByCollectionName.set(collectionName, [
-              ...(existingVideosByCollectionName.get(collectionName) ?? []),
+            collectionMembersByName.set(collectionName, [
+              ...(collectionMembersByName.get(collectionName) ?? []),
               { videoId, order },
             ]);
           },
@@ -912,8 +918,13 @@ const processDirectoryFiles = async (
   );
 
   // Reconcile after the pass, so a collection created from a newly added file
-  // already carries the title TMDB recognised before the existing files join.
-  for (const [collectionName, members] of existingVideosByCollectionName) {
+  // already carries the title TMDB recognised before the existing files join -
+  // and so the folder's order is settled once every file has landed. It cannot
+  // be settled at insert time: files finish in any order, and an insert can
+  // only aim at a position the list has already grown to, so a folder
+  // finishing 3, 2, 1 would land as [1, 3, 2]. One write per collection also
+  // keeps a large library off the per-video rebuild path.
+  for (const [collectionName, members] of collectionMembersByName) {
     if (!shouldGroupIntoCollection(collectionName)) {
       continue;
     }
@@ -923,36 +934,39 @@ const processDirectoryFiles = async (
       continue;
     }
 
-    const orderedMembers = [...members].sort(
-      (a, b) =>
-        (a.order ?? Number.MAX_SAFE_INTEGER) -
-        (b.order ?? Number.MAX_SAFE_INTEGER)
-    );
-    // A collection imported before the folder position was recorded still holds
-    // the order its scan happened to finish in, so re-link its videos to
-    // straighten them out. That rewrites the links one by one, which is only
-    // worth paying when the stored order is actually wrong - a re-scan of a
-    // settled library must leave them alone.
-    const memberIds = new Set(orderedMembers.map((member) => member.videoId));
-    const storedOrder = (
-      storageService.getCollectionById(collectionId)?.videos ?? []
-    ).filter((videoId) => memberIds.has(videoId));
-    const isAlreadyOrdered =
-      storedOrder.length === orderedMembers.length &&
-      storedOrder.every(
-        (videoId, index) => videoId === orderedMembers[index].videoId
+    const orderedMemberIds = [...members]
+      .sort(
+        (a, b) =>
+          (a.order ?? Number.MAX_SAFE_INTEGER) -
+          (b.order ?? Number.MAX_SAFE_INTEGER)
+      )
+      .map((member) => member.videoId);
+    const memberIds = new Set(orderedMemberIds);
+
+    storageService.atomicUpdateCollection(collectionId, (collection) => {
+      // Videos this scan did not see - added by hand, or living outside the
+      // folder - keep the slots they hold; the folder's own files fill the
+      // rest in listing order.
+      const remaining = [...orderedMemberIds];
+      const reordered = collection.videos.map((videoId) =>
+        memberIds.has(videoId) ? remaining.shift() ?? videoId : videoId
       );
+      reordered.push(...remaining);
 
-    if (isAlreadyOrdered) {
-      continue;
-    }
+      const isAlreadyOrdered =
+        reordered.length === collection.videos.length &&
+        reordered.every(
+          (videoId, index) => videoId === collection.videos[index]
+        );
+      // Nothing to do for a settled library: skipping the write here is what
+      // keeps a re-scan from rebuilding every collection it walks past.
+      if (isAlreadyOrdered) {
+        return null;
+      }
 
-    for (const member of orderedMembers) {
-      storageService.addVideoToCollection(collectionId, member.videoId, {
-        order: member.order,
-        ...(isMountDirectory ? { moveFiles: false } : {}),
-      });
-    }
+      collection.videos = reordered;
+      return collection;
+    });
   }
 
   return { addedCount, updatedCount, allFiles };

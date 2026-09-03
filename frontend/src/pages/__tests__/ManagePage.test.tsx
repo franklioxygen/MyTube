@@ -559,6 +559,30 @@ describe('ManagePage', () => {
             expect(screen.getByRole('dialog')).toBeInTheDocument();
         });
 
+        it('pulls the page back in range when cleanup empties the last one', () => {
+            // Ten rows per page, so eleven collections make a second page that a
+            // cleanup can wipe out from under the viewer.
+            mockCollections = Array.from({ length: 11 }, (_, index) => ({
+                id: `col-${index}`,
+                name: `Collection ${index}`,
+                videos: [],
+                createdAt: '2024-01-01T00:00:00Z',
+            }));
+            const { rerender } = renderManagePage();
+            fireEvent.click(screen.getByTestId('collections-page-change-btn'));
+            expect(screen.getByTestId('collections-page')).toHaveTextContent('2');
+
+            mockCollections = mockCollections.slice(0, 3);
+            rerender(
+                <ThemeProvider theme={createTheme()}>
+                    <ManagePage />
+                </ThemeProvider>
+            );
+
+            expect(screen.getByTestId('collections-page')).toHaveTextContent('1');
+            expect(screen.getByTestId('collections-first-name')).toHaveTextContent('Collection 0');
+        });
+
         it('closes the modal on cancel', async () => {
             withEmptyCollection();
             renderManagePage();
@@ -638,6 +662,14 @@ describe('ManagePage', () => {
     // --- Pagination ---
     describe('pagination', () => {
         it('manages collection pagination state', () => {
+            // Eleven collections, so a second page exists to move to - the page
+            // is now held inside the range the list actually has.
+            mockCollections = Array.from({ length: 11 }, (_, index) => ({
+                id: `col-${index}`,
+                name: `Collection ${index}`,
+                videos: ['vid-1'],
+                createdAt: '2024-01-01T00:00:00Z',
+            }));
             renderManagePage();
             expect(screen.getByTestId('collections-page')).toHaveTextContent('1');
             fireEvent.click(screen.getByTestId('collections-page-change-btn'));

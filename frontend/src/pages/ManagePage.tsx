@@ -212,9 +212,17 @@ const ManagePage: React.FC = () => {
 
     // Pagination logic
     const totalCollectionPages = Math.ceil(sortedCollections.length / ITEMS_PER_PAGE);
+    // Deleting collections - one row, or every empty one at once - can leave the
+    // held page past the end of the list, which renders as an empty table with
+    // the pager gone and no way back short of a reload. Read the page through
+    // the range the list actually has rather than trusting what was stored.
+    const currentCollectionPage = Math.min(
+        collectionPage,
+        Math.max(1, totalCollectionPages)
+    );
     const displayedCollections = sortedCollections.slice(
-        (collectionPage - 1) * ITEMS_PER_PAGE,
-        collectionPage * ITEMS_PER_PAGE
+        (currentCollectionPage - 1) * ITEMS_PER_PAGE,
+        currentCollectionPage * ITEMS_PER_PAGE
     );
 
     const totalVideoPages = Math.ceil(filteredVideos.length / ITEMS_PER_PAGE);
@@ -438,7 +446,7 @@ const ManagePage: React.FC = () => {
                             const result = await updateCollection(id, name);
                             if (!result.success) throw new Error(result.error);
                         }}
-                        page={collectionPage}
+                        page={currentCollectionPage}
                         totalPages={totalCollectionPages}
                         onPageChange={handleCollectionPageChange}
                         getCollectionSize={getCollectionSize}
