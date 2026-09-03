@@ -91,6 +91,7 @@ export {
     deleteCollection,
     deleteCollectionAndVideos,
     deleteCollectionWithFiles,
+    deleteEmptyCollections,
     generateUniqueCollectionName,
     getCollectionById,
     getCollectionByName,

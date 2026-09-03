@@ -374,6 +374,17 @@ export function deleteCollectionWithFiles(collectionId: string): boolean {
   return deleteCollection(collectionId);
 }
 
+/**
+ * Delete every collection that holds no videos, returning the ones removed.
+ * Each goes through the ordinary single-collection path, so a collection folder
+ * left behind on disk is tidied up the same way it would be by hand.
+ */
+export function deleteEmptyCollections(): Collection[] {
+  return getCollections()
+    .filter((collection) => (collection.videos?.length ?? 0) === 0)
+    .filter((collection) => deleteCollectionWithFiles(collection.id));
+}
+
 export function deleteCollectionAndVideos(collectionId: string): boolean {
   const collection = getCollectionById(collectionId);
   if (!collection) return false;

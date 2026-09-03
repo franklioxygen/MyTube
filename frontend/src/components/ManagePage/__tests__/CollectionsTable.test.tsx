@@ -37,6 +37,9 @@ describe('CollectionsTable', () => {
         orderBy: 'name' as const,
         order: 'asc' as const,
         onSort: vi.fn(),
+        emptyCollectionsCount: 0,
+        onCleanupEmpty: vi.fn(),
+        isCleaningUpEmpty: false,
     };
 
     const renderTable = (props: Partial<typeof defaultProps> = {}) =>
@@ -50,6 +53,30 @@ describe('CollectionsTable', () => {
         renderTable();
         expect(screen.getByText('Collection 1')).toBeInTheDocument();
         expect(screen.getByText('10 MB')).toBeInTheDocument();
+    });
+
+    it('shows the video count as a bare number', () => {
+        renderTable();
+        expect(screen.getByRole('cell', { name: '1' })).toBeInTheDocument();
+    });
+
+    it('disables the cleanup button when no collection is empty', () => {
+        renderTable();
+        expect(screen.getByRole('button', { name: /cleanup/i })).toBeDisabled();
+    });
+
+    it('calls onCleanupEmpty when the cleanup button is clicked', () => {
+        renderTable({ emptyCollectionsCount: 2 });
+        fireEvent.click(screen.getByRole('button', { name: /cleanup/i }));
+
+        expect(defaultProps.onCleanupEmpty).toHaveBeenCalled();
+    });
+
+    it('hides the cleanup button in visitor mode', () => {
+        mockUseAuth.mockReturnValue({ userRole: 'visitor' });
+        renderTable({ emptyCollectionsCount: 2 });
+        expect(screen.queryByRole('button', { name: /cleanup/i })).not.toBeInTheDocument();
+        mockUseAuth.mockReturnValue({ userRole: 'admin' });
     });
 
     it('should render empty state if no collections', () => {

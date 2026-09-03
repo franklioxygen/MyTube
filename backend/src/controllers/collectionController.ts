@@ -138,6 +138,29 @@ export const updateCollection = async (
 };
 
 /**
+ * Delete every collection that holds no videos
+ * Emptiness is decided here rather than by the caller, so a collection a
+ * concurrent request just emptied - or just filled - is judged on what the
+ * database actually holds.
+ * Errors are automatically handled by asyncHandler middleware
+ */
+export const deleteEmptyCollections = async (
+  _req: Request,
+  res: Response
+): Promise<void> => {
+  const deletedCollections = storageService.deleteEmptyCollections();
+
+  res.json({
+    success: true,
+    deletedCount: deletedCollections.length,
+    deletedCollections: deletedCollections.map((collection) => ({
+      id: collection.id,
+      name: collection.name || collection.title,
+    })),
+  });
+};
+
+/**
  * Delete a collection
  * Errors are automatically handled by asyncHandler middleware
  */

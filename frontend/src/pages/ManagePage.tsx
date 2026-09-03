@@ -35,7 +35,7 @@ const ManagePage: React.FC = () => {
     const { userRole } = useAuth();
     const isVisitor = userRole === 'visitor';
     const { videos, deleteVideo, refreshThumbnail, redownloadThumbnail, uploadThumbnail, updateVideo, fetchVideos } = useVideo();
-    const { collections, deleteCollection, updateCollection } = useCollection();
+    const { collections, deleteCollection, cleanupEmptyCollections, updateCollection } = useCollection();
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [refreshingId, setRefreshingId] = useState<string | null>(null);
     const [redownloadingThumbnailIds, setRedownloadingThumbnailIds] = useState<Record<string, boolean>>({});
@@ -45,6 +45,8 @@ const ManagePage: React.FC = () => {
     const [videoToDelete, setVideoToDelete] = useState<string | null>(null);
     const [showVideoDeleteModal, setShowVideoDeleteModal] = useState<boolean>(false);
     const [showScanConfirmModal, setShowScanConfirmModal] = useState(false);
+    const [showCleanupCollectionsModal, setShowCleanupCollectionsModal] = useState(false);
+    const [isCleaningUpCollections, setIsCleaningUpCollections] = useState<boolean>(false);
 
     // Pagination state
     const [collectionPage, setCollectionPage] = useState(1);
@@ -278,6 +280,26 @@ const ManagePage: React.FC = () => {
         }
     };
 
+    // Counted from the collections already loaded for the table, so the modal can
+    // say how many are going before the request is made. The server decides what
+    // is actually empty when it runs.
+    const emptyCollectionsCount = useMemo(
+        () => collections.filter(collection => collection.videos.length === 0).length,
+        [collections]
+    );
+
+    const handleCleanupEmptyCollections = async () => {
+        setIsCleaningUpCollections(true);
+        try {
+            const result = await cleanupEmptyCollections();
+            // Thrown so the modal stays open for a retry; the error itself is
+            // already on screen as a snackbar.
+            if (!result.success) throw new Error(result.error);
+        } finally {
+            setIsCleaningUpCollections(false);
+        }
+    };
+
     const handleRefreshThumbnail = async (id: string) => {
         setRefreshingId(id);
         try {
@@ -354,6 +376,20 @@ const ManagePage: React.FC = () => {
             />
 
             <ConfirmationModal
+                isOpen={showCleanupCollectionsModal}
+                onClose={() => setShowCleanupCollectionsModal(false)}
+                onConfirm={handleCleanupEmptyCollections}
+                title={t('cleanupEmptyCollectionsTitle')}
+                message={t('cleanupEmptyCollectionsMessage').replace(
+                    '{count}',
+                    emptyCollectionsCount.toString()
+                )}
+                confirmText={t('continue')}
+                cancelText={t('cancel')}
+                isDanger={true}
+            />
+
+            <ConfirmationModal
                 isOpen={showScanConfirmModal}
                 onClose={() => setShowScanConfirmModal(false)}
                 onConfirm={async () => {
@@ -409,6 +445,9 @@ const ManagePage: React.FC = () => {
                         orderBy={collectionOrderBy}
                         order={collectionOrder}
                         onSort={handleCollectionRequestSort}
+                        emptyCollectionsCount={emptyCollectionsCount}
+                        onCleanupEmpty={() => setShowCleanupCollectionsModal(true)}
+                        isCleaningUpEmpty={isCleaningUpCollections}
                     />
                 )}
             </div>

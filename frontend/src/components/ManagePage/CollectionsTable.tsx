@@ -1,8 +1,9 @@
 import { getApiErrorMessage } from '../../utils/errors';
-import { Check, Close, Delete, Edit, Folder } from '@mui/icons-material';
+import { Check, CleaningServices, Close, Delete, Edit, Folder } from '@mui/icons-material';
 import {
     Alert,
     Box,
+    Button,
     IconButton,
     Link,
     Pagination,
@@ -41,6 +42,9 @@ interface CollectionsTableProps {
     orderBy: CollectionSortBy;
     order: 'asc' | 'desc';
     onSort: (property: CollectionSortBy) => void;
+    emptyCollectionsCount: number;
+    onCleanupEmpty: () => void;
+    isCleaningUpEmpty: boolean;
 }
 
 const CollectionsTable: React.FC<CollectionsTableProps> = ({
@@ -54,7 +58,10 @@ const CollectionsTable: React.FC<CollectionsTableProps> = ({
     getCollectionSize,
     orderBy,
     order,
-    onSort
+    onSort,
+    emptyCollectionsCount,
+    onCleanupEmpty,
+    isCleaningUpEmpty
 }) => {
     const { t } = useLanguage();
     const { userRole } = useAuth();
@@ -144,10 +151,25 @@ const CollectionsTable: React.FC<CollectionsTableProps> = ({
 
     return (
         <Box sx={{ mb: 6 }}>
-            <Typography variant="h5" sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
-                <Folder sx={{ mr: 1, color: 'secondary.main' }} />
-                {t('collections')} ({totalCollectionsCount})
-            </Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="h5" sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Folder sx={{ mr: 1, color: 'secondary.main' }} />
+                    {t('collections')} ({totalCollectionsCount})
+                </Typography>
+                {!isVisitor && (
+                    <Button
+                        variant="outlined"
+                        size="small"
+                        startIcon={<CleaningServices />}
+                        onClick={onCleanupEmpty}
+                        loading={isCleaningUpEmpty}
+                        loadingPosition="start"
+                        disabled={emptyCollectionsCount === 0}
+                    >
+                        {t('cleanup')}
+                    </Button>
+                )}
+            </Box>
 
             {totalCollectionsCount > 0 ? (
                 <TableContainer component={Paper} variant="outlined">
@@ -261,7 +283,7 @@ const CollectionsTable: React.FC<CollectionsTableProps> = ({
                                             </Box>
                                         )}
                                     </TableCell>
-                                    <TableCell>{collection.videos.length} videos</TableCell>
+                                    <TableCell>{collection.videos.length}</TableCell>
                                     <TableCell>{getCollectionSize(collection.videos)}</TableCell>
                                     <TableCell>{formatDisplayDate(collection.createdAt)}</TableCell>
                                     {!isVisitor && (

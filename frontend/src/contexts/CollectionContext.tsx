@@ -16,6 +16,8 @@ interface CollectionContextType {
     addToCollection: (collectionId: string, videoId: string) => Promise<Collection>;
     removeFromCollection: (collectionId: string, videoId: string) => Promise<boolean>;
     deleteCollection: (collectionId: string, deleteVideos?: boolean) => Promise<{ success: boolean; error?: string }>;
+    /** Deletes every collection holding no videos; resolves with how many went. */
+    cleanupEmptyCollections: () => Promise<{ success: boolean; deletedCount: number; error?: string }>;
     updateCollection: (id: string, name: string) => Promise<{ success: boolean; error?: string }>;
 }
 
@@ -174,6 +176,42 @@ export const CollectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         }
     }, [deleteCollectionMutation]);
 
+    const cleanupEmptyCollectionsMutation = useMutation({
+        mutationFn: async () => {
+            const response = await api.delete('/collections/empty');
+            return (response.data?.deletedCount as number) ?? 0;
+        },
+        onSuccess: (deletedCount) => {
+            queryClient.invalidateQueries({ queryKey: ['collections'] });
+            // An empty collection can still be favorited, and the backend
+            // cascades that link away with the collection itself.
+            queryClient.invalidateQueries({ queryKey: ['favorite-collections'] });
+            showSnackbar(
+                t('cleanupEmptyCollectionsSuccess').replace('{count}', deletedCount.toString())
+            );
+        },
+        onError: (error: unknown) => {
+            console.error('Error cleaning up empty collections:', error);
+            showSnackbar(
+                getApiErrorMessage(error) || t('cleanupEmptyCollectionsFailed'),
+                'error'
+            );
+        }
+    });
+
+    const cleanupEmptyCollections = useCallback(async () => {
+        try {
+            const deletedCount = await cleanupEmptyCollectionsMutation.mutateAsync();
+            return { success: true, deletedCount };
+        } catch (error: unknown) {
+            return {
+                success: false,
+                deletedCount: 0,
+                error: getApiErrorMessage(error) || t('cleanupEmptyCollectionsFailed')
+            };
+        }
+    }, [cleanupEmptyCollectionsMutation, t]);
+
     const updateCollectionMutation = useMutation({
         mutationFn: async ({ id, name }: { id: string, name: string }) => {
             const response = await api.put(`/collections/${id}`, { name });
@@ -210,10 +248,11 @@ export const CollectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         addToCollection,
         removeFromCollection,
         deleteCollection,
+        cleanupEmptyCollections,
         updateCollection,
     }), [
         collections, fetchCollections, createCollection, addToCollection,
-        removeFromCollection, deleteCollection, updateCollection,
+        removeFromCollection, deleteCollection, cleanupEmptyCollections, updateCollection,
     ]);
 
     return (

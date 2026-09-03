@@ -652,6 +652,12 @@ export const ar = {
   size: "الحجم",
   actions: "إجراءات",
   deleteCollection: "حذف المجموعة",
+  cleanup: "تنظيف",
+  cleanupEmptyCollectionsTitle: "تنظيف المجموعات الفارغة؟",
+  cleanupEmptyCollectionsMessage:
+    "هناك {count} مجموعة لا تحتوي على أي فيديو وسيتم حذفها. لن تتأثر مقاطع الفيديو في المجموعات الأخرى.",
+  cleanupEmptyCollectionsSuccess: "تم حذف {count} مجموعة فارغة.",
+  cleanupEmptyCollectionsFailed: "فشل تنظيف المجموعات الفارغة",
   deleteVideo: "حذف الفيديو",
   redownloadVideo: "إعادة تحميل الفيديو",
   redownloadThumbnail: "إعادة تنزيل الصورة المصغرة",

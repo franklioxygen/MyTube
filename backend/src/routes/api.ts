@@ -254,6 +254,13 @@ const apiRouteDefinitions: ApiRouteDefinition[] = [
     handlers: [asyncHandler(collectionController.updateCollection)],
   },
   {
+    // Registered before "/collections/:id" so the literal path wins the match
+    // rather than being read as a collection whose id is "empty".
+    method: "delete",
+    path: "/collections/empty",
+    handlers: [asyncHandler(collectionController.deleteEmptyCollections)],
+  },
+  {
     method: "delete",
     path: "/collections/:id",
     handlers: [asyncHandler(collectionController.deleteCollection)],

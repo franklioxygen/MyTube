@@ -675,6 +675,12 @@ export const es = {
   size: "Tamaño",
   actions: "Acciones",
   deleteCollection: "Eliminar Colección",
+  cleanup: "Limpiar",
+  cleanupEmptyCollectionsTitle: "¿Limpiar colecciones vacías?",
+  cleanupEmptyCollectionsMessage:
+    "{count} colección(es) no contienen vídeos y se eliminarán. Los vídeos de otras colecciones no se ven afectados.",
+  cleanupEmptyCollectionsSuccess: "Se eliminaron {count} colección(es) vacía(s).",
+  cleanupEmptyCollectionsFailed: "No se pudieron limpiar las colecciones vacías",
   deleteVideo: "Eliminar Video",
   redownloadVideo: "Volver a descargar video",
   redownloadThumbnail: "Volver a descargar miniatura",

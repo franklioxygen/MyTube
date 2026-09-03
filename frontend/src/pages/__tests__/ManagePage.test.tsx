@@ -16,6 +16,7 @@ const mockRedownloadThumbnail = vi.fn();
 const mockUpdateVideo = vi.fn();
 const mockFetchVideos = vi.fn();
 const mockDeleteCollection = vi.fn();
+const mockCleanupEmptyCollections = vi.fn();
 const mockUpdateCollection = vi.fn();
 const mockShowSnackbar = vi.fn();
 const mockApiPost = vi.fn();
@@ -70,6 +71,7 @@ vi.mock('../../contexts/CollectionContext', () => ({
     useCollection: () => ({
         collections: mockCollections,
         deleteCollection: mockDeleteCollection,
+        cleanupEmptyCollections: mockCleanupEmptyCollections,
         updateCollection: mockUpdateCollection,
     }),
 }));
@@ -135,6 +137,13 @@ vi.mock('../../components/ManagePage/CollectionsTable', () => ({
                     onClick={() => props.onDelete?.({ id: 'col-1', name: 'Test Collection', videos: ['vid-1', 'vid-2'], createdAt: '2024-01-01' })}
                 >
                     Delete Collection
+                </button>
+                <span data-testid="collections-empty-count">{props.emptyCollectionsCount}</span>
+                <button
+                    data-testid="collections-cleanup-btn"
+                    onClick={() => props.onCleanupEmpty?.()}
+                >
+                    Clean Up
                 </button>
                 <button
                     data-testid="collections-page-change-btn"
@@ -284,6 +293,7 @@ describe('ManagePage', () => {
         mockRefreshThumbnail.mockResolvedValue({ success: true });
         mockRedownloadThumbnail.mockResolvedValue({ success: true });
         mockDeleteCollection.mockResolvedValue(undefined);
+        mockCleanupEmptyCollections.mockResolvedValue({ success: true, deletedCount: 1 });
         mockUpdateCollection.mockResolvedValue({ success: true });
         mockFetchVideos.mockResolvedValue(undefined);
     });
@@ -495,6 +505,73 @@ describe('ManagePage', () => {
     });
 
     // --- Scan files flow (real ConfirmationModal) ---
+    describe('clean up empty collections flow', () => {
+        const withEmptyCollection = () => {
+            mockCollections = [
+                ...mockCollections,
+                { id: 'col-3', name: 'Empty Collection', videos: [], createdAt: '2024-03-01T00:00:00Z' },
+            ];
+        };
+
+        it('counts the collections holding no videos', () => {
+            withEmptyCollection();
+            renderManagePage();
+
+            expect(screen.getByTestId('collections-empty-count')).toHaveTextContent('1');
+        });
+
+        it('asks for confirmation before deleting anything', () => {
+            withEmptyCollection();
+            renderManagePage();
+            fireEvent.click(screen.getByTestId('collections-cleanup-btn'));
+
+            const dialog = screen.getByRole('dialog');
+            expect(within(dialog).getByText('cleanupEmptyCollectionsMessage')).toBeInTheDocument();
+            expect(mockCleanupEmptyCollections).not.toHaveBeenCalled();
+        });
+
+        it('cleans up on confirm', async () => {
+            withEmptyCollection();
+            renderManagePage();
+            fireEvent.click(screen.getByTestId('collections-cleanup-btn'));
+
+            const dialog = screen.getByRole('dialog');
+            fireEvent.click(within(dialog).getByText('continue'));
+
+            await waitFor(() => expect(mockCleanupEmptyCollections).toHaveBeenCalled());
+            await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+        });
+
+        it('keeps the modal open when the cleanup fails', async () => {
+            withEmptyCollection();
+            mockCleanupEmptyCollections.mockResolvedValue({
+                success: false,
+                deletedCount: 0,
+                error: 'nope',
+            });
+            renderManagePage();
+            fireEvent.click(screen.getByTestId('collections-cleanup-btn'));
+
+            const dialog = screen.getByRole('dialog');
+            fireEvent.click(within(dialog).getByText('continue'));
+
+            await waitFor(() => expect(mockCleanupEmptyCollections).toHaveBeenCalled());
+            expect(screen.getByRole('dialog')).toBeInTheDocument();
+        });
+
+        it('closes the modal on cancel', async () => {
+            withEmptyCollection();
+            renderManagePage();
+            fireEvent.click(screen.getByTestId('collections-cleanup-btn'));
+
+            const dialog = screen.getByRole('dialog');
+            fireEvent.click(within(dialog).getByText('cancel'));
+
+            await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+            expect(mockCleanupEmptyCollections).not.toHaveBeenCalled();
+        });
+    });
+
     describe('scan files flow', () => {
         it('opens scan confirmation modal on button click', () => {
             renderManagePage();

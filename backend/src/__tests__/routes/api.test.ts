@@ -12,6 +12,20 @@ vi.mock("../../controllers/systemController", () => ({
   getLatestVersion: systemControllerMocks.getLatestVersion,
 }));
 
+const collectionControllerMocks = vi.hoisted(() => ({
+  getCollections: vi.fn((_req, res) => res.status(200).json({ route: "collections" })),
+  createCollection: vi.fn((_req, res) => res.status(201).json({ route: "collections" })),
+  updateCollection: vi.fn((_req, res) => res.status(200).json({ route: "collection" })),
+  deleteCollection: vi.fn((req, res) =>
+    res.status(200).json({ route: `collection:${req.params.id}` })
+  ),
+  deleteEmptyCollections: vi.fn((_req, res) =>
+    res.status(200).json({ route: "collections/empty" })
+  ),
+}));
+
+vi.mock("../../controllers/collectionController", () => collectionControllerMocks);
+
 import { ApiRouteDefinition, apiKeyRoutes, buildApiRouter } from "../../routes/api";
 
 const testRouteDefinitions: ApiRouteDefinition[] = [
@@ -113,6 +127,19 @@ describe("buildApiRouter", () => {
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ route: "system/version" });
     expect(systemControllerMocks.getLatestVersion).toHaveBeenCalledTimes(1);
+  });
+
+  it("routes DELETE /collections/empty to the cleanup handler, not the id handler", async () => {
+    // "empty" is a valid-looking collection id, so the literal route only wins
+    // while it stays registered ahead of "/collections/:id".
+    const app = express();
+    app.use(buildApiRouter());
+
+    const response = await request(app).delete("/collections/empty");
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ route: "collections/empty" });
+    expect(collectionControllerMocks.deleteCollection).not.toHaveBeenCalled();
   });
 
   it("registers patch routes in the normal API router", async () => {

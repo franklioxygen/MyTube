@@ -639,6 +639,12 @@ export const en = {
   size: "Size",
   actions: "Actions",
   deleteCollection: "Delete Collection",
+  cleanup: "Clean Up",
+  cleanupEmptyCollectionsTitle: "Clean Up Empty Collections?",
+  cleanupEmptyCollectionsMessage:
+    "{count} collection(s) hold no videos and will be deleted. Videos in other collections are not affected.",
+  cleanupEmptyCollectionsSuccess: "Deleted {count} empty collection(s).",
+  cleanupEmptyCollectionsFailed: "Failed to clean up empty collections",
   deleteVideo: "Delete Video",
   redownloadVideo: "Re-download Video",
   redownloadThumbnail: "Re-download Thumbnail",

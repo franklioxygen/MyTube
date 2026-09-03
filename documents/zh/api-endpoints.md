@@ -93,6 +93,10 @@
   - 请求体: `{ name: string, videoId?: string }`
 - `PUT /api/collections/:id` - 更新收藏夹
   - 请求体: `{ name?: string, videoId?: string, action?: "add" | "remove" }`
+- `DELETE /api/collections/empty` - 删除所有不含视频的收藏夹
+  - 由服务端判定哪些收藏夹为空, 不接受请求体或查询参数
+  - 响应: `{ success: true, deletedCount: number, deletedCollections: [{ id, name }] }`
+  - 注册在 `DELETE /api/collections/:id` 之前, 因此 `empty` 不会被当作收藏夹 id
 - `DELETE /api/collections/:id` - 删除收藏夹
   - 查询参数: `deleteVideos=true` (可选, 同时删除收藏夹内的视频)
 

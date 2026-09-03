@@ -667,6 +667,12 @@ export const ja = {
   size: "サイズ",
   actions: "アクション",
   deleteCollection: "コレクションを削除",
+  cleanup: "クリーンアップ",
+  cleanupEmptyCollectionsTitle: "空のコレクションを削除しますか？",
+  cleanupEmptyCollectionsMessage:
+    "動画が 1 本もないコレクションが {count} 件あり、削除されます。他のコレクションの動画には影響しません。",
+  cleanupEmptyCollectionsSuccess: "空のコレクションを {count} 件削除しました。",
+  cleanupEmptyCollectionsFailed: "空のコレクションのクリーンアップに失敗しました",
   deleteVideo: "動画を削除",
   redownloadVideo: "動画を再ダウンロード",
   redownloadThumbnail: "サムネイルを再ダウンロード",

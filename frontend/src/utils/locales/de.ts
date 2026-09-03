@@ -679,6 +679,12 @@ export const de = {
   size: "Größe",
   actions: "Aktionen",
   deleteCollection: "Sammlung Löschen",
+  cleanup: "Aufräumen",
+  cleanupEmptyCollectionsTitle: "Leere Sammlungen aufräumen?",
+  cleanupEmptyCollectionsMessage:
+    "{count} Sammlung(en) enthalten keine Videos und werden gelöscht. Videos in anderen Sammlungen sind nicht betroffen.",
+  cleanupEmptyCollectionsSuccess: "{count} leere Sammlung(en) gelöscht.",
+  cleanupEmptyCollectionsFailed: "Leere Sammlungen konnten nicht aufgeräumt werden",
   deleteVideo: "Video Löschen",
   redownloadVideo: "Video erneut herunterladen",
   redownloadThumbnail: "Vorschaubild erneut herunterladen",
