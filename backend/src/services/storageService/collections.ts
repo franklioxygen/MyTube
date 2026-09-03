@@ -18,6 +18,7 @@ import {
     getCollectionByVideoId as getCollectionByVideoIdRepo,
     getCollectionsByVideoId as getCollectionsByVideoIdRepo,
     getCollections as getCollectionsRepo,
+    getCollectionsStrict as getCollectionsStrictRepo,
     saveCollection as saveCollectionRepo,
 } from "./collectionRepository";
 import { Collection } from "./types";
@@ -378,9 +379,12 @@ export function deleteCollectionWithFiles(collectionId: string): boolean {
  * Delete every collection that holds no videos, returning the ones removed.
  * Each goes through the ordinary single-collection path, so a collection folder
  * left behind on disk is tidied up the same way it would be by hand.
+ * The strict read matters here: the lenient one answers a failed query with an
+ * empty list, which would be reported to the caller as a successful cleanup
+ * that happened to find nothing.
  */
 export function deleteEmptyCollections(): Collection[] {
-  return getCollections()
+  return getCollectionsStrictRepo()
     .filter((collection) => (collection.videos?.length ?? 0) === 0)
     .filter((collection) => deleteCollectionWithFiles(collection.id));
 }

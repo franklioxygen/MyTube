@@ -656,6 +656,52 @@ describe('StorageService', () => {
       expect(result).toHaveLength(1);
       expect(result[0].videos).toEqual(['v1']);
     });
+
+    it('answers a failed read with an empty list', () => {
+      (db.select as any).mockImplementation(() => {
+        throw new Error('database is locked');
+      });
+
+      expect(storageService.getCollections()).toEqual([]);
+    });
+  });
+
+  describe('deleteEmptyCollections', () => {
+    it('deletes only the collections holding no videos', () => {
+      const mockRows = [
+        { c: { id: 'full', title: 'Full' }, cv: { videoId: 'v1' } },
+        { c: { id: 'empty', title: 'Empty' }, cv: null },
+      ];
+      (db.select as any).mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          leftJoin: vi.fn().mockReturnValue({
+            all: vi.fn().mockReturnValue(mockRows),
+            where: vi.fn().mockReturnValue({
+              all: vi.fn().mockReturnValue([{ c: { id: 'empty', title: 'Empty' }, cv: null }]),
+            }),
+          }),
+        }),
+      });
+      (db.delete as any).mockReturnValue({
+        where: vi.fn().mockReturnValue({ run: vi.fn().mockReturnValue({ changes: 1 }) }),
+      });
+
+      const deleted = storageService.deleteEmptyCollections();
+
+      expect(deleted.map((collection) => collection.id)).toEqual(['empty']);
+    });
+
+    it('raises a failed read instead of reporting an empty cleanup', () => {
+      // The lenient read answers a broken query with an empty list, which would
+      // look exactly like a library with nothing to clean up.
+      (db.select as any).mockImplementation(() => {
+        throw new Error('database is locked');
+      });
+
+      expect(() => storageService.deleteEmptyCollections()).toThrow(
+        /Failed to get collections/
+      );
+    });
   });
 
   describe('getCollectionById', () => {
