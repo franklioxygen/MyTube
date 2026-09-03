@@ -32,7 +32,9 @@ dotenv.config();
 
 // Determine database path
 const ROOT_DIR = process.cwd();
-const DATA_DIR = process.env.DATA_DIR || path.join(ROOT_DIR, "data");
+const DATA_DIR = process.env.MYTUBE_BACKEND_DATA_DIR
+  ? path.resolve(process.env.MYTUBE_BACKEND_DATA_DIR)
+  : path.join(ROOT_DIR, "data");
 // Normalize and resolve paths to prevent path traversal
 const normalizedDataDir = path.normalize(path.resolve(DATA_DIR));
 const dbPath = path.normalize(path.resolve(normalizedDataDir, "mytube.db"));

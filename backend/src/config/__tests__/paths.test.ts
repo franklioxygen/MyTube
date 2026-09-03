@@ -7,18 +7,25 @@ const loadPaths = async () => {
 };
 
 describe('paths config', () => {
+  const originalBackendDataDir = process.env.MYTUBE_BACKEND_DATA_DIR;
   const originalDataDir = process.env.MYTUBE_DATA_DIR;
 
+  const restore = (name: string, value: string | undefined) => {
+    if (value === undefined) {
+      delete process.env[name];
+    } else {
+      process.env[name] = value;
+    }
+  };
+
   beforeEach(() => {
+    delete process.env.MYTUBE_BACKEND_DATA_DIR;
     delete process.env.MYTUBE_DATA_DIR;
   });
 
   afterEach(() => {
-    if (originalDataDir === undefined) {
-      delete process.env.MYTUBE_DATA_DIR;
-    } else {
-      process.env.MYTUBE_DATA_DIR = originalDataDir;
-    }
+    restore('MYTUBE_BACKEND_DATA_DIR', originalBackendDataDir);
+    restore('MYTUBE_DATA_DIR', originalDataDir);
     vi.resetModules();
   });
 
@@ -40,8 +47,8 @@ describe('paths config', () => {
     expect(paths.COLLECTIONS_DATA_PATH).toBe(path.join(cwd, 'data', 'collections.json'));
   });
 
-  it('should let MYTUBE_DATA_DIR relocate the data directory', async () => {
-    process.env.MYTUBE_DATA_DIR = path.join(path.sep, 'srv', 'mytube-data');
+  it('should let MYTUBE_BACKEND_DATA_DIR relocate the data directory', async () => {
+    process.env.MYTUBE_BACKEND_DATA_DIR = path.join(path.sep, 'srv', 'mytube-data');
     const paths = await loadPaths();
 
     expect(paths.DATA_DIR).toBe(path.join(path.sep, 'srv', 'mytube-data'));
@@ -49,15 +56,34 @@ describe('paths config', () => {
     expect(paths.HOOKS_DIR).toBe(path.join(path.sep, 'srv', 'mytube-data', 'hooks'));
   });
 
-  it('should resolve a relative MYTUBE_DATA_DIR against CWD', async () => {
-    process.env.MYTUBE_DATA_DIR = 'relative-data';
+  it('should resolve a relative MYTUBE_BACKEND_DATA_DIR against CWD', async () => {
+    process.env.MYTUBE_BACKEND_DATA_DIR = 'relative-data';
     const paths = await loadPaths();
 
     expect(paths.DATA_DIR).toBe(path.resolve(process.cwd(), 'relative-data'));
   });
 
+  // MYTUBE_DATA_DIR is the HOST side of the `<host>:/app/data` bind mount in the
+  // shipped Compose stack, so inside the container it names a path that holds no
+  // database. Honouring it here opens a brand new one, so an upgraded instance
+  // comes up on default settings - and loginEnabled defaults to false.
+  it('should ignore MYTUBE_DATA_DIR, which is a host path, not a container path', async () => {
+    process.env.MYTUBE_DATA_DIR = path.join(path.sep, 'volume1', 'docker', 'mytube', 'data');
+    const paths = await loadPaths();
+
+    expect(paths.DATA_DIR).toBe(path.join(process.cwd(), 'data'));
+  });
+
+  it('should prefer MYTUBE_BACKEND_DATA_DIR when both variables are set', async () => {
+    process.env.MYTUBE_BACKEND_DATA_DIR = path.join(path.sep, 'srv', 'mytube-data');
+    process.env.MYTUBE_DATA_DIR = path.join(path.sep, 'volume1', 'docker', 'mytube', 'data');
+    const paths = await loadPaths();
+
+    expect(paths.DATA_DIR).toBe(path.join(path.sep, 'srv', 'mytube-data'));
+  });
+
   it('should leave the media directories alone when only the data dir moves', async () => {
-    process.env.MYTUBE_DATA_DIR = path.join(path.sep, 'srv', 'mytube-data');
+    process.env.MYTUBE_BACKEND_DATA_DIR = path.join(path.sep, 'srv', 'mytube-data');
     const paths = await loadPaths();
 
     // Only DATA_DIR is relocatable; uploads still follow ROOT_DIR.
