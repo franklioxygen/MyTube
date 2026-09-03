@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fix
+
+- Stop D Mode showing the poster behind the picture once playback has started, and label its loading state the way the standard player does. The canvas is painted opaque only where the frame reaches, so anything left behind it shows through the letterbox: fullscreen, where the container is the viewport rather than the video's own shape, the poster was contain-fitted to that and stood around the picture for the whole video; docked it leaked a rounding-wide sliver, usually along the bottom, because the box height and the canvas's `object-fit` result are fitted to the decoded ratio separately. The poster now covers only what it exists for - the wait for the first frame - keyed off `aspectRatio`, which the engine sets as that frame is painted and which returns to null with the fresh engine each source gets. The "Preparing D Mode playback..." string is replaced by the player-wide `loadingVideo` ("Loading video..."), so a viewer sees the same wording whichever player they are on, and the now-unused key is dropped from every locale.
+
 ## v1.11.3 (2026-09-01)
 
 ### Changed

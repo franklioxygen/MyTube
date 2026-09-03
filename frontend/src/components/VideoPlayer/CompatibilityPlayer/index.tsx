@@ -551,10 +551,23 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                               aspectRatio: snapshot.aspectRatio ?? DEFAULT_ASPECT_RATIO,
                               maxHeight: 'calc(100vh - 180px)',
                           }),
-                    backgroundImage: poster ? `url(${poster})` : undefined,
-                    backgroundSize: 'contain',
-                    backgroundPosition: 'center',
-                    backgroundRepeat: 'no-repeat',
+                    // The poster covers the wait for the first frame, and only
+                    // that: the canvas sits on top of it but is transparent
+                    // wherever the picture does not reach, so anything left
+                    // behind it shows through the letterbox — the whole frame
+                    // in fullscreen, and a rounding-wide sliver even docked,
+                    // where the box takes the decoded ratio but the two are
+                    // fitted to it separately. `aspectRatio` is set as the
+                    // first frame is painted, so it doubles as the signal that
+                    // the poster has done its job.
+                    ...(poster && !isFullscreen && snapshot.aspectRatio === null
+                        ? {
+                              backgroundImage: `url(${poster})`,
+                              backgroundSize: 'contain',
+                              backgroundPosition: 'center',
+                              backgroundRepeat: 'no-repeat',
+                          }
+                        : {}),
                 }}
             >
                 <canvas
@@ -585,7 +598,7 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                     >
                         <CircularProgress size={28} color="inherit" />
                         <Typography variant="body2">
-                            {t('compatibilityModeLoading')}
+                            {t('loadingVideo')}
                         </Typography>
                     </Box>
                 )}

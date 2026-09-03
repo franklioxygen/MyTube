@@ -718,7 +718,6 @@ export const ko = {
   compatibilityMode: "D Mode",
   compatibilityModeEnter: "D Mode(차량 디스플레이)",
   compatibilityModeExit: "표준 플레이어로 돌아가기",
-  compatibilityModeLoading: "D Mode 재생을 준비하는 중...",
   compatibilityModeFailed: "D Mode 재생에 실패했습니다",
   compatibilityModeFallbackHint: "표준 플레이어를 사용하려면 D Mode를 끄세요.",
   compatibilityModeUnplayable: "이 동영상은 이 화면에서 재생할 수 없습니다.",
