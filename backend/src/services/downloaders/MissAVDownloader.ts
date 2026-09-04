@@ -167,12 +167,39 @@ export class MissAVDownloader extends BaseDownloader {
       const browser = await puppeteer.launch(
         getMissAvPuppeteerLaunchOptions(getUserYtDlpConfig(url)),
       );
-      const page = await browser.newPage();
-      await configureMissAvPage(page);
-      await navigateMissAvPage(page, safeNavigationUrl);
 
-      const html = await page.content();
-      await browser.close();
+      let html: string;
+      try {
+        const page = await browser.newPage();
+        await configureMissAvPage(page);
+        await navigateMissAvPage(page, safeNavigationUrl);
+        html = await page.content();
+      } finally {
+        // Always close the browser, even when navigation throws - which is
+        // exactly what a Cloudflare challenge does. Closing only on the happy
+        // path orphaned one Chromium per failed lookup, and a run of failures
+        // is precisely when they pile up.
+        try {
+          await browser.close();
+        } catch (closeError: unknown) {
+          logger.warn("Failed to close Puppeteer browser:", closeError);
+        }
+      }
+
+      // A challenge page parses perfectly well - it just has no og: tags - so
+      // without this it is indistinguishable from a video page that happens to
+      // carry no metadata, and the placeholder below is returned as if the
+      // lookup had succeeded. The check is free here because the HTML is
+      // already in hand, and unlike the title probe in navigateMissAvPage it
+      // catches challenge pages whatever they are titled.
+      if (isCloudflareChallengeHtml(html)) {
+        logger.warn(
+          `MissAV metadata lookup for ${safeNavigationUrl} was served a Cloudflare ` +
+            "challenge; returning placeholder metadata. Downloads from this host " +
+            "will fail until the challenge clears - see the outbound proxy section " +
+            "of the Docker guide.",
+        );
+      }
 
       const $ = cheerio.load(html);
       const pageTitle = $('meta[property="og:title"]').attr("content");
@@ -417,7 +444,10 @@ export class MissAVDownloader extends BaseDownloader {
       if (!m3u8Url) {
         if (isCloudflareChallengeHtml(html)) {
           throw new Error(
-            "MissAV access is blocked by Cloudflare verification. Retry with PUPPETEER_HEADLESS=false if needed.",
+            "MissAV access is blocked by Cloudflare verification. This is usually the " +
+              "container's egress IP being challenged rather than anything about " +
+              "this video, so it often succeeds on a later attempt: enable Auto " +
+              "Retry in Settings, or route the container through a cleaner egress.",
           );
         }
 
