@@ -4,7 +4,7 @@ Canonical locale key order derived from `frontend/src/utils/locales/en.ts`.
 
 This list is intentionally unnumbered. When new keys are inserted, only the local section order changes.
 
-Total keys: 1090
+Total keys: 1092
 
 ## Summary
 
@@ -39,7 +39,7 @@ Total keys: 1090
 | Disclaimer | 3 | `disclaimerTitle` | `history` |
 | Existing Video Detection | 16 | `existingVideoDetected` | `changeSettings` |
 | Sorting | 10 | `sort` | `random` |
-| yt-dlp Configuration | 48 | `ytDlpConfiguration` | `subscriptionFilenameTemplateUpdateFailed` |
+| yt-dlp Configuration | 50 | `ytDlpConfiguration` | `subscriptionFilenameTemplateUpdateFailed` |
 | Cloudflare Tunnel | 16 | `cloudflaredTunnel` | `managedInDashboard` |
 | Database Export/Import | 39 | `exportImportDatabase` | `backupDatabasesCleanedUp` |
 | History Filter | 33 | `filterAll` | `browserVideoFormatNotSupported` |
@@ -1158,6 +1158,8 @@ Total keys: 1090
 | `reset` |
 | `more` |
 | `proxyOnlyApplyToYoutube` |
+| `proxyBypassHosts` |
+| `proxyBypassHostsHelp` |
 | `moveSubtitlesToVideoFolder` |
 | `moveSubtitlesToVideoFolderOn` |
 | `moveSubtitlesToVideoFolderOff` |

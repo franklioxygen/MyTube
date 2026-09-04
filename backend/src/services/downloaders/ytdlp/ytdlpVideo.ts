@@ -315,6 +315,10 @@ export async function downloadVideo(
 
     if (flags.proxy) {
       logger.info("Proxy included in download flags:", flags.proxy);
+    } else if (flags.proxy === "") {
+      logger.info(
+        "Direct connection forced for download (proxy restricted to YouTube)."
+      );
     } else {
       logger.warn(
         "Proxy not found in download flags. User config proxy:",

@@ -150,6 +150,7 @@ const SettingsPage: React.FC = () => {
         ytDlpConfig: '',
         showYoutubeSearch: true,
         proxyOnlyYoutube: false,
+        ytDlpProxyBypassHosts: '',
         moveSubtitlesToVideoFolder: false,
         moveThumbnailsToVideoFolder: false,
         authorOrganizationMode: 'root',
@@ -519,8 +520,10 @@ const SettingsPage: React.FC = () => {
                     <YtDlpSettings
                         config={settings.ytDlpConfig || ''}
                         proxyOnlyYoutube={settings.proxyOnlyYoutube || false}
+                        proxyBypassHosts={settings.ytDlpProxyBypassHosts || ''}
                         onChange={(config) => handleChange('ytDlpConfig', config)}
                         onProxyOnlyYoutubeChange={(checked) => handleChange('proxyOnlyYoutube', checked)}
+                        onProxyBypassHostsChange={(hosts) => handleChange('ytDlpProxyBypassHosts', hosts)}
                     />
                 ) : (
                     <Alert severity="info">

@@ -1311,6 +1311,9 @@ export const ru = {
   reset: "Сбросить",
   more: "Ещё",
   proxyOnlyApplyToYoutube: "Прокси применяется только к Youtube",
+  proxyBypassHosts: "Обходить прокси для узлов",
+  proxyBypassHostsHelp:
+    "Имена хостов через запятую, к которым подключение идёт напрямую, минуя HTTP_PROXY, заданный для контейнера. Поддомены включаются автоматически (surrit.com покрывает и cdn.surrit.com). Не действует, если в конфигурации ниже задан --proxy: он полностью заменяет прокси из переменных окружения.",
   moveSubtitlesToVideoFolder: "Расположение субтитров",
   moveSubtitlesToVideoFolderOn: "Вместе с видео",
   moveSubtitlesToVideoFolderOff: "В изолированной папке субтитров",

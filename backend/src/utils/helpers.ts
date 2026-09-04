@@ -315,6 +315,12 @@ async function followBilibiliShortUrl(safeShortUrl: string): Promise<string | nu
     // still works because yt-dlp follows the redirect over the same proxy.
     const { getAxiosProxyConfig } = await import("./ytdlp/proxy");
     axiosConfig = getAxiosProxyConfig(proxy);
+  } else if (proxy === "") {
+    // yt-dlp's "connect directly" marker, set by proxyOnlyYoutube. axios reads
+    // HTTP_PROXY from the environment on its own, so it has to be told as well
+    // or the redirect chain and the download it feeds would take different
+    // egress paths.
+    axiosConfig = { proxy: false };
   }
 
   const axios = (await import("axios")).default;

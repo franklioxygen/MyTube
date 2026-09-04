@@ -33,6 +33,7 @@ export {
   getUserYtDlpConfig,
   getEffectiveUserYtDlpConfig,
   getNetworkConfigFromUserConfig,
+  getProxyBypassHosts,
 } from "./ytdlp/config";
 export { InvalidProxyError, getAxiosProxyConfig } from "./ytdlp/proxy";
 

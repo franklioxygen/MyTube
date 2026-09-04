@@ -47,7 +47,10 @@ import { regenerateSmallThumbnailForThumbnailPath } from "../thumbnailMirrorServ
 import * as storageService from "../storageService";
 import { Video } from "../storageService";
 import { BaseDownloader, DownloadOptions, VideoInfo } from "./BaseDownloader";
-import { MISSAV_PROGRESS_LOG_INTERVAL_MS } from "./missav/constants";
+import {
+  MISSAV_DEFAULT_CONCURRENT_FRAGMENTS,
+  MISSAV_PROGRESS_LOG_INTERVAL_MS,
+} from "./missav/constants";
 import {
   buildSafeMissAvNavigationTarget,
   isCloudflareChallengeHtml,
@@ -86,6 +89,34 @@ function resolveMissAvMergeOutputFormat(
   }
 
   return preferredContainer || "mp4";
+}
+
+/**
+ * Resolve how many HLS fragments yt-dlp may fetch in parallel.
+ *
+ * The MissAV flag set is assembled from `getNetworkConfigFromUserConfig`, whose
+ * allow-list carries no `-N`, so a user's own `--concurrent-fragments` never
+ * reached this downloader and every stream fell back to yt-dlp's default of 1.
+ * Honour the setting here, and default to a small parallel fetch so the
+ * fragment round trip stops being the bottleneck (issue #446).
+ *
+ * A non-numeric value is ignored rather than forwarded: yt-dlp rejects it
+ * outright, which would break downloads that work today.
+ */
+function resolveMissAvConcurrentFragments(
+  userConfig: Record<string, unknown>,
+): number {
+  const configured = userConfig.N ?? userConfig.concurrentFragments;
+  const raw = typeof configured === "number" ? String(configured) : configured;
+
+  if (typeof raw === "string" && /^\d+$/.test(raw.trim())) {
+    const parsed = Number(raw.trim());
+    if (parsed > 0) {
+      return parsed;
+    }
+  }
+
+  return MISSAV_DEFAULT_CONCURRENT_FRAGMENTS;
 }
 
 function isPuppeteerTimeoutError(error: unknown): boolean {
@@ -560,6 +591,9 @@ export class MissAVDownloader extends BaseDownloader {
           mergeOutputFormat: mergeOutputFormat,
           noOverwrites: true,
           ...(canImpersonate ? { impersonate: "chrome" } : {}),
+          // Must come after the network config: fragment concurrency is what
+          // keeps a proxied HLS download from serialising on round trips.
+          N: resolveMissAvConcurrentFragments(userConfig),
           addHeader: [`Referer:${referer}`],
         };
 

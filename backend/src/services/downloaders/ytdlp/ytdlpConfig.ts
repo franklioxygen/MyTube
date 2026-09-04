@@ -179,7 +179,10 @@ function extractUserConfigOptions(
   } = config;
 
   const networkOptions: UserYtDlpConfig = {};
-  if (config.proxy) {
+  // An empty string is meaningful, not absent: it is yt-dlp's "connect
+  // directly" value, which proxyOnlyYoutube sets to override a proxy inherited
+  // from the environment, so it has to survive the split too.
+  if (typeof config.proxy === "string") {
     networkOptions.proxy = config.proxy;
     logger.debug("Preserving proxy in networkOptions:", config.proxy);
   }

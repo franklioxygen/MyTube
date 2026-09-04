@@ -22,6 +22,7 @@ import {
   getAxiosProxyConfig,
   getChannelUrlFromVideo,
   getNetworkConfigFromUserConfig,
+  getProxyBypassHosts,
   getUserYtDlpConfig,
   parseYtDlpConfig,
   resetYtDlpAvailabilityCacheForTests,
@@ -505,7 +506,7 @@ describe("ytDlpUtils", () => {
       });
     });
 
-    it("should remove proxy for non-youtube urls when proxyOnlyYoutube is enabled", () => {
+    it("should force a direct connection for non-youtube urls when proxyOnlyYoutube is enabled", () => {
       vi.mocked(storageService.getSettings).mockReturnValue({
         ytDlpConfig: "--format best\n--proxy http://127.0.0.1:7890",
         proxyOnlyYoutube: true,
@@ -513,7 +514,32 @@ describe("ytDlpUtils", () => {
 
       const parsed = getUserYtDlpConfig("https://www.bilibili.com/video/BV123");
       expect(parsed.format).toBe("best");
-      expect(parsed.proxy).toBeUndefined();
+      // An empty --proxy is yt-dlp's "connect directly" value. Dropping the key
+      // instead would leave the download on an HTTP_PROXY inherited from the
+      // container environment, which is the whole point of the setting.
+      expect(parsed.proxy).toBe("");
+    });
+
+    it("should force a direct connection for non-youtube urls even with no config text", () => {
+      vi.mocked(storageService.getSettings).mockReturnValue({
+        proxyOnlyYoutube: true,
+      } as any);
+
+      // The deployment that hits this is exactly the one the setting is for:
+      // the proxy comes from HTTP_PROXY, so there is no yt-dlp config to strip.
+      expect(
+        getUserYtDlpConfig("https://www.bilibili.com/video/BV123").proxy
+      ).toBe("");
+    });
+
+    it("should leave youtube urls untouched when proxyOnlyYoutube is enabled and no config text is set", () => {
+      vi.mocked(storageService.getSettings).mockReturnValue({
+        proxyOnlyYoutube: true,
+      } as any);
+
+      expect(getUserYtDlpConfig("https://www.youtube.com/watch?v=abc")).toEqual(
+        {}
+      );
     });
 
     it("should keep proxy for youtube urls when proxyOnlyYoutube is enabled", () => {
@@ -541,6 +567,69 @@ describe("ytDlpUtils", () => {
       } as any);
 
       expect(getUserYtDlpConfig()).toEqual({});
+    });
+  });
+
+  describe("getProxyBypassHosts", () => {
+    const originalTrustLevel = process.env.MYTUBE_ADMIN_TRUST_LEVEL;
+
+    afterEach(() => {
+      if (originalTrustLevel === undefined) {
+        delete process.env.MYTUBE_ADMIN_TRUST_LEVEL;
+      } else {
+        process.env.MYTUBE_ADMIN_TRUST_LEVEL = originalTrustLevel;
+      }
+    });
+
+    it("splits on commas and whitespace and drops duplicates", () => {
+      vi.mocked(storageService.getSettings).mockReturnValue({
+        ytDlpProxyBypassHosts: "surrit.com, example.com\nsurrit.com  other.net",
+      } as any);
+
+      expect(getProxyBypassHosts()).toEqual([
+        "surrit.com",
+        "example.com",
+        "other.net",
+      ]);
+    });
+
+    it("strips a leading wildcard label, which neither backend matches", () => {
+      vi.mocked(storageService.getSettings).mockReturnValue({
+        ytDlpProxyBypassHosts: "*.surrit.com,.example.com",
+      } as any);
+
+      // Entries match by domain suffix, so the bare domain already covers every
+      // subdomain; left as typed, `*.surrit.com` would silently never match.
+      expect(getProxyBypassHosts()).toEqual(["surrit.com", "example.com"]);
+    });
+
+    it("passes a lone asterisk through as the real wildcard", () => {
+      vi.mocked(storageService.getSettings).mockReturnValue({
+        ytDlpProxyBypassHosts: "*",
+      } as any);
+
+      expect(getProxyBypassHosts()).toEqual(["*"]);
+    });
+
+    it("returns nothing when unset or blank", () => {
+      vi.mocked(storageService.getSettings).mockReturnValue({} as any);
+      expect(getProxyBypassHosts()).toEqual([]);
+
+      vi.mocked(storageService.getSettings).mockReturnValue({
+        ytDlpProxyBypassHosts: "   ",
+      } as any);
+      expect(getProxyBypassHosts()).toEqual([]);
+    });
+
+    it("is gated at the same trust level as the yt-dlp config", () => {
+      process.env.MYTUBE_ADMIN_TRUST_LEVEL = "application";
+      vi.mocked(storageService.getSettings).mockReturnValue({
+        ytDlpProxyBypassHosts: "surrit.com",
+      } as any);
+
+      // The value decides which traffic leaves the container unproxied, so it
+      // must not take effect below the trust level that owns raw yt-dlp args.
+      expect(getProxyBypassHosts()).toEqual([]);
     });
   });
 

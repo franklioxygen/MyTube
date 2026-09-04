@@ -368,6 +368,48 @@ Enable WebSocket passthrough on your proxy:
 >   https://your-domain/api/live-translation/ws
 > ```
 
+## 🌐 Using an Outbound HTTP Proxy (`HTTP_PROXY` / `NO_PROXY`)
+
+This section is about MyTube reaching the *internet* through a proxy (mihomo, Clash, a corporate proxy). It is unrelated to the reverse proxy section above.
+
+MyTube spawns yt-dlp with the backend container's own environment, so `HTTP_PROXY` / `HTTPS_PROXY` set on the `backend` service apply to **every** request yt-dlp makes — including each individual HLS fragment of a stream. Nothing in MyTube's UI reveals that, which makes proxy-induced slowness easy to misdiagnose.
+
+```yaml
+services:
+  backend:
+    environment:
+      - HTTP_PROXY=http://mihomo:7893
+      - HTTPS_PROXY=http://mihomo:7893
+      # Keep container-to-container and loopback traffic off the proxy.
+      - NO_PROXY=localhost,127.0.0.1,backend,frontend,mihomo
+```
+
+### Writing `NO_PROXY` correctly
+
+The syntax is stricter than it looks, and a wrong entry fails silently:
+
+| Write this | Not this | Why |
+| --- | --- | --- |
+| `surrit.com` | `*.surrit.com` | Entries match by domain suffix, so `surrit.com` already covers `cdn.surrit.com`. Neither of yt-dlp's HTTP backends treats a leading `*.` as a wildcard — such an entry simply never matches. A **lone** `*` is the one real wildcard and disables the proxy entirely. |
+| `mihomo,backend` | `172.28.0.0/16` | CIDR ranges work only on the impersonated (libcurl) path, not on yt-dlp's default Python path. List the container names or exact addresses instead. |
+
+### Symptom: MissAV downloads crawl while everything else is fine
+
+MissAV streams are Cloudflare-protected, so MyTube fetches them with yt-dlp's browser impersonation, which forces yt-dlp's **native** HLS downloader. That downloader fetches fragments over ordinary HTTP requests, so with a proxy in front, every one of the several hundred fragments pays the proxy round trip.
+
+MyTube now fetches four fragments in parallel by default, which hides most of that latency. If your link can take more, raise it in **Settings → yt-dlp Configuration**:
+
+```
+--concurrent-fragments 8
+```
+
+To take the CDN off the proxy entirely instead, put its domain in **Settings → yt-dlp Configuration → Bypass proxy for hosts** (`surrit.com`). Only do this if the container can actually reach the internet directly — if all egress is proxied by design, bypassing the proxy replaces slow downloads with failed ones.
+
+### Two things that quietly override each other
+
+- **`--proxy` in the yt-dlp configuration replaces the environment proxy completely.** When it is set, yt-dlp ignores `NO_PROXY` and the *Bypass proxy for hosts* setting along with it — every request goes through that one proxy.
+- **"Proxy only apply to Youtube" now defeats environment proxies too.** Previously it only dropped the `--proxy` flag, so a container-level `HTTP_PROXY` kept proxying non-YouTube downloads anyway. It now sends yt-dlp an explicit direct-connection instruction. If you relied on the old behaviour to proxy non-YouTube sites, clear this toggle.
+
 ## 🏗️ Building from Source (Optional)
 
 If you prefer to build the images yourself (e.g., to modify code), follow these steps:

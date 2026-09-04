@@ -487,6 +487,56 @@ describe('MissAVDownloader', () => {
       expect(flags.addHeader).toEqual(['Referer:https://missav.com/']);
     });
 
+    it('fetches HLS fragments in parallel by default', async () => {
+      const mockPage = buildPageMock('success');
+      const mockBrowser = { newPage: vi.fn().mockResolvedValue(mockPage), close: vi.fn().mockResolvedValue(undefined) };
+      (puppeteer.launch as ReturnType<typeof vi.fn>).mockResolvedValue(mockBrowser);
+
+      await MissAVDownloader.downloadVideo('https://missav.com/test-video').catch(() => {});
+
+      const calls = (flagsToArgs as ReturnType<typeof vi.fn>).mock.calls;
+      const flags = calls[calls.length - 1]?.[0] ?? {};
+
+      // yt-dlp defaults --concurrent-fragments to 1, which serialises every one
+      // of a stream's hundreds of fragments on its own round trip. Behind an
+      // outbound proxy that alone collapses throughput (issue #446).
+      expect(flags.N).toBe(4);
+    });
+
+    it('honours a user-configured --concurrent-fragments', async () => {
+      (getUserYtDlpConfig as ReturnType<typeof vi.fn>).mockReturnValue({ N: '8' });
+      const mockPage = buildPageMock('success');
+      const mockBrowser = { newPage: vi.fn().mockResolvedValue(mockPage), close: vi.fn().mockResolvedValue(undefined) };
+      (puppeteer.launch as ReturnType<typeof vi.fn>).mockResolvedValue(mockBrowser);
+
+      await MissAVDownloader.downloadVideo('https://missav.com/test-video').catch(() => {});
+
+      const calls = (flagsToArgs as ReturnType<typeof vi.fn>).mock.calls;
+      const flags = calls[calls.length - 1]?.[0] ?? {};
+
+      // The MissAV flag set is built from the network config, which carries no
+      // -N, so the user's own setting used to be dropped here.
+      expect(flags.N).toBe(8);
+    });
+
+    it('falls back to the default when the configured fragment count is not a number', async () => {
+      (getUserYtDlpConfig as ReturnType<typeof vi.fn>).mockReturnValue({
+        concurrentFragments: 'lots',
+      });
+      const mockPage = buildPageMock('success');
+      const mockBrowser = { newPage: vi.fn().mockResolvedValue(mockPage), close: vi.fn().mockResolvedValue(undefined) };
+      (puppeteer.launch as ReturnType<typeof vi.fn>).mockResolvedValue(mockBrowser);
+
+      await MissAVDownloader.downloadVideo('https://missav.com/test-video').catch(() => {});
+
+      const calls = (flagsToArgs as ReturnType<typeof vi.fn>).mock.calls;
+      const flags = calls[calls.length - 1]?.[0] ?? {};
+
+      // Forwarding it would make yt-dlp reject the whole invocation, breaking a
+      // download that works today.
+      expect(flags.N).toBe(4);
+    });
+
     it('uses the app preferred container for MissAV when user mergeOutputFormat is not set', async () => {
       vi.mocked(storageService.getSettings).mockReturnValue({
         preferredVideoContainer: 'mkv',

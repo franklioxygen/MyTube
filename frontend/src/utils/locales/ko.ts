@@ -1291,6 +1291,9 @@ export const ko = {
   reset: "초기화",
   more: "더 보기",
   proxyOnlyApplyToYoutube: "프록시는 Youtube에만 적용됩니다",
+  proxyBypassHosts: "프록시를 우회할 호스트",
+  proxyBypassHostsHelp:
+    "컨테이너에 설정된 HTTP_PROXY를 거치지 않고 직접 연결할 호스트 이름을 쉼표로 구분해 입력합니다. 하위 도메인은 자동으로 포함됩니다(surrit.com은 cdn.surrit.com도 포함). 아래 설정에서 --proxy를 지정하면 환경 변수 프록시가 완전히 대체되므로 이 항목은 적용되지 않습니다.",
   moveSubtitlesToVideoFolder: "자막 위치",
   moveSubtitlesToVideoFolderOn: "동영상과 함께",
   moveSubtitlesToVideoFolderOff: "격리된 자막 폴더",

@@ -94,31 +94,71 @@ export function getUserYtDlpConfig(url?: string): Record<string, any> {
     const configText = settings.ytDlpConfig;
     const proxyOnlyYoutube = settings.proxyOnlyYoutube === true;
 
+    const parsedConfig = configText ? parseYtDlpConfig(configText) : {};
     if (configText) {
-      const parsedConfig = parseYtDlpConfig(configText);
       logger.info("Parsed user yt-dlp config:", parsedConfig);
-
-      // If proxy is restricted to YouTube only, and we have a non-YouTube URL
-      if (proxyOnlyYoutube && url) {
-        const isYoutube = isYouTubeUrl(url);
-        if (!isYoutube) {
-          logger.info(
-            "Proxy restricted to YouTube only. Removing proxy settings for:",
-            url
-          );
-          // Remove proxy-related settings
-          delete parsedConfig.proxy;
-          // Also remove potentially related network options if they are usually proxy-specific?
-          // sticking to just 'proxy' as per request and standard usage.
-        }
-      }
-
-      return parsedConfig;
     }
+
+    // If proxy is restricted to YouTube only, and we have a non-YouTube URL
+    if (proxyOnlyYoutube && url && !isYouTubeUrl(url)) {
+      logger.info(
+        "Proxy restricted to YouTube only. Forcing a direct connection for:",
+        url
+      );
+      // An empty --proxy is yt-dlp's explicit "connect directly" value. Merely
+      // dropping the flag is not enough: yt-dlp reads HTTP_PROXY/HTTPS_PROXY
+      // from its own environment, which it inherits from this process, so a
+      // deployment that sets those kept proxying every non-YouTube download
+      // (issue #446). For the same reason this runs even when the user set no
+      // yt-dlp config text at all - that is precisely the deployment where the
+      // proxy comes from the environment rather than from the config.
+      parsedConfig.proxy = "";
+    }
+
+    return parsedConfig;
   } catch (error) {
     logger.error("Error reading user yt-dlp config:", error);
   }
   return {};
+}
+
+/**
+ * Hosts the deployment wants reached directly, even when the container carries
+ * an HTTP_PROXY/HTTPS_PROXY.
+ *
+ * yt-dlp inherits those variables from this process and applies them to every
+ * request it makes - including each HLS fragment - and NO_PROXY is the only
+ * lever that discriminates per request host, so this list is folded into the
+ * child's NO_PROXY rather than turned into a flag (issue #446).
+ *
+ * Entries are bare host names. Both of yt-dlp's request backends match them by
+ * domain suffix, so `surrit.com` already covers every subdomain; neither treats
+ * a leading `*.` as a wildcard, so that prefix is stripped instead of being
+ * left to silently never match. A lone `*` means "bypass the proxy entirely"
+ * and is passed through as-is.
+ *
+ * Gated at the same trust level as the yt-dlp config it complements: the value
+ * decides which traffic leaves the container unproxied.
+ */
+export function getProxyBypassHosts(): string[] {
+  if (!isAdminTrustLevelAtLeast("container")) {
+    return [];
+  }
+
+  const raw = storageService.getSettings().ytDlpProxyBypassHosts;
+  if (typeof raw !== "string" || !raw.trim()) {
+    return [];
+  }
+
+  const hosts = new Set<string>();
+  for (const entry of raw.split(/[\s,]+/)) {
+    const host = entry.trim().replace(/^\*?\./, "");
+    if (host) {
+      hosts.add(host);
+    }
+  }
+
+  return [...hosts];
 }
 
 // Short/long spellings of the same yt-dlp option produce different keys after
@@ -253,8 +293,10 @@ export function getNetworkConfigFromUserConfig(
     }
   }
 
-  // Proxy settings
-  if (userConfig.proxy) {
+  // Proxy settings. An empty string is meaningful, not absent: it is yt-dlp's
+  // "connect directly" value, which proxyOnlyYoutube sets to override an
+  // environment proxy, so it must be forwarded rather than treated as unset.
+  if (typeof userConfig.proxy === "string") {
     networkOptions.proxy = userConfig.proxy;
   }
 

@@ -1283,6 +1283,9 @@ export const ar = {
   reset: "إعادة تعيين",
   more: "المزيد",
   proxyOnlyApplyToYoutube: "الوكيل ينطبق فقط على يوتيوب",
+  proxyBypassHosts: "تجاوز الوكيل لهذه المضيفات",
+  proxyBypassHostsHelp:
+    "أسماء مضيفات مفصولة بفواصل يتم الوصول إليها مباشرة بدلاً من المرور عبر HTTP_PROXY المضبوط على الحاوية. تُضمَّن النطاقات الفرعية تلقائيًا (surrit.com يشمل أيضًا cdn.surrit.com). لا يسري هذا الإعداد عند ضبط --proxy في الإعدادات أدناه، لأنه يستبدل وكيل البيئة بالكامل.",
   moveSubtitlesToVideoFolder: "موقع الترجمة",
   moveSubtitlesToVideoFolderOn: "مع الفيديو",
   moveSubtitlesToVideoFolderOff: "في مجلد الترجمات المعزول",

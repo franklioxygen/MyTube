@@ -355,6 +355,48 @@ MYTUBE_ADMIN_TRUST_LEVEL=container
 >   https://your-domain/api/live-translation/ws
 > ```
 
+## 🌐 使用出站 HTTP 代理 (`HTTP_PROXY` / `NO_PROXY`)
+
+本节讲的是 MyTube 通过代理访问**外网**（mihomo、Clash、公司代理），与上一节的反向代理无关。
+
+MyTube 启动 yt-dlp 时会把 backend 容器自身的环境变量传给它，因此在 `backend` 服务上设置的 `HTTP_PROXY` / `HTTPS_PROXY` 会作用于 yt-dlp 发出的**每一个**请求——包括视频流中的每一个 HLS 分片。MyTube 的界面上看不到这一点，所以由代理引起的变慢很容易被误判。
+
+```yaml
+services:
+  backend:
+    environment:
+      - HTTP_PROXY=http://mihomo:7893
+      - HTTPS_PROXY=http://mihomo:7893
+      # 容器之间和本机回环的流量不要走代理。
+      - NO_PROXY=localhost,127.0.0.1,backend,frontend,mihomo
+```
+
+### 正确书写 `NO_PROXY`
+
+它的语法比看上去严格，写错了不会报错，只会静默失效：
+
+| 应该这样写 | 不要这样写 | 原因 |
+| --- | --- | --- |
+| `surrit.com` | `*.surrit.com` | 条目按域名后缀匹配，`surrit.com` 本身已经涵盖 `cdn.surrit.com`。yt-dlp 的两套 HTTP 后端都不把开头的 `*.` 当通配符——这样的条目永远匹配不到。**单独一个** `*` 才是真正的通配符，含义是完全禁用代理。 |
+| `mihomo,backend` | `172.28.0.0/16` | CIDR 网段只在浏览器指纹伪装（libcurl）这条路径上生效，在 yt-dlp 默认的 Python 路径上无效。请改为直接列出容器名或具体地址。 |
+
+### 症状：只有 MissAV 下载极慢，其他一切正常
+
+MissAV 的流受 Cloudflare 保护，MyTube 需要用 yt-dlp 的浏览器指纹伪装来抓取，而这会强制使用 yt-dlp 的**原生** HLS 下载器。该下载器通过普通 HTTP 请求逐个拉取分片，因此在代理之后，几百个分片中的每一个都要付出一次代理往返的代价。
+
+MyTube 现在默认并行抓取 4 个分片，可以掩盖其中大部分延迟。如果你的线路还有余量，可以在**设置 → yt-dlp 配置**中调高：
+
+```
+--concurrent-fragments 8
+```
+
+如果想让该 CDN 完全不走代理，则把它的域名填进**设置 → yt-dlp 配置 → 绕过代理的主机**（`surrit.com`）。仅在容器确实可以直连外网时才这么做——如果你的部署本就要求全部流量走代理，绕过之后只会把"慢"变成"失败"。
+
+### 两个会互相覆盖的设置
+
+- **yt-dlp 配置里的 `--proxy` 会完全取代环境变量代理。** 一旦设置了它，yt-dlp 就会连同 `NO_PROXY` 和"绕过代理的主机"一起忽略——所有请求都走这一个代理。
+- **"代理仅应用于 Youtube"现在也能压制环境变量代理。** 此前它只是去掉 `--proxy` 参数，因此容器级的 `HTTP_PROXY` 依然会代理非 YouTube 的下载。现在它会向 yt-dlp 明确下达直连指令。如果你原先是靠旧行为来给非 YouTube 站点走代理的，请关闭这个开关。
+
 ## 🏗️ 从源码构建 (可选)
 
 如果您更喜欢自己构建镜像（例如，为了修改代码），请按照以下步骤操作：

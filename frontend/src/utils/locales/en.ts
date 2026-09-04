@@ -1275,6 +1275,9 @@ export const en = {
   reset: "Reset",
   more: "More",
   proxyOnlyApplyToYoutube: "Proxy only apply to Youtube",
+  proxyBypassHosts: "Bypass proxy for hosts",
+  proxyBypassHostsHelp:
+    "Comma-separated host names reached directly instead of through the HTTP_PROXY set on the container. Subdomains are included automatically (surrit.com also covers cdn.surrit.com). Has no effect when --proxy is set in the configuration below, which replaces the environment proxy entirely.",
   moveSubtitlesToVideoFolder: "Subtitles Location",
   moveSubtitlesToVideoFolderOn: "With video together",
   moveSubtitlesToVideoFolderOff: "In isolated subtitle folder",

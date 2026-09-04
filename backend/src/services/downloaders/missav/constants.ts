@@ -34,3 +34,11 @@ export const MISSAV_PATH_PREFIX_SEGMENT_PATTERN = /^[a-z0-9_-]{1,20}$/;
 export const MISSAV_VIDEO_ID_PATTERN = /^[a-zA-Z0-9_-]{2,120}$/;
 export const MISSAV_CLOUDFLARE_CHALLENGE_PATTERN =
   /cf-turnstile|Just a moment|security verification|challenge-platform/i;
+
+// yt-dlp defaults `--concurrent-fragments` to 1, so its native HLS downloader
+// fetches every fragment strictly one after another. A MissAV stream is
+// hundreds of fragments, so the per-request round trip — not bandwidth —
+// decides throughput, and an outbound HTTP proxy that adds latency to each
+// request collapses it (issue #446). Four parallel fetches hide that latency
+// without hammering the CDN; users who want more can set `-N` themselves.
+export const MISSAV_DEFAULT_CONCURRENT_FRAGMENTS = 4;

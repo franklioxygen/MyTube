@@ -1331,6 +1331,9 @@ export const de = {
   reset: "Zurücksetzen",
   more: "Mehr",
   proxyOnlyApplyToYoutube: "Proxy nur auf Youtube anwenden",
+  proxyBypassHosts: "Proxy für Hosts umgehen",
+  proxyBypassHostsHelp:
+    "Durch Kommas getrennte Hostnamen, die direkt statt über den am Container gesetzten HTTP_PROXY erreicht werden. Subdomains sind automatisch enthalten (surrit.com deckt auch cdn.surrit.com ab). Ohne Wirkung, wenn in der Konfiguration unten --proxy gesetzt ist, da dies den Proxy aus der Umgebung vollständig ersetzt.",
   moveSubtitlesToVideoFolder: "Untertitel-Speicherort",
   moveSubtitlesToVideoFolderOn: "Zusammen mit Video",
   moveSubtitlesToVideoFolderOff: "Im isolierten Untertitel-Ordner",

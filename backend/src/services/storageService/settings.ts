@@ -154,6 +154,7 @@ export const WHITELISTED_SETTINGS = [
   "ytDlpConfig",
   "showYoutubeSearch",
   "proxyOnlyYoutube",
+  "ytDlpProxyBypassHosts",
   "moveSubtitlesToVideoFolder",
   "moveThumbnailsToVideoFolder",
   "authorOrganizationMode",
