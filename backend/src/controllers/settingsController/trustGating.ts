@@ -11,6 +11,7 @@ const TRUST_GATED_SETTINGS_REQUIREMENTS: Partial<
 > = {
   ytDlpConfig: "container",
   proxyOnlyYoutube: "container",
+  ytDlpProxyBypassHosts: "container",
   mountDirectories: "host",
 };
 
@@ -39,7 +40,12 @@ const normalizeTrustGatedSettingValue = (
   key: keyof Settings,
   value: unknown
 ): unknown => {
-  if ((key === "ytDlpConfig" || key === "mountDirectories") && value == null) {
+  if (
+    (key === "ytDlpConfig" ||
+      key === "mountDirectories" ||
+      key === "ytDlpProxyBypassHosts") &&
+    value == null
+  ) {
     return "";
   }
 

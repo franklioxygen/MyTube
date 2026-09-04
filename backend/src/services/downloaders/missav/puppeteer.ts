@@ -72,9 +72,38 @@ function resolvePuppeteerHeadlessMode(): boolean {
   return true;
 }
 
-export function getMissAvPuppeteerLaunchOptions(): Parameters<
-  typeof puppeteer.launch
->[0] {
+/**
+ * Launch options for the page load that discovers a MissAV m3u8 URL.
+ *
+ * `userConfig` is the resolved yt-dlp config for the URL being fetched. Only
+ * its proxy matters here, and only in one direction: an empty string is
+ * yt-dlp's "connect directly" value, which proxyOnlyYoutube sets to override a
+ * proxy inherited from the environment. Chromium reads `http_proxy` from that
+ * same environment, so without being told otherwise the browser step would keep
+ * taking the proxy the download it feeds has just left - and if that proxy is
+ * slow or cannot reach MissAV, the operation fails here, before the direct
+ * yt-dlp invocation is ever reached.
+ *
+ * A configured proxy is deliberately not forwarded the other way: Chromium's
+ * --proxy-server takes no inline credentials, so a proxy carrying them would be
+ * silently downgraded rather than honoured.
+ */
+export function getMissAvPuppeteerLaunchOptions(
+  userConfig?: { proxy?: unknown },
+): Parameters<typeof puppeteer.launch>[0] {
+  const args = [
+    "--no-sandbox",
+    "--disable-setuid-sandbox",
+    "--disable-blink-features=AutomationControlled",
+    "--window-size=1280,900",
+    `--user-agent=${MISSAV_BROWSER_USER_AGENT}`,
+  ];
+
+  if (userConfig?.proxy === "") {
+    // Overrides any proxy Chromium would otherwise pick up from the environment.
+    args.push("--no-proxy-server");
+  }
+
   return {
     headless: resolvePuppeteerHeadlessMode(),
     executablePath: resolvePuppeteerExecutablePath(),
@@ -82,13 +111,7 @@ export function getMissAvPuppeteerLaunchOptions(): Parameters<
       width: 1280,
       height: 900,
     },
-    args: [
-      "--no-sandbox",
-      "--disable-setuid-sandbox",
-      "--disable-blink-features=AutomationControlled",
-      "--window-size=1280,900",
-      `--user-agent=${MISSAV_BROWSER_USER_AGENT}`,
-    ],
+    args,
   };
 }
 

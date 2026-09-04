@@ -1311,6 +1311,9 @@ export const ru = {
   reset: "Сбросить",
   more: "Ещё",
   proxyOnlyApplyToYoutube: "Прокси применяется только к Youtube",
+  proxyBypassHosts: "Обходить прокси для узлов",
+  proxyBypassHostsHelp:
+    "Имена хостов через запятую, к которым yt-dlp подключается напрямую, минуя HTTP_PROXY контейнера. Поддомены включаются автоматически (surrit.com покрывает и cdn.surrit.com). Действует только на загрузки yt-dlp; чтобы хост обходили все запросы MyTube, задайте NO_PROXY самого контейнера. Не действует, если ниже задан --proxy: он полностью заменяет прокси из переменных окружения.",
   moveSubtitlesToVideoFolder: "Расположение субтитров",
   moveSubtitlesToVideoFolderOn: "Вместе с видео",
   moveSubtitlesToVideoFolderOff: "В изолированной папке субтитров",

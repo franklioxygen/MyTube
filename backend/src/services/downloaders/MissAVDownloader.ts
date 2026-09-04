@@ -47,7 +47,10 @@ import { regenerateSmallThumbnailForThumbnailPath } from "../thumbnailMirrorServ
 import * as storageService from "../storageService";
 import { Video } from "../storageService";
 import { BaseDownloader, DownloadOptions, VideoInfo } from "./BaseDownloader";
-import { MISSAV_PROGRESS_LOG_INTERVAL_MS } from "./missav/constants";
+import {
+  MISSAV_DEFAULT_CONCURRENT_FRAGMENTS,
+  MISSAV_PROGRESS_LOG_INTERVAL_MS,
+} from "./missav/constants";
 import {
   buildSafeMissAvNavigationTarget,
   isCloudflareChallengeHtml,
@@ -86,6 +89,34 @@ function resolveMissAvMergeOutputFormat(
   }
 
   return preferredContainer || "mp4";
+}
+
+/**
+ * Resolve how many HLS fragments yt-dlp may fetch in parallel.
+ *
+ * The MissAV flag set is assembled from `getNetworkConfigFromUserConfig`, whose
+ * allow-list carries no `-N`, so a user's own `--concurrent-fragments` never
+ * reached this downloader and every stream fell back to yt-dlp's default of 1.
+ * Honour the setting here, and default to a small parallel fetch so the
+ * fragment round trip stops being the bottleneck (issue #446).
+ *
+ * A non-numeric value is ignored rather than forwarded: yt-dlp rejects it
+ * outright, which would break downloads that work today.
+ */
+function resolveMissAvConcurrentFragments(
+  userConfig: Record<string, unknown>,
+): number {
+  const configured = userConfig.N ?? userConfig.concurrentFragments;
+  const raw = typeof configured === "number" ? String(configured) : configured;
+
+  if (typeof raw === "string" && /^\d+$/.test(raw.trim())) {
+    const parsed = Number(raw.trim());
+    if (parsed > 0) {
+      return parsed;
+    }
+  }
+
+  return MISSAV_DEFAULT_CONCURRENT_FRAGMENTS;
 }
 
 function isPuppeteerTimeoutError(error: unknown): boolean {
@@ -133,7 +164,9 @@ export class MissAVDownloader extends BaseDownloader {
         `Fetching page content for ${safeNavigationUrl} with Puppeteer...`,
       );
 
-      const browser = await puppeteer.launch(getMissAvPuppeteerLaunchOptions());
+      const browser = await puppeteer.launch(
+        getMissAvPuppeteerLaunchOptions(getUserYtDlpConfig(url)),
+      );
       const page = await browser.newPage();
       await configureMissAvPage(page);
       await navigateMissAvPage(page, safeNavigationUrl);
@@ -239,7 +272,13 @@ export class MissAVDownloader extends BaseDownloader {
 
       logger.info("Launching Puppeteer to extract m3u8 URL...");
 
-      const browser = await puppeteer.launch(getMissAvPuppeteerLaunchOptions());
+      // Resolved before the launch rather than after it: the browser step has
+      // to follow the same proxy decision as the yt-dlp download it feeds.
+      const userConfig = getUserYtDlpConfig(url);
+
+      const browser = await puppeteer.launch(
+        getMissAvPuppeteerLaunchOptions(userConfig),
+      );
 
       // Declared before try so they are accessible after browser is closed.
       const m3u8Urls: string[] = [];
@@ -356,9 +395,8 @@ export class MissAVDownloader extends BaseDownloader {
         thumbnail: thumbnailUrl,
       });
 
-      // 3. Get user's yt-dlp configuration early to check for format sort
-      // This helps determine m3u8 URL selection strategy and will be reused later
-      const userConfig = getUserYtDlpConfig(url);
+      // 3. The user's yt-dlp configuration, resolved before the browser launch
+      // above, also decides the m3u8 URL selection strategy.
       const hasFormatSort = !!(userConfig.S || userConfig.formatSort);
 
       // 4. Select the best m3u8 URL from collected URLs
@@ -560,6 +598,9 @@ export class MissAVDownloader extends BaseDownloader {
           mergeOutputFormat: mergeOutputFormat,
           noOverwrites: true,
           ...(canImpersonate ? { impersonate: "chrome" } : {}),
+          // Must come after the network config: fragment concurrency is what
+          // keeps a proxied HLS download from serialising on round trips.
+          N: resolveMissAvConcurrentFragments(userConfig),
           addHeader: [`Referer:${referer}`],
         };
 
@@ -722,7 +763,10 @@ export class MissAVDownloader extends BaseDownloader {
       if (thumbnailUrl) {
         // Use base class method via temporary instance
         let axiosConfig = {};
-        if (userConfig.proxy) {
+        // An empty string is yt-dlp's "connect directly" value, so it must reach
+        // axios too: it disables axios' own HTTP_PROXY handling, keeping this
+        // request on the same egress path as the download it belongs to.
+        if (typeof userConfig.proxy === "string") {
           try {
             axiosConfig = getAxiosProxyConfig(userConfig.proxy);
           } catch (error) {

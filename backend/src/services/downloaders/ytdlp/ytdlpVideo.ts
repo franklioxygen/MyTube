@@ -315,6 +315,10 @@ export async function downloadVideo(
 
     if (flags.proxy) {
       logger.info("Proxy included in download flags:", flags.proxy);
+    } else if (flags.proxy === "") {
+      logger.info(
+        "Direct connection forced for download (proxy restricted to YouTube)."
+      );
     } else {
       logger.warn(
         "Proxy not found in download flags. User config proxy:",
@@ -512,7 +516,10 @@ export async function downloadVideo(
       // Prepare axios config with proxy if available
       let axiosConfig = {};
 
-      if (downloadUserConfig.proxy) {
+      // An empty string is yt-dlp's "connect directly" value, so it must reach
+      // axios too: it disables axios' own HTTP_PROXY handling, keeping this
+      // request on the same egress path as the download it belongs to.
+      if (typeof downloadUserConfig.proxy === "string") {
         try {
           axiosConfig = getAxiosProxyConfig(downloadUserConfig.proxy);
         } catch (error) {

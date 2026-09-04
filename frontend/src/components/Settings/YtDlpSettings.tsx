@@ -13,8 +13,10 @@ import { useLanguage } from '../../contexts/LanguageContext';
 interface YtDlpSettingsProps {
     config: string;
     proxyOnlyYoutube?: boolean;
+    proxyBypassHosts?: string;
     onChange: (config: string) => void;
     onProxyOnlyYoutubeChange?: (checked: boolean) => void;
+    onProxyBypassHostsChange?: (hosts: string) => void;
 }
 
 // Default yt-dlp configuration
@@ -238,7 +240,7 @@ const DEFAULT_CONFIG = `# yt-dlp Configuration File
 
 `;
 
-const YtDlpSettings: React.FC<YtDlpSettingsProps> = ({ config, proxyOnlyYoutube = false, onChange, onProxyOnlyYoutubeChange }) => {
+const YtDlpSettings: React.FC<YtDlpSettingsProps> = ({ config, proxyOnlyYoutube = false, proxyBypassHosts = '', onChange, onProxyOnlyYoutubeChange, onProxyBypassHostsChange }) => {
     const { t } = useLanguage();
     const [isExpanded, setIsExpanded] = useState(false);
     const [localConfigState, setLocalConfigState] = useState({
@@ -312,6 +314,21 @@ const YtDlpSettings: React.FC<YtDlpSettingsProps> = ({ config, proxyOnlyYoutube 
                             label={t('proxyOnlyApplyToYoutube') || "Proxy only apply to Youtube"}
                         />
                     </Box>
+
+                    {/* Hosts that must bypass an HTTP_PROXY inherited from the container */}
+                    <TextField
+                        fullWidth
+                        size="small"
+                        sx={{ mb: 2 }}
+                        value={proxyBypassHosts}
+                        onChange={(e) => onProxyBypassHostsChange && onProxyBypassHostsChange(e.target.value)}
+                        label={t('proxyBypassHosts') || 'Bypass proxy for hosts'}
+                        placeholder="surrit.com, example.com"
+                        helperText={
+                            t('proxyBypassHostsHelp') ||
+                            "Comma-separated host names yt-dlp reaches directly instead of through the container's HTTP_PROXY. Subdomains are included automatically (surrit.com also covers cdn.surrit.com). Applies to yt-dlp's downloads only — to take a host off the proxy for every request MyTube makes, set the container's own NO_PROXY instead. No effect when --proxy is set below, which replaces the environment proxy entirely."
+                        }
+                    />
 
                     <TextField
                         fullWidth

@@ -221,6 +221,7 @@ export interface Settings {
   ytDlpConfig?: string;
   showYoutubeSearch?: boolean;
   proxyOnlyYoutube?: boolean;
+  ytDlpProxyBypassHosts?: string;
   moveSubtitlesToVideoFolder?: boolean;
   moveThumbnailsToVideoFolder?: boolean;
   authorOrganizationMode?: AuthorOrganizationMode;

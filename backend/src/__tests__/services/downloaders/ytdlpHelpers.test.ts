@@ -9,8 +9,14 @@ import {
 } from "../../../services/downloaders/ytdlp/ytdlpHelpers";
 import * as securityUtils from "../../../utils/security";
 import { logger } from "../../../utils/logger";
+import { resolveProxiedAxiosConfigForUrl } from "../../../services/downloaders/bilibili/bilibiliConfig";
 
 vi.mock("axios");
+// The XiaoHongShu profile lookup resolves its egress the same way a download
+// does, so the decision this returns is what the request is sent with.
+vi.mock("../../../services/downloaders/bilibili/bilibiliConfig", () => ({
+  resolveProxiedAxiosConfigForUrl: vi.fn(() => ({})),
+}));
 vi.mock("../../../utils/security", () => ({
   normalizeSafeAbsolutePath: vi.fn((target: string) => path.resolve(target)),
   pathExistsTrustedSync: vi.fn(),
@@ -106,6 +112,39 @@ describe("ytdlpHelpers", () => {
         "https://www.xiaohongshu.com/user/profile/676255a3000000001801484c",
         expect.any(Object),
       );
+    });
+
+    it("should follow the download's direct-connection decision", async () => {
+      vi.mocked(resolveProxiedAxiosConfigForUrl).mockReturnValueOnce({
+        proxy: false,
+      });
+      axiosGetMock.mockResolvedValue({ data: "" });
+
+      await extractXiaoHongShuAuthor(
+        "https://www.xiaohongshu.com/explore/123",
+        "676255a3000000001801484c",
+      );
+
+      // axios reads HTTP_PROXY from the environment on its own, so without this
+      // the lookup would keep using the proxy the download has been taken off.
+      expect(axiosGetMock).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ proxy: false }),
+      );
+    });
+
+    it("should skip the lookup when the configured proxy is unusable", async () => {
+      vi.mocked(resolveProxiedAxiosConfigForUrl).mockReturnValueOnce(null);
+
+      const author = await extractXiaoHongShuAuthor(
+        "https://www.xiaohongshu.com/explore/123",
+        "676255a3000000001801484c",
+      );
+
+      // Recording the fallback author is the lesser harm against fetching the
+      // profile over the real IP the proxy exists to hide.
+      expect(author).toBeNull();
+      expect(axiosGetMock).not.toHaveBeenCalled();
     });
 
     it("should return null and avoid request when uploader_id is invalid", async () => {

@@ -1334,6 +1334,9 @@ export const fr = {
   reset: "Réinitialiser",
   more: "Plus",
   proxyOnlyApplyToYoutube: "Proxy s'applique uniquement à Youtube",
+  proxyBypassHosts: "Contourner le proxy pour ces hôtes",
+  proxyBypassHostsHelp:
+    "Noms d'hôtes séparés par des virgules que yt-dlp joint directement au lieu de passer par le HTTP_PROXY du conteneur. Les sous-domaines sont inclus automatiquement (surrit.com couvre aussi cdn.surrit.com). Ne s'applique qu'aux téléchargements de yt-dlp ; pour qu'un hôte soit contourné par toutes les requêtes de MyTube, définissez plutôt le NO_PROXY du conteneur. Sans effet si --proxy est défini ci-dessous, car il remplace entièrement le proxy de l'environnement.",
   moveSubtitlesToVideoFolder: "Emplacement des sous-titres",
   moveSubtitlesToVideoFolderOn: "Avec la vidéo",
   moveSubtitlesToVideoFolderOff: "Dans le dossier de sous-titres isolé",

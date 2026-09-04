@@ -205,6 +205,26 @@ describe("Bilibili API proxy handling", () => {
     });
   });
 
+  it("forces a direct connection when proxyOnlyYoutube took the download off the proxy", async () => {
+    // proxyOnlyYoutube sets yt-dlp's empty "connect directly" value for a
+    // non-YouTube URL. axios reads HTTP_PROXY from the environment on its own,
+    // so treating that as "no proxy configured" would leave this side request
+    // on the very proxy the download just left.
+    mocks.getUserYtDlpConfig.mockReturnValue({ proxy: "" });
+    mocks.getAxiosProxyConfig.mockReturnValue({ proxy: false });
+    mocks.axiosGet.mockResolvedValue({
+      data: { data: { card: { name: "Author" } } },
+    });
+
+    await getAuthorInfo("123");
+
+    expect(mocks.getAxiosProxyConfig).toHaveBeenCalledWith("");
+    expect(mocks.axiosGet).toHaveBeenCalledWith(
+      expect.stringContaining("api.bilibili.com"),
+      expect.objectContaining({ proxy: false }),
+    );
+  });
+
   it("sends requests directly when no proxy is configured", async () => {
     mocks.getUserYtDlpConfig.mockReturnValue({});
     mocks.axiosGet.mockResolvedValue({

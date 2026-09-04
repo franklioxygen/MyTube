@@ -32,9 +32,12 @@ import {
 } from "../../utils/helpers";
 import {
   executeYtDlpJson,
+  getAxiosProxyConfig,
   getChannelUrlFromVideo,
+  getEffectiveUserYtDlpConfig,
   getNetworkConfigFromUserConfig,
   getUserYtDlpConfig,
+  InvalidProxyError,
 } from "../../utils/ytDlpUtils";
 
 vi.mock("../../services/storageService", () => ({
@@ -67,12 +70,20 @@ vi.mock("../../services/CloudStorageService", () => ({
   },
 }));
 
-vi.mock("../../utils/ytDlpUtils", () => ({
-  executeYtDlpJson: vi.fn(),
-  getChannelUrlFromVideo: vi.fn(),
-  getNetworkConfigFromUserConfig: vi.fn(),
-  getUserYtDlpConfig: vi.fn(),
-}));
+// The Bilibili channel lookup resolves the axios proxy config for the URL, so
+// the barrel has to carry the pieces that decision is made of.
+vi.mock("../../utils/ytDlpUtils", async () => {
+  const { InvalidProxyError } = await import("../../utils/ytdlp/proxy");
+  return {
+    executeYtDlpJson: vi.fn(),
+    getAxiosProxyConfig: vi.fn(),
+    getChannelUrlFromVideo: vi.fn(),
+    getEffectiveUserYtDlpConfig: vi.fn(),
+    getNetworkConfigFromUserConfig: vi.fn(),
+    getUserYtDlpConfig: vi.fn(),
+    InvalidProxyError,
+  };
+});
 
 vi.mock("../../utils/helpers", () => ({
   extractBilibiliVideoId: vi.fn(),
@@ -191,6 +202,8 @@ describe("videoController extra coverage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(getUserYtDlpConfig).mockReset();
+    vi.mocked(getEffectiveUserYtDlpConfig).mockReset();
+    vi.mocked(getAxiosProxyConfig).mockReset();
     vi.mocked(getNetworkConfigFromUserConfig).mockReset();
     vi.mocked(isYouTubeUrl).mockReset();
     vi.mocked(isBilibiliUrl).mockReset();
@@ -432,6 +445,52 @@ describe("videoController extra coverage", () => {
       success: true,
       channelUrl: "https://youtube.com/@fresh",
     });
+  });
+
+  it("getAuthorChannelUrl sends the bilibili lookup down the download's own egress path", async () => {
+    const axios = await import("axios");
+    req.query = { sourceUrl: "https://www.bilibili.com/video/BV1xx" } as any;
+    vi.mocked(storageService.getVideoBySourceUrl).mockReturnValue({ id: "v3" } as any);
+    vi.mocked(isYouTubeUrl).mockReturnValue(false);
+    vi.mocked(isBilibiliUrl).mockReturnValue(true);
+    vi.mocked(extractBilibiliVideoId).mockReturnValue("BV1xx");
+    // "Proxy only for YouTube" resolves to yt-dlp's direct-connection value for
+    // a Bilibili URL. axios reads HTTP_PROXY from the environment on its own,
+    // so without being told it would keep using the proxy the download left.
+    vi.mocked(getEffectiveUserYtDlpConfig).mockReturnValue({ proxy: "" } as any);
+    vi.mocked(getAxiosProxyConfig).mockReturnValue({ proxy: false } as any);
+    vi.mocked(axios.default.get).mockResolvedValue({
+      data: { data: { owner: { mid: 12345 } } },
+    } as any);
+
+    await getAuthorChannelUrl(req as Request, res as Response);
+
+    expect(axios.default.get).toHaveBeenCalledWith(
+      expect.stringContaining("bilibili.com"),
+      expect.objectContaining({ proxy: false }),
+    );
+  });
+
+  it("getAuthorChannelUrl skips the bilibili lookup when the configured proxy is unusable", async () => {
+    const axios = await import("axios");
+    req.query = { sourceUrl: "https://www.bilibili.com/video/BV1xx" } as any;
+    vi.mocked(storageService.getVideoBySourceUrl).mockReturnValue({ id: "v3" } as any);
+    vi.mocked(isYouTubeUrl).mockReturnValue(false);
+    vi.mocked(isBilibiliUrl).mockReturnValue(true);
+    vi.mocked(extractBilibiliVideoId).mockReturnValue("BV1xx");
+    vi.mocked(getEffectiveUserYtDlpConfig).mockReturnValue({
+      proxy: "http://broken",
+    } as any);
+    vi.mocked(getAxiosProxyConfig).mockImplementation(() => {
+      throw new InvalidProxyError("http://broken");
+    });
+
+    await getAuthorChannelUrl(req as Request, res as Response);
+
+    // Reaching api.bilibili.com directly would expose the real IP the proxy
+    // exists to hide, so the lookup is skipped rather than sent unproxied.
+    expect(axios.default.get).not.toHaveBeenCalled();
+    expect(json).toHaveBeenCalledWith({ success: true, channelUrl: null });
   });
 
   it("getAuthorChannelUrl falls back to bilibili owner URL", async () => {
