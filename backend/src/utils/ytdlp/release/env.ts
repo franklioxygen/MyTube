@@ -6,10 +6,16 @@ import { logger } from "../../logger";
 /**
  * Fold the configured proxy-bypass hosts into the snapshot's NO_PROXY.
  *
- * Both spellings are written because the two readers disagree on precedence:
- * CPython's getproxies_environment() walks os.environ and lets whichever of
- * `no_proxy`/`NO_PROXY` it sees last win. Leaving a stale pair behind would
- * apply the list only some of the time.
+ * The lowercase spelling wins whenever it is set at all. CPython's
+ * getproxies_environment() reads the environment twice and the second pass
+ * considers only the exactly-lowercase names, so a non-empty `no_proxy`
+ * overrides `NO_PROXY` and an empty one *removes* the bypass list outright -
+ * which is how a deployment clears a NO_PROXY it inherited from a base image.
+ * Merging the union of the two would resurrect exactly those entries. libcurl
+ * never sees the raw variables here (yt-dlp hands it whatever that function
+ * returned), so this one rule covers both request backends.
+ *
+ * The result is written to both spellings so the child cannot read a stale one.
  */
 function applyProxyBypassHosts(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   let bypassHosts: string[];
@@ -30,13 +36,16 @@ function applyProxyBypassHosts(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
     return env;
   }
 
+  // Present-but-empty is a decision, not an absence, so this tests for the key
+  // rather than for a truthy value.
+  const inherited =
+    env.no_proxy !== undefined ? env.no_proxy : (env.NO_PROXY ?? "");
+
   const entries: string[] = [];
-  for (const source of [env.NO_PROXY, env.no_proxy, bypassHosts.join(",")]) {
-    for (const entry of (source ?? "").split(",")) {
-      const trimmed = entry.trim();
-      if (trimmed && !entries.includes(trimmed)) {
-        entries.push(trimmed);
-      }
+  for (const entry of [...inherited.split(","), ...bypassHosts]) {
+    const trimmed = entry.trim();
+    if (trimmed && !entries.includes(trimmed)) {
+      entries.push(trimmed);
     }
   }
 

@@ -42,14 +42,36 @@ describe("captureProcessEnv proxy bypass", () => {
     expect(env.NO_PROXY).toBe("localhost,127.0.0.1,surrit.com");
   });
 
+  it("lets a lowercase no_proxy override the uppercase spelling", () => {
+    mockedBypassHosts.mockReturnValue(["surrit.com"]);
+
+    // CPython's getproxies_environment() reads the environment twice and the
+    // second pass matches lowercase names only, so no_proxy is authoritative
+    // whatever order the variables come in. A union would bypass localhost too.
+    const env = captureProcessEnv({ NO_PROXY: "localhost", no_proxy: "mihomo" });
+
+    expect(env.NO_PROXY).toBe("mihomo,surrit.com");
+    expect(env.no_proxy).toBe(env.NO_PROXY);
+  });
+
+  it("does not resurrect an uppercase list that an empty no_proxy cleared", () => {
+    mockedBypassHosts.mockReturnValue(["surrit.com"]);
+
+    // An empty lowercase value makes that second pass *remove* the bypass list.
+    // Setting `no_proxy=` is how a deployment clears a NO_PROXY it inherited
+    // from a base image, so those hosts must not come back as bypasses here.
+    const env = captureProcessEnv({ NO_PROXY: "a.com,b.com", no_proxy: "" });
+
+    expect(env.NO_PROXY).toBe("surrit.com");
+    expect(env.no_proxy).toBe(env.NO_PROXY);
+  });
+
   it("writes both spellings so neither reader sees a stale list", () => {
     mockedBypassHosts.mockReturnValue(["surrit.com"]);
 
-    // CPython's getproxies_environment() walks os.environ and lets whichever of
-    // no_proxy/NO_PROXY it sees last win, so a stale pair applies only sometimes.
-    const env = captureProcessEnv({ NO_PROXY: "localhost", no_proxy: "mihomo" });
+    const env = captureProcessEnv({ NO_PROXY: "localhost" });
 
-    expect(env.NO_PROXY).toBe("localhost,mihomo,surrit.com");
+    expect(env.NO_PROXY).toBe("localhost,surrit.com");
     expect(env.no_proxy).toBe(env.NO_PROXY);
   });
 
