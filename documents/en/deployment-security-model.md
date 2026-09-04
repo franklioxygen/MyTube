@@ -248,15 +248,30 @@ admin-only action, and an admin who can restore a backup can already delete the
 credential outright, but it is worth knowing that it is the one exception to
 "only a password login unlocks it".
 
-## Data Directory (`MYTUBE_DATA_DIR`)
+## Data Directory (`MYTUBE_BACKEND_DATA_DIR`)
 
-`MYTUBE_DATA_DIR` is optional and defaults to `<backend cwd>/data`. It holds
-`mytube.db`, the generated Gesture Login pepper, uploaded hooks, and the legacy
-JSON files. Set it to keep that state on a different volume from the code; a
-relative value is resolved against the backend's working directory.
+`MYTUBE_BACKEND_DATA_DIR` is optional and defaults to `<backend cwd>/data`. It
+holds `mytube.db`, the generated Gesture Login pepper, uploaded hooks, and the
+legacy JSON files. Set it to keep that state on a different volume from the
+code; a relative value is resolved against the backend's working directory.
 
 It relocates the data directory only. Media stays under `uploads/`, which
 continues to follow the backend's working directory.
 
 The backend test suite sets this to a scratch directory per test file, so
 running `npm test` never touches a real deployment's database.
+
+**Do not confuse it with `MYTUBE_DATA_DIR`**, which the shipped Compose stack and
+the Docker guide use for the *host* side of the `<host>:/app/data` bind mount.
+The backend deliberately ignores that variable: its value is a host path, so
+reading it inside the container pointed the backend at a directory holding no
+database. It opened a new one instead, and a fresh database defaults to
+`loginEnabled: false` — an upgrade turned a password-protected instance into a
+public one. In a container, set `MYTUBE_BACKEND_DATA_DIR` only if you have also
+mounted your data at that path.
+
+If the resolved data directory holds no database while a populated `mytube.db`
+sits at the default location — or at the path `MYTUBE_DATA_DIR` names — the
+backend refuses to start and names both. Starting there would create an empty
+database, and an empty database has login protection off. A first install, where
+no other database exists, starts normally.

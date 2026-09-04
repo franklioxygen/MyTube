@@ -6,7 +6,7 @@ import { MigrationError } from "../errors/DownloadErrors";
 import {
   accessTrustedSync,
   pathExistsSafeSync,
-  pathExistsTrustedSync,
+  resolveSafePath,
   statTrustedSync,
   unlinkTrustedSync,
   writeFileSafeSync,
@@ -126,6 +126,174 @@ function ensureDatabaseWritable(dbPath: string): void {
   }
 }
 
+const DEFAULT_DATA_DIR = path.join(ROOT_DIR, "data");
+const DATA_DIR_ENV_VAR = "MYTUBE_BACKEND_DATA_DIR";
+const LEGACY_DATA_DIR_ENV_VAR = "MYTUBE_DATA_DIR";
+
+/**
+ * Classify whether the database this process opened has tables of its own. An
+ * empty database is what an install looks like immediately before its first
+ * migration - and also what a database opened at the wrong path looks like,
+ * because db/index.ts creates the file as soon as it is imported.
+ *
+ * An unreadable answer is neither empty nor populated: keep it unknown so a
+ * database that cannot be inspected is never mistaken for either condition.
+ */
+type SelectedDatabaseState = "empty" | "populated" | "unknown";
+
+function getSelectedDatabaseState(): SelectedDatabaseState {
+  try {
+    const row = sqlite
+      .prepare(
+        `SELECT COUNT(*) AS count FROM sqlite_master
+          WHERE type = 'table' AND name NOT LIKE 'sqlite_%'`
+      )
+      .get() as { count?: number } | undefined;
+
+    if (typeof row?.count !== "number") {
+      return "unknown";
+    }
+
+    return row.count === 0 ? "empty" : "populated";
+  } catch {
+    return "unknown";
+  }
+}
+
+type DatabaseCandidateInspection =
+  | { status: "absent" }
+  | { status: "present"; path: string }
+  | { status: "unavailable"; path: string; error: Error };
+
+function inspectDatabase(directory: string): DatabaseCandidateInspection {
+  const candidate = resolveSafePath(DB_FILENAME, directory);
+
+  try {
+    // Size, not mere existence: db/index.ts touches the file before opening it,
+    // so an abandoned data directory keeps a zero-byte mytube.db forever.
+    return statTrustedSync(candidate).size > 0
+      ? { status: "present", path: candidate }
+      : { status: "absent" };
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException | undefined)?.code === "ENOENT") {
+      return { status: "absent" };
+    }
+
+    return {
+      status: "unavailable",
+      path: candidate,
+      error: normalizeError(error),
+    };
+  }
+}
+
+function pathsReferToSameDatabase(
+  selectedDatabase: string,
+  candidateDatabase: string
+): boolean {
+  try {
+    const selectedStats = statTrustedSync(selectedDatabase);
+    const candidateStats = statTrustedSync(candidateDatabase);
+    const hasUsableIdentity =
+      typeof selectedStats.dev === "number" &&
+      typeof selectedStats.ino === "number" &&
+      typeof candidateStats.dev === "number" &&
+      typeof candidateStats.ino === "number" &&
+      (selectedStats.dev !== 0 || selectedStats.ino !== 0) &&
+      (candidateStats.dev !== 0 || candidateStats.ino !== 0);
+
+    return (
+      hasUsableIdentity &&
+      selectedStats.dev === candidateStats.dev &&
+      selectedStats.ino === candidateStats.ino
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Refuse to start on an empty data directory when a populated database sits at
+ * a directory this deployment plausibly meant instead.
+ *
+ * Opening a new database is right for a first install and looks right
+ * everywhere else: the migrations run cleanly and the server reports a healthy
+ * start. But a fresh database carries default settings, `loginEnabled` defaults
+ * to false, and isLoginRequired() is the first thing every route guard asks -
+ * so the instance comes up unauthenticated on an empty library while the real
+ * database sits untouched one directory away. Silence is the whole danger, so
+ * name the directory that does hold a database and stop.
+ */
+function ensureDataDirIsNotMisdirected(): void {
+  const selectedDatabaseState = getSelectedDatabaseState();
+  if (selectedDatabaseState === "unknown") {
+    return;
+  }
+
+  const selectedDatabaseIsEmpty = selectedDatabaseState === "empty";
+  const selectedDatabase = resolveSafePath(DB_FILENAME, DATA_DIR);
+  const legacyValue = process.env[LEGACY_DATA_DIR_ENV_VAR];
+  const candidates: Array<{ directory: string; explanation: string }> = [];
+
+  if (typeof legacyValue === "string" && legacyValue.length > 0) {
+    candidates.push({
+      directory: path.resolve(legacyValue),
+      explanation: `${LEGACY_DATA_DIR_ENV_VAR} is set to "${legacyValue}". That name is the host side of the Docker bind mount and is no longer read here; the backend override is ${DATA_DIR_ENV_VAR}.`,
+    });
+  }
+
+  // A populated explicitly selected directory wins over a stale default. The
+  // legacy variable is different: it is no longer honored, so two populated
+  // databases are ambiguous and must fail closed instead of silently choosing
+  // whichever one happens to be the default.
+  if (selectedDatabaseIsEmpty) {
+    candidates.push({
+      directory: DEFAULT_DATA_DIR,
+      explanation: `${DATA_DIR_ENV_VAR} moved the data directory away from the default.`,
+    });
+  }
+
+  for (const candidate of candidates) {
+    if (candidate.directory === DATA_DIR) {
+      continue;
+    }
+
+    const inspection = inspectDatabase(candidate.directory);
+    if (inspection.status === "absent") {
+      continue;
+    }
+
+    if (inspection.status === "unavailable") {
+      throw new MigrationError(
+        `Refusing to start: unable to inspect possible existing database ${inspection.path}. ${candidate.explanation} Treating an inaccessible database as absent could create a fresh database with login protection off. Fix access to that location, then point ${DATA_DIR_ENV_VAR} at the database this instance should use or unset ${LEGACY_DATA_DIR_ENV_VAR} if it is obsolete.`,
+        "data_dir_candidate_unavailable",
+        inspection.error
+      );
+    }
+
+    const existingDatabase = inspection.path;
+
+    // Symlinks and bind mounts can expose one file under different lexical
+    // paths. Device/inode identity follows those aliases and prevents a false
+    // ambiguous-configuration failure.
+    if (pathsReferToSameDatabase(selectedDatabase, existingDatabase)) {
+      continue;
+    }
+
+    if (!selectedDatabaseIsEmpty) {
+      throw new MigrationError(
+        `Refusing to start: ${DATA_DIR} and ${existingDatabase} are distinct populated database locations. ${candidate.explanation} Choosing the default silently could use stale settings and disable login protection. Point ${DATA_DIR_ENV_VAR} at the database this instance should use, and unset ${LEGACY_DATA_DIR_ENV_VAR}.`,
+        "data_dir_ambiguous"
+      );
+    }
+
+    throw new MigrationError(
+      `Refusing to start: ${DATA_DIR} holds no database, but ${existingDatabase} does. ${candidate.explanation} Starting here would create an empty database, and a new database has login protection off - this instance would come up unauthenticated with an empty library. Point ${DATA_DIR_ENV_VAR} at the directory holding your database, or move that database aside if starting empty here is what you intended.`,
+      "data_dir_misdirected"
+    );
+  }
+}
+
 function isReadonlySqliteError(error: unknown): boolean {
   const candidate = error as
     | {
@@ -161,9 +329,9 @@ export async function runMigrations(options: RunMigrationsOptions = {}) {
     // the database file is fully accessible before attempting migration
     // This helps prevent "database is locked" errors on first deployment
     // Must come from DATA_DIR, not a second guess at it. Every check below
-    // validates against DATA_DIR, so rebuilding the path from ROOT_DIR made
-    // the two disagree the moment MYTUBE_DATA_DIR moved the data directory -
-    // the traversal guard then aborted migrations and left a database with no
+    // validates against DATA_DIR, so rebuilding the path from ROOT_DIR made the
+    // two disagree the moment MYTUBE_BACKEND_DATA_DIR moved the data directory
+    // - the traversal guard then aborted migrations and left a database with no
     // tables at all.
     const dbPath = path.join(DATA_DIR, DB_FILENAME);
     if (!pathExistsSafeSync(dbPath, DATA_DIR)) {
@@ -174,6 +342,10 @@ export async function runMigrations(options: RunMigrationsOptions = {}) {
     }
 
     ensureDatabaseWritable(dbPath);
+
+    // Before migrate(), which would fill the database in and make an empty one
+    // indistinguishable from a healthy one.
+    ensureDataDirIsNotMisdirected();
 
     // In production/docker, the drizzle folder is copied to the root or src/drizzle
     // We need to find where it is.

@@ -18,7 +18,7 @@ import { afterAll } from "vitest";
  * file, so each file gets a fresh directory and a fresh database.
  */
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "mytube-test-data-"));
-process.env.MYTUBE_DATA_DIR = dataDir;
+process.env.MYTUBE_BACKEND_DATA_DIR = dataDir;
 
 afterAll(() => {
   // Best effort: an open SQLite handle can keep a file busy, and a leaked
