@@ -75,9 +75,23 @@ const fetchBilibiliChannelUrl = async (
     return null;
   }
 
+  // The lookup must take the same route as the yt-dlp call for this URL:
+  // "proxy only for YouTube" resolves to an explicit direct connection here,
+  // which axios needs to be told about because it reads HTTP_PROXY from the
+  // environment on its own. A null means the configured proxy is unusable -
+  // skip rather than reach api.bilibili.com directly and expose the real IP.
+  const { resolveProxiedAxiosConfigForUrl } = await import(
+    "../../services/downloaders/bilibili/bilibiliConfig"
+  );
+  const axiosConfig = resolveProxiedAxiosConfigForUrl(sourceUrl);
+  if (!axiosConfig) {
+    return null;
+  }
+
   try {
     const axios = (await import("axios")).default;
     const response = await axios.get(getBilibiliApiUrl(videoId), {
+      ...axiosConfig,
       headers: BILIBILI_REQUEST_HEADERS,
     });
 

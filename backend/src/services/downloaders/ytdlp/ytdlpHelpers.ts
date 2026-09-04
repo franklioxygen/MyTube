@@ -186,7 +186,27 @@ export async function extractXiaoHongShuAuthor(
       `Attempting XiaoHongShu author extraction from profile for uploader_id: ${safeUploaderId}`,
     );
 
+    // Same egress as the yt-dlp call for this video: "proxy only for YouTube"
+    // resolves to an explicit direct connection, which axios has to be told
+    // about because it reads HTTP_PROXY from the environment itself. Resolved
+    // from the video URL, not the profile URL, because that is what the
+    // download decided on. (The helper is generic despite its module - it is
+    // the one place that owns the skip-vs-proxy decision for side requests.)
+    const { resolveProxiedAxiosConfigForUrl } = await import(
+      "../bilibili/bilibiliConfig"
+    );
+    const axiosConfig = resolveProxiedAxiosConfigForUrl(url);
+    if (!axiosConfig) {
+      // A configured proxy that cannot be used: recording the fallback author
+      // is the lesser harm against fetching this over the user's real IP.
+      logger.warn(
+        "Skipping XiaoHongShu author extraction: the configured proxy is unusable.",
+      );
+      return null;
+    }
+
     const response = await axios.get(profileUrl, {
+      ...axiosConfig,
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
