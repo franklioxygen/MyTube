@@ -444,7 +444,10 @@ export class MissAVDownloader extends BaseDownloader {
       if (!m3u8Url) {
         if (isCloudflareChallengeHtml(html)) {
           throw new Error(
-            "MissAV access is blocked by Cloudflare verification. Retry with PUPPETEER_HEADLESS=false if needed.",
+            "MissAV access is blocked by Cloudflare verification. This is usually the " +
+              "container's egress IP being challenged rather than anything about " +
+              "this video, so it often succeeds on a later attempt: enable Auto " +
+              "Retry in Settings, or route the container through a cleaner egress.",
           );
         }
 

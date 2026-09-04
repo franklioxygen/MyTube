@@ -90,15 +90,17 @@ function resolvePuppeteerHeadlessMode(): boolean {
 export function getMissAvPuppeteerLaunchOptions(
   userConfig?: { proxy?: unknown },
 ): Parameters<typeof puppeteer.launch>[0] {
-  // Deliberately no --user-agent override. A hardcoded macOS Chrome string used
-  // to be forced here, but Chromium does not rewrite everything to match it:
-  // the Sec-CH-UA-Platform client hint, navigator.platform and the WebGL
-  // renderer all keep reporting the real platform, which in Docker is Linux.
-  // A macOS User-Agent arriving beside Linux client hints in the same request
-  // is a direct contradiction and one of the cheapest bot-detection signals
-  // there is, so the override made the browser easier to single out rather
-  // than harder. Chromium's own string is consistent with everything else it
-  // reports.
+  // No --user-agent here on purpose. A hardcoded macOS Chrome string used to be
+  // forced at launch, but Chromium does not rewrite everything to match it: the
+  // Sec-CH-UA-Platform client hint, navigator.platform and the WebGL renderer
+  // all keep reporting the real platform, which in Docker is Linux. A macOS
+  // User-Agent beside Linux client hints in one request contradicts itself.
+  //
+  // The browser's own string is not usable as-is either: headless Chrome
+  // reports `HeadlessChrome/<version>`, which is a far louder automation signal
+  // than the mismatch was. configureMissAvPage() derives the User-Agent from
+  // the running browser and drops only that marker, so the platform and version
+  // stay honest and nothing announces the headless session.
   const args = [
     "--no-sandbox",
     "--disable-setuid-sandbox",
@@ -122,10 +124,50 @@ export function getMissAvPuppeteerLaunchOptions(
   };
 }
 
+/**
+ * Strip the headless marker from a browser's own User-Agent.
+ *
+ * Headless Chrome reports `HeadlessChrome/<version>` where headful reports
+ * `Chrome/<version>`; everything else in the string - platform, version,
+ * WebKit build - is already correct for the running browser. Rewriting just
+ * that token therefore removes the automation tell without introducing the
+ * platform contradiction a hardcoded string caused.
+ *
+ * Returns null when there is nothing to correct.
+ */
+export function deriveNonHeadlessUserAgent(
+  browserUserAgent: string | undefined | null,
+): string | null {
+  if (!browserUserAgent || !browserUserAgent.includes("HeadlessChrome")) {
+    return null;
+  }
+
+  return browserUserAgent.replace("HeadlessChrome", "Chrome");
+}
+
 export async function configureMissAvPage(page: {
   setExtraHTTPHeaders?: (headers: Record<string, string>) => Promise<unknown>;
   evaluateOnNewDocument?: (fn: () => void) => Promise<unknown>;
+  setUserAgent?: (userAgent: string) => Promise<unknown>;
+  browser?: () => { userAgent?: () => Promise<string> } | undefined;
 }): Promise<void> {
+  // Derived from the running browser rather than hardcoded, so the version and
+  // platform cannot drift out of agreement with the client hints Chromium sends
+  // alongside them. Best-effort: a browser handle is not always reachable, and
+  // an honest-but-headless UA is still better than failing the page load.
+  try {
+    const browserUserAgent = await page.browser?.()?.userAgent?.();
+    const userAgent = deriveNonHeadlessUserAgent(browserUserAgent);
+    if (userAgent) {
+      await page.setUserAgent?.(userAgent);
+    }
+  } catch (error: unknown) {
+    logger.warn(
+      "Could not adjust the MissAV browser User-Agent; continuing with the default:",
+      error,
+    );
+  }
+
   await page.setExtraHTTPHeaders?.({
     "accept-language": MISSAV_BROWSER_ACCEPT_LANGUAGE,
   });
@@ -174,7 +216,10 @@ export async function navigateMissAvPage(
       const html = typeof page.content === "function" ? await page.content() : "";
       if (isCloudflareChallengeHtml(html)) {
         throw new Error(
-          "MissAV access is blocked by Cloudflare verification. Retry with PUPPETEER_HEADLESS=false if needed.",
+          "MissAV access is blocked by Cloudflare verification. This is usually the " +
+            "container's egress IP being challenged rather than anything about " +
+            "this video, so it often succeeds on a later attempt: enable Auto " +
+            "Retry in Settings, or route the container through a cleaner egress.",
         );
       }
       throw error;
