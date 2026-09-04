@@ -23,8 +23,6 @@ export const PUPPETEER_LINUX_EXECUTABLE_PATHS = [
   "/usr/bin/chromium",
 ];
 
-export const MISSAV_BROWSER_USER_AGENT =
-  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36";
 export const MISSAV_BROWSER_ACCEPT_LANGUAGE = "en-US,en;q=0.9";
 // MissAV-style video URLs are at most three segments deep: an optional route
 // prefix and/or language segment followed by the video id, e.g.

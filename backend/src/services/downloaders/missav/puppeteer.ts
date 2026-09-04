@@ -4,7 +4,6 @@ import { logger } from "../../../utils/logger";
 import { pathExistsTrustedSync } from "../../../utils/security";
 import {
   MISSAV_BROWSER_ACCEPT_LANGUAGE,
-  MISSAV_BROWSER_USER_AGENT,
   PUPPETEER_LINUX_EXECUTABLE_PATHS,
   PUPPETEER_MACOS_EXECUTABLE_PATHS,
 } from "./constants";
@@ -91,12 +90,20 @@ function resolvePuppeteerHeadlessMode(): boolean {
 export function getMissAvPuppeteerLaunchOptions(
   userConfig?: { proxy?: unknown },
 ): Parameters<typeof puppeteer.launch>[0] {
+  // Deliberately no --user-agent override. A hardcoded macOS Chrome string used
+  // to be forced here, but Chromium does not rewrite everything to match it:
+  // the Sec-CH-UA-Platform client hint, navigator.platform and the WebGL
+  // renderer all keep reporting the real platform, which in Docker is Linux.
+  // A macOS User-Agent arriving beside Linux client hints in the same request
+  // is a direct contradiction and one of the cheapest bot-detection signals
+  // there is, so the override made the browser easier to single out rather
+  // than harder. Chromium's own string is consistent with everything else it
+  // reports.
   const args = [
     "--no-sandbox",
     "--disable-setuid-sandbox",
     "--disable-blink-features=AutomationControlled",
     "--window-size=1280,900",
-    `--user-agent=${MISSAV_BROWSER_USER_AGENT}`,
   ];
 
   if (userConfig?.proxy === "") {

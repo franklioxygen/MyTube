@@ -9,6 +9,7 @@ import { cleanupTemporaryFiles, isCancellationError } from '../../../utils/downl
 import { flagsToArgs, getUserYtDlpConfig, isYtDlpImpersonateAvailable } from '../../../utils/ytDlpUtils';
 import * as security from '../../../utils/security';
 import { logger } from '../../../utils/logger';
+import { getMissAVPlaceholderTitle } from '../../../utils/helpers';
 import * as storageService from '../../../services/storageService';
 
 vi.mock('puppeteer');
@@ -136,6 +137,60 @@ describe('MissAVDownloader', () => {
       const info = await MissAVDownloader.getVideoInfo(url);
 
       expect(info.author).toBe('missav.com');
+    });
+
+    it('closes the browser when navigation throws', async () => {
+      const mockPage = {
+        goto: vi.fn(),
+        title: vi.fn().mockResolvedValue('Just a moment...'),
+        content: vi.fn().mockResolvedValue('<html><body>cf-turnstile</body></html>'),
+        waitForFunction: vi.fn().mockRejectedValue(new Error('timeout')),
+        close: vi.fn(),
+      };
+      const mockBrowser = {
+        newPage: vi.fn().mockResolvedValue(mockPage),
+        close: vi.fn(),
+      };
+      (puppeteer.launch as any).mockResolvedValue(mockBrowser);
+
+      await MissAVDownloader.getVideoInfo('https://missav.com/test-video');
+
+      // Closing only on the happy path orphaned one Chromium per failed
+      // lookup, and a Cloudflare challenge - a run of which is exactly when
+      // they pile up - throws out of navigation every time.
+      expect(mockBrowser.close).toHaveBeenCalled();
+    });
+
+    it('reports a Cloudflare challenge instead of silently returning placeholder metadata', async () => {
+      const mockPage = {
+        goto: vi.fn(),
+        // Not the exact title navigateMissAvPage probes for, so the challenge
+        // reaches the metadata parser unremarked.
+        title: vi.fn().mockResolvedValue('Attention Required!'),
+        content: vi.fn().mockResolvedValue(
+          '<html><head></head><body><div class="cf-turnstile"></div></body></html>',
+        ),
+        close: vi.fn(),
+      };
+      const mockBrowser = {
+        newPage: vi.fn().mockResolvedValue(mockPage),
+        close: vi.fn(),
+      };
+      (puppeteer.launch as any).mockResolvedValue(mockBrowser);
+      const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => undefined);
+
+      const info = await MissAVDownloader.getVideoInfo('https://missav.com/test-video');
+
+      // The contract stays best-effort - callers rely on placeholder metadata
+      // rather than a throw - but the reason has to be visible, otherwise a
+      // challenge is indistinguishable from a page carrying no og: tags.
+      expect(
+        warnSpy.mock.calls.some((call) =>
+          call.some((arg) => typeof arg === 'string' && arg.includes('Cloudflare')),
+        ),
+      ).toBe(true);
+      expect(info.title).toBe(getMissAVPlaceholderTitle('https://missav.com/test-video'));
+      warnSpy.mockRestore();
     });
 
     it('should extract author from domain name for 123av', async () => {
@@ -485,6 +540,24 @@ describe('MissAVDownloader', () => {
       // so the flag must be omitted and the download attempted unimpersonated.
       expect(flags.impersonate).toBeUndefined();
       expect(flags.addHeader).toEqual(['Referer:https://missav.com/']);
+    });
+
+    it('does not override the browser User-Agent', async () => {
+      const mockPage = buildPageMock('success');
+      const mockBrowser = { newPage: vi.fn().mockResolvedValue(mockPage), close: vi.fn().mockResolvedValue(undefined) };
+      (puppeteer.launch as ReturnType<typeof vi.fn>).mockResolvedValue(mockBrowser);
+
+      await MissAVDownloader.downloadVideo('https://missav.com/test-video').catch(() => {});
+
+      // A hardcoded macOS Chrome string used to be forced here, but Chromium
+      // keeps reporting the real platform through the Sec-CH-UA-Platform hint,
+      // navigator.platform and the WebGL renderer - Linux, in Docker. A macOS
+      // User-Agent beside Linux client hints in one request contradicts itself,
+      // which is easier to detect than an honest string, not harder.
+      const launchOptions = (puppeteer.launch as ReturnType<typeof vi.fn>).mock.calls[0]?.[0];
+      expect(
+        (launchOptions?.args ?? []).some((arg: string) => arg.startsWith('--user-agent')),
+      ).toBe(false);
     });
 
     it('tells Chromium to connect directly when proxyOnlyYoutube took the download off the proxy', async () => {
