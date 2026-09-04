@@ -1311,7 +1311,7 @@ export const ja = {
   proxyOnlyApplyToYoutube: "プロキシはYoutubeにのみ適用されます",
   proxyBypassHosts: "プロキシを迂回するホスト",
   proxyBypassHostsHelp:
-    "コンテナに設定された HTTP_PROXY を経由せず直接接続するホスト名をカンマ区切りで指定します。サブドメインは自動的に含まれます（surrit.com は cdn.surrit.com もカバーします）。下の設定で --proxy を指定した場合は環境変数のプロキシが完全に置き換えられるため、この項目は無効になります。",
+    "yt-dlp がコンテナの HTTP_PROXY を経由せず直接接続するホスト名をカンマ区切りで指定します。サブドメインは自動的に含まれます（surrit.com は cdn.surrit.com もカバーします）。これは yt-dlp のダウンロードにのみ適用されます。MyTube のすべてのリクエストで特定のホストを迂回させるには、コンテナ自体の NO_PROXY を設定してください。下の設定で --proxy を指定した場合は環境変数のプロキシが完全に置き換えられるため、この項目は無効になります。",
   moveSubtitlesToVideoFolder: "字幕の場所",
   moveSubtitlesToVideoFolderOn: "動画と同じ場所",
   moveSubtitlesToVideoFolderOff: "独立した字幕フォルダー",

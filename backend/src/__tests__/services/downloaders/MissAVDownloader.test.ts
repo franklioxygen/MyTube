@@ -487,6 +487,33 @@ describe('MissAVDownloader', () => {
       expect(flags.addHeader).toEqual(['Referer:https://missav.com/']);
     });
 
+    it('tells Chromium to connect directly when proxyOnlyYoutube took the download off the proxy', async () => {
+      (getUserYtDlpConfig as ReturnType<typeof vi.fn>).mockReturnValue({ proxy: '' });
+      const mockPage = buildPageMock('success');
+      const mockBrowser = { newPage: vi.fn().mockResolvedValue(mockPage), close: vi.fn().mockResolvedValue(undefined) };
+      (puppeteer.launch as ReturnType<typeof vi.fn>).mockResolvedValue(mockBrowser);
+
+      await MissAVDownloader.downloadVideo('https://missav.com/test-video').catch(() => {});
+
+      // Chromium reads http_proxy from the same environment yt-dlp does, so
+      // without this the page load that discovers the m3u8 would keep taking
+      // the proxy the download it feeds has just been taken off - and a proxy
+      // that cannot reach MissAV fails here, before yt-dlp ever runs.
+      const launchOptions = (puppeteer.launch as ReturnType<typeof vi.fn>).mock.calls[0]?.[0];
+      expect(launchOptions?.args).toContain('--no-proxy-server');
+    });
+
+    it('leaves Chromium on the ambient proxy configuration when no direct connection was requested', async () => {
+      const mockPage = buildPageMock('success');
+      const mockBrowser = { newPage: vi.fn().mockResolvedValue(mockPage), close: vi.fn().mockResolvedValue(undefined) };
+      (puppeteer.launch as ReturnType<typeof vi.fn>).mockResolvedValue(mockBrowser);
+
+      await MissAVDownloader.downloadVideo('https://missav.com/test-video').catch(() => {});
+
+      const launchOptions = (puppeteer.launch as ReturnType<typeof vi.fn>).mock.calls[0]?.[0];
+      expect(launchOptions?.args).not.toContain('--no-proxy-server');
+    });
+
     it('fetches HLS fragments in parallel by default', async () => {
       const mockPage = buildPageMock('success');
       const mockBrowser = { newPage: vi.fn().mockResolvedValue(mockPage), close: vi.fn().mockResolvedValue(undefined) };

@@ -405,6 +405,8 @@ MyTube now fetches four fragments in parallel by default, which hides most of th
 
 To take the CDN off the proxy entirely instead, put its domain in **Settings → yt-dlp Configuration → Bypass proxy for hosts** (`surrit.com`). Only do this if the container can actually reach the internet directly — if all egress is proxied by design, bypassing the proxy replaces slow downloads with failed ones.
 
+That setting covers yt-dlp's downloads, which is where per-fragment egress decides the outcome. MyTube's own side requests — thumbnails, channel avatars, Bilibili API metadata — read the container's `NO_PROXY` directly, so a host that must be off the proxy for *everything* belongs in the `NO_PROXY` variable above rather than in the setting.
+
 ### Two things that quietly override each other
 
 - **`--proxy` in the yt-dlp configuration replaces the environment proxy completely.** When it is set, yt-dlp ignores `NO_PROXY` and the *Bypass proxy for hosts* setting along with it — every request goes through that one proxy.

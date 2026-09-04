@@ -326,7 +326,7 @@ const YtDlpSettings: React.FC<YtDlpSettingsProps> = ({ config, proxyOnlyYoutube 
                         placeholder="surrit.com, example.com"
                         helperText={
                             t('proxyBypassHostsHelp') ||
-                            'Comma-separated host names reached directly instead of through the HTTP_PROXY set on the container. Subdomains are included automatically (surrit.com also covers cdn.surrit.com). Has no effect when --proxy is set in the configuration below, which replaces the environment proxy entirely.'
+                            "Comma-separated host names yt-dlp reaches directly instead of through the container's HTTP_PROXY. Subdomains are included automatically (surrit.com also covers cdn.surrit.com). Applies to yt-dlp's downloads only — to take a host off the proxy for every request MyTube makes, set the container's own NO_PROXY instead. No effect when --proxy is set below, which replaces the environment proxy entirely."
                         }
                     />
 

@@ -137,6 +137,14 @@ export function getUserYtDlpConfig(url?: string): Record<string, any> {
  * left to silently never match. A lone `*` means "bypass the proxy entirely"
  * and is passed through as-is.
  *
+ * This governs yt-dlp's own egress only. MyTube's side requests (thumbnails,
+ * API metadata) go out through axios, which reads NO_PROXY from this process's
+ * environment rather than from the snapshot handed to the child, and matching a
+ * host list is something both request stacks already implement - reproducing
+ * those semantics a third time here is how the three drift apart. A host that
+ * must be off the proxy for everything MyTube does belongs in the container's
+ * own NO_PROXY, which every stack honours.
+ *
  * Gated at the same trust level as the yt-dlp config it complements: the value
  * decides which traffic leaves the container unproxied.
  */

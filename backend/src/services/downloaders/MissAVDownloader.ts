@@ -164,7 +164,9 @@ export class MissAVDownloader extends BaseDownloader {
         `Fetching page content for ${safeNavigationUrl} with Puppeteer...`,
       );
 
-      const browser = await puppeteer.launch(getMissAvPuppeteerLaunchOptions());
+      const browser = await puppeteer.launch(
+        getMissAvPuppeteerLaunchOptions(getUserYtDlpConfig(url)),
+      );
       const page = await browser.newPage();
       await configureMissAvPage(page);
       await navigateMissAvPage(page, safeNavigationUrl);
@@ -270,7 +272,13 @@ export class MissAVDownloader extends BaseDownloader {
 
       logger.info("Launching Puppeteer to extract m3u8 URL...");
 
-      const browser = await puppeteer.launch(getMissAvPuppeteerLaunchOptions());
+      // Resolved before the launch rather than after it: the browser step has
+      // to follow the same proxy decision as the yt-dlp download it feeds.
+      const userConfig = getUserYtDlpConfig(url);
+
+      const browser = await puppeteer.launch(
+        getMissAvPuppeteerLaunchOptions(userConfig),
+      );
 
       // Declared before try so they are accessible after browser is closed.
       const m3u8Urls: string[] = [];
@@ -387,9 +395,8 @@ export class MissAVDownloader extends BaseDownloader {
         thumbnail: thumbnailUrl,
       });
 
-      // 3. Get user's yt-dlp configuration early to check for format sort
-      // This helps determine m3u8 URL selection strategy and will be reused later
-      const userConfig = getUserYtDlpConfig(url);
+      // 3. The user's yt-dlp configuration, resolved before the browser launch
+      // above, also decides the m3u8 URL selection strategy.
       const hasFormatSort = !!(userConfig.S || userConfig.formatSort);
 
       // 4. Select the best m3u8 URL from collected URLs

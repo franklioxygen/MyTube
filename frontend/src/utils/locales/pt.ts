@@ -1320,7 +1320,7 @@ export const pt = {
   proxyOnlyApplyToYoutube: "Proxy aplica-se apenas ao Youtube",
   proxyBypassHosts: "Ignorar o proxy para estes hosts",
   proxyBypassHostsHelp:
-    "Nomes de host separados por vírgulas que são acedidos diretamente em vez de passarem pelo HTTP_PROXY definido no contentor. Os subdomínios são incluídos automaticamente (surrit.com abrange também cdn.surrit.com). Não tem efeito quando --proxy está definido na configuração abaixo, que substitui por completo o proxy do ambiente.",
+    "Nomes de host separados por vírgulas que o yt-dlp acede diretamente em vez de passarem pelo HTTP_PROXY do contentor. Os subdomínios são incluídos automaticamente (surrit.com abrange também cdn.surrit.com). Aplica-se apenas aos downloads do yt-dlp; para que todos os pedidos do MyTube ignorem um host, defina o NO_PROXY do próprio contentor. Não tem efeito quando --proxy está definido abaixo, que substitui por completo o proxy do ambiente.",
   moveSubtitlesToVideoFolder: "Localização das legendas",
   moveSubtitlesToVideoFolderOn: "Junto com o vídeo",
   moveSubtitlesToVideoFolderOff: "Na pasta de legendas isolada",

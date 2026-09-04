@@ -1247,7 +1247,7 @@ export const zh = {
   proxyOnlyApplyToYoutube: "代理仅应用于Youtube",
   proxyBypassHosts: "绕过代理的主机",
   proxyBypassHostsHelp:
-    "以逗号分隔的主机名，这些主机将直接连接，而不经过容器上设置的 HTTP_PROXY。子域名会自动包含（surrit.com 同时覆盖 cdn.surrit.com）。若下方配置中设置了 --proxy，本项无效——该参数会完全取代环境变量代理。",
+    "以逗号分隔的主机名，yt-dlp 将直接连接这些主机，而不经过容器的 HTTP_PROXY。子域名会自动包含（surrit.com 同时覆盖 cdn.surrit.com）。本项仅作用于 yt-dlp 的下载；若要让 MyTube 的所有请求都绕过某主机，请改设容器自身的 NO_PROXY。若下方配置中设置了 --proxy，本项无效——该参数会完全取代环境变量代理。",
   moveSubtitlesToVideoFolder: "字幕位置",
   moveSubtitlesToVideoFolderOn: "与视频在同一文件夹",
   moveSubtitlesToVideoFolderOff: "在独立字幕文件夹",

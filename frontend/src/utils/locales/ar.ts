@@ -1285,7 +1285,7 @@ export const ar = {
   proxyOnlyApplyToYoutube: "الوكيل ينطبق فقط على يوتيوب",
   proxyBypassHosts: "تجاوز الوكيل لهذه المضيفات",
   proxyBypassHostsHelp:
-    "أسماء مضيفات مفصولة بفواصل يتم الوصول إليها مباشرة بدلاً من المرور عبر HTTP_PROXY المضبوط على الحاوية. تُضمَّن النطاقات الفرعية تلقائيًا (surrit.com يشمل أيضًا cdn.surrit.com). لا يسري هذا الإعداد عند ضبط --proxy في الإعدادات أدناه، لأنه يستبدل وكيل البيئة بالكامل.",
+    "أسماء مضيفات مفصولة بفواصل يصل إليها yt-dlp مباشرة بدلاً من المرور عبر HTTP_PROXY الخاص بالحاوية. تُضمَّن النطاقات الفرعية تلقائيًا (surrit.com يشمل أيضًا cdn.surrit.com). ينطبق هذا على تنزيلات yt-dlp فقط؛ ولتجاوز مضيف في كل طلبات MyTube اضبط NO_PROXY الخاص بالحاوية نفسها. لا يسري هذا الإعداد عند ضبط --proxy أدناه، لأنه يستبدل وكيل البيئة بالكامل.",
   moveSubtitlesToVideoFolder: "موقع الترجمة",
   moveSubtitlesToVideoFolderOn: "مع الفيديو",
   moveSubtitlesToVideoFolderOff: "في مجلد الترجمات المعزول",
