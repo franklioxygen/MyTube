@@ -27,7 +27,7 @@ export function resolveProxiedAxiosConfig(
   userConfig: Record<string, any>,
 ): Record<string, unknown> | null {
   const proxy = userConfig?.proxy;
-  if (typeof proxy !== "string" || !proxy) {
+  if (typeof proxy !== "string") {
     return {};
   }
 

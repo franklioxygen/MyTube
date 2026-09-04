@@ -151,7 +151,10 @@ export async function downloadVideoAvatar(
 
       // Prepare axios config with proxy if available
       let avatarAxiosConfig = {};
-      if (downloadUserConfig.proxy) {
+      // An empty string is yt-dlp's "connect directly" value, so it must reach
+      // axios too: it disables axios' own HTTP_PROXY handling, keeping this
+      // request on the same egress path as the download it belongs to.
+      if (typeof downloadUserConfig.proxy === "string") {
         try {
           avatarAxiosConfig = getAxiosProxyConfig(downloadUserConfig.proxy);
         } catch (error) {

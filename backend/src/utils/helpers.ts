@@ -308,19 +308,17 @@ async function followBilibiliShortUrl(safeShortUrl: string): Promise<string | nu
   const proxy = getUserYtDlpConfig(safeShortUrl)?.proxy;
 
   let axiosConfig: Record<string, unknown> = {};
-  if (typeof proxy === "string" && proxy) {
+  if (typeof proxy === "string") {
     // getAxiosProxyConfig throws on a malformed proxy precisely so callers do
     // not silently fall back to a direct connection and expose the user's real
     // IP. Let it propagate: the caller keeps the short URL, and the download
     // still works because yt-dlp follows the redirect over the same proxy.
     const { getAxiosProxyConfig } = await import("./ytdlp/proxy");
+    // An empty proxy is yt-dlp's "connect directly" value and comes back from
+    // getAxiosProxyConfig as `{ proxy: false }`, which stops axios reading
+    // HTTP_PROXY from the environment - otherwise the redirect chain and the
+    // download it feeds would take different egress paths.
     axiosConfig = getAxiosProxyConfig(proxy);
-  } else if (proxy === "") {
-    // yt-dlp's "connect directly" marker, set by proxyOnlyYoutube. axios reads
-    // HTTP_PROXY from the environment on its own, so it has to be told as well
-    // or the redirect chain and the download it feeds would take different
-    // egress paths.
-    axiosConfig = { proxy: false };
   }
 
   const axios = (await import("axios")).default;

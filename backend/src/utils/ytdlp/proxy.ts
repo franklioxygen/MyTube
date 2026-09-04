@@ -21,10 +21,18 @@ export class InvalidProxyError extends Error {
  * Supports http/https/socks5 proxies with authentication
  * Format: http://user:pass@host:port or socks5://user:pass@host:port
  *
+ * An empty string is yt-dlp's "connect directly" value, which proxyOnlyYoutube
+ * sets to override a proxy inherited from the environment. axios reads
+ * HTTP_PROXY from the environment on its own, so it has to be told explicitly:
+ * returning `{}` would leave the side request on the very proxy the setting
+ * just took the download off, and the two would take different egress paths.
+ * A missing value stays `{}` - that is "nothing configured", not "go direct".
+ *
  * @throws {InvalidProxyError} If the proxy URL is malformed - this prevents
  *         silent fallback to direct connection which could expose user's real IP
  */
 export function getAxiosProxyConfig(proxyUrl: string): any {
+  if (proxyUrl === "") return { proxy: false };
   if (!proxyUrl) return {};
 
   try {

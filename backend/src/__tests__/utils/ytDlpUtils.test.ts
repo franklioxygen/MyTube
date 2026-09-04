@@ -729,8 +729,18 @@ describe("ytDlpUtils", () => {
       );
     });
 
-    it("should return empty config for empty proxy string", () => {
-      expect(getAxiosProxyConfig("")).toEqual({});
+    it("should disable axios' own proxy handling for the direct-connection value", () => {
+      // An empty string is yt-dlp's "connect directly" value, which
+      // proxyOnlyYoutube sets to override a proxy inherited from the
+      // environment. Returning {} would leave axios reading HTTP_PROXY itself,
+      // so a side request would stay on the proxy the download just left.
+      expect(getAxiosProxyConfig("")).toEqual({ proxy: false });
+    });
+
+    it("should return empty config when no proxy is configured at all", () => {
+      // Absent is not "go direct": with nothing configured there is no setting
+      // to honour, and axios' own environment handling stays in charge.
+      expect(getAxiosProxyConfig(undefined as unknown as string)).toEqual({});
     });
   });
 

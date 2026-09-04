@@ -756,7 +756,10 @@ export class MissAVDownloader extends BaseDownloader {
       if (thumbnailUrl) {
         // Use base class method via temporary instance
         let axiosConfig = {};
-        if (userConfig.proxy) {
+        // An empty string is yt-dlp's "connect directly" value, so it must reach
+        // axios too: it disables axios' own HTTP_PROXY handling, keeping this
+        // request on the same egress path as the download it belongs to.
+        if (typeof userConfig.proxy === "string") {
           try {
             axiosConfig = getAxiosProxyConfig(userConfig.proxy);
           } catch (error) {
