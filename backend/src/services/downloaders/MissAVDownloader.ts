@@ -312,6 +312,12 @@ export class MissAVDownloader extends BaseDownloader {
       const isM3u8 = (u: string) => u.includes(".m3u8") && !u.includes("preview");
       let failedRequestLogCount = 0;
       let html = "";
+      // Declared out here so the no-stream diagnosis below can report what the
+      // page actually returned rather than guessing at a cause.
+      let navigation: { status: number | null; clearedChallenge: boolean } = {
+        status: null,
+        clearedChallenge: false,
+      };
 
       try {
         const page = await browser.newPage();
@@ -362,7 +368,7 @@ export class MissAVDownloader extends BaseDownloader {
         });
 
         try {
-          await navigateMissAvPage(page, safeNavigationUrl);
+          navigation = await navigateMissAvPage(page, safeNavigationUrl);
         } catch (error) {
           if (isPuppeteerTimeoutError(error) && m3u8Urls.length > 0) {
             logger.warn(
@@ -492,8 +498,23 @@ export class MissAVDownloader extends BaseDownloader {
         );
         writeFileSafeSync(debugFile, DATA_DIR, html);
         logger.error(`Could not find m3u8 URL. HTML dumped to ${debugFile}`);
+        // Deliberately states only what was observed. The previous wording
+        // named Cloudflare, which this code cannot know, and the replacement
+        // asserted the page had been "fetched fine", which it also cannot know:
+        // an origin error page or a WAF denial without our markers lands here
+        // too. The response status is the one fact available, so report that
+        // and let the dumped HTML answer the rest.
+        // A cleared challenge is worth more here than a status code, and the
+        // captured status belongs to the interstitial anyway - reporting it
+        // would blame a block that had already been got past.
+        const servedAs = navigation.clearedChallenge
+          ? ", after a Cloudflare challenge was served and cleared"
+          : navigation.status === null
+            ? ""
+            : ` (HTTP ${navigation.status})`;
         throw new Error(
-          "Could not find m3u8 URL in page source or network requests",
+          `MissAV returned no video stream URL for this page${servedAs}. ` +
+            `The saved HTML at ${debugFile} shows what was actually served.`,
         );
       }
 

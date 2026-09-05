@@ -3,6 +3,7 @@ import {
   configureMissAvPage,
   deriveNonHeadlessUserAgent,
   getMissAvPuppeteerLaunchOptions,
+  navigateMissAvPage,
 } from "../../../services/downloaders/missav/puppeteer";
 
 vi.mock("../../../services/downloaders/ytdlp/ytdlpHelpers", () => ({
@@ -101,5 +102,44 @@ describe("getMissAvPuppeteerLaunchOptions", () => {
     const args = getMissAvPuppeteerLaunchOptions()?.args ?? [];
 
     expect(args.some((arg) => arg.startsWith("--user-agent"))).toBe(false);
+  });
+});
+
+describe("navigateMissAvPage", () => {
+  const gotoWith = (status: number) =>
+    vi.fn().mockResolvedValue({ status: () => status });
+
+  it("reports the response status when no challenge was involved", async () => {
+    const result = await navigateMissAvPage(
+      { goto: gotoWith(200), title: async () => "NHDTC-234" },
+      "https://missav.ws/nhdtc-234",
+    );
+
+    expect(result).toEqual({ status: 200, clearedChallenge: false });
+  });
+
+  it("drops the status once a challenge has cleared, and says so instead", async () => {
+    // A Cloudflare interstitial answers 403 and then navigates again on its own
+    // once it clears, so the captured status describes the interstitial, not the
+    // page in hand. Reporting it would blame a block that was already got past.
+    const result = await navigateMissAvPage(
+      {
+        goto: gotoWith(403),
+        title: async () => "Just a moment...",
+        waitForFunction: vi.fn().mockResolvedValue(undefined),
+      },
+      "https://missav.ws/nhdtc-234",
+    );
+
+    expect(result).toEqual({ status: null, clearedChallenge: true });
+  });
+
+  it("reports no status when the navigation returned no response", async () => {
+    const result = await navigateMissAvPage(
+      { goto: vi.fn().mockResolvedValue(null), title: async () => "NHDTC-234" },
+      "https://missav.ws/nhdtc-234",
+    );
+
+    expect(result).toEqual({ status: null, clearedChallenge: false });
   });
 });

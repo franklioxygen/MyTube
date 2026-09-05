@@ -179,12 +179,29 @@ export async function configureMissAvPage(page: {
   });
 }
 
+/**
+ * Navigate to a MissAV page, clearing a Cloudflare interstitial if one appears.
+ *
+ * Returns what is known about how the page arrived, so a caller that later
+ * fails to find a stream can report a fact instead of guessing at a cause.
+ *
+ * `status` is the main response's HTTP status, and null when that is unknown or
+ * no longer describes the page in hand: `goto` returns no response for a
+ * same-document navigation, test doubles need not provide one, and a challenge
+ * that clears navigates again on its own, leaving the captured status belonging
+ * to the interstitial rather than to the page that replaced it. Reporting a
+ * stale 403 there would point at a block that had already been cleared, which
+ * is the mistake this whole diagnosis exists to stop making.
+ *
+ * `clearedChallenge` is the more useful fact in that case, and is reported in
+ * the status's place.
+ */
 export async function navigateMissAvPage(
   page: {
     goto: (
       url: string,
       options: { waitUntil: "domcontentloaded"; timeout: number },
-    ) => Promise<unknown>;
+    ) => Promise<{ status?: () => number } | null | undefined>;
     title?: () => Promise<string>;
     content?: () => Promise<string>;
     waitForFunction?: (
@@ -193,13 +210,16 @@ export async function navigateMissAvPage(
     ) => Promise<unknown>;
   },
   safeNavigationUrl: string,
-): Promise<void> {
+): Promise<{ status: number | null; clearedChallenge: boolean }> {
   logger.info("Navigating to:", safeNavigationUrl);
-  await page.goto(safeNavigationUrl, {
+  const response = await page.goto(safeNavigationUrl, {
     waitUntil: "domcontentloaded",
     timeout: 60000,
   });
+  const status =
+    typeof response?.status === "function" ? response.status() : null;
 
+  let clearedChallenge = false;
   const title = typeof page.title === "function" ? await page.title() : "";
   if (title === "Just a moment..." && typeof page.waitForFunction === "function") {
     logger.info(
@@ -224,5 +244,9 @@ export async function navigateMissAvPage(
       }
       throw error;
     }
+
+    clearedChallenge = true;
   }
+
+  return { status: clearedChallenge ? null : status, clearedChallenge };
 }
