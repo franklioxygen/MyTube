@@ -314,7 +314,10 @@ export class MissAVDownloader extends BaseDownloader {
       let html = "";
       // Declared out here so the no-stream diagnosis below can report what the
       // page actually returned rather than guessing at a cause.
-      let navigationStatus: number | null = null;
+      let navigation: { status: number | null; clearedChallenge: boolean } = {
+        status: null,
+        clearedChallenge: false,
+      };
 
       try {
         const page = await browser.newPage();
@@ -365,10 +368,7 @@ export class MissAVDownloader extends BaseDownloader {
         });
 
         try {
-          ({ status: navigationStatus } = await navigateMissAvPage(
-            page,
-            safeNavigationUrl,
-          ));
+          navigation = await navigateMissAvPage(page, safeNavigationUrl);
         } catch (error) {
           if (isPuppeteerTimeoutError(error) && m3u8Urls.length > 0) {
             logger.warn(
@@ -504,8 +504,14 @@ export class MissAVDownloader extends BaseDownloader {
         // an origin error page or a WAF denial without our markers lands here
         // too. The response status is the one fact available, so report that
         // and let the dumped HTML answer the rest.
-        const servedAs =
-          navigationStatus === null ? "" : ` (HTTP ${navigationStatus})`;
+        // A cleared challenge is worth more here than a status code, and the
+        // captured status belongs to the interstitial anyway - reporting it
+        // would blame a block that had already been got past.
+        const servedAs = navigation.clearedChallenge
+          ? ", after a Cloudflare challenge was served and cleared"
+          : navigation.status === null
+            ? ""
+            : ` (HTTP ${navigation.status})`;
         throw new Error(
           `MissAV returned no video stream URL for this page${servedAs}. ` +
             `The saved HTML at ${debugFile} shows what was actually served.`,

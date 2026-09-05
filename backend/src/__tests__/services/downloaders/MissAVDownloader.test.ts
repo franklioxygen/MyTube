@@ -399,6 +399,24 @@ describe('MissAVDownloader', () => {
       };
     }
 
+    it('does not report the interstitial status after a challenge cleared', async () => {
+      const mockPage = buildPageMock('timeout');
+      // 403 is the interstitial's own status; it navigates again once cleared,
+      // so quoting it here would blame a block that was already got past.
+      mockPage.goto = vi.fn().mockResolvedValue({ status: () => 403 });
+      mockPage.title = vi.fn().mockResolvedValue('Just a moment...');
+      mockPage.waitForFunction = vi.fn().mockResolvedValue(undefined);
+      const mockBrowser = { newPage: vi.fn().mockResolvedValue(mockPage), close: vi.fn().mockResolvedValue(undefined) };
+      (puppeteer.launch as ReturnType<typeof vi.fn>).mockResolvedValue(mockBrowser);
+
+      const error = await MissAVDownloader.downloadVideo(
+        'https://missav.com/test-video',
+      ).catch((e: Error) => e);
+
+      expect((error as Error).message).not.toContain('HTTP 403');
+      expect((error as Error).message).toContain('challenge was served and cleared');
+    });
+
     it('reports the response status rather than assuming the page was served fine', async () => {
       const mockPage = buildPageMock('timeout');
       // An origin error page or a WAF denial without our markers reaches this
