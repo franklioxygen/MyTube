@@ -493,7 +493,9 @@ export class MissAVDownloader extends BaseDownloader {
         writeFileSafeSync(debugFile, DATA_DIR, html);
         logger.error(`Could not find m3u8 URL. HTML dumped to ${debugFile}`);
         throw new Error(
-          "Could not find m3u8 URL in page source or network requests",
+          "MissAV page loaded but its player never requested the video stream. " +
+            "The page itself was fetched fine, so this is not a Cloudflare block; " +
+            `the saved HTML at ${debugFile} shows what was actually served.`,
         );
       }
 

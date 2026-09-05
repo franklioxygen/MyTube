@@ -399,14 +399,32 @@ describe('MissAVDownloader', () => {
       };
     }
 
-    it('silences TimeoutError and falls through to "Could not find m3u8 URL"', async () => {
+    it('does not blame Cloudflare when the page loaded but the player never started', async () => {
+      const mockPage = buildPageMock('timeout');
+      // A normal page behind Cloudflare carries its bot-management beacon. That
+      // used to match the challenge check, which only runs once no m3u8 was
+      // captured - so a player that never started was reported as a block.
+      mockPage.content = vi.fn().mockResolvedValue(
+        '<html><head><meta property="og:title" content="TEST"></head><body>' +
+          '<script src="/cdn-cgi/challenge-platform/scripts/jsd/main.js"></script>' +
+          '</body></html>',
+      );
+      const mockBrowser = { newPage: vi.fn().mockResolvedValue(mockPage), close: vi.fn().mockResolvedValue(undefined) };
+      (puppeteer.launch as ReturnType<typeof vi.fn>).mockResolvedValue(mockBrowser);
+
+      await expect(
+        MissAVDownloader.downloadVideo('https://missav.com/test-video'),
+      ).rejects.toThrow('never requested the video stream');
+    });
+
+    it('silences TimeoutError and falls through to the no-stream error', async () => {
       const mockPage = buildPageMock('timeout');
       const mockBrowser = { newPage: vi.fn().mockResolvedValue(mockPage), close: vi.fn().mockResolvedValue(undefined) };
       (puppeteer.launch as ReturnType<typeof vi.fn>).mockResolvedValue(mockBrowser);
 
       await expect(
         MissAVDownloader.downloadVideo('https://missav.com/test-video'),
-      ).rejects.toThrow('Could not find m3u8 URL in page source or network requests');
+      ).rejects.toThrow('never requested the video stream');
 
       expect(mockPage.waitForResponse).toHaveBeenCalledOnce();
     });
@@ -418,7 +436,7 @@ describe('MissAVDownloader', () => {
 
       await expect(
         MissAVDownloader.downloadVideo('https://123av.com/en/v/fc2-ppv-2683017'),
-      ).rejects.toThrow('Could not find m3u8 URL in page source or network requests');
+      ).rejects.toThrow('never requested the video stream');
 
       expect(mockPage.goto).toHaveBeenCalledWith(
         'https://123av.com/en/v/fc2-ppv-2683017',
@@ -433,7 +451,7 @@ describe('MissAVDownloader', () => {
 
       await expect(
         MissAVDownloader.downloadVideo('https://javxx.com/en/v/fc2-ppv-2683017'),
-      ).rejects.toThrow('Could not find m3u8 URL in page source or network requests');
+      ).rejects.toThrow('never requested the video stream');
 
       expect(mockPage.goto).toHaveBeenCalledWith(
         'https://javxx.com/en/v/fc2-ppv-2683017',
@@ -448,7 +466,7 @@ describe('MissAVDownloader', () => {
 
       await expect(
         MissAVDownloader.downloadVideo('https://missav.ai/dm30/en/juq-819-uncensored-leak'),
-      ).rejects.toThrow('Could not find m3u8 URL in page source or network requests');
+      ).rejects.toThrow('never requested the video stream');
 
       expect(mockPage.goto).toHaveBeenCalledWith(
         'https://missav.ai/dm30/en/juq-819-uncensored-leak',

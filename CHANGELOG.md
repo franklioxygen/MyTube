@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fix
+
+- Stop reporting a Cloudflare block on pages Cloudflare never blocked. The challenge check matched a bare `challenge-platform`, but Cloudflare injects `/cdn-cgi/challenge-platform/scripts/jsd/main.js` into every page it fronts, challenge or not, so any ordinary MissAV page matched. That check runs only after no m3u8 was captured, which turned every "the player never started" failure into "Cloudflare is blocking you" and sent diagnosis in the wrong direction - reported from the field, where a page that loaded fine and yielded its title still failed with the Cloudflare message. The pattern now matches only markers belonging to the interstitial itself: the challenge script's config object, the orchestration endpoint as opposed to the bot-management beacon, the interstitial's own markup and copy, and a Turnstile widget. `security verification` is tightened to the interstitial's full `Performing security verification`, since the short form also matched ordinary page text. The error raised when no stream is found now says what actually happened and points at the saved HTML instead of naming a cause it cannot know.
+
 ## v1.11.5 (2026-09-04)
 
 ### Added

@@ -30,8 +30,23 @@ export const MISSAV_BROWSER_ACCEPT_LANGUAGE = "en-US,en;q=0.9";
 export const MISSAV_MAX_VIDEO_PATH_PREFIX_SEGMENTS = 2;
 export const MISSAV_PATH_PREFIX_SEGMENT_PATTERN = /^[a-z0-9_-]{1,20}$/;
 export const MISSAV_VIDEO_ID_PATTERN = /^[a-zA-Z0-9_-]{2,120}$/;
+// Cloudflare injects /cdn-cgi/challenge-platform/scripts/jsd/main.js into every
+// page it fronts, challenge or not, so matching a bare "challenge-platform"
+// reported an interstitial on a perfectly good video page - and since that check
+// only runs once no m3u8 was captured, a player that simply never started was
+// reported as a Cloudflare block, sending diagnosis the wrong way entirely.
+//
+// Every marker here belongs to the interstitial itself:
+//   _cf_chl_opt                          the challenge script's config object
+//   challenge-platform/h/<x>/orchestrate the challenge orchestration endpoint,
+//                                        as opposed to the beacon above
+//   challenge-form|running|error-title   interstitial markup
+//   cf-turnstile                         the widget, which a video page never embeds
+//   Just a moment / Performing security verification   the interstitial's own copy
+//                                        ("security verification" alone was loose
+//                                        enough to hit ordinary page text)
 export const MISSAV_CLOUDFLARE_CHALLENGE_PATTERN =
-  /cf-turnstile|Just a moment|security verification|challenge-platform/i;
+  /cf-turnstile|Just a moment|Performing security verification|_cf_chl_opt|challenge-platform\/h\/[a-z0-9]+\/orchestrate|challenge-(?:form|running|error-title)/i;
 
 // yt-dlp defaults `--concurrent-fragments` to 1, so its native HLS downloader
 // fetches every fragment strictly one after another. A MissAV stream is
