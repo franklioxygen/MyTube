@@ -179,12 +179,20 @@ export async function configureMissAvPage(page: {
   });
 }
 
+/**
+ * Navigate to a MissAV page, clearing a Cloudflare interstitial if one appears.
+ *
+ * Returns the main response's HTTP status so a caller that later fails to find
+ * a stream can say what was actually served instead of guessing. Null when the
+ * status is not available - `goto` returns no response for a same-document
+ * navigation, and test doubles need not provide one.
+ */
 export async function navigateMissAvPage(
   page: {
     goto: (
       url: string,
       options: { waitUntil: "domcontentloaded"; timeout: number },
-    ) => Promise<unknown>;
+    ) => Promise<{ status?: () => number } | null | undefined>;
     title?: () => Promise<string>;
     content?: () => Promise<string>;
     waitForFunction?: (
@@ -193,12 +201,14 @@ export async function navigateMissAvPage(
     ) => Promise<unknown>;
   },
   safeNavigationUrl: string,
-): Promise<void> {
+): Promise<{ status: number | null }> {
   logger.info("Navigating to:", safeNavigationUrl);
-  await page.goto(safeNavigationUrl, {
+  const response = await page.goto(safeNavigationUrl, {
     waitUntil: "domcontentloaded",
     timeout: 60000,
   });
+  const status =
+    typeof response?.status === "function" ? response.status() : null;
 
   const title = typeof page.title === "function" ? await page.title() : "";
   if (title === "Just a moment..." && typeof page.waitForFunction === "function") {
@@ -225,4 +235,6 @@ export async function navigateMissAvPage(
       throw error;
     }
   }
+
+  return { status };
 }

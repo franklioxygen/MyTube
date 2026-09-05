@@ -399,6 +399,20 @@ describe('MissAVDownloader', () => {
       };
     }
 
+    it('reports the response status rather than assuming the page was served fine', async () => {
+      const mockPage = buildPageMock('timeout');
+      // An origin error page or a WAF denial without our markers reaches this
+      // branch too, so the diagnosis must not claim the fetch went fine. The
+      // status is the one fact available.
+      mockPage.goto = vi.fn().mockResolvedValue({ status: () => 403 });
+      const mockBrowser = { newPage: vi.fn().mockResolvedValue(mockPage), close: vi.fn().mockResolvedValue(undefined) };
+      (puppeteer.launch as ReturnType<typeof vi.fn>).mockResolvedValue(mockBrowser);
+
+      await expect(
+        MissAVDownloader.downloadVideo('https://missav.com/test-video'),
+      ).rejects.toThrow('(HTTP 403)');
+    });
+
     it('does not blame Cloudflare when the page loaded but the player never started', async () => {
       const mockPage = buildPageMock('timeout');
       // A normal page behind Cloudflare carries its bot-management beacon. That
@@ -414,7 +428,7 @@ describe('MissAVDownloader', () => {
 
       await expect(
         MissAVDownloader.downloadVideo('https://missav.com/test-video'),
-      ).rejects.toThrow('never requested the video stream');
+      ).rejects.toThrow('returned no video stream URL');
     });
 
     it('silences TimeoutError and falls through to the no-stream error', async () => {
@@ -424,7 +438,7 @@ describe('MissAVDownloader', () => {
 
       await expect(
         MissAVDownloader.downloadVideo('https://missav.com/test-video'),
-      ).rejects.toThrow('never requested the video stream');
+      ).rejects.toThrow('returned no video stream URL');
 
       expect(mockPage.waitForResponse).toHaveBeenCalledOnce();
     });
@@ -436,7 +450,7 @@ describe('MissAVDownloader', () => {
 
       await expect(
         MissAVDownloader.downloadVideo('https://123av.com/en/v/fc2-ppv-2683017'),
-      ).rejects.toThrow('never requested the video stream');
+      ).rejects.toThrow('returned no video stream URL');
 
       expect(mockPage.goto).toHaveBeenCalledWith(
         'https://123av.com/en/v/fc2-ppv-2683017',
@@ -451,7 +465,7 @@ describe('MissAVDownloader', () => {
 
       await expect(
         MissAVDownloader.downloadVideo('https://javxx.com/en/v/fc2-ppv-2683017'),
-      ).rejects.toThrow('never requested the video stream');
+      ).rejects.toThrow('returned no video stream URL');
 
       expect(mockPage.goto).toHaveBeenCalledWith(
         'https://javxx.com/en/v/fc2-ppv-2683017',
@@ -466,7 +480,7 @@ describe('MissAVDownloader', () => {
 
       await expect(
         MissAVDownloader.downloadVideo('https://missav.ai/dm30/en/juq-819-uncensored-leak'),
-      ).rejects.toThrow('never requested the video stream');
+      ).rejects.toThrow('returned no video stream URL');
 
       expect(mockPage.goto).toHaveBeenCalledWith(
         'https://missav.ai/dm30/en/juq-819-uncensored-leak',

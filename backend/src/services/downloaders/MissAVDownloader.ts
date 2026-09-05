@@ -312,6 +312,9 @@ export class MissAVDownloader extends BaseDownloader {
       const isM3u8 = (u: string) => u.includes(".m3u8") && !u.includes("preview");
       let failedRequestLogCount = 0;
       let html = "";
+      // Declared out here so the no-stream diagnosis below can report what the
+      // page actually returned rather than guessing at a cause.
+      let navigationStatus: number | null = null;
 
       try {
         const page = await browser.newPage();
@@ -362,7 +365,10 @@ export class MissAVDownloader extends BaseDownloader {
         });
 
         try {
-          await navigateMissAvPage(page, safeNavigationUrl);
+          ({ status: navigationStatus } = await navigateMissAvPage(
+            page,
+            safeNavigationUrl,
+          ));
         } catch (error) {
           if (isPuppeteerTimeoutError(error) && m3u8Urls.length > 0) {
             logger.warn(
@@ -492,10 +498,17 @@ export class MissAVDownloader extends BaseDownloader {
         );
         writeFileSafeSync(debugFile, DATA_DIR, html);
         logger.error(`Could not find m3u8 URL. HTML dumped to ${debugFile}`);
+        // Deliberately states only what was observed. The previous wording
+        // named Cloudflare, which this code cannot know, and the replacement
+        // asserted the page had been "fetched fine", which it also cannot know:
+        // an origin error page or a WAF denial without our markers lands here
+        // too. The response status is the one fact available, so report that
+        // and let the dumped HTML answer the rest.
+        const servedAs =
+          navigationStatus === null ? "" : ` (HTTP ${navigationStatus})`;
         throw new Error(
-          "MissAV page loaded but its player never requested the video stream. " +
-            "The page itself was fetched fine, so this is not a Cloudflare block; " +
-            `the saved HTML at ${debugFile} shows what was actually served.`,
+          `MissAV returned no video stream URL for this page${servedAs}. ` +
+            `The saved HTML at ${debugFile} shows what was actually served.`,
         );
       }
 
