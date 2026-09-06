@@ -1039,6 +1039,28 @@ describe('VideoPlayer up next keyboard navigation', () => {
         }));
     });
 
+    it('keeps an earlier visit to this video in the trail', () => {
+        // A -> B -> A: the first entry is real history, and dropping it would
+        // strand the walk back at B.
+        mockLocationState = { previousVideoIds: ['v1', 'v2'] };
+        render(<VideoPlayer />);
+
+        act(() => { capturedVideoControlsProps.onPreviousVideo!(); });
+
+        expect(mockNavigate).toHaveBeenCalledWith('/video/v2', {
+            state: { previousVideoIds: ['v1'] }
+        });
+    });
+
+    it('drops a run of trailing self-references', () => {
+        mockLocationState = { previousVideoIds: ['v2', 'v1', 'v1'] };
+        render(<VideoPlayer />);
+
+        act(() => { capturedVideoControlsProps.onPreviousVideo!(); });
+
+        expect(mockNavigate).toHaveBeenCalledWith('/video/v2');
+    });
+
     it('never offers the current video as its own previous', () => {
         // A trail written by an older build can still name this video.
         mockLocationState = {

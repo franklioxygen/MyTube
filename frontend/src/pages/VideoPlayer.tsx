@@ -283,13 +283,21 @@ const VideoPlayer: React.FC = () => {
         });
     }, [collections, playbackQueueVideoIds, relatedVideos, sourceCollectionId, video]);
 
-    // Entries pointing at this very video would make shift+P a no-op that looks
-    // broken. Nothing writes one any more, but a history entry from an older
-    // build still can, so they are dropped on the way in rather than trusted.
-    const backTrail = useMemo(
-        () => navigationPreviousVideoIds.filter((candidate) => candidate !== video?.id),
-        [navigationPreviousVideoIds, video]
-    );
+    // Only a trailing entry can name this video as its own predecessor, and
+    // that would make shift+P a no-op that looks broken. Nothing writes one any
+    // more, but a history entry from an older build still can, so trailing
+    // self-references are dropped rather than trusted. Earlier occurrences stay:
+    // a trail that revisits a video - A, B, A - is real history, and dropping
+    // the first A would strand the walk back at B.
+    const backTrail = useMemo(() => {
+        const trail = [...navigationPreviousVideoIds];
+
+        while (trail.length > 0 && trail[trail.length - 1] === video?.id) {
+            trail.pop();
+        }
+
+        return trail;
+    }, [navigationPreviousVideoIds, video]);
 
     // Where shift+P goes. Inside a queue or collection it is the neighbour
     // before this one, so the pair walks the list in both directions. Anywhere
