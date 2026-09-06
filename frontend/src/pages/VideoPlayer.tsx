@@ -514,7 +514,15 @@ const VideoPlayer: React.FC = () => {
             playbackQueueVideoIds
         });
 
-        if ((destinationQueue?.indexOf(toVideoId) ?? -1) > 0) {
+        const destinationIndex = destinationQueue?.indexOf(toVideoId) ?? -1;
+        const originIndex = destinationQueue?.indexOf(fromVideoId) ?? -1;
+
+        // Skip the entry only when walking the queue back from the destination
+        // passes through this video anyway. Entering a queue from outside it,
+        // or jumping backwards within one, has to be recorded - otherwise the
+        // walk back follows the queue to its first item and dead-ends there,
+        // with no way back to where the queue was entered from.
+        if (destinationIndex > 0 && originIndex >= 0 && originIndex < destinationIndex) {
             return backTrail;
         }
 

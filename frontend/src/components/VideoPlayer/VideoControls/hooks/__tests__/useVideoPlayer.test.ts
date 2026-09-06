@@ -815,12 +815,22 @@ describe("useVideoPlayer frame stepping", () => {
     expect(videoElement.currentTime).toBeCloseTo(99.95 - 1 / 30, 5);
   });
 
-  it("does not step past the duration", () => {
+  // Past the last frame the clamp alone would pull a forward step backwards.
+  it("holds position rather than stepping backwards at the very end", () => {
     const result = mountWithTime(99.999);
 
     act(() => { result.current.handleFrameStep(1); });
 
+    expect(videoElement.currentTime).toBeGreaterThanOrEqual(99.999);
     expect(videoElement.currentTime).toBeLessThan(100);
+  });
+
+  it("still steps backwards from inside the final frame", () => {
+    const result = mountWithTime(99.999);
+
+    act(() => { result.current.handleFrameStep(-1); });
+
+    expect(videoElement.currentTime).toBeCloseTo(99.999 - 1 / 30, 5);
   });
 
   it("does not step below zero", () => {

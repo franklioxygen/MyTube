@@ -1061,6 +1061,23 @@ describe('VideoPlayer up next keyboard navigation', () => {
         expect(mockNavigate).toHaveBeenCalledWith('/video/v2');
     });
 
+    it('records the origin when entering a queue from outside it', () => {
+        // Q0 -> X -> Q2: without this entry the walk back follows the queue to
+        // Q0 and dead-ends, with no way back to X.
+        mockLocationState = {
+            playbackQueueVideoIds: ['v0', 'v2', 'v3'],
+            previousVideoIds: ['v0']
+        };
+        mockVideoRecommendationsReturn = { relatedVideos: [{ id: 'v3' }] };
+        render(<VideoPlayer />);
+
+        act(() => { capturedVideoControlsProps.onNextVideo!(); });
+
+        expect(mockNavigate).toHaveBeenCalledWith('/video/v3', expect.objectContaining({
+            state: expect.objectContaining({ previousVideoIds: ['v0', 'v1'] })
+        }));
+    });
+
     it('never offers the current video as its own previous', () => {
         // A trail written by an older build can still name this video.
         mockLocationState = {

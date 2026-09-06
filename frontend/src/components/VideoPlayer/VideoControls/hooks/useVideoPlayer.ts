@@ -301,13 +301,20 @@ export const useVideoPlayer = ({
       // Stop one frame short of the duration: landing exactly on it ends
       // playback rather than showing the last frame.
       const lastFrameTime = Math.max(0, videoElement.duration - FRAME_STEP_SECONDS);
-      const newTime = Math.max(
+      const clamped = Math.max(
         0,
         Math.min(
           lastFrameTime,
           videoElement.currentTime + direction * FRAME_STEP_SECONDS
         )
       );
+
+      // Already past the last frame - a paused position inside the final
+      // frame - the clamp alone would drag a forward step backwards. A step
+      // never moves against its own direction: it holds position instead.
+      const newTime = direction > 0
+        ? Math.max(clamped, videoElement.currentTime)
+        : Math.min(clamped, videoElement.currentTime);
 
       clearPendingStartTimeRestore();
       seekTo(videoElement, newTime, { skipEndGuard: true });
