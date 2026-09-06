@@ -175,3 +175,150 @@ describe('useKeyboardShortcuts', () => {
     expect(onPlayPause).not.toHaveBeenCalled();
   });
 });
+
+describe('useKeyboardShortcuts - YouTube-style bindings', () => {
+  const handlers = {
+    onPlayPause: vi.fn(),
+    onSeekLeft: vi.fn(),
+    onSeekRight: vi.fn(),
+    onSeekBack: vi.fn(),
+    onSeekForward: vi.fn(),
+    onVolumeUp: vi.fn(),
+    onVolumeDown: vi.fn(),
+    onToggleMute: vi.fn(),
+    onToggleFullscreen: vi.fn(),
+    onToggleCinemaMode: vi.fn(),
+    onToggleSubtitles: vi.fn(),
+    onSpeedUp: vi.fn(),
+    onSpeedDown: vi.fn(),
+    onSeekToFraction: vi.fn(),
+    onFrameStep: vi.fn(),
+    onNextVideo: vi.fn(),
+    onPreviousVideo: vi.fn()
+  };
+
+  const press = (key: string, init: KeyboardEventInit = {}) => {
+    const event = new KeyboardEvent('keydown', { key, ...init });
+    window.dispatchEvent(event);
+    return event;
+  };
+
+  beforeEach(() => {
+    Object.values(handlers).forEach((handler) => handler.mockClear());
+    vi.useFakeTimers();
+    renderHook(() => useKeyboardShortcuts(handlers));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    document.body.innerHTML = '';
+  });
+
+  it.each([
+    ['k', 'onPlayPause'],
+    ['K', 'onPlayPause'],
+    ['m', 'onToggleMute'],
+    ['f', 'onToggleFullscreen'],
+    ['t', 'onToggleCinemaMode'],
+    ['c', 'onToggleSubtitles'],
+    ['ArrowUp', 'onVolumeUp'],
+    ['ArrowDown', 'onVolumeDown']
+  ] as const)('binds %s', (key, handlerName) => {
+    press(key);
+    expect(handlers[handlerName]).toHaveBeenCalledTimes(1);
+  });
+
+  it('binds j and l to the longer seek step', () => {
+    press('j');
+    vi.advanceTimersByTime(101);
+    press('l');
+
+    expect(handlers.onSeekBack).toHaveBeenCalledTimes(1);
+    expect(handlers.onSeekForward).toHaveBeenCalledTimes(1);
+  });
+
+  it('binds < and > to playback speed', () => {
+    press('>', { shiftKey: true });
+    press('<', { shiftKey: true });
+
+    expect(handlers.onSpeedUp).toHaveBeenCalledTimes(1);
+    expect(handlers.onSpeedDown).toHaveBeenCalledTimes(1);
+  });
+
+  it('seeks to the digit percentage of the video', () => {
+    press('3');
+    expect(handlers.onSeekToFraction).toHaveBeenCalledWith(0.3);
+
+    vi.advanceTimersByTime(101);
+    press('0');
+    expect(handlers.onSeekToFraction).toHaveBeenLastCalledWith(0);
+  });
+
+  it('seeks to the ends with Home and End', () => {
+    press('Home');
+    expect(handlers.onSeekToFraction).toHaveBeenCalledWith(0);
+
+    vi.advanceTimersByTime(101);
+    press('End');
+    expect(handlers.onSeekToFraction).toHaveBeenLastCalledWith(1);
+  });
+
+  it('steps frames with , and .', () => {
+    press(',');
+    press('.');
+
+    expect(handlers.onFrameStep).toHaveBeenNthCalledWith(1, -1);
+    expect(handlers.onFrameStep).toHaveBeenNthCalledWith(2, 1);
+  });
+
+  it('walks Up Next with shift+N and shift+P', () => {
+    press('N', { shiftKey: true });
+    press('P', { shiftKey: true });
+
+    expect(handlers.onNextVideo).toHaveBeenCalledTimes(1);
+    expect(handlers.onPreviousVideo).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves browser shortcuts alone', () => {
+    const withMeta = press('l', { metaKey: true });
+    const withCtrl = press('ArrowLeft', { ctrlKey: true });
+
+    expect(handlers.onSeekForward).not.toHaveBeenCalled();
+    expect(handlers.onSeekLeft).not.toHaveBeenCalled();
+    expect(withMeta.defaultPrevented).toBe(false);
+    expect(withCtrl.defaultPrevented).toBe(false);
+  });
+
+  it('stays quiet while a menu owns the keyboard', () => {
+    // A menu takes focus when it opens, which is what the guard reads.
+    const menu = document.createElement('div');
+    menu.setAttribute('role', 'menu');
+    const item = document.createElement('button');
+    menu.appendChild(item);
+    document.body.appendChild(menu);
+    item.focus();
+
+    press('f');
+
+    expect(handlers.onToggleFullscreen).not.toHaveBeenCalled();
+  });
+});
+
+describe('useKeyboardShortcuts - unbound keys', () => {
+  it('does not claim a key it has no handler for', () => {
+    const onToggleCinemaMode = vi.fn();
+    renderHook(() =>
+      useKeyboardShortcuts({
+        onPlayPause: vi.fn(),
+        onSeekLeft: vi.fn(),
+        onSeekRight: vi.fn()
+      })
+    );
+
+    const event = new KeyboardEvent('keydown', { key: 't' });
+    window.dispatchEvent(event);
+
+    expect(onToggleCinemaMode).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
+  });
+});

@@ -180,6 +180,23 @@ export const useSubtitles = ({
         setLiveSelectionOverride({ track: liveTrack, selected: true });
     };
 
+    // The `c` shortcut has no menu to choose from, so it turns the whole set
+    // off, or turns the first available track on - preferring a file subtitle
+    // and falling back to the live one when that is all there is.
+    const handleToggleSubtitles = () => {
+        if (subtitlesEnabled) {
+            handleSelectSubtitle(-1);
+            return;
+        }
+        if (subtitles.length > 0) {
+            handleSelectSubtitle(0);
+            return;
+        }
+        if (liveAvailable) {
+            handleSelectLiveSubtitle();
+        }
+    };
+
     const initializeSubtitles = (e: React.SyntheticEvent<HTMLVideoElement>) => {
         const tracks = e.currentTarget.textTracks;
         const shouldShow = initialSubtitlesEnabled && subtitles.length > 0;
@@ -202,6 +219,7 @@ export const useSubtitles = ({
         handleCloseSubtitleMenu,
         handleSelectSubtitle,
         handleSelectLiveSubtitle,
+        handleToggleSubtitles,
         initializeSubtitles,
     };
 };

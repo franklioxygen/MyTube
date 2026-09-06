@@ -7,6 +7,7 @@ import {
     DEFAULT_PLAYER_SEEK_INTERVALS,
     PlayerSeekIntervals,
 } from '../../../utils/playerSeekIntervals';
+import { SPEED_OPTIONS } from '../../../utils/constants';
 import ControlsOverlay from './ControlsOverlay';
 import { useFocusPause } from './hooks/useFocusPause';
 import { useFullscreen } from './hooks/useFullscreen';
@@ -46,6 +47,9 @@ interface VideoControlsProps {
     seekIntervals?: PlayerSeekIntervals;
     /** Provided only when D Mode can run here; omitted otherwise. */
     onEnterCompatibilityMode?: () => void;
+    /** Up Next navigation, bound to shift+N / shift+P. */
+    onNextVideo?: () => void;
+    onPreviousVideo?: () => void;
 }
 
 const VideoControls: React.FC<VideoControlsProps> = ({
@@ -76,6 +80,8 @@ const VideoControls: React.FC<VideoControlsProps> = ({
     audioMode = false,
     seekIntervals = DEFAULT_PLAYER_SEEK_INTERVALS,
     onEnterCompatibilityMode,
+    onNextVideo,
+    onPreviousVideo,
 }) => {
     // Core video player logic
     const videoPlayer = useVideoPlayer({
@@ -154,11 +160,87 @@ const VideoControls: React.FC<VideoControlsProps> = ({
         handleSeek(seekIntervals.shortSeconds);
     }, [handleSeek, seekIntervals.shortSeconds]);
 
+    const handleSeekBack = useCallback(() => {
+        handleSeek(-seekIntervals.mediumSeconds);
+    }, [handleSeek, seekIntervals.mediumSeconds]);
+
+    const handleSeekForward = useCallback(() => {
+        handleSeek(seekIntervals.mediumSeconds);
+    }, [handleSeek, seekIntervals.mediumSeconds]);
+
+    // Volume moves in the same 5% steps YouTube uses. handleVolumeChange takes
+    // a 0-100 slider value, while volume itself is the element's 0-1 scale.
+    const { handleVolumeChange } = volume;
+    const currentVolume = volume.volume;
+
+    const stepVolume = useCallback((delta: number) => {
+        handleVolumeChange(
+            Math.round(Math.max(0, Math.min(100, currentVolume * 100 + delta)))
+        );
+    }, [currentVolume, handleVolumeChange]);
+
+    const handleVolumeUp = useCallback(() => stepVolume(5), [stepVolume]);
+    const handleVolumeDown = useCallback(() => stepVolume(-5), [stepVolume]);
+
+    // Cinema mode leaves fullscreen on the way in - the two are alternative
+    // ways to make the player big, and staying in both leaves nothing visible
+    // to switch back with. Shared with the control button below.
+    const handleToggleCinemaMode = onToggleCinemaMode
+        ? () => {
+              onToggleCinemaMode();
+              if (isFullscreen) {
+                  handleToggleFullscreen();
+              }
+          }
+        : undefined;
+
+    // Step through the same ladder the speed menu offers rather than a free
+    // multiplier, so keyboard and menu can never disagree about the rate.
+    const { handlePlaybackRateChange } = videoPlayer;
+    const currentPlaybackRate = videoPlayer.playbackRate;
+
+    const stepPlaybackRate = useCallback((direction: -1 | 1) => {
+        const currentIndex = SPEED_OPTIONS.indexOf(currentPlaybackRate);
+        const fromIndex = currentIndex === -1
+            ? SPEED_OPTIONS.indexOf(1)
+            : currentIndex;
+        const nextIndex = Math.max(
+            0,
+            Math.min(SPEED_OPTIONS.length - 1, fromIndex + direction)
+        );
+        handlePlaybackRateChange(SPEED_OPTIONS[nextIndex]);
+    }, [currentPlaybackRate, handlePlaybackRateChange]);
+
+    const handleSpeedUp = useCallback(() => stepPlaybackRate(1), [stepPlaybackRate]);
+    const handleSpeedDown = useCallback(() => stepPlaybackRate(-1), [stepPlaybackRate]);
+
+    const { handleProgressChangeCommitted } = videoPlayer;
+    const currentDuration = videoPlayer.duration;
+
+    const handleSeekToFraction = useCallback((fraction: number) => {
+        if (currentDuration <= 0 || !isFinite(currentDuration)) return;
+        handleProgressChangeCommitted(currentDuration * fraction);
+    }, [currentDuration, handleProgressChangeCommitted]);
+
     // Keyboard shortcuts
     useKeyboardShortcuts({
+        onPlayPause: videoPlayer.handlePlayPause,
         onSeekLeft: handleSeekLeft,
         onSeekRight: handleSeekRight,
-        onPlayPause: videoPlayer.handlePlayPause
+        onSeekBack: handleSeekBack,
+        onSeekForward: handleSeekForward,
+        onVolumeUp: handleVolumeUp,
+        onVolumeDown: handleVolumeDown,
+        onToggleMute: volume.handleVolumeClick,
+        onToggleFullscreen: handleToggleFullscreen,
+        onToggleCinemaMode: handleToggleCinemaMode,
+        onToggleSubtitles: subtitlesHook.handleToggleSubtitles,
+        onSpeedUp: handleSpeedUp,
+        onSpeedDown: handleSpeedDown,
+        onSeekToFraction: handleSeekToFraction,
+        onFrameStep: videoPlayer.handleFrameStep,
+        onNextVideo,
+        onPreviousVideo,
     });
 
     // Handle video source changes - trigger loading
@@ -332,16 +414,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                         onPlaybackRateChange={videoPlayer.handlePlaybackRateChange}
                         seekIntervals={seekIntervals}
                         isCinemaMode={isCinemaMode}
-                        onToggleCinemaMode={(() => {
-                            const toggle = onToggleCinemaMode;
-                            if (!toggle) return undefined;
-                            return () => {
-                                toggle();
-                                if (isFullscreen) {
-                                    handleToggleFullscreen();
-                                }
-                            };
-                        })()}
+                        onToggleCinemaMode={handleToggleCinemaMode}
                         onUploadSubtitle={onUploadSubtitle}
                         onDeleteSubtitle={onDeleteSubtitle}
                         isAudio={audioMode}

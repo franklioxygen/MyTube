@@ -680,6 +680,35 @@ export interface RecommendationContext {
     signals?: RecommendationSignals | null;
 }
 
+interface PlaybackQueueContext {
+    currentVideoId: string;
+    collections: Collection[];
+    sourceCollectionId?: string | null;
+    playbackQueueVideoIds?: string[];
+}
+
+/**
+ * The ordered list a video is being watched from, when there is one: the queue
+ * handed over at navigation time, else the collection it was opened from. The
+ * player reads it for "previous video", the recommendations for what comes
+ * next - both have to agree on the order or the two directions disagree.
+ */
+export const resolvePlaybackQueue = ({
+    currentVideoId,
+    collections,
+    sourceCollectionId,
+    playbackQueueVideoIds
+}: PlaybackQueueContext): string[] | undefined => {
+    if (playbackQueueVideoIds?.includes(currentVideoId)) {
+        return playbackQueueVideoIds;
+    }
+
+    return collections.find(collection =>
+        collection.id === sourceCollectionId &&
+        collection.videos.includes(currentVideoId)
+    )?.videos;
+};
+
 export const getRecommendations = (context: RecommendationContext): Video[] => {
     const { currentVideo, allVideos, collections, weights, sourceCollectionId, playbackQueueVideoIds, signals } = context;
     const finalWeights = { ...DEFAULT_WEIGHTS, ...weights };
@@ -687,16 +716,12 @@ export const getRecommendations = (context: RecommendationContext): Video[] => {
     const candidates = allVideos.filter(video => video.id !== currentVideo.id);
     const candidateById = new Map(candidates.map(video => [video.id, video]));
 
-    const sourceCollection = sourceCollectionId
-        ? collections.find(collection =>
-            collection.id === sourceCollectionId &&
-            collection.videos.includes(currentVideo.id)
-        )
-        : undefined;
-
-    const sourceQueueIds = playbackQueueVideoIds?.includes(currentVideo.id)
-        ? playbackQueueVideoIds
-        : sourceCollection?.videos;
+    const sourceQueueIds = resolvePlaybackQueue({
+        currentVideoId: currentVideo.id,
+        collections,
+        sourceCollectionId,
+        playbackQueueVideoIds
+    });
 
     if (sourceQueueIds) {
         const currentQueueIndex = sourceQueueIds.indexOf(currentVideo.id);

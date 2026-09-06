@@ -34,6 +34,7 @@ import { useVideoPlayerSettings } from '../hooks/useVideoPlayerSettings';
 import { useVideoProgress } from '../hooks/useVideoProgress';
 import { useVideoQueries } from '../hooks/useVideoQueries';
 import { useVideoRecommendations } from '../hooks/useVideoRecommendations';
+import { resolvePlaybackQueue } from '../utils/recommendations';
 import { useVideoSubscriptions } from '../hooks/useVideoSubscriptions';
 import { getBackendUrl } from '../utils/apiUrl';
 import { isCompatibilityModeForced } from '../utils/compatibilityMode/deployment';
@@ -240,14 +241,12 @@ const VideoPlayer: React.FC = () => {
     const upNextSlate = useMemo(() => {
         if (!video) return [];
 
-        const queueIds = playbackQueueVideoIds?.includes(video.id)
-            ? playbackQueueVideoIds
-            : sourceCollectionId
-                ? collections.find(collection =>
-                    collection.id === sourceCollectionId &&
-                    collection.videos.includes(video.id)
-                )?.videos
-                : undefined;
+        const queueIds = resolvePlaybackQueue({
+            currentVideoId: video.id,
+            collections,
+            sourceCollectionId,
+            playbackQueueVideoIds
+        });
         const currentQueueIndex = queueIds?.indexOf(video.id) ?? -1;
 
         return relatedVideos.map((relatedVideo, index) => {
@@ -276,6 +275,23 @@ const VideoPlayer: React.FC = () => {
             };
         });
     }, [collections, playbackQueueVideoIds, relatedVideos, sourceCollectionId, video]);
+
+    // shift+P only has somewhere to go when this video is being played from a
+    // queue or collection - matching YouTube, where "previous" is a playlist
+    // move and does nothing on a standalone video.
+    const previousQueueVideoId = useMemo(() => {
+        if (!video) return null;
+
+        const queueIds = resolvePlaybackQueue({
+            currentVideoId: video.id,
+            collections,
+            sourceCollectionId,
+            playbackQueueVideoIds
+        });
+        const currentQueueIndex = queueIds?.indexOf(video.id) ?? -1;
+
+        return currentQueueIndex > 0 ? queueIds![currentQueueIndex - 1] : null;
+    }, [collections, playbackQueueVideoIds, sourceCollectionId, video]);
 
     useEffect(() => {
         if (!statisticsIngestion.enabled || !video || upNextSlate.length === 0) return;
@@ -443,6 +459,54 @@ const VideoPlayer: React.FC = () => {
         ...extras
     });
 
+    // Every deliberate move to an Up Next video - a click in either sidebar, or
+    // shift+N - lands here, so they record the same event and carry the same
+    // playback state forward.
+    const goToUpNextVideo = (videoId: string, index: number, via: 'click' | 'keyboard' = 'click') => {
+        const slateItem = upNextSlate[index] ?? { videoId, lane: 'related', position: index + 1 };
+        const clickEventId = statisticsIngestion.enabled && video
+            ? statisticsIngestion.recordEvent({
+                eventType: 'up_next_clicked',
+                surface: 'web',
+                videoId,
+                relatedEventId: upNextImpressionEventIdRef.current,
+                value: slateItem.position,
+                payload: {
+                    fromVideoId: video.id,
+                    toVideoId: videoId,
+                    position: slateItem.position,
+                    lane: slateItem.lane,
+                    via
+                }
+            })
+            : null;
+        const state = buildPlaybackState(clickEventId ?? statisticsRelatedEventId);
+
+        if (Object.keys(state).length > 0) {
+            navigate(`/video/${videoId}`, { state });
+            return;
+        }
+
+        navigate(`/video/${videoId}`);
+    };
+
+    const handleNextVideo = () => {
+        if (relatedVideos.length === 0) return;
+        goToUpNextVideo(relatedVideos[0].id, 0, 'keyboard');
+    };
+
+    const handlePreviousVideo = () => {
+        if (!previousQueueVideoId) return;
+
+        const state = buildPlaybackState(statisticsRelatedEventId);
+        if (Object.keys(state).length > 0) {
+            navigate(`/video/${previousQueueVideoId}`, { state });
+            return;
+        }
+
+        navigate(`/video/${previousQueueVideoId}`);
+    };
+
     const handleVideoEnded = () => {
         if (autoPlayNext && relatedVideos.length > 0) {
             const nextVideo = relatedVideos[0];
@@ -577,6 +641,8 @@ const VideoPlayer: React.FC = () => {
                             track: liveSubtitleTrack.track,
                         }}
                         seekIntervals={seekIntervals}
+                        onNextVideo={relatedVideos.length > 0 ? handleNextVideo : undefined}
+                        onPreviousVideo={previousQueueVideoId ? handlePreviousVideo : undefined}
                     /> : <VideoControls
                         src={(videoUrl || video?.sourceUrl) || null}
                         mediaPath={video.videoPath}
@@ -613,6 +679,8 @@ const VideoPlayer: React.FC = () => {
                                 ? () => setCompatibilityMode(true)
                                 : undefined
                         }
+                        onNextVideo={relatedVideos.length > 0 ? handleNextVideo : undefined}
+                        onPreviousVideo={previousQueueVideoId ? handlePreviousVideo : undefined}
                     />}
 
                     <LiveTranslationStatusAlert isCinemaMode={effectiveCinemaMode} />
@@ -670,51 +738,14 @@ const VideoPlayer: React.FC = () => {
                         relatedVideos={relatedVideos}
                         autoPlayNext={autoPlayNext}
                         onAutoPlayNextChange={setAutoPlayNext}
-                        onVideoClick={(videoId, index) => {
-                            const slateItem = upNextSlate[index] ?? {
-                                videoId,
-                                lane: 'related',
-                                position: index + 1
-                            };
-                            const clickEventId = statisticsIngestion.enabled && video
-                                ? statisticsIngestion.recordEvent({
-                                    eventType: 'up_next_clicked',
-                                    surface: 'web',
-                                    videoId,
-                                    relatedEventId: upNextImpressionEventIdRef.current,
-                                    value: slateItem.position,
-                                    payload: {
-                                        fromVideoId: video.id,
-                                        toVideoId: videoId,
-                                        position: slateItem.position,
-                                        lane: slateItem.lane
-                                    }
-                                })
-                                : null;
-                            const state = buildPlaybackState(clickEventId ?? statisticsRelatedEventId);
-
-                            if (Object.keys(state).length > 0) {
-                                navigate(`/video/${videoId}`, { state });
-                                return;
-                            }
-
-                            navigate(`/video/${videoId}`);
-                        }}
+                        onVideoClick={goToUpNextVideo}
                         onAddToCollection={handleAddToCollection}
                         currentVideoId={video.id}
                     /> : <UpNextSidebar
                         relatedVideos={relatedVideos}
                         autoPlayNext={autoPlayNext}
                         onAutoPlayNextChange={setAutoPlayNext}
-                        onVideoClick={(videoId, index) => {
-                            const slateItem = upNextSlate[index] ?? { videoId, lane: 'related', position: index + 1 };
-                            const clickEventId = statisticsIngestion.enabled && video
-                                ? statisticsIngestion.recordEvent({ eventType: 'up_next_clicked', surface: 'web', videoId, relatedEventId: upNextImpressionEventIdRef.current, value: slateItem.position, payload: { fromVideoId: video.id, toVideoId: videoId, position: slateItem.position, lane: slateItem.lane } })
-                                : null;
-                            const state = buildPlaybackState(clickEventId ?? statisticsRelatedEventId);
-                            if (Object.keys(state).length > 0) { navigate(`/video/${videoId}`, { state }); return; }
-                            navigate(`/video/${videoId}`);
-                        }}
+                        onVideoClick={goToUpNextVideo}
                         onAddToCollection={handleAddToCollection}
                     />}
                 </Box>

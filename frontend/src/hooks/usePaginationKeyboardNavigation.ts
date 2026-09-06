@@ -1,11 +1,5 @@
 import { useEffect } from 'react';
-
-// Roles an overlay announces itself with, whether or not it traps focus:
-// dialogs and alerts, and the menus and listboxes a select or sort control
-// opens. Matching on the role rather than a component keeps this working for
-// any overlay the app grows later.
-const OVERLAY_SELECTOR =
-    '[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]';
+import { isOverlayTarget, isTypingTarget } from '../utils/keyboardShortcutGuards';
 
 interface UsePaginationKeyboardNavigationProps {
     page: number;
@@ -33,23 +27,11 @@ export const usePaginationKeyboardNavigation = ({
         }
 
         const handleKeyDown = (event: KeyboardEvent) => {
-            // Don't handle keyboard navigation if user is typing in an input field
-            const eventTarget = event.target as HTMLElement;
-            if (eventTarget.tagName === 'INPUT' || eventTarget.tagName === 'TEXTAREA' || eventTarget.isContentEditable) {
-                return;
-            }
-
-            // A dialog or menu owns the keyboard for as long as it is open. Its
-            // keydowns still bubble out to this listener, and arrow keys inside
-            // one belong to its own chips and items - paging the grid behind it
-            // means closing it reveals a page the viewer never asked for. The
-            // open-modal check covers a keypress that lands outside the dialog,
-            // such as after a click on the backdrop.
-            if (document.querySelector('[aria-modal="true"]')) {
-                return;
-            }
-
-            if (eventTarget.closest?.(OVERLAY_SELECTOR)) {
+            // Don't page while the viewer is typing, or while a dialog or
+            // menu owns the keyboard. Both guards live in one place so the
+            // player's shortcuts answer these the same way - see
+            // utils/keyboardShortcutGuards.
+            if (isTypingTarget(event) || isOverlayTarget(event)) {
                 return;
             }
 
