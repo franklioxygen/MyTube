@@ -12,6 +12,7 @@ interface UseVideoPlayerProps {
 const START_TIME_APPLY_TOLERANCE_SECONDS = 1;
 const START_TIME_RETRY_INTERVAL_MS = 1500;
 const END_SEEK_GUARD_SECONDS = 0.25;
+const FRAME_STEP_SECONDS = 1 / 30;
 
 export const useVideoPlayer = ({
   src,
@@ -60,8 +61,18 @@ export const useVideoPlayer = ({
     [getMaxPlayableTime]
   );
 
-  const seekTo = useCallback((videoElement: HTMLVideoElement, time: number) => {
-    const safeTime = clampPlaybackTime(time, videoElement.duration);
+  const seekTo = useCallback((
+    videoElement: HTMLVideoElement,
+    time: number,
+    // The end guard keeps ordinary seeks and progress restores off the last
+    // quarter second, where landing fires 'ended'. Frame stepping has to be
+    // able to reach that region - inspecting the final frames is the point -
+    // so it opts out and brings its own clamp.
+    options: { skipEndGuard?: boolean } = {}
+  ) => {
+    const safeTime = options.skipEndGuard
+      ? Math.max(0, Math.min(time, videoElement.duration))
+      : clampPlaybackTime(time, videoElement.duration);
 
     // Issue exactly one seek, via currentTime only. Pairing fastSeek()
     // with a currentTime assignment queues two seek operations, and
@@ -273,6 +284,44 @@ export const useVideoPlayer = ({
     seekTo(videoElement, newTime);
   }, [clearPendingStartTimeRestore, seekTo]);
 
+  // A single frame step. HTMLVideoElement exposes no frame rate, so this
+  // assumes 30fps like every other web player has to; the point of the
+  // shortcut is inspecting a still, not exact frame accounting. Stepping
+  // pauses first - a moving picture would swallow the step.
+  const handleFrameStep = useCallback(
+    (direction: -1 | 1) => {
+      const videoElement = videoRef.current;
+      if (!videoElement || !isFinite(videoElement.duration)) return;
+
+      if (!videoElement.paused) {
+        videoElement.pause();
+        setIsPlaying(false);
+      }
+
+      // Stop one frame short of the duration: landing exactly on it ends
+      // playback rather than showing the last frame.
+      const lastFrameTime = Math.max(0, videoElement.duration - FRAME_STEP_SECONDS);
+      const clamped = Math.max(
+        0,
+        Math.min(
+          lastFrameTime,
+          videoElement.currentTime + direction * FRAME_STEP_SECONDS
+        )
+      );
+
+      // Already past the last frame - a paused position inside the final
+      // frame - the clamp alone would drag a forward step backwards. A step
+      // never moves against its own direction: it holds position instead.
+      const newTime = direction > 0
+        ? Math.max(clamped, videoElement.currentTime)
+        : Math.min(clamped, videoElement.currentTime);
+
+      clearPendingStartTimeRestore();
+      seekTo(videoElement, newTime, { skipEndGuard: true });
+    },
+    [clearPendingStartTimeRestore, seekTo]
+  );
+
   const handleProgressChange = (newTime: number) => {
     if (!videoRef.current || duration <= 0 || !isFinite(duration)) return;
     setCurrentTime(clampPlaybackTime(newTime, duration));
@@ -422,6 +471,7 @@ export const useVideoPlayer = ({
     playbackRate,
     handlePlayPause,
     handleSeek,
+    handleFrameStep,
     handleProgressChange,
     handleProgressChangeCommitted,
     handleProgressMouseDown,

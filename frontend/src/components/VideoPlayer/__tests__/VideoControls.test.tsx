@@ -171,6 +171,33 @@ describe('VideoControls', () => {
         expect(onVideoElementReady).toHaveBeenCalledWith(null);
     });
 
+    it('binds the cinema shortcut when a cinema toggle is supplied', () => {
+        const onToggleCinemaMode = vi.fn();
+        render(<VideoControls {...defaultProps} onToggleCinemaMode={onToggleCinemaMode} />);
+
+        const handlers = mockUseKeyboardShortcuts.mock.calls.at(-1)![0];
+        handlers.onToggleCinemaMode();
+
+        expect(onToggleCinemaMode).toHaveBeenCalled();
+    });
+
+    it('leaves the cinema shortcut unbound in audio mode', () => {
+        // Audio mode hides the cinema control; binding the key anyway would
+        // flip state nothing can show, surfacing on the next video.
+        const onToggleCinemaMode = vi.fn();
+        render(
+            <VideoControls
+                {...defaultProps}
+                audioMode
+                onToggleCinemaMode={onToggleCinemaMode}
+            />
+        );
+
+        const handlers = mockUseKeyboardShortcuts.mock.calls.at(-1)![0];
+
+        expect(handlers.onToggleCinemaMode).toBeUndefined();
+    });
+
     it('uses the configured short interval for keyboard seeking', () => {
         const { rerender } = render(
             <VideoControls

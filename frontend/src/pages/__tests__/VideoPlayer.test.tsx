@@ -59,10 +59,12 @@ let mockStatisticsIngestionReturn: Record<string, unknown>;
 
 // ---- Mock hooks ----
 
+let mockLocationState: unknown = null;
+
 vi.mock('react-router', () => ({
     useNavigate: () => mockNavigate,
     useParams: () => ({ id: 'v1' }),
-    useLocation: () => ({ state: null }),
+    useLocation: () => ({ state: mockLocationState }),
 }));
 
 vi.mock('../../contexts/LanguageContext', () => ({
@@ -275,6 +277,7 @@ function resetDefaults() {
     };
 
     mockVideoRecommendationsReturn = { relatedVideos: [] };
+    mockLocationState = null;
 
     mockStatisticsIngestionReturn = {
         enabled: false,
@@ -574,7 +577,9 @@ describe('VideoPlayer', () => {
             render(<VideoPlayer />);
 
             act(() => { capturedVideoControlsProps.onEnded(); });
-            expect(mockNavigate).toHaveBeenCalledWith('/video/v2');
+            expect(mockNavigate).toHaveBeenCalledWith('/video/v2', {
+                state: { previousVideoIds: ['v1'] }
+            });
         });
 
         it('records autoplay advancement when statistics are enabled', () => {
@@ -604,6 +609,7 @@ describe('VideoPlayer', () => {
             );
             expect(mockNavigate).toHaveBeenCalledWith('/video/v2', {
                 state: {
+                    previousVideoIds: ['v1'],
                     statisticsRelatedEventId: 'autoplay-1',
                     autoplayFromVideoId: 'v1',
                 },
@@ -795,7 +801,9 @@ describe('VideoPlayer', () => {
         it('navigates to video page when a related video is clicked', () => {
             render(<VideoPlayer />);
             act(() => { capturedUpNextSidebarProps.onVideoClick('v5', 0); });
-            expect(mockNavigate).toHaveBeenCalledWith('/video/v5');
+            expect(mockNavigate).toHaveBeenCalledWith('/video/v5', {
+                state: { previousVideoIds: ['v1'] }
+            });
         });
 
         it('records Up Next impression and click events when statistics are enabled', () => {
@@ -838,7 +846,10 @@ describe('VideoPlayer', () => {
                 })
             );
             expect(mockNavigate).toHaveBeenCalledWith('/video/v5', {
-                state: { statisticsRelatedEventId: 'click-1' },
+                state: {
+                    previousVideoIds: ['v1'],
+                    statisticsRelatedEventId: 'click-1'
+                },
             });
         });
     });
@@ -914,5 +925,174 @@ describe('VideoPlayer', () => {
             render(<VideoPlayer />);
             expect(capturedVideoInfoProps.isSubscribed).toBe(true);
         });
+    });
+});
+
+// ------ Up Next keyboard navigation ------
+describe('VideoPlayer up next keyboard navigation', () => {
+    it('binds shift+N to the first Up Next video and records where it came from', () => {
+        mockVideoRecommendationsReturn = { relatedVideos: [{ id: 'v2' }, { id: 'v3' }] };
+        render(<VideoPlayer />);
+
+        act(() => { capturedVideoControlsProps.onNextVideo!(); });
+
+        expect(mockNavigate).toHaveBeenCalledWith('/video/v2', {
+            state: expect.objectContaining({ previousVideoIds: ['v1'] })
+        });
+    });
+
+    it('leaves shift+N unbound with nothing up next', () => {
+        mockVideoRecommendationsReturn = { relatedVideos: [] };
+        render(<VideoPlayer />);
+
+        expect(capturedVideoControlsProps.onNextVideo).toBeUndefined();
+    });
+
+    it('binds shift+P to the previous video in the playback queue', () => {
+        mockLocationState = { playbackQueueVideoIds: ['v0', 'v1', 'v2'] };
+        render(<VideoPlayer />);
+
+        act(() => { capturedVideoControlsProps.onPreviousVideo!(); });
+
+        expect(mockNavigate).toHaveBeenCalledWith('/video/v0', expect.anything());
+    });
+
+    it('binds shift+P to the video this one was reached from when there is no queue', () => {
+        mockLocationState = { previousVideoIds: ['v9'] };
+        render(<VideoPlayer />);
+
+        act(() => { capturedVideoControlsProps.onPreviousVideo!(); });
+
+        expect(mockNavigate).toHaveBeenCalledWith('/video/v9');
+    });
+
+    it('unwinds the trail so repeated shift+P keeps walking back', () => {
+        mockLocationState = { previousVideoIds: ['v8', 'v9'] };
+        render(<VideoPlayer />);
+
+        act(() => { capturedVideoControlsProps.onPreviousVideo!(); });
+
+        // Arrives at v9 still carrying v8, so the next press has somewhere to go.
+        expect(mockNavigate).toHaveBeenCalledWith('/video/v9', {
+            state: { previousVideoIds: ['v8'] }
+        });
+    });
+
+    it('does not push the video it leaves when going back', () => {
+        mockLocationState = { previousVideoIds: ['v8', 'v9'] };
+        render(<VideoPlayer />);
+
+        act(() => { capturedVideoControlsProps.onPreviousVideo!(); });
+
+        const state = mockNavigate.mock.calls.at(-1)?.[1]?.state ?? {};
+        expect(state.previousVideoIds).not.toContain('v1');
+    });
+
+    it('keeps the trail when stepping back through a collection order', () => {
+        mockLocationState = {
+            playbackQueueVideoIds: ['v0', 'v1', 'v2'],
+            previousVideoIds: ['v9']
+        };
+        render(<VideoPlayer />);
+
+        act(() => { capturedVideoControlsProps.onPreviousVideo!(); });
+
+        expect(mockNavigate).toHaveBeenCalledWith('/video/v0', {
+            state: expect.objectContaining({ previousVideoIds: ['v9'] })
+        });
+    });
+
+    it('prefers the queue neighbour over the referring video', () => {
+        mockLocationState = {
+            playbackQueueVideoIds: ['v0', 'v1', 'v2'],
+            previousVideoIds: ['v9']
+        };
+        render(<VideoPlayer />);
+
+        act(() => { capturedVideoControlsProps.onPreviousVideo!(); });
+
+        expect(mockNavigate).toHaveBeenCalledWith('/video/v0', expect.anything());
+    });
+
+    it('records no trail entry when the move lands inside the queue', () => {
+        // The queue already walks backwards; a trail entry here would later be
+        // read as the predecessor of the queue's first item.
+        mockLocationState = { playbackQueueVideoIds: ['v0', 'v1', 'v2'] };
+        mockVideoRecommendationsReturn = { relatedVideos: [{ id: 'v2' }] };
+        render(<VideoPlayer />);
+
+        act(() => { capturedVideoControlsProps.onNextVideo!(); });
+
+        const state = mockNavigate.mock.calls.at(-1)?.[1]?.state ?? {};
+        expect(state.previousVideoIds ?? []).toEqual([]);
+    });
+
+    it('still records a trail entry when the move leaves the queue', () => {
+        mockLocationState = { playbackQueueVideoIds: ['v0', 'v1', 'v2'] };
+        mockVideoRecommendationsReturn = { relatedVideos: [{ id: 'v7' }] };
+        render(<VideoPlayer />);
+
+        act(() => { capturedVideoControlsProps.onNextVideo!(); });
+
+        expect(mockNavigate).toHaveBeenCalledWith('/video/v7', expect.objectContaining({
+            state: expect.objectContaining({ previousVideoIds: ['v1'] })
+        }));
+    });
+
+    it('keeps an earlier visit to this video in the trail', () => {
+        // A -> B -> A: the first entry is real history, and dropping it would
+        // strand the walk back at B.
+        mockLocationState = { previousVideoIds: ['v1', 'v2'] };
+        render(<VideoPlayer />);
+
+        act(() => { capturedVideoControlsProps.onPreviousVideo!(); });
+
+        expect(mockNavigate).toHaveBeenCalledWith('/video/v2', {
+            state: { previousVideoIds: ['v1'] }
+        });
+    });
+
+    it('drops a run of trailing self-references', () => {
+        mockLocationState = { previousVideoIds: ['v2', 'v1', 'v1'] };
+        render(<VideoPlayer />);
+
+        act(() => { capturedVideoControlsProps.onPreviousVideo!(); });
+
+        expect(mockNavigate).toHaveBeenCalledWith('/video/v2');
+    });
+
+    it('records the origin when entering a queue from outside it', () => {
+        // Q0 -> X -> Q2: without this entry the walk back follows the queue to
+        // Q0 and dead-ends, with no way back to X.
+        mockLocationState = {
+            playbackQueueVideoIds: ['v0', 'v2', 'v3'],
+            previousVideoIds: ['v0']
+        };
+        mockVideoRecommendationsReturn = { relatedVideos: [{ id: 'v3' }] };
+        render(<VideoPlayer />);
+
+        act(() => { capturedVideoControlsProps.onNextVideo!(); });
+
+        expect(mockNavigate).toHaveBeenCalledWith('/video/v3', expect.objectContaining({
+            state: expect.objectContaining({ previousVideoIds: ['v0', 'v1'] })
+        }));
+    });
+
+    it('never offers the current video as its own previous', () => {
+        // A trail written by an older build can still name this video.
+        mockLocationState = {
+            playbackQueueVideoIds: ['v1', 'v2'],
+            previousVideoIds: ['v1']
+        };
+        render(<VideoPlayer />);
+
+        expect(capturedVideoControlsProps.onPreviousVideo).toBeUndefined();
+    });
+
+    it('leaves shift+P unbound on a video opened cold', () => {
+        mockLocationState = null;
+        render(<VideoPlayer />);
+
+        expect(capturedVideoControlsProps.onPreviousVideo).toBeUndefined();
     });
 });
