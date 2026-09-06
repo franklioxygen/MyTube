@@ -61,8 +61,18 @@ export const useVideoPlayer = ({
     [getMaxPlayableTime]
   );
 
-  const seekTo = useCallback((videoElement: HTMLVideoElement, time: number) => {
-    const safeTime = clampPlaybackTime(time, videoElement.duration);
+  const seekTo = useCallback((
+    videoElement: HTMLVideoElement,
+    time: number,
+    // The end guard keeps ordinary seeks and progress restores off the last
+    // quarter second, where landing fires 'ended'. Frame stepping has to be
+    // able to reach that region - inspecting the final frames is the point -
+    // so it opts out and brings its own clamp.
+    options: { skipEndGuard?: boolean } = {}
+  ) => {
+    const safeTime = options.skipEndGuard
+      ? Math.max(0, Math.min(time, videoElement.duration))
+      : clampPlaybackTime(time, videoElement.duration);
 
     // Issue exactly one seek, via currentTime only. Pairing fastSeek()
     // with a currentTime assignment queues two seek operations, and
@@ -288,16 +298,19 @@ export const useVideoPlayer = ({
         setIsPlaying(false);
       }
 
+      // Stop one frame short of the duration: landing exactly on it ends
+      // playback rather than showing the last frame.
+      const lastFrameTime = Math.max(0, videoElement.duration - FRAME_STEP_SECONDS);
       const newTime = Math.max(
         0,
         Math.min(
-          videoElement.duration,
+          lastFrameTime,
           videoElement.currentTime + direction * FRAME_STEP_SECONDS
         )
       );
 
       clearPendingStartTimeRestore();
-      seekTo(videoElement, newTime);
+      seekTo(videoElement, newTime, { skipEndGuard: true });
     },
     [clearPendingStartTimeRestore, seekTo]
   );

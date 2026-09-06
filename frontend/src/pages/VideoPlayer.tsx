@@ -283,6 +283,14 @@ const VideoPlayer: React.FC = () => {
         });
     }, [collections, playbackQueueVideoIds, relatedVideos, sourceCollectionId, video]);
 
+    // Entries pointing at this very video would make shift+P a no-op that looks
+    // broken. Nothing writes one any more, but a history entry from an older
+    // build still can, so they are dropped on the way in rather than trusted.
+    const backTrail = useMemo(
+        () => navigationPreviousVideoIds.filter((candidate) => candidate !== video?.id),
+        [navigationPreviousVideoIds, video]
+    );
+
     // Where shift+P goes. Inside a queue or collection it is the neighbour
     // before this one, so the pair walks the list in both directions. Anywhere
     // else it is whichever video led here - shift+N works everywhere the
@@ -302,10 +310,10 @@ const VideoPlayer: React.FC = () => {
             return queueIds![currentQueueIndex - 1];
         }
 
-        return navigationPreviousVideoIds[navigationPreviousVideoIds.length - 1] ?? null;
+        return backTrail[backTrail.length - 1] ?? null;
     }, [
+        backTrail,
         collections,
-        navigationPreviousVideoIds,
         playbackQueueVideoIds,
         sourceCollectionId,
         video
@@ -482,10 +490,28 @@ const VideoPlayer: React.FC = () => {
 
 
 
-    // Cap the trail: it rides in router state on every navigation, and nobody
+    // The trail is the fallback for videos a queue cannot walk back through, so
+    // a move that lands inside a queue records nothing: the queue's own order
+    // already provides the way back, and an entry there would later be read as
+    // the predecessor of the queue's first item - pointing at itself, or
+    // forward into the queue.
+    //
+    // Capped, since it rides in router state on every navigation and nobody
     // walks back more than a handful of videos.
-    const pushBackTrail = (fromVideoId: string) =>
-        [...navigationPreviousVideoIds, fromVideoId].slice(-MAX_BACK_TRAIL_LENGTH);
+    const pushBackTrail = (fromVideoId: string, toVideoId: string) => {
+        const destinationQueue = resolvePlaybackQueue({
+            currentVideoId: toVideoId,
+            collections,
+            sourceCollectionId,
+            playbackQueueVideoIds
+        });
+
+        if ((destinationQueue?.indexOf(toVideoId) ?? -1) > 0) {
+            return backTrail;
+        }
+
+        return [...backTrail, fromVideoId].slice(-MAX_BACK_TRAIL_LENGTH);
+    };
 
     const buildPlaybackState = (
         relatedEventId: string | null = statisticsRelatedEventId,
@@ -519,7 +545,7 @@ const VideoPlayer: React.FC = () => {
             })
             : null;
         const state = buildPlaybackState(clickEventId ?? statisticsRelatedEventId, {
-            previousVideoIds: pushBackTrail(video.id)
+            previousVideoIds: pushBackTrail(video.id, videoId)
         });
 
         if (Object.keys(state).length > 0) {
@@ -543,8 +569,8 @@ const VideoPlayer: React.FC = () => {
         if (!previousVideoId) return;
 
         const remainingTrail = isFollowingBackTrail
-            ? navigationPreviousVideoIds.slice(0, -1)
-            : navigationPreviousVideoIds;
+            ? backTrail.slice(0, -1)
+            : backTrail;
         const state = buildPlaybackState(
             statisticsRelatedEventId,
             remainingTrail.length > 0 ? { previousVideoIds: remainingTrail } : {}
@@ -576,7 +602,7 @@ const VideoPlayer: React.FC = () => {
             const state = buildPlaybackState(
                 autoplayEventId ?? statisticsRelatedEventId,
                 {
-                    previousVideoIds: pushBackTrail(video.id),
+                    previousVideoIds: pushBackTrail(video.id, nextVideo.id),
                     ...(statisticsIngestion.enabled && video
                         ? { autoplayFromVideoId: video.id }
                         : {})

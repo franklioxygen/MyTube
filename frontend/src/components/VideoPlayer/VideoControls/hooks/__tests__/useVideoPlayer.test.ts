@@ -752,3 +752,82 @@ describe("useVideoPlayer lifecycle and interaction behavior", () => {
     expect(result.current.isLooping).toBe(true);
   });
 });
+
+describe("useVideoPlayer frame stepping", () => {
+  let videoElement: HTMLVideoElement;
+
+  const mountWithTime = (currentTime: number) => {
+    videoElement = document.createElement("video");
+    videoElement.fastSeek = vi.fn();
+    Object.defineProperty(videoElement, "duration", {
+      configurable: true,
+      writable: true,
+      value: 100,
+    });
+    Object.defineProperty(videoElement, "currentTime", {
+      configurable: true,
+      writable: true,
+      value: currentTime,
+    });
+    Object.defineProperty(videoElement, "paused", {
+      configurable: true,
+      writable: true,
+      value: true,
+    });
+
+    const { result } = renderHook(() => useVideoPlayer({ src: "test.mp4" }));
+    result.current.videoRef.current = videoElement;
+    return result;
+  };
+
+  it("steps one frame forward", () => {
+    const result = mountWithTime(50);
+
+    act(() => { result.current.handleFrameStep(1); });
+
+    expect(videoElement.currentTime).toBeCloseTo(50 + 1 / 30, 5);
+  });
+
+  it("steps one frame back", () => {
+    const result = mountWithTime(50);
+
+    act(() => { result.current.handleFrameStep(-1); });
+
+    expect(videoElement.currentTime).toBeCloseTo(50 - 1 / 30, 5);
+  });
+
+  // The ordinary end guard keeps seeks off the last quarter second, which
+  // would drag a frame step near the end backwards by a fifth of a second.
+  it("still steps forward inside the end guard region", () => {
+    const result = mountWithTime(99.95);
+
+    act(() => { result.current.handleFrameStep(1); });
+
+    expect(videoElement.currentTime).toBeGreaterThan(99.9);
+    expect(videoElement.currentTime).toBeLessThan(100);
+  });
+
+  it("steps back by one frame inside the end guard region", () => {
+    const result = mountWithTime(99.95);
+
+    act(() => { result.current.handleFrameStep(-1); });
+
+    expect(videoElement.currentTime).toBeCloseTo(99.95 - 1 / 30, 5);
+  });
+
+  it("does not step past the duration", () => {
+    const result = mountWithTime(99.999);
+
+    act(() => { result.current.handleFrameStep(1); });
+
+    expect(videoElement.currentTime).toBeLessThan(100);
+  });
+
+  it("does not step below zero", () => {
+    const result = mountWithTime(0.01);
+
+    act(() => { result.current.handleFrameStep(-1); });
+
+    expect(videoElement.currentTime).toBe(0);
+  });
+});

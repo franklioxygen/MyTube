@@ -1014,6 +1014,42 @@ describe('VideoPlayer up next keyboard navigation', () => {
         expect(mockNavigate).toHaveBeenCalledWith('/video/v0', expect.anything());
     });
 
+    it('records no trail entry when the move lands inside the queue', () => {
+        // The queue already walks backwards; a trail entry here would later be
+        // read as the predecessor of the queue's first item.
+        mockLocationState = { playbackQueueVideoIds: ['v0', 'v1', 'v2'] };
+        mockVideoRecommendationsReturn = { relatedVideos: [{ id: 'v2' }] };
+        render(<VideoPlayer />);
+
+        act(() => { capturedVideoControlsProps.onNextVideo!(); });
+
+        const state = mockNavigate.mock.calls.at(-1)?.[1]?.state ?? {};
+        expect(state.previousVideoIds ?? []).toEqual([]);
+    });
+
+    it('still records a trail entry when the move leaves the queue', () => {
+        mockLocationState = { playbackQueueVideoIds: ['v0', 'v1', 'v2'] };
+        mockVideoRecommendationsReturn = { relatedVideos: [{ id: 'v7' }] };
+        render(<VideoPlayer />);
+
+        act(() => { capturedVideoControlsProps.onNextVideo!(); });
+
+        expect(mockNavigate).toHaveBeenCalledWith('/video/v7', expect.objectContaining({
+            state: expect.objectContaining({ previousVideoIds: ['v1'] })
+        }));
+    });
+
+    it('never offers the current video as its own previous', () => {
+        // A trail written by an older build can still name this video.
+        mockLocationState = {
+            playbackQueueVideoIds: ['v1', 'v2'],
+            previousVideoIds: ['v1']
+        };
+        render(<VideoPlayer />);
+
+        expect(capturedVideoControlsProps.onPreviousVideo).toBeUndefined();
+    });
+
     it('leaves shift+P unbound on a video opened cold', () => {
         mockLocationState = null;
         render(<VideoPlayer />);

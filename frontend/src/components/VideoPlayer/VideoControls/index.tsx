@@ -185,7 +185,11 @@ const VideoControls: React.FC<VideoControlsProps> = ({
     // Cinema mode leaves fullscreen on the way in - the two are alternative
     // ways to make the player big, and staying in both leaves nothing visible
     // to switch back with. Shared with the control button below.
-    const handleToggleCinemaMode = onToggleCinemaMode
+    //
+    // Audio mode has no cinema layout and hides the control, so leave the
+    // toggle unbound there: flipping state nothing can show would surface on
+    // the next video reached through Up Next, which shares this route.
+    const handleToggleCinemaMode = onToggleCinemaMode && !audioMode
         ? () => {
               onToggleCinemaMode();
               if (isFullscreen) {
