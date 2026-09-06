@@ -578,7 +578,7 @@ describe('VideoPlayer', () => {
 
             act(() => { capturedVideoControlsProps.onEnded(); });
             expect(mockNavigate).toHaveBeenCalledWith('/video/v2', {
-                state: { previousVideoId: 'v1' }
+                state: { previousVideoIds: ['v1'] }
             });
         });
 
@@ -609,7 +609,7 @@ describe('VideoPlayer', () => {
             );
             expect(mockNavigate).toHaveBeenCalledWith('/video/v2', {
                 state: {
-                    previousVideoId: 'v1',
+                    previousVideoIds: ['v1'],
                     statisticsRelatedEventId: 'autoplay-1',
                     autoplayFromVideoId: 'v1',
                 },
@@ -802,7 +802,7 @@ describe('VideoPlayer', () => {
             render(<VideoPlayer />);
             act(() => { capturedUpNextSidebarProps.onVideoClick('v5', 0); });
             expect(mockNavigate).toHaveBeenCalledWith('/video/v5', {
-                state: { previousVideoId: 'v1' }
+                state: { previousVideoIds: ['v1'] }
             });
         });
 
@@ -847,7 +847,7 @@ describe('VideoPlayer', () => {
             );
             expect(mockNavigate).toHaveBeenCalledWith('/video/v5', {
                 state: {
-                    previousVideoId: 'v1',
+                    previousVideoIds: ['v1'],
                     statisticsRelatedEventId: 'click-1'
                 },
             });
@@ -937,7 +937,7 @@ describe('VideoPlayer up next keyboard navigation', () => {
         act(() => { capturedVideoControlsProps.onNextVideo!(); });
 
         expect(mockNavigate).toHaveBeenCalledWith('/video/v2', {
-            state: expect.objectContaining({ previousVideoId: 'v1' })
+            state: expect.objectContaining({ previousVideoIds: ['v1'] })
         });
     });
 
@@ -958,7 +958,7 @@ describe('VideoPlayer up next keyboard navigation', () => {
     });
 
     it('binds shift+P to the video this one was reached from when there is no queue', () => {
-        mockLocationState = { previousVideoId: 'v9' };
+        mockLocationState = { previousVideoIds: ['v9'] };
         render(<VideoPlayer />);
 
         act(() => { capturedVideoControlsProps.onPreviousVideo!(); });
@@ -966,20 +966,46 @@ describe('VideoPlayer up next keyboard navigation', () => {
         expect(mockNavigate).toHaveBeenCalledWith('/video/v9');
     });
 
-    it('does not record a forward origin when going back, so shift+P keeps walking back', () => {
-        mockLocationState = { previousVideoId: 'v9' };
+    it('unwinds the trail so repeated shift+P keeps walking back', () => {
+        mockLocationState = { previousVideoIds: ['v8', 'v9'] };
+        render(<VideoPlayer />);
+
+        act(() => { capturedVideoControlsProps.onPreviousVideo!(); });
+
+        // Arrives at v9 still carrying v8, so the next press has somewhere to go.
+        expect(mockNavigate).toHaveBeenCalledWith('/video/v9', {
+            state: { previousVideoIds: ['v8'] }
+        });
+    });
+
+    it('does not push the video it leaves when going back', () => {
+        mockLocationState = { previousVideoIds: ['v8', 'v9'] };
         render(<VideoPlayer />);
 
         act(() => { capturedVideoControlsProps.onPreviousVideo!(); });
 
         const state = mockNavigate.mock.calls.at(-1)?.[1]?.state ?? {};
-        expect(state).not.toHaveProperty('previousVideoId');
+        expect(state.previousVideoIds).not.toContain('v1');
+    });
+
+    it('keeps the trail when stepping back through a collection order', () => {
+        mockLocationState = {
+            playbackQueueVideoIds: ['v0', 'v1', 'v2'],
+            previousVideoIds: ['v9']
+        };
+        render(<VideoPlayer />);
+
+        act(() => { capturedVideoControlsProps.onPreviousVideo!(); });
+
+        expect(mockNavigate).toHaveBeenCalledWith('/video/v0', {
+            state: expect.objectContaining({ previousVideoIds: ['v9'] })
+        });
     });
 
     it('prefers the queue neighbour over the referring video', () => {
         mockLocationState = {
             playbackQueueVideoIds: ['v0', 'v1', 'v2'],
-            previousVideoId: 'v9'
+            previousVideoIds: ['v9']
         };
         render(<VideoPlayer />);
 

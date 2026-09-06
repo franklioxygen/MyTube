@@ -41,6 +41,8 @@ import { isCompatibilityModeForced } from '../utils/compatibilityMode/deployment
 import { isCompatibilityModeSupported } from '../utils/compatibilityMode/support';
 import { getBestVideoResumeProgress } from '../utils/videoResumeProgress';
 
+const MAX_BACK_TRAIL_LENGTH = 20;
+
 const VideoPlayer: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
@@ -56,7 +58,7 @@ const VideoPlayer: React.FC = () => {
             sourceCollectionId?: string | null;
             playbackQueueVideoIds?: string[];
             autoplayFromVideoId?: string | null;
-            previousVideoId?: string | null;
+            previousVideoIds?: string[];
         }
         | null;
     const statisticsRelatedEventId =
@@ -64,7 +66,10 @@ const VideoPlayer: React.FC = () => {
     const sourceCollectionId = navigationState?.sourceCollectionId ?? null;
     const playbackQueueVideoIds = navigationState?.playbackQueueVideoIds;
     const autoplayFromVideoId = navigationState?.autoplayFromVideoId ?? null;
-    const navigationPreviousVideoId = navigationState?.previousVideoId ?? null;
+    const navigationPreviousVideoIds = useMemo(
+        () => navigationState?.previousVideoIds ?? [],
+        [navigationState]
+    );
 
     const [showComments, setShowComments] = useState<boolean>(false);
     const [autoPlayNext, setAutoPlayNext] = useState<boolean>(() => {
@@ -297,14 +302,29 @@ const VideoPlayer: React.FC = () => {
             return queueIds![currentQueueIndex - 1];
         }
 
-        return navigationPreviousVideoId;
+        return navigationPreviousVideoIds[navigationPreviousVideoIds.length - 1] ?? null;
     }, [
         collections,
-        navigationPreviousVideoId,
+        navigationPreviousVideoIds,
         playbackQueueVideoIds,
         sourceCollectionId,
         video
     ]);
+
+    // True when shift+P is following the trail of videos rather than the
+    // collection's own order; only then does going back consume an entry.
+    const isFollowingBackTrail = useMemo(() => {
+        if (!video || previousVideoId === null) return false;
+
+        const queueIds = resolvePlaybackQueue({
+            currentVideoId: video.id,
+            collections,
+            sourceCollectionId,
+            playbackQueueVideoIds
+        });
+
+        return (queueIds?.indexOf(video.id) ?? -1) <= 0;
+    }, [collections, playbackQueueVideoIds, previousVideoId, sourceCollectionId, video]);
 
     useEffect(() => {
         if (!statisticsIngestion.enabled || !video || upNextSlate.length === 0) return;
@@ -462,6 +482,11 @@ const VideoPlayer: React.FC = () => {
 
 
 
+    // Cap the trail: it rides in router state on every navigation, and nobody
+    // walks back more than a handful of videos.
+    const pushBackTrail = (fromVideoId: string) =>
+        [...navigationPreviousVideoIds, fromVideoId].slice(-MAX_BACK_TRAIL_LENGTH);
+
     const buildPlaybackState = (
         relatedEventId: string | null = statisticsRelatedEventId,
         extras: Record<string, unknown> = {}
@@ -494,7 +519,7 @@ const VideoPlayer: React.FC = () => {
             })
             : null;
         const state = buildPlaybackState(clickEventId ?? statisticsRelatedEventId, {
-            previousVideoId: video.id
+            previousVideoIds: pushBackTrail(video.id)
         });
 
         if (Object.keys(state).length > 0) {
@@ -510,12 +535,21 @@ const VideoPlayer: React.FC = () => {
         goToUpNextVideo(relatedVideos[0].id, 0, 'keyboard');
     };
 
-    // No previousVideoId on the way back: pressing shift+P twice should keep
-    // walking backwards, not bounce between the same two videos.
+    // Going back pops the entry it used rather than pushing a new one, so
+    // A -> B -> C unwinds to B and then to A instead of bouncing between the
+    // last two videos. Stepping back through a collection's own order leaves
+    // the trail alone - it still describes how the collection was entered.
     const handlePreviousVideo = () => {
         if (!previousVideoId) return;
 
-        const state = buildPlaybackState(statisticsRelatedEventId);
+        const remainingTrail = isFollowingBackTrail
+            ? navigationPreviousVideoIds.slice(0, -1)
+            : navigationPreviousVideoIds;
+        const state = buildPlaybackState(
+            statisticsRelatedEventId,
+            remainingTrail.length > 0 ? { previousVideoIds: remainingTrail } : {}
+        );
+
         if (Object.keys(state).length > 0) {
             navigate(`/video/${previousVideoId}`, { state });
             return;
@@ -542,7 +576,7 @@ const VideoPlayer: React.FC = () => {
             const state = buildPlaybackState(
                 autoplayEventId ?? statisticsRelatedEventId,
                 {
-                    previousVideoId: video.id,
+                    previousVideoIds: pushBackTrail(video.id),
                     ...(statisticsIngestion.enabled && video
                         ? { autoplayFromVideoId: video.id }
                         : {})

@@ -48,7 +48,7 @@ Unmuting restores the volume you had before, not full volume.
 
 `Shift+N` goes to the top item in the Up Next sidebar — the same video autoplay would advance to.
 
-`Shift+P` goes back. Inside a collection or a playback queue it is the neighbour before this one, so the pair walks the list in both directions. Anywhere else it is whichever video led here — following Up Next forward and pressing `Shift+P` returns you to where you came from, and pressing it again keeps walking back rather than bouncing between two videos.
+`Shift+P` goes back. Inside a collection or a playback queue it is the neighbour before this one, so the pair walks the list in both directions. Anywhere else it retraces the videos you actually came through: follow Up Next from A to B to C, and `Shift+P` takes you to B, then to A. Going back never counts as a forward move, so the trail unwinds instead of bouncing between the last two videos. The last 20 steps are kept.
 
 Only a video opened cold — a fresh tab, a shared link — has no previous, and there `Shift+P` does nothing.
 
