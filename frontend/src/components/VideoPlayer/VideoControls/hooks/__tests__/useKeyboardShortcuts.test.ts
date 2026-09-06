@@ -289,6 +289,24 @@ describe('useKeyboardShortcuts - YouTube-style bindings', () => {
     expect(withCtrl.defaultPrevented).toBe(false);
   });
 
+  it('leaves a focused slider its own arrow and Home keys', () => {
+    // The player's progress and volume controls are MUI Sliders, whose
+    // focusable element is an <input type="range"> - the arrows and Home/End
+    // belong to it while it has focus.
+    const slider = document.createElement('input');
+    slider.type = 'range';
+    document.body.appendChild(slider);
+    slider.focus();
+
+    press('ArrowUp');
+    press('Home');
+    press('k');
+
+    expect(handlers.onVolumeUp).not.toHaveBeenCalled();
+    expect(handlers.onSeekToFraction).not.toHaveBeenCalled();
+    expect(handlers.onPlayPause).not.toHaveBeenCalled();
+  });
+
   it('stays quiet while a menu owns the keyboard', () => {
     // A menu takes focus when it opens, which is what the guard reads.
     const menu = document.createElement('div');

@@ -55,6 +55,13 @@ describe("isTypingTarget", () => {
     expect(isTypingTarget(keyEventFrom(select))).toBe(true);
   });
 
+  it("catches a range input, which is what a MUI slider focuses", () => {
+    const host = mount('<input type="range" min="0" max="100" />');
+    const slider = host.querySelector("input")!;
+
+    expect(isTypingTarget(keyEventFrom(slider))).toBe(true);
+  });
+
   it("catches contenteditable written without a value", () => {
     const host = mount('<div contenteditable tabindex="0"></div>');
     const editor = host.querySelector("div")!;
