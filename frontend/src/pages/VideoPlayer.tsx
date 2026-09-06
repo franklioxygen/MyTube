@@ -56,6 +56,7 @@ const VideoPlayer: React.FC = () => {
             sourceCollectionId?: string | null;
             playbackQueueVideoIds?: string[];
             autoplayFromVideoId?: string | null;
+            previousVideoId?: string | null;
         }
         | null;
     const statisticsRelatedEventId =
@@ -63,6 +64,7 @@ const VideoPlayer: React.FC = () => {
     const sourceCollectionId = navigationState?.sourceCollectionId ?? null;
     const playbackQueueVideoIds = navigationState?.playbackQueueVideoIds;
     const autoplayFromVideoId = navigationState?.autoplayFromVideoId ?? null;
+    const navigationPreviousVideoId = navigationState?.previousVideoId ?? null;
 
     const [showComments, setShowComments] = useState<boolean>(false);
     const [autoPlayNext, setAutoPlayNext] = useState<boolean>(() => {
@@ -276,10 +278,12 @@ const VideoPlayer: React.FC = () => {
         });
     }, [collections, playbackQueueVideoIds, relatedVideos, sourceCollectionId, video]);
 
-    // shift+P only has somewhere to go when this video is being played from a
-    // queue or collection - matching YouTube, where "previous" is a playlist
-    // move and does nothing on a standalone video.
-    const previousQueueVideoId = useMemo(() => {
+    // Where shift+P goes. Inside a queue or collection it is the neighbour
+    // before this one, so the pair walks the list in both directions. Anywhere
+    // else it is whichever video led here - shift+N works everywhere the
+    // recommendations do, so shift+P has to as well, or the pair is one-way.
+    // Only a video opened cold - a fresh tab, a shared link - has no previous.
+    const previousVideoId = useMemo(() => {
         if (!video) return null;
 
         const queueIds = resolvePlaybackQueue({
@@ -289,9 +293,18 @@ const VideoPlayer: React.FC = () => {
             playbackQueueVideoIds
         });
         const currentQueueIndex = queueIds?.indexOf(video.id) ?? -1;
+        if (currentQueueIndex > 0) {
+            return queueIds![currentQueueIndex - 1];
+        }
 
-        return currentQueueIndex > 0 ? queueIds![currentQueueIndex - 1] : null;
-    }, [collections, playbackQueueVideoIds, sourceCollectionId, video]);
+        return navigationPreviousVideoId;
+    }, [
+        collections,
+        navigationPreviousVideoId,
+        playbackQueueVideoIds,
+        sourceCollectionId,
+        video
+    ]);
 
     useEffect(() => {
         if (!statisticsIngestion.enabled || !video || upNextSlate.length === 0) return;
@@ -480,7 +493,9 @@ const VideoPlayer: React.FC = () => {
                 }
             })
             : null;
-        const state = buildPlaybackState(clickEventId ?? statisticsRelatedEventId);
+        const state = buildPlaybackState(clickEventId ?? statisticsRelatedEventId, {
+            previousVideoId: video.id
+        });
 
         if (Object.keys(state).length > 0) {
             navigate(`/video/${videoId}`, { state });
@@ -495,16 +510,18 @@ const VideoPlayer: React.FC = () => {
         goToUpNextVideo(relatedVideos[0].id, 0, 'keyboard');
     };
 
+    // No previousVideoId on the way back: pressing shift+P twice should keep
+    // walking backwards, not bounce between the same two videos.
     const handlePreviousVideo = () => {
-        if (!previousQueueVideoId) return;
+        if (!previousVideoId) return;
 
         const state = buildPlaybackState(statisticsRelatedEventId);
         if (Object.keys(state).length > 0) {
-            navigate(`/video/${previousQueueVideoId}`, { state });
+            navigate(`/video/${previousVideoId}`, { state });
             return;
         }
 
-        navigate(`/video/${previousQueueVideoId}`);
+        navigate(`/video/${previousVideoId}`);
     };
 
     const handleVideoEnded = () => {
@@ -524,7 +541,12 @@ const VideoPlayer: React.FC = () => {
                 : null;
             const state = buildPlaybackState(
                 autoplayEventId ?? statisticsRelatedEventId,
-                statisticsIngestion.enabled && video ? { autoplayFromVideoId: video.id } : {}
+                {
+                    previousVideoId: video.id,
+                    ...(statisticsIngestion.enabled && video
+                        ? { autoplayFromVideoId: video.id }
+                        : {})
+                }
             );
 
             if (Object.keys(state).length > 0) {
@@ -642,7 +664,7 @@ const VideoPlayer: React.FC = () => {
                         }}
                         seekIntervals={seekIntervals}
                         onNextVideo={relatedVideos.length > 0 ? handleNextVideo : undefined}
-                        onPreviousVideo={previousQueueVideoId ? handlePreviousVideo : undefined}
+                        onPreviousVideo={previousVideoId ? handlePreviousVideo : undefined}
                     /> : <VideoControls
                         src={(videoUrl || video?.sourceUrl) || null}
                         mediaPath={video.videoPath}
@@ -680,7 +702,7 @@ const VideoPlayer: React.FC = () => {
                                 : undefined
                         }
                         onNextVideo={relatedVideos.length > 0 ? handleNextVideo : undefined}
-                        onPreviousVideo={previousQueueVideoId ? handlePreviousVideo : undefined}
+                        onPreviousVideo={previousVideoId ? handlePreviousVideo : undefined}
                     />}
 
                     <LiveTranslationStatusAlert isCinemaMode={effectiveCinemaMode} />

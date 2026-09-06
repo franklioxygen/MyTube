@@ -13,6 +13,8 @@ export interface MockVideoMutationsReturn extends Record<string, unknown> {
 
 export interface CapturedVideoControlsProps extends Record<string, unknown> {
     onEnded: () => void;
+    onNextVideo?: () => void;
+    onPreviousVideo?: () => void;
     onToggleCinemaMode: () => void;
     isCinemaMode: boolean;
     autoPlay: boolean;

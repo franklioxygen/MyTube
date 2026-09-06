@@ -48,7 +48,9 @@ Unmuting restores the volume you had before, not full volume.
 
 `Shift+N` goes to the top item in the Up Next sidebar — the same video autoplay would advance to.
 
-`Shift+P` only has somewhere to go when the video is being played from a collection or a playback queue, matching YouTube, where "previous" is a playlist move. On a standalone video the key does nothing.
+`Shift+P` goes back. Inside a collection or a playback queue it is the neighbour before this one, so the pair walks the list in both directions. Anywhere else it is whichever video led here — following Up Next forward and pressing `Shift+P` returns you to where you came from, and pressing it again keeps walking back rather than bouncing between two videos.
+
+Only a video opened cold — a fresh tab, a shared link — has no previous, and there `Shift+P` does nothing.
 
 ## When shortcuts do not fire
 
