@@ -17,7 +17,7 @@ import { useVideoLoading } from './hooks/useVideoLoading';
 import { useVideoPlayer } from './hooks/useVideoPlayer';
 import { useVolume } from './hooks/useVolume';
 import VideoElement from './VideoElement';
-import { viewportHeight, viewportWidth } from '../../../utils/viewportUnits';
+import { cancelAutomotiveZoom } from '../../../utils/viewportUnits';
 
 interface VideoControlsProps {
     src: string;
@@ -328,8 +328,13 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                 boxShadow: 4,
                 position: 'relative',
                 ...(isFullscreen && {
-                    width: viewportWidth(),
-                    height: viewportHeight(),
+                    // Cancelling the zoom here restores the viewport's coordinate
+                    // system, which the menus portalled into this element by
+                    // SpeedControl and SubtitleControl are positioned in. Plain
+                    // viewport units are therefore correct inside it.
+                    zoom: cancelAutomotiveZoom,
+                    width: '100vw',
+                    height: '100vh',
                     display: 'flex',
                     flexDirection: 'column',
                     borderRadius: 0

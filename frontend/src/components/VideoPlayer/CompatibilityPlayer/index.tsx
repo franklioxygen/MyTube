@@ -20,7 +20,7 @@ import {
 import FullscreenControl from '../VideoControls/FullscreenControl';
 import ProgressBar from '../VideoControls/ProgressBar';
 import SeekButton from '../VideoControls/SeekButton';
-import { viewportHeight, viewportWidth } from '../../../utils/viewportUnits';
+import { cancelAutomotiveZoom, viewportHeight } from '../../../utils/viewportUnits';
 import {
     getMissingCompatibilityModeApis,
     isCompatibilityModeSupported,
@@ -528,8 +528,13 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                 boxShadow: 4,
                 position: 'relative',
                 ...(isFullscreen && {
-                    width: viewportWidth(),
-                    height: viewportHeight(),
+                    // Cancelling the zoom here restores the viewport's coordinate
+                    // system, which the menus portalled into this element by
+                    // SpeedControl and SubtitleControl are positioned in. Plain
+                    // viewport units are therefore correct inside it.
+                    zoom: cancelAutomotiveZoom,
+                    width: '100vw',
+                    height: '100vh',
                     display: 'flex',
                     flexDirection: 'column',
                     borderRadius: 0,

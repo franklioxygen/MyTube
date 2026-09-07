@@ -25,3 +25,21 @@ export const viewportHeight = (percent = 100) => compensated('vh', percent);
 
 /** Viewport width that survives the in-car zoom. Defaults to the full width. */
 export const viewportWidth = (percent = 100) => compensated('vw', percent);
+
+/**
+ * Cancels the in-car zoom for a subtree, restoring the viewport's own
+ * coordinate system inside it.
+ *
+ * Fullscreen elements need this. They sit under #root and so inherit the zoom,
+ * and SpeedControl and SubtitleControl deliberately portal their menus into
+ * `document.fullscreenElement` so the menus are visible above the video. MUI
+ * positions those from getBoundingClientRect - viewport coordinates - which a
+ * zoomed ancestor then scales a second time, landing them far from their
+ * buttons. Cancelling the zoom puts the two back in the same space.
+ *
+ * Inside this subtree, plain viewport units are correct again: use `100vh`,
+ * not viewportHeight(). Resolves to `1` in every ordinary browser, where the
+ * variable is unset, which is the CSS default and therefore a no-op.
+ */
+export const cancelAutomotiveZoom = 'calc(1 / var(--automotive-zoom, 1))';
+
