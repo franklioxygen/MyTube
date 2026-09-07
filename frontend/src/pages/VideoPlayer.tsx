@@ -40,6 +40,7 @@ import { getBackendUrl } from '../utils/apiUrl';
 import { isCompatibilityModeForced } from '../utils/compatibilityMode/deployment';
 import { isCompatibilityModeSupported } from '../utils/compatibilityMode/support';
 import { getBestVideoResumeProgress } from '../utils/videoResumeProgress';
+import { viewportHeight } from '../utils/viewportUnits';
 
 const MAX_BACK_TRAIL_LENGTH = 20;
 
@@ -481,7 +482,7 @@ const VideoPlayer: React.FC = () => {
 
     if (loading) {
         return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: viewportHeight(50) }}>
                 <CircularProgress />
                 <Typography sx={{ ml: 2 }}>{t('loadingVideo')}</Typography>
             </Box>

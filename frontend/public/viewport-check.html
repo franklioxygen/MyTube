@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>车机视口诊断</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin:0; padding:16px; background:#111; color:#eee;
+         font:16px/1.5 system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif; }
+  h1 { font-size:22px; margin:0 0 12px; }
+  h2 { font-size:18px; margin:20px 0 8px; color:#4db6ac; }
+  table { border-collapse:collapse; width:100%; }
+  td { padding:6px 8px; border-bottom:1px solid #333; vertical-align:top; }
+  td.k { color:#9e9e9e; white-space:nowrap; width:1%; }
+  td.v { font-weight:700; font-size:20px; font-variant-numeric:tabular-nums; }
+  .ua { font-size:13px; word-break:break-all; font-weight:400; }
+  button { font:600 18px/1 system-ui,sans-serif; padding:14px 20px; margin:4px 6px 4px 0;
+           background:#00695c; color:#fff; border:0; border-radius:8px; }
+  #verdict { margin-top:12px; padding:12px; border-radius:8px; background:#1b1b1b;
+             font-size:19px; font-weight:700; }
+  .ok { color:#66bb6a; } .bad { color:#ef5350; }
+</style>
+</head>
+<body>
+<h1>车机视口诊断</h1>
+
+<h2>1. 当前数值</h2>
+<table id="stats"></table>
+
+<h2>2. viewport meta 是否生效</h2>
+<button id="run">点这里测试</button>
+<button id="reset">恢复</button>
+<div id="verdict">尚未测试</div>
+
+<script>
+(function () {
+  var statsEl = document.getElementById('stats');
+  var verdictEl = document.getElementById('verdict');
+  var metaEl = document.querySelector('meta[name="viewport"]');
+  var ORIGINAL_META = metaEl.content;
+
+  function row(k, v, cls) {
+    return '<tr><td class="k">' + k + '</td><td class="v ' + (cls || '') + '">' + v + '</td></tr>';
+  }
+
+  function breakpoint(w) {
+    if (w < 600) return 'xs（手机 · 1 列）';
+    if (w < 900) return 'sm（2 列）';
+    if (w < 1200) return 'md（3 列）';
+    if (w < 1536) return 'lg（桌面）';
+    return 'xl（宽屏桌面）';
+  }
+
+  function render() {
+    var vv = window.visualViewport;
+    var physicalW = Math.round(screen.width * window.devicePixelRatio);
+    var physicalH = Math.round(screen.height * window.devicePixelRatio);
+
+    statsEl.innerHTML =
+      row('布局视口 innerWidth × innerHeight', window.innerWidth + ' × ' + window.innerHeight) +
+      row('当前命中断点', breakpoint(window.innerWidth)) +
+      row('documentElement.clientWidth', document.documentElement.clientWidth) +
+      row('screen.width × height', screen.width + ' × ' + screen.height) +
+      row('devicePixelRatio', window.devicePixelRatio) +
+      row('推算物理像素', physicalW + ' × ' + physicalH) +
+      row('outerWidth', window.outerWidth) +
+      row('visualViewport 宽 / 缩放', vv ? (Math.round(vv.width) + ' / ' + vv.scale) : '不支持') +
+      row('当前 viewport meta', metaEl.content, 'ua') +
+      row('userAgent', navigator.userAgent, 'ua');
+  }
+
+  document.getElementById('run').onclick = function () {
+    var before = window.innerWidth;
+    // 故意不带 initial-scale，让浏览器自己缩放适配
+    metaEl.content = 'width=1280';
+    setTimeout(function () {
+      var after = window.innerWidth;
+      render();
+      if (after === before) {
+        verdictEl.innerHTML = '<span class="bad">✗ viewport meta 无效</span><br>' +
+          '宽度仍为 ' + after + '，浏览器忽略了 meta 标签（桌面模式 Chromium）。';
+      } else {
+        verdictEl.innerHTML = '<span class="ok">✓ viewport meta 生效</span><br>' +
+          before + ' → ' + after + '。页面现在按 1280 布局，' +
+          '请看下面的内容是否<b>完整缩小</b>装进屏幕（而不是被切掉右边）。';
+      }
+    }, 400);
+  };
+
+  document.getElementById('reset').onclick = function () {
+    metaEl.content = ORIGINAL_META;
+    setTimeout(function () { render(); verdictEl.textContent = '已恢复'; }, 400);
+  };
+
+  render();
+  window.addEventListener('resize', render);
+})();
+</script>
+</body>
+</html>

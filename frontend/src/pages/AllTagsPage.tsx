@@ -28,6 +28,7 @@ import { useVideoFiltering } from '../hooks/useVideoFiltering';
 import { useVideoSort } from '../hooks/useVideoSort';
 import { lazyWithRetry } from '../utils/lazyWithRetry';
 import { sortTagsByUsage } from '../utils/tagUtils';
+import { viewportHeight } from '../utils/viewportUnits';
 
 const ALL_TAGS_SORT_STORAGE_SLOT = 'allTagsSortOption';
 
@@ -117,7 +118,7 @@ const AllTagsPage: React.FC = () => {
 
     if (!settingsLoaded || (loading && videoArray.length === 0)) {
         return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: viewportHeight(50) }}>
                 <CircularProgress />
             </Box>
         );

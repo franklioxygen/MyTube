@@ -27,6 +27,7 @@ import { api, ensureCsrfToken, getErrorMessage, getWaitTime, isAuthError, isRate
 import { createTranslateOrFallback } from '../utils/translateOrFallback';
 import { getWebAuthnErrorTranslationKey } from '../utils/translations';
 import GesturePattern from '../components/Auth/GesturePattern';
+import { viewportHeight } from '../utils/viewportUnits';
 import {
     GESTURE_LOGIN_STATUS_QUERY_KEY,
     authenticateGestureLogin,
@@ -490,7 +491,7 @@ const LoginPage: React.FC = () => {
     return (
         <Box
             sx={{
-                minHeight: '100vh',
+                minHeight: viewportHeight(),
                 display: 'flex',
                 flexDirection: 'column',
                 bgcolor: 'background.default',
