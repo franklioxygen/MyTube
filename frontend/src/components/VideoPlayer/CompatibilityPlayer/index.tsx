@@ -20,7 +20,7 @@ import {
 import FullscreenControl from '../VideoControls/FullscreenControl';
 import ProgressBar from '../VideoControls/ProgressBar';
 import SeekButton from '../VideoControls/SeekButton';
-import { cancelAutomotiveZoom, viewportHeight } from '../../../utils/viewportUnits';
+import { viewportHeight, viewportWidth } from '../../../utils/viewportUnits';
 import {
     getMissingCompatibilityModeApis,
     isCompatibilityModeSupported,
@@ -528,13 +528,17 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                 boxShadow: 4,
                 position: 'relative',
                 ...(isFullscreen && {
-                    // Cancelling the zoom here restores the viewport's coordinate
-                    // system, which the menus portalled into this element by
-                    // SpeedControl and SubtitleControl are positioned in. Plain
-                    // viewport units are therefore correct inside it.
-                    zoom: cancelAutomotiveZoom,
-                    width: '100vw',
-                    height: '100vh',
+                    // Deliberately keeps the in-car zoom, unlike the standard
+                    // player's fullscreen container. This one renders only
+                    // FullscreenControl, ProgressBar and SeekButton - nothing
+                    // that portals a menu into the fullscreen element - so
+                    // there are no coordinates to realign, and cancelling the
+                    // zoom would only inflate its px-sized controls by 1/zoom
+                    // and drop its layout width from the compensated desktop
+                    // one to the raw viewport. Revisit if it ever gains a
+                    // control that portals here.
+                    width: viewportWidth(),
+                    height: viewportHeight(),
                     display: 'flex',
                     flexDirection: 'column',
                     borderRadius: 0,
