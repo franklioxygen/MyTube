@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router';
 import { Video } from '../types';
 import { usePaginationKeyboardNavigation } from './usePaginationKeyboardNavigation';
+import { PaginationSwipeHandlers, usePaginationSwipeNavigation } from './usePaginationSwipeNavigation';
 
 interface UseHomePaginationProps {
     sortedVideos: Video[];
@@ -15,6 +16,8 @@ interface UseHomePaginationReturn {
     totalPages: number;
     displayedVideos: Video[];
     handlePageChange: (event: React.ChangeEvent<unknown>, value: number) => void;
+    /** Spread onto the paged surface so touch screens can swipe between pages. */
+    swipeHandlers: PaginationSwipeHandlers;
 }
 
 export const useHomePagination = ({
@@ -100,10 +103,20 @@ export const useHomePagination = ({
         enabled: !infiniteScroll
     });
 
+    // Same paging from a touch screen - in-car displays and tablets have no
+    // arrow keys to reach the keyboard shortcut with.
+    const swipeHandlers = usePaginationSwipeNavigation({
+        page,
+        totalPages,
+        onPageChange: goToPage,
+        enabled: !infiniteScroll
+    });
+
     return {
         page,
         totalPages,
         displayedVideos,
-        handlePageChange
+        handlePageChange,
+        swipeHandlers
     };
 };

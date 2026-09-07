@@ -108,7 +108,7 @@ const AllTagsPage: React.FC = () => {
         },
     });
 
-    const { page, totalPages, displayedVideos, handlePageChange } = useHomePagination({
+    const { page, totalPages, displayedVideos, handlePageChange, swipeHandlers } = useHomePagination({
         sortedVideos,
         itemsPerPage,
         infiniteScroll,
@@ -221,18 +221,21 @@ const AllTagsPage: React.FC = () => {
                 </Typography>
             ) : (
                 <>
-                    <VideoGrid
-                        videos={videoArray}
-                        sortedVideos={sortedVideos}
-                        displayedVideos={displayedVideos}
-                        collections={collections}
-                        viewMode="all-videos"
-                        infiniteScroll={infiniteScroll}
-                        gridProps={gridProps}
-                        onDeleteVideo={deleteVideo}
-                        showTagsOnThumbnail={showTagsOnThumbnail}
-                        onTagToggle={handleTagToggle}
-                    />
+                    {/* Swiping the grid sideways turns the page, as on Home. */}
+                    <Box {...swipeHandlers}>
+                        <VideoGrid
+                            videos={videoArray}
+                            sortedVideos={sortedVideos}
+                            displayedVideos={displayedVideos}
+                            collections={collections}
+                            viewMode="all-videos"
+                            infiniteScroll={infiniteScroll}
+                            gridProps={gridProps}
+                            onDeleteVideo={deleteVideo}
+                            showTagsOnThumbnail={showTagsOnThumbnail}
+                            onTagToggle={handleTagToggle}
+                        />
+                    </Box>
                     {!infiniteScroll && totalPages > 1 && (
                         <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center' }}>
                             <Pagination

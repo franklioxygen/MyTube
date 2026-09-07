@@ -12,6 +12,7 @@ import {
 } from '@mui/material';
 import React, { useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { usePaginationSwipeNavigation } from '../../hooks/usePaginationSwipeNavigation';
 import { useMediaQuery, useTheme } from '@mui/material';
 
 interface Download {
@@ -34,6 +35,8 @@ export function QueueTab({ downloads, onRemove, onClear, removingId = null, clea
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const [page, setPage] = useState(1);
+    const totalPages = Math.ceil(downloads.length / ITEMS_PER_PAGE);
+    const swipeHandlers = usePaginationSwipeNavigation({ page, totalPages, onPageChange: setPage });
 
     return (
         <>
@@ -53,7 +56,7 @@ export function QueueTab({ downloads, onRemove, onClear, removingId = null, clea
                 <Typography color="textSecondary">{t('noQueuedDownloads') || 'No queued downloads'}</Typography>
             ) : (
                 <>
-                    <List>
+                    <List {...swipeHandlers}>
                         {downloads
                             .slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE)
                             .map((download) => (
@@ -82,7 +85,7 @@ export function QueueTab({ downloads, onRemove, onClear, removingId = null, clea
                     {downloads.length > ITEMS_PER_PAGE && (
                         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
                             <Pagination
-                                count={Math.ceil(downloads.length / ITEMS_PER_PAGE)}
+                                count={totalPages}
                                 page={page}
                                 onChange={(_: React.ChangeEvent<unknown>, newPage: number) => setPage(newPage)}
                                 color="primary"

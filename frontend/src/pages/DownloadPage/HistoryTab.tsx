@@ -14,6 +14,7 @@ import React, { useMemo, useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { DownloadHistoryItem, HistoryItem } from './HistoryItem';
 
+import { usePaginationSwipeNavigation } from '../../hooks/usePaginationSwipeNavigation';
 import { useSettings } from '../../hooks/useSettings';
 
 interface HistoryTabProps {
@@ -59,6 +60,9 @@ export function HistoryTab({
         });
     }, [history, filterType]);
 
+    const totalPages = Math.ceil(filteredHistory.length / ITEMS_PER_PAGE);
+    const swipeHandlers = usePaginationSwipeNavigation({ page, totalPages, onPageChange: setPage });
+
     return (
         <>
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2, gap: 2, flexWrap: 'wrap' }}>
@@ -94,7 +98,7 @@ export function HistoryTab({
                 <Typography color="textSecondary">{t('noDownloadHistory') || 'No download history'}</Typography>
             ) : (
                 <>
-                    <List>
+                    <List {...swipeHandlers}>
                         {filteredHistory
                             .slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE)
                             .map((item) => (
@@ -116,7 +120,7 @@ export function HistoryTab({
                     {filteredHistory.length > ITEMS_PER_PAGE && (
                         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
                             <Pagination
-                                count={Math.ceil(filteredHistory.length / ITEMS_PER_PAGE)}
+                                count={totalPages}
                                 page={page}
                                 onChange={(_: React.ChangeEvent<unknown>, newPage: number) => setPage(newPage)}
                                 color="primary"

@@ -33,13 +33,14 @@ import {
     Typography,
     useMediaQuery
 } from '@mui/material';
-import React, { useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCollection } from '../../contexts/CollectionContext';
 import { useDownload } from '../../contexts/DownloadContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useVideo } from '../../contexts/VideoContext';
+import { usePaginationSwipeNavigation } from '../../hooks/usePaginationSwipeNavigation';
 import { useThumbnailCandidates } from '../../hooks/useThumbnailCandidates';
 import { Video } from '../../types';
 import type { TranslationKey } from '../../utils/translations';
@@ -137,6 +138,22 @@ const VideosTable: React.FC<VideosTableProps> = ({
     const { activeDownloads, queuedDownloads } = useDownload();
     const isVisitor = userRole === 'visitor';
     const isTouch = useMediaQuery('(hover: none), (pointer: coarse)');
+
+    // Swiping the table sideways turns the page, matching the arrow keys on the
+    // video grids. On a narrow screen the table scrolls horizontally instead and
+    // the hook stands down, so the two gestures never fight.
+    const goToPage = useCallback(
+        (value: number) => onPageChange({} as React.ChangeEvent<unknown>, value),
+        [onPageChange]
+    );
+    const tableContainerRef = useRef<HTMLDivElement>(null);
+    const swipeHandlers = usePaginationSwipeNavigation({
+        page,
+        totalPages,
+        onPageChange: goToPage,
+        keepNativeHorizontalPan: true,
+        surfaceRef: tableContainerRef
+    });
     const getLabel = (key: string, fallback: string) => {
         // key is a known literal here; cast bridges the string param to TranslationKey.
         const translated = t(key as TranslationKey);
@@ -318,7 +335,7 @@ const VideosTable: React.FC<VideosTableProps> = ({
             </Box>
 
             {displayedVideos.length > 0 ? (
-                <TableContainer component={Paper} variant="outlined">
+                <TableContainer component={Paper} variant="outlined" ref={tableContainerRef} {...swipeHandlers}>
                     <Table>
                         <TableHead>
                             <TableRow>
