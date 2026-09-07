@@ -145,7 +145,8 @@ const Home: React.FC<HomeProps> = ({ initialViewMode }) => {
         page,
         totalPages,
         displayedVideos,
-        handlePageChange
+        handlePageChange,
+        swipeHandlers
     } = useHomePagination({
         sortedVideos,
         itemsPerPage,
@@ -269,7 +270,9 @@ const Home: React.FC<HomeProps> = ({ initialViewMode }) => {
                                 </Typography>
                             </Box>
                         ) : (
-                            <Box ref={videoGridRef}>
+                            // Swiping the grid sideways turns the page, so a
+                            // touch-only screen can page without the arrow keys.
+                            <Box ref={videoGridRef} {...swipeHandlers}>
                                 <VideoGrid
                                     videos={videoArray}
                                     sortedVideos={sortedVideos}

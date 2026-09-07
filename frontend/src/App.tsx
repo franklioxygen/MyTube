@@ -18,6 +18,7 @@ import { VideoProvider, useVideo } from './contexts/VideoContext';
 import { useSettings } from './hooks/useSettings';
 import { defaultQueryConfig } from './utils/queryConfig';
 import { lazyWithRetry } from './utils/lazyWithRetry';
+import { viewportHeight } from './utils/viewportUnits';
 
 const BilibiliPartsModal = lazyWithRetry(
     () => import('./components/BilibiliPartsModal'),
@@ -96,7 +97,7 @@ function AppContent() {
                             display: 'flex',
                             justifyContent: 'center',
                             alignItems: 'center',
-                            minHeight: '100vh',
+                            minHeight: viewportHeight(),
                             bgcolor: 'background.default'
                         }}
                     >
@@ -109,7 +110,7 @@ function AppContent() {
                                 display: 'flex',
                                 justifyContent: 'center',
                                 alignItems: 'center',
-                                minHeight: '100vh',
+                                minHeight: viewportHeight(),
                                 bgcolor: 'background.default'
                             }}
                         >
@@ -124,7 +125,7 @@ function AppContent() {
                     <ScrollToTop />
                     <PageTagFilterProvider>
                         <HomeViewModeRequestProvider>
-                            <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+                            <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: viewportHeight() }}>
                                 <Header
                                     onSearch={handleSearch}
                                     onSubmit={handleVideoSubmit}
@@ -155,7 +156,7 @@ function AppContent() {
 
                                 <Box component="main" sx={{ flexGrow: 1, p: 0, width: '100%', overflowX: 'clip' }}>
                                     <Suspense fallback={
-                                        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+                                        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: viewportHeight() }}>
                                             <CircularProgress />
                                         </Box>
                                     }>

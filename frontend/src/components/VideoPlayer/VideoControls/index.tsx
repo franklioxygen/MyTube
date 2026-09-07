@@ -17,6 +17,7 @@ import { useVideoLoading } from './hooks/useVideoLoading';
 import { useVideoPlayer } from './hooks/useVideoPlayer';
 import { useVolume } from './hooks/useVolume';
 import VideoElement from './VideoElement';
+import { viewportHeight, viewportWidth } from '../../../utils/viewportUnits';
 
 interface VideoControlsProps {
     src: string;
@@ -327,8 +328,8 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                 boxShadow: 4,
                 position: 'relative',
                 ...(isFullscreen && {
-                    width: '100vw',
-                    height: '100vh',
+                    width: viewportWidth(),
+                    height: viewportHeight(),
                     display: 'flex',
                     flexDirection: 'column',
                     borderRadius: 0

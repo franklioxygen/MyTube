@@ -20,11 +20,12 @@ import {
     Typography,
     useMediaQuery
 } from '@mui/material';
-import React, { useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { Link as RouterLink } from 'react-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useSnackbar } from '../../contexts/SnackbarContext';
+import { usePaginationSwipeNavigation } from '../../hooks/usePaginationSwipeNavigation';
 import { Collection } from '../../types';
 import { formatDisplayDate } from '../../utils/formatUtils';
 
@@ -68,6 +69,21 @@ const CollectionsTable: React.FC<CollectionsTableProps> = ({
     const { showSnackbar } = useSnackbar();
     const isVisitor = userRole === 'visitor';
     const isTouch = useMediaQuery('(hover: none), (pointer: coarse)');
+
+    // Same swipe-to-page as the videos table; it stands down while the table is
+    // wide enough to scroll sideways on its own.
+    const goToPage = useCallback(
+        (value: number) => onPageChange({} as React.ChangeEvent<unknown>, value),
+        [onPageChange]
+    );
+    const tableContainerRef = useRef<HTMLDivElement>(null);
+    const swipeHandlers = usePaginationSwipeNavigation({
+        page,
+        totalPages,
+        onPageChange: goToPage,
+        keepNativeHorizontalPan: true,
+        surfaceRef: tableContainerRef
+    });
 
     // Edit state
     const [editingCollectionId, setEditingCollectionId] = useState<string | null>(null);
@@ -172,7 +188,7 @@ const CollectionsTable: React.FC<CollectionsTableProps> = ({
             </Box>
 
             {totalCollectionsCount > 0 ? (
-                <TableContainer component={Paper} variant="outlined">
+                <TableContainer component={Paper} variant="outlined" ref={tableContainerRef} {...swipeHandlers}>
                     <Table>
                         <TableHead>
                             <TableRow>

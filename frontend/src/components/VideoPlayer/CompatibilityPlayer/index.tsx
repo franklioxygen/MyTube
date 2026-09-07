@@ -20,6 +20,7 @@ import {
 import FullscreenControl from '../VideoControls/FullscreenControl';
 import ProgressBar from '../VideoControls/ProgressBar';
 import SeekButton from '../VideoControls/SeekButton';
+import { viewportHeight, viewportWidth } from '../../../utils/viewportUnits';
 import {
     getMissingCompatibilityModeApis,
     isCompatibilityModeSupported,
@@ -527,8 +528,8 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                 boxShadow: 4,
                 position: 'relative',
                 ...(isFullscreen && {
-                    width: '100vw',
-                    height: '100vh',
+                    width: viewportWidth(),
+                    height: viewportHeight(),
                     display: 'flex',
                     flexDirection: 'column',
                     borderRadius: 0,
@@ -549,7 +550,7 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                         ? { flex: 1, minHeight: 0 }
                         : {
                               aspectRatio: snapshot.aspectRatio ?? DEFAULT_ASPECT_RATIO,
-                              maxHeight: 'calc(100vh - 180px)',
+                              maxHeight: `calc(${viewportHeight()} - 180px)`,
                           }),
                     // The poster covers the wait for the first frame, and only
                     // that: the canvas sits on top of it but is transparent

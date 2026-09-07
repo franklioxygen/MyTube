@@ -8,6 +8,7 @@ import { useCloudStorageUrl } from '../hooks/useCloudStorageUrl';
 import { brand, modeColors } from '../theme/colors';
 import { Video } from '../types';
 import { authorAvatarFallbackSx } from '../utils/authorAvatarStyles';
+import { viewportHeight } from '../utils/viewportUnits';
 
 interface AuthorSummary {
     author: string;
@@ -104,7 +105,7 @@ const AllAuthorsPage: React.FC = () => {
 
     if (loading) {
         return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: viewportHeight(50) }}>
                 <CircularProgress />
             </Box>
         );

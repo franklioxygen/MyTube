@@ -4,11 +4,46 @@ import {
   shadow,
   type ThemeMode,
 } from "./theme/colors";
+import { createBreakpoints } from "@mui/system";
+import type { AutomotiveBreakpointValues } from "./utils/automotiveDesktopLayout";
 
-const getTheme = (mode: ThemeMode) => {
+/**
+ * In-car displays render inside a zoomed root, so their layout box is wider
+ * than the viewport the media queries see. `breakpoints.values` cannot simply
+ * be scaled to bridge that, because MUI reads it two different ways: as
+ * media-query thresholds, which must follow the viewport, and as raw pixel
+ * widths for `Container` and `Dialog`, which must follow the layout box.
+ * Scaling both caps a maxWidth="lg" page at the car's 772px while its root has
+ * ~1200 layout pixels to fill, wasting a third of the screen.
+ *
+ * So `values` keeps the stock numbers and only the query builders are swapped.
+ * Every component asks for its media queries through up/down/between, and for
+ * its pixel widths through values, which splits the two cleanly - no
+ * per-component overrides, and nothing to keep in sync as MUI adds components.
+ */
+const withScaledMediaQueries = <T extends { breakpoints: object }>(
+  theme: T,
+  breakpointValues: AutomotiveBreakpointValues,
+): T => {
+  const scaled = createBreakpoints({ values: breakpointValues });
+
+  return {
+    ...theme,
+    breakpoints: {
+      ...theme.breakpoints,
+      up: scaled.up,
+      down: scaled.down,
+      between: scaled.between,
+      only: scaled.only,
+      not: scaled.not,
+    },
+  };
+};
+
+const getTheme = (mode: ThemeMode, breakpointValues?: AutomotiveBreakpointValues) => {
   const colors = modeColors(mode);
 
-  return createTheme({
+  const theme = createTheme({
     palette: {
       mode,
       primary: {
@@ -118,6 +153,8 @@ const getTheme = (mode: ThemeMode) => {
       },
     },
   });
+
+  return breakpointValues ? withScaledMediaQueries(theme, breakpointValues) : theme;
 };
 
 export default getTheme;

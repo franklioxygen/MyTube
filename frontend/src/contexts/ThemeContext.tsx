@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { CssBaseline, GlobalStyles, ThemeProvider as MuiThemeProvider, PaletteMode, useMediaQuery } from '@mui/material';
 import React, { createContext, useCallback, useContext, useEffect, useEffectEvent, useMemo, useState } from 'react';
 import getTheme from '../theme';
+import { useAutomotiveDesktopLayout } from '../hooks/useAutomotiveDesktopLayout';
 import { applyThemeCssVariables } from '../theme/cssVariables';
 import { api } from '../utils/apiClient';
 import { authSettingsQueryOptions, fetchReadableSettings } from '../utils/settingsQueries';
@@ -138,7 +139,11 @@ export const ThemeContextProvider: React.FC<{ children: React.ReactNode }> = ({ 
         setPreference(mode === 'light' ? 'dark' : 'light');
     }, [setPreference, mode]);
 
-    const theme = useMemo(() => getTheme(mode), [mode]);
+    const automotiveLayout = useAutomotiveDesktopLayout();
+    const theme = useMemo(
+        () => getTheme(mode, automotiveLayout?.breakpoints),
+        [mode, automotiveLayout]
+    );
 
     const contextValue = useMemo<ThemeContextType>(() => ({
         mode, preference, setPreference, toggleTheme,

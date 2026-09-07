@@ -146,3 +146,116 @@ describe('useHomePagination', () => {
         expect(mockSetSearchParams).not.toHaveBeenCalled();
     });
 });
+
+type SwipeHandlers = ReturnType<typeof useHomePagination>['swipeHandlers'];
+
+// The hook reads the touch points plus the element the gesture started on, so
+// a swipe needs a real (if bare) node pair to walk up from.
+function swipeTarget() {
+    const root = document.createElement('div');
+    const child = document.createElement('div');
+    root.appendChild(child);
+    return { currentTarget: root, target: child };
+}
+
+function swipe(
+    handlers: SwipeHandlers,
+    from: { x: number; y: number },
+    to: { x: number; y: number }
+) {
+    act(() => {
+        handlers.onTouchStart?.({
+            ...swipeTarget(),
+            touches: [{ clientX: from.x, clientY: from.y }]
+        } as any);
+        handlers.onTouchEnd?.({ changedTouches: [{ clientX: to.x, clientY: to.y }] } as any);
+    });
+}
+
+describe('useHomePagination swipe navigation', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockSearchParams.delete('page');
+        global.window.scrollTo = vi.fn();
+    });
+
+    it('goes to the next page on a left swipe', () => {
+        mockSearchParams.set('page', '1');
+        const { result } = setupHook();
+        swipe(result.current.swipeHandlers, { x: 300, y: 100 }, { x: 200, y: 108 });
+        expect(mockSetSearchParams).toHaveBeenCalled();
+        const newParams = mockSetSearchParams.mock.calls[0][0](new URLSearchParams('page=1'));
+        expect(newParams.get('page')).toBe('2');
+        expect(window.scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'smooth' });
+    });
+
+    it('goes to the previous page on a right swipe', () => {
+        mockSearchParams.set('page', '2');
+        const { result } = setupHook();
+        swipe(result.current.swipeHandlers, { x: 200, y: 100 }, { x: 300, y: 108 });
+        expect(mockSetSearchParams).toHaveBeenCalled();
+        const newParams = mockSetSearchParams.mock.calls[0][0](new URLSearchParams('page=2'));
+        expect(newParams.get('page')).toBe('1');
+    });
+
+    it('leaves a mostly vertical drag to the scroller', () => {
+        mockSearchParams.set('page', '1');
+        const { result } = setupHook();
+        swipe(result.current.swipeHandlers, { x: 300, y: 100 }, { x: 200, y: 400 });
+        expect(mockSetSearchParams).not.toHaveBeenCalled();
+    });
+
+    it('ignores a drag shorter than the swipe threshold', () => {
+        mockSearchParams.set('page', '1');
+        const { result } = setupHook();
+        swipe(result.current.swipeHandlers, { x: 300, y: 100 }, { x: 260, y: 100 });
+        expect(mockSetSearchParams).not.toHaveBeenCalled();
+    });
+
+    it('ignores a two-finger gesture so pinch-zoom still works', () => {
+        mockSearchParams.set('page', '1');
+        const { result } = setupHook();
+        act(() => {
+            result.current.swipeHandlers.onTouchStart?.({
+                ...swipeTarget(),
+                touches: [{ clientX: 300, clientY: 100 }, { clientX: 340, clientY: 100 }]
+            } as any);
+            result.current.swipeHandlers.onTouchEnd?.({
+                changedTouches: [{ clientX: 200, clientY: 100 }]
+            } as any);
+        });
+        expect(mockSetSearchParams).not.toHaveBeenCalled();
+    });
+
+    it('does not swipe past the last page', () => {
+        mockSearchParams.set('page', '3');
+        const { result } = setupHook();
+        swipe(result.current.swipeHandlers, { x: 300, y: 100 }, { x: 200, y: 100 });
+        expect(mockSetSearchParams).not.toHaveBeenCalled();
+    });
+
+    it('swallows only the synthetic click that follows a swipe', () => {
+        mockSearchParams.set('page', '1');
+        const { result } = setupHook();
+        swipe(result.current.swipeHandlers, { x: 300, y: 100 }, { x: 200, y: 100 });
+
+        const swipeClick = { preventDefault: vi.fn(), stopPropagation: vi.fn() };
+        act(() => { result.current.swipeHandlers.onClickCapture?.(swipeClick as any); });
+        expect(swipeClick.preventDefault).toHaveBeenCalled();
+
+        // The next tap is the viewer opening a video, and has to get through.
+        const realTap = { preventDefault: vi.fn(), stopPropagation: vi.fn() };
+        act(() => { result.current.swipeHandlers.onClickCapture?.(realTap as any); });
+        expect(realTap.preventDefault).not.toHaveBeenCalled();
+    });
+
+    it('offers no swipe handlers when infiniteScroll is enabled', () => {
+        const { result } = setupHook({ infiniteScroll: true });
+        expect(result.current.swipeHandlers.onTouchStart).toBeUndefined();
+    });
+
+    it('offers no swipe handlers when there is only one page', () => {
+        const { result } = setupHook({ videos: mockVideos.slice(0, 5) });
+        expect(result.current.swipeHandlers.onTouchStart).toBeUndefined();
+    });
+});

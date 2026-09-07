@@ -25,6 +25,7 @@ import { usePageTagFilter } from '../contexts/PageTagFilterContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import { useVideo } from '../contexts/VideoContext';
 import { usePaginationKeyboardNavigation } from '../hooks/usePaginationKeyboardNavigation';
+import { usePaginationSwipeNavigation } from '../hooks/usePaginationSwipeNavigation';
 import { useSettings } from '../hooks/useSettings';
 import { useVideoSort } from '../hooks/useVideoSort';
 import { useFavoriteCollections } from '../hooks/useFavoriteCollections';
@@ -149,6 +150,9 @@ const CollectionPage: React.FC = () => {
 
     // Arrow keys page through the grid here exactly as they do on Home.
     usePaginationKeyboardNavigation({ page, totalPages, onPageChange: goToPage });
+
+    // ...and so do horizontal swipes, for screens with no keyboard.
+    const swipeHandlers = usePaginationSwipeNavigation({ page, totalPages, onPageChange: goToPage });
 
     const handleCloseDeleteModal = () => {
         setShowDeleteModal(false);
@@ -347,7 +351,7 @@ const CollectionPage: React.FC = () => {
                         </Alert>
                     ) : (
                         <Box>
-                            <Grid container spacing={3}>
+                            <Grid container spacing={3} {...swipeHandlers}>
                                 {displayedVideos.map(video => (
                                     <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={video.id}>
                                         <VideoCard

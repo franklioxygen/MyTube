@@ -95,3 +95,14 @@ Object.defineProperty(window, 'scrollTo', {
   writable: true,
   value: vi.fn(),
 });
+
+// jsdom has no ResizeObserver. A no-op stand-in is enough: the code under test
+// measures once on mount, and tests that need a re-measure dispatch it directly.
+if (typeof globalThis.ResizeObserver === 'undefined') {
+  globalThis.ResizeObserver = class {
+    observe() { /* no-op */ }
+    unobserve() { /* no-op */ }
+    disconnect() { /* no-op */ }
+  } as unknown as typeof ResizeObserver;
+}
+

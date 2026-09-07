@@ -28,6 +28,7 @@ import { useVideoFiltering } from '../hooks/useVideoFiltering';
 import { useVideoSort } from '../hooks/useVideoSort';
 import { lazyWithRetry } from '../utils/lazyWithRetry';
 import { sortTagsByUsage } from '../utils/tagUtils';
+import { viewportHeight } from '../utils/viewportUnits';
 
 const ALL_TAGS_SORT_STORAGE_SLOT = 'allTagsSortOption';
 
@@ -108,7 +109,7 @@ const AllTagsPage: React.FC = () => {
         },
     });
 
-    const { page, totalPages, displayedVideos, handlePageChange } = useHomePagination({
+    const { page, totalPages, displayedVideos, handlePageChange, swipeHandlers } = useHomePagination({
         sortedVideos,
         itemsPerPage,
         infiniteScroll,
@@ -117,7 +118,7 @@ const AllTagsPage: React.FC = () => {
 
     if (!settingsLoaded || (loading && videoArray.length === 0)) {
         return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: viewportHeight(50) }}>
                 <CircularProgress />
             </Box>
         );
@@ -221,18 +222,21 @@ const AllTagsPage: React.FC = () => {
                 </Typography>
             ) : (
                 <>
-                    <VideoGrid
-                        videos={videoArray}
-                        sortedVideos={sortedVideos}
-                        displayedVideos={displayedVideos}
-                        collections={collections}
-                        viewMode="all-videos"
-                        infiniteScroll={infiniteScroll}
-                        gridProps={gridProps}
-                        onDeleteVideo={deleteVideo}
-                        showTagsOnThumbnail={showTagsOnThumbnail}
-                        onTagToggle={handleTagToggle}
-                    />
+                    {/* Swiping the grid sideways turns the page, as on Home. */}
+                    <Box {...swipeHandlers}>
+                        <VideoGrid
+                            videos={videoArray}
+                            sortedVideos={sortedVideos}
+                            displayedVideos={displayedVideos}
+                            collections={collections}
+                            viewMode="all-videos"
+                            infiniteScroll={infiniteScroll}
+                            gridProps={gridProps}
+                            onDeleteVideo={deleteVideo}
+                            showTagsOnThumbnail={showTagsOnThumbnail}
+                            onTagToggle={handleTagToggle}
+                        />
+                    </Box>
                     {!infiniteScroll && totalPages > 1 && (
                         <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center' }}>
                             <Pagination

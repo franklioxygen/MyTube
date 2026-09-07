@@ -22,6 +22,7 @@ import { useVideo } from '../contexts/VideoContext';
 import { neutral, overlay, platform } from '../theme/colors';
 import { formatDuration } from '../utils/formatUtils';
 import { THUMBNAIL_PLACEHOLDER_SRC, setThumbnailPlaceholder } from '../utils/thumbnailPlaceholder';
+import { viewportHeight } from '../utils/viewportUnits';
 
 const SearchResults: React.FC = () => {
     const { t } = useLanguage();
@@ -77,7 +78,7 @@ const SearchResults: React.FC = () => {
     // If the entire page is loading
     if (loading) {
         return (
-            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '50vh' }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: viewportHeight(50) }}>
                 <Typography variant="h5" gutterBottom>Searching for "{searchTerm}"...</Typography>
                 <CircularProgress />
             </Box>

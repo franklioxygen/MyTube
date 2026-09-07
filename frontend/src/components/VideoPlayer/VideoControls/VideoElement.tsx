@@ -7,6 +7,7 @@ import { getBackendUrl } from '../../../utils/apiUrl';
 import { getSubtitleLanguageLabel, getSubtitleTrackLanguage } from '../../../utils/formatUtils';
 import { getMediaCrossOriginAttr } from '../../../utils/mediaOrigin';
 import { computePreloadStrategy } from '../../../utils/preloadStrategy';
+import { viewportHeight } from '../../../utils/viewportUnits';
 
 interface VideoElementProps {
     videoRef: React.RefObject<HTMLVideoElement | null>;
@@ -103,7 +104,7 @@ const VideoElement: React.FC<VideoElementProps> = ({
                           minHeight: 0
                       }
                     : {
-                          maxHeight: 'calc(100vh - 180px)',
+                          maxHeight: `calc(${viewportHeight()} - 180px)`,
                           width: '100%',
                           aspectRatio: {
                               xs: mobileAspectRatio,

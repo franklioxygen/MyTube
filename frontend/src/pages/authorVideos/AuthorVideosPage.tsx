@@ -18,6 +18,7 @@ import AuthorVideosHeader from './AuthorVideosHeader';
 import { useAuthorTagFilter } from './useAuthorTagFilter';
 import { useAuthorVideoActions } from './useAuthorVideoActions';
 import { getAuthorVideos, getVideoCountLabel } from './utils';
+import { viewportHeight } from '../../utils/viewportUnits';
 
 const AuthorVideosPage: React.FC = () => {
     const { t } = useLanguage();
@@ -106,7 +107,7 @@ const AuthorVideosPage: React.FC = () => {
 
     if (loading) {
         return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: viewportHeight(50) }}>
                 <CircularProgress />
             </Box>
         );

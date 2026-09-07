@@ -3,6 +3,7 @@ import React from 'react';
 import { overlay } from '../theme/colors';
 import { useLanguage } from '../contexts/LanguageContext';
 import TagsList from './TagsList';
+import { viewportHeight } from '../utils/viewportUnits';
 
 interface TagsSidebarProps {
     isSidebarOpen: boolean;
@@ -37,7 +38,7 @@ export const TagsSidebar: React.FC<TagsSidebarProps> = ({
                         <Box sx={{
                             position: 'sticky',
                             maxHeight: 'calc(100% - 80px)',
-                            minHeight: 'calc(100vh - 80px)',
+                            minHeight: `calc(${viewportHeight()} - 80px)`,
                             overflowY: 'auto',
                             '&::-webkit-scrollbar': {
                                 width: '6px',

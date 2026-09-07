@@ -9,6 +9,7 @@ import AuthorsList from '../AuthorsList';
 import Collections from '../Collections';
 import TagsList from '../TagsList';
 import SearchInput from './SearchInput';
+import { viewportHeight } from '../../utils/viewportUnits';
 
 interface MobileMenuProps {
     open: boolean;
@@ -67,7 +68,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
 
     return (
         <Collapse in={open} sx={{ width: '100%' }}>
-            <Box sx={{ maxHeight: '80vh', overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch' }}>
+            <Box sx={{ maxHeight: viewportHeight(80), overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch' }}>
                 <Stack spacing={2} sx={{ py: 2 }}>
                     {/* Row 1: Search Input */}
                     <Box>
