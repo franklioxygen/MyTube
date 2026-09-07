@@ -22,6 +22,7 @@ import {
 import type { Video } from "../storageService/types";
 import { applyDedupeToRelatedPaths } from "./dedupe";
 import { canonicalizeManagedPath } from "./pathHelpers";
+import { trimRelativePathStemForSuffix } from "./sanitize";
 
 export type MediaIdentity = {
   platform: string;
@@ -458,14 +459,43 @@ function createCandidate(
   thumbnailRelativePath: string;
   subtitleBaseRelativePath: string;
 } {
-  const videoRelativePath = suffix
-    ? appendSuffixToRelativePath(preferredVideo, suffix)
-    : preferredVideo;
-  const related = applyDedupeToRelatedPaths(
+  if (!suffix) {
+    return {
+      videoRelativePath: preferredVideo,
+      thumbnailRelativePath: preferredThumbnail,
+      subtitleBaseRelativePath: preferredSubtitleBase,
+    };
+  }
+
+  // Names arrive here already at the sanitizer's cap, so a suffix can push the
+  // filename past NAME_MAX. The stem gives way instead - and every member of
+  // the family is trimmed against the same budget, so they keep the common stem
+  // that subtitle discovery and applyDedupeToRelatedPaths' append-diff below
+  // both depend on. The extension-less subtitle base is passed the video's
+  // extension for exactly that reason.
+  const extension = path.extname(preferredVideo);
+  const fittedVideo = trimRelativePathStemForSuffix(
     preferredVideo,
-    videoRelativePath,
+    suffix,
+    extension
+  );
+  const fittedThumbnail = trimRelativePathStemForSuffix(
     preferredThumbnail,
-    preferredSubtitleBase
+    suffix,
+    extension
+  );
+  const fittedSubtitleBase = trimRelativePathStemForSuffix(
+    preferredSubtitleBase,
+    suffix,
+    extension
+  );
+
+  const videoRelativePath = appendSuffixToRelativePath(fittedVideo, suffix);
+  const related = applyDedupeToRelatedPaths(
+    fittedVideo,
+    videoRelativePath,
+    fittedThumbnail,
+    fittedSubtitleBase
   );
   return {
     videoRelativePath,
@@ -1440,9 +1470,20 @@ export function replaceOwnedFileWithBackupSync(
     return;
   }
 
-  const backupPath = `${normalizeSafeAbsolutePath(
-    destinationPath
-  )}${REPLACEMENT_BACKUP_SUFFIX}-${crypto.randomUUID()}`;
+  // Built as a fixed-length sibling rather than `${destinationPath}-<uuid>`:
+  // the suffix plus a UUID adds 59 bytes, and destination names already sit at
+  // the sanitizer's own cap (180 bytes for templates, 200 for the legacy
+  // formatter, plus any collision suffix), so deriving the backup name from the
+  // destination pushed past the 255-byte NAME_MAX and failed the rename below
+  // with ENAMETOOLONG - after the replacement file had already been downloaded.
+  // Same shape as the redownload staging name above, and the journal records
+  // destinationPath alongside backupPath for anything stranded by a crash.
+  const backupPath = resolveSafeChildPath(
+    path.dirname(normalizeSafeAbsolutePath(destinationPath)),
+    `${REPLACEMENT_BACKUP_SUFFIX}-${crypto.randomUUID()}${path.extname(
+      destinationPath
+    )}`
+  );
   const allocationId = crypto.randomUUID();
   ensureDirSafeSync(path.dirname(destinationPath), destinationRoots);
   const staging = prepareDestinationStagingFileSync(

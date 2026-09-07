@@ -1,5 +1,24 @@
 const SEGMENT_MAX_BYTES = 180;
 const PATH_MAX_BYTES = 240;
+/**
+ * Ceiling for a single on-disk filename, in UTF-8 bytes: NAME_MAX on ext4, and
+ * the point past which a name cannot be created at all.
+ *
+ * Deliberately the hard limit rather than something lower with headroom. This
+ * budget only ever shortens a name, so anything below 255 would also shorten
+ * names in that gap - names that already exist on disk, since they were
+ * creatable. A redownload would then compute a path the existing file does not
+ * have, orphan it, and write a duplicate alongside. Trimming only above 255
+ * touches names that could never have been written in the first place.
+ *
+ * Distinct from SEGMENT_MAX_BYTES, which is the budget the renderer gives a
+ * name it is composing. This one is the limit a name must still respect after
+ * a later stage appends to it. It leaves no room for the ".part" yt-dlp adds
+ * while downloading to a final name, which is a separate pre-existing limit of
+ * the sanitizer's own caps and not something this budget can address without
+ * renaming existing files.
+ */
+const FILENAME_MAX_BYTES = 255;
 const ILLEGAL_CHARS_RE = /[<>:"|?*\x00]/g;
 const TRAILING_DOTS_SPACES_RE = /[. ]+$/;
 const REPEATED_WHITESPACE_RE = /\s+/g;
@@ -220,4 +239,46 @@ export function enforcePathLengthLimit(
     .trim();
   const truncatedLast = `${truncatedStem || "x"}${ext}`;
   return [...workingSegments.slice(0, -1), truncatedLast];
+}
+
+/**
+ * Trims the stem of `relativePath`'s final segment so that a filename built as
+ * `stem + suffix + extension` stays within FILENAME_MAX_BYTES. Directories and
+ * the path's own extension are left untouched, and a path that already fits is
+ * returned unchanged. The caller appends `suffix` itself.
+ *
+ * The stem is what gives way rather than the suffix: callers append a suffix to
+ * make a colliding name unique, so trimming the suffix would hand back a name
+ * that collides all over again.
+ *
+ * `extension` is passed in rather than read from `relativePath` so that the
+ * members of one output family - video, thumbnail, and the extension-less
+ * subtitle base - can be trimmed to a single shared budget and keep a common
+ * stem.
+ */
+export function trimRelativePathStemForSuffix(
+  relativePath: string,
+  suffix: string,
+  extension: string
+): string {
+  const maxStemBytes =
+    FILENAME_MAX_BYTES - byteLength(suffix) - byteLength(extension);
+  if (maxStemBytes <= 0) {
+    return relativePath;
+  }
+
+  const slashIdx = relativePath.lastIndexOf("/");
+  const dir = relativePath.slice(0, slashIdx + 1);
+  const filename = relativePath.slice(slashIdx + 1);
+  const dotIdx = filename.lastIndexOf(".");
+  const stem = dotIdx > 0 ? filename.slice(0, dotIdx) : filename;
+  const ownExtension = dotIdx > 0 ? filename.slice(dotIdx) : "";
+  if (byteLength(stem) <= maxStemBytes) {
+    return relativePath;
+  }
+
+  const trimmedStem = truncateToByteLength(stem, maxStemBytes)
+    .replace(TRAILING_DOTS_SPACES_RE, "")
+    .trim();
+  return `${dir}${trimmedStem || "x"}${ownExtension}`;
 }

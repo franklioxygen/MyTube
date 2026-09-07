@@ -1118,4 +1118,144 @@ describe("outputPathAllocator", () => {
     first.release();
     second.release();
   });
+
+  it("keeps the replacement backup name inside NAME_MAX for a long destination", async () => {
+    const root = makeTempRoot();
+    // A CJK title truncated at the legacy formatter's own 200-byte cap, plus
+    // the allocator's source-id collision suffix. At 231 bytes the destination
+    // itself is fine, but ".mytube-replace-backup-<uuid>" adds 59 more, and a
+    // backup name derived from the destination used to reach 290 - past the
+    // 255-byte NAME_MAX of ext4, where the container runs. The assertion is on
+    // the name rather than on a thrown error because APFS counts characters
+    // instead of bytes, so the over-long name is accepted on macOS.
+    const legacyBase = `${"\u6f22".repeat(66)}ab`;
+    const filename = `${legacyBase} [sone-192-uncensored-leak].mp4`;
+    expect(Buffer.byteLength(legacyBase, "utf8")).toBe(200);
+    expect(Buffer.byteLength(filename, "utf8")).toBe(231);
+
+    const destPath = path.join(root, "videos", filename);
+    const sourcePath = path.join(root, "videos", "new-download.mp4");
+    fs.outputFileSync(destPath, "old-video");
+    fs.outputFileSync(sourcePath, "new-video");
+    const allocator = await loadAllocator(root, [
+      {
+        id: "local-1",
+        videoPath: `/videos/${filename}`,
+        thumbnailPath: null,
+        subtitles: [],
+      },
+    ]);
+
+    const renamedTo: string[] = [];
+    const realRenameSync = fs.renameSync;
+    vi.spyOn(fs, "renameSync").mockImplementation(((from: any, to: any) => {
+      renamedTo.push(String(to));
+      return (realRenameSync as any)(from, to);
+    }) as typeof fs.renameSync);
+
+    allocator.replaceOwnedFileWithBackupSync(
+      sourcePath,
+      path.join(root, "videos"),
+      destPath,
+      path.join(root, "videos"),
+      "local-1"
+    );
+
+    const backupTargets = renamedTo.filter((target) =>
+      target.includes("mytube-replace-backup")
+    );
+    expect(backupTargets).toHaveLength(1);
+    for (const target of backupTargets) {
+      expect(Buffer.byteLength(path.basename(target), "utf8")).toBeLessThanOrEqual(255);
+    }
+
+    expect(fs.readFileSync(destPath, "utf8")).toBe("new-video");
+    expect(fs.existsSync(sourcePath)).toBe(false);
+    expect(
+      fs
+        .readdirSync(path.join(root, "videos"))
+        .filter((entry) => entry.includes("mytube-replace-backup"))
+    ).toEqual([]);
+  });
+
+  it("trims the family stem so a collision suffix cannot overflow NAME_MAX", async () => {
+    const root = makeTempRoot();
+    // The legacy formatter's own 200-byte cap, as on the file in issue #446,
+    // plus a source id long enough that the collision suffix would carry the
+    // name to 262 bytes - past the 255 a filename can actually be.
+    const stem = `${"\u6f22".repeat(66)}ab`;
+    const longId = "sone-192-uncensored-leak-4k-remastered-directors-cut-v2";
+    expect(Buffer.byteLength(`${stem} [${longId}].mp4`, "utf8")).toBe(262);
+    const allocator = await loadAllocator(root);
+
+    const first = allocator.allocateOutputFamilySync({
+      videoRelativePath: `${stem}.mp4`,
+      thumbnailRelativePath: `${stem}.jpg`,
+      subtitleBaseRelativePath: stem,
+      thumbnailBaseDir: path.join(root, "images"),
+      identity: { platform: "missav", sourceVideoId: "abc", mediaType: "video" },
+    });
+    const second = allocator.allocateOutputFamilySync({
+      videoRelativePath: `${stem}.mp4`,
+      thumbnailRelativePath: `${stem}.jpg`,
+      subtitleBaseRelativePath: stem,
+      thumbnailBaseDir: path.join(root, "images"),
+      identity: { platform: "missav", sourceVideoId: longId, mediaType: "video" },
+    });
+
+    // The uncontested name is short enough to be left exactly as it came in.
+    expect(first.videoRelativePath).toBe(`${stem}.mp4`);
+    expect(second.collisionStrategy).toBe("source_id");
+    // The suffix is what disambiguates, so it survives whole; the stem gives way.
+    expect(second.videoRelativePath.endsWith(` [${longId}].mp4`)).toBe(true);
+    expect(Buffer.byteLength(second.videoRelativePath, "utf8")).toBeLessThanOrEqual(255);
+
+    // The thumbnail and subtitle base must keep the video's stem: subtitle
+    // discovery matches on it, and a thumbnail that kept the untrimmed stem
+    // would collide with the row this suffix exists to disambiguate from.
+    const secondStem = second.videoRelativePath.replace(/\.mp4$/, "");
+    expect(second.thumbnailRelativePath).toBe(`${secondStem}.jpg`);
+    expect(second.subtitleBaseRelativePath).toBe(secondStem);
+
+    // The trimmed name must still be writable on disk.
+    const written = path.join(root, "videos", second.videoRelativePath);
+    fs.outputFileSync(written, "video");
+    expect(fs.existsSync(written)).toBe(true);
+
+    first.release();
+    second.release();
+  });
+
+  it("leaves a suffixed name that already fits exactly as it is", async () => {
+    const root = makeTempRoot();
+    // 244 bytes with the suffix: under NAME_MAX, so a file this size can and
+    // does exist on disk today. Trimming it would compute a path no existing
+    // file has, orphaning it and writing a duplicate alongside on redownload.
+    const stem = "\u6f22".repeat(78);
+    expect(Buffer.byteLength(`${stem} [def].mp4`, "utf8")).toBe(244);
+    const allocator = await loadAllocator(root);
+
+    const first = allocator.allocateOutputFamilySync({
+      videoRelativePath: `${stem}.mp4`,
+      thumbnailRelativePath: `${stem}.jpg`,
+      subtitleBaseRelativePath: stem,
+      thumbnailBaseDir: path.join(root, "images"),
+      identity: { platform: "youtube", sourceVideoId: "abc", mediaType: "video" },
+    });
+    const second = allocator.allocateOutputFamilySync({
+      videoRelativePath: `${stem}.mp4`,
+      thumbnailRelativePath: `${stem}.jpg`,
+      subtitleBaseRelativePath: stem,
+      thumbnailBaseDir: path.join(root, "images"),
+      identity: { platform: "youtube", sourceVideoId: "def", mediaType: "video" },
+    });
+
+    expect(second.collisionStrategy).toBe("source_id");
+    expect(second.videoRelativePath).toBe(`${stem} [def].mp4`);
+    expect(second.thumbnailRelativePath).toBe(`${stem} [def].jpg`);
+    expect(second.subtitleBaseRelativePath).toBe(`${stem} [def]`);
+
+    first.release();
+    second.release();
+  });
 });
