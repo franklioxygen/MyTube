@@ -528,6 +528,15 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                 boxShadow: 4,
                 position: 'relative',
                 ...(isFullscreen && {
+                    // Deliberately keeps the in-car zoom, unlike the standard
+                    // player's fullscreen container. This one renders only
+                    // FullscreenControl, ProgressBar and SeekButton - nothing
+                    // that portals a menu into the fullscreen element - so
+                    // there are no coordinates to realign, and cancelling the
+                    // zoom would only inflate its px-sized controls by 1/zoom
+                    // and drop its layout width from the compensated desktop
+                    // one to the raw viewport. Revisit if it ever gains a
+                    // control that portals here.
                     width: viewportWidth(),
                     height: viewportHeight(),
                     display: 'flex',

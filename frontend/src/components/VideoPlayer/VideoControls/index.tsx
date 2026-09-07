@@ -17,7 +17,7 @@ import { useVideoLoading } from './hooks/useVideoLoading';
 import { useVideoPlayer } from './hooks/useVideoPlayer';
 import { useVolume } from './hooks/useVolume';
 import VideoElement from './VideoElement';
-import { viewportHeight, viewportWidth } from '../../../utils/viewportUnits';
+import { cancelAutomotiveZoom } from '../../../utils/viewportUnits';
 
 interface VideoControlsProps {
     src: string;
@@ -328,8 +328,23 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                 boxShadow: 4,
                 position: 'relative',
                 ...(isFullscreen && {
-                    width: viewportWidth(),
-                    height: viewportHeight(),
+                    // SpeedControl and SubtitleControl portal their menus into
+                    // this element so they clear the video, and MUI positions
+                    // them from viewport coordinates, which the inherited
+                    // in-car zoom would scale a second time - 157px off the
+                    // button, measured. Cancelling the zoom puts anchor and
+                    // menu back in one coordinate system, which also makes
+                    // plain viewport units the correct ones inside here.
+                    //
+                    // The cost is that px-sized controls render at 1/zoom, i.e.
+                    // their unshrunk size. That is the right trade in
+                    // fullscreen - bigger touch targets, and no desktop layout
+                    // to preserve - but it is why CompatibilityPlayer, which
+                    // portals nothing here, keeps the compensated dimensions
+                    // instead.
+                    zoom: cancelAutomotiveZoom,
+                    width: '100vw',
+                    height: '100vh',
                     display: 'flex',
                     flexDirection: 'column',
                     borderRadius: 0
