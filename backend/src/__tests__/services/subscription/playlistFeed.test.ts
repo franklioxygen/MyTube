@@ -285,7 +285,7 @@ describe("getBilibiliCollectionHeadSnapshot", () => {
     vi.clearAllMocks();
   });
 
-  it("fetches only one Bilibili collection entry for head-only probes", async () => {
+  it("fetches a single newest-first Bilibili page for head-only probes", async () => {
     const { getBilibiliCollectionVideos } = await import(
       "../../../services/downloadService"
     );
@@ -307,7 +307,7 @@ describe("getBilibiliCollectionHeadSnapshot", () => {
     expect(getBilibiliCollectionVideos).toHaveBeenCalledWith(
       12345,
       9988,
-      { pageSize: 1, maxPages: 1 },
+      { maxPages: 1, sortReverse: true },
       undefined
     );
     expect(snap.headVideoUrl).toBe("https://www.bilibili.com/video/BVhead");
@@ -337,7 +337,7 @@ describe("getBilibiliCollectionHeadSnapshot", () => {
     expect(getBilibiliCollectionVideos).toHaveBeenCalledWith(
       12345,
       9988,
-      undefined,
+      { sortReverse: true },
       "--proxy socks5://sub:1080"
     );
   });
@@ -392,7 +392,7 @@ describe("getBilibiliCollectionHeadSnapshot", () => {
     expect(getBilibiliCollectionVideos).toHaveBeenCalledWith(
       12345,
       9988,
-      { pageSize: 1, maxPages: 1 },
+      { maxPages: 1, sortReverse: true },
       "--proxy socks5://sub:1080"
     );
   });
@@ -418,9 +418,34 @@ describe("getBilibiliCollectionHeadSnapshot", () => {
     expect(getBilibiliSeriesVideos).toHaveBeenCalledWith(
       12345,
       9988,
-      undefined,
+      { sortReverse: true },
       undefined
     );
+  });
+
+  it("takes the newest upload as the head, not the collection's first episode", async () => {
+    // A Bilibili collection is ordered by the author, not by upload date, so
+    // taking the first archive pinned the head to episode 1 forever and a
+    // subscription whose cursor already sat there never saw a new video.
+    const { getBilibiliCollectionVideos } = await import(
+      "../../../services/downloadService"
+    );
+    vi.mocked(getBilibiliCollectionVideos).mockResolvedValueOnce({
+      success: true,
+      videos: [
+        { bvid: "BVolder", title: "Appended later", aid: 2, uploadDate: "20260812" },
+        { bvid: "BVnewest", title: "Newest", aid: 3, uploadDate: "20260906" },
+        { bvid: "BVfirst", title: "Episode 1", aid: 1, uploadDate: "20220430" },
+      ],
+    });
+
+    const snap = await getBilibiliCollectionHeadSnapshot(
+      "https://www.bilibili.com/video/BVseed",
+      { type: "collection", mid: 12345, id: 9988 },
+      { headOnly: true }
+    );
+
+    expect(snap.headVideoUrl).toBe("https://www.bilibili.com/video/BVnewest");
   });
 
   it("rejects failed Bilibili collection fetches before seeding a cursor", async () => {

@@ -359,6 +359,25 @@ async function resolveBilibiliCollectionSource(
   return { type: detected.type, mid, id: collectionId };
 }
 
+/**
+ * Pick the genuinely newest archive of a Bilibili collection/series page.
+ *
+ * The API returns the collection in its own episode order, which is neither
+ * upload order nor stable: an author can append an older video, or reorder the
+ * season. Taking `videos[0]` therefore pinned the head to episode 1 forever, so
+ * a subscription whose cursor already sat on episode 1 never saw a new video.
+ * Comparing the YYYYMMDD upload dates is order-independent; ties fall back to
+ * the earliest entry, which is the newest one on a newest-first page.
+ */
+function pickNewestBilibiliVideo<T extends { uploadDate?: string }>(
+  videos: T[]
+): T | undefined {
+  return videos.reduce<T | undefined>((newest, video) => {
+    if (!newest) return video;
+    return (video.uploadDate ?? "") > (newest.uploadDate ?? "") ? video : newest;
+  }, undefined);
+}
+
 export async function getBilibiliCollectionHeadSnapshot(
   playlistUrl: string,
   collectionInfo: BilibiliCollectionInspectionInput,
@@ -379,9 +398,12 @@ export async function getBilibiliCollectionHeadSnapshot(
   const { getBilibiliCollectionVideos, getBilibiliSeriesVideos } = await import(
     "../downloadService"
   );
+  // Newest-first in both modes so the head probe only has to read one page,
+  // and so the baseline captured at subscription-creation time agrees with what
+  // the scheduled poll will observe later.
   const fetchOptions = options?.headOnly
-    ? { pageSize: 1, maxPages: 1 }
-    : undefined;
+    ? { maxPages: 1, sortReverse: true }
+    : { sortReverse: true };
   const videosResult =
     source.type === "collection"
       ? await getBilibiliCollectionVideos(
@@ -404,9 +426,9 @@ export async function getBilibiliCollectionHeadSnapshot(
     );
   }
 
-  const firstVideo = videosResult.videos[0];
-  const headVideoUrl = firstVideo?.bvid
-    ? `https://www.bilibili.com/video/${firstVideo.bvid}`
+  const newestVideo = pickNewestBilibiliVideo(videosResult.videos);
+  const headVideoUrl = newestVideo?.bvid
+    ? `https://www.bilibili.com/video/${newestVideo.bvid}`
     : null;
 
   return {

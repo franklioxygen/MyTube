@@ -533,7 +533,7 @@ describe('SubscriptionService', () => {
       expect(downloadService.getBilibiliCollectionVideos).toHaveBeenCalledWith(
         12345,
         9988,
-        { pageSize: 1, maxPages: 1 },
+        { maxPages: 1, sortReverse: true },
         '--proxy socks5://sub:1080'
       );
       expect(executeYtDlpJson).not.toHaveBeenCalled();
@@ -557,6 +557,56 @@ describe('SubscriptionService', () => {
       expect(storageService.addVideoToCollection).toHaveBeenCalledWith(
         'existing-col',
         'video-new'
+      );
+    });
+
+    it('stamps a resolved Bilibili source onto a collection that has none', async () => {
+      // Subscriptions whose collection predates the source key had to re-derive
+      // it from the seed video on every poll, and that derivation goes through
+      // Bilibili's risk-controlled view endpoint (HTTP 412). Persist what the
+      // poll resolved so the next one addresses the collection directly.
+      const sub = {
+        id: 'bili-unstamped-sub',
+        author: '合集标题 - Bilibili 12345',
+        platform: 'Bilibili',
+        authorUrl: 'https://www.bilibili.com/video/BVseed',
+        lastCheck: 0,
+        interval: 10,
+        lastVideoLink: 'https://www.bilibili.com/video/BVold',
+        subscriptionType: 'playlist',
+        playlistId: '9988',
+        collectionId: 'legacy-col',
+      };
+
+      mockBuilder.then = (cb: any) => Promise.resolve([sub]).then(cb);
+      (storageService.getCollectionById as any).mockReturnValue({
+        id: 'legacy-col',
+        name: '合集标题',
+      });
+      (downloadService.checkBilibiliCollectionOrSeries as any).mockResolvedValue({
+        success: true,
+        type: 'collection',
+        mid: 12345,
+        id: 9988,
+      });
+      (downloadService.getBilibiliCollectionVideos as any).mockResolvedValue({
+        success: true,
+        videos: [{ bvid: 'BVnew', title: 'New', aid: 1 }],
+      });
+      (downloadService.downloadSingleBilibiliPart as any).mockResolvedValue({
+        videoData: { id: 'video-new', title: 'New Bili Video' },
+      });
+
+      await subscriptionService.checkSubscriptions();
+
+      expect(storageService.saveCollection).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'legacy-col',
+          sourcePlatform: 'bilibili',
+          sourceType: 'collection',
+          sourceMid: '12345',
+          sourceId: '9988',
+        })
       );
     });
 

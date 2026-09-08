@@ -111,3 +111,87 @@ export function ensureCookiesFileIsNormalized(): string | null {
 export function resetCookiesFileCache(): void {
   cookiesFileCache = null;
 }
+
+function cookieLineMatchesHost(
+  rawDomain: string,
+  includeSubdomains: boolean,
+  host: string
+): boolean {
+  const domain = rawDomain.replace(/^\./, "").toLowerCase();
+  if (!domain) {
+    return false;
+  }
+  // A leading dot in the file is the classic "and its subdomains" marker; the
+  // include-subdomains column carries the same meaning for exports that omit it.
+  if (rawDomain.startsWith(".") || includeSubdomains) {
+    return host === domain || host.endsWith(`.${domain}`);
+  }
+  return host === domain;
+}
+
+/**
+ * Build a `Cookie` request header for `host` from the stored cookies.txt.
+ *
+ * The cookie file was previously only handed to yt-dlp, but the direct site API
+ * calls need it too: api.bilibili.com answers 412 (风控) to cookieless requests
+ * for x/web-interface/view, which is the preflight every Bilibili collection
+ * subscription runs before it can read its feed. Returns null when there is no
+ * usable cookie for the host, so callers simply send the request unauthenticated.
+ */
+export function getCookieHeaderForHost(host: string): string | null {
+  const cookiesPath = ensureCookiesFileIsNormalized();
+  if (!cookiesPath) {
+    return null;
+  }
+
+  const normalizedHost = host.trim().toLowerCase().replace(/:\d+$/, "");
+  if (!normalizedHost) {
+    return null;
+  }
+
+  try {
+    const content = readFileSafeSync(cookiesPath, DATA_DIR, "utf8");
+    const pairs: string[] = [];
+    const seenNames = new Set<string>();
+
+    for (const line of String(content).split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (
+        trimmed === "" ||
+        (trimmed.startsWith("#") && !trimmed.startsWith("#HttpOnly_"))
+      ) {
+        continue;
+      }
+
+      const parts = trimmed.replace(/^#HttpOnly_/, "").split("\t");
+      if (parts.length < 7) {
+        continue;
+      }
+
+      const [rawDomain, includeSubdomains, , , , name, value] = parts;
+      if (!name || seenNames.has(name)) {
+        continue;
+      }
+      if (
+        !cookieLineMatchesHost(
+          rawDomain,
+          includeSubdomains.toUpperCase() === "TRUE",
+          normalizedHost
+        )
+      ) {
+        continue;
+      }
+
+      seenNames.add(name);
+      pairs.push(`${name}=${value}`);
+    }
+
+    return pairs.length > 0 ? pairs.join("; ") : null;
+  } catch (error) {
+    logger.warn(
+      `Unable to read cookies.txt for ${normalizedHost}; continuing without cookies.`,
+      error
+    );
+    return null;
+  }
+}

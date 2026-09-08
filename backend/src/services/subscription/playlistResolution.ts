@@ -86,6 +86,31 @@ function saveCollectionSourceKey(
 }
 
 /**
+ * Stamp a Bilibili source key onto a collection that does not have one yet, so
+ * later probes can address the collection directly instead of re-deriving it
+ * from a video URL (that derivation goes through api.bilibili.com's
+ * risk-controlled view endpoint and is the first thing to fail).
+ *
+ * Returns the collection unchanged when it already carries this exact source
+ * key, the updated collection when the key was written, or null when the
+ * collection belongs to a different Bilibili source.
+ */
+export function saveBilibiliCollectionSourceIfCompatible(
+  collection: Collection,
+  source: BilibiliPlaylistCollectionSource
+): Collection | null {
+  const sourceKey = toBilibiliSourceKey(source);
+
+  if (collectionMatchesSourceKey(collection, sourceKey)) {
+    return collection;
+  }
+  if (!collectionHasSourceKey(collection)) {
+    return saveCollectionSourceKey(collection, sourceKey);
+  }
+  return null;
+}
+
+/**
  * Extract a YouTube playlist id (`list=` param) from a URL, or null if absent.
  */
 export function extractYouTubePlaylistId(playlistUrl: string): string | null {

@@ -48,6 +48,7 @@ import {
   getBilibiliCollectionHeadSnapshot,
   getPlaylistHeadSnapshot,
 } from "./subscription/playlistFeed";
+import { saveBilibiliCollectionSourceIfCompatible } from "./subscription/playlistResolution";
 import { resolveYouTubeAuthorName } from "./subscription/youtubeAuthor";
 import {
   checkTwitchSubscription as checkTwitchSubscriptionImpl,
@@ -1308,7 +1309,7 @@ export class SubscriptionService {
         Boolean(collection?.sourceId || sub.playlistId);
 
       if (hasCollectionSource || extractBilibiliVideoId(sub.authorUrl)) {
-        return getBilibiliCollectionHeadSnapshot(
+        const snapshot = await getBilibiliCollectionHeadSnapshot(
           sub.authorUrl,
           {
             type: sourceType,
@@ -1317,6 +1318,19 @@ export class SubscriptionService {
           },
           { headOnly: true, subscriptionYtdlpConfig: sub.ytdlpConfig }
         );
+
+        // Subscriptions created before the collection carried a source key have
+        // to re-derive it from the video URL on every poll, and that derivation
+        // goes through Bilibili's risk-controlled view endpoint. Stamp what we
+        // just resolved so the next poll addresses the collection directly.
+        if (collection && !hasCollectionSource) {
+          saveBilibiliCollectionSourceIfCompatible(
+            collection,
+            snapshot.bilibiliSource
+          );
+        }
+
+        return snapshot;
       }
     }
 
