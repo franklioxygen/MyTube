@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { registerDownloadTempDir, releaseDownloadTempDir } from "../../downloadTempDirectories";
 import path from "path";
 import { IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../../../config/paths";
 import {
@@ -109,6 +110,7 @@ export function createTempDir(): string {
     `temp_${Date.now()}_${crypto.randomUUID()}`
   );
   ensureDirSafeSync(tempDir, VIDEOS_DIR);
+  registerDownloadTempDir(tempDir);
   logger.info("Created temp directory:", tempDir);
   return tempDir;
 }
@@ -117,9 +119,13 @@ export function createTempDir(): string {
  * Clean up temporary directory
  */
 export async function cleanupTempDir(tempDir: string): Promise<void> {
-  if (pathExistsSafeSync(tempDir, VIDEOS_DIR)) {
-    await safeRemove(tempDir);
-    logger.info("Deleted temp directory:", tempDir);
+  try {
+    if (pathExistsSafeSync(tempDir, VIDEOS_DIR)) {
+      await safeRemove(tempDir);
+      logger.info("Deleted temp directory:", tempDir);
+    }
+  } finally {
+    releaseDownloadTempDir(tempDir);
   }
 }
 

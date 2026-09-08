@@ -10,10 +10,7 @@ import {
 import { db } from "../../db";
 import { videos } from "../../db/schema";
 import { DatabaseError } from "../../errors/DownloadErrors";
-import {
-  canonicalizeManagedPath,
-  resolveManagedWebPath,
-} from "../filenameTemplate/pathHelpers";
+import { resolveManagedWebPath } from "../filenameTemplate/pathHelpers";
 import { removeMediaServerArtifactsForVideo } from "../mediaServerExport";
 import { logger } from "../../utils/logger";
 import { getCollections } from "./collections";
@@ -32,7 +29,7 @@ import {
   resolveManagedThumbnailWebPathFromAbsolutePath,
 } from "../thumbnailMirrorService";
 import { bumpVideosListRevision } from "./videoListRevision";
-import { getVideoById, getVideos, getVideosStrict } from "./videoQueries";
+import { getVideoById, getArtifactOwners } from "./videoQueries";
 import { createArtifactReferenceGuard } from "./artifactReferences";
 
 type ReferenceGuard = (absolutePath: string) => boolean;
@@ -48,7 +45,7 @@ export function deleteVideo(
     const allCollections = getCollections();
     // Read all owners before touching disk. Never treat a database/JSON read
     // failure as an empty library and delete potentially shared artifacts.
-    const remainingVideos = getVideosStrict().filter((video) => video.id !== id);
+    const remainingVideos = getArtifactOwners().filter((video) => video.id !== id);
     const isReferenced = createArtifactReferenceGuard(remainingVideos);
 
     // Remove video file
@@ -120,6 +117,7 @@ export function deleteVideo(
       "Error deleting video",
       error instanceof Error ? error : new Error(String(error))
     );
+    if (error instanceof DatabaseError) throw error;
     throw new DatabaseError(
       `Failed to delete video: ${id}`,
       error instanceof Error ? error : new Error(String(error)),
@@ -136,62 +134,29 @@ function isLocalManagedVideo(
 
 export function isThumbnailReferencedByOtherVideo(
   video: import("./types").Video,
-  exceptionId: string
+  exceptionId: string,
+  candidatePath?: string
 ): boolean {
-  if (!video.thumbnailFilename && !video.thumbnailPath) {
-    return false;
-  }
-
-  const allVideos = getVideos();
-
-  return allVideos.some((candidate) => {
-    if (candidate.id === exceptionId) {
-      return false;
-    }
-
-    if (video.thumbnailPath && candidate.thumbnailPath === video.thumbnailPath) {
-      return true;
-    }
-
-    return Boolean(
-      video.thumbnailFilename &&
-        candidate.thumbnailFilename === video.thumbnailFilename &&
-        (!video.thumbnailPath ||
-          !candidate.thumbnailPath ||
-          candidate.thumbnailPath === video.thumbnailPath)
-    );
-  });
-}
-
-function canonicalManagedVideoReference(
-  video: import("./types").Video
-): string | null {
-  if (video.videoPath) {
-    const resolved = resolveManagedWebPath(video.videoPath);
-    return resolved?.prefix === "/videos"
-      ? canonicalizeManagedPath(resolved.absolutePath)
-      : null;
-  }
-
-  return video.videoFilename
-    ? canonicalizeManagedPath(`/videos/${video.videoFilename}`)
-    : null;
+  if (!candidatePath && !video.thumbnailFilename && !video.thumbnailPath) return false;
+  const owners = getArtifactOwners().filter((candidate) => candidate.id !== exceptionId);
+  const absolutePath = candidatePath ?? (video.thumbnailPath
+    ? resolveManagedWebPath(video.thumbnailPath)?.absolutePath
+    : video.thumbnailFilename ? buildStoragePath(IMAGES_DIR, video.thumbnailFilename) : undefined);
+  // An unresolved explicit path cannot establish which file is safe to delete.
+  return !absolutePath || createArtifactReferenceGuard(owners)(absolutePath);
 }
 
 export function isVideoFileReferencedByOtherVideo(
   video: import("./types").Video,
-  exceptionId: string
+  exceptionId: string,
+  candidatePath?: string
 ): boolean {
-  const managedReference = canonicalManagedVideoReference(video);
-  if (!managedReference) {
-    return false;
-  }
-
-  return getVideos().some(
-    (candidate) =>
-      candidate.id !== exceptionId &&
-      canonicalManagedVideoReference(candidate) === managedReference
-  );
+  if (!candidatePath && !video.videoFilename && !video.videoPath) return false;
+  const owners = getArtifactOwners().filter((candidate) => candidate.id !== exceptionId);
+  const absolutePath = candidatePath ?? (video.videoPath
+    ? resolveManagedWebPath(video.videoPath)?.absolutePath
+    : video.videoFilename ? buildStoragePath(VIDEOS_DIR, video.videoFilename) : undefined);
+  return !absolutePath || createArtifactReferenceGuard(owners)(absolutePath);
 }
 
 function deleteVideoFile(

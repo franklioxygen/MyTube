@@ -3,85 +3,78 @@ import { VIDEOS_DIR } from "../config/paths";
 import { ValidationError } from "../errors/DownloadErrors";
 import * as storageService from "../services/storageService";
 import { createArtifactReferenceGuard } from "../services/storageService/artifactReferences";
+import { DOWNLOAD_TEMP_MARKER, isActiveDownloadTempDir, isOwnedInactiveDownloadTempDir } from "../services/downloadTempDirectories";
 import { logger } from "../utils/logger";
-import {
-  readdirDirentsSafe,
-  resolveSafeChildPath,
-  unlinkSafeSync,
-} from "../utils/security";
+import { readdirDirentsSafe, removeEmptyDirSafeSync, resolveSafeChildPath, unlinkSafeSync } from "../utils/security";
 
-/**
- * Clean up temporary download files (.ytdl, .part)
- * Errors are automatically handled by asyncHandler middleware
- */
-export const cleanupTempFiles = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  // Check if there are active downloads
-  const downloadStatus = storageService.getDownloadStatus();
-  if (downloadStatus.activeDownloads.length > 0) {
-    throw new ValidationError(
-      `Cannot clean up while downloads are active (${downloadStatus.activeDownloads.length} active)`,
-      "activeDownloads"
-    );
+interface DirectorySnapshot {
+  path: string;
+  files: string[];
+  directories: DirectorySnapshot[];
+  hasSpecialEntries: boolean;
+}
+
+function requireIdleDownloads(): void {
+  if (storageService.getDownloadStatus().activeDownloads.length > 0) {
+    throw new ValidationError("Cannot clean up while downloads are active", "activeDownloads");
   }
+}
 
+async function collectDirectory(directory: string): Promise<DirectorySnapshot> {
+  const snapshot: DirectorySnapshot = { path: directory, files: [], directories: [], hasSpecialEntries: false };
+  for (const entry of await readdirDirentsSafe(directory, VIDEOS_DIR)) {
+    const child = resolveSafeChildPath(directory, entry.name);
+    if (entry.isDirectory()) snapshot.directories.push(await collectDirectory(child));
+    else if (entry.isFile()) snapshot.files.push(child);
+    else snapshot.hasSpecialEntries = true;
+  }
+  return snapshot;
+}
+
+/** Collect asynchronously, then validate ownership and delete without yielding. */
+export const cleanupTempFiles = async (_req: Request, res: Response): Promise<void> => {
+  requireIdleDownloads();
+  const snapshot = await collectDirectory(VIDEOS_DIR);
+  requireIdleDownloads();
+  // A read failure aborts once, before any unlink. No reference snapshot is
+  // held across the asynchronous directory walk.
+  const isReferenced = createArtifactReferenceGuard(storageService.getArtifactOwners());
   let deletedCount = 0;
   const errors: string[] = [];
-
-  // Recursively find and delete .ytdl and .part files
-  const cleanupDirectory = async (dir: string) => {
-    try {
-      const entries = await readdirDirentsSafe(dir, VIDEOS_DIR);
-
-      for (const entry of entries) {
-        const fullPath = resolveSafeChildPath(dir, entry.name);
-
-        if (entry.isDirectory()) {
-          // A temp_ prefix is also a valid author/template directory. Without
-          // a job-owned manifest it does not establish that a folder is trash.
-          await cleanupDirectory(fullPath);
-        } else if (entry.isFile()) {
-          // Check if file has .ytdl or .part extension
-          if (entry.name.endsWith(".ytdl") || entry.name.endsWith(".part")) {
-            try {
-              // Recheck after asynchronous traversal, then inspect owners and
-              // unlink synchronously so another request cannot start a download
-              // or register this artifact between the check and deletion.
-              if (storageService.getDownloadStatus().activeDownloads.length > 0) {
-                throw new Error("Downloads became active during cleanup");
-              }
-              const isReferenced = createArtifactReferenceGuard(storageService.getVideosStrict());
-              if (isReferenced(fullPath)) continue;
-              unlinkSafeSync(fullPath, VIDEOS_DIR);
-              deletedCount++;
-              logger.debug(`Deleted temp file: ${fullPath}`);
-            } catch (error) {
-              const errorMsg = `Failed to delete ${fullPath}: ${
-                error instanceof Error ? error.message : String(error)
-              }`;
-              logger.warn(errorMsg);
-              errors.push(errorMsg);
-            }
-          }
-        }
-      }
-    } catch (error) {
-      const errorMsg = `Failed to read directory ${dir}: ${
-        error instanceof Error ? error.message : String(error)
-      }`;
-      logger.error(errorMsg);
-      errors.push(errorMsg);
+  const safely = (operation: () => void) => {
+    try { operation(); } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      errors.push(message);
+      logger.warn("Temporary-file cleanup failed", { message });
     }
   };
-
-  // Start cleanup from VIDEOS_DIR
-  await cleanupDirectory(VIDEOS_DIR);
-
-  // Return format expected by frontend: { deletedCount, errors? }
-  res.status(200).json({
-    deletedCount,
-    ...(errors.length > 0 && { errors }),
-  });
+  const protectedTree = (node: DirectorySnapshot): boolean => node.hasSpecialEntries ||
+    node.files.some(isReferenced) || node.directories.some(protectedTree);
+  const removeOwnedTree = (node: DirectorySnapshot) => {
+    for (const child of node.directories) removeOwnedTree(child);
+    // Keep the marker until the other files have been removed so an interrupted
+    // cleanup remains identifiable. Never recursively remove unknown entries.
+    const marker = resolveSafeChildPath(node.path, DOWNLOAD_TEMP_MARKER);
+    for (const file of node.files.filter((file) => file !== marker)) {
+      unlinkSafeSync(file, VIDEOS_DIR);
+      deletedCount++;
+    }
+    if (node.files.includes(marker)) unlinkSafeSync(marker, VIDEOS_DIR);
+    removeEmptyDirSafeSync(node.path, VIDEOS_DIR);
+  };
+  const clean = (node: DirectorySnapshot) => {
+    if (isActiveDownloadTempDir(node.path)) return;
+    if (isOwnedInactiveDownloadTempDir(node.path)) {
+      if (!protectedTree(node)) safely(() => removeOwnedTree(node));
+      return;
+    }
+    for (const file of node.files) {
+      if ((file.endsWith(".part") || file.endsWith(".ytdl")) && !isReferenced(file)) {
+        safely(() => { unlinkSafeSync(file, VIDEOS_DIR); deletedCount++; });
+      }
+    }
+    for (const child of node.directories) clean(child);
+  };
+  clean(snapshot);
+  res.status(200).json({ deletedCount, ...(errors.length ? { errors } : {}) });
 };

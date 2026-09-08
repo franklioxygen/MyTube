@@ -73,6 +73,7 @@ const mockSelect = ({
   const getMock = vi.fn().mockReturnValue(whereRow);
   vi.mocked(db.select).mockReturnValue({
     from: vi.fn().mockReturnValue({
+      all: allMock,
       orderBy: vi.fn().mockReturnValue({ all: allMock }),
       where: vi.fn().mockReturnValue({
         get: getMock,
@@ -514,6 +515,7 @@ describe("storageService videos", () => {
           where: vi.fn().mockReturnValue({
             get: vi.fn().mockReturnValue(video),
           }),
+          all: vi.fn().mockReturnValue(allVideos),
           orderBy: vi.fn().mockReturnValue({
             all: vi.fn().mockReturnValue(allVideos),
           }),

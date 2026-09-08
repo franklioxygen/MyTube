@@ -53,6 +53,16 @@ describe('databaseBackupController', () => {
             await rejected;
             expect(databaseBackupService.cleanupDatabaseExport).toHaveBeenCalledWith('/path/to/snapshot.db');
         });
+        it.each(['ECONNABORTED', 'ECONNRESET', 'EPIPE'])('cleans up a peer disconnect (%s) without invoking error handling', async (code) => {
+            vi.mocked(databaseBackupService.exportDatabase).mockResolvedValue('/path/to/snapshot.db');
+            mockRes.headersSent = true;
+            mockRes.destroy = vi.fn();
+            sendFileMock.mockImplementation((_path: string, finish: (error: Error) => void) =>
+                finish(Object.assign(new Error('peer disconnected'), { code })));
+            await databaseBackupController.exportDatabase(mockReq as Request, mockRes as Response);
+            expect(databaseBackupService.cleanupDatabaseExport).toHaveBeenCalledWith('/path/to/snapshot.db');
+            expect(mockRes.destroy).toHaveBeenCalled();
+        });
         it('cleans up if the client disconnects while the snapshot is being prepared', async () => {
             vi.mocked(databaseBackupService.exportDatabase).mockResolvedValue('/path/to/snapshot.db');
             mockRes.destroyed = true;

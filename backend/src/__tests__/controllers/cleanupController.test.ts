@@ -14,12 +14,13 @@ vi.mock('../../config/paths', async (importOriginal) => {
   };
 });
 
+import * as storageService from '../../services/storageService';
 import { VIDEOS_DIR } from '../../config/paths';
 
 // Mock storageService to simulate no active downloads
 vi.mock('../../services/storageService', () => ({
   getDownloadStatus: vi.fn(() => ({ activeDownloads: [] })),
-  getVideosStrict: vi.fn(() => [])
+  getArtifactOwners: vi.fn(() => [])
 }));
 
 describe('cleanupController', () => {
@@ -82,4 +83,27 @@ describe('cleanupController', () => {
     expect(await fs.pathExists(partFile)).toBe(false);
     expect(await fs.pathExists(normalFile)).toBe(true);
   });
+  it('reads owners once for many candidates and fails before unlinking on a read error', async () => {
+    for (let i = 0; i < 20; i++) await fs.outputFile(path.join(VIDEOS_DIR, `${i}.part`), 'data');
+    vi.mocked(storageService.getArtifactOwners).mockImplementationOnce(() => { throw new Error('library unreadable'); });
+    await expect(cleanupTempFiles(req, res)).rejects.toThrow('library unreadable');
+    expect(await fs.readdir(VIDEOS_DIR)).toHaveLength(20);
+    expect(storageService.getArtifactOwners).toHaveBeenCalledTimes(1);
+    vi.mocked(storageService.getArtifactOwners).mockClear();
+    await cleanupTempFiles(req, res);
+    expect(storageService.getArtifactOwners).toHaveBeenCalledTimes(1);
+    expect(await fs.readdir(VIDEOS_DIR)).toHaveLength(0);
+  });
+
+  it('aborts if a download starts during directory collection', async () => {
+    const partial = path.join(VIDEOS_DIR, 'active.part');
+    await fs.outputFile(partial, 'data');
+    vi.mocked(storageService.getDownloadStatus)
+      .mockReturnValueOnce({ activeDownloads: [] } as any)
+      .mockReturnValueOnce({ activeDownloads: [{ id: 'started' }] } as any);
+    await expect(cleanupTempFiles(req, res)).rejects.toThrow('downloads are active');
+    expect(await fs.pathExists(partial)).toBe(true);
+    expect(storageService.getArtifactOwners).not.toHaveBeenCalled();
+  });
+
 });

@@ -3,6 +3,7 @@ import { AVATARS_DIR } from "../../config/paths";
 import { resolveSafeChildPath } from "../../utils/security";
 import { resolveManagedWebPath } from "../filenameTemplate/pathHelpers";
 import type { Video } from "./types";
+import { logger } from "../../utils/logger";
 
 // Keep the absolute root in the key: /videos/a.jpg and /images/a.jpg are
 // different files. Case/Unicode folding conservatively protects aliases on
@@ -22,12 +23,20 @@ export function createArtifactReferenceGuard(libraryVideos: Video[]): (absoluteP
       if (webPath.startsWith("mount:")) {
         absolutePath = webPath.slice("mount:".length);
       } else if (webPath.startsWith("/avatars/")) {
-        absolutePath = resolveSafeChildPath(AVATARS_DIR, webPath.slice("/avatars/".length));
+        try {
+          absolutePath = resolveSafeChildPath(AVATARS_DIR, webPath.slice("/avatars/".length));
+        } catch {
+          logger.warn("Ignoring invalid avatar path during ownership checks", { webPath });
+        }
       } else {
         absolutePath = resolveManagedWebPath(webPath)?.absolutePath;
       }
-      if (absolutePath) paths.add(pathKey(absolutePath));
-    } else if (typeof filename === "string" && filename) {
+      if (absolutePath) {
+        paths.add(pathKey(absolutePath));
+        return;
+      }
+    }
+    if (typeof filename === "string" && filename) {
       // Legacy rows do not identify a folder. Preserve all possible owners
       // instead of assuming a basename-only row lives at the storage root.
       legacyFilenames.add(pathKey(path.basename(filename.replace(/\\/g, "/"))));

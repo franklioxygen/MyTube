@@ -3,6 +3,7 @@ import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import express from "express";
 import fs from "fs-extra";
 import nodeFs from "node:fs";
+import http from "node:http";
 import path from "path";
 import request from "supertest";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -27,6 +28,9 @@ vi.mock("../../utils/logger", () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
 
+import { createTempDir } from "../../services/downloaders/bilibili/bilibiliFileManager";
+import { releaseDownloadTempDir } from "../../services/downloadTempDirectories";
+import { errorHandler } from "../../middleware/errorHandler";
 import * as paths from "../../config/paths";
 import { cleanupTempFiles } from "../../controllers/cleanupController";
 import { exportDatabase as exportController } from "../../controllers/databaseBackupController";
@@ -35,6 +39,7 @@ import { db, sqlite } from "../../db";
 import { runAutoDeleteSweep } from "../../services/autoDeleteService";
 import * as backupService from "../../services/databaseBackupService";
 import { validateDatabase } from "../../services/databaseBackup/backupFiles";
+import { removeMediaServerArtifactsForVideo } from "../../services/mediaServerExport";
 import { planMediaServerExportPaths } from "../../services/mediaServerExport/pathPlanner";
 import * as storage from "../../services/storageService";
 import type { Video } from "../../services/storageService";
@@ -90,6 +95,58 @@ describe("media deletion safety with real files and SQLite", () => {
     for (const file of [rootFile, nestedFile, referenced]) expect(fs.readFileSync(file, "utf8")).toBe("completed media");
     for (const file of [partial, journal]) expect(fs.existsSync(file)).toBe(false);
     expect(res.json).toHaveBeenCalledWith({ deletedCount: 2 });
+  });
+
+  it("cleans marked abandoned jobs but preserves active, referenced and unmarked directories", async () => {
+    const abandoned = createTempDir();
+    fs.outputFileSync(path.join(abandoned, "nested/unfinished.mp4"), "data");
+    releaseDownloadTempDir(abandoned);
+    const active = createTempDir();
+    fs.outputFileSync(path.join(active, "active.part"), "data");
+    const referenced = createTempDir();
+    fs.outputFileSync(path.join(referenced, "keep.mp4"), "data");
+    saveVideo("registered-temp", `/videos/${path.basename(referenced)}/keep.mp4`);
+    releaseDownloadTempDir(referenced);
+    const unmarked = "temp_1700000000000_12345678-1234-1234-1234-123456789012";
+    const userMedia = writeMedia(`videos/${unmarked}/keep.mp4`);
+    try {
+      await cleanupTempFiles({} as never, responseStub() as never);
+      expect(fs.existsSync(abandoned)).toBe(false);
+      expect(fs.existsSync(path.join(active, "active.part"))).toBe(true);
+      expect(fs.existsSync(path.join(referenced, "keep.mp4"))).toBe(true);
+      expect(fs.existsSync(userMedia)).toBe(true);
+    } finally { releaseDownloadTempDir(active); }
+  });
+
+  it("does not let malformed tags or an invalid avatar path block unrelated deletion", () => {
+    const media = writeMedia("videos/remove.mp4");
+    const avatar = writeMedia("avatars/shared.jpg");
+    saveVideo("remove", "/videos/remove.mp4", {
+      author: "A", authorAvatarPath: "/avatars/shared.jpg", authorAvatarFilename: "shared.jpg",
+    });
+    saveVideo("other", "/videos/other.mp4", {
+      author: "B", authorAvatarPath: "/avatars/../../outside.jpg", authorAvatarFilename: "shared.jpg",
+    });
+    sqlite.prepare("UPDATE videos SET tags = ? WHERE id = ?").run("invalid json", "other");
+    expect(storage.deleteVideo("remove")).toBe(true);
+    expect(fs.existsSync(media)).toBe(false);
+    expect(fs.existsSync(avatar)).toBe(true);
+  });
+
+  it("blocks redownload cleanup on unreadable owners and checks the actual candidate across aliases", () => {
+    const media = writeMedia("videos/group/shared.mp4");
+    const thumbnail = writeMedia("images/shared.jpg");
+    const old = saveVideo("old", "/videos/group/shared.mp4", { thumbnailPath: "/images/shared.jpg", thumbnailFilename: "shared.jpg" });
+    saveVideo("owner", "", { videoFilename: "shared.mp4", thumbnailPath: "/images/folder/../shared.jpg", thumbnailFilename: "shared.jpg" });
+    expect(storage.isVideoFileReferencedByOtherVideo(old, old.id, media)).toBe(true);
+    expect(storage.isVideoFileReferencedByOtherVideo({ ...old, videoPath: undefined, videoFilename: undefined }, old.id, media)).toBe(true);
+    expect(storage.isThumbnailReferencedByOtherVideo(old, old.id, thumbnail)).toBe(true);
+    saveVideo("broken-owner", "/videos/broken.mp4");
+    sqlite.prepare("UPDATE videos SET subtitles = ? WHERE id = ?").run('{"unexpected":"object"}', "broken-owner");
+    expect(() => storage.isVideoFileReferencedByOtherVideo(old, old.id, media)).toThrow(/broken-owner.*subtitles/);
+    expect(() => storage.isThumbnailReferencedByOtherVideo(old, old.id, thumbnail)).toThrow(/broken-owner.*subtitles/);
+    expect(fs.existsSync(media)).toBe(true);
+    expect(fs.existsSync(thumbnail)).toBe(true);
   });
 
   it("deletes a missing record without selecting another owner's matching basenames", () => {
@@ -149,6 +206,23 @@ describe("media deletion safety with real files and SQLite", () => {
     for (const file of files) expect(fs.existsSync(file), file).toBe(false);
   });
 
+  it("preserves shared sidecars during redownload with export disabled and skips removal on read failure", () => {
+    const old = saveVideo("redownload", "/videos/shared/episode.mp4");
+    saveVideo("other-container", "/videos/shared/episode.mkv");
+    const sidecar = planMediaServerExportPaths(old)!.episodeNfoAbsolutePath;
+    fs.outputFileSync(sidecar, "historical sidecar");
+    storage.updateVideo(old.id, { videoPath: "/videos/new/episode.mp4" });
+    storage.saveSettings({ mediaServerExportMode: "off" });
+    removeMediaServerArtifactsForVideo(old, { preserveSharedArtifacts: true });
+    expect(fs.existsSync(sidecar)).toBe(true);
+    sqlite.prepare("UPDATE videos SET subtitles = ? WHERE id = ?").run("broken", "other-container");
+    removeMediaServerArtifactsForVideo(old, { preserveSharedArtifacts: true });
+    expect(fs.existsSync(sidecar)).toBe(true);
+    sqlite.prepare("UPDATE videos SET subtitles = NULL, video_path = ? WHERE id = ?").run("/videos/elsewhere/episode.mkv", "other-container");
+    removeMediaServerArtifactsForVideo(old, { preserveSharedArtifacts: true });
+    expect(fs.existsSync(sidecar)).toBe(false);
+  });
+
   it("protects a legacy basename-only owner and permits deletion of an unshared legacy file", () => {
     const shared = writeMedia("videos/group/shared.mp4");
     saveVideo("explicit", "/videos/group/shared.mp4");
@@ -177,13 +251,43 @@ describe("media deletion safety with real files and SQLite", () => {
     saveVideo("keep", "/videos/keep.mp4");
     saveVideo("malformed", "/videos/other.mp4");
     sqlite.prepare("UPDATE videos SET subtitles = ? WHERE id = ?").run("invalid json", "malformed");
-    expect(() => storage.deleteVideo("keep")).toThrow();
+    expect(() => storage.deleteVideo("keep")).toThrow(/video malformed has invalid subtitles/);
     expect(fs.existsSync(media)).toBe(true);
     expect(storage.getVideoById("keep")).toBeDefined();
   });
 });
 
 describe("SQLite snapshot export and import integrity", () => {
+  it("handles a real client disconnect without a second response and releases its snapshot", async () => {
+    sqlite.exec("CREATE TABLE disconnect_probe (payload BLOB); INSERT INTO disconnect_probe VALUES (zeroblob(4000000))");
+    const cleanup = vi.spyOn(backupService, "cleanupDatabaseExport");
+    const errors: Error[] = [];
+    const app = express();
+    app.get("/export", exportController);
+    app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
+      errors.push(err);
+      errorHandler(err, req, res, next);
+    });
+    const server = app.listen(0, "127.0.0.1");
+    try {
+      await new Promise<void>((resolve) => server.once("listening", resolve));
+      const address = server.address() as { port: number };
+      await new Promise<void>((resolve, reject) => {
+        http.get(`http://127.0.0.1:${address.port}/export`, (res) => {
+          res.once("data", () => { res.destroy(); resolve(); });
+          res.on("error", () => {});
+        }).on("error", reject);
+      });
+      await vi.waitFor(() => expect(cleanup).toHaveBeenCalledTimes(1));
+      expect(fs.existsSync(cleanup.mock.calls[0][0])).toBe(false);
+      expect(errors).toEqual([]);
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+      cleanup.mockRestore();
+      sqlite.exec("DROP TABLE disconnect_probe");
+    }
+  });
+
   it("streams a consistent snapshot while the live database changes, then removes the snapshot", async () => {
     sqlite.exec("CREATE TABLE export_probe (id INTEGER PRIMARY KEY, payload BLOB)");
     const add = sqlite.prepare("INSERT INTO export_probe VALUES (?, ?)");

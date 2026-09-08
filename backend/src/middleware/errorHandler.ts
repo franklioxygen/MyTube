@@ -61,6 +61,14 @@ export function errorHandler(
   res: Response,
   next: NextFunction
 ): void {
+  // Once streaming starts, Express must close the response on failure rather
+  // than attempting to send a second set of headers.
+  if (res.headersSent) {
+    next(err);
+    return;
+  }
+  if (res.destroyed) return;
+
   // Handle Multer errors (file size exceeded, unexpected field, etc.)
   if (err instanceof multer.MulterError) {
     const status = err.code === "LIMIT_FILE_SIZE" ? 413 : 400;

@@ -42,6 +42,15 @@ describe('ErrorHandler Middleware', () => {
   });
 
   describe('errorHandler', () => {
+    it('delegates streaming failures without writing or logging a second response', () => {
+      const error = new Error('disk read failed');
+      res.headersSent = true;
+      errorHandler(error, req as Request, res as Response, next);
+      expect(next).toHaveBeenCalledWith(error);
+      expect(status).not.toHaveBeenCalled();
+      expect(logger.error).not.toHaveBeenCalled();
+    });
+
     it('should handle DownloadError with 400 status', () => {
       const error = new DownloadError('network', 'Network error', true);
 

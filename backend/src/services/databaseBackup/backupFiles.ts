@@ -36,11 +36,15 @@ export function validateDatabase(filePath: string): void {
     // freelist are sound (e.g. a copy taken across two commits).
     const checks = sourceDb.pragma("integrity_check") as Array<{ integrity_check: string }>;
     if (checks.length !== 1 || checks[0].integrity_check !== "ok") {
-      throw new Error("SQLite integrity check failed");
+      logger.warn("Database import integrity check failed", { checks: checks.slice(0, 3) });
+      throw new ValidationError("Invalid database file: SQLite integrity check failed. Restore an intact backup; the active database has not been replaced.", "file");
     }
   } catch (validationError) {
+    if (validationError instanceof ValidationError) throw validationError;
     throw new ValidationError(
-      "Invalid database file. The file is not a valid SQLite database.",
+      sourceDb
+        ? "Invalid database file: SQLite integrity check could not complete. The active database has not been replaced."
+        : "Invalid database file. The file is not a valid SQLite database.",
       "file"
     );
   } finally {

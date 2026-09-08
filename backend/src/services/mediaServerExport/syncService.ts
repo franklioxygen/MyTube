@@ -11,6 +11,7 @@ import {
   writeFileSafeSync,
 } from "../../utils/security";
 import { getSettings } from "../storageService/settings";
+import { getArtifactOwners } from "../storageService/videoQueries";
 import { removeEmptyDirectoryChain } from "../storageService/fileHelpers";
 import type { Video } from "../storageService";
 import {
@@ -19,6 +20,7 @@ import {
   normalizeVideoDateToDay,
 } from "./nfoBuilders";
 import { planMediaServerExportPaths } from "./pathPlanner";
+import { ArtifactReferenceIndex } from "./artifactReferenceIndex";
 import type {
   MediaServerExportMode,
   RemoveMediaServerArtifactsOptions,
@@ -473,6 +475,8 @@ export function syncMediaServerArtifactsForRecord(
   }
 }
 
+const deletionArtifactReferences = new ArtifactReferenceIndex();
+
 export function removeMediaServerArtifactsForVideo(
   video: Video,
   options: RemoveMediaServerArtifactsOptions = {}
@@ -483,32 +487,27 @@ export function removeMediaServerArtifactsForVideo(
       return;
     }
 
-    // Duplicate media paths (and different containers with the same stem) can
-    // share sidecars. Keep them until their last owning video is removed.
-    // Only read the library when a caller actually asks for that check: an
-    // eager read would abort the whole removal for layouts that never need it.
-    const artifactKey = (value: string) =>
-      path.normalize(value).normalize("NFKC").toLowerCase();
-    const sharedArtifacts = new Set<string>();
-    for (const candidate of options.preserveSharedArtifacts ? getLibraryVideos(options) : []) {
-      if (candidate.id === video.id) continue;
-      const candidatePlan = planMediaServerExportPaths(candidate);
-      if (!candidatePlan) continue;
-      for (const artifact of [candidatePlan.episodeNfoAbsolutePath,
-        candidatePlan.episodeSourceJsonAbsolutePath, candidatePlan.episodeThumbAliasAbsolutePath]) {
-        sharedArtifacts.add(artifactKey(artifact));
-      }
+    // Export may now be off while sidecars from previous exports still exist.
+    // Always remove unshared historical artifacts; reuse path plans across a
+    // batch while reconciling against fresh owners on every invocation.
+    if (options.preserveSharedArtifacts) {
+      const owners = options.libraryVideos ?? getArtifactOwners();
+      deletionArtifactReferences.update(owners, video.id);
     }
+    const isShared = (artifact: string) => options.preserveSharedArtifacts === true &&
+      deletionArtifactReferences.has(artifact);
     for (const artifact of [plan.episodeNfoAbsolutePath,
       plan.episodeSourceJsonAbsolutePath, plan.episodeThumbAliasAbsolutePath]) {
-      if (!sharedArtifacts.has(artifactKey(artifact))) removeOwnedArtifact(artifact);
+      if (!isShared(artifact)) removeOwnedArtifact(artifact);
     }
 
     if (!plan.tvLayout.isTvCompatible || !plan.tvLayout.showRootRelativeDir) {
       return;
     }
 
-    const showStillHasEpisodes = getLibraryVideos(options).some(
+    const showStillHasEpisodes = options.preserveSharedArtifacts
+      ? Boolean(plan.showNfoAbsolutePath && isShared(plan.showNfoAbsolutePath))
+      : getLibraryVideos(options).some(
       (candidate) =>
         candidate.id !== video.id &&
         matchesShowRoot(candidate, plan.tvLayout.showRootRelativeDir as string)

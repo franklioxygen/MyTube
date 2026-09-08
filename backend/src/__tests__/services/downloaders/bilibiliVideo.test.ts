@@ -491,9 +491,12 @@ describe("bilibiliVideo.downloadSinglePart", () => {
     expect(mocks.saveVideo).not.toHaveBeenCalled();
   });
 
-  it("skips deleting the old thumbnail when another video still references it", async () => {
+  it.each(["shared", "unreadable"])("keeps the old thumbnail when owners are %s", async (condition) => {
     mocks.getVideoBySourceUrl.mockReturnValue(buildExistingVideo());
-    mocks.isThumbnailReferencedByOtherVideo.mockReturnValue(true);
+    mocks.isThumbnailReferencedByOtherVideo.mockImplementation(() => {
+      if (condition === "unreadable") throw new Error("owner metadata unreadable");
+      return true;
+    });
     mocks.resolveManagedThumbnailWebPathFromAbsolutePath.mockReturnValue(
       "/images/Collection/final-thumb.jpg",
     );
@@ -516,6 +519,7 @@ describe("bilibiliVideo.downloadSinglePart", () => {
         thumbnailPath: "/images/Collection/old-thumb.jpg",
       }),
       "existing-video",
+      "/mock/images/Collection/old-thumb.jpg",
     );
     expect(mocks.unlinkSync).not.toHaveBeenCalled();
     expect(mocks.deleteSmallThumbnailMirrorSync).not.toHaveBeenCalled();

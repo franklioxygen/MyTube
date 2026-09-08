@@ -70,6 +70,7 @@ vi.mock("../../utils/security", () => ({
   pathExistsSafe: vi.fn((targetPath: string) => fs.pathExists(targetPath)),
   pathExistsSafeSync: vi.fn((targetPath: string) => fs.existsSync(targetPath)),
   pathExistsTrustedSync: vi.fn((targetPath: string) => fs.existsSync(targetPath)),
+  unlinkSafeSync: vi.fn((targetPath: string) => fs.unlinkSync(targetPath)),
   removeSafe: vi.fn((targetPath: string) => fs.remove(targetPath)),
   resolveSafeChildPath: vi.fn((baseDir: string, childPath: string) => {
     if (childPath.includes("..")) {
@@ -96,6 +97,7 @@ vi.mock("fs-extra", () => ({
     ensureFileSync: vi.fn(),
     pathExists: vi.fn(),
     remove: vi.fn(),
+    unlinkSync: vi.fn(),
     stat: vi.fn(),
     writeFile: vi.fn(),
   },
@@ -855,14 +857,17 @@ describe("videoMetadataController", () => {
       ).rejects.toThrow(ValidationError);
     });
 
-    it("skips deleting the old thumbnail when another video still references it", async () => {
+    it.each(["shared", "unreadable"])("keeps the old thumbnail when owners are %s", async (condition) => {
       const { res, status } = createResponse();
       vi.mocked(storageService.getVideoById as any).mockReturnValue({
         id: "v1",
         thumbnailPath: "/images/shared.jpg",
         thumbnailFilename: "shared.jpg",
       });
-      vi.mocked(storageService.isThumbnailReferencedByOtherVideo as any).mockReturnValue(true);
+      vi.mocked(storageService.isThumbnailReferencedByOtherVideo as any).mockImplementation(() => {
+        if (condition === "unreadable") throw new Error("owner metadata unreadable");
+        return true;
+      });
 
       await videoMetadataController.uploadThumbnail(
         { params: { id: "v1" }, file: fakeFile } as unknown as Request,
@@ -876,7 +881,9 @@ describe("videoMetadataController", () => {
           thumbnailFilename: "shared.jpg",
         }),
         "v1",
+        expect.stringMatching(/shared\.jpg$/),
       );
+      expect(fs.unlinkSync).not.toHaveBeenCalled();
       expect(fs.remove).not.toHaveBeenCalled();
       expect(status).toHaveBeenCalledWith(200);
     });
@@ -894,7 +901,7 @@ describe("videoMetadataController", () => {
         res
       );
 
-      expect(fs.remove).toHaveBeenCalledWith(
+      expect(fs.unlinkSync).toHaveBeenCalledWith(
         expect.stringMatching(/old-thumb\.jpg$/),
       );
     });

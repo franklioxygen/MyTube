@@ -352,7 +352,7 @@ describe('YtDlpDownloader format defaults', () => {
         expect(result.id).toBe(selectedVideo.id);
     });
 
-    it('does not delete an old video file still referenced by another row', async () => {
+    it.each(['shared', 'unreadable'])('keeps the old video when owners are %s', async (condition) => {
         const sourceUrl = 'https://www.youtube.com/watch?v=123456';
         const selectedVideo = {
             id: 'selected-row',
@@ -369,7 +369,10 @@ describe('YtDlpDownloader format defaults', () => {
         vi.mocked(storageService.getVideoById).mockReturnValue(selectedVideo);
         vi.mocked(
             storageService.isVideoFileReferencedByOtherVideo,
-        ).mockReturnValue(true);
+        ).mockImplementation(() => {
+            if (condition === 'unreadable') throw new Error('owner metadata unreadable');
+            return true;
+        });
         vi.mocked(storageService.updateVideo).mockImplementation((id, updates) => ({
             ...selectedVideo,
             ...updates,
@@ -382,7 +385,7 @@ describe('YtDlpDownloader format defaults', () => {
 
         expect(
             storageService.isVideoFileReferencedByOtherVideo,
-        ).toHaveBeenCalledWith(selectedVideo, selectedVideo.id);
+        ).toHaveBeenCalledWith(selectedVideo, selectedVideo.id, `${process.cwd()}/uploads/videos/shared.mp4`);
         expect(mockUnlinkSync).not.toHaveBeenCalled();
     });
 

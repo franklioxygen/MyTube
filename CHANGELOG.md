@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Fix
+
+- Protect shared media and companion files during deletion, redownload, and thumbnail replacement. Ownership reads now fail safely with the affected record ID and metadata field; unrelated malformed tags no longer block deleting another video.
+- Handle interrupted database exports without writing a second response, and distinguish SQLite integrity failures from invalid file formats.
+- Read file ownership once per temporary-file cleanup. New Bilibili temporary directories carry an ownership marker so abandoned jobs can be removed without treating user folders as disposable. Active jobs and referenced files remain protected.
+- Reuse sidecar path plans across deletions while reconciling current owners, including when export is disabled and historical sidecars remain.
+
+### Data safety notes
+
+- A stale stored path is never repaired by guessing a matching filename during deletion. A file left at another location may be rediscovered on a later scan. Case and Unicode aliases are conservatively treated as shared, which can retain files on case-sensitive disks.
+- Legacy temporary directories without an ownership marker retain completed/unfinished media; only unreferenced `.part` and `.ytdl` files are eligible for automatic cleanup. Confirm their contents before removing them manually.
+- Database import performs a full, synchronous integrity check, which can take longer on large backups. Export requires temporary space for a SQLite snapshot per concurrent download. Normal completion and disconnects remove snapshots; a process crash can leave `export-*.db.tmp` files, which can be removed while MyTube is stopped after confirming no export is active.
+
 ## v1.11.6 (2026-09-04)
 
 ### Fix

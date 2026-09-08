@@ -27,6 +27,7 @@ import {
   removeSafe,
   resolveSafeChildPath,
   statSafe,
+  unlinkSafeSync,
   validateImagePath,
   validateUrl,
   validateVideoPath,
@@ -89,7 +90,10 @@ const resolveLocalThumbnailAbsolutePath = async (
   return resolveSafeChildPath(VIDEOS_DIR, relativePath);
 };
 
-const removeImageFileSafely = async (imagePath: string): Promise<void> => {
+const removeImageFileSafely = async (
+  imagePath: string,
+  canDelete?: (absolutePath: string) => boolean,
+): Promise<void> => {
   const safeResolvedPath = await resolveLocalThumbnailAbsolutePath(imagePath);
   if (!safeResolvedPath) {
     return;
@@ -108,7 +112,14 @@ const removeImageFileSafely = async (imagePath: string): Promise<void> => {
     return;
   }
 
-  await removeSafe(safeResolvedPath, [VIDEOS_DIR, IMAGES_DIR]);
+  if (canDelete) {
+    // Recheck owners after the async filesystem probes and unlink without
+    // yielding, so another request cannot acquire this file between them.
+    if (!canDelete(safeResolvedPath)) return;
+    unlinkSafeSync(safeResolvedPath, [VIDEOS_DIR, IMAGES_DIR]);
+  } else {
+    await removeSafe(safeResolvedPath, [VIDEOS_DIR, IMAGES_DIR]);
+  }
   deleteSmallThumbnailMirrorSync(imagePath);
 };
 
@@ -756,14 +767,13 @@ export const uploadThumbnail = async (
     oldThumbnailRelativePath !== resolveStoredThumbnailPath(newThumbnailPath)
   ) {
     try {
-      if (!storageService.isThumbnailReferencedByOtherVideo(video, id)) {
-        const oldThumbnailWebPath =
-          video.thumbnailPath?.startsWith("/images/") ||
-          video.thumbnailPath?.startsWith("/videos/")
-            ? video.thumbnailPath
-            : oldThumbnailRelativePath;
-        await removeImageFileSafely(oldThumbnailWebPath);
-      }
+      const oldThumbnailWebPath =
+        video.thumbnailPath?.startsWith("/images/") ||
+        video.thumbnailPath?.startsWith("/videos/")
+          ? video.thumbnailPath
+          : oldThumbnailRelativePath;
+      await removeImageFileSafely(oldThumbnailWebPath, (absolutePath) =>
+        !storageService.isThumbnailReferencedByOtherVideo(video, id, absolutePath));
     } catch (err) {
       logger.warn("Failed to delete old thumbnail file", err);
     }

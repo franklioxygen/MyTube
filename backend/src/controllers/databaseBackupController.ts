@@ -39,7 +39,19 @@ export const exportDatabase = async (
     // Wait for sendFile's callback on completion/error (including disconnect)
     // before unlinking the snapshot. Reject so asyncHandler handles failures.
     await new Promise<void>((resolve, reject) => {
-      res.sendFile(dbPath, (error) => error ? reject(error) : resolve());
+      res.sendFile(dbPath, (error) => {
+        const code = (error as NodeJS.ErrnoException | undefined)?.code;
+        if (error && ["ECONNABORTED", "ECONNRESET", "EPIPE"].includes(code ?? "")) {
+          // sendFile reports these when the peer closes the transfer. There
+          // is no response left to send; still release the snapshot in finally.
+          if (!res.destroyed) res.destroy();
+          resolve();
+        } else if (error) {
+          reject(error);
+        } else {
+          resolve();
+        }
+      });
     });
   } finally {
     databaseBackupService.cleanupDatabaseExport(dbPath);
