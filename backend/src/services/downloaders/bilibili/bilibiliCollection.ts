@@ -168,7 +168,6 @@ export interface BilibiliVideoFetchOptions {
 }
 
 const DEFAULT_BILIBILI_PAGE_SIZE = 30;
-const MAX_BILIBILI_ARCHIVE_PAGES = 100;
 
 function normalizeFetchOptions(
   options?: BilibiliVideoFetchOptions,
@@ -185,6 +184,7 @@ function normalizeFetchOptions(
   return { pageSize, maxPages };
 }
 
+/** Stop at the verified total or an explicitly requested prefix, rejecting missing pages. */
 function shouldFetchNextArchivePage(input: {
   label: "collection" | "series";
   pageNum: number;
@@ -214,13 +214,44 @@ function shouldFetchNextArchivePage(input: {
     );
   }
 
-  if (input.pageNum >= MAX_BILIBILI_ARCHIVE_PAGES) {
-    throw new Error(
-      `Bilibili ${input.label} API reached the ${MAX_BILIBILI_ARCHIVE_PAGES}-page safety limit after ${input.fetchedCount} of ${input.total} videos`,
-    );
-  }
-
   return true;
+}
+
+/**
+ * Bound a full scan by the first page's advertised total, without an arbitrary
+ * playlist-size ceiling. Reject changing totals and repeated/invalid archives
+ * so pagination must make progress and cannot silently seed a partial cursor.
+ */
+function createArchiveScanValidator(): (
+  archives: any[],
+  total: number,
+) => void {
+  let expectedTotal: number | undefined;
+  const seenBvids = new Set<string>();
+  return (archives, total) => {
+    if (expectedTotal !== undefined && total !== expectedTotal) {
+      throw new Error(
+        "Bilibili archive total changed during pagination; retry the scan",
+      );
+    }
+    expectedTotal = total;
+    for (const archive of archives) {
+      if (typeof archive?.bvid !== "string" || !archive.bvid.trim()) {
+        throw new Error("Bilibili API returned an archive without a video ID");
+      }
+      if (seenBvids.has(archive.bvid)) {
+        throw new Error(
+          "Bilibili API repeated an archive during pagination; retry the scan",
+        );
+      }
+      seenBvids.add(archive.bvid);
+    }
+    if (seenBvids.size > total) {
+      throw new Error(
+        "Bilibili API returned more archives than its advertised total",
+      );
+    }
+  };
 }
 
 function formatBilibiliApiError(responseBody: Record<string, unknown>): string {
@@ -393,6 +424,7 @@ export async function getCollectionVideos(
     const allVideos: BilibiliVideoItem[] = [];
     let pageNum = 1;
     const { pageSize, maxPages } = normalizeFetchOptions(options);
+    const validatePage = createArchiveScanValidator();
     let hasMore = true;
 
     logger.info(
@@ -435,6 +467,7 @@ export async function getCollectionVideos(
         "collection",
         pageNum,
       );
+      validatePage(archives, total);
 
       logger.info(`Got ${archives.length} videos from page ${pageNum}`);
 
@@ -482,6 +515,7 @@ export async function getSeriesVideos(
     const allVideos: BilibiliVideoItem[] = [];
     let pageNum = 1;
     const { pageSize, maxPages } = normalizeFetchOptions(options);
+    const validatePage = createArchiveScanValidator();
     let hasMore = true;
 
     logger.info(`Fetching series videos for mid=${mid}, series_id=${seriesId}`);
@@ -521,6 +555,7 @@ export async function getSeriesVideos(
         "series",
         pageNum,
       );
+      validatePage(archives, total);
 
       logger.info(`Got ${archives.length} videos from page ${pageNum}`);
 
