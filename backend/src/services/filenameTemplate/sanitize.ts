@@ -1,11 +1,49 @@
 const SEGMENT_MAX_BYTES = 180;
 const PATH_MAX_BYTES = 240;
+/**
+ * Ceiling for a single on-disk filename, in UTF-8 bytes: NAME_MAX on ext4, and
+ * the point past which a name cannot be created at all.
+ *
+ * Deliberately the hard limit rather than something lower with headroom. This
+ * budget only ever shortens a name, so anything below 255 would also shorten
+ * names in that gap - names that already exist on disk, since they were
+ * creatable. A redownload would then compute a path the existing file does not
+ * have, orphan it, and write a duplicate alongside. Trimming only above 255
+ * touches names that could never have been written in the first place.
+ *
+ * Distinct from SEGMENT_MAX_BYTES, which is the budget the renderer gives a
+ * name it is composing. This one is the limit a name must still respect after
+ * a later stage appends to it. It leaves no room for the ".part" yt-dlp adds
+ * while downloading to a final name, which is a separate pre-existing limit of
+ * the sanitizer's own caps and not something this budget can address without
+ * renaming existing files.
+ */
+const FILENAME_MAX_BYTES = 255;
 const ILLEGAL_CHARS_RE = /[<>:"|?*\x00]/g;
 const TRAILING_DOTS_SPACES_RE = /[. ]+$/;
 const REPEATED_WHITESPACE_RE = /\s+/g;
 
 function byteLength(value: string): number {
   return Buffer.byteLength(value, "utf8");
+}
+
+/**
+ * Same result as replacing TRAILING_DOTS_SPACES_RE, in a single backward walk.
+ * That regex is quadratic on a run of trailing spaces, which CodeQL flags when
+ * the input traces back to a title; the strings here are already truncated to a
+ * filename's worth of bytes, but a linear pass costs nothing and needs no
+ * argument about bounds.
+ */
+function stripTrailingDotsAndSpaces(value: string): string {
+  let end = value.length;
+  while (end > 0) {
+    const ch = value[end - 1];
+    if (ch !== "." && ch !== " ") {
+      break;
+    }
+    end -= 1;
+  }
+  return end === value.length ? value : value.slice(0, end);
 }
 
 function truncateToByteLength(value: string, maxBytes: number): string {
@@ -220,4 +258,69 @@ export function enforcePathLengthLimit(
     .trim();
   const truncatedLast = `${truncatedStem || "x"}${ext}`;
   return [...workingSegments.slice(0, -1), truncatedLast];
+}
+
+/**
+ * Bytes left for a stem once `suffix` and `reservedTailBytes` are accounted for
+ * within FILENAME_MAX_BYTES. Zero or less means no name carrying that suffix
+ * can be created, however short the stem is cut.
+ */
+export function stemBudgetForSuffix(
+  suffix: string,
+  reservedTailBytes: number
+): number {
+  return FILENAME_MAX_BYTES - byteLength(suffix) - reservedTailBytes;
+}
+
+/**
+ * Trims the stem of `relativePath`'s final segment so that a filename built as
+ * `stem + suffix + <tail>` stays within FILENAME_MAX_BYTES. Directories and the
+ * path's own extension are left untouched, and a path that already fits is
+ * returned unchanged. The caller appends `suffix` itself.
+ *
+ * The stem is what gives way rather than the suffix: callers append a suffix to
+ * make a colliding name unique, so trimming the suffix would hand back a name
+ * that collides all over again.
+ *
+ * `reservedTailBytes` is a byte count rather than this path's own extension so
+ * that one output family - video, thumbnail, and the extension-less subtitle
+ * base - can be trimmed against a single shared budget wide enough for the
+ * longest tail any of them will grow, and still keep a common stem. A subtitle
+ * base ends up carrying `.<lang><ext>`, which outruns the video's `.mp4`.
+ *
+ * `ownExtension` is stated rather than guessed from the last dot, and "" says
+ * this path has none. A subtitle base is extensionless while its title is full
+ * of dots - the legacy formatter writes spaces as dots - so guessing hands back
+ * a stem measured short by whatever followed the final one, which both overruns
+ * the limit and leaves the base out of step with the video it must match.
+ *
+ * Callers must check stemBudgetForSuffix first: with no budget left there is no
+ * name to return, and this returns the path unchanged rather than inventing one.
+ */
+export function trimRelativePathStemForSuffix(
+  relativePath: string,
+  suffix: string,
+  reservedTailBytes: number,
+  ownExtension: string
+): string {
+  const maxStemBytes = stemBudgetForSuffix(suffix, reservedTailBytes);
+  if (maxStemBytes <= 0) {
+    return relativePath;
+  }
+
+  const slashIdx = relativePath.lastIndexOf("/");
+  const dir = relativePath.slice(0, slashIdx + 1);
+  const filename = relativePath.slice(slashIdx + 1);
+  const stem =
+    ownExtension && filename.endsWith(ownExtension)
+      ? filename.slice(0, filename.length - ownExtension.length)
+      : filename;
+  if (byteLength(stem) <= maxStemBytes) {
+    return relativePath;
+  }
+
+  const trimmedStem = stripTrailingDotsAndSpaces(
+    truncateToByteLength(stem, maxStemBytes)
+  ).trim();
+  return `${dir}${trimmedStem || "x"}${ownExtension}`;
 }

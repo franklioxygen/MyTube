@@ -22,6 +22,10 @@ import {
 import type { Video } from "../storageService/types";
 import { applyDedupeToRelatedPaths } from "./dedupe";
 import { canonicalizeManagedPath } from "./pathHelpers";
+import {
+  stemBudgetForSuffix,
+  trimRelativePathStemForSuffix,
+} from "./sanitize";
 
 export type MediaIdentity = {
   platform: string;
@@ -81,6 +85,13 @@ const OUTPUT_FAMILY_JOURNAL_DIR = "output-family-journals";
 const OUTPUT_STAGING_DIR = ".mytube-staging";
 const CLAIM_MARKER_PREFIX = "MYTUBE_OUTPUT_CLAIM_V1";
 const REPLACEMENT_BACKUP_SUFFIX = ".mytube-replace-backup";
+/**
+ * Room held back for the tail a subtitle appends to the family stem when the
+ * languages are not known yet. Wide enough for the longest tags yt-dlp hands
+ * back plus the numeric discriminator collectionFileManager adds to a repeated
+ * language, as in ".zh-Hant-TW.2.vtt".
+ */
+const SUBTITLE_TAIL_RESERVE_BYTES = 20;
 const HARD_LINK_FALLBACK_ERROR_CODES = new Set([
   "EXDEV",
   "EPERM",
@@ -224,6 +235,82 @@ function buildSourceSuffix(identity: MediaIdentity): string | null {
       : "";
   const media = identity.mediaType === "audio" ? "-audio" : "";
   return ` [${sourceId}${part}${media}]`;
+}
+
+/**
+ * Widest tail any member of this output family will grow onto the shared stem.
+ * The video and thumbnail each add their own extension; a subtitle adds
+ * `.<lang><ext>`, which is longer than either and is the member that decides
+ * the budget. Languages are only known once a download finishes, so a request
+ * that merely reserves the subtitle family gets a fixed allowance instead.
+ */
+function familyTailReserveBytes(input: AllocateOutputFamilyInput): number {
+  const tails = [
+    Buffer.byteLength(path.extname(input.videoRelativePath), "utf8"),
+    Buffer.byteLength(path.extname(input.thumbnailRelativePath), "utf8"),
+  ];
+  // A language that repeats within one family gets a numeric discriminator from
+  // collectionFileManager - the first target keeps `.<lang><ext>` and the rest
+  // become `.<lang>.<n><ext>`, counting up to the size of the group. Budget for
+  // the widest of those, not for the plain tail.
+  const byLanguage = new Map<
+    string,
+    { language: string; extension: string; count: number }
+  >();
+  for (const subtitle of input.subtitleFiles || []) {
+    const key = `${subtitle.language}\u0000${subtitle.extension}`;
+    const seen = byLanguage.get(key);
+    if (seen) {
+      seen.count += 1;
+    } else {
+      byLanguage.set(key, {
+        language: subtitle.language,
+        extension: subtitle.extension,
+        count: 1,
+      });
+    }
+  }
+  for (const { language, extension, count } of byLanguage.values()) {
+    const discriminator = count > 1 ? `.${count}` : "";
+    tails.push(
+      Buffer.byteLength(`.${language}${discriminator}${extension}`, "utf8")
+    );
+  }
+  if (input.subtitleRequired) {
+    tails.push(SUBTITLE_TAIL_RESERVE_BYTES);
+  }
+  return Math.max(...tails);
+}
+
+/**
+ * Whether this row both claims `relativePath` and has the file to show for it.
+ *
+ * Ownership is what lets a candidate skip the byte budget, and the reason it
+ * may is that an existing file proves the name is creatable here whatever it
+ * measures in bytes. ownedPaths is built from stored path strings alone, so the
+ * proof has to be checked: a database written on APFS and restored onto ext4
+ * carries names longer than that volume can hold, and a row whose file has gone
+ * missing carries no proof either. Waving those through would hand back a
+ * destination nothing can create, and the download would fail on it.
+ *
+ * fs.existsSync answers false for a name the filesystem cannot hold rather than
+ * raising, so an over-long path falls through to trimming on its own.
+ */
+function holdsExistingVideoFile(
+  relativePath: string,
+  ownedPaths: Set<string>
+): boolean {
+  if (!ownedPaths.has(managedOwnershipKey(`/videos/${relativePath}`))) {
+    return false;
+  }
+  try {
+    return pathExistsSafeSync(
+      resolveSafeChildPath(VIDEOS_DIR, relativePath),
+      VIDEOS_DIR
+    );
+  } catch {
+    return false;
+  }
 }
 
 function getVideoFamilyStem(relativePath: string): string {
@@ -452,20 +539,86 @@ function createCandidate(
   preferredVideo: string,
   preferredThumbnail: string,
   preferredSubtitleBase: string,
-  suffix: string
+  suffix: string,
+  ownsVideoRelativePath: (relativePath: string) => boolean,
+  reservedTailBytes: number
 ): {
   videoRelativePath: string;
   thumbnailRelativePath: string;
   subtitleBaseRelativePath: string;
-} {
-  const videoRelativePath = suffix
-    ? appendSuffixToRelativePath(preferredVideo, suffix)
-    : preferredVideo;
-  const related = applyDedupeToRelatedPaths(
+} | null {
+  if (!suffix) {
+    return {
+      videoRelativePath: preferredVideo,
+      thumbnailRelativePath: preferredThumbnail,
+      subtitleBaseRelativePath: preferredSubtitleBase,
+    };
+  }
+
+  // A name this row already holds is creatable on whatever filesystem this
+  // install runs on, however long it measures in bytes - APFS counts
+  // characters, so a CJK name there can validly run well past 255 bytes. Hand
+  // it back untouched: trimming it would compute a path the existing file does
+  // not have, orphan that file, and write a duplicate beside it.
+  const ownedCandidate = appendSuffixToRelativePath(preferredVideo, suffix);
+  if (ownsVideoRelativePath(ownedCandidate)) {
+    const ownedRelated = applyDedupeToRelatedPaths(
+      preferredVideo,
+      ownedCandidate,
+      preferredThumbnail,
+      preferredSubtitleBase
+    );
+    return {
+      videoRelativePath: ownedCandidate,
+      thumbnailRelativePath: ownedRelated.thumbnail,
+      subtitleBaseRelativePath: ownedRelated.subtitleBase,
+    };
+  }
+
+  // Otherwise the name is new, so it has to fit. A suffix wide enough to eat
+  // the whole budget leaves no name to cut down to - a source id can be a whole
+  // URL, since extractSourceVideoId falls back to one for platforms it has no
+  // pattern for. Refuse rather than reserve a path that cannot be created; the
+  // caller drops to the numeric strategy, which always fits.
+  if (stemBudgetForSuffix(suffix, reservedTailBytes) <= 0) {
+    return null;
+  }
+
+  // Names arrive here already at the sanitizer's cap and a suffix can push the
+  // filename past NAME_MAX; the stem gives way instead - and every member of
+  // the family is trimmed against the same budget, so they keep the common stem
+  // that subtitle discovery and applyDedupeToRelatedPaths' append-diff below
+  // both depend on. That budget reserves the longest tail anyone in the family
+  // will grow, not this path's own extension: the subtitle base ends up
+  // carrying `.<lang><ext>`, which outruns a video's `.mp4`.
+  const fittedVideo = trimRelativePathStemForSuffix(
     preferredVideo,
-    videoRelativePath,
+    suffix,
+    reservedTailBytes,
+    path.extname(preferredVideo)
+  );
+  const fittedThumbnail = trimRelativePathStemForSuffix(
     preferredThumbnail,
-    preferredSubtitleBase
+    suffix,
+    reservedTailBytes,
+    path.extname(preferredThumbnail)
+  );
+  // The subtitle base is a bare stem. Saying so keeps a dotted title - which
+  // the legacy formatter produces by writing spaces as dots - from being read
+  // as an extension and measured short.
+  const fittedSubtitleBase = trimRelativePathStemForSuffix(
+    preferredSubtitleBase,
+    suffix,
+    reservedTailBytes,
+    ""
+  );
+
+  const videoRelativePath = appendSuffixToRelativePath(fittedVideo, suffix);
+  const related = applyDedupeToRelatedPaths(
+    fittedVideo,
+    videoRelativePath,
+    fittedThumbnail,
+    fittedSubtitleBase
   );
   return {
     videoRelativePath,
@@ -788,18 +941,24 @@ export function allocateOutputFamilySync(
     (subtitlePath) => !ownedPaths.has(subtitlePath)
   );
   const sourceSuffix = buildSourceSuffix(input.identity);
+  const reservedTailBytes = familyTailReserveBytes(input);
   let attemptedSourceSuffix = false;
+  // Set once a source suffix turns out to be too wide to leave any stem. The
+  // numeric attempts embed the source suffix too, so they have to stop carrying
+  // it as well or every one of them would be just as impossible.
+  let sourceSuffixUnusable = false;
 
   for (let attempt = 0; attempt < 1000; attempt += 1) {
     let suffix = "";
     let collisionStrategy: OutputFamilyReservation["collisionStrategy"] = "none";
-    if (attempt > 0 && sourceSuffix && !attemptedSourceSuffix) {
-      suffix = sourceSuffix;
+    const usableSourceSuffix = sourceSuffixUnusable ? null : sourceSuffix;
+    if (attempt > 0 && usableSourceSuffix && !attemptedSourceSuffix) {
+      suffix = usableSourceSuffix;
       collisionStrategy = "source_id";
       attemptedSourceSuffix = true;
     } else if (attempt > 0) {
-      const numeric = sourceSuffix
-        ? `${sourceSuffix} (${attemptedSourceSuffix ? attempt : attempt + 1})`
+      const numeric = usableSourceSuffix
+        ? `${usableSourceSuffix} (${attemptedSourceSuffix ? attempt : attempt + 1})`
         : ` (${attempt + 1})`;
       suffix = numeric;
       collisionStrategy = "numeric";
@@ -809,8 +968,14 @@ export function allocateOutputFamilySync(
       input.videoRelativePath,
       input.thumbnailRelativePath,
       input.subtitleBaseRelativePath,
-      suffix
+      suffix,
+      (relativePath) => holdsExistingVideoFile(relativePath, ownedPaths),
+      reservedTailBytes
     );
+    if (!candidate) {
+      sourceSuffixUnusable = true;
+      continue;
+    }
     const canonicalFamilyStem = canonicalizeManagedPath(
       getVideoFamilyStem(candidate.videoRelativePath)
     );
@@ -1440,9 +1605,20 @@ export function replaceOwnedFileWithBackupSync(
     return;
   }
 
-  const backupPath = `${normalizeSafeAbsolutePath(
-    destinationPath
-  )}${REPLACEMENT_BACKUP_SUFFIX}-${crypto.randomUUID()}`;
+  // Built as a fixed-length sibling rather than `${destinationPath}-<uuid>`:
+  // the suffix plus a UUID adds 59 bytes, and destination names already sit at
+  // the sanitizer's own cap (180 bytes for templates, 200 for the legacy
+  // formatter, plus any collision suffix), so deriving the backup name from the
+  // destination pushed past the 255-byte NAME_MAX and failed the rename below
+  // with ENAMETOOLONG - after the replacement file had already been downloaded.
+  // Same shape as the redownload staging name above, and the journal records
+  // destinationPath alongside backupPath for anything stranded by a crash.
+  const backupPath = resolveSafeChildPath(
+    path.dirname(normalizeSafeAbsolutePath(destinationPath)),
+    `${REPLACEMENT_BACKUP_SUFFIX}-${crypto.randomUUID()}${path.extname(
+      destinationPath
+    )}`
+  );
   const allocationId = crypto.randomUUID();
   ensureDirSafeSync(path.dirname(destinationPath), destinationRoots);
   const staging = prepareDestinationStagingFileSync(
