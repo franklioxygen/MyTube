@@ -22,7 +22,10 @@ import {
 import type { Video } from "../storageService/types";
 import { applyDedupeToRelatedPaths } from "./dedupe";
 import { canonicalizeManagedPath } from "./pathHelpers";
-import { trimRelativePathStemForSuffix } from "./sanitize";
+import {
+  stemBudgetForSuffix,
+  trimRelativePathStemForSuffix,
+} from "./sanitize";
 
 export type MediaIdentity = {
   platform: string;
@@ -82,6 +85,12 @@ const OUTPUT_FAMILY_JOURNAL_DIR = "output-family-journals";
 const OUTPUT_STAGING_DIR = ".mytube-staging";
 const CLAIM_MARKER_PREFIX = "MYTUBE_OUTPUT_CLAIM_V1";
 const REPLACEMENT_BACKUP_SUFFIX = ".mytube-replace-backup";
+/**
+ * Room held back for the `.<lang><ext>` a subtitle appends to the family stem
+ * when the languages are not known yet. Wide enough for the longest tags yt-dlp
+ * hands back, such as ".zh-Hant-TW.vtt".
+ */
+const SUBTITLE_TAIL_RESERVE_BYTES = 16;
 const HARD_LINK_FALLBACK_ERROR_CODES = new Set([
   "EXDEV",
   "EPERM",
@@ -225,6 +234,29 @@ function buildSourceSuffix(identity: MediaIdentity): string | null {
       : "";
   const media = identity.mediaType === "audio" ? "-audio" : "";
   return ` [${sourceId}${part}${media}]`;
+}
+
+/**
+ * Widest tail any member of this output family will grow onto the shared stem.
+ * The video and thumbnail each add their own extension; a subtitle adds
+ * `.<lang><ext>`, which is longer than either and is the member that decides
+ * the budget. Languages are only known once a download finishes, so a request
+ * that merely reserves the subtitle family gets a fixed allowance instead.
+ */
+function familyTailReserveBytes(input: AllocateOutputFamilyInput): number {
+  const tails = [
+    Buffer.byteLength(path.extname(input.videoRelativePath), "utf8"),
+    Buffer.byteLength(path.extname(input.thumbnailRelativePath), "utf8"),
+  ];
+  for (const subtitle of input.subtitleFiles || []) {
+    tails.push(
+      Buffer.byteLength(`.${subtitle.language}${subtitle.extension}`, "utf8")
+    );
+  }
+  if (input.subtitleRequired) {
+    tails.push(SUBTITLE_TAIL_RESERVE_BYTES);
+  }
+  return Math.max(...tails);
 }
 
 function getVideoFamilyStem(relativePath: string): string {
@@ -454,12 +486,13 @@ function createCandidate(
   preferredThumbnail: string,
   preferredSubtitleBase: string,
   suffix: string,
-  ownsVideoRelativePath: (relativePath: string) => boolean
+  ownsVideoRelativePath: (relativePath: string) => boolean,
+  reservedTailBytes: number
 ): {
   videoRelativePath: string;
   thumbnailRelativePath: string;
   subtitleBaseRelativePath: string;
-} {
+} | null {
   if (!suffix) {
     return {
       videoRelativePath: preferredVideo,
@@ -488,28 +521,36 @@ function createCandidate(
     };
   }
 
-  // Otherwise the name is new, so it has to fit. Names arrive here already at
-  // the sanitizer's cap and a suffix can push the filename past NAME_MAX; the
-  // stem gives way instead - and every member of the family is trimmed against
-  // the same budget, so they keep the common stem that subtitle discovery and
-  // applyDedupeToRelatedPaths' append-diff below both depend on. The
-  // extension-less subtitle base is passed the video's extension for exactly
-  // that reason.
-  const extension = path.extname(preferredVideo);
+  // Otherwise the name is new, so it has to fit. A suffix wide enough to eat
+  // the whole budget leaves no name to cut down to - a source id can be a whole
+  // URL, since extractSourceVideoId falls back to one for platforms it has no
+  // pattern for. Refuse rather than reserve a path that cannot be created; the
+  // caller drops to the numeric strategy, which always fits.
+  if (stemBudgetForSuffix(suffix, reservedTailBytes) <= 0) {
+    return null;
+  }
+
+  // Names arrive here already at the sanitizer's cap and a suffix can push the
+  // filename past NAME_MAX; the stem gives way instead - and every member of
+  // the family is trimmed against the same budget, so they keep the common stem
+  // that subtitle discovery and applyDedupeToRelatedPaths' append-diff below
+  // both depend on. That budget reserves the longest tail anyone in the family
+  // will grow, not this path's own extension: the subtitle base ends up
+  // carrying `.<lang><ext>`, which outruns a video's `.mp4`.
   const fittedVideo = trimRelativePathStemForSuffix(
     preferredVideo,
     suffix,
-    extension
+    reservedTailBytes
   );
   const fittedThumbnail = trimRelativePathStemForSuffix(
     preferredThumbnail,
     suffix,
-    extension
+    reservedTailBytes
   );
   const fittedSubtitleBase = trimRelativePathStemForSuffix(
     preferredSubtitleBase,
     suffix,
-    extension
+    reservedTailBytes
   );
 
   const videoRelativePath = appendSuffixToRelativePath(fittedVideo, suffix);
@@ -840,18 +881,24 @@ export function allocateOutputFamilySync(
     (subtitlePath) => !ownedPaths.has(subtitlePath)
   );
   const sourceSuffix = buildSourceSuffix(input.identity);
+  const reservedTailBytes = familyTailReserveBytes(input);
   let attemptedSourceSuffix = false;
+  // Set once a source suffix turns out to be too wide to leave any stem. The
+  // numeric attempts embed the source suffix too, so they have to stop carrying
+  // it as well or every one of them would be just as impossible.
+  let sourceSuffixUnusable = false;
 
   for (let attempt = 0; attempt < 1000; attempt += 1) {
     let suffix = "";
     let collisionStrategy: OutputFamilyReservation["collisionStrategy"] = "none";
-    if (attempt > 0 && sourceSuffix && !attemptedSourceSuffix) {
-      suffix = sourceSuffix;
+    const usableSourceSuffix = sourceSuffixUnusable ? null : sourceSuffix;
+    if (attempt > 0 && usableSourceSuffix && !attemptedSourceSuffix) {
+      suffix = usableSourceSuffix;
       collisionStrategy = "source_id";
       attemptedSourceSuffix = true;
     } else if (attempt > 0) {
-      const numeric = sourceSuffix
-        ? `${sourceSuffix} (${attemptedSourceSuffix ? attempt : attempt + 1})`
+      const numeric = usableSourceSuffix
+        ? `${usableSourceSuffix} (${attemptedSourceSuffix ? attempt : attempt + 1})`
         : ` (${attempt + 1})`;
       suffix = numeric;
       collisionStrategy = "numeric";
@@ -863,8 +910,13 @@ export function allocateOutputFamilySync(
       input.subtitleBaseRelativePath,
       suffix,
       (relativePath) =>
-        ownedPaths.has(managedOwnershipKey(`/videos/${relativePath}`))
+        ownedPaths.has(managedOwnershipKey(`/videos/${relativePath}`)),
+      reservedTailBytes
     );
+    if (!candidate) {
+      sourceSuffixUnusable = true;
+      continue;
+    }
     const canonicalFamilyStem = canonicalizeManagedPath(
       getVideoFamilyStem(candidate.videoRelativePath)
     );

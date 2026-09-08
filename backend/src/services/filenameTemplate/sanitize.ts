@@ -261,27 +261,42 @@ export function enforcePathLengthLimit(
 }
 
 /**
+ * Bytes left for a stem once `suffix` and `reservedTailBytes` are accounted for
+ * within FILENAME_MAX_BYTES. Zero or less means no name carrying that suffix
+ * can be created, however short the stem is cut.
+ */
+export function stemBudgetForSuffix(
+  suffix: string,
+  reservedTailBytes: number
+): number {
+  return FILENAME_MAX_BYTES - byteLength(suffix) - reservedTailBytes;
+}
+
+/**
  * Trims the stem of `relativePath`'s final segment so that a filename built as
- * `stem + suffix + extension` stays within FILENAME_MAX_BYTES. Directories and
- * the path's own extension are left untouched, and a path that already fits is
+ * `stem + suffix + <tail>` stays within FILENAME_MAX_BYTES. Directories and the
+ * path's own extension are left untouched, and a path that already fits is
  * returned unchanged. The caller appends `suffix` itself.
  *
  * The stem is what gives way rather than the suffix: callers append a suffix to
  * make a colliding name unique, so trimming the suffix would hand back a name
  * that collides all over again.
  *
- * `extension` is passed in rather than read from `relativePath` so that the
- * members of one output family - video, thumbnail, and the extension-less
- * subtitle base - can be trimmed to a single shared budget and keep a common
- * stem.
+ * `reservedTailBytes` is a byte count rather than this path's own extension so
+ * that one output family - video, thumbnail, and the extension-less subtitle
+ * base - can be trimmed against a single shared budget wide enough for the
+ * longest tail any of them will grow, and still keep a common stem. A subtitle
+ * base ends up carrying `.<lang><ext>`, which outruns the video's `.mp4`.
+ *
+ * Callers must check stemBudgetForSuffix first: with no budget left there is no
+ * name to return, and this returns the path unchanged rather than inventing one.
  */
 export function trimRelativePathStemForSuffix(
   relativePath: string,
   suffix: string,
-  extension: string
+  reservedTailBytes: number
 ): string {
-  const maxStemBytes =
-    FILENAME_MAX_BYTES - byteLength(suffix) - byteLength(extension);
+  const maxStemBytes = stemBudgetForSuffix(suffix, reservedTailBytes);
   if (maxStemBytes <= 0) {
     return relativePath;
   }
