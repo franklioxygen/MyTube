@@ -195,6 +195,9 @@ const VideoElement: React.FC<VideoElementProps> = ({
                         overflow: 'hidden',
                         background: `linear-gradient(135deg, #161b2d 0%, #3b1d5a 55%, #0f766e 100%)`,
                         cursor: 'pointer',
+                        // The whole surface toggles playback, so repeated taps
+                        // must not select the placeholder glyph inside it.
+                        userSelect: 'none',
                     }}
                 >
                     {poster ? (

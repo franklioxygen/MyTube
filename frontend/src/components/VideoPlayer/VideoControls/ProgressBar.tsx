@@ -44,7 +44,15 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
     };
 
     return (
-        <Stack direction="row" spacing={{ xs: 0.5, sm: 1 }} alignItems="center" sx={{ flex: 1, minWidth: 0 }}>
+        <Stack
+            direction="row"
+            spacing={{ xs: 0.5, sm: 1 }}
+            alignItems="center"
+            // The buttons on either side are tapped repeatedly on touch
+            // screens, and a tap that lands just off one of them would
+            // otherwise select the elapsed/duration text next to it.
+            sx={{ flex: 1, minWidth: 0, userSelect: 'none' }}
+        >
             <Typography variant="caption" sx={{ minWidth: { xs: '35px', sm: '45px' }, textAlign: 'right', fontSize: '0.75rem', color: textColor }}>
                 {formatTime(currentTime)}
             </Typography>

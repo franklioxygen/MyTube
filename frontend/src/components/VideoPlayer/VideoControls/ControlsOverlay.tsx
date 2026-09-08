@@ -119,6 +119,9 @@ const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
         <Box
             sx={{
                 p: 1,
+                // Nothing in the control cluster is meant to be selected; a
+                // stray tap on touch screens should never start a selection.
+                userSelect: 'none',
                 bgcolor: isFullscreen
                     ? overlay.black55
                     : modePalette.backgroundElevated,
