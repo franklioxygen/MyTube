@@ -285,7 +285,7 @@ describe("getBilibiliCollectionHeadSnapshot", () => {
     vi.clearAllMocks();
   });
 
-  it("fetches a single newest-first Bilibili page for head-only probes", async () => {
+  it("reads the collection archives for a head probe", async () => {
     const { getBilibiliCollectionVideos } = await import(
       "../../../services/downloadService"
     );
@@ -300,14 +300,13 @@ describe("getBilibiliCollectionHeadSnapshot", () => {
         type: "collection",
         mid: 12345,
         id: 9988,
-      },
-      { headOnly: true }
+      }
     );
 
     expect(getBilibiliCollectionVideos).toHaveBeenCalledWith(
       12345,
       9988,
-      { maxPages: 1, sortReverse: true },
+      undefined,
       undefined
     );
     expect(snap.headVideoUrl).toBe("https://www.bilibili.com/video/BVhead");
@@ -337,7 +336,7 @@ describe("getBilibiliCollectionHeadSnapshot", () => {
     expect(getBilibiliCollectionVideos).toHaveBeenCalledWith(
       12345,
       9988,
-      { sortReverse: true },
+      undefined,
       "--proxy socks5://sub:1080"
     );
   });
@@ -362,7 +361,7 @@ describe("getBilibiliCollectionHeadSnapshot", () => {
     await getBilibiliCollectionHeadSnapshot(
       "https://www.bilibili.com/video/BVseed",
       { type: "collection" },
-      { headOnly: true, subscriptionYtdlpConfig: "--proxy socks5://sub:1080" }
+      { subscriptionYtdlpConfig: "--proxy socks5://sub:1080" }
     );
 
     expect(checkBilibiliCollectionOrSeries).toHaveBeenCalledWith(
@@ -386,13 +385,13 @@ describe("getBilibiliCollectionHeadSnapshot", () => {
     await getBilibiliCollectionHeadSnapshot(
       "https://www.bilibili.com/video/BVseed",
       { type: "collection", mid: 12345, id: 9988 },
-      { headOnly: true, subscriptionYtdlpConfig: "--proxy socks5://sub:1080" }
+      { subscriptionYtdlpConfig: "--proxy socks5://sub:1080" }
     );
 
     expect(getBilibiliCollectionVideos).toHaveBeenCalledWith(
       12345,
       9988,
-      { maxPages: 1, sortReverse: true },
+      undefined,
       "--proxy socks5://sub:1080"
     );
   });
@@ -418,7 +417,7 @@ describe("getBilibiliCollectionHeadSnapshot", () => {
     expect(getBilibiliSeriesVideos).toHaveBeenCalledWith(
       12345,
       9988,
-      { sortReverse: true },
+      undefined,
       undefined
     );
   });
@@ -441,8 +440,7 @@ describe("getBilibiliCollectionHeadSnapshot", () => {
 
     const snap = await getBilibiliCollectionHeadSnapshot(
       "https://www.bilibili.com/video/BVseed",
-      { type: "collection", mid: 12345, id: 9988 },
-      { headOnly: true }
+      { type: "collection", mid: 12345, id: 9988 }
     );
 
     expect(snap.headVideoUrl).toBe("https://www.bilibili.com/video/BVnewest");

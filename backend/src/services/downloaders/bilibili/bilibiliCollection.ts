@@ -153,12 +153,6 @@ const canReuseCollectionForSource = (
 export interface BilibiliVideoFetchOptions {
   pageSize?: number;
   maxPages?: number;
-  /**
-   * Ask Bilibili for the archives newest-first instead of in the collection's
-   * own episode order. Only the subscription head probe needs this; download
-   * flows keep the natural order so episode numbering stays stable.
-   */
-  sortReverse?: boolean;
 }
 
 const DEFAULT_BILIBILI_PAGE_SIZE = 30;
@@ -166,7 +160,7 @@ const MAX_BILIBILI_ARCHIVE_PAGES = 100;
 
 function normalizeFetchOptions(
   options?: BilibiliVideoFetchOptions,
-): { pageSize: number; maxPages: number | null; sortReverse: boolean } {
+): { pageSize: number; maxPages: number | null } {
   const pageSize =
     Number.isSafeInteger(options?.pageSize) && (options?.pageSize ?? 0) > 0
       ? options!.pageSize!
@@ -176,7 +170,7 @@ function normalizeFetchOptions(
       ? options!.maxPages!
       : null;
 
-  return { pageSize, maxPages, sortReverse: options?.sortReverse === true };
+  return { pageSize, maxPages };
 }
 
 function shouldFetchNextArchivePage(input: {
@@ -386,7 +380,7 @@ export async function getCollectionVideos(
   try {
     const allVideos: BilibiliVideoItem[] = [];
     let pageNum = 1;
-    const { pageSize, maxPages, sortReverse } = normalizeFetchOptions(options);
+    const { pageSize, maxPages } = normalizeFetchOptions(options);
     let hasMore = true;
 
     logger.info(
@@ -413,7 +407,7 @@ export async function getCollectionVideos(
         season_id: seasonId,
         page_num: pageNum,
         page_size: pageSize,
-        sort_reverse: sortReverse,
+        sort_reverse: false,
       };
 
       logger.info(`Fetching page ${pageNum} of collection...`);
@@ -474,7 +468,7 @@ export async function getSeriesVideos(
   try {
     const allVideos: BilibiliVideoItem[] = [];
     let pageNum = 1;
-    const { pageSize, maxPages, sortReverse } = normalizeFetchOptions(options);
+    const { pageSize, maxPages } = normalizeFetchOptions(options);
     let hasMore = true;
 
     logger.info(`Fetching series videos for mid=${mid}, series_id=${seriesId}`);
@@ -499,9 +493,6 @@ export async function getSeriesVideos(
         series_id: seriesId,
         pn: pageNum,
         ps: pageSize,
-        // Only sent when a newest-first page is explicitly requested, so the
-        // default fetch keeps whatever order the series API already returns.
-        ...(sortReverse ? { sort: "desc" } : {}),
       };
 
       logger.info(`Fetching page ${pageNum} of series...`);

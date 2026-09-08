@@ -533,7 +533,7 @@ describe('SubscriptionService', () => {
       expect(downloadService.getBilibiliCollectionVideos).toHaveBeenCalledWith(
         12345,
         9988,
-        { maxPages: 1, sortReverse: true },
+        undefined,
         '--proxy socks5://sub:1080'
       );
       expect(executeYtDlpJson).not.toHaveBeenCalled();

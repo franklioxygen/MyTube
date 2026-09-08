@@ -140,7 +140,7 @@ export async function checkBilibiliCollectionOrSeries(
 export async function getBilibiliCollectionVideos(
   mid: number,
   seasonId: number,
-  options?: { pageSize?: number; maxPages?: number; sortReverse?: boolean },
+  options?: { pageSize?: number; maxPages?: number },
   subscriptionYtdlpConfig?: string | null,
 ): Promise<BilibiliVideosResult> {
   return BilibiliDownloader.getCollectionVideos(
@@ -155,7 +155,7 @@ export async function getBilibiliCollectionVideos(
 export async function getBilibiliSeriesVideos(
   mid: number,
   seriesId: number,
-  options?: { pageSize?: number; maxPages?: number; sortReverse?: boolean },
+  options?: { pageSize?: number; maxPages?: number },
   subscriptionYtdlpConfig?: string | null,
 ): Promise<BilibiliVideosResult> {
   return BilibiliDownloader.getSeriesVideos(

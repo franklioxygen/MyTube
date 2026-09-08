@@ -13,11 +13,14 @@ import {
   resetCookiesFileCache,
 } from "../../utils/ytdlp/cookies";
 
+const FUTURE = Math.floor(Date.now() / 1000) + 86400;
+const PAST = Math.floor(Date.now() / 1000) - 86400;
+
 const COOKIES_FILE =
   [
     "# Netscape HTTP Cookie File",
     "#HttpOnly_.bilibili.com\tTRUE\t/\tTRUE\t0\tSESSDATA\tabc",
-    ".bilibili.com\tTRUE\t/\tFALSE\t0\tbuvid3\tdef",
+    `.bilibili.com\tTRUE\t/\tFALSE\t${FUTURE}\tbuvid3\tdef`,
     ".bilibili.com\tTRUE\t/\tFALSE\t0\tSESSDATA\tstale-duplicate",
     "passport.bilibili.com\tFALSE\t/\tTRUE\t0\tHOST_ONLY\tnope",
     ".youtube.com\tTRUE\t/\tFALSE\t0\tPREF\tzzz",
@@ -49,5 +52,19 @@ describe("getCookieHeaderForHost", () => {
     expect(getCookieHeaderForHost("api.bilibili.com")).not.toContain(
       "HOST_ONLY"
     );
+  });
+
+  it("drops an expired cookie and still sends the live one that follows it", () => {
+    // Exports routinely carry both, oldest first. Claiming the name for the
+    // expired line would have sent a dead credential and hidden the good one.
+    vi.mocked(readFileSafeSync).mockReturnValue(
+      [
+        "# Netscape HTTP Cookie File",
+        `.bilibili.com\tTRUE\t/\tFALSE\t${PAST}\tSESSDATA\tstale`,
+        `.bilibili.com\tTRUE\t/\tFALSE\t${FUTURE}\tSESSDATA\tlive`,
+      ].join("\n") + "\n" as never
+    );
+
+    expect(getCookieHeaderForHost("api.bilibili.com")).toBe("SESSDATA=live");
   });
 });

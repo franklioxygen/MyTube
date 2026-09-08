@@ -129,6 +129,15 @@ function cookieLineMatchesHost(
   return host === domain;
 }
 
+function isExpiredCookie(expires: string): boolean {
+  const expiresAt = Number.parseInt(expires, 10);
+  // 0 (and anything unparseable) is the session-cookie convention: no expiry.
+  if (!Number.isFinite(expiresAt) || expiresAt <= 0) {
+    return false;
+  }
+  return expiresAt * 1000 <= Date.now();
+}
+
 /**
  * Build a `Cookie` request header for `host` from the stored cookies.txt.
  *
@@ -168,7 +177,7 @@ export function getCookieHeaderForHost(host: string): string | null {
         continue;
       }
 
-      const [rawDomain, includeSubdomains, , , , name, value] = parts;
+      const [rawDomain, includeSubdomains, , , expires, name, value] = parts;
       if (!name || seenNames.has(name)) {
         continue;
       }
@@ -179,6 +188,12 @@ export function getCookieHeaderForHost(host: string): string | null {
           normalizedHost
         )
       ) {
+        continue;
+      }
+      // Skipped before the name is claimed, so a stale line cannot suppress a
+      // live cookie of the same name further down the file — cookie exports
+      // routinely carry both.
+      if (isExpiredCookie(expires)) {
         continue;
       }
 

@@ -1316,7 +1316,7 @@ export class SubscriptionService {
             mid: collection?.sourceMid,
             id: collection?.sourceId ?? sub.playlistId,
           },
-          { headOnly: true, subscriptionYtdlpConfig: sub.ytdlpConfig }
+          { subscriptionYtdlpConfig: sub.ytdlpConfig }
         );
 
         // Subscriptions created before the collection carried a source key have

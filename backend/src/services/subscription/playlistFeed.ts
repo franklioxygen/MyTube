@@ -61,7 +61,6 @@ export interface BilibiliCollectionHeadSnapshot extends PlaylistHeadSnapshot {
 }
 
 export interface BilibiliCollectionHeadSnapshotOptions {
-  headOnly?: boolean;
   // A collection subscription can carry its own --proxy. Polling has to use it,
   // or the archive request goes out over the global config (or none at all).
   subscriptionYtdlpConfig?: string | null;
@@ -366,15 +365,18 @@ async function resolveBilibiliCollectionSource(
  * upload order nor stable: an author can append an older video, or reorder the
  * season. Taking `videos[0]` therefore pinned the head to episode 1 forever, so
  * a subscription whose cursor already sat on episode 1 never saw a new video.
- * Comparing the YYYYMMDD upload dates is order-independent; ties fall back to
- * the earliest entry, which is the newest one on a newest-first page.
+ * Comparing the YYYYMMDD upload dates is order-independent. Ties, and archives
+ * with no usable date at all, fall back to the later position, which is where a
+ * collection normally grows.
  */
 function pickNewestBilibiliVideo<T extends { uploadDate?: string }>(
   videos: T[]
 ): T | undefined {
   return videos.reduce<T | undefined>((newest, video) => {
     if (!newest) return video;
-    return (video.uploadDate ?? "") > (newest.uploadDate ?? "") ? video : newest;
+    return (video.uploadDate ?? "") >= (newest.uploadDate ?? "")
+      ? video
+      : newest;
   }, undefined);
 }
 
@@ -398,24 +400,22 @@ export async function getBilibiliCollectionHeadSnapshot(
   const { getBilibiliCollectionVideos, getBilibiliSeriesVideos } = await import(
     "../downloadService"
   );
-  // Newest-first in both modes so the head probe only has to read one page,
-  // and so the baseline captured at subscription-creation time agrees with what
-  // the scheduled poll will observe later.
-  const fetchOptions = options?.headOnly
-    ? { maxPages: 1, sortReverse: true }
-    : { sortReverse: true };
+  // Every page, for both the creation baseline and the scheduled poll. Bilibili
+  // offers no date-sorted view of a collection, so the newest upload can sit at
+  // any position and only a full scan can find it; reading a bounded window
+  // would reintroduce exactly the stall this is fixing, on a longer collection.
   const videosResult =
     source.type === "collection"
       ? await getBilibiliCollectionVideos(
           source.mid,
           source.id,
-          fetchOptions,
+          undefined,
           options?.subscriptionYtdlpConfig
         )
       : await getBilibiliSeriesVideos(
           source.mid,
           source.id,
-          fetchOptions,
+          undefined,
           options?.subscriptionYtdlpConfig
         );
 
