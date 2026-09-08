@@ -1226,6 +1226,55 @@ describe("outputPathAllocator", () => {
     second.release();
   });
 
+  it("leaves an owned suffixed name alone even past the byte budget", async () => {
+    const root = makeTempRoot();
+    // APFS limits filenames by characters, not UTF-8 bytes, so a CJK name there
+    // can validly exceed 255 bytes and such files exist on macOS installs. The
+    // byte budget must not touch one the row already holds: trimming it would
+    // compute a path the file does not have, orphan it, and write a duplicate.
+    const stem = "\u6f22".repeat(120);
+    const owned = `${stem} [def].mp4`;
+    expect(Buffer.byteLength(owned, "utf8")).toBe(370);
+
+    const allocator = await loadAllocator(root, [
+      // Another row holds the unsuffixed base name, which is why this row got a
+      // suffix in the first place and why it collides again on reallocation.
+      {
+        id: "local-2",
+        videoPath: `/videos/${stem}.mp4`,
+        thumbnailPath: `/images/${stem}.jpg`,
+        subtitles: [],
+      },
+      {
+        id: "local-1",
+        videoPath: `/videos/${owned}`,
+        thumbnailPath: `/images/${stem} [def].jpg`,
+        subtitles: [],
+      },
+    ]);
+
+    const reservation = allocator.allocateOutputFamilySync({
+      videoRelativePath: `${stem}.mp4`,
+      thumbnailRelativePath: `${stem}.jpg`,
+      subtitleBaseRelativePath: stem,
+      thumbnailBaseDir: path.join(root, "images"),
+      identity: {
+        platform: "youtube",
+        sourceVideoId: "def",
+        mediaType: "video",
+        localVideoId: "local-1",
+      },
+      existingLocalVideoId: "local-1",
+      ownedManagedPaths: [`/videos/${owned}`],
+    });
+
+    // Reallocating for the same row must land back on the file it already has.
+    expect(reservation.videoRelativePath).toBe(owned);
+    expect(reservation.thumbnailRelativePath).toBe(`${stem} [def].jpg`);
+    expect(reservation.subtitleBaseRelativePath).toBe(`${stem} [def]`);
+    reservation.release();
+  });
+
   it("leaves a suffixed name that already fits exactly as it is", async () => {
     const root = makeTempRoot();
     // 244 bytes with the suffix: under NAME_MAX, so a file this size can and

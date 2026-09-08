@@ -453,7 +453,8 @@ function createCandidate(
   preferredVideo: string,
   preferredThumbnail: string,
   preferredSubtitleBase: string,
-  suffix: string
+  suffix: string,
+  ownsVideoRelativePath: (relativePath: string) => boolean
 ): {
   videoRelativePath: string;
   thumbnailRelativePath: string;
@@ -467,12 +468,33 @@ function createCandidate(
     };
   }
 
-  // Names arrive here already at the sanitizer's cap, so a suffix can push the
-  // filename past NAME_MAX. The stem gives way instead - and every member of
-  // the family is trimmed against the same budget, so they keep the common stem
-  // that subtitle discovery and applyDedupeToRelatedPaths' append-diff below
-  // both depend on. The extension-less subtitle base is passed the video's
-  // extension for exactly that reason.
+  // A name this row already holds is creatable on whatever filesystem this
+  // install runs on, however long it measures in bytes - APFS counts
+  // characters, so a CJK name there can validly run well past 255 bytes. Hand
+  // it back untouched: trimming it would compute a path the existing file does
+  // not have, orphan that file, and write a duplicate beside it.
+  const ownedCandidate = appendSuffixToRelativePath(preferredVideo, suffix);
+  if (ownsVideoRelativePath(ownedCandidate)) {
+    const ownedRelated = applyDedupeToRelatedPaths(
+      preferredVideo,
+      ownedCandidate,
+      preferredThumbnail,
+      preferredSubtitleBase
+    );
+    return {
+      videoRelativePath: ownedCandidate,
+      thumbnailRelativePath: ownedRelated.thumbnail,
+      subtitleBaseRelativePath: ownedRelated.subtitleBase,
+    };
+  }
+
+  // Otherwise the name is new, so it has to fit. Names arrive here already at
+  // the sanitizer's cap and a suffix can push the filename past NAME_MAX; the
+  // stem gives way instead - and every member of the family is trimmed against
+  // the same budget, so they keep the common stem that subtitle discovery and
+  // applyDedupeToRelatedPaths' append-diff below both depend on. The
+  // extension-less subtitle base is passed the video's extension for exactly
+  // that reason.
   const extension = path.extname(preferredVideo);
   const fittedVideo = trimRelativePathStemForSuffix(
     preferredVideo,
@@ -839,7 +861,9 @@ export function allocateOutputFamilySync(
       input.videoRelativePath,
       input.thumbnailRelativePath,
       input.subtitleBaseRelativePath,
-      suffix
+      suffix,
+      (relativePath) =>
+        ownedPaths.has(managedOwnershipKey(`/videos/${relativePath}`))
     );
     const canonicalFamilyStem = canonicalizeManagedPath(
       getVideoFamilyStem(candidate.videoRelativePath)

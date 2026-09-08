@@ -27,6 +27,25 @@ function byteLength(value: string): number {
   return Buffer.byteLength(value, "utf8");
 }
 
+/**
+ * Same result as replacing TRAILING_DOTS_SPACES_RE, in a single backward walk.
+ * That regex is quadratic on a run of trailing spaces, which CodeQL flags when
+ * the input traces back to a title; the strings here are already truncated to a
+ * filename's worth of bytes, but a linear pass costs nothing and needs no
+ * argument about bounds.
+ */
+function stripTrailingDotsAndSpaces(value: string): string {
+  let end = value.length;
+  while (end > 0) {
+    const ch = value[end - 1];
+    if (ch !== "." && ch !== " ") {
+      break;
+    }
+    end -= 1;
+  }
+  return end === value.length ? value : value.slice(0, end);
+}
+
 function truncateToByteLength(value: string, maxBytes: number): string {
   if (byteLength(value) <= maxBytes) {
     return value;
@@ -277,8 +296,8 @@ export function trimRelativePathStemForSuffix(
     return relativePath;
   }
 
-  const trimmedStem = truncateToByteLength(stem, maxStemBytes)
-    .replace(TRAILING_DOTS_SPACES_RE, "")
-    .trim();
+  const trimmedStem = stripTrailingDotsAndSpaces(
+    truncateToByteLength(stem, maxStemBytes)
+  ).trim();
   return `${dir}${trimmedStem || "x"}${ownExtension}`;
 }
