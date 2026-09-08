@@ -4,6 +4,7 @@
 export type { VideoCallerRole } from "./videoQueries";
 export {
   getVideos,
+  getVideosStrict,
   getVideoSummaries,
   getVideoBySourceUrl,
   getVideoById,

@@ -32,19 +32,19 @@ export function validateDatabase(filePath: string): void {
   let sourceDb: Database.Database | null = null;
   try {
     sourceDb = new Database(filePath, { readonly: true });
-    // Try to query the database to verify it's valid
-    sourceDb
-      .prepare("SELECT name FROM sqlite_master WHERE type='table' LIMIT 1")
-      .get();
-    sourceDb.close();
-  } catch (validationError) {
-    if (sourceDb) {
-      sourceDb.close();
+    // A readable sqlite_master does not prove that data pages, indexes, or the
+    // freelist are sound (e.g. a copy taken across two commits).
+    const checks = sourceDb.pragma("integrity_check") as Array<{ integrity_check: string }>;
+    if (checks.length !== 1 || checks[0].integrity_check !== "ok") {
+      throw new Error("SQLite integrity check failed");
     }
+  } catch (validationError) {
     throw new ValidationError(
       "Invalid database file. The file is not a valid SQLite database.",
       "file"
     );
+  } finally {
+    sourceDb?.close();
   }
 }
 
@@ -65,9 +65,14 @@ export function prepareTempImportFile(fileBuffer: Buffer): string {
     throw new ValidationError("Invalid database path", "file");
   }
 
-  writeFileSafeSync(tempImportPath, DATA_DIR, fileBuffer);
-  validateDatabase(tempImportPath);
-  return tempImportPath;
+  try {
+    writeFileSafeSync(tempImportPath, DATA_DIR, fileBuffer);
+    validateDatabase(tempImportPath);
+    return tempImportPath;
+  } catch (error) {
+    cleanupTempImportFile(tempImportPath);
+    throw error;
+  }
 }
 
 export function cleanupTempImportFile(tempImportPath: string): void {

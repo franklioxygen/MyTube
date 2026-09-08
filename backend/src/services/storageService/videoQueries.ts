@@ -21,6 +21,18 @@ export function getVideos(
   role?: VideoCallerRole
 ): import("./types").Video[] {
   try {
+    return getVideosStrict(role);
+  } catch {
+    // Preserve the existing list API fallback. Destructive callers must use
+    // getVideosStrict: a failed read is not evidence that a file has no owners.
+    return [];
+  }
+}
+
+export function getVideosStrict(
+  role?: VideoCallerRole
+): import("./types").Video[] {
+  try {
     const baseQuery = db
       .select()
       .from(videos)
@@ -39,8 +51,11 @@ export function getVideos(
       "Error getting videos",
       error instanceof Error ? error : new Error(String(error))
     );
-    // Return empty array for backward compatibility with frontend
-    return [];
+    throw new DatabaseError(
+      "Failed to read video library",
+      error instanceof Error ? error : new Error(String(error)),
+      "getVideosStrict"
+    );
   }
 }
 

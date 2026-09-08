@@ -5,9 +5,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanupTempFiles } from '../../controllers/cleanupController';
 
 // Mock config/paths to use a temp directory
-vi.mock('../../config/paths', async () => {
+vi.mock('../../config/paths', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../../config/paths')>();
   const path = await import('path');
   return {
+    ...original,
     VIDEOS_DIR: path.default.join(process.cwd(), 'src', '__tests__', 'temp_cleanup_test_videos_dir')
   };
 });
@@ -16,7 +18,8 @@ import { VIDEOS_DIR } from '../../config/paths';
 
 // Mock storageService to simulate no active downloads
 vi.mock('../../services/storageService', () => ({
-  getDownloadStatus: vi.fn(() => ({ activeDownloads: [] }))
+  getDownloadStatus: vi.fn(() => ({ activeDownloads: [] })),
+  getVideosStrict: vi.fn(() => [])
 }));
 
 describe('cleanupController', () => {
@@ -39,13 +42,13 @@ describe('cleanupController', () => {
     }
   });
 
-  it('should delete directories starting with temp_ recursively', async () => {
+  it('preserves temp_ folders and completed files while removing partial files inside them', async () => {
     // Create structure:
     // videos/
-    //   temp_folder1/ (should be deleted)
+    //   temp_folder1/ (should stay)
     //     file.txt
     //   normal_folder/ (should stay)
-    //     temp_nested/ (should be deleted per current recursive logic)
+    //     temp_nested/ (should stay)
     //     normal_nested/ (should stay)
     //   video.mp4 (should stay)
     //   video.mp4.part (should be deleted)
@@ -62,6 +65,8 @@ describe('cleanupController', () => {
     
     await fs.ensureDir(normalFolder);
     await fs.ensureDir(nestedTemp);
+    await fs.writeFile(path.join(nestedTemp, 'keep.mp4'), 'completed video');
+    await fs.writeFile(path.join(nestedTemp, 'abandoned.mp4.part'), 'partial');
     await fs.ensureDir(nestedNormal);
     
     await fs.ensureFile(partFile);
@@ -69,9 +74,10 @@ describe('cleanupController', () => {
 
     await cleanupTempFiles(req, res);
 
-    expect(await fs.pathExists(tempFolder1)).toBe(false);
+    expect(await fs.readFile(path.join(tempFolder1, 'file.txt'), 'utf8')).toBe('content');
     expect(await fs.pathExists(normalFolder)).toBe(true);
-    expect(await fs.pathExists(nestedTemp)).toBe(false);
+    expect(await fs.readFile(path.join(nestedTemp, 'keep.mp4'), 'utf8')).toBe('completed video');
+    expect(await fs.pathExists(path.join(nestedTemp, 'abandoned.mp4.part'))).toBe(false);
     expect(await fs.pathExists(nestedNormal)).toBe(true);
     expect(await fs.pathExists(partFile)).toBe(false);
     expect(await fs.pathExists(normalFile)).toBe(true);

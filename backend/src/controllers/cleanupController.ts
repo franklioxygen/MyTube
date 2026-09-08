@@ -2,11 +2,12 @@ import { Request, Response } from "express";
 import { VIDEOS_DIR } from "../config/paths";
 import { ValidationError } from "../errors/DownloadErrors";
 import * as storageService from "../services/storageService";
+import { createArtifactReferenceGuard } from "../services/storageService/artifactReferences";
 import { logger } from "../utils/logger";
 import {
   readdirDirentsSafe,
-  removeSafe,
   resolveSafeChildPath,
+  unlinkSafeSync,
 } from "../utils/security";
 
 /**
@@ -38,28 +39,22 @@ export const cleanupTempFiles = async (
         const fullPath = resolveSafeChildPath(dir, entry.name);
 
         if (entry.isDirectory()) {
-          // Check for temp_ folder
-          if (entry.name.startsWith("temp_")) {
-            try {
-              await removeSafe(fullPath, VIDEOS_DIR);
-              deletedCount++;
-              logger.debug(`Deleted temp directory: ${fullPath}`);
-            } catch (error) {
-              const errorMsg = `Failed to delete directory ${fullPath}: ${
-                error instanceof Error ? error.message : String(error)
-              }`;
-              logger.warn(errorMsg);
-              errors.push(errorMsg);
-            }
-          } else {
-            // Recursively clean subdirectories
-            await cleanupDirectory(fullPath);
-          }
+          // A temp_ prefix is also a valid author/template directory. Without
+          // a job-owned manifest it does not establish that a folder is trash.
+          await cleanupDirectory(fullPath);
         } else if (entry.isFile()) {
           // Check if file has .ytdl or .part extension
           if (entry.name.endsWith(".ytdl") || entry.name.endsWith(".part")) {
             try {
-              await removeSafe(fullPath, VIDEOS_DIR);
+              // Recheck after asynchronous traversal, then inspect owners and
+              // unlink synchronously so another request cannot start a download
+              // or register this artifact between the check and deletion.
+              if (storageService.getDownloadStatus().activeDownloads.length > 0) {
+                throw new Error("Downloads became active during cleanup");
+              }
+              const isReferenced = createArtifactReferenceGuard(storageService.getVideosStrict());
+              if (isReferenced(fullPath)) continue;
+              unlinkSafeSync(fullPath, VIDEOS_DIR);
               deletedCount++;
               logger.debug(`Deleted temp file: ${fullPath}`);
             } catch (error) {

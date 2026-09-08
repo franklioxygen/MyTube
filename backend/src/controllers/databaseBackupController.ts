@@ -28,17 +28,22 @@ export const exportDatabase = async (
   _req: Request,
   res: Response
 ): Promise<void> => {
-  const dbPath = databaseBackupService.exportDatabase();
+  const dbPath = await databaseBackupService.exportDatabase();
 
-  // Generate filename with date and time
-  const filename = `mytube-backup-${generateTimestamp()}.db`;
-
-  // Set headers for file download
-  res.setHeader("Content-Type", "application/octet-stream");
-  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
-
-  // Send the database file
-  res.sendFile(dbPath);
+  try {
+    // A client can disconnect while the snapshot is being created.
+    if (res.destroyed) return;
+    const filename = `mytube-backup-${generateTimestamp()}.db`;
+    res.setHeader("Content-Type", "application/octet-stream");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    // Wait for sendFile's callback on completion/error (including disconnect)
+    // before unlinking the snapshot. Reject so asyncHandler handles failures.
+    await new Promise<void>((resolve, reject) => {
+      res.sendFile(dbPath, (error) => error ? reject(error) : resolve());
+    });
+  } finally {
+    databaseBackupService.cleanupDatabaseExport(dbPath);
+  }
 };
 
 /**

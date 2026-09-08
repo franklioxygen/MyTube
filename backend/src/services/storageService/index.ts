@@ -62,6 +62,7 @@ export {
     getVideoById,
     getVideoBySourceUrl,
     getVideos,
+    getVideosStrict,
     getVideoSummaries,
     getVideosListETag,
     isCloudFileVisibleToVisitor,

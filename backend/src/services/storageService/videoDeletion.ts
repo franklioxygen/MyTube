@@ -21,7 +21,6 @@ import {
   buildStoragePath,
   findImageFile,
   findVideoFile,
-  findVideoFilesByFilename,
   pathExists,
   removeEmptyDirectoryChain,
   removeFileIfExists,
@@ -33,7 +32,10 @@ import {
   resolveManagedThumbnailWebPathFromAbsolutePath,
 } from "../thumbnailMirrorService";
 import { bumpVideosListRevision } from "./videoListRevision";
-import { getVideoById, getVideos } from "./videoQueries";
+import { getVideoById, getVideos, getVideosStrict } from "./videoQueries";
+import { createArtifactReferenceGuard } from "./artifactReferences";
+
+type ReferenceGuard = (absolutePath: string) => boolean;
 
 export function deleteVideo(
   id: string,
@@ -44,18 +46,22 @@ export function deleteVideo(
     if (!videoToDelete) return false;
 
     const allCollections = getCollections();
+    // Read all owners before touching disk. Never treat a database/JSON read
+    // failure as an empty library and delete potentially shared artifacts.
+    const remainingVideos = getVideosStrict().filter((video) => video.id !== id);
+    const isReferenced = createArtifactReferenceGuard(remainingVideos);
 
     // Remove video file
-    deleteVideoFile(videoToDelete, allCollections);
+    deleteVideoFile(videoToDelete, allCollections, isReferenced);
 
     // Remove thumbnail file
-    deleteThumbnailFile(videoToDelete, allCollections);
+    deleteThumbnailFile(videoToDelete, allCollections, isReferenced);
 
     // Remove author avatar file only if this is the last video from this author
-    deleteAuthorAvatarIfNeeded(videoToDelete, id);
+    deleteAuthorAvatarIfNeeded(videoToDelete, remainingVideos, isReferenced);
 
     // Remove subtitle files
-    deleteSubtitleFiles(videoToDelete, allCollections);
+    deleteSubtitleFiles(videoToDelete, allCollections, isReferenced);
 
     const deletedAt = Date.now();
 
@@ -75,7 +81,8 @@ export function deleteVideo(
       // recommendation signals are best-effort
     }
     removeMediaServerArtifactsForVideo(videoToDelete, {
-      libraryVideos: getVideos(),
+      libraryVideos: remainingVideos,
+      preserveSharedArtifacts: true,
     });
 
     // Statistics: emit library_video_deleted with the reason bucket and a size
@@ -189,7 +196,8 @@ export function isVideoFileReferencedByOtherVideo(
 
 function deleteVideoFile(
   video: import("./types").Video,
-  allCollections: import("./types").Collection[]
+  allCollections: import("./types").Collection[],
+  isReferenced: ReferenceGuard
 ): void {
   if (!isLocalManagedVideo(video)) {
     return;
@@ -200,18 +208,13 @@ function deleteVideoFile(
   // location. Once template subdirectories are enabled identical basenames
   // can exist in different folders, and findVideoFile() (basename-only
   // lookup) could match the wrong file or miss the intended one entirely.
-  const resolved = video.videoPath ? resolveManagedWebPath(video.videoPath) : null;
-  if (resolved) {
-    if (deleteLocalVideoPath(resolved.absolutePath, resolved.rootDir)) {
-      return;
+  if (video.videoPath) {
+    const resolved = resolveManagedWebPath(video.videoPath);
+    if (resolved?.prefix === "/videos") {
+      deleteLocalVideoPath(resolved.absolutePath, resolved.rootDir, isReferenced);
     }
-
-    if (video.videoFilename) {
-      const fallbackPath = findUnambiguousVideoFileFallback(video.videoFilename);
-      if (fallbackPath) {
-        deleteLocalVideoPath(fallbackPath, VIDEOS_DIR);
-      }
-    }
+    // A missing or invalid explicit path must never select someone else's
+    // file by basename. Scanning uses this path to reconcile missing records.
     return;
   }
 
@@ -219,13 +222,13 @@ function deleteVideoFile(
   if (video.videoFilename) {
     const actualPath = findVideoFile(video.videoFilename, allCollections);
     if (actualPath) {
-      deleteLocalVideoPath(actualPath, VIDEOS_DIR);
+      deleteLocalVideoPath(actualPath, VIDEOS_DIR, isReferenced);
     }
   }
 }
 
-function deleteLocalVideoPath(absolutePath: string, rootDir: string): boolean {
-  if (!pathExists(absolutePath)) {
+function deleteLocalVideoPath(absolutePath: string, rootDir: string, isReferenced: ReferenceGuard): boolean {
+  if (!pathExists(absolutePath) || isReferenced(absolutePath)) {
     return false;
   }
 
@@ -234,28 +237,13 @@ function deleteLocalVideoPath(absolutePath: string, rootDir: string): boolean {
   return true;
 }
 
-function findUnambiguousVideoFileFallback(filename: string): string | null {
-  const matches = findVideoFilesByFilename(filename);
-  if (matches.length === 1) {
-    return matches[0];
-  }
-
-  if (matches.length > 1) {
-    logger.warn(
-      `Skipping stale-path video deletion because filename is ambiguous: ${filename}`,
-      { matches }
-    );
-  }
-
-  return null;
-}
-
 function deleteThumbnailFile(
   video: import("./types").Video,
-  allCollections: import("./types").Collection[]
+  allCollections: import("./types").Collection[],
+  isReferenced: ReferenceGuard
 ): void {
   if (video.thumbnailFilename) {
-    const canUseLocalFallbacks = isLocalManagedVideo(video);
+    const canUseLocalFallbacks = !video.thumbnailPath && isLocalManagedVideo(video);
     let thumbnailPath: string | null = null;
 
     // Determine the actual file path based on thumbnailPath
@@ -283,7 +271,9 @@ function deleteThumbnailFile(
     ) {
       // Try alongside video file (when moveThumbnailsToVideoFolder is enabled)
       if (video.videoFilename) {
-        const videoPath = findVideoFile(video.videoFilename, allCollections);
+        const videoPath = video.videoPath
+          ? resolveManagedWebPath(video.videoPath)?.absolutePath
+          : findVideoFile(video.videoFilename, allCollections);
         if (videoPath) {
           const videoDir = path.dirname(videoPath);
           thumbnailPath = buildStoragePath(videoDir, video.thumbnailFilename);
@@ -304,7 +294,7 @@ function deleteThumbnailFile(
 
     // Delete the thumbnail file if it exists
     if (thumbnailPath && pathExists(thumbnailPath)) {
-      if (isThumbnailReferencedByOtherVideo(video, video.id)) {
+      if (isReferenced(thumbnailPath)) {
         logger.info(
           `Skipping thumbnail deletion - another video still references it: ${thumbnailPath}`
         );
@@ -332,13 +322,13 @@ function deleteThumbnailFile(
 
 function deleteAuthorAvatarIfNeeded(
   video: import("./types").Video,
-  exceptionId: string
+  remainingVideos: import("./types").Video[],
+  isReferenced: ReferenceGuard
 ): void {
   if (video.authorAvatarFilename && video.author) {
     // Check if there are other videos from the same author
-    const allVideos = getVideos();
-    const otherVideosFromAuthor = allVideos.filter(
-      (v) => v.id !== exceptionId && v.author === video.author
+    const otherVideosFromAuthor = remainingVideos.filter(
+      (v) => v.author === video.author
     );
 
     // Only delete avatar if this is the last video from this author
@@ -364,7 +354,7 @@ function deleteAuthorAvatarIfNeeded(
 
       // Fallback: try to find by filename in avatars directory
       // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      if (!avatarPath || !pathExists(avatarPath)) {
+      if (!video.authorAvatarPath) {
         const fallbackPath = buildStoragePath(
           AVATARS_DIR,
           video.authorAvatarFilename
@@ -375,7 +365,7 @@ function deleteAuthorAvatarIfNeeded(
       }
 
       // Delete the avatar file if it exists
-      if (avatarPath && pathExists(avatarPath)) {
+      if (avatarPath && pathExists(avatarPath) && !isReferenced(avatarPath)) {
         try {
           removeFileIfExists(avatarPath);
           removeEmptyDirectoryChain(path.dirname(avatarPath), AVATARS_DIR);
@@ -397,7 +387,8 @@ function deleteAuthorAvatarIfNeeded(
 
 function deleteSubtitleFiles(
   video: import("./types").Video,
-  allCollections: import("./types").Collection[]
+  allCollections: import("./types").Collection[],
+  isReferenced: ReferenceGuard
 ): void {
   if (video.subtitles && video.subtitles.length > 0) {
     const canUseLocalFallbacks = isLocalManagedVideo(video);
@@ -410,18 +401,16 @@ function deleteSubtitleFiles(
       // Fallback: try to find by filename if path-based lookup fails
       // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
       if (
-        canUseLocalFallbacks &&
-        (!subtitlePath || !pathExists(subtitlePath))
+        canUseLocalFallbacks && !subtitle.path
       ) {
         // Try root subtitles directory
         subtitlePath = buildStoragePath(SUBTITLES_DIR, subtitle.filename);
         if (!pathExists(subtitlePath)) {
           // Try alongside video file
           if (video.videoFilename) {
-            const videoPath = findVideoFile(
-              video.videoFilename,
-              allCollections
-            );
+            const videoPath = video.videoPath
+              ? resolveManagedWebPath(video.videoPath)?.absolutePath
+              : findVideoFile(video.videoFilename, allCollections);
             if (videoPath) {
               const videoDir = path.dirname(videoPath);
               subtitlePath = buildStoragePath(videoDir, subtitle.filename);
@@ -431,7 +420,7 @@ function deleteSubtitleFiles(
       }
 
       // Delete the subtitle file if it exists
-      if (subtitlePath && pathExists(subtitlePath)) {
+      if (subtitlePath && pathExists(subtitlePath) && !isReferenced(subtitlePath)) {
         try {
           removeFileIfExists(subtitlePath);
           pruneManagedArtifactParentDirectories(subtitlePath);

@@ -34,6 +34,7 @@ vi.mock("../../db", () => ({
   reinitializeDatabase: vi.fn(),
   sqlite: {
     close: vi.fn(),
+    backup: vi.fn().mockResolvedValue({}),
     prepare: vi.fn(),
     transaction: vi.fn((callback: () => void) => callback),
   },
@@ -143,7 +144,7 @@ const createSourceDbHandle = (
   });
 
   const close = vi.fn();
-  return { prepare, close };
+  return { prepare, close, pragma: vi.fn(() => [{ integrity_check: "ok" }]) };
 };
 
 const createSqlitePrepareMock = (
@@ -260,20 +261,27 @@ describe("databaseBackupService", () => {
   });
 
   describe("exportDatabase", () => {
-    it("returns db path when database exists", () => {
+    it("creates a SQLite snapshot rather than returning the live database path", async () => {
       vi.mocked(fs.existsSync as any).mockReturnValue(true);
 
-      const exported = databaseBackupService.exportDatabase();
+      const exported = await databaseBackupService.exportDatabase();
 
-      expect(exported).toContain("mytube.db");
+      expect(exported).toMatch(/export-.*\.db\.tmp$/);
+      expect(sqlite.backup).toHaveBeenCalledWith(exported);
     });
 
-    it("throws when database is missing", () => {
+    it("throws when database is missing", async () => {
       vi.mocked(fs.existsSync as any).mockReturnValue(false);
 
-      expect(() => databaseBackupService.exportDatabase()).toThrow(
+      await expect(databaseBackupService.exportDatabase()).rejects.toThrow(
         "Database file not found"
       );
+    });
+    it("removes an incomplete export when the backup operation fails", async () => {
+      vi.mocked(fs.existsSync as any).mockReturnValue(true);
+      vi.mocked(sqlite.backup).mockRejectedValueOnce(new Error("disk full"));
+      await expect(databaseBackupService.exportDatabase()).rejects.toThrow("disk full");
+      expect(fs.unlinkSync).toHaveBeenCalledWith(expect.stringMatching(/export-.*\.db\.tmp$/));
     });
   });
 

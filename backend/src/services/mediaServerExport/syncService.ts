@@ -483,15 +483,30 @@ export function removeMediaServerArtifactsForVideo(
       return;
     }
 
-    removeOwnedArtifact(plan.episodeNfoAbsolutePath);
-    removeOwnedArtifact(plan.episodeSourceJsonAbsolutePath);
-    removeOwnedArtifact(plan.episodeThumbAliasAbsolutePath);
+    const libraryVideos = getLibraryVideos(options);
+    // Duplicate media paths (and different containers with the same stem) can
+    // share sidecars. Keep them until their last owning video is removed.
+    const artifactKey = (value: string) =>
+      path.normalize(value).normalize("NFKC").toLowerCase();
+    const sharedArtifacts = new Set<string>();
+    for (const candidate of options.preserveSharedArtifacts ? libraryVideos : []) {
+      if (candidate.id === video.id) continue;
+      const candidatePlan = planMediaServerExportPaths(candidate);
+      if (!candidatePlan) continue;
+      for (const artifact of [candidatePlan.episodeNfoAbsolutePath,
+        candidatePlan.episodeSourceJsonAbsolutePath, candidatePlan.episodeThumbAliasAbsolutePath]) {
+        sharedArtifacts.add(artifactKey(artifact));
+      }
+    }
+    for (const artifact of [plan.episodeNfoAbsolutePath,
+      plan.episodeSourceJsonAbsolutePath, plan.episodeThumbAliasAbsolutePath]) {
+      if (!sharedArtifacts.has(artifactKey(artifact))) removeOwnedArtifact(artifact);
+    }
 
     if (!plan.tvLayout.isTvCompatible || !plan.tvLayout.showRootRelativeDir) {
       return;
     }
 
-    const libraryVideos = getLibraryVideos(options);
     const showStillHasEpisodes = libraryVideos.some(
       (candidate) =>
         candidate.id !== video.id &&

@@ -1,4 +1,5 @@
 import Database from "better-sqlite3";
+import crypto from "crypto";
 import path from "path";
 import { DATA_DIR } from "../config/paths";
 import { sqlite } from "../db";
@@ -36,13 +37,31 @@ import type { DatabaseMergeSummary } from "./databaseBackup/types";
 
 /**
  * Export database as backup file
- * Returns the path to the database file
+ * Returns an immutable SQLite snapshot. The caller owns cleanup after transfer.
  */
-export function exportDatabase(): string {
+export async function exportDatabase(): Promise<string> {
   if (!pathExistsSafeSync(dbPath, DATA_DIR)) {
     throw new NotFoundError("Database file", "mytube.db");
   }
-  return dbPath;
+  const snapshotPath = resolveSafePath(
+    path.join(DATA_DIR, `export-${crypto.randomUUID()}.db.tmp`),
+    DATA_DIR
+  );
+  try {
+    await sqlite.backup(snapshotPath);
+    return snapshotPath;
+  } catch (error) {
+    cleanupTempImportFile(snapshotPath);
+    throw error;
+  }
+}
+
+export function cleanupDatabaseExport(snapshotPath: string): void {
+  // Never let a cleanup mistake target mytube.db or a saved restore backup.
+  if (!/^export-[0-9a-f-]+\.db\.tmp$/i.test(path.basename(snapshotPath))) {
+    throw new ValidationError("Invalid database export path", "file");
+  }
+  cleanupTempImportFile(snapshotPath);
 }
 
 /**
