@@ -628,7 +628,11 @@ describe('SubscriptionService', () => {
       });
     });
 
-    it('leaves a shared legacy collection unstamped', async () => {
+    it.each([
+      ['shared', ['bili-shared-col-sub', 'other-sub']],
+      ['no longer referenced', []],
+      ['referenced only by another subscription', ['other-sub']],
+    ])('leaves a legacy collection %s unstamped', async (_label, referenceIds) => {
       // Once a collection carries a source key, every subscription on it prefers
       // the collection's type/mid/id over its own playlistId. A matching
       // playlist id does not make the two sources equal - identity is the
@@ -652,12 +656,9 @@ describe('SubscriptionService', () => {
       mockBuilder.then = (cb: any) => {
         callCount++;
         // The due-subscription sweep first, then the referencing-subscription
-        // lookup, which finds a second subscription on the same collection.
+        // lookup, which no longer establishes exclusive ownership.
         if (callCount === 1) return Promise.resolve([sub]).then(cb);
-        return Promise.resolve([
-          { id: sub.id },
-          { id: 'other-sub' },
-        ]).then(cb);
+        return Promise.resolve(referenceIds.map((id) => ({ id }))).then(cb);
       };
       (storageService.getCollectionById as any).mockReturnValue({
         id: 'shared-col',

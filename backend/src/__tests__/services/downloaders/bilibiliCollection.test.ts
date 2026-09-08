@@ -100,6 +100,55 @@ describe("bilibiliCollection.downloadCollection", () => {
     });
   });
 
+  it.each([getCollectionVideos, getSeriesVideos])(
+    "preserves publication precision and date-only fallback through %s",
+    async (fetchVideos) => {
+      const publishedAt = Date.parse("2026-09-06T20:34:56Z") / 1000;
+      mocks.axiosGet.mockResolvedValueOnce({
+        data: {
+          code: 0,
+          data: {
+            archives: [
+              {
+                bvid: "BVseconds",
+                title: "Seconds",
+                aid: 1,
+                pubdate: publishedAt,
+              },
+              {
+                bvid: "BVmilliseconds",
+                title: "Milliseconds",
+                aid: 2,
+                ctime: publishedAt * 1000,
+              },
+              { bvid: "BVday", title: "Day only", aid: 3, created: "20260907" },
+            ],
+            page: { total: 3 },
+          },
+        },
+      });
+      const result = await fetchVideos(9, 42);
+      expect(result.success).toBe(true);
+      expect(result.videos).toEqual([
+        expect.objectContaining({
+          bvid: "BVseconds",
+          publishedAt,
+          uploadDate: "20260906",
+        }),
+        expect.objectContaining({
+          bvid: "BVmilliseconds",
+          publishedAt,
+          uploadDate: "20260906",
+        }),
+        expect.objectContaining({
+          bvid: "BVday",
+          publishedAt: undefined,
+          uploadDate: "20260907",
+        }),
+      ]);
+    }
+  );
+
   it("rejects Bilibili collection API error payloads", async () => {
     mocks.axiosGet.mockResolvedValueOnce({
       data: { code: -412, message: "rate limited" },

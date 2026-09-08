@@ -365,33 +365,27 @@ async function resolveBilibiliCollectionSource(
  * upload order nor stable: an author can append an older video, or reorder the
  * season. Taking `videos[0]` therefore pinned the head to episode 1 forever, so
  * a subscription whose cursor already sat on episode 1 never saw a new video.
- * Comparing publication times is order-independent. The raw timestamp is used
- * rather than uploadDate, which is only a UTC day: two archives published on
- * the same day compare equal there, so the pick would fall back to collection
- * order and a rearranged season could make the older of the two the head. The
- * day string is used whenever either side carries no timestamp - treating a
- * missing one as older would let an archive lose to something it postdates -
- * and a genuine tie falls back to the later position, which is where a
- * collection normally grows.
+ * Compare the UTC day first, then publication time within that day. Prefer a
+ * known time to an unknown time on the same day, so a date-only entry cannot
+ * discard the newest timestamp and let an older timed entry win later in the
+ * scan. A date-only entry on a newer day still wins. Equal keys fall back to
+ * the later collection position.
  */
 function pickNewestBilibiliVideo<
   T extends { publishedAt?: number; uploadDate?: string },
 >(videos: T[]): T | undefined {
   return videos.reduce<T | undefined>((newest, video) => {
     if (!newest) return video;
-    if (
-      video.publishedAt !== undefined &&
-      newest.publishedAt !== undefined &&
-      video.publishedAt !== newest.publishedAt
-    ) {
-      return video.publishedAt > newest.publishedAt ? video : newest;
+    const day = video.uploadDate ?? "";
+    const newestDay = newest.uploadDate ?? "";
+    if (day !== newestDay) {
+      return day > newestDay ? video : newest;
     }
-    return (video.uploadDate ?? "") >= (newest.uploadDate ?? "")
-      ? video
-      : newest;
+    return (video.publishedAt ?? 0) >= (newest.publishedAt ?? 0) ? video : newest;
   }, undefined);
 }
 
+/** Resolve a Bilibili source and inspect all its archives before advancing a cursor. */
 export async function getBilibiliCollectionHeadSnapshot(
   playlistUrl: string,
   collectionInfo: BilibiliCollectionInspectionInput,

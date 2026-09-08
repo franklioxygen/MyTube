@@ -112,10 +112,11 @@ export function resetCookiesFileCache(): void {
   cookiesFileCache = null;
 }
 
+/** Match a Netscape domain without accepting sibling or suffix-lookalike hosts. */
 function cookieLineMatchesHost(
   rawDomain: string,
   includeSubdomains: boolean,
-  host: string
+  host: string,
 ): boolean {
   const domain = rawDomain.replace(/^\./, "").toLowerCase();
   if (!domain) {
@@ -143,18 +144,16 @@ function cookiePathMatches(cookiePath: string, requestPath: string): boolean {
   if (!requestPath.startsWith(cookiePath)) {
     return false;
   }
-  return (
-    cookiePath.endsWith("/") || requestPath[cookiePath.length] === "/"
-  );
+  return cookiePath.endsWith("/") || requestPath[cookiePath.length] === "/";
 }
 
+/** Only zero denotes a session cookie; negative timestamps are already expired. */
 function isExpiredCookie(expires: string): boolean {
-  const expiresAt = Number.parseInt(expires, 10);
-  // 0 (and anything unparseable) is the session-cookie convention: no expiry.
-  if (!Number.isFinite(expiresAt) || expiresAt <= 0) {
-    return false;
-  }
-  return expiresAt * 1000 <= Date.now();
+  const expiresAt = Number(expires);
+  return (
+    !Number.isFinite(expiresAt) ||
+    (expiresAt !== 0 && expiresAt * 1000 <= Date.now())
+  );
 }
 
 /**
@@ -164,9 +163,8 @@ function isExpiredCookie(expires: string): boolean {
  * calls need it too: api.bilibili.com answers 412 (风控) to cookieless requests
  * for x/web-interface/view, which is the preflight every Bilibili collection
  * subscription runs before it can read its feed. Matching is by host *and*
- * path, as a browser would: a jar can hold the same name scoped to several
- * paths, and letting a path-scoped row claim the name would both send it where
- * it does not belong and hide the row that does apply. Returns null when no
+ * path and secure transport. Same-named cookies in distinct scopes are kept,
+ * with longer paths first (RFC 6265 section 5.4). Returns null when no
  * cookie applies, so callers simply send the request unauthenticated.
  */
 export function getCookieHeaderForUrl(requestUrl: string): string | null {
@@ -177,10 +175,15 @@ export function getCookieHeaderForUrl(requestUrl: string): string | null {
 
   let normalizedHost: string;
   let requestPath: string;
+  let isSecure: boolean;
   try {
     const parsed = new URL(requestUrl);
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+      return null;
+    }
     normalizedHost = parsed.hostname.toLowerCase();
     requestPath = parsed.pathname || "/";
+    isSecure = parsed.protocol === "https:";
   } catch {
     return null;
   }
@@ -190,8 +193,17 @@ export function getCookieHeaderForUrl(requestUrl: string): string | null {
 
   try {
     const content = readFileSafeSync(cookiesPath, DATA_DIR, "utf8");
-    const pairs: string[] = [];
-    const seenNames = new Set<string>();
+    const cookies = new Map<
+      string,
+      {
+        rawDomain: string;
+        includeSubdomains: boolean;
+        path: string;
+        secure: boolean;
+        expires: string;
+        pair: string;
+      }
+    >();
 
     for (const line of String(content).split(/\r?\n/)) {
       const trimmed = line.trim();
@@ -202,42 +214,66 @@ export function getCookieHeaderForUrl(requestUrl: string): string | null {
         continue;
       }
 
-      const parts = trimmed.replace(/^#HttpOnly_/, "").split("\t");
-      if (parts.length < 7) {
+      // Do not trim the data row: an empty value is a trailing tab.
+      const parts = line
+        .replace(/^\uFEFF/, "")
+        .replace(/^#HttpOnly_/, "")
+        .split("\t");
+      if (parts.length !== 7) {
         continue;
       }
 
-      const [rawDomain, includeSubdomains, cookiePath, , expires, name, value] =
-        parts;
-      if (!name || seenNames.has(name)) {
-        continue;
-      }
+      const [
+        rawDomain,
+        includeSubdomains,
+        cookiePath,
+        secure,
+        expires,
+        name,
+        value,
+      ] = parts;
       if (
-        !cookieLineMatchesHost(
-          rawDomain,
-          includeSubdomains.toUpperCase() === "TRUE",
-          normalizedHost
-        ) ||
-        !cookiePathMatches(cookiePath, requestPath)
+        !/^[!#$%&'*+\-.^_`|~\da-z]+$/i.test(name) ||
+        /[\x00-\x20;\x7f-\uffff]/.test(value)
       ) {
         continue;
       }
-      // Skipped before the name is claimed, so a stale line cannot suppress a
-      // live cookie of the same name further down the file — cookie exports
-      // routinely carry both.
-      if (isExpiredCookie(expires)) {
-        continue;
-      }
-
-      seenNames.add(name);
-      pairs.push(`${name}=${value}`);
+      // Jar identity is domain/path/name, not name alone. Later rows replace
+      // the same identity, as when loading a Netscape jar in yt-dlp. Filter
+      // expiry/transport afterwards so a replacement cannot resurrect an old
+      // value. Map replacement preserves the original position for path ties;
+      // Netscape files do not carry creation times.
+      const domain = rawDomain.replace(/^\./, "").toLowerCase();
+      cookies.set(JSON.stringify([domain, cookiePath, name]), {
+        rawDomain,
+        includeSubdomains: includeSubdomains.toUpperCase() === "TRUE",
+        path: cookiePath,
+        secure: secure.toUpperCase() === "TRUE",
+        expires,
+        pair: `${name}=${value}`,
+      });
     }
+
+    const pairs = [...cookies.values()]
+      .filter(
+        (cookie) =>
+          cookieLineMatchesHost(
+            cookie.rawDomain,
+            cookie.includeSubdomains,
+            normalizedHost,
+          ) &&
+          cookiePathMatches(cookie.path, requestPath) &&
+          (!cookie.secure || isSecure) &&
+          !isExpiredCookie(cookie.expires),
+      )
+      .sort((left, right) => right.path.length - left.path.length)
+      .map((cookie) => cookie.pair);
 
     return pairs.length > 0 ? pairs.join("; ") : null;
   } catch (error) {
     logger.warn(
       `Unable to read cookies.txt for ${normalizedHost}; continuing without cookies.`,
-      error
+      error,
     );
     return null;
   }
