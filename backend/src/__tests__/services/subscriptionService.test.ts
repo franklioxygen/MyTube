@@ -612,8 +612,11 @@ describe('SubscriptionService', () => {
 
     it('leaves a shared legacy collection unstamped', async () => {
       // Once a collection carries a source key, every subscription on it prefers
-      // collection.sourceId over its own playlistId. Stamping here would
-      // silently repoint the other subscription at this feed.
+      // the collection's type/mid/id over its own playlistId. A matching
+      // playlist id does not make the two sources equal - identity is the
+      // compound (platform, type, mid, id) and the subscription row carries
+      // only the id - so stamping here would still repoint the other
+      // subscription at this feed.
       const sub = {
         id: 'bili-shared-col-sub',
         author: '合集标题 - Bilibili 12345',
@@ -631,11 +634,11 @@ describe('SubscriptionService', () => {
       mockBuilder.then = (cb: any) => {
         callCount++;
         // The due-subscription sweep first, then the referencing-subscription
-        // lookup, which finds a second subscription on a different playlist.
+        // lookup, which finds a second subscription on the same collection.
         if (callCount === 1) return Promise.resolve([sub]).then(cb);
         return Promise.resolve([
-          { id: sub.id, playlistId: '9988' },
-          { id: 'other-sub', playlistId: '7777' },
+          { id: sub.id },
+          { id: 'other-sub' },
         ]).then(cb);
       };
       (storageService.getCollectionById as any).mockReturnValue({

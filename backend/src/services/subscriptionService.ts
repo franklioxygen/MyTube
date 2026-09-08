@@ -1292,33 +1292,29 @@ export class SubscriptionService {
   }
 
   /**
-   * Whether stamping `source` onto a collection is safe for every subscription
-   * that points at it.
+   * Whether `sub` is the only subscription pointing at this collection.
    *
    * A source-less collection can be shared - subscriptions get-or-create it by
    * name - and once it carries a source key, every subscription on it prefers
-   * `collection.sourceId` over its own `playlistId`. Stamping one subscription's
-   * source onto a collection another subscription reaches by a different
-   * playlist would silently repoint that other subscription at this feed, and
-   * checks run concurrently, so two of them could also race to stamp different
-   * sources. Only self-heal when no other subscription would be repointed.
+   * the collection's type/mid/id over its own `playlistId`. Stamping one
+   * subscription's source therefore repoints the others, and checks run
+   * concurrently, so two of them could also race to stamp different sources.
+   * A Bilibili source is the compound (platform, type, mid, id) the collections
+   * table is keyed on, but a subscription row stores only the id half, so two
+   * subscribers cannot be shown to be equivalent without resolving each one's
+   * full source against Bilibili. Exclusivity is the condition that can be
+   * decided from the rows in hand.
    */
-  private async collectionSourceIsUncontested(
+  private async collectionIsExclusiveToSubscription(
     collectionId: string,
-    sub: Subscription,
-    source: { id: number }
+    sub: Subscription
   ): Promise<boolean> {
     const referencing = await db
-      .select({
-        id: subscriptions.id,
-        playlistId: subscriptions.playlistId,
-      })
+      .select({ id: subscriptions.id })
       .from(subscriptions)
       .where(eq(subscriptions.collectionId, collectionId));
 
-    return referencing.every(
-      (row) => row.id === sub.id || row.playlistId === String(source.id)
-    );
+    return referencing.every((row) => row.id === sub.id);
   }
 
   private async getPlaylistSubscriptionHeadSnapshot(
@@ -1356,11 +1352,7 @@ export class SubscriptionService {
         if (
           collection &&
           !hasCollectionSource &&
-          (await this.collectionSourceIsUncontested(
-            collection.id,
-            sub,
-            snapshot.bilibiliSource
-          ))
+          (await this.collectionIsExclusiveToSubscription(collection.id, sub))
         ) {
           saveBilibiliCollectionSourceIfCompatible(
             collection,

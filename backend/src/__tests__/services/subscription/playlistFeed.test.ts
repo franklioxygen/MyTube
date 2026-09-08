@@ -481,6 +481,39 @@ describe("getBilibiliCollectionHeadSnapshot", () => {
     expect(snap.headVideoUrl).toBe("https://www.bilibili.com/video/BVevening");
   });
 
+  it("falls back to the day string when only one archive has a timestamp", async () => {
+    // Treating a missing publishedAt as older would let a newer archive lose to
+    // an older one that happens to carry a timestamp.
+    const { getBilibiliCollectionVideos } = await import(
+      "../../../services/downloadService"
+    );
+    vi.mocked(getBilibiliCollectionVideos).mockResolvedValueOnce({
+      success: true,
+      videos: [
+        {
+          bvid: "BVdated",
+          title: "Older, but has a timestamp",
+          aid: 2,
+          uploadDate: "20260812",
+          publishedAt: 1786_000_000,
+        },
+        {
+          bvid: "BVundated",
+          title: "Newer, no timestamp",
+          aid: 3,
+          uploadDate: "20260906",
+        },
+      ],
+    });
+
+    const snap = await getBilibiliCollectionHeadSnapshot(
+      "https://www.bilibili.com/video/BVseed",
+      { type: "collection", mid: 12345, id: 9988 }
+    );
+
+    expect(snap.headVideoUrl).toBe("https://www.bilibili.com/video/BVundated");
+  });
+
   it("rejects failed Bilibili collection fetches before seeding a cursor", async () => {
     const { getBilibiliCollectionVideos } = await import(
       "../../../services/downloadService"

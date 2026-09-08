@@ -369,19 +369,22 @@ async function resolveBilibiliCollectionSource(
  * rather than uploadDate, which is only a UTC day: two archives published on
  * the same day compare equal there, so the pick would fall back to collection
  * order and a rearranged season could make the older of the two the head. The
- * day string remains as a fallback for archives that carry no timestamp, and a
- * genuine tie falls back to the later position, which is where a collection
- * normally grows.
+ * day string is used whenever either side carries no timestamp - treating a
+ * missing one as older would let an archive lose to something it postdates -
+ * and a genuine tie falls back to the later position, which is where a
+ * collection normally grows.
  */
 function pickNewestBilibiliVideo<
   T extends { publishedAt?: number; uploadDate?: string },
 >(videos: T[]): T | undefined {
   return videos.reduce<T | undefined>((newest, video) => {
     if (!newest) return video;
-    const publishedAt = video.publishedAt ?? 0;
-    const newestPublishedAt = newest.publishedAt ?? 0;
-    if (publishedAt !== newestPublishedAt) {
-      return publishedAt > newestPublishedAt ? video : newest;
+    if (
+      video.publishedAt !== undefined &&
+      newest.publishedAt !== undefined &&
+      video.publishedAt !== newest.publishedAt
+    ) {
+      return video.publishedAt > newest.publishedAt ? video : newest;
     }
     return (video.uploadDate ?? "") >= (newest.uploadDate ?? "")
       ? video
