@@ -1226,6 +1226,55 @@ describe("outputPathAllocator", () => {
     second.release();
   });
 
+  it("treats a dotted subtitle base as a bare stem, not as an extension", async () => {
+    const root = makeTempRoot();
+    // The legacy formatter writes spaces as dots, so a real title arrives here
+    // full of them and the extensionless subtitle base ends in what looks like
+    // an extension. Reading it as one measured the stem short by those bytes:
+    // the base came back 196 rather than 190, putting the subtitle at 261 and
+    // leaving it out of step with the video's own stem.
+    const base = `${"a".repeat(194)}.final`;
+    const longId = "sone-192-uncensored-leak-4k-remastered-directors-cut-v2";
+    const subtitleFiles = [{ language: "en", extension: ".vtt" }];
+    expect(Buffer.byteLength(base, "utf8")).toBe(200);
+
+    const allocator = await loadAllocator(root);
+    const first = allocator.allocateOutputFamilySync({
+      videoRelativePath: `${base}.mp4`,
+      thumbnailRelativePath: `${base}.jpg`,
+      subtitleBaseRelativePath: base,
+      thumbnailBaseDir: path.join(root, "images"),
+      identity: { platform: "missav", sourceVideoId: "abc", mediaType: "video" },
+      subtitleFiles,
+    });
+    const second = allocator.allocateOutputFamilySync({
+      videoRelativePath: `${base}.mp4`,
+      thumbnailRelativePath: `${base}.jpg`,
+      subtitleBaseRelativePath: base,
+      thumbnailBaseDir: path.join(root, "images"),
+      identity: { platform: "missav", sourceVideoId: longId, mediaType: "video" },
+      subtitleFiles,
+    });
+
+    expect(second.collisionStrategy).toBe("source_id");
+    const subtitleName = `${second.subtitleBaseRelativePath}.en.vtt`;
+    expect(Buffer.byteLength(subtitleName, "utf8")).toBeLessThanOrEqual(255);
+
+    // The base must also still be the video's own stem, which the misread
+    // extension broke on its own: 196 bytes against the video's 190.
+    expect(second.videoRelativePath).toBe(`${second.subtitleBaseRelativePath}.mp4`);
+    expect(second.thumbnailRelativePath).toBe(
+      `${second.subtitleBaseRelativePath}.jpg`
+    );
+
+    const written = path.join(root, "videos", subtitleName);
+    fs.outputFileSync(written, "sub");
+    expect(fs.existsSync(written)).toBe(true);
+
+    first.release();
+    second.release();
+  });
+
   it("budgets the discriminator a repeated subtitle language will carry", async () => {
     const root = makeTempRoot();
     // collectionFileManager gives the second subtitle of one language a `.2`

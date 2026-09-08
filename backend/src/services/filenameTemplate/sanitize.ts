@@ -288,13 +288,20 @@ export function stemBudgetForSuffix(
  * longest tail any of them will grow, and still keep a common stem. A subtitle
  * base ends up carrying `.<lang><ext>`, which outruns the video's `.mp4`.
  *
+ * `ownExtension` is stated rather than guessed from the last dot, and "" says
+ * this path has none. A subtitle base is extensionless while its title is full
+ * of dots - the legacy formatter writes spaces as dots - so guessing hands back
+ * a stem measured short by whatever followed the final one, which both overruns
+ * the limit and leaves the base out of step with the video it must match.
+ *
  * Callers must check stemBudgetForSuffix first: with no budget left there is no
  * name to return, and this returns the path unchanged rather than inventing one.
  */
 export function trimRelativePathStemForSuffix(
   relativePath: string,
   suffix: string,
-  reservedTailBytes: number
+  reservedTailBytes: number,
+  ownExtension: string
 ): string {
   const maxStemBytes = stemBudgetForSuffix(suffix, reservedTailBytes);
   if (maxStemBytes <= 0) {
@@ -304,9 +311,10 @@ export function trimRelativePathStemForSuffix(
   const slashIdx = relativePath.lastIndexOf("/");
   const dir = relativePath.slice(0, slashIdx + 1);
   const filename = relativePath.slice(slashIdx + 1);
-  const dotIdx = filename.lastIndexOf(".");
-  const stem = dotIdx > 0 ? filename.slice(0, dotIdx) : filename;
-  const ownExtension = dotIdx > 0 ? filename.slice(dotIdx) : "";
+  const stem =
+    ownExtension && filename.endsWith(ownExtension)
+      ? filename.slice(0, filename.length - ownExtension.length)
+      : filename;
   if (byteLength(stem) <= maxStemBytes) {
     return relativePath;
   }

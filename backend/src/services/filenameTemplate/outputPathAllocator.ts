@@ -563,17 +563,23 @@ function createCandidate(
   const fittedVideo = trimRelativePathStemForSuffix(
     preferredVideo,
     suffix,
-    reservedTailBytes
+    reservedTailBytes,
+    path.extname(preferredVideo)
   );
   const fittedThumbnail = trimRelativePathStemForSuffix(
     preferredThumbnail,
     suffix,
-    reservedTailBytes
+    reservedTailBytes,
+    path.extname(preferredThumbnail)
   );
+  // The subtitle base is a bare stem. Saying so keeps a dotted title - which
+  // the legacy formatter produces by writing spaces as dots - from being read
+  // as an extension and measured short.
   const fittedSubtitleBase = trimRelativePathStemForSuffix(
     preferredSubtitleBase,
     suffix,
-    reservedTailBytes
+    reservedTailBytes,
+    ""
   );
 
   const videoRelativePath = appendSuffixToRelativePath(fittedVideo, suffix);
