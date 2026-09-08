@@ -499,6 +499,7 @@ export async function downloadSinglePart(
               !storageService.isThumbnailReferencedByOtherVideo(
                 existingVideo,
                 existingVideo.id,
+                oldThumbnailPath,
               )
             ) {
               unlinkSafeSync(oldThumbnailPath, [IMAGES_DIR, VIDEOS_DIR]);
@@ -563,7 +564,7 @@ export async function downloadSinglePart(
             }
           }
 
-          removeMediaServerArtifactsForVideo(existingVideo);
+          removeMediaServerArtifactsForVideo(existingVideo, { preserveSharedArtifacts: true });
           if (sourceVideoId) {
             finalVideoData = storageService.persistDownloadedMediaIdentity({
               video: finalVideoData,

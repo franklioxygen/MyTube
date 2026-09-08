@@ -779,6 +779,7 @@ export async function downloadVideo(
           !storageService.isVideoFileReferencedByOtherVideo(
             existingVideo,
             existingVideo.id,
+            oldVideoPath,
           )
         ) {
           unlinkSafeSync(oldVideoPath, VIDEOS_DIR);
@@ -807,6 +808,7 @@ export async function downloadVideo(
           !storageService.isThumbnailReferencedByOtherVideo(
             existingVideo,
             existingVideo.id,
+            oldThumbnailPath,
           )
         ) {
           unlinkSafeSync(oldThumbnailPath, [VIDEOS_DIR, IMAGES_DIR]);
@@ -867,7 +869,7 @@ export async function downloadVideo(
         }
       }
 
-      removeMediaServerArtifactsForVideo(existingVideo);
+      removeMediaServerArtifactsForVideo(existingVideo, { preserveSharedArtifacts: true });
       const trackedSource = extractSourceVideoId(videoUrl);
       if (trackedSource.id) {
         finalVideoData = storageService.persistDownloadedMediaIdentity({

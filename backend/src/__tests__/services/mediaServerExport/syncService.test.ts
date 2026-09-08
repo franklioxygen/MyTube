@@ -34,6 +34,10 @@ vi.mock("../../../services/storageService/settings", () => ({
   getSettings: getSettingsMock,
 }));
 
+vi.mock("../../../services/storageService/videoQueries", () => ({
+  getArtifactOwners: vi.fn(() => { throw new Error("Ownership read unavailable"); }),
+}));
+
 vi.mock("../../../utils/logger", () => ({
   logger: {
     error: vi.fn(),

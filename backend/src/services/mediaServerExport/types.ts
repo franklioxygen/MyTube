@@ -32,6 +32,9 @@ export interface SyncMediaServerArtifactsOptions {
 
 export interface RemoveMediaServerArtifactsOptions {
   libraryVideos?: Video[];
+  // A library-row deletion must preserve sidecars used by remaining rows.
+  // An explicit export cleanup/rebuild still needs to remove those artifacts.
+  preserveSharedArtifacts?: boolean;
 }
 
 export interface MediaServerExportJobItem {

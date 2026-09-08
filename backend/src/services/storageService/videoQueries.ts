@@ -6,6 +6,45 @@ import { logger } from "../../utils/logger";
 
 export type VideoCallerRole = "admin" | "visitor";
 
+function parseVideoMetadata(id: string, field: "tags" | "subtitles", value: string | null) {
+  try {
+    const parsed: unknown = value ? JSON.parse(value) : [];
+    if (!Array.isArray(parsed) || (field === "subtitles" && parsed.some((item) =>
+      !item || typeof item !== "object" ||
+      (item.path != null && typeof item.path !== "string") ||
+      (item.filename != null && typeof item.filename !== "string") ||
+      (typeof item.path !== "string" && typeof item.filename !== "string")
+    ))) throw new Error("Expected an array of valid metadata entries");
+    return parsed;
+  } catch (error) {
+    throw new DatabaseError(
+      `Cannot read video library: video ${id} has invalid ${field} metadata. Repair this record before deleting files.`,
+      error instanceof Error ? error : new Error(String(error)),
+      "readVideoMetadata"
+    );
+  }
+}
+
+/** Ownership checks do not need tags, descriptions, or playback metadata. */
+export function getArtifactOwners(): import("./types").Video[] {
+  try {
+    return db.select({
+      id: videos.id, title: videos.title, sourceUrl: videos.sourceUrl,
+      createdAt: videos.createdAt, author: videos.author,
+      videoPath: videos.videoPath, videoFilename: videos.videoFilename,
+      thumbnailPath: videos.thumbnailPath, thumbnailFilename: videos.thumbnailFilename,
+      authorAvatarPath: videos.authorAvatarPath, authorAvatarFilename: videos.authorAvatarFilename,
+      subtitles: videos.subtitles,
+    }).from(videos).all().map((v) => ({
+      ...v, subtitles: parseVideoMetadata(v.id, "subtitles", v.subtitles),
+    })) as import("./types").Video[];
+  } catch (error) {
+    if (error instanceof DatabaseError) throw error;
+    throw new DatabaseError("Cannot verify file ownership: failed to read video library. File removal was stopped.",
+      error instanceof Error ? error : new Error(String(error)), "getArtifactOwners");
+  }
+}
+
 // Visibility: 0 = hidden, 1 = public (see db/schema.ts). Visitors are only
 // allowed to see public videos; admins see everything. Mirrors the existing
 // RSS feed filter (rssService.ts). Used to fix GHSA-hcm6-w6x8-6jhr.
@@ -21,6 +60,18 @@ export function getVideos(
   role?: VideoCallerRole
 ): import("./types").Video[] {
   try {
+    return getVideosStrict(role);
+  } catch {
+    // Preserve the existing list API fallback. Destructive callers must use
+    // getVideosStrict: a failed read is not evidence that a file has no owners.
+    return [];
+  }
+}
+
+export function getVideosStrict(
+  role?: VideoCallerRole
+): import("./types").Video[] {
+  try {
     const baseQuery = db
       .select()
       .from(videos)
@@ -31,16 +82,20 @@ export function getVideos(
         : baseQuery.all();
     return allVideos.map((v) => ({
       ...v,
-      tags: v.tags ? JSON.parse(v.tags) : [],
-      subtitles: v.subtitles ? JSON.parse(v.subtitles) : undefined,
+      tags: parseVideoMetadata(v.id, "tags", v.tags),
+      subtitles: v.subtitles ? parseVideoMetadata(v.id, "subtitles", v.subtitles) : undefined,
     })) as import("./types").Video[];
   } catch (error) {
     logger.error(
       "Error getting videos",
       error instanceof Error ? error : new Error(String(error))
     );
-    // Return empty array for backward compatibility with frontend
-    return [];
+    if (error instanceof DatabaseError) throw error;
+    throw new DatabaseError(
+      "Failed to read video library",
+      error instanceof Error ? error : new Error(String(error)),
+      "getVideosStrict"
+    );
   }
 }
 

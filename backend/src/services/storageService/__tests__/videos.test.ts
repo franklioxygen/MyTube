@@ -73,6 +73,7 @@ const mockSelect = ({
   const getMock = vi.fn().mockReturnValue(whereRow);
   vi.mocked(db.select).mockReturnValue({
     from: vi.fn().mockReturnValue({
+      all: allMock,
       orderBy: vi.fn().mockReturnValue({ all: allMock }),
       where: vi.fn().mockReturnValue({
         get: getMock,
@@ -514,6 +515,7 @@ describe("storageService videos", () => {
           where: vi.fn().mockReturnValue({
             get: vi.fn().mockReturnValue(video),
           }),
+          all: vi.fn().mockReturnValue(allVideos),
           orderBy: vi.fn().mockReturnValue({
             all: vi.fn().mockReturnValue(allVideos),
           }),
@@ -580,7 +582,7 @@ describe("storageService videos", () => {
       );
     });
 
-    it("falls back to filename lookup when stored video path is stale", () => {
+    it("never guesses a replacement file when the stored video path is stale", () => {
       const video = {
         id: "1",
         videoFilename: "video.mp4",
@@ -601,15 +603,10 @@ describe("storageService videos", () => {
       const ok = deleteVideo("1");
 
       expect(ok).toBe(true);
-      expect(fileHelpers.findVideoFilesByFilename).toHaveBeenCalledWith("video.mp4");
+      expect(fileHelpers.findVideoFilesByFilename).not.toHaveBeenCalled();
       expect(fileHelpers.findVideoFile).not.toHaveBeenCalled();
-      expect(fs.unlinkSync).toHaveBeenCalledWith(
-        path.join(VIDEOS_DIR, "video.mp4")
-      );
-      expect(fileHelpers.removeEmptyDirectoryChain).toHaveBeenCalledWith(
-        VIDEOS_DIR,
-        VIDEOS_DIR
-      );
+      expect(fs.unlinkSync).not.toHaveBeenCalled();
+      expect(fileHelpers.removeEmptyDirectoryChain).not.toHaveBeenCalled();
     });
 
     it("skips stale-path fallback deletion when filename lookup is ambiguous", () => {
@@ -632,7 +629,7 @@ describe("storageService videos", () => {
       const ok = deleteVideo("1");
 
       expect(ok).toBe(true);
-      expect(fileHelpers.findVideoFilesByFilename).toHaveBeenCalledWith("video.mp4");
+      expect(fileHelpers.findVideoFilesByFilename).not.toHaveBeenCalled();
       expect(fileHelpers.findVideoFile).not.toHaveBeenCalled();
       expect(fs.unlinkSync).not.toHaveBeenCalled();
       expect(fileHelpers.removeEmptyDirectoryChain).not.toHaveBeenCalled();

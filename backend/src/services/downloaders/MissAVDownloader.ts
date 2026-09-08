@@ -956,6 +956,7 @@ export class MissAVDownloader extends BaseDownloader {
               !storageService.isVideoFileReferencedByOtherVideo(
                 existingLocalVideo,
                 existingLocalVideo.id,
+                previousVideoPath,
               )
             ) {
               unlinkSafeSync(previousVideoPath, VIDEOS_DIR);
@@ -968,7 +969,7 @@ export class MissAVDownloader extends BaseDownloader {
           }
         }
 
-        removeMediaServerArtifactsForVideo(existingLocalVideo);
+        removeMediaServerArtifactsForVideo(existingLocalVideo, { preserveSharedArtifacts: true });
         persistedVideoData = updatedVideo;
         if (sourceVideoId) {
           persistedVideoData = storageService.persistDownloadedMediaIdentity({
