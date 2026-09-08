@@ -44,7 +44,11 @@ import {
   removeMediaServerArtifactsForVideo,
   syncMediaServerArtifactsForRecord,
 } from "../mediaServerExport";
-import { regenerateSmallThumbnailForThumbnailPath } from "../thumbnailMirrorService";
+import {
+  deleteSmallThumbnailMirrorSync,
+  ensureSmallThumbnailForThumbnailPath,
+  moveSmallThumbnailMirrorSync,
+} from "../thumbnailMirrorService";
 import * as storageService from "../storageService";
 import { Video } from "../storageService";
 import { BaseDownloader, DownloadOptions, VideoInfo } from "./BaseDownloader";
@@ -853,7 +857,15 @@ export class MissAVDownloader extends BaseDownloader {
             existingLocalVideo?.id
           );
           stagedThumbnailPathForCleanup = null;
-          await regenerateSmallThumbnailForThumbnailPath(finalThumbnailWebPath);
+          // The staging file's mirror is this same image, so publish it with
+          // the file rather than leaving it behind under a name nothing will
+          // ever reference again. ensure only encodes if the move found
+          // nothing to carry over.
+          moveSmallThumbnailMirrorSync(
+            ownedThumbnailReplacement.stagingPath,
+            finalThumbnailWebPath
+          );
+          await ensureSmallThumbnailForThumbnailPath(finalThumbnailWebPath);
         }
       }
 
@@ -1080,6 +1092,9 @@ export class MissAVDownloader extends BaseDownloader {
         }
         if (stagedThumbnailPathForCleanup) {
           await safeRemove(stagedThumbnailPathForCleanup);
+          // The mirror was generated the moment the staging file landed, so a
+          // failure after that point strands it unless it goes too.
+          deleteSmallThumbnailMirrorSync(stagedThumbnailPathForCleanup);
         }
         const cleanupConfig = getUserYtDlpConfig(url);
         const cleanupFormat = resolveMissAvMergeOutputFormat(

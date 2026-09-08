@@ -50,7 +50,8 @@ import * as storageService from "../../storageService";
 import { Video } from "../../storageService";
 import {
   deleteSmallThumbnailMirrorSync,
-  regenerateSmallThumbnailForThumbnailPath,
+  ensureSmallThumbnailForThumbnailPath,
+  moveSmallThumbnailMirrorSync,
 } from "../../thumbnailMirrorService";
 import { twitchApiService } from "../../twitchService";
 import { BaseDownloader, DownloadModeOptions } from "../BaseDownloader";
@@ -556,7 +557,15 @@ export async function downloadVideo(
           ownedThumbnailReplacement.destinationRootDir,
           existingLocalVideo?.id
         );
-        await regenerateSmallThumbnailForThumbnailPath(
+        // The staging file's mirror is this same image, so publish it with the
+        // file rather than leaving it behind under a name nothing will ever
+        // reference again. ensure only encodes if the move found nothing to
+        // carry over.
+        moveSmallThumbnailMirrorSync(
+          ownedThumbnailReplacement.stagingPath,
+          ownedThumbnailReplacement.finalPath
+        );
+        await ensureSmallThumbnailForThumbnailPath(
           ownedThumbnailReplacement.finalPath
         );
         newThumbnailPath = ownedThumbnailReplacement.finalPath;
