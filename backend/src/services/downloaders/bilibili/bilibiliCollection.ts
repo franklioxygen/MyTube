@@ -73,6 +73,18 @@ const normalizeUploadDate = (value: unknown): string | undefined => {
   return `${year}${month}${day}`;
 };
 
+/**
+ * The publication time in whole seconds. uploadDate collapses to a UTC day, so
+ * two archives published on the same day compare equal; the head probe needs
+ * the finer value to tell them apart.
+ */
+const normalizePublishedAt = (value: unknown): number | undefined => {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    return undefined;
+  }
+  return Math.floor(value > 1e12 ? value / 1000 : value);
+};
+
 const normalizeViewCount = (value: unknown): number | undefined => {
   if (typeof value === "number" && Number.isFinite(value) && value >= 0) {
     return Math.floor(value);
@@ -432,6 +444,7 @@ export async function getCollectionVideos(
           title: video.title,
           aid: video.aid,
           uploadDate: normalizeUploadDate(video.pubdate ?? video.ctime ?? video.created),
+          publishedAt: normalizePublishedAt(video.pubdate ?? video.ctime ?? video.created),
           viewCount: normalizeViewCount(video.stat?.view ?? video.play),
         });
       });
@@ -517,6 +530,7 @@ export async function getSeriesVideos(
           title: video.title,
           aid: video.aid,
           uploadDate: normalizeUploadDate(video.pubdate ?? video.ctime ?? video.created),
+          publishedAt: normalizePublishedAt(video.pubdate ?? video.ctime ?? video.created),
           viewCount: normalizeViewCount(video.stat?.view ?? video.play),
         });
       });

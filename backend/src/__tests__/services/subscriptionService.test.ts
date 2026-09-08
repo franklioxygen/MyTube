@@ -610,6 +610,59 @@ describe('SubscriptionService', () => {
       );
     });
 
+    it('leaves a shared legacy collection unstamped', async () => {
+      // Once a collection carries a source key, every subscription on it prefers
+      // collection.sourceId over its own playlistId. Stamping here would
+      // silently repoint the other subscription at this feed.
+      const sub = {
+        id: 'bili-shared-col-sub',
+        author: '合集标题 - Bilibili 12345',
+        platform: 'Bilibili',
+        authorUrl: 'https://www.bilibili.com/video/BVseed',
+        lastCheck: 0,
+        interval: 10,
+        lastVideoLink: 'https://www.bilibili.com/video/BVold',
+        subscriptionType: 'playlist',
+        playlistId: '9988',
+        collectionId: 'shared-col',
+      };
+
+      let callCount = 0;
+      mockBuilder.then = (cb: any) => {
+        callCount++;
+        // The due-subscription sweep first, then the referencing-subscription
+        // lookup, which finds a second subscription on a different playlist.
+        if (callCount === 1) return Promise.resolve([sub]).then(cb);
+        return Promise.resolve([
+          { id: sub.id, playlistId: '9988' },
+          { id: 'other-sub', playlistId: '7777' },
+        ]).then(cb);
+      };
+      (storageService.getCollectionById as any).mockReturnValue({
+        id: 'shared-col',
+        name: '合集标题',
+      });
+      (downloadService.checkBilibiliCollectionOrSeries as any).mockResolvedValue({
+        success: true,
+        type: 'collection',
+        mid: 12345,
+        id: 9988,
+      });
+      (downloadService.getBilibiliCollectionVideos as any).mockResolvedValue({
+        success: true,
+        videos: [{ bvid: 'BVnew', title: 'New', aid: 1 }],
+      });
+      (downloadService.downloadSingleBilibiliPart as any).mockResolvedValue({
+        videoData: { id: 'video-new', title: 'New Bili Video' },
+      });
+
+      await subscriptionService.checkSubscriptions();
+
+      expect(storageService.saveCollection).not.toHaveBeenCalledWith(
+        expect.objectContaining({ sourcePlatform: 'bilibili' })
+      );
+    });
+
     it('updates lastCheck when a playlist probe fails to back off retries', async () => {
       const sub = {
         id: 'playlist-probe-fail-sub',

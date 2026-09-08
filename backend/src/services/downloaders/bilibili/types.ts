@@ -36,6 +36,7 @@ export interface BilibiliVideoItem {
   title: string;
   aid: number;
   uploadDate?: string; // YYYYMMDD
+  publishedAt?: number; // unix seconds; full precision behind uploadDate
   viewCount?: number; // total views
 }
 

@@ -1291,6 +1291,36 @@ export class SubscriptionService {
     );
   }
 
+  /**
+   * Whether stamping `source` onto a collection is safe for every subscription
+   * that points at it.
+   *
+   * A source-less collection can be shared - subscriptions get-or-create it by
+   * name - and once it carries a source key, every subscription on it prefers
+   * `collection.sourceId` over its own `playlistId`. Stamping one subscription's
+   * source onto a collection another subscription reaches by a different
+   * playlist would silently repoint that other subscription at this feed, and
+   * checks run concurrently, so two of them could also race to stamp different
+   * sources. Only self-heal when no other subscription would be repointed.
+   */
+  private async collectionSourceIsUncontested(
+    collectionId: string,
+    sub: Subscription,
+    source: { id: number }
+  ): Promise<boolean> {
+    const referencing = await db
+      .select({
+        id: subscriptions.id,
+        playlistId: subscriptions.playlistId,
+      })
+      .from(subscriptions)
+      .where(eq(subscriptions.collectionId, collectionId));
+
+    return referencing.every(
+      (row) => row.id === sub.id || row.playlistId === String(source.id)
+    );
+  }
+
   private async getPlaylistSubscriptionHeadSnapshot(
     sub: Subscription
   ): Promise<{ headVideoUrl: string | null }> {
@@ -1323,7 +1353,15 @@ export class SubscriptionService {
         // to re-derive it from the video URL on every poll, and that derivation
         // goes through Bilibili's risk-controlled view endpoint. Stamp what we
         // just resolved so the next poll addresses the collection directly.
-        if (collection && !hasCollectionSource) {
+        if (
+          collection &&
+          !hasCollectionSource &&
+          (await this.collectionSourceIsUncontested(
+            collection.id,
+            sub,
+            snapshot.bilibiliSource
+          ))
+        ) {
           saveBilibiliCollectionSourceIfCompatible(
             collection,
             snapshot.bilibiliSource

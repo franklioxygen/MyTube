@@ -446,6 +446,41 @@ describe("getBilibiliCollectionHeadSnapshot", () => {
     expect(snap.headVideoUrl).toBe("https://www.bilibili.com/video/BVnewest");
   });
 
+  it("separates same-day uploads by publication time, not collection order", async () => {
+    // uploadDate is only a UTC day, so two archives published on the same day
+    // tie there and the pick would fall back to collection order - which the
+    // author can rearrange, making the older of the two the head.
+    const { getBilibiliCollectionVideos } = await import(
+      "../../../services/downloadService"
+    );
+    vi.mocked(getBilibiliCollectionVideos).mockResolvedValueOnce({
+      success: true,
+      videos: [
+        {
+          bvid: "BVevening",
+          title: "Published later that day",
+          aid: 2,
+          uploadDate: "20260906",
+          publishedAt: 1788_800_000,
+        },
+        {
+          bvid: "BVmorning",
+          title: "Published earlier that day",
+          aid: 3,
+          uploadDate: "20260906",
+          publishedAt: 1788_760_000,
+        },
+      ],
+    });
+
+    const snap = await getBilibiliCollectionHeadSnapshot(
+      "https://www.bilibili.com/video/BVseed",
+      { type: "collection", mid: 12345, id: 9988 }
+    );
+
+    expect(snap.headVideoUrl).toBe("https://www.bilibili.com/video/BVevening");
+  });
+
   it("rejects failed Bilibili collection fetches before seeding a cursor", async () => {
     const { getBilibiliCollectionVideos } = await import(
       "../../../services/downloadService"

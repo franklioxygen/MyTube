@@ -365,15 +365,24 @@ async function resolveBilibiliCollectionSource(
  * upload order nor stable: an author can append an older video, or reorder the
  * season. Taking `videos[0]` therefore pinned the head to episode 1 forever, so
  * a subscription whose cursor already sat on episode 1 never saw a new video.
- * Comparing the YYYYMMDD upload dates is order-independent. Ties, and archives
- * with no usable date at all, fall back to the later position, which is where a
- * collection normally grows.
+ * Comparing publication times is order-independent. The raw timestamp is used
+ * rather than uploadDate, which is only a UTC day: two archives published on
+ * the same day compare equal there, so the pick would fall back to collection
+ * order and a rearranged season could make the older of the two the head. The
+ * day string remains as a fallback for archives that carry no timestamp, and a
+ * genuine tie falls back to the later position, which is where a collection
+ * normally grows.
  */
-function pickNewestBilibiliVideo<T extends { uploadDate?: string }>(
-  videos: T[]
-): T | undefined {
+function pickNewestBilibiliVideo<
+  T extends { publishedAt?: number; uploadDate?: string },
+>(videos: T[]): T | undefined {
   return videos.reduce<T | undefined>((newest, video) => {
     if (!newest) return video;
+    const publishedAt = video.publishedAt ?? 0;
+    const newestPublishedAt = newest.publishedAt ?? 0;
+    if (publishedAt !== newestPublishedAt) {
+      return publishedAt > newestPublishedAt ? video : newest;
+    }
     return (video.uploadDate ?? "") >= (newest.uploadDate ?? "")
       ? video
       : newest;
