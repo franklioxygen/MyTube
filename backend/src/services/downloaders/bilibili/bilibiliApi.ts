@@ -67,7 +67,7 @@ export async function getVideoInfo(videoId: string): Promise<VideoInfo> {
       const apiUrl = `https://api.bilibili.com/x/web-interface/view?bvid=${videoId}`;
       const response = await axios.get(apiUrl, {
         ...axiosConfig,
-        headers: buildBilibiliApiHeaders(),
+        headers: buildBilibiliApiHeaders(apiUrl),
       });
 
       if (response.data && response.data.data) {
@@ -122,7 +122,7 @@ export async function getAuthorInfo(
 
     const response = await axios.get(apiUrl, {
       ...axiosConfig,
-      headers: buildBilibiliApiHeaders(),
+      headers: buildBilibiliApiHeaders(apiUrl),
     });
 
     if (response.data && response.data.data && response.data.data.card) {
@@ -301,7 +301,7 @@ export async function checkVideoParts(
 
     const response = await axios.get(apiUrl, {
       ...axiosConfig,
-      headers: buildBilibiliApiHeaders(),
+      headers: buildBilibiliApiHeaders(apiUrl),
     });
 
     if (response.data && response.data.data) {
@@ -351,7 +351,7 @@ export async function checkCollectionOrSeries(
 
     const response = await axios.get(apiUrl, {
       ...axiosConfig,
-      headers: buildBilibiliApiHeaders(),
+      headers: buildBilibiliApiHeaders(apiUrl),
     });
 
     if (response.data && response.data.data) {

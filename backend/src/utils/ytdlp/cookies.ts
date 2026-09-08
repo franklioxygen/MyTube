@@ -129,6 +129,25 @@ function cookieLineMatchesHost(
   return host === domain;
 }
 
+/**
+ * RFC 6265 path-match: the cookie's path is the request path, or a prefix of it
+ * that ends at a path segment boundary.
+ */
+function cookiePathMatches(cookiePath: string, requestPath: string): boolean {
+  if (!cookiePath.startsWith("/")) {
+    return false;
+  }
+  if (cookiePath === "/" || cookiePath === requestPath) {
+    return true;
+  }
+  if (!requestPath.startsWith(cookiePath)) {
+    return false;
+  }
+  return (
+    cookiePath.endsWith("/") || requestPath[cookiePath.length] === "/"
+  );
+}
+
 function isExpiredCookie(expires: string): boolean {
   const expiresAt = Number.parseInt(expires, 10);
   // 0 (and anything unparseable) is the session-cookie convention: no expiry.
@@ -139,21 +158,32 @@ function isExpiredCookie(expires: string): boolean {
 }
 
 /**
- * Build a `Cookie` request header for `host` from the stored cookies.txt.
+ * Build a `Cookie` request header for `requestUrl` from the stored cookies.txt.
  *
  * The cookie file was previously only handed to yt-dlp, but the direct site API
  * calls need it too: api.bilibili.com answers 412 (风控) to cookieless requests
  * for x/web-interface/view, which is the preflight every Bilibili collection
- * subscription runs before it can read its feed. Returns null when there is no
- * usable cookie for the host, so callers simply send the request unauthenticated.
+ * subscription runs before it can read its feed. Matching is by host *and*
+ * path, as a browser would: a jar can hold the same name scoped to several
+ * paths, and letting a path-scoped row claim the name would both send it where
+ * it does not belong and hide the row that does apply. Returns null when no
+ * cookie applies, so callers simply send the request unauthenticated.
  */
-export function getCookieHeaderForHost(host: string): string | null {
+export function getCookieHeaderForUrl(requestUrl: string): string | null {
   const cookiesPath = ensureCookiesFileIsNormalized();
   if (!cookiesPath) {
     return null;
   }
 
-  const normalizedHost = host.trim().toLowerCase().replace(/:\d+$/, "");
+  let normalizedHost: string;
+  let requestPath: string;
+  try {
+    const parsed = new URL(requestUrl);
+    normalizedHost = parsed.hostname.toLowerCase();
+    requestPath = parsed.pathname || "/";
+  } catch {
+    return null;
+  }
   if (!normalizedHost) {
     return null;
   }
@@ -177,7 +207,8 @@ export function getCookieHeaderForHost(host: string): string | null {
         continue;
       }
 
-      const [rawDomain, includeSubdomains, , , expires, name, value] = parts;
+      const [rawDomain, includeSubdomains, cookiePath, , expires, name, value] =
+        parts;
       if (!name || seenNames.has(name)) {
         continue;
       }
@@ -186,7 +217,8 @@ export function getCookieHeaderForHost(host: string): string | null {
           rawDomain,
           includeSubdomains.toUpperCase() === "TRUE",
           normalizedHost
-        )
+        ) ||
+        !cookiePathMatches(cookiePath, requestPath)
       ) {
         continue;
       }

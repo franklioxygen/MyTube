@@ -427,7 +427,7 @@ export async function getCollectionVideos(
       const response = await axios.get(apiUrl, {
         ...axiosConfig,
         params,
-        headers: buildBilibiliApiHeaders(),
+        headers: buildBilibiliApiHeaders(apiUrl),
       });
 
       const { archives, total } = readBilibiliArchivePage(
@@ -513,7 +513,7 @@ export async function getSeriesVideos(
       const response = await axios.get(apiUrl, {
         ...axiosConfig,
         params,
-        headers: buildBilibiliApiHeaders(),
+        headers: buildBilibiliApiHeaders(apiUrl),
       });
 
       const { archives, total } = readBilibiliArchivePage(

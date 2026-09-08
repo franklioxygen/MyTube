@@ -100,14 +100,28 @@ export function saveBilibiliCollectionSourceIfCompatible(
   source: BilibiliPlaylistCollectionSource
 ): Collection | null {
   const sourceKey = toBilibiliSourceKey(source);
+  // The caller may have been holding `collection` across a long Bilibili scan.
+  // Re-read it inside the update and decide compatibility on that row, because
+  // saveCollection rewrites the whole collection - it deletes and rebuilds
+  // every collection_videos link from the object it is handed - so writing back
+  // a stale snapshot would drop memberships added meanwhile, and because a
+  // concurrent check may have stamped a different source in the interim.
+  let decided: Collection | null = null;
+  const updated = storageService.atomicUpdateCollection(
+    collection.id,
+    (current) => {
+      if (collectionMatchesSourceKey(current, sourceKey)) {
+        decided = current;
+        return null;
+      }
+      if (collectionHasSourceKey(current)) {
+        return null;
+      }
+      return { ...current, ...sourceKey };
+    }
+  );
 
-  if (collectionMatchesSourceKey(collection, sourceKey)) {
-    return collection;
-  }
-  if (!collectionHasSourceKey(collection)) {
-    return saveCollectionSourceKey(collection, sourceKey);
-  }
-  return null;
+  return updated ?? decided;
 }
 
 /**

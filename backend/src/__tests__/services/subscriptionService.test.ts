@@ -597,17 +597,35 @@ describe('SubscriptionService', () => {
         videoData: { id: 'video-new', title: 'New Bili Video' },
       });
 
+      // The stamp re-reads the collection inside the update rather than writing
+      // back the snapshot taken before the archive scan, so a video added while
+      // that scan was in flight survives.
+      let stamped: any;
+      (storageService.atomicUpdateCollection as any).mockImplementation(
+        (id: string, updateFn: (c: any) => any) => {
+          stamped = updateFn({
+            id,
+            name: '合集标题',
+            videos: ['video-added-meanwhile'],
+          });
+          return stamped;
+        }
+      );
+
       await subscriptionService.checkSubscriptions();
 
-      expect(storageService.saveCollection).toHaveBeenCalledWith(
-        expect.objectContaining({
-          id: 'legacy-col',
-          sourcePlatform: 'bilibili',
-          sourceType: 'collection',
-          sourceMid: '12345',
-          sourceId: '9988',
-        })
+      expect(storageService.atomicUpdateCollection).toHaveBeenCalledWith(
+        'legacy-col',
+        expect.any(Function)
       );
+      expect(stamped).toMatchObject({
+        id: 'legacy-col',
+        sourcePlatform: 'bilibili',
+        sourceType: 'collection',
+        sourceMid: '12345',
+        sourceId: '9988',
+        videos: ['video-added-meanwhile'],
+      });
     });
 
     it('leaves a shared legacy collection unstamped', async () => {
@@ -661,9 +679,7 @@ describe('SubscriptionService', () => {
 
       await subscriptionService.checkSubscriptions();
 
-      expect(storageService.saveCollection).not.toHaveBeenCalledWith(
-        expect.objectContaining({ sourcePlatform: 'bilibili' })
-      );
+      expect(storageService.atomicUpdateCollection).not.toHaveBeenCalled();
     });
 
     it('updates lastCheck when a playlist probe fails to back off retries', async () => {

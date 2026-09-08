@@ -1314,7 +1314,11 @@ export class SubscriptionService {
       .from(subscriptions)
       .where(eq(subscriptions.collectionId, collectionId));
 
-    return referencing.every((row) => row.id === sub.id);
+    // Not `every`: an empty set would pass it, and the only way this
+    // subscription is missing from its own collection's referrers is that it
+    // was repointed or removed while the probe was in flight - in which case
+    // this poll has no business stamping the collection it left behind.
+    return referencing.length === 1 && referencing[0].id === sub.id;
   }
 
   private async getPlaylistSubscriptionHeadSnapshot(
