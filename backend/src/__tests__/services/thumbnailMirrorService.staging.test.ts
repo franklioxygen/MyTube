@@ -23,16 +23,18 @@ async function loadMirrorService(root: string): Promise<MirrorModule> {
     IMAGES_SMALL_DIR: path.join(root, "images-small"),
     VIDEOS_DIR: path.join(root, "videos"),
   }));
-  // Stand in for ffmpeg: the real encode is not what these tests are about, so
-  // just put a file where the encoder would have written one.
+  // Stand in for ffmpeg. It writes a marker derived from the source so a test
+  // can tell which thumbnail a mirror was actually encoded from - the argument
+  // layout is ["-y", "-i", <source>, ..., <target>].
   vi.doMock("../../utils/security", async (importOriginal) => {
     const actual = (await importOriginal()) as Record<string, unknown>;
     return {
       ...actual,
       execFileSafe: vi.fn(async (_bin: string, args: string[]) => {
+        const source = args[2];
         const target = args[args.length - 1];
         fsExtra.ensureDirSync(path.dirname(target));
-        fsExtra.writeFileSync(target, "small");
+        fsExtra.writeFileSync(target, `small:${fsExtra.readFileSync(source, "utf8")}`);
         return { stdout: "", stderr: "" };
       }),
     };
@@ -41,8 +43,14 @@ async function loadMirrorService(root: string): Promise<MirrorModule> {
 }
 
 function smallMirrors(root: string): string[] {
-  return fsExtra.readdirSync(path.join(root, "images-small"));
+  return fsExtra.readdirSync(path.join(root, "images-small")).sort();
 }
+
+function mirrorContent(root: string, name: string): string {
+  return fsExtra.readFileSync(path.join(root, "images-small", name), "utf8");
+}
+
+const STAGING_NAME = ".mytube-redownload-b84ebd18-008a-4a24-b787-e6af2c9c2dfd.jpg";
 
 describe("small thumbnail mirrors across a staged thumbnail publish", () => {
   afterEach(() => {
@@ -54,59 +62,61 @@ describe("small thumbnail mirrors across a staged thumbnail publish", () => {
     }
   });
 
-  it("carries the staging mirror onto the published name instead of stranding it", async () => {
+  it("leaves nothing behind under the staging name", async () => {
     const root = makeTempRoot();
     const service = await loadMirrorService(root);
 
-    // What the downloader does: the thumbnail lands on a staging name, and
-    // downloadThumbnail mirrors whatever path it just wrote.
-    const stagingAbsolute = path.join(
-      root,
-      "images",
-      ".mytube-redownload-b84ebd18-008a-4a24-b787-e6af2c9c2dfd.jpg"
-    );
-    fsExtra.writeFileSync(stagingAbsolute, "thumb");
+    // What a downloader does: the thumbnail lands on a staging name, and
+    // downloadThumbnail mirrors whatever path it has just written.
+    const stagingAbsolute = path.join(root, "images", STAGING_NAME);
+    fsExtra.writeFileSync(stagingAbsolute, "new-thumb");
     await service.regenerateSmallThumbnailForThumbnailPath(stagingAbsolute);
-    expect(smallMirrors(root)).toEqual([
-      ".mytube-redownload-b84ebd18-008a-4a24-b787-e6af2c9c2dfd.jpg",
-    ]);
+    expect(smallMirrors(root)).toEqual([STAGING_NAME]);
 
     // Then the staged file is published onto its real name.
-    const publishedAbsolute = path.join(root, "images", "Episode.jpg");
-    fsExtra.moveSync(stagingAbsolute, publishedAbsolute);
+    fsExtra.moveSync(stagingAbsolute, path.join(root, "images", "Episode.jpg"));
 
-    service.moveSmallThumbnailMirrorSync(stagingAbsolute, "/images/Episode.jpg");
-    await service.ensureSmallThumbnailForThumbnailPath("/images/Episode.jpg");
+    service.deleteSmallThumbnailMirrorSync(stagingAbsolute);
+    await service.regenerateSmallThumbnailForThumbnailPath("/images/Episode.jpg");
 
-    // The mirror follows the file. Nothing is left under the staging name,
-    // which nothing would ever reference again.
     expect(smallMirrors(root)).toEqual(["Episode.jpg"]);
+    expect(mirrorContent(root, "Episode.jpg")).toBe("small:new-thumb");
   });
 
-  it("still produces a mirror when the staging name never had one", async () => {
+  it("replaces a mirror left by the download this one supersedes", async () => {
     const root = makeTempRoot();
     const service = await loadMirrorService(root);
 
-    const stagingAbsolute = path.join(root, "images", ".mytube-redownload-x.jpg");
+    // An owned replacement re-downloads over a thumbnail that is already
+    // published, so images-small already holds a mirror of the old image.
     const publishedAbsolute = path.join(root, "images", "Episode.jpg");
-    fsExtra.writeFileSync(publishedAbsolute, "thumb");
-    expect(smallMirrors(root)).toEqual([]);
+    fsExtra.writeFileSync(publishedAbsolute, "old-thumb");
+    await service.regenerateSmallThumbnailForThumbnailPath(publishedAbsolute);
+    expect(mirrorContent(root, "Episode.jpg")).toBe("small:old-thumb");
 
-    // The move finds nothing to carry over, so ensure has to do the work.
-    service.moveSmallThumbnailMirrorSync(stagingAbsolute, "/images/Episode.jpg");
-    await service.ensureSmallThumbnailForThumbnailPath("/images/Episode.jpg");
+    // The new thumbnail lands on a staging name, but its mirror never gets
+    // made - downloadThumbnail only warns when generation fails.
+    const stagingAbsolute = path.join(root, "images", STAGING_NAME);
+    fsExtra.writeFileSync(stagingAbsolute, "new-thumb");
+    fsExtra.moveSync(stagingAbsolute, publishedAbsolute, { overwrite: true });
 
+    service.deleteSmallThumbnailMirrorSync(stagingAbsolute);
+    await service.regenerateSmallThumbnailForThumbnailPath("/images/Episode.jpg");
+
+    // Regeneration must be forced. A non-forcing ensure would accept the
+    // mirror already sitting there and leave the preview on the old image.
     expect(smallMirrors(root)).toEqual(["Episode.jpg"]);
+    expect(mirrorContent(root, "Episode.jpg")).toBe("small:new-thumb");
   });
 
   it("removes the staging mirror when a failed download discards the file", async () => {
     const root = makeTempRoot();
     const service = await loadMirrorService(root);
 
-    const stagingAbsolute = path.join(root, "images", ".mytube-redownload-y.jpg");
-    fsExtra.writeFileSync(stagingAbsolute, "thumb");
+    const stagingAbsolute = path.join(root, "images", STAGING_NAME);
+    fsExtra.writeFileSync(stagingAbsolute, "new-thumb");
     await service.regenerateSmallThumbnailForThumbnailPath(stagingAbsolute);
-    expect(smallMirrors(root)).toEqual([".mytube-redownload-y.jpg"]);
+    expect(smallMirrors(root)).toEqual([STAGING_NAME]);
 
     // The download fails after the thumbnail landed; the staging file is
     // removed, and its mirror has to go with it.

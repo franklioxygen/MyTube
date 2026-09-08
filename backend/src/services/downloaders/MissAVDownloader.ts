@@ -46,8 +46,7 @@ import {
 } from "../mediaServerExport";
 import {
   deleteSmallThumbnailMirrorSync,
-  ensureSmallThumbnailForThumbnailPath,
-  moveSmallThumbnailMirrorSync,
+  regenerateSmallThumbnailForThumbnailPath,
 } from "../thumbnailMirrorService";
 import * as storageService from "../storageService";
 import { Video } from "../storageService";
@@ -857,15 +856,13 @@ export class MissAVDownloader extends BaseDownloader {
             existingLocalVideo?.id
           );
           stagedThumbnailPathForCleanup = null;
-          // The staging file's mirror is this same image, so publish it with
-          // the file rather than leaving it behind under a name nothing will
-          // ever reference again. ensure only encodes if the move found
-          // nothing to carry over.
-          moveSmallThumbnailMirrorSync(
-            ownedThumbnailReplacement.stagingPath,
-            finalThumbnailWebPath
-          );
-          await ensureSmallThumbnailForThumbnailPath(finalThumbnailWebPath);
+          // Drop the mirror the staging name picked up on its way in; nothing
+          // will reference it again. Regeneration of the published one stays
+          // forced: an owned replacement usually already has a mirror, left by
+          // the download this one supersedes, and accepting that would leave
+          // the preview showing the superseded thumbnail.
+          deleteSmallThumbnailMirrorSync(ownedThumbnailReplacement.stagingPath);
+          await regenerateSmallThumbnailForThumbnailPath(finalThumbnailWebPath);
         }
       }
 

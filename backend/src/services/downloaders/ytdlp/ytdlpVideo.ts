@@ -50,8 +50,7 @@ import * as storageService from "../../storageService";
 import { Video } from "../../storageService";
 import {
   deleteSmallThumbnailMirrorSync,
-  ensureSmallThumbnailForThumbnailPath,
-  moveSmallThumbnailMirrorSync,
+  regenerateSmallThumbnailForThumbnailPath,
 } from "../../thumbnailMirrorService";
 import { twitchApiService } from "../../twitchService";
 import { BaseDownloader, DownloadModeOptions } from "../BaseDownloader";
@@ -557,15 +556,13 @@ export async function downloadVideo(
           ownedThumbnailReplacement.destinationRootDir,
           existingLocalVideo?.id
         );
-        // The staging file's mirror is this same image, so publish it with the
-        // file rather than leaving it behind under a name nothing will ever
-        // reference again. ensure only encodes if the move found nothing to
-        // carry over.
-        moveSmallThumbnailMirrorSync(
-          ownedThumbnailReplacement.stagingPath,
-          ownedThumbnailReplacement.finalPath
-        );
-        await ensureSmallThumbnailForThumbnailPath(
+        // Drop the mirror the staging name picked up on its way in; nothing
+        // will reference it again. Regeneration of the published one stays
+        // forced: an owned replacement usually already has a mirror, left by
+        // the download this one supersedes, and accepting that would leave the
+        // preview showing the superseded thumbnail.
+        deleteSmallThumbnailMirrorSync(ownedThumbnailReplacement.stagingPath);
+        await regenerateSmallThumbnailForThumbnailPath(
           ownedThumbnailReplacement.finalPath
         );
         newThumbnailPath = ownedThumbnailReplacement.finalPath;
