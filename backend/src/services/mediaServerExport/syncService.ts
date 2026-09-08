@@ -483,13 +483,14 @@ export function removeMediaServerArtifactsForVideo(
       return;
     }
 
-    const libraryVideos = getLibraryVideos(options);
     // Duplicate media paths (and different containers with the same stem) can
     // share sidecars. Keep them until their last owning video is removed.
+    // Only read the library when a caller actually asks for that check: an
+    // eager read would abort the whole removal for layouts that never need it.
     const artifactKey = (value: string) =>
       path.normalize(value).normalize("NFKC").toLowerCase();
     const sharedArtifacts = new Set<string>();
-    for (const candidate of options.preserveSharedArtifacts ? libraryVideos : []) {
+    for (const candidate of options.preserveSharedArtifacts ? getLibraryVideos(options) : []) {
       if (candidate.id === video.id) continue;
       const candidatePlan = planMediaServerExportPaths(candidate);
       if (!candidatePlan) continue;
@@ -507,7 +508,7 @@ export function removeMediaServerArtifactsForVideo(
       return;
     }
 
-    const showStillHasEpisodes = libraryVideos.some(
+    const showStillHasEpisodes = getLibraryVideos(options).some(
       (candidate) =>
         candidate.id !== video.id &&
         matchesShowRoot(candidate, plan.tvLayout.showRootRelativeDir as string)
