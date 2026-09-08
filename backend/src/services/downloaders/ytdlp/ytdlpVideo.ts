@@ -556,6 +556,12 @@ export async function downloadVideo(
           ownedThumbnailReplacement.destinationRootDir,
           existingLocalVideo?.id
         );
+        // Drop the mirror the staging name picked up on its way in; nothing
+        // will reference it again. Regeneration of the published one stays
+        // forced: an owned replacement usually already has a mirror, left by
+        // the download this one supersedes, and accepting that would leave the
+        // preview showing the superseded thumbnail.
+        deleteSmallThumbnailMirrorSync(ownedThumbnailReplacement.stagingPath);
         await regenerateSmallThumbnailForThumbnailPath(
           ownedThumbnailReplacement.finalPath
         );

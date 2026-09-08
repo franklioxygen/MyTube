@@ -44,7 +44,10 @@ import {
   removeMediaServerArtifactsForVideo,
   syncMediaServerArtifactsForRecord,
 } from "../mediaServerExport";
-import { regenerateSmallThumbnailForThumbnailPath } from "../thumbnailMirrorService";
+import {
+  deleteSmallThumbnailMirrorSync,
+  regenerateSmallThumbnailForThumbnailPath,
+} from "../thumbnailMirrorService";
 import * as storageService from "../storageService";
 import { Video } from "../storageService";
 import { BaseDownloader, DownloadOptions, VideoInfo } from "./BaseDownloader";
@@ -853,6 +856,12 @@ export class MissAVDownloader extends BaseDownloader {
             existingLocalVideo?.id
           );
           stagedThumbnailPathForCleanup = null;
+          // Drop the mirror the staging name picked up on its way in; nothing
+          // will reference it again. Regeneration of the published one stays
+          // forced: an owned replacement usually already has a mirror, left by
+          // the download this one supersedes, and accepting that would leave
+          // the preview showing the superseded thumbnail.
+          deleteSmallThumbnailMirrorSync(ownedThumbnailReplacement.stagingPath);
           await regenerateSmallThumbnailForThumbnailPath(finalThumbnailWebPath);
         }
       }
@@ -1080,6 +1089,9 @@ export class MissAVDownloader extends BaseDownloader {
         }
         if (stagedThumbnailPathForCleanup) {
           await safeRemove(stagedThumbnailPathForCleanup);
+          // The mirror was generated the moment the staging file landed, so a
+          // failure after that point strands it unless it goes too.
+          deleteSmallThumbnailMirrorSync(stagedThumbnailPathForCleanup);
         }
         const cleanupConfig = getUserYtDlpConfig(url);
         const cleanupFormat = resolveMissAvMergeOutputFormat(
