@@ -1226,6 +1226,104 @@ describe("outputPathAllocator", () => {
     second.release();
   });
 
+  it("budgets the discriminator a repeated subtitle language will carry", async () => {
+    const root = makeTempRoot();
+    // collectionFileManager gives the second subtitle of one language a `.2`
+    // before its extension. Budgeting the plain `.<lang><ext>` left that target
+    // two bytes over at 257, and the collection move rolled back with
+    // ENAMETOOLONG. An ASCII stem keeps the boundary exact: byte truncation of
+    // a CJK stem rounds down far enough to hide the two-byte overshoot.
+    const stem = "a".repeat(200);
+    const longId = "sone-192-uncensored-leak-4k-remastered-directors-cut-v2";
+    const subtitleFiles = [
+      { language: "zh-Hant-TW", extension: ".vtt" },
+      { language: "zh-Hant-TW", extension: ".vtt" },
+    ];
+    const allocator = await loadAllocator(root);
+
+    const first = allocator.allocateOutputFamilySync({
+      videoRelativePath: `${stem}.mp4`,
+      thumbnailRelativePath: `${stem}.jpg`,
+      subtitleBaseRelativePath: stem,
+      thumbnailBaseDir: path.join(root, "images"),
+      identity: { platform: "missav", sourceVideoId: "abc", mediaType: "video" },
+      subtitleFiles,
+    });
+    const second = allocator.allocateOutputFamilySync({
+      videoRelativePath: `${stem}.mp4`,
+      thumbnailRelativePath: `${stem}.jpg`,
+      subtitleBaseRelativePath: stem,
+      thumbnailBaseDir: path.join(root, "images"),
+      identity: { platform: "missav", sourceVideoId: longId, mediaType: "video" },
+      subtitleFiles,
+    });
+
+    expect(second.collisionStrategy).toBe("source_id");
+    const plain = `${second.subtitleBaseRelativePath}.zh-Hant-TW.vtt`;
+    const discriminated = `${second.subtitleBaseRelativePath}.zh-Hant-TW.2.vtt`;
+    expect(Buffer.byteLength(plain, "utf8")).toBeLessThanOrEqual(255);
+    expect(Buffer.byteLength(discriminated, "utf8")).toBeLessThanOrEqual(255);
+
+    const written = path.join(root, "videos", discriminated);
+    fs.outputFileSync(written, "sub");
+    expect(fs.existsSync(written)).toBe(true);
+
+    first.release();
+    second.release();
+  });
+
+  it("keeps an owned video's path even when a subtitle tail cannot fit it", async () => {
+    const root = makeTempRoot();
+    // A deliberate trade-off, not an oversight. The owned video sits close
+    // enough to NAME_MAX that a subtitle on the same stem cannot fit, and no
+    // allocation can make it fit while the family shares one stem. Trimming
+    // would move the row off a file that exists - orphaning it and writing a
+    // duplicate - to gain a subtitle. Keeping the video costs at most that one
+    // subtitle, which is what happened before any of this trimming existed.
+    const stem = `${"a".repeat(240)} [def]`;
+    const owned = `${stem}.mp4`;
+    expect(Buffer.byteLength(owned, "utf8")).toBe(250);
+    expect(
+      Buffer.byteLength(`${stem}.zh-Hant-TW.vtt`, "utf8")
+    ).toBeGreaterThan(255);
+
+    const base = "a".repeat(240);
+    const allocator = await loadAllocator(root, [
+      {
+        id: "local-2",
+        videoPath: `/videos/${base}.mp4`,
+        thumbnailPath: `/images/${base}.jpg`,
+        subtitles: [],
+      },
+      {
+        id: "local-1",
+        videoPath: `/videos/${owned}`,
+        thumbnailPath: `/images/${stem}.jpg`,
+        subtitles: [],
+      },
+    ]);
+
+    const reservation = allocator.allocateOutputFamilySync({
+      videoRelativePath: `${base}.mp4`,
+      thumbnailRelativePath: `${base}.jpg`,
+      subtitleBaseRelativePath: base,
+      thumbnailBaseDir: path.join(root, "images"),
+      identity: {
+        platform: "youtube",
+        sourceVideoId: "def",
+        mediaType: "video",
+        localVideoId: "local-1",
+      },
+      existingLocalVideoId: "local-1",
+      ownedManagedPaths: [`/videos/${owned}`],
+      subtitleRequired: true,
+    });
+
+    expect(reservation.videoRelativePath).toBe(owned);
+    expect(reservation.subtitleBaseRelativePath).toBe(stem);
+    reservation.release();
+  });
+
   it("reserves room for the subtitle tail, not just the video extension", async () => {
     const root = makeTempRoot();
     // The subtitle base carries `.<lang><ext>` where the video carries ".mp4".
