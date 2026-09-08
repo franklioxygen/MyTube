@@ -29,6 +29,7 @@ import {
 } from "../filenameTemplate/outputPathAllocator";
 import { resolveSupersededManagedPath } from "./supersededOutput";
 import { FilenameTemplateSourceOptions } from "../filenameTemplate/types";
+import { findRedownloadTargetBySourceIdentity } from "./redownloadTarget";
 import {
   flagsToArgs,
   getAxiosProxyConfig,
@@ -128,7 +129,13 @@ function resolveExistingVideoForRedownload(
   existingLocalVideoId?: string
 ): Video | undefined {
   if (!existingLocalVideoId) {
-    return storageService.getVideoBySourceUrl(url, "video");
+    // Identity first, so this agrees with the duplicate gate that let a forced
+    // re-download through; the URL lookup stays as the fallback for rows that
+    // predate the tracking table.
+    return (
+      findRedownloadTargetBySourceIdentity(url, "video") ??
+      storageService.getVideoBySourceUrl(url, "video")
+    );
   }
 
   const selectedVideo = storageService.getVideoById(existingLocalVideoId);

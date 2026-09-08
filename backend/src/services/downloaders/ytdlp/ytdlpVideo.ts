@@ -68,6 +68,7 @@ import {
   createYtDlpOutputTemplate,
   isExpectedTwitchMetadataError,
 } from "./ytdlpVideoHelpers";
+import { findRedownloadTargetBySourceIdentity } from "../redownloadTarget";
 
 function resolveExistingVideoForRedownload(
   videoUrl: string,
@@ -75,7 +76,13 @@ function resolveExistingVideoForRedownload(
   existingLocalVideoId?: string
 ): Video | undefined {
   if (!existingLocalVideoId) {
-    return storageService.getVideoBySourceUrl(videoUrl, mediaType);
+    // Identity first, so this agrees with the duplicate gate that let a forced
+    // re-download through; the URL lookup stays as the fallback for rows that
+    // predate the tracking table.
+    return (
+      findRedownloadTargetBySourceIdentity(videoUrl, mediaType) ??
+      storageService.getVideoBySourceUrl(videoUrl, mediaType)
+    );
   }
 
   const selectedVideo = storageService.getVideoById(existingLocalVideoId);

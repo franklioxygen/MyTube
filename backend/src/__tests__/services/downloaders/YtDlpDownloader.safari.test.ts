@@ -33,6 +33,7 @@ vi.mock('../../../services/storageService', () => ({
     getVideos: vi.fn().mockReturnValue([]),
     getVideoById: vi.fn(),
     getVideoBySourceUrl: vi.fn(),
+    checkVideoDownloadBySourceId: vi.fn().mockReturnValue({ found: false }),
     updateVideo: vi.fn(),
     organizeVideoByAuthor: vi.fn(),
     isThumbnailReferencedByOtherVideo: vi.fn().mockReturnValue(false),

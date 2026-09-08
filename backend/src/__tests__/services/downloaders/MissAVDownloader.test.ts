@@ -20,6 +20,7 @@ vi.mock('../../../services/storageService', () => ({
   getSettings: vi.fn().mockReturnValue({}),
   getVideos: vi.fn().mockReturnValue([]),
   getVideoBySourceUrl: vi.fn().mockReturnValue(null),
+  checkVideoDownloadBySourceId: vi.fn().mockReturnValue({ found: false }),
   organizeVideoByAuthor: vi.fn().mockReturnValue(null),
   getVideoById: vi.fn().mockReturnValue(null),
   persistDownloadedMediaIdentity: vi.fn(({ video }) => video),
@@ -503,6 +504,62 @@ describe('MissAVDownloader', () => {
       expect(mockPage.goto).toHaveBeenCalledWith(
         'https://missav.ai/dm30/en/juq-819-uncensored-leak',
         expect.any(Object),
+      );
+    });
+
+    it('resolves the row to replace by source identity, not by URL string', async () => {
+      // The duplicate gate keys on (sourceVideoId, platform, mediaType), so a
+      // forced re-download it let through must resolve the same row here even
+      // when the URL is spelled differently - another mirror, a fragment, a
+      // locale segment. Resolving by exact URL missed it and inserted a
+      // duplicate beside the row the download meant to replace.
+      const mockPage = buildPageMock('timeout');
+      const mockBrowser = { newPage: vi.fn().mockResolvedValue(mockPage), close: vi.fn().mockResolvedValue(undefined) };
+      (puppeteer.launch as ReturnType<typeof vi.fn>).mockResolvedValue(mockBrowser);
+
+      vi.mocked(storageService.checkVideoDownloadBySourceId).mockReturnValue({
+        found: true,
+        status: 'exists',
+        videoId: 'local-1',
+      } as any);
+      vi.mocked(storageService.getVideoById).mockReturnValue({
+        id: 'local-1',
+        mediaType: 'video',
+        // Stored on a different mirror, with a fragment.
+        sourceUrl: 'https://missav.ws/dm30/juq-819-uncensored-leak#frag',
+        videoPath: '/videos/Episode.mp4',
+      } as any);
+
+      await expect(
+        MissAVDownloader.downloadVideo('https://missav.ai/dm30/en/juq-819-uncensored-leak'),
+      ).rejects.toThrow('returned no video stream URL');
+
+      expect(storageService.checkVideoDownloadBySourceId).toHaveBeenCalledWith(
+        'juq-819-uncensored-leak',
+        'missav',
+        'video',
+      );
+      // Identity answered, so the URL lookup is never consulted.
+      expect(storageService.getVideoBySourceUrl).not.toHaveBeenCalled();
+    });
+
+    it('falls back to the URL lookup when nothing tracks the source id', async () => {
+      const mockPage = buildPageMock('timeout');
+      const mockBrowser = { newPage: vi.fn().mockResolvedValue(mockPage), close: vi.fn().mockResolvedValue(undefined) };
+      (puppeteer.launch as ReturnType<typeof vi.fn>).mockResolvedValue(mockBrowser);
+
+      vi.mocked(storageService.checkVideoDownloadBySourceId).mockReturnValue({
+        found: false,
+      } as any);
+
+      await expect(
+        MissAVDownloader.downloadVideo('https://missav.ai/dm30/en/juq-819-uncensored-leak'),
+      ).rejects.toThrow('returned no video stream URL');
+
+      // Rows predating the tracking table are still reachable.
+      expect(storageService.getVideoBySourceUrl).toHaveBeenCalledWith(
+        'https://missav.ai/dm30/en/juq-819-uncensored-leak',
+        'video',
       );
     });
 
