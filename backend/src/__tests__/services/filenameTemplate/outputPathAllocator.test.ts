@@ -1337,6 +1337,8 @@ describe("outputPathAllocator", () => {
     ).toBeGreaterThan(255);
 
     const base = "a".repeat(240);
+    // The bypass now requires the file, not just the row.
+    fs.outputFileSync(path.join(root, "videos", owned), "video");
     const allocator = await loadAllocator(root, [
       {
         id: "local-2",
@@ -1469,51 +1471,100 @@ describe("outputPathAllocator", () => {
   });
 
   it("leaves an owned suffixed name alone even past the byte budget", async () => {
+    // 254 bytes: past the 238-byte stem budget the subtitle tail leaves, but
+    // still creatable on ext4, so the fixture behaves the same on CI as on
+    // APFS - where NAME_MAX counts characters and owned names run far longer.
     const root = makeTempRoot();
-    // APFS limits filenames by characters, not UTF-8 bytes, so a CJK name there
-    // can validly exceed 255 bytes and such files exist on macOS installs. The
-    // byte budget must not touch one the row already holds: trimming it would
-    // compute a path the file does not have, orphan it, and write a duplicate.
-    const stem = "\u6f22".repeat(120);
-    const owned = `${stem} [def].mp4`;
-    expect(Buffer.byteLength(owned, "utf8")).toBe(370);
+    const base = "a".repeat(240);
+    const owned = `${base} [defghij].mp4`;
+    expect(Buffer.byteLength(owned, "utf8")).toBe(254);
+
+    // The bypass rests on the file being there, so the fixture puts it there.
+    fs.outputFileSync(path.join(root, "videos", owned), "video");
 
     const allocator = await loadAllocator(root, [
       // Another row holds the unsuffixed base name, which is why this row got a
       // suffix in the first place and why it collides again on reallocation.
       {
         id: "local-2",
-        videoPath: `/videos/${stem}.mp4`,
-        thumbnailPath: `/images/${stem}.jpg`,
+        videoPath: `/videos/${base}.mp4`,
+        thumbnailPath: `/images/${base}.jpg`,
         subtitles: [],
       },
       {
         id: "local-1",
         videoPath: `/videos/${owned}`,
-        thumbnailPath: `/images/${stem} [def].jpg`,
+        thumbnailPath: `/images/${base} [defghij].jpg`,
         subtitles: [],
       },
     ]);
 
     const reservation = allocator.allocateOutputFamilySync({
-      videoRelativePath: `${stem}.mp4`,
-      thumbnailRelativePath: `${stem}.jpg`,
-      subtitleBaseRelativePath: stem,
+      videoRelativePath: `${base}.mp4`,
+      thumbnailRelativePath: `${base}.jpg`,
+      subtitleBaseRelativePath: base,
       thumbnailBaseDir: path.join(root, "images"),
       identity: {
         platform: "youtube",
-        sourceVideoId: "def",
+        sourceVideoId: "defghij",
         mediaType: "video",
         localVideoId: "local-1",
       },
       existingLocalVideoId: "local-1",
       ownedManagedPaths: [`/videos/${owned}`],
+      subtitleFiles: [{ language: "en", extension: ".vtt" }],
     });
 
     // Reallocating for the same row must land back on the file it already has.
     expect(reservation.videoRelativePath).toBe(owned);
-    expect(reservation.thumbnailRelativePath).toBe(`${stem} [def].jpg`);
-    expect(reservation.subtitleBaseRelativePath).toBe(`${stem} [def]`);
+    reservation.release();
+  });
+
+  it("trims an owned name when no file backs the claim", async () => {
+    // ownedPaths is built from stored path strings alone. A database written on
+    // APFS and restored onto ext4 carries names that volume cannot hold, and a
+    // row whose file has gone missing carries no proof either. Bypassing the
+    // budget for those hands back a destination nothing can create.
+    const root = makeTempRoot();
+    const base = "a".repeat(240);
+    const owned = `${base} [defghij].mp4`;
+
+    // Same rows as above, and deliberately no file on disk for the owned path.
+    const allocator = await loadAllocator(root, [
+      {
+        id: "local-2",
+        videoPath: `/videos/${base}.mp4`,
+        thumbnailPath: `/images/${base}.jpg`,
+        subtitles: [],
+      },
+      {
+        id: "local-1",
+        videoPath: `/videos/${owned}`,
+        thumbnailPath: `/images/${base} [defghij].jpg`,
+        subtitles: [],
+      },
+    ]);
+
+    const reservation = allocator.allocateOutputFamilySync({
+      videoRelativePath: `${base}.mp4`,
+      thumbnailRelativePath: `${base}.jpg`,
+      subtitleBaseRelativePath: base,
+      thumbnailBaseDir: path.join(root, "images"),
+      identity: {
+        platform: "youtube",
+        sourceVideoId: "defghij",
+        mediaType: "video",
+        localVideoId: "local-1",
+      },
+      existingLocalVideoId: "local-1",
+      ownedManagedPaths: [`/videos/${owned}`],
+      subtitleFiles: [{ language: "en", extension: ".vtt" }],
+    });
+
+    expect(reservation.videoRelativePath).not.toBe(owned);
+    expect(reservation.videoRelativePath).toBe(
+      `${"a".repeat(238)} [defghij].mp4`
+    );
     reservation.release();
   });
 

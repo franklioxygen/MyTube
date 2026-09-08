@@ -282,6 +282,37 @@ function familyTailReserveBytes(input: AllocateOutputFamilyInput): number {
   return Math.max(...tails);
 }
 
+/**
+ * Whether this row both claims `relativePath` and has the file to show for it.
+ *
+ * Ownership is what lets a candidate skip the byte budget, and the reason it
+ * may is that an existing file proves the name is creatable here whatever it
+ * measures in bytes. ownedPaths is built from stored path strings alone, so the
+ * proof has to be checked: a database written on APFS and restored onto ext4
+ * carries names longer than that volume can hold, and a row whose file has gone
+ * missing carries no proof either. Waving those through would hand back a
+ * destination nothing can create, and the download would fail on it.
+ *
+ * fs.existsSync answers false for a name the filesystem cannot hold rather than
+ * raising, so an over-long path falls through to trimming on its own.
+ */
+function holdsExistingVideoFile(
+  relativePath: string,
+  ownedPaths: Set<string>
+): boolean {
+  if (!ownedPaths.has(managedOwnershipKey(`/videos/${relativePath}`))) {
+    return false;
+  }
+  try {
+    return pathExistsSafeSync(
+      resolveSafeChildPath(VIDEOS_DIR, relativePath),
+      VIDEOS_DIR
+    );
+  } catch {
+    return false;
+  }
+}
+
 function getVideoFamilyStem(relativePath: string): string {
   const dotIdx = relativePath.lastIndexOf(".");
   return dotIdx > 0 ? relativePath.slice(0, dotIdx) : relativePath;
@@ -938,8 +969,7 @@ export function allocateOutputFamilySync(
       input.thumbnailRelativePath,
       input.subtitleBaseRelativePath,
       suffix,
-      (relativePath) =>
-        ownedPaths.has(managedOwnershipKey(`/videos/${relativePath}`)),
+      (relativePath) => holdsExistingVideoFile(relativePath, ownedPaths),
       reservedTailBytes
     );
     if (!candidate) {
