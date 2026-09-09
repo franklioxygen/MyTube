@@ -97,7 +97,8 @@ function saveCollectionSourceKey(
  */
 export function saveBilibiliCollectionSourceIfCompatible(
   collection: Collection,
-  source: BilibiliPlaylistCollectionSource
+  source: BilibiliPlaylistCollectionSource,
+  isStillEligible?: () => boolean
 ): Collection | null {
   const sourceKey = toBilibiliSourceKey(source);
   // The caller may have been holding `collection` across a long Bilibili scan.
@@ -115,6 +116,13 @@ export function saveBilibiliCollectionSourceIfCompatible(
         return null;
       }
       if (collectionHasSourceKey(current)) {
+        return null;
+      }
+      // Evaluated here rather than by the caller beforehand: getCollectionById,
+      // this callback and saveCollection run as one synchronous block, so a
+      // predicate over rows outside this collection - who else references it -
+      // cannot go stale between being checked and being acted on.
+      if (isStillEligible && !isStillEligible()) {
         return null;
       }
       return { ...current, ...sourceKey };

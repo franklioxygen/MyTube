@@ -1305,14 +1305,17 @@ export class SubscriptionService {
    * full source against Bilibili. Exclusivity is the condition that can be
    * decided from the rows in hand.
    */
-  private async collectionIsExclusiveToSubscription(
+  private collectionIsExclusiveToSubscription(
     collectionId: string,
     sub: Subscription
-  ): Promise<boolean> {
-    const referencing = await db
+  ): boolean {
+    // Synchronous (better-sqlite3) and called from inside the collection write,
+    // so this cannot observe membership that changes before the stamp lands.
+    const referencing = db
       .select({ id: subscriptions.id })
       .from(subscriptions)
-      .where(eq(subscriptions.collectionId, collectionId));
+      .where(eq(subscriptions.collectionId, collectionId))
+      .all();
 
     // Not `every`: an empty set would pass it, and the only way this
     // subscription is missing from its own collection's referrers is that it
@@ -1353,14 +1356,11 @@ export class SubscriptionService {
         // to re-derive it from the video URL on every poll, and that derivation
         // goes through Bilibili's risk-controlled view endpoint. Stamp what we
         // just resolved so the next poll addresses the collection directly.
-        if (
-          collection &&
-          !hasCollectionSource &&
-          (await this.collectionIsExclusiveToSubscription(collection.id, sub))
-        ) {
+        if (collection && !hasCollectionSource) {
           saveBilibiliCollectionSourceIfCompatible(
             collection,
-            snapshot.bilibiliSource
+            snapshot.bilibiliSource,
+            () => this.collectionIsExclusiveToSubscription(collection.id, sub)
           );
         }
 

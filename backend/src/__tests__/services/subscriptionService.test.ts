@@ -87,6 +87,7 @@ describe('SubscriptionService', () => {
       values: vi.fn().mockReturnThis(),
       set: vi.fn().mockReturnThis(),
       returning: vi.fn().mockReturnThis(),
+      all: vi.fn(() => result),
       then: (resolve: any) => Promise.resolve(result).then(resolve)
     };
     // Circular references for chaining
@@ -579,6 +580,8 @@ describe('SubscriptionService', () => {
       };
 
       mockBuilder.then = (cb: any) => Promise.resolve([sub]).then(cb);
+      // The exclusivity read is synchronous so it runs inside the write.
+      mockBuilder.all = vi.fn(() => [{ id: sub.id }]);
       (storageService.getCollectionById as any).mockReturnValue({
         id: 'legacy-col',
         name: '合集标题',
@@ -652,14 +655,10 @@ describe('SubscriptionService', () => {
         collectionId: 'shared-col',
       };
 
-      let callCount = 0;
-      mockBuilder.then = (cb: any) => {
-        callCount++;
-        // The due-subscription sweep first, then the referencing-subscription
-        // lookup, which no longer establishes exclusive ownership.
-        if (callCount === 1) return Promise.resolve([sub]).then(cb);
-        return Promise.resolve(referenceIds.map((id) => ({ id }))).then(cb);
-      };
+      mockBuilder.then = (cb: any) => Promise.resolve([sub]).then(cb);
+      // The referencing-subscription lookup, read synchronously from inside the
+      // write, no longer establishes exclusive ownership.
+      mockBuilder.all = vi.fn(() => referenceIds.map((id) => ({ id })));
       (storageService.getCollectionById as any).mockReturnValue({
         id: 'shared-col',
         name: '合集标题',
@@ -678,9 +677,19 @@ describe('SubscriptionService', () => {
         videoData: { id: 'video-new', title: 'New Bili Video' },
       });
 
+      // The eligibility check now runs inside the collection write, so the
+      // write is entered and declines rather than never being attempted.
+      let stamped: any = "not called";
+      (storageService.atomicUpdateCollection as any).mockImplementation(
+        (id: string, updateFn: (c: any) => any) => {
+          stamped = updateFn({ id, name: '合集标题', videos: [] });
+          return stamped;
+        }
+      );
+
       await subscriptionService.checkSubscriptions();
 
-      expect(storageService.atomicUpdateCollection).not.toHaveBeenCalled();
+      expect(stamped).toBeNull();
     });
 
     it('updates lastCheck when a playlist probe fails to back off retries', async () => {
