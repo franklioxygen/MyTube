@@ -19,17 +19,41 @@ export function queueVideoRetry(subscriptionId: string, videoUrl: string): void 
   });
 }
 
+// Keep one subscription's backlog from occupying a check worker indefinitely.
+export const VIDEO_RETRIES_PER_CHECK = 5;
+
 export function listVideoRetries(subscriptionId: string) {
   return db
     .select()
     .from(subscriptionVideoRetries)
     .where(eq(subscriptionVideoRetries.subscriptionId, subscriptionId))
-    .orderBy(subscriptionVideoRetries.createdAt)
+    .orderBy(
+      subscriptionVideoRetries.lastAttemptAt,
+      subscriptionVideoRetries.createdAt,
+      subscriptionVideoRetries.videoUrl
+    )
+    .limit(VIDEO_RETRIES_PER_CHECK)
     .all();
 }
 
 export function removeVideoRetry(subscriptionId: string, videoUrl: string): void {
   db.delete(subscriptionVideoRetries)
+    .where(
+      and(
+        eq(subscriptionVideoRetries.subscriptionId, subscriptionId),
+        eq(subscriptionVideoRetries.videoUrl, videoUrl)
+      )
+    )
+    .run();
+}
+
+/** Move an attempted target behind unattempted and older failed targets. */
+export function markVideoRetryAttempted(
+  subscriptionId: string,
+  videoUrl: string
+): void {
+  db.update(subscriptionVideoRetries)
+    .set({ lastAttemptAt: Date.now() })
     .where(
       and(
         eq(subscriptionVideoRetries.subscriptionId, subscriptionId),

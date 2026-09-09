@@ -459,6 +459,7 @@ export async function runMigrations(options: RunMigrationsOptions = {}) {
       subscription_id TEXT NOT NULL REFERENCES subscriptions(id) ON DELETE CASCADE,
       video_url TEXT NOT NULL,
       created_at INTEGER NOT NULL,
+      last_attempt_at INTEGER NOT NULL DEFAULT 0,
       PRIMARY KEY (subscription_id, video_url)
     )`);
 

@@ -321,6 +321,7 @@ export const subscriptionVideoRetries = sqliteTable(
       .references(() => subscriptions.id, { onDelete: "cascade" }),
     videoUrl: text("video_url").notNull(),
     createdAt: integer("created_at").notNull(),
+    lastAttemptAt: integer("last_attempt_at").notNull().default(0),
   },
   (table) => [primaryKey({ columns: [table.subscriptionId, table.videoUrl] })]
 );

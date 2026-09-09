@@ -40,7 +40,11 @@ import {
   getSubscriptionLogContext,
   notifySubscriptionDownloadResult,
 } from "./subscription/helpers";
-import { listVideoRetries, removeVideoRetry } from "./subscription/videoRetries";
+import {
+  listVideoRetries,
+  markVideoRetryAttempted,
+  removeVideoRetry,
+} from "./subscription/videoRetries";
 import { Subscription } from "./subscription/types";
 import {
   createSubscriptionSchedulerTasks,
@@ -793,6 +797,7 @@ export class SubscriptionService {
       ];
       // Each target is attempted once per interval, independently of the feed head.
       for (const videoUrl of targets) {
+        markVideoRetryAttempted(sub.id, videoUrl);
         const isHead = videoUrl === latestVideoUrl;
         const existingVideo = this.getExistingSubscriptionVideo(sub, videoUrl);
         if (existingVideo) {

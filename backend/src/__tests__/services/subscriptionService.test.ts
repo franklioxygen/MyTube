@@ -14,6 +14,7 @@ import { executeYtDlpJson, getEffectiveUserYtDlpConfig } from '../../utils/ytDlp
 
 vi.mock('../../services/subscription/videoRetries', () => ({
   listVideoRetries: vi.fn().mockReturnValue([]),
+  markVideoRetryAttempted: vi.fn(),
   removeVideoRetry: vi.fn(),
 }));
 
@@ -749,13 +750,26 @@ describe('SubscriptionService', () => {
       beforeEach(() => {
         mockBuilder.then = (cb: any) => Promise.resolve([sub]).then(cb);
         vi.mocked(listVideoRetries).mockReturnValueOnce([
-          { subscriptionId: sub.id, videoUrl: failedUrl, createdAt: 1 },
+          { subscriptionId: sub.id, videoUrl: failedUrl, createdAt: 1, lastAttemptAt: 0 },
         ]);
         vi.mocked(executeYtDlpJson).mockResolvedValue({ entries: [{ id: 'newer' }] });
         vi.mocked(storageService.getVideoBySourceUrl).mockReturnValue(undefined);
         vi.mocked(downloadService.downloadYouTubeVideo).mockResolvedValue({
           videoData: { id: 'downloaded', title: 'Downloaded' },
         } as any);
+      });
+
+      it('still processes the feed head alongside a full retry batch', async () => {
+        vi.mocked(listVideoRetries).mockReset().mockReturnValue([]);
+        const batch = Array.from({ length: 5 }, (_, index) => ({
+          subscriptionId: sub.id, videoUrl: `https://www.youtube.com/watch?v=retry-${index}`,
+          createdAt: index, lastAttemptAt: 0,
+        }));
+        vi.mocked(listVideoRetries).mockReturnValueOnce(batch);
+        await subscriptionService.checkSubscriptions();
+        expect(vi.mocked(downloadService.downloadYouTubeVideo).mock.calls.map(call => call[0]))
+          .toEqual([...batch.map(retry => retry.videoUrl), newerUrl]);
+        expect(mockBuilder.set).toHaveBeenCalledWith({ lastVideoLink: newerUrl, downloadCount: 11 });
       });
 
       it('retries the original URL and downloads a newer head without rewinding', async () => {

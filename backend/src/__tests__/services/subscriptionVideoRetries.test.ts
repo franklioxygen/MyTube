@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({ db: undefined as any }));
 vi.mock("../../db", () => ({ get db() { return mocks.db; } }));
-import { listVideoRetries, queueVideoRetry, removeVideoRetry } from "../../services/subscription/videoRetries";
+import { listVideoRetries, markVideoRetryAttempted, queueVideoRetry, removeVideoRetry, VIDEO_RETRIES_PER_CHECK } from "../../services/subscription/videoRetries";
 
 describe("subscription video retry persistence", () => {
   let sqlite: Database.Database;
@@ -48,6 +48,22 @@ describe("subscription video retry persistence", () => {
     removeVideoRetry("sub", "one");
     expect(listVideoRetries("sub").map(row => row.videoUrl)).toEqual(["two"]);
     expect(listVideoRetries("other").map(row => row.videoUrl)).toEqual(["one"]);
+  });
+
+  it("caps each batch and rotates repeated failures so later targets are not starved", () => {
+    for (let i = 0; i < VIDEO_RETRIES_PER_CHECK + 2; i++) {
+      queueVideoRetry("sub", `video-${i}`);
+    }
+    const firstBatch = listVideoRetries("sub");
+    expect(firstBatch).toHaveLength(VIDEO_RETRIES_PER_CHECK);
+    for (const retry of firstBatch) markVideoRetryAttempted("sub", retry.videoUrl);
+    const nextBatch = listVideoRetries("sub");
+    expect(nextBatch).toHaveLength(VIDEO_RETRIES_PER_CHECK);
+    expect(nextBatch.slice(0, 2).every(retry =>
+      !firstBatch.some(first => first.videoUrl === retry.videoUrl)
+    )).toBe(true);
+    expect(sqlite.prepare("SELECT COUNT(*) AS count FROM subscription_video_retries").get())
+      .toEqual({ count: VIDEO_RETRIES_PER_CHECK + 2 });
   });
 
   it("cascades deletion and ignores failures arriving after unsubscribe", () => {
