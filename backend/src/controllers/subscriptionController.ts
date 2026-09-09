@@ -39,6 +39,7 @@ import {
     resolveChannelPlaylistCollectionWithStatus,
     resolvePlaylistCollectionWithStatus,
     sanitizePlaylistTitle,
+    saveBilibiliCollectionSourceIfCompatible,
     toPlaylistsTabUrl,
 } from "../services/subscription/playlistResolution";
 import { normalizeSubscriptionFilenameTemplate } from "../services/subscription/filenameTemplate";
@@ -206,39 +207,6 @@ function parseBilibiliCollectionInfo(
         ? info.count
         : parseInt(String(info.count ?? "0"), 10) || 0,
   };
-}
-
-function saveBilibiliCollectionSourceIfCompatible(
-  collection: storageService.Collection,
-  source: { type: "collection" | "series"; id: number; mid: number }
-): storageService.Collection | null {
-  const sourceKey = {
-    sourcePlatform: "bilibili",
-    sourceType: source.type,
-    sourceMid: String(source.mid),
-    sourceId: String(source.id),
-  };
-  const hasSourceKey = Boolean(
-    collection.sourcePlatform ||
-      collection.sourceType ||
-      collection.sourceMid ||
-      collection.sourceId
-  );
-  const matchesSourceKey =
-    collection.sourcePlatform === sourceKey.sourcePlatform &&
-    collection.sourceType === sourceKey.sourceType &&
-    collection.sourceMid === sourceKey.sourceMid &&
-    collection.sourceId === sourceKey.sourceId;
-
-  if (matchesSourceKey) {
-    return collection;
-  }
-  if (!hasSourceKey) {
-    const updatedCollection = { ...collection, ...sourceKey };
-    storageService.saveCollection(updatedCollection);
-    return updatedCollection;
-  }
-  return null;
 }
 
 function hasBilibiliCollectionSource(

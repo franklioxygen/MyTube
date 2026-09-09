@@ -100,6 +100,55 @@ describe("bilibiliCollection.downloadCollection", () => {
     });
   });
 
+  it.each([getCollectionVideos, getSeriesVideos])(
+    "preserves publication precision and date-only fallback through %s",
+    async (fetchVideos) => {
+      const publishedAt = Date.parse("2026-09-06T20:34:56Z") / 1000;
+      mocks.axiosGet.mockResolvedValueOnce({
+        data: {
+          code: 0,
+          data: {
+            archives: [
+              {
+                bvid: "BVseconds",
+                title: "Seconds",
+                aid: 1,
+                pubdate: publishedAt,
+              },
+              {
+                bvid: "BVmilliseconds",
+                title: "Milliseconds",
+                aid: 2,
+                ctime: publishedAt * 1000,
+              },
+              { bvid: "BVday", title: "Day only", aid: 3, created: "20260907" },
+            ],
+            page: { total: 3 },
+          },
+        },
+      });
+      const result = await fetchVideos(9, 42);
+      expect(result.success).toBe(true);
+      expect(result.videos).toEqual([
+        expect.objectContaining({
+          bvid: "BVseconds",
+          publishedAt,
+          uploadDate: "20260906",
+        }),
+        expect.objectContaining({
+          bvid: "BVmilliseconds",
+          publishedAt,
+          uploadDate: "20260906",
+        }),
+        expect.objectContaining({
+          bvid: "BVday",
+          publishedAt: undefined,
+          uploadDate: "20260907",
+        }),
+      ]);
+    }
+  );
+
   it("rejects Bilibili collection API error payloads", async () => {
     mocks.axiosGet.mockResolvedValueOnce({
       data: { code: -412, message: "rate limited" },
@@ -186,29 +235,99 @@ describe("bilibiliCollection.downloadCollection", () => {
     expect(mocks.axiosGet).toHaveBeenCalledTimes(1);
   });
 
-  it("caps full collection enumeration at 100 pages", async () => {
-    mocks.axiosGet.mockImplementation(async (_url: string, config: any) => {
-      const page = config.params.page_num;
-      return {
+  it.each([getCollectionVideos, getSeriesVideos])(
+    "completes full enumeration past 100 pages through %s",
+    async (fetchVideos) => {
+      mocks.axiosGet.mockImplementation(async (_url: string, config: any) => {
+        const page = config.params.page_num ?? config.params.pn;
+        return {
+          data: {
+            code: 0,
+            data: {
+              archives: Array.from(
+                { length: page === 101 ? 1 : 30 },
+                (_, index) => ({
+                  bvid: `BV${page}-${index}`,
+                  title: `Video ${page}-${index}`,
+                  aid: page * 100 + index,
+                }),
+              ),
+              page: { total: 3_001 },
+            },
+          },
+        };
+      });
+
+      const result = await fetchVideos(9, 42);
+
+      expect(result.success).toBe(true);
+      expect(result.videos).toHaveLength(3_001);
+      expect(result.videos[result.videos.length - 1]?.bvid).toBe("BV101-0");
+      expect(mocks.axiosGet).toHaveBeenCalledTimes(101);
+    },
+  );
+
+  it.each([getCollectionVideos, getSeriesVideos])(
+    "rejects repeated pages instead of advancing an incomplete scan through %s",
+    async (fetchVideos) => {
+      mocks.axiosGet.mockResolvedValue({
         data: {
           code: 0,
           data: {
             archives: Array.from({ length: 30 }, (_, index) => ({
-              bvid: `BV${page}-${index}`,
-              title: `Video ${page}-${index}`,
-              aid: page * 100 + index,
+              bvid: `BV${index}`,
+              title: "Repeated",
+              aid: index,
             })),
-            page: { total: 10_000 },
+            page: { total: 3_001 },
           },
         },
-      };
-    });
+      });
+      expect(await fetchVideos(9, 42)).toEqual({ success: false, videos: [] });
+      expect(mocks.axiosGet).toHaveBeenCalledTimes(2);
+    },
+  );
 
-    const result = await getCollectionVideos(9, 42);
+  it.each([getCollectionVideos, getSeriesVideos])(
+    "rejects changing totals instead of chasing an unbounded feed through %s",
+    async (fetchVideos) => {
+      mocks.axiosGet.mockImplementation(async (_url: string, config: any) => {
+        const page = config.params.page_num ?? config.params.pn;
+        return {
+          data: {
+            code: 0,
+            data: {
+              archives: Array.from({ length: 30 }, (_, index) => ({
+                bvid: `BV${page}-${index}`,
+                title: "Growing",
+                aid: page * 100 + index,
+              })),
+              page: { total: 3_000 + page },
+            },
+          },
+        };
+      });
+      expect(await fetchVideos(9, 42)).toEqual({ success: false, videos: [] });
+      expect(mocks.axiosGet).toHaveBeenCalledTimes(2);
+    },
+  );
 
-    expect(result).toEqual({ success: false, videos: [] });
-    expect(mocks.axiosGet).toHaveBeenCalledTimes(100);
-  });
+  it.each([getCollectionVideos, getSeriesVideos])(
+    "rejects invalid archive identities and totals through %s",
+    async (fetchVideos) => {
+      for (const data of [
+        { archives: [null], page: { total: 1 } },
+        { archives: [{ title: "Missing ID" }], page: { total: 1 } },
+        { archives: [{ bvid: "BV1" }], page: { total: 0 } },
+      ]) {
+        mocks.axiosGet.mockResolvedValueOnce({ data: { code: 0, data } });
+        expect(await fetchVideos(9, 42)).toEqual({
+          success: false,
+          videos: [],
+        });
+      }
+    },
+  );
 
   it("allows an explicitly bounded head probe to return a prefix", async () => {
     mocks.axiosGet.mockResolvedValueOnce({

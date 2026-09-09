@@ -61,7 +61,6 @@ export interface BilibiliCollectionHeadSnapshot extends PlaylistHeadSnapshot {
 }
 
 export interface BilibiliCollectionHeadSnapshotOptions {
-  headOnly?: boolean;
   // A collection subscription can carry its own --proxy. Polling has to use it,
   // or the archive request goes out over the global config (or none at all).
   subscriptionYtdlpConfig?: string | null;
@@ -359,6 +358,34 @@ async function resolveBilibiliCollectionSource(
   return { type: detected.type, mid, id: collectionId };
 }
 
+/**
+ * Pick the genuinely newest archive of a Bilibili collection/series page.
+ *
+ * The API returns the collection in its own episode order, which is neither
+ * upload order nor stable: an author can append an older video, or reorder the
+ * season. Taking `videos[0]` therefore pinned the head to episode 1 forever, so
+ * a subscription whose cursor already sat on episode 1 never saw a new video.
+ * Compare the UTC day first, then publication time within that day. Prefer a
+ * known time to an unknown time on the same day, so a date-only entry cannot
+ * discard the newest timestamp and let an older timed entry win later in the
+ * scan. A date-only entry on a newer day still wins. Equal keys fall back to
+ * the later collection position.
+ */
+function pickNewestBilibiliVideo<
+  T extends { publishedAt?: number; uploadDate?: string },
+>(videos: T[]): T | undefined {
+  return videos.reduce<T | undefined>((newest, video) => {
+    if (!newest) return video;
+    const day = video.uploadDate ?? "";
+    const newestDay = newest.uploadDate ?? "";
+    if (day !== newestDay) {
+      return day > newestDay ? video : newest;
+    }
+    return (video.publishedAt ?? 0) >= (newest.publishedAt ?? 0) ? video : newest;
+  }, undefined);
+}
+
+/** Resolve a Bilibili source and inspect all its archives before advancing a cursor. */
 export async function getBilibiliCollectionHeadSnapshot(
   playlistUrl: string,
   collectionInfo: BilibiliCollectionInspectionInput,
@@ -379,21 +406,22 @@ export async function getBilibiliCollectionHeadSnapshot(
   const { getBilibiliCollectionVideos, getBilibiliSeriesVideos } = await import(
     "../downloadService"
   );
-  const fetchOptions = options?.headOnly
-    ? { pageSize: 1, maxPages: 1 }
-    : undefined;
+  // Every page, for both the creation baseline and the scheduled poll. Bilibili
+  // offers no date-sorted view of a collection, so the newest upload can sit at
+  // any position and only a full scan can find it; reading a bounded window
+  // would reintroduce exactly the stall this is fixing, on a longer collection.
   const videosResult =
     source.type === "collection"
       ? await getBilibiliCollectionVideos(
           source.mid,
           source.id,
-          fetchOptions,
+          undefined,
           options?.subscriptionYtdlpConfig
         )
       : await getBilibiliSeriesVideos(
           source.mid,
           source.id,
-          fetchOptions,
+          undefined,
           options?.subscriptionYtdlpConfig
         );
 
@@ -404,9 +432,9 @@ export async function getBilibiliCollectionHeadSnapshot(
     );
   }
 
-  const firstVideo = videosResult.videos[0];
-  const headVideoUrl = firstVideo?.bvid
-    ? `https://www.bilibili.com/video/${firstVideo.bvid}`
+  const newestVideo = pickNewestBilibiliVideo(videosResult.videos);
+  const headVideoUrl = newestVideo?.bvid
+    ? `https://www.bilibili.com/video/${newestVideo.bvid}`
     : null;
 
   return {

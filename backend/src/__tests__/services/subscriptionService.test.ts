@@ -87,6 +87,7 @@ describe('SubscriptionService', () => {
       values: vi.fn().mockReturnThis(),
       set: vi.fn().mockReturnThis(),
       returning: vi.fn().mockReturnThis(),
+      all: vi.fn(() => result),
       then: (resolve: any) => Promise.resolve(result).then(resolve)
     };
     // Circular references for chaining
@@ -533,7 +534,7 @@ describe('SubscriptionService', () => {
       expect(downloadService.getBilibiliCollectionVideos).toHaveBeenCalledWith(
         12345,
         9988,
-        { pageSize: 1, maxPages: 1 },
+        undefined,
         '--proxy socks5://sub:1080'
       );
       expect(executeYtDlpJson).not.toHaveBeenCalled();
@@ -558,6 +559,137 @@ describe('SubscriptionService', () => {
         'existing-col',
         'video-new'
       );
+    });
+
+    it('stamps a resolved Bilibili source onto a collection that has none', async () => {
+      // Subscriptions whose collection predates the source key had to re-derive
+      // it from the seed video on every poll, and that derivation goes through
+      // Bilibili's risk-controlled view endpoint (HTTP 412). Persist what the
+      // poll resolved so the next one addresses the collection directly.
+      const sub = {
+        id: 'bili-unstamped-sub',
+        author: '合集标题 - Bilibili 12345',
+        platform: 'Bilibili',
+        authorUrl: 'https://www.bilibili.com/video/BVseed',
+        lastCheck: 0,
+        interval: 10,
+        lastVideoLink: 'https://www.bilibili.com/video/BVold',
+        subscriptionType: 'playlist',
+        playlistId: '9988',
+        collectionId: 'legacy-col',
+      };
+
+      mockBuilder.then = (cb: any) => Promise.resolve([sub]).then(cb);
+      // The exclusivity read is synchronous so it runs inside the write.
+      mockBuilder.all = vi.fn(() => [{ id: sub.id }]);
+      (storageService.getCollectionById as any).mockReturnValue({
+        id: 'legacy-col',
+        name: '合集标题',
+      });
+      (downloadService.checkBilibiliCollectionOrSeries as any).mockResolvedValue({
+        success: true,
+        type: 'collection',
+        mid: 12345,
+        id: 9988,
+      });
+      (downloadService.getBilibiliCollectionVideos as any).mockResolvedValue({
+        success: true,
+        videos: [{ bvid: 'BVnew', title: 'New', aid: 1 }],
+      });
+      (downloadService.downloadSingleBilibiliPart as any).mockResolvedValue({
+        videoData: { id: 'video-new', title: 'New Bili Video' },
+      });
+
+      // The stamp re-reads the collection inside the update rather than writing
+      // back the snapshot taken before the archive scan, so a video added while
+      // that scan was in flight survives.
+      let stamped: any;
+      (storageService.atomicUpdateCollection as any).mockImplementation(
+        (id: string, updateFn: (c: any) => any) => {
+          stamped = updateFn({
+            id,
+            name: '合集标题',
+            videos: ['video-added-meanwhile'],
+          });
+          return stamped;
+        }
+      );
+
+      await subscriptionService.checkSubscriptions();
+
+      expect(storageService.atomicUpdateCollection).toHaveBeenCalledWith(
+        'legacy-col',
+        expect.any(Function)
+      );
+      expect(stamped).toMatchObject({
+        id: 'legacy-col',
+        sourcePlatform: 'bilibili',
+        sourceType: 'collection',
+        sourceMid: '12345',
+        sourceId: '9988',
+        videos: ['video-added-meanwhile'],
+      });
+    });
+
+    it.each([
+      ['shared', ['bili-shared-col-sub', 'other-sub']],
+      ['no longer referenced', []],
+      ['referenced only by another subscription', ['other-sub']],
+    ])('leaves a legacy collection %s unstamped', async (_label, referenceIds) => {
+      // Once a collection carries a source key, every subscription on it prefers
+      // the collection's type/mid/id over its own playlistId. A matching
+      // playlist id does not make the two sources equal - identity is the
+      // compound (platform, type, mid, id) and the subscription row carries
+      // only the id - so stamping here would still repoint the other
+      // subscription at this feed.
+      const sub = {
+        id: 'bili-shared-col-sub',
+        author: '合集标题 - Bilibili 12345',
+        platform: 'Bilibili',
+        authorUrl: 'https://www.bilibili.com/video/BVseed',
+        lastCheck: 0,
+        interval: 10,
+        lastVideoLink: 'https://www.bilibili.com/video/BVold',
+        subscriptionType: 'playlist',
+        playlistId: '9988',
+        collectionId: 'shared-col',
+      };
+
+      mockBuilder.then = (cb: any) => Promise.resolve([sub]).then(cb);
+      // The referencing-subscription lookup, read synchronously from inside the
+      // write, no longer establishes exclusive ownership.
+      mockBuilder.all = vi.fn(() => referenceIds.map((id) => ({ id })));
+      (storageService.getCollectionById as any).mockReturnValue({
+        id: 'shared-col',
+        name: '合集标题',
+      });
+      (downloadService.checkBilibiliCollectionOrSeries as any).mockResolvedValue({
+        success: true,
+        type: 'collection',
+        mid: 12345,
+        id: 9988,
+      });
+      (downloadService.getBilibiliCollectionVideos as any).mockResolvedValue({
+        success: true,
+        videos: [{ bvid: 'BVnew', title: 'New', aid: 1 }],
+      });
+      (downloadService.downloadSingleBilibiliPart as any).mockResolvedValue({
+        videoData: { id: 'video-new', title: 'New Bili Video' },
+      });
+
+      // The eligibility check now runs inside the collection write, so the
+      // write is entered and declines rather than never being attempted.
+      let stamped: any = "not called";
+      (storageService.atomicUpdateCollection as any).mockImplementation(
+        (id: string, updateFn: (c: any) => any) => {
+          stamped = updateFn({ id, name: '合集标题', videos: [] });
+          return stamped;
+        }
+      );
+
+      await subscriptionService.checkSubscriptions();
+
+      expect(stamped).toBeNull();
     });
 
     it('updates lastCheck when a playlist probe fails to back off retries', async () => {

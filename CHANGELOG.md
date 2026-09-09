@@ -6,6 +6,8 @@
 
 ### Fix
 
+- Fix stalled Bilibili collection subscriptions by sending stored cookies with direct API requests, scanning every archive page, and selecting the newest publication day and time. Cookie headers preserve matching names across domains and paths, list longer paths first, and honor expiry and secure transport. Date-only entries cannot displace a newer known timestamp on the same day. Legacy collections acquire source metadata only when exclusively referenced by the polling subscription, using a fresh collection snapshot to preserve concurrent edits and video memberships. Download episode order is unchanged.
+
 - Stop taps on the player's controls from selecting the time text next to them. MUI's buttons and sliders already suppress selection, but the elapsed and duration labels beside the progress bar did not, so on a touch screen a tap that landed just off a control - or the second tap of a quick double-tap - started a text selection on the nearest selectable thing, which is that text. Selection is now suppressed across the whole control cluster, which also covers the speed label and the compatibility player's transport strip, and on audio mode's artwork, where the surface is itself the play/pause target and holds a note glyph as real text. Prose that users may want to copy - the description, comments, titles - is untouched.
 
 - Protect shared media and companion files during deletion, redownload, and thumbnail replacement. Ownership reads now fail safely with the affected record ID and metadata field; unrelated malformed tags no longer block deleting another video.

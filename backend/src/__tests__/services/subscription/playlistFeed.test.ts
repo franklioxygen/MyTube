@@ -285,7 +285,7 @@ describe("getBilibiliCollectionHeadSnapshot", () => {
     vi.clearAllMocks();
   });
 
-  it("fetches only one Bilibili collection entry for head-only probes", async () => {
+  it("reads the collection archives for a head probe", async () => {
     const { getBilibiliCollectionVideos } = await import(
       "../../../services/downloadService"
     );
@@ -300,14 +300,13 @@ describe("getBilibiliCollectionHeadSnapshot", () => {
         type: "collection",
         mid: 12345,
         id: 9988,
-      },
-      { headOnly: true }
+      }
     );
 
     expect(getBilibiliCollectionVideos).toHaveBeenCalledWith(
       12345,
       9988,
-      { pageSize: 1, maxPages: 1 },
+      undefined,
       undefined
     );
     expect(snap.headVideoUrl).toBe("https://www.bilibili.com/video/BVhead");
@@ -362,7 +361,7 @@ describe("getBilibiliCollectionHeadSnapshot", () => {
     await getBilibiliCollectionHeadSnapshot(
       "https://www.bilibili.com/video/BVseed",
       { type: "collection" },
-      { headOnly: true, subscriptionYtdlpConfig: "--proxy socks5://sub:1080" }
+      { subscriptionYtdlpConfig: "--proxy socks5://sub:1080" }
     );
 
     expect(checkBilibiliCollectionOrSeries).toHaveBeenCalledWith(
@@ -386,13 +385,13 @@ describe("getBilibiliCollectionHeadSnapshot", () => {
     await getBilibiliCollectionHeadSnapshot(
       "https://www.bilibili.com/video/BVseed",
       { type: "collection", mid: 12345, id: 9988 },
-      { headOnly: true, subscriptionYtdlpConfig: "--proxy socks5://sub:1080" }
+      { subscriptionYtdlpConfig: "--proxy socks5://sub:1080" }
     );
 
     expect(getBilibiliCollectionVideos).toHaveBeenCalledWith(
       12345,
       9988,
-      { pageSize: 1, maxPages: 1 },
+      undefined,
       "--proxy socks5://sub:1080"
     );
   });
@@ -422,6 +421,152 @@ describe("getBilibiliCollectionHeadSnapshot", () => {
       undefined
     );
   });
+
+  it("takes the newest upload as the head, not the collection's first episode", async () => {
+    // A Bilibili collection is ordered by the author, not by upload date, so
+    // taking the first archive pinned the head to episode 1 forever and a
+    // subscription whose cursor already sat there never saw a new video.
+    const { getBilibiliCollectionVideos } = await import(
+      "../../../services/downloadService"
+    );
+    vi.mocked(getBilibiliCollectionVideos).mockResolvedValueOnce({
+      success: true,
+      videos: [
+        { bvid: "BVolder", title: "Appended later", aid: 2, uploadDate: "20260812" },
+        { bvid: "BVnewest", title: "Newest", aid: 3, uploadDate: "20260906" },
+        { bvid: "BVfirst", title: "Episode 1", aid: 1, uploadDate: "20220430" },
+      ],
+    });
+
+    const snap = await getBilibiliCollectionHeadSnapshot(
+      "https://www.bilibili.com/video/BVseed",
+      { type: "collection", mid: 12345, id: 9988 }
+    );
+
+    expect(snap.headVideoUrl).toBe("https://www.bilibili.com/video/BVnewest");
+  });
+
+  it("separates same-day uploads by publication time, not collection order", async () => {
+    // uploadDate is only a UTC day, so two archives published on the same day
+    // tie there and the pick would fall back to collection order - which the
+    // author can rearrange, making the older of the two the head.
+    const { getBilibiliCollectionVideos } = await import(
+      "../../../services/downloadService"
+    );
+    vi.mocked(getBilibiliCollectionVideos).mockResolvedValueOnce({
+      success: true,
+      videos: [
+        {
+          bvid: "BVevening",
+          title: "Published later that day",
+          aid: 2,
+          uploadDate: "20260906",
+          publishedAt: 1788_800_000,
+        },
+        {
+          bvid: "BVmorning",
+          title: "Published earlier that day",
+          aid: 3,
+          uploadDate: "20260906",
+          publishedAt: 1788_760_000,
+        },
+      ],
+    });
+
+    const snap = await getBilibiliCollectionHeadSnapshot(
+      "https://www.bilibili.com/video/BVseed",
+      { type: "collection", mid: 12345, id: 9988 }
+    );
+
+    expect(snap.headVideoUrl).toBe("https://www.bilibili.com/video/BVevening");
+  });
+
+  it("falls back to the day string when only one archive has a timestamp", async () => {
+    // Treating a missing publishedAt as older would let a newer archive lose to
+    // an older one that happens to carry a timestamp.
+    const { getBilibiliCollectionVideos } = await import(
+      "../../../services/downloadService"
+    );
+    vi.mocked(getBilibiliCollectionVideos).mockResolvedValueOnce({
+      success: true,
+      videos: [
+        {
+          bvid: "BVdated",
+          title: "Older, but has a timestamp",
+          aid: 2,
+          uploadDate: "20260812",
+          publishedAt: 1786_000_000,
+        },
+        {
+          bvid: "BVundated",
+          title: "Newer, no timestamp",
+          aid: 3,
+          uploadDate: "20260906",
+        },
+      ],
+    });
+
+    const snap = await getBilibiliCollectionHeadSnapshot(
+      "https://www.bilibili.com/video/BVseed",
+      { type: "collection", mid: 12345, id: 9988 }
+    );
+
+    expect(snap.headVideoUrl).toBe("https://www.bilibili.com/video/BVundated");
+  });
+
+  it.each(["collection", "series"] as const)(
+    "keeps the newest known same-day upload through date-only entries in any %s order",
+    async (type) => {
+      const { getBilibiliCollectionVideos, getBilibiliSeriesVideos } =
+        await import("../../../services/downloadService");
+      const videos = [
+        {
+          bvid: "BVevening",
+          title: "Evening",
+          aid: 1,
+          uploadDate: "20260906",
+          publishedAt: Date.parse("2026-09-06T20:00:00Z") / 1000,
+        },
+        {
+          bvid: "BVunknown",
+          title: "Time unknown",
+          aid: 2,
+          uploadDate: "20260906",
+        },
+        {
+          bvid: "BVmorning",
+          title: "Morning",
+          aid: 3,
+          uploadDate: "20260906",
+          publishedAt: Date.parse("2026-09-06T08:00:00Z") / 1000,
+        },
+      ];
+      const fetchVideos =
+        type === "collection"
+          ? getBilibiliCollectionVideos
+          : getBilibiliSeriesVideos;
+      for (const order of [
+        [0, 1, 2],
+        [0, 2, 1],
+        [1, 0, 2],
+        [1, 2, 0],
+        [2, 0, 1],
+        [2, 1, 0],
+      ]) {
+        vi.mocked(fetchVideos).mockResolvedValueOnce({
+          success: true,
+          videos: order.map((index) => videos[index]),
+        });
+        const snapshot = await getBilibiliCollectionHeadSnapshot(
+          "https://www.bilibili.com/video/BVseed",
+          { type, mid: 12345, id: 9988 }
+        );
+        expect(snapshot.headVideoUrl).toBe(
+          "https://www.bilibili.com/video/BVevening"
+        );
+      }
+    }
+  );
 
   it("rejects failed Bilibili collection fetches before seeding a cursor", async () => {
     const { getBilibiliCollectionVideos } = await import(

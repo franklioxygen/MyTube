@@ -86,6 +86,53 @@ function saveCollectionSourceKey(
 }
 
 /**
+ * Stamp a Bilibili source key onto a collection that does not have one yet, so
+ * later probes can address the collection directly instead of re-deriving it
+ * from a video URL (that derivation goes through api.bilibili.com's
+ * risk-controlled view endpoint and is the first thing to fail).
+ *
+ * Returns the collection unchanged when it already carries this exact source
+ * key, the updated collection when the key was written, or null when the
+ * collection belongs to a different Bilibili source.
+ */
+export function saveBilibiliCollectionSourceIfCompatible(
+  collection: Collection,
+  source: BilibiliPlaylistCollectionSource,
+  isStillEligible?: () => boolean
+): Collection | null {
+  const sourceKey = toBilibiliSourceKey(source);
+  // The caller may have been holding `collection` across a long Bilibili scan.
+  // Re-read it inside the update and decide compatibility on that row, because
+  // saveCollection rewrites the whole collection - it deletes and rebuilds
+  // every collection_videos link from the object it is handed - so writing back
+  // a stale snapshot would drop memberships added meanwhile, and because a
+  // concurrent check may have stamped a different source in the interim.
+  let decided: Collection | null = null;
+  const updated = storageService.atomicUpdateCollection(
+    collection.id,
+    (current) => {
+      if (collectionMatchesSourceKey(current, sourceKey)) {
+        decided = current;
+        return null;
+      }
+      if (collectionHasSourceKey(current)) {
+        return null;
+      }
+      // Evaluated here rather than by the caller beforehand: getCollectionById,
+      // this callback and saveCollection run as one synchronous block, so a
+      // predicate over rows outside this collection - who else references it -
+      // cannot go stale between being checked and being acted on.
+      if (isStillEligible && !isStillEligible()) {
+        return null;
+      }
+      return { ...current, ...sourceKey };
+    }
+  );
+
+  return updated ?? decided;
+}
+
+/**
  * Extract a YouTube playlist id (`list=` param) from a URL, or null if absent.
  */
 export function extractYouTubePlaylistId(playlistUrl: string): string | null {

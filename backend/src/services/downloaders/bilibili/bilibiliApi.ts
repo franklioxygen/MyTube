@@ -8,6 +8,7 @@ import {
 } from "../../../utils/ytDlpUtils";
 import { VideoInfo } from "../BaseDownloader";
 import {
+  buildBilibiliApiHeaders,
   resolveProxiedAxiosConfig,
   resolveProxiedAxiosConfigForUrl,
 } from "./bilibiliConfig";
@@ -15,12 +16,6 @@ import {
   BilibiliCollectionCheckResult,
   BilibiliPartsCheckResult,
 } from "./types";
-
-const BILIBILI_API_HEADERS = {
-  Referer: "https://www.bilibili.com",
-  "User-Agent":
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
-};
 
 function buildUnknownVideoInfo(): VideoInfo {
   return {
@@ -72,7 +67,7 @@ export async function getVideoInfo(videoId: string): Promise<VideoInfo> {
       const apiUrl = `https://api.bilibili.com/x/web-interface/view?bvid=${videoId}`;
       const response = await axios.get(apiUrl, {
         ...axiosConfig,
-        headers: BILIBILI_API_HEADERS,
+        headers: buildBilibiliApiHeaders(apiUrl),
       });
 
       if (response.data && response.data.data) {
@@ -127,11 +122,7 @@ export async function getAuthorInfo(
 
     const response = await axios.get(apiUrl, {
       ...axiosConfig,
-      headers: {
-        Referer: "https://www.bilibili.com",
-        "User-Agent":
-          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-      },
+      headers: buildBilibiliApiHeaders(apiUrl),
     });
 
     if (response.data && response.data.data && response.data.data.card) {
@@ -310,7 +301,7 @@ export async function checkVideoParts(
 
     const response = await axios.get(apiUrl, {
       ...axiosConfig,
-      headers: BILIBILI_API_HEADERS,
+      headers: buildBilibiliApiHeaders(apiUrl),
     });
 
     if (response.data && response.data.data) {
@@ -360,7 +351,7 @@ export async function checkCollectionOrSeries(
 
     const response = await axios.get(apiUrl, {
       ...axiosConfig,
-      headers: BILIBILI_API_HEADERS,
+      headers: buildBilibiliApiHeaders(apiUrl),
     });
 
     if (response.data && response.data.data) {

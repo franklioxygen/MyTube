@@ -12,6 +12,7 @@ import { resolveAuthorOrganizationMode } from "../../../types/settings";
 import { downloadSinglePart } from "./bilibiliVideo";
 import {
   BILIBILI_COOKIE_REFRESH_HINT,
+  buildBilibiliApiHeaders,
   isLikelyBilibiliAuthFailure,
   resolveProxiedAxiosConfigForUrl,
 } from "./bilibiliConfig";
@@ -70,6 +71,18 @@ const normalizeUploadDate = (value: unknown): string | undefined => {
   const month = `${date.getUTCMonth() + 1}`.padStart(2, "0");
   const day = `${date.getUTCDate()}`.padStart(2, "0");
   return `${year}${month}${day}`;
+};
+
+/**
+ * The publication time in whole seconds. uploadDate collapses to a UTC day, so
+ * two archives published on the same day compare equal; the head probe needs
+ * the finer value to tell them apart.
+ */
+const normalizePublishedAt = (value: unknown): number | undefined => {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    return undefined;
+  }
+  return Math.floor(value > 1e12 ? value / 1000 : value);
 };
 
 const normalizeViewCount = (value: unknown): number | undefined => {
@@ -155,7 +168,6 @@ export interface BilibiliVideoFetchOptions {
 }
 
 const DEFAULT_BILIBILI_PAGE_SIZE = 30;
-const MAX_BILIBILI_ARCHIVE_PAGES = 100;
 
 function normalizeFetchOptions(
   options?: BilibiliVideoFetchOptions,
@@ -172,6 +184,7 @@ function normalizeFetchOptions(
   return { pageSize, maxPages };
 }
 
+/** Stop at the verified total or an explicitly requested prefix, rejecting missing pages. */
 function shouldFetchNextArchivePage(input: {
   label: "collection" | "series";
   pageNum: number;
@@ -201,13 +214,44 @@ function shouldFetchNextArchivePage(input: {
     );
   }
 
-  if (input.pageNum >= MAX_BILIBILI_ARCHIVE_PAGES) {
-    throw new Error(
-      `Bilibili ${input.label} API reached the ${MAX_BILIBILI_ARCHIVE_PAGES}-page safety limit after ${input.fetchedCount} of ${input.total} videos`,
-    );
-  }
-
   return true;
+}
+
+/**
+ * Bound a full scan by the first page's advertised total, without an arbitrary
+ * playlist-size ceiling. Reject changing totals and repeated/invalid archives
+ * so pagination must make progress and cannot silently seed a partial cursor.
+ */
+function createArchiveScanValidator(): (
+  archives: any[],
+  total: number,
+) => void {
+  let expectedTotal: number | undefined;
+  const seenBvids = new Set<string>();
+  return (archives, total) => {
+    if (expectedTotal !== undefined && total !== expectedTotal) {
+      throw new Error(
+        "Bilibili archive total changed during pagination; retry the scan",
+      );
+    }
+    expectedTotal = total;
+    for (const archive of archives) {
+      if (typeof archive?.bvid !== "string" || !archive.bvid.trim()) {
+        throw new Error("Bilibili API returned an archive without a video ID");
+      }
+      if (seenBvids.has(archive.bvid)) {
+        throw new Error(
+          "Bilibili API repeated an archive during pagination; retry the scan",
+        );
+      }
+      seenBvids.add(archive.bvid);
+    }
+    if (seenBvids.size > total) {
+      throw new Error(
+        "Bilibili API returned more archives than its advertised total",
+      );
+    }
+  };
 }
 
 function formatBilibiliApiError(responseBody: Record<string, unknown>): string {
@@ -380,6 +424,7 @@ export async function getCollectionVideos(
     const allVideos: BilibiliVideoItem[] = [];
     let pageNum = 1;
     const { pageSize, maxPages } = normalizeFetchOptions(options);
+    const validatePage = createArchiveScanValidator();
     let hasMore = true;
 
     logger.info(
@@ -414,11 +459,7 @@ export async function getCollectionVideos(
       const response = await axios.get(apiUrl, {
         ...axiosConfig,
         params,
-        headers: {
-          Referer: "https://www.bilibili.com",
-          "User-Agent":
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
-        },
+        headers: buildBilibiliApiHeaders(apiUrl),
       });
 
       const { archives, total } = readBilibiliArchivePage(
@@ -426,6 +467,7 @@ export async function getCollectionVideos(
         "collection",
         pageNum,
       );
+      validatePage(archives, total);
 
       logger.info(`Got ${archives.length} videos from page ${pageNum}`);
 
@@ -435,6 +477,7 @@ export async function getCollectionVideos(
           title: video.title,
           aid: video.aid,
           uploadDate: normalizeUploadDate(video.pubdate ?? video.ctime ?? video.created),
+          publishedAt: normalizePublishedAt(video.pubdate ?? video.ctime ?? video.created),
           viewCount: normalizeViewCount(video.stat?.view ?? video.play),
         });
       });
@@ -472,6 +515,7 @@ export async function getSeriesVideos(
     const allVideos: BilibiliVideoItem[] = [];
     let pageNum = 1;
     const { pageSize, maxPages } = normalizeFetchOptions(options);
+    const validatePage = createArchiveScanValidator();
     let hasMore = true;
 
     logger.info(`Fetching series videos for mid=${mid}, series_id=${seriesId}`);
@@ -503,11 +547,7 @@ export async function getSeriesVideos(
       const response = await axios.get(apiUrl, {
         ...axiosConfig,
         params,
-        headers: {
-          Referer: "https://www.bilibili.com",
-          "User-Agent":
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
-        },
+        headers: buildBilibiliApiHeaders(apiUrl),
       });
 
       const { archives, total } = readBilibiliArchivePage(
@@ -515,6 +555,7 @@ export async function getSeriesVideos(
         "series",
         pageNum,
       );
+      validatePage(archives, total);
 
       logger.info(`Got ${archives.length} videos from page ${pageNum}`);
 
@@ -524,6 +565,7 @@ export async function getSeriesVideos(
           title: video.title,
           aid: video.aid,
           uploadDate: normalizeUploadDate(video.pubdate ?? video.ctime ?? video.created),
+          publishedAt: normalizePublishedAt(video.pubdate ?? video.ctime ?? video.created),
           viewCount: normalizeViewCount(video.stat?.view ?? video.play),
         });
       });

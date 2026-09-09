@@ -48,6 +48,7 @@ import {
   getBilibiliCollectionHeadSnapshot,
   getPlaylistHeadSnapshot,
 } from "./subscription/playlistFeed";
+import { saveBilibiliCollectionSourceIfCompatible } from "./subscription/playlistResolution";
 import { resolveYouTubeAuthorName } from "./subscription/youtubeAuthor";
 import {
   checkTwitchSubscription as checkTwitchSubscriptionImpl,
@@ -1290,6 +1291,39 @@ export class SubscriptionService {
     );
   }
 
+  /**
+   * Whether `sub` is the only subscription pointing at this collection.
+   *
+   * A source-less collection can be shared - subscriptions get-or-create it by
+   * name - and once it carries a source key, every subscription on it prefers
+   * the collection's type/mid/id over its own `playlistId`. Stamping one
+   * subscription's source therefore repoints the others, and checks run
+   * concurrently, so two of them could also race to stamp different sources.
+   * A Bilibili source is the compound (platform, type, mid, id) the collections
+   * table is keyed on, but a subscription row stores only the id half, so two
+   * subscribers cannot be shown to be equivalent without resolving each one's
+   * full source against Bilibili. Exclusivity is the condition that can be
+   * decided from the rows in hand.
+   */
+  private collectionIsExclusiveToSubscription(
+    collectionId: string,
+    sub: Subscription
+  ): boolean {
+    // Synchronous (better-sqlite3) and called from inside the collection write,
+    // so this cannot observe membership that changes before the stamp lands.
+    const referencing = db
+      .select({ id: subscriptions.id })
+      .from(subscriptions)
+      .where(eq(subscriptions.collectionId, collectionId))
+      .all();
+
+    // Not `every`: an empty set would pass it, and the only way this
+    // subscription is missing from its own collection's referrers is that it
+    // was repointed or removed while the probe was in flight - in which case
+    // this poll has no business stamping the collection it left behind.
+    return referencing.length === 1 && referencing[0].id === sub.id;
+  }
+
   private async getPlaylistSubscriptionHeadSnapshot(
     sub: Subscription
   ): Promise<{ headVideoUrl: string | null }> {
@@ -1308,15 +1342,29 @@ export class SubscriptionService {
         Boolean(collection?.sourceId || sub.playlistId);
 
       if (hasCollectionSource || extractBilibiliVideoId(sub.authorUrl)) {
-        return getBilibiliCollectionHeadSnapshot(
+        const snapshot = await getBilibiliCollectionHeadSnapshot(
           sub.authorUrl,
           {
             type: sourceType,
             mid: collection?.sourceMid,
             id: collection?.sourceId ?? sub.playlistId,
           },
-          { headOnly: true, subscriptionYtdlpConfig: sub.ytdlpConfig }
+          { subscriptionYtdlpConfig: sub.ytdlpConfig }
         );
+
+        // Subscriptions created before the collection carried a source key have
+        // to re-derive it from the video URL on every poll, and that derivation
+        // goes through Bilibili's risk-controlled view endpoint. Stamp what we
+        // just resolved so the next poll addresses the collection directly.
+        if (collection && !hasCollectionSource) {
+          saveBilibiliCollectionSourceIfCompatible(
+            collection,
+            snapshot.bilibiliSource,
+            () => this.collectionIsExclusiveToSubscription(collection.id, sub)
+          );
+        }
+
+        return snapshot;
       }
     }
 
