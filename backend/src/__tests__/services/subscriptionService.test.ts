@@ -692,6 +692,64 @@ describe('SubscriptionService', () => {
       expect(stamped).toBeNull();
     });
 
+    it('advances the cursor without re-downloading a head it already holds', async () => {
+      // A backfill failure clears the cursor so the check retries that video.
+      // If the item is present by then - downloaded some other way - the retry
+      // has to settle the cursor rather than fetch a second copy.
+      const sub = {
+        id: 'already-downloaded-sub',
+        author: 'Playlist Author',
+        platform: 'YouTube',
+        authorUrl: 'https://www.youtube.com/playlist?list=PLX',
+        interval: 60,
+        lastCheck: 0,
+        lastVideoLink: null,
+        subscriptionType: 'playlist',
+        collectionId: 'collection-1',
+      };
+
+      mockBuilder.then = (cb: any) => Promise.resolve([sub]).then(cb);
+      (executeYtDlpJson as any).mockResolvedValue({
+        entries: [{ id: 'already' }],
+      });
+      // Once, not persistently: vi.clearAllMocks() keeps implementations, so a
+      // lasting return value would leak into every later test in this file.
+      (storageService.getVideoBySourceUrl as any).mockReturnValueOnce({
+        id: 'existing-video',
+      });
+
+      await subscriptionService.checkSubscriptions();
+
+      expect(downloadService.downloadYouTubeVideo).not.toHaveBeenCalled();
+      expect(mockBuilder.set).toHaveBeenCalledWith(
+        expect.objectContaining({
+          lastVideoLink: 'https://www.youtube.com/watch?v=already',
+        })
+      );
+    });
+
+    it('clears the cursor only while it still points at the failed video', async () => {
+      mockBuilder.then = (cb: any) => Promise.resolve([{ id: 'sub-1' }]).then(cb);
+
+      await expect(
+        subscriptionService.clearVideoCursorIfUnchanged(
+          'sub-1',
+          'https://www.bilibili.com/video/BVfailed'
+        )
+      ).resolves.toBe(true);
+      expect(mockBuilder.set).toHaveBeenCalledWith({ lastVideoLink: null });
+
+      // No row matched: a later check has already moved the cursor on to a
+      // genuinely newer upload, and rewinding under it would re-download that.
+      mockBuilder.then = (cb: any) => Promise.resolve([]).then(cb);
+      await expect(
+        subscriptionService.clearVideoCursorIfUnchanged(
+          'sub-1',
+          'https://www.bilibili.com/video/BVfailed'
+        )
+      ).resolves.toBe(false);
+    });
+
     it('updates lastCheck when a playlist probe fails to back off retries', async () => {
       const sub = {
         id: 'playlist-probe-fail-sub',

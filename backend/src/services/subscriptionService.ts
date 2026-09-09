@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { ScheduledTask } from "node-cron";
 import { v4 as uuidv4 } from "uuid";
 import { db } from "../db";
@@ -21,6 +21,8 @@ import {
 import { logger } from "../utils/logger";
 import { runWithConcurrencyLimit } from "../utils/concurrency";
 import { isMembersOnlyError } from "../utils/ytdlp/errorClassification";
+import { getEffectiveUserYtDlpConfig } from "../utils/ytDlpUtils";
+import { resolveDownloadAudioMode } from "./downloaders/ytdlp/ytdlpConfig";
 import downloadManager from "./downloadManager";
 import {
     downloadSingleBilibiliPart,
@@ -782,6 +784,21 @@ export class SubscriptionService {
       }
 
       if (latestVideoUrl && latestVideoUrl !== sub.lastVideoLink) {
+        // The cursor can point behind a video the library already holds: a
+        // backfill that failed on it clears the cursor so this check retries it
+        // (see clearVideoCursorIfUnchanged), and a retry that finds the item
+        // present must settle the cursor rather than download a second copy.
+        // Scoped to the media type the effective config would save under, the
+        // same way the backfill's own duplicate check is.
+        if (this.subscriptionAlreadyHasVideo(sub, latestVideoUrl)) {
+          logger.info(
+            "Subscription head is already downloaded; advancing cursor without re-downloading",
+            getSubscriptionLogContext(sub, { latestVideoUrl })
+          );
+          await this.advanceVideoCursor(sub, latestVideoUrl);
+          return;
+        }
+
         logger.info(
           "New video found for subscription",
           getSubscriptionLogContext(sub, { latestVideoUrl })
@@ -1187,6 +1204,76 @@ export class SubscriptionService {
    * The subscription's downloadCount is intentionally left unchanged since
    * nothing was downloaded.
    */
+  /**
+   * Whether the library already holds `videoUrl` for this subscription, scoped
+   * to the media type its effective config would save under - an audio-only
+   * override stores the item as "audio", and a video-scoped lookup would miss
+   * it and download it again.
+   */
+  private subscriptionAlreadyHasVideo(
+    sub: Subscription,
+    videoUrl: string
+  ): boolean {
+    const { audioOnly } = resolveDownloadAudioMode({
+      userConfig: getEffectiveUserYtDlpConfig(videoUrl, sub.ytdlpConfig),
+    });
+    return Boolean(
+      storageService.getVideoBySourceUrl(videoUrl, audioOnly ? "audio" : "video")
+    );
+  }
+
+  /** Move the video cursor to `videoUrl` without recording a download. */
+  private async advanceVideoCursor(
+    sub: Subscription,
+    videoUrl: string
+  ): Promise<void> {
+    const updateResult = await db
+      .update(subscriptions)
+      .set({ lastVideoLink: videoUrl, lastCheck: Date.now() })
+      .where(eq(subscriptions.id, sub.id))
+      .returning({ id: subscriptions.id });
+
+    if (updateResult.length === 0) {
+      logger.warn(
+        "Subscription was deleted before its cursor could be advanced",
+        getSubscriptionLogContext(sub, { videoUrl })
+      );
+    }
+  }
+
+  /**
+   * Clear the video cursor when it still points at `videoUrl`, so the next
+   * scheduled check treats that video as new again and retries it.
+   *
+   * A playlist subscription seeds its cursor to the collection head at creation
+   * time, before the backfill task that downloads the history has run. If that
+   * task then fails on the head - a transient yt-dlp timeout is enough - the
+   * cursor is already past a video nothing downloaded, the check sees
+   * `head === lastVideoLink` on every later poll, and the gap is permanent.
+   * Clearing the cursor puts the video back in front of the check, which
+   * already retries an ordinary download failure by leaving the cursor alone.
+   *
+   * Conditional on the cursor being unchanged so a check that has since moved
+   * on - to a genuinely newer upload - is not rewound underneath itself.
+   */
+  async clearVideoCursorIfUnchanged(
+    subscriptionId: string,
+    videoUrl: string
+  ): Promise<boolean> {
+    const updateResult = await db
+      .update(subscriptions)
+      .set({ lastVideoLink: null })
+      .where(
+        and(
+          eq(subscriptions.id, subscriptionId),
+          eq(subscriptions.lastVideoLink, videoUrl)
+        )
+      )
+      .returning({ id: subscriptions.id });
+
+    return updateResult.length > 0;
+  }
+
   private async markSubscriptionVideoSkipped(
     sub: Subscription,
     videoUrl: string,
