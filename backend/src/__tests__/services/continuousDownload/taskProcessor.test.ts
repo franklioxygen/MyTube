@@ -5,12 +5,18 @@ import { ContinuousDownloadTask } from '../../../services/continuousDownload/typ
 import { VideoUrlFetcher } from '../../../services/continuousDownload/videoUrlFetcher';
 import * as downloadService from '../../../services/downloadService';
 import * as storageService from '../../../services/storageService';
+import { subscriptionService } from '../../../services/subscriptionService';
 
 // Mock dependencies
 vi.mock('../../../services/continuousDownload/taskRepository');
 vi.mock('../../../services/continuousDownload/videoUrlFetcher');
 vi.mock('../../../services/downloadService');
 vi.mock('../../../services/storageService');
+vi.mock('../../../services/subscriptionService', () => ({
+  subscriptionService: {
+    clearVideoCursorIfUnchanged: vi.fn().mockResolvedValue(true),
+  },
+}));
 vi.mock('../../../utils/logger', () => ({
   logger: {
     info: vi.fn(),
@@ -115,6 +121,38 @@ describe('TaskProcessor', () => {
         failedCount: 1,
         currentVideoIndex: 1
     }));
+  });
+
+  it('puts a failed video back in front of its subscription check', async () => {
+    // A playlist subscription seeds its cursor to the collection head before
+    // this task runs, so a failure here would otherwise leave the cursor past a
+    // video nothing downloaded and the check would never look at it again.
+    mockVideoUrlFetcher.getAllVideoUrls.mockResolvedValue(['http://vid1']);
+    (storageService.getVideoBySourceUrl as any).mockReturnValue(null);
+    (downloadService.downloadYouTubeVideo as any).mockRejectedValue(
+      new Error('timed out')
+    );
+
+    await taskProcessor.processTask({ ...mockTask, subscriptionId: 'sub-1' });
+
+    expect(subscriptionService.clearVideoCursorIfUnchanged).toHaveBeenCalledWith(
+      'sub-1',
+      'http://vid1'
+    );
+  });
+
+  it('leaves the cursor alone for a task with no subscription', async () => {
+    mockVideoUrlFetcher.getAllVideoUrls.mockResolvedValue(['http://vid1']);
+    (storageService.getVideoBySourceUrl as any).mockReturnValue(null);
+    (downloadService.downloadYouTubeVideo as any).mockRejectedValue(
+      new Error('timed out')
+    );
+
+    await taskProcessor.processTask({ ...mockTask });
+
+    expect(
+      subscriptionService.clearVideoCursorIfUnchanged
+    ).not.toHaveBeenCalled();
   });
 
   it('passes clean playlist source options to playlist downloads', async () => {
