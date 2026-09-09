@@ -6,7 +6,6 @@ import { FilenameTemplateSourceOptions } from "../filenameTemplate/types";
 import type { DownloadRetryMetadata } from "../downloadRetryMetadata";
 import * as bilibiliApi from "./bilibili/bilibiliApi";
 import * as bilibiliCollection from "./bilibili/bilibiliCollection";
-import * as bilibiliCookie from "./bilibili/bilibiliCookie";
 import * as bilibiliSubtitle from "./bilibili/bilibiliSubtitle";
 import * as bilibiliVideo from "./bilibili/bilibiliVideo";
 import {
@@ -217,11 +216,6 @@ export class BilibiliDownloader extends BaseDownloader {
       onStart,
       retryMetadata
     );
-  }
-
-  // Helper function to get cookies from cookies.txt
-  static getCookieHeader(): string {
-    return bilibiliCookie.getCookieHeader();
   }
 
   // Helper function to download subtitles

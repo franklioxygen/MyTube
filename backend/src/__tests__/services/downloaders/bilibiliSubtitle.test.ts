@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   axiosGet: vi.fn(),
-  getCookieHeader: vi.fn(),
+  buildBilibiliApiHeaders: vi.fn(),
   bccToVtt: vi.fn(),
   extractBilibiliVideoId: vi.fn(),
   ensureDirSafeSync: vi.fn(),
@@ -36,8 +36,9 @@ vi.mock("../../../utils/security", () => ({
     mocks.resolveSafePathInDirectories(...args),
   writeFileSafeSync: (...args: any[]) => mocks.writeFileSafeSync(...args),
 }));
-vi.mock("../../../services/downloaders/bilibili/bilibiliCookie", () => ({
-  getCookieHeader: (...args: any[]) => mocks.getCookieHeader(...args),
+vi.mock("../../../services/downloaders/bilibili/bilibiliHeaders", () => ({
+  buildBilibiliApiHeaders: (...args: any[]) =>
+    mocks.buildBilibiliApiHeaders(...args),
 }));
 
 import { downloadSubtitles } from "../../../services/downloaders/bilibili/bilibiliSubtitle";
@@ -46,7 +47,11 @@ describe("bilibiliSubtitle.downloadSubtitles", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.extractBilibiliVideoId.mockReturnValue("BV1xx");
-    mocks.getCookieHeader.mockReturnValue("SESSDATA=abc");
+    mocks.buildBilibiliApiHeaders.mockReturnValue({
+      Referer: "https://www.bilibili.com",
+      "User-Agent": "test-agent",
+      Cookie: "SESSDATA=abc",
+    });
     mocks.buildAllowlistedHttpUrl.mockImplementation((u: string) => u);
     mocks.bccToVtt.mockReturnValue("WEBVTT\n\n00:00.000 --> 00:01.000\nhi");
     // Pass-through path helpers that preserve the provided directory.

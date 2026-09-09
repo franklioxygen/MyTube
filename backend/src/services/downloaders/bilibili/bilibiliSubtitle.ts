@@ -11,7 +11,7 @@ import {
   resolveSafePathInDirectories,
   writeFileSafeSync,
 } from "../../../utils/security";
-import { getCookieHeader } from "./bilibiliCookie";
+import { buildBilibiliApiHeaders } from "./bilibiliHeaders";
 
 type SubtitleDownloadConfig = Record<string, unknown>;
 const BILIBILI_ALLOWED_HOSTS = ["bilibili.com", "hdslb.com"];
@@ -38,19 +38,18 @@ export async function downloadSubtitles(
     const videoId = extractBilibiliVideoId(videoUrl);
     if (!videoId) return [];
 
-    const cookieHeader = getCookieHeader();
-    if (!cookieHeader) {
+    // Shared with every other Bilibili API request, so these calls get the same
+    // domain/path/expiry-matched cookies. The module-local reader this replaced
+    // sent every cookie in the file to Bilibili - YouTube's included - and
+    // dropped any exported with the #HttpOnly_ prefix, SESSDATA among them.
+    const headers = buildBilibiliApiHeaders(
+      "https://api.bilibili.com/x/web-interface/view"
+    );
+    if (!headers.Cookie) {
       logger.warn(
         "WARNING: No cookies found in cookies.txt. Bilibili subtitles usually require login."
       );
     }
-
-    const headers = {
-      "User-Agent":
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-      Referer: "https://www.bilibili.com",
-      ...(cookieHeader ? { Cookie: cookieHeader } : {}),
-    };
 
     // Get CID first
     const viewApiUrl = buildAllowlistedHttpUrl(
@@ -95,7 +94,7 @@ export async function downloadSubtitles(
       playerResponse = null;
     }
 
-    if (cookieHeader && !cookieHeader.includes("SESSDATA")) {
+    if (headers.Cookie && !headers.Cookie.includes("SESSDATA")) {
       logger.warn(
         "WARNING: SESSDATA cookie not found! This is required for Bilibili authentication."
       );

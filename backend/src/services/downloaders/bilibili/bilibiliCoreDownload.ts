@@ -28,6 +28,7 @@ import {
   resolveResolutionPreference,
   resolveResolutionRetryTarget,
 } from "./bilibiliConfig";
+import { buildBilibiliApiHeaders } from "./bilibiliHeaders";
 import { resolveDownloadAudioMode } from "../ytdlp/ytdlpConfig";
 import {
   cleanupFilesOnCancellation,
@@ -215,11 +216,7 @@ export async function downloadVideo(
 
           const response = await axios.get(apiUrl, {
             ...proxiedAxiosConfig,
-            headers: {
-              Referer: "https://www.bilibili.com",
-              "User-Agent":
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
-            },
+            headers: buildBilibiliApiHeaders(apiUrl),
           });
 
           if (response.data?.data?.owner?.face) {

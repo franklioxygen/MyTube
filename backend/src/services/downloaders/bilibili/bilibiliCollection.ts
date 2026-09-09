@@ -12,10 +12,10 @@ import { resolveAuthorOrganizationMode } from "../../../types/settings";
 import { downloadSinglePart } from "./bilibiliVideo";
 import {
   BILIBILI_COOKIE_REFRESH_HINT,
-  buildBilibiliApiHeaders,
   isLikelyBilibiliAuthFailure,
   resolveProxiedAxiosConfigForUrl,
 } from "./bilibiliConfig";
+import { buildBilibiliApiHeaders } from "./bilibiliHeaders";
 import type { FilenameTemplateSourceOptions } from "../../filenameTemplate/types";
 import {
   BilibiliAggregateDownloadResult,
