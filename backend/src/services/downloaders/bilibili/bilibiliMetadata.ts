@@ -7,6 +7,7 @@ import {
   statSafeSync,
 } from "../../../utils/security";
 import { extractBilibiliVideoId } from "../../../utils/helpers";
+import { buildBilibiliApiHeaders } from "./bilibiliHeaders";
 import { BilibiliVideoInfo } from "./types";
 
 export interface PartMetadata {
@@ -68,11 +69,7 @@ export async function extractPartMetadata(
 
     const response = await axios.get<BilibiliViewResponse>(apiUrl, {
       ...axiosConfig,
-      headers: {
-        Referer: "https://www.bilibili.com",
-        "User-Agent":
-          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
-      },
+      headers: buildBilibiliApiHeaders(apiUrl),
     });
 
     if (response.data.data) {

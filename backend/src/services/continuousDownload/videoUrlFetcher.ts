@@ -966,13 +966,12 @@ export class VideoUrlFetcher {
               },
               proxiedAxiosConfig
             );
+            const { buildBilibiliApiHeaders } = await import(
+              "../downloaders/bilibili/bilibiliHeaders"
+            );
             const response = await axios.default.get(requestUrl, {
               ...proxiedAxiosConfig,
-              headers: {
-                Referer: "https://www.bilibili.com",
-                "User-Agent":
-                  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
-              },
+              headers: buildBilibiliApiHeaders(requestUrl),
             });
 
             const data = response.data;
@@ -1484,13 +1483,12 @@ export class VideoUrlFetcher {
               },
               proxiedAxiosConfig
             );
+            const { buildBilibiliApiHeaders } = await import(
+              "../downloaders/bilibili/bilibiliHeaders"
+            );
             const response = await axios.default.get(requestUrl, {
               ...proxiedAxiosConfig,
-              headers: {
-                Referer: "https://www.bilibili.com",
-                "User-Agent":
-                  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
-              },
+              headers: buildBilibiliApiHeaders(requestUrl),
             });
 
             const data = response.data;

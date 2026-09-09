@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
   moveVideoFile: vi.fn(),
   cleanupFilesOnCancellation: vi.fn(),
   downloadAndProcessAvatar: vi.fn(),
+  buildBilibiliApiHeaders: vi.fn(),
   downloadThumbnail: vi.fn(),
   updateActiveDownload: vi.fn(),
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
@@ -121,6 +122,11 @@ vi.mock(
   },
 );
 
+vi.mock("../../../services/downloaders/bilibili/bilibiliHeaders", () => ({
+  buildBilibiliApiHeaders: (...args: any[]) =>
+    mocks.buildBilibiliApiHeaders(...args),
+}));
+
 import { downloadVideo } from "../../../services/downloaders/bilibili/bilibiliCoreDownload";
 import { InvalidProxyError } from "../../../utils/ytdlp/proxy";
 
@@ -164,6 +170,30 @@ describe("bilibiliCoreDownload avatar lookup for short URLs", () => {
     mocks.axiosGet.mockResolvedValue({
       data: { data: { owner: { face: AVATAR_URL } } },
     });
+    mocks.buildBilibiliApiHeaders.mockReturnValue({
+      Referer: "https://www.bilibili.com",
+      "User-Agent": "test-agent",
+      Cookie: "SESSDATA=abc",
+    });
+  });
+
+  it("sends the shared Bilibili API headers on the avatar lookup", async () => {
+    // This request used to carry a hand-rolled header pair with no cookie, and
+    // api.bilibili.com answers 412 to cookieless x/web-interface/view, so the
+    // avatar silently never resolved.
+    mocks.executeYtDlpJson.mockResolvedValue(ytDlpInfo());
+
+    await downloadVideo(SHORT_URL, "/mock/videos/out.mp4", "/mock/images/out.jpg");
+
+    const apiUrl =
+      "https://api.bilibili.com/x/web-interface/view?bvid=BV1xx411c7mD";
+    expect(mocks.buildBilibiliApiHeaders).toHaveBeenCalledWith(apiUrl);
+    expect(mocks.axiosGet).toHaveBeenCalledWith(
+      apiUrl,
+      expect.objectContaining({
+        headers: expect.objectContaining({ Cookie: "SESSDATA=abc" }),
+      }),
+    );
   });
 
   it("derives the BV id from yt-dlp metadata when the URL is a b23.tv short link", async () => {

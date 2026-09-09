@@ -81,17 +81,12 @@ export async function fetchWbiKeys(
 ): Promise<WbiKeys | null> {
   const axios = await import("axios");
   try {
-    const response = await axios.default.get(
-      "https://api.bilibili.com/x/web-interface/nav",
-      {
-        ...axiosConfig,
-        headers: {
-          Referer: "https://www.bilibili.com",
-          "User-Agent":
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
-        },
-      }
-    );
+    const navUrl = "https://api.bilibili.com/x/web-interface/nav";
+    const { buildBilibiliApiHeaders } = await import("./bilibiliHeaders");
+    const response = await axios.default.get(navUrl, {
+      ...axiosConfig,
+      headers: buildBilibiliApiHeaders(navUrl),
+    });
 
     const wbiImg = response?.data?.data?.wbi_img;
     const imgKey = keyBasename(wbiImg?.img_url);

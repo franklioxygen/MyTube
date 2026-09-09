@@ -12,12 +12,6 @@ import { logger } from "../../utils/logger";
 
 type ExistingVideoRecord = { id: string; channelUrl?: string };
 
-const BILIBILI_REQUEST_HEADERS = {
-  Referer: "https://www.bilibili.com",
-  "User-Agent":
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
-};
-
 export const getExistingVideoBySourceUrl = (
   sourceUrl: string
 ): ExistingVideoRecord | null =>
@@ -83,6 +77,9 @@ const fetchBilibiliChannelUrl = async (
   const { resolveProxiedAxiosConfigForUrl } = await import(
     "../../services/downloaders/bilibili/bilibiliConfig"
   );
+  const { buildBilibiliApiHeaders } = await import(
+    "../../services/downloaders/bilibili/bilibiliHeaders"
+  );
   const axiosConfig = resolveProxiedAxiosConfigForUrl(sourceUrl);
   if (!axiosConfig) {
     return null;
@@ -90,9 +87,10 @@ const fetchBilibiliChannelUrl = async (
 
   try {
     const axios = (await import("axios")).default;
-    const response = await axios.get(getBilibiliApiUrl(videoId), {
+    const apiUrl = getBilibiliApiUrl(videoId);
+    const response = await axios.get(apiUrl, {
       ...axiosConfig,
-      headers: BILIBILI_REQUEST_HEADERS,
+      headers: buildBilibiliApiHeaders(apiUrl),
     });
 
     const ownerMid = response?.data?.data?.owner?.mid;

@@ -11,7 +11,7 @@ import {
   resolveSafePathInDirectories,
   writeFileSafeSync,
 } from "../../../utils/security";
-import { getCookieHeader } from "./bilibiliCookie";
+import { buildBilibiliApiHeaders } from "./bilibiliHeaders";
 
 type SubtitleDownloadConfig = Record<string, unknown>;
 const BILIBILI_ALLOWED_HOSTS = ["bilibili.com", "hdslb.com"];
@@ -38,28 +38,28 @@ export async function downloadSubtitles(
     const videoId = extractBilibiliVideoId(videoUrl);
     if (!videoId) return [];
 
-    const cookieHeader = getCookieHeader();
-    if (!cookieHeader) {
-      logger.warn(
-        "WARNING: No cookies found in cookies.txt. Bilibili subtitles usually require login."
-      );
-    }
-
-    const headers = {
-      "User-Agent":
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-      Referer: "https://www.bilibili.com",
-      ...(cookieHeader ? { Cookie: cookieHeader } : {}),
-    };
-
     // Get CID first
     const viewApiUrl = buildAllowlistedHttpUrl(
       `https://api.bilibili.com/x/web-interface/view?bvid=${videoId}`,
       BILIBILI_ALLOWED_HOSTS
     );
+    // Built per request rather than once for both: the shared builder selects
+    // cookies for the exact URL, so reusing one header set across two endpoints
+    // would send view-scoped cookies to the player path and drop the ones
+    // scoped to it - and the player response is what carries the subtitle URLs.
+    // The module-local reader this replaced had no such scoping at all: it sent
+    // every cookie in the file to Bilibili, YouTube's included, and dropped any
+    // exported with the #HttpOnly_ prefix, SESSDATA among them.
+    const viewHeaders = buildBilibiliApiHeaders(viewApiUrl);
+    if (!viewHeaders.Cookie) {
+      logger.warn(
+        "WARNING: No cookies found in cookies.txt. Bilibili subtitles usually require login."
+      );
+    }
+
     let viewResponse;
     try {
-      viewResponse = await axios.get(viewApiUrl, { headers, ...axiosConfig }); // nosemgrep
+      viewResponse = await axios.get(viewApiUrl, { headers: viewHeaders, ...axiosConfig }); // nosemgrep
     } catch (viewError: unknown) {
       logger.error(
         `Failed to fetch view API: ${
@@ -82,9 +82,10 @@ export async function downloadSubtitles(
       BILIBILI_ALLOWED_HOSTS
     );
     logger.info(`Fetching subtitles from: ${playerApiUrl}`);
+    const playerHeaders = buildBilibiliApiHeaders(playerApiUrl);
     let playerResponse;
     try {
-      playerResponse = await axios.get(playerApiUrl, { headers, ...axiosConfig }); // nosemgrep
+      playerResponse = await axios.get(playerApiUrl, { headers: playerHeaders, ...axiosConfig }); // nosemgrep
     } catch (playerError: unknown) {
       logger.warn(
         `Player API failed: ${
@@ -95,7 +96,9 @@ export async function downloadSubtitles(
       playerResponse = null;
     }
 
-    if (cookieHeader && !cookieHeader.includes("SESSDATA")) {
+    // Checked on the player request: it is the one that returns the subtitle
+    // URLs, so it is the one whose authentication matters here.
+    if (playerHeaders.Cookie && !playerHeaders.Cookie.includes("SESSDATA")) {
       logger.warn(
         "WARNING: SESSDATA cookie not found! This is required for Bilibili authentication."
       );
@@ -176,8 +179,8 @@ export async function downloadSubtitles(
       // Do NOT send cookies to the subtitle CDN (hdslb.com) as it can cause 400 Bad Request (Header too large)
       // and they are not needed for the CDN file itself.
       const cdnHeaders = {
-        "User-Agent": headers["User-Agent"],
-        Referer: headers["Referer"],
+        "User-Agent": viewHeaders["User-Agent"],
+        Referer: viewHeaders["Referer"],
       };
 
       try {

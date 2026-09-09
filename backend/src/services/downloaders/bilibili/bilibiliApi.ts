@@ -8,10 +8,10 @@ import {
 } from "../../../utils/ytDlpUtils";
 import { VideoInfo } from "../BaseDownloader";
 import {
-  buildBilibiliApiHeaders,
   resolveProxiedAxiosConfig,
   resolveProxiedAxiosConfigForUrl,
 } from "./bilibiliConfig";
+import { buildBilibiliApiHeaders } from "./bilibiliHeaders";
 import {
   BilibiliCollectionCheckResult,
   BilibiliPartsCheckResult,
@@ -218,11 +218,7 @@ export async function getLatestVideoUrl(
 
       const response = await axios.get(apiUrl, {
         ...axiosConfig,
-        headers: {
-          Referer: "https://www.bilibili.com",
-          "User-Agent":
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        },
+        headers: buildBilibiliApiHeaders(apiUrl),
       });
 
       // Risk control answers with HTTP 200 and a nonzero code, so axios does
