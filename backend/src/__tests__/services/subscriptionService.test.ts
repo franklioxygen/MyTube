@@ -1,3 +1,4 @@
+import { listVideoRetries, removeVideoRetry } from '../../services/subscription/videoRetries';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import cron from 'node-cron';
 import { db } from '../../db';
@@ -9,7 +10,12 @@ import * as downloadService from '../../services/downloadService';
 import * as storageService from '../../services/storageService';
 import { subscriptionService } from '../../services/subscriptionService';
 import { TelegramService } from '../../services/telegramService';
-import { executeYtDlpJson } from '../../utils/ytDlpUtils';
+import { executeYtDlpJson, getEffectiveUserYtDlpConfig } from '../../utils/ytDlpUtils';
+
+vi.mock('../../services/subscription/videoRetries', () => ({
+  listVideoRetries: vi.fn().mockReturnValue([]),
+  removeVideoRetry: vi.fn(),
+}));
 
 // Test setup
 vi.mock('../../db', () => ({
@@ -105,6 +111,7 @@ describe('SubscriptionService', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(getEffectiveUserYtDlpConfig).mockReturnValue({});
     vi.mocked(getProviderScript).mockReturnValue('');
     
     mockBuilder = createMockQueryBuilder([]);
@@ -693,7 +700,6 @@ describe('SubscriptionService', () => {
     });
 
     it('advances the cursor without re-downloading a head it already holds', async () => {
-      // A backfill failure clears the cursor so the check retries that video.
       // If the item is present by then - downloaded some other way - the retry
       // has to settle the cursor rather than fetch a second copy.
       const sub = {
@@ -720,6 +726,7 @@ describe('SubscriptionService', () => {
 
       await subscriptionService.checkSubscriptions();
 
+      expect(storageService.addVideoToCollection).toHaveBeenCalledWith('collection-1', 'existing-video');
       expect(downloadService.downloadYouTubeVideo).not.toHaveBeenCalled();
       expect(mockBuilder.set).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -728,26 +735,112 @@ describe('SubscriptionService', () => {
       );
     });
 
-    it('clears the cursor only while it still points at the failed video', async () => {
-      mockBuilder.then = (cb: any) => Promise.resolve([{ id: 'sub-1' }]).then(cb);
+    describe('durable backfill retries', () => {
+      const failedUrl = 'https://www.youtube.com/watch?v=failed';
+      const newerUrl = 'https://www.youtube.com/watch?v=newer';
+      const sub = {
+        id: 'retry-sub', author: 'Author', platform: 'YouTube',
+        authorUrl: 'https://www.youtube.com/playlist?list=PLRETRY',
+        interval: 60, lastCheck: 0, lastVideoLink: failedUrl,
+        subscriptionType: 'playlist', collectionId: 'retry-collection',
+        downloadCount: 5,
+      };
 
-      await expect(
-        subscriptionService.clearVideoCursorIfUnchanged(
-          'sub-1',
-          'https://www.bilibili.com/video/BVfailed'
-        )
-      ).resolves.toBe(true);
-      expect(mockBuilder.set).toHaveBeenCalledWith({ lastVideoLink: null });
+      beforeEach(() => {
+        mockBuilder.then = (cb: any) => Promise.resolve([sub]).then(cb);
+        vi.mocked(listVideoRetries).mockReturnValueOnce([
+          { subscriptionId: sub.id, videoUrl: failedUrl, createdAt: 1 },
+        ]);
+        vi.mocked(executeYtDlpJson).mockResolvedValue({ entries: [{ id: 'newer' }] });
+        vi.mocked(storageService.getVideoBySourceUrl).mockReturnValue(undefined);
+        vi.mocked(downloadService.downloadYouTubeVideo).mockResolvedValue({
+          videoData: { id: 'downloaded', title: 'Downloaded' },
+        } as any);
+      });
 
-      // No row matched: a later check has already moved the cursor on to a
-      // genuinely newer upload, and rewinding under it would re-download that.
-      mockBuilder.then = (cb: any) => Promise.resolve([]).then(cb);
-      await expect(
-        subscriptionService.clearVideoCursorIfUnchanged(
-          'sub-1',
-          'https://www.bilibili.com/video/BVfailed'
-        )
-      ).resolves.toBe(false);
+      it('retries the original URL and downloads a newer head without rewinding', async () => {
+        await subscriptionService.checkSubscriptions();
+        expect(vi.mocked(downloadService.downloadYouTubeVideo).mock.calls.map(call => call[0]))
+          .toEqual([failedUrl, newerUrl]);
+        expect(removeVideoRetry).toHaveBeenCalledWith(sub.id, failedUrl);
+        expect(mockBuilder.set).not.toHaveBeenCalledWith(expect.objectContaining({ lastVideoLink: failedUrl }));
+        expect(mockBuilder.set).toHaveBeenCalledWith({ lastVideoLink: newerUrl, downloadCount: 7 });
+      });
+
+      it('retains a failed retry while still processing the newer head', async () => {
+        vi.mocked(downloadService.downloadYouTubeVideo).mockRejectedValueOnce(new Error('timed out'));
+        await subscriptionService.checkSubscriptions();
+        expect(removeVideoRetry).not.toHaveBeenCalledWith(sub.id, failedUrl);
+        expect(downloadService.downloadYouTubeVideo).toHaveBeenCalledTimes(2);
+        expect(mockBuilder.set).toHaveBeenCalledWith({ lastVideoLink: newerUrl, downloadCount: 6 });
+      });
+
+      it('repairs existing retry collection membership without rewinding the cursor', async () => {
+        vi.mocked(storageService.getVideoBySourceUrl).mockReturnValueOnce({ id: 'existing' } as any);
+        await subscriptionService.checkSubscriptions();
+        expect(storageService.addVideoToCollection).toHaveBeenCalledWith(sub.collectionId, 'existing');
+        expect(removeVideoRetry).toHaveBeenCalledWith(sub.id, failedUrl);
+        expect(downloadService.downloadYouTubeVideo).toHaveBeenCalledTimes(1);
+        expect(mockBuilder.set).not.toHaveBeenCalledWith(expect.objectContaining({ lastVideoLink: failedUrl }));
+      });
+
+      it('retains the retry when adding an existing video to its collection fails', async () => {
+        vi.mocked(storageService.getVideoBySourceUrl).mockReturnValueOnce({ id: 'existing' } as any);
+        vi.mocked(storageService.addVideoToCollection).mockImplementationOnce(() => { throw new Error('database busy'); });
+        await subscriptionService.checkSubscriptions();
+        expect(removeVideoRetry).not.toHaveBeenCalledWith(sub.id, failedUrl);
+        expect(mockBuilder.set).toHaveBeenCalledWith(expect.objectContaining({ lastCheck: expect.any(Number) }));
+        expect(downloadService.downloadYouTubeVideo).toHaveBeenCalledTimes(1);
+      });
+
+      it('still retries a stored URL when the feed probe fails', async () => {
+        vi.mocked(executeYtDlpJson).mockRejectedValueOnce(new Error('probe timed out'));
+        await subscriptionService.checkSubscriptions();
+        expect(vi.mocked(downloadService.downloadYouTubeVideo).mock.calls.map(call => call[0])).toEqual([failedUrl]);
+        expect(removeVideoRetry).toHaveBeenCalledWith(sub.id, failedUrl);
+        expect(mockBuilder.set).not.toHaveBeenCalledWith(expect.objectContaining({ lastVideoLink: failedUrl }));
+      });
+
+      it('settles audio retries using the effective media type', async () => {
+        vi.mocked(getEffectiveUserYtDlpConfig).mockReturnValue({ extractAudio: true });
+        vi.mocked(storageService.getVideoBySourceUrl).mockReturnValueOnce({ id: 'audio-existing' } as any);
+        await subscriptionService.checkSubscriptions();
+        expect(storageService.getVideoBySourceUrl).toHaveBeenCalledWith(failedUrl, 'audio');
+        expect(storageService.addVideoToCollection).toHaveBeenCalledWith(sub.collectionId, 'audio-existing');
+      });
+
+      it('settles members-only retries without moving the cursor backwards', async () => {
+        vi.mocked(downloadService.downloadYouTubeVideo).mockRejectedValueOnce(
+          new Error('Join this channel to get access to members-only content')
+        );
+        await subscriptionService.checkSubscriptions();
+        expect(removeVideoRetry).toHaveBeenCalledWith(sub.id, failedUrl);
+        expect(mockBuilder.set).not.toHaveBeenCalledWith(expect.objectContaining({ lastVideoLink: failedUrl }));
+        expect(storageService.addDownloadHistoryItem).toHaveBeenCalledWith(
+          expect.objectContaining({ sourceUrl: failedUrl, status: 'skipped' })
+        );
+      });
+
+      it('attempts a retry matching the head only once', async () => {
+        vi.mocked(executeYtDlpJson).mockResolvedValueOnce({ entries: [{ id: 'failed' }] });
+        await subscriptionService.checkSubscriptions();
+        expect(downloadService.downloadYouTubeVideo).toHaveBeenCalledTimes(1);
+        expect(removeVideoRetry).toHaveBeenCalledWith(sub.id, failedUrl);
+      });
+    });
+
+    it('checks Shorts after settling an existing main video and counts the download', async () => {
+      const sub = { id: 'shorts-duplicate', author: 'Author', platform: 'YouTube',
+        authorUrl: 'https://www.youtube.com/@author', interval: 60,
+        lastCheck: 0, lastVideoLink: null, downloadShorts: 1, downloadCount: 2 };
+      mockBuilder.then = (cb: any) => Promise.resolve([sub]).then(cb);
+      vi.mocked(YtDlpDownloader.getLatestVideoUrl).mockResolvedValue('main-video');
+      vi.mocked(YtDlpDownloader.getLatestShortsUrl).mockResolvedValue('short-video');
+      vi.mocked(storageService.getVideoBySourceUrl).mockReturnValueOnce({ id: 'existing' } as any);
+      vi.mocked(downloadService.downloadYouTubeVideo).mockResolvedValue({ videoData: { id: 'short' } } as any);
+      await subscriptionService.checkSubscriptions();
+      expect(vi.mocked(downloadService.downloadYouTubeVideo).mock.calls.map(call => call[0])).toEqual(['short-video']);
+      expect(mockBuilder.set).toHaveBeenCalledWith({ lastShortVideoLink: 'short-video', downloadCount: 3 });
     });
 
     it('updates lastCheck when a playlist probe fails to back off retries', async () => {

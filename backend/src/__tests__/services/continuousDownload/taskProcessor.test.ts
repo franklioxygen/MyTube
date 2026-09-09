@@ -5,18 +5,14 @@ import { ContinuousDownloadTask } from '../../../services/continuousDownload/typ
 import { VideoUrlFetcher } from '../../../services/continuousDownload/videoUrlFetcher';
 import * as downloadService from '../../../services/downloadService';
 import * as storageService from '../../../services/storageService';
-import { subscriptionService } from '../../../services/subscriptionService';
+import { queueVideoRetry } from '../../../services/subscription/videoRetries';
 
 // Mock dependencies
 vi.mock('../../../services/continuousDownload/taskRepository');
 vi.mock('../../../services/continuousDownload/videoUrlFetcher');
 vi.mock('../../../services/downloadService');
 vi.mock('../../../services/storageService');
-vi.mock('../../../services/subscriptionService', () => ({
-  subscriptionService: {
-    clearVideoCursorIfUnchanged: vi.fn().mockResolvedValue(true),
-  },
-}));
+vi.mock('../../../services/subscription/videoRetries', () => ({ queueVideoRetry: vi.fn() }));
 vi.mock('../../../utils/logger', () => ({
   logger: {
     info: vi.fn(),
@@ -123,7 +119,7 @@ describe('TaskProcessor', () => {
     }));
   });
 
-  it('puts a failed video back in front of its subscription check', async () => {
+  it('queues the exact failed video for its subscription', async () => {
     // A playlist subscription seeds its cursor to the collection head before
     // this task runs, so a failure here would otherwise leave the cursor past a
     // video nothing downloaded and the check would never look at it again.
@@ -135,10 +131,21 @@ describe('TaskProcessor', () => {
 
     await taskProcessor.processTask({ ...mockTask, subscriptionId: 'sub-1' });
 
-    expect(subscriptionService.clearVideoCursorIfUnchanged).toHaveBeenCalledWith(
+    expect(queueVideoRetry).toHaveBeenCalledWith(
       'sub-1',
       'http://vid1'
     );
+  });
+
+  it('continues recording task progress when retry persistence fails', async () => {
+    mockVideoUrlFetcher.getAllVideoUrls.mockResolvedValue(['http://vid1']);
+    vi.mocked(storageService.getVideoBySourceUrl).mockReturnValue(undefined);
+    vi.mocked(downloadService.downloadYouTubeVideo).mockRejectedValue(new Error('timed out'));
+    vi.mocked(queueVideoRetry).mockImplementationOnce(() => { throw new Error('database busy'); });
+    await taskProcessor.processTask({ ...mockTask, subscriptionId: 'sub-1' });
+    expect(mockTaskRepository.updateProgress).toHaveBeenCalledWith(mockTask.id,
+      expect.objectContaining({ failedCount: 1, currentVideoIndex: 1 }));
+    expect(mockTaskRepository.completeTask).toHaveBeenCalledWith(mockTask.id);
   });
 
   it('leaves the cursor alone for a task with no subscription', async () => {
@@ -151,7 +158,7 @@ describe('TaskProcessor', () => {
     await taskProcessor.processTask({ ...mockTask });
 
     expect(
-      subscriptionService.clearVideoCursorIfUnchanged
+      queueVideoRetry
     ).not.toHaveBeenCalled();
   });
 

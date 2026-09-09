@@ -454,6 +454,14 @@ export async function runMigrations(options: RunMigrationsOptions = {}) {
     // "no such table" on a server that reported a clean start.
     ensureGestureCredentialTable();
 
+    // Recover this table too when a legacy duplicate column aborted the batch.
+    sqlite.exec(`CREATE TABLE IF NOT EXISTS subscription_video_retries (
+      subscription_id TEXT NOT NULL REFERENCES subscriptions(id) ON DELETE CASCADE,
+      video_url TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      PRIMARY KEY (subscription_id, video_url)
+    )`);
+
     const { migrateLegacySharedVisitorPassword } = await import(
       "../services/userService"
     );

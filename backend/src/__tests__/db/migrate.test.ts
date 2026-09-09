@@ -9,6 +9,7 @@ const migrateLegacySharedVisitorPasswordMock = vi.hoisted(() => vi.fn());
 const ensureVisitorUsersTableMock = vi.hoisted(() => vi.fn());
 const ensureFavoritesTablesMock = vi.hoisted(() => vi.fn());
 const ensureGestureCredentialTableMock = vi.hoisted(() => vi.fn());
+const sqliteExecMock = vi.hoisted(() => vi.fn());
 const sqliteGetMock = vi.hoisted(() => vi.fn());
 const sqlitePrepareMock = vi.hoisted(() => vi.fn());
 const securityMocks = vi.hoisted(() => ({
@@ -53,7 +54,7 @@ vi.mock("../../utils/security", () => ({
 vi.mock("../../db", () => ({
   configureDatabase: configureDatabaseMock,
   db: {},
-  sqlite: { prepare: sqlitePrepareMock },
+  sqlite: { prepare: sqlitePrepareMock, exec: sqliteExecMock },
 }));
 
 vi.mock("../../services/migrationService", () => ({
@@ -100,6 +101,9 @@ describe("runMigrations", () => {
 
   it("runs drizzle, legacy data import, and visitor password migration in order", async () => {
     await runMigrations();
+    expect(sqliteExecMock).toHaveBeenCalledWith(
+      expect.stringContaining("CREATE TABLE IF NOT EXISTS subscription_video_retries")
+    );
 
     expect(migrateMock).toHaveBeenCalledTimes(1);
     expect(configureDatabaseMock).toHaveBeenCalledTimes(1);

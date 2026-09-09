@@ -313,6 +313,18 @@ export const subscriptions = sqliteTable("subscriptions", {
   filenameTemplate: text("filename_template"),
 });
 
+// Failed backfill URLs survive head changes and process restarts.
+export const subscriptionVideoRetries = sqliteTable(
+  "subscription_video_retries",
+  {
+    subscriptionId: text("subscription_id").notNull()
+      .references(() => subscriptions.id, { onDelete: "cascade" }),
+    videoUrl: text("video_url").notNull(),
+    createdAt: integer("created_at").notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.subscriptionId, table.videoUrl] })]
+);
+
 // Track downloaded video IDs to prevent re-downloading
 export const videoDownloads = sqliteTable(
   "video_downloads",
