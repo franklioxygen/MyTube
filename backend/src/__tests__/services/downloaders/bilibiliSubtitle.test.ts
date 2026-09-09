@@ -47,11 +47,12 @@ describe("bilibiliSubtitle.downloadSubtitles", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.extractBilibiliVideoId.mockReturnValue("BV1xx");
-    mocks.buildBilibiliApiHeaders.mockReturnValue({
+    // Per-URL, so a test can tell the two endpoints' header sets apart.
+    mocks.buildBilibiliApiHeaders.mockImplementation((url: string) => ({
       Referer: "https://www.bilibili.com",
       "User-Agent": "test-agent",
-      Cookie: "SESSDATA=abc",
-    });
+      Cookie: url.includes("/x/player/") ? "SESSDATA=player" : "SESSDATA=view",
+    }));
     mocks.buildAllowlistedHttpUrl.mockImplementation((u: string) => u);
     mocks.bccToVtt.mockReturnValue("WEBVTT\n\n00:00.000 --> 00:01.000\nhi");
     // Pass-through path helpers that preserve the provided directory.
@@ -105,6 +106,35 @@ describe("bilibiliSubtitle.downloadSubtitles", () => {
     expect(mocks.ensureDirSafeSync).toHaveBeenCalledWith(
       "/data/videos/Author A/Season 1",
       "/data/videos"
+    );
+  });
+
+  it("builds each request's headers from its own URL", async () => {
+    // The shared builder picks cookies for the exact URL, so one header set
+    // reused across both endpoints would send view-scoped cookies to the player
+    // path and drop the ones scoped to it - and the player response is what
+    // carries the subtitle URLs.
+    await downloadSubtitles(
+      "https://www.bilibili.com/video/BV1xx",
+      "My Video-Author-2026",
+      "/data/videos/Author A/Season 1",
+      "/videos/Author A/Season 1"
+    );
+
+    const requestedWith = (fragment: string) =>
+      mocks.axiosGet.mock.calls.find((call: any[]) =>
+        String(call[0]).includes(fragment)
+      )?.[1];
+
+    expect(requestedWith("/x/web-interface/view").headers).toMatchObject({
+      Cookie: "SESSDATA=view",
+    });
+    expect(requestedWith("/x/player/wbi/v2").headers).toMatchObject({
+      Cookie: "SESSDATA=player",
+    });
+    // The subtitle CDN keeps getting no cookie at all.
+    expect(requestedWith("//cdn/sub.json").headers).not.toHaveProperty(
+      "Cookie"
     );
   });
 
