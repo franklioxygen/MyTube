@@ -262,7 +262,7 @@ describe("bilibiliCollection.downloadCollection", () => {
 
       expect(result.success).toBe(true);
       expect(result.videos).toHaveLength(3_001);
-      expect(result.videos.at(-1)?.bvid).toBe("BV101-0");
+      expect(result.videos[result.videos.length - 1]?.bvid).toBe("BV101-0");
       expect(mocks.axiosGet).toHaveBeenCalledTimes(101);
     },
   );
