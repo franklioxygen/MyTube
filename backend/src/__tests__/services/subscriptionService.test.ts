@@ -820,6 +820,29 @@ describe('SubscriptionService', () => {
         expect(removeVideoRetry).toHaveBeenCalledWith(twitchSub.id, failedUrl);
       });
 
+      it('still records the count when the per-target update throws', async () => {
+        // The download succeeded and its success history row is written, but
+        // the update carrying the increment failed. Without the count on the
+        // check's own last write it would never be made up: the next check
+        // finds the media present and settles the retry with no increment.
+        let updateCalls = 0;
+        mockBuilder.set = vi.fn(() => {
+          updateCalls += 1;
+          // The lock update, then the per-target one that throws.
+          if (updateCalls === 2) throw new Error('database is locked');
+          return mockBuilder;
+        });
+
+        await subscriptionService.checkSubscriptions();
+
+        expect(mockBuilder.set).toHaveBeenCalledWith(
+          expect.objectContaining({
+            downloadCount: expect.any(Number),
+            lastCheckStatus: 'fail',
+          })
+        );
+      });
+
       it('keeps the retry when the collection it should join is gone', async () => {
         // addVideoToCollection answers null for a deleted collection rather
         // than throwing, so settling on it would drop the retry for a video the

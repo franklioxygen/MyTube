@@ -602,11 +602,23 @@ export class SubscriptionService {
     status: "success" | "fail",
     options: { newVideoCount?: number; failureReason?: string | null } = {}
   ): Promise<void> {
+    // Carried on this last write as well as on each per-target one. Both
+    // compute the same total from the same pre-check base, so restating it here
+    // is a no-op after a clean check - but when a per-target update threw after
+    // its download had already succeeded, that increment would otherwise be
+    // lost for good: the next check finds the media present and settles the
+    // retry through the existing-video path, which has no increment to make up.
+    const settledDownloadCount =
+      options.newVideoCount && options.newVideoCount > 0
+        ? { downloadCount: (sub.downloadCount || 0) + options.newVideoCount }
+        : {};
+
     try {
       if (status === "success") {
         await db
           .update(subscriptions)
           .set({
+            ...settledDownloadCount,
             consecutiveFailureCount: 0,
             lastCheckStatus: "success",
             lastFailureReason: null,
@@ -618,6 +630,7 @@ export class SubscriptionService {
         await db
           .update(subscriptions)
           .set({
+            ...settledDownloadCount,
             consecutiveFailureCount: next,
             lastCheckStatus: "fail",
             lastFailureReason: options.failureReason ?? "unknown",
