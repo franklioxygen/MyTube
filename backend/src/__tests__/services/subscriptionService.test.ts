@@ -117,6 +117,12 @@ describe('SubscriptionService', () => {
     
     mockBuilder = createMockQueryBuilder([]);
 
+    // Mirrors the real contract: a collection object on success, null when the
+    // collection is gone. Auto-mocked undefined would read as "gone".
+    (storageService.addVideoToCollection as any).mockReturnValue({
+      id: 'collection-1',
+    });
+
     (db.select as any).mockReturnValue(mockBuilder);
     (db.insert as any).mockReturnValue(mockBuilder);
     (db.delete as any).mockReturnValue(mockBuilder);
@@ -787,6 +793,31 @@ describe('SubscriptionService', () => {
         expect(removeVideoRetry).not.toHaveBeenCalledWith(sub.id, failedUrl);
         expect(downloadService.downloadYouTubeVideo).toHaveBeenCalledTimes(2);
         expect(mockBuilder.set).toHaveBeenCalledWith({ lastVideoLink: newerUrl, downloadCount: 6 });
+      });
+
+      it('keeps the retry when the collection it should join is gone', async () => {
+        // addVideoToCollection answers null for a deleted collection rather
+        // than throwing, so settling on it would drop the retry for a video the
+        // playlist never received.
+        vi.mocked(storageService.getVideoBySourceUrl).mockReturnValueOnce({ id: 'existing' } as any);
+        vi.mocked(storageService.addVideoToCollection).mockReturnValueOnce(null);
+        await subscriptionService.checkSubscriptions();
+        expect(removeVideoRetry).not.toHaveBeenCalledWith(sub.id, failedUrl);
+      });
+
+      it('records the download count even when collection linking fails', async () => {
+        // The media and its success-history row are already saved; losing the
+        // increment here would never be made up, because the next check finds
+        // the media present and repairs the membership through the existing
+        // -video path instead.
+        vi.mocked(storageService.addVideoToCollection).mockImplementationOnce(() => {
+          throw new Error('database busy');
+        });
+        await subscriptionService.checkSubscriptions();
+        expect(removeVideoRetry).not.toHaveBeenCalledWith(sub.id, failedUrl);
+        expect(mockBuilder.set).toHaveBeenCalledWith(
+          expect.objectContaining({ downloadCount: expect.any(Number) })
+        );
       });
 
       it('repairs existing retry collection membership without rewinding the cursor', async () => {
@@ -1884,7 +1915,7 @@ describe('SubscriptionService', () => {
         callCount++;
         if (callCount === 1) return Promise.resolve([sub]).then(cb); // listSubscriptions
         if (callCount === 2) return Promise.resolve([{ id: sub.id }]).then(cb); // lock update
-        if (callCount === 3) return Promise.resolve([]).then(cb); // success update -> deleted branch
+        if (callCount === 3) return Promise.resolve([{ id: sub.id }]).then(cb); // success update
         return Promise.resolve([]).then(cb);
       };
       (YtDlpDownloader.getLatestVideoUrl as any).mockResolvedValue(

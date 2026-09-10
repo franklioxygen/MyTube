@@ -1006,7 +1006,18 @@
           "default": 0
         }
       },
-      "indexes": {},
+      "indexes": {
+        "subscription_video_retries_schedule_idx": {
+          "name": "subscription_video_retries_schedule_idx",
+          "columns": [
+            "subscription_id",
+            "last_attempt_at",
+            "created_at",
+            "video_url"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "subscription_video_retries_subscription_id_subscriptions_id_fk": {
           "name": "subscription_video_retries_subscription_id_subscriptions_id_fk",

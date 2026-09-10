@@ -65,6 +65,9 @@ import {
 
 export type { Subscription } from "./subscription/types";
 
+/** Bucketed reason for a check whose only failure was collection membership. */
+const COLLECTION_LINK_FAILURE_REASON = "Collection update failed";
+
 /**
  * Options for creating a playlist subscription (design §7.2 / §18).
  *
@@ -801,26 +804,15 @@ export class SubscriptionService {
         const isHead = videoUrl === latestVideoUrl;
         const existingVideo = this.getExistingSubscriptionVideo(sub, videoUrl);
         if (existingVideo) {
-          try {
-            if (isPlaylistSubscription && sub.collectionId) {
-              storageService.addVideoToCollection(
-                sub.collectionId,
-                existingVideo.id
-              );
-            }
-            if (isHead) await this.advanceVideoCursor(sub, videoUrl);
-            removeVideoRetry(sub.id, videoUrl);
-          } catch (error) {
+          if (!this.linkSubscriptionVideoToCollection(sub, existingVideo.id, videoUrl)) {
             checkStatus = "fail";
             checkFailureReason = bucketDownloadError(
-              getErrorMessage(error, "Collection update failed")
+              COLLECTION_LINK_FAILURE_REASON
             );
-            logger.error(
-              "Could not settle existing subscription video",
-              error,
-              getSubscriptionLogContext(sub, { videoUrl })
-            );
+            continue;
           }
+          if (isHead) await this.advanceVideoCursor(sub, videoUrl);
+          removeVideoRetry(sub.id, videoUrl);
           continue;
         }
 
@@ -895,27 +887,12 @@ export class SubscriptionService {
                 : undefined,
           });
 
-          // For playlist subscriptions, add video to the associated collection
-          if (isPlaylistSubscription && sub.collectionId && videoData.id) {
-            try {
-              storageService.addVideoToCollection(
-                sub.collectionId,
-                videoData.id
-              );
-              logger.info(
-                `Added video ${videoData.id} to collection ${sub.collectionId} from playlist subscription`
-              );
-            } catch (collectionError) {
-              logger.error(
-                `Error adding video to collection ${sub.collectionId}:`,
-                collectionError
-              );
-              // Keep the targeted retry until collection membership is repaired.
-              throw collectionError;
-            }
-          }
-
-          // 4. Update subscription record with new video link and stats on success
+          // 4. Update subscription record with new video link and stats on
+          // success. Recorded before the collection link is attempted: the
+          // media and its success-history row are already saved, so a failure
+          // to link must not cost the download its count - the next check would
+          // find the media present, repair the membership through the
+          // existing-video path, and never make up the increment.
           const updateResult = await db
             .update(subscriptions)
             .set({
@@ -932,7 +909,18 @@ export class SubscriptionService {
               );
             return;
           } else {
-            removeVideoRetry(sub.id, videoUrl);
+            // Only a linked video is fully settled; otherwise the targeted
+            // retry stays queued until the membership can be repaired.
+            if (
+              this.linkSubscriptionVideoToCollection(sub, videoData.id, videoUrl)
+            ) {
+              removeVideoRetry(sub.id, videoUrl);
+            } else {
+              checkStatus = "fail";
+              checkFailureReason = bucketDownloadError(
+                COLLECTION_LINK_FAILURE_REASON
+              );
+            }
             notifySubscriptionDownloadResult({
               taskTitle: downloadedVideoTitle,
               status: "success",
@@ -1234,6 +1222,54 @@ export class SubscriptionService {
       videoUrl,
       audioOnly ? "audio" : "video"
     );
+  }
+
+  /**
+   * Link a subscription's video into its collection.
+   *
+   * Returns false when the membership was not created, which keeps the
+   * targeted retry queued. A deleted collection is the case worth saying out
+   * loud: `addVideoToCollection` answers `null` for it rather than throwing, so
+   * treating the call as settled would drop the retry for a video the playlist
+   * never received, leaving nothing to reconsider it if the subscription is
+   * pointed at another collection later.
+   */
+  private linkSubscriptionVideoToCollection(
+    sub: Subscription,
+    videoId: string | undefined,
+    videoUrl: string
+  ): boolean {
+    if (sub.subscriptionType !== "playlist" || !sub.collectionId || !videoId) {
+      return true;
+    }
+
+    try {
+      const linked = storageService.addVideoToCollection(
+        sub.collectionId,
+        videoId
+      );
+      if (!linked) {
+        logger.error(
+          "Subscription collection is missing; keeping the targeted retry",
+          getSubscriptionLogContext(sub, {
+            videoUrl,
+            collectionId: sub.collectionId,
+          })
+        );
+        return false;
+      }
+      logger.info(
+        `Added video ${videoId} to collection ${sub.collectionId} from playlist subscription`
+      );
+      return true;
+    } catch (error) {
+      logger.error(
+        `Error adding video to collection ${sub.collectionId}:`,
+        error,
+        getSubscriptionLogContext(sub, { videoUrl })
+      );
+      return false;
+    }
   }
 
   /** Move the feed cursor without recording a download. */

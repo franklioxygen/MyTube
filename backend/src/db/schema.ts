@@ -323,7 +323,18 @@ export const subscriptionVideoRetries = sqliteTable(
     createdAt: integer("created_at").notNull(),
     lastAttemptAt: integer("last_attempt_at").notNull().default(0),
   },
-  (table) => [primaryKey({ columns: [table.subscriptionId, table.videoUrl] })]
+  (table) => [
+    primaryKey({ columns: [table.subscriptionId, table.videoUrl] }),
+    // listVideoRetries filters by subscription and takes the oldest-attempted
+    // batch. The primary key orders by video_url, so without this the whole
+    // backlog is sorted on every check.
+    index("subscription_video_retries_schedule_idx").on(
+      table.subscriptionId,
+      table.lastAttemptAt,
+      table.createdAt,
+      table.videoUrl
+    ),
+  ]
 );
 
 // Track downloaded video IDs to prevent re-downloading

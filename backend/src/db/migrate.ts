@@ -463,6 +463,36 @@ export async function runMigrations(options: RunMigrationsOptions = {}) {
       PRIMARY KEY (subscription_id, video_url)
     )`);
 
+    // CREATE TABLE IF NOT EXISTS cannot widen a table that already exists, and
+    // drizzle will not replay 0029 on an install that recorded it before
+    // last_attempt_at was part of it. Such a table is missing the column that
+    // every retry lookup orders by, which would fail each check with
+    // "no such column"; add it the way the other column repairs above do.
+    try {
+      const retryColumns = sqlite
+        .prepare("PRAGMA table_info(subscription_video_retries)")
+        .all() as Array<{ name: string }>;
+      if (!retryColumns.some((column) => column.name === "last_attempt_at")) {
+        sqlite.exec(
+          "ALTER TABLE subscription_video_retries ADD COLUMN last_attempt_at INTEGER NOT NULL DEFAULT 0"
+        );
+        logger.info(
+          "Added subscription_video_retries.last_attempt_at to an earlier retry table."
+        );
+      }
+
+      sqlite.exec(
+        "CREATE INDEX IF NOT EXISTS subscription_video_retries_schedule_idx ON subscription_video_retries (subscription_id, last_attempt_at, created_at, video_url)"
+      );
+    } catch (retryTableError) {
+      // A repair that cannot run must not take startup down with it; the table
+      // was just created above, so the ordinary path needs nothing from here.
+      logger.warn(
+        "Could not verify the subscription retry table shape:",
+        retryTableError
+      );
+    }
+
     const { migrateLegacySharedVisitorPassword } = await import(
       "../services/userService"
     );

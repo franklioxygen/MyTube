@@ -12,6 +12,7 @@ const ensureGestureCredentialTableMock = vi.hoisted(() => vi.fn());
 const sqliteExecMock = vi.hoisted(() => vi.fn());
 const sqliteGetMock = vi.hoisted(() => vi.fn());
 const sqlitePrepareMock = vi.hoisted(() => vi.fn());
+const sqliteAllMock = vi.hoisted(() => vi.fn());
 const securityMocks = vi.hoisted(() => ({
   accessTrustedSync: vi.fn(),
   pathExistsSafeSync: vi.fn(),
@@ -88,7 +89,8 @@ describe("runMigrations", () => {
     // Default to a database that already holds tables, which is every existing
     // install; the misdirection guard only looks at empty ones.
     sqliteGetMock.mockReturnValue({ count: 12 });
-    sqlitePrepareMock.mockReturnValue({ get: sqliteGetMock });
+    sqliteAllMock.mockReturnValue([{ name: "last_attempt_at" }]);
+    sqlitePrepareMock.mockReturnValue({ get: sqliteGetMock, all: sqliteAllMock });
     delete process.env.MYTUBE_DATA_DIR;
     migrateMock.mockImplementation(() => undefined);
     configureDatabaseMock.mockImplementation(() => undefined);
