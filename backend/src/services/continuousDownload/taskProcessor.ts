@@ -637,18 +637,43 @@ export class TaskProcessor {
       });
 
       // If task has a collectionId, add video to collection
-      if (task.collectionId && videoData.id) {
+      if (task.collectionId) {
+        let linked = false;
         try {
-          storageService.addVideoToCollection(task.collectionId, videoData.id);
-          logger.info(
-            `Added video ${videoData.id} to collection ${task.collectionId}`
+          // Null, not a throw, is how a deleted collection answers.
+          linked = Boolean(
+            videoData.id &&
+              storageService.addVideoToCollection(
+                task.collectionId,
+                videoData.id
+              )
           );
+          if (linked) {
+            logger.info(
+              `Added video ${videoData.id} to collection ${task.collectionId}`
+            );
+          } else {
+            logger.error(
+              `Could not add video ${videoData.id ?? "(no id)"} to collection ${task.collectionId}`
+            );
+          }
         } catch (error) {
           logger.error(
             `Error adding video to collection ${task.collectionId}:`,
             error
           );
           // Don't fail the task if collection add fails
+        }
+
+        // The media downloaded, so this video will never be retried by the
+        // task's own error path, and a linked subscription has already seeded
+        // its cursor past it - without a retry row the collection stays short
+        // one video it actually holds, with nothing left to notice.
+        if (!linked && task.subscriptionId) {
+          await this.restoreSubscriptionRetryForFailedVideo(
+            task.subscriptionId,
+            videoUrl
+          );
         }
       }
 

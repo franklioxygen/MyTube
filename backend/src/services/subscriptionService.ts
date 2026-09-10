@@ -43,6 +43,7 @@ import {
 import {
   listVideoRetries,
   markVideoRetryAttempted,
+  queueVideoRetry,
   removeVideoRetry,
 } from "./subscription/videoRetries";
 import { Subscription } from "./subscription/types";
@@ -715,10 +716,12 @@ export class SubscriptionService {
         return; // Watcher handled, move to next subscription
       }
 
-      if (sub.platform === "Twitch") {
-        checkNewVideoCount = await this.checkTwitchSubscription(sub);
-        return;
-      }
+      // Twitch tracks its own feed by broadcast id, so it takes none of the
+      // head/cursor handling below - but a Twitch backfill queues targeted
+      // retries like any other, and returning here would leave every one of
+      // them unconsumed. Its feed read happens with the other probes instead,
+      // so a failure there is recorded without skipping the retry batch.
+      const isTwitchSubscription = sub.platform === "Twitch";
 
       const isPlaylistSubscription = sub.subscriptionType === "playlist";
 
@@ -762,7 +765,17 @@ export class SubscriptionService {
       };
 
       let latestVideoUrl: string | null = null;
-      if (isPlaylistSubscription) {
+      if (isTwitchSubscription) {
+        // Twitch has no URL head to compare; its own handler tracks the feed.
+        try {
+          checkNewVideoCount = await this.checkTwitchSubscription(sub);
+        } catch (probeError) {
+          await recordProbeFailure(
+            probeError,
+            "Twitch check failed during subscription check"
+          );
+        }
+      } else if (isPlaylistSubscription) {
         try {
           const snapshot = await this.getPlaylistSubscriptionHeadSnapshot(sub);
           latestVideoUrl = snapshot.headVideoUrl;
@@ -805,6 +818,7 @@ export class SubscriptionService {
         const existingVideo = this.getExistingSubscriptionVideo(sub, videoUrl);
         if (existingVideo) {
           if (!this.linkSubscriptionVideoToCollection(sub, existingVideo.id, videoUrl)) {
+            this.recordCollectionLinkFailure(sub, videoUrl);
             checkStatus = "fail";
             checkFailureReason = bucketDownloadError(
               COLLECTION_LINK_FAILURE_REASON
@@ -916,6 +930,7 @@ export class SubscriptionService {
             ) {
               removeVideoRetry(sub.id, videoUrl);
             } else {
+              this.recordCollectionLinkFailure(sub, videoUrl);
               checkStatus = "fail";
               checkFailureReason = bucketDownloadError(
                 COLLECTION_LINK_FAILURE_REASON
@@ -1225,6 +1240,28 @@ export class SubscriptionService {
   }
 
   /**
+   * Queue the video for another attempt after its collection membership could
+   * not be created.
+   *
+   * A feed head reaches this without a retry row of its own, and its cursor has
+   * already advanced by the time the link is attempted - the download itself
+   * succeeded - so the next check would filter it out as "not new" and the
+   * collection would be permanently short one video it actually holds. Queuing
+   * is idempotent, so a target that arrived from the retry table simply stays.
+   */
+  private recordCollectionLinkFailure(sub: Subscription, videoUrl: string): void {
+    try {
+      queueVideoRetry(sub.id, videoUrl);
+    } catch (error) {
+      logger.error(
+        "Could not queue a retry for an unlinked subscription video",
+        error,
+        getSubscriptionLogContext(sub, { videoUrl })
+      );
+    }
+  }
+
+  /**
    * Link a subscription's video into its collection.
    *
    * Returns false when the membership was not created, which keeps the
@@ -1239,8 +1276,20 @@ export class SubscriptionService {
     videoId: string | undefined,
     videoUrl: string
   ): boolean {
-    if (sub.subscriptionType !== "playlist" || !sub.collectionId || !videoId) {
+    if (sub.subscriptionType !== "playlist" || !sub.collectionId) {
       return true;
+    }
+    if (!videoId) {
+      // Membership is required here and cannot be created without an id, so
+      // this is a failure to link, not a case with nothing to do.
+      logger.error(
+        "Subscription video has no id to link into its collection",
+        getSubscriptionLogContext(sub, {
+          videoUrl,
+          collectionId: sub.collectionId,
+        })
+      );
+      return false;
     }
 
     try {

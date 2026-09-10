@@ -148,6 +148,27 @@ describe('TaskProcessor', () => {
     expect(mockTaskRepository.completeTask).toHaveBeenCalledWith(mockTask.id);
   });
 
+  it('queues a retry when a downloaded video cannot join its collection', async () => {
+    // The media downloaded, so the task's own error path never sees this video,
+    // and a linked subscription has already seeded its cursor past it - without
+    // a retry row the collection stays short one video it actually holds.
+    mockVideoUrlFetcher.getAllVideoUrls.mockResolvedValue(['http://vid1']);
+    (storageService.getVideoBySourceUrl as any).mockReturnValue(null);
+    (downloadService.downloadYouTubeVideo as any).mockResolvedValue({
+      videoData: { id: 'video-1', title: 'Video' },
+    });
+    // A deleted collection answers null rather than throwing.
+    (storageService.addVideoToCollection as any).mockReturnValue(null);
+
+    await taskProcessor.processTask({
+      ...mockTask,
+      subscriptionId: 'sub-1',
+      collectionId: 'collection-1',
+    });
+
+    expect(queueVideoRetry).toHaveBeenCalledWith('sub-1', 'http://vid1');
+  });
+
   it('leaves the cursor alone for a task with no subscription', async () => {
     mockVideoUrlFetcher.getAllVideoUrls.mockResolvedValue(['http://vid1']);
     (storageService.getVideoBySourceUrl as any).mockReturnValue(null);

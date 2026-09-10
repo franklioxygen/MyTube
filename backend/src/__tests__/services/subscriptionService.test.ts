@@ -795,6 +795,31 @@ describe('SubscriptionService', () => {
         expect(mockBuilder.set).toHaveBeenCalledWith({ lastVideoLink: newerUrl, downloadCount: 6 });
       });
 
+      it('consumes a queued retry for a Twitch subscription', async () => {
+        // A Twitch backfill queues retries like any other, and the check used
+        // to return at the Twitch branch before reading them, so every row it
+        // created stayed unconsumed forever.
+        const twitchSub = { ...sub, platform: 'Twitch', subscriptionType: 'channel' };
+        mockBuilder.then = (cb: any) => Promise.resolve([twitchSub]).then(cb);
+        // Reset first: the block's beforeEach has already queued a once-value
+        // for the playlist fixture, and merely adding to that queue would leave
+        // this batch behind for whichever test runs next.
+        vi.mocked(listVideoRetries).mockReset();
+        vi.mocked(listVideoRetries)
+          .mockReturnValueOnce([
+            { subscriptionId: twitchSub.id, videoUrl: failedUrl, createdAt: 1, lastAttemptAt: 0 },
+          ])
+          .mockReturnValue([]);
+
+        await subscriptionService.checkSubscriptions();
+
+        expect(downloadService.downloadYouTubeVideo).toHaveBeenCalledWith(
+          failedUrl,
+          expect.anything()
+        );
+        expect(removeVideoRetry).toHaveBeenCalledWith(twitchSub.id, failedUrl);
+      });
+
       it('keeps the retry when the collection it should join is gone', async () => {
         // addVideoToCollection answers null for a deleted collection rather
         // than throwing, so settling on it would drop the retry for a video the
