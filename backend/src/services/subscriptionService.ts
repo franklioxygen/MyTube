@@ -1084,6 +1084,22 @@ export class SubscriptionService {
           );
 
         if (latestShortUrl && latestShortUrl !== sub.lastShortVideoLink) {
+          // The Shorts backfill task runs under this same subscription id, so a
+          // Short it failed on is queued as a plain URL with nothing to mark it
+          // as a Short - and the retry batch above, which only ever moves the
+          // video cursor, may already have downloaded it earlier in this very
+          // check. Settling media we hold, rather than fetching a second copy,
+          // is what the main loop does for its own head and is what keeps that
+          // recovery from landing twice.
+          if (this.getExistingSubscriptionVideo(sub, latestShortUrl)) {
+            logger.info(
+              "Subscription short is already downloaded; advancing cursor without re-downloading",
+              getSubscriptionLogContext(sub, { latestShortUrl })
+            );
+            await this.advanceVideoCursor(sub, latestShortUrl, "short");
+            return;
+          }
+
           logger.info(
             "New short found for subscription",
             getSubscriptionLogContext(sub, { latestShortUrl })
@@ -1354,11 +1370,17 @@ export class SubscriptionService {
   /** Move the feed cursor without recording a download. */
   private async advanceVideoCursor(
     sub: Subscription,
-    videoUrl: string
+    videoUrl: string,
+    kind: "video" | "short" = "video"
   ): Promise<void> {
     await db
       .update(subscriptions)
-      .set({ lastVideoLink: videoUrl, lastCheck: Date.now() })
+      .set({
+        ...(kind === "short"
+          ? { lastShortVideoLink: videoUrl }
+          : { lastVideoLink: videoUrl }),
+        lastCheck: Date.now(),
+      })
       .where(eq(subscriptions.id, sub.id));
   }
 

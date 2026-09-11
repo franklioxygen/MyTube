@@ -860,6 +860,45 @@ describe('SubscriptionService', () => {
         expect(queueVideoRetry).toHaveBeenCalledWith(sub.id, failedUrl);
       });
 
+      it('does not download a Short twice when the retry batch recovered it', async () => {
+        // The Shorts backfill task shares this subscription id, so a failed
+        // Short is queued as a plain URL. The retry batch downloads it and only
+        // moves the video cursor, so the Shorts probe in the same check would
+        // see an unchanged Shorts cursor and fetch a second copy.
+        const shortUrl = 'https://www.youtube.com/shorts/recovered';
+        const shortsSub = {
+          ...sub,
+          subscriptionType: 'channel',
+          collectionId: undefined,
+          downloadShorts: 1,
+          lastShortVideoLink: 'https://www.youtube.com/shorts/old',
+        };
+        mockBuilder.then = (cb: any) => Promise.resolve([shortsSub]).then(cb);
+        vi.mocked(listVideoRetries).mockReset();
+        vi.mocked(listVideoRetries)
+          .mockReturnValueOnce([
+            { subscriptionId: shortsSub.id, videoUrl: shortUrl, createdAt: 1, lastAttemptAt: 0 },
+          ])
+          .mockReturnValue([]);
+        vi.mocked(YtDlpDownloader.getLatestVideoUrl).mockResolvedValue(null as any);
+        vi.mocked(YtDlpDownloader.getLatestShortsUrl).mockResolvedValue(shortUrl);
+        // Absent for the retry download, present for the Shorts probe after it.
+        vi.mocked(storageService.getVideoBySourceUrl)
+          .mockReturnValueOnce(undefined as any)
+          .mockReturnValue({ id: 'recovered-short' } as any);
+
+        await subscriptionService.checkSubscriptions();
+
+        expect(
+          vi.mocked(downloadService.downloadYouTubeVideo).mock.calls.filter(
+            (call) => call[0] === shortUrl
+          )
+        ).toHaveLength(1);
+        expect(mockBuilder.set).toHaveBeenCalledWith(
+          expect.objectContaining({ lastShortVideoLink: shortUrl })
+        );
+      });
+
       it('keeps the retry when the collection it should join is gone', async () => {
         // addVideoToCollection answers null for a deleted collection rather
         // than throwing, so settling on it would drop the retry for a video the
