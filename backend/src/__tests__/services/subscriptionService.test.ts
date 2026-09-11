@@ -1,4 +1,4 @@
-import { listVideoRetries, removeVideoRetry } from '../../services/subscription/videoRetries';
+import { listVideoRetries, queueVideoRetry, removeVideoRetry } from '../../services/subscription/videoRetries';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import cron from 'node-cron';
 import { db } from '../../db';
@@ -15,6 +15,7 @@ import { executeYtDlpJson, getEffectiveUserYtDlpConfig } from '../../utils/ytDlp
 vi.mock('../../services/subscription/videoRetries', () => ({
   listVideoRetries: vi.fn().mockReturnValue([]),
   markVideoRetryAttempted: vi.fn(),
+  queueVideoRetry: vi.fn(),
   removeVideoRetry: vi.fn(),
 }));
 
@@ -843,6 +844,22 @@ describe('SubscriptionService', () => {
         );
       });
 
+      it('queues a downloaded head whose bookkeeping threw', async () => {
+        // The media is saved but nothing after it ran: no collection
+        // membership, and a fresh head has no retry row. A newer head arriving
+        // before the next check would leave this one untargeted for good.
+        let updateCalls = 0;
+        mockBuilder.set = vi.fn(() => {
+          updateCalls += 1;
+          if (updateCalls === 2) throw new Error('database is locked');
+          return mockBuilder;
+        });
+
+        await subscriptionService.checkSubscriptions();
+
+        expect(queueVideoRetry).toHaveBeenCalledWith(sub.id, failedUrl);
+      });
+
       it('keeps the retry when the collection it should join is gone', async () => {
         // addVideoToCollection answers null for a deleted collection rather
         // than throwing, so settling on it would drop the retry for a video the
@@ -934,6 +951,37 @@ describe('SubscriptionService', () => {
       await subscriptionService.checkSubscriptions();
       expect(vi.mocked(downloadService.downloadYouTubeVideo).mock.calls.map(call => call[0])).toEqual(['short-video']);
       expect(mockBuilder.set).toHaveBeenCalledWith({ lastShortVideoLink: 'short-video', downloadCount: 3 });
+    });
+
+    it('does not count a watcher\'s discovered playlists as downloads', async () => {
+      // checkChannelPlaylists returns child subscriptions created, which is a
+      // meaningful event count but not a download of anything.
+      const sub = {
+        id: 'watcher-count',
+        author: 'Watcher',
+        platform: 'YouTube',
+        authorUrl: 'https://www.youtube.com/@watcher/playlists',
+        interval: 60,
+        lastCheck: 0,
+        subscriptionType: 'channel_playlists',
+        downloadCount: 4,
+      };
+      mockBuilder.then = (cb: any) => Promise.resolve([sub]).then(cb);
+      // Restored: a spy left in place would stand in for the real watcher in
+      // every later test in this file.
+      const watcherSpy = vi
+        .spyOn(subscriptionService as any, 'checkChannelPlaylists')
+        .mockResolvedValue(3);
+
+      try {
+        await subscriptionService.checkSubscriptions();
+      } finally {
+        watcherSpy.mockRestore();
+      }
+
+      expect(mockBuilder.set).not.toHaveBeenCalledWith(
+        expect.objectContaining({ downloadCount: expect.anything() })
+      );
     });
 
     it('updates lastCheck when a playlist probe fails to back off retries', async () => {

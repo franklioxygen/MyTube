@@ -600,7 +600,12 @@ export class SubscriptionService {
   private async recordSubscriptionCheckCompleted(
     sub: Subscription,
     status: "success" | "fail",
-    options: { newVideoCount?: number; failureReason?: string | null } = {}
+    options: {
+      newVideoCount?: number;
+      /** Media actually downloaded, which `newVideoCount` is not for a watcher. */
+      downloadedCount?: number;
+      failureReason?: string | null;
+    } = {}
   ): Promise<void> {
     // Carried on this last write as well as on each per-target one. Both
     // compute the same total from the same pre-check base, so restating it here
@@ -609,8 +614,8 @@ export class SubscriptionService {
     // lost for good: the next check finds the media present and settles the
     // retry through the existing-video path, which has no increment to make up.
     const settledDownloadCount =
-      options.newVideoCount && options.newVideoCount > 0
-        ? { downloadCount: (sub.downloadCount || 0) + options.newVideoCount }
+      options.downloadedCount && options.downloadedCount > 0
+        ? { downloadCount: (sub.downloadCount || 0) + options.downloadedCount }
         : {};
 
     try {
@@ -831,7 +836,7 @@ export class SubscriptionService {
         const existingVideo = this.getExistingSubscriptionVideo(sub, videoUrl);
         if (existingVideo) {
           if (!this.linkSubscriptionVideoToCollection(sub, existingVideo.id, videoUrl)) {
-            this.recordCollectionLinkFailure(sub, videoUrl);
+            this.queueRetryForUnsettledVideo(sub, videoUrl);
             checkStatus = "fail";
             checkFailureReason = bucketDownloadError(
               COLLECTION_LINK_FAILURE_REASON
@@ -943,7 +948,7 @@ export class SubscriptionService {
             ) {
               removeVideoRetry(sub.id, videoUrl);
             } else {
-              this.recordCollectionLinkFailure(sub, videoUrl);
+              this.queueRetryForUnsettledVideo(sub, videoUrl);
               checkStatus = "fail";
               checkFailureReason = bucketDownloadError(
                 COLLECTION_LINK_FAILURE_REASON
@@ -966,6 +971,11 @@ export class SubscriptionService {
           );
 
           if (videoDownloaded) {
+            // The media is saved but nothing after it ran - no collection
+            // membership, and for a fresh head no retry row either. Queue it,
+            // or a newer head arriving before the next check would leave this
+            // one untargeted and its membership never repaired.
+            this.queueRetryForUnsettledVideo(sub, videoUrl);
             checkStatus = "fail";
             checkFailureReason = bucketDownloadError(errorMessage);
             logger.error(
@@ -1233,6 +1243,12 @@ export class SubscriptionService {
       try {
         await this.recordSubscriptionCheckCompleted(sub, checkStatus, {
           newVideoCount: checkNewVideoCount,
+          // A playlists watcher counts the child subscriptions it discovered,
+          // which is a meaningful event count but not a download of anything.
+          downloadedCount:
+            sub.subscriptionType === "channel_playlists"
+              ? 0
+              : checkNewVideoCount,
           failureReason: checkFailureReason,
         });
       } catch {
@@ -1253,16 +1269,17 @@ export class SubscriptionService {
   }
 
   /**
-   * Queue the video for another attempt after its collection membership could
-   * not be created.
+   * Queue the video for another attempt after something left it unsettled -
+   * its collection membership could not be created, or the bookkeeping that
+   * follows the download threw.
    *
-   * A feed head reaches this without a retry row of its own, and its cursor has
-   * already advanced by the time the link is attempted - the download itself
-   * succeeded - so the next check would filter it out as "not new" and the
-   * collection would be permanently short one video it actually holds. Queuing
-   * is idempotent, so a target that arrived from the retry table simply stays.
+   * A feed head reaches these paths without a retry row of its own, and its
+   * cursor may already have advanced, so the next check would filter it out as
+   * "not new" and the collection would be permanently short one video it
+   * actually holds. Queuing is idempotent, so a target that arrived from the
+   * retry table simply stays.
    */
-  private recordCollectionLinkFailure(sub: Subscription, videoUrl: string): void {
+  private queueRetryForUnsettledVideo(sub: Subscription, videoUrl: string): void {
     try {
       queueVideoRetry(sub.id, videoUrl);
     } catch (error) {
