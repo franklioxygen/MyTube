@@ -11,8 +11,10 @@ import {
 import {
     extractBilibiliVideoId,
     extractBilibiliMid,
+    bilibiliPartSourceUrlAliases,
     extractTwitchChannelLogin,
     isBilibiliSpaceUrl,
+    isBilibiliUrl,
     isTwitchChannelUrl,
     isYouTubeUrl,
     normalizeTwitchChannelUrl,
@@ -1233,10 +1235,26 @@ export class SubscriptionService {
     const { audioOnly } = resolveDownloadAudioMode({
       userConfig: getEffectiveUserYtDlpConfig(videoUrl, sub.ytdlpConfig),
     });
-    return storageService.getVideoBySourceUrl(
-      videoUrl,
-      audioOnly ? "audio" : "video"
-    );
+    const mediaType = audioOnly ? "audio" : "video";
+
+    // An all-parts Bilibili download stores part one as `...?p=1` while the
+    // playlist probe hands back the bare `/video/BV...`. An exact lookup misses
+    // that, so the check would enqueue a download the Bilibili downloader then
+    // recognises as a redownload of the same part - the duplicate this guard
+    // exists to prevent. Same alias set the download preflights already use.
+    for (const candidateUrl of isBilibiliUrl(videoUrl)
+      ? bilibiliPartSourceUrlAliases(videoUrl)
+      : [videoUrl]) {
+      const existing = storageService.getVideoBySourceUrl(
+        candidateUrl,
+        mediaType
+      );
+      if (existing) {
+        return existing;
+      }
+    }
+
+    return undefined;
   }
 
   /**

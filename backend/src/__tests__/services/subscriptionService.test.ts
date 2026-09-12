@@ -791,6 +791,37 @@ describe('SubscriptionService', () => {
       ).toEqual(['short-video']);
     });
 
+    it('settles a Bilibili head stored under its part-one alias', async () => {
+      // An all-parts download stores part one as `...?p=1` while the probe
+      // returns the bare URL. An exact lookup misses it, so the check would
+      // enqueue a download the Bilibili downloader then redownloads as the
+      // same part.
+      const bare = 'https://www.bilibili.com/video/BV1xx';
+      const sub = {
+        id: 'bili-alias-sub',
+        author: 'Bili Author',
+        platform: 'Bilibili',
+        authorUrl: 'https://space.bilibili.com/123',
+        interval: 60,
+        lastCheck: 0,
+        lastVideoLink: null,
+        subscriptionType: 'channel',
+      };
+
+      mockBuilder.then = (cb: any) => Promise.resolve([sub]).then(cb);
+      vi.mocked(BilibiliDownloader.getLatestVideoUrl).mockResolvedValue(bare);
+      (storageService.getVideoBySourceUrl as any).mockImplementation(
+        (url: string) => (url === `${bare}?p=1` ? { id: 'existing-part' } : undefined)
+      );
+
+      await subscriptionService.checkSubscriptions();
+
+      expect(downloadService.downloadSingleBilibiliPart).not.toHaveBeenCalled();
+      expect(mockBuilder.set).toHaveBeenCalledWith(
+        expect.objectContaining({ lastVideoLink: bare })
+      );
+    });
+
     it('advances the cursor without re-downloading a head it already holds', async () => {
       // A backfill failure clears the cursor so the check retries that video.
       // If the item is present by then - downloaded some other way - the retry
