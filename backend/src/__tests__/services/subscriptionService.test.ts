@@ -11,6 +11,13 @@ import { subscriptionService } from '../../services/subscriptionService';
 import { TelegramService } from '../../services/telegramService';
 import { executeYtDlpJson } from '../../utils/ytDlpUtils';
 
+const backfillOrderMock = vi.hoisted(() => vi.fn());
+vi.mock('../../services/continuousDownload/taskRepository', () => ({
+  TaskRepository: class {
+    getBackfillDownloadOrder = backfillOrderMock;
+  },
+}));
+
 // Test setup
 vi.mock('../../db', () => ({
   db: {
@@ -114,6 +121,8 @@ describe('SubscriptionService', () => {
     (storageService.addVideoToCollection as any).mockReturnValue({
       id: 'collection-1',
     });
+
+    backfillOrderMock.mockResolvedValue(null);
 
     (db.select as any).mockReturnValue(mockBuilder);
     (db.insert as any).mockReturnValue(mockBuilder);
@@ -723,7 +732,71 @@ describe('SubscriptionService', () => {
 
       expect(storageService.addVideoToCollection).toHaveBeenCalledWith(
         'collection-1',
-        'existing-video'
+        'existing-video',
+        { order: undefined }
+      );
+    });
+
+    it('puts a recovered head at the front of a dateDesc collection', async () => {
+      // The head is the newest item and the backfill appended as it went, so a
+      // dateDesc collection runs newest-first; appending would park the newest
+      // video behind every older one.
+      const sub = {
+        id: 'order-sub',
+        author: 'Playlist Author',
+        platform: 'YouTube',
+        authorUrl: 'https://www.youtube.com/playlist?list=PLX',
+        interval: 60,
+        lastCheck: 0,
+        lastVideoLink: null,
+        subscriptionType: 'playlist',
+        collectionId: 'collection-1',
+      };
+
+      mockBuilder.then = (cb: any) => Promise.resolve([sub]).then(cb);
+      (executeYtDlpJson as any).mockResolvedValue({ entries: [{ id: 'already' }] });
+      (storageService.getVideoBySourceUrl as any).mockReturnValueOnce({
+        id: 'existing-video',
+      });
+      backfillOrderMock.mockResolvedValue('dateDesc');
+
+      await subscriptionService.checkSubscriptions();
+
+      expect(storageService.addVideoToCollection).toHaveBeenCalledWith(
+        'collection-1',
+        'existing-video',
+        { order: 1 }
+      );
+    });
+
+    it('keeps appending a recovered head for the other backfill orders', async () => {
+      // dateAsc already appends correctly, and the view-count orders depend on
+      // a value this cannot know, so those keep the append.
+      const sub = {
+        id: 'order-asc-sub',
+        author: 'Playlist Author',
+        platform: 'YouTube',
+        authorUrl: 'https://www.youtube.com/playlist?list=PLX',
+        interval: 60,
+        lastCheck: 0,
+        lastVideoLink: null,
+        subscriptionType: 'playlist',
+        collectionId: 'collection-1',
+      };
+
+      mockBuilder.then = (cb: any) => Promise.resolve([sub]).then(cb);
+      (executeYtDlpJson as any).mockResolvedValue({ entries: [{ id: 'already' }] });
+      (storageService.getVideoBySourceUrl as any).mockReturnValueOnce({
+        id: 'existing-video',
+      });
+      backfillOrderMock.mockResolvedValue('dateAsc');
+
+      await subscriptionService.checkSubscriptions();
+
+      expect(storageService.addVideoToCollection).toHaveBeenCalledWith(
+        'collection-1',
+        'existing-video',
+        { order: undefined }
       );
     });
 

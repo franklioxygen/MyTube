@@ -6,6 +6,7 @@ import type { Subscription } from "../subscription/types";
 import {
   ContinuousDownloadTask,
   ContinuousTaskRuntimeState,
+  type DownloadOrder,
   parseDownloadOrder,
 } from "./types";
 import { parseOrderingPlanningFailure } from "./planningErrors";
@@ -314,6 +315,33 @@ export class TaskRepository {
     const { task, playlistName } = result[0];
 
     return mapTaskRowToEntity(task, playlistName);
+  }
+
+  /**
+   * The order the backfill for this subscription destination was built in,
+   * from the most recent task regardless of status.
+   *
+   * `getBlockingPlaylistTaskByDestination` deliberately ignores terminal tasks,
+   * but a recovered video is settled long after its backfill has completed, and
+   * placing it in the collection needs the order that backfill used.
+   */
+  async getBackfillDownloadOrder(
+    subscriptionId: string,
+    collectionId: string
+  ): Promise<DownloadOrder | null> {
+    const rows = await db
+      .select({ downloadOrder: continuousDownloadTasks.downloadOrder })
+      .from(continuousDownloadTasks)
+      .where(
+        and(
+          eq(continuousDownloadTasks.subscriptionId, subscriptionId),
+          eq(continuousDownloadTasks.collectionId, collectionId)
+        )
+      )
+      .orderBy(desc(continuousDownloadTasks.createdAt))
+      .limit(1);
+
+    return rows.length > 0 ? parseDownloadOrder(rows[0].downloadOrder) : null;
   }
 
   /**

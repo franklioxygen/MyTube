@@ -799,7 +799,11 @@ export class SubscriptionService {
         // Linked first: the cursor may only move past a video the collection
         // has actually received.
         if (
-          this.linkExistingHeadToCollection(sub, existingHead.id, latestVideoUrl)
+          await this.linkExistingHeadToCollection(
+            sub,
+            existingHead.id,
+            latestVideoUrl
+          )
         ) {
           logger.info(
             "Subscription head is already downloaded; advancing cursor without re-downloading",
@@ -1267,11 +1271,46 @@ export class SubscriptionService {
    * rather than throwing - so the caller can leave the cursor where it is and
    * let the next check try again.
    */
-  private linkExistingHeadToCollection(
+  /**
+   * Where a recovered head belongs in its collection.
+   *
+   * The head is the newest item, and the backfill appended as it went, so a
+   * `dateDesc` collection runs newest-first and the head belongs at the front -
+   * appending it there would put the newest video behind every older one. Every
+   * other order either already appends correctly (`dateAsc`) or depends on a
+   * value this cannot know (the view-count orders), so those keep appending.
+   */
+  private async resolveRecoveredHeadOrder(
+    sub: Subscription
+  ): Promise<number | undefined> {
+    if (!sub.collectionId) {
+      return undefined;
+    }
+
+    try {
+      const { TaskRepository } = await import(
+        "./continuousDownload/taskRepository"
+      );
+      const downloadOrder = await new TaskRepository().getBackfillDownloadOrder(
+        sub.id,
+        sub.collectionId
+      );
+      return downloadOrder === "dateDesc" ? 1 : undefined;
+    } catch (error) {
+      // Placement is a presentation detail; never let it cost the link itself.
+      logger.warn(
+        "Could not resolve the backfill order for a recovered head; appending",
+        error
+      );
+      return undefined;
+    }
+  }
+
+  private async linkExistingHeadToCollection(
     sub: Subscription,
     videoId: string | undefined,
     videoUrl: string
-  ): boolean {
+  ): Promise<boolean> {
     if (sub.subscriptionType !== "playlist" || !sub.collectionId) {
       return true;
     }
@@ -1283,8 +1322,14 @@ export class SubscriptionService {
       return false;
     }
 
+    const order = await this.resolveRecoveredHeadOrder(sub);
+
     try {
-      if (!storageService.addVideoToCollection(sub.collectionId, videoId)) {
+      if (
+        !storageService.addVideoToCollection(sub.collectionId, videoId, {
+          order,
+        })
+      ) {
         logger.error(
           "Subscription collection is missing; leaving the cursor for the next check",
           getSubscriptionLogContext(sub, { videoUrl })
