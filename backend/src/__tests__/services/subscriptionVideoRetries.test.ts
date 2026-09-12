@@ -4,6 +4,7 @@ import { mkdtempSync, readFileSync, rmSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { backfillSubscriptionRetryIdentity } from "../../db/subscriptionRetryIdentity";
 
 const mocks = vi.hoisted(() => ({ db: undefined as any }));
 vi.mock("../../db", () => ({ get db() { return mocks.db; } }));
@@ -20,6 +21,7 @@ describe("subscription video retry persistence", () => {
     sqlite.pragma("foreign_keys = ON");
     sqlite.exec("CREATE TABLE subscriptions (id TEXT PRIMARY KEY, last_video_link TEXT)");
     sqlite.exec(readFileSync("drizzle/0029_subscription_video_retries.sql", "utf8"));
+    sqlite.exec(readFileSync("drizzle/0030_subscription_retry_identity.sql", "utf8"));
     sqlite.exec("INSERT INTO subscriptions VALUES ('sub', 'newer'), ('other', 'other-head')");
     mocks.db = drizzle(sqlite);
   });
@@ -80,5 +82,38 @@ describe("subscription video retry persistence", () => {
     expect(getVideoRetry("sub", "same-url")?.mediaPlaylistIndex).toBe(7);
     expect(getVideoRetry("other", "same-url")?.mediaPlaylistIndex).toBe(2);
     expect(getVideoRetry("sub", "missing")).toBeUndefined();
+  });
+
+  it("deduplicates new aliases while keeping the first URL and backfill position", () => {
+    const watchUrl = "https://www.youtube.com/watch?v=same-id&feature=share";
+    const shortUrl = "https://www.youtube.com/shorts/same-id";
+    queueVideoRetry("sub", watchUrl, 7);
+    queueVideoRetry("sub", shortUrl, 2);
+    expect(listVideoRetries("sub")).toHaveLength(1);
+    expect(getVideoRetry("sub", shortUrl)).toMatchObject({ videoUrl: watchUrl, mediaPlaylistIndex: 7 });
+  });
+
+  it("upgrades legacy aliases and settles all spellings after database reconnection", () => {
+    sqlite.exec("DROP TABLE subscription_video_retries");
+    sqlite.exec(readFileSync("drizzle/0029_subscription_video_retries.sql", "utf8"));
+    const insert = sqlite.prepare(`INSERT INTO subscription_video_retries
+      (subscription_id, video_url, created_at, media_playlist_index) VALUES (?, ?, ?, ?)`);
+    const watchUrl = "https://www.youtube.com/watch?feature=share&v=same-id";
+    const shortUrl = "https://www.youtube.com/shorts/same-id";
+    insert.run("sub", watchUrl, 1, 7);
+    insert.run("sub", shortUrl, 2, 2);
+    insert.run("other", shortUrl, 1, 3);
+    sqlite.exec(readFileSync("drizzle/0030_subscription_retry_identity.sql", "utf8"));
+    backfillSubscriptionRetryIdentity(sqlite);
+    backfillSubscriptionRetryIdentity(sqlite);
+    sqlite.close();
+    sqlite = new Database(databasePath);
+    mocks.db = drizzle(sqlite);
+    expect(getVideoRetry("sub", shortUrl)).toMatchObject({ videoUrl: watchUrl, mediaPlaylistIndex: 7 });
+    markVideoRetryAttempted("sub", shortUrl);
+    expect(listVideoRetries("sub").every(row => row.lastAttemptAt > 0)).toBe(true);
+    removeVideoRetry("sub", "https://youtu.be/same-id");
+    expect(listVideoRetries("sub")).toEqual([]);
+    expect(getVideoRetry("other", watchUrl)).toBeDefined();
   });
 });

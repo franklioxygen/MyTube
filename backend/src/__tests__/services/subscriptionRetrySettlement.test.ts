@@ -3,7 +3,11 @@ import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { subscriptions } from "../../db/schema";
+import { subscriptions, videos } from "../../db/schema";
+import { getVideoByYouTubeId } from "../../services/storageService/videoQueries";
+import { getLatestShortsUrl } from "../../services/downloaders/ytdlp/ytdlpChannel";
+import { migrateColumnsAndTables, migrateTagsColumn } from "../../services/storageService/migrations/schemaMigrations";
+import { youtubeVideoId } from "../../utils/videoIdentity";
 import { YtDlpDownloader } from "../../services/downloaders/YtDlpDownloader";
 import * as downloadService from "../../services/downloadService";
 import * as storageService from "../../services/storageService";
@@ -12,8 +16,8 @@ import { subscriptionService, Subscription } from "../../services/subscriptionSe
 import { getVideoRetry, listVideoRetries, queueVideoRetry } from "../../services/subscription/videoRetries";
 import { executeYtDlpJson, getEffectiveUserYtDlpConfig } from "../../utils/ytDlpUtils";
 
-const mocks = vi.hoisted(() => ({ db: undefined as any }));
-vi.mock("../../db", () => ({ get db() { return mocks.db; } }));
+const mocks = vi.hoisted(() => ({ db: undefined as any, sqlite: undefined as any }));
+vi.mock("../../db", () => ({ get db() { return mocks.db; }, get sqlite() { return mocks.sqlite; } }));
 vi.mock("../../services/downloadService");
 vi.mock("../../services/storageService");
 vi.mock("../../services/downloaders/YtDlpDownloader");
@@ -61,8 +65,11 @@ describe("subscription settlement across checks with SQLite", () => {
     media.clear();
     sqlite = new Database(":memory:");
     sqlite.pragma("foreign_keys = ON");
+    mocks.sqlite = sqlite;
     mocks.db = drizzle(sqlite);
     migrate(mocks.db, { migrationsFolder: "drizzle" });
+    migrateTagsColumn();
+    migrateColumnsAndTables();
     mocks.db.insert(subscriptions).values({
       id: "sub", author: "Author", authorUrl: "https://www.youtube.com/@author",
       interval: 60, createdAt: 1, downloadShorts: 1,
@@ -71,10 +78,15 @@ describe("subscription settlement across checks with SQLite", () => {
     vi.mocked(YtDlpDownloader.getLatestVideoUrl).mockResolvedValue(null);
     vi.mocked(YtDlpDownloader.getLatestShortsUrl).mockResolvedValue(shortUrl);
     vi.mocked(storageService.getVideoBySourceUrl).mockImplementation(url => media.get(url));
+    vi.mocked(storageService.getVideoByYouTubeId).mockImplementation(getVideoByYouTubeId);
     vi.mocked(storageService.addVideoToCollection).mockReturnValue({ id: "collection" } as any);
     vi.mocked(downloadService.downloadYouTubeVideo).mockImplementation(async url => {
       const videoData = { id: url, title: "Downloaded" };
       media.set(url, videoData);
+      mocks.db.insert(videos).values({
+        ...videoData, sourceUrl: url, sourceVideoId: youtubeVideoId(url),
+        source: "youtube", createdAt: "1", mediaType: "video",
+      }).onConflictDoNothing().run();
       return { videoData } as any;
     });
   });
@@ -215,5 +227,115 @@ describe("subscription settlement across checks with SQLite", () => {
     expect(getVideoRetry("sub", shortUrl)).toBeUndefined();
     expect(readSubscription().downloadCount).toBe(6);
     expect(attempts(shortUrl)).toHaveLength(1);
+  });
+
+  describe.each([
+    "https://www.youtube.com/watch?v=latest",
+    "https://youtu.be/latest?si=share",
+    "https://m.youtube.com/watch?feature=share&v=latest&t=30",
+  ])("YouTube retry URL %s", retryUrl => {
+    describe.each([false, true])("outside retry batch: %s", outsideBatch => {
+      it.each(["download", "skip", "failure", "existing"])(
+        "shares %s settlement with its canonical Shorts head across checks",
+        async outcome => {
+          if (outsideBatch) {
+            for (let i = 0; i < 5; i++) queueVideoRetry("sub", `https://www.youtube.com/watch?v=batch-${i}`);
+          }
+          queueVideoRetry("sub", retryUrl, 7);
+          sqlite.prepare("UPDATE subscription_video_retries SET created_at = ? WHERE video_url = ?").run(100, retryUrl);
+          sqlite.prepare("UPDATE subscription_video_retries SET created_at = 1 WHERE video_url <> ?").run(retryUrl);
+          if (outsideBatch) expect(listVideoRetries("sub").map(row => row.videoUrl)).not.toContain(retryUrl);
+          if (outcome === "existing") {
+            mocks.db.insert(videos).values({
+              id: "prior-download", title: "Existing", createdAt: "1", source: "youtube",
+              sourceUrl: retryUrl, sourceVideoId: "latest", mediaType: "video",
+            }).run();
+          }
+          const download = vi.mocked(downloadService.downloadYouTubeVideo).getMockImplementation()!;
+          vi.mocked(downloadService.downloadYouTubeVideo).mockImplementation(async (url, options) => {
+            if (youtubeVideoId(url) === "latest") {
+              if (outcome === "skip") throw membersOnly;
+              if (outcome === "failure") throw new Error("timed out");
+            }
+            return download(url, options);
+          });
+          await check();
+          const targetAttempts = () => vi.mocked(downloadService.downloadYouTubeVideo).mock.calls
+            .filter(([url]) => youtubeVideoId(url) === "latest");
+          expect(targetAttempts()).toHaveLength(outcome === "existing" ? 0 : 1);
+          if (outcome === "failure") {
+            expect(getVideoRetry("sub", shortUrl)).toBeDefined();
+            expect(readSubscription().lastShortVideoLink).toBe(oldShortUrl);
+          } else {
+            expect(getVideoRetry("sub", retryUrl)).toBeUndefined();
+            expect(readSubscription().lastShortVideoLink).toBe(shortUrl);
+            await check();
+            expect(targetAttempts()).toHaveLength(outcome === "existing" ? 0 : 1);
+          }
+          if (outcome === "download") {
+            expect(targetAttempts()[0][1]).toMatchObject({
+              filenameTemplateSourceOptions: { mediaPlaylistIndex: 7 },
+            });
+          }
+        }
+      );
+    });
+
+    it("keeps the retry when the real Shorts probe swallows an extraction error", async () => {
+      queueVideoRetry("sub", retryUrl);
+      vi.mocked(YtDlpDownloader.getLatestShortsUrl).mockImplementation(getLatestShortsUrl);
+      vi.mocked(executeYtDlpJson).mockRejectedValue(new Error("extraction timed out"));
+      vi.mocked(downloadService.downloadYouTubeVideo).mockRejectedValue(membersOnly);
+      await check();
+      expect(getVideoRetry("sub", retryUrl)).toBeDefined();
+      expect(history(retryUrl)).toHaveLength(0);
+      expect(readSubscription().lastShortVideoLink).toBe(oldShortUrl);
+
+      vi.mocked(executeYtDlpJson).mockResolvedValue({ entries: [{ id: "latest" }] });
+      await check();
+      expect(getVideoRetry("sub", retryUrl)).toBeUndefined();
+      expect(readSubscription().lastShortVideoLink).toBe(shortUrl);
+      expect(history(retryUrl)).toHaveLength(1);
+      await check();
+      expect(history(retryUrl)).toHaveLength(1);
+    });
+  });
+
+  it("retains a canonical members-only Short when its probe returns null", async () => {
+    queueVideoRetry("sub", shortUrl);
+    vi.mocked(YtDlpDownloader.getLatestShortsUrl).mockResolvedValue(null);
+    vi.mocked(downloadService.downloadYouTubeVideo).mockRejectedValue(membersOnly);
+    await check();
+    expect(getVideoRetry("sub", shortUrl)).toBeDefined();
+    expect(history(shortUrl)).toHaveLength(0);
+    vi.mocked(YtDlpDownloader.getLatestShortsUrl).mockResolvedValue(shortUrl);
+    await check();
+    await check();
+    expect(history(shortUrl)).toHaveLength(1);
+    expect(getVideoRetry("sub", shortUrl)).toBeUndefined();
+  });
+
+  it("does not reprocess cursors when a probe changes only the URL spelling", async () => {
+    mocks.db.update(subscriptions).set({
+      lastVideoLink: "https://youtu.be/main?si=share",
+      lastShortVideoLink: "https://www.youtube.com/watch?v=latest",
+    }).run();
+    vi.mocked(YtDlpDownloader.getLatestVideoUrl).mockResolvedValue("https://www.youtube.com/watch?v=main");
+    await check();
+    expect(downloadService.downloadYouTubeVideo).not.toHaveBeenCalled();
+  });
+
+  it("keeps alias library lookups scoped to the platform and effective media type", () => {
+    mocks.db.insert(videos).values([
+      { id: "yt-audio", title: "Audio", createdAt: "1", sourceUrl: "https://youtu.be/latest?si=share", sourceVideoId: "latest", mediaType: "audio" },
+      { id: "other-video", title: "Other", createdAt: "1", sourceUrl: "https://example.com/latest", sourceVideoId: "latest", mediaType: "video" },
+    ]).run();
+    expect(getVideoByYouTubeId("latest", "video")).toBeUndefined();
+    expect(getVideoByYouTubeId("latest", "audio")?.id).toBe("yt-audio");
+    mocks.db.insert(videos).values({
+      id: "legacy-video", title: "Legacy", createdAt: "1",
+      sourceUrl: "https://www.youtube.com/watch?v=latest", sourceVideoId: null, mediaType: null,
+    }).run();
+    expect(getVideoByYouTubeId("latest", "video")?.id).toBe("legacy-video");
   });
 });

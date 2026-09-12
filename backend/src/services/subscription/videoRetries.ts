@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "../../db";
 import { subscriptions, subscriptionVideoRetries } from "../../db/schema";
+import { videoIdentity } from "../../utils/videoIdentity";
 
 /** Persist each failed URL independently; never rewind the feed cursor. */
 export function queueVideoRetry(
@@ -16,10 +17,18 @@ export function queueVideoRetry(
       .get();
     if (!subscription) return;
 
+    const videoKey = videoIdentity(videoUrl);
+    const existing = tx.select().from(subscriptionVideoRetries).where(and(
+      eq(subscriptionVideoRetries.subscriptionId, subscriptionId),
+      eq(subscriptionVideoRetries.videoKey, videoKey)
+    )).get();
+    if (existing) return;
+
     tx.insert(subscriptionVideoRetries)
       .values({
         subscriptionId,
         videoUrl,
+        videoKey,
         createdAt: Date.now(),
         mediaPlaylistIndex: mediaPlaylistIndex ?? null,
       })
@@ -41,9 +50,10 @@ export function getVideoRetry(subscriptionId: string, videoUrl: string) {
     .where(
       and(
         eq(subscriptionVideoRetries.subscriptionId, subscriptionId),
-        eq(subscriptionVideoRetries.videoUrl, videoUrl)
+        eq(subscriptionVideoRetries.videoKey, videoIdentity(videoUrl))
       )
     )
+    .orderBy(subscriptionVideoRetries.createdAt, subscriptionVideoRetries.videoUrl)
     .get();
 }
 
@@ -68,7 +78,7 @@ export function removeVideoRetry(subscriptionId: string, videoUrl: string): void
     .where(
       and(
         eq(subscriptionVideoRetries.subscriptionId, subscriptionId),
-        eq(subscriptionVideoRetries.videoUrl, videoUrl)
+        eq(subscriptionVideoRetries.videoKey, videoIdentity(videoUrl))
       )
     )
     .run();
@@ -84,7 +94,7 @@ export function markVideoRetryAttempted(
     .where(
       and(
         eq(subscriptionVideoRetries.subscriptionId, subscriptionId),
-        eq(subscriptionVideoRetries.videoUrl, videoUrl)
+        eq(subscriptionVideoRetries.videoKey, videoIdentity(videoUrl))
       )
     )
     .run();

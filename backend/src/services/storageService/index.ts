@@ -61,6 +61,7 @@ export {
     formatLegacyFilenames,
     getVideoById,
     getVideoBySourceUrl,
+    getVideoByYouTubeId,
     getVideos,
     getVideosStrict,
     getArtifactOwners,

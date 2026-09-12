@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { sameVideo, videoIdentity, youtubeVideoId } from "../utils/videoIdentity";
 import { ScheduledTask } from "node-cron";
 import { v4 as uuidv4 } from "uuid";
 import { db } from "../db";
@@ -66,14 +67,6 @@ import {
 } from "./subscription/twitchSubscription";
 
 export type { Subscription } from "./subscription/types";
-
-/**
- * Whether a URL is a YouTube Short, by the canonical form `getLatestShortsUrl`
- * produces. Used to tell which cursor a retry target belongs to.
- */
-function isYouTubeShortsUrl(videoUrl: string): boolean {
-  return /^https?:\/\/(www\.)?youtube\.com\/shorts\//i.test(videoUrl);
-}
 
 /** Bucketed reason for a check whose only failure was collection membership. */
 const COLLECTION_LINK_FAILURE_REASON = "Collection update failed";
@@ -843,31 +836,33 @@ export class SubscriptionService {
       // is named like the siblings it was queued alongside instead of falling
       // back to the renderer's index-less "00".
       const retryIndexByUrl = new Map(
-        retries.map((retry) => [
-          retry.videoUrl,
+        [...retries].reverse().map((retry) => [
+          videoIdentity(retry.videoUrl),
           retry.mediaPlaylistIndex ?? undefined,
         ])
       );
       const targets = [
-        ...new Set([
-          ...retryUrls,
-          ...(latestVideoUrl && latestVideoUrl !== sub.lastVideoLink
-            ? [latestVideoUrl]
-            : []),
-        ]),
+        ...retryUrls,
+        ...(latestVideoUrl && !sameVideo(latestVideoUrl, sub.lastVideoLink)
+          ? [latestVideoUrl]
+          : []),
       ];
       // What this check has already put a download attempt behind, so the
       // Shorts probe below can tell "nothing has touched this URL" from "the
       // retry batch already tried it and it failed".
       const attemptedTargets = new Set<string>();
+      const settledTargets = new Set<string>();
       // Each target is attempted once per interval, independently of the feed head.
       for (const videoUrl of targets) {
-        attemptedTargets.add(videoUrl);
+        const targetKey = videoIdentity(videoUrl);
+        if (attemptedTargets.has(targetKey)) continue;
+        attemptedTargets.add(targetKey);
         markVideoRetryAttempted(sub.id, videoUrl);
-        const isHead = videoUrl === latestVideoUrl;
-        const mediaPlaylistIndex = retryIndexByUrl.has(videoUrl)
-          ? retryIndexByUrl.get(videoUrl)
-          : getVideoRetry(sub.id, videoUrl)?.mediaPlaylistIndex ?? undefined;
+        const isHead = sameVideo(videoUrl, latestVideoUrl);
+        const storedRetry = getVideoRetry(sub.id, videoUrl);
+        const mediaPlaylistIndex = storedRetry
+          ? storedRetry.mediaPlaylistIndex ?? undefined
+          : retryIndexByUrl.get(targetKey);
         const existingVideo = this.getExistingSubscriptionVideo(sub, videoUrl);
         if (existingVideo) {
           if (!this.linkSubscriptionVideoToCollection(sub, existingVideo.id, videoUrl)) {
@@ -878,8 +873,9 @@ export class SubscriptionService {
             );
             continue;
           }
-          if (isHead) await this.advanceVideoCursor(sub, videoUrl);
+          if (isHead) await this.advanceVideoCursor(sub, latestVideoUrl!);
           removeVideoRetry(sub.id, videoUrl);
+          settledTargets.add(targetKey);
           continue;
         }
 
@@ -964,7 +960,7 @@ export class SubscriptionService {
           const updateResult = await db
             .update(subscriptions)
             .set({
-              ...(isHead ? { lastVideoLink: videoUrl } : {}),
+              ...(isHead ? { lastVideoLink: latestVideoUrl! } : {}),
               downloadCount: (sub.downloadCount || 0) + checkNewVideoCount,
             })
             .where(eq(subscriptions.id, sub.id))
@@ -983,6 +979,7 @@ export class SubscriptionService {
               this.linkSubscriptionVideoToCollection(sub, videoData.id, videoUrl)
             ) {
               removeVideoRetry(sub.id, videoUrl);
+              settledTargets.add(targetKey);
             } else {
               this.queueRetryForUnsettledVideo(sub, videoUrl);
               checkStatus = "fail";
@@ -1038,15 +1035,20 @@ export class SubscriptionService {
             // URL shape identifies the media kind, but only equality with the
             // probed head permits advancing its cursor. An older skipped retry
             // must never replace an already settled, newer Shorts cursor.
-            const isShortTarget = isYouTubeShortsUrl(videoUrl);
+            let isShortTarget = /^https?:\/\/(www\.)?youtube\.com\/shorts\//i.test(videoUrl);
             let isShortHead = false;
             if (
-              isShortTarget &&
+              youtubeVideoId(videoUrl) &&
               sub.downloadShorts === 1 &&
               sub.platform === "YouTube"
             ) {
               try {
-                isShortHead = videoUrl === (await getShortsHead());
+                const shortsHead = await getShortsHead();
+                if (!shortsHead) {
+                  throw new Error("Could not determine the Shorts head while settling a retry");
+                }
+                isShortHead = sameVideo(videoUrl, shortsHead);
+                isShortTarget ||= isShortHead;
               } catch (probeError) {
                 // Keep the target until we can settle the correct cursor,
                 // without blocking other retries or the main feed head.
@@ -1063,9 +1065,10 @@ export class SubscriptionService {
               isShortTarget ? isShortHead : isHead
             );
             if (isShortTarget && isHead) {
-              await this.advanceVideoCursor(sub, videoUrl);
+              await this.advanceVideoCursor(sub, latestVideoUrl!);
             }
             removeVideoRetry(sub.id, videoUrl);
+            settledTargets.add(targetKey);
           } else {
             logger.error(
               "Error downloading subscription video",
@@ -1139,7 +1142,14 @@ export class SubscriptionService {
         try {
           const latestShortUrl = await getShortsHead();
 
-        if (latestShortUrl && latestShortUrl !== sub.lastShortVideoLink) {
+        if (latestShortUrl && !sameVideo(latestShortUrl, sub.lastShortVideoLink)) {
+          const shortKey = videoIdentity(latestShortUrl);
+          if (settledTargets.has(shortKey)) {
+            await this.advanceVideoCursor(sub, latestShortUrl, "short");
+            removeVideoRetry(sub.id, latestShortUrl);
+            return;
+          }
+
           // The Shorts backfill task runs under this same subscription id, so a
           // Short it failed on is queued as a plain URL with nothing to mark it
           // as a Short - and the retry batch above, which only ever moves the
@@ -1175,7 +1185,7 @@ export class SubscriptionService {
           // it was skipped as unfetchable. Downloading again in the same check
           // buys nothing and doubles the failure history and notifications; the
           // interval is the backoff, as it is for every other target.
-          if (attemptedTargets.has(latestShortUrl)) {
+          if (attemptedTargets.has(shortKey)) {
             logger.info(
               "Subscription short was already attempted in this check; leaving it for the next one",
               getSubscriptionLogContext(sub, { latestShortUrl })
@@ -1380,10 +1390,13 @@ export class SubscriptionService {
     const { audioOnly } = resolveDownloadAudioMode({
       userConfig: getEffectiveUserYtDlpConfig(videoUrl, sub.ytdlpConfig),
     });
-    return storageService.getVideoBySourceUrl(
-      videoUrl,
-      audioOnly ? "audio" : "video"
-    );
+    const mediaType = audioOnly ? "audio" : "video";
+    const existing = storageService.getVideoBySourceUrl(videoUrl, mediaType);
+    if (existing) return existing;
+    const youtubeId = youtubeVideoId(videoUrl);
+    return youtubeId
+      ? storageService.getVideoByYouTubeId(youtubeId, mediaType)
+      : undefined;
   }
 
   /**

@@ -211,6 +211,13 @@
       "when": 1788986904184,
       "tag": "0029_subscription_video_retries",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "6",
+      "when": 1789220060223,
+      "tag": "0030_subscription_retry_identity",
+      "breakpoints": true
     }
   ]
 }

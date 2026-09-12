@@ -58,6 +58,10 @@ vi.mock("../../db", () => ({
   sqlite: { prepare: sqlitePrepareMock, exec: sqliteExecMock },
 }));
 
+vi.mock("../../db/subscriptionRetryIdentity", () => ({
+  backfillSubscriptionRetryIdentity: vi.fn(),
+}));
+
 vi.mock("../../services/migrationService", () => ({
   runMigration: runDataMigrationMock,
 }));

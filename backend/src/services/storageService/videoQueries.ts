@@ -1,8 +1,9 @@
-import { and, desc, eq, isNull, or } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, or } from "drizzle-orm";
 import { db } from "../../db";
 import { videos } from "../../db/schema";
 import { DatabaseError } from "../../errors/DownloadErrors";
 import { logger } from "../../utils/logger";
+import { youtubeVideoId } from "../../utils/videoIdentity";
 
 export type VideoCallerRole = "admin" | "visitor";
 
@@ -228,6 +229,36 @@ export function getVideoBySourceUrl(
       "getVideoBySourceUrl"
     );
   }
+}
+
+/** Find downloaded YouTube media across URL aliases using the source-ID index. */
+export function getVideoByYouTubeId(
+  sourceVideoId: string,
+  mediaType: import("./types").MediaType = "video"
+): import("./types").Video | undefined {
+  const candidates = db.select().from(videos).where(and(
+    or(
+      eq(videos.sourceVideoId, sourceVideoId),
+      // Legacy library rows may predate source_video_id persistence.
+      inArray(videos.sourceUrl, [
+        `https://www.youtube.com/watch?v=${sourceVideoId}`,
+        `https://www.youtube.com/shorts/${sourceVideoId}`,
+        `https://youtu.be/${sourceVideoId}`,
+      ])
+    ),
+    mediaType === "audio"
+      ? eq(videos.mediaType, "audio")
+      : or(eq(videos.mediaType, "video"), isNull(videos.mediaType))
+  )).all();
+  const result = candidates.find(video =>
+    youtubeVideoId(video.sourceUrl ?? "") === sourceVideoId
+  );
+  if (!result) return undefined;
+  return {
+    ...result,
+    tags: result.tags ? JSON.parse(result.tags) : [],
+    subtitles: result.subtitles ? JSON.parse(result.subtitles) : undefined,
+  } as import("./types").Video;
 }
 
 export function getVideoById(

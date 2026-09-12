@@ -13,6 +13,7 @@ import {
 } from "../utils/security";
 import { configureDatabase, db, sqlite } from "./index";
 import { logger } from "../utils/logger";
+import { backfillSubscriptionRetryIdentity } from "./subscriptionRetryIdentity";
 
 const DB_FILENAME = "mytube.db";
 
@@ -486,6 +487,12 @@ export async function runMigrations(options: RunMigrationsOptions = {}) {
       };
       addRetryColumn("last_attempt_at", "INTEGER NOT NULL DEFAULT 0");
       addRetryColumn("media_playlist_index", "INTEGER");
+      addRetryColumn("video_key", "TEXT");
+      backfillSubscriptionRetryIdentity(sqlite);
+
+      sqlite.exec(
+        "CREATE INDEX IF NOT EXISTS subscription_video_retries_identity_idx ON subscription_video_retries (subscription_id, video_key)"
+      );
 
       sqlite.exec(
         "CREATE INDEX IF NOT EXISTS subscription_video_retries_schedule_idx ON subscription_video_retries (subscription_id, last_attempt_at, created_at, video_url)"

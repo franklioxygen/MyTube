@@ -320,6 +320,8 @@ export const subscriptionVideoRetries = sqliteTable(
     subscriptionId: text("subscription_id").notNull()
       .references(() => subscriptions.id, { onDelete: "cascade" }),
     videoUrl: text("video_url").notNull(),
+    // URL aliases share retry state; nullable only for rows awaiting startup upgrade.
+    videoKey: text("video_key"),
     createdAt: integer("created_at").notNull(),
     lastAttemptAt: integer("last_attempt_at").notNull().default(0),
     // The position this video held in the backfill, so a recovered item is
@@ -329,6 +331,9 @@ export const subscriptionVideoRetries = sqliteTable(
   },
   (table) => [
     primaryKey({ columns: [table.subscriptionId, table.videoUrl] }),
+    index("subscription_video_retries_identity_idx").on(
+      table.subscriptionId, table.videoKey
+    ),
     // listVideoRetries filters by subscription and takes the oldest-attempted
     // batch. The primary key orders by video_url, so without this the whole
     // backlog is sorted on every check.
