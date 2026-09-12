@@ -25,6 +25,7 @@ import DatabaseSettings from '../components/Settings/DatabaseSettings';
 import DeploymentSecurityDetailsModal from '../components/Settings/DeploymentSecurityDetailsModal';
 import DeploymentSecuritySummary from '../components/Settings/DeploymentSecuritySummary';
 import DownloadSettings from '../components/Settings/DownloadSettings';
+import FileOrganizationSettings from '../components/Settings/FileOrganizationSettings';
 import HookSettings from '../components/Settings/HookSettings';
 import InterfaceDisplaySettings from '../components/Settings/InterfaceDisplaySettings';
 import MountDirectoriesSettings from '../components/Settings/MountDirectoriesSettings';
@@ -94,19 +95,51 @@ function arePersistedSeekIntervalsValid(settings: Settings): boolean {
     );
 }
 
-function getInitialSettingsTab(search: string): number {
+const SETTINGS_TAB_KEYS = [
+    'interface',
+    'playback',
+    'downloads',
+    'library',
+    'security',
+    'integrations',
+] as const;
+
+type SettingsTabKey = (typeof SETTINGS_TAB_KEYS)[number];
+
+const DEFAULT_SETTINGS_TAB: SettingsTabKey = 'interface';
+
+// The URL used to carry the tab's raw array position (`?tab=3`), so every
+// regrouping silently repointed existing links - two in-app links were already
+// aiming at the wrong tab (and one at an index that no longer existed) by the
+// time this moved to stable keys. Old numeric links still resolve, to the tab
+// that now owns most of what that index used to show.
+const LEGACY_SETTINGS_TAB_INDEXES: Record<string, SettingsTabKey> = {
+    '0': 'interface',
+    '1': 'security',
+    '2': 'downloads',
+    '3': 'library',
+    '4': 'library',
+    '5': 'integrations',
+};
+
+function isSettingsTabKey(value: string): value is SettingsTabKey {
+    return (SETTINGS_TAB_KEYS as readonly string[]).includes(value);
+}
+
+function getInitialSettingsTab(search: string): SettingsTabKey {
     const tabParam = new URLSearchParams(search).get('tab');
     if (!tabParam) {
-        return 0;
+        return DEFAULT_SETTINGS_TAB;
     }
-
-    const tabIndex = parseInt(tabParam, 10);
-    return Number.isNaN(tabIndex) ? 0 : tabIndex;
+    if (isSettingsTabKey(tabParam)) {
+        return tabParam;
+    }
+    return LEGACY_SETTINGS_TAB_INDEXES[tabParam] ?? DEFAULT_SETTINGS_TAB;
 }
 
 interface SettingsTabState {
     urlKey: string;
-    tab: number;
+    tab: SettingsTabKey;
 }
 
 function getSettingsTabUrlKey(search: string, hash: string): string {
@@ -405,21 +438,9 @@ const SettingsPage: React.FC = () => {
         restoreFromLastBackupMutation.mutate();
     };
 
-    // Content renderers for each section (used by both desktop and mobile views)
-    const renderInterfaceDisplayContent = () => (
-        <InterfaceDisplaySettings
-            itemsPerPage={settings.itemsPerPage}
-            showYoutubeSearch={settings.showYoutubeSearch}
-            infiniteScroll={settings.infiniteScroll}
-            videoColumns={settings.videoColumns}
-            playSoundOnTaskComplete={settings.playSoundOnTaskComplete}
-            defaultSort={settings.defaultSort}
-            showTagsOnThumbnail={settings.showTagsOnThumbnail}
-            onChange={(field, value) => handleChange(field as keyof Settings, value)}
-        />
-    );
-
-    const renderBasicSettingsContent = () => (
+    // Content renderers for each tab (used by both desktop tabs and mobile
+    // collapsible sections, so the two layouts can never drift apart).
+    const renderInterfaceContent = () => (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             <BasicSettings
                 language={settings.language}
@@ -429,41 +450,22 @@ const SettingsPage: React.FC = () => {
                 websiteName={settings.websiteName}
                 onChange={(field, value) => handleChange(field as keyof Settings, value)}
             />
-            {!isVisitor && renderInterfaceDisplayContent()}
-            {!isVisitor && renderVideoPlaybackContent()}
+            {!isVisitor && (
+                <InterfaceDisplaySettings
+                    itemsPerPage={settings.itemsPerPage}
+                    showYoutubeSearch={settings.showYoutubeSearch}
+                    infiniteScroll={settings.infiniteScroll}
+                    videoColumns={settings.videoColumns}
+                    playSoundOnTaskComplete={settings.playSoundOnTaskComplete}
+                    defaultSort={settings.defaultSort}
+                    showTagsOnThumbnail={settings.showTagsOnThumbnail}
+                    onChange={(field, value) => handleChange(field as keyof Settings, value)}
+                />
+            )}
         </Box>
     );
 
-    const renderDeploymentSecuritySummary = () => (
-        <DeploymentSecuritySummary
-            deploymentSecurity={deploymentSecurity}
-            onShowDetails={() => setShowTrustDetailsModal(true)}
-            detailsButtonAriaLabel={deploymentSecurityDetailsTitle}
-        />
-    );
-
-    const renderSecurityAccessContent = () => (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            {renderDeploymentSecuritySummary()}
-            <SecuritySettings
-                settings={settings}
-                onChange={handleChange}
-            />
-            <CookieSettings
-                onSuccess={(msg) => setMessage({ text: msg, type: 'success' })}
-                onError={(msg) => setMessage({ text: msg, type: 'error' })}
-            />
-            <CloudflareSettings
-                enabled={settings.cloudflaredTunnelEnabled}
-                token={settings.cloudflaredToken}
-                allowedHosts={settings.allowedHosts}
-                onChange={(field, value) => handleChange(field as keyof Settings, value)}
-            />
-            <RssFeedSettings />
-        </Box>
-    );
-
-    const renderVideoPlaybackContent = () => (
+    const renderPlaybackContent = () => (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             <VideoDefaultSettings
                 settings={settings}
@@ -493,7 +495,7 @@ const SettingsPage: React.FC = () => {
         </Box>
     );
 
-    const renderDownloadStorageContent = () => (
+    const renderDownloadsContent = () => (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             <Box>
                 <Typography variant="h6" gutterBottom>{t('downloadSettings')}</Typography>
@@ -507,10 +509,18 @@ const SettingsPage: React.FC = () => {
                 />
             </Box>
             <Box>
-                <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>{t('cloudDriveSettings')}</Typography>
-                <CloudDriveSettings
-                    settings={settings}
-                    onChange={handleChange}
+                <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>{t('fileOrganization')}</Typography>
+                <FileOrganizationSettings
+                    onFormatFilenames={() => setShowFormatConfirmModal(true)}
+                    onCleanupAuthorCollections={() => setShowCleanupAuthorCollectionsModal(true)}
+                    isSaving={isSaving}
+                    moveSubtitlesToVideoFolder={settings.moveSubtitlesToVideoFolder || false}
+                    onMoveSubtitlesToVideoFolderChange={(checked) => handleChange('moveSubtitlesToVideoFolder', checked)}
+                    moveThumbnailsToVideoFolder={settings.moveThumbnailsToVideoFolder || false}
+                    onMoveThumbnailsToVideoFolderChange={(checked) => handleChange('moveThumbnailsToVideoFolder', checked)}
+                    authorOrganizationMode={settings.authorOrganizationMode || 'root'}
+                    onAuthorOrganizationModeChange={(mode) => handleChange('authorOrganizationMode', mode)}
+                    downloadFilenameMode={settings.downloadFilenameMode}
                 />
             </Box>
             <Box>
@@ -537,42 +547,29 @@ const SettingsPage: React.FC = () => {
                     </Alert>
                 )}
             </Box>
-            <Box>
-                <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
-                    {t('twitchSubscriptions') || 'Twitch Subscriptions'}
-                </Typography>
-                <TwitchSettings
-                    twitchClientId={settings.twitchClientId}
-                    twitchClientSecret={settings.twitchClientSecret}
-                    onChange={(field, value) => handleChange(field as keyof Settings, value)}
-                />
-            </Box>
         </Box>
     );
 
-    const renderMountDirectories = () => (
-        <MountDirectoriesSettings
-            mountDirectories={settings.mountDirectories || ''}
-            onChange={handleChange}
-            canUseHostAdminFeatures={canUseHostAdminFeatures}
-            settings={settings}
-            setSettings={setSettings}
-            saveMutation={saveMutation}
-            onShowDetails={() => setShowTrustDetailsModal(true)}
-            detailsButtonAriaLabel={`${deploymentSecurityDetailsTitle}: ${translateOrFallback('mountDirectories', 'Mount Directories')}`}
-            setMessage={setMessage}
-        />
-    );
-
-    const renderTmdbApiKey = () => (
-        <TmdbApiKeySettings
-            tmdbApiKey={settings.tmdbApiKey || ''}
-            onChange={handleChange}
-        />
-    );
-
-    const renderContentManagementContent = () => (
+    const renderLibraryContent = () => (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <MountDirectoriesSettings
+                mountDirectories={settings.mountDirectories || ''}
+                onChange={handleChange}
+                canUseHostAdminFeatures={canUseHostAdminFeatures}
+                settings={settings}
+                setSettings={setSettings}
+                saveMutation={saveMutation}
+                onShowDetails={() => setShowTrustDetailsModal(true)}
+                detailsButtonAriaLabel={`${deploymentSecurityDetailsTitle}: ${translateOrFallback('mountDirectories', 'Mount Directories')}`}
+                setMessage={setMessage}
+            />
+            <Box>
+                <Typography variant="h6" gutterBottom>{t('cloudDriveSettings')}</Typography>
+                <CloudDriveSettings
+                    settings={settings}
+                    onChange={handleChange}
+                />
+            </Box>
             <TagsSettings
                 tags={Array.isArray(settings.tags) ? settings.tags : []}
                 onTagsChange={handleTagsChange}
@@ -580,37 +577,52 @@ const SettingsPage: React.FC = () => {
                 onTagConflict={() => setMessage({ text: t('tagConflictCaseInsensitive'), type: 'error' })}
                 isRenaming={renameTagMutation.isPending}
             />
-            {renderMountDirectories()}
-            {renderTmdbApiKey()}
+            <DatabaseSettings
+                onMigrate={() => setShowMigrateConfirmModal(true)}
+                onDeleteLegacy={() => setShowDeleteLegacyModal(true)}
+                onExportDatabase={handleExportDatabase}
+                onImportDatabase={handleImportDatabase}
+                onPreviewMergeDatabase={handlePreviewMergeDatabase}
+                onMergeDatabase={handleMergeDatabase}
+                onCleanupBackupDatabases={handleCleanupBackupDatabases}
+                onRestoreFromLastBackup={handleRestoreFromLastBackup}
+                isSaving={isSaving}
+                lastBackupInfo={lastBackupInfo}
+            />
         </Box>
     );
 
-    const renderDataManagementContent = () => (
-        <DatabaseSettings
-            onMigrate={() => setShowMigrateConfirmModal(true)}
-            onDeleteLegacy={() => setShowDeleteLegacyModal(true)}
-            onFormatFilenames={() => setShowFormatConfirmModal(true)}
-            onCleanupAuthorCollections={() => setShowCleanupAuthorCollectionsModal(true)}
-            onExportDatabase={handleExportDatabase}
-            onImportDatabase={handleImportDatabase}
-            onPreviewMergeDatabase={handlePreviewMergeDatabase}
-            onMergeDatabase={handleMergeDatabase}
-            onCleanupBackupDatabases={handleCleanupBackupDatabases}
-            onRestoreFromLastBackup={handleRestoreFromLastBackup}
-            isSaving={isSaving}
-            lastBackupInfo={lastBackupInfo}
-            moveSubtitlesToVideoFolder={settings.moveSubtitlesToVideoFolder || false}
-            onMoveSubtitlesToVideoFolderChange={(checked) => handleChange('moveSubtitlesToVideoFolder', checked)}
-            moveThumbnailsToVideoFolder={settings.moveThumbnailsToVideoFolder || false}
-            onMoveThumbnailsToVideoFolderChange={(checked) => handleChange('moveThumbnailsToVideoFolder', checked)}
-            authorOrganizationMode={settings.authorOrganizationMode || 'root'}
-            onAuthorOrganizationModeChange={(mode) => handleChange('authorOrganizationMode', mode)}
-            downloadFilenameMode={settings.downloadFilenameMode}
-        />
+    const renderSecurityContent = () => (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <DeploymentSecuritySummary
+                deploymentSecurity={deploymentSecurity}
+                onShowDetails={() => setShowTrustDetailsModal(true)}
+                detailsButtonAriaLabel={deploymentSecurityDetailsTitle}
+            />
+            <SecuritySettings
+                settings={settings}
+                onChange={handleChange}
+            />
+            <CookieSettings
+                onSuccess={(msg) => setMessage({ text: msg, type: 'success' })}
+                onError={(msg) => setMessage({ text: msg, type: 'error' })}
+            />
+            <CloudflareSettings
+                enabled={settings.cloudflaredTunnelEnabled}
+                token={settings.cloudflaredToken}
+                allowedHosts={settings.allowedHosts}
+                onChange={(field, value) => handleChange(field as keyof Settings, value)}
+            />
+            {/* Statistics collection is a privacy decision (visitor tracking,
+                raw search text, retention), so it lives with the other
+                access/privacy controls rather than under Advanced. */}
+            <StatisticsSettings settings={settings} onChange={handleChange} />
+        </Box>
     );
 
-    const renderAdvancedContent = () => (
+    const renderIntegrationsContent = () => (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <RssFeedSettings />
             <AdvancedSettings
                 debugMode={debugMode}
                 onDebugModeChange={setDebugMode}
@@ -622,7 +634,20 @@ const SettingsPage: React.FC = () => {
                 telegramNotifyOnFail={settings.telegramNotifyOnFail}
                 onChange={handleChange}
             />
-            <StatisticsSettings settings={settings} onChange={handleChange} />
+            <TmdbApiKeySettings
+                tmdbApiKey={settings.tmdbApiKey || ''}
+                onChange={handleChange}
+            />
+            <Box>
+                <Typography variant="h6" gutterBottom>
+                    {t('twitchSubscriptions') || 'Twitch Subscriptions'}
+                </Typography>
+                <TwitchSettings
+                    twitchClientId={settings.twitchClientId}
+                    twitchClientSecret={settings.twitchClientSecret}
+                    onChange={(field, value) => handleChange(field as keyof Settings, value)}
+                />
+            </Box>
             {canUseContainerAdminFeatures ? (
                 <HookSettings
                     settings={settings}
@@ -642,100 +667,46 @@ const SettingsPage: React.FC = () => {
         </Box>
     );
 
-    // Helper function to render settings sections for mobile view
-    const renderSettingsSections = () => (
-        <>
-            {/* 1. Basic Settings (includes Interface & Display, Video Playback) */}
-            <Grid size={12}>
-                <CollapsibleSection title={t('basicSettings')} defaultExpanded={true}>
-                    {renderBasicSettingsContent()}
-                </CollapsibleSection>
-            </Grid>
-
-            {/* 3. Security & Access */}
-            {!isVisitor && (
-                <Grid size={12}>
-                    <CollapsibleSection title={t('securityAccess')} defaultExpanded={false}>
-                        {renderSecurityAccessContent()}
-                    </CollapsibleSection>
-                </Grid>
-            )}
-
-            {!isVisitor && (
-                <>
-                    {/* 5. Download & Storage */}
-                    <Grid size={12}>
-                        <CollapsibleSection title={t('downloadStorage')} defaultExpanded={false}>
-                            {renderDownloadStorageContent()}
-                        </CollapsibleSection>
-                    </Grid>
-
-                    {/* 6. Content Management */}
-                    <Grid size={12}>
-                        <CollapsibleSection title={t('contentManagement')} defaultExpanded={false}>
-                            {renderContentManagementContent()}
-                        </CollapsibleSection>
-                    </Grid>
-
-                    {/* 7. Data Management */}
-                    <Grid size={12}>
-                        <CollapsibleSection title={t('dataManagement')} defaultExpanded={false}>
-                            {renderDataManagementContent()}
-                        </CollapsibleSection>
-                    </Grid>
-
-                    {/* 8. Advanced */}
-                    <Grid size={12}>
-                        <CollapsibleSection title={t('advanced')} defaultExpanded={false}>
-                            {renderAdvancedContent()}
-                        </CollapsibleSection>
-                    </Grid>
-                </>
-            )}
-        </>
-    );
-
-    // Build tabs array (only non-visitor tabs after first)
-    const tabs = [
-        { label: t('basicSettings'), index: 0 },
-        ...(!isVisitor ? [
-            { label: t('securityAccess'), index: 1 },
-            { label: t('downloadStorage'), index: 2 },
-            { label: t('contentManagement'), index: 3 },
-            { label: t('dataManagement'), index: 4 },
-            { label: t('advanced'), index: 5 }
-        ] : [])
+    // One source of truth for both layouts: the desktop tab strip maps over
+    // this, and the mobile accordion renders the same list top to bottom.
+    const tabs: { key: SettingsTabKey; label: string; render: () => React.ReactNode }[] = [
+        { key: 'interface', label: t('interfaceDisplay'), render: renderInterfaceContent },
+        ...(!isVisitor
+            ? [
+                { key: 'playback' as const, label: t('videoPlayback'), render: renderPlaybackContent },
+                { key: 'downloads' as const, label: t('downloadsFiles'), render: renderDownloadsContent },
+                { key: 'library' as const, label: t('libraryStorage'), render: renderLibraryContent },
+                { key: 'security' as const, label: t('securityAccess'), render: renderSecurityContent },
+                { key: 'integrations' as const, label: t('integrationsAdvanced'), render: renderIntegrationsContent },
+            ]
+            : []),
     ];
     const locationTab = getInitialSettingsTab(location.search);
     const selectedTab =
         currentTabState.urlKey === settingsTabUrlKey
             ? currentTabState.tab
             : locationTab;
-    const currentTab = tabs.some((tabItem) => tabItem.index === selectedTab)
+    const currentTab = tabs.some((tabItem) => tabItem.key === selectedTab)
         ? selectedTab
-        : 0;
+        : DEFAULT_SETTINGS_TAB;
 
-    const renderDesktopTabContent = () => {
-        if (currentTab === 0) return renderBasicSettingsContent();
-        if (isVisitor) return null;
+    const renderDesktopTabContent = () =>
+        tabs.find((tabItem) => tabItem.key === currentTab)?.render() ?? null;
 
-        switch (currentTab) {
-            case 1:
-                return renderSecurityAccessContent();
-            case 2:
-                return renderDownloadStorageContent();
-            case 3:
-                return renderContentManagementContent();
-            case 4:
-                return renderDataManagementContent();
-            case 5:
-                return renderAdvancedContent();
-            default:
-                return null;
-        }
-    };
+    // Mobile: the same tabs as stacked collapsible sections.
+    const renderSettingsSections = () => (
+        <>
+            {tabs.map((tabItem, index) => (
+                <Grid size={12} key={tabItem.key}>
+                    <CollapsibleSection title={tabItem.label} defaultExpanded={index === 0}>
+                        {tabItem.render()}
+                    </CollapsibleSection>
+                </Grid>
+            ))}
+        </>
+    );
 
-    const handleDesktopTabChange = (_event: React.SyntheticEvent, newValue: number) => {
+    const handleDesktopTabChange = (_event: React.SyntheticEvent, newValue: SettingsTabKey) => {
         // Local invalid amount text is discarded when VideoDefaultSettings
         // unmounts. Reconcile the page-level save guard to the settings draft
         // that survives the tab switch, while preserving ordering errors.
@@ -776,7 +747,7 @@ const SettingsPage: React.FC = () => {
                             }}
                         >
                             {tabs.map((tabItem) => (
-                                <Tab key={tabItem.index} label={tabItem.label} value={tabItem.index} />
+                                <Tab key={tabItem.key} label={tabItem.label} value={tabItem.key} />
                             ))}
                         </Tabs>
                     </Box>

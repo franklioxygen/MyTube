@@ -252,6 +252,8 @@ vi.mock('../../components/Settings/VideoDefaultSettings', () => ({
 vi.mock('../../components/Settings/DownloadSettings', () => ({
   default: ({ onChange, onCleanup, onAutoDeleteValidityChange }: any) => (
     <div data-testid="download-settings">
+      {/* Real anchor target of the "Change Settings" link in download history. */}
+      <div id="dontSkipDeletedVideo-setting" />
       <button onClick={() => onChange('maxConcurrentDownloads', 5)}>download-change</button>
       <button
         onClick={() => {
@@ -313,30 +315,37 @@ vi.mock('../../components/Settings/DatabaseSettings', () => ({
   default: ({
     onMigrate,
     onDeleteLegacy,
-    onFormatFilenames,
-    onCleanupAuthorCollections,
     onExportDatabase,
     onImportDatabase,
     onPreviewMergeDatabase,
     onMergeDatabase,
     onCleanupBackupDatabases,
     onRestoreFromLastBackup,
-    onMoveSubtitlesToVideoFolderChange,
-    onMoveThumbnailsToVideoFolderChange,
-    onAuthorOrganizationModeChange,
   }: any) => (
     <div data-testid="database-settings">
-      <div id="dontSkipDeletedVideo-setting" />
       <button onClick={onMigrate}>open-migrate-modal</button>
       <button onClick={onDeleteLegacy}>open-delete-legacy-modal</button>
-      <button onClick={onFormatFilenames}>open-format-modal</button>
-      <button onClick={onCleanupAuthorCollections}>open-author-cleanup-modal</button>
       <button onClick={onExportDatabase}>export-db</button>
       <button onClick={() => onImportDatabase(new File(['db'], 'db.zip'))}>import-db</button>
       <button onClick={() => onPreviewMergeDatabase(new File(['db'], 'merge-preview.db'))}>preview-merge-db</button>
       <button onClick={() => onMergeDatabase(new File(['db'], 'merge.db'))}>merge-db</button>
       <button onClick={onCleanupBackupDatabases}>cleanup-backups</button>
       <button onClick={onRestoreFromLastBackup}>restore-last-backup</button>
+    </div>
+  ),
+}));
+
+vi.mock('../../components/Settings/FileOrganizationSettings', () => ({
+  default: ({
+    onFormatFilenames,
+    onCleanupAuthorCollections,
+    onMoveSubtitlesToVideoFolderChange,
+    onMoveThumbnailsToVideoFolderChange,
+    onAuthorOrganizationModeChange,
+  }: any) => (
+    <div data-testid="file-organization-settings">
+      <button onClick={onFormatFilenames}>open-format-modal</button>
+      <button onClick={onCleanupAuthorCollections}>open-author-cleanup-modal</button>
       <button onClick={() => onMoveSubtitlesToVideoFolderChange(true)}>move-subtitles</button>
       <button onClick={() => onMoveThumbnailsToVideoFolderChange(true)}>move-thumbnails</button>
       <button onClick={() => onAuthorOrganizationModeChange('author_collection_linked')}>save-author-files</button>
@@ -383,10 +392,10 @@ const SettingsPageWithNavigation = () => {
 
   return (
     <>
-      <button onClick={() => navigate('/settings?tab=4#dontSkipDeletedVideo-setting')}>
-        go-data-management-hash
+      <button onClick={() => navigate('/settings?tab=downloads#dontSkipDeletedVideo-setting')}>
+        go-downloads-hash
       </button>
-      <button onClick={() => navigate('/settings?tab=1#security-access-target')}>
+      <button onClick={() => navigate('/settings?tab=security#security-access-target')}>
         go-security-hash
       </button>
       <SettingsPage />
@@ -442,15 +451,15 @@ describe('SettingsPage', () => {
     document.body.innerHTML = '';
   });
 
-  it('renders visitor desktop view with only basic tab and no non-basic content', async () => {
+  it('renders visitor desktop view with only the interface tab and no non-basic content', async () => {
     mockIsDesktop = true;
     mockUserRole = 'visitor';
 
-    renderPage('/settings?tab=2');
+    renderPage('/settings?tab=downloads');
 
     const tabs = screen.getAllByRole('tab');
     expect(tabs).toHaveLength(1);
-    expect(tabs[0]).toHaveTextContent('basicSettings');
+    expect(tabs[0]).toHaveTextContent('interfaceDisplay');
     expect(screen.queryByTestId('interface-display-settings')).not.toBeInTheDocument();
     expect(screen.queryByTestId('security-settings')).not.toBeInTheDocument();
     expect(screen.queryByTestId('rss-feed-settings')).not.toBeInTheDocument();
@@ -460,7 +469,7 @@ describe('SettingsPage', () => {
     mockIsDesktop = true;
 
     const { rerender } = render(
-      <MemoryRouter initialEntries={['/settings?tab=1']}>
+      <MemoryRouter initialEntries={['/settings?tab=integrations']}>
         <SettingsPage />
       </MemoryRouter>
     );
@@ -469,7 +478,7 @@ describe('SettingsPage', () => {
 
     mockUserRole = undefined;
     rerender(
-      <MemoryRouter initialEntries={['/settings?tab=1']}>
+      <MemoryRouter initialEntries={['/settings?tab=integrations']}>
         <SettingsPage />
       </MemoryRouter>
     );
@@ -487,13 +496,13 @@ describe('SettingsPage', () => {
     target.scrollIntoView = vi.fn();
     document.body.appendChild(target);
 
-    renderPage('/settings?tab=0#focus-target');
+    renderPage('/settings?tab=interface#focus-target');
 
     vi.advanceTimersByTime(500);
 
     expect(target.scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' });
     expect(target.style.backgroundColor).toBe(overlay.highlightYellow);
-    expect(screen.getByTestId('video-default-settings')).toBeInTheDocument();
+    expect(screen.getByTestId('basic-settings')).toBeInTheDocument();
 
     vi.advanceTimersByTime(2000);
     expect(target.style.backgroundColor).toBe('');
@@ -504,7 +513,7 @@ describe('SettingsPage', () => {
     vi.useFakeTimers();
 
     render(
-      <MemoryRouter initialEntries={['/settings?tab=1']}>
+      <MemoryRouter initialEntries={['/settings?tab=security']}>
         <SettingsPageWithNavigation />
       </MemoryRouter>
     );
@@ -512,9 +521,9 @@ describe('SettingsPage', () => {
     expect(screen.getByTestId('security-settings')).toBeInTheDocument();
     expect(screen.queryByTestId('database-settings')).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByText('go-data-management-hash'));
+    fireEvent.click(screen.getByText('go-downloads-hash'));
 
-    expect(screen.getByTestId('database-settings')).toBeInTheDocument();
+    expect(screen.getByTestId('download-settings')).toBeInTheDocument();
     expect(screen.queryByTestId('security-settings')).not.toBeInTheDocument();
 
     const target = document.getElementById('dontSkipDeletedVideo-setting')!;
@@ -531,14 +540,14 @@ describe('SettingsPage', () => {
     vi.useFakeTimers();
 
     render(
-      <MemoryRouter initialEntries={['/settings?tab=1']}>
+      <MemoryRouter initialEntries={['/settings?tab=security']}>
         <SettingsPageWithNavigation />
       </MemoryRouter>
     );
 
     expect(screen.getByTestId('security-settings')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('tab', { name: 'dataManagement' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'libraryStorage' }));
 
     expect(screen.getByTestId('database-settings')).toBeInTheDocument();
     expect(screen.queryByTestId('security-settings')).not.toBeInTheDocument();
@@ -562,25 +571,30 @@ describe('SettingsPage', () => {
 
     renderPage('/settings');
 
-    // Basic tab now also contains Interface & Display and Video Playback content
+    // Interface tab: appearance plus the list/grid display options.
     expect(screen.getByTestId('basic-settings')).toBeInTheDocument();
     expect(screen.getByTestId('interface-display-settings')).toBeInTheDocument();
+    expect(screen.queryByTestId('video-default-settings')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'videoPlayback' }));
     expect(screen.getByTestId('video-default-settings')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'downloadsFiles' }));
+    expect(screen.getByTestId('download-settings')).toBeInTheDocument();
+    expect(screen.getByTestId('file-organization-settings')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'libraryStorage' }));
+    expect(screen.getByTestId('tags-settings')).toBeInTheDocument();
+    expect(screen.getByTestId('cloud-drive-settings')).toBeInTheDocument();
+    expect(screen.getByTestId('database-settings')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('tab', { name: 'securityAccess' }));
     expect(screen.getByTestId('security-settings')).toBeInTheDocument();
+    expect(screen.queryByTestId('rss-feed-settings')).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('tab', { name: 'downloadStorage' }));
-    expect(screen.getByTestId('download-settings')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('tab', { name: 'contentManagement' }));
-    expect(screen.getByTestId('tags-settings')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('tab', { name: 'dataManagement' }));
-    expect(screen.getByTestId('database-settings')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('tab', { name: 'advanced' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'integrationsAdvanced' }));
     expect(screen.getByTestId('advanced-settings')).toBeInTheDocument();
+    expect(screen.getByTestId('rss-feed-settings')).toBeInTheDocument();
   });
 
   it('updates settings through child callbacks and triggers glow animation', async () => {
@@ -663,9 +677,9 @@ describe('SettingsPage', () => {
     expect(saveButton).not.toBeDisabled();
   });
 
-  it('clears discarded seek-field invalidity when leaving the desktop basic tab', () => {
+  it('clears discarded seek-field invalidity when leaving the desktop playback tab', () => {
     mockIsDesktop = true;
-    renderPage('/settings');
+    renderPage('/settings?tab=playback');
 
     fireEvent.click(screen.getByText('seek-invalid'));
     expect(screen.getAllByRole('button', { name: 'save' })[0]).toBeDisabled();
@@ -677,7 +691,7 @@ describe('SettingsPage', () => {
 
   it('keeps save disabled after leaving the tab when persisted intervals are unordered', () => {
     mockIsDesktop = true;
-    renderPage('/settings');
+    renderPage('/settings?tab=playback');
 
     fireEvent.click(screen.getByText('seek-order-invalid'));
     fireEvent.click(screen.getByRole('tab', { name: 'securityAccess' }));
@@ -689,7 +703,7 @@ describe('SettingsPage', () => {
     mockIsDesktop = true;
     renderPage('/settings');
 
-    fireEvent.click(screen.getByRole('tab', { name: 'downloadStorage' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'downloadsFiles' }));
     fireEvent.click(screen.getByText('auto-delete-invalid'));
     fireEvent.click(screen.getByRole('tab', { name: 'securityAccess' }));
 
@@ -876,7 +890,7 @@ describe('SettingsPage', () => {
     expect(await screen.findByText('scanFilesFailed: scan failed details')).toBeInTheDocument();
   });
 
-  it('tests TMDB credentials successfully from the content management tab', async () => {
+  it('tests TMDB credentials successfully from the integrations tab', async () => {
     mockIsDesktop = true;
     mockSettingsData = {
       tmdbApiKey: 'tmdb-key',
@@ -884,7 +898,7 @@ describe('SettingsPage', () => {
 
     renderPage('/settings');
 
-    fireEvent.click(screen.getByRole('tab', { name: 'contentManagement' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'integrationsAdvanced' }));
     fireEvent.click(screen.getByRole('button', { name: 'Test Credential' }));
 
     await waitFor(() => {
@@ -918,7 +932,7 @@ describe('SettingsPage', () => {
 
     renderPage('/settings');
 
-    fireEvent.click(screen.getByRole('tab', { name: 'contentManagement' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'integrationsAdvanced' }));
     fireEvent.click(screen.getByRole('button', { name: 'Test Credential' }));
 
     expect(
@@ -949,7 +963,7 @@ describe('SettingsPage', () => {
 
     renderPage('/settings');
 
-    fireEvent.click(screen.getByRole('tab', { name: 'contentManagement' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'integrationsAdvanced' }));
     fireEvent.click(screen.getByRole('button', { name: 'Test Credential' }));
 
     expect(await screen.findByText('Failed to test TMDB credential.')).toBeInTheDocument();

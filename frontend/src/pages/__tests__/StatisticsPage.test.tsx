@@ -141,7 +141,7 @@ describe('StatisticsPage', () => {
         const settingsLink = screen.getByRole('link', { name: 'Change in Settings' });
         expect(settingsLink).toHaveAttribute(
             'href',
-            '/settings?tab=7#statisticsEnabled-setting'
+            '/settings?tab=security#statisticsEnabled-setting'
         );
     });
 

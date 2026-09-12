@@ -213,7 +213,7 @@ export function HistoryItem({
                                     )}
                                     {!dontSkipDeletedVideo && (
                                         <Typography variant="caption" component="span">
-                                            <Link component={RouterLink} to="/settings?tab=4#dontSkipDeletedVideo-setting" color="inherit">
+                                            <Link component={RouterLink} to="/settings?tab=downloads#dontSkipDeletedVideo-setting" color="inherit">
                                                 {t('changeSettings') || 'Change Settings'}
                                             </Link>
                                         </Typography>

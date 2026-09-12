@@ -22,8 +22,6 @@ describe('DatabaseSettings', () => {
     const defaultProps = {
         onMigrate: vi.fn(),
         onDeleteLegacy: vi.fn(),
-        onFormatFilenames: vi.fn(),
-        onCleanupAuthorCollections: vi.fn(),
         onExportDatabase: vi.fn(),
         onImportDatabase: vi.fn(),
         onPreviewMergeDatabase: vi.fn().mockResolvedValue(defaultMergePreviewSummary),
@@ -32,13 +30,6 @@ describe('DatabaseSettings', () => {
         onRestoreFromLastBackup: vi.fn(),
         isSaving: false,
         lastBackupInfo: { exists: true, timestamp: '2023-01-01-00-00-00' } as any,
-        moveSubtitlesToVideoFolder: false,
-        onMoveSubtitlesToVideoFolderChange: vi.fn(),
-        moveThumbnailsToVideoFolder: false,
-        onMoveThumbnailsToVideoFolderChange: vi.fn(),
-        authorOrganizationMode: 'root' as const,
-        onAuthorOrganizationModeChange: vi.fn(),
-        downloadFilenameMode: 'legacy' as const,
     };
 
     beforeEach(() => {
@@ -49,9 +40,7 @@ describe('DatabaseSettings', () => {
         render(<DatabaseSettings {...defaultProps} />);
 
         expect(screen.getByText('migrateDataButton')).toBeInTheDocument();
-        expect(screen.getByText('formatLegacyFilenamesButton')).toBeInTheDocument();
         expect(screen.getByText('deleteLegacyDataButton')).toBeInTheDocument();
-        expect(screen.getByText('authorOrganizationModeRecommendation')).toBeInTheDocument();
         expect(screen.getByText('exportDatabase')).toBeInTheDocument();
         expect(screen.getByText('importDatabase')).toBeInTheDocument();
         expect(screen.getByText('mergeDatabase')).toBeInTheDocument();
@@ -130,60 +119,6 @@ describe('DatabaseSettings', () => {
         await user.click(buttons[buttons.length - 1]);
 
         expect(defaultProps.onMergeDatabase).toHaveBeenCalledWith(file);
-    });
-
-    it('should render switches for moving files', async () => {
-        const user = userEvent.setup();
-        render(<DatabaseSettings {...defaultProps} />);
-
-        // Check labels
-        expect(screen.getByText('moveSubtitlesToVideoFolder')).toBeInTheDocument();
-        expect(screen.getByText('moveThumbnailsToVideoFolder')).toBeInTheDocument();
-
-        // Toggle switches
-        const subtitleSwitch = screen.getByLabelText(/moveSubtitlesToVideoFolderOff/i);
-        await user.click(subtitleSwitch);
-        expect(defaultProps.onMoveSubtitlesToVideoFolderChange).toHaveBeenCalledWith(true);
-    });
-
-    it('should toggle thumbnail switch and author organization mode', async () => {
-        const user = userEvent.setup();
-        render(<DatabaseSettings {...defaultProps} />);
-
-        const thumbnailSwitch = screen.getByLabelText(/moveThumbnailsToVideoFolderOff/i);
-        await user.click(thumbnailSwitch);
-        expect(defaultProps.onMoveThumbnailsToVideoFolderChange).toHaveBeenCalledWith(true);
-
-        await user.click(
-            screen.getByRole('radio', { name: /authorOrganizationModeAuthorFolderOnly/i })
-        );
-        expect(defaultProps.onAuthorOrganizationModeChange).toHaveBeenCalledWith('author_folder_only');
-    });
-
-    it('should show template note for template naming mode', () => {
-        render(
-            <DatabaseSettings
-                {...defaultProps}
-                downloadFilenameMode="template"
-            />
-        );
-
-        expect(screen.getByText('authorOrganizationModeTemplateNote')).toBeInTheDocument();
-    });
-
-    it('should show author collection cleanup action in folder-only mode', async () => {
-        const user = userEvent.setup();
-        render(
-            <DatabaseSettings
-                {...defaultProps}
-                authorOrganizationMode="author_folder_only"
-            />
-        );
-
-        expect(screen.getByText('cleanupAuthorCollections')).toBeInTheDocument();
-        expect(screen.getByText('cleanupAuthorCollectionsDescription')).toBeInTheDocument();
-        await user.click(screen.getByText('cleanupAuthorCollectionsButton'));
-        expect(defaultProps.onCleanupAuthorCollections).toHaveBeenCalled();
     });
 
     it('should clear the selected import file when a non-db file is chosen', async () => {
