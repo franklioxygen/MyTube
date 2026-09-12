@@ -33,6 +33,21 @@ export function queueVideoRetry(
 // Keep one subscription's backlog from occupying a check worker indefinitely.
 export const VIDEO_RETRIES_PER_CHECK = 5;
 
+/** Read a feed head's retry metadata even when it falls outside the batch. */
+export function getVideoRetry(subscriptionId: string, videoUrl: string) {
+  return db
+    .select()
+    .from(subscriptionVideoRetries)
+    .where(
+      and(
+        eq(subscriptionVideoRetries.subscriptionId, subscriptionId),
+        eq(subscriptionVideoRetries.videoUrl, videoUrl)
+      )
+    )
+    .get();
+}
+
+/** Return the oldest attempts first, with a bounded amount of work per check. */
 export function listVideoRetries(subscriptionId: string) {
   return db
     .select()
@@ -47,6 +62,7 @@ export function listVideoRetries(subscriptionId: string) {
     .all();
 }
 
+/** Remove only the target that has finished processing for this subscription. */
 export function removeVideoRetry(subscriptionId: string, videoUrl: string): void {
   db.delete(subscriptionVideoRetries)
     .where(

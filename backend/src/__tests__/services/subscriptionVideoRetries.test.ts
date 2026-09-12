@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({ db: undefined as any }));
 vi.mock("../../db", () => ({ get db() { return mocks.db; } }));
-import { listVideoRetries, markVideoRetryAttempted, queueVideoRetry, removeVideoRetry, VIDEO_RETRIES_PER_CHECK } from "../../services/subscription/videoRetries";
+import { getVideoRetry, listVideoRetries, markVideoRetryAttempted, queueVideoRetry, removeVideoRetry, VIDEO_RETRIES_PER_CHECK } from "../../services/subscription/videoRetries";
 
 describe("subscription video retry persistence", () => {
   let sqlite: Database.Database;
@@ -71,5 +71,14 @@ describe("subscription video retry persistence", () => {
     sqlite.prepare("DELETE FROM subscriptions WHERE id = ?").run("sub");
     queueVideoRetry("sub", "two");
     expect(listVideoRetries("sub")).toEqual([]);
+  });
+
+  it("looks up the original backfill position by subscription and exact URL", () => {
+    queueVideoRetry("sub", "same-url", 7);
+    queueVideoRetry("sub", "same-url");
+    queueVideoRetry("other", "same-url", 2);
+    expect(getVideoRetry("sub", "same-url")?.mediaPlaylistIndex).toBe(7);
+    expect(getVideoRetry("other", "same-url")?.mediaPlaylistIndex).toBe(2);
+    expect(getVideoRetry("sub", "missing")).toBeUndefined();
   });
 });

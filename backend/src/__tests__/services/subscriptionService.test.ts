@@ -1,4 +1,4 @@
-import { listVideoRetries, queueVideoRetry, removeVideoRetry } from '../../services/subscription/videoRetries';
+import { getVideoRetry, listVideoRetries, queueVideoRetry, removeVideoRetry } from '../../services/subscription/videoRetries';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import cron from 'node-cron';
 import { db } from '../../db';
@@ -13,6 +13,7 @@ import { TelegramService } from '../../services/telegramService';
 import { executeYtDlpJson, getEffectiveUserYtDlpConfig } from '../../utils/ytDlpUtils';
 
 vi.mock('../../services/subscription/videoRetries', () => ({
+  getVideoRetry: vi.fn(),
   listVideoRetries: vi.fn().mockReturnValue([]),
   markVideoRetryAttempted: vi.fn(),
   queueVideoRetry: vi.fn(),

@@ -41,6 +41,7 @@ import {
   notifySubscriptionDownloadResult,
 } from "./subscription/helpers";
 import {
+  getVideoRetry,
   listVideoRetries,
   markVideoRetryAttempted,
   queueVideoRetry,
@@ -829,6 +830,14 @@ export class SubscriptionService {
       }
 
       const retries = listVideoRetries(sub.id);
+      // Reuse one snapshot if a skipped retry needs to identify the Shorts
+      // head before the independent Shorts check runs.
+      let shortsHeadPromise: Promise<string | null> | undefined;
+      const getShortsHead = () =>
+        (shortsHeadPromise ??= YtDlpDownloader.getLatestShortsUrl(
+          sub.authorUrl,
+          sub.ytdlpConfig
+        ));
       const retryUrls = retries.map((retry) => retry.videoUrl);
       // The backfill position the target was queued with, so a recovered item
       // is named like the siblings it was queued alongside instead of falling
@@ -856,7 +865,9 @@ export class SubscriptionService {
         attemptedTargets.add(videoUrl);
         markVideoRetryAttempted(sub.id, videoUrl);
         const isHead = videoUrl === latestVideoUrl;
-        const mediaPlaylistIndex = retryIndexByUrl.get(videoUrl);
+        const mediaPlaylistIndex = retryIndexByUrl.has(videoUrl)
+          ? retryIndexByUrl.get(videoUrl)
+          : getVideoRetry(sub.id, videoUrl)?.mediaPlaylistIndex ?? undefined;
         const existingVideo = this.getExistingSubscriptionVideo(sub, videoUrl);
         if (existingVideo) {
           if (!this.linkSubscriptionVideoToCollection(sub, existingVideo.id, videoUrl)) {
@@ -1024,22 +1035,36 @@ export class SubscriptionService {
           // through (no return) so an independent new Short is still checked
           // this cycle, matching the ordinary-failure path below.
           if (isMembersOnlyError(downloadError)) {
-            // A target queued by the Shorts backfill is settled against the
-            // Shorts cursor, not the video one. Nothing on the row says which
-            // it is, but the only way this matters is when the URL is also the
-            // latest Short - and getLatestShortsUrl only ever produces the
-            // canonical /shorts/ form, so the URL itself is the same signal.
-            // Without this the skip removes the retry while leaving the Shorts
-            // cursor behind, and the Shorts probe attempts and records the very
-            // same members-only URL again on the next check.
+            // URL shape identifies the media kind, but only equality with the
+            // probed head permits advancing its cursor. An older skipped retry
+            // must never replace an already settled, newer Shorts cursor.
             const isShortTarget = isYouTubeShortsUrl(videoUrl);
+            let isShortHead = false;
+            if (
+              isShortTarget &&
+              sub.downloadShorts === 1 &&
+              sub.platform === "YouTube"
+            ) {
+              try {
+                isShortHead = videoUrl === (await getShortsHead());
+              } catch (probeError) {
+                // Keep the target until we can settle the correct cursor,
+                // without blocking other retries or the main feed head.
+                this.queueRetryForUnsettledVideo(sub, videoUrl);
+                await recordProbeFailure(probeError, "Shorts probe failed while settling a retry");
+                continue;
+              }
+            }
             await this.markSubscriptionVideoSkipped(
               sub,
               videoUrl,
               isShortTarget ? "short" : "video",
               "members-only",
-              isShortTarget || isHead
+              isShortTarget ? isShortHead : isHead
             );
+            if (isShortTarget && isHead) {
+              await this.advanceVideoCursor(sub, videoUrl);
+            }
             removeVideoRetry(sub.id, videoUrl);
           } else {
             logger.error(
@@ -1112,10 +1137,7 @@ export class SubscriptionService {
         }
 
         try {
-          const latestShortUrl = await YtDlpDownloader.getLatestShortsUrl(
-            sub.authorUrl,
-            sub.ytdlpConfig
-          );
+          const latestShortUrl = await getShortsHead();
 
         if (latestShortUrl && latestShortUrl !== sub.lastShortVideoLink) {
           // The Shorts backfill task runs under this same subscription id, so a
@@ -1125,12 +1147,27 @@ export class SubscriptionService {
           // check. Settling media we hold, rather than fetching a second copy,
           // is what the main loop does for its own head and is what keeps that
           // recovery from landing twice.
-          if (this.getExistingSubscriptionVideo(sub, latestShortUrl)) {
+          const existingShort = this.getExistingSubscriptionVideo(
+            sub,
+            latestShortUrl
+          );
+          if (existingShort) {
+            if (!this.linkSubscriptionVideoToCollection(
+              sub, existingShort.id, latestShortUrl
+            )) {
+              this.queueRetryForUnsettledVideo(sub, latestShortUrl);
+              checkStatus = "fail";
+              checkFailureReason = bucketDownloadError(
+                COLLECTION_LINK_FAILURE_REASON
+              );
+              return;
+            }
             logger.info(
               "Subscription short is already downloaded; advancing cursor without re-downloading",
               getSubscriptionLogContext(sub, { latestShortUrl })
             );
             await this.advanceVideoCursor(sub, latestShortUrl, "short");
+            removeVideoRetry(sub.id, latestShortUrl);
             return;
           }
 
@@ -1155,10 +1192,13 @@ export class SubscriptionService {
           let shortDownloaded = false;
           let downloadedShortTitle = `New short from ${sub.author}`;
           try {
+            const shortRetry = getVideoRetry(sub.id, latestShortUrl);
+            markVideoRetryAttempted(sub.id, latestShortUrl);
             const downloadResult = await this.enqueueSubscriptionDownload(
               sub,
               latestShortUrl,
-              downloadedShortTitle
+              downloadedShortTitle,
+              shortRetry?.mediaPlaylistIndex ?? undefined
             );
 
             // Add to download history on success
@@ -1167,6 +1207,7 @@ export class SubscriptionService {
             downloadedShortTitle =
               videoData.title || `New short from ${sub.author}`;
             shortDownloaded = true;
+            checkNewVideoCount += 1;
             storageService.addDownloadHistoryItem({
               id: uuidv4(),
               title: downloadedShortTitle,
@@ -1189,7 +1230,6 @@ export class SubscriptionService {
                   ? String(videoData.fileSize)
                   : undefined,
             });
-            checkNewVideoCount += 1;
 
             // Update subscription record with new short link
             const shortUpdateResult = await db
@@ -1207,6 +1247,18 @@ export class SubscriptionService {
                 getSubscriptionLogContext(sub, { latestShortUrl })
               );
               return;
+            }
+
+            if (this.linkSubscriptionVideoToCollection(
+              sub, videoData.id, latestShortUrl
+            )) {
+              removeVideoRetry(sub.id, latestShortUrl);
+            } else {
+              this.queueRetryForUnsettledVideo(sub, latestShortUrl);
+              checkStatus = "fail";
+              checkFailureReason = bucketDownloadError(
+                COLLECTION_LINK_FAILURE_REASON
+              );
             }
 
             notifySubscriptionDownloadResult({
@@ -1230,6 +1282,7 @@ export class SubscriptionService {
                 "short",
                 "members-only"
               );
+              removeVideoRetry(sub.id, latestShortUrl);
               return;
             }
 
@@ -1248,6 +1301,9 @@ export class SubscriptionService {
               "Download failed"
             );
             if (shortDownloaded) {
+              this.queueRetryForUnsettledVideo(sub, latestShortUrl);
+              checkStatus = "fail";
+              checkFailureReason = bucketDownloadError(errorMessage);
               notifySubscriptionDownloadResult({
                 taskTitle: downloadedShortTitle,
                 status: "fail",
