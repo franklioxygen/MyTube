@@ -322,6 +322,10 @@ export const subscriptionVideoRetries = sqliteTable(
     videoUrl: text("video_url").notNull(),
     createdAt: integer("created_at").notNull(),
     lastAttemptAt: integer("last_attempt_at").notNull().default(0),
+    // The position this video held in the backfill, so a recovered item is
+    // named like the siblings it was queued alongside. Null for a target the
+    // check queued itself, which has no backfill position.
+    mediaPlaylistIndex: integer("media_playlist_index"),
   },
   (table) => [
     primaryKey({ columns: [table.subscriptionId, table.videoUrl] }),

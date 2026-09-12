@@ -460,6 +460,7 @@ export async function runMigrations(options: RunMigrationsOptions = {}) {
       video_url TEXT NOT NULL,
       created_at INTEGER NOT NULL,
       last_attempt_at INTEGER NOT NULL DEFAULT 0,
+      media_playlist_index INTEGER,
       PRIMARY KEY (subscription_id, video_url)
     )`);
 
@@ -472,14 +473,19 @@ export async function runMigrations(options: RunMigrationsOptions = {}) {
       const retryColumns = sqlite
         .prepare("PRAGMA table_info(subscription_video_retries)")
         .all() as Array<{ name: string }>;
-      if (!retryColumns.some((column) => column.name === "last_attempt_at")) {
+      const addRetryColumn = (name: string, definition: string): void => {
+        if (retryColumns.some((column) => column.name === name)) {
+          return;
+        }
         sqlite.exec(
-          "ALTER TABLE subscription_video_retries ADD COLUMN last_attempt_at INTEGER NOT NULL DEFAULT 0"
+          `ALTER TABLE subscription_video_retries ADD COLUMN ${name} ${definition}`
         );
         logger.info(
-          "Added subscription_video_retries.last_attempt_at to an earlier retry table."
+          `Added subscription_video_retries.${name} to an earlier retry table.`
         );
-      }
+      };
+      addRetryColumn("last_attempt_at", "INTEGER NOT NULL DEFAULT 0");
+      addRetryColumn("media_playlist_index", "INTEGER");
 
       sqlite.exec(
         "CREATE INDEX IF NOT EXISTS subscription_video_retries_schedule_idx ON subscription_video_retries (subscription_id, last_attempt_at, created_at, video_url)"

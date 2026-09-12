@@ -3,7 +3,11 @@ import { db } from "../../db";
 import { subscriptions, subscriptionVideoRetries } from "../../db/schema";
 
 /** Persist each failed URL independently; never rewind the feed cursor. */
-export function queueVideoRetry(subscriptionId: string, videoUrl: string): void {
+export function queueVideoRetry(
+  subscriptionId: string,
+  videoUrl: string,
+  mediaPlaylistIndex?: number
+): void {
   db.transaction((tx) => {
     const subscription = tx
       .select({ id: subscriptions.id })
@@ -13,7 +17,14 @@ export function queueVideoRetry(subscriptionId: string, videoUrl: string): void 
     if (!subscription) return;
 
     tx.insert(subscriptionVideoRetries)
-      .values({ subscriptionId, videoUrl, createdAt: Date.now() })
+      .values({
+        subscriptionId,
+        videoUrl,
+        createdAt: Date.now(),
+        mediaPlaylistIndex: mediaPlaylistIndex ?? null,
+      })
+      // First queueing wins, so a row keeps the backfill position it was
+      // created with rather than losing it to a later index-less retry.
       .onConflictDoNothing()
       .run();
   });

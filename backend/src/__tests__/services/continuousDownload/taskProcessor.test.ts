@@ -131,10 +131,9 @@ describe('TaskProcessor', () => {
 
     await taskProcessor.processTask({ ...mockTask, subscriptionId: 'sub-1' });
 
-    expect(queueVideoRetry).toHaveBeenCalledWith(
-      'sub-1',
-      'http://vid1'
-    );
+    // The backfill position rides along so a recovered item is named like the
+    // siblings it was queued alongside.
+    expect(queueVideoRetry).toHaveBeenCalledWith('sub-1', 'http://vid1', 1);
   });
 
   it('continues recording task progress when retry persistence fails', async () => {
@@ -166,7 +165,7 @@ describe('TaskProcessor', () => {
       collectionId: 'collection-1',
     });
 
-    expect(queueVideoRetry).toHaveBeenCalledWith('sub-1', 'http://vid1');
+    expect(queueVideoRetry).toHaveBeenCalledWith('sub-1', 'http://vid1', 1);
   });
 
   it('leaves the cursor alone for a task with no subscription', async () => {

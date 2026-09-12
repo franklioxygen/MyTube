@@ -757,7 +757,7 @@ describe('SubscriptionService', () => {
       beforeEach(() => {
         mockBuilder.then = (cb: any) => Promise.resolve([sub]).then(cb);
         vi.mocked(listVideoRetries).mockReturnValueOnce([
-          { subscriptionId: sub.id, videoUrl: failedUrl, createdAt: 1, lastAttemptAt: 0 },
+          { subscriptionId: sub.id, videoUrl: failedUrl, createdAt: 1, lastAttemptAt: 0, mediaPlaylistIndex: null },
         ]);
         vi.mocked(executeYtDlpJson).mockResolvedValue({ entries: [{ id: 'newer' }] });
         vi.mocked(storageService.getVideoBySourceUrl).mockReturnValue(undefined);
@@ -770,7 +770,7 @@ describe('SubscriptionService', () => {
         vi.mocked(listVideoRetries).mockReset().mockReturnValue([]);
         const batch = Array.from({ length: 5 }, (_, index) => ({
           subscriptionId: sub.id, videoUrl: `https://www.youtube.com/watch?v=retry-${index}`,
-          createdAt: index, lastAttemptAt: 0,
+          createdAt: index, lastAttemptAt: 0, mediaPlaylistIndex: null,
         }));
         vi.mocked(listVideoRetries).mockReturnValueOnce(batch);
         await subscriptionService.checkSubscriptions();
@@ -808,7 +808,7 @@ describe('SubscriptionService', () => {
         vi.mocked(listVideoRetries).mockReset();
         vi.mocked(listVideoRetries)
           .mockReturnValueOnce([
-            { subscriptionId: twitchSub.id, videoUrl: failedUrl, createdAt: 1, lastAttemptAt: 0 },
+            { subscriptionId: twitchSub.id, videoUrl: failedUrl, createdAt: 1, lastAttemptAt: 0, mediaPlaylistIndex: null },
           ])
           .mockReturnValue([]);
 
@@ -877,7 +877,7 @@ describe('SubscriptionService', () => {
         vi.mocked(listVideoRetries).mockReset();
         vi.mocked(listVideoRetries)
           .mockReturnValueOnce([
-            { subscriptionId: shortsSub.id, videoUrl: shortUrl, createdAt: 1, lastAttemptAt: 0 },
+            { subscriptionId: shortsSub.id, videoUrl: shortUrl, createdAt: 1, lastAttemptAt: 0, mediaPlaylistIndex: null },
           ])
           .mockReturnValue([]);
         vi.mocked(YtDlpDownloader.getLatestVideoUrl).mockResolvedValue(null as any);
@@ -897,6 +897,29 @@ describe('SubscriptionService', () => {
         expect(mockBuilder.set).toHaveBeenCalledWith(
           expect.objectContaining({ lastShortVideoLink: shortUrl })
         );
+      });
+
+      it('names a recovered item with the backfill position it was queued with', async () => {
+        // Without the stored index the renderer falls back to "00", so every
+        // recovered item of a playlist is named alike - unlike the siblings the
+        // backfill placed at 1..N, and colliding with each other.
+        vi.mocked(listVideoRetries).mockReset();
+        vi.mocked(listVideoRetries)
+          .mockReturnValueOnce([
+            { subscriptionId: sub.id, videoUrl: failedUrl, createdAt: 1, lastAttemptAt: 0, mediaPlaylistIndex: 7 },
+          ])
+          .mockReturnValue([]);
+
+        await subscriptionService.checkSubscriptions();
+
+        const retryCall = vi
+          .mocked(downloadService.downloadYouTubeVideo)
+          .mock.calls.find((call) => call[0] === failedUrl);
+        expect(retryCall?.[1]).toMatchObject({
+          filenameTemplateSourceOptions: expect.objectContaining({
+            mediaPlaylistIndex: 7,
+          }),
+        });
       });
 
       it('keeps the retry when the collection it should join is gone', async () => {

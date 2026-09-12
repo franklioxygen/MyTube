@@ -1004,6 +1004,13 @@
           "notNull": true,
           "autoincrement": false,
           "default": 0
+        },
+        "media_playlist_index": {
+          "name": "media_playlist_index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         }
       },
       "indexes": {

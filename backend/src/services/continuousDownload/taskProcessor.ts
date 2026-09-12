@@ -373,7 +373,8 @@ export class TaskProcessor {
         if (task.subscriptionId) {
           await this.restoreSubscriptionRetryForFailedVideo(
             task.subscriptionId,
-            videoUrl
+            videoUrl,
+            i + 1
           );
         }
 
@@ -429,11 +430,12 @@ export class TaskProcessor {
   /** Persist a failed backfill URL without disrupting task error handling. */
   private async restoreSubscriptionRetryForFailedVideo(
     subscriptionId: string,
-    videoUrl: string
+    videoUrl: string,
+    mediaPlaylistIndex?: number
   ): Promise<void> {
     try {
       const { queueVideoRetry } = await import("../subscription/videoRetries");
-      queueVideoRetry(subscriptionId, videoUrl);
+      queueVideoRetry(subscriptionId, videoUrl, mediaPlaylistIndex);
     } catch (error) {
       logger.warn(
         `Could not restore subscription ${subscriptionId} retry for ${videoUrl}:`,
@@ -672,7 +674,8 @@ export class TaskProcessor {
         if (!linked && task.subscriptionId) {
           await this.restoreSubscriptionRetryForFailedVideo(
             task.subscriptionId,
-            videoUrl
+            videoUrl,
+            videoIndex + 1
           );
         }
       }

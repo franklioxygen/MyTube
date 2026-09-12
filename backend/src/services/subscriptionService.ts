@@ -820,7 +820,17 @@ export class SubscriptionService {
         }
       }
 
-      const retryUrls = listVideoRetries(sub.id).map((retry) => retry.videoUrl);
+      const retries = listVideoRetries(sub.id);
+      const retryUrls = retries.map((retry) => retry.videoUrl);
+      // The backfill position the target was queued with, so a recovered item
+      // is named like the siblings it was queued alongside instead of falling
+      // back to the renderer's index-less "00".
+      const retryIndexByUrl = new Map(
+        retries.map((retry) => [
+          retry.videoUrl,
+          retry.mediaPlaylistIndex ?? undefined,
+        ])
+      );
       const targets = [
         ...new Set([
           ...retryUrls,
@@ -833,6 +843,7 @@ export class SubscriptionService {
       for (const videoUrl of targets) {
         markVideoRetryAttempted(sub.id, videoUrl);
         const isHead = videoUrl === latestVideoUrl;
+        const mediaPlaylistIndex = retryIndexByUrl.get(videoUrl);
         const existingVideo = this.getExistingSubscriptionVideo(sub, videoUrl);
         if (existingVideo) {
           if (!this.linkSubscriptionVideoToCollection(sub, existingVideo.id, videoUrl)) {
@@ -886,7 +897,8 @@ export class SubscriptionService {
           downloadResult = await this.enqueueSubscriptionDownload(
             sub,
             videoUrl,
-            downloadedVideoTitle
+            downloadedVideoTitle,
+            mediaPlaylistIndex
           );
 
           // Add to download history on success
@@ -1453,7 +1465,8 @@ export class SubscriptionService {
   private enqueueSubscriptionDownload(
     sub: Subscription,
     videoUrl: string,
-    initialTitle: string
+    initialTitle: string,
+    mediaPlaylistIndex?: number
   ): Promise<any> {
     const downloadTaskId = uuidv4();
     const isBilibili = sub.platform === "Bilibili";
@@ -1468,7 +1481,7 @@ export class SubscriptionService {
               downloadTaskId,
               registerCancel,
               undefined,
-              buildFilenameTemplateSourceOptions(sub),
+              buildFilenameTemplateSourceOptions(sub, mediaPlaylistIndex),
               {
                 subscriptionYtdlpConfig: sub.ytdlpConfig,
                 subscriptionFilenameTemplate: sub.filenameTemplate,
@@ -1478,7 +1491,7 @@ export class SubscriptionService {
               downloadId: downloadTaskId,
               onStart: registerCancel,
               filenameTemplateSourceOptions:
-                buildFilenameTemplateSourceOptions(sub),
+                buildFilenameTemplateSourceOptions(sub, mediaPlaylistIndex),
               subscriptionYtdlpConfig: sub.ytdlpConfig,
               subscriptionFilenameTemplate: sub.filenameTemplate,
             }),
