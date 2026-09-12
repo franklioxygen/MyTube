@@ -369,6 +369,18 @@ export class TaskProcessor {
           sourceKind: "task",
         });
 
+        // A playlist subscription seeds its cursor to the collection head
+        // before this task runs, so a failure here can leave the cursor past a
+        // video nothing downloaded, and the scheduled check would never look at
+        // it again. Put it back in front of the check, which retries an
+        // ordinary download failure on its own.
+        if (task.subscriptionId) {
+          await this.restoreSubscriptionRetryForFailedVideo(
+            task.subscriptionId,
+            videoUrl
+          );
+        }
+
         const taskStatusAfterError = await this.taskRepository.getTaskStatus(
           task.id
         );
@@ -421,6 +433,37 @@ export class TaskProcessor {
   /**
    * Initialize total video count for a task
    */
+  /**
+   * Clear the linked subscription's video cursor when it still points at the
+   * video this task just failed on, so the next scheduled check retries it.
+   *
+   * Imported lazily to keep the task processor off the subscription service's
+   * module graph, which reaches the download manager and back here.
+   */
+  private async restoreSubscriptionRetryForFailedVideo(
+    subscriptionId: string,
+    videoUrl: string
+  ): Promise<void> {
+    try {
+      const { subscriptionService } = await import("../subscriptionService");
+      const cleared = await subscriptionService.clearVideoCursorIfUnchanged(
+        subscriptionId,
+        videoUrl
+      );
+      if (cleared) {
+        logger.info(
+          `Cleared subscription ${subscriptionId} cursor so ${videoUrl} is retried on the next check`
+        );
+      }
+    } catch (error) {
+      // Never let cursor bookkeeping fail the task's own error handling.
+      logger.warn(
+        `Could not restore subscription ${subscriptionId} retry for ${videoUrl}:`,
+        error
+      );
+    }
+  }
+
   private async initializeTotalVideos(
     task: ContinuousDownloadTask,
     useIncremental: boolean,

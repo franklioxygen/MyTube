@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { ScheduledTask } from "node-cron";
 import { v4 as uuidv4 } from "uuid";
 import { db } from "../db";
@@ -11,8 +11,10 @@ import {
 import {
     extractBilibiliVideoId,
     extractBilibiliMid,
+    bilibiliPartSourceUrlAliases,
     extractTwitchChannelLogin,
     isBilibiliSpaceUrl,
+    isBilibiliUrl,
     isTwitchChannelUrl,
     isYouTubeUrl,
     normalizeTwitchChannelUrl,
@@ -21,6 +23,8 @@ import {
 import { logger } from "../utils/logger";
 import { runWithConcurrencyLimit } from "../utils/concurrency";
 import { isMembersOnlyError } from "../utils/ytdlp/errorClassification";
+import { getEffectiveUserYtDlpConfig } from "../utils/ytDlpUtils";
+import { resolveDownloadAudioMode } from "./downloaders/ytdlp/ytdlpConfig";
 import downloadManager from "./downloadManager";
 import {
     downloadSingleBilibiliPart,
@@ -781,7 +785,45 @@ export class SubscriptionService {
         }
       }
 
-      if (latestVideoUrl && latestVideoUrl !== sub.lastVideoLink) {
+      // The cursor can point behind a video the library already holds: a
+      // backfill that failed on it clears the cursor so this check retries it
+      // (see clearVideoCursorIfUnchanged), and a retry that finds the item
+      // present must settle the cursor rather than download a second copy.
+      // Scoped to the media type the effective config would save under, the
+      // same way the backfill's own duplicate check is.
+      const existingHead =
+        latestVideoUrl && latestVideoUrl !== sub.lastVideoLink
+          ? this.getExistingSubscriptionVideo(sub, latestVideoUrl)
+          : undefined;
+      if (existingHead && latestVideoUrl) {
+        // Linked first: the cursor may only move past a video the collection
+        // has actually received.
+        if (
+          await this.linkExistingHeadToCollection(
+            sub,
+            existingHead.id,
+            latestVideoUrl
+          )
+        ) {
+          logger.info(
+            "Subscription head is already downloaded; advancing cursor without re-downloading",
+            getSubscriptionLogContext(sub, { latestVideoUrl })
+          );
+          await this.advanceVideoCursor(sub, latestVideoUrl);
+        } else {
+          checkStatus = "fail";
+          checkFailureReason = bucketDownloadError("Collection update failed");
+        }
+      }
+
+      // Falls through rather than returning: the Shorts probe below is
+      // independent of the main feed, and advanceVideoCursor refreshes
+      // lastCheck, so returning here would hide a new Short for a full interval.
+      if (
+        latestVideoUrl &&
+        latestVideoUrl !== sub.lastVideoLink &&
+        !existingHead
+      ) {
         logger.info(
           "New video found for subscription",
           getSubscriptionLogContext(sub, { latestVideoUrl })
@@ -1187,6 +1229,176 @@ export class SubscriptionService {
    * The subscription's downloadCount is intentionally left unchanged since
    * nothing was downloaded.
    */
+  /**
+   * Whether the library already holds `videoUrl` for this subscription, scoped
+   * to the media type its effective config would save under - an audio-only
+   * override stores the item as "audio", and a video-scoped lookup would miss
+   * it and download it again.
+   */
+  private getExistingSubscriptionVideo(sub: Subscription, videoUrl: string) {
+    const { audioOnly } = resolveDownloadAudioMode({
+      userConfig: getEffectiveUserYtDlpConfig(videoUrl, sub.ytdlpConfig),
+    });
+    const mediaType = audioOnly ? "audio" : "video";
+
+    // An all-parts Bilibili download stores part one as `...?p=1` while the
+    // playlist probe hands back the bare `/video/BV...`. An exact lookup misses
+    // that, so the check would enqueue a download the Bilibili downloader then
+    // recognises as a redownload of the same part - the duplicate this guard
+    // exists to prevent. Same alias set the download preflights already use.
+    for (const candidateUrl of isBilibiliUrl(videoUrl)
+      ? bilibiliPartSourceUrlAliases(videoUrl)
+      : [videoUrl]) {
+      const existing = storageService.getVideoBySourceUrl(
+        candidateUrl,
+        mediaType
+      );
+      if (existing) {
+        return existing;
+      }
+    }
+
+    return undefined;
+  }
+
+  /**
+   * Put an already-downloaded head into the subscription's collection.
+   *
+   * Only the download path below links what it fetches, so settling a head the
+   * library already holds without this would advance the cursor past a video
+   * the collection never receives. Returns false when the membership was not
+   * created - `addVideoToCollection` answers null for a deleted collection
+   * rather than throwing - so the caller can leave the cursor where it is and
+   * let the next check try again.
+   */
+  /**
+   * Where a recovered head belongs in its collection.
+   *
+   * The head is the newest item, and the backfill appended as it went, so a
+   * `dateDesc` collection runs newest-first and the head belongs at the front -
+   * appending it there would put the newest video behind every older one. Every
+   * other order either already appends correctly (`dateAsc`) or depends on a
+   * value this cannot know (the view-count orders), so those keep appending.
+   */
+  private async resolveRecoveredHeadOrder(
+    sub: Subscription
+  ): Promise<number | undefined> {
+    if (!sub.collectionId) {
+      return undefined;
+    }
+
+    try {
+      const { TaskRepository } = await import(
+        "./continuousDownload/taskRepository"
+      );
+      const downloadOrder = await new TaskRepository().getBackfillDownloadOrder(
+        sub.id,
+        sub.collectionId
+      );
+      return downloadOrder === "dateDesc" ? 1 : undefined;
+    } catch (error) {
+      // Placement is a presentation detail; never let it cost the link itself.
+      logger.warn(
+        "Could not resolve the backfill order for a recovered head; appending",
+        error
+      );
+      return undefined;
+    }
+  }
+
+  private async linkExistingHeadToCollection(
+    sub: Subscription,
+    videoId: string | undefined,
+    videoUrl: string
+  ): Promise<boolean> {
+    if (sub.subscriptionType !== "playlist" || !sub.collectionId) {
+      return true;
+    }
+    if (!videoId) {
+      logger.error(
+        "Subscription video has no id to link into its collection",
+        getSubscriptionLogContext(sub, { videoUrl })
+      );
+      return false;
+    }
+
+    const order = await this.resolveRecoveredHeadOrder(sub);
+
+    try {
+      if (
+        !storageService.addVideoToCollection(sub.collectionId, videoId, {
+          order,
+        })
+      ) {
+        logger.error(
+          "Subscription collection is missing; leaving the cursor for the next check",
+          getSubscriptionLogContext(sub, { videoUrl })
+        );
+        return false;
+      }
+      return true;
+    } catch (error) {
+      logger.error(
+        `Error adding video to collection ${sub.collectionId}:`,
+        error,
+        getSubscriptionLogContext(sub, { videoUrl })
+      );
+      return false;
+    }
+  }
+
+  /** Move the video cursor to `videoUrl` without recording a download. */
+  private async advanceVideoCursor(
+    sub: Subscription,
+    videoUrl: string
+  ): Promise<void> {
+    const updateResult = await db
+      .update(subscriptions)
+      .set({ lastVideoLink: videoUrl, lastCheck: Date.now() })
+      .where(eq(subscriptions.id, sub.id))
+      .returning({ id: subscriptions.id });
+
+    if (updateResult.length === 0) {
+      logger.warn(
+        "Subscription was deleted before its cursor could be advanced",
+        getSubscriptionLogContext(sub, { videoUrl })
+      );
+    }
+  }
+
+  /**
+   * Clear the video cursor when it still points at `videoUrl`, so the next
+   * scheduled check treats that video as new again and retries it.
+   *
+   * A playlist subscription seeds its cursor to the collection head at creation
+   * time, before the backfill task that downloads the history has run. If that
+   * task then fails on the head - a transient yt-dlp timeout is enough - the
+   * cursor is already past a video nothing downloaded, the check sees
+   * `head === lastVideoLink` on every later poll, and the gap is permanent.
+   * Clearing the cursor puts the video back in front of the check, which
+   * already retries an ordinary download failure by leaving the cursor alone.
+   *
+   * Conditional on the cursor being unchanged so a check that has since moved
+   * on - to a genuinely newer upload - is not rewound underneath itself.
+   */
+  async clearVideoCursorIfUnchanged(
+    subscriptionId: string,
+    videoUrl: string
+  ): Promise<boolean> {
+    const updateResult = await db
+      .update(subscriptions)
+      .set({ lastVideoLink: null })
+      .where(
+        and(
+          eq(subscriptions.id, subscriptionId),
+          eq(subscriptions.lastVideoLink, videoUrl)
+        )
+      )
+      .returning({ id: subscriptions.id });
+
+    return updateResult.length > 0;
+  }
+
   private async markSubscriptionVideoSkipped(
     sub: Subscription,
     videoUrl: string,

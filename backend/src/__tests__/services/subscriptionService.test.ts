@@ -11,6 +11,13 @@ import { subscriptionService } from '../../services/subscriptionService';
 import { TelegramService } from '../../services/telegramService';
 import { executeYtDlpJson } from '../../utils/ytDlpUtils';
 
+const backfillOrderMock = vi.hoisted(() => vi.fn());
+vi.mock('../../services/continuousDownload/taskRepository', () => ({
+  TaskRepository: class {
+    getBackfillDownloadOrder = backfillOrderMock;
+  },
+}));
+
 // Test setup
 vi.mock('../../db', () => ({
   db: {
@@ -108,6 +115,14 @@ describe('SubscriptionService', () => {
     vi.mocked(getProviderScript).mockReturnValue('');
     
     mockBuilder = createMockQueryBuilder([]);
+
+    // Mirrors the real contract: a collection object on success, null when the
+    // collection is gone. Auto-mocked undefined would read as "gone".
+    (storageService.addVideoToCollection as any).mockReturnValue({
+      id: 'collection-1',
+    });
+
+    backfillOrderMock.mockResolvedValue(null);
 
     (db.select as any).mockReturnValue(mockBuilder);
     (db.insert as any).mockReturnValue(mockBuilder);
@@ -690,6 +705,252 @@ describe('SubscriptionService', () => {
       await subscriptionService.checkSubscriptions();
 
       expect(stamped).toBeNull();
+    });
+
+    it('links an already-downloaded head into the playlist collection', async () => {
+      // Only the download path links what it fetches, so settling without this
+      // would advance the cursor past a video the collection never receives.
+      const sub = {
+        id: 'link-existing-sub',
+        author: 'Playlist Author',
+        platform: 'YouTube',
+        authorUrl: 'https://www.youtube.com/playlist?list=PLX',
+        interval: 60,
+        lastCheck: 0,
+        lastVideoLink: null,
+        subscriptionType: 'playlist',
+        collectionId: 'collection-1',
+      };
+
+      mockBuilder.then = (cb: any) => Promise.resolve([sub]).then(cb);
+      (executeYtDlpJson as any).mockResolvedValue({ entries: [{ id: 'already' }] });
+      (storageService.getVideoBySourceUrl as any).mockReturnValueOnce({
+        id: 'existing-video',
+      });
+
+      await subscriptionService.checkSubscriptions();
+
+      expect(storageService.addVideoToCollection).toHaveBeenCalledWith(
+        'collection-1',
+        'existing-video',
+        { order: undefined }
+      );
+    });
+
+    it('puts a recovered head at the front of a dateDesc collection', async () => {
+      // The head is the newest item and the backfill appended as it went, so a
+      // dateDesc collection runs newest-first; appending would park the newest
+      // video behind every older one.
+      const sub = {
+        id: 'order-sub',
+        author: 'Playlist Author',
+        platform: 'YouTube',
+        authorUrl: 'https://www.youtube.com/playlist?list=PLX',
+        interval: 60,
+        lastCheck: 0,
+        lastVideoLink: null,
+        subscriptionType: 'playlist',
+        collectionId: 'collection-1',
+      };
+
+      mockBuilder.then = (cb: any) => Promise.resolve([sub]).then(cb);
+      (executeYtDlpJson as any).mockResolvedValue({ entries: [{ id: 'already' }] });
+      (storageService.getVideoBySourceUrl as any).mockReturnValueOnce({
+        id: 'existing-video',
+      });
+      backfillOrderMock.mockResolvedValue('dateDesc');
+
+      await subscriptionService.checkSubscriptions();
+
+      expect(storageService.addVideoToCollection).toHaveBeenCalledWith(
+        'collection-1',
+        'existing-video',
+        { order: 1 }
+      );
+    });
+
+    it('keeps appending a recovered head for the other backfill orders', async () => {
+      // dateAsc already appends correctly, and the view-count orders depend on
+      // a value this cannot know, so those keep the append.
+      const sub = {
+        id: 'order-asc-sub',
+        author: 'Playlist Author',
+        platform: 'YouTube',
+        authorUrl: 'https://www.youtube.com/playlist?list=PLX',
+        interval: 60,
+        lastCheck: 0,
+        lastVideoLink: null,
+        subscriptionType: 'playlist',
+        collectionId: 'collection-1',
+      };
+
+      mockBuilder.then = (cb: any) => Promise.resolve([sub]).then(cb);
+      (executeYtDlpJson as any).mockResolvedValue({ entries: [{ id: 'already' }] });
+      (storageService.getVideoBySourceUrl as any).mockReturnValueOnce({
+        id: 'existing-video',
+      });
+      backfillOrderMock.mockResolvedValue('dateAsc');
+
+      await subscriptionService.checkSubscriptions();
+
+      expect(storageService.addVideoToCollection).toHaveBeenCalledWith(
+        'collection-1',
+        'existing-video',
+        { order: undefined }
+      );
+    });
+
+    it('leaves the cursor alone when the head cannot be linked', async () => {
+      // addVideoToCollection answers null for a deleted collection rather than
+      // throwing; advancing on that would strand the video permanently.
+      const sub = {
+        id: 'link-failure-sub',
+        author: 'Playlist Author',
+        platform: 'YouTube',
+        authorUrl: 'https://www.youtube.com/playlist?list=PLX',
+        interval: 60,
+        lastCheck: 0,
+        lastVideoLink: null,
+        subscriptionType: 'playlist',
+        collectionId: 'collection-1',
+      };
+
+      mockBuilder.then = (cb: any) => Promise.resolve([sub]).then(cb);
+      (executeYtDlpJson as any).mockResolvedValue({ entries: [{ id: 'already' }] });
+      (storageService.getVideoBySourceUrl as any).mockReturnValueOnce({
+        id: 'existing-video',
+      });
+      (storageService.addVideoToCollection as any).mockReturnValueOnce(null);
+
+      await subscriptionService.checkSubscriptions();
+
+      expect(mockBuilder.set).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          lastVideoLink: 'https://www.youtube.com/watch?v=already',
+        })
+      );
+    });
+
+    it('still checks Shorts after settling an already-downloaded head', async () => {
+      // advanceVideoCursor refreshes lastCheck, so returning here would hide a
+      // new Short until the next full interval.
+      const sub = {
+        id: 'settle-then-shorts-sub',
+        author: 'Author',
+        platform: 'YouTube',
+        authorUrl: 'https://www.youtube.com/@author',
+        interval: 60,
+        lastCheck: 0,
+        lastVideoLink: null,
+        downloadShorts: 1,
+        lastShortVideoLink: null,
+      };
+
+      mockBuilder.then = (cb: any) => Promise.resolve([sub]).then(cb);
+      vi.mocked(YtDlpDownloader.getLatestVideoUrl).mockResolvedValue('main-video');
+      vi.mocked(YtDlpDownloader.getLatestShortsUrl).mockResolvedValue('short-video');
+      // Present for the main head, absent for the Short.
+      (storageService.getVideoBySourceUrl as any).mockReturnValueOnce({
+        id: 'existing-video',
+      });
+      vi.mocked(downloadService.downloadYouTubeVideo).mockResolvedValue({
+        videoData: { id: 'short' },
+      } as any);
+
+      await subscriptionService.checkSubscriptions();
+
+      expect(
+        vi.mocked(downloadService.downloadYouTubeVideo).mock.calls.map((c) => c[0])
+      ).toEqual(['short-video']);
+    });
+
+    it('settles a Bilibili head stored under its part-one alias', async () => {
+      // An all-parts download stores part one as `...?p=1` while the probe
+      // returns the bare URL. An exact lookup misses it, so the check would
+      // enqueue a download the Bilibili downloader then redownloads as the
+      // same part.
+      const bare = 'https://www.bilibili.com/video/BV1xx';
+      const sub = {
+        id: 'bili-alias-sub',
+        author: 'Bili Author',
+        platform: 'Bilibili',
+        authorUrl: 'https://space.bilibili.com/123',
+        interval: 60,
+        lastCheck: 0,
+        lastVideoLink: null,
+        subscriptionType: 'channel',
+      };
+
+      mockBuilder.then = (cb: any) => Promise.resolve([sub]).then(cb);
+      vi.mocked(BilibiliDownloader.getLatestVideoUrl).mockResolvedValue(bare);
+      (storageService.getVideoBySourceUrl as any).mockImplementation(
+        (url: string) => (url === `${bare}?p=1` ? { id: 'existing-part' } : undefined)
+      );
+
+      await subscriptionService.checkSubscriptions();
+
+      expect(downloadService.downloadSingleBilibiliPart).not.toHaveBeenCalled();
+      expect(mockBuilder.set).toHaveBeenCalledWith(
+        expect.objectContaining({ lastVideoLink: bare })
+      );
+    });
+
+    it('advances the cursor without re-downloading a head it already holds', async () => {
+      // A backfill failure clears the cursor so the check retries that video.
+      // If the item is present by then - downloaded some other way - the retry
+      // has to settle the cursor rather than fetch a second copy.
+      const sub = {
+        id: 'already-downloaded-sub',
+        author: 'Playlist Author',
+        platform: 'YouTube',
+        authorUrl: 'https://www.youtube.com/playlist?list=PLX',
+        interval: 60,
+        lastCheck: 0,
+        lastVideoLink: null,
+        subscriptionType: 'playlist',
+        collectionId: 'collection-1',
+      };
+
+      mockBuilder.then = (cb: any) => Promise.resolve([sub]).then(cb);
+      (executeYtDlpJson as any).mockResolvedValue({
+        entries: [{ id: 'already' }],
+      });
+      // Once, not persistently: vi.clearAllMocks() keeps implementations, so a
+      // lasting return value would leak into every later test in this file.
+      (storageService.getVideoBySourceUrl as any).mockReturnValueOnce({
+        id: 'existing-video',
+      });
+
+      await subscriptionService.checkSubscriptions();
+
+      expect(downloadService.downloadYouTubeVideo).not.toHaveBeenCalled();
+      expect(mockBuilder.set).toHaveBeenCalledWith(
+        expect.objectContaining({
+          lastVideoLink: 'https://www.youtube.com/watch?v=already',
+        })
+      );
+    });
+
+    it('clears the cursor only while it still points at the failed video', async () => {
+      mockBuilder.then = (cb: any) => Promise.resolve([{ id: 'sub-1' }]).then(cb);
+
+      await expect(
+        subscriptionService.clearVideoCursorIfUnchanged(
+          'sub-1',
+          'https://www.bilibili.com/video/BVfailed'
+        )
+      ).resolves.toBe(true);
+      expect(mockBuilder.set).toHaveBeenCalledWith({ lastVideoLink: null });
+
+      // No row matched: a later check has already moved the cursor on to a
+      // genuinely newer upload, and rewinding under it would re-download that.
+      mockBuilder.then = (cb: any) => Promise.resolve([]).then(cb);
+      await expect(
+        subscriptionService.clearVideoCursorIfUnchanged(
+          'sub-1',
+          'https://www.bilibili.com/video/BVfailed'
+        )
+      ).resolves.toBe(false);
     });
 
     it('updates lastCheck when a playlist probe fails to back off retries', async () => {
