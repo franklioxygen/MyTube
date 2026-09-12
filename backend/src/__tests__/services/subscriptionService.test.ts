@@ -922,6 +922,47 @@ describe('SubscriptionService', () => {
         });
       });
 
+      it('does not attempt a Short twice in one check when the retry failed', async () => {
+        // No media results from a failed attempt, so the existing-media guard
+        // cannot see it. Without knowing the URL was already a target, the
+        // Shorts probe downloads it again in the same check: two attempts, two
+        // failure history rows, two notifications.
+        const shortUrl = 'https://www.youtube.com/shorts/failing';
+        const shortsSub = {
+          ...sub,
+          subscriptionType: 'channel',
+          collectionId: undefined,
+          downloadShorts: 1,
+          lastShortVideoLink: 'https://www.youtube.com/shorts/old',
+        };
+        mockBuilder.then = (cb: any) => Promise.resolve([shortsSub]).then(cb);
+        vi.mocked(listVideoRetries).mockReset();
+        vi.mocked(listVideoRetries)
+          .mockReturnValueOnce([
+            { subscriptionId: shortsSub.id, videoUrl: shortUrl, createdAt: 1, lastAttemptAt: 0, mediaPlaylistIndex: null },
+          ])
+          .mockReturnValue([]);
+        vi.mocked(YtDlpDownloader.getLatestVideoUrl).mockResolvedValue(null as any);
+        vi.mocked(YtDlpDownloader.getLatestShortsUrl).mockResolvedValue(shortUrl);
+        vi.mocked(storageService.getVideoBySourceUrl).mockReturnValue(undefined as any);
+        vi.mocked(downloadService.downloadYouTubeVideo).mockRejectedValue(
+          new Error('timed out')
+        );
+
+        await subscriptionService.checkSubscriptions();
+
+        expect(
+          vi.mocked(downloadService.downloadYouTubeVideo).mock.calls.filter(
+            (call) => call[0] === shortUrl
+          )
+        ).toHaveLength(1);
+        expect(
+          vi.mocked(storageService.addDownloadHistoryItem).mock.calls.filter(
+            (call: any[]) => call[0]?.sourceUrl === shortUrl
+          )
+        ).toHaveLength(1);
+      });
+
       it('keeps the retry when the collection it should join is gone', async () => {
         // addVideoToCollection answers null for a deleted collection rather
         // than throwing, so settling on it would drop the retry for a video the

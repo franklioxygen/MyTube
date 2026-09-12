@@ -839,8 +839,13 @@ export class SubscriptionService {
             : []),
         ]),
       ];
+      // What this check has already put a download attempt behind, so the
+      // Shorts probe below can tell "nothing has touched this URL" from "the
+      // retry batch already tried it and it failed".
+      const attemptedTargets = new Set<string>();
       // Each target is attempted once per interval, independently of the feed head.
       for (const videoUrl of targets) {
+        attemptedTargets.add(videoUrl);
         markVideoRetryAttempted(sub.id, videoUrl);
         const isHead = videoUrl === latestVideoUrl;
         const mediaPlaylistIndex = retryIndexByUrl.get(videoUrl);
@@ -1109,6 +1114,18 @@ export class SubscriptionService {
               getSubscriptionLogContext(sub, { latestShortUrl })
             );
             await this.advanceVideoCursor(sub, latestShortUrl, "short");
+            return;
+          }
+
+          // Attempted just above and it did not produce media - it failed, or
+          // it was skipped as unfetchable. Downloading again in the same check
+          // buys nothing and doubles the failure history and notifications; the
+          // interval is the backoff, as it is for every other target.
+          if (attemptedTargets.has(latestShortUrl)) {
+            logger.info(
+              "Subscription short was already attempted in this check; leaving it for the next one",
+              getSubscriptionLogContext(sub, { latestShortUrl })
+            );
             return;
           }
 
