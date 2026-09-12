@@ -783,22 +783,41 @@ export class SubscriptionService {
         }
       }
 
-      if (latestVideoUrl && latestVideoUrl !== sub.lastVideoLink) {
-        // The cursor can point behind a video the library already holds: a
-        // backfill that failed on it clears the cursor so this check retries it
-        // (see clearVideoCursorIfUnchanged), and a retry that finds the item
-        // present must settle the cursor rather than download a second copy.
-        // Scoped to the media type the effective config would save under, the
-        // same way the backfill's own duplicate check is.
-        if (this.subscriptionAlreadyHasVideo(sub, latestVideoUrl)) {
+      // The cursor can point behind a video the library already holds: a
+      // backfill that failed on it clears the cursor so this check retries it
+      // (see clearVideoCursorIfUnchanged), and a retry that finds the item
+      // present must settle the cursor rather than download a second copy.
+      // Scoped to the media type the effective config would save under, the
+      // same way the backfill's own duplicate check is.
+      const existingHead =
+        latestVideoUrl && latestVideoUrl !== sub.lastVideoLink
+          ? this.getExistingSubscriptionVideo(sub, latestVideoUrl)
+          : undefined;
+      if (existingHead && latestVideoUrl) {
+        // Linked first: the cursor may only move past a video the collection
+        // has actually received.
+        if (
+          this.linkExistingHeadToCollection(sub, existingHead.id, latestVideoUrl)
+        ) {
           logger.info(
             "Subscription head is already downloaded; advancing cursor without re-downloading",
             getSubscriptionLogContext(sub, { latestVideoUrl })
           );
           await this.advanceVideoCursor(sub, latestVideoUrl);
-          return;
+        } else {
+          checkStatus = "fail";
+          checkFailureReason = bucketDownloadError("Collection update failed");
         }
+      }
 
+      // Falls through rather than returning: the Shorts probe below is
+      // independent of the main feed, and advanceVideoCursor refreshes
+      // lastCheck, so returning here would hide a new Short for a full interval.
+      if (
+        latestVideoUrl &&
+        latestVideoUrl !== sub.lastVideoLink &&
+        !existingHead
+      ) {
         logger.info(
           "New video found for subscription",
           getSubscriptionLogContext(sub, { latestVideoUrl })
@@ -1210,16 +1229,59 @@ export class SubscriptionService {
    * override stores the item as "audio", and a video-scoped lookup would miss
    * it and download it again.
    */
-  private subscriptionAlreadyHasVideo(
-    sub: Subscription,
-    videoUrl: string
-  ): boolean {
+  private getExistingSubscriptionVideo(sub: Subscription, videoUrl: string) {
     const { audioOnly } = resolveDownloadAudioMode({
       userConfig: getEffectiveUserYtDlpConfig(videoUrl, sub.ytdlpConfig),
     });
-    return Boolean(
-      storageService.getVideoBySourceUrl(videoUrl, audioOnly ? "audio" : "video")
+    return storageService.getVideoBySourceUrl(
+      videoUrl,
+      audioOnly ? "audio" : "video"
     );
+  }
+
+  /**
+   * Put an already-downloaded head into the subscription's collection.
+   *
+   * Only the download path below links what it fetches, so settling a head the
+   * library already holds without this would advance the cursor past a video
+   * the collection never receives. Returns false when the membership was not
+   * created - `addVideoToCollection` answers null for a deleted collection
+   * rather than throwing - so the caller can leave the cursor where it is and
+   * let the next check try again.
+   */
+  private linkExistingHeadToCollection(
+    sub: Subscription,
+    videoId: string | undefined,
+    videoUrl: string
+  ): boolean {
+    if (sub.subscriptionType !== "playlist" || !sub.collectionId) {
+      return true;
+    }
+    if (!videoId) {
+      logger.error(
+        "Subscription video has no id to link into its collection",
+        getSubscriptionLogContext(sub, { videoUrl })
+      );
+      return false;
+    }
+
+    try {
+      if (!storageService.addVideoToCollection(sub.collectionId, videoId)) {
+        logger.error(
+          "Subscription collection is missing; leaving the cursor for the next check",
+          getSubscriptionLogContext(sub, { videoUrl })
+        );
+        return false;
+      }
+      return true;
+    } catch (error) {
+      logger.error(
+        `Error adding video to collection ${sub.collectionId}:`,
+        error,
+        getSubscriptionLogContext(sub, { videoUrl })
+      );
+      return false;
+    }
   }
 
   /** Move the video cursor to `videoUrl` without recording a download. */

@@ -109,6 +109,12 @@ describe('SubscriptionService', () => {
     
     mockBuilder = createMockQueryBuilder([]);
 
+    // Mirrors the real contract: a collection object on success, null when the
+    // collection is gone. Auto-mocked undefined would read as "gone".
+    (storageService.addVideoToCollection as any).mockReturnValue({
+      id: 'collection-1',
+    });
+
     (db.select as any).mockReturnValue(mockBuilder);
     (db.insert as any).mockReturnValue(mockBuilder);
     (db.delete as any).mockReturnValue(mockBuilder);
@@ -690,6 +696,99 @@ describe('SubscriptionService', () => {
       await subscriptionService.checkSubscriptions();
 
       expect(stamped).toBeNull();
+    });
+
+    it('links an already-downloaded head into the playlist collection', async () => {
+      // Only the download path links what it fetches, so settling without this
+      // would advance the cursor past a video the collection never receives.
+      const sub = {
+        id: 'link-existing-sub',
+        author: 'Playlist Author',
+        platform: 'YouTube',
+        authorUrl: 'https://www.youtube.com/playlist?list=PLX',
+        interval: 60,
+        lastCheck: 0,
+        lastVideoLink: null,
+        subscriptionType: 'playlist',
+        collectionId: 'collection-1',
+      };
+
+      mockBuilder.then = (cb: any) => Promise.resolve([sub]).then(cb);
+      (executeYtDlpJson as any).mockResolvedValue({ entries: [{ id: 'already' }] });
+      (storageService.getVideoBySourceUrl as any).mockReturnValueOnce({
+        id: 'existing-video',
+      });
+
+      await subscriptionService.checkSubscriptions();
+
+      expect(storageService.addVideoToCollection).toHaveBeenCalledWith(
+        'collection-1',
+        'existing-video'
+      );
+    });
+
+    it('leaves the cursor alone when the head cannot be linked', async () => {
+      // addVideoToCollection answers null for a deleted collection rather than
+      // throwing; advancing on that would strand the video permanently.
+      const sub = {
+        id: 'link-failure-sub',
+        author: 'Playlist Author',
+        platform: 'YouTube',
+        authorUrl: 'https://www.youtube.com/playlist?list=PLX',
+        interval: 60,
+        lastCheck: 0,
+        lastVideoLink: null,
+        subscriptionType: 'playlist',
+        collectionId: 'collection-1',
+      };
+
+      mockBuilder.then = (cb: any) => Promise.resolve([sub]).then(cb);
+      (executeYtDlpJson as any).mockResolvedValue({ entries: [{ id: 'already' }] });
+      (storageService.getVideoBySourceUrl as any).mockReturnValueOnce({
+        id: 'existing-video',
+      });
+      (storageService.addVideoToCollection as any).mockReturnValueOnce(null);
+
+      await subscriptionService.checkSubscriptions();
+
+      expect(mockBuilder.set).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          lastVideoLink: 'https://www.youtube.com/watch?v=already',
+        })
+      );
+    });
+
+    it('still checks Shorts after settling an already-downloaded head', async () => {
+      // advanceVideoCursor refreshes lastCheck, so returning here would hide a
+      // new Short until the next full interval.
+      const sub = {
+        id: 'settle-then-shorts-sub',
+        author: 'Author',
+        platform: 'YouTube',
+        authorUrl: 'https://www.youtube.com/@author',
+        interval: 60,
+        lastCheck: 0,
+        lastVideoLink: null,
+        downloadShorts: 1,
+        lastShortVideoLink: null,
+      };
+
+      mockBuilder.then = (cb: any) => Promise.resolve([sub]).then(cb);
+      vi.mocked(YtDlpDownloader.getLatestVideoUrl).mockResolvedValue('main-video');
+      vi.mocked(YtDlpDownloader.getLatestShortsUrl).mockResolvedValue('short-video');
+      // Present for the main head, absent for the Short.
+      (storageService.getVideoBySourceUrl as any).mockReturnValueOnce({
+        id: 'existing-video',
+      });
+      vi.mocked(downloadService.downloadYouTubeVideo).mockResolvedValue({
+        videoData: { id: 'short' },
+      } as any);
+
+      await subscriptionService.checkSubscriptions();
+
+      expect(
+        vi.mocked(downloadService.downloadYouTubeVideo).mock.calls.map((c) => c[0])
+      ).toEqual(['short-video']);
     });
 
     it('advances the cursor without re-downloading a head it already holds', async () => {
