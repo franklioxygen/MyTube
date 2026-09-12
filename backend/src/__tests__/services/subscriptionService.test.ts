@@ -963,6 +963,43 @@ describe('SubscriptionService', () => {
         ).toHaveLength(1);
       });
 
+      it('settles a members-only Short against the Shorts cursor', async () => {
+        // The skip removes the retry row, so if it leaves the Shorts cursor
+        // behind there is nothing durable left saying the Short was settled -
+        // and the Shorts probe attempts and records the same members-only URL
+        // again on the next check.
+        const shortUrl = 'https://www.youtube.com/shorts/membersonly';
+        const shortsSub = {
+          ...sub,
+          subscriptionType: 'channel',
+          collectionId: undefined,
+          downloadShorts: 1,
+          lastShortVideoLink: 'https://www.youtube.com/shorts/old',
+        };
+        mockBuilder.then = (cb: any) => Promise.resolve([shortsSub]).then(cb);
+        vi.mocked(listVideoRetries).mockReset();
+        vi.mocked(listVideoRetries)
+          .mockReturnValueOnce([
+            { subscriptionId: shortsSub.id, videoUrl: shortUrl, createdAt: 1, lastAttemptAt: 0, mediaPlaylistIndex: null },
+          ])
+          .mockReturnValue([]);
+        vi.mocked(YtDlpDownloader.getLatestVideoUrl).mockResolvedValue(null as any);
+        vi.mocked(YtDlpDownloader.getLatestShortsUrl).mockResolvedValue(shortUrl);
+        vi.mocked(storageService.getVideoBySourceUrl).mockReturnValue(undefined as any);
+        vi.mocked(downloadService.downloadYouTubeVideo).mockRejectedValue(
+          new Error('Join this channel to get access to members-only content')
+        );
+
+        await subscriptionService.checkSubscriptions();
+
+        expect(mockBuilder.set).toHaveBeenCalledWith({
+          lastShortVideoLink: shortUrl,
+        });
+        expect(mockBuilder.set).not.toHaveBeenCalledWith(
+          expect.objectContaining({ lastVideoLink: shortUrl })
+        );
+      });
+
       it('keeps the retry when the collection it should join is gone', async () => {
         // addVideoToCollection answers null for a deleted collection rather
         // than throwing, so settling on it would drop the retry for a video the

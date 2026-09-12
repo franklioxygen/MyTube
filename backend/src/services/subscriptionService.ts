@@ -66,6 +66,14 @@ import {
 
 export type { Subscription } from "./subscription/types";
 
+/**
+ * Whether a URL is a YouTube Short, by the canonical form `getLatestShortsUrl`
+ * produces. Used to tell which cursor a retry target belongs to.
+ */
+function isYouTubeShortsUrl(videoUrl: string): boolean {
+  return /^https?:\/\/(www\.)?youtube\.com\/shorts\//i.test(videoUrl);
+}
+
 /** Bucketed reason for a check whose only failure was collection membership. */
 const COLLECTION_LINK_FAILURE_REASON = "Collection update failed";
 
@@ -1016,12 +1024,21 @@ export class SubscriptionService {
           // through (no return) so an independent new Short is still checked
           // this cycle, matching the ordinary-failure path below.
           if (isMembersOnlyError(downloadError)) {
+            // A target queued by the Shorts backfill is settled against the
+            // Shorts cursor, not the video one. Nothing on the row says which
+            // it is, but the only way this matters is when the URL is also the
+            // latest Short - and getLatestShortsUrl only ever produces the
+            // canonical /shorts/ form, so the URL itself is the same signal.
+            // Without this the skip removes the retry while leaving the Shorts
+            // cursor behind, and the Shorts probe attempts and records the very
+            // same members-only URL again on the next check.
+            const isShortTarget = isYouTubeShortsUrl(videoUrl);
             await this.markSubscriptionVideoSkipped(
               sub,
               videoUrl,
-              "video",
+              isShortTarget ? "short" : "video",
               "members-only",
-              isHead
+              isShortTarget || isHead
             );
             removeVideoRetry(sub.id, videoUrl);
           } else {
