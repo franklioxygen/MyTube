@@ -37,6 +37,7 @@ import {
     previewResultSignature,
     resolveFilenamePresetSelectValue,
 } from './filenameTemplateShared';
+import { SETTINGS_CONTROL_MAX_WIDTH } from './settingsLayout';
 
 interface FilenameTemplateSettingsProps {
     settings: Settings;
@@ -182,7 +183,6 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
         onChange('downloadFilenameTemplate', value);
     };
 
-    const selectMaxWidth = 400;
     const presetOptions = presetDefinitions.length > 0
         ? [
             ...presetDefinitions.map((preset) => ({
@@ -249,7 +249,7 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
     };
 
     return (
-        <Box sx={{ maxWidth: 960 }}>
+        <Box>
             <Typography variant="h6" gutterBottom>{t('filenameTemplate')}</Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 {t('filenameTemplateDescription')}
@@ -266,7 +266,7 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
                     {t('filenamePresetLabel')}
                 </Typography>
 
-                <FormControl fullWidth sx={{ maxWidth: selectMaxWidth }}>
+                <FormControl fullWidth sx={{ maxWidth: SETTINGS_CONTROL_MAX_WIDTH }}>
                     <Select
                         value={presetId}
                         onChange={(e) => handlePresetChange(e.target.value)}
@@ -281,7 +281,7 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
                 </FormControl>
 
                 {presetId === 'custom' && (
-                    <Box sx={{ mt: 2, maxWidth: 920 }}>
+                    <Box sx={{ mt: 2 }}>
                         <Typography variant="body2" color="text.secondary" sx={{ mb: 0.75 }}>
                             {t('filenameCustomTemplateLabel')}
                         </Typography>
@@ -304,7 +304,7 @@ const FilenameTemplateSettings: React.FC<FilenameTemplateSettingsProps> = ({
                 )}
 
                 {(effectiveTemplate || namingMode === 'legacy') && (
-                    <Box sx={{ mt: 2, p: 1.5, bgcolor: 'action.hover', borderRadius: 1.5, maxWidth: 920 }}>
+                    <Box sx={{ mt: 2, p: 1.5, bgcolor: 'action.hover', borderRadius: 1.5 }}>
                         <Typography variant="body2" fontWeight="bold" gutterBottom>
                             {t('filenamePreviewTitle')}
                             {isValidating && (

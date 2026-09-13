@@ -291,7 +291,7 @@ const UserManagementSettings: React.FC<UserManagementSettingsProps> = ({
         createMutation.isPending || updateMutation.isPending || deleteMutation.isPending;
 
     return (
-        <Box sx={{ mt: 2, maxWidth: 760 }}>
+        <Box sx={{ mt: 2 }}>
             <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>
                 {t('visitorAccounts')}
             </Typography>

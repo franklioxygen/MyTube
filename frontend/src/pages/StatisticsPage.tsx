@@ -587,7 +587,7 @@ const StatisticsPage: React.FC = () => {
                     {' '}
                     <Link
                         component={RouterLink}
-                        to="/settings?tab=7#statisticsEnabled-setting"
+                        to="/settings?tab=security#statisticsEnabled-setting"
                     >
                         {translateOrFallback(
                             t,

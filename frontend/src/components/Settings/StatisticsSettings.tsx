@@ -15,6 +15,7 @@ import React, { useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { Settings } from '../../types';
 import { api } from '../../utils/apiClient';
+import { SETTINGS_CONTROL_MAX_WIDTH } from './settingsLayout';
 
 interface StatisticsSettingsProps {
     settings: Settings;
@@ -81,7 +82,7 @@ const StatisticsSettings: React.FC<StatisticsSettingsProps> = ({ settings, onCha
             {enabled && (
                 <>
                     <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
-                        <FormControl size="small" sx={{ maxWidth: 300 }}>
+                        <FormControl size="small" sx={{ maxWidth: SETTINGS_CONTROL_MAX_WIDTH }}>
                             <InputLabel id="statistics-retention-label">
                                 {t('statisticsRetentionLabel') || 'Keep detailed event data'}
                             </InputLabel>

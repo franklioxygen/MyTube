@@ -118,13 +118,13 @@ const FilenameBatchRenameSection: React.FC<FilenameBatchRenameSectionProps> = ({
             </Typography>
 
             {renameError && (
-                <Alert severity="error" sx={{ mb: 1, maxWidth: 920 }}>
+                <Alert severity="error" sx={{ mb: 1 }}>
                     {renameError}
                 </Alert>
             )}
 
             {isRenameRunning && renameJob && (
-                <Box sx={{ mb: 2, maxWidth: 520 }}>
+                <Box sx={{ mb: 2 }}>
                     <Typography variant="body2" sx={{ mb: 0.5 }}>
                         {t('filenameBatchRenameRunning')} {renameJob.processed}/{renameJob.total}
                         {renameJob.currentTitle && ` – ${renameJob.currentTitle}`}
@@ -142,7 +142,7 @@ const FilenameBatchRenameSection: React.FC<FilenameBatchRenameSectionProps> = ({
             )}
 
             {isRenameComplete && renameJob && (
-                <Alert severity="success" sx={{ mb: 2, maxWidth: 920 }}>
+                <Alert severity="success" sx={{ mb: 2 }}>
                     {t('filenameBatchRenameComplete')} –{' '}
                     {t('filenameBatchRenameSummary')
                         .replace('{succeeded}', String(renameJob.succeeded))

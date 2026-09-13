@@ -4,6 +4,7 @@ import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PlayerSeekIntervals } from "../../../utils/playerSeekIntervals";
 import SeekIntervalSettings from "../SeekIntervalSettings";
+import { SETTINGS_CONTROL_MAX_WIDTH } from "../settingsLayout";
 
 vi.mock("../../../contexts/LanguageContext", () => ({
   useLanguage: () => ({ t: (key: string) => key }),
@@ -60,7 +61,7 @@ describe("SeekIntervalSettings", () => {
     ).toHaveStyle({
       display: "flex",
       flexDirection: "column",
-      maxWidth: "420px",
+      maxWidth: `${SETTINGS_CONTROL_MAX_WIDTH}px`,
     });
     expect(screen.getByLabelText("seekShortInterval")).toHaveValue(10);
     expect(screen.getByLabelText("seekMediumInterval")).toHaveValue(1);

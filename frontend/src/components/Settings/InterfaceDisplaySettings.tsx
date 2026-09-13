@@ -2,6 +2,7 @@ import { Box, FormControl, FormControlLabel, InputLabel, MenuItem, Select, Switc
 import React from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { INFO_SOUNDS, SOUND_OPTIONS } from '../../utils/sounds';
+import { SETTINGS_CONTROL_MAX_WIDTH } from './settingsLayout';
 
 interface InterfaceDisplaySettingsProps {
     itemsPerPage?: number;
@@ -32,7 +33,7 @@ const InterfaceDisplaySettings: React.FC<InterfaceDisplaySettingsProps> = (props
 
     return (
         <Box>
-            <Box sx={{ maxWidth: 400, display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <Box sx={{ maxWidth: SETTINGS_CONTROL_MAX_WIDTH, display: 'flex', flexDirection: 'column', gap: 3 }}>
                 <TextField
                     fullWidth
                     label={t('itemsPerPage') || "Items Per Page"}

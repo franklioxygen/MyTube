@@ -9,6 +9,7 @@ import {
 } from '@mui/material';
 import React, { useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { SETTINGS_CONTROL_MAX_WIDTH } from './settingsLayout';
 
 interface YtDlpSettingsProps {
     config: string;
@@ -319,7 +320,7 @@ const YtDlpSettings: React.FC<YtDlpSettingsProps> = ({ config, proxyOnlyYoutube 
                     <TextField
                         fullWidth
                         size="small"
-                        sx={{ mb: 2 }}
+                        sx={{ mb: 2, maxWidth: SETTINGS_CONTROL_MAX_WIDTH }}
                         value={proxyBypassHosts}
                         onChange={(e) => onProxyBypassHostsChange && onProxyBypassHostsChange(e.target.value)}
                         label={t('proxyBypassHosts') || 'Bypass proxy for hosts'}

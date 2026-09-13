@@ -20,6 +20,7 @@ import { Settings } from '../../types';
 import {
     LIVE_TRANSLATION_TARGET_LANGUAGE_OPTIONS,
 } from '../../utils/liveTranslationLanguages';
+import { SETTINGS_CONTROL_MAX_WIDTH } from './settingsLayout';
 
 const LIVE_TRANSLATION_MODELS: ReadonlyArray<{ value: string; label: string }> = [
     { value: 'gemini-3.5-live-translate-preview', label: 'Gemini 3.5 Live Translate (Preview)' },
@@ -57,7 +58,12 @@ const LiveTranslationSettings: React.FC<LiveTranslationSettingsProps> = ({
     const effectiveKeyConfigured = apiKeyConfigured && !clearApiKeyRequested;
 
     return (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, maxWidth: 640 }}>
+        <Box sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 2,
+            '& .MuiFormControl-root': { maxWidth: SETTINGS_CONTROL_MAX_WIDTH },
+        }}>
             <Typography variant="h6">{t('liveTranslation')}</Typography>
             <Typography variant="body2" color="text.secondary">
                 {t('liveTranslationDescription')}

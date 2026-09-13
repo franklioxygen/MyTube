@@ -20,7 +20,7 @@ const FilenameTemplateReference: React.FC<FilenameTemplateReferenceProps> = ({
     const { t } = useLanguage();
 
     return (
-        <Box sx={{ mt: 3, maxWidth: 920 }}>
+        <Box sx={{ mt: 3 }}>
             <CollapsibleSection title={t('filenameRefInformationTitle')} defaultExpanded={false}>
                 <Box sx={{ mb: 2 }}>
                     {informationNotes.map((note) => (

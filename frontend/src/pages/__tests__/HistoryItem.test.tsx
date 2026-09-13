@@ -399,7 +399,7 @@ describe('HistoryItem', () => {
         it('settings link points to correct URL', () => {
             renderHistoryItem({ status: 'deleted' });
             const link = screen.getByText('changeSettings');
-            expect(link.closest('a')).toHaveAttribute('href', '/settings?tab=4#dontSkipDeletedVideo-setting');
+            expect(link.closest('a')).toHaveAttribute('href', '/settings?tab=downloads#dontSkipDeletedVideo-setting');
         });
     });
 });

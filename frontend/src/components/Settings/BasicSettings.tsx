@@ -3,6 +3,7 @@ import React from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { ThemePreference } from '../../contexts/ThemeContext';
+import { SETTINGS_CONTROL_MAX_WIDTH } from './settingsLayout';
 
 interface BasicSettingsProps {
     language: string;
@@ -27,7 +28,7 @@ const BasicSettings: React.FC<BasicSettingsProps> = ({
 
     return (
         <Box>
-            <Box sx={{ maxWidth: 400, display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <Box sx={{ maxWidth: SETTINGS_CONTROL_MAX_WIDTH, display: 'flex', flexDirection: 'column', gap: 3 }}>
                 <FormControl fullWidth>
                     <InputLabel id="language-select-label">{t('language')}</InputLabel>
                     <Select

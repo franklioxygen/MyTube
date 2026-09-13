@@ -13,6 +13,7 @@ import { useScanStatus } from '../../hooks/useScanStatus';
 import { Settings } from '../../types';
 import { api, getApiErrorMessage } from '../../utils/apiClient';
 import { createTranslateOrFallback } from '../../utils/translateOrFallback';
+import { SETTINGS_CONTROL_MAX_WIDTH } from './settingsLayout';
 
 type MessageType = { text: string; type: 'success' | 'error' | 'warning' | 'info' };
 
@@ -145,7 +146,7 @@ const MountDirectoriesSettings: React.FC<MountDirectoriesSettingsProps> = ({
     );
 
     return (
-        <Box sx={{ maxWidth: 400 }}>
+        <Box sx={{ maxWidth: SETTINGS_CONTROL_MAX_WIDTH }}>
             <Typography variant="h6" sx={{ mb: 2 }}>
                 {t('mountDirectories')}
             </Typography>
