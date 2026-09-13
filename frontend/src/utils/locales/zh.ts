@@ -396,10 +396,6 @@ export const zh = {
     "确定要删除旧的 JSON 数据文件吗？此操作无法撤销。",
   legacyDataDeleted: "旧数据删除成功。",
   legacyDataDeleteFailed: "删除旧数据失败",
-  formatLegacyFilenames: "格式化旧文件名",
-  formatLegacyFilenamesDescription:
-    "批量将所有视频文件、缩略图和字幕重命名为新的标准格式：标题-作者-YYYY。此操作将修改磁盘上的文件名并更新数据库记录。",
-  formatLegacyFilenamesButton: "格式化文件名",
   deleteLegacyDataButton: "删除旧数据",
   cleanupTempFiles: "清理临时文件",
   cleanupTempFilesDescription:
@@ -477,11 +473,6 @@ export const zh = {
   riskCommandDetected: "检测到危险命令：{command}。上传已拒绝。",
   cleanupTempFilesActiveDownloads:
     "有活动下载时无法清理。请等待所有下载完成或取消它们。",
-  formatFilenamesSuccess:
-    "处理: {processed}\n重命名: {renamed}\n错误: {errors}",
-  formatFilenamesDetails: "详情:",
-  formatFilenamesMore: "...还有 {count} 项",
-  formatFilenamesError: "格式化文件名失败: {error}",
   itemsPerPage: "每页显示数量",
   itemsPerPageHelper: "每页显示的视频数量 (默认: 12)",
   showYoutubeSearch: "显示 YouTube 搜索结果",

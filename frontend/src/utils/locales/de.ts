@@ -427,10 +427,6 @@ export const de = {
     "Sind Sie sicher, dass Sie die Legacy-JSON-Datendateien löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
   legacyDataDeleted: "Legacy-Daten erfolgreich gelöscht.",
   legacyDataDeleteFailed: "Legacy-Daten konnten nicht gelöscht werden",
-  formatLegacyFilenames: "Veraltete Dateinamen formatieren",
-  formatLegacyFilenamesDescription:
-    "Benennen Sie alle Videodateien, Thumbnails und Untertitel im Stapel in das neue Standardformat um: Titel-Autor-JJJJ. Dieser Vorgang ändert Dateinamen auf dem Datenträger und aktualisiert die Datenbanklogik.",
-  formatLegacyFilenamesButton: "Dateinamen formatieren",
   deleteLegacyDataButton: "Veraltete Daten löschen",
   cleanupTempFiles: "Temporäre Dateien bereinigen",
   cleanupTempFilesDescription:
@@ -513,11 +509,6 @@ export const de = {
   riskCommandDetected: "Risikobefehl erkannt: {command}. Upload abgelehnt.",
   cleanupTempFilesActiveDownloads:
     "Temporäre Dateien können nicht bereinigt werden, während Downloads aktiv sind. Bitte warten Sie, bis alle Downloads abgeschlossen sind, oder brechen Sie sie zuerst ab.",
-  formatFilenamesSuccess:
-    "Bearbeitet: {processed}\nUmbenannt: {renamed}\nFehler: {errors}",
-  formatFilenamesDetails: "Details:",
-  formatFilenamesMore: "...und {count} weitere",
-  formatFilenamesError: "Fehler beim Formatieren der Dateinamen: {error}",
   itemsPerPage: "Elemente pro Seite",
   itemsPerPageHelper: "Anzahl der Videos pro Seite (Standard: 12)",
   showYoutubeSearch: "YouTube-Suchergebnisse anzeigen",

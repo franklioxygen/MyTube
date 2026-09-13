@@ -402,10 +402,6 @@ export const en = {
     "Are you sure you want to delete the legacy JSON data files? This action cannot be undone.",
   legacyDataDeleted: "Legacy data deleted successfully.",
   legacyDataDeleteFailed: "Failed to delete legacy data",
-  formatLegacyFilenames: "Format Legacy Filenames",
-  formatLegacyFilenamesDescription:
-    "Batch rename all video files, thumbnails, and subtitles to the new standard format: Title-Author-YYYY. This operation will modify filenames on the disk and update the database logic.",
-  formatLegacyFilenamesButton: "Format Filenames",
   deleteLegacyDataButton: "Delete Legacy Data",
   cleanupTempFiles: "Clean Up Temp Files",
   cleanupTempFilesDescription:
@@ -485,11 +481,6 @@ export const en = {
   riskCommandDetected: "Risk command detected: {command}. Upload rejected.",
   cleanupTempFilesActiveDownloads:
     "Cannot clean up temporary files while downloads are active. Please wait for all downloads to complete or cancel them first.",
-  formatFilenamesSuccess:
-    "Processed: {processed}\nRenamed: {renamed}\nErrors: {errors}",
-  formatFilenamesDetails: "Details:",
-  formatFilenamesMore: "...and {count} more",
-  formatFilenamesError: "Failed to format filenames: {error}",
   itemsPerPage: "Items Per Page",
   itemsPerPageHelper: "Number of videos to show per page (Default: 12)",
   showYoutubeSearch: "Show YouTube Search Results",

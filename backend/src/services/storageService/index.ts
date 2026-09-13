@@ -58,7 +58,6 @@ export {
     bumpVideosListRevision,
     classifyMediaVisibility,
     deleteVideo,
-    formatLegacyFilenames,
     getVideoById,
     getVideoBySourceUrl,
     getVideos,

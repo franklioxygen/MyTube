@@ -423,10 +423,6 @@ export const ru = {
     "Вы уверены, что хотите удалить устаревшие файлы данных JSON? Это действие нельзя отменить.",
   legacyDataDeleted: "Устаревшие данные успешно удалены.",
   legacyDataDeleteFailed: "Не удалось удалить устаревшие данные",
-  formatLegacyFilenames: "Форматировать старые имена файлов",
-  formatLegacyFilenamesDescription:
-    "Пакетное переименование всех видеофайлов, миниатюр и субтитров в новый стандартный формат: Название-Автор-ГГГГ. Эта операция изменит имена файлов на диске и обновит логику базы данных.",
-  formatLegacyFilenamesButton: "Форматировать имена файлов",
   deleteLegacyDataButton: "Удалить устаревшие данные",
   cleanupTempFiles: "Очистить временные файлы",
   cleanupTempFilesDescription:
@@ -508,11 +504,6 @@ export const ru = {
     "Обнаружена опасная команда: {command}. Загрузка отклонена.",
   cleanupTempFilesActiveDownloads:
     "Невозможно очистить, пока активны загрузки. Пожалуйста, дождитесь завершения всех загрузок или сначала отмените их.",
-  formatFilenamesSuccess:
-    "Обработано: {processed}\nПереименовано: {renamed}\nОшибки: {errors}",
-  formatFilenamesDetails: "Подробности:",
-  formatFilenamesMore: "...и еще {count}",
-  formatFilenamesError: "Не удалось отформатировать имена файлов: {error}",
   itemsPerPage: "Элементов на странице",
   itemsPerPageHelper: "Количество видео на странице (По умолчанию: 12)",
   showYoutubeSearch: "Показать результаты поиска YouTube",

@@ -10,7 +10,6 @@ vi.mock('../../../contexts/LanguageContext', () => ({
 
 describe('FileOrganizationSettings', () => {
     const defaultProps = {
-        onFormatFilenames: vi.fn(),
         onCleanupAuthorCollections: vi.fn(),
         isSaving: false,
         moveSubtitlesToVideoFolder: false,
@@ -32,15 +31,6 @@ describe('FileOrganizationSettings', () => {
         expect(screen.getByText('moveSubtitlesToVideoFolder')).toBeInTheDocument();
         expect(screen.getByText('moveThumbnailsToVideoFolder')).toBeInTheDocument();
         expect(screen.getByText('authorOrganizationModeRecommendation')).toBeInTheDocument();
-        expect(screen.getByText('formatLegacyFilenamesButton')).toBeInTheDocument();
-    });
-
-    it('should call onFormatFilenames when clicked', async () => {
-        const user = userEvent.setup();
-        render(<FileOrganizationSettings {...defaultProps} />);
-
-        await user.click(screen.getByText('formatLegacyFilenamesButton'));
-        expect(defaultProps.onFormatFilenames).toHaveBeenCalled();
     });
 
     it('should render switches for moving files', async () => {
@@ -97,6 +87,5 @@ describe('FileOrganizationSettings', () => {
 
         expect(screen.getByLabelText(/moveSubtitlesToVideoFolderOff/i)).toBeDisabled();
         expect(screen.getByLabelText(/moveThumbnailsToVideoFolderOff/i)).toBeDisabled();
-        expect(screen.getByText('formatLegacyFilenamesButton').closest('button')).toBeDisabled();
     });
 });

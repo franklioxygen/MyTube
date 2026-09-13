@@ -381,53 +381,6 @@ export function useSettingsMutations({
     },
   });
 
-  // Format legacy filenames mutation
-  const formatFilenamesMutation = useMutation({
-    mutationFn: async () => {
-      const res = await api.post("/settings/format-filenames");
-      return res.data.results;
-    },
-    onSuccess: (results) => {
-      // Construct message using translations
-      let msg = t("formatFilenamesSuccess")
-        .replace("{processed}", results.processed.toString())
-        .replace("{renamed}", results.renamed.toString())
-        .replace("{errors}", results.errors.toString());
-
-      if (results.details && results.details.length > 0) {
-        // truncate details if too long
-        const detailsToShow = results.details.slice(0, 10);
-        msg += `\n\n${t("formatFilenamesDetails")}\n${detailsToShow.join(
-          "\n"
-        )}`;
-        if (results.details.length > 10) {
-          msg += `\n${t("formatFilenamesMore").replace(
-            "{count}",
-            (results.details.length - 10).toString()
-          )}`;
-        }
-      }
-
-      setInfoModal({
-        isOpen: true,
-        title: t("success"),
-        message: msg,
-        type: results.errors > 0 ? "warning" : "success",
-      });
-    },
-    onError: async (error: unknown) => {
-      const detail = await getApiErrorMessage(error, t);
-      setInfoModal({
-        isOpen: true,
-        title: t("error"),
-        message: t("formatFilenamesError").replace(
-          "{error}",
-          detail || t("error")
-        ),
-        type: "error",
-      });
-    },
-  });
 
   const cleanupAuthorCollectionsMutation = useMutation({
     mutationFn: async () => {
@@ -722,7 +675,6 @@ export function useSettingsMutations({
     cleanupMutation.isPending ||
     cleanupAuthorCollectionsMutation.isPending ||
     deleteLegacyMutation.isPending ||
-    formatFilenamesMutation.isPending ||
     exportDatabaseMutation.isPending ||
     importDatabaseMutation.isPending ||
     mergeDatabaseMutation.isPending ||
@@ -735,7 +687,6 @@ export function useSettingsMutations({
     cleanupMutation,
     cleanupAuthorCollectionsMutation,
     deleteLegacyMutation,
-    formatFilenamesMutation,
     exportDatabaseMutation,
     importDatabaseMutation,
     previewMergeDatabaseMutation,

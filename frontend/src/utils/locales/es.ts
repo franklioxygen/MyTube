@@ -424,10 +424,6 @@ export const es = {
     "¿Está seguro de que desea eliminar los archivos de datos JSON heredados? Esta acción no se puede deshacer.",
   legacyDataDeleted: "Datos heredados eliminados exitosamente.",
   legacyDataDeleteFailed: "No se pudieron eliminar los datos heredados",
-  formatLegacyFilenames: "Formatear Nombres de Archivo Heredados",
-  formatLegacyFilenamesDescription:
-    "Renombrar por lotes todos los archivos de video, miniaturas y subtítulos al nuevo formato estándar: Título-Autor-AAAA. Esta operación modificará los nombres de archivo en el disco y actualizará la lógica de la base de datos.",
-  formatLegacyFilenamesButton: "Formatear Nombres de Archivos",
   deleteLegacyDataButton: "Eliminar Datos Legados",
   cleanupTempFiles: "Limpiar Archivos Temporales",
   cleanupTempFilesDescription:
@@ -510,11 +506,6 @@ export const es = {
     "Comando de riesgo detectado: {command}. Carga rechazada.",
   cleanupTempFilesActiveDownloads:
     "No se puede limpiar mientras hay descargas activas. Espera a que todas las descargas terminen o cancélalas primero.",
-  formatFilenamesSuccess:
-    "Procesados: {processed}\nRenombrados: {renamed}\nErrores: {errors}",
-  formatFilenamesDetails: "Detalles:",
-  formatFilenamesMore: "...y {count} más",
-  formatFilenamesError: "Error al formatear nombres de archivos: {error}",
   itemsPerPage: "Elementos por página",
   itemsPerPageHelper:
     "Número de videos para mostrar por página (Predeterminado: 12)",

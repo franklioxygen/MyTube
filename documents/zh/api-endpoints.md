@@ -170,7 +170,6 @@
     - 提交 `liveTranslationApiKey: ""` 可清除已保存的密钥；省略该字段则保持现有密钥不变
 - `POST /api/settings/migrate` - 将旧版 JSON 数据迁移至 SQLite
 - `POST /api/settings/delete-legacy` - 删除旧版 JSON 数据文件
-- `POST /api/settings/format-filenames` - 格式化旧版文件名
 - `GET /api/settings/cloudflared/status` - 获取 Cloudflared 隧道状态
 - `POST /api/settings/tags/rename` - 重命名标签
   - 请求体: `{ oldTag: string, newTag: string }`

@@ -21,7 +21,6 @@ const mockMigrateMutate = vi.fn();
 const mockCleanupMutate = vi.fn();
 const mockCleanupAuthorCollectionsMutate = vi.fn();
 const mockDeleteLegacyMutate = vi.fn();
-const mockFormatFilenamesMutate = vi.fn();
 const mockExportDatabaseMutate = vi.fn();
 const mockImportDatabaseMutate = vi.fn();
 const mockPreviewMergeDatabaseMutateAsync = vi.fn();
@@ -33,7 +32,6 @@ const mockUpdateTagsMutate = vi.fn();
 
 const mockSetShowDeleteLegacyModal = vi.fn();
 const mockSetShowCleanupAuthorCollectionsModal = vi.fn();
-const mockSetShowFormatConfirmModal = vi.fn();
 const mockSetShowMigrateConfirmModal = vi.fn();
 const mockSetShowCleanupTempFilesModal = vi.fn();
 const mockSetInfoModal = vi.fn();
@@ -41,7 +39,6 @@ const mockSetInfoModal = vi.fn();
 let modalState = {
   showCleanupAuthorCollectionsModal: false,
   showDeleteLegacyModal: false,
-  showFormatConfirmModal: false,
   showMigrateConfirmModal: false,
   showCleanupTempFilesModal: false,
   infoModal: { isOpen: false, title: '', message: '', type: 'info' as 'info' | 'error' },
@@ -115,8 +112,6 @@ vi.mock('../../hooks/useSettingsModals', () => ({
     setShowCleanupAuthorCollectionsModal: mockSetShowCleanupAuthorCollectionsModal,
     showDeleteLegacyModal: modalState.showDeleteLegacyModal,
     setShowDeleteLegacyModal: mockSetShowDeleteLegacyModal,
-    showFormatConfirmModal: modalState.showFormatConfirmModal,
-    setShowFormatConfirmModal: mockSetShowFormatConfirmModal,
     showMigrateConfirmModal: modalState.showMigrateConfirmModal,
     setShowMigrateConfirmModal: mockSetShowMigrateConfirmModal,
     showCleanupTempFilesModal: modalState.showCleanupTempFilesModal,
@@ -144,7 +139,6 @@ vi.mock('../../hooks/useSettingsMutations', () => ({
     cleanupMutation: { isPending: false, mutate: (...args: any[]) => mockCleanupMutate(...args) },
     cleanupAuthorCollectionsMutation: { isPending: false, mutate: (...args: any[]) => mockCleanupAuthorCollectionsMutate(...args) },
     deleteLegacyMutation: { isPending: false, mutate: (...args: any[]) => mockDeleteLegacyMutate(...args) },
-    formatFilenamesMutation: { isPending: false, mutate: (...args: any[]) => mockFormatFilenamesMutate(...args) },
     exportDatabaseMutation: { isPending: false, mutate: (...args: any[]) => mockExportDatabaseMutate(...args) },
     importDatabaseMutation: { isPending: false, mutate: (...args: any[]) => mockImportDatabaseMutate(...args) },
     previewMergeDatabaseMutation: {
@@ -337,14 +331,12 @@ vi.mock('../../components/Settings/DatabaseSettings', () => ({
 
 vi.mock('../../components/Settings/FileOrganizationSettings', () => ({
   default: ({
-    onFormatFilenames,
     onCleanupAuthorCollections,
     onMoveSubtitlesToVideoFolderChange,
     onMoveThumbnailsToVideoFolderChange,
     onAuthorOrganizationModeChange,
   }: any) => (
     <div data-testid="file-organization-settings">
-      <button onClick={onFormatFilenames}>open-format-modal</button>
       <button onClick={onCleanupAuthorCollections}>open-author-cleanup-modal</button>
       <button onClick={() => onMoveSubtitlesToVideoFolderChange(true)}>move-subtitles</button>
       <button onClick={() => onMoveThumbnailsToVideoFolderChange(true)}>move-thumbnails</button>
@@ -419,7 +411,6 @@ describe('SettingsPage', () => {
     modalState = {
       showCleanupAuthorCollectionsModal: false,
       showDeleteLegacyModal: false,
-      showFormatConfirmModal: false,
       showMigrateConfirmModal: false,
       showCleanupTempFilesModal: false,
       infoModal: { isOpen: false, title: '', message: '', type: 'info' },
@@ -1034,7 +1025,6 @@ describe('SettingsPage', () => {
 
     fireEvent.click(screen.getByText('open-migrate-modal'));
     fireEvent.click(screen.getByText('open-delete-legacy-modal'));
-    fireEvent.click(screen.getByText('open-format-modal'));
     fireEvent.click(screen.getByText('open-author-cleanup-modal'));
     fireEvent.click(screen.getByText('export-db'));
     fireEvent.click(screen.getByText('import-db'));
@@ -1054,7 +1044,6 @@ describe('SettingsPage', () => {
 
     expect(mockSetShowMigrateConfirmModal).toHaveBeenCalledWith(true);
     expect(mockSetShowDeleteLegacyModal).toHaveBeenCalledWith(true);
-    expect(mockSetShowFormatConfirmModal).toHaveBeenCalledWith(true);
     expect(mockSetShowCleanupAuthorCollectionsModal).toHaveBeenCalledWith(true);
     expect(mockExportDatabaseMutate).toHaveBeenCalled();
     expect(mockImportDatabaseMutate).toHaveBeenCalled();
@@ -1083,7 +1072,6 @@ describe('SettingsPage', () => {
     modalState = {
       showCleanupAuthorCollectionsModal: true,
       showDeleteLegacyModal: true,
-      showFormatConfirmModal: true,
       showMigrateConfirmModal: true,
       showCleanupTempFilesModal: true,
       infoModal: { isOpen: true, title: 'info-title', message: 'info-message', type: 'error' },
@@ -1094,14 +1082,12 @@ describe('SettingsPage', () => {
     expect(screen.getByTestId('confirmation-removeLegacyDataConfirmTitle')).toBeInTheDocument();
     expect(screen.getByTestId('confirmation-cleanupAuthorCollectionsConfirmTitle')).toBeInTheDocument();
     expect(screen.getByTestId('confirmation-migrateDataButton')).toBeInTheDocument();
-    expect(screen.getByTestId('confirmation-formatLegacyFilenamesButton')).toBeInTheDocument();
     expect(screen.getByTestId('confirmation-cleanupTempFilesConfirmTitle')).toBeInTheDocument();
     expect(screen.getByTestId('confirmation-info-title')).toBeInTheDocument();
 
     fireEvent.click(screen.getByText('confirm-cleanupAuthorCollectionsConfirmTitle'));
     fireEvent.click(screen.getByText('confirm-removeLegacyDataConfirmTitle'));
     fireEvent.click(screen.getByText('confirm-migrateDataButton'));
-    fireEvent.click(screen.getByText('confirm-formatLegacyFilenamesButton'));
     fireEvent.click(screen.getByText('confirm-cleanupTempFilesConfirmTitle'));
     fireEvent.click(screen.getByText('close-info-title'));
     fireEvent.click(screen.getByText('confirm-info-title'));
@@ -1109,7 +1095,6 @@ describe('SettingsPage', () => {
     expect(mockCleanupAuthorCollectionsMutate).toHaveBeenCalled();
     expect(mockDeleteLegacyMutate).toHaveBeenCalled();
     expect(mockMigrateMutate).toHaveBeenCalled();
-    expect(mockFormatFilenamesMutate).toHaveBeenCalled();
     expect(mockCleanupMutate).toHaveBeenCalled();
     expect(mockSetInfoModal).toHaveBeenCalled();
 

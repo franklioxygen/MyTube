@@ -15,7 +15,6 @@ vi.mock('../../services/storageService', async (importOriginal) => {
     deleteSettingsKeys: vi.fn(),
     getSettings: vi.fn(),
     saveSettings: vi.fn(),
-    formatLegacyFilenames: vi.fn(),
     cleanupRedundantAuthorCollectionLinks: vi.fn(),
   };
 });

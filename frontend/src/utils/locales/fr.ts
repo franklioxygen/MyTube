@@ -425,10 +425,6 @@ export const fr = {
     "Êtes-vous sûr de vouloir supprimer les fichiers de données JSON hérités ? Cette action est irréversible.",
   legacyDataDeleted: "Données héritées supprimées avec succès.",
   legacyDataDeleteFailed: "Échec de la suppression des données héritées",
-  formatLegacyFilenames: "Formater les noms de fichiers hérités",
-  formatLegacyFilenamesDescription:
-    "Renommer par lot tous les fichiers vidéo, miniatures et sous-titres au nouveau format standard : Titre-Auteur-AAAA. Cette opération modifiera les noms de fichiers sur le disque et mettra à jour la logique de la base de données.",
-  formatLegacyFilenamesButton: "Formater les noms de fichiers",
   deleteLegacyDataButton: "Supprimer les données héritées",
   cleanupTempFiles: "Nettoyer les fichiers temporaires",
   cleanupTempFilesDescription:
@@ -511,11 +507,6 @@ export const fr = {
     "Commande à risque détectée : {command}. Téléchargement rejeté.",
   cleanupTempFilesActiveDownloads:
     "Impossible de nettoyer pendant que des téléchargements sont actifs. Veuillez attendre la fin de tous les téléchargements ou les annuler d'abord.",
-  formatFilenamesSuccess:
-    "Traités : {processed}\nRenommés : {renamed}\nErreurs : {errors}",
-  formatFilenamesDetails: "Détails :",
-  formatFilenamesMore: "...et {count} de plus",
-  formatFilenamesError: "Échec du formatage des noms de fichiers : {error}",
   itemsPerPage: "Éléments par page",
   itemsPerPageHelper: "Nombre de vidéos à afficher par page (Défaut : 12)",
   showYoutubeSearch: "Afficher les résultats de recherche YouTube",

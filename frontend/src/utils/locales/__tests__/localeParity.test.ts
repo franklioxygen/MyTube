@@ -1,3 +1,6 @@
+import { readFileSync, writeFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { ar } from "../ar";
 import { de } from "../de";
@@ -9,6 +12,7 @@ import { ko } from "../ko";
 import { pt } from "../pt";
 import { ru } from "../ru";
 import { zh } from "../zh";
+import { groupKeysBySection, renderKeyList } from "../keyListDocument";
 
 /**
  * Locale modules are plain untyped object literals and only `en` is used to
@@ -105,5 +109,32 @@ describe("English catalogue", () => {
     ];
 
     expect(required.filter((key) => !(key in en))).toEqual([]);
+  });
+});
+
+/**
+ * KEY_LIST.md is derived from en.ts, and nothing used to derive it: it drifted
+ * to claiming 1091 keys while listing 1225 and omitting seven whole sections.
+ * This keeps it honest. When it fails, regenerate rather than hand-editing:
+ *
+ *   UPDATE_KEY_LIST=1 npx vitest run src/utils/locales/__tests__/localeParity.test.ts
+ */
+describe("KEY_LIST.md", () => {
+  const localesDir = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
+  const enPath = path.join(localesDir, "en.ts");
+  const keyListPath = path.join(localesDir, "KEY_LIST.md");
+
+  it("matches the keys and section order in en.ts", () => {
+    const expected = renderKeyList(
+      groupKeysBySection(readFileSync(enPath, "utf8"), englishKeys),
+      englishKeys.length
+    );
+
+    if (process.env.UPDATE_KEY_LIST) {
+      writeFileSync(keyListPath, expected);
+      return;
+    }
+
+    expect(readFileSync(keyListPath, "utf8")).toBe(expected);
   });
 });

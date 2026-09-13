@@ -14,7 +14,6 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import type { AuthorOrganizationMode, Settings } from '../../types';
 
 interface FileOrganizationSettingsProps {
-    onFormatFilenames: () => void;
     onCleanupAuthorCollections: () => void;
     isSaving: boolean;
     moveSubtitlesToVideoFolder: boolean;
@@ -33,7 +32,6 @@ interface FileOrganizationSettingsProps {
  * the names these controls then rearrange.
  */
 const FileOrganizationSettings: React.FC<FileOrganizationSettingsProps> = ({
-    onFormatFilenames,
     onCleanupAuthorCollections,
     isSaving,
     moveSubtitlesToVideoFolder,
@@ -161,21 +159,6 @@ const FileOrganizationSettings: React.FC<FileOrganizationSettingsProps> = ({
                         </Button>
                     </Box>
                 )}
-            </Box>
-
-            <Box sx={{ mt: 3 }} id="formatLegacyFilenames-setting">
-                <Typography variant="h6" gutterBottom>{t('formatLegacyFilenames')}</Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                    {t('formatLegacyFilenamesDescription')}
-                </Typography>
-                <Button
-                    variant="outlined"
-                    color="primary"
-                    onClick={onFormatFilenames}
-                    disabled={isSaving}
-                >
-                    {t('formatLegacyFilenamesButton')}
-                </Button>
             </Box>
         </Box>
     );
