@@ -7,6 +7,7 @@ import {
   arePlayerSeekIntervalsOrdered,
 } from "../../utils/playerSeekIntervals";
 import SeekDurationField from "./SeekDurationField";
+import { SETTINGS_CONTROL_MAX_WIDTH } from "./settingsLayout";
 
 type SeekSettingKey =
   | "playerSeekShortSeconds"
@@ -90,7 +91,7 @@ export default function SeekIntervalSettings({
           flexDirection: "column",
           gap: 2,
           width: "100%",
-          maxWidth: 420,
+          maxWidth: SETTINGS_CONTROL_MAX_WIDTH,
         }}
       >
         <SeekDurationField

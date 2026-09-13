@@ -5,6 +5,7 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { Settings } from '../../types';
 import { api } from '../../utils/apiClient';
 import ConsoleManager from '../../utils/consoleManager';
+import { SETTINGS_CONTROL_MAX_WIDTH } from './settingsLayout';
 
 interface AdvancedSettingsProps {
     debugMode: boolean;
@@ -94,7 +95,7 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
                 label={t('telegramEnabled')}
             />
 
-            <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 2, maxWidth: SETTINGS_CONTROL_MAX_WIDTH }}>
                 <TextField
                     label={t('telegramBotToken')}
                     type="password"

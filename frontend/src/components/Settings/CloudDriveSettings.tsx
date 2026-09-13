@@ -6,6 +6,7 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { Settings } from '../../types';
 import { api, fetchCloudSyncWithCsrf } from '../../utils/apiClient';
 import ConfirmationModal from '../ConfirmationModal';
+import { SETTINGS_CONTROL_MAX_WIDTH } from './settingsLayout';
 
 interface CloudDriveSettingsProps {
     settings: Settings;
@@ -304,7 +305,7 @@ const CloudDriveSettings: React.FC<CloudDriveSettingsProps> = ({ settings, onCha
             />
 
             {settings.cloudDriveEnabled && (
-                <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 2, maxWidth: 600 }}>
+                <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 2, maxWidth: SETTINGS_CONTROL_MAX_WIDTH }}>
                     <TextField
                         label={t('apiUrl')}
                         value={settings.openListApiUrl || ''}

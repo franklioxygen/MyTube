@@ -11,6 +11,7 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { Settings } from '../../types';
 import { api } from '../../utils/apiClient';
 import { createTranslateOrFallback } from '../../utils/translateOrFallback';
+import { SETTINGS_CONTROL_MAX_WIDTH } from './settingsLayout';
 
 interface TmdbApiKeySettingsProps {
     tmdbApiKey: string;
@@ -113,7 +114,7 @@ const TmdbApiKeySettings: React.FC<TmdbApiKeySettingsProps> = ({
     };
 
     return (
-        <Box sx={{ maxWidth: 400 }}>
+        <Box sx={{ maxWidth: SETTINGS_CONTROL_MAX_WIDTH }}>
             <Typography variant="h6" sx={{ mb: 2 }}>
                 {t('tmdbApiKey')}
             </Typography>

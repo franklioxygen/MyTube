@@ -20,6 +20,7 @@ import { Settings } from '../../types';
 import { PREFERRED_AUDIO_LANGUAGE_OPTIONS } from '../../utils/audioLanguages';
 import { VIDEO_CODEC_OPTIONS, VIDEO_CONTAINER_OPTIONS } from '../../utils/videoCodecs';
 import FilenameTemplateSettings from './FilenameTemplateSettings';
+import { SETTINGS_CONTROL_MAX_WIDTH } from './settingsLayout';
 
 const MIN_AUTO_DELETE_INTERVAL_DAYS = 1;
 const MAX_AUTO_DELETE_INTERVAL_DAYS = 3650;
@@ -71,7 +72,7 @@ const DownloadSettings: React.FC<DownloadSettingsProps> = ({
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 {t('maxConcurrentDescription')}
             </Typography>
-            <Box sx={{ maxWidth: 400, px: 2 }}>
+            <Box sx={{ maxWidth: SETTINGS_CONTROL_MAX_WIDTH }}>
                 <Slider
                     value={settings.maxConcurrentDownloads}
                     onChange={(_, value) => onChange('maxConcurrentDownloads', value)}
@@ -102,7 +103,10 @@ const DownloadSettings: React.FC<DownloadSettingsProps> = ({
                         sx={{
                             display: 'grid',
                             gap: 2,
-                            gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 240px))' },
+                            // Two-up, but the pair spans the same width a single
+                            // control would, so the column edge stays straight.
+                            gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' },
+                            maxWidth: SETTINGS_CONTROL_MAX_WIDTH,
                             alignItems: 'start',
                             mb: 2,
                         }}
@@ -156,7 +160,7 @@ const DownloadSettings: React.FC<DownloadSettingsProps> = ({
                 <Typography variant="subtitle2" gutterBottom>
                     {t('downloadHistoryRetention') || 'Download History Retention'}
                 </Typography>
-                <FormControl fullWidth sx={{ maxWidth: 240 }}>
+                <FormControl fullWidth sx={{ maxWidth: SETTINGS_CONTROL_MAX_WIDTH }}>
                     <Select
                         value={settings.downloadHistoryRetentionDays ?? 0}
                         onChange={(e) => onChange('downloadHistoryRetentionDays', Number(e.target.value))}
@@ -192,7 +196,7 @@ const DownloadSettings: React.FC<DownloadSettingsProps> = ({
                 </Typography>
 
                 {settings.autoDeleteEnabled && (
-                    <Box sx={{ maxWidth: 400 }}>
+                    <Box sx={{ maxWidth: SETTINGS_CONTROL_MAX_WIDTH }}>
                         <Typography variant="subtitle2" gutterBottom>
                             {t('autoDeleteInterval')}
                         </Typography>
@@ -255,7 +259,7 @@ const DownloadSettings: React.FC<DownloadSettingsProps> = ({
 
             <Box sx={{ mt: 3 }} id="preferredAudioLanguage-setting">
                 <Typography variant="h6" gutterBottom>{t('preferredAudioLanguage')}</Typography>
-                <FormControl fullWidth sx={{ maxWidth: 400 }}>
+                <FormControl fullWidth sx={{ maxWidth: SETTINGS_CONTROL_MAX_WIDTH }}>
                     <Select
                         labelId="preferred-audio-language-label"
                         id="preferred-audio-language"
@@ -288,7 +292,7 @@ const DownloadSettings: React.FC<DownloadSettingsProps> = ({
 
             <Box sx={{ mt: 3 }} id="audioFormat-setting">
                 <Typography variant="h6" gutterBottom>{t('audioFormat')}</Typography>
-                <FormControl fullWidth sx={{ maxWidth: 400 }}>
+                <FormControl fullWidth sx={{ maxWidth: SETTINGS_CONTROL_MAX_WIDTH }}>
                     <Select
                         value={settings.audioFormat ?? 'm4a'}
                         onChange={(e) => onChange('audioFormat', e.target.value)}
@@ -306,7 +310,7 @@ const DownloadSettings: React.FC<DownloadSettingsProps> = ({
 
             <Box sx={{ mt: 3 }} id="defaultVideoCodec-setting">
                 <Typography variant="h6" gutterBottom>{t('defaultVideoCodec')}</Typography>
-                <FormControl fullWidth sx={{ maxWidth: 400 }}>
+                <FormControl fullWidth sx={{ maxWidth: SETTINGS_CONTROL_MAX_WIDTH }}>
                     <Select
                         labelId="default-video-codec-label"
                         id="default-video-codec"
@@ -340,7 +344,7 @@ const DownloadSettings: React.FC<DownloadSettingsProps> = ({
 
             <Box sx={{ mt: 3 }} id="preferredVideoContainer-setting">
                 <Typography variant="h6" gutterBottom>{t('preferredVideoContainer')}</Typography>
-                <FormControl fullWidth sx={{ maxWidth: 400 }}>
+                <FormControl fullWidth sx={{ maxWidth: SETTINGS_CONTROL_MAX_WIDTH }}>
                     <Select
                         labelId="preferred-video-container-label"
                         id="preferred-video-container"
@@ -366,7 +370,7 @@ const DownloadSettings: React.FC<DownloadSettingsProps> = ({
 
             <Box sx={{ mt: 3 }} id="preferredVideoResolution-setting">
                 <Typography variant="h6" gutterBottom>{t('preferredVideoResolution')}</Typography>
-                <FormControl fullWidth sx={{ maxWidth: 400 }}>
+                <FormControl fullWidth sx={{ maxWidth: SETTINGS_CONTROL_MAX_WIDTH }}>
                     <Select
                         labelId="preferred-video-resolution-label"
                         id="preferred-video-resolution"
@@ -413,7 +417,7 @@ const DownloadSettings: React.FC<DownloadSettingsProps> = ({
                     {t('cleanupTempFilesDescription')}
                 </Typography>
                 {activeDownloadsCount > 0 && (
-                    <Alert severity="warning" sx={{ mb: 2, maxWidth: 920 }}>
+                    <Alert severity="warning" sx={{ mb: 2 }}>
                         {t('cleanupTempFilesActiveDownloads')}
                     </Alert>
                 )}

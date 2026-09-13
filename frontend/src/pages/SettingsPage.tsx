@@ -39,6 +39,7 @@ import VideoDefaultSettings from '../components/Settings/VideoDefaultSettings';
 import LiveTranslationSettings from '../components/Settings/LiveTranslationSettings';
 import YtDlpSettings from '../components/Settings/YtDlpSettings';
 import YtDlpVersionSettings from '../components/Settings/YtDlpVersionSettings';
+import { SETTINGS_SECTION_MAX_WIDTH } from '../components/Settings/settingsLayout';
 import { useAuth } from '../contexts/AuthContext';
 import { useDownload } from '../contexts/DownloadContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -699,7 +700,9 @@ const SettingsPage: React.FC = () => {
             {tabs.map((tabItem, index) => (
                 <Grid size={12} key={tabItem.key}>
                     <CollapsibleSection title={tabItem.label} defaultExpanded={index === 0}>
-                        {tabItem.render()}
+                        <Box sx={{ maxWidth: SETTINGS_SECTION_MAX_WIDTH }}>
+                            {tabItem.render()}
+                        </Box>
                     </CollapsibleSection>
                 </Grid>
             ))}
@@ -751,7 +754,7 @@ const SettingsPage: React.FC = () => {
                             ))}
                         </Tabs>
                     </Box>
-                    <Box sx={{ py: 3, px: 3 }}>
+                    <Box sx={{ py: 3, px: 3, maxWidth: SETTINGS_SECTION_MAX_WIDTH }}>
                         {renderDesktopTabContent()}
                     </Box>
                 </Box>

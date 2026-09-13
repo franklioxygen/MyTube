@@ -87,7 +87,9 @@ const FileOrganizationSettings: React.FC<FileOrganizationSettingsProps> = ({
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 2 }}>
                     {t('authorOrganizationModeDescription')}
                 </Typography>
-                <FormControl>
+                {/* Without this each option's description wraps at its own
+                    natural width, so the three rows end on different edges. */}
+                <FormControl fullWidth sx={{ '& .MuiFormControlLabel-label': { flex: 1 } }}>
                     <RadioGroup
                         value={authorOrganizationMode}
                         onChange={(e) => onAuthorOrganizationModeChange(e.target.value as AuthorOrganizationMode)}
@@ -133,11 +135,11 @@ const FileOrganizationSettings: React.FC<FileOrganizationSettingsProps> = ({
                         />
                     </RadioGroup>
                 </FormControl>
-                <Alert severity="info" sx={{ mt: 2, maxWidth: 760 }}>
+                <Alert severity="info" sx={{ mt: 2 }}>
                     {t('authorOrganizationModeRecommendation')}
                 </Alert>
                 {downloadFilenameMode === 'template' && (
-                    <Alert severity="info" sx={{ mt: 2, maxWidth: 760 }}>
+                    <Alert severity="info" sx={{ mt: 2 }}>
                         {t('authorOrganizationModeTemplateNote')}
                     </Alert>
                 )}
@@ -146,7 +148,7 @@ const FileOrganizationSettings: React.FC<FileOrganizationSettingsProps> = ({
                         <Typography variant="subtitle1" gutterBottom>
                             {t('cleanupAuthorCollections')}
                         </Typography>
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2, maxWidth: 760 }}>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                             {t('cleanupAuthorCollectionsDescription')}
                         </Typography>
                         <Button
@@ -163,7 +165,7 @@ const FileOrganizationSettings: React.FC<FileOrganizationSettingsProps> = ({
 
             <Box sx={{ mt: 3 }} id="formatLegacyFilenames-setting">
                 <Typography variant="h6" gutterBottom>{t('formatLegacyFilenames')}</Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2, maxWidth: 760 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                     {t('formatLegacyFilenamesDescription')}
                 </Typography>
                 <Button

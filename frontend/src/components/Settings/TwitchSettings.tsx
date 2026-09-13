@@ -19,6 +19,7 @@ import {
     getTwitchCredentialValidationCode,
     normalizeTwitchCredential,
 } from '../../utils/twitch';
+import { SETTINGS_CONTROL_MAX_WIDTH } from './settingsLayout';
 
 interface TwitchSettingsProps {
     twitchClientId?: string;
@@ -57,7 +58,7 @@ const TwitchSettings: React.FC<TwitchSettingsProps> = ({
     };
 
     return (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, maxWidth: 640 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, '& .MuiTextField-root': { maxWidth: SETTINGS_CONTROL_MAX_WIDTH } }}>
             <Typography variant="body2" color="text.primary">
                 {t('twitchSubscriptionDescription') || 'MyTube will check this Twitch channel for new VODs and download them after Twitch publishes them.'}
             </Typography>

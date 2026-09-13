@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import { useCloudflareStatus } from '../../hooks/useCloudflareStatus';
+import { SETTINGS_CONTROL_MAX_WIDTH } from './settingsLayout';
 
 interface CloudflareSettingsProps {
     enabled?: boolean;
@@ -88,7 +89,7 @@ const CloudflareSettings: React.FC<CloudflareSettingsProps> = ({ enabled, token,
             />
 
             {(enabled) && (
-                <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 2, maxWidth: 400 }}>
+                <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 2, maxWidth: SETTINGS_CONTROL_MAX_WIDTH }}>
                     <TextField
                         fullWidth
                         label={t('cloudflaredToken')}
@@ -121,7 +122,7 @@ const CloudflareSettings: React.FC<CloudflareSettingsProps> = ({ enabled, token,
                     )}
                 </Box>
             ) : (enabled && cloudflaredStatus && (
-                <Box sx={{ mt: 2, p: 2, bgcolor: 'background.paper', borderRadius: 1, border: 1, borderColor: 'divider', maxWidth: 640 }}>
+                <Box sx={{ mt: 2, p: 2, bgcolor: 'background.paper', borderRadius: 1, border: 1, borderColor: 'divider' }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, gap: 1 }}>
                         <Typography variant="subtitle2">{t('status') || 'Status'}:</Typography>
                         <Typography variant="body2" color={cloudflaredStatus.isRunning ? 'success.main' : 'error.main'} fontWeight="bold">

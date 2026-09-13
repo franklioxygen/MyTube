@@ -25,6 +25,7 @@ import {
     getMediaServerExportErrorMessage,
     mediaServerExportJobUrl,
 } from './filenameTemplateShared';
+import { SETTINGS_CONTROL_MAX_WIDTH } from './settingsLayout';
 
 interface MediaServerExportSettingsProps {
     settings: Settings;
@@ -34,7 +35,6 @@ interface MediaServerExportSettingsProps {
     recommendedTvLayout: boolean;
 }
 
-const SELECT_MAX_WIDTH = 400;
 
 /**
  * Media-server export mode selector plus the rebuild/cleanup job runner.
@@ -112,7 +112,7 @@ const MediaServerExportSettings: React.FC<MediaServerExportSettingsProps> = ({
                     : t('mediaServerExportModeDescription')}
             </Typography>
 
-            <FormControl fullWidth sx={{ maxWidth: SELECT_MAX_WIDTH }}>
+            <FormControl fullWidth sx={{ maxWidth: SETTINGS_CONTROL_MAX_WIDTH }}>
                 <Select
                     value={settings.mediaServerExportMode || 'off'}
                     onChange={(e) => onChange('mediaServerExportMode', e.target.value)}
@@ -126,25 +126,25 @@ const MediaServerExportSettings: React.FC<MediaServerExportSettingsProps> = ({
             </FormControl>
 
             {(settings.mediaServerExportMode || 'off') !== 'off' && !recommendedTvLayout && (
-                <Alert severity="warning" sx={{ mt: 2, maxWidth: 920 }}>
+                <Alert severity="warning" sx={{ mt: 2 }}>
                     {t('mediaServerExportRecommendedLayoutWarning')}
                 </Alert>
             )}
 
             {exportMode === 'off' && (
-                <Alert severity="info" sx={{ mt: 2, maxWidth: 920 }}>
+                <Alert severity="info" sx={{ mt: 2 }}>
                     {t('mediaServerExportCleanupHint')}
                 </Alert>
             )}
 
             {exportError && (
-                <Alert severity="error" sx={{ mt: 2, maxWidth: 920 }}>
+                <Alert severity="error" sx={{ mt: 2 }}>
                     {exportError}
                 </Alert>
             )}
 
             {isExportRunning && exportJob && (
-                <Box sx={{ mt: 2, maxWidth: 520 }}>
+                <Box sx={{ mt: 2 }}>
                     <Typography variant="body2" sx={{ mb: 0.75 }}>
                         {t(activeExportAction === 'cleanup'
                             ? 'mediaServerExportCleanupRunning'
@@ -159,7 +159,7 @@ const MediaServerExportSettings: React.FC<MediaServerExportSettingsProps> = ({
             )}
 
             {isExportComplete && exportJob && (
-                <Alert severity="success" sx={{ mt: 2, maxWidth: 920 }}>
+                <Alert severity="success" sx={{ mt: 2 }}>
                     {t(activeExportAction === 'cleanup'
                         ? 'mediaServerExportCleanupComplete'
                         : 'mediaServerExportRebuildComplete')} –{' '}

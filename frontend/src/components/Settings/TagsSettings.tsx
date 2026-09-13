@@ -12,6 +12,7 @@ import {
 } from '@mui/material';
 import React, { useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { SETTINGS_CONTROL_MAX_WIDTH } from './settingsLayout';
 
 interface TagsSettingsProps {
     tags: string[];
@@ -89,7 +90,7 @@ const TagsSettings: React.FC<TagsSettingsProps> = ({ tags, onTagsChange, onRenam
                     </Typography>
                 )}
             </Box>
-            <Box sx={{ display: 'flex', gap: 1, maxWidth: 400 }}>
+            <Box sx={{ display: 'flex', gap: 1, maxWidth: SETTINGS_CONTROL_MAX_WIDTH }}>
                 <TextField
                     label={t('newTag') || 'New Tag'}
                     value={newTag}

@@ -22,6 +22,7 @@ import GestureLoginSetupDialog from '../Auth/GestureLoginSetupDialog';
 import AlertModal from '../AlertModal';
 import ConfirmationModal from '../ConfirmationModal';
 import UserManagementSettings from './UserManagementSettings';
+import { SETTINGS_CONTROL_MAX_WIDTH } from './settingsLayout';
 
 interface SecuritySettingsProps {
     settings: Settings;
@@ -294,7 +295,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ settings, onChange 
                     {settings.passwordLoginAllowed !== false && (
                         <TextField
                             fullWidth
-                            sx={{ mb: 2, maxWidth: 400 }}
+                            sx={{ mb: 2, maxWidth: SETTINGS_CONTROL_MAX_WIDTH }}
                             label={t('password')}
                             type="password"
                             value={settings.password || ''}
@@ -456,7 +457,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ settings, onChange 
                                     {t('apiKeyAuthHelper') || 'When enabled, API requests can be authorized with X-API-Key without a login session.'}
                                 </Typography>
                             </Box>
-                            <Box sx={{ mb: 1, maxWidth: 400 }}>
+                            <Box sx={{ mb: 1, maxWidth: SETTINGS_CONTROL_MAX_WIDTH }}>
                                 <TextField
                                     fullWidth
                                     label={t('apiKey') || 'API Key'}
@@ -465,7 +466,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ settings, onChange 
                                     helperText={t('apiKeySaveHint') || 'Save settings to activate changes to the API key.'}
                                 />
                             </Box>
-                            <Box sx={{ mb: 2, maxWidth: 400, display: 'flex', gap: 1 }}>
+                            <Box sx={{ mb: 2, maxWidth: SETTINGS_CONTROL_MAX_WIDTH, display: 'flex', gap: 1 }}>
                                 <Button
                                     fullWidth
                                     variant="outlined"
@@ -487,7 +488,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ settings, onChange 
                         </>
                     )}
 
-                    <Box sx={{ mt: 3, maxWidth: 400 }}>
+                    <Box sx={{ mt: 3, maxWidth: SETTINGS_CONTROL_MAX_WIDTH }}>
                         <Box sx={{ mb: 2 }}>
                             <Button
                                 variant="outlined"
