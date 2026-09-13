@@ -2,53 +2,66 @@
 
 Canonical locale key order derived from `frontend/src/utils/locales/en.ts`.
 
+Generated — do not edit by hand. `localeParity.test.ts` fails when this file
+and `en.ts` disagree; regenerate with:
+
+```
+UPDATE_KEY_LIST=1 npx vitest run src/utils/locales/__tests__/localeParity.test.ts
+```
+
 This list is intentionally unnumbered. When new keys are inserted, only the local section order changes.
 
-Total keys: 1091
+Total keys: 1371
 
 ## Summary
 
 | Section | Keys | First Key | Last Key |
 | --- | ---: | --- | --- |
 | Header | 11 | `myTube` | `instruction` |
-| Home | 23 | `pasteUrl` | `views` |
+| Home | 25 | `pasteUrl` | `views` |
 | Settings | 4 | `general` | `downloadSettings` |
-| Settings Categories | 187 | `interfaceDisplay` | `enterNewTagName` |
-| Database | 37 | `database` | `cleanupTempFilesConfirmMessage` |
-| Task Hooks | 65 | `taskHooks` | `cleanupTempFilesFailed` |
+| Settings Categories | 247 | `interfaceDisplay` | `enterNewTagName` |
+| Database | 38 | `database` | `cleanupTempFilesConfirmMessage` |
+| Task Hooks | 100 | `taskHooks` | `cleanupTempFilesFailed` |
 | Cookie Settings | 12 | `cookieSettings` | `cookiesDeleteFailed` |
 | Cloud Drive | 38 | `cloudDriveSettings` | `clearThumbnailCacheConfirmMessage` |
-| Manage | 38 | `manageContent` | `confirmBulkDelete` |
-| Video Player | 69 | `playing` | `deletingVideos` |
+| Manage | 48 | `manageContent` | `confirmBulkDelete` |
+| Video Player | 35 | `playing` | `loadingVideo` |
+| D Mode (canvas + WebCodecs playback, no media element) | 36 | `compatibilityMode` | `deletingVideos` |
 | Login | 23 | `signIn` | `tooManyAttempts` |
 | Passkeys | 19 | `createPasskey` | `copyUrl` |
 | Collection Page | 4 | `loadingCollection` | `back` |
 | Author Videos | 18 | `loadVideosError` | `addVideosToExistingCollectionConfirmationWithMove` |
 | Delete Collection Modal | 5 | `deleteCollectionTitle` | `deleteCollectionAndVideos` |
-| Common | 14 | `loading` | `collapse` |
+| Common | 15 | `loading` | `collapse` |
 | Video Card | 9 | `unknownDate` | `weeksAgo` |
 | Upload Modal | 19 | `selectVideoFile` | `thumbnailUploaded` |
 | Bilibili Modal | 22 | `bilibiliCollectionDetected` | `waitingInQueue` |
-| Downloads | 20 | `downloads` | `failed` |
-| Snackbar Messages | 21 | `videoDownloading` | `subtitleDeleted` |
+| Downloads | 28 | `downloads` | `missingVideos` |
+| Snackbar Messages | 22 | `videoDownloading` | `subtitleDeleted` |
 | Batch Download | 6 | `batchDownload` | `addBatchTasks` |
-| Subscriptions | 62 | `subscribeToAuthor` | `retentionDaysUpdateFailed` |
+| Subscriptions | 60 | `subscribeToAuthor` | `clear` |
+| Subscription Retention | 11 | `retentionDays` | `retentionDaysUpdateFailed` |
+| Auto Delete (library-wide age-based cleanup) | 15 | `autoDelete` | `videoUnlocked` |
+| Per-subscription yt-dlp config override (issue #345) | 5 | `editYtdlpConfigOverride` | `ytdlpConfigOverrideUpdateFailed` |
+| Per-subscription filename-template override (issue #368) | 10 | `subscriptionFilenameTemplate` | `subscriptionFilenameTemplateUpdateFailed` |
 | Subscription Pause/Resume | 12 | `pause` | `viaContinuousDownload` |
-| Playlist Subscription | 11 | `subscribeToPlaylist` | `playlistBaselineFailed` |
+| Playlist Subscription | 5 | `subscribeToPlaylist` | `playlistSubscription` |
+| Issue #368.2 — subscribe-only / history choice | 6 | `subscribeOnlyNewPlaylistVideos` | `playlistBaselineFailed` |
 | Instruction Page | 39 | `instructionSection1Title` | `instructionSection3Item3Text` |
 | Disclaimer | 3 | `disclaimerTitle` | `history` |
 | Existing Video Detection | 16 | `existingVideoDetected` | `changeSettings` |
 | Sorting | 10 | `sort` | `random` |
-| yt-dlp Configuration | 50 | `ytDlpConfiguration` | `subscriptionFilenameTemplateUpdateFailed` |
+| yt-dlp Configuration | 58 | `ytDlpConfiguration` | `cleanupAuthorCollectionsFailed` |
 | Cloudflare Tunnel | 16 | `cloudflaredTunnel` | `managedInDashboard` |
-| Database Export/Import | 39 | `exportImportDatabase` | `backupDatabasesCleanedUp` |
+| Database Export/Import | 41 | `exportImportDatabase` | `backupDatabasesCleanedUp` |
 | History Filter | 33 | `filterAll` | `browserVideoFormatNotSupported` |
-| RSS Feed Settings | 40 | `rssFeedSettings` | `rssDays` |
+| RSS Feed Settings | 42 | `rssFeedSettings` | `rssDays` |
 | Role-based settings middleware errors | 5 | `settingsApiKeyForbidden` | `settingsAuthRequired` |
-| Filename Template | 30 | `filenameTemplate` | `filenameBatchRenameError` |
-| Statistics | 54 | `statisticsTitle` | `recomputeStatistics` |
-
-## Details
+| Filename template | 37 | `filenameTemplate` | `filenameBatchRenameError` |
+| Filename template reference (information panel) | 45 | `filenameRefInformationTitle` | `filenameRefItemNestedPathDesc` |
+| Statistics | 87 | `statisticsTitle` | `openCollection` |
+| Gesture Login (admin only) | 31 | `or` | `gestureLoginRetryStatus` |
 
 ### Header
 
@@ -80,6 +93,10 @@ Total keys: 1091
 | `downloadSuccess` |
 | `downloadAudioOnly` |
 | `downloadAudioOnlyHint` |
+| `audioFormat` |
+| `audioFormatM4a` |
+| `audioFormatMp3` |
+| `audioFormatOpus` |
 | `confirmDownloadAllPlaylists` |
 | `downloadAll` |
 | `loadingVideos` |
@@ -230,12 +247,12 @@ Total keys: 1091
 | `liveTranslationAudioCaptureBlocked` |
 | `liveTranslationAdminRequiredPlayer` |
 | `liveTranslationApiKeyMissingPlayer` |
-| `liveTranslationErrorWebSocket` |
 | `liveTranslationErrorGeneric` |
 | `liveTranslationErrorRequiresNormalSpeed` |
 | `liveTranslationErrorTicket` |
 | `liveTranslationErrorCaptureFailed` |
 | `liveTranslationErrorConnection` |
+| `liveTranslationErrorWebSocket` |
 | `liveTranslationErrorRateLimited` |
 | `liveTranslationErrorSessionTimeout` |
 | `liveTranslationErrorTooManySessions` |
@@ -258,10 +275,11 @@ Total keys: 1091
 | `preferredAudioLanguage_pl` |
 | `preferredAudioLanguage_tr` |
 | `preferredAudioLanguage_vi` |
-| `audioFormat` |
-| `audioFormatM4a` |
-| `audioFormatMp3` |
-| `audioFormatOpus` |
+| `preferredVideoResolution` |
+| `preferredVideoResolutionDescription` |
+| `preferredVideoResolutionAuto` |
+| `preferredVideoResolutionStrict` |
+| `preferredVideoResolutionStrictDescription` |
 | `defaultVideoCodec` |
 | `defaultVideoCodecDescription` |
 | `defaultVideoCodecDefault` |
@@ -363,6 +381,7 @@ Total keys: 1091
 | `scanFilesSuccess` |
 | `scanFilesDeleted` |
 | `scanFilesFailed` |
+| `scanAlreadyRunning` |
 | `scanMountDirectoriesSuccess` |
 | `subscribePlaylistsSuccess` |
 | `subscribePlaylistsSkipped` |
@@ -580,6 +599,13 @@ Total keys: 1091
 | `title` |
 | `author` |
 | `authors` |
+| `all` |
+| `showAll` |
+| `allAuthors` |
+| `allTags` |
+| `showMoreTags` |
+| `showLessTags` |
+| `filteredByTags` |
 | `created` |
 | `name` |
 | `size` |
@@ -644,6 +670,11 @@ Total keys: 1091
 | `confirmRemoveFromCollection` |
 | `remove` |
 | `loadingVideo` |
+
+### D Mode (canvas + WebCodecs playback, no media element)
+
+| Key |
+| --- |
 | `compatibilityMode` |
 | `compatibilityModeEnter` |
 | `compatibilityModeExit` |
@@ -782,6 +813,7 @@ Total keys: 1091
 | `loading` |
 | `error` |
 | `success` |
+| `info` |
 | `cancel` |
 | `close` |
 | `ok` |
@@ -864,6 +896,7 @@ Total keys: 1091
 | Key |
 | --- |
 | `downloads` |
+| `openMenu` |
 | `activeDownloads` |
 | `manageDownloads` |
 | `queuedDownloads` |
@@ -883,10 +916,13 @@ Total keys: 1091
 | `speed` |
 | `finishedAt` |
 | `failed` |
+| `partialDownload` |
 | `pendingRetry` |
 | `cancelRetry` |
 | `retryScheduledFor` |
 | `retryAttemptProgress` |
+| `missingEpisodes` |
+| `missingVideos` |
 
 ### Snackbar Messages
 
@@ -990,14 +1026,67 @@ Total keys: 1091
 | `tasksCleared` |
 | `confirmClearFinishedTasks` |
 | `clear` |
+
+### Subscription Retention
+
+| Key |
+| --- |
 | `retentionDays` |
 | `retentionDaysUnit` |
+| `downloadHistoryRetention` |
+| `downloadHistoryRetentionDescription` |
+| `downloadHistoryRetentionKeepForever` |
 | `retentionDaysDisabled` |
 | `editRetention` |
 | `retentionDaysHelpTitle` |
 | `retentionDaysHelpMessage` |
 | `retentionDaysUpdated` |
 | `retentionDaysUpdateFailed` |
+
+### Auto Delete (library-wide age-based cleanup)
+
+| Key |
+| --- |
+| `autoDelete` |
+| `autoDeleteDescription` |
+| `autoDeleteInterval` |
+| `autoDeleteIntervalHelp` |
+| `autoDeleteIntervalError` |
+| `autoDeleteHowItWorks` |
+| `autoDeleteHowItWorksScan` |
+| `autoDeleteHowItWorksDelete` |
+| `autoDeleteHowItWorksLock` |
+| `autoDeleteHowItWorksDisable` |
+| `autoDeleteHowItWorksDowntime` |
+| `lockVideo` |
+| `unlockVideo` |
+| `videoLocked` |
+| `videoUnlocked` |
+
+### Per-subscription yt-dlp config override (issue #345)
+
+| Key |
+| --- |
+| `editYtdlpConfigOverride` |
+| `ytdlpConfigOverrideHelp` |
+| `ytdlpConfigOverridePlaceholder` |
+| `ytdlpConfigOverrideUpdated` |
+| `ytdlpConfigOverrideUpdateFailed` |
+
+### Per-subscription filename-template override (issue #368)
+
+| Key |
+| --- |
+| `subscriptionFilenameTemplate` |
+| `subscriptionFilenameTemplateHelp` |
+| `subscriptionFilenameTemplateInherit` |
+| `subscriptionFilenameTemplatePlaceholder` |
+| `subscriptionFilenameTemplatePreview` |
+| `subscriptionFilenameTemplateFutureOnly` |
+| `editSubscriptionFilenameTemplate` |
+| `subscriptionFilenameTemplateCustom` |
+| `subscriptionFilenameTemplateUpdated` |
+| `subscriptionFilenameTemplateUpdateFailed` |
 
 ### Subscription Pause/Resume
 
@@ -1025,6 +1114,11 @@ Total keys: 1091
 | `playlistSubscribedSuccessfully` |
 | `downloadAndSubscribe` |
 | `playlistSubscription` |
+
+### Issue #368.2 — subscribe-only / history choice
+
+| Key |
+| --- |
 | `subscribeOnlyNewPlaylistVideos` |
 | `subscribeOnlyNewPlaylistVideosHelp` |
 | `downloadExistingPlaylistVideos` |
@@ -1182,16 +1276,6 @@ Total keys: 1091
 | `cleanupAuthorCollectionsSuccess` |
 | `cleanupAuthorCollectionsNothingToDo` |
 | `cleanupAuthorCollectionsFailed` |
-| `subscriptionFilenameTemplate` |
-| `subscriptionFilenameTemplateHelp` |
-| `subscriptionFilenameTemplateInherit` |
-| `subscriptionFilenameTemplatePlaceholder` |
-| `subscriptionFilenameTemplatePreview` |
-| `subscriptionFilenameTemplateFutureOnly` |
-| `editSubscriptionFilenameTemplate` |
-| `subscriptionFilenameTemplateCustom` |
-| `subscriptionFilenameTemplateUpdated` |
-| `subscriptionFilenameTemplateUpdateFailed` |
 
 ### Cloudflare Tunnel
 
@@ -1355,7 +1439,7 @@ Total keys: 1091
 | `settingsVisitorWriteForbidden` |
 | `settingsAuthRequired` |
 
-### Filename Template
+### Filename template
 
 | Key |
 | --- |
@@ -1397,14 +1481,55 @@ Total keys: 1091
 | `filenameBatchRenameSummary` |
 | `filenameBatchRenameError` |
 
-### Filename Template Reference
+### Filename template reference (information panel)
 
 | Key |
 | --- |
+| `filenameRefInformationTitle` |
+| `filenameRefInfoLiquid` |
+| `filenameRefInfoYtdlp` |
+| `filenameRefInfoExtension` |
+| `filenameRefInfoFallbacks` |
+| `filenameRefSectionCoreTitle` |
+| `filenameRefSectionUploadTitle` |
+| `filenameRefSectionSourceTitle` |
+| `filenameRefSectionPlaylistTitle` |
+| `filenameRefSectionSeasonTitle` |
+| `filenameRefSectionStaticTitle` |
+| `filenameRefSectionRawMetadataTitle` |
+| `filenameRefSectionRawMetadataDescription` |
+| `filenameRefItemTitleDesc` |
 | `filenameRefItemIdDesc` |
 | `filenameRefItemSourceVideoIdDesc` |
 | `filenameRefItemLocalVideoIdDesc` |
 | `filenameRefItemDownloadDatetimeDesc` |
+| `filenameRefItemExtDesc` |
+| `filenameRefItemUploaderDesc` |
+| `filenameRefItemChannelDesc` |
+| `filenameRefItemDurationStringDesc` |
+| `filenameRefItemArtistNameDesc` |
+| `filenameRefItemUploadDateDesc` |
+| `filenameRefItemUploadYyyyMmDdDesc` |
+| `filenameRefItemUploadYearDesc` |
+| `filenameRefItemUploadMonthDesc` |
+| `filenameRefItemUploadDayDesc` |
+| `filenameRefItemSourceCustomNameDesc` |
+| `filenameRefItemSourceCollectionNameDesc` |
+| `filenameRefItemSourceCollectionIdDesc` |
+| `filenameRefItemSourceCollectionTypeDesc` |
+| `filenameRefItemMediaPlaylistIndexDesc` |
+| `filenameRefItemSeasonFromDateDesc` |
+| `filenameRefItemSeasonEpisodeFromDateDesc` |
+| `filenameRefItemSeasonEpisodeIndexFromDateDesc` |
+| `filenameRefItemSeasonByYearEpisodeByDateDesc` |
+| `filenameRefItemSeasonByYearEpisodeByDateAndIndexDesc` |
+| `filenameRefItemStaticSeasonEpisodeByIndexDesc` |
+| `filenameRefItemStaticSeasonEpisodeByDateDesc` |
+| `filenameRefItemGenericSingleWordDesc` |
+| `filenameRefItemBasicYtdlpDesc` |
+| `filenameRefItemFormattedUploadDateDesc` |
+| `filenameRefItemFormattedDurationDesc` |
+| `filenameRefItemNestedPathDesc` |
 
 ### Statistics
 
@@ -1427,6 +1552,7 @@ Total keys: 1091
 | `statisticsAdminOnly` |
 | `statisticsDisabledNotice` |
 | `statisticsDisabledKeepVisibleNotice` |
+| `statisticsDisabledOpenSettings` |
 | `statisticsHealth` |
 | `statisticsLastRunAt` |
 | `statisticsWorkerNotRunYet` |
@@ -1435,18 +1561,30 @@ Total keys: 1091
 | `statisticsLastHourAccepted` |
 | `statisticsDropped` |
 | `statisticsErrors` |
+| `statisticsSealedDayDrops` |
 | `statisticsCompletedCount` |
 | `statisticsFailedCount` |
 | `statisticsNotEnoughHistoricalDataYet` |
 | `statisticsNoData` |
 | `statisticsItem` |
 | `statisticsValue` |
+| `statisticsDaysRemaining` |
+| `statisticsDiskRunwayUnavailable` |
+| `statisticsDiskRunwayInsufficientActivity` |
+| `statisticsFailureBucket_auth_required` |
+| `statisticsFailureBucket_source_unavailable` |
+| `statisticsFailureBucket_geo_or_network_blocked` |
+| `statisticsFailureBucket_extractor_changed` |
+| `statisticsFailureBucket_filesystem_error` |
+| `statisticsFailureBucket_cloud_upload_failed` |
+| `statisticsFailureBucket_unknown` |
 | `totalVideos` |
 | `totalStorage` |
 | `downloadSuccessRate` |
 | `netNewVideos` |
 | `downloadVolume` |
 | `watchTime` |
+| `diskRunway` |
 | `activeSubscriptions` |
 | `activeRssTokens` |
 | `watchTimeByDay` |
@@ -1464,3 +1602,59 @@ Total keys: 1091
 | `exportCsv` |
 | `exportJson` |
 | `recomputeStatistics` |
+| `favorite` |
+| `favoritesEmptyTitle` |
+| `favoritesEmptySubtitle` |
+| `favoriteCollection` |
+| `favoriteAuthor` |
+| `unfavorite` |
+| `favoriteCollections` |
+| `favoriteAuthors` |
+| `topRated` |
+| `topRatedSubtitle` |
+| `featured` |
+| `continueWatching` |
+| `browseCollections` |
+| `findAuthors` |
+| `favoritesUpdateFailed` |
+| `favoriteUnavailable` |
+| `favoritesLoadFailed` |
+| `stars` |
+| `play` |
+| `openCollection` |
+
+### Gesture Login (admin only)
+
+| Key |
+| --- |
+| `or` |
+| `gestureLogin` |
+| `gestureLoginHelper` |
+| `gestureLoginConvenienceWarning` |
+| `gestureLoginPasswordRequired` |
+| `gestureLoginSavePrerequisitesFirst` |
+| `gestureLoginDisablePasswordBlocked` |
+| `gestureLoginSetUpTitle` |
+| `gestureLoginChange` |
+| `gestureLoginChangeTitle` |
+| `gestureLoginSetNew` |
+| `gestureLoginRemoveTitle` |
+| `gestureLoginRemoveMessage` |
+| `gestureLoginRemoveFailed` |
+| `gestureLoginStep` |
+| `gestureLoginDrawInstruction` |
+| `gestureLoginConfirmInstruction` |
+| `gestureLoginReleaseInstruction` |
+| `gestureLoginSignInInstruction` |
+| `gestureLoginStepTwoAnnouncement` |
+| `gestureLoginMinimumDots` |
+| `gestureLoginMismatch` |
+| `gestureLoginSaveFailed` |
+| `gestureLoginLockedSettings` |
+| `gestureLoginLockedPasswordRecovery` |
+| `gestureLoginIncorrectAttemptsRemaining` |
+| `gestureLoginStateUnavailable` |
+| `gestureLoginUnavailable` |
+| `gestureLoginResetRequired` |
+| `gestureLoginStatusFailed` |
+| `gestureLoginRetryStatus` |
