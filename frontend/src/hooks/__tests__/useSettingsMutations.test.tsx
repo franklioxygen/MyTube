@@ -42,10 +42,6 @@ vi.mock('../../contexts/LanguageContext', () => ({
                 restoreFromLastBackupSuccess: 'restoreFromLastBackupSuccess',
                 restoreFromLastBackupFailed: 'restoreFromLastBackupFailed',
                 legacyDataDeleteFailed: 'legacyDataDeleteFailed',
-                formatFilenamesSuccess: 'Processed {processed}, renamed {renamed}, errors {errors}',
-                formatFilenamesDetails: 'formatFilenamesDetails',
-                formatFilenamesMore: 'And {count} more',
-                formatFilenamesError: 'formatFilenamesError: {error}',
                 tagRenamedSuccess: 'tagRenamedSuccess',
                 tagRenameFailed: 'tagRenameFailed',
                 settingsVisitorAccessRestricted: 'Localized visitor restriction',
@@ -620,43 +616,6 @@ describe('useSettingsMutations', () => {
         expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['videos'] });
     });
 
-    it('truncates long filename-formatting detail lists and marks warnings when errors are present', async () => {
-        const details = Array.from({ length: 12 }, (_, index) => `detail ${index + 1}`);
-        vi.mocked(api.post).mockImplementation((url: string) => {
-            if (url === '/settings/format-filenames') {
-                return Promise.resolve({
-                    data: {
-                        results: {
-                            processed: 12,
-                            renamed: 10,
-                            errors: 2,
-                            details,
-                        },
-                    },
-                } as any);
-            }
-            return Promise.resolve({ data: {} } as any);
-        });
-
-        const { result, setInfoModal } = renderSettingsHook();
-
-        await act(async () => {
-            await result.current.formatFilenamesMutation.mutateAsync();
-        });
-
-        const modal = getLastInfoModal(setInfoModal);
-        expect(modal).toMatchObject({
-            isOpen: true,
-            title: 'success',
-            type: 'warning',
-        });
-        expect(modal.message).toContain('Processed 12, renamed 10, errors 2');
-        expect(modal.message).toContain('formatFilenamesDetails');
-        expect(modal.message).toContain('detail 1');
-        expect(modal.message).toContain('detail 10');
-        expect(modal.message).not.toContain('detail 11');
-        expect(modal.message).toContain('And 2 more');
-    });
 
     it('downloads exported database backups with a timestamped filename', async () => {
         vi.mocked(api.get).mockImplementation((url: string, config?: any) => {

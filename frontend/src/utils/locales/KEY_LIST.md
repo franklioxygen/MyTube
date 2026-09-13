@@ -14,8 +14,8 @@ Total keys: 1091
 | Home | 23 | `pasteUrl` | `views` |
 | Settings | 4 | `general` | `downloadSettings` |
 | Settings Categories | 187 | `interfaceDisplay` | `enterNewTagName` |
-| Database | 40 | `database` | `cleanupTempFilesConfirmMessage` |
-| Task Hooks | 69 | `taskHooks` | `cleanupTempFilesFailed` |
+| Database | 37 | `database` | `cleanupTempFilesConfirmMessage` |
+| Task Hooks | 65 | `taskHooks` | `cleanupTempFilesFailed` |
 | Cookie Settings | 12 | `cookieSettings` | `cookiesDeleteFailed` |
 | Cloud Drive | 38 | `cloudDriveSettings` | `clearThumbnailCacheConfirmMessage` |
 | Manage | 38 | `manageContent` | `confirmBulkDelete` |
@@ -388,9 +388,6 @@ Total keys: 1091
 | `removeLegacyDataConfirmMessage` |
 | `legacyDataDeleted` |
 | `legacyDataDeleteFailed` |
-| `formatLegacyFilenames` |
-| `formatLegacyFilenamesDescription` |
-| `formatLegacyFilenamesButton` |
 | `deleteLegacyDataButton` |
 | `cleanupTempFiles` |
 | `cleanupTempFilesDescription` |
@@ -449,10 +446,6 @@ Total keys: 1091
 | `enterPasswordToUploadHook` |
 | `riskCommandDetected` |
 | `cleanupTempFilesActiveDownloads` |
-| `formatFilenamesSuccess` |
-| `formatFilenamesDetails` |
-| `formatFilenamesMore` |
-| `formatFilenamesError` |
 | `itemsPerPage` |
 | `itemsPerPageHelper` |
 | `showYoutubeSearch` |

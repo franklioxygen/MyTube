@@ -12,9 +12,9 @@ import crypto from "crypto";
 // IMPORTANT: every *runtime* write path to the `videos` table must call
 // bumpVideosListRevision(). Current bump sites: videoMutations (save/upsert/
 // update), videoDeletion, tagService (rename/delete tags), metadataService
-// (duration backfill), filenameTemplate/renameJobService, and
-// legacyFilenames (formatLegacyFilenames). Startup-only migrations don't need
-// a bump — they run before the first request in a fresh process.
+// (duration backfill), and filenameTemplate/renameJobService. Startup-only
+// migrations don't need a bump — they run before the first request in a fresh
+// process.
 const bootId = crypto.randomBytes(4).toString("hex");
 let revision = 0;
 

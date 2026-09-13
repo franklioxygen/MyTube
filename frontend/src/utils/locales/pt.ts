@@ -424,10 +424,6 @@ export const pt = {
     "Tem certeza de que deseja excluir os arquivos de dados JSON legados? Esta ação não pode ser desfeita.",
   legacyDataDeleted: "Dados legados excluídos com sucesso.",
   legacyDataDeleteFailed: "Falha ao excluir dados legados",
-  formatLegacyFilenames: "Formatar Nomes de Arquivos Legados",
-  formatLegacyFilenamesDescription:
-    "Renomear em lote todos os arquivos de vídeo, miniaturas e legendas para o novo formato padrão: Título-Autor-AAAA. Esta operação modificará os nomes dos arquivos no disco e atualizará a lógica do banco de dados.",
-  formatLegacyFilenamesButton: "Formatar Nomes de Arquivos",
   deleteLegacyDataButton: "Excluir dados antigos",
   cleanupTempFiles: "Limpar Arquivos Temporários",
   cleanupTempFilesDescription:
@@ -509,11 +505,6 @@ export const pt = {
     "Comando de risco detectado: {command}. Upload rejeitado.",
   cleanupTempFilesActiveDownloads:
     "Não é possível limpar enquanto houver downloads ativos. Aguarde a conclusão de todos os downloads ou cancele-os primeiro.",
-  formatFilenamesSuccess:
-    "Processado: {processed}\nRenomeado: {renamed}\nErros: {errors}",
-  formatFilenamesDetails: "Detalhes:",
-  formatFilenamesMore: "...e mais {count}",
-  formatFilenamesError: "Falha ao formatar nomes de arquivos: {error}",
   itemsPerPage: "Itens por página",
   itemsPerPageHelper: "Número de vídeos a mostrar por página (Padrão: 12)",
   showYoutubeSearch: "Mostrar resultados de pesquisa do YouTube",

@@ -414,10 +414,6 @@ export const ar = {
     "هل أنت متأكد أنك تريد حذف ملفات بيانات JSON القديمة؟ لا يمكن التراجع عن هذا الإجراء.",
   legacyDataDeleted: "تم حذف البيانات القديمة بنجاح.",
   legacyDataDeleteFailed: "فشل حذف البيانات القديمة",
-  formatLegacyFilenames: "تنسيق أسماء الملفات القديمة",
-  formatLegacyFilenamesDescription:
-    "إعادة تسمية جميع ملفات الفيديو والصور والترجمات دفعة واحدة إلى التنسيق القياسي الجديد: العنوان-المؤلف-السنة. ستؤدي هذه العملية إلى تعديل أسماء الملفات على القرص وتحديث منطق قاعدة البيانات.",
-  formatLegacyFilenamesButton: "تنسيق أسماء الملفات",
   deleteLegacyDataButton: "حذف البيانات القديمة",
   cleanupTempFiles: "تنظيف الملفات المؤقتة",
   cleanupTempFilesDescription:
@@ -495,11 +491,6 @@ export const ar = {
   riskCommandDetected: "تم اكتشاف أمر خطر: {command}. تم رفض التحميل.",
   cleanupTempFilesActiveDownloads:
     "لا يمكن التنظيف أثناء نشاط التنزيلات. يرجى الانتظار حتى تكتمل جميع التنزيلات أو إلغائها أولاً.",
-  formatFilenamesSuccess:
-    "تمت المعالجة: {processed}\nتمت إعادة التسمية: {renamed}\nالأخطاء: {errors}",
-  formatFilenamesDetails: "التفاصيل:",
-  formatFilenamesMore: "...و {count} المزيد",
-  formatFilenamesError: "فشل تنسيق أسماء الملفات: {error}",
   itemsPerPage: "عناصر لكل صفحة",
   itemsPerPageHelper: "عدد مقاطع الفيديو التي ستظهر في كل صفحة (الافتراضي: 12)",
   showYoutubeSearch: "عرض نتائج بحث YouTube",

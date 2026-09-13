@@ -421,10 +421,6 @@ export const ja = {
     "レガシーJSONデータファイルを削除してもよろしいですか？この操作は元に戻せません。",
   legacyDataDeleted: "レガシーデータが正常に削除されました。",
   legacyDataDeleteFailed: "レガシーデータの削除に失敗しました",
-  formatLegacyFilenames: "レガシーファイル名のフォーマット",
-  formatLegacyFilenamesDescription:
-    "すべての動画ファイル、サムネイル、字幕を新しい標準フォーマット（タイトル-作成者-YYYY）に一括リネームします。この操作はディスク上のファイル名を変更し、データベースのロジックを更新します。",
-  formatLegacyFilenamesButton: "ファイル名をフォーマット",
   deleteLegacyDataButton: "レガシーデータを削除",
   cleanupTempFiles: "一時ファイルをクリーンアップ",
   cleanupTempFilesDescription:
@@ -506,11 +502,6 @@ export const ja = {
     "危険なコマンドが検出されました: {command}。アップロードは拒否されました。",
   cleanupTempFilesActiveDownloads:
     "ダウンロードがアクティブな間はクリーンアップできません。すべてのダウンロードが完了するまで待つか、キャンセルしてください。",
-  formatFilenamesSuccess:
-    "処理済み: {processed}\n名前変更: {renamed}\nエラー: {errors}",
-  formatFilenamesDetails: "詳細:",
-  formatFilenamesMore: "...他 {count} 件",
-  formatFilenamesError: "ファイル名のフォーマットに失敗しました: {error}",
   itemsPerPage: "1ページあたりの項目数",
   itemsPerPageHelper: "1ページに表示する動画の数 (デフォルト: 12)",
   showYoutubeSearch: "YouTube検索結果を表示",

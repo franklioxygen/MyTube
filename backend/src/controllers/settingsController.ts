@@ -134,15 +134,6 @@ export const deleteLegacyData = async (
  * Format legacy filenames
  * Errors are automatically handled by asyncHandler middleware
  */
-export const formatFilenames = async (
-  _req: Request,
-  res: Response
-): Promise<void> => {
-  const results = storageService.formatLegacyFilenames();
-  // Return format expected by frontend: { results: {...} }
-  res.json({ results });
-};
-
 /**
  * Unlink redundant author collections from videos that already belong to
  * another collection, without moving files on disk.

@@ -417,10 +417,6 @@ export const ko = {
     "레거시 JSON 데이터 파일을 삭제하시겠습니까? 이 작업은 취소할 수 없습니다.",
   legacyDataDeleted: "레거시 데이터가 성공적으로 삭제되었습니다.",
   legacyDataDeleteFailed: "레거시 데이터 삭제에 실패했습니다",
-  formatLegacyFilenames: "레거시 파일 이름 형식 지정",
-  formatLegacyFilenamesDescription:
-    "모든 동영상 파일, 썸네일, 자막을 새로운 표준 형식인 제목-작성자-YYYY로 일괄 이름을 변경합니다. 이 작업은 디스크의 파일 이름을 수정하고 데이터베이스 로직을 업데이트합니다.",
-  formatLegacyFilenamesButton: "파일 이름 형식 지정",
   deleteLegacyDataButton: "레거시 데이터 삭제",
   cleanupTempFiles: "임시 파일 정리",
   cleanupTempFilesDescription:
@@ -501,11 +497,6 @@ export const ko = {
   riskCommandDetected: "위험한 명령 감지됨: {command}. 업로드 거부됨.",
   cleanupTempFilesActiveDownloads:
     "다운로드가 진행되는 동안 정리할 수 없습니다. 모든 다운로드가 완료될 때까지 기다리거나 먼저 취소하십시오.",
-  formatFilenamesSuccess:
-    "처리됨: {processed}\n이름 변경됨: {renamed}\n오류: {errors}",
-  formatFilenamesDetails: "세부 정보:",
-  formatFilenamesMore: "...외 {count}개",
-  formatFilenamesError: "파일 이름 형식을 지정하지 못했습니다: {error}",
   itemsPerPage: "페이지 당 항목 수",
   itemsPerPageHelper: "페이지 당 표시할 비디오 수 (기본값: 12)",
   showYoutubeSearch: "YouTube 검색 결과 표시",

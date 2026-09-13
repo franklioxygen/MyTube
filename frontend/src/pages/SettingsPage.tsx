@@ -250,8 +250,6 @@ const SettingsPage: React.FC = () => {
         setShowCleanupAuthorCollectionsModal,
         showDeleteLegacyModal,
         setShowDeleteLegacyModal,
-        showFormatConfirmModal,
-        setShowFormatConfirmModal,
         showMigrateConfirmModal,
         setShowMigrateConfirmModal,
         showCleanupTempFilesModal,
@@ -338,7 +336,6 @@ const SettingsPage: React.FC = () => {
         cleanupMutation,
         cleanupAuthorCollectionsMutation,
         deleteLegacyMutation,
-        formatFilenamesMutation,
         exportDatabaseMutation,
         importDatabaseMutation,
         previewMergeDatabaseMutation,
@@ -512,7 +509,6 @@ const SettingsPage: React.FC = () => {
             <Box>
                 <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>{t('fileOrganization')}</Typography>
                 <FileOrganizationSettings
-                    onFormatFilenames={() => setShowFormatConfirmModal(true)}
                     onCleanupAuthorCollections={() => setShowCleanupAuthorCollectionsModal(true)}
                     isSaving={isSaving}
                     moveSubtitlesToVideoFolder={settings.moveSubtitlesToVideoFolder || false}
@@ -877,20 +873,6 @@ const SettingsPage: React.FC = () => {
                 message={t('migrateConfirmation')}
                 confirmText={t('confirm')}
                 cancelText={t('cancel')}
-            />
-
-            {/* Format Filenames Confirmation Modal */}
-            <ConfirmationModal
-                isOpen={showFormatConfirmModal}
-                onClose={() => setShowFormatConfirmModal(false)}
-                onConfirm={async () => {
-                    await runMutationAsync(formatFilenamesMutation, undefined);
-                }}
-                title={t('formatLegacyFilenamesButton')}
-                message={t('formatLegacyFilenamesDescription')} // Reusing description as message, or could add a specific confirm message
-                confirmText={t('confirm')}
-                cancelText={t('cancel')}
-                isDanger={true}
             />
 
             {/* Cleanup Temp Files Modal */}

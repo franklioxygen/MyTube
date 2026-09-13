@@ -38,4 +38,3 @@ export {
   isVideoFileReferencedByOtherVideo,
 } from "./videoDeletion";
 
-export { formatLegacyFilenames } from "./legacyFilenames";

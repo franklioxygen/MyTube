@@ -3,7 +3,6 @@ import { Request, Response } from "express";
 import fs from "fs-extra";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  formatFilenames,
   getCloudflaredStatus,
   patchSettings,
   renameTag,
@@ -35,7 +34,6 @@ vi.mock("../../services/storageService", () => {
     ],
     getSettings: vi.fn(),
     saveSettings: vi.fn(),
-    formatLegacyFilenames: vi.fn(),
   };
 });
 
@@ -135,11 +133,6 @@ describe("settingsController extra coverage", () => {
     res = { json, status } as any;
 
     vi.mocked(storageService.getSettings).mockReturnValue(existingSettings);
-    vi.mocked(storageService.formatLegacyFilenames).mockReturnValue({
-      renamed: 3,
-      skipped: 1,
-    } as any);
-
     vi.mocked(settingsValidationService.mergeSettings).mockImplementation(
       (base: any, incoming: any) => ({ ...base, ...incoming })
     );
@@ -149,13 +142,6 @@ describe("settingsController extra coverage", () => {
     vi.mocked(settingsValidationService.prepareSettingsForSave).mockResolvedValue(
       {}
     );
-  });
-
-  it("formatFilenames returns legacy formatting results", async () => {
-    await formatFilenames(req as Request, res as Response);
-
-    expect(storageService.formatLegacyFilenames).toHaveBeenCalledTimes(1);
-    expect(json).toHaveBeenCalledWith({ results: { renamed: 3, skipped: 1 } });
   });
 
   it("getCloudflaredStatus returns service status payload", async () => {

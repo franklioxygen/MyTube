@@ -185,7 +185,6 @@ Favorites are scoped to the authenticated owner. When login protection is disabl
     - Send `liveTranslationApiKey: ""` to clear the stored key; omit it to leave the stored key unchanged
 - `POST /api/settings/migrate` - Migrate legacy JSON data to SQLite
 - `POST /api/settings/delete-legacy` - Delete legacy JSON data files
-- `POST /api/settings/format-filenames` - Format legacy filenames
 - `GET /api/settings/cloudflared/status` - Get Cloudflared tunnel status
 - `POST /api/settings/tags/rename` - Rename tag
   - Body: `{ oldTag: string, newTag: string }`
