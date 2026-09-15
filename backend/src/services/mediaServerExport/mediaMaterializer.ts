@@ -1,4 +1,5 @@
 import fs from "fs-extra";
+import type { Stats } from "fs-extra";
 import path from "path";
 import {
   AVATARS_DIR,
@@ -94,6 +95,36 @@ function resolveSourceRoot(absolutePath: string): string {
 
 function mirrorPathExists(absolutePath: string): boolean {
   return pathExistsSafeSync(absolutePath, MEDIA_SERVER_LIBRARY_DIR);
+}
+
+/**
+ * Whether a tracked destination still matches the source it was published
+ * from. Existence alone is not enough: a truncated copy, a file swapped for a
+ * different one, or a hard link broken by an out-of-band copy all leave the
+ * path present while the mirror no longer reflects the original, and a rebuild
+ * that trusted existence could never repair any of them. A hard link is
+ * verified by identity (same device and inode); a copy by size, since hashing
+ * whole media files on every rebuild would cost more than republishing them.
+ */
+function destinationMatchesSource(
+  absolutePath: string,
+  sourceStats: Stats,
+  materialization: MediaServerMaterialization
+): boolean {
+  if (!mirrorPathExists(absolutePath)) {
+    return false;
+  }
+  const destinationStats = lstatSafeSync(absolutePath, MEDIA_SERVER_LIBRARY_DIR);
+  if (!destinationStats.isFile()) {
+    return false;
+  }
+  if (materialization === "hard_link") {
+    return (
+      destinationStats.dev === sourceStats.dev &&
+      destinationStats.ino === sourceStats.ino
+    );
+  }
+  return destinationStats.size === sourceStats.size;
 }
 
 /**
@@ -208,7 +239,7 @@ function publishSourceFile(
     tracked.sourceAbsolutePath === sourceAbsolutePath &&
     tracked.sourceSize === sourceStats.size &&
     tracked.sourceMtimeMs === Math.floor(sourceStats.mtimeMs) &&
-    mirrorPathExists(absolutePath)
+    destinationMatchesSource(absolutePath, sourceStats, tracked.materialization)
   ) {
     return { changed: false, materialization: tracked.materialization };
   }

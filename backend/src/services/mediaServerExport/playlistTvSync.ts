@@ -61,6 +61,49 @@ export interface PlaylistTvExportResult extends MaterializeHierarchyResult {
   plan: HierarchyPlan;
 }
 
+/**
+ * Raw yt-dlp objects belonging to a download whose export is deferred to the
+ * collection-link hook. The downloader is the only place that ever holds one,
+ * and the hook it defers to is reached through storageService, which has no
+ * business carrying extractor payloads through its signatures — so the object
+ * waits here for the sync that runs moments later in the same operation.
+ *
+ * Bounded and consumed on read: a download whose link never lands would
+ * otherwise park an entry forever, and the oldest is dropped once the map is
+ * full. Losing one only costs the synthesized-only `.info.json` that the
+ * deferred path produced before this existed.
+ */
+const PENDING_RAW_INFO_LIMIT = 64;
+const pendingRawInfoByVideoId = new Map<string, unknown>();
+
+export function parkPendingRawSourceInfo(
+  videoId: string,
+  rawSourceInfo: unknown
+): void {
+  if (rawSourceInfo === undefined) {
+    return;
+  }
+  pendingRawInfoByVideoId.delete(videoId);
+  if (pendingRawInfoByVideoId.size >= PENDING_RAW_INFO_LIMIT) {
+    const oldest = pendingRawInfoByVideoId.keys().next();
+    if (!oldest.done) {
+      pendingRawInfoByVideoId.delete(oldest.value);
+    }
+  }
+  pendingRawInfoByVideoId.set(videoId, rawSourceInfo);
+}
+
+function takePendingRawSourceInfo(
+  videoId: string | undefined
+): Map<string, unknown> | undefined {
+  if (videoId === undefined || !pendingRawInfoByVideoId.has(videoId)) {
+    return undefined;
+  }
+  const rawSourceInfo = pendingRawInfoByVideoId.get(videoId);
+  pendingRawInfoByVideoId.delete(videoId);
+  return new Map<string, unknown>([[videoId, rawSourceInfo]]);
+}
+
 function loadPlaylistSubscriptionRefs(): PlaylistSubscriptionRef[] {
   return db
     .select({
@@ -239,7 +282,10 @@ export function syncPlaylistTvForCollection(
 ): void {
   const showIdsBefore = options.videoId ? showIdsForVideo(options.videoId) : [];
   const videos = getVideos();
-  reconcileWholeLibrary(videos);
+  // A fresh playlist download deferred its export to this hook, so the raw
+  // yt-dlp object it parked is layered into the episode's `.info.json` here.
+  const rawInfoByVideoId = takePendingRawSourceInfo(options.videoId);
+  reconcileWholeLibrary(videos, rawInfoByVideoId);
 
   const collection = getCollections().find((item) => item.id === collectionId);
   const showIds = Array.from(
@@ -252,7 +298,7 @@ export function syncPlaylistTvForCollection(
   if (showIds.length === 0) {
     return;
   }
-  planAndMaterialize(videos, { ...options, showIds });
+  planAndMaterialize(videos, { ...options, showIds, rawInfoByVideoId });
 }
 
 export function removePlaylistTvArtifactsForVideo(videoId: string): void {
@@ -267,9 +313,23 @@ export function removePlaylistTvArtifactsForVideo(videoId: string): void {
   const assignmentIds = new Set(assignments.map((assignment) => assignment.id));
   const scopedArtifacts = listArtifacts(showIds);
 
+  // Cleanup failures are collected rather than thrown, because the caller is
+  // usually deleting the video row next: an undeletable artifact must not stop
+  // deleteEpisodeAssignment() from tombstoning the numbers, or the cascade
+  // would drop the assignments with no record that those numbers were spent
+  // and a later reconciliation would hand them to different content.
+  const failures: unknown[] = [];
+  const removeArtifact = (relativePath: string): void => {
+    try {
+      removeTrackedArtifact(relativePath);
+    } catch (error) {
+      failures.push(error);
+    }
+  };
+
   for (const artifact of scopedArtifacts) {
     if (artifact.assignmentId && assignmentIds.has(artifact.assignmentId)) {
-      removeTrackedArtifact(artifact.relativePath);
+      removeArtifact(artifact.relativePath);
     }
   }
   for (const assignment of assignments) {
@@ -285,7 +345,7 @@ export function removePlaylistTvArtifactsForVideo(videoId: string): void {
     const showArtifacts = listArtifacts([showId]);
     if (!remaining.some((assignment) => assignment.showId === showId)) {
       for (const artifact of showArtifacts) {
-        removeTrackedArtifact(artifact.relativePath);
+        removeArtifact(artifact.relativePath);
       }
       continue;
     }
@@ -309,10 +369,16 @@ export function removePlaylistTvArtifactsForVideo(videoId: string): void {
       const prefix = `${directoryName}/${buildSeasonDirectoryName(seasonNumber)}/`;
       for (const artifact of showArtifacts) {
         if (artifact.relativePath.startsWith(prefix)) {
-          removeTrackedArtifact(artifact.relativePath);
+          removeArtifact(artifact.relativePath);
         }
       }
     }
+  }
+
+  // Surfaced only once every assignment is retired, so the ownership signal is
+  // not lost while the tombstones are already durable.
+  if (failures.length > 0) {
+    throw failures[0];
   }
 }
 

@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   syncPlaylistTvForVideo: vi.fn(),
   syncPlaylistTvForCollection: vi.fn(),
   removePlaylistTvArtifactsForVideo: vi.fn(),
+  parkPendingRawSourceInfo: vi.fn(),
   planMediaServerExportPaths: vi.fn(),
 }));
 
@@ -17,6 +18,7 @@ vi.mock("../../../services/mediaServerExport/playlistTvSync", () => ({
   syncPlaylistTvForVideo: mocks.syncPlaylistTvForVideo,
   syncPlaylistTvForCollection: mocks.syncPlaylistTvForCollection,
   removePlaylistTvArtifactsForVideo: mocks.removePlaylistTvArtifactsForVideo,
+  parkPendingRawSourceInfo: mocks.parkPendingRawSourceInfo,
 }));
 
 vi.mock("../../../services/mediaServerExport/pathPlanner", () => ({
@@ -81,6 +83,22 @@ describe("mediaServerExport layout dispatch", () => {
   it("defers the export when a collection link is about to commit", () => {
     syncMediaServerArtifactsForRecord(VIDEO, { pendingCollectionLink: true });
     expect(mocks.syncPlaylistTvForVideo).not.toHaveBeenCalled();
+  });
+
+  it("parks the raw extractor object for the deferred collection hook", () => {
+    const rawSourceInfo = { extractor: "youtube", chapters: [] };
+    syncMediaServerArtifactsForRecord(VIDEO, {
+      pendingCollectionLink: true,
+      rawSourceInfo,
+    });
+
+    // Without this the deferred path is the only one that drops the raw
+    // object, so every fresh playlist download would write a synthesized-only
+    // .info.json while the adjacent layout preserved the extractor fields.
+    expect(mocks.parkPendingRawSourceInfo).toHaveBeenCalledWith(
+      VIDEO.id,
+      rawSourceInfo
+    );
   });
 
   it("does nothing at all when the export mode is off", () => {

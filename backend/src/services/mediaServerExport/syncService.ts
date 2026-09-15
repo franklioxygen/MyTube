@@ -22,6 +22,7 @@ import {
 import { planMediaServerExportPaths } from "./pathPlanner";
 import { ArtifactReferenceIndex } from "./artifactReferenceIndex";
 import {
+  parkPendingRawSourceInfo,
   removePlaylistTvArtifactsForVideo,
   syncPlaylistTvForCollection,
   syncPlaylistTvForVideo,
@@ -412,14 +413,18 @@ export function syncMediaServerArtifactsForRecord(
 
     if (getMediaServerExportLayout(options.layoutOverride) === "playlist_tv") {
       // The caller links this video to a source-backed collection next, so the
-      // export waits for the collection hook and its real season.
-      if (!options.pendingCollectionLink) {
-        syncPlaylistTvForVideo(video, {
-          mode,
-          copyFallback: getMediaServerCopyFallback(),
-          rawSourceInfo: options.rawSourceInfo,
-        });
+      // export waits for the collection hook and its real season. The raw
+      // extractor object is parked for that hook, which is reached through
+      // storageService and cannot carry it in its own signature.
+      if (options.pendingCollectionLink) {
+        parkPendingRawSourceInfo(video.id, options.rawSourceInfo);
+        return;
       }
+      syncPlaylistTvForVideo(video, {
+        mode,
+        copyFallback: getMediaServerCopyFallback(),
+        rawSourceInfo: options.rawSourceInfo,
+      });
       return;
     }
 

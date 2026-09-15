@@ -49,8 +49,10 @@ vi.mock("../../../utils/logger", () => ({
 
 import {
   cleanupPlaylistTvLibrary,
+  parkPendingRawSourceInfo,
   removePlaylistTvArtifactsForVideo,
   runPlaylistTvExport,
+  syncPlaylistTvForCollection,
 } from "../../../services/mediaServerExport/playlistTvSync";
 import { ensureMediaServerExportTables } from "../../../services/storageService/migrations/schemaMigrations";
 
@@ -487,6 +489,106 @@ describe("mediaServerExport playlist_tv end to end", () => {
     }
 
     expect(listMirror()).toEqual([]);
+  });
+
+  it("repairs a tracked mirror file damaged in place", () => {
+    build();
+    const media = mirrorPath("Kurzgesagt", "Season 00", "S00E001 - Unlisted Short.mp4");
+    const artwork = mirrorPath(
+      "Kurzgesagt",
+      "Season 00",
+      "S00E001 - Unlisted Short-thumb.jpg"
+    );
+
+    // Both survive as regular files at the tracked path, so an existence check
+    // alone still calls them unchanged: the hard link is broken by an
+    // out-of-band replacement, the copy is truncated.
+    fs.removeSync(media);
+    writeFile(media, "not the source at all");
+    fs.writeFileSync(artwork, "");
+
+    const result = build();
+
+    expect(result.counts.linkedMedia).toBe(1);
+    expect(fs.readFileSync(media, "utf8")).toBe("media-v4");
+    expect(fs.readFileSync(artwork, "utf8")).toBe("thumb-v4");
+    expect(fs.statSync(media).ino).toBe(
+      fs.statSync(path.join(testPaths.videos, "Kurzgesagt", "v4.mp4")).ino
+    );
+  });
+
+  it("retires episode numbers even when artifact cleanup fails", () => {
+    build();
+    const media = mirrorPath("Kurzgesagt", "Season 01", "S01E001 - Human Origins.mp4");
+    fs.removeSync(media);
+    fs.symlinkSync(path.join(testPaths.videos, "Kurzgesagt", "v1.mp4"), media);
+
+    // The mirror refuses to delete a symlink, but the video row is deleted
+    // right after this call and cascades the assignments away — so the
+    // tombstones have to be written regardless, or E001 would be handed to
+    // different content on the next reconciliation.
+    expect(() => removePlaylistTvArtifactsForVideo("v1")).toThrow();
+
+    expect(
+      sqlite
+        .prepare(
+          "SELECT id FROM media_server_episode_assignments WHERE video_id = 'v1'"
+        )
+        .all()
+    ).toEqual([]);
+    expect(
+      sqlite
+        .prepare(
+          "SELECT season_number, episode_number FROM media_server_retired_episodes ORDER BY season_number, episode_number"
+        )
+        .all()
+    ).toContainEqual({ season_number: 1, episode_number: 1 });
+  });
+
+  it("layers the parked raw extractor object into a deferred episode's JSON", () => {
+    // A fresh playlist download defers its export to the collection hook, which
+    // is reached through storageService and carries no extractor payload.
+    parkPendingRawSourceInfo("v1", {
+      extractor: "youtube",
+      chapters: [{ title: "Intro", start_time: 0 }],
+    });
+
+    syncPlaylistTvForCollection("col-a", {
+      mode: "nfo_and_source_json",
+      copyFallback: true,
+      videoId: "v1",
+    });
+
+    const jsonPath = mirrorPath(
+      "Kurzgesagt",
+      "Season 01",
+      "S01E001 - Human Origins.info.json"
+    );
+    expect(JSON.parse(fs.readFileSync(jsonPath, "utf8"))).toMatchObject({
+      extractor: "youtube",
+      chapters: [{ title: "Intro", start_time: 0 }],
+      _mytube: { rawSourcePreserved: true },
+    });
+  });
+
+  it("consumes a parked raw object so a later rebuild does not replay it", () => {
+    parkPendingRawSourceInfo("v1", { extractor: "youtube" });
+    syncPlaylistTvForCollection("col-a", {
+      mode: "nfo_and_source_json",
+      copyFallback: true,
+      videoId: "v1",
+    });
+
+    build("nfo_and_source_json");
+
+    const jsonPath = mirrorPath(
+      "Kurzgesagt",
+      "Season 01",
+      "S01E001 - Human Origins.info.json"
+    );
+    expect(JSON.parse(fs.readFileSync(jsonPath, "utf8"))._mytube).toMatchObject({
+      rawSourcePreserved: false,
+    });
   });
 
   it("refuses to replace or delete a symlink inside the mirror", () => {
