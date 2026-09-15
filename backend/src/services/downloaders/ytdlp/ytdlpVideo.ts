@@ -901,6 +901,7 @@ export async function downloadVideo(
 
       syncMediaServerArtifactsForRecord(finalVideoData, {
         rawSourceInfo,
+        pendingCollectionLink: options.pendingCollectionLink,
       });
       return finalVideoData;
     }
@@ -942,6 +943,7 @@ export async function downloadVideo(
     if (updatedVideo) {
       syncMediaServerArtifactsForRecord(updatedVideo, {
         rawSourceInfo,
+        pendingCollectionLink: options.pendingCollectionLink,
       });
       return updatedVideo;
     }
@@ -949,6 +951,7 @@ export async function downloadVideo(
 
   syncMediaServerArtifactsForRecord(videoData, {
     rawSourceInfo,
+    pendingCollectionLink: options.pendingCollectionLink,
   });
   return videoData;
   } finally {

@@ -1460,6 +1460,8 @@ export class SubscriptionService {
   ): Promise<any> {
     const downloadTaskId = uuidv4();
     const isBilibili = sub.platform === "Bilibili";
+    const pendingCollectionLink =
+      sub.subscriptionType === "playlist" && Boolean(sub.collectionId);
     return downloadManager.addDownload(
       (registerCancel) =>
         isBilibili
@@ -1475,6 +1477,7 @@ export class SubscriptionService {
               {
                 subscriptionYtdlpConfig: sub.ytdlpConfig,
                 subscriptionFilenameTemplate: sub.filenameTemplate,
+                pendingCollectionLink,
               }
             )
           : downloadYouTubeVideo(videoUrl, {
@@ -1484,6 +1487,7 @@ export class SubscriptionService {
                 buildFilenameTemplateSourceOptions(sub),
               subscriptionYtdlpConfig: sub.ytdlpConfig,
               subscriptionFilenameTemplate: sub.filenameTemplate,
+              pendingCollectionLink,
             }),
       downloadTaskId,
       initialTitle,

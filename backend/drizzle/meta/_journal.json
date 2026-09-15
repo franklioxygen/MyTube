@@ -204,6 +204,20 @@
       "when": 1788291612287,
       "tag": "0028_easy_invaders",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "6",
+      "when": 1788291612288,
+      "tag": "0029_shocking_midnight",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "6",
+      "when": 1788291612289,
+      "tag": "0030_abnormal_eternity",
+      "breakpoints": true
     }
   ]
 }

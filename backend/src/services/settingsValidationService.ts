@@ -29,6 +29,7 @@ const VALID_MEDIA_SERVER_EXPORT_MODES = new Set([
   "nfo",
   "nfo_and_source_json",
 ]);
+const VALID_MEDIA_SERVER_EXPORT_LAYOUTS = new Set(["adjacent", "playlist_tv"]);
 const PLAYER_SEEK_SETTING_KEYS = [
   "playerSeekShortSeconds",
   "playerSeekMediumSeconds",
@@ -259,6 +260,26 @@ export function validateSettings(newSettings: Partial<Settings>): void {
     throw new ValidationError(
       `Invalid mediaServerExportMode: "${newSettings.mediaServerExportMode}".`,
       "mediaServerExportMode"
+    );
+  }
+
+  if (
+    newSettings.mediaServerExportLayout !== undefined &&
+    !VALID_MEDIA_SERVER_EXPORT_LAYOUTS.has(newSettings.mediaServerExportLayout)
+  ) {
+    throw new ValidationError(
+      `Invalid mediaServerExportLayout: "${newSettings.mediaServerExportLayout}".`,
+      "mediaServerExportLayout"
+    );
+  }
+
+  if (
+    newSettings.mediaServerCopyFallback !== undefined &&
+    typeof newSettings.mediaServerCopyFallback !== "boolean"
+  ) {
+    throw new ValidationError(
+      "mediaServerCopyFallback must be a boolean.",
+      "mediaServerCopyFallback"
     );
   }
 

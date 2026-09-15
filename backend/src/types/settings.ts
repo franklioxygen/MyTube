@@ -14,6 +14,9 @@ export const LEGACY_DOWNLOAD_FILENAME_TEMPLATE =
   "{{ title }}-{{ uploader }}-{{ upload_year }}.{{ ext }}";
 
 export type MediaServerExportMode = "off" | "nfo" | "nfo_and_source_json";
+// "adjacent" writes sidecars beside the original media (historical behavior).
+// "playlist_tv" builds the managed author/playlist/episode mirror (issue #411).
+export type MediaServerExportLayout = "adjacent" | "playlist_tv";
 export type AuthorOrganizationMode =
   | "root"
   | "author_folder_only"
@@ -137,6 +140,8 @@ export interface Settings {
   downloadFilenamePresetId?: DownloadFilenamePresetId;
   downloadFilenameTemplate?: string;
   mediaServerExportMode?: MediaServerExportMode;
+  mediaServerExportLayout?: MediaServerExportLayout;
+  mediaServerCopyFallback?: boolean;
   // Statistics
   statisticsEnabled?: boolean;
   statisticsRetentionDays?: number | null;
@@ -215,6 +220,8 @@ export const defaultSettings: Settings = {
   downloadFilenameMode: "legacy",
   downloadFilenameTemplate: LEGACY_DOWNLOAD_FILENAME_TEMPLATE,
   mediaServerExportMode: "off",
+  mediaServerExportLayout: "adjacent",
+  mediaServerCopyFallback: true,
   statisticsEnabled: false,
   statisticsRetentionDays: 365,
   statisticsCaptureSearchText: false,
