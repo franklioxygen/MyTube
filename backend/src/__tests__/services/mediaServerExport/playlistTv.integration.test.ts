@@ -50,7 +50,6 @@ vi.mock("../../../utils/logger", () => ({
 import {
   cleanupPlaylistTvLibrary,
   parkPendingRawSourceInfo,
-  readMirroredRawSourceInfo,
   removePlaylistTvArtifactsForVideo,
   runPlaylistTvExport,
   syncPlaylistTvForCollection,
@@ -572,14 +571,17 @@ describe("mediaServerExport playlist_tv end to end", () => {
     });
   });
 
-  it("consumes a parked raw object so a later rebuild does not replay it", () => {
-    parkPendingRawSourceInfo("v1", { extractor: "youtube" });
+  it("keeps a preserved envelope through a plain rebuild", () => {
+    parkPendingRawSourceInfo("v1", { extractor: "youtube", format_id: "248" });
     syncPlaylistTvForCollection("col-a", {
       mode: "nfo_and_source_json",
       copyFallback: true,
       videoId: "v1",
     });
 
+    // Only a download carries a raw object, so every later replan would write
+    // a synthesized-only envelope over the richer file unless planning reads
+    // the mirror's own copy back first.
     build("nfo_and_source_json");
 
     const jsonPath = mirrorPath(
@@ -587,9 +589,28 @@ describe("mediaServerExport playlist_tv end to end", () => {
       "Season 01",
       "S01E001 - Human Origins.info.json"
     );
-    expect(JSON.parse(fs.readFileSync(jsonPath, "utf8"))._mytube).toMatchObject({
-      rawSourcePreserved: false,
+    expect(JSON.parse(fs.readFileSync(jsonPath, "utf8"))).toMatchObject({
+      extractor: "youtube",
+      format_id: "248",
+      _mytube: { rawSourcePreserved: true },
     });
+  });
+
+  it("still synthesizes an envelope for an episode that never had raw data", () => {
+    build("nfo_and_source_json");
+
+    expect(
+      JSON.parse(
+        fs.readFileSync(
+          mirrorPath(
+            "Kurzgesagt",
+            "Season 00",
+            "S00E001 - Unlisted Short.info.json"
+          ),
+          "utf8"
+        )
+      )._mytube
+    ).toMatchObject({ rawSourcePreserved: false });
   });
 
   it("keeps the episode number when a video is refreshed rather than deleted", () => {
@@ -650,7 +671,7 @@ describe("mediaServerExport playlist_tv end to end", () => {
     ).toBe("Kurzgesagt - In a Nutshell");
   });
 
-  it("keeps a preserved raw envelope when a re-sync has no raw object", () => {
+  it("lets a fresh raw object replace the preserved one", () => {
     parkPendingRawSourceInfo("v1", { extractor: "youtube", format_id: "248" });
     syncPlaylistTvForCollection("col-a", {
       mode: "nfo_and_source_json",
@@ -658,13 +679,27 @@ describe("mediaServerExport playlist_tv end to end", () => {
       videoId: "v1",
     });
 
-    // What the relocation path reads before it moves an original: the raw
-    // object is only ever held at download time, so a later sync would plan a
-    // synthesized-only envelope over the richer file already published.
-    const preserved = readMirroredRawSourceInfo("v1") as Record<string, unknown>;
+    // A redownload reports new extractor data; preservation must not pin the
+    // episode to what the first download happened to see.
+    parkPendingRawSourceInfo("v1", { extractor: "youtube", format_id: "616" });
+    syncPlaylistTvForCollection("col-a", {
+      mode: "nfo_and_source_json",
+      copyFallback: true,
+      videoId: "v1",
+    });
 
-    expect(preserved).toMatchObject({ extractor: "youtube", format_id: "248" });
-    expect(readMirroredRawSourceInfo("v4")).toBeUndefined();
+    expect(
+      JSON.parse(
+        fs.readFileSync(
+          mirrorPath(
+            "Kurzgesagt",
+            "Season 01",
+            "S01E001 - Human Origins.info.json"
+          ),
+          "utf8"
+        )
+      )
+    ).toMatchObject({ format_id: "616" });
   });
 
   it("refuses to replace or delete a symlink inside the mirror", () => {

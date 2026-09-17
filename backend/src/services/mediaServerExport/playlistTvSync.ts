@@ -204,8 +204,12 @@ function planAndMaterialize(
   options: PlaylistTvExportOptions
 ): { plan: HierarchyPlan; result: MaterializeHierarchyResult } {
   options.onPhase?.("plan");
+  const rawInfoByVideoId =
+    options.mode === "nfo_and_source_json"
+      ? withPreservedRawSourceInfo(options.showIds, options.rawInfoByVideoId)
+      : options.rawInfoByVideoId;
   const plan = planMediaServerHierarchy({
-    snapshot: loadMediaServerCatalogSnapshot(videos, options.rawInfoByVideoId),
+    snapshot: loadMediaServerCatalogSnapshot(videos, rawInfoByVideoId),
     mode: options.mode,
     showIds: options.showIds,
   });
@@ -305,41 +309,50 @@ export function syncPlaylistTvForCollection(
 }
 
 /**
- * The raw yt-dlp object already preserved in a video's mirrored `.info.json`,
- * if any. A path that re-syncs a video it did not just download has no raw
- * object of its own, and planning would otherwise hand the materializer a
- * synthesized-only envelope that overwrites the richer file already on disk.
+ * Raw yt-dlp objects already preserved in the mirror's own `.info.json` files,
+ * for every episode in scope that has no fresher one.
+ *
+ * Only a download carries a raw object. Every other path into the planner — a
+ * rebuild, a metadata edit, a thumbnail refresh, a collection sync, a file
+ * move — has none, and the planner would otherwise emit a synthesized-only
+ * envelope that the generated-text materializer writes straight over the
+ * richer file already published, losing the extractor fields for good. Reading
+ * back what the mirror itself holds makes a replan reproduce what it wrote.
  */
-export function readMirroredRawSourceInfo(videoId: string): unknown {
-  const assignmentIds = new Set(
-    getMediaServerAssignmentsForVideo(videoId).map((assignment) => assignment.id)
-  );
-  if (assignmentIds.size === 0) {
-    return undefined;
+function withPreservedRawSourceInfo(
+  showIds: readonly string[] | undefined,
+  fresh: Map<string, unknown> | undefined
+): Map<string, unknown> | undefined {
+  const videoIdByAssignment = new Map<string, string>();
+  for (const assignment of getMediaServerEpisodeAssignments()) {
+    if (!showIds || showIds.includes(assignment.showId)) {
+      videoIdByAssignment.set(assignment.id, assignment.videoId);
+    }
   }
-  for (const artifact of listArtifacts(showIdsForVideo(videoId))) {
-    if (
-      artifact.artifactType !== "source_json" ||
-      !artifact.assignmentId ||
-      !assignmentIds.has(artifact.assignmentId)
-    ) {
+
+  const merged = new Map<string, unknown>(fresh ?? []);
+  for (const artifact of listArtifacts(showIds)) {
+    if (artifact.artifactType !== "source_json" || !artifact.assignmentId) {
+      continue;
+    }
+    const videoId = videoIdByAssignment.get(artifact.assignmentId);
+    // A fresh object always wins: it is what the download just reported, while
+    // this is only what a previous pass managed to keep.
+    if (!videoId || merged.has(videoId)) {
       continue;
     }
     const preserved = readTrackedJsonArtifact(artifact.relativePath);
-    if (
-      typeof preserved === "object" &&
-      preserved !== null &&
-      (preserved as Record<string, unknown>)._mytube !== undefined
-    ) {
-      const mytube = (preserved as Record<string, unknown>)._mytube as
-        | Record<string, unknown>
-        | undefined;
-      if (mytube?.rawSourcePreserved === true) {
-        return preserved;
-      }
+    const mytube =
+      typeof preserved === "object" && preserved !== null
+        ? ((preserved as Record<string, unknown>)._mytube as
+            | Record<string, unknown>
+            | undefined)
+        : undefined;
+    if (mytube?.rawSourcePreserved === true) {
+      merged.set(videoId, preserved);
     }
   }
-  return undefined;
+  return merged.size > 0 ? merged : undefined;
 }
 
 export function removePlaylistTvArtifactsForVideo(videoId: string): void {

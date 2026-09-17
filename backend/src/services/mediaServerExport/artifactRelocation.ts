@@ -47,24 +47,14 @@ export function relocateMediaServerArtifactsAroundMove(
     // The mirror derives its paths from the catalog, so moving the original
     // never moves a mirror file. Only the hard links have to be re-pointed at
     // the new source, which the per-video sync does from its fingerprints.
-    // Read before the move so the sync below re-plans the same `.info.json`
-    // it already published; without it the planner has no raw object and would
-    // overwrite a preserved envelope with a synthesized-only one. Required
-    // lazily: this module is loaded from the storage layer, and playlistTvSync
-    // opens the database at import time.
-    const { readMirroredRawSourceInfo } = require("./playlistTvSync") as {
-      readMirroredRawSourceInfo: (videoId: string) => unknown;
-    };
-    const rawSourceInfo = readMirroredRawSourceInfo(videoBefore.id);
-
+    // The `.info.json` needs no special handling here: planning reads every
+    // preserved envelope back from the mirror, so this re-sync reproduces the
+    // one it already published rather than synthesizing over it.
     const moved = performMove();
     if (moved && mode !== "off") {
       const videoAfter = getVideoById(videoBefore.id);
       if (videoAfter) {
-        syncMediaServerArtifactsForRecord(videoAfter, {
-          modeOverride: mode,
-          rawSourceInfo,
-        });
+        syncMediaServerArtifactsForRecord(videoAfter, { modeOverride: mode });
       }
     }
     return moved;

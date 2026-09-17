@@ -439,6 +439,63 @@ describe("mediaServerExport/catalogReconciler", () => {
     expect(assignmentFor("v1", 1)?.exportStem).toBe("S01E001 - Original");
   });
 
+  it("keeps a renamed channel's fresh title over a collection's stored one", () => {
+    const videos = [video("v1")];
+    const collections = [
+      collection("col-a", ["v1"], {
+        sourceChannelId: "UC1",
+        // Captured when the subscription was created and never refreshed.
+        sourceChannelName: "Kurzgesagt",
+        sourceChannelDescription: "Old blurb.",
+      }),
+    ];
+    seed(videos, collections);
+    const rawInfoByVideoId = new Map([
+      [
+        "v1",
+        {
+          channel_id: "UC1",
+          channel: "Kurzgesagt - In a Nutshell",
+          channel_description: "New blurb.",
+        },
+      ],
+    ]);
+
+    reconcileMediaServerCatalog({
+      videos,
+      collections,
+      playlistSubscriptions: [],
+      rawInfoByVideoId,
+    });
+
+    // Step 2 takes the rename from the download; step 3 must not hand the
+    // show back its stored name later in the same pass.
+    expect(getMediaServerShows()[0]).toMatchObject({
+      title: "Kurzgesagt - In a Nutshell",
+      description: "New blurb.",
+    });
+  });
+
+  it("still refreshes a show no fresh download spoke for", () => {
+    const videos = [video("v1")];
+    const collections = [
+      collection("col-a", ["v1"], { sourceChannelName: "Renamed Channel" }),
+    ];
+    seed(videos, collections);
+
+    // No raw info at all — a plain rebuild. The stored name is then the best
+    // thing available and must still reach the show.
+    reconcileMediaServerCatalog({
+      videos,
+      collections,
+      playlistSubscriptions: [],
+    });
+
+    expect(getMediaServerShows()[0]).toMatchObject({
+      title: "Renamed Channel",
+    });
+  });
+
   it("captures the channel description from raw download metadata", () => {
     const videos = [video("v1")];
     seed(videos, []);

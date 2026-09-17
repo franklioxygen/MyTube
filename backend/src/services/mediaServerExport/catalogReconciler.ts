@@ -166,6 +166,13 @@ class ShowResolver {
   private readonly byId = new Map<string, MediaServerShow>();
   private readonly byIdentityKey = new Map<string, MediaServerShow>();
   private readonly directoryNames = new Set<string>();
+  /**
+   * Shows whose title or description a fresh download already spoke for during
+   * this pass. A collection's stored channel metadata must not overwrite them
+   * afterwards, or a rename would be picked up in step 2 and thrown away in
+   * step 3.
+   */
+  private readonly freshlyDescribed = new Set<string>();
 
   constructor(private readonly shows: MediaServerShow[]) {
     for (const show of shows) {
@@ -223,8 +230,19 @@ class ShowResolver {
     show: MediaServerShow,
     title: string | undefined,
     description: string | undefined,
-    identity?: ResolvedShowIdentity
+    identity?: ResolvedShowIdentity,
+    /**
+     * Where the title and description came from. `fresh` is what a download
+     * just reported. `fallback` is a collection's stored channel metadata,
+     * captured when its subscription was created and never refreshed since —
+     * so it must not undo, later in the same pass, a rename that step 2 has
+     * already taken from the fresh download. It still refreshes a show no
+     * fresh source spoke for, which is every show on a plain rebuild.
+     */
+    authority: "fresh" | "fallback" = "fresh"
   ): MediaServerShow {
+    const supersededByFresherPass =
+      authority === "fallback" && this.freshlyDescribed.has(show.id);
     const patch: MediaServerShowPatch = {};
     if (
       identity &&
@@ -253,13 +271,21 @@ class ShowResolver {
     if (
       trimmedTitle &&
       trimmedTitle !== show.title &&
-      (show.title === UNKNOWN_SHOW_TITLE || !identifiedByName)
+      (show.title === UNKNOWN_SHOW_TITLE ||
+        (!identifiedByName && !supersededByFresherPass))
     ) {
       patch.title = trimmedTitle;
     }
     const normalizedDescription = normalizeDescription(description);
-    if (normalizedDescription && normalizedDescription !== show.description) {
+    if (
+      normalizedDescription &&
+      normalizedDescription !== show.description &&
+      !supersededByFresherPass
+    ) {
       patch.description = normalizedDescription;
+    }
+    if (authority === "fresh" && (trimmedTitle || normalizedDescription)) {
+      this.freshlyDescribed.add(show.id);
     }
 
     if (Object.keys(patch).length > 0) {
@@ -274,13 +300,14 @@ class ShowResolver {
   resolve(
     identity: ResolvedShowIdentity,
     title: string | undefined,
-    description: string | undefined
+    description: string | undefined,
+    authority: "fresh" | "fallback" = "fresh"
   ): MediaServerShow {
     const existing =
       this.byIdentityKey.get(identity.identityKey) ??
       this.findCompatible(identity);
     if (existing) {
-      return this.enrich(existing, title, description, identity);
+      return this.enrich(existing, title, description, identity, authority);
     }
 
     const resolvedTitle = (title || "").trim() || UNKNOWN_SHOW_TITLE;
@@ -309,6 +336,9 @@ class ShowResolver {
     this.byId.set(created.id, created);
     this.byIdentityKey.set(created.identityKey, created);
     this.directoryNames.add(directoryName);
+    if (authority === "fresh") {
+      this.freshlyDescribed.add(created.id);
+    }
     return created;
   }
 }
@@ -555,7 +585,9 @@ function reconcileInTransaction(
       show = showResolver.enrich(
         attachedShow,
         fallbackTitle,
-        collection.sourceChannelDescription
+        collection.sourceChannelDescription,
+        undefined,
+        "fallback"
       );
       seasonNumber = collection.mediaServerSeasonNumber as number;
     } else {
@@ -578,7 +610,8 @@ function reconcileInTransaction(
       show = showResolver.resolve(
         identity,
         fallbackTitle,
-        collection.sourceChannelDescription
+        collection.sourceChannelDescription,
+        "fallback"
       );
       seasonNumber = allocateSeasonNumber(show.id, collection.id);
       collection.mediaServerShowId = show.id;
