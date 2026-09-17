@@ -66,7 +66,17 @@ describe("media server export catalog migration", () => {
       CREATE UNIQUE INDEX media_server_shows_source_collection_uidx
         ON media_server_shows (source_channel_id);
     `);
-    target.prepare("DELETE FROM __drizzle_migrations WHERE id = (SELECT MAX(id) FROM __drizzle_migrations)").run();
+    // Unrecord both of this feature's migrations so the second migrate()
+    // actually replays them. Ordered by created_at, not id: drizzle leaves
+    // `id` NULL in every row, so the `MAX(id)` this used to delete by matched
+    // nothing and the assertion below could never fail. Replaying only 0030
+    // would be nearly as empty — its one statement is guarded either way, so
+    // an `IF NOT EXISTS` lost from 0029 has to be what this catches.
+    target
+      .prepare(
+        "DELETE FROM __drizzle_migrations WHERE created_at IN (SELECT created_at FROM __drizzle_migrations ORDER BY created_at DESC LIMIT 2)"
+      )
+      .run();
 
     expect(() =>
       migrate(drizzle(target), { migrationsFolder })

@@ -352,6 +352,21 @@ export function materializeArtifact(
  * ledger authorizes the delete, so an original video can never be reached from
  * here.
  */
+/** Parse a tracked mirror artifact as JSON; undefined when unreadable. */
+export function readTrackedJsonArtifact(relativePath: string): unknown {
+  try {
+    const absolutePath = resolveMirrorPath(relativePath);
+    if (!mirrorPathExists(absolutePath)) {
+      return undefined;
+    }
+    return JSON.parse(
+      readFileSafeSync(absolutePath, MEDIA_SERVER_LIBRARY_DIR, "utf8")
+    );
+  } catch {
+    return undefined;
+  }
+}
+
 export function removeTrackedArtifact(relativePath: string): void {
   const absolutePath = resolveMirrorPath(relativePath);
   if (mirrorPathExists(absolutePath)) {

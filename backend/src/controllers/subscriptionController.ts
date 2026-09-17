@@ -1497,6 +1497,12 @@ export const createPlaylistTask = async (
     videos: [],
     createdAt: new Date().toISOString(),
     title: uniqueCollectionName,
+    // This endpoint creates no subscription row, so without its own source
+    // identity the media-server mirror has nothing to recognize the collection
+    // by and files every video it collects under Specials instead of a season
+    // (issue #411).
+    sourceType: "playlist",
+    sourceUrl: playlistUrl,
   };
   storageService.saveCollection(newCollection);
   logger.info(

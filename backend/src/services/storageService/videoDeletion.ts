@@ -72,6 +72,7 @@ export function deleteVideo(
     removeMediaServerArtifactsForVideo(videoToDelete, {
       libraryVideos: remainingVideos,
       preserveSharedArtifacts: true,
+      videoDeleted: true,
     });
 
     // Delete from DB

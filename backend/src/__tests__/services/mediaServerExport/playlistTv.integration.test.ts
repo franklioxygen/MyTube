@@ -50,6 +50,7 @@ vi.mock("../../../utils/logger", () => ({
 import {
   cleanupPlaylistTvLibrary,
   parkPendingRawSourceInfo,
+  readMirroredRawSourceInfo,
   removePlaylistTvArtifactsForVideo,
   runPlaylistTvExport,
   syncPlaylistTvForCollection,
@@ -589,6 +590,81 @@ describe("mediaServerExport playlist_tv end to end", () => {
     expect(JSON.parse(fs.readFileSync(jsonPath, "utf8"))._mytube).toMatchObject({
       rawSourcePreserved: false,
     });
+  });
+
+  it("keeps the episode number when a video is refreshed rather than deleted", () => {
+    build();
+    expect(listMirror()).toContain(
+      "Kurzgesagt/Season 01/S01E001 - Human Origins.mp4"
+    );
+
+    // What a redownload or a batch rename does: replace the original in place,
+    // then re-sync. The occurrence must keep S01E001 — retiring the number here
+    // would tombstone it and push the same video to S01E003.
+    const source = path.join(testPaths.videos, "Kurzgesagt", "v1.mp4");
+    fs.removeSync(source);
+    writeFile(source, "redownloaded-media");
+    build();
+
+    expect(listMirror()).toContain(
+      "Kurzgesagt/Season 01/S01E001 - Human Origins.mp4"
+    );
+    expect(
+      fs.readFileSync(
+        mirrorPath("Kurzgesagt", "Season 01", "S01E001 - Human Origins.mp4"),
+        "utf8"
+      )
+    ).toBe("redownloaded-media");
+    expect(
+      sqlite
+        .prepare(
+          "SELECT episode_number FROM media_server_episode_assignments WHERE video_id = 'v1' AND season_number = 1"
+        )
+        .all()
+    ).toEqual([{ episode_number: 1 }]);
+  });
+
+  it("refreshes a renamed channel's show title without moving its directory", () => {
+    build();
+    expect(parseNfo("Kurzgesagt", "tvshow.nfo")("title").first().text()).toBe(
+      "Kurzgesagt"
+    );
+
+    // Same durable channel URL, new display name. The directory is identity —
+    // it stays — but every `showtitle` should follow the rename.
+    sqlite
+      .prepare("UPDATE videos SET author = 'Kurzgesagt - In a Nutshell'")
+      .run();
+    build();
+
+    expect(listMirror()).toContain("Kurzgesagt/tvshow.nfo");
+    expect(parseNfo("Kurzgesagt", "tvshow.nfo")("title").first().text()).toBe(
+      "Kurzgesagt - In a Nutshell"
+    );
+    expect(
+      parseNfo("Kurzgesagt", "Season 01", "S01E001 - Human Origins.nfo")(
+        "showtitle"
+      )
+        .first()
+        .text()
+    ).toBe("Kurzgesagt - In a Nutshell");
+  });
+
+  it("keeps a preserved raw envelope when a re-sync has no raw object", () => {
+    parkPendingRawSourceInfo("v1", { extractor: "youtube", format_id: "248" });
+    syncPlaylistTvForCollection("col-a", {
+      mode: "nfo_and_source_json",
+      copyFallback: true,
+      videoId: "v1",
+    });
+
+    // What the relocation path reads before it moves an original: the raw
+    // object is only ever held at download time, so a later sync would plan a
+    // synthesized-only envelope over the richer file already published.
+    const preserved = readMirroredRawSourceInfo("v1") as Record<string, unknown>;
+
+    expect(preserved).toMatchObject({ extractor: "youtube", format_id: "248" });
+    expect(readMirroredRawSourceInfo("v4")).toBeUndefined();
   });
 
   it("refuses to replace or delete a symlink inside the mirror", () => {

@@ -466,7 +466,14 @@ export function removeMediaServerArtifactsForVideo(
 ): void {
   try {
     if (getMediaServerExportLayout(options.layoutOverride) === "playlist_tv") {
-      removePlaylistTvArtifactsForVideo(video.id);
+      // Only a deletion retires the assignments. Every other caller here — a
+      // redownload, a batch rename, a file move — is refreshing a video that
+      // still exists, and needs no removal at all: mirror paths come from the
+      // catalog rather than the original's filename, so the sync that follows
+      // republishes each artifact in place from its new source fingerprint.
+      if (options.videoDeleted) {
+        removePlaylistTvArtifactsForVideo(video.id);
+      }
       return;
     }
 

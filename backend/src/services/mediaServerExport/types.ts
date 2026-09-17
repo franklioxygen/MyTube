@@ -45,6 +45,13 @@ export interface RemoveMediaServerArtifactsOptions {
   // An explicit export cleanup/rebuild still needs to remove those artifacts.
   preserveSharedArtifacts?: boolean;
   layoutOverride?: MediaServerExportLayout;
+  /**
+   * Whether the video row itself is going away. Only a real deletion retires
+   * the managed mirror's episode assignments; a redownload, a rename or a file
+   * move is a refresh that must keep them, or every one of those would renumber
+   * the episode and break the stable-numbering contract.
+   */
+  videoDeleted?: boolean;
 }
 
 export type MediaServerExportSkipReason =

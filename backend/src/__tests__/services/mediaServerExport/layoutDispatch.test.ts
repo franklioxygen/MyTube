@@ -119,8 +119,20 @@ describe("mediaServerExport layout dispatch", () => {
     expect(mocks.planMediaServerExportPaths).not.toHaveBeenCalled();
   });
 
+  it("retires assignments only when the video row is actually going away", () => {
+    // A redownload, a batch rename and a file move all remove-then-resync a
+    // video that still exists. Retiring there would tombstone the episode
+    // number and force the resync to allocate a new one, renumbering the
+    // episode on every routine refresh.
+    removeMediaServerArtifactsForVideo(VIDEO, { preserveSharedArtifacts: true });
+    expect(mocks.removePlaylistTvArtifactsForVideo).not.toHaveBeenCalled();
+
+    removeMediaServerArtifactsForVideo(VIDEO, { videoDeleted: true });
+    expect(mocks.removePlaylistTvArtifactsForVideo).toHaveBeenCalledWith(VIDEO.id);
+  });
+
   it("removes mirror artifacts by video id in playlist_tv", () => {
-    removeMediaServerArtifactsForVideo(VIDEO);
+    removeMediaServerArtifactsForVideo(VIDEO, { videoDeleted: true });
     expect(mocks.removePlaylistTvArtifactsForVideo).toHaveBeenCalledWith(
       "video-1"
     );

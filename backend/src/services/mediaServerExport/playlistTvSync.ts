@@ -24,7 +24,10 @@ import {
   type MaterializeHierarchyResult,
 } from "./hierarchyMaterializer";
 import { planMediaServerHierarchy } from "./hierarchyPlanner";
-import { removeTrackedArtifact } from "./mediaMaterializer";
+import {
+  readTrackedJsonArtifact,
+  removeTrackedArtifact,
+} from "./mediaMaterializer";
 import { SEASON_ZERO_TITLE, buildSeasonDirectoryName } from "./identity";
 import type {
   HierarchyPlan,
@@ -299,6 +302,44 @@ export function syncPlaylistTvForCollection(
     return;
   }
   planAndMaterialize(videos, { ...options, showIds, rawInfoByVideoId });
+}
+
+/**
+ * The raw yt-dlp object already preserved in a video's mirrored `.info.json`,
+ * if any. A path that re-syncs a video it did not just download has no raw
+ * object of its own, and planning would otherwise hand the materializer a
+ * synthesized-only envelope that overwrites the richer file already on disk.
+ */
+export function readMirroredRawSourceInfo(videoId: string): unknown {
+  const assignmentIds = new Set(
+    getMediaServerAssignmentsForVideo(videoId).map((assignment) => assignment.id)
+  );
+  if (assignmentIds.size === 0) {
+    return undefined;
+  }
+  for (const artifact of listArtifacts(showIdsForVideo(videoId))) {
+    if (
+      artifact.artifactType !== "source_json" ||
+      !artifact.assignmentId ||
+      !assignmentIds.has(artifact.assignmentId)
+    ) {
+      continue;
+    }
+    const preserved = readTrackedJsonArtifact(artifact.relativePath);
+    if (
+      typeof preserved === "object" &&
+      preserved !== null &&
+      (preserved as Record<string, unknown>)._mytube !== undefined
+    ) {
+      const mytube = (preserved as Record<string, unknown>)._mytube as
+        | Record<string, unknown>
+        | undefined;
+      if (mytube?.rawSourcePreserved === true) {
+        return preserved;
+      }
+    }
+  }
+  return undefined;
 }
 
 export function removePlaylistTvArtifactsForVideo(videoId: string): void {

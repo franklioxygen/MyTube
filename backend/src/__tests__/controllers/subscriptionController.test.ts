@@ -1947,6 +1947,30 @@ describe("SubscriptionController", () => {
       );
     });
 
+    it("stamps the task collection with its playlist source identity", async () => {
+      req.body = {
+        playlistUrl: "https://www.youtube.com/playlist?list=abc",
+        collectionName: "Collection",
+      };
+      (checkPlaylist as any).mockResolvedValue({ success: true });
+      (executeYtDlpJson as any).mockRejectedValue(new Error("extract failed"));
+      (continuousDownloadService.createPlaylistTask as any).mockResolvedValue({
+        id: "task-3",
+      });
+
+      await createPlaylistTask(req as Request, res as Response);
+
+      // This endpoint creates no subscription row, so the collection's own
+      // source identity is the only thing the media-server mirror can
+      // recognize it by; without it every video lands in Specials (#411).
+      expect(storageService.saveCollection).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sourceType: "playlist",
+          sourceUrl: "https://www.youtube.com/playlist?list=abc",
+        })
+      );
+    });
+
     it("should continue with default author when extract author fails", async () => {
       req.body = {
         playlistUrl: "https://www.youtube.com/playlist?list=abc",

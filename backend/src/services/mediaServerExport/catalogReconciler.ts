@@ -241,8 +241,21 @@ class ShowResolver {
     if (identity?.channelUrl && !show.sourceChannelUrl) {
       patch.sourceChannelUrl = identity.channelUrl;
     }
-    if (show.title === UNKNOWN_SHOW_TITLE && title && title.trim()) {
-      patch.title = title.trim();
+    // The directory name is never touched here, so the display title is only
+    // load-bearing while the show is identified by it: renaming a show whose
+    // identity key is its author name would split it in two. Under a durable
+    // channel id or URL the title is just metadata, and a channel that changed
+    // its display name should not leave a stale `showtitle` in every episode.
+    const trimmedTitle = title?.trim();
+    const identifiedByName =
+      getIdentityKeyQuality(patch.identityKey ?? show.identityKey) ===
+      "author_fallback";
+    if (
+      trimmedTitle &&
+      trimmedTitle !== show.title &&
+      (show.title === UNKNOWN_SHOW_TITLE || !identifiedByName)
+    ) {
+      patch.title = trimmedTitle;
     }
     const normalizedDescription = normalizeDescription(description);
     if (normalizedDescription && normalizedDescription !== show.description) {
