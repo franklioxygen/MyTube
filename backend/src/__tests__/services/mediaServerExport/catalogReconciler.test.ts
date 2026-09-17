@@ -476,6 +476,33 @@ describe("mediaServerExport/catalogReconciler", () => {
     });
   });
 
+  it("takes a collection description when the download reported only a name", () => {
+    const videos = [video("v1")];
+    const collections = [
+      collection("col-a", ["v1"], {
+        sourceChannelId: "UC1",
+        sourceChannelDescription: "About the channel.",
+      }),
+    ];
+    seed(videos, collections);
+
+    reconcileMediaServerCatalog({
+      videos,
+      collections,
+      playlistSubscriptions: [],
+      // Raw metadata routinely carries a channel name and no description.
+      // A fresh title must not block the only description available.
+      rawInfoByVideoId: new Map([
+        ["v1", { channel_id: "UC1", channel: "Kurzgesagt - In a Nutshell" }],
+      ]),
+    });
+
+    expect(getMediaServerShows()[0]).toMatchObject({
+      title: "Kurzgesagt - In a Nutshell",
+      description: "About the channel.",
+    });
+  });
+
   it("still refreshes a show no fresh download spoke for", () => {
     const videos = [video("v1")];
     const collections = [

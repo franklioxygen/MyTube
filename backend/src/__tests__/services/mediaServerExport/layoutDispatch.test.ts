@@ -128,13 +128,19 @@ describe("mediaServerExport layout dispatch", () => {
     expect(mocks.removePlaylistTvArtifactsForVideo).not.toHaveBeenCalled();
 
     removeMediaServerArtifactsForVideo(VIDEO, { videoDeleted: true });
-    expect(mocks.removePlaylistTvArtifactsForVideo).toHaveBeenCalledWith(VIDEO.id);
+    expect(mocks.removePlaylistTvArtifactsForVideo).toHaveBeenCalledWith(
+      VIDEO.id,
+      // A surviving show is replanned, so the removal is handed the mode and
+      // copy policy it needs to re-materialize.
+      { mode: "nfo", copyFallback: true }
+    );
   });
 
   it("removes mirror artifacts by video id in playlist_tv", () => {
     removeMediaServerArtifactsForVideo(VIDEO, { videoDeleted: true });
     expect(mocks.removePlaylistTvArtifactsForVideo).toHaveBeenCalledWith(
-      "video-1"
+      "video-1",
+      { mode: "nfo", copyFallback: true }
     );
     expect(mocks.planMediaServerExportPaths).not.toHaveBeenCalled();
   });

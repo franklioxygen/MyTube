@@ -702,6 +702,33 @@ describe("mediaServerExport playlist_tv end to end", () => {
     ).toMatchObject({ format_id: "616" });
   });
 
+  it("replans a surviving show after one of its videos is deleted", () => {
+    build();
+    const showNfo = mirrorPath("Kurzgesagt", "tvshow.nfo");
+    expect(parseNfo("Kurzgesagt", "tvshow.nfo")("premiered").first().text()).toBe(
+      "2026-01-15"
+    );
+
+    // v1 supplied the earliest premiere date. Nothing reconciles after the
+    // deletion — the video row is about to go — so the show would otherwise
+    // keep advertising a date no surviving episode has.
+    sqlite.prepare("UPDATE videos SET date = '20260320' WHERE id != 'v1'").run();
+    build();
+    expect(parseNfo("Kurzgesagt", "tvshow.nfo")("premiered").first().text()).toBe(
+      "2026-01-15"
+    );
+
+    removePlaylistTvArtifactsForVideo("v1", {
+      mode: "nfo",
+      copyFallback: true,
+    });
+
+    expect(fs.existsSync(showNfo)).toBe(true);
+    expect(parseNfo("Kurzgesagt", "tvshow.nfo")("premiered").first().text()).toBe(
+      "2026-03-20"
+    );
+  });
+
   it("refuses to replace or delete a symlink inside the mirror", () => {
     build();
     const target = mirrorPath("Kurzgesagt", "Season 00", "S00E001 - Unlisted Short.mp4");

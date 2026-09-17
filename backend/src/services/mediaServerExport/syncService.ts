@@ -472,7 +472,13 @@ export function removeMediaServerArtifactsForVideo(
       // catalog rather than the original's filename, so the sync that follows
       // republishes each artifact in place from its new source fingerprint.
       if (options.videoDeleted) {
-        removePlaylistTvArtifactsForVideo(video.id);
+        const mode = getMediaServerExportMode();
+        removePlaylistTvArtifactsForVideo(
+          video.id,
+          mode === "off"
+            ? undefined
+            : { mode, copyFallback: getMediaServerCopyFallback() }
+        );
       }
       return;
     }

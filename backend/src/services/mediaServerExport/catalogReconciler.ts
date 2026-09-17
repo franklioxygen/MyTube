@@ -167,12 +167,15 @@ class ShowResolver {
   private readonly byIdentityKey = new Map<string, MediaServerShow>();
   private readonly directoryNames = new Set<string>();
   /**
-   * Shows whose title or description a fresh download already spoke for during
-   * this pass. A collection's stored channel metadata must not overwrite them
-   * afterwards, or a rename would be picked up in step 2 and thrown away in
-   * step 3.
+   * Shows whose title, and separately whose description, a fresh download
+   * already spoke for during this pass. A collection's stored channel metadata
+   * must not overwrite those afterwards, or a rename would be picked up in
+   * step 2 and thrown away in step 3. Tracked per field: raw metadata often
+   * carries a channel name and no channel description, and one blocking the
+   * other would leave a new show's description permanently empty.
    */
-  private readonly freshlyDescribed = new Set<string>();
+  private readonly freshTitles = new Set<string>();
+  private readonly freshDescriptions = new Set<string>();
 
   constructor(private readonly shows: MediaServerShow[]) {
     for (const show of shows) {
@@ -191,6 +194,19 @@ class ShowResolver {
    * a playlist that carries a channel id and a bare video record that only knows
    * the channel URL must not become two shows. Ambiguous matches never merge.
    */
+  private markFresh(
+    showId: string,
+    title: string | undefined,
+    description: string | undefined
+  ): void {
+    if (title) {
+      this.freshTitles.add(showId);
+    }
+    if (description) {
+      this.freshDescriptions.add(showId);
+    }
+  }
+
   private findCompatible(
     identity: ResolvedShowIdentity
   ): MediaServerShow | undefined {
@@ -241,8 +257,10 @@ class ShowResolver {
      */
     authority: "fresh" | "fallback" = "fresh"
   ): MediaServerShow {
-    const supersededByFresherPass =
-      authority === "fallback" && this.freshlyDescribed.has(show.id);
+    const titleSuperseded =
+      authority === "fallback" && this.freshTitles.has(show.id);
+    const descriptionSuperseded =
+      authority === "fallback" && this.freshDescriptions.has(show.id);
     const patch: MediaServerShowPatch = {};
     if (
       identity &&
@@ -272,7 +290,7 @@ class ShowResolver {
       trimmedTitle &&
       trimmedTitle !== show.title &&
       (show.title === UNKNOWN_SHOW_TITLE ||
-        (!identifiedByName && !supersededByFresherPass))
+        (!identifiedByName && !titleSuperseded))
     ) {
       patch.title = trimmedTitle;
     }
@@ -280,12 +298,12 @@ class ShowResolver {
     if (
       normalizedDescription &&
       normalizedDescription !== show.description &&
-      !supersededByFresherPass
+      !descriptionSuperseded
     ) {
       patch.description = normalizedDescription;
     }
-    if (authority === "fresh" && (trimmedTitle || normalizedDescription)) {
-      this.freshlyDescribed.add(show.id);
+    if (authority === "fresh") {
+      this.markFresh(show.id, trimmedTitle, normalizedDescription);
     }
 
     if (Object.keys(patch).length > 0) {
@@ -337,7 +355,7 @@ class ShowResolver {
     this.byIdentityKey.set(created.identityKey, created);
     this.directoryNames.add(directoryName);
     if (authority === "fresh") {
-      this.freshlyDescribed.add(created.id);
+      this.markFresh(created.id, title?.trim(), normalizeDescription(description));
     }
     return created;
   }

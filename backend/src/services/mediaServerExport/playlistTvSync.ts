@@ -355,7 +355,20 @@ function withPreservedRawSourceInfo(
   return merged.size > 0 ? merged : undefined;
 }
 
-export function removePlaylistTvArtifactsForVideo(videoId: string): void {
+export function removePlaylistTvArtifactsForVideo(
+  videoId: string,
+  /**
+   * Supplied when the export is on, so a show that outlives the deleted video
+   * can be replanned. Its `tvshow.nfo` premiere date and its poster are chosen
+   * from the show's own episodes, and the deleted one may have supplied
+   * either; nothing else reconciles afterwards, because the video row is about
+   * to disappear.
+   */
+  converge?: {
+    mode: Exclude<MediaServerExportMode, "off">;
+    copyFallback: boolean;
+  }
+): void {
   const assignments = getMediaServerAssignmentsForVideo(videoId);
   if (assignments.length === 0) {
     return;
@@ -427,6 +440,20 @@ export function removePlaylistTvArtifactsForVideo(videoId: string): void {
         }
       }
     }
+  }
+
+  // Safe to replan before the video row is deleted: its assignments are gone,
+  // and the planner derives a show's episodes and artwork from assignments
+  // rather than from the library listing.
+  const survivingShowIds = showIds.filter((showId) =>
+    remaining.some((assignment) => assignment.showId === showId)
+  );
+  if (converge && survivingShowIds.length > 0) {
+    planAndMaterialize(getVideos(), {
+      mode: converge.mode,
+      copyFallback: converge.copyFallback,
+      showIds: survivingShowIds,
+    });
   }
 
   // Surfaced only once every assignment is retired, so the ownership signal is
