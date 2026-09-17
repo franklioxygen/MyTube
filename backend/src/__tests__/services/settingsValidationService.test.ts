@@ -114,6 +114,34 @@ describe("settingsValidationService", () => {
       }).not.toThrow();
     });
 
+    it("should reject an unknown media server export layout instead of coercing it", () => {
+      expect(() => {
+        settingsValidationService.validateSettings({
+          mediaServerExportLayout: "bogus" as any,
+        });
+      }).toThrow(ValidationError);
+
+      const settings = { mediaServerExportLayout: "playlist_tv" as const };
+      expect(() =>
+        settingsValidationService.validateSettings(settings)
+      ).not.toThrow();
+      expect(settings.mediaServerExportLayout).toBe("playlist_tv");
+    });
+
+    it("should require a boolean copy fallback", () => {
+      expect(() => {
+        settingsValidationService.validateSettings({
+          mediaServerCopyFallback: "yes" as any,
+        });
+      }).toThrow(ValidationError);
+
+      expect(() => {
+        settingsValidationService.validateSettings({
+          mediaServerCopyFallback: false,
+        });
+      }).not.toThrow();
+    });
+
     it("should validate preferred video container values", () => {
       expect(() => {
         settingsValidationService.validateSettings({

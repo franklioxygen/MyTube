@@ -862,7 +862,8 @@ export class SubscriptionService {
           downloadResult = await this.enqueueSubscriptionDownload(
             sub,
             latestVideoUrl,
-            downloadedVideoTitle
+            downloadedVideoTitle,
+            { linksToCollection: true }
           );
 
           // Add to download history on success
@@ -1456,10 +1457,22 @@ export class SubscriptionService {
   private enqueueSubscriptionDownload(
     sub: Subscription,
     videoUrl: string,
-    initialTitle: string
+    initialTitle: string,
+    /**
+     * Whether this caller links the downloaded video into the subscription's
+     * collection afterwards. Only then may the managed mirror wait for that
+     * link: the Shorts path never links — a Short is not a playlist member —
+     * and deferring there would leave the Short unexported until some
+     * unrelated reconciliation happened to pick it up.
+     */
+    options: { linksToCollection?: boolean } = {}
   ): Promise<any> {
     const downloadTaskId = uuidv4();
     const isBilibili = sub.platform === "Bilibili";
+    const pendingCollectionLink =
+      options.linksToCollection === true &&
+      sub.subscriptionType === "playlist" &&
+      Boolean(sub.collectionId);
     return downloadManager.addDownload(
       (registerCancel) =>
         isBilibili
@@ -1475,6 +1488,7 @@ export class SubscriptionService {
               {
                 subscriptionYtdlpConfig: sub.ytdlpConfig,
                 subscriptionFilenameTemplate: sub.filenameTemplate,
+                pendingCollectionLink,
               }
             )
           : downloadYouTubeVideo(videoUrl, {
@@ -1484,6 +1498,7 @@ export class SubscriptionService {
                 buildFilenameTemplateSourceOptions(sub),
               subscriptionYtdlpConfig: sub.ytdlpConfig,
               subscriptionFilenameTemplate: sub.filenameTemplate,
+              pendingCollectionLink,
             }),
       downloadTaskId,
       initialTitle,

@@ -31,6 +31,7 @@ import {
 import { getPositiveIntegerParam, getStringParam } from "../utils/paramUtils";
 import { runWithConcurrencyLimit } from "../utils/concurrency";
 import {
+    applyPlaylistCollectionMetadata,
     detectPlaylistPlatform,
     deriveChannelName,
     deleteCreatedCollectionIfUnused,
@@ -819,7 +820,17 @@ export const createPlaylistSubscription = async (
   } else {
     collectionResolution = resolveRequestedCollection();
   }
-  const collection = collectionResolution.collection;
+  const collection = applyPlaylistCollectionMetadata(
+    collectionResolution.collection,
+    {
+      sourceUrl: playlistUrl,
+      description: inspection.description,
+      sourceChannelId: inspection.sourceChannelId,
+      sourceChannelUrl: inspection.sourceChannelUrl,
+      sourceChannelName: inspection.sourceChannelName,
+      sourceChannelDescription: inspection.sourceChannelDescription,
+    }
+  );
 
   // 6. Insert the subscription with the captured baseline (design §7.2).
   const subscribeOptions: SubscribePlaylistOptions = {
@@ -1228,7 +1239,15 @@ export const subscribeChannelPlaylists = async (
         candidate.title,
         channelName
       );
-      const collection = collectionResolution.collection;
+      // The channel-playlists probe is head-only, so only what that entry
+      // already reported is saved; no second network probe is added here.
+      const collection = applyPlaylistCollectionMetadata(
+        collectionResolution.collection,
+        {
+          sourceUrl: candidate.playlistUrl,
+          sourceChannelName: channelName,
+        }
+      );
       const collectionId = collection.id;
       taskCollectionId = collectionId;
 
@@ -1478,6 +1497,12 @@ export const createPlaylistTask = async (
     videos: [],
     createdAt: new Date().toISOString(),
     title: uniqueCollectionName,
+    // This endpoint creates no subscription row, so without its own source
+    // identity the media-server mirror has nothing to recognize the collection
+    // by and files every video it collects under Specials instead of a season
+    // (issue #411).
+    sourceType: "playlist",
+    sourceUrl: playlistUrl,
   };
   storageService.saveCollection(newCollection);
   logger.info(

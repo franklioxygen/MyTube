@@ -87,6 +87,19 @@ export const collections = sqliteTable(
     sourceType: text("source_type"),
     sourceMid: text("source_mid"),
     sourceId: text("source_id"),
+    // Playlist/channel metadata captured from the source (issue #411). Used to
+    // build season.nfo and to resolve the collection's owning media-server show
+    // offline, without re-probing the network during a rebuild.
+    description: text("description"),
+    sourceUrl: text("source_url"),
+    sourceChannelId: text("source_channel_id"),
+    sourceChannelUrl: text("source_channel_url"),
+    sourceChannelName: text("source_channel_name"),
+    sourceChannelDescription: text("source_channel_description"),
+    // Immutable media-server season attachment (issue #411). Allocated once by
+    // the export catalog; never recomputed from titles or discovery order.
+    mediaServerShowId: text("media_server_show_id"),
+    mediaServerSeasonNumber: integer("media_server_season_number"),
   },
   (table) => ({
     // name/title lookups (getCollectionByName) used in playlist subscription checks.
@@ -98,6 +111,147 @@ export const collections = sqliteTable(
       table.sourceType,
       table.sourceMid,
       table.sourceId
+    ),
+    mediaServerShowIdx: index("idx_collections_media_server_show").on(
+      table.mediaServerShowId
+    ),
+    mediaServerSeasonUnique: uniqueIndex(
+      "collections_media_server_season_uidx"
+    ).on(table.mediaServerShowId, table.mediaServerSeasonNumber),
+  })
+);
+
+/**
+ * Media-server export catalog (issue #411).
+ *
+ * One row per source channel/author that owns a show directory in the managed
+ * TV mirror. `identityKey` is resolved once from the strongest available source
+ * identity and is never recomputed from a display name afterwards, so a channel
+ * rename updates the NFO title without moving the directory.
+ */
+export const mediaServerShows = sqliteTable(
+  "media_server_shows",
+  {
+    id: text("id").primaryKey(),
+    identityKey: text("identity_key").notNull(),
+    sourcePlatform: text("source_platform").notNull(),
+    sourceChannelId: text("source_channel_id"),
+    sourceChannelUrl: text("source_channel_url"),
+    title: text("title").notNull(),
+    description: text("description").notNull().default(""),
+    directoryName: text("directory_name").notNull(),
+    nextSeasonNumber: integer("next_season_number").notNull().default(1),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => ({
+    identityKeyUnique: uniqueIndex("media_server_shows_identity_key_uidx").on(
+      table.identityKey
+    ),
+    directoryNameUnique: uniqueIndex(
+      "media_server_shows_directory_name_uidx"
+    ).on(table.directoryName),
+  })
+);
+
+/**
+ * One row per exported (playlist, video) occurrence. The same video may appear
+ * in several seasons, so the occurrence — not the video — carries the season and
+ * episode numbers. Season 0 rows have a null `collectionId`.
+ */
+export const mediaServerEpisodeAssignments = sqliteTable(
+  "media_server_episode_assignments",
+  {
+    id: text("id").primaryKey(),
+    showId: text("show_id")
+      .notNull()
+      .references(() => mediaServerShows.id, { onDelete: "cascade" }),
+    collectionId: text("collection_id").references(() => collections.id, {
+      onDelete: "cascade",
+    }),
+    videoId: text("video_id")
+      .notNull()
+      .references(() => videos.id, { onDelete: "cascade" }),
+    seasonNumber: integer("season_number").notNull(),
+    episodeNumber: integer("episode_number").notNull(),
+    sourcePosition: integer("source_position"),
+    exportStem: text("export_stem").notNull(),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => ({
+    occurrenceUnique: uniqueIndex("media_server_episode_occurrence_uidx").on(
+      table.showId,
+      table.seasonNumber,
+      table.videoId
+    ),
+    numberUnique: uniqueIndex("media_server_episode_number_uidx").on(
+      table.showId,
+      table.seasonNumber,
+      table.episodeNumber
+    ),
+    collectionIdx: index("idx_media_server_episode_collection").on(
+      table.collectionId
+    ),
+    videoIdx: index("idx_media_server_episode_video").on(table.videoId),
+  })
+);
+
+/**
+ * Episode numbers a season has already handed out and can never hand out again
+ * (issue #411). Deleting an occurrence deletes its assignment row, so the active
+ * rows alone cannot prove what a season once used; without these tombstones a
+ * later append would recycle a freed number onto different content. Same
+ * never-moves-backwards guarantee `mediaServerShows.nextSeasonNumber` gives
+ * seasons.
+ */
+export const mediaServerRetiredEpisodes = sqliteTable(
+  "media_server_retired_episodes",
+  {
+    showId: text("show_id")
+      .notNull()
+      .references(() => mediaServerShows.id, { onDelete: "cascade" }),
+    seasonNumber: integer("season_number").notNull(),
+    episodeNumber: integer("episode_number").notNull(),
+    retiredAt: integer("retired_at").notNull(),
+  },
+  (table) => ({
+    pk: primaryKey({
+      columns: [table.showId, table.seasonNumber, table.episodeNumber],
+    }),
+  })
+);
+
+/**
+ * Ownership ledger for every file MyTube generates inside the mirror. A media
+ * hard link carries no in-band marker, so this table is the only proof that a
+ * mirror file may be deleted. The foreign keys deliberately SET NULL rather than
+ * cascade: losing the catalog row must not strand a generated file as
+ * unsweepable.
+ */
+export const mediaServerExportArtifacts = sqliteTable(
+  "media_server_export_artifacts",
+  {
+    relativePath: text("relative_path").primaryKey(),
+    artifactType: text("artifact_type").notNull(),
+    showId: text("show_id").references(() => mediaServerShows.id, {
+      onDelete: "set null",
+    }),
+    assignmentId: text("assignment_id").references(
+      () => mediaServerEpisodeAssignments.id,
+      { onDelete: "set null" }
+    ),
+    sourceAbsolutePath: text("source_absolute_path"),
+    sourceSize: integer("source_size"),
+    sourceMtimeMs: integer("source_mtime_ms"),
+    materialization: text("materialization").notNull(),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => ({
+    showIdx: index("idx_media_server_artifact_show").on(table.showId),
+    assignmentIdx: index("idx_media_server_artifact_assignment").on(
+      table.assignmentId
     ),
   })
 );

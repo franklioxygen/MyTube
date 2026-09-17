@@ -1,5 +1,6 @@
 import { Request } from "express";
 import { getDeploymentSecurityModel } from "../../config/adminTrust";
+import { MEDIA_SERVER_LIBRARY_DIR } from "../../config/paths";
 import { resolveFilenameNamingConfig } from "../../services/filenameTemplate/config";
 import * as storageService from "../../services/storageService";
 import { Settings } from "../../types/settings";
@@ -77,6 +78,12 @@ export const buildSafeSettingsPayload = (
       : {}),
     downloadFilenameMode: resolvedFilenameNaming.mode,
     downloadFilenamePresetId: resolvedFilenameNaming.matchedPresetId,
+    // Read-only deployment information: where the managed media-server mirror
+    // lives. Never accepted back on save, and hidden from visitor-safe responses
+    // like the other host-revealing settings.
+    ...(canExposeAdminOnlySettings
+      ? { mediaServerLibraryPath: MEDIA_SERVER_LIBRARY_DIR }
+      : {}),
     deploymentSecurity: getDeploymentSecurityModel(),
     password: undefined,
     visitorPassword: undefined,

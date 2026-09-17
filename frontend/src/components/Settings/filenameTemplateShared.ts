@@ -149,12 +149,26 @@ export interface RenameJob {
     }>;
 }
 
+export type MediaServerExportLayout = 'adjacent' | 'playlist_tv';
+
+export interface MediaServerExportJobCounts {
+    shows: number;
+    seasons: number;
+    episodes: number;
+    linkedMedia: number;
+    copiedMedia: number;
+    unchangedArtifacts: number;
+    removedArtifacts: number;
+}
+
 export interface MediaServerExportJob {
     id: string;
     status: 'running' | 'completed' | 'failed' | 'cancelled';
     lockedAt: number;
     mode: 'off' | 'nfo' | 'nfo_and_source_json';
+    layout?: MediaServerExportLayout;
     action: 'rebuild' | 'cleanup';
+    phase?: 'snapshot' | 'catalog_reconcile' | 'plan' | 'materialize' | 'sweep' | 'completed';
     total: number;
     processed: number;
     succeeded: number;
@@ -162,15 +176,29 @@ export interface MediaServerExportJob {
     failed: number;
     sweptFiles?: number;
     sweptList?: string[];
+    counts?: MediaServerExportJobCounts;
     currentTitle?: string;
     items: Array<{
         videoId: string;
         title: string;
         status: string;
         skipReason?: string;
+        errorCode?: string;
         error?: string;
     }>;
 }
+
+/** Upper bound on the per-item failures and skips rendered in the summary. */
+export const MEDIA_SERVER_EXPORT_DETAIL_LIMIT = 10;
+
+export const MEDIA_SERVER_EXPORT_PHASE_LABEL_KEYS = {
+    snapshot: 'mediaServerExportPhaseSnapshot',
+    catalog_reconcile: 'mediaServerExportPhaseCatalogReconcile',
+    plan: 'mediaServerExportPhasePlan',
+    materialize: 'mediaServerExportPhaseMaterialize',
+    sweep: 'mediaServerExportPhaseSweep',
+    completed: 'mediaServerExportPhaseCompleted',
+} as const;
 
 // Stable URL builders for the job-polling hook (module scope = stable identity).
 export function renameJobUrl(jobId: string): string {
@@ -290,4 +318,9 @@ export const MEDIA_SERVER_EXPORT_OPTIONS = [
     { value: 'off', labelKey: 'mediaServerExportModeOff' },
     { value: 'nfo', labelKey: 'mediaServerExportModeNfo' },
     { value: 'nfo_and_source_json', labelKey: 'mediaServerExportModeNfoAndSourceJson' },
+] as const;
+
+export const MEDIA_SERVER_EXPORT_LAYOUT_OPTIONS = [
+    { value: 'adjacent', labelKey: 'mediaServerExportLayoutAdjacent' },
+    { value: 'playlist_tv', labelKey: 'mediaServerExportLayoutPlaylistTv' },
 ] as const;

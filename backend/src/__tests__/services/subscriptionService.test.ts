@@ -316,6 +316,58 @@ describe('SubscriptionService', () => {
       expect(db.update).toHaveBeenCalled();
     });
 
+    it('never defers the export of a playlist subscription Short', async () => {
+      const sub = {
+        id: 'sub-playlist-shorts',
+        author: 'User',
+        platform: 'YouTube',
+        authorUrl: 'url',
+        lastCheck: 0,
+        interval: 10,
+        lastVideoLink: 'same-link',
+        downloadShorts: 1,
+        lastShortVideoLink: 'old-short',
+        subscriptionType: 'playlist',
+        collectionId: 'col-1',
+      };
+
+      let callCount = 0;
+      mockBuilder.then = (cb: any) => {
+        callCount++;
+        return Promise.resolve([sub]).then(cb);
+      };
+
+      // A playlist subscription probes its head rather than the channel feed;
+      // returning the cursor it already holds means "no new video", so the
+      // check falls through to the independent Shorts pass.
+      const headSnapshotSpy = vi
+        .spyOn(subscriptionService as any, 'getPlaylistSubscriptionHeadSnapshot')
+        .mockResolvedValue({ headVideoUrl: 'same-link' });
+      (YtDlpDownloader.getLatestShortsUrl as any).mockResolvedValue('new-short');
+      (downloadService.downloadYouTubeVideo as any).mockResolvedValueOnce({
+        videoData: { id: 'vid-short', title: 'New Short' },
+      });
+
+      await subscriptionService.checkSubscriptions();
+
+      // The Shorts path never links the video into the playlist collection —
+      // a Short is not a playlist member — so deferring the mirror export to
+      // that link would leave the Short unexported indefinitely.
+      expect(downloadService.downloadYouTubeVideo).toHaveBeenCalledWith(
+        'new-short',
+        expect.objectContaining({ pendingCollectionLink: false })
+      );
+      expect(storageService.addVideoToCollection).not.toHaveBeenCalledWith(
+        'col-1',
+        'vid-short'
+      );
+
+      // This suite shares one service instance and does not restore spies
+      // globally; leaving it in place makes every later playlist check see a
+      // stubbed head.
+      headSnapshotSpy.mockRestore();
+    });
+
     it('should skip if no new video', async () => {
       const sub = {
         id: 'sub-1',
@@ -1911,7 +1963,10 @@ describe('SubscriptionService', () => {
           sourceCollectionName: 'BiliAuthor',
           sourceCollectionType: 'channel',
         }),
-        { subscriptionYtdlpConfig: undefined }
+        expect.objectContaining({
+          subscriptionYtdlpConfig: undefined,
+          pendingCollectionLink: false,
+        })
       );
       expect(storageService.addDownloadHistoryItem).toHaveBeenCalledWith(
         expect.objectContaining({ status: 'success', sourceUrl: 'https://www.bilibili.com/video/BV1x' })

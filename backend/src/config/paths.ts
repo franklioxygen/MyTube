@@ -9,6 +9,13 @@ export const IMAGES_DIR: string = path.join(UPLOADS_DIR, "images");
 export const IMAGES_SMALL_DIR: string = path.join(UPLOADS_DIR, "images-small");
 export const AVATARS_DIR: string = path.join(UPLOADS_DIR, "avatars");
 export const SUBTITLES_DIR: string = path.join(UPLOADS_DIR, "subtitles");
+// Managed media-server TV mirror (issue #411). A sibling of VIDEOS_DIR, never a
+// child of it: the library scanner would otherwise re-import the generated hard
+// links as new videos.
+export const MEDIA_SERVER_LIBRARY_DIR: string = path.join(
+  UPLOADS_DIR,
+  "media-library"
+);
 export const CLOUD_THUMBNAIL_CACHE_DIR: string = path.join(
   UPLOADS_DIR,
   "cloud-thumbnail-cache"

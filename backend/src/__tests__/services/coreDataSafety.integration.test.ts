@@ -41,6 +41,7 @@ import * as backupService from "../../services/databaseBackupService";
 import { validateDatabase } from "../../services/databaseBackup/backupFiles";
 import { removeMediaServerArtifactsForVideo } from "../../services/mediaServerExport";
 import { planMediaServerExportPaths } from "../../services/mediaServerExport/pathPlanner";
+import { ensureMediaServerExportTables } from "../../services/storageService/migrations/schemaMigrations";
 import * as storage from "../../services/storageService";
 import type { Video } from "../../services/storageService";
 
@@ -65,6 +66,10 @@ function responseStub() {
 
 beforeAll(() => {
   migrate(db, { migrationsFolder: path.resolve("drizzle") });
+  // The columns this feature adds to `collections` come from the startup
+  // self-heal, not from the 0029 SQL — run the production function so this
+  // test sees exactly the schema a real deployment gets.
+  ensureMediaServerExportTables();
   storage.initializeStorage();
 });
 
