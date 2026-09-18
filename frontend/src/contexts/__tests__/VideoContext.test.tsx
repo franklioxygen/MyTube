@@ -285,6 +285,139 @@ describe('VideoContext', () => {
     expect(result.current.loadingMore).toBe(false);
   });
 
+  it('leaves Bilibili search off unless the setting turns it on', async () => {
+    const { wrapper } = createWrapper();
+    const { result } = renderHook(() => useVideo(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.videos).toHaveLength(2);
+    });
+    expect(result.current.showBilibiliSearch).toBe(false);
+
+    await act(async () => {
+      await result.current.handleSearch('react');
+    });
+
+    expect(result.current.bilibiliSearchResults).toEqual([]);
+    const bilibiliCalls = mockApiGet.mock.calls.filter(
+      (c: any[]) => c[0] === '/search' && c[1]?.params?.source === 'bilibili'
+    );
+    expect(bilibiliCalls).toHaveLength(0);
+  });
+
+  it('handleSearch fills each enabled source independently', async () => {
+    mockApiGet.mockImplementation((url: string, config?: any) => {
+      if (url === '/videos') {
+        return Promise.resolve({ data: [{ id: 'v1', title: 'React', author: 'Alice', visibility: 1 }] });
+      }
+      if (url === '/settings') {
+        return Promise.resolve({ data: { tags: [], showYoutubeSearch: true, showBilibiliSearch: true } });
+      }
+      if (url === '/search') {
+        if (config?.params?.source === 'bilibili') {
+          return Promise.resolve({ data: { results: [{ id: 'BV1' }] } });
+        }
+        return Promise.resolve({ data: { results: [{ id: 'yt1' }] } });
+      }
+      return Promise.resolve({ data: {} });
+    });
+
+    const { wrapper } = createWrapper();
+    const { result } = renderHook(() => useVideo(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.showBilibiliSearch).toBe(true);
+    });
+
+    await act(async () => {
+      await result.current.handleSearch('react');
+    });
+
+    expect(result.current.searchResults).toEqual([{ id: 'yt1' }]);
+    expect(result.current.bilibiliSearchResults).toEqual([{ id: 'BV1' }]);
+    expect(result.current.youtubeLoading).toBe(false);
+    expect(result.current.bilibiliLoading).toBe(false);
+  });
+
+  it('a failing source does not empty the one that answered', async () => {
+    mockApiGet.mockImplementation((url: string, config?: any) => {
+      if (url === '/videos') {
+        return Promise.resolve({ data: [{ id: 'v1', title: 'React', author: 'Alice', visibility: 1 }] });
+      }
+      if (url === '/settings') {
+        return Promise.resolve({ data: { tags: [], showYoutubeSearch: true, showBilibiliSearch: true } });
+      }
+      if (url === '/search') {
+        if (config?.params?.source === 'bilibili') {
+          return Promise.reject(new Error('bilibili down'));
+        }
+        return Promise.resolve({ data: { results: [{ id: 'yt1' }] } });
+      }
+      return Promise.resolve({ data: {} });
+    });
+
+    const { wrapper } = createWrapper();
+    const { result } = renderHook(() => useVideo(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.showBilibiliSearch).toBe(true);
+    });
+
+    let res: any;
+    await act(async () => {
+      res = await result.current.handleSearch('react');
+    });
+
+    expect(res).toEqual({ success: true });
+    expect(result.current.searchResults).toEqual([{ id: 'yt1' }]);
+    expect(result.current.bilibiliSearchResults).toEqual([]);
+    expect(result.current.bilibiliLoading).toBe(false);
+  });
+
+  it('loadMoreBilibiliSearchResults pages its own source only', async () => {
+    let bilibiliCalls = 0;
+    mockApiGet.mockImplementation((url: string, config?: any) => {
+      if (url === '/videos') {
+        return Promise.resolve({ data: [{ id: 'v1', title: 'React', author: 'Alice', visibility: 1 }] });
+      }
+      if (url === '/settings') {
+        return Promise.resolve({ data: { tags: [], showYoutubeSearch: true, showBilibiliSearch: true } });
+      }
+      if (url === '/search') {
+        if (config?.params?.source === 'bilibili') {
+          bilibiliCalls += 1;
+          if (bilibiliCalls === 1) {
+            return Promise.resolve({ data: { results: [{ id: 'BV1' }, { id: 'BV2' }] } });
+          }
+          expect(config?.params?.offset).toBe(3);
+          return Promise.resolve({ data: { results: [{ id: 'BV2' }, { id: 'BV3' }] } });
+        }
+        return Promise.resolve({ data: { results: [{ id: 'yt1' }] } });
+      }
+      return Promise.resolve({ data: {} });
+    });
+
+    const { wrapper } = createWrapper();
+    const { result } = renderHook(() => useVideo(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.showBilibiliSearch).toBe(true);
+    });
+
+    await act(async () => {
+      await result.current.handleSearch('react');
+    });
+
+    await act(async () => {
+      await result.current.loadMoreBilibiliSearchResults();
+    });
+
+    // The duplicate the second page repeats is dropped, and YouTube is untouched.
+    expect(result.current.bilibiliSearchResults).toEqual([{ id: 'BV1' }, { id: 'BV2' }, { id: 'BV3' }]);
+    expect(result.current.searchResults).toEqual([{ id: 'yt1' }]);
+    expect(result.current.loadingMoreBilibili).toBe(false);
+  });
+
   it('deleteVideo respects snackbar option and reports failures', async () => {
     const { wrapper, queryClient } = createWrapper();
     const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');

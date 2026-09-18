@@ -6,6 +6,7 @@ import { FilenameTemplateSourceOptions } from "../filenameTemplate/types";
 import type { DownloadRetryMetadata } from "../downloadRetryMetadata";
 import * as bilibiliApi from "./bilibili/bilibiliApi";
 import * as bilibiliCollection from "./bilibili/bilibiliCollection";
+import * as bilibiliSearch from "./bilibili/bilibiliSearch";
 import * as bilibiliSubtitle from "./bilibili/bilibiliSubtitle";
 import * as bilibiliVideo from "./bilibili/bilibiliVideo";
 import {
@@ -31,6 +32,15 @@ export type {
 };
 
 export class BilibiliDownloader extends BaseDownloader {
+  // Search Bilibili for videos (Static wrapper)
+  static async search(
+    query: string,
+    limit: number = 8,
+    offset: number = 1
+  ): Promise<any[]> {
+    return bilibiliSearch.searchVideos(query, limit, offset);
+  }
+
   // Implementation of IDownloader.getVideoInfo
   async getVideoInfo(url: string): Promise<VideoInfo> {
     const videoId = extractBilibiliVideoId(url);

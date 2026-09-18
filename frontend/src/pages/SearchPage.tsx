@@ -1,28 +1,19 @@
-import { Download, OndemandVideo, YouTube } from '@mui/icons-material';
 import {
     Box,
-    Button,
-    Card,
-    CardActions,
-    CardContent,
-    CardMedia,
-    Chip,
-    CircularProgress,
     Container,
     Grid,
     Typography
 } from '@mui/material';
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
+import ExternalSearchSection from '../components/ExternalSearchSection';
 import SortControl from '../components/SortControl';
 import VideoCard from '../components/VideoCard';
 import { useCollection } from '../contexts/CollectionContext';
 import { useDownload } from '../contexts/DownloadContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useVideo } from '../contexts/VideoContext';
-import { neutral, overlay, platform } from '../theme/colors';
-import { formatDuration } from '../utils/formatUtils';
-import { THUMBNAIL_PLACEHOLDER_SRC, setThumbnailPlaceholder } from '../utils/thumbnailPlaceholder';
+import { VideoSearchResult } from '../types';
 import { getRandomSeed, sortVideos, validateSortOption } from '../utils/videoSort';
 
 const SearchPage: React.FC = () => {
@@ -37,7 +28,12 @@ const SearchPage: React.FC = () => {
         lastSearchEventId,
         showYoutubeSearch,
         loadMoreSearchResults,
-        loadingMore
+        loadingMore,
+        bilibiliSearchResults,
+        bilibiliLoading,
+        showBilibiliSearch,
+        loadMoreBilibiliSearchResults,
+        loadingMoreBilibili
     } = useVideo();
     const { collections } = useCollection();
     const { handleVideoSubmit } = useDownload();
@@ -97,17 +93,11 @@ const SearchPage: React.FC = () => {
         }
     };
 
-
-    // Helper function to format view count
-    const formatViewCount = (count?: number) => {
-        if (!count) return '0';
-        if (count < 1000) return count.toString();
-        if (count < 1000000) return `${(count / 1000).toFixed(1)}K`;
-        return `${(count / 1000000).toFixed(1)}M`;
+    const handleResultDownload = (result: VideoSearchResult) => {
+        void handleDownload(result.id, result.sourceUrl);
     };
 
     const hasLocalResults = localSearchResults && localSearchResults.length > 0;
-    const hasYouTubeResults = searchResults && searchResults.length > 0;
 
     const sortedLocalSearchResults = useMemo(() => {
         return sortVideos(localSearchResults, sortOption, shuffleSeed);
@@ -160,86 +150,35 @@ const SearchPage: React.FC = () => {
 
             {/* YouTube Search Results */}
             {showYoutubeSearch && (
-                <Box>
-                    <Typography variant="h5" sx={{ mb: 3, fontWeight: 600, color: platform.youtube }}>
-                        {t('fromYouTube')}
-                    </Typography>
+                <ExternalSearchSection
+                    source="youtube"
+                    heading={t('fromYouTube')}
+                    loadingLabel={t('loadingYouTubeResults')}
+                    emptyLabel={t('noYouTubeResults')}
+                    results={searchResults}
+                    loading={youtubeLoading}
+                    loadingMore={loadingMore}
+                    onLoadMore={loadMoreSearchResults}
+                    onDownload={handleResultDownload}
+                    downloadingId={downloadingId}
+                />
+            )}
 
-                    {youtubeLoading ? (
-                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 4 }}>
-                            <CircularProgress color="error" />
-                            <Typography sx={{ mt: 2 }}>{t('loadingYouTubeResults')}</Typography>
-                        </Box>
-                    ) : hasYouTubeResults ? (
-                        <>
-                            <Grid container spacing={3}>
-                                {searchResults.map((result) => (
-                                    <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={result.id}>
-                                        <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                                            <Box sx={{ position: 'relative', paddingTop: '56.25%' }}>
-                                                <CardMedia
-                                                    component="img"
-                                                    image={result.thumbnailUrl || THUMBNAIL_PLACEHOLDER_SRC}
-                                                    alt={result.title}
-                                                    sx={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
-                                                    onError={(e) => {
-                                                        setThumbnailPlaceholder(e.currentTarget);
-                                                    }}
-                                                />
-                                                {result.duration && (
-                                                    <Chip
-                                                        label={formatDuration(result.duration)}
-                                                        size="small"
-                                                        sx={{ position: 'absolute', bottom: 8, right: 8, bgcolor: overlay.black80, color: neutral.white }}
-                                                    />
-                                                )}
-                                                <Box sx={{ position: 'absolute', top: 8, right: 8, bgcolor: overlay.black70, borderRadius: '50%', p: 0.5, display: 'flex' }}>
-                                                    {result.source === 'bilibili' ? <OndemandVideo sx={{ color: platform.bilibili }} /> : <YouTube sx={{ color: platform.youtube }} />}
-                                                </Box>
-                                            </Box>
-                                            <CardContent sx={{ flexGrow: 1, p: 2 }}>
-                                                <Typography gutterBottom variant="subtitle1" component="div" sx={{ fontWeight: 600, lineHeight: 1.2, mb: 1, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                                                    {result.title}
-                                                </Typography>
-                                                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                                                    {result.author}
-                                                </Typography>
-                                                {result.viewCount && (
-                                                    <Typography variant="caption" color="text.secondary">
-                                                        {formatViewCount(result.viewCount)} {t('views')}
-                                                    </Typography>
-                                                )}
-                                            </CardContent>
-                                            <CardActions sx={{ p: 2, pt: 0 }}>
-                                                <Button
-                                                    fullWidth
-                                                    variant="contained"
-                                                    startIcon={<Download />}
-                                                    onClick={() => { void handleDownload(result.id, result.sourceUrl); }}
-                                                    loading={downloadingId === result.id}
-                                                    loadingPosition="start"
-                                                >
-                                                    {t('download')}
-                                                </Button>
-                                            </CardActions>
-                                        </Card>
-                                    </Grid>
-                                ))}
-                            </Grid>
-                            <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center' }}>
-                                <Button
-                                    variant="outlined"
-                                    onClick={loadMoreSearchResults}
-                                    loading={loadingMore}
-                                    loadingPosition="start"
-                                >
-                                    {t('more')}
-                                </Button>
-                            </Box>
-                        </>
-                    ) : (
-                        <Typography color="text.secondary">{t('noYouTubeResults')}</Typography>
-                    )}
+            {/* Bilibili Search Results */}
+            {showBilibiliSearch && (
+                <Box sx={{ mt: showYoutubeSearch ? 6 : 0 }}>
+                    <ExternalSearchSection
+                        source="bilibili"
+                        heading={t('fromBilibili')}
+                        loadingLabel={t('loadingBilibiliResults')}
+                        emptyLabel={t('noBilibiliResults')}
+                        results={bilibiliSearchResults}
+                        loading={bilibiliLoading}
+                        loadingMore={loadingMoreBilibili}
+                        onLoadMore={loadMoreBilibiliSearchResults}
+                        onDownload={handleResultDownload}
+                        downloadingId={downloadingId}
+                    />
                 </Box>
             )}
         </Container>

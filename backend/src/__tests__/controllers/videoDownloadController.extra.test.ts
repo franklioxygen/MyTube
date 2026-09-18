@@ -39,6 +39,7 @@ vi.mock("../../services/downloadManager", () => ({
 
 vi.mock("../../services/downloadService", () => ({
   searchYouTube: vi.fn(),
+  searchBilibili: vi.fn(),
   checkBilibiliVideoParts: vi.fn(),
   checkBilibiliCollectionOrSeries: vi.fn(),
   downloadBilibiliCollection: vi.fn(),
@@ -262,6 +263,27 @@ describe("videoDownloadController extra coverage", () => {
     expect(downloadService.searchYouTube).toHaveBeenCalledWith("music", 12, 3);
     expect(status).toHaveBeenCalledWith(200);
     expect(json).toHaveBeenCalledWith({ results: [{ id: "v1" }] });
+  });
+
+  it("searchVideos routes an explicit bilibili source to the Bilibili search", async () => {
+    req.query = { query: "music", source: "bilibili", limit: "12", offset: "3" } as any;
+    vi.mocked(downloadService.searchBilibili).mockResolvedValue([{ id: "BV1" }] as any);
+
+    await searchVideos(req as Request, res as Response);
+
+    expect(downloadService.searchBilibili).toHaveBeenCalledWith("music", 12, 3);
+    expect(downloadService.searchYouTube).not.toHaveBeenCalled();
+    expect(json).toHaveBeenCalledWith({ results: [{ id: "BV1" }] });
+  });
+
+  it("searchVideos rejects a source it does not serve", async () => {
+    req.query = { query: "music", source: "vimeo" } as any;
+
+    await expect(
+      searchVideos(req as Request, res as Response)
+    ).rejects.toBeInstanceOf(ValidationError);
+    expect(downloadService.searchYouTube).not.toHaveBeenCalled();
+    expect(downloadService.searchBilibili).not.toHaveBeenCalled();
   });
 
   it("checkVideoDownloadStatus handles invalid URL validation", async () => {

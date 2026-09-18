@@ -60,6 +60,9 @@ export const ja = {
   fromYouTube: "YouTubeから",
   loadingYouTubeResults: "YouTubeの結果を読み込み中...",
   noYouTubeResults: "YouTubeの結果が見つかりません",
+  fromBilibili: "Bilibiliから",
+  loadingBilibiliResults: "Bilibiliの結果を読み込み中...",
+  noBilibiliResults: "Bilibiliの結果が見つかりません",
   noVideosYet:
     "動画はまだありません。動画のURLを送信して最初の動画をダウンロードしましょう！",
   views: "回視聴",
@@ -505,6 +508,7 @@ export const ja = {
   itemsPerPage: "1ページあたりの項目数",
   itemsPerPageHelper: "1ページに表示する動画の数 (デフォルト: 12)",
   showYoutubeSearch: "YouTube検索結果を表示",
+  showBilibiliSearch: "Bilibili検索結果を表示",
   defaultSort: "デフォルトの動画並べ替え方法",
   showTagsOnThumbnail: "サムネイルにタグを表示",
   playSoundOnTaskComplete: "タスク完了時に音を再生",

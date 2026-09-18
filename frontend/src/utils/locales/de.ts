@@ -62,6 +62,9 @@ export const de = {
   fromYouTube: "Von YouTube",
   loadingYouTubeResults: "YouTube-Ergebnisse werden geladen...",
   noYouTubeResults: "Keine YouTube-Ergebnisse gefunden",
+  fromBilibili: "Von Bilibili",
+  loadingBilibiliResults: "Bilibili-Ergebnisse werden geladen...",
+  noBilibiliResults: "Keine Bilibili-Ergebnisse gefunden",
   noVideosYet:
     "Noch keine Videos. Reichen Sie eine Video-URL ein, um Ihr erstes herunterzuladen!",
   views: "Aufrufe",
@@ -512,6 +515,7 @@ export const de = {
   itemsPerPage: "Elemente pro Seite",
   itemsPerPageHelper: "Anzahl der Videos pro Seite (Standard: 12)",
   showYoutubeSearch: "YouTube-Suchergebnisse anzeigen",
+  showBilibiliSearch: "Bilibili-Suchergebnisse anzeigen",
   defaultSort: "Standardsortierung",
   showTagsOnThumbnail: "Tags auf dem Miniaturbild anzeigen",
   playSoundOnTaskComplete: "Ton bei Aufgabenabschluss abspielen",

@@ -153,6 +153,7 @@ export const WHITELISTED_SETTINGS = [
   "itemsPerPage",
   "ytDlpConfig",
   "showYoutubeSearch",
+  "showBilibiliSearch",
   "proxyOnlyYoutube",
   "ytDlpProxyBypassHosts",
   "moveSubtitlesToVideoFolder",

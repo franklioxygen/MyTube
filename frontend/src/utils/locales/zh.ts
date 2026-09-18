@@ -58,6 +58,9 @@ export const zh = {
   fromYouTube: "来自 YouTube",
   loadingYouTubeResults: "加载 YouTube 结果中...",
   noYouTubeResults: "未找到 YouTube 结果",
+  fromBilibili: "来自哔哩哔哩",
+  loadingBilibiliResults: "加载哔哩哔哩结果中...",
+  noBilibiliResults: "未找到哔哩哔哩结果",
   noVideosYet: "暂无视频。提交视频链接以开始下载您的第一个视频！",
   views: "次观看",
 
@@ -476,6 +479,7 @@ export const zh = {
   itemsPerPage: "每页显示数量",
   itemsPerPageHelper: "每页显示的视频数量 (默认: 12)",
   showYoutubeSearch: "显示 YouTube 搜索结果",
+  showBilibiliSearch: "显示哔哩哔哩搜索结果",
   defaultSort: "默认视频排序方式",
   showTagsOnThumbnail: "在缩略图上显示标签",
   playSoundOnTaskComplete: "任务完成时播放声音",

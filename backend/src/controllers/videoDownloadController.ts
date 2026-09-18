@@ -74,8 +74,21 @@ export const searchVideos = async (
 
   const limit = getLimitParam(req.query.limit, 8, 50);
   const offset = getPositiveIntegerParam(req.query.offset, 1);
+  // Unspecified means YouTube, so a caller that predates the Bilibili search
+  // setting keeps the behavior it already had.
+  const source = getStringParam(req.query.source) || "youtube";
 
-  const results = await downloadService.searchYouTube(query, limit, offset);
+  if (source !== "youtube" && source !== "bilibili") {
+    throw new ValidationError(
+      "Search source must be either youtube or bilibili",
+      "source",
+    );
+  }
+
+  const results =
+    source === "bilibili"
+      ? await downloadService.searchBilibili(query, limit, offset)
+      : await downloadService.searchYouTube(query, limit, offset);
   // Return { results } format for backward compatibility (frontend expects response.data.results)
   sendData(res, { results });
 };
