@@ -374,6 +374,91 @@ describe('VideoContext', () => {
     expect(result.current.bilibiliLoading).toBe(false);
   });
 
+  it('clears Bilibili cards from the preceding query when the next Bilibili request fails', async () => {
+    mockApiGet.mockImplementation((url: string, config?: any) => {
+      if (url === '/videos') {
+        return Promise.resolve({ data: [] });
+      }
+      if (url === '/settings') {
+        return Promise.resolve({ data: { tags: [], showYoutubeSearch: false, showBilibiliSearch: true } });
+      }
+      if (url === '/search' && config?.params?.source === 'bilibili') {
+        if (config.params.query === 'first') {
+          return Promise.resolve({ data: { results: [{ id: 'BV-old' }] } });
+        }
+        return Promise.reject(new Error('bilibili down'));
+      }
+      return Promise.resolve({ data: { results: [] } });
+    });
+
+    const { wrapper } = createWrapper();
+    const { result } = renderHook(() => useVideo(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.showBilibiliSearch).toBe(true);
+    });
+
+    await act(async () => {
+      await result.current.handleSearch('first');
+    });
+    expect(result.current.bilibiliSearchResults).toEqual([{ id: 'BV-old' }]);
+
+    await act(async () => {
+      await result.current.handleSearch('second');
+    });
+    expect(result.current.bilibiliSearchResults).toEqual([]);
+  });
+
+  it('does not append a previous query\'s Bilibili more-results response to a newer query', async () => {
+    let resolveOldMore: ((value: unknown) => void) | undefined;
+    const oldMoreResponse = new Promise((resolve) => {
+      resolveOldMore = resolve;
+    });
+
+    mockApiGet.mockImplementation((url: string, config?: any) => {
+      if (url === '/videos') {
+        return Promise.resolve({ data: [] });
+      }
+      if (url === '/settings') {
+        return Promise.resolve({ data: { tags: [], showYoutubeSearch: false, showBilibiliSearch: true } });
+      }
+      if (url === '/search' && config?.params?.source === 'bilibili') {
+        if (config.params.query === 'old' && config.params.offset === 2) {
+          return oldMoreResponse;
+        }
+        return Promise.resolve({
+          data: { results: [{ id: config.params.query === 'old' ? 'BV-old' : 'BV-new' }] },
+        });
+      }
+      return Promise.resolve({ data: { results: [] } });
+    });
+
+    const { wrapper } = createWrapper();
+    const { result } = renderHook(() => useVideo(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.showBilibiliSearch).toBe(true);
+    });
+    await act(async () => {
+      await result.current.handleSearch('old');
+    });
+
+    let loadMorePromise: Promise<void> | undefined;
+    act(() => {
+      loadMorePromise = result.current.loadMoreBilibiliSearchResults();
+    });
+
+    await act(async () => {
+      await result.current.handleSearch('new');
+    });
+    resolveOldMore?.({ data: { results: [{ id: 'BV-old-more' }] } });
+    await act(async () => {
+      await loadMorePromise;
+    });
+
+    expect(result.current.bilibiliSearchResults).toEqual([{ id: 'BV-new' }]);
+  });
+
   it('loadMoreBilibiliSearchResults pages its own source only', async () => {
     let bilibiliCalls = 0;
     mockApiGet.mockImplementation((url: string, config?: any) => {

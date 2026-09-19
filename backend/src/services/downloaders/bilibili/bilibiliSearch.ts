@@ -9,9 +9,6 @@ const SEARCH_ENDPOINT =
   "https://api.bilibili.com/x/web-interface/wbi/search/type";
 // The endpoint's maximum, so a page of results usually costs one request.
 const UPSTREAM_PAGE_SIZE = 50;
-// Bounds the work for a deep offset. The client stops collecting at 200
-// results, which four pages of 50 covers.
-const MAX_UPSTREAM_PAGES = 4;
 // A search URL yt-dlp would also accept, so the proxy-only-YouTube setting and
 // any per-host bypass resolve for these requests the way they do for a download
 // from the same site.
@@ -197,7 +194,11 @@ export async function searchVideos(
   const collected: Record<string, unknown>[] = [];
   let seen = 0;
 
-  for (let page = 1; page <= MAX_UPSTREAM_PAGES; page += 1) {
+  // Do not cap this by raw upstream pages. The endpoint intersperses entries
+  // without a bvid, so four 50-entry pages can contain materially fewer than
+  // 200 returned results. Stop only once the requested filtered window is
+  // filled or the upstream search reports its final (short) page.
+  for (let page = 1; ; page += 1) {
     const entries = await fetchSearchPage(query, page, axiosConfig);
     if (entries === null) {
       break;

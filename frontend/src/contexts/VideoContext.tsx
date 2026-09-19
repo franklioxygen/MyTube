@@ -175,6 +175,10 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     // Reference to the current search request's abort controller
     const searchAbortController = useRef<AbortController | null>(null);
+    // Increments for every new search (and reset). Axios cancellation is best
+    // effort, so this also prevents a response that ignored cancellation from
+    // updating the newer query's state.
+    const searchGeneration = useRef(0);
     // Reference to track if load more request is in progress (prevents race conditions)
     const loadMoreInProgress = useRef<boolean>(false);
     const loadMoreBilibiliInProgress = useRef<boolean>(false);
@@ -296,6 +300,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }, [videos]);
 
     const resetSearch = useCallback(() => {
+        searchGeneration.current += 1;
         if (searchAbortController.current) {
             searchAbortController.current.abort();
             searchAbortController.current = null;
@@ -327,7 +332,14 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
             searchAbortController.current = new AbortController();
             const signal = searchAbortController.current.signal;
-            loadMoreInProgress.current = false; // Reset load more state for new search
+            const generation = searchGeneration.current + 1;
+            searchGeneration.current = generation;
+            // Reset load-more state for the new query. Any older request is
+            // ignored by its generation check before it can update state.
+            loadMoreInProgress.current = false;
+            loadMoreBilibiliInProgress.current = false;
+            setLoadingMore(false);
+            setLoadingMoreBilibili(false);
 
             setIsSearchMode(true);
             setSearchTerm(query);
@@ -350,6 +362,9 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                     return [];
                 }
 
+                // A failed request must not leave this source showing cards
+                // belonging to the preceding query.
+                setResults([]);
                 setLoading(true);
                 try {
                     const response = await api.get('/search', {
@@ -357,7 +372,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                         signal: signal
                     });
 
-                    if (signal.aborted) {
+                    if (signal.aborted || searchGeneration.current !== generation) {
                         return [];
                     }
                     // Limit search results to prevent memory issues
@@ -370,7 +385,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                     }
                     return [];
                 } finally {
-                    if (!signal.aborted) {
+                    if (!signal.aborted && searchGeneration.current === generation) {
                         setLoading(false);
                     }
                 }
@@ -382,6 +397,9 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 searchExternalSource('youtube', showYoutubeSearch, setSearchResults, setYoutubeLoading),
                 searchExternalSource('bilibili', showBilibiliSearch, setBilibiliSearchResults, setBilibiliLoading),
             ]);
+            if (searchGeneration.current !== generation) {
+                return { success: false, error: t('searchCancelled') };
+            }
             const externalResultCount = youtubeResults.length + bilibiliResults.length;
 
             if (statisticsIngestion.enabled) {
@@ -440,6 +458,8 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             return;
         }
 
+        const generation = searchGeneration.current;
+        const query = searchTerm;
         try {
             // Set both state and ref to prevent concurrent requests
             inProgressRef.current = true;
@@ -450,12 +470,19 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
             const response = await api.get('/search', {
                 params: {
-                    query: searchTerm,
+                    query,
                     source,
                     limit,
                     offset
                 }
             });
+
+            // A "more" response may arrive after the user has searched for a
+            // different term. It belongs to the previous result set, not this
+            // one, so never merge it into the new query.
+            if (searchGeneration.current !== generation) {
+                return;
+            }
 
             if (response.data.results && response.data.results.length > 0) {
                 setResults(prev => {
@@ -469,11 +496,15 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 });
             }
         } catch (error) {
-            console.error(`Error loading more ${source} results:`, error);
-            showSnackbar(t('failedToSearch'));
+            if (searchGeneration.current === generation) {
+                console.error(`Error loading more ${source} results:`, error);
+                showSnackbar(t('failedToSearch'));
+            }
         } finally {
-            inProgressRef.current = false;
-            setIsLoadingMore(false);
+            if (searchGeneration.current === generation) {
+                inProgressRef.current = false;
+                setIsLoadingMore(false);
+            }
         }
     }, [searchTerm, showSnackbar, t]);
 

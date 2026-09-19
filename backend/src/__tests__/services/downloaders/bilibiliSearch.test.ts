@@ -74,6 +74,9 @@ const aFullPageOf = (entries: unknown[]) => [
   ),
 ];
 
+const aFullInvalidPage = () =>
+  Array.from({ length: FULL_PAGE }, () => anEntry({ bvid: undefined }));
+
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.getUserYtDlpConfig.mockReturnValue({});
@@ -176,6 +179,30 @@ describe("searchVideos", () => {
       expect.anything()
     );
     expect(results.map((result: any) => result.id)).toEqual(["BVnext"]);
+  });
+
+  it("keeps reading past four raw pages when filtered entries leave the requested window empty", async () => {
+    mocks.axiosGet
+      .mockResolvedValueOnce({
+        data: { code: 0, data: { result: aFullInvalidPage() } },
+      })
+      .mockResolvedValueOnce({
+        data: { code: 0, data: { result: aFullInvalidPage() } },
+      })
+      .mockResolvedValueOnce({
+        data: { code: 0, data: { result: aFullInvalidPage() } },
+      })
+      .mockResolvedValueOnce({
+        data: { code: 0, data: { result: aFullInvalidPage() } },
+      })
+      .mockResolvedValueOnce({
+        data: { code: 0, data: { result: [anEntry({ bvid: "BVpage5" })] } },
+      });
+
+    const results = await searchVideos("python", 1, 1);
+
+    expect(mocks.axiosGet).toHaveBeenCalledTimes(5);
+    expect(results.map((result: any) => result.id)).toEqual(["BVpage5"]);
   });
 
   it("stops at a short page rather than asking for one past the end", async () => {
