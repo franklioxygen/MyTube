@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Feature
+
+- Add "Show Bilibili Search Results" beside the existing YouTube toggle in Interface & Display. The search page gains a second online section, built from the same card as the YouTube one - which is now one `ExternalSearchSection` component rather than a copy per platform - with the Bilibili badge and brand color it already used for a mixed result. It is off by default: an enabled source costs an outbound request on every search, and unlike YouTube, Bilibili is not a platform every library draws from. Results come from Bilibili's own web search API rather than yt-dlp's `bilisearch:` key, which resolves ids only unless every hit is extracted one at a time, so a flat search returns no title, thumbnail, duration or view count to build a card from. That endpoint is WBI-gated like the space enumeration, and reuses the same signing, cookies and proxy resolution - including the refusal to fall back to a direct connection when a configured proxy is unusable. Three details of its responses are handled rather than passed through: titles carry `<em class="keyword">` around the matched terms and are entity-escaped, which would render as markup; durations are colon-separated with an uncapped leading part, so a 40-hour course reads `2398:14` and is folded into seconds for the shared formatter; and thumbnails are protocol-relative and served from a CDN that answers 403 to a hotlinked request, so the result images send no `Referer`. Paging counts in returned results rather than upstream position, because a page mixes in paid courses and live rooms that have no `bvid` to download - about six per fifty - and mapping the two indexes onto each other stops "more" working after the first page. `GET /api/search` takes an optional `source` for this; omitting it still means YouTube, so the Chrome extension and any existing caller are unaffected. The two sources are fetched concurrently and fail independently: one being down leaves the other's results on screen.
+
 ## v1.11.9 (2026-09-13)
 
 ### Fix

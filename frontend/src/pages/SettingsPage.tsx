@@ -183,6 +183,7 @@ const SettingsPage: React.FC = () => {
         itemsPerPage: 12,
         ytDlpConfig: '',
         showYoutubeSearch: true,
+        showBilibiliSearch: false,
         proxyOnlyYoutube: false,
         ytDlpProxyBypassHosts: '',
         moveSubtitlesToVideoFolder: false,
@@ -452,6 +453,7 @@ const SettingsPage: React.FC = () => {
                 <InterfaceDisplaySettings
                     itemsPerPage={settings.itemsPerPage}
                     showYoutubeSearch={settings.showYoutubeSearch}
+                    showBilibiliSearch={settings.showBilibiliSearch}
                     infiniteScroll={settings.infiniteScroll}
                     videoColumns={settings.videoColumns}
                     playSoundOnTaskComplete={settings.playSoundOnTaskComplete}

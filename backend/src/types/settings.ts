@@ -89,6 +89,7 @@ export interface Settings {
   itemsPerPage?: number;
   ytDlpConfig?: string;
   showYoutubeSearch?: boolean;
+  showBilibiliSearch?: boolean;
   proxyOnlyYoutube?: boolean;
   ytDlpProxyBypassHosts?: string;
   moveSubtitlesToVideoFolder?: boolean;
@@ -190,6 +191,7 @@ export const defaultSettings: Settings = {
   websiteName: "MyTube",
   itemsPerPage: 12,
   showYoutubeSearch: true,
+  showBilibiliSearch: false,
   authorOrganizationMode: "root",
   preferredVideoContainer: "auto",
   audioFormat: "m4a",
