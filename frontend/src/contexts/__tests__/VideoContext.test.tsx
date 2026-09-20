@@ -415,6 +415,128 @@ describe('VideoContext', () => {
     });
   });
 
+  it('abandons a search superseded while its settings lookup was pending', async () => {
+    // The settings lookup is an await, so a reset can land mid-flight. The
+    // superseded call must not blank the reset state and raise a loading flag
+    // it will then decline to lower, leaving a section spinning over nothing.
+    let releaseSettings: (() => void) | undefined;
+    const settingsGate = new Promise<void>((resolve) => { releaseSettings = resolve; });
+    let settingsRequests = 0;
+
+    mockApiGet.mockImplementation((url: string) => {
+      if (url === '/videos') {
+        return Promise.resolve({ data: [{ id: 'v1', title: 'React', author: 'Alice', visibility: 1 }] });
+      }
+      if (url === '/settings') {
+        settingsRequests += 1;
+        return settingsGate.then(() => ({
+          data: { tags: [], showYoutubeSearch: true, showBilibiliSearch: true },
+        }));
+      }
+      if (url === '/search') {
+        return Promise.resolve({ data: { results: [{ id: 'yt1' }] } });
+      }
+      return Promise.resolve({ data: {} });
+    });
+
+    const { wrapper } = createWrapper();
+    const { result } = renderHook(() => useVideo(), { wrapper });
+    await waitFor(() => { expect(settingsRequests).toBeGreaterThan(0); });
+
+    let pending: Promise<any> | undefined;
+    await act(async () => {
+      pending = result.current.handleSearch('react');
+      // Supersede it while the settings lookup is still in flight.
+      result.current.resetSearch();
+      releaseSettings?.();
+      await pending;
+    });
+
+    expect(result.current.searchTerm).toBe('');
+    expect(result.current.searchResults).toEqual([]);
+    expect(result.current.bilibiliSearchResults).toEqual([]);
+    // The stuck state this guards against.
+    expect(result.current.youtubeLoading).toBe(false);
+    expect(result.current.bilibiliLoading).toBe(false);
+  });
+
+  it('re-runs the displayed search when a source is switched on', async () => {
+    let bilibiliEnabled = false;
+    const searchCalls: string[] = [];
+
+    mockApiGet.mockImplementation((url: string, config?: any) => {
+      if (url === '/videos') {
+        return Promise.resolve({ data: [{ id: 'v1', title: 'React', author: 'Alice', visibility: 1 }] });
+      }
+      if (url === '/settings') {
+        return Promise.resolve({
+          data: { tags: [], showYoutubeSearch: true, showBilibiliSearch: bilibiliEnabled },
+        });
+      }
+      if (url === '/search') {
+        const source = config?.params?.source;
+        searchCalls.push(source);
+        return Promise.resolve({
+          data: { results: source === 'bilibili' ? [{ id: 'BV1' }] : [{ id: 'yt1' }] },
+        });
+      }
+      return Promise.resolve({ data: {} });
+    });
+
+    const { wrapper, queryClient } = createWrapper();
+    const { result } = renderHook(() => useVideo(), { wrapper });
+
+    await waitFor(() => { expect(result.current.showBilibiliSearch).toBe(false); });
+    await act(async () => { await result.current.handleSearch('react'); });
+    expect(searchCalls).toEqual(['youtube']);
+
+    // Enabling it in Settings refreshes the settings query; the term on screen
+    // is unchanged, so SearchPage will not search again on its own.
+    bilibiliEnabled = true;
+    await act(async () => { await queryClient.invalidateQueries({ queryKey: ['settings'] }); });
+
+    await waitFor(() => {
+      expect(result.current.bilibiliSearchResults).toEqual([{ id: 'BV1' }]);
+    });
+    expect(searchCalls).toContain('bilibili');
+  });
+
+  it('does not search twice when settings land after a cold-load search', async () => {
+    let releaseSettings: (() => void) | undefined;
+    const settingsGate = new Promise<void>((resolve) => { releaseSettings = resolve; });
+    const searchCalls: string[] = [];
+
+    mockApiGet.mockImplementation((url: string, config?: any) => {
+      if (url === '/videos') {
+        return Promise.resolve({ data: [{ id: 'v1', title: 'React', author: 'Alice', visibility: 1 }] });
+      }
+      if (url === '/settings') {
+        return settingsGate.then(() => ({
+          data: { tags: [], showYoutubeSearch: true, showBilibiliSearch: true },
+        }));
+      }
+      if (url === '/search') {
+        searchCalls.push(config?.params?.source);
+        return Promise.resolve({ data: { results: [] } });
+      }
+      return Promise.resolve({ data: {} });
+    });
+
+    const { wrapper } = createWrapper();
+    const { result } = renderHook(() => useVideo(), { wrapper });
+
+    await act(async () => {
+      const search = result.current.handleSearch('react');
+      releaseSettings?.();
+      await search;
+    });
+    await waitFor(() => { expect(result.current.showBilibiliSearch).toBe(true); });
+
+    // One request per source and no more: handleSearch resolved the settings
+    // itself, so the flags catching up afterwards must not produce a repeat.
+    expect(searchCalls.sort()).toEqual(['bilibili', 'youtube']);
+  });
+
   it('leaves Bilibili search off unless the setting turns it on', async () => {
     const { wrapper } = createWrapper();
     const { result } = renderHook(() => useVideo(), { wrapper });

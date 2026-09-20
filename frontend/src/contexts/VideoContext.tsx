@@ -16,6 +16,9 @@ const MAX_SEARCH_RESULTS = 200; // Maximum number of search results to keep in m
 // page each.
 type ExternalSearchSource = 'youtube' | 'bilibili';
 
+/** Identifies which sources a search covered, so a change to them is detectable. */
+const sourcesKey = (youtube: boolean, bilibili: boolean) => `${youtube}|${bilibili}`;
+
 interface VideoContextType {
     videos: Video[];
     loading: boolean;
@@ -182,6 +185,8 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // Reference to track if load more request is in progress (prevents race conditions)
     const loadMoreInProgress = useRef<boolean>(false);
     const loadMoreBilibiliInProgress = useRef<boolean>(false);
+    // Which sources the search currently on screen was run against.
+    const searchedSources = useRef<string | null>(null);
 
     // Wrapper for refetch to match interface
     const fetchVideos = useCallback(async () => {
@@ -301,6 +306,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const resetSearch = useCallback(() => {
         searchGeneration.current += 1;
+        searchedSources.current = null;
         if (searchAbortController.current) {
             searchAbortController.current.abort();
             searchAbortController.current = null;
@@ -374,6 +380,17 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                     }
                 }
             }
+
+            // Resolving the settings is an await, so a reset or a newer query
+            // can land while it is pending. Without this the superseded call
+            // would carry on into searchExternalSource, which blanks the newer
+            // search's results and raises its loading flag before its own
+            // generation check - and then skips lowering it again, leaving the
+            // section spinning over nothing.
+            if (signal.aborted || searchGeneration.current !== generation) {
+                return { success: false, error: t('searchCancelled') };
+            }
+            searchedSources.current = sourcesKey(searchYoutube, searchBilibili);
 
             // Each external source is fetched the same way; only the endpoint's
             // `source` and the state it fills differ.
@@ -550,6 +567,24 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             loadingMoreBilibili, setBilibiliSearchResults, setLoadingMoreBilibili,
         );
     }, [loadMoreExternalResults, showBilibiliSearch, bilibiliSearchResults.length, loadingMoreBilibili]);
+
+    // Which sources are enabled is an input to the search, not a filter over an
+    // existing result set, so a search already on screen has to be re-run when
+    // it changes. Turning Bilibili on in Settings and returning to the same
+    // /search?q=... would otherwise show an empty section reading "no results":
+    // this provider outlives the route change, so SearchPage sees a term that
+    // already matches and does not search again. Compared against the sources
+    // the displayed search actually used rather than against the previous
+    // render's flags, so settings arriving after a cold-load search - which
+    // resolved them itself - does not trigger a redundant second search.
+    useEffect(() => {
+        if (!searchTerm || !searchedSources.current) {
+            return;
+        }
+        if (searchedSources.current !== sourcesKey(showYoutubeSearch, showBilibiliSearch)) {
+            void handleSearch(searchTerm);
+        }
+    }, [showYoutubeSearch, showBilibiliSearch, searchTerm, handleSearch]);
 
     const handleTagToggle = useCallback((tag: string) => {
         setSelectedTags((prev) => {
