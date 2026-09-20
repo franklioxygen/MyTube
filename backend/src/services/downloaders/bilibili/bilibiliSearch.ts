@@ -148,11 +148,14 @@ async function fetchSearchPage(
     axiosConfig
   );
 
-  // requestUrl is built from the SEARCH_ENDPOINT constant above, and every
-  // param the caller supplies - the keyword included - is percent-encoded into
-  // the query string by both the signed and unsigned branches of
-  // buildSignedBilibiliUrl, so the host is not reachable from user input.
-  // nosemgrep: javascript.ssrf.rule-node-ssrf
+  // The SSRF rule's taint source is the first parameter of any function taking
+  // two or more - it assumes an Express `(req, res)` handler - so `query` here
+  // is treated as attacker-controlled request data. It is not a URL: requestUrl
+  // is built from the SEARCH_ENDPOINT constant above, and every param the
+  // caller supplies, the keyword included, is percent-encoded into the query
+  // string by both the signed and unsigned branches of buildSignedBilibiliUrl,
+  // so the host is not reachable from it.
+  // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
   const response = await axios.get(requestUrl, {
     ...axiosConfig,
     headers: buildBilibiliApiHeaders(requestUrl),
