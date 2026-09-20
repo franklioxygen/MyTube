@@ -57,7 +57,12 @@ const DURATION_TOLERANCE_FLOOR_SECONDS = 10;
 // yt-dlp options that legitimately produce a file shorter than the source.
 // Parsed config keys are camelCased, so `--download-sections` arrives as
 // `downloadSections`.
-const CLIPPING_CONFIG_KEYS = ["downloadSections", "downloadSection"];
+const CLIPPING_CONFIG_KEYS = [
+  "downloadSections",
+  "downloadSection",
+  "sponsorblockRemove",
+  "removeChapters",
+];
 
 function allowedShortfall(referenceSeconds: number): number {
   return Math.max(
@@ -71,8 +76,8 @@ function formatSeconds(seconds: number): string {
 }
 
 /**
- * Whether the config clips the output (`--download-sections`), which makes a
- * short file expected rather than a failure.
+ * Whether the config removes content (sections, SponsorBlock or chapters),
+ * which makes a short file expected rather than a failure.
  */
 export function clipsDownloadOutput(
   userConfig?: Record<string, unknown> | null
@@ -159,15 +164,19 @@ export async function probeMediaTrackDurations(
       return unknown;
     }
 
-    const { stdout } = await execFileSafe("ffprobe", [
-      "-v",
-      "error",
-      "-show_entries",
-      "format=duration:stream=codec_type,duration",
-      "-of",
-      "json",
-      validatedPath,
-    ]);
+    const { stdout } = await execFileSafe(
+      "ffprobe",
+      [
+        "-v",
+        "error",
+        "-show_entries",
+        "format=duration:stream=codec_type,duration",
+        "-of",
+        "json",
+        validatedPath,
+      ],
+      { timeout: 30_000 }
+    );
 
     return parseMediaTrackDurations(stdout);
   } catch (error) {

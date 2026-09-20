@@ -222,24 +222,48 @@ describe('verifyDownloadedMediaComplete', () => {
     expect(mockExecFileSafe).toHaveBeenCalledWith(
       'ffprobe',
       expect.arrayContaining(['/videos/clip.mp4']),
+      { timeout: 30_000 },
     );
   });
 
-  it('ignores the source duration when the config clips the output', async () => {
+  it.each([
+    { downloadSections: '*0:00-2:00' },
+    { sponsorblockRemove: 'sponsor,intro,outro' },
+    { removeChapters: 'intro' },
+  ])('ignores the source duration when the config clips the output: %o', async (userConfig) => {
     mockExecFileSafe.mockResolvedValue({
       stdout: ffprobeJson(120, 120, 120),
     });
 
     const verdict = await verifyDownloadedMediaComplete('/videos/clip.mp4', {
       sourceDurationSeconds: 1110.762,
-      userConfig: { downloadSections: '*0:00-2:00' },
+      userConfig,
     });
 
     expect(verdict.complete).toBe(true);
   });
 
-  it('accepts the download when the file cannot be probed', async () => {
-    mockExecFileSafe.mockRejectedValue(new Error('ffprobe not found'));
+  it('still checks track disagreement when content removal is configured', async () => {
+    mockExecFileSafe.mockResolvedValue({ stdout: ffprobeJson(600, 600, 300) });
+    const verdict = await verifyDownloadedMediaComplete('/videos/clip.mp4', {
+      sourceDurationSeconds: 1200,
+      userConfig: { sponsorblockRemove: 'all' },
+    });
+    expect(verdict.complete).toBe(false);
+    expect(verdict.reason).toContain('video track');
+  });
+
+  it('still compares source duration when SponsorBlock only marks chapters', async () => {
+    mockExecFileSafe.mockResolvedValue({ stdout: ffprobeJson(600, 600, 600) });
+    const verdict = await verifyDownloadedMediaComplete('/videos/clip.mp4', {
+      sourceDurationSeconds: 1200,
+      userConfig: { sponsorblockMark: 'all' },
+    });
+    expect(verdict.complete).toBe(false);
+  });
+
+  it.each(['ffprobe not found', 'ffprobe timed out'])('accepts the download when %s', async (message) => {
+    mockExecFileSafe.mockRejectedValue(new Error(message));
 
     const verdict = await verifyDownloadedMediaComplete('/videos/clip.mp4', {
       sourceDurationSeconds: 1110.762,

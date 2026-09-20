@@ -507,11 +507,16 @@ export async function downloadVideo(
       }
     );
     if (!completeness.complete) {
-      await cleanupVideoArtifacts(newSafeBaseFilename, plannedVideoDir());
-      if (ownedVideoReplacement) {
-        await cleanupTemporaryFiles(ownedVideoReplacement.stagingPath);
-      }
-      await cleanupSubtitleFiles(newSafeBaseFilename, plannedVideoDir());
+      // Use the download's original output stem, including for split artifacts.
+      // On a redownload the library stem belongs to the existing good copy.
+      const rejectedOutputPath =
+        ownedVideoReplacement?.stagingPath ?? plannedPaths.videoAbsolutePath;
+      const rejectedBaseFilename = path.basename(
+        rejectedOutputPath,
+        path.extname(rejectedOutputPath)
+      );
+      await cleanupVideoArtifacts(rejectedBaseFilename, plannedVideoDir());
+      await cleanupSubtitleFiles(rejectedBaseFilename, plannedVideoDir());
       throw new Error(
         `Download is incomplete: ${completeness.reason}. ` +
           `The file was discarded; try downloading again.`
