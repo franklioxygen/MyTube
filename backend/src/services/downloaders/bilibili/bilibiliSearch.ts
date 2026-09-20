@@ -9,6 +9,17 @@ const SEARCH_ENDPOINT =
   "https://api.bilibili.com/x/web-interface/wbi/search/type";
 // The endpoint's maximum, so a page of results usually costs one request.
 const UPSTREAM_PAGE_SIZE = 50;
+// A hard ceiling on the outbound requests one call may make. `offset` is not
+// capped by the controller, so without this a single request carrying a large
+// one is amplified into as many upstream requests as it takes to walk there -
+// tying up the handler and spending Bilibili's rate limit - and the only thing
+// stopping it is the upstream choosing to return a short page.
+//
+// This is not a cap on the window that can be paged to. The client stops
+// collecting at 200 results, and a 50-entry page carries roughly 44 usable
+// ones, so eight pages reach past 350: a raw-page count set from the filtered
+// rate rather than assuming every entry survives the filter.
+const MAX_UPSTREAM_PAGES = 8;
 // A search URL yt-dlp would also accept, so the proxy-only-YouTube setting and
 // any per-host bypass resolve for these requests the way they do for a download
 // from the same site.
@@ -217,11 +228,10 @@ export async function searchVideos(
   const collected: Record<string, unknown>[] = [];
   let seen = 0;
 
-  // Do not cap this by raw upstream pages. The endpoint intersperses entries
-  // without a bvid, so four 50-entry pages can contain materially fewer than
-  // 200 returned results. Stop only once the requested filtered window is
-  // filled or the upstream search reports its final (short) page.
-  for (let page = 1; ; page += 1) {
+  // Stops once the requested filtered window is filled, the upstream search
+  // reports its final (short) page, or the request ceiling is reached.
+  let reachedPageCeiling = false;
+  for (let page = 1; page <= MAX_UPSTREAM_PAGES; page += 1) {
     const entries = await fetchSearchPage(query, page, axiosConfig);
     if (entries === null) {
       break;
@@ -245,6 +255,14 @@ export async function searchVideos(
     if (collected.length >= wanted || entries.length < UPSTREAM_PAGE_SIZE) {
       break;
     }
+    reachedPageCeiling = page === MAX_UPSTREAM_PAGES;
+  }
+
+  if (reachedPageCeiling) {
+    logger.warn(
+      `Bilibili search for "${query}" stopped at the ${MAX_UPSTREAM_PAGES}-page request ceiling ` +
+        `with ${collected.length} of ${wanted} results from offset ${offset}`
+    );
   }
 
   logger.info(

@@ -237,6 +237,21 @@ describe("searchVideos", () => {
     expect(results).toHaveLength(8);
   });
 
+  it("stops at the request ceiling instead of walking to an uncapped offset", async () => {
+    // The controller does not cap `offset`, so without a ceiling one request
+    // carrying a huge one is amplified into as many upstream requests as it
+    // takes to reach it.
+    respondWith(aFullPageOf([]));
+
+    const results = await searchVideos("python", 8, 10_000_000);
+
+    expect(mocks.axiosGet).toHaveBeenCalledTimes(8);
+    expect(results).toEqual([]);
+    expect(mocks.logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining("request ceiling")
+    );
+  });
+
   it("returns the formatted hits, skipping ones without a bvid", async () => {
     respondWith([anEntry(), anEntry({ bvid: undefined }), anEntry({ bvid: "BV2" })]);
 
