@@ -7,6 +7,7 @@ import { SETTINGS_CONTROL_MAX_WIDTH } from './settingsLayout';
 interface InterfaceDisplaySettingsProps {
     itemsPerPage?: number;
     showYoutubeSearch?: boolean;
+    showBilibiliSearch?: boolean;
     infiniteScroll?: boolean;
     videoColumns?: number;
     playSoundOnTaskComplete?: string;
@@ -16,7 +17,7 @@ interface InterfaceDisplaySettingsProps {
 }
 
 const InterfaceDisplaySettings: React.FC<InterfaceDisplaySettingsProps> = (props) => {
-    const { itemsPerPage, showYoutubeSearch, infiniteScroll, videoColumns, playSoundOnTaskComplete, onChange } = props;
+    const { itemsPerPage, showYoutubeSearch, showBilibiliSearch, infiniteScroll, videoColumns, playSoundOnTaskComplete, onChange } = props;
     const { t } = useLanguage();
     const playSelectedSoundPreview = (soundValue: string) => {
         const previewSoundUrl = Object.entries(INFO_SOUNDS).find(
@@ -138,6 +139,16 @@ const InterfaceDisplaySettings: React.FC<InterfaceDisplaySettingsProps> = (props
                         />
                     }
                     label={t('showYoutubeSearch') || "Show YouTube Search Results"}
+                />
+
+                <FormControlLabel
+                    control={
+                        <Switch
+                            checked={showBilibiliSearch ?? false}
+                            onChange={(e) => onChange('showBilibiliSearch', e.target.checked)}
+                        />
+                    }
+                    label={t('showBilibiliSearch') || "Show Bilibili Search Results"}
                 />
                 <FormControlLabel
                     control={

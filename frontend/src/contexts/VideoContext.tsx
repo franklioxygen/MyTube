@@ -4,13 +4,20 @@ import { Video, VideoSearchResult } from '../types';
 import { useStatisticsIngestion } from '../hooks/useStatisticsIngestion';
 import { api } from '../utils/apiClient';
 import { withCanonicalAuthorAvatars } from '../utils/authorAvatar';
-import { hasAxiosStatus } from '../utils/errors';
+import { hasAxiosStatus, isAbortError } from '../utils/errors';
 import { settingsQueryOptions } from '../utils/settingsQueries';
 import { normalizeTagKey } from '../utils/tagUtils';
 import { useAuth } from './AuthContext';
 import { useLanguage } from './LanguageContext';
 import { useSnackbar } from './SnackbarContext';
 const MAX_SEARCH_RESULTS = 200; // Maximum number of search results to keep in memory
+
+// The external platforms `/search` can be asked for, one section of the search
+// page each.
+type ExternalSearchSource = 'youtube' | 'bilibili';
+
+/** Identifies which sources a search covered, so a change to them is detectable. */
+const sourcesKey = (youtube: boolean, bilibili: boolean) => `${youtube}|${bilibili}`;
 
 interface VideoContextType {
     videos: Video[];
@@ -42,6 +49,11 @@ interface VideoContextType {
     showYoutubeSearch: boolean;
     loadMoreSearchResults: () => Promise<void>;
     loadingMore: boolean;
+    bilibiliSearchResults: VideoSearchResult[];
+    bilibiliLoading: boolean;
+    showBilibiliSearch: boolean;
+    loadMoreBilibiliSearchResults: () => Promise<void>;
+    loadingMoreBilibili: boolean;
 }
 
 interface VideoTagsContextType {
@@ -146,6 +158,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const availableTags = settingsData?.tags ?? EMPTY_TAGS;
     const showYoutubeSearch = settingsData?.showYoutubeSearch ?? true;
+    const showBilibiliSearch = settingsData?.showBilibiliSearch ?? false;
     const captureSearchText = settingsData?.statisticsCaptureSearchText === true;
 
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -159,11 +172,21 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const [searchTerm, setSearchTerm] = useState<string>('');
     const [youtubeLoading, setYoutubeLoading] = useState<boolean>(false);
     const [loadingMore, setLoadingMore] = useState<boolean>(false);
+    const [bilibiliSearchResults, setBilibiliSearchResults] = useState<VideoSearchResult[]>([]);
+    const [bilibiliLoading, setBilibiliLoading] = useState<boolean>(false);
+    const [loadingMoreBilibili, setLoadingMoreBilibili] = useState<boolean>(false);
 
     // Reference to the current search request's abort controller
     const searchAbortController = useRef<AbortController | null>(null);
+    // Increments for every new search (and reset). Axios cancellation is best
+    // effort, so this also prevents a response that ignored cancellation from
+    // updating the newer query's state.
+    const searchGeneration = useRef(0);
     // Reference to track if load more request is in progress (prevents race conditions)
     const loadMoreInProgress = useRef<boolean>(false);
+    const loadMoreBilibiliInProgress = useRef<boolean>(false);
+    // Which sources the search currently on screen was run against.
+    const searchedSources = useRef<string | null>(null);
 
     // Wrapper for refetch to match interface
     const fetchVideos = useCallback(async () => {
@@ -282,17 +305,23 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }, [videos]);
 
     const resetSearch = useCallback(() => {
+        searchGeneration.current += 1;
+        searchedSources.current = null;
         if (searchAbortController.current) {
             searchAbortController.current.abort();
             searchAbortController.current = null;
         }
         loadMoreInProgress.current = false;
+        loadMoreBilibiliInProgress.current = false;
         setIsSearchMode(false);
         setSearchTerm('');
         setSearchResults([]);
         setLocalSearchResults([]);
+        setBilibiliSearchResults([]);
         setYoutubeLoading(false);
+        setBilibiliLoading(false);
         setLoadingMore(false);
+        setLoadingMoreBilibili(false);
         setLastSearchEventId(null);
     }, []);
 
@@ -309,55 +338,121 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
             searchAbortController.current = new AbortController();
             const signal = searchAbortController.current.signal;
-            loadMoreInProgress.current = false; // Reset load more state for new search
+            const generation = searchGeneration.current + 1;
+            searchGeneration.current = generation;
+            // Reset load-more state for the new query. Any older request is
+            // ignored by its generation check before it can update state.
+            loadMoreInProgress.current = false;
+            loadMoreBilibiliInProgress.current = false;
+            setLoadingMore(false);
+            setLoadingMoreBilibili(false);
 
             setIsSearchMode(true);
             setSearchTerm(query);
+            // Each source publishes its cards as soon as it answers, but the
+            // search_submitted event is not recorded until both have. Holding
+            // the previous query's id through that window would attribute a
+            // download of an already-visible card to the wrong search, so it is
+            // dropped here and only replaced once this search is recorded.
+            setLastSearchEventId(null);
 
             const localResults = searchLocalVideos(query);
             setLocalSearchResults(localResults);
 
-            let externalResults: VideoSearchResult[] = [];
-            // Only search YouTube if showYoutubeSearch is enabled
-            if (showYoutubeSearch) {
-                setYoutubeLoading(true);
+            // Which sources to search is a saved setting, and on a cold load of
+            // /search?q=... the query has not resolved yet - the fallbacks above
+            // are what an unresolved settings query reads as. Searching on those
+            // would render an enabled Bilibili section that never fetched, and
+            // SearchPage cannot recover it: by the time the setting arrives the
+            // term already matches, so it does not search again.
+            let searchYoutube = showYoutubeSearch;
+            let searchBilibili = showBilibiliSearch;
+            if (!settingsData && isAuthenticated) {
+                try {
+                    const resolvedSettings = await queryClient.ensureQueryData(settingsQueryOptions);
+                    searchYoutube = resolvedSettings?.showYoutubeSearch ?? true;
+                    searchBilibili = resolvedSettings?.showBilibiliSearch ?? false;
+                } catch (settingsErr: unknown) {
+                    // Settings are unreadable; the fallbacks stand rather than
+                    // failing a search the user can otherwise be served.
+                    if (!isAbortError(settingsErr)) {
+                        console.error('Could not resolve search sources from settings:', settingsErr);
+                    }
+                }
+            }
 
+            // Resolving the settings is an await, so a reset or a newer query
+            // can land while it is pending. Without this the superseded call
+            // would carry on into searchExternalSource, which blanks the newer
+            // search's results and raises its loading flag before its own
+            // generation check - and then skips lowering it again, leaving the
+            // section spinning over nothing.
+            if (signal.aborted || searchGeneration.current !== generation) {
+                return { success: false, error: t('searchCancelled') };
+            }
+            searchedSources.current = sourcesKey(searchYoutube, searchBilibili);
+
+            // Each external source is fetched the same way; only the endpoint's
+            // `source` and the state it fills differ.
+            const searchExternalSource = async (
+                source: ExternalSearchSource,
+                enabled: boolean,
+                setResults: React.Dispatch<React.SetStateAction<VideoSearchResult[]>>,
+                setLoading: React.Dispatch<React.SetStateAction<boolean>>
+            ): Promise<VideoSearchResult[]> => {
+                if (!enabled) {
+                    // Clear any existing results when the source is disabled
+                    setResults([]);
+                    setLoading(false);
+                    return [];
+                }
+
+                // A failed request must not leave this source showing cards
+                // belonging to the preceding query.
+                setResults([]);
+                setLoading(true);
                 try {
                     const response = await api.get('/search', {
-                        params: { query },
+                        params: { query, source },
                         signal: signal
                     });
 
-                    if (!signal.aborted) {
-                        // Limit search results to prevent memory issues
-                        const results = response.data.results || [];
-                        externalResults = results;
-                        setSearchResults(results.slice(0, MAX_SEARCH_RESULTS));
+                    if (signal.aborted || searchGeneration.current !== generation) {
+                        return [];
                     }
-                } catch (youtubeErr: unknown) {
-                    const errorName = youtubeErr && typeof youtubeErr === 'object' && 'name' in youtubeErr
-                        ? String((youtubeErr as { name: unknown }).name)
-                        : '';
-                    if (errorName !== 'CanceledError' && errorName !== 'AbortError') {
-                        console.error('Error searching YouTube:', youtubeErr);
+                    // Limit search results to prevent memory issues
+                    const results: VideoSearchResult[] = response.data.results || [];
+                    setResults(results.slice(0, MAX_SEARCH_RESULTS));
+                    return results;
+                } catch (externalErr: unknown) {
+                    if (!isAbortError(externalErr)) {
+                        console.error(`Error searching ${source}:`, externalErr);
                     }
+                    return [];
                 } finally {
-                    if (!signal.aborted) {
-                        setYoutubeLoading(false);
+                    if (!signal.aborted && searchGeneration.current === generation) {
+                        setLoading(false);
                     }
                 }
-            } else {
-                // Clear any existing YouTube results when disabled
-                setSearchResults([]);
-                setYoutubeLoading(false);
+            };
+
+            // Run both sources concurrently so enabling Bilibili does not make a
+            // search wait for YouTube to answer first.
+            const [youtubeResults, bilibiliResults] = await Promise.all([
+                searchExternalSource('youtube', searchYoutube, setSearchResults, setYoutubeLoading),
+                searchExternalSource('bilibili', searchBilibili, setBilibiliSearchResults, setBilibiliLoading),
+            ]);
+            if (searchGeneration.current !== generation) {
+                return { success: false, error: t('searchCancelled') };
             }
+            const externalResultCount = youtubeResults.length + bilibiliResults.length;
 
             if (statisticsIngestion.enabled) {
                 const queryPayload: Record<string, unknown> = {
                     queryLength: query.length,
                     localResultCount: localResults.length,
-                    externalResultCount: externalResults.length,
-                    externalSearchEnabled: showYoutubeSearch,
+                    externalResultCount,
+                    externalSearchEnabled: searchYoutube || searchBilibili,
                 };
                 if (captureSearchText) {
                     queryPayload.queryText = query;
@@ -374,10 +469,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
             return { success: true };
         } catch (err: unknown) {
-            const errorName = err && typeof err === 'object' && 'name' in err
-                ? String((err as { name: unknown }).name)
-                : '';
-            if (errorName !== 'CanceledError' && errorName !== 'AbortError') {
+            if (!isAbortError(err)) {
                 console.error('Error in search process:', err);
                 const localResults = searchLocalVideos(query);
                 if (localResults.length > 0) {
@@ -390,36 +482,56 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             }
             return { success: false, error: t('searchCancelled') };
         }
-    }, [resetSearch, showYoutubeSearch, searchLocalVideos, statisticsIngestion, captureSearchText, t]);
+    }, [resetSearch, showYoutubeSearch, showBilibiliSearch, settingsData, isAuthenticated, queryClient,
+        searchLocalVideos, statisticsIngestion, captureSearchText, t]);
 
-    const loadMoreSearchResults = useCallback(async (): Promise<void> => {
+    // The next page for one external source. Both sections page identically, so
+    // the source, its in-flight guard and its result state are the only inputs.
+    const loadMoreExternalResults = useCallback(async (
+        source: ExternalSearchSource,
+        enabled: boolean,
+        inProgressRef: React.RefObject<boolean>,
+        currentCount: number,
+        isLoadingMore: boolean,
+        setResults: React.Dispatch<React.SetStateAction<VideoSearchResult[]>>,
+        setIsLoadingMore: React.Dispatch<React.SetStateAction<boolean>>
+    ): Promise<void> => {
         // Use ref check first to prevent race conditions (immediate, synchronous check)
-        if (!searchTerm || loadMoreInProgress.current || loadingMore || !showYoutubeSearch) return;
+        if (!searchTerm || inProgressRef.current || isLoadingMore || !enabled) return;
 
         // Don't load more if we've reached the maximum
-        if (searchResults.length >= MAX_SEARCH_RESULTS) {
+        if (currentCount >= MAX_SEARCH_RESULTS) {
             return;
         }
 
+        const generation = searchGeneration.current;
+        const query = searchTerm;
         try {
             // Set both state and ref to prevent concurrent requests
-            loadMoreInProgress.current = true;
-            setLoadingMore(true);
+            inProgressRef.current = true;
+            setIsLoadingMore(true);
 
-            const currentCount = searchResults.length;
             const limit = 8;
             const offset = currentCount + 1;
 
             const response = await api.get('/search', {
                 params: {
-                    query: searchTerm,
+                    query,
+                    source,
                     limit,
                     offset
                 }
             });
 
+            // A "more" response may arrive after the user has searched for a
+            // different term. It belongs to the previous result set, not this
+            // one, so never merge it into the new query.
+            if (searchGeneration.current !== generation) {
+                return;
+            }
+
             if (response.data.results && response.data.results.length > 0) {
-                setSearchResults(prev => {
+                setResults(prev => {
                     // Create a Set of existing IDs for fast lookup
                     const existingIds = new Set(prev.map(result => result.id));
                     // Filter out duplicates by ID
@@ -430,13 +542,49 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 });
             }
         } catch (error) {
-            console.error('Error loading more results:', error);
-            showSnackbar(t('failedToSearch'));
+            if (searchGeneration.current === generation) {
+                console.error(`Error loading more ${source} results:`, error);
+                showSnackbar(t('failedToSearch'));
+            }
         } finally {
-            loadMoreInProgress.current = false;
-            setLoadingMore(false);
+            if (searchGeneration.current === generation) {
+                inProgressRef.current = false;
+                setIsLoadingMore(false);
+            }
         }
-    }, [searchTerm, loadingMore, showYoutubeSearch, searchResults.length, showSnackbar, t]);
+    }, [searchTerm, showSnackbar, t]);
+
+    const loadMoreSearchResults = useCallback(async (): Promise<void> => {
+        await loadMoreExternalResults(
+            'youtube', showYoutubeSearch, loadMoreInProgress, searchResults.length,
+            loadingMore, setSearchResults, setLoadingMore,
+        );
+    }, [loadMoreExternalResults, showYoutubeSearch, searchResults.length, loadingMore]);
+
+    const loadMoreBilibiliSearchResults = useCallback(async (): Promise<void> => {
+        await loadMoreExternalResults(
+            'bilibili', showBilibiliSearch, loadMoreBilibiliInProgress, bilibiliSearchResults.length,
+            loadingMoreBilibili, setBilibiliSearchResults, setLoadingMoreBilibili,
+        );
+    }, [loadMoreExternalResults, showBilibiliSearch, bilibiliSearchResults.length, loadingMoreBilibili]);
+
+    // Which sources are enabled is an input to the search, not a filter over an
+    // existing result set, so a search already on screen has to be re-run when
+    // it changes. Turning Bilibili on in Settings and returning to the same
+    // /search?q=... would otherwise show an empty section reading "no results":
+    // this provider outlives the route change, so SearchPage sees a term that
+    // already matches and does not search again. Compared against the sources
+    // the displayed search actually used rather than against the previous
+    // render's flags, so settings arriving after a cold-load search - which
+    // resolved them itself - does not trigger a redundant second search.
+    useEffect(() => {
+        if (!searchTerm || !searchedSources.current) {
+            return;
+        }
+        if (searchedSources.current !== sourcesKey(showYoutubeSearch, showBilibiliSearch)) {
+            void handleSearch(searchTerm);
+        }
+    }, [showYoutubeSearch, showBilibiliSearch, searchTerm, handleSearch]);
 
     const handleTagToggle = useCallback((tag: string) => {
         setSelectedTags((prev) => {
@@ -672,6 +820,11 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         showYoutubeSearch,
         loadMoreSearchResults,
         loadingMore,
+        bilibiliSearchResults,
+        bilibiliLoading,
+        showBilibiliSearch,
+        loadMoreBilibiliSearchResults,
+        loadingMoreBilibili,
     }), [
         videos, videosLoading, videosError, fetchVideos, deleteVideo, deleteVideos,
         updateVideo, refreshThumbnail, redownloadThumbnail, uploadThumbnail,
@@ -679,6 +832,8 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         isSearchMode, searchTerm, youtubeLoading, handleSearch, lastSearchEventId,
         resetSearch, setVideos, availableTags, selectedTags, handleTagToggle,
         clearSelectedTags, showYoutubeSearch, loadMoreSearchResults, loadingMore,
+        bilibiliSearchResults, bilibiliLoading, showBilibiliSearch,
+        loadMoreBilibiliSearchResults, loadingMoreBilibili,
     ]);
 
     const tagsValue = useMemo<VideoTagsContextType>(() => ({

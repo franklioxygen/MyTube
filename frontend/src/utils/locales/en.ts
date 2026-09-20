@@ -38,6 +38,9 @@ export const en = {
   fromYouTube: "From YouTube",
   loadingYouTubeResults: "Loading YouTube results...",
   noYouTubeResults: "No YouTube results found",
+  fromBilibili: "From Bilibili",
+  loadingBilibiliResults: "Loading Bilibili results...",
+  noBilibiliResults: "No Bilibili results found",
   noVideosYet: "No videos yet. Submit a video URL to download your first one!",
   views: "views",
 
@@ -484,6 +487,7 @@ export const en = {
   itemsPerPage: "Items Per Page",
   itemsPerPageHelper: "Number of videos to show per page (Default: 12)",
   showYoutubeSearch: "Show YouTube Search Results",
+  showBilibiliSearch: "Show Bilibili Search Results",
   defaultSort: "Default Video Sort Method",
   showTagsOnThumbnail: "Show Tags on Thumbnail",
   playSoundOnTaskComplete: "Play Sound on Task Complete",

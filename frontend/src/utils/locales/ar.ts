@@ -59,6 +59,9 @@ export const ar = {
   fromYouTube: "من YouTube",
   loadingYouTubeResults: "جاري تحميل نتائج YouTube...",
   noYouTubeResults: "لم يتم العثور على نتائج YouTube",
+  fromBilibili: "من Bilibili",
+  loadingBilibiliResults: "جاري تحميل نتائج Bilibili...",
+  noBilibiliResults: "لم يتم العثور على نتائج Bilibili",
   noVideosYet: "لا توجد فيديوهات بعد. أرسل رابط فيديو لتنزيل أول فيديو لك!",
   views: "مشاهدات",
 
@@ -494,6 +497,7 @@ export const ar = {
   itemsPerPage: "عناصر لكل صفحة",
   itemsPerPageHelper: "عدد مقاطع الفيديو التي ستظهر في كل صفحة (الافتراضي: 12)",
   showYoutubeSearch: "عرض نتائج بحث YouTube",
+  showBilibiliSearch: "عرض نتائج بحث Bilibili",
   defaultSort: "الترتيب الافتراضي",
   showTagsOnThumbnail: "عرض العلامات على الصورة المصغرة",
   playSoundOnTaskComplete: "تشغيل صوت عند اكتمال المهمة",

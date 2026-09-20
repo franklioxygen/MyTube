@@ -242,6 +242,15 @@ export async function searchYouTube(
   return YtDlpDownloader.search(query, limit, offset);
 }
 
+// Search for videos on Bilibili (using Bilibili's own web search API)
+export async function searchBilibili(
+  query: string,
+  limit?: number,
+  offset?: number,
+): Promise<any[]> {
+  return BilibiliDownloader.search(query, limit, offset);
+}
+
 // Download generic video (using yt-dlp)
 export async function downloadYouTubeVideo(
   videoUrl: string,

@@ -60,6 +60,9 @@ export const ko = {
   fromYouTube: "YouTube에서",
   loadingYouTubeResults: "YouTube 결과 로드 중...",
   noYouTubeResults: "YouTube 결과 없음",
+  fromBilibili: "Bilibili에서",
+  loadingBilibiliResults: "Bilibili 결과 로드 중...",
+  noBilibiliResults: "Bilibili 결과 없음",
   noVideosYet:
     "아직 동영상이 없습니다. 동영상 URL을 제출하여 첫 번째 동영상을 다운로드하세요!",
   views: "조회수",
@@ -500,6 +503,7 @@ export const ko = {
   itemsPerPage: "페이지 당 항목 수",
   itemsPerPageHelper: "페이지 당 표시할 비디오 수 (기본값: 12)",
   showYoutubeSearch: "YouTube 검색 결과 표시",
+  showBilibiliSearch: "Bilibili 검색 결과 표시",
   defaultSort: "기본 동영상 정렬 방법",
   showTagsOnThumbnail: "썸네일에 태그 표시",
   playSoundOnTaskComplete: "작업 완료 시 소리 재생",

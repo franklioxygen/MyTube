@@ -220,6 +220,7 @@ export interface Settings {
   itemsPerPage?: number;
   ytDlpConfig?: string;
   showYoutubeSearch?: boolean;
+  showBilibiliSearch?: boolean;
   proxyOnlyYoutube?: boolean;
   ytDlpProxyBypassHosts?: string;
   moveSubtitlesToVideoFolder?: boolean;

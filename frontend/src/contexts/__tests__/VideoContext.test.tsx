@@ -285,6 +285,476 @@ describe('VideoContext', () => {
     expect(result.current.loadingMore).toBe(false);
   });
 
+  it('searches the sources the saved settings name, not the pre-load fallbacks', async () => {
+    // A cold load of /search?q=... searches before the settings query resolves.
+    // Reading the fallbacks there would skip Bilibili and render its section
+    // permanently empty, since SearchPage does not search the same term twice.
+    let releaseSettings: (() => void) | undefined;
+    const settingsGate = new Promise<void>((resolve) => { releaseSettings = resolve; });
+
+    mockApiGet.mockImplementation((url: string, config?: any) => {
+      if (url === '/videos') {
+        return Promise.resolve({ data: [{ id: 'v1', title: 'React', author: 'Alice', visibility: 1 }] });
+      }
+      if (url === '/settings') {
+        return settingsGate.then(() => ({
+          data: { tags: [], showYoutubeSearch: false, showBilibiliSearch: true },
+        }));
+      }
+      if (url === '/search') {
+        if (config?.params?.source === 'bilibili') {
+          return Promise.resolve({ data: { results: [{ id: 'BV1' }] } });
+        }
+        return Promise.resolve({ data: { results: [{ id: 'yt1' }] } });
+      }
+      return Promise.resolve({ data: {} });
+    });
+
+    const { wrapper } = createWrapper();
+    const { result } = renderHook(() => useVideo(), { wrapper });
+
+    // Settings are still in flight, so the fallbacks currently read the wrong way round.
+    expect(result.current.showYoutubeSearch).toBe(true);
+    expect(result.current.showBilibiliSearch).toBe(false);
+
+    let searchDone: Promise<any> | undefined;
+    await act(async () => {
+      searchDone = result.current.handleSearch('react');
+      releaseSettings?.();
+      await searchDone;
+    });
+
+    await waitFor(() => {
+      expect(result.current.bilibiliSearchResults).toEqual([{ id: 'BV1' }]);
+    });
+    const youtubeCalls = mockApiGet.mock.calls.filter(
+      (c: any[]) => c[0] === '/search' && c[1]?.params?.source === 'youtube'
+    );
+    expect(youtubeCalls).toHaveLength(0);
+  });
+
+  it('does not attribute a download to the previous search while the new one runs', async () => {
+    let releaseYoutube: (() => void) | undefined;
+    const youtubeGate = new Promise<void>((resolve) => { releaseYoutube = resolve; });
+
+    mockApiGet.mockImplementation((url: string, config?: any) => {
+      if (url === '/videos') {
+        return Promise.resolve({ data: [{ id: 'v1', title: 'React', author: 'Alice', visibility: 1 }] });
+      }
+      if (url === '/settings') {
+        return Promise.resolve({
+          data: {
+            tags: [], showYoutubeSearch: true, showBilibiliSearch: true, statisticsEnabled: true,
+          },
+        });
+      }
+      if (url === '/search') {
+        if (config?.params?.source === 'bilibili') {
+          return Promise.resolve({ data: { results: [{ id: 'BV1' }] } });
+        }
+        return youtubeGate.then(() => ({ data: { results: [{ id: 'yt1' }] } }));
+      }
+      return Promise.resolve({ data: {} });
+    });
+
+    const { wrapper } = createWrapper();
+    const { result } = renderHook(() => useVideo(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.showBilibiliSearch).toBe(true);
+    });
+
+    let first: Promise<any> | undefined;
+    await act(async () => {
+      first = result.current.handleSearch('react');
+      releaseYoutube?.();
+      await first;
+    });
+    const firstEventId = result.current.lastSearchEventId;
+
+    // Second search: Bilibili answers and renders its cards while YouTube is
+    // still pending, so those cards are clickable before this search is recorded.
+    let release2: (() => void) | undefined;
+    const gate2 = new Promise<void>((resolve) => { release2 = resolve; });
+    mockApiGet.mockImplementation((url: string, config?: any) => {
+      if (url === '/videos') {
+        return Promise.resolve({ data: [{ id: 'v1', title: 'React', author: 'Alice', visibility: 1 }] });
+      }
+      if (url === '/settings') {
+        return Promise.resolve({
+          data: {
+            tags: [], showYoutubeSearch: true, showBilibiliSearch: true, statisticsEnabled: true,
+          },
+        });
+      }
+      if (url === '/search') {
+        if (config?.params?.source === 'bilibili') {
+          return Promise.resolve({ data: { results: [{ id: 'BV9' }] } });
+        }
+        return gate2.then(() => ({ data: { results: [{ id: 'yt9' }] } }));
+      }
+      return Promise.resolve({ data: {} });
+    });
+
+    let second: Promise<any> | undefined;
+    act(() => {
+      second = result.current.handleSearch('vue');
+    });
+
+    await waitFor(() => {
+      expect(result.current.bilibiliSearchResults).toEqual([{ id: 'BV9' }]);
+    });
+    // Rather than the previous search's id, which would misattribute a download
+    // of one of the cards now on screen.
+    expect(result.current.lastSearchEventId).toBeNull();
+    expect(firstEventId).not.toBe(result.current.lastSearchEventId);
+
+    await act(async () => {
+      release2?.();
+      await second;
+    });
+  });
+
+  it('abandons a search superseded while its settings lookup was pending', async () => {
+    // The settings lookup is an await, so a reset can land mid-flight. The
+    // superseded call must not blank the reset state and raise a loading flag
+    // it will then decline to lower, leaving a section spinning over nothing.
+    let releaseSettings: (() => void) | undefined;
+    const settingsGate = new Promise<void>((resolve) => { releaseSettings = resolve; });
+    let settingsRequests = 0;
+
+    mockApiGet.mockImplementation((url: string) => {
+      if (url === '/videos') {
+        return Promise.resolve({ data: [{ id: 'v1', title: 'React', author: 'Alice', visibility: 1 }] });
+      }
+      if (url === '/settings') {
+        settingsRequests += 1;
+        return settingsGate.then(() => ({
+          data: { tags: [], showYoutubeSearch: true, showBilibiliSearch: true },
+        }));
+      }
+      if (url === '/search') {
+        return Promise.resolve({ data: { results: [{ id: 'yt1' }] } });
+      }
+      return Promise.resolve({ data: {} });
+    });
+
+    const { wrapper } = createWrapper();
+    const { result } = renderHook(() => useVideo(), { wrapper });
+    await waitFor(() => { expect(settingsRequests).toBeGreaterThan(0); });
+
+    let pending: Promise<any> | undefined;
+    await act(async () => {
+      pending = result.current.handleSearch('react');
+      // Supersede it while the settings lookup is still in flight.
+      result.current.resetSearch();
+      releaseSettings?.();
+      await pending;
+    });
+
+    expect(result.current.searchTerm).toBe('');
+    expect(result.current.searchResults).toEqual([]);
+    expect(result.current.bilibiliSearchResults).toEqual([]);
+    // The stuck state this guards against.
+    expect(result.current.youtubeLoading).toBe(false);
+    expect(result.current.bilibiliLoading).toBe(false);
+  });
+
+  it('re-runs the displayed search when a source is switched on', async () => {
+    let bilibiliEnabled = false;
+    const searchCalls: string[] = [];
+
+    mockApiGet.mockImplementation((url: string, config?: any) => {
+      if (url === '/videos') {
+        return Promise.resolve({ data: [{ id: 'v1', title: 'React', author: 'Alice', visibility: 1 }] });
+      }
+      if (url === '/settings') {
+        return Promise.resolve({
+          data: { tags: [], showYoutubeSearch: true, showBilibiliSearch: bilibiliEnabled },
+        });
+      }
+      if (url === '/search') {
+        const source = config?.params?.source;
+        searchCalls.push(source);
+        return Promise.resolve({
+          data: { results: source === 'bilibili' ? [{ id: 'BV1' }] : [{ id: 'yt1' }] },
+        });
+      }
+      return Promise.resolve({ data: {} });
+    });
+
+    const { wrapper, queryClient } = createWrapper();
+    const { result } = renderHook(() => useVideo(), { wrapper });
+
+    await waitFor(() => { expect(result.current.showBilibiliSearch).toBe(false); });
+    await act(async () => { await result.current.handleSearch('react'); });
+    expect(searchCalls).toEqual(['youtube']);
+
+    // Enabling it in Settings refreshes the settings query; the term on screen
+    // is unchanged, so SearchPage will not search again on its own.
+    bilibiliEnabled = true;
+    await act(async () => { await queryClient.invalidateQueries({ queryKey: ['settings'] }); });
+
+    await waitFor(() => {
+      expect(result.current.bilibiliSearchResults).toEqual([{ id: 'BV1' }]);
+    });
+    expect(searchCalls).toContain('bilibili');
+  });
+
+  it('does not search twice when settings land after a cold-load search', async () => {
+    let releaseSettings: (() => void) | undefined;
+    const settingsGate = new Promise<void>((resolve) => { releaseSettings = resolve; });
+    const searchCalls: string[] = [];
+
+    mockApiGet.mockImplementation((url: string, config?: any) => {
+      if (url === '/videos') {
+        return Promise.resolve({ data: [{ id: 'v1', title: 'React', author: 'Alice', visibility: 1 }] });
+      }
+      if (url === '/settings') {
+        return settingsGate.then(() => ({
+          data: { tags: [], showYoutubeSearch: true, showBilibiliSearch: true },
+        }));
+      }
+      if (url === '/search') {
+        searchCalls.push(config?.params?.source);
+        return Promise.resolve({ data: { results: [] } });
+      }
+      return Promise.resolve({ data: {} });
+    });
+
+    const { wrapper } = createWrapper();
+    const { result } = renderHook(() => useVideo(), { wrapper });
+
+    await act(async () => {
+      const search = result.current.handleSearch('react');
+      releaseSettings?.();
+      await search;
+    });
+    await waitFor(() => { expect(result.current.showBilibiliSearch).toBe(true); });
+
+    // One request per source and no more: handleSearch resolved the settings
+    // itself, so the flags catching up afterwards must not produce a repeat.
+    expect(searchCalls.sort()).toEqual(['bilibili', 'youtube']);
+  });
+
+  it('leaves Bilibili search off unless the setting turns it on', async () => {
+    const { wrapper } = createWrapper();
+    const { result } = renderHook(() => useVideo(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.videos).toHaveLength(2);
+    });
+    expect(result.current.showBilibiliSearch).toBe(false);
+
+    await act(async () => {
+      await result.current.handleSearch('react');
+    });
+
+    expect(result.current.bilibiliSearchResults).toEqual([]);
+    const bilibiliCalls = mockApiGet.mock.calls.filter(
+      (c: any[]) => c[0] === '/search' && c[1]?.params?.source === 'bilibili'
+    );
+    expect(bilibiliCalls).toHaveLength(0);
+  });
+
+  it('handleSearch fills each enabled source independently', async () => {
+    mockApiGet.mockImplementation((url: string, config?: any) => {
+      if (url === '/videos') {
+        return Promise.resolve({ data: [{ id: 'v1', title: 'React', author: 'Alice', visibility: 1 }] });
+      }
+      if (url === '/settings') {
+        return Promise.resolve({ data: { tags: [], showYoutubeSearch: true, showBilibiliSearch: true } });
+      }
+      if (url === '/search') {
+        if (config?.params?.source === 'bilibili') {
+          return Promise.resolve({ data: { results: [{ id: 'BV1' }] } });
+        }
+        return Promise.resolve({ data: { results: [{ id: 'yt1' }] } });
+      }
+      return Promise.resolve({ data: {} });
+    });
+
+    const { wrapper } = createWrapper();
+    const { result } = renderHook(() => useVideo(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.showBilibiliSearch).toBe(true);
+    });
+
+    await act(async () => {
+      await result.current.handleSearch('react');
+    });
+
+    expect(result.current.searchResults).toEqual([{ id: 'yt1' }]);
+    expect(result.current.bilibiliSearchResults).toEqual([{ id: 'BV1' }]);
+    expect(result.current.youtubeLoading).toBe(false);
+    expect(result.current.bilibiliLoading).toBe(false);
+  });
+
+  it('a failing source does not empty the one that answered', async () => {
+    mockApiGet.mockImplementation((url: string, config?: any) => {
+      if (url === '/videos') {
+        return Promise.resolve({ data: [{ id: 'v1', title: 'React', author: 'Alice', visibility: 1 }] });
+      }
+      if (url === '/settings') {
+        return Promise.resolve({ data: { tags: [], showYoutubeSearch: true, showBilibiliSearch: true } });
+      }
+      if (url === '/search') {
+        if (config?.params?.source === 'bilibili') {
+          return Promise.reject(new Error('bilibili down'));
+        }
+        return Promise.resolve({ data: { results: [{ id: 'yt1' }] } });
+      }
+      return Promise.resolve({ data: {} });
+    });
+
+    const { wrapper } = createWrapper();
+    const { result } = renderHook(() => useVideo(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.showBilibiliSearch).toBe(true);
+    });
+
+    let res: any;
+    await act(async () => {
+      res = await result.current.handleSearch('react');
+    });
+
+    expect(res).toEqual({ success: true });
+    expect(result.current.searchResults).toEqual([{ id: 'yt1' }]);
+    expect(result.current.bilibiliSearchResults).toEqual([]);
+    expect(result.current.bilibiliLoading).toBe(false);
+  });
+
+  it('clears Bilibili cards from the preceding query when the next Bilibili request fails', async () => {
+    mockApiGet.mockImplementation((url: string, config?: any) => {
+      if (url === '/videos') {
+        return Promise.resolve({ data: [] });
+      }
+      if (url === '/settings') {
+        return Promise.resolve({ data: { tags: [], showYoutubeSearch: false, showBilibiliSearch: true } });
+      }
+      if (url === '/search' && config?.params?.source === 'bilibili') {
+        if (config.params.query === 'first') {
+          return Promise.resolve({ data: { results: [{ id: 'BV-old' }] } });
+        }
+        return Promise.reject(new Error('bilibili down'));
+      }
+      return Promise.resolve({ data: { results: [] } });
+    });
+
+    const { wrapper } = createWrapper();
+    const { result } = renderHook(() => useVideo(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.showBilibiliSearch).toBe(true);
+    });
+
+    await act(async () => {
+      await result.current.handleSearch('first');
+    });
+    expect(result.current.bilibiliSearchResults).toEqual([{ id: 'BV-old' }]);
+
+    await act(async () => {
+      await result.current.handleSearch('second');
+    });
+    expect(result.current.bilibiliSearchResults).toEqual([]);
+  });
+
+  it('does not append a previous query\'s Bilibili more-results response to a newer query', async () => {
+    let resolveOldMore: ((value: unknown) => void) | undefined;
+    const oldMoreResponse = new Promise((resolve) => {
+      resolveOldMore = resolve;
+    });
+
+    mockApiGet.mockImplementation((url: string, config?: any) => {
+      if (url === '/videos') {
+        return Promise.resolve({ data: [] });
+      }
+      if (url === '/settings') {
+        return Promise.resolve({ data: { tags: [], showYoutubeSearch: false, showBilibiliSearch: true } });
+      }
+      if (url === '/search' && config?.params?.source === 'bilibili') {
+        if (config.params.query === 'old' && config.params.offset === 2) {
+          return oldMoreResponse;
+        }
+        return Promise.resolve({
+          data: { results: [{ id: config.params.query === 'old' ? 'BV-old' : 'BV-new' }] },
+        });
+      }
+      return Promise.resolve({ data: { results: [] } });
+    });
+
+    const { wrapper } = createWrapper();
+    const { result } = renderHook(() => useVideo(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.showBilibiliSearch).toBe(true);
+    });
+    await act(async () => {
+      await result.current.handleSearch('old');
+    });
+
+    let loadMorePromise: Promise<void> | undefined;
+    act(() => {
+      loadMorePromise = result.current.loadMoreBilibiliSearchResults();
+    });
+
+    await act(async () => {
+      await result.current.handleSearch('new');
+    });
+    resolveOldMore?.({ data: { results: [{ id: 'BV-old-more' }] } });
+    await act(async () => {
+      await loadMorePromise;
+    });
+
+    expect(result.current.bilibiliSearchResults).toEqual([{ id: 'BV-new' }]);
+  });
+
+  it('loadMoreBilibiliSearchResults pages its own source only', async () => {
+    let bilibiliCalls = 0;
+    mockApiGet.mockImplementation((url: string, config?: any) => {
+      if (url === '/videos') {
+        return Promise.resolve({ data: [{ id: 'v1', title: 'React', author: 'Alice', visibility: 1 }] });
+      }
+      if (url === '/settings') {
+        return Promise.resolve({ data: { tags: [], showYoutubeSearch: true, showBilibiliSearch: true } });
+      }
+      if (url === '/search') {
+        if (config?.params?.source === 'bilibili') {
+          bilibiliCalls += 1;
+          if (bilibiliCalls === 1) {
+            return Promise.resolve({ data: { results: [{ id: 'BV1' }, { id: 'BV2' }] } });
+          }
+          expect(config?.params?.offset).toBe(3);
+          return Promise.resolve({ data: { results: [{ id: 'BV2' }, { id: 'BV3' }] } });
+        }
+        return Promise.resolve({ data: { results: [{ id: 'yt1' }] } });
+      }
+      return Promise.resolve({ data: {} });
+    });
+
+    const { wrapper } = createWrapper();
+    const { result } = renderHook(() => useVideo(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.showBilibiliSearch).toBe(true);
+    });
+
+    await act(async () => {
+      await result.current.handleSearch('react');
+    });
+
+    await act(async () => {
+      await result.current.loadMoreBilibiliSearchResults();
+    });
+
+    // The duplicate the second page repeats is dropped, and YouTube is untouched.
+    expect(result.current.bilibiliSearchResults).toEqual([{ id: 'BV1' }, { id: 'BV2' }, { id: 'BV3' }]);
+    expect(result.current.searchResults).toEqual([{ id: 'yt1' }]);
+    expect(result.current.loadingMoreBilibili).toBe(false);
+  });
+
   it('deleteVideo respects snackbar option and reports failures', async () => {
     const { wrapper, queryClient } = createWrapper();
     const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');

@@ -45,6 +45,19 @@ export function hasAxiosStatus(error: unknown, status: number): boolean {
 }
 
 /**
+ * True when the thrown value is a cancelled request rather than a failure —
+ * either axios aborting an in-flight request or a native `AbortController`.
+ * A cancelled search is the expected outcome of typing a new query, so it
+ * should not be logged or surfaced as an error.
+ */
+export function isAbortError(error: unknown): boolean {
+  const name = error && typeof error === 'object' && 'name' in error
+    ? String((error as { name: unknown }).name)
+    : '';
+  return name === 'CanceledError' || name === 'AbortError';
+}
+
+/**
  * True when the thrown value is an axios error with any of the given statuses.
  */
 export function hasAnyAxiosStatus(error: unknown, statuses: number[]): boolean {

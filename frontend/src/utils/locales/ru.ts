@@ -62,6 +62,9 @@ export const ru = {
   fromYouTube: "С YouTube",
   loadingYouTubeResults: "Загрузка результатов YouTube...",
   noYouTubeResults: "Результаты YouTube не найдены",
+  fromBilibili: "С Bilibili",
+  loadingBilibiliResults: "Загрузка результатов Bilibili...",
+  noBilibiliResults: "Результаты Bilibili не найдены",
   noVideosYet: "Видео пока нет. Отправьте URL видео, чтобы скачать первое!",
   views: "просмотров",
 
@@ -507,6 +510,7 @@ export const ru = {
   itemsPerPage: "Элементов на странице",
   itemsPerPageHelper: "Количество видео на странице (По умолчанию: 12)",
   showYoutubeSearch: "Показать результаты поиска YouTube",
+  showBilibiliSearch: "Показать результаты поиска Bilibili",
   defaultSort: "Сортировка по умолчанию",
   showTagsOnThumbnail: "Показывать теги на миниатюре",
   playSoundOnTaskComplete: "Воспроизводить звук при завершении задачи",

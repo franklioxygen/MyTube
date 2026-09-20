@@ -18,7 +18,7 @@
 
 ## 视频下载与搜索
 
-- `GET /api/search` - 在线搜索视频 (YouTube)
+- `GET /api/search` - 在线搜索视频 (默认 `source=youtube`，也可用 `source=bilibili`)
   - 查询参数: `query` (必需), `limit` (可选, 默认: `8`), `offset` (可选, 默认: `1`)
 - `POST /api/download` - 添加视频下载任务
   - 请求体: `{ youtubeUrl: string, downloadAllParts?: boolean, collectionName?: string, downloadCollection?: boolean, collectionInfo?: object, forceDownload?: boolean }`

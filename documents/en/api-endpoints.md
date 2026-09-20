@@ -18,7 +18,7 @@ All API routes are mounted under `/api` unless noted otherwise.
 
 ## Video Download & Search
 
-- `GET /api/search` - Search videos online (YouTube)
+- `GET /api/search` - Search videos online (`source=youtube` by default, or `source=bilibili`)
   - Query params: `query` (required), `limit` (optional, default: `8`), `offset` (optional, default: `1`)
 - `POST /api/download` - Queue a video download
   - Body: `{ youtubeUrl: string, downloadAllParts?: boolean, collectionName?: string, downloadCollection?: boolean, collectionInfo?: object, forceDownload?: boolean }`
