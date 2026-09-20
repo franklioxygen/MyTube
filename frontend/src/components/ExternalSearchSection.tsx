@@ -29,7 +29,8 @@ interface ExternalSearchSectionProps {
     loadingMore: boolean;
     onLoadMore: () => void;
     onDownload: (result: VideoSearchResult) => void;
-    downloadingId: string | null;
+    /** Ids of the results whose download request has not settled yet. */
+    downloadingIds: ReadonlySet<string>;
 }
 
 const formatViewCount = (count?: number) => {
@@ -56,7 +57,7 @@ const ExternalSearchSection: React.FC<ExternalSearchSectionProps> = ({
     loadingMore,
     onLoadMore,
     onDownload,
-    downloadingId
+    downloadingIds
 }) => {
     const { t } = useLanguage();
     const sourceColor = source === 'bilibili' ? platform.bilibili : platform.youtube;
@@ -126,7 +127,14 @@ const ExternalSearchSection: React.FC<ExternalSearchSectionProps> = ({
                                             variant="contained"
                                             startIcon={<Download />}
                                             onClick={() => onDownload(result)}
-                                            loading={downloadingId === result.id}
+                                            // Per result rather than one shared
+                                            // id: two downloads can legitimately
+                                            // be queued at once, and a single id
+                                            // would drop the first card's
+                                            // spinner and let the same result be
+                                            // submitted twice.
+                                            loading={downloadingIds.has(result.id)}
+                                            disabled={downloadingIds.has(result.id)}
                                             loadingPosition="start"
                                         >
                                             {t('download')}

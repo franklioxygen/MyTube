@@ -32,7 +32,7 @@ const renderSection = (overrides: Partial<React.ComponentProps<typeof ExternalSe
         loadingMore: false,
         onLoadMore: vi.fn(),
         onDownload: vi.fn(),
-        downloadingId: null,
+        downloadingIds: new Set<string>(),
         ...overrides,
     };
 
@@ -77,6 +77,32 @@ describe('ExternalSearchSection', () => {
         fireEvent.click(screen.getByRole('button', { name: /download/i }));
 
         expect(props.onDownload).toHaveBeenCalledWith(bilibiliResult);
+    });
+
+    it('blocks a second click on a result whose download is still in flight', () => {
+        const props = renderSection({ downloadingIds: new Set(['BV1']) });
+
+        const button = screen.getByRole('button', { name: /download/i });
+        expect(button).toBeDisabled();
+
+        fireEvent.click(button);
+        expect(props.onDownload).not.toHaveBeenCalled();
+    });
+
+    it('leaves another result downloadable while one is in flight', () => {
+        const other: VideoSearchResult = { ...bilibiliResult, id: 'BV2', title: 'Another video' };
+        const props = renderSection({
+            results: [bilibiliResult, other],
+            downloadingIds: new Set(['BV1']),
+        });
+
+        // Queueing a second download is legitimate, so only the busy card locks.
+        const buttons = screen.getAllByRole('button', { name: /download/i });
+        expect(buttons[0]).toBeDisabled();
+        expect(buttons[1]).toBeEnabled();
+
+        fireEvent.click(buttons[1]);
+        expect(props.onDownload).toHaveBeenCalledWith(other);
     });
 
     it('loads the next page on demand', () => {

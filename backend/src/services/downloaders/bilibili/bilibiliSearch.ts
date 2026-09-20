@@ -42,8 +42,23 @@ export function stripSearchHighlight(title: unknown): string {
   if (typeof title !== "string") {
     return "";
   }
-  return title
-    .replace(/<[^>]*>/g, "")
+
+  // Repeated until the string stops changing, so the result is tag-free for
+  // any nesting rather than only for the shapes one pass happens to cover. The
+  // guarantee is the loop's, not the pattern's: narrow the pattern later (to
+  // Bilibili's own `<em class="keyword">`, say) and a single pass would start
+  // reassembling a tag out of the text either side of the one it removed.
+  let stripped = title;
+  let previous: string;
+  do {
+    previous = stripped;
+    stripped = stripped.replace(/<[^>]*>/g, "");
+  } while (stripped !== previous);
+
+  // Entities are decoded only after the tags are gone, so an escaped `&lt;b&gt;`
+  // in a real title survives as visible text instead of becoming a tag that the
+  // pass above has already run past.
+  return stripped
     .replace(/&[a-zA-Z]+;|&#\d+;/g, (entity) => HTML_ENTITIES[entity] ?? entity)
     .trim();
 }
@@ -133,6 +148,11 @@ async function fetchSearchPage(
     axiosConfig
   );
 
+  // requestUrl is built from the SEARCH_ENDPOINT constant above, and every
+  // param the caller supplies - the keyword included - is percent-encoded into
+  // the query string by both the signed and unsigned branches of
+  // buildSignedBilibiliUrl, so the host is not reachable from user input.
+  // nosemgrep: javascript.ssrf.rule-node-ssrf
   const response = await axios.get(requestUrl, {
     ...axiosConfig,
     headers: buildBilibiliApiHeaders(requestUrl),

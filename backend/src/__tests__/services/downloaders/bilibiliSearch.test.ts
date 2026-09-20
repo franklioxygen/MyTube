@@ -93,6 +93,21 @@ describe("stripSearchHighlight", () => {
   it("returns an empty string for a missing title", () => {
     expect(stripSearchHighlight(undefined)).toBe("");
   });
+
+  it("leaves no tag behind for nested or malformed markup", () => {
+    expect(stripSearchHighlight("<<em>script>alert(1)")).toBe("script>alert(1)");
+    expect(stripSearchHighlight("<a<b>c</b>")).toBe("c");
+    // The property that matters: whatever the nesting, nothing tag-shaped survives.
+    for (const input of ["<<em>em>x", "<a<b>>y", "<em><em>z</em></em>"]) {
+      expect(stripSearchHighlight(input)).not.toMatch(/<[^>]*>/);
+    }
+  });
+
+  it("keeps an escaped tag in a real title as visible text", () => {
+    // Decoding runs after the strip, so this stays text rather than becoming a
+    // tag the strip has already passed over.
+    expect(stripSearchHighlight("How &lt;b&gt; works")).toBe("How <b> works");
+  });
 });
 
 describe("parseSearchDuration", () => {

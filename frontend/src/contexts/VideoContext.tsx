@@ -343,9 +343,37 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
             setIsSearchMode(true);
             setSearchTerm(query);
+            // Each source publishes its cards as soon as it answers, but the
+            // search_submitted event is not recorded until both have. Holding
+            // the previous query's id through that window would attribute a
+            // download of an already-visible card to the wrong search, so it is
+            // dropped here and only replaced once this search is recorded.
+            setLastSearchEventId(null);
 
             const localResults = searchLocalVideos(query);
             setLocalSearchResults(localResults);
+
+            // Which sources to search is a saved setting, and on a cold load of
+            // /search?q=... the query has not resolved yet - the fallbacks above
+            // are what an unresolved settings query reads as. Searching on those
+            // would render an enabled Bilibili section that never fetched, and
+            // SearchPage cannot recover it: by the time the setting arrives the
+            // term already matches, so it does not search again.
+            let searchYoutube = showYoutubeSearch;
+            let searchBilibili = showBilibiliSearch;
+            if (!settingsData && isAuthenticated) {
+                try {
+                    const resolvedSettings = await queryClient.ensureQueryData(settingsQueryOptions);
+                    searchYoutube = resolvedSettings?.showYoutubeSearch ?? true;
+                    searchBilibili = resolvedSettings?.showBilibiliSearch ?? false;
+                } catch (settingsErr: unknown) {
+                    // Settings are unreadable; the fallbacks stand rather than
+                    // failing a search the user can otherwise be served.
+                    if (!isAbortError(settingsErr)) {
+                        console.error('Could not resolve search sources from settings:', settingsErr);
+                    }
+                }
+            }
 
             // Each external source is fetched the same way; only the endpoint's
             // `source` and the state it fills differ.
@@ -394,8 +422,8 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             // Run both sources concurrently so enabling Bilibili does not make a
             // search wait for YouTube to answer first.
             const [youtubeResults, bilibiliResults] = await Promise.all([
-                searchExternalSource('youtube', showYoutubeSearch, setSearchResults, setYoutubeLoading),
-                searchExternalSource('bilibili', showBilibiliSearch, setBilibiliSearchResults, setBilibiliLoading),
+                searchExternalSource('youtube', searchYoutube, setSearchResults, setYoutubeLoading),
+                searchExternalSource('bilibili', searchBilibili, setBilibiliSearchResults, setBilibiliLoading),
             ]);
             if (searchGeneration.current !== generation) {
                 return { success: false, error: t('searchCancelled') };
@@ -407,7 +435,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                     queryLength: query.length,
                     localResultCount: localResults.length,
                     externalResultCount,
-                    externalSearchEnabled: showYoutubeSearch || showBilibiliSearch,
+                    externalSearchEnabled: searchYoutube || searchBilibili,
                 };
                 if (captureSearchText) {
                     queryPayload.queryText = query;
@@ -437,7 +465,8 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             }
             return { success: false, error: t('searchCancelled') };
         }
-    }, [resetSearch, showYoutubeSearch, showBilibiliSearch, searchLocalVideos, statisticsIngestion, captureSearchText, t]);
+    }, [resetSearch, showYoutubeSearch, showBilibiliSearch, settingsData, isAuthenticated, queryClient,
+        searchLocalVideos, statisticsIngestion, captureSearchText, t]);
 
     // The next page for one external source. Both sections page identically, so
     // the source, its in-flight guard and its result state are the only inputs.

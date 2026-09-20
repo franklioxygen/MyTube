@@ -38,7 +38,7 @@ const SearchPage: React.FC = () => {
     const { collections } = useCollection();
     const { handleVideoSubmit } = useDownload();
     const [searchParams, setSearchParams] = useSearchParams();
-    const [downloadingId, setDownloadingId] = useState<string | null>(null);
+    const [downloadingIds, setDownloadingIds] = useState<ReadonlySet<string>>(() => new Set());
 
     const sortOption = validateSortOption(searchParams.get('sort'), 'dateDesc');
     const shuffleSeed =
@@ -78,9 +78,24 @@ const SearchPage: React.FC = () => {
         setSortAnchorEl(null);
     };
 
+    const markDownloading = (videoId: string, active: boolean) => {
+        setDownloadingIds((prev) => {
+            if (prev.has(videoId) === active) {
+                return prev;
+            }
+            const next = new Set(prev);
+            if (active) {
+                next.add(videoId);
+            } else {
+                next.delete(videoId);
+            }
+            return next;
+        });
+    };
+
     const handleDownload = async (videoId: string, url: string) => {
         try {
-            setDownloadingId(videoId);
+            markDownloading(videoId, true);
             await handleVideoSubmit(url, false, {
                 relatedEventId: lastSearchEventId,
                 sourceKind: 'search_result',
@@ -89,7 +104,7 @@ const SearchPage: React.FC = () => {
         } catch (error) {
             console.error('Error downloading from search:', error);
         } finally {
-            setDownloadingId(null);
+            markDownloading(videoId, false);
         }
     };
 
@@ -160,7 +175,7 @@ const SearchPage: React.FC = () => {
                     loadingMore={loadingMore}
                     onLoadMore={loadMoreSearchResults}
                     onDownload={handleResultDownload}
-                    downloadingId={downloadingId}
+                    downloadingIds={downloadingIds}
                 />
             )}
 
@@ -177,7 +192,7 @@ const SearchPage: React.FC = () => {
                         loadingMore={loadingMoreBilibili}
                         onLoadMore={loadMoreBilibiliSearchResults}
                         onDownload={handleResultDownload}
-                        downloadingId={downloadingId}
+                        downloadingIds={downloadingIds}
                     />
                 </Box>
             )}
