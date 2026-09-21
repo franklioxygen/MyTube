@@ -38,6 +38,7 @@ import {
   isYtDlpImpersonateAvailable,
 } from "../../utils/ytDlpUtils";
 import { appendYtDlpInputOperand } from "../../utils/ytdlp/flags";
+import { settleAllWithin } from "../../utils/concurrency";
 import { spawnYtDlp, withYtDlpRelease } from "../../utils/ytdlp/release";
 import {
   removeMediaServerArtifactsForVideo,
@@ -71,6 +72,10 @@ const MISSAV_FAILED_REQUEST_LOG_LIMIT = 10;
 // A media playlist for a long VOD is tens of KB; this only bounds the damage
 // if the URL filter ever matches something that is not a playlist.
 const MISSAV_MAX_CAPTURED_PLAYLIST_BYTES = 4 * 1024 * 1024;
+
+// How long the page load may be held open waiting for playlist bodies that
+// have not finished arriving. They are an optimisation, not a requirement.
+const MISSAV_PLAYLIST_CAPTURE_TIMEOUT_MS = 5_000;
 
 function resolveMissAvMergeOutputFormat(
   userConfig: Record<string, unknown>,
@@ -443,8 +448,13 @@ export class MissAVDownloader extends BaseDownloader {
 
         html = await page.content();
         // The bodies must be read while the page is still alive; after
-        // browser.close() the responses can no longer be resolved.
-        await Promise.allSettled(pendingCaptures);
+        // browser.close() the responses can no longer be resolved. Bounded,
+        // because a 200 whose body then stalls leaves response.text() pending
+        // forever - and this wait sits in front of closing the browser and
+        // starting the download, before any cancellation callback is
+        // registered, so an unbounded wait here hangs the download with no way
+        // to abort it. A body that has not arrived by now is not worth that.
+        await settleAllWithin(pendingCaptures, MISSAV_PLAYLIST_CAPTURE_TIMEOUT_MS);
       } finally {
         // Always close the browser, even when a non-timeout error is thrown,
         // to prevent Chromium processes from being left behind.

@@ -26,3 +26,33 @@ export const runWithConcurrencyLimit = async <T>(
 
   await Promise.all(workers);
 };
+
+/**
+ * Wait for every promise to settle, but never longer than `timeoutMs`.
+ *
+ * `Promise.allSettled` alone is unbounded, so a single promise that never
+ * settles blocks the caller forever. That matters wherever the wait sits in
+ * front of something that must happen - releasing a resource, starting the next
+ * stage - and where the results are a best-effort optimisation rather than a
+ * requirement.
+ *
+ * Promises still pending when the timeout fires are abandoned, not cancelled:
+ * they may settle later, so whatever they write into must tolerate a late
+ * arrival or simply stop being read.
+ */
+export const settleAllWithin = (
+  promises: ReadonlyArray<Promise<unknown>>,
+  timeoutMs: number,
+): Promise<void> => {
+  if (promises.length === 0) {
+    return Promise.resolve();
+  }
+
+  return new Promise<void>((resolve) => {
+    const timer = setTimeout(resolve, timeoutMs);
+    void Promise.allSettled(promises).then(() => {
+      clearTimeout(timer);
+      resolve();
+    });
+  });
+};
