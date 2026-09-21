@@ -1,6 +1,5 @@
 import * as cheerio from "cheerio";
 import fs from "fs-extra";
-import path from "path";
 import puppeteer from "puppeteer";
 import { DATA_DIR, IMAGES_DIR, VIDEOS_DIR } from "../../config/paths";
 import { resolveExplicitPreferredVideoContainer } from "../../types/settings";
@@ -11,7 +10,6 @@ import {
 import { cleanupTemporaryFiles, safeRemove } from "../../utils/downloadUtils";
 import {
   extractSourceVideoId,
-  formatVideoFilename,
   getMissAVPlaceholderTitle,
 } from "../../utils/helpers";
 import { logger } from "../../utils/logger";
@@ -30,6 +28,7 @@ import {
 import { resolveSupersededManagedPath } from "./supersededOutput";
 import { FilenameTemplateSourceOptions } from "../filenameTemplate/types";
 import { findRedownloadTargetBySourceIdentity } from "./redownloadTarget";
+import { verifyDownloadedMediaComplete } from "./downloadIntegrity";
 import {
   flagsToArgs,
   getAxiosProxyConfig,
@@ -286,15 +285,17 @@ export class MissAVDownloader extends BaseDownloader {
     let thumbnailUrl: string | null = null;
     let thumbnailSaved = false;
     let releaseOutputReservation: (() => void) | null = null;
-    let stagedVideoPathForCleanup: string | null = null;
-    let stagedThumbnailPathForCleanup: string | null = null;
-    // Final destinations of any in-place owned replacement. Once we commit to
-    // replacing an owned file, its destination always holds a live library file
-    // (the original before publication, the new download afterwards) with the
-    // backup already removed, so the failure cleanup below must never delete it.
-    let ownedVideoDestinationPath: string | null = null;
-    let ownedThumbnailDestinationPath: string | null = null;
+    // Only paths allocated to this attempt may be cleaned. Owned replacements
+    // use staging paths, which are cleared once the library copy is replaced.
+    let videoPathForCleanup: string | null = null;
+    let thumbnailPathForCleanup: string | null = null;
+    let cancellationRequested = false;
     let existingLocalVideo: Video | undefined;
+    const cleanupVideoDownload = async (): Promise<void> => {
+      const pendingPath = videoPathForCleanup;
+      videoPathForCleanup = null;
+      if (pendingPath) await cleanupTemporaryFiles(pendingPath);
+    };
 
     try {
       existingLocalVideo = resolveExistingVideoForRedownload(
@@ -566,15 +567,11 @@ export class MissAVDownloader extends BaseDownloader {
         [IMAGES_DIR, VIDEOS_DIR],
         existingLocalVideo?.id
       );
-      ownedVideoDestinationPath = ownedVideoReplacement?.finalPath ?? null;
-      ownedThumbnailDestinationPath =
-        ownedThumbnailReplacement?.finalPath ?? null;
       const videoDownloadPath = ownedVideoReplacement?.stagingPath ?? newVideoPath;
       const thumbnailDownloadPath =
         ownedThumbnailReplacement?.stagingPath ?? newThumbnailPath;
-      stagedVideoPathForCleanup = ownedVideoReplacement?.stagingPath ?? null;
-      stagedThumbnailPathForCleanup =
-        ownedThumbnailReplacement?.stagingPath ?? null;
+      videoPathForCleanup = videoDownloadPath;
+      thumbnailPathForCleanup = thumbnailDownloadPath;
 
       // 7. Download the video using yt-dlp with the m3u8 URL
       logger.info("Downloading video from m3u8 URL using yt-dlp:", m3u8Url);
@@ -680,12 +677,6 @@ export class MissAVDownloader extends BaseDownloader {
         const STDERR_MAX_BYTES = 4 * 1024;
         let stderrBuffer = "";
         let lastProgressLogAt = 0;
-        let cleanedTemporaryFiles = false;
-        const cleanupTemporaryFilesOnce = async (): Promise<void> => {
-          if (cleanedTemporaryFiles) return;
-          cleanedTemporaryFiles = true;
-          await cleanupTemporaryFiles(videoDownloadPath);
-        };
         const shouldLogDownloadProgress = (line: string): boolean => {
           const now = Date.now();
           const percentMatch = line.match(/\[download\]\s+(\d+(?:\.\d+)?)%/);
@@ -742,7 +733,6 @@ export class MissAVDownloader extends BaseDownloader {
         try {
           await new Promise<void>((resolve, reject) => {
             const child = spawnYtDlp(release, args);
-            let cancellationRequested = false;
 
             child.stdout?.on("data", (data) => {
               parseProgress(data.toString(), "stdout");
@@ -782,7 +772,7 @@ export class MissAVDownloader extends BaseDownloader {
 
                 // Clean up temporary files created by yt-dlp (*.part, *.ytdl, etc.)
                 logger.info("Cleaning up temporary files...");
-                await cleanupTemporaryFilesOnce();
+                await cleanupVideoDownload();
               });
             }
           });
@@ -792,20 +782,29 @@ export class MissAVDownloader extends BaseDownloader {
           // Use base class helper for cancellation handling
           const downloader = new MissAVDownloader();
           await downloader.handleCancellationError(err, async () => {
-            await cleanupTemporaryFilesOnce();
+            await cleanupVideoDownload();
           });
           logger.error("yt-dlp execution failed:", err);
           throw err;
         }
       });
 
-      // Check if download was cancelled (it might have been removed from active downloads)
       const downloader = new MissAVDownloader();
-      try {
-        downloader.throwIfCancelled(downloadId);
-      } catch (error) {
-        await cleanupTemporaryFiles(videoDownloadPath);
-        throw error;
+      downloader.throwIfCancelled(downloadId);
+      const completeness = await verifyDownloadedMediaComplete(videoDownloadPath, {
+        // MissAV scrapes no duration; only track agreement can be checked.
+        sourceDurationSeconds: null,
+        userConfig,
+      });
+      // Cancellation can remove the file while ffprobe is running. A failed
+      // probe is intentionally fail-open, so recheck before publishing anything.
+      if (cancellationRequested) throw DownloadCancelledError.create();
+      downloader.throwIfCancelled(downloadId);
+      if (!completeness.complete) {
+        throw new Error(
+          `MissAV download is incomplete: ${completeness.reason}. ` +
+            `The file was discarded; try downloading again.`
+        );
       }
 
       if (ownedVideoReplacement) {
@@ -816,8 +815,7 @@ export class MissAVDownloader extends BaseDownloader {
           ownedVideoReplacement.destinationRootDir,
           existingLocalVideo?.id
         );
-        stagedVideoPathForCleanup = null;
-        await cleanupTemporaryFiles(videoDownloadPath);
+        await cleanupVideoDownload();
       }
 
       // 8. Download and save the thumbnail
@@ -855,7 +853,7 @@ export class MissAVDownloader extends BaseDownloader {
             ownedThumbnailReplacement.destinationRootDir,
             existingLocalVideo?.id
           );
-          stagedThumbnailPathForCleanup = null;
+          thumbnailPathForCleanup = null;
           // Drop the mirror the staging name picked up on its way in; nothing
           // will reference it again. Regeneration of the published one stays
           // forced: an owned replacement usually already has a mirror, left by
@@ -958,6 +956,10 @@ export class MissAVDownloader extends BaseDownloader {
         if (!updatedVideo) {
           throw new Error(`Failed to update existing MissAV video ${existingLocalVideo.id}`);
         }
+        // The updated row already references the new output, even without a
+        // staging replacement. Protect it before old-file or identity cleanup.
+        videoPathForCleanup = null;
+        if (thumbnailSaved) thumbnailPathForCleanup = null;
 
         const previousVideoPath = resolveSupersededManagedPath({
           previousWebPath: existingLocalVideo.videoPath,
@@ -1014,8 +1016,12 @@ export class MissAVDownloader extends BaseDownloader {
           trackingMode: "new",
           downloadedAtMs: timestamp,
         });
+        videoPathForCleanup = null;
+        thumbnailPathForCleanup = null;
       } else {
         storageService.saveVideo(videoData);
+        videoPathForCleanup = null;
+        thumbnailPathForCleanup = null;
       }
       logger.info("MissAV video saved to database");
 
@@ -1059,83 +1065,19 @@ export class MissAVDownloader extends BaseDownloader {
     } catch (error: unknown) {
       if (isCancelledError(error)) {
         logger.info("MissAV-family download cancelled:", { downloadId });
-        throw error;
+      } else {
+        logger.error("Error in downloadMissAVVideo:", error);
       }
-
-      logger.error("Error in downloadMissAVVideo:", error);
-      // When an in-place owned replacement was planned, its final destination is
-      // a live library file (its backup is already gone once the replacement
-      // commits). In legacy root naming that destination coincides with the
-      // filename recomputed below, so removing it blindly would leave the
-      // existing row pointing at a missing file. Skip those paths during cleanup.
-      const removeUnlessOwnedDestination = async (
-        candidatePath: string,
-      ): Promise<void> => {
-        const normalized = path.normalize(candidatePath);
-        if (
-          (ownedVideoDestinationPath &&
-            path.normalize(ownedVideoDestinationPath) === normalized) ||
-          (ownedThumbnailDestinationPath &&
-            path.normalize(ownedThumbnailDestinationPath) === normalized)
-        ) {
-          return;
-        }
-        await safeRemove(candidatePath);
-      };
-      // Cleanup - try to get the correct extension from config, fallback to mp4
+      // Never reconstruct legacy filenames: collisions and templates may put
+      // another library item's files there. Published replacements are excluded.
       try {
-        if (stagedVideoPathForCleanup) {
-          await cleanupTemporaryFiles(stagedVideoPathForCleanup);
+        await cleanupVideoDownload();
+        if (thumbnailPathForCleanup) {
+          await safeRemove(thumbnailPathForCleanup);
+          deleteSmallThumbnailMirrorSync(thumbnailPathForCleanup);
         }
-        if (stagedThumbnailPathForCleanup) {
-          await safeRemove(stagedThumbnailPathForCleanup);
-          // The mirror was generated the moment the staging file landed, so a
-          // failure after that point strands it unless it goes too.
-          deleteSmallThumbnailMirrorSync(stagedThumbnailPathForCleanup);
-        }
-        const cleanupConfig = getUserYtDlpConfig(url);
-        const cleanupFormat = resolveMissAvMergeOutputFormat(
-          cleanupConfig,
-          storageService.getSettings(),
-        );
-        const cleanupSafeBaseFilename = formatVideoFilename(
-          videoTitle,
-          videoAuthor,
-          videoDate,
-        );
-        const cleanupVideoPath = resolveSafeChildPath(
-          VIDEOS_DIR,
-          `${cleanupSafeBaseFilename}.${cleanupFormat}`
-        );
-        const cleanupThumbnailPath = resolveSafeChildPath(
-          IMAGES_DIR,
-          `${cleanupSafeBaseFilename}.jpg`
-        );
-        await removeUnlessOwnedDestination(cleanupVideoPath);
-        await removeUnlessOwnedDestination(cleanupThumbnailPath);
-        // Also try mp4 in case the file was created with default extension
-        const cleanupVideoPathMp4 = resolveSafeChildPath(
-          VIDEOS_DIR,
-          `${cleanupSafeBaseFilename}.mp4`
-        );
-        await removeUnlessOwnedDestination(cleanupVideoPathMp4);
       } catch (cleanupError) {
-        // If cleanup fails, try with default mp4 extension
-        const cleanupSafeBaseFilename = formatVideoFilename(
-          videoTitle,
-          videoAuthor,
-          videoDate,
-        );
-        const cleanupVideoPath = resolveSafeChildPath(
-          VIDEOS_DIR,
-          `${cleanupSafeBaseFilename}.mp4`
-        );
-        const cleanupThumbnailPath = resolveSafeChildPath(
-          IMAGES_DIR,
-          `${cleanupSafeBaseFilename}.jpg`
-        );
-        await removeUnlessOwnedDestination(cleanupVideoPath);
-        await removeUnlessOwnedDestination(cleanupThumbnailPath);
+        logger.warn("Failed to clean up MissAV download:", cleanupError);
       }
       throw error;
     } finally {
