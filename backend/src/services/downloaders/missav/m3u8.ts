@@ -126,6 +126,12 @@ export function selectBestM3u8Url(
 export async function resolveM3u8DurationSeconds(
   m3u8Url: string,
   fetchText: (url: string) => Promise<string>,
+  /**
+   * URLs already in hand, typically the playlists the browser fetched itself.
+   * Renditions from this set are read first: on a CDN that fingerprints TLS, a
+   * URL the browser never loaded usually cannot be read at all.
+   */
+  readableUrls?: ReadonlySet<string>,
 ): Promise<number | null> {
   try {
     const playlist = await fetchText(m3u8Url);
@@ -137,7 +143,7 @@ export async function resolveM3u8DurationSeconds(
     // downloading is not known here. Rather than guess, corroborate: see
     // resolveMasterDuration.
     if (playlist.includes("#EXT-X-STREAM-INF")) {
-      return await resolveMasterDuration(playlist, m3u8Url, fetchText);
+      return await resolveMasterDuration(playlist, m3u8Url, fetchText, readableUrls);
     }
 
     return sumMediaPlaylistDuration(playlist);
@@ -161,25 +167,50 @@ async function resolveMasterDuration(
   masterPlaylist: string,
   baseUrl: string,
   fetchText: (url: string) => Promise<string>,
+  readableUrls?: ReadonlySet<string>,
 ): Promise<number | null> {
   const uris = comparableVariantUris(masterPlaylist);
   if (!uris) return null;
 
-  const durations: number[] = [];
-  for (const uri of uris.slice(0, MAX_COMPARED_VARIANTS)) {
-    let variantUrl: string;
+  const urls: string[] = [];
+  for (const uri of uris) {
     try {
-      variantUrl = new URL(uri, baseUrl).toString();
+      urls.push(new URL(uri, baseUrl).toString());
     } catch {
       return null;
     }
-    // One level only: sumMediaPlaylistDuration rejects a nested master outright
-    // rather than following it.
-    const duration = sumMediaPlaylistDuration(await fetchText(variantUrl));
-    if (duration == null) return null;
-    durations.push(duration);
   }
 
+  // Read renditions already in hand first. On a CDN that fingerprints TLS, a
+  // rendition the browser never loaded is answered with 403, so ordering decides
+  // whether anything is readable at all.
+  if (readableUrls?.size) {
+    urls.sort((a, b) => Number(readableUrls.has(b)) - Number(readableUrls.has(a)));
+  }
+
+  const durations: number[] = [];
+  for (const variantUrl of urls.slice(0, MAX_COMPARED_VARIANTS)) {
+    let body: string;
+    try {
+      body = await fetchText(variantUrl);
+    } catch {
+      // One unreadable rendition must not discard a readable one: on a
+      // protected host that would disable the check entirely, which is the
+      // situation this whole lookup exists to improve.
+      continue;
+    }
+    // One level only: sumMediaPlaylistDuration rejects a nested master outright
+    // rather than following it.
+    const duration = sumMediaPlaylistDuration(body);
+    if (duration != null) durations.push(duration);
+  }
+
+  if (durations.length === 0) return null;
+  // Only one rendition could be read, so there is nothing to corroborate
+  // against. Using it is what this did before corroboration was added, and it
+  // beats reporting no duration at all: the completeness check tolerates a
+  // shortfall of max(10s, 5%) anyway, which is far more than renditions of one
+  // VOD realistically differ by.
   if (durations.length === 1) return durations[0];
 
   const [first, second] = durations;

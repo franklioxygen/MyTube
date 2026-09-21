@@ -677,6 +677,7 @@ export class MissAVDownloader extends BaseDownloader {
           });
           return typeof response.data === "string" ? response.data : "";
         },
+        new Set(capturedPlaylists.keys()),
       );
       logger.info(
         sourceDurationSeconds == null

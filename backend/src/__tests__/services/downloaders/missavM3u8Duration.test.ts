@@ -94,16 +94,52 @@ describe('resolveM3u8DurationSeconds', () => {
     expect(fetch).toHaveBeenCalledTimes(3);
   });
 
-  it('refuses when a corroborating rendition cannot be read', async () => {
-    const fetch = fetcher({
-      'https://cdn.example/v/playlist.m3u8': MASTER,
-      'https://cdn.example/v/360p/video.m3u8': MEDIA,
-      'https://cdn.example/v/720p/video.m3u8': '<html>404</html>',
+  it('uses the one readable rendition when the other cannot be fetched', async () => {
+    // On a CDN that fingerprints TLS only the rendition the browser loaded can
+    // be read. Discarding it would disable the check on exactly those hosts.
+    const fetch = vi.fn(async (url: string) => {
+      if (url.endsWith('playlist.m3u8')) return MASTER;
+      if (url.includes('360p')) return MEDIA;
+      throw new Error('403 Forbidden');
+    });
+
+    await expect(
+      resolveM3u8DurationSeconds('https://cdn.example/v/playlist.m3u8', fetch),
+    ).resolves.toBeCloseTo(24.5);
+  });
+
+  it('still refuses when no rendition is readable', async () => {
+    const fetch = vi.fn(async (url: string) => {
+      if (url.endsWith('playlist.m3u8')) return MASTER;
+      throw new Error('403 Forbidden');
     });
 
     await expect(
       resolveM3u8DurationSeconds('https://cdn.example/v/playlist.m3u8', fetch),
     ).resolves.toBeNull();
+  });
+
+  it('reads the renditions already in hand first', async () => {
+    // Without the ordering hint the 360p rendition is tried first and fails,
+    // leaving nothing readable within the two-rendition budget.
+    const tried: string[] = [];
+    const fetch = vi.fn(async (url: string) => {
+      tried.push(url);
+      if (url.endsWith('playlist.m3u8')) return `${MASTER}#EXT-X-STREAM-INF:BANDWIDTH=5000000
+1080p/video.m3u8
+`;
+      if (url.includes('1080p')) return MEDIA;
+      throw new Error('403 Forbidden');
+    });
+
+    await expect(
+      resolveM3u8DurationSeconds(
+        'https://cdn.example/v/playlist.m3u8',
+        fetch,
+        new Set(['https://cdn.example/v/1080p/video.m3u8']),
+      ),
+    ).resolves.toBeCloseTo(24.5);
+    expect(tried[1]).toContain('1080p');
   });
 
   it('follows an unambiguous relative variant URI', async () => {

@@ -186,6 +186,39 @@ describe('auditMediaIntegrity', () => {
     },
   );
 
+  it.each([
+    ['01:23', 83],
+    ['1:23', 83],
+    ['01:02:03', 3723],
+  ])('reads the clock-formatted stored duration %s as %i seconds', async (stored, seconds) => {
+    mocks.getVideosStrict.mockReturnValue([video({ duration: stored })]);
+    mocks.probeMediaTrackDurations.mockResolvedValue(tracks(seconds, seconds, seconds));
+
+    const result = await auditMediaIntegrity();
+
+    // parseFloat would read "01:23" as 1 and report an intact file as mismatched.
+    expect(result.items).toEqual([]);
+  });
+
+  it('skips the duration comparison for a stored value it cannot interpret', async () => {
+    mocks.getVideosStrict.mockReturnValue([video({ duration: 'about an hour' })]);
+    mocks.probeMediaTrackDurations.mockResolvedValue(tracks(3600, 3600, 3600));
+
+    const result = await auditMediaIntegrity();
+
+    expect(result.items).toEqual([]);
+  });
+
+  it('still flags a clock-formatted duration that genuinely disagrees', async () => {
+    mocks.getVideosStrict.mockReturnValue([video({ duration: '01:23' })]);
+    mocks.probeMediaTrackDurations.mockResolvedValue(tracks(600, 600, 600));
+
+    const result = await auditMediaIntegrity();
+
+    expect(result.items[0].reasons).toEqual(['duration_mismatch']);
+    expect(result.items[0].storedDurationSeconds).toBe(83);
+  });
+
   it('tolerates ordinary drift between the stored and measured duration', async () => {
     mocks.getVideosStrict.mockReturnValue([video({ duration: '600' })]);
     mocks.probeMediaTrackDurations.mockResolvedValue(tracks(604, 604, 604));

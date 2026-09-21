@@ -145,6 +145,31 @@ async function probeWithCache(
   return tracks;
 }
 
+/**
+ * Interpret the `duration` column, which is free-form text.
+ *
+ * Every writer in this application stores whole seconds, and the Bilibili search
+ * path converts colon notation before it ever reaches storage. But the column
+ * accepts anything, and `formatRssDuration` already passes a colon-formatted
+ * value straight through, so one can be present. `parseSourceDurationSeconds`
+ * would read "01:23" as 1 via parseFloat, and the audit would then report an
+ * intact 83-second file as a duration mismatch.
+ *
+ * Clock notation is unambiguous, so it is parsed. Anything else yields null,
+ * which skips the comparison rather than inventing an interpretation - the
+ * audit must not manufacture findings out of a value it does not understand.
+ */
+function parseStoredDurationSeconds(value: unknown): number | null {
+  if (typeof value === "string" && value.includes(":")) {
+    const parts = value.trim().split(":");
+    if (parts.length < 2 || parts.length > 3) return null;
+    if (!parts.every((part) => /^\d+$/.test(part))) return null;
+    const seconds = parts.reduce((total, part) => total * 60 + Number(part), 0);
+    return Number.isFinite(seconds) && seconds > 0 ? seconds : null;
+  }
+  return parseSourceDurationSeconds(value);
+}
+
 function describe(
   reasons: MediaIntegrityAuditReason[],
   tracks: MediaTrackDurations,
@@ -241,7 +266,7 @@ export async function auditMediaIntegrity(): Promise<MediaIntegrityAuditResult> 
           videoPath: webPath,
           reasons: ["file_missing"],
           detail: describe(["file_missing"], { container: null, video: null, audio: null }, null),
-          storedDurationSeconds: parseSourceDurationSeconds(video.duration),
+          storedDurationSeconds: parseStoredDurationSeconds(video.duration),
           measured: { container: null, video: null, audio: null },
           recommendedAction: "redownload",
         });
@@ -260,7 +285,7 @@ export async function auditMediaIntegrity(): Promise<MediaIntegrityAuditResult> 
         videoPath: webPath,
         reasons: ["unprobeable"],
         detail: `could not resolve or access the media file: ${error instanceof Error ? error.message : String(error)}`,
-        storedDurationSeconds: parseSourceDurationSeconds(video.duration),
+        storedDurationSeconds: parseStoredDurationSeconds(video.duration),
         measured: { container: null, video: null, audio: null },
         recommendedAction: "manual_review",
       });
@@ -292,7 +317,7 @@ export async function auditMediaIntegrity(): Promise<MediaIntegrityAuditResult> 
         summary.trackDisagreements += 1;
       }
 
-      const stored = parseSourceDurationSeconds(video.duration);
+      const stored = parseStoredDurationSeconds(video.duration);
       if (
         stored != null &&
         tracks.container != null &&
@@ -307,7 +332,7 @@ export async function auditMediaIntegrity(): Promise<MediaIntegrityAuditResult> 
       return;
     }
 
-    const stored = parseSourceDurationSeconds(video.duration);
+    const stored = parseStoredDurationSeconds(video.duration);
     items.push({
       localVideoId: video.id,
       title: video.title || "",
