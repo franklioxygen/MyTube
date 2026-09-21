@@ -26,6 +26,20 @@ export const startBackgroundJobs = (port: number): void => {
       );
     });
 
+  // Report - never remove - download artifacts abandoned in the library. The
+  // existing cleanup endpoint cannot see unmarked temp directories or
+  // split-stream files, so they accumulate with nothing to surface them.
+  import("../services/downloadArtifactSweep")
+    .then(({ reportAbandonedDownloadArtifacts }) => {
+      setTimeout(() => void reportAbandonedDownloadArtifacts(), 60_000);
+    })
+    .catch((error) => {
+      logger.warn(
+        "Failed to schedule the abandoned download artifact report:",
+        error instanceof Error ? error : new Error(String(error))
+      );
+    });
+
   // Download-history retention (opt-in via downloadHistoryRetentionDays):
   // prune shortly after boot, then daily. No-op while the setting is 0/unset.
   import("../services/storageService")
