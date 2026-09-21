@@ -103,6 +103,19 @@ export function parseSourceDurationSeconds(value: unknown): number | null {
 interface FfprobeStream {
   codec_type?: unknown;
   duration?: unknown;
+  disposition?: { attached_pic?: unknown };
+}
+
+/**
+ * Embedded cover art (`--embed-thumbnail`) is carried as a video stream, so an
+ * audio-only download can report a "video track" that is really a still image.
+ * ffmpeg happens to give that track the same duration as the audio today, which
+ * is why the comparison has not misfired, but that is a muxer detail rather than
+ * a guarantee, and it makes the audio-only case silently depend on it. Selecting
+ * a real track by disposition removes the dependency.
+ */
+function isAttachedPicture(stream: FfprobeStream): boolean {
+  return Number(stream?.disposition?.attached_pic) === 1;
 }
 
 /**
@@ -126,7 +139,9 @@ export function parseMediaTrackDurations(stdout: string): MediaTrackDurations {
 
   const streams = Array.isArray(payload?.streams) ? payload.streams : [];
   const firstOfType = (type: string): number | null => {
-    const stream = streams.find((entry) => entry?.codec_type === type);
+    const stream = streams.find(
+      (entry) => entry?.codec_type === type && !isAttachedPicture(entry)
+    );
     return parseSourceDurationSeconds(stream?.duration);
   };
 
@@ -170,7 +185,7 @@ export async function probeMediaTrackDurations(
         "-v",
         "error",
         "-show_entries",
-        "format=duration:stream=codec_type,duration",
+        "format=duration:stream=codec_type,duration:stream_disposition=attached_pic",
         "-of",
         "json",
         validatedPath,

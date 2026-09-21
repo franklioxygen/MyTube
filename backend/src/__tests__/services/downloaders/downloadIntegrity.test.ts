@@ -32,14 +32,18 @@ const ffprobeJson = (
   format: number | null,
   video: number | null,
   audio: number | null,
+  coverArt?: number,
 ) =>
   JSON.stringify({
     streams: [
       ...(video != null
-        ? [{ codec_type: 'video', duration: video.toString() }]
+        ? [{ codec_type: 'video', duration: video.toString(), disposition: { attached_pic: 0 } }]
         : []),
       ...(audio != null
-        ? [{ codec_type: 'audio', duration: audio.toString() }]
+        ? [{ codec_type: 'audio', duration: audio.toString(), disposition: { attached_pic: 0 } }]
+        : []),
+      ...(coverArt != null
+        ? [{ codec_type: 'video', duration: coverArt.toString(), disposition: { attached_pic: 1 } }]
         : []),
     ],
     format: format != null ? { duration: format.toString() } : {},
@@ -64,6 +68,58 @@ describe('parseMediaTrackDurations', () => {
       container: 703.708,
       video: null,
       audio: null,
+    });
+  });
+
+  it('ignores embedded cover art when picking the video track', () => {
+    // Real ffprobe output shape for `--extract-audio --embed-thumbnail`, verified
+    // against ffmpeg 5.1.9 (production) and 8.0.1: the cover track reports the
+    // audio's duration, so nothing here depends on it being short.
+    const stdout = JSON.stringify({
+      streams: [
+        { codec_type: 'audio', duration: '600.000000', disposition: { attached_pic: 0 } },
+        { codec_type: 'video', duration: '600.000000', disposition: { attached_pic: 1 } },
+      ],
+      format: { duration: '600.000000' },
+    });
+
+    expect(parseMediaTrackDurations(stdout)).toEqual({
+      container: 600,
+      video: null,
+      audio: 600,
+    });
+  });
+
+  it('picks the real video track when cover art is also present', () => {
+    const stdout = JSON.stringify({
+      streams: [
+        { codec_type: 'video', duration: '0.04', disposition: { attached_pic: 1 } },
+        { codec_type: 'video', duration: '600.000000', disposition: { attached_pic: 0 } },
+        { codec_type: 'audio', duration: '600.000000', disposition: { attached_pic: 0 } },
+      ],
+      format: { duration: '600.000000' },
+    });
+
+    expect(parseMediaTrackDurations(stdout)).toEqual({
+      container: 600,
+      video: 600,
+      audio: 600,
+    });
+  });
+
+  it('treats a stream with no disposition as a real track', () => {
+    const stdout = JSON.stringify({
+      streams: [
+        { codec_type: 'video', duration: '600.000000' },
+        { codec_type: 'audio', duration: '600.000000' },
+      ],
+      format: { duration: '600.000000' },
+    });
+
+    expect(parseMediaTrackDurations(stdout)).toEqual({
+      container: 600,
+      video: 600,
+      audio: 600,
     });
   });
 
@@ -260,6 +316,34 @@ describe('verifyDownloadedMediaComplete', () => {
       userConfig: { sponsorblockMark: 'all' },
     });
     expect(verdict.complete).toBe(false);
+  });
+
+  it('does not reject an audio-only download that carries cover art', async () => {
+    // The cover art is a video stream; without excluding it the track comparison
+    // would run against a still image instead of being skipped.
+    mockExecFileSafe.mockResolvedValue({
+      stdout: ffprobeJson(600, null, 600, 0.04),
+    });
+
+    const verdict = await verifyDownloadedMediaComplete('/videos/song.m4a', {
+      sourceDurationSeconds: 600,
+    });
+
+    expect(verdict.complete).toBe(true);
+  });
+
+  it('asks ffprobe for the attached_pic disposition', async () => {
+    mockExecFileSafe.mockResolvedValue({ stdout: ffprobeJson(600, 600, 600) });
+
+    await verifyDownloadedMediaComplete('/videos/clip.mp4', {});
+
+    expect(mockExecFileSafe).toHaveBeenCalledWith(
+      'ffprobe',
+      expect.arrayContaining([
+        'format=duration:stream=codec_type,duration:stream_disposition=attached_pic',
+      ]),
+      { timeout: 30_000 },
+    );
   });
 
   it.each(['ffprobe not found', 'ffprobe timed out'])('accepts the download when %s', async (message) => {
