@@ -5,6 +5,8 @@ const mocks = vi.hoisted(() => ({
   probeMediaTrackDurations: vi.fn(),
   pathExistsSafeSync: vi.fn(),
   statSafeSync: vi.fn(),
+  findVideoFile: vi.fn(),
+  getCollections: vi.fn(() => []),
 }));
 
 vi.mock('../../config/paths', async (importOriginal) => {
@@ -27,6 +29,8 @@ vi.mock('../../utils/security', async (importOriginal) => {
 
 vi.mock('../../services/storageService', () => ({
   getVideosStrict: (...args: unknown[]) => mocks.getVideosStrict(...args),
+  findVideoFile: (...args: unknown[]) => mocks.findVideoFile(...args),
+  getCollections: () => mocks.getCollections(),
 }));
 
 // The real verdict logic is kept; only the ffprobe call is faked, so the audit
@@ -38,23 +42,6 @@ vi.mock('../../services/downloaders/downloadIntegrity', async (importOriginal) =
     probeMediaTrackDurations: (...args: unknown[]) => mocks.probeMediaTrackDurations(...args),
   };
 });
-
-vi.mock('../../services/filenameTemplate/pathHelpers', () => ({
-  resolveManagedWebPath: (webPath: string) => {
-    if (!webPath || typeof webPath !== 'string') return null;
-    if (webPath.startsWith('cloud:') || webPath.startsWith('mount:')) return null;
-    if (webPath.startsWith('http://') || webPath.startsWith('https://')) return null;
-    if (!webPath.startsWith('/videos/')) return null;
-    const relativePath = webPath.slice('/videos/'.length);
-    if (!relativePath) return null;
-    return {
-      prefix: '/videos',
-      rootDir: '/mock/videos',
-      relativePath,
-      absolutePath: `/mock/videos/${relativePath}`,
-    };
-  },
-}));
 
 import {
   auditMediaIntegrity,
@@ -83,6 +70,7 @@ describe('auditMediaIntegrity', () => {
     mocks.pathExistsSafeSync.mockReturnValue(true);
     mocks.statSafeSync.mockReturnValue({ mtimeMs: 1, size: 100 });
     mocks.probeMediaTrackDurations.mockResolvedValue(tracks(600, 600, 600));
+    mocks.findVideoFile.mockReturnValue(null);
   });
 
   it('reports a clean library', async () => {
@@ -93,6 +81,7 @@ describe('auditMediaIntegrity', () => {
     expect(result.items).toEqual([]);
     expect(result.summary.probed).toBe(2);
     expect(result.humanSummary).toContain('no integrity problems');
+    expect(mocks.getCollections).not.toHaveBeenCalled();
   });
 
   it('flags a truncated audio track', async () => {
@@ -129,6 +118,73 @@ describe('auditMediaIntegrity', () => {
     expect(result.items[0].reasons).toEqual(['duration_mismatch']);
     expect(result.items[0].recommendedAction).toBe('refresh_duration');
   });
+
+  it.each(['existence check', 'legacy lookup'])(
+    'reports a failed %s as unprobeable and continues auditing other rows',
+    async (failure) => {
+      const broken = failure === 'legacy lookup'
+        ? video({ videoPath: null, videoFilename: 'a.mp4' })
+        : video();
+      mocks.getVideosStrict.mockReturnValue([
+        broken,
+        video({ id: 'v2', videoPath: '/videos/b.mp4' }),
+      ]);
+      const check = failure === 'legacy lookup' ? mocks.findVideoFile : mocks.pathExistsSafeSync;
+      check.mockImplementationOnce(() => { throw new Error('path access failed'); });
+
+      const result = await auditMediaIntegrity();
+
+      expect(result.summary).toMatchObject({
+        totalVideos: 2, probed: 1, unprobeable: 1, filesMissing: 0,
+      });
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0]).toMatchObject({
+        localVideoId: 'v1', reasons: ['unprobeable'], recommendedAction: 'manual_review',
+        measured: tracks(null, null, null),
+      });
+      expect(result.items[0].detail).toContain('path access failed');
+      expect(mocks.probeMediaTrackDurations).toHaveBeenCalledExactlyOnceWith('/mock/videos/b.mp4');
+    },
+  );
+
+  it('loads collections once per audit, only when legacy lookup needs them', async () => {
+    mocks.getVideosStrict.mockReturnValue([
+      video({ videoPath: null, videoFilename: 'a.mp4' }),
+      video({ id: 'v2', videoPath: null, videoFilename: 'b.mp4' }),
+    ]);
+    mocks.findVideoFile.mockImplementation((filename) => `/mock/videos/Collection/${filename}`);
+
+    expect((await auditMediaIntegrity()).summary.probed).toBe(2);
+    expect(mocks.getCollections).toHaveBeenCalledOnce();
+    await auditMediaIntegrity();
+    expect(mocks.getCollections).toHaveBeenCalledTimes(2);
+  });
+
+  it('audits a legacy filename-only row using the existing file lookup', async () => {
+    mocks.getVideosStrict.mockReturnValue([video({ videoPath: null, videoFilename: 'a.mp4' })]);
+    mocks.findVideoFile.mockReturnValue('/mock/videos/Collection/a.mp4');
+    mocks.probeMediaTrackDurations.mockResolvedValue(tracks(600, 600, 100));
+
+    const result = await auditMediaIntegrity();
+
+    expect(mocks.findVideoFile).toHaveBeenCalledWith('a.mp4', []);
+    expect(mocks.probeMediaTrackDurations).toHaveBeenCalledWith('/mock/videos/Collection/a.mp4');
+    expect(result.items[0].reasons).toEqual(['track_disagreement']);
+    expect(result.summary.skippedExternal).toBe(0);
+  });
+
+  it.each([null, '/videos/../outside.mp4', '/images/a.mp4'])(
+    'reports an unresolved local row instead of silently skipping it: %s',
+    async (videoPath) => {
+      mocks.getVideosStrict.mockReturnValue([video({ videoPath })]);
+
+      const result = await auditMediaIntegrity();
+
+      expect(result.items[0].reasons).toEqual(['file_missing']);
+      expect(result.summary.skippedExternal).toBe(0);
+      expect(mocks.probeMediaTrackDurations).not.toHaveBeenCalled();
+    },
+  );
 
   it('tolerates ordinary drift between the stored and measured duration', async () => {
     mocks.getVideosStrict.mockReturnValue([video({ duration: '600' })]);
@@ -196,6 +252,15 @@ describe('auditMediaIntegrity', () => {
     mocks.statSafeSync.mockReturnValue({ mtimeMs: 2, size: 200 });
     await auditMediaIntegrity();
 
+    expect(mocks.probeMediaTrackDurations).toHaveBeenCalledTimes(2);
+  });
+
+  it('retries an unsuccessful probe even when the file is unchanged', async () => {
+    mocks.getVideosStrict.mockReturnValue([video()]);
+    mocks.probeMediaTrackDurations.mockResolvedValueOnce(tracks(null, null, null));
+
+    expect((await auditMediaIntegrity()).summary.unprobeable).toBe(1);
+    expect((await auditMediaIntegrity()).items).toEqual([]);
     expect(mocks.probeMediaTrackDurations).toHaveBeenCalledTimes(2);
   });
 

@@ -41,7 +41,7 @@ export const DEFAULT_MIN_ARTIFACT_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 export interface SweepCandidate {
   absolutePath: string;
-  kind: "temporary_file" | "unmarked_temp_directory";
+  kind: "temporary_file" | "unmarked_temp_directory" | "marked_temp_directory";
   sizeBytes: number;
   ageMs: number;
 }
@@ -133,11 +133,8 @@ export async function sweepDownloadArtifacts(
           continue;
         }
 
-        // A download temp directory. Never descend into one: an active download
-        // has a live `.part` file in there that must not be touched, and a
-        // marked one is the existing endpoint's business. Descending would pick
-        // those files up individually and, once armed, delete them.
-        if (isActiveDownloadTempDir(child) || isOwnedInactiveDownloadTempDir(child)) {
+        // Never select an active directory or pick its files individually.
+        if (isActiveDownloadTempDir(child)) {
           continue;
         }
 
@@ -153,7 +150,9 @@ export async function sweepDownloadArtifacts(
 
         candidates.push({
           absolutePath: child,
-          kind: "unmarked_temp_directory",
+          kind: isOwnedInactiveDownloadTempDir(child)
+            ? "marked_temp_directory"
+            : "unmarked_temp_directory",
           sizeBytes: await directorySizeBytes(child),
           ageMs,
         });

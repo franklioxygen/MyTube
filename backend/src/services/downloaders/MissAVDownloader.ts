@@ -630,7 +630,7 @@ export class MissAVDownloader extends BaseDownloader {
         async (target) => {
           const axios = (await import("axios")).default;
           const response = await axios.get(target, {
-            ...(typeof userConfig.proxy === "string" && userConfig.proxy
+            ...(typeof userConfig.proxy === "string"
               ? getAxiosProxyConfig(userConfig.proxy)
               : {}),
             headers: { Referer: referer },

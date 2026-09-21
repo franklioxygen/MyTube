@@ -1,3 +1,8 @@
+import { allowedDurationDrift } from "../downloadIntegrity";
+
+// How many renditions of a master are read to corroborate its duration.
+const MAX_COMPARED_VARIANTS = 2;
+
 // Select the best m3u8 URL from a set of candidates captured during page load.
 export function selectBestM3u8Url(
   urls: string[],
@@ -124,26 +129,15 @@ export async function resolveM3u8DurationSeconds(
 ): Promise<number | null> {
   try {
     const playlist = await fetchText(m3u8Url);
-    if (typeof playlist !== "string" || !playlist.includes("#EXTM3U")) {
+    if (typeof playlist !== "string" || playlist.trim().split(/\r?\n/)[0] !== "#EXTM3U") {
       return null;
     }
 
-    // A master playlist lists variants and carries no #EXTINF of its own. Every
-    // variant of one VOD is the same content at a different bitrate, so any of
-    // them answers the duration question - which variant yt-dlp finally picks
-    // does not matter here.
+    // Format selection belongs to yt-dlp, so which rendition it ends up
+    // downloading is not known here. Rather than guess, corroborate: see
+    // resolveMasterDuration.
     if (playlist.includes("#EXT-X-STREAM-INF")) {
-      const variantUri = firstVariantUri(playlist);
-      if (!variantUri) return null;
-      let variantUrl: string;
-      try {
-        variantUrl = new URL(variantUri, m3u8Url).toString();
-      } catch {
-        return null;
-      }
-      // One level only: a master pointing at another master is malformed.
-      const variant = await fetchText(variantUrl);
-      return sumMediaPlaylistDuration(variant);
+      return await resolveMasterDuration(playlist, m3u8Url, fetchText);
     }
 
     return sumMediaPlaylistDuration(playlist);
@@ -152,38 +146,103 @@ export async function resolveM3u8DurationSeconds(
   }
 }
 
-function firstVariantUri(masterPlaylist: string): string | null {
-  const lines = masterPlaylist.split(/\r?\n/);
+/**
+ * Duration of a master playlist, corroborated across renditions.
+ *
+ * Variants of one VOD should describe the same content at different bitrates,
+ * but nothing guarantees it, and yt-dlp - not this module - decides which one is
+ * downloaded. So two are read and compared instead of one being trusted: if they
+ * disagree by more than the completeness check itself tolerates, the master is
+ * treated as unusable. Reading only the first two bounds the cost; a master whose
+ * first two renditions agree but whose third does not is not worth a request per
+ * variant to catch.
+ */
+async function resolveMasterDuration(
+  masterPlaylist: string,
+  baseUrl: string,
+  fetchText: (url: string) => Promise<string>,
+): Promise<number | null> {
+  const uris = comparableVariantUris(masterPlaylist);
+  if (!uris) return null;
+
+  const durations: number[] = [];
+  for (const uri of uris.slice(0, MAX_COMPARED_VARIANTS)) {
+    let variantUrl: string;
+    try {
+      variantUrl = new URL(uri, baseUrl).toString();
+    } catch {
+      return null;
+    }
+    // One level only: sumMediaPlaylistDuration rejects a nested master outright
+    // rather than following it.
+    const duration = sumMediaPlaylistDuration(await fetchText(variantUrl));
+    if (duration == null) return null;
+    durations.push(duration);
+  }
+
+  if (durations.length === 1) return durations[0];
+
+  const [first, second] = durations;
+  // Accept the pair only when the disagreement is smaller than what the check
+  // tolerates, so whichever rendition yt-dlp downloads, this number cannot by
+  // itself produce a rejection.
+  if (Math.abs(first - second) > allowedDurationDrift(Math.max(first, second))) {
+    return null;
+  }
+  // The shorter one is the conservative choice: the check flags a shortfall
+  // only, so understating the source can never cause a false rejection.
+  return Math.min(first, second);
+}
+
+/**
+ * Variant URIs of a master, in playlist order, or null when the master cannot
+ * be interpreted.
+ */
+function comparableVariantUris(masterPlaylist: string): string[] | null {
+  const lines = masterPlaylist.split(/\r?\n/).map((line) => line.trim());
+
+  // A separate audio or subtitle rendition means each variant playlist covers
+  // only part of the muxed result, so its duration is not the download's.
+  if (lines.some((line) => line.startsWith("#EXT-X-MEDIA:") && /\bURI=/.test(line))) {
+    return null;
+  }
+
+  const uris: string[] = [];
   for (let i = 0; i < lines.length; i += 1) {
-    if (!lines[i].startsWith("#EXT-X-STREAM-INF")) continue;
+    if (!lines[i].startsWith("#EXT-X-STREAM-INF:")) continue;
     // The URI is the next non-blank, non-comment line.
     for (let j = i + 1; j < lines.length; j += 1) {
-      const candidate = lines[j].trim();
+      const candidate = lines[j];
       if (!candidate) continue;
       if (candidate.startsWith("#")) break;
-      return candidate;
+      uris.push(candidate);
+      break;
     }
   }
-  return null;
+
+  return uris.length > 0 ? uris : null;
 }
 
 function sumMediaPlaylistDuration(playlist: string): number | null {
   if (typeof playlist !== "string") return null;
-  // Without EXT-X-ENDLIST the stream is live or still being written, and a sum
-  // of what exists so far would be an undercount - the one direction that
-  // causes false rejections.
-  if (!playlist.includes("#EXT-X-ENDLIST")) return null;
+  const lines = playlist.trim().split(/\r?\n/).map((line) => line.trim());
+  // A live/growing playlist cannot establish the final duration. Reject nested
+  // masters too, rather than treating any incidental EXTINF tags as authoritative.
+  if (lines[0] !== "#EXTM3U" || !lines.includes("#EXT-X-ENDLIST") ||
+      lines.some((line) => line.startsWith("#EXT-X-STREAM-INF:"))) return null;
 
   let total = 0;
   let segments = 0;
-  for (const line of playlist.split(/\r?\n/)) {
+  for (const line of lines) {
     if (!line.startsWith("#EXTINF:")) continue;
-    const value = Number.parseFloat(line.slice("#EXTINF:".length).split(",")[0]);
+    const duration = line.slice("#EXTINF:".length).split(",")[0];
+    if (!/^\d+(?:\.\d+)?$/.test(duration)) return null;
+    const value = Number(duration);
     if (!Number.isFinite(value) || value < 0) return null;
     total += value;
     segments += 1;
   }
 
-  if (segments === 0 || total <= 0) return null;
+  if (segments === 0 || total <= 0 || !Number.isFinite(total)) return null;
   return total;
 }

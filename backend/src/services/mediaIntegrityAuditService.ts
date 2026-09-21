@@ -115,7 +115,9 @@ async function probeWithCache(
   }
 
   const tracks = await probeMediaTrackDurations(absolutePath);
-  if (stat) {
+  // An all-null result can be a temporary ffprobe failure. Do not retain it
+  // until the media changes: a later audit should retry the probe.
+  if (stat && (tracks.container != null || tracks.video != null || tracks.audio != null)) {
     probeCache.set(absolutePath, {
       mtimeMs: stat.mtimeMs,
       size: stat.size,
@@ -186,39 +188,62 @@ export async function auditMediaIntegrity(): Promise<MediaIntegrityAuditResult> 
 
   type Candidate = { video: Video; absolutePath: string };
   const candidates: Candidate[] = [];
+  let collections: ReturnType<typeof storageService.getCollections> | undefined;
 
   for (const video of videos) {
     const webPath = readString(video.videoPath);
-    // resolveManagedWebPath returns null for cloud:, mount: and http(s) rows.
-    // Those files are not ours to probe and their absence is not a defect.
-    const resolved = webPath ? resolveManagedWebPath(webPath) : null;
-    if (!resolved) {
+    if (webPath && /^(?:cloud:|mount:|https?:\/\/)/.test(webPath)) {
       summary.skippedExternal += 1;
       continue;
     }
 
-    if (TEMPORARY_VIDEO_ARTIFACT_PATTERN.test(path.basename(resolved.absolutePath))) {
-      summary.skippedTemporaryArtifacts += 1;
-      continue;
-    }
+    try {
+      const resolved = webPath ? resolveManagedWebPath(webPath) : null;
+      const filename = readString(video.videoFilename);
+      // Older rows identify their file by filename and collection only. Missing
+      // or invalid local paths are findings, not evidence of an external video.
+      const absolutePath = webPath
+        ? (resolved?.prefix === "/videos" ? resolved.absolutePath : null)
+        : (filename ? storageService.findVideoFile(filename, (collections ??= storageService.getCollections())) : null);
 
-    if (!pathExistsSafeSync(resolved.absolutePath, VIDEOS_DIR)) {
-      summary.filesMissing += 1;
+      if (TEMPORARY_VIDEO_ARTIFACT_PATTERN.test(path.basename(absolutePath ?? webPath ?? filename ?? ""))) {
+        summary.skippedTemporaryArtifacts += 1;
+        continue;
+      }
+
+      if (!absolutePath || !pathExistsSafeSync(absolutePath, VIDEOS_DIR)) {
+        summary.filesMissing += 1;
+        items.push({
+          localVideoId: video.id,
+          title: video.title || "",
+          sourceUrl: readString(video.sourceUrl),
+          videoPath: webPath,
+          reasons: ["file_missing"],
+          detail: describe(["file_missing"], { container: null, video: null, audio: null }, null),
+          storedDurationSeconds: parseSourceDurationSeconds(video.duration),
+          measured: { container: null, video: null, audio: null },
+          recommendedAction: "redownload",
+        });
+        continue;
+      }
+
+      candidates.push({ video, absolutePath });
+    } catch (error) {
+      // A path or filesystem failure belongs to this row, not the whole audit.
+      logger.warn(`Integrity audit could not inspect video ${video.id}:`, error);
+      summary.unprobeable += 1;
       items.push({
         localVideoId: video.id,
         title: video.title || "",
         sourceUrl: readString(video.sourceUrl),
         videoPath: webPath,
-        reasons: ["file_missing"],
-        detail: describe(["file_missing"], { container: null, video: null, audio: null }, null),
+        reasons: ["unprobeable"],
+        detail: `could not resolve or access the media file: ${error instanceof Error ? error.message : String(error)}`,
         storedDurationSeconds: parseSourceDurationSeconds(video.duration),
         measured: { container: null, video: null, audio: null },
-        recommendedAction: "redownload",
+        recommendedAction: "manual_review",
       });
-      continue;
     }
-
-    candidates.push({ video, absolutePath: resolved.absolutePath });
   }
 
   await runWithConcurrencyLimit(candidates, PROBE_CONCURRENCY, async ({ video, absolutePath }) => {

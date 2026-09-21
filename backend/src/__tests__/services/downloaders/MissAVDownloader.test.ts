@@ -1,5 +1,6 @@
 
 import { spawn } from 'child_process';
+import axios from 'axios';
 import { EventEmitter } from 'events';
 import fs from 'fs-extra';
 import path from 'path';
@@ -7,7 +8,7 @@ import puppeteer from 'puppeteer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MissAVDownloader } from '../../../services/downloaders/MissAVDownloader';
 import { cleanupTemporaryFiles, isCancellationError, isDownloadActive, safeRemove } from '../../../utils/downloadUtils';
-import { flagsToArgs, getUserYtDlpConfig, isYtDlpImpersonateAvailable } from '../../../utils/ytDlpUtils';
+import { flagsToArgs, getAxiosProxyConfig, getUserYtDlpConfig, isYtDlpImpersonateAvailable } from '../../../utils/ytDlpUtils';
 import * as security from '../../../utils/security';
 import { logger } from '../../../utils/logger';
 import { getMissAVPlaceholderTitle } from '../../../utils/helpers';
@@ -553,6 +554,17 @@ describe('MissAVDownloader', () => {
         expect(verifyDownloadedMediaComplete).toHaveBeenCalledExactlyOnceWith(videoPath, {
           sourceDurationSeconds: null, userConfig: {},
         });
+      });
+
+      it('honors an explicit direct connection for the playlist fetch', async () => {
+        vi.mocked(getUserYtDlpConfig).mockReturnValue({ proxy: '' });
+        vi.mocked(getAxiosProxyConfig).mockReturnValue({ proxy: false });
+
+        await MissAVDownloader.downloadVideo(url);
+
+        expect(axios.get).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
+          proxy: false,
+        }));
       });
 
       it('checks the actual output before saving', async () => {

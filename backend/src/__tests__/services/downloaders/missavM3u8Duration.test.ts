@@ -35,18 +35,86 @@ describe('resolveM3u8DurationSeconds', () => {
     ).resolves.toBeCloseTo(24.5);
   });
 
-  it('follows a master playlist to its first variant', async () => {
-    // Every variant of one VOD is the same content at a different bitrate, so
-    // which one answers does not matter.
+  it('accepts a multi-variant master when two renditions corroborate each other', async () => {
     const fetch = fetcher({
       'https://cdn.example/v/playlist.m3u8': MASTER,
+      'https://cdn.example/v/360p/video.m3u8': MEDIA,
+      'https://cdn.example/v/720p/video.m3u8': MEDIA,
+    });
+
+    await expect(
+      resolveM3u8DurationSeconds('https://cdn.example/v/playlist.m3u8', fetch),
+    ).resolves.toBeCloseTo(24.5);
+    expect(fetch).toHaveBeenCalledTimes(3);
+  });
+
+  it('returns the shorter of two corroborating renditions', async () => {
+    // Understating the source is the safe direction: the check flags a
+    // shortfall only, so it can never cause a false rejection.
+    const shorter = MEDIA.replace('#EXTINF:4.500,', '#EXTINF:3.500,');
+    const fetch = fetcher({
+      'https://cdn.example/v/playlist.m3u8': MASTER,
+      'https://cdn.example/v/360p/video.m3u8': MEDIA,
+      'https://cdn.example/v/720p/video.m3u8': shorter,
+    });
+
+    await expect(
+      resolveM3u8DurationSeconds('https://cdn.example/v/playlist.m3u8', fetch),
+    ).resolves.toBeCloseTo(23.5);
+  });
+
+  it('refuses a master whose renditions disagree beyond the tolerance', async () => {
+    // 24.5s against 600s is not the same content; nothing here is trustworthy.
+    const longer = ['#EXTM3U', '#EXTINF:600.000,', 'x.ts', '#EXT-X-ENDLIST', ''].join('\n');
+    const fetch = fetcher({
+      'https://cdn.example/v/playlist.m3u8': MASTER,
+      'https://cdn.example/v/360p/video.m3u8': MEDIA,
+      'https://cdn.example/v/720p/video.m3u8': longer,
+    });
+
+    await expect(
+      resolveM3u8DurationSeconds('https://cdn.example/v/playlist.m3u8', fetch),
+    ).resolves.toBeNull();
+  });
+
+  it('reads only the first two renditions of a larger master', async () => {
+    const threeVariant = `${MASTER}#EXT-X-STREAM-INF:BANDWIDTH=5000000,RESOLUTION=1920x1080
+1080p/video.m3u8
+`;
+    const fetch = fetcher({
+      'https://cdn.example/v/playlist.m3u8': threeVariant,
+      'https://cdn.example/v/360p/video.m3u8': MEDIA,
+      'https://cdn.example/v/720p/video.m3u8': MEDIA,
+    });
+
+    await expect(
+      resolveM3u8DurationSeconds('https://cdn.example/v/playlist.m3u8', fetch),
+    ).resolves.toBeCloseTo(24.5);
+    // The 1080p rendition is never requested; the fetcher would throw if it were.
+    expect(fetch).toHaveBeenCalledTimes(3);
+  });
+
+  it('refuses when a corroborating rendition cannot be read', async () => {
+    const fetch = fetcher({
+      'https://cdn.example/v/playlist.m3u8': MASTER,
+      'https://cdn.example/v/360p/video.m3u8': MEDIA,
+      'https://cdn.example/v/720p/video.m3u8': '<html>404</html>',
+    });
+
+    await expect(
+      resolveM3u8DurationSeconds('https://cdn.example/v/playlist.m3u8', fetch),
+    ).resolves.toBeNull();
+  });
+
+  it('follows an unambiguous relative variant URI', async () => {
+    const fetch = fetcher({
+      'https://cdn.example/v/playlist.m3u8': MASTER.split('#EXT-X-STREAM-INF:BANDWIDTH=2400000')[0],
       'https://cdn.example/v/360p/video.m3u8': MEDIA,
     });
 
     await expect(
       resolveM3u8DurationSeconds('https://cdn.example/v/playlist.m3u8', fetch),
     ).resolves.toBeCloseTo(24.5);
-    expect(fetch).toHaveBeenCalledTimes(2);
   });
 
   it('resolves an absolute variant URI', async () => {
@@ -63,9 +131,22 @@ https://other.example/x/video.m3u8
     ).resolves.toBeCloseTo(24.5);
   });
 
+  it('does not guess when a master offers a separate audio rendition', async () => {
+    const fetch = fetcher({
+      'https://cdn.example/p.m3u8': `#EXTM3U
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio",URI="audio.m3u8"
+#EXT-X-STREAM-INF:BANDWIDTH=800000,AUDIO="audio"
+video.m3u8
+`,
+      'https://cdn.example/video.m3u8': MEDIA,
+    });
+
+    await expect(resolveM3u8DurationSeconds('https://cdn.example/p.m3u8', fetch)).resolves.toBeNull();
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
   it('returns null for a live playlist with no ENDLIST', async () => {
-    // Summing what exists so far would undercount, which is the one direction
-    // that causes a good download to be rejected.
+    // A growing playlist cannot describe the final download duration.
     const live = MEDIA.replace('#EXT-X-ENDLIST\n', '');
     const fetch = fetcher({ 'https://cdn.example/live.m3u8': live });
 
@@ -79,6 +160,8 @@ https://other.example/x/video.m3u8
     ['a playlist with no segments', '#EXTM3U\n#EXT-X-ENDLIST\n'],
     ['a malformed EXTINF', '#EXTM3U\n#EXTINF:abc,\nseg.ts\n#EXT-X-ENDLIST\n'],
     ['a negative EXTINF', '#EXTM3U\n#EXTINF:-5,\nseg.ts\n#EXT-X-ENDLIST\n'],
+    ['an EXTINF with trailing garbage', '#EXTM3U\n#EXTINF:50oops,\nseg.ts\n#EXT-X-ENDLIST\n'],
+    ['an ENDLIST mentioned only in a comment', MEDIA.replace('#EXT-X-ENDLIST', '# comment: #EXT-X-ENDLIST')],
     ['a master with no variant URI', '#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1\n'],
   ])('returns null for %s', async (_label, body) => {
     const fetch = fetcher({ 'https://cdn.example/p.m3u8': body });
@@ -100,7 +183,7 @@ https://other.example/x/video.m3u8
 
   it('does not chase a master pointing at another master', async () => {
     const fetch = fetcher({
-      'https://cdn.example/a.m3u8': MASTER,
+      'https://cdn.example/a.m3u8': MASTER.split('#EXT-X-STREAM-INF:BANDWIDTH=2400000')[0],
       'https://cdn.example/360p/video.m3u8': MASTER,
     });
 

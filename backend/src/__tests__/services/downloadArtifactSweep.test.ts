@@ -173,11 +173,24 @@ describe('sweepDownloadArtifacts', () => {
     expect(await sweep().then(paths)).toEqual([]);
   });
 
-  it('leaves a marked temp directory to the existing cleanup endpoint', async () => {
+  it('includes abandoned marked temp directories in the startup report', async () => {
     const name = tempDirName(OLD);
     dir('/videos', name);
     file(`/videos/${name}`, 'video.mp4.part', 10, OLD);
     mocks.isOwnedInactiveDownloadTempDir.mockReturnValue(true);
+
+    const result = await sweep();
+    expect(paths(result)).toEqual([`/videos/${name}`]);
+    expect(result.candidates[0].kind).toBe('marked_temp_directory');
+    expect(mocks.removeSafe).not.toHaveBeenCalled();
+  });
+
+  it('spares a marked directory containing a referenced file', async () => {
+    const name = tempDirName(OLD);
+    dir('/videos', name);
+    file(`/videos/${name}`, 'keep.mp4', 10, OLD);
+    mocks.isOwnedInactiveDownloadTempDir.mockReturnValue(true);
+    mocks.referenced.add(`/videos/${name}/keep.mp4`);
 
     expect(await sweep().then(paths)).toEqual([]);
   });
