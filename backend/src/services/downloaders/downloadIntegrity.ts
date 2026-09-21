@@ -64,7 +64,13 @@ const CLIPPING_CONFIG_KEYS = [
   "removeChapters",
 ];
 
-function allowedShortfall(referenceSeconds: number): number {
+/**
+ * How far two durations may drift before the difference counts as damage rather
+ * than muxing slack. Exported so the library-wide audit applies the same rule as
+ * the download-time check; the two must never disagree about what "truncated"
+ * means.
+ */
+export function allowedDurationDrift(referenceSeconds: number): number {
   return Math.max(
     DURATION_TOLERANCE_FLOOR_SECONDS,
     referenceSeconds * DURATION_TOLERANCE_RATIO
@@ -217,7 +223,7 @@ function findSourceDurationShortfall(
   }
 
   const shortfall = source - container;
-  if (shortfall <= allowedShortfall(source)) {
+  if (shortfall <= allowedDurationDrift(source)) {
     return null;
   }
 
@@ -243,7 +249,7 @@ function findTrackDisagreement(
   }
 
   const drift = Math.abs(video - audio);
-  if (drift <= allowedShortfall(Math.max(video, audio))) {
+  if (drift <= allowedDurationDrift(Math.max(video, audio))) {
     return null;
   }
 

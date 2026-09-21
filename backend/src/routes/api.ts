@@ -5,6 +5,7 @@ import * as collectionController from "../controllers/collectionController";
 import * as downloadController from "../controllers/downloadController";
 import * as favoriteController from "../controllers/favoriteController";
 import * as mediaCollisionAuditController from "../controllers/mediaCollisionAuditController";
+import * as mediaIntegrityAuditController from "../controllers/mediaIntegrityAuditController";
 import * as recommendationController from "../controllers/recommendationController";
 import * as rssController from "../controllers/rssController";
 import * as scanController from "../controllers/scanController";
@@ -431,6 +432,14 @@ const apiRouteDefinitions: ApiRouteDefinition[] = [
     handlers: [
       requireAdmin,
       asyncHandler(mediaCollisionAuditController.repairMediaCollisionAuditFinding),
+    ],
+  },
+  {
+    method: "get",
+    path: "/media-integrity-audit",
+    handlers: [
+      requireAdmin,
+      asyncHandler(mediaIntegrityAuditController.getMediaIntegrityAudit),
     ],
   },
 
