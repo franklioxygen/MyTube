@@ -33,6 +33,9 @@ const playlistBody = vi.hoisted(() => ({ value: null as string | null }));
 // CDN fingerprints TLS and 403s a plain Node request, so this is the path
 // that actually carries a duration in production.
 const capturedPlaylist = vi.hoisted(() => ({ value: null as string | null }));
+// Set to model the playlist request having been redirected.
+const capturedPlaylistFinalUrl = vi.hoisted(() => ({ value: null as string | null }));
+const capturedPlaylistHeaders = vi.hoisted(() => ({ value: {} as Record<string, string> }));
 vi.mock('axios', () => ({
   default: {
     get: vi.fn(async (url: string) => {
@@ -145,6 +148,8 @@ describe('MissAVDownloader', () => {
     vi.mocked(isDownloadActive).mockReturnValue(true);
     playlistBody.value = null;
     capturedPlaylist.value = null;
+    capturedPlaylistFinalUrl.value = null;
+    capturedPlaylistHeaders.value = {};
     (getUserYtDlpConfig as ReturnType<typeof vi.fn>).mockReturnValue({});
   });
 
@@ -424,11 +429,19 @@ describe('MissAVDownloader', () => {
           if (event === 'request') requestCallback?.capture(cb);
           if (event === 'response' && capturedPlaylist.value !== null) {
             // What the browser received for the playlist it fetched itself.
+            // `finalUrl` models a redirect: the body arrives under the URL the
+            // request ended at, while the request listener saw where it started.
             cb({
-              url: () => 'https://surrit.com/playlist.m3u8',
+              url: () => capturedPlaylistFinalUrl.value ?? 'https://surrit.com/playlist.m3u8',
               status: () => 200,
-              headers: () => ({}),
+              headers: () => capturedPlaylistHeaders.value,
               text: async () => capturedPlaylist.value,
+              request: () => ({
+                redirectChain: () =>
+                  capturedPlaylistFinalUrl.value
+                    ? [{ url: () => 'https://surrit.com/playlist.m3u8' }]
+                    : [],
+              }),
             });
           }
         }),
@@ -581,6 +594,37 @@ describe('MissAVDownloader', () => {
 
         await MissAVDownloader.downloadVideo(url);
 
+        expect(verifyDownloadedMediaComplete).toHaveBeenCalledExactlyOnceWith(videoPath, {
+          sourceDurationSeconds: null, userConfig: {},
+        });
+      });
+
+      it('finds a captured body under the URL the request started at', async () => {
+        // The request listener records the pre-redirect URL, so that is what the
+        // selector picks; the body arrives under the post-redirect URL. Keyed
+        // only by the latter, the lookup would miss and the direct fallback
+        // would then refuse the redirect, leaving no duration at all.
+        capturedPlaylistFinalUrl.value = 'https://cdn.surrit.com/final/playlist.m3u8';
+        capturedPlaylist.value = [
+          '#EXTM3U', '#EXTINF:20.000,', 'a.ts', '#EXTINF:20.000,', 'b.ts', '#EXT-X-ENDLIST', '',
+        ].join('\n');
+
+        await MissAVDownloader.downloadVideo(url);
+
+        expect(verifyDownloadedMediaComplete).toHaveBeenCalledExactlyOnceWith(videoPath, {
+          sourceDurationSeconds: 40, userConfig: {},
+        });
+        expect(axios.get).not.toHaveBeenCalled();
+      });
+
+      it('does not materialize a body that declares itself oversized', async () => {
+        capturedPlaylistHeaders.value = { 'content-length': String(64 * 1024 * 1024) };
+        // A body that would otherwise have produced a 5s duration.
+        capturedPlaylist.value = '#EXTM3U\n#EXTINF:5.000,\na.ts\n#EXT-X-ENDLIST\n';
+
+        await MissAVDownloader.downloadVideo(url);
+
+        // Refused before reading, so no duration and a direct retry instead.
         expect(verifyDownloadedMediaComplete).toHaveBeenCalledExactlyOnceWith(videoPath, {
           sourceDurationSeconds: null, userConfig: {},
         });

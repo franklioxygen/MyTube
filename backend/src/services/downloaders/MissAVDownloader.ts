@@ -77,6 +77,11 @@ const MISSAV_MAX_CAPTURED_PLAYLIST_BYTES = 4 * 1024 * 1024;
 // have not finished arriving. They are an optimisation, not a requirement.
 const MISSAV_PLAYLIST_CAPTURE_TIMEOUT_MS = 5_000;
 
+// A page can emit many distinct .m3u8 responses, so the per-body cap alone
+// does not bound what is retained. These do.
+const MISSAV_MAX_CAPTURED_PLAYLISTS = 32;
+const MISSAV_MAX_CAPTURED_PLAYLIST_TOTAL_BYTES = 16 * 1024 * 1024;
+
 function resolveMissAvMergeOutputFormat(
   userConfig: Record<string, unknown>,
   settings: { preferredVideoContainer?: unknown },
@@ -338,6 +343,10 @@ export class MissAVDownloader extends BaseDownloader {
       // that works on the preferred host.
       const capturedPlaylists = new Map<string, string>();
       const pendingCaptures: Array<Promise<unknown>> = [];
+      // Counted separately from the map, which holds one entry per redirect
+      // hop and so overstates how many bodies are actually retained.
+      let capturedPlaylistCount = 0;
+      let capturedPlaylistBytes = 0;
       const isM3u8 = (u: string) => u.includes(".m3u8") && !u.includes("preview");
       let failedRequestLogCount = 0;
       let html = "";
@@ -378,15 +387,50 @@ export class MissAVDownloader extends BaseDownloader {
           );
 
           if (response.status() !== 200 || capturedPlaylists.has(resUrl)) return;
-          // Best-effort: a body that cannot be read (redirect, aborted request,
-          // page already gone) simply leaves this URL uncaptured, and the
-          // duration lookup falls back to requesting it directly.
+          if (
+            capturedPlaylistCount >= MISSAV_MAX_CAPTURED_PLAYLISTS ||
+            capturedPlaylistBytes >= MISSAV_MAX_CAPTURED_PLAYLIST_TOTAL_BYTES
+          ) {
+            return;
+          }
+          // Refuse a body that already declares itself too large rather than
+          // materialising it in order to throw it away - response.text()
+          // allocates the whole thing before any length check can run.
+          const declaredLength = Number(headers["content-length"]);
+          if (
+            Number.isFinite(declaredLength) &&
+            declaredLength > MISSAV_MAX_CAPTURED_PLAYLIST_BYTES
+          ) {
+            return;
+          }
+
+          // Best-effort: a body that cannot be read (aborted request, page
+          // already gone) simply leaves this URL uncaptured, and the duration
+          // lookup falls back to requesting it directly.
           pendingCaptures.push(
             response
               .text()
               .then((body) => {
-                if (typeof body === "string" && body.length <= MISSAV_MAX_CAPTURED_PLAYLIST_BYTES) {
-                  capturedPlaylists.set(resUrl, body);
+                if (typeof body !== "string") return;
+                if (body.length > MISSAV_MAX_CAPTURED_PLAYLIST_BYTES) return;
+                if (
+                  capturedPlaylistBytes + body.length >
+                  MISSAV_MAX_CAPTURED_PLAYLIST_TOTAL_BYTES
+                ) {
+                  return;
+                }
+                capturedPlaylistBytes += body.length;
+                capturedPlaylistCount += 1;
+                // A redirected request is recorded by the request listener under
+                // the URL it started at, while the body arrives under the URL it
+                // ended at. Key it under every hop so a lookup for either finds
+                // it - otherwise the selected URL misses, and the direct fallback
+                // refuses the redirect, leaving no duration at all.
+                for (const hopUrl of [
+                  resUrl,
+                  ...response.request().redirectChain().map((hop) => hop.url()),
+                ]) {
+                  capturedPlaylists.set(hopUrl, body);
                 }
               })
               .catch(() => undefined),
