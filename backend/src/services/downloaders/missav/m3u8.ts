@@ -103,3 +103,87 @@ export function selectBestM3u8Url(
 
   return sortedUrls[0];
 }
+
+/**
+ * Total duration of a VOD HLS playlist, in seconds, or null when it cannot be
+ * established with confidence.
+ *
+ * MissAV is the one download path with no source duration, so only the
+ * audio/video track comparison applies to it and a download shortened equally
+ * across both tracks goes unnoticed. The playlist answers this better than the
+ * page would: it describes the exact stream being fetched rather than the title,
+ * so it cannot disagree with the rendition yt-dlp downloads.
+ *
+ * Every uncertain case returns null, which is the existing behaviour. A source
+ * duration that is wrong in the *long* direction would reject good downloads,
+ * which is far worse than the gap it closes, so nothing is guessed.
+ */
+export async function resolveM3u8DurationSeconds(
+  m3u8Url: string,
+  fetchText: (url: string) => Promise<string>,
+): Promise<number | null> {
+  try {
+    const playlist = await fetchText(m3u8Url);
+    if (typeof playlist !== "string" || !playlist.includes("#EXTM3U")) {
+      return null;
+    }
+
+    // A master playlist lists variants and carries no #EXTINF of its own. Every
+    // variant of one VOD is the same content at a different bitrate, so any of
+    // them answers the duration question - which variant yt-dlp finally picks
+    // does not matter here.
+    if (playlist.includes("#EXT-X-STREAM-INF")) {
+      const variantUri = firstVariantUri(playlist);
+      if (!variantUri) return null;
+      let variantUrl: string;
+      try {
+        variantUrl = new URL(variantUri, m3u8Url).toString();
+      } catch {
+        return null;
+      }
+      // One level only: a master pointing at another master is malformed.
+      const variant = await fetchText(variantUrl);
+      return sumMediaPlaylistDuration(variant);
+    }
+
+    return sumMediaPlaylistDuration(playlist);
+  } catch {
+    return null;
+  }
+}
+
+function firstVariantUri(masterPlaylist: string): string | null {
+  const lines = masterPlaylist.split(/\r?\n/);
+  for (let i = 0; i < lines.length; i += 1) {
+    if (!lines[i].startsWith("#EXT-X-STREAM-INF")) continue;
+    // The URI is the next non-blank, non-comment line.
+    for (let j = i + 1; j < lines.length; j += 1) {
+      const candidate = lines[j].trim();
+      if (!candidate) continue;
+      if (candidate.startsWith("#")) break;
+      return candidate;
+    }
+  }
+  return null;
+}
+
+function sumMediaPlaylistDuration(playlist: string): number | null {
+  if (typeof playlist !== "string") return null;
+  // Without EXT-X-ENDLIST the stream is live or still being written, and a sum
+  // of what exists so far would be an undercount - the one direction that
+  // causes false rejections.
+  if (!playlist.includes("#EXT-X-ENDLIST")) return null;
+
+  let total = 0;
+  let segments = 0;
+  for (const line of playlist.split(/\r?\n/)) {
+    if (!line.startsWith("#EXTINF:")) continue;
+    const value = Number.parseFloat(line.slice("#EXTINF:".length).split(",")[0]);
+    if (!Number.isFinite(value) || value < 0) return null;
+    total += value;
+    segments += 1;
+  }
+
+  if (segments === 0 || total <= 0) return null;
+  return total;
+}

@@ -63,7 +63,7 @@ import {
   getMissAvPuppeteerLaunchOptions,
   navigateMissAvPage,
 } from "./missav/puppeteer";
-import { selectBestM3u8Url } from "./missav/m3u8";
+import { resolveM3u8DurationSeconds, selectBestM3u8Url } from "./missav/m3u8";
 import { planMissAvOutputPaths } from "./missav/outputPaths";
 
 const MISSAV_FAILED_REQUEST_LOG_LIMIT = 10;
@@ -620,6 +620,33 @@ export class MissAVDownloader extends BaseDownloader {
       const referer = `${urlObjForReferer.protocol}//${urlObjForReferer.host}/`;
       logger.info("Using Referer:", referer);
 
+      // MissAV is the one path with no source duration, which leaves it with
+      // only the track comparison and blind to a download shortened equally
+      // across both tracks. The playlist answers it authoritatively: it
+      // describes the exact stream being fetched. Best-effort - every uncertain
+      // case yields null, which is the behaviour without this.
+      const sourceDurationSeconds = await resolveM3u8DurationSeconds(
+        m3u8Url,
+        async (target) => {
+          const axios = (await import("axios")).default;
+          const response = await axios.get(target, {
+            ...(typeof userConfig.proxy === "string" && userConfig.proxy
+              ? getAxiosProxyConfig(userConfig.proxy)
+              : {}),
+            headers: { Referer: referer },
+            responseType: "text",
+            timeout: 15_000,
+            maxContentLength: 8 * 1024 * 1024,
+          });
+          return typeof response.data === "string" ? response.data : "";
+        },
+      );
+      logger.info(
+        sourceDurationSeconds == null
+          ? "MissAV playlist duration could not be established; the completeness check will compare tracks only."
+          : `MissAV playlist duration: ${sourceDurationSeconds.toFixed(1)}s`,
+      );
+
       // The m3u8 host (e.g. surrit.com) sits behind Cloudflare bot management
       // that fingerprints the TLS/JA3 handshake; a default yt-dlp request gets a
       // 403. Route every request through curl_cffi browser impersonation so the
@@ -805,8 +832,9 @@ export class MissAVDownloader extends BaseDownloader {
         );
       }
       const completeness = await verifyDownloadedMediaComplete(videoDownloadPath, {
-        // MissAV scrapes no duration; only track agreement can be checked.
-        sourceDurationSeconds: null,
+        // Null whenever the playlist could not answer it, which leaves only the
+        // track comparison - the behaviour before the playlist was consulted.
+        sourceDurationSeconds,
         userConfig,
       });
       // Cancellation can remove the file while ffprobe is running. A failed

@@ -24,6 +24,19 @@ vi.mock('../../../services/downloaders/downloadIntegrity', () => ({
   verifyDownloadedMediaComplete: vi.fn().mockResolvedValue({ complete: true }),
 }));
 
+// The downloader fetches the HLS playlist to establish a source duration.
+// Without this the suite makes real outbound requests and only passes because
+// they fail. `playlistBody` is what a test wants that fetch to return.
+const playlistBody = vi.hoisted(() => ({ value: null as string | null }));
+vi.mock('axios', () => ({
+  default: {
+    get: vi.fn(async (url: string) => {
+      if (playlistBody.value === null) throw new Error('network disabled in tests');
+      return { data: playlistBody.value, url };
+    }),
+  },
+}));
+
 vi.mock('puppeteer');
 vi.mock('../../../services/storageService', () => ({
   saveVideo: vi.fn(),
@@ -125,6 +138,7 @@ describe('MissAVDownloader', () => {
     vi.mocked(security.pathExistsTrustedSync).mockReturnValue(false);
     vi.mocked(storageService.getSettings).mockReturnValue({} as any);
     vi.mocked(isDownloadActive).mockReturnValue(true);
+    playlistBody.value = null;
     (getUserYtDlpConfig as ReturnType<typeof vi.fn>).mockReturnValue({});
   });
 
@@ -517,7 +531,31 @@ describe('MissAVDownloader', () => {
         expect(storageService.updateVideo).not.toHaveBeenCalled();
       });
 
-      it('checks the actual output with an explicit unknown source duration before saving', async () => {
+      it('passes the playlist duration to the completeness check', async () => {
+        playlistBody.value = [
+          '#EXTM3U', '#EXTINF:10.000,', 'a.ts', '#EXTINF:14.500,', 'b.ts', '#EXT-X-ENDLIST', '',
+        ].join('\n');
+
+        await MissAVDownloader.downloadVideo(url);
+
+        expect(verifyDownloadedMediaComplete).toHaveBeenCalledExactlyOnceWith(videoPath, {
+          sourceDurationSeconds: 24.5, userConfig: {},
+        });
+      });
+
+      it('falls back to an unknown source duration when the playlist cannot be read', async () => {
+        // Degrades to the track comparison rather than guessing: a source
+        // duration wrong in the long direction would reject good downloads.
+        playlistBody.value = null;
+
+        await MissAVDownloader.downloadVideo(url);
+
+        expect(verifyDownloadedMediaComplete).toHaveBeenCalledExactlyOnceWith(videoPath, {
+          sourceDurationSeconds: null, userConfig: {},
+        });
+      });
+
+      it('checks the actual output before saving', async () => {
         await MissAVDownloader.downloadVideo(url);
         expect(verifyDownloadedMediaComplete).toHaveBeenCalledExactlyOnceWith(videoPath, {
           sourceDurationSeconds: null, userConfig: {},
