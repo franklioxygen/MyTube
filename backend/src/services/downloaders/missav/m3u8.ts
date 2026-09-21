@@ -3,6 +3,10 @@ import { allowedDurationDrift } from "../downloadIntegrity";
 // How many renditions of a master are read to corroborate its duration.
 const MAX_COMPARED_VARIANTS = 2;
 
+// A rendition that cannot be read still costs a round trip, so the number of
+// attempts is bounded separately from the number of durations wanted.
+const MAX_VARIANT_FETCH_ATTEMPTS = 4;
+
 // Select the best m3u8 URL from a set of candidates captured during page load.
 export function selectBestM3u8Url(
   urls: string[],
@@ -172,14 +176,32 @@ async function resolveMasterDuration(
   const uris = comparableVariantUris(masterPlaylist);
   if (!uris) return null;
 
+  let master: URL;
+  try {
+    master = new URL(baseUrl);
+  } catch {
+    return null;
+  }
+
   const urls: string[] = [];
   for (const uri of uris) {
+    let candidate: URL;
     try {
-      urls.push(new URL(uri, baseUrl).toString());
+      candidate = new URL(uri, baseUrl);
     } catch {
-      return null;
+      continue;
     }
+    // The playlist body is attacker-controllable, and an absolute variant URI
+    // would otherwise make the backend issue a GET wherever it points -
+    // 127.0.0.1, a cloud metadata address, any internal service. Restrict it to
+    // the master's own origin, which is where a rendition of it belongs, or to a
+    // URL the browser already fetched under its own policy.
+    if (candidate.origin !== master.origin && !readableUrls?.has(candidate.toString())) {
+      continue;
+    }
+    urls.push(candidate.toString());
   }
+  if (urls.length === 0) return null;
 
   // Read renditions already in hand first. On a CDN that fingerprints TLS, a
   // rendition the browser never loaded is answered with 403, so ordering decides
@@ -189,14 +211,19 @@ async function resolveMasterDuration(
   }
 
   const durations: number[] = [];
-  for (const variantUrl of urls.slice(0, MAX_COMPARED_VARIANTS)) {
+  let attempts = 0;
+  for (const variantUrl of urls) {
+    if (durations.length >= MAX_COMPARED_VARIANTS) break;
+    if (attempts >= MAX_VARIANT_FETCH_ATTEMPTS) break;
+    attempts += 1;
+
     let body: string;
     try {
       body = await fetchText(variantUrl);
     } catch {
-      // One unreadable rendition must not discard a readable one: on a
-      // protected host that would disable the check entirely, which is the
-      // situation this whole lookup exists to improve.
+      // One unreadable rendition must not discard a readable one, nor consume
+      // the comparison budget: on a protected host that would disable the check
+      // entirely, which is what this lookup exists to improve.
       continue;
     }
     // One level only: sumMediaPlaylistDuration rejects a nested master outright

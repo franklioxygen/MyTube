@@ -200,6 +200,19 @@ describe('auditMediaIntegrity', () => {
     expect(result.items).toEqual([]);
   });
 
+  it.each(['1 hour', '12abc', '', '  ', 'NaN'])(
+    'skips the duration comparison for the uninterpretable stored value %o',
+    async (stored) => {
+      // parseFloat("1 hour") is 1, which would report a 3600s file as mismatched.
+      mocks.getVideosStrict.mockReturnValue([video({ duration: stored })]);
+      mocks.probeMediaTrackDurations.mockResolvedValue(tracks(3600, 3600, 3600));
+
+      const result = await auditMediaIntegrity();
+
+      expect(result.items).toEqual([]);
+    },
+  );
+
   it('skips the duration comparison for a stored value it cannot interpret', async () => {
     mocks.getVideosStrict.mockReturnValue([video({ duration: 'about an hour' })]);
     mocks.probeMediaTrackDurations.mockResolvedValue(tracks(3600, 3600, 3600));
@@ -251,14 +264,21 @@ describe('auditMediaIntegrity', () => {
     },
   );
 
-  it('skips a row still pointing at a yt-dlp intermediate', async () => {
-    mocks.getVideosStrict.mockReturnValue([video({ videoPath: '/videos/a.f137.mp4' })]);
+  it.each(['/videos/a.f137.mp4', '/videos/lesson.f137.final.mp4', '/videos/a.temp.mp4'])(
+    'still audits %s, since the row identifies it as published media',
+    async (videoPath) => {
+      // A title- or template-derived name may legitimately contain `.fNNN.` or
+      // `.temp.`; skipping on the basename alone would hide real corruption in a
+      // library entry the database says is published.
+      mocks.getVideosStrict.mockReturnValue([video({ videoPath })]);
+      mocks.probeMediaTrackDurations.mockResolvedValue(tracks(600, 600, 100));
 
-    const result = await auditMediaIntegrity();
+      const result = await auditMediaIntegrity();
 
-    expect(result.summary.skippedTemporaryArtifacts).toBe(1);
-    expect(mocks.probeMediaTrackDurations).not.toHaveBeenCalled();
-  });
+      expect(mocks.probeMediaTrackDurations).toHaveBeenCalledOnce();
+      expect(result.items[0].reasons).toContain('track_disagreement');
+    },
+  );
 
   it('skips the track comparison for an audio-only row', async () => {
     mocks.getVideosStrict.mockReturnValue([video({ videoPath: '/videos/a.m4a' })]);

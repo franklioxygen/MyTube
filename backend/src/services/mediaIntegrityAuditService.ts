@@ -55,8 +55,6 @@ export interface MediaIntegrityAuditSummary {
   probed: number;
   /** cloud:, mount: and http(s) rows — not ours to probe. */
   skippedExternal: number;
-  /** Rows still pointing at a yt-dlp intermediate. */
-  skippedTemporaryArtifacts: number;
   filesMissing: number;
   trackDisagreements: number;
   durationMismatches: number;
@@ -69,9 +67,6 @@ export interface MediaIntegrityAuditResult {
   items: MediaIntegrityAuditItem[];
   humanSummary: string;
 }
-
-// Same definition the backfills use to skip yt-dlp intermediates.
-const TEMPORARY_VIDEO_ARTIFACT_PATTERN = /(\.temp\.)|(\.part$)|(\.ytdl$)|(\.f\d+\.)/i;
 
 // Probing is IO-bound and spawns a process per file; a handful at a time keeps a
 // large library from serialising without flooding the host.
@@ -167,6 +162,13 @@ function parseStoredDurationSeconds(value: unknown): number | null {
     const seconds = parts.reduce((total, part) => total * 60 + Number(part), 0);
     return Number.isFinite(seconds) && seconds > 0 ? seconds : null;
   }
+  // Anything else must be an exact number. parseSourceDurationSeconds is
+  // parseFloat-based, which is right for ffprobe output and source metadata but
+  // not for a free-form column: it reads "1 hour" as 1, and the audit would then
+  // report a 3600-second file as mismatched by 3599 seconds.
+  if (typeof value === "string" && !/^\s*\d+(?:\.\d+)?\s*$/.test(value)) {
+    return null;
+  }
   return parseSourceDurationSeconds(value);
 }
 
@@ -221,7 +223,6 @@ export async function auditMediaIntegrity(): Promise<MediaIntegrityAuditResult> 
     totalVideos: videos.length,
     probed: 0,
     skippedExternal: 0,
-    skippedTemporaryArtifacts: 0,
     filesMissing: 0,
     trackDisagreements: 0,
     durationMismatches: 0,
@@ -251,11 +252,6 @@ export async function auditMediaIntegrity(): Promise<MediaIntegrityAuditResult> 
       const absolutePath = webPath
         ? (resolved?.prefix === "/videos" ? resolved.absolutePath : null)
         : (filename ? storageService.findVideoFile(filename, (collections ??= storageService.getCollections())) : null);
-
-      if (TEMPORARY_VIDEO_ARTIFACT_PATTERN.test(path.basename(absolutePath ?? webPath ?? filename ?? ""))) {
-        summary.skippedTemporaryArtifacts += 1;
-        continue;
-      }
 
       if (!absolutePath || !pathExistsSafeSync(absolutePath, VIDEOS_DIR)) {
         summary.filesMissing += 1;

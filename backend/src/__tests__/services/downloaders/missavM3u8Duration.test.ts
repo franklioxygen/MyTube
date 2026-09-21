@@ -153,18 +153,93 @@ describe('resolveM3u8DurationSeconds', () => {
     ).resolves.toBeCloseTo(24.5);
   });
 
-  it('resolves an absolute variant URI', async () => {
+  it('resolves an absolute variant URI on the master\'s own origin', async () => {
     const fetch = fetcher({
       'https://cdn.example/v/playlist.m3u8': `#EXTM3U
 #EXT-X-STREAM-INF:BANDWIDTH=800000
-https://other.example/x/video.m3u8
+https://cdn.example/x/video.m3u8
 `,
-      'https://other.example/x/video.m3u8': MEDIA,
+      'https://cdn.example/x/video.m3u8': MEDIA,
     });
 
     await expect(
       resolveM3u8DurationSeconds('https://cdn.example/v/playlist.m3u8', fetch),
     ).resolves.toBeCloseTo(24.5);
+  });
+
+  it.each([
+    'http://127.0.0.1/admin/status.m3u8',
+    'http://169.254.169.254/latest/meta-data/video.m3u8',
+    'https://attacker.example/x/video.m3u8',
+  ])('never requests the off-origin variant %s', async (target) => {
+    // The playlist body is attacker-controllable; an absolute URI must not turn
+    // into a backend GET against an internal service.
+    const fetch = vi.fn(async (url: string) => {
+      if (url.endsWith('playlist.m3u8')) {
+        return `#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=800000\n${target}\n`;
+      }
+      throw new Error(`must not be requested: ${url}`);
+    });
+
+    await expect(
+      resolveM3u8DurationSeconds('https://cdn.example/v/playlist.m3u8', fetch),
+    ).resolves.toBeNull();
+    expect(fetch).toHaveBeenCalledExactlyOnceWith('https://cdn.example/v/playlist.m3u8');
+  });
+
+  it('allows an off-origin variant the browser itself already fetched', async () => {
+    // It went through the browser's own policy as part of playback, so it is not
+    // a URL this code chose to trust.
+    const target = 'https://cdn2.example/x/video.m3u8';
+    const fetch = fetcher({
+      'https://cdn.example/v/playlist.m3u8': `#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=800000\n${target}\n`,
+      [target]: MEDIA,
+    });
+
+    await expect(
+      resolveM3u8DurationSeconds('https://cdn.example/v/playlist.m3u8', fetch, new Set([target])),
+    ).resolves.toBeCloseTo(24.5);
+  });
+
+  it('keeps looking past unreadable renditions until two are collected', async () => {
+    // A failed fetch must not consume the comparison budget: if the first two
+    // fail and a later one is readable, returning null would disable the check.
+    const master = `#EXTM3U
+#EXT-X-STREAM-INF:BANDWIDTH=1
+a/video.m3u8
+#EXT-X-STREAM-INF:BANDWIDTH=2
+b/video.m3u8
+#EXT-X-STREAM-INF:BANDWIDTH=3
+c/video.m3u8
+#EXT-X-STREAM-INF:BANDWIDTH=4
+d/video.m3u8
+`;
+    const fetch = vi.fn(async (url: string) => {
+      if (url.endsWith('playlist.m3u8')) return master;
+      if (url.includes('/c/') || url.includes('/d/')) return MEDIA;
+      throw new Error('403 Forbidden');
+    });
+
+    await expect(
+      resolveM3u8DurationSeconds('https://cdn.example/v/playlist.m3u8', fetch),
+    ).resolves.toBeCloseTo(24.5);
+  });
+
+  it('stops after a bounded number of unreadable renditions', async () => {
+    const many = ['#EXTM3U'];
+    for (let i = 0; i < 12; i += 1) {
+      many.push(`#EXT-X-STREAM-INF:BANDWIDTH=${i + 1}`, `v${i}/video.m3u8`);
+    }
+    const fetch = vi.fn(async (url: string) => {
+      if (url.endsWith('playlist.m3u8')) return `${many.join('\n')}\n`;
+      throw new Error('403 Forbidden');
+    });
+
+    await expect(
+      resolveM3u8DurationSeconds('https://cdn.example/v/playlist.m3u8', fetch),
+    ).resolves.toBeNull();
+    // The master plus a capped number of rendition attempts, not all twelve.
+    expect(fetch.mock.calls.length).toBeLessThanOrEqual(6);
   });
 
   it('does not guess when a master offers a separate audio rendition', async () => {
