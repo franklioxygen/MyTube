@@ -236,6 +236,35 @@ describe('auditMediaIntegrity', () => {
     expect(result.items).toEqual([]);
   });
 
+  it.each(['HTTP://example.com/a.mp4', 'HTTPS://example.com/a.mp4', 'Cloud:remote/a.mp4', 'MOUNT:/m/a.mp4'])(
+    'treats %s as external despite the scheme case',
+    async (videoPath) => {
+      mocks.getVideosStrict.mockReturnValue([video({ videoPath })]);
+
+      const result = await auditMediaIntegrity();
+
+      expect(result.summary.skippedExternal).toBe(1);
+      expect(result.summary.filesMissing).toBe(0);
+      expect(result.items).toEqual([]);
+    },
+  );
+
+  it('re-probes once the cached result is older than its maximum age', async () => {
+    // mtime and size catch every replacement the app performs, but not a file
+    // rewritten in place to the same length with its timestamp restored.
+    mocks.getVideosStrict.mockReturnValue([video()]);
+    vi.useFakeTimers();
+    try {
+      await auditMediaIntegrity();
+      vi.advanceTimersByTime(11 * 60 * 1000);
+      await auditMediaIntegrity();
+    } finally {
+      vi.useRealTimers();
+    }
+
+    expect(mocks.probeMediaTrackDurations).toHaveBeenCalledTimes(2);
+  });
+
   it('does not re-probe an unchanged file on a second audit', async () => {
     mocks.getVideosStrict.mockReturnValue([video()]);
 

@@ -80,8 +80,19 @@ const PROBE_CONCURRENCY = 4;
 interface CacheEntry {
   mtimeMs: number;
   size: number;
+  cachedAtMs: number;
   tracks: MediaTrackDurations;
 }
+
+// mtime and size catch every replacement this application performs - a
+// re-download or a repair writes a new file - but they are not proof of
+// identity: a file rewritten in place to the same length with its timestamp
+// restored would read as unchanged. Content hashing would be exact, and is the
+// wrong trade here, since digesting every media file costs far more than the
+// ffprobe call it is meant to save. Bounding how long an entry may be trusted
+// keeps the cache useful for a repeat audit in the same sitting while capping
+// staleness at something short.
+const PROBE_CACHE_MAX_AGE_MS = 10 * 60 * 1000;
 
 // Re-auditing an unchanged library should not re-probe it. Keyed by absolute
 // path and invalidated by mtime+size, so a repaired or replaced file is probed
@@ -107,9 +118,15 @@ async function probeWithCache(
     stat = null;
   }
 
+  const now = Date.now();
   if (stat) {
     const cached = probeCache.get(absolutePath);
-    if (cached && cached.mtimeMs === stat.mtimeMs && cached.size === stat.size) {
+    if (
+      cached &&
+      cached.mtimeMs === stat.mtimeMs &&
+      cached.size === stat.size &&
+      now - cached.cachedAtMs < PROBE_CACHE_MAX_AGE_MS
+    ) {
       return cached.tracks;
     }
   }
@@ -121,6 +138,7 @@ async function probeWithCache(
     probeCache.set(absolutePath, {
       mtimeMs: stat.mtimeMs,
       size: stat.size,
+      cachedAtMs: now,
       tracks,
     });
   }
@@ -192,7 +210,10 @@ export async function auditMediaIntegrity(): Promise<MediaIntegrityAuditResult> 
 
   for (const video of videos) {
     const webPath = readString(video.videoPath);
-    if (webPath && /^(?:cloud:|mount:|https?:\/\/)/.test(webPath)) {
+    // Case-insensitive: `HTTP://` is a valid external URL, and the managed-path
+    // resolver matches lowercase only, so an uppercase scheme would fall through
+    // to the local branch and be reported as a missing file.
+    if (webPath && /^(?:cloud:|mount:|https?:\/\/)/i.test(webPath)) {
       summary.skippedExternal += 1;
       continue;
     }
