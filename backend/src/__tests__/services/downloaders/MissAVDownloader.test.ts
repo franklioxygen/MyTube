@@ -2,15 +2,27 @@
 import { spawn } from 'child_process';
 import { EventEmitter } from 'events';
 import fs from 'fs-extra';
+import path from 'path';
 import puppeteer from 'puppeteer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MissAVDownloader } from '../../../services/downloaders/MissAVDownloader';
-import { cleanupTemporaryFiles, isCancellationError } from '../../../utils/downloadUtils';
+import { cleanupTemporaryFiles, isCancellationError, isDownloadActive, safeRemove } from '../../../utils/downloadUtils';
 import { flagsToArgs, getUserYtDlpConfig, isYtDlpImpersonateAvailable } from '../../../utils/ytDlpUtils';
 import * as security from '../../../utils/security';
 import { logger } from '../../../utils/logger';
 import { getMissAVPlaceholderTitle } from '../../../utils/helpers';
 import * as storageService from '../../../services/storageService';
+import { VIDEOS_DIR, IMAGES_DIR } from '../../../config/paths';
+import { verifyDownloadedMediaComplete } from '../../../services/downloaders/downloadIntegrity';
+import * as outputPaths from '../../../services/downloaders/missav/outputPaths';
+import * as allocator from '../../../services/filenameTemplate/outputPathAllocator';
+import * as metadata from '../../../services/metadataService';
+import * as mediaServer from '../../../services/mediaServerExport';
+import * as thumbnailMirror from '../../../services/thumbnailMirrorService';
+
+vi.mock('../../../services/downloaders/downloadIntegrity', () => ({
+  verifyDownloadedMediaComplete: vi.fn().mockResolvedValue({ complete: true }),
+}));
 
 vi.mock('puppeteer');
 vi.mock('../../../services/storageService', () => ({
@@ -23,6 +35,7 @@ vi.mock('../../../services/storageService', () => ({
   checkVideoDownloadBySourceId: vi.fn().mockReturnValue({ found: false }),
   organizeVideoByAuthor: vi.fn().mockReturnValue(null),
   getVideoById: vi.fn().mockReturnValue(null),
+  isVideoFileReferencedByOtherVideo: vi.fn().mockReturnValue(false),
   persistDownloadedMediaIdentity: vi.fn(({ video }) => video),
 }));
 vi.mock('../../../utils/ytDlpUtils', () => ({
@@ -37,6 +50,7 @@ vi.mock('../../../utils/downloadUtils', () => ({
   cleanupTemporaryFiles: vi.fn().mockResolvedValue(undefined),
   safeRemove: vi.fn().mockResolvedValue(undefined),
   isCancellationError: vi.fn().mockReturnValue(false),
+  isDownloadActive: vi.fn().mockReturnValue(true),
 }));
 vi.mock('../../../utils/security', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../utils/security')>();
@@ -110,6 +124,7 @@ describe('MissAVDownloader', () => {
     vi.mocked(fs.existsSync).mockReturnValue(false);
     vi.mocked(security.pathExistsTrustedSync).mockReturnValue(false);
     vi.mocked(storageService.getSettings).mockReturnValue({} as any);
+    vi.mocked(isDownloadActive).mockReturnValue(true);
     (getUserYtDlpConfig as ReturnType<typeof vi.fn>).mockReturnValue({});
   });
 
@@ -400,6 +415,227 @@ describe('MissAVDownloader', () => {
       };
     }
 
+    describe('download integrity', () => {
+      const url = 'https://missav.com/test-video';
+      const release = vi.fn();
+      let videoPath: string;
+      let thumbnailPath: string;
+
+      beforeEach(() => {
+        videoPath = path.join(VIDEOS_DIR, 'MissAV.TESTVIDEO-missavcom-2026_2.mp4');
+        thumbnailPath = path.join(IMAGES_DIR, 'MissAV.TESTVIDEO-missavcom-2026_2.jpg');
+        vi.mocked(storageService.getVideoBySourceUrl).mockReturnValue(undefined);
+        vi.mocked(storageService.checkVideoDownloadBySourceId).mockReturnValue({ found: false });
+        vi.mocked(verifyDownloadedMediaComplete).mockReset().mockResolvedValue({ complete: true });
+        vi.mocked(puppeteer.launch).mockResolvedValue({
+          newPage: vi.fn().mockResolvedValue(buildPageMock('success')),
+          close: vi.fn().mockResolvedValue(undefined),
+        } as any);
+        vi.mocked(spawn).mockImplementation(() => createAutoClosingSpawnProc(0));
+        vi.spyOn(outputPaths, 'planMissAvOutputPaths').mockImplementation(() => ({
+          finalVideoFilename: path.basename(videoPath), newVideoPath: videoPath,
+          finalThumbnailFilename: path.basename(thumbnailPath), newThumbnailPath: thumbnailPath,
+          finalVideoWebPath: `/videos/${path.relative(VIDEOS_DIR, videoPath)}`,
+          finalThumbnailWebPath: `/images/${path.relative(IMAGES_DIR, thumbnailPath)}`,
+          releaseOutputReservation: release,
+        }));
+        vi.spyOn(allocator, 'planOwnedReplacementStagingPathSync').mockReturnValue(null);
+        vi.spyOn(allocator, 'replaceOwnedFileWithBackupSync').mockImplementation(() => {});
+        vi.spyOn(metadata, 'getVideoDuration').mockResolvedValue(600);
+        vi.spyOn(metadata, 'getVideoDimensions').mockResolvedValue(null);
+        vi.spyOn(mediaServer, 'syncMediaServerArtifactsForRecord').mockImplementation(() => {});
+        vi.spyOn(mediaServer, 'removeMediaServerArtifactsForVideo').mockImplementation(() => {});
+      });
+
+      afterEach(() => {
+        vi.restoreAllMocks();
+        vi.mocked(storageService.getVideoBySourceUrl).mockReturnValue(undefined);
+        vi.mocked(storageService.updateVideo).mockReset();
+        vi.mocked(verifyDownloadedMediaComplete).mockReset().mockResolvedValue({ complete: true });
+      });
+
+      function stageReplacement() {
+        const stage = path.join(VIDEOS_DIR, '.mytube-redownload-integrity.mp4');
+        const thumbStage = path.join(IMAGES_DIR, '.mytube-redownload-integrity.jpg');
+        const existing = { id: 'existing', title: 'Existing video', mediaType: 'video' as const,
+          sourceUrl: url, createdAt: '2026-01-01T00:00:00.000Z',
+          videoFilename: path.basename(videoPath), videoPath: `/videos/${path.basename(videoPath)}` };
+        vi.mocked(storageService.getVideoBySourceUrl).mockReturnValue(existing);
+        vi.mocked(storageService.updateVideo).mockImplementation((id, updates) => ({ ...existing, ...updates, id }));
+        vi.mocked(allocator.planOwnedReplacementStagingPathSync)
+          .mockReturnValueOnce({ stagingPath: stage, stagingRootDir: VIDEOS_DIR,
+            finalPath: videoPath, destinationRootDir: VIDEOS_DIR })
+          .mockReturnValueOnce({ stagingPath: thumbStage, stagingRootDir: IMAGES_DIR,
+            finalPath: thumbnailPath, destinationRootDir: IMAGES_DIR });
+        return { stage, thumbStage };
+      }
+
+      function expectNotPublished() {
+        expect(storageService.saveVideo).not.toHaveBeenCalled();
+        expect(storageService.updateVideo).not.toHaveBeenCalled();
+        expect(storageService.persistDownloadedMediaIdentity).not.toHaveBeenCalled();
+        expect(allocator.replaceOwnedFileWithBackupSync).not.toHaveBeenCalled();
+        expect(release).toHaveBeenCalledOnce();
+      }
+
+      it('checks the actual output with an explicit unknown source duration before saving', async () => {
+        await MissAVDownloader.downloadVideo(url);
+        expect(verifyDownloadedMediaComplete).toHaveBeenCalledExactlyOnceWith(videoPath, {
+          sourceDurationSeconds: null, userConfig: {},
+        });
+        expect(storageService.persistDownloadedMediaIdentity).toHaveBeenCalledOnce();
+        expect(cleanupTemporaryFiles).not.toHaveBeenCalled();
+        expect(release).toHaveBeenCalledOnce();
+      });
+
+      it.each(['collision', 'template'])('cleans only allocated paths after rejecting a %s output', async (mode) => {
+        if (mode === 'template') {
+          videoPath = path.join(VIDEOS_DIR, 'Author/Season/Episode.mp4');
+          thumbnailPath = path.join(IMAGES_DIR, 'Author/Season/Episode.jpg');
+        }
+        vi.mocked(verifyDownloadedMediaComplete).mockResolvedValue({
+          complete: false, reason: 'video is 600s but audio is 100s',
+        });
+        await expect(MissAVDownloader.downloadVideo(url)).rejects.toThrow('MissAV download is incomplete');
+        expect(cleanupTemporaryFiles).toHaveBeenCalledExactlyOnceWith(videoPath);
+        // Exact call sets also exclude recomputed legacy paths belonging to another item.
+        expect(safeRemove).toHaveBeenCalledExactlyOnceWith(thumbnailPath);
+        expectNotPublished();
+      });
+
+      it('probes and discards a rejected staging file without touching the library copy', async () => {
+        const { stage, thumbStage } = stageReplacement();
+        vi.mocked(verifyDownloadedMediaComplete).mockResolvedValue({ complete: false, reason: 'short audio' });
+        await expect(MissAVDownloader.downloadVideo(url)).rejects.toThrow('short audio');
+        expect(verifyDownloadedMediaComplete).toHaveBeenCalledWith(stage, expect.any(Object));
+        expect(cleanupTemporaryFiles).toHaveBeenCalledExactlyOnceWith(stage);
+        expect(safeRemove).toHaveBeenCalledExactlyOnceWith(thumbStage);
+        expectNotPublished();
+      });
+
+      it.each([
+        { replacement: false, trigger: 'callback' },
+        { replacement: true, trigger: 'callback' },
+        { replacement: false, trigger: 'active-list' },
+      ])('honors cancellation while the probe is pending: %o', async ({ replacement, trigger }) => {
+        const pendingVideo = replacement ? stageReplacement().stage : videoPath;
+        let finishProbe!: (value: { complete: boolean }) => void;
+        vi.mocked(verifyDownloadedMediaComplete).mockReturnValue(new Promise(resolve => { finishProbe = resolve; }));
+        let cancel!: () => void;
+        const result = MissAVDownloader.downloadVideo(url, 'integrity-test', fn => { cancel = fn; });
+        const rejection = expect(result).rejects.toThrow('Download cancelled by user');
+        await vi.waitFor(() => expect(verifyDownloadedMediaComplete).toHaveBeenCalledOnce());
+        if (trigger === 'callback') await cancel();
+        else vi.mocked(isDownloadActive).mockReturnValue(false);
+        finishProbe({ complete: true }); // Includes the probe's fail-open result.
+        await rejection;
+        expect(cleanupTemporaryFiles).toHaveBeenCalledExactlyOnceWith(pendingVideo);
+        expectNotPublished();
+      });
+
+      it('does not delete a published replacement if later metadata persistence fails', async () => {
+        const { stage, thumbStage } = stageReplacement();
+        vi.mocked(storageService.persistDownloadedMediaIdentity).mockImplementationOnce(() => { throw new Error('database failed'); });
+        await expect(MissAVDownloader.downloadVideo(url)).rejects.toThrow('database failed');
+        expect(allocator.replaceOwnedFileWithBackupSync).toHaveBeenCalledOnce();
+        expect(cleanupTemporaryFiles).toHaveBeenCalledExactlyOnceWith(stage);
+        expect(safeRemove).toHaveBeenCalledExactlyOnceWith(thumbStage);
+        expect(release).toHaveBeenCalledOnce();
+      });
+
+      it.each(['identity', 'artifacts', 'row-update'])('protects a changed filename at the row-update boundary: %s failure', async (failure) => {
+        const oldPath = path.join(VIDEOS_DIR, 'old-title.mp4');
+        const existing = { id: 'existing', title: 'Old title', sourceUrl: url,
+          createdAt: '2026-01-01T00:00:00.000Z', videoFilename: 'old-title.mp4',
+          videoPath: '/videos/old-title.mp4' };
+        vi.mocked(storageService.getVideoBySourceUrl).mockReturnValue(existing);
+        vi.mocked(storageService.updateVideo).mockImplementation((id, updates) => ({ ...existing, ...updates, id }));
+        vi.mocked(puppeteer.launch).mockResolvedValue({
+          newPage: vi.fn().mockResolvedValue(buildPageMock('success', undefined,
+            '<meta property="og:image" content="https://example.com/cover.jpg">')),
+          close: vi.fn().mockResolvedValue(undefined),
+        } as any);
+        vi.spyOn(MissAVDownloader.prototype as any, 'downloadThumbnail').mockResolvedValue(true);
+        vi.spyOn(security, 'pathExistsSafeSync').mockImplementation(candidate => candidate === oldPath);
+        const unlink = vi.spyOn(security, 'unlinkSafeSync').mockImplementation(() => {});
+        const deleteMirror = vi.spyOn(thumbnailMirror, 'deleteSmallThumbnailMirrorSync').mockImplementation(() => {});
+        if (failure === 'identity') {
+          vi.mocked(storageService.persistDownloadedMediaIdentity).mockImplementationOnce(() => { throw new Error('identity failed'); });
+        } else if (failure === 'artifacts') {
+          vi.mocked(mediaServer.removeMediaServerArtifactsForVideo).mockImplementationOnce(() => { throw new Error('artifacts failed'); });
+        } else {
+          vi.mocked(storageService.updateVideo).mockReturnValueOnce(null);
+        }
+
+        await expect(MissAVDownloader.downloadVideo(url)).rejects.toThrow(
+          failure === 'row-update' ? 'Failed to update existing MissAV video' : `${failure} failed`,
+        );
+
+        expect(allocator.planOwnedReplacementStagingPathSync).toHaveReturnedWith(null);
+        expect(allocator.replaceOwnedFileWithBackupSync).not.toHaveBeenCalled();
+        expect(storageService.updateVideo).toHaveBeenCalledWith(existing.id, expect.objectContaining({
+          videoPath: `/videos/${path.basename(videoPath)}`,
+          thumbnailPath: `/images/${path.basename(thumbnailPath)}`,
+        }));
+        if (failure === 'row-update') {
+          expect(unlink).not.toHaveBeenCalled();
+          expect(cleanupTemporaryFiles).toHaveBeenCalledExactlyOnceWith(videoPath);
+          expect(safeRemove).toHaveBeenCalledExactlyOnceWith(thumbnailPath);
+        } else {
+          // The old copy is already gone; deleting the new output would lose both.
+          expect(unlink).toHaveBeenCalledExactlyOnceWith(oldPath, VIDEOS_DIR);
+          expect(cleanupTemporaryFiles).not.toHaveBeenCalled();
+          expect(safeRemove).not.toHaveBeenCalled();
+          expect(deleteMirror).not.toHaveBeenCalled();
+        }
+        expect(release).toHaveBeenCalledOnce();
+      });
+
+      it.each(['collision', 'template'])('preserves a persisted fresh %s download after organization fails', async (mode) => {
+        if (mode === 'template') {
+          videoPath = path.join(VIDEOS_DIR, 'Author/Season/Episode.mp4');
+          thumbnailPath = path.join(IMAGES_DIR, 'Author/Season/Episode.jpg');
+        }
+        vi.mocked(storageService.getSettings).mockReturnValue({ authorOrganizationMode: 'author_collection_linked' });
+        vi.mocked(puppeteer.launch).mockResolvedValue({
+          newPage: vi.fn().mockResolvedValue(buildPageMock('success', undefined,
+            '<meta property="og:image" content="https://example.com/cover.jpg">')),
+          close: vi.fn().mockResolvedValue(undefined),
+        } as any);
+        vi.spyOn(MissAVDownloader.prototype as any, 'downloadThumbnail').mockResolvedValue(true);
+        const deleteMirror = vi.spyOn(thumbnailMirror, 'deleteSmallThumbnailMirrorSync');
+        vi.mocked(storageService.organizeVideoByAuthor).mockImplementationOnce(() => { throw new Error('organization failed'); });
+
+        await expect(MissAVDownloader.downloadVideo(url)).rejects.toThrow('organization failed');
+
+        expect(storageService.persistDownloadedMediaIdentity).toHaveBeenCalledWith(expect.objectContaining({
+          video: expect.objectContaining({ thumbnailFilename: path.basename(thumbnailPath) }),
+        }));
+        expect(cleanupTemporaryFiles).not.toHaveBeenCalled();
+        expect(safeRemove).not.toHaveBeenCalled();
+        expect(deleteMirror).not.toHaveBeenCalled();
+        expect(release).toHaveBeenCalledOnce();
+      });
+
+      it('does not delete a persisted fresh video through a stale cancel callback', async () => {
+        let cancel!: () => void;
+        await MissAVDownloader.downloadVideo(url, undefined, fn => { cancel = fn; });
+        expect(storageService.persistDownloadedMediaIdentity).toHaveBeenCalledOnce();
+
+        await cancel();
+
+        expect(cleanupTemporaryFiles).not.toHaveBeenCalled();
+        expect(safeRemove).not.toHaveBeenCalled();
+      });
+
+      it('still discards a fresh download when persistence fails', async () => {
+        vi.mocked(storageService.persistDownloadedMediaIdentity).mockImplementationOnce(() => { throw new Error('database failed'); });
+        await expect(MissAVDownloader.downloadVideo(url)).rejects.toThrow('database failed');
+        expect(cleanupTemporaryFiles).toHaveBeenCalledExactlyOnceWith(videoPath);
+        expect(safeRemove).toHaveBeenCalledExactlyOnceWith(thumbnailPath);
+      });
+    });
+
     it('does not report the interstitial status after a challenge cleared', async () => {
       const mockPage = buildPageMock('timeout');
       // 403 is the interstitial's own status; it navigates again once cleared,
@@ -460,6 +696,8 @@ describe('MissAVDownloader', () => {
       ).rejects.toThrow('returned no video stream URL');
 
       expect(mockPage.waitForResponse).toHaveBeenCalledOnce();
+      expect(cleanupTemporaryFiles).not.toHaveBeenCalled();
+      expect(safeRemove).not.toHaveBeenCalled();
     });
 
     it('preserves the 123av /v/ route during download navigation', async () => {

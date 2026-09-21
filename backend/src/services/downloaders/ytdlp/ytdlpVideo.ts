@@ -20,6 +20,10 @@ import {
   replaceOwnedFileWithBackupSync,
 } from "../../filenameTemplate/outputPathAllocator";
 import { planDownloadPaths } from "./downloadPathPlanner";
+import {
+  parseSourceDurationSeconds,
+  verifyDownloadedMediaComplete,
+} from "../downloadIntegrity";
 import { resolveSupersededManagedPath } from "../supersededOutput";
 import { logger } from "../../../utils/logger";
 import { ProgressTracker } from "../../../utils/progressTracker";
@@ -486,6 +490,37 @@ export async function downloadVideo(
       );
       newVideoPathWithFormat = resolvedVideoPath;
       finalVideoFilename = path.basename(resolvedVideoPath);
+    }
+
+    // Reject a truncated download before it can be published — and, for a
+    // redownload, before it replaces the file it was meant to improve. yt-dlp
+    // merges whatever it managed to fetch, so a transfer cut short still leaves
+    // a playable-looking file whose streams stop partway; the duration recorded
+    // below is measured from that same file, so nothing downstream would notice.
+    const completeness = await verifyDownloadedMediaComplete(
+      newVideoPathWithFormat,
+      {
+        sourceDurationSeconds: parseSourceDurationSeconds(
+          (info as { duration?: unknown }).duration
+        ),
+        userConfig,
+      }
+    );
+    if (!completeness.complete) {
+      // Use the download's original output stem, including for split artifacts.
+      // On a redownload the library stem belongs to the existing good copy.
+      const rejectedOutputPath =
+        ownedVideoReplacement?.stagingPath ?? plannedPaths.videoAbsolutePath;
+      const rejectedBaseFilename = path.basename(
+        rejectedOutputPath,
+        path.extname(rejectedOutputPath)
+      );
+      await cleanupVideoArtifacts(rejectedBaseFilename, plannedVideoDir());
+      await cleanupSubtitleFiles(rejectedBaseFilename, plannedVideoDir());
+      throw new Error(
+        `Download is incomplete: ${completeness.reason}. ` +
+          `The file was discarded; try downloading again.`
+      );
     }
 
     let subtitleArtifactBaseFilename = newSafeBaseFilename;

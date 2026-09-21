@@ -38,6 +38,10 @@ import {
   moveVideoFile,
 } from "./bilibiliFileManager";
 import { getVideoHeight } from "./bilibiliMetadata";
+import {
+  parseSourceDurationSeconds,
+  verifyDownloadedMediaComplete,
+} from "../downloadIntegrity";
 import { BilibiliVideoInfo } from "./types";
 import type { DownloadModeOptions } from "../BaseDownloader";
 import {
@@ -294,15 +298,18 @@ export async function downloadVideo(
         .split("\n")
         .filter((line) => line.trim());
       for (const line of lines) {
-        // Skip expected/informational messages
+        // Skip expected/informational messages. "Invalid data found when
+        // processing input" is deliberately NOT in this list: it is ffmpeg
+        // reporting that a stream it was handed ends mid-sample, which is the
+        // clearest signal that a download was truncated, and suppressing it hid
+        // that failure from the logs entirely.
         if (
           line.includes("[download]") ||
           line.includes("[info]") ||
           line.includes("[ExtractAudio]") ||
           line.includes("[Merger]") ||
           line.includes("[BiliBili]") ||
-          line.includes("Subtitles are only available when logged in") ||
-          line.includes("Invalid data found when processing input")
+          line.includes("Subtitles are only available when logged in")
         ) {
           continue;
         }
@@ -408,8 +415,25 @@ export async function downloadVideo(
 
     logger.info("Found video file:", videoFile);
 
-    // Get final file size for progress update
     const tempVideoPath = resolveSafeChildPath(tempDir, videoFile);
+
+    // Reject a truncated download before it leaves the temp directory. yt-dlp
+    // merges whatever it managed to fetch, so a transfer that was cut short
+    // still yields a playable-looking file whose streams stop partway; without
+    // this check it is stored, its measured (short) duration is recorded as the
+    // truth, and the break only surfaces when playback reaches it.
+    const completeness = await verifyDownloadedMediaComplete(tempVideoPath, {
+      sourceDurationSeconds: parseSourceDurationSeconds(metaSource.duration),
+      userConfig,
+    });
+    if (!completeness.complete) {
+      throw new Error(
+        `Bilibili download is incomplete: ${completeness.reason}. ` +
+          `The file was discarded; try downloading again.`
+      );
+    }
+
+    // Get final file size for progress update
     if (downloadId && pathExistsSafeSync(tempVideoPath, tempDir)) {
       const stats = statSafeSync(tempVideoPath, tempDir);
       const finalSize = formatBytes(stats.size);

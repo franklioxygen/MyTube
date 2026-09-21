@@ -12,6 +12,11 @@ const mockExecuteYtDlpJson = vi.fn().mockResolvedValue({
     extractor: 'youtube'
 });
 const mockGetUserYtDlpConfig = vi.fn().mockReturnValue({});
+const mockVerifyDownloadedMediaComplete = vi.hoisted(() => vi.fn());
+vi.mock('../../../services/downloaders/downloadIntegrity', async (importOriginal) => ({
+    ...await importOriginal<any>(),
+    verifyDownloadedMediaComplete: mockVerifyDownloadedMediaComplete,
+}));
 const videoPathExistsChecks = vi.hoisted(() => new Map<string, number>());
 const additionalExistingPaths = vi.hoisted(() => new Set<string>());
 
@@ -142,6 +147,11 @@ vi.mock('../../../services/metadataService', () => ({
 
 import { YtDlpDownloader } from '../../../services/downloaders/YtDlpDownloader';
 import * as storageService from '../../../services/storageService';
+import {
+    planOwnedReplacementStagingPathSync,
+    replaceOwnedFileWithBackupSync,
+} from '../../../services/filenameTemplate/outputPathAllocator';
+import { VIDEOS_DIR } from '../../../config/paths';
 
 describe('YtDlpDownloader format defaults', () => {
     beforeEach(() => {
@@ -149,6 +159,8 @@ describe('YtDlpDownloader format defaults', () => {
         videoPathExistsChecks.clear();
         additionalExistingPaths.clear();
         mockGetUserYtDlpConfig.mockReturnValue({});
+        mockVerifyDownloadedMediaComplete.mockResolvedValue({ complete: true });
+        vi.mocked(planOwnedReplacementStagingPathSync).mockReset().mockReturnValue(null);
         // clearAllMocks keeps implementations, so restore the default settings
         // here rather than letting one test's override leak into the next.
         vi.mocked(storageService.getSettings).mockReturnValue({} as any);
@@ -173,6 +185,55 @@ describe('YtDlpDownloader format defaults', () => {
         expect(args.format).not.toContain('av01');
         expect(args.mergeOutputFormat).toBe('webm/mp4');
         expect(args.output).toContain('.%(ext)s');
+    });
+
+    it('passes source duration and effective config to the completeness check', async () => {
+        mockExecuteYtDlpJson.mockResolvedValueOnce({
+            title: 'Test Video', uploader: 'Test Author', upload_date: '20230101',
+            extractor: 'youtube', duration: 1110.762,
+        });
+        mockGetUserYtDlpConfig.mockReturnValue({ downloadSections: '*0:00-2:00' });
+
+        await YtDlpDownloader.downloadVideo('https://www.youtube.com/watch?v=123456');
+
+        expect(mockVerifyDownloadedMediaComplete).toHaveBeenCalledWith(
+            expect.any(String),
+            { sourceDurationSeconds: 1110.762, userConfig: { downloadSections: '*0:00-2:00' } },
+        );
+        expect(storageService.saveVideo).toHaveBeenCalled();
+    });
+
+    it.each([false, true])('discards incomplete output without publishing it (redownload=%s)', async (redownload) => {
+        const base = 'Test.Video-Test.Author-2023';
+        const stagingBase = '.mytube-redownload-integrity-test';
+        const finalPath = path.join(VIDEOS_DIR, `${base}.webm`);
+        const stagingPath = path.join(VIDEOS_DIR, `${stagingBase}.webm`);
+        if (redownload) {
+            vi.mocked(storageService.getVideoBySourceUrl).mockReturnValue({
+                id: 'existing-row', title: 'Existing video',
+                videoFilename: `${base}.webm`, videoPath: `/videos/${base}.webm`,
+            } as any);
+            vi.mocked(planOwnedReplacementStagingPathSync).mockReturnValueOnce({
+                stagingPath, finalPath, stagingRootDir: VIDEOS_DIR,
+                destinationRootDir: VIDEOS_DIR,
+            });
+            additionalExistingPaths.add(stagingPath);
+        }
+        mockVerifyDownloadedMediaComplete.mockResolvedValue({
+            complete: false, reason: 'audio ends at 400.0s',
+        });
+
+        await expect(YtDlpDownloader.downloadVideo('https://www.youtube.com/watch?v=123456'))
+            .rejects.toThrow('Download is incomplete: audio ends at 400.0s');
+
+        const rejectedBase = redownload ? stagingBase : base;
+        expect(mockCleanupVideoArtifacts).toHaveBeenCalledExactlyOnceWith(rejectedBase, VIDEOS_DIR);
+        expect(mockCleanupSubtitleFiles).toHaveBeenCalledExactlyOnceWith(rejectedBase, VIDEOS_DIR);
+        expect(replaceOwnedFileWithBackupSync).not.toHaveBeenCalled();
+        expect(storageService.saveVideo).not.toHaveBeenCalled();
+        expect(storageService.updateVideo).not.toHaveBeenCalled();
+        expect(storageService.persistDownloadedMediaIdentity).not.toHaveBeenCalled();
+        expect(mockUnlinkSync).not.toHaveBeenCalled();
     });
 
     it('cleans up cancelled organized downloads from the author directory', async () => {
