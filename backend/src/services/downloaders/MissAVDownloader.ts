@@ -791,6 +791,19 @@ export class MissAVDownloader extends BaseDownloader {
 
       const downloader = new MissAVDownloader();
       downloader.throwIfCancelled(downloadId);
+      // The completeness probe is deliberately fail-open: a file it cannot read
+      // is reported as unknown, not as broken, so a host without ffprobe keeps
+      // working. That means it cannot answer "yt-dlp produced nothing at all",
+      // and unlike the other downloaders - which gate on findVideoFileInTemp and
+      // resolvePlayableMediaFilePath - nothing here asked that question. A run
+      // that exits 0 without writing the expected file would reach the database
+      // and save a row pointing at a file that never existed.
+      if (!pathExistsSafeSync(videoDownloadPath, VIDEOS_DIR)) {
+        throw new Error(
+          `MissAV download produced no output at ${videoDownloadPath}. ` +
+            `The download was discarded; try downloading again.`
+        );
+      }
       const completeness = await verifyDownloadedMediaComplete(videoDownloadPath, {
         // MissAV scrapes no duration; only track agreement can be checked.
         sourceDurationSeconds: null,

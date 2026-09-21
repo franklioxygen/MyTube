@@ -420,10 +420,13 @@ describe('MissAVDownloader', () => {
       const release = vi.fn();
       let videoPath: string;
       let thumbnailPath: string;
+      let stagingVideoPath: string | null;
+      let producedOutput: boolean;
 
       beforeEach(() => {
         videoPath = path.join(VIDEOS_DIR, 'MissAV.TESTVIDEO-missavcom-2026_2.mp4');
         thumbnailPath = path.join(IMAGES_DIR, 'MissAV.TESTVIDEO-missavcom-2026_2.jpg');
+        stagingVideoPath = null;
         vi.mocked(storageService.getVideoBySourceUrl).mockReturnValue(undefined);
         vi.mocked(storageService.checkVideoDownloadBySourceId).mockReturnValue({ found: false });
         vi.mocked(verifyDownloadedMediaComplete).mockReset().mockResolvedValue({ complete: true });
@@ -441,6 +444,13 @@ describe('MissAVDownloader', () => {
         }));
         vi.spyOn(allocator, 'planOwnedReplacementStagingPathSync').mockReturnValue(null);
         vi.spyOn(allocator, 'replaceOwnedFileWithBackupSync').mockImplementation(() => {});
+        // The downloader now refuses to publish an output it cannot find, so the
+        // harness has to model yt-dlp actually having written one. `producedOutput`
+        // is the switch a test flips to simulate a run that wrote nothing.
+        producedOutput = true;
+        vi.spyOn(security, 'pathExistsSafeSync').mockImplementation(
+          candidate => producedOutput && (candidate === videoPath || candidate === stagingVideoPath),
+        );
         vi.spyOn(metadata, 'getVideoDuration').mockResolvedValue(600);
         vi.spyOn(metadata, 'getVideoDimensions').mockResolvedValue(null);
         vi.spyOn(mediaServer, 'syncMediaServerArtifactsForRecord').mockImplementation(() => {});
@@ -456,6 +466,7 @@ describe('MissAVDownloader', () => {
 
       function stageReplacement() {
         const stage = path.join(VIDEOS_DIR, '.mytube-redownload-integrity.mp4');
+        stagingVideoPath = stage;
         const thumbStage = path.join(IMAGES_DIR, '.mytube-redownload-integrity.jpg');
         const existing = { id: 'existing', title: 'Existing video', mediaType: 'video' as const,
           sourceUrl: url, createdAt: '2026-01-01T00:00:00.000Z',
@@ -477,6 +488,34 @@ describe('MissAVDownloader', () => {
         expect(allocator.replaceOwnedFileWithBackupSync).not.toHaveBeenCalled();
         expect(release).toHaveBeenCalledOnce();
       }
+
+      it('refuses to publish when yt-dlp exited cleanly but wrote no file', async () => {
+        // The completeness probe is fail-open, so it reports an unreadable file as
+        // unknown rather than broken and cannot answer this on its own.
+        producedOutput = false;
+
+        await expect(MissAVDownloader.downloadVideo(url)).rejects.toThrow(
+          'MissAV download produced no output',
+        );
+
+        expect(verifyDownloadedMediaComplete).not.toHaveBeenCalled();
+        expect(storageService.saveVideo).not.toHaveBeenCalled();
+        expect(storageService.persistDownloadedMediaIdentity).not.toHaveBeenCalled();
+        expect(storageService.updateVideo).not.toHaveBeenCalled();
+        expect(release).toHaveBeenCalledOnce();
+      });
+
+      it('does not replace an existing library copy when the re-download wrote nothing', async () => {
+        stageReplacement();
+        producedOutput = false;
+
+        await expect(MissAVDownloader.downloadVideo(url)).rejects.toThrow(
+          'MissAV download produced no output',
+        );
+
+        expect(allocator.replaceOwnedFileWithBackupSync).not.toHaveBeenCalled();
+        expect(storageService.updateVideo).not.toHaveBeenCalled();
+      });
 
       it('checks the actual output with an explicit unknown source duration before saving', async () => {
         await MissAVDownloader.downloadVideo(url);
@@ -556,7 +595,11 @@ describe('MissAVDownloader', () => {
           close: vi.fn().mockResolvedValue(undefined),
         } as any);
         vi.spyOn(MissAVDownloader.prototype as any, 'downloadThumbnail').mockResolvedValue(true);
-        vi.spyOn(security, 'pathExistsSafeSync').mockImplementation(candidate => candidate === oldPath);
+        // The download wrote its output and the superseded copy is still on disk;
+        // both must read as existing or the downloader's no-output gate fires first.
+        vi.spyOn(security, 'pathExistsSafeSync').mockImplementation(
+          candidate => candidate === oldPath || candidate === videoPath,
+        );
         const unlink = vi.spyOn(security, 'unlinkSafeSync').mockImplementation(() => {});
         const deleteMirror = vi.spyOn(thumbnailMirror, 'deleteSmallThumbnailMirrorSync').mockImplementation(() => {});
         if (failure === 'identity') {
