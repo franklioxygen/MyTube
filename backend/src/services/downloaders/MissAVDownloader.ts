@@ -68,6 +68,10 @@ import { planMissAvOutputPaths } from "./missav/outputPaths";
 
 const MISSAV_FAILED_REQUEST_LOG_LIMIT = 10;
 
+// A media playlist for a long VOD is tens of KB; this only bounds the damage
+// if the URL filter ever matches something that is not a playlist.
+const MISSAV_MAX_CAPTURED_PLAYLIST_BYTES = 4 * 1024 * 1024;
+
 function resolveMissAvMergeOutputFormat(
   userConfig: Record<string, unknown>,
   settings: { preferredVideoContainer?: unknown },
@@ -320,6 +324,15 @@ export class MissAVDownloader extends BaseDownloader {
 
       // Declared before try so they are accessible after browser is closed.
       const m3u8Urls: string[] = [];
+      // Bodies of the playlists the browser itself fetched. The m3u8 host sits
+      // behind Cloudflare bot management that fingerprints the TLS handshake -
+      // see the impersonation note on the download flags below - so a plain
+      // Node request for the same URL is answered with 403. The browser has
+      // already paid that cost with an accepted fingerprint and its session
+      // cookies, so reusing what it received is both free and the only thing
+      // that works on the preferred host.
+      const capturedPlaylists = new Map<string, string>();
+      const pendingCaptures: Array<Promise<unknown>> = [];
       const isM3u8 = (u: string) => u.includes(".m3u8") && !u.includes("preview");
       let failedRequestLogCount = 0;
       let html = "";
@@ -357,6 +370,21 @@ export class MissAVDownloader extends BaseDownloader {
               `cf-ray=${headers["cf-ray"] ?? "none"} ` +
               `server=${headers["server"] ?? "?"} ` +
               `set-cookie=${headers["set-cookie"] ? "yes" : "no"} ${resUrl}`,
+          );
+
+          if (response.status() !== 200 || capturedPlaylists.has(resUrl)) return;
+          // Best-effort: a body that cannot be read (redirect, aborted request,
+          // page already gone) simply leaves this URL uncaptured, and the
+          // duration lookup falls back to requesting it directly.
+          pendingCaptures.push(
+            response
+              .text()
+              .then((body) => {
+                if (typeof body === "string" && body.length <= MISSAV_MAX_CAPTURED_PLAYLIST_BYTES) {
+                  capturedPlaylists.set(resUrl, body);
+                }
+              })
+              .catch(() => undefined),
           );
         });
 
@@ -414,6 +442,9 @@ export class MissAVDownloader extends BaseDownloader {
         }
 
         html = await page.content();
+        // The bodies must be read while the page is still alive; after
+        // browser.close() the responses can no longer be resolved.
+        await Promise.allSettled(pendingCaptures);
       } finally {
         // Always close the browser, even when a non-timeout error is thrown,
         // to prevent Chromium processes from being left behind.
@@ -628,6 +659,12 @@ export class MissAVDownloader extends BaseDownloader {
       const sourceDurationSeconds = await resolveM3u8DurationSeconds(
         m3u8Url,
         async (target) => {
+          const captured = capturedPlaylists.get(target);
+          if (captured !== undefined) return captured;
+          // Not something the browser fetched - a variant it never selected,
+          // say. Worth trying directly: it succeeds on hosts that do not
+          // fingerprint, and on those that do it fails into an unknown
+          // duration, which is the behaviour without this lookup at all.
           const axios = (await import("axios")).default;
           const response = await axios.get(target, {
             ...(typeof userConfig.proxy === "string"

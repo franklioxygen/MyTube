@@ -29,6 +29,10 @@ vi.mock('../../../services/downloaders/downloadIntegrity', () => ({
 // Without this the suite makes real outbound requests and only passes because
 // they fail. `playlistBody` is what a test wants that fetch to return.
 const playlistBody = vi.hoisted(() => ({ value: null as string | null }));
+// A playlist body the mocked browser reports having fetched itself. The real
+// CDN fingerprints TLS and 403s a plain Node request, so this is the path
+// that actually carries a duration in production.
+const capturedPlaylist = vi.hoisted(() => ({ value: null as string | null }));
 vi.mock('axios', () => ({
   default: {
     get: vi.fn(async (url: string) => {
@@ -140,6 +144,7 @@ describe('MissAVDownloader', () => {
     vi.mocked(storageService.getSettings).mockReturnValue({} as any);
     vi.mocked(isDownloadActive).mockReturnValue(true);
     playlistBody.value = null;
+    capturedPlaylist.value = null;
     (getUserYtDlpConfig as ReturnType<typeof vi.fn>).mockReturnValue({});
   });
 
@@ -415,8 +420,17 @@ describe('MissAVDownloader', () => {
     ) {
       const mockResponse = { url: () => 'https://surrit.com/playlist.m3u8' };
       return {
-        on: vi.fn((event: string, cb: (req: { url(): string }) => void) => {
+        on: vi.fn((event: string, cb: (req: any) => void) => {
           if (event === 'request') requestCallback?.capture(cb);
+          if (event === 'response' && capturedPlaylist.value !== null) {
+            // What the browser received for the playlist it fetched itself.
+            cb({
+              url: () => 'https://surrit.com/playlist.m3u8',
+              status: () => 200,
+              headers: () => ({}),
+              text: async () => capturedPlaylist.value,
+            });
+          }
         }),
         goto: vi.fn().mockResolvedValue(undefined),
         title: vi.fn().mockResolvedValue('Test Title'),
@@ -542,6 +556,22 @@ describe('MissAVDownloader', () => {
         expect(verifyDownloadedMediaComplete).toHaveBeenCalledExactlyOnceWith(videoPath, {
           sourceDurationSeconds: 24.5, userConfig: {},
         });
+      });
+
+      it('uses the playlist body the browser already fetched', async () => {
+        // The CDN 403s a plain Node request, so a direct fetch would yield
+        // nothing; axios must not be consulted at all for this URL.
+        capturedPlaylist.value = [
+          '#EXTM3U', '#EXTINF:30.000,', 'a.ts', '#EXTINF:30.000,', 'b.ts', '#EXT-X-ENDLIST', '',
+        ].join('\n');
+        playlistBody.value = null;
+
+        await MissAVDownloader.downloadVideo(url);
+
+        expect(verifyDownloadedMediaComplete).toHaveBeenCalledExactlyOnceWith(videoPath, {
+          sourceDurationSeconds: 60, userConfig: {},
+        });
+        expect(axios.get).not.toHaveBeenCalled();
       });
 
       it('falls back to an unknown source duration when the playlist cannot be read', async () => {
