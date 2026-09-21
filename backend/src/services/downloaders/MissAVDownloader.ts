@@ -674,6 +674,16 @@ export class MissAVDownloader extends BaseDownloader {
             responseType: "text",
             timeout: 15_000,
             maxContentLength: 8 * 1024 * 1024,
+            // The origin check that admitted this URL happens before the
+            // request, so following a redirect would walk straight past it: a
+            // same-origin rendition answering 302 with a Location of
+            // 127.0.0.1, a cloud metadata address or any internal service
+            // would be fetched. Refuse redirects outright rather than
+            // revalidating each hop, which would mean depending on the shape of
+            // follow-redirects' callback options. A rendition that redirects is
+            // simply not read, and yields no duration - the same degradation as
+            // every other uncertain case here.
+            maxRedirects: 0,
           });
           return typeof response.data === "string" ? response.data : "";
         },

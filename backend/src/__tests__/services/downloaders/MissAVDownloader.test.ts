@@ -586,6 +586,18 @@ describe('MissAVDownloader', () => {
         });
       });
 
+      it('does not follow redirects when fetching a playlist directly', async () => {
+        // The origin check runs before the request, so a same-origin rendition
+        // answering 302 with an internal Location would otherwise be followed.
+        playlistBody.value = ['#EXTM3U', '#EXTINF:5.000,', 'a.ts', '#EXT-X-ENDLIST', ''].join('\n');
+
+        await MissAVDownloader.downloadVideo(url);
+
+        expect(axios.get).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
+          maxRedirects: 0,
+        }));
+      });
+
       it('honors an explicit direct connection for the playlist fetch', async () => {
         vi.mocked(getUserYtDlpConfig).mockReturnValue({ proxy: '' });
         vi.mocked(getAxiosProxyConfig).mockReturnValue({ proxy: false });
