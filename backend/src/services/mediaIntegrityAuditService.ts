@@ -187,9 +187,16 @@ function describe(
           `${tracks.audio?.toFixed(1)}s, so one of them is truncated`
       );
     } else if (reason === "duration_mismatch") {
+      const measuredIsShorter =
+        storedDurationSeconds != null &&
+        tracks.container != null &&
+        tracks.container < storedDurationSeconds;
       parts.push(
         `the stored duration is ${storedDurationSeconds?.toFixed(1)}s but the ` +
-          `file measures ${tracks.container?.toFixed(1)}s`
+          `file measures ${tracks.container?.toFixed(1)}s` +
+          (measuredIsShorter
+            ? ", so it looks like the file was truncated after the row was written"
+            : "")
       );
     } else {
       parts.push("the file exists but ffprobe could not read it");
@@ -199,9 +206,22 @@ function describe(
 }
 
 function resolveAction(
-  reasons: MediaIntegrityAuditReason[]
+  reasons: MediaIntegrityAuditReason[],
+  /**
+   * Whether the file measures shorter than its stored duration. The direction
+   * matters: a file that grew is stale metadata, but one that shrank has the
+   * shape of a truncation that happened after the row was written.
+   */
+  measuredIsShorter: boolean
 ): MediaIntegrityRecommendedAction {
   if (reasons.includes("file_missing") || reasons.includes("track_disagreement")) {
+    return "redownload";
+  }
+  // Refreshing the duration of a file that shrank would overwrite the only
+  // record that it used to be longer - the evidence of the corruption - and
+  // every later audit would then pass. Only a file that is longer than its
+  // stored duration is safely a metadata problem.
+  if (measuredIsShorter) {
     return "redownload";
   }
   if (reasons.includes("unprobeable")) {
@@ -338,7 +358,10 @@ export async function auditMediaIntegrity(): Promise<MediaIntegrityAuditResult> 
       detail: describe(reasons, tracks, stored),
       storedDurationSeconds: stored,
       measured: tracks,
-      recommendedAction: resolveAction(reasons),
+      recommendedAction: resolveAction(
+        reasons,
+        stored != null && tracks.container != null && tracks.container < stored
+      ),
     });
   });
 

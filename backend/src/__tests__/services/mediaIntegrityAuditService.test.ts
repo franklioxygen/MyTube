@@ -109,7 +109,7 @@ describe('auditMediaIntegrity', () => {
     expect(mocks.probeMediaTrackDurations).not.toHaveBeenCalled();
   });
 
-  it('flags a stale stored duration', async () => {
+  it('flags a stale stored duration on a file that is longer than recorded', async () => {
     mocks.getVideosStrict.mockReturnValue([video({ duration: '685' })]);
     mocks.probeMediaTrackDurations.mockResolvedValue(tracks(1110.76, 1110.72, 1110.76));
 
@@ -117,6 +117,20 @@ describe('auditMediaIntegrity', () => {
 
     expect(result.items[0].reasons).toEqual(['duration_mismatch']);
     expect(result.items[0].recommendedAction).toBe('refresh_duration');
+  });
+
+  it('does not recommend refreshing the duration of a file that shrank', async () => {
+    // Equally truncated tracks still agree, so the only signal is that the file
+    // is now shorter than recorded. Refreshing the duration would overwrite the
+    // one record that it used to be longer and every later audit would pass.
+    mocks.getVideosStrict.mockReturnValue([video({ duration: '3600' })]);
+    mocks.probeMediaTrackDurations.mockResolvedValue(tracks(1800, 1800, 1800));
+
+    const result = await auditMediaIntegrity();
+
+    expect(result.items[0].reasons).toEqual(['duration_mismatch']);
+    expect(result.items[0].recommendedAction).toBe('redownload');
+    expect(result.items[0].detail).toContain('truncated after the row was written');
   });
 
   it.each(['existence check', 'legacy lookup'])(
@@ -223,6 +237,7 @@ describe('auditMediaIntegrity', () => {
   });
 
   it('still flags a clock-formatted duration that genuinely disagrees', async () => {
+    // Measured longer than stored, so this stays a metadata refresh.
     mocks.getVideosStrict.mockReturnValue([video({ duration: '01:23' })]);
     mocks.probeMediaTrackDurations.mockResolvedValue(tracks(600, 600, 600));
 
