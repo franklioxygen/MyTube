@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   statSafeSync: vi.fn(),
   findVideoFile: vi.fn(),
   getCollections: vi.fn(() => []),
+  readdirSafeSync: vi.fn((..._args: unknown[]) => [] as string[]),
 }));
 
 vi.mock('../../config/paths', async (importOriginal) => {
@@ -24,6 +25,7 @@ vi.mock('../../utils/security', async (importOriginal) => {
     ...actual,
     pathExistsSafeSync: (...args: unknown[]) => mocks.pathExistsSafeSync(...args),
     statSafeSync: (...args: unknown[]) => mocks.statSafeSync(...args),
+    readdirSafeSync: (...args: unknown[]) => mocks.readdirSafeSync(...args),
   };
 });
 
@@ -71,6 +73,7 @@ describe('auditMediaIntegrity', () => {
     mocks.statSafeSync.mockReturnValue({ mtimeMs: 1, size: 100 });
     mocks.probeMediaTrackDurations.mockResolvedValue(tracks(600, 600, 600));
     mocks.findVideoFile.mockReturnValue(null);
+    mocks.readdirSafeSync.mockReturnValue([]);
   });
 
   it('reports a clean library', async () => {
@@ -98,15 +101,72 @@ describe('auditMediaIntegrity', () => {
     expect(result.summary.trackDisagreements).toBe(1);
   });
 
+  const fsError = (code: string) => Object.assign(new Error(code), { code });
+
   it('flags a row whose file is gone', async () => {
     mocks.getVideosStrict.mockReturnValue([video()]);
     mocks.pathExistsSafeSync.mockReturnValue(false);
+    mocks.statSafeSync.mockImplementation(() => { throw fsError('ENOENT'); });
 
     const result = await auditMediaIntegrity();
 
     expect(result.items[0].reasons).toEqual(['file_missing']);
     expect(result.items[0].recommendedAction).toBe('redownload');
     expect(mocks.probeMediaTrackDurations).not.toHaveBeenCalled();
+  });
+
+  it.each(['EACCES', 'EIO', 'ESTALE'])(
+    'does not call an unreadable file missing (%s)',
+    async (code) => {
+      // existsSync answers false for these exactly as it does for a missing
+      // file, so a dropped NAS mount would otherwise report every row missing
+      // and recommend redownloading the whole library.
+      mocks.getVideosStrict.mockReturnValue([video()]);
+      mocks.pathExistsSafeSync.mockReturnValue(false);
+      mocks.statSafeSync.mockImplementation(() => { throw fsError(code); });
+
+      const result = await auditMediaIntegrity();
+
+      expect(result.items[0].reasons).toEqual(['unprobeable']);
+      expect(result.items[0].recommendedAction).toBe('manual_review');
+      expect(result.summary.filesMissing).toBe(0);
+    },
+  );
+
+  describe('legacy filename-only rows', () => {
+    const legacy = (id = 'v1', filename = 'a.mp4') =>
+      video({ id, videoPath: null, videoFilename: filename });
+
+    it('calls a lookup miss missing when the library is readable', async () => {
+      mocks.getVideosStrict.mockReturnValue([legacy()]);
+
+      const result = await auditMediaIntegrity();
+
+      expect(result.items[0].reasons).toEqual(['file_missing']);
+    });
+
+    it('does not call a lookup miss missing when the library cannot be read', async () => {
+      // findVideoFile catches its own errors and returns null, so its miss
+      // cannot distinguish "not there" from "could not look".
+      mocks.getVideosStrict.mockReturnValue([legacy()]);
+      mocks.readdirSafeSync.mockImplementation(() => { throw fsError('EIO'); });
+
+      const result = await auditMediaIntegrity();
+
+      expect(result.items[0].reasons).toEqual(['unprobeable']);
+      expect(result.items[0].detail).toContain('EIO');
+      expect(result.summary.filesMissing).toBe(0);
+    });
+
+    it('checks the library once per audit, not once per row', async () => {
+      mocks.getVideosStrict.mockReturnValue([legacy('v1', 'a.mp4'), legacy('v2', 'b.mp4'), legacy('v3', 'c.mp4')]);
+      mocks.readdirSafeSync.mockImplementation(() => { throw fsError('EIO'); });
+
+      const result = await auditMediaIntegrity();
+
+      expect(mocks.readdirSafeSync).toHaveBeenCalledOnce();
+      expect(result.summary.unprobeable).toBe(3);
+    });
   });
 
   it('flags a stale stored duration on a file that is longer than recorded', async () => {

@@ -64,6 +64,7 @@ import {
   getMissAvPuppeteerLaunchOptions,
   navigateMissAvPage,
 } from "./missav/puppeteer";
+import { PlaylistCaptureBudget } from "./missav/captureBudget";
 import { resolveM3u8DurationSeconds, selectBestM3u8Url } from "./missav/m3u8";
 import { planMissAvOutputPaths } from "./missav/outputPaths";
 
@@ -343,13 +344,16 @@ export class MissAVDownloader extends BaseDownloader {
       // that works on the preferred host.
       const capturedPlaylists = new Map<string, string>();
       const pendingCaptures: Array<Promise<unknown>> = [];
-      // Counted separately from the map, which holds one entry per redirect
-      // hop and so overstates how many bodies are actually retained.
       // Any hop URL -> the URL its body actually arrived at, so a redirected
       // master's relative variant URIs resolve against the right base.
       const capturedFinalUrls = new Map<string, string>();
-      let capturedPlaylistCount = 0;
-      let capturedPlaylistBytes = 0;
+      // Tracked apart from the map, which holds one entry per redirect hop and
+      // so overstates how many bodies are actually retained.
+      const captureBudget = new PlaylistCaptureBudget(
+        MISSAV_MAX_CAPTURED_PLAYLISTS,
+        MISSAV_MAX_CAPTURED_PLAYLIST_BYTES,
+        MISSAV_MAX_CAPTURED_PLAYLIST_TOTAL_BYTES,
+      );
       const isM3u8 = (u: string) => u.includes(".m3u8") && !u.includes("preview");
       let failedRequestLogCount = 0;
       let html = "";
@@ -391,68 +395,27 @@ export class MissAVDownloader extends BaseDownloader {
 
           if (response.status() !== 200 || capturedPlaylists.has(resUrl)) return;
 
-          // Refuse a body that already declares itself too large rather than
-          // materialising it in order to throw it away - response.text()
-          // allocates the whole thing before any length check can run.
-          const declaredLength = Number(headers["content-length"]);
-          if (
-            Number.isFinite(declaredLength) &&
-            declaredLength > MISSAV_MAX_CAPTURED_PLAYLIST_BYTES
-          ) {
-            return;
-          }
-
-          // Reserve the slot before reading, not after. Responses arrive
-          // concurrently, so counting only once a body has resolved lets every
-          // in-flight handler see the same pre-completion totals and start its
-          // own read: the retained map stays bounded while the bodies being
-          // materialised, and this array holding them, do not. An undeclared
-          // length reserves the per-body cap and is reconciled once the real
-          // size is known.
-          const reservedBytes = Number.isFinite(declaredLength) && declaredLength > 0
-            ? declaredLength
-            : MISSAV_MAX_CAPTURED_PLAYLIST_BYTES;
-          if (
-            capturedPlaylistCount >= MISSAV_MAX_CAPTURED_PLAYLISTS ||
-            capturedPlaylistBytes + reservedBytes > MISSAV_MAX_CAPTURED_PLAYLIST_TOTAL_BYTES
-          ) {
-            return;
-          }
-          capturedPlaylistCount += 1;
-          capturedPlaylistBytes += reservedBytes;
-
-          let slotSettled = false;
-          const settleSlot = (keptBytes: number | null): void => {
-            if (slotSettled) return;
-            slotSettled = true;
-            capturedPlaylistBytes -= reservedBytes;
-            if (keptBytes === null) {
-              capturedPlaylistCount -= 1;
-            } else {
-              capturedPlaylistBytes += keptBytes;
-            }
-          };
+          // Reserve room before reading: concurrent responses would otherwise
+          // all see the same totals and each start a read. See
+          // PlaylistCaptureBudget for why the reservation is provisional.
+          const ticket = captureBudget.reserve(Number(headers["content-length"]));
+          if (!ticket) return;
 
           // Best-effort: a body that cannot be read (aborted request, page
           // already gone) simply leaves this URL uncaptured, and the duration
-          // lookup falls back to requesting it directly.
+          // lookup reports no duration for it.
           pendingCaptures.push(
             response
               .text()
               .then((body) => {
-                if (
-                  typeof body !== "string" ||
-                  body.length > MISSAV_MAX_CAPTURED_PLAYLIST_BYTES
-                ) {
-                  settleSlot(null);
+                if (typeof body !== "string" || !ticket.settle(body.length)) {
+                  ticket.settle(null);
                   return;
                 }
-                settleSlot(body.length);
                 // A redirected request is recorded by the request listener under
                 // the URL it started at, while the body arrives under the URL it
                 // ended at. Key it under every hop so a lookup for either finds
-                // it - otherwise the selected URL misses, and the direct fallback
-                // refuses the redirect, leaving no duration at all.
+                // it - otherwise the URL the selector picked would miss.
                 for (const hopUrl of [
                   resUrl,
                   ...response.request().redirectChain().map((hop) => hop.url()),
@@ -463,7 +426,7 @@ export class MissAVDownloader extends BaseDownloader {
                   capturedFinalUrls.set(hopUrl, resUrl);
                 }
               })
-              .catch(() => settleSlot(null)),
+              .catch(() => ticket.settle(null)),
           );
         });
 

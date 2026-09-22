@@ -2,7 +2,7 @@ import path from "path";
 import { VIDEOS_DIR } from "../config/paths";
 import { runWithConcurrencyLimit } from "../utils/concurrency";
 import { logger } from "../utils/logger";
-import { pathExistsSafeSync, statSafeSync } from "../utils/security";
+import { pathExistsSafeSync, readdirSafeSync, statSafeSync } from "../utils/security";
 import {
   allowedDurationDrift,
   evaluateMediaCompleteness,
@@ -231,6 +231,30 @@ function resolveAction(
 }
 
 /**
+ * Confirm that a file which "does not exist" is actually absent rather than
+ * unreadable.
+ *
+ * pathExistsSafeSync is fs.existsSync underneath, which answers false for a
+ * permission error or an I/O failure exactly as it does for a missing file. On
+ * its own that turns a storage outage - a dropped NAS mount - into every row
+ * being reported missing, with a recommendation to redownload the library. Only
+ * ENOENT and ENOTDIR mean absent; anything else is thrown, so the per-row catch
+ * reports the row as unprobeable instead.
+ */
+function confirmAbsent(absolutePath: string): void {
+  try {
+    statSafeSync(absolutePath, VIDEOS_DIR);
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException | undefined)?.code;
+    if (code === "ENOENT" || code === "ENOTDIR") return;
+    throw error;
+  }
+  // existsSync said no but stat succeeded: a race, or a permission shape the two
+  // disagree on. Either way this is not a missing file.
+  throw new Error(`${absolutePath} was reported missing but could be stat'ed`);
+}
+
+/**
  * Audit every managed video row. Returns findings only; nothing is modified.
  *
  * Uses getVideosStrict: a failed database read must fail the audit rather than
@@ -253,6 +277,7 @@ export async function auditMediaIntegrity(): Promise<MediaIntegrityAuditResult> 
   type Candidate = { video: Video; absolutePath: string };
   const candidates: Candidate[] = [];
   let collections: ReturnType<typeof storageService.getCollections> | undefined;
+  let libraryReadable: true | Error | undefined;
 
   for (const video of videos) {
     const webPath = readString(video.videoPath);
@@ -273,23 +298,41 @@ export async function auditMediaIntegrity(): Promise<MediaIntegrityAuditResult> 
         ? (resolved?.prefix === "/videos" ? resolved.absolutePath : null)
         : (filename ? storageService.findVideoFile(filename, (collections ??= storageService.getCollections())) : null);
 
-      if (!absolutePath || !pathExistsSafeSync(absolutePath, VIDEOS_DIR)) {
-        summary.filesMissing += 1;
-        items.push({
-          localVideoId: video.id,
-          title: video.title || "",
-          sourceUrl: readString(video.sourceUrl),
-          videoPath: webPath,
-          reasons: ["file_missing"],
-          detail: describe(["file_missing"], { container: null, video: null, audio: null }, null),
-          storedDurationSeconds: parseStoredDurationSeconds(video.duration),
-          measured: { container: null, video: null, audio: null },
-          recommendedAction: "redownload",
-        });
+      if (absolutePath && pathExistsSafeSync(absolutePath, VIDEOS_DIR)) {
+        candidates.push({ video, absolutePath });
         continue;
       }
 
-      candidates.push({ video, absolutePath });
+      if (absolutePath) {
+        confirmAbsent(absolutePath);
+      } else if (!webPath && filename) {
+        // findVideoFile catches its own filesystem errors and returns null, so a
+        // miss here cannot tell "not there" from "could not look". There is no
+        // path to stat, so check that the library itself is readable before
+        // calling the file missing. Evaluated once per audit.
+        libraryReadable ??= (() => {
+          try {
+            readdirSafeSync(VIDEOS_DIR, VIDEOS_DIR);
+            return true;
+          } catch (error) {
+            return error instanceof Error ? error : new Error(String(error));
+          }
+        })();
+        if (libraryReadable !== true) throw libraryReadable;
+      }
+
+      summary.filesMissing += 1;
+      items.push({
+        localVideoId: video.id,
+        title: video.title || "",
+        sourceUrl: readString(video.sourceUrl),
+        videoPath: webPath,
+        reasons: ["file_missing"],
+        detail: describe(["file_missing"], { container: null, video: null, audio: null }, null),
+        storedDurationSeconds: parseStoredDurationSeconds(video.duration),
+        measured: { container: null, video: null, audio: null },
+        recommendedAction: "redownload",
+      });
     } catch (error) {
       // A path or filesystem failure belongs to this row, not the whole audit.
       logger.warn(`Integrity audit could not inspect video ${video.id}:`, error);
