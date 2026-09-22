@@ -738,40 +738,12 @@ export class MissAVDownloader extends BaseDownloader {
       // MissAV is the one path with no source duration, which leaves it with
       // only the track comparison and blind to a download shortened equally
       // across both tracks. The playlist answers it authoritatively: it
-      // describes the exact stream being fetched. Best-effort - every uncertain
-      // case yields null, which is the behaviour without this.
-      const sourceDurationSeconds = await resolveM3u8DurationSeconds(
+      // describes the exact stream being fetched. Read from what the browser
+      // already received - no request is issued here - so every uncertain case
+      // yields null, which is the behaviour without this.
+      const sourceDurationSeconds = resolveM3u8DurationSeconds(
         m3u8Url,
-        async (target) => {
-          const captured = capturedPlaylists.get(target);
-          if (captured !== undefined) return captured;
-          // Not something the browser fetched - a variant it never selected,
-          // say. Worth trying directly: it succeeds on hosts that do not
-          // fingerprint, and on those that do it fails into an unknown
-          // duration, which is the behaviour without this lookup at all.
-          const axios = (await import("axios")).default;
-          const response = await axios.get(target, {
-            ...(typeof userConfig.proxy === "string"
-              ? getAxiosProxyConfig(userConfig.proxy)
-              : {}),
-            headers: { Referer: referer },
-            responseType: "text",
-            timeout: 15_000,
-            maxContentLength: 8 * 1024 * 1024,
-            // The origin check that admitted this URL happens before the
-            // request, so following a redirect would walk straight past it: a
-            // same-origin rendition answering 302 with a Location of
-            // 127.0.0.1, a cloud metadata address or any internal service
-            // would be fetched. Refuse redirects outright rather than
-            // revalidating each hop, which would mean depending on the shape of
-            // follow-redirects' callback options. A rendition that redirects is
-            // simply not read, and yields no duration - the same degradation as
-            // every other uncertain case here.
-            maxRedirects: 0,
-          });
-          return typeof response.data === "string" ? response.data : "";
-        },
-        new Set(capturedPlaylists.keys()),
+        (target) => capturedPlaylists.get(target),
         (requested) => capturedFinalUrls.get(requested),
       );
       logger.info(

@@ -20,276 +20,167 @@ const MASTER = `#EXTM3U
 720p/video.m3u8
 `;
 
-const fetcher = (map: Record<string, string>) =>
-  vi.fn(async (url: string) => {
-    if (!(url in map)) throw new Error(`unexpected fetch: ${url}`);
-    return map[url];
-  });
+/** What the browser captured during page load, keyed by URL. */
+const captured = (map: Record<string, string>) =>
+  vi.fn((url: string) => map[url]);
+
+const PLAYLIST = 'https://cdn.example/v/playlist.m3u8';
 
 describe('resolveM3u8DurationSeconds', () => {
-  it('sums a VOD media playlist', async () => {
-    const fetch = fetcher({ 'https://cdn.example/v/video.m3u8': MEDIA });
-
-    await expect(
-      resolveM3u8DurationSeconds('https://cdn.example/v/video.m3u8', fetch),
-    ).resolves.toBeCloseTo(24.5);
+  it('sums a VOD media playlist', () => {
+    expect(
+      resolveM3u8DurationSeconds(PLAYLIST, captured({ [PLAYLIST]: MEDIA })),
+    ).toBeCloseTo(24.5);
   });
 
-  it('accepts a multi-variant master when two renditions corroborate each other', async () => {
-    const fetch = fetcher({
-      'https://cdn.example/v/playlist.m3u8': MASTER,
-      'https://cdn.example/v/360p/video.m3u8': MEDIA,
-      'https://cdn.example/v/720p/video.m3u8': MEDIA,
+  it('issues no requests of its own', () => {
+    // Everything it can read was fetched by the browser, so a hostile playlist
+    // has nothing to point this code at.
+    const lookup = captured({ [PLAYLIST]: MEDIA });
+
+    resolveM3u8DurationSeconds(PLAYLIST, lookup);
+
+    expect(lookup).toHaveBeenCalledExactlyOnceWith(PLAYLIST);
+  });
+
+  it('returns null for a playlist the browser never fetched', () => {
+    expect(resolveM3u8DurationSeconds(PLAYLIST, captured({}))).toBeNull();
+  });
+
+  describe('master playlists', () => {
+    it('corroborates two available renditions', () => {
+      expect(
+        resolveM3u8DurationSeconds(
+          PLAYLIST,
+          captured({
+            [PLAYLIST]: MASTER,
+            'https://cdn.example/v/360p/video.m3u8': MEDIA,
+            'https://cdn.example/v/720p/video.m3u8': MEDIA,
+          }),
+        ),
+      ).toBeCloseTo(24.5);
     });
 
-    await expect(
-      resolveM3u8DurationSeconds('https://cdn.example/v/playlist.m3u8', fetch),
-    ).resolves.toBeCloseTo(24.5);
-    expect(fetch).toHaveBeenCalledTimes(3);
-  });
-
-  it('returns the shorter of two corroborating renditions', async () => {
-    // Understating the source is the safe direction: the check flags a
-    // shortfall only, so it can never cause a false rejection.
-    const shorter = MEDIA.replace('#EXTINF:4.500,', '#EXTINF:3.500,');
-    const fetch = fetcher({
-      'https://cdn.example/v/playlist.m3u8': MASTER,
-      'https://cdn.example/v/360p/video.m3u8': MEDIA,
-      'https://cdn.example/v/720p/video.m3u8': shorter,
+    it('returns the shorter of two corroborating renditions', () => {
+      // Understating the source is the safe direction: the check flags a
+      // shortfall only, so it can never cause a false rejection.
+      expect(
+        resolveM3u8DurationSeconds(
+          PLAYLIST,
+          captured({
+            [PLAYLIST]: MASTER,
+            'https://cdn.example/v/360p/video.m3u8': MEDIA,
+            'https://cdn.example/v/720p/video.m3u8': MEDIA.replace('#EXTINF:4.500,', '#EXTINF:3.500,'),
+          }),
+        ),
+      ).toBeCloseTo(23.5);
     });
 
-    await expect(
-      resolveM3u8DurationSeconds('https://cdn.example/v/playlist.m3u8', fetch),
-    ).resolves.toBeCloseTo(23.5);
-  });
-
-  it('refuses a master whose renditions disagree beyond the tolerance', async () => {
-    // 24.5s against 600s is not the same content; nothing here is trustworthy.
-    const longer = ['#EXTM3U', '#EXTINF:600.000,', 'x.ts', '#EXT-X-ENDLIST', ''].join('\n');
-    const fetch = fetcher({
-      'https://cdn.example/v/playlist.m3u8': MASTER,
-      'https://cdn.example/v/360p/video.m3u8': MEDIA,
-      'https://cdn.example/v/720p/video.m3u8': longer,
+    it('refuses renditions that disagree beyond the tolerance', () => {
+      // 24.5s against 600s is not the same content; nothing here is trustworthy.
+      expect(
+        resolveM3u8DurationSeconds(
+          PLAYLIST,
+          captured({
+            [PLAYLIST]: MASTER,
+            'https://cdn.example/v/360p/video.m3u8': MEDIA,
+            'https://cdn.example/v/720p/video.m3u8': '#EXTM3U\n#EXTINF:600.000,\nx.ts\n#EXT-X-ENDLIST\n',
+          }),
+        ),
+      ).toBeNull();
     });
 
-    await expect(
-      resolveM3u8DurationSeconds('https://cdn.example/v/playlist.m3u8', fetch),
-    ).resolves.toBeNull();
-  });
-
-  it('reads only the first two renditions of a larger master', async () => {
-    const threeVariant = `${MASTER}#EXT-X-STREAM-INF:BANDWIDTH=5000000,RESOLUTION=1920x1080
-1080p/video.m3u8
-`;
-    const fetch = fetcher({
-      'https://cdn.example/v/playlist.m3u8': threeVariant,
-      'https://cdn.example/v/360p/video.m3u8': MEDIA,
-      'https://cdn.example/v/720p/video.m3u8': MEDIA,
+    it('uses the one rendition the browser fetched when it is the only one', () => {
+      // The usual case: the player loads the master and the single rendition it
+      // selected. Discarding that would leave no duration at all.
+      expect(
+        resolveM3u8DurationSeconds(
+          PLAYLIST,
+          captured({
+            [PLAYLIST]: MASTER,
+            'https://cdn.example/v/720p/video.m3u8': MEDIA,
+          }),
+        ),
+      ).toBeCloseTo(24.5);
     });
 
-    await expect(
-      resolveM3u8DurationSeconds('https://cdn.example/v/playlist.m3u8', fetch),
-    ).resolves.toBeCloseTo(24.5);
-    // The 1080p rendition is never requested; the fetcher would throw if it were.
-    expect(fetch).toHaveBeenCalledTimes(3);
-  });
-
-  it('uses the one readable rendition when the other cannot be fetched', async () => {
-    // On a CDN that fingerprints TLS only the rendition the browser loaded can
-    // be read. Discarding it would disable the check on exactly those hosts.
-    const fetch = vi.fn(async (url: string) => {
-      if (url.endsWith('playlist.m3u8')) return MASTER;
-      if (url.includes('360p')) return MEDIA;
-      throw new Error('403 Forbidden');
+    it('returns null when no rendition was captured', () => {
+      expect(
+        resolveM3u8DurationSeconds(PLAYLIST, captured({ [PLAYLIST]: MASTER })),
+      ).toBeNull();
     });
 
-    await expect(
-      resolveM3u8DurationSeconds('https://cdn.example/v/playlist.m3u8', fetch),
-    ).resolves.toBeCloseTo(24.5);
-  });
+    it('resolves a relative variant against the URL the master redirected to', () => {
+      // The body is reachable under the pre-redirect URL - that is what the
+      // request listener recorded and what the selector picked - but the
+      // variants belong to the directory the master ended up in.
+      const original = 'https://cdn.example/original/playlist.m3u8';
+      const final = 'https://cdn.example/final/playlist.m3u8';
 
-  it('still refuses when no rendition is readable', async () => {
-    const fetch = vi.fn(async (url: string) => {
-      if (url.endsWith('playlist.m3u8')) return MASTER;
-      throw new Error('403 Forbidden');
+      expect(
+        resolveM3u8DurationSeconds(
+          original,
+          captured({
+            [original]: MASTER,
+            [final]: MASTER,
+            'https://cdn.example/final/360p/video.m3u8': MEDIA,
+            'https://cdn.example/final/720p/video.m3u8': MEDIA,
+          }),
+          (requested) => (requested === original ? final : undefined),
+        ),
+      ).toBeCloseTo(24.5);
     });
 
-    await expect(
-      resolveM3u8DurationSeconds('https://cdn.example/v/playlist.m3u8', fetch),
-    ).resolves.toBeNull();
-  });
-
-  it('reads the renditions already in hand first', async () => {
-    // Without the ordering hint the 360p rendition is tried first and fails,
-    // leaving nothing readable within the two-rendition budget.
-    const tried: string[] = [];
-    const fetch = vi.fn(async (url: string) => {
-      tried.push(url);
-      if (url.endsWith('playlist.m3u8')) return `${MASTER}#EXT-X-STREAM-INF:BANDWIDTH=5000000
-1080p/video.m3u8
-`;
-      if (url.includes('1080p')) return MEDIA;
-      throw new Error('403 Forbidden');
+    it('follows an absolute variant URI', () => {
+      expect(
+        resolveM3u8DurationSeconds(
+          PLAYLIST,
+          captured({
+            [PLAYLIST]: '#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1\nhttps://other.example/x/video.m3u8\n',
+            'https://other.example/x/video.m3u8': MEDIA,
+          }),
+        ),
+      ).toBeCloseTo(24.5);
     });
 
-    await expect(
-      resolveM3u8DurationSeconds(
-        'https://cdn.example/v/playlist.m3u8',
-        fetch,
-        new Set(['https://cdn.example/v/1080p/video.m3u8']),
-      ),
-    ).resolves.toBeCloseTo(24.5);
-    expect(tried[1]).toContain('1080p');
-  });
-
-  it('follows an unambiguous relative variant URI', async () => {
-    const fetch = fetcher({
-      'https://cdn.example/v/playlist.m3u8': MASTER.split('#EXT-X-STREAM-INF:BANDWIDTH=2400000')[0],
-      'https://cdn.example/v/360p/video.m3u8': MEDIA,
-    });
-
-    await expect(
-      resolveM3u8DurationSeconds('https://cdn.example/v/playlist.m3u8', fetch),
-    ).resolves.toBeCloseTo(24.5);
-  });
-
-  it('resolves an absolute variant URI on the master\'s own origin', async () => {
-    const fetch = fetcher({
-      'https://cdn.example/v/playlist.m3u8': `#EXTM3U
-#EXT-X-STREAM-INF:BANDWIDTH=800000
-https://cdn.example/x/video.m3u8
-`,
-      'https://cdn.example/x/video.m3u8': MEDIA,
-    });
-
-    await expect(
-      resolveM3u8DurationSeconds('https://cdn.example/v/playlist.m3u8', fetch),
-    ).resolves.toBeCloseTo(24.5);
-  });
-
-  it.each([
-    'http://127.0.0.1/admin/status.m3u8',
-    'http://169.254.169.254/latest/meta-data/video.m3u8',
-    'https://attacker.example/x/video.m3u8',
-  ])('never requests the off-origin variant %s', async (target) => {
-    // The playlist body is attacker-controllable; an absolute URI must not turn
-    // into a backend GET against an internal service.
-    const fetch = vi.fn(async (url: string) => {
-      if (url.endsWith('playlist.m3u8')) {
-        return `#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=800000\n${target}\n`;
-      }
-      throw new Error(`must not be requested: ${url}`);
-    });
-
-    await expect(
-      resolveM3u8DurationSeconds('https://cdn.example/v/playlist.m3u8', fetch),
-    ).resolves.toBeNull();
-    expect(fetch).toHaveBeenCalledExactlyOnceWith('https://cdn.example/v/playlist.m3u8');
-  });
-
-  it('allows an off-origin variant the browser itself already fetched', async () => {
-    // It went through the browser's own policy as part of playback, so it is not
-    // a URL this code chose to trust.
-    const target = 'https://cdn2.example/x/video.m3u8';
-    const fetch = fetcher({
-      'https://cdn.example/v/playlist.m3u8': `#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=800000\n${target}\n`,
-      [target]: MEDIA,
-    });
-
-    await expect(
-      resolveM3u8DurationSeconds('https://cdn.example/v/playlist.m3u8', fetch, new Set([target])),
-    ).resolves.toBeCloseTo(24.5);
-  });
-
-  it('resolves relative variants against the URL the master redirected to', async () => {
-    // The body is reachable under the pre-redirect URL (that is what the request
-    // listener recorded and what the selector picked), but `360p/video.m3u8`
-    // belongs to the directory the master ended up in.
-    const fetch = fetcher({
-      'https://cdn.example/final/playlist.m3u8': MASTER,
-      'https://cdn.example/final/360p/video.m3u8': MEDIA,
-      'https://cdn.example/final/720p/video.m3u8': MEDIA,
-    });
-
-    await expect(
-      resolveM3u8DurationSeconds(
-        'https://cdn.example/original/playlist.m3u8',
-        async (url) =>
-          fetch(url === 'https://cdn.example/original/playlist.m3u8'
-            ? 'https://cdn.example/final/playlist.m3u8'
-            : url),
-        undefined,
-        (requested) =>
-          requested === 'https://cdn.example/original/playlist.m3u8'
-            ? 'https://cdn.example/final/playlist.m3u8'
-            : undefined,
-      ),
-    ).resolves.toBeCloseTo(24.5);
-  });
-
-  it('keeps looking past unreadable renditions until two are collected', async () => {
-    // A failed fetch must not consume the comparison budget: if the first two
-    // fail and a later one is readable, returning null would disable the check.
-    const master = `#EXTM3U
-#EXT-X-STREAM-INF:BANDWIDTH=1
-a/video.m3u8
-#EXT-X-STREAM-INF:BANDWIDTH=2
-b/video.m3u8
-#EXT-X-STREAM-INF:BANDWIDTH=3
-c/video.m3u8
-#EXT-X-STREAM-INF:BANDWIDTH=4
-d/video.m3u8
-`;
-    const fetch = vi.fn(async (url: string) => {
-      if (url.endsWith('playlist.m3u8')) return master;
-      if (url.includes('/c/') || url.includes('/d/')) return MEDIA;
-      throw new Error('403 Forbidden');
-    });
-
-    await expect(
-      resolveM3u8DurationSeconds('https://cdn.example/v/playlist.m3u8', fetch),
-    ).resolves.toBeCloseTo(24.5);
-  });
-
-  it('stops after a bounded number of unreadable renditions', async () => {
-    const many = ['#EXTM3U'];
-    for (let i = 0; i < 12; i += 1) {
-      many.push(`#EXT-X-STREAM-INF:BANDWIDTH=${i + 1}`, `v${i}/video.m3u8`);
-    }
-    const fetch = vi.fn(async (url: string) => {
-      if (url.endsWith('playlist.m3u8')) return `${many.join('\n')}\n`;
-      throw new Error('403 Forbidden');
-    });
-
-    await expect(
-      resolveM3u8DurationSeconds('https://cdn.example/v/playlist.m3u8', fetch),
-    ).resolves.toBeNull();
-    // The master plus a capped number of rendition attempts, not all twelve.
-    expect(fetch.mock.calls.length).toBeLessThanOrEqual(6);
-  });
-
-  it('does not guess when a master offers a separate audio rendition', async () => {
-    const fetch = fetcher({
-      'https://cdn.example/p.m3u8': `#EXTM3U
+    it('refuses a master offering a separate audio rendition', () => {
+      // Each variant then covers only part of the muxed result.
+      expect(
+        resolveM3u8DurationSeconds(
+          PLAYLIST,
+          captured({
+            [PLAYLIST]: `#EXTM3U
 #EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio",URI="audio.m3u8"
 #EXT-X-STREAM-INF:BANDWIDTH=800000,AUDIO="audio"
 video.m3u8
 `,
-      'https://cdn.example/video.m3u8': MEDIA,
+            'https://cdn.example/v/video.m3u8': MEDIA,
+          }),
+        ),
+      ).toBeNull();
     });
 
-    await expect(resolveM3u8DurationSeconds('https://cdn.example/p.m3u8', fetch)).resolves.toBeNull();
-    expect(fetch).toHaveBeenCalledTimes(1);
+    it('does not chase a master pointing at another master', () => {
+      expect(
+        resolveM3u8DurationSeconds(
+          PLAYLIST,
+          captured({
+            [PLAYLIST]: '#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1\n360p/video.m3u8\n',
+            'https://cdn.example/v/360p/video.m3u8': MASTER,
+          }),
+        ),
+      ).toBeNull();
+    });
   });
 
-  it('returns null for a live playlist with no ENDLIST', async () => {
+  it('returns null for a live playlist with no ENDLIST', () => {
     // A growing playlist cannot describe the final download duration.
-    const live = MEDIA.replace('#EXT-X-ENDLIST\n', '');
-    const fetch = fetcher({ 'https://cdn.example/live.m3u8': live });
-
-    await expect(
-      resolveM3u8DurationSeconds('https://cdn.example/live.m3u8', fetch),
-    ).resolves.toBeNull();
+    expect(
+      resolveM3u8DurationSeconds(
+        PLAYLIST,
+        captured({ [PLAYLIST]: MEDIA.replace('#EXT-X-ENDLIST\n', '') }),
+      ),
+    ).toBeNull();
   });
 
   it.each([
@@ -300,33 +191,7 @@ video.m3u8
     ['an EXTINF with trailing garbage', '#EXTM3U\n#EXTINF:50oops,\nseg.ts\n#EXT-X-ENDLIST\n'],
     ['an ENDLIST mentioned only in a comment', MEDIA.replace('#EXT-X-ENDLIST', '# comment: #EXT-X-ENDLIST')],
     ['a master with no variant URI', '#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1\n'],
-  ])('returns null for %s', async (_label, body) => {
-    const fetch = fetcher({ 'https://cdn.example/p.m3u8': body });
-
-    await expect(
-      resolveM3u8DurationSeconds('https://cdn.example/p.m3u8', fetch),
-    ).resolves.toBeNull();
-  });
-
-  it('returns null when the fetch fails rather than propagating', async () => {
-    const fetch = vi.fn(async () => {
-      throw new Error('ECONNRESET');
-    });
-
-    await expect(
-      resolveM3u8DurationSeconds('https://cdn.example/p.m3u8', fetch),
-    ).resolves.toBeNull();
-  });
-
-  it('does not chase a master pointing at another master', async () => {
-    const fetch = fetcher({
-      'https://cdn.example/a.m3u8': MASTER.split('#EXT-X-STREAM-INF:BANDWIDTH=2400000')[0],
-      'https://cdn.example/360p/video.m3u8': MASTER,
-    });
-
-    await expect(
-      resolveM3u8DurationSeconds('https://cdn.example/a.m3u8', fetch),
-    ).resolves.toBeNull();
-    expect(fetch).toHaveBeenCalledTimes(2);
+  ])('returns null for %s', (_label, body) => {
+    expect(resolveM3u8DurationSeconds(PLAYLIST, captured({ [PLAYLIST]: body }))).toBeNull();
   });
 });

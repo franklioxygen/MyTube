@@ -3,9 +3,6 @@ import { allowedDurationDrift } from "../downloadIntegrity";
 // How many renditions of a master are read to corroborate its duration.
 const MAX_COMPARED_VARIANTS = 2;
 
-// A rendition that cannot be read still costs a round trip, so the number of
-// attempts is bounded separately from the number of durations wanted.
-const MAX_VARIANT_FETCH_ATTEMPTS = 4;
 
 // Select the best m3u8 URL from a set of candidates captured during page load.
 export function selectBestM3u8Url(
@@ -123,49 +120,44 @@ export function selectBestM3u8Url(
  * page would: it describes the exact stream being fetched rather than the title,
  * so it cannot disagree with the rendition yt-dlp downloads.
  *
- * Every uncertain case returns null, which is the existing behaviour. A source
- * duration that is wrong in the *long* direction would reject good downloads,
- * which is far worse than the gap it closes, so nothing is guessed.
+ * Reads only playlists the browser already fetched during page load. It issues
+ * no requests of its own, which is why it needs no origin policy, no redirect
+ * handling and no timeout: there is nothing here for a hostile playlist to point
+ * at. An earlier revision did fetch uncaptured renditions directly, but the m3u8
+ * host fingerprints TLS and answers anything the browser did not fetch with a
+ * 403, so that path was unreachable on the one host it mattered for while
+ * carrying the entire SSRF surface.
+ *
+ * Every uncertain case returns null, which is the behaviour without this lookup
+ * at all. A source duration wrong in the *long* direction would reject good
+ * downloads, which is far worse than the gap it closes, so nothing is guessed.
  */
-export async function resolveM3u8DurationSeconds(
+export function resolveM3u8DurationSeconds(
   m3u8Url: string,
-  fetchText: (url: string) => Promise<string>,
-  /**
-   * URLs already in hand, typically the playlists the browser fetched itself.
-   * Renditions from this set are read first: on a CDN that fingerprints TLS, a
-   * URL the browser never loaded usually cannot be read at all.
-   */
-  readableUrls?: ReadonlySet<string>,
+  /** A playlist body the browser received, or undefined if it fetched no such URL. */
+  capturedPlaylist: (url: string) => string | undefined,
   /**
    * Where a playlist's body actually arrived from, when that differs from the
    * URL asked for. HLS resolves relative URIs against the final location, so a
-   * redirected master whose body is reachable under its pre-redirect URL must
-   * still resolve its variants against the post-redirect one.
+   * redirected master reachable under its pre-redirect URL must still resolve
+   * its variants against the post-redirect one.
    */
   finalUrlOf?: (requestedUrl: string) => string | undefined,
-): Promise<number | null> {
-  try {
-    const playlist = await fetchText(m3u8Url);
-    if (typeof playlist !== "string" || playlist.trim().split(/\r?\n/)[0] !== "#EXTM3U") {
-      return null;
-    }
-
-    // Format selection belongs to yt-dlp, so which rendition it ends up
-    // downloading is not known here. Rather than guess, corroborate: see
-    // resolveMasterDuration.
-    if (playlist.includes("#EXT-X-STREAM-INF")) {
-      return await resolveMasterDuration(
-        playlist,
-        finalUrlOf?.(m3u8Url) ?? m3u8Url,
-        fetchText,
-        readableUrls,
-      );
-    }
-
-    return sumMediaPlaylistDuration(playlist);
-  } catch {
+): number | null {
+  const playlist = capturedPlaylist(m3u8Url);
+  if (playlist === undefined || playlist.trim().split(/\r?\n/)[0] !== "#EXTM3U") {
     return null;
   }
+
+  if (playlist.includes("#EXT-X-STREAM-INF")) {
+    return resolveMasterDuration(
+      playlist,
+      finalUrlOf?.(m3u8Url) ?? m3u8Url,
+      capturedPlaylist,
+    );
+  }
+
+  return sumMediaPlaylistDuration(playlist);
 }
 
 /**
@@ -173,71 +165,33 @@ export async function resolveM3u8DurationSeconds(
  *
  * Variants of one VOD should describe the same content at different bitrates,
  * but nothing guarantees it, and yt-dlp - not this module - decides which one is
- * downloaded. So two are read and compared instead of one being trusted: if they
+ * downloaded. So two are read and compared where two are available: if they
  * disagree by more than the completeness check itself tolerates, the master is
- * treated as unusable. Reading only the first two bounds the cost; a master whose
- * first two renditions agree but whose third does not is not worth a request per
- * variant to catch.
+ * treated as unusable.
  */
-async function resolveMasterDuration(
+function resolveMasterDuration(
   masterPlaylist: string,
   baseUrl: string,
-  fetchText: (url: string) => Promise<string>,
-  readableUrls?: ReadonlySet<string>,
-): Promise<number | null> {
+  capturedPlaylist: (url: string) => string | undefined,
+): number | null {
   const uris = comparableVariantUris(masterPlaylist);
   if (!uris) return null;
 
-  let master: URL;
-  try {
-    master = new URL(baseUrl);
-  } catch {
-    return null;
-  }
-
-  const urls: string[] = [];
-  for (const uri of uris) {
-    let candidate: URL;
-    try {
-      candidate = new URL(uri, baseUrl);
-    } catch {
-      continue;
-    }
-    // The playlist body is attacker-controllable, and an absolute variant URI
-    // would otherwise make the backend issue a GET wherever it points -
-    // 127.0.0.1, a cloud metadata address, any internal service. Restrict it to
-    // the master's own origin, which is where a rendition of it belongs, or to a
-    // URL the browser already fetched under its own policy.
-    if (candidate.origin !== master.origin && !readableUrls?.has(candidate.toString())) {
-      continue;
-    }
-    urls.push(candidate.toString());
-  }
-  if (urls.length === 0) return null;
-
-  // Read renditions already in hand first. On a CDN that fingerprints TLS, a
-  // rendition the browser never loaded is answered with 403, so ordering decides
-  // whether anything is readable at all.
-  if (readableUrls?.size) {
-    urls.sort((a, b) => Number(readableUrls.has(b)) - Number(readableUrls.has(a)));
-  }
-
   const durations: number[] = [];
-  let attempts = 0;
-  for (const variantUrl of urls) {
+  for (const uri of uris) {
     if (durations.length >= MAX_COMPARED_VARIANTS) break;
-    if (attempts >= MAX_VARIANT_FETCH_ATTEMPTS) break;
-    attempts += 1;
 
-    let body: string;
+    let variantUrl: string;
     try {
-      body = await fetchText(variantUrl);
+      variantUrl = new URL(uri, baseUrl).toString();
     } catch {
-      // One unreadable rendition must not discard a readable one, nor consume
-      // the comparison budget: on a protected host that would disable the check
-      // entirely, which is what this lookup exists to improve.
       continue;
     }
+    // Not fetched by the browser, so not available. Skipping costs nothing -
+    // this is a map lookup, not a request.
+    const body = capturedPlaylist(variantUrl);
+    if (body === undefined) continue;
+
     // One level only: sumMediaPlaylistDuration rejects a nested master outright
     // rather than following it.
     const duration = sumMediaPlaylistDuration(body);
@@ -245,11 +199,10 @@ async function resolveMasterDuration(
   }
 
   if (durations.length === 0) return null;
-  // Only one rendition could be read, so there is nothing to corroborate
-  // against. Using it is what this did before corroboration was added, and it
-  // beats reporting no duration at all: the completeness check tolerates a
-  // shortfall of max(10s, 5%) anyway, which is far more than renditions of one
-  // VOD realistically differ by.
+  // Only one rendition was available, so there is nothing to corroborate
+  // against. Using it beats reporting no duration at all: the completeness check
+  // tolerates a shortfall of max(10s, 5%) anyway, which is far more than
+  // renditions of one VOD realistically differ by.
   if (durations.length === 1) return durations[0];
 
   const [first, second] = durations;

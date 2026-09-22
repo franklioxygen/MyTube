@@ -25,13 +25,8 @@ vi.mock('../../../services/downloaders/downloadIntegrity', () => ({
   verifyDownloadedMediaComplete: vi.fn().mockResolvedValue({ complete: true }),
 }));
 
-// The downloader fetches the HLS playlist to establish a source duration.
-// Without this the suite makes real outbound requests and only passes because
-// they fail. `playlistBody` is what a test wants that fetch to return.
-const playlistBody = vi.hoisted(() => ({ value: null as string | null }));
-// A playlist body the mocked browser reports having fetched itself. The real
-// CDN fingerprints TLS and 403s a plain Node request, so this is the path
-// that actually carries a duration in production.
+// A playlist body the mocked browser reports having fetched itself. The
+// duration lookup reads only these - it issues no requests of its own.
 const capturedPlaylist = vi.hoisted(() => ({ value: null as string | null }));
 // Set to model the playlist request having been redirected.
 const capturedPlaylistFinalUrl = vi.hoisted(() => ({ value: null as string | null }));
@@ -39,13 +34,10 @@ const capturedPlaylistHeaders = vi.hoisted(() => ({ value: {} as Record<string, 
 // Knobs for the concurrent-response cap test.
 const floodPlaylistResponses = vi.hoisted(() => ({ value: 0 }));
 const floodBodyReads = vi.hoisted(() => ({ value: 0 }));
+// Nothing in this flow should reach the network; an axios call from the
+// duration lookup would be a regression back to fetching playlists directly.
 vi.mock('axios', () => ({
-  default: {
-    get: vi.fn(async (url: string) => {
-      if (playlistBody.value === null) throw new Error('network disabled in tests');
-      return { data: playlistBody.value, url };
-    }),
-  },
+  default: { get: vi.fn(async () => { throw new Error('network disabled in tests'); }) },
 }));
 
 vi.mock('puppeteer');
@@ -149,7 +141,6 @@ describe('MissAVDownloader', () => {
     vi.mocked(security.pathExistsTrustedSync).mockReturnValue(false);
     vi.mocked(storageService.getSettings).mockReturnValue({} as any);
     vi.mocked(isDownloadActive).mockReturnValue(true);
-    playlistBody.value = null;
     capturedPlaylist.value = null;
     capturedPlaylistFinalUrl.value = null;
     capturedPlaylistHeaders.value = {};
@@ -579,7 +570,7 @@ describe('MissAVDownloader', () => {
       });
 
       it('passes the playlist duration to the completeness check', async () => {
-        playlistBody.value = [
+        capturedPlaylist.value = [
           '#EXTM3U', '#EXTINF:10.000,', 'a.ts', '#EXTINF:14.500,', 'b.ts', '#EXT-X-ENDLIST', '',
         ].join('\n');
 
@@ -591,12 +582,11 @@ describe('MissAVDownloader', () => {
       });
 
       it('uses the playlist body the browser already fetched', async () => {
-        // The CDN 403s a plain Node request, so a direct fetch would yield
-        // nothing; axios must not be consulted at all for this URL.
+        // The CDN 403s a plain Node request, which is why this is the only
+        // source: axios must not be consulted at all.
         capturedPlaylist.value = [
           '#EXTM3U', '#EXTINF:30.000,', 'a.ts', '#EXTINF:30.000,', 'b.ts', '#EXT-X-ENDLIST', '',
         ].join('\n');
-        playlistBody.value = null;
 
         await MissAVDownloader.downloadVideo(url);
 
@@ -606,10 +596,10 @@ describe('MissAVDownloader', () => {
         expect(axios.get).not.toHaveBeenCalled();
       });
 
-      it('falls back to an unknown source duration when the playlist cannot be read', async () => {
+      it('falls back to an unknown source duration when the browser captured no playlist', async () => {
         // Degrades to the track comparison rather than guessing: a source
         // duration wrong in the long direction would reject good downloads.
-        playlistBody.value = null;
+        capturedPlaylist.value = null;
 
         await MissAVDownloader.downloadVideo(url);
 
@@ -652,7 +642,8 @@ describe('MissAVDownloader', () => {
 
       it('does not materialize a body that declares itself oversized', async () => {
         capturedPlaylistHeaders.value = { 'content-length': String(64 * 1024 * 1024) };
-        // A body that would otherwise have produced a 5s duration.
+        // A body that would otherwise have produced a 5s duration. Refused
+        // before it is read, so it never reaches the capture map.
         capturedPlaylist.value = '#EXTM3U\n#EXTINF:5.000,\na.ts\n#EXT-X-ENDLIST\n';
 
         await MissAVDownloader.downloadVideo(url);
@@ -663,28 +654,7 @@ describe('MissAVDownloader', () => {
         });
       });
 
-      it('does not follow redirects when fetching a playlist directly', async () => {
-        // The origin check runs before the request, so a same-origin rendition
-        // answering 302 with an internal Location would otherwise be followed.
-        playlistBody.value = ['#EXTM3U', '#EXTINF:5.000,', 'a.ts', '#EXT-X-ENDLIST', ''].join('\n');
 
-        await MissAVDownloader.downloadVideo(url);
-
-        expect(axios.get).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
-          maxRedirects: 0,
-        }));
-      });
-
-      it('honors an explicit direct connection for the playlist fetch', async () => {
-        vi.mocked(getUserYtDlpConfig).mockReturnValue({ proxy: '' });
-        vi.mocked(getAxiosProxyConfig).mockReturnValue({ proxy: false });
-
-        await MissAVDownloader.downloadVideo(url);
-
-        expect(axios.get).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
-          proxy: false,
-        }));
-      });
 
       it('checks the actual output before saving', async () => {
         await MissAVDownloader.downloadVideo(url);
