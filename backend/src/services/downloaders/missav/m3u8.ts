@@ -136,6 +136,13 @@ export async function resolveM3u8DurationSeconds(
    * URL the browser never loaded usually cannot be read at all.
    */
   readableUrls?: ReadonlySet<string>,
+  /**
+   * Where a playlist's body actually arrived from, when that differs from the
+   * URL asked for. HLS resolves relative URIs against the final location, so a
+   * redirected master whose body is reachable under its pre-redirect URL must
+   * still resolve its variants against the post-redirect one.
+   */
+  finalUrlOf?: (requestedUrl: string) => string | undefined,
 ): Promise<number | null> {
   try {
     const playlist = await fetchText(m3u8Url);
@@ -147,7 +154,12 @@ export async function resolveM3u8DurationSeconds(
     // downloading is not known here. Rather than guess, corroborate: see
     // resolveMasterDuration.
     if (playlist.includes("#EXT-X-STREAM-INF")) {
-      return await resolveMasterDuration(playlist, m3u8Url, fetchText, readableUrls);
+      return await resolveMasterDuration(
+        playlist,
+        finalUrlOf?.(m3u8Url) ?? m3u8Url,
+        fetchText,
+        readableUrls,
+      );
     }
 
     return sumMediaPlaylistDuration(playlist);

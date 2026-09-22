@@ -201,6 +201,32 @@ https://cdn.example/x/video.m3u8
     ).resolves.toBeCloseTo(24.5);
   });
 
+  it('resolves relative variants against the URL the master redirected to', async () => {
+    // The body is reachable under the pre-redirect URL (that is what the request
+    // listener recorded and what the selector picked), but `360p/video.m3u8`
+    // belongs to the directory the master ended up in.
+    const fetch = fetcher({
+      'https://cdn.example/final/playlist.m3u8': MASTER,
+      'https://cdn.example/final/360p/video.m3u8': MEDIA,
+      'https://cdn.example/final/720p/video.m3u8': MEDIA,
+    });
+
+    await expect(
+      resolveM3u8DurationSeconds(
+        'https://cdn.example/original/playlist.m3u8',
+        async (url) =>
+          fetch(url === 'https://cdn.example/original/playlist.m3u8'
+            ? 'https://cdn.example/final/playlist.m3u8'
+            : url),
+        undefined,
+        (requested) =>
+          requested === 'https://cdn.example/original/playlist.m3u8'
+            ? 'https://cdn.example/final/playlist.m3u8'
+            : undefined,
+      ),
+    ).resolves.toBeCloseTo(24.5);
+  });
+
   it('keeps looking past unreadable renditions until two are collected', async () => {
     // A failed fetch must not consume the comparison budget: if the first two
     // fail and a later one is readable, returning null would disable the check.

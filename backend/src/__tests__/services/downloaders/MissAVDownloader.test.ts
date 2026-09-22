@@ -36,6 +36,9 @@ const capturedPlaylist = vi.hoisted(() => ({ value: null as string | null }));
 // Set to model the playlist request having been redirected.
 const capturedPlaylistFinalUrl = vi.hoisted(() => ({ value: null as string | null }));
 const capturedPlaylistHeaders = vi.hoisted(() => ({ value: {} as Record<string, string> }));
+// Knobs for the concurrent-response cap test.
+const floodPlaylistResponses = vi.hoisted(() => ({ value: 0 }));
+const floodBodyReads = vi.hoisted(() => ({ value: 0 }));
 vi.mock('axios', () => ({
   default: {
     get: vi.fn(async (url: string) => {
@@ -150,6 +153,8 @@ describe('MissAVDownloader', () => {
     capturedPlaylist.value = null;
     capturedPlaylistFinalUrl.value = null;
     capturedPlaylistHeaders.value = {};
+    floodPlaylistResponses.value = 0;
+    floodBodyReads.value = 0;
     (getUserYtDlpConfig as ReturnType<typeof vi.fn>).mockReturnValue({});
   });
 
@@ -427,6 +432,20 @@ describe('MissAVDownloader', () => {
       return {
         on: vi.fn((event: string, cb: (req: any) => void) => {
           if (event === 'request') requestCallback?.capture(cb);
+          if (event === 'response' && floodPlaylistResponses.value > 0) {
+            // Many distinct .m3u8 responses arriving concurrently, as a hostile
+            // or misbehaving page can produce. Bodies never resolve, so every
+            // read that starts is still outstanding when the cap is measured.
+            for (let i = 0; i < floodPlaylistResponses.value; i += 1) {
+              cb({
+                url: () => `https://surrit.com/flood-${i}.m3u8`,
+                status: () => 200,
+                headers: () => ({}),
+                text: () => { floodBodyReads.value += 1; return new Promise(() => {}); },
+                request: () => ({ redirectChain: () => [] }),
+              });
+            }
+          }
           if (event === 'response' && capturedPlaylist.value !== null) {
             // What the browser received for the playlist it fetched itself.
             // `finalUrl` models a redirect: the body arrives under the URL the
@@ -616,6 +635,20 @@ describe('MissAVDownloader', () => {
         });
         expect(axios.get).not.toHaveBeenCalled();
       });
+
+      it('bounds how many bodies are read at once, not just how many are kept', async () => {
+        // The slot has to be reserved before the read starts. Counting only once
+        // a body resolves lets every concurrent handler see the same totals and
+        // begin its own read, so the retained map stays bounded while the bodies
+        // being materialized do not.
+        floodPlaylistResponses.value = 80;
+
+        await MissAVDownloader.downloadVideo(url);
+
+        expect(floodBodyReads.value).toBeLessThanOrEqual(32);
+        // Also demonstrates the capture wait is bounded: none of these bodies
+        // ever resolve, yet the download still completed.
+      }, 20_000);
 
       it('does not materialize a body that declares itself oversized', async () => {
         capturedPlaylistHeaders.value = { 'content-length': String(64 * 1024 * 1024) };

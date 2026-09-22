@@ -345,6 +345,9 @@ export class MissAVDownloader extends BaseDownloader {
       const pendingCaptures: Array<Promise<unknown>> = [];
       // Counted separately from the map, which holds one entry per redirect
       // hop and so overstates how many bodies are actually retained.
+      // Any hop URL -> the URL its body actually arrived at, so a redirected
+      // master's relative variant URIs resolve against the right base.
+      const capturedFinalUrls = new Map<string, string>();
       let capturedPlaylistCount = 0;
       let capturedPlaylistBytes = 0;
       const isM3u8 = (u: string) => u.includes(".m3u8") && !u.includes("preview");
@@ -387,12 +390,7 @@ export class MissAVDownloader extends BaseDownloader {
           );
 
           if (response.status() !== 200 || capturedPlaylists.has(resUrl)) return;
-          if (
-            capturedPlaylistCount >= MISSAV_MAX_CAPTURED_PLAYLISTS ||
-            capturedPlaylistBytes >= MISSAV_MAX_CAPTURED_PLAYLIST_TOTAL_BYTES
-          ) {
-            return;
-          }
+
           // Refuse a body that already declares itself too large rather than
           // materialising it in order to throw it away - response.text()
           // allocates the whole thing before any length check can run.
@@ -404,6 +402,37 @@ export class MissAVDownloader extends BaseDownloader {
             return;
           }
 
+          // Reserve the slot before reading, not after. Responses arrive
+          // concurrently, so counting only once a body has resolved lets every
+          // in-flight handler see the same pre-completion totals and start its
+          // own read: the retained map stays bounded while the bodies being
+          // materialised, and this array holding them, do not. An undeclared
+          // length reserves the per-body cap and is reconciled once the real
+          // size is known.
+          const reservedBytes = Number.isFinite(declaredLength) && declaredLength > 0
+            ? declaredLength
+            : MISSAV_MAX_CAPTURED_PLAYLIST_BYTES;
+          if (
+            capturedPlaylistCount >= MISSAV_MAX_CAPTURED_PLAYLISTS ||
+            capturedPlaylistBytes + reservedBytes > MISSAV_MAX_CAPTURED_PLAYLIST_TOTAL_BYTES
+          ) {
+            return;
+          }
+          capturedPlaylistCount += 1;
+          capturedPlaylistBytes += reservedBytes;
+
+          let slotSettled = false;
+          const settleSlot = (keptBytes: number | null): void => {
+            if (slotSettled) return;
+            slotSettled = true;
+            capturedPlaylistBytes -= reservedBytes;
+            if (keptBytes === null) {
+              capturedPlaylistCount -= 1;
+            } else {
+              capturedPlaylistBytes += keptBytes;
+            }
+          };
+
           // Best-effort: a body that cannot be read (aborted request, page
           // already gone) simply leaves this URL uncaptured, and the duration
           // lookup falls back to requesting it directly.
@@ -411,16 +440,14 @@ export class MissAVDownloader extends BaseDownloader {
             response
               .text()
               .then((body) => {
-                if (typeof body !== "string") return;
-                if (body.length > MISSAV_MAX_CAPTURED_PLAYLIST_BYTES) return;
                 if (
-                  capturedPlaylistBytes + body.length >
-                  MISSAV_MAX_CAPTURED_PLAYLIST_TOTAL_BYTES
+                  typeof body !== "string" ||
+                  body.length > MISSAV_MAX_CAPTURED_PLAYLIST_BYTES
                 ) {
+                  settleSlot(null);
                   return;
                 }
-                capturedPlaylistBytes += body.length;
-                capturedPlaylistCount += 1;
+                settleSlot(body.length);
                 // A redirected request is recorded by the request listener under
                 // the URL it started at, while the body arrives under the URL it
                 // ended at. Key it under every hop so a lookup for either finds
@@ -431,9 +458,12 @@ export class MissAVDownloader extends BaseDownloader {
                   ...response.request().redirectChain().map((hop) => hop.url()),
                 ]) {
                   capturedPlaylists.set(hopUrl, body);
+                  // Relative variant URIs in a redirected master must resolve
+                  // against where it ended up, not where the request started.
+                  capturedFinalUrls.set(hopUrl, resUrl);
                 }
               })
-              .catch(() => undefined),
+              .catch(() => settleSlot(null)),
           );
         });
 
@@ -742,6 +772,7 @@ export class MissAVDownloader extends BaseDownloader {
           return typeof response.data === "string" ? response.data : "";
         },
         new Set(capturedPlaylists.keys()),
+        (requested) => capturedFinalUrls.get(requested),
       );
       logger.info(
         sourceDurationSeconds == null
